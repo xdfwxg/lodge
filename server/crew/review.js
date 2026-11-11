@@ -55,6 +55,7 @@ export const buildReview = (room, messages = []) => {
       commands: evidence.length,
       failed: evidence.filter(message => message.meta?.exit !== 0).length,
       partial: stage.partial ?? null,
+      tasks: stage.tasks ?? [],
     }
   })
 

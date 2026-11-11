@@ -267,7 +267,13 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       usage: { costMicroUsd: 0, budgetMicroUsd, turns: 0 },
       ...(projectContent === ''
         ? {}
-        : { projectConstraints: { source: PROJECT_FILE, content: projectContent } }),
+        : {
+            projectConstraints: {
+              source: projectFile?.layers?.[0]?.name ?? PROJECT_FILE,
+              content: projectContent,
+              layers: projectFile?.layers ?? [],
+            },
+          }),
       members: roster.map(seat => seat.id),
       stages: plan !== null
         ? [verify === 'test'
@@ -315,7 +321,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     if (projectContent !== '') {
       store.appendMessage(room.id, {
         kind: 'system',
-        text: `已带入项目约束：${PROJECT_FILE}（${projectContent.split('\n').filter(line => line.trim() !== '').length} 行，创建时快照）。`,
+        text: `已带入项目约束：${projectFile?.layers?.length ?? 1} 层（${projectContent.split('\n').filter(line => line.trim() !== '').length} 行，创建时快照）。`,
       })
     }
     const envWarnings = Object.entries(workspaces.environment ?? {})

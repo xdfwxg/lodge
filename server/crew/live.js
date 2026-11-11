@@ -2,6 +2,7 @@ import { budgetHint, budgetStatus } from './budget.js'
 import { createLiveTurns } from './live-turns.js'
 import { decidePermission } from './permission.js'
 import { writeBrief, writeGoal } from './room-repo.js'
+import { recordUsage } from './usage-history.js'
 
 const seatFor = (room, ref) => {
   if (typeof ref !== 'string' || ref === '') return null
@@ -81,10 +82,15 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
           .map(([seat, ref]) => ({ seat, base: bases.find(item => item.id === ref.id) }))
           .filter(item => item.base !== undefined)
         const busySeats = seatBases.filter(item => item.base.working === true).map(item => item.seat)
-        const usage = seatBases.reduce((total, item) => ({
-          turns: total.turns + (item.base.usage.turns ?? 0),
-          costMicroUsd: total.costMicroUsd + (item.base.usage.costMicroUsd ?? 0),
-        }), { turns: 0, costMicroUsd: 0 })
+        const usage = seatBases.reduce((total, item) => {
+          total.turns += item.base.usage.turns ?? 0
+          total.costMicroUsd += item.base.usage.costMicroUsd ?? 0
+          total.tokens.input += item.base.usage.tokens?.input ?? 0
+          total.tokens.output += item.base.usage.tokens?.output ?? 0
+          total.tokens.cachedInput += item.base.usage.tokens?.cachedInput ?? 0
+          return total
+        }, { turns: 0, costMicroUsd: 0, tokens: { input: 0, output: 0, cachedInput: 0 } })
+        const previous = room.usage
         const updated = store.updateRoom(entry.roomId, current => {
           current.busy = busySeats.length > 0
           current.busySeat = busySeats[0] ?? ''
@@ -93,6 +99,11 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
           return { events: [] }
         })
         if (updated === null) return
+        try {
+          recordUsage(updated, previous)
+        } catch (error) {
+          console.warn(`usage history failed: ${updated.id} ${error?.message ?? error}`)
+        }
         emit('room', updated)
         if (updated.state === 'active') {
           const status = budgetStatus(updated, store.readRooms())

@@ -10,6 +10,7 @@ const EMPTY = {
   runtime: null,
   budget: null,
   resources: null,
+  usage: null,
   review: null,
   reviewFor: null,
   activeId: 'dispatch',
@@ -165,6 +166,17 @@ export function createStore() {
     }
   }
 
+  const loadUsage = async (range = '7d') => {
+    try {
+      const response = await fetch(`/api/usage?range=${encodeURIComponent(range)}`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.usage === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
+      patch({ usage: data.usage })
+    } catch (error) {
+      patch({ error: `用量账本加载失败：${String(error?.message ?? error)}` })
+    }
+  }
+
   const openReview = async roomId => {
     try {
       const response = await fetch(`/api/rooms/${roomId}/review`)
@@ -204,6 +216,8 @@ export function createStore() {
     },
     select: activeId => patch({ activeId, review: null, reviewFor: null }),
     loadResources,
+    loadUsage,
+    resetMcp: server => post(`/api/rooms/${state.activeId}/mcp/reset`, { server }),
     openReview,
     closeReview: () => patch({ review: null, reviewFor: null }),
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
@@ -232,7 +246,7 @@ export function createStore() {
         const response = await fetch(`/api/project/constraints?repoPath=${encodeURIComponent(repoPath)}`)
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data.error ?? `HTTP ${response.status}`)
-        return { ok: true, path: data.path ?? null, content: data.content ?? null }
+        return { ok: true, path: data.path ?? null, content: data.content ?? null, layers: data.layers ?? [] }
       } catch (error) {
         return { ok: false, error: String(error?.message ?? error) }
       }

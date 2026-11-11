@@ -46,6 +46,7 @@ const NEEDS_TONE = {
   merge: 'paused',
   parallel: 'paused',
   budget: 'paused',
+  mcp: 'paused',
 }
 
 const activeIndex = room => room.stages.findIndex(stage => stage.state === 'active')
@@ -147,6 +148,7 @@ const seatState = (room, stage, index, seatId) => {
 }
 
 const STAGE_KIND = { decision: '决策 · 你确认才算过', deliverable: '交付 · 命令与证据说话' }
+const TASK_LABEL = { pending: '未开始', working: '在做', reported: '已交', done: '已完成', failed: '失败' }
 
 function StageStep({ stage, index, selected, onSelect, rework = 0, partial = 0 }) {
   const note = [
@@ -225,6 +227,13 @@ function IslandStage({ room, index, seats, onBack }) {
     verdict !== undefined
       ? h('div', { className: 'crew-island-verdict', 'data-pass': verdict.meta?.pass === true },
         verdict.meta?.pass === true ? '验收席位已给 PASS' : '验收席位打回，等返工')
+      : null,
+    stage.tasks?.length > 0
+      ? h('div', { className: 'crew-island-tasks' },
+        h('span', { className: 'crew-island-soft' }, '任务'),
+        stage.tasks.map(task => h('div', { key: task.id, className: 'crew-island-task', 'data-state': task.status },
+          h('span', null, task.title),
+          h('span', null, TASK_LABEL[task.status] ?? task.status))))
       : null,
     h('div', { className: 'crew-island-seats' },
       seats.map(seat => h('div', { key: seat.id, className: 'crew-island-seat', 'data-state': seatState(room, stage, index, seat.id) },
@@ -634,6 +643,11 @@ function Advanced({ room, seats, store, engines = [] }) {
       ...Object.entries(room.engineFallbacks ?? {}).map(([seat, item]) => (
         h('span', { key: `engine-${seat}` }, `${seat}：${item.requested} → ${item.actual}（${item.reason}）`)
       )),
+      ...Object.entries(room.mcpBreakers ?? {})
+        .filter(([, breaker]) => breaker?.trippedAt !== null && breaker?.trippedAt !== undefined)
+        .map(([server, breaker]) => h('span', { key: `mcp-${server}` },
+          `MCP 熔断：${server}（${breaker.failures} 次）`,
+          h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.resetMcp(server) }, '恢复'))),
       h('span', null, '预算按基座上报用量估算，不是账单'),
       room.repoPath ? h('span', null, `仓库：${room.repoPath}`) : null,
       room.sourceRepo ? h('span', null, `源仓库：${room.sourceRepo}`) : null,
@@ -968,7 +982,7 @@ function DigestItem({ item, onOpen }) {
 
 const ROOM_STATE_LABEL = { active: '进行中', paused: '已暂停', stopped: '已停止', complete: '已完成' }
 
-function ResourcePanel({ resources, store }) {
+function ResourcePanel({ resources, usage, store }) {
   if (resources === null || resources === undefined) {
     return h('div', { className: 'crew-resource' }, h('p', { className: 'crew-muted' }, '资源面板加载中…'))
   }
@@ -992,6 +1006,17 @@ function ResourcePanel({ resources, store }) {
       stats.map(([label, value]) => h('div', { key: label, className: 'crew-resource-stat' },
         h('span', null, label),
         h('b', { title: value }, value)))),
+    usage !== null && usage !== undefined
+      ? h('div', { className: 'crew-usage-trend' },
+        h('div', { className: 'crew-usage-bars' },
+          usage.buckets.map(bucket => h('i', {
+            key: bucket.day,
+            style: { height: `${Math.max(4, Math.round((bucket.costMicroUsd / Math.max(1, ...usage.buckets.map(item => item.costMicroUsd))) * 100))}%` },
+            title: `${bucket.day} · ${money(bucket.costMicroUsd)} · ${bucket.turns} 回合`,
+          }))),
+        h('span', { className: 'crew-muted' },
+          `${usage.range} · Tokens ${countOf(usage.totals.tokens.input + usage.totals.tokens.output)}`))
+      : null,
     h('div', { className: 'crew-resource-rooms' },
       resources.rooms.map(item => h('button', {
         key: item.roomId,
@@ -1010,12 +1035,13 @@ function ResourcePanel({ resources, store }) {
 }
 
 function DispatchView({ state, store }) {
-  const { dispatch, resources } = state
+  const { dispatch, resources, usage } = state
   const roomSignature = state.rooms
     .map(room => `${room.id}:${room.state}:${room.usage?.costMicroUsd ?? 0}:${room.usage?.turns ?? 0}:${room.needsYou?.kind ?? ''}:${room.messages?.length ?? 0}`)
     .join('|')
   useEffect(() => {
     void store.loadResources()
+    void store.loadUsage()
   }, [store, roomSignature])
   if (dispatch === null) return null
   const pending = dispatch.requests.filter(request => request.state === 'suggested')
@@ -1028,7 +1054,7 @@ function DispatchView({ state, store }) {
         h('span', { className: 'crew-badge' }, '只建议 · 你确认'))),
     h('div', { className: 'dsb-scroll crew-scroll' },
       h('div', { className: 'crew-flow' },
-        h(ResourcePanel, { resources, store }),
+        h(ResourcePanel, { resources, usage, store }),
         h('div', { className: 'crew-section-title' }, `待你确认 · ${pending.length}`),
         pending.length === 0
           ? h('p', { className: 'crew-muted' }, '没有新的请求。')
@@ -1185,6 +1211,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
   const [repoPath, setRepoPath] = useState('')
   const [constraints, setConstraints] = useState('')
   const [constraintsPath, setConstraintsPath] = useState(null)
+  const [constraintLayers, setConstraintLayers] = useState([])
   const [constraintsChecked, setConstraintsChecked] = useState(false)
   const [includeConstraints, setIncludeConstraints] = useState(false)
   const [constraintsLoading, setConstraintsLoading] = useState(false)
@@ -1253,6 +1280,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
       return
     }
     setConstraintsPath(result.path)
+    setConstraintLayers(result.layers ?? [])
     setConstraints(result.content ?? '')
     setIncludeConstraints(typeof result.content === 'string' && result.content.trim() !== '')
   }
@@ -1356,6 +1384,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
       setManual(false)
       setConstraints('')
       setConstraintsPath(null)
+      setConstraintLayers([])
       setConstraintsChecked(false)
       setIncludeConstraints(false)
       setImportedTemplate(null)
@@ -1508,6 +1537,10 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
                 onChange: event => setIncludeConstraints(event.target.checked),
               }),
               `带入这个房间 · ${constraintsPath}`),
+            constraintLayers.length > 0
+              ? h('div', { className: 'crew-constraint-layers' },
+                constraintLayers.map(layer => h('span', { key: layer.path }, `${layer.name} · ${layer.path} · ${layer.bytes}B`)))
+              : null,
             h('textarea', {
               className: 'crew-goal-input',
               rows: 4,

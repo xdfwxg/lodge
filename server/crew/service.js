@@ -18,7 +18,9 @@ import {
 } from './room-repo.js'
 import { buildHandoff, importHandoff } from './handoff.js'
 import { readProjectConstraints } from './project.js'
+import { resetMcpBreakers } from './mcp-breaker.js'
 import { buildResources } from './resources.js'
+import { aggregateUsage, readUsageHistory } from './usage-history.js'
 import { buildReview } from './review.js'
 import { parseTemplate } from './template.js'
 import { workspaceProvider } from './workspace.js'
@@ -87,13 +89,39 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     }
   }
 
+  const resetMcp = (roomId, body) => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    if (room.imported === true) return fail('conflict', '交接记录只读')
+    const server = typeof body?.server === 'string' && body.server !== '' ? body.server : null
+    const updated = updateRoom(roomId, current => {
+      current.mcpBreakers = resetMcpBreakers(current.mcpBreakers, server)
+      return { events: [{ type: 'mcp.reset', payload: { server } }] }
+    })
+    if (updated === null) return fail('not_found', '没有这个房间')
+    appendMessage(roomId, {
+      kind: 'system',
+      text: server === null ? 'MCP 熔断已全部恢复。' : `MCP 熔断已恢复：${server}。`,
+    })
+    emit('room', updated)
+    return ok({ room: updated })
+  }
+
   const resources = () => ok({ resources: buildResources(readRooms(), readMessages) })
+
+  const usage = range => ok({
+    usage: aggregateUsage({ rooms: readRooms(), historyOf: readUsageHistory, range }),
+  })
 
   const projectConstraints = repoPath => {
     const source = typeof repoPath === 'string' ? repoPath.trim() : ''
     if (source === '') return fail('invalid', '先填工作目录')
     const file = readProjectConstraints(source)
-    return ok({ path: file?.path ?? null, content: file?.content ?? null })
+    return ok({
+      path: file?.path ?? null,
+      content: file?.content ?? null,
+      layers: file?.layers ?? [],
+    })
   }
 
   const review = roomId => {
@@ -263,6 +291,15 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       return room
     }
     writeConclusion(room)
+    const archived = updateRoom(room.id, current => {
+      current.pastGoals = [...(current.pastGoals ?? []), {
+        goal: current.goal,
+        stages: current.stages.map(stage => ({ title: stage.title, kind: stage.kind, state: stage.state })),
+        completedAt: Date.now(),
+      }].slice(-5)
+      return { events: [{ type: 'goal.archived', payload: { stages: current.stages.length } }] }
+    })
+    if (archived !== null) emit('room', archived)
     const workspace = workspaceProvider(room)
     const capabilities = workspace.capabilities()
     const delivered = readMessages(room.id).flatMap(message => [
@@ -329,6 +366,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       if (!gate.ok) return null
       const stage = current.stages[index]
       stage.state = 'passed'
+      if (Array.isArray(stage.tasks)) stage.tasks = stage.tasks.map(task => ({ ...task, status: 'done' }))
       next = current.stages.findIndex(item => item.state === 'pending')
       if (next >= 0) current.stages[next].state = 'active'
       else current.state = 'complete'
@@ -490,7 +528,9 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     health,
     messagesSince,
     evidence,
+    resetMcp,
     resources,
+    usage,
     projectConstraints,
     importTemplate,
     review,

@@ -8,6 +8,7 @@ const latestForStage = (messages, kind, stage) => [...messages]
 export const roomNeedsYou = (room, messages = []) => {
   if (room.state === 'paused') {
     if (room.pauseReason === 'budget') return { kind: 'budget', stage: null, label: '预算已用尽 · 等你处理' }
+    if (room.pauseReason === 'mcp') return { kind: 'mcp', stage: null, label: 'MCP 熔断 · 等你恢复' }
     return room.idle === true ? { kind: 'idle', stage: null, label: '等你说话' } : null
   }
   if (room.state !== 'active') return null

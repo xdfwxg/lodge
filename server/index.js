@@ -181,6 +181,10 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.resources())
     }
 
+    if (path === '/api/usage' && req.method === 'GET') {
+      return respond(res, service.usage(url.searchParams.get('range')))
+    }
+
     if (path === '/api/project/constraints' && req.method === 'GET') {
       return respond(res, service.projectConstraints(url.searchParams.get('repoPath')))
     }
@@ -196,6 +200,11 @@ const server = http.createServer(async (req, res) => {
     const handoffPath = path.match(/^\/api\/rooms\/([\w-]+)\/handoff$/)
     if (handoffPath !== null && req.method === 'GET') {
       return respond(res, service.handoff(handoffPath[1]))
+    }
+
+    const mcpResetPath = path.match(/^\/api\/rooms\/([\w-]+)\/mcp\/reset$/)
+    if (mcpResetPath !== null && req.method === 'POST') {
+      return respond(res, service.resetMcp(mcpResetPath[1], await readJson(req)))
     }
 
     const reviewPath = path.match(/^\/api\/rooms\/([\w-]+)\/review$/)

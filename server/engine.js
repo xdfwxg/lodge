@@ -24,6 +24,15 @@ const normalizeRoom = (group, responderName) => ({
   usage: {
     turns: group.usage?.turns ?? 0,
     costMicroUsd: Math.round((group.usage?.costUsd ?? 0) * 1_000_000),
+    ...(Number.isFinite(group.usage?.input) || Number.isFinite(group.usage?.output)
+      ? {
+          tokens: {
+            input: group.usage?.input ?? 0,
+            output: group.usage?.output ?? 0,
+            cachedInput: group.usage?.cachedInput ?? 0,
+          },
+        }
+      : {}),
   },
 })
 

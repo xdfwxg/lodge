@@ -5,8 +5,10 @@ import { budgetStatus } from './budget.js'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
 import { reject } from './result.js'
 import { markSeatRead } from './watermarks.js'
+import { blockedSeats, recordMcpFailures } from './mcp-breaker.js'
 import { mcpCalls } from './mcp.js'
 import { buildSeatHandoff } from './seat-handoff.js'
+import { buildTasks, markStageTasks, markTask } from './tasks.js'
 import { workspaceProvider } from './workspace.js'
 
 const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
@@ -105,6 +107,18 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       current.noProgress = 0
       current.lastProgressAt = Date.now()
       return { events: [{ type: 'room.progress', payload: { at: current.lastProgressAt } }] }
+    })
+    if (updated !== null) emit?.('room', updated)
+  }
+
+  const updateTasks = (stageIndex, mutate) => {
+    const updated = store.updateRoom(roomId, current => {
+      const stage = current.stages[stageIndex]
+      if (stage === undefined) return null
+      const next = mutate(stage)
+      if (next === stage) return null
+      current.stages[stageIndex] = next
+      return { events: [] }
     })
     if (updated !== null) emit?.('room', updated)
   }
@@ -262,6 +276,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         kind: 'system',
         text: `部分成功：${failed.map(nameOf).join('、')} 没有产出，继续用 ${workers.map(nameOf).join('、')} 验收。`,
       })
+      updateTasks(stageIndex, current => failed.reduce((stageState, seat) => markTask(stageState, seat, 'failed'), current))
     }
 
     const merged = []
@@ -402,8 +417,35 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
   const startStage = async (room, index) => {
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
-    const workers = room.workers ?? []
-    if (workers.length === 0) throw new Error('房间没有执行席位')
+    const allWorkers = room.workers ?? []
+    if (allWorkers.length === 0) throw new Error('房间没有执行席位')
+    const blocked = blockedSeats(room)
+    const workers = allWorkers.filter(worker => !blocked.includes(worker))
+    if (blocked.length > 0) {
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `MCP 熔断已隔离：${blocked.map(id => room.seatNames?.[id] ?? id).join('、')} 暂停；${workers.length === 0 ? '没有可继续的执行席位，房间暂停，等你恢复。' : '其余席位继续。'}`,
+      })
+      const blockedUpdate = store.updateRoom(roomId, current => {
+        const target = current.stages[index]
+        if (target !== undefined) target.partial = { failed: [...blocked], workers: [...workers], at: Date.now() }
+        if (workers.length === 0 && current.state === 'active') {
+          current.state = 'paused'
+          current.pauseReason = 'mcp'
+        }
+        return { events: [{ type: 'room.mcp_blocked', payload: { seats: blocked, stage: index } }] }
+      })
+      if (workers.length === 0) {
+        const fresh = blockedUpdate ?? store.readRoom(roomId)
+        if (fresh !== null) emit?.('room', fresh)
+        return
+      }
+      if (blockedUpdate !== null) emit?.('room', blockedUpdate)
+    }
+    updateTasks(index, current => ({
+      ...current,
+      tasks: buildTasks({ stageIndex: index, workers, seatNames: room.seatNames ?? {} }),
+    }))
     const acceptance = stage.manual === true
       ? '验收方式：人看产物，不跑命令。'
       : typeof stage.acceptance === 'string' && stage.acceptance !== ''
@@ -537,6 +579,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     if ((turn.toolCalls ?? 0) === 0 && (turn.reply ?? '') === '') {
       if (pendingForSeat) {
         capturedTurns.add(turnId)
+        updateTasks(stageIndex, current => markTask(current, seat, 'failed'))
         store.appendMessage(roomId, {
           kind: 'system',
           text: `并行执行：${room.seatNames?.[seat] ?? seat} 这一回合没有产出；继续等其它席位。`,
@@ -569,9 +612,19 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       const failed = mcp.filter(call => call.failed > 0)
       if (failed.length > 0) {
         store.appendEvent(roomId, 'mcp.failure', { seat, turnId, calls: failed })
+        const { breakers, tripped } = recordMcpFailures(room?.mcpBreakers, failed)
+        const updated = store.updateRoom(roomId, current => {
+          current.mcpBreakers = breakers
+          return {
+            events: tripped.map(server => ({ type: 'mcp.trip', payload: { server, seat, turnId } })),
+          }
+        })
+        if (updated !== null) emit?.('room', updated)
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `MCP 工具失败已隔离：${failed.map(call => `${call.server}/${call.tool} ×${call.failed}`).join('、')}；只影响 ${room?.seatNames?.[seat] ?? seat} 这一回合，房间继续。`,
+          text: tripped.length === 0
+            ? `MCP 工具失败已隔离：${failed.map(call => `${call.server}/${call.tool} ×${call.failed}`).join('、')}；只影响 ${room?.seatNames?.[seat] ?? seat} 这一回合，房间继续。`
+            : `MCP 熔断：${tripped.join('、')}；使用它的席位回合暂停，恢复后继续。`,
         })
       }
     }
@@ -596,6 +649,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         },
       })
       store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, pass, turnId })
+      updateTasks(pending.stage, current => markStageTasks(current, pass ? 'done' : 'working'))
       recordTurn(true)
       return
     }
@@ -682,7 +736,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
           ? { diff: '', files: [] }
           : await ws(current).rangeChanges({ path: worktree, base })
         const head = worktree === undefined ? '' : ws(current).head({ path: worktree })
-        store.appendMessage(roomId, {
+        const stored = store.appendMessage(roomId, {
           ...evidence,
           meta: {
             ...evidence.meta,
@@ -695,6 +749,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
             candidate,
           },
         })
+        updateTasks(stage, stageState => markTask(stageState, seat, 'reported', stored.id))
         store.appendEvent(roomId, 'turn.evidence', { stage, turnId, seat })
         recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
 
@@ -721,7 +776,10 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       return
     }
 
-    store.appendMessage(roomId, evidence)
+    const storedEvidence = store.appendMessage(roomId, evidence)
+    if (seat !== null && seat !== undefined) {
+      updateTasks(stage, stageState => markTask(stageState, seat, 'reported', storedEvidence.id))
+    }
     store.appendEvent(roomId, 'turn.evidence', { stage, turnId })
     recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
 

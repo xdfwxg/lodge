@@ -6,7 +6,7 @@ import { roomDir, workspaceRoot } from './paths.js'
 
 export const HANDOFF_FORMAT = 'lodge.room-handoff.v1'
 
-const NAMED_FILES = ['BRIEF.md', 'GOAL.md', 'CONCLUSION.md', 'decisions.md', 'transcript.jsonl', 'events.jsonl']
+const NAMED_FILES = ['BRIEF.md', 'GOAL.md', 'CONCLUSION.md', 'decisions.md', 'transcript.jsonl', 'events.jsonl', 'usage.jsonl']
 const MAX_FILE_BYTES = 4 * 1024 * 1024
 const MAX_TOTAL_BYTES = 16 * 1024 * 1024
 const MAX_FILES = 500
