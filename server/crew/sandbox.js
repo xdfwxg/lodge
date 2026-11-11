@@ -14,10 +14,25 @@ const hasCommand = command => {
 
 const unavailable = reason => ({ file: null, args: [], mode: 'unavailable', error: reason })
 
+const canRun = (file, args) => {
+  try {
+    execFileSync(file, args, { stdio: 'ignore', timeout: 5_000 })
+    return true
+  } catch {
+    return false
+  }
+}
+
 const providers = new Map()
+let darwinProbe
+let linuxProbe
 
 providers.set('darwin', ({ command }) => {
   if (!existsSync('/usr/bin/sandbox-exec')) return unavailable('macOS sandbox-exec 不可用')
+  if (darwinProbe === undefined) {
+    darwinProbe = canRun('/usr/bin/sandbox-exec', ['-p', '(version 1)(allow default)(deny network*)', '/bin/sh', '-c', 'true'])
+  }
+  if (!darwinProbe) return unavailable('macOS sandbox-exec 预检失败；设置 CREW_ACCEPTANCE_NETWORK=allow 明确放行')
   return {
     file: '/usr/bin/sandbox-exec',
     args: ['-p', '(version 1)(allow default)(deny network*)', '/bin/sh', '-c', command],
@@ -27,6 +42,8 @@ providers.set('darwin', ({ command }) => {
 
 providers.set('linux', ({ command }) => {
   if (!hasCommand('unshare')) return unavailable('Linux 没有可用的 unshare；安装 unshare/bwrap 或设置 CREW_ACCEPTANCE_NETWORK=allow')
+  if (linuxProbe === undefined) linuxProbe = canRun('unshare', ['-n', '/bin/sh', '-c', 'true'])
+  if (!linuxProbe) return unavailable('Linux unshare 预检失败（可能不允许用户命名空间）；设置 CREW_ACCEPTANCE_NETWORK=allow 明确放行')
   return { file: 'unshare', args: ['-n', '/bin/sh', '-c', command], mode: 'network-deny' }
 })
 

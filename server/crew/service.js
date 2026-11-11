@@ -20,6 +20,16 @@ import {
 } from './room-repo.js'
 import { pruneSeatWorkspaces } from './worktrees.js'
 
+export const acceptanceChangeError = (stage, command) => {
+  if (stage === undefined) return ['invalid', '没有这个阶段']
+  if (stage.kind !== 'deliverable') return ['invalid', '只有交付型阶段能设置验收命令']
+  if (stage.state === 'passed') return ['conflict', '这个阶段已经过了']
+  const trimmed = command.trim()
+  if (trimmed.length > 500) return ['invalid', '验收命令不超过 500 字']
+  if (trimmed === '' && stage.state === 'active') return ['conflict', '进行中的交付型阶段不能清空验收命令；先暂停或停止']
+  return null
+}
+
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
 export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats }) => {
   const { readRoom, readRooms, readMessages, readMessagesSince, writeRoom, updateRoom, appendMessage, appendEvent } = store
@@ -307,11 +317,12 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     let rejection = null
     const updated = updateRoom(room.id, current => {
       const stage = current.stages[index]
-      if (stage === undefined) { rejection = ['invalid', '没有这个阶段']; return null }
-      if (stage.kind !== 'deliverable') { rejection = ['invalid', '只有交付型阶段能设置验收命令']; return null }
-      if (stage.state === 'passed') { rejection = ['conflict', '这个阶段已经过了']; return null }
+      const invalid = acceptanceChangeError(stage, command)
+      if (invalid !== null) {
+        rejection = invalid
+        return null
+      }
       const trimmed = command.trim()
-      if (trimmed.length > 500) { rejection = ['invalid', '验收命令不超过 500 字']; return null }
       if (trimmed === '') delete stage.acceptance
       else stage.acceptance = trimmed
       return { events: [{ type: 'stage.acceptance', payload: { stage: index, command: stage.acceptance ?? '' } }] }

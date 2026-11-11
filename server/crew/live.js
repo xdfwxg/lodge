@@ -135,7 +135,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
     const target = entry.seats.get(seat)
     if (target === undefined) return
     target.unsubscribe = engine.subscribe({
-      roomId: target.groupId,
+      roomId: target.roomRef,
       sessionRef: target.sessionRef,
       onState: state => {
         if (state.connected) void syncSeat(entry, seat)
@@ -182,7 +182,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
       const ref = seatRefs[seat]
       const base = bases.find(item => item.id === ref.id)
       if (base === undefined) throw new Error(`engine 里没有 ${seat} 席位线程`)
-      entry.seats.set(seat, { groupId: base.id, sessionRef: base.sessionRef, unsubscribe: null })
+      entry.seats.set(seat, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
       await syncSeat(entry, seat)
       subscribeSeat(entry, seat)
     }
@@ -239,7 +239,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
     if (entry === undefined) throw new Error('实时房间未绑定')
     const target = entry.seats.get(seat)
     if (target === undefined) throw new Error(`房间没有 ${seat} 席位`)
-    return engine.sendTurn({ roomId: target.groupId, text })
+    return engine.sendTurn({ roomId: target.roomRef, text })
   }
 
   const send = async (roomId, text) => {

@@ -892,6 +892,8 @@ constraints:
 
 ### 10.0 基座与技术栈（已定）
 
+> **这是目标态，不是当前接线**：当前 P0 是独立 `Lodge server` + 独立基座仓库 `crew-chat-base`（HTTP 8799），Electron、runtime Assignment、上游 `message-db`/`thread-events`/`sse-fanout` 都未接入。当前事实以 `reuse-map.md` §8.5 为准。
+
 | 层 | 选择 | 说明 |
 |---|---|---|
 | 外壳 | **Electron 43** | Mac arm64 先行，不发 universal；复用 OpenMausBot 的窗口、打包、更新 |
@@ -899,7 +901,7 @@ constraints:
 | 运行时 | **OpenMausBot `server/runtime`** | Assignment 生命周期与不变量一行不改 |
 | 引擎 | **OpenMausBot drivers + ACP** | 首版原生 Claude Code；第二厂商在 M4 接 Codex 或 ACP |
 | 存储 | **`node:sqlite` WAL + 事件重放 + SSE** | 复用 `message-db` / `thread-events` / `sse-fanout` |
-| 系统 | **macOS Apple Silicon，Node ≥24** | CLI 路径按 `/opt/homebrew/bin` 探测 |
+| 系统 | **macOS Apple Silicon，Node ≥22.5（推荐 24）** | `node:sqlite` 在 22 上可用但会提示 experimental；CLI 路径按 `/opt/homebrew/bin` 探测 |
 | 不做 | LangGraph / CrewAI / AutoGen、自写 spawn 层、云 VM | 多一层状态机就会多一份真相 |
 
 **为什么这个引擎层决定我们能走多远**
@@ -916,6 +918,8 @@ constraints:
 3. **没有真实机制就不给控件**：主动档位、私聊入口、模板录制都等对应机制跑通再出现，首版不做假开关。
 
 ### 10.1 进程边界
+
+> **目标态**：下图包含 Assignment Runtime 与 Approval Bridge；当前 P0 用基座群消息/回合和已接的工具审批桥，Assignment 未接。
 
 ```
 UI ──HTTP+SSE(127.0.0.1, per-launch token)── Lodge server
@@ -1016,7 +1020,7 @@ interface Engine {
 
 三者冲突时：消息以 transcript 为准，运行时状态以 SQLite 为准，意图以人写的 BRIEF 为准。
 
-**done / constraints 裁定**：`BRIEF.md` 是 title、objective、done、non-goals、constraints 的唯一权威；`goals.done_json` / `non_goals_json` / `constraints_json` 只是带 `source_hash` 的解析缓存，不是第二份真相。`revise` 是人发起的动作，先写 `BRIEF.md`，再重建缓存；runtime 不直接改写 BRIEF。
+**done / constraints 裁定（设计裁定，代码未接）**：`BRIEF.md` 是 title、objective、done、non-goals、constraints 的唯一权威；目标模型里的 `goals.done_json` / `non_goals_json` / `constraints_json`、`source_hash` 解析缓存与 `revise` 流程尚未实现。当前 P0 仍用房间 JSON + BRIEF，没有 `goals` 表或 `revise` 路由；实现时 `revise` 先写 `BRIEF.md`，再重建缓存，runtime 不直接改写 BRIEF。
 
 > **当前 P0 原型**：SQLite 使用 `room(id, payload, version)` / `messages(seq, id, room_id, payload)` / `room_event(seq, ...)`；`seq` 是全局事件游标，不是按房间/分支。下面是目标关系模型；迁移只改 `store.js`，旧 payload 可读（`store.test.js`）。`events.jsonl` 是面向 clone/交接的 append-only 审计镜像，SQLite `room_event` 是查询索引；两者由同一次事件写入产生。
 

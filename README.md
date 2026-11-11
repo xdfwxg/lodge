@@ -5,9 +5,9 @@
 
 **Room-first multi-agent coding workspace**
 
-Lodge 将寮（Lodge）作为一等公民本体。席位驻于寮中，对话只是寮内日志；目标、席位配置、worktree沙箱、验收证据全部依附于寮。
+Lodge 将寮（Lodge）作为一等公民本体。席位驻于寮中，对话只是寮内日志；目标、席位配置、worktree 隔离、验收证据全部依附于寮。
 
 - 🏠 **Lodge** = 独立任务房间（本体）
 - 🧑‍💻 **Seat** = Agent席位
 - ✅ **acceptance_cmd**：可执行命令作为验收证据
-- 🛡️ **Worktree隔离**：席位之间产出互不篡改
+- 🛡️ **Worktree 隔离**：席位各自工作区，交付 worktree 不被其他席位覆盖；它不是文件系统沙箱

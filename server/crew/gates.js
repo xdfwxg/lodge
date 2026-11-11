@@ -21,9 +21,19 @@ export const gateFor = (room, index, messages) => {
     return { ok: true, stage }
   }
   if (stage.kind !== 'deliverable') return { ok: true, stage }
-  if (typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') {
+  const acceptance = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
+  if (acceptance === '') {
     return deny('conflict', '交付型阶段没有验收命令，不能验收')
   }
+  const isCommandEvidence = message => (
+    message.kind === 'evidence' &&
+    message.meta?.stage === index &&
+    (room.demo === true || message.meta?.simulated !== true) &&
+    (message.meta?.kind === 'command' || (room.demo === true && message.meta?.simulated === true)) &&
+    message.meta?.exit === 0 &&
+    typeof message.meta?.command === 'string' &&
+    message.meta.command.trim() === acceptance
+  )
 
   const ordered = [...messages].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
   const verdicts = ordered.filter(message => message.kind === 'verdict' && message.meta?.stage === index)
@@ -37,8 +47,12 @@ export const gateFor = (room, index, messages) => {
   ))
 
   if (latest === undefined) {
-    if (evidenceBetween(-1, Number.POSITIVE_INFINITY).length === 0) {
+    const phaseEvidence = evidenceBetween(-1, Number.POSITIVE_INFINITY)
+    if (phaseEvidence.length === 0) {
       return deny('conflict', '还没有本阶段的证据，不能验收')
+    }
+    if (!isCommandEvidence(phaseEvidence.at(-1))) {
+      return deny('conflict', '还没有通过验收命令的证据（exit 0），不能签字')
     }
     // 只有显式声明了“没有验收席位”的单人模板才允许直接由人签字；未知席位表仍按有 verifier 处理。
     const hasVerifier = !(Array.isArray(room.verifiers) && room.verifiers.length === 0)
@@ -55,8 +69,16 @@ export const gateFor = (room, index, messages) => {
   // PASS 之前必须有一段“上一次 REJECT 之后”的新证据；否则只是口头翻案。
   const previousReject = [...verdicts].reverse().slice(1).find(message => message.meta?.pass !== true)
   const floor = previousReject?.seq ?? -1
-  if (evidenceBetween(floor, latest.seq ?? Number.POSITIVE_INFINITY).length === 0) {
+  const phaseEvidence = evidenceBetween(floor, latest.seq ?? Number.POSITIVE_INFINITY)
+  if (phaseEvidence.length === 0) {
     return deny('conflict', previousReject === undefined ? '还没有本阶段的证据，不能验收' : '返工后还没有新的证据，不能验收')
+  }
+  const referenced = typeof latest.meta?.evidenceId === 'string'
+    ? ordered.find(message => message.id === latest.meta.evidenceId)
+    : undefined
+  const covered = referenced !== undefined && (referenced.seq ?? 0) > floor ? referenced : phaseEvidence.at(-1)
+  if (!isCommandEvidence(covered)) {
+    return deny('conflict', '复核没有对应的验收命令证据（exit 0），不能签字')
   }
   return { ok: true, stage }
 }

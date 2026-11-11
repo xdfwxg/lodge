@@ -16,6 +16,8 @@ const forbidden = [
   ['defaultResponder', /defaultResponder/],
   ['memberIds', /memberIds/],
   ['botId / botName', /\bbotId\b|\bbotName\b/],
+  ['a bare bot/group variable', /\bbot\b|\bgroup\b/],
+  ['a groupId field', /\bgroupId\b/],
   ['approvalMode', /approvalMode/],
   ['mcpServers', /mcpServers/],
   ['threadId', /threadId/],

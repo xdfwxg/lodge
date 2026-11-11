@@ -164,7 +164,7 @@ const waitForTurn = async ({ engine, sessionRef }) => {
       message.turn.reply.trim() !== ''
     ))
     if (turn !== undefined) {
-      // 基座 digest 可能截断长回复；原文在 bot 的 text 消息里，优先取含 seats 的最长一段。
+      // 基座 digest 可能截断长回复；原文在席位线程的 text 消息里，优先取含 seats 的最长一段。
       const candidates = [
         turn.turn.reply,
         ...messages
@@ -211,27 +211,27 @@ export const recommendRoster = async ({ engine, body }) => {
   advisor.approval = 'auto'
 
   let workspaces = null
-  let bot = null
-  let group = null
+  let advisorRef = null
+  let probeRoom = null
   try {
     workspaces = prepareWorkspaces({ sourceRepo, short, seats: [advisor] })
-    bot = await engine.createSeatBot({
+    advisorRef = await engine.createSeatBot({
       name: `Advisor${short}`,
       soul: advisor.prompt,
       description: advisor.station,
       approval: advisor.approval,
       mcp: advisor.mcp,
     })
-    group = await engine.createRoom({
+    probeRoom = await engine.createRoom({
       name: `编队建议 · ${short}`,
       goal,
       bulletin: `目标：${goal}\n仓库：${sourceRepo}`,
-      members: [bot.id],
+      members: [advisorRef.id],
       cwd: workspaces.seats[advisor.id].path,
-      leadId: bot.id,
+      leadId: advisorRef.id,
     })
-    await engine.sendTurn({ roomId: group.id, text: prompt })
-    const reply = await waitForTurn({ engine, sessionRef: group.sessionRef })
+    await engine.sendTurn({ roomId: probeRoom.id, text: prompt })
+    const reply = await waitForTurn({ engine, sessionRef: probeRoom.sessionRef })
     let proposal
     try {
       proposal = parseProposal(reply)
@@ -241,13 +241,13 @@ export const recommendRoster = async ({ engine, body }) => {
     }
     return ok({ proposal })
   } finally {
-    if (group !== null) {
+    if (probeRoom !== null) {
       try {
-        await engine.cancelTurn({ roomId: group.id })
+        await engine.cancelTurn({ roomId: probeRoom.id })
       } catch {}
-      await engine.deleteRoom(group.id)
+      await engine.deleteRoom(probeRoom.id)
     }
-    if (bot !== null) await engine.deleteSeatBot(bot.id)
+    if (advisorRef !== null) await engine.deleteSeatBot(advisorRef.id)
     try {
       if (workspaces !== null) cleanupWorkspaces({ sourceRepo, workspaces })
     } catch {}

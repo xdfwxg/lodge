@@ -14,8 +14,18 @@ const room = (over = {}) => ({
   ...over,
 })
 
-const evidence = (stage = 1, seq = 10, meta = {}) => ({ id: `e-${seq}`, kind: 'evidence', seq, meta: { stage, ...meta } })
-const verdict = (stage = 1, seq = 11, pass = true) => ({ id: `v-${seq}`, kind: 'verdict', seq, meta: { stage, pass } })
+const evidence = (stage = 1, seq = 10, meta = {}) => ({
+  id: `e-${seq}`,
+  kind: 'evidence',
+  seq,
+  meta: { stage, kind: 'command', command: 'npm test', exit: 0, ...meta },
+})
+const verdict = (stage = 1, seq = 11, pass = true, meta = {}) => ({
+  id: `v-${seq}`,
+  kind: 'verdict',
+  seq,
+  meta: { stage, pass, ...meta },
+})
 
 test('rejects a stage that is not active', () => {
   const r = room()
@@ -45,6 +55,33 @@ test('deliverable without evidence cannot pass', () => {
   const gate = gateFor(room(), 1, [])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /证据/)
+})
+
+test('a failed command exit cannot be signed off', () => {
+  const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { exit: 1 })])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /exit 0/)
+})
+
+test('a turn summary is not command evidence', () => {
+  const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { kind: 'turn', exit: undefined })])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /验收命令/)
+})
+
+test('evidence must match the stage acceptance command', () => {
+  const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { command: 'echo ok' })])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /验收命令/)
+})
+
+test('a PASS must reference exit 0 command evidence', () => {
+  const gate = gateFor(room(), 1, [
+    evidence(1, 10, { exit: 1 }),
+    verdict(1, 11, true, { evidenceId: 'e-10' }),
+  ])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /exit 0/)
 })
 
 test('live deliverable needs a verifier PASS', () => {

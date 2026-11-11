@@ -113,13 +113,13 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     }
   }
 
-  const createdBots = []
-  const createdGroups = []
+  const createdSeatRefs = []
+  const createdBaseRooms = []
   let room = null
   let stored = false
   try {
     for (const seat of roster) {
-      const bot = await engine.createSeatBot({
+      const seatRef = await engine.createSeatBot({
         name: `${seat.id[0].toUpperCase()}${seat.id.slice(1)}${short}`,
         soul: seat.prompt,
         description: seat.station,
@@ -127,34 +127,34 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         mcp: seat.mcp,
         engine: seat.engine,
       })
-      createdBots.push({ seat, bot })
+      createdSeatRefs.push({ seat, seatRef })
     }
-    const engineFallbacks = Object.fromEntries(createdBots
-      .filter(({ bot }) => bot.fallback === true)
-      .map(({ seat, bot }) => [seat.id, { requested: bot.requestedEngine, actual: bot.engine, reason: bot.reason }]))
+    const engineFallbacks = Object.fromEntries(createdSeatRefs
+      .filter(({ seatRef }) => seatRef.fallback === true)
+      .map(({ seat, seatRef }) => [seat.id, { requested: seatRef.requestedEngine, actual: seatRef.engine, reason: seatRef.reason }]))
     const title = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
-    const groupFor = async (seat, bot) => {
-      const group = await engine.createRoom({
+    const baseRoomFor = async (seat, seatRef) => {
+      const baseRoom = await engine.createRoom({
         name: `${title} · ${seat.name}`,
         goal,
         bulletin: roomBulletin(goal, verify, acceptance, align),
-        members: [bot.id],
+        members: [seatRef.id],
         cwd: workspaces.seats[seat.id].path,
-        leadId: bot.id,
+        leadId: seatRef.id,
       })
-      createdGroups.push(group)
-      return group
+      createdBaseRooms.push(baseRoom)
+      return baseRoom
     }
     const seatRooms = {}
     const seatBots = {}
     const seatNames = {}
     const engines = {}
-    for (const { seat, bot } of createdBots) {
-      const group = await groupFor(seat, bot)
-      seatRooms[seat.id] = { id: group.id, sessionRef: group.sessionRef }
-      seatBots[seat.id] = bot.id
-      seatNames[seat.id] = bot.name
-      engines[seat.id] = bot.engine
+    for (const { seat, seatRef } of createdSeatRefs) {
+      const baseRoom = await baseRoomFor(seat, seatRef)
+      seatRooms[seat.id] = { id: baseRoom.id, sessionRef: baseRoom.sessionRef }
+      seatBots[seat.id] = seatRef.id
+      seatNames[seat.id] = seatRef.name
+      engines[seat.id] = seatRef.engine
     }
     const worktrees = Object.fromEntries(Object.entries(workspaces.seats).map(([seatId, item]) => [seatId, item.path]))
 
@@ -275,8 +275,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     return created({ room })
   } catch (error) {
     if (!stored) {
-      for (const group of createdGroups) await engine.deleteRoom(group.id)
-      for (const item of createdBots) await engine.deleteSeatBot(item.bot.id)
+      for (const baseRoom of createdBaseRooms) await engine.deleteRoom(baseRoom.id)
+      for (const item of createdSeatRefs) await engine.deleteSeatBot(item.seatRef.id)
       cleanupWorkspaces({ sourceRepo, workspaces })
       throw new Error(`建房失败：${error?.message ?? error}`)
     }
