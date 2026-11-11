@@ -70,9 +70,9 @@ const fakeLive = () => ({
   sendToSeat: async () => ({ messageId: null }),
 })
 
-const run = (store, body) => createRealRoom({
+const run = (store, body, engine = fakeEngine()) => createRealRoom({
   store,
-  engine: fakeEngine(),
+  engine,
   live: fakeLive(),
   emit: () => {},
   dispatchPayload: () => null,
@@ -272,7 +272,7 @@ test('continuing without a real repo and without a handoff record fail closed', 
   assert.equal(missingRepo.ok, false)
   assert.equal(missingRepo.reason, 'invalid')
 
-  const plain = { ...source, id: 'room-plain', imported: false, readOnly: false }
+  const plain = { ...source, id: 'room-plain', imported: false, readOnly: false, state: 'active' }
   store.writeRoom(plain)
   const notImported = await run(store, {
     goal: '继续',
@@ -325,4 +325,51 @@ test('a confirmed plan starts at delivery but keeps the final acceptance stage',
   assert.equal(room.stages[1].state, 'active')
   assert.equal(room.stages[2].state, 'pending')
   assert.equal(room.stages[2].title, '验收与结论')
+})
+
+test('a completed room can be used as a continuation source', async () => {
+  const { store, room: imported } = importedRoom(temp('lodge-fork-data-'))
+  const source = { ...imported, id: 'room-fork-source', imported: false, readOnly: false, state: 'complete' }
+  store.writeRoom(source)
+  mkdirSync(roomDir(source), { recursive: true })
+  writeFileSync(join(roomDir(source), 'BRIEF.md'), [
+    '# 目标：加一个导出按钮',
+    '',
+    'done:',
+    '- [x] 按钮可用',
+    '',
+  ].join('\n'))
+  const result = await run(store, {
+    goal: '在已完成房间上继续',
+    verify: 'test',
+    acceptance: 'npm test',
+    repoPath: gitRepo(),
+    continueFrom: source.id,
+    seats: [{ role: 'worker', name: '执行' }],
+  })
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.continuedFrom.roomId, source.id)
+  assert.deepEqual(result.body.room.plan.done, ['按钮可用'])
+})
+
+test('a plan can declare multiple work stages between alignment and acceptance', async () => {
+  const { store } = importedRoom(temp('lodge-plan-stages-data-'))
+  const result = await run(store, {
+    goal: '多阶段拆解',
+    verify: 'test',
+    repoPath: gitRepo(),
+    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }],
+    plan: {
+      done: ['两段都通过'],
+      stages: [
+        { title: '实现', kind: 'deliverable', acceptance: 'npm test' },
+        { title: '回归', kind: 'deliverable', acceptance: 'npm run e2e' },
+      ],
+    },
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '实现', '回归', '验收与结论'])
+  assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'active', 'pending', 'pending'])
+  assert.equal(room.stages[2].acceptance, 'npm run e2e')
 })

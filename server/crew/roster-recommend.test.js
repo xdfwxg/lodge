@@ -125,3 +125,17 @@ test('a proposal without a worker fails closed', () => {
     verify: 'manual',
   })), /worker/)
 })
+
+test('a proposal can carry up to three planned stages', () => {
+  const proposal = parseProposal(reply({
+    seats: [{ role: 'worker', name: '执行' }, { role: 'verifier', name: '复核' }],
+    verify: 'test',
+    acceptance: 'npm test',
+    stages: [
+      { title: '实现', kind: 'deliverable', acceptance: 'npm test' },
+      { title: '回归', kind: 'deliverable', acceptance: 'npm run e2e' },
+    ],
+  }))
+  assert.deepEqual(proposal.stages.map(stage => stage.title), ['实现', '回归'])
+  assert.equal(proposal.stages[1].acceptance, 'npm run e2e')
+})

@@ -51,12 +51,19 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   if (goal === '' || goal.length > 2000) return fail('invalid', '目标不能为空，且不超过 2000 字')
   const verify = body.verify === 'manual' ? 'manual' : 'test'
   const acceptance = typeof body.acceptance === 'string' ? body.acceptance.trim() : ''
-  if (verify === 'test' && acceptance === '') return fail('invalid', '交付型房间需要一条验收命令')
+  const plannedAcceptance = Array.isArray(body.plan?.stages)
+    ? body.plan.stages.some(stage => typeof stage?.acceptance === 'string' && stage.acceptance.trim() !== '')
+    : false
+  if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
+    return fail('invalid', '交付型房间需要一条验收命令')
+  }
   let continueSource = null
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
     continueSource = store.readRoom(body.continueFrom)
     if (continueSource === null || continueSource.kind !== 'room') return fail('not_found', '没有这个交接记录')
-    if (continueSource.imported !== true) return fail('conflict', '只有导入的交接记录可以作为续做起点')
+    if (continueSource.imported !== true && continueSource.state !== 'complete') {
+      return fail('conflict', '只有已完成房间或导入的交接记录可以作为续做起点')
+    }
   }
   if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
   const globalBudget = globalBudgetStatus(store.readRooms())
@@ -72,6 +79,20 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         .slice(0, 6)
       : []
     if (done.length === 0) return fail('invalid', '开工卡缺少可核对的 done')
+    const plannedStages = []
+    if (Array.isArray(body.plan.stages)) {
+      if (body.plan.stages.length > 3) return fail('invalid', '开工卡最多拆 3 个可交付阶段')
+      for (const [index, item] of body.plan.stages.entries()) {
+        const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 80) : ''
+        const kind = item?.kind === 'decision' ? 'decision' : 'deliverable'
+        const stageAcceptance = typeof item?.acceptance === 'string' ? item.acceptance.trim().slice(0, 500) : ''
+        if (title === '') return fail('invalid', `第 ${index + 1} 个阶段缺少标题`)
+        if (kind === 'deliverable' && stageAcceptance === '') {
+          return fail('invalid', `第 ${index + 1} 个交付阶段缺少验收命令`)
+        }
+        plannedStages.push({ title, kind, ...(kind === 'deliverable' ? { acceptance: stageAcceptance } : {}) })
+      }
+    }
     if (Array.isArray(body.plan.answers) && body.plan.answers.length > 3) {
       return fail('invalid', '开工卡最多 3 个问题；先把不必要的分叉合并或留到执行中再说')
     }
@@ -84,11 +105,16 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     plan = {
       done,
       answers,
+      stages: plannedStages,
       why: typeof body.plan.why === 'string' ? body.plan.why.trim().slice(0, 300) : '',
     }
   } else if (continueSource !== null) {
     plan = inheritedPlan(readBrief(continueSource), continueSource.name)
   }
+  const effectiveAcceptance = acceptance || (plan?.stages ?? [])
+    .map(stage => stage.acceptance)
+    .filter(Boolean)
+    .join('；')
 
   const requestedSeats = Array.isArray(body.seats) ? body.seats : null
   let templateId = typeof body.templateId === 'string' && TEMPLATES[body.templateId]?.seats.length > 0
@@ -174,14 +200,31 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   let room = null
   let stored = false
   try {
-    for (const seat of roster) {
+    let instances = []
+    try {
+      instances = await engine.instances()
+    } catch {
+      instances = []
+    }
+    const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
+    // 工人先建，验收席位才有事实可依；没有显式引擎时优先选不同厂商。
+    const ordered = [...roster].sort((a, b) => (a.role === 'verifier' ? 1 : 0) - (b.role === 'verifier' ? 1 : 0))
+    for (const seat of ordered) {
+      let requestedEngine = seat.engine
+      if (seat.role === 'verifier' && seat.engineExplicit !== true) {
+        const workerKinds = new Set(createdSeatRefs
+          .filter(({ seat: item }) => item.role === 'worker')
+          .map(({ seatRef }) => engineKind(seatRef.engine)))
+        const candidate = instances.find(item => item.available && !workerKinds.has(item.engine))
+        if (candidate !== undefined) requestedEngine = candidate.id
+      }
       const seatRef = await engine.createSeatBot({
         name: `${seat.id[0].toUpperCase()}${seat.id.slice(1)}${short}`,
         soul: seat.prompt,
         description: seat.station,
         approval: seat.approval,
         mcp: seat.mcp,
-        engine: seat.engine,
+        engine: requestedEngine,
       })
       createdSeatRefs.push({ seat, seatRef })
     }
@@ -193,7 +236,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       const baseRoom = await engine.createRoom({
         name: `${title} · ${seat.name}`,
         goal,
-        bulletin: roomBulletin(goal, verify, acceptance, align),
+        bulletin: roomBulletin(goal, verify, effectiveAcceptance, align),
         members: [seatRef.id],
         cwd: workspaces.seats[seat.id].path,
         leadId: seatRef.id,
@@ -213,6 +256,19 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       engines[seat.id] = seatRef.engine
     }
     const worktrees = Object.fromEntries(Object.entries(workspaces.seats).map(([seatId, item]) => [seatId, item.path]))
+    const workerEngines = new Set(createdSeatRefs
+      .filter(({ seat }) => seat.role === 'worker')
+      .map(({ seatRef }) => seatRef.engine))
+    const verifierEngines = createdSeatRefs
+      .filter(({ seat }) => seat.role === 'verifier')
+      .map(({ seatRef }) => seatRef.engine)
+    const independence = verifiers.length === 0
+      ? (roster.length === 1 ? 'solo' : 'human')
+      : verifierEngines.length > 0 && verifierEngines.every(id => (
+        [...workerEngines].every(workerId => engineKind(workerId) !== engineKind(id))
+      ))
+        ? 'vendor'
+        : 'none'
 
     room = {
       id: `room-${short}`,
@@ -221,7 +277,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       goal,
       templateId,
       plan,
-      independence: verifiers.length === 0 ? (roster.length === 1 ? 'solo' : 'human') : 'none',
+      independence,
       engines,
       engineFallbacks,
       seatBots,
@@ -254,13 +310,17 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         id, name, title: seatTitle, role, station, permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget,
       })),
       constraints: [
-        verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',
+        plan?.stages?.length > 0
+          ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
+          : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',
         align
           ? `${roleLabel(lead)} 只读/规划；${workers.map(roleLabel).join('、')} 在自己的 worktree${verifiers.length > 0 ? `；${verifiers.map(roleLabel).join('、')} 在一次性副本` : ''}`
           : `${workers.map(roleLabel).join('、')} 在自己的 worktree`,
         ...(verifiers.length === 0
           ? [`${roster.length === 1 ? '单人模板' : '这个房间'}没有独立验收席位，由你凭证据签字`]
-          : ['当前只有一台 CLI：席位同引擎，验收卡会标「独立性降级」']),
+          : [independence === 'vendor'
+            ? '执行与验收已绑定不同厂商；验收席位走盲审，不共享执行对话'
+            : '当前只有同一厂商引擎可用：验收卡会标「独立性降级」']),
         ...(workers.length > 1
           ? [`${workers.length} 个执行席位并行，各自 worktree；系统把候选分支合并到房间分支 ${workspaces.primaryBranch}，冲突时停下等你`]
           : []),
@@ -283,17 +343,20 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
           kind: verify === 'test' ? 'deliverable' : 'decision',
           ...(verify === 'test' ? { acceptance } : { manual: true }),
         }
-        const acceptanceStage = { title: '验收与结论', kind: 'decision' }
-        const stages = align
-          ? [
-              { title: '目标对齐', kind: 'decision', state: plan !== null ? 'passed' : 'active' },
-              { ...delivery, state: plan !== null ? 'active' : 'pending' },
-              { ...acceptanceStage, state: 'pending' },
-            ]
-          : [
-              { ...delivery, state: 'active' },
-              { ...acceptanceStage, state: 'pending' },
-            ]
+        const planned = Array.isArray(plan?.stages) ? plan.stages : []
+        const work = planned.length > 0
+          ? planned.map((stage, index) => ({
+            title: stage.title,
+            kind: stage.kind,
+            ...(stage.acceptance ? { acceptance: stage.acceptance } : {}),
+            state: index > 0 || (align && plan === null) ? 'pending' : 'active',
+          }))
+          : [{ ...delivery, state: align && plan === null ? 'pending' : 'active' }]
+        const stages = [
+          ...(align ? [{ title: '目标对齐', kind: 'decision', state: plan !== null ? 'passed' : 'active' }] : []),
+          ...work,
+          { title: '验收与结论', kind: 'decision', state: 'pending' },
+        ]
         stages[stages.length - 1].dependsOn = [stages.length - 2]
         return stages
       })(),
@@ -363,8 +426,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       const targetSeat = align ? lead : worker
       markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
       const opening = align
-        ? alignmentPrompt(targetSeat.name, goal, verify, acceptance)
-        : directPrompt(goal, verify, acceptance, roster.length === 1)
+        ? alignmentPrompt(targetSeat.name, goal, verify, effectiveAcceptance)
+        : directPrompt(goal, verify, effectiveAcceptance, roster.length === 1)
       const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
       const sent = await live.sendToSeat(room.id, targetSeat.id, `${opening}\n\n${context}`)
       if (sent.messageId !== null) {

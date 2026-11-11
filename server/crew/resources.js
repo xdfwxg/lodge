@@ -1,5 +1,6 @@
 import { roomNeedsYou } from './attention.js'
 import { globalBudgetMicroUsd } from './budget.js'
+import { buildDelivery } from './delivery.js'
 
 // 调度台资源面板是只读投影：只汇总房间与消息，不路由、不执行。
 export const buildResources = (rooms, readMessages = () => []) => {
@@ -47,5 +48,22 @@ export const buildResources = (rooms, readMessages = () => []) => {
       partial: sum('partial'),
     },
     rooms: items.sort((a, b) => b.costMicroUsd - a.costMicroUsd),
+    deliveries: rooms
+      .filter(room => room.state === 'complete')
+      .map(room => {
+        const delivery = buildDelivery(room, readMessages(room.id))
+        return {
+          roomId: room.id,
+          name: room.name,
+          goal: room.goal,
+          completedAt: delivery.completedAt,
+          commit: delivery.commit,
+          stages: delivery.stages.length,
+          commands: delivery.commands.length,
+          changedFiles: delivery.changedFiles.length,
+        }
+      })
+      .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+      .slice(0, 10),
   }
 }

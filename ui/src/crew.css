@@ -80,6 +80,7 @@
 .crew-delivery-metrics{display:flex;flex-wrap:wrap;gap:6px 12px;padding:10px 18px;border-bottom:1px solid var(--bt-line);font-size:11px;color:var(--bt-ink-3)}
 .crew-delivery-commit{display:flex;align-items:center;gap:8px;padding:9px 18px;border-bottom:1px solid var(--bt-line);font-size:11.5px;color:var(--bt-ink-2)}
 .crew-delivery-commit code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--bt-ink)}
+.crew-delivery-export{flex:none;margin-left:auto}
 .crew-delivery-stages{display:flex;flex-direction:column;gap:8px;padding:12px 18px}
 .crew-delivery-stage{padding:9px 10px;border:1px solid var(--bt-line);border-radius:10px;background:color-mix(in srgb,var(--bt-ink) 1.5%,transparent)}
 .crew-delivery-stage-head{display:flex;align-items:center;gap:8px;font-size:12px}
@@ -126,6 +127,8 @@
 .crew-budget>b{font-variant-numeric:tabular-nums;color:var(--bt-ink)}
 .crew-budget-edit{display:flex;align-items:center;gap:8px}
 .crew-budget-edit input{width:88px;padding:4px 8px;border:1px solid var(--bt-line-2);border-radius:8px;background:var(--bt-bg);color:var(--bt-ink);font:inherit}
+.crew-seat-add input{width:130px}
+.crew-seat-add select{padding:4px 6px;border:1px solid var(--bt-line-2);border-radius:8px;background:var(--bt-bg);color:var(--bt-ink);font:inherit}
 .crew-bar{flex:1 1 auto;max-width:240px;height:5px;border-radius:999px;background:color-mix(in srgb,var(--bt-ink) 9%,transparent);overflow:hidden}
 .crew-bar i{display:block;height:100%;border-radius:999px;background:var(--bt-accent)}
 .crew-adv-table{width:100%;border-collapse:collapse;font-size:11.5px}

@@ -34,4 +34,5 @@ test('resource panel aggregates room state, cost and failures without routing', 
   })
   assert.deepEqual(resources.rooms.map(item => item.roomId), ['r2', 'r1', 'r3'])
   assert.equal(resources.rooms[1].needsYou.label, '等你确认')
+  assert.deepEqual(resources.deliveries.map(item => item.roomId), ['r3'])
 })

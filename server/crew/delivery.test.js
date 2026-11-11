@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildDelivery } from './delivery.js'
+import { buildDelivery, deliveryMarkdown } from './delivery.js'
 import { presentRoom } from './presentation.js'
 
 const room = (over = {}) => ({
@@ -38,4 +38,13 @@ test('the delivery sheet projection keeps goal, commands, files, verdicts and co
 test('a room event only carries a delivery sheet after completion', () => {
   assert.equal(presentRoom(room({ state: 'active' }), messages).delivery, null)
   assert.equal(presentRoom(room(), messages).delivery.goal, '保存后刷新仍生效')
+})
+
+test('the delivery sheet exports as portable markdown', () => {
+  const text = deliveryMarkdown(buildDelivery(room(), messages))
+  assert.match(text, /# 交付单：设置页保存/)
+  assert.match(text, /结论 commit：abcdef123456/)
+  assert.match(text, /npm test` · exit 0/)
+  assert.match(text, /复核 · PASS/)
+  assert.match(text, /src\/a\.js/)
 })

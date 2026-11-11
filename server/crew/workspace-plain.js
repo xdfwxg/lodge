@@ -106,6 +106,27 @@ export const prepareRoom = ({ source, short, seats }) => {
   }
 }
 
+const roomShort = room => String(room?.id ?? '').replace(/^room-/, '') || 'room'
+const nextSeatPort = room => {
+  const used = Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value))
+  return (used.length === 0 ? portBase() + portOffset(roomShort(room)) : Math.max(...used) + 10)
+}
+
+export const addSeat = ({ room, seat }) => {
+  const source = room?.sourceRepo
+  if (typeof source !== 'string' || source === '') throw new Error('房间没有源目录，不能新增席位')
+  const path = join(scratchRoot(), roomShort(room), seat.id)
+  if (existsSync(path)) throw new Error(`席位工作区已存在：${seat.id}`)
+  copyWorkspace(source, path)
+  return {
+    path,
+    branch: null,
+    kind: 'copy',
+    port: nextSeatPort(room),
+    environment: syncLocalEnvironment(source, path),
+  }
+}
+
 export const head = ({ path }) => manifestDigest(manifestOf(path))
 
 export const changes = async ({ path }) => {

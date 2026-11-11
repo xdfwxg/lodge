@@ -129,8 +129,8 @@ function VerdictCard({ message, seat, stage, room, onAccept }) {
   const foot = meta.simulated === true
     ? `模拟复核 · ${independenceOf(room)}`
     : independent
-      ? '验收只读复核 · 与执行不同厂商'
-      : `验收只读复核 · ${independenceOf(room)}`
+      ? '盲审 · 验收只读复核 · 与执行不同厂商'
+      : `盲审 · 验收只读复核 · ${independenceOf(room)}`
   return h('div', { className: 'crew-msg' },
     h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
@@ -283,6 +283,8 @@ function Advanced({ room, seats, store, engines = [] }) {
   const percent = budget === 0 ? 0 : Math.min(100, Math.round((cost / budget) * 100))
   const availableEngines = engines.filter(item => item.available)
   const [budgetDraft, setBudgetDraft] = useState(String(budget / 1_000_000))
+  const [seatRole, setSeatRole] = useState('worker')
+  const [seatName, setSeatName] = useState('')
   useEffect(() => {
     setBudgetDraft(String(budget / 1_000_000))
   }, [room.id, budget])
@@ -337,6 +339,30 @@ function Advanced({ room, seats, store, engines = [] }) {
           onChange: event => setBudgetDraft(event.target.value),
         }),
         h('button', { type: 'button', className: 'crew-choice', onClick: saveBudget }, '保存')),
+    room.imported === true || room.demo === true || (room.state !== 'active' && room.state !== 'paused')
+      ? null
+      : h('div', { className: 'crew-budget-edit crew-seat-add' },
+        h('span', null, '建后加席位'),
+        h('select', {
+          value: seatRole,
+          onChange: event => setSeatRole(event.target.value),
+        },
+        h('option', { value: 'worker' }, '执行'),
+        h('option', { value: 'verifier' }, '验收')),
+        h('input', {
+          type: 'text',
+          value: seatName,
+          placeholder: '席位名字（可空）',
+          onChange: event => setSeatName(event.target.value),
+        }),
+        h('button', {
+          type: 'button',
+          className: 'crew-choice',
+          onClick: () => {
+            void store.addSeat(seatRole, seatName.trim())
+            setSeatName('')
+          },
+        }, '添加')),
     h('div', { className: 'crew-budget-edit' },
       room.imported === true
         ? h('span', null, '这是导入的只读交接记录；用「基于此记录续做」开一个新房间。')
@@ -697,6 +723,23 @@ function ResourcePanel({ resources, usage, store }) {
       h('span', { className: 'crew-muted' }, item.needsYou?.label ?? ''),
       h('span', { className: 'crew-muted' },
         [item.rework > 0 ? `返工 ${item.rework}` : '', item.failedCommands > 0 ? `失败 ${item.failedCommands}` : ''].filter(Boolean).join(' · '))))),
+    (resources.deliveries ?? []).length > 0
+      ? h(Fragment, null,
+        h('div', { className: 'crew-section-title' }, '最近交付'),
+        h('div', { className: 'crew-resource-rooms' },
+          resources.deliveries.map(item => h('button', {
+            key: item.roomId,
+            type: 'button',
+            className: 'crew-resource-room',
+            onClick: () => store.select(item.roomId),
+          },
+          h('span', { className: 'crew-resource-name' }, item.name),
+          h('span', { className: 'crew-resource-state', 'data-state': 'complete' }, '已完成'),
+          h('span', null, `${item.stages} 阶段`),
+          h('span', null, `${item.commands} 命令`),
+          h('span', { className: 'crew-muted' }, `${item.changedFiles} 文件`),
+          h('span', { className: 'crew-muted' }, item.commit ? item.commit.slice(0, 8) : '无 commit')))))
+      : null,
     h('p', { className: 'crew-resource-note' }, '成本是基座上报的估算，不是账单。'))
 }
 
@@ -897,7 +940,7 @@ function RoomView({ state, room, store, onContinue }) {
       ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
       : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll' },
-      room.delivery ? h(DeliverySheet, { delivery: room.delivery }) : null,
+      room.delivery ? h(DeliverySheet, { delivery: room.delivery, onExport: () => void store.exportDelivery() }) : null,
       h('div', { className: 'crew-flow' }, h(Timeline, {
         room,
         seats,
@@ -1136,6 +1179,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
         plan: {
           done: proposal.done,
           why: proposal.why,
+          ...(proposal.stages?.length > 0 ? { stages: proposal.stages } : {}),
           answers: proposal.questions.map((question, index) => ({
             question: question.text,
             answer: answers[index] ?? question.recommendation,
@@ -1251,6 +1295,13 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
       h('b', null, '做完的样子'),
       h('ul', { className: 'crew-brief' },
         proposal.done.map((text, index) => h('li', { key: `done-${index}` }, text))),
+      proposal.stages?.length > 0
+        ? h(Fragment, null,
+          h('b', null, '阶段拆解'),
+          h('ul', { className: 'crew-brief' },
+            proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
+              `${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你拍板' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`))))
+        : null,
       proposal.questions.length > 0
         ? h(Fragment, null,
           h('b', null, '要你拍板'),

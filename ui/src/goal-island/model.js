@@ -288,7 +288,7 @@ export const buildGoalView = (room, seats) => {
       canPause: room.imported !== true && room.state === 'active',
       canResume: room.imported !== true && room.state === 'paused',
       canStop: room.imported !== true && (room.state === 'active' || room.state === 'paused'),
-      canContinue: room.imported === true,
+      canContinue: room.imported === true || room.state === 'complete',
     },
   }
 }

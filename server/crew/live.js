@@ -349,6 +349,22 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
     return entry
   }
 
+  const attachSeat = async (roomId, seat) => {
+    const entry = entries.get(roomId)
+    if (entry === undefined) return false
+    if (entry.seats.has(seat)) return true
+    const room = store.readRoom(roomId)
+    const ref = room?.seatRooms?.[seat]
+    if (ref === undefined) throw new Error(`房间没有 ${seat} 席位线程`)
+    const bases = await engine.rooms()
+    const base = bases.find(item => item.id === ref.id)
+    if (base === undefined) throw new Error(`engine 里没有 ${seat} 席位线程`)
+    entry.seats.set(seat, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
+    await syncSeat(entry, seat)
+    subscribeSeat(entry, seat)
+    return true
+  }
+
   const detach = roomId => {
     const entry = entries.get(roomId)
     if (entry === undefined) return
@@ -445,6 +461,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
   return {
     start,
     attach,
+    attachSeat,
     detach,
     send,
     sendToSeat,

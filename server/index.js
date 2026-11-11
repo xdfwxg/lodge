@@ -197,6 +197,11 @@ const server = http.createServer(async (req, res) => {
       return respond(res, await service.recommendRoster(await readJson(req)))
     }
 
+    const deliveryPath = path.match(/^\/api\/rooms\/([\w-]+)\/delivery\/export$/)
+    if (deliveryPath !== null && req.method === 'GET') {
+      return respond(res, service.deliveryExport(deliveryPath[1]))
+    }
+
     const handoffPath = path.match(/^\/api\/rooms\/([\w-]+)\/handoff$/)
     if (handoffPath !== null && req.method === 'GET') {
       return respond(res, service.handoff(handoffPath[1]))
@@ -218,7 +223,7 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.evidence(roomId, messageId))
     }
 
-    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|simulate|pause|resume|stop|acceptance|verify|budget)$/)
+    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|simulate|pause|resume|stop|acceptance|verify|budget|seats|approvals)$/)
     if (roomAction !== null) {
       const [, roomId, action] = roomAction
       return respond(res, await service.roomRequest(roomId, action, {

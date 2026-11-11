@@ -123,13 +123,15 @@ export const rosterFromRoles = entries => {
     const raw = typeof entry.name === 'string' ? entry.name.trim() : ''
     const name = raw === '' ? fallback : raw.slice(0, 32)
     const customPrompt = typeof entry.prompt === 'string' && entry.prompt.trim() !== ''
-    const engine = typeof entry.engine === 'string' && entry.engine.trim() !== '' ? entry.engine.trim().slice(0, 40) : base.engine
+    const engineExplicit = typeof entry.engine === 'string' && entry.engine.trim() !== ''
+    const engine = engineExplicit ? entry.engine.trim().slice(0, 40) : base.engine
     const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
     return cloneSeat({
       ...base,
       id,
       name,
       engine,
+      engineExplicit,
       station,
       prompt: customPrompt ? entry.prompt.trim().slice(0, 4_000) : base.prompt,
       customPrompt,

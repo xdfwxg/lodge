@@ -234,6 +234,7 @@ export function createStore() {
     setBudget: budgetUsd => post(`/api/rooms/${state.activeId}/budget`, { budgetUsd }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
+    addSeat: (role, name) => post(`/api/rooms/${state.activeId}/seats`, { role, name }),
     pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
     resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     stop: () => post(`/api/rooms/${state.activeId}/stop`, {}),
@@ -274,6 +275,19 @@ export function createStore() {
         return { ok: true }
       } catch (error) {
         patch({ error: `导出交接包失败：${String(error?.message ?? error)}` })
+        return { ok: false }
+      }
+    },
+    exportDelivery: async () => {
+      try {
+        const response = await fetch(`/api/rooms/${state.activeId}/delivery/export`)
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || typeof data.text !== 'string') throw new Error(data.error ?? `HTTP ${response.status}`)
+        download(data.filename ?? '交付单.md', data.text)
+        patch({ error: null })
+        return { ok: true }
+      } catch (error) {
+        patch({ error: `导出交付单失败：${String(error?.message ?? error)}` })
         return { ok: false }
       }
     },

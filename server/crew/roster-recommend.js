@@ -23,6 +23,7 @@ const recommendationPrompt = (goal, repoPath) => [
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
+  '- stages 写 1–3 个可交付阶段；每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
   '- JSON 代码块必须完整闭合。',
   '只输出一个 JSON 代码块，不要其他文字：',
   '```json',
@@ -33,6 +34,9 @@ const recommendationPrompt = (goal, repoPath) => [
   '  ],',
   '  "seats": [',
   '    {"role": "worker", "name": "执行", "reason": "为什么需要这个席位"}',
+  '  ],',
+  '  "stages": [',
+  '    {"title": "实现", "kind": "deliverable", "acceptance": "npm test"}',
   '  ],',
   '  "verify": "test",',
   '  "acceptance": "在仓库根目录可执行的验收命令",',
@@ -128,8 +132,19 @@ export const parseProposal = reply => {
   const verifiers = roleSeats(roster).verifiers
 
   const rawAcceptance = typeof data.acceptance === 'string' ? data.acceptance.trim() : ''
-  const manual = data.verify === 'manual' || rawAcceptance === ''
-  if (manual && verifiers.length > 0) {
+  const stages = Array.isArray(data.stages)
+    ? data.stages
+      .slice(0, 3)
+      .map(item => {
+        const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 80) : ''
+        const kind = item?.kind === 'decision' ? 'decision' : 'deliverable'
+        const acceptance = typeof item?.acceptance === 'string' ? item.acceptance.trim().slice(0, 500) : ''
+        return { title, kind, acceptance }
+      })
+      .filter(item => item.title !== '' && (item.kind === 'decision' || item.acceptance !== ''))
+    : []
+  const manual = data.verify === 'manual' || (rawAcceptance === '' && stages.every(stage => stage.kind === 'decision'))
+  if (manual && verifiers.length > 0 && stages.every(stage => stage.kind === 'decision')) {
     throw new Error('有验收席位时需要可执行验收命令；去掉验收席位或补一条命令')
   }
   const notes = [
@@ -145,6 +160,7 @@ export const parseProposal = reply => {
       name: seat.name,
       reason: entries[index]?.reason ?? '',
     })),
+    stages,
     verify: manual ? 'manual' : 'test',
     acceptance: manual ? '' : rawAcceptance,
     why: typeof data.why === 'string' ? data.why.trim().slice(0, 300) : '',

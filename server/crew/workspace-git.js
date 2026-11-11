@@ -172,6 +172,42 @@ export const prepareRoom = ({ source, short, seats }) => {
   }
 }
 
+const roomShort = room => String(room?.id ?? '').replace(/^room-/, '') || 'room'
+const nextSeatPort = room => {
+  const used = Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value))
+  return (used.length === 0 ? portBase() + portOffset(roomShort(room)) : Math.max(...used) + 10)
+}
+
+// 建后加席位：沿用 prepareRoom 的隔离规则，只创建新增席位的工作区。
+export const addSeat = ({ room, seat }) => {
+  const source = room?.sourceRepo
+  if (typeof source !== 'string' || source === '') throw new Error('房间没有源仓库，不能新增席位')
+  const short = roomShort(room)
+  const base = join(scratchRoot(), short)
+  const path = join(base, seat.id)
+  if (existsSync(path)) throw new Error(`席位工作区已存在：${seat.id}`)
+  mkdirSync(base, { recursive: true })
+  let branch = null
+  if (seat.role === 'worker') {
+    branch = `crew/${short}/${seat.id}`
+    git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
+  } else if (seat.role === 'verifier') {
+    git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
+  } else {
+    execFileSync('git', ['clone', '--quiet', '--no-hardlinks', source, path], {
+      cwd: base,
+      stdio: ['ignore', 'ignore', 'pipe'],
+    })
+  }
+  return {
+    path,
+    branch,
+    kind: seat.role === 'worker' ? 'worktree' : seat.role === 'verifier' ? 'verify' : 'clone',
+    port: nextSeatPort(room),
+    environment: syncLocalEnvironment(source, path),
+  }
+}
+
 export const head = ({ path }) => git(path, ['rev-parse', 'HEAD']).trim()
 
 // 验收命令在一次性 detached worktree 里跑；测试产生的文件不写回交付 worktree。

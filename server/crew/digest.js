@@ -47,20 +47,51 @@ export const independencePolicy = room => (
           : room.independence === 'none' ? '单 CLI（验收与执行同引擎，独立性降级）' : '独立性未标注'
 )
 
+const STOP = new Set(['the', 'and', 'for', 'with', 'this', 'that', '一个', '这个', '那个', '帮我', '把', '请', '需要', '怎么'])
+const termsOf = text => {
+  const value = String(text ?? '').toLowerCase()
+  const words = value.match(/[a-z0-9_]{3,}/g) ?? []
+  const chinese = value.match(/[一-鿿]{2,}/g) ?? []
+  const grams = chinese.flatMap(run => {
+    const out = []
+    for (let index = 0; index < run.length - 1; index += 1) out.push(run.slice(index, index + 2))
+    return out
+  })
+  return [...new Set([...words, ...grams])].filter(term => !STOP.has(term))
+}
+
+const roomText = room => [
+  room.name,
+  room.goal,
+  room.brief?.objective,
+  ...(room.brief?.done ?? []).map(item => (typeof item === 'string' ? item : item?.text)),
+  ...(room.constraints ?? []),
+  room.projectConstraints?.content,
+].filter(value => typeof value === 'string').join(' ').toLowerCase()
+
+// 本地语义路由：词项命中 + 房间状态，不调用模型，不把建议当执行。
 export const suggestFor = (text, rooms) => {
   if (!Array.isArray(rooms) || rooms.length === 0) return null
-  const keywordRoom = /README|文档/i.test(text)
-    ? rooms.find(room => /README/i.test(room.name))
-    : /登录|OAuth|认证|auth/i.test(text)
-      ? rooms.find(room => /OAuth/i.test(room.name))
-      : null
-  const room = keywordRoom ?? rooms.find(item => item.state === 'active') ?? rooms[0]
+  const terms = termsOf(text)
+  const scored = rooms.map((room, index) => {
+    const haystack = roomText(room)
+    const matched = terms.filter(term => haystack.includes(term))
+    const score = matched.length * 3
+      + (terms.some(term => room.name.toLowerCase().includes(term)) ? 2 : 0)
+      + (room.state === 'active' ? 1 : room.state === 'complete' ? -2 : 0)
+      - index * 0.01
+    return { room, matched, score }
+  }).sort((a, b) => b.score - a.score)
+  const best = scored[0]
+  const room = best.score > 0 ? best.room : rooms.find(item => item.state === 'active') ?? rooms[0]
   return {
     roomId: room.id,
     roomName: room.name,
     seatId: 'planner',
     seatName: '队长',
-    reason: keywordRoom ? '关键词命中已有群的目标' : '按最近活跃度选择进行中的群',
+    reason: best.score > 0
+      ? `语义匹配：${best.matched.slice(0, 4).join('、')}`
+      : '按最近活跃度选择进行中的群',
     permissions: '只读',
     stages: room.stages.filter(stage => stage.state !== 'passed').length,
   }

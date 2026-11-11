@@ -17,7 +17,7 @@ const timeOf = ts => {
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
 
 // 完成态先看到交付单，聊天退到下方；数据全部来自房间投影，不在 UI 重算业务结论。
-export function DeliverySheet({ delivery }) {
+export function DeliverySheet({ delivery, onExport }) {
   const commands = delivery.commands ?? []
   const passed = commands.filter(command => command.exit === 0).length
   return h('section', { className: 'crew-delivery', 'aria-label': '交付单' },
@@ -26,7 +26,10 @@ export function DeliverySheet({ delivery }) {
         h('span', { className: 'crew-delivery-kicker' }, '交付单'),
         h('h2', null, delivery.name ?? '这次交付'),
         h('p', null, delivery.goal ?? '')),
-      h('span', { className: 'crew-verdict', 'data-pass': true }, '目标达成')),
+      h('span', { className: 'crew-verdict', 'data-pass': true }, '目标达成'),
+      onExport === undefined
+        ? null
+        : h('button', { type: 'button', className: 'crew-ghost crew-delivery-export', onClick: onExport }, '导出交付单')),
     h('div', { className: 'crew-delivery-metrics' },
       h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 阶段`),
       h('span', null, `${passed}/${commands.length} 命令通过`),

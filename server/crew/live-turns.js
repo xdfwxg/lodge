@@ -647,12 +647,13 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
           exit: pending.exit,
           evidenceId: pending.evidenceId,
           review: true,
+          blind: true,
           verifier: pending.verifier,
           turnId,
           simulated: false,
         },
       })
-      store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, turnId })
+      store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, blind: true, turnId })
       if (!pass) {
         updateTasks(pending.stage, current => markStageTasks(current, 'working'))
         for (const [remainingSeat, request] of reviewRound.requests) {
@@ -920,6 +921,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       const verifierPort = room.ports?.[verifier]
       const prompt = [
         `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。只做只读复核，不改任何文件，不提交、不推送。`,
+        '盲审：你只拿到目标、约束、本轮验收证据和改动，不读取执行席位的对话；判定只看证据和代码。',
         buildSeatHandoff({ room, messages }),
         `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
         ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
