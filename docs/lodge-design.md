@@ -990,7 +990,7 @@ interface Engine {
 }
 ```
 
-`createSeatBot` 的 `engine` 是席位声明的引擎类别（如 `claude-cli` / `codex-cli`）；Engine 适配层通过基座 `/api/instances` 绑定到可用 instance/model。不可用时显式回退默认引擎，写「引擎降级」消息，不静默伪装成请求的引擎。当前机器只有 Claude 可用，Codex/Grok 会回退；能力矩阵与 UI 选择仍未接。
+`createSeatBot` 的 `engine` 是席位声明的引擎类别（如 `claude-cli` / `codex-cli`）；Engine 适配层通过基座 `/api/instances` 绑定到可用 instance/model。不可用时显式回退默认引擎，写「引擎降级」消息，不静默伪装成请求的引擎。`/api/state` 暴露只读 `engines`（available、原因、默认模型、capabilities），Advanced 显示可用引擎与降级原因；不做引擎选择器。当前机器只有 Claude 可用，Codex/Grok 会回退；能力矩阵参与策略仍未接。
 
 `Event` 的 `text_delta / tool_call / permission_request / usage / done` 仍是后续流式端口的目标；P0 由基座消息、activity 与 digest 归一化。`Room` 只暴露 `id/name/sessionRef/goal/working/busyRef/cwd/usage`；`group/thread/bot/defaultResponder` 不进入 crew。
 

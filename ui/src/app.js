@@ -525,10 +525,11 @@ function RoomRow({ room, roster, active, onSelect }) {
     h('span', { className: 'bt-row-preview', 'data-needs': needs?.kind }, preview)))
 }
 
-function Advanced({ room, seats, store }) {
+function Advanced({ room, seats, store, engines = [] }) {
   const cost = room.usage?.costMicroUsd ?? 0
   const budget = room.usage?.budgetMicroUsd ?? 0
   const percent = budget === 0 ? 0 : Math.min(100, Math.round((cost / budget) * 100))
+  const availableEngines = engines.filter(item => item.available)
   const [budgetDraft, setBudgetDraft] = useState(String(budget / 1_000_000))
   useEffect(() => {
     setBudgetDraft(String(budget / 1_000_000))
@@ -541,6 +542,10 @@ function Advanced({ room, seats, store }) {
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
       h('span', null, `房间策略：${room.independencePolicy ?? '未标注'}`),
+      h('span', null, `可用引擎：${availableEngines.length === 0 ? '无' : availableEngines.map(item => `${item.name}${item.models?.default ? `（${item.models.default}）` : ''}`).join('、')}`),
+      ...Object.entries(room.engineFallbacks ?? {}).map(([seat, item]) => (
+        h('span', { key: `engine-${seat}` }, `${seat}：${item.requested} → ${item.actual}（${item.reason}）`)
+      )),
       h('span', null, '预算按基座上报用量估算，不是账单'),
       room.repoPath ? h('span', null, `仓库：${room.repoPath}`) : null,
       room.sourceRepo ? h('span', null, `源仓库：${room.sourceRepo}`) : null,
@@ -906,7 +911,7 @@ function RoomView({ state, room, store }) {
       onToggleAdvanced: () => setAdvanced(value => !value),
       store,
     }),
-    advanced ? h(Advanced, { room, seats, store }) : null,
+    advanced ? h(Advanced, { room, seats, store, engines: state.engines }) : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll' },
       h('div', { className: 'crew-flow' }, h(Timeline, {
         room,

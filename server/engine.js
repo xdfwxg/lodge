@@ -246,12 +246,14 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       }
     }
     const selection = await defaultModelSelection()
+    const unavailable = list.find(item => item.instanceId === requested || item.driverKind === wanted)
+    const detail = typeof unavailable?.snapshot?.reason === 'string' ? unavailable.snapshot.reason.trim() : ''
     return {
       selection,
       engine: selection.instanceId,
       requested,
       fallback: true,
-      reason: `${requested} 不可用`,
+      reason: detail === '' ? `${requested} 不可用` : `${requested} 不可用：${detail.slice(0, 180)}`,
     }
   }
 

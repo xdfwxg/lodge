@@ -146,7 +146,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (path === '/api/state' && req.method === 'GET') {
-      return json(res, 200, service.state())
+      return json(res, 200, await service.state())
     }
 
     if (path === '/api/health' && req.method === 'GET') {

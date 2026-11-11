@@ -27,8 +27,14 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
 
   const health = async () => ok({ runtime: await engine.health() })
 
-  const state = () => {
+  const state = async () => {
     const rooms = readRooms()
+    let engines = []
+    try {
+      engines = await engine.instances()
+    } catch {
+      engines = []
+    }
     return {
       seats,
       templates: TEMPLATE_LIST,
@@ -38,6 +44,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       }),
       dispatch: dispatchPayload(),
       budget: budgetSummary(rooms),
+      engines,
     }
   }
 
