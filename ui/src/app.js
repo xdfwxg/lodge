@@ -160,6 +160,7 @@ function StageStep({ stage, index, selected, onSelect, rework = 0, partial = 0 }
     className: 'crew-step-node',
     'data-state': stage.state,
     'data-selected': selected,
+    'aria-current': selected ? 'step' : undefined,
     onClick: onSelect,
     title: note === '' ? stage.title : `${stage.title} · ${note}`,
   },
@@ -174,6 +175,10 @@ function IslandStage({ room, index, seats, onBack }) {
   const evidence = evidenceFor(room, index)
   const verdict = verdictFor(room, index)
   const rejects = rejectsFor(room, index)
+  const seatById = new Map(seats.map(seat => [seat.id, seat]))
+  const nameOf = id => room.seatNames?.[id] ?? seatById.get(id)?.name ?? id
+  const taskOwners = new Set((stage.tasks ?? []).map(task => task.owner))
+  const otherSeats = seats.filter(seat => !taskOwners.has(seat.id))
   const brief = room.brief ?? null
   const conflict = room.mergeConflict?.stage === index
     ? room.mergeConflict
@@ -208,6 +213,7 @@ function IslandStage({ room, index, seats, onBack }) {
         h('span', null, `返工 ${rejects.length} 次 · 验收席位打回`),
         h('div', { className: 'crew-island-rework-list' },
           [...rejects].reverse().slice(0, 3).map(message => h('div', { key: message.id, className: 'crew-island-rework-item' },
+            h('span', { className: 'crew-island-rework-author' }, nameOf(message.authorId)),
             h('span', null, timeOf(message.ts)),
             h('p', null, message.text || '验收席位打回')))),
         rejects.length > 3 ? h('p', { className: 'crew-island-soft' }, `还有 ${rejects.length - 3} 次更早的打回，见时间线`) : null)
@@ -231,12 +237,27 @@ function IslandStage({ room, index, seats, onBack }) {
     stage.tasks?.length > 0
       ? h('div', { className: 'crew-island-tasks' },
         h('span', { className: 'crew-island-soft' }, '任务'),
-        stage.tasks.map(task => h('div', { key: task.id, className: 'crew-island-task', 'data-state': task.status },
-          h('span', null, task.title),
-          h('span', null, TASK_LABEL[task.status] ?? task.status))))
+        stage.tasks.map(task => {
+          const seat = seatById.get(task.owner)
+          return h('div', { key: task.id, className: 'crew-island-task', 'data-state': task.status },
+            seat
+              ? h(BotAvatar, { bot: seat, size: 20, live: task.status === 'working' })
+              : h(BotMark, { size: 20 }),
+            h('span', { className: 'crew-island-task-title' }, task.title),
+            task.evidenceRef
+              ? h('a', {
+                className: 'crew-island-task-evidence',
+                href: `/api/rooms/${room.id}/evidence/${task.evidenceRef}`,
+                target: '_blank',
+                rel: 'noreferrer',
+              }, '证据')
+              : null,
+            h('span', { className: 'crew-island-task-state' }, TASK_LABEL[task.status] ?? task.status))
+        }))
       : null,
-    h('div', { className: 'crew-island-seats' },
-      seats.map(seat => h('div', { key: seat.id, className: 'crew-island-seat', 'data-state': seatState(room, stage, index, seat.id) },
+    otherSeats.length > 0
+      ? h('div', { className: 'crew-island-seats' },
+        otherSeats.map(seat => h('div', { key: seat.id, className: 'crew-island-seat', 'data-state': seatState(room, stage, index, seat.id) },
         h(BotAvatar, { bot: seat, size: 22, live: seatState(room, stage, index, seat.id) === 'working' }),
         h('span', { className: 'crew-island-seat-name' }, seat.name),
         h('span', { className: 'crew-island-seat-task' }, seatTask(seat, stage)),
@@ -245,7 +266,8 @@ function IslandStage({ room, index, seats, onBack }) {
             : seatState(room, stage, index, seat.id) === 'working' ? '在做'
               : seatState(room, stage, index, seat.id) === 'idle' ? '待命'
                 : seatState(room, stage, index, seat.id) === 'paused' ? '暂停'
-                  : '未开始')))),
+                  : '未开始'))))
+      : null,
     h('details', { className: 'crew-island-checks' },
       h('summary', null, '目标与检查'),
       h('div', { className: 'crew-island-checks-body' },
@@ -274,19 +296,22 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
   const selected = picked ?? (current >= 0 ? current : room.stages.length - 1)
   const selectedStage = room.stages[selected]
   const workers = workingSeats(room, current)
-  const working = seats.filter(seat => workers.includes(seat.id))
+  const currentTasks = current >= 0 ? room.stages[current]?.tasks ?? [] : []
+  const taskOwners = [...new Set(currentTasks.map(task => task.owner))]
+  const faceIds = taskOwners.length > 0 ? taskOwners : workers
+  const working = seats.filter(seat => faceIds.includes(seat.id))
   const answers = [
-    ['目标', room.brief?.objective || room.goal || '—'],
+    ['目标', room.brief?.objective || room.goal || '—', 'goal'],
     ['进度', room.state === 'complete'
       ? `${room.stages.length}/${room.stages.length} · 目标达成`
       : current >= 0
         ? `${current + 1}/${room.stages.length} · ${room.stages[current].title}`
-        : `${done}/${room.stages.length} · 已停止`],
+        : `${done}/${room.stages.length} · 已停止`, 'progress'],
     ['怎么算过', selectedStage === undefined
       ? '—'
       : selectedStage.kind === 'deliverable'
         ? (selectedStage.acceptance ?? '未写验收命令')
-        : '你点过才算过'],
+        : '你点过才算过', 'acceptance'],
   ]
 
   useEffect(() => {
@@ -294,6 +319,10 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
     const timer = setTimeout(() => setArmed(false), 3000)
     return () => clearTimeout(timer)
   }, [armed])
+
+  useEffect(() => {
+    setPicked(null)
+  }, [current])
 
   const degraded = room.independence !== 'vendor'
 
@@ -303,6 +332,7 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
       role: 'button',
       tabIndex: 0,
       'aria-expanded': open,
+      'aria-controls': 'crew-island-panel',
       onClick: () => setOpen(value => !value),
       onKeyDown: event => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -331,13 +361,13 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
       }))),
       working.length > 0
         ? h('div', { className: 'crew-island-faces' },
-          working.slice(0, 4).map(seat => h(BotAvatar, { key: seat.id, bot: seat, size: 20, live: true })),
+          working.slice(0, 4).map(seat => h(BotAvatar, { key: seat.id, bot: seat, size: 20, live: workers.includes(seat.id) })),
           working.length > 4 ? h('span', { className: 'crew-island-more' }, `+${working.length - 4}`) : null)
         : null),
     open
-      ? h('div', { className: 'crew-island-panel' },
+      ? h('div', { id: 'crew-island-panel', className: 'crew-island-panel', role: 'region', 'aria-label': '目标与阶段' },
         h('div', { className: 'crew-island-answers' },
-          answers.map(([label, value]) => h('div', { key: label, className: 'crew-island-answer' },
+          answers.map(([label, value, kind]) => h('div', { key: label, className: 'crew-island-answer', 'data-kind': kind },
             h('span', null, label),
             h('b', { title: value }, value)))),
         h('div', { className: 'crew-island-steps' },

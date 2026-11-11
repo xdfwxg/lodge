@@ -293,6 +293,27 @@
 .crew-island-answer{min-width:0;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--bt-line-2);border-radius:9px;background:color-mix(in srgb,var(--bt-ink) 1.5%,transparent)}
 .crew-island-answer span{font-size:10.5px;line-height:15px;color:var(--bt-ink-3)}
 .crew-island-answer b{min-width:0;font-size:12px;font-weight:600;line-height:18px;color:var(--bt-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-island-answer[data-kind=goal]{border-left:2px solid color-mix(in srgb,var(--bt-accent) 55%,transparent)}
+.crew-island-answer[data-kind=acceptance] b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px}
+@keyframes crew-island-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes crew-island-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--bt-accent) 38%,transparent)}50%{box-shadow:0 0 0 5px transparent}}
+.crew-island-dot[data-tone=active]{animation:crew-island-pulse 2.6s ease-in-out infinite}
+.crew-island-panel{animation:crew-island-in .18s ease-out;max-height:min(62vh,540px);overflow:auto;margin:8px 16px 12px;padding:12px 16px 13px;border:1px solid var(--bt-line-2);border-radius:12px;background:var(--bt-card);box-shadow:0 10px 30px rgb(0 0 0 / .10),inset 0 1px 0 color-mix(in srgb,var(--bt-ink) 3%,transparent);background-image:linear-gradient(180deg,color-mix(in srgb,var(--bt-accent) 3%,transparent),transparent 42%)}
+.crew-island-panel>*{flex:0 0 auto}
+.crew-step-node{transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease}
+.crew-step-node:focus-visible{outline:2px solid var(--bt-accent);outline-offset:1px}
+.crew-island-track i{transition:background-color .2s ease,flex-grow .2s ease}
+.crew-island-evidence-link{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:560px){
+  .crew-step-label{display:none}
+  .crew-step-node{justify-content:center;padding:5px 6px}
+  .crew-step-rework,.crew-step-partial{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .crew-island-panel{animation:none}
+  .crew-island-dot[data-tone=active]{animation:none}
+  .crew-step-node,.crew-island-track i{transition:none}
+}
 @media (max-width:700px){
   .crew-island-answers{grid-template-columns:1fr}
 }
@@ -304,8 +325,9 @@
 .crew-island-rework{border-left:2px solid var(--bt-star);padding:1px 0 1px 10px}
 .crew-island-rework p{margin:3px 0 0;color:var(--bt-ink)}
 .crew-island-rework-list{display:flex;flex-direction:column;gap:4px;margin-top:4px}
-.crew-island-rework-item{display:grid;grid-template-columns:38px minmax(0,1fr);gap:6px;align-items:baseline}
+.crew-island-rework-item{display:grid;grid-template-columns:64px 38px minmax(0,1fr);gap:6px;align-items:baseline}
 .crew-island-rework-item span{font-size:10.5px;line-height:16px;color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
+.crew-island-rework-author{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:color-mix(in srgb,var(--bt-star) 78%,var(--bt-ink))!important}
 .crew-island-rework-item p{margin:0;color:var(--bt-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .crew-island-evidence{display:flex;flex-wrap:wrap;gap:8px}
 .crew-island-evidence-link{font-size:11.5px;color:var(--bt-accent);text-decoration:none;border-bottom:1px dashed color-mix(in srgb,var(--bt-accent) 45%,transparent);padding-bottom:1px}
@@ -313,11 +335,13 @@
 .crew-island-verdict{font-size:11.5px;font-weight:600;color:var(--bt-star)}
 .crew-island-verdict[data-pass=true]{color:color-mix(in srgb,var(--bt-green) 80%,var(--bt-ink))}
 .crew-island-tasks{display:flex;flex-direction:column;gap:2px;margin-top:2px}
-.crew-island-task{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-top:1px solid var(--bt-line);font-size:11px;line-height:16px}
-.crew-island-task span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink)}
-.crew-island-task span:last-child{flex:none;color:var(--bt-ink-3)}
-.crew-island-task[data-state=done] span:last-child{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
-.crew-island-task[data-state=failed] span:last-child{color:var(--bt-danger)}
+.crew-island-task{display:grid;grid-template-columns:20px minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--bt-line);font-size:11px;line-height:16px}
+.crew-island-task-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink)}
+.crew-island-task-state{flex:none;color:var(--bt-ink-3)}
+.crew-island-task-evidence{font-size:10.5px;color:var(--bt-accent);text-decoration:none;border-bottom:1px dashed color-mix(in srgb,var(--bt-accent) 45%,transparent);padding-bottom:1px}
+.crew-island-task-evidence:hover{border-bottom-style:solid}
+.crew-island-task[data-state=done] .crew-island-task-state{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
+.crew-island-task[data-state=failed] .crew-island-task-state{color:var(--bt-danger)}
 .crew-island-seats{display:flex;flex-direction:column;gap:0;margin-top:2px}
 .crew-island-seat{display:grid;grid-template-columns:22px 42px minmax(0,1fr) auto;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--bt-line)}
 .crew-island-seat:first-child{border-top:0}
@@ -333,7 +357,7 @@
 .crew-island-checks-body{display:flex;flex-direction:column;gap:7px;padding:8px 0 2px 12px}
 .crew-island-done{display:flex;flex-direction:column;gap:2px}
 .crew-island-done span[data-done=true]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
-.crew-island-foot{display:flex;align-items:center;gap:8px;border-top:1px solid var(--bt-line);padding-top:10px}
+.crew-island-foot{position:sticky;bottom:-13px;z-index:1;display:flex;align-items:center;gap:8px;margin:8px -16px -13px;padding:10px 16px 12px;border-top:1px solid var(--bt-line);background:var(--bt-card);box-shadow:0 -8px 18px color-mix(in srgb,var(--bt-bg,var(--bt-card)) 65%,transparent)}
 .crew-island-foot-space{flex:1}
 .crew-island-foot [data-armed=true]{color:var(--bt-star);border-color:color-mix(in srgb,var(--bt-star) 55%,transparent)}
 .crew-island-back{align-self:flex-start}
