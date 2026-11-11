@@ -181,6 +181,10 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.projectConstraints(url.searchParams.get('repoPath')))
     }
 
+    if (path === '/api/templates/parse' && req.method === 'POST') {
+      return respond(res, service.importTemplate(await readJson(req, 512 * 1024)))
+    }
+
     if (path === '/api/roster/recommend' && req.method === 'POST') {
       return respond(res, await service.recommendRoster(await readJson(req)))
     }

@@ -148,17 +148,22 @@ const seatState = (room, stage, index, seatId) => {
 
 const STAGE_KIND = { decision: '决策 · 你确认才算过', deliverable: '交付 · 命令与证据说话' }
 
-function StageStep({ stage, index, selected, onSelect, rework = 0 }) {
+function StageStep({ stage, index, selected, onSelect, rework = 0, partial = 0 }) {
+  const note = [
+    rework > 0 ? `返工 ${rework} 次` : '',
+    partial > 0 ? `${partial} 席未产出` : '',
+  ].filter(Boolean).join(' · ')
   return h('button', {
     type: 'button',
     className: 'crew-step-node',
     'data-state': stage.state,
     'data-selected': selected,
     onClick: onSelect,
-    title: rework > 0 ? `${stage.title} · 返工 ${rework} 次` : stage.title,
+    title: note === '' ? stage.title : `${stage.title} · ${note}`,
   },
   h('span', { className: 'crew-step-mark' }, stage.state === 'passed' ? '✓' : String(index + 1)),
   h('span', { className: 'crew-step-label' }, stage.title),
+  partial > 0 ? h('span', { className: 'crew-step-partial' }, `×${partial}`) : null,
   rework > 0 ? h('span', { className: 'crew-step-rework' }, `↺${rework}`) : null)
 }
 
@@ -176,6 +181,16 @@ function IslandStage({ room, index, seats, onBack }) {
     h('div', { className: 'crew-island-stage-head' },
       h('b', null, `${index + 1} ${stage.title}`),
       h('span', { className: 'crew-island-kind' }, STAGE_KIND[stage.kind] ?? '')),
+    Array.isArray(stage.dependsOn) && stage.dependsOn.length > 0
+      ? h('div', { className: 'crew-kv' },
+        h('span', null, '依赖'),
+        h('span', { className: 'crew-island-soft' }, stage.dependsOn.map(item => `阶段 ${item + 1}`).join('、')))
+      : null,
+    stage.partial?.failed?.length > 0
+      ? h('div', { className: 'crew-island-rework' },
+        h('span', null, `部分成功 · ${stage.partial.failed.length} 席未产出`),
+        h('p', null, stage.partial.failed.map(id => room.seatNames?.[id] ?? id).join('、')))
+      : null,
     h('div', { className: 'crew-kv' },
       h('span', null, '做到什么算过'),
       stage.kind === 'deliverable'
@@ -323,6 +338,7 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
             index,
             selected: index === selected,
             rework: rejectsFor(room, index).length,
+            partial: room.stages[index].partial?.failed?.length ?? 0,
             onSelect: () => setPicked(index),
           }))),
         room.stages[selected]
@@ -500,13 +516,13 @@ function ConclusionCard({ message }) {
             : null))))
 }
 
-function ImportButton({ className, onFile, children }) {
+function ImportButton({ className, onFile, children, accept = '.json,application/json' }) {
   const input = useRef(null)
   return h(Fragment, null,
     h('input', {
       ref: input,
       type: 'file',
-      accept: '.json,application/json',
+      accept,
       style: { display: 'none' },
       onChange: event => {
         const file = event.target.files?.[0]
@@ -698,7 +714,7 @@ function ReviewDialog({ review, onClose }) {
             review.stages.map(stage => h('div', { key: stage.index, className: 'crew-review-stage', 'data-state': stage.state },
               h('span', { className: 'crew-review-stage-title' }, `${stage.index + 1} ${stage.title}`),
               h('span', { className: 'crew-review-stage-meta' },
-                `${stage.state === 'passed' ? '已过' : stage.state === 'active' ? '进行中' : '未开始'} · 证据 ${stage.commands}${stage.failed > 0 ? ` · 失败 ${stage.failed}` : ''}${stage.rejects > 0 ? ` · 返工 ${stage.rejects}` : ''}`))))),
+                `${stage.state === 'passed' ? '已过' : stage.state === 'active' ? '进行中' : '未开始'} · 证据 ${stage.commands}${stage.failed > 0 ? ` · 失败 ${stage.failed}` : ''}${stage.rejects > 0 ? ` · 返工 ${stage.rejects}` : ''}${stage.partial?.failed?.length > 0 ? ` · 部分成功 ${stage.partial.failed.length}` : ''}`))))),
         h('div', { className: 'crew-review-section' },
           h('b', null, '失败与返工'),
           review.failures.length === 0
@@ -1107,7 +1123,7 @@ const seatsFromProposal = proposal => {
   ]
 }
 
-function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstraints, templates = [], resume = null }) {
+function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstraints, onParseTemplate, templates = [], resume = null }) {
   const choices = templates.length > 0 ? templates : [{ id: 'delivery-triad', name: '交付三人组', seats: 3 }, { id: 'solo', name: '单人', seats: 1 }]
   const templateChoices = [...choices, { id: 'custom', name: '自定义', seats: null }]
   const [step, setStep] = useState(0)
@@ -1122,6 +1138,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
   const [constraintsChecked, setConstraintsChecked] = useState(false)
   const [includeConstraints, setIncludeConstraints] = useState(false)
   const [constraintsLoading, setConstraintsLoading] = useState(false)
+  const [importedTemplate, setImportedTemplate] = useState(null)
   const [proposal, setProposal] = useState(null)
   const [answers, setAnswers] = useState([])
   const [manual, setManual] = useState(false)
@@ -1190,6 +1207,35 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
     setIncludeConstraints(typeof result.content === 'string' && result.content.trim() !== '')
   }
 
+  const loadTemplate = async file => {
+    const result = await onParseTemplate(file.name, await file.text())
+    if (result?.ok !== true) {
+      setError(result?.error ?? '模板解析失败')
+      return
+    }
+    setImportedTemplate(result.template)
+    setError(null)
+  }
+
+  const useImportedTemplate = () => {
+    if (importedTemplate === null) return
+    setTemplateId('custom')
+    setSeats(importedTemplate.seats.map((seat, index) => ({
+      key: `template-${index}`,
+      role: seat.role,
+      label: ROLE_LABEL[seat.role] ?? seat.role,
+      name: seat.name,
+      on: true,
+      required: seat.role === 'worker',
+      prompt: seat.prompt,
+      station: seat.station,
+      engine: seat.engine,
+    })))
+    setManual(true)
+    setProposal(null)
+    setStep(1)
+  }
+
   const recommend = async () => {
     if (goal.trim() === '' || recommending) return
     setRecommending(true)
@@ -1226,7 +1272,13 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
     setError(null)
     const roster = useProposal
       ? proposal.seats.map(({ role, name }) => ({ role, name }))
-      : activeSeats.map(seat => ({ role: seat.role, name: seat.name.trim() || seat.label }))
+      : activeSeats.map(seat => ({
+        role: seat.role,
+        name: seat.name.trim() || seat.label,
+        ...(seat.prompt ? { prompt: seat.prompt } : {}),
+        ...(seat.station ? { station: seat.station } : {}),
+        ...(seat.engine ? { engine: seat.engine } : {}),
+      }))
     const result = await onCreate(goal.trim(), {
       verify,
       acceptance: acceptance.trim(),
@@ -1256,6 +1308,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
       setConstraintsPath(null)
       setConstraintsChecked(false)
       setIncludeConstraints(false)
+      setImportedTemplate(null)
       setError(null)
       onClose()
     } else {
@@ -1417,6 +1470,24 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
           : constraintsChecked
             ? h('p', { className: 'crew-island-soft' }, '这个工作目录没有 LODGE.md。')
             : null),
+      h('div', { className: 'crew-q crew-constraints' },
+        h('div', { className: 'crew-constraints-head' },
+          h('b', null, '本地模板'),
+          h(ImportButton, {
+            className: 'crew-ghost',
+            accept: '.crew.yaml,.yaml,.yml,.json,application/json',
+            onFile: file => void loadTemplate(file),
+          }, '导入 .crew.yaml')),
+        importedTemplate === null
+          ? h('p', { className: 'crew-island-soft' }, '从本地文件读取席位与提示词；权限仍由角色派生。')
+          : h(Fragment, null,
+            h('p', { className: 'crew-dialog-lead' },
+              `${importedTemplate.name} · ${importedTemplate.seats.length} 席${importedTemplate.description === '' ? '' : ` · ${importedTemplate.description}`}`),
+            h('ul', { className: 'crew-brief' },
+              importedTemplate.seats.map((seat, index) => h('li', { key: `template-${index}` },
+                `${ROLE_LABEL[seat.role] ?? seat.role}「${seat.name}」${seat.engine === undefined ? '' : ` · ${seat.engine}`}`))),
+            h('p', { className: 'crew-dialog-note' }, '模板不能提权；权限与写范围按角色校验。'),
+            h('button', { type: 'button', className: 'crew-choice', onClick: useImportedTemplate }, '用这个模板'))),
       resume?.brief?.done?.length > 0
         ? h('div', { className: 'crew-q' },
           h('b', null, `上一轮 BRIEF · ${resume.name}`),
@@ -1546,6 +1617,7 @@ export function App() {
         onCreate: (goal, answers) => store.createRoom(goal, answers),
         onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
         onProjectConstraints: repoPath => store.loadProjectConstraints(repoPath),
+        onParseTemplate: (filename, text) => store.parseTemplate(filename, text),
       }))
   }
 
@@ -1570,5 +1642,6 @@ export function App() {
       onCreate: (goal, answers) => store.createRoom(goal, answers),
       onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
       onProjectConstraints: repoPath => store.loadProjectConstraints(repoPath),
+      onParseTemplate: (filename, text) => store.parseTemplate(filename, text),
     }))
 }

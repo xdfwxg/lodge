@@ -27,6 +27,18 @@ const verdict = (stage = 1, seq = 11, pass = true, meta = {}) => ({
   meta: { stage, pass, ...meta },
 })
 
+test('a stage waits for its declared dependencies', () => {
+  const r = room({ verifiers: [] })
+  r.stages[0].state = 'active'
+  r.stages[1].dependsOn = [0]
+  const blocked = gateFor(r, 1, [evidence(), verdict()])
+  assert.equal(blocked.ok, false)
+  assert.match(blocked.error, /先完成阶段 1/)
+  r.stages[0].state = 'passed'
+  const open = gateFor(r, 1, [evidence(), verdict()])
+  assert.equal(open.ok, true)
+})
+
 test('rejects a stage that is not active', () => {
   const r = room()
   r.stages[1].state = 'pending'

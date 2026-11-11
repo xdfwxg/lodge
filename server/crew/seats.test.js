@@ -119,6 +119,20 @@ test('an unknown custom role fails closed', () => {
   assert.throws(() => rosterFromRoles([{ role: 'designer' }]), /unknown role/)
 })
 
+test('a custom seat can carry a template prompt, station and engine', () => {
+  const roster = rosterFromRoles([{
+    role: 'worker',
+    name: '小工',
+    prompt: '只改一个文件，然后跑测试。',
+    station: '模板执行',
+    engine: 'codex-cli',
+  }])
+  assert.equal(roster[0].prompt, '只改一个文件，然后跑测试。')
+  assert.equal(roster[0].station, '模板执行')
+  assert.equal(roster[0].engine, 'codex-cli')
+  assert.doesNotThrow(() => validateSeats(roster))
+})
+
 test('a custom roster can carry parallel workers', () => {
   const roster = rosterFromRoles([
     { role: 'worker', name: '前端' },

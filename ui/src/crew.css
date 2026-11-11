@@ -241,6 +241,8 @@
 .crew-step-node[data-state=active] .crew-step-mark{background:color-mix(in srgb,var(--bt-accent) 16%,transparent)}
 .crew-step-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .crew-step-rework{flex:none;margin-left:auto;padding:1px 5px;border-radius:999px;background:color-mix(in srgb,var(--bt-star) 13%,transparent);color:color-mix(in srgb,var(--bt-star) 82%,var(--bt-ink));font-size:10px;font-weight:600;line-height:15px}
+.crew-step-partial{flex:none;margin-left:auto;padding:1px 5px;border-radius:999px;background:color-mix(in srgb,var(--bt-danger) 12%,transparent);color:var(--bt-danger);font-size:10px;font-weight:600;line-height:15px}
+.crew-step-partial + .crew-step-rework{margin-left:0}
 .crew-island-answers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .crew-island-answer{min-width:0;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--bt-line-2);border-radius:9px;background:color-mix(in srgb,var(--bt-ink) 1.5%,transparent)}
 .crew-island-answer span{font-size:10.5px;line-height:15px;color:var(--bt-ink-3)}

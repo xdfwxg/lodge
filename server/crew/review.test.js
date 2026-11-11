@@ -10,7 +10,7 @@ const room = {
   usage: { costMicroUsd: 1200, budgetMicroUsd: 5_000_000, turns: 4 },
   stages: [
     { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' },
-    { title: '回归', kind: 'deliverable', state: 'active', acceptance: 'npm run e2e' },
+    { title: '回归', kind: 'deliverable', state: 'active', acceptance: 'npm run e2e', partial: { failed: ['乙'], workers: ['甲'], at: 7 } },
   ],
 }
 
@@ -38,6 +38,7 @@ test('review derives usage, rework and failures from messages only', () => {
     ['实现', 0, 0],
     ['回归', 1, 1],
   ])
+  assert.deepEqual(review.stages[1].partial, { failed: ['乙'], workers: ['甲'], at: 7 })
   assert.deepEqual(review.tools, [
     { name: 'Bash', count: 2, failed: 1 },
     { name: 'Read', count: 1, failed: 0 },

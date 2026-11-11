@@ -284,6 +284,16 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
                 : { title, kind: 'decision', state: 'active' },
             ],
     }
+    if (Array.isArray(body.stageDependencies)) {
+      room.stages = room.stages.map((stage, index) => {
+        const raw = body.stageDependencies[index]
+        if (!Array.isArray(raw)) return stage
+        const dependsOn = [...new Set(raw.filter(item => (
+          Number.isInteger(item) && item >= 0 && item < room.stages.length && item !== index
+        )))]
+        return dependsOn.length === 0 ? stage : { ...stage, dependsOn }
+      })
+    }
     store.writeRoom(room)
     stored = true
     store.appendEvent(room.id, 'room.created', { live: true, templateId, seats: room.members, sourceRepo, branch: room.branch })

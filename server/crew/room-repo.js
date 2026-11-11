@@ -91,7 +91,7 @@ export const writeBrief = (room, plan = null) => {
 export const writeGoal = room => {
   mkdirSync(roomDir(room), { recursive: true })
   const stages = room.stages.map((stage, index) => (
-    `- [${stage.state}] ${index + 1}. ${stage.title} · ${stage.kind}${stage.acceptance ? ` · 验收：${stage.acceptance}` : ''}`
+    `- [${stage.state}] ${index + 1}. ${stage.title} · ${stage.kind}${stage.acceptance ? ` · 验收：${stage.acceptance}` : ''}${Array.isArray(stage.dependsOn) && stage.dependsOn.length > 0 ? ` · 依赖：阶段 ${stage.dependsOn.map(item => item + 1).join('、')}` : ''}`
   ))
   writeDurable(join(roomDir(room), 'GOAL.md'), [
     '# 目标投影（运行时生成，不是编辑对象）',

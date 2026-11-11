@@ -122,13 +122,25 @@ export const rosterFromRoles = entries => {
     const fallback = counts[role] === 1 ? ROLE_NAME[role] : `${ROLE_NAME[role]} ${counts[role]}`
     const raw = typeof entry.name === 'string' ? entry.name.trim() : ''
     const name = raw === '' ? fallback : raw.slice(0, 32)
-    return cloneSeat({ ...base, id, name })
+    const customPrompt = typeof entry.prompt === 'string' && entry.prompt.trim() !== ''
+    const engine = typeof entry.engine === 'string' && entry.engine.trim() !== '' ? entry.engine.trim().slice(0, 40) : base.engine
+    const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
+    return cloneSeat({
+      ...base,
+      id,
+      name,
+      engine,
+      station,
+      prompt: customPrompt ? entry.prompt.trim().slice(0, 4_000) : base.prompt,
+      customPrompt,
+    })
   })
 
   const { workers, verifiers } = roleSeats(seats)
   const workerRef = workers.map(seat => `@${seat.name}`).join('、') || '执行席位'
   const verifierRef = verifiers[0] === undefined ? '验收席位' : `@${verifiers[0].name}`
   return seats.map(seat => {
+    if (seat.customPrompt === true) return seat
     if (seat.role === 'lead') {
       return { ...seat, prompt: seat.prompt.replaceAll('你是队长', `你是${seat.name}`).replaceAll('@执行', workerRef) }
     }

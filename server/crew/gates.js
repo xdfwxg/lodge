@@ -4,6 +4,9 @@ export const gateFor = (room, index, messages) => {
   const stage = Number.isInteger(index) ? room.stages[index] : undefined
   if (stage === undefined) return deny('invalid', '没有这个阶段')
   if (stage.state !== 'active') return deny('conflict', '这个阶段不在待验收状态')
+  const dependency = (Array.isArray(stage.dependsOn) ? stage.dependsOn : [])
+    .find(item => room.stages[item]?.state !== 'passed')
+  if (dependency !== undefined) return deny('conflict', `先完成阶段 ${dependency + 1}，再验收这一阶段`)
   if (room.openQuestion !== null && room.openQuestion !== undefined) {
     return deny('conflict', '还有问题没答，先答再确认')
   }

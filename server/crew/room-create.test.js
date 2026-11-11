@@ -206,6 +206,22 @@ test('a plain room can run parallel workers into a copy integration', async () =
   }
 })
 
+test('stage dependencies can be declared for a room', async () => {
+  const { store } = importedRoom(temp('lodge-resume-data-'))
+  const result = await run(store, {
+    goal: '分两段做',
+    verify: 'test',
+    acceptance: 'npm test',
+    repoPath: gitRepo(),
+    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }],
+    stageDependencies: [[], [0]],
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.stages.length, 2)
+  assert.deepEqual(room.stages[1].dependsOn, [0])
+})
+
 test('project constraints are snapshotted into the room and BRIEF', async () => {
   const { store } = importedRoom(temp('lodge-resume-data-'))
   const repo = gitRepo()

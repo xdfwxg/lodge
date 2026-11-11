@@ -19,6 +19,7 @@ import {
 import { buildHandoff, importHandoff } from './handoff.js'
 import { readProjectConstraints } from './project.js'
 import { buildReview } from './review.js'
+import { parseTemplate } from './template.js'
 import { workspaceProvider } from './workspace.js'
 
 // 完成态留痕由工作区能力决定：commit、git 不可用、或只归档房间记录。
@@ -76,6 +77,14 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   }
 
   const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body })
+
+  const importTemplate = body => {
+    try {
+      return ok({ template: parseTemplate(body?.text, typeof body?.filename === 'string' ? body.filename : '') })
+    } catch (error) {
+      return fail('invalid', String(error?.message ?? error))
+    }
+  }
 
   const projectConstraints = repoPath => {
     const source = typeof repoPath === 'string' ? repoPath.trim() : ''
@@ -479,6 +488,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     messagesSince,
     evidence,
     projectConstraints,
+    importTemplate,
     review,
     handoff,
     importHandoff: importHandoffPackage,

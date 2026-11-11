@@ -209,6 +209,11 @@ export function createStore() {
     pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
     resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     stop: () => post(`/api/rooms/${state.activeId}/stop`, {}),
+    parseTemplate: async (filename, text) => {
+      const data = await post('/api/templates/parse', { filename, text })
+      if (data?.template === undefined) return { ok: false, error: state.error ?? '模板解析失败' }
+      return { ok: true, template: data.template }
+    },
     loadProjectConstraints: async repoPath => {
       try {
         const response = await fetch(`/api/project/constraints?repoPath=${encodeURIComponent(repoPath)}`)

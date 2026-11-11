@@ -232,7 +232,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     return updated === null ? null : done
   }
 
-  const integrateStage = async ({ stageIndex, workers, base, turnId }) => {
+  const integrateStage = async ({ stageIndex, workers, base, turnId, failed = [] }) => {
     const room = store.readRoom(roomId)
     if (room === null) return
     const stage = room.stages[stageIndex]
@@ -245,6 +245,22 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     if (ws(room).capabilities().merge !== true) {
       store.appendMessage(roomId, { kind: 'system', text: '当前工作区不支持分支合并，集成验收未执行' })
       return
+    }
+
+    if (failed.length > 0) {
+      const nameOf = seat => room.seatNames?.[seat] ?? seat
+      const partial = { failed: [...failed], workers: [...workers], at: Date.now() }
+      const updated = store.updateRoom(roomId, current => {
+        const target = current.stages[stageIndex]
+        if (target === undefined) return null
+        target.partial = partial
+        return { events: [{ type: 'stage.partial', payload: { stage: stageIndex, failed, workers } }] }
+      })
+      if (updated !== null) emit?.('room', updated)
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `部分成功：${failed.map(nameOf).join('、')} 没有产出，继续用 ${workers.map(nameOf).join('、')} 验收。`,
+      })
     }
 
     const merged = []
