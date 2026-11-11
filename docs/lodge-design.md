@@ -869,7 +869,7 @@ constraints:
 - 每席任务一行：席位头像（工作中脉冲、完成打勾、未开始变淡）+ 席位名 + 这一席具体做什么
 - 底部左侧折叠"目标与检查"：objective / done / constraints；右侧是暂停、继续、停止（停止需二次确认，3 秒内不确认自动解除）；完成或停止后是"清除"
 
-**当前实现（2026-11-12）**：展开面板顶部常驻三问摘要（目标 / 进度 / 怎么算过）；阶段节点带返工与部分成功徽标；选中阶段列出打回（验收席位名 + 时间 + 意见）、证据链接、任务行（席位头像 + 状态 + 证据）与目标检查；当前阶段变化时自动跟随；底部控制条固定在面板内。数据从房间 JSON + verdict/evidence 消息派生，不依赖 `goals` 表。目标岛是独立模块 `ui/src/goal-island/`：`model.js` 把房间投影成标准 view（状态、阶段、任务、证据、返工、三问、控制项），`index.js` 只接收 `view` 与 `actions`，`island.css` 自带样式；房间页不把 room/store 传进组件。替换成更专业的目标岛时，只需提供同形的 view 与 actions。纯投影由 `ui/src/goal-island/model.test.js` 覆盖。
+**当前实现（2026-11-12）**：展开面板顶部常驻三问摘要（目标 / 进度 / 怎么算过）；阶段节点带返工与部分成功徽标；选中阶段列出打回（验收席位名 + 时间 + 意见）、证据链接、任务行（席位头像 + 状态 + 证据）与目标检查；当前阶段变化时自动跟随；底部控制条固定在面板内。数据从房间 JSON + verdict/evidence 消息派生，不依赖 `goals` 表。目标岛是独立模块 `ui/src/goal-island/`：`model.js` 把房间投影成标准 view（状态、阶段、任务、证据、返工、三问、控制项），`index.js` 只接收 `view` 与 `actions`，`island.css` 自带样式；房间页不把 room/store 传进组件。替换成更专业的目标岛时，只需提供同形的 view 与 actions。纯投影由 `ui/src/goal-island/model.test.js` 覆盖；组件树由 `ui/src/goal-island/ui.test.js` 用 esbuild + 假 React 渲染验证（收起/展开/导入/停止确认），测试 harness 改编自 Claude-Bot（Apache-2.0）的 `goal-client.test.js`。
 
 **状态与数据一一对应，没有装饰性数字**
 
