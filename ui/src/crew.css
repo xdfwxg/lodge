@@ -71,6 +71,9 @@
 .crew-verdict[data-reject]{background:color-mix(in srgb,var(--bt-danger) 13%,transparent);color:var(--bt-danger)}
 .crew-verdict[data-pending]{background:color-mix(in srgb,var(--bt-ink) 7%,transparent);color:var(--bt-ink-2)}
 .crew-card[data-demo="true"]{border-style:dashed}
+.crew-approval{border-color:color-mix(in srgb,var(--bt-star) 52%,var(--bt-line-2));box-shadow:0 0 0 1px color-mix(in srgb,var(--bt-star) 12%,transparent)}
+.crew-approval .crew-card-head{background:color-mix(in srgb,var(--bt-star) 8%,transparent)}
+.crew-approval .crew-code{width:100%;box-sizing:border-box}
 .crew-human-gate{border-color:color-mix(in srgb,var(--bt-accent) 35%,var(--bt-line-2))}
 .crew-gate-title{font-size:12.5px;font-weight:600;line-height:18px}
 .crew-gate-question{margin:0;color:var(--bt-ink-2);line-height:19px}

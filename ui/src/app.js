@@ -5,6 +5,7 @@ import { MarkdownText } from './primitives.js'
 import { createStore, useStore } from './store.js'
 import { GoalIsland } from './goal-island/index.js'
 import { buildGoalView } from './goal-island/model.js'
+import { ApprovalCard } from './approval-card.js'
 
 const MD = { code: { copyLabel: '复制', copiedLabel: '已复制' } }
 const clock = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -554,7 +555,7 @@ function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept }) {
             : null))))
 }
 
-function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance, onVerify }) {
+function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance, onVerify, onApproval }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const activeIndex = room.stages.findIndex(stage => stage.state === 'active')
   const activeStage = room.stages[activeIndex]
@@ -588,6 +589,13 @@ function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance
       }
       return h(ChatLine, { key: message.id, message, seat })
     }),
+    ...(room.approvals ?? [])
+      .filter(approval => approval.state === 'pending')
+      .map(approval => h(ApprovalCard, {
+        key: approval.id,
+        approval,
+        onDecide: decision => onApproval(approval.id, decision),
+      })),
     activeStage?.kind === 'decision' && (activeStage.manual !== true || manualReady)
       ? h(StageAction, { key: 'gate', room, stage: activeStage, index: activeIndex, onAccept, onAnswer })
       : null,
@@ -883,6 +891,7 @@ function RoomView({ state, room, store, onContinue }) {
         onSimulate: () => void store.simulate(),
         onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
         onVerify: stage => void store.verify(stage),
+        onApproval: (id, decision) => void store.decideApproval(id, decision),
       })),
       state.error ? h('div', { className: 'crew-error' }, state.error) : null),
     h('div', { className: 'dsb-composer' },

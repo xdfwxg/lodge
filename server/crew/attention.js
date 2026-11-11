@@ -1,3 +1,5 @@
+import { pendingApprovals } from './external-actions.js'
+
 const activeStageIndex = room => room.stages.findIndex(stage => stage.state === 'active')
 
 const latestForStage = (messages, kind, stage) => [...messages]
@@ -6,6 +8,9 @@ const latestForStage = (messages, kind, stage) => [...messages]
 
 // 注意力路由：只在房间真的卡在人这里时返回一个信号；不是未读数。
 export const roomNeedsYou = (room, messages = []) => {
+  if (room.state === 'active' && pendingApprovals(room).length > 0) {
+    return { kind: 'approval', stage: null, label: '等你批准外部动作' }
+  }
   if (room.state === 'paused') {
     if (room.pauseReason === 'budget') return { kind: 'budget', stage: null, label: '预算已用尽 · 等你处理' }
     if (room.pauseReason === 'mcp') return { kind: 'mcp', stage: null, label: 'MCP 熔断 · 等你恢复' }

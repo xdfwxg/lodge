@@ -240,6 +240,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       } catch {
         cancelled = false
       }
+      live.expireApprovals(room.id, action === 'pause' ? '房间已暂停' : '房间已停止')
     }
     const note = action === 'pause'
       ? liveRoom
@@ -456,6 +457,19 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
 
     if ((action === 'pause' || action === 'resume' || action === 'stop') && method === 'POST') {
       return control(room, action)
+    }
+
+    if (action === 'approvals' && method === 'POST') {
+      if (room.live !== true) return fail('conflict', '只有实时房间有基座权限卡')
+      if (live.isAttached(room.id) !== true) return fail('conflict', '这个旧版实时房间不再绑定；请新建一个真实房间')
+      const body = await readBody()
+      const approvalId = typeof body.id === 'string' ? body.id : ''
+      const decision = body.decision === 'allow' ? 'allow' : body.decision === 'deny' ? 'deny' : ''
+      if (approvalId === '') return fail('invalid', '缺少审批 id')
+      if (decision === '') return fail('invalid', '审批只接受 allow/deny')
+      const result = await live.decideApproval(room.id, approvalId, decision)
+      if (result.ok !== true) return fail('conflict', result.reason)
+      return ok({ room: result.room })
     }
 
     if (action === 'budget' && method === 'POST') {

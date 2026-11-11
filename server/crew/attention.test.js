@@ -36,6 +36,13 @@ test('a busy seat is not a needs-you state', () => {
   assert.equal(roomNeedsYou(room({ busy: true }), []), null)
 })
 
+test('a pending external approval outranks a busy seat', () => {
+  const r = atDeliverable()
+  r.busy = true
+  r.approvals = [{ id: 'a', state: 'pending' }]
+  assert.deepEqual(roomNeedsYou(r, []), { kind: 'approval', stage: null, label: '等你批准外部动作' })
+})
+
 test('a budget pause asks the human to raise it', () => {
   assert.deepEqual(roomNeedsYou({ state: 'paused', pauseReason: 'budget' }, []), {
     kind: 'budget',

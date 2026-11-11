@@ -233,6 +233,7 @@ export function createStore() {
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     setBudget: budgetUsd => post(`/api/rooms/${state.activeId}/budget`, { budgetUsd }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
+    decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
     pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
     resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     stop: () => post(`/api/rooms/${state.activeId}/stop`, {}),

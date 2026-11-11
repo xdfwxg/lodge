@@ -10,7 +10,7 @@
 > v0.10 变更：采纳 Claude-Bot 的目标呈现——**目标岛**（§9.7），并把 `goal-grill` 的对齐方式写进开队流程（§8.2、§9.2）；数据模型补 `goals.idle/revision`、`goal_stages.reject_count/rework_feedback`（§11）。
 > v0.11 变更：顶层定位改为“可验收、可交接的交付”；“省时省力”降为交互承诺与结果指标，房间留痕回到价值主张（§1、§2.6）。
 >
-> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 与 plain 两种 provider，业务只依赖端口；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git 目录用复制隔离与文件清单）、目标岛三问摘要与返工记录、复盘视图（从消息与证据派生成本/Token/返工/失败）、示范房间（`examples/rooms/`：3 模拟 + 1 真实，公开导出脱敏）、席位业务交接包（目标/done/约束/复核意见 + transcript 引用）、项目约束 `LODGE.md`（建房快照进 BRIEF）、本地模板导入（YAML/JSON，角色权限校验）、阶段依赖与部分成功记录、调度台只读资源面板、MCP 调用审计与按 server 熔断、用量账本与 7 天趋势、约束分层（LODGE.md/AGENTS.md/CLAUDE.md）、任务级状态与历史目标、完整用量时间序列页、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、Electron。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
+> **当前实现状态（2026-11-12）**：P0+ / M3 部分 / M4 审批桥部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝；外部 push/安装/删除/发送/网络动作挂起等人批准；exec 不是通用文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 与 plain 两种 provider，业务只依赖端口；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git 目录用复制隔离与文件清单）、目标岛三问摘要与返工记录、复盘视图（从消息与证据派生成本/Token/返工/失败）、示范房间（`examples/rooms/`：3 模拟 + 1 真实，公开导出脱敏）、席位业务交接包（目标/done/约束/复核意见 + transcript 引用）、项目约束 `LODGE.md`（建房快照进 BRIEF）、本地模板导入（YAML/JSON，角色权限校验）、阶段依赖与部分成功记录、调度台只读资源面板、MCP 调用审计与按 server 熔断、用量账本与 7 天趋势、约束分层（LODGE.md/AGENTS.md/CLAUDE.md）、任务级状态与历史目标、完整用量时间序列页、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 真机 dogfood（WSL2 + bubblewrap 适配器已有）、多验收席位、跨厂商盲审与 M4 独立复核会话、发言预算、fork、Electron。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
 >
 > **产品北极星（防跑偏）**：用户只做三件事——说目标、答 ≤3 个带推荐答案的问题、验收；队长用**一张开工卡**给出 done、编制、验收与问题，业务校验，人确认一次直接开工，三人组只是模板、单人合法；任何让用户选机制（模型、人数、并发、worktree）的设计都是跑偏；只加 bot、页面或开关、没有让“目标 → 证据 → 结论 → commit”更可信或更省人的功能，不做。
 
@@ -671,7 +671,7 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 
 Verifier 不能只是"仅可查看"——它必须自己跑验收命令。但它也不该有源码写权限。所以是 **read + exec，write = none**。
 
-**当前**：权限已声明并在启动时校验；工作区隔离已落（planner 克隆 / executor worktree / verifier 临时副本）；工具审批桥已落——基座权限卡经 Engine 适配层映射为 read/exec/write，`live.js` 按席位权限 allow/deny，planner/verifier 的 Write/Edit/MultiEdit 已被真实房间拒绝。`exec` 仍可在临时副本里写文件，不是文件系统沙箱。`approval`、`mcp`、`skills` 已留扩展缝，默认关闭；MCP 只存 server 名，planner/verifier 不放外部工具。
+**当前**：权限已声明并在启动时校验；工作区隔离已落（planner 克隆 / executor worktree / verifier 临时副本）；工具审批桥已落——基座权限卡经 Engine 适配层映射为 read/exec/write，`live.js` 按席位权限 allow/deny，planner/verifier 的 Write/Edit/MultiEdit 已被真实房间拒绝。外部动作再走一层人工审批：`external-actions.js` 识别 push/发布、安装依赖、删除、对外发送、提权、网络/远端命令，命中后写 `room.approvals` 并挂起基座权限卡，人在时间线点允许/拒绝后才回答；暂停、停止、断绑、重启会使其失效。`exec` 仍可在临时副本里写文件，不是通用文件系统沙箱。`approval`、`mcp`、`skills` 已留扩展缝，默认关闭；MCP 只存 server 名，planner/verifier 不放外部工具。
 
 **GOAL.md 归运行时，不归 Executor。** 让执行者维护清单在纯聊天工具里可行；在这里状态是运行时的事实，`GOAL.md` 只是每回合重写的一份投影。原因很简单：**让被验收的人记账，等于没有账。** 模板只保留兼容约定（Executor 追加"待验收 + 证据"），产品内由 runtime 强制。
 
@@ -973,7 +973,7 @@ UI ──HTTP+SSE(127.0.0.1, per-launch token)── Lodge server
 
 > 单执行时 executor worktree 就是房间交付目录；多执行时另建 integration worktree 作为交付目录，候选分支先合并到这里。planner 克隆与 verifier 副本在外；源仓库主分支不动。人签字后再提交 `.crew` 结论。
 
-**生命周期（已落）**：创建时为 worker/verifier/integration 复制 `.env`/`.env.local`、软链 `node_modules`，并分配执行/验收/集成端口；端口写进工作提示词与验收命令的 `PORT`。候选 commit 与验收 diff 排除 `.env`/`.env.local`/`node_modules`/`.crew`。**验收命令在一次性 detached worktree 副本里执行**：先落候选 commit，再在副本跑命令；diff 在提交前采集，副本不写回交付 worktree。网络默认 deny：macOS 用 `sandbox-exec`，Linux 用 `unshare -n`；`CREW_ACCEPTANCE_NETWORK=allow` 显式放行。Windows provider 尚未接入，默认 fail closed，后续用 AppContainer/Job Object + WFP/Firewall 适配器接入。房间完成/停止后清理非交付席位工作区，保留交付仓库与候选分支；启动与每 6 小时 GC 已知房间；未知孤儿目录默认不删，`CREW_WORKTREE_GC_ORPHANS=1` 才按 TTL（默认 7 天）清理；创建前检查磁盘水位（`CREW_DISK_MIN_FREE_MB`，默认 512MB）。**边界**：`node_modules` 是共享软链，不适合在工作区里改依赖；一次性副本只隔离交付目录写入，网络/文件系统仍不是沙箱；Python venv、本地数据库与端口强制隔离尚未做。
+**生命周期（已落）**：创建时为 worker/verifier/integration 复制 `.env`/`.env.local`、软链 `node_modules`，并分配执行/验收/集成端口；端口写进工作提示词与验收命令的 `PORT`。候选 commit 与验收 diff 排除 `.env`/`.env.local`/`node_modules`/`.crew`。**验收命令在一次性 detached worktree 副本里执行**：先落候选 commit，再在副本跑命令；diff 在提交前采集，副本不写回交付 worktree。网络默认 deny：macOS 用 `sandbox-exec`，Linux 用 `unshare -n`；Windows 用 WSL2 里的 bubblewrap（`--unshare-net` 断网，根只读、仅当前副本与 `/tmp` 可写），`CREW_ACCEPTANCE_NETWORK=allow` 显式放行。Windows 没有 WSL2 或 bubblewrap 时 fail closed；适配器有注入式单测，尚未在 Windows 真机实跑。房间完成/停止后清理非交付席位工作区，保留交付仓库与候选分支；启动与每 6 小时 GC 已知房间；未知孤儿目录默认不删，`CREW_WORKTREE_GC_ORPHANS=1` 才按 TTL（默认 7 天）清理；创建前检查磁盘水位（`CREW_DISK_MIN_FREE_MB`，默认 512MB）。**边界**：`node_modules` 是共享软链，不适合在工作区里改依赖；一次性副本只隔离交付目录写入；macOS/Linux 的网络隔离不限制文件写入，Windows 的 WSL 适配器才有 cwd 写边界；Python venv、本地数据库与端口强制隔离尚未做。
 >
 > 这一条是对 Grok Bot "所有 Bot 共用一台云电脑"的直接反选。
 
@@ -1043,7 +1043,7 @@ interface Engine {
 
 **登录态**：用 CLI 自己的登录，不传 API key；子进程 env 剥离其他 provider 的 key。
 
-**对外动作先审**：发消息、push、删文件、装依赖，一律进审批桥。审批桥是独立判定，不与被审对象共享上下文（Muse 的 Sentinel 思路）。**当前 M4 目标，尚未接审批桥。**
+**对外动作先审**：发消息、push、删文件、装依赖，一律进审批桥。审批桥是独立判定，不与被审对象共享上下文（Muse 的 Sentinel 思路）。**当前已接人工审批桥**：外部命令命中后挂起基座权限卡，房间显示待批准记录，人允许/拒绝后才继续；独立复核会话与跨厂商盲审仍是 M4 目标。
 
 ---
 
@@ -1120,12 +1120,12 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 | M1 | 水位线 + 轮转 + 进度带 | 第 3 轮只收到增量（日志可证） |
 | M2 | @ 接力 + 并行执行 + Stop | Stop 500ms 内生效，无残留子进程 |
 | M3 | worktree 隔离 + evidence 命令 + 三档权限 | 两人改同一文件互不覆盖；Verifier 可执行但 Write 被审批桥拒绝；evidence 有命令与退出码 |
-| M4 | 审批桥 + 跨厂商盲审 | 审批能批准/拒绝；producer 与 verifier 引擎不同且看不到作者 |
+| M4 | 审批桥 + 跨厂商盲审 | 审批能批准/拒绝（已落）；producer 与 verifier 引擎不同且看不到作者（未做） |
 | M5 | Goal 对齐/拆解/验收 + rework 闭环 + 可分叉会议 | 能产出 BRIEF.md；无命令的交付型阶段与无人确认的决策型阶段都无法 active |
 | M6 | 结论卡 + 交付单 + 一键验收 + 高级折叠 | 全程不展开“高级”也能完成一次交付；完成态先看到交付单 |
 | M7 | 全局调度台（只读收件 + 路由建议 + 一次确认 + 投影式摘要） | 一句"我不知道该找谁"进调度台；确认前目标群零动静；摘要每行可点回证据 |
 
-**当前进度（2026-11-12）**：P0+。M0 部分（建房/开工卡/单人已通：队长给 done+编制+验收+≤3 问一张卡，人确认一次后直接开工；席位可按需组合；单人链路已验证到签字与 commit；建后改席位未接；本地模板导入已接）；M1 部分（游标/轮次/空转；业务感知交接包已落，实际增量仍由基座 delta-context 负责）；M2 部分（真 Stop 已接，未做 500ms E2E；@ 基础有；多执行并行已在 M3 落）；M3 部分（席位隔离/并行 executor worktree/集成验收/候选提交/验收副本已落；成本硬闸门已落；工具审批桥已落，planner/verifier 写工具被拒绝，exec 不是文件系统沙箱；多验收席位未接）；M4 未做；M5 部分（提示词对齐/rework 基础，fork 未做）；M6 部分（CONCLUSION+commit，结论 commit 带房间记录，本地交接包可导出/只读导入/续做，交付单未做）；M7 部分（收件/建议/确认/摘要，语义路由未做）。演示门槛仍是 M3。
+**当前进度（2026-11-12）**：P0+。M0 部分（建房/开工卡/单人已通：队长给 done+编制+验收+≤3 问一张卡，人确认一次后直接开工；席位可按需组合；单人链路已验证到签字与 commit；建后改席位未接；本地模板导入已接）；M1 部分（游标/轮次/空转；业务感知交接包已落，实际增量仍由基座 delta-context 负责）；M2 部分（真 Stop 已接，未做 500ms E2E；@ 基础有；多执行并行已在 M3 落）；M3 部分（席位隔离/并行 executor worktree/集成验收/候选提交/验收副本已落；成本硬闸门已落；工具审批桥已落，planner/verifier 写工具被拒绝，外部动作挂起等人批准，exec 不是通用文件系统沙箱；多验收席位未接）；M4 部分（外部动作人工审批桥已落；独立复核会话/跨厂商盲审未做）；M5 部分（提示词对齐/rework 基础，fork 未做）；M6 部分（CONCLUSION+commit，结论 commit 带房间记录，本地交接包可导出/只读导入/续做，交付单未做）；M7 部分（收件/建议/确认/摘要，语义路由未做）。演示门槛仍是 M3。
 
 **M3 之前不要给任何人演示。** 一旦被看成"几个 bot 聊天"，后面拿真产物也翻不回来。
 
@@ -1185,7 +1185,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 | 上下文发散 | 各 CLI 私有会话与房间真相不一致；基座 compact 可能丢掉业务约束 | 房间持有真相；BRIEF/done/关键决定是永久锚点；业务感知交接包放 P1，不重写基座 compact |
 | 并发写坏仓库 | 多 agent 同目录；文件隔离不等于语义隔离 | worktree 隔离 + 集成合并冲突可见、人处理；环境预置/端口提示/自动清理/磁盘水位已落 |
 | worktree 现实成本 | 大仓库每个席位一份完整副本；依赖、`.env`、端口不共享，磁盘与启动成本随席位增长 | 已落：`.env` 复制、`node_modules` 软链、端口提示、完成/停止清理非交付工作区、启动/定时 GC、磁盘水位；venv/本地数据库隔离仍在边界 |
-| 权限边界 | 席位权限已声明、worktree 已隔离，写工具审批已强制；验收命令已在一次性副本执行，网络默认 deny（macOS/Linux）；Windows provider 未接，exec/命令仍不是文件系统沙箱 | 不宣称“文件系统硬隔离”；补 Windows 网络适配器与文件系统边界，而不是只靠路径隔离 |
+| 权限边界 | 席位权限已声明、worktree 已隔离，写工具与外部动作审批已强制；验收命令已在一次性副本执行，网络默认 deny（macOS/Linux；Windows 走 WSL2 + bubblewrap 的网络与 cwd 写边界，未真机实跑）；exec/命令仍不是通用文件系统沙箱 | 不宣称“文件系统硬隔离”；Windows 适配器需真机 dogfood，而不是只靠路径隔离 |
 | 全有全无 | 阶段内缺子任务图，部分产出可用时没有标准降级方式 | P1：子任务依赖图 + 阶段级部分成功；失败席位降级、其余继续 |
 | MCP 依赖 | MCP 默认关闭；开启后单服务崩溃/超时可能拖垮整个回合 | P1：MCP 开启前补故障隔离、超时与调用审计（写 evidence）；外部工具不进业务席位 |
 | 基座太大 | fork 后删除产品面的工作量可能超预期 | 先过两天 spike；产品代码集中在 `server/crew/` 与 `ui/`，冲突面可控 |
@@ -1219,7 +1219,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 
 1. **worktree 生命周期（已落 2026-11-12）**：`.env` 复制、`node_modules` 软链、端口提示、完成/停止后清理非交付席位工作区、启动与定时 GC、磁盘水位。剩余边界：venv/本地数据库/端口强制隔离。
 2. **成本/磁盘闸门（已落 2026-11-12）**：磁盘水位；房间与全局成本硬上限（0 = 不限；新房间默认 $5，`CREW_ROOM_BUDGET_USD` / `CREW_GLOBAL_BUDGET_USD` 可配；到线暂停新任务，不取消在跑回合；房间预算可调，提高后自动恢复并续跑无证据阶段）；调度台只展示，不控制。发言配额仍未强制。
-3. **诚实标注**：同引擎标“独立性降级”；写工具审批已强制，但 exec 不是文件系统沙箱，不宣称“硬隔离”；建后改席位未接。
+3. **诚实标注**：同引擎标“独立性降级”；写工具与外部动作审批已强制，但 exec 不是通用文件系统沙箱，不宣称“硬隔离”；Windows 沙箱适配器未真机实跑；建后改席位未接。
 4. **语义评测 harness（已落 2026-11-12）**：`npm run eval:planning` 用 3 个黄金房间（单人、单服务、前后端并行）重放真实开工卡；检查 done 可核对、编制约束、角色名与 `why` 一致、问题 ≤3 且不问机制；结果写本地 `evals/planning/results/`，不进入 `npm test`。首轮 3 case × 3 次 9/9；任何 case 失败时命令非零退出。每次改队长提示词或换引擎都重放，看通过率和失败类型。
 
 已完成、不作为待办：开工卡（done + 编制 + 验收 + ≤3 问，一次确认）、多执行并行与集成、manual 人验收、worktree 生命周期、语义评测 harness；继续用真实 E2E 验证，不靠文档自证。

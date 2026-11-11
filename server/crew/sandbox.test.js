@@ -1,17 +1,57 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { runCommand } from './acceptance.js'
-import { planCommand, registerSandboxProvider, sandboxCapability } from './sandbox.js'
+import { createWindowsSandboxProvider, planCommand, registerSandboxProvider, sandboxCapability } from './sandbox.js'
 
 test('network allow explicitly opts out of the sandbox', () => {
   const previous = process.env.CREW_ACCEPTANCE_NETWORK
   process.env.CREW_ACCEPTANCE_NETWORK = 'allow'
   try {
-    assert.deepEqual(planCommand({ command: 'true' }), { file: '/bin/sh', args: ['-c', 'true'], mode: 'off' })
+    const plan = planCommand({ command: 'true' })
+    assert.equal(plan.file, '/bin/sh')
+    assert.deepEqual(plan.args, ['-c', 'true'])
+    assert.equal(plan.mode, 'off')
+    assert.equal(plan.network, 'allow')
   } finally {
     if (previous === undefined) delete process.env.CREW_ACCEPTANCE_NETWORK
     else process.env.CREW_ACCEPTANCE_NETWORK = previous
   }
+})
+
+test('network allow still uses a Windows shell when the platform is Windows', () => {
+  const plan = planCommand({ command: 'npm test', network: 'allow', platform: 'win32' })
+  assert.equal(plan.mode, 'off')
+  assert.match(plan.file, /(?:cmd|ComSpec)/i)
+  assert.deepEqual(plan.args.slice(-1), ['npm test'])
+})
+
+test('the Windows provider uses WSL bubblewrap for network and filesystem isolation', () => {
+  const provider = createWindowsSandboxProvider({
+    hasCommand: name => name === 'wsl.exe',
+    probe: args => args.includes('bwrap') && args.includes('--unshare-net'),
+  })
+  const plan = provider({ command: 'npm test' })
+  assert.equal(plan.mode, 'wsl-network-fs-deny')
+  assert.equal(plan.network, 'deny')
+  assert.equal(plan.fs, 'cwd')
+  assert.equal(plan.file, 'wsl.exe')
+  assert.match(plan.args.at(-3), /bwrap/)
+  assert.match(plan.args.at(-3), /--unshare-net/)
+  assert.match(plan.args.at(-3), /--bind "\$PWD" "\$PWD"/)
+  assert.equal(plan.args.at(-1), 'npm test')
+})
+
+test('the Windows provider fails closed without WSL or bubblewrap', () => {
+  const noWsl = createWindowsSandboxProvider({ hasCommand: () => false })
+  assert.equal(noWsl({ command: 'true' }).mode, 'unavailable')
+  assert.match(noWsl({ command: 'true' }).error, /WSL2/)
+
+  const noBwrap = createWindowsSandboxProvider({
+    hasCommand: () => true,
+    probe: () => false,
+  })
+  assert.equal(noBwrap({ command: 'true' }).mode, 'unavailable')
+  assert.match(noBwrap({ command: 'true' }).error, /bubblewrap/)
 })
 
 test('platform providers are pluggable and unknown platforms fail closed', () => {
