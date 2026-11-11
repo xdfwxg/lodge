@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { roomNeedsYou } from './attention.js'
 import { simulateRoom } from './demo.js'
 import { createDispatchService } from './dispatch-service.js'
+import { presentRoom } from './presentation.js'
 import { createRealRoom } from './room-create.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { TEMPLATE_LIST } from './seats.js'
@@ -30,7 +30,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     templates: TEMPLATE_LIST,
     rooms: readRooms().map(room => {
       const messages = readMessages(room.id)
-      return { ...room, brief: readBrief(room), messages, needsYou: roomNeedsYou(room, messages) }
+      return { ...presentRoom(room, messages), brief: readBrief(room), messages }
     }),
     dispatch: dispatchPayload(),
   })

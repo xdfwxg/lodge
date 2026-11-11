@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { createDigest } from './crew/digest.js'
 import { createLiveRooms } from './crew/live.js'
 import { acquireDataLock } from './crew/lock.js'
+import { presentRoom } from './crew/presentation.js'
 import { createCrewService } from './crew/service.js'
 import { seedIfEmpty } from './crew/seeds.js'
 import { SEATS } from './crew/seats.js'
@@ -27,6 +28,14 @@ const broadcast = (event, payload, id) => {
 const store = createStore({ dataDir, emit: broadcast })
 seedIfEmpty(store)
 
+// 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
+const emit = (event, payload, id) => {
+  if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
+    payload = presentRoom(payload, store.readMessages(payload.id))
+  }
+  broadcast(event, payload, id)
+}
+
 const digest = createDigest({
   readRoom: store.readRoom,
   readRooms: store.readRooms,
@@ -38,7 +47,7 @@ const engine = createEngine()
 const live = createLiveRooms({
   store,
   engine,
-  emit: broadcast,
+  emit,
   dispatchPayload: digest.dispatchPayload,
 })
 
@@ -46,7 +55,7 @@ const service = createCrewService({
   store,
   engine,
   live,
-  emit: broadcast,
+  emit,
   dispatchPayload: digest.dispatchPayload,
   seats: SEATS,
 })

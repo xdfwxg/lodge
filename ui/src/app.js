@@ -16,14 +16,18 @@ const timeOf = ts => {
 }
 
 const money = micro => `$${(micro / 1_000_000).toFixed(2)}`
-const INDEPENDENCE = {
-  vendor: '跨厂商复核',
-  model: '同家族复核',
-  none: '独立性降级',
-  solo: '单人 · 人签字',
-  human: '人签字验收（无独立复核）',
+const independenceOf = room => room.independenceLabel ?? '独立性未标注'
+const NEEDS_TONE = {
+  question: 'waiting',
+  decision: 'waiting',
+  signoff: 'done',
+  review: 'checking',
+  rework: 'paused',
+  setup: 'waiting',
+  idle: 'paused',
+  merge: 'paused',
+  parallel: 'paused',
 }
-const independenceOf = room => INDEPENDENCE[room.independence] ?? '独立性未标注'
 
 const activeIndex = room => room.stages.findIndex(stage => stage.state === 'active')
 const evidenceFor = (room, index) => room.messages.filter(message => (
@@ -35,37 +39,29 @@ const verdictFor = (room, index) => [...room.messages].reverse().find(message =>
 
 const islandStatus = room => {
   if (room.state === 'complete') return { label: '目标达成', tone: 'done' }
-  if (room.state === 'paused') return { label: room.idle ? '已暂停 · 等你说话' : '已暂停', tone: 'paused' }
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
-  if (room.live === true) {
+  if (room.state === 'paused') {
+    return room.needsYou?.kind === 'idle'
+      ? { label: room.needsYou.label, tone: 'paused' }
+      : { label: '已暂停', tone: 'paused' }
+  }
+  if (room.busy === true) {
     const busy = Array.isArray(room.busySeats) ? room.busySeats : room.busySeat ? [room.busySeat] : []
-    if (room.busy === true) {
-      if (busy.length > 1) return { label: `${busy.length} 个执行在做`, tone: 'active' }
-      const seatName = { planner: '队长', executor: '执行', verifier: '验收' }[room.busySeat] ?? '席位'
-      return { label: `${seatName}在做`, tone: 'active' }
-    }
-    if (room.needsYou?.kind === 'decision') return { label: room.needsYou.label, tone: 'waiting' }
-    return { label: '等你说话', tone: 'waiting' }
+    if (busy.length > 1) return { label: `${busy.length} 个执行在做`, tone: 'active' }
+    const seat = room.seatSpecs?.find(item => item.id === busy[0])?.name
+    return { label: `${seat ?? '席位'}在做`, tone: 'active' }
   }
-  const index = activeIndex(room)
-  if (index < 0) return { label: '对齐中', tone: 'drafting' }
-  const stage = room.stages[index]
-  if (room.openQuestion) return { label: '等你说话', tone: 'waiting' }
-  const verdict = verdictFor(room, index)
-  if (stage.kind === 'deliverable' && evidenceFor(room, index).length > 0 && verdict === undefined) {
-    return { label: '检查中', tone: 'checking' }
+  if (room.needsYou) {
+    return { label: room.needsYou.label, tone: NEEDS_TONE[room.needsYou.kind] ?? 'waiting' }
   }
-  if (verdict?.meta?.pass === true) return { label: '等你说话', tone: 'waiting' }
-  return { label: `第 ${index + 1} 段：${stage.title}`, tone: 'active' }
+  return { label: '进行中', tone: 'active' }
 }
 
 const trackTone = (room, stage, index) => {
   if (stage.state === 'passed') return 'passed'
   if (stage.state !== 'active') return 'pending'
   if (room.state === 'paused') return 'paused'
-  if (stage.kind === 'deliverable' && evidenceFor(room, index).length > 0 && verdictFor(room, index) === undefined) {
-    return 'checking'
-  }
+  if (room.needsYou?.stage === index && room.needsYou.kind === 'review') return 'checking'
   return 'active'
 }
 
@@ -518,21 +514,13 @@ function RoomRow({ room, roster, active, onSelect }) {
     h('span', { className: 'bt-row-preview', 'data-needs': needs?.kind }, preview)))
 }
 
-const POLICY = {
-  vendor: '跨厂商（执行与验收不同厂商）',
-  model: '同家族（验收与执行同家族，复核强度低于跨厂商）',
-  none: '单 CLI（验收与执行同引擎，独立性降级）',
-  solo: '单人（一个席位交付，你签字）',
-  human: '无独立验收席位（你凭证据签字）',
-}
-
 function Advanced({ room, seats }) {
   const cost = room.usage?.costMicroUsd ?? 0
   const budget = room.usage?.budgetMicroUsd ?? 0
   const percent = budget === 0 ? 0 : Math.min(100, Math.round((cost / budget) * 100))
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
-      h('span', null, `房间策略：${POLICY[room.independence] ?? '未标注'}`),
+      h('span', null, `房间策略：${room.independencePolicy ?? '未标注'}`),
       room.repoPath ? h('span', null, `仓库：${room.repoPath}`) : null,
       room.sourceRepo ? h('span', null, `源仓库：${room.sourceRepo}`) : null,
       ...(room.seatSpecs ?? []).map(seat => (
