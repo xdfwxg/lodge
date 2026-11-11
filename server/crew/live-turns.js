@@ -19,6 +19,7 @@ const deliverableStageIndex = room => {
 }
 
 const ws = room => workspaceProvider(room)
+const vcsOf = room => ws(room).capabilities().vcs ?? 'none'
 
 const REVIEW_TIMEOUT = 10 * 60_000
 const PARALLEL_TIMEOUT = 15 * 60_000
@@ -116,11 +117,18 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       })
       return
     }
+    const capabilities = ws(room).capabilities()
+    if (capabilities.acceptanceCopy !== true) {
+      store.appendMessage(roomId, { kind: 'system', text: '当前工作区不支持一次性验收副本，验收未执行' })
+      return
+    }
     // diff 必须在候选提交前采集：提交后工作树变干净，provider 会看不到交付改动。
     const diff = await ws(room).changes({ path: room.repoPath })
     let candidate = null
     try {
-      candidate = ws(room).submit({ path: room.repoPath, turnId, name: room.name })
+      candidate = capabilities.candidate === true
+        ? ws(room).submit({ path: room.repoPath, turnId, name: room.name })
+        : null
       if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `候选提交失败，验收未执行：${error?.message ?? error}` })
@@ -151,6 +159,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       text: `验收命令 \`${command}\` 已在一次性验收副本执行，退出码 ${result.exit === null ? '无' : result.exit}。`,
       meta: {
         kind: 'command',
+        vcs: vcsOf(room),
         stage: stageIndex,
         command,
         exit: result.exit,
@@ -231,6 +240,10 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       store.appendMessage(roomId, { kind: 'system', text: '房间没有集成工作目录，并行合并未执行' })
       return
     }
+    if (ws(room).capabilities().merge !== true) {
+      store.appendMessage(roomId, { kind: 'system', text: '当前工作区不支持分支合并，集成验收未执行' })
+      return
+    }
 
     const merged = []
     for (const worker of workers) {
@@ -265,6 +278,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         text: '并行产物已合并，等你验收。',
         meta: {
           kind: 'manual',
+          vcs: vcsOf(room),
           stage: stageIndex,
           workers,
           merges: merged,
@@ -312,6 +326,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       text: `验收命令 \`${command}\` 已在一次性集成验收副本执行，退出码 ${result.exit === null ? '无' : result.exit}。并行执行：${names}。`,
       meta: {
         kind: 'command',
+        vcs: vcsOf(room),
         stage: stageIndex,
         command,
         exit: result.exit,
@@ -588,6 +603,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       text: turn.reply || summary,
       meta: {
         kind: 'turn',
+        vcs: vcsOf(room),
         stage,
         turnId,
         summary,
@@ -610,7 +626,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         if (current === null) return
         const worktree = current.worktrees?.[seat]
         let candidate = null
-        if (worktree !== undefined) {
+        if (worktree !== undefined && ws(current).capabilities().candidate === true) {
           try {
             candidate = ws(current).submit({ path: worktree, turnId, name: current.name })
             if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, seat, commit: candidate })
@@ -674,8 +690,10 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       if (target?.manual === true && target.state === 'active' && !acceptanceRuns.has(key)) {
         acceptanceRuns.add(key)
         try {
-          const candidate = ws(room).submit({ path: room.repoPath, turnId, name: room.name })
-          if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, commit: candidate })
+          if (ws(room).capabilities().candidate === true) {
+            const candidate = ws(room).submit({ path: room.repoPath, turnId, name: room.name })
+            if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, commit: candidate })
+          }
         } catch (error) {
           store.appendMessage(roomId, { kind: 'system', text: `候选提交失败：${error?.message ?? error}` })
         }

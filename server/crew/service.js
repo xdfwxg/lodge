@@ -19,6 +19,12 @@ import {
 import { buildHandoff, importHandoff } from './handoff.js'
 import { workspaceProvider } from './workspace.js'
 
+// 完成态留痕由工作区能力决定：commit、git 不可用、或只归档房间记录。
+export const persistenceKind = capabilities => {
+  if (capabilities?.commit === true) return 'commit'
+  return capabilities?.vcs === 'git' ? 'git-unavailable' : 'archive'
+}
+
 export const acceptanceChangeError = (stage, command) => {
   if (stage === undefined) return ['invalid', '没有这个阶段']
   if (stage.kind !== 'deliverable') return ['invalid', '只有交付型阶段能设置验收命令']
@@ -231,9 +237,19 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     }
     writeConclusion(room)
     const workspace = workspaceProvider(room)
-    if (workspace.capabilities().commit !== true) {
-      appendEvent(room.id, 'room.commit', { status: 'unavailable' })
-      appendMessage(room.id, { kind: 'system', text: '已写入 CONCLUSION.md · 本机 git 不可用，未产生 commit' })
+    const capabilities = workspace.capabilities()
+    const persistence = persistenceKind(capabilities)
+    if (persistence !== 'commit') {
+      appendEvent(room.id, 'room.commit', {
+        status: persistence === 'archive' ? 'archive' : 'unavailable',
+        vcs: capabilities.vcs ?? 'none',
+      })
+      appendMessage(room.id, {
+        kind: 'system',
+        text: persistence === 'archive'
+          ? '已写入 CONCLUSION.md · 当前工作区无版本控制，房间记录与交接包留痕'
+          : '已写入 CONCLUSION.md · 本机 git 不可用，未产生 commit',
+      })
       return room
     }
     const delivered = readMessages(room.id).flatMap(message => [
@@ -253,7 +269,9 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
           emit('room', updated)
           appendMessage(room.id, {
             kind: 'system',
-            text: `非交付工作区已清理：${fresh.join('、')}；候选分支保留在源仓库。`,
+            text: capabilities.vcs === 'git'
+              ? `非交付工作区已清理：${fresh.join('、')}；候选分支保留在源仓库。`
+              : `非交付工作区已清理：${fresh.join('、')}。`,
           })
         }
       }
@@ -261,11 +279,16 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       appendMessage(room.id, { kind: 'system', text: `非交付工作区清理失败：${error?.message ?? error}` })
     }
     // 先落这条完成记录，再提交，避免提交后 transcript 又变脏。
-    appendMessage(room.id, { kind: 'system', text: '已写入 CONCLUSION.md · 本地 commit 一次 · 未 push' })
+    appendMessage(room.id, {
+      kind: 'system',
+      text: capabilities.vcs === 'git'
+        ? '已写入 CONCLUSION.md · 本地 commit 一次 · 未 push'
+        : '已写入 CONCLUSION.md · 已归档一次交付记录',
+    })
     const committed = workspace.persistRoom({ room, files: delivered })
-    appendEvent(room.id, 'room.commit', { status: committed ? 'done' : 'failed' })
+    appendEvent(room.id, 'room.commit', { status: committed ? 'done' : 'failed', vcs: capabilities.vcs })
     if (!committed) {
-      appendMessage(room.id, { kind: 'system', text: 'commit 失败，详见服务端日志' })
+      appendMessage(room.id, { kind: 'system', text: capabilities.vcs === 'git' ? 'commit 失败，详见服务端日志' : '交付记录归档失败，详见服务端日志' })
     }
     return store.readRoom(room.id) ?? room
   }

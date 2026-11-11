@@ -20,6 +20,16 @@ const money = micro => {
   return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(3)}`
 }
 const independenceOf = room => room.independenceLabel ?? '独立性未标注'
+const workspaceOf = room => {
+  const caps = room.workspace?.capabilities
+  if (!caps) return 'git（默认）'
+  if (caps.vcs === 'git') {
+    return `git · ${caps.isolation === 'worktree' ? 'worktree 隔离' : caps.isolation ?? '隔离'}${caps.commit === false ? ' · 无 commit' : ''}`
+  }
+  if (caps.vcs === 'demo') return '演示'
+  return `${caps.vcs === 'none' ? '普通目录' : caps.vcs ?? '未知'} · ${caps.isolation === 'copy' ? '复制隔离' : caps.isolation ?? '隔离'} · ${caps.diff === 'manifest' ? '文件清单' : caps.diff ?? '无 diff'}`
+}
+const changeWordOf = room => room.workspace?.capabilities?.diff === 'manifest' ? '文件清单' : 'diff'
 const NEEDS_TONE = {
   question: 'waiting',
   decision: 'waiting',
@@ -258,6 +268,9 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
     degraded ? h('span', { className: 'crew-badge', 'data-warn': true }, independenceOf(room)) : null,
     room.demo === true ? h('span', { className: 'crew-badge' }, '演示') : null,
     room.imported === true ? h('span', { className: 'crew-badge' }, '交接 · 只读') : null,
+    room.workspace?.capabilities?.vcs !== undefined && !['git', 'demo'].includes(room.workspace.capabilities.vcs)
+      ? h('span', { className: 'crew-badge' }, '无 VCS')
+      : null,
     room.live === true && room.imported !== true ? h('span', { className: 'crew-badge' }, '实时') : null,
     h('span', { className: 'crew-island-pill' },
       `${progress}/${room.stages.length}`,
@@ -392,7 +405,9 @@ function EvidenceCard({ message, seat }) {
             ? h('details', { className: 'crew-fold' }, h('summary', null, turn ? '原始回合数据' : '输出'), h('pre', { className: 'crew-code' }, meta.output))
             : null,
           meta.diff
-            ? h('details', { className: 'crew-fold' }, h('summary', null, '改动'), h('pre', { className: 'crew-code' }, meta.diff))
+            ? h('details', { className: 'crew-fold' },
+              h('summary', null, meta.vcs !== undefined && !['git', 'demo'].includes(meta.vcs) ? '文件清单' : '改动'),
+              h('pre', { className: 'crew-code' }, meta.diff))
             : null,
           meta.simulated === true ? null : message.text ? h(Markdown, { text: message.text, variant: 'compact' }) : null),
         h('div', { className: 'crew-card-foot' },
@@ -568,6 +583,7 @@ function Advanced({ room, seats, store, engines = [] }) {
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
       h('span', null, `房间策略：${room.independencePolicy ?? '未标注'}`),
+      h('span', null, `工作区：${workspaceOf(room)}`),
       h('span', null, `可用引擎：${availableEngines.length === 0 ? '无' : availableEngines.map(item => `${item.name}${item.models?.default ? `（${item.models.default}）` : ''}`).join('、')}`),
       ...Object.entries(room.engineFallbacks ?? {}).map(([seat, item]) => (
         h('span', { key: `engine-${seat}` }, `${seat}：${item.requested} → ${item.actual}（${item.reason}）`)
@@ -719,7 +735,7 @@ function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept }) {
           h('div', { className: 'crew-gate-title' }, stage.title),
           h('p', { className: 'crew-gate-question' },
             room.repoPath
-              ? '验收命令在房间仓库里真实执行；退出码、输出与 diff 会落成证据。'
+              ? `验收命令在房间工作区里真实执行；退出码、输出与${changeWordOf(room)}会落成证据。`
               : '房间没有固定工作目录，验收命令不会执行。先给基座群设置工作目录。'),
           h('textarea', {
             className: 'crew-gate-input',

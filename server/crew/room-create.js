@@ -102,6 +102,10 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     return fail('invalid', `席位组合不可用：${error?.message ?? error}`)
   }
   const { workers, verifiers } = roleSeats(roster)
+  const workspaceCaps = workspace.capabilities()
+  if (workers.length > 1 && workspaceCaps.merge !== true) {
+    return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行席位')
+  }
   const worker = workers[0]
   const explicitLead = roster.find(seat => seat.role === 'lead')
   const lead = explicitLead ?? worker
@@ -203,7 +207,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       ports: workspaces.ports ?? {},
       workspaceEnv: workspaces.environment ?? {},
       repoPath: workspaces.roomPath ?? workspaces.seats[worker.id].path,
-      workspace: { provider: workspace.id, capabilities: workspace.capabilities() },
+      workspace: { provider: workspace.id, capabilities: workspaceCaps },
       ...(continueSource === null
         ? {}
         : { continuedFrom: { roomId: continueSource.id, name: continueSource.name } }),

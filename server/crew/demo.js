@@ -18,6 +18,7 @@ export const simulateRoom = ({ readMessages, appendMessage, room }) => {
     authorId: 'executor',
     text: `演示：模拟执行 \`${command}\`，退出码 0。这一条没有真实跑过命令。`,
     meta: {
+      vcs: 'demo',
       command,
       exit: 0,
       stage: index,

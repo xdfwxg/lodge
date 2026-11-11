@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { acceptanceChangeError } from './service.js'
+import { acceptanceChangeError, persistenceKind } from './service.js'
 
 test('an active deliverable cannot lose its acceptance command', () => {
   assert.deepEqual(
     acceptanceChangeError({ kind: 'deliverable', state: 'active', acceptance: 'npm test' }, ''),
     ['conflict', '进行中的交付型阶段不能清空验收命令；先暂停或停止'],
   )
+})
+
+test('completion persistence follows workspace capabilities', () => {
+  assert.equal(persistenceKind({ vcs: 'git', commit: true }), 'commit')
+  assert.equal(persistenceKind({ vcs: 'git', commit: false }), 'git-unavailable')
+  assert.equal(persistenceKind({ vcs: 'none', commit: false }), 'archive')
 })
 
 test('a pending deliverable may clear its acceptance command', () => {
