@@ -18,6 +18,7 @@ import {
   writeConclusion,
   writeGoal,
 } from './room-repo.js'
+import { buildHandoff, importHandoff } from './handoff.js'
 import { pruneSeatWorkspaces } from './worktrees.js'
 
 export const acceptanceChangeError = (stage, command) => {
@@ -31,7 +32,7 @@ export const acceptanceChangeError = (stage, command) => {
 }
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
-export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats }) => {
+export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats, dataDir }) => {
   const { readRoom, readRooms, readMessages, readMessagesSince, writeRoom, updateRoom, appendMessage, appendEvent } = store
   const dispatch = createDispatchService({ store, emit, dispatchPayload })
 
@@ -69,6 +70,25 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   }
 
   const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body })
+
+  const handoff = roomId => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    if (room.demo === true) return fail('conflict', '演示房间没有写入房间仓库，不能导出交接包')
+    const bundle = buildHandoff(room)
+    if (bundle === null) return fail('conflict', '房间还没有 transcript.jsonl，不能导出交接包')
+    return ok({ bundle })
+  }
+
+  const importHandoffPackage = bundle => {
+    if (typeof dataDir !== 'string' || dataDir === '') throw new Error('服务未配置 dataDir，无法导入交接包')
+    const result = importHandoff({ store, dataDir, bundle })
+    if (result.ok !== true) return fail(result.reason, result.error)
+    emit('room', result.room)
+    for (const message of readMessages(result.room.id)) emit('msg', message, message.seq)
+    emit('dispatch', dispatchPayload())
+    return created({ room: result.room })
+  }
   const recommendRoster = body => {
     const global = globalBudgetStatus(readRooms())
     if (!global.ok) return fail('conflict', global.message)
@@ -345,6 +365,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    if (room.imported === true) return fail('conflict', '交接记录只读；要继续工作，请对照 BRIEF 与证据新建房间')
 
     if ((action === 'pause' || action === 'resume' || action === 'stop') && method === 'POST') {
       return control(room, action)
@@ -420,6 +441,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     health,
     messagesSince,
     evidence,
+    handoff,
+    importHandoff: importHandoffPackage,
     createRoom,
     recommendRoster,
     roomRequest,

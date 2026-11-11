@@ -257,7 +257,8 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store }) {
     h('h1', null, room.name),
     degraded ? h('span', { className: 'crew-badge', 'data-warn': true }, independenceOf(room)) : null,
     room.demo === true ? h('span', { className: 'crew-badge' }, '演示') : null,
-    room.live === true ? h('span', { className: 'crew-badge' }, '实时') : null,
+    room.imported === true ? h('span', { className: 'crew-badge' }, '交接 · 只读') : null,
+    room.live === true && room.imported !== true ? h('span', { className: 'crew-badge' }, '实时') : null,
     h('span', { className: 'crew-island-pill' },
       `${progress}/${room.stages.length}`,
       h('span', { className: 'crew-island-chev', 'data-open': open }, '⌄'))),
@@ -294,13 +295,16 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store }) {
           h('button', { type: 'button', className: 'crew-ghost', onClick: onToggleAdvanced },
             advanced ? '收起高级' : '高级'),
           h('span', { className: 'crew-island-foot-space' }),
-          room.state === 'active'
+          room.imported === true
+            ? h('span', { className: 'crew-ghost' }, '只读记录，不能继续操作')
+            : null,
+          room.imported !== true && room.state === 'active'
             ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.pause() }, '暂停')
             : null,
-          room.state === 'paused'
+          room.imported !== true && room.state === 'paused'
             ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.resume() }, '继续')
             : null,
-          (room.state === 'active' || room.state === 'paused')
+          room.imported !== true && (room.state === 'active' || room.state === 'paused')
             ? h('button', {
               type: 'button',
               className: 'crew-ghost',
@@ -448,7 +452,24 @@ function ConclusionCard({ message }) {
             : null))))
 }
 
-function Sidebar({ state, onSelect, onNew }) {
+function ImportButton({ className, onFile, children }) {
+  const input = useRef(null)
+  return h(Fragment, null,
+    h('input', {
+      ref: input,
+      type: 'file',
+      accept: '.json,application/json',
+      style: { display: 'none' },
+      onChange: event => {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        if (file !== undefined) void onFile(file)
+      },
+    }),
+    h('button', { type: 'button', className, onClick: () => input.current?.click() }, children ?? '打开交接记录'))
+}
+
+function Sidebar({ state, onSelect, onNew, onImport }) {
   const { rooms, dispatch, seats, activeId } = state
   const roster = useMemo(() => {
     const byId = Object.fromEntries(seats.map(seat => [seat.id, seat]))
@@ -486,6 +507,7 @@ function Sidebar({ state, onSelect, onNew }) {
           h('span', null, '房间'),
           h('span', { className: 'crew-section-tools' },
             waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个等你`) : null,
+            h(ImportButton, { className: 'crew-new', onFile: onImport }, '打开'),
             h('button', { type: 'button', className: 'crew-new', onClick: onNew }, '＋ 新建'))),
         rooms.map(room => h(RoomRow, {
           key: room.id,
@@ -510,7 +532,8 @@ function RoomRow({ room, roster, active, onSelect }) {
   const needs = room.needsYou
   const preview = needs
     ? needs.label
-    : room.live === true ? '实时 · 基座房间' : room.state === 'complete' ? '已完成' : '进行中'
+    : room.imported === true ? '交接记录 · 只读'
+      : room.live === true ? '实时 · 基座房间' : room.state === 'complete' ? '已完成' : '进行中'
   return h('button', {
     type: 'button',
     className: 'bt-row',
@@ -564,16 +587,25 @@ function Advanced({ room, seats, store, engines = [] }) {
       h('span', null, '预算'),
       h('div', { className: 'crew-bar' }, h('i', { style: { width: `${percent}%` } })),
       h('b', null, budget === 0 ? `${money(cost)} / 不限` : `${money(cost)} / ${money(budget)}`)),
+    room.imported === true
+      ? null
+      : h('div', { className: 'crew-budget-edit' },
+        h('span', null, '房间预算（美元，0 为不限）'),
+        h('input', {
+          type: 'number',
+          min: 0,
+          step: 1,
+          value: budgetDraft,
+          onChange: event => setBudgetDraft(event.target.value),
+        }),
+        h('button', { type: 'button', className: 'crew-choice', onClick: saveBudget }, '保存')),
     h('div', { className: 'crew-budget-edit' },
-      h('span', null, '房间预算（美元，0 为不限）'),
-      h('input', {
-        type: 'number',
-        min: 0,
-        step: 1,
-        value: budgetDraft,
-        onChange: event => setBudgetDraft(event.target.value),
-      }),
-      h('button', { type: 'button', className: 'crew-choice', onClick: saveBudget }, '保存')),
+      room.imported === true
+        ? h('span', null, '这是导入的只读交接记录；要继续工作，请对照 BRIEF 与证据新建房间。')
+        : h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
+      room.imported === true
+        ? null
+        : h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
     h('table', { className: 'crew-adv-table' },
       h('thead', null, h('tr', null,
         ['席位', '引擎', '权限', '发言预算'].map(label => h('th', { key: label }, label)))),
@@ -896,7 +928,7 @@ function RoomView({ state, room, store }) {
     if (node) node.scrollTop = node.scrollHeight
   }, [lastId])
 
-  const locked = room.state === 'paused' || room.state === 'stopped'
+  const locked = room.state === 'paused' || room.state === 'stopped' || room.imported === true
   const seats = useMemo(() => {
     if (Array.isArray(room.seatSpecs) && room.seatSpecs.length > 0) return room.seatSpecs
     const ids = room.members ?? []
@@ -925,7 +957,9 @@ function RoomView({ state, room, store }) {
       state.error ? h('div', { className: 'crew-error' }, state.error) : null),
     h('div', { className: 'dsb-composer' },
       h(Composer, {
-        placeholder: room.state === 'complete'
+        placeholder: room.imported === true
+          ? '交接记录 · 只读'
+          : room.state === 'complete'
           ? '这次交付已结束；说话可以开新一轮…'
           : room.state === 'paused'
             ? '已暂停 · 继续后才能派新活'
@@ -1300,8 +1334,10 @@ export function App() {
           disabled: state.phase === 'loading' || state.phase === 'error',
           onClick: () => setDialog(true),
         }, '开一个房间'),
+        h(ImportButton, { className: 'crew-ghost', onFile: file => store.importHandoffFile(file) }, '打开交接记录'),
         state.runtime?.ok === false ? h('p', { className: 'crew-dialog-note' }, `基座未连接：${state.runtime.error}`) : null,
-        state.phase === 'error' ? h('p', { className: 'crew-dialog-note' }, `连接失败：${state.error}`) : null),
+        state.phase === 'error' ? h('p', { className: 'crew-dialog-note' }, `连接失败：${state.error}`) : null,
+        state.error ? h('p', { className: 'crew-dialog-note' }, state.error) : null),
       h(NewRoomDialog, {
         open: dialog,
         onClose: () => setDialog(false),
@@ -1315,7 +1351,12 @@ export function App() {
   const isDispatch = state.activeId === 'dispatch' || room === null
 
   return h('div', { className: 'dsb-frame' },
-    h(Sidebar, { state, onSelect: id => store.select(id), onNew: () => setDialog(true) }),
+    h(Sidebar, {
+      state,
+      onSelect: id => store.select(id),
+      onNew: () => setDialog(true),
+      onImport: file => store.importHandoffFile(file),
+    }),
     isDispatch
       ? h(DispatchView, { state, store })
       : h(RoomView, { state, room, store }),

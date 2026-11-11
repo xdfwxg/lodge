@@ -123,6 +123,15 @@ export function createStore() {
     }
   }
 
+  const download = (name, text) => {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = name
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
   const post = async (path, body) => {
     try {
       const response = await fetch(path, {
@@ -140,6 +149,14 @@ export function createStore() {
       patch({ error: String(error?.message ?? error) })
       return null
     }
+  }
+
+  const importHandoff = async bundle => {
+    const data = await post('/api/rooms/import', bundle)
+    if (data?.room === undefined) return { ok: false, error: state.error ?? '导入交接包失败' }
+    await load()
+    patch({ activeId: data.room.id })
+    return { ok: true, room: data.room }
   }
 
   const activeRoom = () => state.rooms.find(room => room.id === state.activeId)
@@ -188,6 +205,30 @@ export function createStore() {
       await load()
       patch({ activeId: data.room.id })
       return { ok: true, room: data.room, warning: data.warning ?? null }
+    },
+    exportHandoff: async () => {
+      try {
+        const response = await fetch(`/api/rooms/${state.activeId}/handoff`)
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || data.bundle === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
+        download(`${data.bundle.room?.id ?? 'room'}.lodge.json`, JSON.stringify(data.bundle, null, 2))
+        patch({ error: null })
+        return { ok: true }
+      } catch (error) {
+        patch({ error: `导出交接包失败：${String(error?.message ?? error)}` })
+        return { ok: false }
+      }
+    },
+    importHandoff,
+    importHandoffFile: async file => {
+      let bundle = null
+      try {
+        bundle = JSON.parse(await file.text())
+      } catch {
+        patch({ error: '交接包不是有效的 JSON' })
+        return { ok: false }
+      }
+      return importHandoff(bundle)
     },
     dispatchAsk: text => post('/api/dispatch/requests', { text }),
     dispatchConfirm: id => post(`/api/dispatch/requests/${id}/confirm`, {}),

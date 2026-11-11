@@ -59,6 +59,7 @@ const service = createCrewService({
   emit,
   dispatchPayload: digest.dispatchPayload,
   seats: SEATS,
+  dataDir,
 })
 
 const runWorkspaceGc = () => {
@@ -91,12 +92,12 @@ const respond = (res, result) => {
   return json(res, status, result.body)
 }
 
-const readJson = req => new Promise((resolveBody, reject) => {
+const readJson = (req, limit = 64 * 1024) => new Promise((resolveBody, reject) => {
   let raw = ''
   req.setEncoding('utf8')
   req.on('data', chunk => {
     raw += chunk
-    if (raw.length > 64 * 1024) {
+    if (raw.length > limit) {
       reject(new Error('请求体过大'))
       req.destroy()
     }
@@ -172,8 +173,17 @@ const server = http.createServer(async (req, res) => {
       return respond(res, await service.createRoom(await readJson(req)))
     }
 
+    if (path === '/api/rooms/import' && req.method === 'POST') {
+      return respond(res, service.importHandoff(await readJson(req, 16 * 1024 * 1024)))
+    }
+
     if (path === '/api/roster/recommend' && req.method === 'POST') {
       return respond(res, await service.recommendRoster(await readJson(req)))
+    }
+
+    const handoffPath = path.match(/^\/api\/rooms\/([\w-]+)\/handoff$/)
+    if (handoffPath !== null && req.method === 'GET') {
+      return respond(res, service.handoff(handoffPath[1]))
     }
 
     const evidencePath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence\/([\w-]+)$/)

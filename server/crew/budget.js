@@ -19,8 +19,9 @@ export const globalBudgetMicroUsd = () => {
   return Number.isFinite(usd) && usd > 0 ? micro(usd) : 0
 }
 
+// 导入的交接记录是历史快照，不占当前房间的预算。
 export const globalSpentMicroUsd = rooms => (
-  rooms.reduce((sum, room) => sum + roomSpentMicroUsd(room), 0)
+  rooms.reduce((sum, room) => sum + (room?.imported === true ? 0 : roomSpentMicroUsd(room)), 0)
 )
 
 // 0 表示不限；房间和全局都到阈值才算 blocked。只拦新任务，不杀正在跑的回合。
