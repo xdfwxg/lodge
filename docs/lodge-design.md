@@ -10,7 +10,7 @@
 > v0.10 变更：采纳 Claude-Bot 的目标呈现——**目标岛**（§9.7），并把 `goal-grill` 的对齐方式写进开队流程（§8.2、§9.2）；数据模型补 `goals.idle/revision`、`goal_stages.reject_count/rework_feedback`（§11）。
 > v0.11 变更：顶层定位改为“可验收、可交接的交付”；“省时省力”降为交互承诺与结果指标，房间留痕回到价值主张（§1、§2.6）。
 >
-> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
+> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 调用集中在 `workspace-git.js`，业务只依赖 provider；非 git provider 未接）、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
 >
 > **产品北极星（防跑偏）**：用户只做三件事——说目标、答 ≤3 个带推荐答案的问题、验收；队长用**一张开工卡**给出 done、编制、验收与问题，业务校验，人确认一次直接开工，三人组只是模板、单人合法；任何让用户选机制（模型、人数、并发、worktree）的设计都是跑偏；只加 bot、页面或开关、没有让“目标 → 证据 → 结论 → commit”更可信或更省人的功能，不做。
 
@@ -276,9 +276,9 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 
 但要说清楚：**群不会让模型更聪明。** 等算力下辩论不优于单 agent（§5.10）。群带来的是**可验证、可分权、可隔离**，不是更高的智商。这是本设计与所有"多 agent 更聪明"叙事的根本区别。
 
-### 5.1 群的载体：房间即仓库（真创新）
+### 5.1 群的载体：房间即工作空间（真创新）
 
-**是什么**：一个房间 = 一个 git 仓库目录。`.crew/rooms/<room-id>/` 下有 `transcript.jsonl`、`BRIEF.md`、`GOAL.md`、`CONCLUSION.md`、`decisions.md`、`evidence/`。一场讨论结束 = 一次 commit。
+**是什么**：一个房间 = 一个可交付的工作空间，默认是一个 git 仓库目录；房间记录固定在房间根的 `.crew/rooms/<room-id>/`，不要求房间根一定是 git 仓库。`.crew/rooms/<room-id>/` 下有 `transcript.jsonl`、`BRIEF.md`、`GOAL.md`、`CONCLUSION.md`、`decisions.md`、`evidence/`。git 实现下，一场讨论结束 = 一次 commit；非 git 实现下以房间记录与交接包留痕。
 
 ```
 .crew/rooms/<room-id>/
@@ -294,6 +294,8 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 ```
 
 **worktree 在源仓库之外。** M3 首版把 executor worktree 作为房间交付目录；`.crew` 与代码同目录，但 diff 和候选提交排除 `.crew`，避免污染交付内容。完成时的结论 commit 会包含 `.crew/rooms/<id>/`，让房间记录随分支走。
+
+**git 不是本体（设计裁定）**：房间的本体是工作空间 + 记录，git 只是当前的默认工作区实现。房间可以是一个普通目录，装文档、数据或其他产物；版本控制、分支隔离、候选 commit、合并与 diff 都通过 Workspace 端口提供，缺失时按能力降级，不把 git 写进业务规则。端口与迁移顺序见 §10.4.1。
 
 **为什么别人没做**：DS Bot 的群有独立文件夹，OpenMausBot 的 bot 有 workspace，但聊天记录和代码始终是两套东西。云端个人 agent 更是把一切锁在自己的 VM 里。
 
@@ -972,6 +974,43 @@ UI ──HTTP+SSE(127.0.0.1, per-launch token)── Lodge server
 **生命周期（已落）**：创建时为 worker/verifier/integration 复制 `.env`/`.env.local`、软链 `node_modules`，并分配执行/验收/集成端口；端口写进工作提示词与验收命令的 `PORT`。候选 commit 与验收 diff 排除 `.env`/`.env.local`/`node_modules`/`.crew`。**验收命令在一次性 detached worktree 副本里执行**：先落候选 commit，再在副本跑命令；diff 在提交前采集，副本不写回交付 worktree。网络默认 deny：macOS 用 `sandbox-exec`，Linux 用 `unshare -n`；`CREW_ACCEPTANCE_NETWORK=allow` 显式放行。Windows provider 尚未接入，默认 fail closed，后续用 AppContainer/Job Object + WFP/Firewall 适配器接入。房间完成/停止后清理非交付席位工作区，保留交付仓库与候选分支；启动与每 6 小时 GC 已知房间；未知孤儿目录默认不删，`CREW_WORKTREE_GC_ORPHANS=1` 才按 TTL（默认 7 天）清理；创建前检查磁盘水位（`CREW_DISK_MIN_FREE_MB`，默认 512MB）。**边界**：`node_modules` 是共享软链，不适合在工作区里改依赖；一次性副本只隔离交付目录写入，网络/文件系统仍不是沙箱；Python venv、本地数据库与端口强制隔离尚未做。
 >
 > 这一条是对 Grok Bot "所有 Bot 共用一台云电脑"的直接反选。
+
+### 10.4.1 Workspace 端口：git 是默认实现，不是本体（设计裁定 2026-11-12）
+
+**裁定**：房间记录、目标、证据、交接包都不依赖版本控制；版本控制、隔离、候选、合并与 diff 是 Workspace 端口的能力。git 是默认 provider，不是唯一 provider。
+
+**端口**：业务层（建房、回合、完成）只依赖 `workspace.js` 暴露的 provider，不直接调用 git。provider 暴露 `capabilities()` 与七个动作：
+
+| 动作 | 语义 | git provider | 普通目录 provider（后续） |
+|---|---|---|---|
+| `probeSource({ source })` | 判断源目录能否开房 | 必须在 git work tree 内 | 目录存在且可读 |
+| `prepareRoom({ source, short, seats })` | 创建隔离工作区 | worktree / clone / 分支 | 复制目录，分配端口 |
+| `changes({ path })` / `rangeChanges({ path, base })` | 变更证据 | 补丁 diff | 文件清单 + 哈希 |
+| `submit({ path, turnId, name })` | 候选 | candidate commit | 目录快照 ID |
+| `integrate({ path, branch })` | 并行汇总 | merge 分支 | 按文件复制，同路径不同哈希记为冲突 |
+| `isolatedCopy({ source, ref })` / `removeIsolatedCopy` | 一次性验收副本 | detached worktree | 临时复制目录 |
+| `persistRoom({ room, files })` | 完成留痕 | 本地 commit 一次 | 房间记录已落盘，无 commit |
+
+另有 `pruneSeats(room)`、`cleanupRoom({ source, workspaces })`、`head({ path })`、`refreshReviewCopy(...)`、`scratchRoot()`，用于生命周期与复核。
+
+**房间根与版本控制解耦**：`roomRootOf(room)` 是记录落点；`repoPath` 字段暂保留为兼容名，不改已存房间与交接包。`room.workspace = { provider, capabilities }` 记录实际 provider；旧房间没有该字段时按 `git` 解释。
+
+**能力降级**：
+- 命令 + 退出码仍是验收主证据，不因 provider 改变。
+- 无 git 时 evidence 记 `vcs:'none'`，变更是文件清单而不是 patch；UI 写“文件清单”，不写“diff”。
+- 无 commit 时完成态留痕是房间记录 + 交接包，不写“本地 commit 一次”。
+- 无 merge 时多执行只能顺序执行，或按文件复制并在同路径冲突时停下；不宣称分支隔离。
+- 门禁与 UI 只读 `room.workspace.capabilities`，不猜 provider。
+
+**迁移顺序**：
+1. 语义收敛：`roomRootOf` 与 `repoPath` 兼容；文档分离“房间根”与“版本控制”。
+2. 抽端口、行为不变：git 调用收进 `workspace-git.js`；建房、回合、完成链路依赖 provider；测试全绿。
+3. 能力入库：房间写 `workspace` 与 capabilities，evidence 带 `vcs`，完成文案按能力分支。
+4. plain provider：显式选择或房间根不是 git 仓库时启用，不默认切换。
+5. 交接包联动：非 git 房间完成时，交接包就是归档。
+6. 门禁：除 `workspace-git.js` 外，`server/crew` 不直接调用 git；文档写清两种 provider 的差异。
+
+**当前（2026-11-12）**：第 1–2 步已落。`workspace.js` 是端口注册表，`workspace-git.js` 是唯一实现；`room-create.js`、`live-turns.js`、`service.js`、`workspace-gc.js`、`roster-recommend.js` 只通过 provider 调用；建房写入 `room.workspace = { provider:'git', capabilities }`；`boundary.test.js` 要求除 `workspace-git.js`（以及 `paths.js` 的默认根探测）外不得直接调用 git。plain provider、能力降级文案与 evidence 的 `vcs` 字段尚未接，不对外宣称非 git 房间可用。
 
 ### 10.5 引擎适配器
 

@@ -8,18 +8,16 @@ import { createRealRoom } from './room-create.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { TEMPLATE_LIST } from './seats.js'
 import { gateFor } from './gates.js'
-import { repoRootOf } from './paths.js'
+import { roomRootOf } from './paths.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
 import {
-  commitRoom,
-  gitAvailable,
   readBrief,
   roomDir,
   writeConclusion,
   writeGoal,
 } from './room-repo.js'
 import { buildHandoff, importHandoff } from './handoff.js'
-import { pruneSeatWorkspaces } from './worktrees.js'
+import { workspaceProvider } from './workspace.js'
 
 export const acceptanceChangeError = (stage, command) => {
   if (stage === undefined) return ['invalid', '没有这个阶段']
@@ -232,18 +230,19 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       return room
     }
     writeConclusion(room)
-    if (!gitAvailable) {
+    const workspace = workspaceProvider(room)
+    if (workspace.capabilities().commit !== true) {
       appendEvent(room.id, 'room.commit', { status: 'unavailable' })
       appendMessage(room.id, { kind: 'system', text: '已写入 CONCLUSION.md · 本机 git 不可用，未产生 commit' })
       return room
     }
     const delivered = readMessages(room.id).flatMap(message => [
       ...(message.meta?.artifacts ?? []).map(artifact => artifact.path).filter(Boolean),
-      ...(message.meta?.changedFiles ?? []).map(file => join(repoRootOf(room), file)),
+      ...(message.meta?.changedFiles ?? []).map(file => join(roomRootOf(room), file)),
     ])
     // 交付仓库保留；只清掉非交付席位工作区，候选分支仍在源仓库，可人工重建查看。
     try {
-      const pruned = pruneSeatWorkspaces(room)
+      const pruned = workspace.pruneSeats(room)
       const fresh = pruned.filter(seat => !(room.prunedSeats ?? []).includes(seat))
       if (fresh.length > 0) {
         const updated = updateRoom(room.id, current => {
@@ -263,7 +262,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     }
     // 先落这条完成记录，再提交，避免提交后 transcript 又变脏。
     appendMessage(room.id, { kind: 'system', text: '已写入 CONCLUSION.md · 本地 commit 一次 · 未 push' })
-    const committed = commitRoom(room, delivered)
+    const committed = workspace.persistRoom({ room, files: delivered })
     appendEvent(room.id, 'room.commit', { status: committed ? 'done' : 'failed' })
     if (!committed) {
       appendMessage(room.id, { kind: 'system', text: 'commit 失败，详见服务端日志' })

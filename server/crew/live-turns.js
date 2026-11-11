@@ -1,13 +1,11 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
-import { collectDiff, collectRange, runCommand } from './acceptance.js'
+import { runCommand } from './acceptance.js'
 import { budgetStatus } from './budget.js'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
 import { reject } from './result.js'
 import { markSeatRead } from './watermarks.js'
-import {
-  commitCandidate, createAcceptanceCopy, headOf, mergeBranch, refreshVerifier, removeAcceptanceCopy,
-} from './worktrees.js'
+import { workspaceProvider } from './workspace.js'
 
 const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
 
@@ -19,6 +17,8 @@ const deliverableStageIndex = room => {
   const first = room.stages.findIndex(stage => isWorkStage(stage))
   return first >= 0 ? first : 0
 }
+
+const ws = room => workspaceProvider(room)
 
 const REVIEW_TIMEOUT = 10 * 60_000
 const PARALLEL_TIMEOUT = 15 * 60_000
@@ -116,11 +116,11 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       })
       return
     }
-    // diff 必须在候选提交前采集：提交后工作树变干净，collectDiff 会看不到交付改动。
-    const diff = await collectDiff(room.repoPath)
+    // diff 必须在候选提交前采集：提交后工作树变干净，provider 会看不到交付改动。
+    const diff = await ws(room).changes({ path: room.repoPath })
     let candidate = null
     try {
-      candidate = commitCandidate({ executor: room.repoPath, turnId, name: room.name })
+      candidate = ws(room).submit({ path: room.repoPath, turnId, name: room.name })
       if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `候选提交失败，验收未执行：${error?.message ?? error}` })
@@ -128,7 +128,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     }
     let copy
     try {
-      copy = createAcceptanceCopy({ sourceRepo: room.sourceRepo, ref: candidate ?? 'HEAD' })
+      copy = ws(room).isolatedCopy({ source: room.sourceRepo, ref: candidate ?? 'HEAD' })
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `验收隔离副本创建失败，验收未执行：${error?.message ?? error}` })
       return
@@ -143,7 +143,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         sandbox: true,
       })
     } finally {
-      removeAcceptanceCopy({ sourceRepo: room.sourceRepo, copy })
+      ws(room).removeIsolatedCopy({ source: room.sourceRepo, copy })
     }
     store.appendMessage(roomId, {
       kind: 'evidence',
@@ -236,7 +236,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     for (const worker of workers) {
       const branch = room.branches?.[worker]
       if (typeof branch !== 'string' || branch === '') continue
-      const result = mergeBranch({ worktree: integration, branch })
+      const result = ws(room).integrate({ path: integration, branch })
       if (!result.ok) {
         const name = room.seatNames?.[worker] ?? worker
         const files = result.files.length > 0 ? result.files.join('、') : '未知文件'
@@ -257,7 +257,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       merged.push({ worker, branch })
     }
 
-    const head = headOf(integration)
+    const head = ws(room).head({ path: integration })
     if (stage.manual === true) {
       store.appendMessage(roomId, {
         kind: 'evidence',
@@ -280,7 +280,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       markProgress()
       return
     }
-    const range = await collectRange({ cwd: integration, base })
+    const range = await ws(room).rangeChanges({ path: integration, base })
     const command = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
     if (command === '') {
       store.appendMessage(roomId, { kind: 'system', text: `阶段 ${stageIndex + 1} 没有验收命令，未执行集成验收` })
@@ -288,7 +288,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     }
     let copy
     try {
-      copy = createAcceptanceCopy({ sourceRepo: room.sourceRepo, ref: head })
+      copy = ws(room).isolatedCopy({ source: room.sourceRepo, ref: head })
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `集成验收副本创建失败，验收未执行：${error?.message ?? error}` })
       return
@@ -303,7 +303,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         sandbox: true,
       })
     } finally {
-      removeAcceptanceCopy({ sourceRepo: room.sourceRepo, copy })
+      ws(room).removeIsolatedCopy({ source: room.sourceRepo, copy })
     }
     const names = workers.map(worker => room.seatNames?.[worker] ?? worker).join('、')
     store.appendMessage(roomId, {
@@ -407,7 +407,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       workers: [...workers],
       pending: [...workers],
       failed: [],
-      base: headOf(room.repoPath),
+      base: ws(room).head({ path: room.repoPath }),
       startedAt,
       integrated: false,
     }
@@ -612,7 +612,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         let candidate = null
         if (worktree !== undefined) {
           try {
-            candidate = commitCandidate({ executor: worktree, turnId, name: current.name })
+            candidate = ws(current).submit({ path: worktree, turnId, name: current.name })
             if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, seat, commit: candidate })
           } catch (error) {
             store.appendMessage(roomId, { kind: 'system', text: `候选提交失败（${current.seatNames?.[seat] ?? seat}）：${error?.message ?? error}` })
@@ -620,11 +620,11 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         }
         const base = dispatch?.stage === stage && typeof dispatch.base === 'string'
           ? dispatch.base
-          : headOf(current.repoPath)
+          : ws(current).head({ path: current.repoPath })
         const range = worktree === undefined
           ? { diff: '', files: [] }
-          : await collectRange({ cwd: worktree, base })
-        const head = worktree === undefined ? '' : headOf(worktree)
+          : await ws(current).rangeChanges({ path: worktree, base })
+        const head = worktree === undefined ? '' : ws(current).head({ path: worktree })
         store.appendMessage(roomId, {
           ...evidence,
           meta: {
@@ -658,7 +658,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         const latest = [...store.readMessages(roomId)].reverse()
           .find(message => message.kind === 'verdict' && message.meta?.stage === stage)
         if (latest?.meta?.pass === true) return
-        await integrateStage({ stageIndex: stage, workers: [seat], base: headOf(current.repoPath), turnId })
+        await integrateStage({ stageIndex: stage, workers: [seat], base: ws(current).head({ path: current.repoPath }), turnId })
       })
       return
     }
@@ -674,7 +674,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       if (target?.manual === true && target.state === 'active' && !acceptanceRuns.has(key)) {
         acceptanceRuns.add(key)
         try {
-          const candidate = commitCandidate({ executor: room.repoPath, turnId, name: room.name })
+          const candidate = ws(room).submit({ path: room.repoPath, turnId, name: room.name })
           if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, commit: candidate })
         } catch (error) {
           store.appendMessage(roomId, { kind: 'system', text: `候选提交失败：${error?.message ?? error}` })
@@ -733,7 +733,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     const verifierName = room.seatNames?.[verifier]
     if (typeof verifierName !== 'string' || verifierName === '') reject('conflict', '房间没有验收席位')
     if (room.worktrees?.[verifier] !== undefined && typeof room.branch === 'string') {
-      refreshVerifier({ verifier: room.worktrees[verifier], branch: room.branch, sourceRepo: room.sourceRepo })
+      ws(room).refreshReviewCopy({ path: room.worktrees[verifier], branch: room.branch, source: room.sourceRepo })
     }
     const meta = evidence.meta
     const verifierPort = room.ports?.[verifier]

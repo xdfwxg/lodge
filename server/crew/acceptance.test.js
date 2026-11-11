@@ -4,7 +4,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { collectDiff, runCommand } from './acceptance.js'
+import { runCommand } from './acceptance.js'
+import { changes } from './workspace-git.js'
 
 const repo = () => {
   const dir = mkdtempSync(join(tmpdir(), 'crew-accept-'))
@@ -43,7 +44,7 @@ test('diff includes delivery files and excludes room metadata', async () => {
   try {
     writeFileSync(join(dir, 'hello.txt'), 'crew ok\n')
     writeFileSync(join(dir, 'README.md'), '# changed\n')
-    const diff = await collectDiff(dir)
+    const diff = await changes({ path: dir })
     assert.deepEqual(diff.files.sort(), ['README.md', 'hello.txt'])
     assert.match(diff.diff, /hello\.txt/)
     assert.doesNotMatch(diff.diff, /\.crew\//)

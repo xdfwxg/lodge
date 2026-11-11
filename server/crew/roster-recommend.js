@@ -1,11 +1,10 @@
-import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { workspaceRoot } from './paths.js'
 import { fail, ok } from './result.js'
 import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
-import { cleanupWorkspaces, prepareWorkspaces } from './worktrees.js'
+import { defaultWorkspace } from './workspace.js'
 
 const MAX_GOAL = 2000
 const RECOMMEND_TIMEOUT = 90_000
@@ -197,12 +196,9 @@ export const recommendRoster = async ({ engine, body }) => {
   const sourceRepo = generatedRepo ? join(workspaceRoot(), `roster-${short}`) : resolve(requestedRepo)
   if (!generatedRepo) {
     if (!existsSync(sourceRepo)) return fail('invalid', '工作目录不存在')
-    try {
-      execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: sourceRepo, stdio: 'ignore' })
-    } catch {
-      // 建议是只读的；不在用户目录里 git init 或写文件。
-      return fail('invalid', '工作目录不是 git 仓库；先 git init，或留空让队长在临时仓库里判断')
-    }
+    // 建议是只读的；不在用户目录里 git init 或写文件。
+    const probe = defaultWorkspace.probeSource({ source: sourceRepo })
+    if (!probe.ok) return fail('invalid', probe.error)
   }
   const advisor = rosterFromRoles([{ role: 'lead', name: '队长' }])[0]
   const prompt = recommendationPrompt(goal, sourceRepo)
@@ -214,7 +210,7 @@ export const recommendRoster = async ({ engine, body }) => {
   let advisorRef = null
   let probeRoom = null
   try {
-    workspaces = prepareWorkspaces({ sourceRepo, short, seats: [advisor] })
+    workspaces = defaultWorkspace.prepareRoom({ source: sourceRepo, short, seats: [advisor] })
     advisorRef = await engine.createSeatBot({
       name: `Advisor${short}`,
       soul: advisor.prompt,
@@ -249,7 +245,7 @@ export const recommendRoster = async ({ engine, body }) => {
     }
     if (advisorRef !== null) await engine.deleteSeatBot(advisorRef.id)
     try {
-      if (workspaces !== null) cleanupWorkspaces({ sourceRepo, workspaces })
+      if (workspaces !== null) defaultWorkspace.cleanupRoom({ source: sourceRepo, workspaces })
     } catch {}
     if (generatedRepo) rmSync(sourceRepo, { recursive: true, force: true })
   }

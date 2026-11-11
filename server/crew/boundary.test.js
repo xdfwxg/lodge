@@ -31,3 +31,13 @@ test('crew stays on the semantic side of the engine port', () => {
     }
   }
 })
+
+test('git stays inside the workspace provider', () => {
+  // paths.js 只用 git 探测默认项目根；交付操作全部在 workspace-git.js。
+  const allowed = new Set(['paths.js', 'workspace-git.js'])
+  const pattern = /execFileSync\(['"]git['"]|execFile\(['"]git['"]|spawn\(['"]git['"]/
+  for (const file of sourceFiles) {
+    if (allowed.has(file)) continue
+    assert.doesNotMatch(readFileSync(join(dir, file), 'utf8'), pattern, `${file} calls git directly`)
+  }
+})

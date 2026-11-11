@@ -1,9 +1,7 @@
-import { execFileSync } from 'node:child_process'
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, realpathSync, writeFileSync, writeSync } from 'node:fs'
-import { basename, join, relative, resolve } from 'node:path'
+import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, writeFileSync, writeSync } from 'node:fs'
+import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
-import { repoRootOf, roomDir } from './paths.js'
-import { LOCAL_ONLY } from './workspace-paths.js'
+import { roomDir, roomRootOf } from './paths.js'
 
 export { roomDir }
 
@@ -47,21 +45,6 @@ export const writeEvidence = (room, message) => {
   const dir = join(roomDir(room), 'evidence')
   mkdirSync(dir, { recursive: true })
   writeDurable(join(roomDir(room), message.meta.evidenceRef), JSON.stringify(message.meta, null, 2))
-}
-
-// 房间仓库：不存在就建一个带初始提交的 git 仓库，保证验收 diff 有 HEAD。
-export const ensureRepo = path => {
-  mkdirSync(path, { recursive: true })
-  try {
-    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: path, stdio: 'ignore' })
-    return path
-  } catch {}
-  execFileSync('git', ['init', '-q'], { cwd: path })
-  const readme = join(path, 'README.md')
-  if (!existsSync(readme)) writeFileSync(readme, `# ${basename(path)}\n`)
-  execFileSync('git', ['add', 'README.md'], { cwd: path })
-  execFileSync('git', ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', 'room: initial'], { cwd: path })
-  return path
 }
 
 const briefText = (room, plan = null) => {
@@ -113,7 +96,7 @@ export const writeGoal = room => {
     '',
     `目标：${room.goal}`,
     `状态：${room.state}`,
-    `仓库：${repoRootOf(room)}`,
+    `仓库：${roomRootOf(room)}`,
     ...(room.seatSpecs?.length > 0
       ? [`席位：${room.seatSpecs.map(seat => `${seat.name}（${seat.role}）`).join(' · ')}`]
       : room.seatNames === undefined ? [] : [
@@ -163,7 +146,7 @@ export const writeConclusion = room => {
     '',
     `- 完成时间：${new Date().toISOString()}`,
     `- 独立性：${independenceLabel(room)}`,
-    `- 目标仓库：${repoRootOf(room)}`,
+    `- 目标仓库：${roomRootOf(room)}`,
     ...(typeof room.sourceRepo === 'string' && room.sourceRepo !== '' ? [`- 源仓库：${room.sourceRepo}`] : []),
     `- 交付分支：${room.branch || '(无分支)'}`,
     ...(room.workers?.length > 1
@@ -176,49 +159,4 @@ export const writeConclusion = room => {
     )),
     '',
   ].join('\n'))
-}
-
-export const gitAvailable = (() => {
-  try {
-    execFileSync('git', ['--version'], { stdio: 'ignore' })
-    return true
-  } catch {
-    return false
-  }
-})()
-
-export const commitRoom = (room, files = []) => {
-  const repo = repoRootOf(room)
-  const rel = relative(repo, roomDir(room))
-  if (rel === '' || rel.startsWith('..')) {
-    console.error(`room commit skipped: ${room.id} 不在目标仓库 ${repo} 内`)
-    return false
-  }
-  const canon = path => {
-    try {
-      return realpathSync(path)
-    } catch {
-      return resolve(path)
-    }
-  }
-  const rootReal = canon(repo)
-  const isLocalOnly = file => file.split(/[\\/]/).some(part => LOCAL_ONLY.includes(part))
-  const extra = files
-    .filter(file => typeof file === 'string' && file !== '')
-    .map(file => relative(rootReal, canon(file)))
-    .filter(file => file !== '' && !file.startsWith('..') && !file.startsWith('/') && !isLocalOnly(file))
-  const paths = [...new Set([rel, ...extra])]
-  try {
-    // 房间记录即使被 .gitignore 忽略，也要随结论 commit 走；交付文件仍按正常忽略规则。
-    execFileSync('git', ['add', '-f', '-A', '--', rel], { cwd: repo, stdio: 'ignore' })
-    if (extra.length > 0) execFileSync('git', ['add', '-A', '--', ...extra], { cwd: repo, stdio: 'ignore' })
-    const status = execFileSync('git', ['status', '--porcelain', '--', ...paths], { cwd: repo, encoding: 'utf8' })
-    if (status.trim() === '') return true
-    execFileSync('git', ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', `room: ${room.name}`, '--', ...paths], { cwd: repo, stdio: 'ignore' })
-    console.log(`room committed: ${room.id} ${paths.join(' ')}`)
-    return true
-  } catch (error) {
-    console.error(`room commit failed: ${room.id} ${paths.join(' ')}`, error.stderr?.toString() ?? error.message)
-    return false
-  }
 }

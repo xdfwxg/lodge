@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { commitRoom } from './room-repo.js'
+import { persistRoom } from './workspace-git.js'
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 
@@ -23,7 +23,7 @@ test('the conclusion commit carries the room record even when .crew is ignored',
     writeFileSync(join(record, 'events.jsonl'), '{"type":"room.created"}\n')
     writeFileSync(join(repo, 'hello.txt'), 'hi\n')
 
-    assert.equal(commitRoom({ id: 'r1', name: 'R', goal: 'g', repoPath: repo }, [join(repo, 'hello.txt')]), true)
+    assert.equal(persistRoom({ room: { id: 'r1', name: 'R', goal: 'g', repoPath: repo }, files: [join(repo, 'hello.txt')] }), true)
     const files = git(repo, ['show', '--name-only', '--pretty=format:', 'HEAD']).split('\n').filter(Boolean)
     assert.ok(files.includes('.crew/rooms/r1/transcript.jsonl'))
     assert.ok(files.includes('.crew/rooms/r1/events.jsonl'))

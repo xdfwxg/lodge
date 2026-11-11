@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { pruneSeatWorkspaces, worktreeRootPath } from './worktrees.js'
+import { defaultWorkspace, workspaceProvider } from './workspace.js'
 
 const ttlDays = () => {
   const value = Number(process.env.CREW_WORKTREE_TTL_DAYS ?? 7)
@@ -10,7 +10,7 @@ const ttlDays = () => {
 // 启动与定时 GC：完成/停止的房间清掉非交付席位工作区；孤儿工作区目录超过 TTL 才删。
 export const collectWorkspaceGarbage = ({
   store,
-  rootPath = worktreeRootPath(),
+  rootPath = defaultWorkspace.scratchRoot(),
   ttlMs = ttlDays() * 24 * 60 * 60 * 1000,
   now = Date.now(),
   removeOrphans = process.env.CREW_WORKTREE_GC_ORPHANS === '1',
@@ -20,7 +20,7 @@ export const collectWorkspaceGarbage = ({
 
   for (const room of store.readRooms()) {
     if (room.state !== 'complete' && room.state !== 'stopped') continue
-    const seats = pruneSeatWorkspaces(room)
+    const seats = workspaceProvider(room).pruneSeats(room)
     const fresh = seats.filter(seat => !(room.prunedSeats ?? []).includes(seat))
     if (fresh.length === 0) continue
     const updated = store.updateRoom(room.id, current => {

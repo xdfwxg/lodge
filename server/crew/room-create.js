@@ -6,7 +6,7 @@ import { created, fail } from './result.js'
 import { readBrief, writeBrief, writeGoal } from './room-repo.js'
 import { DEFAULT_TEMPLATE_ID, roleSeats, rosterFromRoles, seatsFor, TEMPLATES, validateRoster } from './seats.js'
 import { markSeatRead } from './watermarks.js'
-import { cleanupWorkspaces, prepareWorkspaces } from './worktrees.js'
+import { defaultWorkspace } from './workspace.js'
 
 const roomBulletin = (goal, verify, acceptance, align) => [
   `目标：${goal}`,
@@ -44,7 +44,7 @@ export const inheritedPlan = (brief, sourceName) => {
 }
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
-export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body }) => {
+export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = defaultWorkspace }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > 2000) return fail('invalid', '目标不能为空，且不超过 2000 字')
   const verify = body.verify === 'manual' ? 'manual' : 'test'
@@ -119,7 +119,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const sourceRepo = requestedRepo === '' ? join(workspaceRoot(), `room-${short}`) : resolve(requestedRepo)
   let workspaces = null
   try {
-    workspaces = prepareWorkspaces({ sourceRepo, short, seats: roster })
+    workspaces = workspace.prepareRoom({ source: sourceRepo, short, seats: roster })
   } catch (error) {
     // git / 磁盘 / 权限问题不是用户的业务拒绝；交给组合根显式 500。
     throw new Error(`工作区不可用：${error?.message ?? error}`)
@@ -203,6 +203,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       ports: workspaces.ports ?? {},
       workspaceEnv: workspaces.environment ?? {},
       repoPath: workspaces.roomPath ?? workspaces.seats[worker.id].path,
+      workspace: { provider: workspace.id, capabilities: workspace.capabilities() },
       ...(continueSource === null
         ? {}
         : { continuedFrom: { roomId: continueSource.id, name: continueSource.name } }),
@@ -309,7 +310,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     if (!stored) {
       for (const baseRoom of createdBaseRooms) await engine.deleteRoom(baseRoom.id)
       for (const item of createdSeatRefs) await engine.deleteSeatBot(item.seatRef.id)
-      cleanupWorkspaces({ sourceRepo, workspaces })
+      workspace.cleanupRoom({ source: sourceRepo, workspaces })
       throw new Error(`建房失败：${error?.message ?? error}`)
     }
     store.appendMessage(room.id, { kind: 'system', text: `房间已建，但启动失败：${error?.message ?? error}` })
