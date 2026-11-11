@@ -1,0 +1,23 @@
+{
+  "name": "crew-chat",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,ui -c blue,green \"node server/index.js\" \"vite\"",
+    "dev:server": "node server/index.js",
+    "dev:ui": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5",
+    "vite": "8.3.4"
+  }
+}
