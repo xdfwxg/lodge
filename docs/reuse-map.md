@@ -214,6 +214,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 ### 8.5 P0 记录（2026-11-11）
 
 - **底座加固**：`room` 表加 `version`，房间状态变更统一走 `updateRoom` 的 IMMEDIATE 事务；新增 append-only `room_event`（建房/阶段/验收/复核/提交/迁移）；席位能力（read/exec/write、writeScope、toolSurface）成为单一事实来源，启动时校验，声明不合法直接失败；新增 `/api/health`；`npm test` 覆盖门禁、验收命令、store 事务与席位契约。
+- **结果三态（2026-11-12）**：业务拒绝用 `fail` 映射 4xx；系统/基座/IO/工作区异常直接抛到组合根映射 500，不再用 `fail('conflict')` 包装。复核请求的业务条件用 `BusinessError` 区分，`service.verify` 只把这类错误转成 4xx；开工卡队长不可用、建房中途创建 bot/群失败会显式 500。
 - **真实三人组（模板验证）**：从界面建房 → Engine 端口在基座创建三个 bot（同引擎，明确标「独立性降级」）+ 一个群 + 一个房间仓库；队长提示词要求 ≤3 问对齐（未强制）；人确认后系统 @执行；执行回合后自动跑验收命令；验收席位独立复跑并给 PASS/REJECT；人签字 → `CONCLUSION.md` + 一次本地 commit。
 - **开工卡（2026-11-11）**：建房前由队长读目标与仓库事实，给出一张开工卡：done、席位/职责/理由、验收方式、最多 3 个带推荐答案的问题；业务用 `validateRoster` 校验，UI 展示 done/问题/编制/验收，人确认一次直接开工，不再二次对齐；答案与 done 写进 BRIEF，手动模板只作覆盖。真实小目标验证：队长建议 1 个执行席位而不是三人组，约 7–8 秒返回；按卡建房没有对齐阶段，worker 直接开工，BRIEF 含 done 与编制理由，跑通到人签字与 commit；临时队长线程/工作区已清理。manual 开工卡也验证：产物就绪后生成 manual 证据，`needsYou=等你验收`，人签字后结论 commit。边界：建后改席位未接；角色仍限队长/执行/验收；多验收未接；基座不可用或建议不可解析时显式回退“手动选编制”，不静默套模板；建议只读，用户目录不是 git 仓库时显式失败，不在用户目录里 git init。
 - **模板驱动与按需编制**：席位是数据，三人组和单人只是模板；建房可传 `seats: [{ role, name }]` 自定义编制，服务端只接受 `lead / worker / verifier`，权限由角色派生（自定义不能自己发明能力）。约束：至少一个 worker，最多一个 lead、一个 verifier；多执行可并行，多验收未接（fail closed）。无 `lead` 时跳过对齐，直接进入交付；无 `verifier` 时门禁按席位表判断，真实证据 + 人签字即可通过；有 verifier 或席位表未知时仍必须拿到 PASS。已用真实 CLI 跑通单人全链路：执行 → 验收命令 exit 0 → 人签字 → `CONCLUSION.md` → 本地 commit，工作树干净。

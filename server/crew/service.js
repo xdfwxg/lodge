@@ -8,7 +8,7 @@ import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js
 import { TEMPLATE_LIST } from './seats.js'
 import { gateFor } from './gates.js'
 import { repoRootOf } from './paths.js'
-import { accepted, created, fail, ok } from './result.js'
+import { accepted, BusinessError, created, fail, ok } from './result.js'
 import {
   commitRoom,
   gitAvailable,
@@ -222,7 +222,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       try {
         return accepted(await live.requestReview(room.id, Number(body.stage)))
       } catch (error) {
-        return fail('conflict', String(error?.message ?? error))
+        if (error instanceof BusinessError) return fail(error.reason, error.message)
+        throw error
       }
     }
 

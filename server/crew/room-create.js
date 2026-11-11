@@ -95,7 +95,18 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   try {
     workspaces = prepareWorkspaces({ sourceRepo, short, seats: roster })
   } catch (error) {
-    return fail('invalid', `工作区不可用：${error?.message ?? error}`)
+    // git / 磁盘 / 权限问题不是用户的业务拒绝；交给组合根显式 500。
+    throw new Error(`工作区不可用：${error?.message ?? error}`)
+  }
+
+  const capabilities = engine.capabilities()
+  for (const seat of roster) {
+    if (seat.skills.length > 0 && capabilities.skills !== true) {
+      return fail('conflict', '当前 runtime 还不能安装技能；先不要给席位声明技能')
+    }
+    if (seat.mcp.length > 0 && capabilities.mcp !== true) {
+      return fail('conflict', '当前 runtime 不支持 MCP')
+    }
   }
 
   const createdBots = []
@@ -104,12 +115,6 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   let stored = false
   try {
     for (const seat of roster) {
-      if (seat.skills.length > 0 && engine.capabilities().skills !== true) {
-        throw new Error('当前 runtime 还不能安装技能；先不要给席位声明技能')
-      }
-      if (seat.mcp.length > 0 && engine.capabilities().mcp !== true) {
-        throw new Error('当前 runtime 不支持 MCP')
-      }
       const bot = await engine.createSeatBot({
         name: `${seat.id[0].toUpperCase()}${seat.id.slice(1)}${short}`,
         soul: seat.prompt,
@@ -248,7 +253,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       for (const group of createdGroups) await engine.deleteRoom(group.id)
       for (const item of createdBots) await engine.deleteSeatBot(item.bot.id)
       cleanupWorkspaces({ sourceRepo, workspaces })
-      return fail('conflict', `建房失败：${error?.message ?? error}`)
+      throw new Error(`建房失败：${error?.message ?? error}`)
     }
     store.appendMessage(room.id, { kind: 'system', text: `房间已建，但启动失败：${error?.message ?? error}` })
     return created({ room, warning: String(error?.message ?? error) })

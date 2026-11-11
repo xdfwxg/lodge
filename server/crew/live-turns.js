@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { collectDiff, collectRange, runCommand } from './acceptance.js'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
+import { reject } from './result.js'
 import { markSeatRead } from './watermarks.js'
 import { commitCandidate, headOf, mergeBranch, refreshVerifier } from './worktrees.js'
 
@@ -643,16 +644,16 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
   }
 
   const requestReview = async stageIndex => {
-    if (reviewFor !== null) throw new Error('上一次复核还没有结束')
+    if (reviewFor !== null) reject('conflict', '上一次复核还没有结束')
     const room = store.readRoom(roomId)
     const stage = room?.stages?.[stageIndex]
-    if (stage === undefined || stage.kind !== 'deliverable') throw new Error('这个阶段不是交付型')
-    if (stage.state !== 'active') throw new Error('这个阶段不在待验收状态')
+    if (stage === undefined || stage.kind !== 'deliverable') reject('invalid', '这个阶段不是交付型')
+    if (stage.state !== 'active') reject('conflict', '这个阶段不在待验收状态')
 
     const messages = store.readMessages(roomId)
     const verdicts = messages.filter(message => message.kind === 'verdict' && message.meta?.stage === stageIndex)
     const latestVerdict = verdicts.at(-1)
-    if (latestVerdict?.meta?.pass === true) throw new Error('本阶段已经有 PASS 了')
+    if (latestVerdict?.meta?.pass === true) reject('conflict', '本阶段已经有 PASS 了')
     const floor = latestVerdict?.seq ?? -1
     const evidence = [...messages].reverse().find(message => (
       message.kind === 'evidence' &&
@@ -661,12 +662,12 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       (message.seq ?? 0) > floor
     ))
     if (evidence === undefined) {
-      throw new Error(latestVerdict === undefined ? '还没有本阶段的验收命令证据' : '返工后还没有新的验收命令证据')
+      reject('conflict', latestVerdict === undefined ? '还没有本阶段的验收命令证据' : '返工后还没有新的验收命令证据')
     }
 
     const verifier = room.verifiers?.[0]
     const verifierName = room.seatNames?.[verifier]
-    if (typeof verifierName !== 'string' || verifierName === '') throw new Error('房间没有验收席位')
+    if (typeof verifierName !== 'string' || verifierName === '') reject('conflict', '房间没有验收席位')
     if (room.worktrees?.[verifier] !== undefined && typeof room.branch === 'string') {
       refreshVerifier({ verifier: room.worktrees[verifier], branch: room.branch })
     }

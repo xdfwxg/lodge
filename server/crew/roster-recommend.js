@@ -187,7 +187,7 @@ export const recommendRoster = async ({ engine, body }) => {
   if (goal === '' || goal.length > MAX_GOAL) return fail('invalid', '目标不能为空，且不超过 2000 字')
   if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持编队建议')
   const health = await engine.health()
-  if (health.ok !== true) return fail('conflict', '基座未连接，先检查 CLI 或基座服务')
+  if (health.ok !== true) throw new Error('基座未连接，先检查 CLI 或基座服务')
 
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
   const generatedRepo = requestedRepo === ''
@@ -238,8 +238,6 @@ export const recommendRoster = async ({ engine, body }) => {
       return fail('invalid', error?.message ?? String(error))
     }
     return ok({ proposal })
-  } catch (error) {
-    return fail('conflict', `编制建议失败：${error?.message ?? error}`)
   } finally {
     if (group !== null) {
       try {
