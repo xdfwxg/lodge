@@ -286,6 +286,7 @@ Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付�
   GOAL.md           # 运行时投影：阶段与状态，每回合重写
   CONCLUSION.md     # 运行时投影：完成结论
   transcript.jsonl  # append-only；先写并 fsync
+  events.jsonl      # append-only；阶段、复核、审批、提交的治理轨迹
   decisions.md      # 人维护；运行时不写
   evidence/         # 命令、退出码、输出、diff
 
@@ -828,7 +829,7 @@ constraints:
 - 证据落 `evidence/`，transcript 里只放一行引用
 - 不通过 → `rework` 写明缺什么，任务回 `queued`
 - 交付型阶段自动跑命令；决策型阶段由人点一次；**总验收必须人点一次**——这是防共模失败的最后一道（§5.6），不是形式
-- 用户中途纠偏 → `revise` 写进 `constraints`，**已通过的阶段保留**
+- 用户中途纠偏 → `revise` 写进 `BRIEF.md` 的 `constraints`，再重建 SQLite 解析缓存；**已通过的阶段保留**
 
 ### 9.5 自动推进与停止
 
@@ -883,7 +884,7 @@ constraints:
 
 1. 证据可点开：岛上"证据"链到 `evidence/<messageId>.json`，不只是一行摘要
 2. 返工意见署验收席位：打回必须来自 verifier，意见进 `rework_feedback`，不是管理员随口一句
-3. 目标不进私有 JSON：`title / objective / done / constraints` 归 `BRIEF.md`，阶段与任务落 SQLite，岛是只读投影；改目标走 `revise`，已通过的阶段保留
+3. 目标不进私有 JSON：`title / objective / done / constraints` 归 `BRIEF.md`，SQLite 只存带 `source_hash` 的解析缓存；阶段与任务落 SQLite，岛是只读投影；改目标走 `revise`，已通过的阶段保留
 
 ---
 
@@ -1012,7 +1013,9 @@ interface Engine {
 
 三者冲突时：消息以 transcript 为准，运行时状态以 SQLite 为准，意图以人写的 BRIEF 为准。
 
-> **当前 P0 原型**：SQLite 使用 `room(id, payload, version)` / `messages(seq, id, room_id, payload)` / `room_event(seq, ...)`；`seq` 是全局事件游标，不是按房间/分支。下面是目标关系模型；迁移只改 `store.js`，旧 payload 可读（`store.test.js`）。
+**done / constraints 裁定**：`BRIEF.md` 是 title、objective、done、non-goals、constraints 的唯一权威；`goals.done_json` / `non_goals_json` / `constraints_json` 只是带 `source_hash` 的解析缓存，不是第二份真相。`revise` 是人发起的动作，先写 `BRIEF.md`，再重建缓存；runtime 不直接改写 BRIEF。
+
+> **当前 P0 原型**：SQLite 使用 `room(id, payload, version)` / `messages(seq, id, room_id, payload)` / `room_event(seq, ...)`；`seq` 是全局事件游标，不是按房间/分支。下面是目标关系模型；迁移只改 `store.js`，旧 payload 可读（`store.test.js`）。`events.jsonl` 是面向 clone/交接的 append-only 审计镜像，SQLite `room_event` 是查询索引；两者由同一次事件写入产生。
 
 ```sql
 rooms(id, title, kind(room|dispatch), repo_path, strategy, template_id, independence(vendor|model|none),
@@ -1025,7 +1028,7 @@ branches(id, room_id, parent_message_id, created_at)   -- 主线 branch_id = 'ma
 turns(id, room_id, member_id, status, session_ref, last_read_seq,
       input_tokens, output_tokens, cost_micro_usd, started_at, ended_at)
 goals(id, room_id, title, brief, state(drafting|active|paused|complete|stopped),
-      objective, done_json, non_goals_json, constraints_json,
+      objective, done_json, non_goals_json, constraints_json, source_hash, -- parsed cache of BRIEF.md
       current_stage_id, no_progress_wakes, idle, revision, created_at, updated_at, ended_at)
 goal_stages(id, goal_id, idx, kind(deliverable|decision), title, acceptance_cmd,
             evidence_ref, state(pending|active|passed), verifier_id,
@@ -1115,7 +1118,8 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 31. 样例与模拟数据在证据卡、验收卡上明确标注，不被当成真实执行
 32. 建队时选"我自己看一眼"生成的阶段全部是决策型；选"单 CLI"时席位引擎一致，验收卡标"独立性降级"
 33. 新建房间的交付阶段要么有真实引擎可跑，要么有明确标注的模拟步骤；界面不出现无路可走的状态
-34. 完成后的结论 commit 包含 `.crew/rooms/<id>/` 的 BRIEF/GOAL/CONCLUSION/transcript/evidence；只靠该 commit 能读到当时的目标、done、证据与结论，不依赖原席位会话
+34. 完成后的结论 commit 包含 `.crew/rooms/<id>/` 的 BRIEF/GOAL/CONCLUSION/transcript/events/evidence；只靠该 commit 能读到当时的目标、done、证据与结论，不依赖原席位会话
+35. `npm run eval:planning` 对 3 个黄金房间给出通过/失败与原始开工卡；改队长提示词或换引擎后能重放对比，不拿单次最好成绩当结论
 
 ---
 
@@ -1166,8 +1170,9 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 1. **worktree 生命周期（已落 2026-11-12）**：`.env` 复制、`node_modules` 软链、端口提示、完成/停止后清理非交付席位工作区、启动与定时 GC、磁盘水位。剩余边界：venv/本地数据库/端口强制隔离。
 2. **成本/磁盘闸门（已落 2026-11-12）**：磁盘水位；房间与全局成本硬上限（0 = 不限；新房间默认 $5，`CREW_ROOM_BUDGET_USD` / `CREW_GLOBAL_BUDGET_USD` 可配；到线暂停新任务，不取消在跑回合；房间预算可调，提高后自动恢复并续跑无证据阶段）；调度台只展示，不控制。发言配额仍未强制。
 3. **诚实标注**：同引擎标“独立性降级”；工具级权限未强制前不宣称硬隔离；建后改席位未接。
+4. **语义评测 harness（已落 2026-11-12）**：`npm run eval:planning` 用 3 个黄金房间（单人、单服务、前后端并行）重放真实开工卡；检查 done 可核对、编制约束、角色名与 `why` 一致、问题 ≤3 且不问机制；结果写本地 `evals/planning/results/`，不进入 `npm test`。首轮 3 case × 3 次 9/9；任何 case 失败时命令非零退出。每次改队长提示词或换引擎都重放，看通过率和失败类型。
 
-已完成、不作为待办：开工卡（done + 编制 + 验收 + ≤3 问，一次确认）、多执行并行与集成、manual 人验收、worktree 生命周期；继续用真实 E2E 验证，不靠文档自证。
+已完成、不作为待办：开工卡（done + 编制 + 验收 + ≤3 问，一次确认）、多执行并行与集成、manual 人验收、worktree 生命周期、语义评测 harness；继续用真实 E2E 验证，不靠文档自证。
 
 **P1（M4–M6）**
 
@@ -1195,6 +1200,15 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 - **只读 Web 分享**：P2，先解决鉴权与数据边界；它不是本地交接——完成后的结论 commit 已带房间记录，交接包见 §15.1。
 - **成员私聊**：首版不做；若以后做，只把结构化摘要写进 evidence，不灌全量私聊。
 - **多验收席位**：首版不做；一个独立验收席位足够，多个只增加成本。
+
+### 15.3 私密 dogfood（M2 后）
+
+“M3 前不公开演示”不等于“不接触用户”。M2 后找 5–10 个长期维护同一仓库、需要交接或追责的种子用户，做私密 dogfood；只收卡住点，不做宣传。
+
+- **任务**：用他们自己的一个真实小目标开房，不替他们改提示词、不现场教机制；观察第一次交付是否走通。
+- **记录**：卡在哪一步、是否看懂证据/签字/commit、是否把“房间”当成必要概念、是否愿意把房间交给别人；原话优先，不总结成好评。
+- **节奏**：每次 30–45 分钟；同一类卡点出现 2–3 次才进 P1 排序；M3 门槛仍是 P0 + 工具级权限 + 真实 E2E。
+- **边界**：数据留在本地；不录屏上传；不承诺未实现功能；发现问题先改文档/门槛，不先加功能。
 
 ---
 

@@ -1,0 +1,14 @@
+{
+  "id": "parallel-settings",
+  "goal": "把设置页的前端表单校验和后端保存接口分别完善，两边可以并行",
+  "fixture": "fullstack-settings",
+  "expect": {
+    "minSeats": 2,
+    "maxSeats": 4,
+    "maxVerifiers": 1,
+    "maxQuestions": 3,
+    "requireTest": true,
+    "doneKeywords": ["前端", "后端", "测试"],
+    "acceptancePattern": "node --test|npm test"
+  }
+}

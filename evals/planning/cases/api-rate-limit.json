@@ -1,0 +1,14 @@
+{
+  "id": "api-rate-limit",
+  "goal": "给 HTTP API 加令牌桶限流，补测试和 README",
+  "fixture": "api-service",
+  "expect": {
+    "minSeats": 1,
+    "maxSeats": 3,
+    "maxVerifiers": 1,
+    "maxQuestions": 3,
+    "requireTest": true,
+    "doneKeywords": ["测试", "限流", "README"],
+    "acceptancePattern": "node --test|npm test"
+  }
+}

@@ -92,6 +92,7 @@ export const parseProposal = reply => {
       .slice(0, 6)
     : []
   if (done.length === 0) throw new Error('开工方案缺少可核对的 done')
+  const tooManyDone = Array.isArray(data.done) && data.done.length > 6
   const questions = Array.isArray(data.questions)
     ? data.questions
       .map(item => ({
@@ -136,6 +137,7 @@ export const parseProposal = reply => {
   const notes = [
     data.verify === 'test' && rawAcceptance === '' ? '队长没有给出可执行命令，验收改为你确认' : '',
     tooManyQuestions ? '队长给了超过 3 个问题，只保留前 3 个' : '',
+    tooManyDone ? '队长给了超过 6 条 done，只保留前 6 条' : '',
   ].filter(Boolean)
   return {
     done,

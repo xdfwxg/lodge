@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { appendTranscript, writeEvidence } from './room-repo.js'
+import { appendEventLog, appendTranscript, writeEvidence } from './room-repo.js'
 
 export const createStore = ({ dataDir, emit = () => {} }) => {
   mkdirSync(dataDir, { recursive: true })
@@ -62,6 +62,17 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     return row
   }
 
+  // 事件镜像失败不能反转已提交的业务动作；连读取失败也只记录，不抛回业务层。
+  const mirrorEvent = (roomId, row) => {
+    try {
+      const room = readRoom(roomId)
+      if (room === null || room.demo === true || typeof room.repoPath !== 'string' || room.repoPath === '') return
+      appendEventLog(room, { id: row.id, roomId, type: row.type, payload: JSON.parse(row.payload), at: row.at })
+    } catch (error) {
+      console.warn(`room event mirror failed: ${roomId} ${error?.message ?? error}`)
+    }
+  }
+
   // 读-改-写放在同一个 IMMEDIATE 事务里；mutate 返回 null 表示放弃本次修改。
   const updateRoom = (id, mutate) => {
     db.exec('BEGIN IMMEDIATE')
@@ -81,8 +92,10 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       room.version = version
       db.prepare('UPDATE room SET payload = ?, version = ? WHERE id = ? AND version = ?')
         .run(JSON.stringify(room), version, id, row.version)
-      for (const event of change.events ?? []) insertEvent(id, event)
+      const events = []
+      for (const event of change.events ?? []) events.push(insertEvent(id, event))
       db.exec('COMMIT')
+      for (const event of events) mirrorEvent(id, event)
       return room
     } catch (error) {
       db.exec('ROLLBACK')
@@ -90,7 +103,11 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     }
   }
 
-  const appendEvent = (roomId, type, payload = {}) => insertEvent(roomId, { type, payload })
+  const appendEvent = (roomId, type, payload = {}) => {
+    const row = insertEvent(roomId, { type, payload })
+    mirrorEvent(roomId, row)
+    return row
+  }
 
   const readEvents = (roomId, limit = 200) => db.prepare(
     'SELECT id, room_id, type, payload, at FROM room_event WHERE room_id = ? ORDER BY seq DESC LIMIT ?',

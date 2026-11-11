@@ -10,6 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test server/crew/*.test.js",
+    "eval:planning": "node evals/planning/run.mjs",
     "check:docs": "node scripts/check-docs.mjs"
   },
   "dependencies": {

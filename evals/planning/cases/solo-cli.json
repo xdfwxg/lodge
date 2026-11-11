@@ -1,0 +1,14 @@
+{
+  "id": "solo-cli",
+  "goal": "给 CLI 加 --verbose，输出每一步的耗时",
+  "fixture": "solo-cli",
+  "expect": {
+    "minSeats": 1,
+    "maxSeats": 2,
+    "maxVerifiers": 0,
+    "maxQuestions": 2,
+    "requireTest": true,
+    "doneKeywords": ["测试", "耗时", "verbose"],
+    "acceptancePattern": "node --test|npm test"
+  }
+}

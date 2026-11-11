@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -33,6 +33,42 @@ test('room updates are versioned inside a transaction and write events', () => {
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
     rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('room events are mirrored into the room repo for handoff', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-event-store-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-event-repo-'))
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    store.appendEvent('r1', 'room.created', { seats: 1 })
+    const log = join(repo, '.crew', 'rooms', 'r1', 'events.jsonl')
+    assert.equal(existsSync(log), true)
+    const events = readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+    assert.equal(events.at(-1).type, 'room.created')
+    assert.deepEqual(events.at(-1).payload, { seats: 1 })
+    assert.equal(events.at(-1).roomId, 'r1')
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('a failed event mirror does not reverse the committed event', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-mirror-store-'))
+  const parent = mkdtempSync(join(tmpdir(), 'crew-mirror-parent-'))
+  const notADir = join(parent, 'not-a-repo-dir')
+  writeFileSync(notADir, 'file')
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R', goal: 'g', repoPath: notADir, state: 'active', stages: [], members: [] })
+    assert.doesNotThrow(() => store.appendEvent('r1', 'room.created', { seats: 1 }))
+    assert.equal(store.readEvents('r1').length, 1)
+    assert.equal(store.readEvents('r1')[0].type, 'room.created')
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(parent, { recursive: true, force: true })
   }
 })
 

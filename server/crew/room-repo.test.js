@@ -20,11 +20,13 @@ test('the conclusion commit carries the room record even when .crew is ignored',
     const record = join(repo, '.crew', 'rooms', 'r1')
     mkdirSync(record, { recursive: true })
     writeFileSync(join(record, 'transcript.jsonl'), '{"text":"hello"}\n')
+    writeFileSync(join(record, 'events.jsonl'), '{"type":"room.created"}\n')
     writeFileSync(join(repo, 'hello.txt'), 'hi\n')
 
     assert.equal(commitRoom({ id: 'r1', name: 'R', goal: 'g', repoPath: repo }, [join(repo, 'hello.txt')]), true)
     const files = git(repo, ['show', '--name-only', '--pretty=format:', 'HEAD']).split('\n').filter(Boolean)
     assert.ok(files.includes('.crew/rooms/r1/transcript.jsonl'))
+    assert.ok(files.includes('.crew/rooms/r1/events.jsonl'))
     assert.ok(files.includes('hello.txt'))
   } finally {
     rmSync(repo, { recursive: true, force: true })

@@ -30,6 +30,19 @@ export const appendTranscript = (room, message) => {
   }
 }
 
+// 治理事件镜像：clone 房间时不只拿讨论，也拿阶段、复核、审批与提交的轨迹。
+export const appendEventLog = (room, event) => {
+  const dir = roomDir(room)
+  mkdirSync(dir, { recursive: true })
+  const fd = openSync(join(dir, 'events.jsonl'), 'a')
+  try {
+    writeSync(fd, `${JSON.stringify(event)}\n`)
+    fsyncSync(fd)
+  } finally {
+    closeSync(fd)
+  }
+}
+
 export const writeEvidence = (room, message) => {
   const dir = join(roomDir(room), 'evidence')
   mkdirSync(dir, { recursive: true })

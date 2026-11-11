@@ -70,6 +70,17 @@ test('an unparsable reply fails closed', () => {
   assert.throws(() => parseProposal('我觉得需要三个人。'), /可解析/)
 })
 
+test('too many done items are trimmed visibly', () => {
+  const proposal = parseProposal(reply({
+    done: Array.from({ length: 7 }, (_, index) => `条件 ${index + 1}`),
+    seats: [{ role: 'worker', name: '执行' }],
+    verify: 'test',
+    acceptance: 'npm test',
+  }))
+  assert.equal(proposal.done.length, 6)
+  assert.match(proposal.note, /超过 6 条/)
+})
+
 test('a proposal without done fails closed', () => {
   assert.throws(() => parseProposal(reply({
     done: [],
