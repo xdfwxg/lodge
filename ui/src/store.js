@@ -209,6 +209,16 @@ export function createStore() {
     pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
     resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     stop: () => post(`/api/rooms/${state.activeId}/stop`, {}),
+    loadProjectConstraints: async repoPath => {
+      try {
+        const response = await fetch(`/api/project/constraints?repoPath=${encodeURIComponent(repoPath)}`)
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(data.error ?? `HTTP ${response.status}`)
+        return { ok: true, path: data.path ?? null, content: data.content ?? null }
+      } catch (error) {
+        return { ok: false, error: String(error?.message ?? error) }
+      }
+    },
     recommendRoster: async (goal, repoPath) => {
       const data = await post('/api/roster/recommend', { goal, repoPath })
       if (data?.proposal === undefined) return { ok: false, error: state.error ?? '编制建议失败' }

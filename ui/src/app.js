@@ -1107,7 +1107,7 @@ const seatsFromProposal = proposal => {
   ]
 }
 
-function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], resume = null }) {
+function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstraints, templates = [], resume = null }) {
   const choices = templates.length > 0 ? templates : [{ id: 'delivery-triad', name: '交付三人组', seats: 3 }, { id: 'solo', name: '单人', seats: 1 }]
   const templateChoices = [...choices, { id: 'custom', name: '自定义', seats: null }]
   const [step, setStep] = useState(0)
@@ -1117,6 +1117,11 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], r
   const [verify, setVerify] = useState('test')
   const [acceptance, setAcceptance] = useState('npm test')
   const [repoPath, setRepoPath] = useState('')
+  const [constraints, setConstraints] = useState('')
+  const [constraintsPath, setConstraintsPath] = useState(null)
+  const [constraintsChecked, setConstraintsChecked] = useState(false)
+  const [includeConstraints, setIncludeConstraints] = useState(false)
+  const [constraintsLoading, setConstraintsLoading] = useState(false)
   const [proposal, setProposal] = useState(null)
   const [answers, setAnswers] = useState([])
   const [manual, setManual] = useState(false)
@@ -1169,6 +1174,22 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], r
 
   const useProposal = proposal !== null && !manual
 
+  const loadConstraints = async () => {
+    const source = repoPath.trim()
+    if (source === '' || constraintsLoading) return
+    setConstraintsLoading(true)
+    setConstraintsChecked(true)
+    const result = await onProjectConstraints(source)
+    setConstraintsLoading(false)
+    if (result?.ok !== true) {
+      setError(result?.error ?? '读取项目约束失败')
+      return
+    }
+    setConstraintsPath(result.path)
+    setConstraints(result.content ?? '')
+    setIncludeConstraints(typeof result.content === 'string' && result.content.trim() !== '')
+  }
+
   const recommend = async () => {
     if (goal.trim() === '' || recommending) return
     setRecommending(true)
@@ -1211,6 +1232,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], r
       acceptance: acceptance.trim(),
       repoPath: repoPath.trim(),
       ...(resume === null ? {} : { continueFrom: resume.id }),
+      ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
       ...(useProposal || custom ? { seats: roster } : { templateId }),
       ...(useProposal ? {
         plan: {
@@ -1230,6 +1252,10 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], r
       setProposal(null)
       setAnswers([])
       setManual(false)
+      setConstraints('')
+      setConstraintsPath(null)
+      setConstraintsChecked(false)
+      setIncludeConstraints(false)
       setError(null)
       onClose()
     } else {
@@ -1357,9 +1383,40 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], r
           className: 'crew-goal-input',
           type: 'text',
           value: repoPath,
-          placeholder: resume === null ? '留空则让队长在新建的空仓库里判断' : '上一轮交付所在的本地仓库',
+          placeholder: resume === null ? '留空则让队长在新建的空仓库里判断' : '上一轮交付所在的本地仓库或目录',
           onChange: event => setRepoPath(event.target.value),
+          onBlur: () => void loadConstraints(),
         })),
+      h('div', { className: 'crew-q crew-constraints' },
+        h('div', { className: 'crew-constraints-head' },
+          h('b', null, '项目约束（LODGE.md）'),
+          h('button', {
+            type: 'button',
+            className: 'crew-ghost',
+            disabled: repoPath.trim() === '' || constraintsLoading,
+            onClick: () => void loadConstraints(),
+          }, constraintsLoading ? '读取中…' : '读取')),
+        constraintsPath !== null
+          ? h(Fragment, null,
+            h('label', { className: 'crew-check' },
+              h('input', {
+                type: 'checkbox',
+                checked: includeConstraints,
+                onChange: event => setIncludeConstraints(event.target.checked),
+              }),
+              `带入这个房间 · ${constraintsPath}`),
+            h('textarea', {
+              className: 'crew-goal-input',
+              rows: 4,
+              value: constraints,
+              disabled: !includeConstraints,
+              onChange: event => setConstraints(event.target.value),
+            }),
+            h('p', { className: 'crew-dialog-note' },
+              '修改只影响这个房间；要长期生效，请编辑仓库根目录的 LODGE.md。'))
+          : constraintsChecked
+            ? h('p', { className: 'crew-island-soft' }, '这个工作目录没有 LODGE.md。')
+            : null),
       resume?.brief?.done?.length > 0
         ? h('div', { className: 'crew-q' },
           h('b', null, `上一轮 BRIEF · ${resume.name}`),
@@ -1385,6 +1442,9 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], r
           h('li', null, verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：你逐段确认，不跑命令'),
           h('li', null, `仓库：${repoPath || '自动新建（~/CrewWorkspaces）'}`),
           resume === null ? null : h('li', null, `续做自：${resume.name}（只读记录）`),
+          includeConstraints && constraints.trim() !== ''
+            ? h('li', null, `项目约束：LODGE.md（${constraints.split('\n').filter(line => line.trim() !== '').length} 行）`)
+            : null,
           h('li', null, '你不点「接受」，阶段不会算通过')),
         h('p', { className: 'crew-dialog-note' },
           verify === 'manual' && hasVerifier
@@ -1485,6 +1545,7 @@ export function App() {
         resume,
         onCreate: (goal, answers) => store.createRoom(goal, answers),
         onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
+        onProjectConstraints: repoPath => store.loadProjectConstraints(repoPath),
       }))
   }
 
@@ -1508,5 +1569,6 @@ export function App() {
       resume,
       onCreate: (goal, answers) => store.createRoom(goal, answers),
       onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
+      onProjectConstraints: repoPath => store.loadProjectConstraints(repoPath),
     }))
 }

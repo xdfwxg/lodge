@@ -2,6 +2,7 @@ import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, wr
 import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
 import { roomDir, roomRootOf } from './paths.js'
+import { projectConstraintLines } from './project.js'
 
 export { roomDir }
 
@@ -63,6 +64,7 @@ const briefText = (room, plan = null) => {
     ...(room.verifiers?.length > 0
       ? ['验收由验收席位独立复核，最终由人签字']
       : ['验收由你凭证据签字']),
+    ...projectConstraintLines(room.projectConstraints?.content).map(line => `项目约束：${line}`),
   ])]
   return [
     `# 目标：${room.goal}`,

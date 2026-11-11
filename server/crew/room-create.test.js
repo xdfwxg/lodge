@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -204,6 +204,26 @@ test('a plain room can run parallel workers into a copy integration', async () =
     else process.env.CREW_COPY_ROOT = previousCopy
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+test('project constraints are snapshotted into the room and BRIEF', async () => {
+  const { store } = importedRoom(temp('lodge-resume-data-'))
+  const repo = gitRepo()
+  writeFileSync(join(repo, 'LODGE.md'), '# 项目约定\n\n- 用 ESM\n- 不改上游\n')
+  const result = await run(store, {
+    goal: '按项目约定改一下',
+    verify: 'manual',
+    repoPath: repo,
+    includeProjectConstraints: true,
+    seats: [{ role: 'worker', name: '执行' }],
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.projectConstraints.source, 'LODGE.md')
+  assert.match(room.projectConstraints.content, /用 ESM/)
+  const brief = readFileSync(join(roomDir(room), 'BRIEF.md'), 'utf8')
+  assert.match(brief, /项目约束：用 ESM/)
+  assert.match(brief, /项目约束：不改上游/)
 })
 
 test('an unknown workspace provider fails before creating anything', async () => {

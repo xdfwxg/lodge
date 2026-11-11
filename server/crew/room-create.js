@@ -4,9 +4,11 @@ import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from './budget.js'
 import { workspaceRoot } from './paths.js'
 import { created, fail } from './result.js'
 import { readBrief, writeBrief, writeGoal } from './room-repo.js'
+import { buildSeatHandoff } from './seat-handoff.js'
 import { DEFAULT_TEMPLATE_ID, roleSeats, rosterFromRoles, seatsFor, TEMPLATES, validateRoster } from './seats.js'
 import { markSeatRead } from './watermarks.js'
 import { defaultWorkspace, workspaceById } from './workspace.js'
+import { MAX_PROJECT_BYTES, PROJECT_FILE, readProjectConstraints } from './project.js'
 
 const roomBulletin = (goal, verify, acceptance, align) => [
   `目标：${goal}`,
@@ -140,6 +142,13 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   if (workers.length > 1 && workspaceCaps.merge !== true) {
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行席位')
   }
+  const explicitProject = typeof body.projectConstraints === 'string'
+    ? body.projectConstraints.trim().slice(0, MAX_PROJECT_BYTES)
+    : ''
+  const projectFile = explicitProject === '' && body.includeProjectConstraints === true
+    ? readProjectConstraints(sourceRepo)
+    : null
+  const projectContent = explicitProject !== '' ? explicitProject : projectFile?.content?.trim() ?? ''
   let workspaces = null
   try {
     workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: roster })
@@ -256,6 +265,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         ...(continueSource === null ? [] : [`续做自交接记录「${continueSource.name}」；上一轮记录保持只读`]),
       ],
       usage: { costMicroUsd: 0, budgetMicroUsd, turns: 0 },
+      ...(projectContent === ''
+        ? {}
+        : { projectConstraints: { source: PROJECT_FILE, content: projectContent } }),
       members: roster.map(seat => seat.id),
       stages: plan !== null
         ? [verify === 'test'
@@ -290,6 +302,12 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         text: `续做自交接记录「${continueSource.name}」（${continueSource.id}）；旧记录不复活，只作为 BRIEF 与证据的出处。`,
       })
     }
+    if (projectContent !== '') {
+      store.appendMessage(room.id, {
+        kind: 'system',
+        text: `已带入项目约束：${PROJECT_FILE}（${projectContent.split('\n').filter(line => line.trim() !== '').length} 行，创建时快照）。`,
+      })
+    }
     const envWarnings = Object.entries(workspaces.environment ?? {})
       .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${seat}: ${text}`))
     if (envWarnings.length > 0) {
@@ -313,11 +331,11 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     } else {
       const targetSeat = align ? lead : worker
       markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
-      const sent = await live.sendToSeat(
-        room.id,
-        targetSeat.id,
-        align ? alignmentPrompt(targetSeat.name, goal, verify, acceptance) : directPrompt(goal, verify, acceptance, roster.length === 1),
-      )
+      const opening = align
+        ? alignmentPrompt(targetSeat.name, goal, verify, acceptance)
+        : directPrompt(goal, verify, acceptance, roster.length === 1)
+      const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
+      const sent = await live.sendToSeat(room.id, targetSeat.id, `${opening}\n\n${context}`)
       if (sent.messageId !== null) {
         const updated = store.updateRoom(room.id, current => {
           current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)

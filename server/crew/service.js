@@ -17,6 +17,7 @@ import {
   writeGoal,
 } from './room-repo.js'
 import { buildHandoff, importHandoff } from './handoff.js'
+import { readProjectConstraints } from './project.js'
 import { buildReview } from './review.js'
 import { workspaceProvider } from './workspace.js'
 
@@ -75,6 +76,13 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   }
 
   const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body })
+
+  const projectConstraints = repoPath => {
+    const source = typeof repoPath === 'string' ? repoPath.trim() : ''
+    if (source === '') return fail('invalid', '先填工作目录')
+    const file = readProjectConstraints(source)
+    return ok({ path: file?.path ?? null, content: file?.content ?? null })
+  }
 
   const review = roomId => {
     const room = readRoom(roomId)
@@ -470,6 +478,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     health,
     messagesSince,
     evidence,
+    projectConstraints,
     review,
     handoff,
     importHandoff: importHandoffPackage,

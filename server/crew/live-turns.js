@@ -5,6 +5,7 @@ import { budgetStatus } from './budget.js'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
 import { reject } from './result.js'
 import { markSeatRead } from './watermarks.js'
+import { buildSeatHandoff } from './seat-handoff.js'
 import { workspaceProvider } from './workspace.js'
 
 const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
@@ -396,6 +397,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       const environment = room.workspaceEnv?.[worker]
       return [
         `@${room.seatNames?.[worker] ?? worker} 阶段已确认：${index + 1}. ${stage.title}。${acceptance}`,
+        buildSeatHandoff({ room, messages: store.readMessages(roomId) }),
         workers.length > 1
           ? ws(room).capabilities().isolation === 'worktree'
             ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
@@ -766,6 +768,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     const verifierPort = room.ports?.[verifier]
     const prompt = [
       `@${verifierName} 你现在是验收席位。只做只读复核，不改任何文件，不提交、不推送。`,
+      buildSeatHandoff({ room, messages }),
       `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
       ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
       `验收命令：${meta.command}`,
