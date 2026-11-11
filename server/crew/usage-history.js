@@ -1,5 +1,6 @@
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
+import { globalBudgetMicroUsd } from './budget.js'
 import { roomDir } from './paths.js'
 
 // 用量账本：只追加 runtime 上报的估算值，不改写房间结算。
@@ -50,14 +51,52 @@ export const readUsageHistory = room => {
     })
 }
 
+const HOUR_MS = 60 * 60 * 1000
+const DAY_MS = 24 * HOUR_MS
+
 export const parseUsageRange = value => {
-  const match = /^(\d{1,2})([dh])$/.exec(String(value ?? '7d'))
-  const amount = match === null ? 7 : Math.max(1, Math.min(90, Number(match[1])))
-  const days = match?.[2] === 'h' ? 1 : amount
-  return { id: match === null ? '7d' : `${amount}${match[2]}`, days }
+  const raw = String(value ?? '7d')
+  const match = /^(\d{1,2})([hdwm])$/.exec(raw)
+  const preset = match === null ? { id: '7d', unit: 'day', count: 7 } : { id: raw, unit: { h: 'hour', d: 'day', w: 'week', m: 'month' }[match[2]], count: Number(match[1]) }
+  const count = Math.max(1, Math.min(preset.unit === 'hour' ? 48 : preset.unit === 'day' ? 90 : 24, preset.count))
+  return { id: preset.id, unit: preset.unit, count }
 }
 
-const dayKey = at => new Date(at).toISOString().slice(0, 10)
+const pad = value => String(value).padStart(2, '0')
+const dayLabel = at => `${pad(new Date(at).getUTCMonth() + 1)}-${pad(new Date(at).getUTCDate())}`
+const hourLabel = at => `${pad(new Date(at).getUTCHours())}:00`
+
+const bucketStarts = ({ unit, count }, now) => {
+  const current = new Date(now)
+  if (unit === 'hour') {
+    const end = Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), current.getUTCHours())
+    return Array.from({ length: count }, (_, index) => end - (count - 1 - index) * HOUR_MS)
+  }
+  if (unit === 'day') {
+    const end = Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate())
+    return Array.from({ length: count }, (_, index) => end - (count - 1 - index) * DAY_MS)
+  }
+  if (unit === 'week') {
+    const monday = Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate()) - ((current.getUTCDay() + 6) % 7) * DAY_MS
+    return Array.from({ length: count }, (_, index) => monday - (count - 1 - index) * 7 * DAY_MS)
+  }
+  const monthStart = Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), 1)
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(monthStart)
+    date.setUTCMonth(date.getUTCMonth() - (count - 1 - index))
+    return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)
+  })
+}
+
+const bucketEnd = (start, unit) => {
+  if (unit === 'hour') return start + HOUR_MS
+  if (unit === 'day') return start + DAY_MS
+  if (unit === 'week') return start + 7 * DAY_MS
+  const date = new Date(start)
+  date.setUTCMonth(date.getUTCMonth() + 1)
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)
+}
+
 const emptyTotals = () => ({ costMicroUsd: 0, turns: 0, tokens: { input: 0, output: 0, cachedInput: 0 } })
 const add = (total, entry) => {
   total.costMicroUsd += entry.costMicroUsd ?? 0
@@ -69,26 +108,28 @@ const add = (total, entry) => {
 
 export const aggregateUsage = ({ rooms, historyOf, range = '7d', now = Date.now() }) => {
   const parsed = parseUsageRange(range)
-  const dayMs = 24 * 60 * 60 * 1000
-  const today = Date.parse(`${dayKey(now)}T00:00:00.000Z`)
-  const start = today - (parsed.days - 1) * dayMs
-  const buckets = Array.from({ length: parsed.days }, (_, index) => ({
-    day: dayKey(start + index * dayMs),
+  const starts = bucketStarts(parsed, now)
+  const buckets = starts.map(start => ({
+    key: start,
+    label: parsed.unit === 'hour' ? hourLabel(start)
+      : parsed.unit === 'month' ? `${new Date(start).getUTCFullYear()}-${pad(new Date(start).getUTCMonth() + 1)}`
+        : dayLabel(start),
+    start,
+    end: bucketEnd(start, parsed.unit),
     ...emptyTotals(),
   }))
-  const byDay = new Map(buckets.map(bucket => [bucket.day, bucket]))
   const totals = emptyTotals()
   const roomTotals = []
 
   for (const room of rooms) {
     if (room.imported === true) continue
-    const history = historyOf(room).filter(entry => entry.at >= start)
+    const history = historyOf(room)
     const entries = history.length > 0
       ? history
       : room.usage === undefined ? [] : [{ at: now, ...room.usage }]
     const roomTotal = { roomId: room.id, name: room.name, ...emptyTotals() }
     for (const entry of entries) {
-      const bucket = byDay.get(dayKey(entry.at))
+      const bucket = buckets.find(item => entry.at >= item.start && entry.at < item.end)
       if (bucket === undefined) continue
       add(bucket, entry)
       add(totals, entry)
@@ -99,7 +140,9 @@ export const aggregateUsage = ({ rooms, historyOf, range = '7d', now = Date.now(
 
   return {
     range: parsed.id,
-    days: parsed.days,
+    unit: parsed.unit,
+    days: parsed.unit === 'day' ? parsed.count : parsed.unit === 'week' ? parsed.count * 7 : parsed.unit === 'month' ? parsed.count * 30 : 1,
+    budgetMicroUsd: globalBudgetMicroUsd(),
     buckets,
     rooms: roomTotals.sort((a, b) => b.costMicroUsd - a.costMicroUsd),
     totals,

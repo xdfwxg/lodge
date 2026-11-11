@@ -10,7 +10,7 @@
 > v0.10 变更：采纳 Claude-Bot 的目标呈现——**目标岛**（§9.7），并把 `goal-grill` 的对齐方式写进开队流程（§8.2、§9.2）；数据模型补 `goals.idle/revision`、`goal_stages.reject_count/rework_feedback`（§11）。
 > v0.11 变更：顶层定位改为“可验收、可交接的交付”；“省时省力”降为交互承诺与结果指标，房间留痕回到价值主张（§1、§2.6）。
 >
-> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 与 plain 两种 provider，业务只依赖端口；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git 目录用复制隔离与文件清单）、目标岛三问摘要与返工记录、复盘视图（从消息与证据派生成本/Token/返工/失败）、示范房间（`examples/rooms/`：3 模拟 + 1 真实，公开导出脱敏）、席位业务交接包（目标/done/约束/复核意见 + transcript 引用）、项目约束 `LODGE.md`（建房快照进 BRIEF）、本地模板导入（YAML/JSON，角色权限校验）、阶段依赖与部分成功记录、调度台只读资源面板、MCP 调用审计与按 server 熔断、用量账本与 7 天趋势、约束分层（LODGE.md/AGENTS.md/CLAUDE.md）、任务级状态地基、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
+> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 与 plain 两种 provider，业务只依赖端口；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git 目录用复制隔离与文件清单）、目标岛三问摘要与返工记录、复盘视图（从消息与证据派生成本/Token/返工/失败）、示范房间（`examples/rooms/`：3 模拟 + 1 真实，公开导出脱敏）、席位业务交接包（目标/done/约束/复核意见 + transcript 引用）、项目约束 `LODGE.md`（建房快照进 BRIEF）、本地模板导入（YAML/JSON，角色权限校验）、阶段依赖与部分成功记录、调度台只读资源面板、MCP 调用审计与按 server 熔断、用量账本与 7 天趋势、约束分层（LODGE.md/AGENTS.md/CLAUDE.md）、任务级状态与历史目标、完整用量时间序列页、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
 >
 > **产品北极星（防跑偏）**：用户只做三件事——说目标、答 ≤3 个带推荐答案的问题、验收；队长用**一张开工卡**给出 done、编制、验收与问题，业务校验，人确认一次直接开工，三人组只是模板、单人合法；任何让用户选机制（模型、人数、并发、worktree）的设计都是跑偏；只加 bot、页面或开关、没有让“目标 → 证据 → 结论 → commit”更可信或更省人的功能，不做。
 
@@ -1271,12 +1271,12 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 3. **MCP 熔断（已落）**：`mcp-breaker.js` 按 server 统计 10 分钟窗口，3 次失败即熔断；只暂停使用该 server 的席位回合，写 `mcp.trip` / `mcp.reset` 事件，房间暂停时标「MCP 熔断 · 等你恢复」，高级面板可逐个恢复。不重造 loopback MCP server；超时由基座按调用返回失败。
 4. **任务级状态地基（已落）**：阶段开始生成 `tasks`（owner/status/evidenceRef），回合、复核、部分成功会更新为 working/reported/done/failed；`presentRoom` 暴露 `revision`，完成时写入 `pastGoals`（最多 5 个）。目标岛显示任务行；完整任务生命周期、revision 冲突处理与历史目标页仍在第二阶段。
 
-**第一阶段状态（2026-11-12）**：四项已落；第二阶段未开始。
+**第一阶段状态（2026-11-12）**：四项已落。
 
-**第二阶段（一起做）**
+**第二阶段（已落 2026-11-12）**
 
-- **完整目标任务模型**：任务状态机（pending/working/reported/done）、任务级负责人、revision 冲突处理、历史目标页。
-- **完整用量时间序列**：小时/天/周/月区间、房间/Bot/模型排名、Token 分项与缓存命中率。
+- **目标任务模型（已落）**：阶段任务状态机（pending/working/reported/done/failed）、任务级负责人与证据引用；房间 revision 暴露在高级面板；完成时归档 `pastGoals` 并在高级显示历史目标；目标岛显示任务行。未做：revision 冲突重试/并发合并（当前本地单人）、任务依赖 DAG、历史目标下钻页。
+- **用量时间序列（已落）**：`/api/usage` 支持 24h/7d/30d/12w/12m，按小时/天/周/月分桶；侧栏「用量」页显示花费、Token、缓存命中率、回合、房间排名与柱状趋势；资源面板保留 7 天迷你趋势。未做：按模型/席位的用量拆分（账本目前到房间级）、导出。
 
 **借鉴边界**：目标/任务模型与用量页结构参考 Claude-Bot；`AGENTS.md/CLAUDE.md` 发现与 MCP 超时/取消参考 OpenMausBot。Lodge 的真相仍是房间记录 + BRIEF + 证据，不引入他们的宿主状态或云端多人记忆。
 

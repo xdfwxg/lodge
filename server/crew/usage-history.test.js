@@ -24,6 +24,7 @@ test('usage history aggregates buckets and room totals', () => {
     now,
   })
   assert.equal(usage.range, '7d')
+  assert.equal(usage.unit, 'day')
   assert.equal(usage.days, 7)
   assert.equal(usage.totals.costMicroUsd, 120 + 80 + 500)
   assert.equal(usage.totals.turns, 2 + 1 + 5)
@@ -33,8 +34,9 @@ test('usage history aggregates buckets and room totals', () => {
 })
 
 test('the range is clamped and imported rooms are excluded', () => {
-  assert.deepEqual(parseUsageRange('24h'), { id: '24h', days: 1 })
-  assert.deepEqual(parseUsageRange('99d'), { id: '90d', days: 90 })
+  assert.deepEqual(parseUsageRange('24h'), { id: '24h', unit: 'hour', count: 24 })
+  assert.deepEqual(parseUsageRange('99d'), { id: '99d', unit: 'day', count: 90 })
+  assert.deepEqual(parseUsageRange('12m'), { id: '12m', unit: 'month', count: 12 })
   const usage = aggregateUsage({ rooms, historyOf: () => [], range: '24h', now })
   assert.equal(usage.rooms.some(room => room.roomId === 'r3'), false)
 })
