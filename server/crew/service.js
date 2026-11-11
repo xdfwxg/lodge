@@ -18,6 +18,7 @@ import {
 } from './room-repo.js'
 import { buildHandoff, importHandoff } from './handoff.js'
 import { readProjectConstraints } from './project.js'
+import { buildResources } from './resources.js'
 import { buildReview } from './review.js'
 import { parseTemplate } from './template.js'
 import { workspaceProvider } from './workspace.js'
@@ -85,6 +86,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       return fail('invalid', String(error?.message ?? error))
     }
   }
+
+  const resources = () => ok({ resources: buildResources(readRooms(), readMessages) })
 
   const projectConstraints = repoPath => {
     const source = typeof repoPath === 'string' ? repoPath.trim() : ''
@@ -487,6 +490,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     health,
     messagesSince,
     evidence,
+    resources,
     projectConstraints,
     importTemplate,
     review,

@@ -323,6 +323,13 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     if (envWarnings.length > 0) {
       store.appendMessage(room.id, { kind: 'system', text: `工作区环境同步警告：${envWarnings.join('；')}` })
     }
+    const mcpSeats = roster.filter(seat => seat.mcp.length > 0)
+    if (mcpSeats.length > 0) {
+      store.appendMessage(room.id, {
+        kind: 'system',
+        text: `MCP 已开启：${mcpSeats.map(seat => `${seat.name}（${seat.mcp.map(grant => grant.server).join('、')}）`).join('；')}。调用写 events.jsonl；单个工具失败只影响当前席位回合，房间继续。`,
+      })
+    }
     if (Object.keys(engineFallbacks).length > 0) {
       const text = Object.entries(engineFallbacks)
         .map(([seat, item]) => `${seat} 请求 ${item.requested}，实际 ${item.actual}`)

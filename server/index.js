@@ -177,6 +177,10 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.importHandoff(await readJson(req, 16 * 1024 * 1024)))
     }
 
+    if (path === '/api/resources' && req.method === 'GET') {
+      return respond(res, service.resources())
+    }
+
     if (path === '/api/project/constraints' && req.method === 'GET') {
       return respond(res, service.projectConstraints(url.searchParams.get('repoPath')))
     }

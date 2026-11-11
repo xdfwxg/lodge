@@ -9,6 +9,7 @@ const EMPTY = {
   engines: [],
   runtime: null,
   budget: null,
+  resources: null,
   review: null,
   reviewFor: null,
   activeId: 'dispatch',
@@ -153,6 +154,17 @@ export function createStore() {
     }
   }
 
+  const loadResources = async () => {
+    try {
+      const response = await fetch('/api/resources')
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.resources === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
+      patch({ resources: data.resources })
+    } catch (error) {
+      patch({ error: `资源面板加载失败：${String(error?.message ?? error)}` })
+    }
+  }
+
   const openReview = async roomId => {
     try {
       const response = await fetch(`/api/rooms/${roomId}/review`)
@@ -191,6 +203,7 @@ export function createStore() {
       seen.clear()
     },
     select: activeId => patch({ activeId, review: null, reviewFor: null }),
+    loadResources,
     openReview,
     closeReview: () => patch({ review: null, reviewFor: null }),
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),

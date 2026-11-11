@@ -966,8 +966,55 @@ function DigestItem({ item, onOpen }) {
       : null)
 }
 
+const ROOM_STATE_LABEL = { active: '进行中', paused: '已暂停', stopped: '已停止', complete: '已完成' }
+
+function ResourcePanel({ resources, store }) {
+  if (resources === null || resources === undefined) {
+    return h('div', { className: 'crew-resource' }, h('p', { className: 'crew-muted' }, '资源面板加载中…'))
+  }
+  const g = resources.global
+  const stats = [
+    ['花费', g.budgetMicroUsd > 0 ? `${money(g.costMicroUsd)} / ${money(g.budgetMicroUsd)}` : `${money(g.costMicroUsd)} / 不限`],
+    ['房间', `${g.rooms} · 活跃 ${g.active} / 暂停 ${g.paused}`],
+    ['完成 / 停止', `${g.complete} / ${g.stopped}`],
+    ['待你处理', countOf(g.needsYou)],
+    ['失败命令', countOf(g.failedCommands)],
+    ['返工', countOf(g.rework)],
+    ['冲突 / 部分成功', `${g.conflicts} / ${g.partial}`],
+    ['回合', countOf(g.turns)],
+  ]
+  return h('div', { className: 'crew-resource' },
+    h('div', { className: 'crew-resource-head' },
+      h('b', null, '资源'),
+      h('span', { className: 'crew-muted' }, '只读 · 不路由、不执行'),
+      h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.loadResources() }, '刷新')),
+    h('div', { className: 'crew-resource-stats' },
+      stats.map(([label, value]) => h('div', { key: label, className: 'crew-resource-stat' },
+        h('span', null, label),
+        h('b', { title: value }, value)))),
+    h('div', { className: 'crew-resource-rooms' },
+      resources.rooms.map(item => h('button', {
+        key: item.roomId,
+        type: 'button',
+        className: 'crew-resource-room',
+        onClick: () => store.select(item.roomId),
+      },
+      h('span', { className: 'crew-resource-name' }, item.name),
+      h('span', { className: 'crew-resource-state', 'data-state': item.state }, ROOM_STATE_LABEL[item.state] ?? item.state),
+      h('span', null, money(item.costMicroUsd)),
+      h('span', null, `${countOf(item.turns)} 回合`),
+      h('span', { className: 'crew-muted' }, item.needsYou?.label ?? ''),
+      h('span', { className: 'crew-muted' },
+        [item.rework > 0 ? `返工 ${item.rework}` : '', item.failedCommands > 0 ? `失败 ${item.failedCommands}` : ''].filter(Boolean).join(' · '))))),
+    h('p', { className: 'crew-resource-note' }, '成本是基座上报的估算，不是账单。'))
+}
+
 function DispatchView({ state, store }) {
-  const { dispatch } = state
+  const { dispatch, resources } = state
+  const messageCount = state.rooms.reduce((sum, room) => sum + (room.messages?.length ?? 0), 0)
+  useEffect(() => {
+    void store.loadResources()
+  }, [store, state.rooms.length, messageCount])
   if (dispatch === null) return null
   const pending = dispatch.requests.filter(request => request.state === 'suggested')
   const decided = dispatch.requests.filter(request => request.state !== 'suggested')
@@ -979,6 +1026,7 @@ function DispatchView({ state, store }) {
         h('span', { className: 'crew-badge' }, '只建议 · 你确认'))),
     h('div', { className: 'dsb-scroll crew-scroll' },
       h('div', { className: 'crew-flow' },
+        h(ResourcePanel, { resources, store }),
         h('div', { className: 'crew-section-title' }, `待你确认 · ${pending.length}`),
         pending.length === 0
           ? h('p', { className: 'crew-muted' }, '没有新的请求。')

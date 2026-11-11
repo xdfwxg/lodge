@@ -5,6 +5,7 @@ import { budgetStatus } from './budget.js'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
 import { reject } from './result.js'
 import { markSeatRead } from './watermarks.js'
+import { mcpCalls } from './mcp.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { workspaceProvider } from './workspace.js'
 
@@ -562,6 +563,19 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     }
     capturedTurns.add(turnId)
 
+    const mcp = mcpCalls(turn.tools)
+    if (mcp.length > 0) {
+      store.appendEvent(roomId, 'mcp.call', { seat, stage: stageIndex, turnId, calls: mcp })
+      const failed = mcp.filter(call => call.failed > 0)
+      if (failed.length > 0) {
+        store.appendEvent(roomId, 'mcp.failure', { seat, turnId, calls: failed })
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: `MCP 工具失败已隔离：${failed.map(call => `${call.server}/${call.tool} ×${call.failed}`).join('、')}；只影响 ${room?.seatNames?.[seat] ?? seat} 这一回合，房间继续。`,
+        })
+      }
+    }
+
     if (reviewFor !== null) {
       const pending = reviewFor
       reviewFor = null
@@ -630,6 +644,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       meta: {
         kind: 'turn',
         vcs: vcsOf(room),
+        mcp,
         stage,
         turnId,
         summary,
