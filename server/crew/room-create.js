@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from './budget.js'
 import { workspaceRoot } from './paths.js'
 import { created, fail } from './result.js'
-import { writeBrief, writeGoal } from './room-repo.js'
+import { readBrief, writeBrief, writeGoal } from './room-repo.js'
 import { DEFAULT_TEMPLATE_ID, roleSeats, rosterFromRoles, seatsFor, TEMPLATES, validateRoster } from './seats.js'
 import { markSeatRead } from './watermarks.js'
 import { cleanupWorkspaces, prepareWorkspaces } from './worktrees.js'
@@ -32,6 +32,17 @@ const directPrompt = (goal, verify, acceptance, singleSeat) => [
   '不要自己 git commit / push，系统会提交候选。',
 ].join('\n')
 
+// 续做只继承人写的 BRIEF；旧证据、阶段与席位会话都不复制。
+export const inheritedPlan = (brief, sourceName) => {
+  const done = (brief?.done ?? [])
+    .map(item => item.text)
+    .filter(text => typeof text === 'string' && text.trim() !== '')
+    .map(text => text.trim().slice(0, 200))
+    .slice(0, 6)
+  if (done.length === 0) return null
+  return { done, answers: [], why: `续做自交接记录「${sourceName}」` }
+}
+
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
 export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
@@ -39,6 +50,12 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const verify = body.verify === 'manual' ? 'manual' : 'test'
   const acceptance = typeof body.acceptance === 'string' ? body.acceptance.trim() : ''
   if (verify === 'test' && acceptance === '') return fail('invalid', '交付型房间需要一条验收命令')
+  let continueSource = null
+  if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
+    continueSource = store.readRoom(body.continueFrom)
+    if (continueSource === null || continueSource.kind !== 'room') return fail('not_found', '没有这个交接记录')
+    if (continueSource.imported !== true) return fail('conflict', '只有导入的交接记录可以作为续做起点')
+  }
   if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
   const globalBudget = globalBudgetStatus(store.readRooms())
   if (!globalBudget.ok) return fail('conflict', `${globalBudget.message}；${budgetHint(globalBudget)}`)
@@ -64,6 +81,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       answers,
       why: typeof body.plan.why === 'string' ? body.plan.why.trim().slice(0, 300) : '',
     }
+  } else if (continueSource !== null) {
+    plan = inheritedPlan(readBrief(continueSource), continueSource.name)
   }
 
   const requestedSeats = Array.isArray(body.seats) ? body.seats : null
@@ -94,6 +113,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
 
   const short = randomUUID().slice(0, 6)
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
+  if (continueSource !== null && requestedRepo === '') {
+    return fail('invalid', '续做要指定上一轮交付所在的本地仓库；交接包本身不含代码')
+  }
   const sourceRepo = requestedRepo === '' ? join(workspaceRoot(), `room-${short}`) : resolve(requestedRepo)
   let workspaces = null
   try {
@@ -181,6 +203,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       ports: workspaces.ports ?? {},
       workspaceEnv: workspaces.environment ?? {},
       repoPath: workspaces.roomPath ?? workspaces.seats[worker.id].path,
+      ...(continueSource === null
+        ? {}
+        : { continuedFrom: { roomId: continueSource.id, name: continueSource.name } }),
       live: true,
       demo: false,
       state: 'active',
@@ -204,6 +229,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         ...(workers.length > 1
           ? [`${workers.length} 个执行席位并行，各自 worktree；系统把候选分支合并到房间分支 ${workspaces.primaryBranch}，冲突时停下等你`]
           : []),
+        ...(continueSource === null ? [] : [`续做自交接记录「${continueSource.name}」；上一轮记录保持只读`]),
       ],
       usage: { costMicroUsd: 0, budgetMicroUsd, turns: 0 },
       members: roster.map(seat => seat.id),
@@ -234,6 +260,12 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         : `房间已创建 · 模板 ${TEMPLATES[templateId].name} · ${roster.length} 席各自工作区`,
     })
     if (room.branch !== '') store.appendMessage(room.id, { kind: 'system', text: `源仓库 ${sourceRepo} · 执行分支 ${room.branch}` })
+    if (continueSource !== null) {
+      store.appendMessage(room.id, {
+        kind: 'system',
+        text: `续做自交接记录「${continueSource.name}」（${continueSource.id}）；旧记录不复活，只作为 BRIEF 与证据的出处。`,
+      })
+    }
     const envWarnings = Object.entries(workspaces.environment ?? {})
       .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${seat}: ${text}`))
     if (envWarnings.length > 0) {

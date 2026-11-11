@@ -6,6 +6,7 @@ import test from 'node:test'
 import { budgetSummary } from './budget.js'
 import { buildHandoff, HANDOFF_FORMAT, importHandoff } from './handoff.js'
 import { roomDir } from './paths.js'
+import { inheritedPlan } from './room-create.js'
 import { createCrewService } from './service.js'
 import { createStore } from './store.js'
 
@@ -125,6 +126,16 @@ test('handoff validation rejects unsafe files and broken transcripts', () => {
   const duplicate = structuredClone(bundle)
   duplicate.files['transcript.jsonl'] = `${JSON.stringify({ id: 'same', kind: 'system' })}\n${JSON.stringify({ id: 'same', kind: 'system' })}\n`
   assert.equal(importHandoff({ store, dataDir, bundle: duplicate }).reason, 'invalid')
+})
+
+test('continuing a handoff inherits the human BRIEF done items only', () => {
+  const plan = inheritedPlan({
+    done: [{ done: true, text: '按钮可用' }, { done: false, text: '补测试' }],
+    constraints: ['不改上游'],
+  }, '上一轮')
+  assert.deepEqual(plan.done, ['按钮可用', '补测试'])
+  assert.match(plan.why, /上一轮/)
+  assert.equal(inheritedPlan({ done: [], constraints: [] }, '上一轮'), null)
 })
 
 test('imported handoff records do not consume the current budget', () => {

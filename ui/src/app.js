@@ -219,7 +219,7 @@ function IslandStage({ room, index, seats, onBack }) {
       : null)
 }
 
-function GoalIsland({ room, seats, advanced, onToggleAdvanced, store }) {
+function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue }) {
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState(null)
   const [armed, setArmed] = useState(false)
@@ -295,8 +295,11 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store }) {
           h('button', { type: 'button', className: 'crew-ghost', onClick: onToggleAdvanced },
             advanced ? '收起高级' : '高级'),
           h('span', { className: 'crew-island-foot-space' }),
+          room.imported === true && onContinue !== undefined
+            ? h('button', { type: 'button', className: 'crew-choice', onClick: () => onContinue(room) }, '基于此记录续做')
+            : null,
           room.imported === true
-            ? h('span', { className: 'crew-ghost' }, '只读记录，不能继续操作')
+            ? h('span', { className: 'crew-ghost' }, '只读记录')
             : null,
           room.imported !== true && room.state === 'active'
             ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.pause() }, '暂停')
@@ -601,7 +604,7 @@ function Advanced({ room, seats, store, engines = [] }) {
         h('button', { type: 'button', className: 'crew-choice', onClick: saveBudget }, '保存')),
     h('div', { className: 'crew-budget-edit' },
       room.imported === true
-        ? h('span', null, '这是导入的只读交接记录；要继续工作，请对照 BRIEF 与证据新建房间。')
+        ? h('span', null, '这是导入的只读交接记录；用「基于此记录续做」开一个新房间。')
         : h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
       room.imported === true
         ? null
@@ -918,7 +921,7 @@ function Composer({ placeholder, disabled, onSend }) {
       h(ArrowUpIcon)))
 }
 
-function RoomView({ state, room, store }) {
+function RoomView({ state, room, store, onContinue }) {
   const [advanced, setAdvanced] = useState(false)
   const scroll = useRef(null)
   const lastId = room.messages.at(-1)?.id
@@ -942,6 +945,7 @@ function RoomView({ state, room, store }) {
       advanced,
       onToggleAdvanced: () => setAdvanced(value => !value),
       store,
+      onContinue,
     }),
     advanced ? h(Advanced, { room, seats, store, engines: state.engines }) : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll' },
@@ -997,7 +1001,7 @@ const seatsFromProposal = proposal => {
   ]
 }
 
-function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] }) {
+function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], resume = null }) {
   const choices = templates.length > 0 ? templates : [{ id: 'delivery-triad', name: '交付三人组', seats: 3 }, { id: 'solo', name: '单人', seats: 1 }]
   const templateChoices = [...choices, { id: 'custom', name: '自定义', seats: null }]
   const [step, setStep] = useState(0)
@@ -1014,9 +1018,20 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
+  useEffect(() => {
+    if (!open || resume === null) return
+    setGoal(resume.brief?.objective || resume.goal || '')
+    setStep(0)
+    setProposal(null)
+    setAnswers([])
+    setManual(false)
+    setError(null)
+  }, [open, resume?.id])
+
   if (!open) return null
 
   const custom = templateId === 'custom'
+  const needRepo = resume !== null && repoPath.trim() === ''
   const activeSeats = seats.filter(seat => seat.on)
   const hasVerifier = custom
     ? activeSeats.some(seat => seat.role === 'verifier')
@@ -1089,6 +1104,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] })
       verify,
       acceptance: acceptance.trim(),
       repoPath: repoPath.trim(),
+      ...(resume === null ? {} : { continueFrom: resume.id }),
       ...(useProposal || custom ? { seats: roster } : { templateId }),
       ...(useProposal ? {
         plan: {
@@ -1230,16 +1246,24 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] })
         onChange: event => setGoal(event.target.value),
       }),
       h('div', { className: 'crew-q' },
-        h('b', null, '工作目录（可选）'),
+        h('b', null, resume === null ? '工作目录（可选）' : '工作目录（续做必填）'),
         h('input', {
           className: 'crew-goal-input',
           type: 'text',
           value: repoPath,
-          placeholder: '留空则让队长在新建的空仓库里判断',
+          placeholder: resume === null ? '留空则让队长在新建的空仓库里判断' : '上一轮交付所在的本地仓库',
           onChange: event => setRepoPath(event.target.value),
         })),
+      resume?.brief?.done?.length > 0
+        ? h('div', { className: 'crew-q' },
+          h('b', null, `上一轮 BRIEF · ${resume.name}`),
+          h('ul', { className: 'crew-brief' },
+            resume.brief.done.map((item, index) => h('li', { key: `resume-done-${index}` }, item.text))))
+        : null,
       h('p', { className: 'crew-dialog-note' },
-        '队长会先看目标和仓库，给你一个编制建议：几个人、什么职责、怎么验收。你只确认或改一下。'))
+        resume === null
+          ? '队长会先看目标和仓库，给你一个编制建议：几个人、什么职责、怎么验收。你只确认或改一下。'
+          : '交接包不含代码；填上一轮交付所在的本地仓库。旧证据不会复制，新房间从当前 HEAD 重新开工。'))
     : step === 1
       ? h('div', { className: 'crew-dialog-body' },
         useProposal ? proposalBody : manualBody,
@@ -1254,6 +1278,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] })
             : `编制：${choices.find(item => item.id === templateId)?.name ?? '交付三人组'} · ${choices.find(item => item.id === templateId)?.seats ?? 3} 席`),
           h('li', null, verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：你逐段确认，不跑命令'),
           h('li', null, `仓库：${repoPath || '自动新建（~/CrewWorkspaces）'}`),
+          resume === null ? null : h('li', null, `续做自：${resume.name}（只读记录）`),
           h('li', null, '你不点「接受」，阶段不会算通过')),
         h('p', { className: 'crew-dialog-note' },
           verify === 'manual' && hasVerifier
@@ -1266,7 +1291,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] })
   return h('div', { className: 'crew-overlay', onClick: onClose },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
-        h('h2', null, '建队'),
+        h('h2', null, resume === null ? '建队' : '基于交接记录续做'),
         h('button', { type: 'button', className: 'crew-ghost', onClick: onClose }, '关闭')),
       h('div', { className: 'crew-steps' },
         ['目标', '编制', '确认'].map((label, index) => h('span', {
@@ -1283,7 +1308,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] })
             h('button', {
               type: 'button',
               className: 'crew-accept',
-              disabled: goal.trim() === '' || recommending,
+              disabled: goal.trim() === '' || needRepo || recommending,
               onClick: () => void recommend(),
             }, recommending ? '队长在看目标…' : '让队长看目标'))
           : step === 1
@@ -1295,7 +1320,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] })
                 ? h('button', {
                   type: 'button',
                   className: 'crew-accept',
-                  disabled: busy || (verify === 'manual' && hasVerifier) || (verify === 'test' && acceptance.trim() === ''),
+                  disabled: busy || needRepo || (verify === 'manual' && hasVerifier) || (verify === 'test' && acceptance.trim() === ''),
                   onClick: () => void start(),
                 }, busy ? '正在建真实房间…' : '按方案开工')
                 : h('button', {
@@ -1307,7 +1332,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [] })
             : h('button', {
               type: 'button',
               className: 'crew-accept',
-              disabled: busy || (verify === 'manual' && hasVerifier),
+              disabled: busy || needRepo || (verify === 'manual' && hasVerifier),
               onClick: () => void start(),
             }, busy ? '正在建真实房间…' : '开始'))))
 }
@@ -1316,6 +1341,15 @@ export function App() {
   const store = useMemo(createStore, [])
   const state = useStore(store)
   const [dialog, setDialog] = useState(false)
+  const [resume, setResume] = useState(null)
+  const openDialog = room => {
+    setResume(room ?? null)
+    setDialog(true)
+  }
+  const closeDialog = () => {
+    setDialog(false)
+    setResume(null)
+  }
 
   useEffect(() => {
     store.start()
@@ -1332,7 +1366,7 @@ export function App() {
           type: 'button',
           className: 'crew-accept',
           disabled: state.phase === 'loading' || state.phase === 'error',
-          onClick: () => setDialog(true),
+          onClick: () => openDialog(),
         }, '开一个房间'),
         h(ImportButton, { className: 'crew-ghost', onFile: file => store.importHandoffFile(file) }, '打开交接记录'),
         state.runtime?.ok === false ? h('p', { className: 'crew-dialog-note' }, `基座未连接：${state.runtime.error}`) : null,
@@ -1340,8 +1374,9 @@ export function App() {
         state.error ? h('p', { className: 'crew-dialog-note' }, state.error) : null),
       h(NewRoomDialog, {
         open: dialog,
-        onClose: () => setDialog(false),
+        onClose: closeDialog,
         templates: state.templates ?? [],
+        resume,
         onCreate: (goal, answers) => store.createRoom(goal, answers),
         onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
       }))
@@ -1354,16 +1389,17 @@ export function App() {
     h(Sidebar, {
       state,
       onSelect: id => store.select(id),
-      onNew: () => setDialog(true),
+      onNew: () => openDialog(),
       onImport: file => store.importHandoffFile(file),
     }),
     isDispatch
       ? h(DispatchView, { state, store })
-      : h(RoomView, { state, room, store }),
+      : h(RoomView, { state, room, store, onContinue: openDialog }),
     h(NewRoomDialog, {
       open: dialog,
-      onClose: () => setDialog(false),
+      onClose: closeDialog,
       templates: state.templates ?? [],
+      resume,
       onCreate: (goal, answers) => store.createRoom(goal, answers),
       onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
     }))
