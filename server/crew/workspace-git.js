@@ -1,11 +1,10 @@
 import { execFile, execFileSync } from 'node:child_process'
-import {
-  chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statfsSync, statSync, symlinkSync, writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { roomDir, roomRootOf } from './paths.js'
+import { syncLocalEnvironment } from './workspace-fs.js'
 import { LOCAL_ONLY, diffScope } from './workspace-paths.js'
 
 // git provider：当前唯一实现。业务只通过 workspace.js 的端口调用这些动作。
@@ -79,40 +78,6 @@ const ensureRepo = path => {
   execFileSync('git', ['add', 'README.md'], { cwd: path })
   execFileSync('git', ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', 'room: initial'], { cwd: path })
   return path
-}
-
-const ENV_FILES = ['.env', '.env.local']
-const LINK_DIRS = ['node_modules']
-
-// .env 是复制，node_modules 是软链；两者都不进候选 commit 与验收 diff。
-export const syncLocalEnvironment = (source, target) => {
-  const copied = []
-  const linked = []
-  const warnings = []
-  for (const name of ENV_FILES) {
-    const from = join(source, name)
-    const to = join(target, name)
-    if (!existsSync(from) || existsSync(to)) continue
-    try {
-      copyFileSync(from, to)
-      chmodSync(to, statSync(from).mode & 0o777)
-      copied.push(name)
-    } catch (error) {
-      warnings.push(`${name}: ${error?.message ?? error}`)
-    }
-  }
-  for (const name of LINK_DIRS) {
-    const from = resolve(source, name)
-    const to = join(target, name)
-    if (!existsSync(from) || existsSync(to)) continue
-    try {
-      symlinkSync(from, to, 'dir')
-      linked.push(name)
-    } catch (error) {
-      warnings.push(`${name}: ${error?.message ?? error}`)
-    }
-  }
-  return { copied, linked, warnings }
 }
 
 const diskMinMb = () => Number(process.env.CREW_DISK_MIN_FREE_MB ?? 512)

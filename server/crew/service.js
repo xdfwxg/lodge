@@ -238,25 +238,11 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     writeConclusion(room)
     const workspace = workspaceProvider(room)
     const capabilities = workspace.capabilities()
-    const persistence = persistenceKind(capabilities)
-    if (persistence !== 'commit') {
-      appendEvent(room.id, 'room.commit', {
-        status: persistence === 'archive' ? 'archive' : 'unavailable',
-        vcs: capabilities.vcs ?? 'none',
-      })
-      appendMessage(room.id, {
-        kind: 'system',
-        text: persistence === 'archive'
-          ? '已写入 CONCLUSION.md · 当前工作区无版本控制，房间记录与交接包留痕'
-          : '已写入 CONCLUSION.md · 本机 git 不可用，未产生 commit',
-      })
-      return room
-    }
     const delivered = readMessages(room.id).flatMap(message => [
       ...(message.meta?.artifacts ?? []).map(artifact => artifact.path).filter(Boolean),
       ...(message.meta?.changedFiles ?? []).map(file => join(roomRootOf(room), file)),
     ])
-    // 交付仓库保留；只清掉非交付席位工作区，候选分支仍在源仓库，可人工重建查看。
+    // 交付目录保留；只清掉非交付席位工作区。git 房间的候选分支仍在源仓库，可人工重建查看。
     try {
       const pruned = workspace.pruneSeats(room)
       const fresh = pruned.filter(seat => !(room.prunedSeats ?? []).includes(seat))
@@ -277,6 +263,20 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       }
     } catch (error) {
       appendMessage(room.id, { kind: 'system', text: `非交付工作区清理失败：${error?.message ?? error}` })
+    }
+    const persistence = persistenceKind(capabilities)
+    if (persistence !== 'commit') {
+      appendEvent(room.id, 'room.commit', {
+        status: persistence === 'archive' ? 'archive' : 'unavailable',
+        vcs: capabilities.vcs ?? 'none',
+      })
+      appendMessage(room.id, {
+        kind: 'system',
+        text: persistence === 'archive'
+          ? '已写入 CONCLUSION.md · 当前工作区无版本控制，房间记录与交接包留痕'
+          : '已写入 CONCLUSION.md · 本机 git 不可用，未产生 commit',
+      })
+      return store.readRoom(room.id) ?? room
     }
     // 先落这条完成记录，再提交，避免提交后 transcript 又变脏。
     appendMessage(room.id, {

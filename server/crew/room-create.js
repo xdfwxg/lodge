@@ -6,7 +6,7 @@ import { created, fail } from './result.js'
 import { readBrief, writeBrief, writeGoal } from './room-repo.js'
 import { DEFAULT_TEMPLATE_ID, roleSeats, rosterFromRoles, seatsFor, TEMPLATES, validateRoster } from './seats.js'
 import { markSeatRead } from './watermarks.js'
-import { defaultWorkspace } from './workspace.js'
+import { defaultWorkspace, workspaceById } from './workspace.js'
 
 const roomBulletin = (goal, verify, acceptance, align) => [
   `目标：${goal}`,
@@ -44,7 +44,7 @@ export const inheritedPlan = (brief, sourceName) => {
 }
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
-export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = defaultWorkspace }) => {
+export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = null }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > 2000) return fail('invalid', '目标不能为空，且不超过 2000 字')
   const verify = body.verify === 'manual' ? 'manual' : 'test'
@@ -102,10 +102,6 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     return fail('invalid', `席位组合不可用：${error?.message ?? error}`)
   }
   const { workers, verifiers } = roleSeats(roster)
-  const workspaceCaps = workspace.capabilities()
-  if (workers.length > 1 && workspaceCaps.merge !== true) {
-    return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行席位')
-  }
   const worker = workers[0]
   const explicitLead = roster.find(seat => seat.role === 'lead')
   const lead = explicitLead ?? worker
@@ -118,12 +114,35 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const short = randomUUID().slice(0, 6)
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
   if (continueSource !== null && requestedRepo === '') {
-    return fail('invalid', '续做要指定上一轮交付所在的本地仓库；交接包本身不含代码')
+    return fail('invalid', '续做要指定上一轮交付所在的本地仓库或目录；交接包本身不含代码')
   }
   const sourceRepo = requestedRepo === '' ? join(workspaceRoot(), `room-${short}`) : resolve(requestedRepo)
+  const explicitWorkspace = typeof body.workspaceProvider === 'string' ? body.workspaceProvider.trim() : ''
+  let provider = workspace
+  if (provider === null) {
+    if (explicitWorkspace !== '') {
+      provider = workspaceById(explicitWorkspace)
+      if (provider === undefined) return fail('invalid', '未知的工作区类型')
+    } else if (requestedRepo === '') {
+      provider = defaultWorkspace
+    } else {
+      const gitProbe = defaultWorkspace.probeSource({ source: sourceRepo })
+      const plainProbe = workspaceById('plain').probeSource({ source: sourceRepo })
+      provider = gitProbe.ok ? defaultWorkspace : plainProbe.ok ? workspaceById('plain') : defaultWorkspace
+    }
+  }
+  if (provider === undefined) return fail('invalid', '未知的工作区类型')
+  if (requestedRepo !== '' && provider.id === 'plain') {
+    const probe = provider.probeSource({ source: sourceRepo })
+    if (!probe.ok) return fail('invalid', probe.error)
+  }
+  const workspaceCaps = provider.capabilities()
+  if (workers.length > 1 && workspaceCaps.merge !== true) {
+    return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行席位')
+  }
   let workspaces = null
   try {
-    workspaces = workspace.prepareRoom({ source: sourceRepo, short, seats: roster })
+    workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: roster })
   } catch (error) {
     // git / 磁盘 / 权限问题不是用户的业务拒绝；交给组合根显式 500。
     throw new Error(`工作区不可用：${error?.message ?? error}`)
@@ -207,7 +226,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       ports: workspaces.ports ?? {},
       workspaceEnv: workspaces.environment ?? {},
       repoPath: workspaces.roomPath ?? workspaces.seats[worker.id].path,
-      workspace: { provider: workspace.id, capabilities: workspaceCaps },
+      workspace: { provider: provider.id, capabilities: workspaceCaps },
       ...(continueSource === null
         ? {}
         : { continuedFrom: { roomId: continueSource.id, name: continueSource.name } }),
@@ -314,7 +333,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     if (!stored) {
       for (const baseRoom of createdBaseRooms) await engine.deleteRoom(baseRoom.id)
       for (const item of createdSeatRefs) await engine.deleteSeatBot(item.seatRef.id)
-      workspace.cleanupRoom({ source: sourceRepo, workspaces })
+      provider.cleanupRoom({ source: sourceRepo, workspaces })
       throw new Error(`建房失败：${error?.message ?? error}`)
     }
     store.appendMessage(room.id, { kind: 'system', text: `房间已建，但启动失败：${error?.message ?? error}` })

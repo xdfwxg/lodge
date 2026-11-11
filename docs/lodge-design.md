@@ -10,7 +10,7 @@
 > v0.10 变更：采纳 Claude-Bot 的目标呈现——**目标岛**（§9.7），并把 `goal-grill` 的对齐方式写进开队流程（§8.2、§9.2）；数据模型补 `goals.idle/revision`、`goal_stages.reject_count/rework_feedback`（§11）。
 > v0.11 变更：顶层定位改为“可验收、可交接的交付”；“省时省力”降为交互承诺与结果指标，房间留痕回到价值主张（§1、§2.6）。
 >
-> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 调用集中在 `workspace-git.js`，业务只依赖 provider；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git provider 未接）、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
+> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 与 plain 两种 provider，业务只依赖端口；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git 目录用复制隔离与文件清单）、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
 >
 > **产品北极星（防跑偏）**：用户只做三件事——说目标、答 ≤3 个带推荐答案的问题、验收；队长用**一张开工卡**给出 done、编制、验收与问题，业务校验，人确认一次直接开工，三人组只是模板、单人合法；任何让用户选机制（模型、人数、并发、worktree）的设计都是跑偏；只加 bot、页面或开关、没有让“目标 → 证据 → 结论 → commit”更可信或更省人的功能，不做。
 
@@ -299,7 +299,7 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 
 **为什么别人没做**：DS Bot 的群有独立文件夹，OpenMausBot 的 bot 有 workspace，但聊天记录和代码始终是两套东西。云端个人 agent 更是把一切锁在自己的 VM 里。
 
-**为什么强**：讨论变成可 diff、可回滚、可 clone 的产物。完成后，任何人 `git clone` 该分支，就能重放整场讨论。
+**为什么强**：讨论变成可 diff、可回滚、可 clone 的产物。git 实现下，完成后任何人 `git clone` 该分支，就能重放整场讨论；普通目录实现下，房间记录与交接包承担同样的留痕职责，但没有分支与 commit 可追溯。
 
 ### 5.2 群的状态：游标可见（真创新）
 
@@ -981,7 +981,7 @@ UI ──HTTP+SSE(127.0.0.1, per-launch token)── Lodge server
 
 **端口**：业务层（建房、回合、完成）只依赖 `workspace.js` 暴露的 provider，不直接调用 git。provider 暴露 `capabilities()` 与七个动作：
 
-| 动作 | 语义 | git provider | 普通目录 provider（后续） |
+| 动作 | 语义 | git provider | 普通目录 provider（已落） |
 |---|---|---|---|
 | `probeSource({ source })` | 判断源目录能否开房 | 必须在 git work tree 内 | 目录存在且可读 |
 | `prepareRoom({ source, short, seats })` | 创建隔离工作区 | worktree / clone / 分支 | 复制目录，分配端口 |
@@ -1010,7 +1010,7 @@ UI ──HTTP+SSE(127.0.0.1, per-launch token)── Lodge server
 5. 交接包联动：非 git 房间完成时，交接包就是归档。
 6. 门禁：除 `workspace-git.js` 外，`server/crew` 不直接调用 git；文档写清两种 provider 的差异。
 
-**当前（2026-11-12）**：第 1–3 步已落。`workspace.js` 是端口注册表，`workspace-git.js` 是唯一实现；`room-create.js`、`live-turns.js`、`service.js`、`workspace-gc.js`、`roster-recommend.js` 只通过 provider 调用；建房写入 `room.workspace = { provider:'git', capabilities }`；`boundary.test.js` 要求除 `workspace-git.js`（以及 `paths.js` 的默认根探测）外不得直接调用 git。能力已用于：evidence 带 `vcs`；完成留痕按 `commit` / `git-unavailable` / `archive` 分支；并行执行在没有 `merge` 能力时建房即拒绝；一次性副本与候选提交按能力跳过；UI 显示工作区能力与「无 VCS」，变更证据按 `vcs` 标成 diff 或文件清单。plain provider 尚未实现，不对外宣称非 git 房间可用。
+**当前（2026-11-12）**：第 1–6 步已落。`workspace.js` 是端口注册表，`workspace-git.js` 与 `workspace-plain.js` 是两种实现；`room-create.js`、`live-turns.js`、`service.js`、`workspace-gc.js`、`roster-recommend.js` 只通过 provider 调用；建房写入 `room.workspace = { provider, capabilities }`；`boundary.test.js` 要求除 `workspace-git.js`（以及 `paths.js` 的默认根探测）外不得直接调用 git。能力已用于：evidence 带 `vcs`；完成留痕按 `commit` / `git-unavailable` / `archive` 分支；并行执行在没有 `merge` 能力时建房即拒绝；一次性副本与候选提交按能力跳过；UI 显示工作区能力与「无 VCS」，变更证据按 `vcs` 标成 diff 或文件清单。plain provider 已落：复制隔离、文件清单证据、同路径冲突停下、无 commit；用户指定非 git 目录时自动选择 plain，`workspaceProvider` 可显式指定；源目录不被写入。边界：复制合并不传播删除，需人工处理；plain 房间的完成留痕是房间记录 + 交接包；本机 git 不可用时仍按 git provider 能力降级。
 
 ### 10.5 引擎适配器
 

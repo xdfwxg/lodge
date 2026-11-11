@@ -1278,8 +1278,8 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, templates = [], r
         : null,
       h('p', { className: 'crew-dialog-note' },
         resume === null
-          ? '队长会先看目标和仓库，给你一个编制建议：几个人、什么职责、怎么验收。你只确认或改一下。'
-          : '交接包不含代码；填上一轮交付所在的本地仓库。旧证据不会复制，新房间从当前 HEAD 重新开工。'))
+          ? '队长会先看目标和仓库，给你一个编制建议：几个人、什么职责、怎么验收。你只确认或改一下。工作目录可以是 git 仓库，也可以是普通目录；普通目录用复制隔离，不产生 commit。'
+          : '交接包不含代码；填上一轮交付所在的本地仓库或目录。旧证据不会复制，新房间从当前内容重新开工。'))
     : step === 1
       ? h('div', { className: 'crew-dialog-body' },
         useProposal ? proposalBody : manualBody,

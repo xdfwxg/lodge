@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import { workspaceRoot } from './paths.js'
 import { fail, ok } from './result.js'
 import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
-import { defaultWorkspace } from './workspace.js'
+import { defaultWorkspace, workspaceById } from './workspace.js'
 
 const MAX_GOAL = 2000
 const RECOMMEND_TIMEOUT = 90_000
@@ -14,7 +14,7 @@ const ROLE_LABEL = { lead: '队长', worker: '执行', verifier: '验收' }
 const recommendationPrompt = (goal, repoPath) => [
   '你是队长。现在只做编队判断：不写代码、不改文件、不建群。',
   `目标：${goal}`,
-  `仓库（只读副本）：${repoPath}`,
+  `工作目录（只读副本）：${repoPath}`,
   '先看仓库事实（README、package.json、测试命令、目录结构），再判断这件事需要几个席位：',
   '- 一个人能完成的小改动 → 只给一个执行席位（单人房）。不要为了凑人数加席位。',
   '- 只有需要独立验收时才加验收席位。',
@@ -194,11 +194,15 @@ export const recommendRoster = async ({ engine, body }) => {
   const generatedRepo = requestedRepo === ''
   const short = randomUUID().slice(0, 6)
   const sourceRepo = generatedRepo ? join(workspaceRoot(), `roster-${short}`) : resolve(requestedRepo)
+  let workspace = defaultWorkspace
   if (!generatedRepo) {
     if (!existsSync(sourceRepo)) return fail('invalid', '工作目录不存在')
     // 建议是只读的；不在用户目录里 git init 或写文件。
-    const probe = defaultWorkspace.probeSource({ source: sourceRepo })
-    if (!probe.ok) return fail('invalid', probe.error)
+    if (!defaultWorkspace.probeSource({ source: sourceRepo }).ok) {
+      workspace = workspaceById('plain')
+      const probe = workspace.probeSource({ source: sourceRepo })
+      if (!probe.ok) return fail('invalid', probe.error)
+    }
   }
   const advisor = rosterFromRoles([{ role: 'lead', name: '队长' }])[0]
   const prompt = recommendationPrompt(goal, sourceRepo)
@@ -210,7 +214,7 @@ export const recommendRoster = async ({ engine, body }) => {
   let advisorRef = null
   let probeRoom = null
   try {
-    workspaces = defaultWorkspace.prepareRoom({ source: sourceRepo, short, seats: [advisor] })
+    workspaces = workspace.prepareRoom({ source: sourceRepo, short, seats: [advisor] })
     advisorRef = await engine.createSeatBot({
       name: `Advisor${short}`,
       soul: advisor.prompt,
@@ -245,7 +249,7 @@ export const recommendRoster = async ({ engine, body }) => {
     }
     if (advisorRef !== null) await engine.deleteSeatBot(advisorRef.id)
     try {
-      if (workspaces !== null) defaultWorkspace.cleanupRoom({ source: sourceRepo, workspaces })
+      if (workspaces !== null) workspace.cleanupRoom({ source: sourceRepo, workspaces })
     } catch {}
     if (generatedRepo) rmSync(sourceRepo, { recursive: true, force: true })
   }

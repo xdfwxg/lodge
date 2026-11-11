@@ -167,6 +167,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         diff: diff.diff,
         status: diff.status,
         files: diff.files,
+        manifest: diff.manifest ?? [],
         changedFiles: diff.files,
         note: [result.timedOut ? '命令超时' : '', diff.note].filter(Boolean).join(' · '),
         durationMs: result.durationMs,
@@ -248,16 +249,18 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     const merged = []
     for (const worker of workers) {
       const branch = room.branches?.[worker]
-      if (typeof branch !== 'string' || branch === '') continue
-      const result = ws(room).integrate({ path: integration, branch })
+      const source = room.worktrees?.[worker]
+      if ((typeof branch !== 'string' || branch === '') && (typeof source !== 'string' || source === '')) continue
+      const result = ws(room).integrate({ path: integration, branch: branch ?? '', source })
       if (!result.ok) {
         const name = room.seatNames?.[worker] ?? worker
+        const label = typeof branch === 'string' && branch !== '' ? branch : '工作副本'
         const files = result.files.length > 0 ? result.files.join('、') : '未知文件'
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `并行合并冲突：${name} 的 ${branch} 与房间分支冲突（${files}）。合并已回滚，阶段停下等你处理。`,
+          text: `并行合并冲突：${name} 的 ${label} 与房间目录冲突（${files}）。合并已回滚，阶段停下等你处理。`,
         })
-        store.appendEvent(roomId, 'stage.merge_conflict', { stage: stageIndex, worker, branch, files: result.files })
+        store.appendEvent(roomId, 'stage.merge_conflict', { stage: stageIndex, worker, branch: branch ?? '', files: result.files })
         const updated = store.updateRoom(roomId, current => {
           const conflict = { stage: stageIndex, worker, branch, files: result.files }
           current.mergeConflict = conflict
@@ -334,6 +337,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         diff: range.diff,
         status: range.files.map(file => `M ${file}`).join('\n'),
         files: range.files,
+        manifest: range.manifest ?? [],
         changedFiles: range.files,
         note: result.timedOut ? '命令超时' : '',
         durationMs: result.durationMs,
@@ -393,13 +397,17 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       return [
         `@${room.seatNames?.[worker] ?? worker} 阶段已确认：${index + 1}. ${stage.title}。${acceptance}`,
         workers.length > 1
-          ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
+          ? ws(room).capabilities().isolation === 'worktree'
+            ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
+            : '你在自己的隔离副本里与其他执行席位并行工作；只改自己的副本，系统会按文件合并到房间目录。'
           : '在当前工作目录完成；',
         port === undefined ? '' : `如需起本地服务，用 PORT=${port}。`,
         environment?.linked?.includes('node_modules')
           ? 'node_modules 已软链为只读依赖，不要修改它。'
           : '',
-        '不要自己 git commit / push，系统会提交候选；完成后一句话汇报，不要 @验收，系统会自动复核。',
+        ws(room).capabilities().candidate === true
+          ? '不要自己 git commit / push，系统会提交候选；完成后一句话汇报，不要 @验收，系统会自动复核。'
+          : '不要改房间记录；完成后一句话汇报，不要 @验收，系统会自动复核。',
       ].join('')
     }
 
@@ -649,6 +657,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
             branch: current.branches?.[seat] ?? '',
             head,
             diff: range.diff,
+            manifest: range.manifest ?? [],
             changedFiles: range.files,
             candidate,
           },
@@ -751,7 +760,7 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     const verifierName = room.seatNames?.[verifier]
     if (typeof verifierName !== 'string' || verifierName === '') reject('conflict', '房间没有验收席位')
     if (room.worktrees?.[verifier] !== undefined && typeof room.branch === 'string') {
-      ws(room).refreshReviewCopy({ path: room.worktrees[verifier], branch: room.branch, source: room.sourceRepo })
+      ws(room).refreshReviewCopy({ path: room.worktrees[verifier], branch: room.branch, source: room.sourceRepo, from: room.repoPath })
     }
     const meta = evidence.meta
     const verifierPort = room.ports?.[verifier]
