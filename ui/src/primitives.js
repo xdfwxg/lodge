@@ -1,14 +1,6 @@
-// The window's own versions of the DSH interface primitives the Bot views draw with.
 import { createElement as h, useMemo, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { MENTION_ORIGIN } from './dsbot/client/text.js'
-
-export const FishLogo = () => null
-
-export const writeClipboard = text => (navigator.clipboard === undefined
-  ? Promise.resolve(document.execCommand('copy', false, text))
-  : navigator.clipboard.writeText(text).then(() => true, () => false))
 
 const plugins = [remarkGfm]
 
@@ -27,7 +19,6 @@ function CodeBlock({ children, labels }) {
 }
 
 const elements = labels => ({
-  a: ({ node: _node, ...props }) => h('a', props.href?.startsWith(MENTION_ORIGIN) ? props : { ...props, target: '_blank', rel: 'noreferrer' }),
   pre: ({ children }) => h(CodeBlock, { labels }, children),
 })
 

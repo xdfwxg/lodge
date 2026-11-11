@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { gateFor } from './gates.js'
+
+const room = (over = {}) => ({
+  id: 'room-1',
+  demo: false,
+  live: true,
+  openQuestion: null,
+  stages: [
+    { title: 'align', kind: 'decision', state: 'passed' },
+    { title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'npm test' },
+  ],
+  ...over,
+})
+
+const evidence = (stage = 1, seq = 10, meta = {}) => ({ id: `e-${seq}`, kind: 'evidence', seq, meta: { stage, ...meta } })
+const verdict = (stage = 1, seq = 11, pass = true) => ({ id: `v-${seq}`, kind: 'verdict', seq, meta: { stage, pass } })
+
+test('rejects a stage that is not active', () => {
+  const r = room()
+  r.stages[1].state = 'pending'
+  const gate = gateFor(r, 1, [])
+  assert.equal(gate.ok, false)
+  assert.equal(gate.reason, 'conflict')
+})
+
+test('open question blocks confirmation', () => {
+  const r = room({ openQuestion: 'callback path?' })
+  r.stages[0].state = 'active'
+  const gate = gateFor(r, 0, [])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /问题/)
+})
+
+test('deliverable without an acceptance command cannot pass', () => {
+  const r = room()
+  delete r.stages[1].acceptance
+  const gate = gateFor(r, 1, [evidence()])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /验收命令/)
+})
+
+test('deliverable without evidence cannot pass', () => {
+  const gate = gateFor(room(), 1, [])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /证据/)
+})
+
+test('live deliverable needs a verifier PASS', () => {
+  const gate = gateFor(room(), 1, [evidence()])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /PASS/)
+})
+
+test('a manual stage waits for the product before sign-off', () => {
+  const r = room()
+  r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }
+  assert.equal(gateFor(r, 1, []).ok, false)
+  assert.match(gateFor(r, 1, []).error, /还没有产出/)
+  const turnEvidence = { id: 'e-1', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'turn' } }
+  assert.equal(gateFor(r, 1, [turnEvidence]).ok, false)
+  const manual = { id: 'e-2', kind: 'evidence', seq: 11, meta: { stage: 1, kind: 'manual', simulated: false } }
+  assert.equal(gateFor(r, 1, [turnEvidence, manual]).ok, true)
+})
+
+test('a stale manual evidence does not survive a newer turn', () => {
+  const r = room()
+  r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }
+  const manual = { id: 'm-1', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'manual' } }
+  const turn = { id: 't-1', kind: 'evidence', seq: 11, meta: { stage: 1, kind: 'turn' } }
+  assert.equal(gateFor(r, 1, [manual, turn]).ok, false)
+  const fresh = { id: 'm-2', kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
+  assert.equal(gateFor(r, 1, [manual, turn, fresh]).ok, true)
+})
+
+test('a solo room without verifiers is signed off by the human on evidence', () => {
+  const gate = gateFor(room({ verifiers: [] }), 1, [evidence()])
+  assert.equal(gate.ok, true)
+  assert.equal(gate.stage.title, 'impl')
+})
+
+test('a solo room still needs evidence before sign-off', () => {
+  const gate = gateFor(room({ verifiers: [] }), 1, [])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /证据/)
+})
+
+test('a solo room with a REJECT must rework', () => {
+  const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10), verdict(1, 11, false)])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /返工/)
+})
+
+test('latest PASS with evidence passes', () => {
+  const gate = gateFor(room(), 1, [evidence(1, 10), verdict(1, 11, true)])
+  assert.equal(gate.ok, true)
+  assert.equal(gate.stage.title, 'impl')
+})
+
+test('a REJECT is superseded by new evidence and a new PASS', () => {
+  const messages = [
+    evidence(1, 10),
+    verdict(1, 11, false),
+    evidence(1, 12),
+    verdict(1, 13, true),
+  ]
+  const gate = gateFor(room(), 1, messages)
+  assert.equal(gate.ok, true)
+})
+
+test('after REJECT, old evidence does not count', () => {
+  const messages = [evidence(1, 10), verdict(1, 11, false), verdict(1, 12, true)]
+  const gate = gateFor(room(), 1, messages)
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /新的证据/)
+})
+
+test('demo rooms accept simulated evidence only with PASS', () => {
+  const r = room({ demo: true })
+  const simulated = evidence(1, 10, { simulated: true })
+  const gate = gateFor(r, 1, [simulated, verdict(1, 11, true)])
+  assert.equal(gate.ok, true)
+})

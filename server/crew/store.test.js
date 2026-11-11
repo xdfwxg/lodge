@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+import test from 'node:test'
+import { createStore } from './store.js'
+
+test('room updates are versioned inside a transaction and write events', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-repo-'))
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    assert.equal(store.readRoom('r1').version, 1)
+
+    const paused = store.updateRoom('r1', room => {
+      room.state = 'paused'
+      return { events: [{ type: 'room.state', payload: { state: 'paused' } }] }
+    })
+    assert.equal(paused.state, 'paused')
+    assert.equal(store.readRoom('r1').version, 2)
+    assert.equal(store.readEvents('r1').length, 1)
+    assert.equal(store.readEvents('r1')[0].type, 'room.state')
+
+    assert.equal(store.updateRoom('r1', () => null), null)
+    assert.equal(store.readRoom('r1').version, 2)
+
+    store.appendMessage('r1', { kind: 'system', text: 'hello' })
+    const transcript = join(repo, '.crew', 'rooms', 'r1', 'transcript.jsonl')
+    assert.equal(existsSync(transcript), true)
+    assert.match(readFileSync(transcript, 'utf8'), /hello/)
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('an old room table without version migrates additively', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-old-store-'))
+  const db = new DatabaseSync(join(dataDir, 'crew.db'))
+  db.exec('CREATE TABLE room (id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
+  db.prepare('INSERT INTO room (id, payload) VALUES (?, ?)').run(
+    'old-room',
+    JSON.stringify({ id: 'old-room', name: 'Old', goal: 'g', state: 'active', stages: [], members: [] }),
+  )
+  db.close()
+  const store = createStore({ dataDir })
+  try {
+    assert.equal(store.readRoom('old-room').version, 1)
+    const next = store.updateRoom('old-room', room => {
+      room.state = 'paused'
+      return { events: [{ type: 'room.state', payload: { state: 'paused' } }] }
+    })
+    assert.equal(next.version, 2)
+    assert.equal(store.readEvents('old-room').length, 1)
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})

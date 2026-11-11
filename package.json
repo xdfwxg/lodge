@@ -8,7 +8,9 @@
     "dev:server": "node server/index.js",
     "dev:ui": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test server/crew/*.test.js",
+    "check:docs": "node scripts/check-docs.mjs"
   },
   "dependencies": {
     "react": "19.3.0",

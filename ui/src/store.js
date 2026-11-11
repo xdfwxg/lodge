@@ -1,6 +1,15 @@
 import { useSyncExternalStore } from 'react'
 
-const EMPTY = { phase: 'loading', room: null, seats: [], messages: [], error: null }
+const EMPTY = {
+  phase: 'loading',
+  rooms: [],
+  dispatch: null,
+  seats: [],
+  templates: [],
+  runtime: null,
+  activeId: 'dispatch',
+  error: null,
+}
 
 export function createStore() {
   let state = EMPTY
@@ -14,12 +23,40 @@ export function createStore() {
     for (const listener of listeners) listener()
   }
   const patch = next => emit({ ...state, ...next })
-  const lastSeq = () => state.messages.at(-1)?.seq ?? 0
+  const lastSeq = () => Math.max(0, ...state.rooms.map(room => room.messages.at(-1)?.seq ?? 0))
 
   const acceptMessage = message => {
     if (seen.has(message.id)) return
     seen.add(message.id)
-    patch({ messages: [...state.messages, message].sort((a, b) => a.seq - b.seq) })
+    const rooms = state.rooms.map(room => (
+      room.id === message.roomId
+        ? { ...room, messages: [...room.messages, message].sort((a, b) => a.seq - b.seq) }
+        : room
+    ))
+    patch({ rooms })
+  }
+
+  const acceptPatch = message => {
+    if (!seen.has(message.id)) {
+      acceptMessage(message)
+      return
+    }
+    const rooms = state.rooms.map(room => (
+      room.id === message.roomId
+        ? { ...room, messages: room.messages.map(item => (item.id === message.id ? { ...item, ...message } : item)) }
+        : room
+    ))
+    patch({ rooms })
+  }
+
+  const acceptRoom = room => {
+    const known = state.rooms.some(item => item.id === room.id)
+    const rooms = known
+      ? state.rooms.map(item => (item.id === room.id ? { ...room, brief: room.brief ?? item.brief, messages: item.messages } : item))
+      : [...state.rooms, { ...room, messages: [] }]
+    const order = new Map(state.rooms.map((item, index) => [item.id, index]))
+    rooms.sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999))
+    patch({ rooms })
   }
 
   const connect = () => {
@@ -32,8 +69,14 @@ export function createStore() {
     events.addEventListener('msg', event => {
       if (!stopped) acceptMessage(JSON.parse(event.data))
     })
+    events.addEventListener('msg.patch', event => {
+      if (!stopped) acceptPatch(JSON.parse(event.data))
+    })
     events.addEventListener('room', event => {
-      if (!stopped) patch({ room: JSON.parse(event.data) })
+      if (!stopped) acceptRoom(JSON.parse(event.data))
+    })
+    events.addEventListener('dispatch', event => {
+      if (!stopped) patch({ dispatch: JSON.parse(event.data) })
     })
     events.addEventListener('error', () => {
       if (!stopped) patch({ phase: state.phase === 'loading' ? 'loading' : 'reconnecting' })
@@ -45,9 +88,27 @@ export function createStore() {
       const response = await fetch('/api/state')
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const data = await response.json()
-      for (const message of data.messages) seen.add(message.id)
+      let runtime = null
+      try {
+        const health = await fetch('/api/health')
+        if (health.ok) runtime = (await health.json()).runtime ?? null
+      } catch {
+        runtime = { ok: false, error: '健康检查失败' }
+      }
+      for (const room of data.rooms) for (const message of room.messages) seen.add(message.id)
       if (stopped) return
-      emit({ phase: 'ready', room: data.room, seats: data.seats, messages: data.messages, error: null })
+      const known = state.activeId === 'dispatch' || data.rooms.some(room => room.id === state.activeId)
+      emit({
+        ...state,
+        phase: 'ready',
+        rooms: data.rooms,
+        dispatch: data.dispatch,
+        seats: data.seats,
+        templates: data.templates ?? [],
+        runtime,
+        activeId: known ? state.activeId : (data.rooms[0]?.id ?? 'dispatch'),
+        error: null,
+      })
       connect()
     } catch (error) {
       if (!stopped) patch({ phase: 'error', error: String(error?.message ?? error) })
@@ -66,12 +127,14 @@ export function createStore() {
         throw new Error(detail.error ?? `HTTP ${response.status}`)
       }
       patch({ error: null })
-      return true
+      return await response.json()
     } catch (error) {
       patch({ error: String(error?.message ?? error) })
-      return false
+      return null
     }
   }
+
+  const activeRoom = () => state.rooms.find(room => room.id === state.activeId)
 
   return {
     subscribe: listener => {
@@ -83,14 +146,44 @@ export function createStore() {
       stopped = false
       void load()
     },
-    stop: () => {
+    disconnect: () => {
       stopped = true
       source?.close()
       source = null
       seen.clear()
     },
-    send: text => post('/api/messages', { text }),
-    accept: stage => post('/api/accept', { stage }),
+    select: activeId => patch({ activeId }),
+    send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
+    accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
+    answer: async (stage, text) => {
+      if (text !== '') {
+        const sent = await post(`/api/rooms/${state.activeId}/messages`, { text })
+        if (sent === null) return null
+      }
+      return post(`/api/rooms/${state.activeId}/accept`, { stage })
+    },
+    simulate: () => post(`/api/rooms/${state.activeId}/simulate`, {}),
+    setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
+    verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
+    pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
+    resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),
+    stop: () => post(`/api/rooms/${state.activeId}/stop`, {}),
+    recommendRoster: async (goal, repoPath) => {
+      const data = await post('/api/roster/recommend', { goal, repoPath })
+      if (data?.proposal === undefined) return { ok: false, error: state.error ?? '编制建议失败' }
+      return { ok: true, proposal: data.proposal }
+    },
+    createRoom: async (goal, answers = {}) => {
+      const data = await post('/api/rooms', { goal, ...answers })
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '建房失败' }
+      await load()
+      patch({ activeId: data.room.id })
+      return { ok: true, room: data.room, warning: data.warning ?? null }
+    },
+    dispatchAsk: text => post('/api/dispatch/requests', { text }),
+    dispatchConfirm: id => post(`/api/dispatch/requests/${id}/confirm`, {}),
+    dispatchDecline: id => post(`/api/dispatch/requests/${id}/decline`, {}),
+    activeRoom,
   }
 }
 
