@@ -10,7 +10,7 @@
 > v0.10 变更：采纳 Claude-Bot 的目标呈现——**目标岛**（§9.7），并把 `goal-grill` 的对齐方式写进开队流程（§8.2、§9.2）；数据模型补 `goals.idle/revision`、`goal_stages.reject_count/rework_feedback`（§11）。
 > v0.11 变更：顶层定位改为“可验收、可交接的交付”；“省时省力”降为交互承诺与结果指标，房间留痕回到价值主张（§1、§2.6）。
 >
-> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、Engine 端口、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
+> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、Engine 端口、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
 >
 > **产品北极星（防跑偏）**：用户只做三件事——说目标、答 ≤3 个带推荐答案的问题、验收；队长用**一张开工卡**给出 done、编制、验收与问题，业务校验，人确认一次直接开工，三人组只是模板、单人合法；任何让用户选机制（模型、人数、并发、worktree）的设计都是跑偏；只加 bot、页面或开关、没有让“目标 → 证据 → 结论 → commit”更可信或更省人的功能，不做。
 
@@ -980,14 +980,17 @@ interface Engine {
   cancelTurn(input: { roomId: string }): Promise<{ cancelled: boolean; reason?: string }>
   usage(roomId: string): Promise<{ turns: number; costMicroUsd: number }>
   capabilities(): { resume; streaming; approvals; structuredOutput; subagents; cancel; provisioning; mentions; mcp; skills; schedules }
+  instances(): Promise<Array<{ id; engine; name; available; models; capabilities }>>
   health(): Promise<{ ok: boolean; error?: string }>
-  createSeatBot(input: { name; soul; description; approval; mcp }): Promise<SeatRef>
+  createSeatBot(input: { name; soul; description; approval; mcp; engine? }): Promise<SeatRef>
   createRoom(input: { name; goal; bulletin; members; cwd; leadId }): Promise<{ id: string; sessionRef: string }>
   deleteSeatBot(botId: string): Promise<void>
   deleteRoom(roomId: string): Promise<void>
   subscribe(input: { roomId; sessionRef; onEvent; onState }): () => void
 }
 ```
+
+`createSeatBot` 的 `engine` 是席位声明的引擎类别（如 `claude-cli` / `codex-cli`）；Engine 适配层通过基座 `/api/instances` 绑定到可用 instance/model。不可用时显式回退默认引擎，写「引擎降级」消息，不静默伪装成请求的引擎。当前机器只有 Claude 可用，Codex/Grok 会回退；能力矩阵与 UI 选择仍未接。
 
 `Event` 的 `text_delta / tool_call / permission_request / usage / done` 仍是后续流式端口的目标；P0 由基座消息、activity 与 digest 归一化。`Room` 只暴露 `id/name/sessionRef/goal/working/busyRef/cwd/usage`；`group/thread/bot/defaultResponder` 不进入 crew。
 

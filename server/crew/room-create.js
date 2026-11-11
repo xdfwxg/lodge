@@ -125,9 +125,13 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         description: seat.station,
         approval: seat.approval,
         mcp: seat.mcp,
+        engine: seat.engine,
       })
       createdBots.push({ seat, bot })
     }
+    const engineFallbacks = Object.fromEntries(createdBots
+      .filter(({ bot }) => bot.fallback === true)
+      .map(({ seat, bot }) => [seat.id, { requested: bot.requestedEngine, actual: bot.engine, reason: bot.reason }]))
     const title = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
     const groupFor = async (seat, bot) => {
       const group = await engine.createRoom({
@@ -163,6 +167,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       plan,
       independence: verifiers.length === 0 ? (roster.length === 1 ? 'solo' : 'human') : 'none',
       engines,
+      engineFallbacks,
       seatBots,
       seatNames,
       seatRooms,
@@ -233,6 +238,15 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${seat}: ${text}`))
     if (envWarnings.length > 0) {
       store.appendMessage(room.id, { kind: 'system', text: `工作区环境同步警告：${envWarnings.join('；')}` })
+    }
+    if (Object.keys(engineFallbacks).length > 0) {
+      const text = Object.entries(engineFallbacks)
+        .map(([seat, item]) => `${seat} 请求 ${item.requested}，实际 ${item.actual}`)
+        .join('；')
+      store.appendMessage(room.id, {
+        kind: 'system',
+        text: `引擎降级：${text}。跨厂商独立性不成立，验收卡会按实际引擎标注。`,
+      })
     }
     await live.attach(room)
     emit('dispatch', dispatchPayload())

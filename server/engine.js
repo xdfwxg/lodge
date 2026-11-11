@@ -191,8 +191,73 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     throw new Error('基座里没有可复用的引擎模型；先在基座里建一个 bot')
   }
 
-  const createSeatBot = async ({ name, soul, description, approval, mcp }) => {
+  const ENGINE_ALIASES = {
+    'claude-cli': 'claudeAgent',
+    claude: 'claudeAgent',
+    'codex-cli': 'codex',
+    codex: 'codex',
+    'grok-cli': 'grokAgent',
+    grok: 'grokAgent',
+    'kimi-cli': 'kimiAgent',
+    'qwen-cli': 'qwenAgent',
+    'deepseek-cli': 'deepseekAgent',
+    'gemini-cli': 'antigravityAgent',
+  }
+
+  const instances = async () => {
+    const page = await client.instances()
+    return (page?.instances ?? []).map(item => ({
+      id: item.instanceId,
+      engine: item.driverKind,
+      name: item.displayName ?? item.instanceId,
+      available: item.snapshot?.state === 'available',
+      reason: item.snapshot?.reason ?? '',
+      models: item.models ?? { default: '', options: [] },
+      capabilities: item.capabilities ?? {},
+    }))
+  }
+
+  // 席位声明的是引擎类别；绑定到基座可用的具体 instance/model，找不到才显式降级。
+  const resolveSeatEngine = async requested => {
+    if (typeof requested !== 'string' || requested === '') {
+      const selection = await defaultModelSelection()
+      return { selection, engine: selection.instanceId, requested: '', fallback: false, reason: '' }
+    }
+    const wanted = ENGINE_ALIASES[requested] ?? requested
+    let list = []
+    try {
+      list = (await client.instances())?.instances ?? []
+    } catch {
+      list = []
+    }
+    const instance = list.find(item => (
+      item?.snapshot?.state === 'available' &&
+      (item.instanceId === requested || item.driverKind === wanted)
+    ))
+    const model = instance?.models?.default || instance?.models?.options?.[0]?.id || ''
+    if (instance !== undefined && typeof model === 'string' && model !== '') {
+      return {
+        selection: { instanceId: instance.instanceId, model },
+        engine: instance.instanceId,
+        requested,
+        fallback: false,
+        reason: '',
+        capabilities: instance.capabilities ?? {},
+      }
+    }
     const selection = await defaultModelSelection()
+    return {
+      selection,
+      engine: selection.instanceId,
+      requested,
+      fallback: true,
+      reason: `${requested} 不可用`,
+    }
+  }
+
+  const createSeatBot = async ({ name, soul, description, approval, mcp, engine }) => {
+    const resolved = await resolveSeatEngine(engine)
+    const selection = resolved.selection
     const settings = {
       ...(typeof soul === 'string' && soul !== '' ? { soul } : {}),
       ...(typeof description === 'string' && description !== '' ? { description } : {}),
@@ -204,7 +269,16 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     const created = await client.createBot({ name, modelSelection: selection, settings })
     const bot = created?.bot ?? created
     if (typeof bot?.id !== 'string') throw new Error('基座没有返回 bot')
-    return { id: bot.id, name: bot.name, engine: selection.instanceId, model: selection.model }
+    return {
+      id: bot.id,
+      name: bot.name,
+      engine: selection.instanceId,
+      model: selection.model,
+      requestedEngine: resolved.requested,
+      fallback: resolved.fallback,
+      reason: resolved.reason,
+      capabilities: resolved.capabilities ?? {},
+    }
   }
 
   const createRoom = async ({ name, goal, bulletin, members, cwd, leadId }) => {
@@ -263,6 +337,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
   return {
     rooms,
     history,
+    instances,
     sendTurn,
     answerCard,
     cancelTurn,

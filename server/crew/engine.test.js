@@ -52,6 +52,39 @@ test('seat prompts and semantic capability settings cross the engine port', asyn
   assert.equal(engine.capabilities().schedules, false)
 })
 
+test('a seat engine binds to an available runtime instance', async () => {
+  const client = fakeClient()
+  client.instances = async () => ({
+    instances: [{
+      instanceId: 'codex',
+      driverKind: 'codex',
+      displayName: 'Codex',
+      snapshot: { state: 'available' },
+      models: { default: 'gpt-5.6-sol', options: [] },
+      capabilities: { approvalReview: false },
+    }],
+  })
+  const engine = createEngine({ client })
+  const seat = await engine.createSeatBot({ name: 'Executor', engine: 'codex-cli' })
+  assert.equal(seat.engine, 'codex')
+  assert.equal(seat.model, 'gpt-5.6-sol')
+  assert.equal(seat.fallback, false)
+  assert.equal(client.captured.bot.modelSelection.instanceId, 'codex')
+  assert.equal(client.captured.bot.modelSelection.model, 'gpt-5.6-sol')
+})
+
+test('an unavailable seat engine falls back explicitly', async () => {
+  const client = fakeClient()
+  client.instances = async () => ({ instances: [] })
+  const engine = createEngine({ client })
+  const seat = await engine.createSeatBot({ name: 'Executor', engine: 'grok-cli' })
+  assert.equal(seat.engine, 'claude')
+  assert.equal(seat.fallback, true)
+  assert.equal(seat.requestedEngine, 'grok-cli')
+  assert.match(seat.reason, /grok-cli/)
+  assert.equal(client.captured.bot.modelSelection.instanceId, 'claude')
+})
+
 test('room creation maps semantic members and lead to the runtime group', async () => {
   const client = fakeClient()
   const engine = createEngine({ client })

@@ -12,6 +12,8 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
     baseUrl,
     bootstrap: () => json('/api/bots?messages=0'),
 
+    instances: () => json('/api/instances'),
+
     threadMessages: (threadId, limit = 200) => json(`/api/threads/${threadId}/messages?limit=${limit}`),
 
     sendGroupMessage: (groupId, text) => json(`/api/groups/${groupId}/messages`, {
