@@ -136,6 +136,97 @@ export const goalAnswers = (room, selected) => {
   ]
 }
 
+// 房间页只构造这份标准 view；换实现时不需要房间内部结构。
+export const buildGoalView = (room, seats) => {
+  const current = activeIndex(room)
+  const seatById = new Map(seats.map(seat => [seat.id, seat]))
+  const nameOf = id => room.seatNames?.[id] ?? seatById.get(id)?.name ?? id
+  const stages = room.stages.map((stage, index) => {
+    const rejects = rejectsFor(room, index)
+    const verdict = verdictFor(room, index)
+    const tasks = (stage.tasks ?? []).map(task => ({ ...task, seat: seatById.get(task.owner) ?? null }))
+    const taskOwners = new Set(tasks.map(task => task.owner))
+    const conflict = room.mergeConflict?.stage === index
+      ? room.mergeConflict
+      : room.stageDispatch?.stage === index ? room.stageDispatch?.conflict ?? null : null
+    return {
+      index,
+      title: stage.title,
+      kind: stage.kind,
+      state: stage.state,
+      acceptance: stage.acceptance ?? null,
+      acceptanceLabel: stage.kind === 'deliverable' ? (stage.acceptance ?? '未写验收命令') : '你点过才算过',
+      dependsOn: Array.isArray(stage.dependsOn) ? stage.dependsOn : [],
+      partial: stage.partial ?? null,
+      partialFailedNames: (stage.partial?.failed ?? []).map(nameOf),
+      conflict,
+      reworkCount: rejects.length,
+      rework: [...rejects].reverse().map(message => ({
+        id: message.id,
+        author: nameOf(message.authorId),
+        at: message.ts ?? null,
+        text: message.text || '验收席位打回',
+      })),
+      evidence: evidenceFor(room, index).map(message => ({
+        id: message.id,
+        href: `/api/rooms/${room.id}/evidence/${message.id}`,
+        manual: message.meta?.kind === 'manual',
+        command: message.meta?.command ?? '命令',
+        exit: message.meta?.exit ?? null,
+      })),
+      verdict: verdict === undefined ? null : { pass: verdict.meta?.pass === true, text: verdict.text ?? '' },
+      tasks,
+      otherSeats: seats.filter(seat => !taskOwners.has(seat.id)).map(seat => ({
+        seat,
+        state: seatState(room, stage, index, seat.id),
+        task: seatTask(seat, stage),
+      })),
+    }
+  })
+  const done = room.stages.filter(stage => stage.state === 'passed').length
+  const faces = goalFaces(room, seats, current)
+  return {
+    id: room.id,
+    name: room.name,
+    goal: room.goal,
+    state: room.state,
+    brief: room.brief ?? null,
+    imported: room.imported === true,
+    status: islandStatus(room),
+    badges: [
+      ...(room.independence === 'vendor' ? [] : [{ label: room.independenceLabel ?? '独立性未标注', warn: true }]),
+      ...(room.demo === true ? [{ label: '演示' }] : []),
+      ...(room.imported === true ? [{ label: '交接 · 只读' }] : []),
+      ...(room.workspace?.capabilities?.vcs !== undefined && !['git', 'demo'].includes(room.workspace.capabilities.vcs)
+        ? [{ label: '无 VCS' }]
+        : []),
+      ...(room.live === true && room.imported !== true ? [{ label: '实时' }] : []),
+    ],
+    progress: {
+      value: room.state === 'complete' ? room.stages.length : current >= 0 ? current + 1 : done,
+      total: room.stages.length,
+    },
+    track: room.stages.map((stage, index) => trackTone(room, stage, index)),
+    faces: faces.seats.map(seat => ({ seat, live: faces.working.has(seat.id) })),
+    answers: {
+      goal: room.brief?.objective || room.goal || '—',
+      progress: room.state === 'complete'
+        ? `${room.stages.length}/${room.stages.length} · 目标达成`
+        : current >= 0
+          ? `${current + 1}/${room.stages.length} · ${room.stages[current].title}`
+          : `${done}/${room.stages.length} · 已停止`,
+    },
+    stages,
+    controls: {
+      imported: room.imported === true,
+      canPause: room.imported !== true && room.state === 'active',
+      canResume: room.imported !== true && room.state === 'paused',
+      canStop: room.imported !== true && (room.state === 'active' || room.state === 'paused'),
+      canContinue: room.imported === true,
+    },
+  }
+}
+
 // 收起栏的头像：优先当前阶段的任务负责人，没有任务时回到正在工作的席位。
 export const goalFaces = (room, seats, current) => {
   const workers = workingSeats(room, current)

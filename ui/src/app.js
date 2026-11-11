@@ -3,10 +3,8 @@ import { BotAvatar, BotMark, RoomAvatar } from './marks.js'
 import { ArrowUpIcon } from './icons.js'
 import { MarkdownText } from './primitives.js'
 import { createStore, useStore } from './store.js'
-import {
-  activeIndex, evidenceFor, goalAnswers, goalFaces, islandStatus, rejectsFor, seatState, seatTask,
-  STAGE_KIND, TASK_LABEL, trackTone, verdictFor,
-} from './island.js'
+import { GoalIsland } from './goal-island/index.js'
+import { buildGoalView } from './goal-island/model.js'
 
 const MD = { code: { copyLabel: '复制', copiedLabel: '已复制' } }
 const clock = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -39,262 +37,6 @@ const seatPermissionOf = (room, seat) => {
   if (!seat.permissions?.write) return seat.permissions?.exec ? '只读 + 执行' : '只读'
   return room.workspace?.capabilities?.isolation === 'copy' ? '副本写' : 'worktree 写'
 }
-function StageStep({ stage, index, selected, onSelect, rework = 0, partial = 0 }) {
-  const note = [
-    rework > 0 ? `返工 ${rework} 次` : '',
-    partial > 0 ? `${partial} 席未产出` : '',
-  ].filter(Boolean).join(' · ')
-  return h('button', {
-    type: 'button',
-    className: 'crew-step-node',
-    'data-state': stage.state,
-    'data-selected': selected,
-    'aria-current': selected ? 'step' : undefined,
-    onClick: onSelect,
-    title: note === '' ? stage.title : `${stage.title} · ${note}`,
-  },
-  h('span', { className: 'crew-step-mark' }, stage.state === 'passed' ? '✓' : String(index + 1)),
-  h('span', { className: 'crew-step-label' }, stage.title),
-  partial > 0 ? h('span', { className: 'crew-step-partial' }, `×${partial}`) : null,
-  rework > 0 ? h('span', { className: 'crew-step-rework' }, `↺${rework}`) : null)
-}
-
-function IslandStage({ room, index, seats, onBack }) {
-  const stage = room.stages[index]
-  const evidence = evidenceFor(room, index)
-  const verdict = verdictFor(room, index)
-  const rejects = rejectsFor(room, index)
-  const seatById = new Map(seats.map(seat => [seat.id, seat]))
-  const nameOf = id => room.seatNames?.[id] ?? seatById.get(id)?.name ?? id
-  const taskOwners = new Set((stage.tasks ?? []).map(task => task.owner))
-  const otherSeats = seats.filter(seat => !taskOwners.has(seat.id))
-  const brief = room.brief ?? null
-  const conflict = room.mergeConflict?.stage === index
-    ? room.mergeConflict
-    : room.stageDispatch?.stage === index ? room.stageDispatch?.conflict ?? null : null
-
-  return h('div', { className: 'crew-island-stage' },
-    h('div', { className: 'crew-island-stage-head' },
-      h('b', null, `${index + 1} ${stage.title}`),
-      h('span', { className: 'crew-island-kind' }, STAGE_KIND[stage.kind] ?? '')),
-    Array.isArray(stage.dependsOn) && stage.dependsOn.length > 0
-      ? h('div', { className: 'crew-kv' },
-        h('span', null, '依赖'),
-        h('span', { className: 'crew-island-soft' }, stage.dependsOn.map(item => `阶段 ${item + 1}`).join('、')))
-      : null,
-    stage.partial?.failed?.length > 0
-      ? h('div', { className: 'crew-island-rework' },
-        h('span', null, `部分成功 · ${stage.partial.failed.length} 席未产出`),
-        h('p', null, stage.partial.failed.map(id => room.seatNames?.[id] ?? id).join('、')))
-      : null,
-    h('div', { className: 'crew-kv' },
-      h('span', null, '做到什么算过'),
-      stage.kind === 'deliverable'
-        ? h('code', null, stage.acceptance ?? '未写验收命令')
-        : h('span', { className: 'crew-island-soft' }, '你点过才算过')),
-    conflict !== null
-      ? h('div', { className: 'crew-island-rework' },
-        h('span', null, '并行合并冲突 · 等你处理'),
-        h('p', null, (conflict.files ?? []).join('、') || conflict.branch || '冲突文件未知'))
-      : null,
-    rejects.length > 0
-      ? h('div', { className: 'crew-island-rework' },
-        h('span', null, `返工 ${rejects.length} 次 · 验收席位打回`),
-        h('div', { className: 'crew-island-rework-list' },
-          [...rejects].reverse().slice(0, 3).map(message => h('div', { key: message.id, className: 'crew-island-rework-item' },
-            h('span', { className: 'crew-island-rework-author' }, nameOf(message.authorId)),
-            h('span', null, timeOf(message.ts)),
-            h('p', null, message.text || '验收席位打回')))),
-        rejects.length > 3 ? h('p', { className: 'crew-island-soft' }, `还有 ${rejects.length - 3} 次更早的打回，见时间线`) : null)
-      : null,
-    evidence.length > 0
-      ? h('div', { className: 'crew-island-evidence' },
-        evidence.map(message => h('a', {
-          key: message.id,
-          className: 'crew-island-evidence-link',
-          href: `/api/rooms/${room.id}/evidence/${message.id}`,
-          target: '_blank',
-          rel: 'noreferrer',
-        }, message.meta?.kind === 'manual'
-          ? '证据 · 产物就绪'
-          : `证据 · ${message.meta?.command ?? '命令'} · exit ${message.meta?.exit ?? '—'}`)))
-      : null,
-    verdict !== undefined
-      ? h('div', { className: 'crew-island-verdict', 'data-pass': verdict.meta?.pass === true },
-        verdict.meta?.pass === true ? '验收席位已给 PASS' : '验收席位打回，等返工')
-      : null,
-    stage.tasks?.length > 0
-      ? h('div', { className: 'crew-island-tasks' },
-        h('span', { className: 'crew-island-soft' }, '任务'),
-        stage.tasks.map(task => {
-          const seat = seatById.get(task.owner)
-          return h('div', { key: task.id, className: 'crew-island-task', 'data-state': task.status },
-            seat
-              ? h(BotAvatar, { bot: seat, size: 20, live: task.status === 'working' })
-              : h(BotMark, { size: 20 }),
-            h('span', { className: 'crew-island-task-title' }, task.title),
-            task.evidenceRef
-              ? h('a', {
-                className: 'crew-island-task-evidence',
-                href: `/api/rooms/${room.id}/evidence/${task.evidenceRef}`,
-                target: '_blank',
-                rel: 'noreferrer',
-              }, '证据')
-              : null,
-            h('span', { className: 'crew-island-task-state' }, TASK_LABEL[task.status] ?? task.status))
-        }))
-      : null,
-    otherSeats.length > 0
-      ? h('div', { className: 'crew-island-seats' },
-        otherSeats.map(seat => h('div', { key: seat.id, className: 'crew-island-seat', 'data-state': seatState(room, stage, index, seat.id) },
-        h(BotAvatar, { bot: seat, size: 22, live: seatState(room, stage, index, seat.id) === 'working' }),
-        h('span', { className: 'crew-island-seat-name' }, seat.name),
-        h('span', { className: 'crew-island-seat-task' }, seatTask(seat, stage)),
-        h('span', { className: 'crew-island-seat-state' },
-          seatState(room, stage, index, seat.id) === 'done' ? '已交'
-            : seatState(room, stage, index, seat.id) === 'working' ? '在做'
-              : seatState(room, stage, index, seat.id) === 'idle' ? '待命'
-                : seatState(room, stage, index, seat.id) === 'paused' ? '暂停'
-                  : '未开始'))))
-      : null,
-    h('details', { className: 'crew-island-checks' },
-      h('summary', null, '目标与检查'),
-      h('div', { className: 'crew-island-checks-body' },
-        h('div', { className: 'crew-kv' }, h('span', null, 'objective'), h('span', null, brief?.objective || room.goal)),
-        h('div', { className: 'crew-kv' }, h('span', null, 'done'),
-          h('span', { className: 'crew-island-done' },
-            (brief?.done ?? room.stages.map((item, at) => ({ done: item.state === 'passed', text: `${at + 1} ${item.title}` })))
-              .map(item => h('span', { key: item.text, 'data-done': item.done }, `${item.done ? '✓' : '·'} ${item.text}`)))),
-        (brief?.constraints ?? []).length > 0
-          ? h('div', { className: 'crew-kv' }, h('span', null, 'constraints'),
-            h('span', { className: 'crew-island-done' }, brief.constraints.map(text => h('span', { key: text }, `- ${text}`))))
-          : null)),
-    activeIndex(room) >= 0 && index !== activeIndex(room)
-      ? h('button', { type: 'button', className: 'crew-ghost crew-island-back', onClick: onBack }, '回到当前阶段')
-      : null)
-}
-
-function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue }) {
-  const [open, setOpen] = useState(false)
-  const [picked, setPicked] = useState(null)
-  const [armed, setArmed] = useState(false)
-  const status = islandStatus(room)
-  const current = activeIndex(room)
-  const done = room.stages.filter(stage => stage.state === 'passed').length
-  const progress = room.state === 'complete' ? room.stages.length : current >= 0 ? current + 1 : done
-  const selected = picked ?? (current >= 0 ? current : room.stages.length - 1)
-  const { seats: working, working: workingSet } = goalFaces(room, seats, current)
-  const answers = goalAnswers(room, selected)
-
-  useEffect(() => {
-    if (!armed) return undefined
-    const timer = setTimeout(() => setArmed(false), 3000)
-    return () => clearTimeout(timer)
-  }, [armed])
-
-  useEffect(() => {
-    setPicked(null)
-  }, [current])
-
-  const degraded = room.independence !== 'vendor'
-
-  return h('header', { className: 'crew-head crew-island', 'data-open': open },
-    h('div', {
-      className: 'crew-island-top',
-      role: 'button',
-      tabIndex: 0,
-      'aria-expanded': open,
-      'aria-controls': 'crew-island-panel',
-      onClick: () => setOpen(value => !value),
-      onKeyDown: event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          setOpen(value => !value)
-        }
-      },
-    },
-    h('span', { className: 'crew-island-dot', 'data-tone': status.tone }),
-    h('h1', { title: room.goal }, room.name),
-    degraded ? h('span', { className: 'crew-badge', 'data-warn': true }, independenceOf(room)) : null,
-    room.demo === true ? h('span', { className: 'crew-badge' }, '演示') : null,
-    room.imported === true ? h('span', { className: 'crew-badge' }, '交接 · 只读') : null,
-    room.workspace?.capabilities?.vcs !== undefined && !['git', 'demo'].includes(room.workspace.capabilities.vcs)
-      ? h('span', { className: 'crew-badge' }, '无 VCS')
-      : null,
-    room.live === true && room.imported !== true ? h('span', { className: 'crew-badge' }, '实时') : null,
-    h('span', { className: 'crew-island-pill' },
-      `${progress}/${room.stages.length}`,
-      h('span', { className: 'crew-island-chev', 'data-open': open }, '⌄'))),
-    h('div', { className: 'crew-island-strip' },
-      h('span', { className: 'crew-island-state', 'data-tone': status.tone }, status.label),
-      h('div', { className: 'crew-island-track' }, room.stages.map((stage, index) => h('i', {
-        key: stage.title,
-        'data-tone': trackTone(room, stage, index),
-      }))),
-      working.length > 0
-        ? h('div', { className: 'crew-island-faces' },
-          working.slice(0, 4).map(seat => h(BotAvatar, { key: seat.id, bot: seat, size: 20, live: workingSet.has(seat.id) })),
-          working.length > 4 ? h('span', { className: 'crew-island-more' }, `+${working.length - 4}`) : null)
-        : null),
-    open
-      ? h('div', { id: 'crew-island-panel', className: 'crew-island-panel', role: 'region', 'aria-label': '目标与阶段' },
-        h('div', { className: 'crew-island-answers' },
-          answers.map(([label, value, kind]) => h('div', { key: label, className: 'crew-island-answer', 'data-kind': kind },
-            h('span', null, label),
-            h('b', { title: value }, value)))),
-        h('div', { className: 'crew-island-steps' },
-          room.stages.map((stage, index) => h(StageStep, {
-            key: stage.title,
-            stage,
-            index,
-            selected: index === selected,
-            rework: rejectsFor(room, index).length,
-            partial: room.stages[index].partial?.failed?.length ?? 0,
-            onSelect: () => setPicked(index),
-          }))),
-        room.stages[selected]
-          ? h(IslandStage, {
-            room,
-            index: selected,
-            seats,
-            onBack: () => setPicked(current >= 0 ? current : null),
-          })
-          : null,
-        h('div', { className: 'crew-island-foot' },
-          h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openReview(room.id) }, '复盘'),
-          h('button', { type: 'button', className: 'crew-ghost', onClick: onToggleAdvanced },
-            advanced ? '收起高级' : '高级'),
-          h('span', { className: 'crew-island-foot-space' }),
-          room.imported === true && onContinue !== undefined
-            ? h('button', { type: 'button', className: 'crew-choice', onClick: () => onContinue(room) }, '基于此记录续做')
-            : null,
-          room.imported === true
-            ? h('span', { className: 'crew-ghost' }, '只读记录')
-            : null,
-          room.imported !== true && room.state === 'active'
-            ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.pause() }, '暂停')
-            : null,
-          room.imported !== true && room.state === 'paused'
-            ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.resume() }, '继续')
-            : null,
-          room.imported !== true && (room.state === 'active' || room.state === 'paused')
-            ? h('button', {
-              type: 'button',
-              className: 'crew-ghost',
-              'data-armed': armed,
-              onClick: () => {
-                if (armed) {
-                  setArmed(false)
-                  void store.stop()
-                } else {
-                  setArmed(true)
-                }
-              },
-            }, armed ? '再点一次确认停止' : '停止')
-            : null))
-      : null)
-}
-
 function Markdown({ text, variant }) {
   return h(MarkdownText, { text, labels: MD, variant })
 }
@@ -1116,16 +858,18 @@ function RoomView({ state, room, store, onContinue }) {
     const ids = room.members ?? []
     return ids.length === 0 ? state.seats : state.seats.filter(seat => ids.includes(seat.id))
   }, [room.seatSpecs, room.members, state.seats])
+  const goalView = useMemo(() => buildGoalView(room, seats), [room, seats])
+  const goalActions = {
+    review: () => void store.openReview(room.id),
+    toggleAdvanced: () => setAdvanced(value => !value),
+    pause: () => void store.pause(),
+    resume: () => void store.resume(),
+    stop: () => void store.stop(),
+    ...(onContinue === undefined ? {} : { continue: () => onContinue(room) }),
+  }
 
   return h('main', { className: 'dsb-main' },
-    h(GoalIsland, {
-      room,
-      seats,
-      advanced,
-      onToggleAdvanced: () => setAdvanced(value => !value),
-      store,
-      onContinue,
-    }),
+    h(GoalIsland, { view: goalView, advanced, actions: goalActions }),
     advanced ? h(Advanced, { room, seats, store, engines: state.engines }) : null,
     state.reviewFor === room.id && state.review !== null
       ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })

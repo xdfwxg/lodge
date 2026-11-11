@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   activeIndex, evidenceFor, goalAnswers, goalFaces, islandStatus, rejectsFor, seatState, trackTone, verdictFor,
-} from './island.js'
+} from './model.js'
 
 const seats = [
   { id: 'worker', name: '前端', role: 'worker' },
