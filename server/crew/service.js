@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { budgetHint, budgetStatus, budgetSummary, globalBudgetStatus } from './budget.js'
 import { simulateRoom } from './demo.js'
 import { createDispatchService } from './dispatch-service.js'
 import { presentRoom } from './presentation.js'
@@ -26,15 +27,19 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
 
   const health = async () => ok({ runtime: await engine.health() })
 
-  const state = () => ({
-    seats,
-    templates: TEMPLATE_LIST,
-    rooms: readRooms().map(room => {
-      const messages = readMessages(room.id)
-      return { ...presentRoom(room, messages), brief: readBrief(room), messages }
-    }),
-    dispatch: dispatchPayload(),
-  })
+  const state = () => {
+    const rooms = readRooms()
+    return {
+      seats,
+      templates: TEMPLATE_LIST,
+      rooms: rooms.map(room => {
+        const messages = readMessages(room.id)
+        return { ...presentRoom(room, messages), brief: readBrief(room), messages }
+      }),
+      dispatch: dispatchPayload(),
+      budget: budgetSummary(rooms),
+    }
+  }
 
   const messagesSince = since => readMessagesSince(since)
 
@@ -47,7 +52,58 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   }
 
   const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body })
-  const recommendRoster = body => recommendRosterUseCase({ engine, body })
+  const recommendRoster = body => {
+    const global = globalBudgetStatus(readRooms())
+    if (!global.ok) return fail('conflict', global.message)
+    return recommendRosterUseCase({ engine, body })
+  }
+
+  const setBudget = (room, body) => {
+    const usd = Number(body.budgetUsd)
+    if (!Number.isFinite(usd) || usd < 0) return fail('invalid', '预算必须是非负美元数')
+    const budgetMicroUsd = usd === 0 ? 0 : Math.max(1, Math.round(usd * 1_000_000))
+    let resumed = false
+    const updated = updateRoom(room.id, current => {
+      current.usage = { ...current.usage, budgetMicroUsd }
+      const status = budgetStatus(current, readRooms())
+      if (current.state === 'paused' && current.pauseReason === 'budget' && status.ok) {
+        current.state = 'active'
+        current.pauseReason = null
+        current.budgetBlocked = false
+        current.idle = false
+        resumed = true
+      } else if (current.state === 'active' && !status.ok) {
+        current.state = 'paused'
+        current.pauseReason = 'budget'
+        current.budgetBlocked = true
+        current.idle = false
+      }
+      return { events: [{ type: 'room.budget', payload: { budgetMicroUsd } }] }
+    })
+    if (updated === null) return fail('not_found', '没有这个房间')
+    appendMessage(room.id, { kind: 'system', text: `房间预算已设为 ${usd === 0 ? '不限' : `$${usd.toFixed(2)}`}` })
+    const status = budgetStatus(updated, readRooms())
+    if (!resumed && !status.ok && updated.state !== 'stopped' && updated.state !== 'complete') {
+      appendMessage(room.id, { kind: 'system', text: `预算已用尽：${status.message}；${budgetHint(status)}。` })
+    }
+    emit('room', updated)
+    emit('dispatch', dispatchPayload())
+    if (resumed) {
+      const active = updated.stages.findIndex(stage => stage.state === 'active')
+      const stage = updated.stages[active]
+      if (updated.live === true && (stage?.kind === 'deliverable' || stage?.manual === true)) {
+        const hasEvidence = readMessages(room.id).some(message => (
+          message.kind === 'evidence' && (message.meta?.stage ?? 0) === active
+        ))
+        if (!hasEvidence && updated.busy !== true) {
+          void live.startStage(updated, active).catch(error => {
+            appendMessage(room.id, { kind: 'system', text: `继续执行失败：${error?.message ?? error}` })
+          })
+        }
+      }
+    }
+    return ok({ room: updated })
+  }
 
   const control = async (room, action) => {
     if (action === 'pause' && room.state !== 'active') return fail('conflict', '只有进行中的房间能暂停')
@@ -55,13 +111,22 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     if (action === 'stop' && room.state !== 'active' && room.state !== 'paused') {
       return fail('conflict', '这个房间已经结束')
     }
+    if (action === 'resume') {
+      const status = budgetStatus(room, readRooms())
+      if (!status.ok) return fail('conflict', `${status.message}；${budgetHint(status)}`)
+    }
     const expected = room.state
     const nextState = action === 'pause' ? 'paused' : action === 'resume' ? 'active' : 'stopped'
     const updated = updateRoom(room.id, current => {
       if (current.state !== expected) return null
       current.state = nextState
       current.idle = false
-      if (nextState === 'active') current.noProgress = 0
+      if (nextState === 'active') {
+        current.noProgress = 0
+        current.pauseReason = null
+        current.budgetBlocked = false
+      }
+      if (nextState === 'paused') current.pauseReason = 'manual'
       return { events: [{ type: 'room.state', payload: { state: nextState, action } }] }
     })
     if (updated === null) return fail('conflict', '房间状态已变化，重试')
@@ -94,6 +159,20 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
             : '已停止 · 你的消息不再转发给基座；已落盘的阶段与证据保留'
           : '已停止 · 已通过的阶段与证据保留，不会再派新活'
     appendMessage(room.id, { kind: 'system', text: note })
+    if (action === 'resume' && liveRoom) {
+      const active = room.stages.findIndex(stage => stage.state === 'active')
+      const stage = room.stages[active]
+      if (stage?.kind === 'deliverable' || stage?.manual === true) {
+        const hasEvidence = readMessages(room.id).some(message => (
+          message.kind === 'evidence' && (message.meta?.stage ?? 0) === active
+        ))
+        if (!hasEvidence && room.busy !== true) {
+          void live.startStage(room, active).catch(error => {
+            appendMessage(room.id, { kind: 'system', text: `继续执行失败：${error?.message ?? error}` })
+          })
+        }
+      }
+    }
     return ok({ room })
   }
 
@@ -187,11 +266,32 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
         : `阶段 ${index + 1} 已由你确认`,
       meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you' },
     })
-    const finalRoom = next < 0 ? completeRoom(room) ?? room : room
+    let finalRoom = next < 0 ? completeRoom(room) ?? room : room
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
-      void live.startStage(room, next).catch(error => {
-        appendMessage(room.id, { kind: 'system', text: `启动执行失败：${error?.message ?? error}` })
-      })
+      const status = budgetStatus(room, readRooms())
+      if (!status.ok) {
+        const paused = updateRoom(room.id, current => {
+          if (current.state !== 'active') return null
+          current.state = 'paused'
+          current.pauseReason = 'budget'
+          current.budgetBlocked = true
+          current.idle = false
+          return { events: [{ type: 'room.budget_pause', payload: { reason: status.roomBlocked ? 'room' : 'global' } }] }
+        })
+        if (paused !== null) {
+          appendMessage(room.id, {
+            kind: 'system',
+            text: `预算已用尽：${status.message}；下一阶段已暂停，${budgetHint(status)}。`,
+          })
+          emit('room', paused)
+          emit('dispatch', dispatchPayload())
+          finalRoom = paused
+        }
+      } else {
+        void live.startStage(room, next).catch(error => {
+          appendMessage(room.id, { kind: 'system', text: `启动执行失败：${error?.message ?? error}` })
+        })
+      }
     }
     return ok({ room: finalRoom })
   }
@@ -232,6 +332,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       return control(room, action)
     }
 
+    if (action === 'budget' && method === 'POST') {
+      return setBudget(room, await readBody())
+    }
+
     if (action === 'acceptance' && method === 'POST') {
       const body = await readBody()
       return setAcceptance(room, Number(body.stage), typeof body.command === 'string' ? body.command : '')
@@ -240,6 +344,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     if (action === 'verify' && method === 'POST') {
       if (room.live !== true) return fail('conflict', '只有实时房间能用引擎复核；演示房间请用模拟执行')
       if (live.isAttached(room.id) !== true) return fail('conflict', '这个旧版实时房间不再绑定；请新建一个真实房间')
+      const status = budgetStatus(room, readRooms())
+      if (!status.ok) return fail('conflict', `${status.message}；${budgetHint(status)}`)
       const body = await readBody()
       try {
         return accepted(await live.requestReview(room.id, Number(body.stage)))
@@ -250,6 +356,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     }
 
     if (room.state === 'paused' || room.state === 'stopped') {
+      if (room.state === 'paused' && room.pauseReason === 'budget') {
+        const status = budgetStatus(room, readRooms())
+        return fail('conflict', `${status.message}；${budgetHint(status)}`)
+      }
       return fail('conflict', room.state === 'paused' ? '房间已暂停' : '房间已停止')
     }
 
@@ -260,6 +370,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       if (room.live === true) {
         if (live.isAttached(room.id) !== true) return fail('conflict', '这个旧版实时房间不再绑定；请新建一个真实房间')
         if (live.busyReview(room.id)) return fail('conflict', '复核进行中，先等验收结论')
+        const status = budgetStatus(room, readRooms())
+        if (!status.ok) return fail('conflict', `${status.message}；${budgetHint(status)}`)
         await live.send(room.id, text)
         return accepted({ accepted: true })
       }

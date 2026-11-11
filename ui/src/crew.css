@@ -96,6 +96,8 @@
 .crew-adv-meta{display:flex;flex-wrap:wrap;gap:14px}
 .crew-budget{display:flex;align-items:center;gap:8px}
 .crew-budget>b{font-variant-numeric:tabular-nums;color:var(--bt-ink)}
+.crew-budget-edit{display:flex;align-items:center;gap:8px}
+.crew-budget-edit input{width:88px;padding:4px 8px;border:1px solid var(--bt-line-2);border-radius:8px;background:var(--bt-bg);color:var(--bt-ink);font:inherit}
 .crew-bar{flex:1 1 auto;max-width:240px;height:5px;border-radius:999px;background:color-mix(in srgb,var(--bt-ink) 9%,transparent);overflow:hidden}
 .crew-bar i{display:block;height:100%;border-radius:999px;background:var(--bt-accent)}
 .crew-adv-table{width:100%;border-collapse:collapse;font-size:11.5px}
@@ -307,7 +309,7 @@
 .crew-needs-dot[data-kind=signoff]{background:var(--bt-green)}
 .crew-needs-dot[data-kind=rework]{background:var(--bt-danger)}
 .crew-needs-dot[data-kind=review]{background:color-mix(in srgb,var(--bt-accent) 75%,transparent)}
-.crew-needs-dot[data-kind=merge],.crew-needs-dot[data-kind=parallel]{background:var(--bt-danger)}
+.crew-needs-dot[data-kind=merge],.crew-needs-dot[data-kind=parallel],.crew-needs-dot[data-kind=budget]{background:var(--bt-danger)}
 .bt-row-preview[data-needs]{color:color-mix(in srgb,var(--bt-star) 82%,var(--bt-ink));font-weight:500}
 .bt-row-preview[data-needs=signoff]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
 .bt-row-preview[data-needs=rework]{color:var(--bt-danger)}

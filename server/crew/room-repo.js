@@ -196,7 +196,9 @@ export const commitRoom = (room, files = []) => {
     .filter(file => file !== '' && !file.startsWith('..') && !file.startsWith('/') && !isLocalOnly(file))
   const paths = [...new Set([rel, ...extra])]
   try {
-    execFileSync('git', ['add', '-A', '--', ...paths], { cwd: repo, stdio: 'ignore' })
+    // 房间记录即使被 .gitignore 忽略，也要随结论 commit 走；交付文件仍按正常忽略规则。
+    execFileSync('git', ['add', '-f', '-A', '--', rel], { cwd: repo, stdio: 'ignore' })
+    if (extra.length > 0) execFileSync('git', ['add', '-A', '--', ...extra], { cwd: repo, stdio: 'ignore' })
     const status = execFileSync('git', ['status', '--porcelain', '--', ...paths], { cwd: repo, encoding: 'utf8' })
     if (status.trim() === '') return true
     execFileSync('git', ['-c', 'user.name=Crew Chat', '-c', 'user.email=crew@localhost', 'commit', '-q', '-m', `room: ${room.name}`, '--', ...paths], { cwd: repo, stdio: 'ignore' })

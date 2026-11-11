@@ -12,6 +12,7 @@ const store = messages => ({
     seatRooms: {},
   }),
   readMessages: () => messages,
+  readRooms: () => [],
   updateRoom: () => null,
   appendEvent: () => {},
   appendMessage: () => {},

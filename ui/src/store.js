@@ -7,6 +7,7 @@ const EMPTY = {
   seats: [],
   templates: [],
   runtime: null,
+  budget: null,
   activeId: 'dispatch',
   error: null,
 }
@@ -56,7 +57,11 @@ export function createStore() {
       : [...state.rooms, { ...room, messages: [] }]
     const order = new Map(state.rooms.map((item, index) => [item.id, index]))
     rooms.sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999))
-    patch({ rooms })
+    const globalSpentMicroUsd = rooms.reduce((sum, item) => sum + (item.usage?.costMicroUsd ?? 0), 0)
+    patch({
+      rooms,
+      ...(state.budget === null ? {} : { budget: { ...state.budget, globalSpentMicroUsd } }),
+    })
   }
 
   const connect = () => {
@@ -106,6 +111,7 @@ export function createStore() {
         seats: data.seats,
         templates: data.templates ?? [],
         runtime,
+        budget: data.budget ?? null,
         activeId: known ? state.activeId : (data.rooms[0]?.id ?? 'dispatch'),
         error: null,
       })
@@ -164,6 +170,7 @@ export function createStore() {
     },
     simulate: () => post(`/api/rooms/${state.activeId}/simulate`, {}),
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
+    setBudget: budgetUsd => post(`/api/rooms/${state.activeId}/budget`, { budgetUsd }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
     resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),

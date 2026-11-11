@@ -7,6 +7,7 @@ const latestForStage = (messages, kind, stage) => [...messages]
 // 注意力路由：只在房间真的卡在人这里时返回一个信号；不是未读数。
 export const roomNeedsYou = (room, messages = []) => {
   if (room.state === 'paused') {
+    if (room.pauseReason === 'budget') return { kind: 'budget', stage: null, label: '预算已用尽 · 等你处理' }
     return room.idle === true ? { kind: 'idle', stage: null, label: '等你说话' } : null
   }
   if (room.state !== 'active') return null

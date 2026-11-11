@@ -15,7 +15,10 @@ const timeOf = ts => {
   }
 }
 
-const money = micro => `$${(micro / 1_000_000).toFixed(2)}`
+const money = micro => {
+  const usd = micro / 1_000_000
+  return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(3)}`
+}
 const independenceOf = room => room.independenceLabel ?? '独立性未标注'
 const NEEDS_TONE = {
   question: 'waiting',
@@ -27,6 +30,7 @@ const NEEDS_TONE = {
   idle: 'paused',
   merge: 'paused',
   parallel: 'paused',
+  budget: 'paused',
 }
 
 const activeIndex = room => room.stages.findIndex(stage => stage.state === 'active')
@@ -41,7 +45,7 @@ const islandStatus = room => {
   if (room.state === 'complete') return { label: '目标达成', tone: 'done' }
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
   if (room.state === 'paused') {
-    return room.needsYou?.kind === 'idle'
+    return room.needsYou?.kind === 'idle' || room.needsYou?.kind === 'budget'
       ? { label: room.needsYou.label, tone: 'paused' }
       : { label: '已暂停', tone: 'paused' }
   }
@@ -490,6 +494,13 @@ function Sidebar({ state, onSelect, onNew }) {
           active: activeId === room.id,
           onSelect: () => onSelect(room.id),
         })))),
+    state.budget?.globalBudgetMicroUsd > 0
+      ? h('div', { className: 'crew-me' },
+        h('span', { className: 'crew-me-badge' }, '预'),
+        h('span', { className: 'crew-me-body' },
+          h('b', null, '全局预算'),
+          h('small', null, `${money(state.budget.globalSpentMicroUsd)} / ${money(state.budget.globalBudgetMicroUsd)}`)))
+      : null,
     h('div', { className: 'crew-me' },
       h('span', { className: 'crew-me-badge' }, '你'),
       h('span', { className: 'crew-me-body' }, h('b', null, '你'))))
@@ -514,13 +525,23 @@ function RoomRow({ room, roster, active, onSelect }) {
     h('span', { className: 'bt-row-preview', 'data-needs': needs?.kind }, preview)))
 }
 
-function Advanced({ room, seats }) {
+function Advanced({ room, seats, store }) {
   const cost = room.usage?.costMicroUsd ?? 0
   const budget = room.usage?.budgetMicroUsd ?? 0
   const percent = budget === 0 ? 0 : Math.min(100, Math.round((cost / budget) * 100))
+  const [budgetDraft, setBudgetDraft] = useState(String(budget / 1_000_000))
+  useEffect(() => {
+    setBudgetDraft(String(budget / 1_000_000))
+  }, [room.id, budget])
+  const saveBudget = () => {
+    const value = Number(budgetDraft)
+    if (!Number.isFinite(value) || value < 0) return
+    void store.setBudget(value)
+  }
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
       h('span', null, `房间策略：${room.independencePolicy ?? '未标注'}`),
+      h('span', null, '预算按基座上报用量估算，不是账单'),
       room.repoPath ? h('span', null, `仓库：${room.repoPath}`) : null,
       room.sourceRepo ? h('span', null, `源仓库：${room.sourceRepo}`) : null,
       ...(room.seatSpecs ?? []).map(seat => (
@@ -537,7 +558,17 @@ function Advanced({ room, seats }) {
     h('div', { className: 'crew-budget' },
       h('span', null, '预算'),
       h('div', { className: 'crew-bar' }, h('i', { style: { width: `${percent}%` } })),
-      h('b', null, `${money(cost)} / ${money(budget)}`)),
+      h('b', null, budget === 0 ? `${money(cost)} / 不限` : `${money(cost)} / ${money(budget)}`)),
+    h('div', { className: 'crew-budget-edit' },
+      h('span', null, '房间预算（美元，0 为不限）'),
+      h('input', {
+        type: 'number',
+        min: 0,
+        step: 1,
+        value: budgetDraft,
+        onChange: event => setBudgetDraft(event.target.value),
+      }),
+      h('button', { type: 'button', className: 'crew-choice', onClick: saveBudget }, '保存')),
     h('table', { className: 'crew-adv-table' },
       h('thead', null, h('tr', null,
         ['席位', '引擎', '权限', '发言预算'].map(label => h('th', { key: label }, label)))),
@@ -875,7 +906,7 @@ function RoomView({ state, room, store }) {
       onToggleAdvanced: () => setAdvanced(value => !value),
       store,
     }),
-    advanced ? h(Advanced, { room, seats }) : null,
+    advanced ? h(Advanced, { room, seats, store }) : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll' },
       h('div', { className: 'crew-flow' }, h(Timeline, {
         room,

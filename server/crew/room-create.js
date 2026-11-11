@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
+import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from './budget.js'
 import { workspaceRoot } from './paths.js'
 import { created, fail } from './result.js'
 import { writeBrief, writeGoal } from './room-repo.js'
@@ -39,6 +40,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const acceptance = typeof body.acceptance === 'string' ? body.acceptance.trim() : ''
   if (verify === 'test' && acceptance === '') return fail('invalid', '交付型房间需要一条验收命令')
   if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
+  const globalBudget = globalBudgetStatus(store.readRooms())
+  if (!globalBudget.ok) return fail('conflict', `${globalBudget.message}；${budgetHint(globalBudget)}`)
+  const budgetMicroUsd = roomBudgetFromBody(body)
 
   let plan = null
   if (body.plan !== undefined && body.plan !== null) {
@@ -196,7 +200,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
           ? [`${workers.length} 个执行席位并行，各自 worktree；系统把候选分支合并到房间分支 ${workspaces.primaryBranch}，冲突时停下等你`]
           : []),
       ],
-      usage: { costMicroUsd: 0, budgetMicroUsd: 0, turns: 0 },
+      usage: { costMicroUsd: 0, budgetMicroUsd, turns: 0 },
       members: roster.map(seat => seat.id),
       stages: plan !== null
         ? [verify === 'test'

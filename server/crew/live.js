@@ -1,3 +1,4 @@
+import { budgetHint, budgetStatus } from './budget.js'
 import { createLiveTurns } from './live-turns.js'
 import { writeBrief, writeGoal } from './room-repo.js'
 
@@ -47,6 +48,25 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
     }
   }
 
+  // 到预算线只暂停新任务，不取消正在跑的回合；同一暂停只写一条系统消息。
+  const pauseForBudget = (room, status) => {
+    const paused = store.updateRoom(room.id, current => {
+      if (current.state !== 'active') return null
+      current.state = 'paused'
+      current.pauseReason = 'budget'
+      current.budgetBlocked = true
+      current.idle = false
+      return { events: [{ type: 'room.budget_pause', payload: { reason: status.roomBlocked ? 'room' : 'global' } }] }
+    })
+    if (paused === null) return null
+    store.appendMessage(room.id, {
+      kind: 'system',
+      text: `预算已用尽：${status.message}；新任务已暂停，${budgetHint(status)}。`,
+    })
+    emit('room', paused)
+    return paused
+  }
+
   const refreshRoom = (entry, { force = false } = {}) => {
     const now = Date.now()
     if (!force && now - entry.refreshedAt < 1_500) return
@@ -71,7 +91,12 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
           current.usage = { ...current.usage, ...usage }
           return { events: [] }
         })
-        if (updated !== null) emit('room', updated)
+        if (updated === null) return
+        emit('room', updated)
+        if (updated.state === 'active') {
+          const status = budgetStatus(updated, store.readRooms())
+          if (!status.ok) pauseForBudget(updated, status)
+        }
       } catch {
         return
       }

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { collectDiff, collectRange, runCommand } from './acceptance.js'
+import { budgetStatus } from './budget.js'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
 import { reject } from './result.js'
 import { markSeatRead } from './watermarks.js'
@@ -667,6 +668,8 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     const stage = room?.stages?.[stageIndex]
     if (stage === undefined || stage.kind !== 'deliverable') reject('invalid', '这个阶段不是交付型')
     if (stage.state !== 'active') reject('conflict', '这个阶段不在待验收状态')
+    const budget = budgetStatus(room, store.readRooms())
+    if (!budget.ok) reject('conflict', budget.message)
 
     const messages = store.readMessages(roomId)
     const verdicts = messages.filter(message => message.kind === 'verdict' && message.meta?.stage === stageIndex)

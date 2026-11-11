@@ -36,6 +36,14 @@ test('a busy seat is not a needs-you state', () => {
   assert.equal(roomNeedsYou(room({ busy: true }), []), null)
 })
 
+test('a budget pause asks the human to raise it', () => {
+  assert.deepEqual(roomNeedsYou({ state: 'paused', pauseReason: 'budget' }, []), {
+    kind: 'budget',
+    stage: null,
+    label: '预算已用尽 · 等你处理',
+  })
+})
+
 test('a deliverable without an acceptance command asks for setup', () => {
   const r = atDeliverable()
   r.stages[1].acceptance = ''
