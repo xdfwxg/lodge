@@ -3,6 +3,10 @@ import { BotAvatar, BotMark, RoomAvatar } from './marks.js'
 import { ArrowUpIcon } from './icons.js'
 import { MarkdownText } from './primitives.js'
 import { createStore, useStore } from './store.js'
+import {
+  activeIndex, evidenceFor, goalAnswers, goalFaces, islandStatus, rejectsFor, seatState, seatTask,
+  STAGE_KIND, TASK_LABEL, trackTone, verdictFor,
+} from './island.js'
 
 const MD = { code: { copyLabel: '复制', copiedLabel: '已复制' } }
 const clock = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -35,121 +39,6 @@ const seatPermissionOf = (room, seat) => {
   if (!seat.permissions?.write) return seat.permissions?.exec ? '只读 + 执行' : '只读'
   return room.workspace?.capabilities?.isolation === 'copy' ? '副本写' : 'worktree 写'
 }
-const NEEDS_TONE = {
-  question: 'waiting',
-  decision: 'waiting',
-  signoff: 'done',
-  review: 'checking',
-  rework: 'paused',
-  setup: 'waiting',
-  idle: 'paused',
-  merge: 'paused',
-  parallel: 'paused',
-  budget: 'paused',
-  mcp: 'paused',
-}
-
-const activeIndex = room => room.stages.findIndex(stage => stage.state === 'active')
-const evidenceFor = (room, index) => room.messages.filter(message => (
-  message.kind === 'evidence' && (message.meta?.stage ?? 0) === index
-))
-const verdictFor = (room, index) => [...room.messages].reverse().find(message => (
-  message.kind === 'verdict' && (message.meta?.stage ?? 0) === index
-))
-const rejectsFor = (room, index) => room.messages.filter(message => (
-  message.kind === 'verdict' && message.meta?.pass === false && (message.meta?.stage ?? 0) === index
-))
-
-const islandStatus = room => {
-  if (room.state === 'complete') return { label: '目标达成', tone: 'done' }
-  if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
-  if (room.state === 'paused') {
-    return room.needsYou?.kind === 'idle' || room.needsYou?.kind === 'budget'
-      ? { label: room.needsYou.label, tone: 'paused' }
-      : { label: '已暂停', tone: 'paused' }
-  }
-  if (room.busy === true) {
-    const busy = Array.isArray(room.busySeats) ? room.busySeats : room.busySeat ? [room.busySeat] : []
-    if (busy.length > 1) return { label: `${busy.length} 个执行在做`, tone: 'active' }
-    const seat = room.seatSpecs?.find(item => item.id === busy[0])?.name
-    return { label: `${seat ?? '席位'}在做`, tone: 'active' }
-  }
-  if (room.needsYou) {
-    return { label: room.needsYou.label, tone: NEEDS_TONE[room.needsYou.kind] ?? 'waiting' }
-  }
-  return { label: '进行中', tone: 'active' }
-}
-
-const trackTone = (room, stage, index) => {
-  if (stage.state === 'passed') return 'passed'
-  if (stage.state !== 'active') return 'pending'
-  if (room.state === 'paused') return 'paused'
-  if (room.needsYou?.stage === index && room.needsYou.kind === 'review') return 'checking'
-  return 'active'
-}
-
-const seatRole = (room, seatId) => (
-  room.seatSpecs?.find(seat => seat.id === seatId)?.role
-  ?? (seatId === 'planner' ? 'lead' : seatId === 'verifier' ? 'verifier' : 'worker')
-)
-const leadOf = room => room.leadSeat ?? 'planner'
-const workerOf = room => room.workers?.[0] ?? 'executor'
-const verifierOf = room => room.verifiers?.[0] ?? null
-
-const workingSeats = (room, index) => {
-  if (room.state !== 'active') return []
-  if (room.live === true) return Array.isArray(room.busySeats) ? room.busySeats : room.busySeat ? [room.busySeat] : []
-  const stage = room.stages[index]
-  if (stage === undefined) return []
-  if (room.openQuestion) return [leadOf(room)]
-  if (stage.kind === 'decision') return [leadOf(room)]
-  const verdict = verdictFor(room, index)
-  if (verdict !== undefined) return []
-  if (evidenceFor(room, index).length === 0) return room.workers ?? [workerOf(room)]
-  const verifier = verifierOf(room)
-  return verifier === null ? [] : [verifier]
-}
-
-const seatTask = (seat, stage) => {
-  if (seat.role === 'lead') {
-    return stage.kind === 'decision' ? '讲清「做到什么算过」，等你拍板' : '拆出这一段的写范围与验收'
-  }
-  if (seat.role === 'worker') {
-    return stage.acceptance ? `按 \`${stage.acceptance}\` 交付` : '交付这一步的产物'
-  }
-  if (seat.role === 'verifier') return '独立复跑，给 PASS 或 REJECT'
-  return '只读观察'
-}
-
-const seatState = (room, stage, index, seatId) => {
-  const busy = Array.isArray(room.busySeats) ? room.busySeats : room.busySeat ? [room.busySeat] : []
-  if (busy.includes(seatId)) return 'working'
-  if (stage.state === 'passed') return 'done'
-  if (stage.state === 'pending') return 'pending'
-  if (room.state === 'paused' || room.state === 'stopped') return 'paused'
-  const evidence = evidenceFor(room, index)
-  const verdict = verdictFor(room, index)
-  const role = seatRole(room, seatId)
-  const seatEvidence = room.messages.some(message => (
-    message.kind === 'evidence' && message.authorId === seatId && (message.meta?.stage ?? 0) === index
-  ))
-  if (role === 'lead') return stage.kind === 'decision' ? (room.live === true ? 'idle' : 'working') : 'done'
-  if (role === 'worker') {
-    if (seatEvidence) return 'done'
-    if (stage.kind !== 'deliverable') return 'pending'
-    return room.live === true ? 'idle' : 'working'
-  }
-  if (role === 'verifier') {
-    if (verdict !== undefined) return 'done'
-    if (evidence.length === 0) return 'pending'
-    return room.live === true ? 'idle' : 'working'
-  }
-  return 'idle'
-}
-
-const STAGE_KIND = { decision: '决策 · 你确认才算过', deliverable: '交付 · 命令与证据说话' }
-const TASK_LABEL = { pending: '未开始', working: '在做', reported: '已交', done: '已完成', failed: '失败' }
-
 function StageStep({ stage, index, selected, onSelect, rework = 0, partial = 0 }) {
   const note = [
     rework > 0 ? `返工 ${rework} 次` : '',
@@ -294,25 +183,8 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
   const done = room.stages.filter(stage => stage.state === 'passed').length
   const progress = room.state === 'complete' ? room.stages.length : current >= 0 ? current + 1 : done
   const selected = picked ?? (current >= 0 ? current : room.stages.length - 1)
-  const selectedStage = room.stages[selected]
-  const workers = workingSeats(room, current)
-  const currentTasks = current >= 0 ? room.stages[current]?.tasks ?? [] : []
-  const taskOwners = [...new Set(currentTasks.map(task => task.owner))]
-  const faceIds = taskOwners.length > 0 ? taskOwners : workers
-  const working = seats.filter(seat => faceIds.includes(seat.id))
-  const answers = [
-    ['目标', room.brief?.objective || room.goal || '—', 'goal'],
-    ['进度', room.state === 'complete'
-      ? `${room.stages.length}/${room.stages.length} · 目标达成`
-      : current >= 0
-        ? `${current + 1}/${room.stages.length} · ${room.stages[current].title}`
-        : `${done}/${room.stages.length} · 已停止`, 'progress'],
-    ['怎么算过', selectedStage === undefined
-      ? '—'
-      : selectedStage.kind === 'deliverable'
-        ? (selectedStage.acceptance ?? '未写验收命令')
-        : '你点过才算过', 'acceptance'],
-  ]
+  const { seats: working, working: workingSet } = goalFaces(room, seats, current)
+  const answers = goalAnswers(room, selected)
 
   useEffect(() => {
     if (!armed) return undefined
@@ -361,7 +233,7 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
       }))),
       working.length > 0
         ? h('div', { className: 'crew-island-faces' },
-          working.slice(0, 4).map(seat => h(BotAvatar, { key: seat.id, bot: seat, size: 20, live: workers.includes(seat.id) })),
+          working.slice(0, 4).map(seat => h(BotAvatar, { key: seat.id, bot: seat, size: 20, live: workingSet.has(seat.id) })),
           working.length > 4 ? h('span', { className: 'crew-island-more' }, `+${working.length - 4}`) : null)
         : null),
     open

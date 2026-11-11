@@ -12,7 +12,7 @@
     "dev:ui": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test server/crew/*.test.js",
+    "test": "node --test server/crew/*.test.js ui/src/*.test.js",
     "eval:planning": "node evals/planning/run.mjs",
     "samples:generate": "node scripts/generate-samples.mjs",
     "samples:export": "node scripts/export-sample.mjs",
