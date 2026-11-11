@@ -1,0 +1,77 @@
+{
+  "format": "lodge.room-handoff.v1",
+  "version": 1,
+  "exportedAt": "2026-11-12T09:00:00.000Z",
+  "room": {
+    "id": "room-oauth",
+    "name": "登录迁移 OAuth",
+    "goal": "把会话登录换成 OAuth；旧 cookie 路径保留一个版本",
+    "state": "active",
+    "templateId": null,
+    "independence": "vendor",
+    "plan": null,
+    "stages": [
+      {
+        "title": "调研与接口设计",
+        "kind": "decision",
+        "state": "active"
+      },
+      {
+        "title": "接入 OAuth 回调",
+        "kind": "deliverable",
+        "state": "pending",
+        "acceptance": "npm test"
+      },
+      {
+        "title": "旧 cookie 兼容",
+        "kind": "deliverable",
+        "state": "pending",
+        "acceptance": "npm test && ./scripts/e2e.sh"
+      }
+    ],
+    "constraints": [],
+    "seats": [],
+    "seatNames": {},
+    "leadSeat": null,
+    "workers": [],
+    "verifiers": [],
+    "branch": "",
+    "branches": {},
+    "engines": {},
+    "engineFallbacks": {},
+    "usage": {
+      "costMicroUsd": 12600,
+      "budgetMicroUsd": 150000,
+      "turns": 3
+    },
+    "workspace": {
+      "provider": "git",
+      "capabilities": {
+        "vcs": "git",
+        "isolation": "worktree",
+        "diff": "patch",
+        "candidate": true,
+        "merge": true,
+        "commit": true,
+        "acceptanceCopy": true
+      }
+    }
+  },
+  "files": {
+    "BRIEF.md": "# 目标：把会话登录换成 OAuth；旧 cookie 路径保留一个版本\n\ndone:\n- [ ] 调研与接口设计\n- [ ] 接入 OAuth 回调\n- [ ] 旧 cookie 兼容\n\nconstraints:\n- 这是模拟样本，用来演示房间记录、目标岛与交接包；不是真实交付\n- 交付型阶段必须有命令证据\n",
+    "GOAL.md": "# 目标投影（运行时生成，不是编辑对象）\n\n目标：把会话登录换成 OAuth；旧 cookie 路径保留一个版本\n状态：active\n仓库：（示例仓库）\n\n阶段：\n- [active] 1. 调研与接口设计 · decision\n- [pending] 2. 接入 OAuth 回调 · deliverable · 验收：npm test\n- [pending] 3. 旧 cookie 兼容 · deliverable · 验收：npm test && ./scripts/e2e.sh\n",
+    "transcript.jsonl": "{\"kind\":\"system\",\"text\":\"目标已对齐 · 3 个阶段\",\"id\":\"room-oauth-m1\",\"roomId\":\"room-oauth\",\"seq\":1,\"ts\":1794468300000}\n{\"kind\":\"chat\",\"authorId\":\"you\",\"text\":\"把登录换成 OAuth，旧 cookie 路径保留一个版本。\",\"id\":\"room-oauth-m2\",\"roomId\":\"room-oauth\",\"seq\":2,\"ts\":1794468360000}\n{\"kind\":\"chat\",\"authorId\":\"planner\",\"text\":\"阶段 1 需要你拍板两件事：回调地址；旧 cookie 只读兼容一版，不做续期。\\n\\n1. 回调地址用 `/auth/callback` 还是 `/oauth/callback`？\\n2. 旧 cookie 只读兼容，确认一版后删掉？\\n\\n推荐：`/auth/callback` + 只读兼容一版。@验收 到时候独立复跑迁移脚本。\",\"id\":\"room-oauth-m3\",\"roomId\":\"room-oauth\",\"seq\":3,\"ts\":1794468600000}\n",
+    "events.jsonl": "{\"id\":\"room-oauth-e1\",\"roomId\":\"room-oauth\",\"type\":\"room.created\",\"payload\":{\"live\":false,\"sample\":true},\"at\":1794472800000}\n"
+  },
+  "redactions": [
+    "本机绝对路径已替换为占位符"
+  ],
+  "sanitized": true,
+  "sanitizeNote": "公开样本：密钥、令牌、邮箱与本机路径已移除。",
+  "redactionCount": 0,
+  "sample": {
+    "kind": "simulated",
+    "source": "server/crew/seeds.js",
+    "note": "模拟数据，用于演示交接包、目标岛与复盘视图；不是真实交付。"
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "format": "lodge.room-handoff.v1",
+  "version": 1,
+  "exportedAt": "2026-11-11T20:01:16.986Z",
+  "room": {
+    "id": "room-f0d790",
+    "name": "修复 sum.js，让 npm test 通过",
+    "goal": "修复 sum.js，让 npm test 通过",
+    "state": "complete",
+    "templateId": "custom",
+    "independence": "solo",
+    "plan": null,
+    "stages": [
+      {
+        "title": "修复 sum.js，让 npm test 通过",
+        "kind": "deliverable",
+        "state": "passed",
+        "acceptance": "node --test"
+      }
+    ],
+    "constraints": [
+      "验收命令：node --test",
+      "执行 在自己的 worktree",
+      "单人模板没有独立验收席位，由你凭证据签字"
+    ],
+    "seats": [
+      {
+        "id": "worker",
+        "name": "执行",
+        "title": "实现",
+        "role": "worker",
+        "station": "worktree 写 · 改代码跑测试",
+        "permissions": {
+          "read": true,
+          "exec": true,
+          "write": true
+        },
+        "writeScope": "own_worktree",
+        "toolSurface": [
+          "read",
+          "exec",
+          "write"
+        ],
+        "skills": [],
+        "mcp": [],
+        "approval": "auto",
+        "speakBudget": 8
+      }
+    ],
+    "seatNames": {
+      "worker": "Workerf0d790"
+    },
+    "leadSeat": "worker",
+    "workers": [
+      "worker"
+    ],
+    "verifiers": [],
+    "branch": "crew/f0d790/worker",
+    "branches": {
+      "worker": "crew/f0d790/worker"
+    },
+    "engines": {
+      "worker": "claude"
+    },
+    "engineFallbacks": {
+      "worker": {
+        "requested": "codex-cli",
+        "actual": "claude",
+        "reason": "codex-cli 不可用：`codex` CLI not found"
+      }
+    },
+    "usage": {
+      "costMicroUsd": 97911,
+      "budgetMicroUsd": 5000000,
+      "turns": 1
+    },
+    "workspace": {
+      "provider": "git",
+      "capabilities": {
+        "vcs": "git",
+        "isolation": "worktree",
+        "diff": "patch",
+        "candidate": true,
+        "merge": true,
+        "commit": true,
+        "acceptanceCopy": true
+      }
+    }
+  },
+  "files": {
+    "BRIEF.md": "# 目标：修复 sum.js，让 npm test 通过\n\ndone:\n- [ ] 阶段 1：修复 sum.js，让 npm test 通过（交付型 · 需证据）\n\nconstraints:\n- 验收命令：node --test\n- 执行 在自己的 worktree\n- 单人模板没有独立验收席位，由你凭证据签字\n- 决策型阶段必须由人点过，不能由模型代点\n- 交付型阶段必须在本阶段有证据落盘（证据在 evidence/，与 transcript 同一份真相）\n- 验收由你凭证据签字\n",
+    "GOAL.md": "# 目标投影（运行时生成，不是编辑对象）\n\n目标：修复 sum.js，让 npm test 通过\n状态：complete\n仓库：（房间工作区）\n席位：执行（worker）\n\n阶段：\n- [passed] 1. 修复 sum.js，让 npm test 通过 · deliverable · 验收：node --test\n",
+    "CONCLUSION.md": "# 结论：修复 sum.js，让 npm test 通过\n\n- 完成时间：2026-11-11T20:01:10.353Z\n- 独立性：单人 · 人签字\n- 目标仓库：（房间工作区）\n- 源仓库：（源仓库）\n- 交付分支：crew/f0d790/worker\n\n## 阶段与验收\n- 阶段 1 修复 sum.js，让 npm test 通过：按证据验收\n",
+    "transcript.jsonl": "{\"kind\":\"system\",\"text\":\"房间已创建 · 模板 自定义 · 1 席各自工作区\",\"id\":\"889cd892-8d88-429a-9d29-8e5a864a04a9\",\"roomId\":\"room-f0d790\",\"seq\":1,\"ts\":1794427260236}\n{\"kind\":\"system\",\"text\":\"源仓库 （源仓库） · 执行分支 crew/f0d790/worker\",\"id\":\"0ba37a74-7950-4a39-a477-3028d39c8bbc\",\"roomId\":\"room-f0d790\",\"seq\":2,\"ts\":1794427260239}\n{\"kind\":\"system\",\"text\":\"引擎降级：worker 请求 codex-cli，实际 claude。跨厂商独立性不成立，验收卡会按实际引擎标注。\",\"id\":\"0903c248-fdd3-49e5-968b-9b054ca07633\",\"roomId\":\"room-f0d790\",\"seq\":3,\"ts\":1794427260241}\n{\"id\":\"ab9944c6-99a8-46a7-850e-7c700d1228a5\",\"roomId\":\"room-f0d790\",\"ts\":1794427260295,\"kind\":\"activity\",\"authorId\":\"worker\",\"text\":\"执行 的近期工作摘要涵盖与你的 1 个私聊\",\"meta\":{\"ok\":true},\"seq\":4}\n{\"id\":\"0746ccf2-a061-45f8-8b53-506611e7488d\",\"roomId\":\"room-f0d790\",\"ts\":1794427262028,\"kind\":\"chat\",\"authorId\":\"worker\",\"text\":\"I'll look at the workspace and run the tests first.\",\"seq\":5}\n{\"id\":\"76d26108-03a9-4da0-8351-a1f18a29aa7d\",\"roomId\":\"room-f0d790\",\"ts\":1794427262216,\"kind\":\"activity\",\"authorId\":\"worker\",\"text\":\"Bash\",\"meta\":{\"ok\":true},\"seq\":6}\n{\"id\":\"ecc53c01-7868-4a15-969f-789df424ee52\",\"roomId\":\"room-f0d790\",\"ts\":1794427263562,\"kind\":\"activity\",\"authorId\":\"worker\",\"text\":\"Bash\",\"meta\":{\"ok\":true},\"seq\":7}\n{\"id\":\"5286e599-e1aa-4632-bca2-615764023344\",\"roomId\":\"room-f0d790\",\"ts\":1794427265972,\"kind\":\"chat\",\"authorId\":\"worker\",\"text\":\"Bug is the operator: `sum.js` subtracts instead of adding.\",\"seq\":8}\n{\"id\":\"35609250-dd2e-42eb-997e-711289a8f358\",\"roomId\":\"room-f0d790\",\"ts\":1794427266239,\"kind\":\"activity\",\"authorId\":\"worker\",\"text\":\"Edit\",\"meta\":{\"ok\":true},\"seq\":9}\n{\"id\":\"bb14dc24-a8c7-4041-850b-614e2e6ceec0\",\"roomId\":\"room-f0d790\",\"ts\":1794427267342,\"kind\":\"activity\",\"authorId\":\"worker\",\"text\":\"Bash\",\"meta\":{\"ok\":true},\"seq\":10}\n{\"id\":\"7d60f942-3106-4f5f-a5ac-34bd87f24aa3\",\"roomId\":\"room-f0d790\",\"ts\":1794427269591,\"kind\":\"chat\",\"authorId\":\"worker\",\"text\":\"改了 `sum.js:1`，把 `a - b` 改成 `a + b`；跑了 `node --test`，1 个测试全部通过（pass 1 / fail 0）。\",\"seq\":11}\n{\"kind\":\"evidence\",\"authorId\":\"worker\",\"text\":\"改了 `sum.js:1`，把 `a - b` 改成 `a + b`；跑了 `node --test`，1 个测试全部通过（pass 1 / fail 0）。\",\"meta\":{\"kind\":\"turn\",\"vcs\":\"git\",\"stage\":0,\"turnId\":\"4ac50ba8-7d7b-45bb-a43c-a4e47f11d067\",\"summary\":\"工具：Bash ×3 (1 失败) · Edit ×1 · 回合：9.4s\",\"durationMs\":9410,\"files\":[\"sum.js\"],\"artifacts\":[{\"path\":\"（房间工作区）/sum.js\",\"bytes\":33,\"sha256\":\"cfa01b99b8ac57e8192308486f5ed486bdf5c792e1dbd340f11bbe198c7bb760\",\"content\":\"module.exports = (a, b) => a + b\\n\"}],\"output\":\"{\\n  \\\"tools\\\": [\\n    {\\n      \\\"name\\\": \\\"Bash\\\",\\n      \\\"count\\\": 3,\\n      \\\"failed\\\": 1,\\n      \\\"sample\\\": \\\"ls -la && cat package.json 2>/dev/null && ls test* 2>/dev/null\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"Edit\\\",\\n      \\\"count\\\": 1,\\n      \\\"failed\\\": 0\\n    }\\n  ],\\n  \\\"toolCalls\\\": 4,\\n  \\\"usage\\\": {\\n    \\\"input\\\": 165727,\\n    \\\"output\\\": 423,\\n    \\\"costUsd\\\": 0.0979112\\n  },\\n  \\\"hookCoverage\\\": \\\"preview\\\"\\n}\",\"capturedAt\":\"2026-11-11T20:01:09.735Z\",\"evidenceRef\":\"evidence/de7b7139-db16-47a0-bc13-e83067cf73e3.json\"},\"id\":\"de7b7139-db16-47a0-bc13-e83067cf73e3\",\"roomId\":\"room-f0d790\",\"seq\":12,\"ts\":1794427269735}\n{\"kind\":\"evidence\",\"authorId\":\"system\",\"text\":\"验收命令 `node --test` 已在一次性验收副本执行，退出码 0。\",\"meta\":{\"kind\":\"command\",\"vcs\":\"git\",\"stage\":0,\"command\":\"node --test\",\"exit\":0,\"output\":\"✔ sum adds (0.363542ms)\\nℹ tests 1\\nℹ suites 0\\nℹ pass 1\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 43.367417\\n\",\"diff\":\"diff --git a/sum.js b/sum.js\\nindex bf2c29f..e84213f 100644\\n--- a/sum.js\\n+++ b/sum.js\\n@@ -1 +1 @@\\n-module.exports = (a, b) => a - b\\n+module.exports = (a, b) => a + b\\n\",\"status\":\"M sum.js\",\"files\":[\"sum.js\"],\"manifest\":[],\"changedFiles\":[\"sum.js\"],\"note\":\"\",\"durationMs\":86,\"repoPath\":\"（房间工作区）\",\"commandCwd\":\"[本机路径已移除]\",\"isolated\":true,\"sandbox\":\"network-deny\",\"candidate\":\"2d7efb1718669e26da52745579191f1994454783\",\"turnId\":\"4ac50ba8-7d7b-45bb-a43c-a4e47f11d067\",\"simulated\":false,\"capturedAt\":\"2026-11-11T20:01:10.021Z\",\"evidenceRef\":\"evidence/cf16ad1c-9e01-4a7d-a94a-8c0153768158.json\"},\"id\":\"cf16ad1c-9e01-4a7d-a94a-8c0153768158\",\"roomId\":\"room-f0d790\",\"seq\":13,\"ts\":1794427270021}\n{\"kind\":\"system\",\"text\":\"验收命令完成 · exit 0 · 等待独立复核\",\"id\":\"d1481962-278c-401f-a942-3edbfdbcd003\",\"roomId\":\"room-f0d790\",\"seq\":14,\"ts\":1794427270033}\n{\"kind\":\"system\",\"text\":\"验收命令完成 · 这个房间没有独立验收席位 · 等你签字\",\"id\":\"dc86644e-9ea4-46b4-b91e-ab989b875f6a\",\"roomId\":\"room-f0d790\",\"seq\":15,\"ts\":1794427270041}\n{\"kind\":\"system\",\"text\":\"阶段 1 已按证据验收\",\"meta\":{\"kind\":\"gate\",\"gate\":\"deliverable\",\"stage\":0,\"by\":\"you\"},\"id\":\"829138d4-6cbb-42b7-a4cd-489aaa5a1353\",\"roomId\":\"room-f0d790\",\"seq\":16,\"ts\":1794427270340}\n{\"kind\":\"conclusion\",\"authorId\":\"planner\",\"text\":\"目标达成：修复 sum.js，让 npm test 通过\",\"meta\":{\"stages\":1,\"commands\":[\"node --test\"]},\"id\":\"55daf0c8-d4b4-4d47-9aaf-f1ed04d32b1f\",\"roomId\":\"room-f0d790\",\"seq\":17,\"ts\":1794427270345}\n{\"kind\":\"system\",\"text\":\"已写入 CONCLUSION.md · 本地 commit 一次 · 未 push\",\"id\":\"d7176ea9-fd29-41ee-a4ac-2e12b33cff1e\",\"roomId\":\"room-f0d790\",\"seq\":18,\"ts\":1794427270358}\n",
+    "events.jsonl": "{\"id\":\"1a9970ff-1815-4307-9ec3-10b5b6a134c1\",\"roomId\":\"room-f0d790\",\"type\":\"room.created\",\"payload\":{\"live\":true,\"templateId\":\"custom\",\"seats\":[\"worker\"],\"sourceRepo\":\"（源仓库）\",\"branch\":\"crew/f0d790/worker\"},\"at\":1794427260228}\n{\"id\":\"51095730-8710-430f-826a-f5fd9fc3ab5a\",\"roomId\":\"room-f0d790\",\"type\":\"room.watermark\",\"payload\":{\"seat\":\"worker\",\"seq\":3},\"at\":1794427260255}\n{\"id\":\"9060ebdd-6d8e-433b-8174-fe7163b0ae9d\",\"roomId\":\"room-f0d790\",\"type\":\"turn.completed\",\"payload\":{\"turnId\":\"4ac50ba8-7d7b-45bb-a43c-a4e47f11d067\",\"seat\":\"worker\"},\"at\":1794427269729}\n{\"id\":\"11b14a81-d511-4498-ae28-f2dec710e418\",\"roomId\":\"room-f0d790\",\"type\":\"turn.evidence\",\"payload\":{\"stage\":0,\"turnId\":\"4ac50ba8-7d7b-45bb-a43c-a4e47f11d067\"},\"at\":1794427269744}\n{\"id\":\"010c65f2-e239-4f2a-aebc-fc0db3dfa56e\",\"roomId\":\"room-f0d790\",\"type\":\"room.turn\",\"payload\":{\"round\":1,\"noProgress\":0,\"progressed\":true},\"at\":1794427269747}\n{\"id\":\"b7491d9b-899c-4fa1-8cd6-93c863c1ef57\",\"roomId\":\"room-f0d790\",\"type\":\"room.candidate\",\"payload\":{\"stage\":0,\"turnId\":\"4ac50ba8-7d7b-45bb-a43c-a4e47f11d067\",\"commit\":\"2d7efb1718669e26da52745579191f1994454783\"},\"at\":1794427269900}\n{\"id\":\"8133e788-2fbc-46c3-b9df-ab8f61d39978\",\"roomId\":\"room-f0d790\",\"type\":\"acceptance.run\",\"payload\":{\"stage\":0,\"command\":\"node --test\",\"exit\":0,\"durationMs\":86,\"isolated\":true,\"sandbox\":\"network-deny\",\"candidate\":\"2d7efb1718669e26da52745579191f1994454783\"},\"at\":1794427270030}\n{\"id\":\"43b5d62b-b513-450d-9784-d4647b9abc55\",\"roomId\":\"room-f0d790\",\"type\":\"room.progress\",\"payload\":{\"at\":1794427270038},\"at\":1794427270038}\n{\"id\":\"6ad445ce-c944-4c52-a18f-ad2cf5a7d923\",\"roomId\":\"room-f0d790\",\"type\":\"stage.passed\",\"payload\":{\"stage\":0,\"kind\":\"deliverable\",\"by\":\"you\"},\"at\":1794427270325}\n{\"id\":\"97357d29-3b81-4284-b6c9-1bed03ffa864\",\"roomId\":\"room-f0d790\",\"type\":\"room.complete\",\"payload\":{},\"at\":1794427270325}\n{\"id\":\"edfa1ab9-725d-4031-8650-84050cce86f0\",\"roomId\":\"room-f0d790\",\"type\":\"room.conclusion\",\"payload\":{\"stages\":1,\"commands\":[\"node --test\"]},\"at\":1794427270349}\n{\"id\":\"f803ea80-1479-438f-a7b5-48f52211bfa9\",\"roomId\":\"room-f0d790\",\"type\":\"room.commit\",\"payload\":{\"status\":\"done\",\"vcs\":\"git\"},\"at\":1794427270419}\n",
+    "evidence/cf16ad1c-9e01-4a7d-a94a-8c0153768158.json": "{\n  \"kind\": \"command\",\n  \"vcs\": \"git\",\n  \"stage\": 0,\n  \"command\": \"node --test\",\n  \"exit\": 0,\n  \"output\": \"✔ sum adds (0.363542ms)\\nℹ tests 1\\nℹ suites 0\\nℹ pass 1\\nℹ fail 0\\nℹ cancelled 0\\nℹ skipped 0\\nℹ todo 0\\nℹ duration_ms 43.367417\\n\",\n  \"diff\": \"diff --git a/sum.js b/sum.js\\nindex bf2c29f..e84213f 100644\\n--- a/sum.js\\n+++ b/sum.js\\n@@ -1 +1 @@\\n-module.exports = (a, b) => a - b\\n+module.exports = (a, b) => a + b\\n\",\n  \"status\": \"M sum.js\",\n  \"files\": [\n    \"sum.js\"\n  ],\n  \"manifest\": [],\n  \"changedFiles\": [\n    \"sum.js\"\n  ],\n  \"note\": \"\",\n  \"durationMs\": 86,\n  \"repoPath\": \"（房间工作区）\",\n  \"commandCwd\": \"[本机路径已移除]\",\n  \"isolated\": true,\n  \"sandbox\": \"network-deny\",\n  \"candidate\": \"2d7efb1718669e26da52745579191f1994454783\",\n  \"turnId\": \"4ac50ba8-7d7b-45bb-a43c-a4e47f11d067\",\n  \"simulated\": false,\n  \"capturedAt\": \"2026-11-11T20:01:10.021Z\",\n  \"evidenceRef\": \"evidence/cf16ad1c-9e01-4a7d-a94a-8c0153768158.json\"\n}",
+    "evidence/de7b7139-db16-47a0-bc13-e83067cf73e3.json": "{\n  \"kind\": \"turn\",\n  \"vcs\": \"git\",\n  \"stage\": 0,\n  \"turnId\": \"4ac50ba8-7d7b-45bb-a43c-a4e47f11d067\",\n  \"summary\": \"工具：Bash ×3 (1 失败) · Edit ×1 · 回合：9.4s\",\n  \"durationMs\": 9410,\n  \"files\": [\n    \"sum.js\"\n  ],\n  \"artifacts\": [\n    {\n      \"path\": \"（房间工作区）/sum.js\",\n      \"bytes\": 33,\n      \"sha256\": \"cfa01b99b8ac57e8192308486f5ed486bdf5c792e1dbd340f11bbe198c7bb760\",\n      \"content\": \"module.exports = (a, b) => a + b\\n\"\n    }\n  ],\n  \"output\": \"{\\n  \\\"tools\\\": [\\n    {\\n      \\\"name\\\": \\\"Bash\\\",\\n      \\\"count\\\": 3,\\n      \\\"failed\\\": 1,\\n      \\\"sample\\\": \\\"ls -la && cat package.json 2>/dev/null && ls test* 2>/dev/null\\\"\\n    },\\n    {\\n      \\\"name\\\": \\\"Edit\\\",\\n      \\\"count\\\": 1,\\n      \\\"failed\\\": 0\\n    }\\n  ],\\n  \\\"toolCalls\\\": 4,\\n  \\\"usage\\\": {\\n    \\\"input\\\": 165727,\\n    \\\"output\\\": 423,\\n    \\\"costUsd\\\": 0.0979112\\n  },\\n  \\\"hookCoverage\\\": \\\"preview\\\"\\n}\",\n  \"capturedAt\": \"2026-11-11T20:01:09.735Z\",\n  \"evidenceRef\": \"evidence/de7b7139-db16-47a0-bc13-e83067cf73e3.json\"\n}"
+  },
+  "redactions": [
+    "本机绝对路径已替换为占位符"
+  ],
+  "sanitized": true,
+  "sanitizeNote": "公开样本：密钥、令牌、邮箱与本机路径已移除。",
+  "redactionCount": 2,
+  "sample": {
+    "kind": "real",
+    "source": "local Lodge run",
+    "note": "真实跑出来的单席房间：修复失败测试，命令验收通过，人工签字完成。"
+  }
+}

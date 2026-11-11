@@ -1,0 +1,79 @@
+{
+  "format": "lodge.room-handoff.v1",
+  "version": 1,
+  "exportedAt": "2026-11-12T09:00:00.000Z",
+  "room": {
+    "id": "room-readme",
+    "name": "README 补安装说明",
+    "goal": "README 增加一节安装说明；不改变现有章节顺序",
+    "state": "complete",
+    "templateId": null,
+    "independence": "none",
+    "plan": null,
+    "stages": [
+      {
+        "title": "写安装一节",
+        "kind": "deliverable",
+        "state": "passed",
+        "acceptance": "npm test"
+      },
+      {
+        "title": "跑一遍端到端",
+        "kind": "deliverable",
+        "state": "passed",
+        "acceptance": "./scripts/e2e.sh"
+      }
+    ],
+    "constraints": [],
+    "seats": [],
+    "seatNames": {},
+    "leadSeat": null,
+    "workers": [],
+    "verifiers": [],
+    "branch": "",
+    "branches": {},
+    "engines": {
+      "planner": "claude-cli",
+      "executor": "claude-cli",
+      "verifier": "claude-cli"
+    },
+    "engineFallbacks": {},
+    "usage": {
+      "costMicroUsd": 8400,
+      "budgetMicroUsd": 100000,
+      "turns": 5
+    },
+    "workspace": {
+      "provider": "git",
+      "capabilities": {
+        "vcs": "git",
+        "isolation": "worktree",
+        "diff": "patch",
+        "candidate": true,
+        "merge": true,
+        "commit": true,
+        "acceptanceCopy": true
+      }
+    }
+  },
+  "files": {
+    "BRIEF.md": "# 目标：README 增加一节安装说明；不改变现有章节顺序\n\ndone:\n- [x] 写安装一节\n- [x] 跑一遍端到端\n\nconstraints:\n- 这是模拟样本，用来演示房间记录、目标岛与交接包；不是真实交付\n- 交付型阶段必须有命令证据\n",
+    "GOAL.md": "# 目标投影（运行时生成，不是编辑对象）\n\n目标：README 增加一节安装说明；不改变现有章节顺序\n状态：complete\n仓库：（示例仓库）\n\n阶段：\n- [passed] 1. 写安装一节 · deliverable · 验收：npm test\n- [passed] 2. 跑一遍端到端 · deliverable · 验收：./scripts/e2e.sh\n",
+    "CONCLUSION.md": "# 结论：README 增加一节安装说明；不改变现有章节顺序\n\n- 完成时间：2026-11-12T09:00:00.000Z\n- 独立性：模拟样本\n- 目标仓库：（示例仓库）\n- 交付分支：（示例分支）\n\n## 阶段与验收\n- 阶段 1 写安装一节：按证据验收\n- 阶段 2 跑一遍端到端：按证据验收\n",
+    "transcript.jsonl": "{\"kind\":\"system\",\"text\":\"目标已对齐 · 2 个阶段\",\"id\":\"room-readme-m1\",\"roomId\":\"room-readme\",\"seq\":1,\"ts\":1794458400000}\n{\"kind\":\"chat\",\"authorId\":\"you\",\"text\":\"README 加一节安装说明，别动现有章节顺序。\",\"id\":\"room-readme-m2\",\"roomId\":\"room-readme\",\"seq\":2,\"ts\":1794458520000}\n{\"kind\":\"chat\",\"authorId\":\"planner\",\"text\":\"两段都是交付型；第 2 段带端到端。@执行 只改 `README.md`，写范围不带其他文件。\",\"id\":\"room-readme-m3\",\"roomId\":\"room-readme\",\"seq\":3,\"ts\":1794459000000}\n{\"kind\":\"evidence\",\"authorId\":\"executor\",\"meta\":{\"stage\":0,\"sample\":true,\"command\":\"npm test\",\"exit\":0,\"files\":[\"README.md\"],\"output\":\"> cli@1.2.0 test\\n> node --test\\n\\n5 passing\",\"diff\":\"diff --git a/README.md b/README.md\\n@@\\n+## 安装\\n+\\n+```bash\\n+npm install -g crew-cli\\n+```\\n+\\n+安装后用 `crew --help` 确认。\",\"simulated\":true,\"vcs\":\"demo\",\"evidenceRef\":\"evidence/room-readme-m4.json\",\"capturedAt\":\"2026-11-12T07:00:00.000Z\"},\"id\":\"room-readme-m4\",\"roomId\":\"room-readme\",\"seq\":4,\"ts\":1794466800000}\n{\"kind\":\"verdict\",\"authorId\":\"verifier\",\"text\":\"文档链接可点，安装命令与 `package.json` 的 bin 一致。\",\"meta\":{\"pass\":true,\"stage\":0,\"command\":\"npm test\",\"exit\":0},\"id\":\"room-readme-m5\",\"roomId\":\"room-readme\",\"seq\":5,\"ts\":1794467400000}\n{\"kind\":\"evidence\",\"authorId\":\"executor\",\"meta\":{\"stage\":1,\"sample\":true,\"command\":\"./scripts/e2e.sh\",\"exit\":0,\"files\":[\"README.md\"],\"output\":\"e2e: install from tarball\\n✔ crew --help\\n✔ crew init\\n\\n2 passing\",\"simulated\":true,\"vcs\":\"demo\",\"evidenceRef\":\"evidence/room-readme-m6.json\",\"capturedAt\":\"2026-11-12T07:40:00.000Z\"},\"id\":\"room-readme-m6\",\"roomId\":\"room-readme\",\"seq\":6,\"ts\":1794469200000}\n{\"kind\":\"verdict\",\"authorId\":\"verifier\",\"text\":\"从 tarball 安装到 `crew --help` 全通，README 的步骤与脚本一致。\",\"meta\":{\"pass\":true,\"stage\":1,\"command\":\"./scripts/e2e.sh\",\"exit\":0},\"id\":\"room-readme-m7\",\"roomId\":\"room-readme\",\"seq\":7,\"ts\":1794469800000}\n{\"kind\":\"conclusion\",\"authorId\":\"planner\",\"text\":\"README 新增「安装」一节，现有章节顺序未变；两次验收命令退出码均为 0。\",\"meta\":{\"stages\":2,\"commands\":[\"npm test\",\"./scripts/e2e.sh\"],\"files\":[\"README.md\"]},\"id\":\"room-readme-m8\",\"roomId\":\"room-readme\",\"seq\":8,\"ts\":1794470100000}\n{\"id\":\"room-readme-m9\",\"roomId\":\"room-readme\",\"seq\":9,\"kind\":\"system\",\"ts\":1794474000000,\"text\":\"目标达成 · 已写入 CONCLUSION.md · 模拟样本不产生 commit\"}\n",
+    "events.jsonl": "{\"id\":\"room-readme-e1\",\"roomId\":\"room-readme\",\"type\":\"room.created\",\"payload\":{\"live\":false,\"sample\":true},\"at\":1794472800000}\n{\"id\":\"room-readme-e2\",\"roomId\":\"room-readme\",\"type\":\"acceptance.run\",\"payload\":{\"stage\":0,\"command\":\"npm test\",\"exit\":0,\"sample\":true},\"at\":1794466800000}\n{\"id\":\"room-readme-e3\",\"roomId\":\"room-readme\",\"type\":\"verifier.verdict\",\"payload\":{\"stage\":0,\"pass\":true,\"sample\":true},\"at\":1794467400000}\n{\"id\":\"room-readme-e4\",\"roomId\":\"room-readme\",\"type\":\"acceptance.run\",\"payload\":{\"stage\":1,\"command\":\"./scripts/e2e.sh\",\"exit\":0,\"sample\":true},\"at\":1794469200000}\n{\"id\":\"room-readme-e5\",\"roomId\":\"room-readme\",\"type\":\"verifier.verdict\",\"payload\":{\"stage\":1,\"pass\":true,\"sample\":true},\"at\":1794469800000}\n{\"id\":\"room-readme-e6\",\"roomId\":\"room-readme\",\"type\":\"room.complete\",\"payload\":{\"sample\":true},\"at\":1794474000000}\n",
+    "evidence/room-readme-m4.json": "{\n  \"stage\": 0,\n  \"sample\": true,\n  \"command\": \"npm test\",\n  \"exit\": 0,\n  \"files\": [\n    \"README.md\"\n  ],\n  \"output\": \"> cli@1.2.0 test\\n> node --test\\n\\n5 passing\",\n  \"diff\": \"diff --git a/README.md b/README.md\\n@@\\n+## 安装\\n+\\n+```bash\\n+npm install -g crew-cli\\n+```\\n+\\n+安装后用 `crew --help` 确认。\",\n  \"simulated\": true,\n  \"vcs\": \"demo\",\n  \"evidenceRef\": \"evidence/room-readme-m4.json\",\n  \"capturedAt\": \"2026-11-12T07:00:00.000Z\"\n}\n",
+    "evidence/room-readme-m6.json": "{\n  \"stage\": 1,\n  \"sample\": true,\n  \"command\": \"./scripts/e2e.sh\",\n  \"exit\": 0,\n  \"files\": [\n    \"README.md\"\n  ],\n  \"output\": \"e2e: install from tarball\\n✔ crew --help\\n✔ crew init\\n\\n2 passing\",\n  \"simulated\": true,\n  \"vcs\": \"demo\",\n  \"evidenceRef\": \"evidence/room-readme-m6.json\",\n  \"capturedAt\": \"2026-11-12T07:40:00.000Z\"\n}\n"
+  },
+  "redactions": [
+    "本机绝对路径已替换为占位符"
+  ],
+  "sanitized": true,
+  "sanitizeNote": "公开样本：密钥、令牌、邮箱与本机路径已移除。",
+  "redactionCount": 0,
+  "sample": {
+    "kind": "simulated",
+    "source": "server/crew/seeds.js",
+    "note": "模拟数据，用于演示交接包、目标岛与复盘视图；不是真实交付。"
+  }
+}

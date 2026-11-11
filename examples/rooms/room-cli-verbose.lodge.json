@@ -1,0 +1,78 @@
+{
+  "format": "lodge.room-handoff.v1",
+  "version": 1,
+  "exportedAt": "2026-11-12T09:00:00.000Z",
+  "room": {
+    "id": "room-cli-verbose",
+    "name": "CLI 加 --verbose",
+    "goal": "给 CLI 加 --verbose；默认输出必须逐字节不变",
+    "state": "active",
+    "templateId": null,
+    "independence": "vendor",
+    "plan": null,
+    "stages": [
+      {
+        "title": "调研与接口设计",
+        "kind": "decision",
+        "state": "passed"
+      },
+      {
+        "title": "实现 --verbose",
+        "kind": "deliverable",
+        "state": "active",
+        "acceptance": "npm test"
+      },
+      {
+        "title": "回归与文档",
+        "kind": "deliverable",
+        "state": "pending",
+        "acceptance": "npm test && ./scripts/e2e.sh"
+      }
+    ],
+    "constraints": [],
+    "seats": [],
+    "seatNames": {},
+    "leadSeat": null,
+    "workers": [],
+    "verifiers": [],
+    "branch": "",
+    "branches": {},
+    "engines": {},
+    "engineFallbacks": {},
+    "usage": {
+      "costMicroUsd": 41200,
+      "budgetMicroUsd": 200000,
+      "turns": 7
+    },
+    "workspace": {
+      "provider": "git",
+      "capabilities": {
+        "vcs": "git",
+        "isolation": "worktree",
+        "diff": "patch",
+        "candidate": true,
+        "merge": true,
+        "commit": true,
+        "acceptanceCopy": true
+      }
+    }
+  },
+  "files": {
+    "BRIEF.md": "# 目标：给 CLI 加 --verbose；默认输出必须逐字节不变\n\ndone:\n- [x] 调研与接口设计\n- [ ] 实现 --verbose\n- [ ] 回归与文档\n\nconstraints:\n- 这是模拟样本，用来演示房间记录、目标岛与交接包；不是真实交付\n- 交付型阶段必须有命令证据\n",
+    "GOAL.md": "# 目标投影（运行时生成，不是编辑对象）\n\n目标：给 CLI 加 --verbose；默认输出必须逐字节不变\n状态：active\n仓库：（示例仓库）\n\n阶段：\n- [passed] 1. 调研与接口设计 · decision\n- [active] 2. 实现 --verbose · deliverable · 验收：npm test\n- [pending] 3. 回归与文档 · deliverable · 验收：npm test && ./scripts/e2e.sh\n",
+    "transcript.jsonl": "{\"kind\":\"system\",\"text\":\"目标已对齐 · 3 个阶段\",\"id\":\"room-cli-verbose-m1\",\"roomId\":\"room-cli-verbose\",\"seq\":1,\"ts\":1794472920000}\n{\"kind\":\"chat\",\"authorId\":\"you\",\"text\":\"做 `--verbose`。默认输出必须逐字节不变。先给方案，别动代码。\",\"id\":\"room-cli-verbose-m2\",\"roomId\":\"room-cli-verbose\",\"seq\":2,\"ts\":1794472980000}\n{\"kind\":\"chat\",\"authorId\":\"planner\",\"text\":\"按 done 拆成三段。第 1 段是决策型，需要你点一次；后两段都有可执行命令。\\n\\n| 阶段 | 类型 | 谁做 | 验收 |\\n| --- | --- | --- | --- |\\n| 1 调研与接口设计 | 决策 | 队长 | 你确认接口形状 |\\n| 2 实现 --verbose | 交付 | 执行 | `npm test` 退出码 0，默认输出 diff 为空 |\\n| 3 回归与文档 | 交付 | 执行 | `npm test && ./scripts/e2e.sh` |\\n\\n@执行 阶段 2 的写范围只有 `src/cli.js` 和 `test/cli.test.js`。默认一次只派一个子任务，报完工附证据再推进。\",\"id\":\"room-cli-verbose-m3\",\"roomId\":\"room-cli-verbose\",\"seq\":3,\"ts\":1794473100000}\n{\"kind\":\"system\",\"text\":\"阶段 1 由你确认 · 接口形状：`--verbose` 只影响 stderr，stdout 逐字节不变\",\"id\":\"room-cli-verbose-m4\",\"roomId\":\"room-cli-verbose\",\"seq\":4,\"ts\":1794473280000}\n{\"kind\":\"chat\",\"authorId\":\"executor\",\"text\":\"改完了，没动依赖。\\n\\n- `src/cli.js`：新增 `--verbose`，日志只走 stderr；默认路径仍先写同一个 buffer 再一次性输出\\n- `test/cli.test.js`：加 3 条用例，其中一条逐字节比对默认输出\\n\\n跑了 `npm test`，证据在下面。\",\"id\":\"room-cli-verbose-m5\",\"roomId\":\"room-cli-verbose\",\"seq\":5,\"ts\":1794473640000}\n{\"kind\":\"evidence\",\"authorId\":\"executor\",\"meta\":{\"stage\":1,\"sample\":true,\"command\":\"npm test\",\"exit\":0,\"durationMs\":4120,\"files\":[\"src/cli.js\",\"test/cli.test.js\"],\"output\":\"> cli@1.2.0 test\\n> node --test\\n\\n✔ defaults are byte-identical (12ms)\\n✔ --verbose logs to stderr (4ms)\\n✔ --verbose with --json stays machine-readable (3ms)\\n\\n3 passing\",\"diff\":\"diff --git a/src/cli.js b/src/cli.js\\n@@\\n-  process.stdout.write(out)\\n+  if (opts.verbose) process.stderr.write(`[cli] ${line}\\\\n`)\\n+  process.stdout.write(out)\",\"simulated\":true,\"vcs\":\"demo\",\"evidenceRef\":\"evidence/room-cli-verbose-m6.json\",\"capturedAt\":\"2026-11-12T08:55:00.000Z\"},\"id\":\"room-cli-verbose-m6\",\"roomId\":\"room-cli-verbose\",\"seq\":6,\"ts\":1794473700000}\n{\"kind\":\"verdict\",\"authorId\":\"verifier\",\"text\":\"复跑通过。另抽查默认输出与基线逐字节一致；`--verbose --json` 时 stderr 不污染 JSON。没有发现越界改动。\",\"meta\":{\"pass\":true,\"stage\":1,\"command\":\"npm test\",\"exit\":0},\"id\":\"room-cli-verbose-m7\",\"roomId\":\"room-cli-verbose\",\"seq\":7,\"ts\":1794473820000}\n",
+    "events.jsonl": "{\"id\":\"room-cli-verbose-e1\",\"roomId\":\"room-cli-verbose\",\"type\":\"room.created\",\"payload\":{\"live\":false,\"sample\":true},\"at\":1794472800000}\n{\"id\":\"room-cli-verbose-e2\",\"roomId\":\"room-cli-verbose\",\"type\":\"acceptance.run\",\"payload\":{\"stage\":1,\"command\":\"npm test\",\"exit\":0,\"sample\":true},\"at\":1794473700000}\n{\"id\":\"room-cli-verbose-e3\",\"roomId\":\"room-cli-verbose\",\"type\":\"verifier.verdict\",\"payload\":{\"stage\":1,\"pass\":true,\"sample\":true},\"at\":1794473820000}\n",
+    "evidence/room-cli-verbose-m6.json": "{\n  \"stage\": 1,\n  \"sample\": true,\n  \"command\": \"npm test\",\n  \"exit\": 0,\n  \"durationMs\": 4120,\n  \"files\": [\n    \"src/cli.js\",\n    \"test/cli.test.js\"\n  ],\n  \"output\": \"> cli@1.2.0 test\\n> node --test\\n\\n✔ defaults are byte-identical (12ms)\\n✔ --verbose logs to stderr (4ms)\\n✔ --verbose with --json stays machine-readable (3ms)\\n\\n3 passing\",\n  \"diff\": \"diff --git a/src/cli.js b/src/cli.js\\n@@\\n-  process.stdout.write(out)\\n+  if (opts.verbose) process.stderr.write(`[cli] ${line}\\\\n`)\\n+  process.stdout.write(out)\",\n  \"simulated\": true,\n  \"vcs\": \"demo\",\n  \"evidenceRef\": \"evidence/room-cli-verbose-m6.json\",\n  \"capturedAt\": \"2026-11-12T08:55:00.000Z\"\n}\n"
+  },
+  "redactions": [
+    "本机绝对路径已替换为占位符"
+  ],
+  "sanitized": true,
+  "sanitizeNote": "公开样本：密钥、令牌、邮箱与本机路径已移除。",
+  "redactionCount": 0,
+  "sample": {
+    "kind": "simulated",
+    "source": "server/crew/seeds.js",
+    "note": "模拟数据，用于演示交接包、目标岛与复盘视图；不是真实交付。"
+  }
+}

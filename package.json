@@ -14,6 +14,8 @@
     "preview": "vite preview",
     "test": "node --test server/crew/*.test.js",
     "eval:planning": "node evals/planning/run.mjs",
+    "samples:generate": "node scripts/generate-samples.mjs",
+    "samples:export": "node scripts/export-sample.mjs",
     "check:docs": "node scripts/check-docs.mjs"
   },
   "dependencies": {
