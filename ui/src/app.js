@@ -30,6 +30,10 @@ const workspaceOf = room => {
   return `${caps.vcs === 'none' ? '普通目录' : caps.vcs ?? '未知'} · ${caps.isolation === 'copy' ? '复制隔离' : caps.isolation ?? '隔离'} · ${caps.diff === 'manifest' ? '文件清单' : caps.diff ?? '无 diff'}`
 }
 const changeWordOf = room => room.workspace?.capabilities?.diff === 'manifest' ? '文件清单' : 'diff'
+const seatPermissionOf = (room, seat) => {
+  if (!seat.permissions?.write) return seat.permissions?.exec ? '只读 + 执行' : '只读'
+  return room.workspace?.capabilities?.isolation === 'copy' ? '副本写' : 'worktree 写'
+}
 const NEEDS_TONE = {
   question: 'waiting',
   decision: 'waiting',
@@ -49,6 +53,9 @@ const evidenceFor = (room, index) => room.messages.filter(message => (
 ))
 const verdictFor = (room, index) => [...room.messages].reverse().find(message => (
   message.kind === 'verdict' && (message.meta?.stage ?? 0) === index
+))
+const rejectsFor = (room, index) => room.messages.filter(message => (
+  message.kind === 'verdict' && message.meta?.pass === false && (message.meta?.stage ?? 0) === index
 ))
 
 const islandStatus = room => {
@@ -140,27 +147,25 @@ const seatState = (room, stage, index, seatId) => {
 
 const STAGE_KIND = { decision: '决策 · 你确认才算过', deliverable: '交付 · 命令与证据说话' }
 
-function StageStep({ stage, index, selected, onSelect }) {
+function StageStep({ stage, index, selected, onSelect, rework = 0 }) {
   return h('button', {
     type: 'button',
     className: 'crew-step-node',
     'data-state': stage.state,
     'data-selected': selected,
     onClick: onSelect,
-    title: stage.title,
+    title: rework > 0 ? `${stage.title} · 返工 ${rework} 次` : stage.title,
   },
   h('span', { className: 'crew-step-mark' }, stage.state === 'passed' ? '✓' : String(index + 1)),
-  h('span', { className: 'crew-step-label' }, stage.title))
+  h('span', { className: 'crew-step-label' }, stage.title),
+  rework > 0 ? h('span', { className: 'crew-step-rework' }, `↺${rework}`) : null)
 }
 
 function IslandStage({ room, index, seats, onBack }) {
   const stage = room.stages[index]
   const evidence = evidenceFor(room, index)
   const verdict = verdictFor(room, index)
-  const rejects = room.messages.filter(message => (
-    message.kind === 'verdict' && message.meta?.pass === false && (message.meta?.stage ?? 0) === index
-  ))
-  const lastReject = rejects.at(-1)
+  const rejects = rejectsFor(room, index)
   const brief = room.brief ?? null
   const conflict = room.mergeConflict?.stage === index
     ? room.mergeConflict
@@ -183,7 +188,11 @@ function IslandStage({ room, index, seats, onBack }) {
     rejects.length > 0
       ? h('div', { className: 'crew-island-rework' },
         h('span', null, `返工 ${rejects.length} 次 · 验收席位打回`),
-        lastReject?.text ? h('p', null, lastReject.text) : null)
+        h('div', { className: 'crew-island-rework-list' },
+          [...rejects].reverse().slice(0, 3).map(message => h('div', { key: message.id, className: 'crew-island-rework-item' },
+            h('span', null, timeOf(message.ts)),
+            h('p', null, message.text || '验收席位打回')))),
+        rejects.length > 3 ? h('p', { className: 'crew-island-soft' }, `还有 ${rejects.length - 3} 次更早的打回，见时间线`) : null)
       : null,
     evidence.length > 0
       ? h('div', { className: 'crew-island-evidence' },
@@ -238,8 +247,22 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
   const done = room.stages.filter(stage => stage.state === 'passed').length
   const progress = room.state === 'complete' ? room.stages.length : current >= 0 ? current + 1 : done
   const selected = picked ?? (current >= 0 ? current : room.stages.length - 1)
+  const selectedStage = room.stages[selected]
   const workers = workingSeats(room, current)
   const working = seats.filter(seat => workers.includes(seat.id))
+  const answers = [
+    ['目标', room.brief?.objective || room.goal || '—'],
+    ['进度', room.state === 'complete'
+      ? `${room.stages.length}/${room.stages.length} · 目标达成`
+      : current >= 0
+        ? `${current + 1}/${room.stages.length} · ${room.stages[current].title}`
+        : `${done}/${room.stages.length} · 已停止`],
+    ['怎么算过', selectedStage === undefined
+      ? '—'
+      : selectedStage.kind === 'deliverable'
+        ? (selectedStage.acceptance ?? '未写验收命令')
+        : '你点过才算过'],
+  ]
 
   useEffect(() => {
     if (!armed) return undefined
@@ -264,7 +287,7 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
       },
     },
     h('span', { className: 'crew-island-dot', 'data-tone': status.tone }),
-    h('h1', null, room.name),
+    h('h1', { title: room.goal }, room.name),
     degraded ? h('span', { className: 'crew-badge', 'data-warn': true }, independenceOf(room)) : null,
     room.demo === true ? h('span', { className: 'crew-badge' }, '演示') : null,
     room.imported === true ? h('span', { className: 'crew-badge' }, '交接 · 只读') : null,
@@ -288,12 +311,17 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
         : null),
     open
       ? h('div', { className: 'crew-island-panel' },
+        h('div', { className: 'crew-island-answers' },
+          answers.map(([label, value]) => h('div', { key: label, className: 'crew-island-answer' },
+            h('span', null, label),
+            h('b', { title: value }, value)))),
         h('div', { className: 'crew-island-steps' },
           room.stages.map((stage, index) => h(StageStep, {
             key: stage.title,
             stage,
             index,
             selected: index === selected,
+            rework: rejectsFor(room, index).length,
             onSelect: () => setPicked(index),
           }))),
         room.stages[selected]
@@ -631,7 +659,7 @@ function Advanced({ room, seats, store, engines = [] }) {
       h('tbody', null, seats.map(seat => h('tr', { key: seat.id },
         h('td', null, seat.name),
         h('td', null, h('code', null, room.engines?.[seat.id] ?? seat.engine)),
-        h('td', null, seat.permissions?.write ? 'worktree 写' : seat.permissions?.exec ? '只读 + 执行' : '只读'),
+        h('td', null, seatPermissionOf(room, seat)),
         h('td', null, `${seat.speakBudget} 次/回合`))))))
 }
 

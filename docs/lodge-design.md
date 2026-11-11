@@ -10,7 +10,7 @@
 > v0.10 变更：采纳 Claude-Bot 的目标呈现——**目标岛**（§9.7），并把 `goal-grill` 的对齐方式写进开队流程（§8.2、§9.2）；数据模型补 `goals.idle/revision`、`goal_stages.reject_count/rework_feedback`（§11）。
 > v0.11 变更：顶层定位改为“可验收、可交接的交付”；“省时省力”降为交互承诺与结果指标，房间留痕回到价值主张（§1、§2.6）。
 >
-> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 与 plain 两种 provider，业务只依赖端口；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git 目录用复制隔离与文件清单）、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
+> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 与 plain 两种 provider，业务只依赖端口；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git 目录用复制隔离与文件清单）、目标岛三问摘要与返工记录、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 网络 provider 与文件系统沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
 >
 > **产品北极星（防跑偏）**：用户只做三件事——说目标、答 ≤3 个带推荐答案的问题、验收；队长用**一张开工卡**给出 done、编制、验收与问题，业务校验，人确认一次直接开工，三人组只是模板、单人合法；任何让用户选机制（模型、人数、并发、worktree）的设计都是跑偏；只加 bot、页面或开关、没有让“目标 → 证据 → 结论 → commit”更可信或更省人的功能，不做。
 
@@ -869,13 +869,15 @@ constraints:
 - 每席任务一行：席位头像（工作中脉冲、完成打勾、未开始变淡）+ 席位名 + 这一席具体做什么
 - 底部左侧折叠"目标与检查"：objective / done / constraints；右侧是暂停、继续、停止（停止需二次确认，3 秒内不确认自动解除）；完成或停止后是"清除"
 
+**当前实现（2026-11-12）**：展开面板顶部常驻三问摘要（目标 / 进度 / 怎么算过）；阶段节点带返工次数徽标；选中阶段列出最近 3 次打回（时间 + 意见）与全部证据链接；每席任务一行；底部折叠目标与检查。数据从房间 JSON + verdict/evidence 消息派生，不依赖 `goals` 表。
+
 **状态与数据一一对应，没有装饰性数字**
 
 | 岛上显示 | 唯一来源 |
 |---|---|
 | 标题、阶段数、胶囊 | `goals.title`、`goal_stages` |
 | 当前段、阶段轨道、状态句 | `goals.state` + `goals.current_stage_id` + 各阶段 state |
-| 返工记录 | `goal_stages.reject_count` + `rework_feedback` |
+| 返工记录 | 当前实现：`verdict(pass=false)` 消息按阶段派生；目标模型：`goal_stages.reject_count` + `rework_feedback` |
 | 证据 | `evidence`（`evidence/<messageId>.json` 可点开） |
 | 每席任务与完成度 | `assignments.assignee_id` + `assignments.state` |
 | "等你说话" | `goals.idle`（连续两次 goal check 无进展后置位） |
@@ -1232,7 +1234,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 6. **复盘/用量视图**：从 transcript/evidence 派生 token、返工、失败原因；不新增真相源。
 7. **调度台只读资源面板**：全局花费、房间状态、错误大盘；不自动路由、不执行。
 8. **模板文件导入/预览（本地，无市场）**。
-9. **目标岛打磨**：阶段轨道、返工记录、目标/进度/验收三问随时可答；这是每天看的表面，优先过度投资。
+9. **目标岛打磨（已落 2026-11-12）**：展开面板常驻三问摘要（目标 / 进度 / 怎么算过），阶段节点带返工次数，选中阶段列出最近打回与证据，目标与检查折叠；数据从房间 JSON + 消息派生。剩余：返工意见的来源标注（verifier 名）与跨阶段返工趋势。
 10. **示范房间与导出脱敏**：3–5 个真实跑出来的房间样本，脱敏后放 GitHub；不做市场，导出前清掉密钥与个人路径。
 
 **顺序纪律**：P0 / M3 门槛不动；P1 按真实用户卡住的点排序，可以砍 P1，不换 M3。M3 门槛 = P0 完成 + 工具审批桥（写工具拒绝）+ 真实 E2E；到门槛后再高频演示，不提前宣布。

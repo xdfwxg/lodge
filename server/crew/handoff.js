@@ -74,6 +74,7 @@ const handoffRoom = room => ({
   engines: room.engines ?? {},
   engineFallbacks: room.engineFallbacks ?? {},
   usage: room.usage ?? {},
+  workspace: room.workspace ?? null,
 })
 
 export const buildHandoff = room => {
@@ -107,6 +108,15 @@ const parseTranscript = text => {
   return messages
 }
 
+const handoffWorkspace = value => {
+  if (!isRecord(value)) return null
+  if (value.provider !== 'git' && value.provider !== 'plain') return null
+  return {
+    provider: value.provider,
+    ...(isRecord(value.capabilities) ? { capabilities: value.capabilities } : {}),
+  }
+}
+
 const importRoomFrom = meta => ({
   id: '',
   kind: 'room',
@@ -128,6 +138,7 @@ const importRoomFrom = meta => ({
   engines: isRecord(meta.engines) ? meta.engines : {},
   engineFallbacks: isRecord(meta.engineFallbacks) ? meta.engineFallbacks : {},
   usage: isRecord(meta.usage) ? meta.usage : {},
+  workspace: handoffWorkspace(meta.workspace),
   imported: true,
   readOnly: true,
   live: false,

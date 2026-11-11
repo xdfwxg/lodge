@@ -33,6 +33,7 @@ const roomWithFiles = () => {
     repoPath: repo,
     sourceRepo: join(repo, 'source'),
     worktrees: { executor: join(repo, 'seat-executor') },
+    workspace: { provider: 'git', capabilities: { vcs: 'git', isolation: 'worktree', diff: 'patch', candidate: true, merge: true, commit: true, acceptanceCopy: true } },
     demo: false,
     live: true,
   }
@@ -59,6 +60,7 @@ test('a handoff bundle carries the room record without local paths', () => {
   assert.equal(bundle.room.repoPath, undefined)
   assert.equal(bundle.room.sourceRepo, undefined)
   assert.equal(bundle.room.worktrees, undefined)
+  assert.equal(bundle.room.workspace.provider, 'git')
   assert.equal(bundle.files['BRIEF.md'].includes('加一个导出按钮'), true)
   assert.equal(bundle.files['GOAL.md'].includes(room.repoPath), false)
   assert.equal(bundle.files['evidence/m1.json'].includes(room.repoPath), false)
@@ -85,6 +87,8 @@ test('imported handoff opens as a read-only room and keeps the transcript', () =
   assert.equal(result.room.state, 'complete')
   assert.match(result.room.id, /^room-import-/)
   assert.equal(result.room.usage.costMicroUsd, 1200)
+  assert.equal(result.room.workspace.provider, 'git')
+  assert.equal(result.room.workspace.capabilities.vcs, 'git')
   const dir = roomDir(result.room)
   assert.equal(readFileSync(join(dir, 'BRIEF.md'), 'utf8').includes('加一个导出按钮'), true)
   assert.equal(readFileSync(join(dir, 'evidence', 'm1.json'), 'utf8').includes('npm test'), true)
