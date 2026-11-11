@@ -17,6 +17,7 @@ import {
   writeConclusion,
   writeGoal,
 } from './room-repo.js'
+import { pruneSeatWorkspaces } from './worktrees.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
 export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats }) => {
@@ -112,18 +113,38 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     })
     if (room.demo === true) {
       appendMessage(room.id, { kind: 'system', text: '演示房间 · 不写 CONCLUSION.md，不产生 commit' })
-      return
+      return room
     }
     writeConclusion(room)
     if (!gitAvailable) {
       appendEvent(room.id, 'room.commit', { status: 'unavailable' })
       appendMessage(room.id, { kind: 'system', text: '已写入 CONCLUSION.md · 本机 git 不可用，未产生 commit' })
-      return
+      return room
     }
     const delivered = readMessages(room.id).flatMap(message => [
       ...(message.meta?.artifacts ?? []).map(artifact => artifact.path).filter(Boolean),
       ...(message.meta?.changedFiles ?? []).map(file => join(repoRootOf(room), file)),
     ])
+    // 交付仓库保留；只清掉非交付席位工作区，候选分支仍在源仓库，可人工重建查看。
+    try {
+      const pruned = pruneSeatWorkspaces(room)
+      const fresh = pruned.filter(seat => !(room.prunedSeats ?? []).includes(seat))
+      if (fresh.length > 0) {
+        const updated = updateRoom(room.id, current => {
+          current.prunedSeats = pruned
+          return { events: [{ type: 'room.prune', payload: { seats: fresh } }] }
+        })
+        if (updated !== null) {
+          emit('room', updated)
+          appendMessage(room.id, {
+            kind: 'system',
+            text: `非交付工作区已清理：${fresh.join('、')}；候选分支保留在源仓库。`,
+          })
+        }
+      }
+    } catch (error) {
+      appendMessage(room.id, { kind: 'system', text: `非交付工作区清理失败：${error?.message ?? error}` })
+    }
     // 先落这条完成记录，再提交，避免提交后 transcript 又变脏。
     appendMessage(room.id, { kind: 'system', text: '已写入 CONCLUSION.md · 本地 commit 一次 · 未 push' })
     const committed = commitRoom(room, delivered)
@@ -131,6 +152,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     if (!committed) {
       appendMessage(room.id, { kind: 'system', text: 'commit 失败，详见服务端日志' })
     }
+    return store.readRoom(room.id) ?? room
   }
 
   const accept = (room, body) => {
@@ -165,13 +187,13 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
         : `阶段 ${index + 1} 已由你确认`,
       meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you' },
     })
-    if (next < 0) completeRoom(room)
-    else if (room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
+    const finalRoom = next < 0 ? completeRoom(room) ?? room : room
+    if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
       void live.startStage(room, next).catch(error => {
         appendMessage(room.id, { kind: 'system', text: `启动执行失败：${error?.message ?? error}` })
       })
     }
-    return ok({ room })
+    return ok({ room: finalRoom })
   }
 
   const setAcceptance = (room, index, command) => {

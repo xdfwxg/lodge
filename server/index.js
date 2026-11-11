@@ -7,6 +7,7 @@ import { createLiveRooms } from './crew/live.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
 import { createCrewService } from './crew/service.js'
+import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
 import { seedIfEmpty } from './crew/seeds.js'
 import { SEATS } from './crew/seats.js'
 import { createStore } from './crew/store.js'
@@ -59,6 +60,19 @@ const service = createCrewService({
   dispatchPayload: digest.dispatchPayload,
   seats: SEATS,
 })
+
+const runWorkspaceGc = () => {
+  try {
+    const result = collectWorkspaceGarbage({ store })
+    if (result.pruned > 0 || result.orphans > 0) {
+      console.log(`workspace gc: pruned ${result.pruned} seats, removed ${result.orphans} orphan dirs`)
+    }
+  } catch (error) {
+    console.warn(`workspace gc failed: ${error?.message ?? error}`)
+  }
+}
+void runWorkspaceGc()
+setInterval(runWorkspaceGc, 6 * 60 * 60 * 1000).unref()
 
 const json = (res, status, body) => {
   const data = JSON.stringify(body)

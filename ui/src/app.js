@@ -525,7 +525,7 @@ function Advanced({ room, seats }) {
       room.sourceRepo ? h('span', null, `源仓库：${room.sourceRepo}`) : null,
       ...(room.seatSpecs ?? []).map(seat => (
         room.worktrees?.[seat.id]
-          ? h('span', { key: seat.id }, `${seat.name} 工作区：${room.worktrees[seat.id]}`)
+          ? h('span', { key: seat.id }, `${seat.name} 工作区：${room.worktrees[seat.id]}${room.prunedSeats?.includes(seat.id) ? '（已清理）' : ''}`)
           : null
       )),
       room.branch ? h('span', null, `房间分支：${room.branch}`) : null,

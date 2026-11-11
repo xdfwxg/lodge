@@ -1,5 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
+import { diffScope } from './workspace-paths.js'
 
 const exec = promisify(execFile)
 const MAX_OUTPUT = 64 * 1024
@@ -18,11 +19,16 @@ const git = async (args, cwd) => {
 
 // 验收命令由房间配置提供，在房间仓库里用登录 shell 之外的 /bin/sh 执行；
 // 只记录事实（退出码、输出），不据此推断业务结论。
-export const runCommand = ({ command, cwd, timeoutMs = 120_000 }) => new Promise(resolve => {
+export const runCommand = ({ command, cwd, env, timeoutMs = 120_000 }) => new Promise(resolve => {
   const started = Date.now()
   let output = ''
   let timedOut = false
-  const child = spawn('/bin/sh', ['-c', command], { cwd, detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn('/bin/sh', ['-c', command], {
+    cwd,
+    env: env === undefined ? process.env : { ...process.env, ...env },
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
   const collect = chunk => {
     if (output.length < MAX_OUTPUT * 2) output += chunk.toString()
   }
@@ -53,7 +59,7 @@ export const runCommand = ({ command, cwd, timeoutMs = 120_000 }) => new Promise
 // 并行执行的集成 diff：从派发时的基准提交到合并后的 HEAD。
 export const collectRange = async ({ cwd, base }) => {
   if (typeof base !== 'string' || base === '') return { diff: '', files: [] }
-  const scope = ['.', ':(exclude).crew']
+  const scope = diffScope
   const diff = await git(['diff', `${base}..HEAD`, '--no-color', '--relative', '--', ...scope], cwd)
   const files = (await git(['diff', '--name-only', '--relative', `${base}..HEAD`, '--', ...scope], cwd))
     .split('\n')
@@ -62,8 +68,8 @@ export const collectRange = async ({ cwd, base }) => {
 }
 
 export const collectDiff = async cwd => {
-  // 房间自己的运行记录不是交付内容，不进入验收 diff。
-  const scope = ['.', ':(exclude).crew']
+  // 房间自己的运行记录与本地环境不是交付内容，不进入验收 diff。
+  const scope = diffScope
   const status = (await git(['status', '--porcelain', '--', ...scope], cwd)).trim()
   if (status === '') return { diff: '', status: '', note: '', files: [] }
 

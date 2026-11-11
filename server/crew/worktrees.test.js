@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { cleanupWorkspaces, commitCandidate, headOf, mergeBranch, prepareWorkspaces, refreshVerifier } from './worktrees.js'
+import { cleanupWorkspaces, commitCandidate, headOf, mergeBranch, prepareWorkspaces, pruneSeatWorkspaces, refreshVerifier } from './worktrees.js'
 import { collectRange } from './acceptance.js'
 import { rosterFromRoles, seatsFor } from './seats.js'
 
@@ -45,6 +45,90 @@ test('prepares isolated seat workspaces and refreshes the verifier copy', () => 
     cleanupWorkspaces({ sourceRepo, workspaces })
     if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT
     else process.env.CREW_WORKTREE_ROOT = previous
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
+test('execution seats get a local env copy, a dependency link and a port hint', () => {
+  const sourceRepo = repo()
+  writeFileSync(join(sourceRepo, '.gitignore'), '.env\nnode_modules/\n')
+  execFileSync('git', ['add', '.gitignore'], { cwd: sourceRepo })
+  execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'ignore'], { cwd: sourceRepo })
+  writeFileSync(join(sourceRepo, '.env'), 'TOKEN=ok\n')
+  mkdirSync(join(sourceRepo, 'node_modules'))
+  writeFileSync(join(sourceRepo, 'node_modules', 'x.js'), 'module.exports=1\n')
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-env-'))
+  const previousRoot = process.env.CREW_WORKTREE_ROOT
+  const previousMin = process.env.CREW_DISK_MIN_FREE_MB
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  process.env.CREW_DISK_MIN_FREE_MB = '0'
+  let workspaces = null
+  try {
+    workspaces = prepareWorkspaces({ sourceRepo, short: 'env123', seats: seatsFor('delivery-triad') })
+    const executor = workspaces.seats.executor.path
+    const verifier = workspaces.seats.verifier.path
+    const planner = workspaces.seats.planner.path
+    assert.equal(readFileSync(join(executor, '.env'), 'utf8'), 'TOKEN=ok\n')
+    assert.equal(readFileSync(join(verifier, '.env'), 'utf8'), 'TOKEN=ok\n')
+    assert.equal(existsSync(join(planner, '.env')), false)
+    assert.equal(lstatSync(join(executor, 'node_modules')).isSymbolicLink(), true)
+    assert.equal(lstatSync(join(verifier, 'node_modules')).isSymbolicLink(), true)
+    assert.equal(new Set(Object.values(workspaces.ports)).size, Object.values(workspaces.ports).length)
+    writeFileSync(join(executor, 'hello.txt'), 'crew ok\n')
+    const candidate = commitCandidate({ executor, turnId: 'env-turn', name: 'Env' })
+    assert.equal(typeof candidate, 'string')
+    const committed = execFileSync('git', ['show', '--name-only', '--format=', 'HEAD'], { cwd: executor, encoding: 'utf8' })
+    assert.match(committed, /hello\.txt/)
+    assert.doesNotMatch(committed, /\.env|node_modules/)
+  } finally {
+    cleanupWorkspaces({ sourceRepo, workspaces })
+    if (previousRoot === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previousRoot
+    if (previousMin === undefined) delete process.env.CREW_DISK_MIN_FREE_MB
+    else process.env.CREW_DISK_MIN_FREE_MB = previousMin
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
+test('pruning keeps the delivery worktree and candidate branches', () => {
+  const sourceRepo = repo()
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-prune-'))
+  const previousRoot = process.env.CREW_WORKTREE_ROOT
+  const previousMin = process.env.CREW_DISK_MIN_FREE_MB
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  process.env.CREW_DISK_MIN_FREE_MB = '0'
+  let workspaces = null
+  try {
+    const seats = rosterFromRoles([
+      { role: 'lead', name: '队长' },
+      { role: 'worker', name: '前端' },
+      { role: 'worker', name: '后端' },
+      { role: 'verifier', name: '复核' },
+    ])
+    workspaces = prepareWorkspaces({ sourceRepo, short: 'prune1', seats })
+    const room = {
+      repoPath: workspaces.integration.path,
+      sourceRepo,
+      worktrees: Object.fromEntries(Object.entries(workspaces.seats).map(([id, item]) => [id, item.path])),
+      prunedSeats: [],
+    }
+    const pruned = pruneSeatWorkspaces(room).sort()
+    assert.deepEqual(pruned, ['lead', 'verifier', 'worker', 'worker-2'])
+    assert.equal(existsSync(workspaces.integration.path), true)
+    assert.equal(existsSync(workspaces.seats.worker.path), false)
+    assert.equal(existsSync(workspaces.seats['worker-2'].path), false)
+    const branches = execFileSync('git', ['branch', '--list', 'crew/prune1/*'], { cwd: sourceRepo, encoding: 'utf8' })
+    assert.match(branches, /worker/)
+    assert.match(branches, /worker-2/)
+    assert.match(branches, /integration/)
+  } finally {
+    cleanupWorkspaces({ sourceRepo, workspaces })
+    if (previousRoot === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previousRoot
+    if (previousMin === undefined) delete process.env.CREW_DISK_MIN_FREE_MB
+    else process.env.CREW_DISK_MIN_FREE_MB = previousMin
     rmSync(sourceRepo, { recursive: true, force: true })
     rmSync(worktreeRoot, { recursive: true, force: true })
   }

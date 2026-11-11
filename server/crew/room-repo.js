@@ -3,6 +3,7 @@ import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, re
 import { basename, join, relative, resolve } from 'node:path'
 import { independenceLabel } from './digest.js'
 import { repoRootOf, roomDir } from './paths.js'
+import { LOCAL_ONLY } from './workspace-paths.js'
 
 export { roomDir }
 
@@ -188,10 +189,11 @@ export const commitRoom = (room, files = []) => {
     }
   }
   const rootReal = canon(repo)
+  const isLocalOnly = file => file.split(/[\\/]/).some(part => LOCAL_ONLY.includes(part))
   const extra = files
     .filter(file => typeof file === 'string' && file !== '')
     .map(file => relative(rootReal, canon(file)))
-    .filter(file => file !== '' && !file.startsWith('..') && !file.startsWith('/'))
+    .filter(file => file !== '' && !file.startsWith('..') && !file.startsWith('/') && !isLocalOnly(file))
   const paths = [...new Set([rel, ...extra])]
   try {
     execFileSync('git', ['add', '-A', '--', ...paths], { cwd: repo, stdio: 'ignore' })

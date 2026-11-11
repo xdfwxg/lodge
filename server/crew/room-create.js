@@ -169,6 +169,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       branch: workspaces.primaryBranch,
       branches: workspaces.branches,
       worktrees,
+      ports: workspaces.ports ?? {},
+      workspaceEnv: workspaces.environment ?? {},
       repoPath: workspaces.roomPath ?? workspaces.seats[worker.id].path,
       live: true,
       demo: false,
@@ -223,6 +225,11 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         : `房间已创建 · 模板 ${TEMPLATES[templateId].name} · ${roster.length} 席各自工作区`,
     })
     if (room.branch !== '') store.appendMessage(room.id, { kind: 'system', text: `源仓库 ${sourceRepo} · 执行分支 ${room.branch}` })
+    const envWarnings = Object.entries(workspaces.environment ?? {})
+      .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${seat}: ${text}`))
+    if (envWarnings.length > 0) {
+      store.appendMessage(room.id, { kind: 'system', text: `工作区环境同步警告：${envWarnings.join('；')}` })
+    }
     await live.attach(room)
     emit('dispatch', dispatchPayload())
     if (plan !== null) {

@@ -5,7 +5,7 @@
 >
 > 分层与取舍判断见根目录 [`设计思想.md`](../设计思想.md)。
 >
-> **当前实现（2026-11-11）**：P0+ / M3 部分。设计目标是 `docs/crew-chat-design.md`；规则见 `设计思想.md`；§8.5 是唯一的状态入口。已成立：开工卡（done/编制/验收/≤3 问，一次确认）、席位按需组合、多执行并行、manual 人验收。未接：runtime Assignment、工具级权限强制、建后改席位、多验收席位、跨厂商盲审、审批桥、模板导入、Electron。
+> **当前实现（2026-11-12）**：P0+ / M3 部分。设计目标是 `docs/crew-chat-design.md`；规则见 `设计思想.md`；§8.5 是唯一的状态入口。已成立：开工卡（done/编制/验收/≤3 问，一次确认）、席位按需组合、多执行并行、manual 人验收、worktree 生命周期（环境同步/端口提示/清理/GC/磁盘水位）。未接：runtime Assignment、工具级权限强制、建后改席位、多验收席位、跨厂商盲审、审批桥、模板导入、Electron。
 
 ## 0. 选型结论
 
@@ -191,7 +191,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 - 签字与提交：`gateFor` 只认最新一条 verdict，且必须是 PASS；REJECT 后必须产生新证据才能再验收。人点「接受」后写 `CONCLUSION.md`（`decisions.md` 归人），再按「交付文件 + `.crew/rooms/<id>`」做一次本地 commit；提交后工作树保持干净。
 - 复跑（临时仓库 + 全新基座群）：真实回合创建 `hello.txt` → 验收命令 exit 0、diff 含交付文件且不含 `.crew/` → 无 PASS 时签字被拒 → 验收席位独立重跑命令并 PASS → 人签字 → `complete`，commit 含交付文件与 `CONCLUSION.md`，工作树干净；`REJECT → 返工 → 新证据 → PASS` 链路也已实测。
 - 演示房间：种子与交互只进 SQLite/SSE，不写目标仓库、不产生 commit；完成文案如实说明未写 `CONCLUSION.md`。
-- 已知边界：无 worktree 隔离，提交范围是验收时仓库内的改动（不含 `.crew/`），按回合归属与并行隔离留到 M3；verdict 只存在房间库 / `transcript.jsonl`，尚未实现「从 transcript 重建运行时状态」；无审批桥（M4）；基座无取消接口，Stop 仍只是本层停止转发。
+- 已知边界（S3 当时，后续已被 §8.5 覆盖）：无 worktree 隔离，提交范围是验收时仓库内的改动（不含 `.crew/`）；verdict 只存在房间库 / `transcript.jsonl`，尚未实现「从 transcript 重建运行时状态」；无审批桥（M4）；Stop 当时只是本层停止转发。M3 已落 worktree 隔离、并行集成、清理/GC 与真 Stop。
 - UI：移除整包 vendored `ui/src/dsbot`，头像/主题/图标改为 `ui/src/marks.js`、`theme.js`、`icons.js`；消息气泡与 Markdown 样式收进 `ui/src/crew.css`，构建不再依赖 DS Bot 代码。优秀设计可以按模块复用，保留 Apache-2.0 许可/归属，不整包搬 DSH。
 
 ## 8.4 分层与契约核对（2026-11-11）
@@ -214,6 +214,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 ### 8.5 P0 记录（2026-11-11）
 
 - **底座加固**：`room` 表加 `version`，房间状态变更统一走 `updateRoom` 的 IMMEDIATE 事务；新增 append-only `room_event`（建房/阶段/验收/复核/提交/迁移）；席位能力（read/exec/write、writeScope、toolSurface）成为单一事实来源，启动时校验，声明不合法直接失败；新增 `/api/health`；`npm test` 覆盖门禁、验收命令、store 事务与席位契约。
+- **worktree 生命周期（2026-11-12）**：创建时为 worker/verifier/integration 复制 `.env`/`.env.local`、软链 `node_modules`；给执行/验收/集成目录分配端口，并在工作提示词与验收命令里注入 `PORT`。候选 commit 与验收 diff 排除 `.env`/`.env.local`/`node_modules`/`.crew`。房间完成/停止后清掉非交付席位工作区（保留交付仓库与候选分支）；启动与每 6 小时 GC 已知房间；未知孤儿目录默认不删，`CREW_WORKTREE_GC_ORPHANS=1` 才按 TTL（默认 7 天）清理；创建前做磁盘水位检查（默认 512MB）。真实验证：`.env` 与依赖软链到位，候选 commit 只含交付文件，完成后 planner/verifier 工作区被清理、executor 交付仓库与分支保留，结论 commit 不含 `.env`。边界：`node_modules` 是共享软链，不适合在工作区里改依赖；Python venv/本地数据库/端口强制隔离未做；端口是提示与验收注入，应用不认 `PORT` 时仍需人处理。
 - **房间投影（2026-11-12）**：`/api/state` 与所有房间事件共用 `presentRoom`，统一附带 `needsYou`、`independenceLabel`、`independencePolicy`；UI 的状态条与高级面板直接消费这些字段，不再自己重算阶段/证据/verdict 状态和独立性文案。`presentation.test.js` 覆盖投影不修改存储房间。UI 仍保留 per-seat 展示状态（working/done）与阶段选择，这是展示层，不参与业务判定。
 - **结果三态（2026-11-12）**：业务拒绝用 `fail` 映射 4xx；系统/基座/IO/工作区异常直接抛到组合根映射 500，不再用 `fail('conflict')` 包装。复核请求的业务条件用 `BusinessError` 区分，`service.verify` 只把这类错误转成 4xx；开工卡队长不可用、建房中途创建 bot/群失败会显式 500。
 - **真实三人组（模板验证）**：从界面建房 → Engine 端口在基座创建三个 bot（同引擎，明确标「独立性降级」）+ 一个群 + 一个房间仓库；队长提示词要求 ≤3 问对齐（未强制）；人确认后系统 @执行；执行回合后自动跑验收命令；验收席位独立复跑并给 PASS/REJECT；人签字 → `CONCLUSION.md` + 一次本地 commit。
@@ -226,8 +227,8 @@ openmausbot/                  # 上游 OSS，保留 remote
 - **调度台**：仍是只读前台——收件、建议、一次确认、投影摘要；不做能操作界面的全局助手。若要加，只能是 read + propose（解释、打开面板、生成草稿），最终动作由用户点。
 - **真实 M3 验证（2026-11-11）**：用临时源仓库 + 全新数据目录跑通三人组：3 个基座线程、3 个工作区、executor 分支正确；planner 克隆没有 `hello.txt`；executor 在自己的 worktree 创建文件，源仓库 `main` 仍干净；候选 commit 在 `crew/<room>/executor`；verifier 临时副本拿到候选文件并给 PASS；人签字后 executor 工作树干净，结论 commit 含 `CONCLUSION.md`；交付在房间分支上，可人工合并。另验证两席自定义房（执行+验收）与无验收房（队长+执行，`human` 人签字）；测试 bot 与群已清理，基座回到只有 MausBot。
 - **并行执行（2026-11-11）**：自定义编制可含多个执行席位；每个执行独立 worktree/分支，同一交付阶段并行派发。全部执行回合结束后，按顺序把候选分支合并进房间集成 worktree（`crew/<room>/integration`），在集成目录跑验收命令，再交验收席位复核。合并冲突会回滚并停下等人（`needsYou.kind=merge`）；15 分钟未完成报超时（`kind=parallel`）。真实双执行验证：前端/后端各自 worktree + 候选 commit，集成合并、验收 exit 0、verifier PASS、人签字、`CONCLUSION.md` + 结论 commit；源仓库 `main` 干净，交付在 integration 分支，候选分支保留供人工查看。单元测试覆盖集成 worktree、合并、冲突回滚。
-- **下一步（设计文档 §15.1）**：P0 是 worktree 生命周期（依赖/`.env`/端口/自动清理/磁盘水位）与成本/磁盘闸门；P1 是业务感知交接包、工作区级项目约束、子任务依赖图/阶段级部分成功、MCP 隔离与审计、复盘/用量视图、调度台只读资源面板、本地模板导入。明确不做：模板市场、多人协作/Org、非编码模式、自动执行、第二个有写权限的全局助手、黑盒 RAG。
-- **已知边界**：UI `app.js` 是单文件页面，后续可按视图拆分；模板导入未接；Engine 端口是房间级语义；M1 游标/轮次/空转已落，交接包未做（实际增量由基座 delta-context 负责）；M2 真 Stop 已接（未做 500ms E2E），@ 基础有；M3 席位隔离与并行 executor worktree 已落（planner 克隆 / 多 executor worktree / 集成 worktree / verifier 临时副本 + 候选提交）；工具级权限强制未做；建后改席位未接；多验收席位未接；manual 验收不挂 verifier（要独立复核必须补命令，fail closed）；并行合并冲突需要人处理，没有自动重排；verifier 与执行同引擎、同群，真正独立监督在 M4；编制建议依赖基座可用，失败时显式回退手动选编制；Goal 仍是两段、goal-grill 未强制；跨厂商盲审/审批桥/发言预算/fork 未做；Electron 未接，TypeScript 只在基座；SQLite 仍是原型索引，关系表迁移只改 `store.js`。
+- **下一步（设计文档 §15.1）**：worktree 生命周期已落（环境同步/端口提示/清理/GC/磁盘水位）；P0 剩余成本预算硬闸门、工具级权限与多验收边界；P1 是业务感知交接包、工作区级项目约束、子任务依赖图/阶段级部分成功、MCP 隔离与审计、复盘/用量视图、调度台只读资源面板、本地模板导入。明确不做：模板市场、多人协作/Org、非编码模式、自动执行、第二个有写权限的全局助手、黑盒 RAG。
+- **已知边界**：UI `app.js` 是单文件页面，后续可按视图拆分；模板导入未接；Engine 端口是房间级语义；M1 游标/轮次/空转已落，交接包未做（实际增量由基座 delta-context 负责）；M2 真 Stop 已接（未做 500ms E2E），@ 基础有；M3 席位隔离与并行 executor worktree 已落（planner 克隆 / 多 executor worktree / 集成 worktree / verifier 临时副本 + 候选提交）；worktree 生命周期已落（环境/端口/清理/GC/磁盘水位）；venv/本地数据库/端口强制隔离未做；工具级权限强制未做；建后改席位未接；多验收席位未接；manual 验收不挂 verifier（要独立复核必须补命令，fail closed）；并行合并冲突需要人处理，没有自动重排；verifier 与执行同引擎、同群，真正独立监督在 M4；编制建议依赖基座可用，失败时显式回退手动选编制；Goal 仍是两段、goal-grill 未强制；跨厂商盲审/审批桥/发言预算/fork 未做；Electron 未接，TypeScript 只在基座；SQLite 仍是原型索引，关系表迁移只改 `store.js`。
 
 ## 9. 许可与合规
 

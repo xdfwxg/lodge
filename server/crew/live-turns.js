@@ -113,7 +113,12 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       })
       return
     }
-    const result = await runCommand({ command, cwd: room.repoPath })
+    const port = room.ports?.[room.workers?.[0]]
+    const result = await runCommand({
+      command,
+      cwd: room.repoPath,
+      env: port === undefined ? undefined : { PORT: String(port) },
+    })
     const diff = await collectDiff(room.repoPath)
     try {
       const candidate = commitCandidate({ executor: room.repoPath, turnId, name: room.name })
@@ -255,7 +260,12 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       store.appendMessage(roomId, { kind: 'system', text: `阶段 ${stageIndex + 1} 没有验收命令，未执行集成验收` })
       return
     }
-    const result = await runCommand({ command, cwd: integration })
+    const port = room.ports?.integration
+    const result = await runCommand({
+      command,
+      cwd: integration,
+      env: port === undefined ? undefined : { PORT: String(port) },
+    })
     const names = workers.map(worker => room.seatNames?.[worker] ?? worker).join('、')
     store.appendMessage(roomId, {
       kind: 'evidence',
@@ -318,13 +328,21 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       : typeof stage.acceptance === 'string' && stage.acceptance !== ''
         ? `验收命令：\`${stage.acceptance}\`。`
         : '验收命令：未设置。'
-    const promptFor = worker => [
-      `@${room.seatNames?.[worker] ?? worker} 阶段已确认：${index + 1}. ${stage.title}。${acceptance}`,
-      workers.length > 1
-        ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
-        : '在当前工作目录完成；',
-      '不要自己 git commit / push，系统会提交候选；完成后一句话汇报，不要 @验收，系统会自动复核。',
-    ].join('')
+    const promptFor = worker => {
+      const port = room.ports?.[worker]
+      const environment = room.workspaceEnv?.[worker]
+      return [
+        `@${room.seatNames?.[worker] ?? worker} 阶段已确认：${index + 1}. ${stage.title}。${acceptance}`,
+        workers.length > 1
+          ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
+          : '在当前工作目录完成；',
+        port === undefined ? '' : `如需起本地服务，用 PORT=${port}。`,
+        environment?.linked?.includes('node_modules')
+          ? 'node_modules 已软链为只读依赖，不要修改它。'
+          : '',
+        '不要自己 git commit / push，系统会提交候选；完成后一句话汇报，不要 @验收，系统会自动复核。',
+      ].join('')
+    }
 
     if (workers.length === 1) {
       const worker = workers[0]
@@ -669,12 +687,14 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
     const verifierName = room.seatNames?.[verifier]
     if (typeof verifierName !== 'string' || verifierName === '') reject('conflict', '房间没有验收席位')
     if (room.worktrees?.[verifier] !== undefined && typeof room.branch === 'string') {
-      refreshVerifier({ verifier: room.worktrees[verifier], branch: room.branch })
+      refreshVerifier({ verifier: room.worktrees[verifier], branch: room.branch, sourceRepo: room.sourceRepo })
     }
     const meta = evidence.meta
+    const verifierPort = room.ports?.[verifier]
     const prompt = [
       `@${verifierName} 你现在是验收席位。只做只读复核，不改任何文件，不提交、不推送。`,
       `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
+      ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
       `验收命令：${meta.command}`,
       `退出码：${meta.exit === null ? '无' : meta.exit}`,
       '命令输出：',
