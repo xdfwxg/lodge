@@ -31,6 +31,16 @@ const normalizeActivity = (label, responderName) => (
   responderName === '' ? label : label.split(`${responderName}'s `).join('').split(responderName).join('执行')
 )
 
+// 工具名到语义动作的映射只放在引擎适配层；业务只认识 read/exec/write。
+export const actionForTool = tool => {
+  const name = String(tool ?? '').toLowerCase()
+  if (name === '') return null
+  if (/(write|edit|multiedit|notebookedit)/.test(name)) return 'write'
+  if (/(bash|shell|exec|command|terminal|kill)/.test(name)) return 'exec'
+  if (/(read|grep|glob|ls|list|notebookread)/.test(name)) return 'read'
+  return null
+}
+
 const normalizeMessage = (raw, responderName) => {
   if (raw === null || typeof raw !== 'object') return null
   const common = { id: raw.id, at: raw.at ?? Date.now(), authorRef: raw.from?.botId ?? raw.digest?.botId ?? null }
@@ -51,7 +61,25 @@ const normalizeMessage = (raw, responderName) => {
     }
   }
   if (raw.kind === 'options') {
-    return { ...common, kind: 'question', role: 'agent', text: raw.text ?? '一张提问卡' }
+    const card = raw.card ?? {}
+    return {
+      ...common,
+      kind: 'question',
+      role: 'agent',
+      text: raw.text ?? '一张提问卡',
+      ...(typeof card.requestId === 'string'
+        ? {
+          card: {
+            requestId: card.requestId,
+            requestType: card.requestType,
+            tool: card.tool,
+            action: actionForTool(card.tool),
+            subtitle: card.subtitle,
+            options: Array.isArray(card.options) ? card.options : [],
+          },
+        }
+        : {}),
+    }
   }
   if (raw.kind === 'digest') {
     const digest = raw.digest ?? {}
@@ -102,6 +130,12 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { accepted: true, messageId: body?.message?.id ?? null }
   }
 
+  const answerCard = async ({ sessionRef, requestId, behavior }) => {
+    if (typeof sessionRef !== 'string' || typeof requestId !== 'string') throw new Error('权限卡缺少线程或请求 id')
+    if (!['allow', 'deny'].includes(behavior)) throw new Error('权限卡只接受 allow/deny')
+    return client.respondToCard(sessionRef, requestId, behavior)
+  }
+
   // Stop 走基座的 interrupt；没有正在跑的回合就如实报告。
   const cancelTurn = async ({ roomId } = {}) => {
     try {
@@ -125,7 +159,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
   const capabilities = () => ({
     resume: false,
     streaming: true,
-    approvals: false,
+    approvals: true,
     structuredOutput: true,
     subagents: false,
     cancel: true,
@@ -230,6 +264,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     rooms,
     history,
     sendTurn,
+    answerCard,
     cancelTurn,
     usage,
     capabilities,

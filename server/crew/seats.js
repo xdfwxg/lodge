@@ -48,7 +48,7 @@ const deliveryTriad = [
     toolSurface: ['read', 'exec'],
     skills: [],
     mcp: [],
-    approval: 'auto',
+    approval: 'ask',
     speakBudget: 4,
     prompt: '你是验收。只读复核：打开改动、必要时重跑验收命令；不改交付文件。第一行只写 PASS 或 REJECT，说明从第二行开始。不要接受作者的口头描述。直接复核，不要请求批准，不要问问题。',
   },

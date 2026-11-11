@@ -11,7 +11,7 @@ const alive = pid => {
   }
 }
 
-// 数据目录锁：同一份 .data 只能有一个 Crew 实例。
+// 数据目录锁：同一份 .data 只能有一个 Lodge 实例。
 export const acquireDataLock = dataDir => {
   mkdirSync(dataDir, { recursive: true })
   const file = join(dataDir, '.lock')
@@ -33,7 +33,7 @@ export const acquireDataLock = dataDir => {
     } catch {
       pid = NaN
     }
-    if (alive(pid)) throw new Error(`另一个 Crew 实例正在使用 ${dataDir}（pid ${pid}）`)
+    if (alive(pid)) throw new Error(`另一个 Lodge 实例正在使用 ${dataDir}（pid ${pid}）`)
     try {
       unlinkSync(file)
     } catch {}

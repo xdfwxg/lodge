@@ -1,5 +1,6 @@
 import { budgetHint, budgetStatus } from './budget.js'
 import { createLiveTurns } from './live-turns.js'
+import { decidePermission } from './permission.js'
 import { writeBrief, writeGoal } from './room-repo.js'
 
 const seatFor = (room, ref) => {
@@ -10,7 +11,7 @@ const seatFor = (room, ref) => {
   return null
 }
 
-// M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Crew 持有。
+// M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
   const entries = new Map()
 
@@ -103,6 +104,33 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
     })()
   }
 
+  const answerPermission = async (entry, seat, message) => {
+    const card = message?.card
+    if (card?.requestType !== 'permission' || typeof card.requestId !== 'string') return
+    if (entry.answeredCards.has(card.requestId)) return
+    entry.answeredCards.add(card.requestId)
+    const spec = store.readRoom(entry.roomId)?.seatSpecs?.find(item => item.id === seat)
+    const allowed = decidePermission(spec, card.action)
+    try {
+      const result = await engine.answerCard({
+        sessionRef: entry.seats.get(seat)?.sessionRef,
+        requestId: card.requestId,
+        behavior: allowed ? 'allow' : 'deny',
+      })
+      if (result?.ok === false) throw new Error(result.error ?? '基座拒绝了权限卡答案')
+      if (!allowed) {
+        store.appendMessage(entry.roomId, {
+          kind: 'system',
+          text: `权限拒绝：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,
+        })
+      }
+      refreshRoom(entry, { force: true })
+    } catch (error) {
+      entry.answeredCards.delete(card.requestId)
+      store.appendMessage(entry.roomId, { kind: 'system', text: `权限卡处理失败：${error?.message ?? error}` })
+    }
+  }
+
   const subscribeSeat = (entry, seat) => {
     const target = entry.seats.get(seat)
     if (target === undefined) return
@@ -118,6 +146,10 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
           return
         }
         const message = event.message
+        if (message?.card?.requestType === 'permission') {
+          void answerPermission(entry, seat, message)
+          return
+        }
         entry.turns.trackTool(message)
         if (message.kind === 'turn') {
           entry.turns.captureTurn(message.turn, message.authorRef)
@@ -143,7 +175,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
       emit,
       sendToSeat: (seat, text) => sendToSeat(room.id, seat, text),
     })
-    const entry = { roomId: room.id, seats: new Map(), turns, syncing: new Set(), refreshedAt: 0 }
+    const entry = { roomId: room.id, seats: new Map(), turns, syncing: new Set(), answeredCards: new Set(), refreshedAt: 0 }
     entries.set(room.id, entry)
     const bases = await engine.rooms()
     for (const seat of seatKeys) {

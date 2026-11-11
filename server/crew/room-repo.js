@@ -60,7 +60,7 @@ export const ensureRepo = path => {
   const readme = join(path, 'README.md')
   if (!existsSync(readme)) writeFileSync(readme, `# ${basename(path)}\n`)
   execFileSync('git', ['add', 'README.md'], { cwd: path })
-  execFileSync('git', ['-c', 'user.name=Crew Chat', '-c', 'user.email=crew@localhost', 'commit', '-q', '-m', 'room: initial'], { cwd: path })
+  execFileSync('git', ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', 'room: initial'], { cwd: path })
   return path
 }
 
@@ -214,7 +214,7 @@ export const commitRoom = (room, files = []) => {
     if (extra.length > 0) execFileSync('git', ['add', '-A', '--', ...extra], { cwd: repo, stdio: 'ignore' })
     const status = execFileSync('git', ['status', '--porcelain', '--', ...paths], { cwd: repo, encoding: 'utf8' })
     if (status.trim() === '') return true
-    execFileSync('git', ['-c', 'user.name=Crew Chat', '-c', 'user.email=crew@localhost', 'commit', '-q', '-m', `room: ${room.name}`, '--', ...paths], { cwd: repo, stdio: 'ignore' })
+    execFileSync('git', ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', `room: ${room.name}`, '--', ...paths], { cwd: repo, stdio: 'ignore' })
     console.log(`room committed: ${room.id} ${paths.join(' ')}`)
     return true
   } catch (error) {

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
-const design = read('docs/crew-chat-design.md')
+const design = read('docs/lodge-design.md')
 const reuse = read('docs/reuse-map.md')
 const thought = read('设计思想.md')
 

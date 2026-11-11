@@ -214,6 +214,6 @@ setInterval(() => {
 
 const port = Number(process.env.CREW_PORT ?? 8787)
 server.listen(port, '127.0.0.1', () => {
-  console.log(`Crew Chat server: http://127.0.0.1:${port}`)
+  console.log(`Lodge server: http://127.0.0.1:${port}`)
   void live.start()
 })

@@ -1,11 +1,11 @@
 # 复用地图 v2.0
 
-> 2026-11-11 · 目标：用成熟、可扩展的运行时做地基，Crew Chat 只写产品差异层。
+> 2026-11-11 · 目标：用成熟、可扩展的运行时做地基，Lodge 只写产品差异层。
 > 原则：**复用运行时，替换产品面；抄代码，不抄产品。**
 >
 > 分层与取舍判断见根目录 [`设计思想.md`](../设计思想.md)。
 >
-> **当前实现（2026-11-12）**：P0+ / M3 部分。设计目标是 `docs/crew-chat-design.md`；规则见 `设计思想.md`；§8.5 是唯一的状态入口。已成立：开工卡（done/编制/验收/≤3 问，一次确认）、席位按需组合、多执行并行、manual 人验收、worktree 生命周期（环境同步/端口提示/清理/GC/磁盘水位）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）。未接：runtime Assignment、工具级权限强制、建后改席位、多验收席位、跨厂商盲审、审批桥、模板导入、Electron。
+> **当前实现（2026-11-12）**：P0+ / M3 部分。设计目标是 `docs/lodge-design.md`；规则见 `设计思想.md`；§8.5 是唯一的状态入口。已成立：开工卡（done/编制/验收/≤3 问，一次确认）、席位按需组合、多执行并行、manual 人验收、worktree 生命周期（环境同步/端口提示/清理/GC/磁盘水位）、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）。未接：runtime Assignment、文件系统/命令沙箱、建后改席位、多验收席位、跨厂商盲审、M4 审批桥、模板导入、Electron。
 
 ## 0. 选型结论
 
@@ -14,7 +14,7 @@
 | 基座 | **OpenMausBot OSS**（Apache-2.0） | 引擎驱动、Assignment 运行时、SQLite/SSE、Electron 壳都已成熟，且靠 driver/ACP 扩展 |
 | 引擎 | **OpenMausBot drivers** | 原生 Claude/Codex 驱动 + ACP；新增 CLI 是加 driver 或一条配置，核心不动 |
 | UI 参考 | **Claude-Bot / DS Bot**（Apache-2.0） | 优秀设计可复用（含代码/CSS）；保留 LICENSE、NOTICE 与文件头；不引入 DSH 宿主/插件/store 耦合；当前 UI 自写 |
-| 产品层 | **Crew Chat 自写** | 房间即仓库、阶段验收、证据、跨厂商独立性、席位模板 |
+| 产品层 | **Lodge 自写** | 房间即仓库、阶段验收、证据、跨厂商独立性、席位模板 |
 
 明确不采用：LangGraph / CrewAI / AutoGen 这类编排框架；也不自写 CLI spawn 层。前者多一层状态真相，后者会重造 OpenMausBot 已经做对的引擎管理。
 
@@ -24,11 +24,11 @@
 
 **A（推荐）以 OpenMausBot OSS 为基座 fork**
 - 删 `enterprise/`，保留 `server/runtime`、`server/drivers`、`server/engine-*`、Electron 壳。
-- 新增 `server/crew/`（房间、阶段、证据）与 Crew Chat UI；当前 `ui/` 整体迁入。
+- 新增 `server/crew/`（房间、阶段、证据）与 Lodge UI；当前 `ui/` 整体迁入。
 - 保留 `upstream` remote，引擎更新按 driver 粒度 cherry-pick。
 - 代价：仓库大（约 7,660 个文件、1,565 个 server TS 文件），产品面要删；收益：引擎/认证/安装/更新全部现成，且持续可跟上游。
 
-**B 在 crew-chat 里按模块移植**
+**B 在 Lodge 里按模块移植**
 - 只搬 `runtime` + 选中的 driver。实测 `claude.ts` 与 `acp/core.ts` 各 44 条 import，牵扯 config、procs、auth、catalog、engine home 等一整片；搬完等于维护一个私有分叉，且拿不到上游更新。
 - 仅在 A 的删除成本被证明不可控时启用。
 
@@ -37,7 +37,7 @@
 ## 1. 分层与扩展点
 
 ```
-┌ UI（Crew Chat 自己的视觉与状态层）──────────────┐
+┌ UI（Lodge 自己的视觉与状态层）──────────────┐
 ├ 产品层  server/crew/  房间即仓库·阶段·证据·独立性   ┤  ← 自己写
 ├ 协调层  runtime       Assignment 生命周期·不变量    ┤  ← 复用
 ├ 引擎层  drivers       Claude/Codex/ACP·权限·目录     ┤  ← 复用
@@ -72,7 +72,7 @@
 | `server/room-{context,cwd,folder,holds,lines,question-tasks}.ts` | 房间成员上下文、固定目录、@ 持有与释放 | 直接用于 Room 会话 |
 | `server/group-goal-run.ts` | 群目标的多轮协调与完成判定 | **只作参考**：它没有阶段签字与证据门禁 |
 | `electron/main.mjs`（3,160 行）、`electron-builder.yml`、preload、更新模块 | 窗口、生命周期、打包、自动更新 | 换品牌、删无关面板 |
-| `src/components/{ApprovalCard,QuestionCard,AskCard}.tsx` | 审批/提问卡交互 | 只借状态机；样式按 Crew Chat CSS 重写，不引 Tailwind |
+| `src/components/{ApprovalCard,QuestionCard,AskCard}.tsx` | 审批/提问卡交互 | 只借状态机；样式按 Lodge CSS 重写，不引 Tailwind |
 
 ## 3. OpenMausBot：适配后复用
 
@@ -80,9 +80,9 @@
 |---|---|---|
 | `server/runtime/types.ts` 的 `Assignee` / `Destination` | `botId` → 席位 id；`thread` → Room thread | 改动会扩散到 store 校验，先写适配层，不直接改类型 |
 | `server/group-goal-run.ts` | 协调循环保留；阶段推进改由 `server/crew/stages` 判定 | 它的完成判定是模型输出，不能替代人的签字 |
-| `src/state/store.tsx`（约 3,300 行） | **不复用**；Crew Chat 现有 store 接 `thread-events` | 它绑 bot-as-person 概念与整套页面 |
+| `src/state/store.tsx`（约 3,300 行） | **不复用**；Lodge 现有 store 接 `thread-events` | 它绑 bot-as-person 概念与整套页面 |
 | `src/components/*` 的引擎设置页 | 可作为「高级」面板参考 | 状态与 wire 耦合深，首版只做最小设置 |
-| `server/openmausbot.ts` 宿主装配 | 换成 Crew Chat 宿主，只装 runtime + 选中 driver + crew 模块 | 宿主入口虽短，装配面很宽；按能力逐项打开 |
+| `server/openmausbot.ts` 宿主装配 | 换成 Lodge 宿主，只装 runtime + 选中 driver + crew 模块 | 宿主入口虽短，装配面很宽；按能力逐项打开 |
 
 ## 4. Claude-Bot / DS Bot：优秀设计可复用，保留许可与归属
 
@@ -93,8 +93,8 @@
 | `app/ui`（休眠的独立 UI 分支） | **不搬** | 只服务单 bot，不服务群；群聊由 DSH 壳渲染 |
 | `ds-bot/src/host/local-agents/*` | **不搬** | OpenMausBot 的原生驱动与 ACP 更完整（认证、安装、版本门禁） |
 | `ds-bot/src/host/goals.js` | **设计参考** | 状态与证据门禁可看；`pass` 只校验证据非空，不执行命令 |
-| `ds-bot/src/client/goal.js`（目标岛） | **照设计重写** | 目标岛布局、阶段步进器、任务行、状态语言直接采纳（§9.7）；代码绑 `BotMark`/`i18n`/DSH 样式，不搬组件，按 Crew Chat CSS 重写 |
-| `ds-bot/src/host/skills/goal-grill/SKILL.md` | **照设计重写** | 只参考对齐流程；不直接复制技能正文。队长提示词由 Crew Chat 自写 |
+| `ds-bot/src/client/goal.js`（目标岛） | **照设计重写** | 目标岛布局、阶段步进器、任务行、状态语言直接采纳（§9.7）；代码绑 `BotMark`/`i18n`/DSH 样式，不搬组件，按 Lodge CSS 重写 |
+| `ds-bot/src/host/skills/goal-grill/SKILL.md` | **照设计重写** | 只参考对齐流程；不直接复制技能正文。队长提示词由 Lodge 自写 |
 | `app/src/main.mjs` 的 Electron 结构 | **不搬** | OpenMausBot 的壳更完整；只参考窗口/权限细节 |
 
 已实测的坑，继续有效：
@@ -104,7 +104,7 @@
 3. `app/ui` 的 `useChat` 在 `botId === undefined` 时直接返回，房间时间线必须自己写。
 4. 两套样式系统不能混：不为了三张卡引入 Tailwind。
 
-## 5. Crew Chat 自己写
+## 5. Lodge 自己写
 
 1. **房间即仓库**：`BRIEF.md`（人）、`GOAL.md`/`CONCLUSION.md`（运行时投影）、`transcript.jsonl`、`evidence/`，完成时一次本地 commit，不 push；`decisions.md` 归人，运行时不写。
 2. **阶段与门禁**：`decision` 阶段要人点；`deliverable` 阶段要验收命令 + Verifier PASS；`openQuestion` 未答不能确认。
@@ -113,7 +113,7 @@
 5. **席位模板与权限**：Planner 只读、Executor worktree 写、Verifier 只读；模板可换，不改核心。
 6. **产品 UI**：当前 `ui/` 的房间、调度台、证据回执、完成态；状态层接基座事件。
 7. **调度台**：一句话 → 建议交给哪个群；接 OpenMausBot 的请求/建议形态，不重造。
-8. **Crew Chat 宿主装配**：只装 runtime + 首版 driver + crew 模块，不把 OpenMausBot 的全部能力都打开。
+8. **Lodge 宿主装配**：只装 runtime + 首版 driver + crew 模块，不把 OpenMausBot 的全部能力都打开。
 
 ## 6. 明确不搬 / 首版不装
 
@@ -139,11 +139,11 @@ openmausbot/                  # 上游 OSS，保留 remote
     engine-*.ts               # 复用
     crew/                     # 自己写：room repo / stages / evidence / seats
     crew-host.ts              # 自己写：只装配需要的模块
-  ui/                         # 当前 Crew Chat UI 迁入
+  ui/                         # 当前 Lodge UI 迁入
   electron/                   # 复用，换品牌与入口
   templates/                  # 席位模板
   docs/
-    crew-chat-design.md
+    lodge-design.md
     reuse-map.md
 ```
 
@@ -152,7 +152,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 | 步 | 做什么 | 判据 |
 |---|---|---|
 | S0 | fork OSS，删 `enterprise/`，跑通 `pnpm dev` 与现有测试 | 基座能启动，`edition: oss` |
-| S1 | 迁入 Crew Chat UI，接 `thread-events`/SSE，一个房间显示历史 | 关掉重开一致 |
+| S1 | 迁入 Lodge UI，接 `thread-events`/SSE，一个房间显示历史 | 关掉重开一致 |
 | S2 | `server/crew/`：BRIEF、transcript、evidence、阶段门禁；接 runtime Assignment | 一个 decision 阶段由人确认，一个 deliverable 阶段有证据 |
 | S3 | 接真实 Claude Code（原生 driver），跑一条完整链路 | 命令退出码、输出、diff 入 evidence，Verifier 复核，人签字，commit |
 | S4 | 接 Codex 或第二个 ACP 引擎，打开跨厂商独立性 | 验收卡显示 `vendor`，降级时显示 `none` |
@@ -165,7 +165,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 > 下面 S1/S2 里的 `.data/rooms/...` 是历史 spike 路径；当前产物在房间仓库的 `.crew/rooms/<id>/`。
 
 - 基座：`crew-chat-base`，`8799`，`edition: oss`；`enterprise/` 已删，上游 remote 保留。
-- 适配层：`crew-chat/server/base.js` 读 `GET /api/bots?messages=0`、`GET /api/threads/{id}/messages`、订阅 `/api/events`、`POST /api/groups/{id}/messages`。
+- 适配层：`server/base.js` 读 `GET /api/bots?messages=0`、`GET /api/threads/{id}/messages`、订阅 `/api/events`、`POST /api/groups/{id}/messages`。
 - 房间映射：基座群 `crew-spike` → 房间 `cbd453e5-…`；一个 deliverable 阶段；成员仅 `executor`；`independence: none`（显示「独立性降级」）。
 - 真实回合：从房间发一句需求，Claude Code 完成 `Write hello.txt`，digest 含 `Write ×1`、`durationMs ≈ 5s`。
 - 证据：`.data/rooms/<roomId>/evidence/<messageId>.json`，`meta.kind: 'turn'`，记录工具摘要、回合耗时、产物路径 / 字节数 / sha256 与原始 digest；sha256 与磁盘 `hello.txt` 实测一致。
@@ -184,7 +184,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 
 ## 8.3 S3 记录（2026-11-11）
 
-- 真实引擎链路：基座（OpenMausBot，8799）+ Crew Server 跑通真实 CLI 回合；执行席位在基座群绑定的 `cwd` 里创建文件，回合 digest 与工具产物落成证据。
+- 真实引擎链路：基座（OpenMausBot，8799）+ Lodge server 跑通真实 CLI 回合；执行席位在基座群绑定的 `cwd` 里创建文件，回合 digest 与工具产物落成证据。
 - 环境坑：基座若从 Claude 桌面会话继承 `CLAUDECODE=1` / `CLAUDE_CODE_PROVIDER_MANAGED_BY_HOST=1`，子 CLI 一律 `Not logged in`。基座必须用干净环境启动（`env -i HOME PATH TMPDIR …`），驱动才会读取 `~/.claude/settings.json` 的 DeepSeek 路由。证据按真实厂商记录为 DeepSeek，不按 driver 名称记 Anthropic。
 - 验收命令：`server/crew/acceptance.js` 在房间仓库执行 `/bin/sh -c <command>`，记录退出码、合并输出、`git` diff 与变更文件；验收 diff 与候选提交排除 `.crew/`，避免房间运行记录混进交付内容；完成时的结论 commit 会单独带上 `.crew/rooms/<id>/`，让房间记录随分支走。验收命令串行执行，超时杀整个进程组。
 - 复核：`POST /api/rooms/:id/verify` 把验收证据发给验收席位，要求首行只写 `PASS`/`REJECT`；回复作为 `verdict` 落盘（`review:true`）。首版只有一台 CLI，复核与执行同引擎，界面标「独立性降级」，不冒充跨厂商。
@@ -215,29 +215,30 @@ openmausbot/                  # 上游 OSS，保留 remote
 
 - **底座加固**：`room` 表加 `version`，房间状态变更统一走 `updateRoom` 的 IMMEDIATE 事务；新增 append-only `room_event`（建房/阶段/验收/复核/提交/迁移）；席位能力（read/exec/write、writeScope、toolSurface）成为单一事实来源，启动时校验，声明不合法直接失败；新增 `/api/health`；`npm test` 覆盖门禁、验收命令、store 事务与席位契约。
 - **worktree 生命周期（2026-11-12）**：创建时为 worker/verifier/integration 复制 `.env`/`.env.local`、软链 `node_modules`；给执行/验收/集成目录分配端口，并在工作提示词与验收命令里注入 `PORT`。候选 commit 与验收 diff 排除 `.env`/`.env.local`/`node_modules`/`.crew`。房间完成/停止后清掉非交付席位工作区（保留交付仓库与候选分支）；启动与每 6 小时 GC 已知房间；未知孤儿目录默认不删，`CREW_WORKTREE_GC_ORPHANS=1` 才按 TTL（默认 7 天）清理；创建前做磁盘水位检查（默认 512MB）。真实验证：`.env` 与依赖软链到位，候选 commit 只含交付文件，完成后 planner/verifier 工作区被清理、executor 交付仓库与分支保留，结论 commit 不含 `.env`。边界：`node_modules` 是共享软链，不适合在工作区里改依赖；Python venv/本地数据库/端口强制隔离未做；端口是提示与验收注入，应用不认 `PORT` 时仍需人处理。
-- **成本硬闸门（2026-11-12）**：新房间默认 $5 预算（`CREW_ROOM_BUDGET_USD` 可改）；`CREW_GLOBAL_BUDGET_USD` 可选全局上限，0 都表示不限。预算数据来自基座 `usage.costMicroUsd` 的席位汇总，不信任模型自报。到线把房间置 `paused`（`pauseReason='budget'`），只拦新回合、新阶段和新房间，不取消正在跑的回合；调度台/侧栏只展示，不获得控制权。`POST /api/rooms/:id/budget` 可调房间预算，提高后自动恢复；若当前阶段还没有证据，会续跑该阶段。验收/复核/消息在发回合前检查房间与全局预算，超限返回 4xx 业务拒绝。真实 E2E：房间预算 $0.001 时首回合 $0.073 后暂停并出现 `needsYou.kind=budget`，调高到 $2 后恢复；全局预算 $0.001 时首回合 $0.081 后暂停，新建房间返回 409；页面侧栏显示 $0.081 / $0.001，高级里的预算输入能把 $6 保存到服务端。边界：全局上限只统计 Crew 房间，开工卡推荐用的临时队长回合不计入；成本是基座按模型目录价上报的估算值，本机 CLI 实际走 DeepSeek 时可能不等于真实账单，闸门只保证按上报值截止，不能当计费凭证；发言配额仍未强制。
+- **成本硬闸门（2026-11-12）**：新房间默认 $5 预算（`CREW_ROOM_BUDGET_USD` 可改）；`CREW_GLOBAL_BUDGET_USD` 可选全局上限，0 都表示不限。预算数据来自基座 `usage.costMicroUsd` 的席位汇总，不信任模型自报。到线把房间置 `paused`（`pauseReason='budget'`），只拦新回合、新阶段和新房间，不取消正在跑的回合；调度台/侧栏只展示，不获得控制权。`POST /api/rooms/:id/budget` 可调房间预算，提高后自动恢复；若当前阶段还没有证据，会续跑该阶段。验收/复核/消息在发回合前检查房间与全局预算，超限返回 4xx 业务拒绝。真实 E2E：房间预算 $0.001 时首回合 $0.073 后暂停并出现 `needsYou.kind=budget`，调高到 $2 后恢复；全局预算 $0.001 时首回合 $0.081 后暂停，新建房间返回 409；页面侧栏显示 $0.081 / $0.001，高级里的预算输入能把 $6 保存到服务端。边界：全局上限只统计 Lodge 房间，开工卡推荐用的临时队长回合不计入；成本是基座按模型目录价上报的估算值，本机 CLI 实际走 DeepSeek 时可能不等于真实账单，闸门只保证按上报值截止，不能当计费凭证；发言配额仍未强制。
 - **语义评测 harness（2026-11-12）**：`npm run eval:planning` 用 3 个黄金房间（solo-cli / api-rate-limit / parallel-settings）调用真实 `recommendRoster`，runner 把 fixture 复制到临时 git 仓库，评分器检查 done 可核对、席位约束、角色名与 `why` 一致、验收命令、parser 截断、问题 ≤3 且不问机制。结果写 `evals/planning/results/latest.{json,md}`，不提交；不进入 `npm test`；任一 case 失败时命令非零退出。首轮 3 case × 3 次 9/9；并行 case 曾因 fixture 过小被判单人，扩成前后端各自有实质工作后通过；rubric 也收紧过一次，避免把“无需验收”的 `why` 误判为缺 verifier。
+- **工具审批桥（2026-11-12）**：基座的权限卡经 `engine.js` 映射为 `read/exec/write`（`actionForTool`），`live.js` 按 `seatSpecs.permissions` 自动 allow/deny，经 `/api/threads/:id/respond` 回答。planner/verifier 改为 `approval:'ask'`；planner/verifier 的 Write/Edit/MultiEdit 被拒绝，Bash 对 verifier 放行。真实房间验证：队长请求 Write，系统写「权限拒绝：队长 不能使用 Write」，`forbidden.txt` 未创建。边界：工具名映射只覆盖已知工具，未知动作 fail closed；exec 仍可在临时副本里写文件，不是文件系统沙箱。
 - **可交接记录与意图权威（2026-11-12）**：`store.appendEvent` 把治理事件镜像到 `.crew/rooms/<id>/events.jsonl`（append+fsync；SQLite `room_event` 仍是查询索引）；结论 commit 已带 transcript/events/evidence/BRIEF/GOAL/CONCLUSION。裁定 `BRIEF.md` 是 title/objective/done/constraints 的唯一权威，SQLite 对应字段是带 `source_hash` 的解析缓存；`revise` 先写 BRIEF 再重建缓存。测试覆盖事件镜像，以及 `.crew` 被 `.gitignore` 忽略时结论 commit 仍带房间记录。
 - **房间投影（2026-11-12）**：`/api/state` 与所有房间事件共用 `presentRoom`，统一附带 `needsYou`、`independenceLabel`、`independencePolicy`；UI 的状态条与高级面板直接消费这些字段，不再自己重算阶段/证据/verdict 状态和独立性文案。`presentation.test.js` 覆盖投影不修改存储房间。UI 仍保留 per-seat 展示状态（working/done）与阶段选择，这是展示层，不参与业务判定。
 - **结果三态（2026-11-12）**：业务拒绝用 `fail` 映射 4xx；系统/基座/IO/工作区异常直接抛到组合根映射 500，不再用 `fail('conflict')` 包装。复核请求的业务条件用 `BusinessError` 区分，`service.verify` 只把这类错误转成 4xx；开工卡队长不可用、建房中途创建 bot/群失败会显式 500。
 - **真实三人组（模板验证）**：从界面建房 → Engine 端口在基座创建三个 bot（同引擎，明确标「独立性降级」）+ 一个群 + 一个房间仓库；队长提示词要求 ≤3 问对齐（未强制）；人确认后系统 @执行；执行回合后自动跑验收命令；验收席位独立复跑并给 PASS/REJECT；人签字 → `CONCLUSION.md` + 一次本地 commit。
 - **开工卡（2026-11-11）**：建房前由队长读目标与仓库事实，给出一张开工卡：done、席位/职责/理由、验收方式、最多 3 个带推荐答案的问题；业务用 `validateRoster` 校验，UI 展示 done/问题/编制/验收，人确认一次直接开工，不再二次对齐；答案与 done 写进 BRIEF，手动模板只作覆盖。真实小目标验证：队长建议 1 个执行席位而不是三人组，约 7–8 秒返回；按卡建房没有对齐阶段，worker 直接开工，BRIEF 含 done 与编制理由，跑通到人签字与 commit；临时队长线程/工作区已清理。manual 开工卡也验证：产物就绪后生成 manual 证据，`needsYou=等你验收`，人签字后结论 commit。边界：建后改席位未接；角色仍限队长/执行/验收；多验收未接；基座不可用或建议不可解析时显式回退“手动选编制”，不静默套模板；建议只读，用户目录不是 git 仓库时显式失败，不在用户目录里 git init。
 - **模板驱动与按需编制**：席位是数据，三人组和单人只是模板；建房可传 `seats: [{ role, name }]` 自定义编制，服务端只接受 `lead / worker / verifier`，权限由角色派生（自定义不能自己发明能力）。约束：至少一个 worker，最多一个 lead、一个 verifier；多执行可并行，多验收未接（fail closed）。无 `lead` 时跳过对齐，直接进入交付；无 `verifier` 时门禁按席位表判断，真实证据 + 人签字即可通过；有 verifier 或席位表未知时仍必须拿到 PASS。已用真实 CLI 跑通单人全链路：执行 → 验收命令 exit 0 → 人签字 → `CONCLUSION.md` → 本地 commit，工作树干净。
-- **首屏**：默认不 seed 演示房和调度假请求；空状态只有一个「开一个房间」；对齐/派活/复核提示只进基座线程，不进 Crew 时间线。
+- **首屏**：默认不 seed 演示房和调度假请求；空状态只有一个「开一个房间」；对齐/派活/复核提示只进基座线程，不进 Lodge 时间线。
 - **注意力路由**：`attention.js` 从房间状态派生 `needsYou`（待确认/待回答/待签字/待复核/退回/待设命令）；侧栏显示一个点与「N 个等你」，调度摘要同步；不为每条消息做未读。
 - **能力扩展缝**：席位声明 `skills / mcp / approval`，启动时校验；crew 只传 `approval / mcp` 语义，`approvalMode / mcpServers` 的映射只在 `engine.js`（实测 soul 与 approvalMode 生效）；MCP 默认关闭，planner/verifier 不放外部工具；技能只存引用，`capabilities.skills=false` 时建房 fail closed。`boundary.test.js` 会拦住 crew 里的基座词汇，`store.test.js` 覆盖旧 schema 的增量迁移。
 - **触发扩展缝**：定时/事件任务归基座 routines/webhooks，crew 只存 `triggers` 引用与授权，不写 cron 循环；当前未接，`capabilities.schedules=false`，默认关闭；主动档位等真实后台检查与审批跑通后再开。
 - **调度台**：仍是只读前台——收件、建议、一次确认、投影摘要；不做能操作界面的全局助手。若要加，只能是 read + propose（解释、打开面板、生成草稿），最终动作由用户点。
 - **真实 M3 验证（2026-11-11）**：用临时源仓库 + 全新数据目录跑通三人组：3 个基座线程、3 个工作区、executor 分支正确；planner 克隆没有 `hello.txt`；executor 在自己的 worktree 创建文件，源仓库 `main` 仍干净；候选 commit 在 `crew/<room>/executor`；verifier 临时副本拿到候选文件并给 PASS；人签字后 executor 工作树干净，结论 commit 含 `CONCLUSION.md`；交付在房间分支上，可人工合并。另验证两席自定义房（执行+验收）与无验收房（队长+执行，`human` 人签字）；测试 bot 与群已清理，基座回到只有 MausBot。
 - **并行执行（2026-11-11）**：自定义编制可含多个执行席位；每个执行独立 worktree/分支，同一交付阶段并行派发。全部执行回合结束后，按顺序把候选分支合并进房间集成 worktree（`crew/<room>/integration`），在集成目录跑验收命令，再交验收席位复核。合并冲突会回滚并停下等人（`needsYou.kind=merge`）；15 分钟未完成报超时（`kind=parallel`）。真实双执行验证：前端/后端各自 worktree + 候选 commit，集成合并、验收 exit 0、verifier PASS、人签字、`CONCLUSION.md` + 结论 commit；源仓库 `main` 干净，交付在 integration 分支，候选分支保留供人工查看。单元测试覆盖集成 worktree、合并、冲突回滚。
-- **下一步（设计文档 §15.1）**：worktree 生命周期与成本硬闸门已落；P0 剩余工具级权限与多验收边界；M2 后先做 5–10 人私密 dogfood（只收卡住点，不公开演示），再按真实卡点排 P1；P1 是业务感知交接包、本地房间交接包、工作区级项目约束、子任务依赖图/阶段级部分成功、MCP 隔离与审计、复盘/用量视图、调度台只读资源面板、本地模板导入。明确不做：模板市场、多人协作/Org、非编码模式、自动执行、第二个有写权限的全局助手、黑盒 RAG。
-- **已知边界**：UI `app.js` 是单文件页面，后续可按视图拆分；模板导入未接；Engine 端口是房间级语义；M1 游标/轮次/空转已落，席位交接包未做（实际增量由基座 delta-context 负责）；房间记录随结论 commit 可带走，但一键导出/导入/打开还未做；M2 真 Stop 已接（未做 500ms E2E），@ 基础有；M3 席位隔离与并行 executor worktree 已落（planner 克隆 / 多 executor worktree / 集成 worktree / verifier 临时副本 + 候选提交）；worktree 生命周期已落（环境/端口/清理/GC/磁盘水位）；成本硬闸门已落（房间/全局预算到线暂停新任务），发言配额未强制；venv/本地数据库/端口强制隔离未做；工具级权限强制未做；建后改席位未接；多验收席位未接；manual 验收不挂 verifier（要独立复核必须补命令，fail closed）；并行合并冲突需要人处理，没有自动重排；verifier 与执行同引擎、同群，真正独立监督在 M4；编制建议依赖基座可用，失败时显式回退手动选编制；Goal 仍是两段、goal-grill 未强制；跨厂商盲审/审批桥/发言配额/fork 未做；Electron 未接，TypeScript 只在基座；SQLite 仍是原型索引，关系表迁移只改 `store.js`。
+- **下一步（设计文档 §15.1）**：worktree 生命周期与成本硬闸门已落；P0 剩余多验收边界与文件系统/命令沙箱；M2 后先做 5–10 人私密 dogfood（只收卡住点，不公开演示），再按真实卡点排 P1；P1 是业务感知交接包、本地房间交接包、工作区级项目约束、子任务依赖图/阶段级部分成功、MCP 隔离与审计、复盘/用量视图、调度台只读资源面板、本地模板导入。明确不做：模板市场、多人协作/Org、非编码模式、自动执行、第二个有写权限的全局助手、黑盒 RAG。
+- **已知边界**：UI `app.js` 是单文件页面，后续可按视图拆分；模板导入未接；Engine 端口是房间级语义；M1 游标/轮次/空转已落，席位交接包未做（实际增量由基座 delta-context 负责）；房间记录随结论 commit 可带走，但一键导出/导入/打开还未做；M2 真 Stop 已接（未做 500ms E2E），@ 基础有；M3 席位隔离与并行 executor worktree 已落（planner 克隆 / 多 executor worktree / 集成 worktree / verifier 临时副本 + 候选提交）；worktree 生命周期已落（环境/端口/清理/GC/磁盘水位）；成本硬闸门已落（房间/全局预算到线暂停新任务），发言配额未强制；venv/本地数据库/端口强制隔离未做；工具审批桥已落（写工具拒绝；exec 仍是临时副本，不是文件系统沙箱）；建后改席位未接；多验收席位未接；manual 验收不挂 verifier（要独立复核必须补命令，fail closed）；并行合并冲突需要人处理，没有自动重排；verifier 与执行同引擎、同群，真正独立监督在 M4；编制建议依赖基座可用，失败时显式回退手动选编制；Goal 仍是两段、goal-grill 未强制；跨厂商盲审/M4 审批桥/发言配额/fork 未做；Electron 未接，TypeScript 只在基座；SQLite 仍是原型索引，关系表迁移只改 `store.js`。
 
 ## 9. 许可与合规
 
 - OpenMausBot：Apache-2.0；保留根 `LICENSE`、`NOTICE` 与源文件头。`enterprise/` 是单独的商业许可，删除。
 - Claude-Bot / DS Bot：Apache-2.0；优秀设计与代码可复用，保留 LICENSE、NOTICE 与文件头；不复制 enterprise/商业代码，不引入 DSH 宿主/插件/store 耦合。
-- 商标：OpenMausBot / MausBot 名称与吉祥物是商标，Apache-2.0 不授予商标权；产品名用 Crew Chat，换掉一切上游品牌资产。
+- 商标：OpenMausBot / MausBot 名称与吉祥物是商标，Apache-2.0 不授予商标权；产品名用 Lodge，换掉一切上游品牌资产。
 - 我们自己的仓库补 `LICENSE` 与 `NOTICE`（如包含上游代码）。
 
 ## 10. 风险

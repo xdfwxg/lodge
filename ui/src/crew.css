@@ -1,6 +1,6 @@
-/* Crew Chat's own UI layer and design tokens. */
+/* Lodge's own UI layer and design tokens. */
 
-/* Sidebar row/list styles, written for Crew Chat. */
+/* Sidebar row/list styles, written for Lodge. */
 .bt-side{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;gap:2px;padding:0;color:var(--bt-ink);font-family:var(--bt-font)}
 .bt-list{display:flex;flex-direction:column;gap:3px;overflow-y:auto;min-height:0;flex:1 1 auto}
 .bt-list::-webkit-scrollbar{width:10px}
@@ -256,7 +256,7 @@
 .crew-activity-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .crew-activity-time{flex:none;margin-left:auto;font-size:11px;opacity:.7}
 
-/* Base primitives: bubbles, markdown, marks. Written for Crew Chat, no vendored CSS. */
+/* Base primitives: bubbles, markdown, marks. Written for Lodge, no vendored CSS. */
 .bt-bubble{max-width:min(calc(100% - 82px),100%);background:var(--bt-bubble);color:var(--bt-ink);border-radius:18px;padding:7px 12px;font-size:14px;line-height:24px;box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty}
 .bt-ububble{max-width:100%;background:var(--bt-user);color:var(--bt-user-ink);border-radius:18px;padding:7px 12px;font-size:14px;line-height:24px;box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty}
 

@@ -464,7 +464,7 @@ function Sidebar({ state, onSelect, onNew }) {
   const waiting = rooms.filter(room => room.needsYou).length
 
   return h('aside', { className: 'dsb-side' },
-    h('div', { className: 'crew-side-brand' }, h(BotMark, { size: 22, live: false }), 'Crew Chat'),
+    h('div', { className: 'crew-side-brand' }, h(BotMark, { size: 22, live: false }), 'Lodge'),
     state.runtime?.ok === false
       ? h('div', { className: 'crew-error', style: { margin: '0 6px 10px' } }, `基座未连接：${state.runtime.error}`)
       : null,
@@ -1287,7 +1287,7 @@ export function App() {
     return h('div', { className: 'crew-onboarding' },
       h('div', { className: 'crew-onboarding-card' },
         h(BotMark, { size: 44 }),
-        h('h1', null, 'Crew Chat'),
+        h('h1', null, 'Lodge'),
         h('p', null, '开间专属任务房，养一支 AI 小队——你下班，它上班。'),
         h('button', {
           type: 'button',

@@ -1,4 +1,4 @@
-# Crew Chat · 设计文档
+# Lodge · 设计文档
 
 > 版本 v0.11 · 2026-11-12
 > 技术基座：**OpenMausBot OSS**（Apache-2.0，fork 后删 `enterprise/`，复用 runtime / drivers / Electron）
@@ -10,7 +10,7 @@
 > v0.10 变更：采纳 Claude-Bot 的目标呈现——**目标岛**（§9.7），并把 `goal-grill` 的对齐方式写进开队流程（§8.2、§9.2）；数据模型补 `goals.idle/revision`、`goal_stages.reject_count/rework_feedback`（§11）。
 > v0.11 变更：顶层定位改为“可验收、可交接的交付”；“省时省力”降为交互承诺与结果指标，房间留痕回到价值主张（§1、§2.6）。
 >
-> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、Engine 端口、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、三档权限的工具级强制、多验收席位、跨厂商盲审、审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
+> **当前实现状态（2026-11-12）**：P0+ / M3 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、工具审批桥（planner/verifier 写工具被拒绝，exec 不是文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、Engine 端口、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、文件系统/命令沙箱、多验收席位、跨厂商盲审、M4 审批桥、发言预算、fork、模板导入、Electron、M1 交接包、M2 并行调度。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
 >
 > **产品北极星（防跑偏）**：用户只做三件事——说目标、答 ≤3 个带推荐答案的问题、验收；队长用**一张开工卡**给出 done、编制、验收与问题，业务校验，人确认一次直接开工，三人组只是模板、单人合法；任何让用户选机制（模型、人数、并发、worktree）的设计都是跑偏；只加 bot、页面或开关、没有让“目标 → 证据 → 结论 → commit”更可信或更省人的功能，不做。
 
@@ -20,7 +20,7 @@
 
 bot 项目已经过剩。再做一个"具名 bot + 群聊 + @"，无论做得多完整，都会落进同一个货架。
 
-Crew Chat 的判断是：**这个品类缺的不是更多 bot，而是"小队"这件事本身**——一场有议程、有席位、有交付、有验收的讨论。
+Lodge 的判断是：**这个品类缺的不是更多 bot，而是"小队"这件事本身**——一场有议程、有席位、有交付、有验收的讨论。
 
 但"小队"只是骨架。用户为两件事付钱：**这次交付有人替他干完并验收；换人、换引擎或一个月后，这间房还能接上。** 前者是省时省力，后者是留痕与可交接——省时省力是结果，不是唯一理由。所以本文的第二条主线是苹果式设计：极简、表里如一、人的感受优先、端到端一体；展开成默认即最佳、一次一个决定、结果优先、一切可撤销。功能再多，只要需要用户先理解你的机制，或者界面上写着机制里没有的事，就是失败的。
 
@@ -37,7 +37,7 @@ Crew Chat 的判断是：**这个品类缺的不是更多 bot，而是"小队"�
 
 一个必须正视的现实：**Grok Bot、Dots、Duet、Muse、Cue 全是"常驻个人 agent"**，而且 Grok Bot 有「Chief of Staff + 专家 Bot + 共享群线程」，Cue 有「多 agent 共享群聊 + 共享目标 + 交接」。所以"多个 agent 在一个群里协作"已经不是差异点，是入场券。
 
-Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付费的真实 CLI、靠证据验收、由不同厂商交叉审查**。这四件事，云端个人 agent 都做不了——它们的机器不是你的，它们的模型是固定的。
+Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的真实 CLI、靠证据验收、由不同厂商交叉审查**。这四件事，云端个人 agent 都做不了——它们的机器不是你的，它们的模型是固定的。
 
 ---
 
@@ -51,7 +51,7 @@ Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付�
 
 ### 2.2 四条核心
 
-| 核心 | 原意 | 在 Crew Chat 里怎么落地 |
+| 核心 | 原意 | 在 Lodge 里怎么落地 |
 |---|---|---|
 | **极简，去掉多余** | 方正、干净、造型克制；能整合的就整合（边框直接当天线），少即是多 | 一屏、一条进度带、四种时间线元素（发言、任务卡、证据、结论卡）；没有仪表盘、没有模式选择器、没有成员管理页。新功能先问一句：能不能并进已有卡片 |
 | **表里如一，材质诚实** | 材料本身就是美感，不靠喷漆、装饰伪装；内部结构服务外形，不是外壳套一个随便的内部 | 界面上的每句话都必须对应真实机制：说「已写入 evidence/」就真有文件，说「本地 commit 一次」就真有 commit，说「跨厂商」就真是两个厂商。演示/样例数据必须标注；交付型阶段没有 Verifier PASS 就不能通过（§9.3） |
@@ -104,7 +104,7 @@ Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付�
 
 大多数同类项目的默认形状是「花名册」：左栏一排 bot，点进去聊天，群里 @ 一下。
 
-| 维度 | 机器人集合（大多数） | Crew Chat（工作小队） |
+| 维度 | 机器人集合（大多数） | Lodge（工作小队） |
 |---|---|---|
 | **核心对象** | 一个一个的 bot | **一个群（Room）** |
 | 首屏 | 最近会话列表 | 当前目标 + 一条进度带 |
@@ -245,7 +245,7 @@ Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付�
 
 **护城河排序**：本地仓库 + 真实 CLI + 证据验收是当下就能兑现的卖点；跨厂商是 M4 的增强项，不是入场券。同引擎时必须标“独立性降级”，不拿未实现的能力当主卖点。
 
-**一句话**：云端 agent 告诉你它做完了，Crew Chat 证明它做完了。
+**一句话**：云端 agent 告诉你它做完了，Lodge 证明它做完了。
 
 **战场**：不和 Grok Bot 比“同事感 / 常驻 / 生活助理”；比交付审计：一人一 worktree、退出码 + diff + commit、关掉页面后 `git status` 仍然说明发生过什么。
 
@@ -499,7 +499,7 @@ Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付�
 
 ### 7.1 基座复用：OpenMausBot OSS
 
-**结论：以 OpenMausBot OSS 为基座 fork，而不是把 runtime 抄进 crew-chat。** 实测 `claude.ts` 与 `acp/core.ts` 各 44 条 import，牵扯 config、procs、auth、catalog、engine home 一整片；抄出来等于维护一个私有分叉，也拿不到上游的引擎更新。
+**结论：以 OpenMausBot OSS 为基座 fork，而不是把 runtime 抄进 Lodge。** 实测 `claude.ts` 与 `acp/core.ts` 各 44 条 import，牵扯 config、procs、auth、catalog、engine home 一整片；抄出来等于维护一个私有分叉，也拿不到上游的引擎更新。
 
 基座里**保留并接线**：
 
@@ -533,13 +533,13 @@ Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付�
 
 **两天 spike 判据**：基座能启动、我们的 UI 能接上、一个房间跑一次真实 Claude turn、证据落盘。不满足再退回“按模块移植”，但那意味着接受私有分叉的成本。
 
-**Spike 结果（2026-11-11，通过）**：基座 fork 在 `8799` 启动；Crew Chat 原型 UI 经 `server/base.js` 适配层接上（原型仍独立运行，尚未迁入基座）；基座群 `crew-spike` 映射为实时房间，从房间输入框发消息后真实 Claude turn 完成 Write `hello.txt`，turn digest 被捕获为 evidence JSON（`meta.kind: 'turn'`），产物 sha256 与磁盘文件一致。S1 判据“关掉重开一致”已满足；S2 产品层与 S3 验收链路尚未开始。
+**Spike 结果（2026-11-11，通过）**：基座 fork 在 `8799` 启动；Lodge 原型 UI 经 `server/base.js` 适配层接上（原型仍独立运行，尚未迁入基座）；基座群 `crew-spike` 映射为实时房间，从房间输入框发消息后真实 Claude turn 完成 Write `hello.txt`，turn digest 被捕获为 evidence JSON（`meta.kind: 'turn'`），产物 sha256 与磁盘文件一致。S1 判据“关掉重开一致”已满足；S2 产品层与 S3 验收链路尚未开始。
 
-**Claude-Bot / DS Bot：优秀设计可复用，保留许可与归属；不继承 DSH 耦合。** 当前 UI 为 Crew Chat 自写；`ui/src/dsbot` 已在 P0 删除整包 vendored。需要某块组件或 CSS 时，可以按模块复用，保留 Apache-2.0 `LICENSE`、`NOTICE` 与文件头；不引入 DSH 宿主、插件、store 强耦合；不 import `sidebar.js`；不把 `createElement` 改写成 TSX；不引入 Tailwind。
+**Claude-Bot / DS Bot：优秀设计可复用，保留许可与归属；不继承 DSH 耦合。** 当前 UI 为 Lodge 自写；`ui/src/dsbot` 已在 P0 删除整包 vendored。需要某块组件或 CSS 时，可以按模块复用，保留 Apache-2.0 `LICENSE`、`NOTICE` 与文件头；不引入 DSH 宿主、插件、store 强耦合；不 import `sidebar.js`；不把 `createElement` 改写成 TSX；不引入 Tailwind。
 
 **personal-agent** 继续作为机制参考：envelope 语法（`[From <who> · <what> · <authority>]` + `escapeNotes`）、稳定 system、双预算、压缩后保留三样。
 
-许可证：OpenMausBot 与 Claude-Bot / DS Bot 均为 Apache-2.0，保留根 `LICENSE`、`NOTICE` 与文件头；`enterprise/` 是单独商业许可，删除；OpenMausBot / MausBot 名称与吉祥物是商标，产品只用 Crew Chat 品牌。
+许可证：OpenMausBot 与 Claude-Bot / DS Bot 均为 Apache-2.0，保留根 `LICENSE`、`NOTICE` 与文件头；`enterprise/` 是单独商业许可，删除；OpenMausBot / MausBot 名称与吉祥物是商标，产品只用 Lodge 品牌。
 
 ### 7.2 必须重写的 6 件事
 
@@ -554,7 +554,7 @@ Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付�
 
 ### 7.3 一个判断
 
-**代码可以抄，产品不能抄。** 上面 28 条解决的是"正确性"，不是"是什么"。云端的六家都在解决"一个人怎么被服务得更好"；Crew Chat 解决的是"一件需要多人分工的事怎么被交付"。这一格必须自己写。
+**代码可以抄，产品不能抄。** 上面 28 条解决的是"正确性"，不是"是什么"。云端的六家都在解决"一个人怎么被服务得更好"；Lodge 解决的是"一件需要多人分工的事怎么被交付"。这一格必须自己写。
 
 ---
 
@@ -669,7 +669,7 @@ Crew Chat 唯一的护城河是：**跑在你自己的仓库上、用你已付�
 
 Verifier 不能只是"仅可查看"——它必须自己跑验收命令。但它也不该有源码写权限。所以是 **read + exec，write = none**。
 
-**当前**：权限已声明并在启动时校验；M3 已落工作区隔离（planner 克隆 / executor worktree / verifier 临时副本），工具级权限强制仍未完成。`approval`、`mcp`、`skills` 已留扩展缝，默认关闭；MCP 只存 server 名，planner/verifier 不放外部工具。
+**当前**：权限已声明并在启动时校验；工作区隔离已落（planner 克隆 / executor worktree / verifier 临时副本）；工具审批桥已落——基座权限卡经 Engine 适配层映射为 read/exec/write，`live.js` 按席位权限 allow/deny，planner/verifier 的 Write/Edit/MultiEdit 已被真实房间拒绝。`exec` 仍可在临时副本里写文件，不是文件系统沙箱。`approval`、`mcp`、`skills` 已留扩展缝，默认关闭；MCP 只存 server 名，planner/verifier 不放外部工具。
 
 **GOAL.md 归运行时，不归 Executor。** 让执行者维护清单在纯聊天工具里可行；在这里状态是运行时的事实，`GOAL.md` 只是每回合重写的一份投影。原因很简单：**让被验收的人记账，等于没有账。** 模板只保留兼容约定（Executor 追加"待验收 + 证据"），产品内由 runtime 强制。
 
@@ -895,7 +895,7 @@ constraints:
 | 层 | 选择 | 说明 |
 |---|---|---|
 | 外壳 | **Electron 43** | Mac arm64 先行，不发 universal；复用 OpenMausBot 的窗口、打包、更新 |
-| UI | **React 19 + Vite 8** | 当前 Crew Chat UI；不用 Tailwind，`createElement` 写法不改成 TSX |
+| UI | **React 19 + Vite 8** | 当前 Lodge UI；不用 Tailwind，`createElement` 写法不改成 TSX |
 | 运行时 | **OpenMausBot `server/runtime`** | Assignment 生命周期与不变量一行不改 |
 | 引擎 | **OpenMausBot drivers + ACP** | 首版原生 Claude Code；第二厂商在 M4 接 Codex 或 ACP |
 | 存储 | **`node:sqlite` WAL + 事件重放 + SSE** | 复用 `message-db` / `thread-events` / `sse-fanout` |
@@ -918,7 +918,7 @@ constraints:
 ### 10.1 进程边界
 
 ```
-UI ──HTTP+SSE(127.0.0.1, per-launch token)── Crew Server
+UI ──HTTP+SSE(127.0.0.1, per-launch token)── Lodge server
                                                ├─ server/crew（自写产品层）
                                                │    Room Repo · Stages · Evidence · Seats
                                                ├─ Room Scheduler / Goal Runtime
@@ -958,7 +958,7 @@ UI ──HTTP+SSE(127.0.0.1, per-launch token)── Crew Server
 
 ### 10.4 工作区隔离
 
-- 讨论阶段：planner 在自己的只读克隆里（M3 首版；工具级只读未强制）
+- 讨论阶段：planner 在自己的只读克隆里；写工具经审批桥拒绝（exec 仍不是文件系统沙箱）
 - 执行阶段：每个 executor 在自己的 git worktree；多个执行席位同阶段并行，候选分支合并进房间 integration worktree 后再验收
 - 验收阶段：executor 先提交候选 commit；verifier 在一次性 detached worktree 副本里只读执行 acceptance；**verifier 不合并、不提交**，副本里的写入在下一次复核前丢弃
 - 候选分支自动合并到房间 integration 分支；合入主分支由 lead 或人决定，**绝不自动 push**
@@ -1071,13 +1071,13 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 | M0 | 房间 + transcript.jsonl + 单引擎；内置「交付三人组」模板 | 输入一句话，队长给一张开工卡（done+编制+验收+≤3 问），人确认一次直接开工；单人合法；模板可导入；强隔离留给 M3 |
 | M1 | 水位线 + 轮转 + 进度带 | 第 3 轮只收到增量（日志可证） |
 | M2 | @ 接力 + 并行执行 + Stop | Stop 500ms 内生效，无残留子进程 |
-| M3 | worktree 隔离 + evidence 命令 + 三档权限 | 两人改同一文件互不覆盖；Verifier 可执行但无写；evidence 有命令与退出码 |
+| M3 | worktree 隔离 + evidence 命令 + 三档权限 | 两人改同一文件互不覆盖；Verifier 可执行但 Write 被审批桥拒绝；evidence 有命令与退出码 |
 | M4 | 审批桥 + 跨厂商盲审 | 审批能批准/拒绝；producer 与 verifier 引擎不同且看不到作者 |
 | M5 | Goal 对齐/拆解/验收 + rework 闭环 + 可分叉会议 | 能产出 BRIEF.md；无命令的交付型阶段与无人确认的决策型阶段都无法 active |
 | M6 | 结论卡 + 交付单 + 一键验收 + 高级折叠 | 全程不展开“高级”也能完成一次交付；完成态先看到交付单 |
 | M7 | 全局调度台（只读收件 + 路由建议 + 一次确认 + 投影式摘要） | 一句"我不知道该找谁"进调度台；确认前目标群零动静；摘要每行可点回证据 |
 
-**当前进度（2026-11-12）**：P0+。M0 部分（建房/开工卡/单人已通：队长给 done+编制+验收+≤3 问一张卡，人确认一次后直接开工；席位可按需组合；单人链路已验证到签字与 commit；建后改席位未接；模板文件导入未接）；M1 部分（游标/轮次/空转；席位交接包未做，实际增量由基座 delta-context 负责）；M2 部分（真 Stop 已接，未做 500ms E2E；@ 基础有；多执行并行已在 M3 落）；M3 部分（席位隔离/并行 executor worktree/集成验收/候选提交/验收副本已落；成本硬闸门已落；工具级权限强制未做；多验收席位未接）；M4 未做；M5 部分（提示词对齐/rework 基础，fork 未做）；M6 部分（CONCLUSION+commit，结论 commit 带房间记录，交付单未做）；M7 部分（收件/建议/确认/摘要，语义路由未做）。演示门槛仍是 M3。
+**当前进度（2026-11-12）**：P0+。M0 部分（建房/开工卡/单人已通：队长给 done+编制+验收+≤3 问一张卡，人确认一次后直接开工；席位可按需组合；单人链路已验证到签字与 commit；建后改席位未接；模板文件导入未接）；M1 部分（游标/轮次/空转；席位交接包未做，实际增量由基座 delta-context 负责）；M2 部分（真 Stop 已接，未做 500ms E2E；@ 基础有；多执行并行已在 M3 落）；M3 部分（席位隔离/并行 executor worktree/集成验收/候选提交/验收副本已落；成本硬闸门已落；工具审批桥已落，planner/verifier 写工具被拒绝，exec 不是文件系统沙箱；多验收席位未接）；M4 未做；M5 部分（提示词对齐/rework 基础，fork 未做）；M6 部分（CONCLUSION+commit，结论 commit 带房间记录，交付单未做）；M7 部分（收件/建议/确认/摘要，语义路由未做）。演示门槛仍是 M3。
 
 **M3 之前不要给任何人演示。** 一旦被看成"几个 bot 聊天"，后面拿真产物也翻不回来。
 
@@ -1120,6 +1120,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 33. 新建房间的交付阶段要么有真实引擎可跑，要么有明确标注的模拟步骤；界面不出现无路可走的状态
 34. 完成后的结论 commit 包含 `.crew/rooms/<id>/` 的 BRIEF/GOAL/CONCLUSION/transcript/events/evidence；只靠该 commit 能读到当时的目标、done、证据与结论，不依赖原席位会话
 35. `npm run eval:planning` 对 3 个黄金房间给出通过/失败与原始开工卡；改队长提示词或换引擎后能重放对比，不拿单次最好成绩当结论
+36. 真实房间中 planner/verifier 请求 Write/Edit 时被审批桥拒绝并留下「权限拒绝」消息，文件未被创建；exec 仍可跑验收命令，但不把「exec 可写临时副本」说成文件系统硬隔离
 
 ---
 
@@ -1135,7 +1136,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 | 上下文发散 | 各 CLI 私有会话与房间真相不一致；基座 compact 可能丢掉业务约束 | 房间持有真相；BRIEF/done/关键决定是永久锚点；业务感知交接包放 P1，不重写基座 compact |
 | 并发写坏仓库 | 多 agent 同目录；文件隔离不等于语义隔离 | worktree 隔离 + 集成合并冲突可见、人处理；环境预置/端口提示/自动清理/磁盘水位已落 |
 | worktree 现实成本 | 大仓库每个席位一份完整副本；依赖、`.env`、端口不共享，磁盘与启动成本随席位增长 | 已落：`.env` 复制、`node_modules` 软链、端口提示、完成/停止清理非交付工作区、启动/定时 GC、磁盘水位；venv/本地数据库隔离仍在边界 |
-| 权限未落 | 席位权限已声明、worktree 已隔离，但工具级强制未做 | M3 前补工具面强制；在此之前不对外宣称“硬隔离” |
+| 权限边界 | 席位权限已声明、worktree 已隔离，写工具审批已强制；exec 仍可在临时副本里写，不是文件系统沙箱 | 不宣称“文件系统硬隔离”；补命令/文件系统沙箱，或把验收命令限制在临时副本 + 无网 |
 | 全有全无 | 阶段内缺子任务图，部分产出可用时没有标准降级方式 | P1：子任务依赖图 + 阶段级部分成功；失败席位降级、其余继续 |
 | MCP 依赖 | MCP 默认关闭；开启后单服务崩溃/超时可能拖垮整个回合 | P1：MCP 开启前补故障隔离、超时与调用审计（写 evidence）；外部工具不进业务席位 |
 | 基座太大 | fork 后删除产品面的工作量可能超预期 | 先过两天 spike；产品代码集中在 `server/crew/` 与 `ui/`，冲突面可控 |
@@ -1169,7 +1170,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 
 1. **worktree 生命周期（已落 2026-11-12）**：`.env` 复制、`node_modules` 软链、端口提示、完成/停止后清理非交付席位工作区、启动与定时 GC、磁盘水位。剩余边界：venv/本地数据库/端口强制隔离。
 2. **成本/磁盘闸门（已落 2026-11-12）**：磁盘水位；房间与全局成本硬上限（0 = 不限；新房间默认 $5，`CREW_ROOM_BUDGET_USD` / `CREW_GLOBAL_BUDGET_USD` 可配；到线暂停新任务，不取消在跑回合；房间预算可调，提高后自动恢复并续跑无证据阶段）；调度台只展示，不控制。发言配额仍未强制。
-3. **诚实标注**：同引擎标“独立性降级”；工具级权限未强制前不宣称硬隔离；建后改席位未接。
+3. **诚实标注**：同引擎标“独立性降级”；写工具审批已强制，但 exec 不是文件系统沙箱，不宣称“硬隔离”；建后改席位未接。
 4. **语义评测 harness（已落 2026-11-12）**：`npm run eval:planning` 用 3 个黄金房间（单人、单服务、前后端并行）重放真实开工卡；检查 done 可核对、编制约束、角色名与 `why` 一致、问题 ≤3 且不问机制；结果写本地 `evals/planning/results/`，不进入 `npm test`。首轮 3 case × 3 次 9/9；任何 case 失败时命令非零退出。每次改队长提示词或换引擎都重放，看通过率和失败类型。
 
 已完成、不作为待办：开工卡（done + 编制 + 验收 + ≤3 问，一次确认）、多执行并行与集成、manual 人验收、worktree 生命周期、语义评测 harness；继续用真实 E2E 验证，不靠文档自证。
@@ -1187,7 +1188,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 9. **目标岛打磨**：阶段轨道、返工记录、目标/进度/验收三问随时可答；这是每天看的表面，优先过度投资。
 10. **示范房间与导出脱敏**：3–5 个真实跑出来的房间样本，脱敏后放 GitHub；不做市场，导出前清掉密钥与个人路径。
 
-**顺序纪律**：P0 / M3 门槛不动；P1 按真实用户卡住的点排序，可以砍 P1，不换 M3。M3 门槛 = P0 完成 + 工具级权限 + 真实 E2E；到门槛后再高频演示，不提前宣布。
+**顺序纪律**：P0 / M3 门槛不动；P1 按真实用户卡住的点排序，可以砍 P1，不换 M3。M3 门槛 = P0 完成 + 工具审批桥（写工具拒绝）+ 真实 E2E；到门槛后再高频演示，不提前宣布。
 
 ### 15.2 明确不做（首版）
 
@@ -1207,7 +1208,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 
 - **任务**：用他们自己的一个真实小目标开房，不替他们改提示词、不现场教机制；观察第一次交付是否走通。
 - **记录**：卡在哪一步、是否看懂证据/签字/commit、是否把“房间”当成必要概念、是否愿意把房间交给别人；原话优先，不总结成好评。
-- **节奏**：每次 30–45 分钟；同一类卡点出现 2–3 次才进 P1 排序；M3 门槛仍是 P0 + 工具级权限 + 真实 E2E。
+- **节奏**：每次 30–45 分钟；同一类卡点出现 2–3 次才进 P1 排序；M3 门槛仍是 P0 + 工具审批桥 + 真实 E2E。
 - **边界**：数据留在本地；不录屏上传；不承诺未实现功能；发现问题先改文档/门槛，不先加功能。
 
 ---

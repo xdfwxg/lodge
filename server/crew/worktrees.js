@@ -185,7 +185,7 @@ export const commitCandidate = ({ executor, turnId, name }) => {
   const status = git(executor, ['status', '--porcelain', '--', '.']).trim()
   if (status === '') return null
   const message = `crew: candidate${turnId === undefined ? '' : ` ${turnId}`}${name ? ` · ${name}` : ''}`
-  git(executor, ['-c', 'user.name=Crew Chat', '-c', 'user.email=crew@localhost', 'commit', '-q', '-m', message])
+  git(executor, ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', message])
   return git(executor, ['rev-parse', 'HEAD']).trim()
 }
 

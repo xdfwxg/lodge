@@ -1,6 +1,6 @@
 import { createElement as h } from 'react'
 
-// 席位与房间头像：Crew Chat 自己的实现，不依赖 vendored UI 的角色系统。
+// 席位与房间头像：Lodge 自己的实现，不依赖 vendored UI 的角色系统。
 const PALETTE = {
   planner: '#4d6bfe',
   executor: '#00a86b',

@@ -2,13 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "crew-chat",
+      "name": "lodge",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
     },
     {
-      "name": "crew-chat-dist",
+      "name": "lodge-dist",
       "url": "http://127.0.0.1:8787",
       "port": 8787
     }

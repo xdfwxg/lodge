@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createEngine } from '../engine.js'
+import { actionForTool, createEngine } from '../engine.js'
 
 const fakeClient = () => {
   const captured = { bot: null, group: null, setup: null, task: null }
@@ -86,6 +86,48 @@ test('cancelTurn interrupts the busy bot in the room', async () => {
   const result = await engine.cancelTurn({ roomId: 'room-1' })
   assert.equal(result.cancelled, true)
   assert.deepEqual(captured, { botId: 'bot-1', body: { threadId: 'thread-1' } })
+})
+
+test('permission cards cross the engine port with a semantic action', async () => {
+  const client = {
+    threadMessages: async () => ({
+      messages: [{
+        id: 'm1',
+        at: 1,
+        kind: 'options',
+        card: { requestId: 'r1', requestType: 'permission', tool: 'Write', subtitle: 'forbidden.txt', options: ['Allow', 'Deny'] },
+      }],
+    }),
+  }
+  const engine = createEngine({ client })
+  const { messages } = await engine.history('thread-1')
+  assert.equal(messages[0].kind, 'question')
+  assert.deepEqual(messages[0].card, {
+    requestId: 'r1',
+    requestType: 'permission',
+    tool: 'Write',
+    action: 'write',
+    subtitle: 'forbidden.txt',
+    options: ['Allow', 'Deny'],
+  })
+  assert.equal(actionForTool('Bash'), 'exec')
+  assert.equal(actionForTool('Read'), 'read')
+  assert.equal(actionForTool('WebFetch'), null)
+})
+
+test('answerCard forwards the decision to the runtime thread', async () => {
+  let captured = null
+  const client = {
+    respondToCard: async (...args) => {
+      captured = args
+      return { ok: true }
+    },
+  }
+  const engine = createEngine({ client })
+  assert.deepEqual(await engine.answerCard({ sessionRef: 'thread-1', requestId: 'r1', behavior: 'deny' }), { ok: true })
+  assert.deepEqual(captured, ['thread-1', 'r1', 'deny'])
+  await assert.rejects(engine.answerCard({ sessionRef: 'thread-1', requestId: 'r1', behavior: 'maybe' }), /allow\/deny/)
+  assert.equal(engine.capabilities().approvals, true)
 })
 
 test('cancelTurn reports when the room is not running', async () => {

@@ -21,6 +21,13 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
       timeout: 15_000,
     }),
 
+    respondToCard: (threadId, requestId, behavior) => json(`/api/threads/${threadId}/respond`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ requestId, behavior }),
+      timeout: 10_000,
+    }),
+
     createBot: payload => json('/api/bots', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

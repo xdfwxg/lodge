@@ -1,4 +1,4 @@
-// Crew Chat 自己的主题令牌：只有界面实际用到的那一层，不依赖 vendored UI。
+// Lodge 自己的主题令牌：只有界面实际用到的那一层，不依赖 vendored UI。
 const LIGHT = {
   '--bt-main': '#fcfcfc',
   '--bt-bg': '#fcfcfc',
