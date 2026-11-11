@@ -57,6 +57,19 @@ test('a deliverable without an acceptance command asks for setup', () => {
   assert.equal(roomNeedsYou(r, []).kind, 'setup')
 })
 
+test('multiple verifiers report progress and require all PASS', () => {
+  const r = atDeliverable()
+  r.verifiers = ['v1', 'v2']
+  r.seatNames = { v1: '验收一', v2: '验收二' }
+  const e = { id: 'e-10', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'command', command: 'npm test', exit: 0 } }
+  const first = { id: 'v-1', kind: 'verdict', authorId: 'v1', seq: 11, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
+  const second = { id: 'v-2', kind: 'verdict', authorId: 'v2', seq: 12, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
+  assert.deepEqual(roomNeedsYou(r, [e, first]), { kind: 'review', stage: 1, label: '待复核 · 已回报 1/2' })
+  assert.equal(roomNeedsYou(r, [e, first, second]).kind, 'signoff')
+  const reject = { ...second, meta: { ...second.meta, pass: false } }
+  assert.equal(roomNeedsYou(r, [e, first, reject]).kind, 'rework')
+})
+
 test('a PASS verdict waits for sign-off', () => {
   assert.equal(roomNeedsYou(atDeliverable(), [evidence(), verdict(true)]).kind, 'signoff')
 })

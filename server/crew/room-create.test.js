@@ -218,8 +218,13 @@ test('stage dependencies can be declared for a room', async () => {
   })
   assert.equal(result.ok, true)
   const room = result.body.room
-  assert.equal(room.stages.length, 2)
+  assert.equal(room.stages.length, 3)
+  assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '分两段做', '验收与结论'])
+  assert.equal(room.stages[0].state, 'active')
+  assert.equal(room.stages[1].state, 'pending')
+  assert.equal(room.stages[2].state, 'pending')
   assert.deepEqual(room.stages[1].dependsOn, [0])
+  assert.deepEqual(room.stages[2].dependsOn, [1])
 })
 
 test('project constraints are snapshotted into the room and BRIEF', async () => {
@@ -279,4 +284,45 @@ test('continuing without a real repo and without a handoff record fail closed', 
   })
   assert.equal(notImported.ok, false)
   assert.equal(notImported.reason, 'conflict')
+})
+
+test('a plan with more than three questions is rejected, not silently trimmed', async () => {
+  const { store } = importedRoom(temp('lodge-plan-limit-data-'))
+  const result = await run(store, {
+    goal: '验证开工卡问题上限',
+    verify: 'test',
+    acceptance: 'true',
+    repoPath: gitRepo(),
+    seats: [{ role: 'worker', name: '执行' }],
+    plan: {
+      done: ['有一条可核对的 done'],
+      answers: [
+        { question: 'a', answer: '1' },
+        { question: 'b', answer: '2' },
+        { question: 'c', answer: '3' },
+        { question: 'd', answer: '4' },
+      ],
+    },
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /最多 3 个问题/)
+})
+
+test('a confirmed plan starts at delivery but keeps the final acceptance stage', async () => {
+  const { store } = importedRoom(temp('lodge-three-stage-data-'))
+  const result = await run(store, {
+    goal: '三段式房间',
+    verify: 'test',
+    acceptance: 'npm test',
+    repoPath: gitRepo(),
+    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }],
+    plan: { done: ['验收命令通过'], answers: [{ question: '范围？', answer: '只改一处' }] },
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.deepEqual(room.stages.map(stage => stage.kind), ['decision', 'deliverable', 'decision'])
+  assert.equal(room.stages[0].state, 'passed')
+  assert.equal(room.stages[1].state, 'active')
+  assert.equal(room.stages[2].state, 'pending')
+  assert.equal(room.stages[2].title, '验收与结论')
 })

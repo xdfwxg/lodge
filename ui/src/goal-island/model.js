@@ -23,6 +23,34 @@ export const evidenceFor = (room, index) => room.messages.filter(message => (
 export const verdictFor = (room, index) => [...room.messages].reverse().find(message => (
   message.kind === 'verdict' && (message.meta?.stage ?? 0) === index
 ))
+
+// 多验收席位只看当前验收命令证据上的结论；旧轮 PASS 不能覆盖新一轮。
+export const verdictsFor = (room, index) => {
+  const stage = room.stages?.[index]
+  const evidence = [...room.messages].reverse().find(message => (
+    message.kind === 'evidence' &&
+    (message.meta?.stage ?? 0) === index &&
+    (message.meta?.kind === 'command' || (room.demo === true && message.meta?.simulated === true)) &&
+    (typeof stage?.acceptance !== 'string' || stage.acceptance.trim() === '' ||
+      (typeof message.meta?.command === 'string' && message.meta.command.trim() === stage.acceptance.trim()))
+  ))
+  if (evidence !== undefined && evidence.meta?.exit !== 0) return []
+  const all = room.messages.filter(message => (
+    message.kind === 'verdict' && (message.meta?.stage ?? 0) === index
+  ))
+  const tagged = all.filter(message => typeof message.meta?.evidenceId === 'string')
+  const source = evidence !== undefined && tagged.length > 0
+    ? tagged.filter(message => message.meta.evidenceId === evidence.id)
+    : all
+  const latestBySeat = new Map()
+  for (const message of source) latestBySeat.set(message.authorId ?? 'verifier', message)
+  return [...latestBySeat.values()]
+}
+
+export const verdictForSeat = (room, index, seatId) => (
+  verdictsFor(room, index).find(message => (message.authorId ?? 'verifier') === seatId)
+)
+
 export const rejectsFor = (room, index) => room.messages.filter(message => (
   message.kind === 'verdict' && message.meta?.pass === false && (message.meta?.stage ?? 0) === index
 ))
@@ -70,6 +98,10 @@ export const workingSeats = (room, index) => {
   if (stage === undefined) return []
   if (room.openQuestion) return [leadOf(room)]
   if (stage.kind === 'decision') return [leadOf(room)]
+  if (Array.isArray(room.verifiers) && room.verifiers.length > 1) {
+    if (evidenceFor(room, index).length === 0) return room.workers ?? [workerOf(room)]
+    return room.verifiers.filter(id => verdictForSeat(room, index, id) === undefined)
+  }
   const verdict = verdictFor(room, index)
   if (verdict !== undefined) return []
   if (evidenceFor(room, index).length === 0) return room.workers ?? [workerOf(room)]
@@ -110,6 +142,11 @@ export const seatState = (room, stage, index, seatId) => {
     return room.live === true ? 'idle' : 'working'
   }
   if (role === 'verifier') {
+    if (Array.isArray(room.verifiers) && room.verifiers.length > 1) {
+      if (verdictForSeat(room, index, seatId) !== undefined) return 'done'
+      if (evidence.length === 0) return 'pending'
+      return room.live === true ? 'idle' : 'working'
+    }
     if (verdict !== undefined) return 'done'
     if (evidence.length === 0) return 'pending'
     return room.live === true ? 'idle' : 'working'
@@ -143,7 +180,31 @@ export const buildGoalView = (room, seats) => {
   const nameOf = id => room.seatNames?.[id] ?? seatById.get(id)?.name ?? id
   const stages = room.stages.map((stage, index) => {
     const rejects = rejectsFor(room, index)
-    const verdict = verdictFor(room, index)
+    const verifierIds = Array.isArray(room.verifiers) ? room.verifiers : []
+    const multi = verifierIds.length > 1
+    let verdict = multi ? null : verdictFor(room, index)
+    let verdicts = []
+    if (multi) {
+      const latest = verdictsFor(room, index)
+      const bySeat = new Map(latest.map(message => [message.authorId ?? 'verifier', message]))
+      const received = verifierIds
+        .map(id => ({ id, message: bySeat.get(id) }))
+        .filter(item => item.message !== undefined)
+      const rejecting = received.filter(item => item.message.meta?.pass !== true)
+      const missing = verifierIds.filter(id => !bySeat.has(id))
+      verdicts = received.map(item => ({
+        author: nameOf(item.id),
+        pass: item.message.meta?.pass === true,
+        text: item.message.text ?? '',
+      }))
+      verdict = received.length === 0
+        ? null
+        : rejecting.length > 0
+          ? { pass: false, text: `已打回：${rejecting.map(item => nameOf(item.id)).join('、')}` }
+          : missing.length === 0
+            ? { pass: true, text: `全部 ${verifierIds.length} 个验收席位 PASS` }
+            : { pass: false, pending: true, text: `已回报 ${received.length}/${verifierIds.length} 个验收席位，等待其余` }
+    }
     const tasks = (stage.tasks ?? []).map(task => ({ ...task, seat: seatById.get(task.owner) ?? null }))
     const taskOwners = new Set(tasks.map(task => task.owner))
     const conflict = room.mergeConflict?.stage === index
@@ -174,7 +235,12 @@ export const buildGoalView = (room, seats) => {
         command: message.meta?.command ?? '命令',
         exit: message.meta?.exit ?? null,
       })),
-      verdict: verdict === undefined ? null : { pass: verdict.meta?.pass === true, text: verdict.text ?? '' },
+      verdict: verdict === undefined || verdict === null
+        ? null
+        : multi
+          ? verdict
+          : { pass: verdict.meta?.pass === true, text: verdict.text ?? '' },
+      verdicts,
       tasks,
       otherSeats: seats.filter(seat => !taskOwners.has(seat.id)).map(seat => ({
         seat,

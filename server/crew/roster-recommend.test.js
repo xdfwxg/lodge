@@ -99,15 +99,17 @@ test('a manual proposal with a verifier fails closed', () => {
   })), /验收命令/)
 })
 
-test('two verifiers fail closed', () => {
-  assert.throws(() => parseProposal(reply({
+test('two verifiers are accepted and kept in the proposal', () => {
+  const proposal = parseProposal(reply({
     seats: [
       { role: 'worker', name: '执行' },
       { role: 'verifier', name: '复核 A' },
       { role: 'verifier', name: '复核 B' },
     ],
-    verify: 'manual',
-  })), /一个验收/)
+    verify: 'test',
+    acceptance: 'npm test',
+  }))
+  assert.equal(proposal.seats.filter(seat => seat.role === 'verifier').length, 2)
 })
 
 test('an unknown role fails closed', () => {

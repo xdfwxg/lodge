@@ -138,7 +138,7 @@ export const rosterFromRoles = entries => {
 
   const { workers, verifiers } = roleSeats(seats)
   const workerRef = workers.map(seat => `@${seat.name}`).join('、') || '执行席位'
-  const verifierRef = verifiers[0] === undefined ? '验收席位' : `@${verifiers[0].name}`
+  const verifierRef = verifiers.length === 0 ? '验收席位' : verifiers.map(seat => `@${seat.name}`).join('、')
   return seats.map(seat => {
     if (seat.customPrompt === true) return seat
     if (seat.role === 'lead') {

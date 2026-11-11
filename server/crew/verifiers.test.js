@@ -1,0 +1,171 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { createLiveTurns } from './live-turns.js'
+import { reviewState } from './verifiers.js'
+
+const room = (over = {}) => ({
+  id: 'room-1',
+  state: 'active',
+  live: true,
+  demo: false,
+  stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+  verifiers: ['v1', 'v2'],
+  seatNames: { v1: '验收一', v2: '验收二' },
+  seatSpecs: [
+    { id: 'v1', role: 'verifier' },
+    { id: 'v2', role: 'verifier' },
+  ],
+  seatBots: { v1: 'bot-v1', v2: 'bot-v2' },
+  workers: ['worker'],
+  usage: {},
+  ...over,
+})
+
+const evidence = (over = {}) => ({
+  id: over.id ?? 'e-1',
+  kind: 'evidence',
+  seq: over.seq ?? 10,
+  meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, ...over },
+})
+
+const verdict = (authorId, pass, seq, over = {}) => ({
+  id: `v-${authorId}-${seq}`,
+  kind: 'verdict',
+  authorId,
+  seq,
+  text: pass ? 'PASS\nok' : 'REJECT\nno',
+  meta: { stage: 0, pass, evidenceId: 'e-1', ...over },
+})
+
+test('review state waits for every verifier, then passes only when all pass', () => {
+  const base = [evidence()]
+  assert.equal(reviewState({ room: room(), messages: base, stageIndex: 0 }).state, 'pending')
+  const one = reviewState({ room: room(), messages: [...base, verdict('v1', true, 11)], stageIndex: 0 })
+  assert.equal(one.state, 'pending')
+  assert.deepEqual(one.missing, ['v2'])
+  const all = reviewState({
+    room: room(),
+    messages: [...base, verdict('v1', true, 11), verdict('v2', true, 12)],
+    stageIndex: 0,
+  })
+  assert.equal(all.state, 'pass')
+  assert.equal(all.received, 2)
+})
+
+test('one rejection fails the round even when the other verifier passed', () => {
+  const outcome = reviewState({
+    room: room(),
+    messages: [evidence(), verdict('v1', true, 11), verdict('v2', false, 12)],
+    stageIndex: 0,
+  })
+  assert.equal(outcome.state, 'reject')
+  assert.deepEqual(outcome.rejects.map(message => message.authorId), ['v2'])
+})
+
+test('verdicts from an older acceptance round do not count', () => {
+  const outcome = reviewState({
+    room: room(),
+    messages: [
+      evidence(),
+      verdict('v1', true, 11, { evidenceId: 'old-evidence' }),
+      verdict('v2', true, 12, { evidenceId: 'old-evidence' }),
+    ],
+    stageIndex: 0,
+  })
+  assert.equal(outcome.state, 'pending')
+  assert.deepEqual(outcome.missing, ['v1', 'v2'])
+})
+
+test('a newer failed command invalidates earlier PASSes', () => {
+  const failed = evidence({ id: 'e-2', seq: 13, exit: 1 })
+  const outcome = reviewState({
+    room: room(),
+    messages: [
+      evidence(),
+      verdict('v1', true, 11),
+      verdict('v2', true, 12),
+      failed,
+    ],
+    stageIndex: 0,
+  })
+  assert.equal(outcome.state, 'failed')
+  assert.equal(outcome.evidence.id, 'e-2')
+})
+
+test('the review request goes to every verifier and all PASS ends the round', async () => {
+  const state = room()
+  const messages = [evidence()]
+  let seq = 11
+  const store = {
+    readRoom: () => state,
+    readRooms: () => [],
+    readMessages: () => messages,
+    appendMessage: (roomId, message) => {
+      const stored = { ...message, id: `m-${seq}`, seq: seq++, ts: Date.now() }
+      messages.push(stored)
+      return stored
+    },
+    appendEvent: () => {},
+    updateRoom: (roomId, mutate) => {
+      mutate(state)
+      return state
+    },
+  }
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    engine: {},
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      sent.push({ seat, prompt })
+      return { messageId: null }
+    },
+  })
+  await turns.requestReview(0)
+  assert.deepEqual(sent.map(item => item.seat), ['v1', 'v2'])
+  assert.equal(turns.busyReview(), true)
+
+  turns.captureTurn({ turnId: 't1', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v1')
+  assert.equal(turns.busyReview(), true)
+  assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
+
+  turns.captureTurn({ turnId: 't2', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v2')
+  assert.equal(turns.busyReview(), false)
+  assert.equal(messages.filter(message => message.kind === 'verdict').length, 2)
+  assert.match(messages.at(-1).text, /全部验收席位 PASS/)
+})
+
+test('a rejection cancels the remaining verifier round', async () => {
+  const state = room()
+  const messages = [evidence()]
+  let seq = 11
+  const store = {
+    readRoom: () => state,
+    readRooms: () => [],
+    readMessages: () => messages,
+    appendMessage: (roomId, message) => {
+      const stored = { ...message, id: `m-${seq}`, seq: seq++, ts: Date.now() }
+      messages.push(stored)
+      return stored
+    },
+    appendEvent: () => {},
+    updateRoom: (roomId, mutate) => {
+      mutate(state)
+      return state
+    },
+  }
+  const turns = createLiveTurns({
+    store,
+    engine: {},
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async () => ({ messageId: null }),
+  })
+  await turns.requestReview(0)
+  turns.captureTurn({ turnId: 't1', reply: 'REJECT\nno', toolCalls: 1 }, 'bot-v1')
+  assert.equal(turns.busyReview(), false)
+  assert.match(messages.at(-1).text, /其余验收席位不再等待/)
+  turns.captureTurn({ turnId: 't2', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v2')
+  assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
+})

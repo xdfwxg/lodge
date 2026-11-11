@@ -355,7 +355,21 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     if (!committed) {
       appendMessage(room.id, { kind: 'system', text: capabilities.vcs === 'git' ? 'commit 失败，详见服务端日志' : '交付记录归档失败，详见服务端日志' })
     }
-    return store.readRoom(room.id) ?? room
+    let commitHash = null
+    if (committed && capabilities.commit === true) {
+      try {
+        commitHash = workspace.head({ path: roomRootOf(room) })
+      } catch {
+        commitHash = null
+      }
+    }
+    const finalized = updateRoom(room.id, current => {
+      current.completedAt = current.completedAt ?? Date.now()
+      if (commitHash !== null) current.completedCommit = commitHash
+      return { events: [] }
+    })
+    if (finalized !== null) emit('room', finalized)
+    return finalized ?? store.readRoom(room.id) ?? room
   }
 
   const accept = (room, body) => {

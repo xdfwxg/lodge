@@ -33,7 +33,7 @@ export const evaluateProposal = (result, testCase = {}) => {
   const leads = seats.filter(seat => seat?.role === 'lead')
   const verifiers = seats.filter(seat => seat?.role === 'verifier')
   check('workers', workers.length >= 1, `${workers.length} 个执行`)
-  check('seat-limits', leads.length <= 1 && verifiers.length <= 1, `队长 ${leads.length}，验收 ${verifiers.length}`)
+  check('seat-limits', leads.length <= 1, `队长 ${leads.length}，验收 ${verifiers.length}`)
   check('seat-count', seats.length >= 1 && seats.length <= 8, `${seats.length} 席`)
   check('seat-role-name', !seats.some(seat => seat?.role !== 'verifier' && VERIFIER_NAME.test(asText(seat?.name))), '非验收席位不要命名为验收/复核')
   const why = asText(proposal.why)

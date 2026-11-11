@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { budgetHint, budgetStatus } from './budget.js'
 import { externalAction, pendingApprovals } from './external-actions.js'
+import { reviewExternalAction } from './gate.js'
 import { createLiveTurns } from './live-turns.js'
 import { decidePermission } from './permission.js'
 import { writeBrief, writeGoal } from './room-repo.js'
@@ -151,6 +152,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
       state: 'pending',
       at: Date.now(),
     }
+    approval.gate = reviewExternalAction({ approval, room })
     const updated = store.updateRoom(entry.roomId, current => {
       current.approvals = [...(current.approvals ?? []), approval].slice(-20)
       return {

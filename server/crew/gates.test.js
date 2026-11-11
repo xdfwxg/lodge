@@ -20,9 +20,10 @@ const evidence = (stage = 1, seq = 10, meta = {}) => ({
   seq,
   meta: { stage, kind: 'command', command: 'npm test', exit: 0, ...meta },
 })
-const verdict = (stage = 1, seq = 11, pass = true, meta = {}) => ({
+const verdict = (stage = 1, seq = 11, pass = true, meta = {}, authorId = 'verifier') => ({
   id: `v-${seq}`,
   kind: 'verdict',
+  authorId,
   seq,
   meta: { stage, pass, ...meta },
 })
@@ -100,6 +101,43 @@ test('live deliverable needs a verifier PASS', () => {
   const gate = gateFor(room(), 1, [evidence()])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /PASS/)
+})
+
+test('multiple verifiers must all PASS the same evidence before sign-off', () => {
+  const r = room({ verifiers: ['v1', 'v2'], seatNames: { v1: '验收一', v2: '验收二' } })
+  const e = evidence(1, 10)
+  const pending = gateFor(r, 1, [e, verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1')])
+  assert.equal(pending.ok, false)
+  assert.match(pending.error, /验收二/)
+  const passed = gateFor(r, 1, [
+    e,
+    verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1'),
+    verdict(1, 12, true, { evidenceId: 'e-10' }, 'v2'),
+  ])
+  assert.equal(passed.ok, true)
+})
+
+test('a newer failed command invalidates earlier multi-verifier PASSes', () => {
+  const r = room({ verifiers: ['v1', 'v2'], seatNames: { v1: '验收一', v2: '验收二' } })
+  const gate = gateFor(r, 1, [
+    evidence(1, 10),
+    verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1'),
+    verdict(1, 12, true, { evidenceId: 'e-10' }, 'v2'),
+    evidence(1, 13, { exit: 1 }),
+  ])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /没有通过/)
+})
+
+test('one verifier REJECT blocks sign-off even if the other PASSed', () => {
+  const r = room({ verifiers: ['v1', 'v2'], seatNames: { v1: '验收一', v2: '验收二' } })
+  const gate = gateFor(r, 1, [
+    evidence(1, 10),
+    verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1'),
+    verdict(1, 12, false, { evidenceId: 'e-10' }, 'v2'),
+  ])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /验收一|验收二/)
 })
 
 test('a manual stage waits for the product before sign-off', () => {

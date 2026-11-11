@@ -90,6 +90,7 @@
 .crew-island-evidence-link:hover{border-bottom-style:solid}
 .crew-island-verdict{font-size:11.5px;font-weight:600;color:var(--bt-star)}
 .crew-island-verdict[data-pass=true]{color:color-mix(in srgb,var(--bt-green) 80%,var(--bt-ink))}
+.crew-island-verdict[data-pass=false]:not([data-pending=true]){color:var(--bt-danger)}
 .crew-island-tasks{display:flex;flex-direction:column;gap:2px;margin-top:2px}
 .crew-island-task{display:grid;grid-template-columns:20px minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--bt-line);font-size:11px;line-height:16px}
 .crew-island-task-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink)}

@@ -101,6 +101,8 @@ test('an external command is held for the human instead of being auto-allowed', 
     const approval = room.approvals[0]
     assert.equal(approval.state, 'pending')
     assert.equal(approval.kind, 'push')
+    assert.equal(approval.gate.decision, 'review')
+    assert.equal(approval.gate.context, 'independent')
     assert.equal(roomNeedsYou(room).kind, 'approval')
     const message = ctx.store.readMessages('room-1').at(-1)
     assert.equal(message.meta.approvalId, approval.id)

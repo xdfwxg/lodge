@@ -12,7 +12,18 @@ export function ApprovalCard({ approval, onDecide }) {
         h('span', null, approval.seatName)),
       h('div', { className: 'crew-kv' },
         h('span', null, '动作'),
-        h('code', { className: 'crew-code' }, approval.summary))),
+        h('code', { className: 'crew-code' }, approval.summary)),
+      approval.gate
+        ? h('div', { className: 'crew-approval-gate', 'data-decision': approval.gate.decision },
+          h('b', null, approval.gate.decision === 'deny'
+            ? '独立守门：建议拒绝'
+            : approval.gate.decision === 'review'
+              ? '独立守门：需你判断'
+              : '独立守门：可放行'),
+          approval.gate.reasons?.length
+            ? h('span', null, ` · ${approval.gate.reasons.join('、')}`)
+            : null)
+        : null),
     h('div', { className: 'crew-card-foot' },
       h('span', { className: 'crew-req-note' }, '只有你点允许，基座才会继续这一步'),
       h('button', { type: 'button', className: 'crew-ghost', onClick: () => onDecide('deny') }, '拒绝'),

@@ -1,3 +1,5 @@
+import { reviewState, verifierIds } from './verifiers.js'
+
 const deny = (reason, error) => ({ ok: false, reason, error })
 
 export const gateFor = (room, index, messages) => {
@@ -39,6 +41,25 @@ export const gateFor = (room, index, messages) => {
   )
 
   const ordered = [...messages].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
+  if (verifierIds(room).length > 1) {
+    const outcome = reviewState({ room, messages: ordered, stageIndex: index })
+    if (outcome.state === 'reject') {
+      const names = outcome.rejects.map(message => room.seatNames?.[message.authorId] ?? message.authorId).join('、')
+      return deny('conflict', `${names} 已打回，先返工并重新跑验收命令`)
+    }
+    if (outcome.state === 'failed') {
+      const exit = outcome.evidence?.meta?.exit
+      return deny('conflict', `最新验收命令没有通过（exit ${exit === null || exit === undefined ? '无' : exit}），不能签字`)
+    }
+    if (outcome.state === 'pending') {
+      const names = outcome.missing.map(id => room.seatNames?.[id] ?? id).join('、')
+      return deny('conflict', `还有验收席位没有回报（${names}），不能签字`)
+    }
+    if (outcome.state !== 'pass') {
+      return deny('conflict', '还没有本轮验收命令证据上的全部验收 PASS，不能签字')
+    }
+    return { ok: true, stage }
+  }
   const verdicts = ordered.filter(message => message.kind === 'verdict' && message.meta?.stage === index)
   const latest = verdicts.at(-1)
   const evidenceBetween = (floor, ceiling) => ordered.filter(message => (

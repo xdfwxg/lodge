@@ -72,8 +72,11 @@ function IslandStage({ view, stage, onBack }) {
         }, item.manual ? '证据 · 产物就绪' : `证据 · ${item.command} · exit ${item.exit ?? '—'}`)))
       : null,
     stage.verdict !== null
-      ? h('div', { className: 'crew-island-verdict', 'data-pass': stage.verdict.pass },
-        stage.verdict.pass ? '验收席位已给 PASS' : '验收席位打回，等返工')
+      ? h('div', {
+        className: 'crew-island-verdict',
+        'data-pass': stage.verdict.pass,
+        'data-pending': stage.verdict.pending === true,
+      }, stage.verdict.text || (stage.verdict.pass ? '验收席位已给 PASS' : '验收席位打回，等返工'))
       : null,
     stage.tasks.length > 0
       ? h('div', { className: 'crew-island-tasks' },

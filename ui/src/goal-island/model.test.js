@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  activeIndex, evidenceFor, goalAnswers, goalFaces, islandStatus, rejectsFor, seatState, trackTone, verdictFor,
+  activeIndex, buildGoalView, evidenceFor, goalAnswers, goalFaces, islandStatus, rejectsFor, seatState, trackTone,
+  verdictFor, verdictForSeat, verdictsFor,
 } from './model.js'
 
 const seats = [
@@ -76,4 +77,52 @@ test('evidence, verdict and rework projections are stage-scoped', () => {
   assert.deepEqual(rejectsFor(current, 1).map(message => message.id), ['v1', 'v2'])
   assert.equal(seatState(current, current.stages[1], 1, 'worker'), 'done')
   assert.equal(seatState(current, current.stages[1], 1, 'worker-2'), 'failed')
+})
+
+test('multiple verifier verdicts aggregate on the current evidence round', () => {
+  const secondSeat = { id: 'verifier-2', name: '复核二', role: 'verifier' }
+  const current = room({
+    verifiers: ['verifier', 'verifier-2'],
+    seatSpecs: [...seats, secondSeat],
+    seatNames: { worker: '前端', 'worker-2': '后端', verifier: '复核', 'verifier-2': '复核二' },
+    messages: [
+      { id: 'e1', seq: 1, kind: 'evidence', authorId: 'worker', meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0 } },
+      { id: 'v1', seq: 2, kind: 'verdict', authorId: 'verifier', text: 'PASS', meta: { pass: true, stage: 1, evidenceId: 'e1' } },
+    ],
+  })
+  assert.deepEqual(verdictsFor(current, 1).map(message => message.authorId), ['verifier'])
+  assert.equal(verdictForSeat(current, 1, 'verifier').id, 'v1')
+  assert.equal(buildGoalView(current, [...seats, secondSeat]).stages[1].verdict.pending, true)
+
+  const all = room({
+    ...current,
+    messages: [
+      ...current.messages,
+      { id: 'v2', seq: 3, kind: 'verdict', authorId: 'verifier-2', text: 'PASS', meta: { pass: true, stage: 1, evidenceId: 'e1' } },
+    ],
+  })
+  const view = buildGoalView(all, [...seats, secondSeat])
+  assert.equal(view.stages[1].verdict.pass, true)
+  assert.equal(view.stages[1].verdict.text, '全部 2 个验收席位 PASS')
+  assert.deepEqual(view.stages[1].verdicts.map(item => item.author), ['复核', '复核二'])
+
+  const rejected = room({
+    ...all,
+    messages: [
+      current.messages[0],
+      current.messages[1],
+      { id: 'v2', seq: 3, kind: 'verdict', authorId: 'verifier-2', text: 'REJECT', meta: { pass: false, stage: 1, evidenceId: 'e1' } },
+    ],
+  })
+  assert.match(buildGoalView(rejected, [...seats, secondSeat]).stages[1].verdict.text, /复核二/)
+
+  const failedAgain = room({
+    ...all,
+    messages: [
+      ...all.messages,
+      { id: 'e2', seq: 4, kind: 'evidence', authorId: 'worker', meta: { kind: 'command', stage: 1, command: 'npm test', exit: 1 } },
+    ],
+  })
+  assert.deepEqual(verdictsFor(failedAgain, 1), [])
+  assert.equal(buildGoalView(failedAgain, [...seats, secondSeat]).stages[1].verdict, null)
 })

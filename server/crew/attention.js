@@ -1,4 +1,5 @@
 import { pendingApprovals } from './external-actions.js'
+import { reviewState, verifierIds } from './verifiers.js'
 
 const activeStageIndex = room => room.stages.findIndex(stage => stage.state === 'active')
 
@@ -44,6 +45,15 @@ export const roomNeedsYou = (room, messages = []) => {
   }
   if (dispatch?.stage === index && dispatch?.timedOut === true) {
     return { kind: 'parallel', stage: index, label: '并行执行超时 · 等你处理' }
+  }
+  if (verifierIds(room).length > 1) {
+    const outcome = reviewState({ room, messages, stageIndex: index })
+    if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '验收退回 · 等你处理' }
+    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '等你签字' }
+    if (outcome.state === 'pending') {
+      return { kind: 'review', stage: index, label: `待复核 · 已回报 ${outcome.received}/${outcome.total}` }
+    }
+    return null
   }
   const verdict = latestForStage(messages, 'verdict', index)
   if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '等你签字' }

@@ -6,6 +6,7 @@ import { createStore, useStore } from './store.js'
 import { GoalIsland } from './goal-island/index.js'
 import { buildGoalView } from './goal-island/model.js'
 import { ApprovalCard } from './approval-card.js'
+import { DeliverySheet } from './delivery-sheet.js'
 
 const MD = { code: { copyLabel: '复制', copiedLabel: '已复制' } }
 const clock = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -853,12 +854,25 @@ function Composer({ placeholder, disabled, onSend }) {
 function RoomView({ state, room, store, onContinue }) {
   const [advanced, setAdvanced] = useState(false)
   const scroll = useRef(null)
+  const seenComplete = useRef(false)
   const lastId = room.messages.at(-1)?.id
+  const hasDelivery = room.delivery !== null && room.delivery !== undefined
+
+  useEffect(() => {
+    seenComplete.current = false
+  }, [room.id])
 
   useEffect(() => {
     const node = scroll.current
-    if (node) node.scrollTop = node.scrollHeight
-  }, [lastId])
+    if (!node) return
+    if (hasDelivery && !seenComplete.current) {
+      seenComplete.current = true
+      node.scrollTop = 0
+      return
+    }
+    seenComplete.current = hasDelivery
+    node.scrollTop = node.scrollHeight
+  }, [lastId, room.id, hasDelivery])
 
   const locked = room.state === 'paused' || room.state === 'stopped' || room.imported === true
   const seats = useMemo(() => {
@@ -883,6 +897,7 @@ function RoomView({ state, room, store, onContinue }) {
       ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
       : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll' },
+      room.delivery ? h(DeliverySheet, { delivery: room.delivery }) : null,
       h('div', { className: 'crew-flow' }, h(Timeline, {
         room,
         seats,
@@ -1000,7 +1015,23 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
       ? list
       : list.filter(seat => seat.key !== key)
   ))
+  const addVerifier = () => setSeats(list => {
+    const count = list.filter(seat => seat.role === 'verifier').length + 1
+    return [...list, {
+      key: `verifier-${Math.random().toString(36).slice(2, 8)}`,
+      role: 'verifier',
+      label: `验收 ${count}`,
+      name: `验收 ${count}`,
+      on: true,
+    }]
+  })
+  const removeVerifier = key => setSeats(list => (
+    list.filter(seat => seat.role === 'verifier' && seat.on).length <= 1
+      ? list
+      : list.filter(seat => seat.key !== key)
+  ))
   const workerCount = activeSeats.filter(seat => seat.role === 'worker').length
+  const verifierCount = activeSeats.filter(seat => seat.role === 'verifier').length
   const rosterName = activeSeats.map(seat => seat.name.trim() || seat.label).join('、')
 
   const useProposal = proposal !== null && !manual
@@ -1182,7 +1213,12 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
             type: 'button',
             className: 'crew-choice',
             onClick: addWorker,
-          }, '＋ 添加执行')),
+          }, '＋ 添加执行'),
+          h('button', {
+            type: 'button',
+            className: 'crew-choice',
+            onClick: addVerifier,
+          }, '＋ 添加验收')),
         h('b', null, '席位名字'),
         seats.filter(seat => seat.on).map(seat => h('div', { key: seat.key, className: 'crew-seat-line' },
           h('input', {
@@ -1198,7 +1234,13 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
               className: 'crew-choice',
               onClick: () => removeWorker(seat.key),
             }, '移除')
-            : null)))
+            : seat.role === 'verifier' && verifierCount > 1
+              ? h('button', {
+                type: 'button',
+                className: 'crew-choice',
+                onClick: () => removeVerifier(seat.key),
+              }, '移除')
+              : null)))
       : null)
 
   const proposalBody = useProposal

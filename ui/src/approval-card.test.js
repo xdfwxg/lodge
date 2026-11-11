@@ -47,12 +47,19 @@ test('the approval card shows the seat and external command with only two decisi
   const { ApprovalCard } = await load()
   const calls = []
   const tree = render(ApprovalCard({
-    approval: { seatName: '执行', label: '推送到远端', summary: 'git push origin main' },
+    approval: {
+      seatName: '执行',
+      label: '推送到远端',
+      summary: 'git push origin main',
+      gate: { decision: 'review', reasons: ['发布或推送远端'] },
+    },
     onDecide: decision => calls.push(decision),
   }))
   assert.match(text(tree), /外部动作等你批准/)
   assert.match(text(tree), /执行/)
   assert.match(text(tree), /git push origin main/)
+  assert.match(text(tree), /独立守门：需你判断/)
+  assert.match(text(tree), /发布或推送远端/)
   assert.deepEqual(buttons(tree).map(button => text(button)), ['拒绝', '允许'])
   buttons(tree)[0].props.onClick()
   buttons(tree)[1].props.onClick()

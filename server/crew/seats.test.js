@@ -144,3 +144,14 @@ test('a custom roster can carry parallel workers', () => {
   assert.equal(roleSeats(roster).workers.length, 2)
   assert.doesNotThrow(() => validateSeats(roster))
 })
+
+test('a custom roster can carry multiple verifiers', () => {
+  const roster = rosterFromRoles([
+    { role: 'worker', name: '实现' },
+    { role: 'verifier', name: '复核一' },
+    { role: 'verifier', name: '复核二' },
+  ])
+  assert.deepEqual(roleSeats(roster).verifiers.map(seat => seat.id), ['verifier', 'verifier-2'])
+  assert.deepEqual(roleSeats(roster).verifiers.map(seat => seat.name), ['复核一', '复核二'])
+  assert.doesNotThrow(() => validateSeats(roster))
+})

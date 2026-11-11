@@ -19,7 +19,7 @@ const recommendationPrompt = (goal, repoPath) => [
   '- 一个人能完成的小改动 → 只给一个执行席位（单人房）。不要为了凑人数加席位。',
   '- 只有需要独立验收时才加验收席位。',
   '- 只有工作能明确拆给多人并行时才加多个执行席位。',
-  '- 至少一个执行；最多一个队长、一个验收；总席位 1–8。',
+  '- 至少一个执行；最多一个队长；验收可多个（每个独立复核，全部 PASS 才签字）；总席位 1–8。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
@@ -126,7 +126,6 @@ export const parseProposal = reply => {
     throw new Error(`编制不可用：${error?.message ?? error}`)
   }
   const verifiers = roleSeats(roster).verifiers
-  if (verifiers.length > 1) throw new Error('当前最多一个验收席位')
 
   const rawAcceptance = typeof data.acceptance === 'string' ? data.acceptance.trim() : ''
   const manual = data.verify === 'manual' || rawAcceptance === ''

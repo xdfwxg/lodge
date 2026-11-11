@@ -72,6 +72,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         .slice(0, 6)
       : []
     if (done.length === 0) return fail('invalid', '开工卡缺少可核对的 done')
+    if (Array.isArray(body.plan.answers) && body.plan.answers.length > 3) {
+      return fail('invalid', '开工卡最多 3 个问题；先把不必要的分叉合并或留到执行中再说')
+    }
     const answers = Array.isArray(body.plan.answers)
       ? body.plan.answers
         .filter(item => typeof item?.question === 'string' && item.question.trim() !== '' && typeof item?.answer === 'string')
@@ -108,7 +111,6 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const explicitLead = roster.find(seat => seat.role === 'lead')
   const lead = explicitLead ?? worker
   const align = explicitLead !== undefined
-  if (verifiers.length > 1) return fail('invalid', '多验收席位尚未接入：目前一个房间最多一个验收席位')
   if (verify === 'manual' && verifiers.length > 0) {
     return fail('invalid', '人工验收模式不需要验收席位；要独立复核就补一条验收命令')
   }
@@ -275,20 +277,26 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
             },
           }),
       members: roster.map(seat => seat.id),
-      stages: plan !== null
-        ? [verify === 'test'
-            ? { title, kind: 'deliverable', state: 'active', acceptance }
-            : { title, kind: 'decision', state: 'active', manual: true }]
-        : align
+      stages: (() => {
+        const delivery = {
+          title,
+          kind: verify === 'test' ? 'deliverable' : 'decision',
+          ...(verify === 'test' ? { acceptance } : { manual: true }),
+        }
+        const acceptanceStage = { title: '验收与结论', kind: 'decision' }
+        const stages = align
           ? [
-              { title: '目标对齐', kind: 'decision', state: 'active' },
-              { title, kind: verify === 'test' ? 'deliverable' : 'decision', state: 'pending', ...(verify === 'test' ? { acceptance } : {}) },
+              { title: '目标对齐', kind: 'decision', state: plan !== null ? 'passed' : 'active' },
+              { ...delivery, state: plan !== null ? 'active' : 'pending' },
+              { ...acceptanceStage, state: 'pending' },
             ]
           : [
-              verify === 'test'
-                ? { title, kind: 'deliverable', state: 'active', acceptance }
-                : { title, kind: 'decision', state: 'active' },
-            ],
+              { ...delivery, state: 'active' },
+              { ...acceptanceStage, state: 'pending' },
+            ]
+        stages[stages.length - 1].dependsOn = [stages.length - 2]
+        return stages
+      })(),
     }
     if (Array.isArray(body.stageDependencies)) {
       room.stages = room.stages.map((stage, index) => {
