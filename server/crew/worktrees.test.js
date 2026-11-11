@@ -4,7 +4,10 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { cleanupWorkspaces, commitCandidate, headOf, mergeBranch, prepareWorkspaces, pruneSeatWorkspaces, refreshVerifier } from './worktrees.js'
+import {
+  cleanupWorkspaces, commitCandidate, createAcceptanceCopy, headOf, mergeBranch, prepareWorkspaces,
+  pruneSeatWorkspaces, refreshVerifier, removeAcceptanceCopy,
+} from './worktrees.js'
 import { collectRange } from './acceptance.js'
 import { rosterFromRoles, seatsFor } from './seats.js'
 
@@ -16,6 +19,21 @@ const repo = () => {
   execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'init'], { cwd: dir })
   return dir
 }
+
+test('acceptance runs in a disposable copy and cannot write the source repo', () => {
+  const sourceRepo = repo()
+  const copy = createAcceptanceCopy({ sourceRepo, ref: headOf(sourceRepo) })
+  try {
+    assert.equal(existsSync(copy.path), true)
+    assert.equal(readFileSync(join(copy.path, 'README.md'), 'utf8'), '# test\n')
+    writeFileSync(join(copy.path, 'side-effect.txt'), 'discard\n')
+    assert.equal(existsSync(join(sourceRepo, 'side-effect.txt')), false)
+  } finally {
+    removeAcceptanceCopy({ sourceRepo, copy })
+    rmSync(sourceRepo, { recursive: true, force: true })
+  }
+  assert.equal(existsSync(copy.path), false)
+})
 
 test('prepares isolated seat workspaces and refreshes the verifier copy', () => {
   const sourceRepo = repo()

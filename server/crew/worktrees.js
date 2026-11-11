@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process'
 import {
-  chmodSync, copyFileSync, existsSync, mkdirSync, rmSync, statfsSync, statSync, symlinkSync,
+  chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, statfsSync, statSync, symlinkSync,
 } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { ensureRepo } from './room-repo.js'
 import { LOCAL_ONLY } from './workspace-paths.js'
@@ -53,6 +53,28 @@ export const syncLocalEnvironment = (source, target) => {
     }
   }
   return { copied, linked, warnings }
+}
+
+// 验收命令在一次性 detached worktree 里跑；测试产生的文件不写回交付 worktree。
+export const createAcceptanceCopy = ({ sourceRepo, ref }) => {
+  const root = mkdtempSync(join(tmpdir(), 'lodge-accept-'))
+  const path = join(root, 'repo')
+  try {
+    git(sourceRepo, ['worktree', 'add', '--detach', path, ref || 'HEAD'])
+    return { root, path, ref: ref || 'HEAD', environment: syncLocalEnvironment(sourceRepo, path) }
+  } catch (error) {
+    rmSync(root, { recursive: true, force: true })
+    throw error
+  }
+}
+
+export const removeAcceptanceCopy = ({ sourceRepo, copy }) => {
+  try {
+    git(sourceRepo, ['worktree', 'remove', '--force', copy.path])
+  } catch {}
+  try {
+    rmSync(copy.root, { recursive: true, force: true })
+  } catch {}
 }
 
 const diskMinMb = () => Number(process.env.CREW_DISK_MIN_FREE_MB ?? 512)

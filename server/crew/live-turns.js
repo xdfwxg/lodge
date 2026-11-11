@@ -5,7 +5,9 @@ import { budgetStatus } from './budget.js'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
 import { reject } from './result.js'
 import { markSeatRead } from './watermarks.js'
-import { commitCandidate, headOf, mergeBranch, refreshVerifier } from './worktrees.js'
+import {
+  commitCandidate, createAcceptanceCopy, headOf, mergeBranch, refreshVerifier, removeAcceptanceCopy,
+} from './worktrees.js'
 
 const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
 
@@ -114,23 +116,39 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       })
       return
     }
-    const port = room.ports?.[room.workers?.[0]]
-    const result = await runCommand({
-      command,
-      cwd: room.repoPath,
-      env: port === undefined ? undefined : { PORT: String(port) },
-    })
+    // diff 必须在候选提交前采集：提交后工作树变干净，collectDiff 会看不到交付改动。
     const diff = await collectDiff(room.repoPath)
+    let candidate = null
     try {
-      const candidate = commitCandidate({ executor: room.repoPath, turnId, name: room.name })
+      candidate = commitCandidate({ executor: room.repoPath, turnId, name: room.name })
       if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `候选提交失败：${error?.message ?? error}` })
+      store.appendMessage(roomId, { kind: 'system', text: `候选提交失败，验收未执行：${error?.message ?? error}` })
+      return
+    }
+    let copy
+    try {
+      copy = createAcceptanceCopy({ sourceRepo: room.sourceRepo, ref: candidate ?? 'HEAD' })
+    } catch (error) {
+      store.appendMessage(roomId, { kind: 'system', text: `验收隔离副本创建失败，验收未执行：${error?.message ?? error}` })
+      return
+    }
+    const port = room.ports?.[room.workers?.[0]]
+    let result
+    try {
+      result = await runCommand({
+        command,
+        cwd: copy.path,
+        env: port === undefined ? undefined : { PORT: String(port) },
+        sandbox: true,
+      })
+    } finally {
+      removeAcceptanceCopy({ sourceRepo: room.sourceRepo, copy })
     }
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: `验收命令 \`${command}\` 已在房间仓库执行，退出码 ${result.exit === null ? '无' : result.exit}。`,
+      text: `验收命令 \`${command}\` 已在一次性验收副本执行，退出码 ${result.exit === null ? '无' : result.exit}。`,
       meta: {
         kind: 'command',
         stage: stageIndex,
@@ -144,6 +162,10 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         note: [result.timedOut ? '命令超时' : '', diff.note].filter(Boolean).join(' · '),
         durationMs: result.durationMs,
         repoPath: room.repoPath,
+        commandCwd: copy.path,
+        isolated: true,
+        sandbox: result.sandbox,
+        candidate,
         turnId,
         simulated: false,
         capturedAt: new Date().toISOString(),
@@ -154,6 +176,9 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       command,
       exit: result.exit,
       durationMs: result.durationMs,
+      isolated: true,
+      sandbox: result.sandbox,
+      candidate,
     })
     store.appendMessage(roomId, {
       kind: 'system',
@@ -261,17 +286,30 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       store.appendMessage(roomId, { kind: 'system', text: `阶段 ${stageIndex + 1} 没有验收命令，未执行集成验收` })
       return
     }
+    let copy
+    try {
+      copy = createAcceptanceCopy({ sourceRepo: room.sourceRepo, ref: head })
+    } catch (error) {
+      store.appendMessage(roomId, { kind: 'system', text: `集成验收副本创建失败，验收未执行：${error?.message ?? error}` })
+      return
+    }
     const port = room.ports?.integration
-    const result = await runCommand({
-      command,
-      cwd: integration,
-      env: port === undefined ? undefined : { PORT: String(port) },
-    })
+    let result
+    try {
+      result = await runCommand({
+        command,
+        cwd: copy.path,
+        env: port === undefined ? undefined : { PORT: String(port) },
+        sandbox: true,
+      })
+    } finally {
+      removeAcceptanceCopy({ sourceRepo: room.sourceRepo, copy })
+    }
     const names = workers.map(worker => room.seatNames?.[worker] ?? worker).join('、')
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: `验收命令 \`${command}\` 已在集成工作目录执行，退出码 ${result.exit === null ? '无' : result.exit}。并行执行：${names}。`,
+      text: `验收命令 \`${command}\` 已在一次性集成验收副本执行，退出码 ${result.exit === null ? '无' : result.exit}。并行执行：${names}。`,
       meta: {
         kind: 'command',
         stage: stageIndex,
@@ -285,6 +323,9 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
         note: result.timedOut ? '命令超时' : '',
         durationMs: result.durationMs,
         repoPath: integration,
+        commandCwd: copy.path,
+        isolated: true,
+        sandbox: result.sandbox,
         turnId,
         workers,
         merges: merged,
@@ -299,6 +340,8 @@ export const createLiveTurns = ({ store, engine, roomId, emit, sendToSeat }) => 
       command,
       exit: result.exit,
       durationMs: result.durationMs,
+      isolated: true,
+      sandbox: result.sandbox,
     })
     store.appendMessage(roomId, {
       kind: 'system',
