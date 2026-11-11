@@ -1011,10 +1011,12 @@ function ResourcePanel({ resources, store }) {
 
 function DispatchView({ state, store }) {
   const { dispatch, resources } = state
-  const messageCount = state.rooms.reduce((sum, room) => sum + (room.messages?.length ?? 0), 0)
+  const roomSignature = state.rooms
+    .map(room => `${room.id}:${room.state}:${room.usage?.costMicroUsd ?? 0}:${room.usage?.turns ?? 0}:${room.needsYou?.kind ?? ''}:${room.messages?.length ?? 0}`)
+    .join('|')
   useEffect(() => {
     void store.loadResources()
-  }, [store, state.rooms.length, messageCount])
+  }, [store, roomSignature])
   if (dispatch === null) return null
   const pending = dispatch.requests.filter(request => request.state === 'suggested')
   const decided = dispatch.requests.filter(request => request.state !== 'suggested')
