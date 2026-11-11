@@ -19,6 +19,7 @@ const money = micro => {
   const usd = micro / 1_000_000
   return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(3)}`
 }
+const countOf = value => (value ?? 0).toLocaleString('zh-CN')
 const independenceOf = room => room.independenceLabel ?? '独立性未标注'
 const workspaceOf = room => {
   const caps = room.workspace?.capabilities
@@ -333,6 +334,7 @@ function GoalIsland({ room, seats, advanced, onToggleAdvanced, store, onContinue
           })
           : null,
         h('div', { className: 'crew-island-foot' },
+          h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openReview(room.id) }, '复盘'),
           h('button', { type: 'button', className: 'crew-ghost', onClick: onToggleAdvanced },
             advanced ? '收起高级' : '高级'),
           h('span', { className: 'crew-island-foot-space' }),
@@ -661,6 +663,63 @@ function Advanced({ room, seats, store, engines = [] }) {
         h('td', null, h('code', null, room.engines?.[seat.id] ?? seat.engine)),
         h('td', null, seatPermissionOf(room, seat)),
         h('td', null, `${seat.speakBudget} 次/回合`))))))
+}
+
+const FAILURE_KIND = { rework: '返工', command: '命令失败', system: '系统' }
+
+function ReviewDialog({ review, onClose }) {
+  const tokens = review.usage?.tokens ?? null
+  const passedStages = review.stages.filter(stage => stage.state === 'passed').length
+  const stats = [
+    ['成本', review.usage?.budgetMicroUsd > 0
+      ? `${money(review.usage.costMicroUsd)} / ${money(review.usage.budgetMicroUsd)}`
+      : money(review.usage?.costMicroUsd ?? 0)],
+    ['回合', countOf(review.usage?.turns)],
+    ['Token', tokens === null
+      ? '运行时未上报'
+      : `${countOf(tokens.total)}（入 ${countOf(tokens.input)} / 出 ${countOf(tokens.output)}）`],
+    ['证据', `${review.evidence.passed}/${review.evidence.commands} 通过`],
+    ['返工', countOf(review.rework.total)],
+    ['阶段', `${passedStages}/${review.stages.length}`],
+  ]
+  return h('div', { className: 'crew-overlay', onClick: onClose },
+    h('div', { className: 'crew-dialog crew-review', onClick: event => event.stopPropagation() },
+      h('div', { className: 'crew-dialog-head' },
+        h('h2', null, `复盘 · ${review.name}`),
+        h('button', { type: 'button', className: 'crew-ghost', onClick: onClose }, '关闭')),
+      h('div', { className: 'crew-dialog-body' },
+        h('div', { className: 'crew-review-stats' },
+          stats.map(([label, value]) => h('div', { key: label, className: 'crew-review-stat' },
+            h('span', null, label),
+            h('b', { title: value }, value)))),
+        h('div', { className: 'crew-review-section' },
+          h('b', null, '阶段'),
+          h('div', { className: 'crew-review-stages' },
+            review.stages.map(stage => h('div', { key: stage.index, className: 'crew-review-stage', 'data-state': stage.state },
+              h('span', { className: 'crew-review-stage-title' }, `${stage.index + 1} ${stage.title}`),
+              h('span', { className: 'crew-review-stage-meta' },
+                `${stage.state === 'passed' ? '已过' : stage.state === 'active' ? '进行中' : '未开始'} · 证据 ${stage.commands}${stage.failed > 0 ? ` · 失败 ${stage.failed}` : ''}${stage.rejects > 0 ? ` · 返工 ${stage.rejects}` : ''}`))))),
+        h('div', { className: 'crew-review-section' },
+          h('b', null, '失败与返工'),
+          review.failures.length === 0
+            ? h('p', { className: 'crew-dialog-note' }, '没有失败或返工记录。')
+            : h('div', { className: 'crew-review-failures' },
+              review.failures.map(item => h('div', { key: item.id, className: 'crew-review-failure', 'data-kind': item.kind },
+                h('span', { className: 'crew-review-failure-time' }, timeOf(item.at)),
+                h('span', { className: 'crew-review-failure-kind' }, FAILURE_KIND[item.kind] ?? '事件'),
+                h('span', { className: 'crew-review-failure-text' }, item.text))))),
+        review.tools.length > 0
+          ? h('div', { className: 'crew-review-section' },
+            h('b', null, '工具'),
+            h('table', { className: 'crew-adv-table crew-review-tools' },
+              h('thead', null, h('tr', null, ['工具', '次数', '失败'].map(label => h('th', { key: label }, label)))),
+              h('tbody', null, review.tools.map(tool => h('tr', { key: tool.name },
+                h('td', null, h('code', null, tool.name)),
+                h('td', null, countOf(tool.count)),
+                h('td', null, tool.failed > 0 ? countOf(tool.failed) : '—'))))))
+          : null,
+        h('p', { className: 'crew-dialog-note' },
+          '全部从房间消息与证据派生，不新增真相源；成本与 Token 是基座上报的估算，不是账单。'))))
 }
 
 function StageAction({ room, stage, index, onAccept, onAnswer }) {
@@ -992,6 +1051,9 @@ function RoomView({ state, room, store, onContinue }) {
       onContinue,
     }),
     advanced ? h(Advanced, { room, seats, store, engines: state.engines }) : null,
+    state.reviewFor === room.id && state.review !== null
+      ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
+      : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll' },
       h('div', { className: 'crew-flow' }, h(Timeline, {
         room,

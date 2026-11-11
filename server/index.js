@@ -186,6 +186,11 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.handoff(handoffPath[1]))
     }
 
+    const reviewPath = path.match(/^\/api\/rooms\/([\w-]+)\/review$/)
+    if (reviewPath !== null && req.method === 'GET') {
+      return respond(res, service.review(reviewPath[1]))
+    }
+
     const evidencePath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence\/([\w-]+)$/)
     if (evidencePath !== null && req.method === 'GET') {
       const [, roomId, messageId] = evidencePath

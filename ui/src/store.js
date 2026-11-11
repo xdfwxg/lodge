@@ -9,6 +9,8 @@ const EMPTY = {
   engines: [],
   runtime: null,
   budget: null,
+  review: null,
+  reviewFor: null,
   activeId: 'dispatch',
   error: null,
 }
@@ -151,6 +153,17 @@ export function createStore() {
     }
   }
 
+  const openReview = async roomId => {
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/review`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.review === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
+      patch({ review: data.review, reviewFor: roomId, error: null })
+    } catch (error) {
+      patch({ error: `复盘加载失败：${String(error?.message ?? error)}` })
+    }
+  }
+
   const importHandoff = async bundle => {
     const data = await post('/api/rooms/import', bundle)
     if (data?.room === undefined) return { ok: false, error: state.error ?? '导入交接包失败' }
@@ -177,7 +190,9 @@ export function createStore() {
       source = null
       seen.clear()
     },
-    select: activeId => patch({ activeId }),
+    select: activeId => patch({ activeId, review: null, reviewFor: null }),
+    openReview,
+    closeReview: () => patch({ review: null, reviewFor: null }),
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
     answer: async (stage, text) => {

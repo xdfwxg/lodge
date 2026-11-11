@@ -17,6 +17,7 @@ import {
   writeGoal,
 } from './room-repo.js'
 import { buildHandoff, importHandoff } from './handoff.js'
+import { buildReview } from './review.js'
 import { workspaceProvider } from './workspace.js'
 
 // 完成态留痕由工作区能力决定：commit、git 不可用、或只归档房间记录。
@@ -74,6 +75,12 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   }
 
   const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body })
+
+  const review = roomId => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    return ok({ review: buildReview(room, readMessages(roomId)) })
+  }
 
   const handoff = roomId => {
     const room = readRoom(roomId)
@@ -463,6 +470,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     health,
     messagesSince,
     evidence,
+    review,
     handoff,
     importHandoff: importHandoffPackage,
     createRoom,

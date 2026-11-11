@@ -162,6 +162,29 @@
 .crew-dialog-note{margin:0;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--bt-star) 12%,transparent);color:color-mix(in srgb,var(--bt-star) 80%,var(--bt-ink));font-size:11.5px;line-height:18px}
 .crew-dialog-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px 16px;border-top:1px solid var(--bt-line)}
 .crew-dialog-foot .crew-accept{margin-left:0;padding:6px 16px;font-size:12px}
+.crew-review{width:min(720px,100%)}
+.crew-review-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.crew-review-stat{min-width:0;display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--bt-line-2);border-radius:9px;background:color-mix(in srgb,var(--bt-ink) 1.5%,transparent)}
+.crew-review-stat span{font-size:10.5px;line-height:15px;color:var(--bt-ink-3)}
+.crew-review-stat b{min-width:0;font-size:12px;font-weight:600;line-height:18px;color:var(--bt-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-review-section{display:flex;flex-direction:column;gap:6px}
+.crew-review-section>b{font-size:12px;color:var(--bt-ink)}
+.crew-review-stages{display:flex;flex-direction:column;gap:4px}
+.crew-review-stage{display:flex;justify-content:space-between;gap:12px;padding:6px 9px;border:1px solid var(--bt-line-2);border-radius:8px;font-size:11.5px;line-height:17px}
+.crew-review-stage-title{min-width:0;font-weight:600;color:var(--bt-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-review-stage[data-state=passed] .crew-review-stage-title{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
+.crew-review-stage-meta{flex:none;color:var(--bt-ink-3)}
+.crew-review-failures{display:flex;flex-direction:column;gap:0}
+.crew-review-failure{display:grid;grid-template-columns:38px 62px minmax(0,1fr);gap:6px;align-items:baseline;padding:5px 0;border-top:1px solid var(--bt-line);font-size:11.5px;line-height:17px}
+.crew-review-failure:first-child{border-top:0}
+.crew-review-failure-time{color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
+.crew-review-failure-kind{font-weight:600;color:var(--bt-star)}
+.crew-review-failure[data-kind=command] .crew-review-failure-kind{color:var(--bt-danger)}
+.crew-review-failure-text{color:var(--bt-ink-2);overflow-wrap:anywhere}
+@media (max-width:700px){
+  .crew-review-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .crew-review-stage{flex-direction:column;gap:2px}
+}
 .crew-accept:disabled{opacity:.45;cursor:default}
 
 @media (max-width:760px){
