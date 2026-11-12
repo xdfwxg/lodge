@@ -257,12 +257,16 @@ function Sidebar({ state, onSelect, onNew, onImport }) {
       h('span', { className: 'crew-me-body' }, h('b', null, '你'))))
 }
 
+const ROOM_TYPE_LABEL = { roundtable: '圆桌派队', archive: '存档房' }
+
 function RoomRow({ room, roster, active, onSelect }) {
   const needs = room.needsYou
+  const typeLabel = ROOM_TYPE_LABEL[room.roomType]
+  const stateLabel = room.live === true ? '实时 · 基座房间' : room.state === 'complete' ? '已完成' : '进行中'
   const preview = needs
     ? needs.label
     : room.imported === true ? '交接记录 · 只读'
-      : room.live === true ? '实时 · 基座房间' : room.state === 'complete' ? '已完成' : '进行中'
+      : typeLabel === undefined ? stateLabel : `${typeLabel} · ${room.state === 'complete' ? '已完成' : '进行中'}`
   return h('button', {
     type: 'button',
     className: 'bt-row',
@@ -554,12 +558,71 @@ function ReviewDialog({ review, onClose }) {
           '全部从房间消息与证据派生，不新增真相源；成本与 Token 是基座上报的估算，不是账单。'))))
 }
 
+const confirmationItems = room => (room.brief?.constraints ?? [])
+  .filter(line => typeof line === 'string' && line.startsWith('已确认：'))
+  .slice(0, 3)
+  .map(line => {
+    const text = line.replace(/^已确认：/, '')
+    const [question, ...rest] = text.split('→')
+    const answer = rest.join('→').trim()
+    const label = /源文件|哪一个|哪个文件/.test(question)
+      ? '源文件'
+      : /改动|调整|方向/.test(question)
+        ? '改动方向'
+        : /交付物|尺寸|放到哪里/.test(question)
+          ? '交付物'
+          : null
+    return { question: question.trim(), answer, label }
+  })
+
+function ConfirmationPoints({ room }) {
+  const items = confirmationItems(room)
+  if (items.length === 0) return null
+  return h('div', null,
+    h('p', { className: 'crew-gate-points-label' }, '已对齐的内容：'),
+    h('ul', { className: 'crew-gate-points' },
+      items.map((item, at) => h('li', { key: `confirm-${at}` },
+        item.label === null ? null : h('span', { className: 'crew-gate-point-label' }, item.label),
+        h('span', { className: 'crew-gate-point-question' }, item.question),
+        item.answer === '' ? null : h('b', { className: 'crew-gate-point-answer' }, item.answer)))))
+}
+
+function ConfirmedOpening({ room, stage, index }) {
+  const next = room.stages[index + 1]
+  if (confirmationItems(room).length === 0) return null
+  return h('div', { className: 'crew-msg' },
+    h('div', { className: 'crew-msg-avatar' }, h(BotMark, { size: 30, live: false })),
+    h('div', { className: 'crew-msg-body' },
+      h('div', { className: 'crew-card crew-human-gate crew-gate-done' },
+        h('div', { className: 'crew-card-head' },
+          h('span', null, `阶段 ${index + 1} / ${room.stages.length}`),
+          h('span', { className: 'crew-verdict', 'data-pass': true }, '已确认')),
+        h('div', { className: 'crew-card-body' },
+          h('p', { className: 'crew-gate-lead' }, '开工卡已确认：'),
+          h('div', { className: 'crew-gate-title' }, stage.title),
+          h(ConfirmationPoints, { room }),
+          h('p', { className: 'crew-gate-next' },
+            next === undefined
+              ? '已确认，等待交付。'
+              : `已进入阶段 ${index + 2}「${next.title}」。`)))))
+}
+
 function StageAction({ room, stage, index, onAccept, onAnswer }) {
   const blocked = Boolean(room.openQuestion)
   const locked = room.state !== 'active'
+  const next = room.stages[index + 1]
+  const openingGate = /确认|对齐/.test(stage.title ?? '') && room.stages.slice(0, index).every(prev => (
+    prev.kind === 'decision' && /确认|对齐/.test(prev.title ?? '')
+  ))
+  const manualWork = stage.manual === true
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const canConfirm = !locked && (!blocked || draft.trim() !== '')
+  const actionLabel = blocked
+    ? '提交回答并继续'
+    : next === undefined
+      ? '确认并完成'
+      : `确认，进入阶段 ${index + 2}`
 
   const confirm = async () => {
     if (!canConfirm || busy) return
@@ -574,17 +637,20 @@ function StageAction({ room, stage, index, onAccept, onAnswer }) {
     h('div', { className: 'crew-msg-body' },
       h('div', { className: 'crew-card crew-human-gate' },
         h('div', { className: 'crew-card-head' },
-          `阶段 ${index + 1}`,
-          h('span', { className: 'crew-verdict', 'data-pending': true }, blocked ? '等你回答' : '等你拍板')),
+          h('span', null, `阶段 ${index + 1} / ${room.stages.length}`),
+          h('span', { className: 'crew-verdict', 'data-pending': true }, blocked ? '需要你回答' : '需要你确认')),
         h('div', { className: 'crew-card-body' },
+          h('p', { className: 'crew-gate-lead' },
+            blocked ? 'Lodge 需要你先回答一个问题。' : '需要你确认的是：'),
           h('div', { className: 'crew-gate-title' }, stage.title),
+          openingGate ? h(ConfirmationPoints, { room }) : null,
           blocked ? h('p', { className: 'crew-gate-question' }, room.openQuestion) : null,
           blocked
             ? h('textarea', {
               className: 'crew-gate-input',
               rows: 2,
               value: draft,
-              placeholder: '你的决定…',
+              placeholder: '写下你的决定…',
               onChange: event => setDraft(event.target.value),
               onKeyDown: event => {
                 if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
@@ -593,14 +659,22 @@ function StageAction({ room, stage, index, onAccept, onAnswer }) {
                 }
               },
             })
-            : null),
+            : h('p', { className: 'crew-gate-question' },
+              manualWork
+                ? '检查上方的产出与文件；确认后进入下一步。'
+                : '确认上方的内容；这一步不需要跑命令。'),
+          h('p', { className: 'crew-gate-next' },
+            next === undefined
+              ? '确认后生成结论，完成这次交付。'
+              : `确认后进入阶段 ${index + 2}「${next.title}」。`),
+          blocked ? null : h('p', { className: 'crew-gate-hint' }, '不同意？在下方直接说，Lodge 会先回答。')),
         h('div', { className: 'crew-card-foot' },
           h('button', {
             type: 'button',
             className: 'crew-accept',
             disabled: !canConfirm || busy,
             onClick: () => void confirm(),
-          }, blocked ? '回答并确认' : '确认这一阶段')))))
+          }, actionLabel)))))
 }
 
 function DemoStep({ stage, index, onSimulate }) {
@@ -670,7 +744,7 @@ function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept }) {
               h('span', null, `exit ${exit ?? '无'}`),
               h('span', null, `${((evidence.meta.durationMs ?? 0) / 1000).toFixed(1)}s`))
             : null,
-          h('p', { className: 'crew-dialog-note' }, `${hasVerifier ? '复核由验收席位执行' : '没有独立验收席位'} · ${independenceOf(room)}`)),
+          h('p', { className: 'crew-dialog-note' }, `${hasVerifier ? '有独立验收人' : '没有独立验收人'} · ${independenceOf(room)}`)),
         h('div', { className: 'crew-card-foot' },
           h('button', {
             type: 'button',
@@ -709,6 +783,16 @@ function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance
   const manualReady = activeStage?.manual === true && room.messages.some(message => (
     message.kind === 'evidence' && message.meta?.kind === 'manual' && (message.meta?.stage ?? 0) === activeIndex
   ))
+  const firstDeliverable = room.stages.findIndex(stage => stage.kind === 'deliverable')
+  const opening = room.stages
+    .map((stage, index) => ({ stage, index }))
+    .filter(({ stage, index }) => (
+      stage.state === 'passed' &&
+      stage.kind === 'decision' &&
+      /确认|对齐/.test(stage.title ?? '') &&
+      (firstDeliverable < 0 || index < firstDeliverable)
+    ))
+    .at(-1)
 
   return [
     ...room.messages.map(message => {
@@ -740,6 +824,12 @@ function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance
         approval,
         onDecide: decision => onApproval(approval.id, decision),
       })),
+    opening === undefined ? null : h(ConfirmedOpening, {
+      key: 'opening-confirmed',
+      room,
+      stage: opening.stage,
+      index: opening.index,
+    }),
     activeStage?.kind === 'decision' && (activeStage.manual !== true || manualReady)
       ? h(StageAction, { key: 'gate', room, stage: activeStage, index: activeIndex, onAccept, onAnswer })
       : null,
@@ -965,7 +1055,7 @@ function UsageView({ state, store }) {
             key: id,
             type: 'button',
             className: 'crew-choice',
-            'data-on': range === id,
+            'data-on': range === id ? 'true' : undefined,
             onClick: () => setRange(id),
           }, label))),
         usage === null || usage === undefined
@@ -1129,10 +1219,29 @@ const seatsFromProposal = proposal => {
   ]
 }
 
-function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstraints, onParseTemplate, onSaveTemplate, templates = [], savedTemplates = [], resume = null }) {
+function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstraints, onParseTemplate, onSaveTemplate, templates = [], savedTemplates = [], roomTypes = [], resume = null }) {
   const choices = templates.length > 0 ? templates : [{ id: 'delivery-triad', name: '交付三人组', seats: 3 }, { id: 'solo', name: '单人', seats: 1 }]
+  const typeChoices = roomTypes.length > 0 ? roomTypes : [
+    { id: 'task', name: '任务房', description: '拆目标、派活、验收、交付；默认形态' },
+    {
+      id: 'roundtable',
+      name: '圆桌派队',
+      description: '平等讨论、评审、辩论，最后形成结论',
+      defaultVerify: 'manual',
+      defaultSeats: [{ role: 'lead', name: '主持' }, { role: 'worker', name: '甲' }, { role: 'worker', name: '乙' }],
+    },
+    {
+      id: 'archive',
+      name: '存档房',
+      description: '不执行代码，保存房间记录、结论与交接包',
+      defaultVerify: 'manual',
+      defaultSeats: [{ role: 'worker', name: '档案' }],
+    },
+  ]
+  const templateLabel = template => template?.id === 'delivery-triad' ? '标准小组' : template?.name ?? '标准小组'
   const templateChoices = [...choices, { id: 'custom', name: '自定义', seats: null }]
   const [step, setStep] = useState(0)
+  const [roomType, setRoomType] = useState('task')
   const [templateId, setTemplateId] = useState(choices[0]?.id ?? 'delivery-triad')
   const [seats, setSeats] = useState(INITIAL_SEATS)
   const [goal, setGoal] = useState('')
@@ -1167,6 +1276,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
   if (!open) return null
 
   const custom = templateId === 'custom'
+  const nonTask = roomType !== 'task'
   const needRepo = resume !== null && repoPath.trim() === ''
   const activeSeats = seats.filter(seat => seat.on)
   const hasVerifier = custom
@@ -1212,11 +1322,12 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
   const workerCount = activeSeats.filter(seat => seat.role === 'worker').length
   const verifierCount = activeSeats.filter(seat => seat.role === 'verifier').length
   const rosterName = activeSeats.map(seat => seat.name.trim() || seat.label).join('、')
+  const selectedTemplate = choices.find(item => item.id === templateId)
 
   const useProposal = proposal !== null && !manual
 
-  const loadConstraints = async () => {
-    const source = repoPath.trim()
+  const loadConstraints = async sourceOverride => {
+    const source = (sourceOverride ?? repoPath).trim()
     if (source === '' || constraintsLoading) return
     setConstraintsLoading(true)
     setConstraintsChecked(true)
@@ -1230,6 +1341,27 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
     setConstraintLayers(result.layers ?? [])
     setConstraints(result.content ?? '')
     setIncludeConstraints(typeof result.content === 'string' && result.content.trim() !== '')
+  }
+
+  const chooseDirectory = async () => {
+    try {
+      const picker = globalThis.lodge?.chooseDirectory
+      if (typeof picker === 'function') {
+        const picked = await picker()
+        if (typeof picked !== 'string' || picked.trim() === '') return
+        setRepoPath(picked)
+        await loadConstraints(picked)
+        return
+      }
+      const response = await fetch('/api/system/choose-directory', { method: 'POST' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error ?? '选择目录失败')
+      if (typeof data.path !== 'string' || data.path.trim() === '') return
+      setRepoPath(data.path)
+      await loadConstraints(data.path)
+    } catch (error) {
+      setError(`选择目录失败：${String(error?.message ?? error)}`)
+    }
   }
 
   const loadTemplate = async file => {
@@ -1299,9 +1431,9 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
     const result = await onRecommend(goal.trim(), repoPath.trim())
     setRecommending(false)
     if (result?.ok !== true) {
-      setError(result?.error ?? '队长没有给出建议')
+      setError(result?.error ?? 'Lodge 没有给出方案')
       setManual(true)
-      setTemplateId('custom')
+      setTemplateId(choices[0]?.id ?? 'delivery-triad')
       setSeats(INITIAL_SEATS)
       setStep(1)
       return
@@ -1316,11 +1448,43 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
     setStep(1)
   }
 
-  const chooseManual = () => {
+  const chooseManual = (template = choices[0]?.id ?? 'delivery-triad') => {
     if (proposal !== null) setSeats(seatsFromProposal(proposal))
     setManual(true)
-    setTemplateId('custom')
+    setTemplateId(template)
     setStep(1)
+  }
+
+  const applyRoomType = nextType => {
+    const type = typeChoices.find(item => item.id === nextType)
+    if (type === undefined) return
+    setRoomType(nextType)
+    setProposal(null)
+    setAnswers([])
+    setError(null)
+    if (nextType === 'task') {
+      setManual(false)
+      setTemplateId(choices[0]?.id ?? 'delivery-triad')
+      setSeats(INITIAL_SEATS())
+      setVerify('test')
+      setAcceptance('npm test')
+      return
+    }
+    const typeSeats = Array.isArray(type.defaultSeats) && type.defaultSeats.length > 0
+      ? type.defaultSeats
+      : [{ role: 'worker', name: '执行' }]
+    setManual(true)
+    setTemplateId('custom')
+    setSeats(typeSeats.map((seat, index) => ({
+      key: `type-${nextType}-${index}`,
+      role: seat.role,
+      label: ROLE_LABEL[seat.role] ?? seat.role,
+      name: seat.name,
+      on: true,
+      required: seat.role === 'worker',
+    })))
+    setVerify(type.defaultVerify ?? 'manual')
+    setAcceptance('')
   }
 
   const start = async () => {
@@ -1336,6 +1500,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
         ...(seat.engine ? { engine: seat.engine } : {}),
       }))
     const result = await onCreate(goal.trim(), {
+      roomType,
       verify,
       acceptance: acceptance.trim(),
       repoPath: repoPath.trim(),
@@ -1367,68 +1532,99 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
       setConstraintsChecked(false)
       setIncludeConstraints(false)
       setImportedTemplate(null)
+      setRoomType('task')
       setError(null)
       onClose()
     } else {
-      setError(result?.error ?? '建房失败')
+      setError(result?.error ?? '创建房间失败')
     }
   }
 
   const verification = [
     h('div', { key: 'verify', className: 'crew-q' },
-      h('b', null, '完成后怎么验证？'),
-      h('div', { className: 'crew-choices' },
-        [['test', '跑一条命令（推荐）'], ['manual', '我自己看一眼']].map(([id, label]) => h('button', {
-          key: id,
+      h('b', null, '做完后怎么确认？'),
+      h('div', { className: 'crew-option-list' },
+        h('button', {
           type: 'button',
-          className: 'crew-choice',
-          'data-on': verify === id,
-          onClick: () => setVerify(id),
-        }, label)))),
+          className: 'crew-option',
+          'data-on': verify === 'test' ? 'true' : undefined,
+          onClick: () => setVerify('test'),
+        },
+        h('span', { className: 'crew-option-title' }, '跑项目里的测试或构建'),
+        h('span', { className: 'crew-option-desc' }, '在隔离副本里跑；跑通才算做完。')),
+        h('button', {
+          type: 'button',
+          className: 'crew-option',
+          'data-on': verify === 'manual' ? 'true' : undefined,
+          onClick: () => setVerify('manual'),
+        },
+        h('span', { className: 'crew-option-title' }, '我自己看结果'),
+        h('span', { className: 'crew-option-desc' }, '不跑命令，最后由你对照改动确认。')))),
     verify === 'test'
       ? h('div', { key: 'acceptance', className: 'crew-q' },
-        h('b', null, '验收命令'),
+        h('b', null, '用哪条测试命令？'),
+        h('p', { className: 'crew-island-soft' },
+          '就是项目原本的测试或构建命令，例如 npm test、pytest。Lodge 会在隔离副本里运行它；跑通才算做完。'),
         h('input', {
           className: 'crew-goal-input',
           type: 'text',
           value: acceptance,
-          placeholder: '例如：npm test',
+          placeholder: '例如：npm test / pytest / go test ./...',
           onChange: event => setAcceptance(event.target.value),
-        }))
+        }),
+        h('div', { className: 'crew-command-chips' },
+          ['npm test', 'pytest', 'go test ./...', 'cargo test'].map(command => h('button', {
+            key: command,
+            type: 'button',
+            className: 'crew-command-chip',
+            onClick: () => setAcceptance(command),
+          }, command))),
+        h('p', { className: 'crew-island-soft' }, '不知道填什么？选“我自己看结果”也可以。'))
       : null,
   ]
 
   const manualBody = h(Fragment, null,
     h('div', { className: 'crew-q' },
-      h('b', null, '编制'),
-      h('div', { className: 'crew-choices' },
+      h('b', null, '选一个团队'),
+      h('p', { className: 'crew-island-soft' }, '大多数任务用标准小组；小改动选单人；需要自己安排才选自定义。'),
+      h('div', { className: 'crew-option-list' },
         templateChoices.map(template => h('button', {
           key: template.id,
           type: 'button',
-          className: 'crew-choice',
-          'data-on': templateId === template.id,
+          className: 'crew-option',
+          'data-on': templateId === template.id ? 'true' : undefined,
           onClick: () => setTemplateId(template.id),
-        }, template.seats === null ? `${template.name}（按需）` : `${template.name}（${template.seats} 席）`)))),
+        },
+        h('span', { className: 'crew-option-title' }, template.seats === null ? '自定义' : templateLabel(template)),
+        h('span', { className: 'crew-option-desc' },
+          template.seats === null
+            ? '自己决定谁来做、谁验收'
+            : template.id === 'solo'
+              ? '1 人：适合小改动'
+              : template.id === 'delivery-triad'
+                ? '3 人：队长拆任务、执行交付、独立验收'
+                : `${template.seats} 人：按这个模板安排`))))),
     savedTemplates.length > 0
       ? h('div', { className: 'crew-q' },
-        h('b', null, '已保存模板'),
+        h('b', null, '用已保存的模板'),
         h('div', { className: 'crew-choices' },
           savedTemplates.map(template => h('button', {
             key: template.id,
             type: 'button',
             className: 'crew-choice',
             onClick: () => useSavedTemplate(template),
-          }, `${template.name}（${template.seats.length} 席）`))))
+          }, `${template.name}（${template.seats.length} 人）`))))
       : null,
     custom
       ? h('div', { className: 'crew-q' },
-        h('b', null, '角色（执行至少一个，可并行）'),
+        h('b', null, '自己安排人'),
+        h('p', { className: 'crew-island-soft' }, '至少一个执行，可以多个并行；需要独立复核就加验收。'),
         h('div', { className: 'crew-choices' },
           seats.filter(seat => seat.role !== 'worker').map(seat => h('button', {
             key: seat.key,
             type: 'button',
             className: 'crew-choice',
-            'data-on': seat.on,
+            'data-on': seat.on ? 'true' : undefined,
             onClick: () => toggleSeat(seat.key),
           }, seat.label)),
           h('button', {
@@ -1441,7 +1637,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
             className: 'crew-choice',
             onClick: addVerifier,
           }, '＋ 添加验收')),
-        h('b', null, '席位名字'),
+        h('b', null, '名字（可选）'),
         seats.filter(seat => seat.on).map(seat => h('div', { key: seat.key, className: 'crew-seat-line' },
           h('input', {
             className: 'crew-goal-input',
@@ -1462,27 +1658,28 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
                 className: 'crew-choice',
                 onClick: () => removeVerifier(seat.key),
               }, '移除')
-              : null)))
+              : null)),
+        h('p', { className: 'crew-island-soft' }, '权限由角色决定：队长只读，执行写自己的工作区，验收只读并跑命令。'))
       : null)
 
   const proposalBody = useProposal
     ? h('div', { className: 'crew-q' },
-      h('b', null, '队长的开工卡'),
+      h('b', null, 'Lodge 的开工卡'),
       h('p', { className: 'crew-dialog-lead' },
-        `${proposal.seats.length} 席${proposal.why === '' ? '' : ` · ${proposal.why}`}`),
+        `${proposal.seats.length} 人${proposal.why === '' ? '' : ` · ${proposal.why}`}`),
       h('b', null, '做完的样子'),
       h('ul', { className: 'crew-brief' },
         proposal.done.map((text, index) => h('li', { key: `done-${index}` }, text))),
       proposal.stages?.length > 0
         ? h(Fragment, null,
-          h('b', null, '阶段拆解'),
+          h('b', null, '分几步做'),
           h('ul', { className: 'crew-brief' },
             proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
               `${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你拍板' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`))))
         : null,
       proposal.questions.length > 0
         ? h(Fragment, null,
-          h('b', null, '要你拍板'),
+          h('b', null, '需要你定的事'),
           proposal.questions.map((question, index) => h('div', { key: `q-${index}`, className: 'crew-q' },
             h('span', null, `${index + 1}. ${question.text}`),
             h('input', {
@@ -1492,8 +1689,8 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
               placeholder: question.recommendation,
               onChange: event => setAnswers(list => list.map((item, at) => at === index ? event.target.value : item)),
             }))))
-        : h('p', { className: 'crew-island-soft' }, '没有需要你额外拍板的问题。'),
-      h('b', null, '编制'),
+        : h('p', { className: 'crew-island-soft' }, '没有需要你额外定的事。'),
+      h('b', null, '团队'),
       h('ul', { className: 'crew-brief' },
         proposal.seats.map((seat, index) => h('li', { key: `${seat.role}-${index}` },
           `${ROLE_LABEL[seat.role]}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${seat.reason === '' ? '' : ` · ${seat.reason}`}`))),
@@ -1501,152 +1698,192 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
       verify === 'manual'
         ? h('p', { className: 'crew-dialog-note' },
           hasVerifier
-            ? '人工验收模式不需要验收席位；要独立复核就补一条验收命令。'
+            ? '人工验收不需要独立验收人；要独立复核就补一条验收命令。'
             : '验收方式：你自己看产物；这一步没有命令证据。')
         : null)
     : null
 
   const body = step === 0
     ? h('div', { className: 'crew-dialog-body' },
-      h('p', { className: 'crew-dialog-lead' }, '一句话说目标，可以很糙。'),
+      h('div', { className: 'crew-q' },
+        h('b', null, '你想让 Lodge 帮你做什么？'),
+        h('p', { className: 'crew-dialog-lead' },
+          '说清你想要的结果就行，不用懂流程。下一步 Lodge 会先给你看一张开工卡，你确认后才开工。')),
       h('textarea', {
         className: 'crew-goal-input',
         rows: 3,
         autoFocus: true,
         value: goal,
-        placeholder: '例如：给 CLI 加个 verbose',
+        placeholder: '例如：给项目加一个 --verbose 参数，并让测试通过',
         onChange: event => setGoal(event.target.value),
       }),
       h('div', { className: 'crew-q' },
-        h('b', null, resume === null ? '工作目录（可选）' : '工作目录（续做必填）'),
-        h('input', {
-          className: 'crew-goal-input',
-          type: 'text',
-          value: repoPath,
-          placeholder: resume === null ? '留空则让队长在新建的空仓库里判断' : '上一轮交付所在的本地仓库或目录',
-          onChange: event => setRepoPath(event.target.value),
-          onBlur: () => void loadConstraints(),
-        })),
-      h('div', { className: 'crew-q crew-constraints' },
-        h('div', { className: 'crew-constraints-head' },
-          h('b', null, '项目约束（LODGE.md）'),
+        h('b', null, resume === null ? '在哪个项目里做？（可选）' : '上一轮项目目录（必填）'),
+        h('div', { className: 'crew-path-row' },
+          h('input', {
+            className: 'crew-goal-input',
+            type: 'text',
+            value: repoPath,
+            placeholder: resume === null ? '选择项目目录，或粘贴路径；不选就新建空工作区' : '上一轮交付所在的项目目录',
+            onChange: event => setRepoPath(event.target.value),
+            onBlur: () => void loadConstraints(),
+          }),
           h('button', {
             type: 'button',
             className: 'crew-ghost',
-            disabled: repoPath.trim() === '' || constraintsLoading,
-            onClick: () => void loadConstraints(),
-          }, constraintsLoading ? '读取中…' : '读取')),
-        constraintsPath !== null
-          ? h(Fragment, null,
-            h('label', { className: 'crew-check' },
-              h('input', {
-                type: 'checkbox',
-                checked: includeConstraints,
-                onChange: event => setIncludeConstraints(event.target.checked),
+            onClick: () => void chooseDirectory(),
+          }, '选择目录')),
+        h('p', { className: 'crew-island-soft' },
+          resume === null
+            ? '不选也可以，Lodge 会新建一个空工作区。选真实项目时，验收命令要能在里面跑。'
+            : '交接包不含代码；选上一轮交付所在的项目目录，旧证据不会复制。')),
+      h('details', { className: 'crew-advanced' },
+        h('summary', null, '更多设置（可选）'),
+        h('div', { className: 'crew-q' },
+          h('b', null, '房间类型'),
+          h('p', { className: 'crew-island-soft' }, '默认任务房；需要讨论或存档时再切换。'),
+          h('div', { className: 'crew-option-list' },
+            typeChoices.map(type => h('button', {
+              key: type.id,
+              type: 'button',
+              className: 'crew-option',
+              'data-on': roomType === type.id ? 'true' : undefined,
+              onClick: () => applyRoomType(type.id),
+            },
+            h('span', { className: 'crew-option-title' }, type.name),
+            h('span', { className: 'crew-option-desc' }, type.description))))),
+        h('div', { className: 'crew-q crew-constraints' },
+          h('div', { className: 'crew-constraints-head' },
+            h('b', null, '项目约束（LODGE.md）'),
+            h('button', {
+              type: 'button',
+              className: 'crew-ghost',
+              disabled: repoPath.trim() === '' || constraintsLoading,
+              onClick: () => void loadConstraints(),
+            }, constraintsLoading ? '读取中…' : '读取')),
+          constraintsPath !== null
+            ? h(Fragment, null,
+              h('label', { className: 'crew-check' },
+                h('input', {
+                  type: 'checkbox',
+                  checked: includeConstraints,
+                  onChange: event => setIncludeConstraints(event.target.checked),
+                }),
+                `带入这个房间 · ${constraintsPath}`),
+              constraintLayers.length > 0
+                ? h('div', { className: 'crew-constraint-layers' },
+                  constraintLayers.map(layer => h('span', { key: layer.path }, `${layer.name} · ${layer.path} · ${layer.bytes}B`)))
+                : null,
+              h('textarea', {
+                className: 'crew-goal-input',
+                rows: 4,
+                value: constraints,
+                disabled: !includeConstraints,
+                onChange: event => setConstraints(event.target.value),
               }),
-              `带入这个房间 · ${constraintsPath}`),
-            constraintLayers.length > 0
-              ? h('div', { className: 'crew-constraint-layers' },
-                constraintLayers.map(layer => h('span', { key: layer.path }, `${layer.name} · ${layer.path} · ${layer.bytes}B`)))
-              : null,
-            h('textarea', {
-              className: 'crew-goal-input',
-              rows: 4,
-              value: constraints,
-              disabled: !includeConstraints,
-              onChange: event => setConstraints(event.target.value),
-            }),
-            h('p', { className: 'crew-dialog-note' },
-              '修改只影响这个房间；要长期生效，请编辑仓库根目录的 LODGE.md。'))
-          : constraintsChecked
-            ? h('p', { className: 'crew-island-soft' }, '这个工作目录没有 LODGE.md。')
-            : null),
-      h('div', { className: 'crew-q crew-constraints' },
-        h('div', { className: 'crew-constraints-head' },
-          h('b', null, '本地模板'),
-          h(ImportButton, {
-            className: 'crew-ghost',
-            accept: '.crew.yaml,.yaml,.yml,.json,application/json',
-            onFile: file => void loadTemplate(file),
-          }, '导入 .crew.yaml')),
-        importedTemplate === null
-          ? h('p', { className: 'crew-island-soft' }, '从本地文件读取席位与提示词；权限仍由角色派生。')
-          : h(Fragment, null,
-            h('p', { className: 'crew-dialog-lead' },
-              `${importedTemplate.name} · ${importedTemplate.seats.length} 席${importedTemplate.description === '' ? '' : ` · ${importedTemplate.description}`}`),
-            h('ul', { className: 'crew-brief' },
-              importedTemplate.seats.map((seat, index) => h('li', { key: `template-${index}` },
-                `${ROLE_LABEL[seat.role] ?? seat.role}「${seat.name}」${seat.engine === undefined ? '' : ` · ${seat.engine}`}`))),
-            h('p', { className: 'crew-dialog-note' }, '模板不能提权；权限与写范围按角色校验。'),
-            h('div', { className: 'crew-choices' },
-              h('button', { type: 'button', className: 'crew-choice', onClick: useImportedTemplate }, '用这个模板'),
-              templateSource === null || onSaveTemplate === undefined
-                ? null
-                : h('button', { type: 'button', className: 'crew-ghost', onClick: () => void saveImportedTemplate() }, '保存到本地')))),
+              h('p', { className: 'crew-dialog-note' },
+                '修改只影响这个房间；要长期生效，请编辑项目根目录的 LODGE.md。'))
+            : constraintsChecked
+              ? h('p', { className: 'crew-island-soft' }, '这个项目目录没有 LODGE.md。')
+              : null),
+        h('div', { className: 'crew-q crew-constraints' },
+          h('div', { className: 'crew-constraints-head' },
+            h('b', null, '本地模板'),
+            h(ImportButton, {
+              className: 'crew-ghost',
+              accept: '.crew.yaml,.yaml,.yml,.json,application/json',
+              onFile: file => void loadTemplate(file),
+            }, '导入 .crew.yaml')),
+          importedTemplate === null
+            ? h('p', { className: 'crew-island-soft' }, '从本地文件读取席位与提示词；权限仍由角色派生。')
+            : h(Fragment, null,
+              h('p', { className: 'crew-dialog-lead' },
+                `${importedTemplate.name} · ${importedTemplate.seats.length} 席${importedTemplate.description === '' ? '' : ` · ${importedTemplate.description}`}`),
+              h('ul', { className: 'crew-brief' },
+                importedTemplate.seats.map((seat, index) => h('li', { key: `template-${index}` },
+                  `${ROLE_LABEL[seat.role] ?? seat.role}「${seat.name}」${seat.engine === undefined ? '' : ` · ${seat.engine}`}`))),
+              h('p', { className: 'crew-dialog-note' }, '模板不能提权；权限与写范围按角色校验。'),
+              h('div', { className: 'crew-choices' },
+                h('button', { type: 'button', className: 'crew-choice', onClick: useImportedTemplate }, '用这个模板'),
+                templateSource === null || onSaveTemplate === undefined
+                  ? null
+                  : h('button', { type: 'button', className: 'crew-ghost', onClick: () => void saveImportedTemplate() }, '保存到本地'))))),
       resume?.brief?.done?.length > 0
         ? h('div', { className: 'crew-q' },
-          h('b', null, `上一轮 BRIEF · ${resume.name}`),
+          h('b', null, `上一轮的要求 · ${resume.name}`),
           h('ul', { className: 'crew-brief' },
             resume.brief.done.map((item, index) => h('li', { key: `resume-done-${index}` }, item.text))))
         : null,
-      h('p', { className: 'crew-dialog-note' },
-        resume === null
-          ? '队长会先看目标和仓库，给你一个编制建议：几个人、什么职责、怎么验收。你只确认或改一下。工作目录可以是 git 仓库，也可以是普通目录；普通目录用复制隔离，不产生 commit。'
-          : '交接包不含代码；填上一轮交付所在的本地仓库或目录。旧证据不会复制，新房间从当前内容重新开工。'))
+      error ? h('p', { className: 'crew-dialog-note' }, error) : null)
     : step === 1
       ? h('div', { className: 'crew-dialog-body' },
         useProposal ? proposalBody : manualBody,
-        ...verification,
+        nonTask
+          ? h('p', { className: 'crew-dialog-note' }, '这种房间由你确认结论，不跑验收命令。')
+          : verification,
         error ? h('p', { className: 'crew-dialog-note' }, error) : null)
       : h('div', { className: 'crew-dialog-body' },
-        h('p', { className: 'crew-dialog-lead' }, '最后一眼：done、仓库、独立性。'),
+        h('p', { className: 'crew-dialog-lead' }, '确认一下，然后开工。'),
         h('ul', { className: 'crew-brief' },
-          h('li', null, `目标达成：${goal}`),
+          h('li', null, `要做的事：${goal}`),
           h('li', null, custom
-            ? `编制：自定义 · ${rosterName}`
-            : `编制：${choices.find(item => item.id === templateId)?.name ?? '交付三人组'} · ${choices.find(item => item.id === templateId)?.seats ?? 3} 席`),
+            ? `团队：自定义 · ${rosterName}`
+            : `团队：${templateLabel(selectedTemplate)} · ${selectedTemplate?.seats ?? 3} 人`),
           h('li', null, verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：你逐段确认，不跑命令'),
-          h('li', null, `仓库：${repoPath || '自动新建（~/CrewWorkspaces）'}`),
+          h('li', null, `项目目录：${repoPath || '自动新建（~/CrewWorkspaces）'}`),
           resume === null ? null : h('li', null, `续做自：${resume.name}（只读记录）`),
           includeConstraints && constraints.trim() !== ''
             ? h('li', null, `项目约束：LODGE.md（${constraints.split('\n').filter(line => line.trim() !== '').length} 行）`)
             : null,
-          h('li', null, '你不点「接受」，阶段不会算通过')),
+          h('li', null, '最后一步由你签字确认。')),
         h('p', { className: 'crew-dialog-note' },
           verify === 'manual' && hasVerifier
-            ? '人工验收模式不需要验收席位；要独立复核就补一条验收命令。'
+            ? '人工验收不需要验收人；要独立复核就补一条验收命令。'
             : hasVerifier
-              ? '复核由验收席位执行；当前只有一台 CLI，验收卡会标「独立性降级」；第二引擎在 M4 接入。'
-              : '这个房间没有独立验收席位：完成后由你凭证据签字。'),
+              ? '复核由独立验收人执行；当前只有一台 CLI，会标「独立性降级」。'
+              : '这个房间没有独立验收人：完成后由你对照证据确认。'),
         error ? h('p', { className: 'crew-dialog-note' }, error) : null)
 
   return h('div', { className: 'crew-overlay', onClick: onClose },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
-        h('h2', null, resume === null ? '建队' : '基于交接记录续做'),
-        h('button', { type: 'button', className: 'crew-ghost', onClick: onClose }, '关闭')),
+        h('h2', null, resume === null ? '新建房间' : '基于交接记录续做'),
+        h('button', {
+          type: 'button',
+          className: 'crew-dialog-close',
+          'aria-label': '关闭',
+          title: '关闭',
+          onClick: onClose,
+        }, '×')),
       h('div', { className: 'crew-steps' },
-        ['目标', '编制', '确认'].map((label, index) => h('span', {
+        ['目标', '谁来做', '开工'].map((label, index) => h('span', {
           key: label,
           className: 'crew-step',
-          'data-on': index === step,
+          'data-on': index === step ? 'true' : undefined,
         }, `${index + 1} ${label}`))),
       body,
       h('div', { className: 'crew-dialog-foot' },
         step > 0 ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => setStep(step - 1) }, '上一步') : null,
         step === 0
-          ? h(Fragment, null,
-            h('button', { type: 'button', className: 'crew-ghost', onClick: chooseManual }, '手动选编制'),
-            h('button', {
+          ? nonTask
+            ? h('button', {
               type: 'button',
               className: 'crew-accept',
-              disabled: goal.trim() === '' || needRepo || recommending,
-              onClick: () => void recommend(),
-            }, recommending ? '队长在看目标…' : '让队长看目标'))
+              disabled: goal.trim() === '' || needRepo,
+              onClick: () => { setManual(true); setStep(1) },
+            }, '下一步')
+            : h(Fragment, null,
+              h('button', { type: 'button', className: 'crew-ghost', onClick: () => chooseManual() }, '我自己选人'),
+              h('button', {
+                type: 'button',
+                className: 'crew-accept',
+                disabled: goal.trim() === '' || needRepo || recommending,
+                onClick: () => void recommend(),
+              }, recommending ? 'Lodge 正在看…' : '让 Lodge 先出方案'))
           : step === 1
             ? h(Fragment, null,
               useProposal
-                ? h('button', { type: 'button', className: 'crew-ghost', onClick: chooseManual }, '改一下')
+                ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => chooseManual('custom') }, '自己调整')
                 : null,
               useProposal
                 ? h('button', {
@@ -1654,7 +1891,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
                   className: 'crew-accept',
                   disabled: busy || needRepo || (verify === 'manual' && hasVerifier) || (verify === 'test' && acceptance.trim() === ''),
                   onClick: () => void start(),
-                }, busy ? '正在建真实房间…' : '按方案开工')
+                }, busy ? '正在建真实房间…' : '就按这个方案开工')
                 : h('button', {
                   type: 'button',
                   className: 'crew-accept',
@@ -1691,16 +1928,17 @@ export function App() {
   if (state.rooms.length === 0) {
     return h('div', { className: 'crew-onboarding' },
       h('div', { className: 'crew-onboarding-card' },
-        h(BotMark, { size: 44 }),
+        h('img', { className: 'crew-onboarding-logo', src: './icon.png', alt: 'Lodge', width: 96, height: 96 }),
         h('h1', null, 'Lodge'),
-        h('p', null, '开间专属任务房，养一支 AI 小队——你下班，它上班。'),
-        h('button', {
-          type: 'button',
-          className: 'crew-accept',
-          disabled: state.phase === 'loading' || state.phase === 'error',
-          onClick: () => openDialog(),
-        }, '开一个房间'),
-        h(ImportButton, { className: 'crew-ghost', onFile: file => store.importHandoffFile(file) }, '打开交接记录'),
+        h('p', null, '创建专属任务房，养一支 AI 小队。'),
+        h('div', { className: 'crew-onboarding-actions' },
+          h('button', {
+            type: 'button',
+            className: 'crew-accept',
+            disabled: state.phase === 'loading' || state.phase === 'error',
+            onClick: () => openDialog(),
+          }, '创建房间'),
+          h(ImportButton, { className: 'crew-ghost', onFile: file => store.importHandoffFile(file) }, '打开交接记录')),
         state.runtime?.ok === false ? h('p', { className: 'crew-dialog-note' }, `基座未连接：${state.runtime.error}`) : null,
         state.phase === 'error' ? h('p', { className: 'crew-dialog-note' }, `连接失败：${state.error}`) : null,
         state.error ? h('p', { className: 'crew-dialog-note' }, state.error) : null),
@@ -1708,6 +1946,7 @@ export function App() {
         open: dialog,
         onClose: closeDialog,
         templates: state.templates ?? [],
+        roomTypes: state.roomTypes ?? [],
         savedTemplates: state.savedTemplates ?? [],
         onSaveTemplate: (filename, text) => store.saveTemplate(filename, text),
         resume,
@@ -1738,6 +1977,7 @@ export function App() {
       open: dialog,
       onClose: closeDialog,
       templates: state.templates ?? [],
+      roomTypes: state.roomTypes ?? [],
       savedTemplates: state.savedTemplates ?? [],
       onSaveTemplate: (filename, text) => store.saveTemplate(filename, text),
       resume,

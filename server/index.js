@@ -7,12 +7,15 @@ import { createGateAgent } from './crew/gate-agent.js'
 import { createLiveRooms } from './crew/live.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
+import { findRedundantOpeningGate, normalizeManualStages } from './crew/room-repair.js'
 import { createCrewService } from './crew/service.js'
+import { openPath } from './system-open.js'
 import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
 import { seedIfEmpty } from './crew/seeds.js'
 import { SEATS } from './crew/seats.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
+import { chooseDirectory } from './system-dialog.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
@@ -53,6 +56,34 @@ const live = createLiveRooms({
   dispatchPayload: digest.dispatchPayload,
   gateAgent: createGateAgent({ engine }),
 })
+
+const repairManualStages = () => {
+  for (const room of store.readRooms()) {
+    if (normalizeManualStages(room) === null) continue
+    const updated = store.updateRoom(room.id, current => {
+      const stages = normalizeManualStages(current)
+      if (stages === null) return null
+      current.stages = stages
+      return { events: [{ type: 'stage.manual_normalized', payload: {} }] }
+    })
+    if (updated === null) continue
+    store.appendMessage(room.id, {
+      kind: 'system',
+      text: '验收方式为人工确认，已改为由你确认，不再执行命令。',
+    })
+  }
+}
+
+const repairOpeningGates = async () => {
+  for (const room of store.readRooms()) {
+    const index = findRedundantOpeningGate(room)
+    if (index < 0) continue
+    await service.roomRequest(room.id, 'accept', {
+      method: 'POST',
+      readBody: async () => ({ stage: index }),
+    })
+  }
+}
 
 const service = createCrewService({
   store,
@@ -154,6 +185,22 @@ const server = http.createServer(async (req, res) => {
 
     if (path === '/api/health' && req.method === 'GET') {
       return respond(res, await service.health())
+    }
+
+    if (path === '/api/system/choose-directory' && req.method === 'POST') {
+      if (process.platform !== 'darwin') {
+        return json(res, 501, { error: '当前系统还不支持从 web 选择目录；请粘贴目录路径' })
+      }
+      return json(res, 200, await chooseDirectory())
+    }
+
+    if (path === '/api/system/open-path' && req.method === 'POST') {
+      const body = await readJson(req)
+      if (typeof body.path !== 'string' || body.path.trim() === '') {
+        return json(res, 400, { error: '缺少路径' })
+      }
+      await openPath(body.path)
+      return json(res, 200, { ok: true })
     }
 
     if (path === '/api/events' && req.method === 'GET') {
@@ -286,5 +333,9 @@ setInterval(() => {
 const port = Number(process.env.CREW_PORT ?? 8787)
 server.listen(port, '127.0.0.1', () => {
   console.log(`Lodge server: http://127.0.0.1:${port}`)
-  void live.start()
+  void (async () => {
+    repairManualStages()
+    await live.start()
+    await repairOpeningGates()
+  })()
 })

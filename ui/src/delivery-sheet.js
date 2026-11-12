@@ -1,4 +1,4 @@
-import { createElement as h } from 'react'
+import { createElement as h, useState } from 'react'
 
 const timeOf = ts => {
   if (typeof ts !== 'number') return ''
@@ -15,11 +15,40 @@ const timeOf = ts => {
 }
 
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
+const joinPath = (base, file) => file.startsWith('/') ? file : `${base.replace(/\/$/, '')}/${file}`
+
+const openTarget = async target => {
+  const opener = globalThis.lodge?.openPath
+  if (typeof opener === 'function') {
+    const result = await opener(target)
+    if (result?.ok === false) throw new Error(result.error ?? '打开失败')
+    return
+  }
+  const response = await fetch('/api/system/open-path', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: target }),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.error ?? '打开失败')
+}
 
 // 完成态先看到交付单，聊天退到下方；数据全部来自房间投影，不在 UI 重算业务结论。
 export function DeliverySheet({ delivery, onExport }) {
   const commands = delivery.commands ?? []
   const passed = commands.filter(command => command.exit === 0).length
+  const [openError, setOpenError] = useState(null)
+  const [openNotice, setOpenNotice] = useState(null)
+  const open = async target => {
+    try {
+      setOpenError(null)
+      await openTarget(target)
+      setOpenNotice('已打开')
+      setTimeout(() => setOpenNotice(null), 2000)
+    } catch (error) {
+      setOpenError(`打开失败：${String(error?.message ?? error)}`)
+    }
+  }
   return h('section', { className: 'crew-delivery', 'aria-label': '交付单' },
     h('div', { className: 'crew-delivery-head' },
       h('div', { className: 'crew-delivery-title' },
@@ -32,8 +61,8 @@ export function DeliverySheet({ delivery, onExport }) {
         : h('button', { type: 'button', className: 'crew-ghost crew-delivery-export', onClick: onExport }, '导出交付单')),
     h('div', { className: 'crew-delivery-metrics' },
       h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 阶段`),
-      h('span', null, `${passed}/${commands.length} 命令通过`),
-      h('span', null, `${delivery.changedFiles?.length ?? 0} 个文件`),
+      h('span', null, commands.length > 0 ? `${passed}/${commands.length} 命令通过` : '人工验收'),
+      h('span', null, `${delivery.artifacts?.length ?? delivery.changedFiles?.length ?? 0} 个文件`),
       delivery.independenceLabel ? h('span', null, delivery.independenceLabel) : null,
       delivery.completedAt ? h('span', null, timeOf(delivery.completedAt)) : null),
     delivery.commit
@@ -43,6 +72,24 @@ export function DeliverySheet({ delivery, onExport }) {
         h('span', null, '未 push'))
       : h('div', { className: 'crew-delivery-commit' },
         h('span', null, delivery.workspace?.vcs === 'git' ? '没有新的 commit' : `留痕方式：${delivery.workspace?.vcs === 'none' ? '房间记录归档' : delivery.workspace?.vcs}`)),
+    delivery.workspacePath
+      ? h('div', { className: 'crew-delivery-location' },
+        h('span', null, '改动位置'),
+        h('code', { title: delivery.workspacePath }, delivery.workspacePath),
+        h('button', { type: 'button', className: 'crew-ghost', onClick: () => void open(delivery.workspacePath) }, '打开文件夹'),
+        delivery.workspace?.vcs === 'none' && delivery.sourcePath
+          ? h('span', { className: 'crew-muted' }, `原目录未改：${delivery.sourcePath}`)
+          : null,
+        openNotice ? h('span', { className: 'crew-muted' }, openNotice) : null,
+        openError ? h('span', { className: 'crew-muted' }, openError) : null)
+      : null,
+    delivery.artifacts?.length > 0
+      ? h('div', { className: 'crew-delivery-artifacts' },
+        h('b', null, `工作区文件 · ${delivery.artifacts.length}`),
+        h('ul', null, delivery.artifacts.map(artifact => h('li', { key: artifact.path },
+          h('code', { title: artifact.path }, artifact.path.split('/').pop() || artifact.path),
+          h('button', { type: 'button', className: 'crew-ghost', onClick: () => void open(artifact.path) }, '打开')))))
+      : null,
     h('div', { className: 'crew-delivery-stages' },
       ...(delivery.stages ?? []).map(stage => h('div', { key: stage.index, className: 'crew-delivery-stage' },
         h('div', { className: 'crew-delivery-stage-head' },
@@ -66,6 +113,14 @@ export function DeliverySheet({ delivery, onExport }) {
     delivery.changedFiles?.length
       ? h('details', { className: 'crew-fold crew-delivery-files' },
         h('summary', null, `全部改动文件 · ${delivery.changedFiles.length}`),
-        h('ul', null, delivery.changedFiles.map(file => h('li', { key: file }, h('code', null, file)))))
+        h('ul', null, delivery.changedFiles.map(file => h('li', { key: file },
+          h('code', null, file),
+          delivery.workspacePath
+            ? h('button', {
+              type: 'button',
+              className: 'crew-ghost',
+              onClick: () => void open(joinPath(delivery.workspacePath, file)),
+            }, '打开')
+            : null))))
       : null)
 }

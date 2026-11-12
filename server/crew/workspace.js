@@ -1,3 +1,4 @@
+import * as directWorkspace from './workspace-direct.js'
 import * as gitWorkspace from './workspace-git.js'
 import * as plainWorkspace from './workspace-plain.js'
 
@@ -9,6 +10,7 @@ export const registerWorkspaceProvider = (id, provider) => {
 }
 
 registerWorkspaceProvider(gitWorkspace.id, gitWorkspace)
+registerWorkspaceProvider(directWorkspace.id, directWorkspace)
 registerWorkspaceProvider(plainWorkspace.id, plainWorkspace)
 
 export const defaultWorkspace = gitWorkspace

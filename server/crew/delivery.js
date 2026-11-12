@@ -2,12 +2,29 @@ import { independenceLabel } from './digest.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
 
+const artifactList = (messages, roots = []) => {
+  const normalizedRoots = roots.filter(root => typeof root === 'string' && root !== '').map(root => root.replace(/\/$/, ''))
+  const byPath = new Map()
+  for (const message of messages) {
+    for (const artifact of message.meta?.artifacts ?? []) {
+      if (artifact === null || typeof artifact !== 'object' || typeof artifact.path !== 'string' || artifact.path === '') continue
+      if (normalizedRoots.length > 0 && !normalizedRoots.some(root => artifact.path === root || artifact.path.startsWith(`${root}/`))) continue
+      byPath.set(artifact.path, {
+        path: artifact.path,
+        bytes: Number.isFinite(artifact.bytes) ? artifact.bytes : null,
+      })
+    }
+  }
+  return [...byPath.values()]
+}
+
 // 完成态交付单只读投影：目标、阶段、命令、改动文件、结论与 commit。
 export const buildDelivery = (room, messages = []) => {
   const stages = room.stages.map((stage, index) => {
     const stageMessages = messages.filter(message => (message.meta?.stage ?? 0) === index)
     const commands = stageMessages
       .filter(message => message.kind === 'evidence' && message.meta?.kind === 'command')
+      .filter(message => !/^manual$/i.test(String(message.meta?.command ?? '').trim()))
       .map(message => ({
         id: message.id,
         command: message.meta?.command ?? '',
@@ -53,6 +70,9 @@ export const buildDelivery = (room, messages = []) => {
       provider: room.workspace?.provider ?? 'git',
       vcs: room.workspace?.capabilities?.vcs ?? 'none',
     },
+    workspacePath: room.repoPath ?? Object.values(room.worktrees ?? {})[0] ?? null,
+    sourcePath: room.sourceRepo ?? null,
+    artifacts: artifactList(messages, [room.repoPath, ...Object.values(room.worktrees ?? {})]),
     stages,
     commands,
     changedFiles,
@@ -69,6 +89,8 @@ export const deliveryMarkdown = delivery => {
     `完成时间：${delivery.completedAt === null || delivery.completedAt === undefined ? '未记录' : new Date(delivery.completedAt).toISOString()}`,
     `独立性：${delivery.independenceLabel ?? '未标注'}`,
     `工作区：${delivery.workspace?.provider ?? '—'} / ${delivery.workspace?.vcs ?? '—'}`,
+    `改动位置：${delivery.workspacePath ?? '—'}`,
+    `原目录：${delivery.sourcePath ?? '—'}`,
     `结论 commit：${delivery.commit ?? '无'}`,
     '',
     '## 阶段',
@@ -85,6 +107,9 @@ export const deliveryMarkdown = delivery => {
     }
     if (stage.changedFiles.length > 0) lines.push(`- 改动文件：${stage.changedFiles.join('、')}`)
   }
+  lines.push('', '## 产出文件')
+  lines.push(...(delivery.artifacts ?? []).map(artifact => `- ${artifact.path}`))
+  if ((delivery.artifacts ?? []).length === 0) lines.push('- 无')
   lines.push('', '## 改动文件')
   lines.push(...(delivery.changedFiles ?? []).map(file => `- ${file}`))
   if ((delivery.changedFiles ?? []).length === 0) lines.push('- 无')

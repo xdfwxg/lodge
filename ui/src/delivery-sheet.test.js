@@ -16,6 +16,7 @@ const load = async () => {
   const react = {
     createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity) }),
     Fragment: 'fragment',
+    useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
   }
   const module = { exports: {} }
   runInNewContext(bundle.outputFiles[0].text, {

@@ -39,6 +39,19 @@ test('a team proposal keeps names and reasons and derives permissions later', ()
   assert.deepEqual(proposal.questions, [])
 })
 
+test('common role aliases are normalized', () => {
+  const proposal = parseProposal(reply({
+    seats: [
+      { role: 'planner', name: '统筹' },
+      { role: 'executor', name: '前端' },
+      { role: 'reviewer', name: '复核' },
+    ],
+    verify: 'test',
+    acceptance: 'npm test',
+  }))
+  assert.deepEqual(proposal.seats.map(seat => seat.role), ['lead', 'worker', 'verifier'])
+})
+
 test('questions are capped at three and keep their recommendation', () => {
   const proposal = parseProposal(reply({
     questions: [

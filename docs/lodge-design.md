@@ -9,8 +9,9 @@
 > v0.9 变更：六家取舍逐条落成产品动作（§4.8）；技术选型定稿（§10.0）；§7 由“移植/搬组件”改为“基座 fork + 产品层自写”。
 > v0.10 变更：采纳 Claude-Bot 的目标呈现——**目标岛**（§9.7），并把 `goal-grill` 的对齐方式写进开队流程（§8.2、§9.2）；数据模型补 `goals.idle/revision`、`goal_stages.reject_count/rework_feedback`（§11）。
 > v0.11 变更：顶层定位改为“可验收、可交接的交付”；“省时省力”降为交互承诺与结果指标，房间留痕回到价值主张（§1、§2.6）。
+> v0.12 变更：统一“已落 / 部分 / 设计目标 / 明确不做”的状态口径；M3 核心门槛已过；macOS 分发改为 ad-hoc zip，不公证、不自动更新（§10.0）。
 >
-> **当前实现状态（2026-11-12）**：P0+ / M3 部分 / M4 审批桥部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、多验收席位（每个验收席位独立复核，全部 PASS 才签字，任一 REJECT 打回）、建后加/移除/改角色执行与验收席位、席位 env/data/tmp 与端口预置、lsof 端口预检、验收命令文件系统边界、验收盲审与无显式引擎时的跨厂商偏好、规则守门 + 异步独立模型守门、完成态交付单（目标/阶段/命令/文件/结论/commit）、独立守门建议（规则 + 独立上下文，人最终批准）、有队长时的“目标对齐 → 交付 → 验收与结论”三段式与最多 3 个工作阶段、未开始阶段的增删改与重排、从进行中/完成房间续做/分叉、交付单 Markdown 导出、资源面板最近交付、交付摘要导出/导入、调度台本地词项路由、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝；外部 push/安装/删除/发送/网络动作挂起等人批准；exec 不是通用文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git 与 plain 两种 provider，业务只依赖端口；evidence 带 `vcs`、完成文案与并行门禁按能力降级；非 git 目录用复制隔离与文件清单）、目标岛三问摘要与返工记录、复盘视图（从消息与证据派生成本/Token/返工/失败）、示范房间（`examples/rooms/`：3 模拟 + 1 真实，公开导出脱敏）、席位业务交接包（目标/done/约束/复核意见 + transcript 引用）、项目约束 `LODGE.md`（建房快照进 BRIEF）、本地模板导入（YAML/JSON，角色权限校验）与本地保存、阶段依赖与部分成功记录、调度台只读资源面板、MCP 调用审计与按 server 熔断、用量账本与 7 天趋势、约束分层（LODGE.md/AGENTS.md/CLAUDE.md）、任务级状态与历史目标、完整用量时间序列页、边界门禁、旧 schema 增量迁移。仍是设计目标：runtime Assignment、Windows 真机 dogfood（WSL2 + bubblewrap 适配器已有）、稳定跨厂商、发言预算、分叉会议、Windows/Linux 桌面真机验证。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
+> **当前实现状态（2026-11-12）**：P0+ / M3 核心门槛已过 / M4 部分。已成立：房间即仓库、阶段门禁、命令证据、编制由队长按目标建议（一张开工卡：done/编制/验收/≤3 问，人确认一次，三人组只是模板）、席位按需组合（单人/三人组/自定义，角色与名字可换）、人签字、本地 commit、`needsYou` 注意力、M1 游标/轮次/空转、M2 真 Stop、M3 席位隔离与多执行并行（planner 克隆 / executor worktree / 集成 worktree / verifier 临时副本）、多验收席位（每个验收席位独立复核，全部 PASS 才签字，任一 REJECT 打回）、建后加/移除/改角色执行与验收席位、席位 env/data/tmp 与端口预置、lsof 端口预检、验收命令文件系统边界、验收盲审与无显式引擎时的跨厂商偏好、规则守门 + 异步独立模型守门、完成态交付单（目标/阶段/命令/文件/结论/commit）、独立守门建议（规则 + 独立上下文，人最终批准）、有队长时的“目标对齐 → 交付 → 验收与结论”三段式与最多 3 个工作阶段、未开始阶段的增删改与重排、从进行中/完成房间续做/分叉、交付单 Markdown 导出、资源面板最近交付、交付摘要导出/导入、调度台本地词项路由、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、工具审批桥（planner/verifier 写工具被拒绝；外部 push/安装/删除/发送/网络动作挂起等人批准；exec 不是通用文件系统沙箱）、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地房间交接包（真实房间导出 JSON 包，另一个实例可只读导入，并基于 BRIEF 续做新房间）、Engine 端口、Workspace 端口（git、direct、plain 三种 provider，业务只依赖端口；非 git 目录默认 direct 原地修改，不复制；显式 plain 才复制；evidence 带 `vcs`、完成文案与并行门禁按能力降级）、目标岛三问摘要与返工记录、复盘视图（从消息与证据派生成本/Token/返工/失败）、示范房间（`examples/rooms/`：3 模拟 + 1 真实，公开导出脱敏）、席位业务交接包（目标/done/约束/复核意见 + transcript 引用）、项目约束 `LODGE.md`（建房快照进 BRIEF）、本地模板导入（YAML/JSON，角色权限校验）与本地保存、阶段依赖与部分成功记录、调度台只读资源面板、MCP 调用审计与按 server 熔断、用量账本与 7 天趋势、约束分层（LODGE.md/AGENTS.md/CLAUDE.md）、任务级状态与历史目标、完整用量时间序列页、边界门禁、旧 schema 增量迁移。已成立新增：任务房 / 圆桌派队 / 存档房三种房型策略、普通目录 direct 原地修改。仍是设计目标：runtime Assignment、Windows 真机 dogfood（WSL2 + bubblewrap 适配器已有）、稳定跨厂商、发言配额强制、分叉会议、嵌套子房间（opt-in，仅预留投影字段与文档契约）、Windows/Linux 桌面真机验证。macOS 自动更新和公证当前明确不做。设计文档描述目标；当前事实以 `reuse-map.md` §8.5 为唯一状态源，规则见 `设计思想.md` §12。
 >
 > **产品北极星（防跑偏）**：用户只做三件事——说目标、答 ≤3 个带推荐答案的问题、验收；队长用**一张开工卡**给出 done、编制、验收与问题，业务校验，人确认一次直接开工，三人组只是模板、单人合法；任何让用户选机制（模型、人数、并发、worktree）的设计都是跑偏；只加 bot、页面或开关、没有让“目标 → 证据 → 结论 → commit”更可信或更省人的功能，不做。
 
@@ -27,11 +28,11 @@ Lodge 的判断是：**这个品类缺的不是更多 bot，而是"小队"这件
 结论：
 
 - **一等公民是群（Room），不是 bot**：bot 可换、引擎可换、模型可换，群不能
-- **3 个真创新**（房间即仓库、游标可见、跨厂商评审）
-- **2 个组合创新**（发言权预算、可分叉的会议）
-- **1 个执行优势**（验收是命令）
+- **3 个真创新**：房间即仓库（已落）、游标可见（已落）、独立验收（多验收/盲审已落；跨厂商依赖第二引擎）
+- **2 个组合创新**：发言权预算（成本闸门已落，发言配额未强制）、可分叉会议（可 fork 房间，并排会议未做）
+- **1 个执行优势**：验收是命令（已落）
 - **4 条产品核心 + 8 条苹果式原则**，每条都落到一个具体的删除动作或验收约束
-- **28 条设计理念直接照搬**（17 条机制 + 11 条交互）；其中 Assignment 运行时计划以 OpenMausBot OSS 为基座复用（Apache-2.0）；P0 尚未接入，当前用群消息/回合
+- **28 条设计理念直接照搬**（17 条机制 + 11 条交互）；其中 Assignment 运行时以 OpenMausBot OSS 为基座复用（Apache-2.0）；当前仍用基座线程/回合承载，尚未切到上游 Assignment 生命周期
 - **6 件事必须重写**：产品面、会话模型、群策略、API runtime、记忆层、上游多余能力
 - **技术选型已定**：OpenMausBot OSS 基座 + 它的 drivers/ACP 引擎层 + Electron 外壳，Mac arm64 先行；不引入第三方编排框架（§10.0）
 
@@ -62,7 +63,7 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 
 | # | 原则 | 具体做法 | 反例（不要） |
 |---|---|---|---|
-| 1 | **默认即最佳** | 打开就是一个 3 人小队 + 一份已写好的 BRIEF | 首次启动弹配置向导 |
+| 1 | **默认即最佳** | 打开就是一个建队入口；队长先给编制与 BRIEF 草稿 | 首次启动弹配置向导 |
 | 2 | **一次一个决定** | 任何时刻界面上最多一个待你回答的问题，且已带推荐答案 | 一次甩出 6 个选项让你配 |
 | 3 | **只说目标，不管过程** | 用户永远不需要知道 roundtable / lead-first / worktree / 水位线 | 让用户选"讨论模式" |
 | 4 | **渐进披露** | 引擎、工位、预算、发言权全在"高级"里，默认不出现 | 主界面放一排开关 |
@@ -86,7 +87,7 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 - **砍掉模式选择器**：模式由系统按目标判断
 - **砍掉配置向导**：所有参数有默认值，想改去"高级"
 - **砍掉仪表盘首页**：打开就是当前目标，没有"概览"
-- **砍掉成员管理页**：席位由队长的编制建议生成，人确认或改建议；建后增删席位是后续能力，当前不假装支持
+- **砍掉成员管理页**：席位由队长的编制建议生成，人确认或改建议；建后增删/改角色已支持，入口在高级里
 - **砍掉会话列表**：一个目标一个房间，不是一堆聊天
 
 ### 2.6 一句话检验
@@ -340,11 +341,15 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 
 **真正的好处不是省钱**：预算耗尽是一个自然的收束信号——"该出结论了"。
 
+**当前实现**：成本硬闸门已落；席位有 `speakBudget` 字段并展示，但回合强制未接。
+
 ### 5.5 群的会议：可分叉、可并排（组合创新）
 
 **是什么**：任意一轮可以 fork 成两条支线，各自跑完，对比结论与 diff。
 
 **技术**：Claude 有 `--fork-session`；房间层面只是复制目录 + 新 seq 域。
+
+**当前实现**：可从进行中/已完成房间 fork 出新房间；两条支线并排比较的会议界面未做。
 
 ### 5.6 群的边界：隔离与独立性（真创新）
 
@@ -371,6 +376,8 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 运行时按 `rooms.independence` 记录实际级别，模板里的 `engine_constraint` 只是默认值：**可以降级，不能悄悄升级**。降级时验收卡上必须出现"同家族"或"独立性降级"。
 
 **独立性有上限：共模失败。** 换厂商只能降低同错的概率，不能消除：不同模型可能在同一批训练语料上形成同一盲区，或对同一类陷阱犯同一种错。两个引擎都说"通过"，不等于正确。所以自动化验收给的是**概率**，不是保证；最终验收必须由人点（§9.4）——这不是流程礼貌，是防共模失败的承重墙。产品话术只能说"降低了没被发现的概率"，不能说"验证过就没问题"。
+
+**当前实现**：worktree/审批/盲审/多验收已落；无第二可用引擎时显式降级，跨厂商仍是环境依赖。
 
 
 
@@ -896,11 +903,11 @@ constraints:
 
 ### 10.0 基座与技术栈（已定）
 
-> **这是目标态，不是当前接线**：当前 P0 是独立 `Lodge server` + 独立基座仓库 `crew-chat-base`（HTTP 8799），Windows/Linux Electron、runtime Assignment、上游 `message-db`/`thread-events`/`sse-fanout` 都未接入；macOS Electron 壳已接。当前事实以 `reuse-map.md` §8.5 为准。
+> **这是目标态，不是当前接线**：当前 P0 是独立 `Lodge server` + 独立基座仓库 `crew-chat-base`（HTTP 8799），Windows/Linux Electron、runtime Assignment、上游 `message-db`/`thread-events`/`sse-fanout` 都未接入；macOS Electron 壳已接（ad-hoc zip）。当前事实以 `reuse-map.md` §8.5 为准。
 
 | 层 | 选择 | 说明 |
 |---|---|---|
-| 外壳 | **Electron 43** | Mac arm64 先行，不发 universal；复用 OpenMausBot 的窗口、打包、更新 |
+| 外壳 | **Electron 43** | Mac arm64 先行，不发 universal；复用 OpenMausBot 的窗口与打包结构；当前 ad-hoc 签名，不接自动更新 |
 | UI | **React 19 + Vite 8** | 当前 Lodge UI；不用 Tailwind，`createElement` 写法不改成 TSX |
 | 运行时 | **OpenMausBot `server/runtime`** | Assignment 生命周期与不变量一行不改 |
 | 引擎 | **OpenMausBot drivers + ACP** | 首版原生 Claude Code；第二厂商在 M4 接 Codex 或 ACP |
@@ -983,15 +990,15 @@ UI ──HTTP+SSE(127.0.0.1, per-launch token)── Lodge server
 
 **端口**：业务层（建房、回合、完成）只依赖 `workspace.js` 暴露的 provider，不直接调用 git。provider 暴露 `capabilities()` 与七个动作：
 
-| 动作 | 语义 | git provider | 普通目录 provider（已落） |
-|---|---|---|---|
-| `probeSource({ source })` | 判断源目录能否开房 | 必须在 git work tree 内 | 目录存在且可读 |
-| `prepareRoom({ source, short, seats })` | 创建隔离工作区 | worktree / clone / 分支 | 复制目录，分配端口 |
-| `changes({ path })` / `rangeChanges({ path, base })` | 变更证据 | 补丁 diff | 文件清单 + 哈希 |
-| `submit({ path, turnId, name })` | 候选 | candidate commit | 目录快照 ID |
-| `integrate({ path, branch })` | 并行汇总 | merge 分支 | 按文件复制，同路径不同哈希记为冲突 |
-| `isolatedCopy({ source, ref })` / `removeIsolatedCopy` | 一次性验收副本 | detached worktree | 临时复制目录 |
-| `persistRoom({ room, files })` | 完成留痕 | 本地 commit 一次 | 房间记录已落盘，无 commit |
+| 动作 | 语义 | git provider | direct（普通目录默认） | plain（显式复制） |
+|---|---|---|---|---|
+| `probeSource({ source })` | 判断源目录能否开房 | 必须在 git work tree 内 | 目录存在且可读 | 目录存在且可读 |
+| `prepareRoom({ source, short, seats })` | 准备工作区 | worktree / clone / 分支 | 原地使用源目录，不复制 | 复制目录，分配端口 |
+| `changes({ path })` / `rangeChanges({ path, base })` | 变更证据 | 补丁 diff | 文件清单 + 哈希 | 文件清单 + 哈希 |
+| `submit({ path, turnId, name })` | 候选 | candidate commit | 无 | 无 |
+| `integrate({ path, branch })` | 并行汇总 | merge 分支 | 不支持并行 | 按文件复制，同路径不同哈希记为冲突 |
+| `isolatedCopy({ source, ref })` / `removeIsolatedCopy` | 一次性验收副本 | detached worktree | 临时复制目录 | 临时复制目录 |
+| `persistRoom({ room, files })` | 完成留痕 | 本地 commit 一次 | 房间记录已落盘，无 commit | 房间记录已落盘，无 commit |
 
 另有 `pruneSeats(room)`、`cleanupRoom({ source, workspaces })`、`head({ path })`、`refreshReviewCopy(...)`、`scratchRoot()`，用于生命周期与复核。
 
@@ -1008,11 +1015,11 @@ UI ──HTTP+SSE(127.0.0.1, per-launch token)── Lodge server
 1. 语义收敛：`roomRootOf` 与 `repoPath` 兼容；文档分离“房间根”与“版本控制”。
 2. 抽端口、行为不变：git 调用收进 `workspace-git.js`；建房、回合、完成链路依赖 provider；测试全绿。
 3. 能力入库：房间写 `workspace` 与 capabilities，evidence 带 `vcs`，完成文案按能力分支。
-4. plain provider：显式选择或房间根不是 git 仓库时启用，不默认切换。
+4. direct / plain provider：非 git 目录默认 direct 原地修改；只有显式 `workspaceProvider: 'plain'` 才复制隔离。
 5. 交接包联动：非 git 房间完成时，交接包就是归档。
-6. 门禁：除 `workspace-git.js` 外，`server/crew` 不直接调用 git；文档写清两种 provider 的差异。
+6. 门禁：除 `workspace-git.js` 外，`server/crew` 不直接调用 git；文档写清 git / direct / plain 三种 provider 的差异。
 
-**当前（2026-11-12）**：第 1–6 步已落。`workspace.js` 是端口注册表，`workspace-git.js` 与 `workspace-plain.js` 是两种实现；`room-create.js`、`live-turns.js`、`service.js`、`workspace-gc.js`、`roster-recommend.js` 只通过 provider 调用；建房写入 `room.workspace = { provider, capabilities }`；`boundary.test.js` 要求除 `workspace-git.js`（以及 `paths.js` 的默认根探测）外不得直接调用 git。能力已用于：evidence 带 `vcs`；完成留痕按 `commit` / `git-unavailable` / `archive` 分支；并行执行在没有 `merge` 能力时建房即拒绝；一次性副本与候选提交按能力跳过；UI 显示工作区能力与「无 VCS」，变更证据按 `vcs` 标成 diff 或文件清单。plain provider 已落：复制隔离、文件清单证据、同路径冲突停下、无 commit；用户指定非 git 目录时自动选择 plain，`workspaceProvider` 可显式指定；源目录不被写入。边界：复制合并不传播删除，需人工处理；plain 房间的完成留痕是房间记录 + 交接包；本机 git 不可用时仍按 git provider 能力降级。
+**当前（2026-11-12）**：第 1–6 步已落。`workspace.js` 是端口注册表，`workspace-git.js`、`workspace-direct.js` 与 `workspace-plain.js` 是三种实现；`room-create.js`、`live-turns.js`、`service.js`、`workspace-gc.js`、`roster-recommend.js` 只通过 provider 调用；建房写入 `room.workspace = { provider, capabilities }`；`boundary.test.js` 要求除 `workspace-git.js`（以及 `paths.js` 的默认根探测）外不得直接调用 git。能力已用于：evidence 带 `vcs`；完成留痕按 `commit` / `git-unavailable` / `archive` 分支；并行执行在没有 `merge` 能力时建房即拒绝；一次性副本与候选提交按能力跳过；UI 显示工作区能力与「无 VCS」，变更证据按 `vcs` 标成 diff 或文件清单。direct provider 是普通目录默认：原地修改、文件清单证据、无 commit，用户选中的目录就是工作区；plain provider 仅在显式选择时复制隔离，支持复制合并但合并冲突要人工处理。边界：direct 只支持一个执行席位；plain 复制合并不传播删除；本机 git 不可用时仍按 git provider 能力降级。
 
 ### 10.5 引擎适配器
 
@@ -1125,9 +1132,9 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 | M6 | 结论卡 + 交付单 + 一键验收 + 高级折叠 | 全程不展开“高级”也能完成一次交付；完成态先看到交付单，可导出 Markdown（已落） |
 | M7 | 全局调度台（只读收件 + 路由建议 + 一次确认 + 投影式摘要） | 一句"我不知道该找谁"进调度台；确认前目标群零动静；摘要每行可点回证据；本地词项路由已落，模型语义路由未做 |
 
-**当前进度（2026-11-12）**：P0+。M0 部分（建房/开工卡/单人已通：队长给 done+编制+验收+≤3 问一张卡，人确认一次后直接开工；席位可按需组合；建后加/移除席位已落，改角色未接；本地模板导入已接）；M1 部分（游标/轮次/空转；业务感知交接包已落，实际增量仍由基座 delta-context 负责）；M2 部分（真 Stop 已接，未做 500ms E2E；@ 基础有；多执行并行已在 M3 落）；M3 部分（席位隔离/并行 executor worktree/集成验收/候选提交/验收副本已落；成本硬闸门已落；工具审批桥已落，外部动作挂起等人批准，exec 不是通用文件系统沙箱；多验收席位、建后加/移除/改角色席位、席位 env/data/tmp 预置、端口预检与验收命令文件系统边界已落；OS 级 venv/DB/端口强制隔离未做）；M4 部分（外部动作人工审批桥、规则守门、异步独立模型守门、盲审提示与跨厂商偏好已落；无第二引擎时降级；独立复核会话已落）；M5 部分（提示词对齐/rework 基础；三段式、≤3 问硬校验、最多 3 个工作阶段、未开始阶段增删改与重排、从进行中/完成房间分叉已落；分叉会议未做）；M6 部分（CONCLUSION+commit，结论 commit 带房间记录，本地交接包可导出/只读导入/续做，完成态交付单、Markdown 导出、资源面板最近交付、交付摘要导出/导入已落；自动跨实例同步未做）；M7 部分（收件/建议/确认/摘要，本地词项路由已落；模型语义路由未做）。演示门槛仍是 M3。
+**当前进度（2026-11-12）**：P0+。M0 已通（建房/开工卡/单人已通：队长给 done+编制+验收+≤3 问一张卡，人确认一次后直接开工；席位可按需组合；建后加/移除/改角色已落，改角色需暂停；本地模板导入已接）；M1 部分（游标/轮次/空转；业务感知交接包已落，实际增量仍由基座 delta-context 负责）；M2 部分（真 Stop 已接，未做 500ms E2E；@ 基础有；多执行并行已在 M3 落）；M3 核心已过（席位隔离/并行 executor worktree/集成验收/候选提交/验收副本已落；成本硬闸门已落；工具审批桥已落，外部动作挂起等人批准，exec 不是通用文件系统沙箱；多验收席位、建后加/移除/改角色席位、席位 env/data/tmp 预置、端口预检与验收命令文件系统边界已落；OS 级 venv/DB/端口强制隔离未做）；M4 部分（外部动作人工审批桥、规则守门、异步独立模型守门、盲审提示与跨厂商偏好已落；无第二引擎时降级；独立复核会话已落）；M5 部分（提示词对齐/rework 基础；三段式、≤3 问硬校验、最多 3 个工作阶段、未开始阶段增删改与重排、从进行中/完成房间分叉已落；分叉会议未做）；M6 部分（CONCLUSION+commit，结论 commit 带房间记录，本地交接包可导出/只读导入/续做，完成态交付单、Markdown 导出、资源面板最近交付、交付摘要导出/导入已落；自动跨实例同步未做）；M7 部分（收件/建议/确认/摘要，本地词项路由已落；模型语义路由未做）。M3 核心门槛已过；剩余 OS 级隔离、稳定跨厂商、分叉会议与 dogfood 属于后续边界。
 
-**M3 之前不要给任何人演示。** 一旦被看成"几个 bot 聊天"，后面拿真产物也翻不回来。
+**M3 已过，仍不公开演示。** 现在进入私密 dogfood；一旦被看成"几个 bot 聊天"，后面拿真产物也翻不回来。
 
 ---
 
@@ -1177,7 +1184,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 
 | 风险 | 说明 | 应对 |
 |---|---|---|
-| 产品风险（最大） | 做成"看几个 bot 聊天"，三天就腻 | M3 前不演示；一切围绕交付与证据 |
+| 产品风险（最大） | 做成"看几个 bot 聊天"，三天就腻 | M3 已过；先私密 dogfood，公开演示等真实交付样本；一切围绕交付与证据 |
 | 同质化 | Grok Bot 已有 Chief of Staff + 群线程，Cue 已有群聊协作 | 当前差异锁死本地仓库 + 真实 CLI + 证据验收；跨厂商是 M4 目标，当前同引擎时标“独立性降级” |
 | 简化过头 | 用户想调却找不到 | 高级里全都有，默认值可改 |
 | 额度 | 5 人 × 10 轮会烧穿订阅；到线后需人调预算才能续跑 | 磁盘水位与成本硬闸门已落：新房间默认 $5，`CREW_ROOM_BUDGET_USD` / `CREW_GLOBAL_BUDGET_USD` 可配（0 = 不限）；成本按基座上报用量估算，不是账单；到线只暂停新任务，不取消在跑回合；调度台只展示，不获得控制权；发言权预算仍未强制 |
@@ -1215,11 +1222,11 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 
 ### 15.1 待办（P0/P1，按初衷筛选）
 
-**P0（M3 演示前）**
+**P0（已完成；保留边界）**
 
 1. **worktree 生命周期（已落 2026-11-12）**：`.env` 复制、`node_modules` 软链、端口提示、完成/停止后清理非交付席位工作区、启动与定时 GC、磁盘水位。剩余边界：venv/本地数据库/端口强制隔离。
 2. **成本/磁盘闸门（已落 2026-11-12）**：磁盘水位；房间与全局成本硬上限（0 = 不限；新房间默认 $5，`CREW_ROOM_BUDGET_USD` / `CREW_GLOBAL_BUDGET_USD` 可配；到线暂停新任务，不取消在跑回合；房间预算可调，提高后自动恢复并续跑无证据阶段）；调度台只展示，不控制。发言配额仍未强制。
-3. **诚实标注**：同引擎标“独立性降级”；写工具与外部动作审批已强制，但 exec 不是通用文件系统沙箱，不宣称“硬隔离”；Windows 沙箱适配器未真机实跑；建后改席位未接。
+3. **诚实标注**：同引擎标“独立性降级”；写工具与外部动作审批已强制，但 exec 不是通用文件系统沙箱，不宣称“硬隔离”；Windows 沙箱适配器未真机实跑；建后加/移除/改角色已落（改角色需暂停）。
 4. **语义评测 harness（已落 2026-11-12）**：`npm run eval:planning` 用 3 个黄金房间（单人、单服务、前后端并行）重放真实开工卡；检查 done 可核对、编制约束、角色名与 `why` 一致、问题 ≤3 且不问机制；结果写本地 `evals/planning/results/`，不进入 `npm test`。首轮 3 case × 3 次 9/9；任何 case 失败时命令非零退出。每次改队长提示词或换引擎都重放，看通过率和失败类型。
 
 已完成、不作为待办：开工卡（done + 编制 + 验收 + ≤3 问，一次确认）、多执行并行与集成、manual 人验收、worktree 生命周期、语义评测 harness；继续用真实 E2E 验证，不靠文档自证。
@@ -1237,7 +1244,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 9. **目标岛打磨（已落 2026-11-12）**：展开面板常驻三问摘要（目标 / 进度 / 怎么算过），阶段节点带返工次数，选中阶段列出最近打回与证据，目标与检查折叠；数据从房间 JSON + 消息派生。剩余：返工意见的来源标注（verifier 名）与跨阶段返工趋势。
 10. **示范房间与导出脱敏（部分已落 2026-11-12）**：`examples/rooms/` 放 3 个模拟样本（来自 `seeds.js`，明确标 `sample.kind=simulated`）和 1 个真实单席样本（修复失败测试 → 命令验收 → 人签字完成，标 `sample.kind=real`）；全部可被「打开」导入。新增 `sanitize.js`（私钥、常见 API key、Bearer、邮箱、URL 凭据、本机路径）与 `npm run samples:export -- --data <dir> --room <id> --out <file>`；`samples:generate` 可重建模拟样本。真实样本数量仍少，随私密 dogfood 继续补；不做市场。
 
-**顺序纪律**：P0 / M3 门槛不动；P1 按真实用户卡住的点排序，可以砍 P1，不换 M3。M3 门槛 = P0 完成 + 工具审批桥（写工具拒绝）+ 真实 E2E；到门槛后再高频演示，不提前宣布。
+**顺序纪律**：M3 核心门槛已过；下一步按真实 dogfood 卡点排序，不按功能清单堆叠。公开演示等真实交付样本，不提前宣布。
 
 ### 15.2 明确不做（首版）
 
@@ -1251,13 +1258,13 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 - **成员私聊**：首版不做；若以后做，只把结构化摘要写进 evidence，不灌全量私聊。
 - **多验收席位**：已接；验收席位可多个，各自独立复核，全部 PASS 才签字，任一 REJECT 打回并取消其余等待中的复核。多验收仍共用同一引擎与群，不能替代跨厂商盲审。
 
-### 15.3 私密 dogfood（M2 后）
+### 15.3 私密 dogfood（M3 后，当前下一步）
 
-“M3 前不公开演示”不等于“不接触用户”。M2 后找 5–10 个长期维护同一仓库、需要交接或追责的种子用户，做私密 dogfood；只收卡住点，不做宣传。
+“M3 已过，仍不公开演示”不等于“不接触用户”。下一步找 5–10 个长期维护同一仓库、需要交接或追责的种子用户，做私密 dogfood；只收卡住点，不做宣传。
 
 - **任务**：用他们自己的一个真实小目标开房，不替他们改提示词、不现场教机制；观察第一次交付是否走通。
 - **记录**：卡在哪一步、是否看懂证据/签字/commit、是否把“房间”当成必要概念、是否愿意把房间交给别人；原话优先，不总结成好评。
-- **节奏**：每次 30–45 分钟；同一类卡点出现 2–3 次才进 P1 排序；M3 门槛仍是 P0 + 工具审批桥 + 真实 E2E。
+- **节奏**：每次 30–45 分钟；同一类卡点出现 2–3 次才进 P1 排序；M3 核心门槛已过，dogfood 只记录真实卡点，不拿功能数量代替验证。
 - **边界**：数据留在本地；不录屏上传；不承诺未实现功能；发现问题先改文档/门槛，不先加功能。
 
 ### 15.4 对标补齐的两阶段计划（2026-11-12 裁定）
@@ -1279,6 +1286,57 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 - **用量时间序列（已落）**：`/api/usage` 支持 24h/7d/30d/12w/12m，按小时/天/周/月分桶；侧栏「用量」页显示花费、Token、缓存命中率、回合、房间排名与柱状趋势；资源面板保留 7 天迷你趋势。未做：按模型/席位的用量拆分（账本目前到房间级）、导出。
 
 **借鉴边界**：目标/任务模型与用量页结构参考 Claude-Bot；`AGENTS.md/CLAUDE.md` 发现与 MCP 超时/取消参考 OpenMausBot。Lodge 的真相仍是房间记录 + BRIEF + 证据，不引入他们的宿主状态或云端多人记忆。
+
+### 15.5 房间能力与子房间（opt-in，接口预留）
+
+**裁定（2026-11-12）**：不引入“调度房 / 圆桌房 / 流水线房 / 基线房”五个并列房型。底层仍是一个 Room；需要编排时只开一个能力 `dispatch`。圆桌是讨论阶段与席位行为，流水线是阶段依赖，基线是版本能力，执行房是默认房间。五个名词不进入首屏，也不做房型选择器。
+
+**数据接口（已预留投影字段；路由、存储写入和 UI 未接）**
+
+- `room.capabilities.dispatch: boolean`，默认 `false`。
+- `room.parentRoomId: string | null`，默认 `null`。
+- `room.childRoomIds: string[]`，默认 `[]`。
+- `presentRoom` 已暴露这三个只读投影字段；旧房间自动得到 `{ dispatch: false } / null / []`，不改旧 payload。
+- 未来创建子房间：`POST /api/rooms/:id/children`，父房间必须 `dispatch=true`；子房间是普通 Room，独立目标、席位、工作区、预算和签字。
+- 未来读取子房间：`GET /api/rooms/:id/children`，只读返回状态、阶段、`needsYou` 与交付摘要。
+- 未来回传结果：`POST /api/rooms/:id/children/:childId/attach`，把子房间交付摘要作为父房间证据/消息，必须人确认；不做自动汇总、自动派活。
+- 未来开关能力：`POST /api/rooms/:id/capabilities`，只在高级里开关 `dispatch`；已有子房间时拒绝关闭。
+
+**约束**
+
+- 最多两层：根房间 → 子房间；子房间不能再有 children。要更深时重新评估，不默认放开。
+- 每个父房间最多 4 个子房间；子房间必须有自己的目标、验收和人的签字。
+- 父子各自独立预算、工作区、证据；父房间不写子房间仓库，也不替子房间签字。
+- 不自动路由、不自动执行；子房间结果只能只读展示，或由人 attach 成父房间证据。
+- 首屏不出现房型；只在高级里出现“允许拆子房间 / 拆成子房间”。
+- 旧房间不迁移、不自动开 `dispatch`；存储只加可选字段，结构变化时 `version` 递增。
+
+**为什么不做五种房型**
+
+| 提法 | 落点 |
+|---|---|
+| 执行房 | 默认房间，不需要类型名 |
+| 流水线房 | `stages.dependsOn` 串行，不是新实体 |
+| 圆桌房 | 讨论型阶段 + 席位发言行为 |
+| 调度房 | 有子房间的普通房间，`dispatch` 能力 |
+| 基线 / Git 房 | 版本快照能力，放高级；普通用户不出现 Git 名词 |
+
+**落地顺序**：先完成单房间 dogfood；真实用户重复卡在“一个房间装不下”2–3 次后，再做 opt-in 子房间。当前只留投影字段与文档契约，不实现路由和 UI。
+
+### 15.6 房型策略（2026-11-12 已落）
+
+房型不是核心里的 `if`，而是 `server/crew/room-types/` 下的策略注册表。核心只做 `resolveRoomType(body.roomType)`，调用策略的 `normalize / buildStages / autoStart`；新加房型不改 `room-create`。
+
+| 策略 | 对外名 | 默认席位数 | 阶段 | 验收 |
+|---|---|---|---|---|
+| `task` | 任务房 | 由模板/人决定 | 对齐 → 交付 → 验收与结论 | 命令或人工 |
+| `roundtable` | 圆桌派队 | 主持 + 2 位讨论者 | 圆桌讨论 → 结论 | 人工 |
+| `archive` | 存档房 | 1 位档案 | 存档与交接 | 人工 |
+
+- 未知 `roomType` fail closed，不静默回落。
+- 旧房间没有 `roomType` 时按 `task` 解释；`/api/state` 暴露 `roomTypes` 供 UI 使用。
+- UI 只在“更多设置”里切换房型，默认任务房；非任务房不跑验收命令，直接由人确认结论。
+- 五种房型仍不进入首屏；流水线、基线、调度分别落在阶段依赖、版本能力和子房间 opt-in，不新增实体。
 
 ---
 

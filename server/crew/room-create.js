@@ -4,6 +4,7 @@ import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from './budget.js'
 import { workspaceRoot } from './paths.js'
 import { created, fail } from './result.js'
 import { readBrief, writeBrief, writeGoal } from './room-repo.js'
+import { resolveRoomType } from './room-types/index.js'
 import { writeSeatEnv } from './seat-env.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { DEFAULT_TEMPLATE_ID, roleSeats, rosterFromRoles, seatsFor, TEMPLATES, validateRoster } from './seats.js'
@@ -50,8 +51,15 @@ export const inheritedPlan = (brief, sourceName) => {
 export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = null }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > 2000) return fail('invalid', '目标不能为空，且不超过 2000 字')
-  const verify = body.verify === 'manual' ? 'manual' : 'test'
-  const acceptance = typeof body.acceptance === 'string' ? body.acceptance.trim() : ''
+  const roomType = resolveRoomType(body.roomType)
+  if (roomType === null) return fail('invalid', '未知的房间类型')
+  const normalized = roomType.normalize({
+    body,
+    verify: body.verify === 'manual' ? 'manual' : 'test',
+    acceptance: typeof body.acceptance === 'string' ? body.acceptance.trim() : '',
+  })
+  const verify = normalized.verify
+  const acceptance = typeof normalized.acceptance === 'string' ? normalized.acceptance.trim() : ''
   const plannedAcceptance = Array.isArray(body.plan?.stages)
     ? body.plan.stages.some(stage => typeof stage?.acceptance === 'string' && stage.acceptance.trim() !== '')
     : false
@@ -85,13 +93,20 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       if (body.plan.stages.length > 3) return fail('invalid', '开工卡最多拆 3 个可交付阶段')
       for (const [index, item] of body.plan.stages.entries()) {
         const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 80) : ''
-        const kind = item?.kind === 'decision' ? 'decision' : 'deliverable'
+        const rawKind = item?.kind === 'decision' ? 'decision' : 'deliverable'
         const stageAcceptance = typeof item?.acceptance === 'string' ? item.acceptance.trim().slice(0, 500) : ''
+        const manual = rawKind === 'deliverable' && /^manual$/i.test(stageAcceptance)
+        const kind = manual ? 'decision' : rawKind
         if (title === '') return fail('invalid', `第 ${index + 1} 个阶段缺少标题`)
         if (kind === 'deliverable' && stageAcceptance === '') {
           return fail('invalid', `第 ${index + 1} 个交付阶段缺少验收命令`)
         }
-        plannedStages.push({ title, kind, ...(kind === 'deliverable' ? { acceptance: stageAcceptance } : {}) })
+        plannedStages.push({
+          title,
+          kind,
+          ...(manual ? { manual: true } : {}),
+          ...(kind === 'deliverable' ? { acceptance: stageAcceptance } : {}),
+        })
       }
     }
     if (Array.isArray(body.plan.answers) && body.plan.answers.length > 3) {
@@ -116,8 +131,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     .map(stage => stage.acceptance)
     .filter(Boolean)
     .join('；')
-
-  const requestedSeats = Array.isArray(body.seats) ? body.seats : null
+  const requestedSeats = Array.isArray(body.seats)
+    ? body.seats
+    : roomType.defaultSeats ?? null
   let templateId = typeof body.templateId === 'string' && TEMPLATES[body.templateId]?.seats.length > 0
     ? body.templateId
     : DEFAULT_TEMPLATE_ID
@@ -158,8 +174,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       provider = defaultWorkspace
     } else {
       const gitProbe = defaultWorkspace.probeSource({ source: sourceRepo })
-      const plainProbe = workspaceById('plain').probeSource({ source: sourceRepo })
-      provider = gitProbe.ok ? defaultWorkspace : plainProbe.ok ? workspaceById('plain') : defaultWorkspace
+      const directProbe = workspaceById('direct').probeSource({ source: sourceRepo })
+      provider = gitProbe.ok ? defaultWorkspace : directProbe.ok ? workspaceById('direct') : defaultWorkspace
     }
   }
   if (provider === undefined) return fail('invalid', '未知的工作区类型')
@@ -244,6 +260,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       .filter(({ seatRef }) => seatRef.fallback === true)
       .map(({ seat, seatRef }) => [seat.id, { requested: seatRef.requestedEngine, actual: seatRef.engine, reason: seatRef.reason }]))
     const title = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
+    const builtStages = roomType.buildStages({ title, plan, verify, acceptance, align })
     const baseRoomFor = async (seat, seatRef) => {
       const baseRoom = await engine.createRoom({
         name: `${title} · ${seat.name}`,
@@ -349,29 +366,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
             },
           }),
       members: roster.map(seat => seat.id),
-      stages: (() => {
-        const delivery = {
-          title,
-          kind: verify === 'test' ? 'deliverable' : 'decision',
-          ...(verify === 'test' ? { acceptance } : { manual: true }),
-        }
-        const planned = Array.isArray(plan?.stages) ? plan.stages : []
-        const work = planned.length > 0
-          ? planned.map((stage, index) => ({
-            title: stage.title,
-            kind: stage.kind,
-            ...(stage.acceptance ? { acceptance: stage.acceptance } : {}),
-            state: index > 0 || (align && plan === null) ? 'pending' : 'active',
-          }))
-          : [{ ...delivery, state: align && plan === null ? 'pending' : 'active' }]
-        const stages = [
-          ...(align ? [{ title: '目标对齐', kind: 'decision', state: plan !== null ? 'passed' : 'active' }] : []),
-          ...work,
-          { title: '验收与结论', kind: 'decision', state: 'pending' },
-        ]
-        stages[stages.length - 1].dependsOn = [stages.length - 2]
-        return stages
-      })(),
+      roomType: roomType.id,
+      stages: builtStages.stages,
     }
     if (Array.isArray(body.stageDependencies)) {
       room.stages = room.stages.map((stage, index) => {
@@ -394,6 +390,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         ? `房间已创建 · 开工卡已确认 · ${roster.length} 席各自工作区`
         : `房间已创建 · 模板 ${TEMPLATES[templateId].name} · ${roster.length} 席各自工作区`,
     })
+    for (const text of builtStages.messages ?? []) {
+      store.appendMessage(room.id, { kind: 'system', text })
+    }
     if (room.branch !== '') store.appendMessage(room.id, { kind: 'system', text: `源仓库 ${sourceRepo} · 执行分支 ${room.branch}` })
     if (continueSource !== null) {
       store.appendMessage(room.id, {
@@ -430,24 +429,27 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     }
     await live.attach(room)
     emit('dispatch', dispatchPayload())
-    if (plan !== null) {
-      await live.startStage(room, 0)
-    } else if (!align && workers.length > 1) {
-      await live.startStage(room, 0)
-    } else {
-      const targetSeat = align ? lead : worker
-      markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
-      const opening = align
-        ? alignmentPrompt(targetSeat.name, goal, verify, effectiveAcceptance)
-        : directPrompt(goal, verify, effectiveAcceptance, roster.length === 1)
-      const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
-      const sent = await live.sendToSeat(room.id, targetSeat.id, `${opening}\n\n${context}`)
-      if (sent.messageId !== null) {
-        const updated = store.updateRoom(room.id, current => {
-          current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)
-          return { events: [] }
-        })
-        if (updated !== null) room = updated
+    if (roomType.autoStart === 'stage') {
+      const activeStage = room.stages.findIndex(stage => stage.state === 'active')
+      if (plan !== null) {
+        if (activeStage >= 0) await live.startStage(room, activeStage)
+      } else if (!align && workers.length > 1) {
+        if (activeStage >= 0) await live.startStage(room, activeStage)
+      } else {
+        const targetSeat = align ? lead : worker
+        markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
+        const opening = align
+          ? alignmentPrompt(targetSeat.name, goal, verify, effectiveAcceptance)
+          : directPrompt(goal, verify, effectiveAcceptance, roster.length === 1)
+        const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
+        const sent = await live.sendToSeat(room.id, targetSeat.id, `${opening}\n\n${context}`)
+        if (sent.messageId !== null) {
+          const updated = store.updateRoom(room.id, current => {
+            current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)
+            return { events: [] }
+          })
+          if (updated !== null) room = updated
+        }
       }
     }
     room = store.readRoom(room.id) ?? room

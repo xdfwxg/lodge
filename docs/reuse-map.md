@@ -1,11 +1,15 @@
 # 复用地图 v2.0
 
-> 2026-11-11 · 目标：用成熟、可扩展的运行时做地基，Lodge 只写产品差异层。
+> 2026-11-12 更新 · 目标：用成熟、可扩展的运行时做地基，Lodge 只写产品差异层。
 > 原则：**复用运行时，替换产品面；抄代码，不抄产品。**
 >
 > 分层与取舍判断见根目录 [`设计思想.md`](../设计思想.md)。
 >
-> **当前实现（2026-11-12）**：P0+ / M3 部分 / M4 审批桥部分。设计目标是 `docs/lodge-design.md`；规则见 `设计思想.md`；§8.5 是唯一的状态入口。已成立：开工卡（done/编制/验收/≤3 问，一次确认）、席位按需组合、多执行并行、多验收席位（全部 PASS 才签字）、建后加/移除/改角色执行与验收席位、席位 env/data/tmp 目录与端口预置、端口预检、manual 人验收、worktree 生命周期（环境同步/端口提示/清理/GC/磁盘水位）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、网络 isolator（macOS sandbox-exec / Linux unshare；Windows 走 WSL2 + bubblewrap，缺原语 fail closed）、工具审批桥（写工具按席位拒绝；外部动作先挂起，规则守门立即建议、独立模型守门异步复核，人最终批准；exec 仍不是通用文件系统沙箱）、验收盲审与无显式引擎时的跨厂商偏好、完成态交付单（目标/阶段/命令/文件/结论/commit）与 Markdown 导出、资源面板最近交付、交付摘要导出/导入、有队长时的“对齐 → 交付 → 验收与结论”三段式和最多 3 个工作阶段、未开始阶段的增删改与重排、从进行中/完成房间续做/分叉、调度台本地词项路由、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地交接包（真实房间导出 JSON 包，另一个实例只读导入并基于 BRIEF 续做新房间）、Workspace 端口（git 与普通目录两种 provider，非 git 目录复制隔离、文件清单、无 commit）、目标岛三问摘要与返工记录、复盘视图（成本/Token/返工/失败派生）、席位交接包（业务素材 + transcript 引用）、项目约束 `LODGE.md`（建房快照）、本地模板导入（YAML/JSON）与本地保存、阶段依赖与部分成功、调度台只读资源面板、MCP 调用审计与按 server 熔断、用量时间序列页、约束分层、目标任务模型与历史目标。未接：runtime Assignment、Windows 真机 dogfood（WSL2 + bubblewrap 适配器已有，但未在 Windows 上实跑）、建后改角色、无第二引擎时的稳定跨厂商、分叉会议、跨实例交付自动同步、模型语义路由、Windows/Linux 桌面真机验证。
+> **当前实现（2026-11-12）**：P0+ / M3 核心门槛已过 / M4 部分。设计目标是 `docs/lodge-design.md`；规则见 `设计思想.md`；§8.5 是唯一的状态入口。
+>
+> **一句话**：房间、证据、验收、交接、预算和 macOS 桌面已落地；仍缺稳定跨厂商、分叉会议、跨实例自动同步、模型语义路由和 OS 级隔离。
+>
+> 明细（已成立）：开工卡（done/编制/验收/≤3 问，一次确认）、席位按需组合、多执行并行、多验收席位（全部 PASS 才签字）、建后加/移除/改角色执行与验收席位、席位 env/data/tmp 目录与端口预置、端口预检、manual 人验收、worktree 生命周期（环境同步/端口提示/清理/GC/磁盘水位）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、网络 isolator（macOS sandbox-exec / Linux unshare；Windows 走 WSL2 + bubblewrap，缺原语 fail closed）、工具审批桥（写工具按席位拒绝；外部动作先挂起，规则守门立即建议、独立模型守门异步复核，人最终批准；exec 仍不是通用文件系统沙箱）、验收盲审与无显式引擎时的跨厂商偏好、完成态交付单（目标/阶段/命令/文件/结论/commit）与 Markdown 导出、资源面板最近交付、交付摘要导出/导入、有队长时的“对齐 → 交付 → 验收与结论”三段式和最多 3 个工作阶段、未开始阶段的增删改与重排、从进行中/完成房间续做/分叉、调度台本地词项路由、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地交接包（真实房间导出 JSON 包，另一个实例只读导入并基于 BRIEF 续做新房间）、Workspace 端口（git、direct、plain 三种 provider；非 git 目录默认 direct 原地修改，不复制；plain 仅在显式选择时复制隔离）、房型策略（任务房 / 圆桌派队 / 存档房）、目标岛三问摘要与返工记录、复盘视图（成本/Token/返工/失败派生）、席位交接包（业务素材 + transcript 引用）、项目约束 `LODGE.md`（建房快照）、本地模板导入（YAML/JSON）与本地保存、阶段依赖与部分成功、调度台只读资源面板、MCP 调用审计与按 server 熔断、用量时间序列页、约束分层、目标任务模型与历史目标。仍缺/边界：runtime Assignment、Windows 真机 dogfood（WSL2 + bubblewrap 适配器已有，但未在 Windows 上实跑）、无第二引擎时的稳定跨厂商、分叉会议、嵌套子房间（opt-in，仅预留投影字段与文档契约）、跨实例交付自动同步、模型语义路由、Windows/Linux 桌面真机验证。明确不做：macOS 自动更新与公证（当前 ad-hoc 路线）；五种房型分类不做，房型不进入首屏。
 
 ## 0. 选型结论
 
@@ -18,7 +22,7 @@
 
 明确不采用：LangGraph / CrewAI / AutoGen 这类编排框架；也不自写 CLI spawn 层。前者多一层状态真相，后者会重造 OpenMausBot 已经做对的引擎管理。
 
-当前 spike 是独立基座仓库 `crew-chat-base`（8799），通过 HTTP 接入；还不是单体 fork，macOS Electron 壳已接；Windows/Linux 待后续。
+当前是独立基座仓库 `crew-chat-base`（8799），通过 HTTP 接入；还不是单体 fork。macOS 桌面已接（ad-hoc zip）；Windows/Linux 只加打包配置，未真机验证。
 
 ### 基座形态：推荐 A，备选 B
 
@@ -71,7 +75,7 @@
 | `server/permission-proxy.ts`、`auto-approve.ts`、`runtime/questions.ts` | 权限请求、审批、人工提问 | 席位权限表映射到 approval mode |
 | `server/room-{context,cwd,folder,holds,lines,question-tasks}.ts` | 房间成员上下文、固定目录、@ 持有与释放 | 直接用于 Room 会话 |
 | `server/group-goal-run.ts` | 群目标的多轮协调与完成判定 | **只作参考**：它没有阶段签字与证据门禁 |
-| `electron/main.mjs`（3,160 行）、`electron-builder.yml`、preload、更新模块 | 窗口、生命周期、打包、自动更新 | 换品牌、删无关面板 |
+| `electron/main.mjs`（3,160 行）、`electron-builder.yml`、preload、更新模块 | 窗口、生命周期、打包、自动更新 | 换品牌、删无关面板；Lodge 当前只借窗口/打包，不接自动更新 |
 | `src/components/{ApprovalCard,QuestionCard,AskCard}.tsx` | 审批/提问卡交互 | 只借状态机；样式按 Lodge CSS 重写，不引 Tailwind |
 
 ## 3. OpenMausBot：适配后复用
@@ -153,10 +157,10 @@ openmausbot/                  # 上游 OSS，保留 remote
 |---|---|---|
 | S0 | fork OSS，删 `enterprise/`，跑通 `pnpm dev` 与现有测试 | 基座能启动，`edition: oss` |
 | S1 | 迁入 Lodge UI，接 `thread-events`/SSE，一个房间显示历史 | 关掉重开一致 |
-| S2 | `server/crew/`：BRIEF、transcript、evidence、阶段门禁；接 runtime Assignment | 一个 decision 阶段由人确认，一个 deliverable 阶段有证据 |
+| S2 | `server/crew/`：BRIEF、transcript、evidence、阶段门禁；以基座线程/回合承载（未接 runtime Assignment） | 一个 decision 阶段由人确认，一个 deliverable 阶段有证据 |
 | S3 | 接真实 Claude Code（原生 driver），跑一条完整链路 | 命令退出码、输出、diff 入 evidence，Verifier 复核，人签字，commit |
 | S4 | 接 Codex 或第二个 ACP 引擎，打开跨厂商独立性 | 验收卡显示 `vendor`，降级时显示 `none` |
-| S5 | Electron 打包（arm64），签名与自动更新 | Mac M 芯片可安装、可更新 |
+| S5 | Electron 打包（arm64），ad-hoc 签名，zip 分发 | Mac M 芯片可安装；首次打开需手动放行；不做 macOS 自动更新 |
 
 **进度（2026-11-11）**：S0 通过。S1 以「原型独立运行 + 适配层」的方式走通：基座群映射为实时房间，历史消息、实时 `activity`、`msg.patch` 与重连均可用；尚未把 UI 源码迁进基座。S2 已走通（见 §8.1、§8.2），业务层按「上游边界」规则收进 `server/crew/`，基座差异只出现在 `server/base.js`（传输）与 `server/engine.js`（语义适配）。S3 已走通（见 §8.3）：真实 CLI 回合 → 房间仓库执行验收命令 → 退出码/输出/diff 落证据 → 验收席位复核 PASS → 人签字 → 一次本地 commit。未接 runtime Assignment，也没有引入上游编排层。
 
@@ -222,7 +226,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 - **工具审批桥（2026-11-12）**：基座的权限卡经 `engine.js` 映射为 `read/exec/write`（`actionForTool`），`live.js` 按 `seatSpecs.permissions` 对普通工具自动 allow/deny，经 `/api/threads/:id/respond` 回答。planner/verifier 改为 `approval:'ask'`；planner/verifier 的 Write/Edit/MultiEdit 被拒绝，Bash 对 verifier 放行。真实房间验证：队长请求 Write，系统写「权限拒绝：队长 不能使用 Write」，`forbidden.txt` 未创建。**外部动作审批桥**：`external-actions.js` 识别 push/publish、安装依赖、删除、对外发送、提权、网络/远端命令；命中后不再自动放行，而是写 `room.approvals` 待批准记录并挂起基座权限卡，`needsYou.kind=approval`，时间线出现允许/拒绝卡片；`POST /api/rooms/:id/approvals` 由人决定后才回答基座。暂停、停止、断绑或服务重启会把待批准记录标为 `expired`，避免留下永远点不动的按钮。单测覆盖挂起、允许、拒绝、内部命令自动放行、失效。边界：分类器按命令语义匹配，不是完备的 shell 解析；未知工具仍 fail closed；exec 仍可在临时副本里写文件，不是通用文件系统沙箱；稳定跨厂商仍依赖第二可用引擎。
 - **多验收席位（2026-11-12）**：`verifiers.js` 只看最新一条验收命令证据上的结论（最新命令失败会让旧 PASS 全部作废）；`live-turns.js` 把复核请求发给每个验收席位，全部 PASS 才结束复核；任一 REJECT 立即打回并取消其余等待中的请求（其迟到回合并入后按非执行回合忽略）。`gates.js` 在 2+ 验收席位时要求本轮每个席位都有 PASS，任一未回报或打回都拒绝签字；`attention.js`/目标岛显示已回报数量与合并 verdict，旧轮 PASS 不算新证据。单验收与无验收路径保持原行为。UI 自定义编制可添加/移除验收席位。边界：多验收仍共用同一引擎与群，独立性只是“各自复核”，跨厂商盲审未做；复核超时只影响该席位，需人再次发起或等后续证据。
 - **完成态交付单（2026-11-12）**：`delivery.js` 从房间与消息派生目标、通过阶段、每条命令与退出码、改动文件、验收结论、独立性与 commit；`presentation.js` 只在 `state=complete` 时挂 `delivery`，不新增真相源；`ui/src/delivery-sheet.js` 在完成房间顶部先展示交付单，聊天退到下方。`completeRoom` 记录 `completedAt` 与 git HEAD，plain 工作区不伪造 commit。单测覆盖投影与组件渲染；未做交付单导出与跨房间汇总。
-- **独立守门建议（2026-11-12）**：外部动作挂起时，`gate.js` 只看命令语义、席位角色与房间约束（不读执行席位对话），给出 `allow/review/deny` 建议和理由，随审批记录展示；最终仍由人点允许/拒绝。它挡提权、破坏性删除、强制改写历史，以及 lead/verifier 的外部写入；房间约束里的“不 push/不联网/不安装依赖”会直接建议拒绝。边界：这是规则型独立检查，不是独立模型 agent，也不是跨厂商守门。
+- **独立守门建议（2026-11-12）**：外部动作挂起时，`gate.js` 只看命令语义、席位角色与房间约束（不读执行席位对话），给出 `allow/review/deny` 建议和理由，随审批记录展示；最终仍由人点允许/拒绝。它挡提权、破坏性删除、强制改写历史，以及 lead/verifier 的外部写入；房间约束里的“不 push/不联网/不安装依赖”会直接建议拒绝。边界：规则守门之外还有异步独立模型守门（`gate-agent.js`），但两者都不是跨厂商守门；模型建议仍可能被动作文本误导。
 - **独立模型守门（2026-11-12）**：`gate-agent.js` 在规则守门之外异步创建一个临时独立席位线程，只给目标、约束、席位角色、动作原文和规则建议，要求返回 `allow/deny/review` JSON；结果写回 `approval.gateAgent`，时间线显示“模型守门”。它不改人工最终决定，失败时回退规则建议并标“不可用”；临时席位用完即删。边界：模型守门仍可能被动作文本误导，规则守门和人仍是最后防线。
 - **建后移除席位（2026-11-12）**：`workspace-git/plain.removeSeat` 清理席位工作区；`service.removeSeat` 拒绝移除最后一个执行/交付席位和正在跑回合的席位，删除其基座线程、房间数组、端口与任务行；`live.detachSeat` 取消订阅。改角色未做。
 - **席位环境预置（2026-11-12）**：建房与建后加席位时为每个席位写 `.lodge/env`，包含 room/seat id、PORT、`LODGE_SEAT_DATA_DIR`、`LODGE_SEAT_TMP` 和工作区路径，并创建 `.lodge/seat-data` 与 `.lodge/tmp`。它是应用级环境预置，不是 OS 沙箱；应用不读这些变量时仍需人工处理。OS 级 venv/本地数据库/端口强制隔离仍未做。
@@ -230,7 +234,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 - **验收命令文件系统边界（2026-11-12）**：macOS `sandbox-exec` 除了 `deny network*`，还 `deny file-write*` 并只放行验收副本、TMPDIR、/tmp 与常见缓存目录；Linux 有 bwrap 时用只读根 + 可写副本目录，没有 bwrap 则退回 unshare 网络隔离并明确 `fs:none`；Windows 走 WSL bubblewrap。worker 自己的 exec 仍不受这层约束。
 - **交付摘要导出/导入（2026-11-12）**：`delivery-ledger.js` 从完成房间生成 `lodge.deliveries.v1` 摘要包，另一个实例可导入为本地账本，按 roomId+commit/completedAt 去重，最多 500 条；资源面板导出/导入并提供最近 10 条导入交付。它是文件交换，不是自动同步，也不改房间真相。边界：没有后台对账、冲突合并或权限模型。
 - **模板本地保存（2026-11-12）**：`template-store.js` 把导入的模板写到 `<dataDir>/templates/<id>.json`；`/api/templates` 保存、`DELETE /api/templates/:id` 删除，状态里带 `savedTemplates`。UI 导入预览可“保存到本地”，建房对话框可直接用已保存模板。仍是本地文件，不做市场、同步或版本管理。
-- **macOS 首次启动（2026-11-12）**：Electron 依次检查 `CREW_BASE_URL`、8799、已保存设置、`LODGE_BASE_DIR`、`~/workspace/crew-chat-base`、`Resources/base`；找到基座目录但未运行时用本机 Node 启动，找不到时弹目录选择器。基座起来后检查 `/api/instances`，没有可用 CLI 时列出安装命令并让人选择继续或退出。数据写 userData，基座数据写 userData/base-data。边界：不自动安装 CLI、不修改基座；当前未签名、无自动更新。
+- **macOS 首次启动（2026-11-12）**：Electron 依次检查 `CREW_BASE_URL`、8799、已保存设置、`LODGE_BASE_DIR`、`~/workspace/crew-chat-base`、`Resources/base`；找到基座目录但未运行时用本机 Node 启动，找不到时弹目录选择器。基座起来后检查 `/api/instances`，没有可用 CLI 时列出安装命令并让人选择继续或退出。数据写 userData，基座数据写 userData/base-data。边界：不自动安装 CLI、不修改基座；当前是 ad-hoc 签名，不公证、无 macOS 自动更新。
 - **端口预检（2026-11-12）**：`workspace-ports.js` 用 `lsof` 检查端口是否已被监听；git/plain provider 分配席位端口时跳过占用端口，没有 `lsof` 时退回原分配，不假装检测成功。它降低端口碰撞，不是 OS 级网络隔离。
 - **未开始阶段编辑（2026-11-12）**：`stage-plan.js` 只允许修改 `pending` 且非“验收与结论”的阶段；可增删改标题、类型、验收命令和依赖，添加时插到系统验收段之前，移除时拒绝仍有非验收依赖的阶段并重连最终依赖。高级面板提供行内编辑、添加、移除和上下换位。分叉会议未做。
 - **Goal 三段式（2026-11-12）**：有队长的房间落“目标对齐 → 交付 → 验收与结论”三段；开工卡确认后对齐段标为已过，交付段进行中，验收段等交付通过后由人确认。没有队长的房间跳过对齐，保留“交付 → 验收与结论”。开工卡超过 3 个问题直接返回 4xx，不再静默截断；`roster-recommend` 允许多个验收席位。边界：开工卡可声明最多 3 个工作阶段（总 3–5 段），但还没有可视化阶段编辑器；自由聊天里没有强门禁；分叉会议未做。
@@ -248,12 +252,12 @@ openmausbot/                  # 上游 OSS，保留 remote
 - **示范房间（2026-11-12）**：`examples/rooms/` 提供 4 个可导入交接包：3 个模拟样本（`cli-verbose`、`oauth`、`readme`，来自 `seeds.js`，标 `sample.kind=simulated`）与 1 个真实单席样本（`real-sum-fix`，真实跑完修复失败测试 → `node --test` exit 0 → 人签字完成，标 `real`）。`sanitize.js` 脱敏私钥、常见 API key、Bearer、邮箱、URL 凭据和本机路径；`samples:export` 从真实 data dir 导出，`samples:generate` 重建模拟样本。4 个包均实测可连续导入同一 Lodge，消息 ID 与房间 ID 不冲突；扫描无本机路径/密钥。边界：真实样本仍少（1 个），随 dogfood 增加；脱敏后仍应人工通读；不做模板市场。
 - **复盘视图（2026-11-12）**：`review.js` 从房间状态 + 消息派生 `GET /api/rooms/:id/review`：成本/预算、回合、token（只读 turn evidence 的 usage；无上报则为 null）、证据命令通过与失败数、按阶段返工数与总返工、最近 12 条失败/返工/系统事件、工具调用统计。UI 房间头部「复盘」打开只读摘要。真实 UI 验证：成本 `$0.001 / $5.00`、Token `1,600（入 1,200 / 出 400）`、证据 `1/2 通过`、返工 1、阶段 1/2，失败列表按时间倒序，工具表正确。边界：不跨房间汇总、无时间趋势；成本与 token 是基座估算，不是账单。
 - **目标岛打磨（2026-11-12）**：展开面板顶部常驻三问摘要（目标 / 进度 / 怎么算过），阶段节点显示返工与部分成功徽标；选中阶段列出打回（验收席位名 + 时间 + 意见）、证据链接、任务行（席位头像 + 状态 + 证据）、其余席位与目标检查。当前阶段变化时自动跟随；底部控制条固定在面板内；面板收成卡片并有进入动效，尊重 reduced-motion。数据从 `room` + `verdict`/`evidence` 消息派生，不新增真相源。UI 实测：三问、`↺2`/`×1` 徽标、打回署名、任务头像与证据链接、固定底栏均正确。边界：没有跨阶段返工趋势图；目标草案仍在建房流程，不在岛内。目标是独立模块 `ui/src/goal-island/`：`model.js` 生成标准 view，`index.js` 只接收 view/actions，`island.css` 自带样式；房间页不传 room/store，后续可直接替换实现。`model.test.js` 覆盖状态/轨道/三问/头像/证据返工过滤/席位状态；`ui.test.js` 用 esbuild + 假 React 渲染组件树，覆盖收起/展开/导入/停止确认，harness 改编自 Claude-Bot（Apache-2.0）`ds-bot/test/goal-client.test.js` 并保留归属。
-- **Workspace 端口（2026-11-12）**：`workspace.js` 是端口与 provider 注册表，`workspace-git.js` 与 `workspace-plain.js` 是两种实现；`room-create`、`live-turns`、`service`、`workspace-gc`、`roster-recommend` 不再直接调用 git。建房写 `room.workspace = { provider, capabilities }`；旧房间没有该字段时按 git 解释。`paths.js` 增加 `roomRootOf`（`repoRootOf` 兼容别名），`repoPath` 字段不改。选择规则：用户指定非 git 目录时自动用 plain；`workspaceProvider: 'git'|'plain'` 可显式指定；空路径仍走 git 新仓库。plain 实现：复制隔离、文件清单证据、同路径不同内容判冲突、无候选 commit、无 commit 完成、一次性验收副本；复制合并不传播删除。源目录不被写入。`boundary.test.js` 门禁：除 `workspace-git.js` 与 `paths.js` 的默认根探测外，`server/crew` 不得直接调用 git。能力降级：evidence 写 `vcs`；完成留痕按 `commit` / `git-unavailable` / `archive` 分支；无 `merge` 能力时拒绝并行执行；无 `acceptanceCopy` 时验收命令不执行；UI 显示工作区能力与「无 VCS」，变更证据按 `vcs` 标成 diff 或文件清单。真实 E2E：非 git 目录建房 201，`provider:'plain'`，源目录未出现 `.git`，复制目录有源文件。并行 plain 建房走复制集成（测试覆盖）；复制合并不传播删除。
+- **Workspace 端口（2026-11-12）**：`workspace.js` 是端口与 provider 注册表，`workspace-git.js`、`workspace-direct.js` 与 `workspace-plain.js` 是三种实现；`room-create`、`live-turns`、`service`、`workspace-gc`、`roster-recommend` 不再直接调用 git。建房写 `room.workspace = { provider, capabilities }`；旧房间没有该字段时按 git 解释。`paths.js` 增加 `roomRootOf`（`repoRootOf` 兼容别名），`repoPath` 字段不改。选择规则：用户指定非 git 目录时默认 direct，原地使用源目录、不复制；`workspaceProvider: 'plain'` 才复制隔离；空路径仍走 git 新仓库。direct 实现：原地修改、文件清单证据、无候选 commit、无 commit 完成、一次性验收副本；只支持一个执行席位。plain 实现：复制隔离、文件清单证据、同路径不同内容判冲突、无候选 commit、无 commit 完成、一次性验收副本；复制合并不传播删除。direct 会写入用户选择的源目录，这是明确预期，不是隔离缺陷。`boundary.test.js` 门禁：除 `workspace-git.js` 与 `paths.js` 的默认根探测外，`server/crew` 不得直接调用 git。能力降级：evidence 写 `vcs`；完成留痕按 `commit` / `git-unavailable` / `archive` 分支；无 `merge` 能力时拒绝并行执行；无 `acceptanceCopy` 时验收命令不执行；UI 显示工作区能力与「无 VCS」，变更证据按 `vcs` 标成 diff 或文件清单。真实 E2E：非 git 目录建房 201，`provider:'direct'`，源目录原地可写、不出现复制副本；显式 plain 建房才走复制集成（测试覆盖）；复制合并不传播删除。
 - **本地交接包（2026-11-12）**：`GET /api/rooms/:id/handoff` 从真实房间导出 `lodge.room-handoff.v1` JSON 包，含 BRIEF/GOAL/CONCLUSION/decisions/transcript/events/evidence，并把房间、源仓库、席位工作区、工作区根与 home 路径替换为占位符，不导出引擎绑定与本地路径字段。`POST /api/rooms/import` 校验格式、文件名（拒绝路径穿越）、大小与 transcript，再把文件写到 `<dataDir>/imported/<id>/.crew/rooms/<id>/`，用 `store.importRoom` 重建消息索引；导入房间 `imported/readOnly`，状态为 `complete` 或 `stopped`，所有房间动作返回 409，不占当前预算。真实 E2E：A 实例导出 → B 实例 201 导入 → 只读房间 2 条消息、BRIEF 可读、证据 200、pause 409、重复导入 409；UI 通过文件选择导入并显示「交接 · 只读」，高级里可导出下载。续做：只读记录页点「基于此记录续做」打开建房对话框，目标取自 BRIEF，必须填上一轮交付所在的本地仓库；`createRealRoom` 校验 `continueFrom` 必须是导入记录，继承 BRIEF done（没有现成 plan 时），写 `continuedFrom` 与系统消息，旧证据/阶段/会话不复制。真实 E2E：API 建房返回 `continuedFrom`、继承 done、单阶段验收命令；停止后删除了基座 group/bot。边界：交接包不含代码，续做依赖本地仓库；文件内容中的路径已替换，但业务文本本身不做脱敏；同一实例重复导入同一个包会因消息 ID 已存在被拒绝。
 - **房间投影（2026-11-12）**：`/api/state` 与所有房间事件共用 `presentRoom`，统一附带 `needsYou`、`independenceLabel`、`independencePolicy`；UI 的状态条与高级面板直接消费这些字段，不再自己重算阶段/证据/verdict 状态和独立性文案。`presentation.test.js` 覆盖投影不修改存储房间。UI 仍保留 per-seat 展示状态（working/done）与阶段选择，这是展示层，不参与业务判定。
 - **结果三态（2026-11-12）**：业务拒绝用 `fail` 映射 4xx；系统/基座/IO/工作区异常直接抛到组合根映射 500，不再用 `fail('conflict')` 包装。复核请求的业务条件用 `BusinessError` 区分，`service.verify` 只把这类错误转成 4xx；开工卡队长不可用、建房中途创建 bot/群失败会显式 500。
 - **真实三人组（模板验证）**：从界面建房 → Engine 端口在基座创建三个 bot（同引擎，明确标「独立性降级」）+ 一个群 + 一个房间仓库；队长提示词要求 ≤3 问对齐（未强制）；人确认后系统 @执行；执行回合后自动跑验收命令；验收席位独立复跑并给 PASS/REJECT；人签字 → `CONCLUSION.md` + 一次本地 commit。
-- **开工卡（2026-11-11）**：建房前由队长读目标与仓库事实，给出一张开工卡：done、席位/职责/理由、验收方式、最多 3 个带推荐答案的问题；业务用 `validateRoster` 校验，UI 展示 done/问题/编制/验收，人确认一次直接开工，不再二次对齐；答案与 done 写进 BRIEF，手动模板只作覆盖。真实小目标验证：队长建议 1 个执行席位而不是三人组，约 7–8 秒返回；按卡建房没有对齐阶段，worker 直接开工，BRIEF 含 done 与编制理由，跑通到人签字与 commit；临时队长线程/工作区已清理。manual 开工卡也验证：产物就绪后生成 manual 证据，`needsYou=等你验收`，人签字后结论 commit。边界：建后改席位未接；角色仍限队长/执行/验收；验收席位可多个，全部 PASS 才签字（任一 REJECT 打回）；基座不可用或建议不可解析时显式回退“手动选编制”，不静默套模板；建议只读，用户目录不是 git 仓库时显式失败，不在用户目录里 git init。
+- **开工卡（2026-11-11）**：建房前由队长读目标与仓库事实，给出一张开工卡：done、席位/职责/理由、验收方式、最多 3 个带推荐答案的问题；业务用 `validateRoster` 校验，UI 展示 done/问题/编制/验收，人确认一次直接开工，不再二次对齐；答案与 done 写进 BRIEF，手动模板只作覆盖。真实小目标验证：队长建议 1 个执行席位而不是三人组，约 7–8 秒返回；按卡建房没有对齐阶段，worker 直接开工，BRIEF 含 done 与编制理由，跑通到人签字与 commit；临时队长线程/工作区已清理。manual 开工卡也验证：产物就绪后生成 manual 证据，`needsYou=等你验收`，人签字后结论 commit。边界：建后加/移除/改角色已落（改角色需暂停）；角色仍限队长/执行/验收；验收席位可多个，全部 PASS 才签字（任一 REJECT 打回）；基座不可用或建议不可解析时显式回退“手动选编制”，不静默套模板；建议只读，用户目录不是 git 仓库时显式失败，不在用户目录里 git init。
 - **模板驱动与按需编制**：席位是数据，三人组和单人只是模板；建房可传 `seats: [{ role, name }]` 自定义编制，服务端只接受 `lead / worker / verifier`，权限由角色派生（自定义不能自己发明能力）。约束：至少一个 worker，最多一个 lead；执行与验收都可多个，多执行并行、多验收各自独立复核且全部 PASS 才允许签字。无 `lead` 时跳过对齐，直接进入交付；无 `verifier` 时门禁按席位表判断，真实证据 + 人签字即可通过；有 verifier 或席位表未知时仍必须拿到 PASS。已用真实 CLI 跑通单人全链路：执行 → 验收命令 exit 0 → 人签字 → `CONCLUSION.md` → 本地 commit，工作树干净。
 - **首屏**：默认不 seed 演示房和调度假请求；空状态只有一个「开一个房间」；对齐/派活/复核提示只进基座线程，不进 Lodge 时间线。
 - **注意力路由**：`attention.js` 从房间状态派生 `needsYou`（待确认/待回答/待签字/待复核/退回/待设命令）；侧栏显示一个点与「N 个等你」，调度摘要同步；不为每条消息做未读。
@@ -262,8 +266,8 @@ openmausbot/                  # 上游 OSS，保留 remote
 - **调度台**：仍是只读前台——收件、建议、一次确认、投影摘要；不做能操作界面的全局助手。若要加，只能是 read + propose（解释、打开面板、生成草稿），最终动作由用户点。
 - **真实 M3 验证（2026-11-11）**：用临时源仓库 + 全新数据目录跑通三人组：3 个基座线程、3 个工作区、executor 分支正确；planner 克隆没有 `hello.txt`；executor 在自己的 worktree 创建文件，源仓库 `main` 仍干净；候选 commit 在 `crew/<room>/executor`；verifier 临时副本拿到候选文件并给 PASS；人签字后 executor 工作树干净，结论 commit 含 `CONCLUSION.md`；交付在房间分支上，可人工合并。另验证两席自定义房（执行+验收）与无验收房（队长+执行，`human` 人签字）；测试 bot 与群已清理，基座回到只有 MausBot。
 - **并行执行（2026-11-11）**：自定义编制可含多个执行席位；每个执行独立 worktree/分支，同一交付阶段并行派发。全部执行回合结束后，按顺序把候选分支合并进房间集成 worktree（`crew/<room>/integration`），在集成目录跑验收命令，再交验收席位复核。合并冲突会回滚并停下等人（`needsYou.kind=merge`）；15 分钟未完成报超时（`kind=parallel`）。真实双执行验证：前端/后端各自 worktree + 候选 commit，集成合并、验收 exit 0、verifier PASS、人签字、`CONCLUSION.md` + 结论 commit；源仓库 `main` 干净，交付在 integration 分支，候选分支保留供人工查看。单元测试覆盖集成 worktree、合并、冲突回滚。
-- **下一步（设计文档 §15.1）**：worktree 生命周期与成本硬闸门已落；Windows 适配器已落但需真机 dogfood；P0 剩余建后改角色与真机验证；M2 后先做 5–10 人私密 dogfood（只收卡住点，不公开演示），再按真实卡点排 P1；P1 是业务感知交接包、本地房间交接包、工作区级项目约束、子任务依赖图/阶段级部分成功、MCP 隔离与审计、复盘/用量视图、调度台只读资源面板、本地模板导入。明确不做：模板市场、多人协作/Org、非编码模式、自动执行、第二个有写权限的全局助手、黑盒 RAG。
-- **已知边界**：UI `app.js` 是单文件页面，后续可按视图拆分（目标岛已独立成模块）；本地模板导入已接，但模板可本地保存，但没有市场；Engine 端口是房间级语义；M1 游标/轮次/空转已落，业务感知交接包已落（实际增量仍由基座 delta-context 负责）；房间记录随结论 commit 可带走，导出/只读导入/续做已接；M2 真 Stop 已接（未做 500ms E2E），@ 基础有；M3 席位隔离与并行 executor worktree 已落（planner 克隆 / 多 executor worktree / 集成 worktree / verifier 临时副本 + 候选提交）；worktree 生命周期已落（环境/端口/清理/GC/磁盘水位）；验收命令一次性副本与网络 isolator 已落（macOS/Linux；Windows 走 WSL2 + bubblewrap，缺原语 fail closed）；成本硬闸门已落（房间/全局预算到线暂停新任务），发言配额未强制；席位 env/data/tmp 与端口预置已落，OS 级 venv/本地数据库/端口强制隔离未做；工具审批桥已落（写工具拒绝；外部动作挂起等人批准；exec 仍是临时副本，不是通用文件系统沙箱）；建后加/移除/改角色已接；多验收席位已接（全部 PASS 才签字，任一 REJECT 打回）；manual 验收不挂 verifier（要独立复核必须补命令，fail closed）；并行合并冲突需要人处理，没有自动重排；验收已走盲审提示，无显式引擎时优先不同厂商、没有第二引擎时降级；独立复核会话（每席位独立基座线程 + 盲审包）已在；编制建议依赖基座可用，失败时显式回退手动选编制；Goal 有队长时三段式/最多 3 个工作阶段，开工卡 >3 问拒绝；分叉会议未做；无第二引擎时的稳定跨厂商/跨实例交付自动同步/模型语义路由/发言配额未做；macOS Electron 壳已接（未签名，基座/CLI 不打入），Windows/Linux 桌面配置已加但未真机验证；TypeScript 只在基座；SQLite 仍是原型索引，关系表迁移只改 `store.js`。
+- **下一步（设计文档 §15.1）**：M3 核心门槛已过；worktree 生命周期、成本硬闸门、建后改角色均已落。Windows 适配器需真机 dogfood；下一步做 5–10 人私密 dogfood（只收卡住点，不公开演示），真实卡点重复 2–3 次再进 P1。P1 里已落地的项（交接包、约束、部分成功、MCP、复盘/用量、资源面板、模板）不再重复排期。明确不做：模板市场、多人协作/Org、非编码模式、自动执行、第二个有写权限的全局助手、黑盒 RAG。
+- **已知边界**：UI `app.js` 是单文件页面，后续可按视图拆分（目标岛已独立成模块）；本地模板导入已接，但模板可本地保存，但没有市场；Engine 端口是房间级语义；M1 游标/轮次/空转已落，业务感知交接包已落（实际增量仍由基座 delta-context 负责）；房间记录随结论 commit 可带走，导出/只读导入/续做已接；M2 真 Stop 已接（未做 500ms E2E），@ 基础有；M3 席位隔离与并行 executor worktree 已落（planner 克隆 / 多 executor worktree / 集成 worktree / verifier 临时副本 + 候选提交）；worktree 生命周期已落（环境/端口/清理/GC/磁盘水位）；验收命令一次性副本与网络 isolator 已落（macOS/Linux；Windows 走 WSL2 + bubblewrap，缺原语 fail closed）；成本硬闸门已落（房间/全局预算到线暂停新任务），发言配额未强制；席位 env/data/tmp 与端口预置已落，OS 级 venv/本地数据库/端口强制隔离未做；工具审批桥已落（写工具拒绝；外部动作挂起等人批准；exec 仍是临时副本，不是通用文件系统沙箱）；建后加/移除/改角色已接；多验收席位已接（全部 PASS 才签字，任一 REJECT 打回）；manual 验收不挂 verifier（要独立复核必须补命令，fail closed）；并行合并冲突需要人处理，没有自动重排；验收已走盲审提示，无显式引擎时优先不同厂商、没有第二引擎时降级；独立复核会话（每席位独立基座线程 + 盲审包）已在；编制建议依赖基座可用，失败时显式回退手动选编制；Goal 有队长时三段式/最多 3 个工作阶段，开工卡 >3 问拒绝；分叉会议未做；无第二引擎时的稳定跨厂商/跨实例交付自动同步/模型语义路由/发言配额未做；macOS Electron 壳已接（ad-hoc zip，基座/CLI 不打入；不公证、无自动更新），Windows/Linux 桌面配置已加但未真机验证；TypeScript 只在基座；SQLite 仍是原型索引，关系表迁移只改 `store.js`。
 
 ## 9. 许可与合规
 

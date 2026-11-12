@@ -8,6 +8,7 @@ import { createDispatchService } from './dispatch-service.js'
 import { editStages } from './stage-plan.js'
 import { presentRoom } from './presentation.js'
 import { createRealRoom } from './room-create.js'
+import { listRoomTypes } from './room-types/index.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { rosterFromRoles, TEMPLATE_LIST, validateRoster } from './seats.js'
 import { writeSeatEnv } from './seat-env.js'
@@ -64,6 +65,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     return {
       seats,
       templates: TEMPLATE_LIST,
+      roomTypes: listRoomTypes(),
       savedTemplates: typeof dataDir === 'string' ? listSavedTemplates(dataDir) : [],
       rooms: rooms.map(room => {
         const messages = readMessages(room.id)
@@ -274,6 +276,9 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     }
     const workspace = workspaceProvider(room)
     if (typeof workspace.addSeat !== 'function') return fail('conflict', '当前工作区不支持建后加席位')
+    if (role === 'worker' && workspace.capabilities().merge !== true) {
+      return fail('conflict', '当前工作区只能有一个执行席位')
+    }
     const placement = workspace.addSeat({ room, seat })
     writeSeatEnv({ room, seatId: id, path: placement.path, port: placement.port })
 

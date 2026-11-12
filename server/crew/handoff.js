@@ -110,7 +110,7 @@ const parseTranscript = text => {
 
 const handoffWorkspace = value => {
   if (!isRecord(value)) return null
-  if (value.provider !== 'git' && value.provider !== 'plain') return null
+  if (value.provider !== 'git' && value.provider !== 'plain' && value.provider !== 'direct') return null
   return {
     provider: value.provider,
     ...(isRecord(value.capabilities) ? { capabilities: value.capabilities } : {}),

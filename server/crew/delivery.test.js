@@ -40,6 +40,22 @@ test('a room event only carries a delivery sheet after completion', () => {
   assert.equal(presentRoom(room(), messages).delivery.goal, '保存后刷新仍生效')
 })
 
+test('manual evidence is not a passed command and artifacts stay in the workspace', () => {
+  const delivery = buildDelivery(room({
+    repoPath: '/tmp/room',
+    worktrees: { worker: '/tmp/room/worker' },
+  }), [
+    { id: 'm1', kind: 'evidence', seq: 1, ts: 10, meta: { stage: 1, kind: 'command', command: 'manual', exit: 127 } },
+    { id: 'a1', kind: 'activity', seq: 2, ts: 11, meta: { stage: 1, artifacts: [
+      { path: '/tmp/room/worker/logo/logo.svg', bytes: 10 },
+      { path: '/tmp/outside/MEMORY.md', bytes: 20 },
+    ] } },
+  ])
+  assert.equal(delivery.commands.length, 0)
+  assert.deepEqual(delivery.artifacts.map(artifact => artifact.path), ['/tmp/room/worker/logo/logo.svg'])
+  assert.equal(delivery.workspacePath, '/tmp/room')
+})
+
 test('the delivery sheet exports as portable markdown', () => {
   const text = deliveryMarkdown(buildDelivery(room(), messages))
   assert.match(text, /# 交付单：设置页保存/)

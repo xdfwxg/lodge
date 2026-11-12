@@ -140,8 +140,8 @@ test('parallel workers fail closed when the workspace cannot merge', async () =>
   assert.match(result.error, /不支持并行合并/)
 })
 
-test('a non-git directory selects the plain provider and leaves the source untouched', async () => {
-  const root = temp('lodge-plain-room-')
+test('a non-git directory is edited in place without a worker copy', async () => {
+  const root = temp('lodge-direct-room-')
   const source = join(root, 'docs')
   mkdirSync(source, { recursive: true })
   writeFileSync(join(source, 'README.md'), '# docs\n')
@@ -150,7 +150,7 @@ test('a non-git directory selects the plain provider and leaves the source untou
   process.env.CREW_WORKSPACE_ROOT = join(root, 'workspace')
   process.env.CREW_COPY_ROOT = join(root, 'copies')
   try {
-    const store = createStore({ dataDir: temp('lodge-plain-data-') })
+    const store = createStore({ dataDir: temp('lodge-direct-data-') })
     const result = await run(store, {
       goal: '整理文档',
       verify: 'manual',
@@ -159,12 +159,14 @@ test('a non-git directory selects the plain provider and leaves the source untou
     })
     assert.equal(result.ok, true)
     const room = result.body.room
-    assert.equal(room.workspace.provider, 'plain')
+    assert.equal(room.workspace.provider, 'direct')
+    assert.equal(room.workspace.capabilities.isolation, 'direct')
     assert.equal(room.workspace.capabilities.vcs, 'none')
     assert.equal(room.workspace.capabilities.commit, false)
-    assert.equal(room.repoPath.startsWith(join(root, 'copies')), true)
+    assert.equal(room.repoPath, source)
     assert.equal(existsSync(join(source, '.git')), false)
-    assert.equal(existsSync(join(room.repoPath, 'README.md')), true)
+    assert.equal(existsSync(join(source, 'README.md')), true)
+    assert.equal(existsSync(join(root, 'copies')), false)
   } finally {
     if (previousRoot === undefined) delete process.env.CREW_WORKSPACE_ROOT
     else process.env.CREW_WORKSPACE_ROOT = previousRoot
@@ -189,6 +191,7 @@ test('a plain room can run parallel workers into a copy integration', async () =
       goal: '并行整理文档',
       verify: 'manual',
       repoPath: source,
+      workspaceProvider: 'plain',
       seats: [{ role: 'worker', name: '甲' }, { role: 'worker', name: '乙' }],
     })
     assert.equal(result.ok, true)
@@ -327,6 +330,25 @@ test('a confirmed plan starts at delivery but keeps the final acceptance stage',
   assert.equal(room.stages[2].title, '验收与结论')
 })
 
+test('a plan stage with manual acceptance becomes a decision stage', async () => {
+  const { store } = importedRoom(temp('lodge-manual-stage-data-'))
+  const result = await run(store, {
+    goal: '人工验收阶段',
+    verify: 'test',
+    acceptance: 'npm test',
+    repoPath: gitRepo(),
+    seats: [{ role: 'worker', name: '执行' }],
+    plan: {
+      done: ['导出文件'],
+      stages: [{ title: '导出', kind: 'deliverable', acceptance: 'manual' }],
+    },
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.stages[0].kind, 'decision')
+  assert.equal(room.stages[0].acceptance, undefined)
+})
+
 test('a completed room can be used as a continuation source', async () => {
   const { store, room: imported } = importedRoom(temp('lodge-fork-data-'))
   const source = { ...imported, id: 'room-fork-source', imported: false, readOnly: false, state: 'complete' }
@@ -372,6 +394,72 @@ test('a plan can declare multiple work stages between alignment and acceptance',
   assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '实现', '回归', '验收与结论'])
   assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'active', 'pending', 'pending'])
   assert.equal(room.stages[2].acceptance, 'npm run e2e')
+})
+
+test('a redundant opening decision stage is auto-passed', async () => {
+  const { store } = importedRoom(temp('lodge-opening-gate-data-'))
+  const result = await run(store, {
+    goal: '不要重复确认',
+    verify: 'test',
+    repoPath: gitRepo(),
+    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }],
+    plan: {
+      done: ['实现并通过测试'],
+      answers: [{ question: '改哪个文件？', answer: 'logo.png' }],
+      stages: [
+        { title: '确认源文件与改动方向', kind: 'decision' },
+        { title: '实现', kind: 'deliverable', acceptance: 'npm test' },
+      ],
+    },
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '确认源文件与改动方向', '实现', '验收与结论'])
+  assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'passed', 'active', 'pending'])
+})
+
+test('a roundtable room uses discussion stages and manual verification', async () => {
+  const { store } = importedRoom(temp('lodge-roundtable-data-'))
+  const result = await run(store, {
+    goal: '评审这个方案',
+    roomType: 'roundtable',
+    repoPath: gitRepo(),
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.roomType, 'roundtable')
+  assert.deepEqual(room.stages.map(stage => stage.title), ['圆桌讨论', '结论'])
+  assert.deepEqual(room.stages.map(stage => stage.kind), ['decision', 'decision'])
+  assert.equal(room.seatSpecs.length, 3)
+  assert.equal(room.stages[0].state, 'active')
+  assert.equal(room.stages[1].state, 'pending')
+})
+
+test('an archive room has one manual archive stage and one seat', async () => {
+  const { store } = importedRoom(temp('lodge-archive-data-'))
+  const result = await run(store, {
+    goal: '归档这次交付',
+    roomType: 'archive',
+    repoPath: gitRepo(),
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.roomType, 'archive')
+  assert.deepEqual(room.stages.map(stage => stage.title), ['存档与交接'])
+  assert.equal(room.stages[0].kind, 'decision')
+  assert.equal(room.stages[0].state, 'active')
+  assert.equal(room.seatSpecs.length, 1)
+})
+
+test('unknown room types fail closed', async () => {
+  const { store } = importedRoom(temp('lodge-room-type-data-'))
+  const result = await run(store, {
+    goal: '未知房型',
+    roomType: 'mystery',
+    repoPath: gitRepo(),
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /未知的房间类型/)
 })
 
 test('an active room can be forked into a new room without touching the source', async () => {

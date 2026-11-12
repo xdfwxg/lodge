@@ -9,6 +9,16 @@ import { defaultWorkspace, workspaceById } from './workspace.js'
 const MAX_GOAL = 2000
 const RECOMMEND_TIMEOUT = 90_000
 const ROLE_LABEL = { lead: '队长', worker: '执行', verifier: '验收' }
+const ROLE_ALIASES = new Map([
+  ['lead', 'lead'], ['leader', 'lead'], ['planner', 'lead'], ['planning', 'lead'], ['队长', 'lead'], ['规划', 'lead'], ['负责人', 'lead'], ['规划者', 'lead'], ['主控', 'lead'],
+  ['worker', 'worker'], ['executor', 'worker'], ['implementer', 'worker'], ['developer', 'worker'], ['engineer', 'worker'], ['执行', 'worker'], ['执行者', 'worker'], ['开发', 'worker'], ['开发者', 'worker'], ['工程师', 'worker'], ['实现', 'worker'],
+  ['verifier', 'verifier'], ['reviewer', 'verifier'], ['review', 'verifier'], ['qa', 'verifier'], ['tester', 'verifier'], ['验收', 'verifier'], ['验收者', 'verifier'], ['复核', 'verifier'], ['复核者', 'verifier'], ['评审', 'verifier'], ['审查', 'verifier'],
+])
+const normalizeRole = role => {
+  if (typeof role !== 'string') return null
+  const raw = role.trim()
+  return ROLE_ALIASES.get(raw) ?? ROLE_ALIASES.get(raw.toLowerCase()) ?? null
+}
 
 // 编队是语义判断，归队长：先看目标与仓库事实，再决定需要几个席位。
 const recommendationPrompt = (goal, repoPath) => [
@@ -20,10 +30,12 @@ const recommendationPrompt = (goal, repoPath) => [
   '- 只有需要独立验收时才加验收席位。',
   '- 只有工作能明确拆给多人并行时才加多个执行席位。',
   '- 至少一个执行；最多一个队长；验收可多个（每个独立复核，全部 PASS 才签字）；总席位 1–8。',
+  '- seats[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
   '- stages 写 1–3 个可交付阶段；每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
+  '- 开工卡就是对齐与确认。不要生成第一个只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
   '- JSON 代码块必须完整闭合。',
   '只输出一个 JSON 代码块，不要其他文字：',
   '```json',
@@ -109,9 +121,9 @@ export const parseProposal = reply => {
   const tooManyQuestions = Array.isArray(data.questions) && data.questions.length > 3
 
   const entries = data.seats.map((seat, index) => {
-    const role = seat?.role
-    if (!['lead', 'worker', 'verifier'].includes(role)) {
-      throw new Error(`第 ${index + 1} 个席位角色不合法`)
+    const role = normalizeRole(seat?.role)
+    if (role === null) {
+      throw new Error(`第 ${index + 1} 个席位角色不合法：${String(seat?.role ?? '空')}`)
     }
     const rawName = typeof seat.name === 'string' ? seat.name.trim() : ''
     const reason = typeof seat.reason === 'string' ? seat.reason.trim().slice(0, 160) : ''
@@ -214,7 +226,7 @@ export const recommendRoster = async ({ engine, body }) => {
     if (!existsSync(sourceRepo)) return fail('invalid', '工作目录不存在')
     // 建议是只读的；不在用户目录里 git init 或写文件。
     if (!defaultWorkspace.probeSource({ source: sourceRepo }).ok) {
-      workspace = workspaceById('plain')
+      workspace = workspaceById('direct')
       const probe = workspace.probeSource({ source: sourceRepo })
       if (!probe.ok) return fail('invalid', probe.error)
     }

@@ -31,7 +31,11 @@ for (const [file, text] of [['design', design], ['reuse', reuse], ['thought', th
   mustNot(`${file} no longer claims a 300-line limit`, /单文件\s*300\s*行上限/, text)
   mustNot(`${file} no longer says "only CSS is copied"`, /只抄\s*CSS/, text)
   mustNot(`${file} no longer claims zero-copy`, /零代码复制|零拷贝/, text)
+  mustNot(`${file} no longer claims dmg/zip signing`, /dmg\/zip[^。\n]*未签名|当前[^。\n]*dmg\/zip/, text)
+  mustNot(`${file} no longer uses the old M3 demo gate`, /M3 之前不要|M3 前不演示/, text)
+  mustNot(`${file} no longer says post-create seats are missing`, /建后改席位未接|建后改角色未接/, text)
 }
+mustNot('thought no longer says handoff import/export is missing', /一键导出\/导入\/打开未做/, thought)
 
 if (failures > 0) process.exit(1)
 console.log('docs: ok')

@@ -11,6 +11,12 @@
       "name": "lodge-dist",
       "url": "http://127.0.0.1:8787",
       "port": 8787
+    },
+    {
+      "name": "lodge-ui",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:ui"],
+      "port": 5173
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, shell } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron'
 import { execFileSync, spawn } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -327,6 +327,7 @@ const createWindow = port => {
     backgroundColor: '#f7f7f5',
     show: false,
     webPreferences: {
+      preload: join(app.getAppPath(), 'electron', 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -354,6 +355,23 @@ const boot = async () => {
   if (process.platform === 'darwin' && !app.isPackaged && existsSync(iconFile)) {
     app.dock.setIcon(iconFile)
   }
+  ipcMain.handle('lodge:open-path', async (_event, target) => {
+    if (typeof target !== 'string' || target.trim() === '') {
+      return { ok: false, error: '缺少路径' }
+    }
+    const error = await shell.openPath(target.trim())
+    return error === '' ? { ok: true } : { ok: false, error }
+  })
+  ipcMain.handle('lodge:choose-directory', async () => {
+    const options = {
+      title: '选择 Lodge 的项目目录',
+      properties: ['openDirectory', 'createDirectory'],
+    }
+    const picked = window === null
+      ? await dialog.showOpenDialog(options)
+      : await dialog.showOpenDialog(window, options)
+    return picked.canceled ? null : picked.filePaths?.[0] ?? null
+  })
   buildMenu()
   try {
     const base = await ensureBase()
