@@ -3,7 +3,6 @@ import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
 import { Onboarding } from './views/onboarding.js'
 import { DispatchView } from './views/dispatch-view.js'
-import { UsageView } from './views/usage-view.js'
 import { RoomView } from './views/room-view.js'
 import { NewRoomDialog } from './new-room-dialog.js'
 
@@ -46,8 +45,7 @@ export function App() {
   }
 
   const room = state.rooms.find(item => item.id === state.activeId) ?? null
-  const isUsage = state.activeId === 'usage'
-  const isDispatch = !isUsage && (state.activeId === 'dispatch' || room === null)
+  const isDispatch = state.activeId === 'dispatch' || room === null
 
   return h('div', { className: 'dsb-frame' },
     h(Sidebar, {
@@ -55,10 +53,8 @@ export function App() {
       onSelect: id => store.select(id),
       onNew: () => openDialog(),
     }),
-    isUsage
-      ? h(UsageView, { state, store })
-      : isDispatch
-        ? h(DispatchView, { state, store })
-        : h(RoomView, { state, room, store, onContinue: openDialog }),
+    isDispatch
+      ? h(DispatchView, { state, store })
+      : h(RoomView, { state, room, store, onContinue: openDialog }),
     dialogNode)
 }

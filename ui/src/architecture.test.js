@@ -31,10 +31,10 @@ test('views receive the store instead of importing it', () => {
 
 test('app.js stays a composition shell', () => {
   const text = readFileSync(join(root, 'app.js'), 'utf8')
-  for (const name of ['Sidebar', 'RoomView', 'DispatchView', 'UsageView', 'NewRoomDialog', 'Onboarding']) {
+  for (const name of ['Sidebar', 'RoomView', 'DispatchView', 'NewRoomDialog', 'Onboarding']) {
     assert.doesNotMatch(text, new RegExp(`function\\s+${name}\\b`), `app.js still defines ${name}`)
   }
-  for (const path of ['views/sidebar.js', 'views/onboarding.js', 'views/dispatch-view.js', 'views/usage-view.js', 'views/room-view.js', 'new-room-dialog.js']) {
+  for (const path of ['views/sidebar.js', 'views/onboarding.js', 'views/dispatch-view.js', 'views/room-view.js', 'new-room-dialog.js']) {
     assert.match(text, new RegExp(`from\\s+['"]\\./${path.replaceAll('/', '\\/')}['"]`), `app.js does not import ${path}`)
   }
 })
