@@ -7,6 +7,7 @@ import { workspaceOf } from './live-workspace.js'
 import { reviewState, verifierIds } from './verifiers.js'
 import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from './orchestration/index.js'
+import { seatDisplayName } from './seat-labels.js'
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks }) => {
   let round = null
@@ -19,7 +20,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     round.requests.delete(seat)
     clearTimeout(pending.timer)
     const pass = parseVerdict(turn.reply)
-    const name = room?.seatNames?.[seat] ?? seat
+    const name = seatDisplayName(room, seat)
     store.appendMessage(roomId, {
       kind: 'verdict',
       authorId: pending.verifier,

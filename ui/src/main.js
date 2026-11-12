@@ -2,6 +2,7 @@ import { createElement as h } from 'react'
 import { createRoot } from 'react-dom/client'
 import { applyTheme } from './theme.js'
 import { App } from './app.js'
+import '@fontsource-variable/inter/wght.css'
 import './app.css'
 import './crew.css'
 

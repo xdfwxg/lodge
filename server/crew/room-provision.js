@@ -1,4 +1,5 @@
 import { roomBulletin } from './room-create-input.js'
+import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
 
 export const createProvisioner = ({ engine }) => {
   const createdSeatRefs = []
@@ -59,6 +60,18 @@ export const createProvisioner = ({ engine }) => {
       seatNames[seat.id] = seatRef.name
       engines[seat.id] = seatRef.engine
     }
+    const leadSeat = createdSeatRefs.find(({ seat }) => seat.role === 'lead') ?? createdSeatRefs[0]
+    const chatRoom = await engine.createRoom({
+      name: roomChatName(title),
+      goal,
+      bulletin: ROOM_CHAT_BULLETIN,
+      members: createdSeatRefs.map(({ seatRef }) => seatRef.id),
+      cwd: workspaces.roomPath ?? workspaces.seats[leadSeat.seat.id].path,
+      leadId: leadSeat.seatRef.id,
+      autoRoute: true,
+    })
+    createdBaseRooms.push(chatRoom)
+
     const workerEngines = new Set(createdSeatRefs
       .filter(({ seat }) => seat.role === 'worker')
       .map(({ seatRef }) => seatRef.engine))
@@ -72,7 +85,7 @@ export const createProvisioner = ({ engine }) => {
       ))
         ? 'vendor'
         : 'none'
-    return { seatRooms, seatBots, seatNames, engines, engineFallbacks, independence }
+    return { seatRooms, seatBots, seatNames, engines, engineFallbacks, independence, chatRoom }
   }
 
   const cleanup = async () => {

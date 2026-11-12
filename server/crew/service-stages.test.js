@@ -42,7 +42,11 @@ const setup = initial => {
   const calls = []
   const stages = createServiceStages({
     store,
-    live: { reworkStage: async (target, index, note) => { calls.push({ target, index, note }) } },
+    live: {
+      reworkStage: async (target, index, note) => { calls.push({ target, index, note }) },
+      isAttached: () => true,
+      resume: async (id, options) => { calls.push({ resume: id, options }) },
+    },
     emit: () => {},
     dispatchPayload: () => null,
     completeRoom: value => value,
@@ -50,6 +54,18 @@ const setup = initial => {
   })
   return { store, stages, room: () => current, messages, calls }
 }
+
+test('changing the acceptance command reruns it, but an unchanged save does not', () => {
+  const ctx = setup(room())
+  const changed = ctx.stages.setAcceptance(ctx.room(), 0, 'npm run check')
+  assert.equal(changed.ok, true)
+  const resumes = ctx.calls.filter(call => call.resume !== undefined)
+  assert.equal(resumes.length, 1)
+  assert.equal(resumes[0].options.forceAcceptance, true)
+  const unchanged = ctx.stages.setAcceptance(ctx.room(), 0, 'npm run check')
+  assert.equal(unchanged.ok, true)
+  assert.equal(ctx.calls.filter(call => call.resume !== undefined).length, 1)
+})
 
 test('rework records the human objection and re-dispatches the active stage', async () => {
   const ctx = setup(room())

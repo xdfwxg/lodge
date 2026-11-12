@@ -165,8 +165,7 @@ export function GoalIsland({ view, advanced, actions }) {
       },
     },
     h('span', { className: 'crew-island-dot', 'data-tone': view.status.tone }),
-    h('h1', { title: view.goal }, view.name),
-    ...view.badges.map(badge => h('span', { key: badge.label, className: 'crew-badge', 'data-warn': badge.warn === true }, badge.label)),
+    h('h1', { title: view.goal }, view.goal),
     h('span', { className: 'crew-island-pill' },
       `${view.progress.value}/${view.progress.total}`,
       h('span', { className: 'crew-island-chev', 'data-open': open }, '⌄'))),
@@ -184,6 +183,10 @@ export function GoalIsland({ view, advanced, actions }) {
           answers.map(([label, value, kind]) => h('div', { key: label, className: 'crew-island-answer', 'data-kind': kind },
             h('span', null, label),
             h('b', { title: value }, value)))),
+        view.badges.length > 0
+          ? h('div', { className: 'crew-island-meta' },
+            view.badges.map(badge => h('span', { key: badge.label, 'data-warn': badge.warn === true }, badge.label)))
+          : null,
         h('div', { className: 'crew-island-steps' },
           view.stages.map(item => h(StageStep, {
             key: item.index,

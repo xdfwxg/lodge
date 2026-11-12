@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mcpCalls } from './mcp.js'
 import { recordMcpFailures } from './mcp-breaker.js'
 import { markTask } from './tasks.js'
+import { seatDisplayName } from './seat-labels.js'
 import { reviewState } from './verifiers.js'
 import { createAcceptanceRunner } from './live-acceptance.js'
 import { createStageIntegrator } from './live-integration.js'
@@ -87,7 +88,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         state.updateTasks(stageIndex, current => markTask(current, seat, 'failed'))
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `并行执行：${room.seatNames?.[seat] ?? seat} 这一回合没有产出；继续等其它席位。`,
+          text: `并行执行：${seatDisplayName(room, seat)} 这一回合没有产出；继续等其它席位。`,
         })
         const done = integrator.settle(seat, turnId, true)
         if (done !== null) {
@@ -128,7 +129,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         store.appendMessage(roomId, {
           kind: 'system',
           text: tripped.length === 0
-            ? `MCP 工具失败已隔离：${failed.map(call => `${call.server}/${call.tool} ×${call.failed}`).join('、')}；只影响 ${room?.seatNames?.[seat] ?? seat} 这一回合，房间继续。`
+            ? `MCP 工具失败已隔离：${failed.map(call => `${call.server}/${call.tool} ×${call.failed}`).join('、')}；只影响 ${seatDisplayName(room, seat)} 这一回合，房间继续。`
             : `MCP 熔断：${tripped.join('、')}；使用它的席位回合暂停，恢复后继续。`,
         })
       }
@@ -211,7 +212,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
             candidate = workspaceOf(current).submit({ path: worktree, turnId, name: current.name })
             if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, seat, commit: candidate })
           } catch (error) {
-            store.appendMessage(roomId, { kind: 'system', text: `候选提交失败（${current.seatNames?.[seat] ?? seat}）：${error?.message ?? error}` })
+            store.appendMessage(roomId, { kind: 'system', text: `候选提交失败（${seatDisplayName(current, seat)}）：${error?.message ?? error}` })
           }
         }
         const base = dispatch?.stage === stage && typeof dispatch.base === 'string'
@@ -283,7 +284,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
   }
 
   // 服务重启后以已落盘的消息为准续跑：缺回合就重新派发，缺验收就重跑命令，待复核就重发请求，待集成就先合并。
-  const resumeOnce = async () => {
+  const resumeOnce = async ({ forceAcceptance = false } = {}) => {
     const room = store.readRoom(roomId)
     if (room === null || room.live !== true || room.state !== 'active') return
     if (room.busy === true || (room.workers?.length ?? 0) === 0) return
@@ -304,7 +305,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     const latestTurnSeq = latestTurn?.seq ?? -1
     const dispatch = room.stageDispatch
 
-    if (latestCommand !== undefined && (latestCommand.seq ?? 0) > latestTurnSeq) {
+    if (!forceAcceptance && latestCommand !== undefined && (latestCommand.seq ?? 0) > latestTurnSeq) {
       if (latestCommand.meta?.exit !== 0) return
       const outcome = reviewState({ room, messages, stageIndex })
       if (outcome.state !== 'pending') return
@@ -380,9 +381,9 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     }
   }
 
-  const resume = async () => {
+  const resume = async options => {
     try {
-      await resumeOnce()
+      await resumeOnce(options)
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `重启后未能自动续跑：${error?.message ?? error}` })
     }

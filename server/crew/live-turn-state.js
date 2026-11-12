@@ -61,5 +61,14 @@ export const createTurnState = ({ store, roomId, emit }) => {
     if (updated !== null) emit?.('room', updated)
   }
 
-  return { turns, capturedTurns, acceptanceRuns, seed, trackTool, recordTurn, markProgress, updateTasks }
+  return {
+    turns,
+    capturedTurns,
+    acceptanceRuns,
+    seed,
+    trackTool,
+    recordTurn,
+    markProgress,
+    updateTasks,
+  }
 }

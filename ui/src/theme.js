@@ -4,7 +4,9 @@ const LIGHT = {
   '--bt-bg': '#fcfcfc',
   '--bt-sidebar': '#f7f7f7',
   '--bt-card': '#ffffff',
-  '--bt-bubble': '#eeeeee',
+  '--bt-bubble': '#ffffff',
+  '--bt-out-bubble': '#95ec69',
+  '--bt-out-bubble-ink': '#111111',
   '--bt-ink': '#141414',
   '--bt-ink-2': 'rgba(20,20,20,.6)',
   '--bt-ink-3': 'rgba(20,20,20,.36)',
@@ -23,7 +25,7 @@ const LIGHT = {
   '--bt-danger': '#e02135',
   '--bt-danger-soft': 'rgba(224,33,53,.14)',
   '--bt-input-bg': 'transparent',
-  '--bt-font': '-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+  '--bt-font': '"Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
 }
 
 const DARK = {
@@ -31,7 +33,9 @@ const DARK = {
   '--bt-bg': '#141414',
   '--bt-sidebar': '#1b1b1b',
   '--bt-card': '#1f1f1f',
-  '--bt-bubble': '#262626',
+  '--bt-bubble': '#2b2b2b',
+  '--bt-out-bubble': '#3eb575',
+  '--bt-out-bubble-ink': '#111111',
   '--bt-ink': '#f2f2f2',
   '--bt-ink-2': 'rgba(242,242,242,.6)',
   '--bt-ink-3': 'rgba(242,242,242,.36)',

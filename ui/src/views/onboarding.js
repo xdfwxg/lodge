@@ -5,7 +5,7 @@ export function Onboarding({ state, onCreate }) {
     h('div', { className: 'crew-onboarding-card' },
       h('img', { className: 'crew-onboarding-logo', src: './logo.svg', alt: 'Lodge', width: 96, height: 96 }),
       h('h1', null, 'Lodge'),
-      h('p', null, '创建专属任务房，养一支 AI 小队。'),
+      h('p', null, '创建你的专属房间，召唤一支 AI 小队。'),
       h('div', { className: 'crew-onboarding-actions' },
         h('button', {
           type: 'button',

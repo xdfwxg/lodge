@@ -6,6 +6,7 @@ import { buildReview } from './review.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listOrchestrations } from './orchestration/index.js'
 import { listRoomTypes } from './room-types/index.js'
+import { toDisplayText } from './seat-labels.js'
 import { TEMPLATE_LIST } from './seats.js'
 import { fail, ok } from './result.js'
 
@@ -43,6 +44,11 @@ export const createServiceQueries = ({
       savedTemplates: typeof dataDir === 'string' ? templates.list(dataDir) : [],
       rooms: rooms.map(room => {
         const messages = readMessages(room.id)
+          .slice()
+          .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
+          .map(message => (
+            typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
+          ))
         return { ...presentRoom(room, messages), brief: roomFiles.readBrief(room), messages }
       }),
       dispatch: dispatchPayload(),

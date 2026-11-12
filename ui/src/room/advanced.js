@@ -162,6 +162,10 @@ function Advanced({ room, seats, store, engines = [] }) {
     h('div', { className: 'crew-budget-edit' },
       h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
       h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
+    Object.keys(room.chatHolds ?? {}).length > 0
+      ? h('p', { className: 'crew-dialog-note' },
+        `聊天静默：${Object.keys(room.chatHolds).map(id => seats.find(seat => seat.id === id)?.name ?? id).join('、')}；在聊天里 @ 对应席位可恢复。`)
+      : null,
     h('table', { className: 'crew-adv-table' },
       h('thead', null, h('tr', null,
         ['席位', '引擎', '权限', '发言预算'].map((label, index) => h('th', { key: `${label}-${index}` }, label)))),

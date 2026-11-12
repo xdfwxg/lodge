@@ -53,6 +53,13 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
       timeout: 15_000,
     }),
 
+    patchGroup: (groupId, payload) => json(`/api/groups/${groupId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      timeout: 15_000,
+    }),
+
     setupGroup: (groupId, payload) => json(`/api/groups/${groupId}/setup`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },

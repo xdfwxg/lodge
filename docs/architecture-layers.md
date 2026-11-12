@@ -53,12 +53,18 @@ server/index.js（唯一组合根）
 | `service-stages.js` | 阶段编辑、验收、签字属于同一阶段门禁；完成态已拆出 |
 | `service-run-control.js` | 预算、暂停/继续/停止、MCP 恢复都属于运行控制面；恢复后启动当前阶段共用同一个私有 helper |
 | `live-projection.js` | 基座消息到 Lodge 时间线的映射是纯转换，可单独测试 |
+| `timeline.js` | 只负责按时间渲染消息记录；当前阶段动作不在这里，避免“永远钉底” |
+| `stage-dock.js` | 当前阶段的验收/确认动作是一个独立单元：状态、命令、证据和按钮一起变化；放在输入框上方，默认收起 |
+| `opening-points.js` | 开工卡已对齐内容同时被开工记录和阶段确认使用，投影只此一份 |
 | `live-refresh.js` | 忙闲、用量、预算暂停是同一轮房间刷新 |
 | `live-approvals.js` | 权限卡、外部动作、待批准记录、失效与人工决定必须一起处理，拆开会出现审批状态不一致 |
 | `live-sync.js` | 席位历史同步与实时订阅共享同一套消息入口 |
 | `live-turns.js` | 保留为回合入口；状态、验收、集成、复核、派发已经是独立整体 |
 | `orchestration/*` | 编排策略是独立变化原因：每个策略只回答“这一阶段怎么派、验收要补什么要求”；注册表与 `planDispatch`/`reviewGuidanceFor` 是唯一出口，执行层不认识具体策略 |
 | `orchestration/assignees.js` | 规划师提案 token 到执行席位的映射只有这一份规则；建房输入和开工卡解析都复用它，避免两处漂移 |
+| `seat-labels.js` | 角色显示名与基座 handle 的边界转换只有一处；映射来自房间数据，不用枚举写死名字；房间记录存人话，发给基座前才转换 |
+| `live-chat.js` | 房间聊天只有这一个变化原因：建共享群聊、订阅、发消息、退回投影；不参与阶段回合，不产出证据。执行层不认识聊天细节 |
+| `room-chat.js` | 群公告与群名是建房和重连共享的常量，只此一份，避免两处漂移 |
 | `crew-ports.js` | 不是业务拆分，而是接口层：上层只依赖它，适配器变更不穿透应用层 |
 
 ## 4. 明确不拆
@@ -77,4 +83,4 @@ server/index.js（唯一组合根）
 - `server/crew/boundary.test.js`：crew 不出现基座字段；git 只在 workspace provider 与默认根探测。
 - `ui/src/architecture.test.js`：UI 传输只在 `store.js` / `system.js`；视图不 import store。
 - 当前依赖图：115 个非测试模块、194 条内部依赖、0 个循环。
-- 测试：271 项通过。
+- 测试：284 项通过。

@@ -94,6 +94,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       seatBots: provisioned.seatBots,
       seatNames: provisioned.seatNames,
       seatRooms: provisioned.seatRooms,
+      chatRoom: provisioned.chatRoom,
       lead,
       workers,
       verifiers,

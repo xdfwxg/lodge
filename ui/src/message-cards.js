@@ -7,11 +7,11 @@ function Markdown({ text, variant }) {
   return h(MarkdownText, { text, labels: MD, variant })
 }
 
-function Speaker({ seat, ts }) {
+function Speaker({ seat, ts, time = true, station = true }) {
   return h('div', { className: 'crew-speaker' },
     h('span', { className: 'crew-speaker-name' }, seat?.name ?? '—'),
-    h('span', { className: 'crew-speaker-station' }, seat?.title ?? ''),
-    h('span', { className: 'crew-speaker-time' }, timeOf(ts)))
+    station ? h('span', { className: 'crew-speaker-station' }, seat?.title ?? '') : null,
+    time ? h('span', { className: 'crew-speaker-time' }, timeOf(ts)) : null)
 }
 
 function ActivityLine({ message }) {
@@ -25,7 +25,7 @@ function ChatLine({ message, seat }) {
   return h('div', { className: 'crew-msg' },
     h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { seat, ts: message.ts }),
+      h(Speaker, { seat, ts: message.ts, time: false, station: false }),
       h('div', { className: 'bt-bubble' }, h(Markdown, { text: message.text }))))
 }
 

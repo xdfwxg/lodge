@@ -4,6 +4,7 @@ import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './live-turn-utils.js'
 import { planDispatch } from './orchestration/index.js'
+import { seatDisplayName } from './seat-labels.js'
 import { workspaceOf } from './live-workspace.js'
 
 export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTasks, integrate, enqueue }) => {
@@ -17,7 +18,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     if (blocked.length > 0) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `MCP 熔断已隔离：${blocked.map(id => room.seatNames?.[id] ?? id).join('、')} 暂停；${workers.length === 0 ? '没有可继续的执行席位，房间暂停，等你恢复。' : '其余席位继续。'}`,
+        text: `MCP 熔断已隔离：${blocked.map(id => seatDisplayName(room, id)).join('、')} 暂停；${workers.length === 0 ? '没有可继续的执行席位，房间暂停，等你恢复。' : '其余席位继续。'}`,
       })
       const blockedUpdate = store.updateRoom(roomId, current => {
         const target = current.stages[index]
@@ -42,7 +43,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       ...current,
       tasks: buildTasks({ stageIndex: index, workers: assignees, seatNames: room.seatNames ?? {} }),
     }))
-    const workerNames = assignees.map(worker => room.seatNames?.[worker] ?? worker).join('、')
+    const workerNames = assignees.map(worker => seatDisplayName(room, worker)).join('、')
     const modeLabel = `（${strategy.name}）`
     store.appendMessage(roomId, {
       kind: 'dispatch',
@@ -155,7 +156,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
         }
         return { events: [{ type: 'stage.dispatch_failed', payload: { stage: index, workers: failed } }] }
       })
-      const names = failed.map(worker => room.seatNames?.[worker] ?? worker).join('、')
+      const names = failed.map(worker => seatDisplayName(room, worker)).join('、')
       store.appendMessage(roomId, { kind: 'system', text: `启动执行失败：${names}；其余席位继续。` })
       if (updated !== null && ready !== null) {
         if (ready.workers.length === 0) {
@@ -171,7 +172,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       const currentDispatch = current?.stageDispatch
       if (currentDispatch?.startedAt !== startedAt) return
       if ((currentDispatch.pending ?? []).length === 0) return
-      const waiting = currentDispatch.pending.map(worker => current.seatNames?.[worker] ?? worker).join('、')
+      const waiting = currentDispatch.pending.map(worker => seatDisplayName(current, worker)).join('、')
       store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: index, workers: currentDispatch.pending })
       store.appendMessage(roomId, { kind: 'system', text: `并行执行超时：${waiting} 还没有完成；阶段仍未进入验收。` })
       const updated = store.updateRoom(roomId, inner => {

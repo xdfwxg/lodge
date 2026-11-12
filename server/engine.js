@@ -16,6 +16,8 @@ const normalizeRoom = (group, responderName) => ({
   goal: group.tasks?.[0]?.title ?? group.bulletin ?? group.name ?? '',
   working: group.working === true,
   busyRef: typeof group.busyBotId === 'string' ? group.busyBotId : null,
+  holds: group.holds ?? {},
+  unread: group.unread === true,
   cwd: typeof group.cwd === 'string' && group.cwd !== ''
     ? group.cwd
     : typeof group.pinnedCwd === 'string' && group.pinnedCwd !== ''
@@ -292,7 +294,24 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
-  const createRoom = async ({ name, goal, bulletin, members, cwd, leadId }) => {
+  const updateRoomMembers = async (roomId, members) => {
+    await client.patchGroup(roomId, { memberIds: members })
+    return { ok: true }
+  }
+
+  const markRoomRead = async roomId => {
+    await client.patchGroup(roomId, { unread: false })
+    return { ok: true }
+  }
+
+  const setRoomAutoRoute = async (roomId, fallbackBotId) => {
+    await client.patchGroup(roomId, {
+      defaultResponder: { kind: 'auto', ...(fallbackBotId === undefined ? {} : { fallbackBotId }) },
+    })
+    return { ok: true }
+  }
+
+  const createRoom = async ({ name, goal, bulletin, members, cwd, leadId, autoRoute = false }) => {
     const created = await client.createGroup({ name, memberIds: members })
     const group = created?.group ?? created
     if (typeof group?.id !== 'string' || typeof group?.threadId !== 'string') throw new Error('基座没有返回群')
@@ -301,7 +320,9 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
         action: 'complete',
         cwd,
         bulletin: bulletin ?? goal,
-        defaultResponder: { kind: 'member', botId: leadId },
+        defaultResponder: autoRoute
+          ? { kind: 'auto', fallbackBotId: leadId }
+          : { kind: 'member', botId: leadId },
       })
       await client.patchGroupTask(group.id, group.threadId, { title: goal })
     } catch (error) {
@@ -357,6 +378,9 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     health,
     createSeatBot,
     createRoom,
+    updateRoomMembers,
+    setRoomAutoRoute,
+    markRoomRead,
     deleteSeatBot,
     deleteRoom,
     subscribe,

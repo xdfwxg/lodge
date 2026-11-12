@@ -121,6 +121,11 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
       }
     }
     roomFiles.writeGoal(updated)
+    try {
+      await live.syncChatMembers?.(updated)
+    } catch (error) {
+      appendMessage(room.id, { kind: 'system', text: `席位已加入，但聊天群成员同步失败：${error?.message ?? error}` })
+    }
     appendMessage(room.id, {
       kind: 'system',
       text: `已加入${role === 'verifier' ? '验收' : '执行'}席位：${seat.name}（工作区 ${placement.path}）`,

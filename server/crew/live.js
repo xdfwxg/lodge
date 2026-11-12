@@ -3,6 +3,7 @@ import { createMessageProjector } from './live-projection.js'
 import { createRoomRefresher } from './live-refresh.js'
 import { createSeatSync } from './live-sync.js'
 import { createLiveTurns } from './live-turns.js'
+import { createRoomChat } from './live-chat.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs }) => {
@@ -17,6 +18,8 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     answerPermission: (entry, seat, message) => approvals.answerPermission(entry, seat, message, refreshRoom),
     refresh: refreshRoom,
   }
+
+  const chat = createRoomChat({ store, engine, projector, refresh: refreshRoom, emit })
 
   const attach = async (room, { resume = true } = {}) => {
     if (entries.has(room.id)) return entries.get(room.id)
@@ -55,8 +58,10 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       await sync.syncSeat(entry, seat)
       sync.subscribeSeat(entry, seat, seatHandlers)
     }
-    roomFiles.writeBrief(room)
-    roomFiles.writeGoal(room)
+    const liveRoom = await chat.ensure(room)
+    chat.subscribe(entry, liveRoom)
+    roomFiles.writeBrief(liveRoom)
+    roomFiles.writeGoal(liveRoom)
     await refreshRoom(entry, { force: true })
     if (approvals.resumeApprovalPauseIfSettled(room.id) !== null) await refreshRoom(entry, { force: true })
     if (resume) await entry.turns.resume()
@@ -95,6 +100,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     const entry = entries.get(roomId)
     if (entry === undefined) return
     approvals.expireApprovals(entry, roomId, '房间绑定已断开，上一张权限卡已不在等待')
+    chat.detach(entry)
     for (const target of entry.seats.values()) target.unsubscribe?.()
     entries.delete(roomId)
   }
@@ -144,9 +150,8 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     if (entry === undefined) throw new Error('实时房间未绑定')
     if (entry.turns.busyReview()) throw new Error('复核进行中，先等验收结论')
     const room = store.readRoom(roomId)
-    const seat = room?.leadSeat ?? room?.members?.[0]
-    if (typeof seat !== 'string') throw new Error('房间没有可对话的席位')
-    return sendToSeat(roomId, seat, text)
+    if (room === null) throw new Error('没有这个房间')
+    return chat.send(room, text)
   }
 
   const requestReview = async (roomId, stage) => {
@@ -215,6 +220,13 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     isAttached: roomId => entries.has(roomId),
     startStage,
     reworkStage,
+    syncChatMembers: room => chat.syncMembers(room),
+    markChatRead: room => chat.markRead(room),
+    resume: async (roomId, options) => {
+      const entry = entries.get(roomId)
+      if (entry === undefined) return
+      await entry.turns.resume(options)
+    },
     cancel,
     sync: async roomId => {
       const entry = entries.get(roomId)

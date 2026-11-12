@@ -117,7 +117,7 @@ const view = (over = {}) => ({
   ...over,
 })
 
-test('the closed island renders title, badges, progress, track and task faces', async () => {
+test('the closed island renders the full goal, progress, track and task faces', async () => {
   const { GoalIsland } = await load()
   const tree = render(GoalIsland({
     view: view(),
@@ -127,8 +127,8 @@ test('the closed island renders title, badges, progress, track and task faces', 
   const island = find(tree, 'crew-island')
   assert.ok(island)
   assert.equal(island.props['data-open'], false)
-  assert.equal(text(find(tree, 'crew-island-top').children.find(child => child.type === 'h1')), '设置页保存')
-  assert.deepEqual(findAll(tree, 'crew-badge').map(node => text(node)), ['独立性降级', '实时'])
+  assert.equal(text(find(tree, 'crew-island-top').children.find(child => child.type === 'h1')), '给设置页加保存，并保证刷新后生效')
+  assert.equal(findAll(tree, 'crew-badge').length, 0)
   assert.equal(text(find(tree, 'crew-island-pill')), '2/3⌄')
   assert.deepEqual(findAll(tree, 'crew-island-track')[0].children.map(node => node.props['data-tone']), ['passed', 'active', 'pending'])
   assert.equal(findAll(tree, 'crew-island-faces')[0].children.filter(Boolean).length, 2)
@@ -153,6 +153,7 @@ test('the open island renders answers, steps, rework, tasks, evidence and contro
   assert.ok(panel)
   assert.equal(panel.props.role, 'region')
   assert.deepEqual(findAll(tree, 'crew-island-answer').map(node => text(node)), ['目标给设置页加保存，并保证刷新后生效', '进度2/3 · 实现保存', '怎么算过npm test'])
+  assert.deepEqual(findAll(tree, 'crew-island-meta')[0].children.map(node => text(node)), ['独立性降级', '实时'])
   assert.equal(findAll(tree, 'crew-step-node').length, 3)
   assert.equal(findAll(tree, 'crew-step-node')[1].props['aria-current'], 'step')
   assert.equal(find(tree, 'crew-island-rework-author') && text(find(tree, 'crew-island-rework-author')), '复核')

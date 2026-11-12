@@ -89,7 +89,10 @@ function RoomRow({ room, roster, active, onSelect }) {
   h('span', { className: 'bt-row-body' },
     h('span', { className: 'bt-row-name' },
       h('span', { className: 'bt-row-title' }, room.name),
-      needs ? h('span', { className: 'crew-needs-dot', 'data-kind': needs.kind, title: needs.label }) : null),
+      needs ? h('span', { className: 'crew-needs-dot', 'data-kind': needs.kind, title: needs.label }) : null,
+      room.chatUnread === true && !active
+        ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' })
+        : null),
     h('span', { className: 'bt-row-preview', 'data-needs': needs?.kind }, preview)))
 }
 

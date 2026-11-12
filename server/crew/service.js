@@ -100,6 +100,11 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       }
     }
 
+    if (action === 'read' && method === 'POST') {
+      if (room.live === true && typeof live.markChatRead === 'function') await live.markChatRead(room)
+      return ok({ room: readRoom(roomId) ?? room })
+    }
+
     if (room.state === 'paused' || room.state === 'stopped') {
       if (room.state === 'paused' && room.pauseReason === 'budget') {
         const status = budgetStatus(room, readRooms())

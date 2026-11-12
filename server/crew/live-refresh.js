@@ -33,6 +33,7 @@ export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) =
           .map(([seat, ref]) => ({ seat, base: bases.find(item => item.id === ref.id) }))
           .filter(item => item.base !== undefined)
         const busySeats = seatBases.filter(item => item.base.working === true).map(item => item.seat)
+        const chatBase = room.chatRoom === undefined ? undefined : bases.find(item => item.id === room.chatRoom.id)
         const nextUsage = seatBases.reduce((total, item) => {
           total.turns += item.base.usage.turns ?? 0
           total.costMicroUsd += item.base.usage.costMicroUsd ?? 0
@@ -46,6 +47,8 @@ export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) =
           current.busy = busySeats.length > 0
           current.busySeat = busySeats[0] ?? ''
           current.busySeats = busySeats
+          current.chatHolds = chatBase?.holds ?? {}
+          current.chatUnread = chatBase?.unread === true
           current.usage = { ...current.usage, ...nextUsage }
           return { events: [] }
         })

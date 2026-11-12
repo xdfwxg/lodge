@@ -46,6 +46,11 @@ export const createSeatRemove = ({ store, engine, live, emit, roomFiles, workspa
     })
     if (updated === null) return fail('not_found', '房间不在了')
     roomFiles.writeGoal(updated)
+    try {
+      await live.syncChatMembers?.(updated)
+    } catch (error) {
+      appendMessage(room.id, { kind: 'system', text: `席位已移除，但聊天群成员同步失败：${error?.message ?? error}` })
+    }
     appendMessage(room.id, { kind: 'system', text: `已移除席位：${spec.name}` })
     emit('room', updated)
     return ok({ room: updated })

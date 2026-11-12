@@ -61,7 +61,8 @@ export const islandStatus = room => {
   if (room.state === 'complete') return { label: '目标达成', tone: 'done' }
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
   if (room.state === 'paused') {
-    return ['idle', 'budget', 'mcp', 'approval'].includes(room.needsYou?.kind)
+    if (room.needsYou?.kind === 'idle') return { label: '已暂停 · 等你说话', tone: 'paused' }
+    return ['budget', 'mcp', 'approval'].includes(room.needsYou?.kind)
       ? { label: room.needsYou.label, tone: 'paused' }
       : { label: '已暂停', tone: 'paused' }
   }

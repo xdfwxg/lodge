@@ -307,19 +307,18 @@ function NewRoomDialog({
         h('b', null, '工作空间'),
         h('span', { className: 'crew-field-hint' }, resume === null ? '可选' : '必填')),
       h('div', { className: 'crew-path-row' },
-        h('input', {
-          className: 'crew-goal-input',
-          type: 'text',
-          value: repoPath,
-          placeholder: resume === null ? '选择项目目录，或粘贴路径' : '上一轮交付所在的项目目录',
-          onChange: event => changeRepoPath(event.target.value),
-          onBlur: () => void loadConstraints(),
-        }),
         h('button', {
           type: 'button',
-          className: 'crew-ghost',
+          className: 'crew-path-picker',
+          title: repoPath === '' ? '选择项目目录' : repoPath,
           onClick: () => void chooseDirectory(),
-        }, '选择目录')),
+        },
+        h('span', {
+          className: 'crew-path-picker-value',
+          'data-empty': repoPath === '' ? 'true' : undefined,
+        }, repoPath === ''
+          ? resume === null ? '选择项目目录' : '上一轮交付所在的项目目录'
+          : repoPath))),
       h('p', { className: 'crew-field-hint' },
         resume === null
           ? '不选也可以，Lodge 会新建空工作区；选真实项目时，验收命令要能在里面跑。'

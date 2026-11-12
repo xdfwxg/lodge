@@ -18,8 +18,25 @@ function CodeBlock({ children, labels }) {
     h('pre', { ref: block }, children))
 }
 
+const MENTION = /(@[A-Za-z0-9_\-一-龥]+)/g
+
+const mentionParts = (text, prefix) => {
+  if (!text.includes('@')) return [text]
+  return text.split(MENTION).map((part, index) => (
+    part.startsWith('@') && part.length > 1
+      ? h('span', { key: `${prefix}-${index}`, className: 'crew-mention' }, part)
+      : part
+  ))
+}
+
+const withMentions = children => (Array.isArray(children) ? children : [children]).flatMap((child, index) => (
+  typeof child === 'string' ? mentionParts(child, `mention-${index}`) : [child]
+))
+
 const elements = labels => ({
   pre: ({ children }) => h(CodeBlock, { labels }, children),
+  p: ({ children }) => h('p', null, withMentions(children)),
+  li: ({ children }) => h('li', null, withMentions(children)),
 })
 
 export function MarkdownText({ text, labels, variant }) {

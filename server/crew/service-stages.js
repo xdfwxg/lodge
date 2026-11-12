@@ -170,6 +170,8 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
 
   const setAcceptance = (room, index, command) => {
     let rejection = null
+    let previous = ''
+    let changed = false
     const updated = updateRoom(room.id, current => {
       const stage = current.stages[index]
       const invalid = acceptanceChangeError(stage, command)
@@ -177,7 +179,9 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
         rejection = invalid
         return null
       }
+      previous = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
       const trimmed = command.trim()
+      changed = trimmed !== previous
       if (trimmed === '') delete stage.acceptance
       else stage.acceptance = trimmed
       return { events: [{ type: 'stage.acceptance', payload: { stage: index, command: stage.acceptance ?? '' } }] }
@@ -194,6 +198,11 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
         ? `阶段 ${index + 1} 的验收命令已清空`
         : `阶段 ${index + 1} 的验收命令：\`${trimmed}\``,
     })
+    if (changed && trimmed !== '' && room.live === true && room.stages[index]?.state === 'active' && typeof live.isAttached === 'function' && live.isAttached(room.id) === true && typeof live.resume === 'function') {
+      void live.resume(room.id, { forceAcceptance: true }).catch(error => {
+        appendMessage(room.id, { kind: 'system', text: `验收命令已更新，但重新执行失败：${error?.message ?? error}` })
+      })
+    }
     return ok({ room, message })
   }
 
