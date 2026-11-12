@@ -1,4 +1,4 @@
-# solo-cli
+# small-cli
 
 Small command-line tool. Tests run with `npm test` (Node's built-in test runner).
 

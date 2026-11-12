@@ -6,17 +6,21 @@ const result = proposal => ({ ok: true, body: { proposal } })
 const good = {
   done: ['`node --test` 通过', '`--verbose` 输出每步耗时'],
   questions: [{ text: '耗时写到 stderr 还是 stdout？', recommendation: 'stderr' }],
-  seats: [{ role: 'worker', name: '执行', reason: '小改动' }],
+  seats: [
+    { role: 'lead', name: '规划师', reason: '对齐目标' },
+    { role: 'worker', name: '执行者', reason: '实现与跑测试' },
+    { role: 'verifier', name: '验收员', reason: '独立复核' },
+  ],
   verify: 'test',
   acceptance: 'node --test',
-  why: '单人足够',
+  why: '固定三人小队分工',
 }
 
-test('a concrete solo opening card passes the rubric', () => {
+test('a concrete three-seat opening card passes the rubric', () => {
   const report = evaluateProposal(result(good), {
-    minSeats: 1,
-    maxSeats: 2,
-    maxVerifiers: 0,
+    minSeats: 3,
+    maxSeats: 3,
+    maxVerifiers: 1,
     maxQuestions: 2,
     requireTest: true,
     doneKeywords: ['测试', '耗时'],
@@ -38,10 +42,10 @@ test('a mechanism question and missing acceptance fail the rubric', () => {
   assert.equal(report.failures.some(item => item.id === 'question-no-mechanism'), true)
 })
 
-test('a negative why does not claim a missing verifier', () => {
+test('a fixed-team why does not claim a missing verifier', () => {
   const report = evaluateProposal(result({
     ...good,
-    why: '单人足够，无需加一个独立验收',
+    why: '固定三人分工，验收席位独立复核',
   }), {})
   assert.equal(report.failures.some(item => item.id === 'why-verifier'), false)
 })

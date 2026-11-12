@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createCrewPorts } from '../../server/crew/crew-ports.js'
 import { evaluateProposal } from '../../server/crew/planning-eval.js'
 import { recommendRoster } from '../../server/crew/roster-recommend.js'
 import { createEngine } from '../../server/engine.js'
@@ -27,6 +28,7 @@ if (cases.length === 0) {
 
 const git = (cwd, argv) => execFileSync('git', argv, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
 const engine = createEngine()
+const ports = createCrewPorts()
 const health = await engine.health()
 if (health.ok !== true) {
   console.error(`基座未连接：${health.error ?? '先启动 8799'}`)
@@ -50,7 +52,7 @@ for (const testCase of cases) {
       git(repo, ['-c', 'user.name=Crew Eval', '-c', 'user.email=crew@localhost', 'commit', '-q', '-m', 'fixture'])
       let result
       try {
-        result = await recommendRoster({ engine, body: { goal: testCase.goal, repoPath: repo } })
+        result = await recommendRoster({ engine, body: { goal: testCase.goal, repoPath: repo }, workspace: ports.workspace })
       } catch (error) {
         result = { ok: false, error: String(error?.message ?? error) }
       }

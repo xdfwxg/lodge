@@ -1,5 +1,5 @@
 {
-  "name": "solo-cli",
+  "name": "small-cli",
   "private": true,
   "type": "module",
   "scripts": {

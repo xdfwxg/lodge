@@ -29,15 +29,11 @@ export function App() {
   const dialogNode = h(NewRoomDialog, {
     open: dialog,
     onClose: closeDialog,
-    templates: state.templates ?? [],
     roomTypes: state.roomTypes ?? [],
-    savedTemplates: state.savedTemplates ?? [],
-    onSaveTemplate: (filename, text) => store.saveTemplate(filename, text),
     resume,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
     onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
     onProjectConstraints: repoPath => store.loadProjectConstraints(repoPath),
-    onParseTemplate: (filename, text) => store.parseTemplate(filename, text),
   })
 
   if (state.rooms.length === 0) {

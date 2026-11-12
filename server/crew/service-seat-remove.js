@@ -41,7 +41,7 @@ export const createSeatRemove = ({ store, engine, live, emit, roomFiles, workspa
         Array.isArray(stage.tasks) ? { ...stage, tasks: stage.tasks.filter(task => task.owner !== seatId) } : stage
       ))
       if ((current.verifiers ?? []).length === 0) {
-        current.independence = (current.workers ?? []).length === 1 ? 'solo' : 'human'
+        current.independence = 'human'
       }
       return { events: [{ type: 'room.seat_removed', payload: { seat: seatId, role: spec.role } }] }
     })

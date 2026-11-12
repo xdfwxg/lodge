@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import { money, countOf, timeOf, workspaceOf, seatPermissionOf } from '../view-format.js'
 
 function StageEditRow({ stage, index, store }) {
@@ -60,8 +60,6 @@ function Advanced({ room, seats, store, engines = [] }) {
   const percent = budget === 0 ? 0 : Math.min(100, Math.round((cost / budget) * 100))
   const availableEngines = engines.filter(item => item.available)
   const [budgetDraft, setBudgetDraft] = useState(String(budget / 1_000_000))
-  const [seatRole, setSeatRole] = useState('worker')
-  const [seatName, setSeatName] = useState('')
   const [stageTitle, setStageTitle] = useState('')
   const [stageKind, setStageKind] = useState('deliverable')
   const [stageAcceptance, setStageAcceptance] = useState('')
@@ -163,30 +161,6 @@ function Advanced({ room, seats, store, engines = [] }) {
               setStageAcceptance('')
             },
           }, '添加阶段'))),
-    room.imported === true || room.demo === true || (room.state !== 'active' && room.state !== 'paused')
-      ? null
-      : h('div', { className: 'crew-budget-edit crew-seat-add' },
-        h('span', null, '建后加席位'),
-        h('select', {
-          value: seatRole,
-          onChange: event => setSeatRole(event.target.value),
-        },
-        h('option', { value: 'worker' }, '执行'),
-        h('option', { value: 'verifier' }, '验收')),
-        h('input', {
-          type: 'text',
-          value: seatName,
-          placeholder: '席位名字（可空）',
-          onChange: event => setSeatName(event.target.value),
-        }),
-        h('button', {
-          type: 'button',
-          className: 'crew-choice',
-          onClick: () => {
-            void store.addSeat(seatRole, seatName.trim())
-            setSeatName('')
-          },
-        }, '添加')),
     h('div', { className: 'crew-budget-edit' },
       room.imported === true
         ? h('span', null, '这是导入的只读交接记录；用「基于此记录续做」开一个新房间。')
@@ -196,29 +170,12 @@ function Advanced({ room, seats, store, engines = [] }) {
         : h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
     h('table', { className: 'crew-adv-table' },
       h('thead', null, h('tr', null,
-        ['席位', '引擎', '权限', '发言预算', ''].map((label, index) => h('th', { key: `${label}-${index}` }, label)))),
+        ['席位', '引擎', '权限', '发言预算'].map((label, index) => h('th', { key: `${label}-${index}` }, label)))),
       h('tbody', null, seats.map(seat => h('tr', { key: seat.id },
         h('td', null, seat.name),
         h('td', null, h('code', null, room.engines?.[seat.id] ?? seat.engine)),
         h('td', null, seatPermissionOf(room, seat)),
-        h('td', null, `${seat.speakBudget} 次/回合`),
-        h('td', null,
-          room.imported !== true && room.demo !== true &&
-          (seat.role === 'worker' || seat.role === 'verifier') &&
-          !(seat.role === 'worker' && room.workers?.[0] === seat.id)
-            ? h(Fragment, null,
-              h('button', {
-                type: 'button',
-                className: 'crew-ghost',
-                disabled: room.state !== 'paused',
-                onClick: () => void store.changeSeatRole(seat.id, seat.role === 'worker' ? 'verifier' : 'worker'),
-              }, seat.role === 'worker' ? '转验收' : '转执行'),
-              h('button', {
-                type: 'button',
-                className: 'crew-ghost',
-                onClick: () => void store.removeSeat(seat.id),
-              }, '移除'))
-            : null))))))
+        h('td', null, `${seat.speakBudget} 次/回合`))))))
 }
 
 const FAILURE_KIND = { rework: '返工', command: '命令失败', system: '系统' }

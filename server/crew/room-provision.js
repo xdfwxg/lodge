@@ -66,7 +66,7 @@ export const createProvisioner = ({ engine }) => {
       .filter(({ seat }) => seat.role === 'verifier')
       .map(({ seatRef }) => seatRef.engine)
     const independence = verifiers.length === 0
-      ? (roster.length === 1 ? 'solo' : 'human')
+      ? 'human'
       : verifierEngines.length > 0 && verifierEngines.every(id => (
         [...workerEngines].every(workerId => engineKind(workerId) !== engineKind(id))
       ))

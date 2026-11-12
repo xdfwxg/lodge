@@ -242,7 +242,7 @@ function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance
 
   return [
     ...room.messages.map(message => {
-      const seat = byId[message.authorId] ?? (message.authorId === 'system' ? { name: '运行时', title: '验收' } : undefined)
+      const seat = byId[message.authorId] ?? (message.authorId === 'system' ? { name: '运行时', title: '验收员' } : undefined)
       if (message.kind === 'system') return h('div', { key: message.id, className: 'crew-system' }, message.text)
       if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })
       if (message.kind === 'evidence') return h(EvidenceCard, { key: message.id, message, seat })

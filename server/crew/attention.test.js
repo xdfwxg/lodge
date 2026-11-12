@@ -125,7 +125,7 @@ test('a room-level merge conflict outlives the dispatch record', () => {
   assert.deepEqual(roomNeedsYou(r, []), { kind: 'merge', stage: 1, label: '合并冲突 · 等你处理' })
 })
 
-test('a solo room with no verifier waits for sign-off after evidence', () => {
+test('a room with no verifier waits for sign-off after evidence', () => {
   const r = atDeliverable()
   r.verifiers = []
   assert.equal(roomNeedsYou(r, [evidence()]).kind, 'signoff')

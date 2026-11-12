@@ -1,11 +1,11 @@
 {
-  "id": "solo-cli",
+  "id": "small-cli",
   "goal": "给 CLI 加 --verbose，输出每一步的耗时",
-  "fixture": "solo-cli",
+  "fixture": "small-cli",
   "expect": {
-    "minSeats": 1,
-    "maxSeats": 2,
-    "maxVerifiers": 0,
+    "minSeats": 3,
+    "maxSeats": 3,
+    "maxVerifiers": 1,
     "maxQuestions": 2,
     "requireTest": true,
     "doneKeywords": ["测试", "耗时", "verbose"],

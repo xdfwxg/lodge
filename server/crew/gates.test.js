@@ -161,19 +161,19 @@ test('a stale manual evidence does not survive a newer turn', () => {
   assert.equal(gateFor(r, 1, [manual, turn, fresh]).ok, true)
 })
 
-test('a solo room without verifiers is signed off by the human on evidence', () => {
+test('a room without verifiers is signed off by the human on evidence', () => {
   const gate = gateFor(room({ verifiers: [] }), 1, [evidence()])
   assert.equal(gate.ok, true)
   assert.equal(gate.stage.title, 'impl')
 })
 
-test('a solo room still needs evidence before sign-off', () => {
+test('a room without verifiers still needs evidence before sign-off', () => {
   const gate = gateFor(room({ verifiers: [] }), 1, [])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /证据/)
 })
 
-test('a solo room with a REJECT must rework', () => {
+test('a room without verifiers with a REJECT must rework', () => {
   const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10), verdict(1, 11, false)])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /返工/)

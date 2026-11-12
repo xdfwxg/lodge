@@ -79,7 +79,7 @@ export const buildRoomRecord = ({
       ? `${roleLabel(lead)} 只读/规划；${workers.map(roleLabel).join('、')} 在自己的 worktree${verifiers.length > 0 ? `；${verifiers.map(roleLabel).join('、')} 在一次性副本` : ''}`
       : `${workers.map(roleLabel).join('、')} 在自己的 worktree`,
     ...(verifiers.length === 0
-      ? [`${roster.length === 1 ? '单人模板' : '这个房间'}没有独立验收席位，由你凭证据签字`]
+      ? ['这个房间没有独立验收席位，由你凭证据签字']
       : [independence === 'vendor'
         ? '执行与验收已绑定不同厂商；验收席位走盲审，不共享执行对话'
         : '当前只有同一厂商引擎可用：验收卡会标「独立性降级」']),

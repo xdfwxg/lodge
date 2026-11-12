@@ -74,4 +74,4 @@ server/index.js（唯一组合根）
 - `server/crew/boundary.test.js`：crew 不出现基座字段；git 只在 workspace provider 与默认根探测。
 - `ui/src/architecture.test.js`：UI 传输只在 `store.js` / `system.js`；视图不 import store。
 - 当前依赖图：110 个非测试模块、185 条内部依赖、0 个循环。
-- 测试：259 项通过。
+- 测试：260 项通过。

@@ -1,20 +1,23 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parseProposal } from './roster-recommend.js'
+import { parseProposal, recommendRoster } from './roster-recommend.js'
 
 const reply = body => `这是队长的方案：\n\n\`\`\`json\n${JSON.stringify({ done: ['完成条件'], ...body })}\n\`\`\`\n`
 
-test('a small goal can be a one-seat room with one card', () => {
+test('the fixed three-seat squad keeps names and reasons in the card', () => {
   const proposal = parseProposal(reply({
     done: ['hello.txt 内容为 crew ok'],
     questions: [{ text: '文件放在根目录吗？', recommendation: '放根目录' }],
-    seats: [{ role: 'worker', name: '执行', reason: '一个人能完成' }],
+    seats: [
+      { role: 'lead', name: '规划师', reason: '对齐目标' },
+      { role: 'worker', name: '执行者', reason: '实现与跑测试' },
+      { role: 'verifier', name: '验收员', reason: '独立复核' },
+    ],
     verify: 'test',
     acceptance: 'npm test',
-    why: '小改动，单人交付',
+    why: '固定三人小队分工',
   }))
-  assert.equal(proposal.seats.length, 1)
-  assert.equal(proposal.seats[0].role, 'worker')
+  assert.deepEqual(proposal.seats.map(seat => seat.role), ['lead', 'worker', 'verifier'])
   assert.deepEqual(proposal.done, ['hello.txt 内容为 crew ok'])
   assert.equal(proposal.questions.length, 1)
   assert.equal(proposal.questions[0].recommendation, '放根目录')
@@ -151,4 +154,44 @@ test('a proposal can carry up to three planned stages', () => {
   }))
   assert.deepEqual(proposal.stages.map(stage => stage.title), ['实现', '回归'])
   assert.equal(proposal.stages[1].acceptance, 'npm run e2e')
+})
+
+test('recommendRoster uses the injected workspace port for its temporary room', async () => {
+  const removed = []
+  let cleaned = 0
+  const proposalReply = reply({
+    seats: [
+      { role: 'lead', name: '规划师', reason: '对齐目标' },
+      { role: 'worker', name: '执行者', reason: '实现与跑测试' },
+      { role: 'verifier', name: '验收员', reason: '独立复核' },
+    ],
+    verify: 'test',
+    acceptance: 'npm test',
+    why: '固定三人小队分工',
+  })
+  const engine = {
+    capabilities: () => ({ provisioning: true }),
+    health: async () => ({ ok: true }),
+    createSeatBot: async () => ({ id: 'bot-1' }),
+    createRoom: async () => ({ id: 'probe-1', sessionRef: 'thread-1' }),
+    sendTurn: async () => ({ accepted: true }),
+    history: async () => ({ messages: [{ kind: 'turn', turn: { reply: proposalReply } }] }),
+    cancelTurn: async () => {},
+    deleteRoom: async () => {},
+    deleteSeatBot: async () => {},
+  }
+  const provider = {
+    prepareRoom: ({ source, seats }) => ({ seats: { [seats[0].id]: { path: source } } }),
+    cleanupRoom: () => { cleaned += 1 },
+  }
+  const workspace = {
+    root: () => '/tmp/crew-roster-test',
+    default: provider,
+    remove: source => removed.push(source),
+  }
+  const result = await recommendRoster({ engine, body: { goal: '小改动', repoPath: '' }, workspace })
+  assert.equal(result.ok, true, JSON.stringify(result))
+  assert.equal(result.body.proposal.seats.length, 3)
+  assert.equal(cleaned, 1)
+  assert.equal(removed.length, 1)
 })

@@ -78,7 +78,7 @@ export const gateFor = (room, index, messages) => {
     if (!isCommandEvidence(phaseEvidence.at(-1))) {
       return deny('conflict', '还没有通过验收命令的证据（exit 0），不能签字')
     }
-    // 只有显式声明了“没有验收席位”的单人模板才允许直接由人签字；未知席位表仍按有 verifier 处理。
+    // 只有显式声明了“没有验收席位”的扩展编制才允许直接由人签字；未知席位表仍按有 verifier 处理。
     const hasVerifier = !(Array.isArray(room.verifiers) && room.verifiers.length === 0)
     if (room.demo === true || hasVerifier) {
       return deny('conflict', room.demo === true ? '还没有本阶段的 验收 PASS，不能验收' : '还没有验收席位的 PASS，不能签字')

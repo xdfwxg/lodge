@@ -5,11 +5,11 @@ import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
 
 const MAX_GOAL = 2000
 const RECOMMEND_TIMEOUT = 90_000
-const ROLE_LABEL = { lead: '队长', worker: '执行', verifier: '验收' }
+const ROLE_LABEL = { lead: '规划师', worker: '执行者', verifier: '验收员' }
 const ROLE_ALIASES = new Map([
-  ['lead', 'lead'], ['leader', 'lead'], ['planner', 'lead'], ['planning', 'lead'], ['队长', 'lead'], ['规划', 'lead'], ['负责人', 'lead'], ['规划者', 'lead'], ['主控', 'lead'],
+  ['lead', 'lead'], ['leader', 'lead'], ['planner', 'lead'], ['planning', 'lead'], ['队长', 'lead'], ['规划', 'lead'], ['负责人', 'lead'], ['规划者', 'lead'], ['规划师', 'lead'], ['主控', 'lead'],
   ['worker', 'worker'], ['executor', 'worker'], ['implementer', 'worker'], ['developer', 'worker'], ['engineer', 'worker'], ['执行', 'worker'], ['执行者', 'worker'], ['开发', 'worker'], ['开发者', 'worker'], ['工程师', 'worker'], ['实现', 'worker'],
-  ['verifier', 'verifier'], ['reviewer', 'verifier'], ['review', 'verifier'], ['qa', 'verifier'], ['tester', 'verifier'], ['验收', 'verifier'], ['验收者', 'verifier'], ['复核', 'verifier'], ['复核者', 'verifier'], ['评审', 'verifier'], ['审查', 'verifier'],
+  ['verifier', 'verifier'], ['reviewer', 'verifier'], ['review', 'verifier'], ['qa', 'verifier'], ['tester', 'verifier'], ['验收', 'verifier'], ['验收者', 'verifier'], ['验收员', 'verifier'], ['复核', 'verifier'], ['复核者', 'verifier'], ['评审', 'verifier'], ['审查', 'verifier'],
 ])
 const normalizeRole = role => {
   if (typeof role !== 'string') return null
@@ -17,17 +17,16 @@ const normalizeRole = role => {
   return ROLE_ALIASES.get(raw) ?? ROLE_ALIASES.get(raw.toLowerCase()) ?? null
 }
 
-// 编队是语义判断，归队长：先看目标与仓库事实，再决定需要几个席位。
+// 编队是语义判断，归规划师：先看目标与仓库事实，再决定需要几个席位。
 const recommendationPrompt = (goal, repoPath) => [
-  '你是队长。现在只做编队判断：不写代码、不改文件、不建群。',
+  '你是规划师。现在只做编队判断：不写代码、不改文件、不建群。',
   `目标：${goal}`,
   `工作目录（只读副本）：${repoPath}`,
-  '先看仓库事实（README、package.json、测试命令、目录结构），再判断这件事需要几个席位：',
-  '- 一个人能完成的小改动 → 只给一个执行席位（单人房）。不要为了凑人数加席位。',
-  '- 只有需要独立验收时才加验收席位。',
-  '- 只有工作能明确拆给多人并行时才加多个执行席位。',
-  '- 至少一个执行；最多一个队长；验收可多个（每个独立复核，全部 PASS 才签字）；总席位 1–8。',
+  '先看仓库事实（README、package.json、测试命令、目录结构），但小队固定为三人：规划师、执行者、验收员。',
+  '- seats 固定输出三个：一个 lead、一个 worker、一个 verifier。不要增加、减少或改成单人房。',
   '- seats[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
+  '- 名字用「规划师」「执行者」「验收员」；reason 说明各席位负责什么。',
+  '- why 只说明这三人如何分工，不要再讨论人数增减。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
@@ -42,7 +41,9 @@ const recommendationPrompt = (goal, repoPath) => [
   '    {"text": "真正要人拍板的问题", "recommendation": "推荐答案"}',
   '  ],',
   '  "seats": [',
-  '    {"role": "worker", "name": "执行", "reason": "为什么需要这个席位"}',
+  '    {"role": "lead", "name": "规划师", "reason": "对齐目标与阶段"},',
+  '    {"role": "worker", "name": "执行者", "reason": "实现与跑测试"},',
+  '    {"role": "verifier", "name": "验收员", "reason": "独立复核证据"}',
   '  ],',
   '  "stages": [',
   '    {"title": "实现", "kind": "deliverable", "acceptance": "npm test"}',
@@ -87,12 +88,12 @@ const extractJsonBlock = reply => {
 // 模型只给语义建议；权限、席位上限与验收方式仍在这里由业务规则校验。
 export const parseProposal = reply => {
   const json = extractJsonBlock(reply)
-  if (json === null) throw new Error('队长没有给出可解析的编制建议')
+  if (json === null) throw new Error('规划师没有给出可解析的编制建议')
   let data
   try {
     data = JSON.parse(json)
   } catch {
-    throw new Error('队长给出的编制建议不是合法 JSON')
+    throw new Error('规划师给出的编制建议不是合法 JSON')
   }
   if (data === null || typeof data !== 'object' || !Array.isArray(data.seats)) {
     throw new Error('开工方案缺少 seats')
@@ -157,9 +158,9 @@ export const parseProposal = reply => {
     throw new Error('有验收席位时需要可执行验收命令；去掉验收席位或补一条命令')
   }
   const notes = [
-    data.verify === 'test' && rawAcceptance === '' ? '队长没有给出可执行命令，验收改为你确认' : '',
-    tooManyQuestions ? '队长给了超过 3 个问题，只保留前 3 个' : '',
-    tooManyDone ? '队长给了超过 6 条 done，只保留前 6 条' : '',
+    data.verify === 'test' && rawAcceptance === '' ? '规划师没有给出可执行命令，验收改为你确认' : '',
+    tooManyQuestions ? '规划师给了超过 3 个问题，只保留前 3 个' : '',
+    tooManyDone ? '规划师给了超过 6 条 done，只保留前 6 条' : '',
   ].filter(Boolean)
   return {
     done,
@@ -201,13 +202,13 @@ const waitForTurn = async ({ engine, sessionRef }) => {
     const failed = [...messages].reverse().find(message => (
       message.kind === 'activity' && message.meta?.ok === false
     ))
-    if (failed !== undefined) throw new Error(`队长回合失败：${failed.text}`)
+    if (failed !== undefined) throw new Error(`规划师回合失败：${failed.text}`)
     await new Promise(resolve => setTimeout(resolve, 1_000))
   }
-  throw new Error('队长在 90 秒内没有给出编制建议')
+  throw new Error('规划师在 90 秒内没有给出编制建议')
 }
 
-export const recommendRoster = async ({ engine, body, ports }) => {
+export const recommendRoster = async ({ engine, body, workspace }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > MAX_GOAL) return fail('invalid', '目标不能为空，且不超过 2000 字')
   if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持编队建议')
@@ -217,18 +218,18 @@ export const recommendRoster = async ({ engine, body, ports }) => {
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
   const generatedRepo = requestedRepo === ''
   const short = randomUUID().slice(0, 6)
-  const sourceRepo = generatedRepo ? join(ports.workspace.root(), `roster-${short}`) : resolve(requestedRepo)
-  let workspace = ports.workspace.default
+  const sourceRepo = generatedRepo ? join(workspace.root(), `roster-${short}`) : resolve(requestedRepo)
+  let provider = workspace.default
   if (!generatedRepo) {
-    if (!ports.workspace.exists(sourceRepo)) return fail('invalid', '工作目录不存在')
+    if (!workspace.exists(sourceRepo)) return fail('invalid', '工作目录不存在')
     // 建议是只读的；不在用户目录里 git init 或写文件。
-    if (!ports.workspace.default.probeSource({ source: sourceRepo }).ok) {
-      workspace = ports.workspace.byId('direct')
-      const probe = workspace.probeSource({ source: sourceRepo })
+    if (!workspace.default.probeSource({ source: sourceRepo }).ok) {
+      provider = workspace.byId('direct')
+      const probe = provider.probeSource({ source: sourceRepo })
       if (!probe.ok) return fail('invalid', probe.error)
     }
   }
-  const advisor = rosterFromRoles([{ role: 'lead', name: '队长' }])[0]
+  const advisor = rosterFromRoles([{ role: 'lead', name: '规划师' }])[0]
   const prompt = recommendationPrompt(goal, sourceRepo)
   advisor.prompt = prompt
   // 只读克隆是一次性工作区；不弹审批，避免读仓库时卡在 permission 卡上。
@@ -238,7 +239,7 @@ export const recommendRoster = async ({ engine, body, ports }) => {
   let advisorRef = null
   let probeRoom = null
   try {
-    workspaces = workspace.prepareRoom({ source: sourceRepo, short, seats: [advisor] })
+    workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: [advisor] })
     advisorRef = await engine.createSeatBot({
       name: `Advisor${short}`,
       soul: advisor.prompt,
@@ -273,8 +274,8 @@ export const recommendRoster = async ({ engine, body, ports }) => {
     }
     if (advisorRef !== null) await engine.deleteSeatBot(advisorRef.id)
     try {
-      if (workspaces !== null) workspace.cleanupRoom({ source: sourceRepo, workspaces })
+      if (workspaces !== null) provider.cleanupRoom({ source: sourceRepo, workspaces })
     } catch {}
-    if (generatedRepo) ports.workspace.remove(sourceRepo)
+    if (generatedRepo) workspace.remove(sourceRepo)
   }
 }

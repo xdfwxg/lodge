@@ -2,10 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { independenceLabel, suggestFor } from './digest.js'
 
-test('a solo room is signed off by the human, not labelled as degraded', () => {
-  assert.equal(independenceLabel({ independence: 'solo' }), '单人 · 人签字')
-})
-
 test('the dispatch has no suggestion without rooms', () => {
   assert.equal(suggestFor('fix login', []), null)
 })

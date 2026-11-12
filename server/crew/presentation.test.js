@@ -9,13 +9,13 @@ test('room events and state share one projected status and independence label', 
     busy: false,
     verifiers: [],
     openQuestion: null,
-    independence: 'solo',
+    independence: 'human',
     stages: [{ title: 'docs', kind: 'decision', state: 'active' }],
   }
   const presented = presentRoom(room, [])
   assert.deepEqual(presented.needsYou, { kind: 'decision', stage: 0, label: '等你确认' })
-  assert.equal(presented.independenceLabel, '单人 · 人签字')
-  assert.match(presented.independencePolicy, /单人/)
+  assert.equal(presented.independenceLabel, '人签字验收（无独立复核）')
+  assert.match(presented.independencePolicy, /无独立验收/)
   assert.deepEqual(presented.capabilities, { dispatch: false })
   assert.equal(presented.parentRoomId, null)
   assert.deepEqual(presented.childRoomIds, [])

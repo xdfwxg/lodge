@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { roleSeats, rosterFromRoles, SEATS, seatsFor, validateSeats } from './seats.js'
+import { resolveSeats } from './room-create-input.js'
+import { resolveRoomType } from './room-types/index.js'
+import { roleSeats, rosterFromRoles, SEATS, seatsFor, TEMPLATES, validateSeats } from './seats.js'
 
 test('the default roster satisfies the capability contract', () => {
   assert.doesNotThrow(() => validateSeats(SEATS))
@@ -62,12 +64,18 @@ test('full approval is not allowed', () => {
   assert.throws(() => validateSeats(bad), /approval/)
 })
 
-test('the solo template is a one-seat roster', () => {
-  const solo = seatsFor('solo')
-  assert.equal(solo.length, 1)
-  assert.equal(roleSeats(solo).workers.length, 1)
-  assert.equal(roleSeats(solo).verifiers.length, 0)
-  assert.doesNotThrow(() => validateSeats(solo))
+test('the product default is the fixed three-seat squad', () => {
+  const roster = seatsFor()
+  assert.deepEqual(roster.map(seat => seat.role), ['lead', 'worker', 'verifier'])
+  assert.deepEqual(roster.map(seat => seat.name), ['规划师', '执行者', '验收员'])
+  assert.equal(TEMPLATES.solo, undefined)
+  assert.doesNotThrow(() => validateSeats(roster))
+})
+
+test('a task room with no explicit seats resolves to the fixed triad', () => {
+  const seats = resolveSeats({}, resolveRoomType('task'))
+  assert.equal(seats.templateId, 'delivery-triad')
+  assert.deepEqual(seats.roster.map(seat => seat.role), ['lead', 'worker', 'verifier'])
 })
 
 test('a roster without a worker fails closed', () => {
@@ -83,7 +91,7 @@ test('a custom roster is composed from roles, not fixed at three', () => {
   assert.equal(roster.length, 2)
   assert.deepEqual(roster.map(seat => seat.role), ['worker', 'verifier'])
   assert.equal(roster[0].name, '前端')
-  assert.equal(roster[1].name, '验收')
+  assert.equal(roster[1].name, '验收员')
   assert.doesNotThrow(() => validateSeats(roster))
   const { workers, verifiers, lead } = roleSeats(roster)
   assert.equal(workers[0].id, 'worker')
