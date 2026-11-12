@@ -3,6 +3,7 @@ import { simulateRoom } from './demo.js'
 import { createDispatchService } from './dispatch-service.js'
 import { createRealRoom } from './room-create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
+import { createRoomCompleter } from './room-complete.js'
 import { createServiceDelivery } from './service-delivery.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceRunControl } from './service-run-control.js'
@@ -21,7 +22,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   const templates = createServiceTemplates({ dataDir })
   const delivery = createServiceDelivery({ store, dataDir, emit, dispatchPayload })
   const seatActions = createServiceSeats({ store, engine, live, emit })
-  const stages = createServiceStages({ store, live, emit, dispatchPayload })
+  const completeRoom = createRoomCompleter({ store, emit }).completeRoom
+  const stages = createServiceStages({ store, live, emit, dispatchPayload, completeRoom })
   const runControl = createServiceRunControl({ store, live, emit, dispatchPayload })
 
   const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body })
