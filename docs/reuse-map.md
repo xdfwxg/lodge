@@ -230,6 +230,7 @@ openmausbot/                  # 上游 OSS，保留 remote
 - **验收命令文件系统边界（2026-11-12）**：macOS `sandbox-exec` 除了 `deny network*`，还 `deny file-write*` 并只放行验收副本、TMPDIR、/tmp 与常见缓存目录；Linux 有 bwrap 时用只读根 + 可写副本目录，没有 bwrap 则退回 unshare 网络隔离并明确 `fs:none`；Windows 走 WSL bubblewrap。worker 自己的 exec 仍不受这层约束。
 - **交付摘要导出/导入（2026-11-12）**：`delivery-ledger.js` 从完成房间生成 `lodge.deliveries.v1` 摘要包，另一个实例可导入为本地账本，按 roomId+commit/completedAt 去重，最多 500 条；资源面板导出/导入并提供最近 10 条导入交付。它是文件交换，不是自动同步，也不改房间真相。边界：没有后台对账、冲突合并或权限模型。
 - **模板本地保存（2026-11-12）**：`template-store.js` 把导入的模板写到 `<dataDir>/templates/<id>.json`；`/api/templates` 保存、`DELETE /api/templates/:id` 删除，状态里带 `savedTemplates`。UI 导入预览可“保存到本地”，建房对话框可直接用已保存模板。仍是本地文件，不做市场、同步或版本管理。
+- **macOS 首次启动（2026-11-12）**：Electron 依次检查 `CREW_BASE_URL`、8799、已保存设置、`LODGE_BASE_DIR`、`~/workspace/crew-chat-base`、`Resources/base`；找到基座目录但未运行时用本机 Node 启动，找不到时弹目录选择器。基座起来后检查 `/api/instances`，没有可用 CLI 时列出安装命令并让人选择继续或退出。数据写 userData，基座数据写 userData/base-data。边界：不自动安装 CLI、不修改基座；当前未签名、无自动更新。
 - **端口预检（2026-11-12）**：`workspace-ports.js` 用 `lsof` 检查端口是否已被监听；git/plain provider 分配席位端口时跳过占用端口，没有 `lsof` 时退回原分配，不假装检测成功。它降低端口碰撞，不是 OS 级网络隔离。
 - **未开始阶段编辑（2026-11-12）**：`stage-plan.js` 只允许修改 `pending` 且非“验收与结论”的阶段；可增删改标题、类型、验收命令和依赖，添加时插到系统验收段之前，移除时拒绝仍有非验收依赖的阶段并重连最终依赖。高级面板提供行内编辑、添加、移除和上下换位。分叉会议未做。
 - **Goal 三段式（2026-11-12）**：有队长的房间落“目标对齐 → 交付 → 验收与结论”三段；开工卡确认后对齐段标为已过，交付段进行中，验收段等交付通过后由人确认。没有队长的房间跳过对齐，保留“交付 → 验收与结论”。开工卡超过 3 个问题直接返回 4xx，不再静默截断；`roster-recommend` 允许多个验收席位。边界：开工卡可声明最多 3 个工作阶段（总 3–5 段），但还没有可视化阶段编辑器；自由聊天里没有强门禁；分叉会议未做。

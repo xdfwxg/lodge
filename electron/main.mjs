@@ -1,21 +1,42 @@
 import { app, BrowserWindow, Menu, dialog, shell } from 'electron'
-import { spawn } from 'node:child_process'
-import { appendFileSync, mkdirSync } from 'node:fs'
+import { execFileSync, spawn } from 'node:child_process'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 const APP_NAME = 'Lodge'
 const DEFAULT_PORT = 8787
-const BASE_URL = process.env.CREW_BASE_URL ?? 'http://127.0.0.1:8799'
+const DEFAULT_BASE_PORT = 8799
 const appRoot = app.isPackaged ? join(process.resourcesPath, 'app') : app.getAppPath()
 const dataDir = join(app.getPath('userData'), 'data')
 const logDir = join(app.getPath('userData'), 'logs')
 const logFile = join(logDir, 'server.log')
+const settingsFile = join(app.getPath('userData'), 'settings.json')
 
 let window = null
 let serverProcess = null
 let serverPort = null
+let baseProcess = null
+let baseUrl = process.env.CREW_BASE_URL ?? ''
 let quitting = false
+
+const readSettings = () => {
+  try {
+    return JSON.parse(readFileSync(settingsFile, 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+const writeSettings = next => {
+  try {
+    mkdirSync(app.getPath('userData'), { recursive: true })
+    writeFileSync(settingsFile, JSON.stringify({ ...readSettings(), ...next }, null, 2))
+  } catch (error) {
+    log(`settings write failed: ${error?.message ?? error}`)
+  }
+}
 
 const log = text => {
   try {
@@ -44,6 +65,148 @@ const waitForHealth = async (port, attempts = 80) => {
   return false
 }
 
+const isBaseUp = async url => {
+  if (typeof url !== 'string' || url === '') return false
+  try {
+    const response = await fetch(`${url.replace(/\/$/, '')}/api/instances`, { signal: AbortSignal.timeout(1_500) })
+    if (!response.ok) return false
+    const data = await response.json()
+    return Array.isArray(data?.instances)
+  } catch {
+    return false
+  }
+}
+
+const findNode = () => {
+  if (typeof process.env.LODGE_NODE === 'string' && existsSync(process.env.LODGE_NODE)) return process.env.LODGE_NODE
+  const candidates = [
+    '/usr/local/bin/node',
+    '/opt/homebrew/bin/node',
+    join(homedir(), '.local/bin/node'),
+    join(homedir(), '.nvm/current/bin/node'),
+  ]
+  for (const candidate of candidates) if (existsSync(candidate)) return candidate
+  try {
+    return execFileSync('which', ['node'], { encoding: 'utf8', timeout: 2_000 }).trim()
+  } catch {
+    return null
+  }
+}
+
+const findBaseDir = () => {
+  if (typeof process.env.LODGE_BASE_DIR === 'string' && existsSync(process.env.LODGE_BASE_DIR)) return process.env.LODGE_BASE_DIR
+  const settings = readSettings()
+  if (typeof settings.baseDir === 'string' && existsSync(settings.baseDir)) return settings.baseDir
+  const candidates = [
+    join(app.getAppPath(), '..', 'crew-chat-base'),
+    join(process.resourcesPath, 'base'),
+    join(homedir(), 'workspace', 'crew-chat-base'),
+  ]
+  for (const candidate of candidates) if (existsSync(join(candidate, 'server', 'openmausbot.ts'))) return candidate
+  return null
+}
+
+const chooseBaseDir = async () => {
+  const choice = await dialog.showMessageBox({
+    type: 'warning',
+    buttons: ['选择基座目录', '退出'],
+    defaultId: 0,
+    cancelId: 1,
+    title: 'Lodge 需要本地基座',
+    message: 'Lodge 需要 crew-chat-base 才能运行真实 CLI 回合。',
+    detail: '选择已经安装好的 crew-chat-base 目录。它负责 driver、CLI 和本地运行时；Lodge 不会修改它。',
+  })
+  if (choice.response !== 0) return null
+  const picked = await dialog.showOpenDialog({
+    title: '选择 crew-chat-base 目录',
+    properties: ['openDirectory', 'createDirectory'],
+  })
+  const dir = picked.filePaths?.[0] ?? null
+  if (dir !== null) writeSettings({ baseDir: dir })
+  return dir
+}
+
+const startBase = async dir => {
+  const node = findNode()
+  if (node === null) {
+    await dialog.showMessageBox({
+      type: 'error',
+      buttons: ['退出'],
+      message: '没有找到 Node.js',
+      detail: 'Lodge 的基座需要 Node.js 22.5 或更高版本。安装后重启 Lodge。',
+    })
+    return null
+  }
+  const port = await findPort(DEFAULT_BASE_PORT)
+  const baseData = join(app.getPath('userData'), 'base-data')
+  mkdirSync(baseData, { recursive: true })
+  const child = spawn(node, [
+    '--experimental-strip-types',
+    'server/openmausbot.ts',
+    'serve',
+    '--port', String(port),
+    '--data-dir', baseData,
+  ], {
+    cwd: dir,
+    env: { ...process.env, LODGE_BASE_DIR: dir },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  child.stdout.on('data', chunk => log(`base out: ${chunk.toString().trimEnd()}`))
+  child.stderr.on('data', chunk => log(`base err: ${chunk.toString().trimEnd()}`))
+  child.on('exit', code => {
+    log(`base exited: ${code}`)
+    if (!quitting) log('base stopped unexpectedly')
+  })
+  baseProcess = child
+  baseUrl = `http://127.0.0.1:${port}`
+  const healthy = await isBaseUp(baseUrl)
+  if (!healthy) {
+    try { child.kill('SIGTERM') } catch {}
+    baseProcess = null
+    throw new Error(`基座没有在端口 ${port} 起来。日志：${logFile}`)
+  }
+  return baseUrl
+}
+
+const ensureBase = async () => {
+  if (baseUrl !== '' && await isBaseUp(baseUrl)) return baseUrl
+  if (await isBaseUp(`http://127.0.0.1:${DEFAULT_BASE_PORT}`)) {
+    baseUrl = `http://127.0.0.1:${DEFAULT_BASE_PORT}`
+    return baseUrl
+  }
+  let dir = findBaseDir()
+  if (dir === null) dir = await chooseBaseDir()
+  if (dir === null) return null
+  return startBase(dir)
+}
+
+const checkCli = async url => {
+  try {
+    const response = await fetch(`${url}/api/instances`, { signal: AbortSignal.timeout(2_000) })
+    const data = await response.json()
+    const available = (data?.instances ?? []).filter(item => item?.snapshot?.state === 'available')
+    if (available.length > 0) return true
+    const installs = (data?.instances ?? [])
+      .filter(item => item?.install?.command?.darwin)
+      .slice(0, 3)
+      .map(item => `${item.displayName ?? item.instanceId}: ${item.install.command.darwin}`)
+    const choice = await dialog.showMessageBox({
+      type: 'warning',
+      buttons: ['继续打开界面', '退出'],
+      defaultId: 0,
+      cancelId: 1,
+      title: '没有可用的 CLI',
+      message: 'Lodge 找到了基座，但没有可用的模型 CLI。',
+      detail: installs.length > 0
+        ? `先安装并登录一个 CLI，然后重启 Lodge：\n\n${installs.join('\n')}`
+        : '请在基座里安装并登录一个 CLI，然后重启 Lodge。',
+    })
+    return choice.response === 0
+  } catch {
+    return true
+  }
+}
+
 const startServer = async () => {
   serverPort = await findPort(DEFAULT_PORT)
   const env = {
@@ -51,7 +214,7 @@ const startServer = async () => {
     ELECTRON_RUN_AS_NODE: '1',
     CREW_PORT: String(serverPort),
     CREW_DATA_DIR: dataDir,
-    CREW_BASE_URL: BASE_URL,
+    CREW_BASE_URL: baseUrl,
   }
   serverProcess = spawn(process.execPath, [join(appRoot, 'server', 'index.js')], {
     cwd: appRoot,
@@ -73,17 +236,23 @@ const startServer = async () => {
   return serverPort
 }
 
-const stopServer = () => {
-  if (serverProcess === null || serverProcess.killed) return
+const stopChild = child => {
+  if (child === null || child.killed) return
   try {
-    serverProcess.kill('SIGTERM')
+    child.kill('SIGTERM')
     setTimeout(() => {
-      if (!serverProcess.killed) serverProcess.kill('SIGKILL')
+      if (!child.killed) child.kill('SIGKILL')
     }, 2_000).unref()
   } catch (error) {
     log(`stop failed: ${error?.message ?? error}`)
   }
+}
+
+const stopServer = () => {
+  stopChild(serverProcess)
+  stopChild(baseProcess)
   serverProcess = null
+  baseProcess = null
 }
 
 const buildMenu = () => {
@@ -157,6 +326,17 @@ const boot = async () => {
   app.setName(APP_NAME)
   buildMenu()
   try {
+    const base = await ensureBase()
+    if (base === null) {
+      app.quit()
+      return
+    }
+    baseUrl = base
+    const continueOpen = await checkCli(baseUrl)
+    if (!continueOpen) {
+      app.quit()
+      return
+    }
     const port = await startServer()
     createWindow(port)
   } catch (error) {
