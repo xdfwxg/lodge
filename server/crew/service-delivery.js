@@ -1,8 +1,8 @@
 import { buildDelivery, deliveryMarkdown } from './delivery.js'
-import { buildHandoff, importHandoff } from './handoff.js'
-import { created, fail, ok } from './result.js'
+import { buildHandoff } from './handoff.js'
+import { fail, ok } from './result.js'
 
-export const createServiceDelivery = ({ store, dataDir, emit, dispatchPayload, deliveries, handoff: handoffStore, workspaceRoot }) => {
+export const createServiceDelivery = ({ store, dataDir, deliveries, handoff: handoffStore, workspaceRoot }) => {
   const { readRoom, readRooms, readMessages } = store
 
   const deliveryExport = roomId => {
@@ -39,15 +39,5 @@ export const createServiceDelivery = ({ store, dataDir, emit, dispatchPayload, d
     return ok({ bundle })
   }
 
-  const importHandoffPackage = bundle => {
-    if (typeof dataDir !== 'string' || dataDir === '') throw new Error('服务未配置 dataDir，无法导入交接包')
-    const result = importHandoff({ store, dataDir, bundle, handoffStore })
-    if (result.ok !== true) return fail(result.reason, result.error)
-    emit('room', result.room)
-    for (const message of readMessages(result.room.id)) emit('msg', message, message.seq)
-    emit('dispatch', dispatchPayload())
-    return created({ room: result.room })
-  }
-
-  return { deliveryExport, deliveriesExport, deliveriesImport, handoff, importHandoff }
+  return { deliveryExport, deliveriesExport, deliveriesImport, handoff }
 }

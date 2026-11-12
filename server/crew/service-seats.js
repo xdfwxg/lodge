@@ -11,7 +11,7 @@ export const createServiceSeats = ({ store, engine, live, emit, roomFiles, works
   const changeSeatRole = async (roomId, seatId, role) => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    if (room.imported === true || room.demo === true) return fail('conflict', '这个房间不能改角色')
+    if (room.demo === true) return fail('conflict', '这个房间不能改角色')
     if (room.state !== 'paused') return fail('conflict', '先暂停房间，再改席位角色')
     if (role !== 'worker' && role !== 'verifier') return fail('invalid', '只能改成执行或验收席位')
     const spec = (room.seatSpecs ?? []).find(seat => seat.id === seatId)

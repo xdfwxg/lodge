@@ -1,19 +1,15 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { budgetSummary } from './budget.js'
-import { buildHandoff as buildHandoffBase, HANDOFF_FORMAT, importHandoff as importHandoffBase } from './handoff.js'
+import { createCrewPorts } from './crew-ports.js'
+import { buildHandoff as buildHandoffBase, HANDOFF_FORMAT } from './handoff.js'
 import { roomDir } from './paths.js'
 import { inheritedPlan } from './room-create.js'
-import { createCrewPorts } from './crew-ports.js'
-import { createCrewService } from './service.js'
-import { createStore } from './store.js'
 
 const ports = createCrewPorts()
 const buildHandoff = room => buildHandoffBase(room, { handoffStore: ports.handoff, workspaceRoot: ports.workspace.root() })
-const importHandoff = args => importHandoffBase({ ...args, handoffStore: ports.handoff })
 
 const workspace = () => mkdtempSync(join(tmpdir(), 'lodge-handoff-'))
 
@@ -27,7 +23,7 @@ const roomWithFiles = () => {
     state: 'complete',
     stages: [{ title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' }],
     constraints: ['不改上游'],
-    seatSpecs: [{ id: 'executor', name: '执行', role: 'worker', station: '写代码', permissions: { read: true } }],
+    seatSpecs: [{ id: 'executor', name: '执行者', role: 'worker', station: '写代码', permissions: { read: true } }],
     workers: ['executor'],
     verifiers: [],
     branch: 'lodge/room-abc123',
@@ -80,64 +76,7 @@ test('a room without a transcript cannot be exported', () => {
   assert.equal(buildHandoff({ id: 'room-empty', repoPath: repo }), null)
 })
 
-test('imported handoff opens as a read-only room and keeps the transcript', () => {
-  const { room, messages } = roomWithFiles()
-  const bundle = buildHandoff(room)
-  const dataDir = workspace()
-  const store = createStore({ dataDir })
-  const result = importHandoff({ store, dataDir, bundle })
-  assert.equal(result.ok, true)
-  assert.equal(result.room.imported, true)
-  assert.equal(result.room.readOnly, true)
-  assert.equal(result.room.state, 'complete')
-  assert.match(result.room.id, /^room-import-/)
-  assert.equal(result.room.usage.costMicroUsd, 1200)
-  assert.equal(result.room.workspace.provider, 'git')
-  assert.equal(result.room.workspace.capabilities.vcs, 'git')
-  const dir = roomDir(result.room)
-  assert.equal(readFileSync(join(dir, 'BRIEF.md'), 'utf8').includes('加一个导出按钮'), true)
-  assert.equal(readFileSync(join(dir, 'evidence', 'm1.json'), 'utf8').includes('npm test'), true)
-  const stored = store.readMessages(result.room.id)
-  assert.deepEqual(stored.map(message => message.id), messages.map(message => message.id))
-  assert.deepEqual(stored.map(message => message.roomId), [result.room.id, result.room.id])
-  assert.notEqual(stored[0].seq, stored[1].seq)
-})
-
-test('importing the same package twice is refused', () => {
-  const { room } = roomWithFiles()
-  const bundle = buildHandoff(room)
-  const dataDir = workspace()
-  const store = createStore({ dataDir })
-  assert.equal(importHandoff({ store, dataDir, bundle }).ok, true)
-  const again = importHandoff({ store, dataDir, bundle })
-  assert.equal(again.ok, false)
-  assert.equal(again.reason, 'conflict')
-})
-
-test('handoff validation rejects unsafe files and broken transcripts', () => {
-  const { room } = roomWithFiles()
-  const bundle = buildHandoff(room)
-  const dataDir = workspace()
-  const store = createStore({ dataDir })
-
-  const traversal = structuredClone(bundle)
-  traversal.files['../secret.txt'] = 'x'
-  assert.equal(importHandoff({ store, dataDir, bundle: traversal }).reason, 'invalid')
-
-  const broken = structuredClone(bundle)
-  broken.files['transcript.jsonl'] = '{not json}\n'
-  assert.equal(importHandoff({ store, dataDir, bundle: broken }).reason, 'invalid')
-
-  const wrongFormat = structuredClone(bundle)
-  wrongFormat.format = 'other'
-  assert.equal(importHandoff({ store, dataDir, bundle: wrongFormat }).reason, 'invalid')
-
-  const duplicate = structuredClone(bundle)
-  duplicate.files['transcript.jsonl'] = `${JSON.stringify({ id: 'same', kind: 'system' })}\n${JSON.stringify({ id: 'same', kind: 'system' })}\n`
-  assert.equal(importHandoff({ store, dataDir, bundle: duplicate }).reason, 'invalid')
-})
-
-test('continuing a handoff inherits the human BRIEF done items only', () => {
+test('continuing from an existing room inherits the human BRIEF done items only', () => {
   const plan = inheritedPlan({
     done: [{ done: true, text: '按钮可用' }, { done: false, text: '补测试' }],
     constraints: ['不改上游'],
@@ -145,33 +84,4 @@ test('continuing a handoff inherits the human BRIEF done items only', () => {
   assert.deepEqual(plan.done, ['按钮可用', '补测试'])
   assert.match(plan.why, /上一轮/)
   assert.equal(inheritedPlan({ done: [], constraints: [] }, '上一轮'), null)
-})
-
-test('imported handoff records do not consume the current budget', () => {
-  assert.deepEqual(budgetSummary([
-    { usage: { costMicroUsd: 500 } },
-    { imported: true, usage: { costMicroUsd: 9000 } },
-  ]).globalSpentMicroUsd, 500)
-})
-
-test('an imported handoff rejects every room action', async () => {
-  const { room } = roomWithFiles()
-  const bundle = buildHandoff(room)
-  const dataDir = workspace()
-  const store = createStore({ dataDir })
-  const imported = importHandoff({ store, dataDir, bundle }).room
-  const service = createCrewService({
-    store,
-    engine: {},
-    live: {},
-    emit: () => {},
-    dispatchPayload: () => null,
-    seats: [],
-    dataDir,
-    ports: createCrewPorts(),
-  })
-  const result = await service.roomRequest(imported.id, 'pause', { method: 'POST' })
-  assert.equal(result.ok, false)
-  assert.equal(result.reason, 'conflict')
-  assert.match(result.error, /交接记录只读/)
 })

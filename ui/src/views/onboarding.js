@@ -1,7 +1,6 @@
 import { createElement as h } from 'react'
-import { ImportButton } from '../import-button.js'
 
-export function Onboarding({ state, onCreate, onImport }) {
+export function Onboarding({ state, onCreate }) {
   return h('div', { className: 'crew-onboarding' },
     h('div', { className: 'crew-onboarding-card' },
       h('img', { className: 'crew-onboarding-logo', src: './logo.svg', alt: 'Lodge', width: 96, height: 96 }),
@@ -13,8 +12,7 @@ export function Onboarding({ state, onCreate, onImport }) {
           className: 'crew-accept',
           disabled: state.phase === 'loading' || state.phase === 'error',
           onClick: onCreate,
-        }, '创建房间'),
-        h(ImportButton, { className: 'crew-ghost', onFile: onImport }, '打开交接记录')),
+        }, '创建房间')),
       state.runtime?.ok === false ? h('p', { className: 'crew-dialog-note' }, `基座未连接：${state.runtime.error}`) : null,
       state.phase === 'error' ? h('p', { className: 'crew-dialog-note' }, `连接失败：${state.error}`) : null,
       state.error ? h('p', { className: 'crew-dialog-note' }, state.error) : null))

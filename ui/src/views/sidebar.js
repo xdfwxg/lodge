@@ -1,9 +1,8 @@
 import { createElement as h, useMemo } from 'react'
 import { RoomAvatar } from '../marks.js'
-import { ImportButton } from '../import-button.js'
 import { money } from '../view-format.js'
 
-function Sidebar({ state, onSelect, onNew, onImport }) {
+function Sidebar({ state, onSelect, onNew }) {
   const { rooms, dispatch, seats, activeId } = state
   const roster = useMemo(() => {
     const byId = Object.fromEntries(seats.map(seat => [seat.id, seat]))
@@ -51,7 +50,6 @@ function Sidebar({ state, onSelect, onNew, onImport }) {
           h('span', null, '房间'),
           h('span', { className: 'crew-section-tools' },
             waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个等你`) : null,
-            h(ImportButton, { className: 'crew-new', onFile: onImport }, '打开'),
             h('button', { type: 'button', className: 'crew-new', onClick: onNew }, '＋ 新建'))),
         rooms.map(room => h(RoomRow, {
           key: room.id,
@@ -80,8 +78,7 @@ function RoomRow({ room, roster, active, onSelect }) {
   const stateLabel = room.live === true ? '实时 · 基座房间' : room.state === 'complete' ? '已完成' : '进行中'
   const preview = needs
     ? needs.label
-    : room.imported === true ? '交接记录 · 只读'
-      : typeLabel === undefined ? stateLabel : `${typeLabel} · ${room.state === 'complete' ? '已完成' : '进行中'}`
+    : typeLabel === undefined ? stateLabel : `${typeLabel} · ${room.state === 'complete' ? '已完成' : '进行中'}`
   return h('button', {
     type: 'button',
     className: 'bt-row',

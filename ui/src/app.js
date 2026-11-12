@@ -41,7 +41,6 @@ export function App() {
       h(Onboarding, {
         state,
         onCreate: () => openDialog(),
-        onImport: file => store.importHandoffFile(file),
       }),
       dialogNode)
   }
@@ -55,7 +54,6 @@ export function App() {
       state,
       onSelect: id => store.select(id),
       onNew: () => openDialog(),
-      onImport: file => store.importHandoffFile(file),
     }),
     isUsage
       ? h(UsageView, { state, store })

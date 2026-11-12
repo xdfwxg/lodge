@@ -13,7 +13,7 @@ const sameUsage = (a, b) => (
 )
 
 export const recordUsage = (room, previous, source = 'sync') => {
-  if (room?.demo === true || room?.imported === true) return null
+  if (room?.demo === true) return null
   if (sameUsage(previous, room?.usage)) return null
   const entry = {
     at: Date.now(),
@@ -122,7 +122,6 @@ export const aggregateUsage = ({ rooms, historyOf, range = '7d', now = Date.now(
   const roomTotals = []
 
   for (const room of rooms) {
-    if (room.imported === true) continue
     const history = historyOf(room)
     const entries = history.length > 0
       ? history

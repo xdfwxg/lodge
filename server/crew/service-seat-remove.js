@@ -4,7 +4,6 @@ export const createSeatRemove = ({ store, engine, live, emit, roomFiles, workspa
   const { readRoom, updateRoom, appendMessage } = store
 
   const removeSeatFromRoom = async (room, seatId) => {
-    if (room.imported === true) return fail('conflict', '交接记录只读')
     if (room.demo === true) return fail('conflict', '演示房间不能移除席位')
     if (room.state !== 'active' && room.state !== 'paused') return fail('conflict', '房间结束后不能移除席位')
     const spec = (room.seatSpecs ?? []).find(seat => seat.id === seatId)

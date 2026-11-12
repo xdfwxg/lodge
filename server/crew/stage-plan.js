@@ -17,7 +17,7 @@ const normalize = (input, index) => {
 const finalIndex = stages => stages.findIndex(stage => stage.title === FINAL_TITLE)
 
 export const editStages = (room, action, index, input) => {
-  if (room.imported === true || room.demo === true) return { error: '这个房间不能编辑阶段' }
+  if (room.demo === true) return { error: '这个房间不能编辑阶段' }
   if (room.state !== 'active' && room.state !== 'paused') return { error: '房间结束后不能编辑阶段' }
   const stages = (room.stages ?? []).map(stage => ({ ...stage }))
   if (stages.length === 0) return { error: '房间没有阶段' }

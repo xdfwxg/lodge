@@ -285,7 +285,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
   // 服务重启后以已落盘的消息为准续跑：缺回合就重新派发，缺验收就重跑命令，待复核就重发请求，待集成就先合并。
   const resumeOnce = async () => {
     const room = store.readRoom(roomId)
-    if (room === null || room.live !== true || room.state !== 'active' || room.imported === true) return
+    if (room === null || room.live !== true || room.state !== 'active') return
     if (room.busy === true || (room.workers?.length ?? 0) === 0) return
     const stageIndex = room.stages.findIndex(stage => stage.state === 'active')
     if (stageIndex < 0) return

@@ -7,7 +7,6 @@ const now = Date.parse(day)
 const rooms = [
   { id: 'r1', name: '一', usage: { costMicroUsd: 999, turns: 9 } },
   { id: 'r2', name: '二', usage: { costMicroUsd: 500, turns: 5 } },
-  { id: 'r3', name: '导入', imported: true, usage: { costMicroUsd: 9999, turns: 9 } },
 ]
 
 test('usage history aggregates buckets and room totals', () => {
@@ -33,10 +32,8 @@ test('usage history aggregates buckets and room totals', () => {
   assert.equal(usage.buckets.at(-1).costMicroUsd, 620)
 })
 
-test('the range is clamped and imported rooms are excluded', () => {
+test('the range is clamped', () => {
   assert.deepEqual(parseUsageRange('24h'), { id: '24h', unit: 'hour', count: 24 })
   assert.deepEqual(parseUsageRange('99d'), { id: '99d', unit: 'day', count: 90 })
   assert.deepEqual(parseUsageRange('12m'), { id: '12m', unit: 'month', count: 12 })
-  const usage = aggregateUsage({ rooms, historyOf: () => [], range: '24h', now })
-  assert.equal(usage.rooms.some(room => room.roomId === 'r3'), false)
 })

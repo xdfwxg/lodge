@@ -48,7 +48,6 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   const readMessages = roomId => db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId).map(row => JSON.parse(row.payload))
   const readMessagesSince = since => db.prepare('SELECT payload FROM messages WHERE seq > ? ORDER BY seq').all(since).map(row => JSON.parse(row.payload))
   const nextSeq = () => Number(db.prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS next FROM messages').get().next)
-  const hasMessageId = id => db.prepare('SELECT 1 AS found FROM messages WHERE id = ?').get(id) !== undefined
 
   const insertEvent = (roomId, event) => {
     const row = {
@@ -159,34 +158,6 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     return stored
   }
 
-  // 导入的交接记录已经带 transcript.jsonl；这里只重建查询索引，不重复追加日志。
-  const importRoom = ({ room, messages }) => {
-    db.exec('BEGIN IMMEDIATE')
-    try {
-      const existing = db.prepare('SELECT 1 AS found FROM room WHERE id = ?').get(room.id)
-      if (existing !== undefined) {
-        db.exec('ROLLBACK')
-        return null
-      }
-      let seq = nextSeq()
-      const stored = []
-      for (const message of messages) {
-        if (hasMessageId(message.id)) throw new Error(`导入的消息 ID 已存在：${message.id}`)
-        const row = { ...message, roomId: room.id, seq: seq++ }
-        db.prepare('INSERT INTO messages (seq, id, room_id, payload) VALUES (?, ?, ?, ?)')
-          .run(row.seq, row.id, row.roomId, JSON.stringify(row))
-        stored.push(row)
-      }
-      db.prepare('INSERT INTO room (id, payload, version) VALUES (?, ?, ?)')
-        .run(room.id, JSON.stringify(room), 1)
-      db.exec('COMMIT')
-      return { room, messages: stored }
-    } catch (error) {
-      db.exec('ROLLBACK')
-      throw error
-    }
-  }
-
   return {
     db,
     readRoom,
@@ -196,8 +167,6 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     readMessages,
     readMessagesSince,
     nextSeq,
-    hasMessageId,
-    importRoom,
     persistMessage,
     appendMessage,
     upsertMessage,

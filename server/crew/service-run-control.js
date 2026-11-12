@@ -22,7 +22,6 @@ export const createServiceRunControl = ({ store, live, emit, dispatchPayload, ro
   const resetMcp = (roomId, body) => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    if (room.imported === true) return fail('conflict', '交接记录只读')
     const server = typeof body?.server === 'string' && body.server !== '' ? body.server : null
     const updated = updateRoom(roomId, current => {
       current.mcpBreakers = resetMcpBreakers(current.mcpBreakers, server)

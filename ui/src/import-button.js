@@ -14,7 +14,7 @@ function ImportButton({ className, onFile, children, accept = '.json,application
         if (file !== undefined) void onFile(file)
       },
     }),
-    h('button', { type: 'button', className, onClick: () => input.current?.click() }, children ?? '打开交接记录'))
+    h('button', { type: 'button', className, onClick: () => input.current?.click() }, children ?? '导入文件'))
 }
 
 export { ImportButton }

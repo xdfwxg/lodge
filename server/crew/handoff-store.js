@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { roomDir } from './paths.js'
 
@@ -19,16 +19,4 @@ const read = (room, names) => {
   return files
 }
 
-const write = (room, entries) => {
-  const dir = roomDir(room)
-  mkdirSync(dir, { recursive: true })
-  for (const [name, text] of entries) {
-    const file = join(dir, name)
-    mkdirSync(name.includes('/') ? join(dir, 'evidence') : dir, { recursive: true })
-    writeFileSync(file, text)
-  }
-}
-
-const archivePath = (dataDir, id) => join(dataDir, 'imported', id)
-
-export const handoffStore = { read, write, archivePath }
+export const handoffStore = { read }

@@ -37,8 +37,6 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   const delivery = createServiceDelivery({
     store,
     dataDir,
-    emit,
-    dispatchPayload,
     deliveries,
     handoff,
     workspaceRoot: workspace.root(),
@@ -53,7 +51,6 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    if (room.imported === true) return fail('conflict', '交接记录只读；要继续工作，请对照 BRIEF 与证据新建房间')
 
     if ((action === 'pause' || action === 'resume' || action === 'stop') && method === 'POST') {
       return runControl.control(room, action)

@@ -5,9 +5,7 @@ const EMPTY = {
   rooms: [],
   dispatch: null,
   seats: [],
-  templates: [],
   roomTypes: [],
-  savedTemplates: [],
   engines: [],
   runtime: null,
   budget: null,
@@ -117,9 +115,7 @@ export function createStore() {
         rooms: data.rooms,
         dispatch: data.dispatch,
         seats: data.seats,
-        templates: data.templates ?? [],
         roomTypes: data.roomTypes ?? [],
-        savedTemplates: data.savedTemplates ?? [],
         engines: data.engines ?? [],
         importedDeliveries: data.importedDeliveries ?? [],
         runtime,
@@ -194,14 +190,6 @@ export function createStore() {
     }
   }
 
-  const importHandoff = async bundle => {
-    const data = await post('/api/rooms/import', bundle)
-    if (data?.room === undefined) return { ok: false, error: state.error ?? '导入交接包失败' }
-    await load()
-    patch({ activeId: data.room.id })
-    return { ok: true, room: data.room }
-  }
-
   const activeRoom = () => state.rooms.find(room => room.id === state.activeId)
 
   return {
@@ -256,11 +244,6 @@ export function createStore() {
     pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
     resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     stop: () => post(`/api/rooms/${state.activeId}/stop`, {}),
-    parseTemplate: async (filename, text) => {
-      const data = await post('/api/templates/parse', { filename, text })
-      if (data?.template === undefined) return { ok: false, error: state.error ?? '模板解析失败' }
-      return { ok: true, template: data.template }
-    },
     loadProjectConstraints: async repoPath => {
       try {
         const response = await fetch(`/api/project/constraints?repoPath=${encodeURIComponent(repoPath)}`)
@@ -333,33 +316,6 @@ export function createStore() {
         patch({ error: `导入交付摘要失败：${String(error?.message ?? error)}` })
         return { ok: false }
       }
-    },
-    saveTemplate: async (filename, text) => {
-      const data = await post('/api/templates', { filename, text })
-      if (data?.template === undefined) return { ok: false, error: state.error ?? '保存模板失败' }
-      await load()
-      return { ok: true, template: data.template }
-    },
-    deleteSavedTemplate: async id => {
-      const response = await fetch(`/api/templates/${encodeURIComponent(id)}`, { method: 'DELETE' })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        patch({ error: data.error ?? `HTTP ${response.status}` })
-        return { ok: false }
-      }
-      await load()
-      return { ok: true }
-    },
-    importHandoff,
-    importHandoffFile: async file => {
-      let bundle = null
-      try {
-        bundle = JSON.parse(await file.text())
-      } catch {
-        patch({ error: '交接包不是有效的 JSON' })
-        return { ok: false }
-      }
-      return importHandoff(bundle)
     },
     dispatchAsk: text => post('/api/dispatch/requests', { text }),
     dispatchConfirm: id => post(`/api/dispatch/requests/${id}/confirm`, {}),

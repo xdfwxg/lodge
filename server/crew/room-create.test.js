@@ -21,11 +21,11 @@ const gitRepo = () => {
   return repo
 }
 
-const importedRoom = dataDir => {
+const completedRoom = dataDir => {
   const store = createStore({ dataDir })
-  const archive = join(dataDir, 'imported', 'room-import-test')
+  const archive = join(dataDir, 'rooms', 'room-complete-test')
   const room = {
-    id: 'room-import-test',
+    id: 'room-complete-test',
     kind: 'room',
     name: '上一轮交付',
     goal: '加一个导出按钮',
@@ -36,8 +36,6 @@ const importedRoom = dataDir => {
     workers: ['executor'],
     verifiers: [],
     repoPath: archive,
-    imported: true,
-    readOnly: true,
     demo: false,
     live: false,
     usage: {},
@@ -81,12 +79,12 @@ const run = (store, body, engine = fakeEngine()) => createRealRoom({
   ports: createCrewPorts(),
 })
 
-test('continuing a handoff creates a new room and inherits BRIEF done', async () => {
+test('continuing a completed room creates a new room and inherits BRIEF done', async () => {
   const previous = process.env.CREW_WORKSPACE_ROOT
   const root = temp('lodge-resume-workspace-')
   process.env.CREW_WORKSPACE_ROOT = root
   try {
-    const { store, room: source } = importedRoom(temp('lodge-resume-data-'))
+    const { store, room: source } = completedRoom(temp('lodge-resume-data-'))
     const repo = gitRepo()
     const result = await run(store, {
       goal: '在上一轮基础上继续',
@@ -106,7 +104,7 @@ test('continuing a handoff creates a new room and inherits BRIEF done', async ()
     assert.deepEqual(room.plan.done, ['按钮可用'])
     const messages = store.readMessages(room.id)
     assert.equal(messages.some(message => message.text?.includes('续做自交接记录')), true)
-    assert.equal(store.readRoom(source.id).readOnly, true)
+    assert.equal(store.readRoom(source.id).state, 'complete')
   } finally {
     if (previous === undefined) delete process.env.CREW_WORKSPACE_ROOT
     else process.env.CREW_WORKSPACE_ROOT = previous
@@ -114,7 +112,7 @@ test('continuing a handoff creates a new room and inherits BRIEF done', async ()
 })
 
 test('parallel workers fail closed when the workspace cannot merge', async () => {
-  const { store } = importedRoom(temp('lodge-resume-data-'))
+  const { store } = completedRoom(temp('lodge-resume-data-'))
   const workspace = {
     id: 'plain',
     capabilities: () => ({ vcs: 'none', isolation: 'copy', diff: 'manifest', candidate: false, merge: false, commit: false, acceptanceCopy: false }),
@@ -213,7 +211,7 @@ test('a plain room can run parallel workers into a copy integration', async () =
 })
 
 test('stage dependencies can be declared for a room', async () => {
-  const { store } = importedRoom(temp('lodge-resume-data-'))
+  const { store } = completedRoom(temp('lodge-resume-data-'))
   const result = await run(store, {
     goal: '分两段做',
     verify: 'test',
@@ -234,7 +232,7 @@ test('stage dependencies can be declared for a room', async () => {
 })
 
 test('project constraints are snapshotted into the room and BRIEF', async () => {
-  const { store } = importedRoom(temp('lodge-resume-data-'))
+  const { store } = completedRoom(temp('lodge-resume-data-'))
   const repo = gitRepo()
   writeFileSync(join(repo, 'LODGE.md'), '# 项目约定\n\n- 用 ESM\n- 不改上游\n')
   const result = await run(store, {
@@ -254,7 +252,7 @@ test('project constraints are snapshotted into the room and BRIEF', async () => 
 })
 
 test('an unknown workspace provider fails before creating anything', async () => {
-  const { store } = importedRoom(temp('lodge-resume-data-'))
+  const { store } = completedRoom(temp('lodge-resume-data-'))
   const result = await run(store, {
     goal: '试试未知 provider',
     verify: 'manual',
@@ -266,8 +264,8 @@ test('an unknown workspace provider fails before creating anything', async () =>
   assert.equal(result.reason, 'invalid')
 })
 
-test('continuing without a real repo and without a handoff record fail closed', async () => {
-  const { store, room: source } = importedRoom(temp('lodge-resume-data-'))
+test('continuing without a real repo and without a source room fail closed', async () => {
+  const { store, room: source } = completedRoom(temp('lodge-resume-data-'))
   const missingRepo = await run(store, {
     goal: '继续',
     verify: 'test',
@@ -278,7 +276,7 @@ test('continuing without a real repo and without a handoff record fail closed', 
   assert.equal(missingRepo.ok, false)
   assert.equal(missingRepo.reason, 'invalid')
 
-  const plain = { ...source, id: 'room-plain', imported: false, readOnly: false, state: 'stopped' }
+  const plain = { ...source, id: 'room-plain', state: 'stopped' }
   store.writeRoom(plain)
   const notImported = await run(store, {
     goal: '继续',
@@ -293,7 +291,7 @@ test('continuing without a real repo and without a handoff record fail closed', 
 })
 
 test('a plan with more than three questions is rejected, not silently trimmed', async () => {
-  const { store } = importedRoom(temp('lodge-plan-limit-data-'))
+  const { store } = completedRoom(temp('lodge-plan-limit-data-'))
   const result = await run(store, {
     goal: '验证开工卡问题上限',
     verify: 'test',
@@ -315,7 +313,7 @@ test('a plan with more than three questions is rejected, not silently trimmed', 
 })
 
 test('a confirmed plan starts at delivery but keeps the final acceptance stage', async () => {
-  const { store } = importedRoom(temp('lodge-three-stage-data-'))
+  const { store } = completedRoom(temp('lodge-three-stage-data-'))
   const result = await run(store, {
     goal: '三段式房间',
     verify: 'test',
@@ -334,7 +332,7 @@ test('a confirmed plan starts at delivery but keeps the final acceptance stage',
 })
 
 test('a plan stage with manual acceptance becomes a decision stage', async () => {
-  const { store } = importedRoom(temp('lodge-manual-stage-data-'))
+  const { store } = completedRoom(temp('lodge-manual-stage-data-'))
   const result = await run(store, {
     goal: '人工验收阶段',
     verify: 'test',
@@ -353,8 +351,8 @@ test('a plan stage with manual acceptance becomes a decision stage', async () =>
 })
 
 test('a completed room can be used as a continuation source', async () => {
-  const { store, room: imported } = importedRoom(temp('lodge-fork-data-'))
-  const source = { ...imported, id: 'room-fork-source', imported: false, readOnly: false, state: 'complete' }
+  const { store, room: completed } = completedRoom(temp('lodge-fork-data-'))
+  const source = { ...completed, id: 'room-fork-source', state: 'complete' }
   store.writeRoom(source)
   mkdirSync(roomDir(source), { recursive: true })
   writeFileSync(join(roomDir(source), 'BRIEF.md'), [
@@ -378,7 +376,7 @@ test('a completed room can be used as a continuation source', async () => {
 })
 
 test('a plan can declare multiple work stages between alignment and acceptance', async () => {
-  const { store } = importedRoom(temp('lodge-plan-stages-data-'))
+  const { store } = completedRoom(temp('lodge-plan-stages-data-'))
   const result = await run(store, {
     goal: '多阶段拆解',
     verify: 'test',
@@ -400,7 +398,7 @@ test('a plan can declare multiple work stages between alignment and acceptance',
 })
 
 test('a redundant opening decision stage is auto-passed', async () => {
-  const { store } = importedRoom(temp('lodge-opening-gate-data-'))
+  const { store } = completedRoom(temp('lodge-opening-gate-data-'))
   const result = await run(store, {
     goal: '不要重复确认',
     verify: 'test',
@@ -422,7 +420,7 @@ test('a redundant opening decision stage is auto-passed', async () => {
 })
 
 test('a roundtable room uses discussion stages and manual verification', async () => {
-  const { store } = importedRoom(temp('lodge-roundtable-data-'))
+  const { store } = completedRoom(temp('lodge-roundtable-data-'))
   const result = await run(store, {
     goal: '评审这个方案',
     roomType: 'roundtable',
@@ -439,7 +437,7 @@ test('a roundtable room uses discussion stages and manual verification', async (
 })
 
 test('an archive room has one manual archive stage and one seat', async () => {
-  const { store } = importedRoom(temp('lodge-archive-data-'))
+  const { store } = completedRoom(temp('lodge-archive-data-'))
   const result = await run(store, {
     goal: '归档这次交付',
     roomType: 'archive',
@@ -455,7 +453,7 @@ test('an archive room has one manual archive stage and one seat', async () => {
 })
 
 test('unknown room types fail closed', async () => {
-  const { store } = importedRoom(temp('lodge-room-type-data-'))
+  const { store } = completedRoom(temp('lodge-room-type-data-'))
   const result = await run(store, {
     goal: '未知房型',
     roomType: 'mystery',
@@ -466,8 +464,8 @@ test('unknown room types fail closed', async () => {
 })
 
 test('an active room can be forked into a new room without touching the source', async () => {
-  const { store, room: imported } = importedRoom(temp('lodge-fork-active-data-'))
-  const source = { ...imported, id: 'room-active-source', imported: false, readOnly: false, state: 'active' }
+  const { store, room: completed } = completedRoom(temp('lodge-fork-active-data-'))
+  const source = { ...completed, id: 'room-active-source', state: 'active' }
   store.writeRoom(source)
   mkdirSync(roomDir(source), { recursive: true })
   writeFileSync(join(roomDir(source), 'BRIEF.md'), [

@@ -46,7 +46,6 @@ test('the service facade keeps every route entry', () => {
     'removeSeat',
     'changeSeatRole',
     'handoff',
-    'importHandoff',
     'createRoom',
     'recommendRoster',
     'roomRequest',

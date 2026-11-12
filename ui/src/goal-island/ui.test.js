@@ -102,7 +102,6 @@ const view = (over = {}) => ({
   goal: '给设置页加保存，并保证刷新后生效',
   state: 'active',
   brief: { objective: '给设置页加保存，并保证刷新后生效', done: [{ done: false, text: '保存后刷新仍生效' }], constraints: ['不改上游'] },
-  imported: false,
   status: { label: '验收退回 · 等你处理', tone: 'paused' },
   badges: [{ label: '独立性降级', warn: true }, { label: '实时' }],
   progress: { value: 2, total: 3 },
@@ -114,7 +113,7 @@ const view = (over = {}) => ({
     stage(),
     stage({ index: 2, title: '回归', state: 'pending', acceptance: 'npm run e2e', acceptanceLabel: 'npm run e2e', reworkCount: 0, rework: [], evidence: [], tasks: [], otherSeats: [] }),
   ],
-  controls: { imported: false, canPause: true, canResume: false, canStop: true, canContinue: false },
+  controls: { canPause: true, canResume: false, canStop: true, canContinue: false },
   ...over,
 })
 
@@ -178,13 +177,13 @@ test('an armed stop button invokes the stop action', async () => {
   assert.deepEqual(calls, ['stop'])
 })
 
-test('an imported island exposes only the continue action in the footer', async () => {
+test('a completed island exposes only the continue action in the footer', async () => {
   const { GoalIsland } = await load([true, null, false])
   const calls = []
   const tree = render(GoalIsland({
     view: view({
-      imported: true,
-      controls: { imported: true, canPause: false, canResume: false, canStop: false, canContinue: true },
+      state: 'complete',
+      controls: { canPause: false, canResume: false, canStop: false, canContinue: true },
     }),
     advanced: false,
     actions: { review: () => {}, toggleAdvanced: () => {}, continue: () => calls.push('continue') },
@@ -192,7 +191,6 @@ test('an imported island exposes only the continue action in the footer', async 
   assert.ok(button(tree, '基于此记录续做'))
   assert.equal(button(tree, '暂停'), undefined)
   assert.equal(button(tree, '停止'), undefined)
-  assert.equal(findAll(tree, 'crew-ghost').some(node => text(node) === '只读记录'), true)
   button(tree, '基于此记录续做').props.onClick()
   assert.deepEqual(calls, ['continue'])
 })

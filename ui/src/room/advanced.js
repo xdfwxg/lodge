@@ -108,19 +108,17 @@ function Advanced({ room, seats, store, engines = [] }) {
       h('span', null, '预算'),
       h('div', { className: 'crew-bar' }, h('i', { style: { width: `${percent}%` } })),
       h('b', null, budget === 0 ? `${money(cost)} / 不限` : `${money(cost)} / ${money(budget)}`)),
-    room.imported === true
-      ? null
-      : h('div', { className: 'crew-budget-edit' },
-        h('span', null, '房间预算（美元，0 为不限）'),
-        h('input', {
-          type: 'number',
-          min: 0,
-          step: 1,
-          value: budgetDraft,
-          onChange: event => setBudgetDraft(event.target.value),
-        }),
-        h('button', { type: 'button', className: 'crew-choice', onClick: saveBudget }, '保存')),
-    room.imported === true || room.demo === true
+    h('div', { className: 'crew-budget-edit' },
+      h('span', null, '房间预算（美元，0 为不限）'),
+      h('input', {
+        type: 'number',
+        min: 0,
+        step: 1,
+        value: budgetDraft,
+        onChange: event => setBudgetDraft(event.target.value),
+      }),
+      h('button', { type: 'button', className: 'crew-choice', onClick: saveBudget }, '保存')),
+    room.demo === true
       ? null
       : h('div', { className: 'crew-stage-editor' },
         h('span', null, '阶段编辑 · 只改未开始阶段'),
@@ -162,12 +160,8 @@ function Advanced({ room, seats, store, engines = [] }) {
             },
           }, '添加阶段'))),
     h('div', { className: 'crew-budget-edit' },
-      room.imported === true
-        ? h('span', null, '这是导入的只读交接记录；用「基于此记录续做」开一个新房间。')
-        : h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
-      room.imported === true
-        ? null
-        : h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
+      h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
+      h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
     h('table', { className: 'crew-adv-table' },
       h('thead', null, h('tr', null,
         ['席位', '引擎', '权限', '发言预算'].map((label, index) => h('th', { key: `${label}-${index}` }, label)))),

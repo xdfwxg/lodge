@@ -5,7 +5,6 @@ import { editStages } from './stage-plan.js'
 const room = (over = {}) => ({
   id: 'room-1',
   state: 'active',
-  imported: false,
   demo: false,
   stages: [
     { title: '目标对齐', kind: 'decision', state: 'passed' },
@@ -19,7 +18,7 @@ const room = (over = {}) => ({
 test('only pending, non-final stages can be edited', () => {
   assert.match(editStages(room(), 'update', 1, { title: '改', kind: 'deliverable', acceptance: 'x' }).error, /没开始/)
   assert.match(editStages(room(), 'update', 3, { title: '改', kind: 'decision' }).error, /系统维护/)
-  assert.match(editStages(room({ imported: true }), 'add', null, { title: 'x', kind: 'decision' }).error, /不能编辑/)
+  assert.match(editStages(room({ demo: true }), 'add', null, { title: 'x', kind: 'decision' }).error, /不能编辑/)
 })
 
 test('a pending deliverable needs an acceptance command', () => {

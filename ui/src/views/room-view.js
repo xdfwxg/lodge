@@ -29,7 +29,7 @@ function RoomView({ state, room, store, onContinue }) {
     node.scrollTop = node.scrollHeight
   }, [lastId, room.id, hasDelivery])
 
-  const locked = room.state === 'paused' || room.state === 'stopped' || room.imported === true
+  const locked = room.state === 'paused' || room.state === 'stopped'
   const seats = useMemo(() => {
     if (Array.isArray(room.seatSpecs) && room.seatSpecs.length > 0) return room.seatSpecs
     const ids = room.members ?? []
@@ -66,9 +66,7 @@ function RoomView({ state, room, store, onContinue }) {
       state.error ? h('div', { className: 'crew-error' }, state.error) : null),
     h('div', { className: 'dsb-composer' },
       h(Composer, {
-        placeholder: room.imported === true
-          ? '交接记录 · 只读'
-          : room.state === 'complete'
+        placeholder: room.state === 'complete'
           ? '这次交付已结束；说话可以开新一轮…'
           : room.state === 'paused'
             ? '已暂停 · 继续后才能派新活'

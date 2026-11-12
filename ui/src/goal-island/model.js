@@ -258,16 +258,14 @@ export const buildGoalView = (room, seats) => {
     goal: room.goal,
     state: room.state,
     brief: room.brief ?? null,
-    imported: room.imported === true,
     status: islandStatus(room),
     badges: [
       ...(room.independence === 'vendor' ? [] : [{ label: room.independenceLabel ?? '独立性未标注', warn: true }]),
       ...(room.demo === true ? [{ label: '演示' }] : []),
-      ...(room.imported === true ? [{ label: '交接 · 只读' }] : []),
       ...(room.workspace?.capabilities?.vcs !== undefined && !['git', 'demo'].includes(room.workspace.capabilities.vcs)
         ? [{ label: '无 VCS' }]
         : []),
-      ...(room.live === true && room.imported !== true ? [{ label: '实时' }] : []),
+      ...(room.live === true ? [{ label: '实时' }] : []),
     ],
     progress: {
       value: room.state === 'complete' ? room.stages.length : current >= 0 ? current + 1 : done,
@@ -285,12 +283,11 @@ export const buildGoalView = (room, seats) => {
     },
     stages,
     controls: {
-      imported: room.imported === true,
-      canPause: room.imported !== true && room.state === 'active',
-      canResume: room.imported !== true && room.state === 'paused',
-      canStop: room.imported !== true && (room.state === 'active' || room.state === 'paused'),
-      canContinue: room.imported === true || room.state === 'complete',
-      canFork: room.imported !== true && (room.state === 'active' || room.state === 'paused'),
+      canPause: room.state === 'active',
+      canResume: room.state === 'paused',
+      canStop: room.state === 'active' || room.state === 'paused',
+      canContinue: room.state === 'complete',
+      canFork: room.state === 'active' || room.state === 'paused',
     },
   }
 }

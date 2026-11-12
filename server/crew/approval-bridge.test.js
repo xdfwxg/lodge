@@ -20,7 +20,6 @@ const setup = async (options = {}) => {
     goal: '验证外部动作审批',
     state: 'active',
     live: true,
-    imported: false,
     repoPath: dir,
     sourceRepo: dir,
     stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],

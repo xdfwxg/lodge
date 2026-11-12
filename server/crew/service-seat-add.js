@@ -6,7 +6,6 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
 
   // 建后加席位：工作区、基座席位线程、实时订阅和房间数组一起更新。
   const addSeat = async (room, body) => {
-    if (room.imported === true) return fail('conflict', '交接记录只读')
     if (room.demo === true) return fail('conflict', '演示房间不能加席位')
     if (room.state !== 'active' && room.state !== 'paused') return fail('conflict', '房间结束后不能加席位')
     const role = body?.role === 'worker' || body?.role === 'verifier' ? body.role : ''

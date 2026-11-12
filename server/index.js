@@ -198,10 +198,6 @@ const server = http.createServer(async (req, res) => {
       return respond(res, await service.createRoom(await readJson(req)))
     }
 
-    if (path === '/api/rooms/import' && req.method === 'POST') {
-      return respond(res, service.importHandoff(await readJson(req, 16 * 1024 * 1024)))
-    }
-
     if (path === '/api/resources' && req.method === 'GET') {
       return respond(res, service.resources())
     }
