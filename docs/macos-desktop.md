@@ -29,9 +29,13 @@ npm run package:mac
 
 ## 图标
 
-- `build/icon-artwork.png`：2000×2000 原图
-- `build/icon.png`：1024×1024 圆角版，开发模式 Dock、窗口图标和网页 favicon 使用
-- `build/icon.icns`：打包进 `Lodge.app` 的 macOS 图标
+源文件在 `assets/brand/`：`logo.svg`、`logo-1024.png`、`logo-512.png`。
+
+- `build/icon-artwork.png`：1024×1024 源图，用于生成其他尺寸
+- `build/icon.png`：开发模式 Dock、窗口图标和网页 favicon 使用
+- `build/icon.icns`：由 `build/icon.iconset/` 生成，打包进 `Lodge.app`
+- `ui/public/logo.svg`：首页品牌图标；`ui/public/icon.png` 为 PNG 回退
+- Windows/Linux 打包共用 `build/icon.png`，并作为资源复制到 `Resources/icon.png` 供窗口图标使用
 
 ## Windows / Linux
 

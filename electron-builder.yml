@@ -23,6 +23,8 @@ extraResources:
     to: app/node_modules/yaml
   - from: LICENSE
     to: licenses/LICENSE.txt
+  - from: build/icon.png
+    to: icon.png
 
 asar: true
 
@@ -37,11 +39,13 @@ mac:
   gatekeeperAssess: false
 
 win:
+  icon: build/icon.png
   target:
     - nsis
   artifactName: Lodge-${version}-${arch}.${ext}
 
 linux:
+  icon: build/icon.png
   target:
     - AppImage
   category: Development

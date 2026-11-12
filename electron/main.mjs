@@ -9,7 +9,9 @@ const APP_NAME = 'Lodge'
 const DEFAULT_PORT = 8787
 const DEFAULT_BASE_PORT = 8799
 const appRoot = app.isPackaged ? join(process.resourcesPath, 'app') : app.getAppPath()
-const iconFile = join(app.getAppPath(), 'build', 'icon.png')
+const iconFile = app.isPackaged
+  ? join(process.resourcesPath, 'icon.png')
+  : join(app.getAppPath(), 'build', 'icon.png')
 const dataDir = join(app.getPath('userData'), 'data')
 const logDir = join(app.getPath('userData'), 'logs')
 const logFile = join(logDir, 'server.log')

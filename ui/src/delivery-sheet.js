@@ -1,4 +1,5 @@
 import { createElement as h, useState } from 'react'
+import { openPath as openTarget } from './system.js'
 
 const timeOf = ts => {
   if (typeof ts !== 'number') return ''
@@ -16,22 +17,6 @@ const timeOf = ts => {
 
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
 const joinPath = (base, file) => file.startsWith('/') ? file : `${base.replace(/\/$/, '')}/${file}`
-
-const openTarget = async target => {
-  const opener = globalThis.lodge?.openPath
-  if (typeof opener === 'function') {
-    const result = await opener(target)
-    if (result?.ok === false) throw new Error(result.error ?? '打开失败')
-    return
-  }
-  const response = await fetch('/api/system/open-path', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ path: target }),
-  })
-  const data = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(data.error ?? '打开失败')
-}
 
 // 完成态先看到交付单，聊天退到下方；数据全部来自房间投影，不在 UI 重算业务结论。
 export function DeliverySheet({ delivery, onExport }) {
