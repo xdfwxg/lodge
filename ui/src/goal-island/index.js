@@ -199,6 +199,9 @@ export function GoalIsland({ view, advanced, actions }) {
           view.controls.canContinue && actions.continue !== undefined
             ? h('button', { type: 'button', className: 'crew-choice', onClick: actions.continue }, '基于此记录续做')
             : null,
+          view.controls.canFork && actions.continue !== undefined
+            ? h('button', { type: 'button', className: 'crew-choice', onClick: actions.continue }, '分叉')
+            : null,
           view.controls.imported ? h('span', { className: 'crew-ghost' }, '只读记录') : null,
           view.controls.canPause ? h('button', { type: 'button', className: 'crew-ghost', onClick: actions.pause }, '暂停') : null,
           view.controls.canResume ? h('button', { type: 'button', className: 'crew-ghost', onClick: actions.resume }, '继续') : null,

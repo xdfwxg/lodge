@@ -75,5 +75,12 @@ test('a sandboxed command runs, or fails closed when the platform has no primiti
   }
   assert.equal(result.exit, 0)
   assert.equal(result.output, 'sandbox-ok')
-  assert.equal(result.sandbox, 'network-deny')
+  assert.match(result.sandbox, /^network(-fs)?-deny$/)
+})
+
+test('macOS acceptance sandbox carries a writable-directory boundary', { skip: process.platform !== 'darwin' }, () => {
+  const plan = planCommand({ command: 'true', cwd: '/tmp', platform: 'darwin' })
+  assert.equal(plan.fs, 'cwd')
+  assert.match(plan.args[1], /deny file-write\*/)
+  assert.match(plan.args[1], /subpath "\/tmp"/)
 })

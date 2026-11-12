@@ -1,0 +1,39 @@
+appId: com.lodge.app
+productName: Lodge
+artifactName: Lodge-${version}-${arch}.${ext}
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - electron/**
+  - package.json
+
+extraResources:
+  - from: server
+    to: app/server
+  - from: ui/dist
+    to: app/ui/dist
+  - from: templates
+    to: app/templates
+  - from: electron/app-package.json
+    to: app/package.json
+  - from: node_modules/yaml
+    to: app/node_modules/yaml
+  - from: LICENSE
+    to: licenses/LICENSE.txt
+
+asar: true
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+  identity: null
+  hardenedRuntime: false
+  gatekeeperAssess: false
+
+dmg:
+  title: Lodge

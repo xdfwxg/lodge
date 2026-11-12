@@ -482,11 +482,18 @@ function Advanced({ room, seats, store, engines = [] }) {
           room.imported !== true && room.demo !== true &&
           (seat.role === 'worker' || seat.role === 'verifier') &&
           !(seat.role === 'worker' && room.workers?.[0] === seat.id)
-            ? h('button', {
-              type: 'button',
-              className: 'crew-ghost',
-              onClick: () => void store.removeSeat(seat.id),
-            }, '移除')
+            ? h(Fragment, null,
+              h('button', {
+                type: 'button',
+                className: 'crew-ghost',
+                disabled: room.state !== 'paused',
+                onClick: () => void store.changeSeatRole(seat.id, seat.role === 'worker' ? 'verifier' : 'worker'),
+              }, seat.role === 'worker' ? '转验收' : '转执行'),
+              h('button', {
+                type: 'button',
+                className: 'crew-ghost',
+                onClick: () => void store.removeSeat(seat.id),
+              }, '移除'))
             : null))))))
 }
 

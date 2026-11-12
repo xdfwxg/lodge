@@ -225,6 +225,12 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.evidence(roomId, messageId))
     }
 
+    const seatRolePath = path.match(/^\/api\/rooms\/([\w-]+)\/seats\/([\w-]+)\/role$/)
+    if (seatRolePath !== null && req.method === 'POST') {
+      const body = await readJson(req)
+      return respond(res, await service.changeSeatRole(seatRolePath[1], seatRolePath[2], body?.role))
+    }
+
     const seatPath = path.match(/^\/api\/rooms\/([\w-]+)\/seats\/([\w-]+)$/)
     if (seatPath !== null && req.method === 'DELETE') {
       return respond(res, await service.removeSeat(seatPath[1], seatPath[2]))

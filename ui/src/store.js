@@ -236,6 +236,7 @@ export function createStore() {
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
     addSeat: (role, name) => post(`/api/rooms/${state.activeId}/seats`, { role, name }),
     editStagePlan: (action, index, stage) => post(`/api/rooms/${state.activeId}/stages`, { action, index, stage }),
+    changeSeatRole: (seatId, role) => post(`/api/rooms/${state.activeId}/seats/${encodeURIComponent(seatId)}/role`, { role }),
     removeSeat: seatId => fetch(`/api/rooms/${state.activeId}/seats/${encodeURIComponent(seatId)}`, { method: 'DELETE' })
       .then(response => response.json().catch(() => ({})))
       .then(data => {

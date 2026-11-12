@@ -62,8 +62,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
     continueSource = store.readRoom(body.continueFrom)
     if (continueSource === null || continueSource.kind !== 'room') return fail('not_found', '没有这个交接记录')
-    if (continueSource.imported !== true && continueSource.state !== 'complete') {
-      return fail('conflict', '只有已完成房间或导入的交接记录可以作为续做起点')
+    if (continueSource.imported !== true && !['complete', 'active', 'paused'].includes(continueSource.state)) {
+      return fail('conflict', '只有进行中、已暂停、已完成房间或导入记录可以作为续做/分叉起点')
     }
   }
   if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')

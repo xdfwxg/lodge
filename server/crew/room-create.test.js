@@ -272,7 +272,7 @@ test('continuing without a real repo and without a handoff record fail closed', 
   assert.equal(missingRepo.ok, false)
   assert.equal(missingRepo.reason, 'invalid')
 
-  const plain = { ...source, id: 'room-plain', imported: false, readOnly: false, state: 'active' }
+  const plain = { ...source, id: 'room-plain', imported: false, readOnly: false, state: 'stopped' }
   store.writeRoom(plain)
   const notImported = await run(store, {
     goal: '继续',
@@ -372,4 +372,30 @@ test('a plan can declare multiple work stages between alignment and acceptance',
   assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '实现', '回归', '验收与结论'])
   assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'active', 'pending', 'pending'])
   assert.equal(room.stages[2].acceptance, 'npm run e2e')
+})
+
+test('an active room can be forked into a new room without touching the source', async () => {
+  const { store, room: imported } = importedRoom(temp('lodge-fork-active-data-'))
+  const source = { ...imported, id: 'room-active-source', imported: false, readOnly: false, state: 'active' }
+  store.writeRoom(source)
+  mkdirSync(roomDir(source), { recursive: true })
+  writeFileSync(join(roomDir(source), 'BRIEF.md'), [
+    '# 目标：在做的房间',
+    '',
+    'done:',
+    '- [ ] 分叉后继承这一条',
+    '',
+  ].join('\n'))
+  const result = await run(store, {
+    goal: '从进行中房间分叉',
+    verify: 'test',
+    acceptance: 'npm test',
+    repoPath: gitRepo(),
+    continueFrom: source.id,
+    seats: [{ role: 'worker', name: '执行' }],
+  })
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.continuedFrom.roomId, source.id)
+  assert.deepEqual(result.body.room.plan.done, ['分叉后继承这一条'])
+  assert.equal(store.readRoom(source.id).state, 'active')
 })

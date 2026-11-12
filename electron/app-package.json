@@ -1,0 +1,5 @@
+{
+  "name": "lodge-runtime",
+  "private": true,
+  "type": "module"
+}

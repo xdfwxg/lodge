@@ -9,7 +9,7 @@ const clip = text => (text.length > MAX_OUTPUT ? `${text.slice(0, MAX_OUTPUT)}\n
 // 只记录事实（退出码、输出），不据此推断业务结论。
 export const runCommand = ({ command, cwd, env, timeoutMs = 120_000, sandbox = false }) => new Promise(resolve => {
   const started = Date.now()
-  const plan = sandbox ? planCommand({ command }) : { file: '/bin/sh', args: ['-c', command], mode: 'off' }
+  const plan = sandbox ? planCommand({ command, cwd }) : { file: '/bin/sh', args: ['-c', command], mode: 'off' }
   if (plan.error !== undefined) {
     resolve({ exit: null, output: plan.error, timedOut: false, durationMs: 0, sandbox: plan.mode })
     return

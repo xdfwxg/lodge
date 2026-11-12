@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 
 export const networkMode = () => (process.env.CREW_ACCEPTANCE_NETWORK === 'allow' ? 'allow' : 'deny')
 
@@ -27,7 +28,34 @@ const providers = new Map()
 let darwinProbe
 let linuxProbe
 
-providers.set('darwin', ({ command }) => {
+const profilePath = path => `"${String(path ?? '').replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`
+
+const darwinProfile = cwd => {
+  const writable = [
+    cwd,
+    tmpdir(),
+    '/tmp',
+    '/private/tmp',
+    process.env.TMPDIR,
+    `${homedir()}/.npm`,
+    `${homedir()}/.cache`,
+    `${homedir()}/.config`,
+  ].filter(value => typeof value === 'string' && value !== '')
+  return [
+    '(version 1)',
+    '(allow default)',
+    '(deny network*)',
+    '(deny file-write*)',
+    '(allow file-write*',
+    ...writable.map(path => `  (subpath ${profilePath(path)})`),
+    '  (literal "/dev/null")',
+    '  (literal "/dev/stdout")',
+    '  (literal "/dev/stderr")',
+    ')',
+  ].join('\n')
+}
+
+providers.set('darwin', ({ command, cwd }) => {
   if (!existsSync('/usr/bin/sandbox-exec')) return unavailable('macOS sandbox-exec 不可用')
   if (darwinProbe === undefined) {
     darwinProbe = canRun('/usr/bin/sandbox-exec', ['-p', '(version 1)(allow default)(deny network*)', '/bin/sh', '-c', 'true'])
@@ -35,15 +63,36 @@ providers.set('darwin', ({ command }) => {
   if (!darwinProbe) return unavailable('macOS sandbox-exec 预检失败；设置 CREW_ACCEPTANCE_NETWORK=allow 明确放行')
   return {
     file: '/usr/bin/sandbox-exec',
-    args: ['-p', '(version 1)(allow default)(deny network*)', '/bin/sh', '-c', command],
-    mode: 'network-deny',
+    args: ['-p', darwinProfile(cwd ?? process.cwd()), '/bin/sh', '-c', command],
+    mode: 'network-fs-deny',
     network: 'deny',
-    fs: 'none',
+    fs: 'cwd',
   }
 })
 
-providers.set('linux', ({ command }) => {
-  if (!hasCommand('unshare')) return unavailable('Linux 没有可用的 unshare；安装 unshare/bwrap 或设置 CREW_ACCEPTANCE_NETWORK=allow')
+let linuxBwrapProbe
+providers.set('linux', ({ command, cwd }) => {
+  const root = cwd ?? process.cwd()
+  if (hasCommand('bwrap')) {
+    if (linuxBwrapProbe === undefined) {
+      linuxBwrapProbe = canRun('bwrap', ['--ro-bind', '/', '/', '--unshare-net', '/bin/true'])
+    }
+    if (linuxBwrapProbe) {
+      return {
+        file: 'bwrap',
+        args: [
+          '--die-with-parent', '--ro-bind', '/', '/',
+          '--dev', '/dev', '--proc', '/proc', '--tmpfs', '/tmp',
+          '--bind', root, root, '--chdir', root, '--unshare-net',
+          '/bin/sh', '-c', command,
+        ],
+        mode: 'network-fs-deny',
+        network: 'deny',
+        fs: 'cwd',
+      }
+    }
+  }
+  if (!hasCommand('unshare')) return unavailable('Linux 没有可用的 unshare/bwrap；安装 bubblewrap 或 unshare，或设置 CREW_ACCEPTANCE_NETWORK=allow')
   if (linuxProbe === undefined) linuxProbe = canRun('unshare', ['-n', '/bin/sh', '-c', 'true'])
   if (!linuxProbe) return unavailable('Linux unshare 预检失败（可能不允许用户命名空间）；设置 CREW_ACCEPTANCE_NETWORK=allow 明确放行')
   return { file: 'unshare', args: ['-n', '/bin/sh', '-c', command], mode: 'network-deny', network: 'deny', fs: 'none' }
@@ -111,9 +160,9 @@ const unsandboxedPlan = (command, platform) => (
 )
 
 // 业务只说“要沙箱”；平台选择与命令包装留在适配器层。
-export const planCommand = ({ command, network = networkMode(), platform = process.platform, provider } = {}) => {
+export const planCommand = ({ command, cwd, network = networkMode(), platform = process.platform, provider } = {}) => {
   if (network === 'allow') return unsandboxedPlan(command, platform)
   const selected = provider ?? providers.get(platform)
   if (typeof selected !== 'function') return unavailable(`没有 ${platform} 的沙箱适配器`)
-  return selected({ command, platform })
+  return selected({ command, cwd, platform })
 }

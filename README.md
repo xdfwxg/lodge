@@ -16,3 +16,4 @@ Lodge 将寮（Lodge）作为一等公民本体。席位驻于寮中，对话只
 - 📌 **项目约束**：仓库根 `LODGE.md` 写架构与约定，建房时可读取并带入 BRIEF
 - 🧩 **本地模板**：`.crew.yaml` / `.json` 导入预览，带席位与提示词；权限仍由角色派生
 - 📊 **用量**：24 小时到 12 个月，花费/Token/缓存命中/回合与房间排名
+- 🖥️ **macOS 桌面版**：`npm run desktop` 开发启动，`npm run package:mac` 打 dmg/zip；详见 [docs/macos-desktop.md](docs/macos-desktop.md)

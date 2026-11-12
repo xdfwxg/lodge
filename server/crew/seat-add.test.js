@@ -99,12 +99,24 @@ test('a verifier added after room creation gets a workspace, base thread and liv
     assert.deepEqual(calls.attach, ['room-add123', 'verifier-2'])
     assert.equal(store.readMessages('room-add123').at(-1).text.includes('已加入验收席位'), true)
 
-    const removed = await service.removeSeat('room-add123', 'verifier-2')
+    store.updateRoom('room-add123', current => {
+      current.state = 'paused'
+      return { events: [] }
+    })
+    const changed = await service.changeSeatRole('room-add123', 'verifier-2', 'worker')
+    assert.equal(changed.ok, true)
+    const afterRole = store.readRoom('room-add123')
+    assert.deepEqual(afterRole.verifiers, ['verifier'])
+    assert.deepEqual(afterRole.workers, ['worker', 'worker-2'])
+    assert.equal(afterRole.seatSpecs.length, 3)
+    assert.equal(typeof afterRole.worktrees['worker-2'], 'string')
+
+    const removed = await service.removeSeat('room-add123', 'worker-2')
     assert.equal(removed.ok, true)
     const after = store.readRoom('room-add123')
-    assert.deepEqual(after.verifiers, ['verifier'])
+    assert.deepEqual(after.workers, ['worker'])
     assert.equal(after.seatSpecs.length, 2)
-    assert.equal(after.worktrees['verifier-2'], undefined)
+    assert.equal(after.worktrees['worker-2'], undefined)
     assert.equal(store.readMessages('room-add123').at(-1).text.includes('已移除席位'), true)
   } finally {
     if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT
