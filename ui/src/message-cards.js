@@ -120,6 +120,42 @@ function VerdictCard({ message, seat, stage, room, onAccept }) {
           !active && stage?.state === 'passed' ? h('span', { className: 'crew-accepted' }, '已由你验收') : null))))
 }
 
+function DispatchCard({ message, seat }) {
+  const meta = message.meta ?? {}
+  return h('div', { className: 'crew-msg' },
+    h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
+    h('div', { className: 'crew-msg-body' },
+      h(Speaker, { seat, ts: message.ts }),
+      h('div', { className: 'crew-card crew-dispatch' },
+        h('div', { className: 'crew-card-head' },
+          meta.rework === true ? `重审返工 · 阶段 ${(meta.stage ?? 0) + 1}` : `派活 · 阶段 ${(meta.stage ?? 0) + 1}`,
+          h('span', { className: 'crew-verdict', 'data-pass': true }, `${meta.workers?.length ?? 0} 席`)),
+        h('div', { className: 'crew-card-body' },
+          h('p', { className: 'crew-gate-lead' }, message.text),
+          meta.acceptance ? h('div', { className: 'crew-kv' }, h('span', null, '验收'), h('code', null, meta.acceptance)) : null))))
+}
+
+function StageConclusionCard({ message }) {
+  const meta = message.meta ?? {}
+  return h('div', { className: 'crew-msg' },
+    h('div', { className: 'crew-msg-avatar' }, h(BotMark, { size: 30, live: false })),
+    h('div', { className: 'crew-msg-body' },
+      h(Speaker, { seat: { name: '阶段结论', title: '' }, ts: message.ts }),
+      h('div', { className: 'crew-card crew-stage-conclusion' },
+        h('div', { className: 'crew-card-head' },
+          `阶段 ${(meta.stage ?? 0) + 1} · ${meta.title ?? ''}`,
+          h('span', { className: 'crew-verdict', 'data-pass': true }, '已通过')),
+        h('div', { className: 'crew-card-body' },
+          meta.command
+            ? h('div', { className: 'crew-kv' }, h('span', null, '验收'), h('code', null, `${meta.command} · exit ${meta.exit ?? '无'}`))
+            : h('p', { className: 'crew-gate-lead' }, '这一步由你确认，没有命令退出码。'),
+          meta.files?.length ? h('div', { className: 'crew-receipt-files' }, meta.files.join(' · ')) : null,
+          meta.verdicts?.length
+            ? h('div', { className: 'crew-kv' }, h('span', null, '复核'), h('span', null, meta.verdicts.map(item => `${item.name} ${item.pass ? 'PASS' : 'REJECT'}`).join(' · ')))
+            : null,
+          h('p', { className: 'crew-gate-next' }, meta.next === null || meta.next === undefined ? '没有下一步，进入整房结论。' : `下一步：${meta.next}`)))))
+}
+
 function ConclusionCard({ message }) {
   const meta = message.meta ?? {}
   return h('div', { className: 'crew-msg' },
@@ -135,4 +171,4 @@ function ConclusionCard({ message }) {
             : null))))
 }
 
-export { Markdown, Speaker, ActivityLine, ChatLine, EvidenceCard, VerdictCard, ConclusionCard }
+export { Markdown, Speaker, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, StageConclusionCard, ConclusionCard }

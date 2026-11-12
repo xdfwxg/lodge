@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useMemo, useState } from 'react'
 import { BotMark } from '../marks.js'
 import { ApprovalCard } from '../approval-card.js'
-import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, ConclusionCard } from '../message-cards.js'
+import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, StageConclusionCard, ConclusionCard } from '../message-cards.js'
 import { changeWordOf, independenceOf } from '../view-format.js'
 
 const confirmationItems = room => (room.brief?.constraints ?? [])
@@ -53,7 +53,71 @@ function ConfirmedOpening({ room, stage, index }) {
               : `已进入阶段 ${index + 2}「${next.title}」。`)))))
 }
 
-function StageAction({ room, stage, index, onAccept, onAnswer }) {
+function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
+  const [open, setOpen] = useState(false)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (onRework === undefined || room.state !== 'active') return null
+  if (!open) {
+    return h('button', { type: 'button', className: 'crew-ghost', onClick: () => setOpen(true) }, label)
+  }
+  const submit = async () => {
+    if (busy) return
+    setBusy(true)
+    await onRework(index, note.trim())
+    setBusy(false)
+    setOpen(false)
+    setNote('')
+  }
+  return h('div', { className: 'crew-rework' },
+    h('input', {
+      className: 'crew-goal-input',
+      type: 'text',
+      value: note,
+      placeholder: '哪里不对？（可选）',
+      onChange: event => setNote(event.target.value),
+      onKeyDown: event => {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          void submit()
+        }
+      },
+    }),
+    h('div', { className: 'crew-rework-actions' },
+      h('button', { type: 'button', className: 'crew-accept', disabled: busy, onClick: () => void submit() }, busy ? '正在重审…' : '确认重做'),
+      h('button', { type: 'button', className: 'crew-ghost', onClick: () => { setOpen(false); setNote('') } }, '取消')))
+}
+
+// 人的返工意见之后，这一阶段的旧证据和旧结论不再算数。
+const reworkFloorOf = (messages, stageIndex) => messages.reduce((floor, message) => (
+  message.kind === 'rework' && (message.meta?.stage ?? 0) === stageIndex ? Math.max(floor, message.seq ?? 0) : floor
+), -1)
+
+function FinalSummary({ room }) {
+  return h('div', { className: 'crew-final-summary' },
+    h('b', null, '整房交付确认'),
+    room.stages.map((item, index) => {
+      const floor = reworkFloorOf(room.messages, index)
+      const evidence = [...room.messages].reverse().find(message => (
+        message.kind === 'evidence' &&
+        (message.seq ?? 0) > floor &&
+        message.meta?.kind === 'command' &&
+        (message.meta?.stage ?? 0) === index
+      ))
+      const verdict = [...room.messages].reverse().find(message => (
+        message.kind === 'verdict' && (message.seq ?? 0) > floor && (message.meta?.stage ?? 0) === index
+      ))
+      return h('div', { key: index, className: 'crew-final-row' },
+        h('span', null, `${index + 1}. ${item.title}`),
+        h('span', null, item.kind === 'deliverable'
+          ? evidence === undefined ? '无命令证据' : `${evidence.meta.command} · exit ${evidence.meta.exit}`
+          : item.state === 'passed' ? '已确认' : '你确认'),
+        h('span', null, verdict === undefined ? '' : verdict.meta?.pass === true ? 'PASS' : 'REJECT'))
+    }),
+    h('p', { className: 'crew-field-hint' }, '确认后写入结论、生成 commit，房间完成。'))
+}
+
+function StageAction({ room, stage, index, onAccept, onAnswer, onRework }) {
   const blocked = Boolean(room.openQuestion)
   const locked = room.state !== 'active'
   const next = room.stages[index + 1]
@@ -67,7 +131,7 @@ function StageAction({ room, stage, index, onAccept, onAnswer }) {
   const actionLabel = blocked
     ? '提交回答并继续'
     : next === undefined
-      ? '确认并完成'
+      ? '确认完成整房'
       : `确认，进入阶段 ${index + 2}`
 
   const confirm = async () => {
@@ -89,6 +153,7 @@ function StageAction({ room, stage, index, onAccept, onAnswer }) {
           h('p', { className: 'crew-gate-lead' },
             blocked ? 'Lodge 需要你先回答一个问题。' : '需要你确认的是：'),
           h('div', { className: 'crew-gate-title' }, stage.title),
+          next === undefined && !blocked ? h(FinalSummary, { room }) : null,
           openingGate ? h(ConfirmationPoints, { room }) : null,
           blocked ? h('p', { className: 'crew-gate-question' }, room.openQuestion) : null,
           blocked
@@ -115,6 +180,9 @@ function StageAction({ room, stage, index, onAccept, onAnswer }) {
               : `确认后进入阶段 ${index + 2}「${next.title}」。`),
           blocked ? null : h('p', { className: 'crew-gate-hint' }, '不同意？在下方直接说，Lodge 会先回答。')),
         h('div', { className: 'crew-card-foot' },
+          stage.manual === true && !blocked
+            ? h(ReworkControl, { room, index, onRework })
+            : null,
           h('button', {
             type: 'button',
             className: 'crew-accept',
@@ -138,12 +206,13 @@ function DemoStep({ stage, index, onSimulate }) {
           h('button', { type: 'button', className: 'crew-accept', onClick: onSimulate }, '模拟执行并复核')))))
 }
 
-function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept }) {
+function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept, onRework }) {
   const [draft, setDraft] = useState(stage.acceptance ?? '')
   const [busy, setBusy] = useState(false)
   useEffect(() => { setDraft(stage.acceptance ?? '') }, [stage.acceptance])
+  const floor = reworkFloorOf(room.messages, index)
   const evidence = [...room.messages].reverse().find(message => (
-    message.kind === 'evidence' && message.meta?.kind === 'command' && message.meta?.stage === index
+    message.kind === 'evidence' && (message.seq ?? 0) > floor && message.meta?.kind === 'command' && message.meta?.stage === index
   ))
   const exit = evidence?.meta?.exit
   const hasVerifier = (room.verifiers?.length ?? 0) > 0
@@ -192,6 +261,7 @@ function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept }) {
             : null,
           h('p', { className: 'crew-dialog-note' }, `${hasVerifier ? '有独立验收人' : '没有独立验收人'} · ${independenceOf(room)}`)),
         h('div', { className: 'crew-card-foot' },
+          h(ReworkControl, { room, index, onRework }),
           h('button', {
             type: 'button',
             className: 'crew-ghost',
@@ -219,15 +289,16 @@ function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept }) {
             : null))))
 }
 
-function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance, onVerify, onApproval }) {
+function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance, onVerify, onApproval, onRework }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const activeIndex = room.stages.findIndex(stage => stage.state === 'active')
   const activeStage = room.stages[activeIndex]
+  const floor = reworkFloorOf(room.messages, activeIndex)
   const hasPass = activeIndex >= 0 && room.messages.some(message => (
-    message.kind === 'verdict' && message.meta?.pass === true && message.meta?.stage === activeIndex
+    message.kind === 'verdict' && (message.seq ?? 0) > floor && message.meta?.pass === true && message.meta?.stage === activeIndex
   ))
   const manualReady = activeStage?.manual === true && room.messages.some(message => (
-    message.kind === 'evidence' && message.meta?.kind === 'manual' && (message.meta?.stage ?? 0) === activeIndex
+    message.kind === 'evidence' && (message.seq ?? 0) > floor && message.meta?.kind === 'manual' && (message.meta?.stage ?? 0) === activeIndex
   ))
   const firstDeliverable = room.stages.findIndex(stage => stage.kind === 'deliverable')
   const opening = room.stages
@@ -244,6 +315,8 @@ function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance
     ...room.messages.map(message => {
       const seat = byId[message.authorId] ?? (message.authorId === 'system' ? { name: '运行时', title: '验收员' } : undefined)
       if (message.kind === 'system') return h('div', { key: message.id, className: 'crew-system' }, message.text)
+      if (message.kind === 'dispatch') return h(DispatchCard, { key: message.id, message, seat })
+      if (message.kind === 'stage_conclusion') return h(StageConclusionCard, { key: message.id, message })
       if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })
       if (message.kind === 'evidence') return h(EvidenceCard, { key: message.id, message, seat })
       if (message.kind === 'conclusion') return h(ConclusionCard, { key: message.id, message })
@@ -277,10 +350,10 @@ function Timeline({ room, seats, onAccept, onAnswer, onSimulate, onSetAcceptance
       index: opening.index,
     }),
     activeStage?.kind === 'decision' && (activeStage.manual !== true || manualReady)
-      ? h(StageAction, { key: 'gate', room, stage: activeStage, index: activeIndex, onAccept, onAnswer })
+      ? h(StageAction, { key: 'gate', room, stage: activeStage, index: activeIndex, onAccept, onAnswer, onRework })
       : null,
     activeStage?.kind === 'deliverable' && room.live === true && !hasPass
-      ? h(LiveGate, { key: 'live-gate', room, stage: activeStage, index: activeIndex, onSetAcceptance, onVerify, onAccept })
+      ? h(LiveGate, { key: 'live-gate', room, stage: activeStage, index: activeIndex, onSetAcceptance, onVerify, onAccept, onRework })
       : null,
     activeStage?.kind === 'deliverable' && room.demo === true && !hasPass
       ? h(DemoStep, { key: 'demo', stage: activeStage, index: activeIndex, onSimulate })

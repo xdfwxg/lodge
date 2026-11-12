@@ -22,6 +22,12 @@ test('worker keeps its declared write surface', () => {
   assert.equal(decidePermission(executor, 'write'), true)
 })
 
+test('a read-only discussion stage blocks write and exec even for a worker', () => {
+  assert.equal(decidePermission(executor, 'read', { readOnly: true }), true)
+  assert.equal(decidePermission(executor, 'write', { readOnly: true }), false)
+  assert.equal(decidePermission(executor, 'exec', { readOnly: true }), false)
+})
+
 test('unknown actions and missing seats fail closed', () => {
   assert.equal(decidePermission(planner, 'network'), false)
   assert.equal(decidePermission(undefined, 'read'), false)

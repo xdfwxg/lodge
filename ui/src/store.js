@@ -216,6 +216,7 @@ export function createStore() {
     closeReview: () => patch({ review: null, reviewFor: null }),
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
+    rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
     answer: async (stage, text) => {
       if (text !== '') {
         const sent = await post(`/api/rooms/${state.activeId}/messages`, { text })

@@ -12,7 +12,8 @@ export const buildResources = (rooms, readMessages = () => []) => {
       message.meta?.exit !== 0
     )).length
     const rework = messages.filter(message => (
-      message.kind === 'verdict' && message.meta?.pass === false
+      (message.kind === 'verdict' && message.meta?.pass === false) ||
+      message.kind === 'rework'
     )).length
     const conflicts = room.mergeConflict === undefined || room.mergeConflict === null ? 0 : 1
     const partial = (room.stages ?? []).filter(stage => (stage.partial?.failed?.length ?? 0) > 0).length

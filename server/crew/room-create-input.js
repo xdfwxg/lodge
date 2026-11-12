@@ -135,6 +135,8 @@ export const resolveSeats = (body, roomType) => {
   } catch (error) {
     return { error: `席位组合不可用：${error?.message ?? error}` }
   }
+  // 只读房型的工具调用必须经过审批桥，讨论阶段才能在实际工具面拒绝写入与执行。
+  if (roomType.readOnly === true) roster = roster.map(seat => ({ ...seat, approval: 'ask' }))
   const { workers, verifiers } = roleSeats(roster)
   const worker = workers[0]
   const explicitLead = roster.find(seat => seat.role === 'lead')

@@ -1,11 +1,15 @@
 import { pendingApprovals } from './external-actions.js'
-import { commandEvidenceFor, reviewState, verifierIds } from './verifiers.js'
+import { commandEvidenceFor, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const activeStageIndex = room => room.stages.findIndex(stage => stage.state === 'active')
 
-const latestForStage = (messages, kind, stage) => [...messages]
+const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
-  .find(message => message.kind === kind && (message.meta?.stage ?? 0) === stage)
+  .find(message => (
+    message.kind === kind &&
+    (message.meta?.stage ?? 0) === stage &&
+    (message.seq ?? 0) > after
+  ))
 
 // 注意力路由：只在房间真的卡在人这里时返回一个信号；不是未读数。
 export const roomNeedsYou = (room, messages = []) => {
@@ -22,13 +26,14 @@ export const roomNeedsYou = (room, messages = []) => {
   const index = activeStageIndex(room)
   if (index < 0) return null
   const stage = room.stages[index]
+  const floor = reworkFloor(messages, index)
 
   if (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') {
     return { kind: 'question', stage: index, label: '等你回答' }
   }
   if (room.busy === true) return null
   if (stage.manual === true) {
-    const manual = latestForStage(messages, 'evidence', index)
+    const manual = latestForStage(messages, 'evidence', index, floor)
     if (manual?.meta?.kind !== 'manual') return null
     return { kind: 'decision', stage: index, label: '等你验收' }
   }
@@ -60,10 +65,10 @@ export const roomNeedsYou = (room, messages = []) => {
     }
     return null
   }
-  const verdict = latestForStage(messages, 'verdict', index)
+  const verdict = latestForStage(messages, 'verdict', index, floor)
   if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '等你签字' }
   if (verdict !== undefined) return { kind: 'rework', stage: index, label: '验收退回 · 等你处理' }
-  if (latestForStage(messages, 'evidence', index) !== undefined) {
+  if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
     return (room.verifiers?.length ?? 0) > 0
       ? { kind: 'review', stage: index, label: '待复核' }
       : { kind: 'signoff', stage: index, label: '等你签字' }

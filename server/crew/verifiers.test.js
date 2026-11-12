@@ -65,6 +65,16 @@ test('one rejection fails the round even when the other verifier passed', () => 
   assert.deepEqual(outcome.rejects.map(message => message.authorId), ['v2'])
 })
 
+test('a human rework invalidates the earlier evidence and PASSes', () => {
+  const rework = { id: 'r-1', kind: 'rework', authorId: 'you', seq: 13, meta: { stage: 0 } }
+  const outcome = reviewState({
+    room: room(),
+    messages: [evidence(), verdict('v1', true, 11), verdict('v2', true, 12), rework],
+    stageIndex: 0,
+  })
+  assert.equal(outcome.state, 'none')
+})
+
 test('verdicts from an older acceptance round do not count', () => {
   const outcome = reviewState({
     room: room(),

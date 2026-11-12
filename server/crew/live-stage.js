@@ -2,11 +2,11 @@ import { blockedSeats } from './mcp-breaker.js'
 import { markSeatRead } from './watermarks.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
-import { PARALLEL_TIMEOUT } from './live-turn-utils.js'
+import { activeStageReadOnly, PARALLEL_TIMEOUT } from './live-turn-utils.js'
 import { workspaceOf } from './live-workspace.js'
 
 export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTasks, integrate, enqueue }) => {
-  const startStage = async (room, index) => {
+  const startStage = async (room, index, { note = '', rework = false } = {}) => {
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
     const allWorkers = room.workers ?? []
@@ -38,16 +38,36 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       ...current,
       tasks: buildTasks({ stageIndex: index, workers, seatNames: room.seatNames ?? {} }),
     }))
+    const workerNames = workers.map(worker => room.seatNames?.[worker] ?? worker).join('、')
+    store.appendMessage(roomId, {
+      kind: 'dispatch',
+      authorId: room.leadSeat ?? room.members?.[0] ?? 'planner',
+      text: rework
+        ? `规划师重审目标后返工：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。${note === '' ? '' : `用户意见：${note.slice(0, 160)}`}`
+        : `规划师派活：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。`,
+      meta: {
+        stage: index,
+        workers,
+        acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
+        rework,
+        ...(note === '' ? {} : { note: note.slice(0, 160) }),
+      },
+    })
     const acceptance = stage.manual === true
       ? '验收方式：人看产物，不跑命令。'
       : typeof stage.acceptance === 'string' && stage.acceptance !== ''
         ? `验收命令：\`${stage.acceptance}\`。`
         : '验收命令：未设置。'
+    const readOnly = activeStageReadOnly(room) || stage.readOnly === true
     const promptFor = worker => {
       const port = room.ports?.[worker]
       const environment = room.workspaceEnv?.[worker]
       return [
         `@${room.seatNames?.[worker] ?? worker} 阶段已确认：${index + 1}. ${stage.title}。${acceptance}`,
+        rework
+          ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : note}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求返工。`
+          : '',
+        readOnly ? '当前阶段只读：可以读仓库、讨论和评审；不要改文件，也不要运行会写文件的命令。' : '',
         buildSeatHandoff({ room, messages: store.readMessages(roomId) }),
         workers.length > 1
           ? workspaceOf(room).capabilities().isolation === 'worktree'

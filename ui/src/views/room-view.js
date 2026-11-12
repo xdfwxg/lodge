@@ -62,6 +62,7 @@ function RoomView({ state, room, store, onContinue }) {
         onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
         onVerify: stage => void store.verify(stage),
         onApproval: (id, decision) => void store.decideApproval(id, decision),
+        onRework: (stage, note) => void store.rework(stage, note),
       })),
       state.error ? h('div', { className: 'crew-error' }, state.error) : null),
     h('div', { className: 'dsb-composer' },

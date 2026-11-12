@@ -1,5 +1,9 @@
 export const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
 
+export const activeStageReadOnly = room => (
+  room?.stages?.find(stage => stage.state === 'active')?.readOnly === true
+)
+
 export const deliverableStageIndex = room => {
   const active = room.stages.findIndex(stage => stage.state === 'active' && isWorkStage(stage))
   if (active >= 0) return active

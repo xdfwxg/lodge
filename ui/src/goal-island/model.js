@@ -53,7 +53,8 @@ export const verdictForSeat = (room, index, seatId) => (
 )
 
 export const rejectsFor = (room, index) => room.messages.filter(message => (
-  message.kind === 'verdict' && message.meta?.pass === false && (message.meta?.stage ?? 0) === index
+  (message.kind === 'verdict' && message.meta?.pass === false && (message.meta?.stage ?? 0) === index) ||
+  (message.kind === 'rework' && (message.meta?.stage ?? 0) === index)
 ))
 
 export const islandStatus = room => {
@@ -178,7 +179,7 @@ export const goalAnswers = (room, selected) => {
 export const buildGoalView = (room, seats) => {
   const current = activeIndex(room)
   const seatById = new Map(seats.map(seat => [seat.id, seat]))
-  const nameOf = id => room.seatNames?.[id] ?? seatById.get(id)?.name ?? id
+  const nameOf = id => id === 'you' ? '你' : room.seatNames?.[id] ?? seatById.get(id)?.name ?? id
   const stages = room.stages.map((stage, index) => {
     const rejects = rejectsFor(room, index)
     const verifierIds = Array.isArray(room.verifiers) ? room.verifiers : []

@@ -30,6 +30,7 @@ const toolsOf = message => {
 }
 
 const failureText = message => {
+  if (message.kind === 'rework') return message.text || '你要求重做'
   if (message.kind === 'verdict' && message.meta?.pass === false) return message.text || '验收席位打回'
   if (message.kind === 'evidence' && message.meta?.kind === 'command' && message.meta.exit !== 0) {
     return `验收命令 \`${message.meta.command ?? '命令'}\` · exit ${message.meta.exit ?? '无'}`
@@ -50,7 +51,8 @@ export const buildReview = (room, messages = []) => {
       kind: stage.kind,
       state: stage.state,
       acceptance: stage.acceptance ?? null,
-      rejects: verdicts.filter(message => message.meta?.pass === false).length,
+      rejects: verdicts.filter(message => message.meta?.pass === false).length +
+        stageMessages.filter(message => message.kind === 'rework').length,
       passes: verdicts.filter(message => message.meta?.pass === true).length,
       commands: evidence.length,
       failed: evidence.filter(message => message.meta?.exit !== 0).length,

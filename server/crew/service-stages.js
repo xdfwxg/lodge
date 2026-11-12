@@ -3,6 +3,7 @@ import { gateFor } from './gates.js'
 import { fail, ok } from './result.js'
 import { acceptanceChangeError } from './service-policy.js'
 import { editStages } from './stage-plan.js'
+import { reworkFloor } from './verifiers.js'
 
 export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom, roomFiles }) => {
   const { readRooms, readMessages, updateRoom, appendMessage } = store
@@ -26,6 +27,42 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
           : `已更新阶段：${updated.stages[result.event.payload.index]?.title ?? ''}`,
     })
     return ok({ room: updated })
+  }
+
+  const stageConclusion = (room, stage, index, next) => {
+    const messages = readMessages(room.id)
+    const floor = reworkFloor(messages, index)
+    const evidence = [...messages].reverse().find(message => (
+      message.kind === 'evidence' &&
+      (message.seq ?? 0) > floor &&
+      message.meta?.kind === 'command' &&
+      (message.meta?.stage ?? 0) === index
+    ))
+    const verdicts = messages
+      .filter(message => (
+        message.kind === 'verdict' &&
+        (message.meta?.stage ?? 0) === index &&
+        (message.seq ?? 0) > floor
+      ))
+      .slice(-5)
+      .map(message => ({
+        name: room.seatNames?.[message.authorId] ?? message.authorId,
+        pass: message.meta?.pass === true,
+      }))
+    return {
+      kind: 'stage_conclusion',
+      authorId: 'system',
+      text: `阶段 ${index + 1}「${stage.title}」已通过`,
+      meta: {
+        stage: index,
+        title: stage.title,
+        command: typeof evidence?.meta?.command === 'string' ? evidence.meta.command : '',
+        exit: evidence?.meta?.exit ?? null,
+        files: Array.isArray(evidence?.meta?.files) ? evidence.meta.files : [],
+        verdicts,
+        next: next >= 0 ? room.stages[next]?.title ?? null : null,
+      },
+    }
   }
 
   const accept = (room, body) => {
@@ -54,6 +91,7 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
     emit('dispatch', dispatchPayload())
+    if (next >= 0) appendMessage(room.id, stageConclusion(room, room.stages[index], index, next))
     appendMessage(room.id, {
       kind: 'system',
       text: gate.stage.kind === 'deliverable'
@@ -91,6 +129,45 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     return ok({ room: finalRoom })
   }
 
+  const rework = (room, body) => {
+    const index = Number(body?.stage)
+    const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : ''
+    const stage = room.stages?.[index]
+    if (stage === undefined) return fail('invalid', '没有这个阶段')
+    if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这个阶段不能重做')
+    if (room.state !== 'active') return fail('conflict', '先继续房间，再重做当前阶段')
+    if (room.busy === true) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
+    if (room.live === true && typeof live.busyReview === 'function' && live.busyReview(room.id)) {
+      return fail('conflict', '复核进行中，先等验收结论')
+    }
+    if (stage.state !== 'active') return fail('conflict', '这个阶段不在待返工状态')
+    const status = budgetStatus(room, readRooms())
+    if (!status.ok) return fail('conflict', `${status.message}；${budgetHint(status)}`)
+    const message = appendMessage(room.id, {
+      kind: 'rework',
+      authorId: 'you',
+      text: note === '' ? '结果不对，请重新对照目标后重做。' : note,
+      meta: { stage: index, requestedAt: Date.now() },
+    })
+    const updated = updateRoom(room.id, current => {
+      const target = current.stages?.[index]
+      if (target === undefined || target.state !== 'active') return null
+      if (Array.isArray(target.tasks)) target.tasks = target.tasks.map(task => ({ ...task, status: 'working' }))
+      return { events: [{ type: 'stage.rework', payload: { stage: index, note } }] }
+    })
+    if (updated === null) return fail('conflict', '阶段状态已变化，重试')
+    emit('room', updated)
+    emit('dispatch', dispatchPayload())
+    if (room.live === true && typeof live.reworkStage === 'function') {
+      void live.reworkStage(updated, index, note).catch(error => {
+        appendMessage(room.id, { kind: 'system', text: `重审返工启动失败：${error?.message ?? error}` })
+      })
+    } else {
+      appendMessage(room.id, { kind: 'system', text: '已记录返工意见；这个房间没有连接实时基座，需要你继续或重新开工。' })
+    }
+    return ok({ room: updated, message })
+  }
+
   const setAcceptance = (room, index, command) => {
     let rejection = null
     const updated = updateRoom(room.id, current => {
@@ -120,5 +197,5 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     return ok({ room, message })
   }
 
-  return { editStagePlan, accept, setAcceptance }
+  return { editStagePlan, accept, rework, setAcceptance }
 }

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { externalAction, pendingApprovals } from './external-actions.js'
 import { reviewExternalAction } from './gate.js'
 import { seatNameOf } from './live-projection.js'
+import { activeStageReadOnly } from './live-turn-utils.js'
 import { decidePermission } from './permission.js'
 
 export const APPROVAL_TIMEOUT = 10 * 60 * 1000
@@ -159,7 +160,8 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
     if (entry.answeredCards.has(card.requestId) || entry.heldCards.has(card.requestId)) return
     const room = store.readRoom(entry.roomId)
     const spec = room?.seatSpecs?.find(item => item.id === seat)
-    const allowed = decidePermission(spec, card.action)
+    const readOnly = activeStageReadOnly(room)
+    const allowed = decidePermission(spec, card.action, { readOnly })
     const external = allowed ? externalAction(card) : null
     if (external !== null) {
       holdForApproval(entry, seat, card, external)
@@ -174,9 +176,12 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
       })
       if (result?.ok === false) throw new Error(result.error ?? '基座拒绝了权限卡答案')
       if (!allowed) {
+        const blockedByReadOnly = readOnly && (card.action === 'write' || card.action === 'exec')
         store.appendMessage(entry.roomId, {
           kind: 'system',
-          text: `权限拒绝：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,
+          text: blockedByReadOnly
+            ? `只读讨论阶段：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action}；先讨论，结论确认后再改文件。`
+            : `权限拒绝：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,
         })
       }
       refresh(entry, { force: true })

@@ -1,4 +1,4 @@
-import { reviewState, verifierIds } from './verifiers.js'
+import { reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
 
@@ -60,7 +60,12 @@ export const gateFor = (room, index, messages) => {
     }
     return { ok: true, stage }
   }
-  const verdicts = ordered.filter(message => message.kind === 'verdict' && message.meta?.stage === index)
+  const floor = reworkFloor(ordered, index)
+  const verdicts = ordered.filter(message => (
+    message.kind === 'verdict' &&
+    message.meta?.stage === index &&
+    (message.seq ?? 0) > floor
+  ))
   const latest = verdicts.at(-1)
   const evidenceBetween = (floor, ceiling) => ordered.filter(message => (
     message.kind === 'evidence' &&
@@ -71,7 +76,7 @@ export const gateFor = (room, index, messages) => {
   ))
 
   if (latest === undefined) {
-    const phaseEvidence = evidenceBetween(-1, Number.POSITIVE_INFINITY)
+    const phaseEvidence = evidenceBetween(floor, Number.POSITIVE_INFINITY)
     if (phaseEvidence.length === 0) {
       return deny('conflict', '还没有本阶段的证据，不能验收')
     }
@@ -92,15 +97,15 @@ export const gateFor = (room, index, messages) => {
 
   // PASS 之前必须有一段“上一次 REJECT 之后”的新证据；否则只是口头翻案。
   const previousReject = [...verdicts].reverse().slice(1).find(message => message.meta?.pass !== true)
-  const floor = previousReject?.seq ?? -1
-  const phaseEvidence = evidenceBetween(floor, latest.seq ?? Number.POSITIVE_INFINITY)
+  const evidenceFloor = Math.max(floor, previousReject?.seq ?? -1)
+  const phaseEvidence = evidenceBetween(evidenceFloor, latest.seq ?? Number.POSITIVE_INFINITY)
   if (phaseEvidence.length === 0) {
     return deny('conflict', previousReject === undefined ? '还没有本阶段的证据，不能验收' : '返工后还没有新的证据，不能验收')
   }
   const referenced = typeof latest.meta?.evidenceId === 'string'
     ? ordered.find(message => message.id === latest.meta.evidenceId)
     : undefined
-  const covered = referenced !== undefined && (referenced.seq ?? 0) > floor ? referenced : phaseEvidence.at(-1)
+  const covered = referenced !== undefined && (referenced.seq ?? 0) > evidenceFloor ? referenced : phaseEvidence.at(-1)
   if (!isCommandEvidence(covered)) {
     return deny('conflict', '复核没有对应的验收命令证据（exit 0），不能签字')
   }

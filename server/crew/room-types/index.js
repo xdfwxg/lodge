@@ -16,4 +16,5 @@ export const listRoomTypes = () => roomTypeStrategies.map(item => ({
   description: item.description,
   defaultVerify: item.defaultVerify,
   defaultSeats: item.defaultSeats,
+  readOnly: item.readOnly === true,
 }))

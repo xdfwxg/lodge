@@ -179,6 +179,13 @@ test('a room without verifiers with a REJECT must rework', () => {
   assert.match(gate.error, /返工/)
 })
 
+test('a human rework invalidates an earlier PASS', () => {
+  const rework = { id: 'r-1', kind: 'rework', authorId: 'you', seq: 12, meta: { stage: 1 } }
+  const gate = gateFor(room(), 1, [evidence(1, 10), verdict(1, 11, true), rework])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /证据|PASS/)
+})
+
 test('latest PASS with evidence passes', () => {
   const gate = gateFor(room(), 1, [evidence(1, 10), verdict(1, 11, true)])
   assert.equal(gate.ok, true)

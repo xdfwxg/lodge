@@ -161,6 +161,12 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     return entry.turns.startStage(room, index)
   }
 
+  const reworkStage = async (room, index, note) => {
+    const entry = entries.get(room.id)
+    if (entry === undefined) throw new Error('实时房间未绑定')
+    return entry.turns.startStage(room, index, { note, rework: true })
+  }
+
   const decideApproval = async (roomId, approvalId, decision) => approvals.decideApproval({
     entry: entries.get(roomId),
     roomId,
@@ -208,6 +214,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     busyReview: roomId => entries.get(roomId)?.turns.busyReview() ?? false,
     isAttached: roomId => entries.has(roomId),
     startStage,
+    reworkStage,
     cancel,
     sync: async roomId => {
       const entry = entries.get(roomId)
