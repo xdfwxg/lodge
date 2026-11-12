@@ -1,6 +1,6 @@
 import { budgetHint, budgetStatus } from './budget.js'
 
-export const createRoomRefresher = ({ store, engine, emit, usage }) => {
+export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) => {
   // 到预算线只暂停新任务，不取消正在跑的回合；同一暂停只写一条系统消息。
   const pauseForBudget = (room, status) => {
     const paused = store.updateRoom(room.id, current => {
@@ -24,7 +24,7 @@ export const createRoomRefresher = ({ store, engine, emit, usage }) => {
     const now = Date.now()
     if (!force && now - entry.refreshedAt < 1_500) return
     entry.refreshedAt = now
-    void (async () => {
+    return (async () => {
       const room = store.readRoom(entry.roomId)
       if (room === null) return
       try {
@@ -33,7 +33,7 @@ export const createRoomRefresher = ({ store, engine, emit, usage }) => {
           .map(([seat, ref]) => ({ seat, base: bases.find(item => item.id === ref.id) }))
           .filter(item => item.base !== undefined)
         const busySeats = seatBases.filter(item => item.base.working === true).map(item => item.seat)
-        const usage = seatBases.reduce((total, item) => {
+        const nextUsage = seatBases.reduce((total, item) => {
           total.turns += item.base.usage.turns ?? 0
           total.costMicroUsd += item.base.usage.costMicroUsd ?? 0
           total.tokens.input += item.base.usage.tokens?.input ?? 0
@@ -46,12 +46,12 @@ export const createRoomRefresher = ({ store, engine, emit, usage }) => {
           current.busy = busySeats.length > 0
           current.busySeat = busySeats[0] ?? ''
           current.busySeats = busySeats
-          current.usage = { ...current.usage, ...usage }
+          current.usage = { ...current.usage, ...nextUsage }
           return { events: [] }
         })
         if (updated === null) return
         try {
-          usage.record(updated, previous)
+          usagePort.record(updated, previous)
         } catch (error) {
           console.warn(`usage history failed: ${updated.id} ${error?.message ?? error}`)
         }

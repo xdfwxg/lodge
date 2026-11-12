@@ -70,6 +70,16 @@ test('multiple verifiers report progress and require all PASS', () => {
   assert.equal(roomNeedsYou(r, [e, first, reject]).kind, 'rework')
 })
 
+test('a failed acceptance command asks for rework, not review or sign-off', () => {
+  const failed = { id: 'e-failed', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'command', command: 'npm test', exit: 1 } }
+  assert.equal(roomNeedsYou(atDeliverable(), [failed]).kind, 'rework')
+  const two = atDeliverable()
+  two.verifiers = ['v1', 'v2']
+  assert.equal(roomNeedsYou(two, [failed]).kind, 'rework')
+  two.verifiers = []
+  assert.equal(roomNeedsYou(two, [failed]).kind, 'rework')
+})
+
 test('a PASS verdict waits for sign-off', () => {
   assert.equal(roomNeedsYou(atDeliverable(), [evidence(), verdict(true)]).kind, 'signoff')
 })

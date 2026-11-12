@@ -5,12 +5,12 @@ import { createSeatSync } from './live-sync.js'
 import { createLiveTurns } from './live-turns.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
-export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports }) => {
+export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs }) => {
   const { roomFiles, usage, commands, files } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit, usage })
-  const approvals = createLiveApprovals({ store, engine, emit, gateAgent })
+  const approvals = createLiveApprovals({ store, engine, emit, gateAgent, approvalTimeoutMs })
   const sync = createSeatSync({ store, engine, projector })
   const refreshRoom = refresher.refresh
   const seatHandlers = {
@@ -18,7 +18,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     refresh: refreshRoom,
   }
 
-  const attach = async room => {
+  const attach = async (room, { resume = true } = {}) => {
     if (entries.has(room.id)) return entries.get(room.id)
     const seatRefs = room.seatRooms ?? {}
     const seatKeys = Object.keys(seatRefs)
@@ -32,6 +32,8 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       commands,
       files,
     })
+    // 已落证据的回合在重启后会被基座历史重放；先标记，避免重复采集。
+    turns.seed(store.readMessages(room.id))
     const entry = {
       roomId: room.id,
       seats: new Map(),
@@ -39,6 +41,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       syncing: new Set(),
       answeredCards: new Set(),
       heldCards: new Map(),
+      approvalTimers: new Map(),
       refreshedAt: 0,
     }
     entries.set(room.id, entry)
@@ -55,6 +58,8 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     roomFiles.writeBrief(room)
     roomFiles.writeGoal(room)
     await refreshRoom(entry, { force: true })
+    if (approvals.resumeApprovalPauseIfSettled(room.id) !== null) await refreshRoom(entry, { force: true })
+    if (resume) await entry.turns.resume()
     const current = store.readRoom(room.id) ?? room
     emit('room', current)
     console.log(`live room attached: ${current.name} ${room.id}`)

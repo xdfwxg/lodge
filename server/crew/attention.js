@@ -1,5 +1,5 @@
 import { pendingApprovals } from './external-actions.js'
-import { reviewState, verifierIds } from './verifiers.js'
+import { commandEvidenceFor, reviewState, verifierIds } from './verifiers.js'
 
 const activeStageIndex = room => room.stages.findIndex(stage => stage.state === 'active')
 
@@ -15,6 +15,7 @@ export const roomNeedsYou = (room, messages = []) => {
   if (room.state === 'paused') {
     if (room.pauseReason === 'budget') return { kind: 'budget', stage: null, label: '预算已用尽 · 等你处理' }
     if (room.pauseReason === 'mcp') return { kind: 'mcp', stage: null, label: 'MCP 熔断 · 等你恢复' }
+    if (room.pauseReason === 'approval') return { kind: 'approval', stage: null, label: '外部动作审批超时 · 等你处理' }
     return room.idle === true ? { kind: 'idle', stage: null, label: '等你说话' } : null
   }
   if (room.state !== 'active') return null
@@ -45,6 +46,10 @@ export const roomNeedsYou = (room, messages = []) => {
   }
   if (dispatch?.stage === index && dispatch?.timedOut === true) {
     return { kind: 'parallel', stage: index, label: '并行执行超时 · 等你处理' }
+  }
+  const commandEvidence = commandEvidenceFor(room, messages, index)
+  if (commandEvidence !== undefined && commandEvidence.meta?.exit !== 0) {
+    return { kind: 'rework', stage: index, label: '验收未通过 · 等你返工' }
   }
   if (verifierIds(room).length > 1) {
     const outcome = reviewState({ room, messages, stageIndex: index })

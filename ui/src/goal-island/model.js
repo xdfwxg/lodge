@@ -6,6 +6,7 @@ export const NEEDS_TONE = {
   review: 'checking',
   rework: 'paused',
   setup: 'waiting',
+  approval: 'waiting',
   idle: 'paused',
   merge: 'paused',
   parallel: 'paused',
@@ -59,7 +60,7 @@ export const islandStatus = room => {
   if (room.state === 'complete') return { label: '目标达成', tone: 'done' }
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
   if (room.state === 'paused') {
-    return ['idle', 'budget', 'mcp'].includes(room.needsYou?.kind)
+    return ['idle', 'budget', 'mcp', 'approval'].includes(room.needsYou?.kind)
       ? { label: room.needsYou.label, tone: 'paused' }
       : { label: '已暂停', tone: 'paused' }
   }

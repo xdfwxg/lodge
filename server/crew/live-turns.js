@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mcpCalls } from './mcp.js'
 import { recordMcpFailures } from './mcp-breaker.js'
 import { markTask } from './tasks.js'
+import { reviewState } from './verifiers.js'
 import { createAcceptanceRunner } from './live-acceptance.js'
 import { createStageIntegrator } from './live-integration.js'
 import { createReviewCoordinator } from './live-review.js'
@@ -19,6 +20,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     roomId,
     markProgress: state.markProgress,
     requestReview: review.request,
+    updateTasks: state.updateTasks,
     run: commands.run,
   })
   const integrator = createStageIntegrator({
@@ -39,6 +41,32 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     integrate: integrator.integrate,
     enqueue: integrator.enqueue,
   })
+
+  const markManualReady = (room, stageIndex, turnId) => {
+    try {
+      if (workspaceOf(room).capabilities().candidate === true) {
+        const candidate = workspaceOf(room).submit({ path: room.repoPath, turnId, name: room.name })
+        if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
+      }
+    } catch (error) {
+      store.appendMessage(roomId, { kind: 'system', text: `候选提交失败：${error?.message ?? error}` })
+    }
+    store.appendMessage(roomId, {
+      kind: 'evidence',
+      authorId: 'system',
+      text: '产物已就绪，等你验收。',
+      meta: {
+        kind: 'manual',
+        stage: stageIndex,
+        turnId,
+        repoPath: room.repoPath,
+        simulated: false,
+        capturedAt: new Date().toISOString(),
+      },
+    })
+    store.appendMessage(roomId, { kind: 'system', text: '产物已就绪 · 等你验收' })
+    state.markProgress()
+  }
 
   const captureTurn = (turn, authorRef) => {
     const turnId = turn?.turnId
@@ -246,29 +274,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
       const key = `${stage}:${turnId}`
       if (target?.manual === true && target.state === 'active' && !state.acceptanceRuns.has(key)) {
         state.acceptanceRuns.add(key)
-        try {
-          if (workspaceOf(room).capabilities().candidate === true) {
-            const candidate = workspaceOf(room).submit({ path: room.repoPath, turnId, name: room.name })
-            if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, commit: candidate })
-          }
-        } catch (error) {
-          store.appendMessage(roomId, { kind: 'system', text: `候选提交失败：${error?.message ?? error}` })
-        }
-        store.appendMessage(roomId, {
-          kind: 'evidence',
-          authorId: 'system',
-          text: '产物已就绪，等你验收。',
-          meta: {
-            kind: 'manual',
-            stage,
-            turnId,
-            repoPath: room.repoPath,
-            simulated: false,
-            capturedAt: new Date().toISOString(),
-          },
-        })
-        store.appendMessage(roomId, { kind: 'system', text: '产物已就绪 · 等你验收' })
-        state.markProgress()
+        markManualReady(room, stage, turnId)
       } else if (command !== '' && target?.kind === 'deliverable' && target.state === 'active' && !state.acceptanceRuns.has(key)) {
         state.acceptanceRuns.add(key)
         void acceptance.run(stage, command, turnId)
@@ -276,10 +282,117 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     }
   }
 
+  // 服务重启后以已落盘的消息为准续跑：缺回合就重新派发，缺验收就重跑命令，待复核就重发请求，待集成就先合并。
+  const resumeOnce = async () => {
+    const room = store.readRoom(roomId)
+    if (room === null || room.live !== true || room.state !== 'active' || room.imported === true) return
+    if (room.busy === true || (room.workers?.length ?? 0) === 0) return
+    const stageIndex = room.stages.findIndex(stage => stage.state === 'active')
+    if (stageIndex < 0) return
+    const stage = room.stages[stageIndex]
+    if (!isWorkStage(stage) && stage.manual !== true) return
+
+    const messages = store.readMessages(roomId)
+    const evidence = messages.filter(message => (
+      message.kind === 'evidence' &&
+      (message.meta?.stage ?? 0) === stageIndex &&
+      (room.demo === true || message.meta?.simulated !== true)
+    ))
+    const latestTurn = [...evidence].reverse().find(message => message.meta?.kind === 'turn')
+    const latestCommand = [...evidence].reverse().find(message => message.meta?.kind === 'command')
+    const latestManual = [...evidence].reverse().find(message => message.meta?.kind === 'manual')
+    const latestTurnSeq = latestTurn?.seq ?? -1
+    const dispatch = room.stageDispatch
+
+    if (latestCommand !== undefined && (latestCommand.seq ?? 0) > latestTurnSeq) {
+      if (latestCommand.meta?.exit !== 0) return
+      const outcome = reviewState({ room, messages, stageIndex })
+      if (outcome.state !== 'pending') return
+      try {
+        await review.request(stageIndex)
+      } catch (error) {
+        store.appendMessage(roomId, { kind: 'system', text: `重启后复核未恢复：${error?.message ?? error}` })
+      }
+      return
+    }
+
+    if (dispatch?.stage === stageIndex) {
+      if (stage.manual === true && latestManual !== undefined && (latestManual.seq ?? 0) > latestTurnSeq) return
+      if (dispatch.stalled === true) return
+      if (dispatch.timedOut === true) {
+        store.updateRoom(roomId, current => {
+          const currentDispatch = current.stageDispatch
+          if (currentDispatch?.stage !== stageIndex || currentDispatch.timedOut !== true) return null
+          currentDispatch.timedOut = false
+          return { events: [] }
+        })
+      }
+      const reported = new Set(
+        evidence.filter(message => message.meta?.kind === 'turn').map(message => message.authorId),
+      )
+      const failed = [...new Set([
+        ...(dispatch.failed ?? []),
+        ...(dispatch.workers ?? []).filter(worker => !reported.has(worker)),
+      ])]
+      const workers = (dispatch.workers ?? []).filter(worker => reported.has(worker) && !failed.includes(worker))
+      if (workers.length === 0) {
+        const updated = store.updateRoom(roomId, current => {
+          const currentDispatch = current.stageDispatch
+          if (currentDispatch?.stage !== stageIndex || currentDispatch.stalled === true) return null
+          currentDispatch.stalled = true
+          return { events: [{ type: 'stage.dispatch_stalled', payload: { stage: stageIndex, workers: dispatch.workers ?? [] } }] }
+        })
+        if (updated !== null) {
+          store.appendMessage(roomId, { kind: 'system', text: '重启后并行执行仍没有产出；阶段等你处理。' })
+          emit?.('room', updated)
+        }
+        return
+      }
+      await integrator.enqueue(() => integrator.integrate({
+        stageIndex,
+        workers,
+        base: dispatch.base ?? workspaceOf(room).head({ path: room.repoPath }),
+        turnId: latestTurn?.meta?.turnId ?? '',
+        failed,
+      }))
+      return
+    }
+
+    if (stage.manual === true) {
+      if (latestManual !== undefined && (latestManual.seq ?? 0) > latestTurnSeq) return
+      if (latestTurn === undefined) {
+        await stageStarter.startStage(room, stageIndex)
+        return
+      }
+      if (typeof latestTurn.meta?.turnId === 'string') markManualReady(room, stageIndex, latestTurn.meta.turnId)
+      return
+    }
+
+    if (latestTurn === undefined) {
+      if (dispatch?.stage === stageIndex && (dispatch.stalled === true || dispatch.timedOut === true)) return
+      await stageStarter.startStage(room, stageIndex)
+      return
+    }
+
+    const command = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
+    if (command !== '' && typeof latestTurn.meta?.turnId === 'string') {
+      await acceptance.run(stageIndex, command, latestTurn.meta.turnId)
+    }
+  }
+
+  const resume = async () => {
+    try {
+      await resumeOnce()
+    } catch (error) {
+      store.appendMessage(roomId, { kind: 'system', text: `重启后未能自动续跑：${error?.message ?? error}` })
+    }
+  }
+
   return {
     seed: state.seed,
     trackTool: state.trackTool,
     captureTurn,
+    resume,
     requestReview: review.request,
     startStage: stageStarter.startStage,
     busyReview: review.isBusy,

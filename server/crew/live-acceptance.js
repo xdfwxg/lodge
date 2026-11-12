@@ -1,6 +1,7 @@
+import { markStageTasks } from './tasks.js'
 import { vcsOf, workspaceOf } from './live-workspace.js'
 
-export const createAcceptanceRunner = ({ store, roomId, markProgress, requestReview, run }) => {
+export const createAcceptanceRunner = ({ store, roomId, markProgress, requestReview, updateTasks, run }) => {
   let chain = Promise.resolve()
 
   const runAcceptance = async (stageIndex, command, turnId) => {
@@ -92,7 +93,10 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
         ? '验收命令完成 · exit 0 · 等待独立复核'
         : `验收命令未通过 · exit ${result.exit === null ? '无' : result.exit} · 返工后才能复核`,
     })
-    if (result.exit !== 0) return
+    if (result.exit !== 0) {
+      updateTasks(stageIndex, current => markStageTasks(current, 'working'))
+      return
+    }
     markProgress()
     if ((room.verifiers?.length ?? 0) > 0) {
       try {

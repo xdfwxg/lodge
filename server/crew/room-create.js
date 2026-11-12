@@ -141,7 +141,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     })) {
       store.appendMessage(room.id, message)
     }
-    await live.attach(room)
+    await live.attach(room, { resume: false })
     emit('dispatch', dispatchPayload())
     room = await startInitialStage({
       store,

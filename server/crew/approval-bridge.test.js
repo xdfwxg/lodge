@@ -10,7 +10,7 @@ import { createStore } from './store.js'
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 20))
 
-const setup = async () => {
+const setup = async (options = {}) => {
   const dir = mkdtempSync(join(tmpdir(), 'lodge-approval-'))
   const store = createStore({ dataDir: join(dir, 'db') })
   const room = {
@@ -64,12 +64,14 @@ const setup = async () => {
     emit: () => {},
     dispatchPayload: () => ({}),
     ports: createCrewPorts(),
+    approvalTimeoutMs: options.approvalTimeoutMs,
   })
   await live.attach(store.readRoom('room-1'))
   return {
     dir,
     store,
     live,
+    engine,
     answers,
     room: () => store.readRoom('room-1'),
     permission: subtitle => {
@@ -91,6 +93,54 @@ const setup = async () => {
     close: () => rmSync(dir, { recursive: true, force: true }),
   }
 }
+
+test('an unanswered approval pauses the room, and deciding it resumes the room', async () => {
+  const ctx = await setup({ approvalTimeoutMs: 30 })
+  try {
+    ctx.permission('git push origin main')
+    await new Promise(resolve => setTimeout(resolve, 80))
+    const paused = ctx.room()
+    assert.equal(paused.state, 'paused')
+    assert.equal(paused.pauseReason, 'approval')
+    assert.deepEqual(roomNeedsYou(paused), {
+      kind: 'approval',
+      stage: null,
+      label: '外部动作审批超时 · 等你处理',
+    })
+    const approval = paused.approvals.find(item => item.state === 'pending')
+    await ctx.live.decideApproval('room-1', approval.id, 'allow')
+    const resumed = ctx.room()
+    assert.equal(resumed.state, 'active')
+    assert.equal(resumed.pauseReason, null)
+    assert.ok(resumed.approvals.some(item => item.id === approval.id && item.state === 'allowed'))
+    assert.match(ctx.store.readMessages('room-1').at(-1).text, /房间继续/)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('reopening a room paused by an expired approval resumes it', async () => {
+  const ctx = await setup({ approvalTimeoutMs: 30 })
+  try {
+    ctx.permission('git push origin main')
+    await new Promise(resolve => setTimeout(resolve, 80))
+    assert.equal(ctx.room().state, 'paused')
+    const reopened = createLiveRooms({
+      store: ctx.store,
+      engine: ctx.engine,
+      emit: () => {},
+      dispatchPayload: () => ({}),
+      ports: createCrewPorts(),
+    })
+    await reopened.attach(ctx.room())
+    const room = ctx.room()
+    assert.equal(room.state, 'active')
+    assert.equal(room.pauseReason, null)
+    assert.ok(room.approvals.every(item => item.state !== 'pending'))
+  } finally {
+    ctx.close()
+  }
+})
 
 test('an external command is held for the human instead of being auto-allowed', async () => {
   const ctx = await setup()

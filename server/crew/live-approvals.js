@@ -4,7 +4,9 @@ import { reviewExternalAction } from './gate.js'
 import { seatNameOf } from './live-projection.js'
 import { decidePermission } from './permission.js'
 
-export const createLiveApprovals = ({ store, engine, emit, gateAgent = null }) => {
+export const APPROVAL_TIMEOUT = 10 * 60 * 1000
+
+export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, approvalTimeoutMs = APPROVAL_TIMEOUT }) => {
   const setApprovalState = (roomId, approvalId, state, extra = {}) => store.updateRoom(roomId, current => {
     const approval = current.approvals?.find(item => item?.id === approvalId && item.state === 'pending')
     if (approval === undefined) return null
@@ -18,6 +20,33 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null }) =
       }],
     }
   })
+
+  const clearTimer = (entry, approvalId) => {
+    const timer = entry?.approvalTimers?.get(approvalId)
+    if (timer === undefined) return
+    clearTimeout(timer)
+    entry.approvalTimers.delete(approvalId)
+  }
+
+  const clearTimers = entry => {
+    for (const timer of entry?.approvalTimers?.values() ?? []) clearTimeout(timer)
+    entry?.approvalTimers?.clear()
+  }
+
+  // 审批超时只暂停房间，不替人做决定；基座仍在等这张卡，所以处理后可以原地恢复。
+  const resumeRoom = (roomId, text) => {
+    const updated = store.updateRoom(roomId, current => {
+      if (current.state !== 'paused' || current.pauseReason !== 'approval') return null
+      current.state = 'active'
+      current.pauseReason = null
+      current.idle = false
+      return { events: [{ type: 'room.state', payload: { state: 'active', action: 'approval' } }] }
+    })
+    if (updated === null) return null
+    store.appendMessage(roomId, { kind: 'system', text })
+    emit('room', updated)
+    return updated
+  }
 
   // 外部动作不共享席位的自动判定：先落成房间里的待批准记录，人点了才回答基座权限卡。
   const holdForApproval = (entry, seat, card, external) => {
@@ -53,6 +82,32 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null }) =
       meta: { kind: 'approval', approvalId: approval.id },
     })
     emit('room', updated)
+    const timer = setTimeout(() => {
+      entry.approvalTimers.delete(approval.id)
+      const current = store.readRoom(entry.roomId)
+      if (current === null || current.state !== 'active') return
+      if (!pendingApprovals(current).some(item => item.id === approval.id)) return
+      const paused = store.updateRoom(entry.roomId, room => {
+        if (room.state !== 'active') return null
+        room.state = 'paused'
+        room.pauseReason = 'approval'
+        room.idle = false
+        return {
+          events: [{
+            type: 'approval.timeout',
+            payload: { id: approval.id, seat, kind: approval.kind },
+          }],
+        }
+      })
+      if (paused === null) return
+      store.appendMessage(entry.roomId, {
+        kind: 'system',
+        text: '外部动作审批超时无人处理，房间已暂停；批准或拒绝后继续。',
+      })
+      emit('room', paused)
+    }, approvalTimeoutMs)
+    timer.unref?.()
+    entry.approvalTimers.set(approval.id, timer)
     if (gateAgent !== null && typeof gateAgent.review === 'function') {
       void gateAgent.review({ room, approval }).then(result => {
         if (result === null || result === undefined) return
@@ -70,6 +125,7 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null }) =
   }
 
   const expireApprovals = (entry, roomId, reason) => {
+    clearTimers(entry)
     const room = store.readRoom(roomId)
     const pending = pendingApprovals(room)
     if (pending.length === 0) return null
@@ -140,7 +196,19 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null }) =
       return { ok: false, reason: '审批已失效，基座权限卡不在等待' }
     }
     const target = entry.seats.get(approval.seat)
-    if (target === undefined) return { ok: false, reason: `审批对应的席位 ${approval.seatName} 已不在房间` }
+    if (target === undefined) {
+      clearTimer(entry, approvalId)
+      entry.heldCards.delete(approval.requestId)
+      const expired = setApprovalState(roomId, approvalId, 'expired')
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `外部动作审批失效：${approval.summary}（席位 ${approval.seatName} 已不在房间）`,
+      })
+      if (expired !== null) emit('room', expired)
+      resumeRoom(roomId, '审批对应的席位已移除，房间已恢复。')
+      return { ok: false, reason: `审批对应的席位 ${approval.seatName} 已不在房间` }
+    }
+    clearTimer(entry, approvalId)
     try {
       const result = await engine.answerCard({
         sessionRef: target.sessionRef,
@@ -156,6 +224,7 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null }) =
         text: `外部动作审批失效：${approval.summary}（${error?.message ?? error}）`,
       })
       if (expired !== null) emit('room', expired)
+      resumeRoom(roomId, '审批已失效，房间已恢复；可继续或重新发起。')
       return { ok: false, reason: `基座权限卡已不在等待：${error?.message ?? error}` }
     }
     entry.heldCards.delete(approval.requestId)
@@ -167,9 +236,22 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null }) =
       text: `外部动作已${decision === 'allow' ? '允许' : '拒绝'}：${approval.seatName} · ${approval.summary}`,
     })
     if (updated !== null) emit('room', updated)
+    resumeRoom(roomId, '审批已处理，房间继续。')
     refresh(entry, { force: true })
     return { ok: true, room: updated ?? store.readRoom(roomId) }
   }
 
-  return { expireApprovals, answerPermission, decideApproval }
+  const resumeApprovalPauseIfSettled = roomId => {
+    const room = store.readRoom(roomId)
+    if (room?.state !== 'paused' || room.pauseReason !== 'approval') return null
+    if (pendingApprovals(room).length > 0) return null
+    return resumeRoom(roomId, '审批在重启后失效，房间已恢复。')
+  }
+
+  return {
+    expireApprovals,
+    answerPermission,
+    decideApproval,
+    resumeApprovalPauseIfSettled,
+  }
 }
