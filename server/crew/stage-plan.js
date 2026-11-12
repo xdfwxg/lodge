@@ -50,6 +50,22 @@ export const editStages = (room, action, index, input) => {
     return { stages, event: { type: 'stage.updated', payload: { index: at } } }
   }
 
+  if (action === 'move') {
+    const to = Number(input?.to)
+    if (!Number.isInteger(to) || to < 0 || to >= stages.length) return { error: '目标阶段不存在' }
+    const target = stages[to]
+    if (target.title === FINAL_TITLE || target.state !== 'pending') return { error: '只能和未开始阶段交换位置' }
+    const source = stages[at]
+    stages[at] = target
+    stages[to] = source
+    for (const stage of stages) {
+      if (Array.isArray(stage.dependsOn)) {
+        stage.dependsOn = stage.dependsOn.map(item => (item === at ? to : item === to ? at : item))
+      }
+    }
+    return { stages, event: { type: 'stage.moved', payload: { from: at, to } } }
+  }
+
   if (action === 'remove') {
     if (at === stages.length - 1) return { error: '不能移除最后一个阶段' }
     if (stages.some((stage, index) => index !== at && stage.title !== FINAL_TITLE && (stage.dependsOn ?? []).includes(at))) {

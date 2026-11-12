@@ -316,6 +316,16 @@ function StageEditRow({ stage, index, store }) {
     h('button', {
       type: 'button',
       className: 'crew-ghost',
+      onClick: () => void store.editStagePlan('move', index, { to: index - 1 }),
+    }, '↑'),
+    h('button', {
+      type: 'button',
+      className: 'crew-ghost',
+      onClick: () => void store.editStagePlan('move', index, { to: index + 1 }),
+    }, '↓'),
+    h('button', {
+      type: 'button',
+      className: 'crew-ghost',
       onClick: () => void store.editStagePlan('remove', index, {}),
     }, '移除'))
 }

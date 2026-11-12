@@ -44,3 +44,16 @@ test('removing a pending stage keeps the final dependency valid', () => {
   assert.equal(result.stages[3].title, '验收与结论')
   assert.deepEqual(result.stages[3].dependsOn, [2])
 })
+
+test('pending stages can swap positions but cannot cross active or final stages', () => {
+  const first = editStages(room(), 'move', 2, { to: 2 })
+  assert.equal(first.stages[2].title, '回归')
+  const moved = editStages(room(), 'move', 2, { to: 1 })
+  assert.match(moved.error, /只能和未开始阶段交换/)
+  const added = editStages(room(), 'add', null, { title: '文档', kind: 'deliverable', acceptance: 'npm run docs' })
+  const swapped = editStages({ ...room(), stages: added.stages }, 'move', 2, { to: 3 })
+  assert.equal(swapped.stages[2].title, '文档')
+  assert.equal(swapped.stages[3].title, '回归')
+  assert.deepEqual(swapped.stages[2].dependsOn, [3])
+  assert.deepEqual(swapped.stages[3].dependsOn, [1])
+})
