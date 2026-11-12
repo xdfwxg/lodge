@@ -2,7 +2,8 @@ import { blockedSeats } from './mcp-breaker.js'
 import { markSeatRead } from './watermarks.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
-import { PARALLEL_TIMEOUT, workspaceOf } from './live-turn-utils.js'
+import { PARALLEL_TIMEOUT } from './live-turn-utils.js'
+import { workspaceOf } from './live-workspace.js'
 
 export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTasks, integrate, enqueue }) => {
   const startStage = async (room, index) => {

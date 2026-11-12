@@ -1,4 +1,3 @@
-import { writeBrief, writeGoal } from './room-repo.js'
 import { createLiveApprovals } from './live-approvals.js'
 import { createMessageProjector } from './live-projection.js'
 import { createRoomRefresher } from './live-refresh.js'
@@ -6,10 +5,11 @@ import { createSeatSync } from './live-sync.js'
 import { createLiveTurns } from './live-turns.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
-export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null }) => {
+export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports }) => {
+  const { roomFiles, usage, commands, files } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
-  const refresher = createRoomRefresher({ store, engine, emit })
+  const refresher = createRoomRefresher({ store, engine, emit, usage })
   const approvals = createLiveApprovals({ store, engine, emit, gateAgent })
   const sync = createSeatSync({ store, engine, projector })
   const refreshRoom = refresher.refresh
@@ -29,6 +29,8 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       roomId: room.id,
       emit,
       sendToSeat: (seat, text) => sendToSeat(room.id, seat, text),
+      commands,
+      files,
     })
     const entry = {
       roomId: room.id,
@@ -50,8 +52,8 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       await sync.syncSeat(entry, seat)
       sync.subscribeSeat(entry, seat, seatHandlers)
     }
-    writeBrief(room)
-    writeGoal(room)
+    roomFiles.writeBrief(room)
+    roomFiles.writeGoal(room)
     await refreshRoom(entry, { force: true })
     const current = store.readRoom(room.id) ?? room
     emit('room', current)

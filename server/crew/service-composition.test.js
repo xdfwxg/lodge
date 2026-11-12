@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createCrewPorts } from './crew-ports.js'
 import { createCrewService } from './service.js'
 
 const store = {
@@ -21,6 +22,7 @@ const service = () => createCrewService({
   dispatchPayload: () => ({}),
   seats: [],
   dataDir: '',
+  ports: createCrewPorts(),
 })
 
 test('the service facade keeps every route entry', () => {

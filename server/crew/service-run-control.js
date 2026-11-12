@@ -1,10 +1,23 @@
 import { budgetHint, budgetStatus } from './budget.js'
 import { resetMcpBreakers } from './mcp-breaker.js'
 import { fail, ok } from './result.js'
-import { writeGoal } from './room-repo.js'
 
-export const createServiceRunControl = ({ store, live, emit, dispatchPayload }) => {
+export const createServiceRunControl = ({ store, live, emit, dispatchPayload, roomFiles }) => {
   const { readRoom, readRooms, readMessages, updateRoom, appendMessage } = store
+
+  const startActiveStageIfReady = room => {
+    if (room.live !== true) return
+    const active = room.stages.findIndex(stage => stage.state === 'active')
+    const stage = room.stages[active]
+    if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
+    const hasEvidence = readMessages(room.id).some(message => (
+      message.kind === 'evidence' && (message.meta?.stage ?? 0) === active
+    ))
+    if (hasEvidence || room.busy === true) return
+    void live.startStage(room, active).catch(error => {
+      appendMessage(room.id, { kind: 'system', text: `继续执行失败：${error?.message ?? error}` })
+    })
+  }
 
   const resetMcp = (roomId, body) => {
     const room = readRoom(roomId)
@@ -54,20 +67,7 @@ export const createServiceRunControl = ({ store, live, emit, dispatchPayload }) 
     }
     emit('room', updated)
     emit('dispatch', dispatchPayload())
-    if (resumed) {
-      const active = updated.stages.findIndex(stage => stage.state === 'active')
-      const stage = updated.stages[active]
-      if (updated.live === true && (stage?.kind === 'deliverable' || stage?.manual === true)) {
-        const hasEvidence = readMessages(room.id).some(message => (
-          message.kind === 'evidence' && (message.meta?.stage ?? 0) === active
-        ))
-        if (!hasEvidence && updated.busy !== true) {
-          void live.startStage(updated, active).catch(error => {
-            appendMessage(room.id, { kind: 'system', text: `继续执行失败：${error?.message ?? error}` })
-          })
-        }
-      }
-    }
+    if (resumed) startActiveStageIfReady(updated)
     return ok({ room: updated })
   }
 
@@ -97,7 +97,7 @@ export const createServiceRunControl = ({ store, live, emit, dispatchPayload }) 
     })
     if (updated === null) return fail('conflict', '房间状态已变化，重试')
     room = updated
-    if (!room.demo) writeGoal(room)
+    if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
     emit('dispatch', dispatchPayload())
 
@@ -126,20 +126,7 @@ export const createServiceRunControl = ({ store, live, emit, dispatchPayload }) 
             : '已停止 · 你的消息不再转发给基座；已落盘的阶段与证据保留'
           : '已停止 · 已通过的阶段与证据保留，不会再派新活'
     appendMessage(room.id, { kind: 'system', text: note })
-    if (action === 'resume' && liveRoom) {
-      const active = room.stages.findIndex(stage => stage.state === 'active')
-      const stage = room.stages[active]
-      if (stage?.kind === 'deliverable' || stage?.manual === true) {
-        const hasEvidence = readMessages(room.id).some(message => (
-          message.kind === 'evidence' && (message.meta?.stage ?? 0) === active
-        ))
-        if (!hasEvidence && room.busy !== true) {
-          void live.startStage(room, active).catch(error => {
-            appendMessage(room.id, { kind: 'system', text: `继续执行失败：${error?.message ?? error}` })
-          })
-        }
-      }
-    }
+    if (action === 'resume') startActiveStageIfReady(room)
     return ok({ room })
   }
 

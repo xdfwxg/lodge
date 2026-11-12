@@ -1,5 +1,3 @@
-import { workspaceProvider } from './workspace.js'
-
 export const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
 
 export const deliverableStageIndex = room => {
@@ -10,10 +8,6 @@ export const deliverableStageIndex = room => {
   const first = room.stages.findIndex(stage => isWorkStage(stage))
   return first >= 0 ? first : 0
 }
-
-export const workspaceOf = room => workspaceProvider(room)
-
-export const vcsOf = room => workspaceOf(room).capabilities().vcs ?? 'none'
 
 export const seatOf = (room, ref) => {
   if (typeof ref !== 'string' || ref === '') return null

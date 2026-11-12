@@ -1,8 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
-import { roomDir, workspaceRoot } from './paths.js'
 
 export const HANDOFF_FORMAT = 'lodge.room-handoff.v1'
 
@@ -22,29 +19,12 @@ const allowedFile = name => (
   /^evidence\/[\w-]+\.json$/.test(name)
 )
 
-const readRoomFiles = room => {
-  const dir = roomDir(room)
-  const files = {}
-  for (const name of NAMED_FILES) {
-    const file = join(dir, name)
-    if (existsSync(file)) files[name] = readFileSync(file, 'utf8')
-  }
-  const evidenceDir = join(dir, 'evidence')
-  if (existsSync(evidenceDir)) {
-    for (const name of readdirSync(evidenceDir).sort()) {
-      if (!/^[\w-]+\.json$/.test(name)) continue
-      files[`evidence/${name}`] = readFileSync(join(evidenceDir, name), 'utf8')
-    }
-  }
-  return files
-}
-
 // 交接包要能离开本机：房间、席位、临时目录的绝对路径都换成占位符。
-const redactionPairs = room => [
+const redactionPairs = (room, workspaceRoot) => [
   [room.repoPath, '（房间工作区）'],
   [room.sourceRepo, '（源仓库）'],
   ...Object.values(room.worktrees ?? {}).map(path => [path, '（席位工作区）']),
-  [workspaceRoot(), '（工作区根）'],
+  [workspaceRoot, '（工作区根）'],
   [homedir(), '~'],
 ]
   .filter(([path]) => typeof path === 'string' && path !== '')
@@ -77,10 +57,10 @@ const handoffRoom = room => ({
   workspace: room.workspace ?? null,
 })
 
-export const buildHandoff = room => {
-  const files = readRoomFiles(room)
+export const buildHandoff = (room, { handoffStore, workspaceRoot }) => {
+  const files = handoffStore.read(room, NAMED_FILES)
   if (files['transcript.jsonl'] === undefined) return null
-  const pairs = redactionPairs(room)
+  const pairs = redactionPairs(room, workspaceRoot)
   return {
     format: HANDOFF_FORMAT,
     version: 1,
@@ -152,7 +132,7 @@ const importRoomFrom = meta => ({
   version: 1,
 })
 
-export const importHandoff = ({ store, dataDir, bundle }) => {
+export const importHandoff = ({ store, dataDir, bundle, handoffStore }) => {
   if (!isRecord(bundle)) return { ok: false, reason: 'invalid', error: '交接包不是有效的 JSON 对象' }
   if (bundle.format !== HANDOFF_FORMAT) return { ok: false, reason: 'invalid', error: '不是 Lodge 房间交接包' }
   if (bundle.version !== 1) return { ok: false, reason: 'invalid', error: '交接包版本不支持' }
@@ -204,15 +184,9 @@ export const importHandoff = ({ store, dataDir, bundle }) => {
   }
 
   const id = `room-import-${randomUUID().slice(0, 8)}`
-  const archive = join(dataDir, 'imported', id)
+  const archive = handoffStore.archivePath(dataDir, id)
   const room = { ...importRoomFrom(meta), id, stages, repoPath: archive }
-  const dir = roomDir(room)
-  mkdirSync(dir, { recursive: true })
-  for (const [name, text] of entries) {
-    const file = join(dir, name)
-    mkdirSync(name.includes('/') ? join(dir, 'evidence') : dir, { recursive: true })
-    writeFileSync(file, text)
-  }
+  handoffStore.write(room, entries)
   const stored = store.importRoom({ room, messages })
   if (stored === null) return { ok: false, reason: 'conflict', error: '房间 ID 已存在' }
   store.appendEvent(id, 'room.imported', {

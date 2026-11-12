@@ -1,19 +1,16 @@
-import { writeSeatEnv } from './seat-env.js'
-import { defaultWorkspace, workspaceById } from './workspace.js'
-
-export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourceRepo }) => {
+export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourceRepo, workspacePort }) => {
   const explicitWorkspace = typeof body.workspaceProvider === 'string' ? body.workspaceProvider.trim() : ''
   let provider = workspace
   if (provider === null) {
     if (explicitWorkspace !== '') {
-      provider = workspaceById(explicitWorkspace)
+      provider = workspacePort.byId(explicitWorkspace)
       if (provider === undefined) return { error: '未知的工作区类型' }
     } else if (requestedRepo === '') {
-      provider = defaultWorkspace
+      provider = workspacePort.default
     } else {
-      const gitProbe = defaultWorkspace.probeSource({ source: sourceRepo })
-      const directProbe = workspaceById('direct').probeSource({ source: sourceRepo })
-      provider = gitProbe.ok ? defaultWorkspace : directProbe.ok ? workspaceById('direct') : defaultWorkspace
+      const gitProbe = workspacePort.default.probeSource({ source: sourceRepo })
+      const directProbe = workspacePort.byId('direct').probeSource({ source: sourceRepo })
+      provider = gitProbe.ok ? workspacePort.default : directProbe.ok ? workspacePort.byId('direct') : workspacePort.default
     }
   }
   if (provider === undefined) return { error: '未知的工作区类型' }
@@ -24,7 +21,7 @@ export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourc
   return { provider }
 }
 
-export const prepareWorkspace = ({ provider, sourceRepo, short, roster }) => {
+export const prepareWorkspace = ({ provider, sourceRepo, short, roster, workspacePort }) => {
   let workspaces
   try {
     workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: roster })
@@ -36,11 +33,11 @@ export const prepareWorkspace = ({ provider, sourceRepo, short, roster }) => {
   for (const seat of roster) {
     const seatPath = workspaces.seats[seat.id]?.path
     if (typeof seatPath === 'string') {
-      writeSeatEnv({ room: { id: roomId }, seatId: seat.id, path: seatPath, port: workspaces.ports?.[seat.id] })
+      workspacePort.writeSeatEnv({ room: { id: roomId }, seatId: seat.id, path: seatPath, port: workspaces.ports?.[seat.id] })
     }
   }
   if (workspaces.integration?.path !== undefined) {
-    writeSeatEnv({ room: { id: roomId }, seatId: 'integration', path: workspaces.integration.path, port: workspaces.ports?.integration })
+    workspacePort.writeSeatEnv({ room: { id: roomId }, seatId: 'integration', path: workspaces.integration.path, port: workspaces.ports?.integration })
   }
   return workspaces
 }

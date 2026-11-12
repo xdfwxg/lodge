@@ -1,8 +1,7 @@
 import { fail, ok } from './result.js'
 import { parseTemplate } from './template.js'
-import { deleteSavedTemplate, saveSavedTemplate } from './template-store.js'
 
-export const createServiceTemplates = ({ dataDir }) => {
+export const createServiceTemplates = ({ dataDir, templates }) => {
   const importTemplate = body => {
     try {
       return ok({ template: parseTemplate(body?.text, typeof body?.filename === 'string' ? body.filename : '') })
@@ -14,7 +13,7 @@ export const createServiceTemplates = ({ dataDir }) => {
   const saveTemplate = body => {
     try {
       const template = parseTemplate(body?.text, typeof body?.filename === 'string' ? body.filename : '')
-      const saved = saveSavedTemplate({ dataDir, template })
+      const saved = templates.save({ dataDir, template })
       return ok({ template: saved })
     } catch (error) {
       return fail('invalid', String(error?.message ?? error))
@@ -23,7 +22,7 @@ export const createServiceTemplates = ({ dataDir }) => {
 
   const deleteTemplate = id => {
     try {
-      return ok({ removed: deleteSavedTemplate({ dataDir, id }) })
+      return ok({ removed: templates.delete({ dataDir, id }) })
     } catch (error) {
       return fail('invalid', String(error?.message ?? error))
     }

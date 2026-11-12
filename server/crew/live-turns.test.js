@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createCrewPorts } from './crew-ports.js'
 import { createLiveTurns } from './live-turns.js'
 import { BusinessError } from './result.js'
+
+const ports = createCrewPorts()
 
 const store = messages => ({
   readRoom: () => ({
@@ -25,6 +28,8 @@ test('a business rejection from review is a typed failure, not a system error', 
     roomId: 'room-1',
     emit: () => {},
     sendToSeat: async () => ({ messageId: null }),
+    commands: ports.commands,
+    files: ports.files,
   })
   await assert.rejects(
     turns.requestReview(0),

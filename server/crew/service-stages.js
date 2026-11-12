@@ -1,11 +1,10 @@
 import { budgetHint, budgetStatus } from './budget.js'
 import { gateFor } from './gates.js'
 import { fail, ok } from './result.js'
-import { writeGoal } from './room-repo.js'
 import { acceptanceChangeError } from './service-policy.js'
 import { editStages } from './stage-plan.js'
 
-export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom }) => {
+export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom, roomFiles }) => {
   const { readRooms, readMessages, updateRoom, appendMessage } = store
 
   const editStagePlan = (room, body) => {
@@ -16,7 +15,7 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
       return { events: [result.event] }
     })
     if (updated === null) return fail('not_found', '没有这个房间')
-    writeGoal(updated)
+    roomFiles.writeGoal(updated)
     emit('room', updated)
     appendMessage(room.id, {
       kind: 'system',
@@ -52,7 +51,7 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     if (gate !== null && gate.ok === false) return fail(gate.reason, gate.error)
     if (updated === null) return fail('not_found', '没有这个房间')
     room = updated
-    if (!room.demo) writeGoal(room)
+    if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
     emit('dispatch', dispatchPayload())
     appendMessage(room.id, {
@@ -109,7 +108,7 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     if (rejection !== null) return fail(rejection[0], rejection[1])
     if (updated === null) return fail('not_found', '没有这个房间')
     room = updated
-    if (!room.demo) writeGoal(room)
+    if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
     const trimmed = command.trim()
     const message = appendMessage(room.id, {

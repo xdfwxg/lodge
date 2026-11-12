@@ -4,10 +4,11 @@ import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createDigest } from './crew/digest.js'
 import { createGateAgent } from './crew/gate-agent.js'
+import { createCrewPorts } from './crew/crew-ports.js'
 import { createLiveRooms } from './crew/live.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
-import { findRedundantOpeningGate, normalizeManualStages } from './crew/room-repair.js'
+import { repairManualStages, repairOpeningGates } from './crew/startup-repair.js'
 import { createCrewService } from './crew/service.js'
 import { openPath } from './system-open.js'
 import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
@@ -48,6 +49,7 @@ const digest = createDigest({
 })
 
 const engine = createEngine()
+const ports = createCrewPorts()
 
 const live = createLiveRooms({
   store,
@@ -55,35 +57,8 @@ const live = createLiveRooms({
   emit,
   dispatchPayload: digest.dispatchPayload,
   gateAgent: createGateAgent({ engine }),
+  ports,
 })
-
-const repairManualStages = () => {
-  for (const room of store.readRooms()) {
-    if (normalizeManualStages(room) === null) continue
-    const updated = store.updateRoom(room.id, current => {
-      const stages = normalizeManualStages(current)
-      if (stages === null) return null
-      current.stages = stages
-      return { events: [{ type: 'stage.manual_normalized', payload: {} }] }
-    })
-    if (updated === null) continue
-    store.appendMessage(room.id, {
-      kind: 'system',
-      text: '验收方式为人工确认，已改为由你确认，不再执行命令。',
-    })
-  }
-}
-
-const repairOpeningGates = async () => {
-  for (const room of store.readRooms()) {
-    const index = findRedundantOpeningGate(room)
-    if (index < 0) continue
-    await service.roomRequest(room.id, 'accept', {
-      method: 'POST',
-      readBody: async () => ({ stage: index }),
-    })
-  }
-}
 
 const service = createCrewService({
   store,
@@ -93,11 +68,12 @@ const service = createCrewService({
   dispatchPayload: digest.dispatchPayload,
   seats: SEATS,
   dataDir,
+  ports,
 })
 
 const runWorkspaceGc = () => {
   try {
-    const result = collectWorkspaceGarbage({ store })
+    const result = collectWorkspaceGarbage({ store, workspace: ports.workspace, files: ports.files })
     if (result.pruned > 0 || result.orphans > 0) {
       console.log(`workspace gc: pruned ${result.pruned} seats, removed ${result.orphans} orphan dirs`)
     }
@@ -334,8 +310,8 @@ const port = Number(process.env.CREW_PORT ?? 8787)
 server.listen(port, '127.0.0.1', () => {
   console.log(`Lodge server: http://127.0.0.1:${port}`)
   void (async () => {
-    repairManualStages()
+    repairManualStages(store)
     await live.start()
-    await repairOpeningGates()
+    await repairOpeningGates({ store, service, roomFiles: ports.roomFiles })
   })()
 })

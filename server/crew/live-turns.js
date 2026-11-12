@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync } from 'node:fs'
 import { mcpCalls } from './mcp.js'
 import { recordMcpFailures } from './mcp-breaker.js'
 import { markTask } from './tasks.js'
@@ -8,10 +7,11 @@ import { createStageIntegrator } from './live-integration.js'
 import { createReviewCoordinator } from './live-review.js'
 import { createStageStarter } from './live-stage.js'
 import { createTurnState } from './live-turn-state.js'
-import { deliverableStageIndex, isWorkStage, seatOf, vcsOf, workspaceOf } from './live-turn-utils.js'
+import { deliverableStageIndex, isWorkStage, seatOf } from './live-turn-utils.js'
+import { vcsOf, workspaceOf } from './live-workspace.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToSeat }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files }) => {
   const state = createTurnState({ store, roomId, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks })
   const acceptance = createAcceptanceRunner({
@@ -19,6 +19,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat }) => {
     roomId,
     markProgress: state.markProgress,
     requestReview: review.request,
+    run: commands.run,
   })
   const integrator = createStageIntegrator({
     store,
@@ -27,6 +28,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat }) => {
     updateTasks: state.updateTasks,
     markProgress: state.markProgress,
     requestReview: review.request,
+    run: commands.run,
   })
   const stageStarter = createStageStarter({
     store,
@@ -128,9 +130,9 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat }) => {
         continue
       }
       const filePath = input.file_path
-      if (typeof filePath !== 'string' || !existsSync(filePath)) continue
+      if (typeof filePath !== 'string' || !files.exists(filePath)) continue
       if (artifacts.some(item => item.path === filePath)) continue
-      const content = readFileSync(filePath)
+      const content = files.read(filePath)
       artifacts.push({
         path: filePath,
         bytes: content.length,

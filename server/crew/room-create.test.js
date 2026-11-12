@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { roomDir } from './paths.js'
+import { createCrewPorts } from './crew-ports.js'
 import { createRealRoom } from './room-create.js'
 import { writeBrief } from './room-repo.js'
 import { createStore } from './store.js'
@@ -77,6 +78,7 @@ const run = (store, body, engine = fakeEngine()) => createRealRoom({
   emit: () => {},
   dispatchPayload: () => null,
   body,
+  ports: createCrewPorts(),
 })
 
 test('continuing a handoff creates a new room and inherits BRIEF done', async () => {
@@ -127,6 +129,7 @@ test('parallel workers fail closed when the workspace cannot merge', async () =>
     emit: () => {},
     dispatchPayload: () => null,
     workspace,
+    ports: createCrewPorts(),
     body: {
       goal: '两个执行席位',
       verify: 'test',

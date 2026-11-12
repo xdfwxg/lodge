@@ -1,7 +1,6 @@
-import { runCommand } from './acceptance.js'
-import { vcsOf, workspaceOf } from './live-turn-utils.js'
+import { vcsOf, workspaceOf } from './live-workspace.js'
 
-export const createAcceptanceRunner = ({ store, roomId, markProgress, requestReview, run = runCommand }) => {
+export const createAcceptanceRunner = ({ store, roomId, markProgress, requestReview, run }) => {
   let chain = Promise.resolve()
 
   const runAcceptance = async (stageIndex, command, turnId) => {

@@ -1,7 +1,6 @@
 import { budgetHint, budgetStatus } from './budget.js'
-import { recordUsage } from './usage-history.js'
 
-export const createRoomRefresher = ({ store, engine, emit }) => {
+export const createRoomRefresher = ({ store, engine, emit, usage }) => {
   // 到预算线只暂停新任务，不取消正在跑的回合；同一暂停只写一条系统消息。
   const pauseForBudget = (room, status) => {
     const paused = store.updateRoom(room.id, current => {
@@ -52,7 +51,7 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
         })
         if (updated === null) return
         try {
-          recordUsage(updated, previous)
+          usage.record(updated, previous)
         } catch (error) {
           console.warn(`usage history failed: ${updated.id} ${error?.message ?? error}`)
         }

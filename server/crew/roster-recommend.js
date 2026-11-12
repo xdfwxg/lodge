@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { workspaceRoot } from './paths.js'
 import { fail, ok } from './result.js'
 import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
-import { defaultWorkspace, workspaceById } from './workspace.js'
 
 const MAX_GOAL = 2000
 const RECOMMEND_TIMEOUT = 90_000
@@ -210,7 +207,7 @@ const waitForTurn = async ({ engine, sessionRef }) => {
   throw new Error('队长在 90 秒内没有给出编制建议')
 }
 
-export const recommendRoster = async ({ engine, body }) => {
+export const recommendRoster = async ({ engine, body, ports }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > MAX_GOAL) return fail('invalid', '目标不能为空，且不超过 2000 字')
   if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持编队建议')
@@ -220,13 +217,13 @@ export const recommendRoster = async ({ engine, body }) => {
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
   const generatedRepo = requestedRepo === ''
   const short = randomUUID().slice(0, 6)
-  const sourceRepo = generatedRepo ? join(workspaceRoot(), `roster-${short}`) : resolve(requestedRepo)
-  let workspace = defaultWorkspace
+  const sourceRepo = generatedRepo ? join(ports.workspace.root(), `roster-${short}`) : resolve(requestedRepo)
+  let workspace = ports.workspace.default
   if (!generatedRepo) {
-    if (!existsSync(sourceRepo)) return fail('invalid', '工作目录不存在')
+    if (!ports.workspace.exists(sourceRepo)) return fail('invalid', '工作目录不存在')
     // 建议是只读的；不在用户目录里 git init 或写文件。
-    if (!defaultWorkspace.probeSource({ source: sourceRepo }).ok) {
-      workspace = workspaceById('direct')
+    if (!ports.workspace.default.probeSource({ source: sourceRepo }).ok) {
+      workspace = ports.workspace.byId('direct')
       const probe = workspace.probeSource({ source: sourceRepo })
       if (!probe.ok) return fail('invalid', probe.error)
     }
@@ -278,6 +275,6 @@ export const recommendRoster = async ({ engine, body }) => {
     try {
       if (workspaces !== null) workspace.cleanupRoom({ source: sourceRepo, workspaces })
     } catch {}
-    if (generatedRepo) rmSync(sourceRepo, { recursive: true, force: true })
+    if (generatedRepo) ports.workspace.remove(sourceRepo)
   }
 }

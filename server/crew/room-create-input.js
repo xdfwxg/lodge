@@ -1,5 +1,4 @@
-import { readProjectConstraints, MAX_PROJECT_BYTES } from './project.js'
-import { readBrief } from './room-repo.js'
+import { resolveRoomType } from './room-types/index.js'
 import {
   DEFAULT_TEMPLATE_ID,
   roleSeats,
@@ -44,7 +43,28 @@ export const inheritedPlan = (brief, sourceName) => {
   return { done, answers: [], why: `续做自交接记录「${sourceName}」` }
 }
 
-export const normalizePlan = ({ body, continueSource }) => {
+export const normalizeRequest = body => {
+  const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
+  if (goal === '' || goal.length > 2000) return { error: '目标不能为空，且不超过 2000 字' }
+  const roomType = resolveRoomType(body.roomType)
+  if (roomType === null) return { error: '未知的房间类型' }
+  const normalized = roomType.normalize({
+    body,
+    verify: body.verify === 'manual' ? 'manual' : 'test',
+    acceptance: typeof body.acceptance === 'string' ? body.acceptance.trim() : '',
+  })
+  const verify = normalized.verify
+  const acceptance = typeof normalized.acceptance === 'string' ? normalized.acceptance.trim() : ''
+  const plannedAcceptance = Array.isArray(body.plan?.stages)
+    ? body.plan.stages.some(stage => typeof stage?.acceptance === 'string' && stage.acceptance.trim() !== '')
+    : false
+  if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
+    return { error: '交付型房间需要一条验收命令' }
+  }
+  return { goal, roomType, verify, acceptance }
+}
+
+export const normalizePlan = ({ body, continueSource, roomFiles }) => {
   let plan = null
   if (body.plan !== undefined && body.plan !== null) {
     const done = Array.isArray(body.plan.done)
@@ -91,7 +111,7 @@ export const normalizePlan = ({ body, continueSource }) => {
       why: typeof body.plan.why === 'string' ? body.plan.why.trim().slice(0, 300) : '',
     }
   } else if (continueSource !== null) {
-    plan = inheritedPlan(readBrief(continueSource), continueSource.name)
+    plan = inheritedPlan(roomFiles.readBrief(continueSource), continueSource.name)
   }
   return { plan }
 }
@@ -122,12 +142,12 @@ export const resolveSeats = (body, roomType) => {
   return { templateId, roster, workers, verifiers, worker, lead, align: explicitLead !== undefined }
 }
 
-export const projectSnapshot = (body, sourceRepo) => {
+export const projectSnapshot = (body, sourceRepo, project) => {
   const explicitProject = typeof body.projectConstraints === 'string'
-    ? body.projectConstraints.trim().slice(0, MAX_PROJECT_BYTES)
+    ? body.projectConstraints.trim().slice(0, project.maxBytes)
     : ''
   const projectFile = explicitProject === '' && body.includeProjectConstraints === true
-    ? readProjectConstraints(sourceRepo)
+    ? project.read(sourceRepo)
     : null
   const projectContent = explicitProject !== '' ? explicitProject : projectFile?.content?.trim() ?? ''
   return { projectFile, projectContent }

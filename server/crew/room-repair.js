@@ -1,5 +1,3 @@
-import { readBrief } from './room-repo.js'
-
 // 开工卡已经问过并确认的内容，不该在房间里再拦一次。
 export const normalizeManualStages = room => {
   if (room?.imported === true || room?.demo === true) return null
@@ -14,7 +12,7 @@ export const normalizeManualStages = room => {
   return changed ? next : null
 }
 
-export const findRedundantOpeningGate = room => {
+export const findRedundantOpeningGate = (room, roomFiles) => {
   if (room?.imported === true || room?.demo === true || room?.state !== 'active') return -1
   const stages = Array.isArray(room.stages) ? room.stages : []
   const index = stages.findIndex(stage => (
@@ -25,7 +23,7 @@ export const findRedundantOpeningGate = room => {
   if (index < 0) return -1
   const firstDeliverable = stages.findIndex(stage => stage.kind === 'deliverable')
   if (firstDeliverable >= 0 && index > firstDeliverable) return -1
-  const confirmed = (readBrief(room)?.constraints ?? [])
+  const confirmed = (roomFiles.readBrief(room)?.constraints ?? [])
     .some(line => typeof line === 'string' && line.startsWith('已确认：'))
   return confirmed ? index : -1
 }

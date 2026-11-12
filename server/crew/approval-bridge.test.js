@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { roomNeedsYou } from './attention.js'
+import { createCrewPorts } from './crew-ports.js'
 import { createLiveRooms } from './live.js'
 import { createStore } from './store.js'
 
@@ -62,6 +63,7 @@ const setup = async () => {
     engine,
     emit: () => {},
     dispatchPayload: () => ({}),
+    ports: createCrewPorts(),
   })
   await live.attach(store.readRoom('room-1'))
   return {

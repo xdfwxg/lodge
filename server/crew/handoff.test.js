@@ -4,11 +4,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { budgetSummary } from './budget.js'
-import { buildHandoff, HANDOFF_FORMAT, importHandoff } from './handoff.js'
+import { buildHandoff as buildHandoffBase, HANDOFF_FORMAT, importHandoff as importHandoffBase } from './handoff.js'
 import { roomDir } from './paths.js'
 import { inheritedPlan } from './room-create.js'
+import { createCrewPorts } from './crew-ports.js'
 import { createCrewService } from './service.js'
 import { createStore } from './store.js'
+
+const ports = createCrewPorts()
+const buildHandoff = room => buildHandoffBase(room, { handoffStore: ports.handoff, workspaceRoot: ports.workspace.root() })
+const importHandoff = args => importHandoffBase({ ...args, handoffStore: ports.handoff })
 
 const workspace = () => mkdtempSync(join(tmpdir(), 'lodge-handoff-'))
 
@@ -163,6 +168,7 @@ test('an imported handoff rejects every room action', async () => {
     dispatchPayload: () => null,
     seats: [],
     dataDir,
+    ports: createCrewPorts(),
   })
   const result = await service.roomRequest(imported.id, 'pause', { method: 'POST' })
   assert.equal(result.ok, false)

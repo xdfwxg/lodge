@@ -6,7 +6,10 @@ import { promisify } from 'node:util'
 import { roomDir, roomRootOf } from './paths.js'
 import { syncLocalEnvironment } from './workspace-fs.js'
 import { chooseFreePort } from './workspace-ports.js'
-import { LOCAL_ONLY, diffScope } from './workspace-paths.js'
+
+// 房间本地的运行文件不是交付内容：不进候选 commit、不进验收 diff。
+export const LOCAL_ONLY = ['.crew', '.env', '.env.local', 'node_modules']
+export const diffScope = ['.', ...LOCAL_ONLY.map(path => `:(exclude)${path}`)]
 
 // git provider：当前唯一实现。业务只通过 workspace.js 的端口调用这些动作。
 export const id = 'git'

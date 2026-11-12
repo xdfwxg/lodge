@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { rosterFromRoles } from './seats.js'
+import { createCrewPorts } from './crew-ports.js'
 import { createCrewService } from './service.js'
 import { createStore } from './store.js'
 
@@ -81,6 +82,7 @@ test('a verifier added after room creation gets a workspace, base thread and liv
       dispatchPayload: () => null,
       seats: [],
       dataDir: join(root, 'data'),
+      ports: createCrewPorts(),
     })
     const result = await service.roomRequest('room-add123', 'seats', {
       method: 'POST',

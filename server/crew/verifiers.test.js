@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createCrewPorts } from './crew-ports.js'
 import { createLiveTurns } from './live-turns.js'
+
+const ports = createCrewPorts()
 import { reviewState } from './verifiers.js'
 
 const room = (over = {}) => ({
@@ -121,6 +124,8 @@ test('the review request goes to every verifier and all PASS ends the round', as
       sent.push({ seat, prompt })
       return { messageId: null }
     },
+    commands: ports.commands,
+    files: ports.files,
   })
   await turns.requestReview(0)
   assert.deepEqual(sent.map(item => item.seat), ['v1', 'v2'])
@@ -161,6 +166,8 @@ test('a rejection cancels the remaining verifier round', async () => {
     roomId: 'room-1',
     emit: () => {},
     sendToSeat: async () => ({ messageId: null }),
+    commands: ports.commands,
+    files: ports.files,
   })
   await turns.requestReview(0)
   turns.captureTurn({ turnId: 't1', reply: 'REJECT\nno', toolCalls: 1 }, 'bot-v1')

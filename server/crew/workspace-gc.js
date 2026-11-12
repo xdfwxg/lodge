@@ -1,6 +1,4 @@
-import { existsSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { defaultWorkspace, workspaceProvider } from './workspace.js'
 
 const ttlDays = () => {
   const value = Number(process.env.CREW_WORKTREE_TTL_DAYS ?? 7)
@@ -10,7 +8,9 @@ const ttlDays = () => {
 // 启动与定时 GC：完成/停止的房间清掉非交付席位工作区；孤儿工作区目录超过 TTL 才删。
 export const collectWorkspaceGarbage = ({
   store,
-  rootPath = defaultWorkspace.scratchRoot(),
+  workspace,
+  files,
+  rootPath = workspace.default.scratchRoot(),
   ttlMs = ttlDays() * 24 * 60 * 60 * 1000,
   now = Date.now(),
   removeOrphans = process.env.CREW_WORKTREE_GC_ORPHANS === '1',
@@ -20,7 +20,7 @@ export const collectWorkspaceGarbage = ({
 
   for (const room of store.readRooms()) {
     if (room.state !== 'complete' && room.state !== 'stopped') continue
-    const seats = workspaceProvider(room).pruneSeats(room)
+    const seats = workspace.provider(room).pruneSeats(room)
     const fresh = seats.filter(seat => !(room.prunedSeats ?? []).includes(seat))
     if (fresh.length === 0) continue
     const updated = store.updateRoom(room.id, current => {
@@ -31,20 +31,22 @@ export const collectWorkspaceGarbage = ({
   }
 
   // 未知目录可能属于另一个 data dir；孤儿清理默认关闭，显式开启才删。
-  if (!removeOrphans || !existsSync(rootPath)) return { pruned, orphans }
-  for (const name of readdirSync(rootPath)) {
+  if (!removeOrphans || !files.exists(rootPath)) return { pruned, orphans }
+  for (const name of files.list(rootPath)) {
     const path = join(rootPath, name)
-    let stat
+    let directory = false
+    let mtimeMs = 0
     try {
-      stat = statSync(path)
+      directory = files.isDirectory(path)
+      mtimeMs = files.mtimeMs(path)
     } catch {
       continue
     }
-    if (!stat.isDirectory()) continue
+    if (!directory) continue
     if (store.readRoom(`room-${name}`) !== null) continue
-    if (now - stat.mtimeMs < ttlMs) continue
+    if (now - mtimeMs < ttlMs) continue
     try {
-      rmSync(path, { recursive: true, force: true })
+      files.remove(path)
       orphans += 1
     } catch {}
   }

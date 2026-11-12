@@ -1,4 +1,3 @@
-import { PROJECT_FILE } from './project.js'
 import { TEMPLATES } from './seats.js'
 
 const roleLabel = seat => seat.name
@@ -26,6 +25,7 @@ export const buildRoomRecord = ({
   budgetMicroUsd,
   projectContent,
   projectFile,
+  projectPort,
   roomType,
   builtStages,
   roster,
@@ -93,7 +93,7 @@ export const buildRoomRecord = ({
     ? {}
     : {
         projectConstraints: {
-          source: projectFile?.layers?.[0]?.name ?? PROJECT_FILE,
+          source: projectFile?.layers?.[0]?.name ?? projectPort.file,
           content: projectContent,
           layers: projectFile?.layers ?? [],
         },

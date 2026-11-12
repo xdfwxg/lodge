@@ -1,8 +1,8 @@
-import { runCommand } from './acceptance.js'
-import { isWorkStage, vcsOf, workspaceOf } from './live-turn-utils.js'
+import { isWorkStage } from './live-turn-utils.js'
+import { vcsOf, workspaceOf } from './live-workspace.js'
 import { markTask } from './tasks.js'
 
-export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markProgress, requestReview, run = runCommand }) => {
+export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markProgress, requestReview, run }) => {
   let chain = Promise.resolve()
 
   // 合并、集成验收都串行执行，避免多个回合同时动集成 worktree。

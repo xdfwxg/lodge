@@ -84,7 +84,7 @@ Python 侧要么把这些整体放进 `asyncio.to_thread` / 线程池，要么�
 
 | 模块组 | 行数 | Node 依赖 | Python 对应 | 难度 | 主要风险 |
 |---|---|---|---|---|---|
-| 纯逻辑规则（gates/attention/budget/permission/seats/digest/presentation/result/progress/watermarks/planning-eval/workspace-paths/demo） | 678 | 无（仅 `process.env`） | 直接翻译为 dataclass / pydantic 模型 | 低 | 规则语义逐条对齐，用现有单测做双跑对照 |
+| 纯逻辑规则（gates/attention/budget/permission/seats/digest/presentation/result/progress/watermarks/planning-eval/demo） | 678 | 无（仅 `process.env`） | 直接翻译为 dataclass / pydantic 模型 | 低 | 规则语义逐条对齐，用现有单测做双跑对照 |
 | HTTP 组合根 `index.js` | 229 | `node:http` / `node:fs` / `node:path` | FastAPI 路由 + `StreamingResponse` + `StaticFiles` | 中 | 18 条路由、正则路由、请求体 64 KiB / 16 MiB 上限、`bytes` 双形态响应、SPA fallback |
 | 适配层 `base.js` + `engine.js` | 471 | `fetch` / `AbortSignal` / `TextDecoder` / `AbortController` | `httpx` 流式 + `asyncio.Task` 取消 | **高** | 上游 SSE `\n\n` 分帧、UTF-8 跨 chunk 边界、2 s 重连、取消与错误区分 |
 | 存储 `store.js` + `room-repo.js` + `lock.js` | ~500 | `node:sqlite` / `fsyncSync` / `openSync('wx')` | `sqlite3` + `os.open(O_EXCL)` + `os.fsync` | **高** | 事务边界、乐观锁、WAL/连接级 PRAGMA、双写顺序 |

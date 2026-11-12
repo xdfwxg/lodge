@@ -14,19 +14,41 @@ import { createServiceTemplates } from './service-templates.js'
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
-export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats, dataDir }) => {
+export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats, dataDir, ports }) => {
   const { readRoom, readRooms, readMessages, writeRoom, appendMessage } = store
+  const { roomFiles, workspace, project, usage, templates: templatesPort, deliveries, handoff, files } = ports
   const dispatch = createDispatchService({ store, emit, dispatchPayload })
 
-  const queries = createServiceQueries({ store, engine, seats, dataDir, dispatchPayload })
-  const templates = createServiceTemplates({ dataDir })
-  const delivery = createServiceDelivery({ store, dataDir, emit, dispatchPayload })
-  const seatActions = createServiceSeats({ store, engine, live, emit })
-  const completeRoom = createRoomCompleter({ store, emit }).completeRoom
-  const stages = createServiceStages({ store, live, emit, dispatchPayload, completeRoom })
-  const runControl = createServiceRunControl({ store, live, emit, dispatchPayload })
+  const queries = createServiceQueries({
+    store,
+    engine,
+    seats,
+    dataDir,
+    dispatchPayload,
+    roomFiles,
+    templates: templatesPort,
+    project,
+    usage,
+    deliveries,
+    files,
+    workspace,
+  })
+  const templateActions = createServiceTemplates({ dataDir, templates: templatesPort })
+  const delivery = createServiceDelivery({
+    store,
+    dataDir,
+    emit,
+    dispatchPayload,
+    deliveries,
+    handoff,
+    workspaceRoot: workspace.root(),
+  })
+  const seatActions = createServiceSeats({ store, engine, live, emit, roomFiles, workspace })
+  const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
+  const stages = createServiceStages({ store, live, emit, dispatchPayload, completeRoom, roomFiles })
+  const runControl = createServiceRunControl({ store, live, emit, dispatchPayload, roomFiles })
 
-  const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body })
+  const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body, ports })
 
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
     const room = readRoom(roomId)
@@ -125,7 +147,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
 
   return {
     ...queries,
-    ...templates,
+    ...templateActions,
     ...delivery,
     resetMcp: runControl.resetMcp,
     removeSeat: seatActions.removeSeat,
