@@ -10,6 +10,7 @@ const EMPTY = {
   runtime: null,
   budget: null,
   resources: null,
+  importedDeliveries: [],
   usage: null,
   review: null,
   reviewFor: null,
@@ -116,6 +117,7 @@ export function createStore() {
         seats: data.seats,
         templates: data.templates ?? [],
         engines: data.engines ?? [],
+        importedDeliveries: data.importedDeliveries ?? [],
         runtime,
         budget: data.budget ?? null,
         activeId: known ? state.activeId : (data.rooms[0]?.id ?? 'dispatch'),
@@ -300,6 +302,31 @@ export function createStore() {
         return { ok: true }
       } catch (error) {
         patch({ error: `导出交付单失败：${String(error?.message ?? error)}` })
+        return { ok: false }
+      }
+    },
+    exportDeliveries: async () => {
+      try {
+        const response = await fetch('/api/deliveries/export')
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok || data.bundle === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
+        download('lodge-deliveries.lodge.json', JSON.stringify(data.bundle, null, 2))
+        patch({ error: null })
+        return { ok: true }
+      } catch (error) {
+        patch({ error: `导出交付摘要失败：${String(error?.message ?? error)}` })
+        return { ok: false }
+      }
+    },
+    importDeliveriesFile: async file => {
+      try {
+        const bundle = JSON.parse(await file.text())
+        const data = await post('/api/deliveries/import', bundle)
+        if (data?.deliveries === undefined) return { ok: false, error: state.error ?? '导入交付摘要失败' }
+        await load()
+        return { ok: true, imported: data.imported }
+      } catch (error) {
+        patch({ error: `导入交付摘要失败：${String(error?.message ?? error)}` })
         return { ok: false }
       }
     },

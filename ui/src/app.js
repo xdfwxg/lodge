@@ -791,7 +791,7 @@ function DigestItem({ item, onOpen }) {
 
 const ROOM_STATE_LABEL = { active: '进行中', paused: '已暂停', stopped: '已停止', complete: '已完成' }
 
-function ResourcePanel({ resources, usage, store }) {
+function ResourcePanel({ resources, usage, store, importedDeliveries = [] }) {
   if (resources === null || resources === undefined) {
     return h('div', { className: 'crew-resource' }, h('p', { className: 'crew-muted' }, '资源面板加载中…'))
   }
@@ -810,6 +810,8 @@ function ResourcePanel({ resources, usage, store }) {
     h('div', { className: 'crew-resource-head' },
       h('b', null, '资源'),
       h('span', { className: 'crew-muted' }, '只读 · 不路由、不执行'),
+      h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.exportDeliveries() }, '导出交付'),
+      h(ImportButton, { onFile: file => void store.importDeliveriesFile(file) }, '导入交付'),
       h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.loadResources() }, '刷新')),
     h('div', { className: 'crew-resource-stats' },
       stats.map(([label, value]) => h('div', { key: label, className: 'crew-resource-stat' },
@@ -857,6 +859,20 @@ function ResourcePanel({ resources, usage, store }) {
           h('span', { className: 'crew-muted' }, `${item.changedFiles} 文件`),
           h('span', { className: 'crew-muted' }, item.commit ? item.commit.slice(0, 8) : '无 commit')))))
       : null,
+    importedDeliveries.length > 0
+      ? h(Fragment, null,
+        h('div', { className: 'crew-section-title' }, '导入的交付'),
+        h('div', { className: 'crew-resource-rooms' },
+          importedDeliveries.slice(0, 10).map(item => h('div', {
+            key: `${item.roomId}-${item.commit ?? item.completedAt ?? ''}`,
+            className: 'crew-resource-room',
+          },
+          h('span', { className: 'crew-resource-name' }, item.name),
+          h('span', { className: 'crew-resource-state', 'data-state': 'complete' }, '导入'),
+          h('span', null, `${item.stages} 阶段`),
+          h('span', null, `${item.commands} 命令`),
+          h('span', { className: 'crew-muted' }, item.commit ? item.commit.slice(0, 8) : '无 commit')))))
+      : null,
     h('p', { className: 'crew-resource-note' }, '成本是基座上报的估算，不是账单。'))
 }
 
@@ -880,7 +896,7 @@ function DispatchView({ state, store }) {
         h('span', { className: 'crew-badge' }, '只建议 · 你确认'))),
     h('div', { className: 'dsb-scroll crew-scroll' },
       h('div', { className: 'crew-flow' },
-        h(ResourcePanel, { resources, usage, store }),
+        h(ResourcePanel, { resources, usage, store, importedDeliveries: state.importedDeliveries ?? [] }),
         h('div', { className: 'crew-section-title' }, `待你确认 · ${pending.length}`),
         pending.length === 0
           ? h('p', { className: 'crew-muted' }, '没有新的请求。')

@@ -183,6 +183,14 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.resources())
     }
 
+    if (path === '/api/deliveries/export' && req.method === 'GET') {
+      return respond(res, service.deliveriesExport())
+    }
+
+    if (path === '/api/deliveries/import' && req.method === 'POST') {
+      return respond(res, service.deliveriesImport(await readJson(req, 2 * 1024 * 1024)))
+    }
+
     if (path === '/api/usage' && req.method === 'GET') {
       return respond(res, service.usage(url.searchParams.get('range')))
     }

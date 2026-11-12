@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { budgetHint, budgetStatus, budgetSummary, globalBudgetStatus } from './budget.js'
 import { simulateRoom } from './demo.js'
 import { buildDelivery, deliveryMarkdown } from './delivery.js'
+import { deliveryBundle, importDeliveries, readImportedDeliveries } from './delivery-ledger.js'
 import { createDispatchService } from './dispatch-service.js'
 import { editStages } from './stage-plan.js'
 import { presentRoom } from './presentation.js'
@@ -69,6 +70,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       dispatch: dispatchPayload(),
       budget: budgetSummary(rooms),
       engines,
+      importedDeliveries: typeof dataDir === 'string' ? readImportedDeliveries(dataDir) : [],
     }
   }
 
@@ -142,6 +144,20 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       filename: `${(room.name || room.id).replace(/[\\/:*?"<>|]/g, '-')}.交付单.md`,
       text: deliveryMarkdown(delivery),
     })
+  }
+
+  const deliveriesExport = () => ok({
+    bundle: deliveryBundle(readRooms(), readMessages),
+  })
+
+  const deliveriesImport = bundle => {
+    if (typeof dataDir !== 'string' || dataDir === '') throw new Error('服务未配置 dataDir')
+    try {
+      const items = importDeliveries({ dataDir, bundle })
+      return ok({ imported: items.length, deliveries: items })
+    } catch (error) {
+      return fail('invalid', String(error?.message ?? error))
+    }
   }
 
   const handoff = roomId => {
@@ -809,6 +825,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     importTemplate,
     review,
     deliveryExport,
+    deliveriesExport,
+    deliveriesImport,
     removeSeat,
     changeSeatRole,
     handoff,
