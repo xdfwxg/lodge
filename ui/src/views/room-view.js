@@ -91,7 +91,7 @@ function RoomView({ state, room, store, onContinue }) {
     ...(onContinue === undefined ? {} : { continue: () => onContinue(room) }),
   }
 
-  return h('main', { className: 'dsb-main' },
+  return h('main', { className: 'dsb-main crew-room' },
     h(GoalIsland, { view: goalView, advanced, actions: goalActions }),
     advanced ? h(Advanced, { room, seats, store, engines: state.engines }) : null,
     state.reviewFor === room.id && state.review !== null
