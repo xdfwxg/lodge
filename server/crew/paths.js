@@ -25,8 +25,6 @@ export const roomRootOf = room => {
   return typeof room.repoPath === 'string' && room.repoPath !== '' ? resolve(room.repoPath) : projectRoot
 }
 
-export const repoRootOf = roomRootOf
-
 export const roomIdOf = room => (typeof room === 'string' ? room : room?.id)
 
 export const crewRoot = room => join(roomRootOf(room), '.crew')

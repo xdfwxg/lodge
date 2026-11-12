@@ -1,6 +1,4 @@
 // 任务级状态地基：只记录谁在做哪一步与证据引用；完整目标模型在第二阶段。
-export const TASK_STATUS = ['pending', 'working', 'reported', 'done', 'failed']
-
 export const buildTasks = ({ stageIndex, workers, seatNames = {} }) => (
   workers.map(owner => ({
     id: `${stageIndex}:${owner}`,

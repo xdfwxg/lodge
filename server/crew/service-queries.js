@@ -20,7 +20,6 @@ export const createServiceQueries = ({
   templates,
   project,
   usage: usagePort,
-  deliveries,
   files,
   workspace,
 }) => {
@@ -54,7 +53,6 @@ export const createServiceQueries = ({
       dispatch: dispatchPayload(),
       budget: budgetSummary(rooms),
       engines,
-      importedDeliveries: typeof dataDir === 'string' ? deliveries.read(dataDir) : [],
     }
   }
 

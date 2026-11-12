@@ -2,8 +2,8 @@ import { buildDelivery, deliveryMarkdown } from './delivery.js'
 import { buildHandoff } from './handoff.js'
 import { fail, ok } from './result.js'
 
-export const createServiceDelivery = ({ store, dataDir, deliveries, handoff: handoffStore, workspaceRoot }) => {
-  const { readRoom, readRooms, readMessages } = store
+export const createServiceDelivery = ({ store, handoff: handoffStore, workspaceRoot }) => {
+  const { readRoom, readMessages } = store
 
   const deliveryExport = roomId => {
     const room = readRoom(roomId)
@@ -16,20 +16,6 @@ export const createServiceDelivery = ({ store, dataDir, deliveries, handoff: han
     })
   }
 
-  const deliveriesExport = () => ok({
-    bundle: deliveries.bundle(readRooms(), readMessages),
-  })
-
-  const deliveriesImport = bundle => {
-    if (typeof dataDir !== 'string' || dataDir === '') throw new Error('服务未配置 dataDir')
-    try {
-      const items = deliveries.import({ dataDir, bundle })
-      return ok({ imported: items.length, deliveries: items })
-    } catch (error) {
-      return fail('invalid', String(error?.message ?? error))
-    }
-  }
-
   const handoff = roomId => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
@@ -39,5 +25,5 @@ export const createServiceDelivery = ({ store, dataDir, deliveries, handoff: han
     return ok({ bundle })
   }
 
-  return { deliveryExport, deliveriesExport, deliveriesImport, handoff }
+  return { deliveryExport, handoff }
 }

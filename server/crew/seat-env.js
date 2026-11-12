@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 // 席位环境预置：应用可以读取 .lodge/env 与 .lodge/seat-data；
@@ -30,4 +30,3 @@ export const writeSeatEnv = ({ room, seatId, path, port }) => {
 }
 
 export const seatEnvFile = path => join(path, '.lodge', 'env')
-export const seatEnvExists = path => existsSync(seatEnvFile(path))

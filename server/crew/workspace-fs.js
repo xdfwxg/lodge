@@ -8,8 +8,6 @@ import { basename, dirname, join } from 'node:path'
 // 非交付内容不复制、不进文件清单：版本控制与本地运行文件都不是交付物。
 const EXCLUDED = new Set(['.git', '.crew', '.env', '.env.local', 'node_modules'])
 
-export const excludedName = name => EXCLUDED.has(name)
-
 export const syncLocalEnvironment = (source, target) => {
   const copied = []
   const linked = []

@@ -58,7 +58,6 @@ const forbiddenDependencies = [
   'project.js',
   'usage-history.js',
   'template-store.js',
-  'delivery-ledger.js',
   'handoff-store.js',
   'acceptance.js',
   'sandbox.js',

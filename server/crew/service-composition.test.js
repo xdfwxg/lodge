@@ -41,8 +41,6 @@ test('the service facade keeps every route entry', () => {
     'deleteTemplate',
     'review',
     'deliveryExport',
-    'deliveriesExport',
-    'deliveriesImport',
     'removeSeat',
     'changeSeatRole',
     'handoff',

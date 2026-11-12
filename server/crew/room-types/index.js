@@ -3,7 +3,6 @@ import * as roundtable from './roundtable.js'
 import * as task from './task.js'
 
 export const roomTypeStrategies = [task, roundtable, archive]
-export const defaultRoomTypeId = task.id
 
 export const resolveRoomType = value => {
   if (value === undefined || value === null || value === '') return task

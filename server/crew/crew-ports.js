@@ -7,7 +7,6 @@ import { writeSeatEnv } from './seat-env.js'
 import { MAX_PROJECT_BYTES, PROJECT_FILE, readProjectConstraints } from './project.js'
 import { aggregateUsage, readUsageHistory, recordUsage } from './usage-history.js'
 import { deleteSavedTemplate, listSavedTemplates, saveSavedTemplate } from './template-store.js'
-import { deliveryBundle, importDeliveries, readImportedDeliveries } from './delivery-ledger.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
 
 // 应用层只依赖这组端口；具体存储/工作区/运行时实现只在组合根装配。
@@ -43,11 +42,6 @@ export const createCrewPorts = () => ({
     list: listSavedTemplates,
     save: saveSavedTemplate,
     delete: deleteSavedTemplate,
-  },
-  deliveries: {
-    bundle: deliveryBundle,
-    import: importDeliveries,
-    read: readImportedDeliveries,
   },
   commands: {
     run: runCommand,

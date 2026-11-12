@@ -16,7 +16,7 @@ export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
 export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats, dataDir, ports }) => {
   const { readRoom, readRooms, readMessages, writeRoom, appendMessage } = store
-  const { roomFiles, workspace, project, usage, templates: templatesPort, deliveries, handoff, files } = ports
+  const { roomFiles, workspace, project, usage, templates: templatesPort, handoff, files } = ports
   const dispatch = createDispatchService({ store, emit, dispatchPayload })
 
   const queries = createServiceQueries({
@@ -29,15 +29,12 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     templates: templatesPort,
     project,
     usage,
-    deliveries,
     files,
     workspace,
   })
   const templateActions = createServiceTemplates({ dataDir, templates: templatesPort })
   const delivery = createServiceDelivery({
     store,
-    dataDir,
-    deliveries,
     handoff,
     workspaceRoot: workspace.root(),
   })

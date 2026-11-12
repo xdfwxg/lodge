@@ -9,7 +9,7 @@
 | 领域规则 | 纯业务判断：预算、门禁、验收结论、阶段依赖、席位能力、房型策略、编排策略、注意力、交接摘要 | `budget.js`、`gates.js`、`verifiers.js`、`stage-plan.js`、`progress.js`、`result.js`、`attention.js`、`digest.js`、`delivery.js`、`seats.js`、`room-types/*`、`orchestration/*`、`service-policy.js`、`live-turn-utils.js`、`mcp*.js` |
 | 应用用例 | 编排一次业务动作：建房、完成、席位、阶段、交付、实时回合、审批、恢复、启动修复、工作区 GC | `room-create*.js`、`room-complete.js`、`room-record.js`、`room-workspace.js`、`room-provision.js`、`service-*.js`、`live*.js`、`live-workspace.js`、`startup-repair.js`、`room-repair.js`、`workspace-gc.js`、`dispatch-service.js`、`demo.js`、`handoff.js`、`review.js`、`resources.js`、`roster-recommend.js`、`presentation.js` |
 | 端口 | 给应用层一组稳定接口，屏蔽具体存储/工作区/项目/用量/模板/交付/命令/文件/交接包实现；组合根装配整包，再按模块分发子端口 | `crew-ports.js` |
-| 适配器 | 文件、SQLite、基座、git/worktree、直接目录、复制目录、进程、沙箱、系统对话框 | `store.js`、`engine.js`/`base.js`、`workspace*.js`、`room-repo.js`、`handoff-store.js`、`seat-env.js`、`paths.js`、`project.js`、`usage-history.js`、`template-store.js`、`delivery-ledger.js`、`acceptance.js`、`sandbox.js`、`lock.js`、`system-*.js` |
+| 适配器 | 文件、SQLite、基座、git/worktree、直接目录、复制目录、进程、沙箱、系统对话框 | `store.js`、`engine.js`/`base.js`、`workspace*.js`、`room-repo.js`、`handoff-store.js`、`seat-env.js`、`paths.js`、`project.js`、`usage-history.js`、`template-store.js`、`acceptance.js`、`sandbox.js`、`lock.js`、`system-*.js` |
 | 组合与接口 | 装配具体实现；HTTP/SSE；Electron 与 Web 传输 | `server/index.js`、`electron/*`、`ui/src/store.js`、`ui/src/system.js` |
 
 ## 2. 依赖方向
@@ -83,4 +83,4 @@ server/index.js（唯一组合根）
 - `server/crew/boundary.test.js`：crew 不出现基座字段；git 只在 workspace provider 与默认根探测。
 - `ui/src/architecture.test.js`：UI 传输只在 `store.js` / `system.js`；视图不 import store。
 - 当前依赖图：115 个非测试模块、194 条内部依赖、0 个循环。
-- 测试：294 项通过。
+- 测试：291 项通过。
