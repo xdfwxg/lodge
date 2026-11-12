@@ -98,6 +98,14 @@ test('a verifier added after room creation gets a workspace, base thread and liv
     assert.equal(room.ports['verifier-2'] > 4110, true)
     assert.deepEqual(calls.attach, ['room-add123', 'verifier-2'])
     assert.equal(store.readMessages('room-add123').at(-1).text.includes('已加入验收席位'), true)
+
+    const removed = await service.removeSeat('room-add123', 'verifier-2')
+    assert.equal(removed.ok, true)
+    const after = store.readRoom('room-add123')
+    assert.deepEqual(after.verifiers, ['verifier'])
+    assert.equal(after.seatSpecs.length, 2)
+    assert.equal(after.worktrees['verifier-2'], undefined)
+    assert.equal(store.readMessages('room-add123').at(-1).text.includes('已移除席位'), true)
   } finally {
     if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT
     else process.env.CREW_WORKTREE_ROOT = previous

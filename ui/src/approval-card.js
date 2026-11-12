@@ -23,6 +23,19 @@ export function ApprovalCard({ approval, onDecide }) {
           approval.gate.reasons?.length
             ? h('span', null, ` · ${approval.gate.reasons.join('、')}`)
             : null)
+        : null,
+      approval.gateAgent
+        ? h('div', { className: 'crew-approval-gate', 'data-decision': approval.gateAgent.decision },
+          h('b', null, approval.gateAgent.error === true
+            ? '模型守门：不可用'
+            : approval.gateAgent.decision === 'deny'
+              ? '模型守门：建议拒绝'
+              : approval.gateAgent.decision === 'review'
+                ? '模型守门：需你判断'
+                : '模型守门：可放行'),
+          approval.gateAgent.reasons?.length
+            ? h('span', null, ` · ${approval.gateAgent.reasons.join('、')}`)
+            : null)
         : null),
     h('div', { className: 'crew-card-foot' },
       h('span', { className: 'crew-req-note' }, '只有你点允许，基座才会继续这一步'),

@@ -127,6 +127,13 @@ export const addSeat = ({ room, seat }) => {
   }
 }
 
+export const removeSeat = ({ room, seat }) => {
+  const path = room?.worktrees?.[seat?.id ?? seat]
+  if (typeof path !== 'string' || path === '') return false
+  rmSync(path, { recursive: true, force: true })
+  return true
+}
+
 export const head = ({ path }) => manifestDigest(manifestOf(path))
 
 export const changes = async ({ path }) => {

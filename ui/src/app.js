@@ -372,12 +372,22 @@ function Advanced({ room, seats, store, engines = [] }) {
         : h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
     h('table', { className: 'crew-adv-table' },
       h('thead', null, h('tr', null,
-        ['席位', '引擎', '权限', '发言预算'].map(label => h('th', { key: label }, label)))),
+        ['席位', '引擎', '权限', '发言预算', ''].map((label, index) => h('th', { key: `${label}-${index}` }, label)))),
       h('tbody', null, seats.map(seat => h('tr', { key: seat.id },
         h('td', null, seat.name),
         h('td', null, h('code', null, room.engines?.[seat.id] ?? seat.engine)),
         h('td', null, seatPermissionOf(room, seat)),
-        h('td', null, `${seat.speakBudget} 次/回合`))))))
+        h('td', null, `${seat.speakBudget} 次/回合`),
+        h('td', null,
+          room.imported !== true && room.demo !== true &&
+          (seat.role === 'worker' || seat.role === 'verifier') &&
+          !(seat.role === 'worker' && room.workers?.[0] === seat.id)
+            ? h('button', {
+              type: 'button',
+              className: 'crew-ghost',
+              onClick: () => void store.removeSeat(seat.id),
+            }, '移除')
+            : null))))))
 }
 
 const FAILURE_KIND = { rework: '返工', command: '命令失败', system: '系统' }

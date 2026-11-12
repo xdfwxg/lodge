@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createDigest } from './crew/digest.js'
+import { createGateAgent } from './crew/gate-agent.js'
 import { createLiveRooms } from './crew/live.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
@@ -50,6 +51,7 @@ const live = createLiveRooms({
   engine,
   emit,
   dispatchPayload: digest.dispatchPayload,
+  gateAgent: createGateAgent({ engine }),
 })
 
 const service = createCrewService({
@@ -221,6 +223,11 @@ const server = http.createServer(async (req, res) => {
     if (evidencePath !== null && req.method === 'GET') {
       const [, roomId, messageId] = evidencePath
       return respond(res, service.evidence(roomId, messageId))
+    }
+
+    const seatPath = path.match(/^\/api\/rooms\/([\w-]+)\/seats\/([\w-]+)$/)
+    if (seatPath !== null && req.method === 'DELETE') {
+      return respond(res, await service.removeSeat(seatPath[1], seatPath[2]))
     }
 
     const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|simulate|pause|resume|stop|acceptance|verify|budget|seats|approvals)$/)

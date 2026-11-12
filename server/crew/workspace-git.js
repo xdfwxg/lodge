@@ -208,6 +208,19 @@ export const addSeat = ({ room, seat }) => {
   }
 }
 
+const seatPathOf = (room, seat) => room?.worktrees?.[seat?.id ?? seat]
+
+export const removeSeat = ({ room, seat }) => {
+  const path = seatPathOf(room, seat)
+  if (typeof path !== 'string' || path === '') return false
+  try {
+    git(room.sourceRepo, ['worktree', 'remove', '--force', path])
+  } catch {
+    rmSync(path, { recursive: true, force: true })
+  }
+  return true
+}
+
 export const head = ({ path }) => git(path, ['rev-parse', 'HEAD']).trim()
 
 // 验收命令在一次性 detached worktree 里跑；测试产生的文件不写回交付 worktree。

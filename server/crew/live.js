@@ -16,7 +16,7 @@ const seatFor = (room, ref) => {
 }
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
-export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
+export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null }) => {
   const entries = new Map()
 
   const toStored = (roomId, message) => {
@@ -170,6 +170,20 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
       meta: { kind: 'approval', approvalId: approval.id },
     })
     emit('room', updated)
+    if (gateAgent !== null && typeof gateAgent.review === 'function') {
+      void gateAgent.review({ room, approval }).then(result => {
+        if (result === null || result === undefined) return
+        const next = store.updateRoom(entry.roomId, current => {
+          const item = current.approvals?.find(approvalItem => approvalItem.id === approval.id && approvalItem.state === 'pending')
+          if (item === undefined) return null
+          item.gateAgent = result
+          return { events: [{ type: 'approval.gate_agent', payload: { id: approval.id, decision: result.decision } }] }
+        })
+        if (next !== null) emit('room', next)
+      }).catch(error => {
+        console.warn(`gate agent failed: ${approval.id} ${error?.message ?? error}`)
+      })
+    }
   }
 
   const expireApprovals = (roomId, reason) => {
@@ -365,6 +379,15 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
     return true
   }
 
+  const detachSeat = (roomId, seat) => {
+    const entry = entries.get(roomId)
+    const target = entry?.seats.get(seat)
+    if (target === undefined) return false
+    target.unsubscribe?.()
+    entry.seats.delete(seat)
+    return true
+  }
+
   const detach = roomId => {
     const entry = entries.get(roomId)
     if (entry === undefined) return
@@ -462,6 +485,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload }) => {
     start,
     attach,
     attachSeat,
+    detachSeat,
     detach,
     send,
     sendToSeat,

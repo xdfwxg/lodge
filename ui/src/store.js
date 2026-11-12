@@ -235,6 +235,16 @@ export function createStore() {
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
     addSeat: (role, name) => post(`/api/rooms/${state.activeId}/seats`, { role, name }),
+    removeSeat: seatId => fetch(`/api/rooms/${state.activeId}/seats/${encodeURIComponent(seatId)}`, { method: 'DELETE' })
+      .then(response => response.json().catch(() => ({})))
+      .then(data => {
+        if (data.error !== undefined) patch({ error: data.error })
+        return data
+      })
+      .catch(error => {
+        patch({ error: `移除席位失败：${String(error?.message ?? error)}` })
+        return null
+      }),
     pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
     resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     stop: () => post(`/api/rooms/${state.activeId}/stop`, {}),
