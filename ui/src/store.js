@@ -235,6 +235,7 @@ export function createStore() {
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
     addSeat: (role, name) => post(`/api/rooms/${state.activeId}/seats`, { role, name }),
+    editStagePlan: (action, index, stage) => post(`/api/rooms/${state.activeId}/stages`, { action, index, stage }),
     removeSeat: seatId => fetch(`/api/rooms/${state.activeId}/seats/${encodeURIComponent(seatId)}`, { method: 'DELETE' })
       .then(response => response.json().catch(() => ({})))
       .then(data => {

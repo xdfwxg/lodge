@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, statfsSync, statSync } from
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { copyEntry, copyWorkspace, manifestDigest, manifestOf, syncLocalEnvironment } from './workspace-fs.js'
+import { chooseFreePort } from './workspace-ports.js'
 
 // 普通目录 provider：复制隔离、文件清单证据、复制合并；不产生分支或 commit。
 export const id = 'plain'
@@ -71,9 +72,9 @@ export const prepareRoom = ({ source, short, seats }) => {
   const environment = {}
   let nextPort = portBase() + portOffset(short)
   const takePort = () => {
-    const port = nextPort
-    nextPort += 10
-    return port
+    const chosen = chooseFreePort(nextPort)
+    nextPort = chosen.next
+    return chosen.port
   }
   for (const seat of seats) {
     const path = join(base, seat.id)
@@ -109,7 +110,8 @@ export const prepareRoom = ({ source, short, seats }) => {
 const roomShort = room => String(room?.id ?? '').replace(/^room-/, '') || 'room'
 const nextSeatPort = room => {
   const used = Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value))
-  return (used.length === 0 ? portBase() + portOffset(roomShort(room)) : Math.max(...used) + 10)
+  const start = used.length === 0 ? portBase() + portOffset(roomShort(room)) : Math.max(...used) + 10
+  return chooseFreePort(start).port
 }
 
 export const addSeat = ({ room, seat }) => {

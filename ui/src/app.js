@@ -277,6 +277,49 @@ function RoomRow({ room, roster, active, onSelect }) {
     h('span', { className: 'bt-row-preview', 'data-needs': needs?.kind }, preview)))
 }
 
+function StageEditRow({ stage, index, store }) {
+  const [title, setTitle] = useState(stage.title)
+  const [kind, setKind] = useState(stage.kind)
+  const [acceptance, setAcceptance] = useState(stage.acceptance ?? '')
+  return h('div', { className: 'crew-stage-edit-row' },
+    h('input', {
+      className: 'crew-goal-input',
+      type: 'text',
+      value: title,
+      onChange: event => setTitle(event.target.value),
+    }),
+    h('select', {
+      value: kind,
+      onChange: event => setKind(event.target.value),
+    },
+    h('option', { value: 'deliverable' }, '交付'),
+    h('option', { value: 'decision' }, '决策')),
+    kind === 'deliverable'
+      ? h('input', {
+        className: 'crew-goal-input',
+        type: 'text',
+        value: acceptance,
+        placeholder: '验收命令',
+        onChange: event => setAcceptance(event.target.value),
+      })
+      : h('span', { className: 'crew-muted' }, '你拍板'),
+    h('button', {
+      type: 'button',
+      className: 'crew-choice',
+      onClick: () => void store.editStagePlan('update', index, {
+        title,
+        kind,
+        ...(kind === 'deliverable' ? { acceptance } : {}),
+        dependsOn: stage.dependsOn ?? [],
+      }),
+    }, '保存'),
+    h('button', {
+      type: 'button',
+      className: 'crew-ghost',
+      onClick: () => void store.editStagePlan('remove', index, {}),
+    }, '移除'))
+}
+
 function Advanced({ room, seats, store, engines = [] }) {
   const cost = room.usage?.costMicroUsd ?? 0
   const budget = room.usage?.budgetMicroUsd ?? 0
@@ -285,6 +328,9 @@ function Advanced({ room, seats, store, engines = [] }) {
   const [budgetDraft, setBudgetDraft] = useState(String(budget / 1_000_000))
   const [seatRole, setSeatRole] = useState('worker')
   const [seatName, setSeatName] = useState('')
+  const [stageTitle, setStageTitle] = useState('')
+  const [stageKind, setStageKind] = useState('deliverable')
+  const [stageAcceptance, setStageAcceptance] = useState('')
   useEffect(() => {
     setBudgetDraft(String(budget / 1_000_000))
   }, [room.id, budget])
@@ -293,6 +339,9 @@ function Advanced({ room, seats, store, engines = [] }) {
     if (!Number.isFinite(value) || value < 0) return
     void store.setBudget(value)
   }
+  const editableStages = (room.stages ?? [])
+    .map((stage, index) => ({ stage, index }))
+    .filter(({ stage }) => stage.state === 'pending' && stage.title !== '验收与结论')
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
       h('span', null, `房间策略：${room.independencePolicy ?? '未标注'}`),
@@ -339,6 +388,47 @@ function Advanced({ room, seats, store, engines = [] }) {
           onChange: event => setBudgetDraft(event.target.value),
         }),
         h('button', { type: 'button', className: 'crew-choice', onClick: saveBudget }, '保存')),
+    room.imported === true || room.demo === true
+      ? null
+      : h('div', { className: 'crew-stage-editor' },
+        h('span', null, '阶段编辑 · 只改未开始阶段'),
+        editableStages.map(({ stage, index }) => h(StageEditRow, { key: index, stage, index, store })),
+        h('div', { className: 'crew-stage-edit-row' },
+          h('input', {
+            className: 'crew-goal-input',
+            type: 'text',
+            value: stageTitle,
+            placeholder: '新阶段标题',
+            onChange: event => setStageTitle(event.target.value),
+          }),
+          h('select', {
+            value: stageKind,
+            onChange: event => setStageKind(event.target.value),
+          },
+          h('option', { value: 'deliverable' }, '交付'),
+          h('option', { value: 'decision' }, '决策')),
+          stageKind === 'deliverable'
+            ? h('input', {
+              className: 'crew-goal-input',
+              type: 'text',
+              value: stageAcceptance,
+              placeholder: '验收命令',
+              onChange: event => setStageAcceptance(event.target.value),
+            })
+            : h('span', { className: 'crew-muted' }, '你拍板'),
+          h('button', {
+            type: 'button',
+            className: 'crew-choice',
+            onClick: () => {
+              void store.editStagePlan('add', null, {
+                title: stageTitle,
+                kind: stageKind,
+                ...(stageKind === 'deliverable' ? { acceptance: stageAcceptance } : {}),
+              })
+              setStageTitle('')
+              setStageAcceptance('')
+            },
+          }, '添加阶段'))),
     room.imported === true || room.demo === true || (room.state !== 'active' && room.state !== 'paused')
       ? null
       : h('div', { className: 'crew-budget-edit crew-seat-add' },

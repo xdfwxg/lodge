@@ -4,6 +4,7 @@ import { budgetHint, budgetStatus, budgetSummary, globalBudgetStatus } from './b
 import { simulateRoom } from './demo.js'
 import { buildDelivery, deliveryMarkdown } from './delivery.js'
 import { createDispatchService } from './dispatch-service.js'
+import { editStages } from './stage-plan.js'
 import { presentRoom } from './presentation.js'
 import { createRealRoom } from './room-create.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
@@ -386,6 +387,27 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     return ok({ room: updated })
   }
 
+  const editStagePlan = (room, body) => {
+    const result = editStages(room, body?.action, body?.index, body?.stage)
+    if (result.error !== undefined) return fail('invalid', result.error)
+    const updated = updateRoom(room.id, current => {
+      current.stages = result.stages
+      return { events: [result.event] }
+    })
+    if (updated === null) return fail('not_found', '没有这个房间')
+    writeGoal(updated)
+    emit('room', updated)
+    appendMessage(room.id, {
+      kind: 'system',
+      text: result.event.type === 'stage.added'
+        ? `已添加阶段：${updated.stages[result.event.payload.index]?.title ?? ''}`
+        : result.event.type === 'stage.removed'
+          ? '已移除一个未开始阶段'
+          : `已更新阶段：${updated.stages[result.event.payload.index]?.title ?? ''}`,
+    })
+    return ok({ room: updated })
+  }
+
   const removeSeat = (roomId, seatId) => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
@@ -666,6 +688,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
 
     if (action === 'seats' && method === 'POST') {
       return addSeat(room, await readBody())
+    }
+
+    if (action === 'stages' && method === 'POST') {
+      return editStagePlan(room, await readBody())
     }
 
     if (action === 'approvals' && method === 'POST') {

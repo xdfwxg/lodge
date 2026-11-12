@@ -5,6 +5,7 @@ import { basename, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { roomDir, roomRootOf } from './paths.js'
 import { syncLocalEnvironment } from './workspace-fs.js'
+import { chooseFreePort } from './workspace-ports.js'
 import { LOCAL_ONLY, diffScope } from './workspace-paths.js'
 
 // git provider：当前唯一实现。业务只通过 workspace.js 的端口调用这些动作。
@@ -120,9 +121,9 @@ export const prepareRoom = ({ source, short, seats }) => {
   const environment = {}
   let nextPort = portBase() + portOffset(short)
   const takePort = () => {
-    const port = nextPort
-    nextPort += 10
-    return port
+    const chosen = chooseFreePort(nextPort)
+    nextPort = chosen.next
+    return chosen.port
   }
   for (const seat of seats) {
     const path = join(base, seat.id)
@@ -175,7 +176,8 @@ export const prepareRoom = ({ source, short, seats }) => {
 const roomShort = room => String(room?.id ?? '').replace(/^room-/, '') || 'room'
 const nextSeatPort = room => {
   const used = Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value))
-  return (used.length === 0 ? portBase() + portOffset(roomShort(room)) : Math.max(...used) + 10)
+  const start = used.length === 0 ? portBase() + portOffset(roomShort(room)) : Math.max(...used) + 10
+  return chooseFreePort(start).port
 }
 
 // 建后加席位：沿用 prepareRoom 的隔离规则，只创建新增席位的工作区。
