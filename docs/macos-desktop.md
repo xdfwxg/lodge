@@ -79,9 +79,12 @@ npm run package:mac
 
 当前没有接自动更新。正式分发前需要一条发布 feed（GitHub Releases）和 `electron-updater`；现在只能手动替换 app。
 
-## 数据与日志
+## 数据、日志与恢复
 
 - 数据：`~/Library/Application Support/Lodge/data`
+- 基座数据：`~/Library/Application Support/Lodge/base-data`
 - 日志：`~/Library/Application Support/Lodge/logs/server.log`
+- 帮助菜单：检查更新（GitHub Releases）、打开日志、打开数据目录
+- Lodge 服务异常退出会自动重启一次；仍失败时弹错误并指向日志
 
-停止窗口不会删除数据；退出 app 时会停止 Lodge 服务进程。
+停止窗口不会删除数据；退出 app 时会停止 Lodge 服务和由它启动的基座进程。

@@ -18,8 +18,10 @@ let window = null
 let serverProcess = null
 let serverPort = null
 let baseProcess = null
+let baseDir = null
 let baseUrl = process.env.CREW_BASE_URL ?? ''
 let quitting = false
+let serverRestarts = 0
 
 const readSettings = () => {
   try {
@@ -127,6 +129,7 @@ const chooseBaseDir = async () => {
 }
 
 const startBase = async dir => {
+  baseDir = dir
   const node = findNode()
   if (node === null) {
     await dialog.showMessageBox({
@@ -225,9 +228,23 @@ const startServer = async () => {
   serverProcess.stderr.on('data', chunk => log(`err: ${chunk.toString().trimEnd()}`))
   serverProcess.on('exit', code => {
     log(`server exited: ${code}`)
-    if (!quitting) {
-      dialog.showErrorBox(APP_NAME, `Lodge 服务已退出（code ${code}）。日志：${logFile}`)
+    if (quitting) return
+    if (serverRestarts < 1) {
+      serverRestarts += 1
+      log('restarting Lodge server once')
+      setTimeout(() => {
+        void startServer().then(port => {
+          serverPort = port
+          if (window !== null) void window.loadURL(`http://127.0.0.1:${port}`)
+          else createWindow(port)
+        }).catch(error => {
+          log(`restart failed: ${error?.message ?? error}`)
+          dialog.showErrorBox(APP_NAME, `Lodge 服务重启失败：${error?.message ?? error}\n日志：${logFile}`)
+        })
+      }, 1_000)
+      return
     }
+    dialog.showErrorBox(APP_NAME, `Lodge 服务已退出（code ${code}），自动重启一次后仍未恢复。日志：${logFile}`)
   })
   const healthy = await waitForHealth(serverPort)
   if (!healthy) {
@@ -285,6 +302,14 @@ const buildMenu = () => {
       ],
     },
     { label: '窗口', submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }] },
+    {
+      label: '帮助',
+      submenu: [
+        { label: '检查更新', click: () => void shell.openExternal('https://github.com/xdfwxg/lodge/releases') },
+        { label: '打开日志', click: () => void shell.openPath(logDir) },
+        { label: '打开数据目录', click: () => void shell.openPath(app.getPath('userData')) },
+      ],
+    },
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
