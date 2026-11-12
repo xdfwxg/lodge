@@ -9,6 +9,7 @@ const APP_NAME = 'Lodge'
 const DEFAULT_PORT = 8787
 const DEFAULT_BASE_PORT = 8799
 const appRoot = app.isPackaged ? join(process.resourcesPath, 'app') : app.getAppPath()
+const iconFile = join(app.getAppPath(), 'build', 'icon.png')
 const dataDir = join(app.getPath('userData'), 'data')
 const logDir = join(app.getPath('userData'), 'logs')
 const logFile = join(logDir, 'server.log')
@@ -322,6 +323,7 @@ const createWindow = port => {
     minHeight: 600,
     title: 'Lodge',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    ...(process.platform !== 'darwin' && existsSync(iconFile) ? { icon: iconFile } : {}),
     backgroundColor: '#f7f7f5',
     show: false,
     webPreferences: {
@@ -349,6 +351,9 @@ const createWindow = port => {
 
 const boot = async () => {
   app.setName(APP_NAME)
+  if (process.platform === 'darwin' && !app.isPackaged && existsSync(iconFile)) {
+    app.dock.setIcon(iconFile)
+  }
   buildMenu()
   try {
     const base = await ensureBase()

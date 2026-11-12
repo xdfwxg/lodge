@@ -18,14 +18,20 @@ npm run package:mac
 
 产物在 `release/`：
 
-- `Lodge-0.0.1-arm64.dmg`
-- `Lodge-0.0.1-arm64-mac.zip`
+- `Lodge-0.0.1-arm64.zip`
+- 在 Intel Mac 上执行同一命令会得到 `Lodge-0.0.1-x64.zip`
 
-当前是未签名构建。第一次打开如果被 Gatekeeper 拦住，可以在 Finder 里右键打开，或执行：
+只发 zip，不发 dmg。macOS 26 会把下载来的未公证 dmg 判成“已损坏”，zip 不会。app 使用 ad-hoc 签名（`identity: '-'`），不需要 Apple 开发者账号，但也没有公证。
 
-```bash
-xattr -dr com.apple.quarantine /Applications/Lodge.app
-```
+第一次打开会被 Gatekeeper 拦下。到“系统设置 → 隐私与安全性”点“仍要打开”，之后可以正常启动。不要用 `xattr` 绕过隔离作为常规安装方式，它只适合本机开发调试。
+
+发布 Release 时，macOS 不会自动更新。应用内的“帮助 → 检查更新”只打开 GitHub Releases 页面，由用户下载新的 zip 并替换 `/Applications/Lodge.app`。
+
+## 图标
+
+- `build/icon-artwork.png`：2000×2000 原图
+- `build/icon.png`：1024×1024 圆角版，开发模式 Dock、窗口图标和网页 favicon 使用
+- `build/icon.icns`：打包进 `Lodge.app` 的 macOS 图标
 
 ## Windows / Linux
 
@@ -65,19 +71,27 @@ LODGE_BASE_DIR=$HOME/workspace/crew-chat-base npm run desktop
 
 ## 签名与公证
 
-当前是未签名构建。要分发正式 Mac 版，需要 Developer ID Application 证书，并设置：
+当前是 ad-hoc 签名，不是 Developer ID 签名，也没有公证。它能避免 Apple 芯片上的“已损坏”提示，但 Gatekeeper 仍会要求用户手动放行。
 
-```bash
-export CSC_LINK=/path/to/developer-id.p12
-export CSC_KEY_PASSWORD=...
-npm run package:mac
-```
+要变成可无提示安装的正式 Mac 版，需要：
 
-签名后还需要 notarization（`APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID`）和 stapling。没有证书时不能宣称已签名或可无提示安装。
+1. Apple Developer Program 的 Developer ID Application 证书；
+2. `hardenedRuntime: true` 和 entitlements；
+3. `xcrun notarytool submit` 公证全部 zip；
+4. `xcrun stapler staple` 装订公证票据；
+5. 重新压缩并更新校验和。
+
+把 `electron-builder.yml` 的 `identity` 改为证书名，并提供 `CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID` 后再打正式包。没有完成这些步骤时，不能宣称已签名、已公证或可无提示安装。
 
 ## 自动更新
 
-当前没有接自动更新。正式分发前需要一条发布 feed（GitHub Releases）和 `electron-updater`；现在只能手动替换 app。
+当前没有接自动更新。macOS 走手动下载替换，和 Claude-Bot 的做法一致。没有 Developer ID 签名和公证时，macOS 自动更新无法可靠工作，Gatekeeper 也会拦截；不能只在配置里加更新地址就宣称可用。正式自动更新需要 Developer ID 签名、公证、GitHub Releases feed、`electron-updater` 和 `latest-mac.yml`。
+
+## 发布
+
+`.github/workflows/release.yml` 在推送 `v*` 标签时构建 arm64 和 x64 两个 zip，校验 ad-hoc 签名，生成 `SHA256SUMS.txt`，然后把它们挂到 GitHub Release。也可以在 Actions 里手动触发，只产出构建工件，不发布 Release。
+
+这个工作流尚未在 GitHub Actions 上实际跑过；本地打包和启动验证过，CI 结果以第一次实际运行为准。
 
 ## 数据、日志与恢复
 

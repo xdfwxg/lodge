@@ -29,15 +29,12 @@ asar: true
 mac:
   icon: build/icon.icns
   category: public.app-category.developer-tools
+  # macOS 26 reports downloaded unsigned dmgs as damaged, so distribute zip only.
   target:
-    - dmg
     - zip
-  identity: null
+  identity: '-'
   hardenedRuntime: false
   gatekeeperAssess: false
-
-dmg:
-  title: Lodge
 
 win:
   target:

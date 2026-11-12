@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run check:docs
+      - run: npm run build
+      - run: npx electron-builder --mac --arm64 --x64 --publish never
+
+      - name: Verify ad-hoc signatures
+        run: |
+          set -e
+          for app in release/mac*/Lodge.app; do
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign -dv --verbose=2 "$app" 2>&1 | grep -q 'Signature=adhoc'
+          done
+
+      - name: Write checksums
+        run: |
+          cd release
+          shasum -a 256 Lodge-*.zip > SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-zips
+          path: |
+            release/Lodge-*.zip
+            release/SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: |
+            release/Lodge-*.zip
+            release/SHA256SUMS.txt
+          generate_release_notes: true

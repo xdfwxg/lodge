@@ -30,7 +30,7 @@ export function BotMark({ bot, size = 36, live = false, label }) {
     className: 'crew-mark',
     'data-live': live ? 'true' : undefined,
     style: { width: size, height: size, '--crew-mark-color': color, fontSize: Math.round(size * 0.44) },
-  }, h('span', { className: 'crew-mark-face' }, initialOf(name, 'C')))
+  }, h('span', { className: 'crew-mark-face' }, initialOf(name, 'L')))
 }
 
 export function BotAvatar({ bot, size = 30, live = false }) {

@@ -780,7 +780,9 @@ function DigestItem({ item, onOpen }) {
       h('span', { className: 'crew-digest-room' }, item.roomName),
       h('span', { className: 'crew-digest-state', 'data-done': item.state === 'complete' }, stateText)),
     h('span', { className: 'crew-digest-evidence' },
-      item.evidence ? `${item.evidence.command} · exit ${item.evidence.exit}` : '暂无证据'),
+      item.evidence?.command
+        ? `${item.evidence.command} · ${item.evidence.exit === undefined ? '无退出码' : `exit ${item.evidence.exit}`}`
+        : '暂无证据'),
     item.needsYou
       ? h('span', { className: 'crew-digest-needs', 'data-kind': item.needsYou.kind },
         item.needsYou.kind === 'question' && item.openQuestion
