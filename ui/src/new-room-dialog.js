@@ -173,6 +173,7 @@ function NewRoomDialog({
         ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
         plan: {
           done: proposal.done,
+          ...(typeof proposal.orchestration === 'string' ? { orchestration: proposal.orchestration } : {}),
           ...(typeof proposal.why === 'string' && proposal.why !== '' ? { why: proposal.why } : {}),
           ...(Array.isArray(proposal.stages) && proposal.stages.length > 0 ? { stages: proposal.stages } : {}),
           answers: (proposal.questions ?? []).map((question, index) => ({

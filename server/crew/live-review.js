@@ -6,6 +6,7 @@ import { parseVerdict, REVIEW_TIMEOUT, tail } from './live-turn-utils.js'
 import { workspaceOf } from './live-workspace.js'
 import { reviewState, verifierIds } from './verifiers.js'
 import { markStageTasks } from './tasks.js'
+import { reviewGuidanceFor } from './orchestration/index.js'
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks }) => {
   let round = null
@@ -100,6 +101,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     if (targets.length === 0) reject('conflict', '所有验收席位都已回报')
 
     const meta = evidence.meta
+    const reviewGuidance = reviewGuidanceFor(room)
     const nextRound = {
       stage: stageIndex,
       evidenceId: evidence.id,
@@ -152,6 +154,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         '请自己打开改动过的文件核对；必要时自己重跑验收命令，不要把上面的输出当成唯一依据。',
         '只评审交付改动；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
         ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
+        ...(reviewGuidance === '' ? [] : [reviewGuidance]),
         '第一行只写 PASS 或 REJECT，说明从第二行开始。判定不清就写 REJECT。',
       ].join('\n')
 

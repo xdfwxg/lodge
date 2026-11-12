@@ -231,6 +231,46 @@ test('stage dependencies can be declared for a room', async () => {
   assert.deepEqual(room.stages[2].dependsOn, [1])
 })
 
+test('planner proposal stores orchestration and resolves stage assignees', async () => {
+  const { store } = completedRoom(temp('lodge-resume-data-'))
+  const result = await run(store, {
+    goal: '并行整理文档',
+    verify: 'test',
+    acceptance: 'npm test',
+    repoPath: gitRepo(),
+    seats: [
+      { role: 'lead', name: '队长' },
+      { role: 'worker', name: '甲' },
+      { role: 'worker', name: '乙' },
+      { role: 'verifier', name: '验收员' },
+    ],
+    plan: {
+      done: ['文档整理完'],
+      orchestration: 'parallel',
+      answers: [],
+      stages: [{ title: '整理', kind: 'deliverable', acceptance: 'npm test', assignees: ['甲', '乙', '验收员'] }],
+    },
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.orchestration, 'parallel')
+  const stage = room.stages.find(item => item.title === '整理')
+  assert.deepEqual(stage.assignees, ['worker', 'worker-2'])
+})
+
+test('an unknown orchestration is rejected before creating a room', async () => {
+  const { store } = completedRoom(temp('lodge-resume-data-'))
+  const result = await run(store, {
+    goal: '试试未知编排',
+    verify: 'manual',
+    repoPath: gitRepo(),
+    seats: [{ role: 'worker', name: '执行' }],
+    plan: { done: ['可用'], orchestration: 'swarm', answers: [], stages: [] },
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'invalid')
+})
+
 test('project constraints are snapshotted into the room and BRIEF', async () => {
   const { store } = completedRoom(temp('lodge-resume-data-'))
   const repo = gitRepo()

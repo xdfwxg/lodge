@@ -24,6 +24,7 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
       kind: stage.kind,
       ...(stage.manual === true ? { manual: true } : {}),
       ...(stage.acceptance ? { acceptance: stage.acceptance } : {}),
+      ...(Array.isArray(stage.assignees) && stage.assignees.length > 0 ? { assignees: stage.assignees } : {}),
       state: index === firstActive ? 'active' : index < firstActive ? 'passed' : 'pending',
     }))
     : [{ ...delivery, state: align && plan === null ? 'pending' : 'active' }]

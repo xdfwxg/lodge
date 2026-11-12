@@ -1,3 +1,4 @@
+import { resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { resolveRoomType } from './room-types/index.js'
 import {
   DEFAULT_TEMPLATE_ID,
@@ -61,7 +62,9 @@ export const normalizeRequest = body => {
   if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
     return { error: '交付型房间需要一条验收命令' }
   }
-  return { goal, roomType, verify, acceptance }
+  const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
+  if (orchestration === null) return { error: '未知的编排策略' }
+  return { goal, roomType, verify, acceptance, orchestration }
 }
 
 export const normalizePlan = ({ body, continueSource, roomFiles }) => {
@@ -92,6 +95,7 @@ export const normalizePlan = ({ body, continueSource, roomFiles }) => {
           kind,
           ...(manual ? { manual: true } : {}),
           ...(kind === 'deliverable' ? { acceptance: stageAcceptance } : {}),
+          ...(Array.isArray(item?.assignees) ? { assignees: item.assignees } : {}),
         })
       }
     }
@@ -114,6 +118,19 @@ export const normalizePlan = ({ body, continueSource, roomFiles }) => {
     plan = inheritedPlan(roomFiles.readBrief(continueSource), continueSource.name)
   }
   return { plan }
+}
+
+// 规划师提案里的席位 id / 名字由业务映射到真实席位；验收席位不由提案派发。
+export const resolveStageAssignees = (plan, roster) => {
+  if (plan === null || !Array.isArray(plan.stages)) return plan
+  return {
+    ...plan,
+    stages: plan.stages.map(stage => {
+      const { assignees, ...rest } = stage
+      const resolved = resolveAssigneeTokens(assignees, roster)
+      return resolved.length > 0 ? { ...rest, assignees: resolved } : rest
+    }),
+  }
 }
 
 export const resolveSeats = (body, roomType) => {

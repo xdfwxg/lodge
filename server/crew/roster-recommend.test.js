@@ -25,6 +25,35 @@ test('the fixed three-seat squad keeps names and reasons in the card', () => {
   assert.equal(proposal.acceptance, 'npm test')
 })
 
+test('the card carries orchestration and only worker assignees', () => {
+  const proposal = parseProposal(reply({
+    seats: [
+      { role: 'lead', name: '规划师' },
+      { role: 'worker', name: '甲' },
+      { role: 'worker', name: '乙' },
+      { role: 'verifier', name: '验收员' },
+    ],
+    orchestration: 'parallel',
+    stages: [{ title: '实现', kind: 'deliverable', acceptance: 'npm test', assignees: ['甲', '验收员', '不存在'] }],
+    verify: 'test',
+    acceptance: 'npm test',
+    why: '两个执行席位可并行',
+  }))
+  assert.equal(proposal.orchestration, 'parallel')
+  assert.deepEqual(proposal.stages[0].assignees, ['worker'])
+})
+
+test('an unknown orchestration falls back to pipeline with a visible note', () => {
+  const proposal = parseProposal(reply({
+    seats: [{ role: 'worker', name: '执行者' }],
+    orchestration: 'swarm',
+    verify: 'manual',
+    why: '单人',
+  }))
+  assert.equal(proposal.orchestration, 'pipeline')
+  assert.match(proposal.note, /未知编排策略/)
+})
+
 test('a team proposal keeps names and reasons and derives permissions later', () => {
   const proposal = parseProposal(reply({
     seats: [

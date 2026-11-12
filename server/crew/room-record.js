@@ -27,6 +27,7 @@ export const buildRoomRecord = ({
   projectFile,
   projectPort,
   roomType,
+  orchestration,
   builtStages,
   roster,
   align,
@@ -100,6 +101,7 @@ export const buildRoomRecord = ({
       }),
   members: roster.map(seat => seat.id),
   roomType: roomType.id,
+  orchestration,
   stages: builtStages.stages,
 })
 

@@ -3,6 +3,7 @@ import { markSeatRead } from './watermarks.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './live-turn-utils.js'
+import { planDispatch } from './orchestration/index.js'
 import { workspaceOf } from './live-workspace.js'
 
 export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTasks, integrate, enqueue }) => {
@@ -34,25 +35,32 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       }
       if (blockedUpdate !== null) emit?.('room', blockedUpdate)
     }
+    const dispatchPlan = planDispatch({ room, stage, index, workers })
+    const { strategy, assignees } = dispatchPlan
+    if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
     updateTasks(index, current => ({
       ...current,
-      tasks: buildTasks({ stageIndex: index, workers, seatNames: room.seatNames ?? {} }),
+      tasks: buildTasks({ stageIndex: index, workers: assignees, seatNames: room.seatNames ?? {} }),
     }))
-    const workerNames = workers.map(worker => room.seatNames?.[worker] ?? worker).join('、')
+    const workerNames = assignees.map(worker => room.seatNames?.[worker] ?? worker).join('、')
+    const modeLabel = `（${strategy.name}）`
     store.appendMessage(roomId, {
       kind: 'dispatch',
       authorId: room.leadSeat ?? room.members?.[0] ?? 'planner',
       text: rework
-        ? `规划师重审目标后返工：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。${note === '' ? '' : `用户意见：${note.slice(0, 160)}`}`
-        : `规划师派活：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。`,
+        ? `规划师重审目标后返工${modeLabel}：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。${note === '' ? '' : `用户意见：${note.slice(0, 160)}`}`
+        : `规划师派活${modeLabel}：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。`,
       meta: {
         stage: index,
-        workers,
+        workers: assignees,
+        orchestration: strategy.id,
+        orchestrationName: strategy.name,
         acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
         rework,
         ...(note === '' ? {} : { note: note.slice(0, 160) }),
       },
     })
+    if (dispatchPlan.note !== '') store.appendMessage(roomId, { kind: 'system', text: dispatchPlan.note })
     const acceptance = stage.manual === true
       ? '验收方式：人看产物，不跑命令。'
       : typeof stage.acceptance === 'string' && stage.acceptance !== ''
@@ -69,7 +77,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
           : '',
         readOnly ? '当前阶段只读：可以读仓库、讨论和评审；不要改文件，也不要运行会写文件的命令。' : '',
         buildSeatHandoff({ room, messages: store.readMessages(roomId) }),
-        workers.length > 1
+        assignees.length > 1
           ? workspaceOf(room).capabilities().isolation === 'worktree'
             ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
             : '你在自己的隔离副本里与其他执行席位并行工作；只改自己的副本，系统会按文件合并到房间目录。'
@@ -84,8 +92,8 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       ].join('')
     }
 
-    if (workers.length === 1) {
-      const worker = workers[0]
+    if (assignees.length === 1) {
+      const worker = assignees[0]
       markSeatRead({ store, roomId, seat: worker, emit })
       const sent = await sendToSeat(worker, promptFor(worker))
       if (sent.messageId !== null) {
@@ -100,8 +108,8 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     const startedAt = Date.now()
     const dispatch = {
       stage: index,
-      workers: [...workers],
-      pending: [...workers],
+      workers: [...assignees],
+      pending: [...assignees],
       failed: [],
       base: workspaceOf(room).head({ path: room.repoPath }),
       startedAt,
@@ -114,13 +122,13 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     })
     if (stored === null) throw new Error('无法记录并行派发')
     if (stored !== null) emit?.('room', stored)
-    for (const worker of workers) markSeatRead({ store, roomId, seat: worker, emit })
+    for (const worker of assignees) markSeatRead({ store, roomId, seat: worker, emit })
 
-    const sent = await Promise.allSettled(workers.map(worker => sendToSeat(worker, promptFor(worker))))
+    const sent = await Promise.allSettled(assignees.map(worker => sendToSeat(worker, promptFor(worker))))
     const failed = []
     sent.forEach((result, at) => {
       if (result.status !== 'fulfilled') {
-        failed.push(workers[at])
+        failed.push(assignees[at])
         return
       }
       const id = result.value?.messageId

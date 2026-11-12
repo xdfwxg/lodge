@@ -129,7 +129,8 @@ function DispatchCard({ message, seat }) {
       h('div', { className: 'crew-card crew-dispatch' },
         h('div', { className: 'crew-card-head' },
           meta.rework === true ? `重审返工 · 阶段 ${(meta.stage ?? 0) + 1}` : `派活 · 阶段 ${(meta.stage ?? 0) + 1}`,
-          h('span', { className: 'crew-verdict', 'data-pass': true }, `${meta.workers?.length ?? 0} 席`)),
+          h('span', { className: 'crew-verdict', 'data-pass': true },
+            `${typeof meta.orchestrationName === 'string' ? `${meta.orchestrationName} · ` : ''}${meta.workers?.length ?? 0} 席`)),
         h('div', { className: 'crew-card-body' },
           h('p', { className: 'crew-gate-lead' }, message.text),
           meta.acceptance ? h('div', { className: 'crew-kv' }, h('span', null, '验收'), h('code', null, meta.acceptance)) : null))))

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
+import { defaultOrchestrationId, resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { fail, ok } from './result.js'
 import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
 
@@ -31,6 +32,8 @@ const recommendationPrompt = (goal, repoPath) => [
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
   '- stages 写 1–3 个可交付阶段；每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
+  '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline。parallel 需要至少两个执行席位；critique 用于关键交付，让验收席位主动找反例。',
+  '- stages[].assignees 只写执行席位（id 或名字，通常是「执行者」）；不要写验收员，验收由系统按独立性规则派发。',
   '- 开工卡就是对齐与确认。不要生成第一个只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
   '- JSON 代码块必须完整闭合。',
   '只输出一个 JSON 代码块，不要其他文字：',
@@ -45,8 +48,9 @@ const recommendationPrompt = (goal, repoPath) => [
   '    {"role": "worker", "name": "执行者", "reason": "实现与跑测试"},',
   '    {"role": "verifier", "name": "验收员", "reason": "独立复核证据"}',
   '  ],',
+  '  "orchestration": "pipeline",',
   '  "stages": [',
-  '    {"title": "实现", "kind": "deliverable", "acceptance": "npm test"}',
+  '    {"title": "实现", "kind": "deliverable", "acceptance": "npm test", "assignees": ["执行者"]}',
   '  ],',
   '  "verify": "test",',
   '  "acceptance": "在仓库根目录可执行的验收命令",',
@@ -140,6 +144,10 @@ export const parseProposal = reply => {
     throw new Error(`编制不可用：${error?.message ?? error}`)
   }
   const verifiers = roleSeats(roster).verifiers
+  const workers = roleSeats(roster).workers
+  const orchestration = resolveOrchestration(data.orchestration)
+  const requestedOrchestration = typeof data.orchestration === 'string' ? data.orchestration.trim() : ''
+
 
   const rawAcceptance = typeof data.acceptance === 'string' ? data.acceptance.trim() : ''
   const stages = Array.isArray(data.stages)
@@ -149,7 +157,8 @@ export const parseProposal = reply => {
         const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 80) : ''
         const kind = item?.kind === 'decision' ? 'decision' : 'deliverable'
         const acceptance = typeof item?.acceptance === 'string' ? item.acceptance.trim().slice(0, 500) : ''
-        return { title, kind, acceptance }
+        const assignees = resolveAssigneeTokens(item?.assignees, roster)
+        return { title, kind, acceptance, ...(assignees.length > 0 ? { assignees } : {}) }
       })
       .filter(item => item.title !== '' && (item.kind === 'decision' || item.acceptance !== ''))
     : []
@@ -157,7 +166,10 @@ export const parseProposal = reply => {
   if (manual && verifiers.length > 0 && stages.every(stage => stage.kind === 'decision')) {
     throw new Error('有验收席位时需要可执行验收命令；去掉验收席位或补一条命令')
   }
+  const orchestrationId = orchestration?.id ?? defaultOrchestrationId
   const notes = [
+    requestedOrchestration !== '' && orchestration === null ? `未知编排策略「${requestedOrchestration}」，按流水线执行` : '',
+    orchestrationId === 'parallel' && workers.length < 2 ? '并行需要至少两个执行席位；当前按单席位执行' : '',
     data.verify === 'test' && rawAcceptance === '' ? '规划师没有给出可执行命令，验收改为你确认' : '',
     tooManyQuestions ? '规划师给了超过 3 个问题，只保留前 3 个' : '',
     tooManyDone ? '规划师给了超过 6 条 done，只保留前 6 条' : '',
@@ -171,6 +183,7 @@ export const parseProposal = reply => {
       reason: entries[index]?.reason ?? '',
     })),
     stages,
+    orchestration: orchestrationId,
     verify: manual ? 'manual' : 'test',
     acceptance: manual ? '' : rawAcceptance,
     why: typeof data.why === 'string' ? data.why.trim().slice(0, 300) : '',

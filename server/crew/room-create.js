@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from './budget.js'
 import { created, fail } from './result.js'
-import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot, resolveSeats } from './room-create-input.js'
+import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot, resolveSeats, resolveStageAssignees } from './room-create-input.js'
 import { startInitialStage } from './room-create-start.js'
 import { buildRoomRecord, initialRoomMessages } from './room-record.js'
 import { createProvisioner } from './room-provision.js'
@@ -14,7 +14,7 @@ export { inheritedPlan } from './room-create-input.js'
 export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = null, ports }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, roomType, verify, acceptance } = request
+  const { goal, roomType, verify, acceptance, orchestration } = request
   let continueSource = null
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
     continueSource = store.readRoom(body.continueFrom)
@@ -34,6 +34,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const seatsResult = resolveSeats(body, roomType)
   if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
   const { templateId, roster, workers, verifiers, worker, lead, align } = seatsResult
+  const resolvedPlan = resolveStageAssignees(plan, roster)
   if (verify === 'manual' && verifiers.length > 0) {
     return fail('invalid', '人工验收模式不需要验收席位；要独立复核就补一条验收命令')
   }
@@ -80,13 +81,13 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       workspaces,
       verifiers,
     })
-    const builtStages = roomType.buildStages({ title, plan, verify, acceptance, align })
+    const builtStages = roomType.buildStages({ title, plan: resolvedPlan, verify, acceptance, align })
     room = buildRoomRecord({
       short,
       title,
       goal,
       templateId,
-      plan,
+      plan: resolvedPlan,
       independence: provisioned.independence,
       engines: provisioned.engines,
       engineFallbacks: provisioned.engineFallbacks,
@@ -106,6 +107,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       projectFile,
       projectPort: ports.project,
       roomType,
+      orchestration: orchestration.id,
       builtStages,
       roster,
       align,
@@ -125,11 +127,11 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     store.writeRoom(room)
     stored = true
     store.appendEvent(room.id, 'room.created', { live: true, templateId, seats: room.members, sourceRepo, branch: room.branch })
-    ports.roomFiles.writeBrief(room, plan)
+    ports.roomFiles.writeBrief(room, resolvedPlan)
     ports.roomFiles.writeGoal(room)
     for (const message of initialRoomMessages({
       room,
-      plan,
+      plan: resolvedPlan,
       templateId,
       roster,
       builtStages,
@@ -147,7 +149,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       store,
       live,
       room,
-      plan,
+      plan: resolvedPlan,
       align,
       workers,
       lead,

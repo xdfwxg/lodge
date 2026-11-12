@@ -6,7 +6,7 @@
 
 | 层 | 职责 | 代表模块 |
 | --- | --- | --- |
-| 领域规则 | 纯业务判断：预算、门禁、验收结论、阶段依赖、席位能力、房型策略、注意力、交接摘要 | `budget.js`、`gates.js`、`verifiers.js`、`stage-plan.js`、`progress.js`、`result.js`、`attention.js`、`digest.js`、`delivery.js`、`seats.js`、`room-types/*`、`service-policy.js`、`live-turn-utils.js`、`mcp*.js` |
+| 领域规则 | 纯业务判断：预算、门禁、验收结论、阶段依赖、席位能力、房型策略、编排策略、注意力、交接摘要 | `budget.js`、`gates.js`、`verifiers.js`、`stage-plan.js`、`progress.js`、`result.js`、`attention.js`、`digest.js`、`delivery.js`、`seats.js`、`room-types/*`、`orchestration/*`、`service-policy.js`、`live-turn-utils.js`、`mcp*.js` |
 | 应用用例 | 编排一次业务动作：建房、完成、席位、阶段、交付、实时回合、审批、恢复、启动修复、工作区 GC | `room-create*.js`、`room-complete.js`、`room-record.js`、`room-workspace.js`、`room-provision.js`、`service-*.js`、`live*.js`、`live-workspace.js`、`startup-repair.js`、`room-repair.js`、`workspace-gc.js`、`dispatch-service.js`、`demo.js`、`handoff.js`、`review.js`、`resources.js`、`roster-recommend.js`、`presentation.js` |
 | 端口 | 给应用层一组稳定接口，屏蔽具体存储/工作区/项目/用量/模板/交付/命令/文件/交接包实现；组合根装配整包，再按模块分发子端口 | `crew-ports.js` |
 | 适配器 | 文件、SQLite、基座、git/worktree、直接目录、复制目录、进程、沙箱、系统对话框 | `store.js`、`engine.js`/`base.js`、`workspace*.js`、`room-repo.js`、`handoff-store.js`、`seat-env.js`、`paths.js`、`project.js`、`usage-history.js`、`template-store.js`、`delivery-ledger.js`、`acceptance.js`、`sandbox.js`、`lock.js`、`system-*.js` |
@@ -57,12 +57,15 @@ server/index.js（唯一组合根）
 | `live-approvals.js` | 权限卡、外部动作、待批准记录、失效与人工决定必须一起处理，拆开会出现审批状态不一致 |
 | `live-sync.js` | 席位历史同步与实时订阅共享同一套消息入口 |
 | `live-turns.js` | 保留为回合入口；状态、验收、集成、复核、派发已经是独立整体 |
+| `orchestration/*` | 编排策略是独立变化原因：每个策略只回答“这一阶段怎么派、验收要补什么要求”；注册表与 `planDispatch`/`reviewGuidanceFor` 是唯一出口，执行层不认识具体策略 |
+| `orchestration/assignees.js` | 规划师提案 token 到执行席位的映射只有这一份规则；建房输入和开工卡解析都复用它，避免两处漂移 |
 | `crew-ports.js` | 不是业务拆分，而是接口层：上层只依赖它，适配器变更不穿透应用层 |
 
 ## 4. 明确不拆
 
 - 领域规则不再拆成更小的函数文件：`gates.js`、`verifiers.js`、`stage-plan.js` 本身就是单一判定单元。
 - `room-types/*` 是房型策略，每个房型一个整体；不把阶段、席位、验证方式拆散。
+- `orchestration/*` 是编排策略，每个策略一个派发形状；不把 `planStage` 再拆成“选人/并行/附注”三个文件，也不把策略名写进执行层或 UI。
 - `workspace-git.js` / `workspace-direct.js` / `workspace-plain.js` 各自是一个完整工作区实现；共用 helper 才下沉。
 - `live-turns.js` 不再按函数切碎；它只做回合入口与组合，内部模块已按变化原因拆开。
 - `new-room-dialog.js` 是一个多步表单流，状态与步骤共享；强行拆步骤会引入跨文件状态同步。
@@ -73,5 +76,5 @@ server/index.js（唯一组合根）
 - `server/crew/layer-boundaries.test.js`：应用模块不得 import 具体适配器，也不得 import `crew-ports.js`；ports 必须由组合根注入。
 - `server/crew/boundary.test.js`：crew 不出现基座字段；git 只在 workspace provider 与默认根探测。
 - `ui/src/architecture.test.js`：UI 传输只在 `store.js` / `system.js`；视图不 import store。
-- 当前依赖图：110 个非测试模块、185 条内部依赖、0 个循环。
-- 测试：260 项通过。
+- 当前依赖图：115 个非测试模块、194 条内部依赖、0 个循环。
+- 测试：271 项通过。
