@@ -27,6 +27,17 @@ npm run package:mac
 xattr -dr com.apple.quarantine /Applications/Lodge.app
 ```
 
+## Windows / Linux
+
+配置和脚本已加：
+
+```bash
+npm run package:win
+npm run package:linux
+```
+
+Windows 目标为 NSIS，Linux 目标为 AppImage。当前只在 macOS 实跑过；Windows/Linux 没有真机验证，不能宣称已交付。
+
 ## 基座依赖
 
 桌面版只启动 Lodge 产品层。真正的 CLI 回合仍由独立基座提供，默认地址是 `http://127.0.0.1:8799`。启动前先运行 `crew-chat-base`，或用环境变量改地址：

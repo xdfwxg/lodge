@@ -37,3 +37,14 @@ mac:
 
 dmg:
   title: Lodge
+
+win:
+  target:
+    - nsis
+  artifactName: Lodge-${version}-${arch}.${ext}
+
+linux:
+  target:
+    - AppImage
+  category: Development
+  artifactName: Lodge-${version}-${arch}.${ext}
