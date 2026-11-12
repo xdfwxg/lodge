@@ -3,6 +3,16 @@ import { BotMark } from '../marks.js'
 import { changeWordOf, independenceOf } from '../view-format.js'
 import { ConfirmationPoints } from './opening-points.js'
 
+const HUMAN_GATE_KINDS = new Set(['decision', 'setup', 'rework'])
+
+export const stageNeedsHuman = (room, activeIndex) => {
+  const needs = room.needsYou
+  return needs !== undefined && needs !== null &&
+    needs.stage === activeIndex &&
+    (HUMAN_GATE_KINDS.has(needs.kind) ||
+      (needs.kind === 'signoff' && (room.verifiers?.length ?? 0) === 0))
+}
+
 function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -224,6 +234,11 @@ function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept, onR
           room.repoPath === null || room.repoPath === undefined
             ? h('p', { className: 'crew-gate-question' }, '房间没有固定工作目录，验收命令不会执行。先给基座群设置工作目录。')
             : null,
+          rejected
+            ? h('div', { className: 'crew-gate-reject' },
+              h('p', null, verdict.text || '验收席位打回了这一步。'),
+              h(ReworkControl, { room, index, onRework }))
+            : null,
           editing
             ? h('div', { className: 'crew-acceptance-edit' },
               h('p', { className: 'crew-gate-question' }, `验收命令在房间工作区里真实执行；退出码、输出与${changeWordOf(room)}会落成证据。`),
@@ -249,11 +264,13 @@ function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept, onR
             ? h('div', { className: 'crew-receipt' },
               h('code', null, evidence.meta.command),
               h('span', null, `exit ${exit ?? '无'}`),
-              h('span', null, `${((evidence.meta.durationMs ?? 0) / 1000).toFixed(1)}s`))
+              (evidence.meta.durationMs ?? 0) >= 100
+                ? h('span', null, `${(evidence.meta.durationMs / 1000).toFixed(1)}s`)
+                : null)
             : null,
-          h('p', { className: 'crew-dialog-note' }, `${hasVerifier ? '有独立验收人' : '没有独立验收人'} · ${independenceOf(room)}`)),
+          h('p', { className: 'crew-gate-meta' }, `${hasVerifier ? '有独立验收人' : '没有独立验收人'} · ${independenceOf(room)}`)),
         h('div', { className: 'crew-card-foot' },
-          h(ReworkControl, { room, index, onRework }),
+          rejected ? null : h(ReworkControl, { room, index, onRework }),
           editing && changed
             ? h('button', {
               type: 'button',
@@ -336,7 +353,7 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
   const canAct = activeStage.kind === 'decision'
     ? activeStage.manual !== true || manualReady
     : room.demo === true ? !hasPass : room.live === true && !hasPass
-  if (!canAct) return null
+  if (!canAct || !stageNeedsHuman(room, activeIndex)) return null
   const body = activeStage.kind === 'decision'
     ? h(StageAction, { room, stage: activeStage, index: activeIndex, onAccept, onAnswer, onRework })
     : room.demo === true

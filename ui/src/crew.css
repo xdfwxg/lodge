@@ -129,6 +129,9 @@
 .crew-approval-gate[data-decision=allow]{background:color-mix(in srgb,var(--bt-green) 8%,transparent)}
 .crew-approval-gate[data-decision=allow] b{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
 .crew-human-gate{border-color:color-mix(in srgb,var(--bt-accent) 35%,var(--bt-line-2))}
+.crew-gate-reject{display:flex;flex-direction:column;gap:8px;padding:9px 10px;border-left:2px solid var(--bt-danger);border-radius:0 8px 8px 0;background:color-mix(in srgb,var(--bt-danger) 6%,transparent)}
+.crew-gate-reject p{margin:0;font-size:12.5px;line-height:18px;color:var(--bt-ink)}
+.crew-gate-meta{margin:0;font-size:11px;line-height:17px;color:var(--bt-ink-3)}
 .crew-gate-lead{margin:0;font-size:11.5px;line-height:17px;color:var(--bt-ink-3)}
 .crew-gate-title{font-size:14.5px;font-weight:600;line-height:19px}
 .crew-gate-question{margin:0;color:var(--bt-ink-2);line-height:19px}
