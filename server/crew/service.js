@@ -8,6 +8,7 @@ import { presentRoom } from './presentation.js'
 import { createRealRoom } from './room-create.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { rosterFromRoles, TEMPLATE_LIST, validateRoster } from './seats.js'
+import { writeSeatEnv } from './seat-env.js'
 import { gateFor } from './gates.js'
 import { roomRootOf } from './paths.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
@@ -237,6 +238,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     const workspace = workspaceProvider(room)
     if (typeof workspace.addSeat !== 'function') return fail('conflict', '当前工作区不支持建后加席位')
     const placement = workspace.addSeat({ room, seat })
+    writeSeatEnv({ room, seatId: id, path: placement.path, port: placement.port })
 
     let requestedEngine = typeof body?.engine === 'string' && body.engine !== ''
       ? body.engine

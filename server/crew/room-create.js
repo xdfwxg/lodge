@@ -4,6 +4,7 @@ import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from './budget.js'
 import { workspaceRoot } from './paths.js'
 import { created, fail } from './result.js'
 import { readBrief, writeBrief, writeGoal } from './room-repo.js'
+import { writeSeatEnv } from './seat-env.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { DEFAULT_TEMPLATE_ID, roleSeats, rosterFromRoles, seatsFor, TEMPLATES, validateRoster } from './seats.js'
 import { markSeatRead } from './watermarks.js'
@@ -183,6 +184,17 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   } catch (error) {
     // git / 磁盘 / 权限问题不是用户的业务拒绝；交给组合根显式 500。
     throw new Error(`工作区不可用：${error?.message ?? error}`)
+  }
+
+  const roomId = `room-${short}`
+  for (const seat of roster) {
+    const seatPath = workspaces.seats[seat.id]?.path
+    if (typeof seatPath === 'string') {
+      writeSeatEnv({ room: { id: roomId }, seatId: seat.id, path: seatPath, port: workspaces.ports?.[seat.id] })
+    }
+  }
+  if (workspaces.integration?.path !== undefined) {
+    writeSeatEnv({ room: { id: roomId }, seatId: 'integration', path: workspaces.integration.path, port: workspaces.ports?.integration })
   }
 
   const capabilities = engine.capabilities()
