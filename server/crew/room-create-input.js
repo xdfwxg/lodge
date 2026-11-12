@@ -47,6 +47,8 @@ export const inheritedPlan = (brief, sourceName) => {
 export const normalizeRequest = body => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > 2000) return { error: '目标不能为空，且不超过 2000 字' }
+  const name = typeof body.name === 'string' ? body.name.trim() : ''
+  if (name.length > 60) return { error: '房间名称不能超过 60 字' }
   const roomType = resolveRoomType(body.roomType)
   if (roomType === null) return { error: '未知的房间类型' }
   const normalized = roomType.normalize({
@@ -64,7 +66,7 @@ export const normalizeRequest = body => {
   }
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '未知的编排策略' }
-  return { goal, roomType, verify, acceptance, orchestration }
+  return { goal, name, roomType, verify, acceptance, orchestration }
 }
 
 export const normalizePlan = ({ body, continueSource, roomFiles }) => {

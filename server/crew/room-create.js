@@ -14,7 +14,7 @@ export { inheritedPlan } from './room-create-input.js'
 export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = null, ports }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, roomType, verify, acceptance, orchestration } = request
+  const { goal, name, roomType, verify, acceptance, orchestration } = request
   let continueSource = null
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
     continueSource = store.readRoom(body.continueFrom)
@@ -69,7 +69,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   let room = null
   let stored = false
   try {
-    const title = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
+    const goalTitle = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
+    const title = name === '' ? goalTitle : name
     const provisioned = await provisioner.provision({
       roster,
       short,
@@ -81,7 +82,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       workspaces,
       verifiers,
     })
-    const builtStages = roomType.buildStages({ title, plan: resolvedPlan, verify, acceptance, align })
+    const builtStages = roomType.buildStages({ title: goalTitle, plan: resolvedPlan, verify, acceptance, align })
     room = buildRoomRecord({
       short,
       title,

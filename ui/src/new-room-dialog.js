@@ -35,6 +35,7 @@ function NewRoomDialog({
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('task')
+  const [roomName, setRoomName] = useState('')
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
   const [constraints, setConstraints] = useState('')
@@ -48,6 +49,11 @@ function NewRoomDialog({
   const [recommending, setRecommending] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!open) return
+    setRoomName(resume === null ? '' : resume.name ?? '')
+  }, [open, resume?.id])
 
   useEffect(() => {
     if (!open || resume === null) return
@@ -165,6 +171,7 @@ function NewRoomDialog({
     setError(null)
     try {
       const result = await onCreate(goal.trim(), {
+        ...(roomName.trim() === '' ? {} : { name: roomName.trim() }),
         roomType,
         verify,
         acceptance,
@@ -187,6 +194,7 @@ function NewRoomDialog({
         return
       }
       setGoal('')
+      setRoomName('')
       setStep(0)
       setProposal(null)
       setAnswers([])
@@ -292,6 +300,18 @@ function NewRoomDialog({
     error ? h('p', { className: 'crew-dialog-note' }, error) : null)
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
+    h('div', { className: 'crew-field' },
+      h('div', { className: 'crew-field-head' },
+        h('b', null, '房间名称'),
+        h('span', { className: 'crew-field-hint' }, '可选')),
+      h('input', {
+        className: 'crew-goal-input',
+        type: 'text',
+        maxLength: 60,
+        value: roomName,
+        placeholder: '留空就用目标自动命名',
+        onChange: event => setRoomName(event.target.value),
+      })),
     h('div', { className: 'crew-field' },
       h('b', null, '目标'),
       h('textarea', {

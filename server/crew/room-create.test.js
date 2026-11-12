@@ -111,6 +111,34 @@ test('continuing a completed room creates a new room and inherits BRIEF done', a
   }
 })
 
+test('a custom room name is kept while the stage title follows the goal', async () => {
+  const { store } = completedRoom(temp('lodge-name-data-'))
+  const result = await run(store, {
+    goal: '加一个导出按钮',
+    name: '导出交付',
+    verify: 'manual',
+    seats: [{ role: 'worker', name: '执行' }],
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.name, '导出交付')
+  assert.equal(room.goal, '加一个导出按钮')
+  assert.equal(room.stages[0].title, '加一个导出按钮')
+})
+
+test('a room name longer than 60 characters is rejected', async () => {
+  const { store } = completedRoom(temp('lodge-name-limit-data-'))
+  const result = await run(store, {
+    goal: '取个长名字',
+    name: '房'.repeat(61),
+    verify: 'manual',
+    seats: [{ role: 'worker', name: '执行' }],
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'invalid')
+  assert.match(result.error, /60/)
+})
+
 test('parallel workers fail closed when the workspace cannot merge', async () => {
   const { store } = completedRoom(temp('lodge-resume-data-'))
   const workspace = {
