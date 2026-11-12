@@ -27,6 +27,7 @@ import { buildResources } from './resources.js'
 import { aggregateUsage, readUsageHistory } from './usage-history.js'
 import { buildReview } from './review.js'
 import { parseTemplate } from './template.js'
+import { deleteSavedTemplate, listSavedTemplates, saveSavedTemplate } from './template-store.js'
 import { workspaceProvider } from './workspace.js'
 
 // 完成态留痕由工作区能力决定：commit、git 不可用、或只归档房间记录。
@@ -63,6 +64,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     return {
       seats,
       templates: TEMPLATE_LIST,
+      savedTemplates: typeof dataDir === 'string' ? listSavedTemplates(dataDir) : [],
       rooms: rooms.map(room => {
         const messages = readMessages(room.id)
         return { ...presentRoom(room, messages), brief: readBrief(room), messages }
@@ -89,6 +91,24 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   const importTemplate = body => {
     try {
       return ok({ template: parseTemplate(body?.text, typeof body?.filename === 'string' ? body.filename : '') })
+    } catch (error) {
+      return fail('invalid', String(error?.message ?? error))
+    }
+  }
+
+  const saveTemplate = body => {
+    try {
+      const template = parseTemplate(body?.text, typeof body?.filename === 'string' ? body.filename : '')
+      const saved = saveSavedTemplate({ dataDir, template })
+      return ok({ template: saved })
+    } catch (error) {
+      return fail('invalid', String(error?.message ?? error))
+    }
+  }
+
+  const deleteTemplate = id => {
+    try {
+      return ok({ removed: deleteSavedTemplate({ dataDir, id }) })
     } catch (error) {
       return fail('invalid', String(error?.message ?? error))
     }
@@ -823,6 +843,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     usage,
     projectConstraints,
     importTemplate,
+    saveTemplate,
+    deleteTemplate,
     review,
     deliveryExport,
     deliveriesExport,

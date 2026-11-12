@@ -199,8 +199,17 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.projectConstraints(url.searchParams.get('repoPath')))
     }
 
+    if (path === '/api/templates' && req.method === 'POST') {
+      return respond(res, service.saveTemplate(await readJson(req, 512 * 1024)))
+    }
+
     if (path === '/api/templates/parse' && req.method === 'POST') {
       return respond(res, service.importTemplate(await readJson(req, 512 * 1024)))
+    }
+
+    const templatePath = path.match(/^\/api\/templates\/([\w-]+)$/)
+    if (templatePath !== null && req.method === 'DELETE') {
+      return respond(res, service.deleteTemplate(templatePath[1]))
     }
 
     if (path === '/api/roster/recommend' && req.method === 'POST') {

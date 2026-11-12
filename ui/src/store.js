@@ -6,6 +6,7 @@ const EMPTY = {
   dispatch: null,
   seats: [],
   templates: [],
+  savedTemplates: [],
   engines: [],
   runtime: null,
   budget: null,
@@ -116,6 +117,7 @@ export function createStore() {
         dispatch: data.dispatch,
         seats: data.seats,
         templates: data.templates ?? [],
+        savedTemplates: data.savedTemplates ?? [],
         engines: data.engines ?? [],
         importedDeliveries: data.importedDeliveries ?? [],
         runtime,
@@ -329,6 +331,22 @@ export function createStore() {
         patch({ error: `导入交付摘要失败：${String(error?.message ?? error)}` })
         return { ok: false }
       }
+    },
+    saveTemplate: async (filename, text) => {
+      const data = await post('/api/templates', { filename, text })
+      if (data?.template === undefined) return { ok: false, error: state.error ?? '保存模板失败' }
+      await load()
+      return { ok: true, template: data.template }
+    },
+    deleteSavedTemplate: async id => {
+      const response = await fetch(`/api/templates/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        patch({ error: data.error ?? `HTTP ${response.status}` })
+        return { ok: false }
+      }
+      await load()
+      return { ok: true }
     },
     importHandoff,
     importHandoffFile: async file => {

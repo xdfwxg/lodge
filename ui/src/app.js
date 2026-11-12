@@ -1127,7 +1127,7 @@ const seatsFromProposal = proposal => {
   ]
 }
 
-function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstraints, onParseTemplate, templates = [], resume = null }) {
+function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstraints, onParseTemplate, onSaveTemplate, templates = [], savedTemplates = [], resume = null }) {
   const choices = templates.length > 0 ? templates : [{ id: 'delivery-triad', name: '交付三人组', seats: 3 }, { id: 'solo', name: '单人', seats: 1 }]
   const templateChoices = [...choices, { id: 'custom', name: '自定义', seats: null }]
   const [step, setStep] = useState(0)
@@ -1144,6 +1144,7 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
   const [includeConstraints, setIncludeConstraints] = useState(false)
   const [constraintsLoading, setConstraintsLoading] = useState(false)
   const [importedTemplate, setImportedTemplate] = useState(null)
+  const [templateSource, setTemplateSource] = useState(null)
   const [proposal, setProposal] = useState(null)
   const [answers, setAnswers] = useState([])
   const [manual, setManual] = useState(false)
@@ -1230,13 +1231,44 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
   }
 
   const loadTemplate = async file => {
-    const result = await onParseTemplate(file.name, await file.text())
+    const text = await file.text()
+    const result = await onParseTemplate(file.name, text)
     if (result?.ok !== true) {
       setError(result?.error ?? '模板解析失败')
       return
     }
     setImportedTemplate(result.template)
+    setTemplateSource({ filename: file.name, text })
     setError(null)
+  }
+
+  const saveImportedTemplate = async () => {
+    if (templateSource === null || onSaveTemplate === undefined) return
+    const result = await onSaveTemplate(templateSource.filename, templateSource.text)
+    if (result?.ok === true) {
+      setTemplateSource(null)
+      setError(null)
+    } else {
+      setError(result?.error ?? '保存模板失败')
+    }
+  }
+
+  const useSavedTemplate = template => {
+    setTemplateId('custom')
+    setManual(true)
+    setProposal(null)
+    setSeats(template.seats.map((seat, index) => ({
+      key: `saved-${template.id}-${index}`,
+      role: seat.role,
+      label: ROLE_LABEL[seat.role] ?? seat.role,
+      name: seat.name,
+      on: true,
+      required: seat.role === 'worker',
+      prompt: seat.prompt,
+      station: seat.station,
+      engine: seat.engine,
+    })))
+    setStep(1)
   }
 
   const useImportedTemplate = () => {
@@ -1375,6 +1407,17 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
           'data-on': templateId === template.id,
           onClick: () => setTemplateId(template.id),
         }, template.seats === null ? `${template.name}（按需）` : `${template.name}（${template.seats} 席）`)))),
+    savedTemplates.length > 0
+      ? h('div', { className: 'crew-q' },
+        h('b', null, '已保存模板'),
+        h('div', { className: 'crew-choices' },
+          savedTemplates.map(template => h('button', {
+            key: template.id,
+            type: 'button',
+            className: 'crew-choice',
+            onClick: () => useSavedTemplate(template),
+          }, `${template.name}（${template.seats.length} 席）`))))
+      : null,
     custom
       ? h('div', { className: 'crew-q' },
         h('b', null, '角色（执行至少一个，可并行）'),
@@ -1533,7 +1576,11 @@ function NewRoomDialog({ open, onClose, onCreate, onRecommend, onProjectConstrai
               importedTemplate.seats.map((seat, index) => h('li', { key: `template-${index}` },
                 `${ROLE_LABEL[seat.role] ?? seat.role}「${seat.name}」${seat.engine === undefined ? '' : ` · ${seat.engine}`}`))),
             h('p', { className: 'crew-dialog-note' }, '模板不能提权；权限与写范围按角色校验。'),
-            h('button', { type: 'button', className: 'crew-choice', onClick: useImportedTemplate }, '用这个模板'))),
+            h('div', { className: 'crew-choices' },
+              h('button', { type: 'button', className: 'crew-choice', onClick: useImportedTemplate }, '用这个模板'),
+              templateSource === null || onSaveTemplate === undefined
+                ? null
+                : h('button', { type: 'button', className: 'crew-ghost', onClick: () => void saveImportedTemplate() }, '保存到本地')))),
       resume?.brief?.done?.length > 0
         ? h('div', { className: 'crew-q' },
           h('b', null, `上一轮 BRIEF · ${resume.name}`),
@@ -1659,6 +1706,8 @@ export function App() {
         open: dialog,
         onClose: closeDialog,
         templates: state.templates ?? [],
+        savedTemplates: state.savedTemplates ?? [],
+        onSaveTemplate: (filename, text) => store.saveTemplate(filename, text),
         resume,
         onCreate: (goal, answers) => store.createRoom(goal, answers),
         onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
@@ -1687,6 +1736,8 @@ export function App() {
       open: dialog,
       onClose: closeDialog,
       templates: state.templates ?? [],
+      savedTemplates: state.savedTemplates ?? [],
+      onSaveTemplate: (filename, text) => store.saveTemplate(filename, text),
       resume,
       onCreate: (goal, answers) => store.createRoom(goal, answers),
       onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),

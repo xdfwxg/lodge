@@ -85,7 +85,6 @@ export const parseTemplate = (text, filename = '') => {
   if (seats.length > 8) throw new Error('模板 AI 席位最多 8 个')
   const count = role => seats.filter(seat => seat.role === role).length
   if (count('lead') > 1) throw new Error('模板最多一个队长')
-  if (count('verifier') > 1) throw new Error('模板最多一个验收')
   if (count('worker') === 0) throw new Error('模板至少需要一个执行')
 
   const id = isId(raw.id) ? raw.id : `template-${Date.now().toString(36)}`
