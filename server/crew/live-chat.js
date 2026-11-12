@@ -1,5 +1,4 @@
 import { seatFor } from './live-projection.js'
-import { decidePermission } from './permission.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
 import { toBaseMentions } from './seat-labels.js'
 
@@ -72,7 +71,10 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       roomId: chat.id,
       sessionRef: chat.sessionRef,
       onState: state => {
-        if (state.connected) void sync(entry)
+        if (!state.connected) return
+        void sync(entry).catch(error => {
+          store.appendMessage(room.id, { kind: 'system', text: `聊天记录同步失败：${error?.message ?? error}` })
+        })
       },
       onEvent: event => {
         if (event.type === 'room') {
@@ -81,22 +83,19 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         }
         const message = event.message
         if (message === undefined) return
-        // 聊天只读：允许读，拒绝写/执行；聊天回合不产出交付，也不该改文件。
+        // 聊天只对话：工具一律拒绝，聊天回合不执行、不改文件。
         if (message.card?.requestType === 'permission') {
           const seat = seatFor(store.readRoom(room.id), message.authorRef)
           const spec = room.seatSpecs?.find(item => item.id === seat)
-          const allowed = decidePermission(spec, message.card.action, { readOnly: true })
           void engine.answerCard({
             sessionRef: chat.sessionRef,
             requestId: message.card.requestId,
-            behavior: allowed ? 'allow' : 'deny',
+            behavior: 'deny',
           }).then(() => {
-            if (!allowed) {
-              store.appendMessage(room.id, {
-                kind: 'system',
-                text: `聊天只读：${spec?.name ?? seat ?? '席位'} 不能使用 ${message.card.tool ?? message.card.action ?? '该工具'}；执行请在阶段里派活。`,
-              })
-            }
+            store.appendMessage(room.id, {
+              kind: 'system',
+              text: `聊天不执行工具：${spec?.name ?? seat ?? '席位'} 被拒绝使用 ${message.card.tool ?? message.card.action ?? '该工具'}；执行请在阶段里派活。`,
+            })
           }).catch(error => {
             store.appendMessage(room.id, { kind: 'system', text: `聊天权限卡处理失败：${error?.message ?? error}` })
           })
@@ -112,11 +111,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const send = async (room, text) => {
     const chat = room.chatRoom
     if (chat === undefined) throw new Error('房间聊天室还没准备好；重连房间后再试')
-    const handles = Object.values(room.seatNames ?? {})
-      .filter(name => typeof name === 'string' && name !== '')
-      .map(name => `@${name}`)
-      .join(' ')
-    const outgoing = toBaseMentions(room, text).split('@所有人').join(handles)
+    // 基座原生支持 @everyone；产品文案 @所有人 只在这里映射，不自己展开成员。
+    const outgoing = toBaseMentions(room, text).split('@所有人').join('@everyone')
     const sent = await engine.sendTurn({ roomId: chat.id, text: outgoing })
     echoHumanMessage({ store, roomId: room.id, text, messageId: sent?.messageId })
     return sent

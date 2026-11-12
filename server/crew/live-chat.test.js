@@ -77,11 +77,11 @@ test('chat goes to the shared room, with display names translated to handles', a
   assert.equal(ctx.messages.at(-1).text, '@执行者 20 个字告诉我你能干啥')
 })
 
-test('@所有人 expands to every seat handle before the base sees it', async () => {
+test('@所有人 maps to the base native @everyone', async () => {
   const ctx = setup()
   const room = await ctx.chat.ensure(ctx.room())
   await ctx.chat.send(room, '@所有人 继续')
-  assert.match(ctx.sent[0].text, /@Plannerea1 @Executorea1 @Verifierea1/)
+  assert.match(ctx.sent[0].text, /@everyone 继续/)
 })
 
 test('chat events project into the room without touching stage turns', () => {
@@ -94,11 +94,13 @@ test('chat events project into the room without touching stage turns', () => {
   assert.equal(ctx.messages.at(-1).id, 'stored-1')
 })
 
-test('chat permission cards are denied instead of hanging the conversation', () => {
+test('chat turns cannot use any tool', () => {
   const ctx = setup()
   const room = { ...ctx.room(), chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
   const entry = { roomId: room.id }
   ctx.chat.subscribe(entry, room)
-  ctx.subscribed[0].onEvent({ message: { card: { requestType: 'permission', requestId: 'p1' } } })
+  ctx.subscribed[0].onEvent({
+    message: { authorRef: 'b-executor', card: { requestType: 'permission', requestId: 'p1', action: 'read', tool: 'Read' } },
+  })
   assert.deepEqual(ctx.answered[0], { sessionRef: 'thread-1', requestId: 'p1', behavior: 'deny' })
 })

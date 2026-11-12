@@ -22,6 +22,7 @@
     "preview": "vite preview",
     "test": "node --test server/crew/*.test.js ui/src/architecture.test.js ui/src/goal-island/*.test.js ui/src/approval-card.test.js ui/src/delivery-sheet.test.js",
     "eval:planning": "node evals/planning/run.mjs",
+    "eval:chat": "node scripts/eval-chat.mjs",
     "samples:generate": "node scripts/generate-samples.mjs",
     "samples:export": "node scripts/export-sample.mjs",
     "check:docs": "node scripts/check-docs.mjs"
