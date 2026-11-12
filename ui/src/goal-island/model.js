@@ -78,40 +78,10 @@ export const islandStatus = room => {
   return { label: '进行中', tone: 'active' }
 }
 
-export const trackTone = (room, stage, index) => {
-  if (stage.state === 'passed') return 'passed'
-  if (stage.state !== 'active') return 'pending'
-  if (room.state === 'paused') return 'paused'
-  if (room.needsYou?.stage === index && room.needsYou.kind === 'review') return 'checking'
-  return 'active'
-}
-
 export const seatRole = (room, seatId) => (
   room.seatSpecs?.find(seat => seat.id === seatId)?.role
   ?? (seatId === 'planner' ? 'lead' : seatId === 'verifier' ? 'verifier' : 'worker')
 )
-export const leadOf = room => room.leadSeat ?? 'planner'
-export const workerOf = room => room.workers?.[0] ?? 'executor'
-export const verifierOf = room => room.verifiers?.[0] ?? null
-
-export const workingSeats = (room, index) => {
-  if (room.state !== 'active') return []
-  if (room.live === true) return Array.isArray(room.busySeats) ? room.busySeats : room.busySeat ? [room.busySeat] : []
-  const stage = room.stages[index]
-  if (stage === undefined) return []
-  if (room.openQuestion) return [leadOf(room)]
-  if (stage.kind === 'decision') return [leadOf(room)]
-  if (Array.isArray(room.verifiers) && room.verifiers.length > 1) {
-    if (evidenceFor(room, index).length === 0) return room.workers ?? [workerOf(room)]
-    return room.verifiers.filter(id => verdictForSeat(room, index, id) === undefined)
-  }
-  const verdict = verdictFor(room, index)
-  if (verdict !== undefined) return []
-  if (evidenceFor(room, index).length === 0) return room.workers ?? [workerOf(room)]
-  const verifier = verifierOf(room)
-  return verifier === null ? [] : [verifier]
-}
-
 export const seatTask = (seat, stage) => {
   if (seat.role === 'lead') {
     return stage.kind === 'decision' ? '讲清「做到什么算过」，等你拍板' : '拆出这一段的写范围与验收'
@@ -155,25 +125,6 @@ export const seatState = (room, stage, index, seatId) => {
     return room.live === true ? 'idle' : 'working'
   }
   return 'idle'
-}
-
-export const goalAnswers = (room, selected) => {
-  const current = activeIndex(room)
-  const done = room.stages.filter(stage => stage.state === 'passed').length
-  const stage = room.stages[selected]
-  return [
-    ['目标', room.brief?.objective || room.goal || '—', 'goal'],
-    ['进度', room.state === 'complete'
-      ? `${room.stages.length}/${room.stages.length} · 目标达成`
-      : current >= 0
-        ? `${current + 1}/${room.stages.length} · ${room.stages[current].title}`
-        : `${done}/${room.stages.length} · 已停止`, 'progress'],
-    ['怎么算过', stage === undefined
-      ? '—'
-      : stage.kind === 'deliverable'
-        ? (stage.acceptance ?? '未写验收命令')
-        : '你点过才算过', 'acceptance'],
-  ]
 }
 
 // 房间页只构造这份标准 view；换实现时不需要房间内部结构。
@@ -253,7 +204,6 @@ export const buildGoalView = (room, seats) => {
     }
   })
   const done = room.stages.filter(stage => stage.state === 'passed').length
-  const faces = goalFaces(room, seats, current)
   return {
     id: room.id,
     name: room.name,
@@ -261,27 +211,9 @@ export const buildGoalView = (room, seats) => {
     state: room.state,
     brief: room.brief ?? null,
     status: islandStatus(room),
-    badges: [
-      ...(room.independence === 'vendor' ? [] : [{ label: room.independenceLabel ?? '独立性未标注', warn: true }]),
-      ...(room.demo === true ? [{ label: '演示' }] : []),
-      ...(room.workspace?.capabilities?.vcs !== undefined && !['git', 'demo'].includes(room.workspace.capabilities.vcs)
-        ? [{ label: '无 VCS' }]
-        : []),
-      ...(room.live === true ? [{ label: '实时' }] : []),
-    ],
     progress: {
       value: room.state === 'complete' ? room.stages.length : current >= 0 ? current + 1 : done,
       total: room.stages.length,
-    },
-    track: room.stages.map((stage, index) => trackTone(room, stage, index)),
-    faces: faces.seats.map(seat => ({ seat, live: faces.working.has(seat.id) })),
-    answers: {
-      goal: room.brief?.objective || room.goal || '—',
-      progress: room.state === 'complete'
-        ? `${room.stages.length}/${room.stages.length} · 目标达成`
-        : current >= 0
-          ? `${current + 1}/${room.stages.length} · ${room.stages[current].title}`
-          : `${done}/${room.stages.length} · 已停止`,
     },
     stages,
     controls: {
@@ -291,17 +223,5 @@ export const buildGoalView = (room, seats) => {
       canContinue: room.state === 'complete',
       canFork: room.state === 'active' || room.state === 'paused',
     },
-  }
-}
-
-// 收起栏的头像：优先当前阶段的任务负责人，没有任务时回到正在工作的席位。
-export const goalFaces = (room, seats, current) => {
-  const workers = workingSeats(room, current)
-  const tasks = current >= 0 ? room.stages[current]?.tasks ?? [] : []
-  const owners = [...new Set(tasks.map(task => task.owner))]
-  const ids = owners.length > 0 ? owners : workers
-  return {
-    seats: seats.filter(seat => ids.includes(seat.id)),
-    working: new Set([...workers, ...tasks.filter(task => task.status === 'working').map(task => task.owner)]),
   }
 }

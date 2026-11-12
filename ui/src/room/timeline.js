@@ -1,32 +1,7 @@
-import { createElement as h, useMemo, useState } from 'react'
+import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../approval-card.js'
-import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, StageConclusionCard, ConclusionCard } from '../message-cards.js'
-import { ConfirmationPoints, confirmationItems } from './opening-points.js'
-
-function ConfirmedOpening({ room, stage, index }) {
-  const [open, setOpen] = useState(false)
-  const next = room.stages[index + 1]
-  if (confirmationItems(room).length === 0) return null
-  return h('div', { className: 'crew-opening' },
-    h('button', {
-      type: 'button',
-      className: 'crew-opening-row',
-      'aria-expanded': open,
-      onClick: () => setOpen(value => !value),
-    },
-    h('span', { className: 'crew-opening-check' }, '✓'),
-    h('span', { className: 'crew-opening-title' }, `开工卡已确认 · ${stage.title}`),
-    h('span', { className: 'crew-opening-meta' }, `阶段 ${index + 1}/${room.stages.length}`),
-    h('span', { className: 'crew-opening-toggle' }, open ? '收起' : '详情')),
-    open
-      ? h('div', { className: 'crew-opening-body' },
-        h(ConfirmationPoints, { room }),
-        h('p', { className: 'crew-gate-next' },
-          next === undefined
-            ? '已确认，等待交付。'
-            : `已进入阶段 ${index + 2}「${next.title}」。`))
-      : null)
-}
+import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, MilestoneLine, ConclusionCard } from '../message-cards.js'
+import { buildTimeline } from './timeline-model.js'
 
 const TIME_GAP = 5 * 60 * 1000
 const timeLabel = ts => {
@@ -40,16 +15,7 @@ const timeLabel = ts => {
 
 function Timeline({ room, seats, onAccept, onApproval }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
-  const firstDeliverable = room.stages.findIndex(stage => stage.kind === 'deliverable')
-  const opening = room.stages
-    .map((stage, index) => ({ stage, index }))
-    .filter(({ stage, index }) => (
-      stage.state === 'passed' &&
-      stage.kind === 'decision' &&
-      /确认|对齐/.test(stage.title ?? '') &&
-      (firstDeliverable < 0 || index < firstDeliverable)
-    ))
-    .at(-1)
+  const timeline = useMemo(() => buildTimeline(room.messages), [room.messages])
 
   const timeMarks = new Map()
   let previousTs = null
@@ -64,7 +30,7 @@ function Timeline({ room, seats, onAccept, onApproval }) {
     const content = (() => {
       if (message.kind === 'system') return h('div', { key: message.id, className: 'crew-system' }, message.text)
       if (message.kind === 'dispatch') return h(DispatchCard, { key: message.id, message, seat })
-      if (message.kind === 'stage_conclusion') return h(StageConclusionCard, { key: message.id, message })
+      if (message.kind === 'stage_conclusion') return h(MilestoneLine, { key: message.id, message })
       if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })
       if (message.kind === 'evidence') return h(EvidenceCard, { key: message.id, message, seat })
       if (message.kind === 'conclusion') return h(ConclusionCard, { key: message.id, message })
@@ -76,6 +42,7 @@ function Timeline({ room, seats, onAccept, onApproval }) {
           room,
           stage: room.stages[message.meta?.stage ?? 0],
           onAccept,
+          evidence: timeline.evidenceFor.get(message.id),
         })
       }
       if (message.authorId === 'you') {
@@ -91,16 +58,15 @@ function Timeline({ room, seats, onAccept, onApproval }) {
       : [h('div', { key: `time-${message.id}`, className: 'crew-time' }, timeLabel(mark)), content]
   }
 
-  // 人刚说的话应该出现在记录末尾，而不是被行动卡挤到对话中间。
-  let trailingStart = room.messages.length
-  while (trailingStart > 0) {
-    const message = room.messages[trailingStart - 1]
-    if (message.kind !== 'chat' || message.authorId !== 'you') break
-    trailingStart -= 1
-  }
+  // 派活、心跳、整房结论与原始回合收进一条可展开的记录。
+  const processFold = timeline.process.length === 0
+    ? null
+    : h('details', { key: 'process-log', className: 'crew-process' },
+      h('summary', null, `过程记录 · ${timeline.process.length} 条`),
+      h('div', { className: 'crew-process-body' }, timeline.process.map(renderMessage)))
 
   return [
-    ...room.messages.slice(0, trailingStart).map(renderMessage),
+    ...timeline.visible.slice(0, timeline.trailingStart).map(renderMessage).flat().filter(Boolean),
     ...(room.approvals ?? [])
       .filter(approval => approval.state === 'pending')
       .map(approval => h(ApprovalCard, {
@@ -108,13 +74,8 @@ function Timeline({ room, seats, onAccept, onApproval }) {
         approval,
         onDecide: decision => onApproval(approval.id, decision),
       })),
-    opening === undefined ? null : h(ConfirmedOpening, {
-      key: 'opening-confirmed',
-      room,
-      stage: opening.stage,
-      index: opening.index,
-    }),
-    ...room.messages.slice(trailingStart).map(renderMessage),
+    processFold,
+    ...timeline.visible.slice(timeline.trailingStart).map(renderMessage).flat().filter(Boolean),
   ].filter(Boolean)
 }
 

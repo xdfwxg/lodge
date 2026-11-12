@@ -67,6 +67,7 @@ const text = node => {
 }
 const button = (tree, label) => findAll(tree, 'crew-ghost').find(node => text(node) === label)
   ?? findAll(tree, 'crew-choice').find(node => text(node) === label)
+  ?? findAll(tree, 'crew-island-action').find(node => text(node) === label)
 
 const seats = {
   worker: { id: 'worker', name: '前端', role: 'worker' },
@@ -103,11 +104,7 @@ const view = (over = {}) => ({
   state: 'active',
   brief: { objective: '给设置页加保存，并保证刷新后生效', done: [{ done: false, text: '保存后刷新仍生效' }], constraints: ['不改上游'] },
   status: { label: '验收退回 · 等你处理', tone: 'paused' },
-  badges: [{ label: '独立性降级', warn: true }, { label: '实时' }],
   progress: { value: 2, total: 3 },
-  track: ['passed', 'active', 'pending'],
-  faces: [{ seat: seats.worker, live: true }, { seat: seats.verifier, live: false }],
-  answers: { goal: '给设置页加保存，并保证刷新后生效', progress: '2/3 · 实现保存' },
   stages: [
     stage({ index: 0, title: '对齐接口', kind: 'decision', state: 'passed', acceptance: null, acceptanceLabel: '你点过才算过', reworkCount: 0, rework: [], evidence: [], tasks: [], otherSeats: [] }),
     stage(),
@@ -117,25 +114,29 @@ const view = (over = {}) => ({
   ...over,
 })
 
-test('the closed island renders the full goal, progress, track and task faces', async () => {
+test('the closed island shows the room name, one status line and one primary action', async () => {
   const { GoalIsland } = await load()
+  const calls = []
   const tree = render(GoalIsland({
     view: view(),
     advanced: false,
-    actions: {},
+    actions: { primary: { label: '处理退回', onClick: () => calls.push('primary') } },
   }))
   const island = find(tree, 'crew-island')
   assert.ok(island)
   assert.equal(island.props['data-open'], false)
-  assert.equal(text(find(tree, 'crew-island-top').children.find(child => child.type === 'h1')), '给设置页加保存，并保证刷新后生效')
-  assert.equal(findAll(tree, 'crew-badge').length, 0)
-  assert.equal(text(find(tree, 'crew-island-pill')), '2/3⌄')
-  assert.deepEqual(findAll(tree, 'crew-island-track')[0].children.map(node => node.props['data-tone']), ['passed', 'active', 'pending'])
-  assert.equal(findAll(tree, 'crew-island-faces')[0].children.filter(Boolean).length, 2)
+  assert.equal(text(find(tree, 'crew-island-heading')), '设置页保存⌄')
+  assert.equal(text(find(tree, 'crew-island-state')), '验收退回 · 等你处理')
+  assert.match(text(find(tree, 'crew-island-stage-label')), /阶段 2\/3 · 实现保存/)
+  assert.equal(find(tree, 'crew-island-pill'), null)
+  assert.equal(find(tree, 'crew-island-track'), null)
+  assert.equal(find(tree, 'crew-island-faces'), null)
   assert.equal(find(tree, 'crew-island-panel'), null)
+  button(tree, '处理退回').props.onClick()
+  assert.deepEqual(calls, ['primary'])
 })
 
-test('the open island renders answers, steps, rework, tasks, evidence and controls', async () => {
+test('the open island renders steps, rework, tasks, evidence and controls without duplicated answers', async () => {
   const { GoalIsland } = await load([true, null, false])
   const calls = []
   const tree = render(GoalIsland({
@@ -152,8 +153,8 @@ test('the open island renders answers, steps, rework, tasks, evidence and contro
   const panel = find(tree, 'crew-island-panel')
   assert.ok(panel)
   assert.equal(panel.props.role, 'region')
-  assert.deepEqual(findAll(tree, 'crew-island-answer').map(node => text(node)), ['目标给设置页加保存，并保证刷新后生效', '进度2/3 · 实现保存', '怎么算过npm test'])
-  assert.deepEqual(findAll(tree, 'crew-island-meta')[0].children.map(node => text(node)), ['独立性降级', '实时'])
+  assert.equal(findAll(tree, 'crew-island-answer').length, 0)
+  assert.equal(findAll(tree, 'crew-island-meta').length, 0)
   assert.equal(findAll(tree, 'crew-step-node').length, 3)
   assert.equal(findAll(tree, 'crew-step-node')[1].props['aria-current'], 'step')
   assert.equal(find(tree, 'crew-island-rework-author') && text(find(tree, 'crew-island-rework-author')), '复核')

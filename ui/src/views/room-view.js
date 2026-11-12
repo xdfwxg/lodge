@@ -9,6 +9,7 @@ import { Timeline } from '../room/timeline.js'
 
 function RoomView({ state, room, store, onContinue }) {
   const [advanced, setAdvanced] = useState(false)
+  const [dockOpen, setDockOpen] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
   const scroll = useRef(null)
   const stick = useRef(true)
@@ -60,6 +61,18 @@ function RoomView({ state, room, store, onContinue }) {
     return ids.length === 0 ? state.seats : state.seats.filter(seat => ids.includes(seat.id))
   }, [room.seatSpecs, room.members, state.seats])
   const goalView = useMemo(() => buildGoalView(room, seats), [room, seats])
+  const primary = room.state === 'active' && room.needsYou
+    ? {
+      label: room.needsYou.kind === 'rework'
+        ? '处理退回'
+        : room.needsYou.kind === 'review'
+          ? '去验收'
+          : room.needsYou.kind === 'signoff'
+            ? '去签字'
+            : '处理',
+      onClick: () => setDockOpen(true),
+    }
+    : undefined
   const mentionMembers = useMemo(() => {
     const members = (room.members ?? []).map(id => ({
       id,
@@ -74,6 +87,7 @@ function RoomView({ state, room, store, onContinue }) {
     pause: () => void store.pause(),
     resume: () => void store.resume(),
     stop: () => void store.stop(),
+    ...(primary === undefined ? {} : { primary }),
     ...(onContinue === undefined ? {} : { continue: () => onContinue(room) }),
   }
 
@@ -94,6 +108,8 @@ function RoomView({ state, room, store, onContinue }) {
       state.error ? h('div', { className: 'crew-error' }, state.error) : null),
     h(StageDock, {
       room,
+      open: dockOpen,
+      onOpenChange: setDockOpen,
       onAccept: stage => void store.accept(stage),
       onAnswer: (stage, text) => void store.answer(stage, text),
       onSimulate: () => void store.simulate(),

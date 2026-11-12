@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  activeIndex, buildGoalView, evidenceFor, goalAnswers, goalFaces, islandStatus, rejectsFor, seatState, trackTone,
+  activeIndex, buildGoalView, evidenceFor, islandStatus, rejectsFor, seatState,
   verdictFor, verdictForSeat, verdictsFor,
 } from './model.js'
 
@@ -51,27 +51,11 @@ test('island status reflects pause reasons and needs-you labels', () => {
     { label: '验收退回 · 等你处理', tone: 'paused' })
 })
 
-test('stage track and answers stay tied to the active stage and acceptance', () => {
+test('progress follows the active stage and closes at completion', () => {
   const current = room()
   assert.equal(activeIndex(current), 1)
-  assert.equal(trackTone(current, current.stages[1], 1), 'active')
-  assert.equal(trackTone(current, current.stages[0], 0), 'passed')
-  assert.equal(trackTone(current, current.stages[2], 2), 'pending')
-  assert.equal(trackTone(room({ state: 'paused' }), current.stages[1], 1), 'paused')
-  assert.deepEqual(goalAnswers(current, 1), [
-    ['目标', '给设置页加保存，并保证刷新后生效', 'goal'],
-    ['进度', '2/3 · 实现', 'progress'],
-    ['怎么算过', 'npm test', 'acceptance'],
-  ])
-  assert.equal(goalAnswers(room({ state: 'complete', stages: [{ title: '实现', kind: 'deliverable', state: 'passed' }] }), 0)[1][1], '1/1 · 目标达成')
-})
-
-test('faces prefer current task owners and keep busy state separate', () => {
-  const faces = goalFaces(room({ live: true, busy: true, busySeats: ['worker'] }), seats, 1)
-  assert.deepEqual(faces.seats.map(seat => seat.id), ['worker', 'worker-2'])
-  assert.deepEqual([...faces.working], ['worker'])
-  const fallback = goalFaces(room({ live: true, stages: [{ title: '实现', kind: 'deliverable', state: 'active', tasks: [] }], busy: true, busySeats: ['verifier'] }), seats, 0)
-  assert.deepEqual(fallback.seats.map(seat => seat.id), ['verifier'])
+  assert.deepEqual(buildGoalView(current, seats).progress, { value: 2, total: 3 })
+  assert.deepEqual(buildGoalView(room({ state: 'complete' }), seats).progress, { value: 3, total: 3 })
 })
 
 test('evidence, verdict and rework projections are stage-scoped', () => {

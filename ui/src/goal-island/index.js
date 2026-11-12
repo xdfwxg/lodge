@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import { BotAvatar } from '../marks.js'
 import { STAGE_KIND, TASK_LABEL } from './model.js'
 import './island.css'
@@ -133,11 +133,10 @@ export function GoalIsland({ view, advanced, actions }) {
   const current = view.stages.findIndex(stage => stage.state === 'active')
   const selected = picked ?? (current >= 0 ? current : view.stages.length - 1)
   const stage = view.stages[selected]
-  const answers = [
-    ['目标', view.answers.goal, 'goal'],
-    ['进度', view.answers.progress, 'progress'],
-    ['怎么算过', stage?.acceptanceLabel ?? '—', 'acceptance'],
-  ]
+  const currentStage = current >= 0 ? view.stages[current] : undefined
+  const progress = view.state === 'complete' ? view.progress.total : view.progress.value
+  const stageLabel = currentStage === undefined ? '' : `阶段 ${progress}/${view.progress.total} · ${currentStage.title}`
+  const primary = actions.primary
 
   useEffect(() => {
     setPicked(null)
@@ -150,43 +149,33 @@ export function GoalIsland({ view, advanced, actions }) {
   }, [armed])
 
   return h('header', { className: 'crew-head crew-island', 'data-open': open },
-    h('div', {
-      className: 'crew-island-top',
-      role: 'button',
-      tabIndex: 0,
-      'aria-expanded': open,
-      'aria-controls': 'crew-island-panel',
-      onClick: () => setOpen(value => !value),
-      onKeyDown: event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          setOpen(value => !value)
-        }
+    h('div', { className: 'crew-island-top' },
+      h('div', {
+        className: 'crew-island-main',
+        role: 'button',
+        tabIndex: 0,
+        'aria-expanded': open,
+        'aria-controls': 'crew-island-panel',
+        onClick: () => setOpen(value => !value),
+        onKeyDown: event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            setOpen(value => !value)
+          }
+        },
       },
-    },
-    h('span', { className: 'crew-island-dot', 'data-tone': view.status.tone }),
-    h('h1', { title: view.goal }, view.goal),
-    h('span', { className: 'crew-island-pill' },
-      `${view.progress.value}/${view.progress.total}`,
-      h('span', { className: 'crew-island-chev', 'data-open': open }, '⌄'))),
-    h('div', { className: 'crew-island-strip' },
-      h('span', { className: 'crew-island-state', 'data-tone': view.status.tone }, view.status.label),
-      h('div', { className: 'crew-island-track' }, view.track.map((tone, index) => h('i', { key: index, 'data-tone': tone }))),
-      view.faces.length > 0
-        ? h('div', { className: 'crew-island-faces' },
-          view.faces.slice(0, 4).map(face => h(BotAvatar, { key: face.seat.id, bot: face.seat, size: 20, live: face.live })),
-          view.faces.length > 4 ? h('span', { className: 'crew-island-more' }, `+${view.faces.length - 4}`) : null)
-        : null),
+        h('div', { className: 'crew-island-heading' },
+          h('h1', { title: view.goal }, view.name),
+          h('span', { className: 'crew-island-chev', 'data-open': open }, '⌄')),
+        h('div', { className: 'crew-island-sub' },
+          h('span', { className: 'crew-island-dot', 'data-tone': view.status.tone }),
+          h('span', { className: 'crew-island-state', 'data-tone': view.status.tone }, view.status.label),
+          stageLabel === '' ? null : h('span', { className: 'crew-island-stage-label' }, stageLabel))),
+      primary === undefined
+        ? null
+        : h('button', { type: 'button', className: 'crew-island-action', onClick: primary.onClick }, primary.label)),
     open
       ? h('div', { id: 'crew-island-panel', className: 'crew-island-panel', role: 'region', 'aria-label': '目标与阶段' },
-        h('div', { className: 'crew-island-answers' },
-          answers.map(([label, value, kind]) => h('div', { key: label, className: 'crew-island-answer', 'data-kind': kind },
-            h('span', null, label),
-            h('b', { title: value }, value)))),
-        view.badges.length > 0
-          ? h('div', { className: 'crew-island-meta' },
-            view.badges.map(badge => h('span', { key: badge.label, 'data-warn': badge.warn === true }, badge.label)))
-          : null,
         h('div', { className: 'crew-island-steps' },
           view.stages.map(item => h(StageStep, {
             key: item.index,

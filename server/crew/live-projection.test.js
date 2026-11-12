@@ -16,6 +16,11 @@ test('base notices stay system lines, not fake chat', () => {
   assert.match(stored.text, /Paused/)
 })
 
+test('empty trailing base messages never become empty chat bubbles', () => {
+  assert.equal(projector.toStored('room-1', { id: 'm2', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '' }), null)
+  assert.equal(projector.toStored('room-1', { id: 'm3', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '  ' }), null)
+})
+
 test('seat messages keep their seat author', () => {
   const stored = projector.toStored('room-1', { id: 'm1', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '在' })
   assert.equal(stored.kind, 'chat')

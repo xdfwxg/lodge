@@ -39,18 +39,9 @@ export function BotAvatar({ bot, size = 30, live = false }) {
     live ? h('span', { className: 'crew-avatar-dot' }) : null)
 }
 
-export function RoomAvatar({ room, roster, size = 36 }) {
-  const members = (room.members ?? []).map(id => roster.byId[id]).filter(Boolean)
-  if (members.length === 0) return h(BotMark, { size })
-  if (members.length === 1) return h(BotMark, { bot: members[0], size })
-  const seat = Math.round(size * 0.62)
-  const shown = members.slice(0, 3)
-  const rest = members.length - shown.length
-  return h('span', { className: 'crew-cluster', style: { width: size, height: size } },
-    shown.map((bot, index) => h('span', {
-      key: bot.id,
-      className: 'crew-cluster-seat',
-      style: { left: index * (size - seat) / Math.max(1, shown.length - 1), top: index % 2 === 0 ? 0 : size - seat },
-    }, h(BotMark, { bot, size: seat }))),
-    rest > 0 ? h('span', { className: 'crew-cluster-more', style: { fontSize: Math.max(8, Math.round(size * 0.28)) } }, `+${rest}`) : null)
+export function RoomMark({ room, size = 36 }) {
+  return h('span', {
+    className: 'crew-room-mark',
+    style: { width: size, height: size, fontSize: Math.round(size * 0.4) },
+  }, initialOf(room?.name, '房'))
 }

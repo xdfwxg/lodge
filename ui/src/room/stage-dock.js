@@ -320,10 +320,18 @@ const gateStatus = room => {
   return verdict !== undefined && verdict.meta?.pass !== true ? '验收退回' : '等待复核'
 }
 
-function StageDock({ room, onAccept, onAnswer, onSimulate, onSetAcceptance, onVerify, onRework }) {
-  const [open, setOpen] = useState(false)
+function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswer, onSimulate, onSetAcceptance, onVerify, onRework }) {
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = controlledOpen ?? localOpen
+  const setOpen = value => {
+    if (onOpenChange === undefined) setLocalOpen(value)
+    else onOpenChange(value)
+  }
   const { activeIndex, activeStage, hasPass, manualReady } = stageGate(room)
-  useEffect(() => { setOpen(false) }, [room.id, activeIndex])
+  useEffect(() => {
+    if (onOpenChange === undefined) setLocalOpen(false)
+    else onOpenChange(false)
+  }, [room.id, activeIndex, onOpenChange])
   if (activeStage === undefined) return null
   const canAct = activeStage.kind === 'decision'
     ? activeStage.manual !== true || manualReady
@@ -339,7 +347,7 @@ function StageDock({ room, onAccept, onAnswer, onSimulate, onSetAcceptance, onVe
       type: 'button',
       className: 'crew-stage-dock-row',
       'aria-expanded': open,
-      onClick: () => setOpen(value => !value),
+      onClick: () => setOpen(!open),
     },
     h('span', { className: 'crew-stage-dock-kicker' }, `阶段 ${activeIndex + 1}`),
     h('span', { className: 'crew-stage-dock-title' }, activeStage.title),

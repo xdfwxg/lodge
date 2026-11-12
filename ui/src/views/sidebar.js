@@ -1,19 +1,9 @@
-import { createElement as h, useMemo } from 'react'
-import { RoomAvatar } from '../marks.js'
+import { createElement as h } from 'react'
+import { RoomMark } from '../marks.js'
 import { money } from '../view-format.js'
 
 function Sidebar({ state, onSelect, onNew }) {
-  const { rooms, dispatch, seats, activeId } = state
-  const roster = useMemo(() => {
-    const byId = Object.fromEntries(seats.map(seat => [seat.id, seat]))
-    for (const room of rooms) for (const seat of room.seatSpecs ?? []) byId[seat.id] = seat
-    return {
-      byId,
-      roomsById: Object.fromEntries(rooms.map(room => [room.id, room])),
-      exchangeTurns: {},
-      questions: {},
-    }
-  }, [seats, rooms])
+  const { rooms, dispatch, activeId } = state
   const pending = dispatch?.requests?.filter(request => request.state === 'suggested').length ?? 0
   const waiting = rooms.filter(room => room.needsYou).length
 
@@ -54,7 +44,6 @@ function Sidebar({ state, onSelect, onNew }) {
         rooms.map(room => h(RoomRow, {
           key: room.id,
           room,
-          roster,
           active: activeId === room.id,
           onSelect: () => onSelect(room.id),
         })))),
@@ -70,26 +59,20 @@ function Sidebar({ state, onSelect, onNew }) {
       h('span', { className: 'crew-me-body' }, h('b', null, '你'))))
 }
 
-const ROOM_TYPE_LABEL = { roundtable: '圆桌派队', archive: '存档房' }
-
-function RoomRow({ room, roster, active, onSelect }) {
+function RoomRow({ room, active, onSelect }) {
   const needs = room.needsYou
-  const typeLabel = ROOM_TYPE_LABEL[room.roomType]
-  const stateLabel = room.live === true ? '实时 · 基座房间' : room.state === 'complete' ? '已完成' : '进行中'
-  const preview = needs
-    ? needs.label
-    : typeLabel === undefined ? stateLabel : `${typeLabel} · ${room.state === 'complete' ? '已完成' : '进行中'}`
+  const stateLabel = room.live === true ? '实时' : room.state === 'complete' ? '已完成' : '进行中'
+  const preview = needs ? needs.label : stateLabel
   return h('button', {
     type: 'button',
     className: 'bt-row',
     'aria-current': active ? 'page' : undefined,
     onClick: onSelect,
   },
-  h(RoomAvatar, { room: { ...room, members: room.members ?? [] }, roster, size: 36 }),
+  h(RoomMark, { room, size: 36 }),
   h('span', { className: 'bt-row-body' },
     h('span', { className: 'bt-row-name' },
       h('span', { className: 'bt-row-title' }, room.name),
-      needs ? h('span', { className: 'crew-needs-dot', 'data-kind': needs.kind, title: needs.label }) : null,
       room.chatUnread === true && !active
         ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' })
         : null),

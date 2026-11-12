@@ -19,6 +19,8 @@ export const createMessageProjector = ({ store }) => {
     const seat = seatFor(room, message.authorRef)
     const common = { id: message.id, roomId, ts: message.at }
     const text = toDisplayMentions(room, message.text)
+    // 基座会在一条回答后再补一条空 text；它不是一句话，不该变成空气泡。
+    if (String(text ?? '').trim() === '') return null
     if (message.role === 'user') return { ...common, kind: 'chat', authorId: 'you', text }
     if (message.kind === 'activity') {
       return { ...common, kind: 'activity', authorId: seat ?? 'executor', text, meta: { ok: message.ok } }
