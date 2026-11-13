@@ -235,8 +235,8 @@ export function RoomStatusHeader({ room, decision, onAudit, actions = {} }) {
           actions.review ? h('button', { type: 'button', onClick: actions.review }, '复盘') : null))))
 }
 
-// 执行中不需要单独占一块“当前阶段”：阶段线、标题和时间线已经说明进展。
-export const showsDecisionCard = decision => decision?.key !== 'executing'
+// 执行中、以及工作室已完成时都不需要单独占一块卡：阶段线、标题、交付单已经说明结果。
+export const showsDecisionCard = decision => decision?.key !== 'executing' && decision?.key !== 'complete'
 
 export function DecisionCard({ room, decision, onAction }) {
   const [reworkOpen, setReworkOpen] = useState(false)

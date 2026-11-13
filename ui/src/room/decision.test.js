@@ -67,10 +67,13 @@ test('executing has no action, and a quota pause explains the next step', () => 
   assert.equal(paused.primary.label, '继续')
 })
 
-test('an executing room does not render a redundant current-stage card', () => {
+test('an executing or completed studio room does not render a redundant card', () => {
   const executing = buildDecision(room({ busySeat: 'worker' }), view())
   assert.equal(executing.key, 'executing')
   assert.equal(showsDecisionCard(executing), false)
+  const complete = buildDecision(room({ state: 'complete', delivery: { changedFiles: [] } }), view())
+  assert.equal(complete.key, 'complete')
+  assert.equal(showsDecisionCard(complete), false)
   assert.equal(showsDecisionCard(buildDecision(room({ needsYou: { kind: 'signoff' } }), view())), true)
 })
 
