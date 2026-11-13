@@ -1,4 +1,5 @@
 import { createElement as h, useState } from 'react'
+import { chatStudioSeed } from './chat-seed.js'
 
 const nameOf = (room, seatId) => (
   room.seatSpecs?.find(seat => seat.id === seatId)?.name ??
@@ -76,6 +77,7 @@ export const buildDecision = (room, view) => {
         detail: text.length > 260 ? `${text.slice(0, 260)}…` : text,
         primary: null,
         secondary: { label: '查看完整记录', action: 'audit' },
+        extra: { label: '用结论新建工作室', action: 'start-studio' },
       }
     }
     const files = room.delivery?.changedFiles?.length ?? 0
@@ -271,6 +273,11 @@ export function DecisionCard({ room, decision, onAction }) {
       extra === null || extra === undefined ? null : h('button', {
         type: 'button',
         className: 'crew-decision-secondary',
-        onClick: () => onAction(extra.action, conclusion?.text ?? ''),
+        onClick: () => onAction(
+          extra.action,
+          extra.action === 'start-studio'
+            ? chatStudioSeed({ room, conclusion: conclusion?.text ?? '' })
+            : undefined,
+        ),
       }, extra.label)))
 }
