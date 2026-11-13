@@ -13,6 +13,8 @@ const EMPTY = {
   usage: null,
   review: null,
   reviewFor: null,
+  replay: null,
+  replayFor: null,
   activeId: 'dispatch',
   error: null,
 }
@@ -195,6 +197,17 @@ export function createStore() {
     }
   }
 
+  const openReplay = async roomId => {
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/transitions`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.transitions === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
+      patch({ replay: data.transitions, replayFor: roomId, error: null })
+    } catch (error) {
+      patch({ error: `状态回放加载失败：${String(error?.message ?? error)}` })
+    }
+  }
+
   const activeRoom = () => state.rooms.find(room => room.id === state.activeId)
 
   return {
@@ -213,12 +226,14 @@ export function createStore() {
       source = null
       seen.clear()
     },
-    select: activeId => patch({ activeId, review: null, reviewFor: null }),
+    select: activeId => patch({ activeId, review: null, reviewFor: null, replay: null, replayFor: null }),
     loadResources,
     loadUsage,
     resetMcp: server => post(`/api/rooms/${state.activeId}/mcp/reset`, { server }),
     openReview,
     closeReview: () => patch({ review: null, reviewFor: null }),
+    openReplay,
+    closeReplay: () => patch({ replay: null, replayFor: null }),
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),

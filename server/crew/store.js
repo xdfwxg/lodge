@@ -164,7 +164,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   }
 
   const readEvents = (roomId, limit = 200) => db.prepare(
-    'SELECT id, room_id, type, payload, at FROM room_event WHERE room_id = ? ORDER BY seq DESC LIMIT ?',
+    'SELECT id, seq, room_id, type, payload, at FROM room_event WHERE room_id = ? ORDER BY seq DESC LIMIT ?',
   ).all(roomId, limit).reverse().map(row => ({
     id: row.id,
     roomId: row.room_id,

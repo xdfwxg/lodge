@@ -238,6 +238,7 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
           : h('span', { className: 'crew-muted' }, '已经达到 3 层上限'))
       : null,
     h('div', { className: 'crew-budget-edit' },
+      h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.openReplay(room.id) }, '状态回放'),
       h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
       h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
     Object.keys(room.chatHolds ?? {}).length > 0

@@ -7,6 +7,7 @@ import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js
 import { listRoomTypes } from './room-types/index.js'
 import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
+import { replayTransitions } from './room-state.js'
 
 export const createServiceQueries = ({
   store,
@@ -19,7 +20,7 @@ export const createServiceQueries = ({
   files,
   workspace,
 }) => {
-  const { readRoom, readRooms, readMessages, readMessagesSince } = store
+  const { readRoom, readRooms, readMessages, readMessagesSince, readEvents } = store
 
   const health = async () => ok({ runtime: await engine.health() })
 
@@ -82,11 +83,30 @@ export const createServiceQueries = ({
     return ok({ review: buildReview(room, readMessages(roomId)) })
   }
 
+  // 只读回放：按审计事件逐步校验转移是否合法，不修改房间。
+  const transitions = roomId => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    const events = readEvents(roomId, 500)
+      .filter(item => item.type === 'closure.transition' || item.type === 'chat.transition')
+      .sort((a, b) => a.seq - b.seq)
+    const currentState = room.roomType === 'chat'
+      ? room.chat?.phase ?? 'discussing'
+      : room.closure ?? 'open'
+    return ok({
+      transitions: {
+        roomId,
+        roomType: room.roomType,
+        ...replayTransitions({ roomType: room.roomType, events, currentState }),
+      },
+    })
+  }
+
   const recommendRoster = body => {
     const global = globalBudgetStatus(readRooms())
     if (!global.ok) return fail('conflict', global.message)
     return recommendRosterUseCase({ engine, body, workspace })
   }
 
-  return { health, state, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
+  return { health, state, transitions, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
 }

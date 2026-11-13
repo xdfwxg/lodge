@@ -49,6 +49,8 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 初始化（`room-record.js` 新建房间）、旧数据迁移（`store.upgradeRoom`）和聊天调度启动复位是唯一允许直接写初始值的地方；运行期状态变化一律走转移函数。`origin`、`advisor` 建议、模型标签只作为 context，不参与 Guard。
 
+状态回放调试器：`GET /api/rooms/:id/transitions` 只读读取 `closure.transition` / `chat.transition`，复用同一张转移表重放并校验历史，输出每一步的 `from / to / event / actor / reason / context` 与非法或断链原因；不写房间、不补事件。UI 入口在高级面板的“状态回放”。
+
 ## 1. ChatRoom 聊天室
 
 - 引擎：`chat` 对话引擎
