@@ -456,3 +456,28 @@
 .crew-shadow-col p{margin:3px 0 0;font-size:12px;line-height:16px;color:var(--bt-ink-2)}
 .crew-shadow-foot{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 @media (max-width:720px){.crew-shadow-cols{grid-template-columns:1fr}}
+
+/* 房间三栏外壳：主时间线 + 右侧上下文栏 */
+.crew-room{display:grid;grid-template-columns:minmax(0,1fr) 296px;background:var(--bt-main)}
+.crew-room-main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bt-main)}
+.crew-rail{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--bt-line);background:var(--bt-sidebar);overflow:auto}
+.crew-rail-tabs{position:sticky;top:0;z-index:2;display:flex;gap:2px;padding:8px 10px;border-bottom:1px solid var(--bt-line);background:var(--bt-sidebar)}
+.crew-rail-tab{flex:1;padding:5px 0;border:0;border-radius:7px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:12px;line-height:16px;cursor:pointer}
+.crew-rail-tab[data-on=true]{background:var(--bt-card);color:var(--bt-ink);font-weight:600;box-shadow:0 1px 3px rgb(0 0 0 / .06)}
+.crew-rail-body{display:flex;flex-direction:column;gap:16px;padding:14px 12px 20px}
+.crew-rail-section{display:flex;flex-direction:column;gap:5px;font-size:12.5px;line-height:17px;color:var(--bt-ink-2)}
+.crew-rail-section>b{font-size:11.5px;font-weight:600;color:var(--bt-ink-3);letter-spacing:.02em}
+.crew-rail-section p{margin:0;min-width:0}
+.crew-rail-row{display:flex;justify-content:space-between;gap:8px}
+.crew-rail-row>span:first-child{color:var(--bt-ink);font-weight:500}
+.crew-rail-row>span:last-child{min-width:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-rail-path{margin:0;padding:6px 8px;border:1px solid var(--bt-line);border-radius:7px;background:var(--bt-card);color:var(--bt-ink-2);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:16px;word-break:break-all}
+.crew-rail-actions{display:flex;flex-wrap:wrap;gap:6px}
+.crew-rail-actions button{padding:5px 9px;font-size:12px}
+.crew-rail-advanced{padding:0}
+.crew-rail-advanced .crew-adv{padding:12px;border:0;background:none}
+.crew-rail .crew-muted{color:var(--bt-ink-3)}
+@media (max-width:1100px){
+  .crew-room{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+  .crew-rail{max-height:42vh;border-left:0;border-top:1px solid var(--bt-line)}
+}
