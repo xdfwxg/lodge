@@ -1,4 +1,5 @@
 import { budgetStatus } from './budget.js'
+import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
 import { markSeatRead } from './watermarks.js'
 import { workContract } from './prompt-modes.js'
 import { buildSeatHandoff } from './seat-handoff.js'
@@ -264,6 +265,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
             '判定不清就写 REJECT。',
+            INTERNAL_PROMPT_MARKER,
           ].join('\n')
         : [
             `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
@@ -292,6 +294,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
             '判定不清就写 REJECT。',
+            INTERNAL_PROMPT_MARKER,
           ].join('\n')
 
       const request = {

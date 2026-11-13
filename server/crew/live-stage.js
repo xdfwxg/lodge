@@ -5,6 +5,7 @@ import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './live-turn-utils.js'
 import { planDispatch } from './orchestration/index.js'
+import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
 import { modeGuidance, skillPrompt, workContract } from './prompt-modes.js'
 import { seatDisplayName } from './seat-labels.js'
 import { workspaceOf } from './live-workspace.js'
@@ -111,6 +112,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
         workspaceOf(room).capabilities().candidate === true
           ? '系统会提交候选。'
           : '不要改房间记录。',
+        INTERNAL_PROMPT_MARKER,
       ].filter(Boolean).join('\n')
     }
 

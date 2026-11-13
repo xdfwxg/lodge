@@ -301,6 +301,41 @@ test('acceptance skips a later turn that produced no delivery changes', async ()
   assert.equal(store.messages.filter(message => message.meta?.kind === 'command').length, 1)
 })
 
+test('a rework reruns acceptance even when the amended candidate has no working-tree diff', async () => {
+  registerWorkspaceProvider('test-live-after-rework', {
+    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
+    changes: async () => ({ diff: '', status: '', files: [], manifest: [] }),
+    submit: () => null,
+    isolatedCopy: () => ({ path: '/tmp/copy' }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({ repoPath: '/repo', sourceRepo: '/repo', workspace: { provider: 'test-live-after-rework' } })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    seq: 1,
+    meta: { kind: 'command', stage: 0, command: 'true', exit: 0 },
+  })
+  store.appendMessage('room-1', { kind: 'rework', seq: 2, text: 'remove local env', meta: { stage: 0 } })
+  let runs = 0
+  const runner = createAcceptanceRunner({
+    store,
+    roomId: 'room-1',
+    markProgress: () => {},
+    requestReview: async () => { throw new Error('review must not run') },
+    run: async () => {
+      runs += 1
+      return { exit: 0 }
+    },
+  })
+  await runner.run(0, 'true', 't-rework')
+  assert.equal(runs, 1)
+  const commands = store.messages.filter(message => message.meta?.kind === 'command')
+  assert.equal(commands.length, 2)
+  assert.equal(commands.at(-1).meta.candidate, null)
+  assert.doesNotMatch(store.messages.at(-2).text, /没有可验收的交付改动/)
+})
+
 test('a worker chatter turn does not start another acceptance round', async () => {
   const room = makeRoom({
     workers: ['worker'],

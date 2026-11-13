@@ -102,6 +102,7 @@ test('execution seats get a local env copy, a dependency link and a port hint', 
     const committed = execFileSync('git', ['show', '--name-only', '--format=', 'HEAD'], { cwd: executor, encoding: 'utf8' })
     assert.match(committed, /hello\.txt/)
     assert.doesNotMatch(committed, /\.env|node_modules/)
+    assert.doesNotMatch(committed, /\.lodge\//)
   } finally {
     cleanupRoom({ source: sourceRepo, workspaces })
     if (previousRoot === undefined) delete process.env.CREW_WORKTREE_ROOT

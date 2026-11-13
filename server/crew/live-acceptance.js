@@ -1,4 +1,5 @@
 import { markStageTasks } from './tasks.js'
+import { reworkFloor } from './verifiers.js'
 import { vcsOf, workspaceOf } from './live-workspace.js'
 
 export const createAcceptanceRunner = ({ store, roomId, markProgress, requestReview, updateTasks, run }) => {
@@ -24,18 +25,23 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     const changed = (diff.files?.length ?? 0) > 0 || (diff.manifest?.length ?? 0) > 0
     if (!changed && capabilities.candidate === true) {
       const messages = store.readMessages(roomId)
+      const floor = reworkFloor(messages, stageIndex)
+      // 返工之后即使工作树是干净的（执行者 amend 了候选提交），也必须对当前 HEAD 重跑验收。
       const prior = messages.some(message => (
         message.kind === 'evidence' &&
         message.meta?.kind === 'command' &&
         (message.meta?.stage ?? 0) === stageIndex &&
+        (message.seq ?? 0) > floor &&
         message.meta?.exit === 0
       ))
-      const note = prior
-        ? '本轮无新增交付改动，沿用已完成的验收。'
-        : '本轮没有可验收的交付改动，验收未执行。'
-      const lastSystem = [...messages].reverse().find(message => message.kind === 'system')
-      if (lastSystem?.text !== note) store.appendMessage(roomId, { kind: 'system', text: note })
-      return
+      if (prior || floor < 0) {
+        const note = prior
+          ? '本轮无新增交付改动，沿用已完成的验收。'
+          : '本轮没有可验收的交付改动，验收未执行。'
+        const lastSystem = [...messages].reverse().find(message => message.kind === 'system')
+        if (lastSystem?.text !== note) store.appendMessage(roomId, { kind: 'system', text: note })
+        return
+      }
     }
     let candidate = null
     try {
