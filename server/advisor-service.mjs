@@ -1,7 +1,7 @@
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 
-// 本地 Jev 服务：可用规则评估，也可接一个 OpenAI 兼容模型做语义评估。
+// 本地 advisor 服务：可用规则评估，也可接一个 OpenAI 兼容模型做语义评估。
 // 它只返回 advice，不写 verdict、不替代 Verifier。
 const textOf = (value, max = 8_000) => typeof value === 'string' ? value.slice(0, max) : ''
 
@@ -20,7 +20,7 @@ export const evaluateGateRules = ({ goal, plan, verify, acceptance }) => {
     reasons,
     risks: [],
     missingEvidence,
-    model: 'lodge-jev-rules',
+    model: 'lodge-advisor-rules',
     version: '2',
   }
 }
@@ -49,7 +49,7 @@ export const evaluateReviewRules = ({ evidence, stage }) => {
     reasons,
     risks,
     missingEvidence,
-    model: 'lodge-jev-rules',
+    model: 'lodge-advisor-rules',
     version: '2',
   }
 }
@@ -59,7 +59,7 @@ export const evaluateRules = body => body?.mode === 'review'
   : evaluateGateRules(body)
 
 const SYSTEM_PROMPT = [
-  '你是 Jev，一个独立的评估与打分服务，服务于多 Agent 房间的前置检查和独立复核。',
+  '你是 advisor，一个独立的评估与打分服务，服务于多 Agent 房间的前置检查和独立复核。',
   '你只输出一个 JSON 对象，不要 Markdown，不要额外解释。',
   '字段：score（0 到 1 的数字）、summary（一句话结论）、reasons（字符串数组）、risks（字符串数组）、missingEvidence（字符串数组）。',
   '你给的是建议，不是通过/不通过的裁决；不要输出 verdict，不要声称替代验收员。',
@@ -112,11 +112,11 @@ const modelPayload = body => ({
 export const evaluateWithModel = async (body, {
   url,
   key = '',
-  model = 'jev',
+  model = 'advisor',
   fetchImpl = globalThis.fetch,
   timeoutMs = 20_000,
 } = {}) => {
-  if (typeof url !== 'string' || url.trim() === '') throw new Error('没有配置 JEV_MODEL_URL')
+  if (typeof url !== 'string' || url.trim() === '') throw new Error('没有配置 ADVISOR_MODEL_URL')
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), Math.max(1_000, timeoutMs))
   try {
@@ -148,11 +148,11 @@ export const evaluateWithModel = async (body, {
 
 export const evaluate = async (body, options = {}) => {
   const {
-    mode = process.env.JEV_MODE ?? (process.env.JEV_MODEL_URL ? 'model' : 'rules'),
-    url = process.env.JEV_MODEL_URL ?? '',
-    key = process.env.JEV_MODEL_KEY ?? '',
-    model = process.env.JEV_MODEL ?? 'jev',
-    timeoutMs = Number(process.env.JEV_MODEL_TIMEOUT_MS ?? 20_000),
+    mode = process.env.ADVISOR_MODE ?? process.env.JEV_MODE ?? ((process.env.ADVISOR_MODEL_URL ?? process.env.JEV_MODEL_URL) ? 'model' : 'rules'),
+    url = process.env.ADVISOR_MODEL_URL ?? process.env.JEV_MODEL_URL ?? '',
+    key = process.env.ADVISOR_MODEL_KEY ?? process.env.JEV_MODEL_KEY ?? '',
+    model = process.env.ADVISOR_MODEL ?? process.env.JEV_MODEL ?? 'advisor',
+    timeoutMs = Number(process.env.ADVISOR_MODEL_TIMEOUT_MS ?? process.env.JEV_MODEL_TIMEOUT_MS ?? 20_000),
     fetchImpl = globalThis.fetch,
   } = options
   if (mode === 'model' && url !== '') {
@@ -186,13 +186,13 @@ const json = (res, status, body) => {
   res.end(data)
 }
 
-export const createJevServer = () => createServer(async (req, res) => {
+export const createAdvisorServer = () => createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
-    const mode = process.env.JEV_MODE ?? (process.env.JEV_MODEL_URL ? 'model' : 'rules')
+    const mode = process.env.ADVISOR_MODE ?? process.env.JEV_MODE ?? ((process.env.ADVISOR_MODEL_URL ?? process.env.JEV_MODEL_URL) ? 'model' : 'rules')
     return json(res, 200, {
       ok: true,
       mode,
-      model: mode === 'model' ? process.env.JEV_MODEL ?? 'jev' : 'lodge-jev-rules',
+      model: mode === 'model' ? process.env.ADVISOR_MODEL ?? process.env.JEV_MODEL ?? 'advisor' : 'lodge-advisor-rules',
       version: '2',
     })
   }
@@ -203,15 +203,15 @@ export const createJevServer = () => createServer(async (req, res) => {
   return json(res, 200, await evaluate(body))
 })
 
-export const startJevServer = ({ port = Number(process.env.JEV_PORT ?? 8798), host = '127.0.0.1' } = {}) => {
-  const server = createJevServer()
+export const startAdvisorServer = ({ port = Number(process.env.ADVISOR_PORT ?? process.env.JEV_PORT ?? 8798), host = '127.0.0.1' } = {}) => {
+  const server = createAdvisorServer()
   server.listen(port, host, () => {
-    const mode = process.env.JEV_MODE ?? (process.env.JEV_MODEL_URL ? 'model' : 'rules')
-    console.log(`Jev evaluator (${mode}): http://${host}:${port}/evaluate`)
+    const mode = process.env.ADVISOR_MODE ?? process.env.JEV_MODE ?? ((process.env.ADVISOR_MODEL_URL ?? process.env.JEV_MODEL_URL) ? 'model' : 'rules')
+    console.log(`Advisor evaluator (${mode}): http://${host}:${port}/evaluate`)
   })
   return server
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  startJevServer()
+  startAdvisorServer()
 }

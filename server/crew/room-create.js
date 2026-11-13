@@ -33,7 +33,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const { plan, error: planError } = normalizePlan({ body, continueSource, roomFiles: ports.roomFiles })
   if (planError !== undefined) return fail('invalid', planError)
   const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
-  const jev = await ports.jev?.advice?.({
+  const advisor = await ports.advisor?.advice?.({
     mode: 'gate',
     goal,
     roomType: roomType.id,
@@ -47,7 +47,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     plan,
     verify,
     acceptance: effectiveAcceptance,
-    advice: jev.advice,
+    advice: advisor.advice,
   })
   if (gate.decision === 'reject') {
     return fail('invalid', `Gate 拒绝：${gate.reasons.join('；')}`)
@@ -164,9 +164,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         decision: gate.decision,
         reasons: gate.reasons,
         advice: gate.advice,
-        available: jev.available === true,
-        ...(jev.model === undefined ? {} : { model: jev.model }),
-        ...(jev.version === undefined ? {} : { version: jev.version }),
+        available: advisor.available === true,
+        ...(advisor.model === undefined ? {} : { model: advisor.model }),
+        ...(advisor.version === undefined ? {} : { version: advisor.version }),
       },
     })
     if (Array.isArray(body.stageDependencies) && Array.isArray(room.stages)) {

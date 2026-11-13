@@ -20,15 +20,15 @@ test('studio rejects an unusable target before planning', () => {
   assert.ok(result.reasons.includes('交付型工作室没有验收标准'))
 })
 
-test('Jev advice is returned but never changes the decision', () => {
+test('advisor advice is returned but never changes the decision', () => {
   const result = evaluateRoomGate({
     roomType: 'studio',
     goal: '做一件事',
     plan: { done: ['完成'], stages: [] },
     verify: 'manual',
     acceptance: '',
-    advice: [{ source: 'jev', score: 0.2 }],
+    advice: [{ source: 'advisor', score: 0.2 }],
   })
   assert.equal(result.decision, 'allow')
-  assert.deepEqual(result.advice, [{ source: 'jev', score: 0.2 }])
+  assert.deepEqual(result.advice, [{ source: 'advisor', score: 0.2 }])
 })

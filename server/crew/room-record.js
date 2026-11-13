@@ -209,7 +209,7 @@ export const initialRoomMessages = ({
       .map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；'))
       .filter(Boolean)
       .join('；')
-    if (advice !== '') messages.push({ kind: 'system', text: `Gate·Jev 建议（仅参考，不替代 Verifier）：${advice}` })
+    if (advice !== '') messages.push({ kind: 'system', text: `Gate·评估建议（仅参考，不替代 Verifier）：${advice}` })
   }
   if (room.branch !== '') messages.push({ kind: 'system', text: `源仓库 ${room.sourceRepo} · 执行分支 ${room.branch}` })
   if (continueSource !== null) {

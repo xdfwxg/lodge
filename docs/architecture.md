@@ -24,9 +24,9 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 - 底层角色原语（`roleKind`，数据库 / 权限 / trust / driver 识别的唯一原语）：
   - `planner`：接收目标、拆解任务、定义验收标准、分派、协调分支
   - `executor`：依据方案执行，产出交付物 + 结构化证据包
-  - `verifier`：独立鉴证，对照证据包与验收标准产出 verdict；Jev 仅提供辅助打分建议，不具备最终决策权
+  - `verifier`：独立鉴证，对照证据包与验收标准产出 verdict；评估建议仅提供辅助打分，不具备最终决策权
 - `roleProfile`：上层业务标签（gate-coordinator、architect、qa-reviewer、retro-analyst 等），仅用于 UI、提示词、playbook，不影响底层权限与流转。
-- 前置管道 Gate：独立于三类本原角色，在 Planner 启动规划前运行；输入目标，输出 allow / reject、理由、Jev 建议；Gate 只控制准入，不拆解任务、不写方案。
+- 前置管道 Gate：独立于三类本原角色，在 Planner 启动规划前运行；输入目标，输出 allow / reject、理由、评估建议；Gate 只控制准入，不拆解任务、不写方案。
 - 工作室流转 `closure` 状态：`open | planned | executing | verifying | signed | rejected`
   - `rejected`：仅 Planner 在 `planned` 阶段可触发，附带理由与证据；属于合法终态，**标记为不可行，不等于任务完成**
   - 一旦进入 `executing`：所有驳回、通过判定权限收归 Verifier，Planner 不能单方面终止或放行
@@ -34,7 +34,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 - 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环
 - 流转公约：主任务闭环必须经过 Planner → Executor → Verifier；支持子任务并行、重试、分支，但进入执行阶段后不可绕过 Verifier 放行。
 - 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。
-- 影子评审 `shadowReview`：只记录 Jev/影子评估的 score 和 advice，不拦截、不产生正式 verdict；正式 Verifier 仍然必须 PASS 才能 signed。
+- 影子评审 `shadowReview`：只记录 advisor/影子评估的 score 和 advice，不拦截、不产生正式 verdict；正式 Verifier 仍然必须 PASS 才能 signed。
 - Planner 工具面：Lodge 自带一个按房间注册的无状态 MCP server（`/mcp/planner/<roomId>`，令牌绑定房间），只挂给该房间的 Planner，提供 `create_subroom`、`reject_plan`、`check_gate`；工具调用回到业务层执行，结果由 MCP 返回，Planner 不能伪造。MCP 不可用时回退到 `<lodge-tool>{"name":"...","args":{...}}</lodge-tool>` 文字协议。两条路径都不是新的 roleKind，也不改变谁有权放行。
 - Planner MCP 生命周期：建房时注册并启用，Planner bot 的 `mcpServers` 只多这一项；房间 `signed`/`rejected` 时移除，启动时清理没有进行中房间的条目。基座最多保存 20 个 MCP server。
 
@@ -46,7 +46,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 4. `closure` 是工作室专属字段；聊天室不存在 `closure`，任何代码不得在聊天室里读取或推断交付闭环状态。
 5. `swarm` 只是 Verifier 的调度策略，不新增 `roleKind`，也不产生独立评审原语。
 6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`，房间预设在 `server/crew/room-templates.js`；自定义房间模板存 `<dataDir>/room-templates/*.json`，通过 `/api/room-templates` 保存/删除。
-7. Jev 是外部 advice 端口（`server/crew/jev.js`，配置与契约见 `docs/jev.md`）：Gate 和 Verifier 可附上建议，但 Jev 不写 verdict、不是 roleKind、不可直接放行。
+7. advisor 是外部建议端口（`server/crew/advisor.js`，配置与契约见 `docs/advisor.md`）：Gate 和 Verifier 可附上建议，但 advisor 不写 verdict、不是 roleKind、不可直接放行；`JEV_*` 配置作为兼容别名保留。
 
 ## 负面清单（硬禁止）
 
@@ -57,7 +57,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 3. **工作室不引入 `room.chat`**。工作室只用 `closure / stages / evidence / verdict / trust`。
 4. **房型创建后不动态切换**。需要交付就新建工作室，不把聊天室原地改成工作室。
 5. **不让 Verifier 缺席时标记完成**。人工签字也必须先有 Verifier PASS；`rejected` 不是完成。
-6. **Jev 不写 `pass`、不直接放行、不成为角色**。它只返回 advice。
+6. **评估建议不写 `pass`、不直接放行、不成为角色**。它只返回 advice。
 7. **聊天室不挂完整执行引擎**。写文件、执行命令、外部动作都不放行；要执行请新建工作室。
 8. **角色实例不跨房间继承**。身份绑定房间。
 9. **不做快照自动导入新工作室**。只导出只读快照，由人另建工作室。
@@ -69,12 +69,12 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 这些不是永久禁止，只是当前明确的非目标：
 
 - 模板“保存当前配置为模板”按钮
-- 外部 Jev 产品接入（本地已有规则/模型评估服务，外部地址仍由 `JEV_URL` 指定）
+- 外部评估产品接入（本地已有规则/模型评估服务，外部地址仍由 `ADVISOR_URL` 指定）
 - 子工作室 UI 编排
 
 ## 对应门禁
 
-- `server/crew/negative-list.test.js`：聊天室/工作室状态、Jev 建议、快照导入方向的静态检查。
+- `server/crew/negative-list.test.js`：聊天室/工作室状态、advisor 建议、快照导入方向的静态检查。
 - `server/crew/boundary.test.js`：crew 不泄漏基座词汇。
 - `server/crew/layer-boundaries.test.js`：应用层只依赖端口。
 - `server/crew/room-types.test.js` / `verifiers.test.js`：三类本原角色与 quorum 行为。

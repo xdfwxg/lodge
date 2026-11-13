@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs
 import { fileURLToPath } from 'node:url'
 import { runCommand } from './acceptance.js'
 import { handoffStore } from './handoff-store.js'
-import { createJevClient } from './jev.js'
+import { createAdvisorClient } from './advisor.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
 import { readBrief, writeBrief, writeConclusion, writeGoal } from './room-repo.js'
 import { writeSeatEnv } from './seat-env.js'
@@ -52,7 +52,7 @@ export const createCrewPorts = () => ({
     save: saveSavedRoomTemplate,
     delete: deleteSavedRoomTemplate,
   },
-  jev: createJevClient(),
+  advisor: createAdvisorClient(),
   skills: createSkillStore({ dir: fileURLToPath(new URL('../../templates/skills/', import.meta.url)) }),
   commands: {
     run: runCommand,

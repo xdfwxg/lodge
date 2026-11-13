@@ -19,8 +19,8 @@ test('studio modules do not read room.chat', () => {
   }
 })
 
-test('Jev advice code has no pass/verdict authority', () => {
-  for (const file of ['jev.js', 'room-gate.js']) {
+test('advisor advice code has no pass/verdict authority', () => {
+  for (const file of ['advisor.js', 'room-gate.js']) {
     const source = read(file)
     assert.doesNotMatch(source, /\bpass\s*:/, `${file} writes a pass field`)
     assert.doesNotMatch(source, /\bverdict\s*:/, `${file} writes a verdict field`)

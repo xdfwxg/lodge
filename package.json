@@ -12,7 +12,8 @@
   "scripts": {
     "dev": "concurrently -k -n server,ui -c blue,green \"node server/index.js\" \"vite\"",
     "dev:server": "node server/index.js",
-    "jev:serve": "node server/jev-service.mjs",
+    "advisor:serve": "node server/advisor-service.mjs",
+    "jev:serve": "node server/advisor-service.mjs",
     "dev:ui": "vite",
     "build": "vite build",
     "desktop": "npm run build && electron .",

@@ -9,7 +9,7 @@ export const ROOM_CAPABILITIES = Object.freeze({
     evidence: false,
     verdict: false,
     piExecution: false,
-    jev: 'optional',
+    advisor: 'optional',
     customProfiles: true,
   }),
   studio: Object.freeze({
@@ -21,7 +21,7 @@ export const ROOM_CAPABILITIES = Object.freeze({
     evidence: true,
     verdict: true,
     piExecution: true,
-    jev: true,
+    advisor: true,
     customProfiles: true,
   }),
 })

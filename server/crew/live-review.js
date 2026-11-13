@@ -10,7 +10,7 @@ import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from './orchestration/index.js'
 import { seatDisplayName } from './seat-labels.js'
 
-export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, jev = null }) => {
+export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, advisor = null }) => {
   let round = null
 
   const isBusy = () => round !== null && round.requests.size > 0
@@ -154,7 +154,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       evidenceId: evidence.id,
       verifiers: targets,
     })
-    const jevResult = await jev?.advice?.({
+    const advisorResult = await advisor?.advice?.({
       mode: 'review',
       goal: room.goal,
       stage: { title: stage.title, acceptance: stage.acceptance ?? '', manual },
@@ -168,25 +168,25 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         artifacts: meta.artifacts,
       },
     }) ?? { available: false, advice: [] }
-    const jevLines = Array.isArray(jevResult.advice) ? jevResult.advice : []
-    if (jevLines.length > 0) {
-      const text = jevLines
+    const advisorLines = Array.isArray(advisorResult.advice) ? advisorResult.advice : []
+    if (advisorLines.length > 0) {
+      const text = advisorLines
         .map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；'))
         .filter(Boolean)
         .join('；')
       const shadow = room.shadowReview === true
       store.appendMessage(roomId, {
-        kind: 'jev_advice',
+        kind: 'advisor_advice',
         authorId: 'system',
-        text: `${shadow ? '影子评审（仅记录，不拦截）' : 'Jev 建议（仅参考，不替代 Verifier）'}：${text}`,
+        text: `${shadow ? '影子评审（仅记录，不拦截）' : '评估建议（仅参考，不替代 Verifier）'}：${text}`,
         meta: {
           stage: stageIndex,
           evidenceId: evidence.id,
-          advice: jevLines,
+          advice: advisorLines,
           shadow,
-          available: jevResult.available === true,
-          ...(jevResult.model === undefined ? {} : { model: jevResult.model }),
-          ...(jevResult.version === undefined ? {} : { version: jevResult.version }),
+          available: advisorResult.available === true,
+          ...(advisorResult.model === undefined ? {} : { model: advisorResult.model }),
+          ...(advisorResult.version === undefined ? {} : { version: advisorResult.version }),
         },
       })
     }
@@ -213,8 +213,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...workContract('verifier'),
             '盲审：你只拿到目标、约束和本轮产物证据，不读取执行席位的对话；判定只看证据和代码。',
             buildSeatHandoff({ room, messages }),
-            ...(jevLines.length > 0
-              ? [`Jev 建议（仅参考，不替代你的判定）：${jevLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
+            ...(advisorLines.length > 0
+              ? [`评估建议（仅参考，不替代你的判定）：${advisorLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
               : []),
             `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
@@ -234,8 +234,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...workContract('verifier'),
             '盲审：你只拿到目标、约束、本轮验收证据和改动，不读取执行席位的对话；判定只看证据和代码。',
             buildSeatHandoff({ room, messages }),
-            ...(jevLines.length > 0
-              ? [`Jev 建议（仅参考，不替代你的判定）：${jevLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
+            ...(advisorLines.length > 0
+              ? [`评估建议（仅参考，不替代你的判定）：${advisorLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
               : []),
             `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),

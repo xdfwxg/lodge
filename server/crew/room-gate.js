@@ -1,5 +1,5 @@
 // Gate 是工作室引擎的前置管道，不是角色。它只决定目标能不能进入规划，
-// 不做拆解、不写方案；Jev 建议只作为 advice 附回，不产生业务判定。
+// 不做拆解、不写方案；评估建议只作为 advice 附回，不产生业务判定。
 export const evaluateRoomGate = ({ roomType, goal, plan, verify, acceptance, advice = [] }) => {
   if (roomType !== 'studio') {
     return { decision: 'allow', reasons: [], advice: [] }

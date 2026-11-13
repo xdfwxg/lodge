@@ -526,7 +526,7 @@ function NewRoomDialog({
           checked: shadowReview,
           onChange: event => setShadowReview(event.target.checked),
         }),
-        '影子评审：Jev 只记录建议，不拦截签字')
+        '影子评审：评估建议只记录，不拦截签字')
       : null,
     constraintsView,
     resume?.brief?.done?.length > 0

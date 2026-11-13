@@ -1,4 +1,5 @@
-// Jev 是外部评估/打分服务：只返回 advice，不产生 verdict，也不阻塞主链路。
+// advisor 是外部评估/打分端口：只返回建议，不产生 verdict，也不阻塞主链路。
+// 配置优先读 ADVISOR_*，并兼容旧的 JEV_* 变量。
 const normalizeAdvice = body => {
   const raw = Array.isArray(body?.advice)
     ? body.advice
@@ -6,7 +7,7 @@ const normalizeAdvice = body => {
       ? []
       : [body]
   return raw.slice(0, 10).map(item => ({
-    source: 'jev',
+    source: 'advisor',
     ...(Number.isFinite(item?.score) ? { score: item.score } : {}),
     ...(Array.isArray(item?.reasons) ? { reasons: item.reasons.slice(0, 8) } : {}),
     ...(Array.isArray(item?.risks) ? { risks: item.risks.slice(0, 8) } : {}),
@@ -15,10 +16,10 @@ const normalizeAdvice = body => {
   }))
 }
 
-export const createJevClient = ({
-  url = process.env.JEV_URL ?? '',
-  token = process.env.JEV_TOKEN ?? '',
-  timeoutMs = Number(process.env.JEV_TIMEOUT_MS ?? 8000),
+export const createAdvisorClient = ({
+  url = process.env.ADVISOR_URL ?? process.env.JEV_URL ?? '',
+  token = process.env.ADVISOR_TOKEN ?? process.env.JEV_TOKEN ?? '',
+  timeoutMs = Number(process.env.ADVISOR_TIMEOUT_MS ?? process.env.JEV_TIMEOUT_MS ?? 8000),
 } = {}) => {
   const available = typeof url === 'string' && url.trim() !== ''
 
@@ -36,7 +37,7 @@ export const createJevClient = ({
         body: JSON.stringify({ mode, ...payload }),
         signal: controller.signal,
       })
-      if (!response.ok) throw new Error(`Jev HTTP ${response.status}`)
+      if (!response.ok) throw new Error(`advisor HTTP ${response.status}`)
       const body = await response.json().catch(() => ({}))
       return {
         available: true,

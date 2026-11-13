@@ -9,7 +9,7 @@ import { createStudioEngine } from './live-studio.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs, onPlannerTool = null }) => {
-  const { roomFiles, usage, commands, files, skills, jev } = ports
+  const { roomFiles, usage, commands, files, skills, advisor } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit, usage })
@@ -54,7 +54,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
         commands,
         files,
         skills,
-        jev,
+        advisor,
         onPlannerTool,
       })
       : {

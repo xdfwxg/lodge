@@ -200,7 +200,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     if (tool?.name === 'reject_plan') return closure.rejectPlan(room, tool.args)
     if (tool?.name === 'check_gate') {
       const goal = typeof tool.args?.goal === 'string' && tool.args.goal.trim() !== '' ? tool.args.goal.trim() : room.goal
-      const jev = await ports.jev?.advice?.({
+      const advisor = await ports.advisor?.advice?.({
         mode: 'gate',
         goal,
         roomType: 'studio',
@@ -208,7 +208,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
         verify: 'manual',
         acceptance: '',
       }) ?? { available: false, advice: [] }
-      const gate = evaluateRoomGate({ roomType: 'studio', goal, plan: null, verify: 'manual', acceptance: '', advice: jev.advice })
+      const gate = evaluateRoomGate({ roomType: 'studio', goal, plan: null, verify: 'manual', acceptance: '', advice: advisor.advice })
       return ok({ gate })
     }
     return fail('invalid', `未知 Planner 工具：${tool?.name ?? ''}`)
