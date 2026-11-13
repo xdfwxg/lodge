@@ -1,5 +1,5 @@
 // advisor 是外部评估/打分端口：只返回建议，不产生 verdict，也不阻塞主链路。
-// 配置优先读 ADVISOR_*，并兼容旧的 JEV_* 变量。
+// 配置只读 ADVISOR_*；以后接外部产品时再新增独立适配器，不做名字别名。
 const normalizeAdvice = body => {
   const raw = Array.isArray(body?.advice)
     ? body.advice
@@ -17,9 +17,9 @@ const normalizeAdvice = body => {
 }
 
 export const createAdvisorClient = ({
-  url = process.env.ADVISOR_URL ?? process.env.JEV_URL ?? '',
-  token = process.env.ADVISOR_TOKEN ?? process.env.JEV_TOKEN ?? '',
-  timeoutMs = Number(process.env.ADVISOR_TIMEOUT_MS ?? process.env.JEV_TIMEOUT_MS ?? 8000),
+  url = process.env.ADVISOR_URL ?? '',
+  token = process.env.ADVISOR_TOKEN ?? '',
+  timeoutMs = Number(process.env.ADVISOR_TIMEOUT_MS ?? 8000),
 } = {}) => {
   const available = typeof url === 'string' && url.trim() !== ''
 

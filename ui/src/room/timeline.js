@@ -29,7 +29,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat }) {
     const seat = byId[message.authorId] ?? (message.authorId === 'system' ? { name: '运行时', title: '验收员' } : undefined)
     const content = (() => {
       if (message.kind === 'system') return h('div', { key: message.id, className: 'crew-system' }, message.text)
-      if (message.kind === 'advisor_advice' || message.kind === 'jev_advice') {
+      if (message.kind === 'advisor_advice') {
         return h('div', { key: message.id, className: 'crew-system' }, message.text)
       }
       if (message.kind === 'child_result') return h('div', { key: message.id, className: 'crew-system' }, message.text)

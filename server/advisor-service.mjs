@@ -148,11 +148,11 @@ export const evaluateWithModel = async (body, {
 
 export const evaluate = async (body, options = {}) => {
   const {
-    mode = process.env.ADVISOR_MODE ?? process.env.JEV_MODE ?? ((process.env.ADVISOR_MODEL_URL ?? process.env.JEV_MODEL_URL) ? 'model' : 'rules'),
-    url = process.env.ADVISOR_MODEL_URL ?? process.env.JEV_MODEL_URL ?? '',
-    key = process.env.ADVISOR_MODEL_KEY ?? process.env.JEV_MODEL_KEY ?? '',
-    model = process.env.ADVISOR_MODEL ?? process.env.JEV_MODEL ?? 'advisor',
-    timeoutMs = Number(process.env.ADVISOR_MODEL_TIMEOUT_MS ?? process.env.JEV_MODEL_TIMEOUT_MS ?? 20_000),
+    mode = process.env.ADVISOR_MODE ?? (process.env.ADVISOR_MODEL_URL ? 'model' : 'rules'),
+    url = process.env.ADVISOR_MODEL_URL ?? '',
+    key = process.env.ADVISOR_MODEL_KEY ?? '',
+    model = process.env.ADVISOR_MODEL ?? 'advisor',
+    timeoutMs = Number(process.env.ADVISOR_MODEL_TIMEOUT_MS ?? 20_000),
     fetchImpl = globalThis.fetch,
   } = options
   if (mode === 'model' && url !== '') {
@@ -188,11 +188,11 @@ const json = (res, status, body) => {
 
 export const createAdvisorServer = () => createServer(async (req, res) => {
   if (req.method === 'GET' && req.url === '/health') {
-    const mode = process.env.ADVISOR_MODE ?? process.env.JEV_MODE ?? ((process.env.ADVISOR_MODEL_URL ?? process.env.JEV_MODEL_URL) ? 'model' : 'rules')
+    const mode = process.env.ADVISOR_MODE ?? (process.env.ADVISOR_MODEL_URL ? 'model' : 'rules')
     return json(res, 200, {
       ok: true,
       mode,
-      model: mode === 'model' ? process.env.ADVISOR_MODEL ?? process.env.JEV_MODEL ?? 'advisor' : 'lodge-advisor-rules',
+      model: mode === 'model' ? process.env.ADVISOR_MODEL ?? 'advisor' : 'lodge-advisor-rules',
       version: '2',
     })
   }
@@ -203,10 +203,10 @@ export const createAdvisorServer = () => createServer(async (req, res) => {
   return json(res, 200, await evaluate(body))
 })
 
-export const startAdvisorServer = ({ port = Number(process.env.ADVISOR_PORT ?? process.env.JEV_PORT ?? 8798), host = '127.0.0.1' } = {}) => {
+export const startAdvisorServer = ({ port = Number(process.env.ADVISOR_PORT ?? 8798), host = '127.0.0.1' } = {}) => {
   const server = createAdvisorServer()
   server.listen(port, host, () => {
-    const mode = process.env.ADVISOR_MODE ?? process.env.JEV_MODE ?? ((process.env.ADVISOR_MODEL_URL ?? process.env.JEV_MODEL_URL) ? 'model' : 'rules')
+    const mode = process.env.ADVISOR_MODE ?? (process.env.ADVISOR_MODEL_URL ? 'model' : 'rules')
     console.log(`Advisor evaluator (${mode}): http://${host}:${port}/evaluate`)
   })
   return server

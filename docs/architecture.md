@@ -46,7 +46,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 4. `closure` 是工作室专属字段；聊天室不存在 `closure`，任何代码不得在聊天室里读取或推断交付闭环状态。
 5. `swarm` 只是 Verifier 的调度策略，不新增 `roleKind`，也不产生独立评审原语。
 6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`，房间预设在 `server/crew/room-templates.js`；自定义房间模板存 `<dataDir>/room-templates/*.json`，通过 `/api/room-templates` 保存/删除。
-7. advisor 是外部建议端口（`server/crew/advisor.js`，配置与契约见 `docs/advisor.md`）：Gate 和 Verifier 可附上建议，但 advisor 不写 verdict、不是 roleKind、不可直接放行；`JEV_*` 配置作为兼容别名保留。
+7. advisor 是外部建议端口（`server/crew/advisor.js`，配置与契约见 `docs/advisor.md`）：Gate 和 Verifier 可附上建议，但 advisor 不写 verdict、不是 roleKind、不可直接放行。
 
 ## 负面清单（硬禁止）
 
@@ -69,7 +69,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 这些不是永久禁止，只是当前明确的非目标：
 
 - 模板“保存当前配置为模板”按钮
-- 外部评估产品接入（本地已有规则/模型评估服务，外部地址仍由 `ADVISOR_URL` 指定）
+- 外部评估产品接入（本地已有规则/模型评估服务，外部地址由 `ADVISOR_URL` 指定）
 - 子工作室 UI 编排
 
 ## 对应门禁
