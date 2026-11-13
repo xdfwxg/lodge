@@ -86,6 +86,7 @@ test('a task room with no explicit seats resolves to the fixed triad', () => {
   const seats = resolveSeats({}, resolveRoomType('task'))
   assert.equal(seats.templateId, 'delivery-triad')
   assert.deepEqual(seats.roster.map(seat => seat.role), ['lead', 'worker', 'verifier'])
+  assert.deepEqual(seats.roster.map(seat => seat.roleKind), ['planner', 'executor', 'verifier'])
 })
 
 test('a chat room does not require a worker role', () => {
@@ -93,6 +94,8 @@ test('a chat room does not require a worker role', () => {
   assert.equal(seats.error, undefined)
   assert.equal(seats.lead.name, '主持人')
   assert.deepEqual(seats.workers, [])
+  assert.equal(seats.roster[0].roleKind, 'participant')
+  assert.equal(seats.roster[0].isHost, true)
 })
 
 test('a roster without a worker fails closed', () => {

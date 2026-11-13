@@ -74,8 +74,24 @@ export const buildRoomRecord = ({
   seatCursors: Object.fromEntries(roster.map(seat => [seat.id, 0])),
   openQuestion: null,
   version: 1,
-  seatSpecs: roster.map(({ id, name, title: seatTitle, role, station, engine, model, permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget }) => ({
-    id, name, title: seatTitle, role, station, engine, ...(model === undefined ? {} : { model }), permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget,
+  seatSpecs: roster.map(({ id, name, title: seatTitle, role, roleKind, roleProfile, isHost, station, engine, model, permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget }) => ({
+    id,
+    name,
+    title: seatTitle,
+    role,
+    roleKind,
+    roleProfile,
+    ...(isHost === true ? { isHost: true } : {}),
+    station,
+    engine,
+    ...(model === undefined ? {} : { model }),
+    permissions,
+    writeScope,
+    toolSurface,
+    skills,
+    mcp,
+    approval,
+    speakBudget,
   })),
   constraints: roomType.id === 'chat'
     ? [
@@ -125,11 +141,28 @@ export const buildRoomRecord = ({
       }),
   members: roster.map(seat => seat.id),
   roomType: roomType.id,
+  engine: roomType.id === 'chat' ? 'chat' : 'delivery',
+  ...(roomType.id === 'chat'
+    ? {}
+    : {
+        closure: plan === null ? 'open' : 'planned',
+        verificationMode: 'hybrid',
+      }),
   orchestration,
   ...(roomType.id === 'chat'
-    ? { chatRound: 1, chatTurns: 0, chatRunning: false, chatPhase: '', chatSpeaker: '' }
-    : {}),
-  stages: builtStages.stages,
+    ? {
+        chat: {
+          round: 1,
+          phase: 'discussing',
+          turns: 0,
+          conclusionId: null,
+          accepted: false,
+          running: false,
+          speaker: '',
+          note: '',
+        },
+      }
+    : { stages: builtStages.stages }),
 })
 
 export const initialRoomMessages = ({

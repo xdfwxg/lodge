@@ -57,6 +57,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       })
       : {
           seed: () => {},
+          trackTool: () => {},
           captureTurn: () => {},
           resume: async () => {},
           requestReview: async () => { throw new Error('聊天室没有验收回合') },
@@ -161,7 +162,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
         try {
           const entry = await attach(room)
           const current = store.readRoom(room.id)
-          if (current?.roomType === 'chat' && current.state === 'active' && current.chatRunning === true) {
+          if (current?.roomType === 'chat' && current.state === 'active' && current.chat?.running === true) {
             void entry.chatRun.start(current)
           }
         } catch (error) {

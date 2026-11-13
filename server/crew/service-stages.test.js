@@ -44,7 +44,6 @@ const setup = initial => {
     store,
     live: {
       reworkStage: async (target, index, note) => { calls.push({ target, index, note }) },
-      continueChat: async (target, note) => { calls.push({ continueChat: target.id, note }) },
       isAttached: () => true,
       resume: async (id, options) => { calls.push({ resume: id, options }) },
     },
@@ -90,22 +89,24 @@ test('accepting a stage writes a conclusion card for the next step', () => {
   assert.equal(conclusion.meta.next, '验收与结论')
 })
 
-test('rejecting a chat conclusion starts another six-turn round', async () => {
+test('studio signoff records a human Verifier verdict and moves closure', () => {
   const ctx = setup(room({
-    roomType: 'chat',
-    chatRound: 1,
-    chatRunning: false,
+    live: false,
+    roomType: 'studio',
+    closure: 'verifying',
+    verificationMode: 'hybrid',
+    verifiers: ['verifier'],
     stages: [
-      { title: '聊天讨论', kind: 'decision', state: 'passed', readOnly: true },
-      { title: '结论', kind: 'decision', state: 'active', readOnly: true, dependsOn: [0] },
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
+      { title: '验收与结论', kind: 'decision', state: 'pending' },
     ],
   }))
-  ctx.messages.push({ id: 'c-1', seq: 1, kind: 'chat_conclusion', meta: { round: 1 } })
-  const result = ctx.stages.continueChat(ctx.room(), { note: '还缺反方观点' })
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
+  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
+  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, true)
-  assert.equal(ctx.room().chatRound, 2)
-  assert.equal(ctx.room().chatRunning, true)
-  assert.equal(ctx.messages.at(-1).kind, 'chat_rework')
-  assert.equal(ctx.messages.at(-1).text, '还缺反方观点')
-  assert.deepEqual(ctx.calls.at(-1), { continueChat: 'room-1', note: '还缺反方观点' })
+  const human = ctx.messages.find(message => message.kind === 'verdict' && message.authorId === 'you')
+  assert.equal(human.meta.roleKind, 'verifier')
+  assert.equal(human.meta.mode, 'human')
+  assert.equal(ctx.room().closure, 'planned')
 })

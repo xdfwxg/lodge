@@ -7,6 +7,8 @@ import { createRoomCompleter } from './room-complete.js'
 import { createServiceDelivery } from './service-delivery.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceRunControl } from './service-run-control.js'
+import { createServiceChat } from './service-chat.js'
+import { createServiceClosure } from './service-closure.js'
 import { createServiceSeats } from './service-seats.js'
 import { createServiceStages } from './service-stages.js'
 import { createServiceTemplates } from './service-templates.js'
@@ -40,6 +42,8 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   const seatActions = createServiceSeats({ store, engine, live, emit, roomFiles, workspace })
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const stages = createServiceStages({ store, live, emit, dispatchPayload, completeRoom, roomFiles })
+  const chat = createServiceChat({ store, live, emit, dispatchPayload })
+  const closure = createServiceClosure({ store, emit, dispatchPayload })
   const runControl = createServiceRunControl({ store, live, emit, dispatchPayload, roomFiles })
   const trust = createServiceTrust({ store, emit, dispatchPayload })
 
@@ -138,11 +142,20 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     }
 
     if (action === 'accept' && method === 'POST') {
+      if (room.roomType === 'chat') return chat.accept(room)
       return stages.accept(room, await readBody())
     }
 
+    if (action === 'chat-accept' && method === 'POST') {
+      return chat.accept(room)
+    }
+
     if (action === 'chat-continue' && method === 'POST') {
-      return stages.continueChat(room, await readBody())
+      return chat.continue(room, await readBody())
+    }
+
+    if (action === 'reject-plan' && method === 'POST') {
+      return closure.rejectPlan(room, await readBody())
     }
 
     if (action === 'rework' && method === 'POST') {

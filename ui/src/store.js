@@ -222,6 +222,7 @@ export function createStore() {
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
+    chatAccept: () => post(`/api/rooms/${state.activeId}/chat-accept`, {}),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     answer: async (stage, text) => {

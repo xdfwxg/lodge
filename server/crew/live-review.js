@@ -22,12 +22,17 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     clearTimeout(pending.timer)
     const pass = parseVerdict(turn.reply)
     const name = seatDisplayName(room, seat)
+    const spec = room.seatSpecs?.find(item => item.id === pending.verifier)
     store.appendMessage(roomId, {
       kind: 'verdict',
       authorId: pending.verifier,
       text: turn.reply || '复核回合没有给出文字结论。',
       meta: {
         pass,
+        reason: turn.reply ?? '',
+        roleKind: 'verifier',
+        verifierProfile: spec?.roleProfile ?? name,
+        mode: 'bot',
         stage: pending.stage,
         command: pending.command,
         exit: pending.exit,
@@ -89,8 +94,18 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       reject('invalid', '这个阶段不是交付型')
     }
     if (stage.state !== 'active') reject('conflict', '这个阶段不在待验收状态')
+    if (room.closure === 'rejected' || room.closure === 'signed') {
+      reject('conflict', `房间已${room.closure === 'rejected' ? '拒绝' : '签字'}，不能发起复核`)
+    }
     const budget = budgetStatus(room, store.readRooms())
     if (!budget.ok) reject('conflict', budget.message)
+    if (room.roomType === 'studio') {
+      store.updateRoom(roomId, current => {
+        if (current.closure !== 'executing') return null
+        current.closure = 'verifying'
+        return { events: [{ type: 'room.closure', payload: { closure: 'verifying' } }] }
+      })
+    }
 
     const messages = store.readMessages(roomId)
     const manual = stage.manual === true

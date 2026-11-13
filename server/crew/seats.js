@@ -61,6 +61,10 @@ const ROLE_TEMPLATE = {
 }
 const ROLE_NAME = { lead: '规划师', worker: '执行者', verifier: '验收员' }
 
+// 底层 roleKind 只有三类本原能力；lead/worker 是旧数据别名。
+export const ROLE_KIND = { lead: 'planner', worker: 'executor', verifier: 'verifier' }
+export const roleKindOf = role => ROLE_KIND[role] ?? role
+
 export const TEMPLATES = {
   'delivery-triad': { id: 'delivery-triad', name: '交付三人组', seats: deliveryTriad },
   custom: { id: 'custom', name: '自定义', seats: [] },

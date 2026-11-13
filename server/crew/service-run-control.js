@@ -6,7 +6,7 @@ export const createServiceRunControl = ({ store, live, emit, dispatchPayload, ro
   const { readRoom, readRooms, readMessages, updateRoom, appendMessage } = store
 
   const startActiveStageIfReady = room => {
-    if (room.live !== true) return
+    if (room.live !== true || !Array.isArray(room.stages)) return
     const active = room.stages.findIndex(stage => stage.state === 'active')
     const stage = room.stages[active]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return

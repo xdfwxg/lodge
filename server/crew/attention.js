@@ -23,20 +23,20 @@ export const roomNeedsYou = (room, messages = []) => {
     return room.idle === true ? { kind: 'idle', stage: null, label: '等你说话' } : null
   }
   if (room.state !== 'active') return null
+
+  if (room.roomType === 'chat') {
+    const chat = room.chat
+    if (!chat) return null
+    if (chat.running === true) return null
+    if (chat.accepted === true) return null
+    if (chat.phase === 'awaiting_decision') return { kind: 'decision', stage: null, label: '等你确认结论' }
+    return { kind: 'idle', stage: null, label: '聊天中断 · 等你处理' }
+  }
+
   const index = activeStageIndex(room)
   if (index < 0) return null
   const stage = room.stages[index]
   const floor = reworkFloor(messages, index)
-
-  if (room.roomType === 'chat') {
-    if (room.chatRunning === true) return null
-    const conclusion = [...messages].reverse().find(message => (
-      message.kind === 'chat_conclusion' && (message.meta?.round ?? 1) === (room.chatRound ?? 1)
-    ))
-    return conclusion === undefined
-      ? { kind: 'idle', stage: index, label: '聊天中断 · 等你处理' }
-      : { kind: 'decision', stage: index, label: '等你确认结论' }
-  }
 
   if (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') {
     return { kind: 'question', stage: index, label: '等你回答' }

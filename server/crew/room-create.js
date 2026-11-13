@@ -124,7 +124,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       verify,
       acceptance,
     })
-    if (Array.isArray(body.stageDependencies)) {
+    if (Array.isArray(body.stageDependencies) && Array.isArray(room.stages)) {
       room.stages = room.stages.map((stage, index) => {
         const raw = body.stageDependencies[index]
         if (!Array.isArray(raw)) return stage

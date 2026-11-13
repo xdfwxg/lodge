@@ -145,18 +145,23 @@ export const createChatScheduler = ({
       : Math.max(1, Math.ceil(CHAT_TURNS_PER_ROUND / speakers.length))
     const run = { cancelled: false }
     runs.set(roomId, run)
-    const round = Number.isInteger(room.chatRound) && room.chatRound > 0 ? room.chatRound : 1
+    const round = Number.isInteger(room.chat?.round) && room.chat.round > 0 ? room.chat.round : 1
     const counts = new Map()
     let last = null
     let completed = 0
 
     patch(current => {
-      current.chatRunning = true
-      current.chatRound = round
-      current.chatTurns = 0
-      current.chatSpeaker = ''
-      current.chatPhase = ''
-      current.chatNote = note
+      current.chat = {
+        ...(current.chat ?? {}),
+        round,
+        phase: 'discussing',
+        turns: 0,
+        conclusionId: null,
+        accepted: false,
+        running: true,
+        speaker: '',
+        note,
+      }
       return { events: [{ type: 'chat.round_started', payload: { round } }] }
     })
 
@@ -183,9 +188,13 @@ export const createChatScheduler = ({
           const sent = await engine.sendTurn({ roomId: chat.id, text })
           hidePrompt(sent?.messageId)
           patch(state => {
-            state.chatTurns = turn
-            state.chatSpeaker = seat
-            state.chatPhase = 'speaking'
+            state.chat = {
+              ...state.chat,
+              phase: 'discussing',
+              turns: turn,
+              speaker: seat,
+              running: true,
+            }
             return { events: [{ type: 'chat.speaker', payload: { seat, turn } }] }
           })
           const reply = await waitForBot(chat, room.seatBots?.[seat], before, run)
@@ -198,9 +207,13 @@ export const createChatScheduler = ({
           }
           completed = turn
           patch(state => {
-            state.chatTurns = completed
-            state.chatSpeaker = ''
-            state.chatPhase = ''
+            state.chat = {
+              ...state.chat,
+              phase: 'discussing',
+              turns: completed,
+              speaker: '',
+              running: true,
+            }
             return { events: [] }
           })
           await waitIdle(chat.id, run)
@@ -215,8 +228,12 @@ export const createChatScheduler = ({
 
       const lines = discussionLines(store, roomId, 16)
       patch(state => {
-        state.chatSpeaker = host
-        state.chatPhase = 'summarizing'
+        state.chat = {
+          ...state.chat,
+          phase: 'summarizing',
+          speaker: host,
+          running: true,
+        }
         return { events: [{ type: 'chat.summary_started', payload: { round } }] }
       })
       let before = await messageIds(chat)
@@ -242,18 +259,7 @@ export const createChatScheduler = ({
       const text = !fallback
         ? (reply.turn?.reply ?? reply.text ?? '')
         : digestText(lines)
-      const updated = patch(current => {
-        current.chatRunning = false
-        current.chatSpeaker = ''
-        current.chatPhase = ''
-        current.chatTurns = completed
-        const discussion = current.stages?.[0]
-        if (discussion !== undefined) discussion.state = 'passed'
-        const conclusion = current.stages?.[1]
-        if (conclusion !== undefined) conclusion.state = 'active'
-        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }] }
-      })
-      store.appendMessage(roomId, {
+      const conclusion = store.appendMessage(roomId, {
         kind: 'chat_conclusion',
         authorId: host,
         text: text === '' ? digestText(lines) : text,
@@ -265,6 +271,18 @@ export const createChatScheduler = ({
           at: Date.now(),
         },
       })
+      const updated = patch(current => {
+        current.chat = {
+          ...current.chat,
+          phase: 'awaiting_decision',
+          turns: completed,
+          conclusionId: conclusion?.id ?? null,
+          accepted: false,
+          running: false,
+          speaker: '',
+        }
+        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }] }
+      })
       if (updated !== null) emit('room', store.readRoom(roomId) ?? updated)
       void refresh()
       return { started: true, round, turns: completed, fallback }
@@ -274,11 +292,14 @@ export const createChatScheduler = ({
     } finally {
       runs.delete(roomId)
       const current = store.readRoom(roomId)
-      if (current?.chatRunning === true) {
+      if (current?.chat?.running === true) {
         patch(state => {
-          state.chatRunning = false
-          state.chatSpeaker = ''
-          state.chatPhase = ''
+          state.chat = {
+            ...state.chat,
+            running: false,
+            speaker: '',
+            phase: state.chat.phase === 'summarizing' ? 'discussing' : state.chat.phase,
+          }
           return { events: [] }
         })
       }

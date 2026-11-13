@@ -62,7 +62,7 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
       baseRoom = await engine.createRoom({
         name: `${room.name} · ${seat.name}`,
         goal: room.goal,
-        bulletin: `目标：${room.goal}\n验收：${room.stages.map(stage => stage.acceptance).filter(Boolean).join(' / ') || '人确认'}`,
+        bulletin: `目标：${room.goal}\n验收：${(room.stages ?? []).map(stage => stage.acceptance).filter(Boolean).join(' / ') || '人确认'}`,
         members: [seatRef.id],
         cwd: placement.path,
         leadId: seatRef.id,

@@ -178,20 +178,21 @@ function ConclusionCard({ message }) {
 function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat }) {
   const meta = message.meta ?? {}
   const round = meta.round ?? 1
-  const currentRound = round === (room.chatRound ?? 1)
+  const chat = room.chat ?? {}
+  const currentRound = round === (chat.round ?? 1)
   const latest = room.roomType === 'chat' &&
     room.state === 'active' &&
-    room.chatRunning !== true &&
+    chat.running !== true &&
+    chat.phase === 'awaiting_decision' &&
     currentRound
   const accepted = room.roomType === 'chat' && room.state === 'complete' && currentRound
   const [note, setNote] = useState('')
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const stageIndex = room.stages.length - 1
   const accept = async () => {
     if (busy) return
     setBusy(true)
-    await onAccept(stageIndex)
+    await onAccept()
     setBusy(false)
   }
   const continueChat = async () => {

@@ -5,14 +5,16 @@ export const createDigest = ({ readRoom, readRooms, readMessages }) => {
     const messages = readMessages(room.id)
     const lastEvidence = [...messages].reverse().find(message => message.kind === 'evidence')
     const lastVerdict = [...messages].reverse().find(message => message.kind === 'verdict')
-    const active = room.stages.findIndex(stage => stage.state === 'active')
+    const stages = Array.isArray(room.stages) ? room.stages : []
+    const active = stages.findIndex(stage => stage.state === 'active')
     return {
       roomId: room.id,
       roomName: room.name,
       state: room.state,
       stage: active >= 0
-        ? { index: active + 1, total: room.stages.length, title: room.stages[active].title, kind: room.stages[active].kind }
+        ? { index: active + 1, total: stages.length, title: stages[active].title, kind: stages[active].kind }
         : null,
+      chat: room.chat === undefined ? null : { round: room.chat.round, phase: room.chat.phase, running: room.chat.running === true },
       evidence: lastEvidence ? { command: lastEvidence.meta.command, exit: lastEvidence.meta.exit } : null,
       verdict: lastVerdict ? { pass: lastVerdict.meta.pass === true } : null,
       openQuestion: room.openQuestion ?? null,
@@ -89,6 +91,6 @@ export const suggestFor = (text, rooms) => {
       ? `语义匹配：${best.matched.slice(0, 4).join('、')}`
       : '按最近活跃度选择进行中的群',
     permissions: '只读',
-    stages: room.stages.filter(stage => stage.state !== 'passed').length,
+    stages: (room.stages ?? []).filter(stage => stage.state !== 'passed').length,
   }
 }

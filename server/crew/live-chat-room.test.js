@@ -36,11 +36,16 @@ const setup = () => {
     goal: '讨论状态提示',
     state: 'active',
     roomType: 'chat',
-    chatRound: 1,
-    chatTurns: 0,
-    chatRunning: false,
-    chatPhase: '',
-    chatSpeaker: '',
+    chat: {
+      round: 1,
+      phase: 'discussing',
+      turns: 0,
+      conclusionId: null,
+      accepted: false,
+      running: false,
+      speaker: '',
+      note: '',
+    },
     leadSeat: 'lead',
     members: ['lead', 'a', 'b'],
     seatBots: { lead: 'L', a: 'A', b: 'B' },
@@ -51,10 +56,6 @@ const setup = () => {
       { id: 'b', name: '乙' },
     ],
     chatRoom: { id: 'chat', sessionRef: 'thread' },
-    stages: [
-      { title: '聊天讨论', kind: 'decision', state: 'active', readOnly: true },
-      { title: '结论', kind: 'decision', state: 'pending', dependsOn: [0], readOnly: true },
-    ],
   }
   const messages = []
   const history = []
@@ -111,18 +112,17 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   })
   const result = await scheduler.start(ctx.room())
   assert.equal(result.started, true)
-  assert.equal(ctx.room().chatRunning, false)
+  assert.equal(ctx.room().chat.running, false)
+  assert.equal(ctx.room().chat.phase, 'awaiting_decision')
   assert.equal(ctx.messages.filter(message => message.kind === 'chat').length, 6)
   const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
   assert.equal(conclusion.meta.round, 1)
   assert.equal(conclusion.meta.turns, 6)
   assert.equal(conclusion.meta.fallback, false)
-  assert.deepEqual(ctx.room().stages.map(stage => stage.state), ['passed', 'active'])
+  assert.equal(ctx.room().chat.conclusionId, conclusion.id)
 
   ctx.store.updateRoom('room-chat', state => {
-    state.chatRound = 2
-    state.chatRunning = false
-    state.chatTurns = 0
+    state.chat = { ...state.chat, round: 2, running: false, turns: 0, phase: 'awaiting_decision' }
     return { events: [] }
   })
   const next = await scheduler.start(ctx.room(), { note: '补充失败态' })

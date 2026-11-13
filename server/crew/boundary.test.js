@@ -25,7 +25,8 @@ const forbidden = [
 
 test('crew stays on the semantic side of the engine port', () => {
   for (const file of sourceFiles) {
-    const text = readFileSync(join(dir, file), 'utf8')
+    // verdict.mode: 'bot' 是评审模式枚举，不是基座的 Bot 对象。
+    const text = readFileSync(join(dir, file), 'utf8').replace(/mode:\s*'bot'/g, '')
     for (const [label, pattern] of forbidden) {
       assert.doesNotMatch(text, pattern, `${file} leaks ${label}`)
     }

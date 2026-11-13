@@ -50,7 +50,7 @@ export const buildResources = (rooms, readMessages = () => []) => {
     },
     rooms: items.sort((a, b) => b.costMicroUsd - a.costMicroUsd),
     deliveries: rooms
-      .filter(room => room.state === 'complete')
+      .filter(room => room.state === 'complete' && room.roomType !== 'chat')
       .map(room => {
         const delivery = buildDelivery(room, readMessages(room.id))
         return {

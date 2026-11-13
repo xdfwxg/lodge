@@ -55,15 +55,17 @@ function RoomView({ state, room, store, onContinue }) {
   }
 
   const locked = room.state === 'paused' || room.state === 'stopped'
+  const isChat = room.roomType === 'chat'
+  const chat = room.chat ?? {}
   const seats = useMemo(() => {
     if (Array.isArray(room.seatSpecs) && room.seatSpecs.length > 0) return room.seatSpecs
     const ids = room.members ?? []
     return ids.length === 0 ? state.seats : state.seats.filter(seat => ids.includes(seat.id))
   }, [room.seatSpecs, room.members, state.seats])
-  const goalView = useMemo(() => buildGoalView(room, seats), [room, seats])
+  const goalView = useMemo(() => (isChat ? null : buildGoalView(room, seats)), [isChat, room, seats])
   const primary = room.state === 'active' && room.needsYou
     ? {
-      label: room.roomType === 'chat' && room.needsYou.kind === 'decision'
+      label: isChat && room.needsYou.kind === 'decision'
         ? '确认结论'
         : room.needsYou.kind === 'rework'
           ? '处理退回'
@@ -72,7 +74,7 @@ function RoomView({ state, room, store, onContinue }) {
             : room.needsYou.kind === 'signoff'
               ? '去签字'
               : '处理',
-      onClick: room.roomType === 'chat' ? scrollToBottom : () => setDockOpen(true),
+      onClick: isChat ? scrollToBottom : () => setDockOpen(true),
     }
     : undefined
   const mentionMembers = useMemo(() => {
@@ -94,33 +96,38 @@ function RoomView({ state, room, store, onContinue }) {
   }
 
   return h('main', { className: 'dsb-main crew-room' },
-    h(GoalIsland, { view: goalView, advanced, actions: goalActions }),
+    isChat || goalView === null ? null : h(GoalIsland, { view: goalView, advanced, actions: goalActions }),
     advanced ? h(Advanced, { room, seats, store, engines: state.engines }) : null,
     state.reviewFor === room.id && state.review !== null
       ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
       : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll', onScroll: trackScroll },
       room.delivery ? h(DeliverySheet, { delivery: room.delivery, onExport: () => void store.exportDelivery() }) : null,
-      room.roomType === 'chat'
+      isChat
         ? h('div', { className: 'crew-chat-status' },
-          room.chatPhase === 'summarizing'
-            ? `第 ${room.chatRound ?? 1} 轮 · 主持人总结中`
-            : room.chatRunning
-              ? `第 ${room.chatRound ?? 1} 轮 · 讨论中 ${room.chatTurns ?? 0}/6`
+          chat.phase === 'summarizing'
+            ? `第 ${chat.round ?? 1} 轮 · 主持人总结中`
+            : chat.running
+              ? `第 ${chat.round ?? 1} 轮 · 讨论中 ${chat.turns ?? 0}/6`
               : room.state === 'complete'
                 ? '聊天已结束'
-                : `第 ${room.chatRound ?? 1} 轮 · 等你确认结论`)
+                : room.state === 'stopped'
+                  ? '聊天已停止'
+                  : room.state === 'paused'
+                    ? '聊天已暂停'
+                    : `第 ${chat.round ?? 1} 轮 · 等你确认结论`)
         : null,
       h('div', { className: 'crew-flow' }, h(Timeline, {
         room,
         seats,
-        onAccept: stage => void store.accept(stage),
+        onAccept: stage => void (isChat ? store.chatAccept() : store.accept(stage)),
         onApproval: (id, decision) => void store.decideApproval(id, decision),
         onContinueChat: note => void store.continueChat(note),
       })),
       state.error ? h('div', { className: 'crew-error' }, state.error) : null),
-    room.roomType !== 'chat'
-      ? h(StageDock, {
+    isChat
+      ? null
+      : h(StageDock, {
         room,
         open: dockOpen,
         onOpenChange: setDockOpen,
@@ -130,16 +137,15 @@ function RoomView({ state, room, store, onContinue }) {
         onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
         onVerify: stage => void store.verify(stage),
         onRework: (stage, note) => void store.rework(stage, note),
-      })
-      : null,
+      }),
     !atBottom
       ? h('button', { type: 'button', className: 'crew-jump-latest', onClick: scrollToBottom }, '回到最新')
       : null,
-    room.roomType === 'chat' && room.chatRunning && typeof room.chatSpeaker === 'string' && room.chatSpeaker !== ''
+    isChat && chat.running && typeof chat.speaker === 'string' && chat.speaker !== ''
       ? h('div', { className: 'crew-typing' },
-        room.chatPhase === 'summarizing'
+        chat.phase === 'summarizing'
           ? '主持人正在总结…'
-          : `${seats.find(seat => seat.id === room.chatSpeaker)?.name ?? '成员'} 正在组织发言…`)
+          : `${seats.find(seat => seat.id === chat.speaker)?.name ?? '成员'} 正在组织发言…`)
       : null,
     h('div', { className: 'dsb-composer' },
       h(Composer, {

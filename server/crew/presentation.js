@@ -19,5 +19,5 @@ export const presentRoom = (room, messages = []) => ({
   needsYou: roomNeedsYou(room, messages),
   independenceLabel: independenceLabel(room),
   independencePolicy: independencePolicy(room),
-  delivery: room.state === 'complete' ? buildDelivery(room, messages) : null,
+  delivery: room.state === 'complete' && room.roomType !== 'chat' ? buildDelivery(room, messages) : null,
 })

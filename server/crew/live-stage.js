@@ -45,6 +45,14 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       ? dispatchPlan.assignees.slice(0, 1)
       : dispatchPlan.assignees
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
+    if (room.roomType === 'studio') {
+      const updated = store.updateRoom(roomId, current => {
+        if (current.closure === 'rejected' || current.closure === 'signed') return null
+        current.closure = 'executing'
+        return { events: [] }
+      })
+      if (updated !== null) emit?.('room', updated)
+    }
     updateTasks(index, current => ({
       ...current,
       tasks: buildTasks({ stageIndex: index, workers: assignees, seatNames: room.seatNames ?? {} }),

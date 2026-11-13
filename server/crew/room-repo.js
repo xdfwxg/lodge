@@ -49,11 +49,14 @@ export const writeEvidence = (room, message) => {
 }
 
 const briefText = (room, plan = null) => {
+  const stages = Array.isArray(room.stages) ? room.stages : []
   const done = plan?.done?.length > 0
     ? plan.done.map(text => `- [ ] ${text}`)
-    : room.stages.map((stage, index) => (
-      `- [${stage.state === 'passed' ? 'x' : ' '}] 阶段 ${index + 1}：${stage.title}${stage.kind === 'deliverable' ? '（交付型 · 需证据）' : '（决策型 · 需人确认）'}`
-    ))
+    : room.roomType === 'chat'
+      ? ['- [ ] 围绕话题完成讨论，并由你确认结论']
+      : stages.map((stage, index) => (
+        `- [${stage.state === 'passed' ? 'x' : ' '}] 阶段 ${index + 1}：${stage.title}${stage.kind === 'deliverable' ? '（交付型 · 需证据）' : '（决策型 · 需人确认）'}`
+      ))
   const confirmed = (plan?.answers ?? []).map(item => `已确认：${item.question} → ${item.answer}`)
   const constraints = [...new Set([
     ...confirmed,
@@ -90,7 +93,8 @@ export const writeBrief = (room, plan = null) => {
 // GOAL.md 是运行时投影，每次状态变化重写，不是人的编辑对象。
 export const writeGoal = room => {
   mkdirSync(roomDir(room), { recursive: true })
-  const stages = room.stages.map((stage, index) => (
+  const rootStages = Array.isArray(room.stages) ? room.stages : []
+  const stages = rootStages.map((stage, index) => (
     `- [${stage.state}] ${index + 1}. ${stage.title} · ${stage.kind}${stage.acceptance ? ` · 验收：${stage.acceptance}` : ''}${Array.isArray(stage.dependsOn) && stage.dependsOn.length > 0 ? ` · 依赖：阶段 ${stage.dependsOn.map(item => item + 1).join('、')}` : ''}`
   ))
   writeDurable(join(roomDir(room), 'GOAL.md'), [
@@ -156,7 +160,7 @@ export const writeConclusion = room => {
       : []),
     '',
     '## 阶段与验收',
-    ...room.stages.map((stage, index) => (
+    ...(room.stages ?? []).map((stage, index) => (
       `- 阶段 ${index + 1} ${stage.title}：${stage.kind === 'deliverable' ? '按证据验收' : '人确认'}`
     )),
     '',
