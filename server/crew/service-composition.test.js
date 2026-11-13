@@ -21,7 +21,6 @@ const service = () => createCrewService({
   emit: () => {},
   dispatchPayload: () => ({}),
   seats: [],
-  dataDir: '',
   ports: createCrewPorts(),
 })
 
@@ -36,9 +35,6 @@ test('the service facade keeps every route entry', () => {
     'resources',
     'usage',
     'projectConstraints',
-    'importTemplate',
-    'saveTemplate',
-    'deleteTemplate',
     'review',
     'deliveryExport',
     'removeSeat',

@@ -111,8 +111,17 @@ const textResult = (text, isError = false) => ({
   ...(isError ? { isError: true } : {}),
 })
 
-export const createPlannerMcp = ({ client, dataDir, port, enabled = true }) => {
+export const createPlannerMcp = ({
+  client,
+  dataDir,
+  port,
+  enabled = true,
+  rooms = () => [],
+  ttlMs = Number(process.env.PLANNER_MCP_STOP_TTL_MS ?? 10 * 60 * 1000),
+  now = Date.now,
+}) => {
   const origin = `http://127.0.0.1:${port}`
+  const activeCalls = new Map()
 
   const callTool = async (roomId, params) => {
     const name = params?.name
@@ -146,11 +155,16 @@ export const createPlannerMcp = ({ client, dataDir, port, enabled = true }) => {
     if (method === 'ping') return { jsonrpc: '2.0', id, result: {} }
     if (method === 'tools/list') return { jsonrpc: '2.0', id, result: { tools: PLANNER_TOOLS } }
     if (method === 'tools/call') {
+      activeCalls.set(roomId, (activeCalls.get(roomId) ?? 0) + 1)
       try {
         const result = await callTool(roomId, message.params)
         return { jsonrpc: '2.0', id, result }
       } catch (error) {
         return { jsonrpc: '2.0', id, result: textResult(String(error?.message ?? error), true) }
+      } finally {
+        const remaining = (activeCalls.get(roomId) ?? 1) - 1
+        if (remaining <= 0) activeCalls.delete(roomId)
+        else activeCalls.set(roomId, remaining)
       }
     }
     return { jsonrpc: '2.0', id, error: { code: -32601, message: `不支持的方法：${method}` } }
@@ -204,7 +218,15 @@ export const createPlannerMcp = ({ client, dataDir, port, enabled = true }) => {
       try {
         await client.mcp.create({ name, ...entry })
       } catch (error) {
-        if (!String(error?.message ?? error).includes('409')) throw error
+        const message = String(error?.message ?? error)
+        if (message.includes('409')) {
+          // 同名条目已经存在，继续启用即可。
+        } else if (/at most 20/i.test(message)) {
+          await sweep()
+          await client.mcp.create({ name, ...entry })
+        } else {
+          throw error
+        }
       }
     } else {
       await client.mcp.update(name, entry)
@@ -213,48 +235,84 @@ export const createPlannerMcp = ({ client, dataDir, port, enabled = true }) => {
     return { server: name, transport: 'http' }
   }
 
-  const release = async roomId => {
+  // 正在执行工具调用的房间不回收：等这一轮返回后再由下一次 sweep 处理。
+  const release = async (roomId, { force = false } = {}) => {
+    if (!force && (activeCalls.get(roomId) ?? 0) > 0) return false
     const name = serverNameFor(roomId)
     try {
       await client.mcp.remove(name)
+      return true
     } catch {
       // 已经不存在就是清理完成。
+      return false
     }
   }
 
-  // 基座最多保存 20 个 MCP server：启动时清掉没有进行中房间的条目。
-  const reconcile = async rooms => {
-    if (!enabled) return { added: 0, removed: 0 }
-    const active = new Map(
-      (Array.isArray(rooms) ? rooms : [])
-        .filter(room => room?.kind === 'room' && room.roomType === 'studio' && ['active', 'paused'].includes(room.state))
-        .map(room => [serverNameFor(room.id), room.id]),
-    )
-    let listed
+  const listedServers = async () => {
     try {
-      listed = await client.mcp.list()
+      return (await client.mcp.list())?.servers ?? []
     } catch {
-      return { added: 0, removed: 0 }
+      return []
     }
+  }
+
+  // 只回收不该继续占名额的条目：房间不存在、非工作室、已结束，或 stopped 超过 TTL。
+  const sweep = async (roomList = rooms()) => {
+    if (!enabled) return { removed: 0, kept: 0 }
+    const byId = new Map((Array.isArray(roomList) ? roomList : []).map(room => [room.id, room]))
+    const listed = await listedServers()
     let removed = 0
-    let added = 0
-    for (const server of listed?.servers ?? []) {
+    let kept = 0
+    for (const server of listed) {
       const roomId = roomIdOfServer(server.name)
-      if (roomId === null || active.has(server.name)) continue
-      await release(roomId)
-      removed += 1
+      if (roomId === null) continue
+      const room = byId.get(roomId)
+      const expired = room !== undefined &&
+        room.roomType === 'studio' &&
+        room.state === 'stopped' &&
+        now() - Number(room.stoppedAt ?? 0) >= ttlMs
+      const removable = room === undefined ||
+        room.roomType !== 'studio' ||
+        room.state === 'complete' ||
+        room.state === 'rejected' ||
+        expired
+      if (!removable) { kept += 1; continue }
+      const done = await release(roomId)
+      if (done) removed += 1
+      else kept += 1
     }
-    const present = new Set((listed?.servers ?? []).map(server => server.name))
-    for (const [name, roomId] of active) {
-      if (present.has(name)) continue
+    return { removed, kept }
+  }
+
+  const stats = async () => ({
+    enabled,
+    registered: (await listedServers()).filter(server => roomIdOfServer(server.name) !== null).length,
+    activeCalls: [...activeCalls.entries()].reduce((sum, [, count]) => sum + count, 0),
+    ttlMs,
+  })
+
+  // 基座最多保存 20 个 MCP server：启动时先 sweep，再补齐带 Planner 工具标记的进行中房间。
+  const reconcile = async roomList => {
+    if (!enabled) return { added: 0, removed: 0 }
+    const swept = await sweep(roomList)
+    const active = (Array.isArray(roomList) ? roomList : []).filter(room => (
+      room?.kind === 'room' &&
+      room.roomType === 'studio' &&
+      ['active', 'paused'].includes(room.state) &&
+      typeof room.plannerTools?.server === 'string'
+    ))
+    const present = new Set((await listedServers()).map(server => server.name))
+    let added = 0
+    for (const room of active) {
+      if (present.has(room.plannerTools.server)) continue
       try {
-        await ensure(roomId)
+        await ensure(room.id)
         added += 1
       } catch {
         // 单个房间注册失败不阻塞启动；建房时会再次尝试并给出提示。
       }
     }
-    return { added, removed }
+    return { added, removed: swept.removed }
   }
 
   return {
@@ -262,6 +320,8 @@ export const createPlannerMcp = ({ client, dataDir, port, enabled = true }) => {
     ensure,
     release,
     reconcile,
+    sweep,
+    stats,
     serverName: serverNameFor,
     tokenFor: roomId => tokenFor(dataDir, roomId),
     enabled,

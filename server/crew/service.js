@@ -13,15 +13,14 @@ import { createServiceClosure } from './service-closure.js'
 import { createServiceSeats } from './service-seats.js'
 import { createServiceStages } from './service-stages.js'
 import { createServiceSubrooms } from './service-subrooms.js'
-import { createServiceTemplates } from './service-templates.js'
 import { createServiceTrust } from './service-trust.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
-export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats, dataDir, ports }) => {
+export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats, ports }) => {
   const { readRoom, readRooms, readMessages, writeRoom, appendMessage } = store
-  const { roomFiles, workspace, project, usage, templates: templatesPort, handoff, files } = ports
+  const { roomFiles, workspace, project, usage, handoff, files } = ports
   const dispatch = createDispatchService({ store, emit, dispatchPayload })
 
   const queries = createServiceQueries({
@@ -34,10 +33,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     usage,
     files,
     workspace,
-    roomTemplates: ports.roomTemplates,
-    dataDir,
   })
-  const templateActions = createServiceTemplates({ dataDir, templates: templatesPort, roomTemplates: ports.roomTemplates })
   const delivery = createServiceDelivery({
     store,
     handoff,
@@ -216,7 +212,6 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
 
   return {
     ...queries,
-    ...templateActions,
     plannerTool,
     ...delivery,
     resetMcp: runControl.resetMcp,

@@ -84,12 +84,26 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
   const editableStages = (room.stages ?? [])
     .map((stage, index) => ({ stage, index }))
     .filter(({ stage }) => stage.state === 'pending' && stage.title !== '验收与结论')
+  const roomById = new Map(rooms.map(item => [item.id, item]))
   const childRooms = (room.childRoomIds ?? [])
-    .map(id => rooms.find(item => item.id === id))
+    .map(id => roomById.get(id))
     .filter(Boolean)
+  const renderSubroom = (child, depth = 0, seen = new Set()) => {
+    if (child === undefined || seen.has(child.id) || depth > 3) return null
+    seen.add(child.id)
+    const verdict = [...(child.messages ?? [])].reverse().find(message => message.kind === 'verdict')
+    const children = (child.childRoomIds ?? []).map(id => roomById.get(id)).filter(Boolean)
+    return h('div', { key: child.id, className: 'crew-subroom', style: { paddingLeft: `${depth * 14}px` } },
+      h('div', null, `${child.name} · ${child.state} · ${child.closure ?? 'open'}`),
+      h('div', { className: 'crew-muted' },
+        verdict === undefined
+          ? '子房 verdict：还没有'
+          : `子房 verdict：${verdict.meta?.pass === true ? 'PASS' : 'REJECT'}${typeof verdict.meta?.reason === 'string' ? ` · ${verdict.meta.reason.slice(0, 80)}` : ''}`),
+      children.map(grandchild => renderSubroom(grandchild, depth + 1, seen)))
+  }
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
-      h('span', null, `房间策略：${room.independencePolicy ?? '未标注'}`),
+      h('span', null, `独立性策略：${room.independencePolicy === 'require' ? 'require（没有第二厂商就拒绝建房）' : 'prefer（同厂商时标注降级）'}`),
       ...(room.roomType === 'studio'
         ? [
             h('span', { key: 'verifier-policy' }, `Verifier 策略：${room.verifierPolicy ?? 'all'}`),
@@ -196,10 +210,9 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
           }, '添加阶段'))),
     room.roomType === 'studio'
       ? h('div', { className: 'crew-stage-editor' },
-        h('span', null, '子工作室 · 最多 3 层，父 Planner 只消费子 Verifier verdict'),
+        h('span', null, '子工作室树 · 最多 3 层；父房只查看子房状态和 verdict，不直接改子房流转'),
         childRooms.length > 0
-          ? h('div', { className: 'crew-brief' }, childRooms.map(child => h('div', { key: child.id },
-            `${child.name} · ${child.state} · ${child.closure ?? 'open'}`)))
+          ? h('div', { className: 'crew-brief' }, childRooms.map(child => renderSubroom(child)))
           : h('span', { className: 'crew-muted' }, '还没有子工作室'),
         (room.depth ?? 0) < 3
           ? h('div', { className: 'crew-stage-edit-row' },

@@ -35,7 +35,7 @@ export const independenceLabel = room => (
       : room.independence === 'human' ? '人签字验收（无独立复核）' : '独立性降级'
 )
 
-export const independencePolicy = room => (
+export const independencePolicyLabel = room => (
   room.independence === 'vendor'
     ? '跨厂商（执行与验收不同厂商）'
     : room.independence === 'model'

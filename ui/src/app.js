@@ -32,7 +32,6 @@ export function App() {
     open: dialog,
     onClose: closeDialog,
     roomTypes: state.roomTypes ?? [],
-    roomTemplates: state.roomTemplates ?? [],
     engines: state.engines ?? [],
     resume,
     seed,

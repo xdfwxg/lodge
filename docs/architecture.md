@@ -32,12 +32,13 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
   - `rejected`：仅 Planner 在 `planned` 阶段可触发，附带理由与证据；属于合法终态，**标记为不可行，不等于任务完成**
   - 一旦进入 `executing`：所有驳回、通过判定权限收归 Verifier，Planner 不能单方面终止或放行
   - 验收模式 `verificationMode: bot | human | hybrid`：人工验收不旁路，人工评审同样产出标准 verdict 记录；多 Verifier 的 `verifierPolicy: all | majority` 是调度策略，`swarm` 只是它的运行形态，不是新增底层角色
+  - 独立性策略 `independencePolicy: prefer | require`：默认 `prefer`，优先把验收放到不同厂商并在降级时明确标注；`require` 在没有第二厂商或实际仍同厂商时拒绝建房，不静默降级
 - 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环。验收按阶段幂等：执行者没有工具调用或产出的闲聊回合不触发新的命令验收；没有新增交付改动时沿用已完成的验收，不重复提交候选。
 - 流转公约：主任务闭环必须经过 Planner → Executor → Verifier；支持子任务并行、重试、分支，但进入执行阶段后不可绕过 Verifier 放行。
-- 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。
+- 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。高级面板以树视图展示父子状态与子房 verdict，父房只读，不提供修改子房内部流转的动作。
 - 影子评审 `shadowReview`：开启后 advisor 照常打分，但只写入时间线和 `meta.shadow`，不注入 Verifier prompt、不产生正式 verdict；关闭时 advisor 建议可作为参考进入 Verifier prompt。两种情况下正式 Verifier 都必须 PASS 才能 signed。
 - Planner 工具面：Lodge 自带一个按房间注册的无状态 MCP server（`/mcp/planner/<roomId>`，令牌绑定房间），只挂给该房间的 Planner，提供 `create_subroom`、`reject_plan`、`check_gate`；工具调用回到业务层执行，结果由 MCP 返回，Planner 不能伪造。MCP 不可用时回退到 `<lodge-tool>{"name":"...","args":{...}}</lodge-tool>` 文字协议。两条路径都不是新的 roleKind，也不改变谁有权放行。
-- Planner MCP 生命周期：建房时注册并启用，Planner bot 的 `mcpServers` 只多这一项；房间 `signed`/`rejected` 时移除，启动时清理没有进行中房间的条目。基座最多保存 20 个 MCP server。
+- Planner MCP 生命周期：建房时注册并启用，Planner bot 的 `mcpServers` 只多这一项；房间 `signed`/`rejected` 时移除；`stopped` 房间超过 TTL（默认 10 分钟）后由定时 sweep 回收；正在执行工具调用的房间不中断。启动时先 sweep 再补齐进行中房间。基座最多保存 20 个 MCP server，`/api/health` 暴露 `plannerMcp` 数量与在途调用数。
 
 ## 公共约束
 
@@ -46,7 +47,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 3. 跨范式迁移：聊天室只提供结构化摘要导出（`GET /api/rooms/:id/snapshot`：目标、轮次、结论、讨论记录），供人复制到新建工作室；系统不提供“快照导入新工作室”API，不原地变更房型。结论确认后可在结论卡直接打开“新建工作室”，只预填目标与结论文本，不复制聊天记录、证据、阶段或状态。
 4. `closure` 是工作室专属字段；聊天室不存在 `closure`，任何代码不得在聊天室里读取或推断交付闭环状态。
 5. `swarm` 只是 Verifier 的调度策略，不新增 `roleKind`，也不产生独立评审原语。
-6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`，房间预设在 `server/crew/room-templates.js`；自定义房间模板存 `<dataDir>/room-templates/*.json`，通过 `/api/room-templates` 保存/删除。
+6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`。
 7. 信任阶梯 `trust` 只属于工作室；聊天室席位是 `participant`，没有 `trust` 字段，也不提供信任升级动作。
 8. advisor 是外部建议端口（`server/crew/advisor.js`，配置与契约见 `docs/advisor.md`）：Gate 和 Verifier 可附上建议，但 advisor 不写 verdict、不是 roleKind、不可直接放行。
 
@@ -72,7 +73,6 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 这些不是永久禁止，只是当前明确的非目标：
 
-- 模板“保存当前配置为模板”按钮
 - 外部评估产品接入（本地已有规则/模型评估服务，外部地址由 `ADVISOR_URL` 指定）
 - 子工作室 UI 编排
 

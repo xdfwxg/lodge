@@ -15,7 +15,7 @@ export { inheritedPlan } from './room-create-input.js'
 export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = null, ports, parentRoom = null }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit } = request
+  const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit, independencePolicy } = request
   let continueSource = null
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
     continueSource = store.readRoom(body.continueFrom)
@@ -65,6 +65,16 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const resolvedPlan = roomType.id === 'chat' ? null : resolveStageAssignees(plan, roster)
   if (verify === 'manual' && verifiers.length > 0 && !['studio', 'chat'].includes(roomType.id)) {
     return fail('invalid', '人工验收模式不需要验收席位；要独立复核就补一条验收命令')
+  }
+  if (roomType.id === 'studio' && independencePolicy === 'require' && verifiers.length > 0) {
+    const listed = typeof engine.instances === 'function' ? await engine.instances().catch(() => []) : []
+    const instances = Array.isArray(listed) ? listed : []
+    const kinds = new Set(instances
+      .filter(item => item.available !== false)
+      .map(item => item.engine ?? item.driverKind ?? item.instanceId))
+    if (kinds.size < 2) {
+      return fail('conflict', '要求跨厂商复核，但当前只有一个可用引擎；改用 prefer，或先接入第二厂商')
+    }
   }
   for (const seat of roster) {
     const missingSkills = seat.skills.filter(id => ports.skills?.has?.(id) !== true)
@@ -158,6 +168,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       verifierPolicy,
       shadowReview,
       chatTurnLimit,
+      independencePolicy,
       plannerTools,
       parentRoomId: parentRoom?.id ?? null,
       depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
@@ -170,6 +181,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
         ...(advisor.version === undefined ? {} : { version: advisor.version }),
       },
     })
+    if (roomType.id === 'studio' && independencePolicy === 'require' && verifiers.length > 0 && room.independence !== 'vendor') {
+      throw new Error('要求跨厂商复核，但实际执行与验收落在同一厂商')
+    }
     if (Array.isArray(body.stageDependencies) && Array.isArray(room.stages)) {
       room.stages = room.stages.map((stage, index) => {
         const raw = body.stageDependencies[index]

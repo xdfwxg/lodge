@@ -30,7 +30,6 @@ function NewRoomDialog({
   onRecommend,
   onProjectConstraints,
   roomTypes = [],
-  roomTemplates = [],
   engines = [],
   resume = null,
   seed = null,
@@ -38,9 +37,9 @@ function NewRoomDialog({
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
-  const [template, setTemplate] = useState(null)
   const [shadowReview, setShadowReview] = useState(false)
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
+  const [requireIndependent, setRequireIndependent] = useState(false)
   const [roomName, setRoomName] = useState('')
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
@@ -63,9 +62,9 @@ function NewRoomDialog({
     if (!open) return
     setRoomName(resume === null ? '' : resume.name ?? '')
     setSeatChoices([])
-    setTemplate(null)
     setShadowReview(false)
     setChatTurnLimit(6)
+    setRequireIndependent(false)
     setLoginNote(null)
   }, [open, resume?.id])
 
@@ -204,17 +203,6 @@ function NewRoomDialog({
 
   const changeRoomType = nextType => {
     setRoomType(nextType)
-    setTemplate(null)
-    setProposal(null)
-    setSeatChoices([])
-    setAnswers([])
-    setError(null)
-  }
-
-  const applyTemplate = nextTemplate => {
-    setTemplate(nextTemplate)
-    setRoomType(nextTemplate.roomType)
-    if (roomName.trim() === '') setRoomName(nextTemplate.name)
     setProposal(null)
     setSeatChoices([])
     setAnswers([])
@@ -231,18 +219,13 @@ function NewRoomDialog({
         setError(result?.error ?? 'Lodge 没有给出方案；可以重试')
         return
       }
-      const templateForType = template?.roomType === roomType ? template : null
-      const seats = templateForType?.seats?.length > 0
-        ? normalizeSeats(templateForType.seats)
-        : nonTask && Array.isArray(activeType?.defaultSeats) && activeType.defaultSeats.length > 0
-          ? normalizeSeats(activeType.defaultSeats)
-          : DEFAULT_SEATS
+      const seats = nonTask && Array.isArray(activeType?.defaultSeats) && activeType.defaultSeats.length > 0
+        ? normalizeSeats(activeType.defaultSeats)
+        : DEFAULT_SEATS
       setProposal({
         ...result.proposal,
         seats,
-        ...(nonTask
-          ? { verify: activeType?.defaultVerify ?? 'manual', acceptance: '' }
-          : templateForType?.verify === undefined ? {} : { verify: templateForType.verify }),
+        ...(nonTask ? { verify: activeType?.defaultVerify ?? 'manual', acceptance: '' } : {}),
       })
       setSeatChoices(seats.map(seat => ({
         engine: typeof seat.engine === 'string' ? seat.engine : '',
@@ -268,6 +251,7 @@ function NewRoomDialog({
         verify,
         acceptance,
         ...(roomType === 'studio' && shadowReview ? { shadowReview: true } : {}),
+        ...(roomType === 'studio' && requireIndependent ? { independencePolicy: 'require' } : {}),
         ...(roomType === 'chat' ? { chatTurnLimit } : {}),
         repoPath: repoPath.trim(),
         ...(resume === null ? {} : { continueFrom: resume.id }),
@@ -314,6 +298,7 @@ function NewRoomDialog({
       setIncludeConstraints(false)
       setRoomType('task')
       setChatTurnLimit(6)
+      setRequireIndependent(false)
       setError(null)
       onClose()
     } catch (caught) {
@@ -513,21 +498,6 @@ function NewRoomDialog({
         resume === null
           ? '不选也可以，Lodge 会新建空工作区；选真实项目时，验收命令要能在里面跑。'
           : '交接包不含代码；选上一轮交付所在的项目目录，旧证据不会复制。')),
-    roomTemplates.length > 0
-      ? h('div', { className: 'crew-field' },
-        h('div', { className: 'crew-field-head' },
-          h('b', null, '房间模板'),
-          h('span', { className: 'crew-field-hint' }, '先选一个最接近的起点')),
-        h('div', { className: 'crew-segmented' },
-          roomTemplates.map(item => h('button', {
-            key: item.id,
-            type: 'button',
-            className: 'crew-seg',
-            title: item.description,
-            'data-on': template?.id === item.id ? 'true' : undefined,
-            onClick: () => applyTemplate(item),
-          }, item.name))))
-      : null,
     h('div', { className: 'crew-field' },
       h('div', { className: 'crew-field-head' },
         h('b', null, '房间类型'),
@@ -541,13 +511,21 @@ function NewRoomDialog({
           onClick: () => changeRoomType(type.id),
         }, type.name)))),
     roomType === 'studio'
-      ? h('label', { className: 'crew-check' },
-        h('input', {
-          type: 'checkbox',
-          checked: shadowReview,
-          onChange: event => setShadowReview(event.target.checked),
-        }),
-        '影子评审：评估建议只记录，不注入验收员')
+      ? h('div', null,
+        h('label', { className: 'crew-check' },
+          h('input', {
+            type: 'checkbox',
+            checked: shadowReview,
+            onChange: event => setShadowReview(event.target.checked),
+          }),
+          '影子评审：评估建议只记录，不注入验收员'),
+        h('label', { className: 'crew-check' },
+          h('input', {
+            type: 'checkbox',
+            checked: requireIndependent,
+            onChange: event => setRequireIndependent(event.target.checked),
+          }),
+          '严格要求跨厂商复核：没有第二厂商时拒绝建房'))
       : null,
     roomType === 'chat'
       ? h('div', { className: 'crew-field' },

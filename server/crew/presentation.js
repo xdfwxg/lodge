@@ -1,6 +1,6 @@
 import { roomNeedsYou } from './attention.js'
 import { buildDelivery } from './delivery.js'
-import { independenceLabel, independencePolicy } from './digest.js'
+import { independenceLabel, independencePolicyLabel } from './digest.js'
 import { capabilitiesFor } from './room-capabilities.js'
 
 // 房间能力是 opt-in 开关，不是房型分类；默认关闭，旧房间不受影响。
@@ -20,6 +20,6 @@ export const presentRoom = (room, messages = []) => ({
   needsYou: roomNeedsYou(room, messages),
   modeCapabilities: capabilitiesFor(room.roomType),
   independenceLabel: independenceLabel(room),
-  independencePolicy: independencePolicy(room),
+  independencePolicyLabel: independencePolicyLabel(room),
   delivery: room.state === 'complete' && room.roomType !== 'chat' ? buildDelivery(room, messages) : null,
 })

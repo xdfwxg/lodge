@@ -8,8 +8,8 @@
 | --- | --- | --- |
 | 领域规则 | 纯业务判断：预算、门禁、验收结论、阶段依赖、席位能力、房型策略、编排策略、注意力、交接摘要 | `budget.js`、`gates.js`、`verifiers.js`、`stage-plan.js`、`progress.js`、`result.js`、`attention.js`、`digest.js`、`delivery.js`、`seats.js`、`room-types/*`、`orchestration/*`、`service-policy.js`、`live-turn-utils.js`、`mcp*.js` |
 | 应用用例 | 编排一次业务动作：建房、完成、席位、阶段、交付、实时回合、审批、恢复、启动修复、工作区 GC | `room-create*.js`、`room-complete.js`、`room-record.js`、`room-workspace.js`、`room-provision.js`、`service-*.js`、`live*.js`、`live-workspace.js`、`startup-repair.js`、`room-repair.js`、`workspace-gc.js`、`dispatch-service.js`、`demo.js`、`handoff.js`、`review.js`、`resources.js`、`roster-recommend.js`、`presentation.js` |
-| 端口 | 给应用层一组稳定接口，屏蔽具体存储/工作区/项目/用量/模板/交付/命令/文件/交接包实现；组合根装配整包，再按模块分发子端口 | `crew-ports.js` |
-| 适配器 | 文件、SQLite、基座、git/worktree、直接目录、复制目录、进程、沙箱、系统对话框 | `store.js`、`engine.js`/`base.js`、`workspace*.js`、`room-repo.js`、`handoff-store.js`、`seat-env.js`、`paths.js`、`project.js`、`usage-history.js`、`template-store.js`、`skill-store.js`、`acceptance.js`、`sandbox.js`、`lock.js`、`system-*.js` |
+| 端口 | 给应用层一组稳定接口，屏蔽具体存储/工作区/项目/用量/交付/命令/文件/交接包实现；组合根装配整包，再按模块分发子端口 | `crew-ports.js` |
+| 适配器 | 文件、SQLite、基座、git/worktree、直接目录、复制目录、进程、沙箱、系统对话框 | `store.js`、`engine.js`/`base.js`、`workspace*.js`、`room-repo.js`、`handoff-store.js`、`seat-env.js`、`paths.js`、`project.js`、`usage-history.js`、`skill-store.js`、`acceptance.js`、`sandbox.js`、`lock.js`、`system-*.js` |
 | 组合与接口 | 装配具体实现；HTTP/SSE；Electron 与 Web 传输 | `server/index.js`、`electron/*`、`ui/src/store.js`、`ui/src/system.js` |
 
 ## 2. 依赖方向
@@ -49,7 +49,7 @@ server/index.js（唯一组合根）
 | `trust.js` + `service-trust.js` | 信任级别是同一策略单元：证据判定、升级/降级、审计消息；`observe` 只读、`verify` 人工签字、`auto` 只放行规则守门 allow 的外部动作 |
 | `room-complete.js` | 完成是独立业务事件：清理工作区、写 CONCLUSION、commit/归档；与阶段验收不是同一变化原因 |
 | `service-queries.js` | 只读投影：房间状态、资源、用量、复盘、项目约束，读模型一起变化 |
-| `service-templates.js` / `service-delivery.js` | 模板与交付各有自己的存储与格式，修改互不影响 |
+| `service-delivery.js` | 交付单格式与导出是独立变化原因 |
 | `handoff.js` + `handoff-store.js` | 交接包校验/脱敏是不可拆分整体；房间文件读写是另一个变化原因，下沉到 handoff 存储适配器 |
 | `workspace-gc.js` | 工作区 GC 是独立维护用例；目录遍历、stat、删除通过 files/workspace 端口，不直接碰 fs |
 | `service-seats.js` + `service-seat-add.js` / `service-seat-remove.js` | 加/移除是独立工作区生命周期；改角色不是独立单元，只是复用两者的编排，收在 `service-seats.js` 门面里 |

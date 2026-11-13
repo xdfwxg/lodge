@@ -324,3 +324,34 @@ test('a worker chatter turn does not start another acceptance round', async () =
   assert.equal(runs, 0)
   assert.equal(store.messages.some(message => message.meta?.kind === 'command'), false)
 })
+
+test('new evidence restarts an in-flight review and ignores the stale verdict', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: 'old' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      sent.push({ seat, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: 'new' },
+  })
+  await review.request(0)
+  assert.equal(sent.length, 2)
+  assert.equal(review.isBusy(), true)
+  assert.equal(review.consume({ turn: { reply: 'REJECT old' }, seat: 'verifier', turnId: 't-old', room }), false)
+  assert.equal(review.consume({ turn: { reply: 'PASS new' }, seat: 'verifier', turnId: 't-new', room }), true)
+  assert.equal(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true), true)
+})

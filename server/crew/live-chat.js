@@ -33,7 +33,10 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         try {
           await engine.setRoomMentions(room.chatRoom.id)
         } catch (error) {
-          store.appendMessage(room.id, { kind: 'system', text: `群聊唤醒规则未启用：${error?.message ?? error}` })
+          // 基座通道正在跑回合时会拒绝改规则；规则通常已经生效，不把它当成房间错误。
+          if (!/409|working or waiting/.test(String(error?.message ?? error))) {
+            store.appendMessage(room.id, { kind: 'system', text: `群聊唤醒规则未启用：${error?.message ?? error}` })
+          }
         }
       }
       return room

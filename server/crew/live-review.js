@@ -3,7 +3,7 @@ import { markSeatRead } from './watermarks.js'
 import { workContract } from './prompt-modes.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { reject } from './result.js'
-import { parseVerdict, REVIEW_TIMEOUT, tail } from './live-turn-utils.js'
+import { parseVerdict, REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './live-turn-utils.js'
 import { workspaceOf } from './live-workspace.js'
 import { manualReviewState, quorumOf, reviewState, verifierIds, verifierPolicyOf } from './verifiers.js'
 import { markStageTasks } from './tasks.js'
@@ -12,14 +12,21 @@ import { seatDisplayName } from './seat-labels.js'
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, advisor = null }) => {
   let round = null
+  const staleSeats = new Set()
 
   const isBusy = () => round !== null && round.requests.size > 0
 
   const consume = ({ turn, seat, turnId, room }) => {
+    // 新证据已经让旧复核作废时，忽略旧提示词触发的那一回合，等新回合的结论。
+    if (staleSeats.has(seat)) {
+      staleSeats.delete(seat)
+      return false
+    }
     const pending = round?.requests.get(seat)
     if (pending === undefined) return false
     round.requests.delete(seat)
     clearTimeout(pending.timer)
+    clearTimeout(pending.reminder)
     const pass = parseVerdict(turn.reply)
     const name = seatDisplayName(room, seat)
     const spec = room.seatSpecs?.find(item => item.id === pending.verifier)
@@ -65,6 +72,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
 
     for (const [remainingSeat, request] of round.requests) {
       clearTimeout(request.timer)
+      clearTimeout(request.reminder)
       store.appendEvent(roomId, 'review.cancelled', {
         stage: pending.stage,
         verifier: remainingSeat,
@@ -96,7 +104,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
   }
 
   const request = async stageIndex => {
-    if (round !== null) reject('conflict', '上一次复核还没有结束')
     const room = store.readRoom(roomId)
     const stage = room?.stages?.[stageIndex]
     if (stage === undefined || (stage.kind !== 'deliverable' && stage.manual !== true)) {
@@ -129,6 +136,20 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     const evidence = outcome.evidence
     if (evidence === undefined || evidence === null) {
       reject('conflict', manual ? '还没有本阶段的产物证据' : '还没有本阶段的验收命令证据')
+    }
+    if (round !== null) {
+      if (round.evidenceId === evidence.id) reject('conflict', '上一次复核还没有结束')
+      for (const [seat, pending] of round.requests) {
+        clearTimeout(pending.timer)
+        clearTimeout(pending.reminder)
+        staleSeats.add(seat)
+      }
+      store.appendEvent(roomId, 'review.restarted', {
+        stage: stageIndex,
+        from: round.evidenceId,
+        to: evidence.id,
+      })
+      round = null
     }
     const targets = outcome.state === 'pending' ? outcome.missing : ids
     if (targets.length === 0) reject('conflict', '所有验收席位都已回报')
@@ -266,11 +287,17 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         exit: manual ? null : meta.exit,
         evidenceId: evidence.id,
         timer: null,
+        reminder: null,
       }
       nextRound.requests.set(verifier, request)
+      request.reminder = setTimeout(() => {
+        if (round !== nextRound || round.requests.get(verifier) !== request) return
+        void sendToSeat(verifier, `@${verifierName} 复核还没有结论。请现在只回复一行 PASS 或 REJECT；不要继续调研，不要调用工具。`).catch(() => {})
+      }, REVIEW_REMINDER).unref()
       request.timer = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
         round.requests.delete(verifier)
+        clearTimeout(request.reminder)
         store.appendEvent(roomId, 'review.timeout', { stage: stageIndex, verifier })
         store.appendMessage(roomId, {
           kind: 'system',
@@ -297,6 +324,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         }
       } catch (error) {
         clearTimeout(request.timer)
+        clearTimeout(request.reminder)
         nextRound.requests.delete(verifier)
         failures.push(`${verifierName}: ${error?.message ?? error}`)
         store.appendMessage(roomId, {

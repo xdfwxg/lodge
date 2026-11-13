@@ -90,8 +90,10 @@ export const createServiceRunControl = ({ store, live, emit, dispatchPayload, ro
         current.noProgress = 0
         current.pauseReason = null
         current.budgetBlocked = false
+        delete current.stoppedAt
       }
       if (nextState === 'paused') current.pauseReason = 'manual'
+      if (nextState === 'stopped') current.stoppedAt = Date.now()
       return { events: [{ type: 'room.state', payload: { state: nextState, action } }] }
     })
     if (updated === null) return fail('conflict', '房间状态已变化，重试')

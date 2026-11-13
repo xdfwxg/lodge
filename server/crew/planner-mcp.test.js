@@ -141,3 +141,59 @@ test('planner MCP registration is idempotent and reconciles orphan servers', asy
   assert.equal(client.calls.some(item => item.kind === 'remove' && item.name === 'lodge-planner-room-gone01'), true)
   assert.equal(client.calls.some(item => item.kind === 'remove' && item.name === 'other'), false)
 })
+
+test('sweep keeps active and recent stopped rooms but reclaims expired ones', async () => {
+  const dir = temp()
+  const client = fakeClient()
+  client.mcp.list = async () => ({
+    servers: [
+      { name: 'lodge-planner-room-old001', enabled: true },
+      { name: 'lodge-planner-room-new001', enabled: true },
+      { name: 'lodge-planner-room-act001', enabled: true },
+      { name: 'lodge-planner-room-done01', enabled: true },
+      { name: 'lodge-planner-room-gone01', enabled: true },
+    ],
+  })
+  const now = 1_000_000
+  const mcp = createPlannerMcp({ client, dataDir: dir, port: 8787, ttlMs: 60_000, now: () => now })
+  const result = await mcp.sweep([
+    { id: 'room-old001', kind: 'room', roomType: 'studio', state: 'stopped', stoppedAt: now - 120_000 },
+    { id: 'room-new001', kind: 'room', roomType: 'studio', state: 'stopped', stoppedAt: now - 1_000 },
+    { id: 'room-act001', kind: 'room', roomType: 'studio', state: 'active' },
+    { id: 'room-done01', kind: 'room', roomType: 'studio', state: 'complete' },
+  ])
+  assert.equal(result.removed, 3)
+  assert.equal(result.kept, 2)
+  assert.equal(client.calls.some(item => item.kind === 'remove' && item.name === 'lodge-planner-room-old001'), true)
+  assert.equal(client.calls.some(item => item.kind === 'remove' && item.name === 'lodge-planner-room-new001'), false)
+  assert.equal(client.calls.some(item => item.kind === 'remove' && item.name === 'lodge-planner-room-act001'), false)
+})
+
+test('a room with an in-flight tool call is not reclaimed', async () => {
+  const dir = temp()
+  let releaseInvoke
+  const client = fakeClient()
+  client.invoke = async () => {
+    await new Promise(resolve => { releaseInvoke = resolve })
+    return { ok: true, body: { ok: true } }
+  }
+  const mcp = createPlannerMcp({ client, dataDir: dir, port: 8787 })
+  const roomId = 'room-busy01'
+  const pending = call({
+    mcp,
+    roomId,
+    payload: {
+      jsonrpc: '2.0',
+      id: 7,
+      method: 'tools/call',
+      params: { name: 'check_gate', arguments: {} },
+    },
+  })
+  await new Promise(resolve => setTimeout(resolve, 10))
+  assert.equal(await mcp.release(roomId), false)
+  const stats = await mcp.stats()
+  assert.equal(stats.activeCalls, 1)
+  releaseInvoke()
+  await pending
+  assert.equal(await mcp.release(roomId), true)
+})

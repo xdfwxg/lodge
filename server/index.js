@@ -69,6 +69,7 @@ const plannerMcp = createPlannerMcp({
   dataDir,
   port: Number(process.env.CREW_PORT ?? 8787),
   enabled: engine.capabilities().mcp === true,
+  rooms: () => store.readRooms(),
 })
 const ports = { ...createCrewPorts(), plannerMcp }
 
@@ -89,7 +90,6 @@ service = createCrewService({
   emit,
   dispatchPayload: digest.dispatchPayload,
   seats: SEATS,
-  dataDir,
   ports,
 })
 
@@ -182,7 +182,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (path === '/api/health' && req.method === 'GET') {
-      return respond(res, await service.health())
+      const result = await service.health()
+      if (result?.ok !== false && result.body !== undefined) {
+        try {
+          result.body.plannerMcp = await plannerMcp.stats()
+        } catch {}
+      }
+      return respond(res, result)
     }
 
     if (path === '/api/system/choose-directory' && req.method === 'POST') {
@@ -235,28 +241,6 @@ const server = http.createServer(async (req, res) => {
 
     if (path === '/api/project/constraints' && req.method === 'GET') {
       return respond(res, service.projectConstraints(url.searchParams.get('repoPath')))
-    }
-
-    if (path === '/api/templates' && req.method === 'POST') {
-      return respond(res, service.saveTemplate(await readJson(req, 512 * 1024)))
-    }
-
-    if (path === '/api/templates/parse' && req.method === 'POST') {
-      return respond(res, service.importTemplate(await readJson(req, 512 * 1024)))
-    }
-
-    const templatePath = path.match(/^\/api\/templates\/([\w-]+)$/)
-    if (templatePath !== null && req.method === 'DELETE') {
-      return respond(res, service.deleteTemplate(templatePath[1]))
-    }
-
-    if (path === '/api/room-templates' && req.method === 'POST') {
-      return respond(res, service.saveRoomTemplate(await readJson(req, 512 * 1024)))
-    }
-
-    const roomTemplatePath = path.match(/^\/api\/room-templates\/([\w-]+)$/)
-    if (roomTemplatePath !== null && req.method === 'DELETE') {
-      return respond(res, service.deleteRoomTemplate(roomTemplatePath[1]))
     }
 
     if (path === '/api/roster/recommend' && req.method === 'POST') {
@@ -329,6 +313,12 @@ const server = http.createServer(async (req, res) => {
 setInterval(() => {
   for (const client of clients) client.write(': ping\n\n')
 }, 25_000).unref()
+
+setInterval(() => {
+  void plannerMcp.sweep(store.readRooms()).catch(error => {
+    console.warn(`planner mcp sweep failed: ${error?.message ?? error}`)
+  })
+}, 60_000).unref()
 
 const port = Number(process.env.CREW_PORT ?? 8787)
 server.listen(port, '127.0.0.1', () => {

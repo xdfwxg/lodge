@@ -49,6 +49,13 @@ export const normalizeRequest = body => {
   if (goal === '' || goal.length > 2000) return { error: '目标不能为空，且不超过 2000 字' }
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   if (name.length > 60) return { error: '房间名称不能超过 60 字' }
+  let independencePolicy = 'prefer'
+  if (body.independencePolicy !== undefined) {
+    if (!['prefer', 'require'].includes(body.independencePolicy)) {
+      return { error: 'independencePolicy 只能是 prefer 或 require' }
+    }
+    independencePolicy = body.independencePolicy
+  }
   let chatTurnLimit = null
   if (body.chatTurnLimit !== undefined && body.chatTurnLimit !== null) {
     const value = Number(body.chatTurnLimit)
@@ -76,7 +83,7 @@ export const normalizeRequest = body => {
   if (orchestration === null) return { error: '未知的编排策略' }
   const verifierPolicy = body.verifierPolicy === 'majority' ? 'majority' : 'all'
   const shadowReview = body.shadowReview === true
-  return { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit }
+  return { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit, independencePolicy }
 }
 
 export const normalizePlan = ({ body, continueSource, roomFiles }) => {

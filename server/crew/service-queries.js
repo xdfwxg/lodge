@@ -4,7 +4,6 @@ import { presentRoom } from './presentation.js'
 import { buildResources } from './resources.js'
 import { buildReview } from './review.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
-import { listRoomTemplates } from './room-templates.js'
 import { listRoomTypes } from './room-types/index.js'
 import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
@@ -19,8 +18,6 @@ export const createServiceQueries = ({
   usage: usagePort,
   files,
   workspace,
-  roomTemplates,
-  dataDir,
 }) => {
   const { readRoom, readRooms, readMessages, readMessagesSince } = store
 
@@ -37,7 +34,6 @@ export const createServiceQueries = ({
     return {
       seats,
       roomTypes: listRoomTypes(),
-      roomTemplates: listRoomTemplates(roomTemplates?.list?.(dataDir) ?? []),
       rooms: rooms.map(room => {
         const messages = readMessages(room.id)
           .slice()

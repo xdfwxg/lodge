@@ -9,8 +9,6 @@ import { writeSeatEnv } from './seat-env.js'
 import { MAX_PROJECT_BYTES, PROJECT_FILE, readProjectConstraints } from './project.js'
 import { aggregateUsage, readUsageHistory, recordUsage } from './usage-history.js'
 import { createSkillStore } from './skill-store.js'
-import { deleteSavedRoomTemplate, listSavedRoomTemplates, saveSavedRoomTemplate } from './room-template-store.js'
-import { deleteSavedTemplate, listSavedTemplates, saveSavedTemplate } from './template-store.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
 
 // 应用层只依赖这组端口；具体存储/工作区/运行时实现只在组合根装配。
@@ -41,16 +39,6 @@ export const createCrewPorts = () => ({
     record: recordUsage,
     read: readUsageHistory,
     aggregate: aggregateUsage,
-  },
-  templates: {
-    list: listSavedTemplates,
-    save: saveSavedTemplate,
-    delete: deleteSavedTemplate,
-  },
-  roomTemplates: {
-    list: listSavedRoomTemplates,
-    save: saveSavedRoomTemplate,
-    delete: deleteSavedRoomTemplate,
   },
   advisor: createAdvisorClient(),
   skills: createSkillStore({ dir: fileURLToPath(new URL('../../templates/skills/', import.meta.url)) }),

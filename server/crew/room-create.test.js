@@ -666,3 +666,44 @@ test('an invalid chat turn limit fails before touching the workspace', async () 
   assert.match(result.error, /1–20/)
   assert.equal(prepared, false)
 })
+
+test('strict cross-vendor review fails before creating a single-vendor studio', async () => {
+  const { store } = completedRoom(temp('lodge-independence-require-'))
+  const engine = fakeEngine()
+  engine.capabilities = () => ({ provisioning: true, skills: false, mcp: false })
+  engine.instances = async () => [{ id: 'claude', engine: 'claude', available: true }]
+  const result = await run(store, {
+    goal: '严格要求跨厂商复核',
+    roomType: 'studio',
+    verify: 'manual',
+    independencePolicy: 'require',
+    seats: [
+      { role: 'lead', name: '规划' },
+      { role: 'worker', name: '执行' },
+      { role: 'verifier', name: '验收' },
+    ],
+  }, engine)
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'conflict')
+  assert.match(result.error, /只有一个可用引擎/)
+})
+
+test('the default independence policy records a same-vendor downgrade', async () => {
+  const { store } = completedRoom(temp('lodge-independence-prefer-'))
+  const engine = fakeEngine()
+  engine.capabilities = () => ({ provisioning: true, skills: false, mcp: false })
+  engine.instances = async () => [{ id: 'claude', engine: 'claude', available: true }]
+  const result = await run(store, {
+    goal: '默认允许同厂商但标注降级',
+    roomType: 'studio',
+    verify: 'manual',
+    seats: [
+      { role: 'lead', name: '规划' },
+      { role: 'worker', name: '执行' },
+      { role: 'verifier', name: '验收' },
+    ],
+  }, engine)
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.independencePolicy, 'prefer')
+  assert.equal(result.body.room.independence, 'none')
+})

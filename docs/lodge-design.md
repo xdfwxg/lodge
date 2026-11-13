@@ -702,7 +702,6 @@ Verifier 不能只是"仅可查看"——它必须自己跑验收命令。但它
 
 **申诉一次，然后升到人。** Executor 对 REJECT 有异议时，可附证据申诉一次；Planner 裁决；仍不一致则 `waiting_on_user`。没有申诉通道，Verifier 就成了独裁者，双方会开始互相博弈而不是对事实负责。
 
-模板文件：[`templates/delivery-triad.crew.yaml`](../templates/delivery-triad.crew.yaml)
 
 ### 8.7 不做部门：用编制与工作区替代
 
@@ -1306,7 +1305,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 5. **MCP 故障隔离与审计（部分已落 2026-11-12）**：解析 runtime 工具汇总里的 MCP 调用（`mcp__server__tool` / `mcp:server:tool`），写 `mcp.call` / `mcp.failure` 事件；turn evidence 带 MCP 汇总，失败写系统消息且只影响当前席位回合，并行失败走 `stage.partial` 继续。基座侧参考 OpenMausBot：每会话 loopback、AbortSignal 超时、关闭时 failAll。未做：Crew 侧逐服务超时/熔断配置、审计 UI。
 6. **复盘视图（已落 2026-11-12）**：`GET /api/rooms/:id/review` 从房间状态、消息与证据派生成本、回合、token、证据通过率、返工、失败列表与工具统计；UI 在房间头部「复盘」打开只读摘要。token 只从 turn evidence 的 usage 读取，运行时不上报时显示“未上报”；不新增真相源。用量只保留调度台 7 天 Token 趋势（§15.4）；复盘视图自身仍缺跨房间汇总与返工趋势。
 7. **调度台只读资源面板（已落 2026-11-12）**：`GET /api/resources` 汇总房间状态、待你处理、失败命令、返工、冲突/部分成功；首屏只展示可点开的房间摘要和输入框，统计、最近 7 天 Token 趋势、导入导出与已处理记录收进“系统状态”折叠，只读刷新，不自动路由、不执行。参考 Claude-Bot 的分项思路；独立用量页已移除（§15.4）。
-8. **模板文件导入/预览（已落 2026-11-12，入口封口）**：本地 `.crew.yaml/.yml/.json` 导入并预览，`yaml` 解析；模板可带席位名字、工位、提示词与引擎，`human` 席位跳过；权限与写范围按角色校验，模板不能提权。可保存到本地 `<dataDir>/templates`；当前建房首屏不提供模板入口，代码保留，不做市场、同步或版本管理。
+8. **模板文件导入/预览（已移除）**：本地 `.crew.yaml/.yml/.json` 导入并预览，`yaml` 解析；模板可带席位名字、工位、提示词与引擎，`human` 席位跳过；权限与写范围按角色校验，模板不能提权。可保存到本地 `<dataDir>/templates`；当前建房首屏不提供模板入口，代码保留，不做市场、同步或版本管理。
 9. **目标岛打磨（已落 2026-11-13）**：收起态只留房间名、一句状态和当前阶段主动作；三问摘要、阶段轨道、任务头像行与徽章退出首屏；展开面板保留阶段节点、返工次数、打回署名与证据，目标与检查折叠；数据从房间 JSON + 消息派生。剩余：跨阶段返工趋势。
 10. **示范房间与导出脱敏（部分已落 2026-11-12）**：`examples/rooms/` 放 3 个模拟样本（来自 `seeds.js`，明确标 `sample.kind=simulated`）和 1 个真实单席样本（修复失败测试 → 命令验收 → 人签字完成，标 `sample.kind=real`）；全部可被「打开」导入。新增 `sanitize.js`（私钥、常见 API key、Bearer、邮箱、URL 凭据、本机路径）与 `npm run samples:export -- --data <dir> --room <id> --out <file>`；`samples:generate` 可重建模拟样本。真实样本数量仍少，随私密 dogfood 继续补；不做市场。
 11. **阶段内 Supervisor 派活（v1 已落 2026-11-12）**：开工卡可给出 `orchestration` 与每阶段 `assignees`，系统映射到真实执行席位并校验；`orchestration/` 注册表提供 pipeline / parallel / critique 三种策略，派发与复核按策略执行，并写成可见 @ 链路。模型不直接指挥其他席位，不绕过门禁与独立验收，调度台仍只建议。best-of-N、升级链和界面选择器未接；见 §9.8。

@@ -16,7 +16,6 @@ const applicationFiles = [
   'room-complete.js',
   'service.js',
   'service-queries.js',
-  'service-templates.js',
   'service-delivery.js',
   'service-seats.js',
   'service-seat-add.js',
