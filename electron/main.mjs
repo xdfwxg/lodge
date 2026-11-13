@@ -83,6 +83,14 @@ const isBaseUp = async url => {
   }
 }
 
+const waitForBase = async (url, attempts = 80) => {
+  for (let index = 0; index < attempts; index += 1) {
+    if (await isBaseUp(url)) return true
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  return false
+}
+
 const findNode = () => {
   if (typeof process.env.LODGE_NODE === 'string' && existsSync(process.env.LODGE_NODE)) return process.env.LODGE_NODE
   const candidates = [
@@ -211,13 +219,14 @@ const startBase = async dir => {
   })
   child.stdout.on('data', chunk => log(`base out: ${chunk.toString().trimEnd()}`))
   child.stderr.on('data', chunk => log(`base err: ${chunk.toString().trimEnd()}`))
+  child.on('error', error => log(`base spawn failed: ${error?.message ?? error}`))
   child.on('exit', code => {
     log(`base exited: ${code}`)
     if (!quitting) log('base stopped unexpectedly')
   })
   baseProcess = child
   baseUrl = `http://127.0.0.1:${port}`
-  const healthy = await isBaseUp(baseUrl)
+  const healthy = await waitForBase(baseUrl)
   if (!healthy) {
     try { child.kill('SIGTERM') } catch {}
     baseProcess = null
