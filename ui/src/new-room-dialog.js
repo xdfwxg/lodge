@@ -210,22 +210,6 @@ function NewRoomDialog({
     }
   }
 
-  const directStart = () => {
-    if (goal.trim() === '') return
-    setProposal({
-      done: [goal.trim()],
-      seats: [{ role: 'worker', name: '执行者' }],
-      stages: [],
-      questions: [],
-      why: '直接建单人房，不使用编队建议',
-      verify: 'manual',
-      acceptance: '',
-    })
-    setAnswers([])
-    setError(null)
-    setStep(1)
-  }
-
   const start = async () => {
     if (proposal === null || !canStart) return
     setBusy(true)
@@ -506,19 +490,12 @@ function NewRoomDialog({
           ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => setStep(0) }, '改目标')
           : null,
         step === 0
-          ? h(Fragment, null,
-            h('button', {
-              type: 'button',
-              className: 'crew-ghost',
-              disabled: goal.trim() === '' || needRepo || recommending,
-              onClick: directStart,
-            }, '直接建单人房'),
-            h('button', {
-              type: 'button',
-              className: 'crew-accept crew-dialog-primary',
-              disabled: goal.trim() === '' || needRepo || recommending,
-              onClick: () => void recommend(),
-            }, recommending ? 'Lodge 正在看…' : '让 Lodge 出方案'))
+          ? h('button', {
+            type: 'button',
+            className: 'crew-accept crew-dialog-primary',
+            disabled: goal.trim() === '' || needRepo || recommending,
+            onClick: () => void recommend(),
+          }, recommending ? 'Lodge 正在看…' : '让 Lodge 出方案')
           : h('button', {
             type: 'button',
             className: 'crew-accept crew-dialog-primary',
