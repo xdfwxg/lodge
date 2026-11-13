@@ -1,6 +1,6 @@
 # Lodge for macOS
 
-Lodge 的 macOS 桌面版是一个最小 Electron 壳：Electron 启动 Lodge 的 Node 服务，再把同源 UI 装进窗口。它不把基座、CLI 或用户凭据打进包里。
+Lodge 的 macOS 桌面版是一个最小 Electron 壳：Electron 启动 Lodge 的 Node 服务，再把同源 UI 装进窗口。它不把基座、其他 CLI 或用户凭据打进包里；`Resources/runtimes` 可以内置 runtime（当前是 Pi），见 [runtimes.md](runtimes.md)。
 
 ## 开发运行
 
@@ -71,7 +71,7 @@ CREW_BASE_URL=http://127.0.0.1:8799 npm run desktop
 LODGE_BASE_DIR=$HOME/workspace/crew-chat-base npm run desktop
 ```
 
-桌面版不会把基座或 CLI 打进 app 包；这是产品边界，不是遗漏。
+桌面版不会把基座打进 app 包；其他 CLI 也由基座发现和安装。内置 runtime 放在 `Resources/runtimes`（`npm run prepare:runtimes` 生成），Electron 把每个 runtime 目录加进 `OMB_EXTRA_PATH`，基座用同一条发现链路找到它们。基座本身仍不打包。
 
 ## 签名与公证
 

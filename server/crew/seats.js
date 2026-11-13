@@ -98,6 +98,9 @@ export const rosterFromRoles = entries => {
     const customPrompt = typeof entry.prompt === 'string' && entry.prompt.trim() !== ''
     const engineExplicit = typeof entry.engine === 'string' && entry.engine.trim() !== ''
     const engine = engineExplicit ? entry.engine.trim().slice(0, 40) : base.engine
+    const model = typeof entry.model === 'string' && entry.model.trim() !== ''
+      ? entry.model.trim().slice(0, 160)
+      : base.model
     const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
     const skills = Array.isArray(entry.skills) ? entry.skills.filter(isId).slice(0, 8) : base.skills
     return cloneSeat({
@@ -106,6 +109,7 @@ export const rosterFromRoles = entries => {
       name,
       engine,
       engineExplicit,
+      model,
       station,
       skills,
       prompt: customPrompt ? entry.prompt.trim().slice(0, 4_000) : base.prompt,
@@ -142,6 +146,9 @@ export const roleSeats = seats => ({
 const validateCapabilities = seat => {
   if (!['lead', 'worker', 'verifier', 'observer'].includes(seat.role)) {
     throw new Error(`seat contract: ${seat.id} has an invalid role`)
+  }
+  if (seat.model !== undefined && (typeof seat.model !== 'string' || seat.model.trim() === '' || seat.model.length > 160)) {
+    throw new Error(`seat contract: ${seat.id} model must be a model id`)
   }
   if (!Array.isArray(seat.skills) || seat.skills.some(id => !isId(id))) {
     throw new Error(`seat contract: ${seat.id} skills must be ids, not content`)

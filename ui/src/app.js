@@ -29,6 +29,7 @@ export function App() {
     open: dialog,
     onClose: closeDialog,
     roomTypes: state.roomTypes ?? [],
+    engines: state.engines ?? [],
     resume,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
     onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),

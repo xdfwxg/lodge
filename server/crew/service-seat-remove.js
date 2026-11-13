@@ -29,7 +29,7 @@ export const createSeatRemove = ({ store, engine, live, emit, roomFiles, workspa
       current.members = (current.members ?? []).filter(id => id !== seatId)
       current.workers = (current.workers ?? []).filter(id => id !== seatId)
       current.verifiers = (current.verifiers ?? []).filter(id => id !== seatId)
-      for (const key of ['seatRooms', 'seatBots', 'seatNames', 'engines', 'worktrees', 'ports', 'workspaceEnv', 'branches', 'seatCursors', 'engineFallbacks']) {
+      for (const key of ['seatRooms', 'seatBots', 'seatNames', 'engines', 'models', 'worktrees', 'ports', 'workspaceEnv', 'branches', 'seatCursors', 'engineFallbacks']) {
         if (current[key] !== undefined) {
           const next = { ...current[key] }
           delete next[seatId]

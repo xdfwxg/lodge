@@ -212,6 +212,8 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     'kimi-cli': 'kimiAgent',
     'qwen-cli': 'qwenAgent',
     'deepseek-cli': 'deepseekAgent',
+    'pi-cli': 'piAgent',
+    pi: 'piAgent',
     'gemini-cli': 'antigravityAgent',
   }
 
@@ -225,11 +227,12 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       reason: item.snapshot?.reason ?? '',
       models: item.models ?? { default: '', options: [] },
       capabilities: item.capabilities ?? {},
+      login: item.login ?? null,
     }))
   }
 
   // 席位声明的是引擎类别；绑定到基座可用的具体 instance/model，找不到才显式降级。
-  const resolveSeatEngine = async requested => {
+  const resolveSeatEngine = async (requested, requestedModel = '') => {
     if (typeof requested !== 'string' || requested === '') {
       const selection = await defaultModelSelection()
       return { selection, engine: selection.instanceId, requested: '', fallback: false, reason: '' }
@@ -245,7 +248,28 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       item?.snapshot?.state === 'available' &&
       (item.instanceId === requested || item.driverKind === wanted)
     ))
-    const model = instance?.models?.default || instance?.models?.options?.[0]?.id || ''
+    const offered = Array.isArray(instance?.models?.options) ? instance.models.options : []
+    const defaultModel = instance?.models?.default || offered[0]?.id || ''
+    const explicit = typeof requestedModel === 'string' ? requestedModel.trim() : ''
+    const explicitOffered = explicit === '' || explicit === defaultModel || offered.some(option => option?.id === explicit)
+    if (instance !== undefined && explicit !== '' && !explicitOffered) {
+      return defaultModel === ''
+        ? {
+          selection: await defaultModelSelection(),
+          engine: instance.instanceId,
+          requested,
+          fallback: true,
+          reason: `模型 ${explicit} 不在 ${requested} 的可选列表，且该引擎没有默认模型`,
+        }
+        : {
+          selection: { instanceId: instance.instanceId, model: defaultModel },
+          engine: instance.instanceId,
+          requested,
+          fallback: true,
+          reason: `模型 ${explicit} 不在 ${requested} 的可选列表，已回退 ${defaultModel}`,
+        }
+    }
+    const model = explicit || defaultModel
     if (instance !== undefined && typeof model === 'string' && model !== '') {
       return {
         selection: { instanceId: instance.instanceId, model },
@@ -268,8 +292,8 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
-  const createSeatBot = async ({ name, soul, description, approval, mcp, engine }) => {
-    const resolved = await resolveSeatEngine(engine)
+  const createSeatBot = async ({ name, soul, description, approval, mcp, engine, model }) => {
+    const resolved = await resolveSeatEngine(engine, model)
     const selection = resolved.selection
     const settings = {
       ...(typeof soul === 'string' && soul !== '' ? { soul } : {}),

@@ -73,6 +73,46 @@ test('a seat engine binds to an available runtime instance', async () => {
   assert.equal(client.captured.bot.modelSelection.model, 'gpt-5.6-sol')
 })
 
+test('pi-cli binds to a piAgent instance', async () => {
+  const client = fakeClient()
+  client.instances = async () => ({
+    instances: [{
+      instanceId: 'pi',
+      driverKind: 'piAgent',
+      displayName: 'Pi',
+      snapshot: { state: 'available' },
+      models: { default: 'deepseekAnthropic/deepseek-v4-pro', options: [{ id: 'deepseekAnthropic/deepseek-flash', label: 'Flash' }] },
+      capabilities: { approvalReview: false },
+    }],
+  })
+  const engine = createEngine({ client })
+  const seat = await engine.createSeatBot({ name: 'Executor', engine: 'pi-cli', model: 'deepseekAnthropic/deepseek-flash' })
+  assert.equal(seat.engine, 'pi')
+  assert.equal(seat.model, 'deepseekAnthropic/deepseek-flash')
+  assert.equal(seat.fallback, false)
+  assert.equal(client.captured.bot.modelSelection.instanceId, 'pi')
+  assert.equal(client.captured.bot.modelSelection.model, 'deepseekAnthropic/deepseek-flash')
+})
+
+test('an unoffered model falls back explicitly instead of silently switching', async () => {
+  const client = fakeClient()
+  client.instances = async () => ({
+    instances: [{
+      instanceId: 'pi',
+      driverKind: 'piAgent',
+      displayName: 'Pi',
+      snapshot: { state: 'available' },
+      models: { default: 'deepseekAnthropic/deepseek-v4-pro', options: [{ id: 'deepseekAnthropic/deepseek-flash', label: 'Flash' }] },
+      capabilities: {},
+    }],
+  })
+  const engine = createEngine({ client })
+  const seat = await engine.createSeatBot({ name: 'Executor', engine: 'pi', model: 'unknown/model' })
+  assert.equal(seat.fallback, true)
+  assert.equal(seat.model, 'deepseekAnthropic/deepseek-v4-pro')
+  assert.match(seat.reason, /不在.*可选列表/)
+})
+
 test('an unavailable seat engine falls back explicitly', async () => {
   const client = fakeClient()
   client.instances = async () => ({ instances: [] })

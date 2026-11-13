@@ -119,6 +119,13 @@ test('custom roles keep their derived permissions', () => {
   assert.deepEqual(verifier.toolSurface, ['read', 'exec'])
 })
 
+test('custom seats keep an explicit engine and model', () => {
+  const roster = rosterFromRoles([{ role: 'worker', engine: 'pi', model: 'deepseekAnthropic/deepseek-v4-pro' }])
+  assert.equal(roster[0].engine, 'pi')
+  assert.equal(roster[0].model, 'deepseekAnthropic/deepseek-v4-pro')
+  assert.doesNotThrow(() => validateSeats(roster))
+})
+
 test('custom names flow into the prompts', () => {
   const roster = rosterFromRoles([
     { role: 'lead', name: '总管' },

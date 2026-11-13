@@ -31,6 +31,7 @@ export const createProvisioner = ({ engine }) => {
         approval: seat.approval,
         mcp: seat.mcp,
         engine: requestedEngine,
+        model: seat.model,
       })
       createdSeatRefs.push({ seat, seatRef })
     }
@@ -53,12 +54,14 @@ export const createProvisioner = ({ engine }) => {
     const seatBots = {}
     const seatNames = {}
     const engines = {}
+    const models = {}
     for (const { seat, seatRef } of createdSeatRefs) {
       const baseRoom = await baseRoomFor(seat, seatRef)
       seatRooms[seat.id] = { id: baseRoom.id, sessionRef: baseRoom.sessionRef }
       seatBots[seat.id] = seatRef.id
       seatNames[seat.id] = seatRef.name
       engines[seat.id] = seatRef.engine
+      models[seat.id] = seatRef.model
     }
     const leadSeat = createdSeatRefs.find(({ seat }) => seat.role === 'lead') ?? createdSeatRefs[0]
     const chatRoom = await engine.createRoom({
@@ -85,7 +88,7 @@ export const createProvisioner = ({ engine }) => {
       ))
         ? 'vendor'
         : 'none'
-    return { seatRooms, seatBots, seatNames, engines, engineFallbacks, independence, chatRoom }
+    return { seatRooms, seatBots, seatNames, engines, models, engineFallbacks, independence, chatRoom }
   }
 
   const cleanup = async () => {

@@ -1,5 +1,5 @@
 import { Fragment, createElement as h, useEffect, useState } from 'react'
-import { chooseDirectory as pickProjectDirectory } from './system.js'
+import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
 
 const ROLE_LABEL = { lead: '规划师', worker: '执行者', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
@@ -30,6 +30,7 @@ function NewRoomDialog({
   onRecommend,
   onProjectConstraints,
   roomTypes = [],
+  engines = [],
   resume = null,
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
@@ -48,11 +49,18 @@ function NewRoomDialog({
   const [answers, setAnswers] = useState([])
   const [recommending, setRecommending] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [engineChoice, setEngineChoice] = useState('')
+  const [modelChoice, setModelChoice] = useState('')
+  const [loginBusy, setLoginBusy] = useState(false)
+  const [loginNote, setLoginNote] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     if (!open) return
     setRoomName(resume === null ? '' : resume.name ?? '')
+    setEngineChoice('')
+    setModelChoice('')
+    setLoginNote(null)
   }, [open, resume?.id])
 
   useEffect(() => {
@@ -70,6 +78,27 @@ function NewRoomDialog({
   const nonTask = roomType !== 'task'
   const needRepo = resume !== null && repoPath.trim() === ''
   const proposalSeats = proposal?.seats ?? []
+  const engineChoices = engines.filter(item => item.available)
+  const selectedEngine = engineChoices.find(item => item.id === engineChoice)
+  const modelChoices = engineChoice === '' || selectedEngine === undefined
+    ? []
+    : (() => {
+      const seen = new Set()
+      const rows = []
+      const add = (id, label) => {
+        if (typeof id !== 'string' || id === '' || seen.has(id)) return
+        seen.add(id)
+        rows.push({ id, label: typeof label === 'string' && label !== '' ? label : id })
+      }
+      for (const option of selectedEngine.models?.options ?? []) add(option?.id, option?.label)
+      add(selectedEngine.models?.default, selectedEngine.models?.default)
+      return rows
+    })()
+  const selectedModel = modelChoice !== ''
+    ? modelChoice
+    : selectedEngine?.models?.default || modelChoices[0]?.id || ''
+  const engineReady = engineChoice === '' || (selectedEngine !== undefined && selectedModel !== '')
+  const canLoginEngine = Array.isArray(selectedEngine?.login?.args) && selectedEngine.login.args.length > 0
   const hasVerifier = proposalSeats.some(seat => seat.role === 'verifier')
   const plannedAcceptance = Array.isArray(proposal?.stages) &&
     proposal.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
@@ -78,9 +107,23 @@ function NewRoomDialog({
     : proposal?.verify === 'manual' ? 'manual' : 'test'
   const acceptance = nonTask ? '' : proposal?.acceptance ?? ''
   const lineCount = constraints.split('\n').filter(line => line.trim() !== '').length
-  const canStart = !busy && !needRepo &&
+  const canStart = !busy && !needRepo && engineReady &&
     !(verify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
     !(verify === 'manual' && hasVerifier)
+
+  const loginEngine = async () => {
+    if (selectedEngine === undefined || loginBusy) return
+    setLoginBusy(true)
+    setLoginNote(null)
+    try {
+      await loginRuntime(selectedEngine.id)
+      setLoginNote('已打开登录终端；完成后重启 Lodge，模型才会出现。')
+    } catch (caught) {
+      setLoginNote(String(caught?.message ?? caught))
+    } finally {
+      setLoginBusy(false)
+    }
+  }
 
   const loadConstraints = async sourceOverride => {
     const source = (sourceOverride ?? repoPath).trim()
@@ -178,6 +221,17 @@ function NewRoomDialog({
         repoPath: repoPath.trim(),
         ...(resume === null ? {} : { continueFrom: resume.id }),
         ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
+        ...(engineChoice !== '' && proposal.seats.some(seat => seat.role === 'worker')
+          ? {
+            seats: proposal.seats.map(seat => ({
+              role: seat.role,
+              name: seat.name,
+              ...(seat.role === 'worker'
+                ? { engine: engineChoice, ...(selectedModel !== '' ? { model: selectedModel } : {}) }
+                : {}),
+            })),
+          }
+          : {}),
         plan: {
           done: proposal.done,
           ...(typeof proposal.orchestration === 'string' ? { orchestration: proposal.orchestration } : {}),
@@ -282,6 +336,49 @@ function NewRoomDialog({
       h('ul', { className: 'crew-brief' },
         proposal.seats.map((seat, index) => h('li', { key: `${seat.role}-${index}` },
           `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)))),
+    nonTask ? null : h('div', { className: 'crew-proposal-block' },
+      h('b', null, '执行引擎'),
+      h('select', {
+        className: 'crew-goal-input',
+        value: engineChoice,
+        disabled: engineChoices.length === 0,
+        onChange: event => {
+          setEngineChoice(event.target.value)
+          setModelChoice('')
+          setLoginNote(null)
+        },
+      },
+      h('option', { value: '' }, engineChoices.length === 0 ? '自动 · 当前没有可用引擎' : '自动 · 按角色默认'),
+      engineChoices.map(item => h('option', {
+        key: item.id,
+        value: item.id,
+      }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
+      modelChoices.length > 0
+        ? h('select', {
+          className: 'crew-goal-input',
+          style: { marginTop: '8px' },
+          value: selectedModel,
+          onChange: event => setModelChoice(event.target.value),
+        },
+        modelChoices.map(item => h('option', { key: item.id, value: item.id }, item.label)))
+        : null,
+      h('div', { className: 'crew-field-hint' },
+        h('span', null,
+          engineChoice === ''
+            ? '默认按角色分配引擎；验收席位保持独立引擎。'
+            : engineReady
+              ? `执行席位改用 ${selectedEngine?.name ?? engineChoice}${selectedModel === '' ? '' : ` · ${selectedModel}`}；验收席位仍用独立引擎。`
+              : '这个引擎还没有可用模型；先在基座里配置或登录它。'),
+        engineChoice !== '' && !engineReady && canLoginEngine
+          ? h('button', {
+            type: 'button',
+            className: 'crew-ghost',
+            disabled: loginBusy,
+            style: { marginLeft: '8px' },
+            onClick: () => void loginEngine(),
+          }, loginBusy ? '正在打开…' : `登录 ${selectedEngine?.name ?? engineChoice}`)
+          : null),
+      loginNote !== null ? h('p', { className: 'crew-dialog-note' }, loginNote) : null),
     h('div', { className: 'crew-proposal-block' },
       h('b', null, '怎么算过'),
       h('p', { className: 'crew-field-hint' },

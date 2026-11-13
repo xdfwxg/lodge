@@ -15,6 +15,7 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
     const baseSeat = rosterFromRoles([{
       role,
       name: typeof body?.name === 'string' ? body.name : '',
+      ...(typeof body?.model === 'string' ? { model: body.model } : {}),
     }])[0]
     const count = specs.filter(seat => seat.role === role).length
     const id = count === 0 ? role : `${role}-${count + 1}`
@@ -56,6 +57,7 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
         approval: seat.approval,
         mcp: seat.mcp,
         engine: requestedEngine,
+        model: seat.model,
       })
       baseRoom = await engine.createRoom({
         name: `${room.name} · ${seat.name}`,
@@ -84,6 +86,8 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
       mcp: seat.mcp,
       approval: seat.approval,
       speakBudget: seat.speakBudget,
+      engine: seatRef.engine,
+      model: seatRef.model,
     }
     const updated = updateRoom(room.id, current => {
       current.seatSpecs = [...(current.seatSpecs ?? []), publicSpec]
@@ -94,6 +98,7 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
       current.seatBots = { ...(current.seatBots ?? {}), [seat.id]: seatRef.id }
       current.seatNames = { ...(current.seatNames ?? {}), [seat.id]: seatRef.name }
       current.engines = { ...(current.engines ?? {}), [seat.id]: seatRef.engine }
+      current.models = { ...(current.models ?? {}), [seat.id]: seatRef.model }
       current.worktrees = { ...(current.worktrees ?? {}), [seat.id]: placement.path }
       current.ports = { ...(current.ports ?? {}), [seat.id]: placement.port }
       current.workspaceEnv = { ...(current.workspaceEnv ?? {}), [seat.id]: placement.environment }

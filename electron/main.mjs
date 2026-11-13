@@ -1,9 +1,9 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron'
 import { execFileSync, spawn } from 'node:child_process'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 
 const APP_NAME = 'Lodge'
 const DEFAULT_PORT = 8787
@@ -25,6 +25,7 @@ let baseDir = null
 let baseUrl = process.env.CREW_BASE_URL ?? ''
 let quitting = false
 let serverRestarts = 0
+let runtimeLogins = []
 
 const readSettings = () => {
   try {
@@ -98,6 +99,49 @@ const findNode = () => {
   }
 }
 
+const RUNTIME_ID = /^[\w-]{1,64}$/
+const shellQuote = value => `'${String(value).replaceAll("'", "'\\''")}'`
+
+const runtimeRoots = () => [
+  ...(typeof process.env.LODGE_RUNTIMES_DIR === 'string'
+    ? process.env.LODGE_RUNTIMES_DIR.split(delimiter).filter(Boolean)
+    : []),
+  app.isPackaged
+    ? join(process.resourcesPath, 'runtimes')
+    : join(app.getAppPath(), 'build', 'runtimes'),
+]
+
+const readRuntime = dir => {
+  try {
+    const manifest = JSON.parse(readFileSync(join(dir, 'runtime.json'), 'utf8'))
+    if (typeof manifest?.id !== 'string' || !RUNTIME_ID.test(manifest.id)) return null
+    if (typeof manifest.binary !== 'string' || manifest.binary === '') return null
+    const binaryPath = join(dir, manifest.binary)
+    if (!existsSync(binaryPath)) return null
+    return { ...manifest, dir, binaryPath }
+  } catch {
+    return null
+  }
+}
+
+const findBundledRuntimes = () => {
+  const found = new Map()
+  for (const root of runtimeRoots()) {
+    let entries = []
+    try {
+      entries = readdirSync(root, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const runtime = readRuntime(join(root, entry.name))
+      if (runtime !== null && !found.has(runtime.id)) found.set(runtime.id, runtime)
+    }
+  }
+  return [...found.values()].sort((a, b) => a.id.localeCompare(b.id))
+}
+
 const findBaseDir = () => {
   if (typeof process.env.LODGE_BASE_DIR === 'string' && existsSync(process.env.LODGE_BASE_DIR)) return process.env.LODGE_BASE_DIR
   const settings = readSettings()
@@ -146,6 +190,10 @@ const startBase = async dir => {
   const port = await findPort(DEFAULT_BASE_PORT)
   const baseData = join(app.getPath('userData'), 'base-data')
   mkdirSync(baseData, { recursive: true })
+  const extraPath = [
+    ...findBundledRuntimes().map(runtime => runtime.dir),
+    process.env.OMB_EXTRA_PATH,
+  ].filter(Boolean).join(delimiter)
   const child = spawn(node, [
     '--experimental-strip-types',
     'server/openmausbot.ts',
@@ -154,7 +202,11 @@ const startBase = async dir => {
     '--data-dir', baseData,
   ], {
     cwd: dir,
-    env: { ...process.env, LODGE_BASE_DIR: dir },
+    env: {
+      ...process.env,
+      LODGE_BASE_DIR: dir,
+      ...(extraPath === '' ? {} : { OMB_EXTRA_PATH: extraPath }),
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   child.stdout.on('data', chunk => log(`base out: ${chunk.toString().trimEnd()}`))
@@ -191,7 +243,12 @@ const checkCli = async url => {
     const response = await fetch(`${url}/api/instances`, { signal: AbortSignal.timeout(2_000) })
     const data = await response.json()
     const available = (data?.instances ?? []).filter(item => item?.snapshot?.state === 'available')
-    if (available.length > 0) return true
+    runtimeLogins = available.filter(item => Array.isArray(item.login?.args) && item.login.args.length > 0)
+    buildMenu()
+    if (available.length > 0) {
+      await promptRuntimeLogins()
+      return true
+    }
     const installs = (data?.instances ?? [])
       .filter(item => item?.install?.command?.darwin)
       .slice(0, 3)
@@ -275,6 +332,63 @@ const stopServer = () => {
   baseProcess = null
 }
 
+const promptRuntimeLogins = async () => {
+  const saved = readSettings().runtimeLoginsDismissed
+  const dismissed = saved !== null && typeof saved === 'object' && !Array.isArray(saved) ? saved : {}
+  const pending = runtimeLogins.filter(instance => {
+    if (dismissed[instance.instanceId] === true) return false
+    return !(instance.models?.default || (instance.models?.options?.length ?? 0) > 0)
+  })
+  if (pending.length === 0) return
+  const instance = pending[0]
+  const name = instance.displayName ?? instance.instanceId
+  const choice = await dialog.showMessageBox({
+    type: 'info',
+    buttons: [`登录 ${name}`, '稍后'],
+    defaultId: 0,
+    cancelId: 1,
+    title: `${name} 还没登录`,
+    message: '内置 runtime 不带模型凭据，需要登录你自己的模型账号。',
+    detail: '登录会打开终端；完成后重启 Lodge，建房时才能选择它。',
+  })
+  if (choice.response === 0) openRuntimeLogin(instance)
+  else writeSettings({ runtimeLoginsDismissed: { ...dismissed, [instance.instanceId]: true } })
+}
+
+const openRuntimeLogin = instance => {
+  const login = instance.login
+  if (!Array.isArray(login?.args) || login.args.length === 0) return
+  const bundled = findBundledRuntimes().find(runtime => runtime.id === instance.instanceId)
+  const binary = bundled?.binaryPath
+    ?? (Array.isArray(instance.cliCandidates) ? instance.cliCandidates[0] : undefined)
+    ?? login.command
+    ?? instance.cliDefault
+  if (typeof binary !== 'string' || binary === '') {
+    dialog.showErrorBox(APP_NAME, `${instance.displayName ?? instance.instanceId} 没有可用的登录命令。`)
+    return
+  }
+  if (process.platform !== 'darwin') {
+    void shell.openPath(bundled?.dir ?? app.getPath('userData'))
+    return
+  }
+  const needsProvider = login.args.some(arg => arg === '{provider}')
+  const args = login.args.map(arg => (arg === '{provider}' ? '"$provider"' : shellQuote(arg)))
+  const lines = ['#!/bin/zsh', 'clear']
+  if (needsProvider) {
+    lines.push(`printf %s ${shellQuote(`${login.prompt ?? 'provider'}: `)}`, 'read provider')
+  }
+  lines.push([shellQuote(binary), ...args].join(' '))
+  lines.push(`printf '\\n%s\\n' ${shellQuote(login.note ?? '完成，按回车关闭…')}`, 'read', '')
+  const safeId = String(instance.instanceId).replace(/[^\w-]/g, '_')
+  const script = join(app.getPath('userData'), `${safeId}-login.command`)
+  writeFileSync(script, lines.join('\n'), { mode: 0o755 })
+  try {
+    execFileSync('open', ['-a', 'Terminal', script], { timeout: 5_000 })
+  } catch (error) {
+    dialog.showErrorBox(APP_NAME, `没有打开终端：${error?.message ?? error}`)
+  }
+}
+
 const buildMenu = () => {
   const template = [
     ...(process.platform === 'darwin' ? [{
@@ -308,6 +422,10 @@ const buildMenu = () => {
     {
       label: '帮助',
       submenu: [
+        ...runtimeLogins.map(instance => ({
+          label: `${instance.displayName ?? instance.instanceId} 登录…`,
+          click: () => openRuntimeLogin(instance),
+        })),
         { label: '检查更新', click: () => void shell.openExternal('https://github.com/xdfwxg/lodge/releases') },
         { label: '打开日志', click: () => void shell.openPath(logDir) },
         { label: '打开数据目录', click: () => void shell.openPath(app.getPath('userData')) },
@@ -357,6 +475,23 @@ const boot = async () => {
   if (process.platform === 'darwin' && !app.isPackaged && existsSync(iconFile)) {
     app.dock.setIcon(iconFile)
   }
+  ipcMain.handle('lodge:runtime-login', async (_event, id) => {
+    if (typeof id !== 'string' || !RUNTIME_ID.test(id)) return { ok: false, error: '未知 runtime' }
+    if (baseUrl === '') return { ok: false, error: '基座还没有连接' }
+    try {
+      const response = await fetch(`${baseUrl}/api/instances`, { signal: AbortSignal.timeout(3_000) })
+      const data = await response.json()
+      const instance = (data?.instances ?? []).find(item => item.instanceId === id)
+      if (instance === undefined) return { ok: false, error: `没有 ${id} 这个引擎` }
+      if (!Array.isArray(instance.login?.args) || instance.login.args.length === 0) {
+        return { ok: false, error: `${instance.displayName ?? id} 没有配置终端登录` }
+      }
+      openRuntimeLogin(instance)
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: String(error?.message ?? error) }
+    }
+  })
   ipcMain.handle('lodge:open-path', async (_event, target) => {
     if (typeof target !== 'string' || target.trim() === '') {
       return { ok: false, error: '缺少路径' }

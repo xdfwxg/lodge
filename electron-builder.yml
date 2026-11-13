@@ -23,6 +23,8 @@ extraResources:
     to: app/node_modules/yaml
   - from: LICENSE
     to: licenses/LICENSE.txt
+  - from: build/runtimes
+    to: runtimes
   - from: build/icon.png
     to: icon.png
 

@@ -10,6 +10,13 @@ export const chooseDirectory = async () => {
   return typeof data.path === 'string' && data.path.trim() !== '' ? data.path : null
 }
 
+export const loginRuntime = async id => {
+  const login = globalThis.lodge?.loginRuntime
+  if (typeof login !== 'function') throw new Error('内置 runtime 登录只支持 Lodge 桌面版')
+  const result = await login(id)
+  if (result?.ok === false) throw new Error(result.error ?? '无法打开登录')
+}
+
 export const openPath = async target => {
   const opener = globalThis.lodge?.openPath
   if (typeof opener === 'function') {

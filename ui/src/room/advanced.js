@@ -1,6 +1,12 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { money, countOf, timeOf, workspaceOf, seatPermissionOf } from '../view-format.js'
 
+const engineLabelOf = (room, seat) => {
+  const engine = room.engines?.[seat.id] ?? seat.engine
+  const model = room.models?.[seat.id] ?? seat.model
+  return model === undefined || model === '' ? engine : `${engine} · ${model}`
+}
+
 function StageEditRow({ stage, index, store }) {
   const [title, setTitle] = useState(stage.title)
   const [kind, setKind] = useState(stage.kind)
@@ -188,7 +194,7 @@ function Advanced({ room, seats, store, engines = [] }) {
         ['席位', '引擎', '权限', '发言预算'].map((label, index) => h('th', { key: `${label}-${index}` }, label)))),
       h('tbody', null, seats.map(seat => h('tr', { key: seat.id },
         h('td', null, seat.name),
-        h('td', null, h('code', null, room.engines?.[seat.id] ?? seat.engine)),
+        h('td', null, h('code', null, engineLabelOf(room, seat))),
         h('td', null, seatPermissionOf(room, seat)),
         h('td', null, `${seat.speakBudget} 次/回合`))))))
 }

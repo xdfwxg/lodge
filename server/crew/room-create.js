@@ -91,6 +91,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       plan: resolvedPlan,
       independence: provisioned.independence,
       engines: provisioned.engines,
+      models: provisioned.models,
       engineFallbacks: provisioned.engineFallbacks,
       seatBots: provisioned.seatBots,
       seatNames: provisioned.seatNames,

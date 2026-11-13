@@ -1108,7 +1108,7 @@ interface Engine {
 }
 ```
 
-`createSeatBot` 的 `engine` 是席位声明的引擎类别（如 `claude-cli` / `codex-cli`）；Engine 适配层通过基座 `/api/instances` 绑定到可用 instance/model。不可用时显式回退默认引擎，写「引擎降级」消息，不静默伪装成请求的引擎。`/api/state` 暴露只读 `engines`（available、原因、默认模型、capabilities），Advanced 显示可用引擎与降级原因；不做引擎选择器。当前机器只有 Claude 可用，Codex/Grok 会回退；能力矩阵参与策略仍未接。
+`createSeatBot` 的 `engine` 是席位声明的引擎类别（如 `claude-cli` / `codex-cli`）；Engine 适配层通过基座 `/api/instances` 绑定到可用 instance/model。不可用时显式回退默认引擎，写「引擎降级」消息，不静默伪装成请求的引擎。`/api/state` 暴露 `engines`（available、原因、默认模型、capabilities）；建房开工卡可选择可用执行引擎，且只改执行席位，验收席位保持独立引擎；Advanced 只读显示与降级原因，不做建后改引擎。`pi-cli` / `pi` 映射到基座内置 `piAgent`；建房时还可以选择实例下的具体模型，随席位写入基座 `modelSelection`；未配置模型的实例仍可选中并显示登录入口，登录后才能开始建房；模型不在实例目录时显式回退并记录原因。能力矩阵参与策略仍未接。
 
 `Event` 的 `text_delta / tool_call / permission_request / usage / done` 仍是后续流式端口的目标；P0 由基座消息、activity 与 digest 归一化。`Room` 只暴露 `id/name/sessionRef/goal/working/busyRef/cwd/usage`；`group/thread/bot/defaultResponder` 不进入 crew。
 

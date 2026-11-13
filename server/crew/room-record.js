@@ -10,6 +10,7 @@ export const buildRoomRecord = ({
   plan,
   independence,
   engines,
+  models,
   engineFallbacks,
   seatBots,
   seatNames,
@@ -43,6 +44,7 @@ export const buildRoomRecord = ({
   plan,
   independence,
   engines,
+  models,
   engineFallbacks,
   seatBots,
   seatNames,
@@ -72,8 +74,8 @@ export const buildRoomRecord = ({
   seatCursors: Object.fromEntries(roster.map(seat => [seat.id, 0])),
   openQuestion: null,
   version: 1,
-  seatSpecs: roster.map(({ id, name, title: seatTitle, role, station, permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget }) => ({
-    id, name, title: seatTitle, role, station, permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget,
+  seatSpecs: roster.map(({ id, name, title: seatTitle, role, station, engine, model, permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget }) => ({
+    id, name, title: seatTitle, role, station, engine, ...(model === undefined ? {} : { model }), permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget,
   })),
   constraints: [
     plan?.stages?.length > 0

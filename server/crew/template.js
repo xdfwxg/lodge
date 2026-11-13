@@ -72,6 +72,9 @@ export const parseTemplate = (text, filename = '') => {
     const engine = typeof seat.engine === 'string' && !['any', 'none'].includes(seat.engine)
       ? seat.engine.trim().slice(0, 40)
       : ''
+    const model = typeof seat.model === 'string' && seat.model.trim() !== ''
+      ? seat.model.trim().slice(0, 160)
+      : ''
     const skills = Array.isArray(seat.skills)
       ? seat.skills.filter(item => typeof item === 'string' && /^[\w-]{1,64}$/.test(item)).slice(0, 8)
       : []
@@ -81,6 +84,7 @@ export const parseTemplate = (text, filename = '') => {
       prompt: prompt.trim().slice(0, 4_000),
       station: typeof seat.station === 'string' ? seat.station.trim().slice(0, 80) : '',
       ...(engine === '' ? {} : { engine }),
+      ...(model === '' ? {} : { model }),
       ...(skills.length === 0 ? {} : { skills }),
     })
   }
