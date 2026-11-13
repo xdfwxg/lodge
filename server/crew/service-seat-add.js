@@ -1,5 +1,5 @@
 import { fail, ok } from './result.js'
-import { rosterFromRoles, validateRoster } from './seats.js'
+import { roleKindOf, rosterFromRoles, validateRoster } from './seats.js'
 
 export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace }) => {
   const { updateRoom, appendMessage } = store
@@ -78,6 +78,9 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
       name: seat.name,
       title: seat.title,
       role: seat.role,
+      roleKind: room.roomType === 'chat' ? 'participant' : roleKindOf(seat.role),
+      roleProfile: seat.name,
+      ...(room.roomType === 'chat' && role === 'lead' ? { isHost: true } : {}),
       station: seat.station,
       permissions: seat.permissions,
       writeScope: seat.writeScope,

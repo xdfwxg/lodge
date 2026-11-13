@@ -1,6 +1,7 @@
 import { roomNeedsYou } from './attention.js'
 import { buildDelivery } from './delivery.js'
 import { independenceLabel, independencePolicy } from './digest.js'
+import { capabilitiesFor } from './room-capabilities.js'
 
 // 房间能力是 opt-in 开关，不是房型分类；默认关闭，旧房间不受影响。
 const DEFAULT_ROOM_CAPABILITIES = Object.freeze({ dispatch: false })
@@ -17,6 +18,7 @@ export const presentRoom = (room, messages = []) => ({
   parentRoomId: typeof room.parentRoomId === 'string' && room.parentRoomId !== '' ? room.parentRoomId : null,
   childRoomIds: Array.isArray(room.childRoomIds) ? room.childRoomIds : [],
   needsYou: roomNeedsYou(room, messages),
+  modeCapabilities: capabilitiesFor(room.roomType),
   independenceLabel: independenceLabel(room),
   independencePolicy: independencePolicy(room),
   delivery: room.state === 'complete' && room.roomType !== 'chat' ? buildDelivery(room, messages) : null,

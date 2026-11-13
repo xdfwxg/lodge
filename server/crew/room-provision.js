@@ -1,5 +1,6 @@
 import { roomBulletin } from './room-create-input.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
+import { roleKindOf } from './seats.js'
 
 export const createProvisioner = ({ engine }) => {
   const createdSeatRefs = []
@@ -13,13 +14,14 @@ export const createProvisioner = ({ engine }) => {
       instances = []
     }
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
+    const kindOf = seat => seat.roleKind ?? roleKindOf(seat.role)
     // 工人先建，验收席位才有事实可依；没有显式引擎时优先选不同厂商。
-    const ordered = [...roster].sort((a, b) => (a.role === 'verifier' ? 1 : 0) - (b.role === 'verifier' ? 1 : 0))
+    const ordered = [...roster].sort((a, b) => (kindOf(a) === 'verifier' ? 1 : 0) - (kindOf(b) === 'verifier' ? 1 : 0))
     for (const seat of ordered) {
       let requestedEngine = seat.engine
-      if (seat.role === 'verifier' && seat.engineExplicit !== true) {
+      if (kindOf(seat) === 'verifier' && seat.engineExplicit !== true) {
         const workerKinds = new Set(createdSeatRefs
-          .filter(({ seat: item }) => item.role === 'worker')
+          .filter(({ seat: item }) => kindOf(item) === 'executor')
           .map(({ seatRef }) => engineKind(seatRef.engine)))
         const candidate = instances.find(item => item.available && !workerKinds.has(item.engine))
         if (candidate !== undefined) requestedEngine = candidate.id
@@ -63,7 +65,7 @@ export const createProvisioner = ({ engine }) => {
       engines[seat.id] = seatRef.engine
       models[seat.id] = seatRef.model
     }
-    const leadSeat = createdSeatRefs.find(({ seat }) => seat.role === 'lead') ?? createdSeatRefs[0]
+    const leadSeat = createdSeatRefs.find(({ seat }) => kindOf(seat) === 'planner') ?? createdSeatRefs[0]
     const chatRoom = await engine.createRoom({
       name: roomChatName(title),
       goal,
@@ -76,10 +78,10 @@ export const createProvisioner = ({ engine }) => {
     createdBaseRooms.push(chatRoom)
 
     const workerEngines = new Set(createdSeatRefs
-      .filter(({ seat }) => seat.role === 'worker')
+      .filter(({ seat }) => kindOf(seat) === 'executor')
       .map(({ seatRef }) => seatRef.engine))
     const verifierEngines = createdSeatRefs
-      .filter(({ seat }) => seat.role === 'verifier')
+      .filter(({ seat }) => kindOf(seat) === 'verifier')
       .map(({ seatRef }) => seatRef.engine)
     const independence = verifiers.length === 0
       ? 'human'
