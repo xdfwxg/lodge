@@ -1,6 +1,7 @@
 import { budgetHint, budgetStatus } from './budget.js'
 import { simulateRoom } from './demo.js'
 import { createDispatchService } from './dispatch-service.js'
+import { evaluateRoomGate } from './room-gate.js'
 import { createRealRoom } from './room-create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
 import { createRoomCompleter } from './room-complete.js'
@@ -192,9 +193,23 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     return fail('method', '方法不对')
   }
 
+  const plannerTool = async (roomId, tool) => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    if (tool?.name === 'create_subroom') return subrooms.create(room, tool.args)
+    if (tool?.name === 'reject_plan') return closure.rejectPlan(room, tool.args)
+    if (tool?.name === 'check_gate') {
+      const goal = typeof tool.args?.goal === 'string' && tool.args.goal.trim() !== '' ? tool.args.goal.trim() : room.goal
+      const gate = evaluateRoomGate({ roomType: 'studio', goal, plan: null, verify: 'manual', acceptance: '' })
+      return ok({ gate })
+    }
+    return fail('invalid', `未知 Planner 工具：${tool?.name ?? ''}`)
+  }
+
   return {
     ...queries,
     ...templateActions,
+    plannerTool,
     ...delivery,
     resetMcp: runControl.resetMcp,
     removeSeat: seatActions.removeSeat,

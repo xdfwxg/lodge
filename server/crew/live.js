@@ -8,7 +8,7 @@ import { createChatScheduler } from './live-chat-room.js'
 import { createStudioEngine } from './live-studio.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
-export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs }) => {
+export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs, onPlannerTool = null }) => {
   const { roomFiles, usage, commands, files, skills, jev } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
@@ -55,6 +55,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
         files,
         skills,
         jev,
+        onPlannerTool,
       })
       : {
           seed: () => {},

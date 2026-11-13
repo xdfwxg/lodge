@@ -34,6 +34,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 - 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环
 - 流转公约：主任务闭环必须经过 Planner → Executor → Verifier；支持子任务并行、重试、分支，但进入执行阶段后不可绕过 Verifier 放行。
 - 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。
+- Planner 工具协议：Planner 用 `<lodge-tool>{"name":"...","args":{...}}</lodge-tool>` 调用 `create_subroom`、`reject_plan`、`check_gate`；Lodge 解析执行并回写结果。这是聊天级工具协议，不是新的 roleKind，也不允许 Planner 伪造结果。
 
 ## 公共约束
 

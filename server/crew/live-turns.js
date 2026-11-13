@@ -9,11 +9,12 @@ import { createStageIntegrator } from './live-integration.js'
 import { createReviewCoordinator } from './live-review.js'
 import { createStageStarter } from './live-stage.js'
 import { createTurnState } from './live-turn-state.js'
+import { parsePlannerTool } from './planner-tools.js'
 import { deliverableStageIndex, isWorkStage, seatOf } from './live-turn-utils.js'
 import { vcsOf, workspaceOf } from './live-workspace.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, skills, jev = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, skills, jev = null, onPlannerTool = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks, jev })
   const acceptance = createAcceptanceRunner({
@@ -118,6 +119,28 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
       return
     }
     state.capturedTurns.add(turnId)
+
+    if (role === 'lead') {
+      const tool = parsePlannerTool(turn.reply)
+      if (tool !== null && typeof onPlannerTool === 'function') {
+        void Promise.resolve(onPlannerTool({ room, seat, tool, turnId }))
+          .then(result => {
+            const text = result?.ok === false
+              ? `Planner 工具失败（${tool.name}）：${result.error ?? '未知原因'}`
+              : `Planner 工具已执行：${tool.name}`
+            store.appendMessage(roomId, { kind: 'system', text })
+            const name = room?.seatNames?.[seat]
+            if (typeof name === 'string' && name !== '') {
+              void sendToSeat(seat, `@${name} ${text}。继续当前阶段；如仍需工具，再按协议调用。`).catch(() => {})
+            }
+          })
+          .catch(error => {
+            store.appendMessage(roomId, { kind: 'system', text: `Planner 工具失败（${tool.name}）：${error?.message ?? error}` })
+          })
+        state.recordTurn(false)
+        return
+      }
+    }
 
     const mcp = mcpCalls(turn.tools)
     if (mcp.length > 0) {

@@ -51,6 +51,7 @@ const digest = createDigest({
 const engine = createEngine()
 const ports = createCrewPorts()
 
+let service = null
 const live = createLiveRooms({
   store,
   engine,
@@ -58,9 +59,10 @@ const live = createLiveRooms({
   dispatchPayload: digest.dispatchPayload,
   gateAgent: createGateAgent({ engine }),
   ports,
+  onPlannerTool: payload => service?.plannerTool(payload.room?.id, payload.tool),
 })
 
-const service = createCrewService({
+service = createCrewService({
   store,
   engine,
   live,
