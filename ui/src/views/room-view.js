@@ -108,7 +108,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
       ? h(ReplayDialog, { replay: state.replay, onClose: () => store.closeReplay() })
       : null,
     state.shadowFor === room.id && state.shadow !== null
-      ? h(ShadowDialog, { review: state.shadow, onClose: () => store.closeShadow() })
+      ? h(ShadowDialog, { review: state.shadow, focus: state.shadowFocus, onClose: () => store.closeShadow() })
       : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll', onScroll: trackScroll },
       room.delivery ? h(DeliverySheet, { delivery: room.delivery, onExport: () => void store.exportDelivery() }) : null,
@@ -180,6 +180,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
       tab: railTab,
       onTab: setRailTab,
       ledger: state.ledgerFor === room.id ? state.ledger : null,
+      integrity: state.integrityFor === room.id ? state.integrity : null,
     }))
 }
 

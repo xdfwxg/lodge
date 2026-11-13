@@ -277,6 +277,11 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.evidenceLedger(ledgerPath[1]))
     }
 
+    const integrityPath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence-integrity$/)
+    if (integrityPath !== null && req.method === 'GET') {
+      return respond(res, service.evidenceIntegrity(integrityPath[1]))
+    }
+
     const shadowPath = path.match(/^\/api\/rooms\/([\w-]+)\/shadow-review$/)
     if (shadowPath !== null && req.method === 'GET') {
       return respond(res, service.shadowReview(shadowPath[1]))

@@ -17,8 +17,11 @@ const EMPTY = {
   replayFor: null,
   shadow: null,
   shadowFor: null,
+  shadowFocus: null,
   ledger: null,
   ledgerFor: null,
+  integrity: null,
+  integrityFor: null,
   activeId: 'dispatch',
   error: null,
 }
@@ -212,12 +215,12 @@ export function createStore() {
     }
   }
 
-  const openShadow = async roomId => {
+  const openShadow = async (roomId, evidenceId = null) => {
     try {
       const response = await fetch(`/api/rooms/${roomId}/shadow-review`)
       const data = await response.json().catch(() => ({}))
       if (!response.ok || data.shadowReview === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
-      patch({ shadow: data.shadowReview, shadowFor: roomId, error: null })
+      patch({ shadow: data.shadowReview, shadowFor: roomId, shadowFocus: evidenceId, error: null })
     } catch (error) {
       patch({ error: `评审对照加载失败：${String(error?.message ?? error)}` })
     }
@@ -231,6 +234,17 @@ export function createStore() {
       patch({ ledger: data.ledger, ledgerFor: roomId, error: null })
     } catch (error) {
       patch({ error: `证据账本加载失败：${String(error?.message ?? error)}` })
+    }
+  }
+
+  const verifyLedger = async roomId => {
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/evidence-integrity`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.integrity === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
+      patch({ integrity: data.integrity, integrityFor: roomId, error: null })
+    } catch (error) {
+      patch({ error: `账本校验失败：${String(error?.message ?? error)}` })
     }
   }
 
@@ -252,7 +266,20 @@ export function createStore() {
       source = null
       seen.clear()
     },
-    select: activeId => patch({ activeId, review: null, reviewFor: null, replay: null, replayFor: null, shadow: null, shadowFor: null, ledger: null, ledgerFor: null }),
+    select: activeId => patch({
+      activeId,
+      review: null,
+      reviewFor: null,
+      replay: null,
+      replayFor: null,
+      shadow: null,
+      shadowFor: null,
+      shadowFocus: null,
+      ledger: null,
+      ledgerFor: null,
+      integrity: null,
+      integrityFor: null,
+    }),
     loadResources,
     loadUsage,
     resetMcp: server => post(`/api/rooms/${state.activeId}/mcp/reset`, { server }),
@@ -261,8 +288,9 @@ export function createStore() {
     openReplay,
     closeReplay: () => patch({ replay: null, replayFor: null }),
     openShadow,
-    closeShadow: () => patch({ shadow: null, shadowFor: null }),
+    closeShadow: () => patch({ shadow: null, shadowFor: null, shadowFocus: null }),
     openLedger,
+    verifyLedger,
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),

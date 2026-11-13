@@ -51,7 +51,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 影子评审对照：`GET /api/rooms/:id/shadow-review` 以账本凭证为行，左侧展示 Verifier verdict，右侧展示同 `evidenceId` 的 advisor 建议与分数，标注一致/分歧/中性/缺建议；只读展示，不驱动状态、不参与签字门禁。
 
-证据账本：`evidence` 表只追加命令证据和人工产物证据（`kind: command | manual`），每条带 `id / roomId / seq / digest / meta / text / authorId / at`；执行席位的自述回合（`kind: turn`）留在消息流，不进账本。Verifier、Gate、信任阶梯只按账本选择本轮凭证，verdict 只引用 `evidenceId`。旧房间第一次读账本时从已有命令/人工证据消息补账，不改历史消息。`GET /api/rooms/:id/evidence-ledger` 提供只读列表。
+证据账本：`evidence` 表只追加命令证据和人工产物证据（`kind: command | manual`），每条带 `id / roomId / seq / digest / meta / text / authorId / at`；执行席位的自述回合（`kind: turn`）留在消息流，不进账本。Verifier、Gate、信任阶梯只按账本选择本轮凭证，verdict 只引用 `evidenceId`。旧房间第一次读账本时从已有命令/人工证据消息补账，不改历史消息。`GET /api/rooms/:id/evidence-ledger` 提供只读列表；`GET /api/rooms/:id/evidence-integrity` 重算每条 payload 的 SHA-256 并与存储 digest 对比，只报告不一致条目（含存储值、重算值），不自动修复。右栏证据条目同时显示关联 verdict（PASS/REJECT 与审核人），并可打开对该 `evidenceId` 高亮的影子评审对照。
 
 状态回放调试器：`GET /api/rooms/:id/transitions` 只读读取 `closure.transition` / `chat.transition`，复用同一张转移表重放并校验历史，输出每一步的 `from / to / event / actor / reason / context` 与非法或断链原因；不写房间、不补事件。UI 入口在高级面板的“状态回放”。
 

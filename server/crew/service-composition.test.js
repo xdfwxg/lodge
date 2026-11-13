@@ -38,6 +38,7 @@ test('the service facade keeps every route entry', () => {
     'review',
     'transitions',
     'evidenceLedger',
+    'evidenceIntegrity',
     'shadowReview',
     'deliveryExport',
     'removeSeat',

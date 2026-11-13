@@ -25,7 +25,7 @@ const exportDisagreements = review => {
   URL.revokeObjectURL(url)
 }
 
-export function ShadowDialog({ review, onClose }) {
+export function ShadowDialog({ review, focus = null, onClose }) {
   const rows = review?.rows ?? []
   const summary = review?.summary ?? {}
   return h('div', { className: 'crew-overlay', onClick: onClose },
@@ -53,7 +53,12 @@ export function ShadowDialog({ review, onClose }) {
           : h('div', { className: 'crew-shadow-list' },
             rows.map(row => {
               const status = STATUS[row.status] ?? STATUS.pending
-              return h('div', { key: row.evidenceId, className: 'crew-shadow-row', 'data-tone': status.tone },
+              return h('div', {
+                key: row.evidenceId,
+                className: 'crew-shadow-row',
+                'data-tone': status.tone,
+                'data-focus': row.evidenceId === focus ? 'true' : undefined,
+              },
                 h('div', { className: 'crew-shadow-row-head' },
                   h('b', null, `阶段 ${row.stage + 1} · ${row.kind === 'manual' ? '人工产物' : row.command || '验收命令'}`),
                   h('span', { className: 'crew-shadow-status', 'data-tone': status.tone }, status.label)),

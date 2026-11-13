@@ -9,6 +9,7 @@ import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
 import { replayTransitions } from './room-state.js'
 import { buildShadowComparison } from './shadow-review.js'
+import { verifyEvidenceIntegrity } from './evidence-ledger.js'
 
 export const createServiceQueries = ({
   store,
@@ -122,6 +123,17 @@ export const createServiceQueries = ({
     })
   }
 
+  const evidenceIntegrity = roomId => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    return ok({
+      integrity: {
+        roomId,
+        ...verifyEvidenceIntegrity(readEvidence(roomId)),
+      },
+    })
+  }
+
   const shadowReview = roomId => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
@@ -140,5 +152,5 @@ export const createServiceQueries = ({
     return recommendRosterUseCase({ engine, body, workspace })
   }
 
-  return { health, state, transitions, evidenceLedger, shadowReview, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
+  return { health, state, transitions, evidenceLedger, evidenceIntegrity, shadowReview, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
 }

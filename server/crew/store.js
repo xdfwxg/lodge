@@ -1,7 +1,8 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { evidenceDigest } from './evidence-ledger.js'
 import { appendEventLog, appendTranscript, writeEvidence } from './room-repo.js'
 
 export const createStore = ({ dataDir, emit = () => {} }) => {
@@ -123,7 +124,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       at: message.ts,
       meta: message.meta ?? {},
     }
-    const digest = createHash('sha256').update(JSON.stringify(base)).digest('hex')
+    const digest = evidenceDigest(base)
     const entry = { ...base, digest }
     db.prepare('INSERT OR IGNORE INTO evidence (id, room_id, seq, payload, created_at) VALUES (?, ?, ?, ?, ?)')
       .run(entry.id, entry.roomId, entry.seq, JSON.stringify(entry), entry.at)
