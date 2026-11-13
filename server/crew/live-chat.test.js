@@ -79,8 +79,11 @@ test('chat goes to the shared room, with display names translated to handles', a
   await ctx.chat.send(room, '@执行者 20 个字告诉我你能干啥')
   assert.equal(ctx.sent[0].roomId, 'chat-1')
   assert.match(ctx.sent[0].text, /@Executorea1/)
+  assert.match(ctx.sent[0].sendId, /^[A-Za-z0-9_-]{16,80}$/)
   assert.equal(ctx.messages.at(-1).authorId, 'you')
   assert.equal(ctx.messages.at(-1).text, '@执行者 20 个字告诉我你能干啥')
+  assert.equal(ctx.messages.at(-1).id, `optimistic:${ctx.sent[0].sendId}`)
+  assert.equal(ctx.messages.at(-1).meta.sendId, ctx.sent[0].sendId)
 })
 
 test('@所有人 maps to the base native @everyone', async () => {
@@ -121,6 +124,31 @@ test('a queued send reconciles its echo instead of showing the message twice', (
   assert.equal(ctx.messages.length, 1)
   assert.equal(ctx.messages[0].id, 'echo-1')
   assert.equal(ctx.messages[0].meta.baseId, 'base-1')
+})
+
+test('a sendId reconciles the echo even when the stored id changes', () => {
+  const ctx = setup()
+  const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  const echo = {
+    id: 'optimistic:send-1234567890abcd',
+    roomId: room.id,
+    ts: Date.now(),
+    kind: 'chat',
+    authorId: 'you',
+    text: '@规划师 你好',
+    meta: { echo: true, sendId: 'send-1234567890abcd' },
+  }
+  ctx.messages.push(echo)
+  const message = { id: 'base-1', kind: 'text', role: 'user', sendId: 'send-1234567890abcd', text: '@Plannerea1 你好', at: echo.ts + 400 }
+  ctx.subscribed[0].onEvent({ message })
+  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages[0].id, echo.id)
+  assert.equal(ctx.messages[0].text, '@规划师 你好')
+  assert.equal(ctx.messages[0].meta.baseId, 'base-1')
+  ctx.subscribed[0].onEvent({ message })
+  assert.equal(ctx.messages.length, 1)
 })
 
 test('chat turns allow read-only tools but never write or exec', () => {

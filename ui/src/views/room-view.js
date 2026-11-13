@@ -146,11 +146,12 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
       !atBottom
         ? h('button', { type: 'button', className: 'crew-jump-latest', onClick: scrollToBottom }, '回到最新')
         : null,
-      isChat && chat.running && typeof chat.speaker === 'string' && chat.speaker !== ''
+      isChat && (room.chatWorking === true || chat.running === true)
         ? h('div', { className: 'crew-typing' },
           chat.phase === 'summarizing'
             ? '主持人正在总结…'
-            : `${seats.find(seat => seat.id === chat.speaker)?.name ?? '成员'} 正在组织发言…`)
+            : `${seats.find(seat => seat.id === (room.chatBusySeat || chat.speaker))?.name ?? '成员'} 正在组织发言…`,
+          room.chatQueue?.length > 0 ? ` · ${room.chatQueue.length} 个席位排队` : '')
         : null,
       h('div', { className: 'dsb-composer' },
         h(Composer, {

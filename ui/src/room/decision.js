@@ -112,7 +112,9 @@ export const buildDecision = (room, view) => {
       return {
         key: 'chat-running',
         title: `讨论中 · ${chat.turns ?? 0}/${chat.turnLimit ?? 6}`,
-        detail: chat.speaker === '' || chat.speaker === undefined ? '成员正在发言' : `${nameOf(room, chat.speaker)} 正在发言`,
+        detail: (room.chatBusySeat || chat.speaker) === '' || (room.chatBusySeat || chat.speaker) === undefined
+          ? '成员正在发言'
+          : `${nameOf(room, room.chatBusySeat || chat.speaker)} 正在发言`,
         primary: null,
         secondary: null,
       }

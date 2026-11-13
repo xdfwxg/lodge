@@ -4,11 +4,11 @@ import { createBaseClient } from './base.js'
 // 替换 runtime 时实现同样六个方法即可：
 //   rooms() -> Room[]
 //   history(sessionRef) -> { messages }
-//   sendTurn({ roomId, text }) -> { accepted }
+//   sendTurn({ roomId, text, sendId }) -> { accepted, messageId, sendId }
 //   cancelTurn({ roomId }) -> { cancelled, reason? }
 //   usage(roomId) -> { turns, costMicroUsd }
 //   subscribe({ roomId, sessionRef, onEvent, onState }) -> unsubscribe
-// Room: { id, name, sessionRef, goal, working, cwd, usage }
+// Room: { id, name, sessionRef, goal, working, busyRef, queue, holds, heldMessages, tasks, cwd, usage }
 const normalizeRoom = (group, responderName) => ({
   id: group.id,
   name: group.name,
@@ -16,7 +16,18 @@ const normalizeRoom = (group, responderName) => ({
   goal: group.tasks?.[0]?.title ?? group.bulletin ?? group.name ?? '',
   working: group.working === true,
   busyRef: typeof group.busyBotId === 'string' ? group.busyBotId : null,
+  queue: Array.isArray(group.queue)
+    ? group.queue.map(item => ({
+      memberRef: item.botId,
+      state: item.state,
+      position: item.position,
+      of: item.of,
+      ...(item.waitingForBotId === undefined ? {} : { waitingForRef: item.waitingForBotId }),
+    }))
+    : [],
   holds: group.holds ?? {},
+  heldMessages: group.heldMessages ?? {},
+  tasks: Array.isArray(group.tasks) ? group.tasks : [],
   unread: group.unread === true,
   cwd: typeof group.cwd === 'string' && group.cwd !== ''
     ? group.cwd
@@ -54,7 +65,12 @@ export const actionForTool = tool => {
 
 const normalizeMessage = (raw, responderName) => {
   if (raw === null || typeof raw !== 'object') return null
-  const common = { id: raw.id, at: raw.at ?? Date.now(), authorRef: raw.from?.botId ?? raw.digest?.botId ?? null }
+  const common = {
+    id: raw.id,
+    at: raw.at ?? Date.now(),
+    authorRef: raw.from?.botId ?? raw.digest?.botId ?? null,
+    ...(typeof raw.sendId === 'string' ? { sendId: raw.sendId } : {}),
+  }
   if (raw.role === 'user') {
     const text = typeof raw.text === 'string' ? raw.text : ''
     return text === '' ? null : { ...common, kind: 'text', role: 'user', text }
@@ -136,9 +152,9 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { messages }
   }
 
-  const sendTurn = async ({ roomId, text }) => {
-    const body = await client.sendGroupMessage(roomId, text)
-    return { accepted: true, messageId: body?.message?.id ?? null }
+  const sendTurn = async ({ roomId, text, sendId }) => {
+    const body = await client.sendGroupMessage(roomId, text, { sendId })
+    return { accepted: true, messageId: body?.message?.id ?? null, sendId: body?.message?.sendId ?? sendId ?? null }
   }
 
   const answerCard = async ({ sessionRef, requestId, behavior }) => {

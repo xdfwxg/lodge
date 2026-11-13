@@ -1,4 +1,5 @@
 import { budgetHint, budgetStatus } from './budget.js'
+import { seatFor } from './live-projection.js'
 
 export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) => {
   // 到预算线只暂停新任务，不取消正在跑的回合；同一暂停只写一条系统消息。
@@ -38,6 +39,7 @@ export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) =
           ...seatBases.map(item => item.base),
           ...(chatBase === undefined ? [] : [chatBase]),
         ]
+        entry.baseRoom = chatBase ?? entry.baseRoom
         const nextUsage = usageBases.reduce((total, base) => {
           total.turns += base.usage.turns ?? 0
           total.costMicroUsd += base.usage.costMicroUsd ?? 0
@@ -48,10 +50,21 @@ export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) =
         }, { turns: 0, costMicroUsd: 0, tokens: { input: 0, output: 0, cachedInput: 0 } })
         const previous = room.usage
         const updated = store.updateRoom(entry.roomId, current => {
+          const toSeat = ref => (typeof ref === 'string' ? seatFor(current, ref) ?? ref : ref)
+          const toSeats = map => Object.fromEntries(Object.entries(map ?? {}).map(([ref, value]) => [toSeat(ref), value]))
           current.busy = busySeats.length > 0
           current.busySeat = busySeats[0] ?? ''
           current.busySeats = busySeats
-          current.chatHolds = chatBase?.holds ?? {}
+          current.chatWorking = chatBase?.working === true
+          current.chatBusySeat = toSeat(chatBase?.busyRef) ?? ''
+          current.chatQueue = (chatBase?.queue ?? []).map(item => ({
+            seat: toSeat(item.memberRef),
+            state: item.state,
+            position: item.position,
+            of: item.of,
+            waitingFor: item.waitingForRef === undefined ? null : toSeat(item.waitingForRef),
+          }))
+          current.chatHolds = toSeats(chatBase?.holds)
           current.chatUnread = chatBase?.unread === true
           current.usage = { ...current.usage, ...nextUsage }
           return { events: [] }

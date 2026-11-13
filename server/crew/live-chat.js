@@ -1,12 +1,23 @@
+import { randomUUID } from 'node:crypto'
 import { matchEcho, seatFor } from './live-projection.js'
 import { pauseForSeatFailure } from './live-sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
 import { toBaseMentions, toDisplayMentions } from './seat-labels.js'
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
-export const echoHumanMessage = ({ store, roomId, text, messageId }) => {
-  const echo = { roomId, ts: Date.now(), kind: 'chat', authorId: 'you', text, meta: { echo: true } }
-  if (typeof messageId === 'string' && messageId !== '') {
+// sendId 是基座的幂等键：发送响应和最终落库 ID 不同也能对上同一条话。
+export const echoHumanMessage = ({ store, roomId, text, messageId, sendId }) => {
+  const echo = {
+    roomId,
+    ts: Date.now(),
+    kind: 'chat',
+    authorId: 'you',
+    text,
+    meta: { echo: true, ...(typeof sendId === 'string' && sendId !== '' ? { sendId } : {}) },
+  }
+  if (typeof sendId === 'string' && sendId !== '') {
+    store.upsertMessage({ ...echo, id: `optimistic:${sendId}` })
+  } else if (typeof messageId === 'string' && messageId !== '') {
     store.upsertMessage({ ...echo, id: messageId })
   } else {
     store.appendMessage(roomId, echo)
@@ -29,7 +40,9 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const applyDelta = (entry, room, event) => {
     const current = store.readRoom(room.id) ?? room
     if (current.roomType !== 'chat') return
-    const seat = current.chat?.speaker
+    // 基座正在发言的人才是这一段 delta 的作者；自造的 speaker 只在拿不到基座状态时兜底。
+    const seat = (entry.baseRoom?.busyRef === undefined ? null : seatFor(current, entry.baseRoom.busyRef))
+      ?? current.chat?.speaker
     if (typeof seat !== 'string' || seat === '') return
     const streams = streamOf(entry)
     const prior = streams.get(seat)
@@ -83,6 +96,18 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (message.role === 'user') {
       const messages = store.readMessages(room.id)
       if (messages.some(item => item.meta?.baseId === message.id)) return null
+      if (typeof message.sendId === 'string' && message.sendId !== '') {
+        const echo = messages.find(item => item.meta?.sendId === message.sendId)
+        if (echo !== undefined) {
+          store.upsertMessage({
+            ...echo,
+            text: toDisplayMentions(room, message.text),
+            ts: message.at ?? echo.ts,
+            meta: { ...(echo.meta ?? {}), baseId: message.id },
+          })
+          return null
+        }
+      }
       const echo = matchEcho(messages, toDisplayMentions(room, message.text), message.at)
       if (echo !== undefined) {
         store.upsertMessage({ ...echo, meta: { ...(echo.meta ?? {}), baseId: message.id } })
@@ -159,6 +184,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       },
       onEvent: event => {
         if (event.type === 'room') {
+          entry.baseRoom = event.room
           void refresh(entry, { force: true })
           return
         }
@@ -217,8 +243,9 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (chat === undefined) throw new Error('房间聊天室还没准备好；重连房间后再试')
     // 基座原生支持 @everyone；产品文案 @所有人 只在这里映射，不自己展开成员。
     const outgoing = toBaseMentions(room, text).split('@所有人').join('@everyone')
-    const sent = await engine.sendTurn({ roomId: chat.id, text: outgoing })
-    echoHumanMessage({ store, roomId: room.id, text, messageId: sent?.messageId })
+    const sendId = randomUUID()
+    const sent = await engine.sendTurn({ roomId: chat.id, text: outgoing, sendId })
+    echoHumanMessage({ store, roomId: room.id, text, messageId: sent?.messageId, sendId })
     return sent
   }
 

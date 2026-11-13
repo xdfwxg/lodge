@@ -22,6 +22,14 @@ test('a sent message echoes into the room with the base message id', () => {
   assert.equal(store.calls[0].message.text, '现在进展如何？')
 })
 
+test('a sendId gives the echo a stable id before the base answers', () => {
+  const store = fakeStore()
+  echoHumanMessage({ store, roomId: 'room-1', text: '现在进展如何？', messageId: 'm-1', sendId: 'send-1234567890abcd' })
+  assert.equal(store.calls[0].message.id, 'optimistic:send-1234567890abcd')
+  assert.equal(store.calls[0].message.meta.sendId, 'send-1234567890abcd')
+  assert.equal(store.calls[0].message.meta.echo, true)
+})
+
 test('a message without a base id still appears in the room', () => {
   const store = fakeStore()
   echoHumanMessage({ store, roomId: 'room-1', text: '稍等', messageId: null })
