@@ -108,7 +108,7 @@ function RoomView({ state, room, store, onContinue }) {
           chat.phase === 'summarizing'
             ? `第 ${chat.round ?? 1} 轮 · 主持人总结中`
             : chat.running
-              ? `第 ${chat.round ?? 1} 轮 · 讨论中 ${chat.turns ?? 0}/6`
+              ? `第 ${chat.round ?? 1} 轮 · 讨论中 ${chat.turns ?? 0}/${chat.turnLimit ?? 6}`
               : room.state === 'complete'
                 ? '聊天已结束'
                 : room.state === 'stopped'
