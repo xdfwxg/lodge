@@ -57,8 +57,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
 
   const capabilities = engine.capabilities()
   for (const seat of roster) {
-    if (seat.skills.length > 0 && capabilities.skills !== true) {
-      return fail('conflict', '当前 runtime 还不能安装技能；先不要给席位声明技能')
+    const missingSkills = seat.skills.filter(id => ports.skills?.has?.(id) !== true)
+    if (missingSkills.length > 0) {
+      return fail('invalid', `未知技能：${missingSkills.join('、')}；先放入 templates/skills`)
     }
     if (seat.mcp.length > 0 && capabilities.mcp !== true) {
       return fail('conflict', '当前 runtime 不支持 MCP')

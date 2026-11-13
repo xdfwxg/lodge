@@ -13,7 +13,7 @@ import { deliverableStageIndex, isWorkStage, seatOf } from './live-turn-utils.js
 import { vcsOf, workspaceOf } from './live-workspace.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, skills }) => {
   const state = createTurnState({ store, roomId, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks })
   const acceptance = createAcceptanceRunner({
@@ -41,6 +41,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     updateTasks: state.updateTasks,
     integrate: integrator.integrate,
     enqueue: integrator.enqueue,
+    skills,
   })
 
   const markManualReady = (room, stageIndex, turnId) => {

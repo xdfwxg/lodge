@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { runCommand } from './acceptance.js'
 import { handoffStore } from './handoff-store.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
@@ -6,6 +7,7 @@ import { readBrief, writeBrief, writeConclusion, writeGoal } from './room-repo.j
 import { writeSeatEnv } from './seat-env.js'
 import { MAX_PROJECT_BYTES, PROJECT_FILE, readProjectConstraints } from './project.js'
 import { aggregateUsage, readUsageHistory, recordUsage } from './usage-history.js'
+import { createSkillStore } from './skill-store.js'
 import { deleteSavedTemplate, listSavedTemplates, saveSavedTemplate } from './template-store.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
 
@@ -43,6 +45,7 @@ export const createCrewPorts = () => ({
     save: saveSavedTemplate,
     delete: deleteSavedTemplate,
   },
+  skills: createSkillStore({ dir: fileURLToPath(new URL('../../templates/skills/', import.meta.url)) }),
   commands: {
     run: runCommand,
   },

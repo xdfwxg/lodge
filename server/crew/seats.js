@@ -99,6 +99,7 @@ export const rosterFromRoles = entries => {
     const engineExplicit = typeof entry.engine === 'string' && entry.engine.trim() !== ''
     const engine = engineExplicit ? entry.engine.trim().slice(0, 40) : base.engine
     const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
+    const skills = Array.isArray(entry.skills) ? entry.skills.filter(isId).slice(0, 8) : base.skills
     return cloneSeat({
       ...base,
       id,
@@ -106,6 +107,7 @@ export const rosterFromRoles = entries => {
       engine,
       engineExplicit,
       station,
+      skills,
       prompt: customPrompt ? entry.prompt.trim().slice(0, 4_000) : base.prompt,
       customPrompt,
     })

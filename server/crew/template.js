@@ -72,12 +72,16 @@ export const parseTemplate = (text, filename = '') => {
     const engine = typeof seat.engine === 'string' && !['any', 'none'].includes(seat.engine)
       ? seat.engine.trim().slice(0, 40)
       : ''
+    const skills = Array.isArray(seat.skills)
+      ? seat.skills.filter(item => typeof item === 'string' && /^[\w-]{1,64}$/.test(item)).slice(0, 8)
+      : []
     seats.push({
       role,
       name: typeof seat.name === 'string' && seat.name.trim() !== '' ? seat.name.trim().slice(0, 32) : ROLE_LABEL[role],
       prompt: prompt.trim().slice(0, 4_000),
       station: typeof seat.station === 'string' ? seat.station.trim().slice(0, 80) : '',
       ...(engine === '' ? {} : { engine }),
+      ...(skills.length === 0 ? {} : { skills }),
     })
   }
 

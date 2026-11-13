@@ -684,7 +684,7 @@ Lodge 唯一的护城河是：**跑在你自己的仓库上、用你已付费的
 
 Verifier 不能只是"仅可查看"——它必须自己跑验收命令。但它也不该有源码写权限。所以是 **read + exec，write = none**。
 
-**当前**：权限已声明并在启动时校验；工作区隔离已落（planner 克隆 / executor worktree / verifier 临时副本）；工具审批桥已落——基座权限卡经 Engine 适配层映射为 read/exec/write，`live.js` 按席位权限 allow/deny，planner/verifier 的 Write/Edit/MultiEdit 已被真实房间拒绝。外部动作再走一层人工审批：`external-actions.js` 识别 push/发布、安装依赖、删除、对外发送、提权、网络/远端命令，命中后写 `room.approvals` 并挂起基座权限卡，人在时间线点允许/拒绝后才回答；暂停、停止、断绑、重启会使其失效。`exec` 仍可在临时副本里写文件，不是通用文件系统沙箱。多验收席位已接：每个验收席位拿到同一轮验收证据独立复核，全部 PASS 才允许签字，任一 REJECT 立即打回并取消其余等待中的复核。`approval`、`mcp`、`skills` 已留扩展缝，默认关闭；MCP 只存 server 名，planner/verifier 不放外部工具。
+**当前**：权限已声明并在启动时校验；工作区隔离已落（planner 克隆 / executor worktree / verifier 临时副本）；工具审批桥已落——基座权限卡经 Engine 适配层映射为 read/exec/write，`live.js` 按席位权限 allow/deny，planner/verifier 的 Write/Edit/MultiEdit 已被真实房间拒绝。外部动作再走一层人工审批：`external-actions.js` 识别 push/发布、安装依赖、删除、对外发送、提权、网络/远端命令，命中后写 `room.approvals` 并挂起基座权限卡，人在时间线点允许/拒绝后才回答；暂停、停止、断绑、重启会使其失效。`exec` 仍可在临时副本里写文件，不是通用文件系统沙箱。多验收席位已接：每个验收席位拿到同一轮验收证据独立复核，全部 PASS 才允许签字，任一 REJECT 立即打回并取消其余等待中的复核。`approval`、`mcp`、`skills` 已留扩展缝；MCP 只存 server 名，planner/verifier 不放外部工具。席位 `skills` 由 Lodge 的本地 `templates/skills` 读取，派发时只注入声明过的正文；它不等同于基座安装技能，`capabilities.skills` 仍表示基座安装能力。
 
 **GOAL.md 归运行时，不归 Executor。** 让执行者维护清单在纯聊天工具里可行；在这里状态是运行时的事实，`GOAL.md` 只是每回合重写的一份投影。原因很简单：**让被验收的人记账，等于没有账。** 模板只保留兼容约定（Executor 追加"待验收 + 证据"），产品内由 runtime 强制。
 
@@ -748,6 +748,8 @@ Org（多人时才有）
 注意这里否定的只是"全局总管"。群内的规划师仍是产品角色（§4.2）：在一个目标内部，它负责拆阶段、派活、复核。区别在于规划师的权威来自**这个群的目标与权限**，范围到群为止；调度台的权限只有"建议"。§9.8 的 Supervisor 派活是群内阶段协议，不是这个调度台的自动路由。
 
 **调度台本身就是一个 Room。** 不是新对象，不是新部门，只是 `kind: dispatch` 的群：有自己的 `transcript.jsonl`、自己的事件；人的决定可写 `decisions.md`。你今天能看到它为什么把这件事交给了 3 号群——因为它当时就是这么说的，记在案上。**路由决策必须可审计，否则"智能派活"和"随机派活"对用户没有区别。**
+
+**当前实现（2026-11-13）**：调度台是本地 `kind: dispatch` 的请求投影，不是基座群聊；输入只生成带建议的路由请求，没有 bot 对话线程。上面的“独立 Room”是设计目标，基座群聊链路尚未接；这也是为什么调度台输入不是聊天。
 
 它只做四件事：
 

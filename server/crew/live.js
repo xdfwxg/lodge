@@ -7,7 +7,7 @@ import { createRoomChat } from './live-chat.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs }) => {
-  const { roomFiles, usage, commands, files } = ports
+  const { roomFiles, usage, commands, files, skills } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit, usage })
@@ -34,6 +34,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       sendToSeat: (seat, text) => sendToSeat(room.id, seat, text),
       commands,
       files,
+      skills,
     })
     // 已落证据的回合在重启后会被基座历史重放；先标记，避免重复采集。
     turns.seed(store.readMessages(room.id))

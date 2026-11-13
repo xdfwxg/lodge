@@ -126,6 +126,29 @@ test('a custom room name is kept while the stage title follows the goal', async 
   assert.equal(room.stages[0].title, '加一个导出按钮')
 })
 
+test('declared optional skills are validated and kept', async () => {
+  const { store } = completedRoom(temp('lodge-skill-data-'))
+  const result = await run(store, {
+    goal: '带一个复核技能',
+    verify: 'manual',
+    seats: [{ role: 'worker', name: '执行', skills: ['evidence-review'] }],
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.body.room.seatSpecs[0].skills, ['evidence-review'])
+})
+
+test('an unknown optional skill fails closed', async () => {
+  const { store } = completedRoom(temp('lodge-skill-missing-data-'))
+  const result = await run(store, {
+    goal: '带一个不存在的技能',
+    verify: 'manual',
+    seats: [{ role: 'worker', name: '执行', skills: ['missing-skill'] }],
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'invalid')
+  assert.match(result.error, /未知技能/)
+})
+
 test('a room name longer than 60 characters is rejected', async () => {
   const { store } = completedRoom(temp('lodge-name-limit-data-'))
   const result = await run(store, {

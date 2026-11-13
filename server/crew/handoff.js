@@ -22,6 +22,7 @@ const handoffRoom = room => ({
   name: room.name,
   goal: room.goal,
   state: room.state,
+  trust: room.trust ?? 'verify',
   templateId: room.templateId ?? null,
   independence: room.independence ?? null,
   plan: room.plan ?? null,

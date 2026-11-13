@@ -4,11 +4,11 @@ import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './live-turn-utils.js'
 import { planDispatch } from './orchestration/index.js'
-import { modeGuidance, workContract } from './prompt-modes.js'
+import { modeGuidance, skillPrompt, workContract } from './prompt-modes.js'
 import { seatDisplayName } from './seat-labels.js'
 import { workspaceOf } from './live-workspace.js'
 
-export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTasks, integrate, enqueue }) => {
+export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTasks, integrate, enqueue, skills }) => {
   const startStage = async (room, index, { note = '', rework = false } = {}) => {
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
@@ -72,6 +72,9 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     const promptFor = worker => {
       const port = room.ports?.[worker]
       const environment = room.workspaceEnv?.[worker]
+      const seatSkills = (room.seatSpecs?.find(seat => seat.id === worker)?.skills ?? [])
+        .map(id => skills?.read?.(id))
+        .filter(Boolean)
       return [
         `@${room.seatNames?.[worker] ?? worker} 阶段已确认：${index + 1}. ${stage.title}。${acceptance}`,
         rework
@@ -79,6 +82,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
           : '',
         ...workContract('worker'),
         ...modeGuidance({ roomType: room.roomType, readOnly }),
+        ...skillPrompt(seatSkills),
         buildSeatHandoff({ room, messages: store.readMessages(roomId) }),
         assignees.length > 1
           ? workspaceOf(room).capabilities().isolation === 'worktree'

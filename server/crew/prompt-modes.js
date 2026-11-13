@@ -37,3 +37,17 @@ export const modeGuidance = ({ roomType, readOnly = false } = {}) => {
   }
   return lines
 }
+
+export const skillPrompt = (skills = [], maxChars = 16_000) => {
+  const lines = []
+  let used = 0
+  for (const skill of skills) {
+    if (!skill?.body) continue
+    const block = [`技能：${skill.name ?? skill.id}`, skill.body]
+    const size = block.join('\n').length
+    if (lines.length > 0 && used + size > maxChars) continue
+    lines.push(...block)
+    used += size
+  }
+  return lines
+}

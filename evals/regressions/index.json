@@ -1,0 +1,24 @@
+{
+  "regressions": [
+    {
+      "id": "soul-work-sop-leak",
+      "test": "server/crew/seats.test.js",
+      "note": "工作 SOP 回流到席位 soul 后，会污染聊天和其他房型"
+    },
+    {
+      "id": "stage-gate-paused",
+      "test": "ui/src/room/stage-gate.test.js",
+      "note": "暂停或等待复核时，阶段门不应常驻显示"
+    },
+    {
+      "id": "unknown-skill",
+      "test": "server/crew/skill-store.test.js",
+      "note": "未知或越界的 skill 不能被静默加载"
+    },
+    {
+      "id": "trust-auto-needs-evidence",
+      "test": "server/crew/trust.test.js",
+      "note": "没有两条真实 PASS 时不能升到 auto"
+    }
+  ]
+}

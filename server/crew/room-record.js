@@ -65,6 +65,7 @@ export const buildRoomRecord = ({
   live: true,
   demo: false,
   state: 'active',
+  trust: 'verify',
   idle: false,
   round: 0,
   noProgress: 0,

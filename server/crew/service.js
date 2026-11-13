@@ -10,6 +10,7 @@ import { createServiceRunControl } from './service-run-control.js'
 import { createServiceSeats } from './service-seats.js'
 import { createServiceStages } from './service-stages.js'
 import { createServiceTemplates } from './service-templates.js'
+import { createServiceTrust } from './service-trust.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
@@ -40,6 +41,7 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const stages = createServiceStages({ store, live, emit, dispatchPayload, completeRoom, roomFiles })
   const runControl = createServiceRunControl({ store, live, emit, dispatchPayload, roomFiles })
+  const trust = createServiceTrust({ store, emit, dispatchPayload })
 
   const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body, ports })
 
@@ -57,6 +59,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
 
     if (action === 'stages' && method === 'POST') {
       return stages.editStagePlan(room, await readBody())
+    }
+
+    if (action === 'trust' && method === 'POST') {
+      return trust.setTrust(room, await readBody())
     }
 
     if (action === 'approvals' && method === 'POST') {

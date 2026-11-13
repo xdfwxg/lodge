@@ -4,6 +4,7 @@ import { reviewExternalAction } from './gate.js'
 import { seatNameOf } from './live-projection.js'
 import { activeStageReadOnly } from './live-turn-utils.js'
 import { decidePermission } from './permission.js'
+import { trustLevelOf } from './trust.js'
 
 export const APPROVAL_TIMEOUT = 10 * 60 * 1000
 
@@ -49,8 +50,8 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
     return updated
   }
 
-  // 外部动作不共享席位的自动判定：先落成房间里的待批准记录，人点了才回答基座权限卡。
-  const holdForApproval = (entry, seat, card, external) => {
+  // 外部动作默认由人批准；只有显式 auto 信任，且规则守门明确 allow 时才自动放行。
+  const holdForApproval = async (entry, seat, card, external) => {
     const room = store.readRoom(entry.roomId)
     if (room === null) return
     const approval = {
@@ -66,6 +67,34 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
       at: Date.now(),
     }
     approval.gate = reviewExternalAction({ approval, room })
+    if (trustLevelOf(room) === 'auto' && approval.gate.decision === 'allow') {
+      entry.answeredCards.add(card.requestId)
+      try {
+        const result = await engine.answerCard({
+          sessionRef: entry.seats.get(seat)?.sessionRef,
+          requestId: card.requestId,
+          behavior: 'allow',
+        })
+        if (result?.ok === false) throw new Error(result.error ?? '基座拒绝了自动放行')
+        store.appendEvent(entry.roomId, 'trust.auto_allow', {
+          seat,
+          kind: approval.kind,
+          summary: approval.summary,
+        })
+        store.appendMessage(entry.roomId, {
+          kind: 'system',
+          text: `信任级别 auto：${approval.seatName} 的外部动作已自动放行（规则守门 allow）。`,
+        })
+        emit('room', store.readRoom(entry.roomId))
+        return
+      } catch (error) {
+        entry.answeredCards.delete(card.requestId)
+        store.appendMessage(entry.roomId, {
+          kind: 'system',
+          text: `自动放行失败，改为等你批准：${error?.message ?? error}`,
+        })
+      }
+    }
     const updated = store.updateRoom(entry.roomId, current => {
       current.approvals = [...(current.approvals ?? []), approval].slice(-20)
       return {
@@ -160,11 +189,12 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
     if (entry.answeredCards.has(card.requestId) || entry.heldCards.has(card.requestId)) return
     const room = store.readRoom(entry.roomId)
     const spec = room?.seatSpecs?.find(item => item.id === seat)
-    const readOnly = activeStageReadOnly(room)
+    const observe = trustLevelOf(room) === 'observe'
+    const readOnly = activeStageReadOnly(room) || observe
     const allowed = decidePermission(spec, card.action, { readOnly })
     const external = allowed ? externalAction(card) : null
     if (external !== null) {
-      holdForApproval(entry, seat, card, external)
+      await holdForApproval(entry, seat, card, external)
       return
     }
     entry.answeredCards.add(card.requestId)
@@ -179,9 +209,11 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
         const blockedByReadOnly = readOnly && (card.action === 'write' || card.action === 'exec')
         store.appendMessage(entry.roomId, {
           kind: 'system',
-          text: blockedByReadOnly
-            ? `只读讨论阶段：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action}；先讨论，结论确认后再改文件。`
-            : `权限拒绝：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,
+          text: observe && blockedByReadOnly
+            ? `信任级别 observe：${spec?.name ?? seat} 只读；提升到 verify 后才能使用 ${card.tool ?? card.action}。`
+            : blockedByReadOnly
+              ? `只读讨论阶段：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action}；先讨论，结论确认后再改文件。`
+              : `权限拒绝：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,
         })
       }
       refresh(entry, { force: true })

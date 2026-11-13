@@ -60,12 +60,14 @@ function Advanced({ room, seats, store, engines = [] }) {
   const percent = budget === 0 ? 0 : Math.min(100, Math.round((cost / budget) * 100))
   const availableEngines = engines.filter(item => item.available)
   const [budgetDraft, setBudgetDraft] = useState(String(budget / 1_000_000))
+  const [trustDraft, setTrustDraft] = useState(room.trust ?? 'verify')
   const [stageTitle, setStageTitle] = useState('')
   const [stageKind, setStageKind] = useState('deliverable')
   const [stageAcceptance, setStageAcceptance] = useState('')
   useEffect(() => {
     setBudgetDraft(String(budget / 1_000_000))
-  }, [room.id, budget])
+    setTrustDraft(room.trust ?? 'verify')
+  }, [room.id, budget, room.trust])
   const saveBudget = () => {
     const value = Number(budgetDraft)
     if (!Number.isFinite(value) || value < 0) return
@@ -108,6 +110,21 @@ function Advanced({ room, seats, store, engines = [] }) {
       h('span', null, '预算'),
       h('div', { className: 'crew-bar' }, h('i', { style: { width: `${percent}%` } })),
       h('b', null, budget === 0 ? `${money(cost)} / 不限` : `${money(cost)} / ${money(budget)}`)),
+    h('div', { className: 'crew-budget-edit' },
+      h('span', null, '信任级别'),
+      h('select', {
+        value: trustDraft,
+        onChange: event => setTrustDraft(event.target.value),
+      },
+      h('option', { value: 'observe' }, 'observe · 只读'),
+      h('option', { value: 'verify' }, 'verify · 人工签字'),
+      h('option', { value: 'auto' }, 'auto · 规则放行')),
+      h('button', {
+        type: 'button',
+        className: 'crew-choice',
+        onClick: () => void store.setTrust(trustDraft, '手动调整'),
+      }, '保存'),
+      h('span', { className: 'crew-muted' }, 'auto 只自动放行规则守门 allow 的外部动作；阶段仍需独立复核。')),
     h('div', { className: 'crew-budget-edit' },
       h('span', null, '房间预算（美元，0 为不限）'),
       h('input', {

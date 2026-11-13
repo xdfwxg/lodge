@@ -266,7 +266,9 @@ openmausbot/                  # 上游 OSS，保留 remote
 - **固定三人与扩展代码（2026-11-12 封口）**：当前产品默认固定队长、执行、验收三人；单人模板已删除，自定义编制和模板的入口封口，底层 `seats: [{ role, name }]` 扩展代码保留。扩展重新开放时必须单独过权限、验收独立性和成本门禁。服务端只接受 `lead / worker / verifier`，权限由角色派生；无 `lead` 时跳过对齐，无 `verifier` 时真实证据 + 人签字，有 verifier 或席位表未知时仍必须拿到 PASS。
 - **首屏**：默认不 seed 演示房和调度假请求；空状态只有一个「开一个房间」；对齐/派活/复核提示只进基座线程，不进 Lodge 时间线。
 - **注意力路由**：`attention.js` 从房间状态派生 `needsYou`（待确认/待回答/待签字/待复核/退回/待设命令）；侧栏显示一个点与「N 个等你」，调度摘要同步；不为每条消息做未读。
-- **能力扩展缝**：席位声明 `skills / mcp / approval`，启动时校验；crew 只传 `approval / mcp` 语义，`approvalMode / mcpServers` 的映射只在 `engine.js`（实测 soul 与 approvalMode 生效）；MCP 默认关闭，planner/verifier 不放外部工具；技能只存引用，`capabilities.skills=false` 时建房 fail closed。`boundary.test.js` 会拦住 crew 里的基座词汇，`store.test.js` 覆盖旧 schema 的增量迁移。
+- **能力扩展缝**：席位声明 `skills / mcp / approval`，启动时校验；crew 只传 `approval / mcp` 语义，`approvalMode / mcpServers` 的映射只在 `engine.js`（实测 soul 与 approvalMode 生效）；MCP 默认关闭，planner/verifier 不放外部工具；技能只存 id，`templates/skills` 本地读取，派发时只注入声明过的正文；基座 `capabilities.skills` 仍表示安装能力，本地 skill 不依赖它。
+- **可选 skill 与信任阶梯（2026-11-13）**：`skill-store.js` 按 id 读取 `templates/skills`，建房时校验未知 skill 并 fail closed，派发时按 seat 声明注入正文；房型 SOP 不走 skill。`trust.js`/`service-trust.js` 提供 `observe → verify → auto`，升级要求证据，默认 `verify`；`observe` 强制只读，`auto` 只自动放行规则守门明确 allow 的外部动作，阶段仍需独立复核与人签字。UI 高级面板可调整信任级别。边界：skill 不是由模型调工具动态选择，而是按席位声明注入；`auto` 不跳过验收。
+- **失败沉淀门禁（2026-11-13）**：`evals/regressions/index.json` 登记真实翻车与对应测试，`npm run check:regressions` 检查链接；流程要求每次真实翻车补一条回归测试或 eval。`boundary.test.js` 会拦住 crew 里的基座词汇，`store.test.js` 覆盖旧 schema 的增量迁移。
 - **触发扩展缝**：定时/事件任务归基座 routines/webhooks，crew 只存 `triggers` 引用与授权，不写 cron 循环；当前未接，`capabilities.schedules=false`，默认关闭；主动档位等真实后台检查与审批跑通后再开。
 - **调度台**：仍是只读前台——收件、建议、一次确认、投影摘要；不做能操作界面的全局助手。若要加，只能是 read + propose（解释、打开面板、生成草稿），最终动作由用户点。
 - **真实 M3 验证（2026-11-11）**：用临时源仓库 + 全新数据目录跑通三人组：3 个基座线程、3 个工作区、executor 分支正确；planner 克隆没有 `hello.txt`；executor 在自己的 worktree 创建文件，源仓库 `main` 仍干净；候选 commit 在 `crew/<room>/executor`；verifier 临时副本拿到候选文件并给 PASS；人签字后 executor 工作树干净，结论 commit 含 `CONCLUSION.md`；交付在房间分支上，可人工合并。另验证两席自定义房（执行+验收）与无验收房（队长+执行，`human` 人签字）；测试 bot 与群已清理，基座回到只有 MausBot。

@@ -233,6 +233,7 @@ export function createStore() {
     simulate: () => post(`/api/rooms/${state.activeId}/simulate`, {}),
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     setBudget: budgetUsd => post(`/api/rooms/${state.activeId}/budget`, { budgetUsd }),
+    setTrust: (level, reason) => post(`/api/rooms/${state.activeId}/trust`, { level, reason }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
     editStagePlan: (action, index, stage) => post(`/api/rooms/${state.activeId}/stages`, { action, index, stage }),
