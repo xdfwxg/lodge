@@ -4,6 +4,7 @@ import { workContract } from './prompt-modes.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { reject } from './result.js'
 import { parseVerdict, REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './live-turn-utils.js'
+import { studioTransitionEvent, transitionStudio } from './room-state.js'
 import { workspaceOf } from './live-workspace.js'
 import { manualReviewState, quorumOf, reviewState, verifierIds, verifierPolicyOf } from './verifiers.js'
 import { markStageTasks } from './tasks.js'
@@ -99,6 +100,14 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
           ? `${name} 后未达到 quorum：${passed}/${total} PASS、${rejected} REJECT（需要 ${required}）；这一轮仍未通过。`
           : `${name} 打回；其余验收席位不再等待，返工后重跑验收命令。`,
       })
+      const current = store.readRoom(roomId)
+      const moved = transitionStudio(current?.closure ?? 'verifying', 'verdict_reject')
+      if (moved.ok) {
+        store.updateRoom(roomId, roomState => {
+          roomState.closure = moved.state
+          return { events: [studioTransitionEvent(moved, 'verdict_reject', pending.verifier)] }
+        })
+      }
     }
     return true
   }
@@ -115,14 +124,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     }
     const budget = budgetStatus(room, store.readRooms())
     if (!budget.ok) reject('conflict', budget.message)
-    if (room.roomType === 'studio') {
-      store.updateRoom(roomId, current => {
-        if (current.closure !== 'executing') return null
-        current.closure = 'verifying'
-        return { events: [{ type: 'room.closure', payload: { closure: 'verifying' } }] }
-      })
-    }
-
     const messages = store.readMessages(roomId)
     const manual = stage.manual === true
     const outcome = manual
@@ -136,6 +137,18 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     const evidence = outcome.evidence
     if (evidence === undefined || evidence === null) {
       reject('conflict', manual ? '还没有本阶段的产物证据' : '还没有本阶段的验收命令证据')
+    }
+    if (room.roomType === 'studio' && room.closure === 'executing') {
+      const moved = transitionStudio(room.closure, 'submit_evidence', {
+        manual,
+        exitCode: evidence.meta?.exit,
+      })
+      if (!moved.ok) reject('conflict', moved.error)
+      store.updateRoom(roomId, current => {
+        if (current.closure !== 'executing') return null
+        current.closure = moved.state
+        return { events: [studioTransitionEvent(moved, 'submit_evidence', 'verifier')] }
+      })
     }
     if (round !== null) {
       if (round.evidenceId === evidence.id) reject('conflict', '上一次复核还没有结束')

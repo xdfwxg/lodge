@@ -1,4 +1,5 @@
 import { blockedSeats } from './mcp-breaker.js'
+import { studioTransitionEvent, transitionStudio } from './room-state.js'
 import { markSeatRead } from './watermarks.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
@@ -47,9 +48,10 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
     if (room.roomType === 'studio') {
       const updated = store.updateRoom(roomId, current => {
-        if (current.closure === 'rejected' || current.closure === 'signed') return null
-        current.closure = 'executing'
-        return { events: [] }
+        const moved = transitionStudio(current.closure ?? 'open', 'start_execute')
+        if (!moved.ok) return null
+        current.closure = moved.state
+        return { events: [studioTransitionEvent(moved, 'start_execute', 'planner')] }
       })
       if (updated !== null) emit?.('room', updated)
     }

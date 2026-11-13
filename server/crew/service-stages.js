@@ -5,6 +5,7 @@ import { acceptanceChangeError } from './service-policy.js'
 import { editStages } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
 import { childResultText, childVerdictsOf } from './room-subrooms.js'
+import { studioTransitionEvent, transitionStudio } from './room-state.js'
 
 export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom, roomFiles, plannerMcp = null }) => {
   const { readRooms, readMessages, updateRoom, appendMessage } = store
@@ -103,6 +104,7 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     const index = Number(body.stage)
     let gate = null
     let next = -1
+    let transitionError = null
     const updated = updateRoom(room.id, current => {
       gate = gateFor(current, index, readMessages(room.id))
       if (!gate.ok) return null
@@ -112,15 +114,27 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
       next = current.stages.findIndex(item => item.state === 'pending')
       if (next >= 0) current.stages[next].state = 'active'
       else current.state = 'complete'
-      if (current.roomType === 'studio') current.closure = next < 0 ? 'signed' : 'planned'
+      let closureEvent = null
+      if (current.roomType === 'studio') {
+        const event = next < 0 ? 'sign' : 'stage_advanced'
+        const moved = transitionStudio(current.closure ?? 'open', event, next < 0 ? { verdictPassed: true, human: true } : {})
+        if (!moved.ok) {
+          transitionError = moved.error
+          return null
+        }
+        current.closure = moved.state
+        closureEvent = studioTransitionEvent(moved, event, 'you')
+      }
       return {
         events: [
           { type: 'stage.passed', payload: { stage: index, kind: stage.kind, by: 'you' } },
           ...(next < 0 ? [{ type: 'room.complete', payload: {} }] : []),
+          ...(closureEvent === null ? [] : [closureEvent]),
         ],
       }
     })
     if (gate !== null && gate.ok === false) return fail(gate.reason, gate.error)
+    if (transitionError !== null) return fail('conflict', transitionError)
     if (updated === null) return fail('not_found', '没有这个房间')
     room = updated
     if (!room.demo) roomFiles.writeGoal(room)

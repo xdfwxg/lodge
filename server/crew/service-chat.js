@@ -1,4 +1,5 @@
 import { fail, ok } from './result.js'
+import { chatTransitionEvent, transitionChat } from './room-state.js'
 
 // 聊天室只有 room.chat；结论确认和继续讨论都不经过工作室的 stages/gates。
 export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
@@ -11,10 +12,12 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     if (chat === undefined || chat.running === true || chat.phase !== 'awaiting_decision') {
       return fail('conflict', '现在没有待确认的聊天结论')
     }
+    const moved = transitionChat(chat.phase, 'accept')
+    if (!moved.ok) return fail('conflict', moved.error)
     const updated = updateRoom(room.id, current => {
-      current.chat = { ...current.chat, accepted: true, running: false, speaker: '' }
+      current.chat = { ...current.chat, phase: moved.state, accepted: true, running: false, speaker: '' }
       current.state = 'complete'
-      return { events: [{ type: 'room.complete', payload: { kind: 'chat' } }] }
+      return { events: [{ type: 'room.complete', payload: { kind: 'chat' } }, chatTransitionEvent(moved, 'accept', 'you')] }
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)
@@ -33,6 +36,8 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     if (chat === undefined || chat.running === true || chat.phase !== 'awaiting_decision') {
       return fail('conflict', '现在没有待确认的聊天结论')
     }
+    const moved = transitionChat(chat.phase, 'continue_discuss')
+    if (!moved.ok) return fail('conflict', moved.error)
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : ''
     const message = appendMessage(room.id, {
       kind: 'chat_rework',
@@ -44,7 +49,7 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
       current.chat = {
         ...current.chat,
         round: (current.chat.round ?? 1) + 1,
-        phase: 'discussing',
+        phase: moved.state,
         turns: 0,
         conclusionId: null,
         accepted: false,
@@ -52,7 +57,7 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
         speaker: '',
         note,
       }
-      return { events: [{ type: 'chat.continued', payload: { round: current.chat.round } }] }
+      return { events: [{ type: 'chat.continued', payload: { round: current.chat.round } }, chatTransitionEvent(moved, 'continue_discuss', 'you')] }
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)

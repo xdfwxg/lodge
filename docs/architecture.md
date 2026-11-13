@@ -9,11 +9,13 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 核心原则：严格区分「对话共识范式」与「可验收交付范式」，两套状态机、数据结构、能力体系完全隔离；工作室所有业务岗位基于 3 种本原角色派生，不新增底层角色原语。
 
+状态机落点：`server/crew/room-state.js` 保存两张独立转移表，只做 `状态 + 事件 + context → 下一状态/拒绝原因` 的纯判断。所有 `closure` 和 `room.chat.phase` 写入必须经过它，并写 `closure.transition` / `chat.transition` 审计事件。聊天机与工作室机不共享状态、不发跨机事件。
+
 ## 1. ChatRoom 聊天室
 
 - 引擎：`chat` 对话引擎
 - 底层角色原语：仅 `participant`；主持人通过布尔标记 `isHost: true` 区分，不复用 planner 语义
-- 独立状态：`room.chat`，自有字段：`round`、`phase: discussing | summarizing | awaiting_decision`、`turnLimit`（默认 6，建房可配置）、`turns`、`conclusionId`、`accepted`
+- 独立状态：`room.chat`，自有字段：`round`、`phase: discussing | summarizing | awaiting_decision | accepted`、`turnLimit`（默认 6，建房可配置）、`turns`、`conclusionId`、`accepted`
 - 边界约束：**不使用工作室的 closure / stages / gates / evidence / verdict 体系**。聊天室的结论确认只是对话规则收尾，不属于交付门禁、不进入信任阶梯。
 - 能力：自由讨论、圆桌对齐、头脑风暴；轮次上限是房间参数，不是引擎常量；仅开放低风险只读工具，不挂载 Pi 完整执行引擎。
 - 无 Gate 前置管道，无开工卡，无强制验收闭环。

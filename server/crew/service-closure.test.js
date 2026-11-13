@@ -42,5 +42,5 @@ test('Planner cannot terminate after execution starts', () => {
   const ctx = setup('executing')
   const result = ctx.service.rejectPlan(ctx.room(), { reason: '想停' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /Verifier|执行/)
+  assert.match(result.error, /planned|执行/)
 })

@@ -355,3 +355,22 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   assert.equal(review.consume({ turn: { reply: 'PASS new' }, seat: 'verifier', turnId: 't-new', room }), true)
   assert.equal(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true), true)
 })
+
+test('a verifier reject returns the studio closure to executing', async () => {
+  const room = makeRoom({ verifiers: ['verifier'], closure: 'verifying' })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async () => ({ messageId: 'm2' }),
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  assert.equal(review.consume({ turn: { reply: 'REJECT\n证据不足' }, seat: 'verifier', turnId: 't1', room }), true)
+  assert.equal(room.closure, 'executing')
+})

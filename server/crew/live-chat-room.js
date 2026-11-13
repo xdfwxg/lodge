@@ -1,4 +1,5 @@
 import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
+import { chatTransitionEvent, transitionChat } from './room-state.js'
 import { seatDisplayName } from './seat-labels.js'
 
 export const CHAT_TURNS_PER_ROUND = 6
@@ -239,14 +240,16 @@ export const createChatScheduler = ({
       }
 
       const lines = discussionLines(store, roomId, 16)
+      const summarizing = transitionChat(store.readRoom(roomId)?.chat?.phase ?? 'discussing', 'summarize')
+      if (!summarizing.ok) throw new Error(summarizing.error)
       patch(state => {
         state.chat = {
           ...state.chat,
-          phase: 'summarizing',
+          phase: summarizing.state,
           speaker: host,
           running: true,
         }
-        return { events: [{ type: 'chat.summary_started', payload: { round } }] }
+        return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', host)] }
       })
       let before = await messageIds(chat)
       let sent = await engine.sendTurn({
@@ -284,17 +287,19 @@ export const createChatScheduler = ({
           at: Date.now(),
         },
       })
+      const concluded = transitionChat('summarizing', 'conclude')
+      if (!concluded.ok) throw new Error(concluded.error)
       const updated = patch(current => {
         current.chat = {
           ...current.chat,
-          phase: 'awaiting_decision',
+          phase: concluded.state,
           turns: completed,
           conclusionId: conclusion?.id ?? null,
           accepted: false,
           running: false,
           speaker: '',
         }
-        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }] }
+        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }, chatTransitionEvent(concluded, 'conclude', host)] }
       })
       if (updated !== null) emit('room', store.readRoom(roomId) ?? updated)
       void refresh()
