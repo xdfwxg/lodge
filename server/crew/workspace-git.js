@@ -19,6 +19,9 @@ const MAX_OUTPUT = 64 * 1024
 const MAX_BUFFER = 8 * 1024 * 1024
 const clip = text => (text.length > MAX_OUTPUT ? `${text.slice(0, MAX_OUTPUT)}\n…（输出已截断）` : text)
 
+// 机器上没有全局 git 身份时，commit/merge 会直接失败；房间自己的记录统一用固定身份。
+const GIT_IDENTITY = ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost']
+
 const git = (cwd, args) => execFileSync('git', args, {
   cwd,
   encoding: 'utf8',
@@ -80,7 +83,7 @@ const ensureRepo = path => {
   const readme = join(path, 'README.md')
   if (!existsSync(readme)) writeFileSync(readme, `# ${basename(path)}\n`)
   execFileSync('git', ['add', 'README.md'], { cwd: path })
-  execFileSync('git', ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', 'room: initial'], { cwd: path })
+  execFileSync('git', [...GIT_IDENTITY, 'commit', '-q', '-m', 'room: initial'], { cwd: path })
   return path
 }
 
@@ -253,7 +256,7 @@ export const removeIsolatedCopy = ({ source, copy }) => {
 // 把执行分支合进房间集成分支；冲突时回滚合并并把冲突文件交给人，不自动选边。
 export const integrate = ({ path, branch }) => {
   try {
-    git(path, ['merge', '--no-edit', '--no-ff', branch])
+    git(path, [...GIT_IDENTITY, 'merge', '--no-edit', '--no-ff', branch])
     return { ok: true }
   } catch (error) {
     let files = []
@@ -288,7 +291,7 @@ export const submit = ({ path, turnId, name }) => {
   if (staged === '') return null
   const message = `crew: candidate${turnId === undefined ? '' : ` ${turnId}`}${name ? ` · ${name}` : ''}`
   try {
-    git(path, ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', message])
+    git(path, [...GIT_IDENTITY, 'commit', '-q', '-m', message])
   } catch (error) {
     if (/nothing to commit|no changes added to commit/i.test(String(error?.message ?? error))) {
       try {
@@ -420,7 +423,7 @@ export const persistRoom = ({ room, files = [] }) => {
     if (extra.length > 0) execFileSync('git', ['add', '-A', '--', ...extra], { cwd: repo, stdio: 'ignore' })
     const status = execFileSync('git', ['status', '--porcelain', '--', ...paths], { cwd: repo, encoding: 'utf8' })
     if (status.trim() === '') return true
-    execFileSync('git', ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', `room: ${room.name}`, '--', ...paths], { cwd: repo, stdio: 'ignore' })
+    execFileSync('git', [...GIT_IDENTITY, 'commit', '-q', '-m', `room: ${room.name}`, '--', ...paths], { cwd: repo, stdio: 'ignore' })
     console.log(`room committed: ${room.id} ${paths.join(' ')}`)
     return true
   } catch (error) {
