@@ -21,21 +21,36 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       return
     }
     // diff 必须在候选提交前采集：提交后工作树变干净，provider 会看不到交付改动。
-    const diff = await workspaceOf(room).changes({ path: room.repoPath })
+    let diff = await workspaceOf(room).changes({ path: room.repoPath })
     const changed = (diff.files?.length ?? 0) > 0 || (diff.manifest?.length ?? 0) > 0
+    const head = typeof workspaceOf(room).head === 'function'
+      ? workspaceOf(room).head({ path: room.repoPath })
+      : null
+    const baseline = room.stageBases?.[stageIndex] ?? null
+    const advanced = baseline !== null && typeof head === 'string' && head !== '' && head !== baseline
+    if (!changed && advanced && typeof workspaceOf(room).rangeChanges === 'function') {
+      // 执行者自己 commit 时工作树是干净的，证据要补上“阶段起点 → 当前 HEAD”的改动。
+      try {
+        const range = await workspaceOf(room).rangeChanges({ path: room.repoPath, base: baseline })
+        if ((range.files?.length ?? 0) > 0 || range.diff !== '') diff = { ...diff, ...range }
+      } catch {}
+    }
     if (!changed && capabilities.candidate === true) {
       const messages = store.readMessages(roomId)
       const floor = reworkFloor(messages, stageIndex)
-      // 返工之后即使工作树是干净的（执行者 amend 了候选提交），也必须对当前 HEAD 重跑验收。
-      const prior = messages.some(message => (
+      const prior = [...messages].reverse().find(message => (
         message.kind === 'evidence' &&
         message.meta?.kind === 'command' &&
         (message.meta?.stage ?? 0) === stageIndex &&
         (message.seq ?? 0) > floor &&
         message.meta?.exit === 0
       ))
-      if (prior || floor < 0) {
-        const note = prior
+      const covered = prior?.meta?.head ?? prior?.meta?.candidate ?? null
+      const currentHead = typeof head === 'string' && head !== '' ? head : null
+      // 工作树干净不等于没有交付：执行者可能自己 commit，或返工 amend 了候选提交。
+      const coveredByPrior = prior !== undefined && (covered === null || currentHead === null || covered === currentHead)
+      if (coveredByPrior || (prior === undefined && floor < 0 && !advanced)) {
+        const note = prior !== undefined
           ? '本轮无新增交付改动，沿用已完成的验收。'
           : '本轮没有可验收的交付改动，验收未执行。'
         const lastSystem = [...messages].reverse().find(message => message.kind === 'system')
@@ -55,7 +70,8 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     }
     let copy
     try {
-      copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: candidate ?? 'HEAD' })
+      // 候选为空时（执行者自己 commit）必须用房间 worktree 的 HEAD，不能用源仓库的 HEAD。
+      copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: candidate ?? head ?? 'HEAD' })
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `验收隔离副本创建失败，验收未执行：${error?.message ?? error}` })
       return
@@ -95,6 +111,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
         isolated: true,
         sandbox: result.sandbox,
         candidate,
+        head: typeof head === 'string' && head !== '' ? head : null,
         turnId,
         simulated: false,
         capturedAt: new Date().toISOString(),

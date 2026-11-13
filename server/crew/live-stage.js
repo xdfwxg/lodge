@@ -15,6 +15,16 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
   const startStage = async (room, index, { note = '', rework = false } = {}) => {
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
+    // 验收要能判断“执行者自己 commit 了但工作树干净”的新交付；按阶段记下起始 HEAD。
+    const stageBase = typeof room.repoPath === 'string' && room.repoPath !== '' && typeof workspaceOf(room).head === 'function'
+      ? workspaceOf(room).head({ path: room.repoPath })
+      : null
+    if (typeof stageBase === 'string' && stageBase !== '') {
+      store.updateRoom(roomId, current => {
+        current.stageBases = { ...(current.stageBases ?? {}), [index]: stageBase }
+        return { events: [] }
+      })
+    }
     const allWorkers = room.workers ?? []
     if (allWorkers.length === 0) throw new Error('房间没有执行席位')
     const blocked = blockedSeats(room)

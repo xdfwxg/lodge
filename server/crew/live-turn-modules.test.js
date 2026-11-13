@@ -336,6 +336,47 @@ test('a rework reruns acceptance even when the amended candidate has no working-
   assert.doesNotMatch(store.messages.at(-2).text, /没有可验收的交付改动/)
 })
 
+test('a self-committed stage still runs acceptance when HEAD moved past the stage baseline', async () => {
+  const copies = []
+  registerWorkspaceProvider('test-live-self-commit', {
+    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
+    changes: async () => ({ diff: '', status: '', files: [], manifest: [] }),
+    head: () => 'commit-after-baseline',
+    rangeChanges: async () => ({ diff: 'diff --git a/src/initials.js', files: ['src/initials.js'] }),
+    submit: () => null,
+    isolatedCopy: input => {
+      copies.push(input)
+      return { path: '/tmp/copy' }
+    },
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    stageBases: { 0: 'stage-baseline' },
+    workspace: { provider: 'test-live-self-commit' },
+  })
+  const store = fakeStore(room)
+  let runs = 0
+  const runner = createAcceptanceRunner({
+    store,
+    roomId: 'room-1',
+    markProgress: () => {},
+    requestReview: async () => { throw new Error('review must not run') },
+    run: async () => {
+      runs += 1
+      return { exit: 0 }
+    },
+  })
+  await runner.run(0, 'true', 't-self-commit')
+  assert.equal(runs, 1)
+  assert.equal(copies[0].ref, 'commit-after-baseline')
+  const evidence = store.messages.find(message => message.meta?.kind === 'command')
+  assert.equal(evidence.meta.head, 'commit-after-baseline')
+  assert.deepEqual(evidence.meta.files, ['src/initials.js'])
+  assert.match(evidence.meta.diff, /src\/initials\.js/)
+})
+
 test('a worker chatter turn does not start another acceptance round', async () => {
   const room = makeRoom({
     workers: ['worker'],

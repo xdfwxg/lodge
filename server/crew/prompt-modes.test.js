@@ -4,7 +4,9 @@ import { modeGuidance, skillPrompt, workContract } from './prompt-modes.js'
 
 test('work contracts carry stage discipline, not room identity', () => {
   assert.match(workContract('worker').join('\n'), /不要自己 git commit/)
+  assert.match(workContract('worker').join('\n'), /不要创建额外的报告/)
   assert.match(workContract('verifier').join('\n'), /第一行只写 PASS 或 REJECT/)
+  assert.match(workContract('verifier').join('\n'), /与阶段目标无关的新增文件/)
   assert.match(workContract('lead').join('\n'), /用户确认前不要派活/)
   assert.deepEqual(workContract('unknown'), [])
 })
