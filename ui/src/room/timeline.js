@@ -2,7 +2,7 @@ import { createElement as h, useMemo, useState } from 'react'
 import { ApprovalCard } from '../approval-card.js'
 import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard } from '../message-cards.js'
 import { isDispatchHandoff } from './handoff.js'
-import { buildTimeline } from './timeline-model.js'
+import { buildTimeline, dedupeChatStreams } from './timeline-model.js'
 
 const TIME_GAP = 5 * 60 * 1000
 const timeLabel = ts => {
@@ -17,11 +17,12 @@ const timeLabel = ts => {
 function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartStudio, compact = false, hideKinds = [] }) {
   const [expanded, setExpanded] = useState(false)
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
-  const timeline = useMemo(() => buildTimeline(room.messages), [room.messages])
+  const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
+  const timeline = useMemo(() => buildTimeline(messages), [messages])
 
   const timeMarks = new Map()
   let previousTs = null
-  for (const message of room.messages) {
+  for (const message of messages) {
     if (typeof message.ts !== 'number') continue
     if (previousTs !== null && message.ts - previousTs >= TIME_GAP) timeMarks.set(message.id, message.ts)
     previousTs = message.ts

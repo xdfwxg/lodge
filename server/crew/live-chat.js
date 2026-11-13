@@ -88,7 +88,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: seat }),
       text,
       ts: message.at ?? Date.now(),
-      meta: { ...(existing?.meta ?? {}), streaming: false, final: true },
+      meta: { ...(existing?.meta ?? {}), streaming: false, final: true, baseId: message.id },
     })
     streams.delete(seat)
     finalIds.add(message.id)
@@ -99,6 +99,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const projectMessage = (room, message) => {
     // 隐藏主持模型的原始回复只喂给总结卡，不进入聊天时间线。
     if (room.chatHost?.memberRef !== undefined && message.authorRef === room.chatHost.memberRef) return null
+    // 流式消息已经落库的，同步历史时不再补一条同内容的消息。
+    if (store.readMessages(room.id).some(item => item.meta?.baseId === message.id)) return null
     if (message.role === 'user') {
       const messages = store.readMessages(room.id)
       if (messages.some(item => item.meta?.baseId === message.id)) return null
@@ -129,7 +131,9 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (chat === undefined) return
     const { messages } = await engine.history(chat.sessionRef)
     for (const message of messages) {
-      const stored = projectMessage(room, message)
+      // 事件可能丢；同步历史时也要把流式消息收口，否则会多出一条最终消息。
+      const streamed = finishStream(entry, room, message)
+      const stored = streamed ? null : projectMessage(room, message)
       if (stored !== null) store.upsertMessage(stored)
       pauseForSeatFailure(store, entry, message)
     }

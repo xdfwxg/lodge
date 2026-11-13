@@ -35,7 +35,7 @@ export function createStore() {
     for (const listener of listeners) listener()
   }
   const patch = next => emit({ ...state, ...next })
-  const lastSeq = () => Math.max(0, ...state.rooms.map(room => room.messages.at(-1)?.seq ?? 0))
+  const lastSeq = () => Math.max(0, ...state.rooms.flatMap(room => room.messages.map(message => message.seq ?? 0)))
   const rememberedRoom = () => {
     try {
       return globalThis.localStorage?.getItem('lodge.activeRoom') ?? null
@@ -56,7 +56,13 @@ export function createStore() {
     seen.add(message.id)
     const rooms = state.rooms.map(room => (
       room.id === message.roomId
-        ? { ...room, messages: [...room.messages, message].sort((a, b) => a.seq - b.seq) }
+        ? {
+          ...room,
+          // 按消息时间排；seq 只是本地落库顺序，流式占位和最终消息会乱序。
+          messages: [...room.messages, message].sort((a, b) => (
+            (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0)
+          )),
+        }
         : room
     ))
     patch({ rooms })

@@ -6,7 +6,20 @@ const isEmptyChat = message => message.kind === 'chat' && String(message.text ??
 export const isProcessMessage = message => PROCESS_KINDS.has(message.kind) ||
   (message.kind === 'evidence' && message.meta?.kind === 'turn')
 
+// 服务重启后同一条发言可能先以流式占位落库，再以基座最终消息补一条；同席同时同文只留最终那条。
+export const dedupeChatStreams = messages => {
+  const finals = new Set(messages
+    .filter(message => message.kind === 'chat' && !String(message.id).startsWith('stream:'))
+    .map(message => `${message.authorId}|${message.ts}|${String(message.text ?? '').trim()}`))
+  return messages.filter(message => (
+    !(message.kind === 'chat' &&
+      String(message.id).startsWith('stream:') &&
+      finals.has(`${message.authorId}|${message.ts}|${String(message.text ?? '').trim()}`))
+  ))
+}
+
 export const buildTimeline = messages => {
+  messages = dedupeChatStreams(messages)
   const evidenceById = new Map()
   for (const message of messages) {
     if (message.kind === 'evidence') evidenceById.set(message.id, message)

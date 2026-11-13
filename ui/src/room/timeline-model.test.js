@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildTimeline, isProcessMessage } from './timeline-model.js'
+import { buildTimeline, dedupeChatStreams, isProcessMessage } from './timeline-model.js'
 
 const message = (id, kind, over = {}) => ({ id, kind, seq: 1, text: '', ...over })
 
@@ -49,6 +49,16 @@ test('empty base chat never reaches the main timeline', () => {
     message('e3', 'chat', { authorId: 'executor', text: '在' }),
   ]
   assert.deepEqual(buildTimeline(messages).visible.map(item => item.id), ['e3'])
+})
+
+test('a stream placeholder yields to the final copy of the same speech', () => {
+  const messages = [
+    message('stream:r:worker', 'chat', { authorId: 'worker', ts: 5, text: '甲' }),
+    message('b1', 'chat', { authorId: 'worker', ts: 5, text: '甲' }),
+    message('stream:r:worker-2', 'chat', { authorId: 'worker-2', ts: 6, text: '乙' }),
+  ]
+  assert.deepEqual(dedupeChatStreams(messages).map(item => item.id), ['b1', 'stream:r:worker-2'])
+  assert.deepEqual(buildTimeline(messages).visible.map(item => item.id), ['b1', 'stream:r:worker-2'])
 })
 
 test('consecutive user messages stay at the end of the timeline', () => {

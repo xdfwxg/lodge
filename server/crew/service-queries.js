@@ -6,6 +6,7 @@ import { buildReview } from './review.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
 import { isChatSystemNoise } from './room-chat.js'
+import { dropStaleStreams } from './live-projection.js'
 import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
 import { replayTransitions } from './room-state.js'
@@ -38,13 +39,14 @@ export const createServiceQueries = ({
       seats,
       roomTypes: listRoomTypes(),
       rooms: rooms.map(room => {
-        const messages = readMessages(room.id)
+        const ordered = readMessages(room.id)
           .slice()
           .filter(message => !(room.roomType === 'chat' && isChatSystemNoise(message)))
           .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
-          .map(message => (
-            typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
-          ))
+        const kept = room.roomType === 'chat' ? dropStaleStreams(ordered) : ordered
+        const messages = kept.map(message => (
+          typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
+        ))
         return {
           ...presentRoom(room, messages, room.state === 'complete' && room.roomType !== 'chat' ? readEvidence(room.id) : null),
           brief: roomFiles.readBrief(room),

@@ -176,6 +176,26 @@ test('a streamed final reply maps base handles to seat names', () => {
   assert.equal(ctx.messages.at(-1).meta.final, true)
 })
 
+test('syncing base history keeps a streamed final reply once', async () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  base.chatRoom = { id: 'chat-1', sessionRef: 'thread-1' }
+  const room = { ...base }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '你好', turnId: 't1' })
+  const final = { id: 'm1', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '你好', at: Date.now() }
+  ctx.subscribed[0].onEvent({ message: final })
+  assert.equal(ctx.messages.length, 1)
+  ctx.engine.history = async () => ({ messages: [final] })
+  ctx.subscribed[0].onState({ connected: true })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages[0].meta.baseId, 'm1')
+})
+
 test('chat turns allow read-only tools but never write or exec', () => {
   const ctx = setup()
   const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }

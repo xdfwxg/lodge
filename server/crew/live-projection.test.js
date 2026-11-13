@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createMessageProjector, matchEcho } from './live-projection.js'
+import { createMessageProjector, dropStaleStreams, matchEcho } from './live-projection.js'
 
 const projector = createMessageProjector({
   store: { readRoom: () => ({ seatBots: { executor: 'bot-1' }, hiddenBaseMessages: [] }) },
@@ -43,6 +43,15 @@ test('seat messages keep their seat author', () => {
   const stored = projector.toStored('room-1', { id: 'm1', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '在' })
   assert.equal(stored.kind, 'chat')
   assert.equal(stored.authorId, 'executor')
+})
+
+test('stale stream placeholders give way to the final message', () => {
+  const messages = [
+    { id: 'stream:room-1:worker', authorId: 'worker', ts: 5, kind: 'chat', text: '甲' },
+    { id: 'b1', authorId: 'worker', ts: 5, kind: 'chat', text: '甲' },
+    { id: 'stream:room-1:worker-2', authorId: 'worker-2', ts: 6, kind: 'chat', text: '乙' },
+  ]
+  assert.deepEqual(dropStaleStreams(messages).map(message => message.id), ['b1', 'stream:room-1:worker-2'])
 })
 
 test('bare base handles in prose become seat names', () => {

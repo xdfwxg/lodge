@@ -23,14 +23,22 @@ function ActivityLine({ message }) {
     h('span', { className: 'crew-activity-time' }, timeOf(message.ts)))
 }
 
+const splitTopic = text => {
+  const match = text.match(/^(.*?)「([^」]*)」(.*)$/s)
+  return match === null ? null : { before: match[1], topic: `「${match[2]}」`, after: match[3] }
+}
+
 function ChatLine({ message, seat }) {
+  const topic = message.meta?.opening === true ? splitTopic(String(message.text ?? '')) : null
   return h('div', { className: 'crew-msg' },
     h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat, ts: message.ts, time: false, station: false }),
       h('div', {
         className: message.meta?.streaming === true ? 'bt-bubble crew-streaming' : 'bt-bubble',
-      }, h(Markdown, { text: message.text }))))
+      }, topic === null
+        ? h(Markdown, { text: message.text })
+        : h('span', null, topic.before, h('strong', { className: 'crew-chat-topic' }, topic.topic), topic.after))))
 }
 
 function EvidenceCard({ message, seat }) {
