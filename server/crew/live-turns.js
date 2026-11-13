@@ -46,20 +46,29 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
   })
 
   const markManualReady = (room, stageIndex, turnId, worked) => {
-    // 人工阶段没有命令可判“无改动”：没有实际工作的重复回报只更新记录，不重复生成验收证据。
-    const existing = store.readMessages(roomId).some(message => (
-      message.kind === 'evidence' &&
-      message.meta?.kind === 'manual' &&
-      (message.meta?.stage ?? 0) === stageIndex
-    ))
-    if (existing && !worked) return
+    let candidate = null
     try {
       if (workspaceOf(room).capabilities().candidate === true) {
-        const candidate = workspaceOf(room).submit({ path: room.repoPath, turnId, name: room.name })
+        candidate = workspaceOf(room).submit({ path: room.repoPath, turnId, name: room.name })
         if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
       }
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `候选提交失败：${error?.message ?? error}` })
+    }
+    const head = typeof workspaceOf(room).head === 'function' && typeof room.repoPath === 'string' && room.repoPath !== ''
+      ? workspaceOf(room).head({ path: room.repoPath })
+      : null
+    const acceptedRef = candidate ?? head
+    // 人工阶段没有命令可判“无改动”：同一 HEAD 上的重复回合不重复生成验收证据，也不重复送审。
+    const prior = [...store.readMessages(roomId)].reverse().find(message => (
+      message.kind === 'evidence' &&
+      message.meta?.kind === 'manual' &&
+      (message.meta?.stage ?? 0) === stageIndex
+    ))
+    const covered = prior?.meta?.candidate ?? prior?.meta?.head ?? null
+    if (prior !== undefined) {
+      if (covered !== null && acceptedRef !== null && covered === acceptedRef) return
+      if (!worked && covered === null) return
     }
     const hasVerifier = (room.verifiers?.length ?? 0) > 0
     store.appendMessage(roomId, {
@@ -70,6 +79,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         kind: 'manual',
         stage: stageIndex,
         turnId,
+        candidate,
+        head: typeof acceptedRef === 'string' && acceptedRef !== '' ? acceptedRef : null,
         repoPath: room.repoPath,
         simulated: false,
         capturedAt: new Date().toISOString(),

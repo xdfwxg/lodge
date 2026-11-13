@@ -435,6 +435,35 @@ test('a worker chatter turn does not start another acceptance round', async () =
   assert.equal(store.messages.some(message => message.meta?.kind === 'command'), false)
 })
 
+test('a repeated manual turn on the same HEAD does not duplicate manual evidence', async () => {
+  registerWorkspaceProvider('test-manual-dedupe', {
+    capabilities: () => ({ candidate: true }),
+    head: () => 'manual-head-1',
+    submit: () => null,
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    workspace: { provider: 'test-manual-dedupe' },
+    stages: [{ title: 'artifact', kind: 'decision', manual: true, state: 'active' }],
+    verifiers: [],
+  })
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async () => ({ messageId: null }),
+    commands: { run: async () => ({ exit: 0 }) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ turnId: 't-manual-1', reply: '产物已就绪', toolCalls: 2, tools: [] }, 'bot-exec')
+  turns.captureTurn({ turnId: 't-manual-2', reply: '再次确认', toolCalls: 2, tools: [] }, 'bot-exec')
+  assert.equal(store.messages.filter(message => message.meta?.kind === 'manual').length, 1)
+  const evidence = store.messages.find(message => message.meta?.kind === 'manual')
+  assert.equal(evidence.meta.head, 'manual-head-1')
+})
+
 test('new evidence restarts an in-flight review and ignores the stale verdict', async () => {
   const room = makeRoom({ verifiers: ['verifier'] })
   const store = fakeStore(room)
