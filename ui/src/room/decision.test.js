@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildDecision, showsDecisionCard } from './decision.js'
+import { buildChatDecision } from './chat/decision.js'
+import { buildStudioDecision, showsDecisionCard } from './studio/decision.js'
+
+const buildDecision = (room, view) => (
+  room.roomType === 'chat' ? buildChatDecision(room) : buildStudioDecision(room, view)
+)
 
 const view = (over = {}) => ({
   stages: [{
@@ -81,7 +86,6 @@ test('an executing or completed studio room does not render a redundant card', (
     messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
   }, null)
   assert.equal(chatComplete.key, 'chat-complete')
-  assert.equal(showsDecisionCard(chatComplete), false)
   assert.equal(showsDecisionCard(buildDecision(room({ needsYou: { kind: 'signoff' } }), view())), true)
 })
 
@@ -124,12 +128,12 @@ test('a free chat does not show speaking counts or a running card', () => {
   }, null)
   assert.equal(running.title, '讨论中')
   assert.doesNotMatch(running.title, /\d+/)
-  assert.equal(showsDecisionCard(running), false)
+  assert.equal(running.key, 'chat-running')
   const waiting = buildDecision({
     roomType: 'chat',
     state: 'active',
     chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
   }, null)
-  assert.equal(showsDecisionCard(waiting), false)
+  assert.equal(waiting.key, 'chat-decision')
 })

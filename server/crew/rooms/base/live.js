@@ -1,12 +1,12 @@
-import { createLiveApprovals } from './live-approvals.js'
-import { createMessageProjector } from './live-projection.js'
-import { createRoomRefresher } from './live-refresh.js'
-import { createSeatSync } from './live-sync.js'
-import { createLiveTurns } from './live-turns.js'
-import { createRoomChat } from './live-chat.js'
-import { createChatScheduler } from './live-chat-room.js'
-import { createStudioEngine } from './live-studio.js'
-import { seatDisplayName } from './seat-labels.js'
+import { createLiveApprovals } from '../../live-approvals.js'
+import { createMessageProjector } from '../../live-projection.js'
+import { createRoomRefresher } from '../../live-refresh.js'
+import { createSeatSync } from '../../live-sync.js'
+import { createRoomChat } from '../../live-chat.js'
+import { seatDisplayName } from '../../seat-labels.js'
+import { resolveRoomType } from '../../room-types/index.js'
+import { createChatStrategy } from '../chat/strategy.js'
+import { createStudioStrategy } from '../studio/strategy.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, approvalTimeoutMs, onPlannerTool = null }) => {
@@ -15,9 +15,18 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit, usage })
   const approvals = createLiveApprovals({ store, engine, emit, gateAgent, approvalTimeoutMs })
-  const studioEngine = createStudioEngine({ engine })
   const sync = createSeatSync({ store, engine, projector })
   const refreshRoom = refresher.refresh
+  const strategies = [
+    createChatStrategy({ store, engine, emit, refreshRoom }),
+    createStudioStrategy({ store, engine, emit, ports, onPlannerTool }),
+  ]
+  const strategyFor = room => {
+    const typeId = resolveRoomType(room?.roomType)?.id ?? ''
+    const strategy = strategies.find(item => item.owns(typeId))
+    if (strategy === undefined) throw new Error(`没有 ${room?.roomType ?? '未知'} 房型的策略`)
+    return strategy
+  }
   const seatHandlers = {
     answerPermission: (entry, seat, message) => approvals.answerPermission(entry, seat, message, refreshRoom),
     refresh: refreshRoom,
@@ -36,7 +45,7 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
       refreshRoom,
       { sessionRef: chatRoom.sessionRef },
     ),
-    onTurn: (entry, room, message) => entry.turns.captureTurn(message.turn, message.authorRef),
+    onTurn: (entry, room, message) => entry.strategy.captureTurn?.(entry, message),
   })
 
   const attach = async (room, { resume = true } = {}) => {
@@ -44,48 +53,19 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
     const seatRefs = room.seatRooms ?? {}
     const seatKeys = Object.keys(seatRefs)
     if (seatKeys.length === 0) throw new Error('房间没有席位线程')
-    // 底层的两套引擎：聊天室只跑随机发言规则，不创建阶段/验收回合引擎。
-    const turns = room.roomType === 'studio'
-      ? createLiveTurns({
-        store,
-        engine,
-        roomId: room.id,
-        emit,
-        sendToSeat: (seat, text) => sendToSeat(room.id, seat, text),
-        commands,
-        files,
-        skills,
-        advisor,
-        onPlannerTool,
-      })
-      : {
-          seed: () => {},
-          trackTool: () => {},
-          captureTurn: () => {},
-          resume: async () => {},
-          requestReview: async () => { throw new Error('聊天室没有验收回合') },
-          startStage: async () => { throw new Error('聊天室没有阶段执行') },
-          busyReview: () => false,
-        }
-    // 已落证据的回合在重启后会被基座历史重放；先标记，避免重复采集。
-    turns.seed(store.readMessages(room.id))
+    const strategy = strategyFor(room)
     const entry = {
       roomId: room.id,
       seats: new Map(),
-      turns,
+      strategy,
       syncing: new Set(),
       answeredCards: new Set(),
       heldCards: new Map(),
       approvalTimers: new Map(),
       refreshedAt: 0,
     }
-    entry.chatRun = createChatScheduler({
-      store,
-      engine,
-      roomId: room.id,
-      emit,
-      refresh: () => refreshRoom(entry, { force: true }),
-    })
+    // 每套房型自己创建运行时：聊天室是发言调度，工作室是阶段/验收回合。
+    strategy.create(entry, room)
     entries.set(room.id, entry)
     approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
     const bases = await engine.rooms()
@@ -103,8 +83,9 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
     roomFiles.writeGoal(liveRoom)
     await refreshRoom(entry, { force: true })
     if (approvals.resumeApprovalPauseIfSettled(room.id) !== null) await refreshRoom(entry, { force: true })
-    if (resume) await entry.turns.resume()
+    if (resume) await strategy.resume(entry)
     const current = store.readRoom(room.id) ?? room
+    await strategy.resumeIfRunning(entry, current)
     emit('room', current)
     console.log(`live room attached: ${current.name} ${room.id}`)
     return entry
@@ -138,7 +119,7 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
   const detach = roomId => {
     const entry = entries.get(roomId)
     if (entry === undefined) return
-    entry.chatRun?.cancel()
+    entry.strategy?.detach(entry)
     approvals.expireApprovals(entry, roomId, '房间绑定已断开，上一张权限卡已不在等待')
     chat.detach(entry)
     for (const target of entry.seats.values()) target.unsubscribe?.()
@@ -163,11 +144,7 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
           continue
         }
         try {
-          const entry = await attach(room)
-          const current = store.readRoom(room.id)
-          if (current?.roomType === 'chat' && current.state === 'active' && current.chat?.running === true) {
-            void entry.chatRun.start(current)
-          }
+          await attach(room)
         } catch (error) {
           console.warn(`live room not attached: ${room.id} ${error?.message ?? error}`)
         }
@@ -185,20 +162,14 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('实时房间未绑定')
     const room = store.readRoom(roomId)
-    // 工作室的派发和复核都走群聊 @；被 @ 的席位才加载，不再直接打席位线程。
-    if (studioEngine.owns(room)) {
-      const sent = await studioEngine.send(room, text)
-      return { ...sent, messageId: null, broadcast: true }
-    }
-    const target = entry.seats.get(seat)
-    if (target === undefined) throw new Error(`房间没有 ${seat} 席位`)
-    return engine.sendTurn({ roomId: target.roomRef, text })
+    // 工作室的派发和复核都走群聊 @；聊天室没有席位线程派发。
+    return entry.strategy.sendToSeat(entry, room, seat, text)
   }
 
   const send = async (roomId, text) => {
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('实时房间未绑定')
-    if (entry.turns.busyReview()) throw new Error('复核进行中，先等验收结论')
+    if (entry.strategy.busyReview(entry)) throw new Error('复核进行中，先等验收结论')
     const room = store.readRoom(roomId)
     if (room === null) throw new Error('没有这个房间')
     // 成员默认休眠，只有被 @ 才唤醒；人直接说话时默认唤醒主席位，避免“发了没人回”。
@@ -212,31 +183,31 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
   const requestReview = async (roomId, stage) => {
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('实时房间未绑定')
-    return entry.turns.requestReview(stage)
+    return entry.strategy.requestReview(entry, stage)
   }
 
   const startStage = async (room, index) => {
     const entry = entries.get(room.id)
     if (entry === undefined) throw new Error('实时房间未绑定')
-    return entry.turns.startStage(room, index)
+    return entry.strategy.startStage(entry, room, index)
   }
 
   const startChat = async (room, options = {}) => {
     const entry = entries.get(room.id)
     if (entry === undefined) throw new Error('实时房间未绑定')
-    return entry.chatRun.start(room, options)
+    return entry.strategy.start(entry, room, options)
   }
 
   const continueChat = async (room, note = '') => {
     const entry = entries.get(room.id)
     if (entry === undefined) throw new Error('实时房间未绑定')
-    return entry.chatRun.start(store.readRoom(room.id) ?? room, { note })
+    return entry.strategy.continue(entry, store.readRoom(room.id) ?? room, note)
   }
 
   const reworkStage = async (room, index, note) => {
     const entry = entries.get(room.id)
     if (entry === undefined) throw new Error('实时房间未绑定')
-    return entry.turns.startStage(room, index, { note, rework: true })
+    return entry.strategy.startStage(entry, room, index, { note, rework: true })
   }
 
   const decideApproval = async (roomId, approvalId, decision) => approvals.decideApproval({
@@ -254,7 +225,7 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
     if (entry === undefined) return { cancelled: false, reason: '实时房间未绑定' }
     const room = store.readRoom(roomId)
     if (room === null) return { cancelled: false, reason: '房间不存在' }
-    entry.chatRun?.cancel()
+    entry.strategy.cancel(entry)
     try {
       const bases = await engine.rooms()
       const busy = bases.filter(base => (
@@ -285,19 +256,22 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
     requestReview,
     decideApproval,
     expireApprovals,
-    busyReview: roomId => entries.get(roomId)?.turns.busyReview() ?? false,
+    busyReview: roomId => {
+      const entry = entries.get(roomId)
+      return entry === undefined ? false : entry.strategy.busyReview(entry)
+    },
     isAttached: roomId => entries.has(roomId),
     startStage,
     reworkStage,
     startChat,
     continueChat,
-    chatRunning: roomId => entries.get(roomId)?.chatRun.isRunning() ?? false,
+    chatRunning: roomId => entries.get(roomId)?.strategy.isRunning?.(entries.get(roomId)) ?? false,
     syncChatMembers: room => chat.syncMembers(room),
     markChatRead: room => chat.markRead(room),
     resume: async (roomId, options) => {
       const entry = entries.get(roomId)
       if (entry === undefined) return
-      await entry.turns.resume(options)
+      await entry.strategy.resume(entry, options)
     },
     cancel,
     sync: async roomId => {

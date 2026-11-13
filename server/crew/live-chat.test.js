@@ -176,6 +176,25 @@ test('a streamed final reply maps base handles to seat names', () => {
   assert.equal(ctx.messages.at(-1).meta.final, true)
 })
 
+test('a seat that speaks twice keeps both turns', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  const say = (turnId, text, id) => {
+    ctx.subscribed[0].onEvent({ type: 'delta', delta: text, turnId })
+    ctx.subscribed[0].onEvent({
+      message: { id, kind: 'text', role: 'agent', authorRef: 'b-executor', text, at: Date.now() },
+    })
+  }
+  say('t1', '第一轮', 'm1')
+  say('t2', '第二轮', 'm2')
+  assert.deepEqual(ctx.messages.map(message => message.text), ['第一轮', '第二轮'])
+})
+
 test('syncing base history keeps a streamed final reply once', async () => {
   const ctx = setup()
   const base = ctx.room()

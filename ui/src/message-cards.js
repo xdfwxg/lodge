@@ -1,6 +1,6 @@
 import { Fragment, createElement as h, useState } from 'react'
 import { BotAvatar, BotMark } from './marks.js'
-import { chatStudioSeed } from './room/chat-seed.js'
+import { chatStudioSeed } from './room/chat/seed.js'
 import { dispatchSummaryOf } from './room/handoff.js'
 import { MarkdownText } from './primitives.js'
 import { MD, timeOf, independenceOf } from './view-format.js'

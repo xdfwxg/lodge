@@ -1,6 +1,6 @@
-import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
-import { chatTransitionEvent, transitionChat } from './room-state.js'
-import { seatDisplayName, toDisplayText } from './seat-labels.js'
+import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
+import { chatTransitionEvent, transitionChat } from '../../room-state.js'
+import { seatDisplayName, toDisplayText } from '../../seat-labels.js'
 
 export const CHAT_TURNS_PER_ROUND = 6
 export const MAX_CHAT_TURNS_PER_ROUND = 20

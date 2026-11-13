@@ -6,14 +6,21 @@ import test from 'node:test'
 const read = name => readFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)), 'utf8')
 
 test('chat modules do not read studio closure, stages, evidence or verdict state', () => {
-  for (const file of ['live-chat-room.js', 'service-chat.js', 'room-types/chat.js']) {
+  for (const file of ['rooms/chat/strategy.js', 'rooms/chat/scheduler.js', 'rooms/chat/service.js', 'room-types/chat.js']) {
     const source = read(file)
     assert.doesNotMatch(source, /\broom\??\.(stages|closure|evidence|verdict|trust)\b/, `${file} reads studio state`)
   }
 })
 
 test('studio modules do not read room.chat', () => {
-  for (const file of ['live-studio.js', 'live-stage.js', 'live-review.js', 'live-turns.js', 'room-types/studio.js']) {
+  for (const file of [
+    'rooms/studio/strategy.js',
+    'rooms/studio/prompts.js',
+    'rooms/studio/stage.js',
+    'rooms/studio/review.js',
+    'rooms/studio/turns.js',
+    'room-types/studio.js',
+  ]) {
     const source = read(file)
     assert.doesNotMatch(source, /\broom\??\.chat\b/, `${file} reads room.chat`)
   }

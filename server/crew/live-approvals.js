@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { externalAction, pendingApprovals } from './external-actions.js'
 import { reviewExternalAction } from './gate.js'
 import { seatNameOf } from './live-projection.js'
-import { activeStageReadOnly } from './live-turn-utils.js'
+import { activeStageReadOnly } from './rooms/studio/turn-utils.js'
 import { decidePermission } from './permission.js'
 import { trustLevelOf } from './trust.js'
 

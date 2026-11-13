@@ -1,4 +1,4 @@
-import { CHAT_TURNS_PER_ROUND } from './live-chat-room.js'
+import { CHAT_TURNS_PER_ROUND } from './rooms/chat/scheduler.js'
 import { TEMPLATES } from './seats.js'
 
 const roleLabel = seat => seat.name

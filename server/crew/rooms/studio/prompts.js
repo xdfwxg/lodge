@@ -1,8 +1,8 @@
-import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
-import { buildSeatHandoff } from './seat-handoff.js'
-import { plannerToolPrompt } from './planner-tools.js'
-import { seatDisplayName } from './seat-labels.js'
-import { workContract } from './prompt-modes.js'
+import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
+import { buildSeatHandoff } from '../../seat-handoff.js'
+import { plannerToolPrompt } from '../../planner-tools.js'
+import { seatDisplayName } from '../../seat-labels.js'
+import { workContract } from '../../prompt-modes.js'
 
 // 工作室引擎：所有推进都走群聊。规划师被 @ 后交给执行者，执行者回合结束后
 // Lodge 跑验收、写证据，再 @ 验收员。这里不直接写席位线程。

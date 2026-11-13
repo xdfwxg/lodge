@@ -1,15 +1,22 @@
 import assert from 'node:assert/strict'
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const dir = fileURLToPath(new URL('.', import.meta.url))
-const sourceFiles = readdirSync(dir).filter(name => name.endsWith('.js') && !name.endsWith('.test.js'))
+const walk = folder => readdirSync(folder).flatMap(name => {
+  const path = join(folder, name)
+  return statSync(path).isDirectory() ? walk(path) : [path]
+})
+// 递归扫描：房间策略进了 rooms/ 子目录，也不能绕过基座词汇检查。
+const sourceFiles = walk(dir)
+  .filter(path => path.endsWith('.js') && !path.endsWith('.test.js'))
+  .map(path => relative(dir, path))
 
 const forbidden = [
-  ['a base-client import', /from ['"]\.\.\/base\.js['"]/],
-  ['an engine import', /from ['"]\.\.\/engine\.js['"]/],
+  ['a base-client import', /from ['"](?:\.\.\/)+base\.js['"]/],
+  ['an engine import', /from ['"](?:\.\.\/)+engine\.js['"]/],
   ['HTTP transport', /from ['"]node:http['"]/],
   ['the base client type', /createBaseClient/],
   ['the upstream name', /openmausbot/i],

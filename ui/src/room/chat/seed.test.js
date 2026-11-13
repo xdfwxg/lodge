@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { chatStudioSeed, seedGoalText } from './chat-seed.js'
+import { chatStudioSeed, seedGoalText } from './seed.js'
 
 test('a chat conclusion becomes studio goal text only', () => {
   const seed = chatStudioSeed({

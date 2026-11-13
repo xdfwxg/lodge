@@ -1,4 +1,4 @@
-import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
+import { advanceProgress, NO_PROGRESS_LIMIT } from '../../progress.js'
 
 export const createTurnState = ({ store, roomId, emit }) => {
   const turns = new Map()

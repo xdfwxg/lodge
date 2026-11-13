@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CHAT_TURNS_PER_ROUND, chatTurnLimitOf, createChatScheduler, pickChatSpeaker } from './live-chat-room.js'
+import { CHAT_TURNS_PER_ROUND, chatTurnLimitOf, createChatScheduler, pickChatSpeaker } from './rooms/chat/scheduler.js'
 
 test('a chat round defaults to six speakers and accepts a room limit', () => {
   assert.equal(CHAT_TURNS_PER_ROUND, 6)

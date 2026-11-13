@@ -1,4 +1,4 @@
-import { workspaceProvider } from './workspace.js'
+import { workspaceProvider } from '../../workspace.js'
 
 export const workspaceOf = room => workspaceProvider(room)
 

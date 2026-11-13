@@ -92,7 +92,7 @@ test('continuing a completed room creates a new room and inherits BRIEF done', a
       acceptance: 'npm test',
       repoPath: repo,
       continueFrom: source.id,
-      seats: [{ role: 'worker', name: '执行' }],
+      seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     })
     assert.equal(result.ok, true)
     const room = result.body.room
@@ -100,7 +100,7 @@ test('continuing a completed room creates a new room and inherits BRIEF done', a
     assert.equal(room.continuedFrom.name, '上一轮交付')
     assert.equal(room.workspace.provider, 'git')
     assert.equal(room.workspace.capabilities.vcs, 'git')
-    assert.equal(room.stages[0].acceptance, 'npm test')
+    assert.equal(room.stages.find(stage => stage.kind === 'deliverable').acceptance, 'npm test')
     assert.deepEqual(room.plan.done, ['按钮可用'])
     const messages = store.readMessages(room.id)
     assert.equal(messages.some(message => message.text?.includes('续做自交接记录')), true)
@@ -117,13 +117,13 @@ test('a custom room name is kept while the stage title follows the goal', async 
     goal: '加一个导出按钮',
     name: '导出交付',
     verify: 'manual',
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, true)
   const room = result.body.room
   assert.equal(room.name, '导出交付')
   assert.equal(room.goal, '加一个导出按钮')
-  assert.equal(room.stages[0].title, '加一个导出按钮')
+  assert.equal(room.stages.some(stage => stage.title === '加一个导出按钮'), true)
 })
 
 test('declared optional skills are validated and kept', async () => {
@@ -131,10 +131,13 @@ test('declared optional skills are validated and kept', async () => {
   const result = await run(store, {
     goal: '带一个复核技能',
     verify: 'manual',
-    seats: [{ role: 'worker', name: '执行', skills: ['evidence-review'] }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行', skills: ['evidence-review'] }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, true)
-  assert.deepEqual(result.body.room.seatSpecs[0].skills, ['evidence-review'])
+  assert.deepEqual(
+    result.body.room.seatSpecs.find(seat => seat.name === '执行').skills,
+    ['evidence-review'],
+  )
 })
 
 test('an unknown optional skill fails closed before preparing a workspace', async () => {
@@ -149,7 +152,7 @@ test('an unknown optional skill fails closed before preparing a workspace', asyn
   const result = await run(store, {
     goal: '带一个不存在的技能',
     verify: 'manual',
-    seats: [{ role: 'worker', name: '执行', skills: ['missing-skill'] }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行', skills: ['missing-skill'] }, { role: 'verifier', name: '验收' }],
   }, fakeEngine(), workspace)
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'invalid')
@@ -163,7 +166,7 @@ test('a room name longer than 60 characters is rejected', async () => {
     goal: '取个长名字',
     name: '房'.repeat(61),
     verify: 'manual',
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'invalid')
@@ -191,7 +194,7 @@ test('parallel workers fail closed when the workspace cannot merge', async () =>
       verify: 'test',
       acceptance: 'npm test',
       repoPath: gitRepo(),
-      seats: [{ role: 'worker', name: '甲' }, { role: 'worker', name: '乙' }],
+      seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '甲' }, { role: 'worker', name: '乙' }, { role: 'verifier', name: '验收' }],
     },
   })
   assert.equal(result.ok, false)
@@ -214,7 +217,7 @@ test('a non-git directory is edited in place without a worker copy', async () =>
       goal: '整理文档',
       verify: 'manual',
       repoPath: source,
-      seats: [{ role: 'worker', name: '执行' }],
+      seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     })
     assert.equal(result.ok, true)
     const room = result.body.room
@@ -251,7 +254,7 @@ test('a plain room can run parallel workers into a copy integration', async () =
       verify: 'manual',
       repoPath: source,
       workspaceProvider: 'plain',
-      seats: [{ role: 'worker', name: '甲' }, { role: 'worker', name: '乙' }],
+      seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '甲' }, { role: 'worker', name: '乙' }, { role: 'verifier', name: '验收' }],
     })
     assert.equal(result.ok, true)
     const room = result.body.room
@@ -275,7 +278,7 @@ test('stage dependencies can be declared for a room', async () => {
     verify: 'test',
     acceptance: 'npm test',
     repoPath: gitRepo(),
-    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     stageDependencies: [[], [0]],
   })
   assert.equal(result.ok, true)
@@ -322,7 +325,7 @@ test('an unknown orchestration is rejected before creating a room', async () => 
     goal: '试试未知编排',
     verify: 'manual',
     repoPath: gitRepo(),
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     plan: { done: ['可用'], orchestration: 'swarm', answers: [], stages: [] },
   })
   assert.equal(result.ok, false)
@@ -338,7 +341,7 @@ test('project constraints are snapshotted into the room and BRIEF', async () => 
     verify: 'manual',
     repoPath: repo,
     includeProjectConstraints: true,
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, true)
   const room = result.body.room
@@ -356,7 +359,7 @@ test('an unknown workspace provider fails before creating anything', async () =>
     verify: 'manual',
     repoPath: gitRepo(),
     workspaceProvider: 'nope',
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'invalid')
@@ -369,7 +372,7 @@ test('continuing without a real repo and without a source room fail closed', asy
     verify: 'test',
     acceptance: 'npm test',
     continueFrom: source.id,
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(missingRepo.ok, false)
   assert.equal(missingRepo.reason, 'invalid')
@@ -382,7 +385,7 @@ test('continuing without a real repo and without a source room fail closed', asy
     acceptance: 'npm test',
     repoPath: gitRepo(),
     continueFrom: 'room-plain',
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(notImported.ok, false)
   assert.equal(notImported.reason, 'conflict')
@@ -395,7 +398,7 @@ test('a plan with more than three questions is rejected, not silently trimmed', 
     verify: 'test',
     acceptance: 'true',
     repoPath: gitRepo(),
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     plan: {
       done: ['有一条可核对的 done'],
       answers: [
@@ -417,7 +420,7 @@ test('a confirmed plan starts at delivery but keeps the final acceptance stage',
     verify: 'test',
     acceptance: 'npm test',
     repoPath: gitRepo(),
-    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     plan: { done: ['验收命令通过'], answers: [{ question: '范围？', answer: '只改一处' }] },
   })
   assert.equal(result.ok, true)
@@ -436,7 +439,7 @@ test('a plan stage with manual acceptance becomes a decision stage', async () =>
     verify: 'test',
     acceptance: 'npm test',
     repoPath: gitRepo(),
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     plan: {
       done: ['导出文件'],
       stages: [{ title: '导出', kind: 'deliverable', acceptance: 'manual' }],
@@ -466,7 +469,7 @@ test('a completed room can be used as a continuation source', async () => {
     acceptance: 'npm test',
     repoPath: gitRepo(),
     continueFrom: source.id,
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, true)
   assert.equal(result.body.room.continuedFrom.roomId, source.id)
@@ -479,7 +482,7 @@ test('a plan can declare multiple work stages between alignment and acceptance',
     goal: '多阶段拆解',
     verify: 'test',
     repoPath: gitRepo(),
-    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     plan: {
       done: ['两段都通过'],
       stages: [
@@ -501,7 +504,7 @@ test('a redundant opening decision stage is auto-passed', async () => {
     goal: '不要重复确认',
     verify: 'test',
     repoPath: gitRepo(),
-    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     plan: {
       done: ['实现并通过测试'],
       answers: [{ question: '改哪个文件？', answer: 'logo.png' }],
@@ -517,39 +520,17 @@ test('a redundant opening decision stage is auto-passed', async () => {
   assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'passed', 'active', 'pending'])
 })
 
-test('a roundtable room uses discussion stages and manual verification', async () => {
-  const { store } = completedRoom(temp('lodge-roundtable-data-'))
-  const result = await run(store, {
-    goal: '评审这个方案',
-    roomType: 'roundtable',
-    repoPath: gitRepo(),
-  })
-  assert.equal(result.ok, true)
-  const room = result.body.room
-  assert.equal(room.roomType, 'roundtable')
-  assert.deepEqual(room.stages.map(stage => stage.title), ['圆桌讨论', '结论'])
-  assert.deepEqual(room.stages.map(stage => stage.kind), ['decision', 'decision'])
-  assert.deepEqual(room.stages.map(stage => stage.readOnly), [true, true])
-  assert.equal(room.seatSpecs.length, 3)
-  assert.equal(room.seatSpecs.every(seat => seat.approval === 'ask'), true)
-  assert.equal(room.stages[0].state, 'active')
-  assert.equal(room.stages[1].state, 'pending')
-})
-
-test('an archive room has one manual archive stage and one seat', async () => {
-  const { store } = completedRoom(temp('lodge-archive-data-'))
-  const result = await run(store, {
-    goal: '归档这次交付',
-    roomType: 'archive',
-    repoPath: gitRepo(),
-  })
-  assert.equal(result.ok, true)
-  const room = result.body.room
-  assert.equal(room.roomType, 'archive')
-  assert.deepEqual(room.stages.map(stage => stage.title), ['存档与交接'])
-  assert.equal(room.stages[0].kind, 'decision')
-  assert.equal(room.stages[0].state, 'active')
-  assert.equal(room.seatSpecs.length, 1)
+test('legacy room types fail closed', async () => {
+  for (const roomType of ['task', 'roundtable', 'archive']) {
+    const { store } = completedRoom(temp(`lodge-legacy-${roomType}-data-`))
+    const result = await run(store, {
+      goal: '旧房型不再接受',
+      roomType,
+      repoPath: gitRepo(),
+    })
+    assert.equal(result.ok, false)
+    assert.match(result.error, /未知的房间类型/)
+  }
 })
 
 test('unknown room types fail closed', async () => {
@@ -581,7 +562,7 @@ test('an active room can be forked into a new room without touching the source',
     acceptance: 'npm test',
     repoPath: gitRepo(),
     continueFrom: source.id,
-    seats: [{ role: 'worker', name: '执行' }],
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, true)
   assert.equal(result.body.room.continuedFrom.roomId, source.id)
@@ -643,6 +624,24 @@ test('a chat room has a configurable turn limit and no trust ladder', async () =
   assert.equal(room.chat.turnLimit, 4)
   assert.equal('trust' in room, false)
   assert.equal('stages' in room, false)
+})
+
+test('chat speakers can pin their own engine and model', async () => {
+  const { store } = completedRoom(temp('lodge-chat-seat-model-'))
+  const result = await run(store, {
+    goal: '聊聊模型选择',
+    roomType: 'chat',
+    seats: [
+      { role: 'worker', name: '甲', engine: 'pi', model: 'deepseek/deepseek-flash' },
+      { role: 'worker', name: '乙' },
+      { role: 'worker', name: '丙' },
+    ],
+  })
+  assert.equal(result.ok, true)
+  const seats = result.body.room.seatSpecs
+  assert.equal(seats[0].engine, 'pi')
+  assert.equal(seats[0].model, 'deepseek/deepseek-flash')
+  assert.equal(seats[0].name, '甲')
 })
 
 test('an invalid chat turn limit fails before touching the workspace', async () => {

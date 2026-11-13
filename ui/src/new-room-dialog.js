@@ -1,6 +1,6 @@
 import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
-import { seedGoalText } from './room/chat-seed.js'
+import { seedGoalText } from './room/chat/seed.js'
 
 const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
@@ -54,6 +54,7 @@ function NewRoomDialog({
   const [recommending, setRecommending] = useState(false)
   const [busy, setBusy] = useState(false)
   const [seatChoices, setSeatChoices] = useState([])
+  const [chatSeatChoices, setChatSeatChoices] = useState([])
   const [loginBusy, setLoginBusy] = useState(false)
   const [loginNote, setLoginNote] = useState(null)
   const [error, setError] = useState(null)
@@ -88,6 +89,13 @@ function NewRoomDialog({
     setAnswers([])
     setError(null)
   }, [open, seed?.goal, seed?.conclusion, seed?.sourceName])
+
+  useEffect(() => {
+    if (!open || roomType !== 'chat') return
+    const type = typeChoices.find(item => item.id === 'chat')
+    const seats = normalizeSeats(type?.defaultSeats ?? [])
+    setChatSeatChoices(seats.map(seat => ({ engine: seat.engine ?? '', model: seat.model ?? '' })))
+  }, [open, roomType, typeChoices])
 
   if (!open) return null
 
@@ -252,7 +260,7 @@ function NewRoomDialog({
     setConstraintLayers([])
     setConstraintsChecked(false)
     setIncludeConstraints(false)
-    setRoomType('task')
+    setRoomType('studio')
     setChatTurnLimit(6)
     setRequireIndependent(false)
     setError(null)
@@ -264,6 +272,16 @@ function NewRoomDialog({
     setBusy(true)
     setError(null)
     try {
+      const chatSeats = normalizeSeats(activeType?.defaultSeats ?? []).map((seat, index) => {
+        const choice = chatSeatChoices[index] ?? { engine: '', model: '' }
+        const model = selectedModelOf(choice)
+        return {
+          ...seat,
+          ...(choice.engine === '' ? {} : { engine: choice.engine }),
+          ...(choice.engine === '' || model === '' ? {} : { model }),
+        }
+      })
+      const hasChatSeatChoice = chatSeatChoices.some(choice => choice.engine !== '' || choice.model !== '')
       const result = await onCreate(goal.trim(), {
         name: roomName.trim(),
         roomType: 'chat',
@@ -271,6 +289,7 @@ function NewRoomDialog({
         acceptance: '',
         chatTurnLimit,
         repoPath: repoPath.trim(),
+        ...(hasChatSeatChoice ? { seats: chatSeats } : {}),
         ...(resume === null ? {} : { continueFrom: resume.id }),
       })
       if (result?.ok !== true) {
@@ -338,61 +357,63 @@ function NewRoomDialog({
     }
   }
 
+  const seatEnginePicker = (seats, choices, setChoices) => seats.map((seat, index) => {
+    const choice = choices[index] ?? { engine: '', model: '' }
+    const engine = engineChoices.find(item => item.id === choice.engine)
+    const rows = modelRowsFor(engine)
+    const model = choice.model !== '' ? choice.model : (engine?.models?.default || rows[0]?.id || '')
+    return h('div', { key: `${seat.role}-${index}`, className: 'crew-seat-engine' },
+      h('div', { className: 'crew-seat-engine-head' },
+        h('span', null,
+          `${seat.name === undefined || seat.name === '' ? ROLE_LABEL[seat.role] ?? seat.role : seat.name}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)),
+      h('div', { className: 'crew-seat-engine-controls' },
+        h('select', {
+          className: 'crew-goal-input',
+          value: choice.engine,
+          onChange: event => {
+            const next = [...choices]
+            next[index] = { engine: event.target.value, model: '' }
+            setChoices(next)
+            setLoginNote(null)
+          },
+        },
+        h('option', { value: '' }, '按角色默认'),
+        engineChoices.map(item => h('option', {
+          key: item.id,
+          value: item.id,
+        }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
+        engine !== undefined && rows.length > 0
+          ? h('select', {
+            className: 'crew-goal-input',
+            value: model,
+            onChange: event => {
+              const next = [...choices]
+              next[index] = { ...choice, model: event.target.value }
+              setChoices(next)
+            },
+          },
+          rows.map(item => h('option', { key: item.id, value: item.id }, item.label)))
+          : null,
+        engine !== undefined && rows.length === 0 && Array.isArray(engine.login?.args)
+          ? h('button', {
+            type: 'button',
+            className: 'crew-ghost',
+            disabled: loginBusy,
+            onClick: () => void loginEngineFor(engine),
+          }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)
+          : null),
+      engine !== undefined && rows.length === 0
+        ? h('p', { className: 'crew-field-hint' }, '这个引擎还没有可用模型。')
+        : null)
+  })
+
   const teamView = h('div', { className: 'crew-proposal-block' },
     h('b', null, nonTask ? '团队' : '团队与引擎'),
     nonTask
       ? h('ul', { className: 'crew-brief' },
         proposalSeats.map((seat, index) => h('li', { key: `${seat.role}-${index}` },
           `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)))
-      : proposalSeats.map((seat, index) => {
-        const choice = choiceAt(index)
-        const engine = engineChoices.find(item => item.id === choice.engine)
-        const rows = modelRowsFor(engine)
-        const model = selectedModelOf(choice)
-        return h('div', { key: `${seat.role}-${index}`, className: 'crew-seat-engine' },
-          h('div', { className: 'crew-seat-engine-head' },
-            h('span', null,
-              `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)),
-          h('div', { className: 'crew-seat-engine-controls' },
-            h('select', {
-              className: 'crew-goal-input',
-              value: choice.engine,
-              onChange: event => {
-                const next = [...seatChoices]
-                next[index] = { engine: event.target.value, model: '' }
-                setSeatChoices(next)
-                setLoginNote(null)
-              },
-            },
-            h('option', { value: '' }, '按角色默认'),
-            engineChoices.map(item => h('option', {
-              key: item.id,
-              value: item.id,
-            }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
-            engine !== undefined && rows.length > 0
-              ? h('select', {
-                className: 'crew-goal-input',
-                value: model,
-                onChange: event => {
-                  const next = [...seatChoices]
-                  next[index] = { ...choice, model: event.target.value }
-                  setSeatChoices(next)
-                },
-              },
-              rows.map(item => h('option', { key: item.id, value: item.id }, item.label)))
-              : null,
-            engine !== undefined && rows.length === 0 && Array.isArray(engine.login?.args)
-              ? h('button', {
-                type: 'button',
-                className: 'crew-ghost',
-                disabled: loginBusy,
-                onClick: () => void loginEngineFor(engine),
-              }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)
-              : null),
-          engine !== undefined && rows.length === 0
-            ? h('p', { className: 'crew-field-hint' }, '这个引擎还没有可用模型。')
-            : null)
-      }),
+      : seatEnginePicker(proposalSeats, seatChoices, setSeatChoices),
     roomType === 'studio' && !hasVerifier
       ? h('p', { className: 'crew-field-hint' }, '工作室必须有独立验收席位；让 Lodge 重新出方案，补一个验收员。')
       : null,
@@ -585,6 +606,15 @@ function NewRoomDialog({
           onChange: event => setChatTurnLimit(Math.min(20, Math.max(1, Number(event.target.value) || 6))),
         }),
         h('p', { className: 'crew-field-hint' }, '达到上限后主持人总结，你认可或继续追加一轮。'))
+      : null,
+    roomType === 'chat'
+      ? h('div', { className: 'crew-proposal-block' },
+        h('b', null, '成员与模型'),
+        seatEnginePicker(
+          normalizeSeats(activeType?.defaultSeats ?? []),
+          chatSeatChoices,
+          setChatSeatChoices,
+        ))
       : null,
     roomType === 'studio' ? constraintsView : null,
     resume?.brief?.done?.length > 0

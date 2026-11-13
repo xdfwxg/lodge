@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createServiceChat } from './service-chat.js'
+import { createServiceChat } from './rooms/chat/service.js'
 
 const setup = () => {
   let current = {

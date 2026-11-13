@@ -13,10 +13,10 @@ test('work contracts carry stage discipline, not room identity', () => {
 })
 
 test('room modes stay isolated', () => {
-  assert.deepEqual(modeGuidance({ roomType: 'task' }), [])
-  assert.match(modeGuidance({ roomType: 'roundtable' }).join('\n'), /圆桌讨论.*只读/)
-  assert.match(modeGuidance({ roomType: 'archive' }).join('\n'), /存档/)
-  assert.match(modeGuidance({ roomType: 'task', readOnly: true }).join('\n'), /只读/)
+  assert.deepEqual(modeGuidance({ roomType: 'unknown' }), [])
+  assert.match(modeGuidance({ roomType: 'chat' }).join('\n'), /只讨论/)
+  assert.match(modeGuidance({ roomType: 'studio' }).join('\n'), /同一个房间目录/)
+  assert.match(modeGuidance({ roomType: 'chat', readOnly: true }).join('\n'), /只读/)
 })
 
 test('optional skills are injected as declared bodies, not catalogs', () => {

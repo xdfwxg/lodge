@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { roomNeedsYou } from './attention.js'
 import { createCrewPorts } from './crew-ports.js'
-import { createLiveRooms } from './live.js'
+import { createLiveRooms } from './rooms/base/live.js'
 import { createStore } from './store.js'
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 20))

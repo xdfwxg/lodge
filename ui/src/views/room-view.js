@@ -4,7 +4,8 @@ import { DeliverySheet } from '../delivery-sheet.js'
 import { Composer } from '../composer.js'
 import { ReviewDialog } from '../room/advanced.js'
 import { AuditDrawer } from '../room/audit.js'
-import { buildDecision, DecisionCard, RoomStatusHeader } from '../room/decision.js'
+import { buildChatDecision, ChatStatusHeader } from '../room/chat/decision.js'
+import { buildStudioDecision, StudioDecisionCard } from '../room/studio/decision.js'
 import { DsGoalHeader } from '../goal-island/ds-adapter.js'
 import { RoomRail } from '../room/rail.js'
 import { StageDock } from '../room/stage-dock.js'
@@ -81,7 +82,10 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
     return ids.length === 0 ? state.seats : state.seats.filter(seat => ids.includes(seat.id))
   }, [room.seatSpecs, room.members, state.seats])
   const goalView = useMemo(() => (isChat ? null : buildGoalView(room, seats)), [isChat, room, seats])
-  const decision = useMemo(() => buildDecision(room, goalView), [room, goalView])
+  const decision = useMemo(
+    () => (isChat ? buildChatDecision(room) : buildStudioDecision(room, goalView)),
+    [isChat, room, goalView],
+  )
   const typingSeatId = room.chatBusySeat
     || (isChat ? chat.speaker : '')
     || (room.busySeats?.length === 1 ? room.busySeats[0] : '')
@@ -128,7 +132,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { className: 'crew-room-main' },
       isChat
-        ? h(RoomStatusHeader, {
+        ? h(ChatStatusHeader, {
           room,
           decision,
           actions: {},
@@ -143,7 +147,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
             continue: onContinue === undefined ? undefined : () => onContinue(room),
           },
         }),
-      h(DecisionCard, { room, decision, onAction: decisionAction }),
+      isChat ? null : h(StudioDecisionCard, { decision, onAction: decisionAction }),
       state.reviewFor === room.id && state.review !== null
         ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
         : null,

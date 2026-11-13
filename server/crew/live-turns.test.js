@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
-import { createLiveTurns } from './live-turns.js'
+import { createLiveTurns } from './rooms/studio/turns.js'
 import { BusinessError } from './result.js'
 
 const ports = createCrewPorts()

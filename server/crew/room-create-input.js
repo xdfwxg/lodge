@@ -1,4 +1,4 @@
-import { MAX_CHAT_TURNS_PER_ROUND } from './live-chat-room.js'
+import { MAX_CHAT_TURNS_PER_ROUND } from './rooms/chat/scheduler.js'
 import { resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { workContract } from './prompt-modes.js'
 import { resolveRoomType } from './room-types/index.js'

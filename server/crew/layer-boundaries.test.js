@@ -22,18 +22,23 @@ const applicationFiles = [
   'service-seat-remove.js',
   'service-stages.js',
   'service-run-control.js',
-  'live.js',
+  'rooms/base/live.js',
+  'rooms/chat/strategy.js',
+  'rooms/chat/scheduler.js',
+  'rooms/chat/service.js',
+  'rooms/studio/strategy.js',
+  'rooms/studio/prompts.js',
   'live-projection.js',
   'live-refresh.js',
   'live-approvals.js',
   'live-sync.js',
-  'live-turns.js',
-  'live-acceptance.js',
-  'live-integration.js',
-  'live-review.js',
-  'live-stage.js',
-  'live-turn-state.js',
-  'live-workspace.js',
+  'rooms/studio/turns.js',
+  'rooms/studio/acceptance-runner.js',
+  'rooms/studio/integration.js',
+  'rooms/studio/review.js',
+  'rooms/studio/stage.js',
+  'rooms/studio/turn-state.js',
+  'rooms/studio/workspace.js',
   'startup-repair.js',
   'room-repair.js',
   'roster-recommend.js',
@@ -73,7 +78,7 @@ test('application modules depend on ports, not concrete adapters', () => {
   for (const file of applicationFiles) {
     const text = readFileSync(join(root, file), 'utf8')
     for (const dependency of forbiddenDependencies) {
-      const pattern = new RegExp(`from\\s+['"]\\./${dependency.replaceAll('.', '\\.')}['"]`)
+      const pattern = new RegExp(`from\\s+['"](?:\\.{1,2}/)*${dependency.replaceAll('.', '\\.')}['"]`)
       assert.doesNotMatch(text, pattern, `${file} imports concrete dependency ${dependency}`)
     }
     assert.doesNotMatch(text, /from\s+['"]node:fs['"]/, `${file} imports node:fs directly`)

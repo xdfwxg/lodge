@@ -48,9 +48,12 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (typeof seat !== 'string' || seat === '') return
     const streams = streamOf(entry)
     const prior = streams.get(seat)
-    const id = prior?.id ?? `stream:${room.id}:${seat}`
+    const turnId = typeof event.turnId === 'string' ? event.turnId : ''
+    // 流式消息按回合区分：同一席位在一轮里发多次言时不能覆盖上一条。
+    const sameTurn = prior !== undefined && prior.turnId === turnId
+    const id = sameTurn ? prior.id : `stream:${room.id}:${seat}:${turnId}`
     const existing = store.readMessages(room.id).find(message => message.id === id)
-    const text = prior?.turnId === event.turnId && typeof existing?.text === 'string'
+    const text = sameTurn && typeof existing?.text === 'string'
       ? existing.text + event.delta
       : event.delta
     store.upsertMessage({
@@ -60,9 +63,9 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       kind: 'chat',
       authorId: seat,
       text,
-      meta: { streaming: true, turnId: event.turnId ?? '' },
+      meta: { streaming: true, turnId },
     })
-    streams.set(seat, { id, turnId: event.turnId ?? '' })
+    streams.set(seat, { id, turnId })
   }
 
   const finishStream = (entry, room, message) => {

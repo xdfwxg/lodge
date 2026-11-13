@@ -82,8 +82,8 @@ test('default seat souls carry identity, not stage SOP', () => {
   assert.doesNotMatch(verifier.prompt, /PASS 或 REJECT|只读复核/)
 })
 
-test('a task room with no explicit seats resolves to the fixed triad', () => {
-  const seats = resolveSeats({}, resolveRoomType('task'))
+test('a studio room with no explicit seats resolves to the fixed triad', () => {
+  const seats = resolveSeats({}, resolveRoomType('studio'))
   assert.equal(seats.templateId, 'delivery-triad')
   assert.deepEqual(seats.roster.map(seat => seat.role), ['lead', 'worker', 'verifier'])
   assert.deepEqual(seats.roster.map(seat => seat.roleKind), ['planner', 'executor', 'verifier'])

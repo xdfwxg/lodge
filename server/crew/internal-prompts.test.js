@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { INTERNAL_PROMPT_MARKER, isInternalPrompt } from './internal-prompts.js'
-import { studioPlannerPrompt } from './live-studio.js'
+import { studioPlannerPrompt } from './rooms/studio/prompts.js'
 
 test('the studio planner prompt is marked internal', () => {
   const prompt = studioPlannerPrompt({

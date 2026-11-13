@@ -6,16 +6,13 @@ test('the room picker exposes only chat and studio', () => {
   assert.deepEqual(listRoomTypes().map(item => item.id), ['studio', 'chat'])
 })
 
-test('new room types resolve to studio or chat; an omitted type stays legacy task', () => {
-  assert.equal(resolveRoomType(undefined).id, 'task')
+test('only studio and chat resolve; other values fail closed', () => {
+  assert.equal(resolveRoomType(undefined).id, 'studio')
   assert.equal(resolveRoomType('studio').id, 'studio')
   assert.equal(resolveRoomType('chat').id, 'chat')
-})
-
-test('legacy room types remain readable', () => {
-  assert.equal(resolveRoomType('task').id, 'task')
-  assert.equal(resolveRoomType('roundtable').id, 'roundtable')
-  assert.equal(resolveRoomType('archive').id, 'archive')
+  assert.equal(resolveRoomType('task'), null)
+  assert.equal(resolveRoomType('roundtable'), null)
+  assert.equal(resolveRoomType('archive'), null)
 })
 
 test('studio seats derive from exactly three role classes', () => {

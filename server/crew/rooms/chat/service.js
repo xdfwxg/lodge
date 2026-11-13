@@ -1,5 +1,5 @@
-import { fail, ok } from './result.js'
-import { chatTransitionEvent, transitionChat } from './room-state.js'
+import { fail, ok } from '../../result.js'
+import { chatTransitionEvent, transitionChat } from '../../room-state.js'
 
 // 聊天室只有 room.chat；结论确认和继续讨论都不经过工作室的 stages/gates。
 export const createServiceChat = ({ store, live, emit }) => {
