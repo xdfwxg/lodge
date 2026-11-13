@@ -1,5 +1,6 @@
 import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
+import { seedGoalText } from './room/chat-seed.js'
 
 const ROLE_LABEL = { lead: '规划师', worker: '执行者', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
@@ -32,6 +33,7 @@ function NewRoomDialog({
   roomTemplates = [],
   engines = [],
   resume = null,
+  seed = null,
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const [step, setStep] = useState(0)
@@ -76,6 +78,17 @@ function NewRoomDialog({
     setAnswers([])
     setError(null)
   }, [open, resume?.id])
+
+  useEffect(() => {
+    if (!open || seed === null) return
+    setRoomType('studio')
+    setGoal(seedGoalText(seed))
+    setStep(0)
+    setProposal(null)
+    setSeatChoices([])
+    setAnswers([])
+    setError(null)
+  }, [open, seed?.goal, seed?.conclusion, seed?.sourceName])
 
   if (!open) return null
 
@@ -475,6 +488,10 @@ function NewRoomDialog({
         placeholder: '例如：给项目加一个 --verbose 参数，并让测试通过',
         onChange: event => setGoal(event.target.value),
       })),
+    seed !== null
+      ? h('p', { className: 'crew-field-hint' },
+        `来自聊天室「${seed.sourceName || seed.goal || '未命名'}」的结论；只带入目标文本，不带聊天记录、证据或状态。`)
+      : null,
     h('div', { className: 'crew-field' },
       h('div', { className: 'crew-field-head' },
         h('b', null, '工作空间'),

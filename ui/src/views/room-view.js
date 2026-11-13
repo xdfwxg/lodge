@@ -7,7 +7,7 @@ import { Advanced, ReviewDialog } from '../room/advanced.js'
 import { StageDock } from '../room/stage-dock.js'
 import { Timeline } from '../room/timeline.js'
 
-function RoomView({ state, room, store, onContinue }) {
+function RoomView({ state, room, store, onContinue, onStartStudio }) {
   const [advanced, setAdvanced] = useState(false)
   const [dockOpen, setDockOpen] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
@@ -123,6 +123,7 @@ function RoomView({ state, room, store, onContinue }) {
         onAccept: stage => void (isChat ? store.chatAccept() : store.accept(stage)),
         onApproval: (id, decision) => void store.decideApproval(id, decision),
         onContinueChat: note => void store.continueChat(note),
+        onStartStudio,
       })),
       state.error ? h('div', { className: 'crew-error' }, state.error) : null),
     isChat

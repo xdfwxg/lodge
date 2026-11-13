@@ -13,7 +13,7 @@ const timeLabel = ts => {
   return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
 
-function Timeline({ room, seats, onAccept, onApproval, onContinueChat }) {
+function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartStudio }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const timeline = useMemo(() => buildTimeline(room.messages), [room.messages])
 
@@ -46,6 +46,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat }) {
           room,
           onAccept,
           onContinueChat,
+          onStartStudio,
         })
       }
       if (message.kind === 'verdict') {

@@ -11,13 +11,16 @@ export function App() {
   const state = useStore(store)
   const [dialog, setDialog] = useState(false)
   const [resume, setResume] = useState(null)
-  const openDialog = room => {
+  const [seed, setSeed] = useState(null)
+  const openDialog = (room, seedValue = null) => {
     setResume(room ?? null)
+    setSeed(seedValue)
     setDialog(true)
   }
   const closeDialog = () => {
     setDialog(false)
     setResume(null)
+    setSeed(null)
   }
 
   useEffect(() => {
@@ -32,6 +35,7 @@ export function App() {
     roomTemplates: state.roomTemplates ?? [],
     engines: state.engines ?? [],
     resume,
+    seed,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
     onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
     onProjectConstraints: repoPath => store.loadProjectConstraints(repoPath),
@@ -57,6 +61,12 @@ export function App() {
     }),
     isDispatch
       ? h(DispatchView, { state, store })
-      : h(RoomView, { state, room, store, onContinue: openDialog }),
+      : h(RoomView, {
+        state,
+        room,
+        store,
+        onContinue: openDialog,
+        onStartStudio: seedValue => openDialog(null, seedValue),
+      }),
     dialogNode)
 }

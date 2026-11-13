@@ -1,5 +1,6 @@
 import { Fragment, createElement as h, useState } from 'react'
 import { BotAvatar, BotMark } from './marks.js'
+import { chatStudioSeed } from './room/chat-seed.js'
 import { MarkdownText } from './primitives.js'
 import { MD, timeOf, independenceOf } from './view-format.js'
 
@@ -175,7 +176,7 @@ function ConclusionCard({ message }) {
             : null))))
 }
 
-function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat }) {
+function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onStartStudio }) {
   const meta = message.meta ?? {}
   const round = meta.round ?? 1
   const chat = room.chat ?? {}
@@ -268,6 +269,20 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat }) {
                   disabled: busy || room.state !== 'active',
                   onClick: () => void accept(),
                 }, busy ? '处理中…' : '认可结论')))
+          : null,
+        accepted && typeof onStartStudio === 'function'
+          ? h('div', { className: 'crew-card-foot' },
+            h('a', {
+              className: 'crew-ref',
+              href: `/api/rooms/${message.roomId}/chat-snapshot`,
+              target: '_blank',
+              rel: 'noreferrer',
+            }, '导出快照'),
+            h('button', {
+              type: 'button',
+              className: 'crew-ghost',
+              onClick: () => onStartStudio(chatStudioSeed({ room, conclusion: message.text })),
+            }, '用结论新建工作室'))
           : null)))
 }
 
