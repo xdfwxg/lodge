@@ -133,7 +133,7 @@ function NewRoomDialog({
   const lineCount = constraints.split('\n').filter(line => line.trim() !== '').length
   const studioMissingVerifier = roomType === 'studio' && !hasVerifier
   const manualVerifierConflict = verify === 'manual' && hasVerifier && !['studio', 'chat'].includes(roomType)
-  const canStart = !busy && !needRepo && seatsReady &&
+  const canStart = !busy && roomName.trim() !== '' && !needRepo && seatsReady &&
     !(verify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
     !studioMissingVerifier &&
     !manualVerifierConflict
@@ -246,7 +246,7 @@ function NewRoomDialog({
     setError(null)
     try {
       const result = await onCreate(goal.trim(), {
-        ...(roomName.trim() === '' ? {} : { name: roomName.trim() }),
+        name: roomName.trim(),
         roomType,
         verify,
         acceptance,
@@ -403,6 +403,19 @@ function NewRoomDialog({
             constraintsChecked ? '没有发现 LODGE.md；可以不填。' : '点击工作空间输入框后读取。'))
 
   const proposalBody = proposal === null ? null : h('div', { className: 'crew-dialog-body' },
+    h('div', { className: 'crew-field' },
+      h('div', { className: 'crew-field-head' },
+        h('b', null, '房间名称'),
+        h('span', { className: 'crew-field-hint' }, '必填')),
+      h('input', {
+        className: 'crew-goal-input',
+        type: 'text',
+        maxLength: 60,
+        value: roomName,
+        placeholder: '例如：修复登录页保存',
+        required: true,
+        onChange: event => setRoomName(event.target.value),
+      })),
     h('div', { className: 'crew-proposal-head' },
       h('div', null,
         h('b', null, 'Lodge 的开工卡'),
@@ -454,13 +467,14 @@ function NewRoomDialog({
     h('div', { className: 'crew-field' },
       h('div', { className: 'crew-field-head' },
         h('b', null, '房间名称'),
-        h('span', { className: 'crew-field-hint' }, '可选')),
+        h('span', { className: 'crew-field-hint' }, '必填')),
       h('input', {
         className: 'crew-goal-input',
         type: 'text',
         maxLength: 60,
         value: roomName,
-        placeholder: '留空就用目标自动命名',
+        placeholder: '例如：修复登录页保存',
+        required: true,
         onChange: event => setRoomName(event.target.value),
       })),
     h('div', { className: 'crew-field' },
