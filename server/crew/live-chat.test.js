@@ -126,6 +126,14 @@ test('a queued send reconciles its echo instead of showing the message twice', (
   assert.equal(ctx.messages[0].meta.baseId, 'base-1')
 })
 
+test('an auto-added mention is sent to the base but not shown in the room', async () => {
+  const ctx = setup()
+  const room = await ctx.chat.ensure(ctx.room())
+  await ctx.chat.send(room, '@Plannerea1 结束了吗', { displayText: '结束了吗' })
+  assert.equal(ctx.sent[0].text, '@Plannerea1 结束了吗')
+  assert.equal(ctx.messages.at(-1).text, '结束了吗')
+})
+
 test('a sendId reconciles the echo even when the stored id changes', () => {
   const ctx = setup()
   const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
@@ -137,7 +145,7 @@ test('a sendId reconciles the echo even when the stored id changes', () => {
     ts: Date.now(),
     kind: 'chat',
     authorId: 'you',
-    text: '@规划师 你好',
+    text: '你好',
     meta: { echo: true, sendId: 'send-1234567890abcd' },
   }
   ctx.messages.push(echo)
@@ -145,7 +153,7 @@ test('a sendId reconciles the echo even when the stored id changes', () => {
   ctx.subscribed[0].onEvent({ message })
   assert.equal(ctx.messages.length, 1)
   assert.equal(ctx.messages[0].id, echo.id)
-  assert.equal(ctx.messages[0].text, '@规划师 你好')
+  assert.equal(ctx.messages[0].text, '你好')
   assert.equal(ctx.messages[0].meta.baseId, 'base-1')
   ctx.subscribed[0].onEvent({ message })
   assert.equal(ctx.messages.length, 1)

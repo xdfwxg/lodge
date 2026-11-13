@@ -99,9 +99,9 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       if (typeof message.sendId === 'string' && message.sendId !== '') {
         const echo = messages.find(item => item.meta?.sendId === message.sendId)
         if (echo !== undefined) {
+          // 回显保留人输入的原话；基座消息里自动补的 @ 只用于唤醒，不改房间记录。
           store.upsertMessage({
             ...echo,
-            text: toDisplayMentions(room, message.text),
             ts: message.at ?? echo.ts,
             meta: { ...(echo.meta ?? {}), baseId: message.id },
           })
@@ -238,14 +238,14 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     })
   }
 
-  const send = async (room, text) => {
+  const send = async (room, text, { displayText = text } = {}) => {
     const chat = room.chatRoom
     if (chat === undefined) throw new Error('房间聊天室还没准备好；重连房间后再试')
     // 基座原生支持 @everyone；产品文案 @所有人 只在这里映射，不自己展开成员。
     const outgoing = toBaseMentions(room, text).split('@所有人').join('@everyone')
     const sendId = randomUUID()
     const sent = await engine.sendTurn({ roomId: chat.id, text: outgoing, sendId })
-    echoHumanMessage({ store, roomId: room.id, text, messageId: sent?.messageId, sendId })
+    echoHumanMessage({ store, roomId: room.id, text: displayText, messageId: sent?.messageId, sendId })
     return sent
   }
 

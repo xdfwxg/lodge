@@ -205,7 +205,8 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
     const lead = !/@[^\s，,。]+/.test(text)
       ? seatDisplayName(room, room.leadSeat ?? room.members?.[0])
       : ''
-    return chat.send(room, lead === '' ? text : `@${lead} ${text}`)
+    // 自动唤醒的 @ 只发给基座，不写进房间记录；人看到的仍是自己说的话。
+    return chat.send(room, lead === '' ? text : `@${lead} ${text}`, { displayText: text })
   }
 
   const requestReview = async (roomId, stage) => {
