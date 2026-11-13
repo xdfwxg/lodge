@@ -70,6 +70,15 @@ test('manual evidence is not a passed command and artifacts stay in the workspac
   assert.equal(delivery.workspacePath, '/tmp/room')
 })
 
+test('a manual stage carries its changed files into the delivery sheet', () => {
+  const delivery = buildDelivery(room(), [
+    { id: 'm1', kind: 'evidence', seq: 1, ts: 10, meta: { stage: 1, kind: 'manual', files: ['NOTES.md'], changedFiles: ['NOTES.md'] } },
+  ])
+  assert.deepEqual(delivery.stages[1].manual.changedFiles, ['NOTES.md'])
+  assert.deepEqual(delivery.changedFiles, ['NOTES.md'])
+  assert.match(deliveryMarkdown(delivery), /NOTES\.md/)
+})
+
 test('the delivery sheet exports as portable markdown', () => {
   const text = deliveryMarkdown(buildDelivery(room(), messages))
   assert.match(text, /# 交付单：设置页保存/)

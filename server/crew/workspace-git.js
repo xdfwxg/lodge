@@ -394,6 +394,18 @@ export const rangeChanges = async ({ path, base }) => {
   return { diff: clip(diff), files }
 }
 
+// 人工产物凭证没有验收命令，仍需要阶段起点到当前 HEAD 的文件清单。
+export const changedFilesSince = ({ path, base }) => {
+  if (typeof base !== 'string' || base === '') return []
+  try {
+    return git(path, ['diff', '--name-only', '--relative', `${base}..HEAD`, '--', ...diffScope])
+      .split('\n')
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 export const changes = async ({ path }) => {
   // 房间自己的运行记录与本地环境不是交付内容，不进入验收 diff。
   const scope = diffScope

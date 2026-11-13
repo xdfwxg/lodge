@@ -439,11 +439,13 @@ test('a repeated manual turn on the same HEAD does not duplicate manual evidence
   registerWorkspaceProvider('test-manual-dedupe', {
     capabilities: () => ({ candidate: true }),
     head: () => 'manual-head-1',
+    changedFilesSince: () => ['NOTES.md'],
     submit: () => null,
   })
   const room = makeRoom({
     repoPath: '/repo',
     sourceRepo: '/repo',
+    stageBases: { 0: 'manual-base' },
     workspace: { provider: 'test-manual-dedupe' },
     stages: [{ title: 'artifact', kind: 'decision', manual: true, state: 'active' }],
     verifiers: [],
@@ -462,6 +464,7 @@ test('a repeated manual turn on the same HEAD does not duplicate manual evidence
   assert.equal(store.messages.filter(message => message.meta?.kind === 'manual').length, 1)
   const evidence = store.messages.find(message => message.meta?.kind === 'manual')
   assert.equal(evidence.meta.head, 'manual-head-1')
+  assert.deepEqual(evidence.meta.changedFiles, ['NOTES.md'])
 })
 
 test('new evidence restarts an in-flight review and ignores the stale verdict', async () => {

@@ -57,6 +57,9 @@ export const buildDelivery = (room, messages = [], ledger = null) => {
         evidenceId: message.meta?.evidenceId ?? null,
       }))
     const manual = stageMessages.find(message => message.kind === 'evidence' && message.meta?.kind === 'manual')
+    const manualFiles = Array.isArray(manual?.meta?.changedFiles)
+      ? manual.meta.changedFiles
+      : Array.isArray(manual?.meta?.files) ? manual.meta.files : []
     return {
       index,
       title: stage.title,
@@ -68,9 +71,10 @@ export const buildDelivery = (room, messages = [], ledger = null) => {
         id: manual.id,
         text: manual.text ?? '',
         digest: entriesById.get(manual.id)?.digest ?? null,
+        changedFiles: manualFiles,
       },
       verdicts,
-      changedFiles: unique(commands.flatMap(command => command.changedFiles)),
+      changedFiles: unique([...commands.flatMap(command => command.changedFiles), ...manualFiles]),
     }
   })
   const commands = stages.flatMap(stage => stage.commands)
