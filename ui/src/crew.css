@@ -253,6 +253,11 @@
 .crew-proposal-head b{font-size:15px}
 .crew-proposal-block{display:flex;flex-direction:column;gap:7px;padding:12px 14px;border:1px solid var(--bt-line);border-radius:12px;background:color-mix(in srgb,var(--bt-ink) 1.2%,transparent)}
 .crew-proposal-block>b{font-size:13px;font-weight:600}
+.crew-seat-engine{display:grid;gap:8px;padding:10px 0;border-top:1px solid var(--bt-line)}
+.crew-seat-engine:first-of-type{border-top:0;padding-top:2px}
+.crew-seat-engine-head{font-size:13px;line-height:18px;color:var(--bt-ink)}
+.crew-seat-engine-controls{display:flex;gap:8px;flex-wrap:wrap}
+.crew-seat-engine-controls .crew-goal-input{flex:1 1 180px;min-width:0}
 .crew-proposal-question{display:flex;flex-direction:column;gap:6px}
 .crew-proposal-question>span{font-size:14px;line-height:18px;color:var(--bt-ink-2)}
 .crew-goal-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bt-line-2);border-radius:10px;background:var(--bt-input-bg,transparent);color:var(--bt-ink);font:inherit;font-size:15px;line-height:20px;resize:vertical}

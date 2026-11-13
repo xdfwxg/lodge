@@ -49,8 +49,7 @@ function NewRoomDialog({
   const [answers, setAnswers] = useState([])
   const [recommending, setRecommending] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [engineChoice, setEngineChoice] = useState('')
-  const [modelChoice, setModelChoice] = useState('')
+  const [seatChoices, setSeatChoices] = useState([])
   const [loginBusy, setLoginBusy] = useState(false)
   const [loginNote, setLoginNote] = useState(null)
   const [error, setError] = useState(null)
@@ -58,8 +57,7 @@ function NewRoomDialog({
   useEffect(() => {
     if (!open) return
     setRoomName(resume === null ? '' : resume.name ?? '')
-    setEngineChoice('')
-    setModelChoice('')
+    setSeatChoices([])
     setLoginNote(null)
   }, [open, resume?.id])
 
@@ -68,6 +66,7 @@ function NewRoomDialog({
     setGoal(resume.brief?.objective || resume.goal || '')
     setStep(0)
     setProposal(null)
+    setSeatChoices([])
     setAnswers([])
     setError(null)
   }, [open, resume?.id])
@@ -79,26 +78,33 @@ function NewRoomDialog({
   const needRepo = resume !== null && repoPath.trim() === ''
   const proposalSeats = proposal?.seats ?? []
   const engineChoices = engines.filter(item => item.available)
-  const selectedEngine = engineChoices.find(item => item.id === engineChoice)
-  const modelChoices = engineChoice === '' || selectedEngine === undefined
-    ? []
-    : (() => {
-      const seen = new Set()
-      const rows = []
-      const add = (id, label) => {
-        if (typeof id !== 'string' || id === '' || seen.has(id)) return
-        seen.add(id)
-        rows.push({ id, label: typeof label === 'string' && label !== '' ? label : id })
-      }
-      for (const option of selectedEngine.models?.options ?? []) add(option?.id, option?.label)
-      add(selectedEngine.models?.default, selectedEngine.models?.default)
-      return rows
-    })()
-  const selectedModel = modelChoice !== ''
-    ? modelChoice
-    : selectedEngine?.models?.default || modelChoices[0]?.id || ''
-  const engineReady = engineChoice === '' || (selectedEngine !== undefined && selectedModel !== '')
-  const canLoginEngine = Array.isArray(selectedEngine?.login?.args) && selectedEngine.login.args.length > 0
+  const modelRowsFor = engine => {
+    if (engine === undefined) return []
+    const seen = new Set()
+    const rows = []
+    const add = (id, label) => {
+      if (typeof id !== 'string' || id === '' || seen.has(id)) return
+      seen.add(id)
+      rows.push({ id, label: typeof label === 'string' && label !== '' ? label : id })
+    }
+    for (const option of engine.models?.options ?? []) add(option?.id, option?.label)
+    add(engine.models?.default, engine.models?.default)
+    return rows
+  }
+  const choiceAt = index => seatChoices[index] ?? { engine: '', model: '' }
+  const selectedModelOf = choice => {
+    const engine = engineChoices.find(item => item.id === choice.engine)
+    if (choice.model !== '') return choice.model
+    return engine?.models?.default || modelRowsFor(engine)[0]?.id || ''
+  }
+  const seatChoiceReady = index => {
+    const choice = choiceAt(index)
+    if (choice.engine === '') return true
+    const engine = engineChoices.find(item => item.id === choice.engine)
+    return engine !== undefined && modelRowsFor(engine).length > 0
+  }
+  const seatsReady = proposalSeats.every((_, index) => seatChoiceReady(index))
+  const hasSeatChoice = seatChoices.some(choice => choice.engine !== '' || choice.model !== '')
   const hasVerifier = proposalSeats.some(seat => seat.role === 'verifier')
   const plannedAcceptance = Array.isArray(proposal?.stages) &&
     proposal.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
@@ -107,7 +113,7 @@ function NewRoomDialog({
     : proposal?.verify === 'manual' ? 'manual' : 'test'
   const acceptance = nonTask ? '' : proposal?.acceptance ?? ''
   const lineCount = constraints.split('\n').filter(line => line.trim() !== '').length
-  const canStart = !busy && !needRepo && engineReady &&
+  const canStart = !busy && !needRepo && seatsReady &&
     !(verify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
     !(verify === 'manual' && hasVerifier)
 
@@ -124,8 +130,6 @@ function NewRoomDialog({
       setLoginBusy(false)
     }
   }
-
-  const loginEngine = () => loginEngineFor(selectedEngine)
 
   const loadConstraints = async sourceOverride => {
     const source = (sourceOverride ?? repoPath).trim()
@@ -179,6 +183,7 @@ function NewRoomDialog({
   const changeRoomType = nextType => {
     setRoomType(nextType)
     setProposal(null)
+    setSeatChoices([])
     setAnswers([])
     setError(null)
   }
@@ -201,6 +206,10 @@ function NewRoomDialog({
         seats,
         ...(nonTask ? { verify: activeType?.defaultVerify ?? 'manual', acceptance: '' } : {}),
       })
+      setSeatChoices(seats.map(seat => ({
+        engine: typeof seat.engine === 'string' ? seat.engine : '',
+        model: typeof seat.model === 'string' ? seat.model : '',
+      })))
       setAnswers((result.proposal.questions ?? []).map(question => question.recommendation))
       setStep(1)
     } catch (caught) {
@@ -223,15 +232,18 @@ function NewRoomDialog({
         repoPath: repoPath.trim(),
         ...(resume === null ? {} : { continueFrom: resume.id }),
         ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
-        ...(engineChoice !== '' && proposal.seats.some(seat => seat.role === 'worker')
+        ...(hasSeatChoice
           ? {
-            seats: proposal.seats.map(seat => ({
-              role: seat.role,
-              name: seat.name,
-              ...(seat.role === 'worker'
-                ? { engine: engineChoice, ...(selectedModel !== '' ? { model: selectedModel } : {}) }
-                : {}),
-            })),
+            seats: proposal.seats.map((seat, index) => {
+              const choice = choiceAt(index)
+              const model = selectedModelOf(choice)
+              return {
+                role: seat.role,
+                name: seat.name,
+                ...(choice.engine === '' ? {} : { engine: choice.engine }),
+                ...(choice.engine === '' || model === '' ? {} : { model }),
+              }
+            }),
           }
           : {}),
         plan: {
@@ -253,6 +265,7 @@ function NewRoomDialog({
       setRoomName('')
       setStep(0)
       setProposal(null)
+      setSeatChoices([])
       setAnswers([])
       setConstraints('')
       setConstraintsPath(null)
@@ -269,48 +282,61 @@ function NewRoomDialog({
     }
   }
 
-  const engineView = h('div', { className: 'crew-proposal-block' },
-    h('b', null, '执行引擎'),
-    h('select', {
-      className: 'crew-goal-input',
-      value: engineChoice,
-      disabled: engineChoices.length === 0,
-      onChange: event => {
-        setEngineChoice(event.target.value)
-        setModelChoice('')
-        setLoginNote(null)
-      },
-    },
-    h('option', { value: '' }, engineChoices.length === 0 ? '自动 · 当前没有可用引擎' : '自动 · 按角色默认'),
-    engineChoices.map(item => h('option', {
-      key: item.id,
-      value: item.id,
-    }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
-    modelChoices.length > 0
-      ? h('select', {
-        className: 'crew-goal-input',
-        style: { marginTop: '8px' },
-        value: selectedModel,
-        onChange: event => setModelChoice(event.target.value),
-      },
-      modelChoices.map(item => h('option', { key: item.id, value: item.id }, item.label)))
-      : null,
-    h('div', { className: 'crew-field-hint' },
-      h('span', null,
-        engineChoice === ''
-          ? '默认按角色分配引擎；验收席位保持独立引擎。'
-          : engineReady
-            ? `执行席位改用 ${selectedEngine?.name ?? engineChoice}${selectedModel === '' ? '' : ` · ${selectedModel}`}；验收席位仍用独立引擎。`
-            : '这个引擎还没有可用模型；先在基座里配置或登录它。'),
-      engineChoice !== '' && !engineReady && canLoginEngine
-        ? h('button', {
-          type: 'button',
-          className: 'crew-ghost',
-          disabled: loginBusy,
-          style: { marginLeft: '8px' },
-          onClick: () => void loginEngine(),
-        }, loginBusy ? '正在打开…' : `登录 ${selectedEngine?.name ?? engineChoice}`)
-        : null),
+  const teamView = h('div', { className: 'crew-proposal-block' },
+    h('b', null, nonTask ? '团队' : '团队与引擎'),
+    nonTask
+      ? h('ul', { className: 'crew-brief' },
+        proposalSeats.map((seat, index) => h('li', { key: `${seat.role}-${index}` },
+          `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)))
+      : proposalSeats.map((seat, index) => {
+        const choice = choiceAt(index)
+        const engine = engineChoices.find(item => item.id === choice.engine)
+        const rows = modelRowsFor(engine)
+        const model = selectedModelOf(choice)
+        return h('div', { key: `${seat.role}-${index}`, className: 'crew-seat-engine' },
+          h('div', { className: 'crew-seat-engine-head' },
+            h('span', null,
+              `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)),
+          h('div', { className: 'crew-seat-engine-controls' },
+            h('select', {
+              className: 'crew-goal-input',
+              value: choice.engine,
+              onChange: event => {
+                const next = [...seatChoices]
+                next[index] = { engine: event.target.value, model: '' }
+                setSeatChoices(next)
+                setLoginNote(null)
+              },
+            },
+            h('option', { value: '' }, '按角色默认'),
+            engineChoices.map(item => h('option', {
+              key: item.id,
+              value: item.id,
+            }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
+            engine !== undefined && rows.length > 0
+              ? h('select', {
+                className: 'crew-goal-input',
+                value: model,
+                onChange: event => {
+                  const next = [...seatChoices]
+                  next[index] = { ...choice, model: event.target.value }
+                  setSeatChoices(next)
+                },
+              },
+              rows.map(item => h('option', { key: item.id, value: item.id }, item.label)))
+              : null,
+            engine !== undefined && rows.length === 0 && Array.isArray(engine.login?.args)
+              ? h('button', {
+                type: 'button',
+                className: 'crew-ghost',
+                disabled: loginBusy,
+                onClick: () => void loginEngineFor(engine),
+              }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)
+              : null),
+          engine !== undefined && rows.length === 0
+            ? h('p', { className: 'crew-field-hint' }, '这个引擎还没有可用模型。')
+            : null)
+      }),
     loginNote !== null ? h('p', { className: 'crew-dialog-note' }, loginNote) : null)
 
   const constraintsView = h('div', { className: 'crew-field' },
@@ -377,12 +403,7 @@ function NewRoomDialog({
             onChange: event => setAnswers(list => list.map((item, at) => at === index ? event.target.value : item)),
           }))))
       : h('p', { className: 'crew-field-hint' }, '没有需要你额外定的事。'),
-    h('div', { className: 'crew-proposal-block' },
-      h('b', null, '团队'),
-      h('ul', { className: 'crew-brief' },
-        proposal.seats.map((seat, index) => h('li', { key: `${seat.role}-${index}` },
-          `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)))),
-    nonTask ? null : engineView,
+    teamView,
     h('div', { className: 'crew-proposal-block' },
       h('b', null, '怎么算过'),
       h('p', { className: 'crew-field-hint' },
@@ -456,7 +477,6 @@ function NewRoomDialog({
           'data-on': roomType === type.id ? 'true' : undefined,
           onClick: () => changeRoomType(type.id),
         }, type.name)))),
-    nonTask ? null : engineView,
     constraintsView,
     resume?.brief?.done?.length > 0
       ? h('div', { className: 'crew-proposal-block' },
