@@ -211,6 +211,11 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       round = null
       reject('conflict', `复核请求没有发出：${failures.join('；') || '没有可用验收席位'}`)
     }
+    const waiting = [...nextRound.requests.keys()].map(id => `@${room.seatNames?.[id] ?? id}`)
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: `已通知验收席位 ${waiting.join('、')} 复核阶段 ${stageIndex + 1}「${stage.title}」。`,
+    })
     return { requested: true, stage: stageIndex, verifiers: [...nextRound.requests.keys()] }
   }
 

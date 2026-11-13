@@ -44,7 +44,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       ...current,
       tasks: buildTasks({ stageIndex: index, workers: assignees, seatNames: room.seatNames ?? {} }),
     }))
-    const workerNames = assignees.map(worker => seatDisplayName(room, worker)).join('、')
+    const workerNames = assignees.map(worker => `@${seatDisplayName(room, worker)}`).join('、')
     const modeLabel = `（${strategy.name}）`
     store.appendMessage(roomId, {
       kind: 'dispatch',

@@ -1,4 +1,4 @@
-const PROCESS_KINDS = new Set(['dispatch', 'activity', 'conclusion'])
+const PROCESS_KINDS = new Set(['activity', 'conclusion'])
 
 const isEmptyChat = message => message.kind === 'chat' && String(message.text ?? '').trim() === ''
 

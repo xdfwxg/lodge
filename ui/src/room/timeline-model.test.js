@@ -14,8 +14,9 @@ test('process messages leave the main timeline but keep their order in one log',
     message('x1', 'conclusion'),
   ]
   const timeline = buildTimeline(messages)
-  assert.deepEqual(timeline.visible.map(item => item.id), ['c1', 's1'])
-  assert.deepEqual(timeline.process.map(item => item.id), ['d1', 'a1', 't1', 'x1'])
+  assert.deepEqual(timeline.visible.map(item => item.id), ['c1', 'd1', 's1'])
+  assert.deepEqual(timeline.process.map(item => item.id), ['a1', 't1', 'x1'])
+  assert.equal(isProcessMessage(messages[1]), false)
   assert.equal(isProcessMessage(messages[2]), true)
   assert.equal(isProcessMessage(messages[3]), true)
 })
