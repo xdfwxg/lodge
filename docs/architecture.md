@@ -31,7 +31,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
   - `rejected`：仅 Planner 在 `planned` 阶段可触发，附带理由与证据；属于合法终态，**标记为不可行，不等于任务完成**
   - 一旦进入 `executing`：所有驳回、通过判定权限收归 Verifier，Planner 不能单方面终止或放行
   - 验收模式 `verificationMode: bot | human | hybrid`：人工验收不旁路，人工评审同样产出标准 verdict 记录；多 Verifier 的 `verifierPolicy: all | majority` 是调度策略，`swarm` 只是它的运行形态，不是新增底层角色
-- 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环
+- 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环。验收按阶段幂等：执行者没有工具调用或产出的闲聊回合不触发新的命令验收；没有新增交付改动时沿用已完成的验收，不重复提交候选。
 - 流转公约：主任务闭环必须经过 Planner → Executor → Verifier；支持子任务并行、重试、分支，但进入执行阶段后不可绕过 Verifier 放行。
 - 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。
 - 影子评审 `shadowReview`：只记录 advisor/影子评估的 score 和 advice，不拦截、不产生正式 verdict；正式 Verifier 仍然必须 PASS 才能 signed。

@@ -283,10 +283,21 @@ export const submit = ({ path, turnId, name }) => {
       git(path, ['reset', '-q', '--', item])
     } catch {}
   }
-  const status = git(path, ['status', '--porcelain', '--', '.']).trim()
-  if (status === '') return null
+  // 只看真正 staged 的交付改动：工作树里只有 .crew/.env 时没有候选，不能把它当提交失败。
+  const staged = git(path, ['diff', '--cached', '--name-only', '--', '.']).trim()
+  if (staged === '') return null
   const message = `crew: candidate${turnId === undefined ? '' : ` ${turnId}`}${name ? ` · ${name}` : ''}`
-  git(path, ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', message])
+  try {
+    git(path, ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost', 'commit', '-q', '-m', message])
+  } catch (error) {
+    if (/nothing to commit|no changes added to commit/i.test(String(error?.message ?? error))) {
+      try {
+        git(path, ['reset', '-q'])
+      } catch {}
+      return null
+    }
+    throw error
+  }
   return git(path, ['rev-parse', 'HEAD']).trim()
 }
 

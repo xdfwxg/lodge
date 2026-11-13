@@ -51,6 +51,10 @@ test('prepares isolated seat workspaces and refreshes the verifier copy', () => 
     writeFileSync(join(executor, 'hello.txt'), 'crew ok\n')
     const commit = submit({ path: executor, turnId: 't1', name: 'Room' })
     assert.equal(typeof commit, 'string')
+    assert.equal(submit({ path: executor, turnId: 't2', name: 'Room' }), null)
+    mkdirSync(join(executor, '.crew', 'rooms'), { recursive: true })
+    writeFileSync(join(executor, '.crew', 'rooms', 'state.json'), '{}\n')
+    assert.equal(submit({ path: executor, turnId: 't3', name: 'Room' }), null)
     refreshReviewCopy({ path: verifier, branch: workspaces.branches.executor })
     assert.equal(readFileSync(join(verifier, 'hello.txt'), 'utf8'), readFileSync(join(executor, 'hello.txt'), 'utf8'))
 

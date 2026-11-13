@@ -45,7 +45,14 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     skills,
   })
 
-  const markManualReady = (room, stageIndex, turnId) => {
+  const markManualReady = (room, stageIndex, turnId, worked) => {
+    // 人工阶段没有命令可判“无改动”：没有实际工作的重复回报只更新记录，不重复生成验收证据。
+    const existing = store.readMessages(roomId).some(message => (
+      message.kind === 'evidence' &&
+      message.meta?.kind === 'manual' &&
+      (message.meta?.stage ?? 0) === stageIndex
+    ))
+    if (existing && !worked) return
     try {
       if (workspaceOf(room).capabilities().candidate === true) {
         const candidate = workspaceOf(room).submit({ path: room.repoPath, turnId, name: room.name })
@@ -202,6 +209,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
       })
     }
 
+    const worked = (turn.toolCalls ?? 0) > 0 || artifacts.length > 0
     const toolSummary = (turn.tools ?? []).map(tool => `${tool.name} ×${tool.count}${tool.failed ? ` (${tool.failed} 失败)` : ''}`)
     const summary = [
       toolSummary.length > 0 ? `工具：${toolSummary.join(' · ')}` : '工具：无',
@@ -305,8 +313,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
       const key = `${stage}:${turnId}`
       if (target?.manual === true && target.state === 'active' && !state.acceptanceRuns.has(key)) {
         state.acceptanceRuns.add(key)
-        markManualReady(room, stage, turnId)
-      } else if (command !== '' && target?.kind === 'deliverable' && target.state === 'active' && !state.acceptanceRuns.has(key)) {
+        markManualReady(room, stage, turnId, worked)
+      } else if (command !== '' && target?.kind === 'deliverable' && target.state === 'active' && worked && !state.acceptanceRuns.has(key)) {
         state.acceptanceRuns.add(key)
         void acceptance.run(stage, command, turnId)
       }

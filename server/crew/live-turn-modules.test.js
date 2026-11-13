@@ -4,6 +4,7 @@ import { createAcceptanceRunner } from './live-acceptance.js'
 import { createStageIntegrator } from './live-integration.js'
 import { createReviewCoordinator } from './live-review.js'
 import { createStageStarter } from './live-stage.js'
+import { createLiveTurns } from './live-turns.js'
 import { createTurnState } from './live-turn-state.js'
 import { deliverableStageIndex, parseVerdict } from './live-turn-utils.js'
 import { registerWorkspaceProvider } from './workspace.js'
@@ -242,4 +243,56 @@ test('manual evidence also goes through the Verifier before human signoff', asyn
   assert.doesNotMatch(sent[0].prompt, /验收命令：/)
   assert.equal(review.consume({ turn: { reply: 'PASS\nok' }, seat: 'verifier', turnId: 't1', room }), true)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
+})
+
+test('acceptance skips a later turn that produced no delivery changes', async () => {
+  registerWorkspaceProvider('test-live-nochange', {
+    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
+    changes: async () => ({ diff: '', status: '', files: [], manifest: [] }),
+    submit: () => { throw new Error('submit must not run without changes') },
+    isolatedCopy: () => ({ path: '/tmp/copy' }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({ repoPath: '/repo', sourceRepo: '/repo', workspace: { provider: 'test-live-nochange' } })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { kind: 'command', stage: 0, command: 'true', exit: 0 },
+  })
+  let runs = 0
+  const runner = createAcceptanceRunner({
+    store,
+    roomId: 'room-1',
+    markProgress: () => {},
+    requestReview: async () => { throw new Error('review must not run') },
+    run: async () => { runs += 1; return { exit: 0 } },
+  })
+  await runner.run(0, 'true', 't-chatter')
+  assert.equal(runs, 0)
+  assert.match(store.messages.at(-1).text, /无新增交付改动，沿用已完成的验收/)
+  assert.equal(store.messages.filter(message => message.meta?.kind === 'command').length, 1)
+})
+
+test('a worker chatter turn does not start another acceptance round', async () => {
+  const room = makeRoom({
+    workers: ['worker'],
+    seatBots: { worker: 'bot-worker' },
+    seatNames: { worker: 'Worker' },
+    seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+  })
+  const store = fakeStore(room)
+  let runs = 0
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async () => ({ messageId: null }),
+    commands: { run: async () => { runs += 1; return { exit: 0 } } },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ turnId: 't-chatter', reply: '收到，没有待办。', toolCalls: 0, tools: [] }, 'bot-worker')
+  await new Promise(resolve => setTimeout(resolve, 20))
+  assert.equal(runs, 0)
+  assert.equal(store.messages.some(message => message.meta?.kind === 'command'), false)
 })

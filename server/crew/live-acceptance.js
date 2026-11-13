@@ -21,6 +21,22 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     }
     // diff 必须在候选提交前采集：提交后工作树变干净，provider 会看不到交付改动。
     const diff = await workspaceOf(room).changes({ path: room.repoPath })
+    const changed = (diff.files?.length ?? 0) > 0 || (diff.manifest?.length ?? 0) > 0
+    if (!changed && capabilities.candidate === true) {
+      const messages = store.readMessages(roomId)
+      const prior = messages.some(message => (
+        message.kind === 'evidence' &&
+        message.meta?.kind === 'command' &&
+        (message.meta?.stage ?? 0) === stageIndex &&
+        message.meta?.exit === 0
+      ))
+      const note = prior
+        ? '本轮无新增交付改动，沿用已完成的验收。'
+        : '本轮没有可验收的交付改动，验收未执行。'
+      const lastSystem = [...messages].reverse().find(message => message.kind === 'system')
+      if (lastSystem?.text !== note) store.appendMessage(roomId, { kind: 'system', text: note })
+      return
+    }
     let candidate = null
     try {
       candidate = capabilities.candidate === true
