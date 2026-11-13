@@ -20,7 +20,7 @@ export const createServiceQueries = ({
   files,
   workspace,
 }) => {
-  const { readRoom, readRooms, readMessages, readMessagesSince, readEvents } = store
+  const { readRoom, readRooms, readMessages, readMessagesSince, readEvents, readEvidence } = store
 
   const health = async () => ok({ runtime: await engine.health() })
 
@@ -102,11 +102,30 @@ export const createServiceQueries = ({
     })
   }
 
+  const evidenceLedger = roomId => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    return ok({
+      ledger: readEvidence(roomId).map(item => ({
+        id: item.id,
+        seq: item.seq,
+        digest: item.digest,
+        authorId: item.authorId,
+        kind: item.meta?.kind ?? '',
+        stage: item.meta?.stage ?? 0,
+        command: item.meta?.command ?? '',
+        exit: item.meta?.exit ?? null,
+        at: item.at,
+        text: typeof item.text === 'string' ? item.text.slice(0, 200) : '',
+      })),
+    })
+  }
+
   const recommendRoster = body => {
     const global = globalBudgetStatus(readRooms())
     if (!global.ok) return fail('conflict', global.message)
     return recommendRosterUseCase({ engine, body, workspace })
   }
 
-  return { health, state, transitions, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
+  return { health, state, transitions, evidenceLedger, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
 }

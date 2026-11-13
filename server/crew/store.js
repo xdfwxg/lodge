@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -21,6 +21,14 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS room_event_room ON room_event(room_id, seq);
+    CREATE TABLE IF NOT EXISTS evidence (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      payload TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS evidence_room ON evidence(room_id, seq);
   `)
   const roomColumns = db.prepare('PRAGMA table_info(room)').all()
   if (!roomColumns.some(column => column.name === 'version')) {
@@ -100,6 +108,40 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   const readRooms = () => db.prepare("SELECT payload, version FROM room WHERE id <> 'dispatch' ORDER BY rowid").all()
     .map(row => ({ ...upgradeRoom(JSON.parse(row.payload)), version: row.version }))
   const readMessages = roomId => db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId).map(row => JSON.parse(row.payload))
+  // 证据账本只追加：命令证据和人工产物证据进入账本，执行席位的自述回合留在消息流。
+  const appendEvidenceFromMessage = message => {
+    if (message?.kind !== 'evidence') return null
+    const evidenceKind = message.meta?.kind
+    if (evidenceKind !== 'command' && evidenceKind !== 'manual') return null
+    const base = {
+      id: message.id,
+      roomId: message.roomId,
+      seq: message.seq,
+      kind: message.kind,
+      authorId: message.authorId,
+      text: message.text,
+      at: message.ts,
+      meta: message.meta ?? {},
+    }
+    const digest = createHash('sha256').update(JSON.stringify(base)).digest('hex')
+    const entry = { ...base, digest }
+    db.prepare('INSERT OR IGNORE INTO evidence (id, room_id, seq, payload, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(entry.id, entry.roomId, entry.seq, JSON.stringify(entry), entry.at)
+    return entry
+  }
+
+  const readEvidenceRows = roomId => db.prepare('SELECT payload FROM evidence WHERE room_id = ? ORDER BY seq').all(roomId)
+    .map(row => JSON.parse(row.payload))
+
+  const readEvidence = roomId => {
+    let rows = readEvidenceRows(roomId)
+    if (rows.length === 0) {
+      // 旧房间第一次读账本时，从已有命令/人工证据消息补账；只追加，不改消息。
+      for (const message of readMessages(roomId)) appendEvidenceFromMessage(message)
+      rows = readEvidenceRows(roomId)
+    }
+    return rows
+  }
   const readMessagesSince = since => db.prepare('SELECT payload FROM messages WHERE seq > ? ORDER BY seq').all(since).map(row => JSON.parse(row.payload))
   const nextSeq = () => Number(db.prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS next FROM messages').get().next)
 
@@ -195,6 +237,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       { ...message, id: randomUUID(), roomId, seq: nextSeq(), ts: Date.now() },
       { transcript: room?.demo !== true },
     )
+    appendEvidenceFromMessage(stored)
     emit('msg', stored, stored.seq)
     return stored
   }
@@ -220,6 +263,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     readRooms,
     readMessages,
     readMessagesSince,
+    readEvidence,
+    appendEvidenceFromMessage,
     nextSeq,
     persistMessage,
     appendMessage,

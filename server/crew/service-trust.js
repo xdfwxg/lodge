@@ -8,7 +8,7 @@ export const createServiceTrust = ({ store, emit, dispatchPayload }) => {
   const setTrust = (room, body) => {
     if (room.roomType === 'chat') return fail('invalid', '聊天室没有信任阶梯')
     const level = body?.level
-    const check = canPromoteTrust(room, readMessages(room.id), level)
+    const check = canPromoteTrust(room, readMessages(room.id), level, store.readEvidence?.(room.id))
     if (!check.ok) return fail('invalid', check.error)
     const previous = trustLevelOf(room)
     const reason = typeof body?.reason === 'string' && body.reason.trim() !== ''

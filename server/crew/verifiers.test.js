@@ -260,3 +260,12 @@ test('a majority quorum ends the round without waiting for the last verifier', a
   turns.captureTurn({ turnId: 't3', reply: 'REJECT\nno', toolCalls: 1 }, 'bot-v3')
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 2)
 })
+
+test('review reads credentials from the ledger, not from evidence messages', () => {
+  const messages = [evidence(), verdict('v1', true, 11), verdict('v2', true, 12)]
+  const withoutLedger = reviewState({ room: room(), evidence: [], messages, stageIndex: 0 })
+  assert.equal(withoutLedger.state, 'none')
+  const withLedger = reviewState({ room: room(), evidence: [evidence()], messages, stageIndex: 0 })
+  assert.equal(withLedger.state, 'pass')
+  assert.equal(withLedger.evidence.id, 'e-1')
+})

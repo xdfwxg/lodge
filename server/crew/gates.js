@@ -1,8 +1,13 @@
-import { manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
+import { manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
 
-export const gateFor = (room, index, messages) => {
+export const gateFor = (room, index, messages, evidence) => {
+  const ledger = Array.isArray(evidence)
+    ? evidence
+    : messages.filter(message => (
+      message.kind === 'evidence' && (message.meta?.kind === 'command' || message.meta?.kind === 'manual')
+    ))
   const stage = Number.isInteger(index) ? room.stages[index] : undefined
   if (stage === undefined) return deny('invalid', '没有这个阶段')
   if (stage.state !== 'active') return deny('conflict', '这个阶段不在待验收状态')
@@ -13,18 +18,11 @@ export const gateFor = (room, index, messages) => {
     return deny('conflict', '还有问题没答，先答再确认')
   }
   if (stage.manual === true) {
-    // 只认最新一条本阶段证据；返工回合之后不能被旧的“产物就绪”蒙混过去。
-    const latestEvidence = [...messages]
-      .filter(message => (
-        message.kind === 'evidence' &&
-        message.meta?.stage === index &&
-        (room.demo === true || message.meta?.simulated !== true)
-      ))
-      .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
-      .at(-1)
-    if (latestEvidence?.meta?.kind !== 'manual') return deny('conflict', '执行还没有产出，不能验收')
+    // 只认本轮最新一条人工凭证；新的执行回合或返工会让旧凭证过期。
+    const latestEvidence = manualEvidenceFor(room, ledger, messages, index)
+    if (latestEvidence === undefined) return deny('conflict', '执行还没有产出，不能验收')
     if (verifierIds(room).length > 0) {
-      const outcome = manualReviewState({ room, messages, stageIndex: index })
+      const outcome = manualReviewState({ room, evidence: ledger, messages, stageIndex: index })
       if (outcome.state === 'reject') {
         const names = outcome.rejects.map(message => room.seatNames?.[message.authorId] ?? message.authorId).join('、')
         return deny('conflict', `${names} 已打回，先返工再重新提交`)
@@ -43,7 +41,6 @@ export const gateFor = (room, index, messages) => {
     return deny('conflict', '交付型阶段没有验收命令，不能验收')
   }
   const isCommandEvidence = message => (
-    message.kind === 'evidence' &&
     message.meta?.stage === index &&
     (room.demo === true || message.meta?.simulated !== true) &&
     (message.meta?.kind === 'command' || (room.demo === true && message.meta?.simulated === true)) &&
@@ -54,7 +51,7 @@ export const gateFor = (room, index, messages) => {
 
   const ordered = [...messages].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
   if (verifierIds(room).length > 1) {
-    const outcome = reviewState({ room, messages: ordered, stageIndex: index })
+    const outcome = reviewState({ room, evidence: ledger, messages: ordered, stageIndex: index })
     if (outcome.state === 'reject') {
       const names = outcome.rejects.map(message => room.seatNames?.[message.authorId] ?? message.authorId).join('、')
       return deny('conflict', `${names} 已打回，先返工并重新跑验收命令`)
@@ -79,8 +76,7 @@ export const gateFor = (room, index, messages) => {
     (message.seq ?? 0) > floor
   ))
   const latest = verdicts.at(-1)
-  const evidenceBetween = (floor, ceiling) => ordered.filter(message => (
-    message.kind === 'evidence' &&
+  const evidenceBetween = (floor, ceiling) => ledger.filter(message => (
     message.meta?.stage === index &&
     (room.demo === true || message.meta?.simulated !== true) &&
     (message.seq ?? 0) > floor &&
@@ -90,7 +86,7 @@ export const gateFor = (room, index, messages) => {
   if (latest === undefined) {
     const phaseEvidence = evidenceBetween(floor, Number.POSITIVE_INFINITY)
     if (phaseEvidence.length === 0) {
-      return deny('conflict', '还没有本阶段的证据，不能验收')
+      return deny('conflict', '还没有本阶段的证据（验收命令或人工产物），不能验收')
     }
     if (!isCommandEvidence(phaseEvidence.at(-1))) {
       return deny('conflict', '还没有通过验收命令的证据（exit 0），不能签字')
@@ -115,7 +111,7 @@ export const gateFor = (room, index, messages) => {
     return deny('conflict', previousReject === undefined ? '还没有本阶段的证据，不能验收' : '返工后还没有新的证据，不能验收')
   }
   const referenced = typeof latest.meta?.evidenceId === 'string'
-    ? ordered.find(message => message.id === latest.meta.evidenceId)
+    ? ledger.find(message => message.id === latest.meta.evidenceId)
     : undefined
   const covered = referenced !== undefined && (referenced.seq ?? 0) > evidenceFloor ? referenced : phaseEvidence.at(-1)
   if (!isCommandEvidence(covered)) {

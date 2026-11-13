@@ -36,6 +36,8 @@ test('the service facade keeps every route entry', () => {
     'usage',
     'projectConstraints',
     'review',
+    'transitions',
+    'evidenceLedger',
     'deliveryExport',
     'removeSeat',
     'changeSeatRole',

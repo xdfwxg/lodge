@@ -9,16 +9,16 @@ export const trustLevelOf = room => (
 
 const rank = level => TRUST_LEVELS.indexOf(level)
 
-const provenDeliverable = (room, messages, index) => {
+const provenDeliverable = (room, messages, evidence, index) => {
   const stage = room.stages?.[index]
   if (stage?.kind !== 'deliverable' || stage.state !== 'passed') return false
-  const evidence = commandEvidenceFor(room, messages, index)
-  if (evidence === undefined || evidence.meta?.exit !== 0) return false
-  return reviewState({ room, messages, stageIndex: index }).state === 'pass'
+  const found = commandEvidenceFor(room, evidence, messages, index)
+  if (found === undefined || found.meta?.exit !== 0) return false
+  return reviewState({ room, evidence, messages, stageIndex: index }).state === 'pass'
 }
 
 // 升到 verify 需要至少一个已过阶段；升到 auto 需要独立验收和两条可复现的 PASS。
-export const canPromoteTrust = (room, messages, target) => {
+export const canPromoteTrust = (room, messages, target, evidence) => {
   if (!TRUST_LEVELS.includes(target)) return { ok: false, error: '未知信任级别' }
   const current = trustLevelOf(room)
   if (target === current) return { ok: false, error: `已经是 ${target}` }
@@ -35,7 +35,7 @@ export const canPromoteTrust = (room, messages, target) => {
   }
   const proven = (room.stages ?? [])
     .map((stage, index) => ({ stage, index }))
-    .filter(({ index }) => provenDeliverable(room, messages, index))
+    .filter(({ index }) => provenDeliverable(room, messages, evidence, index))
     .length
   return proven >= 2
     ? { ok: true }

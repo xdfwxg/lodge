@@ -8,7 +8,7 @@ import { childResultText, childVerdictsOf } from './room-subrooms.js'
 import { studioTransitionEvent, transitionStudio } from './room-state.js'
 
 export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom, roomFiles, plannerMcp = null }) => {
-  const { readRooms, readMessages, updateRoom, appendMessage } = store
+  const { readRooms, readMessages, readEvidence, updateRoom, appendMessage } = store
 
   const editStagePlan = (room, body) => {
     const result = editStages(room, body?.action, body?.index, body?.stage)
@@ -108,7 +108,7 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     const messages = readMessages(room.id)
     const verdictPassed = messages.some(message => message.kind === 'verdict' && message.meta?.pass === true)
     const updated = updateRoom(room.id, current => {
-      gate = gateFor(current, index, readMessages(room.id))
+      gate = gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
       if (!gate.ok) return null
       const stage = current.stages[index]
       stage.state = 'passed'

@@ -345,7 +345,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
 
     if (!forceAcceptance && latestCommand !== undefined && (latestCommand.seq ?? 0) > latestTurnSeq) {
       if (latestCommand.meta?.exit !== 0) return
-      const outcome = reviewState({ room, messages, stageIndex })
+      const outcome = reviewState({ room, evidence: store.readEvidence?.(roomId), messages, stageIndex })
       if (outcome.state !== 'pending') return
       try {
         await review.request(stageIndex)

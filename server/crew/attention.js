@@ -71,7 +71,7 @@ export const roomNeedsYou = (room, messages = []) => {
   if (dispatch?.stage === index && dispatch?.timedOut === true) {
     return { kind: 'parallel', stage: index, label: '并行执行超时 · 等你处理' }
   }
-  const commandEvidence = commandEvidenceFor(room, messages, index)
+  const commandEvidence = commandEvidenceFor(room, undefined, messages, index)
   if (commandEvidence !== undefined && commandEvidence.meta?.exit !== 0) {
     return { kind: 'rework', stage: index, label: '验收未通过 · 等你返工' }
   }

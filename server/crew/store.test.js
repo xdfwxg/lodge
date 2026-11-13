@@ -94,3 +94,64 @@ test('an old room table without version migrates additively', () => {
     rmSync(dataDir, { recursive: true, force: true })
   }
 })
+
+test('command and manual evidence enter the append-only ledger, turn reports do not', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-ledger-store-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-ledger-repo-'))
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    const command = store.appendMessage('r1', {
+      kind: 'evidence',
+      authorId: 'system',
+      text: 'command ok',
+      meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0, diff: 'D', files: ['a.js'] },
+    })
+    const manual = store.appendMessage('r1', {
+      kind: 'evidence',
+      authorId: 'worker',
+      text: 'artifact ready',
+      meta: { kind: 'manual', stage: 1, repoPath: repo },
+    })
+    store.appendMessage('r1', {
+      kind: 'evidence',
+      authorId: 'worker',
+      text: 'self report',
+      meta: { kind: 'turn', stage: 1, turnId: 't1' },
+    })
+    const ledger = store.readEvidence('r1')
+    assert.deepEqual(ledger.map(item => item.id), [command.id, manual.id])
+    assert.match(ledger[0].digest, /^[a-f0-9]{64}$/)
+    assert.equal(ledger.some(item => item.meta?.kind === 'turn'), false)
+
+    const before = ledger.length
+    store.appendEvidenceFromMessage(command)
+    assert.equal(store.readEvidence('r1').length, before)
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('an old room backfills its evidence ledger from existing evidence messages', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-ledger-backfill-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-ledger-backfill-repo-'))
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    const stored = store.appendMessage('r1', {
+      kind: 'evidence',
+      authorId: 'system',
+      text: 'old command',
+      meta: { kind: 'command', stage: 1, command: 'true', exit: 0 },
+    })
+    store.db.prepare('DELETE FROM evidence').run()
+    const ledger = store.readEvidence('r1')
+    assert.equal(ledger.length, 1)
+    assert.equal(ledger[0].id, stored.id)
+    assert.equal(ledger[0].meta.exit, 0)
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})

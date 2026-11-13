@@ -126,9 +126,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     if (!budget.ok) reject('conflict', budget.message)
     const messages = store.readMessages(roomId)
     const manual = stage.manual === true
+    const ledger = store.readEvidence?.(roomId)
     const outcome = manual
-      ? manualReviewState({ room, messages, stageIndex })
-      : reviewState({ room, messages, stageIndex })
+      ? manualReviewState({ room, evidence: ledger, messages, stageIndex })
+      : reviewState({ room, evidence: ledger, messages, stageIndex })
     if (outcome.state === 'pass') reject('conflict', '本阶段全部验收席位已经有 PASS 了')
     if (outcome.state === 'reject') reject('conflict', '验收已被打回；先返工并重新跑验收命令')
     if (outcome.state === 'failed') reject('conflict', '最新验收命令没有通过；先返工并重新跑验收命令')
