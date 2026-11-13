@@ -110,6 +110,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       return ok({ room: readRoom(roomId) ?? room })
     }
 
+    if (action === 'snapshot' && method === 'GET') {
+      return chat.snapshot(room)
+    }
+
     if (room.state === 'paused' || room.state === 'stopped') {
       if (room.state === 'paused' && room.pauseReason === 'budget') {
         const status = budgetStatus(room, readRooms())

@@ -235,6 +235,12 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat }) {
             : null),
         latest
           ? h('div', { className: 'crew-card-foot' },
+            h('a', {
+              className: 'crew-ref',
+              href: `/api/rooms/${message.roomId}/chat-snapshot`,
+              target: '_blank',
+              rel: 'noreferrer',
+            }, '导出快照'),
             open
               ? h(Fragment, null,
                 h('button', {

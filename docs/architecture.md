@@ -38,7 +38,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 1. 角色实例绑定房间，身份不跨房间继承。
 2. 证据契约统一：Executor 交付核心为结构化证据包；Verifier 判定只采信证据包，不采信执行者自述结论。
-3. 跨范式迁移：聊天室上下文如需落地为交付任务，导出快照，新建工作室导入，不原地变更房型。
+3. 跨范式迁移：聊天室上下文如需落地为交付任务，导出快照，新建工作室导入，不原地变更房型。当前只实现快照导出（`GET /api/rooms/:id/snapshot`），导入仍未做。
 4. `closure` 是工作室专属字段；聊天室不存在 `closure`，任何代码不得在聊天室里读取或推断交付闭环状态。
 5. `swarm` 只是 Verifier 的调度策略，不新增 `roleKind`，也不产生独立评审原语。
 6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`，房间预设在 `server/crew/room-templates.js`。

@@ -2,7 +2,7 @@ import { fail, ok } from './result.js'
 
 // 聊天室只有 room.chat；结论确认和继续讨论都不经过工作室的 stages/gates。
 export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
-  const { appendMessage, updateRoom } = store
+  const { appendMessage, readMessages, updateRoom } = store
 
   const accept = room => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
@@ -69,5 +69,32 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     return ok({ room: updated, message })
   }
 
-  return { accept, continue: continueChat }
+  const snapshot = room => {
+    if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
+    const messages = readMessages(room.id)
+      .filter(message => ['chat', 'chat_rework', 'chat_conclusion'].includes(message.kind))
+      .map(message => ({
+        kind: message.kind,
+        authorId: message.authorId,
+        text: message.text,
+        ...(message.meta?.round === undefined ? {} : { round: message.meta.round }),
+      }))
+    const conclusion = [...readMessages(room.id)].reverse().find(message => message.kind === 'chat_conclusion')
+    return ok({
+      snapshot: {
+        roomId: room.id,
+        name: room.name,
+        goal: room.goal,
+        round: room.chat?.round ?? 1,
+        accepted: room.chat?.accepted === true,
+        conclusion: conclusion === undefined
+          ? null
+          : { text: conclusion.text, round: conclusion.meta?.round ?? 1, fallback: conclusion.meta?.fallback === true },
+        messages,
+        exportedAt: new Date().toISOString(),
+      },
+    })
+  }
+
+  return { accept, continue: continueChat, snapshot }
 }
