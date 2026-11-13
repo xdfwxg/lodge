@@ -13,14 +13,14 @@ import { ReplayDialog } from '../room/replay.js'
 import { ShadowDialog } from '../room/shadow.js'
 import { buildGoalView } from '../goal-island/model.js'
 
-function TypingLine({ seat, summarizing, queue }) {
+function TypingLine({ seat, summarizing }) {
   return h('div', { className: 'crew-msg crew-typing-line' },
     h('div', { className: 'crew-msg-avatar' },
       seat === null || seat === undefined ? null : h(BotAvatar, { bot: seat, size: 30, live: true })),
     h('div', { className: 'crew-msg-body' },
-      h('span', { className: 'crew-typing-name' }, `${seat?.name ?? '成员'} ${summarizing ? '正在总结' : '正在输入'}`),
-      h('span', { className: 'crew-typing-dots', 'aria-hidden': true }, h('i'), h('i'), h('i')),
-      queue > 0 ? h('span', { className: 'crew-typing-queue' }, `· ${queue} 个席位排队`) : null))
+      h('span', { className: 'crew-typing-name' },
+        `${summarizing ? 'Lodge 主持' : seat?.name ?? '成员'} ${summarizing ? '正在总结' : '正在输入'}`),
+      h('span', { className: 'crew-typing-dots', 'aria-hidden': true }, h('i'), h('i'), h('i'))))
 }
 
 function RoomView({ state, room, store, onContinue, onStartStudio }) {
@@ -167,7 +167,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
           room,
           seats,
           compact: true,
-          hideKinds: isChat ? ['chat_conclusion'] : [],
+          hideKinds: [],
           onAccept: stage => void (isChat ? store.chatAccept() : store.accept(stage)),
           onApproval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
           onContinueChat: note => void store.continueChat(note),
@@ -177,7 +177,6 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
           ? h(TypingLine, {
             seat: typingSeat,
             summarizing: isChat && chat.phase === 'summarizing',
-            queue: room.chatQueue?.length ?? 0,
           })
           : null),
         state.error ? h('div', { className: 'crew-error' }, state.error) : null),

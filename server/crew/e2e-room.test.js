@@ -33,19 +33,21 @@ const scriptedEngine = store => {
       const room = store.readRooms().find(item => item.chatRoom?.id === roomId)
       const summary = text.includes('请总结')
       const mention = /@([^\s，,。]+)/.exec(text)?.[1]
+      const hostTurn = summary && room?.chatHost?.name === mention
       const seat = (room?.members ?? []).find(item => (room.seatNames?.[item] ?? item) === mention)
         ?? room?.leadSeat
         ?? room?.members?.[0]
+      const authorRef = hostTurn ? room.chatHost.memberRef : room?.seatBots?.[seat] ?? null
       const reply = summary
         ? '结论：按讨论继续推进。'
         : `${room?.seatNames?.[seat] ?? seat} 补充了一条观点。`
-      if (seat !== undefined) {
+      if (hostTurn || seat !== undefined) {
         history.push({
           id: `a${++seq}`,
           role: 'agent',
           kind: 'text',
           text: reply,
-          authorRef: room?.seatBots?.[seat] ?? null,
+          authorRef,
           at: Date.now(),
         })
         if (!summary) store.appendMessage(room.id, { kind: 'chat', authorId: seat, text: reply })
@@ -224,7 +226,9 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
     assert.equal(round.error, undefined)
     assert.equal(store.readRoom(chatId).chat.phase, 'awaiting_decision')
     assert.equal(store.readRoom(chatId).chat.turns, 6)
-    assert.equal(store.readMessages(chatId).filter(message => message.kind === 'chat').length, 6)
+    const chatHost = chatRoom.body.room.leadSeat
+    assert.equal(store.readMessages(chatId).filter(message => message.kind === 'chat' && message.authorId !== chatHost).length, 6)
+    assert.equal(store.readMessages(chatId).some(message => message.meta?.opening === true), true)
     const conclusion = store.readMessages(chatId).find(message => message.kind === 'chat_conclusion')
     assert.equal(conclusion.meta.turns, 6)
     assert.equal(conclusion.meta.fallback, false)

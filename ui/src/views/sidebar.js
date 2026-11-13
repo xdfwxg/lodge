@@ -1,10 +1,16 @@
-import { createElement as h } from 'react'
-import { RoomMark } from '../marks.js'
+import { createElement as h, useState } from 'react'
 import { money } from '../view-format.js'
+
+const GROUPS = [
+  { id: 'studio', label: '工作室' },
+  { id: 'chat', label: '聊天室' },
+]
 
 function Sidebar({ state, onSelect, onNew }) {
   const { rooms, activeId } = state
+  const [folded, setFolded] = useState({})
   const waiting = rooms.filter(room => room.needsYou).length
+  const toggle = id => setFolded(current => ({ ...current, [id]: current[id] !== true }))
 
   return h('aside', { className: 'dsb-side' },
     h('div', { className: 'crew-side-brand' },
@@ -12,19 +18,32 @@ function Sidebar({ state, onSelect, onNew }) {
     state.runtime?.ok === false
       ? h('div', { className: 'crew-error', style: { margin: '0 6px 10px' } }, `基座未连接：${state.runtime.error}`)
       : null,
+    h('div', { className: 'crew-side-tools' },
+      waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个等你`) : h('span'),
+      h('button', { type: 'button', className: 'crew-new', onClick: onNew }, '＋ 新建')),
     h('div', { className: 'bt-side' },
       h('div', { className: 'bt-list' },
-        h('div', { className: 'crew-section' },
-          h('span', null, '房间'),
-          h('span', { className: 'crew-section-tools' },
-            waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个等你`) : null,
-            h('button', { type: 'button', className: 'crew-new', onClick: onNew }, '＋ 新建'))),
-        rooms.map(room => h(RoomRow, {
-          key: room.id,
-          room,
-          active: activeId === room.id,
-          onSelect: () => onSelect(room.id),
-        })))),
+        GROUPS.map(group => {
+          const items = rooms.filter(room => (room.roomType ?? 'studio') === group.id)
+          if (items.length === 0) return null
+          const closed = folded[group.id] === true
+          return h('section', { key: group.id, className: 'crew-side-group' },
+            h('button', {
+              type: 'button',
+              className: 'crew-side-group-head',
+              'aria-expanded': !closed,
+              onClick: () => toggle(group.id),
+            },
+            h('span', { className: 'crew-side-chevron', 'data-open': !closed }, '⌄'),
+            h('span', null, group.label),
+            h('span', { className: 'crew-side-count' }, String(items.length))),
+            closed ? null : items.map(room => h(RoomRow, {
+              key: room.id,
+              room,
+              active: activeId === room.id,
+              onSelect: () => onSelect(room.id),
+            })))
+        }))),
     state.budget?.globalBudgetMicroUsd > 0
       ? h('div', { className: 'crew-me' },
         h('span', { className: 'crew-me-badge' }, '预'),
@@ -37,24 +56,39 @@ function Sidebar({ state, onSelect, onNew }) {
       h('span', { className: 'crew-me-body' }, h('b', null, '你'))))
 }
 
+const toneOf = room => {
+  if (room.needsYou?.kind === 'review') return 'review'
+  if (room.needsYou?.kind === 'signoff') return 'done'
+  if (room.needsYou?.kind === 'rework' || room.needsYou?.kind === 'budget' || room.needsYou?.kind === 'merge' || room.needsYou?.kind === 'parallel') return 'alert'
+  if (room.needsYou) return 'waiting'
+  if (room.state === 'complete') return 'done'
+  return room.live === true ? 'active' : 'idle'
+}
+
+const metaOf = room => {
+  if (room.needsYou?.kind === 'signoff') return '签字'
+  if (room.needsYou?.kind === 'review') return '复核'
+  if (room.needsYou?.kind === 'decision') return '确认'
+  if (room.needsYou?.kind === 'rework') return '返工'
+  if (room.needsYou) return '等你'
+  return room.state === 'complete' ? '完成' : room.live === true ? '实时' : ''
+}
+
 function RoomRow({ room, active, onSelect }) {
-  const needs = room.needsYou
-  const stateLabel = room.live === true ? '实时' : room.state === 'complete' ? '已完成' : '进行中'
-  const preview = needs ? needs.label : stateLabel
   return h('button', {
     type: 'button',
-    className: 'bt-row',
+    className: 'bt-row crew-side-room',
     'aria-current': active ? 'page' : undefined,
     onClick: onSelect,
+    title: room.needsYou?.label ?? room.name,
   },
-  h(RoomMark, { room, size: 36 }),
-  h('span', { className: 'bt-row-body' },
-    h('span', { className: 'bt-row-name' },
-      h('span', { className: 'bt-row-title' }, room.name),
-      room.chatUnread === true && !active
-        ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' })
-        : null),
-    h('span', { className: 'bt-row-preview', 'data-needs': needs?.kind }, preview)))
+  h('span', { className: 'crew-side-room-glyph', 'data-type': room.roomType ?? 'studio' }, room.roomType === 'chat' ? '#' : '⎇'),
+  h('span', { className: 'crew-side-room-name' }, room.name),
+  room.chatUnread === true && !active
+    ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' })
+    : null,
+  metaOf(room) === '' ? null : h('span', { className: 'crew-side-room-meta', 'data-tone': toneOf(room) }, metaOf(room)),
+  h('span', { className: 'crew-side-room-dot', 'data-tone': toneOf(room), title: room.needsYou?.label ?? '' }))
 }
 
 export { Sidebar }

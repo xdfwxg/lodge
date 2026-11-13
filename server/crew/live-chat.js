@@ -74,11 +74,13 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     const streams = streamOf(entry)
     const state = streams.get(seat)
     if (state === undefined) return false
-    const text = message.kind === 'turn' ? message.turn?.reply : message.text
-    if (typeof text !== 'string' || text.trim() === '') {
+    const raw = message.kind === 'turn' ? message.turn?.reply : message.text
+    if (typeof raw !== 'string' || raw.trim() === '') {
       streams.delete(seat)
       return false
     }
+    // 流式回合的最终文本也要过一遍显示名映射，否则基座 handle 会留在气泡里。
+    const text = toDisplayMentions(current, raw)
     const existing = store.readMessages(room.id).find(item => item.id === state.id)
     store.upsertMessage({
       ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: seat }),
@@ -145,7 +147,10 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       return room
     }
     if (typeof engine.createRoom !== 'function') return room
-    const members = Object.values(room.seatBots ?? {})
+    const members = [
+      ...Object.values(room.seatBots ?? {}),
+      ...(room.chatHost?.memberRef === undefined ? [] : [room.chatHost.memberRef]),
+    ]
     if (members.length === 0) return room
     try {
       const chat = await engine.createRoom({
@@ -154,7 +159,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         bulletin: ROOM_CHAT_BULLETIN,
         members,
         cwd: room.repoPath,
-        leadId: room.seatBots?.[room.leadSeat] ?? members[0],
+        leadId: room.chatHost?.memberRef ?? room.seatBots?.[room.leadSeat] ?? members[0],
         responder: { kind: 'mentions' },
       })
       const updated = store.updateRoom(room.id, current => {
@@ -252,7 +257,10 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const syncMembers = async room => {
     const chat = room.chatRoom
     if (chat === undefined || typeof engine.updateRoomMembers !== 'function') return
-    const members = Object.values(room.seatBots ?? {})
+    const members = [
+      ...Object.values(room.seatBots ?? {}),
+      ...(room.chatHost?.memberRef === undefined ? [] : [room.chatHost.memberRef]),
+    ]
     if (members.length === 0) return
     await engine.updateRoomMembers(chat.id, members)
   }

@@ -111,10 +111,8 @@ export const buildDecision = (room, view) => {
     if (chat.running === true) {
       return {
         key: 'chat-running',
-        title: `讨论中 · ${chat.turns ?? 0}/${chat.turnLimit ?? 6}`,
-        detail: (room.chatBusySeat || chat.speaker) === '' || (room.chatBusySeat || chat.speaker) === undefined
-          ? '成员正在发言'
-          : `${nameOf(room, room.chatBusySeat || chat.speaker)} 正在发言`,
+        title: '讨论中',
+        detail: '成员正在发言',
         primary: null,
         secondary: null,
       }
@@ -131,14 +129,11 @@ export const buildDecision = (room, view) => {
         extra: { label: '用结论新建工作室', action: 'start-studio' },
       }
     }
-    const turns = chat.turns ?? 0
     return {
       key: 'chat-interrupted',
-      title: turns > 0 ? '讨论中断，等你处理' : '等你开始讨论',
-      detail: turns > 0
-        ? `上一轮停在 ${turns}/${chat.turnLimit ?? 6} 次发言，可以重新开始本轮。`
-        : '讨论还没有开始，可以现在启动。',
-      primary: { label: turns > 0 ? '重新开始讨论' : '开始讨论', action: 'chat-resume' },
+      title: '讨论中断，等你处理',
+      detail: '上一轮讨论中断了，可以重新开始本轮。',
+      primary: { label: '重新开始讨论', action: 'chat-resume' },
       secondary: { label: '审计详情', action: 'audit' },
     }
   }
@@ -235,8 +230,15 @@ export function RoomStatusHeader({ room, decision, onAudit, actions = {} }) {
           actions.review ? h('button', { type: 'button', onClick: actions.review }, '复盘') : null))))
 }
 
-// 执行中、以及工作室已完成时都不需要单独占一块卡：阶段线、标题、交付单已经说明结果。
-export const showsDecisionCard = decision => decision?.key !== 'executing' && decision?.key !== 'complete'
+// 执行中、工作室已完成、聊天讨论/出结论时都不需要单独占一块卡：
+// 阶段线、交付单、结论卡、打字行已经说明了状态。
+export const showsDecisionCard = decision => (
+  decision?.key !== 'executing'
+  && decision?.key !== 'complete'
+  && decision?.key !== 'chat-running'
+  && decision?.key !== 'chat-decision'
+  && decision?.key !== 'chat-complete'
+)
 
 export function DecisionCard({ room, decision, onAction }) {
   const [reworkOpen, setReworkOpen] = useState(false)

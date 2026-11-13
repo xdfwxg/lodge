@@ -74,6 +74,14 @@ test('an executing or completed studio room does not render a redundant card', (
   const complete = buildDecision(room({ state: 'complete', delivery: { changedFiles: [] } }), view())
   assert.equal(complete.key, 'complete')
   assert.equal(showsDecisionCard(complete), false)
+  const chatComplete = buildDecision({
+    roomType: 'chat',
+    state: 'complete',
+    chat: { phase: 'accepted', accepted: true, running: false, round: 1, turns: 4, turnLimit: 4 },
+    messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
+  }, null)
+  assert.equal(chatComplete.key, 'chat-complete')
+  assert.equal(showsDecisionCard(chatComplete), false)
   assert.equal(showsDecisionCard(buildDecision(room({ needsYou: { kind: 'signoff' } }), view())), true)
 })
 
@@ -105,5 +113,23 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
   }, null)
   assert.equal(interrupted.title, '讨论中断，等你处理')
   assert.equal(interrupted.primary.action, 'chat-resume')
-  assert.match(interrupted.detail, /2\/4/)
+  assert.doesNotMatch(interrupted.detail, /\d+\/\d+/)
+})
+
+test('a free chat does not show speaking counts or a running card', () => {
+  const running = buildDecision({
+    roomType: 'chat',
+    state: 'active',
+    chat: { phase: 'discussing', running: true, turns: 2, turnLimit: 4, speaker: 'worker' },
+  }, null)
+  assert.equal(running.title, '讨论中')
+  assert.doesNotMatch(running.title, /\d+/)
+  assert.equal(showsDecisionCard(running), false)
+  const waiting = buildDecision({
+    roomType: 'chat',
+    state: 'active',
+    chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
+    messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
+  }, null)
+  assert.equal(showsDecisionCard(waiting), false)
 })

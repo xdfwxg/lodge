@@ -5,8 +5,9 @@ import { roleKindOf } from './seats.js'
 export const createProvisioner = ({ engine }) => {
   const createdSeatRefs = []
   const createdBaseRooms = []
+  let createdHostRef = null
 
-  const provision = async ({ roster, short, title, goal, verify, acceptance, align, workspaces, verifiers, leadToolServers = [] }) => {
+  const provision = async ({ roster, short, title, goal, verify, acceptance, align, workspaces, verifiers, roomType = 'studio', leadToolServers = [] }) => {
     let instances = []
     try {
       instances = await engine.instances()
@@ -67,16 +68,31 @@ export const createProvisioner = ({ engine }) => {
       models[seat.id] = seatRef.model
     }
     const leadSeat = createdSeatRefs.find(({ seat }) => kindOf(seat) === 'planner') ?? createdSeatRefs[0]
+    // 聊天室的主持人是 Lodge 自己：单独建一个不出现在席位里的主持模型，只用来开场和总结。
+    createdHostRef = roomType === 'chat'
+      ? await engine.createSeatBot({
+        name: `LodgeHost${short}`,
+        soul: '你是 Lodge 的主持人。你只负责开场、总结和收敛讨论，不替发言者下结论；不要调用工具。',
+        approval: 'ask',
+      })
+      : null
+    const chatMembers = [
+      ...createdSeatRefs.map(({ seatRef }) => seatRef.id),
+      ...(createdHostRef === null ? [] : [createdHostRef.id]),
+    ]
     const chatRoom = await engine.createRoom({
       name: roomChatName(title),
       goal,
       bulletin: ROOM_CHAT_BULLETIN,
-      members: createdSeatRefs.map(({ seatRef }) => seatRef.id),
+      members: chatMembers,
       cwd: workspaces.roomPath ?? workspaces.seats[leadSeat.seat.id].path,
-      leadId: leadSeat.seatRef.id,
+      leadId: createdHostRef?.id ?? leadSeat.seatRef.id,
       responder: { kind: 'mentions' },
     })
     createdBaseRooms.push(chatRoom)
+    const chatHost = createdHostRef === null
+      ? null
+      : { memberRef: createdHostRef.id, name: createdHostRef.name }
 
     const workerEngines = new Set(createdSeatRefs
       .filter(({ seat }) => kindOf(seat) === 'executor')
@@ -91,12 +107,13 @@ export const createProvisioner = ({ engine }) => {
       ))
         ? 'vendor'
         : 'none'
-    return { seatRooms, seatBots, seatNames, engines, models, engineFallbacks, independence, chatRoom }
+    return { seatRooms, seatBots, seatNames, engines, models, engineFallbacks, independence, chatRoom, chatHost }
   }
 
   const cleanup = async () => {
     for (const baseRoom of createdBaseRooms) await engine.deleteRoom(baseRoom.id)
     for (const item of createdSeatRefs) await engine.deleteSeatBot(item.seatRef.id)
+    if (createdHostRef !== null) await engine.deleteSeatBot(createdHostRef.id)
   }
 
   return { provision, cleanup }

@@ -159,6 +159,23 @@ test('a sendId reconciles the echo even when the stored id changes', () => {
   assert.equal(ctx.messages.length, 1)
 })
 
+test('a streamed final reply maps base handles to seat names', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '@Executorea1 ', turnId: 't1' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm1', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '@Executorea1 你好', at: Date.now() },
+  })
+  assert.equal(ctx.messages.at(-1).text, '@执行者 你好')
+  assert.equal(ctx.messages.at(-1).meta.streaming, false)
+  assert.equal(ctx.messages.at(-1).meta.final, true)
+})
+
 test('chat turns allow read-only tools but never write or exec', () => {
   const ctx = setup()
   const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }

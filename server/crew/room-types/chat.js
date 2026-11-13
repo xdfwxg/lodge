@@ -4,9 +4,9 @@ export const description = '围绕一个话题讨论，随机唤醒发言，主�
 export const defaultVerify = 'manual'
 export const readOnly = true
 export const defaultSeats = [
-  { role: 'lead', name: '主持人' },
   { role: 'worker', name: '甲' },
   { role: 'worker', name: '乙' },
+  { role: 'worker', name: '丙' },
 ]
 export const autoStart = 'chat'
 export const singleDirectory = true

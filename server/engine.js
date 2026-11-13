@@ -327,6 +327,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return {
       id: bot.id,
       name: bot.name,
+      threadId: typeof bot.threadId === 'string' ? bot.threadId : null,
       engine: selection.instanceId,
       model: selection.model,
       requestedEngine: resolved.requested,

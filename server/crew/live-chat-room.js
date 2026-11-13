@@ -56,8 +56,8 @@ const speakerPrompt = ({ room, seat, round, turn, turnLimit, note, lines }) => {
   ].filter(Boolean).join('\n')
 }
 
-const hostPrompt = ({ room, round, note, lines }) => [
-  `@${baseName(room, room.leadSeat)} 聊天室第 ${round} 轮讨论到此结束，请总结。`,
+const hostPrompt = ({ room, hostName, round, note, lines }) => [
+  `@${hostName} 聊天室第 ${round} 轮讨论到此结束，请总结。`,
   `话题：${room.goal}`,
   note === '' ? '' : `用户退回了上一轮结论，并补充：${note}`,
   lines.length === 0 ? '没有讨论内容。' : `讨论记录：\n${lines.join('\n')}`,
@@ -148,9 +148,15 @@ export const createChatScheduler = ({
     let room = store.readRoom(roomId) ?? inputRoom
     const chat = room?.chatRoom
     if (chat === undefined) throw new Error('房间聊天室还没准备好')
-    const host = room.leadSeat ?? room.members?.[0]
-    if (typeof host !== 'string' || host === '') throw new Error('聊天室没有主持席位')
-    const speakers = (room.members ?? []).filter(seat => seat !== host)
+    // 新聊天室由 Lodge 主持：主持模型是隐藏成员，不占三个发言席位。
+    const hostSeat = typeof room.leadSeat === 'string' ? room.leadSeat : null
+    const hostBot = room.chatHost?.memberRef ?? (hostSeat === null ? '' : room.seatBots?.[hostSeat] ?? '')
+    const hostName = room.chatHost?.name ?? (hostSeat === null ? 'Lodge 主持' : baseName(room, hostSeat))
+    const hostAuthor = room.chatHost === undefined || room.chatHost === null ? hostSeat ?? 'lodge' : 'lodge'
+    if (hostBot === '') throw new Error('聊天室没有主持席位')
+    const speakers = room.chatHost === undefined || room.chatHost === null
+      ? (room.members ?? []).filter(seat => seat !== hostSeat)
+      : [...(room.members ?? [])]
     const turnLimit = chatTurnLimitOf(room)
     const perSeat = speakers.length === 0
       ? turnLimit
@@ -188,6 +194,12 @@ export const createChatScheduler = ({
           room = current
           counts.set(seat, (counts.get(seat) ?? 0) + 1)
           last = seat
+          if (turn === 1) {
+            const text = `本轮围绕「${room.goal}」展开讨论。${seatDisplayName(room, seat)} 先发言。`
+            store.appendMessage(roomId, room.chatHost === undefined || room.chatHost === null
+              ? { kind: 'chat', authorId: hostSeat, text, meta: { opening: true, round } }
+              : { kind: 'system', text: `Lodge 主持：${text}`, meta: { opening: true, round } })
+          }
           const before = await messageIds(chat)
           const text = speakerPrompt({
             room,
@@ -246,27 +258,27 @@ export const createChatScheduler = ({
         state.chat = {
           ...state.chat,
           phase: summarizing.state,
-          speaker: host,
+          speaker: hostAuthor,
           running: true,
         }
-        return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', host, '达到发言上限')] }
+        return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', hostAuthor, '达到发言上限')] }
       })
       let before = await messageIds(chat)
       let sent = await engine.sendTurn({
         roomId: chat.id,
-        text: hostPrompt({ room: store.readRoom(roomId) ?? room, round, note, lines }),
+        text: hostPrompt({ room: store.readRoom(roomId) ?? room, hostName, round, note, lines }),
       })
       hidePrompt(sent?.messageId)
-      let reply = await waitForBot(chat, room.seatBots?.[host], before, run)
+      let reply = await waitForBot(chat, hostBot, before, run)
       if (reply === null && !run.cancelled) {
         await waitIdle(chat.id, run, 30_000)
         before = await messageIds(chat)
         sent = await engine.sendTurn({
           roomId: chat.id,
-          text: hostPrompt({ room: store.readRoom(roomId) ?? room, round, note, lines }),
+          text: hostPrompt({ room: store.readRoom(roomId) ?? room, hostName, round, note, lines }),
         })
         hidePrompt(sent?.messageId)
-        reply = await waitForBot(chat, room.seatBots?.[host], before, run)
+        reply = await waitForBot(chat, hostBot, before, run)
       }
       if (run.cancelled) return { started: true, cancelled: true, round }
 
@@ -276,13 +288,13 @@ export const createChatScheduler = ({
         : digestText(lines)
       const conclusion = store.appendMessage(roomId, {
         kind: 'chat_conclusion',
-        authorId: host,
+        authorId: hostAuthor,
         text: text === '' ? digestText(lines) : text,
         meta: {
           round,
           turnLimit,
           turns: completed,
-          host,
+          host: hostAuthor,
           fallback: fallback || text === '',
           at: Date.now(),
         },
@@ -299,7 +311,7 @@ export const createChatScheduler = ({
           running: false,
           speaker: '',
         }
-        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }, chatTransitionEvent(concluded, 'conclude', host, '主持人总结完成')] }
+        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }, chatTransitionEvent(concluded, 'conclude', hostAuthor, '主持人总结完成')] }
       })
       if (updated !== null) emit('room', store.readRoom(roomId) ?? updated)
       void refresh()

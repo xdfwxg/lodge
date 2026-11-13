@@ -240,6 +240,52 @@ function NewRoomDialog({
     }
   }
 
+  const resetAfterCreate = () => {
+    setGoal('')
+    setRoomName('')
+    setStep(0)
+    setProposal(null)
+    setSeatChoices([])
+    setAnswers([])
+    setConstraints('')
+    setConstraintsPath(null)
+    setConstraintLayers([])
+    setConstraintsChecked(false)
+    setIncludeConstraints(false)
+    setRoomType('task')
+    setChatTurnLimit(6)
+    setRequireIndependent(false)
+    setError(null)
+    onClose()
+  }
+
+  const startChat = async () => {
+    if (busy || goal.trim() === '' || roomName.trim() === '' || needRepo) return
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await onCreate(goal.trim(), {
+        name: roomName.trim(),
+        roomType: 'chat',
+        verify: 'manual',
+        acceptance: '',
+        chatTurnLimit,
+        repoPath: repoPath.trim(),
+        ...(resume === null ? {} : { continueFrom: resume.id }),
+        ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
+      })
+      if (result?.ok !== true) {
+        setError(result?.error ?? '创建聊天室失败')
+        return
+      }
+      resetAfterCreate()
+    } catch (caught) {
+      setError(`创建聊天室失败：${String(caught?.message ?? caught)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const start = async () => {
     if (proposal === null || !canStart) return
     setBusy(true)
@@ -285,22 +331,7 @@ function NewRoomDialog({
         setError(result?.error ?? '创建房间失败')
         return
       }
-      setGoal('')
-      setRoomName('')
-      setStep(0)
-      setProposal(null)
-      setSeatChoices([])
-      setAnswers([])
-      setConstraints('')
-      setConstraintsPath(null)
-      setConstraintLayers([])
-      setConstraintsChecked(false)
-      setIncludeConstraints(false)
-      setRoomType('task')
-      setChatTurnLimit(6)
-      setRequireIndependent(false)
-      setError(null)
-      onClose()
+      resetAfterCreate()
     } catch (caught) {
       setError(`创建房间失败：${String(caught?.message ?? caught)}`)
     } finally {
@@ -572,9 +603,11 @@ function NewRoomDialog({
           h('h2', null, resume === null ? '新建房间' : '基于交接记录续做'),
           h('p', { className: 'crew-dialog-sub' },
             step === 0
-              ? resume === null
-                ? '说清目标，Lodge 先出方案。'
-                : '目标已带入；选上一轮项目目录，Lodge 重新出方案。'
+              ? roomType === 'chat'
+                ? '给一个话题，Lodge 直接开聊；主持人总结后你来拍板。'
+                : resume === null
+                  ? '说清目标，Lodge 先出方案。'
+                  : '目标已带入；选上一轮项目目录，Lodge 重新出方案。'
               : '确认开工卡后开工；最后一步由你签字。')),
         h('button', {
           type: 'button',
@@ -589,12 +622,19 @@ function NewRoomDialog({
           ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => setStep(0) }, '改目标')
           : null,
         step === 0
-          ? h('button', {
-            type: 'button',
-            className: 'crew-accept crew-dialog-primary',
-            disabled: goal.trim() === '' || needRepo || recommending,
-            onClick: () => void recommend(),
-          }, recommending ? 'Lodge 正在看…' : '让 Lodge 出方案')
+          ? roomType === 'chat'
+            ? h('button', {
+              type: 'button',
+              className: 'crew-accept crew-dialog-primary',
+              disabled: busy || goal.trim() === '' || roomName.trim() === '' || needRepo,
+              onClick: () => void startChat(),
+            }, busy ? '正在创建…' : '开始讨论')
+            : h('button', {
+              type: 'button',
+              className: 'crew-accept crew-dialog-primary',
+              disabled: goal.trim() === '' || needRepo || recommending,
+              onClick: () => void recommend(),
+            }, recommending ? 'Lodge 正在看…' : '让 Lodge 出方案')
           : h('button', {
             type: 'button',
             className: 'crew-accept crew-dialog-primary',

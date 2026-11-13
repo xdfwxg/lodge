@@ -129,6 +129,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       align,
       workspaces,
       verifiers,
+      roomType: roomType.id,
       leadToolServers: plannerTools === null ? [] : [plannerTools.server],
     })
     const builtStages = roomType.buildStages({ title: goalTitle, plan: resolvedPlan, verify, acceptance, align })
@@ -146,6 +147,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       seatNames: provisioned.seatNames,
       seatRooms: provisioned.seatRooms,
       chatRoom: provisioned.chatRoom,
+      chatHost: provisioned.chatHost,
       lead,
       workers,
       verifiers,

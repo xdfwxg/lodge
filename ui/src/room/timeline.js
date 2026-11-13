@@ -45,7 +45,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
         return h(ChatConclusionCard, {
           key: message.id,
           message,
-          seat: byId[message.authorId] ?? { name: '主持人', title: '' },
+          seat: byId[message.authorId] ?? { id: 'lodge', name: 'Lodge 主持', title: '' },
           room,
           onAccept,
           onContinueChat,
