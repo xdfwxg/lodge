@@ -12,7 +12,7 @@ import { prepareWorkspace, resolveWorkspaceProvider } from './room-workspace.js'
 export { inheritedPlan } from './room-create-input.js'
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
-export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = null, ports, parentRoom = null }) => {
+export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
   const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit, independencePolicy } = request
@@ -224,7 +224,6 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       store.appendMessage(room.id, { kind: 'system', text: plannerToolsWarning })
     }
     await live.attach(room, { resume: false })
-    emit('dispatch', dispatchPayload())
     room = await startInitialStage({
       store,
       live,

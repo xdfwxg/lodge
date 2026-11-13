@@ -1,6 +1,5 @@
 import { budgetHint, budgetStatus } from './budget.js'
 import { simulateRoom } from './demo.js'
-import { createDispatchService } from './dispatch-service.js'
 import { evaluateRoomGate } from './room-gate.js'
 import { createRealRoom } from './room-create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
@@ -18,16 +17,14 @@ import { createServiceTrust } from './service-trust.js'
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
-export const createCrewService = ({ store, engine, live, emit, dispatchPayload, seats, ports }) => {
+export const createCrewService = ({ store, engine, live, emit, seats, ports }) => {
   const { readRoom, readRooms, readMessages, writeRoom, appendMessage } = store
   const { roomFiles, workspace, project, usage, handoff, files } = ports
-  const dispatch = createDispatchService({ store, emit, dispatchPayload })
 
   const queries = createServiceQueries({
     store,
     engine,
     seats,
-    dispatchPayload,
     roomFiles,
     project,
     usage,
@@ -41,11 +38,11 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   })
   const seatActions = createServiceSeats({ store, engine, live, emit, roomFiles, workspace })
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
-  const stages = createServiceStages({ store, live, emit, dispatchPayload, completeRoom, roomFiles, plannerMcp: ports.plannerMcp })
-  const chat = createServiceChat({ store, live, emit, dispatchPayload })
-  const closure = createServiceClosure({ store, emit, dispatchPayload, plannerMcp: ports.plannerMcp })
-  const runControl = createServiceRunControl({ store, live, emit, dispatchPayload, roomFiles })
-  const trust = createServiceTrust({ store, emit, dispatchPayload })
+  const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles, plannerMcp: ports.plannerMcp })
+  const chat = createServiceChat({ store, live, emit })
+  const closure = createServiceClosure({ store, emit, plannerMcp: ports.plannerMcp })
+  const runControl = createServiceRunControl({ store, live, emit, roomFiles })
+  const trust = createServiceTrust({ store, emit })
 
   const createRoomWithParent = (body, parentRoom = null) => createRealRoom({
     store,
@@ -53,7 +50,6 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     live,
     emit,
     seats,
-    dispatchPayload,
     body,
     ports,
     parentRoom,
@@ -152,7 +148,6 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
         room.openQuestion = null
         writeRoom(room)
         emit('room', room)
-        emit('dispatch', dispatchPayload())
       }
       return created({ message })
     }
@@ -223,6 +218,5 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     changeSeatRole: seatActions.changeSeatRole,
     createRoom,
     roomRequest,
-    dispatchRequest: dispatch.request,
   }
 }

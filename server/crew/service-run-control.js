@@ -2,7 +2,7 @@ import { budgetHint, budgetStatus } from './budget.js'
 import { resetMcpBreakers } from './mcp-breaker.js'
 import { fail, ok } from './result.js'
 
-export const createServiceRunControl = ({ store, live, emit, dispatchPayload, roomFiles }) => {
+export const createServiceRunControl = ({ store, live, emit, roomFiles }) => {
   const { readRoom, readRooms, readMessages, updateRoom, appendMessage } = store
 
   const startActiveStageIfReady = room => {
@@ -65,7 +65,6 @@ export const createServiceRunControl = ({ store, live, emit, dispatchPayload, ro
       appendMessage(room.id, { kind: 'system', text: `预算已用尽：${status.message}；${budgetHint(status)}。` })
     }
     emit('room', updated)
-    emit('dispatch', dispatchPayload())
     if (resumed) startActiveStageIfReady(updated)
     return ok({ room: updated })
   }
@@ -100,7 +99,6 @@ export const createServiceRunControl = ({ store, live, emit, dispatchPayload, ro
     room = updated
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
-    emit('dispatch', dispatchPayload())
 
     const liveRoom = room.live === true
     let cancelled = false

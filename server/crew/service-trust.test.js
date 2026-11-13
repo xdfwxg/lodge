@@ -16,7 +16,7 @@ const setup = room => {
     },
     appendMessage: (id, message) => messages.push(message),
   }
-  const trusted = createServiceTrust({ store, emit: () => {}, dispatchPayload: () => ({}) })
+  const trusted = createServiceTrust({ store, emit: () => {} })
   return { trusted, messages, room: () => current }
 }
 

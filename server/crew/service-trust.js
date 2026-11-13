@@ -2,7 +2,7 @@ import { fail, ok } from './result.js'
 import { canPromoteTrust, trustLevelOf } from './trust.js'
 
 // 信任级别是房间策略：升级要证据，降级随时可以，变更留事件与消息。
-export const createServiceTrust = ({ store, emit, dispatchPayload }) => {
+export const createServiceTrust = ({ store, emit }) => {
   const { readMessages, updateRoom, appendMessage } = store
 
   const setTrust = (room, body) => {
@@ -28,7 +28,6 @@ export const createServiceTrust = ({ store, emit, dispatchPayload }) => {
       text: `信任级别：${previous} → ${level}（${reason}）。`,
     })
     emit('room', updated)
-    emit('dispatch', dispatchPayload())
     return ok({ room: updated })
   }
 

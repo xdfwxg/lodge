@@ -74,7 +74,6 @@ const run = (store, body, engine = fakeEngine(), workspace = null) => createReal
   engine,
   live: fakeLive(),
   emit: () => {},
-  dispatchPayload: () => null,
   body,
   workspace,
   ports: createCrewPorts(),
@@ -185,7 +184,6 @@ test('parallel workers fail closed when the workspace cannot merge', async () =>
     engine: fakeEngine(),
     live: fakeLive(),
     emit: () => {},
-    dispatchPayload: () => null,
     workspace,
     ports: createCrewPorts(),
     body: {
@@ -612,7 +610,6 @@ test('a studio mounts its own Planner tool server only on the planner seat', asy
     engine,
     live: fakeLive(),
     emit: () => {},
-    dispatchPayload: () => null,
     body: {
       goal: '工作室用 Planner 工具面',
       roomType: 'studio',

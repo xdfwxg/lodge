@@ -94,8 +94,7 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
       engine,
       live,
       emit: () => {},
-      dispatchPayload: () => null,
-      body: {
+        body: {
         goal: '确定性端到端：写 E2E.md',
         roomType: 'studio',
         verify: 'test',
@@ -139,8 +138,7 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
       store,
       live,
       emit: () => {},
-      dispatchPayload: () => null,
-      completeRoom,
+        completeRoom,
       roomFiles: ports.roomFiles,
     })
     const rework = stages.rework(store.readRoom(room.id), { stage: 1, note: '补一个断言再提交' })
@@ -199,8 +197,7 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
       engine,
       live,
       emit: () => {},
-      dispatchPayload: () => null,
-      body: {
+        body: {
         goal: '确定性端到端：聊天室',
         roomType: 'chat',
         seats: [
@@ -232,7 +229,7 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
     assert.equal(conclusion.meta.turns, 6)
     assert.equal(conclusion.meta.fallback, false)
 
-    const chat = createServiceChat({ store, live, emit: () => {}, dispatchPayload: () => null })
+    const chat = createServiceChat({ store, live, emit: () => {} })
     const accepted = chat.accept(store.readRoom(chatId))
     assert.equal(accepted.ok, true)
     assert.equal(store.readRoom(chatId).state, 'complete')

@@ -175,65 +175,10 @@ export const ROOM_SEEDS = [
   },
 ]
 
-export const DISPATCH_SEED = {
-  id: 'dispatch',
-  kind: 'dispatch',
-  name: '调度台',
-  state: 'active',
-  requests: [
-    {
-      id: 'req-1',
-      text: '再看一下昨天那个 PR 的测试',
-      state: 'suggested',
-      at: Date.now() - min(9),
-      suggestion: {
-        roomId: 'room-cli-verbose',
-        roomName: 'CLI 加 --verbose',
-        seatId: 'verifier',
-        seatName: '验收',
-        reason: '这个群的阶段 3 正是回归与 e2e；最近一条证据就在 5 分钟前',
-        permissions: '只读复核',
-        stages: 1,
-      },
-    },
-    {
-      id: 'req-2',
-      text: '登录要换成 OAuth',
-      state: 'suggested',
-      at: Date.now() - min(6),
-      suggestion: {
-        roomId: 'room-oauth',
-        roomName: '登录迁移 OAuth',
-        seatId: 'planner',
-        seatName: '队长',
-        reason: '已有同名目的群，阶段 1 正在等你拍板；先把这句话送进那个房间，不用重开',
-        permissions: '只读',
-        stages: 3,
-      },
-    },
-    {
-      id: 'req-3',
-      text: '给 README 补一节安装说明',
-      state: 'confirmed',
-      at: Date.now() - min(280),
-      decidedAt: Date.now() - min(276),
-      suggestion: {
-        roomId: 'room-readme',
-        roomName: 'README 补安装说明',
-        seatId: 'planner',
-        seatName: '队长',
-        reason: '昨天刚开过同类目标，直接复用',
-        permissions: '只读',
-        stages: 2,
-      },
-    },
-  ],
-}
-
 export const seedIfEmpty = store => {
   const roomCount = Number(store.db.prepare('SELECT COUNT(*) AS n FROM room').get().n)
   if (roomCount !== 0) return
-  // 默认首屏只留一个空调度台；示例数据必须显式开启。
+  // 示例数据必须显式开启；空数据直接进入建房引导。
   const demo = process.env.CREW_SEED_DEMO === '1'
   const insertRoom = store.db.prepare('INSERT INTO room (id, payload) VALUES (?, ?)')
   let seq = 0
@@ -258,8 +203,4 @@ export const seedIfEmpty = store => {
       }
     }
   }
-  insertRoom.run('dispatch', JSON.stringify({
-    ...DISPATCH_SEED,
-    requests: demo ? DISPATCH_SEED.requests : [],
-  }))
 }

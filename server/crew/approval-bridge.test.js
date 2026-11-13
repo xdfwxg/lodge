@@ -61,8 +61,7 @@ const setup = async (options = {}) => {
     store,
     engine,
     emit: () => {},
-    dispatchPayload: () => ({}),
-    ports: createCrewPorts(),
+      ports: createCrewPorts(),
     approvalTimeoutMs: options.approvalTimeoutMs,
   })
   await live.attach(store.readRoom('room-1'))
@@ -128,8 +127,7 @@ test('reopening a room paused by an expired approval resumes it', async () => {
       store: ctx.store,
       engine: ctx.engine,
       emit: () => {},
-      dispatchPayload: () => ({}),
-      ports: createCrewPorts(),
+          ports: createCrewPorts(),
     })
     await reopened.attach(ctx.room())
     const room = ctx.room()

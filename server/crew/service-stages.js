@@ -7,7 +7,7 @@ import { reworkFloor } from './verifiers.js'
 import { childResultText, childVerdictsOf } from './room-subrooms.js'
 import { studioTransitionEvent, transitionStudio } from './room-state.js'
 
-export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom, roomFiles, plannerMcp = null }) => {
+export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, plannerMcp = null }) => {
   const { readRooms, readMessages, readEvidence, updateRoom, appendMessage } = store
 
   const editStagePlan = (room, body) => {
@@ -141,7 +141,6 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     room = updated
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
-    emit('dispatch', dispatchPayload())
     if (room.roomType === 'studio' && (gate.stage.kind === 'deliverable' || gate.stage.manual === true)) {
       const evidence = [...readMessages(room.id)].reverse().find(message => (
         message.kind === 'evidence' && (message.meta?.stage ?? 0) === index
@@ -192,7 +191,6 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
             text: `预算已用尽：${status.message}；下一阶段已暂停，${budgetHint(status)}。`,
           })
           emit('room', paused)
-          emit('dispatch', dispatchPayload())
           finalRoom = paused
         }
       } else {
@@ -232,7 +230,6 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     })
     if (updated === null) return fail('conflict', '阶段状态已变化，重试')
     emit('room', updated)
-    emit('dispatch', dispatchPayload())
     if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {
         appendMessage(room.id, { kind: 'system', text: `重审返工启动失败：${error?.message ?? error}` })

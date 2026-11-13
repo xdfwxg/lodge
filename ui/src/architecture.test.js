@@ -34,7 +34,7 @@ test('app.js stays a composition shell', () => {
   for (const name of ['Sidebar', 'RoomView', 'DispatchView', 'NewRoomDialog', 'Onboarding']) {
     assert.doesNotMatch(text, new RegExp(`function\\s+${name}\\b`), `app.js still defines ${name}`)
   }
-  for (const path of ['views/sidebar.js', 'views/onboarding.js', 'views/dispatch-view.js', 'views/room-view.js', 'new-room-dialog.js']) {
+  for (const path of ['views/sidebar.js', 'views/onboarding.js', 'views/room-view.js', 'new-room-dialog.js']) {
     assert.match(text, new RegExp(`from\\s+['"]\\./${path.replaceAll('/', '\\/')}['"]`), `app.js does not import ${path}`)
   }
 })

@@ -45,7 +45,6 @@ const setup = () => {
       continueChat: async (room, note) => { calls.push({ roomId: room.id, note }) },
     },
     emit: () => {},
-    dispatchPayload: () => null,
   })
   return { chat, room: () => current, messages, calls }
 }

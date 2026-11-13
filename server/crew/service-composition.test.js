@@ -19,7 +19,6 @@ const service = () => createCrewService({
   engine: { health: async () => ({}), instances: async () => [] },
   live: {},
   emit: () => {},
-  dispatchPayload: () => ({}),
   seats: [],
   ports: createCrewPorts(),
 })
@@ -47,7 +46,6 @@ test('the service facade keeps every route entry', () => {
     'createRoom',
     'recommendRoster',
     'roomRequest',
-    'dispatchRequest',
   ]) {
     assert.equal(typeof instance[name], 'function', `${name} is missing`)
   }

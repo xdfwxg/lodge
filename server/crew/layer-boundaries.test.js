@@ -39,7 +39,6 @@ const applicationFiles = [
   'roster-recommend.js',
   'handoff.js',
   'workspace-gc.js',
-  'dispatch-service.js',
   'demo.js',
   'review.js',
   'resources.js',

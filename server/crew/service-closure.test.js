@@ -25,7 +25,7 @@ const setup = closure => {
       return stored
     },
   }
-  const service = createServiceClosure({ store, emit: () => {}, dispatchPayload: () => null })
+  const service = createServiceClosure({ store, emit: () => {} })
   return { service, room: () => current, messages }
 }
 

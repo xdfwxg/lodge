@@ -2,7 +2,7 @@ import { fail, ok } from './result.js'
 import { chatTransitionEvent, transitionChat } from './room-state.js'
 
 // 聊天室只有 room.chat；结论确认和继续讨论都不经过工作室的 stages/gates。
-export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
+export const createServiceChat = ({ store, live, emit }) => {
   const { appendMessage, readMessages, updateRoom } = store
 
   const accept = room => {
@@ -21,7 +21,6 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)
-    emit('dispatch', dispatchPayload())
     appendMessage(room.id, { kind: 'system', text: '聊天结论已确认，房间完成。' })
     return ok({ room: updated })
   }
@@ -61,7 +60,6 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)
-    emit('dispatch', dispatchPayload())
     void live.continueChat(updated, note).catch(error => {
       appendMessage(room.id, { kind: 'system', text: `继续讨论启动失败：${error?.message ?? error}` })
       const reset = updateRoom(room.id, current => {
@@ -93,7 +91,6 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     })
     if (updated === null) return fail('conflict', '聊天状态已变化，重试')
     emit('room', updated)
-    emit('dispatch', dispatchPayload())
     appendMessage(room.id, { kind: 'system', text: '讨论中断，已重新开始本轮。' })
     void live.continueChat(updated, note).catch(error => {
       appendMessage(room.id, { kind: 'system', text: `恢复讨论失败：${error?.message ?? error}` })

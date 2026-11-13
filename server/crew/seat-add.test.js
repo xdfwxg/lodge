@@ -78,8 +78,7 @@ test('a verifier added after room creation gets a workspace, base thread and liv
       engine,
       live,
       emit: () => {},
-      dispatchPayload: () => null,
-      seats: [],
+        seats: [],
       dataDir: join(root, 'data'),
       ports: createCrewPorts(),
     })

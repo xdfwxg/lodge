@@ -3,14 +3,11 @@ import { useSyncExternalStore } from 'react'
 const EMPTY = {
   phase: 'loading',
   rooms: [],
-  dispatch: null,
   seats: [],
   roomTypes: [],
   engines: [],
   runtime: null,
   budget: null,
-  resources: null,
-  usage: null,
   review: null,
   reviewFor: null,
   replay: null,
@@ -22,7 +19,7 @@ const EMPTY = {
   ledgerFor: null,
   integrity: null,
   integrityFor: null,
-  activeId: 'dispatch',
+  activeId: null,
   error: null,
 }
 
@@ -32,7 +29,6 @@ export function createStore() {
   let stopped = false
   const seen = new Set()
   const listeners = new Set()
-  let firstLoad = true
 
   const emit = next => {
     state = next
@@ -40,6 +36,20 @@ export function createStore() {
   }
   const patch = next => emit({ ...state, ...next })
   const lastSeq = () => Math.max(0, ...state.rooms.map(room => room.messages.at(-1)?.seq ?? 0))
+  const rememberedRoom = () => {
+    try {
+      return globalThis.localStorage?.getItem('lodge.activeRoom') ?? null
+    } catch {
+      return null
+    }
+  }
+  const rememberRoom = id => {
+    try {
+      globalThis.localStorage?.setItem('lodge.activeRoom', id)
+    } catch {
+      // 隐私模式或禁用存储时只影响下次落在哪个房间，不影响使用。
+    }
+  }
 
   const acceptMessage = message => {
     if (seen.has(message.id)) return
@@ -95,9 +105,6 @@ export function createStore() {
     events.addEventListener('room', event => {
       if (!stopped) acceptRoom(JSON.parse(event.data))
     })
-    events.addEventListener('dispatch', event => {
-      if (!stopped) patch({ dispatch: JSON.parse(event.data) })
-    })
     events.addEventListener('error', () => {
       if (!stopped) patch({ phase: state.phase === 'loading' ? 'loading' : 'reconnecting' })
     })
@@ -117,18 +124,15 @@ export function createStore() {
       }
       for (const room of data.rooms) for (const message of room.messages) seen.add(message.id)
       if (stopped) return
-      const pendingDispatch = (data.dispatch?.requests ?? []).some(request => request.state === 'suggested')
-      const landInRoom = firstLoad && data.rooms.length === 1 && !pendingDispatch
-      const known = state.activeId === 'dispatch' || data.rooms.some(room => room.id === state.activeId)
-      const activeId = landInRoom
-        ? data.rooms[0].id
-        : known ? state.activeId : (data.rooms[0]?.id ?? 'dispatch')
-      firstLoad = false
+      const known = data.rooms.some(room => room.id === state.activeId)
+      const remembered = rememberedRoom()
+      const activeId = known
+        ? state.activeId
+        : (data.rooms.some(room => room.id === remembered) ? remembered : (data.rooms[0]?.id ?? null))
       emit({
         ...state,
         phase: 'ready',
         rooms: data.rooms,
-        dispatch: data.dispatch,
         seats: data.seats,
         roomTypes: data.roomTypes ?? [],
         engines: data.engines ?? [],
@@ -168,28 +172,6 @@ export function createStore() {
     } catch (error) {
       patch({ error: String(error?.message ?? error) })
       return null
-    }
-  }
-
-  const loadResources = async () => {
-    try {
-      const response = await fetch('/api/resources')
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok || data.resources === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
-      patch({ resources: data.resources })
-    } catch (error) {
-      patch({ error: `资源面板加载失败：${String(error?.message ?? error)}` })
-    }
-  }
-
-  const loadUsage = async () => {
-    try {
-      const response = await fetch('/api/usage?range=7d')
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok || data.usage === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
-      patch({ usage: data.usage })
-    } catch (error) {
-      patch({ error: `用量账本加载失败：${String(error?.message ?? error)}` })
     }
   }
 
@@ -266,7 +248,7 @@ export function createStore() {
       source = null
       seen.clear()
     },
-    select: activeId => patch({
+    select: activeId => (rememberRoom(activeId), patch({
       activeId,
       review: null,
       reviewFor: null,
@@ -279,9 +261,7 @@ export function createStore() {
       ledgerFor: null,
       integrity: null,
       integrityFor: null,
-    }),
-    loadResources,
-    loadUsage,
+    })),
     resetMcp: server => post(`/api/rooms/${state.activeId}/mcp/reset`, { server }),
     openReview,
     closeReview: () => patch({ review: null, reviewFor: null }),
@@ -335,6 +315,7 @@ export function createStore() {
       const data = await post('/api/rooms', { goal, ...answers })
       if (data?.room === undefined) return { ok: false, error: state.error ?? '建房失败' }
       await load()
+      rememberRoom(data.room.id)
       patch({ activeId: data.room.id })
       return { ok: true, room: data.room, warning: data.warning ?? null }
     },
@@ -364,9 +345,6 @@ export function createStore() {
         return { ok: false }
       }
     },
-    dispatchAsk: text => post('/api/dispatch/requests', { text }),
-    dispatchConfirm: id => post(`/api/dispatch/requests/${id}/confirm`, {}),
-    dispatchDecline: id => post(`/api/dispatch/requests/${id}/decline`, {}),
     activeRoom,
   }
 }

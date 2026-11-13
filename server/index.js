@@ -2,7 +2,6 @@ import http from 'node:http'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createDigest } from './crew/digest.js'
 import { createGateAgent } from './crew/gate-agent.js'
 import { createCrewPorts } from './crew/crew-ports.js'
 import { createLiveRooms } from './crew/live.js'
@@ -44,12 +43,6 @@ const emit = (event, payload, id) => {
   broadcast(event, payload, id)
 }
 
-const digest = createDigest({
-  readRoom: store.readRoom,
-  readRooms: store.readRooms,
-  readMessages: store.readMessages,
-})
-
 const engine = createEngine()
 
 let service = null
@@ -78,7 +71,6 @@ const live = createLiveRooms({
   store,
   engine,
   emit,
-  dispatchPayload: digest.dispatchPayload,
   gateAgent: createGateAgent({ engine }),
   ports,
   onPlannerTool: payload => service?.plannerTool(payload.room?.id, payload.tool),
@@ -89,7 +81,6 @@ service = createCrewService({
   engine,
   live,
   emit,
-  dispatchPayload: digest.dispatchPayload,
   seats: SEATS,
   ports,
 })
@@ -309,15 +300,6 @@ const server = http.createServer(async (req, res) => {
     if (roomAction !== null) {
       const [, roomId, action] = roomAction
       return respond(res, await service.roomRequest(roomId, action, {
-        method: req.method,
-        readBody: () => readJson(req),
-      }))
-    }
-
-    const dispatchAction = path.match(/^\/api\/dispatch\/requests(?:\/([^/]+)\/(confirm|decline))?$/)
-    if (dispatchAction !== null) {
-      const [, requestId, action] = dispatchAction
-      return respond(res, await service.dispatchRequest(requestId, action, {
         method: req.method,
         readBody: () => readJson(req),
       }))

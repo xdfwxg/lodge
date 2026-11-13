@@ -61,7 +61,6 @@ test('a completed child posts only its Verifier verdicts to the parent and wakes
       sendToSeat: async (id, seat, text) => { sent.push({ id, seat, text }); return { messageId: null } },
     },
     emit: () => {},
-    dispatchPayload: () => null,
     completeRoom: room => ({ ...room, state: 'complete', closure: 'signed' }),
     roomFiles: { writeGoal: () => {} },
   })

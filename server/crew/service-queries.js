@@ -15,7 +15,6 @@ export const createServiceQueries = ({
   store,
   engine,
   seats,
-  dispatchPayload,
   roomFiles,
   project,
   usage: usagePort,
@@ -50,7 +49,6 @@ export const createServiceQueries = ({
           messages,
         }
       }),
-      dispatch: dispatchPayload(),
       budget: budgetSummary(rooms),
       engines,
     }

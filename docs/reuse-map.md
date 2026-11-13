@@ -9,7 +9,7 @@
 >
 > **一句话**：房间、证据、验收、交接、预算和 macOS 桌面已落地；仍缺稳定跨厂商、分叉会议、跨实例自动同步、模型语义路由和 OS 级隔离。
 >
-> 明细（已成立）：开工卡（done/分工/验收/≤3 问，一次确认）、固定三人小队（单人/自定义编制入口封口；模板功能已移除）、多执行并行（扩展代码保留）、多验收席位（全部 PASS 才签字）、建后加/移除/改角色（扩展代码保留，入口封口）、席位 env/data/tmp 目录与端口预置、端口预检、manual 人验收、worktree 生命周期（环境同步/端口提示/清理/GC/磁盘水位）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、网络 isolator（macOS sandbox-exec / Linux unshare；Windows 走 WSL2 + bubblewrap，缺原语 fail closed）、工具审批桥（写工具按席位拒绝；外部动作先挂起，规则守门立即建议、独立模型守门异步复核，人最终批准；exec 仍不是通用文件系统沙箱）、验收盲审与无显式引擎时的跨厂商偏好、完成态交付单（目标/阶段/命令/文件/结论/commit）与 Markdown 导出、资源面板最近交付、有队长时的“对齐 → 交付 → 验收与结论”三段式和最多 3 个工作阶段、未开始阶段的增删改与重排、从进行中/完成房间续做/分叉、调度台本地词项路由、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地交接包（真实房间导出 JSON 包；导入/打开入口当前移除）、Workspace 端口（git、direct、plain 三种 provider；非 git 目录默认 direct 原地修改，不复制；plain 仅在显式选择时复制隔离）、房型策略（任务房 / 圆桌派队 / 存档房）、目标岛一句状态、阶段与返工记录、复盘视图（成本/Token/返工/失败派生）、席位交接包（业务素材 + transcript 引用）、项目约束 `LODGE.md`（建房快照）、模板功能已移除、阶段依赖与部分成功、调度台只读资源面板、MCP 调用审计与按 server 熔断、调度台 7 天 Token 趋势、约束分层、目标任务模型与历史目标。仍缺/边界：runtime Assignment、Windows 真机 dogfood（WSL2 + bubblewrap 适配器已有，但未在 Windows 上实跑）、无第二引擎时的稳定跨厂商、分叉会议、嵌套子房间（opt-in，仅预留投影字段与文档契约）、跨实例交付自动同步、模型语义路由、Windows/Linux 桌面真机验证。明确不做：macOS 自动更新与公证（当前 ad-hoc 路线）；五种房型分类不做，房型不进入首屏。
+> 明细（已成立）：开工卡（done/分工/验收/≤3 问，一次确认）、固定三人小队（单人/自定义编制入口封口；模板功能已移除）、多执行并行（扩展代码保留）、多验收席位（全部 PASS 才签字）、建后加/移除/改角色（扩展代码保留，入口封口）、席位 env/data/tmp 目录与端口预置、端口预检、manual 人验收、worktree 生命周期（环境同步/端口提示/清理/GC/磁盘水位）、席位引擎绑定（可用 instance/model；不可用显式降级）、验收命令一次性副本、网络 isolator（macOS sandbox-exec / Linux unshare；Windows 走 WSL2 + bubblewrap，缺原语 fail closed）、工具审批桥（写工具按席位拒绝；外部动作先挂起，规则守门立即建议、独立模型守门异步复核，人最终批准；exec 仍不是通用文件系统沙箱）、验收盲审与无显式引擎时的跨厂商偏好、完成态交付单（目标/阶段/命令/文件/结论/commit）与 Markdown 导出、资源面板最近交付、有队长时的“对齐 → 交付 → 验收与结论”三段式和最多 3 个工作阶段、未开始阶段的增删改与重排、从进行中/完成房间续做/分叉、调度台本地词项路由、成本硬闸门（房间/全局预算到线暂停新任务，调度台只展示）、本地交接包（真实房间导出 JSON 包；导入/打开入口当前移除）、Workspace 端口（git、direct、plain 三种 provider；非 git 目录默认 direct 原地修改，不复制；plain 仅在显式选择时复制隔离）、房型策略（任务房 / 圆桌派队 / 存档房）、目标岛一句状态、阶段与返工记录、复盘视图（成本/Token/返工/失败派生）、席位交接包（业务素材 + transcript 引用）、项目约束 `LODGE.md`（建房快照）、模板功能已移除、阶段依赖与部分成功、调度台只读资源面板、MCP 调用审计与按 server 熔断、调度台 7 天 Token 趋势、约束分层、目标任务模型与历史目标；调度台（请求投影/词项路由/资源面板）已于 2026-11-14 移除。仍缺/边界：runtime Assignment、Windows 真机 dogfood（WSL2 + bubblewrap 适配器已有，但未在 Windows 上实跑）、无第二引擎时的稳定跨厂商、分叉会议、嵌套子房间（opt-in，仅预留投影字段与文档契约）、跨实例交付自动同步、模型语义路由、Windows/Linux 桌面真机验证。明确不做：macOS 自动更新与公证（当前 ad-hoc 路线）；五种房型分类不做，房型不进入首屏。
 
 ## 0. 选型结论
 
@@ -115,9 +115,8 @@
 3. **验收执行器**：一次性副本、超时、环境变量白名单、退出码与产物哈希；明确「协作隔离，不是安全边界」。
 4. **跨厂商独立性**：`vendor | model | none`，降级在验收卡上标注；盲审与同厂商复核提示。
 5. **席位模板与权限**：Planner 只读、Executor worktree 写、Verifier 只读；模板可换，不改核心。
-6. **产品 UI**：当前 `ui/` 的房间、调度台、证据回执、完成态；状态层接基座事件。
-7. **调度台**：一句话 → 建议交给哪个群；接 OpenMausBot 的请求/建议形态，不重造。
-8. **Lodge 宿主装配**：只装 runtime + 首版 driver + crew 模块，不把 OpenMausBot 的全部能力都打开。
+6. **产品 UI**：当前 `ui/` 的房间、证据回执、完成态；状态层接基座事件。
+7. **Lodge 宿主装配**：只装 runtime + 首版 driver + crew 模块，不把 OpenMausBot 的全部能力都打开。
 
 ## 6. 明确不搬 / 首版不装
 
@@ -270,10 +269,11 @@ openmausbot/                  # 上游 OSS，保留 remote
 - **可选 skill 与信任阶梯（2026-11-13）**：`skill-store.js` 按 id 读取 `templates/skills`，建房时校验未知 skill 并 fail closed，派发时按 seat 声明注入正文；房型 SOP 不走 skill。`trust.js`/`service-trust.js` 提供 `observe → verify → auto`，升级要求证据，默认 `verify`；`observe` 强制只读，`auto` 只自动放行规则守门明确 allow 的外部动作，阶段仍需独立复核与人签字。UI 高级面板可调整信任级别。边界：skill 不是由模型调工具动态选择，而是按席位声明注入；`auto` 不跳过验收。
 - **失败沉淀门禁（2026-11-13）**：`evals/regressions/index.json` 登记真实翻车与对应测试，`npm run check:regressions` 检查链接；流程要求每次真实翻车补一条回归测试或 eval。`boundary.test.js` 会拦住 crew 里的基座词汇，`store.test.js` 覆盖旧 schema 的增量迁移。
 - **触发扩展缝**：定时/事件任务归基座 routines/webhooks，crew 只存 `triggers` 引用与授权，不写 cron 循环；当前未接，`capabilities.schedules=false`，默认关闭；主动档位等真实后台检查与审批跑通后再开。
-- **调度台**：仍是只读前台——收件、建议、一次确认、投影摘要；不做能操作界面的全局助手。若要加，只能是 read + propose（解释、打开面板、生成草稿），最终动作由用户点。
+- **调度台（已移除 2026-11-14）**：曾是只读前台——收件、建议、一次确认、投影摘要；确认只追加系统消息，不启动回合。已整块移除，保留此条作为决策记录。
 - **真实 M3 验证（2026-11-11）**：用临时源仓库 + 全新数据目录跑通三人组：3 个基座线程、3 个工作区、executor 分支正确；planner 克隆没有 `hello.txt`；executor 在自己的 worktree 创建文件，源仓库 `main` 仍干净；候选 commit 在 `crew/<room>/executor`；verifier 临时副本拿到候选文件并给 PASS；人签字后 executor 工作树干净，结论 commit 含 `CONCLUSION.md`；交付在房间分支上，可人工合并。另验证两席自定义房（执行+验收）与无验收房（队长+执行，`human` 人签字）；测试 bot 与群已清理，基座回到只有 MausBot。
 - **并行执行（2026-11-11）**：自定义编制可含多个执行席位；每个执行独立 worktree/分支，同一交付阶段并行派发。全部执行回合结束后，按顺序把候选分支合并进房间集成 worktree（`crew/<room>/integration`），在集成目录跑验收命令，再交验收席位复核。合并冲突会回滚并停下等人（`needsYou.kind=merge`）；15 分钟未完成报超时（`kind=parallel`）。真实双执行验证：前端/后端各自 worktree + 候选 commit，集成合并、验收 exit 0、verifier PASS、人签字、`CONCLUSION.md` + 结论 commit；源仓库 `main` 干净，交付在 integration 分支，候选分支保留供人工查看。单元测试覆盖集成 worktree、合并、冲突回滚。
 - **下一步（设计文档 §15.1）**：M3 核心门槛已过；worktree 生命周期、成本硬闸门、建后改角色均已落。Windows 适配器需真机 dogfood；下一步做 5–10 人私密 dogfood（只收卡住点，不公开演示），真实卡点重复 2–3 次再进 P1。P1 里已落地的项（交接包、约束、部分成功、MCP、复盘/Token 趋势、资源面板、模板）不再重复排期。明确不做：模板市场、多人协作/Org、非编码模式、自动执行、第二个有写权限的全局助手、黑盒 RAG。
+- **调度台移除（2026-11-14）**：删除 `kind: dispatch` 请求投影、`/api/dispatch/requests`、`suggestFor` 词项路由和整个调度台页面。原因：确认一条请求只向目标房间追加一条系统消息，不启动回合，也不产生证据；房间列表、`needsYou` 和房间内规划师派活已覆盖同一需求。首屏现在直接落在最近选中的房间；没有房间时进入建房引导。7 天 Token 趋势和最近交付面板随页面移除；`/api/resources` 与 `/api/usage` 作为只读数据接口保留，单房间用量仍在高级面板与复盘里。
 - **已知边界**：UI 已拆成装配壳 + 视图/房间/弹窗/系统桥模块（目标岛保持独立）；`room-create.js` 已拆成入口 + 输入/工作区/预置/记录/首次派发，完成态另拆 `room-complete.js`；`live.js` 已拆成生命周期 + 消息投影/刷新/审批/订阅；`live-turns.js` 已拆成回合状态、验收、集成、复核、派发五个模块；`service.js` 已拆成装配路由 + 查询/模板/交付/席位/阶段/运行控制模块，席位再加/移除/改角色三模块；应用层只接收组合根注入的 `ports`，只有 `server/index.js` 装配端口，层边界由 `layer-boundaries.test.js` 固定；剩余较大的 `live-turns.js` 属于同一变化原因内部的内聚逻辑；模板功能已移除；Engine 端口是房间级语义；M1 游标/轮次/空转已落，业务感知交接包已落（实际增量仍由基座 delta-context 负责）；房间记录随结论 commit 可带走，交接包导出已接，导入/打开入口已移除；M2 真 Stop 已接（未做 500ms E2E），@ 基础有；M3 席位隔离与并行 executor worktree 已落（planner 克隆 / 多 executor worktree / 集成 worktree / verifier 临时副本 + 候选提交）；worktree 生命周期已落（环境/端口/清理/GC/磁盘水位）；验收命令一次性副本与网络 isolator 已落（macOS/Linux；Windows 走 WSL2 + bubblewrap，缺原语 fail closed）；成本硬闸门已落（房间/全局预算到线暂停新任务），发言配额未强制；席位 env/data/tmp 与端口预置已落，OS 级 venv/本地数据库/端口强制隔离未做；工具审批桥已落（写工具拒绝；外部动作挂起等人批准；exec 仍是临时副本，不是通用文件系统沙箱）；建后加/移除/改角色代码保留但入口封口；多验收席位已接（全部 PASS 才签字，任一 REJECT 打回）；manual 验收不挂 verifier（要独立复核必须补命令，fail closed）；并行合并冲突需要人处理，没有自动重排；验收已走盲审提示，无显式引擎时优先不同厂商、没有第二引擎时降级；独立复核会话（每席位独立基座线程 + 盲审包）已在；编制建议依赖基座可用，失败时显式回退手动选编制；Goal 有队长时三段式/最多 3 个工作阶段，开工卡 >3 问拒绝；分叉会议未做；无第二引擎时的稳定跨厂商/跨实例交付自动同步/模型语义路由/发言配额未做；macOS Electron 壳已接（ad-hoc zip，基座/CLI 不打入；不公证、无自动更新），Windows/Linux 桌面配置已加但未真机验证；TypeScript 只在基座；SQLite 仍是原型索引，关系表迁移只改 `store.js`。
 
 ## 9. 许可与合规

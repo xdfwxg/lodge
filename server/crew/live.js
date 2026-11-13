@@ -9,7 +9,7 @@ import { createStudioEngine } from './live-studio.js'
 import { seatDisplayName } from './seat-labels.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
-export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs, onPlannerTool = null }) => {
+export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, approvalTimeoutMs, onPlannerTool = null }) => {
   const { roomFiles, usage, commands, files, skills, advisor } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
@@ -304,6 +304,6 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       if (entry === undefined) return
       for (const seat of entry.seats.keys()) await sync.syncSeat(entry, seat)
     },
-    dispatchPayload,
+    
   }
 }

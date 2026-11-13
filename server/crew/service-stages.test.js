@@ -48,7 +48,6 @@ const setup = initial => {
       resume: async (id, options) => { calls.push({ resume: id, options }) },
     },
     emit: () => {},
-    dispatchPayload: () => null,
     completeRoom: value => value,
     roomFiles: { writeGoal: () => {} },
   })
