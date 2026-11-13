@@ -218,19 +218,6 @@ export const buildDecision = (room, view) => {
   }
 }
 
-export function StageProgress({ room }) {
-  if (room.roomType !== 'studio' || !Array.isArray(room.stages) || room.stages.length === 0) return null
-  return h('div', { className: 'crew-stage-progress', 'aria-label': '阶段进度' },
-    room.stages.map((stage, index) => h('div', {
-      key: `${index}:${stage.title}`,
-      className: 'crew-stage-progress-step',
-      'data-state': stage.state,
-      title: `${index + 1}. ${stage.title}`,
-    },
-    h('span', { className: 'crew-stage-progress-dot' }, stage.state === 'passed' ? '✓' : String(index + 1)),
-    h('span', { className: 'crew-stage-progress-label' }, stage.title))))
-}
-
 export function RoomStatusHeader({ room, decision, onAudit, actions = {} }) {
   return h('header', { className: 'crew-decision-head' },
     h('div', { className: 'crew-decision-heading' },

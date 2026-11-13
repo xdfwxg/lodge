@@ -1,15 +1,27 @@
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
+import { BotAvatar } from '../marks.js'
 import { DeliverySheet } from '../delivery-sheet.js'
 import { Composer } from '../composer.js'
 import { ReviewDialog } from '../room/advanced.js'
 import { AuditDrawer } from '../room/audit.js'
-import { buildDecision, DecisionCard, RoomStatusHeader, StageProgress } from '../room/decision.js'
+import { buildDecision, DecisionCard, RoomStatusHeader } from '../room/decision.js'
+import { DsGoalHeader } from '../goal-island/ds-adapter.js'
 import { RoomRail } from '../room/rail.js'
 import { StageDock } from '../room/stage-dock.js'
 import { Timeline } from '../room/timeline.js'
 import { ReplayDialog } from '../room/replay.js'
 import { ShadowDialog } from '../room/shadow.js'
 import { buildGoalView } from '../goal-island/model.js'
+
+function TypingLine({ seat, summarizing, queue }) {
+  return h('div', { className: 'crew-msg crew-typing-line' },
+    h('div', { className: 'crew-msg-avatar' },
+      seat === null || seat === undefined ? null : h(BotAvatar, { bot: seat, size: 30, live: true })),
+    h('div', { className: 'crew-msg-body' },
+      h('span', { className: 'crew-typing-name' }, `${seat?.name ?? '成员'} ${summarizing ? '正在总结' : '正在输入'}`),
+      h('span', { className: 'crew-typing-dots', 'aria-hidden': true }, h('i'), h('i'), h('i')),
+      queue > 0 ? h('span', { className: 'crew-typing-queue' }, `· ${queue} 个席位排队`) : null))
+}
 
 function RoomView({ state, room, store, onContinue, onStartStudio }) {
   const [railTab, setRailTab] = useState('status')
@@ -70,6 +82,15 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   }, [room.seatSpecs, room.members, state.seats])
   const goalView = useMemo(() => (isChat ? null : buildGoalView(room, seats)), [isChat, room, seats])
   const decision = useMemo(() => buildDecision(room, goalView), [room, goalView])
+  const typingSeatId = room.chatBusySeat
+    || (isChat ? chat.speaker : '')
+    || (room.busySeats?.length === 1 ? room.busySeats[0] : '')
+  const typingSeat = seats.find(seat => seat.id === typingSeatId) ?? null
+  const typing = !locked && typingSeatId !== ''
+    && (room.chatWorking === true || chat.running === true || room.busy === true)
+  useEffect(() => {
+    if (typing && stick.current) scrollToBottom()
+  }, [typingSeatId, typing])
   const mentionMembers = useMemo(() => {
     const members = (room.members ?? []).map(id => ({
       id,
@@ -113,13 +134,23 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
 
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { className: 'crew-room-main' },
-      h(RoomStatusHeader, {
-        room,
-        decision,
-        actions: headerActions,
-        onAudit: () => setAuditOpen(true),
-      }),
-      h(StageProgress, { room }),
+      isChat
+        ? h(RoomStatusHeader, {
+          room,
+          decision,
+          actions: headerActions,
+          onAudit: () => setAuditOpen(true),
+        })
+        : h(DsGoalHeader, {
+          room,
+          seats,
+          store,
+          actions: {
+            audit: () => setAuditOpen(true),
+            review: () => void store.openReview(room.id),
+            continue: onContinue === undefined ? undefined : () => onContinue(room),
+          },
+        }),
       h(DecisionCard, { room, decision, onAction: decisionAction }),
       state.reviewFor === room.id && state.review !== null
         ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
@@ -141,17 +172,17 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
           onApproval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
           onContinueChat: note => void store.continueChat(note),
           onStartStudio,
-        })),
+        }),
+        typing
+          ? h(TypingLine, {
+            seat: typingSeat,
+            summarizing: isChat && chat.phase === 'summarizing',
+            queue: room.chatQueue?.length ?? 0,
+          })
+          : null),
         state.error ? h('div', { className: 'crew-error' }, state.error) : null),
       !atBottom
         ? h('button', { type: 'button', className: 'crew-jump-latest', onClick: scrollToBottom }, '回到最新')
-        : null,
-      isChat && (room.chatWorking === true || chat.running === true)
-        ? h('div', { className: 'crew-typing' },
-          chat.phase === 'summarizing'
-            ? '主持人正在总结…'
-            : `${seats.find(seat => seat.id === (room.chatBusySeat || chat.speaker))?.name ?? '成员'} 正在组织发言…`,
-          room.chatQueue?.length > 0 ? ` · ${room.chatQueue.length} 个席位排队` : '')
         : null,
       h('div', { className: 'dsb-composer' },
         h(Composer, {
