@@ -39,6 +39,8 @@ test('review tells the user who is working and still links evidence', () => {
   assert.equal(decision.primary, undefined)
   assert.equal(decision.secondary.label, '查看证据')
   assert.match(decision.detail, /npm test/)
+  const partial = buildDecision(room({ needsYou: { kind: 'review', label: '待复核 · 已回报 1/2' } }), view())
+  assert.match(partial.detail, /1\/2/)
 })
 
 test('rework leads with the reject reason and a redo action', () => {

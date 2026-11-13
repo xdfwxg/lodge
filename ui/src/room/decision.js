@@ -84,7 +84,8 @@ export const buildDecision = (room, view) => {
       title: '这轮完成了',
       detail: `${stages.filter(item => item.state === 'passed').length} 个阶段 · ${files} 个文件 · 验收员通过`,
       primary: { label: '查看交付', action: 'delivery' },
-      secondary: { label: '导出交付单', action: 'export' },
+      secondary: { label: '查看证据', action: 'evidence' },
+      extra: { label: '导出交付单', action: 'export' },
     }
   }
   if (room.state === 'stopped') {
@@ -148,10 +149,11 @@ export const buildDecision = (room, view) => {
     }
   }
   if (room.needsYou?.kind === 'review') {
+    const progress = /已回报/.test(reviewLabel) ? reviewLabel : ''
     return {
       key: 'review',
       title: '验收员正在独立复核',
-      detail: evidence || '证据已就绪',
+      detail: [evidence || '证据已就绪', progress].filter(Boolean).join(' · '),
       secondary: { label: '查看证据', action: 'evidence' },
     }
   }
