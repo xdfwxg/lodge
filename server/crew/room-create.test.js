@@ -69,13 +69,14 @@ const fakeLive = () => ({
   sendToSeat: async () => ({ messageId: null }),
 })
 
-const run = (store, body, engine = fakeEngine()) => createRealRoom({
+const run = (store, body, engine = fakeEngine(), workspace = null) => createRealRoom({
   store,
   engine,
   live: fakeLive(),
   emit: () => {},
   dispatchPayload: () => null,
   body,
+  workspace,
   ports: createCrewPorts(),
 })
 
@@ -137,16 +138,24 @@ test('declared optional skills are validated and kept', async () => {
   assert.deepEqual(result.body.room.seatSpecs[0].skills, ['evidence-review'])
 })
 
-test('an unknown optional skill fails closed', async () => {
+test('an unknown optional skill fails closed before preparing a workspace', async () => {
   const { store } = completedRoom(temp('lodge-skill-missing-data-'))
+  let prepared = false
+  const workspace = {
+    id: 'plain',
+    capabilities: () => ({ merge: true }),
+    prepareRoom: () => { prepared = true; return { seats: {} } },
+    cleanupRoom: () => {},
+  }
   const result = await run(store, {
     goal: '带一个不存在的技能',
     verify: 'manual',
     seats: [{ role: 'worker', name: '执行', skills: ['missing-skill'] }],
-  })
+  }, fakeEngine(), workspace)
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'invalid')
   assert.match(result.error, /未知技能/)
+  assert.equal(prepared, false)
 })
 
 test('a room name longer than 60 characters is rejected', async () => {

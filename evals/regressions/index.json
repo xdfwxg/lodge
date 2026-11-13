@@ -19,6 +19,11 @@
       "id": "trust-auto-needs-evidence",
       "test": "server/crew/trust.test.js",
       "note": "没有两条真实 PASS 时不能升到 auto"
+    },
+    {
+      "id": "unknown-skill-workspace-leak",
+      "test": "server/crew/room-create.test.js",
+      "note": "技能校验必须在准备工作区之前失败，避免留下半建 worktree"
     }
   ]
 }

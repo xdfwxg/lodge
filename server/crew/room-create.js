@@ -23,7 +23,8 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       return fail('conflict', '只有进行中、已暂停、已完成房间可以作为续做/分叉起点')
     }
   }
-  if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
+  const capabilities = engine.capabilities()
+  if (capabilities.provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
   const globalBudget = globalBudgetStatus(store.readRooms())
   if (!globalBudget.ok) return fail('conflict', `${globalBudget.message}；${budgetHint(globalBudget)}`)
   const budgetMicroUsd = roomBudgetFromBody(body)
@@ -37,6 +38,15 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const resolvedPlan = resolveStageAssignees(plan, roster)
   if (verify === 'manual' && verifiers.length > 0) {
     return fail('invalid', '人工验收模式不需要验收席位；要独立复核就补一条验收命令')
+  }
+  for (const seat of roster) {
+    const missingSkills = seat.skills.filter(id => ports.skills?.has?.(id) !== true)
+    if (missingSkills.length > 0) {
+      return fail('invalid', `未知技能：${missingSkills.join('、')}；先放入 templates/skills`)
+    }
+    if (seat.mcp.length > 0 && capabilities.mcp !== true) {
+      return fail('conflict', '当前 runtime 不支持 MCP')
+    }
   }
 
   const short = randomUUID().slice(0, 6)
@@ -54,17 +64,6 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   }
   const { projectFile, projectContent } = projectSnapshot(body, sourceRepo, ports.project)
   const workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
-
-  const capabilities = engine.capabilities()
-  for (const seat of roster) {
-    const missingSkills = seat.skills.filter(id => ports.skills?.has?.(id) !== true)
-    if (missingSkills.length > 0) {
-      return fail('invalid', `未知技能：${missingSkills.join('、')}；先放入 templates/skills`)
-    }
-    if (seat.mcp.length > 0 && capabilities.mcp !== true) {
-      return fail('conflict', '当前 runtime 不支持 MCP')
-    }
-  }
 
   const provisioner = createProvisioner({ engine })
   let room = null
