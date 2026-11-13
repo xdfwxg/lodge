@@ -100,13 +100,6 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
     return members.length > 1 ? [...members, { id: 'all', name: '所有人', mention: '所有人' }] : members
   }, [room.members, room.seatNames, seats])
 
-  const headerActions = {
-    pause: () => void store.pause(),
-    resume: () => void store.resume(),
-    stop: () => void store.stop(),
-    review: () => void store.openReview(room.id),
-    ...(onContinue === undefined ? {} : { continue: () => onContinue(room) }),
-  }
   const decisionAction = (action, payload, note) => {
     if (action === 'sign') return void store.accept(payload)
     if (action === 'rework' || action === 'rework-submit') return void store.rework(payload, note ?? '')
@@ -138,8 +131,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
         ? h(RoomStatusHeader, {
           room,
           decision,
-          actions: headerActions,
-          onAudit: () => setAuditOpen(true),
+          actions: {},
         })
         : h(DsGoalHeader, {
           room,

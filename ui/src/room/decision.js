@@ -214,20 +214,36 @@ export const buildDecision = (room, view) => {
 }
 
 export function RoomStatusHeader({ room, decision, onAudit, actions = {} }) {
+  const more = [
+    room.state === 'active' && actions.pause
+      ? { key: 'pause', label: '暂停', run: actions.pause }
+      : null,
+    room.state === 'paused' && actions.resume
+      ? { key: 'resume', label: '继续', run: actions.resume }
+      : null,
+    ['active', 'paused'].includes(room.state) && actions.stop
+      ? { key: 'stop', label: '停止', run: actions.stop }
+      : null,
+    actions.continue ? { key: 'continue', label: '基于此记录续做', run: actions.continue } : null,
+    actions.review ? { key: 'review', label: '复盘', run: actions.review } : null,
+  ].filter(Boolean)
+  const showActions = typeof onAudit === 'function' || more.length > 0
   return h('header', { className: 'crew-decision-head' },
     h('div', { className: 'crew-decision-heading' },
       h('h1', { title: room.goal }, room.name),
       h('p', { className: 'crew-decision-state', 'data-tone': decision.tone }, decision.title)),
-    h('div', { className: 'crew-decision-head-actions' },
-      h('button', { type: 'button', className: 'crew-ghost', onClick: onAudit }, '审计详情'),
-      h('details', { className: 'crew-decision-more' },
-        h('summary', { 'aria-label': '更多操作' }, '⋯'),
-        h('div', { className: 'crew-decision-menu' },
-          room.state === 'active' && actions.pause ? h('button', { type: 'button', onClick: actions.pause }, '暂停') : null,
-          room.state === 'paused' && actions.resume ? h('button', { type: 'button', onClick: actions.resume }, '继续') : null,
-          ['active', 'paused'].includes(room.state) && actions.stop ? h('button', { type: 'button', onClick: actions.stop }, '停止') : null,
-          actions.continue ? h('button', { type: 'button', onClick: actions.continue }, '基于此记录续做') : null,
-          actions.review ? h('button', { type: 'button', onClick: actions.review }, '复盘') : null))))
+    showActions
+      ? h('div', { className: 'crew-decision-head-actions' },
+        typeof onAudit === 'function'
+          ? h('button', { type: 'button', className: 'crew-ghost', onClick: onAudit }, '审计详情')
+          : null,
+        more.length > 0
+          ? h('details', { className: 'crew-decision-more' },
+            h('summary', { 'aria-label': '更多操作' }, '⋯'),
+            h('div', { className: 'crew-decision-menu' },
+              more.map(item => h('button', { key: item.key, type: 'button', onClick: item.run }, item.label))))
+          : null)
+      : null)
 }
 
 // 执行中、工作室已完成、聊天讨论/出结论时都不需要单独占一块卡：

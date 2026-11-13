@@ -195,7 +195,7 @@ export const createChatScheduler = ({
           counts.set(seat, (counts.get(seat) ?? 0) + 1)
           last = seat
           if (turn === 1) {
-            const text = `本轮围绕「${room.goal}」展开讨论。${seatDisplayName(room, seat)} 先发言。`
+            const text = `本轮围绕「${room.goal}」展开讨论，欢迎大家踊跃发言。`
             store.appendMessage(roomId, room.chatHost === undefined || room.chatHost === null
               ? { kind: 'chat', authorId: hostSeat, text, meta: { opening: true, round } }
               : { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })

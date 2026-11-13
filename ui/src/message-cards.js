@@ -258,7 +258,7 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
                   className: 'crew-accept',
                   disabled: busy || room.state !== 'active',
                   onClick: () => void continueChat(),
-                }, busy ? '正在继续…' : `再讨论 ${chat.turnLimit ?? 6} 次`),
+                }, busy ? '正在继续…' : '继续讨论'),
                 h('button', {
                   type: 'button',
                   className: 'crew-ghost',
