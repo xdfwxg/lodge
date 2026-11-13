@@ -1,6 +1,7 @@
 import { Fragment, createElement as h, useState } from 'react'
 import { BotAvatar, BotMark } from './marks.js'
 import { chatStudioSeed } from './room/chat-seed.js'
+import { dispatchSummaryOf } from './room/handoff.js'
 import { MarkdownText } from './primitives.js'
 import { MD, timeOf, independenceOf } from './view-format.js'
 
@@ -133,6 +134,18 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
             }, room.state === 'paused' ? '已暂停 · 继续后才能验收' : '接受这一阶段')
             : null,
           !active && stage?.state === 'passed' ? h('span', { className: 'crew-accepted' }, '已由你验收') : null))))
+}
+
+function DispatchSummaryCard({ message }) {
+  const text = String(message.text ?? '')
+  const { mention, acceptance } = dispatchSummaryOf(message)
+  return h('details', { className: 'crew-dispatch-summary' },
+    h('summary', null,
+      h('span', { className: 'crew-dispatch-summary-kicker' }, '派活'),
+      h('span', null, mention === '' ? '交给执行者' : `交给 @${mention}`),
+      acceptance === '' ? null : h('code', null, acceptance)),
+    h('div', { className: 'crew-dispatch-summary-body' },
+      h(Markdown, { text, variant: 'compact' })))
 }
 
 function DispatchCard({ message, seat }) {
@@ -328,4 +341,4 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
           : null)))
 }
 
-export { Markdown, Speaker, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, MilestoneLine, ConclusionCard, ChatConclusionCard }
+export { Markdown, Speaker, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard }

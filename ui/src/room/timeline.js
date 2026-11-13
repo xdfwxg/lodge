@@ -1,6 +1,7 @@
 import { createElement as h, useMemo, useState } from 'react'
 import { ApprovalCard } from '../approval-card.js'
-import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, MilestoneLine, ConclusionCard, ChatConclusionCard } from '../message-cards.js'
+import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard } from '../message-cards.js'
+import { isDispatchHandoff } from './handoff.js'
 import { buildTimeline } from './timeline-model.js'
 
 const TIME_GAP = 5 * 60 * 1000
@@ -27,6 +28,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
   }
 
   const renderMessage = message => {
+    if (isDispatchHandoff(room, message)) return h(DispatchSummaryCard, { key: message.id, message })
     const seat = byId[message.authorId] ?? (message.authorId === 'system' ? { name: '运行时', title: '验收员' } : undefined)
     const content = (() => {
       if (message.kind === 'system') return h('div', { key: message.id, className: 'crew-system' }, message.text)
