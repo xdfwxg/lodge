@@ -377,6 +377,40 @@ test('a self-committed stage still runs acceptance when HEAD moved past the stag
   assert.match(evidence.meta.diff, /src\/initials\.js/)
 })
 
+test('acceptance records the candidate commit, not the pre-submit HEAD, as covered', async () => {
+  const copies = []
+  registerWorkspaceProvider('test-live-candidate-head', {
+    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
+    changes: async () => ({ diff: 'diff', status: ' M src/a.js', files: ['src/a.js'], manifest: [] }),
+    head: () => 'base-head',
+    submit: () => 'candidate-1',
+    isolatedCopy: input => {
+      copies.push(input)
+      return { path: '/tmp/copy' }
+    },
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    stageBases: { 0: 'base-head' },
+    workspace: { provider: 'test-live-candidate-head' },
+  })
+  const store = fakeStore(room)
+  const runner = createAcceptanceRunner({
+    store,
+    roomId: 'room-1',
+    markProgress: () => {},
+    requestReview: async () => { throw new Error('review must not run') },
+    run: async () => ({ exit: 0 }),
+  })
+  await runner.run(0, 'true', 't-candidate')
+  const evidence = store.messages.find(message => message.meta?.kind === 'command')
+  assert.equal(evidence.meta.candidate, 'candidate-1')
+  assert.equal(evidence.meta.head, 'candidate-1')
+  assert.equal(copies[0].ref, 'candidate-1')
+})
+
 test('a worker chatter turn does not start another acceptance round', async () => {
   const room = makeRoom({
     workers: ['worker'],

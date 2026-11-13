@@ -79,7 +79,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
   - 一旦进入 `executing`：所有驳回、通过判定权限收归 Verifier，Planner 不能单方面终止或放行
   - 验收模式 `verificationMode: bot | human | hybrid`：人工验收不旁路，人工评审同样产出标准 verdict 记录；多 Verifier 的 `verifierPolicy: all | majority` 是调度策略，`swarm` 只是它的运行形态，不是新增底层角色
   - 独立性策略 `independencePolicy: prefer | require`：默认 `prefer`，优先把验收放到不同厂商并在降级时明确标注；`require` 在没有第二厂商或实际仍同厂商时拒绝建房，不静默降级
-- 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环。验收按阶段幂等：执行者没有工具调用或产出的闲聊回合不触发新的命令验收；没有新增交付改动时沿用本轮的验收，不重复提交候选；**工作树干净不等于没有交付**：返工 amend、执行者自己 commit、或新阶段起始 HEAD 已前进时，都按当前 HEAD 重跑验收并重新发起复核，隔离副本用房间 HEAD 的提交哈希，证据用“阶段起点 → 当前 HEAD”的 range diff 补全改动清单。本机运行文件（`.crew`、`.lodge`、`.env`、`node_modules`）不进入候选提交与验收 diff；内部派活/复核提示带 `[[lodge-internal]]` 标记，不进入主时间线。
+- 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环。验收按阶段幂等：执行者没有工具调用或产出的闲聊回合不触发新的命令验收；没有新增交付改动时沿用本轮的验收，不重复提交候选；**工作树干净不等于没有交付**：返工 amend、执行者自己 commit、或新阶段起始 HEAD 已前进时，都按当前 HEAD 重跑验收并重新发起复核，隔离副本用房间 HEAD 的提交哈希，证据用“阶段起点 → 当前 HEAD”的 range diff 补全改动清单，并记录实际被验收的候选提交哈希（不是提交前的 HEAD）。本机运行文件（`.crew`、`.lodge`、`.env`、`node_modules`）不进入候选提交与验收 diff；内部派活/复核提示带 `[[lodge-internal]]` 标记，不进入主时间线。
 - 流转公约：主任务闭环必须经过 Planner → Executor → Verifier；支持子任务并行、重试、分支，但进入执行阶段后不可绕过 Verifier 放行。
 - 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。高级面板以树视图展示父子状态与子房 verdict，父房只读，不提供修改子房内部流转的动作。
 - 影子评审 `shadowReview`：开启后 advisor 照常打分，但只写入时间线和 `meta.shadow`，不注入 Verifier prompt、不产生正式 verdict；关闭时 advisor 建议可作为参考进入 Verifier prompt。两种情况下正式 Verifier 都必须 PASS 才能 signed。

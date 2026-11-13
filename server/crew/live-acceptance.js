@@ -68,10 +68,12 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       store.appendMessage(roomId, { kind: 'system', text: `候选提交失败，验收未执行：${error?.message ?? error}` })
       return
     }
+    // 本轮实际被验收的提交：有候选就是候选，否则是执行者自己 commit 的房间 HEAD。
+    const acceptedRef = candidate ?? head
     let copy
     try {
-      // 候选为空时（执行者自己 commit）必须用房间 worktree 的 HEAD，不能用源仓库的 HEAD。
-      copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: candidate ?? head ?? 'HEAD' })
+      // 不能用源仓库的 HEAD；执行者自己 commit 时房间 HEAD 才是交付。
+      copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: acceptedRef ?? 'HEAD' })
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `验收隔离副本创建失败，验收未执行：${error?.message ?? error}` })
       return
@@ -111,7 +113,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
         isolated: true,
         sandbox: result.sandbox,
         candidate,
-        head: typeof head === 'string' && head !== '' ? head : null,
+        head: typeof acceptedRef === 'string' && acceptedRef !== '' ? acceptedRef : null,
         turnId,
         simulated: false,
         capturedAt: new Date().toISOString(),
