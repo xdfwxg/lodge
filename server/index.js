@@ -277,6 +277,11 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.evidenceLedger(ledgerPath[1]))
     }
 
+    const shadowPath = path.match(/^\/api\/rooms\/([\w-]+)\/shadow-review$/)
+    if (shadowPath !== null && req.method === 'GET') {
+      return respond(res, service.shadowReview(shadowPath[1]))
+    }
+
     const evidencePath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence\/([\w-]+)$/)
     if (evidencePath !== null && req.method === 'GET') {
       const [, roomId, messageId] = evidencePath

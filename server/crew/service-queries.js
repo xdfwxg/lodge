@@ -8,6 +8,7 @@ import { listRoomTypes } from './room-types/index.js'
 import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
 import { replayTransitions } from './room-state.js'
+import { buildShadowComparison } from './shadow-review.js'
 
 export const createServiceQueries = ({
   store,
@@ -121,11 +122,23 @@ export const createServiceQueries = ({
     })
   }
 
+  const shadowReview = roomId => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    if (room.roomType !== 'studio') return fail('invalid', '只有工作室有评审对照')
+    return ok({
+      shadowReview: buildShadowComparison({
+        evidence: readEvidence(roomId),
+        messages: readMessages(roomId),
+      }),
+    })
+  }
+
   const recommendRoster = body => {
     const global = globalBudgetStatus(readRooms())
     if (!global.ok) return fail('conflict', global.message)
     return recommendRosterUseCase({ engine, body, workspace })
   }
 
-  return { health, state, transitions, evidenceLedger, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
+  return { health, state, transitions, evidenceLedger, shadowReview, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
 }

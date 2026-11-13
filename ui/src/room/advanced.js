@@ -239,6 +239,9 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
       : null,
     h('div', { className: 'crew-budget-edit' },
       h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.openReplay(room.id) }, '状态回放'),
+      room.roomType === 'studio'
+        ? h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.openShadow(room.id) }, room.shadowReview === true ? '影子评审' : '评审对照')
+        : null,
       h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
       h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
     Object.keys(room.chatHolds ?? {}).length > 0

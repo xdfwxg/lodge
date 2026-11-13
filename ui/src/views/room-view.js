@@ -7,6 +7,7 @@ import { Advanced, ReviewDialog } from '../room/advanced.js'
 import { StageDock } from '../room/stage-dock.js'
 import { Timeline } from '../room/timeline.js'
 import { ReplayDialog } from '../room/replay.js'
+import { ShadowDialog } from '../room/shadow.js'
 
 function RoomView({ state, room, store, onContinue, onStartStudio }) {
   const [advanced, setAdvanced] = useState(false)
@@ -104,6 +105,9 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
       : null,
     state.replayFor === room.id && state.replay !== null
       ? h(ReplayDialog, { replay: state.replay, onClose: () => store.closeReplay() })
+      : null,
+    state.shadowFor === room.id && state.shadow !== null
+      ? h(ShadowDialog, { review: state.shadow, onClose: () => store.closeShadow() })
       : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll', onScroll: trackScroll },
       room.delivery ? h(DeliverySheet, { delivery: room.delivery, onExport: () => void store.exportDelivery() }) : null,

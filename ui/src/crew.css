@@ -428,3 +428,31 @@
 .crew-replay-ok{font-size:12.5px;color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
 .crew-replay-bad{font-size:12.5px;color:var(--bt-danger)}
 .crew-replay-actions{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+.crew-shadow{width:min(900px,100%)}
+.crew-shadow-body{display:flex;flex-direction:column;gap:10px}
+.crew-shadow-stats{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--bt-ink-3)}
+.crew-shadow-stats span[data-tone=ok]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
+.crew-shadow-stats span[data-tone=bad]{color:var(--bt-danger)}
+.crew-shadow-list{display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow:auto;padding-right:4px}
+.crew-shadow-row{padding:9px 10px;border:1px solid var(--bt-line-2);border-radius:10px;background:color-mix(in srgb,var(--bt-ink) 1.5%,transparent)}
+.crew-shadow-row[data-tone=bad]{border-color:color-mix(in srgb,var(--bt-danger) 45%,var(--bt-line-2))}
+.crew-shadow-row-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:12.5px;line-height:17px;margin-bottom:7px}
+.crew-shadow-status{font-size:11.5px;font-weight:600}
+.crew-shadow-status[data-tone=ok]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
+.crew-shadow-status[data-tone=bad]{color:var(--bt-danger)}
+.crew-shadow-status[data-tone=warn]{color:var(--bt-star)}
+.crew-shadow-status[data-tone=muted]{color:var(--bt-ink-3)}
+.crew-shadow-cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.crew-shadow-col{min-width:0;padding:8px;border:1px solid var(--bt-line);border-radius:8px}
+.crew-shadow-col-head{font-size:11.5px;font-weight:600;color:var(--bt-ink-3);margin-bottom:5px}
+.crew-shadow-verdict{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:12.5px;line-height:17px;margin-top:5px}
+.crew-shadow-verdict b[data-pass=true]{color:color-mix(in srgb,var(--bt-green) 80%,var(--bt-ink))}
+.crew-shadow-verdict b[data-pass=false]{color:var(--bt-danger)}
+.crew-shadow-verdict p{margin:0;flex-basis:100%;color:var(--bt-ink-2)}
+.crew-shadow-score{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:12.5px;line-height:17px;margin-bottom:4px}
+.crew-shadow-score b{font-size:16px}
+.crew-shadow-score span{font-size:11.5px;color:var(--bt-ink-3)}
+.crew-shadow-col p{margin:3px 0 0;font-size:12px;line-height:16px;color:var(--bt-ink-2)}
+.crew-shadow-foot{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+@media (max-width:720px){.crew-shadow-cols{grid-template-columns:1fr}}
