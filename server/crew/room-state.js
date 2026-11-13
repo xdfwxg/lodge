@@ -4,7 +4,7 @@
 export const STUDIO_STATES = ['open', 'planned', 'executing', 'verifying', 'signed', 'rejected']
 export const CHAT_STATES = ['discussing', 'summarizing', 'awaiting_decision', 'accepted']
 export const STUDIO_EVENTS = ['plan_submitted', 'start_execute', 'stage_advanced', 'await_sign', 'reject_plan', 'submit_evidence', 'verdict_pass', 'verdict_reject', 'sign']
-export const CHAT_EVENTS = ['summarize', 'conclude', 'accept', 'continue_discuss']
+export const CHAT_EVENTS = ['summarize', 'conclude', 'accept', 'continue_discuss', 'abort']
 
 const studioTable = {
   open: {
@@ -46,9 +46,11 @@ const studioTable = {
 const chatTable = {
   discussing: {
     summarize: { to: 'summarizing', guard: () => true },
+    abort: { to: 'discussing', guard: () => true },
   },
   summarizing: {
     conclude: { to: 'awaiting_decision', guard: () => true },
+    abort: { to: 'discussing', guard: () => true },
   },
   awaiting_decision: {
     accept: { to: 'accepted', guard: () => true },

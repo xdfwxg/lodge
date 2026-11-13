@@ -66,8 +66,9 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
       appendMessage(room.id, { kind: 'system', text: `继续讨论启动失败：${error?.message ?? error}` })
       const reset = updateRoom(room.id, current => {
         if (current.chat?.running !== true) return null
-        current.chat = { ...current.chat, running: false, speaker: '', phase: 'discussing' }
-        return { events: [] }
+        const rolled = transitionChat(current.chat.phase ?? 'discussing', 'abort')
+        current.chat = { ...current.chat, running: false, speaker: '', ...(rolled.ok ? { phase: rolled.state } : {}) }
+        return { events: rolled.ok ? [chatTransitionEvent(rolled, 'abort', 'system', '继续讨论启动失败')] : [] }
       })
       if (reset !== null) emit('room', reset)
     })

@@ -40,7 +40,9 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 | 当前状态 | 事件 | Guard | 下一状态 |
 | --- | --- | --- | --- |
 | `discussing` | `summarize` | 达到发言上限 | `summarizing` |
+| `discussing` | `abort` | 调度中止或继续失败 | `discussing` |
 | `summarizing` | `conclude` | 主持人总结完成 | `awaiting_decision` |
+| `summarizing` | `abort` | 调度中止 | `discussing` |
 | `awaiting_decision` | `accept` | 人工认可 | `accepted` |
 | `awaiting_decision` | `continue_discuss` | 人工要求继续 | `discussing` |
 | `accepted` | 任意 | 终态 | 拒绝 |

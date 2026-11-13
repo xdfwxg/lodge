@@ -66,8 +66,8 @@ test('the full studio state x event matrix is explicit', () => {
 
 test('the full chat state x event matrix is explicit', () => {
   const allowed = new Set([
-    'discussing:summarize',
-    'summarizing:conclude',
+    'discussing:summarize', 'discussing:abort',
+    'summarizing:conclude', 'summarizing:abort',
     'awaiting_decision:accept', 'awaiting_decision:continue_discuss',
   ])
   for (const state of CHAT_STATES) {

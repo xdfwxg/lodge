@@ -312,13 +312,14 @@ export const createChatScheduler = ({
       const current = store.readRoom(roomId)
       if (current?.chat?.running === true) {
         patch(state => {
+          const rolled = transitionChat(state.chat.phase ?? 'discussing', 'abort')
           state.chat = {
             ...state.chat,
             running: false,
             speaker: '',
-            phase: state.chat.phase === 'summarizing' ? 'discussing' : state.chat.phase,
+            ...(rolled.ok ? { phase: rolled.state } : {}),
           }
-          return { events: [] }
+          return { events: rolled.ok ? [chatTransitionEvent(rolled, 'abort', 'system', '聊天调度中止')] : [] }
         })
       }
       void refresh()
