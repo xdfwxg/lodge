@@ -1,7 +1,7 @@
 import { fail, ok } from './result.js'
 
 // closure 只属于工作室。Planner 只能在进入执行前拒绝目标，执行后收归 Verifier。
-export const createServiceClosure = ({ store, emit, dispatchPayload }) => {
+export const createServiceClosure = ({ store, emit, dispatchPayload, plannerMcp = null }) => {
   const rejectPlan = (room, body = {}) => {
     if (room.roomType !== 'studio') return fail('invalid', '只有工作室有 closure')
     if (room.state !== 'active') return fail('conflict', '房间不在进行中')
@@ -26,6 +26,7 @@ export const createServiceClosure = ({ store, emit, dispatchPayload }) => {
     })
     emit('room', updated)
     emit('dispatch', dispatchPayload())
+    void plannerMcp?.release?.(room.id)
     return ok({ room: updated, message })
   }
 

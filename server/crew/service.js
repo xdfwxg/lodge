@@ -45,9 +45,9 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   })
   const seatActions = createServiceSeats({ store, engine, live, emit, roomFiles, workspace })
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
-  const stages = createServiceStages({ store, live, emit, dispatchPayload, completeRoom, roomFiles })
+  const stages = createServiceStages({ store, live, emit, dispatchPayload, completeRoom, roomFiles, plannerMcp: ports.plannerMcp })
   const chat = createServiceChat({ store, live, emit, dispatchPayload })
-  const closure = createServiceClosure({ store, emit, dispatchPayload })
+  const closure = createServiceClosure({ store, emit, dispatchPayload, plannerMcp: ports.plannerMcp })
   const runControl = createServiceRunControl({ store, live, emit, dispatchPayload, roomFiles })
   const trust = createServiceTrust({ store, emit, dispatchPayload })
 
@@ -200,7 +200,15 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     if (tool?.name === 'reject_plan') return closure.rejectPlan(room, tool.args)
     if (tool?.name === 'check_gate') {
       const goal = typeof tool.args?.goal === 'string' && tool.args.goal.trim() !== '' ? tool.args.goal.trim() : room.goal
-      const gate = evaluateRoomGate({ roomType: 'studio', goal, plan: null, verify: 'manual', acceptance: '' })
+      const jev = await ports.jev?.advice?.({
+        mode: 'gate',
+        goal,
+        roomType: 'studio',
+        plan: null,
+        verify: 'manual',
+        acceptance: '',
+      }) ?? { available: false, advice: [] }
+      const gate = evaluateRoomGate({ roomType: 'studio', goal, plan: null, verify: 'manual', acceptance: '', advice: jev.advice })
       return ok({ gate })
     }
     return fail('invalid', `未知 Planner 工具：${tool?.name ?? ''}`)

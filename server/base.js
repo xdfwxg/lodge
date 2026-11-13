@@ -37,6 +37,34 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
       timeout: 20_000,
     }),
 
+    mcpServers: () => json('/api/mcp/servers'),
+
+    createMcpServer: payload => json('/api/mcp/servers', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      timeout: 10_000,
+    }),
+
+    updateMcpServer: (name, payload) => json(`/api/mcp/servers/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      timeout: 10_000,
+    }),
+
+    patchMcpServer: (name, payload) => json(`/api/mcp/servers/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      timeout: 10_000,
+    }),
+
+    deleteMcpServer: name => json(`/api/mcp/servers/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+      timeout: 10_000,
+    }),
+
     deleteBot: botId => json(`/api/bots/${botId}`, { method: 'DELETE', timeout: 10_000 }),
 
     interruptBot: (botId, body = {}) => json(`/api/bots/${botId}/interrupt`, {

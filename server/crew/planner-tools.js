@@ -17,10 +17,16 @@ export const parsePlannerTool = text => {
   }
 }
 
-export const plannerToolPrompt = () => [
-  'Planner 工具协议（只在确实需要时使用）：',
-  '<lodge-tool>{"name":"create_subroom","args":{"goal":"子任务目标"}}</lodge-tool>',
-  '<lodge-tool>{"name":"reject_plan","args":{"reason":"不可行理由"}}</lodge-tool>',
-  '<lodge-tool>{"name":"check_gate","args":{"goal":"待检查目标"}}</lodge-tool>',
-  '工具结果由 Lodge 回写；不要伪造工具结果，也不要用工具替代当前阶段交付。',
-]
+export const plannerToolPrompt = ({ mcp = false } = {}) => mcp
+  ? [
+      'Planner 工具（已通过 MCP 挂载，只在确实需要时调用）：',
+      'create_subroom(goal, name?) 创建子工作室；reject_plan(reason) 在执行前拒绝目标；check_gate(goal?) 预检目标。',
+      '工具由 Lodge 执行并返回结果；不要伪造结果，也不要用工具替代当前阶段交付。',
+    ]
+  : [
+      'Planner 工具协议（只在确实需要时使用）：',
+      '<lodge-tool>{"name":"create_subroom","args":{"goal":"子任务目标"}}</lodge-tool>',
+      '<lodge-tool>{"name":"reject_plan","args":{"reason":"不可行理由"}}</lodge-tool>',
+      '<lodge-tool>{"name":"check_gate","args":{"goal":"待检查目标"}}</lodge-tool>',
+      '工具结果由 Lodge 回写；不要伪造工具结果，也不要用工具替代当前阶段交付。',
+    ]

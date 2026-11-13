@@ -35,7 +35,8 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 - 流转公约：主任务闭环必须经过 Planner → Executor → Verifier；支持子任务并行、重试、分支，但进入执行阶段后不可绕过 Verifier 放行。
 - 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。
 - 影子评审 `shadowReview`：只记录 Jev/影子评估的 score 和 advice，不拦截、不产生正式 verdict；正式 Verifier 仍然必须 PASS 才能 signed。
-- Planner 工具协议：Planner 用 `<lodge-tool>{"name":"...","args":{...}}</lodge-tool>` 调用 `create_subroom`、`reject_plan`、`check_gate`；Lodge 解析执行并回写结果。这是聊天级工具协议，不是新的 roleKind，也不允许 Planner 伪造结果。
+- Planner 工具面：Lodge 自带一个按房间注册的无状态 MCP server（`/mcp/planner/<roomId>`，令牌绑定房间），只挂给该房间的 Planner，提供 `create_subroom`、`reject_plan`、`check_gate`；工具调用回到业务层执行，结果由 MCP 返回，Planner 不能伪造。MCP 不可用时回退到 `<lodge-tool>{"name":"...","args":{...}}</lodge-tool>` 文字协议。两条路径都不是新的 roleKind，也不改变谁有权放行。
+- Planner MCP 生命周期：建房时注册并启用，Planner bot 的 `mcpServers` 只多这一项；房间 `signed`/`rejected` 时移除，启动时清理没有进行中房间的条目。基座最多保存 20 个 MCP server。
 
 ## 公共约束
 
@@ -68,9 +69,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 这些不是永久禁止，只是当前明确的非目标：
 
 - 模板“保存当前配置为模板”按钮
-- 真实 Jev 服务接入（当前只有 advice 端口与 mock 验证）
-- Gate 做成 Planner 可主动调用的工具
-- 影子模式
+- 外部 Jev 产品接入（本地已有规则/模型评估服务，外部地址仍由 `JEV_URL` 指定）
 - 子工作室 UI 编排
 
 ## 对应门禁

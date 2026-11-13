@@ -94,6 +94,7 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
         ? [
             h('span', { key: 'verifier-policy' }, `Verifier 策略：${room.verifierPolicy ?? 'all'}`),
             h('span', { key: 'shadow-review' }, `影子评审：${room.shadowReview === true ? '开（只记录，不拦截）' : '关'}`),
+            h('span', { key: 'planner-tools' }, `Planner 工具面：${room.plannerTools?.server ? 'MCP 已挂载' : '文字协议回退'}`),
           ]
         : []),
       h('span', null, `工作区：${workspaceOf(room)}`),

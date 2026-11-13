@@ -52,6 +52,18 @@ test('seat prompts and semantic capability settings cross the engine port', asyn
   assert.equal(engine.capabilities().schedules, false)
 })
 
+test('room tools are mounted next to external MCP grants', async () => {
+  const client = fakeClient()
+  const engine = createEngine({ client })
+  await engine.createSeatBot({
+    name: 'PlannerAbc',
+    approval: 'ask',
+    mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }],
+    roomTools: ['lodge-planner-room-abc123'],
+  })
+  assert.deepEqual(client.captured.bot.settings.mcpServers, ['github', 'lodge-planner-room-abc123'])
+})
+
 test('a seat engine binds to an available runtime instance', async () => {
   const client = fakeClient()
   client.instances = async () => ({

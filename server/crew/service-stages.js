@@ -6,7 +6,7 @@ import { editStages } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
 import { childResultText, childVerdictsOf } from './room-subrooms.js'
 
-export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom, roomFiles }) => {
+export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom, roomFiles, plannerMcp = null }) => {
   const { readRooms, readMessages, updateRoom, appendMessage } = store
 
   const editStagePlan = (room, body) => {
@@ -157,6 +157,7 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
       meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you' },
     })
     let finalRoom = next < 0 ? completeRoom(room) ?? room : room
+    if (next < 0) void plannerMcp?.release?.(room.id)
     if (next < 0 && finalRoom.parentRoomId !== null && finalRoom.parentRoomId !== undefined) notifyParent(finalRoom)
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
       const status = budgetStatus(room, readRooms())

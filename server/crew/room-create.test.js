@@ -590,3 +590,46 @@ test('an active room can be forked into a new room without touching the source',
   assert.deepEqual(result.body.room.plan.done, ['分叉后继承这一条'])
   assert.equal(store.readRoom(source.id).state, 'active')
 })
+
+test('a studio mounts its own Planner tool server only on the planner seat', async () => {
+  const { store } = completedRoom(temp('lodge-planner-tools-data-'))
+  const seats = []
+  const engine = fakeEngine()
+  engine.capabilities = () => ({ provisioning: true, skills: false, mcp: true })
+  engine.createSeatBot = async args => {
+    seats.push(args)
+    return { id: `seat-${args.name}`, name: args.name, engine: 'claude', model: 'claude-sonnet-5' }
+  }
+  const ports = {
+    ...createCrewPorts(),
+    plannerMcp: {
+      ensure: async roomId => ({ server: `lodge-planner-${roomId}`, transport: 'http' }),
+      release: async () => {},
+    },
+  }
+  const result = await createRealRoom({
+    store,
+    engine,
+    live: fakeLive(),
+    emit: () => {},
+    dispatchPayload: () => null,
+    body: {
+      goal: '工作室用 Planner 工具面',
+      roomType: 'studio',
+      verify: 'manual',
+      seats: [
+        { role: 'lead', name: '规划' },
+        { role: 'worker', name: '执行' },
+        { role: 'verifier', name: '验收' },
+      ],
+    },
+    ports,
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.plannerTools.server, `lodge-planner-${room.id}`)
+  const planner = seats.find(seat => seat.roomTools.length > 0)
+  assert.equal(planner.name.startsWith('Lead'), true)
+  assert.deepEqual(planner.roomTools, [room.plannerTools.server])
+  assert.equal(seats.filter(seat => seat.roomTools.length > 0).length, 1)
+})

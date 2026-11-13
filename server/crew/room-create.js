@@ -92,6 +92,17 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const { projectFile, projectContent } = projectSnapshot(body, sourceRepo, ports.project)
   const workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
 
+  const roomId = `room-${short}`
+  let plannerTools = null
+  let plannerToolsWarning = ''
+  if (roomType.id === 'studio' && typeof ports.plannerMcp?.ensure === 'function') {
+    try {
+      plannerTools = await ports.plannerMcp.ensure(roomId)
+    } catch (error) {
+      plannerToolsWarning = `Planner MCP 工具面未启用：${error?.message ?? error}`
+    }
+  }
+
   const provisioner = createProvisioner({ engine })
   let room = null
   let stored = false
@@ -108,6 +119,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       align,
       workspaces,
       verifiers,
+      leadToolServers: plannerTools === null ? [] : [plannerTools.server],
     })
     const builtStages = roomType.buildStages({ title: goalTitle, plan: resolvedPlan, verify, acceptance, align })
     room = buildRoomRecord({
@@ -145,6 +157,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       acceptance,
       verifierPolicy,
       shadowReview,
+      plannerTools,
       parentRoomId: parentRoom?.id ?? null,
       depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
       gate: {
@@ -192,6 +205,9 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     })) {
       store.appendMessage(room.id, message)
     }
+    if (plannerToolsWarning !== '') {
+      store.appendMessage(room.id, { kind: 'system', text: plannerToolsWarning })
+    }
     await live.attach(room, { resume: false })
     emit('dispatch', dispatchPayload())
     room = await startInitialStage({
@@ -217,6 +233,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
     if (!stored) {
       await provisioner.cleanup()
       provider.cleanupRoom({ source: sourceRepo, workspaces })
+      await ports.plannerMcp?.release?.(roomId)
       throw new Error(`建房失败：${error?.message ?? error}`)
     }
     store.appendMessage(room.id, { kind: 'system', text: `房间已建，但启动失败：${error?.message ?? error}` })

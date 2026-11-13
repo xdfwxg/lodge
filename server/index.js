@@ -16,6 +16,7 @@ import { seedIfEmpty } from './crew/seeds.js'
 import { SEATS } from './crew/seats.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
+import { createPlannerMcp } from './planner-mcp.js'
 import { chooseDirectory } from './system-dialog.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
@@ -49,9 +50,28 @@ const digest = createDigest({
 })
 
 const engine = createEngine()
-const ports = createCrewPorts()
 
 let service = null
+const plannerMcp = createPlannerMcp({
+  client: {
+    mcp: engine.mcp,
+    invoke: async (roomId, tool) => {
+      const result = await service.plannerTool(roomId, tool)
+      const text = result?.ok === false
+        ? `Planner 工具失败（${tool.name}）：${result.error ?? '未知原因'}`
+        : `Planner 工具已执行：${tool.name}`
+      if (store.readRoom(roomId) !== null) {
+        store.appendMessage(roomId, { kind: 'system', text })
+      }
+      return result
+    },
+  },
+  dataDir,
+  port: Number(process.env.CREW_PORT ?? 8787),
+  enabled: engine.capabilities().mcp === true,
+})
+const ports = { ...createCrewPorts(), plannerMcp }
+
 const live = createLiveRooms({
   store,
   engine,
@@ -196,6 +216,11 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    if (path.startsWith('/mcp/planner/')) {
+      const handled = await plannerMcp.handle(req, res, path)
+      if (handled) return
+    }
+
     if (path === '/api/rooms' && req.method === 'POST') {
       return respond(res, await service.createRoom(await readJson(req)))
     }
@@ -312,5 +337,13 @@ server.listen(port, '127.0.0.1', () => {
     repairManualStages(store)
     await live.start()
     await repairOpeningGates({ store, service, roomFiles: ports.roomFiles })
+    try {
+      const result = await plannerMcp.reconcile(store.readRooms())
+      if (result.added > 0 || result.removed > 0) {
+        console.log(`planner mcp: registered ${result.added}, removed ${result.removed}`)
+      }
+    } catch (error) {
+      console.warn(`planner mcp reconcile failed: ${error?.message ?? error}`)
+    }
   })()
 })

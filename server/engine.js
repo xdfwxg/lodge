@@ -292,16 +292,18 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
-  const createSeatBot = async ({ name, soul, description, approval, mcp, engine, model }) => {
+  const createSeatBot = async ({ name, soul, description, approval, mcp, roomTools = [], engine, model }) => {
     const resolved = await resolveSeatEngine(engine, model)
     const selection = resolved.selection
+    const servers = [...new Set([
+      ...(Array.isArray(mcp) ? mcp.map(grant => grant.server) : []),
+      ...(Array.isArray(roomTools) ? roomTools : []),
+    ])]
     const settings = {
       ...(typeof soul === 'string' && soul !== '' ? { soul } : {}),
       ...(typeof description === 'string' && description !== '' ? { description } : {}),
       ...(approval === undefined ? {} : { approvalMode: approval }),
-      ...(Array.isArray(mcp) && mcp.length > 0
-        ? { mcpServers: [...new Set(mcp.map(grant => grant.server))] }
-        : {}),
+      ...(servers.length > 0 ? { mcpServers: servers } : {}),
     }
     const created = await client.createBot({ name, modelSelection: selection, settings })
     const bot = created?.bot ?? created
@@ -396,6 +398,16 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return () => controller.abort()
   }
 
+  // 基座 MCP 注册表：Lodge 自己的 Planner 工具面也按外部 MCP server 注册，
+  // 只有拿到名字的席位才会加载。
+  const mcp = {
+    list: () => client.mcpServers(),
+    create: payload => client.createMcpServer(payload),
+    update: (name, payload) => client.updateMcpServer(name, payload),
+    patch: (name, payload) => client.patchMcpServer(name, payload),
+    remove: name => client.deleteMcpServer(name),
+  }
+
   return {
     rooms,
     history,
@@ -415,5 +427,6 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     deleteSeatBot,
     deleteRoom,
     subscribe,
+    mcp,
   }
 }

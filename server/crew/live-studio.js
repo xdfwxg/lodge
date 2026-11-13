@@ -39,7 +39,7 @@ export const studioPlannerPrompt = ({
     `阶段目标：${stage.title}`,
     acceptance,
     `工作目录：${room.repoPath ?? '(未设置)'}`,
-    ...plannerToolPrompt(),
+    ...plannerToolPrompt({ mcp: typeof room.plannerTools?.server === 'string' }),
     `你只做目标对齐和交接，不写代码。请回复一条 @${workerHandle} 的派活消息，说明阶段目标、验收命令和用户约束；不要自己执行。回复时使用 @${workerHandle} 这个 handle。`,
   ].filter(Boolean).join('\n')
 }
