@@ -42,6 +42,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
         room.verificationMode = (room.verifiers?.length ?? 0) > 0 ? 'hybrid' : 'human'
       }
       if (room.verifierPolicy === undefined) room.verifierPolicy = 'all'
+      if (room.shadowReview === undefined) room.shadowReview = false
       if (room.parentRoomId === undefined) room.parentRoomId = null
       if (room.depth === undefined) room.depth = 0
       if (!Array.isArray(room.childRoomIds)) room.childRoomIds = []

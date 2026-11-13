@@ -184,7 +184,7 @@ test('review request and verdict consumption update the round without crossing t
 })
 
 test('Jev advice reaches the Verifier but does not create a verdict', async () => {
-  const room = makeRoom({ verifiers: ['verifier'] })
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
@@ -208,6 +208,8 @@ test('Jev advice reaches the Verifier but does not create a verdict', async () =
   assert.match(sent[0].prompt, /Jev 建议/)
   const advice = store.messages.find(message => message.kind === 'jev_advice')
   assert.ok(advice)
+  assert.match(advice.text, /影子评审/)
+  assert.equal(advice.meta.shadow, true)
   assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
   assert.equal(review.consume({ turn: { reply: 'PASS' }, seat: 'verifier', turnId: 't1', room }), true)
 })

@@ -37,6 +37,7 @@ function NewRoomDialog({
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
   const [template, setTemplate] = useState(null)
+  const [shadowReview, setShadowReview] = useState(false)
   const [roomName, setRoomName] = useState('')
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
@@ -60,6 +61,7 @@ function NewRoomDialog({
     setRoomName(resume === null ? '' : resume.name ?? '')
     setSeatChoices([])
     setTemplate(null)
+    setShadowReview(false)
     setLoginNote(null)
   }, [open, resume?.id])
 
@@ -250,6 +252,7 @@ function NewRoomDialog({
         roomType,
         verify,
         acceptance,
+        ...(roomType === 'studio' && shadowReview ? { shadowReview: true } : {}),
         repoPath: repoPath.trim(),
         ...(resume === null ? {} : { continueFrom: resume.id }),
         ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
@@ -516,6 +519,15 @@ function NewRoomDialog({
           'data-on': roomType === type.id ? 'true' : undefined,
           onClick: () => changeRoomType(type.id),
         }, type.name)))),
+    roomType === 'studio'
+      ? h('label', { className: 'crew-check' },
+        h('input', {
+          type: 'checkbox',
+          checked: shadowReview,
+          onChange: event => setShadowReview(event.target.checked),
+        }),
+        '影子评审：Jev 只记录建议，不拦截签字')
+      : null,
     constraintsView,
     resume?.brief?.done?.length > 0
       ? h('div', { className: 'crew-proposal-block' },

@@ -90,6 +90,12 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
       h('span', null, `房间策略：${room.independencePolicy ?? '未标注'}`),
+      ...(room.roomType === 'studio'
+        ? [
+            h('span', { key: 'verifier-policy' }, `Verifier 策略：${room.verifierPolicy ?? 'all'}`),
+            h('span', { key: 'shadow-review' }, `影子评审：${room.shadowReview === true ? '开（只记录，不拦截）' : '关'}`),
+          ]
+        : []),
       h('span', null, `工作区：${workspaceOf(room)}`),
       h('span', null, `可用引擎：${availableEngines.length === 0 ? '无' : availableEngines.map(item => `${item.name}${item.models?.default ? `（${item.models.default}）` : ''}`).join('、')}`),
       ...Object.entries(room.engineFallbacks ?? {}).map(([seat, item]) => (

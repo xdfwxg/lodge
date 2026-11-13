@@ -10,6 +10,15 @@ JEV_TOKEN=...
 JEV_TIMEOUT_MS=8000
 ```
 
+本仓库带一个可独立运行的参考评估服务：
+
+```bash
+npm run jev:serve
+JEV_URL=http://127.0.0.1:8798/evaluate
+```
+
+它是规则参考实现，不是外部 Jev 产品；外部 Jev 仍用同一个 `JEV_URL` 契约接入。
+
 - 未配置 `JEV_URL` 时，客户端返回 `{ available: false, advice: [] }`。
 - 超时、HTTP 错误、非法 JSON 同样 fail soft；Gate 和 Verifier 继续按自己的规则工作。
 

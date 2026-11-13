@@ -174,14 +174,16 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         .map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；'))
         .filter(Boolean)
         .join('；')
+      const shadow = room.shadowReview === true
       store.appendMessage(roomId, {
         kind: 'jev_advice',
         authorId: 'system',
-        text: `Jev 建议（仅参考，不替代 Verifier）：${text}`,
+        text: `${shadow ? '影子评审（仅记录，不拦截）' : 'Jev 建议（仅参考，不替代 Verifier）'}：${text}`,
         meta: {
           stage: stageIndex,
           evidenceId: evidence.id,
           advice: jevLines,
+          shadow,
           available: jevResult.available === true,
           ...(jevResult.model === undefined ? {} : { model: jevResult.model }),
           ...(jevResult.version === undefined ? {} : { version: jevResult.version }),
