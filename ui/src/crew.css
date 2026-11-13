@@ -16,7 +16,8 @@
 .bt-row-preview{font-size:14px;line-height:18px;color:var(--bt-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bt-tag{flex:none;max-width:96px;font-size:12px;line-height:16px;font-weight:400;padding:1px 6px;border-radius:5px;background:var(--bt-tag-bg);color:var(--bt-tag-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.crew-side-brand{display:flex;align-items:center;gap:9px;padding:10px 6px 14px;font-size:16px;font-weight:650;letter-spacing:-.01em}
+.crew-side-brand{display:flex;align-items:center;gap:9px;width:100%;padding:10px 6px 14px;border:0;background:transparent;color:var(--bt-ink);font:inherit;font-size:16px;font-weight:650;letter-spacing:-.01em;text-align:left;cursor:pointer}
+.crew-side-brand:hover{color:var(--bt-accent)}
 .crew-side-brand-logo{display:block;width:22px;height:22px;flex:none}
 .crew-side-brand small{font-size:12px;font-weight:500;color:var(--bt-ink-3)}
 

@@ -4,6 +4,7 @@ import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './live-turn-utils.js'
 import { planDispatch } from './orchestration/index.js'
+import { modeGuidance, workContract } from './prompt-modes.js'
 import { seatDisplayName } from './seat-labels.js'
 import { workspaceOf } from './live-workspace.js'
 
@@ -76,21 +77,22 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
         rework
           ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : note}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求返工。`
           : '',
-        readOnly ? '当前阶段只读：可以读仓库、讨论和评审；不要改文件，也不要运行会写文件的命令。' : '',
+        ...workContract('worker'),
+        ...modeGuidance({ roomType: room.roomType, readOnly }),
         buildSeatHandoff({ room, messages: store.readMessages(roomId) }),
         assignees.length > 1
           ? workspaceOf(room).capabilities().isolation === 'worktree'
             ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
             : '你在自己的隔离副本里与其他执行席位并行工作；只改自己的副本，系统会按文件合并到房间目录。'
-          : '在当前工作目录完成；',
+          : '在当前工作目录完成。',
         port === undefined ? '' : `如需起本地服务，用 PORT=${port}。`,
         environment?.linked?.includes('node_modules')
           ? 'node_modules 已软链为只读依赖，不要修改它。'
           : '',
         workspaceOf(room).capabilities().candidate === true
-          ? '不要自己 git commit / push，系统会提交候选；完成后一句话汇报，不要 @验收，系统会自动复核。'
-          : '不要改房间记录；完成后一句话汇报，不要 @验收，系统会自动复核。',
-      ].join('')
+          ? '系统会提交候选。'
+          : '不要改房间记录。',
+      ].filter(Boolean).join('\n')
     }
 
     if (assignees.length === 1) {

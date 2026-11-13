@@ -1,5 +1,6 @@
 import { budgetStatus } from './budget.js'
 import { markSeatRead } from './watermarks.js'
+import { workContract } from './prompt-modes.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { reject } from './result.js'
 import { parseVerdict, REVIEW_TIMEOUT, tail } from './live-turn-utils.js'
@@ -136,7 +137,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       }
       const verifierPort = room.ports?.[verifier]
       const prompt = [
-        `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。只做只读复核，不改任何文件，不提交、不推送。`,
+        `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+        ...workContract('verifier'),
         '盲审：你只拿到目标、约束、本轮验收证据和改动，不读取执行席位的对话；判定只看证据和代码。',
         buildSeatHandoff({ room, messages }),
         `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
@@ -156,7 +158,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         '只评审交付改动；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
         ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
         ...(reviewGuidance === '' ? [] : [reviewGuidance]),
-        '第一行只写 PASS 或 REJECT，说明从第二行开始。判定不清就写 REJECT。',
+        '判定不清就写 REJECT。',
       ].join('\n')
 
       const request = {

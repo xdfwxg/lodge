@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { stageNeedsHuman } from './stage-dock.js'
+import { stageNeedsHuman } from './stage-gate.js'
 
 const room = (needsYou, verifiers = []) => ({ needsYou, verifiers })
 

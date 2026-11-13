@@ -1,4 +1,5 @@
 import { resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
+import { workContract } from './prompt-modes.js'
 import { resolveRoomType } from './room-types/index.js'
 import {
   DEFAULT_TEMPLATE_ID,
@@ -9,28 +10,25 @@ import {
   validateRoster,
 } from './seats.js'
 
-export const roomBulletin = (goal, verify, acceptance, align) => [
+export const roomBulletin = (goal, verify, acceptance) => [
   `目标：${goal}`,
   verify === 'test' ? `验收：${acceptance}` : '验收：人确认，不跑命令',
-  align
-    ? `阶段：1 目标对齐（人确认）；2 ${verify === 'test' ? '交付（命令验收）' : '确认（人签字）'}`
-    : `阶段：1 ${verify === 'test' ? '交付（命令验收）' : '确认（人签字）'}`,
 ].join('\n')
 
 export const alignmentPrompt = (leadName, goal, verify, acceptance) => [
   `@${leadName} 目标：${goal}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',
-  '先和人对齐：只问真正要人拍板的问题（最多 3 个），每个附推荐答案；不要改代码，不要 @工作席位。',
-  '用户确认阶段后，系统会发一条以「阶段已确认」开头的消息；收到之前不要派活。',
+  ...workContract('lead'),
+  '用户确认阶段后，系统会发一条以「阶段已确认」开头的消息；收到这条消息后只派当前阶段。',
 ].join('\n')
 
 export const directPrompt = (goal, verify, acceptance, singleSeat) => [
   `目标：${goal}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',
   singleSeat
-    ? '这是单人房间：直接在当前工作区完成，不要问问题，不要等人对齐；完成后一句话汇报。'
-    : '这个房间没有单独的队长：直接在当前工作区完成，不要问问题，不要等人对齐；完成后一句话汇报。',
-  '不要自己 git commit / push，系统会提交候选。',
+    ? '这是单人房间：直接在当前工作区完成，不要等人对齐。'
+    : '这个房间没有单独的队长：直接在当前工作区完成，不要等人对齐。',
+  ...workContract('worker'),
 ].join('\n')
 
 // 续做只继承人写的 BRIEF；旧证据、阶段与席位会话都不复制。

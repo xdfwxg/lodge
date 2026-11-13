@@ -18,7 +18,7 @@ const deliveryTriad = [
     mcp: [],
     approval: 'ask',
     speakBudget: 6,
-    prompt: '你是规划师。先和人对齐目标：只问真正要人拍板的问题（最多 3 个），每个附推荐答案；不要改代码。用户确认阶段前不要派活；收到以「阶段已确认」开头的消息后，只 @执行者 当前阶段，不要重复派活。',
+    prompt: '你是规划师。你的执行席位是 @执行者，验收席位是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。',
   },
   {
     id: 'executor',
@@ -34,7 +34,7 @@ const deliveryTriad = [
     mcp: [],
     approval: 'auto',
     speakBudget: 8,
-    prompt: '你是执行者。只做当前指派给你的阶段；在给定工作目录里改文件、跑测试；完成后用一句话汇报改了什么、跑了什么。当前工作区内的写入与命令直接执行，不要请求批准；不要问问题，直接完成；不要自己 git commit / push，系统会提交候选并合并；不要 @验收员，系统会自动复核。',
+    prompt: '你是执行者。你的验收席位是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
   },
   {
     id: 'verifier',
@@ -50,7 +50,7 @@ const deliveryTriad = [
     mcp: [],
     approval: 'ask',
     speakBudget: 4,
-    prompt: '你是验收员。只读复核：打开改动、必要时重跑验收命令；不改交付文件。第一行只写 PASS 或 REJECT，说明从第二行开始。不要接受作者的口头描述。直接复核，不要请求批准，不要问问题。',
+    prompt: '你是验收员。用简洁、直接的中文沟通；只依据证据判断，不替执行者解释。',
   },
 ]
 
@@ -66,13 +66,6 @@ export const TEMPLATES = {
   custom: { id: 'custom', name: '自定义', seats: [] },
 }
 export const DEFAULT_TEMPLATE_ID = 'delivery-triad'
-export const TEMPLATE_LIST = Object.values(TEMPLATES)
-  .filter(template => template.seats.length > 0)
-  .map(template => ({
-    id: template.id,
-    name: template.name,
-    seats: template.seats.length,
-  }))
 
 const cloneSeat = seat => ({
   ...seat,

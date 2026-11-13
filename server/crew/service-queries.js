@@ -4,20 +4,16 @@ import { presentRoom } from './presentation.js'
 import { buildResources } from './resources.js'
 import { buildReview } from './review.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
-import { listOrchestrations } from './orchestration/index.js'
 import { listRoomTypes } from './room-types/index.js'
 import { toDisplayText } from './seat-labels.js'
-import { TEMPLATE_LIST } from './seats.js'
 import { fail, ok } from './result.js'
 
 export const createServiceQueries = ({
   store,
   engine,
   seats,
-  dataDir,
   dispatchPayload,
   roomFiles,
-  templates,
   project,
   usage: usagePort,
   files,
@@ -37,10 +33,7 @@ export const createServiceQueries = ({
     }
     return {
       seats,
-      templates: TEMPLATE_LIST,
       roomTypes: listRoomTypes(),
-      orchestrations: listOrchestrations(),
-      savedTemplates: typeof dataDir === 'string' ? templates.list(dataDir) : [],
       rooms: rooms.map(room => {
         const messages = readMessages(room.id)
           .slice()

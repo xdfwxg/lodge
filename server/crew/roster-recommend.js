@@ -244,7 +244,6 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
   }
   const advisor = rosterFromRoles([{ role: 'lead', name: '规划师' }])[0]
   const prompt = recommendationPrompt(goal, sourceRepo)
-  advisor.prompt = prompt
   // 只读克隆是一次性工作区；不弹审批，避免读仓库时卡在 permission 卡上。
   advisor.approval = 'auto'
 
@@ -255,7 +254,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
     workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: [advisor] })
     advisorRef = await engine.createSeatBot({
       name: `Advisor${short}`,
-      soul: advisor.prompt,
+      soul: '你是规划师。只做编队判断，只输出 JSON，不执行工具。',
       description: advisor.station,
       approval: advisor.approval,
       mcp: advisor.mcp,

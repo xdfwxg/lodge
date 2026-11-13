@@ -72,6 +72,16 @@ test('the product default is the fixed three-seat squad', () => {
   assert.doesNotThrow(() => validateSeats(roster))
 })
 
+test('default seat souls carry identity, not stage SOP', () => {
+  const roster = seatsFor()
+  const lead = roster.find(seat => seat.role === 'lead')
+  const worker = roster.find(seat => seat.role === 'worker')
+  const verifier = roster.find(seat => seat.role === 'verifier')
+  assert.doesNotMatch(lead.prompt, /阶段已确认|不要重复派活/)
+  assert.doesNotMatch(worker.prompt, /git commit|不要问问题|不要 @验收/)
+  assert.doesNotMatch(verifier.prompt, /PASS 或 REJECT|只读复核/)
+})
+
 test('a task room with no explicit seats resolves to the fixed triad', () => {
   const seats = resolveSeats({}, resolveRoomType('task'))
   assert.equal(seats.templateId, 'delivery-triad')

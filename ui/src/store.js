@@ -23,6 +23,7 @@ export function createStore() {
   let stopped = false
   const seen = new Set()
   const listeners = new Set()
+  let firstLoad = true
 
   const emit = next => {
     state = next
@@ -107,7 +108,13 @@ export function createStore() {
       }
       for (const room of data.rooms) for (const message of room.messages) seen.add(message.id)
       if (stopped) return
+      const pendingDispatch = (data.dispatch?.requests ?? []).some(request => request.state === 'suggested')
+      const landInRoom = firstLoad && data.rooms.length === 1 && !pendingDispatch
       const known = state.activeId === 'dispatch' || data.rooms.some(room => room.id === state.activeId)
+      const activeId = landInRoom
+        ? data.rooms[0].id
+        : known ? state.activeId : (data.rooms[0]?.id ?? 'dispatch')
+      firstLoad = false
       emit({
         ...state,
         phase: 'ready',
@@ -118,7 +125,7 @@ export function createStore() {
         engines: data.engines ?? [],
         runtime,
         budget: data.budget ?? null,
-        activeId: known ? state.activeId : (data.rooms[0]?.id ?? 'dispatch'),
+        activeId,
         error: null,
       })
       connect()
@@ -228,19 +235,7 @@ export function createStore() {
     setBudget: budgetUsd => post(`/api/rooms/${state.activeId}/budget`, { budgetUsd }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
-    addSeat: (role, name) => post(`/api/rooms/${state.activeId}/seats`, { role, name }),
     editStagePlan: (action, index, stage) => post(`/api/rooms/${state.activeId}/stages`, { action, index, stage }),
-    changeSeatRole: (seatId, role) => post(`/api/rooms/${state.activeId}/seats/${encodeURIComponent(seatId)}/role`, { role }),
-    removeSeat: seatId => fetch(`/api/rooms/${state.activeId}/seats/${encodeURIComponent(seatId)}`, { method: 'DELETE' })
-      .then(response => response.json().catch(() => ({})))
-      .then(data => {
-        if (data.error !== undefined) patch({ error: data.error })
-        return data
-      })
-      .catch(error => {
-        patch({ error: `移除席位失败：${String(error?.message ?? error)}` })
-        return null
-      }),
     pause: () => post(`/api/rooms/${state.activeId}/pause`, {}),
     resume: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     stop: () => post(`/api/rooms/${state.activeId}/stop`, {}),

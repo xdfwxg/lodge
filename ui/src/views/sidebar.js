@@ -8,7 +8,13 @@ function Sidebar({ state, onSelect, onNew }) {
   const waiting = rooms.filter(room => room.needsYou).length
 
   return h('aside', { className: 'dsb-side' },
-    h('div', { className: 'crew-side-brand' }, h('img', { className: 'crew-side-brand-logo', src: './logo.svg', alt: '', width: 22, height: 22 }), 'Lodge'),
+    h('button', {
+      type: 'button',
+      className: 'crew-side-brand',
+      title: '回到调度台',
+      'aria-label': '回到调度台',
+      onClick: () => onSelect('dispatch'),
+    }, h('img', { className: 'crew-side-brand-logo', src: './logo.svg', alt: '', width: 22, height: 22 }), 'Lodge'),
     state.runtime?.ok === false
       ? h('div', { className: 'crew-error', style: { margin: '0 6px 10px' } }, `基座未连接：${state.runtime.error}`)
       : null,

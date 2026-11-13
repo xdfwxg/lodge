@@ -44,6 +44,7 @@ server/index.js（唯一组合根）
 | `room-record.js` | 房间记录、约束、初始消息是同一份持久化事实，拆开会出现字段漂移 |
 | `room-create-start.js` | 首次派发依赖已建好的房间记录、席位与工作区，不能先于它们运行 |
 | `room-create.js` | 保留为入口与失败补偿：只有它同时看到预置、记录、启动三段，能在失败时统一回滚 |
+| `prompt-modes.js` | 席位 soul 只留身份与沟通；工作纪律按 role、房型模式按 roomType/stage 装配，派发/复核/起步共用这一份，避免聊天带入工作 SOP |
 | `room-complete.js` | 完成是独立业务事件：清理工作区、写 CONCLUSION、commit/归档；与阶段验收不是同一变化原因 |
 | `service-queries.js` | 只读投影：房间状态、资源、用量、复盘、项目约束，读模型一起变化 |
 | `service-templates.js` / `service-delivery.js` | 模板与交付各有自己的存储与格式，修改互不影响 |
@@ -54,7 +55,11 @@ server/index.js（唯一组合根）
 | `service-run-control.js` | 预算、暂停/继续/停止、MCP 恢复都属于运行控制面；恢复后启动当前阶段共用同一个私有 helper |
 | `live-projection.js` | 基座消息到 Lodge 时间线的映射是纯转换，可单独测试 |
 | `timeline.js` | 只负责按时间渲染消息记录；当前阶段动作不在这里，避免“永远钉底” |
-| `stage-dock.js` | 当前阶段的验收/确认动作是一个独立单元：状态、命令、证据和按钮一起变化；放在输入框上方，默认收起 |
+| `stage-gate.js` | 阶段门纯投影：当前阶段、返工地板、PASS/证据与“是否需要人”的判定；不依赖 React，可单独测试 |
+| `stage-controls.js` | 阶段门的展示与动作：确认卡、真实验收卡、演示卡、返工输入；它们共享同一套阶段动作，拆开会让按钮与证据判断漂移 |
+| `stage-dock.js` | 只做阶段门的开关、当前阶段选择与三种卡片的组合；不持有阶段判定规则 |
+| `dispatch-status.js` | 调度台的诊断面：统计、Token 折线与最近交付；与“收件/房间摘要/输入框”的路由页面分开变化 |
+| `dispatch-view.js` | 调度页面的组合：待确认、房间摘要、系统状态折叠与输入框；只消费投影和动作 |
 | `opening-points.js` | 开工卡已对齐内容同时被开工记录和阶段确认使用，投影只此一份 |
 | `live-refresh.js` | 忙闲、用量、预算暂停是同一轮房间刷新 |
 | `live-approvals.js` | 权限卡、外部动作、待批准记录、失效与人工决定必须一起处理，拆开会出现审批状态不一致 |
@@ -83,4 +88,4 @@ server/index.js（唯一组合根）
 - `server/crew/boundary.test.js`：crew 不出现基座字段；git 只在 workspace provider 与默认根探测。
 - `ui/src/architecture.test.js`：UI 传输只在 `store.js` / `system.js`；视图不 import store。
 - 当前依赖图：115 个非测试模块、194 条内部依赖、0 个循环。
-- 测试：291 项通过。
+- 测试：294 项通过。

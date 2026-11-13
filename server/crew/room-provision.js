@@ -41,7 +41,7 @@ export const createProvisioner = ({ engine }) => {
       const baseRoom = await engine.createRoom({
         name: `${title} · ${seat.name}`,
         goal,
-        bulletin: roomBulletin(goal, verify, acceptance, align),
+        bulletin: roomBulletin(goal, verify, acceptance),
         members: [seatRef.id],
         cwd: workspaces.seats[seat.id].path,
         leadId: seatRef.id,
