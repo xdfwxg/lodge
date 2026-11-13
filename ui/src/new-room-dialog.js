@@ -272,7 +272,6 @@ function NewRoomDialog({
         chatTurnLimit,
         repoPath: repoPath.trim(),
         ...(resume === null ? {} : { continueFrom: resume.id }),
-        ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
       })
       if (result?.ok !== true) {
         setError(result?.error ?? '创建聊天室失败')
@@ -587,7 +586,7 @@ function NewRoomDialog({
         }),
         h('p', { className: 'crew-field-hint' }, '达到上限后主持人总结，你认可或继续追加一轮。'))
       : null,
-    constraintsView,
+    roomType === 'studio' ? constraintsView : null,
     resume?.brief?.done?.length > 0
       ? h('div', { className: 'crew-proposal-block' },
         h('b', null, `上一轮的要求 · ${resume.name}`),

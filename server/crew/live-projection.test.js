@@ -44,3 +44,20 @@ test('seat messages keep their seat author', () => {
   assert.equal(stored.kind, 'chat')
   assert.equal(stored.authorId, 'executor')
 })
+
+test('bare base handles in prose become seat names', () => {
+  const room = {
+    seatBots: { worker: 'Worker6459f3' },
+    seatNames: { worker: 'Worker6459f3' },
+    seatSpecs: [{ id: 'worker', name: '甲' }],
+  }
+  const chatProjector = createMessageProjector({ store: { readRoom: () => room } })
+  const stored = chatProjector.toStored('room-1', {
+    id: 'm2',
+    kind: 'text',
+    role: 'bot',
+    authorRef: 'Worker6459f3',
+    text: 'Worker6459f3 同意，另一个人不同意。',
+  })
+  assert.equal(stored.text, '甲 同意，另一个人不同意。')
+})

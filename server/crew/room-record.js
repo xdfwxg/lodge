@@ -205,6 +205,7 @@ export const initialRoomMessages = ({
     : room.roomType === 'studio'
       ? '工作室 · 群聊单工作目录'
       : `${roster.length} 席各自工作区`
+  if (room.roomType === 'chat') return []
   const messages = [{
     kind: 'system',
     text: room.roomType === 'chat'

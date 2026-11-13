@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { matchEcho, seatFor } from './live-projection.js'
 import { pauseForSeatFailure } from './live-sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
-import { toBaseMentions, toDisplayMentions } from './seat-labels.js'
+import { toBaseMentions, toDisplayMentions, toDisplayText } from './seat-labels.js'
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
 // sendId 是基座的幂等键：发送响应和最终落库 ID 不同也能对上同一条话。
@@ -82,7 +82,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       return false
     }
     // 流式回合的最终文本也要过一遍显示名映射，否则基座 handle 会留在气泡里。
-    const text = toDisplayMentions(current, raw)
+    const text = toDisplayText(current, raw)
     const existing = store.readMessages(room.id).find(item => item.id === state.id)
     store.upsertMessage({
       ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: seat }),

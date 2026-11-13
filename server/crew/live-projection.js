@@ -6,7 +6,7 @@ export const seatFor = (room, ref) => {
   return null
 }
 
-import { toDisplayMentions } from './seat-labels.js'
+import { toDisplayText } from './seat-labels.js'
 import { isInternalPrompt } from './internal-prompts.js'
 
 export const seatNameOf = (room, seat) => (
@@ -39,7 +39,7 @@ export const createMessageProjector = ({ store }) => {
     if (isInternalPrompt(message.text)) return null
     const seat = seatFor(room, message.authorRef)
     const common = { id: message.id, roomId, ts: message.at }
-    const text = toDisplayMentions(room, message.text)
+    const text = toDisplayText(room, message.text)
     // 基座会在一条回答后再补一条空 text；它不是一句话，不该变成空气泡。
     if (String(text ?? '').trim() === '') return null
     if (message.role === 'user') return { ...common, kind: 'chat', authorId: 'you', text }

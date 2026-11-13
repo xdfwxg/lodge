@@ -5,6 +5,7 @@ import { buildResources } from './resources.js'
 import { buildReview } from './review.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
+import { isChatSystemNoise } from './room-chat.js'
 import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
 import { replayTransitions } from './room-state.js'
@@ -39,6 +40,7 @@ export const createServiceQueries = ({
       rooms: rooms.map(room => {
         const messages = readMessages(room.id)
           .slice()
+          .filter(message => !(room.roomType === 'chat' && isChatSystemNoise(message)))
           .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
           .map(message => (
             typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message

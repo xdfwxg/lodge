@@ -6,3 +6,17 @@ export const ROOM_CHAT_BULLETIN = [
 ].join('\n')
 
 export const roomChatName = title => `${title} · 房间聊天`
+
+// 聊天室只放聊天内容；建房、仓库、引擎降级、Gate 建议这些工作室信息不进聊天时间线。
+const CHAT_SYSTEM_NOISE = [
+  /^房间已创建 · 聊天室/,
+  /^聊天室：先讨论/,
+  /^源仓库 /,
+  /^引擎降级：/,
+  /^Gate·评估建议/,
+  /^续做自交接记录/,
+]
+
+export const isChatSystemNoise = message => (
+  message?.kind === 'system' && CHAT_SYSTEM_NOISE.some(pattern => pattern.test(String(message.text ?? '')))
+)
