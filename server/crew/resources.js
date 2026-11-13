@@ -3,7 +3,7 @@ import { globalBudgetMicroUsd } from './budget.js'
 import { buildDelivery } from './delivery.js'
 
 // 调度台资源面板是只读投影：只汇总房间与消息，不路由、不执行。
-export const buildResources = (rooms, readMessages = () => []) => {
+export const buildResources = (rooms, readMessages = () => [], readEvidence = () => []) => {
   const items = rooms.map(room => {
     const messages = readMessages(room.id)
     const failedCommands = messages.filter(message => (
@@ -52,7 +52,7 @@ export const buildResources = (rooms, readMessages = () => []) => {
     deliveries: rooms
       .filter(room => room.state === 'complete' && room.roomType !== 'chat')
       .map(room => {
-        const delivery = buildDelivery(room, readMessages(room.id))
+        const delivery = buildDelivery(room, readMessages(room.id), readEvidence(room.id))
         return {
           roomId: room.id,
           name: room.name,

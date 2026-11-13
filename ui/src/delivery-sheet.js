@@ -48,6 +48,12 @@ export function DeliverySheet({ delivery, onExport }) {
       h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 阶段`),
       h('span', null, commands.length > 0 ? `${passed}/${commands.length} 命令通过` : '人工验收'),
       h('span', null, `${delivery.artifacts?.length ?? delivery.changedFiles?.length ?? 0} 个文件`),
+      delivery.integrity
+        ? h('span', { 'data-bad': delivery.integrity.ok === false ? 'true' : undefined },
+          delivery.integrity.ok === false
+            ? `账本 ${delivery.integrity.broken.length}/${delivery.integrity.total} 条异常`
+            : `账本 ${delivery.integrity.verified}/${delivery.integrity.total} 条一致`)
+        : null,
       delivery.independenceLabel ? h('span', null, delivery.independenceLabel) : null,
       delivery.completedAt ? h('span', null, timeOf(delivery.completedAt)) : null),
     delivery.commit
@@ -83,9 +89,14 @@ export function DeliverySheet({ delivery, onExport }) {
         stage.acceptance ? h('div', { className: 'crew-kv' },
           h('span', null, '验收'),
           h('code', null, stage.acceptance)) : null,
-        ...stage.commands.map(command => h('div', { key: command.id, className: 'crew-kv' },
-          h('span', null, '命令'),
-          h('code', null, `${command.command} · exit ${command.exit === null ? '无' : command.exit}`))),
+        ...stage.commands.flatMap(command => [
+          h('div', { key: command.id, className: 'crew-kv' },
+            h('span', null, '命令'),
+            h('code', null, `${command.command} · exit ${command.exit === null ? '无' : command.exit}`)),
+          h('div', { key: `${command.id}-digest`, className: 'crew-kv' },
+            h('span', null, 'digest'),
+            h('code', { title: command.digest ?? '' }, short(command.digest) || '缺失')),
+        ]),
         ...stage.verdicts
           .map(verdict => h('div', { key: verdict.id, className: 'crew-delivery-verdict', 'data-pass': verdict.pass },
             h('span', null, delivery.seatNames?.[verdict.authorId] ?? verdict.authorId),

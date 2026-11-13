@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { evidenceDigest } from './evidence-ledger.js'
+import { evidenceDigest, evidenceEntryFromMessage } from './evidence-ledger.js'
 import { appendEventLog, appendTranscript, writeEvidence } from './room-repo.js'
 
 export const createStore = ({ dataDir, emit = () => {} }) => {
@@ -111,19 +111,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   const readMessages = roomId => db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId).map(row => JSON.parse(row.payload))
   // 证据账本只追加：命令证据和人工产物证据进入账本，执行席位的自述回合留在消息流。
   const appendEvidenceFromMessage = message => {
-    if (message?.kind !== 'evidence') return null
-    const evidenceKind = message.meta?.kind
-    if (evidenceKind !== 'command' && evidenceKind !== 'manual') return null
-    const base = {
-      id: message.id,
-      roomId: message.roomId,
-      seq: message.seq,
-      kind: message.kind,
-      authorId: message.authorId,
-      text: message.text,
-      at: message.ts,
-      meta: message.meta ?? {},
-    }
+    const base = evidenceEntryFromMessage(message)
+    if (base === null) return null
     const digest = evidenceDigest(base)
     const entry = { ...base, digest }
     db.prepare('INSERT OR IGNORE INTO evidence (id, room_id, seq, payload, created_at) VALUES (?, ?, ?, ?, ?)')

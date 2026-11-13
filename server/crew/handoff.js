@@ -1,4 +1,5 @@
 import { homedir } from 'node:os'
+import { verifyEvidenceIntegrity } from './evidence-ledger.js'
 
 export const HANDOFF_FORMAT = 'lodge.room-handoff.v1'
 
@@ -16,6 +17,8 @@ const redactionPairs = (room, workspaceRoot) => [
   .sort((a, b) => b[0].length - a[0].length)
 
 const redact = (text, pairs) => pairs.reduce((out, [path, replacement]) => out.split(path).join(replacement), text)
+
+const redactDeep = (value, pairs) => JSON.parse(redact(JSON.stringify(value), pairs))
 
 const handoffRoom = room => ({
   id: room.id,
@@ -43,7 +46,7 @@ const handoffRoom = room => ({
   workspace: room.workspace ?? null,
 })
 
-export const buildHandoff = (room, { handoffStore, workspaceRoot }) => {
+export const buildHandoff = (room, { handoffStore, workspaceRoot, ledger = [] }) => {
   const files = handoffStore.read(room, NAMED_FILES)
   if (files['transcript.jsonl'] === undefined) return null
   const pairs = redactionPairs(room, workspaceRoot)
@@ -53,6 +56,11 @@ export const buildHandoff = (room, { handoffStore, workspaceRoot }) => {
     exportedAt: new Date().toISOString(),
     room: handoffRoom(room),
     files: Object.fromEntries(Object.entries(files).map(([name, text]) => [name, redact(text, pairs)])),
-    redactions: ['本机绝对路径已替换为占位符'],
+    ledger: redactDeep(ledger, pairs),
+    integrity: {
+      ...verifyEvidenceIntegrity(ledger),
+      note: '摘要按房间账本原值计算；交接包内的路径与文本已脱敏。',
+    },
+    redactions: ['本机绝对路径已替换为占位符', '账本条目按同一规则脱敏，digest 保留原值'],
   }
 }

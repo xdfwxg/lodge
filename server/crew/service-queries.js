@@ -44,7 +44,11 @@ export const createServiceQueries = ({
           .map(message => (
             typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
           ))
-        return { ...presentRoom(room, messages), brief: roomFiles.readBrief(room), messages }
+        return {
+          ...presentRoom(room, messages, room.state === 'complete' && room.roomType !== 'chat' ? readEvidence(room.id) : null),
+          brief: roomFiles.readBrief(room),
+          messages,
+        }
       }),
       dispatch: dispatchPayload(),
       budget: budgetSummary(rooms),
@@ -62,7 +66,7 @@ export const createServiceQueries = ({
     return { ok: true, bytes: files.read(file) }
   }
 
-  const resources = () => ok({ resources: buildResources(readRooms(), readMessages) })
+  const resources = () => ok({ resources: buildResources(readRooms(), readMessages, readEvidence) })
 
   const usage = range => ok({
     usage: usagePort.aggregate({ rooms: readRooms(), historyOf: usagePort.read, range }),

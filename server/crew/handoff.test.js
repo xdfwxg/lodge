@@ -4,12 +4,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
+import { evidenceDigest, evidenceEntryFromMessage } from './evidence-ledger.js'
 import { buildHandoff as buildHandoffBase, HANDOFF_FORMAT } from './handoff.js'
 import { roomDir } from './paths.js'
 import { inheritedPlan } from './room-create.js'
 
 const ports = createCrewPorts()
-const buildHandoff = room => buildHandoffBase(room, { handoffStore: ports.handoff, workspaceRoot: ports.workspace.root() })
+const buildHandoff = (room, ledger = []) => buildHandoffBase(room, {
+  handoffStore: ports.handoff,
+  workspaceRoot: ports.workspace.root(),
+  ledger,
+})
 
 const workspace = () => mkdtempSync(join(tmpdir(), 'lodge-handoff-'))
 
@@ -46,7 +51,7 @@ const roomWithFiles = () => {
   writeFileSync(join(dir, 'events.jsonl'), `${JSON.stringify({ type: 'room.complete' })}\n`)
   writeFileSync(join(dir, 'evidence', 'm1.json'), JSON.stringify({ command: 'npm test', exit: 0, commandCwd: repo }))
   const messages = [
-    { id: 'm1', kind: 'evidence', text: 'npm test 通过', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } },
+    { id: 'm1', kind: 'evidence', roomId: room.id, seq: 1, ts: 10, text: `npm test 通过（${repo}）`, meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } },
     { id: 'm2', kind: 'system', text: `源仓库 ${room.sourceRepo}` },
   ]
   writeFileSync(join(dir, 'transcript.jsonl'), `${messages.map(message => JSON.stringify(message)).join('\n')}\n`)
@@ -54,8 +59,9 @@ const roomWithFiles = () => {
 }
 
 test('a handoff bundle carries the room record without local paths', () => {
-  const { room } = roomWithFiles()
-  const bundle = buildHandoff(room)
+  const { room, messages } = roomWithFiles()
+  const entry = { ...evidenceEntryFromMessage(messages[0]), digest: evidenceDigest(evidenceEntryFromMessage(messages[0])) }
+  const bundle = buildHandoff(room, [entry])
   assert.equal(bundle.format, HANDOFF_FORMAT)
   assert.equal(bundle.room.name, room.name)
   assert.equal(bundle.room.repoPath, undefined)
@@ -69,6 +75,18 @@ test('a handoff bundle carries the room record without local paths', () => {
   assert.deepEqual(Object.keys(bundle.files).sort(), [
     'BRIEF.md', 'CONCLUSION.md', 'GOAL.md', 'events.jsonl', 'evidence/m1.json', 'transcript.jsonl',
   ])
+})
+
+test('the handoff bundle carries ledger digests, integrity and redacted ledger text', () => {
+  const { room, messages } = roomWithFiles()
+  const entry = { ...evidenceEntryFromMessage(messages[0]), digest: evidenceDigest(evidenceEntryFromMessage(messages[0])) }
+  const bundle = buildHandoff(room, [entry])
+  assert.equal(bundle.ledger.length, 1)
+  assert.equal(bundle.ledger[0].digest, entry.digest)
+  assert.equal(bundle.ledger[0].text.includes(room.repoPath), false)
+  assert.equal(bundle.integrity.ok, true)
+  assert.equal(bundle.integrity.verified, 1)
+  assert.match(bundle.integrity.note, /原值/)
 })
 
 test('a room without a transcript cannot be exported', () => {

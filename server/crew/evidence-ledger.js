@@ -8,6 +8,23 @@ export const evidencePayload = entry => {
 
 export const evidenceDigest = payload => createHash('sha256').update(JSON.stringify(payload)).digest('hex')
 
+// 只从消息本身派生账本条目；写入账本与交付单/交接包补录共用这一份字段顺序。
+export const evidenceEntryFromMessage = message => {
+  if (message?.kind !== 'evidence') return null
+  const kind = message.meta?.kind
+  if (kind !== 'command' && kind !== 'manual') return null
+  return {
+    id: message.id,
+    roomId: message.roomId,
+    seq: message.seq,
+    kind: message.kind,
+    authorId: message.authorId,
+    text: message.text,
+    at: message.ts,
+    meta: message.meta ?? {},
+  }
+}
+
 // 只报告，不修复：重算每条存储条目的摘要，和落库的 digest 对比。
 export const verifyEvidenceIntegrity = (entries = []) => {
   const rows = entries.map(entry => {

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
+import { buildDelivery } from './delivery.js'
 import { verifyEvidenceIntegrity } from './evidence-ledger.js'
 import { createChatScheduler } from './live-chat-room.js'
 import { createRealRoom } from './room-create.js'
@@ -175,6 +176,11 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
     assert.equal(final.ok, true)
     assert.equal(store.readRoom(room.id).closure, 'signed')
     assert.equal(store.readRoom(room.id).state, 'complete')
+
+    const delivery = buildDelivery(store.readRoom(room.id), store.readMessages(room.id), store.readEvidence(room.id))
+    assert.equal(delivery.integrity.ok, true)
+    assert.equal(delivery.integrity.verified, 2)
+    assert.deepEqual(delivery.commands.map(command => command.digest), ledger.map(entry => entry.digest))
 
     const closureSequence = store.readEvents(room.id)
       .filter(event => event.type === 'closure.transition')

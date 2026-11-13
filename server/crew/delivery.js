@@ -1,6 +1,17 @@
 import { independenceLabel } from './digest.js'
+import { evidenceDigest, evidenceEntryFromMessage, verifyEvidenceIntegrity } from './evidence-ledger.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
+
+// 有账本就用账本里的存储 digest；没有账本时从消息派生同一份摘要，保证旧调用仍能出交付单。
+const ledgerEntriesOf = (messages, ledger) => (
+  Array.isArray(ledger)
+    ? ledger
+    : messages
+      .map(evidenceEntryFromMessage)
+      .filter(entry => entry !== null)
+      .map(entry => ({ ...entry, digest: evidenceDigest(entry) }))
+)
 
 const artifactList = (messages, roots = []) => {
   const normalizedRoots = roots.filter(root => typeof root === 'string' && root !== '').map(root => root.replace(/\/$/, ''))
@@ -19,7 +30,9 @@ const artifactList = (messages, roots = []) => {
 }
 
 // 完成态交付单只读投影：目标、阶段、命令、改动文件、结论与 commit。
-export const buildDelivery = (room, messages = []) => {
+export const buildDelivery = (room, messages = [], ledger = null) => {
+  const entries = ledgerEntriesOf(messages, ledger)
+  const entriesById = new Map(entries.map(entry => [entry.id, entry]))
   const stages = room.stages.map((stage, index) => {
     const stageMessages = messages.filter(message => (message.meta?.stage ?? 0) === index)
     const commands = stageMessages
@@ -30,6 +43,7 @@ export const buildDelivery = (room, messages = []) => {
         command: message.meta?.command ?? '',
         exit: message.meta?.exit ?? null,
         evidenceId: message.id,
+        digest: entriesById.get(message.id)?.digest ?? null,
         changedFiles: Array.isArray(message.meta?.changedFiles) ? message.meta.changedFiles : [],
         simulated: message.meta?.simulated === true,
       }))
@@ -50,7 +64,11 @@ export const buildDelivery = (room, messages = []) => {
       state: stage.state,
       acceptance: stage.acceptance ?? null,
       commands,
-      manual: manual === undefined ? null : { id: manual.id, text: manual.text ?? '' },
+      manual: manual === undefined ? null : {
+        id: manual.id,
+        text: manual.text ?? '',
+        digest: entriesById.get(manual.id)?.digest ?? null,
+      },
       verdicts,
       changedFiles: unique(commands.flatMap(command => command.changedFiles)),
     }
@@ -76,6 +94,17 @@ export const buildDelivery = (room, messages = []) => {
     stages,
     commands,
     changedFiles,
+    ledger: entries.map(entry => ({
+      id: entry.id,
+      seq: entry.seq,
+      kind: entry.meta?.kind ?? '',
+      stage: entry.meta?.stage ?? 0,
+      command: entry.meta?.command ?? '',
+      exit: entry.meta?.exit ?? null,
+      digest: entry.digest ?? '',
+      at: entry.at ?? null,
+    })),
+    integrity: verifyEvidenceIntegrity(entries),
     evidenceCount: stages.reduce((total, stage) => total + stage.commands.length + (stage.manual === null ? 0 : 1), 0),
   }
   return delivery
@@ -106,6 +135,22 @@ export const deliveryMarkdown = delivery => {
       lines.push(`- 复核：${name} · ${verdict.pass ? 'PASS' : 'REJECT'}`)
     }
     if (stage.changedFiles.length > 0) lines.push(`- 改动文件：${stage.changedFiles.join('、')}`)
+  }
+  lines.push('', '## 证据账本')
+  if ((delivery.ledger ?? []).length === 0) {
+    lines.push('- 无')
+  } else {
+    for (const entry of delivery.ledger) {
+      const label = entry.kind === 'manual' ? '人工产物' : entry.command || '命令'
+      lines.push(`- #${entry.seq} · 阶段 ${entry.stage + 1} · ${label} · exit ${entry.exit === null ? '无' : entry.exit} · digest ${entry.digest || '缺失'}`)
+    }
+  }
+  const integrity = delivery.integrity ?? { total: 0, verified: 0, ok: true, broken: [] }
+  lines.push('', integrity.ok
+    ? `完整性：${integrity.verified}/${integrity.total} 条凭证摘要一致（SHA-256）`
+    : `完整性：${integrity.broken.length}/${integrity.total} 条凭证摘要不一致`)
+  for (const row of integrity.broken ?? []) {
+    lines.push(`- #${row.seq} 存储 ${row.storedDigest || '缺失'} · 重算 ${row.computedDigest}`)
   }
   lines.push('', '## 产出文件')
   lines.push(...(delivery.artifacts ?? []).map(artifact => `- ${artifact.path}`))

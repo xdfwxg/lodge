@@ -11,7 +11,7 @@ const roomCapabilities = room => ({
 })
 
 // 房间事件与状态查询共用同一份投影，UI 不再自己重算业务状态和独立性文案。
-export const presentRoom = (room, messages = []) => ({
+export const presentRoom = (room, messages = [], ledger = null) => ({
   ...room,
   revision: room.version ?? 1,
   capabilities: roomCapabilities(room),
@@ -21,5 +21,5 @@ export const presentRoom = (room, messages = []) => ({
   modeCapabilities: capabilitiesFor(room.roomType),
   independenceLabel: independenceLabel(room),
   independencePolicyLabel: independencePolicyLabel(room),
-  delivery: room.state === 'complete' && room.roomType !== 'chat' ? buildDelivery(room, messages) : null,
+  delivery: room.state === 'complete' && room.roomType !== 'chat' ? buildDelivery(room, messages, ledger) : null,
 })

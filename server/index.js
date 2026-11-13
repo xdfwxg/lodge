@@ -38,7 +38,8 @@ seedIfEmpty(store)
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
-    payload = presentRoom(payload, store.readMessages(payload.id))
+    const ledger = payload.state === 'complete' && payload.roomType !== 'chat' ? store.readEvidence(payload.id) : null
+    payload = presentRoom(payload, store.readMessages(payload.id), ledger)
   }
   broadcast(event, payload, id)
 }
