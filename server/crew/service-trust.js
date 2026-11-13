@@ -6,6 +6,7 @@ export const createServiceTrust = ({ store, emit, dispatchPayload }) => {
   const { readMessages, updateRoom, appendMessage } = store
 
   const setTrust = (room, body) => {
+    if (room.roomType === 'chat') return fail('invalid', '聊天室没有信任阶梯')
     const level = body?.level
     const check = canPromoteTrust(room, readMessages(room.id), level)
     if (!check.ok) return fail('invalid', check.error)

@@ -1,3 +1,4 @@
+import { MAX_CHAT_TURNS_PER_ROUND } from './live-chat-room.js'
 import { resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { workContract } from './prompt-modes.js'
 import { resolveRoomType } from './room-types/index.js'
@@ -48,6 +49,14 @@ export const normalizeRequest = body => {
   if (goal === '' || goal.length > 2000) return { error: '目标不能为空，且不超过 2000 字' }
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   if (name.length > 60) return { error: '房间名称不能超过 60 字' }
+  let chatTurnLimit = null
+  if (body.chatTurnLimit !== undefined && body.chatTurnLimit !== null) {
+    const value = Number(body.chatTurnLimit)
+    if (!Number.isInteger(value) || value < 1 || value > MAX_CHAT_TURNS_PER_ROUND) {
+      return { error: `聊天室轮次上限必须是 1–${MAX_CHAT_TURNS_PER_ROUND} 的整数` }
+    }
+    chatTurnLimit = value
+  }
   const roomType = resolveRoomType(body.roomType)
   if (roomType === null) return { error: '未知的房间类型' }
   const normalized = roomType.normalize({
@@ -67,7 +76,7 @@ export const normalizeRequest = body => {
   if (orchestration === null) return { error: '未知的编排策略' }
   const verifierPolicy = body.verifierPolicy === 'majority' ? 'majority' : 'all'
   const shadowReview = body.shadowReview === true
-  return { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview }
+  return { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit }
 }
 
 export const normalizePlan = ({ body, continueSource, roomFiles }) => {

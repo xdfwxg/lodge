@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CHAT_TURNS_PER_ROUND, createChatScheduler, pickChatSpeaker } from './live-chat-room.js'
+import { CHAT_TURNS_PER_ROUND, chatTurnLimitOf, createChatScheduler, pickChatSpeaker } from './live-chat-room.js'
 
-test('a chat round is fixed at six speakers', () => {
+test('a chat round defaults to six speakers and accepts a room limit', () => {
   assert.equal(CHAT_TURNS_PER_ROUND, 6)
+  assert.equal(chatTurnLimitOf({}), 6)
+  assert.equal(chatTurnLimitOf({ chat: { turnLimit: 4 } }), 4)
+  assert.equal(chatTurnLimitOf({ chat: { turnLimit: 99 } }), 6)
 })
 
 test('unspoken speakers are covered before anyone repeats', () => {
@@ -131,4 +134,26 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   const conclusions = ctx.messages.filter(message => message.kind === 'chat_conclusion')
   assert.equal(conclusions.length, 2)
   assert.equal(conclusions.at(-1).meta.round, 2)
+})
+
+test('a chat room can run fewer turns than the default', async () => {
+  const ctx = setup()
+  ctx.store.updateRoom('room-chat', state => {
+    state.chat = { ...state.chat, turnLimit: 2 }
+    return { events: [] }
+  })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    engine: ctx.engine,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  const result = await scheduler.start(ctx.room())
+  assert.equal(result.turns, 2)
+  assert.equal(ctx.messages.filter(message => message.kind === 'chat').length, 2)
+  const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
+  assert.equal(conclusion.meta.turns, 2)
+  assert.equal(conclusion.meta.turnLimit, 2)
 })

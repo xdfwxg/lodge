@@ -2,6 +2,16 @@ import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
 import { seatDisplayName } from './seat-labels.js'
 
 export const CHAT_TURNS_PER_ROUND = 6
+export const MAX_CHAT_TURNS_PER_ROUND = 20
+
+// 轮次上限是房间参数，不是引擎常量；默认 6，建房时可配置。
+export const chatTurnLimitOf = room => {
+  const value = Number(room?.chat?.turnLimit)
+  return Number.isInteger(value) && value >= 1 && value <= MAX_CHAT_TURNS_PER_ROUND
+    ? value
+    : CHAT_TURNS_PER_ROUND
+}
+
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
 
@@ -34,10 +44,10 @@ const discussionLines = (store, roomId, limit = 12) => store.readMessages(roomId
 
 const baseName = (room, seat) => room?.seatNames?.[seat] ?? seatDisplayName(room, seat)
 
-const speakerPrompt = ({ room, seat, round, turn, note, lines }) => {
+const speakerPrompt = ({ room, seat, round, turn, turnLimit, note, lines }) => {
   return [
     `@${baseName(room, seat)} 聊天室话题：${room.goal}`,
-    `讨论进行到第 ${round} 轮，第 ${turn}/${CHAT_TURNS_PER_ROUND} 次发言。`,
+    `讨论进行到第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `你上一轮退回了结论，并补充：${note}`,
     lines.length === 0 ? '还没有人发言。' : `已有讨论：\n${lines.join('\n')}`,
     '请只补充你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复你的发言。',
@@ -140,9 +150,10 @@ export const createChatScheduler = ({
     const host = room.leadSeat ?? room.members?.[0]
     if (typeof host !== 'string' || host === '') throw new Error('聊天室没有主持席位')
     const speakers = (room.members ?? []).filter(seat => seat !== host)
+    const turnLimit = chatTurnLimitOf(room)
     const perSeat = speakers.length === 0
-      ? CHAT_TURNS_PER_ROUND
-      : Math.max(1, Math.ceil(CHAT_TURNS_PER_ROUND / speakers.length))
+      ? turnLimit
+      : Math.max(1, Math.ceil(turnLimit / speakers.length))
     const run = { cancelled: false }
     runs.set(roomId, run)
     const round = Number.isInteger(room.chat?.round) && room.chat.round > 0 ? room.chat.round : 1
@@ -168,7 +179,7 @@ export const createChatScheduler = ({
     try {
       if (speakers.length > 0) {
         await waitIdle(chat.id, run)
-        for (let turn = 1; turn <= CHAT_TURNS_PER_ROUND; turn += 1) {
+        for (let turn = 1; turn <= turnLimit; turn += 1) {
           const current = store.readRoom(roomId)
           if (run.cancelled || current === null || current.state !== 'active') break
           const seat = pickChatSpeaker({ speakers, counts, perSeat, last, random })
@@ -182,6 +193,7 @@ export const createChatScheduler = ({
             seat,
             round,
             turn,
+            turnLimit,
             note,
             lines: discussionLines(store, roomId),
           })
@@ -265,6 +277,7 @@ export const createChatScheduler = ({
         text: text === '' ? digestText(lines) : text,
         meta: {
           round,
+          turnLimit,
           turns: completed,
           host,
           fallback: fallback || text === '',

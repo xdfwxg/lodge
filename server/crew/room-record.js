@@ -1,3 +1,4 @@
+import { CHAT_TURNS_PER_ROUND } from './live-chat-room.js'
 import { TEMPLATES } from './seats.js'
 
 const roleLabel = seat => seat.name
@@ -37,6 +38,7 @@ export const buildRoomRecord = ({
   acceptance,
   verifierPolicy = 'all',
   shadowReview = false,
+  chatTurnLimit = null,
   plannerTools = null,
   gate = null,
   parentRoomId = null,
@@ -76,7 +78,7 @@ export const buildRoomRecord = ({
   live: true,
   demo: false,
   state: 'active',
-  trust: 'verify',
+  ...(roomType.id === 'chat' ? {} : { trust: 'verify' }),
   idle: false,
   round: 0,
   noProgress: 0,
@@ -167,6 +169,7 @@ export const buildRoomRecord = ({
         chat: {
           round: 1,
           phase: 'discussing',
+          turnLimit: Number.isInteger(chatTurnLimit) ? chatTurnLimit : CHAT_TURNS_PER_ROUND,
           turns: 0,
           conclusionId: null,
           accepted: false,

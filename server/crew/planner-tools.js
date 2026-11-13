@@ -20,7 +20,7 @@ export const parsePlannerTool = text => {
 export const plannerToolPrompt = ({ mcp = false } = {}) => mcp
   ? [
       'Planner 工具（已通过 MCP 挂载，只在确实需要时调用）：',
-      'create_subroom(goal, name?) 创建子工作室；reject_plan(reason) 在执行前拒绝目标；check_gate(goal?) 预检目标。',
+      'create_subroom(goal, name?) 创建子工作室（只能 studio，最多 3 层）；reject_plan(reason) 在执行前拒绝目标；check_gate(goal?) 预检目标。',
       '工具由 Lodge 执行并返回结果；不要伪造结果，也不要用工具替代当前阶段交付。',
     ]
   : [

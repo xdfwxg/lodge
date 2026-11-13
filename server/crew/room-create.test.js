@@ -633,3 +633,36 @@ test('a studio mounts its own Planner tool server only on the planner seat', asy
   assert.deepEqual(planner.roomTools, [room.plannerTools.server])
   assert.equal(seats.filter(seat => seat.roomTools.length > 0).length, 1)
 })
+
+test('a chat room has a configurable turn limit and no trust ladder', async () => {
+  const { store } = completedRoom(temp('lodge-chat-rules-data-'))
+  const result = await run(store, {
+    goal: '圆桌讨论一下交付边界',
+    roomType: 'chat',
+    chatTurnLimit: 4,
+  })
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.equal(room.chat.turnLimit, 4)
+  assert.equal('trust' in room, false)
+  assert.equal('stages' in room, false)
+})
+
+test('an invalid chat turn limit fails before touching the workspace', async () => {
+  const { store } = completedRoom(temp('lodge-chat-limit-data-'))
+  let prepared = false
+  const workspace = {
+    id: 'plain',
+    capabilities: () => ({ merge: true }),
+    prepareRoom: () => { prepared = true; return { seats: {} } },
+    cleanupRoom: () => {},
+  }
+  const result = await run(store, {
+    goal: '圆桌讨论一下交付边界',
+    roomType: 'chat',
+    chatTurnLimit: 99,
+  }, fakeEngine(), workspace)
+  assert.equal(result.ok, false)
+  assert.match(result.error, /1–20/)
+  assert.equal(prepared, false)
+})

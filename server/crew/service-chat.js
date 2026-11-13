@@ -86,6 +86,7 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
         name: room.name,
         goal: room.goal,
         round: room.chat?.round ?? 1,
+        turnLimit: room.chat?.turnLimit ?? 6,
         accepted: room.chat?.accepted === true,
         conclusion: conclusion === undefined
           ? null

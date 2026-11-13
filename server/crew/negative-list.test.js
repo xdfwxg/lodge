@@ -23,6 +23,7 @@ test('advisor advice code has no pass/verdict authority', () => {
   for (const file of ['advisor.js', 'room-gate.js']) {
     const source = read(file)
     assert.doesNotMatch(source, /\bpass\s*:/, `${file} writes a pass field`)
+    assert.doesNotMatch(source, /\breject\s*:/, `${file} writes a reject field`)
     assert.doesNotMatch(source, /\bverdict\s*:/, `${file} writes a verdict field`)
   }
 })
@@ -34,4 +35,12 @@ test('chat and studio capability flags stay separated', async () => {
   assert.equal(capabilitiesFor('chat').piExecution, false)
   assert.equal(capabilitiesFor('studio').closure, true)
   assert.equal(capabilitiesFor('studio').verdict, true)
+})
+
+test('a subroom cannot rewrite the parent closure', () => {
+  for (const file of ['service-subrooms.js', 'room-subrooms.js']) {
+    const source = read(file)
+    assert.doesNotMatch(source, /\bparent\??\.closure\s*=/, `${file} writes parent.closure`)
+    assert.doesNotMatch(source, /\bcurrent\.closure\s*=/, `${file} writes current.closure`)
+  }
 })

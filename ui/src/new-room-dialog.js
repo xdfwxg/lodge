@@ -38,6 +38,7 @@ function NewRoomDialog({
   const [roomType, setRoomType] = useState('studio')
   const [template, setTemplate] = useState(null)
   const [shadowReview, setShadowReview] = useState(false)
+  const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [roomName, setRoomName] = useState('')
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
@@ -62,6 +63,7 @@ function NewRoomDialog({
     setSeatChoices([])
     setTemplate(null)
     setShadowReview(false)
+    setChatTurnLimit(6)
     setLoginNote(null)
   }, [open, resume?.id])
 
@@ -253,6 +255,7 @@ function NewRoomDialog({
         verify,
         acceptance,
         ...(roomType === 'studio' && shadowReview ? { shadowReview: true } : {}),
+        ...(roomType === 'chat' ? { chatTurnLimit } : {}),
         repoPath: repoPath.trim(),
         ...(resume === null ? {} : { continueFrom: resume.id }),
         ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
@@ -297,6 +300,7 @@ function NewRoomDialog({
       setConstraintsChecked(false)
       setIncludeConstraints(false)
       setRoomType('task')
+      setChatTurnLimit(6)
       setError(null)
       onClose()
     } catch (caught) {
@@ -526,7 +530,22 @@ function NewRoomDialog({
           checked: shadowReview,
           onChange: event => setShadowReview(event.target.checked),
         }),
-        '影子评审：评估建议只记录，不拦截签字')
+        '影子评审：评估建议只记录，不注入验收员')
+      : null,
+    roomType === 'chat'
+      ? h('div', { className: 'crew-field' },
+        h('div', { className: 'crew-field-head' },
+          h('b', null, '每轮发言上限'),
+          h('span', { className: 'crew-field-hint' }, '默认 6')),
+        h('input', {
+          className: 'crew-goal-input',
+          type: 'number',
+          min: 1,
+          max: 20,
+          value: chatTurnLimit,
+          onChange: event => setChatTurnLimit(Math.min(20, Math.max(1, Number(event.target.value) || 6))),
+        }),
+        h('p', { className: 'crew-field-hint' }, '达到上限后主持人总结，你认可或继续追加一轮。'))
       : null,
     constraintsView,
     resume?.brief?.done?.length > 0

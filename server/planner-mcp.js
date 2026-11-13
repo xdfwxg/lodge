@@ -7,7 +7,7 @@ import { join } from 'node:path'
 export const PLANNER_TOOLS = [
   {
     name: 'create_subroom',
-    description: '创建一个子工作室，把独立的子目标交给它推进。子工作室完成后只回传验收结论。',
+    description: '创建一个子工作室（只能是工作室，不能是聊天室），把独立的子目标交给它推进。最多嵌套 3 层；子工作室完成后只回传验收结论。',
     inputSchema: {
       type: 'object',
       properties: {

@@ -1397,7 +1397,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 | 策略 | 对外名 | 默认席位 | 状态 | 运行方式 |
 |---|---|---|---|---|
 | `studio` | 工作室 | 规划师 / 执行者 / 验收员 | `closure`：planned → executing → verifying → signed / rejected | 群聊 @ 唤醒；单工作目录；命令证据 + Verifier + 人工签字 |
-| `chat` | 聊天室 | 主持人 + 2 位发言者 | `room.chat`：discussing → summarizing → awaiting_decision | 系统随机唤醒；每轮固定 6 次；主持人总结；人认可或继续讨论 |
+| `chat` | 聊天室 | 主持人 + 2 位发言者 | `room.chat`：discussing → summarizing → awaiting_decision | 系统随机唤醒；每轮上限默认 6 次，建房可配置；主持人总结；人认可或继续讨论 |
 
 - 未知 `roomType` fail closed，不静默回落；新 UI 一定显式发送 `studio` / `chat`，省略房型的旧调用保留 `task` 兼容。
 - 旧 `task` / `roundtable` / `archive` 只保留读兼容，不出现在建房选择器；旧房间不迁移，仍可按原记录读取。
@@ -1405,7 +1405,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 - **底层两套引擎**：`live-chat-room.js` 只做随机发言、轮次和主持总结；`live-studio.js` 只做群聊 @ 推进和阶段交接。`live.js` 按房型选择，不在同一套阶段引擎里塞聊天分支。
 - 工作室只有三类本质角色：Planner（`lead`）、Executor（`worker`）、Verifier（`verifier`）。其他岗位名称必须派生自这三类，不能新增 `observer` 之类第四类；显式创建工作室时，缺少规划师或独立验收席位都会拒绝。人工验收也必须先经过 Verifier bot，复核通过后由人做最终签字，不能绕过 Verifier。
 - 工作室的派发和复核都通过群聊 `@`：规划师先被 @，再由它交给执行者；执行回合在房间目录完成，Lodge 跑验收命令、写证据，再 @ 验收员。没有第二条直接打席位线程的派发路径。工作室一次只交给一个执行席位，避免单目录并行写。
-- 聊天室只有规则：状态在 `room.chat`，不使用工作室的 `stages / gates / closure / evidence / verdict / trust`。话题、固定 6 次随机发言、主持人总结、人认可或继续 6 次；成员、角色名、引擎/模型可自定义，底层角色原语是 `participant`，主持人是 `isHost: true`。建房不提供发言上限输入；每轮结束由主持人 bot 总结成 `chat_conclusion`。人点“认可结论”房间完成；点“继续讨论”再跑 6 次，旧结论保留但不再是当前轮。调度器的内部 @ 提示词不进 Lodge 时间线，界面只显示轮次进度和“正在发言”。
+- 聊天室只有规则：状态在 `room.chat`，不使用工作室的 `stages / gates / closure / evidence / verdict / trust`。话题、每轮发言上限（默认 6，建房可配置）、主持人总结、人认可或继续一轮；成员、角色名、引擎/模型可自定义，底层角色原语是 `participant`，主持人是 `isHost: true`。每轮结束由主持人 bot 总结成 `chat_conclusion`。人点“认可结论”房间完成；点“继续讨论”按同一上限再跑一轮，旧结论保留但不再是当前轮。调度器的内部 @ 提示词不进 Lodge 时间线，界面只显示轮次进度和“正在发言”。
 - 聊天室不挂完整执行引擎：只放行只读轻工具，写文件、跑命令和外部动作会被拒绝；要落地成可验收任务，新建工作室，把聊天结论作为目标输入。
 - 房型创建后不可动态切换；席位身份绑定房间，不跨房间继承。Gate/守门属于工作室 Planner 域的前置过滤，不新增第四种底层角色。
 - 五种并列房型仍不进入首屏；流水线、基线、调度分别落在阶段依赖、版本能力和子房间 opt-in，不新增实体。

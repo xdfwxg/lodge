@@ -15,7 +15,7 @@ export { inheritedPlan } from './room-create-input.js'
 export const createRealRoom = async ({ store, engine, live, emit, dispatchPayload, body, workspace = null, ports, parentRoom = null }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview } = request
+  const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit } = request
   let continueSource = null
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
     continueSource = store.readRoom(body.continueFrom)
@@ -157,6 +157,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
       acceptance,
       verifierPolicy,
       shadowReview,
+      chatTurnLimit,
       plannerTools,
       parentRoomId: parentRoom?.id ?? null,
       depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
