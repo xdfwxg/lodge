@@ -6,6 +6,7 @@ import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot
 import { startInitialStage } from './room-create-start.js'
 import { buildRoomRecord, initialRoomMessages } from './room-record.js'
 import { createProvisioner } from './room-provision.js'
+import { evaluateRoomGate } from './room-gate.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './room-workspace.js'
 
 export { inheritedPlan } from './room-create-input.js'
@@ -32,6 +33,16 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const { plan, error: planError } = normalizePlan({ body, continueSource, roomFiles: ports.roomFiles })
   if (planError !== undefined) return fail('invalid', planError)
   const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
+  const gate = evaluateRoomGate({
+    roomType: roomType.id,
+    goal,
+    plan,
+    verify,
+    acceptance: effectiveAcceptance,
+  })
+  if (gate.decision === 'reject') {
+    return fail('invalid', `Gate 拒绝：${gate.reasons.join('；')}`)
+  }
   const seatsResult = resolveSeats(body, roomType)
   if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
   const { templateId, roster, workers, verifiers, worker, lead, align } = seatsResult

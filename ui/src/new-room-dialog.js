@@ -29,12 +29,14 @@ function NewRoomDialog({
   onRecommend,
   onProjectConstraints,
   roomTypes = [],
+  roomTemplates = [],
   engines = [],
   resume = null,
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
+  const [template, setTemplate] = useState(null)
   const [roomName, setRoomName] = useState('')
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
@@ -57,6 +59,7 @@ function NewRoomDialog({
     if (!open) return
     setRoomName(resume === null ? '' : resume.name ?? '')
     setSeatChoices([])
+    setTemplate(null)
     setLoginNote(null)
   }, [open, resume?.id])
 
@@ -184,6 +187,17 @@ function NewRoomDialog({
 
   const changeRoomType = nextType => {
     setRoomType(nextType)
+    setTemplate(null)
+    setProposal(null)
+    setSeatChoices([])
+    setAnswers([])
+    setError(null)
+  }
+
+  const applyTemplate = nextTemplate => {
+    setTemplate(nextTemplate)
+    setRoomType(nextTemplate.roomType)
+    if (roomName.trim() === '') setRoomName(nextTemplate.name)
     setProposal(null)
     setSeatChoices([])
     setAnswers([])
@@ -200,13 +214,18 @@ function NewRoomDialog({
         setError(result?.error ?? 'Lodge 没有给出方案；可以重试')
         return
       }
-      const seats = nonTask && Array.isArray(activeType?.defaultSeats) && activeType.defaultSeats.length > 0
-        ? normalizeSeats(activeType.defaultSeats)
-        : DEFAULT_SEATS
+      const templateForType = template?.roomType === roomType ? template : null
+      const seats = templateForType?.seats?.length > 0
+        ? normalizeSeats(templateForType.seats)
+        : nonTask && Array.isArray(activeType?.defaultSeats) && activeType.defaultSeats.length > 0
+          ? normalizeSeats(activeType.defaultSeats)
+          : DEFAULT_SEATS
       setProposal({
         ...result.proposal,
         seats,
-        ...(nonTask ? { verify: activeType?.defaultVerify ?? 'manual', acceptance: '' } : {}),
+        ...(nonTask
+          ? { verify: activeType?.defaultVerify ?? 'manual', acceptance: '' }
+          : templateForType?.verify === undefined ? {} : { verify: templateForType.verify }),
       })
       setSeatChoices(seats.map(seat => ({
         engine: typeof seat.engine === 'string' ? seat.engine : '',
@@ -470,6 +489,21 @@ function NewRoomDialog({
         resume === null
           ? '不选也可以，Lodge 会新建空工作区；选真实项目时，验收命令要能在里面跑。'
           : '交接包不含代码；选上一轮交付所在的项目目录，旧证据不会复制。')),
+    roomTemplates.length > 0
+      ? h('div', { className: 'crew-field' },
+        h('div', { className: 'crew-field-head' },
+          h('b', null, '房间模板'),
+          h('span', { className: 'crew-field-hint' }, '先选一个最接近的起点')),
+        h('div', { className: 'crew-segmented' },
+          roomTemplates.map(item => h('button', {
+            key: item.id,
+            type: 'button',
+            className: 'crew-seg',
+            title: item.description,
+            'data-on': template?.id === item.id ? 'true' : undefined,
+            onClick: () => applyTemplate(item),
+          }, item.name))))
+      : null,
     h('div', { className: 'crew-field' },
       h('div', { className: 'crew-field-head' },
         h('b', null, '房间类型'),
