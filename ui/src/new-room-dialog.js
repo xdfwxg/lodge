@@ -490,7 +490,7 @@ function NewRoomDialog({
       })),
     seed !== null
       ? h('p', { className: 'crew-field-hint' },
-        `来自聊天室「${seed.sourceName || seed.goal || '未命名'}」的结论；只带入目标文本，不带聊天记录、证据或状态。`)
+        `来自聊天室「${seed.sourceName || seed.goal || '未命名'}」的结论。仅带入结论文本，不会同步聊天记录、轮次、证据或阶段状态；需要的关键信息请手动补充到目标里。`)
       : null,
     h('div', { className: 'crew-field' },
       h('div', { className: 'crew-field-head' },

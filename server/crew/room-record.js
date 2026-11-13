@@ -43,7 +43,9 @@ export const buildRoomRecord = ({
   gate = null,
   parentRoomId = null,
   depth = 0,
-}) => ({
+}) => {
+  const chatLimit = Number.isInteger(chatTurnLimit) ? chatTurnLimit : CHAT_TURNS_PER_ROUND
+  return {
   id: `room-${short}`,
   kind: 'room',
   name: title,
@@ -107,8 +109,8 @@ export const buildRoomRecord = ({
   constraints: roomType.id === 'chat'
     ? [
         '聊天室只读：成员只讨论，不执行工具、不改文件',
-        '系统随机唤醒成员，每轮 6 次；主持人最后总结',
-        '结论由你认可；不认可就继续讨论 6 次',
+        `系统随机唤醒成员，每轮 ${chatLimit} 次；主持人最后总结`,
+        `结论由你认可；不认可就继续讨论 ${chatLimit} 次`,
       ]
     : roomType.id === 'studio'
       ? [
@@ -169,7 +171,7 @@ export const buildRoomRecord = ({
         chat: {
           round: 1,
           phase: 'discussing',
-          turnLimit: Number.isInteger(chatTurnLimit) ? chatTurnLimit : CHAT_TURNS_PER_ROUND,
+          turnLimit: chatLimit,
           turns: 0,
           conclusionId: null,
           accepted: false,
@@ -179,7 +181,8 @@ export const buildRoomRecord = ({
         },
       }
     : { stages: builtStages.stages }),
-})
+  }
+}
 
 export const initialRoomMessages = ({
   room,
