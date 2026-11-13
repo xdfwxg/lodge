@@ -11,6 +11,7 @@ import { createServiceChat } from './service-chat.js'
 import { createServiceClosure } from './service-closure.js'
 import { createServiceSeats } from './service-seats.js'
 import { createServiceStages } from './service-stages.js'
+import { createServiceSubrooms } from './service-subrooms.js'
 import { createServiceTemplates } from './service-templates.js'
 import { createServiceTrust } from './service-trust.js'
 
@@ -49,7 +50,19 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
   const runControl = createServiceRunControl({ store, live, emit, dispatchPayload, roomFiles })
   const trust = createServiceTrust({ store, emit, dispatchPayload })
 
-  const createRoom = body => createRealRoom({ store, engine, live, emit, seats, dispatchPayload, body, ports })
+  const createRoomWithParent = (body, parentRoom = null) => createRealRoom({
+    store,
+    engine,
+    live,
+    emit,
+    seats,
+    dispatchPayload,
+    body,
+    ports,
+    parentRoom,
+  })
+  const createRoom = body => createRoomWithParent(body)
+  const subrooms = createServiceSubrooms({ createRoom: createRoomWithParent })
 
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
     const room = readRoom(roomId)
@@ -162,6 +175,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
 
     if (action === 'reject-plan' && method === 'POST') {
       return closure.rejectPlan(room, await readBody())
+    }
+
+    if (action === 'subrooms' && method === 'POST') {
+      return subrooms.create(room, await readBody())
     }
 
     if (action === 'rework' && method === 'POST') {

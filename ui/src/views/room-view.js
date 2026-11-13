@@ -97,7 +97,7 @@ function RoomView({ state, room, store, onContinue }) {
 
   return h('main', { className: 'dsb-main crew-room' },
     isChat || goalView === null ? null : h(GoalIsland, { view: goalView, advanced, actions: goalActions }),
-    advanced ? h(Advanced, { room, seats, store, engines: state.engines }) : null,
+    advanced ? h(Advanced, { room, seats, store, engines: state.engines, rooms: state.rooms }) : null,
     state.reviewFor === room.id && state.review !== null
       ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
       : null,

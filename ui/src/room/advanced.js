@@ -60,7 +60,7 @@ function StageEditRow({ stage, index, store }) {
     }, '移除'))
 }
 
-function Advanced({ room, seats, store, engines = [] }) {
+function Advanced({ room, seats, store, engines = [], rooms = [] }) {
   const cost = room.usage?.costMicroUsd ?? 0
   const budget = room.usage?.budgetMicroUsd ?? 0
   const percent = budget === 0 ? 0 : Math.min(100, Math.round((cost / budget) * 100))
@@ -70,6 +70,8 @@ function Advanced({ room, seats, store, engines = [] }) {
   const [stageTitle, setStageTitle] = useState('')
   const [stageKind, setStageKind] = useState('deliverable')
   const [stageAcceptance, setStageAcceptance] = useState('')
+  const [subGoal, setSubGoal] = useState('')
+  const [subBusy, setSubBusy] = useState(false)
   useEffect(() => {
     setBudgetDraft(String(budget / 1_000_000))
     setTrustDraft(room.trust ?? 'verify')
@@ -82,6 +84,9 @@ function Advanced({ room, seats, store, engines = [] }) {
   const editableStages = (room.stages ?? [])
     .map((stage, index) => ({ stage, index }))
     .filter(({ stage }) => stage.state === 'pending' && stage.title !== '验收与结论')
+  const childRooms = (room.childRoomIds ?? [])
+    .map(id => rooms.find(item => item.id === id))
+    .filter(Boolean)
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
       h('span', null, `房间策略：${room.independencePolicy ?? '未标注'}`),
@@ -182,6 +187,36 @@ function Advanced({ room, seats, store, engines = [] }) {
               setStageAcceptance('')
             },
           }, '添加阶段'))),
+    room.roomType === 'studio'
+      ? h('div', { className: 'crew-stage-editor' },
+        h('span', null, '子工作室 · 最多 3 层，父 Planner 只消费子 Verifier verdict'),
+        childRooms.length > 0
+          ? h('div', { className: 'crew-brief' }, childRooms.map(child => h('div', { key: child.id },
+            `${child.name} · ${child.state} · ${child.closure ?? 'open'}`)))
+          : h('span', { className: 'crew-muted' }, '还没有子工作室'),
+        (room.depth ?? 0) < 3
+          ? h('div', { className: 'crew-stage-edit-row' },
+            h('input', {
+              className: 'crew-goal-input',
+              type: 'text',
+              value: subGoal,
+              placeholder: '子工作室目标',
+              onChange: event => setSubGoal(event.target.value),
+            }),
+            h('button', {
+              type: 'button',
+              className: 'crew-choice',
+              disabled: subBusy || subGoal.trim() === '',
+              onClick: async () => {
+                if (subBusy || subGoal.trim() === '') return
+                setSubBusy(true)
+                await store.createSubroom(subGoal.trim())
+                setSubBusy(false)
+                setSubGoal('')
+              },
+            }, subBusy ? '正在创建…' : '新建子工作室'))
+          : h('span', { className: 'crew-muted' }, '已经达到 3 层上限'))
+      : null,
     h('div', { className: 'crew-budget-edit' },
       h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
       h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),

@@ -4,6 +4,7 @@ import { fail, ok } from './result.js'
 import { acceptanceChangeError } from './service-policy.js'
 import { editStages } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
+import { childResultText, childVerdictsOf } from './room-subrooms.js'
 
 export const createServiceStages = ({ store, live, emit, dispatchPayload, completeRoom, roomFiles }) => {
   const { readRooms, readMessages, updateRoom, appendMessage } = store
@@ -65,6 +66,39 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     }
   }
 
+  const notifyParent = child => {
+    if (typeof child?.parentRoomId !== 'string' || child.parentRoomId === '') return
+    const parent = store.readRoom(child.parentRoomId)
+    if (parent === null) return
+    const verdicts = childVerdictsOf(readMessages(child.id))
+    const text = childResultText(child, verdicts)
+    appendMessage(parent.id, {
+      kind: 'child_result',
+      authorId: 'system',
+      text,
+      meta: {
+        childRoomId: child.id,
+        childName: child.name,
+        depth: child.depth ?? 1,
+        verdicts,
+      },
+    })
+    const linked = updateRoom(parent.id, current => {
+      current.childResults = [...(current.childResults ?? []), { roomId: child.id, name: child.name, at: Date.now() }].slice(-10)
+      return { events: [{ type: 'room.child_result', payload: { childRoomId: child.id } }] }
+    })
+    if (linked !== null) emit('room', linked)
+    if (typeof live.isAttached === 'function' && live.isAttached(parent.id) === true) {
+      const lead = parent.leadSeat ?? parent.members?.[0]
+      const leadName = parent.seatNames?.[lead]
+      if (typeof lead === 'string' && typeof leadName === 'string') {
+        void live.sendToSeat(parent.id, lead, `@${leadName} ${text}\n请只依据这些 verdict 决定下一步。`).catch(error => {
+          appendMessage(parent.id, { kind: 'system', text: `子工作室结果未能唤醒 Planner：${error?.message ?? error}` })
+        })
+      }
+    }
+  }
+
   const accept = (room, body) => {
     const index = Number(body.stage)
     let gate = null
@@ -123,6 +157,7 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
       meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you' },
     })
     let finalRoom = next < 0 ? completeRoom(room) ?? room : room
+    if (next < 0 && finalRoom.parentRoomId !== null && finalRoom.parentRoomId !== undefined) notifyParent(finalRoom)
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
       const status = budgetStatus(room, readRooms())
       if (!status.ok) {
