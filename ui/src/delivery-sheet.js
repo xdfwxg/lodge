@@ -74,6 +74,8 @@ export function DeliverySheet({ delivery, onExport }) {
         openNotice ? h('span', { className: 'crew-muted' }, openNotice) : null,
         openError ? h('span', { className: 'crew-muted' }, openError) : null)
       : null,
+    h('details', { className: 'crew-delivery-detail' },
+      h('summary', null, '查看交付明细'),
     delivery.artifacts?.length > 0
       ? h('div', { className: 'crew-delivery-artifacts' },
         h('b', null, `工作区文件 · ${delivery.artifacts.length}`),
@@ -118,5 +120,5 @@ export function DeliverySheet({ delivery, onExport }) {
               onClick: () => void open(joinPath(delivery.workspacePath, file)),
             }, '打开')
             : null))))
-      : null)
+      : null))
 }

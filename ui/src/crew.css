@@ -551,3 +551,54 @@
 .crew-integrity-bad{color:var(--bt-danger);font-weight:600}
 .crew-integrity-row{color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
 .crew-shadow-row[data-focus=true]{border-color:color-mix(in srgb,var(--bt-ink) 35%,var(--bt-line-2));box-shadow:0 0 0 1px color-mix(in srgb,var(--bt-ink) 18%,transparent)}
+
+/* Decision-first room: one decision, audit on demand */
+.crew-room{display:flex;flex-direction:column;background:var(--bt-main)}
+.crew-room-main{width:100%;max-width:none}
+.crew-decision-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:26px 32px 10px;max-width:880px}
+.crew-decision-heading{min-width:0}
+.crew-decision-heading h1{margin:0;font-size:20px;line-height:26px;font-weight:650;color:var(--bt-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-decision-state{margin:5px 0 0;font-size:13.5px;line-height:19px;color:var(--bt-ink-3)}
+.crew-decision-state[data-tone=done]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
+.crew-decision-state[data-tone=paused]{color:var(--bt-danger)}
+.crew-decision-head-actions{display:flex;align-items:center;gap:6px;flex:none}
+.crew-decision-more{position:relative}
+.crew-decision-more summary{list-style:none;cursor:pointer;padding:5px 9px;border-radius:7px;color:var(--bt-ink-3);font-size:16px;line-height:18px}
+.crew-decision-more summary::-webkit-details-marker{display:none}
+.crew-decision-more summary:hover{background:color-mix(in srgb,var(--bt-ink) 6%,transparent)}
+.crew-decision-menu{position:absolute;right:0;top:28px;z-index:20;display:flex;flex-direction:column;min-width:150px;padding:5px;border:1px solid var(--bt-line);border-radius:10px;background:var(--bt-card);box-shadow:0 10px 30px rgb(0 0 0 / .14)}
+.crew-decision-menu button{border:0;border-radius:7px;background:transparent;color:var(--bt-ink);text-align:left;padding:7px 9px;font:inherit;font-size:12.5px;cursor:pointer}
+.crew-decision-menu button:hover{background:color-mix(in srgb,var(--bt-ink) 6%,transparent)}
+.crew-decision-card{max-width:880px;margin:4px 32px 18px;padding:18px 20px 16px;border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-card)}
+.crew-decision-card-kicker{font-size:11px;font-weight:600;color:var(--bt-ink-3);letter-spacing:.04em;text-transform:uppercase}
+.crew-decision-card h2{margin:7px 0 0;font-size:17px;line-height:23px;font-weight:650;color:var(--bt-ink)}
+.crew-decision-detail{margin:7px 0 0;font-size:13px;line-height:19px;color:var(--bt-ink-2);white-space:pre-wrap;max-height:120px;overflow:auto}
+.crew-decision-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.crew-decision-primary{padding:7px 14px;border:1px solid var(--bt-ink);border-radius:8px;background:var(--bt-ink);color:var(--bt-main);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.crew-decision-primary:hover{opacity:.88}
+.crew-decision-secondary{padding:7px 12px;border:1px solid var(--bt-line);border-radius:8px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:12.5px;cursor:pointer}
+.crew-decision-secondary:hover{color:var(--bt-ink);border-color:color-mix(in srgb,var(--bt-ink) 30%,var(--bt-line))}
+.crew-decision-rework{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.crew-decision-rework textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--bt-line);border-radius:8px;background:var(--bt-main);color:var(--bt-ink);font:inherit;font-size:13px;line-height:18px;resize:vertical}
+.crew-decision-rework-actions{display:flex;gap:8px}
+.crew-timeline-more{align-self:flex-start;margin:10px 0 2px;padding:6px 0;border:0;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:12px;cursor:pointer}
+.crew-timeline-more:hover{color:var(--bt-ink)}
+.crew-audit-overlay{position:fixed;inset:0;z-index:80;display:flex;justify-content:flex-end;background:rgb(15 17 20 / .26)}
+.crew-audit-drawer{display:flex;flex-direction:column;width:min(460px,100%);height:100%;border-left:1px solid var(--bt-line);background:var(--bt-sidebar);box-shadow:-18px 0 50px rgb(0 0 0 / .12)}
+.crew-audit-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--bt-line)}
+.crew-audit-head b{font-size:15px;font-weight:650;color:var(--bt-ink)}
+.crew-audit-body{flex:1;min-height:0;overflow:auto}
+.crew-audit-body .crew-rail{display:flex;max-height:none;border-left:0;background:transparent;overflow:visible}
+.crew-audit-body .crew-rail-tabs{position:sticky;top:0;z-index:2;background:var(--bt-sidebar)}
+.crew-audit-body .crew-stage-dock{max-width:none;padding:10px 14px 0}
+.crew-audit-body .crew-rail-body{padding:14px 16px 28px}
+@media (max-width:760px){
+  .crew-decision-head{padding:20px 18px 8px}
+  .crew-decision-card{margin:4px 18px 14px}
+  .crew-scroll{padding-left:18px;padding-right:18px}
+  .crew-audit-drawer{width:100%}
+}
+.crew-delivery-detail{border-top:1px solid var(--bt-line)}
+.crew-delivery-detail>summary{list-style:none;cursor:pointer;padding:9px 15px;color:var(--bt-ink-3);font-size:12px}
+.crew-delivery-detail>summary::-webkit-details-marker{display:none}
+.crew-delivery-detail>summary:hover{color:var(--bt-ink)}

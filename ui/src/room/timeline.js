@@ -1,4 +1,4 @@
-import { createElement as h, useMemo } from 'react'
+import { createElement as h, useMemo, useState } from 'react'
 import { ApprovalCard } from '../approval-card.js'
 import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, MilestoneLine, ConclusionCard, ChatConclusionCard } from '../message-cards.js'
 import { buildTimeline } from './timeline-model.js'
@@ -13,7 +13,8 @@ const timeLabel = ts => {
   return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
 
-function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartStudio }) {
+function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartStudio, compact = false, hideKinds = [] }) {
+  const [expanded, setExpanded] = useState(false)
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const timeline = useMemo(() => buildTimeline(room.messages), [room.messages])
 
@@ -80,8 +81,13 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
       h('summary', null, `过程记录 · ${timeline.process.length} 条`),
       h('div', { className: 'crew-process-body' }, timeline.process.map(renderMessage)))
 
+  const hidden = new Set(['activity', 'dispatch', 'advisor_advice', ...hideKinds])
+  const meaningful = timeline.visible.filter(message => !hidden.has(message.kind))
+  const shown = compact && !expanded ? meaningful.slice(-3) : meaningful
+  const showProcess = !compact || expanded
+  const canExpand = compact && (meaningful.length > 3 || timeline.process.length > 0)
   return [
-    ...timeline.visible.slice(0, timeline.trailingStart).map(renderMessage).flat().filter(Boolean),
+    ...shown.map(renderMessage).flat().filter(Boolean),
     ...(room.approvals ?? [])
       .filter(approval => approval.state === 'pending')
       .map(approval => h(ApprovalCard, {
@@ -89,8 +95,15 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
         approval,
         onDecide: decision => onApproval(approval.id, decision),
       })),
-    processFold,
-    ...timeline.visible.slice(timeline.trailingStart).map(renderMessage).flat().filter(Boolean),
+    showProcess ? processFold : null,
+    canExpand
+      ? h('button', {
+        key: 'timeline-more',
+        type: 'button',
+        className: 'crew-timeline-more',
+        onClick: () => setExpanded(value => !value),
+      }, expanded ? '收起时间线' : `展开全部（${meaningful.length} 条）`)
+      : null,
   ].filter(Boolean)
 }
 
