@@ -41,6 +41,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       if (room?.verificationMode === undefined) {
         room.verificationMode = (room.verifiers?.length ?? 0) > 0 ? 'hybrid' : 'human'
       }
+      if (room.verifierPolicy === undefined) room.verifierPolicy = 'all'
       return room
     }
     if (room.engine === undefined) room.engine = 'chat'

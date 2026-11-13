@@ -5,7 +5,7 @@ import { buildSeatHandoff } from './seat-handoff.js'
 import { reject } from './result.js'
 import { parseVerdict, REVIEW_TIMEOUT, tail } from './live-turn-utils.js'
 import { workspaceOf } from './live-workspace.js'
-import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
+import { manualReviewState, quorumOf, reviewState, verifierIds, verifierPolicyOf } from './verifiers.js'
 import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from './orchestration/index.js'
 import { seatDisplayName } from './seat-labels.js'
@@ -45,43 +45,52 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       },
     })
     store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, blind: true, turnId })
-    if (!pass) {
-      updateTasks(pending.stage, current => markStageTasks(current, 'working'))
-      for (const [remainingSeat, request] of round.requests) {
-        clearTimeout(request.timer)
-        store.appendEvent(roomId, 'review.cancelled', {
-          stage: pending.stage,
-          verifier: remainingSeat,
-          reason: `${name} 已打回`,
-        })
-      }
-      round.requests.clear()
-      round = null
+    if (pass) round.passed = (round.passed ?? 0) + 1
+    else round.rejects = (round.rejects ?? 0) + 1
+
+    const passed = round.passed ?? 0
+    const rejected = round.rejects ?? 0
+    const required = round.required ?? round.total
+    const reachedQuorum = passed >= required
+    const impossible = rejected > round.total - required
+    const settled = reachedQuorum || impossible || round.requests.size === 0
+
+    if (!settled) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `${name} 打回；其余验收席位不再等待，返工后重跑验收命令。`,
+        text: `${name} ${pass ? 'PASS' : 'REJECT'}；还有 ${round.requests.size} 个验收席位复核中。`,
+      })
+      return true
+    }
+
+    for (const [remainingSeat, request] of round.requests) {
+      clearTimeout(request.timer)
+      store.appendEvent(roomId, 'review.cancelled', {
+        stage: pending.stage,
+        verifier: remainingSeat,
+        reason: reachedQuorum ? '已达到验收 quorum' : '验收已不可能达到 quorum',
+      })
+    }
+    round.requests.clear()
+    const total = round.total
+    const policy = round.policy
+    round = null
+    if (reachedQuorum) {
+      updateTasks(pending.stage, current => markStageTasks(current, 'done'))
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: policy === 'majority'
+          ? `验收 quorum 达成：${passed}/${total} PASS（需要 ${required}），等你签字。`
+          : '全部验收席位 PASS，等你签字。',
       })
     } else {
-      round.passed = (round.passed ?? 0) + 1
-      if (round.requests.size > 0) {
-        store.appendMessage(roomId, {
-          kind: 'system',
-          text: `${name} PASS；还有 ${round.requests.size} 个验收席位复核中。`,
-        })
-      } else {
-        const passed = round.passed
-        const total = round.total
-        round = null
-        if (passed === total) {
-          updateTasks(pending.stage, current => markStageTasks(current, 'done'))
-          store.appendMessage(roomId, { kind: 'system', text: '全部验收席位 PASS，等你签字。' })
-        } else {
-          store.appendMessage(roomId, {
-            kind: 'system',
-            text: `本轮复核结束：${passed}/${total} 个验收席位 PASS；其余未回报，不能签字。`,
-          })
-        }
-      }
+      updateTasks(pending.stage, current => markStageTasks(current, 'working'))
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: policy === 'majority'
+          ? `${name} 后未达到 quorum：${passed}/${total} PASS、${rejected} REJECT（需要 ${required}）；这一轮仍未通过。`
+          : `${name} 打回；其余验收席位不再等待，返工后重跑验收命令。`,
+      })
     }
     return true
   }
@@ -126,13 +135,17 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
 
     const meta = evidence.meta
     const reviewGuidance = reviewGuidanceFor(room)
+    const policy = verifierPolicyOf(room)
     const nextRound = {
       stage: stageIndex,
       evidenceId: evidence.id,
       command: manual ? '' : meta.command,
       exit: manual ? null : meta.exit,
       total: ids.length,
+      required: quorumOf(ids.length, policy),
+      policy,
       passed: outcome.verdicts.filter(message => message.meta?.pass === true).length,
+      rejects: outcome.verdicts.filter(message => message.meta?.pass !== true).length,
       requests: new Map(),
     }
     round = nextRound

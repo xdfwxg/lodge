@@ -65,7 +65,8 @@ export const normalizeRequest = body => {
   }
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '未知的编排策略' }
-  return { goal, name, roomType, verify, acceptance, orchestration }
+  const verifierPolicy = body.verifierPolicy === 'majority' ? 'majority' : 'all'
+  return { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy }
 }
 
 export const normalizePlan = ({ body, continueSource, roomFiles }) => {

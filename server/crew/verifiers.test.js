@@ -65,6 +65,36 @@ test('one rejection fails the round even when the other verifier passed', () => 
   assert.deepEqual(outcome.rejects.map(message => message.authorId), ['v2'])
 })
 
+test('majority quorum passes without waiting for every verifier', () => {
+  const swarm = room({
+    verifierPolicy: 'majority',
+    verifiers: ['v1', 'v2', 'v3'],
+    seatNames: { v1: '一', v2: '二', v3: '三' },
+    seatSpecs: [{ id: 'v1' }, { id: 'v2' }, { id: 'v3' }],
+  })
+  const base = [evidence()]
+  assert.equal(reviewState({ room: swarm, messages: [...base, verdict('v1', true, 11)], stageIndex: 0 }).state, 'pending')
+  const quorum = reviewState({
+    room: swarm,
+    messages: [...base, verdict('v1', true, 11), verdict('v2', true, 12)],
+    stageIndex: 0,
+  })
+  assert.equal(quorum.state, 'pass')
+  assert.equal(quorum.required, 2)
+  const blocked = reviewState({
+    room: swarm,
+    messages: [...base, verdict('v1', true, 11), verdict('v2', false, 12)],
+    stageIndex: 0,
+  })
+  assert.equal(blocked.state, 'pending')
+  const lost = reviewState({
+    room: swarm,
+    messages: [...base, verdict('v1', false, 11), verdict('v2', false, 12)],
+    stageIndex: 0,
+  })
+  assert.equal(lost.state, 'reject')
+})
+
 test('a human rework invalidates the earlier evidence and PASSes', () => {
   const rework = { id: 'r-1', kind: 'rework', authorId: 'you', seq: 13, meta: { stage: 0 } }
   const outcome = reviewState({
@@ -185,4 +215,48 @@ test('a rejection cancels the remaining verifier round', async () => {
   assert.match(messages.at(-1).text, /其余验收席位不再等待/)
   turns.captureTurn({ turnId: 't2', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v2')
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
+})
+
+test('a majority quorum ends the round without waiting for the last verifier', async () => {
+  const state = room({
+    verifierPolicy: 'majority',
+    verifiers: ['v1', 'v2', 'v3'],
+    seatNames: { v1: '一', v2: '二', v3: '三' },
+    seatSpecs: [{ id: 'v1' }, { id: 'v2' }, { id: 'v3' }],
+    seatBots: { v1: 'bot-v1', v2: 'bot-v2', v3: 'bot-v3' },
+  })
+  const messages = [evidence()]
+  let seq = 11
+  const store = {
+    readRoom: () => state,
+    readRooms: () => [],
+    readMessages: () => messages,
+    appendMessage: (roomId, message) => {
+      const stored = { ...message, id: `m-${seq}`, seq: seq++, ts: Date.now() }
+      messages.push(stored)
+      return stored
+    },
+    appendEvent: () => {},
+    updateRoom: (roomId, mutate) => {
+      mutate(state)
+      return state
+    },
+  }
+  const turns = createLiveTurns({
+    store,
+    engine: {},
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async () => ({ messageId: null }),
+    commands: ports.commands,
+    files: ports.files,
+  })
+  await turns.requestReview(0)
+  turns.captureTurn({ turnId: 't1', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v1')
+  assert.equal(turns.busyReview(), true)
+  turns.captureTurn({ turnId: 't2', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v2')
+  assert.equal(turns.busyReview(), false)
+  assert.match(messages.at(-1).text, /quorum 达成/)
+  turns.captureTurn({ turnId: 't3', reply: 'REJECT\nno', toolCalls: 1 }, 'bot-v3')
+  assert.equal(messages.filter(message => message.kind === 'verdict').length, 2)
 })

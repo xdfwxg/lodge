@@ -5,6 +5,32 @@ export const verifierIds = room => (
     : []
 )
 
+export const verifierPolicyOf = room => (
+  room?.verifierPolicy === 'majority' && verifierIds(room).length > 1 ? 'majority' : 'all'
+)
+
+export const quorumOf = (total, policy = 'all') => (
+  policy === 'majority' ? Math.floor(total / 2) + 1 : total
+)
+
+const verdictOutcome = ({ ids, verdicts, policy }) => {
+  const total = ids.length
+  const required = quorumOf(total, policy)
+  const passes = verdicts.filter(message => message.meta?.pass === true).length
+  const rejects = verdicts.filter(message => message.meta?.pass !== true)
+  const missing = ids.filter(id => !verdicts.some(message => message.authorId === id))
+  const state = total === 0
+    ? 'none'
+    : passes >= required
+      ? 'pass'
+      : rejects.length > total - required
+        ? 'reject'
+        : missing.length === 0
+          ? 'reject'
+          : 'pending'
+  return { state, total, required, received: verdicts.length, missing, verdicts, rejects }
+}
+
 export const reworkFloor = (messages, stageIndex) => (
   messages.reduce((floor, message) => (
     message.kind === 'rework' && (message.meta?.stage ?? 0) === stageIndex
@@ -57,16 +83,8 @@ export const manualReviewState = ({ room, messages, stageIndex }) => {
     latest.set(message.authorId, message)
   }
   const verdicts = ids.map(id => latest.get(id)).filter(message => message !== undefined)
-  const rejects = verdicts.filter(message => message.meta?.pass !== true)
-  const missing = ids.filter(id => !latest.has(id))
-  const state = ids.length === 0
-    ? 'none'
-    : rejects.length > 0
-      ? 'reject'
-      : missing.length === 0
-        ? 'pass'
-        : 'pending'
-  return { state, evidence, total: ids.length, received: verdicts.length, missing, verdicts, rejects }
+  const outcome = verdictOutcome({ ids, verdicts, policy: verifierPolicyOf(room) })
+  return { ...outcome, evidence }
 }
 
 export const reviewState = ({ room, messages, stageIndex }) => {
@@ -87,22 +105,6 @@ export const reviewState = ({ room, messages, stageIndex }) => {
     latest.set(message.authorId, message)
   }
   const verdicts = ids.map(id => latest.get(id)).filter(message => message !== undefined)
-  const rejects = verdicts.filter(message => message.meta?.pass !== true)
-  const missing = ids.filter(id => !latest.has(id))
-  const state = ids.length === 0
-    ? 'none'
-    : rejects.length > 0
-      ? 'reject'
-      : missing.length === 0
-        ? 'pass'
-        : 'pending'
-  return {
-    state,
-    evidence,
-    total: ids.length,
-    received: verdicts.length,
-    missing,
-    verdicts,
-    rejects,
-  }
+  const outcome = verdictOutcome({ ids, verdicts, policy: verifierPolicyOf(room) })
+  return { ...outcome, evidence }
 }

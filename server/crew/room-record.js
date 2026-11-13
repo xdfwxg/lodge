@@ -35,6 +35,7 @@ export const buildRoomRecord = ({
   align,
   verify,
   acceptance,
+  verifierPolicy = 'all',
 }) => ({
   id: `room-${short}`,
   kind: 'room',
@@ -147,6 +148,7 @@ export const buildRoomRecord = ({
     : {
         closure: plan === null ? 'open' : 'planned',
         verificationMode: 'hybrid',
+        verifierPolicy: verifierPolicy === 'majority' ? 'majority' : 'all',
       }),
   orchestration,
   ...(roomType.id === 'chat'
