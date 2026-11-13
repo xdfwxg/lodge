@@ -194,7 +194,8 @@ export const buildDecision = (room, view) => {
     }
   }
 
-  const busySeat = Array.isArray(room.busySeats) ? room.busySeats[0] : room.busySeat
+  const workingTask = stage?.tasks?.find(task => task.status === 'working')
+  const busySeat = (Array.isArray(room.busySeats) ? room.busySeats[0] : room.busySeat) ?? workingTask?.owner
   return {
     key: 'executing',
     title: busySeat === undefined ? '执行中' : `${nameOf(room, busySeat)} 正在处理`,

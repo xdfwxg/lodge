@@ -56,6 +56,8 @@ test('executing has no action, and a quota pause explains the next step', () => 
   const running = buildDecision(room({ busySeat: 'worker' }), view())
   assert.equal(running.key, 'executing')
   assert.match(running.title, /执行者 正在处理/)
+  const fromTask = buildDecision(room(), view({ tasks: [{ owner: 'worker', status: 'working' }] }))
+  assert.match(fromTask.title, /执行者 正在处理/)
   const paused = buildDecision(room({
     state: 'paused',
     pauseReason: 'seat_error',
