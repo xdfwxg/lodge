@@ -111,19 +111,21 @@ function NewRoomDialog({
     !(verify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
     !(verify === 'manual' && hasVerifier)
 
-  const loginEngine = async () => {
-    if (selectedEngine === undefined || loginBusy) return
+  const loginEngineFor = async engine => {
+    if (engine === undefined || loginBusy) return
     setLoginBusy(true)
     setLoginNote(null)
     try {
-      await loginRuntime(selectedEngine.id)
-      setLoginNote('已打开登录终端；完成后重启 Lodge，模型才会出现。')
+      await loginRuntime(engine.id)
+      setLoginNote(`已打开 ${engine.name ?? engine.id} 登录终端；完成后重启 Lodge，模型才会出现。`)
     } catch (caught) {
       setLoginNote(String(caught?.message ?? caught))
     } finally {
       setLoginBusy(false)
     }
   }
+
+  const loginEngine = () => loginEngineFor(selectedEngine)
 
   const loadConstraints = async sourceOverride => {
     const source = (sourceOverride ?? repoPath).trim()
@@ -208,6 +210,22 @@ function NewRoomDialog({
     }
   }
 
+  const directStart = () => {
+    if (goal.trim() === '') return
+    setProposal({
+      done: [goal.trim()],
+      seats: [{ role: 'worker', name: '执行者' }],
+      stages: [],
+      questions: [],
+      why: '直接建单人房，不使用编队建议',
+      verify: 'manual',
+      acceptance: '',
+    })
+    setAnswers([])
+    setError(null)
+    setStep(1)
+  }
+
   const start = async () => {
     if (proposal === null || !canStart) return
     setBusy(true)
@@ -266,6 +284,50 @@ function NewRoomDialog({
       setBusy(false)
     }
   }
+
+  const engineView = h('div', { className: 'crew-proposal-block' },
+    h('b', null, '执行引擎'),
+    h('select', {
+      className: 'crew-goal-input',
+      value: engineChoice,
+      disabled: engineChoices.length === 0,
+      onChange: event => {
+        setEngineChoice(event.target.value)
+        setModelChoice('')
+        setLoginNote(null)
+      },
+    },
+    h('option', { value: '' }, engineChoices.length === 0 ? '自动 · 当前没有可用引擎' : '自动 · 按角色默认'),
+    engineChoices.map(item => h('option', {
+      key: item.id,
+      value: item.id,
+    }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
+    modelChoices.length > 0
+      ? h('select', {
+        className: 'crew-goal-input',
+        style: { marginTop: '8px' },
+        value: selectedModel,
+        onChange: event => setModelChoice(event.target.value),
+      },
+      modelChoices.map(item => h('option', { key: item.id, value: item.id }, item.label)))
+      : null,
+    h('div', { className: 'crew-field-hint' },
+      h('span', null,
+        engineChoice === ''
+          ? '默认按角色分配引擎；验收席位保持独立引擎。'
+          : engineReady
+            ? `执行席位改用 ${selectedEngine?.name ?? engineChoice}${selectedModel === '' ? '' : ` · ${selectedModel}`}；验收席位仍用独立引擎。`
+            : '这个引擎还没有可用模型；先在基座里配置或登录它。'),
+      engineChoice !== '' && !engineReady && canLoginEngine
+        ? h('button', {
+          type: 'button',
+          className: 'crew-ghost',
+          disabled: loginBusy,
+          style: { marginLeft: '8px' },
+          onClick: () => void loginEngine(),
+        }, loginBusy ? '正在打开…' : `登录 ${selectedEngine?.name ?? engineChoice}`)
+        : null),
+    loginNote !== null ? h('p', { className: 'crew-dialog-note' }, loginNote) : null)
 
   const constraintsView = h('div', { className: 'crew-field' },
     h('div', { className: 'crew-field-head' },
@@ -336,49 +398,7 @@ function NewRoomDialog({
       h('ul', { className: 'crew-brief' },
         proposal.seats.map((seat, index) => h('li', { key: `${seat.role}-${index}` },
           `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)))),
-    nonTask ? null : h('div', { className: 'crew-proposal-block' },
-      h('b', null, '执行引擎'),
-      h('select', {
-        className: 'crew-goal-input',
-        value: engineChoice,
-        disabled: engineChoices.length === 0,
-        onChange: event => {
-          setEngineChoice(event.target.value)
-          setModelChoice('')
-          setLoginNote(null)
-        },
-      },
-      h('option', { value: '' }, engineChoices.length === 0 ? '自动 · 当前没有可用引擎' : '自动 · 按角色默认'),
-      engineChoices.map(item => h('option', {
-        key: item.id,
-        value: item.id,
-      }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
-      modelChoices.length > 0
-        ? h('select', {
-          className: 'crew-goal-input',
-          style: { marginTop: '8px' },
-          value: selectedModel,
-          onChange: event => setModelChoice(event.target.value),
-        },
-        modelChoices.map(item => h('option', { key: item.id, value: item.id }, item.label)))
-        : null,
-      h('div', { className: 'crew-field-hint' },
-        h('span', null,
-          engineChoice === ''
-            ? '默认按角色分配引擎；验收席位保持独立引擎。'
-            : engineReady
-              ? `执行席位改用 ${selectedEngine?.name ?? engineChoice}${selectedModel === '' ? '' : ` · ${selectedModel}`}；验收席位仍用独立引擎。`
-              : '这个引擎还没有可用模型；先在基座里配置或登录它。'),
-        engineChoice !== '' && !engineReady && canLoginEngine
-          ? h('button', {
-            type: 'button',
-            className: 'crew-ghost',
-            disabled: loginBusy,
-            style: { marginLeft: '8px' },
-            onClick: () => void loginEngine(),
-          }, loginBusy ? '正在打开…' : `登录 ${selectedEngine?.name ?? engineChoice}`)
-          : null),
-      loginNote !== null ? h('p', { className: 'crew-dialog-note' }, loginNote) : null),
+    nonTask ? null : engineView,
     h('div', { className: 'crew-proposal-block' },
       h('b', null, '怎么算过'),
       h('p', { className: 'crew-field-hint' },
@@ -452,6 +472,7 @@ function NewRoomDialog({
           'data-on': roomType === type.id ? 'true' : undefined,
           onClick: () => changeRoomType(type.id),
         }, type.name)))),
+    nonTask ? null : engineView,
     constraintsView,
     resume?.brief?.done?.length > 0
       ? h('div', { className: 'crew-proposal-block' },
@@ -485,12 +506,19 @@ function NewRoomDialog({
           ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => setStep(0) }, '改目标')
           : null,
         step === 0
-          ? h('button', {
-            type: 'button',
-            className: 'crew-accept crew-dialog-primary',
-            disabled: goal.trim() === '' || needRepo || recommending,
-            onClick: () => void recommend(),
-          }, recommending ? 'Lodge 正在看…' : '让 Lodge 出方案')
+          ? h(Fragment, null,
+            h('button', {
+              type: 'button',
+              className: 'crew-ghost',
+              disabled: goal.trim() === '' || needRepo || recommending,
+              onClick: directStart,
+            }, '直接建单人房'),
+            h('button', {
+              type: 'button',
+              className: 'crew-accept crew-dialog-primary',
+              disabled: goal.trim() === '' || needRepo || recommending,
+              onClick: () => void recommend(),
+            }, recommending ? 'Lodge 正在看…' : '让 Lodge 出方案'))
           : h('button', {
             type: 'button',
             className: 'crew-accept crew-dialog-primary',
