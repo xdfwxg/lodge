@@ -32,8 +32,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
     usage,
     files,
     workspace,
+    roomTemplates: ports.roomTemplates,
+    dataDir,
   })
-  const templateActions = createServiceTemplates({ dataDir, templates: templatesPort })
+  const templateActions = createServiceTemplates({ dataDir, templates: templatesPort, roomTemplates: ports.roomTemplates })
   const delivery = createServiceDelivery({
     store,
     handoff,

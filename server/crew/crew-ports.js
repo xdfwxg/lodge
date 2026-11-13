@@ -8,6 +8,7 @@ import { writeSeatEnv } from './seat-env.js'
 import { MAX_PROJECT_BYTES, PROJECT_FILE, readProjectConstraints } from './project.js'
 import { aggregateUsage, readUsageHistory, recordUsage } from './usage-history.js'
 import { createSkillStore } from './skill-store.js'
+import { deleteSavedRoomTemplate, listSavedRoomTemplates, saveSavedRoomTemplate } from './room-template-store.js'
 import { deleteSavedTemplate, listSavedTemplates, saveSavedTemplate } from './template-store.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
 
@@ -44,6 +45,11 @@ export const createCrewPorts = () => ({
     list: listSavedTemplates,
     save: saveSavedTemplate,
     delete: deleteSavedTemplate,
+  },
+  roomTemplates: {
+    list: listSavedRoomTemplates,
+    save: saveSavedRoomTemplate,
+    delete: deleteSavedRoomTemplate,
   },
   skills: createSkillStore({ dir: fileURLToPath(new URL('../../templates/skills/', import.meta.url)) }),
   commands: {

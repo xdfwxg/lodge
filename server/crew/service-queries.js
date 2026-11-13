@@ -19,6 +19,8 @@ export const createServiceQueries = ({
   usage: usagePort,
   files,
   workspace,
+  roomTemplates,
+  dataDir,
 }) => {
   const { readRoom, readRooms, readMessages, readMessagesSince } = store
 
@@ -35,7 +37,7 @@ export const createServiceQueries = ({
     return {
       seats,
       roomTypes: listRoomTypes(),
-      roomTemplates: listRoomTemplates(),
+      roomTemplates: listRoomTemplates(roomTemplates?.list?.(dataDir) ?? []),
       rooms: rooms.map(room => {
         const messages = readMessages(room.id)
           .slice()

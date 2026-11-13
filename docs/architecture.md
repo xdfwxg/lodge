@@ -41,4 +41,4 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 3. 跨范式迁移：聊天室只提供只读快照导出（`GET /api/rooms/:id/snapshot`），不提供“快照导入新工作室”；需要交付时由人新建工作室，不原地变更房型。
 4. `closure` 是工作室专属字段；聊天室不存在 `closure`，任何代码不得在聊天室里读取或推断交付闭环状态。
 5. `swarm` 只是 Verifier 的调度策略，不新增 `roleKind`，也不产生独立评审原语。
-6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`，房间预设在 `server/crew/room-templates.js`。
+6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`，房间预设在 `server/crew/room-templates.js`；自定义房间模板存 `<dataDir>/room-templates/*.json`，通过 `/api/room-templates` 保存/删除。

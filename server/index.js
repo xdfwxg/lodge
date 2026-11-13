@@ -223,6 +223,15 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.deleteTemplate(templatePath[1]))
     }
 
+    if (path === '/api/room-templates' && req.method === 'POST') {
+      return respond(res, service.saveRoomTemplate(await readJson(req, 512 * 1024)))
+    }
+
+    const roomTemplatePath = path.match(/^\/api\/room-templates\/([\w-]+)$/)
+    if (roomTemplatePath !== null && req.method === 'DELETE') {
+      return respond(res, service.deleteRoomTemplate(roomTemplatePath[1]))
+    }
+
     if (path === '/api/roster/recommend' && req.method === 'POST') {
       return respond(res, await service.recommendRoster(await readJson(req)))
     }
