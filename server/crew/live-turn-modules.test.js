@@ -183,6 +183,35 @@ test('review request and verdict consumption update the round without crossing t
   assert.ok(store.messages.some(message => message.text === '全部验收席位 PASS，等你签字。'))
 })
 
+test('Jev advice reaches the Verifier but does not create a verdict', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      sent.push({ seat, prompt })
+      return { messageId: 'm2' }
+    },
+    updateTasks: () => {},
+    jev: {
+      advice: async () => ({ available: true, advice: [{ summary: '建议补一条回滚测试', score: 0.4 }] }),
+    },
+  })
+  await review.request(0)
+  assert.match(sent[0].prompt, /Jev 建议/)
+  const advice = store.messages.find(message => message.kind === 'jev_advice')
+  assert.ok(advice)
+  assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
+  assert.equal(review.consume({ turn: { reply: 'PASS' }, seat: 'verifier', turnId: 't1', room }), true)
+})
+
 test('manual evidence also goes through the Verifier before human signoff', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],

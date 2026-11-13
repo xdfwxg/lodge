@@ -36,6 +36,7 @@ export const buildRoomRecord = ({
   verify,
   acceptance,
   verifierPolicy = 'all',
+  gate = null,
 }) => ({
   id: `room-${short}`,
   kind: 'room',
@@ -149,6 +150,7 @@ export const buildRoomRecord = ({
         closure: plan === null ? 'open' : 'planned',
         verificationMode: 'hybrid',
         verifierPolicy: verifierPolicy === 'majority' ? 'majority' : 'all',
+        ...(gate === null ? {} : { gate }),
       }),
   orchestration,
   ...(roomType.id === 'chat'
@@ -193,6 +195,13 @@ export const initialRoomMessages = ({
         : `房间已创建 · 模板 ${TEMPLATES[templateId].name} · ${workspaceNote}`,
   }]
   for (const text of builtStages.messages ?? []) messages.push({ kind: 'system', text })
+  if (Array.isArray(room.gate?.advice) && room.gate.advice.length > 0) {
+    const advice = room.gate.advice
+      .map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；'))
+      .filter(Boolean)
+      .join('；')
+    if (advice !== '') messages.push({ kind: 'system', text: `Gate·Jev 建议（仅参考，不替代 Verifier）：${advice}` })
+  }
   if (room.branch !== '') messages.push({ kind: 'system', text: `源仓库 ${room.sourceRepo} · 执行分支 ${room.branch}` })
   if (continueSource !== null) {
     messages.push({

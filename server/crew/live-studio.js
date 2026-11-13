@@ -32,6 +32,9 @@ export const studioPlannerPrompt = ({
       : '',
     ...workContract('lead'),
     buildSeatHandoff({ room, messages }),
+    ...(Array.isArray(room.gate?.advice) && room.gate.advice.length > 0
+      ? [`Gate/Jev 建议（仅参考，不替代你的判断）：${room.gate.advice.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
+      : []),
     `阶段目标：${stage.title}`,
     acceptance,
     `工作目录：${room.repoPath ?? '(未设置)'}`,
