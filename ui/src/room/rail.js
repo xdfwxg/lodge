@@ -4,6 +4,7 @@ import { money } from '../view-format.js'
 
 const TABS = [
   { id: 'status', label: '状态' },
+  { id: 'evidence', label: '证据' },
   { id: 'env', label: '环境' },
   { id: 'output', label: '交付' },
   { id: 'advanced', label: '高级' },
@@ -41,9 +42,14 @@ const evidenceStats = room => {
   }
 }
 
-export function RoomRail({ room, seats, store, engines = [], rooms = [], tab, onTab }) {
+export function RoomRail({ room, seats, store, engines = [], rooms = [], tab, onTab, ledger: ledgerState = null }) {
   const stats = evidenceStats(room)
   const current = TABS.some(item => item.id === tab) ? tab : 'status'
+  const ledger = ledgerState
+  const openTab = id => {
+    onTab(id)
+    if (id === 'evidence' && ledger === null && typeof store?.openLedger === 'function') void store.openLedger(room.id)
+  }
   return h('aside', { className: 'crew-rail', 'aria-label': '房间上下文' },
     h('div', { className: 'crew-rail-tabs' },
       TABS.map(item => h('button', {
@@ -51,7 +57,7 @@ export function RoomRail({ room, seats, store, engines = [], rooms = [], tab, on
         type: 'button',
         className: 'crew-rail-tab',
         'data-on': current === item.id ? 'true' : undefined,
-        onClick: () => onTab(item.id),
+        onClick: () => openTab(item.id),
       }, item.label))),
     current === 'status'
       ? h('div', { className: 'crew-rail-body' },
@@ -69,6 +75,29 @@ export function RoomRail({ room, seats, store, engines = [], rooms = [], tab, on
             ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openShadow(room.id) }, room.shadowReview === true ? '影子评审' : '评审对照')
             : null,
           h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openReview(room.id) }, '复盘')))
+      : null,
+    current === 'evidence'
+      ? h('div', { className: 'crew-rail-body' },
+        h('section', { className: 'crew-rail-section' },
+          h('b', null, '证据账本'),
+          h('p', { className: 'crew-muted' }, '只读凭证；执行自述回合不在账本里。')),
+        ledger === null
+          ? h('p', { className: 'crew-muted' }, '正在读取账本…')
+          : ledger.length === 0
+            ? h('p', { className: 'crew-muted' }, '还没有命令或人工产物凭证。')
+            : h('div', { className: 'crew-ledger-list' },
+              ledger.map(entry => h('div', { key: entry.id, className: 'crew-ledger-row' },
+                h('div', { className: 'crew-ledger-head' },
+                  h('b', null, `阶段 ${entry.stage + 1} · ${entry.kind === 'manual' ? '人工产物' : '验收命令'}`),
+                  h('span', null, entry.exit === null ? '' : `exit ${entry.exit}`)),
+                h('div', { className: 'crew-ledger-command' }, entry.command || '人工产物'),
+                h('div', { className: 'crew-ledger-meta' }, `#${entry.seq} · ${entry.digest.slice(0, 12)} · ${entry.authorId}`),
+                entry.text === '' ? null : h('p', { className: 'crew-muted' }, entry.text)))),
+        h('div', { className: 'crew-rail-actions' },
+          room.roomType === 'studio'
+            ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openShadow(room.id) }, '影子评审')
+            : null,
+          h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openLedger(room.id) }, '刷新')))
       : null,
     current === 'env'
       ? h('div', { className: 'crew-rail-body' },

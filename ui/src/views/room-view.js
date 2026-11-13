@@ -179,6 +179,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
       rooms: state.rooms,
       tab: railTab,
       onTab: setRailTab,
+      ledger: state.ledgerFor === room.id ? state.ledger : null,
     }))
 }
 

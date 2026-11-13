@@ -17,6 +17,8 @@ const EMPTY = {
   replayFor: null,
   shadow: null,
   shadowFor: null,
+  ledger: null,
+  ledgerFor: null,
   activeId: 'dispatch',
   error: null,
 }
@@ -221,6 +223,17 @@ export function createStore() {
     }
   }
 
+  const openLedger = async roomId => {
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/evidence-ledger`)
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data.ledger === undefined) throw new Error(data.error ?? `HTTP ${response.status}`)
+      patch({ ledger: data.ledger, ledgerFor: roomId, error: null })
+    } catch (error) {
+      patch({ error: `证据账本加载失败：${String(error?.message ?? error)}` })
+    }
+  }
+
   const activeRoom = () => state.rooms.find(room => room.id === state.activeId)
 
   return {
@@ -239,7 +252,7 @@ export function createStore() {
       source = null
       seen.clear()
     },
-    select: activeId => patch({ activeId, review: null, reviewFor: null, replay: null, replayFor: null, shadow: null, shadowFor: null }),
+    select: activeId => patch({ activeId, review: null, reviewFor: null, replay: null, replayFor: null, shadow: null, shadowFor: null, ledger: null, ledgerFor: null }),
     loadResources,
     loadUsage,
     resetMcp: server => post(`/api/rooms/${state.activeId}/mcp/reset`, { server }),
@@ -249,6 +262,7 @@ export function createStore() {
     closeReplay: () => patch({ replay: null, replayFor: null }),
     openShadow,
     closeShadow: () => patch({ shadow: null, shadowFor: null }),
+    openLedger,
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
