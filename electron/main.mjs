@@ -249,10 +249,22 @@ const ensureBase = async () => {
 
 const checkCli = async url => {
   try {
-    const response = await fetch(`${url}/api/instances`, { signal: AbortSignal.timeout(2_000) })
-    const data = await response.json()
+    let data = null
+    // Engine snapshots finish probing just after the HTTP port opens; wait briefly for
+    // a login-capable runtime so its prompt is not missed on the first read.
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      try {
+        const response = await fetch(`${url}/api/instances`, { signal: AbortSignal.timeout(2_000) })
+        data = await response.json()
+      } catch {
+        data = null
+      }
+      const seen = (data?.instances ?? []).filter(item => item?.snapshot?.state === 'available')
+      runtimeLogins = seen.filter(item => Array.isArray(item.login?.args) && item.login.args.length > 0)
+      if (runtimeLogins.length > 0 || attempt === 9) break
+      await new Promise(resolve => setTimeout(resolve, 400))
+    }
     const available = (data?.instances ?? []).filter(item => item?.snapshot?.state === 'available')
-    runtimeLogins = available.filter(item => Array.isArray(item.login?.args) && item.login.args.length > 0)
     buildMenu()
     if (available.length > 0) {
       await promptRuntimeLogins()
