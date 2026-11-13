@@ -198,7 +198,7 @@ export const createChatScheduler = ({
             const text = `本轮围绕「${room.goal}」展开讨论。${seatDisplayName(room, seat)} 先发言。`
             store.appendMessage(roomId, room.chatHost === undefined || room.chatHost === null
               ? { kind: 'chat', authorId: hostSeat, text, meta: { opening: true, round } }
-              : { kind: 'system', text: `Lodge 主持：${text}`, meta: { opening: true, round } })
+              : { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
           }
           const before = await messageIds(chat)
           const text = speakerPrompt({

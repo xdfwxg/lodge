@@ -186,6 +186,8 @@
 .crew-ref{margin-left:auto;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:var(--bt-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;text-decoration:none}
 .crew-ref:hover{color:var(--bt-accent);text-decoration:underline}
 .crew-card-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--bt-line);background:color-mix(in srgb,var(--bt-ink) 2%,transparent);font-size:12px;color:var(--bt-ink-3)}
+.crew-conclusion .crew-card-foot[data-settled=true]{justify-content:center}
+.crew-conclusion .crew-card-foot[data-settled=true] .crew-accept{margin-left:0}
 .crew-accept{margin-left:auto;padding:4px 12px;border:0;border-radius:7px;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
 .crew-accept:hover{opacity:.9}
 .crew-accepted{margin-left:auto;color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink));font-weight:600;white-space:nowrap}

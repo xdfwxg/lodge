@@ -40,6 +40,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const applyDelta = (entry, room, event) => {
     const current = store.readRoom(room.id) ?? room
     if (current.roomType !== 'chat') return
+    // 隐藏主持模型只负责总结，不把它的原始回复流进时间线；结论由 Lodge 写卡片。
+    if (current.chatHost?.memberRef !== undefined && entry.baseRoom?.busyRef === current.chatHost.memberRef) return
     // 基座正在发言的人才是这一段 delta 的作者；自造的 speaker 只在拿不到基座状态时兜底。
     const seat = (entry.baseRoom?.busyRef === undefined ? null : seatFor(current, entry.baseRoom.busyRef))
       ?? current.chat?.speaker
@@ -95,6 +97,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
 
   // 基座忙碌时消息会排队，发送响应 id 和最终落库 id 不同；回显先占位，落库后只补 baseId，不再重复投影。
   const projectMessage = (room, message) => {
+    // 隐藏主持模型的原始回复只喂给总结卡，不进入聊天时间线。
+    if (room.chatHost?.memberRef !== undefined && message.authorRef === room.chatHost.memberRef) return null
     if (message.role === 'user') {
       const messages = store.readMessages(room.id)
       if (messages.some(item => item.meta?.baseId === message.id)) return null

@@ -227,7 +227,7 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
     assert.equal(store.readRoom(chatId).chat.phase, 'awaiting_decision')
     assert.equal(store.readRoom(chatId).chat.turns, 6)
     const chatHost = chatRoom.body.room.leadSeat
-    assert.equal(store.readMessages(chatId).filter(message => message.kind === 'chat' && message.authorId !== chatHost).length, 6)
+    assert.equal(store.readMessages(chatId).filter(message => message.kind === 'chat' && message.meta?.opening !== true && message.authorId !== chatHost).length, 6)
     assert.equal(store.readMessages(chatId).some(message => message.meta?.opening === true), true)
     const conclusion = store.readMessages(chatId).find(message => message.kind === 'chat_conclusion')
     assert.equal(conclusion.meta.turns, 6)

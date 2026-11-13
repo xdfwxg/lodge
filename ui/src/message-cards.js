@@ -205,31 +205,6 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
   const [note, setNote] = useState('')
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [copyNote, setCopyNote] = useState('')
-  const [copyFallback, setCopyFallback] = useState(false)
-  const copyConclusion = async () => {
-    const text = String(message.text ?? '').trim()
-    let copied = false
-    try {
-      await navigator.clipboard.writeText(text)
-      copied = true
-    } catch {}
-    if (!copied) {
-      try {
-        const area = document.createElement('textarea')
-        area.value = text
-        area.style.position = 'fixed'
-        area.style.opacity = '0'
-        document.body.appendChild(area)
-        area.select()
-        copied = document.execCommand('copy')
-        area.remove()
-      } catch {}
-    }
-    setCopyNote(copied ? '已复制' : '复制失败')
-    setCopyFallback(!copied)
-    if (copied) setTimeout(() => setCopyNote(''), 1500)
-  }
   const accept = async () => {
     if (busy) return
     setBusy(true)
@@ -258,18 +233,6 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
             ? h('p', { className: 'crew-field-hint' }, '主持人未能在限定时间内总结；以下是原始讨论摘要。')
             : null,
           h(Markdown, { text: message.text, variant: 'compact' }),
-          copyFallback
-            ? h('div', { className: 'crew-rework' },
-              h('p', { className: 'crew-field-hint' }, '自动复制失败，请全选下面的文本手动复制。'),
-              h('textarea', {
-                className: 'crew-goal-input',
-                rows: 4,
-                readOnly: true,
-                autoFocus: true,
-                value: message.text,
-                onFocus: event => event.target.select(),
-              }))
-            : null,
           open
             ? h('div', { className: 'crew-rework' },
               h('input', {
@@ -288,12 +251,6 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
             : null),
         latest
           ? h('div', { className: 'crew-card-foot' },
-            h('a', {
-              className: 'crew-ref',
-              href: `/api/rooms/${message.roomId}/chat-snapshot`,
-              target: '_blank',
-              rel: 'noreferrer',
-            }, '导出快照'),
             open
               ? h(Fragment, null,
                 h('button', {
@@ -323,18 +280,7 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
                 }, busy ? '处理中…' : '认可结论')))
           : null,
         accepted && typeof onStartStudio === 'function'
-          ? h('div', { className: 'crew-card-foot' },
-            h('a', {
-              className: 'crew-ref',
-              href: `/api/rooms/${message.roomId}/chat-snapshot`,
-              target: '_blank',
-              rel: 'noreferrer',
-            }, '导出快照'),
-            h('button', {
-              type: 'button',
-              className: 'crew-ghost',
-              onClick: () => void copyConclusion(),
-            }, copyNote === '' ? '复制结论' : copyNote),
+          ? h('div', { className: 'crew-card-foot', 'data-settled': true },
             h('button', {
               type: 'button',
               className: 'crew-accept',

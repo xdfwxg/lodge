@@ -29,7 +29,9 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
 
   const renderMessage = message => {
     if (isDispatchHandoff(room, message)) return h(DispatchSummaryCard, { key: message.id, message })
-    const seat = byId[message.authorId] ?? (message.authorId === 'system' ? { name: '运行时', title: '验收员' } : undefined)
+    const seat = byId[message.authorId]
+      ?? (message.authorId === 'lodge' ? { id: 'lodge', name: 'Lodge 主持', title: '' } : undefined)
+      ?? (message.authorId === 'system' ? { name: '运行时', title: '验收员' } : undefined)
     const content = (() => {
       if (message.kind === 'system') return h('div', { key: message.id, className: 'crew-system' }, message.text)
       if (message.kind === 'advisor_advice') {
