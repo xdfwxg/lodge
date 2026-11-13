@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildDecision } from './decision.js'
+import { buildDecision, showsDecisionCard } from './decision.js'
 
 const view = (over = {}) => ({
   stages: [{
@@ -65,6 +65,13 @@ test('executing has no action, and a quota pause explains the next step', () => 
   }), view())
   assert.equal(paused.title, '执行者额度不足，等你处理')
   assert.equal(paused.primary.label, '继续')
+})
+
+test('an executing room does not render a redundant current-stage card', () => {
+  const executing = buildDecision(room({ busySeat: 'worker' }), view())
+  assert.equal(executing.key, 'executing')
+  assert.equal(showsDecisionCard(executing), false)
+  assert.equal(showsDecisionCard(buildDecision(room({ needsYou: { kind: 'signoff' } }), view())), true)
 })
 
 test('chat awaiting decision shows the conclusion and the next actions', () => {

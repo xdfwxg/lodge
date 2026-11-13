@@ -246,6 +246,9 @@ export function RoomStatusHeader({ room, decision, onAudit, actions = {} }) {
           actions.review ? h('button', { type: 'button', onClick: actions.review }, '复盘') : null))))
 }
 
+// 执行中不需要单独占一块“当前阶段”：阶段线、标题和时间线已经说明进展。
+export const showsDecisionCard = decision => decision?.key !== 'executing'
+
 export function DecisionCard({ room, decision, onAction }) {
   const [reworkOpen, setReworkOpen] = useState(false)
   const [note, setNote] = useState('')
@@ -261,8 +264,11 @@ export function DecisionCard({ room, decision, onAction }) {
     }
     onAction(primary.action, primary.stage)
   }
+  if (!showsDecisionCard(decision)) return null
   return h('section', { className: 'crew-decision-card', 'data-kind': decision.key },
-    h('div', { className: 'crew-decision-card-kicker' }, room.roomType === 'chat' ? '聊天室' : '当前阶段'),
+    room.roomType === 'chat'
+      ? h('div', { className: 'crew-decision-card-kicker' }, '聊天室')
+      : null,
     h('h2', null, decision.title),
     decision.detail === '' ? null : h('p', { className: 'crew-decision-detail' }, decision.detail),
     reworkOpen
