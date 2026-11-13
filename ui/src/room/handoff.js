@@ -9,9 +9,13 @@ export const isDispatchHandoff = (room, message) => {
 }
 
 export const dispatchSummaryOf = message => {
-  const text = String(message.text ?? '')
-  const mention = /@([^\s，,。]+)/.exec(text)?.[1] ?? ''
-  const acceptance = /验收命令[：:\s]*`?([^`\n。]+)`?/.exec(text)?.[1]?.trim() ?? ''
-  const stage = /阶段\s*(\d+)/.exec(text)?.[1] ?? ''
+  // 派活正文常把标签加粗；摘要读的是内容，不读 Markdown 记号。
+  const plain = String(message.text ?? '').replaceAll('**', '')
+  const mention = /@([^\s，,。]+)/.exec(plain)?.[1] ?? ''
+  const line = plain.split('\n').find(item => item.includes('验收命令') || item.includes('完成标准')) ?? ''
+  const acceptance = /`([^`]+)`/.exec(line)?.[1]?.trim()
+    ?? /(?:验收命令|完成标准)[：:]\s*([^\n。]+)/.exec(line)?.[1]?.trim()
+    ?? ''
+  const stage = /阶段\s*(\d+)/.exec(plain)?.[1] ?? ''
   return { mention, acceptance, stage }
 }

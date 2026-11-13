@@ -48,7 +48,7 @@ test('rework leads with the reject reason and a redo action', () => {
     verdict: { pass: false, text: '测试没有覆盖空字符串。' },
   }))
   assert.equal(decision.title, '验收退回，等你决定')
-  assert.equal(decision.primary.label, '让执行者重做')
+  assert.equal(decision.primary.label, '让执行官重做')
   assert.match(decision.detail, /空字符串/)
 })
 

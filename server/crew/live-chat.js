@@ -16,6 +16,68 @@ export const echoHumanMessage = ({ store, roomId, text, messageId }) => {
 // 房间对话走基座原生群聊：成员、@、上下文和沉默都由基座负责。
 // 这里只管创建/重连/收发，不把聊天变成阶段回合。
 export const createRoomChat = ({ store, engine, projector, refresh, emit = () => {}, onPermission, onTurn }) => {
+  const streamOf = entry => {
+    if (entry.chatStreams === undefined) entry.chatStreams = new Map()
+    return entry.chatStreams
+  }
+
+  const finalIdsOf = entry => {
+    if (entry.chatFinalIds === undefined) entry.chatFinalIds = new Set()
+    return entry.chatFinalIds
+  }
+
+  const applyDelta = (entry, room, event) => {
+    const current = store.readRoom(room.id) ?? room
+    if (current.roomType !== 'chat') return
+    const seat = current.chat?.speaker
+    if (typeof seat !== 'string' || seat === '') return
+    const streams = streamOf(entry)
+    const prior = streams.get(seat)
+    const id = prior?.id ?? `stream:${room.id}:${seat}`
+    const existing = store.readMessages(room.id).find(message => message.id === id)
+    const text = prior?.turnId === event.turnId && typeof existing?.text === 'string'
+      ? existing.text + event.delta
+      : event.delta
+    store.upsertMessage({
+      id,
+      roomId: room.id,
+      ts: Date.now(),
+      kind: 'chat',
+      authorId: seat,
+      text,
+      meta: { streaming: true, turnId: event.turnId ?? '' },
+    })
+    streams.set(seat, { id, turnId: event.turnId ?? '' })
+  }
+
+  const finishStream = (entry, room, message) => {
+    if (message.kind !== 'text' && message.kind !== 'turn') return false
+    const finalIds = finalIdsOf(entry)
+    if (finalIds.has(message.id)) return true
+    const current = store.readRoom(room.id) ?? room
+    if (current.roomType !== 'chat') return false
+    const seat = seatFor(current, message.authorRef) ?? current.chat?.speaker
+    if (typeof seat !== 'string' || seat === '') return false
+    const streams = streamOf(entry)
+    const state = streams.get(seat)
+    if (state === undefined) return false
+    const text = message.kind === 'turn' ? message.turn?.reply : message.text
+    if (typeof text !== 'string' || text.trim() === '') {
+      streams.delete(seat)
+      return false
+    }
+    const existing = store.readMessages(room.id).find(item => item.id === state.id)
+    store.upsertMessage({
+      ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: seat }),
+      text,
+      ts: message.at ?? Date.now(),
+      meta: { ...(existing?.meta ?? {}), streaming: false, final: true },
+    })
+    streams.delete(seat)
+    finalIds.add(message.id)
+    return true
+  }
+
   const sync = async entry => {
     const room = store.readRoom(entry.roomId)
     const chat = room?.chatRoom
@@ -86,6 +148,11 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
           void refresh(entry, { force: true })
           return
         }
+        if (event.type === 'delta') {
+          applyDelta(entry, room, event)
+          void refresh(entry)
+          return
+        }
         const message = event.message
         if (message === undefined) return
         const current = store.readRoom(room.id) ?? room
@@ -120,8 +187,11 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         if (current.roomType === 'studio' && message.kind === 'turn' && typeof onTurn === 'function') {
           onTurn(entry, current, message)
         }
-        const stored = projector.toStored(room.id, message)
-        if (stored !== null) store.upsertMessage(stored)
+        const streamed = finishStream(entry, current, message)
+        if (!streamed) {
+          const stored = projector.toStored(room.id, message)
+          if (stored !== null) store.upsertMessage(stored)
+        }
         pauseForSeatFailure(store, entry, message)
         void refresh(entry)
       },

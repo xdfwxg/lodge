@@ -610,3 +610,16 @@
 .crew-dispatch-summary-kicker{font-weight:600;color:var(--bt-ink-2)}
 .crew-dispatch-summary>summary code{margin-left:auto;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--bt-ink-3)}
 .crew-dispatch-summary-body{padding:0 12px 10px 26px;border-top:1px solid var(--bt-line);font-size:12.5px;line-height:18px;color:var(--bt-ink-2)}
+.crew-stage-progress{display:flex;align-items:center;gap:0;max-width:880px;margin:2px 32px 10px;overflow-x:auto;padding-bottom:2px}
+.crew-stage-progress-step{display:flex;align-items:center;gap:6px;flex:1;min-width:120px;color:var(--bt-ink-3);font-size:11.5px;line-height:16px}
+.crew-stage-progress-step::after{content:'';flex:1;height:1px;margin:0 8px;background:var(--bt-line)}
+.crew-stage-progress-step:last-child::after{display:none}
+.crew-stage-progress-dot{flex:none;display:grid;place-items:center;width:18px;height:18px;border:1px solid color-mix(in srgb,var(--bt-ink) 22%,var(--bt-line));border-radius:50%;background:transparent;color:var(--bt-ink-3);font-size:10px;font-weight:600}
+.crew-stage-progress-step[data-state=active]{color:var(--bt-ink);font-weight:600}
+.crew-stage-progress-step[data-state=active] .crew-stage-progress-dot{border-color:var(--bt-ink);color:var(--bt-ink)}
+.crew-stage-progress-step[data-state=passed]{color:color-mix(in srgb,var(--bt-green) 72%,var(--bt-ink))}
+.crew-stage-progress-step[data-state=passed] .crew-stage-progress-dot{border-color:var(--bt-green);background:var(--bt-green);color:#fff}
+.crew-stage-progress-label{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:760px){.crew-stage-progress{margin-left:18px;margin-right:18px}.crew-stage-progress-label{max-width:92px}}
+.crew-streaming::after{content:'▍';display:inline-block;margin-left:2px;color:var(--bt-ink-3);animation:crew-cursor 1s steps(2,start) infinite}
+@keyframes crew-cursor{0%,45%{opacity:1}46%,100%{opacity:0}}

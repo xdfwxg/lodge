@@ -6,6 +6,7 @@ import { createLiveTurns } from './live-turns.js'
 import { createRoomChat } from './live-chat.js'
 import { createChatScheduler } from './live-chat-room.js'
 import { createStudioEngine } from './live-studio.js'
+import { seatDisplayName } from './seat-labels.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs, onPlannerTool = null }) => {
@@ -200,7 +201,11 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     if (entry.turns.busyReview()) throw new Error('复核进行中，先等验收结论')
     const room = store.readRoom(roomId)
     if (room === null) throw new Error('没有这个房间')
-    return chat.send(room, text)
+    // 成员默认休眠，只有被 @ 才唤醒；人直接说话时默认唤醒主席位，避免“发了没人回”。
+    const lead = !/@[^\s，,。]+/.test(text)
+      ? seatDisplayName(room, room.leadSeat ?? room.members?.[0])
+      : ''
+    return chat.send(room, lead === '' ? text : `@${lead} ${text}`)
   }
 
   const requestReview = async (roomId, stage) => {

@@ -384,6 +384,14 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       signal: controller.signal,
       onState,
       onFrame: frame => {
+        if (frame.kind === 'runtime') {
+          const event = frame.event
+          if (event?.threadId !== sessionRef) return
+          if (event.type === 'content.delta' && event.streamKind === 'assistant_text' && typeof event.delta === 'string' && event.delta !== '') {
+            onEvent({ type: 'delta', threadId: sessionRef, turnId: event.turnId ?? '', delta: event.delta, at: Date.now() })
+          }
+          return
+        }
         if (frame.kind === 'message' || frame.kind === 'message.patch') {
           if (frame.threadId !== sessionRef) return
           const message = normalizeMessage(frame.message, responderNameFor(sessionRef))

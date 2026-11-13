@@ -6,10 +6,10 @@ import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
 
 const MAX_GOAL = 2000
 const RECOMMEND_TIMEOUT = 90_000
-const ROLE_LABEL = { lead: '规划师', worker: '执行者', verifier: '验收员' }
+const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const ROLE_ALIASES = new Map([
   ['lead', 'lead'], ['leader', 'lead'], ['planner', 'lead'], ['planning', 'lead'], ['队长', 'lead'], ['规划', 'lead'], ['负责人', 'lead'], ['规划者', 'lead'], ['规划师', 'lead'], ['主控', 'lead'],
-  ['worker', 'worker'], ['executor', 'worker'], ['implementer', 'worker'], ['developer', 'worker'], ['engineer', 'worker'], ['执行', 'worker'], ['执行者', 'worker'], ['开发', 'worker'], ['开发者', 'worker'], ['工程师', 'worker'], ['实现', 'worker'],
+  ['worker', 'worker'], ['executor', 'worker'], ['implementer', 'worker'], ['developer', 'worker'], ['engineer', 'worker'], ['执行', 'worker'], ['执行官', 'worker'], ['开发', 'worker'], ['开发者', 'worker'], ['工程师', 'worker'], ['实现', 'worker'],
   ['verifier', 'verifier'], ['reviewer', 'verifier'], ['review', 'verifier'], ['qa', 'verifier'], ['tester', 'verifier'], ['验收', 'verifier'], ['验收者', 'verifier'], ['验收员', 'verifier'], ['复核', 'verifier'], ['复核者', 'verifier'], ['评审', 'verifier'], ['审查', 'verifier'],
 ])
 const normalizeRole = role => {
@@ -23,17 +23,17 @@ const recommendationPrompt = (goal, repoPath) => [
   '你是规划师。现在只做编队判断：不写代码、不改文件、不建群。',
   `目标：${goal}`,
   `工作目录（只读副本）：${repoPath}`,
-  '先看仓库事实（README、package.json、测试命令、目录结构），但小队固定为三人：规划师、执行者、验收员。',
+  '先看仓库事实（README、package.json、测试命令、目录结构），但小队固定为三人：规划师、执行官、验收员。',
   '- seats 固定输出三个：一个 lead、一个 worker、一个 verifier。不要增加、减少或改成单人房。',
   '- seats[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
-  '- 名字用「规划师」「执行者」「验收员」；reason 说明各席位负责什么。',
+  '- 名字用「规划师」「执行官」「验收员」；reason 说明各席位负责什么。',
   '- why 只说明这三人如何分工，不要再讨论人数增减。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
   '- stages 写 1–3 个可交付阶段；每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
   '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline。parallel 需要至少两个执行席位；critique 用于关键交付，让验收席位主动找反例。',
-  '- stages[].assignees 只写执行席位（id 或名字，通常是「执行者」）；不要写验收员，验收由系统按独立性规则派发。',
+  '- stages[].assignees 只写执行席位（id 或名字，通常是「执行官」）；不要写验收员，验收由系统按独立性规则派发。',
   '- 开工卡就是对齐与确认。不要生成第一个只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
   '- JSON 代码块必须完整闭合。',
   '只输出一个 JSON 代码块，不要其他文字：',
@@ -45,12 +45,12 @@ const recommendationPrompt = (goal, repoPath) => [
   '  ],',
   '  "seats": [',
   '    {"role": "lead", "name": "规划师", "reason": "对齐目标与阶段"},',
-  '    {"role": "worker", "name": "执行者", "reason": "实现与跑测试"},',
+  '    {"role": "worker", "name": "执行官", "reason": "实现与跑测试"},',
   '    {"role": "verifier", "name": "验收员", "reason": "独立复核证据"}',
   '  ],',
   '  "orchestration": "pipeline",',
   '  "stages": [',
-  '    {"title": "实现", "kind": "deliverable", "acceptance": "npm test", "assignees": ["执行者"]}',
+  '    {"title": "实现", "kind": "deliverable", "acceptance": "npm test", "assignees": ["执行官"]}',
   '  ],',
   '  "verify": "test",',
   '  "acceptance": "在仓库根目录可执行的验收命令",',

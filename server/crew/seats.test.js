@@ -67,7 +67,7 @@ test('full approval is not allowed', () => {
 test('the product default is the fixed three-seat squad', () => {
   const roster = seatsFor()
   assert.deepEqual(roster.map(seat => seat.role), ['lead', 'worker', 'verifier'])
-  assert.deepEqual(roster.map(seat => seat.name), ['规划师', '执行者', '验收员'])
+  assert.deepEqual(roster.map(seat => seat.name), ['规划师', '执行官', '验收员'])
   assert.equal(TEMPLATES.solo, undefined)
   assert.doesNotThrow(() => validateSeats(roster))
 })

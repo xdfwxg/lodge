@@ -2,7 +2,7 @@ import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
 import { seedGoalText } from './room/chat-seed.js'
 
-const ROLE_LABEL = { lead: '规划师', worker: '执行者', verifier: '验收员' }
+const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
   { id: 'studio', name: '工作室', description: '目标、阶段、验收与交付', defaultVerify: 'test' },
   { id: 'chat', name: '聊天室', description: '随机发言讨论，主持人总结，你来拍板', defaultVerify: 'manual' },
@@ -19,7 +19,7 @@ const normalizeSeats = seats => (Array.isArray(seats) ? seats : []).map(seat => 
 
 const DEFAULT_SEATS = normalizeSeats([
   { role: 'lead', name: '规划师' },
-  { role: 'worker', name: '执行者' },
+  { role: 'worker', name: '执行官' },
   { role: 'verifier', name: '验收员' },
 ])
 

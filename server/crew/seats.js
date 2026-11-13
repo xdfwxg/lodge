@@ -1,4 +1,4 @@
-// 席位是数据；当前产品默认固定为规划师、执行者、验收员三人，自定义编制是未开放扩展。
+// 席位是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
 const TOOL_SCOPES = ['read', 'exec', 'write']
 const sameSet = (a, b) => a.length === b.length && [...a].sort().join('\0') === [...b].sort().join('\0')
 const isId = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
@@ -18,11 +18,11 @@ const deliveryTriad = [
     mcp: [],
     approval: 'ask',
     speakBudget: 6,
-    prompt: '你是规划师。你的执行席位是 @执行者，验收席位是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。',
+    prompt: '你是规划师。你的执行席位是 @执行官，验收席位是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。',
   },
   {
     id: 'executor',
-    name: '执行者',
+    name: '执行官',
     title: '实现',
     role: 'worker',
     station: 'worktree 写 · 改代码跑测试',
@@ -34,7 +34,7 @@ const deliveryTriad = [
     mcp: [],
     approval: 'auto',
     speakBudget: 8,
-    prompt: '你是执行者。你的验收席位是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
+    prompt: '你是执行官。你的验收席位是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
   },
   {
     id: 'verifier',
@@ -50,7 +50,7 @@ const deliveryTriad = [
     mcp: [],
     approval: 'ask',
     speakBudget: 4,
-    prompt: '你是验收员。用简洁、直接的中文沟通；只依据证据判断，不替执行者解释。',
+    prompt: '你是验收员。用简洁、直接的中文沟通；只依据证据判断，不替执行官解释。',
   },
 ]
 
@@ -59,7 +59,7 @@ const ROLE_TEMPLATE = {
   worker: deliveryTriad[1],
   verifier: deliveryTriad[2],
 }
-const ROLE_NAME = { lead: '规划师', worker: '执行者', verifier: '验收员' }
+const ROLE_NAME = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 
 // 底层 roleKind 只有三类本原能力；lead/worker 是旧数据别名。
 export const ROLE_KIND = { lead: 'planner', worker: 'executor', verifier: 'verifier' }
@@ -127,10 +127,10 @@ export const rosterFromRoles = entries => {
   return seats.map(seat => {
     if (seat.customPrompt === true) return seat
     if (seat.role === 'lead') {
-      return { ...seat, prompt: seat.prompt.replaceAll('你是规划师', `你是${seat.name}`).replaceAll('@执行者', workerRef) }
+      return { ...seat, prompt: seat.prompt.replaceAll('你是规划师', `你是${seat.name}`).replaceAll('@执行官', workerRef) }
     }
     if (seat.role === 'worker') {
-      return { ...seat, prompt: seat.prompt.replaceAll('你是执行者', `你是${seat.name}`).replaceAll('@验收员', verifierRef) }
+      return { ...seat, prompt: seat.prompt.replaceAll('你是执行官', `你是${seat.name}`).replaceAll('@验收员', verifierRef) }
     }
     if (seat.role === 'verifier') {
       return { ...seat, prompt: seat.prompt.replaceAll('你是验收员', `你是${seat.name}`) }

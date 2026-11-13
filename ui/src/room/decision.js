@@ -154,8 +154,8 @@ export const buildDecision = (room, view) => {
     return {
       key: 'rework',
       title: '验收退回，等你决定',
-      detail: verdict || stage?.rework?.[0]?.text || '验收员退回了这一步，需要执行者重做。',
-      primary: { label: '让执行者重做', action: 'rework', stage: stageIndex },
+      detail: verdict || stage?.rework?.[0]?.text || '验收员退回了这一步，需要执行官重做。',
+      primary: { label: '让执行官重做', action: 'rework', stage: stageIndex },
       secondary: { label: '查看证据', action: 'evidence' },
     }
   }
@@ -181,7 +181,7 @@ export const buildDecision = (room, view) => {
     return {
       key: 'setup',
       title: '还差一条验收命令',
-      detail: '设置后，执行者完成时系统才能自动验收。',
+      detail: '设置后，执行官完成时系统才能自动验收。',
       primary: { label: '去设置', action: 'audit' },
       secondary: null,
     }
@@ -214,6 +214,19 @@ export const buildDecision = (room, view) => {
     primary: null,
     secondary: { label: '审计详情', action: 'audit' },
   }
+}
+
+export function StageProgress({ room }) {
+  if (room.roomType !== 'studio' || !Array.isArray(room.stages) || room.stages.length === 0) return null
+  return h('div', { className: 'crew-stage-progress', 'aria-label': '阶段进度' },
+    room.stages.map((stage, index) => h('div', {
+      key: `${index}:${stage.title}`,
+      className: 'crew-stage-progress-step',
+      'data-state': stage.state,
+      title: `${index + 1}. ${stage.title}`,
+    },
+    h('span', { className: 'crew-stage-progress-dot' }, stage.state === 'passed' ? '✓' : String(index + 1)),
+    h('span', { className: 'crew-stage-progress-label' }, stage.title))))
 }
 
 export function RoomStatusHeader({ room, decision, onAudit, actions = {} }) {
@@ -257,7 +270,7 @@ export function DecisionCard({ room, decision, onAction }) {
         h('textarea', {
           value: note,
           rows: 3,
-          placeholder: '告诉执行者哪里不对，例如：测试没有覆盖空字符串。',
+          placeholder: '告诉执行官哪里不对，例如：测试没有覆盖空字符串。',
           onChange: event => setNote(event.target.value),
         }),
         h('div', { className: 'crew-decision-rework-actions' },

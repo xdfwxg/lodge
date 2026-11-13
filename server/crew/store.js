@@ -38,6 +38,14 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
 
   // 旧聊天室曾借用 stages/chats 分散字段；读路径迁到 room.chat，下一次写入自然落盘。
   const upgradeRoom = room => {
+    // 旧房间的执行席位显示名迁移；只改展示名，不改席位 id 和权限。
+    if (Array.isArray(room?.seatSpecs)) {
+      room.seatSpecs = room.seatSpecs.map(seat => (
+        seat?.role === 'worker' && seat.name === '执行者'
+          ? { ...seat, name: '执行官', prompt: String(seat.prompt ?? '').replaceAll('执行者', '执行官') }
+          : seat
+      ))
+    }
     if (room?.roomType !== 'chat') {
       if (room.engine === undefined) room.engine = 'delivery'
       if (room?.closure === undefined) {

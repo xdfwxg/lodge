@@ -28,7 +28,9 @@ function ChatLine({ message, seat }) {
     h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat, ts: message.ts, time: false, station: false }),
-      h('div', { className: 'bt-bubble' }, h(Markdown, { text: message.text }))))
+      h('div', {
+        className: message.meta?.streaming === true ? 'bt-bubble crew-streaming' : 'bt-bubble',
+      }, h(Markdown, { text: message.text }))))
 }
 
 function EvidenceCard({ message, seat }) {
@@ -142,7 +144,7 @@ function DispatchSummaryCard({ message }) {
   return h('details', { className: 'crew-dispatch-summary' },
     h('summary', null,
       h('span', { className: 'crew-dispatch-summary-kicker' }, '派活'),
-      h('span', null, mention === '' ? '交给执行者' : `交给 @${mention}`),
+      h('span', null, mention === '' ? '交给执行官' : `交给 @${mention}`),
       acceptance === '' ? null : h('code', null, acceptance)),
     h('div', { className: 'crew-dispatch-summary-body' },
       h(Markdown, { text, variant: 'compact' })))

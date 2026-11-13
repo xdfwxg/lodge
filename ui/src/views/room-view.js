@@ -3,7 +3,7 @@ import { DeliverySheet } from '../delivery-sheet.js'
 import { Composer } from '../composer.js'
 import { ReviewDialog } from '../room/advanced.js'
 import { AuditDrawer } from '../room/audit.js'
-import { buildDecision, DecisionCard, RoomStatusHeader } from '../room/decision.js'
+import { buildDecision, DecisionCard, RoomStatusHeader, StageProgress } from '../room/decision.js'
 import { RoomRail } from '../room/rail.js'
 import { StageDock } from '../room/stage-dock.js'
 import { Timeline } from '../room/timeline.js'
@@ -119,6 +119,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
         actions: headerActions,
         onAudit: () => setAuditOpen(true),
       }),
+      h(StageProgress, { room }),
       h(DecisionCard, { room, decision, onAction: decisionAction }),
       state.reviewFor === room.id && state.review !== null
         ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })

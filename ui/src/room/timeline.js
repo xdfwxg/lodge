@@ -83,7 +83,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
       h('summary', null, `过程记录 · ${timeline.process.length} 条`),
       h('div', { className: 'crew-process-body' }, timeline.process.map(renderMessage)))
 
-  const hidden = new Set(['activity', 'dispatch', 'advisor_advice', ...hideKinds])
+  const hidden = new Set(['activity', 'advisor_advice', ...hideKinds])
   const meaningful = timeline.visible.filter(message => !hidden.has(message.kind))
   const shown = compact && !expanded ? meaningful.slice(-3) : meaningful
   const showProcess = !compact || expanded
