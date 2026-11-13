@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createMessageProjector } from './live-projection.js'
+import { createMessageProjector, matchEcho } from './live-projection.js'
 
 const projector = createMessageProjector({
   store: { readRoom: () => ({ seatBots: { executor: 'bot-1' }, hiddenBaseMessages: [] }) },
@@ -28,6 +28,15 @@ test('internal orchestration prompts never become user chat', () => {
     role: 'user',
     text: '@规划师 阶段 2 已确认。\n[[lodge-internal]]',
   }), null)
+})
+
+test('an echo matches its queued base message once', () => {
+  const now = Date.now()
+  const echo = { id: 'e1', authorId: 'you', text: '你好', ts: now, meta: { echo: true } }
+  assert.equal(matchEcho([echo], '你好', now + 500), echo)
+  assert.equal(matchEcho([{ ...echo, meta: { echo: true, baseId: 'b1' } }], '你好', now), undefined)
+  assert.equal(matchEcho([echo], '你好', now + 200_000), undefined)
+  assert.equal(matchEcho([echo], '别的', now), undefined)
 })
 
 test('seat messages keep their seat author', () => {

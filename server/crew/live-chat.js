@@ -1,11 +1,11 @@
-import { seatFor } from './live-projection.js'
+import { matchEcho, seatFor } from './live-projection.js'
 import { pauseForSeatFailure } from './live-sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
-import { toBaseMentions } from './seat-labels.js'
+import { toBaseMentions, toDisplayMentions } from './seat-labels.js'
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
 export const echoHumanMessage = ({ store, roomId, text, messageId }) => {
-  const echo = { roomId, ts: Date.now(), kind: 'chat', authorId: 'you', text }
+  const echo = { roomId, ts: Date.now(), kind: 'chat', authorId: 'you', text, meta: { echo: true } }
   if (typeof messageId === 'string' && messageId !== '') {
     store.upsertMessage({ ...echo, id: messageId })
   } else {
@@ -78,13 +78,27 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     return true
   }
 
+  // 基座忙碌时消息会排队，发送响应 id 和最终落库 id 不同；回显先占位，落库后只补 baseId，不再重复投影。
+  const projectMessage = (room, message) => {
+    if (message.role === 'user') {
+      const messages = store.readMessages(room.id)
+      if (messages.some(item => item.meta?.baseId === message.id)) return null
+      const echo = matchEcho(messages, toDisplayMentions(room, message.text), message.at)
+      if (echo !== undefined) {
+        store.upsertMessage({ ...echo, meta: { ...(echo.meta ?? {}), baseId: message.id } })
+        return null
+      }
+    }
+    return projector.toStored(room.id, message)
+  }
+
   const sync = async entry => {
     const room = store.readRoom(entry.roomId)
     const chat = room?.chatRoom
     if (chat === undefined) return
     const { messages } = await engine.history(chat.sessionRef)
     for (const message of messages) {
-      const stored = projector.toStored(room.id, message)
+      const stored = projectMessage(room, message)
       if (stored !== null) store.upsertMessage(stored)
       pauseForSeatFailure(store, entry, message)
     }
@@ -189,7 +203,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         }
         const streamed = finishStream(entry, current, message)
         if (!streamed) {
-          const stored = projector.toStored(room.id, message)
+          const stored = projectMessage(current, message)
           if (stored !== null) store.upsertMessage(stored)
         }
         pauseForSeatFailure(store, entry, message)

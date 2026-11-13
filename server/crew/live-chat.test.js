@@ -50,7 +50,13 @@ const setup = () => {
       return room
     },
     appendMessage: (roomId, message) => { messages.push(message); return message },
-    upsertMessage: message => { messages.push(message); return message },
+    upsertMessage: message => {
+      const index = messages.findIndex(item => item.id === message.id)
+      if (index !== -1) messages[index] = message
+      else messages.push(message)
+      return message
+    },
+    readMessages: () => messages,
   }
   const chat = createRoomChat({
     store,
@@ -92,6 +98,29 @@ test('chat events project into the room without touching stage turns', () => {
   assert.equal(ctx.subscribed.length, 1)
   ctx.subscribed[0].onEvent({ message: { id: 'm1', kind: 'text', role: 'bot', text: '在' } })
   assert.equal(ctx.messages.at(-1).id, 'stored-1')
+})
+
+test('a queued send reconciles its echo instead of showing the message twice', () => {
+  const ctx = setup()
+  const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  const echo = {
+    id: 'echo-1',
+    roomId: room.id,
+    ts: Date.now(),
+    kind: 'chat',
+    authorId: 'you',
+    text: '@规划师 你好',
+    meta: { echo: true },
+  }
+  ctx.messages.push(echo)
+  ctx.subscribed[0].onEvent({
+    message: { id: 'base-1', kind: 'text', role: 'user', text: '@Plannerea1 你好', at: echo.ts + 400 },
+  })
+  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages[0].id, 'echo-1')
+  assert.equal(ctx.messages[0].meta.baseId, 'base-1')
 })
 
 test('chat turns allow read-only tools but never write or exec', () => {

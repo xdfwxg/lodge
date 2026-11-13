@@ -13,6 +13,25 @@ export const seatNameOf = (room, seat) => (
   room?.seatNames?.[seat] ?? room?.seatSpecs?.find(item => item.id === seat)?.name ?? seat
 )
 
+// 基座忙碌时发出的消息会排队，落库 id 和发送响应 id 不同；用回显文本和落库时间配对，避免同一条人的话出现两次。
+const ECHO_WINDOW_MS = 120_000
+
+export const matchEcho = (messages, text, at) => {
+  if (!Array.isArray(messages)) return undefined
+  const candidates = messages.filter(message => (
+    message?.authorId === 'you' &&
+    message?.meta?.echo === true &&
+    message?.meta?.baseId === undefined &&
+    message?.text === text
+  ))
+  if (candidates.length === 0) return undefined
+  if (typeof at !== 'number') return candidates[candidates.length - 1]
+  const near = candidates.filter(message => (
+    typeof message.ts === 'number' && Math.abs(message.ts - at) < ECHO_WINDOW_MS
+  ))
+  return near.sort((a, b) => Math.abs(a.ts - at) - Math.abs(b.ts - at))[0]
+}
+
 export const createMessageProjector = ({ store }) => {
   const toStored = (roomId, message) => {
     const room = store.readRoom(roomId)
