@@ -75,6 +75,38 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     return ok({ room: updated, message })
   }
 
+  const restart = (room, body = {}) => {
+    if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
+    if (room.state !== 'active') return fail('conflict', '房间不在进行中')
+    if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
+      return fail('conflict', '聊天室没有绑定运行引擎')
+    }
+    const chat = room.chat
+    if (chat === undefined || chat.running === true) return fail('conflict', '聊天讨论已经在进行')
+    if (chat.phase === 'awaiting_decision') return fail('conflict', '现在有结论，先确认或再讨论')
+    if (chat.phase !== 'discussing') return fail('conflict', '现在没有可恢复的讨论')
+    const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : ''
+    const updated = updateRoom(room.id, current => {
+      if (current.chat?.running === true) return null
+      current.chat = { ...current.chat, running: true, turns: 0, speaker: '', note }
+      return { events: [{ type: 'chat.resumed', payload: { round: current.chat.round ?? 1 } }] }
+    })
+    if (updated === null) return fail('conflict', '聊天状态已变化，重试')
+    emit('room', updated)
+    emit('dispatch', dispatchPayload())
+    appendMessage(room.id, { kind: 'system', text: '讨论中断，已重新开始本轮。' })
+    void live.continueChat(updated, note).catch(error => {
+      appendMessage(room.id, { kind: 'system', text: `恢复讨论失败：${error?.message ?? error}` })
+      const reset = updateRoom(room.id, current => {
+        if (current.chat?.running !== true) return null
+        current.chat = { ...current.chat, running: false, speaker: '' }
+        return { events: [] }
+      })
+      if (reset !== null) emit('room', reset)
+    })
+    return ok({ room: updated })
+  }
+
   const snapshot = room => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
     const messages = readMessages(room.id)
@@ -103,5 +135,5 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     })
   }
 
-  return { accept, continue: continueChat, snapshot }
+  return { accept, continue: continueChat, restart, snapshot }
 }

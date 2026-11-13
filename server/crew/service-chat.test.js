@@ -73,6 +73,25 @@ test('rejecting a chat conclusion starts another round', async () => {
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '还缺反方观点' }])
 })
 
+test('an interrupted discussion can restart the same round', () => {
+  const ctx = setup()
+  ctx.room().chat = { ...ctx.room().chat, phase: 'discussing', running: false, turns: 2, conclusionId: null }
+  const result = ctx.chat.restart(ctx.room(), {})
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().chat.running, true)
+  assert.equal(ctx.room().chat.turns, 0)
+  assert.equal(ctx.room().chat.phase, 'discussing')
+  assert.equal(ctx.messages.at(-1).text, '讨论中断，已重新开始本轮。')
+  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '' }])
+})
+
+test('restart refuses when a conclusion is already waiting', () => {
+  const ctx = setup()
+  const result = ctx.chat.restart(ctx.room(), {})
+  assert.equal(result.ok, false)
+  assert.match(result.error, /先确认或再讨论/)
+})
+
 test('a chat snapshot carries the discussion and conclusion without mutating the room', () => {
   const ctx = setup()
   ctx.messages.push({ kind: 'chat', authorId: 'a', text: '发言', meta: { round: 1 } })

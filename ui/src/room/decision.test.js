@@ -86,4 +86,14 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
   }, null)
   assert.equal(complete.title, '聊天已结束')
   assert.equal(complete.extra.label, '用结论新建工作室')
+
+  const interrupted = buildDecision({
+    roomType: 'chat',
+    state: 'active',
+    chat: { phase: 'discussing', running: false, turns: 2, turnLimit: 4 },
+    messages: [],
+  }, null)
+  assert.equal(interrupted.title, '讨论中断，等你处理')
+  assert.equal(interrupted.primary.action, 'chat-resume')
+  assert.match(interrupted.detail, /2\/4/)
 })

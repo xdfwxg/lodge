@@ -170,6 +170,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       return chat.continue(room, await readBody())
     }
 
+    if (action === 'chat-resume' && method === 'POST') {
+      return chat.restart(room, await readBody())
+    }
+
     if (action === 'reject-plan' && method === 'POST') {
       return closure.rejectPlan(room, await readBody())
     }

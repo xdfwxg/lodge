@@ -92,6 +92,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
     if (action === 'resume') return void store.resume()
     if (action === 'chat-accept') return void store.chatAccept()
     if (action === 'continue-chat') return void store.continueChat('')
+    if (action === 'chat-resume') return void store.resumeChat()
     if (action === 'start-studio') {
       if (onStartStudio !== undefined) onStartStudio(payload)
       return

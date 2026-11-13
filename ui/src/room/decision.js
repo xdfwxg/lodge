@@ -129,7 +129,16 @@ export const buildDecision = (room, view) => {
         extra: { label: '用结论新建工作室', action: 'start-studio' },
       }
     }
-    return { key: 'chat-idle', title: '等你开始讨论', detail: '', primary: null, secondary: null }
+    const turns = chat.turns ?? 0
+    return {
+      key: 'chat-interrupted',
+      title: turns > 0 ? '讨论中断，等你处理' : '等你开始讨论',
+      detail: turns > 0
+        ? `上一轮停在 ${turns}/${chat.turnLimit ?? 6} 次发言，可以重新开始本轮。`
+        : '讨论还没有开始，可以现在启动。',
+      primary: { label: turns > 0 ? '重新开始讨论' : '开始讨论', action: 'chat-resume' },
+      secondary: { label: '审计详情', action: 'audit' },
+    }
   }
 
   if (room.needsYou?.kind === 'signoff') {

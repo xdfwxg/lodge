@@ -297,6 +297,7 @@ export function createStore() {
     chatAccept: () => post(`/api/rooms/${state.activeId}/chat-accept`, {}),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
+    resumeChat: () => post(`/api/rooms/${state.activeId}/chat-resume`, {}),
     createSubroom: goal => post(`/api/rooms/${state.activeId}/subrooms`, { goal }),
     answer: async (stage, text) => {
       if (text !== '') {
