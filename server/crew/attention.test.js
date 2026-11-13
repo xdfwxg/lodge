@@ -51,6 +51,25 @@ test('a budget pause asks the human to raise it', () => {
   })
 })
 
+test('a seat engine error asks the human to intervene with a concrete reason', () => {
+  assert.deepEqual(roomNeedsYou({
+    state: 'paused',
+    pauseReason: 'seat_error',
+    seatNames: { worker: '执行者' },
+    seatError: { seat: 'worker', kind: 'quota' },
+  }, []), {
+    kind: 'error',
+    stage: null,
+    label: '执行者额度不足 · 等你处理',
+  })
+  assert.equal(roomNeedsYou({
+    state: 'paused',
+    pauseReason: 'seat_error',
+    seatNames: { verifier: '验收员' },
+    seatError: { seat: 'verifier', kind: 'auth' },
+  }, []).label, '验收员登录失效 · 等你处理')
+})
+
 test('a deliverable without an acceptance command asks for setup', () => {
   const r = atDeliverable()
   r.stages[1].acceptance = ''

@@ -1,4 +1,5 @@
 import { seatFor } from './live-projection.js'
+import { pauseForSeatFailure } from './live-sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
 import { toBaseMentions } from './seat-labels.js'
 
@@ -23,6 +24,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     for (const message of messages) {
       const stored = projector.toStored(room.id, message)
       if (stored !== null) store.upsertMessage(stored)
+      pauseForSeatFailure(store, entry, message)
     }
   }
 
@@ -120,6 +122,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         }
         const stored = projector.toStored(room.id, message)
         if (stored !== null) store.upsertMessage(stored)
+        pauseForSeatFailure(store, entry, message)
         void refresh(entry)
       },
     })

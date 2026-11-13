@@ -76,7 +76,9 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
             ? '去验收'
             : room.needsYou.kind === 'signoff'
               ? '去签字'
-              : '处理',
+              : room.needsYou.kind === 'error'
+                ? '去处理'
+                : '处理',
       onClick: isChat ? scrollToBottom : () => setDockOpen(true),
     }
     : undefined
