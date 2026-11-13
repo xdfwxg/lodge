@@ -43,3 +43,36 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 5. `swarm` 只是 Verifier 的调度策略，不新增 `roleKind`，也不产生独立评审原语。
 6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`，房间预设在 `server/crew/room-templates.js`；自定义房间模板存 `<dataDir>/room-templates/*.json`，通过 `/api/room-templates` 保存/删除。
 7. Jev 是外部 advice 端口（`server/crew/jev.js`，配置与契约见 `docs/jev.md`）：Gate 和 Verifier 可附上建议，但 Jev 不写 verdict、不是 roleKind、不可直接放行。
+
+## 负面清单（硬禁止）
+
+这些不是“暂时没做”，而是越界后会让两套引擎重新糊在一起：
+
+1. **不新增第四种 `roleKind`**。新岗位只能用 `roleProfile` 包装；`planner / executor / verifier` 是底层枚举。
+2. **聊天室不引入 `stages / gates / closure / evidence / verdict / trust`**。聊天室只有 `room.chat`。
+3. **工作室不引入 `room.chat`**。工作室只用 `closure / stages / evidence / verdict / trust`。
+4. **房型创建后不动态切换**。需要交付就新建工作室，不把聊天室原地改成工作室。
+5. **不让 Verifier 缺席时标记完成**。人工签字也必须先有 Verifier PASS；`rejected` 不是完成。
+6. **Jev 不写 `pass`、不直接放行、不成为角色**。它只返回 advice。
+7. **聊天室不挂完整执行引擎**。写文件、执行命令、外部动作都不放行；要执行请新建工作室。
+8. **角色实例不跨房间继承**。身份绑定房间。
+9. **不做快照自动导入新工作室**。只导出只读快照，由人另建工作室。
+10. **子工作室最多 3 层，且子工作室不能是聊天室**。父 Planner 只消费子 Verifier 的 verdict。
+
+## 暂不做（可重新评估）
+
+这些不是永久禁止，只是当前明确的非目标：
+
+- 模板“保存当前配置为模板”按钮
+- 真实 Jev 服务接入（当前只有 advice 端口与 mock 验证）
+- Gate 做成 Planner 可主动调用的工具
+- 影子模式
+- 子工作室 UI 编排
+
+## 对应门禁
+
+- `server/crew/negative-list.test.js`：聊天室/工作室状态、Jev 建议、快照导入方向的静态检查。
+- `server/crew/boundary.test.js`：crew 不泄漏基座词汇。
+- `server/crew/layer-boundaries.test.js`：应用层只依赖端口。
+- `server/crew/room-types.test.js` / `verifiers.test.js`：三类本原角色与 quorum 行为。
+- `server/crew/room-capabilities.test.js`：两套房型的能力矩阵。
