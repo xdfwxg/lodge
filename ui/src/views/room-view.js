@@ -3,14 +3,15 @@ import { GoalIsland } from '../goal-island/index.js'
 import { buildGoalView } from '../goal-island/model.js'
 import { DeliverySheet } from '../delivery-sheet.js'
 import { Composer } from '../composer.js'
-import { Advanced, ReviewDialog } from '../room/advanced.js'
+import { ReviewDialog } from '../room/advanced.js'
+import { RoomRail } from '../room/rail.js'
 import { StageDock } from '../room/stage-dock.js'
 import { Timeline } from '../room/timeline.js'
 import { ReplayDialog } from '../room/replay.js'
 import { ShadowDialog } from '../room/shadow.js'
 
 function RoomView({ state, room, store, onContinue, onStartStudio }) {
-  const [advanced, setAdvanced] = useState(false)
+  const [railTab, setRailTab] = useState('status')
   const [dockOpen, setDockOpen] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
   const scroll = useRef(null)
@@ -89,7 +90,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   }, [room.members, room.seatNames, seats])
   const goalActions = {
     review: () => void store.openReview(room.id),
-    toggleAdvanced: () => setAdvanced(value => !value),
+    toggleAdvanced: () => setRailTab(value => value === 'advanced' ? 'status' : 'advanced'),
     pause: () => void store.pause(),
     resume: () => void store.resume(),
     stop: () => void store.stop(),
@@ -98,8 +99,8 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   }
 
   return h('main', { className: 'dsb-main crew-room' },
-    isChat || goalView === null ? null : h(GoalIsland, { view: goalView, advanced, actions: goalActions }),
-    advanced ? h(Advanced, { room, seats, store, engines: state.engines, rooms: state.rooms }) : null,
+    h('div', { className: 'crew-room-main' },
+      isChat || goalView === null ? null : h(GoalIsland, { view: goalView, advanced: railTab === 'advanced', actions: goalActions }),
     state.reviewFor === room.id && state.review !== null
       ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
       : null,
@@ -169,7 +170,16 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
               : '对房间说话…',
         disabled: state.phase === 'loading' || locked,
         onSend: text => store.send(text),
-      })))
+      }))),
+    h(RoomRail, {
+      room,
+      seats,
+      store,
+      engines: state.engines,
+      rooms: state.rooms,
+      tab: railTab,
+      onTab: setRailTab,
+    }))
 }
 
 export { RoomView }

@@ -456,3 +456,75 @@
 .crew-shadow-col p{margin:3px 0 0;font-size:12px;line-height:16px;color:var(--bt-ink-2)}
 .crew-shadow-foot{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 @media (max-width:720px){.crew-shadow-cols{grid-template-columns:1fr}}
+
+/* 房间三栏外壳：主时间线 + 右侧上下文栏 */
+.crew-room{display:grid;grid-template-columns:minmax(0,1fr) 296px;background:var(--bt-main)}
+.crew-room-main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bt-main)}
+.crew-rail{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--bt-line);background:var(--bt-sidebar);overflow:auto}
+.crew-rail-tabs{position:sticky;top:0;z-index:2;display:flex;gap:2px;padding:8px 10px;border-bottom:1px solid var(--bt-line);background:var(--bt-sidebar)}
+.crew-rail-tab{flex:1;padding:5px 0;border:0;border-radius:7px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:12px;line-height:16px;cursor:pointer}
+.crew-rail-tab[data-on=true]{background:var(--bt-card);color:var(--bt-ink);font-weight:600;box-shadow:0 1px 3px rgb(0 0 0 / .06)}
+.crew-rail-body{display:flex;flex-direction:column;gap:16px;padding:14px 12px 20px}
+.crew-rail-section{display:flex;flex-direction:column;gap:5px;font-size:12.5px;line-height:17px;color:var(--bt-ink-2)}
+.crew-rail-section>b{font-size:11.5px;font-weight:600;color:var(--bt-ink-3);letter-spacing:.02em}
+.crew-rail-section p{margin:0;min-width:0}
+.crew-rail-row{display:flex;justify-content:space-between;gap:8px}
+.crew-rail-row>span:first-child{color:var(--bt-ink);font-weight:500}
+.crew-rail-row>span:last-child{min-width:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-rail-path{margin:0;padding:6px 8px;border:1px solid var(--bt-line);border-radius:7px;background:var(--bt-card);color:var(--bt-ink-2);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:16px;word-break:break-all}
+.crew-rail-actions{display:flex;flex-wrap:wrap;gap:6px}
+.crew-rail-actions button{padding:5px 9px;font-size:12px}
+.crew-rail-advanced{padding:0}
+.crew-rail-advanced .crew-adv{padding:12px;border:0;background:none}
+.crew-rail .crew-muted{color:var(--bt-ink-3)}
+@media (max-width:1100px){
+  .crew-room{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+  .crew-rail{max-height:42vh;border-left:0;border-top:1px solid var(--bt-line)}
+}
+
+/* Room density pass: smaller type, tighter cards, calmer rhythm */
+@media (min-width:761px){
+  .dsb-frame{grid-template-columns:248px minmax(0,1fr)}
+  .dsb-side{padding:6px 10px 8px}
+}
+.crew-head{gap:8px;padding:14px 20px 10px}
+.crew-title h1{font-size:18px}
+.crew-goal{font-size:12.5px;line-height:17px}
+.crew-scroll{padding:16px 20px 18px}
+.crew-flow{max-width:760px;gap:2px}
+.crew-msg{grid-template-columns:30px minmax(0,1fr);gap:9px;padding:8px 0}
+.crew-speaker-name{font-size:13.5px}
+.crew-speaker-station,.crew-speaker-time{font-size:11.5px}
+.crew-system{margin:10px 0;padding:4px 10px;font-size:12px;line-height:17px}
+.crew-process{margin-left:39px}
+.crew-milestone{margin-left:39px;font-size:13px}
+.crew-card{margin:6px 0 9px;border-radius:12px}
+.crew-card-head{padding:8px 11px;font-size:13px}
+.crew-card-body{padding:9px 11px;gap:7px;font-size:13.5px;line-height:18.5px}
+.crew-card-foot{padding:7px 11px;font-size:11.5px}
+.crew-delivery{max-width:760px;margin-bottom:14px;border-radius:14px}
+.crew-delivery-head{gap:12px;padding:13px 15px 10px}
+.crew-delivery-title h2{font-size:17px;line-height:21px}
+.crew-delivery-title p{font-size:12.5px;line-height:17px}
+.crew-delivery-metrics{padding:8px 15px;font-size:11.5px}
+.crew-delivery-commit,.crew-delivery-location{padding:8px 15px;font-size:12px}
+.crew-delivery-stages{gap:7px;padding:10px 15px}
+.crew-delivery-stage{padding:8px 9px}
+.crew-stage-dock{max-width:760px;padding:0 16px 4px}
+.crew-stage-dock-row{padding:7px 10px;font-size:13px}
+.dsb-composer{padding:8px 16px 12px}
+.crew-composer{max-width:760px;padding:7px 7px 7px 12px;border-radius:16px}
+.crew-input{font-size:15px;line-height:21px}
+.crew-send{width:30px;height:30px}
+.crew-room{grid-template-columns:minmax(0,1fr) 280px}
+.crew-rail-tabs{padding:6px 8px;gap:2px}
+.crew-rail-tab{padding:4px 0;font-size:11.5px;line-height:15px}
+.crew-rail-body{gap:13px;padding:12px 10px 18px}
+.crew-rail-section{gap:4px;font-size:12px;line-height:16px}
+.crew-rail-section>b{font-size:11px}
+.crew-rail-row>span:last-child{font-size:11.5px}
+.crew-rail-actions{gap:5px}
+.crew-rail-actions button{padding:4px 8px;font-size:11.5px}
+.crew-rail-path{font-size:11px;line-height:15px;padding:5px 7px}
+.crew-adv{padding:10px;font-size:12px}
+.crew-adv-table{font-size:12px}
