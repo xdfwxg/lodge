@@ -11,6 +11,42 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 状态机落点：`server/crew/room-state.js` 保存两张独立转移表，只做 `状态 + 事件 + context → 下一状态/拒绝原因` 的纯判断。所有 `closure` 和 `room.chat.phase` 写入必须经过它，并写 `closure.transition` / `chat.transition` 审计事件。聊天机与工作室机不共享状态、不发跨机事件。
 
+### 状态机转移表
+
+工作室 `closure`：
+
+| 当前状态 | 事件 | Guard | 下一状态 |
+| --- | --- | --- | --- |
+| `open` | `plan_submitted` | 有方案 | `planned` |
+| `open` | `start_execute` | 无计划房间 | `executing` |
+| `open` | `stage_advanced` | 决策阶段通过 | `planned` |
+| `open` | `await_sign` | 只剩最终结论 | `verifying` |
+| `planned` | `start_execute` | 计划已确认 | `executing` |
+| `planned` | `reject_plan` | 仅计划阶段 | `rejected` |
+| `planned` | `stage_advanced` | 决策阶段通过 | `planned` |
+| `planned` | `await_sign` | 只剩最终结论 | `verifying` |
+| `executing` | `submit_evidence` | 命令 exit 0 或人工证据 | `verifying` |
+| `executing` | `stage_advanced` | 决策阶段通过 | `planned` |
+| `executing` | `await_sign` | 只剩最终结论 | `verifying` |
+| `verifying` | `verdict_pass` | 验收票已记录 | `verifying` |
+| `verifying` | `verdict_reject` | Verifier 打回 | `executing` |
+| `verifying` | `stage_advanced` | 非最终阶段通过 | `planned` |
+| `verifying` | `await_sign` | 只剩最终结论 | `verifying` |
+| `verifying` | `sign` | Verifier PASS + 人工签字 | `signed` |
+| `signed` / `rejected` | 任意 | 终态 | 拒绝 |
+
+聊天室 `room.chat.phase`：
+
+| 当前状态 | 事件 | Guard | 下一状态 |
+| --- | --- | --- | --- |
+| `discussing` | `summarize` | 达到发言上限 | `summarizing` |
+| `summarizing` | `conclude` | 主持人总结完成 | `awaiting_decision` |
+| `awaiting_decision` | `accept` | 人工认可 | `accepted` |
+| `awaiting_decision` | `continue_discuss` | 人工要求继续 | `discussing` |
+| `accepted` | 任意 | 终态 | 拒绝 |
+
+初始化（`room-record.js` 新建房间）、旧数据迁移（`store.upgradeRoom`）和聊天调度启动复位是唯一允许直接写初始值的地方；运行期状态变化一律走转移函数。`origin`、`advisor` 建议、模型标签只作为 context，不参与 Guard。
+
 ## 1. ChatRoom 聊天室
 
 - 引擎：`chat` 对话引擎

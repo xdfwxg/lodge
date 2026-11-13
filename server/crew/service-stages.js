@@ -105,6 +105,8 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     let gate = null
     let next = -1
     let transitionError = null
+    const messages = readMessages(room.id)
+    const verdictPassed = messages.some(message => message.kind === 'verdict' && message.meta?.pass === true)
     const updated = updateRoom(room.id, current => {
       gate = gateFor(current, index, readMessages(room.id))
       if (!gate.ok) return null
@@ -116,14 +118,14 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
       else current.state = 'complete'
       let closureEvent = null
       if (current.roomType === 'studio') {
-        const event = next < 0 ? 'sign' : 'stage_advanced'
-        const moved = transitionStudio(current.closure ?? 'open', event, next < 0 ? { verdictPassed: true, human: true } : {})
+        const event = next < 0 ? 'sign' : next === current.stages.length - 1 ? 'await_sign' : 'stage_advanced'
+        const moved = transitionStudio(current.closure ?? 'open', event, next < 0 ? { verdictPassed, human: true } : {})
         if (!moved.ok) {
           transitionError = moved.error
           return null
         }
         current.closure = moved.state
-        closureEvent = studioTransitionEvent(moved, event, 'you')
+        closureEvent = studioTransitionEvent(moved, event, 'you', {}, next < 0 ? '人工签字' : next === current.stages.length - 1 ? '等待人工签字' : '阶段通过')
       }
       return {
         events: [

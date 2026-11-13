@@ -48,10 +48,10 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
     if (room.roomType === 'studio') {
       const updated = store.updateRoom(roomId, current => {
-        const moved = transitionStudio(current.closure ?? 'open', 'start_execute')
+        const moved = transitionStudio(current.closure ?? 'open', 'start_execute', { hasPlan: current.plan !== null && current.plan !== undefined })
         if (!moved.ok) return null
         current.closure = moved.state
-        return { events: [studioTransitionEvent(moved, 'start_execute', 'planner')] }
+        return { events: [studioTransitionEvent(moved, 'start_execute', 'planner', {}, '阶段开始')] }
       })
       if (updated !== null) emit?.('room', updated)
     }

@@ -105,7 +105,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       if (moved.ok) {
         store.updateRoom(roomId, roomState => {
           roomState.closure = moved.state
-          return { events: [studioTransitionEvent(moved, 'verdict_reject', pending.verifier)] }
+          return { events: [studioTransitionEvent(moved, 'verdict_reject', pending.verifier, {}, 'Verifier 打回')] }
         })
       }
     }
@@ -147,7 +147,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       store.updateRoom(roomId, current => {
         if (current.closure !== 'executing') return null
         current.closure = moved.state
-        return { events: [studioTransitionEvent(moved, 'submit_evidence', 'verifier')] }
+        return { events: [studioTransitionEvent(moved, 'submit_evidence', 'verifier', { manual }, manual ? '人工证据就绪' : '验收命令通过')] }
       })
     }
     if (round !== null) {

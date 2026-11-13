@@ -18,7 +18,7 @@ export const createServiceClosure = ({ store, emit, dispatchPayload, plannerMcp 
       current.closure = moved.state
       current.state = 'stopped'
       current.pauseReason = 'rejected'
-      return { events: [{ type: 'plan.rejected', payload: { reason } }, studioTransitionEvent(moved, 'reject_plan', room.leadSeat ?? 'planner')] }
+      return { events: [{ type: 'plan.rejected', payload: { reason } }, studioTransitionEvent(moved, 'reject_plan', room.leadSeat ?? 'planner', {}, reason)] }
     })
     if (updated === null) return fail('conflict', '房间状态已变化，重试')
     const message = store.appendMessage(room.id, {

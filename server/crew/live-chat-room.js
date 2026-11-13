@@ -249,7 +249,7 @@ export const createChatScheduler = ({
           speaker: host,
           running: true,
         }
-        return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', host)] }
+        return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', host, '达到发言上限')] }
       })
       let before = await messageIds(chat)
       let sent = await engine.sendTurn({
@@ -299,7 +299,7 @@ export const createChatScheduler = ({
           running: false,
           speaker: '',
         }
-        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }, chatTransitionEvent(concluded, 'conclude', host)] }
+        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }, chatTransitionEvent(concluded, 'conclude', host, '主持人总结完成')] }
       })
       if (updated !== null) emit('room', store.readRoom(roomId) ?? updated)
       void refresh()

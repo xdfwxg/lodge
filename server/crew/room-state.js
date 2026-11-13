@@ -3,25 +3,25 @@
 
 export const STUDIO_STATES = ['open', 'planned', 'executing', 'verifying', 'signed', 'rejected']
 export const CHAT_STATES = ['discussing', 'summarizing', 'awaiting_decision', 'accepted']
+export const STUDIO_EVENTS = ['plan_submitted', 'start_execute', 'stage_advanced', 'await_sign', 'reject_plan', 'submit_evidence', 'verdict_pass', 'verdict_reject', 'sign']
+export const CHAT_EVENTS = ['summarize', 'conclude', 'accept', 'continue_discuss']
 
 const studioTable = {
   open: {
     plan_submitted: { to: 'planned' },
-    start_execute: { to: 'executing', guard: () => true },
+    start_execute: { to: 'executing', guard: context => context.hasPlan !== true },
     stage_advanced: { to: 'planned', guard: () => true },
+    await_sign: { to: 'verifying', guard: () => true },
   },
   planned: {
     start_execute: { to: 'executing', guard: () => true },
     reject_plan: { to: 'rejected', guard: () => true },
     stage_advanced: { to: 'planned', guard: () => true },
-    sign: {
-      to: 'signed',
-      guard: context => context.verdictPassed === true && context.human === true,
-      reason: '签字需要 Verifier PASS 和人工确认',
-    },
+    await_sign: { to: 'verifying', guard: () => true },
   },
   executing: {
     stage_advanced: { to: 'planned', guard: () => true },
+    await_sign: { to: 'verifying', guard: () => true },
     submit_evidence: {
       to: 'verifying',
       guard: context => context.manual === true || context.exitCode === 0,
@@ -32,6 +32,7 @@ const studioTable = {
     verdict_pass: { to: 'verifying', guard: () => true },
     verdict_reject: { to: 'executing', guard: () => true },
     stage_advanced: { to: 'planned', guard: () => true },
+    await_sign: { to: 'verifying', guard: () => true },
     sign: {
       to: 'signed',
       guard: context => context.verdictPassed === true && context.human === true,
@@ -72,18 +73,19 @@ export const transitionStudio = (state, event, context = {}) => move(studioTable
 
 export const transitionChat = (state, event, context = {}) => move(chatTable, state, event, context)
 
-export const studioTransitionEvent = (result, event, actor = 'system', context = {}) => ({
+export const studioTransitionEvent = (result, event, actor = 'system', context = {}, reason = '') => ({
   type: 'closure.transition',
   payload: {
     from: result.from,
     to: result.state,
     event,
     actor,
+    ...(reason === '' ? {} : { reason }),
     ...(Object.keys(context).length === 0 ? {} : { context }),
   },
 })
 
-export const chatTransitionEvent = (result, event, actor = 'system') => ({
+export const chatTransitionEvent = (result, event, actor = 'system', reason = '') => ({
   type: 'chat.transition',
-  payload: { from: result.from, to: result.state, event, actor },
+  payload: { from: result.from, to: result.state, event, actor, ...(reason === '' ? {} : { reason }) },
 })

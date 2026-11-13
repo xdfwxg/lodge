@@ -17,7 +17,7 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
     const updated = updateRoom(room.id, current => {
       current.chat = { ...current.chat, phase: moved.state, accepted: true, running: false, speaker: '' }
       current.state = 'complete'
-      return { events: [{ type: 'room.complete', payload: { kind: 'chat' } }, chatTransitionEvent(moved, 'accept', 'you')] }
+      return { events: [{ type: 'room.complete', payload: { kind: 'chat' } }, chatTransitionEvent(moved, 'accept', 'you', '人工认可结论')] }
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)
@@ -57,7 +57,7 @@ export const createServiceChat = ({ store, live, emit, dispatchPayload }) => {
         speaker: '',
         note,
       }
-      return { events: [{ type: 'chat.continued', payload: { round: current.chat.round } }, chatTransitionEvent(moved, 'continue_discuss', 'you')] }
+      return { events: [{ type: 'chat.continued', payload: { round: current.chat.round } }, chatTransitionEvent(moved, 'continue_discuss', 'you', note === '' ? '继续讨论' : note)] }
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)

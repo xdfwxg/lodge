@@ -108,5 +108,40 @@ test('studio signoff records a human Verifier verdict and moves closure', () => 
   const human = ctx.messages.find(message => message.kind === 'verdict' && message.authorId === 'you')
   assert.equal(human.meta.roleKind, 'verifier')
   assert.equal(human.meta.mode, 'human')
-  assert.equal(ctx.room().closure, 'planned')
+  assert.equal(ctx.room().closure, 'verifying')
+})
+
+test('the final conclusion signs only after a recorded Verifier PASS', () => {
+  const ctx = setup(room({
+    live: false,
+    roomType: 'studio',
+    closure: 'verifying',
+    verificationMode: 'hybrid',
+    verifiers: ['verifier'],
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test', tasks: [] },
+      { title: '验收与结论', kind: 'decision', state: 'active' },
+    ],
+  }))
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
+  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
+  const result = ctx.stages.accept(ctx.room(), { stage: 1 })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().closure, 'signed')
+  assert.equal(ctx.room().state, 'complete')
+})
+
+test('a studio cannot sign without a Verifier PASS', () => {
+  const ctx = setup(room({
+    live: false,
+    roomType: 'studio',
+    closure: 'verifying',
+    verificationMode: 'hybrid',
+    verifiers: ['verifier'],
+    stages: [{ title: '验收与结论', kind: 'decision', state: 'active' }],
+  }))
+  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /Verifier/)
+  assert.equal(ctx.room().closure, 'verifying')
 })
