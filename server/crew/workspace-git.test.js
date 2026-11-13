@@ -96,6 +96,13 @@ test('execution seats get a local env copy, a dependency link and a port hint', 
     assert.equal(lstatSync(join(executor, 'node_modules')).isSymbolicLink(), true)
     assert.equal(lstatSync(join(verifier, 'node_modules')).isSymbolicLink(), true)
     assert.equal(new Set(Object.values(workspaces.ports)).size, Object.values(workspaces.ports).length)
+    assert.doesNotMatch(execFileSync('git', ['status', '--porcelain'], { cwd: executor, encoding: 'utf8' }), /\.lodge/)
+    execFileSync('git', ['add', '-A'], { cwd: executor })
+    assert.doesNotMatch(
+      execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: executor, encoding: 'utf8' }),
+      /\.lodge|\.crew/,
+    )
+    execFileSync('git', ['reset', '-q'], { cwd: executor })
     writeFileSync(join(executor, 'hello.txt'), 'crew ok\n')
     const candidate = submit({ path: executor, turnId: 'env-turn', name: 'Env' })
     assert.equal(typeof candidate, 'string')

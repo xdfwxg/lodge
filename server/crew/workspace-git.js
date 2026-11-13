@@ -11,6 +11,21 @@ import { chooseFreePort } from './workspace-ports.js'
 export const LOCAL_ONLY = ['.crew', '.lodge', '.env', '.env.local', 'node_modules']
 export const diffScope = ['.', ...LOCAL_ONLY.map(path => `:(exclude)${path}`)]
 
+// 执行者可能自己 git add -A；worktree 级别的 excludes 让本地运行文件不会被误提交。
+const LOCAL_EXCLUDES = ['.crew/', '.lodge/', '.env', '.env.local', 'node_modules/']
+const ensureLocalExcludes = (path, base) => {
+  try {
+    const file = join(base, '.lodge-exclude')
+    if (!existsSync(file)) writeFileSync(file, `${LOCAL_EXCLUDES.join('\n')}\n`)
+    git(path, ['config', '--worktree', 'core.excludesFile', file])
+  } catch {}
+}
+const enableWorktreeConfig = source => {
+  try {
+    git(source, ['config', 'extensions.worktreeConfig', 'true'])
+  } catch {}
+}
+
 // git provider：当前唯一实现。业务只通过 workspace.js 的端口调用这些动作。
 export const id = 'git'
 
@@ -121,6 +136,7 @@ export const prepareRoom = ({ source, short, seats }) => {
   ensureDiskSpace(scratchRoot())
   const base = join(scratchRoot(), short)
   mkdirSync(base, { recursive: true })
+  enableWorktreeConfig(source)
   const bySeat = {}
   const branches = {}
   const ports = {}
@@ -136,6 +152,7 @@ export const prepareRoom = ({ source, short, seats }) => {
     if (seat.role === 'worker') {
       const branch = `crew/${short}/${seat.id}`
       git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
+      ensureLocalExcludes(path, base)
       branches[seat.id] = branch
       bySeat[seat.id] = { path, kind: 'worktree', branch }
       environment[seat.id] = syncLocalEnvironment(source, path)
@@ -144,6 +161,7 @@ export const prepareRoom = ({ source, short, seats }) => {
     }
     if (seat.role === 'verifier') {
       git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
+      ensureLocalExcludes(path, base)
       bySeat[seat.id] = { path, kind: 'verify' }
       environment[seat.id] = syncLocalEnvironment(source, path)
       ports[seat.id] = takePort()
@@ -195,12 +213,15 @@ export const addSeat = ({ room, seat }) => {
   const path = join(base, seat.id)
   if (existsSync(path)) throw new Error(`席位工作区已存在：${seat.id}`)
   mkdirSync(base, { recursive: true })
+  enableWorktreeConfig(source)
   let branch = null
   if (seat.role === 'worker') {
     branch = `crew/${short}/${seat.id}`
     git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
+    ensureLocalExcludes(path, base)
   } else if (seat.role === 'verifier') {
     git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
+    ensureLocalExcludes(path, base)
   } else {
     execFileSync('git', ['clone', '--quiet', '--no-hardlinks', source, path], {
       cwd: base,
