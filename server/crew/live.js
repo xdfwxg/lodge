@@ -4,6 +4,8 @@ import { createRoomRefresher } from './live-refresh.js'
 import { createSeatSync } from './live-sync.js'
 import { createLiveTurns } from './live-turns.js'
 import { createRoomChat } from './live-chat.js'
+import { createChatScheduler } from './live-chat-room.js'
+import { createStudioEngine } from './live-studio.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgent = null, ports, approvalTimeoutMs }) => {
@@ -12,6 +14,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit, usage })
   const approvals = createLiveApprovals({ store, engine, emit, gateAgent, approvalTimeoutMs })
+  const studioEngine = createStudioEngine({ engine })
   const sync = createSeatSync({ store, engine, projector })
   const refreshRoom = refresher.refresh
   const seatHandlers = {
@@ -19,23 +22,47 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     refresh: refreshRoom,
   }
 
-  const chat = createRoomChat({ store, engine, projector, refresh: refreshRoom, emit })
+  const chat = createRoomChat({
+    store,
+    engine,
+    projector,
+    refresh: refreshRoom,
+    emit,
+    onPermission: (entry, seat, message, chatRoom) => approvals.answerPermission(
+      entry,
+      seat,
+      message,
+      refreshRoom,
+      { sessionRef: chatRoom.sessionRef },
+    ),
+    onTurn: (entry, room, message) => entry.turns.captureTurn(message.turn, message.authorRef),
+  })
 
   const attach = async (room, { resume = true } = {}) => {
     if (entries.has(room.id)) return entries.get(room.id)
     const seatRefs = room.seatRooms ?? {}
     const seatKeys = Object.keys(seatRefs)
     if (seatKeys.length === 0) throw new Error('房间没有席位线程')
-    const turns = createLiveTurns({
-      store,
-      engine,
-      roomId: room.id,
-      emit,
-      sendToSeat: (seat, text) => sendToSeat(room.id, seat, text),
-      commands,
-      files,
-      skills,
-    })
+    // 底层的两套引擎：聊天室只跑随机发言规则，不创建阶段/验收回合引擎。
+    const turns = room.roomType === 'studio'
+      ? createLiveTurns({
+        store,
+        engine,
+        roomId: room.id,
+        emit,
+        sendToSeat: (seat, text) => sendToSeat(room.id, seat, text),
+        commands,
+        files,
+        skills,
+      })
+      : {
+          seed: () => {},
+          captureTurn: () => {},
+          resume: async () => {},
+          requestReview: async () => { throw new Error('聊天室没有验收回合') },
+          startStage: async () => { throw new Error('聊天室没有阶段执行') },
+          busyReview: () => false,
+        }
     // 已落证据的回合在重启后会被基座历史重放；先标记，避免重复采集。
     turns.seed(store.readMessages(room.id))
     const entry = {
@@ -48,6 +75,13 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
       approvalTimers: new Map(),
       refreshedAt: 0,
     }
+    entry.chatRun = createChatScheduler({
+      store,
+      engine,
+      roomId: room.id,
+      emit,
+      refresh: () => refreshRoom(entry, { force: true }),
+    })
     entries.set(room.id, entry)
     approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
     const bases = await engine.rooms()
@@ -100,6 +134,7 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
   const detach = roomId => {
     const entry = entries.get(roomId)
     if (entry === undefined) return
+    entry.chatRun?.cancel()
     approvals.expireApprovals(entry, roomId, '房间绑定已断开，上一张权限卡已不在等待')
     chat.detach(entry)
     for (const target of entry.seats.values()) target.unsubscribe?.()
@@ -124,7 +159,11 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
           continue
         }
         try {
-          await attach(room)
+          const entry = await attach(room)
+          const current = store.readRoom(room.id)
+          if (current?.roomType === 'chat' && current.state === 'active' && current.chatRunning === true) {
+            void entry.chatRun.start(current)
+          }
         } catch (error) {
           console.warn(`live room not attached: ${room.id} ${error?.message ?? error}`)
         }
@@ -141,6 +180,12 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
   const sendToSeat = async (roomId, seat, text) => {
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('实时房间未绑定')
+    const room = store.readRoom(roomId)
+    // 工作室的派发和复核都走群聊 @；被 @ 的席位才加载，不再直接打席位线程。
+    if (studioEngine.owns(room)) {
+      const sent = await studioEngine.send(room, text)
+      return { ...sent, messageId: null, broadcast: true }
+    }
     const target = entry.seats.get(seat)
     if (target === undefined) throw new Error(`房间没有 ${seat} 席位`)
     return engine.sendTurn({ roomId: target.roomRef, text })
@@ -167,6 +212,18 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     return entry.turns.startStage(room, index)
   }
 
+  const startChat = async (room, options = {}) => {
+    const entry = entries.get(room.id)
+    if (entry === undefined) throw new Error('实时房间未绑定')
+    return entry.chatRun.start(room, options)
+  }
+
+  const continueChat = async (room, note = '') => {
+    const entry = entries.get(room.id)
+    if (entry === undefined) throw new Error('实时房间未绑定')
+    return entry.chatRun.start(store.readRoom(room.id) ?? room, { note })
+  }
+
   const reworkStage = async (room, index, note) => {
     const entry = entries.get(room.id)
     if (entry === undefined) throw new Error('实时房间未绑定')
@@ -188,11 +245,13 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     if (entry === undefined) return { cancelled: false, reason: '实时房间未绑定' }
     const room = store.readRoom(roomId)
     if (room === null) return { cancelled: false, reason: '房间不存在' }
+    entry.chatRun?.cancel()
     try {
       const bases = await engine.rooms()
       const busy = bases.filter(base => (
         base.working === true &&
-        Object.values(room.seatRooms ?? {}).some(ref => ref.id === base.id)
+        (Object.values(room.seatRooms ?? {}).some(ref => ref.id === base.id) ||
+          (room.chatRoom !== undefined && room.chatRoom.id === base.id))
       ))
       if (busy.length === 0) return { cancelled: false, reason: '当前没有正在跑的回合' }
       const results = []
@@ -221,6 +280,9 @@ export const createLiveRooms = ({ store, engine, emit, dispatchPayload, gateAgen
     isAttached: roomId => entries.has(roomId),
     startStage,
     reworkStage,
+    startChat,
+    continueChat,
+    chatRunning: roomId => entries.get(roomId)?.chatRun.isRunning() ?? false,
     syncChatMembers: room => chat.syncMembers(room),
     markChatRead: room => chat.markRead(room),
     resume: async (roomId, options) => {

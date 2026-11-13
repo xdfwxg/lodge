@@ -7,6 +7,7 @@ import { planDispatch } from './orchestration/index.js'
 import { modeGuidance, skillPrompt, workContract } from './prompt-modes.js'
 import { seatDisplayName } from './seat-labels.js'
 import { workspaceOf } from './live-workspace.js'
+import { studioPlannerPrompt } from './live-studio.js'
 
 export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTasks, integrate, enqueue, skills }) => {
   const startStage = async (room, index, { note = '', rework = false } = {}) => {
@@ -38,7 +39,11 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       if (blockedUpdate !== null) emit?.('room', blockedUpdate)
     }
     const dispatchPlan = planDispatch({ room, stage, index, workers })
-    const { strategy, assignees } = dispatchPlan
+    const { strategy } = dispatchPlan
+    // 工作室 v1 是群聊单工作目录：一次只交给一个执行席位，避免同目录并行写。
+    const assignees = room.roomType === 'studio'
+      ? dispatchPlan.assignees.slice(0, 1)
+      : dispatchPlan.assignees
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
     updateTasks(index, current => ({
       ...current,
@@ -97,6 +102,22 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
           ? '系统会提交候选。'
           : '不要改房间记录。',
       ].filter(Boolean).join('\n')
+    }
+
+    if (room.roomType === 'studio') {
+      const lead = room.leadSeat ?? room.members?.[0]
+      markSeatRead({ store, roomId, seat: lead, emit })
+      await sendToSeat(lead, studioPlannerPrompt({
+        room,
+        messages: store.readMessages(roomId),
+        stage,
+        index,
+        assignee: assignees[0],
+        rework,
+        note,
+        acceptance,
+      }))
+      return
     }
 
     if (assignees.length === 1) {

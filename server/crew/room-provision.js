@@ -71,7 +71,7 @@ export const createProvisioner = ({ engine }) => {
       members: createdSeatRefs.map(({ seatRef }) => seatRef.id),
       cwd: workspaces.roomPath ?? workspaces.seats[leadSeat.seat.id].path,
       leadId: leadSeat.seatRef.id,
-      autoRoute: true,
+      responder: { kind: 'mentions' },
     })
     createdBaseRooms.push(chatRoom)
 

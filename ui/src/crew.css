@@ -410,3 +410,7 @@
 .crew-digest-needs{font-size:12px;font-weight:600;line-height:17px;color:color-mix(in srgb,var(--bt-star) 82%,var(--bt-ink))}
 .crew-digest-needs[data-kind=signoff]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
 .crew-digest-needs[data-kind=rework]{color:var(--bt-danger)}
+
+/* Chat room: the scheduler stays invisible; only round progress and a typing hint surface. */
+.crew-chat-status{position:sticky;top:0;z-index:2;align-self:flex-start;margin:0 0 6px;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--bt-card) 88%,transparent);border:1px solid var(--bt-line);color:var(--bt-ink-3);font-size:11.5px;line-height:17px;backdrop-filter:blur(8px)}
+.crew-typing{align-self:flex-start;margin:0 22px 6px;color:var(--bt-ink-3);font-size:12px;line-height:17px}

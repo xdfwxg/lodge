@@ -53,10 +53,11 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     } catch (error) {
       store.appendMessage(roomId, { kind: 'system', text: `候选提交失败：${error?.message ?? error}` })
     }
+    const hasVerifier = (room.verifiers?.length ?? 0) > 0
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: '产物已就绪，等你验收。',
+      text: hasVerifier ? '产物已就绪，等验收员复核。' : '产物已就绪，等你验收。',
       meta: {
         kind: 'manual',
         stage: stageIndex,
@@ -66,8 +67,13 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         capturedAt: new Date().toISOString(),
       },
     })
-    store.appendMessage(roomId, { kind: 'system', text: '产物已就绪 · 等你验收' })
+    store.appendMessage(roomId, { kind: 'system', text: hasVerifier ? '产物已就绪 · 等验收员复核' : '产物已就绪 · 等你验收' })
     state.markProgress()
+    if (hasVerifier) {
+      void review.request(stageIndex).catch(error => {
+        store.appendMessage(roomId, { kind: 'system', text: `人工验收复核未启动：${error?.message ?? error}` })
+      })
+    }
   }
 
   const captureTurn = (turn, authorRef) => {

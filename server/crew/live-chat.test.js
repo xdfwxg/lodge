@@ -94,13 +94,16 @@ test('chat events project into the room without touching stage turns', () => {
   assert.equal(ctx.messages.at(-1).id, 'stored-1')
 })
 
-test('chat turns cannot use any tool', () => {
+test('chat turns allow read-only tools but never write or exec', () => {
   const ctx = setup()
-  const room = { ...ctx.room(), chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
   const entry = { roomId: room.id }
   ctx.chat.subscribe(entry, room)
   ctx.subscribed[0].onEvent({
     message: { authorRef: 'b-executor', card: { requestType: 'permission', requestId: 'p1', action: 'read', tool: 'Read' } },
   })
-  assert.deepEqual(ctx.answered[0], { sessionRef: 'thread-1', requestId: 'p1', behavior: 'deny' })
+  ctx.subscribed[0].onEvent({
+    message: { authorRef: 'b-executor', card: { requestType: 'permission', requestId: 'p2', action: 'write', tool: 'Write' } },
+  })
+  assert.deepEqual(ctx.answered.map(item => item.behavior), ['allow', 'deny'])
 })

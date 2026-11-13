@@ -5,7 +5,7 @@ import { buildSeatHandoff } from './seat-handoff.js'
 import { reject } from './result.js'
 import { parseVerdict, REVIEW_TIMEOUT, tail } from './live-turn-utils.js'
 import { workspaceOf } from './live-workspace.js'
-import { reviewState, verifierIds } from './verifiers.js'
+import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
 import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from './orchestration/index.js'
 import { seatDisplayName } from './seat-labels.js'
@@ -85,20 +85,27 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     if (round !== null) reject('conflict', '上一次复核还没有结束')
     const room = store.readRoom(roomId)
     const stage = room?.stages?.[stageIndex]
-    if (stage === undefined || stage.kind !== 'deliverable') reject('invalid', '这个阶段不是交付型')
+    if (stage === undefined || (stage.kind !== 'deliverable' && stage.manual !== true)) {
+      reject('invalid', '这个阶段不是交付型')
+    }
     if (stage.state !== 'active') reject('conflict', '这个阶段不在待验收状态')
     const budget = budgetStatus(room, store.readRooms())
     if (!budget.ok) reject('conflict', budget.message)
 
     const messages = store.readMessages(roomId)
-    const outcome = reviewState({ room, messages, stageIndex })
+    const manual = stage.manual === true
+    const outcome = manual
+      ? manualReviewState({ room, messages, stageIndex })
+      : reviewState({ room, messages, stageIndex })
     if (outcome.state === 'pass') reject('conflict', '本阶段全部验收席位已经有 PASS 了')
     if (outcome.state === 'reject') reject('conflict', '验收已被打回；先返工并重新跑验收命令')
     if (outcome.state === 'failed') reject('conflict', '最新验收命令没有通过；先返工并重新跑验收命令')
     const ids = verifierIds(room)
     if (ids.length === 0) reject('conflict', '房间没有验收席位')
     const evidence = outcome.evidence
-    if (evidence === undefined || evidence === null) reject('conflict', '还没有本阶段的验收命令证据')
+    if (evidence === undefined || evidence === null) {
+      reject('conflict', manual ? '还没有本阶段的产物证据' : '还没有本阶段的验收命令证据')
+    }
     const targets = outcome.state === 'pending' ? outcome.missing : ids
     if (targets.length === 0) reject('conflict', '所有验收席位都已回报')
 
@@ -107,8 +114,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     const nextRound = {
       stage: stageIndex,
       evidenceId: evidence.id,
-      command: meta.command,
-      exit: meta.exit,
+      command: manual ? '' : meta.command,
+      exit: manual ? null : meta.exit,
       total: ids.length,
       passed: outcome.verdicts.filter(message => message.meta?.pass === true).length,
       requests: new Map(),
@@ -136,36 +143,56 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         }
       }
       const verifierPort = room.ports?.[verifier]
-      const prompt = [
-        `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
-        ...workContract('verifier'),
-        '盲审：你只拿到目标、约束、本轮验收证据和改动，不读取执行席位的对话；判定只看证据和代码。',
-        buildSeatHandoff({ room, messages }),
-        `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
-        ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
-        `验收命令：${meta.command}`,
-        `退出码：${meta.exit === null ? '无' : meta.exit}`,
-        '命令输出：',
-        '```',
-        tail(meta.output, 4000),
-        '```',
-        '改动：',
-        '```diff',
-        tail(meta.diff, 6000),
-        '```',
-        '',
-        '请自己打开改动过的文件核对；必要时自己重跑验收命令，不要把上面的输出当成唯一依据。',
-        '只评审交付改动；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
-        ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
-        ...(reviewGuidance === '' ? [] : [reviewGuidance]),
-        '判定不清就写 REJECT。',
-      ].join('\n')
+      const prompt = manual
+        ? [
+            `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+            ...workContract('verifier'),
+            '盲审：你只拿到目标、约束和本轮产物证据，不读取执行席位的对话；判定只看证据和代码。',
+            buildSeatHandoff({ room, messages }),
+            `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
+            ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
+            '产物证据：',
+            '```',
+            tail(evidence.text, 4000),
+            '```',
+            '请自己打开产物核对；这是人工验收阶段，没有验收命令。',
+            '只评审交付产物；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
+            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
+            ...(reviewGuidance === '' ? [] : [reviewGuidance]),
+            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
+            '判定不清就写 REJECT。',
+          ].join('\n')
+        : [
+            `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+            ...workContract('verifier'),
+            '盲审：你只拿到目标、约束、本轮验收证据和改动，不读取执行席位的对话；判定只看证据和代码。',
+            buildSeatHandoff({ room, messages }),
+            `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
+            ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
+            `验收命令：${meta.command}`,
+            `退出码：${meta.exit === null ? '无' : meta.exit}`,
+            '命令输出：',
+            '```',
+            tail(meta.output, 4000),
+            '```',
+            '改动：',
+            '```diff',
+            tail(meta.diff, 6000),
+            '```',
+            '',
+            '请自己打开改动过的文件核对；必要时自己重跑验收命令，不要把上面的输出当成唯一依据。',
+            '只评审交付改动；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
+            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
+            ...(reviewGuidance === '' ? [] : [reviewGuidance]),
+            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
+            '判定不清就写 REJECT。',
+          ].join('\n')
 
       const request = {
         stage: stageIndex,
         verifier,
-        command: meta.command,
-        exit: meta.exit,
+        command: manual ? '' : meta.command,
+        exit: manual ? null : meta.exit,
         evidenceId: evidence.id,
         timer: null,
       }

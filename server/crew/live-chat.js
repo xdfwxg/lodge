@@ -14,7 +14,7 @@ export const echoHumanMessage = ({ store, roomId, text, messageId }) => {
 
 // 房间对话走基座原生群聊：成员、@、上下文和沉默都由基座负责。
 // 这里只管创建/重连/收发，不把聊天变成阶段回合。
-export const createRoomChat = ({ store, engine, projector, refresh, emit = () => {} }) => {
+export const createRoomChat = ({ store, engine, projector, refresh, emit = () => {}, onPermission, onTurn }) => {
   const sync = async entry => {
     const room = store.readRoom(entry.roomId)
     const chat = room?.chatRoom
@@ -28,12 +28,12 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
 
   const ensure = async room => {
     if (room.chatRoom !== undefined) {
-      // 旧聊天群可能还是固定规划师；补成自动选人，失败就继续用现有 responder。
-      if (typeof engine.setRoomAutoRoute === 'function') {
+      // 群聊默认休眠：只有被 @ 的席位才加载。工作室和聊天室都走同一条总线。
+      if (typeof engine.setRoomMentions === 'function') {
         try {
-          await engine.setRoomAutoRoute(room.chatRoom.id, room.seatBots?.[room.leadSeat])
+          await engine.setRoomMentions(room.chatRoom.id)
         } catch (error) {
-          store.appendMessage(room.id, { kind: 'system', text: `聊天自动选人未启用：${error?.message ?? error}` })
+          store.appendMessage(room.id, { kind: 'system', text: `群聊唤醒规则未启用：${error?.message ?? error}` })
         }
       }
       return room
@@ -49,7 +49,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         members,
         cwd: room.repoPath,
         leadId: room.seatBots?.[room.leadSeat] ?? members[0],
-        autoRoute: true,
+        responder: { kind: 'mentions' },
       })
       const updated = store.updateRoom(room.id, current => {
         if (current.chatRoom !== undefined) return null
@@ -83,23 +83,37 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         }
         const message = event.message
         if (message === undefined) return
-        // 聊天只对话：工具一律拒绝，聊天回合不执行、不改文件。
+        const current = store.readRoom(room.id) ?? room
         if (message.card?.requestType === 'permission') {
-          const seat = seatFor(store.readRoom(room.id), message.authorRef)
-          const spec = room.seatSpecs?.find(item => item.id === seat)
+          const seat = seatFor(current, message.authorRef)
+          // 工作室的群聊回合就是执行回合，权限沿用席位能力；聊天室只放行只读轻工具。
+          if (current.roomType === 'studio' && typeof onPermission === 'function') {
+            void onPermission(entry, seat, message, chat).catch(error => {
+              store.appendMessage(room.id, { kind: 'system', text: `群聊权限卡处理失败：${error?.message ?? error}` })
+            })
+            return
+          }
+          const spec = current.seatSpecs?.find(item => item.id === seat)
+          // 聊天室只放行只读轻工具；写文件、跑命令和完整执行引擎都不挂在这里。
+          const allowed = message.card.action === 'read'
           void engine.answerCard({
             sessionRef: chat.sessionRef,
             requestId: message.card.requestId,
-            behavior: 'deny',
+            behavior: allowed ? 'allow' : 'deny',
           }).then(() => {
-            store.appendMessage(room.id, {
-              kind: 'system',
-              text: `聊天不执行工具：${spec?.name ?? seat ?? '席位'} 被拒绝使用 ${message.card.tool ?? message.card.action ?? '该工具'}；执行请在阶段里派活。`,
-            })
+            if (!allowed) {
+              store.appendMessage(room.id, {
+                kind: 'system',
+                text: `聊天室只放行只读工具：${spec?.name ?? seat ?? '席位'} 被拒绝使用 ${message.card.tool ?? message.card.action ?? '该工具'}；要执行请新建工作室。`,
+              })
+            }
           }).catch(error => {
             store.appendMessage(room.id, { kind: 'system', text: `聊天权限卡处理失败：${error?.message ?? error}` })
           })
           return
+        }
+        if (current.roomType === 'studio' && message.kind === 'turn' && typeof onTurn === 'function') {
+          onTurn(entry, current, message)
         }
         const stored = projector.toStored(room.id, message)
         if (stored !== null) store.upsertMessage(stored)

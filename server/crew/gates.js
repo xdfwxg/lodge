@@ -1,4 +1,4 @@
-import { reviewState, reworkFloor, verifierIds } from './verifiers.js'
+import { manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
 
@@ -23,6 +23,18 @@ export const gateFor = (room, index, messages) => {
       .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
       .at(-1)
     if (latestEvidence?.meta?.kind !== 'manual') return deny('conflict', '执行还没有产出，不能验收')
+    if (verifierIds(room).length > 0) {
+      const outcome = manualReviewState({ room, messages, stageIndex: index })
+      if (outcome.state === 'reject') {
+        const names = outcome.rejects.map(message => room.seatNames?.[message.authorId] ?? message.authorId).join('、')
+        return deny('conflict', `${names} 已打回，先返工再重新提交`)
+      }
+      if (outcome.state === 'pending') {
+        const names = outcome.missing.map(id => room.seatNames?.[id] ?? id).join('、')
+        return deny('conflict', `还有验收席位没有回报（${names}），不能签字`)
+      }
+      if (outcome.state !== 'pass') return deny('conflict', '还没有本轮产物证据上的 Verifier PASS，不能签字')
+    }
     return { ok: true, stage }
   }
   if (stage.kind !== 'deliverable') return { ok: true, stage }

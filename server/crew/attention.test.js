@@ -98,6 +98,8 @@ test('a manual stage stays quiet until the product is ready', () => {
   assert.equal(roomNeedsYou(r, []), null)
   assert.equal(roomNeedsYou(r, [evidence()]), null)
   const manual = { kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
+  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'review', stage: 1, label: '待复核 · 已回报 0/1' })
+  r.verifiers = []
   assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'decision', stage: 1, label: '等你验收' })
 })
 

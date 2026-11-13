@@ -50,6 +50,12 @@ const fakeStore = room => {
 test('live turn helpers keep stage and verdict semantics', () => {
   assert.equal(parseVerdict('PASS\nlooks good'), true)
   assert.equal(parseVerdict('**REJECT**\nnot yet'), false)
+  assert.equal(parseVerdict('验收通过，盲审结果如下：\n证据一致'), true)
+  assert.equal(parseVerdict('不通过：证据不一致'), false)
+  assert.equal(parseVerdict('**阶段 2 验收：通过 ✅**\n证据一致'), true)
+  assert.equal(parseVerdict('阶段 2 验收：退回\n证据不足'), false)
+  assert.equal(parseVerdict('盲审结论：**通过** ✅\n证据一致'), true)
+  assert.equal(parseVerdict('盲审结论：无法通过\n证据不足'), false)
   assert.equal(deliverableStageIndex(makeRoom({
     stages: [
       { title: 'align', kind: 'decision', state: 'passed' },
@@ -175,4 +181,34 @@ test('review request and verdict consumption update the round without crossing t
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
   assert.ok(store.messages.some(message => message.text === '全部验收席位 PASS，等你签字。'))
+})
+
+test('manual evidence also goes through the Verifier before human signoff', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    stages: [{ title: 'artifact', kind: 'decision', manual: true, state: 'active' }],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    text: '产物已就绪',
+    meta: { stage: 0, kind: 'manual', repoPath: '/tmp/room' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      sent.push({ seat, prompt })
+      return { messageId: 'm2' }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  assert.equal(sent[0].seat, 'verifier')
+  assert.match(sent[0].prompt, /产物证据/)
+  assert.doesNotMatch(sent[0].prompt, /验收命令：/)
+  assert.equal(review.consume({ turn: { reply: 'PASS\nok' }, seat: 'verifier', turnId: 't1', room }), true)
+  assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
 })

@@ -1,4 +1,4 @@
-import { createElement as h } from 'react'
+import { Fragment, createElement as h, useState } from 'react'
 import { BotAvatar, BotMark } from './marks.js'
 import { MarkdownText } from './primitives.js'
 import { MD, timeOf, independenceOf } from './view-format.js'
@@ -109,7 +109,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
           h('span', { className: 'crew-verdict', 'data-pass': pass, 'data-reject': !pass }, pass ? 'PASS' : 'REJECT')),
         h('div', { className: 'crew-card-body' },
           command ? h('div', { className: 'crew-kv' }, h('span', null, '命令'), h('code', null, command)) : null,
-          exit !== undefined ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(exit))) : null,
+          exit !== undefined && exit !== null ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(exit))) : null,
           message.text ? h(Markdown, { text: message.text, variant: 'compact' }) : null,
           proof.output ? h('details', { className: 'crew-fold' }, h('summary', null, '输出'), h('pre', { className: 'crew-code' }, proof.output)) : null,
           files.length > 0 ? h('div', { className: 'crew-receipt-files' }, files.join(' · ')) : null),
@@ -175,4 +175,93 @@ function ConclusionCard({ message }) {
             : null))))
 }
 
-export { Markdown, Speaker, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, MilestoneLine, ConclusionCard }
+function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat }) {
+  const meta = message.meta ?? {}
+  const round = meta.round ?? 1
+  const currentRound = round === (room.chatRound ?? 1)
+  const latest = room.roomType === 'chat' &&
+    room.state === 'active' &&
+    room.chatRunning !== true &&
+    currentRound
+  const accepted = room.roomType === 'chat' && room.state === 'complete' && currentRound
+  const [note, setNote] = useState('')
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const stageIndex = room.stages.length - 1
+  const accept = async () => {
+    if (busy) return
+    setBusy(true)
+    await onAccept(stageIndex)
+    setBusy(false)
+  }
+  const continueChat = async () => {
+    if (busy) return
+    setBusy(true)
+    await onContinueChat(note.trim())
+    setBusy(false)
+    setOpen(false)
+    setNote('')
+  }
+  return h('div', { className: 'crew-msg' },
+    h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
+    h('div', { className: 'crew-msg-body' },
+      h(Speaker, { seat, ts: message.ts }),
+      h('div', { className: 'crew-card crew-conclusion' },
+        h('div', { className: 'crew-card-head' },
+          `第 ${round} 轮结论`,
+          h('span', { className: 'crew-verdict', 'data-pending': latest, 'data-pass': accepted },
+            latest ? '待你确认' : accepted ? '已确认' : '已继续讨论')),
+        h('div', { className: 'crew-card-body' },
+          meta.fallback === true
+            ? h('p', { className: 'crew-field-hint' }, '主持人未能在限定时间内总结；以下是原始讨论摘要。')
+            : null,
+          h(Markdown, { text: message.text, variant: 'compact' }),
+          open
+            ? h('div', { className: 'crew-rework' },
+              h('input', {
+                className: 'crew-goal-input',
+                type: 'text',
+                value: note,
+                placeholder: '哪里还需要讨论？（可选）',
+                onChange: event => setNote(event.target.value),
+                onKeyDown: event => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    void continueChat()
+                  }
+                },
+              }))
+            : null),
+        latest
+          ? h('div', { className: 'crew-card-foot' },
+            open
+              ? h(Fragment, null,
+                h('button', {
+                  type: 'button',
+                  className: 'crew-accept',
+                  disabled: busy || room.state !== 'active',
+                  onClick: () => void continueChat(),
+                }, busy ? '正在继续…' : '再讨论 6 次'),
+                h('button', {
+                  type: 'button',
+                  className: 'crew-ghost',
+                  disabled: busy,
+                  onClick: () => { setOpen(false); setNote('') },
+                }, '取消'))
+              : h(Fragment, null,
+                h('button', {
+                  type: 'button',
+                  className: 'crew-ghost',
+                  disabled: busy || room.state !== 'active',
+                  onClick: () => setOpen(true),
+                }, '继续讨论'),
+                h('button', {
+                  type: 'button',
+                  className: 'crew-accept',
+                  disabled: busy || room.state !== 'active',
+                  onClick: () => void accept(),
+                }, busy ? '处理中…' : '认可结论')))
+          : null)))
+}
+
+export { Markdown, Speaker, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, MilestoneLine, ConclusionCard, ChatConclusionCard }

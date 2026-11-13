@@ -129,6 +129,54 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     return ok({ room: finalRoom })
   }
 
+  const continueChat = (room, body) => {
+    if (room.roomType !== 'chat') return fail('invalid', '只有聊天室可以继续讨论')
+    if (room.state !== 'active') return fail('conflict', '房间不在进行中')
+    if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
+      return fail('conflict', '聊天室没有绑定运行引擎')
+    }
+    if (room.chatRunning === true) return fail('conflict', '聊天讨论还在进行')
+    const index = room.stages?.findIndex(stage => stage.state === 'active') ?? -1
+    if (index < 0 || room.stages[index].kind !== 'decision') {
+      return fail('conflict', '现在没有待确认的聊天结论')
+    }
+    const round = Number.isInteger(room.chatRound) && room.chatRound > 0 ? room.chatRound : 1
+    const conclusion = [...readMessages(room.id)].reverse().find(message => (
+      message.kind === 'chat_conclusion' && (message.meta?.round ?? 1) === round
+    ))
+    if (conclusion === undefined) return fail('conflict', '还没有本轮结论，不能继续讨论')
+    const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : ''
+    const message = appendMessage(room.id, {
+      kind: 'chat_rework',
+      authorId: 'you',
+      text: note === '' ? '再讨论一轮。' : note,
+      meta: { round, stage: index },
+    })
+    const updated = updateRoom(room.id, current => {
+      current.chatRound = round + 1
+      current.chatRunning = true
+      current.chatTurns = 0
+      current.chatSpeaker = ''
+      current.chatPhase = ''
+      return { events: [{ type: 'chat.continued', payload: { from: round, to: round + 1 } }] }
+    })
+    if (updated === null) return fail('not_found', '没有这个房间')
+    emit('room', updated)
+    emit('dispatch', dispatchPayload())
+    void live.continueChat(updated, note).catch(error => {
+      appendMessage(room.id, { kind: 'system', text: `继续讨论启动失败：${error?.message ?? error}` })
+      const reset = updateRoom(room.id, current => {
+        if (current.chatRunning !== true) return null
+        current.chatRunning = false
+        current.chatSpeaker = ''
+        current.chatPhase = ''
+        return { events: [] }
+      })
+      if (reset !== null) emit('room', reset)
+    })
+    return ok({ room: updated, message })
+  }
+
   const rework = (room, body) => {
     const index = Number(body?.stage)
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : ''
@@ -206,5 +254,5 @@ export const createServiceStages = ({ store, live, emit, dispatchPayload, comple
     return ok({ room, message })
   }
 
-  return { editStagePlan, accept, rework, setAcceptance }
+  return { editStagePlan, accept, continueChat, rework, setAcceptance }
 }

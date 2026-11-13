@@ -51,7 +51,7 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
   }
 
   // 外部动作默认由人批准；只有显式 auto 信任，且规则守门明确 allow 时才自动放行。
-  const holdForApproval = async (entry, seat, card, external) => {
+  const holdForApproval = async (entry, seat, card, external, sessionRef) => {
     const room = store.readRoom(entry.roomId)
     if (room === null) return
     const approval = {
@@ -59,6 +59,7 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
       seat,
       seatName: seatNameOf(room, seat),
       requestId: card.requestId,
+      ...(typeof sessionRef === 'string' && sessionRef !== '' ? { sessionRef } : {}),
       tool: typeof card.tool === 'string' ? card.tool : '',
       kind: external.kind,
       label: external.label,
@@ -71,7 +72,7 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
       entry.answeredCards.add(card.requestId)
       try {
         const result = await engine.answerCard({
-          sessionRef: entry.seats.get(seat)?.sessionRef,
+          sessionRef: sessionRef ?? entry.seats.get(seat)?.sessionRef,
           requestId: card.requestId,
           behavior: 'allow',
         })
@@ -183,7 +184,7 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
     return updated
   }
 
-  const answerPermission = async (entry, seat, message, refresh) => {
+  const answerPermission = async (entry, seat, message, refresh, { sessionRef } = {}) => {
     const card = message?.card
     if (card?.requestType !== 'permission' || typeof card.requestId !== 'string') return
     if (entry.answeredCards.has(card.requestId) || entry.heldCards.has(card.requestId)) return
@@ -193,14 +194,15 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
     const readOnly = activeStageReadOnly(room) || observe
     const allowed = decidePermission(spec, card.action, { readOnly })
     const external = allowed ? externalAction(card) : null
+    const cardSession = sessionRef ?? entry.seats.get(seat)?.sessionRef
     if (external !== null) {
-      await holdForApproval(entry, seat, card, external)
+      await holdForApproval(entry, seat, card, external, cardSession)
       return
     }
     entry.answeredCards.add(card.requestId)
     try {
       const result = await engine.answerCard({
-        sessionRef: entry.seats.get(seat)?.sessionRef,
+        sessionRef: cardSession,
         requestId: card.requestId,
         behavior: allowed ? 'allow' : 'deny',
       })
@@ -248,7 +250,7 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
     clearTimer(entry, approvalId)
     try {
       const result = await engine.answerCard({
-        sessionRef: target.sessionRef,
+        sessionRef: approval.sessionRef ?? target.sessionRef,
         requestId: approval.requestId,
         behavior: decision,
       })

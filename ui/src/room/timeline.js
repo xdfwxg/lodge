@@ -1,6 +1,6 @@
 import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../approval-card.js'
-import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, MilestoneLine, ConclusionCard } from '../message-cards.js'
+import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, MilestoneLine, ConclusionCard, ChatConclusionCard } from '../message-cards.js'
 import { buildTimeline } from './timeline-model.js'
 
 const TIME_GAP = 5 * 60 * 1000
@@ -13,7 +13,7 @@ const timeLabel = ts => {
   return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
 
-function Timeline({ room, seats, onAccept, onApproval }) {
+function Timeline({ room, seats, onAccept, onApproval, onContinueChat }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const timeline = useMemo(() => buildTimeline(room.messages), [room.messages])
 
@@ -34,6 +34,16 @@ function Timeline({ room, seats, onAccept, onApproval }) {
       if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })
       if (message.kind === 'evidence') return h(EvidenceCard, { key: message.id, message, seat })
       if (message.kind === 'conclusion') return h(ConclusionCard, { key: message.id, message })
+      if (message.kind === 'chat_conclusion') {
+        return h(ChatConclusionCard, {
+          key: message.id,
+          message,
+          seat: byId[message.authorId] ?? { name: '主持人', title: '' },
+          room,
+          onAccept,
+          onContinueChat,
+        })
+      }
       if (message.kind === 'verdict') {
         return h(VerdictCard, {
           key: message.id,

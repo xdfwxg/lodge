@@ -335,7 +335,13 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { ok: true }
   }
 
-  const createRoom = async ({ name, goal, bulletin, members, cwd, leadId, autoRoute = false }) => {
+  // 群聊默认不唤醒任何成员；只有被 @ 的席位才加载。工作室和聊天室都用这一种总线。
+  const setRoomMentions = async roomId => {
+    await client.patchGroup(roomId, { defaultResponder: { kind: 'mentions' } })
+    return { ok: true }
+  }
+
+  const createRoom = async ({ name, goal, bulletin, members, cwd, leadId, autoRoute = false, responder }) => {
     const created = await client.createGroup({ name, memberIds: members })
     const group = created?.group ?? created
     if (typeof group?.id !== 'string' || typeof group?.threadId !== 'string') throw new Error('基座没有返回群')
@@ -344,9 +350,9 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
         action: 'complete',
         cwd,
         bulletin: bulletin ?? goal,
-        defaultResponder: autoRoute
+        defaultResponder: responder ?? (autoRoute
           ? { kind: 'auto', fallbackBotId: leadId }
-          : { kind: 'member', botId: leadId },
+          : { kind: 'member', botId: leadId }),
       })
       await client.patchGroupTask(group.id, group.threadId, { title: goal })
     } catch (error) {
@@ -404,6 +410,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     createRoom,
     updateRoomMembers,
     setRoomAutoRoute,
+    setRoomMentions,
     markRoomRead,
     deleteSeatBot,
     deleteRoom,

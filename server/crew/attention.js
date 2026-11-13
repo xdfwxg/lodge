@@ -1,5 +1,5 @@
 import { pendingApprovals } from './external-actions.js'
-import { commandEvidenceFor, reviewState, reworkFloor, verifierIds } from './verifiers.js'
+import { commandEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const activeStageIndex = room => room.stages.findIndex(stage => stage.state === 'active')
 
@@ -28,6 +28,16 @@ export const roomNeedsYou = (room, messages = []) => {
   const stage = room.stages[index]
   const floor = reworkFloor(messages, index)
 
+  if (room.roomType === 'chat') {
+    if (room.chatRunning === true) return null
+    const conclusion = [...messages].reverse().find(message => (
+      message.kind === 'chat_conclusion' && (message.meta?.round ?? 1) === (room.chatRound ?? 1)
+    ))
+    return conclusion === undefined
+      ? { kind: 'idle', stage: index, label: '聊天中断 · 等你处理' }
+      : { kind: 'decision', stage: index, label: '等你确认结论' }
+  }
+
   if (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') {
     return { kind: 'question', stage: index, label: '等你回答' }
   }
@@ -35,6 +45,15 @@ export const roomNeedsYou = (room, messages = []) => {
   if (stage.manual === true) {
     const manual = latestForStage(messages, 'evidence', index, floor)
     if (manual?.meta?.kind !== 'manual') return null
+    if (verifierIds(room).length > 0) {
+      const outcome = manualReviewState({ room, messages, stageIndex: index })
+      if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '验收退回 · 等你处理' }
+      if (outcome.state === 'pending') {
+        return { kind: 'review', stage: index, label: `待复核 · 已回报 ${outcome.received}/${outcome.total}` }
+      }
+      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '等你签字' }
+      return null
+    }
     return { kind: 'decision', stage: index, label: '等你验收' }
   }
   if (stage.kind === 'decision') return { kind: 'decision', stage: index, label: '等你确认' }

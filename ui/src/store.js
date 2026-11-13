@@ -223,6 +223,7 @@ export function createStore() {
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
+    continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     answer: async (stage, text) => {
       if (text !== '') {
         const sent = await post(`/api/rooms/${state.activeId}/messages`, { text })

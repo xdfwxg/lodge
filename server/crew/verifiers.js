@@ -29,6 +29,46 @@ export const commandEvidenceFor = (room, messages, stageIndex) => {
   ))
 }
 
+export const manualEvidenceFor = (room, messages, stageIndex) => {
+  const stage = room?.stages?.[stageIndex]
+  if (stage?.manual !== true) return undefined
+  const floor = reworkFloor(messages, stageIndex)
+  return [...messages].reverse().find(message => (
+    message.kind === 'evidence' &&
+    (message.meta?.stage ?? 0) === stageIndex &&
+    (message.seq ?? 0) > floor &&
+    message.meta?.kind === 'manual' &&
+    (room.demo === true || message.meta?.simulated !== true)
+  ))
+}
+
+// 人工验收不是绕过 Verifier：产物证据也要经过独立 Verifier，再交给人签字。
+export const manualReviewState = ({ room, messages, stageIndex }) => {
+  const ids = verifierIds(room)
+  const evidence = manualEvidenceFor(room, messages, stageIndex)
+  if (evidence === undefined) {
+    return { state: ids.length === 0 ? 'none' : 'pending', evidence: null, total: ids.length, received: 0, missing: ids, verdicts: [], rejects: [] }
+  }
+  const latest = new Map()
+  for (const message of messages) {
+    if (message.kind !== 'verdict' || (message.meta?.stage ?? 0) !== stageIndex) continue
+    if ((message.seq ?? 0) <= (evidence.seq ?? -1)) continue
+    if (message.meta?.evidenceId !== evidence.id) continue
+    latest.set(message.authorId, message)
+  }
+  const verdicts = ids.map(id => latest.get(id)).filter(message => message !== undefined)
+  const rejects = verdicts.filter(message => message.meta?.pass !== true)
+  const missing = ids.filter(id => !latest.has(id))
+  const state = ids.length === 0
+    ? 'none'
+    : rejects.length > 0
+      ? 'reject'
+      : missing.length === 0
+        ? 'pass'
+        : 'pending'
+  return { state, evidence, total: ids.length, received: verdicts.length, missing, verdicts, rejects }
+}
+
 export const reviewState = ({ room, messages, stageIndex }) => {
   const ids = verifierIds(room)
   const evidence = commandEvidenceFor(room, messages, stageIndex)

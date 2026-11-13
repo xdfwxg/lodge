@@ -35,8 +35,15 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   const seatsResult = resolveSeats(body, roomType)
   if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
   const { templateId, roster, workers, verifiers, worker, lead, align } = seatsResult
-  const resolvedPlan = resolveStageAssignees(plan, roster)
-  if (verify === 'manual' && verifiers.length > 0) {
+  if (roomType.id === 'studio' && typeof roomType.validateRoster === 'function') {
+    try {
+      roomType.validateRoster(roster, { verify })
+    } catch (error) {
+      return fail('invalid', `席位组合不可用：${error?.message ?? error}`)
+    }
+  }
+  const resolvedPlan = roomType.id === 'chat' ? null : resolveStageAssignees(plan, roster)
+  if (verify === 'manual' && verifiers.length > 0 && !['studio', 'chat'].includes(roomType.id)) {
     return fail('invalid', '人工验收模式不需要验收席位；要独立复核就补一条验收命令')
   }
   for (const seat of roster) {
@@ -59,7 +66,7 @@ export const createRealRoom = async ({ store, engine, live, emit, dispatchPayloa
   if (providerResult.error !== undefined) return fail('invalid', providerResult.error)
   const provider = providerResult.provider
   const workspaceCaps = provider.capabilities()
-  if (workers.length > 1 && workspaceCaps.merge !== true) {
+  if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行席位')
   }
   const { projectFile, projectContent } = projectSnapshot(body, sourceRepo, ports.project)

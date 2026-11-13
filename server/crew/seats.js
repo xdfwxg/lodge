@@ -180,7 +180,7 @@ const validateCapabilities = seat => {
   }
 }
 
-export const validateRoster = seats => {
+export const validateRoster = (seats, { requireWorker = true } = {}) => {
   if (!Array.isArray(seats) || seats.length < 1 || seats.length > 8) {
     throw new Error('seat contract: a roster needs 1–8 seats')
   }
@@ -192,7 +192,7 @@ export const validateRoster = seats => {
   const { workers, verifiers } = roleSeats(seats)
   const leads = seats.filter(seat => seat.role === 'lead')
   if (leads.length > 1) throw new Error('seat contract: at most one lead')
-  if (workers.length === 0) throw new Error('seat contract: at least one worker is required')
+  if (requireWorker && workers.length === 0) throw new Error('seat contract: at least one worker is required')
   for (const worker of workers) {
     if (worker.permissions?.read !== true || worker.permissions?.write !== true || worker.writeScope !== 'own_worktree') {
       throw new Error(`seat contract: worker ${worker.id} may write only its own worktree`)

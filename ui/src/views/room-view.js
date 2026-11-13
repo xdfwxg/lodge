@@ -63,14 +63,16 @@ function RoomView({ state, room, store, onContinue }) {
   const goalView = useMemo(() => buildGoalView(room, seats), [room, seats])
   const primary = room.state === 'active' && room.needsYou
     ? {
-      label: room.needsYou.kind === 'rework'
-        ? '处理退回'
-        : room.needsYou.kind === 'review'
-          ? '去验收'
-          : room.needsYou.kind === 'signoff'
-            ? '去签字'
-            : '处理',
-      onClick: () => setDockOpen(true),
+      label: room.roomType === 'chat' && room.needsYou.kind === 'decision'
+        ? '确认结论'
+        : room.needsYou.kind === 'rework'
+          ? '处理退回'
+          : room.needsYou.kind === 'review'
+            ? '去验收'
+            : room.needsYou.kind === 'signoff'
+              ? '去签字'
+              : '处理',
+      onClick: room.roomType === 'chat' ? scrollToBottom : () => setDockOpen(true),
     }
     : undefined
   const mentionMembers = useMemo(() => {
@@ -99,26 +101,45 @@ function RoomView({ state, room, store, onContinue }) {
       : null,
     h('div', { ref: scroll, className: 'dsb-scroll crew-scroll', onScroll: trackScroll },
       room.delivery ? h(DeliverySheet, { delivery: room.delivery, onExport: () => void store.exportDelivery() }) : null,
+      room.roomType === 'chat'
+        ? h('div', { className: 'crew-chat-status' },
+          room.chatPhase === 'summarizing'
+            ? `第 ${room.chatRound ?? 1} 轮 · 主持人总结中`
+            : room.chatRunning
+              ? `第 ${room.chatRound ?? 1} 轮 · 讨论中 ${room.chatTurns ?? 0}/6`
+              : room.state === 'complete'
+                ? '聊天已结束'
+                : `第 ${room.chatRound ?? 1} 轮 · 等你确认结论`)
+        : null,
       h('div', { className: 'crew-flow' }, h(Timeline, {
         room,
         seats,
         onAccept: stage => void store.accept(stage),
         onApproval: (id, decision) => void store.decideApproval(id, decision),
+        onContinueChat: note => void store.continueChat(note),
       })),
       state.error ? h('div', { className: 'crew-error' }, state.error) : null),
-    h(StageDock, {
-      room,
-      open: dockOpen,
-      onOpenChange: setDockOpen,
-      onAccept: stage => void store.accept(stage),
-      onAnswer: (stage, text) => void store.answer(stage, text),
-      onSimulate: () => void store.simulate(),
-      onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
-      onVerify: stage => void store.verify(stage),
-      onRework: (stage, note) => void store.rework(stage, note),
-    }),
+    room.roomType !== 'chat'
+      ? h(StageDock, {
+        room,
+        open: dockOpen,
+        onOpenChange: setDockOpen,
+        onAccept: stage => void store.accept(stage),
+        onAnswer: (stage, text) => void store.answer(stage, text),
+        onSimulate: () => void store.simulate(),
+        onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
+        onVerify: stage => void store.verify(stage),
+        onRework: (stage, note) => void store.rework(stage, note),
+      })
+      : null,
     !atBottom
       ? h('button', { type: 'button', className: 'crew-jump-latest', onClick: scrollToBottom }, '回到最新')
+      : null,
+    room.roomType === 'chat' && room.chatRunning && typeof room.chatSpeaker === 'string' && room.chatSpeaker !== ''
+      ? h('div', { className: 'crew-typing' },
+        room.chatPhase === 'summarizing'
+          ? '主持人正在总结…'
+          : `${seats.find(seat => seat.id === room.chatSpeaker)?.name ?? '成员'} 正在组织发言…`)
       : null,
     h('div', { className: 'dsb-composer' },
       h(Composer, {

@@ -18,6 +18,12 @@ export const startInitialStage = async ({
   autoStart,
   emit,
 }) => {
+  if (autoStart === 'chat') {
+    void live.startChat(room).catch(error => {
+      store.appendMessage(room.id, { kind: 'system', text: `聊天室启动失败：${error?.message ?? error}` })
+    })
+    return room
+  }
   if (autoStart !== 'stage') return room
   const activeStage = room.stages.findIndex(stage => stage.state === 'active')
   if (plan !== null) {
@@ -27,9 +33,12 @@ export const startInitialStage = async ({
   } else {
     const targetSeat = align ? lead : worker
     markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
+    const openingName = room.seatNames?.[targetSeat.id] ?? targetSeat.name
     const opening = align
-      ? alignmentPrompt(targetSeat.name, goal, verify, effectiveAcceptance)
-      : directPrompt(goal, verify, effectiveAcceptance, roster.length === 1)
+      ? alignmentPrompt(openingName, goal, verify, effectiveAcceptance)
+      : room.roomType === 'studio'
+        ? `@${openingName}\n${directPrompt(goal, verify, effectiveAcceptance, roster.length === 1)}`
+        : directPrompt(goal, verify, effectiveAcceptance, roster.length === 1)
     const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
     const sent = await live.sendToSeat(room.id, targetSeat.id, `${opening}\n\n${context}`)
     if (sent.messageId !== null) {

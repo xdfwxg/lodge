@@ -26,6 +26,8 @@ const MODE_GUIDANCE = {
   task: [],
   roundtable: ['当前是圆桌讨论：只读，可以读仓库、讨论和评审；不要改文件，也不要运行会写文件的命令。'],
   archive: ['当前是存档：只整理记录与交接，不改代码。'],
+  chat: ['当前是聊天室：只讨论，不改文件、不调用工具；只补充观点、依据或质疑。'],
+  studio: ['当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才加载。'],
 }
 
 export const workContract = role => WORK_CONTRACT[role] ?? []

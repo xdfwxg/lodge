@@ -141,6 +141,10 @@ export const createCrewService = ({ store, engine, live, emit, dispatchPayload, 
       return stages.accept(room, await readBody())
     }
 
+    if (action === 'chat-continue' && method === 'POST') {
+      return stages.continueChat(room, await readBody())
+    }
+
     if (action === 'rework' && method === 'POST') {
       return stages.rework(room, await readBody())
     }

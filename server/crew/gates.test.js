@@ -48,6 +48,30 @@ test('rejects a stage that is not active', () => {
   assert.equal(gate.reason, 'conflict')
 })
 
+test('a manual stage cannot be signed off before its Verifier passes', () => {
+  const r = room({
+    verifiers: ['verifier'],
+    seatNames: { verifier: '验收员' },
+    stages: [
+      { title: 'align', kind: 'decision', state: 'passed' },
+      { title: 'artifact', kind: 'decision', manual: true, state: 'active' },
+    ],
+  })
+  const manual = {
+    id: 'm-1',
+    kind: 'evidence',
+    seq: 10,
+    meta: { stage: 1, kind: 'manual', simulated: false },
+  }
+  const waiting = gateFor(r, 1, [manual])
+  assert.equal(waiting.ok, false)
+  assert.match(waiting.error, /没有回报|Verifier PASS/)
+  const passed = gateFor(r, 1, [manual, verdict(1, 11, true, { evidenceId: 'm-1' })])
+  assert.equal(passed.ok, true)
+  const rejected = gateFor(r, 1, [manual, verdict(1, 11, false, { evidenceId: 'm-1' })])
+  assert.equal(rejected.ok, false)
+})
+
 test('open question blocks confirmation', () => {
   const r = room({ openQuestion: 'callback path?' })
   r.stages[0].state = 'active'

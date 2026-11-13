@@ -3,9 +3,8 @@ import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.
 
 const ROLE_LABEL = { lead: '规划师', worker: '执行者', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
-  { id: 'task', name: '任务房', description: '拆目标、派活、验收、交付' },
-  { id: 'roundtable', name: '圆桌', description: '讨论、评审、形成结论', defaultVerify: 'manual' },
-  { id: 'archive', name: '存档', description: '保存记录、结论与交接', defaultVerify: 'manual' },
+  { id: 'studio', name: '工作室', description: '目标、阶段、验收与交付', defaultVerify: 'test' },
+  { id: 'chat', name: '聊天室', description: '随机发言讨论，主持人总结，你来拍板', defaultVerify: 'manual' },
 ]
 
 const normalizeSeats = seats => (Array.isArray(seats) ? seats : []).map(seat => ({
@@ -35,7 +34,7 @@ function NewRoomDialog({
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const [step, setStep] = useState(0)
-  const [roomType, setRoomType] = useState('task')
+  const [roomType, setRoomType] = useState('studio')
   const [roomName, setRoomName] = useState('')
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
@@ -74,7 +73,7 @@ function NewRoomDialog({
   if (!open) return null
 
   const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
-  const nonTask = roomType !== 'task'
+  const nonTask = roomType !== 'studio'
   const needRepo = resume !== null && repoPath.trim() === ''
   const proposalSeats = proposal?.seats ?? []
   const engineChoices = engines.filter(item => item.available)
@@ -113,9 +112,12 @@ function NewRoomDialog({
     : proposal?.verify === 'manual' ? 'manual' : 'test'
   const acceptance = nonTask ? '' : proposal?.acceptance ?? ''
   const lineCount = constraints.split('\n').filter(line => line.trim() !== '').length
+  const studioMissingVerifier = roomType === 'studio' && !hasVerifier
+  const manualVerifierConflict = verify === 'manual' && hasVerifier && !['studio', 'chat'].includes(roomType)
   const canStart = !busy && !needRepo && seatsReady &&
     !(verify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
-    !(verify === 'manual' && hasVerifier)
+    !studioMissingVerifier &&
+    !manualVerifierConflict
 
   const loginEngineFor = async engine => {
     if (engine === undefined || loginBusy) return
@@ -337,6 +339,9 @@ function NewRoomDialog({
             ? h('p', { className: 'crew-field-hint' }, '这个引擎还没有可用模型。')
             : null)
       }),
+    roomType === 'studio' && !hasVerifier
+      ? h('p', { className: 'crew-field-hint' }, '工作室必须有独立验收席位；让 Lodge 重新出方案，补一个验收员。')
+      : null,
     loginNote !== null ? h('p', { className: 'crew-dialog-note' }, loginNote) : null)
 
   const constraintsView = h('div', { className: 'crew-field' },

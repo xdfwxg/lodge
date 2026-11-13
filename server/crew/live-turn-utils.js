@@ -26,8 +26,12 @@ export const parseVerdict = reply => {
     .split('\n')
     .map(line => line.trim())
     .find(line => line !== '') ?? ''
-  const head = first.replace(/^[*#>\s]+/, '').replace(/^(结论|判定|verdict)\s*[:：]?\s*/i, '')
-  return /^PASS\b/i.test(head)
+  const head = first
+    .replace(/^[*#>\s]+/, '')
+    .replace(/^(结论|判定|验收结论|verdict)\s*[:：]?\s*/i, '')
+  // 模型不一定把 PASS 放在行首；只读第一行，先认退回，再认通过。
+  if (/(REJECT|不通过|未通过|无法通过|不能通过|没有通过|退回|打回|拒绝|失败)/i.test(head)) return false
+  return /(PASS|通过|接受|同意)/i.test(head)
 }
 
 export const tail = (text, limit) => {
