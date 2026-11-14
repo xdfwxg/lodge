@@ -1,10 +1,10 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
+import { skillPrompt, stageGuidance } from '../../prompt-modes.js'
 import { buildSeatHandoff } from './seat-handoff.js'
-import { plannerToolPrompt } from './planner-tools.js'
 import { seatDisplayName } from '../../seat-labels.js'
 
-// 工作室引擎：所有推进都走群聊。规划师被 @ 后交给执行者，执行者回合结束后
-// Lodge 跑验收、写证据，再 @ 验收员。这里不直接写席位线程。
+// 工作室引擎：所有推进都走群聊。Lodge 把阶段交接直接发给执行者，执行者回合
+// 结束后跑验收、写证据，再 @ 验收员。这里不直接写席位线程。
 export const createStudioEngine = ({ engine }) => ({
   owns: room => room?.roomType === 'studio',
   send: async (room, text) => {
@@ -13,7 +13,8 @@ export const createStudioEngine = ({ engine }) => ({
   },
 })
 
-export const studioPlannerPrompt = ({
+// 执行席位的阶段交接包：由代码装配，规划师只决定交给谁，不转述事实。
+export const studioWorkerPrompt = ({
   room,
   messages,
   stage,
@@ -22,24 +23,31 @@ export const studioPlannerPrompt = ({
   rework = false,
   note = '',
   acceptance = '',
+  readOnly = false,
+  seatSkills = [],
+  workspace = {},
+  port,
+  environment,
 }) => {
-  const lead = room.leadSeat ?? room.members?.[0]
-  const leadHandle = room.seatNames?.[lead] ?? seatDisplayName(room, lead)
   const workerHandle = room.seatNames?.[assignee] ?? seatDisplayName(room, assignee)
   return [
-    `@${leadHandle} 阶段 ${index + 1}「${stage.title}」已确认。请把这个阶段交给 @${workerHandle}。`,
+    `@${workerHandle} 阶段 ${index + 1}「${stage.title}」已确认。${acceptance}`,
     rework
-      ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : note}`
+      ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : note}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求返工。`
       : '',
+    ...stageGuidance({ readOnly }),
+    ...skillPrompt(seatSkills),
     buildSeatHandoff({ room, messages }),
-    ...(Array.isArray(room.gate?.advice) && room.gate.advice.length > 0
-      ? [`Gate/评估建议（仅参考，不替代你的判断）：${room.gate.advice.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
-      : []),
-    `阶段目标：${stage.title}`,
-    acceptance,
-    `工作目录：${room.repoPath ?? '(未设置)'}`,
-    ...plannerToolPrompt({ mcp: typeof room.plannerTools?.server === 'string' }),
-    `你只做目标对齐和交接，不写代码。请回复一条 @${workerHandle} 的派活消息，说明阶段目标、验收命令和用户约束；不要自己执行。回复时使用 @${workerHandle} 这个 handle。派活控制在 200 字内，不复述证据细节。`,
+    workspace.multi === true
+      ? workspace.isolation === 'worktree'
+        ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
+        : '你在自己的隔离副本里与其他执行席位并行工作；只改自己的副本，系统会按文件合并到房间目录。'
+      : '在当前工作目录完成。',
+    port === undefined ? '' : `如需起本地服务，用 PORT=${port}。`,
+    environment?.linked?.includes('node_modules')
+      ? 'node_modules 已软链为只读依赖，不要修改它。'
+      : '',
+    workspace.candidate === true ? '系统会提交候选。' : '不要改房间记录。',
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')
 }

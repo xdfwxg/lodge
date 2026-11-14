@@ -187,6 +187,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       requests: new Map(),
     }
     round = nextRound
+    store.updateRoom(roomId, current => {
+      current.reviewRetriedAt = Date.now()
+      return { events: [] }
+    })
     store.appendEvent(roomId, 'review.requested', {
       stage: stageIndex,
       evidenceId: evidence.id,
@@ -325,11 +329,15 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         if (round.requests.size === 0) {
           const passed = round.passed
           const total = round.total
+          const timedOut = [...(round.timedOut ?? []), verifier]
           round = null
           store.appendMessage(roomId, {
             kind: 'system',
-            text: `本轮复核结束：${passed}/${total} 个验收席位 PASS；其余未回报，不能签字。`,
+            text: `本轮复核结束：${passed}/${total} 个验收席位 PASS；其余未回报，不能签字。可以重新发起复核。`,
+            meta: { kind: 'review_timeout', stage: stageIndex, verifiers: timedOut },
           })
+        } else {
+          round.timedOut = [...(round.timedOut ?? []), verifier]
         }
       }, REVIEW_TIMEOUT).unref()
       markSeatRead({ store, roomId, seat: verifier, emit })

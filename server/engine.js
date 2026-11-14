@@ -1,6 +1,6 @@
 import { createBaseClient } from './base.js'
 
-// Engine 端口：crew 业务层只依赖这里定义的语义，不认识 OpenMausBot。
+// Engine 端口：crew 业务层只依赖这里定义的语义，不认识具体底座。
 // 替换 runtime 时实现同样六个方法即可：
 //   rooms() -> Room[]
 //   history(sessionRef) -> { messages }

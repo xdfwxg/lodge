@@ -1,16 +1,13 @@
 import { blockedSeats } from '../../mcp-breaker.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { markSeatRead } from '../../watermarks.js'
-import { buildSeatHandoff } from './seat-handoff.js'
 import { seatLabelMap } from '../../seat-labels.js'
 import { buildTasks } from './tasks.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
-import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { skillPrompt, stageGuidance } from '../../prompt-modes.js'
 import { seatDisplayName } from '../../seat-labels.js'
 import { workspaceOf } from './workspace.js'
-import { studioPlannerPrompt } from './prompts.js'
+import { studioWorkerPrompt } from './prompts.js'
 
 export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTasks, integrate, enqueue, skills }) => {
   const startStage = async (room, index, { note = '', rework = false } = {}) => {
@@ -75,8 +72,8 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       kind: 'dispatch',
       authorId: room.leadSeat ?? room.members?.[0] ?? 'planner',
       text: rework
-        ? `规划师重审目标后返工${modeLabel}：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。${note === '' ? '' : `用户意见：${note.slice(0, 160)}`}`
-        : `规划师派活${modeLabel}：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。`,
+        ? `阶段返工${modeLabel}：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。${note === '' ? '' : `用户意见：${note.slice(0, 160)}`}`
+        : `阶段派活${modeLabel}：阶段 ${index + 1}「${stage.title}」交给 ${workerNames}。`,
       meta: {
         stage: index,
         workers: assignees,
@@ -94,51 +91,33 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
         ? `验收命令：\`${stage.acceptance}\`。`
         : '验收命令：未设置。'
     const readOnly = activeStageReadOnly(room) || stage.readOnly === true
-    const promptFor = worker => {
-      const port = room.ports?.[worker]
-      const environment = room.workspaceEnv?.[worker]
-      const seatSkills = (room.seatSpecs?.find(seat => seat.id === worker)?.skills ?? [])
-        .map(id => skills?.read?.(id))
-        .filter(Boolean)
-      return [
-        `@${room.seatNames?.[worker] ?? worker} 阶段已确认：${index + 1}. ${stage.title}。${acceptance}`,
-        rework
-          ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : note}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求返工。`
-          : '',
-        ...stageGuidance({ readOnly }),
-        ...skillPrompt(seatSkills),
-        buildSeatHandoff({ room, messages: store.readMessages(roomId) }),
-        assignees.length > 1
-          ? workspaceOf(room).capabilities().isolation === 'worktree'
-            ? '你在自己的 worktree 里与其他执行席位并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
-            : '你在自己的隔离副本里与其他执行席位并行工作；只改自己的副本，系统会按文件合并到房间目录。'
-          : '在当前工作目录完成。',
-        port === undefined ? '' : `如需起本地服务，用 PORT=${port}。`,
-        environment?.linked?.includes('node_modules')
-          ? 'node_modules 已软链为只读依赖，不要修改它。'
-          : '',
-        workspaceOf(room).capabilities().candidate === true
-          ? '系统会提交候选。'
-          : '不要改房间记录。',
-        INTERNAL_PROMPT_MARKER,
-      ].filter(Boolean).join('\n')
-    }
+    const workspaceCaps = workspaceOf(room).capabilities()
+    const seatSkillsOf = worker => (room.seatSpecs?.find(seat => seat.id === worker)?.skills ?? [])
+      .map(id => skills?.read?.(id))
+      .filter(Boolean)
+    const worker = assignees[0]
+    const prompt = studioWorkerPrompt({
+      room,
+      messages: store.readMessages(roomId),
+      stage,
+      index,
+      assignee: worker,
+      rework,
+      note,
+      acceptance,
+      readOnly,
+      seatSkills: seatSkillsOf(worker),
+      workspace: {
+        multi: assignees.length > 1,
+        isolation: workspaceCaps.isolation,
+        candidate: workspaceCaps.candidate === true,
+      },
+      port: room.ports?.[worker],
+      environment: room.workspaceEnv?.[worker],
+    })
 
-    {
-      const lead = room.leadSeat ?? room.members?.[0]
-      markSeatRead({ store, roomId, seat: lead, emit })
-      await sendToSeat(lead, studioPlannerPrompt({
-        room,
-        messages: store.readMessages(roomId),
-        stage,
-        index,
-        assignee: assignees[0],
-        rework,
-        note,
-        acceptance,
-      }))
-      return
-    }
+    markSeatRead({ store, roomId, seat: worker, emit })
+    await sendToSeat(worker, prompt)
 
   }
 

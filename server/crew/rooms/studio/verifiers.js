@@ -125,3 +125,13 @@ export const reviewState = ({ room, evidence, messages, stageIndex }) => {
   const outcome = verdictOutcome({ ids, verdicts, policy: verifierPolicyOf(room) })
   return { ...outcome, evidence: found }
 }
+
+
+// 复核超时是持久事实：最新一条超时标记晚于本阶段最后一次 verdict，才算当前仍超时。
+export const latestReviewTimeout = (messages, stageIndex) => [...messages]
+  .reverse()
+  .find(message => (
+    message.kind === 'system' &&
+    message.meta?.kind === 'review_timeout' &&
+    (message.meta.stage ?? 0) === stageIndex
+  ))

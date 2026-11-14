@@ -21,7 +21,7 @@ const store = messages => ({
   appendMessage: () => {},
 })
 
-test('resume starts an active stage by waking the planner', async () => {
+test('resume starts an active stage by waking the executor', async () => {
   const sent = []
   const room = {
     ...store([]).readRoom(),
@@ -56,7 +56,7 @@ test('resume starts an active stage by waking the planner', async () => {
   })
   await turns.resume()
   assert.equal(sent.length, 1)
-  assert.equal(sent[0][0], 'planner')
+  assert.equal(sent[0][0], 'worker')
   assert.match(sent[0][1], /阶段 1「impl」已确认/)
 })
 

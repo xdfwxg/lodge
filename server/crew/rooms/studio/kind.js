@@ -2,7 +2,7 @@ import { resolveAssigneeTokens } from '../../orchestration/index.js'
 import * as type from '../../room-types/studio.js'
 import { workContract } from '../../prompt-modes.js'
 import { roleKindOf } from '../../seats.js'
-import { commandEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
+import { commandEvidenceFor, latestReviewTimeout, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { evaluateRoomGate } from './gate.js'
@@ -28,6 +28,13 @@ const studioNeedsYou = (room, messages = []) => {
     return { kind: 'question', stage: index, label: '等你回答' }
   }
   if (room.busy === true) return null
+  const timeout = latestReviewTimeout(messages, index)
+  if (timeout !== undefined) {
+    const lastVerdict = latestForStage(messages, 'verdict', index, floor)
+    if ((timeout.ts ?? 0) > (room.reviewRetriedAt ?? 0) && (timeout.ts ?? 0) > (lastVerdict?.ts ?? 0)) {
+      return { kind: 'review-timeout', stage: index, label: '复核超时 · 等你处理' }
+    }
+  }
   if (stage.manual === true) {
     const manual = latestForStage(messages, 'evidence', index, floor)
     if (manual?.meta?.kind !== 'manual') return null
@@ -151,6 +158,7 @@ const STUDIO_SYSTEM_NOISE = [
   /^非交付工作区已清理/,
   /^已写入 CONClusion\.md/,
   /^已通知验收席位/,
+  /^评估建议（仅参考，不替代 Verifier）/,
   /^开工卡已确认；重复的确认阶段/,
   /^执行方案已确认；重复的确认阶段/,
 ]
