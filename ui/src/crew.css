@@ -161,7 +161,7 @@
 .crew-final-row>span:nth-child(2),.crew-final-row>span:nth-child(3){white-space:nowrap;font-variant-numeric:tabular-nums}
 .crew-gate-hint{margin:0;color:var(--bt-ink-3);font-size:12px;line-height:17px}
 .crew-gate-input{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--bt-line-2);border-radius:8px;background:var(--bt-card);color:var(--bt-ink);font:inherit;font-size:14px;line-height:18px;resize:vertical}
-.crew-gate-input:focus{outline:none;border-color:var(--bt-accent)}
+.crew-gate-input:focus{border-color:var(--bt-accent)}
 .crew-receipt{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .crew-receipt code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;padding:2px 6px;border-radius:5px;background:color-mix(in srgb,var(--bt-ink) 5%,transparent)}
 .crew-receipt span{flex:none;font-size:12px;color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
@@ -243,10 +243,10 @@
 .crew-proposal-question{display:flex;flex-direction:column;gap:6px}
 .crew-proposal-question>span{font-size:14px;line-height:18px;color:var(--bt-ink-2)}
 .crew-goal-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bt-line-2);border-radius:10px;background:var(--bt-input-bg,transparent);color:var(--bt-ink);font:inherit;font-size:15px;line-height:20px;resize:vertical}
-.crew-goal-input:focus{outline:none;border-color:var(--bt-accent)}
+.crew-goal-input:focus{border-color:var(--bt-accent)}
 .crew-path-row{display:flex;align-items:stretch}
 .crew-path-picker{display:flex;align-items:center;width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bt-line-2);border-radius:10px;background:var(--bt-input-bg,transparent);color:var(--bt-ink);font:inherit;font-size:15px;line-height:20px;text-align:left;cursor:pointer;transition:border-color .15s}
-.crew-path-picker:hover,.crew-path-picker:focus-visible{outline:none;border-color:var(--bt-accent)}
+.crew-path-picker:hover,.crew-path-picker:focus-visible{border-color:var(--bt-accent)}
 .crew-path-picker-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .crew-path-picker-value[data-empty="true"]{color:var(--bt-ink-3)}
 .crew-choice{padding:6px 12px;border:1px solid var(--bt-line-2);border-radius:999px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:13px;cursor:pointer}
