@@ -529,7 +529,7 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 
 
 /* 房间外壳：主时间线（右侧上下文栏由决策区与审计抽屉接管） */
-.crew-room-main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bt-main)}
+.crew-room-main{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bt-main)}
 
 /* Room density pass: smaller type, tighter cards, calmer rhythm */
 @media (min-width:761px){
@@ -566,6 +566,8 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 /* Decision-first room: one decision, audit on demand */
 .crew-room{display:flex;flex-direction:column;background:var(--bt-main)}
 .crew-room-main{flex:1 1 auto;width:100%;max-width:none}
+.crew-room-main[data-mode=studio] .crew-scroll{padding-top:162px}
+.crew-room-main[data-mode=studio]>.crew-activity-line{position:absolute;top:132px;left:50%;z-index:19;width:fit-content;max-width:calc(100% - 64px);transform:translateX(-50%);padding:2px 9px;border:1px solid var(--bt-line-2);border-radius:999px;background:var(--bt-card);box-shadow:var(--bt-elev-1);pointer-events:none}
 .crew-decision-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:26px 32px 10px;max-width:880px}
 .crew-decision-heading{min-width:0}
 .crew-decision-heading h1{margin:0;font-size:20px;line-height:26px;font-weight:650;color:var(--bt-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -590,6 +592,8 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
   .crew-decision-head{padding:20px 18px 8px}
   .crew-decision-card{margin:4px 18px 14px}
   .crew-scroll{padding-left:18px;padding-right:18px}
+  .crew-room-main[data-mode=studio] .crew-scroll{padding-top:158px}
+  .crew-room-main[data-mode=studio]>.crew-activity-line{top:130px;max-width:calc(100% - 28px)}
 }
 .crew-delivery-detail{border-top:1px solid var(--bt-line)}
 .crew-delivery-detail>summary{list-style:none;cursor:pointer;padding:9px 15px;color:var(--bt-ink-3);font-size:12.5px}

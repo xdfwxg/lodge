@@ -157,7 +157,7 @@ function RoomView({ state, room, store, onStartStudio }) {
   const typing = mode.typing?.(viewCtx) ?? null
 
   return h('main', { className: 'dsb-main crew-room' },
-    h('div', { ref: mainRef, className: 'crew-room-main' },
+    h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id },
       mode.header(viewCtx),
       mode.activity(viewCtx),
       h('div', {

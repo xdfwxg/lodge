@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { BotMark } from '../marks.js'
 import { GoalIsland, GOAL_CSS, goalView } from './ds-goal.js'
 import { ChevronDownIcon } from './ds-icons.js'
+import { TargetIcon } from '../icons.js'
 import { activeIndex, evidenceFor, rejectsFor, seatState, seatTask } from './model.js'
 
 // DS-Bot's goal island wants goal/roster/roomWork; Lodge keeps room/stages/verdicts.
@@ -81,7 +81,7 @@ const pill = ({ room, view, open, onToggle }) => h('button', {
   onClick: onToggle,
 }, h('span', { className: 'bt-pill-swap' },
   h('span', { className: 'bt-pill-goal' },
-    h('span', { className: 'bt-pill-ico' }, h(BotMark, { bot: (room.seatSpecs ?? []).find(seat => seat.id === room.leadSeat), size: 24 })),
+    h('span', { className: 'bt-pill-ico' }, h(TargetIcon)),
     h('span', { className: 'bt-pill-title', title: room.name }, room.name),
     view === null ? null : h('span', { className: 'bt-pill-count' }, `${view.number ?? 0}/${view.count}`)),
   h('span', { className: 'bt-pill-name' }, room.goal)),
@@ -106,9 +106,11 @@ const PILL_CSS = `
 .bt-input:focus{border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash);outline:none}
 .bt-input:disabled{opacity:.55;cursor:not-allowed}
 .bt-input-area{height:auto;min-height:96px;padding:8px 10px;line-height:18px;resize:vertical}
-.crew-ds-goal{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px 32px 0}
+.crew-ds-goal{position:absolute;top:12px;left:32px;right:32px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;pointer-events:none}
+.crew-ds-goal>*{pointer-events:auto}
+.crew-ds-goal .bt-island{align-self:center}
 @keyframes bt-veil-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (max-width:760px){.crew-ds-goal{padding:10px 14px 0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-open]{width:calc(100% - 8px)}}
+@media (max-width:760px){.crew-ds-goal{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-open]{width:calc(100% - 8px)}}
 `
 
 export function DsGoalHeader({ room, seats }) {
@@ -117,7 +119,7 @@ export function DsGoalHeader({ room, seats }) {
   const goal = toDsGoal(room)
   const roster = toDsRoster(seats)
   const roomWork = toDsRoomWork(room)
-  const view = goalView(goal, { roster, roomWork })
+  const view = goalView(goal, { roster })
   const dsRoom = toDsRoom(room)
   const goalActions = {
     toggleGoal: () => setOpen(value => !value),

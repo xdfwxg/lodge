@@ -2,7 +2,7 @@
 // Kept close to the upstream component; only imports, avatars and i18n are adapted to Lodge.
 
 import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
-import { BotAvatar, BotMark } from '../marks.js'
+import { BotAvatar } from '../marks.js'
 import { CheckIcon, ChevronDownIcon } from './ds-icons.js'
 import { useEscape } from './ds-overlay.js'
 import { SPRING_SHAPE, spring, useMorph } from './ds-motion.js'
@@ -16,7 +16,6 @@ import { t } from './ds-i18n.js'
 
 const REPORTED = new Set(['reported', 'done'])
 const RUNNING = new Set(['active', 'paused'])
-const FACES_MAX = 4
 
 // The admin runs a goal, so a goal needs one among the members.
 export const hasGoalAdmin = (room, roster) => room !== undefined
@@ -27,9 +26,9 @@ export const canSetGoal = (room, roster) => hasGoalAdmin(room, roster)
   && room.goal?.status !== 'active' && room.goal?.status !== 'paused'
 
 // What the island and panel draw, as plain data: goal + live room work in, the
-// capsule number, the bar's label, the stage segments, the faces and the
-// panel's stage rows out.
-export function goalView(goal, { roster = {}, roomWork = [] } = {}) {
+// capsule number, the bar's label, the stage segments and the panel's stage
+// rows out.
+export function goalView(goal, { roster = {} } = {}) {
   if (goal === null || goal === undefined) return null
   const stages = goal.stages ?? []
   const count = stages.length
@@ -54,16 +53,6 @@ export function goalView(goal, { roster = {}, roomWork = [] } = {}) {
     : i === at && goal.status === 'paused' ? 'paused'
       : i === at && goal.status === 'active' ? (checking ? 'checking' : 'current')
         : 'todo'))
-  // A member at work in this room shows as working even before its task does.
-  const working = new Set((roomWork ?? []).map(entry => entry.botId))
-  const seen = new Set()
-  const faces = (current?.tasks ?? [])
-    .filter((task) => {
-      if (seen.has(task.botId) || roster.byId?.[task.botId] === undefined) return false
-      seen.add(task.botId)
-      return true
-    })
-    .map(task => ({ bot: roster.byId[task.botId], working: working.has(task.botId) || task.status === 'working' }))
   const stageViews = stages.map((stage, i) => ({
     n: i + 1,
     title: stage.title,
@@ -79,7 +68,7 @@ export function goalView(goal, { roster = {}, roomWork = [] } = {}) {
   }))
   return {
     status: goal.status, idle: goal.idle === true, title: goal.title ?? '',
-    number, count, segments, barLabel, faces, stages: stageViews,
+    number, count, segments, barLabel, stages: stageViews,
   }
 }
 
@@ -113,20 +102,13 @@ function GoalOutside({ island, close }) {
   return null
 }
 
-// The pod's closed face: state dot or check, the bar label, one segment per
-// stage, the faces of the members the current stage is for, and the chevron.
+// The pod's closed face: state dot or check, the bar label and the chevron.
 function GoalBar({ view, open, room, actions }) {
   return h('button', { type: 'button', className: 'bt-goal-bar', 'aria-expanded': open, onClick: () => actions.toggleGoal(room.id) },
     view.status === 'complete'
       ? h('span', { className: 'bt-goal-check', 'aria-hidden': true }, h(CheckIcon))
       : h('span', { className: 'bt-goal-dot', 'aria-hidden': true }),
     h('span', { className: 'bt-goal-label' }, view.barLabel),
-    view.segments.length > 0 ? h('span', { className: 'bt-goal-segs', 'aria-hidden': true },
-      view.segments.map((seg, i) => h('i', { key: i, 'data-seg': seg }))) : null,
-    view.faces.length > 0 ? h('span', { className: 'bt-goal-faces', 'aria-hidden': true },
-      view.faces.slice(0, FACES_MAX).map(face => h('span', { key: face.bot.id, className: 'bt-goal-face' },
-        h(BotMark, { bot: face.bot, size: 18, live: face.working }))),
-      view.faces.length > FACES_MAX ? h('span', { className: 'bt-goal-more' }, `+${view.faces.length - FACES_MAX}`) : null) : null,
     h('span', { className: 'bt-goal-chev', 'aria-hidden': true }, h(ChevronDownIcon)))
 }
 
@@ -144,6 +126,29 @@ function TaskRow({ task, working }) {
       ' ', task.task))
 }
 
+
+// The closed pod keeps the design card's two strongest cues: a full-width
+// segment track and one numbered node per stage. The open panel repeats the
+// stepper at a larger size, so this row is only rendered while closed.
+function GoalMini({ view, room, actions }) {
+  const waiting = view.status === 'paused' || view.idle === true
+  return h('button', {
+    type: 'button',
+    className: 'bt-goal-mini',
+    'aria-expanded': false,
+    'aria-label': t('Open goal: {title}', { title: view.title }),
+    onClick: () => actions.toggleGoal(room.id),
+  },
+  h('span', { className: 'bt-goal-mini-segs', 'aria-hidden': true },
+    view.segments.map((seg, i) => h('i', { key: i, 'data-seg': seg }))),
+  h('span', { className: 'bt-goal-mini-steps', 'aria-hidden': true },
+    view.stages.map((stageView, i) => h('span', {
+      key: i,
+      className: 'bt-goal-mini-step',
+      'data-step': stageView.kind === 'current' && waiting ? 'waiting' : stageView.kind,
+      title: t('Stage {n}: {title}', { n: stageView.n, title: stageView.title }),
+    }, stageView.status === 'passed' ? h(CheckIcon) : stageView.n))))
+}
 
 // The open pod focuses one stage: a stepper across the top, the selected
 // stage's checks and tasks under it, and a bottom row with the rest.
@@ -170,6 +175,9 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
     h('div', { className: 'bt-goal-sub' }, label), ...body.map((line, i) => h('div', { key: i, className: 'bt-goal-text' }, line)))
   const hasChecks = goal.objective !== undefined || goal.acceptance !== undefined || goal.constraints?.length > 0
   const admin = roster.byId?.[room.admin]?.name ?? t('a Bot')
+  const evidenceCount = view.stages.filter(stageView => stageView.evidence !== undefined).length
+  const taskCount = view.stages.reduce((sum, stageView) => sum + stageView.tasks.length, 0)
+  const ruleCount = goal.constraints?.length ?? 0
   return h('div', { className: 'bt-goal-panel', role: 'region', 'aria-label': view.title },
     h('div', { className: 'bt-goal-body' },
     view.status === 'drafting' ? null : h('div', { ref: stepper, className: 'bt-goal-steps', role: 'group', 'aria-label': t('Stages') },
@@ -182,6 +190,8 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
         'aria-current': i === at ? 'step' : undefined,
         onClick: () => setSelected(i),
       }, h('span', { className: 'bt-goal-node' }, stageView.status === 'passed' ? h(CheckIcon) : stageView.n)))),
+    h('div', { className: 'bt-goal-meta' },
+      t('Evidence {evidence} · Tasks {tasks} · Rules {rules}', { evidence: evidenceCount, tasks: taskCount, rules: ruleCount })),
     h('div', { key: `s${selected}`, className: 'bt-goal-bstage' },
       view.status === 'drafting' ? (goal.brief ? h('div', { className: 'bt-goal-btext' }, goal.brief) : null)
         : stage === undefined
@@ -271,7 +281,7 @@ export function GoalIsland({ room, goal, view, open, composing, roomWork, roster
       : view === null ? null
         : h(Fragment, null,
           h(GoalBar, { view, open, room, actions }),
-          open ? h(GoalPanel, { goal, view, room, roster, actions, working }) : null)))
+          open ? h(GoalPanel, { goal, view, room, roster, actions, working }) : h(GoalMini, { view, room, actions }))))
 }
 
 export const GOAL_CSS = `
@@ -308,24 +318,25 @@ export const GOAL_CSS = `
 .bt-goal-check{flex:none;display:inline-flex;width:14px;height:14px;color:var(--bt-green)}
 .bt-goal-check svg{width:14px;height:14px}
 .bt-goal-label{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* The track shrinks so 20 stages still fit the bar: each segment is 14px and
-   gives up to 3px, the current one 20px. */
-.bt-goal-segs{display:inline-flex;align-items:center;gap:3px;flex:0 1 auto;min-width:0}
-.bt-goal-segs i{display:block;flex:0 1 auto;width:14px;min-width:3px;height:4px;border-radius:999px;background:var(--bt-line-2);transition:${spring(SPRING_SHAPE, 'width')},background-color .12s ease,opacity .12s ease}
-.bt-goal-segs i[data-seg=done]{background:var(--bt-green)}
-.bt-goal-segs i[data-seg=current]{width:20px;background:var(--bt-accent)}
-.bt-goal-segs i[data-seg=checking]{width:20px;background:var(--bt-accent);opacity:.6}
-.bt-goal-segs i[data-seg=paused]{width:20px;background:var(--bt-star)}
-.bt-goal-faces{display:inline-flex;align-items:center;flex:none;margin-left:auto}
-.bt-goal-face{display:inline-flex;flex:none;border-radius:50%;background:var(--bt-main);box-shadow:0 0 0 2px var(--bt-main)}
-.bt-goal-face+.bt-goal-face{margin-left:-6px}
-.bt-goal-more{font-size:11.5px;line-height:16px;color:var(--bt-ink-3);margin-left:3px}
 .bt-goal-chev{flex:none;display:inline-flex;color:var(--bt-ink-3)}
 .bt-goal-chev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
 .bt-goal-bar[aria-expanded=true] .bt-goal-chev svg{transform:rotate(180deg)}
-/* The bar's extras hand off to the open panel and give their room to the label. */
-.bt-island[data-open] .bt-goal-segs,.bt-island[data-open] .bt-goal-faces{display:none}
 .bt-island[data-open] .bt-goal-chev{margin-left:auto}
+.bt-goal-mini{display:flex;flex-direction:column;gap:7px;width:100%;padding:2px 14px 12px;border:0;border-radius:0 0 20px 20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.bt-goal-mini:hover{background:var(--bt-hover)}
+.bt-goal-mini-segs{display:flex;gap:6px}
+.bt-goal-mini-segs i{flex:1 1 0;height:8px;border-radius:999px;background:var(--bt-line-2);transition:width .12s ease,background-color .12s ease,opacity .12s ease}
+.bt-goal-mini-segs i[data-seg=done]{background:var(--bt-green)}
+.bt-goal-mini-segs i[data-seg=current]{background:var(--bt-accent)}
+.bt-goal-mini-segs i[data-seg=checking]{background:var(--bt-accent);opacity:.6}
+.bt-goal-mini-segs i[data-seg=paused]{background:var(--bt-star)}
+.bt-goal-mini-steps{display:flex;align-items:center;gap:7px}
+.bt-goal-mini-step{box-sizing:border-box;width:20px;height:20px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bt-shade-1);border:1.5px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-variant-numeric:tabular-nums;font-weight:600}
+.bt-goal-mini-step>svg{width:10px;height:10px}
+.bt-goal-mini-step[data-step=passed]{background:var(--bt-green);border-color:var(--bt-green);color:var(--bt-main)}
+.bt-goal-mini-step[data-step=current]{background:var(--bt-card);border-color:var(--bt-accent);color:var(--bt-accent)}
+.bt-goal-mini-step[data-step=waiting]{border-color:var(--bt-star);color:var(--bt-warning-text)}
+.bt-goal-meta{margin:8px 14px 0;padding:5px 9px;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:12.5px;line-height:17px}
 .bt-goal-panel{display:flex;flex-direction:column;max-height:min(62vh,520px);overflow:hidden;border-radius:0 0 18px 18px;animation:bt-veil-in .22s ease-out backwards}
 .bt-goal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
 /* The stepper: one shrinking node per stage on a hairline. */
@@ -378,5 +389,5 @@ export const GOAL_CSS = `
 .bt-goal-chint{font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
 .bt-goal-cbtns{display:flex;justify-content:flex-end;gap:6px}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
-@media (prefers-reduced-motion:reduce){.bt-island,.bt-pill-swap>*,.bt-goal-segs i,.bt-goal-chev svg{transition:none!important}.bt-goal-panel{animation:none}}
+@media (prefers-reduced-motion:reduce){.bt-island,.bt-pill-swap>*,.bt-goal-chev svg{transition:none!important}.bt-goal-panel{animation:none}}
 `
