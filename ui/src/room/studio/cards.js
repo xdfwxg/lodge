@@ -2,10 +2,9 @@ import { Fragment, createElement as h } from 'react'
 import { BotAvatar, BotMark } from '../../marks.js'
 import { independenceOf } from '../../view-format.js'
 import { Markdown, Speaker } from '../../message-cards.js'
-import { dispatchSummaryOf } from './handoff.js'
 import { splitVerdictText } from './verdict-text.js'
 
-// 工作室专属消息卡：派活、证据、阶段结论、复核结果、交付结论。
+// 工作室专属消息卡：证据、阶段结论、复核结果、交付结论。
 // 共享层只提供说话人、正文和活动行，不认这些业务结构。
 
 const OUTPUT_PREVIEW_LINES = 80
@@ -108,8 +107,12 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
           diff === ''
             ? null
             : h('details', { className: 'crew-fold' }, h('summary', null, '改动'), h(CodeOutput, { text: diff, limit: 300 })),
-          // 复核结论是语义内容，已经由提示词限长；折叠只会把理由藏起来。原始输出才折叠。
-          detail === '' ? null : h(Markdown, { text: detail, variant: 'compact' }),
+          // 复核卡先给一句结论；完整理由按需展开，不占主阅读流。
+          detail === ''
+            ? null
+            : h('details', { className: 'crew-fold' },
+              h('summary', null, '复核理由'),
+              h(Markdown, { text: detail, variant: 'compact' })),
           output === ''
             ? null
             : h('details', { className: 'crew-fold' }, h('summary', null, '原始输出'), h(CodeOutput, { text: output }))),
@@ -132,34 +135,6 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
             }, room.state === 'paused' ? '已暂停 · 继续后才能验收' : '接受这一阶段')
             : null,
           !active && stage?.state === 'passed' ? h('span', { className: 'crew-accepted' }, '已由你验收') : null))))
-}
-
-function DispatchSummaryCard({ message }) {
-  const text = String(message.text ?? '')
-  const { mention, acceptance } = dispatchSummaryOf(message)
-  return h('details', { className: 'crew-dispatch-summary' },
-    h('summary', null,
-      h('span', { className: 'crew-dispatch-summary-kicker' }, '派活'),
-      h('span', null, mention === '' ? '交给执行官' : `交给 @${mention}`),
-      acceptance === '' ? null : h('code', null, acceptance)),
-    h('div', { className: 'crew-dispatch-summary-body' },
-      h(Markdown, { text, variant: 'compact' })))
-}
-
-function DispatchCard({ message, seat }) {
-  const meta = message.meta ?? {}
-  return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
-    h('div', { className: 'crew-msg-body' },
-      h(Speaker, { seat, ts: message.ts }),
-      h('div', { className: 'crew-card crew-dispatch' },
-        h('div', { className: 'crew-card-head' },
-          meta.rework === true ? `重审返工 · 阶段 ${(meta.stage ?? 0) + 1}` : `派活 · 阶段 ${(meta.stage ?? 0) + 1}`,
-          h('span', { className: 'crew-verdict', 'data-pass': true },
-            `${typeof meta.orchestrationName === 'string' ? `${meta.orchestrationName} · ` : ''}${meta.workers?.length ?? 0} 席`)),
-        h('div', { className: 'crew-card-body' },
-          h('p', { className: 'crew-gate-lead' }, message.text),
-          meta.acceptance ? h('div', { className: 'crew-kv' }, h('span', null, '验收'), h('code', null, meta.acceptance)) : null))))
 }
 
 function MilestoneLine({ message }) {
@@ -189,8 +164,6 @@ function ConclusionCard({ message }) {
 export {
   EvidenceCard,
   VerdictCard,
-  DispatchCard,
-  DispatchSummaryCard,
   MilestoneLine,
   ConclusionCard,
 }

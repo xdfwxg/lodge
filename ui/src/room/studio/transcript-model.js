@@ -1,4 +1,5 @@
 import { buildTimeline } from '../timeline-model.js'
+import { isDispatchHandoff } from './handoff.js'
 
 const pad = value => String(value).padStart(2, '0')
 
@@ -6,16 +7,6 @@ export const dayKey = ts => {
   if (typeof ts !== 'number' || !Number.isFinite(ts)) return null
   const date = new Date(ts)
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-export const dayLabel = (ts, now = Date.now()) => {
-  const key = dayKey(ts)
-  if (key === null) return ''
-  if (key === dayKey(now)) return '今天'
-  if (key === dayKey(now - 86_400_000)) return '昨天'
-  const date = new Date(ts)
-  const year = date.getFullYear() === new Date(now).getFullYear() ? '' : `${date.getFullYear()}年`
-  return `${year}${date.getMonth() + 1}月${date.getDate()}日`
 }
 
 const orderOf = message => (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
@@ -28,32 +19,46 @@ export const orderTranscript = messages => {
   return { timeline, items }
 }
 
-// 交付卡是房间在完成时刻的一条记录：按 completedAt 插回时间线，之后的新发言仍在它下面。
-export const withDelivery = (items, delivery, roomId) => {
-  if (delivery === null || delivery === undefined) return items
-  const at = typeof delivery.completedAt === 'number' ? delivery.completedAt : (items.at(-1)?.ts ?? 0)
-  const index = items.findIndex(item => typeof item.ts === 'number' && item.ts > at)
-  const out = [...items]
-  out.splice(index === -1 ? out.length : index, 0, {
-    id: `delivery-${roomId}`,
-    ts: at,
-    kind: 'delivery',
-  })
-  return out
+export const stageChapterSummary = (items, room) => {
+  const transfers = items.filter(item => item.kind === 'dispatch' || isDispatchHandoff(room, item)).length
+  const evidence = items.filter(item => item.kind === 'evidence').length
+  const verdicts = items.filter(item => item.kind === 'verdict' && item.meta?.human !== true).length
+  const parts = []
+  if (transfers > 0) parts.push(`${transfers} 次交接`)
+  if (evidence > 0) parts.push(`${evidence} 条证据`)
+  if (verdicts > 0) parts.push(`${verdicts} 次复核`)
+  return parts.length > 0 ? parts.join(' · ') : `${items.length} 条记录`
 }
 
-export const insertDayMarkers = (items, now = Date.now()) => {
-  const out = []
-  let lastKey = null
+// 阶段是工作室时间线的章节：当前阶段展开，已完成阶段收成一行，交付卡单独放在最后。
+export const buildStageChapters = (items, room) => {
+  const stages = Array.isArray(room?.stages) ? room.stages : []
+  const lastIndex = Math.max(stages.length - 1, 0)
+  const buckets = new Map()
+  let current = stages.length > 0 ? 0 : -1
   for (const item of items) {
-    const key = dayKey(item.ts)
-    if (key !== null && key !== lastKey) {
-      out.push({ kind: 'day', key: `day-${key}`, ts: item.ts, label: dayLabel(item.ts, now) })
-      lastKey = key
-    }
-    out.push(item)
+    const explicit = item?.meta?.stage
+    if (Number.isInteger(explicit)) current = Math.max(0, Math.min(explicit, lastIndex))
+    const index = stages.length > 0 ? current : -1
+    if (!buckets.has(index)) buckets.set(index, [])
+    buckets.get(index).push(item)
   }
-  return out
+  const ordered = [...buckets.entries()].sort((a, b) => a[0] - b[0])
+  const active = stages.findIndex(stage => stage.state === 'active')
+  const expandedIndex = active >= 0 ? active : (ordered.at(-1)?.[0] ?? -1)
+  return ordered.map(([index, chapterItems]) => {
+    const stage = stages[index]
+    return {
+      kind: 'stage',
+      key: `stage-${index}`,
+      index,
+      title: stage?.title ?? '过程',
+      state: stage?.state ?? 'active',
+      expanded: index === expandedIndex,
+      summary: stageChapterSummary(chapterItems, room),
+      items: chapterItems,
+    }
+  })
 }
 
 const TOOL_NAME = /^[\w.:/-]+$/

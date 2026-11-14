@@ -3,16 +3,17 @@ import { ApprovalCard } from '../../approval-card.js'
 import { DeliveryCard } from './delivery-card.js'
 import { dedupeChatStreams } from '../timeline-model.js'
 import { renderStudioMessage } from './message-view.js'
+import { StageChapter } from './stage-chapter.js'
 import { StepGroup } from './step-group.js'
+import { StudioStep } from './step-line.js'
 import {
+  buildStageChapters,
   groupSteps,
-  insertDayMarkers,
   orderTranscript,
   showsSeat,
-  withDelivery,
 } from './transcript-model.js'
 
-// 工作室时间线：按天分隔、同席连续消息合并说话人、连续步骤收成一条。
+// 工作室时间线按阶段分章：当前阶段展开，已完成阶段收成一行，交付卡在最后。
 export function StudioTranscript({
   room,
   seats,
@@ -35,27 +36,18 @@ export function StudioTranscript({
       if (room.state === 'complete' && message.kind === 'system' && /等你签字/.test(String(message.text ?? ''))) return false
       return true
     })
-    return {
-      timeline,
-      grouped: groupSteps(insertDayMarkers(withDelivery(visible, delivery, room.id))),
-    }
-  }, [messages, hideKinds, room.state, room.id, delivery])
+    return { timeline, chapters: buildStageChapters(visible, room) }
+  }, [messages, hideKinds, room.state, room.stages, room.leadSeat])
 
-  const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
-
-  return h('div', { className: 'studio-timeline' }, ...[
-    ...items.grouped.map((item, index) => {
-      if (item.kind === 'day') {
-        return h('div', { key: item.key, className: 'studio-day' }, item.label)
+  const renderChapterBody = chapter => {
+    const body = groupSteps(chapter.items)
+    const liveStage = chapter.state === 'active' && room.state === 'active' && room.busy === true
+    return body.map((item, index) => {
+      const live = liveStage && index === body.length - 1
+      if (item.kind === 'steps') return h(StepGroup, { key: item.key, steps: item.steps, live })
+      if (item.kind === 'activity' && item.meta?.ok !== false) {
+        return h(StudioStep, { key: item.id, step: item, live })
       }
-      if (item.kind === 'steps') {
-        return h(StepGroup, { key: item.key, steps: item.steps })
-      }
-      if (item.kind === 'delivery') {
-        return h(DeliveryCard, { key: item.id, delivery, onExport: onExportDelivery })
-      }
-      // 单条成功步骤多是基座的内部提示；成串的步骤才值得占一行，失败步骤保留。
-      if (item.kind === 'activity' && item.meta?.ok !== false) return null
       const content = renderStudioMessage({
         room,
         byId,
@@ -65,9 +57,18 @@ export function StudioTranscript({
         onStageAccept,
       })
       if (content === null) return null
-      const lead = item.kind === 'chat' && !showsSeat(items.grouped, index) ? 'cont' : 'first'
+      const lead = item.kind === 'chat' && !showsSeat(body, index) ? 'cont' : 'first'
       return h('div', { key: item.id, className: 'studio-seat-block', 'data-lead': lead === 'first' ? 'true' : 'false' }, content)
-    }),
+    }).filter(Boolean)
+  }
+
+  const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
+
+  return h('div', { className: 'studio-timeline' }, ...[
+    ...items.chapters.map(chapter => h(StageChapter, { key: chapter.key, chapter }, ...renderChapterBody(chapter))),
+    delivery === null || delivery === undefined
+      ? null
+      : h(DeliveryCard, { key: 'delivery', delivery, onExport: onExportDelivery }),
     ...pendingApprovals
       .slice(0, 1)
       .map(approval => h(ApprovalCard, {

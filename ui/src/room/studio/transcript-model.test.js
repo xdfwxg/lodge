@@ -2,15 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   dayKey,
-  dayLabel,
-  insertDayMarkers,
   groupSteps,
   describeSteps,
   showsSeat,
   presenceLines,
   displayableStep,
   stepLabel,
-  withDelivery,
+  buildStageChapters,
+  stageChapterSummary,
 } from './transcript-model.js'
 
 const step = (id, authorId, ts, ok = true, tool = 'Bash') => ({
@@ -18,20 +17,10 @@ const step = (id, authorId, ts, ok = true, tool = 'Bash') => ({
 })
 const say = (id, authorId, ts) => ({ id, authorId, ts, seq: 1, kind: 'chat', text: 'hi' })
 
-test('days are labelled today, yesterday and by date', () => {
+test('day keys use the local calendar day', () => {
   const now = new Date('2026-11-14T12:00:00').getTime()
-  assert.equal(dayLabel(now, now), '今天')
-  assert.equal(dayLabel(now - 86_400_000, now), '昨天')
-  assert.equal(dayLabel(new Date('2026-03-02T09:00:00').getTime(), now), '3月2日')
   assert.equal(dayKey(now), '2026-11-14')
-})
-
-test('day markers are inserted once per local day', () => {
-  const now = new Date('2026-11-14T12:00:00').getTime()
-  const items = insertDayMarkers([say('a', 'w', now), say('b', 'w', now + 1000), say('c', 'w', now - 86_400_000)], now)
-  assert.deepEqual(items.map(item => item.kind), ['day', 'chat', 'chat', 'day', 'chat'])
-  assert.equal(items[0].label, '今天')
-  assert.equal(items[3].label, '昨天')
+  assert.equal(dayKey(Number.NaN), null)
 })
 
 test('two consecutive ok steps fold into one step group, one stays a message', () => {
@@ -114,15 +103,53 @@ test('synthetic tool labels are rejected even when the projection carries them',
   assert.equal(stepLabel(synthetic), '')
 })
 
-test('the delivery card sits at its completion time, before later messages', () => {
-  const items = [say('a', 'w', 1000), say('b', 'w', 2000), say('c', 'w', 4000)]
-  const placed = withDelivery(items, { completedAt: 3000 }, 'room-1')
-  assert.deepEqual(placed.map(item => item.kind ?? 'message'), ['chat', 'chat', 'delivery', 'chat'])
-  assert.equal(placed[2].id, 'delivery-room-1')
+const stagedRoom = (states = ['passed', 'active', 'pending']) => ({
+  leadSeat: 'lead',
+  stages: states.map((state, index) => ({ title: `阶段${index + 1}`, state })),
 })
 
-test('a delivery without a completion time follows the last message', () => {
-  const placed = withDelivery([say('a', 'w', 1000)], { completedAt: null }, 'room-1')
-  assert.deepEqual(placed.map(item => item.kind ?? 'message'), ['chat', 'delivery'])
-  assert.deepEqual(withDelivery([say('a', 'w', 1000)], null, 'room-1').map(item => item.kind), ['chat'])
+const staged = (id, ts, stage, kind = 'chat', meta = {}) => ({
+  id, ts, seq: 1, kind, authorId: 'lead', text: 'x', meta: { stage, ...meta },
+})
+
+test('stage chapters expand the active stage and compress passed stages', () => {
+  const room = stagedRoom()
+  const chapters = buildStageChapters([
+    staged('chat-0', 1, 0),
+    staged('dispatch-0', 2, 0, 'dispatch'),
+    staged('evidence-0', 3, 0, 'evidence'),
+    staged('chat-1', 4, 1),
+    staged('evidence-1', 5, 1, 'evidence'),
+    staged('verdict-1', 6, 1, 'verdict', { pass: true }),
+  ], room)
+  assert.deepEqual(chapters.map(chapter => chapter.index), [0, 1])
+  assert.deepEqual(chapters.map(chapter => chapter.expanded), [false, true])
+  assert.match(chapters[0].summary, /1 次交接/)
+  assert.match(chapters[0].summary, /1 条证据/)
+  assert.match(chapters[1].summary, /1 条证据 · 1 次复核/)
+})
+
+test('a complete room expands its last stage and compresses the rest', () => {
+  const chapters = buildStageChapters([
+    staged('a', 1, 0, 'evidence'),
+    staged('b', 2, 1, 'evidence'),
+  ], stagedRoom(['passed', 'passed']))
+  assert.deepEqual(chapters.map(chapter => chapter.expanded), [false, true])
+})
+
+test('a room without stages keeps one process chapter', () => {
+  const chapters = buildStageChapters([say('a', 'w', 1)], { stages: [] })
+  assert.equal(chapters.length, 1)
+  assert.equal(chapters[0].index, -1)
+  assert.equal(chapters[0].title, '过程')
+  assert.equal(chapters[0].expanded, true)
+})
+
+test('stage summaries fall back to a record count and skip human sign-offs', () => {
+  const room = stagedRoom(['passed'])
+  assert.equal(stageChapterSummary([staged('a', 1, 0)], room), '1 条记录')
+  assert.equal(
+    stageChapterSummary([staged('v', 1, 0, 'verdict', { human: true })], room),
+    '1 条记录',
+  )
 })

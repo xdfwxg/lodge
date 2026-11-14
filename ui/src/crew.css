@@ -93,9 +93,41 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-scroll{padding:18px 16px 36px}
 .crew-flow{display:flex;flex-direction:column;gap:4px;width:100%;max-width:792px;margin:0 auto}
 
-/* 工作室时间线：席位分组与步骤聚合，颜色和字级沿用 Lodge token。 */
+/* 工作室时间线：阶段章节、工作拍、接力棒；颜色和字级沿用 Lodge token。 */
 .studio-timeline{display:flex;flex-direction:column;gap:10px;min-width:0}
-.studio-day{display:flex;justify-content:center;padding:8px 0 2px;font-size:12.5px;line-height:18px;color:var(--bt-ink-3)}
+.studio-stage-chapter{min-width:0}
+.studio-stage-head{display:flex;align-items:center;gap:8px;padding:6px 2px;list-style:none;cursor:pointer;font-size:12.5px;line-height:18px;color:var(--bt-ink-3)}
+.studio-stage-head::-webkit-details-marker{display:none}
+.studio-stage-head::before{content:'▸';font-size:10px;color:var(--bt-ink-3)}
+.studio-stage[open]>.studio-stage-head::before{content:'▾'}
+.studio-stage-title{min-width:0;font-weight:600;color:var(--bt-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.studio-stage-state{flex:none;font-size:11.5px;color:var(--bt-ink-3)}
+.studio-stage-chapter[data-state=active] .studio-stage-title{color:var(--bt-ink)}
+.studio-stage-chapter[data-state=active] .studio-stage-state{color:var(--bt-accent)}
+.studio-stage-chapter[data-state=passed] .studio-stage-state{color:var(--bt-success-text)}
+.studio-stage-summary{flex:none;margin-left:auto;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink-3)}
+.studio-stage-body{display:flex;flex-direction:column;gap:6px;margin-left:3px;padding:2px 0 8px 10px;border-left:1px solid var(--bt-line)}
+.studio-stage-chapter[data-state=active] .studio-stage-body{border-left-color:var(--bt-line-accent)}
+.studio-baton{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin:6px 0 6px 2px;padding:6px 10px;border-left:2px solid var(--bt-line-accent);border-radius:0 8px 8px 0;background:var(--bt-shade-1);font-size:12.5px;line-height:18px;color:var(--bt-ink-3)}
+.studio-baton svg{flex:none;color:var(--bt-ink-3)}
+.studio-baton-from,.studio-baton-to{font-weight:600;color:var(--bt-ink)}
+.studio-baton-stage{color:var(--bt-ink-3)}
+.studio-baton code{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:var(--bt-ink-2)}
+.studio-baton-more{margin-left:auto;font-size:11.5px}
+.studio-baton-more>summary{list-style:none;cursor:pointer;color:var(--bt-ink-3)}
+.studio-baton-more>summary::-webkit-details-marker{display:none}
+.studio-baton-more>summary::before{content:'›';margin-right:4px}
+.studio-baton-more[open]>summary::before{content:'⌄'}
+.studio-baton-body{flex-basis:100%;padding-top:6px;font-size:12.5px;line-height:18px;color:var(--bt-ink-2)}
+.studio-baton[data-rework=true]{border-left-color:var(--bt-line-warning)}
+.studio-beat-more{margin:4px 0 0;padding:0;border:0;background:none;color:var(--bt-ink-3);font:inherit;font-size:12px;line-height:17px;cursor:pointer}
+.studio-beat-more:hover{color:var(--bt-ink)}
+.studio-step{display:flex;align-items:center;gap:7px;padding:1px 2px;font-size:12.5px;line-height:18px;color:var(--bt-ink-3)}
+.studio-step-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-ink-4)}
+.studio-step[data-ok=false] .studio-step-dot{background:var(--bt-danger)}
+.studio-step[data-live=true] .studio-step-dot{background:var(--bt-accent);animation:crew-typing 1.2s infinite}
+.studio-step-text{min-width:0;overflow-wrap:anywhere}
+.studio-step-time{flex:none;margin-left:auto;font-variant-numeric:tabular-nums}
 .studio-seat-block{min-width:0}
 .studio-seat-block[data-lead=false] .crew-speaker{display:none}
 .crew-steps{border:1px solid var(--bt-line);border-radius:10px;background:var(--bt-card);color:var(--bt-ink-2);font-size:13px;line-height:20px}
@@ -150,7 +182,6 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-conclusion[data-settled=true]{box-shadow:inset 0 3px 0 var(--bt-line-success)}
 .crew-result-card{border-color:var(--bt-line-2);box-shadow:inset 0 3px 0 var(--bt-line-success)}
 .crew-result-card[data-pass=false]{border-color:var(--bt-line-2);box-shadow:inset 0 3px 0 var(--bt-line-danger)}
-.crew-dispatch{border-color:var(--bt-line-2);box-shadow:inset 0 3px 0 var(--bt-line-accent)}
 .crew-card-head{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bt-line);font-size:13.5px;font-weight:600}
 .crew-card-head .crew-verdict{margin-left:auto}
 .crew-card-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body)}
@@ -674,14 +705,6 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 .crew-delivery-detail>summary{list-style:none;cursor:pointer;padding:9px 15px;color:var(--bt-ink-3);font-size:12.5px}
 .crew-delivery-detail>summary::-webkit-details-marker{display:none}
 .crew-delivery-detail>summary:hover{color:var(--bt-ink)}
-.crew-dispatch-summary{margin:8px 0;border:1px solid var(--bt-line);border-radius:10px;background:var(--bt-shade-1)}
-.crew-dispatch-summary>summary{display:flex;align-items:center;gap:8px;list-style:none;cursor:pointer;padding:8px 10px;color:var(--bt-ink-3);font-size:12.5px;line-height:17px}
-.crew-dispatch-summary>summary::-webkit-details-marker{display:none}
-.crew-dispatch-summary>summary::before{content:'›';color:var(--bt-ink-3);font-size:13.5px;line-height:14px}
-.crew-dispatch-summary[open]>summary::before{transform:rotate(90deg)}
-.crew-dispatch-summary-kicker{font-weight:600;color:var(--bt-ink-2)}
-.crew-dispatch-summary>summary code{margin-left:auto;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;color:var(--bt-ink-3)}
-.crew-dispatch-summary-body{padding:0 12px 10px 26px;border-top:1px solid var(--bt-line);font-size:12.5px;line-height:18px;color:var(--bt-ink-2)}
 .crew-streaming::after{content:'▍';display:inline-block;margin-left:2px;color:var(--bt-ink-3);animation:crew-cursor 1s steps(2,start) infinite}
 @keyframes crew-cursor{0%,45%{opacity:1}46%,100%{opacity:0}}
 
