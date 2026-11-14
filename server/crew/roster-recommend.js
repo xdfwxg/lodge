@@ -27,14 +27,14 @@ const recommendationPrompt = (goal, repoPath) => [
   '- seats 固定输出三个：一个 lead、一个 worker、一个 verifier。不要增加、减少或改成单人房。',
   '- seats[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
   '- 名字用「规划师」「执行官」「验收员」；reason 说明各席位负责什么。',
-  '- why 只说明这三人如何分工，不要再讨论人数增减。',
+  '- why 只写一句话、不超过 45 字，格式：本任务由 3 人协作完成：规划师定判断顺序，执行官落成文件，验收员独立复核。不要复述目标，不要加总结句，不要讨论人数增减。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
   '- stages 写 1–3 个可交付阶段；每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
   '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline。parallel 需要至少两个执行席位；critique 用于关键交付，让验收席位主动找反例。',
   '- stages[].assignees 只写执行席位（id 或名字，通常是「执行官」）；不要写验收员，验收由系统按独立性规则派发。',
-  '- 开工卡就是对齐与确认。不要生成第一个只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
+  '- 执行方案就是对齐与确认。不要生成第一个只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
   '- JSON 代码块必须完整闭合。',
   '只输出一个 JSON 代码块，不要其他文字：',
   '```json',
@@ -89,15 +89,67 @@ const extractJsonBlock = reply => {
   return null
 }
 
+// 模型偶尔把换行或制表符直接写进字符串，也会在末尾留逗号；这些是格式噪声，
+// 不该让整张方案作废，解析前先修一遍。
+const repairJson = text => {
+  let out = ''
+  let inString = false
+  let escaped = false
+  for (let at = 0; at < text.length; at += 1) {
+    const char = text[at]
+    if (inString) {
+      if (escaped) {
+        out += char
+        escaped = false
+        continue
+      }
+      if (char === '\\') {
+        out += char
+        escaped = true
+        continue
+      }
+      if (char === '"') {
+        inString = false
+        out += char
+        continue
+      }
+      if (char === '\n') {
+        out += '\\n'
+        continue
+      }
+      if (char === '\r') continue
+      if (char === '\t') {
+        out += '\\t'
+        continue
+      }
+      if (char < ' ') continue
+      out += char
+      continue
+    }
+    if (char === '"') {
+      inString = true
+      out += char
+      continue
+    }
+    if (char === ',') {
+      let ahead = at + 1
+      while (ahead < text.length && /\s/.test(text[ahead])) ahead += 1
+      if (text[ahead] === '}' || text[ahead] === ']') continue
+    }
+    out += char
+  }
+  return out
+}
+
 // 模型只给语义建议；权限、席位上限与验收方式仍在这里由业务规则校验。
 export const parseProposal = reply => {
   const json = extractJsonBlock(reply)
-  if (json === null) throw new Error('规划师没有给出可解析的编制建议')
+  if (json === null) throw new Error('Lodge 没有给出可用的方案，请重试')
   let data
   try {
-    data = JSON.parse(json)
+    data = JSON.parse(repairJson(json))
   } catch {
-    throw new Error('规划师给出的编制建议不是合法 JSON')
+    throw new Error('Lodge 给出的方案格式不完整，请重试')
   }
   if (data === null || typeof data !== 'object' || !Array.isArray(data.seats)) {
     throw new Error('开工方案缺少 seats')
@@ -170,7 +222,7 @@ export const parseProposal = reply => {
   const notes = [
     requestedOrchestration !== '' && orchestration === null ? `未知编排策略「${requestedOrchestration}」，按流水线执行` : '',
     orchestrationId === 'parallel' && workers.length < 2 ? '并行需要至少两个执行席位；当前按单席位执行' : '',
-    data.verify === 'test' && rawAcceptance === '' ? '规划师没有给出可执行命令，验收改为你确认' : '',
+    data.verify === 'test' && rawAcceptance === '' ? '方案没有给出可执行命令，验收改为你确认' : '',
     tooManyQuestions ? '规划师给了超过 3 个问题，只保留前 3 个' : '',
     tooManyDone ? '规划师给了超过 6 条 done，只保留前 6 条' : '',
   ].filter(Boolean)
@@ -215,10 +267,10 @@ const waitForTurn = async ({ engine, sessionRef }) => {
     const failed = [...messages].reverse().find(message => (
       message.kind === 'activity' && message.meta?.ok === false
     ))
-    if (failed !== undefined) throw new Error(`规划师回合失败：${failed.text}`)
+    if (failed !== undefined) throw new Error(`Lodge 生成方案失败：${failed.text}`)
     await new Promise(resolve => setTimeout(resolve, 1_000))
   }
-  throw new Error('规划师在 90 秒内没有给出编制建议')
+  throw new Error('Lodge 在 90 秒内没有给出方案，请重试')
 }
 
 export const recommendRoster = async ({ engine, body, workspace }) => {

@@ -19,7 +19,7 @@ export const chatKind = {
   }),
 
   // 聊天室席位只带讨论纪律，不继承工作室的执行 SOP。
-  seatSoul: seat => `你是${seat.name}。当前是聊天室，只讨论话题、补充观点与质疑；不改文件、不调用工具。发言控制在 200 字以内，直接回复。\n${personalityPrompt(seat.personality)}`,
+  seatSoul: seat => `你是${seat.name}。当前是聊天室，只讨论话题、补充观点与质疑；不改文件、不调用工具。用中文发言，控制在 200 字以内，直接回复。\n${personalityPrompt(seat.personality)}`,
 
   validateRoster: null,
   resolvePlan: () => null,

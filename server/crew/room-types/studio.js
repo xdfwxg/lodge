@@ -51,7 +51,7 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
   stages[stages.length - 1].dependsOn = [stages.length - 2]
   return {
     stages,
-    messages: openingGate ? ['开工卡已确认；重复的确认阶段已自动通过，直接进入下一步。'] : [],
+    messages: openingGate ? ['执行方案已确认；重复的确认阶段已自动通过，直接进入下一步。'] : [],
   }
 }
 

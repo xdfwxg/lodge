@@ -85,10 +85,10 @@ export const normalizePlan = ({ body, continueSource, roomFiles }) => {
         .map(item => item.trim().slice(0, 200))
         .slice(0, 6)
       : []
-    if (done.length === 0) return { error: '开工卡缺少可核对的 done' }
+    if (done.length === 0) return { error: '执行方案缺少可核对的 done' }
     const plannedStages = []
     if (Array.isArray(body.plan.stages)) {
-      if (body.plan.stages.length > 3) return { error: '开工卡最多拆 3 个可交付阶段' }
+      if (body.plan.stages.length > 3) return { error: '执行方案最多拆 3 个可交付阶段' }
       for (const [index, item] of body.plan.stages.entries()) {
         const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 80) : ''
         const rawKind = item?.kind === 'decision' ? 'decision' : 'deliverable'
@@ -109,7 +109,7 @@ export const normalizePlan = ({ body, continueSource, roomFiles }) => {
       }
     }
     if (Array.isArray(body.plan.answers) && body.plan.answers.length > 3) {
-      return { error: '开工卡最多 3 个问题；先把不必要的分叉合并或留到执行中再说' }
+      return { error: '执行方案最多 3 个问题；先把不必要的分叉合并或留到执行中再说' }
     }
     const answers = Array.isArray(body.plan.answers)
       ? body.plan.answers

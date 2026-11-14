@@ -1,7 +1,7 @@
 import { resolveAssigneeTokens } from '../../orchestration/index.js'
 import * as type from '../../room-types/studio.js'
 import { workContract } from '../../prompt-modes.js'
-import { roleKindOf, TEMPLATES } from '../../seats.js'
+import { roleKindOf } from '../../seats.js'
 import { commandEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
@@ -114,67 +114,47 @@ const studioConstraints = ({
   ...(continueSource === null ? [] : [`续做自交接记录「${continueSource.name}」；上一轮记录保持只读`]),
 ]
 
-const initialMessages = ({
-  room,
-  plan,
-  templateId,
-  roster,
-  builtStages,
-  continueSource,
-  projectContent,
-  workspaces,
-  engineFallbacks,
-}) => {
-  const messages = [{
-    kind: 'system',
-    text: plan !== null
-      ? '房间已创建 · 开工卡已确认 · 工作室 · 群聊单工作目录'
-      : `房间已创建 · 模板 ${TEMPLATES[templateId].name} · 工作室 · 群聊单工作目录`,
-  }]
-  for (const text of builtStages.messages ?? []) messages.push({ kind: 'system', text })
-  if (Array.isArray(room.gate?.advice) && room.gate.advice.length > 0) {
-    const advice = room.gate.advice
-      .map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；'))
-      .filter(Boolean)
-      .join('；')
-    if (advice !== '') messages.push({ kind: 'system', text: `Gate·评估建议（仅参考，不替代 Verifier）：${advice}` })
-  }
-  if (room.branch !== '') messages.push({ kind: 'system', text: `源仓库 ${room.sourceRepo} · 执行分支 ${room.branch}` })
+const initialMessages = ({ continueSource, workspaces, engineFallbacks }) => {
+  // 时间线只保留会改变用户判断的信息；建房仪式、分支、约束快照、MCP 说明都
+  // 能从房间字段和交付单里查到，不再复述。
+  const messages = []
   if (continueSource !== null) {
     messages.push({
       kind: 'system',
       text: `续做自交接记录「${continueSource.name}」（${continueSource.id}）；旧记录不复活，只作为 BRIEF 与证据的出处。`,
     })
   }
-  if (projectContent !== '') {
-    messages.push({
-      kind: 'system',
-      text: `已带入项目约束（${projectContent.split('\n').filter(line => line.trim() !== '').length} 行，创建时快照）。`,
-    })
-  }
   const envWarnings = Object.entries(workspaces.environment ?? {})
     .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${seat}: ${text}`))
   if (envWarnings.length > 0) messages.push({ kind: 'system', text: `工作区环境同步警告：${envWarnings.join('；')}` })
-  const mcpSeats = roster.filter(seat => seat.mcp.length > 0)
-  if (mcpSeats.length > 0) {
-    messages.push({
-      kind: 'system',
-      text: `MCP 已开启：${mcpSeats.map(seat => `${seat.name}（${seat.mcp.map(grant => grant.server).join('、')}）`).join('；')}。调用写 events.jsonl；单个工具失败只影响当前席位回合，房间继续。`,
-    })
-  }
   if (Object.keys(engineFallbacks).length > 0) {
+    const label = { lead: '规划师', planner: '规划师', worker: '执行官', executor: '执行官', verifier: '验收员' }
     const text = Object.entries(engineFallbacks)
-      .map(([seat, item]) => `${seat} 请求 ${item.requested}，实际 ${item.actual}`)
+      .map(([seat, item]) => `${label[seat] ?? seat} 没能用上 ${item.requested}，实际跑的是 ${item.actual}`)
       .join('；')
     messages.push({
       kind: 'system',
-      text: `引擎降级：${text}。跨厂商独立性不成立，验收卡会按实际引擎标注。`,
+      text: `${text}。这次不是跨厂商复核，验收卡会按实际引擎标注。`,
     })
   }
   return messages
 }
 
-// 工作室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
+// 建房仪式、Gate 建议、分支与约束快照只留在房间字段里；旧房间的历史消息
+// 也按这一口径过滤，时间线只留会改变判断的内容。
+const STUDIO_SYSTEM_NOISE = [
+  /^房间已创建 ·/,
+  /^Gate·评估建议/,
+  /^源仓库 .*执行分支/,
+  /^已带入项目约束/,
+  /^MCP 已开启/,
+  /^非交付工作区已清理/,
+  /^已写入 CONClusion\.md/,
+  /^已通知验收席位/,
+  /^开工卡已确认；重复的确认阶段/,
+  /^执行方案已确认；重复的确认阶段/,
+]
+
 export const studioKind = {
   id: 'studio',
   type,
@@ -190,6 +170,7 @@ export const studioKind = {
     seat.prompt,
     '当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才加载。',
     '你是三类席位之一：规划师、执行官、验收员；不要自创角色，也不要承担其他席位的职责。',
+    '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
     '回复用一段话说清结论和必要依据；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
     ...workContract(seat.role),
   ].filter(Boolean).join('\n'),
@@ -246,7 +227,10 @@ export const studioKind = {
   stateOf: room => (room.closure === 'signed' ? 'signed' : room.closure ?? 'open'),
   replayTransition: replayStudioTransition,
 
-  filterMessages: messages => messages,
+  filterMessages: messages => messages.filter(message => !(
+    message?.kind === 'system'
+    && STUDIO_SYSTEM_NOISE.some(pattern => pattern.test(String(message.text ?? '')))
+  )),
   hideActivity: false,
   acceptsDelta: false,
 

@@ -262,7 +262,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
-            '判定后最多写 5 条理由，总字数控制在 300 字内；不要复述命令输出。',
+            '判定后先写一句结论（不超过 50 字，说清产物是否达标），再最多列 3 条关键证据；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。',
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
@@ -291,7 +291,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
-            '判定后最多写 5 条理由，总字数控制在 300 字内；不要复述命令输出。',
+            '判定后先写一句结论（不超过 50 字，说清产物是否达标），再最多列 3 条关键证据；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。',
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
@@ -353,11 +353,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       round = null
       reject('conflict', `复核请求没有发出：${failures.join('；') || '没有可用验收席位'}`)
     }
-    const waiting = [...nextRound.requests.keys()].map(id => `@${room.seatNames?.[id] ?? id}`)
-    store.appendMessage(roomId, {
-      kind: 'system',
-      text: `已通知验收席位 ${waiting.join('、')} 复核阶段 ${stageIndex + 1}「${stage.title}」。`,
-    })
     return { requested: true, stage: stageIndex, verifiers: [...nextRound.requests.keys()] }
   }
 

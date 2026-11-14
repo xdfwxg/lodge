@@ -47,15 +47,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
           current.prunedSeats = pruned
           return { events: [{ type: 'room.prune', payload: { seats: fresh } }] }
         })
-        if (updated !== null) {
-          emit('room', updated)
-          appendMessage(room.id, {
-            kind: 'system',
-            text: capabilities.vcs === 'git'
-              ? `非交付工作区已清理：${fresh.join('、')}；候选分支保留在源仓库。`
-              : `非交付工作区已清理：${fresh.join('、')}。`,
-          })
-        }
+        if (updated !== null) emit('room', updated)
       }
     } catch (error) {
       appendMessage(room.id, { kind: 'system', text: `非交付工作区清理失败：${error?.message ?? error}` })
@@ -66,21 +58,8 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
         status: persistence === 'archive' ? 'archive' : 'unavailable',
         vcs: capabilities.vcs ?? 'none',
       })
-      appendMessage(room.id, {
-        kind: 'system',
-        text: persistence === 'archive'
-          ? '已写入 CONCLUSION.md · 当前工作区无版本控制，房间记录与交接包留痕'
-          : '已写入 CONCLUSION.md · 本机 git 不可用，未产生 commit',
-      })
       return store.readRoom(room.id) ?? room
     }
-    // 先落这条完成记录，再提交，避免提交后 transcript 又变脏。
-    appendMessage(room.id, {
-      kind: 'system',
-      text: capabilities.vcs === 'git'
-        ? '已写入 CONCLUSION.md · 本地 commit 一次 · 未 push'
-        : '已写入 CONCLUSION.md · 已归档一次交付记录',
-    })
     const committed = roomWorkspace.persistRoom({ room, files: delivered })
     appendEvent(room.id, 'room.commit', { status: committed ? 'done' : 'failed', vcs: capabilities.vcs })
     if (!committed) {

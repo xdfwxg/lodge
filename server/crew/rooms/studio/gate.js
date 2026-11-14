@@ -9,7 +9,7 @@ export const evaluateRoomGate = ({ enabled, goal, plan, verify, acceptance, advi
   if (text === '') reasons.push('目标为空')
   if (text.length > 2000) reasons.push('目标超过 2000 字')
   if (plan !== null && (!Array.isArray(plan.done) || plan.done.length === 0)) {
-    reasons.push('开工卡没有可核对的 done')
+    reasons.push('执行方案没有可核对的 done')
   }
   const plannedAcceptance = Array.isArray(plan?.stages) &&
     plan.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')

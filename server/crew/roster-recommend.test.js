@@ -4,6 +4,13 @@ import { parseProposal, recommendRoster } from './roster-recommend.js'
 
 const reply = body => `这是队长的方案：\n\n\`\`\`json\n${JSON.stringify({ done: ['完成条件'], ...body })}\n\`\`\`\n`
 
+test('raw newlines and trailing commas inside the reply still parse', () => {
+  const text = '```json\n{"done": ["第一行\n第二行",],"seats": [{"role":"lead","name":"规划师"},{"role":"worker","name":"执行官"},{"role":"verifier","name":"验收员"}],"verify":"test","acceptance":"npm test"}\n```'
+  const proposal = parseProposal(text)
+  assert.equal(proposal.done[0], '第一行\n第二行')
+  assert.deepEqual(proposal.seats.map(seat => seat.role), ['lead', 'worker', 'verifier'])
+})
+
 test('the fixed three-seat squad keeps names and reasons in the card', () => {
   const proposal = parseProposal(reply({
     done: ['hello.txt 内容为 crew ok'],
@@ -112,7 +119,7 @@ test('a test proposal without a command falls back to human confirmation', () =>
 })
 
 test('an unparsable reply fails closed', () => {
-  assert.throws(() => parseProposal('我觉得需要三个人。'), /可解析/)
+  assert.throws(() => parseProposal('我觉得需要三个人。'), /没有给出可用的方案/)
 })
 
 test('too many done items are trimmed visibly', () => {
