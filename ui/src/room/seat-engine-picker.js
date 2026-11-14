@@ -25,14 +25,16 @@ export function SeatEnginePicker({
         h('span', null, '性格'),
         h('span', null, '模型'),
         h('span', null))
-      : null,
+      : h('div', { className: 'crew-seat-columns crew-seat-columns-plain', 'aria-hidden': 'true' },
+        h('span', null, '成员'),
+        h('span', null, '模型')),
     ...seats.map((seat, index) => {
       const choice = choices[index] ?? { engine: '', model: '' }
       const engine = engineChoices.find(item => item.id === choice.engine)
       const rows = modelRowsFor(engine)
       const model = choice.model !== '' ? choice.model : (engine?.models?.default || rows[0]?.id || '')
       const personalityId = choice.personality || seat.personality || personalities[index % Math.max(1, personalities.length)]?.id || ''
-      return h('div', { key: `${seat.role}-${index}`, className: `crew-seat-engine${withPersona ? ' crew-seat-with-persona' : ''}` },
+      return h('div', { key: `${seat.role}-${index}`, className: `crew-seat-engine ${withPersona ? 'crew-seat-with-persona' : 'crew-seat-with-model'}` },
         h('div', { className: 'crew-seat-engine-head' },
           h('span', null, seat.name === undefined || seat.name === '' ? ROLE_LABEL[seat.role] ?? seat.role : seat.name)),
         personalities.length === 0

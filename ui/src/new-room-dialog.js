@@ -3,6 +3,7 @@ import { ChecklistIcon, TargetIcon } from './icons.js'
 import { ChatIcon } from './room/type-icons.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
+import { inlineCode } from './inline-code.js'
 import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
@@ -292,7 +293,7 @@ function NewRoomDialog({
   }
 
   const teamView = h('div', { className: 'crew-proposal-block' },
-    h('b', null, '团队与引擎'),
+    h('b', null, '成员配置'),
     h(SeatEnginePicker, {
       seats: proposalSeats,
       choices: seatChoices,
@@ -323,44 +324,48 @@ function NewRoomDialog({
   const proposalBody = proposal === null ? null : h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-proposal-head' },
       h('div', null,
-        h('b', null, 'Lodge 的开工卡'),
-        h('p', { className: 'crew-dialog-sub' },
-          `${proposal.seats.length} 人${typeof proposal.why === 'string' && proposal.why !== '' ? ` · ${proposal.why}` : ''}`))),
+        h('b', null, '执行方案'),
+        h('p', {
+          className: 'crew-dialog-sub crew-proposal-lede',
+          title: typeof proposal.why === 'string' ? proposal.why : '',
+        },
+          inlineCode(typeof proposal.why === 'string' && proposal.why !== ''
+            ? proposal.why
+            : `本任务由 ${proposal.seats.length} 人协作完成。`)))),
     h('div', { className: 'crew-proposal-block' },
-      h('b', null, '做完的样子'),
+      h('b', null, '交付内容'),
       h('ul', { className: 'crew-brief' },
-        proposal.done.map((text, index) => h('li', { key: `done-${index}` }, text)))),
+        proposal.done.map((text, index) => h('li', { key: `done-${index}` }, inlineCode(text))))),
     Array.isArray(proposal.stages) && proposal.stages.length > 0
       ? h('div', { className: 'crew-proposal-block' },
-        h('b', null, '分几步做'),
+        h('b', null, '执行步骤'),
         h('ul', { className: 'crew-brief' },
           proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
-            `${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你拍板' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`))))
+            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你拍板' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))))
       : null,
     (proposal.questions ?? []).length > 0
       ? h('div', { className: 'crew-proposal-block' },
-        h('b', null, '需要你定的事'),
+        h('b', null, '待确认事项'),
         proposal.questions.map((question, index) => h('div', { key: `q-${index}`, className: 'crew-proposal-question' },
-          h('span', null, `${index + 1}. ${question.text}`),
-          h('input', {
+          h('span', null, inlineCode(`${index + 1}. ${question.text}`)),
+          h('textarea', {
             className: 'crew-goal-input',
-            type: 'text',
-            value: answers[index] ?? '',
-            placeholder: question.recommendation,
+            rows: 2,
+            value: answers[index] ?? question.recommendation ?? '',
             onChange: event => setAnswers(list => list.map((item, at) => at === index ? event.target.value : item)),
           }))))
-      : h('p', { className: 'crew-field-hint' }, '没有需要你额外定的事。'),
+      : h('p', { className: 'crew-field-hint' }, '没有待确认的事项。'),
     teamView,
     h('div', { className: 'crew-proposal-block' },
-      h('b', null, '怎么算过'),
-      h('p', { className: 'crew-field-hint' },
-        verify === 'manual'
-          ? '你自己看产物确认；这一步没有命令证据。'
-          : acceptance.trim() !== ''
-            ? `验收命令：${acceptance}`
-            : plannedAcceptance
-                ? '按阶段验收；每个交付阶段都有命令。'
-                : '还没有验收命令。')),
+      h('b', null, '验收标准'),
+      verify === 'manual'
+        ? h('p', { className: 'crew-field-hint' }, '你自己看产物确认；这一步没有命令证据。')
+        : acceptance.trim() !== ''
+          ? h('div', { className: 'crew-acceptance' },
+            h('span', { className: 'crew-field-hint' }, '验收命令'),
+            h('code', { className: 'crew-acceptance-cmd' }, acceptance))
+          : h('p', { className: 'crew-field-hint' },
+            plannedAcceptance ? '按阶段验收；每个交付阶段都有命令。' : '还没有验收命令。')),
     verify === 'manual' && hasVerifier
       ? h('p', { className: 'crew-dialog-note' }, '人工验收不需要验收席位；要独立复核就补一条验收命令。')
       : null,
@@ -452,7 +457,7 @@ function NewRoomDialog({
         : step === 0 ? setupBody : proposalBody,
       choosingType ? null : h('div', { className: 'crew-dialog-foot' },
         step > 0
-          ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => setStep(0) }, '改目标')
+          ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => setStep(0) }, '返回修改')
           : null,
         step === 0
           ? roomKind.startMode === 'direct'
@@ -473,7 +478,7 @@ function NewRoomDialog({
             className: 'crew-accept crew-dialog-primary',
             disabled: !canStart,
             onClick: () => void start(),
-          }, busy ? '正在建真实房间…' : '就按这个方案开工')))
+          }, busy ? '正在建真实房间…' : '开始执行')))
   )
 }
 

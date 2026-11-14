@@ -1,10 +1,9 @@
-import { createElement as h, useMemo, useState } from 'react'
+import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../approval-card.js'
 import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard } from '../message-cards.js'
 import { isDispatchHandoff } from './handoff.js'
 import { buildTimeline, dedupeChatStreams } from './timeline-model.js'
 import { hostLabelOf } from './host.js'
-import { durationOf } from '../view-format.js'
 
 const TIME_GAP = 5 * 60 * 1000
 const timeLabel = ts => {
@@ -16,8 +15,7 @@ const timeLabel = ts => {
   return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
 
-function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinueChat, onStartStudio, compact = false, hideKinds = [] }) {
-  const [expanded, setExpanded] = useState(false)
+function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinueChat, onStartStudio, hideKinds = [] }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
   const timeline = useMemo(() => buildTimeline(messages), [messages])
@@ -81,25 +79,11 @@ function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinue
       : [h('div', { key: `time-${message.id}`, className: 'crew-time' }, timeLabel(mark)), content]
   }
 
-  // 派活、心跳、整房结论与原始回合收进一条可展开的记录。
-  const processSpan = timeline.process.length > 1
-    ? (timeline.process.at(-1).ts ?? 0) - (timeline.process[0].ts ?? 0)
-    : 0
-  const processTime = processSpan >= 1000 ? ` · 用时 ${durationOf(processSpan)}` : ''
-  const processFold = timeline.process.length === 0
-    ? null
-    : h('details', { key: 'process-log', className: 'crew-process' },
-      h('summary', null, `过程记录 · ${timeline.process.length} 条${processTime}`),
-      h('div', { className: 'crew-process-body' }, timeline.process.map(renderMessage)))
-
   const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
   const hidden = new Set(['activity', 'advisor_advice', ...hideKinds])
   const meaningful = timeline.visible.filter(message => !hidden.has(message.kind))
-  const shown = compact && !expanded ? meaningful.slice(-3) : meaningful
-  const showProcess = !compact || expanded
-  const canExpand = compact && (meaningful.length > 3 || timeline.process.length > 0)
   return [
-    ...shown.map(renderMessage).flat().filter(Boolean),
+    ...meaningful.map(renderMessage).flat().filter(Boolean),
     ...pendingApprovals
       .slice(0, 1)
       .map(approval => h(ApprovalCard, {
@@ -110,15 +94,6 @@ function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinue
     pendingApprovals.length > 1
       ? h('div', { key: 'approval-queue', className: 'crew-system' },
         `还有 ${pendingApprovals.length - 1} 个待批准，处理完当前这个再出现。`)
-      : null,
-    showProcess ? processFold : null,
-    canExpand
-      ? h('button', {
-        key: 'timeline-more',
-        type: 'button',
-        className: 'crew-timeline-more',
-        onClick: () => setExpanded(value => !value),
-      }, expanded ? '收起时间线' : `展开全部（${meaningful.length} 条）`)
       : null,
   ].filter(Boolean)
 }

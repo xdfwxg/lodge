@@ -172,7 +172,6 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
         h('div', { className: 'crew-flow' }, h(Timeline, {
           room,
           seats,
-          compact: !isChat,
           hideKinds: [],
           onAccept: stage => void (isChat ? store.chatAccept() : store.accept(stage)),
           onStageAccept: isChat ? null : showsDecisionCard(decision) ? null : stage => void store.accept(stage),

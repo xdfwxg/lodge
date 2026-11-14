@@ -34,12 +34,20 @@ export function DeliverySheet({ delivery, onExport }) {
       setOpenError(`打开失败：${String(error?.message ?? error)}`)
     }
   }
+  const goalText = typeof delivery.goal === 'string' ? delivery.goal.replace(/\*\*/g, '').trim() : ''
+  const goalFirst = goalText.split('\n').map(line => line.trim()).find(line => line !== '') ?? ''
+  const nameText = typeof delivery.name === 'string' ? delivery.name.trim() : ''
   return h('section', { className: 'crew-delivery', 'aria-label': '交付单' },
     h('div', { className: 'crew-delivery-head' },
       h('div', { className: 'crew-delivery-title' },
         h('span', { className: 'crew-delivery-kicker' }, '交付单'),
         h('h2', null, delivery.name ?? '这次交付'),
-        h('p', null, delivery.goal ?? '')),
+        goalFirst === '' || goalFirst === nameText ? null : h('p', { className: 'crew-delivery-goal' }, goalFirst),
+        goalText !== goalFirst
+          ? h('details', { className: 'crew-delivery-goal-more' },
+            h('summary', null, '查看完整目标'),
+            h('p', null, goalText))
+          : null),
       h('span', { className: 'crew-verdict', 'data-pass': true }, '目标达成'),
       onExport === undefined
         ? null
@@ -58,7 +66,7 @@ export function DeliverySheet({ delivery, onExport }) {
       delivery.completedAt ? h('span', null, timeOf(delivery.completedAt)) : null),
     delivery.commit
       ? h('div', { className: 'crew-delivery-commit' },
-        h('span', null, '结论 commit'),
+        h('span', null, '提交'),
         h('code', null, short(delivery.commit)),
         h('span', null, '未 push'))
       : h('div', { className: 'crew-delivery-commit' },
