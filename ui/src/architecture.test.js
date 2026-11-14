@@ -48,6 +48,17 @@ test('shared UI modules do not branch on the room type', () => {
   }
 })
 
+test('danger text uses the semantic text token', () => {
+  for (const file of sourceFiles) {
+    const text = readFileSync(file, 'utf8')
+    assert.doesNotMatch(
+      text,
+      /[{;]\s*color:\s*var\(--bt-danger\)/,
+      `${rel(file)} paints danger text with the icon token`,
+    )
+  }
+})
+
 test('the visual layer has no blur and no legacy soft shadow', () => {
   for (const file of sourceFiles) {
     const text = readFileSync(file, 'utf8')

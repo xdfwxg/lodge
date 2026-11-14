@@ -294,7 +294,7 @@ export function GoalIsland({ room, goal, view, open, composing, roomWork, roster
 export const GOAL_CSS = `
 /* One surface: the pill's own background, border and shadow. The pill row is
    40px, the pod bar 30px; the surface reshapes on SPRING_SHAPE. */
-.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(380px,calc(100% - 120px));background:var(--bt-card);border:.5px solid var(--bt-line-2);border-radius:20px;box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .2s ease}
+.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(380px,calc(100% - 120px));background:var(--bt-card);border:.5px solid var(--bt-line-2);border-radius:20px;box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:13.5px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .2s ease}
 .bt-island[data-open]{width:min(560px,calc(100% - 48px));border-radius:18px;box-shadow:var(--bt-elev-2)}
 .bt-island[data-morph]{overflow:hidden}
 .bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:20px 20px 0 0}
@@ -312,10 +312,10 @@ export const GOAL_CSS = `
 .bt-pill-ico{flex:none;display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
 .bt-pill-ico svg{width:14px;height:14px}
 .bt-pill-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
-.bt-pill-count{flex:none;font-size:12px;line-height:16px;color:var(--bt-ink-2);font-variant-numeric:tabular-nums}
+.bt-pill-count{flex:none;font-size:12.5px;line-height:16px;color:var(--bt-ink-2);font-variant-numeric:tabular-nums}
 .bt-goal-pod{display:flex;flex-direction:column;min-width:0}
 .bt-goal-pod::before{content:"";flex:none;height:.5px;margin:0 12px;background:var(--bt-line)}
-.bt-goal-bar{display:flex;align-items:center;gap:8px;height:30px;padding:0 14px;border:0;background:none;color:var(--bt-ink-2);font:inherit;font-size:12px;line-height:16px;cursor:pointer;text-align:left;transition:background-color .12s ease}
+.bt-goal-bar{display:flex;align-items:center;gap:8px;height:30px;padding:0 14px;border:0;background:none;color:var(--bt-ink-2);font:inherit;font-size:12.5px;line-height:16px;cursor:pointer;text-align:left;transition:background-color .12s ease}
 .bt-goal-bar:hover{background:var(--bt-hover)}
 .bt-island:not([data-open]) .bt-goal-bar{border-radius:0 0 20px 20px}
 .bt-goal-dot{flex:none;width:8px;height:8px;border-radius:50%;corner-shape:round;background:var(--bt-green)}
@@ -336,7 +336,7 @@ export const GOAL_CSS = `
 .bt-goal-faces{display:inline-flex;align-items:center;flex:none;margin-left:auto}
 .bt-goal-face{display:inline-flex;flex:none;border-radius:50%;background:var(--bt-main);box-shadow:0 0 0 2px var(--bt-main)}
 .bt-goal-face+.bt-goal-face{margin-left:-6px}
-.bt-goal-more{font-size:11px;line-height:16px;color:var(--bt-ink-3);margin-left:3px}
+.bt-goal-more{font-size:11.5px;line-height:16px;color:var(--bt-ink-3);margin-left:3px}
 .bt-goal-chev{flex:none;display:inline-flex;color:var(--bt-ink-3)}
 .bt-goal-chev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
 .bt-goal-bar[aria-expanded=true] .bt-goal-chev svg{transform:rotate(180deg)}
@@ -360,18 +360,18 @@ export const GOAL_CSS = `
 .bt-goal-step.bt-goal-mini .bt-goal-node{font-size:0}
 .bt-goal-step.bt-goal-mini .bt-goal-node>svg{display:none}
 /* The selected stage below the stepper. */
-.bt-goal-bstage{display:flex;flex-direction:column;padding:4px 14px 14px;font-size:13px;line-height:18px;animation:bt-veil-in .22s ease-out backwards}
+.bt-goal-bstage{display:flex;flex-direction:column;padding:4px 14px 14px;font-size:13.5px;line-height:18px;animation:bt-veil-in .22s ease-out backwards}
 .bt-goal-bline{display:flex;align-items:baseline;gap:8px}
 .bt-goal-btitle{flex:1 1 auto;font-weight:600}
-.bt-goal-back{flex:none;border:0;background:none;padding:0;font:inherit;font-size:12px;line-height:16px;color:var(--bt-accent);cursor:pointer}
+.bt-goal-back{flex:none;border:0;background:none;padding:0;font:inherit;font-size:12.5px;line-height:16px;color:var(--bt-accent);cursor:pointer}
 .bt-goal-btext{overflow-wrap:anywhere}
-.bt-goal-line{margin-top:2px;min-width:0;font-size:12px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere}
+.bt-goal-line{margin-top:2px;min-width:0;font-size:12.5px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere}
 .bt-goal-sec{display:flex;flex-direction:column;gap:4px;min-width:0}
-.bt-goal-sub{flex:none;font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink-2)}
-.bt-goal-rw{margin-top:8px;border-radius:8px;padding:6px 10px;background:var(--bt-warning-wash);font-size:12px;line-height:18px;color:var(--bt-ink);overflow-wrap:anywhere}
+.bt-goal-sub{flex:none;font-size:12.5px;line-height:16px;font-weight:600;color:var(--bt-ink-2)}
+.bt-goal-rw{margin-top:8px;border-radius:8px;padding:6px 10px;background:var(--bt-warning-wash);font-size:12.5px;line-height:18px;color:var(--bt-ink);overflow-wrap:anywhere}
 .bt-goal-text{overflow-wrap:anywhere}
 .bt-goal-rules{margin:0;padding-left:18px}
-.bt-goal-evi{margin-top:8px;font-size:12px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.bt-goal-evi{margin-top:8px;font-size:12.5px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .bt-goal-tasks{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .bt-goal-task{display:flex;align-items:flex-start;gap:8px;min-width:0}
 .bt-goal-task[data-task=pending]{opacity:.55}
@@ -380,10 +380,10 @@ export const GOAL_CSS = `
 .bt-goal-tdone svg{width:9px;height:9px}
 .bt-goal-ttext{flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
 .bt-goal-tname{font-weight:500}
-.bt-goal-ckbody{display:flex;flex-direction:column;gap:10px;padding:0 14px 10px;font-size:13px;line-height:18px;text-align:left}
+.bt-goal-ckbody{display:flex;flex-direction:column;gap:10px;padding:0 14px 10px;font-size:13.5px;line-height:18px;text-align:left}
 /* The bottom row: disclosure on the left, controls on the right. */
 .bt-goal-foot{display:flex;align-items:center;gap:8px;height:40px;flex:none;padding:0 8px 0 14px;border-top:.5px solid var(--bt-line)}
-.bt-goal-checks{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:4px 6px;margin-left:-6px;border-radius:6px;font:inherit;font-size:12px;line-height:16px;color:var(--bt-ink-2);cursor:pointer}
+.bt-goal-checks{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:4px 6px;margin-left:-6px;border-radius:6px;font:inherit;font-size:12.5px;line-height:16px;color:var(--bt-ink-2);cursor:pointer}
 .bt-goal-checks:hover{background:var(--bt-hover)}
 .bt-goal-mchev{display:inline-flex;width:14px;height:14px;color:var(--bt-ink-3)}
 .bt-goal-mchev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
@@ -392,9 +392,9 @@ export const GOAL_CSS = `
 .bt-goal-danger{color:var(--bt-danger-text)}
 .bt-goal-danger[data-armed]{background:var(--bt-danger-wash);box-shadow:inset 0 0 0 1px var(--bt-line-danger)}
 .bt-goal-compose{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
-.bt-goal-clabel{font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink-2)}
-.bt-goal-input{min-height:52px;max-height:124px;resize:none;font-size:13px}
-.bt-goal-chint{font-size:12px;line-height:16px;color:var(--bt-ink-3)}
+.bt-goal-clabel{font-size:12.5px;line-height:16px;font-weight:600;color:var(--bt-ink-2)}
+.bt-goal-input{min-height:52px;max-height:124px;resize:none;font-size:13.5px}
+.bt-goal-chint{font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
 .bt-goal-cbtns{display:flex;justify-content:flex-end;gap:6px}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
 @media (prefers-reduced-motion:reduce){.bt-island,.bt-pill-swap>*,.bt-goal-segs i,.bt-goal-chev svg{transition:none!important}.bt-goal-panel{animation:none}}

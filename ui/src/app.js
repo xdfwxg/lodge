@@ -50,6 +50,26 @@ export function App() {
     return () => store.disconnect()
   }, [store])
 
+  // macOS 惯例：⌘N 新房间，⌘1..9 切房间；弹窗打开时不抢键。
+  useEffect(() => {
+    const onKeyDown = event => {
+      if (event.defaultPrevented || dialog) return
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
+      if (event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        openDialog()
+        return
+      }
+      if (!/^[1-9]$/.test(event.key)) return
+      const room = state.rooms[Number(event.key) - 1]
+      if (room === undefined) return
+      event.preventDefault()
+      store.select(room.id)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [dialog, state.rooms, store])
+
   const dialogNode = h(NewRoomDialog, {
     open: dialog,
     onClose: closeDialog,
