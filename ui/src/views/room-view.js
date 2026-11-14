@@ -2,9 +2,10 @@ import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { BotAvatar } from '../marks.js'
 import { DeliverySheet } from '../delivery-sheet.js'
 import { Composer } from '../composer.js'
-import { ReviewDialog } from '../room/advanced.js'
+import { ReviewDialog } from '../room/studio/advanced.js'
 import { AuditDrawer } from '../room/audit.js'
 import { buildChatDecision, ChatStatusHeader } from '../room/chat/decision.js'
+import { uiKindOfRoom } from '../room/kinds.js'
 import { buildStudioDecision, StudioDecisionCard } from '../room/studio/decision.js'
 import { DsGoalHeader } from '../goal-island/ds-adapter.js'
 import { RoomRail } from '../room/rail.js'
@@ -74,7 +75,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   }
 
   const locked = room.state === 'paused' || room.state === 'stopped'
-  const isChat = room.roomType === 'chat'
+  const isChat = uiKindOfRoom(room).id === 'chat'
   const chat = room.chat ?? {}
   const seats = useMemo(() => {
     if (Array.isArray(room.seatSpecs) && room.seatSpecs.length > 0) return room.seatSpecs

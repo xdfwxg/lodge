@@ -3,7 +3,8 @@ import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.
 import { buildChatRequest, ChatSetupFields, chatSeatChoicesFrom } from './room/chat/create.js'
 import { seedGoalText } from './room/chat/seed.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
-import { StudioSetupFields } from './room/studio/create.js'
+import { buildStudioRequest, StudioSetupFields } from './room/studio/create.js'
+import { uiKindOfType } from './room/kinds.js'
 
 const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
@@ -94,7 +95,7 @@ function NewRoomDialog({
   }, [open, seed?.goal, seed?.conclusion, seed?.sourceName])
 
   useEffect(() => {
-    if (!open || roomType !== 'chat') return
+    if (!open || uiKindOfType(roomType).startMode !== 'direct') return
     const type = typeChoices.find(item => item.id === 'chat')
     setChatSeatChoices(chatSeatChoicesFrom(type?.defaultSeats ?? []))
   }, [open, roomType, typeChoices])
@@ -102,7 +103,7 @@ function NewRoomDialog({
   if (!open) return null
 
   const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
-  const nonTask = roomType !== 'studio'
+  const roomKind = uiKindOfType(roomType)
   const needRepo = resume !== null && repoPath.trim() === ''
   const proposalSeats = proposal?.seats ?? []
   const engineChoices = engines.filter(item => item.available)
@@ -136,17 +137,13 @@ function NewRoomDialog({
   const hasVerifier = proposalSeats.some(seat => seat.role === 'verifier')
   const plannedAcceptance = Array.isArray(proposal?.stages) &&
     proposal.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
-  const verify = nonTask
-    ? activeType?.defaultVerify ?? 'manual'
-    : proposal?.verify === 'manual' ? 'manual' : 'test'
-  const acceptance = nonTask ? '' : proposal?.acceptance ?? ''
+  const verify = proposal?.verify === 'manual' ? 'manual' : 'test'
+  const acceptance = proposal?.acceptance ?? ''
   const lineCount = constraints.split('\n').filter(line => line.trim() !== '').length
-  const studioMissingVerifier = roomType === 'studio' && !hasVerifier
-  const manualVerifierConflict = verify === 'manual' && hasVerifier && !['studio', 'chat'].includes(roomType)
+  const studioMissingVerifier = roomKind.missingVerifier(hasVerifier)
   const canStart = !busy && roomName.trim() !== '' && !needRepo && seatsReady &&
     !(verify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
-    !studioMissingVerifier &&
-    !manualVerifierConflict
+    !studioMissingVerifier
 
   const loginEngineFor = async engine => {
     if (engine === undefined || loginBusy) return
@@ -229,14 +226,8 @@ function NewRoomDialog({
         setError(result?.error ?? 'Lodge 没有给出方案；可以重试')
         return
       }
-      const seats = nonTask && Array.isArray(activeType?.defaultSeats) && activeType.defaultSeats.length > 0
-        ? normalizeSeats(activeType.defaultSeats)
-        : DEFAULT_SEATS
-      setProposal({
-        ...result.proposal,
-        seats,
-        ...(nonTask ? { verify: activeType?.defaultVerify ?? 'manual', acceptance: '' } : {}),
-      })
+      const seats = DEFAULT_SEATS
+      setProposal({ ...result.proposal, seats })
       setSeatChoices(seats.map(seat => ({
         engine: typeof seat.engine === 'string' ? seat.engine : '',
         model: typeof seat.model === 'string' ? seat.model : '',
@@ -301,42 +292,23 @@ function NewRoomDialog({
     setBusy(true)
     setError(null)
     try {
-      const result = await onCreate(goal.trim(), {
+      const result = await onCreate(goal.trim(), buildStudioRequest({
+        goal: goal.trim(),
         name: roomName.trim(),
-        roomType,
+        repoPath: repoPath.trim(),
         verify,
         acceptance,
-        ...(roomType === 'studio' && shadowReview ? { shadowReview: true } : {}),
-        ...(roomType === 'studio' && requireIndependent ? { independencePolicy: 'require' } : {}),
-        ...(roomType === 'chat' ? { chatTurnLimit } : {}),
-        repoPath: repoPath.trim(),
-        ...(resume === null ? {} : { continueFrom: resume.id }),
-        ...(includeConstraints && constraints.trim() !== '' ? { projectConstraints: constraints } : {}),
-        ...(hasSeatChoice
-          ? {
-            seats: proposal.seats.map((seat, index) => {
-              const choice = choiceAt(index)
-              const model = selectedModelOf(choice)
-              return {
-                role: seat.role,
-                name: seat.name,
-                ...(choice.engine === '' ? {} : { engine: choice.engine }),
-                ...(choice.engine === '' || model === '' ? {} : { model }),
-              }
-            }),
-          }
-          : {}),
-        plan: {
-          done: proposal.done,
-          ...(typeof proposal.orchestration === 'string' ? { orchestration: proposal.orchestration } : {}),
-          ...(typeof proposal.why === 'string' && proposal.why !== '' ? { why: proposal.why } : {}),
-          ...(Array.isArray(proposal.stages) && proposal.stages.length > 0 ? { stages: proposal.stages } : {}),
-          answers: (proposal.questions ?? []).map((question, index) => ({
-            question: question.text,
-            answer: answers[index] ?? question.recommendation,
-          })),
-        },
-      })
+        shadowReview,
+        requireIndependent,
+        includeConstraints,
+        constraints,
+        proposal,
+        answers,
+        seatChoices,
+        hasSeatChoice,
+        selectedModelOf,
+        continueFrom: resume === null ? null : resume.id,
+      }))
       if (result?.ok !== true) {
         setError(result?.error ?? '创建房间失败')
         return
@@ -350,21 +322,17 @@ function NewRoomDialog({
   }
 
   const teamView = h('div', { className: 'crew-proposal-block' },
-    h('b', null, nonTask ? '团队' : '团队与引擎'),
-    nonTask
-      ? h('ul', { className: 'crew-brief' },
-        proposalSeats.map((seat, index) => h('li', { key: `${seat.role}-${index}` },
-          `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)))
-      : h(SeatEnginePicker, {
-        seats: proposalSeats,
-        choices: seatChoices,
-        setChoices: setSeatChoices,
-        engines,
-        loginBusy,
-        onLogin: loginEngineFor,
-        onInteraction: () => setLoginNote(null),
-      }),
-    roomType === 'studio' && !hasVerifier
+    h('b', null, '团队与引擎'),
+    h(SeatEnginePicker, {
+      seats: proposalSeats,
+      choices: seatChoices,
+      setChoices: setSeatChoices,
+      engines,
+      loginBusy,
+      onLogin: loginEngineFor,
+      onInteraction: () => setLoginNote(null),
+    }),
+    studioMissingVerifier
       ? h('p', { className: 'crew-field-hint' }, '工作室必须有独立验收席位；让 Lodge 重新出方案，补一个验收员。')
       : null,
     loginNote !== null ? h('p', { className: 'crew-dialog-note' }, loginNote) : null)
@@ -450,13 +418,11 @@ function NewRoomDialog({
     h('div', { className: 'crew-proposal-block' },
       h('b', null, '怎么算过'),
       h('p', { className: 'crew-field-hint' },
-        nonTask
-          ? '这类房间由你确认结论，不跑验收命令。'
-          : verify === 'manual'
-            ? '你自己看产物确认；这一步没有命令证据。'
-            : acceptance.trim() !== ''
-              ? `验收命令：${acceptance}`
-              : plannedAcceptance
+        verify === 'manual'
+          ? '你自己看产物确认；这一步没有命令证据。'
+          : acceptance.trim() !== ''
+            ? `验收命令：${acceptance}`
+            : plannedAcceptance
                 ? '按阶段验收；每个交付阶段都有命令。'
                 : '还没有验收命令。')),
     verify === 'manual' && hasVerifier
@@ -525,25 +491,22 @@ function NewRoomDialog({
           'data-on': roomType === type.id ? 'true' : undefined,
           onClick: () => changeRoomType(type.id),
         }, type.name)))),
-    roomType === 'studio'
-      ? h(StudioSetupFields, {
-        shadowReview,
-        onShadowReview: setShadowReview,
-        requireIndependent,
-        onRequireIndependent: setRequireIndependent,
-        constraintsView,
-      })
-      : h(ChatSetupFields, {
-        turnLimit: chatTurnLimit,
-        onTurnLimit: setChatTurnLimit,
-        seats: activeType?.defaultSeats ?? [],
-        choices: chatSeatChoices,
-        setChoices: setChatSeatChoices,
-        engines,
-        loginBusy,
-        onLogin: loginEngineFor,
-        onInteraction: () => setLoginNote(null),
-      }),
+    roomKind.setupFields({
+      turnLimit: chatTurnLimit,
+      onTurnLimit: setChatTurnLimit,
+      seats: activeType?.defaultSeats ?? [],
+      choices: chatSeatChoices,
+      setChoices: setChatSeatChoices,
+      engines,
+      loginBusy,
+      onLogin: loginEngineFor,
+      onInteraction: () => setLoginNote(null),
+      shadowReview,
+      onShadowReview: setShadowReview,
+      requireIndependent,
+      onRequireIndependent: setRequireIndependent,
+      constraintsView,
+    }),
     resume?.brief?.done?.length > 0
       ? h('div', { className: 'crew-proposal-block' },
         h('b', null, `上一轮的要求 · ${resume.name}`),
@@ -559,11 +522,7 @@ function NewRoomDialog({
           h('h2', null, resume === null ? '新建房间' : '基于交接记录续做'),
           h('p', { className: 'crew-dialog-sub' },
             step === 0
-              ? roomType === 'chat'
-                ? '给一个话题，Lodge 直接开聊；主持人总结后你来拍板。'
-                : resume === null
-                  ? '说清目标，Lodge 先出方案。'
-                  : '目标已带入；选上一轮项目目录，Lodge 重新出方案。'
+              ? (resume === null ? roomKind.dialogSub : roomKind.resumeSub)
               : '确认开工卡后开工；最后一步由你签字。')),
         h('button', {
           type: 'button',
@@ -578,19 +537,19 @@ function NewRoomDialog({
           ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => setStep(0) }, '改目标')
           : null,
         step === 0
-          ? roomType === 'chat'
+          ? roomKind.startMode === 'direct'
             ? h('button', {
               type: 'button',
               className: 'crew-accept crew-dialog-primary',
               disabled: busy || goal.trim() === '' || roomName.trim() === '' || needRepo,
               onClick: () => void startChat(),
-            }, busy ? '正在创建…' : '开始讨论')
+            }, busy ? '正在创建…' : roomKind.cta)
             : h('button', {
               type: 'button',
               className: 'crew-accept crew-dialog-primary',
               disabled: goal.trim() === '' || needRepo || recommending,
               onClick: () => void recommend(),
-            }, recommending ? 'Lodge 正在看…' : '让 Lodge 出方案')
+            }, recommending ? 'Lodge 正在看…' : roomKind.cta)
           : h('button', {
             type: 'button',
             className: 'crew-accept crew-dialog-primary',

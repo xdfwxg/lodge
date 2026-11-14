@@ -140,7 +140,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     if (evidence === undefined || evidence === null) {
       reject('conflict', manual ? '还没有本阶段的产物证据' : '还没有本阶段的验收命令证据')
     }
-    if (room.roomType === 'studio' && room.closure === 'executing') {
+    if (room.closure === 'executing') {
       const moved = transitionStudio(room.closure, 'submit_evidence', {
         manual,
         exitCode: evidence.meta?.exit,

@@ -1,5 +1,6 @@
 import { createElement as h } from 'react'
-import { Advanced } from './advanced.js'
+import { Advanced } from './studio/advanced.js'
+import { uiKindOfRoom } from './kinds.js'
 import { money } from '../view-format.js'
 
 const TABS = [
@@ -9,20 +10,6 @@ const TABS = [
   { id: 'output', label: '交付' },
   { id: 'advanced', label: '高级' },
 ]
-
-const stageTitle = room => {
-  const index = (room.stages ?? []).findIndex(stage => stage.state === 'active')
-  return index < 0 ? '' : room.stages[index]?.title ?? ''
-}
-
-const statusLine = room => {
-  if (room.roomType === 'chat') {
-    const chat = room.chat ?? {}
-    return `第 ${chat.round ?? 1} 轮 · ${chat.phase ?? 'discussing'} · ${chat.turns ?? 0}/${chat.turnLimit ?? 6}`
-  }
-  const stage = stageTitle(room)
-  return `${room.closure ?? 'open'} · ${room.state}${stage === '' ? '' : ` · ${stage}`}`
-}
 
 const seatLine = (room, seat) => {
   const engine = room.engines?.[seat.id] ?? seat.engine ?? ''
@@ -54,8 +41,10 @@ const verdictLabel = (room, verdict) => {
 export function RoomRail({
   room, seats, store, engines = [], rooms = [], tab, onTab, ledger: ledgerState = null, integrity: integrityState = null,
 }) {
+  const kind = uiKindOfRoom(room)
+  const tabs = TABS.filter(item => kind.railTabs.includes(item.id))
   const stats = evidenceStats(room)
-  const current = TABS.some(item => item.id === tab) ? tab : 'status'
+  const current = tabs.some(item => item.id === tab) ? tab : 'status'
   const ledger = ledgerState
   const openTab = id => {
     onTab(id)
@@ -63,7 +52,7 @@ export function RoomRail({
   }
   return h('aside', { className: 'crew-rail', 'aria-label': '房间上下文' },
     h('div', { className: 'crew-rail-tabs' },
-      TABS.map(item => h('button', {
+      tabs.map(item => h('button', {
         key: item.id,
         type: 'button',
         className: 'crew-rail-tab',
@@ -74,15 +63,15 @@ export function RoomRail({
       ? h('div', { className: 'crew-rail-body' },
         h('section', { className: 'crew-rail-section' },
           h('b', null, '房间状态'),
-          h('p', null, statusLine(room)),
-          h('p', { className: 'crew-muted' }, room.roomType === 'chat' ? '聊天室只讨论，不执行交付' : `验收：${room.verifierPolicy ?? 'all'} · 影子评审：${room.shadowReview === true ? '开' : '关'}`)),
+          h('p', null, kind.statusLine(room)),
+          h('p', { className: 'crew-muted' }, kind.subtitle(room))),
         h('section', { className: 'crew-rail-section' },
           h('b', null, '证据与结论'),
           h('p', null, `凭证 ${stats.evidence} · verdict ${stats.verdicts}`),
           h('p', { className: 'crew-muted' }, stats.last === '' ? '还没有 verdict' : `最近：${stats.last}`)),
         h('div', { className: 'crew-rail-actions' },
           h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openReplay(room.id) }, '状态回放'),
-          room.roomType === 'studio'
+          kind.showShadow
             ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openShadow(room.id) }, room.shadowReview === true ? '影子评审' : '评审对照')
             : null,
           h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openReview(room.id) }, '复盘')))
@@ -114,7 +103,7 @@ export function RoomRail({
                         className: 'crew-ledger-verdict',
                         'data-pass': verdict.meta?.pass === true ? 'true' : 'false',
                       }, verdictLabel(room, verdict))),
-                    room.roomType === 'studio'
+                    kind.showShadow
                       ? h('button', {
                         type: 'button',
                         className: 'crew-ledger-link',
@@ -135,7 +124,7 @@ export function RoomRail({
               integrityState.broken.map(row => h('p', { key: row.id, className: 'crew-integrity-row' },
                 `#${row.seq} 存储 ${row.storedDigest === '' ? '缺失' : row.storedDigest.slice(0, 12)} · 重算 ${row.computedDigest.slice(0, 12)}`)))),
         h('div', { className: 'crew-rail-actions' },
-          room.roomType === 'studio'
+          kind.showShadow
             ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openShadow(room.id) }, '影子评审')
             : null,
           h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openLedger(room.id) }, '刷新'),

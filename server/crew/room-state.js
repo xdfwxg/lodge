@@ -92,9 +92,21 @@ export const chatTransitionEvent = (result, event, actor = 'system', reason = ''
   payload: { from: result.from, to: result.state, event, actor, ...(reason === '' ? {} : { reason }) },
 })
 
+const replayMachines = {
+  chat: (from, event) => transitionChat(from, event),
+  studio: (from, event, payload) => transitionStudio(from, event, {
+    manual: true,
+    exitCode: 0,
+    hasPlan: false,
+    verdictPassed: true,
+    human: true,
+    ...(payload.context ?? {}),
+  }),
+}
+
 // 只读回放：把审计事件按顺序校验成一条可展示的迁移链，不修改任何状态。
 export const replayTransitions = ({ roomType, events, currentState = '' }) => {
-  const chat = roomType === 'chat'
+  const machine = replayMachines[roomType] ?? replayMachines.studio
   const steps = (Array.isArray(events) ? events : []).map((item, index) => {
     const payload = item.payload ?? {}
     const issues = []
@@ -102,16 +114,7 @@ export const replayTransitions = ({ roomType, events, currentState = '' }) => {
       const previous = events[index - 1]?.payload?.to
       if (payload.from !== previous) issues.push(`上一条结束于 ${previous ?? '?'}，本条从 ${payload.from ?? '?'} 开始`)
     }
-    const moved = chat
-      ? transitionChat(payload.from, payload.event)
-      : transitionStudio(payload.from, payload.event, {
-        manual: true,
-        exitCode: 0,
-        hasPlan: false,
-        verdictPassed: true,
-        human: true,
-        ...(payload.context ?? {}),
-      })
+    const moved = machine(payload.from, payload.event, payload)
     if (!moved.ok) issues.push(moved.error)
     else if (moved.state !== payload.to) issues.push(`事件应到达 ${moved.state}，实际记录 ${payload.to}`)
     return {

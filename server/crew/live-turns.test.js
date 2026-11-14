@@ -21,16 +21,21 @@ const store = messages => ({
   appendMessage: () => {},
 })
 
-test('resume starts an active stage that has no evidence yet', async () => {
+test('resume starts an active stage by waking the planner', async () => {
   const sent = []
   const room = {
     ...store([]).readRoom(),
     live: true,
     state: 'active',
     busy: false,
+    leadSeat: 'planner',
+    members: ['planner', 'worker'],
     workers: ['worker'],
-    seatNames: { worker: 'Worker' },
-    seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
+    seatNames: { planner: 'Planner', worker: 'Worker' },
+    seatSpecs: [
+      { id: 'planner', role: 'lead', name: 'Planner' },
+      { id: 'worker', role: 'worker', name: 'Worker' },
+    ],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
   }
   const turns = createLiveTurns({
@@ -51,8 +56,8 @@ test('resume starts an active stage that has no evidence yet', async () => {
   })
   await turns.resume()
   assert.equal(sent.length, 1)
-  assert.equal(sent[0][0], 'worker')
-  assert.match(sent[0][1], /阶段已确认/)
+  assert.equal(sent[0][0], 'planner')
+  assert.match(sent[0][1], /阶段 1「impl」已确认/)
 })
 
 test('resume re-requests a review that was pending before restart', async () => {

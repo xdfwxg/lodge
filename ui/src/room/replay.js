@@ -1,4 +1,5 @@
 import { createElement as h, useEffect, useState } from 'react'
+import { uiKindOfType } from './kinds.js'
 
 // 只读回放：解释已有的转移审计事件，不写房间、不补事件。
 export function ReplayDialog({ replay, onClose }) {
@@ -16,7 +17,7 @@ export function ReplayDialog({ replay, onClose }) {
         h('div', null,
           h('h2', null, '状态回放'),
           h('p', { className: 'crew-dialog-sub' },
-            `${replay?.roomType === 'chat' ? '聊天室' : '工作室'} · 只读 · 房间最终状态 ${summary.finalState ?? '未知'}`)),
+            `${uiKindOfType(replay?.roomType).label} · 只读 · 房间最终状态 ${summary.finalState ?? '未知'}`)),
         h('button', {
           type: 'button',
           className: 'crew-dialog-close',

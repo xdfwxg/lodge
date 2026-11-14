@@ -3,7 +3,7 @@ import { studioTransitionEvent, transitionStudio } from '../../room-state.js'
 import { markSeatRead } from '../../watermarks.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'
-import { activeStageReadOnly, PARALLEL_TIMEOUT } from './turn-utils.js'
+import { activeStageReadOnly } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { modeGuidance, skillPrompt, workContract } from '../../prompt-modes.js'
@@ -53,11 +53,9 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     const dispatchPlan = planDispatch({ room, stage, index, workers })
     const { strategy } = dispatchPlan
     // 工作室 v1 是群聊单工作目录：一次只交给一个执行席位，避免同目录并行写。
-    const assignees = room.roomType === 'studio'
-      ? dispatchPlan.assignees.slice(0, 1)
-      : dispatchPlan.assignees
+    const assignees = dispatchPlan.assignees.slice(0, 1)
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
-    if (room.roomType === 'studio') {
+    {
       const updated = store.updateRoom(roomId, current => {
         const moved = transitionStudio(current.closure ?? 'open', 'start_execute', { hasPlan: current.plan !== null && current.plan !== undefined })
         if (!moved.ok) return null
@@ -126,7 +124,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       ].filter(Boolean).join('\n')
     }
 
-    if (room.roomType === 'studio') {
+    {
       const lead = room.leadSeat ?? room.members?.[0]
       markSeatRead({ store, roomId, seat: lead, emit })
       await sendToSeat(lead, studioPlannerPrompt({
@@ -142,96 +140,8 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       return
     }
 
-    if (assignees.length === 1) {
-      const worker = assignees[0]
-      markSeatRead({ store, roomId, seat: worker, emit })
-      const sent = await sendToSeat(worker, promptFor(worker))
-      if (sent.messageId !== null) {
-        store.updateRoom(roomId, current => {
-          current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)
-          return { events: [] }
-        })
-      }
-      return
-    }
-
-    const startedAt = Date.now()
-    const dispatch = {
-      stage: index,
-      workers: [...assignees],
-      pending: [...assignees],
-      failed: [],
-      base: workspaceOf(room).head({ path: room.repoPath }),
-      startedAt,
-      integrated: false,
-    }
-    const stored = store.updateRoom(roomId, current => {
-      current.stageDispatch = dispatch
-      current.mergeConflict = null
-      return { events: [{ type: 'stage.dispatch', payload: { stage: index, workers } }] }
-    })
-    if (stored === null) throw new Error('无法记录并行派发')
-    if (stored !== null) emit?.('room', stored)
-    for (const worker of assignees) markSeatRead({ store, roomId, seat: worker, emit })
-
-    const sent = await Promise.allSettled(assignees.map(worker => sendToSeat(worker, promptFor(worker))))
-    const failed = []
-    sent.forEach((result, at) => {
-      if (result.status !== 'fulfilled') {
-        failed.push(assignees[at])
-        return
-      }
-      const id = result.value?.messageId
-      if (id === null || id === undefined) return
-      store.updateRoom(roomId, current => {
-        current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), id].slice(-50)
-        return { events: [] }
-      })
-    })
-    if (failed.length > 0) {
-      let ready = null
-      const updated = store.updateRoom(roomId, current => {
-        const currentDispatch = current.stageDispatch
-        if (currentDispatch?.startedAt !== startedAt) return null
-        currentDispatch.failed = [...new Set([...(currentDispatch.failed ?? []), ...failed])]
-        currentDispatch.pending = currentDispatch.pending.filter(id => !failed.includes(id))
-        if (currentDispatch.pending.length === 0) {
-          ready = {
-            stageIndex: currentDispatch.stage,
-            workers: currentDispatch.workers.filter(id => !failed.includes(id)),
-            base: currentDispatch.base,
-          }
-          if (ready.workers.length === 0) currentDispatch.stalled = true
-        }
-        return { events: [{ type: 'stage.dispatch_failed', payload: { stage: index, workers: failed } }] }
-      })
-      const names = failed.map(worker => seatDisplayName(room, worker)).join('、')
-      store.appendMessage(roomId, { kind: 'system', text: `启动执行失败：${names}；其余席位继续。` })
-      if (updated !== null && ready !== null) {
-        if (ready.workers.length === 0) {
-          store.appendMessage(roomId, { kind: 'system', text: '没有执行席位启动成功；阶段仍未进入验收。' })
-        } else {
-          void enqueue(() => integrate(ready))
-        }
-      }
-    }
-
-    setTimeout(() => {
-      const current = store.readRoom(roomId)
-      const currentDispatch = current?.stageDispatch
-      if (currentDispatch?.startedAt !== startedAt) return
-      if ((currentDispatch.pending ?? []).length === 0) return
-      const waiting = currentDispatch.pending.map(worker => seatDisplayName(current, worker)).join('、')
-      store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: index, workers: currentDispatch.pending })
-      store.appendMessage(roomId, { kind: 'system', text: `并行执行超时：${waiting} 还没有完成；阶段仍未进入验收。` })
-      const updated = store.updateRoom(roomId, inner => {
-        if (inner.stageDispatch?.startedAt !== startedAt) return null
-        inner.stageDispatch.timedOut = true
-        return { events: [] }
-      })
-      if (updated !== null) emit?.('room', updated)
-    }, PARALLEL_TIMEOUT).unref()
   }
+
 
   return { startStage }
 }

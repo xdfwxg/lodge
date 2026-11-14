@@ -1,4 +1,5 @@
 import { createElement as h, useState } from 'react'
+import { uiKindOfRoom } from '../room/kinds.js'
 import { money } from '../view-format.js'
 
 const GROUPS = [
@@ -24,7 +25,7 @@ function Sidebar({ state, onSelect, onNew }) {
     h('div', { className: 'bt-side' },
       h('div', { className: 'bt-list' },
         GROUPS.map(group => {
-          const items = rooms.filter(room => (room.roomType ?? 'studio') === group.id)
+          const items = rooms.filter(room => uiKindOfRoom(room).id === group.id)
           if (items.length === 0) return null
           const closed = folded[group.id] === true
           return h('section', { key: group.id, className: 'crew-side-group' },
@@ -82,7 +83,7 @@ function RoomRow({ room, active, onSelect }) {
     onClick: onSelect,
     title: room.needsYou?.label ?? room.name,
   },
-  h('span', { className: 'crew-side-room-glyph', 'data-type': room.roomType ?? 'studio' }, room.roomType === 'chat' ? '#' : '⎇'),
+  h('span', { className: 'crew-side-room-glyph', 'data-type': uiKindOfRoom(room).id }, uiKindOfRoom(room).glyph),
   h('span', { className: 'crew-side-room-name' }, room.name),
   room.chatUnread === true && !active
     ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' })

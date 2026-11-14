@@ -29,6 +29,25 @@ test('views receive the store instead of importing it', () => {
   }
 })
 
+test('chat and studio UI contexts never import each other', () => {
+  for (const file of walk(join(root, 'room/chat'))) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /from\s+['"][^'"]*room\/studio\//, `${rel(file)} imports studio UI`)
+  }
+  for (const file of walk(join(root, 'room/studio'))) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /from\s+['"][^'"]*room\/chat\//, `${rel(file)} imports chat UI`)
+  }
+})
+
+test('shared UI modules do not branch on the room type', () => {
+  for (const file of sourceFiles) {
+    if (rel(file).startsWith('room/chat/') || rel(file).startsWith('room/studio/')) continue
+    const text = readFileSync(file, 'utf8')
+    assert.doesNotMatch(text, /\broom\??\.roomType\s*[!=]==?/, `${rel(file)} branches on room.roomType`)
+  }
+})
+
 test('app.js stays a composition shell', () => {
   const text = readFileSync(join(root, 'app.js'), 'utf8')
   for (const name of ['Sidebar', 'RoomView', 'DispatchView', 'NewRoomDialog', 'Onboarding']) {

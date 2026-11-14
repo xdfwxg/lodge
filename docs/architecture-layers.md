@@ -88,7 +88,8 @@ server/index.js（唯一组合根）
 - `rooms/<context>/kind.js` 提供建房、记录、消息投影、权限和注意力钩子；共享应用层只调用钩子，不写 `roomType === ...`。
 - `rooms/<context>/facade.js` 是跨上下文只读门面，返回带版本号的瘦 DTO；调用方不得直接读对方的 `chat/chatHost/stages/closure` 或仓储。
 - 策略模式只放在上下文内部，例如消息持久化、通知下发、文档快照；只有出现第二种实现时才建 `strategy/`。
-- `negative-list.test.js` 固化：chat 与 studio 互不 import；`live-*`、`attention`、`presentation`、`resources`、`service-queries`、`room-create*`、`room-record`、`room-provision`、`room-gate` 不得直读上下文状态。
+- `negative-list.test.js` 固化：chat 与 studio 互不 import；`live-*`、`attention`、`presentation`、`resources`、`service-queries`、`room-create*`、`room-record`、`room-provision` 不得直读上下文状态。
+- UI 同样通过 `room/kinds.js` 取上下文 kind；`architecture.test.js` 禁止共享 UI 比较 `room.roomType`，也禁止 chat/studio UI 互 import。
 - 数据库仍是共享实现：`messages` 按 `roomId` 隔离，不做跨上下文 join；将来拆服务时，Facade 可直接替换成 HTTP/gRPC 客户端。
 - `new-room-dialog.js` 是一个多步表单流，状态与步骤共享；强行拆步骤会引入跨文件状态同步。
 - `service-queries.js` 保持读模型门面，不为每个查询建一个文件。

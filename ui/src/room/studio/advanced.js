@@ -1,5 +1,5 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { money, countOf, timeOf, workspaceOf, seatPermissionOf } from '../view-format.js'
+import { money, countOf, timeOf, workspaceOf, seatPermissionOf } from '../../view-format.js'
 
 const engineLabelOf = (room, seat) => {
   const engine = room.engines?.[seat.id] ?? seat.engine
@@ -104,13 +104,9 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
       h('span', null, `独立性策略：${room.independencePolicy === 'require' ? 'require（没有第二厂商就拒绝建房）' : 'prefer（同厂商时标注降级）'}`),
-      ...(room.roomType === 'studio'
-        ? [
-            h('span', { key: 'verifier-policy' }, `Verifier 策略：${room.verifierPolicy ?? 'all'}`),
-            h('span', { key: 'shadow-review' }, `影子评审：${room.shadowReview === true ? '开（只记录，不拦截）' : '关'}`),
-            h('span', { key: 'planner-tools' }, `Planner 工具面：${room.plannerTools?.server ? 'MCP 已挂载' : '文字协议回退'}`),
-          ]
-        : []),
+      h('span', { key: 'verifier-policy' }, `Verifier 策略：${room.verifierPolicy ?? 'all'}`),
+      h('span', { key: 'shadow-review' }, `影子评审：${room.shadowReview === true ? '开（只记录，不拦截）' : '关'}`),
+      h('span', { key: 'planner-tools' }, `Planner 工具面：${room.plannerTools?.server ? 'MCP 已挂载' : '文字协议回退'}`),
       h('span', null, `工作区：${workspaceOf(room)}`),
       h('span', null, `可用引擎：${availableEngines.length === 0 ? '无' : availableEngines.map(item => `${item.name}${item.models?.default ? `（${item.models.default}）` : ''}`).join('、')}`),
       ...Object.entries(room.engineFallbacks ?? {}).map(([seat, item]) => (
@@ -208,40 +204,36 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
               setStageAcceptance('')
             },
           }, '添加阶段'))),
-    room.roomType === 'studio'
-      ? h('div', { className: 'crew-stage-editor' },
-        h('span', null, '子工作室树 · 最多 3 层；父房只查看子房状态和 verdict，不直接改子房流转'),
-        childRooms.length > 0
-          ? h('div', { className: 'crew-brief' }, childRooms.map(child => renderSubroom(child)))
-          : h('span', { className: 'crew-muted' }, '还没有子工作室'),
-        (room.depth ?? 0) < 3
-          ? h('div', { className: 'crew-stage-edit-row' },
-            h('input', {
-              className: 'crew-goal-input',
-              type: 'text',
-              value: subGoal,
-              placeholder: '子工作室目标',
-              onChange: event => setSubGoal(event.target.value),
-            }),
-            h('button', {
-              type: 'button',
-              className: 'crew-choice',
-              disabled: subBusy || subGoal.trim() === '',
-              onClick: async () => {
-                if (subBusy || subGoal.trim() === '') return
-                setSubBusy(true)
-                await store.createSubroom(subGoal.trim())
-                setSubBusy(false)
-                setSubGoal('')
-              },
-            }, subBusy ? '正在创建…' : '新建子工作室'))
-          : h('span', { className: 'crew-muted' }, '已经达到 3 层上限'))
-      : null,
+    h('div', { className: 'crew-stage-editor' },
+      h('span', null, '子工作室树 · 最多 3 层；父房只查看子房状态和 verdict，不直接改子房流转'),
+      childRooms.length > 0
+        ? h('div', { className: 'crew-brief' }, childRooms.map(child => renderSubroom(child)))
+        : h('span', { className: 'crew-muted' }, '还没有子工作室'),
+      (room.depth ?? 0) < 3
+        ? h('div', { className: 'crew-stage-edit-row' },
+          h('input', {
+            className: 'crew-goal-input',
+            type: 'text',
+            value: subGoal,
+            placeholder: '子工作室目标',
+            onChange: event => setSubGoal(event.target.value),
+          }),
+          h('button', {
+            type: 'button',
+            className: 'crew-choice',
+            disabled: subBusy || subGoal.trim() === '',
+            onClick: async () => {
+              if (subBusy || subGoal.trim() === '') return
+              setSubBusy(true)
+              await store.createSubroom(subGoal.trim())
+              setSubBusy(false)
+              setSubGoal('')
+            },
+          }, subBusy ? '正在创建…' : '新建子工作室'))
+        : h('span', { className: 'crew-muted' }, '已经达到 3 层上限')),
     h('div', { className: 'crew-budget-edit' },
       h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.openReplay(room.id) }, '状态回放'),
-      room.roomType === 'studio'
-        ? h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.openShadow(room.id) }, room.shadowReview === true ? '影子评审' : '评审对照')
-        : null,
+      h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.openShadow(room.id) }, room.shadowReview === true ? '影子评审' : '评审对照'),
       h('button', { type: 'button', className: 'crew-choice', onClick: () => void store.exportHandoff() }, '导出交接包'),
       h('span', null, '包含 BRIEF / GOAL / CONCLUSION / transcript / events / evidence；本机绝对路径已替换为占位符。')),
     Object.keys(room.chatHolds ?? {}).length > 0

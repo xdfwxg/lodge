@@ -204,12 +204,11 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
   const round = meta.round ?? 1
   const chat = room.chat ?? {}
   const currentRound = round === (chat.round ?? 1)
-  const latest = room.roomType === 'chat' &&
-    room.state === 'active' &&
+  const latest = room.state === 'active' &&
     chat.running !== true &&
     chat.phase === 'awaiting_decision' &&
     currentRound
-  const accepted = room.roomType === 'chat' && room.state === 'complete' && currentRound
+  const accepted = room.state === 'complete' && currentRound
   const [note, setNote] = useState('')
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)

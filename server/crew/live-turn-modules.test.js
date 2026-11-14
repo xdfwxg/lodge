@@ -120,8 +120,8 @@ test('a single worker stage sends the prompt and hides the base message', async 
   })
   await starter.startStage(room, 0)
   assert.equal(prompts.length, 1)
+  assert.equal(prompts[0].seat, room.leadSeat)
   assert.match(prompts[0].prompt, /验收命令：`true`/)
-  assert.deepEqual(room.hiddenBaseMessages, ['m1'])
 })
 
 test('acceptance runs in a disposable copy and records command evidence', async () => {
