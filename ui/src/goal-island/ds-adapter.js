@@ -88,8 +88,7 @@ const pill = ({ room, view, open, onToggle }) => h('button', {
 h('span', { className: 'bt-pill-go' }, h(ChevronDownIcon)))
 
 const PILL_CSS = `
-.bt-island{--bt-glass-bg:var(--bt-card);--bt-glass-rim:var(--bt-line-2);--bt-glass-shadow:0 10px 30px rgb(0 0 0 / .10)}
-.bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-glass-bg);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border:.5px solid var(--bt-glass-rim);box-shadow:var(--bt-glass-shadow);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform .16s ease}
+.bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-card);border:.5px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform .16s ease}
 .bt-pill:hover{background:var(--bt-hover)}
 .bt-pill:active{transform:scale(.965)}
 .bt-pill-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
@@ -103,10 +102,10 @@ const PILL_CSS = `
 .bt-send{height:40px;min-width:40px;border-radius:999px;border:0;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font-size:14px;padding:0 14px;cursor:pointer;flex:none;white-space:nowrap}
 .bt-send:disabled{opacity:.35;cursor:default}
 .bt-input{width:100%;box-sizing:border-box;height:36px;border:1px solid var(--bt-line);border-radius:8px;padding:0 10px;background:var(--bt-card);color:var(--bt-ink);font:inherit;font-size:13px;outline:none}
-.bt-input:focus{border-color:var(--bt-line-2)}
+.bt-input:focus{border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash)}
 .bt-input-area{height:auto;min-height:96px;padding:8px 10px;line-height:18px;resize:vertical}
-.bt-goal-danger{color:var(--bt-danger)}
-.bt-goal-danger[data-armed]{background:var(--bt-danger-wash)}
+.bt-goal-danger{color:var(--bt-danger-text)}
+.bt-goal-danger[data-armed]{background:var(--bt-danger-wash);box-shadow:inset 0 0 0 1px var(--bt-line-danger)}
 .crew-ds-goal{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px 32px 0}
 .crew-ds-goal-tools{display:flex;align-items:center;gap:6px;padding-left:2px}
 @keyframes bt-veil-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}

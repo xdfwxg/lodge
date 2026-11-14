@@ -48,6 +48,14 @@ test('shared UI modules do not branch on the room type', () => {
   }
 })
 
+test('the visual layer has no blur and no legacy soft shadow', () => {
+  for (const file of sourceFiles) {
+    const text = readFileSync(file, 'utf8')
+    assert.doesNotMatch(text, /backdrop-filter/, `${rel(file)} keeps a blur`)
+    assert.doesNotMatch(text, /--bt-shadow-soft/, `${rel(file)} uses the retired soft shadow`)
+  }
+})
+
 test('app.js stays a composition shell', () => {
   const text = readFileSync(join(root, 'app.js'), 'utf8')
   for (const name of ['Sidebar', 'RoomView', 'DispatchView', 'NewRoomDialog', 'Onboarding']) {

@@ -294,10 +294,10 @@ export function GoalIsland({ room, goal, view, open, composing, roomWork, roster
 export const GOAL_CSS = `
 /* One surface: the pill's own background, border and shadow. The pill row is
    40px, the pod bar 30px; the surface reshapes on SPRING_SHAPE. */
-.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(380px,calc(100% - 120px));background:var(--bt-glass-bg);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border:.5px solid var(--bt-glass-rim);border-radius:20px;box-shadow:var(--bt-glass-shadow);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')}}
-.bt-island[data-open]{width:min(560px,calc(100% - 48px));border-radius:18px}
+.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(380px,calc(100% - 120px));background:var(--bt-card);border:.5px solid var(--bt-line-2);border-radius:20px;box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .2s ease}
+.bt-island[data-open]{width:min(560px,calc(100% - 48px));border-radius:18px;box-shadow:var(--bt-elev-2)}
 .bt-island[data-morph]{overflow:hidden}
-.bt-island .bt-pill{width:100%;max-width:none;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;border:0;box-shadow:none;border-radius:20px 20px 0 0}
+.bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:20px 20px 0 0}
 .bt-island[data-open] .bt-pill{border-radius:18px 18px 0 0}
 .bt-island .bt-pill:hover{background:var(--bt-hover)}
 .bt-island .bt-pill:active{transform:none}
@@ -351,10 +351,10 @@ export const GOAL_CSS = `
 .bt-goal-step::before{content:"";position:absolute;left:-3px;right:-3px;top:50%;height:1px;background:var(--bt-line-2)}
 .bt-goal-step:first-child::before{left:50%}
 .bt-goal-step:last-child::before{right:50%}
-.bt-goal-node{position:relative;z-index:1;box-sizing:border-box;width:min(20px,100%);aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bt-main);border:1.5px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-variant-numeric:tabular-nums}
+.bt-goal-node{position:relative;z-index:1;box-sizing:border-box;width:min(20px,100%);aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bt-shade-1);border:1.5px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-variant-numeric:tabular-nums}
 .bt-goal-node>svg{flex:none;width:min(12px,70%);height:auto}
 .bt-goal-step[data-step=passed]>.bt-goal-node{background:var(--bt-green);border-color:var(--bt-green);color:var(--bt-main)}
-.bt-goal-step[data-step=current]>.bt-goal-node{border-color:var(--bt-accent);color:var(--bt-accent);font-weight:600}
+.bt-goal-step[data-step=current]>.bt-goal-node{background:var(--bt-card);border-color:var(--bt-accent);color:var(--bt-accent);font-weight:600}
 .bt-goal-step[data-step=waiting]>.bt-goal-node{border-color:var(--bt-star);color:var(--bt-warning-text);font-weight:600}
 .bt-goal-step[data-sel]:not([aria-current])>.bt-goal-node{box-shadow:0 0 0 1.5px var(--bt-ink)}
 .bt-goal-step.bt-goal-mini .bt-goal-node{font-size:0}
@@ -389,8 +389,8 @@ export const GOAL_CSS = `
 .bt-goal-mchev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
 .bt-goal-checks[aria-expanded=true] .bt-goal-mchev svg{transform:rotate(180deg)}
 .bt-goal-facts{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
-.bt-goal-danger{color:var(--bt-danger)}
-.bt-goal-danger[data-armed]{background:var(--bt-danger-wash)}
+.bt-goal-danger{color:var(--bt-danger-text)}
+.bt-goal-danger[data-armed]{background:var(--bt-danger-wash);box-shadow:inset 0 0 0 1px var(--bt-line-danger)}
 .bt-goal-compose{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
 .bt-goal-clabel{font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink-2)}
 .bt-goal-input{min-height:52px;max-height:124px;resize:none;font-size:13px}
