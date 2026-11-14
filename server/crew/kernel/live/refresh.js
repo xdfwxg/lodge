@@ -1,6 +1,7 @@
 import { budgetHint, budgetStatus } from '../../budget.js'
 import { seatFor } from './projection.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
+import { seatActivityOf } from './seat-activity.js'
 
 export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) => {
   // 到预算线只暂停新任务，不取消正在跑的回合；同一暂停只写一条系统消息。
@@ -60,6 +61,10 @@ export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) =
           current.busy = busySeats.length > 0
           current.busySeat = busySeats[0] ?? ''
           current.busySeats = busySeats
+          // 席位运行态归共享投影：谁在跑、谁在等，两套房型拿到同一份数据。
+          const seatActivity = seatActivityOf(chatBase, toSeat)
+          current.turnQueue = seatActivity.turnQueue
+          current.presence = seatActivity.presence
           // 状态行的计时锚点：同一批席位连续工作时不清零。
           current.busySince = busySeats.length === 0
             ? null

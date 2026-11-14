@@ -121,6 +121,19 @@ export const showsDecisionCard = decision => (
 // 执行中只留一条状态行：谁在做、做到哪一段；过程不再写进时间线。
 export const studioActivityLine = (room, view) => {
   if (room?.state !== 'active') return ''
+  // 基座已经保证一次只跑一个回合；有席位排队时把“谁在跑、谁在等”放在一行。
+  const presence = Array.isArray(room.presence) ? room.presence : []
+  const waiting = presence.filter(item => item.state === 'queued').map(item => nameOf(room, item.seatId)).filter(Boolean)
+  if (waiting.length > 0) {
+    const working = presence
+      .filter(item => item.state === 'working')
+      .map(item => nameOf(room, item.seatId))
+      .filter(Boolean)
+    return [
+      working.length > 0 ? `${working.join('、')} 正在处理` : '',
+      `${waiting.join('、')} 排队中`,
+    ].filter(Boolean).join(' · ')
+  }
   const stage = view?.stages?.find(item => item.state === 'active') ?? null
   const where = stage === null ? '' : ` · 阶段 ${stage.index + 1}「${stage.title}」`
   if (room.needsYou?.kind === 'review') {
