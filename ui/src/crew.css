@@ -47,6 +47,9 @@
 .crew-goal{margin:0;font-size:13px;line-height:18px;color:var(--bt-ink-2)}
 .crew-activity-line{display:flex;align-items:center;gap:7px;padding:0 24px 8px;font-size:12.5px;line-height:17px;color:var(--bt-ink-3)}
 .crew-activity-line i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-accent);animation:crew-typing 1.2s infinite}
+.crew-activity-elapsed{font-variant-numeric:tabular-nums;color:var(--bt-ink-3)}
+.crew-activity-action{margin-left:auto;border:0;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:12px;cursor:pointer;padding:2px 6px;border-radius:5px}
+.crew-activity-action:hover{color:var(--bt-ink);background:var(--bt-hover)}
 @media (max-width:760px){.crew-activity-line{padding:0 16px 8px}}
 .crew-stage{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--bt-line-2);border-radius:999px;font-size:12px;line-height:17px;color:var(--bt-ink-2)}
 .crew-stage[data-state=passed]{border-color:var(--bt-line-success);color:var(--bt-success-text)}

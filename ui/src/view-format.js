@@ -16,6 +16,16 @@ const money = micro => {
   return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(3)}`
 }
 const countOf = value => (value ?? 0).toLocaleString('zh-CN')
+const durationOf = value => {
+  const total = Math.max(0, Math.floor((Number(value) || 0) / 1000))
+  if (total < 60) return `${total}s`
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
+  if (minutes < 60) return seconds === 0 ? `${minutes}m` : `${minutes}m ${seconds}s`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
+}
 const independenceOf = room => room.independenceLabel ?? '独立性未标注'
 const workspaceOf = room => {
   const caps = room.workspace?.capabilities
@@ -37,6 +47,7 @@ export {
   timeOf,
   money,
   countOf,
+  durationOf,
   independenceOf,
   workspaceOf,
   changeWordOf,

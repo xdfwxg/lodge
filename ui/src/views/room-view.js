@@ -14,6 +14,7 @@ import { Timeline } from '../room/timeline.js'
 import { ReplayDialog } from '../room/replay.js'
 import { ShadowDialog } from '../room/shadow.js'
 import { buildGoalView } from '../goal-island/model.js'
+import { durationOf } from '../view-format.js'
 
 function TypingLine({ seat, summarizing }) {
   return h('div', { className: 'crew-msg crew-typing-line' },
@@ -94,6 +95,15 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   const typing = isChat && !locked && typingSeatId !== ''
     && (room.chatWorking === true || chat.running === true || room.busy === true)
   const activityLine = isChat ? '' : studioActivityLine(room, goalView)
+  const activitySince = typeof room.busySince === 'number' ? room.busySince : null
+  const [tick, setTick] = useState(Date.now())
+  useEffect(() => {
+    if (activityLine === '' || activitySince === null) return undefined
+    setTick(Date.now())
+    const timer = setInterval(() => setTick(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [activityLine, activitySince])
+  const activityElapsed = activityLine === '' || activitySince === null ? '' : durationOf(tick - activitySince)
   useEffect(() => {
     if (typing && stick.current) scrollToBottom()
   }, [typingSeatId, typing])
@@ -152,7 +162,15 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
       !isChat && !showsDecisionCard(decision) && activityLine !== ''
         ? h('div', { className: 'crew-activity-line', role: 'status' },
           h('i', { 'aria-hidden': true }),
-          h('span', null, activityLine))
+          h('span', null, activityLine),
+          activityElapsed === '' || activityElapsed === '0s'
+            ? null
+            : h('span', { className: 'crew-activity-elapsed' }, activityElapsed),
+          h('button', {
+            type: 'button',
+            className: 'crew-activity-action',
+            onClick: () => void store.pause(),
+          }, '暂停'))
         : null,
       isChat ? null : h(StudioDecisionCard, { decision, onAction: decisionAction }),
       state.reviewFor === room.id && state.review !== null

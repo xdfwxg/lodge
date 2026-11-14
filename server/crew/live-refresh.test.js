@@ -40,3 +40,48 @@ test('refresh records usage through the injected port', async () => {
   assert.equal(recorded[0][0].usage.costMicroUsd, 3_000)
   assert.equal(recorded[0][1].turns, 0)
 })
+
+test('busy seats carry a start time that survives repeated refreshes', async () => {
+  let working = true
+  let room = {
+    id: 'room-1',
+    kind: 'room',
+    state: 'active',
+    seatRooms: { worker: { id: 'base-1' } },
+    usage: { turns: 0, costMicroUsd: 0, tokens: { input: 0, output: 0, cachedInput: 0 } },
+  }
+  const store = {
+    readRoom: () => room,
+    readRooms: () => [room],
+    updateRoom: (id, mutate) => {
+      const current = { ...room, usage: { ...room.usage } }
+      if (mutate(current) === null) return null
+      room = current
+      return current
+    },
+  }
+  const engine = {
+    rooms: async () => [{
+      id: 'base-1',
+      working,
+      usage: { turns: 0, costMicroUsd: 0, tokens: { input: 0, output: 0, cachedInput: 0 } },
+    }],
+  }
+  const refresher = createRoomRefresher({
+    store,
+    engine,
+    emit: () => {},
+    usage: { record: () => {} },
+  })
+  await refresher.refresh({ roomId: 'room-1', refreshedAt: 0 }, { force: true })
+  const started = room.busySince
+  assert.equal(typeof started, 'number')
+  assert.deepEqual(room.busySeats, ['worker'])
+  await new Promise(resolve => setTimeout(resolve, 5))
+  await refresher.refresh({ roomId: 'room-1', refreshedAt: 0 }, { force: true })
+  assert.equal(room.busySince, started)
+  working = false
+  await refresher.refresh({ roomId: 'room-1', refreshedAt: 0 }, { force: true })
+  assert.equal(room.busy, false)
+  assert.equal(room.busySince, null)
+})

@@ -53,9 +53,17 @@ export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) =
         const updated = store.updateRoom(entry.roomId, current => {
           const toSeat = ref => (typeof ref === 'string' ? seatFor(current, ref) ?? ref : ref)
           const toSeats = map => Object.fromEntries(Object.entries(map ?? {}).map(([ref, value]) => [toSeat(ref), value]))
+          const sameBusy = current.busy === true &&
+            Array.isArray(current.busySeats) &&
+            current.busySeats.length === busySeats.length &&
+            current.busySeats.every((seat, index) => seat === busySeats[index])
           current.busy = busySeats.length > 0
           current.busySeat = busySeats[0] ?? ''
           current.busySeats = busySeats
+          // 状态行的计时锚点：同一批席位连续工作时不清零。
+          current.busySince = busySeats.length === 0
+            ? null
+            : sameBusy ? (current.busySince ?? now) : now
           Object.assign(current, roomPresentationOfRoom(current)?.refresh(chatBase, toSeat, toSeats) ?? {})
           current.usage = { ...current.usage, ...nextUsage }
           return { events: [] }
