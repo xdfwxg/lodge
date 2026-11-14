@@ -2,6 +2,7 @@ import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import * as type from '../../room-types/chat.js'
 import { isChatSystemNoise } from '../../room-chat.js'
 import { chatProjection } from './projection.js'
+import { replayChatTransition } from './state.js'
 
 // 聊天室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
 export const chatKind = {
@@ -84,6 +85,7 @@ export const chatKind = {
   },
 
   stateOf: room => room.chat?.phase ?? 'discussing',
+  replayTransition: replayChatTransition,
 
   filterMessages: messages => chatProjection.filterMessages(messages, isChatSystemNoise),
   hideActivity: chatProjection.hideActivity,

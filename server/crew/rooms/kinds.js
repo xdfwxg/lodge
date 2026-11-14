@@ -17,7 +17,7 @@ const MODE_KEYS = [
   'requireIndependence', 'requiresGate', 'evaluateGate', 'supportsDelivery',
   'supportsSubrooms', 'acceptsChatDecision', 'leadSeatOf', 'record',
   'initialMessages', 'provisionExtra', 'start', 'applyStageDependencies',
-  'bulletinAcceptance', 'approvalReadOnly',
+  'bulletinAcceptance', 'approvalReadOnly', 'replayTransition',
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',

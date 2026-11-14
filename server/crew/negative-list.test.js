@@ -90,6 +90,12 @@ test('kernel and creation units reach contexts only through kinds or facades', (
   }
 })
 
+test('the shared state-machine mechanism knows no room mode', () => {
+  const text = read('room-state.js')
+  assert.doesNotMatch(text, /\b(chat|studio)\b/i, 'room-state.js hardcodes a mode')
+  assert.doesNotMatch(text, /closure|stages/, 'room-state.js hardcodes mode state')
+})
+
 test('kernel modules read context state only through facades or kinds', () => {
   const kernel = [
     'kernel/live/bus.js',

@@ -103,7 +103,7 @@ export const createServiceQueries = ({
       transitions: {
         roomId,
         roomType: room.roomType,
-        ...replayTransitions({ roomType: room.roomType, events, currentState }),
+        ...replayTransitions({ events, currentState, machine: roomModeOfRoom(room).replayTransition }),
       },
     })
   }

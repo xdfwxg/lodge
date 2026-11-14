@@ -1,5 +1,5 @@
 import { blockedSeats } from '../../mcp-breaker.js'
-import { studioTransitionEvent, transitionStudio } from '../../room-state.js'
+import { studioTransitionEvent, transitionStudio } from './state.js'
 import { markSeatRead } from '../../watermarks.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { buildTasks } from './tasks.js'

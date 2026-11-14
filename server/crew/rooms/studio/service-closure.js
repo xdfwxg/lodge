@@ -1,6 +1,6 @@
 import { fail, ok } from '../../result.js'
 import { roomModeOfRoom } from '../kinds.js'
-import { studioTransitionEvent, transitionStudio } from '../../room-state.js'
+import { studioTransitionEvent, transitionStudio } from './state.js'
 
 // closure 只属于工作室。Planner 只能在进入执行前拒绝目标，执行后收归 Verifier。
 export const createServiceClosure = ({ store, emit, plannerMcp = null }) => {

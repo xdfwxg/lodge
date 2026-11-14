@@ -6,7 +6,7 @@ import { editStages } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
 import { childResultText, childVerdictsOf } from './subrooms.js'
 import { roomModeOfRoom } from '../kinds.js'
-import { studioTransitionEvent, transitionStudio } from '../../room-state.js'
+import { studioTransitionEvent, transitionStudio } from './state.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, plannerMcp = null }) => {
   const { readRooms, readMessages, readEvidence, updateRoom, appendMessage } = store

@@ -5,6 +5,7 @@ import { commandEvidenceFor, manualReviewState, reviewState, reworkFloor, verifi
 import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { evaluateRoomGate } from './gate.js'
+import { replayStudioTransition } from './state.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
@@ -236,6 +237,7 @@ export const studioKind = {
   needsYou: studioNeedsYou,
 
   stateOf: room => (room.closure === 'signed' ? 'signed' : room.closure ?? 'open'),
+  replayTransition: replayStudioTransition,
 
   filterMessages: messages => messages,
   hideActivity: false,

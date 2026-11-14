@@ -1,15 +1,14 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { replayTransitions } from './room-state.js'
+import { CHAT_EVENTS, CHAT_STATES, transitionChat } from './rooms/chat/state.js'
 import {
-  CHAT_STATES,
-  STUDIO_STATES,
-  CHAT_EVENTS,
   STUDIO_EVENTS,
-  transitionChat,
-  transitionStudio,
-  replayTransitions,
+  STUDIO_STATES,
+  replayStudioTransition,
   studioTransitionEvent,
-} from './room-state.js'
+  transitionStudio,
+} from './rooms/studio/state.js'
 
 test('studio closure only accepts the transitions in the table', () => {
   assert.equal(transitionStudio('open', 'plan_submitted').state, 'planned')
@@ -93,13 +92,13 @@ test('replay validates a chain and reports gaps or illegal events', () => {
     { id: 'e2', type: 'closure.transition', payload: { from: 'executing', to: 'verifying', event: 'submit_evidence', actor: 'verifier' } },
     { id: 'e3', type: 'closure.transition', payload: { from: 'verifying', to: 'signed', event: 'sign', actor: 'you' } },
   ]
-  const replay = replayTransitions({ roomType: 'studio', events, currentState: 'signed' })
+  const replay = replayTransitions({ events, currentState: 'signed', machine: replayStudioTransition })
   assert.equal(replay.summary.invalid, 0)
   assert.equal(replay.summary.finalState, 'signed')
   assert.deepEqual(replay.steps.map(step => step.ok), [true, true, true])
 
   const broken = replayTransitions({
-    roomType: 'studio',
+    machine: replayStudioTransition,
     events: [
       { id: 'e1', type: 'closure.transition', payload: { from: 'planned', to: 'executing', event: 'start_execute' } },
       { id: 'e2', type: 'closure.transition', payload: { from: 'open', to: 'verifying', event: 'submit_evidence' } },

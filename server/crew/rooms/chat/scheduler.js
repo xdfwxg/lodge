@@ -1,5 +1,5 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { chatTransitionEvent, transitionChat } from '../../room-state.js'
+import { chatTransitionEvent, transitionChat } from './state.js'
 import { seatDisplayName, toDisplayText } from '../../seat-labels.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 

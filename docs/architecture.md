@@ -9,7 +9,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 核心原则：严格区分「对话共识范式」与「可验收交付范式」，两套状态机、数据结构、能力体系完全隔离；工作室所有业务岗位基于 3 种本原角色派生，不新增底层角色原语。
 
-状态机落点：`server/crew/room-state.js` 保存两张独立转移表，只做 `状态 + 事件 + context → 下一状态/拒绝原因` 的纯判断。所有 `closure` 和 `room.chat.phase` 写入必须经过它，并写 `closure.transition` / `chat.transition` 审计事件。聊天机与工作室机不共享状态、不发跨机事件。
+状态机落点：`server/crew/room-state.js` 只提供通用迁移机制（`状态 + 事件 + context → 下一状态/拒绝原因`）与回放；两张转移表分别归 `rooms/chat/state.js` 和 `rooms/studio/state.js`，由房型模式持有。所有 `closure` 和 `room.chat.phase` 写入必须经过对应模式的迁移函数，并写 `closure.transition` / `chat.transition` 审计事件。聊天机与工作室机不共享状态、不发跨机事件；新增模式只需自带状态表。
 
 ### 状态机转移表
 

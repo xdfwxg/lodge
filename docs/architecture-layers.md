@@ -86,7 +86,7 @@ server/index.js（唯一组合根）
 
 | 层 | 职责 | 位置 |
 |---|---|---|
-| 领域规则 | 只判断，不做 IO：房型、席位、状态机、门禁、验收、阶段、编排、预算 | `room-types/*`、`seats.js`、`room-state.js`、`orchestration/*`、`rooms/studio/{gates,tasks,progress,stage-plan,verifiers,gate,turn-utils}.js` |
+| 领域规则 | 只判断，不做 IO：房型、席位、状态机、门禁、验收、阶段、编排、预算 | `room-types/*`、`seats.js`、`room-state.js`（通用迁移机制）、`rooms/*/state.js`（各模式转移表）、`orchestration/*`、`rooms/studio/{gates,tasks,progress,stage-plan,verifiers,gate,turn-utils}.js` |
 | 上下文应用 | 一个房间上下文的完整行为：聊天讨论 / 工作室阶段执行 | `rooms/chat/*`、`rooms/studio/*` |
 | 共享实时内核 | 两种房型共用的群聊接入：收发、回显、投影、刷新、席位订阅、审批 | `kernel/live/{bus,projection,refresh,sync,approvals}.js` |
 | 共享用例 | 跨房型但不可分割的建房流水线：输入校验 → 席位 → 工作区 → 基座预置 → 房间记录 → 首次派发 | `rooms/create/{create,input,record,provision,workspace}.js` |
