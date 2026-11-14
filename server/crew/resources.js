@@ -3,7 +3,7 @@ import { globalBudgetMicroUsd } from './budget.js'
 import { buildDelivery } from './rooms/studio/delivery.js'
 import { roomPresentationOfRoom, snapshotOfRoom } from './rooms/kinds.js'
 
-// 调度台资源面板是只读投影：只汇总房间与消息，不路由、不执行。
+// 资源投影是只读的：只汇总房间与消息，不路由、不执行。
 export const buildResources = (rooms, readMessages = () => [], readEvidence = () => []) => {
   const items = rooms.map(room => {
     const messages = readMessages(room.id)
