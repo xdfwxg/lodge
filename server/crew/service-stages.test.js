@@ -147,3 +147,49 @@ test('a studio cannot sign without a Verifier PASS', () => {
   assert.match(result.error, /Verifier/)
   assert.equal(ctx.room().closure, 'verifying')
 })
+
+test('accepting a work stage writes a stage conclusion before the next stage starts', () => {
+  const ctx = setup(room({
+    live: false,
+    roomType: 'studio',
+    closure: 'verifying',
+    verificationMode: 'hybrid',
+    verifiers: ['verifier'],
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
+      { title: '回归', kind: 'deliverable', state: 'pending', acceptance: 'npm run e2e', tasks: [] },
+      { title: '验收与结论', kind: 'decision', state: 'pending' },
+    ],
+  }))
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, files: ['src/a.js'] } })
+  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
+  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
+  assert.equal(result.ok, true)
+  const conclusion = ctx.messages.find(message => message.kind === 'stage_conclusion')
+  assert.ok(conclusion)
+  assert.equal(conclusion.meta.stage, 0)
+  assert.equal(conclusion.meta.next, '回归')
+  assert.equal(conclusion.meta.command, 'npm test')
+  assert.deepEqual(conclusion.meta.verdicts, [{ name: 'verifier', pass: true }, { name: 'you', pass: true }])
+  assert.equal(ctx.room().stages[1].state, 'active')
+})
+
+test('signing the last work stage from planned first enters verifying', () => {
+  const ctx = setup(room({
+    live: false,
+    roomType: 'studio',
+    closure: 'planned',
+    verificationMode: 'hybrid',
+    verifiers: ['verifier'],
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
+      { title: '验收与结论', kind: 'decision', state: 'pending' },
+    ],
+  }))
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
+  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
+  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().closure, 'signed')
+  assert.equal(ctx.room().state, 'complete')
+})

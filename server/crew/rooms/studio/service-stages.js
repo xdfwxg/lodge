@@ -10,6 +10,42 @@ import { seatDisplayName } from '../../seat-labels.js'
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
 
+  const stageConclusion = (room, stage, index, next) => {
+    const messages = readMessages(room.id)
+    const floor = reworkFloor(messages, index)
+    const evidence = [...messages].reverse().find(message => (
+      message.kind === 'evidence' &&
+      (message.seq ?? 0) > floor &&
+      message.meta?.kind === 'command' &&
+      (message.meta?.stage ?? 0) === index
+    ))
+    const verdicts = messages
+      .filter(message => (
+        message.kind === 'verdict' &&
+        (message.meta?.stage ?? 0) === index &&
+        (message.seq ?? 0) > floor
+      ))
+      .slice(-5)
+      .map(message => ({
+        name: seatDisplayName(room, message.authorId),
+        pass: message.meta?.pass === true,
+      }))
+    return {
+      kind: 'stage_conclusion',
+      authorId: 'system',
+      text: `阶段 ${index + 1}「${stage.title}」已通过`,
+      meta: {
+        stage: index,
+        title: stage.title,
+        command: typeof evidence?.meta?.command === 'string' ? evidence.meta.command : '',
+        exit: evidence?.meta?.exit ?? null,
+        files: Array.isArray(evidence?.meta?.files) ? evidence.meta.files : [],
+        verdicts,
+        next: next >= 0 ? room.stages[next]?.title ?? null : null,
+      },
+    }
+  }
+
   const accept = (room, body) => {
     const index = Number(body.stage)
     let gate = null
@@ -34,8 +70,19 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       }
       if (next >= 0) current.stages[next].state = 'active'
       else current.state = 'complete'
-      let closureEvent = null
+      const closureEvents = []
       if (roomModeOfRoom(current)?.supportsDelivery === true) {
+        // 最后一段可能是在 planned/executing 里直接签的（前面的确认阶段不走执行转移）；
+        // 签字前先把房间送进 verifying，再走 sign，状态机才完整。
+        if (next < 0 && (current.closure ?? 'open') !== 'verifying') {
+          const waiting = transitionStudio(current.closure ?? 'open', 'await_sign')
+          if (!waiting.ok) {
+            transitionError = waiting.error
+            return null
+          }
+          current.closure = waiting.state
+          closureEvents.push(studioTransitionEvent(waiting, 'await_sign', 'you', {}, '人工签字前进入待签'))
+        }
         const event = next < 0 ? 'sign' : next === current.stages.length - 1 ? 'await_sign' : 'stage_advanced'
         const moved = transitionStudio(current.closure ?? 'open', event, next < 0 ? { verdictPassed, human: true } : {})
         if (!moved.ok) {
@@ -43,13 +90,13 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
           return null
         }
         current.closure = moved.state
-        closureEvent = studioTransitionEvent(moved, event, 'you', {}, next < 0 ? '人工签字' : next === current.stages.length - 1 ? '等待人工签字' : '阶段通过')
+        closureEvents.push(studioTransitionEvent(moved, event, 'you', {}, next < 0 ? '人工签字' : next === current.stages.length - 1 ? '等待人工签字' : '阶段通过'))
       }
       return {
         events: [
           { type: 'stage.passed', payload: { stage: index, kind: stage.kind, by: 'you' } },
           ...(next < 0 ? [{ type: 'room.complete', payload: {} }] : []),
-          ...(closureEvent === null ? [] : [closureEvent]),
+          ...closureEvents,
         ],
       }
     })
