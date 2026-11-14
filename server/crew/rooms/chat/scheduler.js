@@ -35,22 +35,21 @@ const discussionLines = (store, roomId, limit = 12) => store.readMessages(roomId
 
 const baseName = (room, seat) => room?.seatNames?.[seat] ?? seatDisplayName(room, seat)
 
-const speakerPrompt = ({ room, seat, round, turn, turnLimit, note, lines }) => {
+// 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
+const speakerPrompt = ({ room, seat, round, turn, turnLimit, note }) => {
   return [
     `@${baseName(room, seat)} 聊天室话题：${room.goal}`,
-    `讨论进行到第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
+    `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `你上一轮退回了结论，并补充：${note}`,
-    lines.length === 0 ? '还没有人发言。' : `已有讨论：\n${lines.join('\n')}`,
-    '请只补充你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复你的发言。',
+    '请补充你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')
 }
 
-const hostPrompt = ({ room, hostName, round, note, lines }) => [
+const hostPrompt = ({ room, hostName, round, note }) => [
   `@${hostName} 聊天室第 ${round} 轮讨论到此结束，请总结。`,
   `话题：${room.goal}`,
   note === '' ? '' : `用户退回了上一轮结论，并补充：${note}`,
-  lines.length === 0 ? '没有讨论内容。' : `讨论记录：\n${lines.join('\n')}`,
   '请给出：结论、主要分歧、建议下一步。不要调用工具。直接回复总结。',
   INTERNAL_PROMPT_MARKER,
 ].filter(Boolean).join('\n')
@@ -198,7 +197,6 @@ export const createChatScheduler = ({
             turn,
             turnLimit,
             note,
-            lines: discussionLines(store, roomId),
           })
           const sent = await engine.sendTurn({ roomId: chat.id, text })
           hidePrompt(sent?.messageId)
@@ -256,7 +254,7 @@ export const createChatScheduler = ({
       let before = await messageIds(chat)
       let sent = await engine.sendTurn({
         roomId: chat.id,
-        text: hostPrompt({ room: store.readRoom(roomId) ?? room, hostName, round, note, lines }),
+        text: hostPrompt({ room: store.readRoom(roomId) ?? room, hostName, round, note }),
       })
       hidePrompt(sent?.messageId)
       let reply = await waitForBot(chat, hostBot, before, run)
@@ -265,7 +263,7 @@ export const createChatScheduler = ({
         before = await messageIds(chat)
         sent = await engine.sendTurn({
           roomId: chat.id,
-          text: hostPrompt({ room: store.readRoom(roomId) ?? room, hostName, round, note, lines }),
+          text: hostPrompt({ room: store.readRoom(roomId) ?? room, hostName, round, note }),
         })
         hidePrompt(sent?.messageId)
         reply = await waitForBot(chat, hostBot, before, run)

@@ -26,20 +26,12 @@ const WORK_CONTRACT = {
   ],
 }
 
-const MODE_GUIDANCE = {
-  chat: ['当前是聊天室：只讨论，不改文件、不调用工具；只补充观点、依据或质疑。'],
-  studio: ['当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才加载。'],
-}
-
 export const workContract = role => WORK_CONTRACT[role] ?? []
 
-export const modeGuidance = ({ roomType, readOnly = false } = {}) => {
-  const lines = [...(MODE_GUIDANCE[roomType] ?? [])]
-  if (readOnly && !lines.some(line => line.includes('只读'))) {
-    lines.push('当前阶段只读：可以读仓库、讨论和评审；不要改文件，也不要运行会写文件的命令。')
-  }
-  return lines
-}
+// 模式纪律已经写进席位 soul；这里只补当前阶段才生效的临时约束。
+export const stageGuidance = ({ readOnly = false } = {}) => (
+  readOnly ? ['当前阶段只读：可以读仓库、讨论和评审；不要改文件，也不要运行会写文件的命令。'] : []
+)
 
 export const skillPrompt = (skills = [], maxChars = 16_000) => {
   const lines = []

@@ -1,5 +1,6 @@
 import { resolveAssigneeTokens } from '../../orchestration/index.js'
 import * as type from '../../room-types/studio.js'
+import { workContract } from '../../prompt-modes.js'
 import { roleKindOf, TEMPLATES } from '../../seats.js'
 import { commandEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { startInitialStage } from './start.js'
@@ -183,6 +184,13 @@ export const studioKind = {
     roleKind: seat.roleKind ?? roleKindOf(seat.role),
     roleProfile: seat.name,
   }),
+
+  // 静态纪律只注入一次，后续阶段提示不再重复。
+  seatSoul: seat => [
+    seat.prompt,
+    '当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才加载。',
+    ...workContract(seat.role),
+  ].filter(Boolean).join('\n'),
 
   validateRoster: type.validateRoster,
   resolvePlan: (plan, roster) => resolveStageAssignees(plan, roster),

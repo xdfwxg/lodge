@@ -1,7 +1,6 @@
 import { budgetStatus } from '../../budget.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { markSeatRead } from '../../watermarks.js'
-import { workContract } from '../../prompt-modes.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { reject } from '../../result.js'
 import { parseVerdict, REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
@@ -247,7 +246,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       const prompt = manual
         ? [
             `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
-            ...workContract('verifier'),
             '盲审：你只拿到目标、约束和本轮产物证据，不读取执行席位的对话；判定只看证据和代码。',
             buildSeatHandoff({ room, messages }),
             ...(promptLines.length > 0
@@ -257,7 +255,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
             '产物证据：',
             '```',
-            tail(evidence.text, 4000),
+            tail(evidence.text, 2000),
             '```',
             '请自己打开产物核对；这是人工验收阶段，没有验收命令。',
             '只评审交付产物；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
@@ -269,7 +267,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
           ].join('\n')
         : [
             `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
-            ...workContract('verifier'),
             '盲审：你只拿到目标、约束、本轮验收证据和改动，不读取执行席位的对话；判定只看证据和代码。',
             buildSeatHandoff({ room, messages }),
             ...(promptLines.length > 0
@@ -281,11 +278,11 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             `退出码：${meta.exit === null ? '无' : meta.exit}`,
             '命令输出：',
             '```',
-            tail(meta.output, 4000),
+            tail(meta.output, 2000),
             '```',
             '改动：',
             '```diff',
-            tail(meta.diff, 6000),
+            tail(meta.diff, 4000),
             '```',
             '',
             '请自己打开改动过的文件核对；必要时自己重跑验收命令，不要把上面的输出当成唯一依据。',

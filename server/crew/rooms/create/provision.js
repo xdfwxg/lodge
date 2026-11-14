@@ -31,7 +31,7 @@ export const createProvisioner = ({ engine }) => {
       }
       const seatRef = await engine.createSeatBot({
         name: `${seat.id[0].toUpperCase()}${seat.id.slice(1)}${short}`,
-        soul: seat.prompt,
+        soul: mode.seatSoul?.(seat) ?? seat.prompt,
         description: seat.station,
         approval: seat.approval,
         mcp: seat.mcp,

@@ -6,7 +6,7 @@ import { buildTasks } from './tasks.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { modeGuidance, skillPrompt, workContract } from '../../prompt-modes.js'
+import { skillPrompt, stageGuidance } from '../../prompt-modes.js'
 import { seatDisplayName } from '../../seat-labels.js'
 import { workspaceOf } from './workspace.js'
 import { studioPlannerPrompt } from './prompts.js'
@@ -104,8 +104,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
         rework
           ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : note}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求返工。`
           : '',
-        ...workContract('worker'),
-        ...modeGuidance({ roomType: room.roomType, readOnly }),
+        ...stageGuidance({ readOnly }),
         ...skillPrompt(seatSkills),
         buildSeatHandoff({ room, messages: store.readMessages(roomId) }),
         assignees.length > 1

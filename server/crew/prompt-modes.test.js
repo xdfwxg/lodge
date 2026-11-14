@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { modeGuidance, skillPrompt, workContract } from './prompt-modes.js'
+import { skillPrompt, stageGuidance, workContract } from './prompt-modes.js'
 
 test('work contracts carry stage discipline, not room identity', () => {
   assert.match(workContract('worker').join('\n'), /不要自己 git commit/)
@@ -12,11 +12,9 @@ test('work contracts carry stage discipline, not room identity', () => {
   assert.deepEqual(workContract('unknown'), [])
 })
 
-test('room modes stay isolated', () => {
-  assert.deepEqual(modeGuidance({ roomType: 'unknown' }), [])
-  assert.match(modeGuidance({ roomType: 'chat' }).join('\n'), /只讨论/)
-  assert.match(modeGuidance({ roomType: 'studio' }).join('\n'), /同一个房间目录/)
-  assert.match(modeGuidance({ roomType: 'chat', readOnly: true }).join('\n'), /只读/)
+test('only dynamic stage constraints are added per prompt', () => {
+  assert.deepEqual(stageGuidance({}), [])
+  assert.match(stageGuidance({ readOnly: true }).join('\n'), /只读/)
 })
 
 test('optional skills are injected as declared bodies, not catalogs', () => {

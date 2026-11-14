@@ -1,7 +1,6 @@
 import { MAX_CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import { roomModeForType } from '../kinds.js'
 import { resolveAssigneeTokens, resolveOrchestration } from '../../orchestration/index.js'
-import { workContract } from '../../prompt-modes.js'
 import { resolveRoomType } from '../../room-types/index.js'
 import {
   DEFAULT_TEMPLATE_ID,
@@ -20,7 +19,6 @@ export const roomBulletin = (goal, verify, acceptance) => [
 export const alignmentPrompt = (leadName, goal, verify, acceptance) => [
   `@${leadName} 目标：${goal}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',
-  ...workContract('lead'),
   '用户确认阶段后，系统会发一条以「阶段已确认」开头的消息；收到这条消息后只派当前阶段。',
 ].join('\n')
 
@@ -30,7 +28,6 @@ export const directPrompt = (goal, verify, acceptance, singleSeat) => [
   singleSeat
     ? '这是单人房间：直接在当前工作区完成，不要等人对齐。'
     : '这个房间没有单独的队长：直接在当前工作区完成，不要等人对齐。',
-  ...workContract('worker'),
 ].join('\n')
 
 // 续做只继承人写的 BRIEF；旧证据、阶段与席位会话都不复制。

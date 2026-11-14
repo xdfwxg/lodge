@@ -101,7 +101,7 @@ const setup = () => {
       return { accepted: true, messageId: id }
     },
   }
-  return { store, engine, room: () => current, messages }
+  return { store, engine, room: () => current, messages, history }
 }
 
 test('a chat round runs six speakers, then the host summarizes', async () => {
@@ -128,6 +128,9 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(conclusion.meta.turns, 6)
   assert.equal(conclusion.meta.fallback, false)
   assert.equal(ctx.room().chat.conclusionId, conclusion.id)
+  const prompts = ctx.history.filter(message => message.role === 'user').map(message => message.text)
+  assert.equal(prompts.some(text => text.includes('已有讨论')), false)
+  assert.equal(Math.max(...prompts.map(text => text.length)) < 400, true)
 
   ctx.store.updateRoom('room-chat', state => {
     state.chat = { ...state.chat, round: 2, running: false, turns: 0, phase: 'awaiting_decision' }

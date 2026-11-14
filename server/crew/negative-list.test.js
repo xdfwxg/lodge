@@ -90,6 +90,17 @@ test('kernel and creation units reach contexts only through kinds or facades', (
   }
 })
 
+test('static discipline lives in seat souls, not per-turn prompts', () => {
+  for (const file of [
+    'rooms/studio/prompts.js',
+    'rooms/studio/review.js',
+    'rooms/studio/stage.js',
+    'rooms/create/input.js',
+  ]) {
+    assert.doesNotMatch(read(file), /workContract|modeGuidance/, `${file} repeats static discipline`)
+  }
+})
+
 test('the shared state-machine mechanism knows no room mode', () => {
   const text = read('room-state.js')
   assert.doesNotMatch(text, /\b(chat|studio)\b/i, 'room-state.js hardcodes a mode')

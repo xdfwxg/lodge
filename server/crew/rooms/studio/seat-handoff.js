@@ -1,8 +1,8 @@
 // 席位交接包：永久素材优先，transcript 只给引用，不重发整场对话。
-const DONE_LIMIT = 6
-const CONSTRAINT_LIMIT = 14
-const FEEDBACK_LIMIT = 3
-const MAX_CHARS = 2_800
+const DONE_LIMIT = 4
+const CONSTRAINT_LIMIT = 6
+const FEEDBACK_LIMIT = 1
+const MAX_CHARS = 1_200
 
 const clip = (text, limit) => (text.length > limit ? `${text.slice(0, limit)}\n…（交接包已截断，完整内容读 transcript）` : text)
 
@@ -32,7 +32,7 @@ export const buildSeatHandoff = ({ room, messages = [] } = {}) => {
       .split('\n')
       .map(line => line.trim())
       .filter(line => line !== '' && !line.startsWith('#'))
-      .slice(0, 12)
+      .slice(0, 6)
     if (projectLines.length > 0) lines.push('项目约束（LODGE.md 快照）：', ...projectLines.map(line => `- ${line}`))
   }
   const feedback = feedbackOf(messages)

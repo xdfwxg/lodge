@@ -24,7 +24,8 @@ test('a seat handoff carries business material and references the transcript', (
   assert.match(text, /不改上游/)
   assert.match(text, /项目约束（LODGE.md 快照）/)
   assert.match(text, /用 ESM/)
-  assert.match(text, /REJECT：少一个设置项/)
+  assert.match(text, /PASS：保存后刷新仍生效/)
+  assert.doesNotMatch(text, /REJECT：少一个设置项/)
   assert.match(text, /\.crew\/rooms\/room-h1\/transcript\.jsonl（2 条）/)
   assert.doesNotMatch(text, /# 约定/)
 })
@@ -34,6 +35,6 @@ test('a seat handoff stays bounded', () => {
     room: { ...room, constraints: Array.from({ length: 200 }, (_, index) => `约束 ${index} ${'x'.repeat(400)}`) },
     messages: [],
   })
-  assert.equal(text.length <= 2_900, true)
+  assert.equal(text.length <= 1_300, true)
   assert.match(text, /交接包已截断/)
 })
