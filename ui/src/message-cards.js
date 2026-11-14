@@ -109,6 +109,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
   const summary = body[0] ?? ''
   const detail = body.slice(1).join('\n')
   const output = typeof proof.output === 'string' && proof.output !== '' ? proof.output : ''
+  const diff = typeof proof.diff === 'string' && proof.diff !== '' ? proof.diff : ''
   const active = stage?.state === 'active'
   const independent = room.independence === 'vendor'
   const foot = meta.simulated === true
@@ -129,6 +130,9 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
           exit !== undefined && exit !== null ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(exit))) : null,
           summary === '' ? null : h(Markdown, { text: summary, variant: 'compact' }),
           files.length > 0 ? h('div', { className: 'crew-receipt-files' }, files.join(' · ')) : null,
+          diff === ''
+            ? null
+            : h('details', { className: 'crew-fold' }, h('summary', null, '改动'), h('pre', { className: 'crew-code' }, diff)),
           detail === '' && output === ''
             ? null
             : h('details', { className: 'crew-fold' }, h('summary', null, '查看详情'),

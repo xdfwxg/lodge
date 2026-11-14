@@ -75,6 +75,7 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
   const [stageAcceptance, setStageAcceptance] = useState('')
   const [subGoal, setSubGoal] = useState('')
   const [subBusy, setSubBusy] = useState(false)
+  const [rewindArmed, setRewindArmed] = useState(null)
   useEffect(() => {
     setBudgetDraft(String(budget / 1_000_000))
     setTrustDraft(room.trust ?? 'verify')
@@ -87,6 +88,14 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
   const editableStages = (room.stages ?? [])
     .map((stage, index) => ({ stage, index }))
     .filter(({ stage }) => stage.state === 'pending' && stage.title !== '验收与结论')
+  const rewindableStages = (room.stages ?? [])
+    .map((stage, index) => ({ stage, index }))
+    .filter(({ stage, index }) => (
+      index > 0 &&
+      stage.state === 'passed' &&
+      (stage.kind === 'deliverable' || stage.manual === true) &&
+      typeof room.stageBases?.[index] === 'string'
+    ))
   const roomById = new Map(rooms.map(item => [item.id, item]))
   const childRooms = (room.childRoomIds ?? [])
     .map(id => roomById.get(id))
@@ -207,6 +216,24 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
               setStageAcceptance('')
             },
           }, '添加阶段'))),
+    room.demo === true || room.state !== 'active' || rewindableStages.length === 0
+      ? null
+      : h('div', { className: 'crew-stage-editor' },
+        h('span', null, '回到阶段起点 · 代码重置到该阶段开始前，之后的阶段重来；证据不删除'),
+        h('div', { className: 'crew-stage-edit-row' },
+          rewindableStages.map(({ stage, index }) => h('button', {
+            key: index,
+            type: 'button',
+            className: rewindArmed === index ? 'crew-choice' : 'crew-ghost',
+            onClick: () => {
+              if (rewindArmed !== index) {
+                setRewindArmed(index)
+                return
+              }
+              setRewindArmed(null)
+              void store.rewind(index)
+            },
+          }, rewindArmed === index ? `确认回到阶段 ${index + 1}` : `回到阶段 ${index + 1}「${stage.title}」`)))),
     h('div', { className: 'crew-stage-editor' },
       h('span', null, '子工作室树 · 最多 3 层；父房只查看子房状态和 verdict，不直接改子房流转'),
       childRooms.length > 0

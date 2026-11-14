@@ -51,9 +51,9 @@ test('chat rooms move only between the four chat states', () => {
 test('the full studio state x event matrix is explicit', () => {
   const allowed = new Set([
     'open:plan_submitted', 'open:start_execute', 'open:stage_advanced', 'open:await_sign',
-    'planned:start_execute', 'planned:reject_plan', 'planned:stage_advanced', 'planned:await_sign',
-    'executing:stage_advanced', 'executing:await_sign', 'executing:submit_evidence',
-    'verifying:verdict_pass', 'verifying:verdict_reject', 'verifying:stage_advanced', 'verifying:await_sign', 'verifying:sign',
+    'planned:start_execute', 'planned:reject_plan', 'planned:stage_advanced', 'planned:await_sign', 'planned:rewind',
+    'executing:stage_advanced', 'executing:await_sign', 'executing:submit_evidence', 'executing:rewind',
+    'verifying:verdict_pass', 'verifying:verdict_reject', 'verifying:stage_advanced', 'verifying:await_sign', 'verifying:sign', 'verifying:rewind',
   ])
   const context = { manual: true, exitCode: 0, hasPlan: false, verdictPassed: true, human: true }
   for (const state of STUDIO_STATES) {

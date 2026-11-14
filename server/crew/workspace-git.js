@@ -252,6 +252,32 @@ export const removeSeat = ({ room, seat }) => {
 
 export const head = ({ path }) => git(path, ['rev-parse', 'HEAD']).trim()
 
+// 回到某个阶段起点：先给当前 HEAD 和执行席位留备份分支，再重置；
+// 有未提交的已跟踪改动就拒绝，避免把人的工作当临时产物丢掉。
+export const restore = ({ room, base }) => {
+  const repoPath = room?.repoPath
+  if (typeof repoPath !== 'string' || repoPath === '') throw new Error('房间没有仓库路径')
+  const workers = Array.isArray(room?.workers) ? room.workers : []
+  const seatPaths = Object.entries(room?.worktrees ?? {})
+    .filter(([seat, path]) => workers.includes(seat) && typeof path === 'string' && existsSync(path))
+  const targets = [{ name: 'room', path: repoPath }, ...seatPaths.map(([seat, path]) => ({ name: seat, path }))]
+    .filter((item, index, list) => list.findIndex(other => other.path === item.path) === index)
+  const dirty = targets.find(item => git(item.path, ['status', '--porcelain', '--untracked-files=no']).trim() !== '')
+  if (dirty !== undefined) throw new Error(`还有未提交的改动：${dirty.path}；先等系统合并或清理再回退`)
+  if (git(repoPath, ['cat-file', '-t', base]).trim() !== 'commit') {
+    throw new Error('阶段起点不是一个提交，不能回退')
+  }
+  const stamp = Date.now()
+  const short = roomShort(room)
+  const backups = targets.map(item => {
+    const name = `rewind/${short}/${item.name}/${stamp}`
+    git(repoPath, ['branch', name, git(item.path, ['rev-parse', 'HEAD']).trim()])
+    return name
+  })
+  for (const item of targets) git(item.path, ['reset', '--hard', base])
+  return { base, backups }
+}
+
 // 验收命令在一次性 detached worktree 里跑；测试产生的文件不写回交付 worktree。
 export const isolatedCopy = ({ source, ref }) => {
   const root = mkdtempSync(join(tmpdir(), 'lodge-accept-'))

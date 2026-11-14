@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import {
   cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneSeats, rangeChanges,
-  refreshReviewCopy, removeIsolatedCopy, submit,
+  refreshReviewCopy, removeIsolatedCopy, restore, submit,
 } from './workspace-git.js'
 import { rosterFromRoles, seatsFor } from './seats.js'
 
@@ -110,6 +110,56 @@ test('execution seats get a local env copy, a dependency link and a port hint', 
     assert.match(committed, /hello\.txt/)
     assert.doesNotMatch(committed, /\.env|node_modules/)
     assert.doesNotMatch(committed, /\.lodge\//)
+  } finally {
+    cleanupRoom({ source: sourceRepo, workspaces })
+    if (previousRoot === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previousRoot
+    if (previousMin === undefined) delete process.env.CREW_DISK_MIN_FREE_MB
+    else process.env.CREW_DISK_MIN_FREE_MB = previousMin
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
+test('restore rewinds the room to a stage base and keeps a backup branch', () => {
+  const sourceRepo = repo()
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-rewind-'))
+  const previousRoot = process.env.CREW_WORKTREE_ROOT
+  const previousMin = process.env.CREW_DISK_MIN_FREE_MB
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  process.env.CREW_DISK_MIN_FREE_MB = '0'
+  let workspaces = null
+  try {
+    const seats = rosterFromRoles([
+      { role: 'lead', name: '队长' },
+      { role: 'worker', name: '甲' },
+      { role: 'verifier', name: '复核' },
+    ])
+    workspaces = prepareRoom({ source: sourceRepo, short: 'rew1', seats })
+    const worker = workspaces.seats.worker.path
+    const room = {
+      id: 'room-rew1',
+      repoPath: workspaces.roomPath,
+      workers: ['worker'],
+      worktrees: Object.fromEntries(Object.entries(workspaces.seats).map(([id, item]) => [id, item.path])),
+      workspace: { provider: 'git' },
+    }
+    const base = head({ path: worker })
+    writeFileSync(join(worker, 'stage1.txt'), 'one\n')
+    const candidate = submit({ path: worker, turnId: 't1', name: 'Room' })
+    assert.equal(typeof candidate, 'string')
+
+    writeFileSync(join(worker, 'README.md'), 'dirty\n')
+    assert.throws(() => restore({ room, base }), /未提交的改动/)
+    execFileSync('git', ['checkout', '--', 'README.md'], { cwd: worker })
+
+    const result = restore({ room, base })
+    assert.equal(result.base, base)
+    assert.equal(head({ path: worker }), base)
+    assert.equal(existsSync(join(worker, 'stage1.txt')), false)
+    assert.equal(result.backups.length, 1)
+    const backed = execFileSync('git', ['rev-parse', result.backups[0]], { cwd: sourceRepo, encoding: 'utf8' }).trim()
+    assert.equal(backed, candidate)
   } finally {
     cleanupRoom({ source: sourceRepo, workspaces })
     if (previousRoot === undefined) delete process.env.CREW_WORKTREE_ROOT
