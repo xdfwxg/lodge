@@ -46,6 +46,7 @@ test('seat prompts and semantic capability settings cross the engine port', asyn
   assert.equal(client.captured.bot.settings.description, '规划')
   assert.equal(client.captured.bot.settings.approvalMode, 'ask')
   assert.deepEqual(client.captured.bot.settings.mcpServers, ['github'])
+  assert.deepEqual(client.captured.bot.settings.toolScope, { deny: ['mcp:agents:*'] })
   assert.equal(engine.capabilities().mcp, true)
   assert.equal(engine.capabilities().cancel, true)
   assert.equal(engine.capabilities().schedules, false)

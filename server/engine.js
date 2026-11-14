@@ -308,6 +308,9 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       ...(typeof description === 'string' && description !== '' ? { description } : {}),
       ...(approval === undefined ? {} : { approvalMode: approval }),
       ...(servers.length > 0 ? { mcpServers: servers } : {}),
+      // 基座会给每个 bot 自动挂内置 agents MCP；Lodge 的席位只用原生 read/exec/write，
+      // 不把 coordinate_bots/session_search 这类团队工具带进房间。
+      toolScope: { deny: ['mcp:agents:*'] },
     }
     const created = await client.createBot({ name, modelSelection: selection, settings })
     const bot = created?.bot ?? created
