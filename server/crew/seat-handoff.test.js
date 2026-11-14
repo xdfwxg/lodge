@@ -22,8 +22,6 @@ test('a seat handoff carries business material and references the transcript', (
   assert.match(text, /房间目标：给设置页加保存/)
   assert.match(text, /设置项列全/)
   assert.match(text, /不改上游/)
-  assert.match(text, /项目约束（LODGE.md 快照）/)
-  assert.match(text, /用 ESM/)
   assert.match(text, /PASS：保存后刷新仍生效/)
   assert.doesNotMatch(text, /REJECT：少一个设置项/)
   assert.match(text, /\.crew\/rooms\/room-h1\/transcript\.jsonl（2 条）/)

@@ -4,7 +4,6 @@ import { isChatSystemNoise } from '../../room-chat.js'
 import { LODGE_HOST_LABEL } from '../../seat-labels.js'
 import { personalityPrompt } from '../../../../shared/personalities.js'
 import { chatProjection } from './projection.js'
-import { replayChatTransition } from './state.js'
 
 // 聊天室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
 export const chatKind = {
@@ -23,11 +22,9 @@ export const chatKind = {
 
   validateRoster: null,
   resolvePlan: () => null,
-  needsPlannerTools: false,
   requiresGate: false,
   evaluateGate: () => ({ decision: 'allow', reasons: [], advice: [] }),
   supportsDelivery: false,
-  supportsSubrooms: false,
   acceptsChatDecision: true,
   approvalReadOnly: () => false,
   appliesStageDependencies: false,
@@ -89,7 +86,6 @@ export const chatKind = {
   },
 
   stateOf: room => room.chat?.phase ?? 'discussing',
-  replayTransition: replayChatTransition,
 
   filterMessages: messages => chatProjection.filterMessages(messages, isChatSystemNoise),
   hideActivity: chatProjection.hideActivity,
@@ -110,11 +106,8 @@ export const chatKind = {
   }),
 
   onSeatFailure: () => {},
-  partialCount: () => 0,
   deliveryOf: () => null,
-  reviewOf: () => null,
   hostOf: room => room.chatHost ?? null,
   speakerOf: room => room.chat?.speaker ?? '',
   bulletinAcceptance: () => '人确认',
-  applyStageDependencies: room => room,
 }

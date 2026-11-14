@@ -77,7 +77,7 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
       changedFiles: ['src/a.js'],
     },
   }))
-  assert.match(text(tree), /交付单/)
+  assert.match(text(tree), /交付卡/)
   assert.match(text(tree), /保存后刷新仍生效/)
   assert.match(text(tree), /abcdef123456/)
   assert.match(text(tree), /npm test · exit 0/)

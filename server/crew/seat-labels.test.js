@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { seatDisplayName, seatLabelMap, toBaseMentions, toDisplayMentions, toDisplayText } from './seat-labels.js'
+import { seatDisplayName, seatHandle, seatLabelMap, seatMention, toBaseMentions, toDisplayMentions, toDisplayText } from './seat-labels.js'
 
 const room = {
   seatNames: {
@@ -44,4 +44,12 @@ test('the label map is built from the roster only', () => {
   }
   assert.deepEqual(seatLabelMap(withHandles), { executor: '执行者', verifier: '验收员' })
   assert.deepEqual(seatLabelMap({ seatNames: { executor: 'Executorea924d' } }), {})
+})
+
+
+test('handle and mention conversion live in one place', () => {
+  assert.equal(seatHandle(room, 'executor'), 'Executorea924d')
+  assert.equal(seatHandle({ seatNames: {} }, 'executor'), '')
+  assert.equal(seatMention(room, 'executor'), '@Executorea924d')
+  assert.equal(seatMention({ seatNames: {} }, 'executor'), '')
 })

@@ -1,5 +1,8 @@
 # Lodge 房间模型：ChatRoom / WorkRoom
 
+> **一期范围（2026-11-15）**：只保留聊天室基础功能、手动开工作室、工作室群聊/阶段、目标岛、开工卡、工作拍/接力棒、复核结果卡、交付卡。下文中审计、复盘、交接包、续做/分叉、预算/用量、信任阶梯、Planner MCP、子工作室、并行/对抗编排、阶段编辑/依赖/部分成功、多验收投票、项目约束、资源投影、演示/模拟/种子、运行控制/修复、证据账本/digest、影子评审、advisor 等条目为历史设计，不再代表当前代码。
+
+
 > 目标架构。当前实现状态以 `docs/reuse-map.md` §8.5 为准；本文只定义不可随意突破的边界。
 > 共用总线、呈现层与房型引擎的三层边界见 [../架构.md](../架构.md)。
 
@@ -10,7 +13,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 核心原则：严格区分「对话共识范式」与「可验收交付范式」，两套状态机、数据结构、能力体系完全隔离；工作室所有业务岗位基于 3 种本原角色派生，不新增底层角色原语。
 
-状态机落点：`server/crew/room-state.js` 只提供通用迁移机制（`状态 + 事件 + context → 下一状态/拒绝原因`）与回放；两张转移表分别归 `rooms/chat/state.js` 和 `rooms/studio/state.js`，由房型模式持有。所有 `closure` 和 `room.chat.phase` 写入必须经过对应模式的迁移函数，并写 `closure.transition` / `chat.transition` 审计事件。聊天机与工作室机不共享状态、不发跨机事件；新增模式只需自带状态表。
+状态机落点：`server/crew/room-state.js` 只提供通用迁移机制（`状态 + 事件 + context → 下一状态/拒绝原因`）；两张转移表分别归 `rooms/chat/state.js` 和 `rooms/studio/state.js`，由房型模式持有。所有 `closure` 和 `room.chat.phase` 写入必须经过对应模式的迁移函数，并写 `closure.transition` / `chat.transition` 审计事件。聊天机与工作室机不共享状态、不发跨机事件；新增模式只需自带状态表。
 
 ### 状态机转移表
 
@@ -50,11 +53,14 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 
 初始化（`room-record.js` 新建房间）、旧数据迁移（`store.upgradeRoom`）和聊天调度启动复位是唯一允许直接写初始值的地方；运行期状态变化一律走转移函数。`origin`、`advisor` 建议、模型标签只作为 context，不参与 Guard。
 
-影子评审对照：`GET /api/rooms/:id/shadow-review` 以账本凭证为行，左侧展示 Verifier verdict，右侧展示同 `evidenceId` 的 advisor 建议与分数，标注一致/分歧/中性/缺建议；只读展示，不驱动状态、不参与签字门禁。
+证据账本：`evidence` 表只追加命令证据和人工产物证据（`kind: command | manual`），每条带 `id / roomId / seq / digest / meta / text / authorId / at`；执行席位的自述回合（`kind: turn`）留在消息流，不进账本。Verifier、Gate、信任阶梯只按账本选择本轮凭证，verdict 只引用 `evidenceId`。一期只写入 digest，不提供完整性校验；交付卡展示 digest 用于溯源。
 
-证据账本：`evidence` 表只追加命令证据和人工产物证据（`kind: command | manual`），每条带 `id / roomId / seq / digest / meta / text / authorId / at`；执行席位的自述回合（`kind: turn`）留在消息流，不进账本。Verifier、Gate、信任阶梯只按账本选择本轮凭证，verdict 只引用 `evidenceId`。旧房间第一次读账本时从已有命令/人工证据消息补账，不改历史消息。`GET /api/rooms/:id/evidence-ledger` 提供只读列表；`GET /api/rooms/:id/evidence-integrity` 重算每条 payload 的 SHA-256 并与存储 digest 对比，只报告不一致条目（含存储值、重算值），不自动修复。右栏证据条目同时显示关联 verdict（PASS/REJECT 与审核人），并可打开对该 `evidenceId` 高亮的影子评审对照。完成态交付单和交接包都带账本条目的 digest 与完整性结果：交付单写入 markdown 的“证据账本”段，交接包写入 `ledger` / `integrity` 字段；交接包按同一路径规则脱敏账本文本，digest 保留房间原值并在注释里说明。
+## 0.1 阶段 / 接力棒 / 工作拍
 
-状态回放调试器：`GET /api/rooms/:id/transitions` 只读读取 `closure.transition` / `chat.transition`，复用同一张转移表重放并校验历史，输出每一步的 `from / to / event / actor / reason / context` 与非法或断链原因；不写房间、不补事件。UI 入口在高级面板的“状态回放”。
+- 阶段章节保存任务边界与验收单元；阶段是否就绪、是否通过由 `stage.js` / `review.js` 判断。
+- 接力棒由 `rooms/studio/handoff.js` 独立执行：解析 `seatNames` 的基座 handle、确保 prompt 以 `@handle` 开头、写工作拍、更新目标席位游标、发群消息唤醒席位，并记录 `handoff.requested / handoff.sent / handoff.failed`。
+- 工作拍由 `rooms/studio/work-turn.js` 生成，随 `handoff` 消息的 `meta.workTurn` 保存；UI 的 `Baton` 卡片显示 from → to、`@handle`、触发原因、阶段、验收和发送状态。
+- 阶段开始由 `stage.js` 触发接力；证据就绪后的复核由 `review.js` 触发；handoff 只执行交接，不修改阶段判定。
 
 ## 1. ChatRoom 聊天室
 
@@ -83,7 +89,6 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 - 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环。验收按阶段幂等：执行者没有工具调用或产出的闲聊回合不触发新的命令验收；没有新增交付改动时沿用本轮的验收，不重复提交候选；**工作树干净不等于没有交付**：返工 amend、执行者自己 commit、或新阶段起始 HEAD 已前进时，都按当前 HEAD 重跑验收并重新发起复核，隔离副本用房间 HEAD 的提交哈希，证据用“阶段起点 → 当前 HEAD”的 range diff 补全改动清单，并记录实际被验收的候选提交哈希（不是提交前的 HEAD）。本机运行文件（`.crew`、`.lodge`、`.env`、`node_modules`）不进入候选提交与验收 diff；worktree 级 `core.excludesFile` 让执行者自己 `git add -A` 时也不会带上这些文件；内部派活/复核提示带 `[[lodge-internal]]` 标记，不进入主时间线。席位返回引擎级错误（`error:`，如额度不足、登录失效、限流）时，房间自动暂停为 `seat_error`，当前任务标记 failed，`needsYou` 给出具体席位、原因和下一步（充值/换模型/重新登录/稍后继续），不把原始 429 JSON 直接丢给用户。
 - 流转公约：主任务闭环必须经过 Planner → Executor → Verifier；支持子任务并行、重试、分支，但进入执行阶段后不可绕过 Verifier 放行。
 - 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。高级面板以树视图展示父子状态与子房 verdict，父房只读，不提供修改子房内部流转的动作。
-- 影子评审 `shadowReview`：开启后 advisor 照常打分，但只写入时间线和 `meta.shadow`，不注入 Verifier prompt、不产生正式 verdict；关闭时 advisor 建议可作为参考进入 Verifier prompt。两种情况下正式 Verifier 都必须 PASS 才能 signed。
 - Planner 工具面：Lodge 自带一个按房间注册的无状态 MCP server（`/mcp/planner/<roomId>`，令牌绑定房间），只挂给该房间的 Planner，提供 `create_subroom`、`reject_plan`、`check_gate`；工具调用回到业务层执行，结果由 MCP 返回，Planner 不能伪造。MCP 不可用时回退到 `<lodge-tool>{"name":"...","args":{...}}</lodge-tool>` 文字协议。两条路径都不是新的 roleKind，也不改变谁有权放行。
 - Planner MCP 生命周期：建房时注册并启用，Planner bot 的 `mcpServers` 只多这一项；房间 `signed`/`rejected` 时移除；`stopped` 房间超过 TTL（默认 10 分钟）后由定时 sweep 回收；正在执行工具调用的房间不中断。启动时先 sweep 再补齐进行中房间。基座最多保存 20 个 MCP server，`/api/health` 暴露 `plannerMcp` 数量与在途调用数。
 
@@ -110,9 +115,8 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 6. **评估建议不写 `pass`、不直接放行、不成为角色**。它只返回 advice。
 7. **聊天室不挂完整执行引擎**。写文件、执行命令、外部动作都不放行；要执行请新建工作室。
 8. **角色实例不跨房间继承**。身份绑定房间。
-9. **不做快照自动导入新工作室**。只导出结构化摘要，由人复制到新建工作室；不提供导入 API。
+9. **不做交接包或快照导入**。交付结果以交付卡和房间记录为准。
 10. **子工作室最多 3 层，且子工作室不能是聊天室**。父 Planner 只消费子 Verifier 的 verdict。
-11. **影子评审不能替代正式 Verifier**。影子 verdict/score 只能记录，不能进入 `signed` 门禁，也不注入 Verifier prompt。
 12. **advisor 不输出 `pass` / `reject` verdict**。它只返回建议；正式判定只能来自 Verifier 或人工签字。
 13. **子工作室不能直接修改父工作室的 `closure`**。父房只能读取子房的 verdict，并由自己的 Planner/Verifier 继续流转。
 

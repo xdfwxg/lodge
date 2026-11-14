@@ -1,7 +1,6 @@
 import { Fragment, createElement as h, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../../shared/room-types.js'
 import { uiKindOfRoom } from '../room/kinds.js'
-import { money } from '../view-format.js'
 import { initialOf } from '../marks.js'
 
 const GROUPS = ROOM_TYPE_MANIFEST.map(({ id, name }) => ({ id, label: name }))
@@ -175,13 +174,6 @@ function Sidebar({ state, onSelect, onNew }) {
                 onSelect: () => selectRoom(room.id),
               })) : null)
           }))),
-      state.budget?.globalBudgetMicroUsd > 0
-        ? h('div', { className: 'crew-me', title: '全局预算' },
-          h('span', { className: 'crew-me-badge' }, '预'),
-          h('span', { className: 'crew-me-body' },
-            h('b', null, '全局预算'),
-            h('small', null, `${money(state.budget.globalSpentMicroUsd)} / ${money(state.budget.globalBudgetMicroUsd)}`)))
-        : null,
       h('div', { className: 'crew-me' },
         h('span', { className: 'crew-me-badge' }, '你'),
         h('span', { className: 'crew-me-body' }, h('b', null, '你')))))
@@ -190,7 +182,7 @@ function Sidebar({ state, onSelect, onNew }) {
 const toneOf = room => {
   if (room.needsYou?.kind === 'review') return 'review'
   if (room.needsYou?.kind === 'signoff') return 'done'
-  if (room.needsYou?.kind === 'rework' || room.needsYou?.kind === 'budget' || room.needsYou?.kind === 'merge' || room.needsYou?.kind === 'parallel') return 'alert'
+  if (room.needsYou?.kind === 'rework' || room.needsYou?.kind === 'merge' || room.needsYou?.kind === 'parallel') return 'alert'
   if (room.needsYou) return 'waiting'
   if (room.state === 'complete') return 'done'
   return room.live === true ? 'active' : 'idle'

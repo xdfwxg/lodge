@@ -18,7 +18,7 @@ const store = messages => ({
   readRooms: () => [],
   updateRoom: () => null,
   appendEvent: () => {},
-  appendMessage: () => {},
+  appendMessage: (roomId, message) => ({ ...message, id: 'm-handoff', seq: 1 }),
 })
 
 test('resume starts an active stage by waking the executor', async () => {

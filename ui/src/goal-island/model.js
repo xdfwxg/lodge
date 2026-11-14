@@ -12,7 +12,6 @@ const NEEDS_TONE = {
   idle: 'paused',
   merge: 'paused',
   parallel: 'paused',
-  budget: 'paused',
   mcp: 'paused',
 }
 
@@ -61,7 +60,7 @@ export const islandStatus = room => {
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
   if (room.state === 'paused') {
     if (room.needsYou?.kind === 'idle') return { label: '已暂停 · 等你说话', tone: 'paused' }
-    return ['budget', 'mcp', 'approval'].includes(room.needsYou?.kind)
+    return ['mcp', 'approval'].includes(room.needsYou?.kind)
       ? { label: room.needsYou.label, tone: 'paused' }
       : { label: '已暂停', tone: 'paused' }
   }
@@ -171,8 +170,6 @@ export const buildGoalView = (room, seats) => {
       acceptance: stage.acceptance ?? null,
       acceptanceLabel: stage.kind === 'deliverable' ? (stage.acceptance ?? '未写验收命令') : '你点过才算过',
       dependsOn: Array.isArray(stage.dependsOn) ? stage.dependsOn : [],
-      partial: stage.partial ?? null,
-      partialFailedNames: (stage.partial?.failed ?? []).map(nameOf),
       conflict,
       reworkCount: rejects.length,
       rework: [...rejects].reverse().map(message => ({
@@ -215,12 +212,6 @@ export const buildGoalView = (room, seats) => {
       total: room.stages.length,
     },
     stages,
-    controls: {
-      canPause: room.state === 'active',
-      canResume: room.state === 'paused',
-      canStop: room.state === 'active' || room.state === 'paused',
-      canContinue: room.state === 'complete',
-      canFork: room.state === 'active' || room.state === 'paused',
-    },
+
   }
 }

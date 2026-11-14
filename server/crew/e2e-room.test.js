@@ -5,7 +5,6 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { buildDelivery } from './rooms/studio/delivery.js'
-import { verifyEvidenceIntegrity } from './evidence-ledger.js'
 import { createChatScheduler } from './rooms/chat/scheduler.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
@@ -81,7 +80,7 @@ const moveStudio = (store, roomId) => (event, context = {}, actor = 'system', re
 }
 
 // 确定性场景：不启动真实 CLI，只驱动业务路径、账本、门禁和状态机。
-test('deterministic room scenario reaches signed and accepted with a ledger', async () => {
+test('deterministic room scenario reaches signed and accepted', async () => {
   const previous = process.env.CREW_WORKSPACE_ROOT
   const root = temp('lodge-e2e-workspace-')
   process.env.CREW_WORKSPACE_ROOT = root
@@ -160,14 +159,10 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
       meta: { pass: true, stage: 1, evidenceId: secondEvidence.id, roleKind: 'verifier', mode: 'agent' },
     })
 
-    const ledger = store.readEvidence(room.id)
-    assert.equal(ledger.length, 2)
-    assert.equal(ledger[0].id, firstEvidence.id)
-    assert.equal(ledger[1].id, secondEvidence.id)
-    assert.match(ledger[0].digest, /^[a-f0-9]{64}$/)
-    const integrity = verifyEvidenceIntegrity(ledger)
-    assert.equal(integrity.ok, true)
-    assert.equal(integrity.verified, 2)
+    const evidence = store.readEvidence(room.id)
+    assert.equal(evidence.length, 2)
+    assert.equal(evidence[0].id, firstEvidence.id)
+    assert.equal(evidence[1].id, secondEvidence.id)
 
     const first = stages.accept(store.readRoom(room.id), { stage: 1 })
     assert.equal(first.ok, true)
@@ -175,10 +170,8 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
     assert.equal(store.readRoom(room.id).closure, 'signed')
     assert.equal(store.readRoom(room.id).state, 'complete')
 
-    const delivery = buildDelivery(store.readRoom(room.id), store.readMessages(room.id), store.readEvidence(room.id))
-    assert.equal(delivery.integrity.ok, true)
-    assert.equal(delivery.integrity.verified, 2)
-    assert.deepEqual(delivery.commands.map(command => command.digest), ledger.map(entry => entry.digest))
+    const delivery = buildDelivery(store.readRoom(room.id), store.readMessages(room.id))
+    assert.equal(delivery.evidenceCount, 2)
 
     const closureSequence = store.readEvents(room.id)
       .filter(event => event.type === 'closure.transition')

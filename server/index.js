@@ -2,22 +2,17 @@ import http from 'node:http'
 import { existsSync, readFileSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createGateAgent } from './crew/gate-agent.js'
 import { createCrewPorts } from './crew/crew-ports.js'
 import { createLiveRooms } from './crew/rooms/base/live.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
-import { repairManualStages, repairOpeningGates } from './crew/rooms/studio/startup-repair.js'
 import { createCrewService } from './crew/service.js'
 import { openPath } from './system-open.js'
 import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
-import { seedIfEmpty } from './crew/seeds.js'
 import { SEATS, validateSeats } from './crew/seats.js'
-import { snapshotOfRoom } from './crew/rooms/kinds.js'
 import { assertRuntimePort } from './crew/runtime-port.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
-import { createPlannerMcp } from './planner-mcp.js'
 import { chooseDirectory } from './system-dialog.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
@@ -35,15 +30,11 @@ const broadcast = (event, payload, id) => {
 }
 
 const store = createStore({ dataDir, emit: broadcast })
-seedIfEmpty(store)
 
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
-    const ledger = payload.state === 'complete' && snapshotOfRoom(payload)?.delivery === true
-      ? store.readEvidence(payload.id)
-      : null
-    payload = presentRoom(payload, store.readMessages(payload.id), ledger)
+    payload = presentRoom(payload, store.readMessages(payload.id))
   }
   broadcast(event, payload, id)
 }
@@ -51,34 +42,13 @@ const emit = (event, payload, id) => {
 const engine = assertRuntimePort(createEngine())
 
 let service = null
-const plannerMcp = createPlannerMcp({
-  client: {
-    mcp: engine.mcp,
-    invoke: async (roomId, tool) => {
-      const result = await service.plannerTool(roomId, tool)
-      const text = result?.ok === false
-        ? `Planner 工具失败（${tool.name}）：${result.error ?? '未知原因'}`
-        : `Planner 工具已执行：${tool.name}`
-      if (store.readRoom(roomId) !== null) {
-        store.appendMessage(roomId, { kind: 'system', text })
-      }
-      return result
-    },
-  },
-  dataDir,
-  port: Number(process.env.CREW_PORT ?? 8787),
-  enabled: engine.capabilities().mcp === true,
-  rooms: () => store.readRooms(),
-})
-const ports = { ...createCrewPorts(), plannerMcp }
+const ports = createCrewPorts()
 
 const live = createLiveRooms({
   store,
   engine,
   emit,
-  gateAgent: createGateAgent({ engine }),
   ports,
-  onPlannerTool: payload => service?.plannerTool(payload.room?.id, payload.tool),
 })
 
 service = createCrewService({
@@ -182,7 +152,6 @@ const server = http.createServer(async (req, res) => {
       const result = await service.health()
       if (result?.ok !== false && result.body !== undefined) {
         try {
-          result.body.plannerMcp = await plannerMcp.stats()
         } catch {}
       }
       return respond(res, result)
@@ -219,65 +188,9 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
-    if (path.startsWith('/mcp/planner/')) {
-      const handled = await plannerMcp.handle(req, res, path)
-      if (handled) return
-    }
 
     if (path === '/api/rooms' && req.method === 'POST') {
       return respond(res, await service.createRoom(await readJson(req)))
-    }
-
-    if (path === '/api/resources' && req.method === 'GET') {
-      return respond(res, service.resources())
-    }
-
-    if (path === '/api/usage' && req.method === 'GET') {
-      return respond(res, service.usage(url.searchParams.get('range')))
-    }
-
-    if (path === '/api/roster/recommend' && req.method === 'POST') {
-      return respond(res, await service.recommendRoster(await readJson(req)))
-    }
-
-    const deliveryPath = path.match(/^\/api\/rooms\/([\w-]+)\/delivery\/export$/)
-    if (deliveryPath !== null && req.method === 'GET') {
-      return respond(res, service.deliveryExport(deliveryPath[1]))
-    }
-
-    const handoffPath = path.match(/^\/api\/rooms\/([\w-]+)\/handoff$/)
-    if (handoffPath !== null && req.method === 'GET') {
-      return respond(res, service.handoff(handoffPath[1]))
-    }
-
-    const mcpResetPath = path.match(/^\/api\/rooms\/([\w-]+)\/mcp\/reset$/)
-    if (mcpResetPath !== null && req.method === 'POST') {
-      return respond(res, service.resetMcp(mcpResetPath[1], await readJson(req)))
-    }
-
-    const reviewPath = path.match(/^\/api\/rooms\/([\w-]+)\/review$/)
-    if (reviewPath !== null && req.method === 'GET') {
-      return respond(res, service.review(reviewPath[1]))
-    }
-
-    const transitionsPath = path.match(/^\/api\/rooms\/([\w-]+)\/transitions$/)
-    if (transitionsPath !== null && req.method === 'GET') {
-      return respond(res, service.transitions(transitionsPath[1]))
-    }
-
-    const ledgerPath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence-ledger$/)
-    if (ledgerPath !== null && req.method === 'GET') {
-      return respond(res, service.evidenceLedger(ledgerPath[1]))
-    }
-
-    const integrityPath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence-integrity$/)
-    if (integrityPath !== null && req.method === 'GET') {
-      return respond(res, service.evidenceIntegrity(integrityPath[1]))
-    }
-
-    const shadowPath = path.match(/^\/api\/rooms\/([\w-]+)\/shadow-review$/)
-    if (shadowPath !== null && req.method === 'GET') {
-      return respond(res, service.shadowReview(shadowPath[1]))
     }
 
     const evidencePath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence\/([\w-]+)$/)
@@ -297,7 +210,7 @@ const server = http.createServer(async (req, res) => {
       return respond(res, await service.removeSeat(seatPath[1], seatPath[2]))
     }
 
-    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|chat-accept|chat-continue|chat-resume|reject-plan|subrooms|rework|rewind|read|snapshot|simulate|pause|resume|stop|acceptance|verify|budget|seats|stages|approvals|trust)$/)
+    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|chat-accept|chat-continue|chat-resume|reject-plan|rework|read|acceptance|verify|approvals)$/)
     if (roomAction !== null) {
       const [, roomId, action] = roomAction
       return respond(res, await service.roomRequest(roomId, action, {
@@ -319,25 +232,12 @@ setInterval(() => {
 }, 25_000).unref()
 
 setInterval(() => {
-  void plannerMcp.sweep(store.readRooms()).catch(error => {
-    console.warn(`planner mcp sweep failed: ${error?.message ?? error}`)
-  })
 }, 60_000).unref()
 
 const port = Number(process.env.CREW_PORT ?? 8787)
 server.listen(port, '127.0.0.1', () => {
   console.log(`Lodge server: http://127.0.0.1:${port}`)
   void (async () => {
-    repairManualStages(store)
     await live.start()
-    await repairOpeningGates({ store, service, roomFiles: ports.roomFiles })
-    try {
-      const result = await plannerMcp.reconcile(store.readRooms())
-      if (result.added > 0 || result.removed > 0) {
-        console.log(`planner mcp: registered ${result.added}, removed ${result.removed}`)
-      }
-    } catch (error) {
-      console.warn(`planner mcp reconcile failed: ${error?.message ?? error}`)
-    }
   })()
 })

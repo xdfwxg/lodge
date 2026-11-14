@@ -1,7 +1,7 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { skillPrompt, stageGuidance } from '../../prompt-modes.js'
 import { buildSeatHandoff } from './seat-handoff.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { seatDisplayName, seatHandle } from '../../seat-labels.js'
 
 // 工作室引擎：所有推进都走群聊。Lodge 把阶段交接直接发给执行者，执行者回合
 // 结束后跑验收、写证据，再 @ 验收员。这里不直接写席位线程。
@@ -29,7 +29,7 @@ export const studioWorkerPrompt = ({
   port,
   environment,
 }) => {
-  const workerHandle = room.seatNames?.[assignee] ?? seatDisplayName(room, assignee)
+  const workerHandle = seatHandle(room, assignee) || seatDisplayName(room, assignee)
   return [
     `@${workerHandle} 阶段 ${index + 1}「${stage.title}」已确认。${acceptance}`,
     rework

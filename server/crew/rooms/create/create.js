@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
-import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from '../../budget.js'
 import { created, fail } from '../../result.js'
-import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot, resolveSeats } from './input.js'
+import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, resolveSeats } from './input.js'
 import { buildRoomRecord, initialRoomMessages } from './record.js'
 import { createProvisioner } from './provision.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
@@ -10,45 +9,24 @@ import { roomModeForType } from '../kinds.js'
 
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
-export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
+export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit } = request
+  const { goal, name, roomType, verify, acceptance, orchestration, chatTurnLimit } = request
   const mode = roomModeForType(roomType.id)
-  let continueSource = null
-  if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
-    continueSource = store.readRoom(body.continueFrom)
-    if (continueSource === null || continueSource.kind !== 'room') return fail('not_found', '没有这个房间')
-    if (!['complete', 'active', 'paused'].includes(continueSource.state)) {
-      return fail('conflict', '只有进行中、已暂停、已完成房间可以作为续做/分叉起点')
-    }
-  }
   const capabilities = engine.capabilities()
   if (capabilities.provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
   if (capabilities.mentions !== true) return fail('conflict', '当前 runtime 不支持 @ 唤醒，无法建房')
-  const globalBudget = globalBudgetStatus(store.readRooms())
-  if (!globalBudget.ok) return fail('conflict', `${globalBudget.message}；${budgetHint(globalBudget)}`)
-  const budgetMicroUsd = roomBudgetFromBody(body)
 
-  const { plan, error: planError } = normalizePlan({ body, continueSource, roomFiles: ports.roomFiles })
+  const { plan, error: planError } = normalizePlan({ body })
   if (planError !== undefined) return fail('invalid', planError)
   const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
-  const advisor = mode.requiresGate
-    ? await ports.advisor?.advice?.({
-      mode: 'gate',
-      goal,
-      roomType: roomType.id,
-      plan,
-      verify,
-      acceptance: effectiveAcceptance,
-    }) ?? { available: false, advice: [] }
-    : { available: false, advice: [] }
   const gate = mode.evaluateGate({
     goal,
     plan,
     verify,
     acceptance: effectiveAcceptance,
-    advice: advisor.advice,
+    advice: [],
   })
   if (gate.decision === 'reject') {
     return fail('invalid', `Gate 拒绝：${gate.reasons.join('；')}`)
@@ -76,9 +54,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
 
   const short = randomUUID().slice(0, 6)
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
-  if (continueSource !== null && requestedRepo === '') {
-    return fail('invalid', '续做要指定上一轮交付所在的本地仓库或目录；交接包本身不含代码')
-  }
   const sourceRepo = requestedRepo === '' ? join(ports.workspace.root(), `room-${short}`) : resolve(requestedRepo)
   const providerResult = resolveWorkspaceProvider({ body, workspace, requestedRepo, sourceRepo, workspacePort: ports.workspace })
   if (providerResult.error !== undefined) return fail('invalid', providerResult.error)
@@ -87,20 +62,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行席位')
   }
-  const { projectContent } = projectSnapshot(body)
   const workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
 
   const roomId = `room-${short}`
-  let plannerTools = null
-  let plannerToolsWarning = ''
-  if (mode.needsPlannerTools && typeof ports.plannerMcp?.ensure === 'function') {
-    try {
-      plannerTools = await ports.plannerMcp.ensure(roomId)
-    } catch (error) {
-      plannerToolsWarning = `Planner MCP 工具面未启用：${error?.message ?? error}`
-    }
-  }
-
   const provisioner = createProvisioner({ engine })
   let room = null
   let stored = false
@@ -118,7 +82,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       workspaces,
       verifiers,
       roomType: roomType.id,
-      leadToolServers: plannerTools === null ? [] : [plannerTools.server],
     })
     const builtStages = roomType.buildStages({ title: goalTitle, plan: resolvedPlan, verify, acceptance, align })
     room = buildRoomRecord({
@@ -143,9 +106,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       workspaces,
       provider,
       workspaceCaps,
-      continueSource,
-      budgetMicroUsd,
-      projectContent,
       roomType,
       orchestration: orchestration.id,
       builtStages,
@@ -153,31 +113,11 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       align,
       verify,
       acceptance,
-      verifierPolicy,
-      shadowReview,
       chatTurnLimit,
-      plannerTools,
-      parentRoomId: parentRoom?.id ?? null,
-      depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
-      gate: {
-        decision: gate.decision,
-        reasons: gate.reasons,
-        advice: gate.advice,
-        available: advisor.available === true,
-        ...(advisor.model === undefined ? {} : { model: advisor.model }),
-        ...(advisor.version === undefined ? {} : { version: advisor.version }),
-      },
+      gate: { decision: gate.decision, reasons: gate.reasons },
     })
-    room = mode.applyStageDependencies(room, body.stageDependencies)
     store.writeRoom(room)
     stored = true
-    if (parentRoom !== null) {
-      const linked = store.updateRoom(parentRoom.id, current => {
-        current.childRoomIds = [...new Set([...(current.childRoomIds ?? []), room.id])]
-        return { events: [{ type: 'room.subroom.created', payload: { childRoomId: room.id } }] }
-      })
-      if (linked !== null) emit('room', linked)
-    }
     store.appendEvent(room.id, 'room.created', { live: true, templateId, seats: room.members, sourceRepo, branch: room.branch })
     ports.roomFiles.writeBrief(room, resolvedPlan)
     ports.roomFiles.writeGoal(room)
@@ -187,15 +127,10 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       templateId,
       roster,
       builtStages,
-      continueSource,
-      projectContent,
       workspaces,
       engineFallbacks: provisioned.engineFallbacks,
     })) {
       store.appendMessage(room.id, message)
-    }
-    if (plannerToolsWarning !== '') {
-      store.appendMessage(room.id, { kind: 'system', text: plannerToolsWarning })
     }
     await live.attach(room, { resume: false })
     room = await mode.start({
@@ -220,7 +155,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     if (!stored) {
       await provisioner.cleanup()
       provider.cleanupRoom({ source: sourceRepo, workspaces })
-      await ports.plannerMcp?.release?.(roomId)
       throw new Error(`建房失败：${error?.message ?? error}`)
     }
     store.appendMessage(room.id, { kind: 'system', text: `房间已建，但启动失败：${error?.message ?? error}` })

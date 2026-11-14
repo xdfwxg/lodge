@@ -26,7 +26,7 @@ export const startInitialStage = async ({
   } else {
     const targetSeat = align ? lead : worker
     markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
-    const openingName = room.seatNames?.[targetSeat.id] ?? targetSeat.name
+    const openingName = seatHandle(room, targetSeat.id) || targetSeat.name
     const opening = align
       ? alignmentPrompt(openingName, goal, verify, acceptance)
       : `@${openingName}\n${directPrompt(goal, verify, acceptance, roster.length === 1)}`

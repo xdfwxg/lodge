@@ -1,26 +1,18 @@
 import { join } from 'node:path'
-import { budgetSummary, globalBudgetStatus } from './budget.js'
 import { presentRoom } from './presentation.js'
-import { buildResources } from './resources.js'
-import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
-import { roomModeOfRoom, roomPresentationOfRoom, snapshotOfRoom } from './rooms/kinds.js'
-import { seatDisplayName, toDisplayText } from './seat-labels.js'
+import { roomPresentationOfRoom } from './rooms/kinds.js'
+import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
-import { replayTransitions } from './room-state.js'
-import { buildShadowComparison } from './shadow-review.js'
-import { verifyEvidenceIntegrity } from './evidence-ledger.js'
 
 export const createServiceQueries = ({
   store,
   engine,
   seats,
   roomFiles,
-  usage: usagePort,
   files,
-  workspace,
 }) => {
-  const { readRoom, readRooms, readMessages, readMessagesSince, readEvents, readEvidence } = store
+  const { readRoom, readRooms, readMessages, readMessagesSince, readEvidence } = store
 
   const health = async () => ok({ runtime: await engine.health() })
 
@@ -43,14 +35,12 @@ export const createServiceQueries = ({
         const messages = presentation.filterMessages(ordered).map(message => (
           typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
         ))
-        const mode = roomModeOfRoom(room)
         return {
-          ...presentRoom(room, messages, room.state === 'complete' && mode.supportsDelivery ? readEvidence(room.id) : null),
+          ...presentRoom(room, messages),
           brief: roomFiles.readBrief(room),
           messages,
         }
       }),
-      budget: budgetSummary(rooms),
       engines,
     }
   }
@@ -65,86 +55,5 @@ export const createServiceQueries = ({
     return { ok: true, bytes: files.read(file) }
   }
 
-  const resources = () => ok({ resources: buildResources(readRooms(), readMessages, readEvidence) })
-
-  const usage = range => ok({
-    usage: usagePort.aggregate({ rooms: readRooms(), historyOf: usagePort.read, range }),
-  })
-
-  const review = roomId => {
-    const room = readRoom(roomId)
-    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    const report = roomPresentationOfRoom(room)?.reviewOf?.(room, readMessages(roomId))
-    if (report === null || report === undefined) return fail('invalid', '这个房间没有阶段复盘')
-    return ok({ review: report })
-  }
-
-  // 只读回放：按审计事件逐步校验转移是否合法，不修改房间。
-  const transitions = roomId => {
-    const room = readRoom(roomId)
-    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    const events = readEvents(roomId, 500)
-      .filter(item => item.type === 'closure.transition' || item.type === 'chat.transition')
-      .sort((a, b) => a.seq - b.seq)
-    const snapshot = snapshotOfRoom(room)
-    const currentState = snapshot?.state ?? ''
-    return ok({
-      transitions: {
-        roomId,
-        roomType: room.roomType,
-        ...replayTransitions({ events, currentState, machine: roomModeOfRoom(room).replayTransition }),
-      },
-    })
-  }
-
-  const evidenceLedger = roomId => {
-    const room = readRoom(roomId)
-    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    return ok({
-      ledger: readEvidence(roomId).map(item => ({
-        id: item.id,
-        seq: item.seq,
-        digest: item.digest,
-        authorId: item.authorId,
-        kind: item.meta?.kind ?? '',
-        stage: item.meta?.stage ?? 0,
-        command: item.meta?.command ?? '',
-        exit: item.meta?.exit ?? null,
-        at: item.at,
-        text: typeof item.text === 'string' ? item.text.slice(0, 200) : '',
-      })),
-    })
-  }
-
-  const evidenceIntegrity = roomId => {
-    const room = readRoom(roomId)
-    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    return ok({
-      integrity: {
-        roomId,
-        ...verifyEvidenceIntegrity(readEvidence(roomId)),
-      },
-    })
-  }
-
-  const shadowReview = roomId => {
-    const room = readRoom(roomId)
-    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    if (roomModeOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '只有工作室有评审对照')
-    return ok({
-      shadowReview: buildShadowComparison({
-        evidence: readEvidence(roomId),
-        messages: readMessages(roomId),
-        nameOf: seatId => seatDisplayName(room, seatId),
-      }),
-    })
-  }
-
-  const recommendRoster = body => {
-    const global = globalBudgetStatus(readRooms())
-    if (!global.ok) return fail('conflict', global.message)
-    return recommendRosterUseCase({ engine, body, workspace })
-  }
-
-  return { health, state, transitions, evidenceLedger, evidenceIntegrity, shadowReview, messagesSince, evidence, resources, usage, review, recommendRoster }
+  return { health, state, messagesSince, evidence }
 }

@@ -1,7 +1,6 @@
-import { Fragment, createElement as h, useEffect, useMemo, useRef, useState } from 'react'
+import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
-import { Onboarding } from './views/onboarding.js'
 import { RoomView } from './views/room-view.js'
 import { NewRoomDialog } from './new-room-dialog.js'
 
@@ -9,18 +8,15 @@ export function App() {
   const store = useMemo(createStore, [])
   const state = useStore(store)
   const [dialog, setDialog] = useState(false)
-  const [resume, setResume] = useState(null)
   const [seed, setSeed] = useState(null)
   const [startType, setStartType] = useState(null)
-  const openDialog = (room, seedValue = null, roomType = null) => {
-    setResume(room ?? null)
+  const openDialog = (seedValue = null, roomType = null) => {
     setSeed(seedValue)
     setStartType(roomType)
     setDialog(true)
   }
   const closeDialog = () => {
     setDialog(false)
-    setResume(null)
     setSeed(null)
     setStartType(null)
   }
@@ -78,19 +74,21 @@ export function App() {
     onClose: closeDialog,
     roomTypes: state.roomTypes ?? [],
     engines: state.engines ?? [],
-    resume,
     seed,
     startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
-    onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
   })
 
   if (state.rooms.length === 0) {
-    return h(Fragment, null,
-      h(Onboarding, {
+    return h('div', { className: 'dsb-frame' },
+      h(Sidebar, {
         state,
-        onCreate: roomType => openDialog(null, null, roomType),
+        onSelect: id => store.select(id),
+        onNew: () => openDialog(),
       }),
+      h('main', { className: 'dsb-main crew-room' },
+        h('div', { className: 'crew-empty-room' },
+          h('button', { type: 'button', className: 'crew-decision-primary', onClick: () => openDialog() }, '新建房间'))),
       liveRegion,
       needsRegion,
       dialogNode)
@@ -108,8 +106,7 @@ export function App() {
       state,
       room,
       store,
-      onContinue: openDialog,
-      onStartStudio: seedValue => openDialog(null, seedValue),
+      onStartStudio: seedValue => openDialog(seedValue),
     }),
     liveRegion,
     needsRegion,

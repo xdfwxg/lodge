@@ -41,8 +41,6 @@ test('island status reflects pause reasons and needs-you labels', () => {
   assert.deepEqual(islandStatus(room({ state: 'complete' })), { label: '目标达成', tone: 'done' })
   assert.deepEqual(islandStatus(room({ state: 'paused', needsYou: { kind: 'idle', label: '等你说话' } })),
     { label: '已暂停 · 等你说话', tone: 'paused' })
-  assert.deepEqual(islandStatus(room({ state: 'paused', needsYou: { kind: 'budget', label: '预算已用尽 · 等你处理' } })),
-    { label: '预算已用尽 · 等你处理', tone: 'paused' })
   assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'mcp', needsYou: { kind: 'mcp', label: 'MCP 熔断 · 等你恢复' } })),
     { label: 'MCP 熔断 · 等你恢复', tone: 'paused' })
   assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'approval', needsYou: { kind: 'approval', label: '外部动作审批超时 · 等你处理' } })),

@@ -18,10 +18,8 @@ function TypingLine({ room, seat, summarizing }) {
 export const chatView = {
   id: 'chat',
   buildViewModel: () => null,
-  buildDecision: ({ room }) => buildChatDecision(room),
-  header: ({ room, decision }) => h(ChatStatusHeader, { room, decision, actions: {} }),
+  header: ({ room }) => h(ChatStatusHeader, { room, decision: buildChatDecision(room) }),
   activity: () => null,
-  decisionCard: () => null,
   transcript: ({ room, seats, actions }) => h(Timeline, {
     room,
     seats,

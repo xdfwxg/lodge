@@ -1,5 +1,7 @@
 # Lodge 分层与依赖
 
+> 一期已移除信任阶梯、Planner MCP、子工作室、并行/对抗编排、阶段编辑/依赖/部分成功、多验收投票、项目约束、资源投影、演示/模拟/种子、运行控制/修复；下表保留通用分层，不再代表这些功能仍在。
+
 > 原则：层内内聚，层外解耦。判断标准不是行数，而是这段逻辑是否是一个不可拆分的整体。
 > 房型共用边界与三层总览见 [../架构.md](../架构.md)。
 
@@ -7,10 +9,10 @@
 
 | 层 | 职责 | 代表模块 |
 | --- | --- | --- |
-| 领域规则 | 纯业务判断：预算、门禁、验收结论、阶段依赖、席位能力、房型策略、编排策略、注意力、交接摘要 | `budget.js`、`gates.js`、`verifiers.js`、`stage-plan.js`、`progress.js`、`result.js`、`attention.js`、`digest.js`、`delivery.js`、`seats.js`、`room-types/*`、`shared/room-types.js`、`orchestration/*`、`service-policy.js`、`rooms/studio/turn-utils.js`、`mcp*.js` |
-| 应用用例 | 编排一次业务动作：建房、完成、席位、阶段、交付、实时回合、审批、恢复、启动修复、工作区 GC | `rooms/create/*`、`rooms/studio/*`、`kernel/live/*`、`rooms/base/live.js`、`rooms/chat/*`、`service-*.js`、`workspace-gc.js`、`dispatch-service.js`、`resources.js`、`roster-recommend.js`、`presentation.js` |
-| 端口 | 给应用层一组稳定接口，屏蔽具体存储/工作区/项目/用量/交付/命令/文件/交接包实现；runtime 端口只声明回合、流、席位、权限卡与观测面 | `crew-ports.js`、`runtime-port.js` |
-| 适配器 | 文件、SQLite、基座、git/worktree、直接目录、复制目录、进程、沙箱、系统对话框 | `store.js`、`engine.js`/`base.js`、`workspace*.js`、`room-repo.js`、`handoff-store.js`、`seat-env.js`、`paths.js`、`project.js`、`usage-history.js`、`skill-store.js`、`acceptance.js`、`sandbox.js`、`lock.js`、`system-*.js` |
+| 领域规则 | 纯业务判断：门禁、验收结论、阶段依赖、席位能力、房型策略、编排策略、注意力、证据摘要 | `gates.js`、`verifiers.js`、`stage-plan.js`、`progress.js`、`result.js`、`attention.js`、`digest.js`、`delivery.js`、`evidence-ledger.js`、`seats.js`、`room-types/*`、`shared/room-types.js`、`orchestration/*`、`service-policy.js`、`rooms/studio/turn-utils.js`、`mcp*.js` |
+| 应用用例 | 编排一次业务动作：建房、完成、阶段、交付、实时回合、审批、工作区 GC | `rooms/create/*`、`rooms/studio/*`、`kernel/live/*`、`rooms/base/live.js`、`rooms/chat/*`、`service-*.js`、`workspace-gc.js`、`dispatch-service.js`、`resources.js`、`presentation.js` |
+| 端口 | 给应用层一组稳定接口，屏蔽具体存储/工作区/项目/命令/文件实现；runtime 端口只声明回合、流、席位、权限卡与观测面 | `crew-ports.js`、`runtime-port.js` |
+| 适配器 | 文件、SQLite、基座、git/worktree、直接目录、复制目录、进程、沙箱、系统对话框 | `store.js`、`engine.js`/`base.js`、`workspace*.js`、`room-repo.js`、`seat-env.js`、`paths.js`、`project.js`、`skill-store.js`、`acceptance.js`、`sandbox.js`、`lock.js`、`system-*.js` |
 | 组合与接口 | 装配具体实现；HTTP/SSE；Electron 与 Web 传输 | `server/index.js`、`electron/*`、`ui/src/store.js`、`ui/src/system.js` |
 
 ## 2. 依赖方向
@@ -39,7 +41,7 @@ server/index.js（唯一组合根）
 
 | 划分 | 为什么是不可拆分的整体，或为什么可以独立 |
 | --- | --- |
-| `rooms/create/input.js` | 目标/房型/验收、开工卡、续做 BRIEF、席位组合、项目约束是同一份“建房输入”的归一化；拆开后会重复校验顺序 |
+| `rooms/create/input.js` | 目标/房型/验收、开工卡、席位组合、项目约束是同一份“建房输入”的归一化；拆开后会重复校验顺序 |
 | `rooms/create/workspace.js` | 工作区选择、探测、准备、席位 env 是同一件事：把源目录变成可执行房间 |
 | `rooms/create/provision.js` | 基座席位线程、房间线程、引擎降级、独立性判定必须一起完成；单独存在没有业务意义 |
 | `rooms/create/record.js` | 房间记录、约束、初始消息是同一份持久化事实，拆开会出现字段漂移 |
@@ -49,20 +51,17 @@ server/index.js（唯一组合根）
 | `skill-store.js` | 可选能力库只做 id→正文读取与目录投影；路径校验、大小上限、正文不进房间记录 |
 | `trust.js` + `service-trust.js` | 信任级别是同一策略单元：证据判定、升级/降级、审计消息；`observe` 只读、`verify` 人工签字、`auto` 只放行规则守门 allow 的外部动作 |
 | `rooms/studio/complete.js` | 完成是独立业务事件：清理工作区、写 CONCLUSION、commit/归档；与阶段验收不是同一变化原因 |
-| `service-queries.js` | 只读投影：房间状态、资源、用量、复盘、项目约束，读模型一起变化 |
-| `rooms/studio/service-delivery.js` | 交付单格式与导出是独立变化原因 |
-| `rooms/studio/handoff.js` + `handoff-store.js` | 交接包校验/脱敏是不可拆分整体；房间文件读写是另一个变化原因，下沉到 handoff 存储适配器 |
+| `service-queries.js` | 只读投影：房间状态、资源、证据文件，读模型一起变化 |
+| `rooms/studio/service-delivery.js` | 交付卡格式与导出是独立变化原因 |
 | `workspace-gc.js` | 工作区 GC 是独立维护用例；目录遍历、stat、删除通过 files/workspace 端口，不直接碰 fs |
-| `service-seats.js` + `service-seat-add.js` / `service-seat-remove.js` | 加/移除是独立工作区生命周期；改角色不是独立单元，只是复用两者的编排，收在 `service-seats.js` 门面里 |
 | `rooms/studio/service-stages.js` | 阶段编辑、验收、签字属于同一阶段门禁；完成态已拆出 |
-| `service-run-control.js` | 预算、暂停/继续/停止、MCP 恢复都属于运行控制面；恢复后启动当前阶段共用同一个私有 helper |
 | `kernel/live/projection.js` | 基座消息到 Lodge 时间线的映射是纯转换，可单独测试 |
 | `ui/src/room/chat/timeline.js` | 只负责按时间渲染消息记录；当前阶段动作不在这里，避免“永远钉底” |
 | `ui/src/room/studio/stage-gate.js` | 阶段门纯投影：当前阶段、返工地板、PASS/证据与“是否需要人”的判定；不依赖 React，可单独测试 |
 | `ui/src/room/studio/stage-controls.js` | 阶段门的展示与动作：确认卡、真实验收卡、演示卡、返工输入；它们共享同一套阶段动作，拆开会让按钮与证据判断漂移 |
 | `ui/src/room/studio/stage-dock.js` | 只做阶段门的开关、当前阶段选择与三种卡片的组合；不持有阶段判定规则 |
 | `ui/src/room/studio/opening-points.js` | 开工卡已对齐内容同时被开工记录和阶段确认使用，投影只此一份 |
-| `kernel/live/refresh.js` | 忙闲、用量、预算暂停是同一轮房间刷新 |
+| `kernel/live/refresh.js` | 忙闲、在场、排队是同一轮房间刷新 |
 | `kernel/live/approvals.js` | 权限卡、外部动作、待批准记录、失效与人工决定必须一起处理，拆开会出现审批状态不一致 |
 | `kernel/live/sync.js` | 席位历史同步与实时订阅共享同一套消息入口 |
 | `rooms/studio/turns.js` | 保留为回合入口；状态、验收、集成、复核、派发已经是独立整体 |
@@ -87,11 +86,11 @@ server/index.js（唯一组合根）
 
 | 层 | 职责 | 位置 |
 |---|---|---|
-| 领域规则 | 只判断，不做 IO：房型、席位、状态机、门禁、验收、阶段、编排、预算 | `room-types/*`、`seats.js`、`room-state.js`（通用迁移机制）、`rooms/*/state.js`（各模式转移表）、`orchestration/*`、`rooms/studio/{gates,tasks,progress,stage-plan,verifiers,gate,turn-utils}.js` |
+| 领域规则 | 只判断，不做 IO：房型、席位、状态机、门禁、验收、阶段、编排、证据 | `room-types/*`、`seats.js`、`room-state.js`（通用迁移机制）、`rooms/*/state.js`（各模式转移表）、`orchestration/*`、`rooms/studio/{gates,tasks,progress,stage-plan,verifiers,gate,turn-utils}.js` |
 | 上下文应用 | 一个房间上下文的完整行为：聊天讨论 / 工作室阶段执行 | `rooms/chat/*`、`rooms/studio/*` |
 | 共享实时内核 | 两种房型共用的群聊接入：收发、回显、投影、刷新、席位订阅、审批 | `kernel/live/{bus,projection,refresh,sync,approvals}.js` |
 | 共享用例 | 跨房型但不可分割的建房流水线：输入校验 → 席位 → 工作区 → 基座预置 → 房间记录 → 首次派发 | `rooms/create/{create,input,record,provision,workspace}.js` |
-| 端口与适配器 | SQLite、基座 HTTP、工作区、房间记录文件、锁、验收副本 | `store.js`、`workspace*.js`、`room-repo.js`、`handoff-store.js`、`lock.js`、`sandbox.js`、`acceptance.js`、`server/base.js`、`server/engine.js` |
+| 端口与适配器 | SQLite、基座 HTTP、工作区、房间记录文件、锁、验收副本 | `store.js`、`workspace*.js`、`room-repo.js`、`lock.js`、`sandbox.js`、`acceptance.js`、`server/base.js`、`server/engine.js` |
 | 组合根 | 只装配，不写业务规则 | `server/index.js`、`rooms/base/live.js`、`service.js`、`rooms/kinds.js` |
 
 不可拆分整体及理由：
@@ -111,8 +110,8 @@ server/index.js（唯一组合根）
 - 静态纪律（角色工作纪律、模式纪律）只在建房时写入席位 soul，每轮提示不重复。
 - 每轮提示只放当前事实：目标、当前阶段、验收、证据、未决问题。
 - 聊天发言与主持总结不再附带讨论记录；基座群聊历史就是上下文。
-- 可选 skill 才按需注入；交接包上限 1,200 字，只带最近 1 条复核。
-- 权限、验收、预算、证据仍在代码与工具面里，不靠提示词兜底。
+- 可选 skill 才按需注入；阶段交接只带最近 1 条复核。
+- 权限、验收、证据仍在代码与工具面里，不靠提示词兜底。
 - `negative-list.test.js` 禁止把静态纪律重新塞回每轮提示。
 
 ## SOLID 落点与接口（2026-11-14）
@@ -153,4 +152,4 @@ server/index.js（唯一组合根）
 - `server/crew/boundary.test.js`：crew 不出现基座字段；git 只在 workspace provider 与默认根探测。
 - `ui/src/architecture.test.js`：UI 传输只在 `store.js` / `system.js`；视图不 import store。
 - 当前依赖图：115 个非测试模块、194 条内部依赖、0 个循环。
-- 测试：311 项通过。
+- 测试：445 项通过。

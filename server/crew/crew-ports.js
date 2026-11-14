@@ -1,12 +1,9 @@
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { runCommand } from './acceptance.js'
-import { handoffStore } from './handoff-store.js'
-import { createAdvisorClient } from './advisor.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
 import { readBrief, writeBrief, writeConclusion, writeGoal } from './room-repo.js'
 import { writeSeatEnv } from './seat-env.js'
-import { aggregateUsage, readUsageHistory, recordUsage } from './usage-history.js'
 import { createSkillStore } from './skill-store.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
 
@@ -29,17 +26,10 @@ export const createCrewPorts = () => ({
     exists: path => existsSync(path),
     remove: path => rmSync(path, { recursive: true, force: true }),
   },
-  usage: {
-    record: recordUsage,
-    read: readUsageHistory,
-    aggregate: aggregateUsage,
-  },
-  advisor: createAdvisorClient(),
   skills: createSkillStore({ dir: fileURLToPath(new URL('../../templates/skills/', import.meta.url)) }),
   commands: {
     run: runCommand,
   },
-  handoff: handoffStore,
   files: {
     exists: path => existsSync(path),
     read: path => readFileSync(path),

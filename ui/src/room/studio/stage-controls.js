@@ -137,21 +137,6 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
           }, actionLabel)))))
 }
 
-export function DemoStep({ stage, index, onSimulate }) {
-  return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotMark, { size: 30, live: false })),
-    h('div', { className: 'crew-msg-body' },
-      h('div', { className: 'crew-card' },
-        h('div', { className: 'crew-card-head' },
-          `阶段 ${index + 1}`,
-          h('span', { className: 'crew-verdict', 'data-pending': true }, '演示')),
-        h('div', { className: 'crew-card-body' },
-          h('p', { className: 'crew-muted' },
-            `\`${stage.acceptance ?? 'npm test'}\` 还没真实跑过，这一步用模拟数据走完流程。`)),
-        h('div', { className: 'crew-card-foot' },
-          h('button', { type: 'button', className: 'crew-accept', onClick: onSimulate }, '模拟执行并复核')))))
-}
-
 export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept, onRework }) {
   const [draft, setDraft] = useState(stage.acceptance ?? '')
   const [busy, setBusy] = useState(false)

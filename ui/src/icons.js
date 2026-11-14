@@ -29,22 +29,8 @@ export const TargetIcon = () => h('svg', {
 ])
 
 
-export const ChecklistIcon = () => h('svg', {
-  width: 16,
-  height: 16,
-  viewBox: '0 0 20 20',
-  'aria-hidden': true,
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.6,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-}, [
-  h('path', { key: 'a', d: 'M3.5 6.2 5 7.7 7.4 5.2' }),
-  h('path', { key: 'b', d: 'M10 6.5h6.5' }),
-  h('path', { key: 'c', d: 'M3.5 13.6 5 15.1 7.4 12.6' }),
-  h('path', { key: 'd', d: 'M10 13.8h6.5' }),
-])
+
+
 
 
 export const ArrowRightIcon = () => h('svg', {

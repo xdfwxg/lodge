@@ -5,13 +5,13 @@ import { roomModeForType } from '../kinds.js'
 const mode = roomModeForType('studio')
 const soulOf = seat => mode.seatSoul({ prompt: '', mcp: [], ...seat })
 
-test('the planner keeps its tool protocol in the static soul', () => {
-  const soul = soulOf({ role: 'lead', name: '规划师' })
-  assert.match(soul, /<lodge-tool>/)
-  assert.match(soul, /create_subroom/)
-})
-
-test('other seats do not receive planner tools', () => {
-  const soul = soulOf({ role: 'worker', name: '执行官' })
-  assert.doesNotMatch(soul, /create_subroom/)
+test('studio souls ask for work logs instead of essays', () => {
+  const lead = soulOf({ role: 'lead', name: '规划师' })
+  assert.match(lead, /一行工作日志/)
+  const worker = soulOf({ role: 'worker', name: '执行官' })
+  assert.match(worker, /三行工作日志/)
+  assert.match(worker, /做了什么/)
+  assert.match(worker, /不要先发/)
+  const verifier = soulOf({ role: 'verifier', name: '验收员' })
+  assert.match(verifier, /一句结论/)
 })

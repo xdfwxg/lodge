@@ -20,7 +20,6 @@ export function StudioTranscript({
   onAccept,
   onStageAccept,
   onApproval,
-  onExportDelivery,
   hideKinds = [],
   delivery = null,
 }) {
@@ -68,7 +67,7 @@ export function StudioTranscript({
     ...items.chapters.map(chapter => h(StageChapter, { key: chapter.key, chapter }, ...renderChapterBody(chapter))),
     delivery === null || delivery === undefined
       ? null
-      : h(DeliveryCard, { key: 'delivery', delivery, onExport: onExportDelivery }),
+      : h(DeliveryCard, { key: 'delivery', delivery }),
     ...pendingApprovals
       .slice(0, 1)
       .map(approval => h(ApprovalCard, {

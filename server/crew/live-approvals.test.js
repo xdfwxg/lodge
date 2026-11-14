@@ -44,22 +44,3 @@ const setup = trust => {
   return { approvals, entry, answered, events, messages, room: () => room }
 }
 
-test('auto trust only auto-allows external actions the rule gate permits', async () => {
-  const ctx = setup('auto')
-  await ctx.approvals.answerPermission(ctx.entry, 'worker', {
-    card: { requestType: 'permission', requestId: 'card-1', action: 'exec', tool: 'Bash', subtitle: 'rm tmp.txt' },
-  }, () => {})
-  assert.equal(ctx.answered[0].behavior, 'allow')
-  assert.equal(ctx.room().approvals.length, 0)
-  assert.equal(ctx.events[0].type, 'trust.auto_allow')
-  assert.match(ctx.messages[0].text, /自动放行/)
-})
-
-test('observe trust is read-only', async () => {
-  const ctx = setup('observe')
-  await ctx.approvals.answerPermission(ctx.entry, 'worker', {
-    card: { requestType: 'permission', requestId: 'card-2', action: 'write', tool: 'Write' },
-  }, () => {})
-  assert.equal(ctx.answered[0].behavior, 'deny')
-  assert.match(ctx.messages[0].text, /observe.*只读/)
-})

@@ -19,10 +19,13 @@ export const orderTranscript = messages => {
   return { timeline, items }
 }
 
-export const stageChapterSummary = (items, room) => {
-  const transfers = items.filter(item => item.kind === 'dispatch' || isDispatchHandoff(room, item)).length
-  const evidence = items.filter(item => item.kind === 'evidence').length
-  const verdicts = items.filter(item => item.kind === 'verdict' && item.meta?.human !== true).length
+export const stageChapterSummary = (items, room, index = null) => {
+  const staged = Number.isInteger(index) && index >= 0 && Array.isArray(room?.messages)
+    ? room.messages.filter(message => message.meta?.stage === index)
+    : null
+  const transfers = items.filter(item => item.kind === 'dispatch' || item.kind === 'handoff' || isDispatchHandoff(room, item)).length
+  const evidence = (staged ?? items).filter(item => item.kind === 'evidence').length
+  const verdicts = (staged ?? items).filter(item => item.kind === 'verdict' && item.meta?.human !== true).length
   const parts = []
   if (transfers > 0) parts.push(`${transfers} 次交接`)
   if (evidence > 0) parts.push(`${evidence} 条证据`)
@@ -31,31 +34,41 @@ export const stageChapterSummary = (items, room) => {
 }
 
 // 阶段是工作室时间线的章节：当前阶段展开，已完成阶段收成一行，交付卡单独放在最后。
+// 建房期的环境/引擎提示没有阶段，单独放进「准备」，不能混进第一阶段。
 export const buildStageChapters = (items, room) => {
   const stages = Array.isArray(room?.stages) ? room.stages : []
   const lastIndex = Math.max(stages.length - 1, 0)
   const buckets = new Map()
-  let current = stages.length > 0 ? 0 : -1
+  let current = -1
   for (const item of items) {
     const explicit = item?.meta?.stage
     if (Number.isInteger(explicit)) current = Math.max(0, Math.min(explicit, lastIndex))
-    const index = stages.length > 0 ? current : -1
-    if (!buckets.has(index)) buckets.set(index, [])
-    buckets.get(index).push(item)
+    if (!buckets.has(current)) buckets.set(current, [])
+    buckets.get(current).push(item)
   }
   const ordered = [...buckets.entries()].sort((a, b) => a[0] - b[0])
   const active = stages.findIndex(stage => stage.state === 'active')
-  const expandedIndex = active >= 0 ? active : (ordered.at(-1)?.[0] ?? -1)
+  // 完成房间优先展开最后一段真正干活的阶段，而不是只放结论的收尾章节。
+  const lastWork = ordered
+    .filter(([, chapterItems]) => chapterItems.some(item => (
+      item.kind === 'dispatch' ||
+      item.kind === 'handoff' ||
+      item.kind === 'evidence' ||
+      item.kind === 'verdict' ||
+      isDispatchHandoff(room, item)
+    )))
+    .at(-1)?.[0]
+  const expandedIndex = active >= 0 ? active : (lastWork ?? ordered.at(-1)?.[0] ?? -1)
   return ordered.map(([index, chapterItems]) => {
     const stage = stages[index]
     return {
-      kind: 'stage',
-      key: `stage-${index}`,
+      kind: index < 0 ? 'prelude' : 'stage',
+      key: index < 0 ? 'prelude' : `stage-${index}`,
       index,
-      title: stage?.title ?? '过程',
-      state: stage?.state ?? 'active',
+      title: index < 0 ? (stages.length > 0 ? '准备' : '过程') : stage?.title ?? '过程',
+      state: index < 0 ? null : stage?.state ?? 'active',
       expanded: index === expandedIndex,
-      summary: stageChapterSummary(chapterItems, room),
+      summary: stageChapterSummary(chapterItems, room, index),
       items: chapterItems,
     }
   })

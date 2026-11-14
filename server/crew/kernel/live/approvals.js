@@ -4,7 +4,6 @@ import { reviewExternalAction } from '../../gate.js'
 import { seatNameOf } from './projection.js'
 import { decidePermission } from '../../permission.js'
 import { supportsRuntime } from '../../runtime-port.js'
-import { trustLevelOf } from '../../trust.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
 
@@ -12,7 +11,6 @@ export const createLiveApprovals = ({
   store,
   engine,
   emit,
-  gateAgent = null,
   approvalTimeoutMs = APPROVAL_TIMEOUT,
   readOnlyFor = () => false,
 }) => {
@@ -75,34 +73,6 @@ export const createLiveApprovals = ({
       at: Date.now(),
     }
     approval.gate = reviewExternalAction({ approval, room })
-    if (trustLevelOf(room) === 'auto' && approval.gate.decision === 'allow') {
-      entry.answeredCards.add(card.requestId)
-      try {
-        const result = await engine.answerCard({
-          sessionRef: sessionRef ?? entry.seats.get(seat)?.sessionRef,
-          requestId: card.requestId,
-          behavior: 'allow',
-        })
-        if (result?.ok === false) throw new Error(result.error ?? '基座拒绝了自动放行')
-        store.appendEvent(entry.roomId, 'trust.auto_allow', {
-          seat,
-          kind: approval.kind,
-          summary: approval.summary,
-        })
-        store.appendMessage(entry.roomId, {
-          kind: 'system',
-          text: `信任级别 auto：${approval.seatName} 的外部动作已自动放行（规则守门 allow）。`,
-        })
-        emit('room', store.readRoom(entry.roomId))
-        return
-      } catch (error) {
-        entry.answeredCards.delete(card.requestId)
-        store.appendMessage(entry.roomId, {
-          kind: 'system',
-          text: `自动放行失败，改为等你批准：${error?.message ?? error}`,
-        })
-      }
-    }
     const updated = store.updateRoom(entry.roomId, current => {
       current.approvals = [...(current.approvals ?? []), approval].slice(-20)
       return {
@@ -146,20 +116,6 @@ export const createLiveApprovals = ({
     }, approvalTimeoutMs)
     timer.unref?.()
     entry.approvalTimers.set(approval.id, timer)
-    if (gateAgent !== null && typeof gateAgent.review === 'function') {
-      void gateAgent.review({ room, approval }).then(result => {
-        if (result === null || result === undefined) return
-        const next = store.updateRoom(entry.roomId, current => {
-          const item = current.approvals?.find(approvalItem => approvalItem.id === approval.id && approvalItem.state === 'pending')
-          if (item === undefined) return null
-          item.gateAgent = result
-          return { events: [{ type: 'approval.gate_agent', payload: { id: approval.id, decision: result.decision } }] }
-        })
-        if (next !== null) emit('room', next)
-      }).catch(error => {
-        console.warn(`gate agent failed: ${approval.id} ${error?.message ?? error}`)
-      })
-    }
   }
 
   const expireApprovals = (entry, roomId, reason) => {
@@ -198,8 +154,7 @@ export const createLiveApprovals = ({
     if (entry.answeredCards.has(card.requestId) || entry.heldCards.has(card.requestId)) return
     const room = store.readRoom(entry.roomId)
     const spec = room?.seatSpecs?.find(item => item.id === seat)
-    const observe = trustLevelOf(room) === 'observe'
-    const readOnly = readOnlyFor(room) || observe
+    const readOnly = readOnlyFor(room)
     const allowed = decidePermission(spec, card.action, { readOnly })
     const external = allowed ? externalAction(card) : null
     const cardSession = sessionRef ?? entry.seats.get(seat)?.sessionRef

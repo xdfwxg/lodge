@@ -1,20 +1,19 @@
-import { budgetStatus } from '../../budget.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { markSeatRead } from '../../watermarks.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { reject } from '../../result.js'
 import { parseVerdict, REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { workspaceOf } from './workspace.js'
-import { manualReviewState, quorumOf, reviewState, verifierIds, verifierPolicyOf } from './verifiers.js'
+import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
 import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { seatDisplayName, seatMention } from '../../seat-labels.js'
 
-const VERDICT_FORMAT = '判定后先写一句结论（不超过 50 字，说清产物是否达标），再最多列 3 条关键证据；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
+const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清产物是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
 
 
-export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, advisor = null }) => {
+export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, handoff = null }) => {
+  const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToSeat(to, prompt))
   let round = null
   const staleSeats = new Set()
 
@@ -125,8 +124,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     if (room.closure === 'rejected' || room.closure === 'signed') {
       reject('conflict', `房间已${room.closure === 'rejected' ? '拒绝' : '签字'}，不能发起复核`)
     }
-    const budget = budgetStatus(room, store.readRooms())
-    if (!budget.ok) reject('conflict', budget.message)
     const messages = store.readMessages(roomId)
     const manual = stage.manual === true
     const ledger = store.readEvidence?.(roomId)
@@ -173,15 +170,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
 
     const meta = evidence.meta
     const reviewGuidance = reviewGuidanceFor(room)
-    const policy = verifierPolicyOf(room)
     const nextRound = {
       stage: stageIndex,
       evidenceId: evidence.id,
       command: manual ? '' : meta.command,
       exit: manual ? null : meta.exit,
       total: ids.length,
-      required: quorumOf(ids.length, policy),
-      policy,
+      required: ids.length,
       passed: outcome.verdicts.filter(message => message.meta?.pass === true).length,
       rejects: outcome.verdicts.filter(message => message.meta?.pass !== true).length,
       requests: new Map(),
@@ -196,46 +191,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       evidenceId: evidence.id,
       verifiers: targets,
     })
-    const advisorResult = await advisor?.advice?.({
-      mode: 'review',
-      goal: room.goal,
-      stage: { title: stage.title, acceptance: stage.acceptance ?? '', manual },
-      evidence: {
-        id: evidence.id,
-        text: evidence.text,
-        command: meta.command,
-        exit: meta.exit,
-        diff: meta.diff,
-        files: meta.files,
-        artifacts: meta.artifacts,
-      },
-    }) ?? { available: false, advice: [] }
-    const advisorLines = Array.isArray(advisorResult.advice) ? advisorResult.advice : []
-    const shadow = room.shadowReview === true
-    const promptLines = shadow ? [] : advisorLines
-    if (advisorLines.length > 0) {
-      const text = advisorLines
-        .map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；'))
-        .filter(Boolean)
-        .join('；')
-      store.appendMessage(roomId, {
-        kind: 'advisor_advice',
-        authorId: 'system',
-        text: `${shadow ? '影子评审（仅记录，不注入 Verifier）' : '评估建议（仅参考，不替代 Verifier）'}：${text}`,
-        meta: {
-          stage: stageIndex,
-          evidenceId: evidence.id,
-          advice: advisorLines,
-          shadow,
-          available: advisorResult.available === true,
-          ...(advisorResult.model === undefined ? {} : { model: advisorResult.model }),
-          ...(advisorResult.version === undefined ? {} : { version: advisorResult.version }),
-        },
-      })
-    }
     const failures = []
     for (const verifier of targets) {
-      const verifierName = room.seatNames?.[verifier]
+      const verifierName = seatDisplayName(room, verifier)
+      const verifierMention = seatMention(room, verifier)
       if (typeof verifierName !== 'string' || verifierName === '') {
         failures.push(`${verifier}: 没有席位名字`)
         continue
@@ -252,12 +211,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       const verifierPort = room.ports?.[verifier]
       const prompt = manual
         ? [
-            `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+            `${verifierMention || `@${verifierName}`} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '独立复核：以本轮产物证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildSeatHandoff({ room, messages }),
-            ...(promptLines.length > 0
-              ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
-              : []),
             `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
             '产物证据：',
@@ -274,12 +230,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
         : [
-            `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+            `${verifierMention || `@${verifierName}`} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '独立复核：以本轮验收证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildSeatHandoff({ room, messages }),
-            ...(promptLines.length > 0
-              ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
-              : []),
             `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
             `验收命令：${meta.command}`,
@@ -315,7 +268,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       nextRound.requests.set(verifier, request)
       request.reminder = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
-        void sendToSeat(verifier, `@${verifierName} 复核还没有结论。请现在只回复一行 PASS 或 REJECT；不要继续调研，不要调用工具。`).catch(() => {})
+        void sendToSeat(verifier, `${verifierMention || `@${verifierName}`} 复核还没有结论。请现在只回复一行 PASS 或 REJECT；不要继续调研，不要调用工具。`).catch(() => {})
       }, REVIEW_REMINDER).unref()
       request.timer = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
@@ -340,15 +293,24 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
           round.timedOut = [...(round.timedOut ?? []), verifier]
         }
       }, REVIEW_TIMEOUT).unref()
-      markSeatRead({ store, roomId, seat: verifier, emit })
+      const source = [...messages].reverse().find(message => (
+        message.kind === 'evidence' &&
+        message.meta?.kind === 'turn' &&
+        (message.meta?.stage ?? 0) === stageIndex
+      ))?.authorId
       try {
-        const sent = await sendToSeat(verifier, prompt)
-        if (sent.messageId !== null) {
-          store.updateRoom(roomId, current => {
-            current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)
-            return { events: [] }
-          })
-        }
+        await handoffTrigger({
+          room,
+          stage,
+          index: stageIndex,
+          from: source ?? evidence.authorId ?? room.leadSeat ?? 'you',
+          to: verifier,
+          reason: 'review',
+          prompt,
+          acceptance: stage.acceptance ?? '',
+          evidence,
+          verdict: outcome.verdicts?.at(-1) ?? null,
+        })
       } catch (error) {
         clearTimeout(request.timer)
         clearTimeout(request.reminder)

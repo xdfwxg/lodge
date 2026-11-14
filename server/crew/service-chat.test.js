@@ -90,15 +90,3 @@ test('restart refuses when a conclusion is already waiting', () => {
   assert.equal(result.ok, false)
   assert.match(result.error, /先确认或再讨论/)
 })
-
-test('a chat snapshot carries the discussion and conclusion without mutating the room', () => {
-  const ctx = setup()
-  ctx.messages.push({ kind: 'chat', authorId: 'a', text: '发言', meta: { round: 1 } })
-  ctx.messages.push({ kind: 'chat_conclusion', authorId: 'lead', text: '结论', meta: { round: 1 } })
-  const result = ctx.chat.snapshot(ctx.room())
-  assert.equal(result.ok, true)
-  assert.equal(result.body.snapshot.round, 1)
-  assert.equal(result.body.snapshot.conclusion.text, '结论')
-  assert.equal(result.body.snapshot.messages.length, 2)
-  assert.equal(ctx.room().state, 'active')
-})

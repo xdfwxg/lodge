@@ -23,7 +23,7 @@ export const renderStudioMessage = ({
   if (message.kind === 'verdict' && message.meta?.human === true) return null
   if (isDispatchHandoff(room, message)) return h(Baton, { key: message.id, message, room, byId })
   const seat = resolveSeat(room, byId, message)
-  if (message.kind === 'dispatch') return h(Baton, { key: message.id, message, room, byId })
+  if (message.kind === 'dispatch' || message.kind === 'handoff') return h(Baton, { key: message.id, message, room, byId })
   if (message.kind === 'stage_conclusion') return h(MilestoneLine, { key: message.id, message })
   if (message.kind === 'evidence') return h(EvidenceCard, { key: message.id, message, seat })
   if (message.kind === 'conclusion') return h(ConclusionCard, { key: message.id, message })

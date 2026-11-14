@@ -1,6 +1,6 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
-import { seatDisplayName, toDisplayText } from '../../seat-labels.js'
+import { seatDisplayName, seatHandle, toDisplayText } from '../../seat-labels.js'
 import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 
@@ -30,11 +30,11 @@ const discussionLines = (store, roomId) => {
     .filter(message => message.kind === 'chat' || message.kind === 'chat_rework')
   const nameOf = message => message.authorId === 'you'
     ? '你'
-    : message.authorId === 'system' ? '系统' : (room?.seatNames?.[message.authorId] ?? message.authorId)
+    : message.authorId === 'system' ? '系统' : seatDisplayName(room, message.authorId)
   return recentAndOlder(messages, { nameOf })
 }
 
-const baseName = (room, seat) => room?.seatNames?.[seat] ?? seatDisplayName(room, seat)
+const baseName = (room, seat) => seatHandle(room, seat) || seatDisplayName(room, seat)
 
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
 const speakerPrompt = ({ room, seat, round, turn, turnLimit, note }) => {

@@ -1,27 +1,20 @@
 import { resolveRoomType } from '../room-types/index.js'
-import { chatFacade } from './chat/facade.js'
 import { chatKind } from './chat/kind.js'
-import { studioFacade } from './studio/facade.js'
 import { studioKind } from './studio/kind.js'
 
 export const roomKinds = [studioKind, chatKind]
 
-const facades = {
-  chat: chatFacade,
-  studio: studioFacade,
-}
-
 // 两种窄接口：建房/能力只拿 mode，消息投影/注意力只拿 presentation。
 const MODE_KEYS = [
-  'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'resolvePlan', 'needsPlannerTools',
+  'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
-  'supportsSubrooms', 'acceptsChatDecision', 'leadSeatOf', 'record',
-  'initialMessages', 'provisionExtra', 'start', 'applyStageDependencies',
-  'bulletinAcceptance', 'approvalReadOnly', 'replayTransition',
+  'acceptsChatDecision', 'leadSeatOf', 'record',
+  'initialMessages', 'provisionExtra', 'start',
+  'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
-  'refresh', 'onSeatFailure', 'partialCount', 'deliveryOf', 'reviewOf',
+  'refresh', 'onSeatFailure', 'deliveryOf',
   'hostOf', 'speakerOf',
 ]
 
@@ -53,12 +46,4 @@ export const roomPresentationOfRoom = room => {
   const kind = kindOfRoom(room)
   return kind === null ? null : views.get(kind).presentation
 }
-
-// 跨上下文同步读取先拿 Facade，再取版本化 DTO；不要直接读对方的聚合字段。
-const facadeOfRoom = room => {
-  const kind = kindOfRoom(room)
-  return kind === null ? null : facades[kind.id] ?? null
-}
-
-export const snapshotOfRoom = room => facadeOfRoom(room)?.snapshot(room) ?? null
 

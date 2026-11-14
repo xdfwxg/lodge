@@ -47,16 +47,6 @@ const machine = createStateMachine(studioTable)
 
 export const transitionStudio = machine.transition
 
-// 回放时不带真实执行上下文；用可判定的默认值验证审计链本身。
-export const replayStudioTransition = (from, event, payload = {}) => transitionStudio(from, event, {
-  manual: true,
-  exitCode: 0,
-  hasPlan: false,
-  verdictPassed: true,
-  human: true,
-  ...(payload.context ?? {}),
-})
-
 export const studioTransitionEvent = (result, event, actor = 'system', context = {}, reason = '') => ({
   type: 'closure.transition',
   payload: {

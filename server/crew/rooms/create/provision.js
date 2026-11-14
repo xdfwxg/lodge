@@ -8,7 +8,7 @@ export const createProvisioner = ({ engine }) => {
   const createdBaseRooms = []
   let cleanupExtra = null
 
-  const provision = async ({ roster, short, title, goal, verify, acceptance, align, workspaces, verifiers, roomType = 'studio', leadToolServers = [] }) => {
+  const provision = async ({ roster, short, title, goal, verify, acceptance, align, workspaces, verifiers, roomType = 'studio' }) => {
     const mode = roomModeForType(roomType)
     let instances = []
     try {
@@ -35,7 +35,6 @@ export const createProvisioner = ({ engine }) => {
         description: seat.station,
         approval: seat.approval,
         mcp: seat.mcp,
-        roomTools: kindOf(seat) === 'planner' ? leadToolServers : [],
         engine: requestedEngine,
         model: seat.model,
       })

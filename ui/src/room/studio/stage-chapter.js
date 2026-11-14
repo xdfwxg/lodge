@@ -6,12 +6,13 @@ const stateLabel = state => (
 
 // 阶段是工作室时间线的章节：当前阶段展开，已完成阶段收成一行。
 export function StageChapter({ chapter, children }) {
-  const title = chapter.index < 0 ? chapter.title : `阶段 ${chapter.index + 1} · ${chapter.title}`
-  return h('section', { className: 'studio-stage-chapter', 'data-state': chapter.state },
+  const prelude = chapter.kind === 'prelude'
+  const title = prelude ? chapter.title : `阶段 ${chapter.index + 1} · ${chapter.title}`
+  return h('section', { className: 'studio-stage-chapter', 'data-state': chapter.state ?? undefined },
     h('details', { className: 'studio-stage', open: chapter.expanded || undefined },
       h('summary', { className: 'studio-stage-head' },
         h('span', { className: 'studio-stage-title' }, title),
-        h('span', { className: 'studio-stage-state' }, stateLabel(chapter.state)),
+        prelude ? null : h('span', { className: 'studio-stage-state' }, stateLabel(chapter.state)),
         h('span', { className: 'studio-stage-summary' }, chapter.summary)),
       h('div', { className: 'studio-stage-body' }, children)))
 }

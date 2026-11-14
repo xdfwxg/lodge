@@ -11,14 +11,12 @@ const roomCapabilities = room => ({
 })
 
 // 房间事件与状态查询共用同一份投影，UI 不再自己重算业务状态和独立性文案。
-export const presentRoom = (room, messages = [], ledger = null) => ({
+export const presentRoom = (room, messages = []) => ({
   ...room,
   revision: room.version ?? 1,
   capabilities: roomCapabilities(room),
-  parentRoomId: typeof room.parentRoomId === 'string' && room.parentRoomId !== '' ? room.parentRoomId : null,
-  childRoomIds: Array.isArray(room.childRoomIds) ? room.childRoomIds : [],
   needsYou: roomNeedsYou(room, messages),
   modeCapabilities: capabilitiesFor(room.roomType),
   independenceLabel: independenceLabel(room),
-  delivery: roomPresentationOfRoom(room)?.deliveryOf?.(room, messages, ledger) ?? null,
+  delivery: roomPresentationOfRoom(room)?.deliveryOf?.(room, messages) ?? null,
 })

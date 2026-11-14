@@ -12,7 +12,6 @@
   "scripts": {
     "dev": "concurrently -k -n server,ui -c blue,green \"node server/index.js\" \"vite\"",
     "dev:server": "node server/index.js",
-    "advisor:serve": "node server/advisor-service.mjs",
     "dev:ui": "vite",
     "build": "vite build",
     "desktop": "npm run build && electron .",
@@ -26,9 +25,6 @@
     "test": "node --test \"server/crew/**/*.test.js\" \"ui/src/**/*.test.js\"",
     "eval:planning": "node evals/planning/run.mjs",
     "eval:chat": "node scripts/eval-chat.mjs",
-    "samples:generate": "node scripts/generate-samples.mjs",
-    "fixture:studio": "node scripts/fixture-studio.mjs",
-    "samples:export": "node scripts/export-sample.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "check:regressions": "node scripts/check-regressions.mjs"
   },

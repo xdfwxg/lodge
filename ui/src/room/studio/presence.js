@@ -1,4 +1,5 @@
 import { createElement as h, useEffect, useState } from 'react'
+import { BotAvatar } from '../../marks.js'
 import { durationOf } from '../../view-format.js'
 import { presenceLines } from './transcript-model.js'
 
@@ -12,14 +13,19 @@ export function StudioPresence({ room, seats }) {
     const timer = setInterval(() => setTick(Date.now()), 1000)
     return () => clearInterval(timer)
   }, [working.length, working[0]?.seatId])
+  const seatOf = id => seats.find(seat => seat.id === id) ?? null
   if (room?.state !== 'active' || (working.length === 0 && queued.length === 0)) return null
   return h('div', { className: 'studio-presence', role: 'status' },
     working.map(item => h('div', { key: `work-${item.seatId}`, className: 'crew-activity-line' },
+      h('span', { className: 'studio-presence-avatar' },
+        seatOf(item.seatId) === null ? null : h(BotAvatar, { bot: seatOf(item.seatId), size: 22, live: true })),
       h('i', { 'aria-hidden': true }),
       h('span', null, `${item.name} 正在处理`),
       typeof item.since === 'number'
         ? h('span', { className: 'crew-activity-elapsed' }, durationOf(tick - item.since))
         : null)),
     queued.map(item => h('div', { key: `queue-${item.seatId}`, className: 'studio-queue' },
-      `排队 · ${item.name}${item.position !== null && item.of !== null ? `（第 ${item.position} / 共 ${item.of}）` : ''}${item.waitingFor === '' ? '' : ` · 等待 ${item.waitingFor}`}`)))
+      h('span', { className: 'studio-presence-avatar' },
+        seatOf(item.seatId) === null ? null : h(BotAvatar, { bot: seatOf(item.seatId), size: 18, live: false })),
+      h('span', null, `排队 · ${item.name}${item.position !== null && item.of !== null ? `（第 ${item.position} / 共 ${item.of}）` : ''}${item.waitingFor === '' ? '' : ` · 等待 ${item.waitingFor}`}`))))
 }

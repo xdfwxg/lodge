@@ -1,15 +1,12 @@
 import { resolveAssigneeTokens } from '../../orchestration/index.js'
 import * as type from '../../room-types/studio.js'
 import { workContract } from '../../prompt-modes.js'
-import { plannerToolPrompt } from './planner-tools.js'
 import { roleKindOf } from '../../seats.js'
 import { commandEvidenceFor, latestReviewTimeout, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { evaluateRoomGate } from './gate.js'
-import { replayStudioTransition } from './state.js'
 import { buildDelivery } from './delivery.js'
-import { buildReview } from './review-report.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
@@ -108,7 +105,6 @@ const studioConstraints = ({
   acceptance,
   verifiers,
   independence,
-  continueSource,
 }) => [
   plan?.stages?.length > 0
     ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
@@ -118,19 +114,12 @@ const studioConstraints = ({
     : [independence === 'vendor'
       ? '执行与验收已绑定不同厂商；验收席位在独立副本里复核'
       : '当前只有同一厂商引擎可用：验收卡会标「独立性降级」']),
-  ...(continueSource === null ? [] : [`续做自交接记录「${continueSource.name}」；上一轮记录保持只读`]),
 ]
 
-const initialMessages = ({ continueSource, workspaces, engineFallbacks }) => {
+const initialMessages = ({ workspaces, engineFallbacks }) => {
   // 时间线只保留会改变用户判断的信息；建房仪式、分支、约束快照、MCP 说明都
-  // 能从房间字段和交付单里查到，不再复述。
+  // 能从房间字段和交付卡里查到，不再复述。
   const messages = []
-  if (continueSource !== null) {
-    messages.push({
-      kind: 'system',
-      text: `续做自交接记录「${continueSource.name}」（${continueSource.id}）；旧记录不复活，只作为 BRIEF 与证据的出处。`,
-    })
-  }
   const envWarnings = Object.entries(workspaces.environment ?? {})
     .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${seat}: ${text}`))
   if (envWarnings.length > 0) messages.push({ kind: 'system', text: `工作区环境同步警告：${envWarnings.join('；')}` })
@@ -163,19 +152,17 @@ export const studioKind = {
     '当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才会响应。',
     '你是三类席位之一：规划师、执行官、验收员；不要自创角色，也不要承担其他席位的职责。',
     '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
-    '回复用一段话说清结论和必要依据；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
+    '群消息按角色工作日志格式写；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
+    '不要先发“我来/我将/开始检查”之类的准备句或过程声明；直接给工作日志或结论。',
     ...workContract(seat.role),
     // 规划师工具协议随 soul 常驻；阶段推进不再专门唤醒规划师。
-    ...(roleKindOf(seat.role) === 'planner' ? plannerToolPrompt({ mcp: (seat.mcp ?? []).length > 0 }) : []),
   ].filter(Boolean).join('\n'),
 
   validateRoster: type.validateRoster,
   resolvePlan: (plan, roster) => resolveStageAssignees(plan, roster),
-  needsPlannerTools: true,
   requiresGate: true,
   evaluateGate: args => evaluateRoomGate({ enabled: true, ...args }),
   supportsDelivery: true,
-  supportsSubrooms: true,
   acceptsChatDecision: false,
   approvalReadOnly: activeStageReadOnly,
   appliesStageDependencies: true,
@@ -189,22 +176,14 @@ export const studioKind = {
     acceptance,
     verifiers,
     independence,
-    continueSource,
-    verifierPolicy,
-    shadowReview,
-    plannerTools,
     gate,
     builtStages,
   }) => ({
     engine: 'delivery',
-    trust: 'verify',
-    constraints: studioConstraints({ plan, verify, acceptance, verifiers, independence, continueSource }),
+    constraints: studioConstraints({ plan, verify, acceptance, verifiers, independence }),
     closure: {
       closure: plan === null ? 'open' : 'planned',
       verificationMode: 'hybrid',
-      verifierPolicy: verifierPolicy === 'majority' ? 'majority' : 'all',
-      shadowReview: shadowReview === true,
-      ...(plannerTools === null ? {} : { plannerTools }),
       ...(gate === null ? {} : { gate }),
     },
     stages: builtStages.stages,
@@ -219,7 +198,6 @@ export const studioKind = {
   needsYou: studioNeedsYou,
 
   stateOf: room => (room.closure === 'signed' ? 'signed' : room.closure ?? 'open'),
-  replayTransition: replayStudioTransition,
 
   filterMessages: messages => messages,
   hideActivity: false,
@@ -227,15 +205,13 @@ export const studioKind = {
 
   refresh: () => ({}),
 
-  partialCount: room => (room.stages ?? []).filter(stage => (stage.partial?.failed?.length ?? 0) > 0).length,
 
-  // 交付单与复盘都是工作室投影；共享层只拿结果，不碰阶段与证据结构。
-  deliveryOf: (room, messages, ledger) => (
+  // 交付卡是工作室投影；共享层只拿结果，不碰阶段与证据结构。
+  deliveryOf: (room, messages) => (
     room.state === 'complete' && (room.closure !== undefined || Array.isArray(room.stages))
-      ? buildDelivery(room, messages, ledger)
+      ? buildDelivery(room, messages)
       : null
   ),
-  reviewOf: (room, messages) => buildReview(room, messages),
   hostOf: () => null,
   speakerOf: () => '',
 
@@ -243,21 +219,6 @@ export const studioKind = {
     .map(stage => stage.acceptance)
     .filter(Boolean)
     .join(' / ') || '人确认',
-
-  applyStageDependencies: (room, dependencies) => {
-    if (!Array.isArray(dependencies) || !Array.isArray(room.stages)) return room
-    return {
-      ...room,
-      stages: room.stages.map((stage, index) => {
-        const raw = dependencies[index]
-        if (!Array.isArray(raw)) return stage
-        const dependsOn = [...new Set(raw.filter(item => (
-          Number.isInteger(item) && item >= 0 && item < room.stages.length && item !== index
-        )))]
-        return dependsOn.length === 0 ? stage : { ...stage, dependsOn }
-      }),
-    }
-  },
 
   onSeatFailure: (current, seat) => {
     const stageIndex = current.stages?.findIndex(stage => stage.state === 'active') ?? -1

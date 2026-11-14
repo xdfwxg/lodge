@@ -14,7 +14,6 @@ const CHAT_SYSTEM_NOISE = [
   /^源仓库 /,
   /^引擎降级：/,
   /^Gate·评估建议/,
-  /^续做自交接记录/,
 ]
 
 export const isChatSystemNoise = message => (

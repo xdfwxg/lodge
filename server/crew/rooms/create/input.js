@@ -30,17 +30,6 @@ export const directPrompt = (goal, verify, acceptance, singleSeat) => [
     : '这个房间没有单独的队长：直接在当前工作区完成，不要等人对齐。',
 ].join('\n')
 
-// 续做只继承人写的 BRIEF；旧证据、阶段与席位会话都不复制。
-export const inheritedPlan = (brief, sourceName) => {
-  const done = (brief?.done ?? [])
-    .map(item => item.text)
-    .filter(text => typeof text === 'string' && text.trim() !== '')
-    .map(text => text.trim().slice(0, 200))
-    .slice(0, 6)
-  if (done.length === 0) return null
-  return { done, answers: [], why: `续做自交接记录「${sourceName}」` }
-}
-
 export const normalizeRequest = body => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > 2000) return { error: '目标不能为空，且不超过 2000 字' }
@@ -71,12 +60,10 @@ export const normalizeRequest = body => {
   }
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '未知的编排策略' }
-  const verifierPolicy = body.verifierPolicy === 'majority' ? 'majority' : 'all'
-  const shadowReview = body.shadowReview === true
-  return { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit }
+  return { goal, name, roomType, verify, acceptance, orchestration, chatTurnLimit }
 }
 
-export const normalizePlan = ({ body, continueSource, roomFiles }) => {
+export const normalizePlan = ({ body }) => {
   let plan = null
   if (body.plan !== undefined && body.plan !== null) {
     const done = Array.isArray(body.plan.done)
@@ -123,8 +110,6 @@ export const normalizePlan = ({ body, continueSource, roomFiles }) => {
       stages: plannedStages,
       why: typeof body.plan.why === 'string' ? body.plan.why.trim().slice(0, 300) : '',
     }
-  } else if (continueSource !== null) {
-    plan = inheritedPlan(roomFiles.readBrief(continueSource), continueSource.name)
   }
   return { plan }
 }
@@ -162,12 +147,7 @@ export const resolveSeats = (body, roomType) => {
 
 const MAX_PROJECT_BYTES = 20_000
 
-export const projectSnapshot = body => {
-  const projectContent = typeof body.projectConstraints === 'string'
-    ? body.projectConstraints.trim().slice(0, MAX_PROJECT_BYTES)
-    : ''
-  return { projectContent }
-}
+
 
 export const effectiveAcceptanceOf = (acceptance, plan) => acceptance || (plan?.stages ?? [])
   .map(stage => stage.acceptance)

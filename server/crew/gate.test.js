@@ -44,20 +44,6 @@ test('lead and verifier seats are not allowed to create external writes', () => 
   assert.equal(lead.decision, 'deny')
 })
 
-test('room constraints can block push, network or install', () => {
-  const push = reviewExternalAction({
-    approval: approval('worker', 'git push origin main', 'push'),
-    room: room({ constraints: ['不 push，不发布'] }),
-  })
-  assert.equal(push.decision, 'deny')
-  assert.match(push.reasons.join('，'), /约束禁止 push/)
-  const network = reviewExternalAction({
-    approval: approval('worker', 'curl https://example.com'),
-    room: room({ projectConstraints: { content: '不要联网' } }),
-  })
-  assert.equal(network.decision, 'deny')
-})
-
 test('the gate declares an independent basis', () => {
   const result = reviewExternalAction({ approval: approval('worker', 'curl https://example.com'), room: room() })
   assert.equal(result.context, 'independent')

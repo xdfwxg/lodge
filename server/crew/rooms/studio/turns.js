@@ -1,22 +1,21 @@
 import { createHash } from 'node:crypto'
-import { mcpCalls } from './mcp.js'
-import { recordMcpFailures } from '../../mcp-breaker.js'
 import { markTask } from './tasks.js'
 import { seatDisplayName } from '../../seat-labels.js'
 import { reviewState } from './verifiers.js'
 import { createAcceptanceRunner } from './acceptance-runner.js'
 import { createStageIntegrator } from './integration.js'
 import { createReviewCoordinator } from './review.js'
+import { createHandoff } from './handoff.js'
 import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
-import { parsePlannerTool } from './planner-tools.js'
 import { deliverableStageIndex, isWorkStage, seatOf } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, skills, advisor = null, onPlannerTool = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, skills }) => {
   const state = createTurnState({ store, roomId, emit })
-  const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks, advisor })
+  const handoff = createHandoff({ store, roomId, sendToSeat, emit })
+  const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks, handoff })
   const acceptance = createAcceptanceRunner({
     store,
     roomId,
@@ -38,8 +37,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     store,
     roomId,
     emit,
-    sendToSeat,
     updateTasks: state.updateTasks,
+    handoff,
     integrate: integrator.integrate,
     enqueue: integrator.enqueue,
     skills,
@@ -144,51 +143,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     }
     state.capturedTurns.add(turnId)
 
-    if (role === 'lead') {
-      const tool = parsePlannerTool(turn.reply)
-      if (tool !== null && typeof onPlannerTool === 'function') {
-        void Promise.resolve(onPlannerTool({ room, seat, tool, turnId }))
-          .then(result => {
-            const text = result?.ok === false
-              ? `Planner 工具失败（${tool.name}）：${result.error ?? '未知原因'}`
-              : `Planner 工具已执行：${tool.name}`
-            store.appendMessage(roomId, { kind: 'system', text })
-            const name = room?.seatNames?.[seat]
-            if (typeof name === 'string' && name !== '') {
-              void sendToSeat(seat, `@${name} ${text}。继续当前阶段；如仍需工具，再按协议调用。`).catch(() => {})
-            }
-          })
-          .catch(error => {
-            store.appendMessage(roomId, { kind: 'system', text: `Planner 工具失败（${tool.name}）：${error?.message ?? error}` })
-          })
-        state.recordTurn(false)
-        return
-      }
-    }
-
-    const mcp = mcpCalls(turn.tools)
-    if (mcp.length > 0) {
-      store.appendEvent(roomId, 'mcp.call', { seat, stage: stageIndex, turnId, calls: mcp })
-      const failed = mcp.filter(call => call.failed > 0)
-      if (failed.length > 0) {
-        store.appendEvent(roomId, 'mcp.failure', { seat, turnId, calls: failed })
-        const { breakers, tripped } = recordMcpFailures(room?.mcpBreakers, failed)
-        const updated = store.updateRoom(roomId, current => {
-          current.mcpBreakers = breakers
-          return {
-            events: tripped.map(server => ({ type: 'mcp.trip', payload: { server, seat, turnId } })),
-          }
-        })
-        if (updated !== null) emit?.('room', updated)
-        store.appendMessage(roomId, {
-          kind: 'system',
-          text: tripped.length === 0
-            ? `MCP 工具失败已隔离：${failed.map(call => `${call.server}/${call.tool} ×${call.failed}`).join('、')}；只影响 ${seatDisplayName(room, seat)} 这一回合，房间继续。`
-            : `MCP 熔断：${tripped.join('、')}；使用它的席位回合暂停，恢复后继续。`,
-        })
-      }
-    }
-
     if (review.consume({ turn, seat, turnId, room })) {
       state.recordTurn(true)
       return
@@ -239,7 +193,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
       meta: {
         kind: 'turn',
         vcs: vcsOf(room),
-        mcp,
         stage,
         turnId,
         summary,
@@ -249,7 +202,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         output: JSON.stringify({
           tools: turn.tools ?? [],
           toolCalls: turn.toolCalls,
-          usage: turn.usage,
           hookCoverage: turn.hookCoverage,
         }, null, 2),
         capturedAt: new Date().toISOString(),

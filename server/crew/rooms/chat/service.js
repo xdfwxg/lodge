@@ -104,33 +104,5 @@ export const createServiceChat = ({ store, live, emit }) => {
     return ok({ room: updated })
   }
 
-  const snapshot = room => {
-    if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
-    const messages = readMessages(room.id)
-      .filter(message => ['chat', 'chat_rework', 'chat_conclusion'].includes(message.kind))
-      .map(message => ({
-        kind: message.kind,
-        authorId: message.authorId,
-        text: message.text,
-        ...(message.meta?.round === undefined ? {} : { round: message.meta.round }),
-      }))
-    const conclusion = [...readMessages(room.id)].reverse().find(message => message.kind === 'chat_conclusion')
-    return ok({
-      snapshot: {
-        roomId: room.id,
-        name: room.name,
-        goal: room.goal,
-        round: room.chat?.round ?? 1,
-        turnLimit: room.chat?.turnLimit ?? 6,
-        accepted: room.chat?.accepted === true,
-        conclusion: conclusion === undefined
-          ? null
-          : { text: conclusion.text, round: conclusion.meta?.round ?? 1, fallback: conclusion.meta?.fallback === true },
-        messages,
-        exportedAt: new Date().toISOString(),
-      },
-    })
-  }
-
-  return { accept, continue: continueChat, restart, snapshot }
+  return { accept, continue: continueChat, restart }
 }

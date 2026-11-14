@@ -93,38 +93,6 @@ test('creation fails closed when the runtime cannot wake seats with @', async ()
   assert.match(result.error, /@ 唤醒/)
 })
 
-test('continuing a completed room creates a new room and inherits BRIEF done', async () => {
-  const previous = process.env.CREW_WORKSPACE_ROOT
-  const root = temp('lodge-resume-workspace-')
-  process.env.CREW_WORKSPACE_ROOT = root
-  try {
-    const { store, room: source } = completedRoom(temp('lodge-resume-data-'))
-    const repo = gitRepo()
-    const result = await run(store, {
-      goal: '在上一轮基础上继续',
-      verify: 'test',
-      acceptance: 'npm test',
-      repoPath: repo,
-      continueFrom: source.id,
-      seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-    })
-    assert.equal(result.ok, true)
-    const room = result.body.room
-    assert.equal(room.continuedFrom.roomId, source.id)
-    assert.equal(room.continuedFrom.name, '上一轮交付')
-    assert.equal(room.workspace.provider, 'git')
-    assert.equal(room.workspace.capabilities.vcs, 'git')
-    assert.equal(room.stages.find(stage => stage.kind === 'deliverable').acceptance, 'npm test')
-    assert.deepEqual(room.plan.done, ['按钮可用'])
-    const messages = store.readMessages(room.id)
-    assert.equal(messages.some(message => message.text?.includes('续做自交接记录')), true)
-    assert.equal(store.readRoom(source.id).state, 'complete')
-  } finally {
-    if (previous === undefined) delete process.env.CREW_WORKSPACE_ROOT
-    else process.env.CREW_WORKSPACE_ROOT = previous
-  }
-})
-
 test('a custom room name is kept while the stage title follows the goal', async () => {
   const { store } = completedRoom(temp('lodge-name-data-'))
   const result = await run(store, {
@@ -187,35 +155,6 @@ test('a room name longer than 60 characters is rejected', async () => {
   assert.match(result.error, /60/)
 })
 
-test('parallel workers fail closed when the workspace cannot merge', async () => {
-  const { store } = completedRoom(temp('lodge-resume-data-'))
-  const workspace = {
-    id: 'plain',
-    capabilities: () => ({ vcs: 'none', isolation: 'copy', diff: 'manifest', candidate: false, merge: false, commit: false, acceptanceCopy: false }),
-    probeSource: () => ({ ok: true }),
-    prepareRoom: () => { throw new Error('should not prepare a workspace') },
-    cleanupRoom: () => {},
-  }
-  const result = await createRealRoom({
-    store,
-    engine: fakeEngine(),
-    live: fakeLive(),
-    emit: () => {},
-    workspace,
-    ports: createCrewPorts(),
-    body: {
-      goal: '两个执行席位',
-      verify: 'test',
-      acceptance: 'npm test',
-      repoPath: gitRepo(),
-      seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '甲' }, { role: 'worker', name: '乙' }, { role: 'verifier', name: '验收' }],
-    },
-  })
-  assert.equal(result.ok, false)
-  assert.equal(result.reason, 'conflict')
-  assert.match(result.error, /不支持并行合并/)
-})
-
 test('a non-git directory is edited in place without a worker copy', async () => {
   const root = temp('lodge-direct-room-')
   const source = join(root, 'docs')
@@ -252,118 +191,6 @@ test('a non-git directory is edited in place without a worker copy', async () =>
   }
 })
 
-test('a plain room can run parallel workers into a copy integration', async () => {
-  const root = temp('lodge-plain-parallel-')
-  const source = join(root, 'docs')
-  mkdirSync(source, { recursive: true })
-  writeFileSync(join(source, 'README.md'), '# docs\n')
-  const previousRoot = process.env.CREW_WORKSPACE_ROOT
-  const previousCopy = process.env.CREW_COPY_ROOT
-  process.env.CREW_WORKSPACE_ROOT = join(root, 'workspace')
-  process.env.CREW_COPY_ROOT = join(root, 'copies')
-  try {
-    const store = createStore({ dataDir: temp('lodge-plain-parallel-data-') })
-    const result = await run(store, {
-      goal: '并行整理文档',
-      verify: 'manual',
-      repoPath: source,
-      workspaceProvider: 'plain',
-      seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '甲' }, { role: 'worker', name: '乙' }, { role: 'verifier', name: '验收' }],
-    })
-    assert.equal(result.ok, true)
-    const room = result.body.room
-    assert.equal(room.workspace.provider, 'plain')
-    assert.equal(room.workspace.capabilities.merge, true)
-    assert.equal(room.repoPath.endsWith('/integration'), true)
-    assert.deepEqual(room.branches, {})
-  } finally {
-    if (previousRoot === undefined) delete process.env.CREW_WORKSPACE_ROOT
-    else process.env.CREW_WORKSPACE_ROOT = previousRoot
-    if (previousCopy === undefined) delete process.env.CREW_COPY_ROOT
-    else process.env.CREW_COPY_ROOT = previousCopy
-    rmSync(root, { recursive: true, force: true })
-  }
-})
-
-test('stage dependencies can be declared for a room', async () => {
-  const { store } = completedRoom(temp('lodge-resume-data-'))
-  const result = await run(store, {
-    goal: '分两段做',
-    verify: 'test',
-    acceptance: 'npm test',
-    repoPath: gitRepo(),
-    seats: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-    stageDependencies: [[], [0]],
-  })
-  assert.equal(result.ok, true)
-  const room = result.body.room
-  assert.equal(room.stages.length, 3)
-  assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '分两段做', '验收与结论'])
-  assert.equal(room.stages[0].state, 'active')
-  assert.equal(room.stages[1].state, 'pending')
-  assert.equal(room.stages[2].state, 'pending')
-  assert.deepEqual(room.stages[1].dependsOn, [0])
-  assert.deepEqual(room.stages[2].dependsOn, [1])
-})
-
-test('planner proposal stores orchestration and resolves stage assignees', async () => {
-  const { store } = completedRoom(temp('lodge-resume-data-'))
-  const result = await run(store, {
-    goal: '并行整理文档',
-    verify: 'test',
-    acceptance: 'npm test',
-    repoPath: gitRepo(),
-    seats: [
-      { role: 'lead', name: '队长' },
-      { role: 'worker', name: '甲' },
-      { role: 'worker', name: '乙' },
-      { role: 'verifier', name: '验收员' },
-    ],
-    plan: {
-      done: ['文档整理完'],
-      orchestration: 'parallel',
-      answers: [],
-      stages: [{ title: '整理', kind: 'deliverable', acceptance: 'npm test', assignees: ['甲', '乙', '验收员'] }],
-    },
-  })
-  assert.equal(result.ok, true)
-  const room = result.body.room
-  assert.equal(room.orchestration, 'parallel')
-  const stage = room.stages.find(item => item.title === '整理')
-  assert.deepEqual(stage.assignees, ['worker', 'worker-2'])
-})
-
-test('an unknown orchestration is rejected before creating a room', async () => {
-  const { store } = completedRoom(temp('lodge-resume-data-'))
-  const result = await run(store, {
-    goal: '试试未知编排',
-    verify: 'manual',
-    repoPath: gitRepo(),
-    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-    plan: { done: ['可用'], orchestration: 'swarm', answers: [], stages: [] },
-  })
-  assert.equal(result.ok, false)
-  assert.equal(result.reason, 'invalid')
-})
-
-test('typed project constraints are snapshotted into the room and BRIEF', async () => {
-  const { store } = completedRoom(temp('lodge-resume-data-'))
-  const result = await run(store, {
-    goal: '按项目约定改一下',
-    verify: 'manual',
-    repoPath: gitRepo(),
-    projectConstraints: '用 ESM\n不改上游',
-    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-  })
-  assert.equal(result.ok, true)
-  const room = result.body.room
-  assert.equal(room.projectConstraints.source, '用户输入')
-  assert.match(room.projectConstraints.content, /用 ESM/)
-  const brief = readFileSync(join(roomDir(room), 'BRIEF.md'), 'utf8')
-  assert.match(brief, /项目约束：用 ESM/)
-  assert.match(brief, /项目约束：不改上游/)
-})
-
 test('an unknown workspace provider fails before creating anything', async () => {
   const { store } = completedRoom(temp('lodge-resume-data-'))
   const result = await run(store, {
@@ -375,32 +202,6 @@ test('an unknown workspace provider fails before creating anything', async () =>
   })
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'invalid')
-})
-
-test('continuing without a real repo and without a source room fail closed', async () => {
-  const { store, room: source } = completedRoom(temp('lodge-resume-data-'))
-  const missingRepo = await run(store, {
-    goal: '继续',
-    verify: 'test',
-    acceptance: 'npm test',
-    continueFrom: source.id,
-    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-  })
-  assert.equal(missingRepo.ok, false)
-  assert.equal(missingRepo.reason, 'invalid')
-
-  const plain = { ...source, id: 'room-plain', state: 'stopped' }
-  store.writeRoom(plain)
-  const notImported = await run(store, {
-    goal: '继续',
-    verify: 'test',
-    acceptance: 'npm test',
-    repoPath: gitRepo(),
-    continueFrom: 'room-plain',
-    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-  })
-  assert.equal(notImported.ok, false)
-  assert.equal(notImported.reason, 'conflict')
 })
 
 test('a plan with more than three questions is rejected, not silently trimmed', async () => {
@@ -461,31 +262,6 @@ test('a plan stage with manual acceptance becomes a decision stage', async () =>
   const room = result.body.room
   assert.equal(room.stages[0].kind, 'decision')
   assert.equal(room.stages[0].acceptance, undefined)
-})
-
-test('a completed room can be used as a continuation source', async () => {
-  const { store, room: completed } = completedRoom(temp('lodge-fork-data-'))
-  const source = { ...completed, id: 'room-fork-source', state: 'complete' }
-  store.writeRoom(source)
-  mkdirSync(roomDir(source), { recursive: true })
-  writeFileSync(join(roomDir(source), 'BRIEF.md'), [
-    '# 目标：加一个导出按钮',
-    '',
-    'done:',
-    '- [x] 按钮可用',
-    '',
-  ].join('\n'))
-  const result = await run(store, {
-    goal: '在已完成房间上继续',
-    verify: 'test',
-    acceptance: 'npm test',
-    repoPath: gitRepo(),
-    continueFrom: source.id,
-    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-  })
-  assert.equal(result.ok, true)
-  assert.equal(result.body.room.continuedFrom.roomId, source.id)
-  assert.deepEqual(result.body.room.plan.done, ['按钮可用'])
 })
 
 test('a plan can declare multiple work stages between alignment and acceptance', async () => {
@@ -554,74 +330,6 @@ test('unknown room types fail closed', async () => {
   })
   assert.equal(result.ok, false)
   assert.match(result.error, /未知的房间类型/)
-})
-
-test('an active room can be forked into a new room without touching the source', async () => {
-  const { store, room: completed } = completedRoom(temp('lodge-fork-active-data-'))
-  const source = { ...completed, id: 'room-active-source', state: 'active' }
-  store.writeRoom(source)
-  mkdirSync(roomDir(source), { recursive: true })
-  writeFileSync(join(roomDir(source), 'BRIEF.md'), [
-    '# 目标：在做的房间',
-    '',
-    'done:',
-    '- [ ] 分叉后继承这一条',
-    '',
-  ].join('\n'))
-  const result = await run(store, {
-    goal: '从进行中房间分叉',
-    verify: 'test',
-    acceptance: 'npm test',
-    repoPath: gitRepo(),
-    continueFrom: source.id,
-    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-  })
-  assert.equal(result.ok, true)
-  assert.equal(result.body.room.continuedFrom.roomId, source.id)
-  assert.deepEqual(result.body.room.plan.done, ['分叉后继承这一条'])
-  assert.equal(store.readRoom(source.id).state, 'active')
-})
-
-test('a studio mounts its own Planner tool server only on the planner seat', async () => {
-  const { store } = completedRoom(temp('lodge-planner-tools-data-'))
-  const seats = []
-  const engine = fakeEngine()
-  engine.capabilities = () => ({ provisioning: true, mentions: true, mcp: true })
-  engine.createSeatBot = async args => {
-    seats.push(args)
-    return { id: `seat-${args.name}`, name: args.name, engine: 'claude', model: 'claude-sonnet-5' }
-  }
-  const ports = {
-    ...createCrewPorts(),
-    plannerMcp: {
-      ensure: async roomId => ({ server: `lodge-planner-${roomId}`, transport: 'http' }),
-      release: async () => {},
-    },
-  }
-  const result = await createRealRoom({
-    store,
-    engine,
-    live: fakeLive(),
-    emit: () => {},
-    body: {
-      goal: '工作室用 Planner 工具面',
-      roomType: 'studio',
-      verify: 'manual',
-      seats: [
-        { role: 'lead', name: '规划' },
-        { role: 'worker', name: '执行' },
-        { role: 'verifier', name: '验收' },
-      ],
-    },
-    ports,
-  })
-  assert.equal(result.ok, true)
-  const room = result.body.room
-  assert.equal(room.plannerTools.server, `lodge-planner-${room.id}`)
-  const planner = seats.find(seat => seat.roomTools.length > 0)
-  assert.equal(planner.name.startsWith('Lead'), true)
-  assert.deepEqual(planner.roomTools, [room.plannerTools.server])
-  assert.equal(seats.filter(seat => seat.roomTools.length > 0).length, 1)
 })
 
 test('a chat room has a configurable turn limit and no trust ladder', async () => {

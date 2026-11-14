@@ -3,15 +3,15 @@ import test from 'node:test'
 import { roomKinds, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
-  'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'resolvePlan', 'needsPlannerTools',
+  'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
-  'supportsSubrooms', 'acceptsChatDecision', 'leadSeatOf', 'record',
-  'initialMessages', 'provisionExtra', 'start', 'applyStageDependencies',
-  'bulletinAcceptance', 'approvalReadOnly', 'replayTransition',
+  'acceptsChatDecision', 'leadSeatOf', 'record',
+  'initialMessages', 'provisionExtra', 'start',
+  'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
-  'refresh', 'onSeatFailure', 'partialCount', 'deliveryOf', 'reviewOf',
+  'refresh', 'onSeatFailure', 'deliveryOf',
   'hostOf', 'speakerOf',
 ]
 
@@ -37,7 +37,7 @@ test('seat souls carry only their own mode discipline', () => {
   assert.doesNotMatch(studio, /聊天室/)
   const worker = roomModeForType('studio').seatSoul({ name: '乙', role: 'worker', prompt: '你是乙。' })
   assert.match(worker, /不改目标/)
-  assert.match(worker, /不要逐步叙述过程/)
+  assert.match(worker, /三行工作日志/)
   assert.doesNotMatch(worker, /PASS 或 REJECT/)
   const leadSoul = roomModeForType('studio').seatSoul({ name: '幕僚长', role: 'lead', prompt: '你是幕僚长。' })
   assert.match(leadSoul, /只在群里发派活与结论/)

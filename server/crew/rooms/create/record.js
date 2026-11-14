@@ -23,9 +23,6 @@ export const buildRoomRecord = ({
   workspaces,
   provider,
   workspaceCaps,
-  continueSource,
-  budgetMicroUsd,
-  projectContent,
   roomType,
   orchestration,
   builtStages,
@@ -33,13 +30,8 @@ export const buildRoomRecord = ({
   align,
   verify,
   acceptance,
-  verifierPolicy = 'all',
-  shadowReview = false,
   chatTurnLimit = null,
-  plannerTools = null,
   gate = null,
-  parentRoomId = null,
-  depth = 0,
 }) => {
   const chatLimit = Number.isInteger(chatTurnLimit) ? chatTurnLimit : CHAT_TURNS_PER_ROUND
   const mode = roomModeForType(roomType.id)
@@ -50,10 +42,6 @@ export const buildRoomRecord = ({
     acceptance,
     verifiers,
     independence,
-    continueSource,
-    verifierPolicy,
-    shadowReview,
-    plannerTools,
     gate,
     builtStages,
     chatLimit,
@@ -63,9 +51,6 @@ export const buildRoomRecord = ({
   kind: 'room',
   name: title,
   goal,
-  parentRoomId,
-  depth,
-  childRoomIds: [],
   templateId,
   plan,
   independence,
@@ -88,13 +73,9 @@ export const buildRoomRecord = ({
   workspaceEnv: workspaces.environment ?? {},
   repoPath: workspaces.roomPath ?? workspaces.seats[workers[0]?.id ?? lead.id].path,
   workspace: { provider: provider.id, capabilities: workspaceCaps },
-  ...(continueSource === null
-    ? {}
-    : { continuedFrom: { roomId: continueSource.id, name: continueSource.name } }),
   live: true,
   demo: false,
   state: 'active',
-  ...(shape.trust === undefined ? {} : { trust: shape.trust }),
   idle: false,
   round: 0,
   noProgress: 0,
@@ -122,12 +103,6 @@ export const buildRoomRecord = ({
     ...(personality === undefined || personality === '' ? {} : { personality }),
   })),
   constraints: shape.constraints,
-  usage: { costMicroUsd: 0, budgetMicroUsd, turns: 0 },
-  ...(projectContent === ''
-    ? {}
-    : {
-        projectConstraints: { source: '用户输入', content: projectContent },
-      }),
   members: roster.map(seat => seat.id),
   roomType: roomType.id,
   engine: shape.engine,
@@ -144,8 +119,6 @@ export const initialRoomMessages = ({
   templateId,
   roster,
   builtStages,
-  continueSource,
-  projectContent,
   workspaces,
   engineFallbacks,
 }) => roomModeForType(room.roomType).initialMessages({
@@ -154,8 +127,6 @@ export const initialRoomMessages = ({
   templateId,
   roster,
   builtStages,
-  continueSource,
-  projectContent,
   workspaces,
   engineFallbacks,
 })

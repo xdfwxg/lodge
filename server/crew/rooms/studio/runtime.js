@@ -9,7 +9,6 @@ export const createStudioRuntime = ({
   ports,
   approvals,
   refreshRoom,
-  onPlannerTool = null,
 }) => {
   const studioEngine = createStudioEngine({ engine })
 
@@ -26,8 +25,6 @@ export const createStudioRuntime = ({
         commands: ports.commands,
         files: ports.files,
         skills: ports.skills,
-        advisor: ports.advisor,
-        onPlannerTool,
       })
       // 已落证据的回合在重启后会被基座历史重放；先标记，避免重复采集。
       entry.turns.seed(store.readMessages(room.id))

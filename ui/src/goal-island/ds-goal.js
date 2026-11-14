@@ -144,7 +144,6 @@ function TaskRow({ task, working }) {
       ' ', task.task))
 }
 
-const STOP_ARM_MS = 3000
 
 // The open pod focuses one stage: a stepper across the top, the selected
 // stage's checks and tasks under it, and a bottom row with the rest.
@@ -152,14 +151,8 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
   const at = RUNNING.has(view.status) && goal.current < view.stages.length ? goal.current : -1
   const [selected, setSelected] = useState(at)
   const [checks, setChecks] = useState(false)
-  const [armed, setArmed] = useState(false)
   // The selected stage follows the goal's current one as stages pass.
   useEffect(() => setSelected(RUNNING.has(view.status) && goal.current < view.stages.length ? goal.current : -1), [view.status, goal.current])
-  useEffect(() => {
-    if (!armed) return undefined
-    const timer = setTimeout(() => setArmed(false), STOP_ARM_MS)
-    return () => clearTimeout(timer)
-  }, [armed])
   // Nodes too narrow for their number (14px, or 17px for two digits) drop it so the stepper still fits.
   const stepper = useRef(null)
   useEffect(() => {
@@ -172,14 +165,11 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
     measure()
     return () => observer.disconnect()
   }, [view.stages.length])
-  const control = action => void Promise.resolve(actions.goalControl(room.id, goal.id, action))
-    .catch(error => actions.reportError(error, 'goal'))
   const stage = selected >= 0 ? view.stages[selected] : undefined
   const sec = (key, label, ...body) => h('div', { key, className: 'bt-goal-sec' },
     h('div', { className: 'bt-goal-sub' }, label), ...body.map((line, i) => h('div', { key: i, className: 'bt-goal-text' }, line)))
   const hasChecks = goal.objective !== undefined || goal.acceptance !== undefined || goal.constraints?.length > 0
   const admin = roster.byId?.[room.admin]?.name ?? t('a Bot')
-  const stopWork = () => void Promise.resolve(actions.stopRoomWork(room.id)).catch(error => actions.reportError(error, 'stop'))
   return h('div', { className: 'bt-goal-panel', role: 'region', 'aria-label': view.title },
     h('div', { className: 'bt-goal-body' },
     view.status === 'drafting' ? null : h('div', { ref: stepper, className: 'bt-goal-steps', role: 'group', 'aria-label': t('Stages') },
@@ -219,14 +209,7 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
       hasChecks ? h('button', {
         type: 'button', className: 'bt-goal-checks', 'aria-expanded': checks, onClick: () => setChecks(!checks),
       }, h('span', { className: 'bt-goal-mchev', 'aria-hidden': true }, h(ChevronDownIcon)), t('Goal and checks')) : h('span'),
-      h('span', { className: 'bt-goal-facts' },
-        view.status === 'paused' && working.size > 0 ? h('button', { type: 'button', className: 'bt-goal-back', onClick: stopWork }, t('Stop current work too')) : null,
-        view.status === 'active' ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => control('pause') }, t('Pause')) : null,
-        view.status === 'paused' ? h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: () => control('resume') }, t('Resume')) : null,
-        view.status === 'active' || view.status === 'paused' ? h('button', {
-          type: 'button', className: 'bt-soft bt-soft-sm bt-goal-danger', 'data-armed': armed || undefined,
-          onClick: () => (armed ? control('stop') : setArmed(true)),
-        }, armed ? t('Stop the goal?') : t('Stop')) : null)))
+      h('span', { className: 'bt-goal-facts' })))
 }
 
 // The pod while the user writes the brief: the message goes to the admin, who
@@ -389,8 +372,6 @@ export const GOAL_CSS = `
 .bt-goal-mchev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
 .bt-goal-checks[aria-expanded=true] .bt-goal-mchev svg{transform:rotate(180deg)}
 .bt-goal-facts{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
-.bt-goal-danger{color:var(--bt-danger-text)}
-.bt-goal-danger[data-armed]{background:var(--bt-danger-wash);box-shadow:inset 0 0 0 1px var(--bt-line-danger)}
 .bt-goal-compose{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
 .bt-goal-clabel{font-size:12.5px;line-height:16px;font-weight:600;color:var(--bt-ink-2)}
 .bt-goal-input{min-height:52px;max-height:124px;resize:none;font-size:13.5px}

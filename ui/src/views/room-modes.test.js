@@ -6,8 +6,8 @@ import { roomUiKinds } from '../room/kinds.js'
 import { uiModes } from './room-modes.js'
 
 const REQUIRED = [
-  'buildViewModel', 'buildDecision', 'header', 'activity',
-  'decisionCard', 'transcript', 'presence', 'typing',
+  'buildViewModel', 'header', 'activity',
+  'transcript', 'presence', 'typing',
 ]
 
 const sourceRoot = fileURLToPath(new URL('..', import.meta.url))

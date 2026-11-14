@@ -129,12 +129,38 @@ test('stage chapters expand the active stage and compress passed stages', () => 
   assert.match(chapters[1].summary, /1 条证据 · 1 次复核/)
 })
 
+test('pre-stage room notices stay out of the first stage', () => {
+  const room = stagedRoom(['passed', 'passed'])
+  const chapters = buildStageChapters([
+    { id: 'notice', ts: 1, seq: 1, kind: 'system', text: '引擎降级' },
+    staged('dispatch', 2, 1, 'dispatch'),
+    staged('evidence', 3, 1, 'evidence'),
+  ], room)
+  assert.deepEqual(chapters.map(chapter => chapter.index), [-1, 1])
+  assert.equal(chapters[0].kind, 'prelude')
+  assert.equal(chapters[0].title, '准备')
+  assert.deepEqual(chapters[1].items.map(item => item.id), ['dispatch', 'evidence'])
+})
+
+test('empty stages do not create a chapter', () => {
+  const chapters = buildStageChapters([staged('work', 1, 2, 'dispatch')], stagedRoom(['passed', 'passed', 'active']))
+  assert.deepEqual(chapters.map(chapter => chapter.index), [2])
+})
+
 test('a complete room expands its last stage and compresses the rest', () => {
   const chapters = buildStageChapters([
     staged('a', 1, 0, 'evidence'),
     staged('b', 2, 1, 'evidence'),
   ], stagedRoom(['passed', 'passed']))
   assert.deepEqual(chapters.map(chapter => chapter.expanded), [false, true])
+})
+
+test('a complete room expands the last working stage, not the closing record', () => {
+  const chapters = buildStageChapters([
+    staged('e', 1, 0, 'evidence'),
+    staged('c', 2, 1, 'conclusion'),
+  ], stagedRoom(['passed', 'passed']))
+  assert.deepEqual(chapters.map(chapter => chapter.expanded), [true, false])
 })
 
 test('a room without stages keeps one process chapter', () => {
@@ -152,4 +178,15 @@ test('stage summaries fall back to a record count and skip human sign-offs', () 
     stageChapterSummary([staged('v', 1, 0, 'verdict', { human: true })], room),
     '1 条记录',
   )
+})
+
+test('stage summaries count evidence and verdicts from the full room history', () => {
+  const room = {
+    ...stagedRoom(['passed']),
+    messages: [
+      staged('e', 1, 0, 'evidence'),
+      staged('v', 2, 0, 'verdict', { pass: true }),
+    ],
+  }
+  assert.equal(stageChapterSummary([], room, 0), '1 条证据 · 1 次复核')
 })

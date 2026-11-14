@@ -1,8 +1,8 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { DemoStep, LiveGate, StageAction } from './stage-controls.js'
+import { LiveGate, StageAction } from './stage-controls.js'
 import { gateStatus, stageGate, stageNeedsHuman } from './stage-gate.js'
 
-function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswer, onSimulate, onSetAcceptance, onVerify, onRework }) {
+function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswer, onSetAcceptance, onVerify, onRework }) {
   const [localOpen, setLocalOpen] = useState(false)
   const open = controlledOpen ?? localOpen
   const setOpen = value => {
@@ -17,13 +17,11 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
   if (activeStage === undefined) return null
   const canAct = activeStage.kind === 'decision'
     ? activeStage.manual !== true || manualReady
-    : room.demo === true ? !hasPass : room.live === true && !hasPass
+    : room.live === true && !hasPass
   if (!canAct || !stageNeedsHuman(room, activeIndex)) return null
   const body = activeStage.kind === 'decision'
     ? h(StageAction, { room, stage: activeStage, index: activeIndex, onAccept, onAnswer, onRework })
-    : room.demo === true
-      ? h(DemoStep, { stage: activeStage, index: activeIndex, onSimulate })
-      : h(LiveGate, { room, stage: activeStage, index: activeIndex, onSetAcceptance, onVerify, onAccept, onRework })
+    : h(LiveGate, { room, stage: activeStage, index: activeIndex, onSetAcceptance, onVerify, onAccept, onRework })
   return h('div', { className: 'crew-stage-dock', 'data-open': open },
     h('button', {
       type: 'button',

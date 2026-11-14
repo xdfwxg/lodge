@@ -17,7 +17,6 @@ const REVIEW_PATTERNS = [
 const constrains = (room, kind) => {
   const text = [
     ...(Array.isArray(room?.constraints) ? room.constraints : []),
-    ...(typeof room?.projectConstraints?.content === 'string' ? [room.projectConstraints.content] : []),
   ].join('\n')
   if (kind === 'push' && /(不|禁止|不要).{0,8}(push|推送)|no push/i.test(text)) return '房间约束禁止 push'
   if (kind === 'network' && /(不|禁止|不要).{0,8}(联网|网络)|no network/i.test(text)) return '房间约束禁止联网'

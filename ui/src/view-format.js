@@ -11,11 +11,6 @@ const timeOf = ts => {
   }
 }
 
-const money = micro => {
-  const usd = micro / 1_000_000
-  return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(3)}`
-}
-const countOf = value => (value ?? 0).toLocaleString('zh-CN')
 const durationOf = value => {
   const total = Math.max(0, Math.floor((Number(value) || 0) / 1000))
   if (total < 60) return `${total}s`
@@ -45,8 +40,6 @@ const seatPermissionOf = (room, seat) => {
 export {
   MD,
   timeOf,
-  money,
-  countOf,
   durationOf,
   independenceOf,
   workspaceOf,

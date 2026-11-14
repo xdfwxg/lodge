@@ -10,7 +10,7 @@
 //
 // 规范化 Room：
 //   { id, name, sessionRef, goal, working, busyRef, queue, holds, heldMessages,
-//     tasks, unread, cwd, usage }
+//     tasks, unread, cwd }
 
 export const RUNTIME_EVENT = Object.freeze({
   delta: 'delta',

@@ -69,7 +69,6 @@ const briefText = (room, plan = null) => {
     ...(room.verifiers?.length > 0
       ? ['验收由验收席位独立复核，最终由人签字']
       : ['验收由你凭证据签字']),
-    ...projectConstraintLines(room.projectConstraints?.content).map(line => `项目约束：${line}`),
   ])]
   return [
     `# 目标：${room.goal}`,

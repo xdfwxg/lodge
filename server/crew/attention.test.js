@@ -43,14 +43,6 @@ test('a pending external approval outranks a busy seat', () => {
   assert.deepEqual(roomNeedsYou(r, []), { kind: 'approval', stage: null, label: '等你批准外部动作' })
 })
 
-test('a budget pause asks the human to raise it', () => {
-  assert.deepEqual(roomNeedsYou({ state: 'paused', pauseReason: 'budget' }, []), {
-    kind: 'budget',
-    stage: null,
-    label: '预算已用尽 · 等你处理',
-  })
-})
-
 test('a seat engine error asks the human to intervene with a concrete reason', () => {
   assert.deepEqual(roomNeedsYou({
     state: 'paused',

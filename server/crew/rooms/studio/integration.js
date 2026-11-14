@@ -49,23 +49,6 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
       return
     }
 
-    if (failed.length > 0) {
-      const nameOf = seat => room.seatNames?.[seat] ?? seat
-      const partial = { failed: [...failed], workers: [...workers], at: Date.now() }
-      const updated = store.updateRoom(roomId, current => {
-        const target = current.stages[stageIndex]
-        if (target === undefined) return null
-        target.partial = partial
-        return { events: [{ type: 'stage.partial', payload: { stage: stageIndex, failed, workers } }] }
-      })
-      if (updated !== null) emit?.('room', updated)
-      store.appendMessage(roomId, {
-        kind: 'system',
-        text: `部分成功：${failed.map(nameOf).join('、')} 没有产出，继续用 ${workers.map(nameOf).join('、')} 验收。`,
-      })
-      updateTasks(stageIndex, current => failed.reduce((stageState, seat) => markTask(stageState, seat, 'failed'), current))
-    }
-
     const merged = []
     for (const worker of workers) {
       const branch = room.branches?.[worker]
@@ -73,7 +56,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
       if ((typeof branch !== 'string' || branch === '') && (typeof source !== 'string' || source === '')) continue
       const result = workspaceOf(room).integrate({ path: integration, branch: branch ?? '', source })
       if (!result.ok) {
-        const name = room.seatNames?.[worker] ?? worker
+        const name = seatDisplayName(room, worker)
         const label = typeof branch === 'string' && branch !== '' ? branch : '工作副本'
         const files = result.files.length > 0 ? result.files.join('、') : '未知文件'
         store.appendMessage(roomId, {
@@ -142,7 +125,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     } finally {
       workspaceOf(room).removeIsolatedCopy({ source: room.sourceRepo, copy })
     }
-    const names = workers.map(worker => room.seatNames?.[worker] ?? worker).join('、')
+    const names = workers.map(worker => seatDisplayName(room, worker)).join('、')
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',

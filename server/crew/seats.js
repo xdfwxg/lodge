@@ -197,6 +197,7 @@ export const validateRoster = (seats, { requireWorker = true } = {}) => {
   }
   for (const seat of seats) validateCapabilities(seat)
   const { workers, verifiers } = roleSeats(seats)
+  if (verifiers.length > 1) throw new Error('seat contract: at most one verifier')
   const leads = seats.filter(seat => seat.role === 'lead')
   if (leads.length > 1) throw new Error('seat contract: at most one lead')
   if (requireWorker && workers.length === 0) throw new Error('seat contract: at least one worker is required')

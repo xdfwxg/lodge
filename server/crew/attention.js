@@ -9,7 +9,6 @@ export const roomNeedsYou = (room, messages = []) => {
     return { kind: 'approval', stage: null, label: '等你批准外部动作' }
   }
   if (room.state === 'paused') {
-    if (room.pauseReason === 'budget') return { kind: 'budget', stage: null, label: '预算已用尽 · 等你处理' }
     if (room.pauseReason === 'mcp') return { kind: 'mcp', stage: null, label: 'MCP 熔断 · 等你恢复' }
     if (room.pauseReason === 'approval') return { kind: 'approval', stage: null, label: '外部动作审批超时 · 等你处理' }
     if (room.pauseReason === 'seat_error') {

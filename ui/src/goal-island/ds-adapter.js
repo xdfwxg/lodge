@@ -106,15 +106,12 @@ const PILL_CSS = `
 .bt-input:focus{border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash);outline:none}
 .bt-input:disabled{opacity:.55;cursor:not-allowed}
 .bt-input-area{height:auto;min-height:96px;padding:8px 10px;line-height:18px;resize:vertical}
-.bt-goal-danger{color:var(--bt-danger-text)}
-.bt-goal-danger[data-armed]{background:var(--bt-danger-wash);box-shadow:inset 0 0 0 1px var(--bt-line-danger)}
 .crew-ds-goal{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px 32px 0}
-.crew-ds-goal-tools{display:flex;align-items:center;gap:6px;padding-left:2px}
 @keyframes bt-veil-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (max-width:760px){.crew-ds-goal{padding:10px 14px 0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-open]{width:calc(100% - 8px)}}
 `
 
-export function DsGoalHeader({ room, seats, store, actions = {} }) {
+export function DsGoalHeader({ room, seats }) {
   const [open, setOpen] = useState(false)
   useEffect(() => setOpen(false), [room.id])
   const goal = toDsGoal(room)
@@ -126,13 +123,6 @@ export function DsGoalHeader({ room, seats, store, actions = {} }) {
     toggleGoal: () => setOpen(value => !value),
     closeGoal: () => setOpen(false),
     closeGoalCompose: () => {},
-    goalControl: (roomId, goalId, action) => {
-      if (action === 'pause') return store.pause()
-      if (action === 'resume') return store.resume()
-      if (action === 'stop') return store.stop()
-      return null
-    },
-    stopRoomWork: () => store.stop(),
     goalDraft: async () => {},
     reportError: (error, area) => console.error(`goal ${area}`, error),
   }
@@ -148,11 +138,5 @@ export function DsGoalHeader({ room, seats, store, actions = {} }) {
       actions: goalActions,
       pill: pill({ room, view, open, onToggle: goalActions.toggleGoal }),
     }),
-    h('div', { className: 'crew-ds-goal-tools' },
-      h('button', { type: 'button', className: 'crew-ghost', onClick: actions.audit }, '审计详情'),
-      h('button', { type: 'button', className: 'crew-ghost', onClick: actions.review }, '复盘'),
-      actions.continue === undefined
-        ? null
-        : h('button', { type: 'button', className: 'crew-ghost', onClick: actions.continue }, room.state === 'complete' ? '基于此记录续做' : '分叉')),
     h('style', null, `${GOAL_CSS}\n${PILL_CSS}`))
 }

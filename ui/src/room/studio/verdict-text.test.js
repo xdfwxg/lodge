@@ -15,3 +15,17 @@ test('a verdict keeps one summary line and folds the rest', () => {
     detail: '1. 命令退出码 0\n2. 文件齐全',
   })
 })
+
+test('a conclusion written on the PASS line is not swallowed', () => {
+  assert.deepEqual(
+    splitVerdictText('PASS 产物达标：greet(name) 返回 hello Ada，测试通过。 - 改动仅 src/greet.js。 - 测试文件未改。'),
+    {
+      summary: '产物达标：greet(name) 返回 hello Ada，测试通过。',
+      detail: '- 改动仅 src/greet.js。 - 测试文件未改。',
+    },
+  )
+  assert.deepEqual(splitVerdictText('PASS：产物达标。'), {
+    summary: '产物达标。',
+    detail: '',
+  })
+})

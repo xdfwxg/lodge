@@ -30,41 +30,19 @@ test('studio modules do not read room.chat', () => {
     'rooms/studio/turns.js',
     'rooms/studio/delivery.js',
     'rooms/studio/gates.js',
-    'rooms/studio/review-report.js',
     'rooms/studio/complete.js',
-    'rooms/studio/repair.js',
     'rooms/studio/service-stages.js',
     'rooms/studio/service-closure.js',
-    'rooms/studio/service-trust.js',
-    'rooms/studio/trust.js',
-    'rooms/studio/rewind.js',
-    'rooms/studio/service-subrooms.js',
-    'rooms/studio/subrooms.js',
     'rooms/studio/verifiers.js',
     'rooms/studio/stage-plan.js',
     'rooms/studio/tasks.js',
     'rooms/studio/progress.js',
     'rooms/studio/seat-handoff.js',
-    'rooms/studio/handoff.js',
-    'rooms/studio/demo.js',
     'rooms/studio/gate.js',
     'room-types/studio.js',
   ]) {
     const source = read(file)
     assert.doesNotMatch(source, /\broom\??\.chat\b/, `${file} reads room.chat`)
-  }
-})
-
-test('shared trust policy does not depend on a room mode', () => {
-  assert.doesNotMatch(read('trust.js'), /from\s+['"][^'"]*rooms\//)
-})
-
-test('advisor advice code has no pass/verdict authority', () => {
-  for (const file of ['advisor.js', 'rooms/studio/gate.js']) {
-    const source = read(file)
-    assert.doesNotMatch(source, /\bpass\s*:/, `${file} writes a pass field`)
-    assert.doesNotMatch(source, /\breject\s*:/, `${file} writes a reject field`)
-    assert.doesNotMatch(source, /\bverdict\s*:/, `${file} writes a verdict field`)
   }
 })
 
@@ -121,10 +99,6 @@ test('static discipline lives in seat souls, not per-turn prompts', () => {
   }
 })
 
-test('adding a seat reuses the room mode soul', () => {
-  assert.match(read('service-seat-add.js'), /seatSoul/, 'seat added later skips the mode soul')
-})
-
 test('the shared state-machine mechanism knows no room mode', () => {
   const text = read('room-state.js')
   assert.doesNotMatch(text, /\b(chat|studio)\b/i, 'room-state.js hardcodes a mode')
@@ -140,14 +114,12 @@ test('kernel modules read context state only through facades or kinds', () => {
     'kernel/live/approvals.js',
     'attention.js',
     'presentation.js',
-    'resources.js',
     'service-queries.js',
     'rooms/create/create.js',
     'rooms/create/input.js',
     'rooms/create/record.js',
     'rooms/create/provision.js',
-    'service-seat-add.js',
-  ]
+    ]
   for (const file of kernel) {
     const text = read(file)
     for (const field of ['chat', 'chatHost', 'stages', 'closure']) {
@@ -160,10 +132,3 @@ test('kernel modules read context state only through facades or kinds', () => {
   }
 })
 
-test('a subroom cannot rewrite the parent closure', () => {
-  for (const file of ['rooms/studio/service-subrooms.js', 'rooms/studio/subrooms.js']) {
-    const source = read(file)
-    assert.doesNotMatch(source, /\bparent\??\.closure\s*=/, `${file} writes parent.closure`)
-    assert.doesNotMatch(source, /\bcurrent\.closure\s*=/, `${file} writes current.closure`)
-  }
-})

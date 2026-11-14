@@ -29,14 +29,7 @@ export const buildSeatHandoff = ({ room, messages = [] } = {}) => {
   if ((room.constraints ?? []).length > 0) {
     lines.push('约束：', ...room.constraints.slice(0, CONSTRAINT_LIMIT).map(item => `- ${item}`))
   }
-  if (room.projectConstraints?.content) {
-    const projectLines = String(room.projectConstraints.content)
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line !== '' && !line.startsWith('#'))
-      .slice(0, 6)
-    if (projectLines.length > 0) lines.push('项目约束（LODGE.md 快照）：', ...projectLines.map(line => `- ${line}`))
-  }
+
   const stages = stageDigest(room, messages)
   if (stages.length > 0) lines.push('阶段进展：', ...stages.map(item => `- ${item}`))
   const feedback = feedbackOf(messages)

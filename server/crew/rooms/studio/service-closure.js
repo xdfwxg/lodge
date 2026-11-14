@@ -3,7 +3,7 @@ import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 
 // closure 只属于工作室。Planner 只能在进入执行前拒绝目标，执行后收归 Verifier。
-export const createServiceClosure = ({ store, emit, plannerMcp = null }) => {
+export const createServiceClosure = ({ store, emit }) => {
   const rejectPlan = (room, body = {}) => {
     if (roomModeOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '只有工作室有 closure')
     if (room.state !== 'active') return fail('conflict', '房间不在进行中')
@@ -29,7 +29,6 @@ export const createServiceClosure = ({ store, emit, plannerMcp = null }) => {
       meta: { roleKind: 'planner', closure: 'rejected', at: Date.now() },
     })
     emit('room', updated)
-    void plannerMcp?.release?.(room.id)
     return ok({ room: updated, message })
   }
 

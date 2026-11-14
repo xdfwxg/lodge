@@ -11,16 +11,15 @@ import { createChatRuntime } from '../chat/runtime.js'
 import { createStudioRuntime } from '../studio/runtime.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
-export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, approvalTimeoutMs, onPlannerTool = null }) => {
-  const { roomFiles, usage, commands, files, skills, advisor } = ports
+export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs }) => {
+  const { roomFiles, commands, files, skills } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
-  const refresher = createRoomRefresher({ store, engine, emit, usage })
+  const refresher = createRoomRefresher({ store, engine, emit })
   const approvals = createLiveApprovals({
     store,
     engine,
     emit,
-    gateAgent,
     approvalTimeoutMs,
     readOnlyFor: room => roomModeOfRoom(room)?.approvalReadOnly?.(room) === true,
   })
@@ -28,7 +27,7 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
   const refreshRoom = refresher.refresh
   const strategies = [
     createChatRuntime({ store, engine, emit, refreshRoom }),
-    createStudioRuntime({ store, engine, emit, ports, approvals, refreshRoom, onPlannerTool }),
+    createStudioRuntime({ store, engine, emit, ports, approvals, refreshRoom }),
   ]
   const strategyFor = room => {
     const typeId = resolveRoomType(room?.roomType)?.id ?? ''

@@ -21,9 +21,14 @@ test('a dispatch becomes a stage baton with the receiving seats', () => {
   assert.deepEqual(baton, {
     from: '规划师',
     to: '执行官',
+    handle: '',
+    status: '',
+    reason: 'dispatch',
     stage: '2',
     acceptance: 'npm test',
+    scope: '',
     rework: false,
+    workTurn: null,
     text: '阶段 2 交给执行官。',
   })
 })
@@ -51,6 +56,16 @@ test('seat names fall back to the UI seat map', () => {
   assert.equal(baton.to, '执行官')
 })
 
+test('a dispatch keeps the declared write scope', () => {
+  const baton = batonOf({
+    kind: 'dispatch',
+    authorId: 'lead',
+    text: '阶段 2 交给执行官。写范围只有 `src/cli.js` 和 `test/cli.test.js`；验收命令：`npm test`。',
+    meta: { stage: 1, workers: ['worker'], acceptance: 'npm test' },
+  }, room)
+  assert.equal(baton.scope, 'src/cli.js')
+})
+
 test('a rework dispatch keeps its rework marker', () => {
   const baton = batonOf({
     kind: 'dispatch',
@@ -60,4 +75,36 @@ test('a rework dispatch keeps its rework marker', () => {
   }, room)
   assert.equal(baton.rework, true)
   assert.equal(baton.stage, '1')
+})
+
+test('a handoff baton carries the target handle, status and work turn', () => {
+  const baton = batonOf({
+    kind: 'handoff',
+    authorId: 'worker',
+    text: '阶段 2「实现」接力 → 验收员 · 验收 npm test',
+    meta: {
+      stage: 1,
+      from: 'worker',
+      to: 'verifier',
+      workers: ['verifier'],
+      targetHandle: 'VerifierBase',
+      reason: 'review',
+      status: 'sent',
+      acceptance: 'npm test',
+      workTurn: {
+        done: ['测试通过'],
+        constraints: ['不改测试'],
+        evidence: { command: 'npm test', exit: 0, changedFiles: ['src/add.js'] },
+        verdict: null,
+        candidate: null,
+      },
+    },
+  }, room)
+  assert.equal(baton.from, '执行官')
+  assert.equal(baton.to, '验收员')
+  assert.equal(baton.handle, 'VerifierBase')
+  assert.equal(baton.status, 'sent')
+  assert.equal(baton.reason, 'review')
+  assert.equal(baton.workTurn.done[0], '测试通过')
+  assert.equal(baton.workTurn.evidence.changedFiles[0], 'src/add.js')
 })

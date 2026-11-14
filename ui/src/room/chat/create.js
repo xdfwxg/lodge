@@ -10,7 +10,6 @@ export const buildChatRequest = ({
   chatTurnLimit,
   defaultSeats,
   choices,
-  continueFrom,
   selectedModelOf,
 }) => {
   const seats = normalizeSeats(defaultSeats).map((seat, index) => {
@@ -31,7 +30,6 @@ export const buildChatRequest = ({
     chatTurnLimit,
     repoPath,
     ...(seats.length > 0 ? { seats } : {}),
-    ...(continueFrom === undefined || continueFrom === null ? {} : { continueFrom }),
     goal,
   }
 }

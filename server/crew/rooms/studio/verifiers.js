@@ -5,17 +5,9 @@ export const verifierIds = room => (
     : []
 )
 
-export const verifierPolicyOf = room => (
-  room?.verifierPolicy === 'majority' && verifierIds(room).length > 1 ? 'majority' : 'all'
-)
-
-export const quorumOf = (total, policy = 'all') => (
-  policy === 'majority' ? Math.floor(total / 2) + 1 : total
-)
-
-const verdictOutcome = ({ ids, verdicts, policy }) => {
+const verdictOutcome = ({ ids, verdicts }) => {
   const total = ids.length
-  const required = quorumOf(total, policy)
+  const required = total
   const passes = verdicts.filter(message => message.meta?.pass === true).length
   const rejects = verdicts.filter(message => message.meta?.pass !== true)
   const missing = ids.filter(id => !verdicts.some(message => message.authorId === id))
@@ -100,7 +92,7 @@ export const manualReviewState = ({ room, evidence, messages, stageIndex }) => {
     latest.set(message.authorId, message)
   }
   const verdicts = ids.map(id => latest.get(id)).filter(message => message !== undefined)
-  const outcome = verdictOutcome({ ids, verdicts, policy: verifierPolicyOf(room) })
+  const outcome = verdictOutcome({ ids, verdicts,  })
   return { ...outcome, evidence: found }
 }
 
@@ -122,7 +114,7 @@ export const reviewState = ({ room, evidence, messages, stageIndex }) => {
     latest.set(message.authorId, message)
   }
   const verdicts = ids.map(id => latest.get(id)).filter(message => message !== undefined)
-  const outcome = verdictOutcome({ ids, verdicts, policy: verifierPolicyOf(room) })
+  const outcome = verdictOutcome({ ids, verdicts,  })
   return { ...outcome, evidence: found }
 }
 

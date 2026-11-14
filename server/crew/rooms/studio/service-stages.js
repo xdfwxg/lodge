@@ -1,106 +1,14 @@
-import { budgetHint, budgetStatus } from '../../budget.js'
 import { gateFor } from './gates.js'
 import { fail, ok } from '../../result.js'
 import { acceptanceChangeError } from '../../service-policy.js'
-import { editStages, FINAL_TITLE } from './stage-plan.js'
+import { FINAL_TITLE } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
-import { childResultText, childVerdictsOf } from './subrooms.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { seatDisplayName } from '../../seat-labels.js'
 
-export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, plannerMcp = null }) => {
-  const { readRooms, readMessages, readEvidence, updateRoom, appendMessage } = store
-
-  const editStagePlan = (room, body) => {
-    const result = editStages(room, body?.action, body?.index, body?.stage)
-    if (result.error !== undefined) return fail('invalid', result.error)
-    const updated = updateRoom(room.id, current => {
-      current.stages = result.stages
-      return { events: [result.event] }
-    })
-    if (updated === null) return fail('not_found', '没有这个房间')
-    roomFiles.writeGoal(updated)
-    emit('room', updated)
-    appendMessage(room.id, {
-      kind: 'system',
-      text: result.event.type === 'stage.added'
-        ? `已添加阶段：${updated.stages[result.event.payload.index]?.title ?? ''}`
-        : result.event.type === 'stage.removed'
-          ? '已移除一个未开始阶段'
-          : `已更新阶段：${updated.stages[result.event.payload.index]?.title ?? ''}`,
-    })
-    return ok({ room: updated })
-  }
-
-  const stageConclusion = (room, stage, index, next) => {
-    const messages = readMessages(room.id)
-    const floor = reworkFloor(messages, index)
-    const evidence = [...messages].reverse().find(message => (
-      message.kind === 'evidence' &&
-      (message.seq ?? 0) > floor &&
-      message.meta?.kind === 'command' &&
-      (message.meta?.stage ?? 0) === index
-    ))
-    const verdicts = messages
-      .filter(message => (
-        message.kind === 'verdict' &&
-        (message.meta?.stage ?? 0) === index &&
-        (message.seq ?? 0) > floor
-      ))
-      .slice(-5)
-      .map(message => ({
-        name: seatDisplayName(room, message.authorId),
-        pass: message.meta?.pass === true,
-      }))
-    return {
-      kind: 'stage_conclusion',
-      authorId: 'system',
-      text: `阶段 ${index + 1}「${stage.title}」已通过`,
-      meta: {
-        stage: index,
-        title: stage.title,
-        command: typeof evidence?.meta?.command === 'string' ? evidence.meta.command : '',
-        exit: evidence?.meta?.exit ?? null,
-        files: Array.isArray(evidence?.meta?.files) ? evidence.meta.files : [],
-        verdicts,
-        next: next >= 0 ? room.stages[next]?.title ?? null : null,
-      },
-    }
-  }
-
-  const notifyParent = child => {
-    if (typeof child?.parentRoomId !== 'string' || child.parentRoomId === '') return
-    const parent = store.readRoom(child.parentRoomId)
-    if (parent === null) return
-    const verdicts = childVerdictsOf(readMessages(child.id))
-    const text = childResultText(child, verdicts)
-    appendMessage(parent.id, {
-      kind: 'child_result',
-      authorId: 'system',
-      text,
-      meta: {
-        childRoomId: child.id,
-        childName: child.name,
-        depth: child.depth ?? 1,
-        verdicts,
-      },
-    })
-    const linked = updateRoom(parent.id, current => {
-      current.childResults = [...(current.childResults ?? []), { roomId: child.id, name: child.name, at: Date.now() }].slice(-10)
-      return { events: [{ type: 'room.child_result', payload: { childRoomId: child.id } }] }
-    })
-    if (linked !== null) emit('room', linked)
-    if (typeof live.isAttached === 'function' && live.isAttached(parent.id) === true) {
-      const lead = parent.leadSeat ?? parent.members?.[0]
-      const leadName = parent.seatNames?.[lead]
-      if (typeof lead === 'string' && typeof leadName === 'string') {
-        void live.sendToSeat(parent.id, lead, `@${leadName} ${text}\n请只依据这些 verdict 决定下一步。`).catch(error => {
-          appendMessage(parent.id, { kind: 'system', text: `子工作室结果未能唤醒 Planner：${error?.message ?? error}` })
-        })
-      }
-    }
-  }
+export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
+  const { readMessages, readEvidence, updateRoom, appendMessage } = store
 
   const accept = (room, body) => {
     const index = Number(body.stage)
@@ -189,32 +97,10 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       })
     }
     let finalRoom = next < 0 ? completeRoom(room) ?? room : room
-    if (next < 0) void plannerMcp?.release?.(room.id)
-    if (next < 0 && finalRoom.parentRoomId !== null && finalRoom.parentRoomId !== undefined) notifyParent(finalRoom)
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
-      const status = budgetStatus(room, readRooms())
-      if (!status.ok) {
-        const paused = updateRoom(room.id, current => {
-          if (current.state !== 'active') return null
-          current.state = 'paused'
-          current.pauseReason = 'budget'
-          current.budgetBlocked = true
-          current.idle = false
-          return { events: [{ type: 'room.budget_pause', payload: { reason: status.roomBlocked ? 'room' : 'global' } }] }
-        })
-        if (paused !== null) {
-          appendMessage(room.id, {
-            kind: 'system',
-            text: `预算已用尽：${status.message}；下一阶段已暂停，${budgetHint(status)}。`,
-          })
-          emit('room', paused)
-          finalRoom = paused
-        }
-      } else {
-        void live.startStage(room, next).catch(error => {
-          appendMessage(room.id, { kind: 'system', text: `启动执行失败：${error?.message ?? error}` })
-        })
-      }
+      void live.startStage(room, next).catch(error => {
+        appendMessage(room.id, { kind: 'system', text: `启动执行失败：${error?.message ?? error}` })
+      })
     }
     return ok({ room: finalRoom })
   }
@@ -231,8 +117,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       return fail('conflict', '复核进行中，先等验收结论')
     }
     if (stage.state !== 'active') return fail('conflict', '这个阶段不在待返工状态')
-    const status = budgetStatus(room, readRooms())
-    if (!status.ok) return fail('conflict', `${status.message}；${budgetHint(status)}`)
     const message = appendMessage(room.id, {
       kind: 'rework',
       authorId: 'you',
@@ -295,5 +179,5 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     return ok({ room, message })
   }
 
-  return { editStagePlan, accept, rework, setAcceptance }
+  return { accept, rework, setAcceptance }
 }

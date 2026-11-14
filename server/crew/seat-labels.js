@@ -3,6 +3,17 @@ export const seatDisplayName = (room, seatId) => (
   room?.seatSpecs?.find(seat => seat.id === seatId)?.name ?? seatId
 )
 
+// 基座 handle 只在跨边界时使用；展示、日志、卡片统一走 seatDisplayName。
+export const seatHandle = (room, seatId) => {
+  const handle = room?.seatNames?.[seatId]
+  return typeof handle === 'string' ? handle.trim() : ''
+}
+
+export const seatMention = (room, seatId) => {
+  const handle = seatHandle(room, seatId)
+  return handle === '' ? '' : `@${handle}`
+}
+
 // 只给展示用的席位名映射；seatNames 存的是基座 handle，不参与展示。
 export const seatLabelMap = room => Object.fromEntries(
   (room?.seatSpecs ?? []).map(seat => [seat.id, seat.name]),

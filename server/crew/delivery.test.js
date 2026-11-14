@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildDelivery, deliveryMarkdown } from './rooms/studio/delivery.js'
-import { evidenceDigest, evidenceEntryFromMessage } from './evidence-ledger.js'
+import { buildDelivery } from './rooms/studio/delivery.js'
 import { presentRoom } from './presentation.js'
 
 const room = (over = {}) => ({
@@ -26,7 +25,7 @@ const messages = [
   { id: 'v1', kind: 'verdict', authorId: 'verifier', seq: 2, ts: 11, text: 'PASS', meta: { stage: 1, pass: true, evidenceId: 'e1' } },
 ]
 
-test('the delivery sheet projection keeps goal, commands, files, verdicts and commit', () => {
+test('the delivery card keeps goal, commands, files, verdicts and commit', () => {
   const delivery = buildDelivery(room(), messages)
   assert.equal(delivery.goal, '保存后刷新仍生效')
   assert.equal(delivery.commit, 'abcdef123456')
@@ -34,22 +33,10 @@ test('the delivery sheet projection keeps goal, commands, files, verdicts and co
   assert.deepEqual(delivery.changedFiles, ['src/a.js'])
   assert.equal(delivery.stages[1].verdicts[0].pass, true)
   assert.equal(delivery.commands.length, 1)
-  assert.match(delivery.commands[0].digest, /^[a-f0-9]{64}$/)
-  assert.equal(delivery.ledger.length, 1)
-  assert.equal(delivery.integrity.ok, true)
-  assert.equal(delivery.integrity.verified, 1)
+  assert.equal(delivery.evidenceCount, 1)
 })
 
-test('a stored ledger with a broken digest makes the delivery fail the integrity check', () => {
-  const entry = { ...evidenceEntryFromMessage(messages[0]), digest: evidenceDigest(evidenceEntryFromMessage(messages[0])) }
-  const tampered = { ...entry, digest: 'f'.repeat(64) }
-  const delivery = buildDelivery(room(), messages, [tampered])
-  assert.equal(delivery.integrity.ok, false)
-  assert.equal(delivery.integrity.broken.length, 1)
-  assert.equal(delivery.stages[1].commands[0].digest, tampered.digest)
-})
-
-test('a room event only carries a delivery sheet after completion', () => {
+test('a room event only carries a delivery card after completion', () => {
   assert.equal(presentRoom(room({ state: 'active' }), messages).delivery, null)
   assert.equal(presentRoom(room(), messages).delivery.goal, '保存后刷新仍生效')
 })
@@ -70,25 +57,12 @@ test('manual evidence is not a passed command and artifacts stay in the workspac
   assert.equal(delivery.workspacePath, '/tmp/room')
 })
 
-test('a manual stage carries its changed files into the delivery sheet', () => {
+test('a manual stage carries its changed files into the delivery card', () => {
   const delivery = buildDelivery(room(), [
     { id: 'm1', kind: 'evidence', seq: 1, ts: 10, meta: { stage: 1, kind: 'manual', files: ['NOTES.md'], changedFiles: ['NOTES.md'] } },
   ])
   assert.deepEqual(delivery.stages[1].manual.changedFiles, ['NOTES.md'])
   assert.deepEqual(delivery.changedFiles, ['NOTES.md'])
-  assert.match(deliveryMarkdown(delivery), /NOTES\.md/)
-})
-
-test('the delivery sheet exports as portable markdown', () => {
-  const text = deliveryMarkdown(buildDelivery(room(), messages))
-  assert.match(text, /# 交付单：设置页保存/)
-  assert.match(text, /结论 commit：abcdef123456/)
-  assert.match(text, /npm test` · exit 0/)
-  assert.match(text, /复核 · PASS/)
-  assert.match(text, /src\/a\.js/)
-  assert.match(text, /## 证据账本/)
-  assert.match(text, /digest [a-f0-9]{64}/)
-  assert.match(text, /完整性：1\/1 条凭证摘要一致/)
 })
 
 test('delivery verdicts print roster names, not base handles', () => {
@@ -98,6 +72,4 @@ test('delivery verdicts print roster names, not base handles', () => {
   })
   const delivery = buildDelivery(withRoster, messages)
   assert.equal(delivery.seatNames.verifier, '验收员')
-  assert.match(deliveryMarkdown(delivery), /复核：验收员 · PASS/)
-  assert.doesNotMatch(deliveryMarkdown(delivery), /Verifierf0d790/)
 })
