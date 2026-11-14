@@ -20,12 +20,6 @@ const FALLBACK_ROOM_TYPES = ROOM_TYPE_MANIFEST.map(({ id, name, description, def
 
 const CHAT_BASE_SEATS = 3
 
-const ORCHESTRATION_LABEL = {
-  pipeline: '流水线',
-  parallel: '并行扇出',
-  critique: '对抗复核',
-}
-
 const DEFAULT_SEATS = normalizeSeats([
   { role: 'lead', name: '规划师' },
   { role: 'worker', name: '执行官' },
@@ -346,10 +340,7 @@ function NewRoomDialog({
         h('b', null, '执行步骤'),
         h('ul', { className: 'crew-brief' },
           proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
-            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你拍板' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))),
-        ORCHESTRATION_LABEL[proposal.orchestration] === undefined
-          ? null
-          : h('p', { className: 'crew-field-hint' }, `编排：${ORCHESTRATION_LABEL[proposal.orchestration]}`))
+            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你拍板' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))))
       : null,
     (proposal.questions ?? []).length > 0
       ? h('div', { className: 'crew-proposal-block' },

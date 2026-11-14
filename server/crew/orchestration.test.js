@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { defaultOrchestrationId, listOrchestrations, planDispatch, resolveAssigneeTokens, resolveOrchestration, reviewGuidanceFor } from './orchestration/index.js'
+import { defaultOrchestrationId, planDispatch, resolveAssigneeTokens, resolveOrchestration, reviewGuidanceFor } from './orchestration/index.js'
 
 const workers = ['executor', 'executor-2']
 
@@ -43,15 +43,12 @@ test('critique keeps one dispatcher and adds adversarial review guidance', () =>
   const strategy = resolveOrchestration('critique')
   assert.equal(strategy.planStage({ stage: {}, workers }).assignees.length, 1)
   assert.match(strategy.reviewGuidance, /反例/)
-  const listed = listOrchestrations().find(item => item.id === 'critique')
-  assert.match(listed.reviewGuidance, /反例/)
 })
 
 test('unknown orchestration is rejected instead of silently falling back', () => {
   assert.equal(resolveOrchestration('swarm'), null)
   assert.equal(resolveOrchestration(''), resolveOrchestration())
   assert.equal(resolveOrchestration(' parallel ').id, 'parallel')
-  assert.deepEqual(listOrchestrations().map(item => item.id), ['pipeline', 'parallel', 'critique'])
 })
 
 test('planDispatch filters to eligible workers and exposes review guidance', () => {

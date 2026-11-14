@@ -13,13 +13,6 @@ export const resolveOrchestration = value => {
   return orchestrationStrategies.find(item => item.id === raw) ?? null
 }
 
-export const listOrchestrations = () => orchestrationStrategies.map(item => ({
-  id: item.id,
-  name: item.name,
-  description: item.description,
-  reviewGuidance: item.reviewGuidance,
-}))
-
 // 编排层对外只暴露两个决定：这一阶段怎么派、验收要补什么要求。
 export const planDispatch = ({ room, stage, index, workers }) => {
   const strategy = resolveOrchestration(room?.orchestration) ?? resolveOrchestration()
