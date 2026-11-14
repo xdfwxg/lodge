@@ -17,7 +17,6 @@ export const studioUi = {
   startMode: 'proposal',
   showShadowReview: true,
   cta: '下一步：配置席位',
-  dialogSub: '说清目标，手动配置席位和验收命令。',
   goalLabel: '目标',
   goalIcon: TargetIcon,
   workspace: {

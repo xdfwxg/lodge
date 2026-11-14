@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
@@ -199,7 +199,7 @@ function NewRoomDialog({
   const recommend = async () => {
     if (goal.trim() === '' || needRepo || recommending) return
     if (typeof onRecommend !== 'function') {
-      setError('Lodge 方案生成不可用；可以手动配置席位')
+      setError('Lodge 方案生成暂时不可用')
       return
     }
     setRecommending(true)
@@ -207,7 +207,7 @@ function NewRoomDialog({
     try {
       const result = await onRecommend(goal.trim(), repoPath.trim())
       if (result?.ok !== true) {
-        setError(result?.error ?? 'Lodge 没有给出方案；可以重试或手动配置')
+        setError(result?.error ?? 'Lodge 没有给出方案；请重试')
         return
       }
       useProposal(result.proposal)
@@ -216,19 +216,6 @@ function NewRoomDialog({
     } finally {
       setRecommending(false)
     }
-  }
-
-  const prepareStudio = () => {
-    if (goal.trim() === '') return
-    useProposal({
-      done: ['目标完成'],
-      seats: DEFAULT_SEATS,
-      questions: [],
-      stages: [],
-      verify: 'test',
-      acceptance: '',
-      why: '',
-    })
   }
 
   const resetAfterCreate = () => {
@@ -466,19 +453,12 @@ function NewRoomDialog({
               disabled: busy || goal.trim() === '' || needRepo,
               onClick: () => void startChat(),
             }, busy ? '正在创建…' : roomKind.cta)
-            : h(Fragment, null,
-              h('button', {
-                type: 'button',
-                className: 'crew-ghost',
-                disabled: recommending || goal.trim() === '' || needRepo,
-                onClick: prepareStudio,
-              }, '手动配置'),
-              h('button', {
-                type: 'button',
-                className: 'crew-accept crew-dialog-primary',
-                disabled: recommending || goal.trim() === '' || needRepo,
-                onClick: () => void recommend(),
-              }, recommending ? '正在生成方案…' : '让 Lodge 出方案'))
+            : h('button', {
+              type: 'button',
+              className: 'crew-accept crew-dialog-primary',
+              disabled: recommending || goal.trim() === '' || needRepo,
+              onClick: () => void recommend(),
+            }, recommending ? '正在生成方案…' : '让 Lodge 出方案')
           : h('button', {
             type: 'button',
             className: 'crew-accept crew-dialog-primary',

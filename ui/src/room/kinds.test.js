@@ -4,7 +4,7 @@ import { ROOM_TYPE_MANIFEST } from '../../../shared/room-types.js'
 import { roomUiKinds, uiKindOfRoom, uiKindOfType } from './kinds.js'
 
 const KEYS = [
-  'id', 'owns', 'label', 'teamMode', 'startMode', 'cta', 'dialogSub',
+  'id', 'owns', 'label', 'teamMode', 'startMode', 'cta',
   'goalLabel', 'goalIcon', 'workspace', 'statusLine', 'subtitle',
   'missingVerifier', 'setupFields', 'buildRequest',
 ]

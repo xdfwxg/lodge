@@ -11,7 +11,6 @@ export const chatUi = {
   teamMode: 'fixed',
   startMode: 'direct',
   cta: '开始讨论',
-  dialogSub: '给一个话题，Lodge 直接开聊；主持人总结后你来拍板。',
   goalLabel: '话题',
   goalIcon: ChatIcon,
   workspace: {
