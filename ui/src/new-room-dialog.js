@@ -6,7 +6,7 @@ import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
 import { roomTypeIcon } from './room/type-icons.js'
-import { modelRowsFor, normalizeSeats, seatChoicesFrom } from './room/seat-options.js'
+import { defaultPersonalityId, modelRowsFor, normalizeSeats, seatChoicesFrom } from './room/seat-options.js'
 import { RoomTypeChoices } from './room/type-choices.js'
 import { uiKindOfType } from './room/kinds.js'
 import { useOverlay } from './overlay.js'
@@ -144,8 +144,21 @@ function NewRoomDialog({
       const base = current ?? (activeType?.defaultSeats ?? [])
       if (base.length >= 6) return base
       const names = Array.from('甲乙丙丁戊己庚辛壬癸')
-      const name = names[base.length] ?? `成员 ${base.length + 1}`
-      return [...base, { role: 'worker', name }]
+      const used = new Set(base.map(seat => seat.name))
+      const name = names.find(item => !used.has(item)) ?? `成员 ${base.length + 1}`
+      return [...base, { role: 'worker', name, personality: defaultPersonalityId(base.length) }]
+    })
+  }
+
+  const removeChatSeat = (seat, index) => {
+    const base = [...chatRoster]
+    if (base.length <= 1) return
+    base.splice(index, 1)
+    setChatSeats(base)
+    setChatSeatChoices(current => {
+      const next = [...current]
+      next.splice(index, 1)
+      return next
     })
   }
 
@@ -372,6 +385,8 @@ function NewRoomDialog({
       onTurnLimit: setChatTurnLimit,
       onAddSeat: addChatSeat,
       canAddSeat: chatRoster.length < 6,
+      onRemoveSeat: removeChatSeat,
+      canRemoveSeat: chatRoster.length > 1,
       seats: chatRoster,
       choices: chatSeatChoices,
       setChoices: setChatSeatChoices,

@@ -1,3 +1,5 @@
+import { PERSONALITY_IDS, PERSONALITIES } from '../../../shared/personalities.js'
+
 // 席位名字、默认值和模型选项在聊天和工作室内共用；只做纯数据整形，不碰 React。
 export const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员', participant: '成员' }
 
@@ -9,10 +11,15 @@ export const normalizeSeats = seats => (Array.isArray(seats) ? seats : []).map(s
   ...(seat.station ? { station: seat.station } : {}),
   ...(seat.engine ? { engine: seat.engine } : {}),
   ...(seat.model ? { model: seat.model } : {}),
+  ...(seat.personality ? { personality: seat.personality } : {}),
 }))
 
 export const seatChoicesFrom = seats => normalizeSeats(seats)
-  .map(seat => ({ engine: seat.engine ?? '', model: seat.model ?? '' }))
+  .map(seat => ({ engine: seat.engine ?? '', model: seat.model ?? '', personality: seat.personality ?? '' }))
+
+export const defaultPersonalityId = index => PERSONALITY_IDS[index % PERSONALITY_IDS.length]
+
+export { PERSONALITIES, PERSONALITY_IDS }
 
 export const modelRowsFor = engine => {
   if (engine === undefined) return []

@@ -321,12 +321,17 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-proposal-head b{font-size:15px}
 .crew-proposal-block{display:flex;flex-direction:column;gap:7px;padding:12px 14px;border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-shade-1)}
 .crew-proposal-block>b{font-size:13.5px;font-weight:600}
-.crew-seat-engine{display:grid;grid-template-columns:56px minmax(0,1fr);align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--bt-line)}
+.crew-seat-engine{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--bt-line)}
 .crew-seat-engine:first-of-type{border-top:0;padding-top:3px}
-.crew-seat-engine-head{font-size:13px;line-height:18px;color:var(--bt-ink-2)}
-.crew-seat-engine-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}
-.crew-seat-engine-controls .crew-goal-input{flex:1 1 160px;min-width:0;height:32px;padding:0 10px;font-size:13.5px;border-radius:8px}
-.crew-seat-engine > .crew-field-hint{grid-column:2;margin:0}
+.crew-seat-engine-head{flex:none;width:26px;font-size:13px;line-height:18px;font-weight:600;color:var(--bt-ink)}
+.crew-seat-engine-controls{display:flex;align-items:center;gap:8px;flex:1;min-width:0;flex-wrap:wrap}
+.crew-seat-menu{height:28px;max-width:200px;padding:0 8px;border:1px solid var(--bt-line-2);border-radius:7px;background:var(--bt-shade-1);color:var(--bt-ink);font:inherit;font-size:12.5px;cursor:pointer}
+.crew-seat-menu:hover{border-color:var(--bt-line-control)}
+.crew-seat-menu:focus-visible{border-color:var(--bt-accent);outline:none;box-shadow:0 0 0 3px var(--bt-accent-wash)}
+.crew-seat-menu.crew-seat-personality{max-width:118px}
+.crew-seat-hint{flex-basis:100%;margin:0}
+.crew-seat-remove{flex:none;margin-left:auto;width:24px;height:24px;display:grid;place-items:center;padding:0;border:0;border-radius:6px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:16px;line-height:1;cursor:pointer}
+.crew-seat-remove:hover{background:var(--bt-hover);color:var(--bt-ink)}
 .crew-goal-input.crew-input-narrow{width:88px;flex:none}
 .crew-seat-add{display:flex;align-items:center;gap:6px;width:100%;margin-top:2px;padding:10px 0 2px;border:0;border-top:1px solid var(--bt-line);background:transparent;color:var(--bt-ink-2);font:inherit;font-size:13px;line-height:18px;text-align:left;cursor:pointer}
 .crew-seat-add-plus{font-size:15px;line-height:1;color:var(--bt-ink-3)}

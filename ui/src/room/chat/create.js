@@ -1,7 +1,7 @@
 import { createElement as h } from 'react'
 import { SeatEnginePicker } from '../seat-engine-picker.js'
 
-import { normalizeSeats } from '../seat-options.js'
+import { defaultPersonalityId, normalizeSeats, PERSONALITIES } from '../seat-options.js'
 
 export const buildChatRequest = ({
   goal,
@@ -18,6 +18,7 @@ export const buildChatRequest = ({
     const model = choice.model !== '' ? choice.model : selectedModelOf(choice)
     return {
       ...seat,
+      personality: choice.personality || seat.personality || defaultPersonalityId(index),
       ...(choice.engine === '' ? {} : { engine: choice.engine }),
       ...(choice.engine === '' || model === '' ? {} : { model }),
     }
@@ -40,6 +41,8 @@ export function ChatSetupFields({
   onTurnLimit,
   onAddSeat = () => {},
   canAddSeat = true,
+  onRemoveSeat = null,
+  canRemoveSeat = false,
   seats,
   choices,
   setChoices,
@@ -62,13 +65,16 @@ export function ChatSetupFields({
       })),
     h('div', { className: 'crew-field crew-field-block' },
       h('div', { className: 'crew-field-head' },
-        h('b', null, '成员与模型')),
+        h('b', null, '成员配置')),
       h('div', { className: 'crew-proposal-block' },
         h(SeatEnginePicker, {
           seats: normalizeSeats(seats),
           choices,
           setChoices,
           engines,
+          personalities: PERSONALITIES,
+          onRemove: onRemoveSeat,
+          canRemove: canRemoveSeat,
           loginBusy,
           onLogin,
           onInteraction,

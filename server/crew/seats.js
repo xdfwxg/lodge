@@ -1,3 +1,4 @@
+import { personalityById } from '../../shared/personalities.js'
 // 席位是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
 const TOOL_SCOPES = ['read', 'exec', 'write']
 const sameSet = (a, b) => a.length === b.length && [...a].sort().join('\0') === [...b].sort().join('\0')
@@ -107,10 +108,12 @@ export const rosterFromRoles = entries => {
       : base.model
     const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
     const skills = Array.isArray(entry.skills) ? entry.skills.filter(isId).slice(0, 8) : base.skills
+    const personality = personalityById(entry.personality) === null ? '' : entry.personality
     return cloneSeat({
       ...base,
       id,
       name,
+      personality,
       engine,
       engineExplicit,
       model,
