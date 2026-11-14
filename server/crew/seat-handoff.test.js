@@ -35,6 +35,6 @@ test('a seat handoff stays bounded', () => {
     room: { ...room, constraints: Array.from({ length: 200 }, (_, index) => `约束 ${index} ${'x'.repeat(400)}`) },
     messages: [],
   })
-  assert.equal(text.length <= 1_300, true)
+  assert.equal(text.length <= 1_900, true)
   assert.match(text, /交接包已截断/)
 })

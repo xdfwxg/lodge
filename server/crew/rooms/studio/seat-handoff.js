@@ -1,8 +1,10 @@
+import { evidenceDigest, stageDigest } from '../../prompt-context.js'
+
 // 席位交接包：永久素材优先，transcript 只给引用，不重发整场对话。
 const DONE_LIMIT = 4
 const CONSTRAINT_LIMIT = 6
 const FEEDBACK_LIMIT = 1
-const MAX_CHARS = 1_200
+const MAX_CHARS = 1_800
 
 const clip = (text, limit) => (text.length > limit ? `${text.slice(0, limit)}\n…（交接包已截断，完整内容读 transcript）` : text)
 
@@ -35,8 +37,12 @@ export const buildSeatHandoff = ({ room, messages = [] } = {}) => {
       .slice(0, 6)
     if (projectLines.length > 0) lines.push('项目约束（LODGE.md 快照）：', ...projectLines.map(line => `- ${line}`))
   }
+  const stages = stageDigest(room, messages)
+  if (stages.length > 0) lines.push('阶段进展：', ...stages.map(item => `- ${item}`))
   const feedback = feedbackOf(messages)
   if (feedback.length > 0) lines.push('最近复核：', ...feedback.map(item => `- ${item}`))
+  const evidence = evidenceDigest(messages, { budget: 800 })
+  if (evidence.length > 0) lines.push('证据摘要：', ...evidence.map(item => `- ${item}`))
   lines.push(`其余在 .crew/rooms/${room.id}/transcript.jsonl（${messages.length} 条），需要时用工具读。`)
   return clip(lines.join('\n'), MAX_CHARS)
 }

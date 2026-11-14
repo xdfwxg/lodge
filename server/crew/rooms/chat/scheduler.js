@@ -1,6 +1,7 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
 import { seatDisplayName, toDisplayText } from '../../seat-labels.js'
+import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 
 const DEFAULT_WAIT_MS = 120_000
@@ -23,15 +24,15 @@ export const pickChatSpeaker = ({ speakers, counts, perSeat, last, random = Math
   return final[Math.min(final.length - 1, Math.floor(random() * final.length))] ?? null
 }
 
-const discussionLines = (store, roomId, limit = 12) => store.readMessages(roomId)
-  .filter(message => message.kind === 'chat' || message.kind === 'chat_rework')
-  .slice(-limit)
-  .map(message => {
-    const name = message.authorId === 'you'
-      ? '你'
-      : (message.authorId === 'system' ? '系统' : (store.readRoom(roomId)?.seatNames?.[message.authorId] ?? message.authorId))
-    return `${name}：${truncate(message.text, 500)}`
-  })
+const discussionLines = (store, roomId) => {
+  const room = store.readRoom(roomId)
+  const messages = store.readMessages(roomId)
+    .filter(message => message.kind === 'chat' || message.kind === 'chat_rework')
+  const nameOf = message => message.authorId === 'you'
+    ? '你'
+    : message.authorId === 'system' ? '系统' : (room?.seatNames?.[message.authorId] ?? message.authorId)
+  return recentAndOlder(messages, { nameOf })
+}
 
 const baseName = (room, seat) => room?.seatNames?.[seat] ?? seatDisplayName(room, seat)
 
@@ -42,6 +43,7 @@ const speakerPrompt = ({ room, seat, round, turn, turnLimit, note }) => {
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `你上一轮退回了结论，并补充：${note}`,
     '请补充你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
+    '每次发言控制在 200 字以内：先给判断，再给一两条依据；不要复述他人原话，不要写总结。',
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')
 }
@@ -51,6 +53,7 @@ const hostPrompt = ({ room, hostName, round, note }) => [
   `话题：${room.goal}`,
   note === '' ? '' : `用户退回了上一轮结论，并补充：${note}`,
   '请给出：结论、主要分歧、建议下一步。不要调用工具。直接回复总结。',
+  '总结控制在 300 字以内，分点最多 5 条；不要逐条复述发言。',
   INTERNAL_PROMPT_MARKER,
 ].filter(Boolean).join('\n')
 
@@ -234,7 +237,7 @@ export const createChatScheduler = ({
         return { started: true, cancelled: true, round }
       }
 
-      const lines = discussionLines(store, roomId, 16)
+      const lines = discussionLines(store, roomId)
       const summarizing = transitionChat(store.readRoom(roomId)?.chat?.phase ?? 'discussing', 'summarize')
       if (!summarizing.ok) throw new Error(summarizing.error)
       patch(state => {

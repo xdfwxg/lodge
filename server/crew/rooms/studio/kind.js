@@ -190,6 +190,7 @@ export const studioKind = {
     seat.prompt,
     '当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才加载。',
     '你是三类席位之一：规划师、执行官、验收员；不要自创角色，也不要承担其他席位的职责。',
+    '回复用一段话说清结论和必要依据；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
     ...workContract(seat.role),
   ].filter(Boolean).join('\n'),
 

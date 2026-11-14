@@ -262,6 +262,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
+            '判定后最多写 5 条理由，总字数控制在 300 字内；不要复述命令输出。',
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
@@ -278,7 +279,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             `退出码：${meta.exit === null ? '无' : meta.exit}`,
             '命令输出：',
             '```',
-            tail(meta.output, 2000),
+            tail(meta.output, 1000),
             '```',
             '改动：',
             '```diff',
@@ -290,6 +291,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
+            '判定后最多写 5 条理由，总字数控制在 300 字内；不要复述命令输出。',
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
