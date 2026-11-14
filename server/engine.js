@@ -173,11 +173,6 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
-  const usage = async roomId => {
-    const list = await rooms()
-    return list.find(room => room.id === roomId)?.usage ?? { turns: 0, costMicroUsd: 0 }
-  }
-
   const capabilities = () => ({
     resume: false,
     streaming: true,
@@ -188,8 +183,6 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     provisioning: true,
     mentions: true,
     mcp: true,
-    // 适配层还没有安装技能的路径；技能引用可以先存，但建房时 fail closed。
-    skills: false,
     // 定时/事件触发归基座 routines/webhooks；适配层尚未接线。
     schedules: false,
   })
@@ -342,13 +335,6 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { ok: true }
   }
 
-  const setRoomAutoRoute = async (roomId, fallbackBotId) => {
-    await client.patchGroup(roomId, {
-      defaultResponder: { kind: 'auto', ...(fallbackBotId === undefined ? {} : { fallbackBotId }) },
-    })
-    return { ok: true }
-  }
-
   // 群聊默认不唤醒任何成员；只有被 @ 的席位才加载。工作室和聊天室都用这一种总线。
   const setRoomMentions = async roomId => {
     await client.patchGroup(roomId, { defaultResponder: { kind: 'mentions' } })
@@ -435,13 +421,11 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     sendTurn,
     answerCard,
     cancelTurn,
-    usage,
     capabilities,
     health,
     createSeatBot,
     createRoom,
     updateRoomMembers,
-    setRoomAutoRoute,
     setRoomMentions,
     markRoomRead,
     deleteSeatBot,

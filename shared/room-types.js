@@ -40,6 +40,4 @@ export const ROOM_TYPE_MANIFEST = Object.freeze([
   }),
 ])
 
-export const ROOM_TYPE_IDS = Object.freeze(ROOM_TYPE_MANIFEST.map(item => item.id))
-
 export const roomTypeMeta = id => ROOM_TYPE_MANIFEST.find(item => item.id === id) ?? null

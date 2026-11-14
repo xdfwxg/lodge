@@ -48,7 +48,6 @@ test('seat prompts and semantic capability settings cross the engine port', asyn
   assert.deepEqual(client.captured.bot.settings.mcpServers, ['github'])
   assert.equal(engine.capabilities().mcp, true)
   assert.equal(engine.capabilities().cancel, true)
-  assert.equal(engine.capabilities().skills, false)
   assert.equal(engine.capabilities().schedules, false)
 })
 

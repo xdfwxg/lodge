@@ -94,7 +94,7 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 3. 跨范式迁移：聊天室只提供结构化摘要导出（`GET /api/rooms/:id/snapshot`：目标、轮次、结论、讨论记录），供人复制到新建工作室；系统不提供“快照导入新工作室”API，不原地变更房型。结论确认后可在结论卡直接打开“新建工作室”，只预填目标与结论文本，不复制聊天记录、证据、阶段或状态。
 4. `closure` 是工作室专属字段；聊天室不存在 `closure`，任何代码不得在聊天室里读取或推断交付闭环状态。
 5. `swarm` 只是 Verifier 的调度策略，不新增 `roleKind`，也不产生独立评审原语。
-6. 两套房型的能力开关由 `server/crew/room-capabilities.js` 提供；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/room-gate.js`。
+6. 两套房型的能力开关由 `shared/room-types.js` 提供，经 `server/crew/room-types/*` 暴露；代码不得在各处重新散落房型能力判断。Gate 实现在 `server/crew/rooms/studio/gate.js`。
 7. 信任阶梯 `trust` 只属于工作室；聊天室席位是 `participant`，没有 `trust` 字段，也不提供信任升级动作。
 8. advisor 是外部建议端口（`server/crew/advisor.js`，配置与契约见 `docs/advisor.md`）：Gate 和 Verifier 可附上建议，但 advisor 不写 verdict、不是 roleKind、不可直接放行。
 
@@ -129,4 +129,4 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 - `server/crew/boundary.test.js`：crew 不泄漏基座词汇。
 - `server/crew/layer-boundaries.test.js`：应用层只依赖端口。
 - `server/crew/room-types.test.js` / `verifiers.test.js`：三类本原角色与 quorum 行为。
-- `server/crew/room-capabilities.test.js`：两套房型的能力矩阵。
+- `server/crew/room-types/capabilities.test.js`：两套房型的能力矩阵。

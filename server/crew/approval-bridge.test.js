@@ -39,6 +39,7 @@ const setup = async (options = {}) => {
   const answers = []
   let onEvent = null
   const engine = {
+    capabilities: () => ({ approvals: true, streaming: true, provisioning: true, mentions: true }),
     rooms: async () => [{
       id: 'base-1',
       name: '执行',

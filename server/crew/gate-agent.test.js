@@ -20,7 +20,7 @@ const approval = {
 const engine = overrides => {
   const calls = []
   const base = {
-    capabilities: () => ({ provisioning: true }),
+    capabilities: () => ({ provisioning: true, mentions: true }),
     createSeatBot: async () => ({ id: 'gate-bot', name: 'Gate', engine: 'codex-1', model: 'm' }),
     createRoom: async () => ({ id: 'gate-room', sessionRef: 'gate-thread' }),
     sendTurn: async () => ({ accepted: true }),

@@ -58,7 +58,7 @@ const completedRoom = dataDir => {
 }
 
 const fakeEngine = () => ({
-  capabilities: () => ({ provisioning: true, skills: false, mcp: false }),
+  capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
   createSeatBot: async ({ name }) => ({ id: `seat-${name}`, name, engine: 'claude', model: 'claude-sonnet-5' }),
   createRoom: async ({ name }) => ({ id: `room-${name}`, sessionRef: `thread-${name}` }),
 })
@@ -77,6 +77,20 @@ const run = (store, body, engine = fakeEngine(), workspace = null) => createReal
   body,
   workspace,
   ports: createCrewPorts(),
+})
+
+test('creation fails closed when the runtime cannot wake seats with @', async () => {
+  const store = createStore({ dataDir: temp('lodge-mentions-data-') })
+  const engine = fakeEngine()
+  engine.capabilities = () => ({ provisioning: true, mentions: false, mcp: false })
+  const result = await run(store, {
+    goal: '验证 mentions 门禁',
+    verify: 'manual',
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+  }, engine)
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'conflict')
+  assert.match(result.error, /@ 唤醒/)
 })
 
 test('continuing a completed room creates a new room and inherits BRIEF done', async () => {
@@ -572,7 +586,7 @@ test('a studio mounts its own Planner tool server only on the planner seat', asy
   const { store } = completedRoom(temp('lodge-planner-tools-data-'))
   const seats = []
   const engine = fakeEngine()
-  engine.capabilities = () => ({ provisioning: true, skills: false, mcp: true })
+  engine.capabilities = () => ({ provisioning: true, mentions: true, mcp: true })
   engine.createSeatBot = async args => {
     seats.push(args)
     return { id: `seat-${args.name}`, name: args.name, engine: 'claude', model: 'claude-sonnet-5' }
@@ -664,7 +678,7 @@ test('an invalid chat turn limit fails before touching the workspace', async () 
 test('a single-vendor studio records the downgrade', async () => {
   const { store } = completedRoom(temp('lodge-independence-prefer-'))
   const engine = fakeEngine()
-  engine.capabilities = () => ({ provisioning: true, skills: false, mcp: false })
+  engine.capabilities = () => ({ provisioning: true, mentions: true, mcp: false })
   engine.instances = async () => [{ id: 'claude', engine: 'claude', available: true }]
   const result = await run(store, {
     goal: '默认允许同厂商但标注降级',

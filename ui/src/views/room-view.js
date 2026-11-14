@@ -158,10 +158,6 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
       void store.openLedger(room.id)
       return
     }
-    if (action === 'delivery') {
-      followBottom()
-      return
-    }
     if (action === 'export') return void store.exportDelivery()
     setAuditOpen(true)
   }

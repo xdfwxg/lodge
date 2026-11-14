@@ -25,6 +25,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   }
   const capabilities = engine.capabilities()
   if (capabilities.provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
+  if (capabilities.mentions !== true) return fail('conflict', '当前 runtime 不支持 @ 唤醒，无法建房')
   const globalBudget = globalBudgetStatus(store.readRooms())
   if (!globalBudget.ok) return fail('conflict', `${globalBudget.message}；${budgetHint(globalBudget)}`)
   const budgetMicroUsd = roomBudgetFromBody(body)

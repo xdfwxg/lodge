@@ -27,7 +27,10 @@ const setup = trust => {
   }
   const approvals = createLiveApprovals({
     store,
-    engine: { answerCard: async input => { answered.push(input); return { ok: true } } },
+    engine: {
+      capabilities: () => ({ approvals: true }),
+      answerCard: async input => { answered.push(input); return { ok: true } },
+    },
     emit: () => {},
     approvalTimeoutMs: 60_000,
   })

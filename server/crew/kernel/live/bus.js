@@ -226,6 +226,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         if (message === undefined) return
         const current = store.readRoom(room.id) ?? room
         if (message.card?.requestType === 'permission') {
+          // 权限卡是可选能力：runtime 不支持时不接管，也不把卡片投进时间线。
+          if (!supportsRuntime(engine, 'approvals')) return
           const seat = seatFor(current, message.authorRef)
           // 权限策略归房型策略；总线只把卡片交给当前房间的策略。
           void onPermission(entry, seat, message, chat)

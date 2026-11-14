@@ -21,7 +21,7 @@ const scriptedEngine = store => {
   const history = []
   let seq = 0
   return {
-    capabilities: () => ({ provisioning: true, skills: false, mcp: false }),
+    capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
     instances: async () => [{ engine: 'fake', available: true }],
     createSeatBot: async ({ name }) => ({ id: `seat-${name}`, name, engine: 'fake', model: 'fake-model' }),
     createRoom: async ({ name }) => ({ id: `chat-${name}`, sessionRef: `thread-${name}` }),

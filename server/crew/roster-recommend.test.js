@@ -206,7 +206,7 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
     why: '固定三人小队分工',
   })
   const engine = {
-    capabilities: () => ({ provisioning: true }),
+    capabilities: () => ({ provisioning: true, mentions: true }),
     health: async () => ({ ok: true }),
     createSeatBot: async () => ({ id: 'bot-1' }),
     createRoom: async () => ({ id: 'probe-1', sessionRef: 'thread-1' }),

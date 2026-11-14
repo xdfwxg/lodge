@@ -18,7 +18,7 @@ const baseRoom = () => ({
   ],
 })
 
-const setup = () => {
+const setup = (capabilities = { streaming: true, mentions: true, provisioning: true, approvals: true }) => {
   let room = baseRoom()
   const messages = []
   const subscribed = []
@@ -26,7 +26,7 @@ const setup = () => {
   const answered = []
   const permissions = []
   const engine = {
-    capabilities: () => ({ streaming: true, mentions: true, provisioning: true }),
+    capabilities: () => capabilities,
     createRoom: async input => {
       assert.equal(input.members.length, 3)
       assert.equal(input.bulletin, ROOM_CHAT_BULLETIN)
@@ -233,4 +233,15 @@ test('permission cards are handed to the room strategy', () => {
   })
   assert.deepEqual(ctx.permissions.map(item => item.message.card.action), ['read', 'write'])
   assert.equal(ctx.answered.length, 0)
+})
+
+test('permission cards are ignored when the runtime has no approvals', () => {
+  const ctx = setup({ streaming: true, mentions: true, provisioning: true, approvals: false })
+  const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({
+    message: { authorRef: 'b-executor', card: { requestType: 'permission', requestId: 'p1', action: 'read', tool: 'Read' } },
+  })
+  assert.deepEqual(ctx.permissions, [])
 })

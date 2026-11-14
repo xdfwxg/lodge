@@ -187,7 +187,6 @@ function ConclusionCard({ message }) {
 }
 
 export {
-  CodeOutput,
   EvidenceCard,
   VerdictCard,
   DispatchCard,

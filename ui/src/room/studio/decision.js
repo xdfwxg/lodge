@@ -18,6 +18,10 @@ const verdictLine = stage => {
 export const buildStudioDecision = (room, view) => {
   const idle = buildIdleDecision(room)
   if (idle !== null) return idle
+  if (room.state === 'complete') {
+    // 完成态不渲染决策卡；保留状态键，避免被误判成仍在执行。
+    return { key: 'complete', title: '这轮完成了', detail: '', primary: null, secondary: null }
+  }
   const stages = view?.stages ?? []
   const stage = stages.find(item => item.state === 'active') ?? stages.at(-1) ?? null
   const stageIndex = stage === null ? -1 : stage.index
@@ -26,17 +30,6 @@ export const buildStudioDecision = (room, view) => {
   const verifierCount = room.verifiers?.length ?? 0
   const reviewLabel = room.needsYou?.label ?? ''
 
-  if (room.state === 'complete') {
-    const files = room.delivery?.changedFiles?.length ?? 0
-    return {
-      key: 'complete',
-      title: '这轮完成了',
-      detail: `${stages.filter(item => item.state === 'passed').length} 个阶段 · ${files} 个文件 · 验收员通过`,
-      primary: { label: '查看交付', action: 'delivery' },
-      secondary: { label: '查看证据', action: 'evidence' },
-      extra: { label: '导出交付单', action: 'export' },
-    }
-  }
   if (room.needsYou?.kind === 'signoff') {
     return {
       key: 'signoff',

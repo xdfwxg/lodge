@@ -3,6 +3,7 @@ import { externalAction, pendingApprovals } from '../../external-actions.js'
 import { reviewExternalAction } from '../../gate.js'
 import { seatNameOf } from './projection.js'
 import { decidePermission } from '../../permission.js'
+import { supportsRuntime } from '../../runtime-port.js'
 import { trustLevelOf } from '../../trust.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
@@ -191,6 +192,7 @@ export const createLiveApprovals = ({
   }
 
   const answerPermission = async (entry, seat, message, refresh, { sessionRef } = {}) => {
+    if (!supportsRuntime(engine, 'approvals')) return
     const card = message?.card
     if (card?.requestType !== 'permission' || typeof card.requestId !== 'string') return
     if (entry.answeredCards.has(card.requestId) || entry.heldCards.has(card.requestId)) return
@@ -232,6 +234,7 @@ export const createLiveApprovals = ({
   }
 
   const decideApproval = async ({ entry, roomId, approvalId, decision, refresh }) => {
+    if (!supportsRuntime(engine, 'approvals')) return { ok: false, reason: '当前 runtime 不支持权限卡' }
     if (!['allow', 'deny'].includes(decision)) return { ok: false, reason: '审批只接受 allow/deny' }
     if (entry === undefined) return { ok: false, reason: '实时房间未绑定' }
     const room = store.readRoom(roomId)
