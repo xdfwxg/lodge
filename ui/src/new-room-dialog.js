@@ -1,11 +1,11 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { FolderIcon } from './icons.js'
+import { ChecklistIcon, TargetIcon } from './icons.js'
+import { ChatIcon } from './room/type-icons.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
 import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
-import { roomTypeIcon } from './room/type-icons.js'
 import { defaultPersonalityId, modelRowsFor, normalizeSeats, seatChoicesFrom } from './room/seat-options.js'
 import { RoomTypeChoices } from './room/type-choices.js'
 import { uiKindOfType } from './room/kinds.js'
@@ -15,6 +15,8 @@ const FALLBACK_ROOM_TYPES = [
   { id: 'studio', name: '工作室', description: '目标、阶段、验收与交付', defaultVerify: 'test' },
   { id: 'chat', name: '聊天室', description: '随机发言讨论，主持人总结，你来拍板', defaultVerify: 'manual' },
 ]
+
+const CHAT_BASE_SEATS = 3
 
 const DEFAULT_SEATS = normalizeSeats([
   { role: 'lead', name: '规划师' },
@@ -151,8 +153,9 @@ function NewRoomDialog({
   }
 
   const removeChatSeat = (seat, index) => {
+    if (index < CHAT_BASE_SEATS) return
     const base = [...chatRoster]
-    if (base.length <= 1) return
+    if (base.length <= CHAT_BASE_SEATS) return
     base.splice(index, 1)
     setChatSeats(base)
     setChatSeatChoices(current => {
@@ -306,7 +309,9 @@ function NewRoomDialog({
 
   const constraintsView = h('div', { className: 'crew-field' },
     h('div', { className: 'crew-field-head' },
-      h('b', null, '项目约束'),
+      h('b', { className: 'crew-field-label' },
+        h(ChecklistIcon),
+        '项目约束'),
       h('span', { className: 'crew-field-hint' }, '可选')),
     h('textarea', {
       className: 'crew-goal-input',
@@ -363,7 +368,9 @@ function NewRoomDialog({
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-field' },
-      h('b', null, isChat ? '话题' : '目标'),
+      h('b', { className: 'crew-field-label' },
+        h(isChat ? ChatIcon : TargetIcon, { size: 16 }),
+        isChat ? '话题' : '目标'),
       h('textarea', {
         className: 'crew-goal-input crew-goal-lg',
         rows: 4,
@@ -386,7 +393,7 @@ function NewRoomDialog({
       onAddSeat: addChatSeat,
       canAddSeat: chatRoster.length < 6,
       onRemoveSeat: removeChatSeat,
-      canRemoveSeat: chatRoster.length > 1,
+      canRemoveSeat: (seat, index) => index >= CHAT_BASE_SEATS,
       seats: chatRoster,
       choices: chatSeatChoices,
       setChoices: setChatSeatChoices,
@@ -406,7 +413,6 @@ function NewRoomDialog({
           title: repoPath === '' ? '选择项目目录' : repoPath,
           onClick: () => void chooseDirectory(),
         },
-        h('span', { className: 'crew-path-icon', 'aria-hidden': 'true' }, h(FolderIcon)),
         h('span', {
           className: 'crew-path-value',
           'data-empty': repoPath === '' ? 'true' : undefined,
@@ -423,13 +429,6 @@ function NewRoomDialog({
   return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
-        h('div', { className: 'crew-dialog-title' },
-          h('span', { className: 'crew-dialog-glyph', 'data-type': roomKind.id, 'aria-hidden': 'true' }, h(roomTypeIcon(roomKind.id), { size: 18 })),
-          h('div', { className: 'crew-dialog-title-text' },
-            h('h2', null, choosingType ? '新建房间' : `${resume === null ? '新建' : '续做'}${roomKind.label}`),
-            step === 0
-              ? null
-              : h('p', { className: 'crew-dialog-sub' }, '确认开工卡后开工；最后一步由你签字。'))),
         h('button', {
           type: 'button',
           className: 'crew-dialog-close',
@@ -439,6 +438,7 @@ function NewRoomDialog({
         }, '×')),
       choosingType
         ? h('div', { className: 'crew-dialog-body' },
+          h('p', { className: 'crew-dialog-kicker' }, '新建房间'),
           h(RoomTypeChoices, {
             onPick: nextType => {
               setRoomType(nextType)
