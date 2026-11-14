@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { gateFor } from './gates.js'
+import { gateFor } from './rooms/studio/gates.js'
 
 const room = (over = {}) => ({
   id: 'room-1',

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createMessageProjector, dropStaleStreams, matchEcho } from './live-projection.js'
+import { createMessageProjector, matchEcho } from './live-projection.js'
+import { dropStaleStreams } from './rooms/chat/projection.js'
 
 const projector = createMessageProjector({
   store: { readRoom: () => ({ seatBots: { executor: 'bot-1' }, hiddenBaseMessages: [] }) },

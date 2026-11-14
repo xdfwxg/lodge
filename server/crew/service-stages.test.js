@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createServiceStages } from './service-stages.js'
+import { createServiceStages } from './rooms/studio/service-stages.js'
 
 const room = (over = {}) => ({
   id: 'room-1',

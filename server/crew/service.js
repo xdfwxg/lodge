@@ -1,18 +1,19 @@
 import { budgetHint, budgetStatus } from './budget.js'
-import { simulateRoom } from './demo.js'
-import { evaluateRoomGate } from './room-gate.js'
+import { simulateRoom } from './rooms/studio/demo.js'
+import { evaluateRoomGate } from './rooms/studio/gate.js'
+import { kindOfRoom } from './rooms/kinds.js'
 import { createRealRoom } from './room-create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
-import { createRoomCompleter } from './room-complete.js'
+import { createRoomCompleter } from './rooms/studio/complete.js'
 import { createServiceDelivery } from './service-delivery.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceRunControl } from './service-run-control.js'
 import { createServiceChat } from './rooms/chat/service.js'
-import { createServiceClosure } from './service-closure.js'
+import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceSeats } from './service-seats.js'
-import { createServiceStages } from './service-stages.js'
-import { createServiceSubrooms } from './service-subrooms.js'
-import { createServiceTrust } from './service-trust.js'
+import { createServiceStages } from './rooms/studio/service-stages.js'
+import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
+import { createServiceTrust } from './rooms/studio/service-trust.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
@@ -153,7 +154,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     }
 
     if (action === 'accept' && method === 'POST') {
-      if (room.roomType === 'chat') return chat.accept(room)
+      if (kindOfRoom(room)?.acceptsChatDecision === true) return chat.accept(room)
       return stages.accept(room, await readBody())
     }
 
@@ -203,7 +204,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
         verify: 'manual',
         acceptance: '',
       }) ?? { available: false, advice: [] }
-      const gate = evaluateRoomGate({ roomType: 'studio', goal, plan: null, verify: 'manual', acceptance: '', advice: advisor.advice })
+      const gate = evaluateRoomGate({ enabled: true, goal, plan: null, verify: 'manual', acceptance: '', advice: advisor.advice })
       return ok({ gate })
     }
     return fail('invalid', `未知 Planner 工具：${tool?.name ?? ''}`)

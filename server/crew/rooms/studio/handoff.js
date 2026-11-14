@@ -1,5 +1,5 @@
 import { homedir } from 'node:os'
-import { verifyEvidenceIntegrity } from './evidence-ledger.js'
+import { verifyEvidenceIntegrity } from '../../evidence-ledger.js'
 
 export const HANDOFF_FORMAT = 'lodge.room-handoff.v1'
 

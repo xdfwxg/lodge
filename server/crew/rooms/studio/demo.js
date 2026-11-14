@@ -1,5 +1,5 @@
-import { independenceLabel } from './digest.js'
-import { fail, ok } from './result.js'
+import { independenceLabel } from '../../digest.js'
+import { fail, ok } from '../../result.js'
 
 // 演示房间：模拟数据只进 SQLite/SSE，不写仓库、不产生 commit。
 export const simulateRoom = ({ readMessages, appendMessage, room }) => {

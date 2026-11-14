@@ -1,5 +1,5 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { buildSeatHandoff } from '../../seat-handoff.js'
+import { buildSeatHandoff } from './seat-handoff.js'
 import { plannerToolPrompt } from '../../planner-tools.js'
 import { seatDisplayName } from '../../seat-labels.js'
 import { workContract } from '../../prompt-modes.js'

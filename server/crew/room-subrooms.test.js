@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { canCreateSubroom, childDepthOf, childResultText, childVerdictsOf } from './room-subrooms.js'
+import { canCreateSubroom, childDepthOf, childResultText, childVerdictsOf } from './rooms/studio/subrooms.js'
 
 test('only a studio below the depth limit can create a subroom', () => {
   assert.equal(canCreateSubroom({ roomType: 'studio', state: 'active', depth: 0 }), true)

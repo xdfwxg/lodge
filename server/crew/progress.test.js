@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
+import { advanceProgress, NO_PROGRESS_LIMIT } from './rooms/studio/progress.js'
 
 const room = () => ({ state: 'active', round: 0, noProgress: 0, idle: false })
 

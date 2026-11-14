@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createServiceStages } from './service-stages.js'
+import { createServiceStages } from './rooms/studio/service-stages.js'
 
 test('a completed child posts only its Verifier verdicts to the parent and wakes its Planner', async () => {
   const parent = {

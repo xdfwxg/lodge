@@ -4,7 +4,7 @@ import { createCrewPorts } from './crew-ports.js'
 import { createLiveTurns } from './rooms/studio/turns.js'
 
 const ports = createCrewPorts()
-import { reviewState } from './verifiers.js'
+import { reviewState } from './rooms/studio/verifiers.js'
 
 const room = (over = {}) => ({
   id: 'room-1',

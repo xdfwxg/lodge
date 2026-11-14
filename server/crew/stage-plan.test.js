@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { editStages } from './stage-plan.js'
+import { editStages } from './rooms/studio/stage-plan.js'
 
 const room = (over = {}) => ({
   id: 'room-1',

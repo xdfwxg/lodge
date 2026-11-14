@@ -8,22 +8,11 @@ export const seatFor = (room, ref) => {
 
 import { toDisplayText } from './seat-labels.js'
 import { isInternalPrompt } from './internal-prompts.js'
+import { kindOfRoom } from './rooms/kinds.js'
 
 export const seatNameOf = (room, seat) => (
   room?.seatNames?.[seat] ?? room?.seatSpecs?.find(item => item.id === seat)?.name ?? seat
 )
-
-// 旧房间可能同时留下流式占位消息和基座最终消息；同一位席、同一时间、同一段话只保留最终消息。
-export const dropStaleStreams = messages => {
-  const keys = new Set(messages
-    .filter(message => message.kind === 'chat' && !String(message.id).startsWith('stream:'))
-    .map(message => `${message.authorId}|${message.ts}|${String(message.text ?? '').trim()}`))
-  return messages.filter(message => (
-    !(message.kind === 'chat' &&
-      String(message.id).startsWith('stream:') &&
-      keys.has(`${message.authorId}|${message.ts}|${String(message.text ?? '').trim()}`))
-  ))
-}
 
 // 基座忙碌时发出的消息会排队，落库 id 和发送响应 id 不同；用回显文本和落库时间配对，避免同一条人的话出现两次。
 const ECHO_WINDOW_MS = 120_000
@@ -56,7 +45,7 @@ export const createMessageProjector = ({ store }) => {
     if (String(text ?? '').trim() === '') return null
     if (message.role === 'user') return { ...common, kind: 'chat', authorId: 'you', text }
     // 聊天室只展示真正的发言；基座的 recent-work brief 之类运行提示不是聊天内容。
-    if (room?.roomType === 'chat' && message.kind === 'activity') return null
+    if (message.kind === 'activity' && kindOfRoom(room)?.hideActivity === true) return null
     if (message.kind === 'activity') {
       return { ...common, kind: 'activity', authorId: seat ?? 'executor', text, meta: { ok: message.ok } }
     }

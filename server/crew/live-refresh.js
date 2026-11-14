@@ -1,5 +1,6 @@
 import { budgetHint, budgetStatus } from './budget.js'
 import { seatFor } from './live-projection.js'
+import { kindOfRoom } from './rooms/kinds.js'
 
 export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) => {
   // 到预算线只暂停新任务，不取消正在跑的回合；同一暂停只写一条系统消息。
@@ -55,17 +56,7 @@ export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) =
           current.busy = busySeats.length > 0
           current.busySeat = busySeats[0] ?? ''
           current.busySeats = busySeats
-          current.chatWorking = chatBase?.working === true
-          current.chatBusySeat = toSeat(chatBase?.busyRef) ?? ''
-          current.chatQueue = (chatBase?.queue ?? []).map(item => ({
-            seat: toSeat(item.memberRef),
-            state: item.state,
-            position: item.position,
-            of: item.of,
-            waitingFor: item.waitingForRef === undefined ? null : toSeat(item.waitingForRef),
-          }))
-          current.chatHolds = toSeats(chatBase?.holds)
-          current.chatUnread = chatBase?.unread === true
+          Object.assign(current, kindOfRoom(current)?.refresh(chatBase, toSeat, toSeats) ?? {})
           current.usage = { ...current.usage, ...nextUsage }
           return { events: [] }
         })

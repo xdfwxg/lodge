@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { evidenceDigest, evidenceEntryFromMessage } from './evidence-ledger.js'
-import { buildHandoff as buildHandoffBase, HANDOFF_FORMAT } from './handoff.js'
+import { buildHandoff as buildHandoffBase, HANDOFF_FORMAT } from './rooms/studio/handoff.js'
 import { roomDir } from './paths.js'
 import { inheritedPlan } from './room-create.js'
 

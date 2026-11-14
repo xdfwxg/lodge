@@ -4,9 +4,10 @@ import { createRoomRefresher } from '../../live-refresh.js'
 import { createSeatSync } from '../../live-sync.js'
 import { createRoomChat } from '../../live-chat.js'
 import { seatDisplayName } from '../../seat-labels.js'
+import { kindOfRoom } from '../kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
-import { createChatStrategy } from '../chat/strategy.js'
-import { createStudioStrategy } from '../studio/strategy.js'
+import { createChatRuntime } from '../chat/runtime.js'
+import { createStudioRuntime } from '../studio/runtime.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, approvalTimeoutMs, onPlannerTool = null }) => {
@@ -14,12 +15,19 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
   const entries = new Map()
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit, usage })
-  const approvals = createLiveApprovals({ store, engine, emit, gateAgent, approvalTimeoutMs })
+  const approvals = createLiveApprovals({
+    store,
+    engine,
+    emit,
+    gateAgent,
+    approvalTimeoutMs,
+    readOnlyFor: room => kindOfRoom(room)?.approvalReadOnly?.(room) === true,
+  })
   const sync = createSeatSync({ store, engine, projector })
   const refreshRoom = refresher.refresh
   const strategies = [
-    createChatStrategy({ store, engine, emit, refreshRoom }),
-    createStudioStrategy({ store, engine, emit, ports, onPlannerTool }),
+    createChatRuntime({ store, engine, emit, refreshRoom }),
+    createStudioRuntime({ store, engine, emit, ports, approvals, refreshRoom, onPlannerTool }),
   ]
   const strategyFor = room => {
     const typeId = resolveRoomType(room?.roomType)?.id ?? ''
@@ -38,13 +46,7 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
     projector,
     refresh: refreshRoom,
     emit,
-    onPermission: (entry, seat, message, chatRoom) => approvals.answerPermission(
-      entry,
-      seat,
-      message,
-      refreshRoom,
-      { sessionRef: chatRoom.sessionRef },
-    ),
+    onPermission: (entry, seat, message, chatRoom) => entry.strategy.permissionCard(entry, seat, message, chatRoom),
     onTurn: (entry, room, message) => entry.strategy.captureTurn?.(entry, message),
   })
 

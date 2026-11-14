@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildReview } from './review.js'
+import { buildReview } from './rooms/studio/review-report.js'
 
 const room = {
   id: 'room-r1',

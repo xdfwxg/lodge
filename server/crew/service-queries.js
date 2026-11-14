@@ -2,11 +2,10 @@ import { join } from 'node:path'
 import { budgetSummary, globalBudgetStatus } from './budget.js'
 import { presentRoom } from './presentation.js'
 import { buildResources } from './resources.js'
-import { buildReview } from './review.js'
+import { buildReview } from './rooms/studio/review-report.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
-import { isChatSystemNoise } from './room-chat.js'
-import { dropStaleStreams } from './live-projection.js'
+import { kindOfRoom } from './rooms/kinds.js'
 import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
 import { replayTransitions } from './room-state.js'
@@ -39,16 +38,15 @@ export const createServiceQueries = ({
       seats,
       roomTypes: listRoomTypes(),
       rooms: rooms.map(room => {
+        const kind = kindOfRoom(room)
         const ordered = readMessages(room.id)
           .slice()
-          .filter(message => !(room.roomType === 'chat' && isChatSystemNoise(message)))
           .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
-        const kept = room.roomType === 'chat' ? dropStaleStreams(ordered) : ordered
-        const messages = kept.map(message => (
+        const messages = kind.filterMessages(ordered).map(message => (
           typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
         ))
         return {
-          ...presentRoom(room, messages, room.state === 'complete' && room.roomType !== 'chat' ? readEvidence(room.id) : null),
+          ...presentRoom(room, messages, room.state === 'complete' && kind.supportsDelivery ? readEvidence(room.id) : null),
           brief: roomFiles.readBrief(room),
           messages,
         }
@@ -98,9 +96,7 @@ export const createServiceQueries = ({
     const events = readEvents(roomId, 500)
       .filter(item => item.type === 'closure.transition' || item.type === 'chat.transition')
       .sort((a, b) => a.seq - b.seq)
-    const currentState = room.roomType === 'chat'
-      ? room.chat?.phase ?? 'discussing'
-      : room.closure ?? 'open'
+    const currentState = kindOfRoom(room).stateOf(room)
     return ok({
       transitions: {
         roomId,
@@ -143,7 +139,7 @@ export const createServiceQueries = ({
   const shadowReview = roomId => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    if (room.roomType !== 'studio') return fail('invalid', '只有工作室有评审对照')
+    if (kindOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '只有工作室有评审对照')
     return ok({
       shadowReview: buildShadowComparison({
         evidence: readEvidence(roomId),

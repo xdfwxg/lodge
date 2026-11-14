@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildSeatHandoff } from './seat-handoff.js'
+import { buildSeatHandoff } from './rooms/studio/seat-handoff.js'
 
 const room = {
   id: 'room-h1',

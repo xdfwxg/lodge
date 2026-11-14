@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createServiceClosure } from './service-closure.js'
+import { createServiceClosure } from './rooms/studio/service-closure.js'
 
 const setup = closure => {
   let current = {

@@ -1,11 +1,12 @@
-import { budgetHint, budgetStatus } from './budget.js'
+import { budgetHint, budgetStatus } from '../../budget.js'
 import { gateFor } from './gates.js'
-import { fail, ok } from './result.js'
-import { acceptanceChangeError } from './service-policy.js'
+import { fail, ok } from '../../result.js'
+import { acceptanceChangeError } from '../../service-policy.js'
 import { editStages } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
-import { childResultText, childVerdictsOf } from './room-subrooms.js'
-import { studioTransitionEvent, transitionStudio } from './room-state.js'
+import { childResultText, childVerdictsOf } from './subrooms.js'
+import { kindOfRoom } from '../../rooms/kinds.js'
+import { studioTransitionEvent, transitionStudio } from '../../room-state.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, plannerMcp = null }) => {
   const { readRooms, readMessages, readEvidence, updateRoom, appendMessage } = store
@@ -117,7 +118,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       if (next >= 0) current.stages[next].state = 'active'
       else current.state = 'complete'
       let closureEvent = null
-      if (current.roomType === 'studio') {
+      if (kindOfRoom(current)?.supportsDelivery === true) {
         const event = next < 0 ? 'sign' : next === current.stages.length - 1 ? 'await_sign' : 'stage_advanced'
         const moved = transitionStudio(current.closure ?? 'open', event, next < 0 ? { verdictPassed, human: true } : {})
         if (!moved.ok) {
@@ -141,7 +142,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     room = updated
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
-    if (room.roomType === 'studio' && (gate.stage.kind === 'deliverable' || gate.stage.manual === true)) {
+    if (kindOfRoom(room)?.supportsDelivery === true && (gate.stage.kind === 'deliverable' || gate.stage.manual === true)) {
       const evidence = [...readMessages(room.id)].reverse().find(message => (
         message.kind === 'evidence' && (message.meta?.stage ?? 0) === index
       ))

@@ -1,5 +1,5 @@
-import { canCreateSubroom, MAX_SUBROOM_DEPTH } from './room-subrooms.js'
-import { fail } from './result.js'
+import { canCreateSubroom, MAX_SUBROOM_DEPTH } from './subrooms.js'
+import { fail } from '../../result.js'
 
 // 子工作室只能是 studio，且父 Planner 只消费子 Verifier 的 verdict。
 export const createServiceSubrooms = ({ createRoom }) => ({

@@ -1,4 +1,4 @@
-import { findRedundantOpeningGate, normalizeManualStages } from './room-repair.js'
+import { findRedundantOpeningGate, normalizeManualStages } from './rooms/studio/repair.js'
 
 export const repairManualStages = store => {
   for (const room of store.readRooms()) {

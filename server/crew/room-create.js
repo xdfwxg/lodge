@@ -2,12 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from './budget.js'
 import { created, fail } from './result.js'
-import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot, resolveSeats, resolveStageAssignees } from './room-create-input.js'
-import { startInitialStage } from './room-create-start.js'
+import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot, resolveSeats } from './room-create-input.js'
 import { buildRoomRecord, initialRoomMessages } from './room-record.js'
 import { createProvisioner } from './room-provision.js'
-import { evaluateRoomGate } from './room-gate.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './room-workspace.js'
+import { kindForType } from './rooms/kinds.js'
 
 export { inheritedPlan } from './room-create-input.js'
 
@@ -16,6 +15,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
   const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit, independencePolicy } = request
+  const kind = kindForType(roomType.id)
   let continueSource = null
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
     continueSource = store.readRoom(body.continueFrom)
@@ -33,16 +33,17 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const { plan, error: planError } = normalizePlan({ body, continueSource, roomFiles: ports.roomFiles })
   if (planError !== undefined) return fail('invalid', planError)
   const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
-  const advisor = await ports.advisor?.advice?.({
-    mode: 'gate',
-    goal,
-    roomType: roomType.id,
-    plan,
-    verify,
-    acceptance: effectiveAcceptance,
-  }) ?? { available: false, advice: [] }
-  const gate = evaluateRoomGate({
-    roomType: roomType.id,
+  const advisor = kind.requiresGate
+    ? await ports.advisor?.advice?.({
+      mode: 'gate',
+      goal,
+      roomType: roomType.id,
+      plan,
+      verify,
+      acceptance: effectiveAcceptance,
+    }) ?? { available: false, advice: [] }
+    : { available: false, advice: [] }
+  const gate = kind.evaluateGate({
     goal,
     plan,
     verify,
@@ -55,18 +56,15 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const seatsResult = resolveSeats(body, roomType)
   if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
   const { templateId, roster, workers, verifiers, worker, lead, align } = seatsResult
-  if (roomType.id === 'studio' && typeof roomType.validateRoster === 'function') {
+  if (typeof kind.validateRoster === 'function') {
     try {
-      roomType.validateRoster(roster, { verify })
+      kind.validateRoster(roster, { verify })
     } catch (error) {
       return fail('invalid', `席位组合不可用：${error?.message ?? error}`)
     }
   }
-  const resolvedPlan = roomType.id === 'chat' ? null : resolveStageAssignees(plan, roster)
-  if (verify === 'manual' && verifiers.length > 0 && !['studio', 'chat'].includes(roomType.id)) {
-    return fail('invalid', '人工验收模式不需要验收席位；要独立复核就补一条验收命令')
-  }
-  if (roomType.id === 'studio' && independencePolicy === 'require' && verifiers.length > 0) {
+  const resolvedPlan = kind.resolvePlan(plan, roster)
+  if (kind.requireIndependence && independencePolicy === 'require' && verifiers.length > 0) {
     const listed = typeof engine.instances === 'function' ? await engine.instances().catch(() => []) : []
     const instances = Array.isArray(listed) ? listed : []
     const kinds = new Set(instances
@@ -105,7 +103,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const roomId = `room-${short}`
   let plannerTools = null
   let plannerToolsWarning = ''
-  if (roomType.id === 'studio' && typeof ports.plannerMcp?.ensure === 'function') {
+  if (kind.needsPlannerTools && typeof ports.plannerMcp?.ensure === 'function') {
     try {
       plannerTools = await ports.plannerMcp.ensure(roomId)
     } catch (error) {
@@ -183,19 +181,10 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         ...(advisor.version === undefined ? {} : { version: advisor.version }),
       },
     })
-    if (roomType.id === 'studio' && independencePolicy === 'require' && verifiers.length > 0 && room.independence !== 'vendor') {
+    if (kind.requireIndependence && independencePolicy === 'require' && verifiers.length > 0 && room.independence !== 'vendor') {
       throw new Error('要求跨厂商复核，但实际执行与验收落在同一厂商')
     }
-    if (Array.isArray(body.stageDependencies) && Array.isArray(room.stages)) {
-      room.stages = room.stages.map((stage, index) => {
-        const raw = body.stageDependencies[index]
-        if (!Array.isArray(raw)) return stage
-        const dependsOn = [...new Set(raw.filter(item => (
-          Number.isInteger(item) && item >= 0 && item < room.stages.length && item !== index
-        )))]
-        return dependsOn.length === 0 ? stage : { ...stage, dependsOn }
-      })
-    }
+    room = kind.applyStageDependencies(room, body.stageDependencies)
     store.writeRoom(room)
     stored = true
     if (parentRoom !== null) {
@@ -226,7 +215,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       store.appendMessage(room.id, { kind: 'system', text: plannerToolsWarning })
     }
     await live.attach(room, { resume: false })
-    room = await startInitialStage({
+    room = await kind.start({
       store,
       live,
       room,
@@ -238,8 +227,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       roster,
       goal,
       verify,
-      effectiveAcceptance,
-      autoStart: roomType.autoStart,
+      acceptance: effectiveAcceptance,
       emit,
     })
     room = store.readRoom(room.id) ?? room

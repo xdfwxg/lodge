@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildDelivery, deliveryMarkdown } from './delivery.js'
+import { buildDelivery, deliveryMarkdown } from './rooms/studio/delivery.js'
 import { evidenceDigest, evidenceEntryFromMessage } from './evidence-ledger.js'
 import { presentRoom } from './presentation.js'
 

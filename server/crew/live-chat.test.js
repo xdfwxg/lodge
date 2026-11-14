@@ -24,6 +24,7 @@ const setup = () => {
   const subscribed = []
   const sent = []
   const answered = []
+  const permissions = []
   const engine = {
     createRoom: async input => {
       assert.equal(input.members.length, 3)
@@ -63,8 +64,9 @@ const setup = () => {
     engine,
     projector: { toStored: (roomId, message) => ({ ...message, id: 'stored-1', roomId }) },
     refresh: async () => {},
+    onPermission: (entry, seat, message) => permissions.push({ seat, message }),
   })
-  return { chat, engine, store, sent, subscribed, answered, messages, room: () => room }
+  return { chat, engine, store, sent, subscribed, answered, permissions, messages, room: () => room }
 }
 
 test('a room gets one shared chat room with every seat', async () => {
@@ -215,7 +217,7 @@ test('syncing base history keeps a streamed final reply once', async () => {
   assert.equal(ctx.messages[0].meta.baseId, 'm1')
 })
 
-test('chat turns allow read-only tools but never write or exec', () => {
+test('permission cards are handed to the room strategy', () => {
   const ctx = setup()
   const room = { ...ctx.room(), roomType: 'chat', chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
   const entry = { roomId: room.id }
@@ -226,5 +228,6 @@ test('chat turns allow read-only tools but never write or exec', () => {
   ctx.subscribed[0].onEvent({
     message: { authorRef: 'b-executor', card: { requestType: 'permission', requestId: 'p2', action: 'write', tool: 'Write' } },
   })
-  assert.deepEqual(ctx.answered.map(item => item.behavior), ['allow', 'deny'])
+  assert.deepEqual(ctx.permissions.map(item => item.message.card.action), ['read', 'write'])
+  assert.equal(ctx.answered.length, 0)
 })

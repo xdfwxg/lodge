@@ -1,17 +1,7 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { chatTransitionEvent, transitionChat } from '../../room-state.js'
 import { seatDisplayName, toDisplayText } from '../../seat-labels.js'
-
-export const CHAT_TURNS_PER_ROUND = 6
-export const MAX_CHAT_TURNS_PER_ROUND = 20
-
-// 轮次上限是房间参数，不是引擎常量；默认 6，建房时可配置。
-export const chatTurnLimitOf = room => {
-  const value = Number(room?.chat?.turnLimit)
-  return Number.isInteger(value) && value >= 1 && value <= MAX_CHAT_TURNS_PER_ROUND
-    ? value
-    : CHAT_TURNS_PER_ROUND
-}
+import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750

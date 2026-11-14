@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createServiceTrust } from './service-trust.js'
+import { createServiceTrust } from './rooms/studio/service-trust.js'
 
 const setup = room => {
   let current = structuredClone(room)

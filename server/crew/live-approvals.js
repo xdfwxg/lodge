@@ -2,13 +2,19 @@ import { randomUUID } from 'node:crypto'
 import { externalAction, pendingApprovals } from './external-actions.js'
 import { reviewExternalAction } from './gate.js'
 import { seatNameOf } from './live-projection.js'
-import { activeStageReadOnly } from './rooms/studio/turn-utils.js'
 import { decidePermission } from './permission.js'
 import { trustLevelOf } from './trust.js'
 
 export const APPROVAL_TIMEOUT = 10 * 60 * 1000
 
-export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, approvalTimeoutMs = APPROVAL_TIMEOUT }) => {
+export const createLiveApprovals = ({
+  store,
+  engine,
+  emit,
+  gateAgent = null,
+  approvalTimeoutMs = APPROVAL_TIMEOUT,
+  readOnlyFor = () => false,
+}) => {
   const setApprovalState = (roomId, approvalId, state, extra = {}) => store.updateRoom(roomId, current => {
     const approval = current.approvals?.find(item => item?.id === approvalId && item.state === 'pending')
     if (approval === undefined) return null
@@ -191,7 +197,7 @@ export const createLiveApprovals = ({ store, engine, emit, gateAgent = null, app
     const room = store.readRoom(entry.roomId)
     const spec = room?.seatSpecs?.find(item => item.id === seat)
     const observe = trustLevelOf(room) === 'observe'
-    const readOnly = activeStageReadOnly(room) || observe
+    const readOnly = readOnlyFor(room) || observe
     const allowed = decidePermission(spec, card.action, { readOnly })
     const external = allowed ? externalAction(card) : null
     const cardSession = sessionRef ?? entry.seats.get(seat)?.sessionRef

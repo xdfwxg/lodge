@@ -1,6 +1,6 @@
 import { isWorkStage } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
-import { markTask } from '../../tasks.js'
+import { markTask } from './tasks.js'
 
 export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markProgress, requestReview, run }) => {
   let chain = Promise.resolve()

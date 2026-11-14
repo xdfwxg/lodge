@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
 import { roomDir, roomRootOf } from './paths.js'
 import { projectConstraintLines } from './project.js'
+import { resolveRoomType } from './room-types/index.js'
 
 export { roomDir }
 
@@ -49,14 +50,7 @@ export const writeEvidence = (room, message) => {
 }
 
 const briefText = (room, plan = null) => {
-  const stages = Array.isArray(room.stages) ? room.stages : []
-  const done = plan?.done?.length > 0
-    ? plan.done.map(text => `- [ ] ${text}`)
-    : room.roomType === 'chat'
-      ? ['- [ ] 围绕话题完成讨论，并由你确认结论']
-      : stages.map((stage, index) => (
-        `- [${stage.state === 'passed' ? 'x' : ' '}] 阶段 ${index + 1}：${stage.title}${stage.kind === 'deliverable' ? '（交付型 · 需证据）' : '（决策型 · 需人确认）'}`
-      ))
+  const done = resolveRoomType(room.roomType)?.briefDone?.(room, plan) ?? []
   const confirmed = (plan?.answers ?? []).map(item => `已确认：${item.question} → ${item.answer}`)
   const constraints = [...new Set([
     ...confirmed,

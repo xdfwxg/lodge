@@ -1,7 +1,9 @@
+import { kindOfRoom } from '../../rooms/kinds.js'
+
 export const MAX_SUBROOM_DEPTH = 3
 
 export const canCreateSubroom = room => (
-  room?.roomType === 'studio' &&
+  kindOfRoom(room)?.supportsSubrooms === true &&
   room.state === 'active' &&
   (room.depth ?? 0) < MAX_SUBROOM_DEPTH
 )

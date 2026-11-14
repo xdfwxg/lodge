@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { evaluateRoomGate } from './room-gate.js'
+import { evaluateRoomGate } from './rooms/studio/gate.js'
 
-test('chat bypasses the studio gate', () => {
-  const result = evaluateRoomGate({ roomType: 'chat', goal: '', plan: null, verify: 'manual', acceptance: '' })
+test('a room kind without a gate bypasses it', () => {
+  const result = evaluateRoomGate({ enabled: false, goal: '', plan: null, verify: 'manual', acceptance: '' })
   assert.equal(result.decision, 'allow')
 })
 
 test('studio rejects an unusable target before planning', () => {
   const result = evaluateRoomGate({
-    roomType: 'studio',
+    enabled: true,
     goal: '',
     plan: null,
     verify: 'test',
@@ -22,7 +22,7 @@ test('studio rejects an unusable target before planning', () => {
 
 test('advisor advice is returned but never changes the decision', () => {
   const result = evaluateRoomGate({
-    roomType: 'studio',
+    enabled: true,
     goal: '做一件事',
     plan: { done: ['完成'], stages: [] },
     verify: 'manual',

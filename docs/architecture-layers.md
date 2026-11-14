@@ -79,6 +79,17 @@ server/index.js（唯一组合根）
 - `orchestration/*` 是编排策略，每个策略一个派发形状；不把 `planStage` 再拆成“选人/并行/附注”三个文件，也不把策略名写进执行层或 UI。
 - `workspace-git.js` / `workspace-direct.js` / `workspace-plain.js` 各自是一个完整工作区实现；共用 helper 才下沉。
 - `rooms/studio/turns.js` 不再按函数切碎；它只做回合入口与组合，内部模块已按变化原因拆开。
+
+## 上下文边界（2026-11-14）
+
+聊天室和工作室是两个限界上下文，共享内核只保留存储、基座总线、席位身份和通用注意力。
+
+- `rooms/<context>/runtime.js` 是上下文运行时（工厂 + 适配器），负责挂载、装配和部署形态切换；它不是策略模式，也不用于在聊天室/工作室之间换算法。
+- `rooms/<context>/kind.js` 提供建房、记录、消息投影、权限和注意力钩子；共享应用层只调用钩子，不写 `roomType === ...`。
+- `rooms/<context>/facade.js` 是跨上下文只读门面，返回带版本号的瘦 DTO；调用方不得直接读对方的 `chat/chatHost/stages/closure` 或仓储。
+- 策略模式只放在上下文内部，例如消息持久化、通知下发、文档快照；只有出现第二种实现时才建 `strategy/`。
+- `negative-list.test.js` 固化：chat 与 studio 互不 import；`live-*`、`attention`、`presentation`、`resources`、`service-queries`、`room-create*`、`room-record`、`room-provision`、`room-gate` 不得直读上下文状态。
+- 数据库仍是共享实现：`messages` 按 `roomId` 隔离，不做跨上下文 join；将来拆服务时，Facade 可直接替换成 HTTP/gRPC 客户端。
 - `new-room-dialog.js` 是一个多步表单流，状态与步骤共享；强行拆步骤会引入跨文件状态同步。
 - `service-queries.js` 保持读模型门面，不为每个查询建一个文件。
 

@@ -1,4 +1,4 @@
-import { commandEvidenceFor, reviewState, verifierIds } from './verifiers.js'
+import { commandEvidenceFor, reviewState, verifierIds } from './rooms/studio/verifiers.js'
 
 export const TRUST_LEVELS = ['observe', 'verify', 'auto']
 export const DEFAULT_TRUST = 'verify'

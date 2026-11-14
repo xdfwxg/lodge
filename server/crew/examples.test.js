@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { HANDOFF_FORMAT } from './handoff.js'
+import { HANDOFF_FORMAT } from './rooms/studio/handoff.js'
 
 const samples = fileURLToPath(new URL('../../examples/rooms/', import.meta.url))
 

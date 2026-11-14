@@ -1,12 +1,13 @@
-import { fail, ok } from './result.js'
-import { canPromoteTrust, trustLevelOf } from './trust.js'
+import { fail, ok } from '../../result.js'
+import { kindOfRoom } from '../../rooms/kinds.js'
+import { canPromoteTrust, trustLevelOf } from '../../trust.js'
 
 // 信任级别是房间策略：升级要证据，降级随时可以，变更留事件与消息。
 export const createServiceTrust = ({ store, emit }) => {
   const { readMessages, updateRoom, appendMessage } = store
 
   const setTrust = (room, body) => {
-    if (room.roomType === 'chat') return fail('invalid', '聊天室没有信任阶梯')
+    if (kindOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '聊天室没有信任阶梯')
     const level = body?.level
     const check = canPromoteTrust(room, readMessages(room.id), level, store.readEvidence?.(room.id))
     if (!check.ok) return fail('invalid', check.error)

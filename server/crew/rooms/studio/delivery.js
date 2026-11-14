@@ -1,5 +1,5 @@
-import { independenceLabel } from './digest.js'
-import { evidenceDigest, evidenceEntryFromMessage, verifyEvidenceIntegrity } from './evidence-ledger.js'
+import { independenceLabel } from '../../digest.js'
+import { evidenceDigest, evidenceEntryFromMessage, verifyEvidenceIntegrity } from '../../evidence-ledger.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
 

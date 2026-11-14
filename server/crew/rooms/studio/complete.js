@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { persistenceKind } from './service-policy.js'
+import { persistenceKind } from '../../service-policy.js'
 
 export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
   const { readRoom, readMessages, updateRoom, appendMessage, appendEvent } = store

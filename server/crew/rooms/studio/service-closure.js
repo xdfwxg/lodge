@@ -1,10 +1,11 @@
-import { fail, ok } from './result.js'
-import { studioTransitionEvent, transitionStudio } from './room-state.js'
+import { fail, ok } from '../../result.js'
+import { kindOfRoom } from '../../rooms/kinds.js'
+import { studioTransitionEvent, transitionStudio } from '../../room-state.js'
 
 // closure 只属于工作室。Planner 只能在进入执行前拒绝目标，执行后收归 Verifier。
 export const createServiceClosure = ({ store, emit, plannerMcp = null }) => {
   const rejectPlan = (room, body = {}) => {
-    if (room.roomType !== 'studio') return fail('invalid', '只有工作室有 closure')
+    if (kindOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '只有工作室有 closure')
     if (room.state !== 'active') return fail('conflict', '房间不在进行中')
     if (room.closure !== 'planned') {
       return fail('conflict', room.closure === 'rejected' ? '目标已经被拒绝' : '只有 planned 阶段可以由 Planner 拒绝目标')

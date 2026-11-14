@@ -1,7 +1,8 @@
 import { buildSeatHandoff } from './seat-handoff.js'
-import { markSeatRead } from './watermarks.js'
-import { alignmentPrompt, directPrompt } from './room-create-input.js'
+import { markSeatRead } from '../../watermarks.js'
+import { alignmentPrompt, directPrompt } from '../../room-create-input.js'
 
+// 工作室建房后的第一次派发：先对齐，或直接交给主席位/执行席位。
 export const startInitialStage = async ({
   store,
   live,
@@ -14,17 +15,9 @@ export const startInitialStage = async ({
   roster,
   goal,
   verify,
-  effectiveAcceptance,
-  autoStart,
+  acceptance,
   emit,
 }) => {
-  if (autoStart === 'chat') {
-    void live.startChat(room).catch(error => {
-      store.appendMessage(room.id, { kind: 'system', text: `聊天室启动失败：${error?.message ?? error}` })
-    })
-    return room
-  }
-  if (autoStart !== 'stage') return room
   const activeStage = room.stages.findIndex(stage => stage.state === 'active')
   if (plan !== null) {
     if (activeStage >= 0) await live.startStage(room, activeStage)
@@ -35,10 +28,8 @@ export const startInitialStage = async ({
     markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
     const openingName = room.seatNames?.[targetSeat.id] ?? targetSeat.name
     const opening = align
-      ? alignmentPrompt(openingName, goal, verify, effectiveAcceptance)
-      : room.roomType === 'studio'
-        ? `@${openingName}\n${directPrompt(goal, verify, effectiveAcceptance, roster.length === 1)}`
-        : directPrompt(goal, verify, effectiveAcceptance, roster.length === 1)
+      ? alignmentPrompt(openingName, goal, verify, acceptance)
+      : `@${openingName}\n${directPrompt(goal, verify, acceptance, roster.length === 1)}`
     const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
     const sent = await live.sendToSeat(room.id, targetSeat.id, `${opening}\n\n${context}`)
     if (sent.messageId !== null) {

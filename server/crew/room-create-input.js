@@ -1,10 +1,10 @@
-import { MAX_CHAT_TURNS_PER_ROUND } from './rooms/chat/scheduler.js'
+import { MAX_CHAT_TURNS_PER_ROUND } from './room-types/chat.js'
+import { kindForType } from './rooms/kinds.js'
 import { resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { workContract } from './prompt-modes.js'
 import { resolveRoomType } from './room-types/index.js'
 import {
   DEFAULT_TEMPLATE_ID,
-  roleKindOf,
   roleSeats,
   rosterFromRoles,
   seatsFor,
@@ -139,18 +139,6 @@ export const normalizePlan = ({ body, continueSource, roomFiles }) => {
   return { plan }
 }
 
-// 规划师提案里的席位 id / 名字由业务映射到真实席位；验收席位不由提案派发。
-export const resolveStageAssignees = (plan, roster) => {
-  if (plan === null || !Array.isArray(plan.stages)) return plan
-  return {
-    ...plan,
-    stages: plan.stages.map(stage => {
-      const { assignees, ...rest } = stage
-      const resolved = resolveAssigneeTokens(assignees, roster)
-      return resolved.length > 0 ? { ...rest, assignees: resolved } : rest
-    }),
-  }
-}
 
 export const resolveSeats = (body, roomType) => {
   const requestedSeats = Array.isArray(body.seats)
@@ -173,18 +161,8 @@ export const resolveSeats = (body, roomType) => {
   }
   // 只读房型的工具调用必须经过审批桥，讨论阶段才能在实际工具面拒绝写入与执行。
   if (roomType.readOnly === true) roster = roster.map(seat => ({ ...seat, approval: 'ask' }))
-  roster = roster.map(seat => roomType.id === 'chat'
-    ? {
-        ...seat,
-        roleKind: 'participant',
-        roleProfile: seat.name,
-        isHost: seat.role === 'lead',
-      }
-    : {
-        ...seat,
-        roleKind: roleKindOf(seat.role),
-        roleProfile: seat.name,
-      })
+  const kind = kindForType(roomType.id)
+  roster = roster.map(seat => ({ ...seat, ...kind.seatRole(seat) }))
   const { workers, verifiers } = roleSeats(roster)
   const worker = workers[0] ?? roster[0]
   const explicitLead = roster.find(seat => seat.role === 'lead')

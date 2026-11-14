@@ -1,12 +1,14 @@
 import { createLiveTurns } from './turns.js'
 import { createStudioEngine } from './prompts.js'
 
-// 工作室策略：阶段派发、执行、验收、返工和签字都走群聊 @，没有讨论轮次。
-export const createStudioStrategy = ({
+// 工作室上下文运行时：阶段派发、执行、验收、返工和签字都走群聊 @，没有讨论轮次。
+export const createStudioRuntime = ({
   store,
   engine,
   emit,
   ports,
+  approvals,
+  refreshRoom,
   onPlannerTool = null,
 }) => {
   const studioEngine = createStudioEngine({ engine })
@@ -35,6 +37,15 @@ export const createStudioStrategy = ({
 
     captureTurn: (entry, message) => entry.turns.captureTurn(message.turn, message.authorRef),
     busyReview: entry => entry.turns.busyReview(),
+    acceptsDelta: false,
+
+    permissionCard: async (entry, seat, message, chat) => {
+      try {
+        await approvals.answerPermission(entry, seat, message, refreshRoom, { sessionRef: chat.sessionRef })
+      } catch (error) {
+        store.appendMessage(entry.roomId, { kind: 'system', text: `群聊权限卡处理失败：${error?.message ?? error}` })
+      }
+    },
 
     resume: async (entry, options) => {
       await entry.turns.resume(options)

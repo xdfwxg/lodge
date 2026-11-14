@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildTasks, markStageTasks, markTask } from './tasks.js'
+import { buildTasks, markStageTasks, markTask } from './rooms/studio/tasks.js'
 
 const stage = {
   tasks: buildTasks({ stageIndex: 1, workers: ['甲', '乙'], seatNames: { 甲: '前端', 乙: '后端' } }),

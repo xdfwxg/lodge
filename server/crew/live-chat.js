@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { matchEcho, seatFor } from './live-projection.js'
 import { pauseForSeatFailure } from './live-sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
+import { kindOfRoom } from './rooms/kinds.js'
+import { chatFacade } from './rooms/chat/facade.js'
 import { toBaseMentions, toDisplayMentions, toDisplayText } from './seat-labels.js'
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
@@ -39,12 +41,13 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
 
   const applyDelta = (entry, room, event) => {
     const current = store.readRoom(room.id) ?? room
-    if (current.roomType !== 'chat') return
+    if (kindOfRoom(current)?.acceptsDelta !== true) return
     // 隐藏主持模型只负责总结，不把它的原始回复流进时间线；结论由 Lodge 写卡片。
-    if (current.chatHost?.memberRef !== undefined && entry.baseRoom?.busyRef === current.chatHost.memberRef) return
+    const host = chatFacade.hostOf(current)
+    if (host !== null && entry.baseRoom?.busyRef === host.memberRef) return
     // 基座正在发言的人才是这一段 delta 的作者；自造的 speaker 只在拿不到基座状态时兜底。
     const seat = (entry.baseRoom?.busyRef === undefined ? null : seatFor(current, entry.baseRoom.busyRef))
-      ?? current.chat?.speaker
+      ?? chatFacade.speakerOf(current)
     if (typeof seat !== 'string' || seat === '') return
     const streams = streamOf(entry)
     const prior = streams.get(seat)
@@ -73,8 +76,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     const finalIds = finalIdsOf(entry)
     if (finalIds.has(message.id)) return true
     const current = store.readRoom(room.id) ?? room
-    if (current.roomType !== 'chat') return false
-    const seat = seatFor(current, message.authorRef) ?? current.chat?.speaker
+    if (kindOfRoom(current)?.acceptsDelta !== true) return false
+    const seat = seatFor(current, message.authorRef) ?? chatFacade.speakerOf(current)
     if (typeof seat !== 'string' || seat === '') return false
     const streams = streamOf(entry)
     const state = streams.get(seat)
@@ -101,7 +104,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   // 基座忙碌时消息会排队，发送响应 id 和最终落库 id 不同；回显先占位，落库后只补 baseId，不再重复投影。
   const projectMessage = (room, message) => {
     // 隐藏主持模型的原始回复只喂给总结卡，不进入聊天时间线。
-    if (room.chatHost?.memberRef !== undefined && message.authorRef === room.chatHost.memberRef) return null
+    const host = chatFacade.hostOf(room)
+    if (host !== null && message.authorRef === host.memberRef) return null
     // 流式消息已经落库的，同步历史时不再补一条同内容的消息。
     if (store.readMessages(room.id).some(item => item.meta?.baseId === message.id)) return null
     if (message.role === 'user') {
@@ -158,9 +162,10 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       return room
     }
     if (typeof engine.createRoom !== 'function') return room
+    const host = chatFacade.hostOf(room)
     const members = [
       ...Object.values(room.seatBots ?? {}),
-      ...(room.chatHost?.memberRef === undefined ? [] : [room.chatHost.memberRef]),
+      ...(host === null ? [] : [host.memberRef]),
     ]
     if (members.length === 0) return room
     try {
@@ -170,7 +175,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         bulletin: ROOM_CHAT_BULLETIN,
         members,
         cwd: room.repoPath,
-        leadId: room.chatHost?.memberRef ?? room.seatBots?.[room.leadSeat] ?? members[0],
+        leadId: chatFacade.hostOf(room)?.memberRef ?? room.seatBots?.[room.leadSeat] ?? members[0],
         responder: { kind: 'mentions' },
       })
       const updated = store.updateRoom(room.id, current => {
@@ -214,35 +219,11 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         const current = store.readRoom(room.id) ?? room
         if (message.card?.requestType === 'permission') {
           const seat = seatFor(current, message.authorRef)
-          // 工作室的群聊回合就是执行回合，权限沿用席位能力；聊天室只放行只读轻工具。
-          if (current.roomType === 'studio' && typeof onPermission === 'function') {
-            void onPermission(entry, seat, message, chat).catch(error => {
-              store.appendMessage(room.id, { kind: 'system', text: `群聊权限卡处理失败：${error?.message ?? error}` })
-            })
-            return
-          }
-          const spec = current.seatSpecs?.find(item => item.id === seat)
-          // 聊天室只放行只读轻工具；写文件、跑命令和完整执行引擎都不挂在这里。
-          const allowed = message.card.action === 'read'
-          void engine.answerCard({
-            sessionRef: chat.sessionRef,
-            requestId: message.card.requestId,
-            behavior: allowed ? 'allow' : 'deny',
-          }).then(() => {
-            if (!allowed) {
-              store.appendMessage(room.id, {
-                kind: 'system',
-                text: `聊天室只放行只读工具：${spec?.name ?? seat ?? '席位'} 被拒绝使用 ${message.card.tool ?? message.card.action ?? '该工具'}；要执行请新建工作室。`,
-              })
-            }
-          }).catch(error => {
-            store.appendMessage(room.id, { kind: 'system', text: `聊天权限卡处理失败：${error?.message ?? error}` })
-          })
+          // 权限策略归房型策略；总线只把卡片交给当前房间的策略。
+          void onPermission(entry, seat, message, chat)
           return
         }
-        if (current.roomType === 'studio' && message.kind === 'turn' && typeof onTurn === 'function') {
-          onTurn(entry, current, message)
-        }
+        if (message.kind === 'turn') onTurn?.(entry, current, message)
         const streamed = finishStream(entry, current, message)
         if (!streamed) {
           const stored = projectMessage(current, message)
@@ -268,9 +249,10 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const syncMembers = async room => {
     const chat = room.chatRoom
     if (chat === undefined || typeof engine.updateRoomMembers !== 'function') return
+    const host = chatFacade.hostOf(room)
     const members = [
       ...Object.values(room.seatBots ?? {}),
-      ...(room.chatHost?.memberRef === undefined ? [] : [room.chatHost.memberRef]),
+      ...(host === null ? [] : [host.memberRef]),
     ]
     if (members.length === 0) return
     await engine.updateRoomMembers(chat.id, members)

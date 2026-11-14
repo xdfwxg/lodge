@@ -36,72 +36,11 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     db.exec('ALTER TABLE room ADD COLUMN version INTEGER NOT NULL DEFAULT 1')
   }
 
-  // 旧聊天室曾借用 stages/chats 分散字段；读路径迁到 room.chat，下一次写入自然落盘。
-  const upgradeRoom = room => {
-    // 旧房间的执行席位显示名迁移；只改展示名，不改席位 id 和权限。
-    if (Array.isArray(room?.seatSpecs)) {
-      room.seatSpecs = room.seatSpecs.map(seat => (
-        seat?.role === 'worker' && seat.name === '执行者'
-          ? { ...seat, name: '执行官', prompt: String(seat.prompt ?? '').replaceAll('执行者', '执行官') }
-          : seat
-      ))
-    }
-    if (room?.roomType !== 'chat') {
-      if (room.engine === undefined) room.engine = 'delivery'
-      if (room?.closure === undefined) {
-        room.closure = room.state === 'complete'
-          ? 'signed'
-          : Array.isArray(room.stages) && room.stages.some(stage => stage.state === 'active')
-            ? 'executing'
-            : 'open'
-      }
-      if (room?.verificationMode === undefined) {
-        room.verificationMode = (room.verifiers?.length ?? 0) > 0 ? 'hybrid' : 'human'
-      }
-      if (room.verifierPolicy === undefined) room.verifierPolicy = 'all'
-      if (room.shadowReview === undefined) room.shadowReview = false
-      if (room.parentRoomId === undefined) room.parentRoomId = null
-      if (room.depth === undefined) room.depth = 0
-      if (!Array.isArray(room.childRoomIds)) room.childRoomIds = []
-      return room
-    }
-    if (room.engine === undefined) room.engine = 'chat'
-    delete room.closure
-    delete room.verificationMode
-    if (room.chat === undefined) {
-      const running = room.chatRunning === true
-      const phase = running
-        ? (room.chatPhase === 'summarizing' ? 'summarizing' : 'discussing')
-        : room.state === 'complete'
-          ? 'awaiting_decision'
-          : (room.chatTurns ?? 0) >= 6 ? 'awaiting_decision' : 'discussing'
-      room.chat = {
-        round: Number.isInteger(room.chatRound) && room.chatRound > 0 ? room.chatRound : 1,
-        phase,
-        turns: room.chatTurns ?? 0,
-        conclusionId: typeof room.chatConclusionId === 'string' ? room.chatConclusionId : null,
-        accepted: room.state === 'complete',
-        running,
-        speaker: typeof room.chatSpeaker === 'string' ? room.chatSpeaker : '',
-        note: typeof room.chatNote === 'string' ? room.chatNote : '',
-      }
-    }
-    delete room.stages
-    delete room.chatRound
-    delete room.chatTurns
-    delete room.chatRunning
-    delete room.chatPhase
-    delete room.chatSpeaker
-    delete room.chatNote
-    delete room.chatConclusionId
-    return room
-  }
 
   const readRoom = id => {
     const row = db.prepare('SELECT payload, version FROM room WHERE id = ?').get(id)
     if (row === undefined) return null
-    const room = upgradeRoom(JSON.parse(row.payload))
-    // 读路径只做内存迁移；升级后的聊天室在下一次 updateRoom 时才写回。
+    const room = JSON.parse(row.payload)
     room.version = row.version
     return room
   }
@@ -115,7 +54,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     return room
   }
   const readRooms = () => db.prepare("SELECT payload, version FROM room WHERE id <> 'dispatch' ORDER BY rowid").all()
-    .map(row => ({ ...upgradeRoom(JSON.parse(row.payload)), version: row.version }))
+    .map(row => ({ ...JSON.parse(row.payload), version: row.version }))
   const readMessages = roomId => db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId).map(row => JSON.parse(row.payload))
   // 证据账本只追加：命令证据和人工产物证据进入账本，执行席位的自述回合留在消息流。
   const appendEvidenceFromMessage = message => {
@@ -176,7 +115,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
         db.exec('ROLLBACK')
         return null
       }
-      const room = upgradeRoom(JSON.parse(row.payload))
+      const room = JSON.parse(row.payload)
       const change = mutate(room)
       if (change === null || change === undefined || change === false) {
         db.exec('ROLLBACK')

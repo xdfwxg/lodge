@@ -1,6 +1,9 @@
 import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
+import { buildChatRequest, ChatSetupFields, chatSeatChoicesFrom } from './room/chat/create.js'
 import { seedGoalText } from './room/chat/seed.js'
+import { SeatEnginePicker } from './room/seat-engine-picker.js'
+import { StudioSetupFields } from './room/studio/create.js'
 
 const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
@@ -93,8 +96,7 @@ function NewRoomDialog({
   useEffect(() => {
     if (!open || roomType !== 'chat') return
     const type = typeChoices.find(item => item.id === 'chat')
-    const seats = normalizeSeats(type?.defaultSeats ?? [])
-    setChatSeatChoices(seats.map(seat => ({ engine: seat.engine ?? '', model: seat.model ?? '' })))
+    setChatSeatChoices(chatSeatChoicesFrom(type?.defaultSeats ?? []))
   }, [open, roomType, typeChoices])
 
   if (!open) return null
@@ -272,26 +274,16 @@ function NewRoomDialog({
     setBusy(true)
     setError(null)
     try {
-      const chatSeats = normalizeSeats(activeType?.defaultSeats ?? []).map((seat, index) => {
-        const choice = chatSeatChoices[index] ?? { engine: '', model: '' }
-        const model = selectedModelOf(choice)
-        return {
-          ...seat,
-          ...(choice.engine === '' ? {} : { engine: choice.engine }),
-          ...(choice.engine === '' || model === '' ? {} : { model }),
-        }
-      })
-      const hasChatSeatChoice = chatSeatChoices.some(choice => choice.engine !== '' || choice.model !== '')
-      const result = await onCreate(goal.trim(), {
+      const result = await onCreate(goal.trim(), buildChatRequest({
+        goal: goal.trim(),
         name: roomName.trim(),
-        roomType: 'chat',
-        verify: 'manual',
-        acceptance: '',
-        chatTurnLimit,
         repoPath: repoPath.trim(),
-        ...(hasChatSeatChoice ? { seats: chatSeats } : {}),
-        ...(resume === null ? {} : { continueFrom: resume.id }),
-      })
+        chatTurnLimit,
+        defaultSeats: activeType?.defaultSeats ?? [],
+        choices: chatSeatChoices,
+        continueFrom: resume === null ? null : resume.id,
+        selectedModelOf,
+      }))
       if (result?.ok !== true) {
         setError(result?.error ?? '创建聊天室失败')
         return
@@ -357,63 +349,21 @@ function NewRoomDialog({
     }
   }
 
-  const seatEnginePicker = (seats, choices, setChoices) => seats.map((seat, index) => {
-    const choice = choices[index] ?? { engine: '', model: '' }
-    const engine = engineChoices.find(item => item.id === choice.engine)
-    const rows = modelRowsFor(engine)
-    const model = choice.model !== '' ? choice.model : (engine?.models?.default || rows[0]?.id || '')
-    return h('div', { key: `${seat.role}-${index}`, className: 'crew-seat-engine' },
-      h('div', { className: 'crew-seat-engine-head' },
-        h('span', null,
-          `${seat.name === undefined || seat.name === '' ? ROLE_LABEL[seat.role] ?? seat.role : seat.name}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)),
-      h('div', { className: 'crew-seat-engine-controls' },
-        h('select', {
-          className: 'crew-goal-input',
-          value: choice.engine,
-          onChange: event => {
-            const next = [...choices]
-            next[index] = { engine: event.target.value, model: '' }
-            setChoices(next)
-            setLoginNote(null)
-          },
-        },
-        h('option', { value: '' }, '按角色默认'),
-        engineChoices.map(item => h('option', {
-          key: item.id,
-          value: item.id,
-        }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
-        engine !== undefined && rows.length > 0
-          ? h('select', {
-            className: 'crew-goal-input',
-            value: model,
-            onChange: event => {
-              const next = [...choices]
-              next[index] = { ...choice, model: event.target.value }
-              setChoices(next)
-            },
-          },
-          rows.map(item => h('option', { key: item.id, value: item.id }, item.label)))
-          : null,
-        engine !== undefined && rows.length === 0 && Array.isArray(engine.login?.args)
-          ? h('button', {
-            type: 'button',
-            className: 'crew-ghost',
-            disabled: loginBusy,
-            onClick: () => void loginEngineFor(engine),
-          }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)
-          : null),
-      engine !== undefined && rows.length === 0
-        ? h('p', { className: 'crew-field-hint' }, '这个引擎还没有可用模型。')
-        : null)
-  })
-
   const teamView = h('div', { className: 'crew-proposal-block' },
     h('b', null, nonTask ? '团队' : '团队与引擎'),
     nonTask
       ? h('ul', { className: 'crew-brief' },
         proposalSeats.map((seat, index) => h('li', { key: `${seat.role}-${index}` },
           `${ROLE_LABEL[seat.role] ?? seat.role}${seat.name === ROLE_LABEL[seat.role] ? '' : `「${seat.name}」`}${typeof seat.reason === 'string' && seat.reason !== '' ? ` · ${seat.reason}` : ''}`)))
-      : seatEnginePicker(proposalSeats, seatChoices, setSeatChoices),
+      : h(SeatEnginePicker, {
+        seats: proposalSeats,
+        choices: seatChoices,
+        setChoices: setSeatChoices,
+        engines,
+        loginBusy,
+        onLogin: loginEngineFor,
+        onInteraction: () => setLoginNote(null),
+      }),
     roomType === 'studio' && !hasVerifier
       ? h('p', { className: 'crew-field-hint' }, '工作室必须有独立验收席位；让 Lodge 重新出方案，补一个验收员。')
       : null,
@@ -576,47 +526,24 @@ function NewRoomDialog({
           onClick: () => changeRoomType(type.id),
         }, type.name)))),
     roomType === 'studio'
-      ? h('div', null,
-        h('label', { className: 'crew-check' },
-          h('input', {
-            type: 'checkbox',
-            checked: shadowReview,
-            onChange: event => setShadowReview(event.target.checked),
-          }),
-          '影子评审：评估建议只记录，不注入验收员'),
-        h('label', { className: 'crew-check' },
-          h('input', {
-            type: 'checkbox',
-            checked: requireIndependent,
-            onChange: event => setRequireIndependent(event.target.checked),
-          }),
-          '严格要求跨厂商复核：没有第二厂商时拒绝建房'))
-      : null,
-    roomType === 'chat'
-      ? h('div', { className: 'crew-field' },
-        h('div', { className: 'crew-field-head' },
-          h('b', null, '每轮发言上限'),
-          h('span', { className: 'crew-field-hint' }, '默认 6')),
-        h('input', {
-          className: 'crew-goal-input',
-          type: 'number',
-          min: 1,
-          max: 20,
-          value: chatTurnLimit,
-          onChange: event => setChatTurnLimit(Math.min(20, Math.max(1, Number(event.target.value) || 6))),
-        }),
-        h('p', { className: 'crew-field-hint' }, '达到上限后主持人总结，你认可或继续追加一轮。'))
-      : null,
-    roomType === 'chat'
-      ? h('div', { className: 'crew-proposal-block' },
-        h('b', null, '成员与模型'),
-        seatEnginePicker(
-          normalizeSeats(activeType?.defaultSeats ?? []),
-          chatSeatChoices,
-          setChatSeatChoices,
-        ))
-      : null,
-    roomType === 'studio' ? constraintsView : null,
+      ? h(StudioSetupFields, {
+        shadowReview,
+        onShadowReview: setShadowReview,
+        requireIndependent,
+        onRequireIndependent: setRequireIndependent,
+        constraintsView,
+      })
+      : h(ChatSetupFields, {
+        turnLimit: chatTurnLimit,
+        onTurnLimit: setChatTurnLimit,
+        seats: activeType?.defaultSeats ?? [],
+        choices: chatSeatChoices,
+        setChoices: setChatSeatChoices,
+        engines,
+        loginBusy,
+        onLogin: loginEngineFor,
+        onInteraction: () => setLoginNote(null),
+      }),
     resume?.brief?.done?.length > 0
       ? h('div', { className: 'crew-proposal-block' },
         h('b', null, `上一轮的要求 · ${resume.name}`),

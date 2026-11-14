@@ -1,3 +1,13 @@
+export const CHAT_TURNS_PER_ROUND = 6
+export const MAX_CHAT_TURNS_PER_ROUND = 20
+
+export const turnLimitOf = room => {
+  const value = Number(room?.chat?.turnLimit)
+  return Number.isInteger(value) && value >= 1 && value <= MAX_CHAT_TURNS_PER_ROUND
+    ? value
+    : CHAT_TURNS_PER_ROUND
+}
+
 export const id = 'chat'
 export const name = '聊天室'
 export const description = '围绕一个话题讨论，随机唤醒发言，主持人总结后由你确认'
@@ -12,6 +22,8 @@ export const autoStart = 'chat'
 export const singleDirectory = true
 
 export const normalize = () => ({ verify: 'manual', acceptance: '' })
+
+export const briefDone = () => ['- [ ] 围绕话题完成讨论，并由你确认结论']
 
 export const buildStages = () => ({
   stages: [

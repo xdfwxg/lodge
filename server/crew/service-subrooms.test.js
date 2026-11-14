@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createServiceSubrooms } from './service-subrooms.js'
+import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
 
 test('a subroom is always created as a studio with the parent', async () => {
   const calls = []
