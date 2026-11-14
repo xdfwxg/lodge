@@ -39,9 +39,3 @@ export function BotAvatar({ bot, size = 30, live = false }) {
     live ? h('span', { className: 'crew-avatar-dot' }) : null)
 }
 
-export function RoomMark({ room, size = 36 }) {
-  return h('span', {
-    className: 'crew-room-mark',
-    style: { width: size, height: size, fontSize: Math.round(size * 0.4) },
-  }, initialOf(room?.name, '房'))
-}

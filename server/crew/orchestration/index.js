@@ -4,7 +4,7 @@ import * as parallel from './parallel.js'
 
 export { resolveAssigneeTokens } from './assignees.js'
 
-export const orchestrationStrategies = [pipeline, parallel, critique]
+const orchestrationStrategies = [pipeline, parallel, critique]
 export const defaultOrchestrationId = pipeline.id
 
 export const resolveOrchestration = value => {

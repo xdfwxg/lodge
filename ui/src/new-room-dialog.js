@@ -1,9 +1,9 @@
 import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
-import { buildChatRequest, ChatSetupFields, chatSeatChoicesFrom } from './room/chat/create.js'
+import { buildChatRequest, chatSeatChoicesFrom } from './room/chat/create.js'
 import { seedGoalText } from './room/chat/seed.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
-import { buildStudioRequest, StudioSetupFields } from './room/studio/create.js'
+import { buildStudioRequest } from './room/studio/create.js'
 import { uiKindOfType } from './room/kinds.js'
 
 const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }

@@ -13,7 +13,7 @@ export const cleanText = value => String(value ?? '')
   .replace(/\s+/g, ' ')
   .trim()
 
-export const statusOfPaused = room => {
+const statusOfPaused = room => {
   if (room.pauseReason === 'seat_error') {
     const who = nameOf(room, room.seatError?.seat)
     const reason = room.seatError?.kind === 'quota'

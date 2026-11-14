@@ -296,4 +296,4 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
           : null)))
 }
 
-export { Markdown, Speaker, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard }
+export { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard }

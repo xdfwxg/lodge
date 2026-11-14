@@ -91,7 +91,6 @@ const resolveStageAssignees = (plan, roster) => {
   }
 }
 
-const roleLabel = seat => seat.name
 
 const studioConstraints = ({
   plan,
@@ -284,4 +283,3 @@ export const studioKind = {
   },
 }
 
-export { roleLabel }

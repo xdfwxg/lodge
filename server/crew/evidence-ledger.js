@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 
 // 摘要不把 digest 自己算进去；写入与校验共用这一份口径，避免两套算法漂移。
-export const evidencePayload = entry => {
+const evidencePayload = entry => {
   const { digest: _digest, ...payload } = entry ?? {}
   return payload
 }

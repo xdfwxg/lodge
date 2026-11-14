@@ -30,10 +30,10 @@ const views = new Map(roomKinds.map(kind => [kind, {
   presentation: pick(kind, PRESENTATION_KEYS),
 }]))
 
-export const kindForType = typeId => roomKinds.find(kind => kind.owns(typeId)) ?? null
+const kindForType = typeId => roomKinds.find(kind => kind.owns(typeId)) ?? null
 
 // 没写房型的内部记录按工作室处理；未知房型返回 null，由调用方拒绝。
-export const kindOfRoom = room => {
+const kindOfRoom = room => {
   const resolved = resolveRoomType(room?.roomType)
   return resolved === null ? null : kindForType(resolved.id)
 }
@@ -54,7 +54,7 @@ export const roomPresentationOfRoom = room => {
 }
 
 // 跨上下文同步读取先拿 Facade，再取版本化 DTO；不要直接读对方的聚合字段。
-export const facadeOfRoom = room => {
+const facadeOfRoom = room => {
   const kind = kindOfRoom(room)
   return kind === null ? null : facades[kind.id] ?? null
 }

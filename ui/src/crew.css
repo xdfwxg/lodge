@@ -9,11 +9,6 @@
 .bt-row{display:flex;align-items:center;gap:9px;min-height:52px;padding:8px;border:0;border-radius:12px;background:transparent;color:var(--bt-ink);text-align:left;cursor:pointer;width:100%;box-sizing:border-box;font-family:inherit;transition:background-color .12s ease}
 .bt-row:hover{background:var(--bt-hover)}
 .bt-row[aria-current=page]{background:var(--bt-active)}
-.bt-row-body{display:flex;flex-direction:column;min-width:0;flex:1 1 auto}
-.bt-row-name{display:flex;align-items:center;gap:6px;min-width:0;font-size:16px;line-height:20px;font-weight:400}
-.bt-row[aria-current=page] .bt-row-name{font-weight:500}
-.bt-row-title{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bt-row-preview{font-size:14px;line-height:18px;color:var(--bt-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bt-tag{flex:none;max-width:96px;font-size:12px;line-height:16px;font-weight:400;padding:1px 6px;border-radius:5px;background:var(--bt-tag-bg);color:var(--bt-tag-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .crew-side-brand{display:flex;align-items:center;gap:9px;width:100%;padding:10px 6px 14px;color:var(--bt-ink);font-size:16px;font-weight:650;letter-spacing:-.01em;text-align:left}
@@ -43,20 +38,10 @@
 .crew-side-room-dot[data-tone=done]{background:var(--bt-green)}
 .crew-side-room-dot[data-tone=alert]{background:var(--bt-danger)}
 .crew-side-room-dot[data-tone=waiting]{background:var(--bt-star)}
-.crew-section{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 4px;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--bt-ink-3)}
 .crew-new{border:0;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:12px;font-weight:600;letter-spacing:0;cursor:pointer;padding:2px 4px;border-radius:6px}
 .crew-new:hover{color:var(--bt-ink);background:var(--bt-hover)}
 
-.crew-room-mark{flex:none;display:grid;place-items:center;border-radius:11px;background:color-mix(in srgb,var(--bt-ink) 7%,transparent);color:var(--bt-ink-2);font-weight:650;line-height:1}
-.bt-row-preview[data-needs=rework],.bt-row-preview[data-needs=merge],.bt-row-preview[data-needs=parallel],.bt-row-preview[data-needs=budget]{color:var(--bt-danger)}
-.bt-row-preview[data-needs=review]{color:var(--bt-accent)}
-.bt-row-preview[data-needs=signoff]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
 
-.crew-head{display:flex;flex-direction:column;gap:10px;padding:16px 24px 12px;border-bottom:1px solid var(--bt-line)}
-.crew-title{display:flex;align-items:center;flex-wrap:nowrap;gap:8px;min-height:26px}
-.crew-title h1{margin:0;min-width:0;font-size:20px;font-weight:650;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.crew-badge{flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--bt-green) 13%,transparent);color:color-mix(in srgb,var(--bt-green) 72%,var(--bt-ink));font-size:12px;font-weight:600;line-height:18px;white-space:nowrap}
-.crew-badge[data-warn]{background:color-mix(in srgb,var(--bt-star) 16%,transparent);color:color-mix(in srgb,var(--bt-star) 80%,var(--bt-ink))}
 .crew-goal{margin:0;font-size:13px;line-height:18px;color:var(--bt-ink-2)}
 .crew-stage{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--bt-line-2);border-radius:999px;font-size:12px;line-height:17px;color:var(--bt-ink-2)}
 .crew-stage[data-state=active]{border-color:var(--bt-accent);color:var(--bt-accent);background:color-mix(in srgb,var(--bt-accent) 8%,transparent)}
@@ -309,7 +294,6 @@
 
 @media (max-width:760px){
   .dsb-frame{grid-template-columns:232px minmax(0,1fr)}
-  .crew-head{padding:14px 16px 10px}
 }
 
 /* Base primitives: bubbles, markdown, marks. Written for Lodge, no vendored CSS. */
@@ -365,18 +349,10 @@
 .crew-onboarding .crew-ghost{min-width:160px;margin-left:0;padding:11px 32px;border-radius:10px;font-size:16px}
 
 /* Attention: one needs-you signal per room, not unread counts. */
-.crew-section-tools{display:flex;align-items:center;gap:8px}
 .crew-needs-count{padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--bt-star) 14%,transparent);color:color-mix(in srgb,var(--bt-star) 82%,var(--bt-ink));font-size:11.5px;font-weight:600;line-height:17px;white-space:nowrap}
 .crew-unread-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bt-accent);margin-left:2px}
-.bt-row-preview[data-needs]{color:color-mix(in srgb,var(--bt-star) 82%,var(--bt-ink));font-weight:500}
-.bt-row-preview[data-needs=signoff]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
-.bt-row-preview[data-needs=rework]{color:var(--bt-danger)}
-.crew-digest-needs{font-size:12px;font-weight:600;line-height:17px;color:color-mix(in srgb,var(--bt-star) 82%,var(--bt-ink))}
-.crew-digest-needs[data-kind=signoff]{color:color-mix(in srgb,var(--bt-green) 78%,var(--bt-ink))}
-.crew-digest-needs[data-kind=rework]{color:var(--bt-danger)}
 
 /* Chat room: the scheduler stays invisible; only round progress and a typing hint surface. */
-.crew-chat-status{position:sticky;top:0;z-index:2;align-self:flex-start;margin:0 0 6px;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--bt-card) 88%,transparent);border:1px solid var(--bt-line);color:var(--bt-ink-3);font-size:11.5px;line-height:17px;backdrop-filter:blur(8px)}
 .crew-typing-line{color:var(--bt-ink-3)}
 .crew-typing-line .crew-msg-body{display:flex;align-items:center;gap:6px;min-height:30px;font-size:14px;line-height:19px}
 .crew-typing-name{color:var(--bt-ink-2)}
@@ -384,7 +360,6 @@
 .crew-typing-dots i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.35;animation:crew-typing 1.2s infinite}
 .crew-typing-dots i:nth-child(2){animation-delay:.15s}
 .crew-typing-dots i:nth-child(3){animation-delay:.3s}
-.crew-typing-queue{font-size:12px;color:var(--bt-ink-3)}
 @keyframes crew-typing{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:.9;transform:translateY(-2px)}}
 @media (prefers-reduced-motion:reduce){.crew-typing-dots i{animation:none;opacity:.55}}
 
@@ -460,8 +435,6 @@
   .dsb-frame{grid-template-columns:248px minmax(0,1fr)}
   .dsb-side{padding:6px 10px 8px}
 }
-.crew-head{gap:8px;padding:14px 20px 10px}
-.crew-title h1{font-size:18px}
 .crew-goal{font-size:12.5px;line-height:17px}
 .crew-scroll{padding:16px 20px 18px}
 .crew-flow{max-width:760px;gap:2px}
@@ -542,7 +515,6 @@
 .crew-decision-menu button{border:0;border-radius:7px;background:transparent;color:var(--bt-ink);text-align:left;padding:7px 9px;font:inherit;font-size:12.5px;cursor:pointer}
 .crew-decision-menu button:hover{background:color-mix(in srgb,var(--bt-ink) 6%,transparent)}
 .crew-decision-card{max-width:880px;margin:4px 32px 18px;padding:18px 20px 16px;border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-card)}
-.crew-decision-card-kicker{font-size:11px;font-weight:600;color:var(--bt-ink-3);letter-spacing:.04em;text-transform:uppercase}
 .crew-decision-card h2{margin:7px 0 0;font-size:17px;line-height:23px;font-weight:650;color:var(--bt-ink)}
 .crew-decision-detail{margin:7px 0 0;font-size:13px;line-height:19px;color:var(--bt-ink-2);white-space:pre-wrap;max-height:120px;overflow:auto}
 .crew-decision-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}

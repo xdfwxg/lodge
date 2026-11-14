@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 // Planner 工具面：Lodge 自己跑一个无状态 MCP server，按房间注册到基座，
 // 只挂给该房间的规划师。工具调用仍回到业务层执行，Planner 不能伪造结果。
-export const PLANNER_TOOLS = [
+const PLANNER_TOOLS = [
   {
     name: 'create_subroom',
     description: '创建一个子工作室（只能是工作室，不能是聊天室），把独立的子目标交给它推进。最多嵌套 3 层；子工作室完成后只回传验收结论。',

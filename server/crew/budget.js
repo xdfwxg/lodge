@@ -6,11 +6,11 @@ const dollars = value => {
 
 export const DEFAULT_ROOM_BUDGET_USD = 5
 
-export const roomSpentMicroUsd = room => (
+const roomSpentMicroUsd = room => (
   Number.isFinite(room?.usage?.costMicroUsd) ? room.usage.costMicroUsd : 0
 )
 
-export const roomBudgetMicroUsd = room => (
+const roomBudgetMicroUsd = room => (
   Number.isFinite(room?.usage?.budgetMicroUsd) ? room.usage.budgetMicroUsd : 0
 )
 
@@ -19,7 +19,7 @@ export const globalBudgetMicroUsd = () => {
   return Number.isFinite(usd) && usd > 0 ? micro(usd) : 0
 }
 
-export const globalSpentMicroUsd = rooms => (
+const globalSpentMicroUsd = rooms => (
   rooms.reduce((sum, room) => sum + roomSpentMicroUsd(room), 0)
 )
 

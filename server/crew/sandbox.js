@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 
-export const networkMode = () => (process.env.CREW_ACCEPTANCE_NETWORK === 'allow' ? 'allow' : 'deny')
+const networkMode = () => (process.env.CREW_ACCEPTANCE_NETWORK === 'allow' ? 'allow' : 'deny')
 
 const hasCommand = command => {
   try {

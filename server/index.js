@@ -12,13 +12,15 @@ import { createCrewService } from './crew/service.js'
 import { openPath } from './system-open.js'
 import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
 import { seedIfEmpty } from './crew/seeds.js'
-import { SEATS } from './crew/seats.js'
+import { SEATS, validateSeats } from './crew/seats.js'
+import { snapshotOfRoom } from './crew/rooms/kinds.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
 import { createPlannerMcp } from './planner-mcp.js'
 import { chooseDirectory } from './system-dialog.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
+validateSeats(SEATS)
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const dataDir = process.env.CREW_DATA_DIR === undefined ? join(root, '.data') : resolve(process.env.CREW_DATA_DIR)
 acquireDataLock(dataDir)
@@ -37,7 +39,9 @@ seedIfEmpty(store)
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
-    const ledger = payload.state === 'complete' && payload.roomType !== 'chat' ? store.readEvidence(payload.id) : null
+    const ledger = payload.state === 'complete' && snapshotOfRoom(payload)?.delivery === true
+      ? store.readEvidence(payload.id)
+      : null
     payload = presentRoom(payload, store.readMessages(payload.id), ledger)
   }
   broadcast(event, payload, id)

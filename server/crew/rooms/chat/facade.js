@@ -1,13 +1,13 @@
 // 聊天室对外 Facade：其他上下文只读这里的瘦 DTO，不直接摸 room.chat。
 export const CHAT_DTO_VERSION = 1
 
-export const chatStateOf = room => room?.chat ?? null
+const chatStateOf = room => room?.chat ?? null
 
-export const chatHostOf = room => room?.chatHost ?? null
+const chatHostOf = room => room?.chatHost ?? null
 
-export const chatSpeakerOf = room => room?.chat?.speaker ?? ''
+const chatSpeakerOf = room => room?.chat?.speaker ?? ''
 
-export const chatRunningOf = room => room?.chat?.running === true
+const chatRunningOf = room => room?.chat?.running === true
 
 export const chatFacade = {
   version: CHAT_DTO_VERSION,

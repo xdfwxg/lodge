@@ -61,7 +61,7 @@ export const toDsRoster = seats => ({
   byId: Object.fromEntries(seats.map(seat => [seat.id, seat])),
 })
 
-export const toDsRoom = room => ({
+const toDsRoom = room => ({
   id: room.id,
   admin: room.leadSeat ?? room.members?.[0],
   members: room.members ?? [],

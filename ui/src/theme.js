@@ -60,7 +60,7 @@ const DARK = {
 
 const declarations = vars => Object.entries(vars).map(([name, value]) => `${name}:${value}`).join(';')
 
-export const themeCss = () => [
+const themeCss = () => [
   `:root{${declarations(LIGHT)}}`,
   `body[data-ds-dark-theme]{${declarations(DARK)}}`,
 ].join('\n')

@@ -29,4 +29,3 @@ export function ConfirmationPoints({ room }) {
         item.answer === '' ? null : h('b', { className: 'crew-gate-point-answer' }, item.answer)))))
 }
 
-export { confirmationItems }

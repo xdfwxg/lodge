@@ -1,5 +1,5 @@
 // 目标岛的纯投影：只从房间与消息派生，方便测试，不依赖 React。
-export const NEEDS_TONE = {
+const NEEDS_TONE = {
   question: 'waiting',
   decision: 'waiting',
   signoff: 'done',
@@ -13,9 +13,6 @@ export const NEEDS_TONE = {
   budget: 'paused',
   mcp: 'paused',
 }
-
-export const STAGE_KIND = { decision: '决策 · 你确认才算过', deliverable: '交付 · 命令与证据说话' }
-export const TASK_LABEL = { pending: '未开始', working: '在做', reported: '已交', done: '已完成', failed: '失败' }
 
 export const activeIndex = room => room.stages.findIndex(stage => stage.state === 'active')
 export const evidenceFor = (room, index) => room.messages.filter(message => (
@@ -78,7 +75,7 @@ export const islandStatus = room => {
   return { label: '进行中', tone: 'active' }
 }
 
-export const seatRole = (room, seatId) => (
+const seatRole = (room, seatId) => (
   room.seatSpecs?.find(seat => seat.id === seatId)?.role
   ?? (seatId === 'planner' ? 'lead' : seatId === 'verifier' ? 'verifier' : 'worker')
 )

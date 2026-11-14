@@ -1,6 +1,6 @@
 import { MAX_CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import { roomModeForType } from '../kinds.js'
-import { resolveAssigneeTokens, resolveOrchestration } from '../../orchestration/index.js'
+import { resolveOrchestration } from '../../orchestration/index.js'
 import { resolveRoomType } from '../../room-types/index.js'
 import {
   DEFAULT_TEMPLATE_ID,

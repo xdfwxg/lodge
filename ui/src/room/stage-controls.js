@@ -4,7 +4,7 @@ import { changeWordOf, independenceOf } from '../view-format.js'
 import { ConfirmationPoints } from './opening-points.js'
 import { reworkFloorOf } from './stage-gate.js'
 
-export function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
+function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -39,7 +39,7 @@ export function ReworkControl({ room, index, onRework, label = '不对，重来'
       h('button', { type: 'button', className: 'crew-ghost', onClick: () => { setOpen(false); setNote('') } }, '取消')))
 }
 
-export function FinalSummary({ room }) {
+function FinalSummary({ room }) {
   return h('div', { className: 'crew-final-summary' },
     h('b', null, '整房交付确认'),
     room.stages.map((item, index) => {

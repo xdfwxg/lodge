@@ -1,9 +1,9 @@
 // 工作室对外 Facade：其他上下文只读这里的瘦 DTO，不直接摸 closure/stages。
 export const STUDIO_DTO_VERSION = 1
 
-export const studioStateOf = room => room?.closure ?? null
+const studioStateOf = room => room?.closure ?? null
 
-export const studioStagesOf = room => (Array.isArray(room?.stages) ? room.stages : [])
+const studioStagesOf = room => (Array.isArray(room?.stages) ? room.stages : [])
 
 export const studioFacade = {
   version: STUDIO_DTO_VERSION,

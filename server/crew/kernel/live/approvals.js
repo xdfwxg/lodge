@@ -5,7 +5,7 @@ import { seatNameOf } from './projection.js'
 import { decidePermission } from '../../permission.js'
 import { trustLevelOf } from '../../trust.js'
 
-export const APPROVAL_TIMEOUT = 10 * 60 * 1000
+const APPROVAL_TIMEOUT = 10 * 60 * 1000
 
 export const createLiveApprovals = ({
   store,

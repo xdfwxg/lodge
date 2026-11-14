@@ -1,5 +1,5 @@
 // MCP 熔断：按 server 统计失败窗口；熔断只暂停使用该 server 的席位回合。
-export const MCP_FAILURE_LIMIT = 3
+const MCP_FAILURE_LIMIT = 3
 export const MCP_WINDOW_MS = 10 * 60_000
 
 const normalize = (breaker, now) => {
@@ -31,7 +31,7 @@ export const trippedServers = room => (
     .map(([server]) => server)
 )
 
-export const seatMcpServers = (room, seat) => (
+const seatMcpServers = (room, seat) => (
   room?.seatSpecs?.find(item => item.id === seat)?.mcp?.map(grant => grant.server) ?? []
 )
 
