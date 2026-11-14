@@ -12,8 +12,8 @@ body{margin:0;background:var(--bt-main);color:var(--bt-ink);font-family:var(--bt
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
 
-.dsb-frame{display:grid;grid-template-columns:272px minmax(0,1fr);height:100vh;height:100dvh;overflow:hidden}
-.dsb-side{display:flex;flex-direction:column;min-height:0;padding:8px 12px 10px;background:var(--bt-sidebar);border-right:1px solid var(--bt-line-2)}
+.dsb-frame{display:grid;grid-template-columns:var(--crew-side-w,248px) minmax(0,1fr);height:100vh;height:100dvh;overflow:hidden}
+.dsb-side{position:relative;display:flex;flex-direction:column;min-height:0;padding:8px 12px 10px;background:var(--bt-sidebar);border-right:1px solid var(--bt-line-2)}
 body[data-side=rail] .dsb-frame,
 body[data-side=open] .dsb-frame{grid-template-columns:56px minmax(0,1fr)}
 body[data-side=rail] .dsb-side{padding:6px 0 8px}
@@ -62,3 +62,10 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-me-body small{color:var(--bt-ink-3);font-size:12.5px;line-height:16px}
 
 .crew-error{margin:16px auto;max-width:520px;padding:12px 14px;border:1px solid var(--bt-danger-soft);border-radius:12px;color:var(--bt-danger-text);font-size:13.5px;line-height:18px}
+
+
+/* Drag the sidebar edge instead of a collapse button. */
+.crew-side-resizer{position:absolute;top:0;right:-4px;bottom:0;width:8px;z-index:6;cursor:col-resize;touch-action:none}
+.crew-side-resizer::after{content:'';position:absolute;top:0;bottom:0;left:3px;width:1px;background:transparent;transition:background-color .12s ease}
+.crew-side-resizer:hover::after,.crew-side-resizer:focus-visible::after{background:var(--bt-accent)}
+.crew-side-resizer:focus-visible{outline:none}

@@ -1,5 +1,6 @@
 import { createElement as h } from 'react'
-import { StudioSetupFields } from './create.js'
+import { Advanced } from './advanced.js'
+import { buildStudioRequest, StudioSetupFields } from './create.js'
 
 const stageTitle = room => {
   const index = (room.stages ?? []).findIndex(stage => stage.state === 'active')
@@ -11,7 +12,6 @@ export const studioUi = {
   id: 'studio',
   owns: type => type === 'studio' || type === undefined || type === null || type === '',
   label: '工作室',
-  glyph: '⎇',
   teamMode: 'proposal',
   startMode: 'proposal',
   cta: '让 Lodge 出方案',
@@ -30,4 +30,6 @@ export const studioUi = {
   subtitle: room => `验收：${room.verifierPolicy ?? 'all'} · 影子评审：${room.shadowReview === true ? '开' : '关'}`,
   missingVerifier: hasVerifier => !hasVerifier,
   setupFields: props => h(StudioSetupFields, props),
+  buildRequest: buildStudioRequest,
+  advancedPanel: Advanced,
 }

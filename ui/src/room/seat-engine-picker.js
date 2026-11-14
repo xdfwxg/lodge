@@ -1,20 +1,6 @@
 import { createElement as h } from 'react'
 
-const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员', participant: '成员' }
-
-const modelRowsFor = engine => {
-  if (engine === undefined) return []
-  const seen = new Set()
-  const rows = []
-  const add = (id, label) => {
-    if (typeof id !== 'string' || id === '' || seen.has(id)) return
-    seen.add(id)
-    rows.push({ id, label: typeof label === 'string' && label !== '' ? label : id })
-  }
-  for (const option of engine.models?.options ?? []) add(option?.id, option?.label)
-  add(engine.models?.default, engine.models?.default)
-  return rows
-}
+import { ROLE_LABEL, modelRowsFor } from './seat-options.js'
 
 // 席位引擎/模型选择是两种房型共用的小组件；表单本身归各自上下文。
 export function SeatEnginePicker({

@@ -11,15 +11,18 @@ export function App() {
   const [dialog, setDialog] = useState(false)
   const [resume, setResume] = useState(null)
   const [seed, setSeed] = useState(null)
-  const openDialog = (room, seedValue = null) => {
+  const [startType, setStartType] = useState(null)
+  const openDialog = (room, seedValue = null, roomType = null) => {
     setResume(room ?? null)
     setSeed(seedValue)
+    setStartType(roomType)
     setDialog(true)
   }
   const closeDialog = () => {
     setDialog(false)
     setResume(null)
     setSeed(null)
+    setStartType(null)
   }
 
   const liveText = state.phase === 'reconnecting'
@@ -77,6 +80,7 @@ export function App() {
     engines: state.engines ?? [],
     resume,
     seed,
+    startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
     onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
   })
@@ -85,7 +89,7 @@ export function App() {
     return h(Fragment, null,
       h(Onboarding, {
         state,
-        onCreate: () => openDialog(),
+        onCreate: roomType => openDialog(null, null, roomType),
       }),
       liveRegion,
       needsRegion,

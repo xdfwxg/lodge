@@ -39,6 +39,14 @@ function Sidebar({ state, onSelect, onNew }) {
     if (!rail) setOpen(false)
   }, [rail])
 
+  useEffect(() => {
+    let stored = ''
+    try { stored = localStorage.getItem('lodge:side-width') ?? '' } catch {}
+    const width = Number.parseFloat(stored)
+    if (Number.isFinite(width)) document.body.style.setProperty('--crew-side-w', `${clampSide(width)}px`)
+    return () => { document.body.style.removeProperty('--crew-side-w') }
+  }, [])
+
   useLayoutEffect(() => {
     if (!rail) delete document.body.dataset.side
     else document.body.dataset.side = open ? 'open' : 'rail'
@@ -63,12 +71,39 @@ function Sidebar({ state, onSelect, onNew }) {
   }, [open])
 
   const toggleSide = () => {
-    if (!rail) {
-      setRail(true)
-      setOpen(false)
-      return
-    }
     setOpen(value => !value)
+  }
+
+  // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。
+  const SIDE_MIN = 200
+  const SIDE_MAX = 480
+  const clampSide = value => Math.min(SIDE_MAX, Math.max(SIDE_MIN, value))
+  const setSideWidth = width => {
+    document.body.style.setProperty('--crew-side-w', `${clampSide(Math.round(width))}px`)
+    try { localStorage.setItem('lodge:side-width', `${clampSide(Math.round(width))}px`) } catch {}
+  }
+  const startResize = event => {
+    if (event.button !== 0 || sidebarRef.current === null) return
+    event.preventDefault()
+    const left = sidebarRef.current.getBoundingClientRect().left
+    const move = moveEvent => setSideWidth(moveEvent.clientX - left)
+    const stop = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop, { once: true })
+  }
+  const resizeWithKeyboard = event => {
+    const current = Number.parseFloat(getComputedStyle(document.body).getPropertyValue('--crew-side-w')) || 248
+    const next = event.key === 'ArrowLeft' ? current - 16
+      : event.key === 'ArrowRight' ? current + 16
+        : event.key === 'Home' ? SIDE_MIN
+          : event.key === 'End' ? SIDE_MAX
+            : null
+    if (next === null) return
+    event.preventDefault()
+    setSideWidth(next)
   }
   const selectRoom = id => {
     if (open) setOpen(false)
@@ -84,6 +119,17 @@ function Sidebar({ state, onSelect, onNew }) {
       })
       : null,
     h('aside', { id: 'crew-side', ref: sidebarRef, className: 'dsb-side' },
+      rail
+        ? null
+        : h('div', {
+          className: 'crew-side-resizer',
+          role: 'separator',
+          'aria-orientation': 'vertical',
+          'aria-label': '调整侧栏宽度',
+          tabIndex: 0,
+          onPointerDown: startResize,
+          onKeyDown: resizeWithKeyboard,
+        }),
       h('div', { className: 'crew-side-brand' },
         h('img', { className: 'crew-side-brand-logo', src: './logo.svg', alt: '', width: 22, height: 22 }), 'Lodge'),
       state.runtime?.ok === false
@@ -97,14 +143,16 @@ function Sidebar({ state, onSelect, onNew }) {
         : null,
       h('div', { className: 'crew-side-tools' },
         waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个等你`) : h('span'),
-        h('button', {
-          type: 'button',
-          className: 'crew-side-toggle',
-          'aria-label': expanded ? '收起侧栏' : '展开侧栏',
-          'aria-expanded': expanded,
-          'aria-controls': 'crew-side',
-          onClick: toggleSide,
-        }, expanded ? '«' : '»'),
+        rail
+          ? h('button', {
+            type: 'button',
+            className: 'crew-side-toggle',
+            'aria-label': expanded ? '收起侧栏' : '展开侧栏',
+            'aria-expanded': expanded,
+            'aria-controls': 'crew-side',
+            onClick: toggleSide,
+          }, expanded ? '«' : '»')
+          : null,
         h('button', { type: 'button', className: 'crew-new', 'aria-label': '新建房间', onClick: onNew }, '＋ 新建')),
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },

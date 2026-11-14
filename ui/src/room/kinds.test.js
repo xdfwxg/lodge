@@ -3,9 +3,10 @@ import test from 'node:test'
 import { roomUiKinds, uiKindOfRoom, uiKindOfType } from './kinds.js'
 
 const KEYS = [
-  'id', 'owns', 'label', 'glyph', 'teamMode', 'startMode', 'cta', 'dialogSub',
+  'id', 'owns', 'label', 'teamMode', 'startMode', 'cta', 'dialogSub',
   'resumeSub', 'railTabs', 'showEvidence', 'showDelivery', 'showShadow',
   'showAdvanced', 'statusLine', 'subtitle', 'missingVerifier', 'setupFields',
+  'buildRequest', 'advancedPanel',
 ]
 
 test('both UI room kinds satisfy the same interface', () => {

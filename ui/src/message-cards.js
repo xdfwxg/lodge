@@ -3,6 +3,8 @@ import { BotAvatar, BotMark } from './marks.js'
 import { chatStudioSeed } from './room/chat/seed.js'
 import { dispatchSummaryOf } from './room/handoff.js'
 import { MarkdownText } from './primitives.js'
+import { ArrowRightIcon } from './icons.js'
+import { StudioIcon } from './room/type-icons.js'
 import { MD, timeOf, independenceOf } from './view-format.js'
 import { splitVerdictText } from './room/verdict-text.js'
 
@@ -25,21 +27,43 @@ function ActivityLine({ message }) {
 }
 
 const splitTopic = text => {
-  const match = text.match(/^(.*?)(【[^】]*】)(.*)$/s)
+  const match = text.match(/^(.*?)【([^】]*)】(.*)$/s)
   return match === null ? null : { before: match[1], topic: match[2], after: match[3] }
 }
 
 function ChatLine({ message, seat }) {
-  const topic = message.meta?.opening === true ? splitTopic(String(message.text ?? '')) : null
-  return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
+  const [expanded, setExpanded] = useState(false)
+  const streaming = message.meta?.streaming === true
+  const text = String(message.text ?? '')
+  const long = !streaming && text.length > 280
+  const shown = long && !expanded ? `${text.slice(0, 280)}…` : text
+  const topic = message.meta?.opening === true ? splitTopic(shown) : null
+  return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat, ts: message.ts, time: false, station: false }),
       h('div', {
-        className: message.meta?.streaming === true ? 'bt-bubble crew-streaming' : 'bt-bubble',
+        className: streaming ? 'bt-bubble crew-streaming' : 'bt-bubble',
       }, topic === null
-        ? h(Markdown, { text: message.text })
-        : h('span', null, topic.before, h('strong', { className: 'crew-chat-topic' }, topic.topic), topic.after))))
+        ? h(Markdown, { text: shown })
+        : h('span', null, topic.before, h('strong', { className: 'crew-chat-topic' }, topic.topic), topic.after)),
+      long
+        ? h('button', {
+          type: 'button',
+          className: 'crew-msg-more',
+          onClick: () => setExpanded(value => !value),
+        }, expanded ? '收起' : `展开全文（${text.length} 字）`)
+        : null))
+}
+
+const OUTPUT_PREVIEW_LINES = 80
+
+// 长输出只给前 N 行；完整内容留在证据文件里，不在聊天里铺开。
+function CodeOutput({ text, limit = OUTPUT_PREVIEW_LINES, hint = '打开「证据」看完整输出' }) {
+  const lines = String(text ?? '').split('\n')
+  const hidden = Math.max(0, lines.length - limit)
+  return h(Fragment, null,
+    h('pre', { className: 'crew-code' }, hidden === 0 ? lines.join('\n') : lines.slice(0, limit).join('\n')),
+    hidden === 0 ? null : h('p', { className: 'crew-code-more' }, `还有 ${hidden} 行未显示 · ${hint}`))
 }
 
 function EvidenceCard({ message, seat }) {
@@ -50,7 +74,7 @@ function EvidenceCard({ message, seat }) {
   const manual = meta.kind === 'manual'
   const passed = meta.exit === 0
   const source = meta.simulated === true ? '模拟执行 · 未真实运行' : meta.sample === true ? '样例数据' : turn ? '真实回合 · 已落盘' : manual ? '产物就绪 · 等你验收' : '命令已真实执行'
-  return h('div', { className: 'crew-msg' },
+  return h('div', { className: 'crew-msg crew-msg-conclusion' },
     h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat, ts: message.ts }),
@@ -77,15 +101,15 @@ function EvidenceCard({ message, seat }) {
             ? h('details', { className: 'crew-fold' }, h('summary', null, '产物'),
               meta.artifacts.map(artifact => h('div', { key: artifact.path },
                 h('code', null, `${artifact.path.split('/').at(-1)} · ${artifact.sha256.slice(0, 12)} · ${artifact.bytes}B`),
-                h('pre', { className: 'crew-code' }, artifact.content))))
+                h(CodeOutput, { text: artifact.content, limit: 200, hint: '打开产物文件查看完整内容' }))))
             : null,
           meta.output
-            ? h('details', { className: 'crew-fold' }, h('summary', null, turn ? '原始回合数据' : '输出'), h('pre', { className: 'crew-code' }, meta.output))
+            ? h('details', { className: 'crew-fold' }, h('summary', null, turn ? '原始回合数据' : '输出'), h(CodeOutput, { text: meta.output }))
             : null,
           meta.diff
             ? h('details', { className: 'crew-fold' },
               h('summary', null, meta.vcs !== undefined && !['git', 'demo'].includes(meta.vcs) ? '文件清单' : '改动'),
-              h('pre', { className: 'crew-code' }, meta.diff))
+              h(CodeOutput, { text: meta.diff, limit: 300 }))
             : null,
           meta.simulated === true ? null : message.text ? h(Markdown, { text: message.text, variant: 'compact' }) : null),
         h('div', { className: 'crew-card-foot' },
@@ -130,12 +154,12 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
           files.length > 0 ? h('div', { className: 'crew-receipt-files' }, files.join(' · ')) : null,
           diff === ''
             ? null
-            : h('details', { className: 'crew-fold' }, h('summary', null, '改动'), h('pre', { className: 'crew-code' }, diff)),
+            : h('details', { className: 'crew-fold' }, h('summary', null, '改动'), h(CodeOutput, { text: diff, limit: 300 })),
           detail === '' && output === ''
             ? null
             : h('details', { className: 'crew-fold' }, h('summary', null, '查看详情'),
               detail === '' ? null : h(Markdown, { text: detail, variant: 'compact' }),
-              output === '' ? null : h('pre', { className: 'crew-code' }, output))),
+              output === '' ? null : h(CodeOutput, { text: output }))),
         h('div', { className: 'crew-card-foot' },
           foot,
           evidence === undefined
@@ -146,7 +170,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
               target: '_blank',
               rel: 'noreferrer',
             }, '证据'),
-          pass && active && stage?.kind === 'deliverable'
+          pass && active && stage?.kind === 'deliverable' && typeof onAccept === 'function'
             ? h('button', {
               type: 'button',
               className: 'crew-accept',
@@ -220,6 +244,8 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
     chat.phase === 'awaiting_decision' &&
     currentRound
   const accepted = room.state === 'complete' && currentRound
+  // 模型有时自带「第 N 轮总结」标题；卡头已经有轮次，正文不重复。
+  const summary = String(message.text ?? '').replace(/^#{0,3}\s*第\s*\d+\s*轮\s*(总结|结论)[:：]?\s*\n+/, '')
   const [note, setNote] = useState('')
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -237,20 +263,18 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
     setOpen(false)
     setNote('')
   }
-  return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
-    h('div', { className: 'crew-msg-body' },
-      h(Speaker, { seat, ts: message.ts }),
-      h('div', { className: 'crew-card crew-conclusion', 'data-settled': accepted ? 'true' : undefined },
-        h('div', { className: 'crew-card-head' },
-          `第 ${round} 轮结论`,
-          h('span', { className: 'crew-verdict', 'data-pending': latest, 'data-pass': accepted },
-            latest ? '待你确认' : accepted ? '已确认' : '已继续讨论')),
+  return h('div', { className: 'crew-msg-conclusion' },
+    h(Speaker, { seat, ts: message.ts, time: false, station: false }),
+    h('div', { className: 'crew-card crew-conclusion', 'data-settled': accepted ? 'true' : undefined },
         h('div', { className: 'crew-card-body' },
+          h('div', { className: 'crew-conclusion-title-row' },
+            h('b', { className: 'crew-conclusion-title' }, `第 ${round} 轮结论`),
+            h('span', { className: 'crew-verdict', 'data-pending': latest, 'data-pass': accepted },
+              latest ? '待你确认' : accepted ? '已确认' : '已继续讨论')),
           meta.fallback === true
             ? h('p', { className: 'crew-field-hint' }, '主持人未能在限定时间内总结；以下是原始讨论摘要。')
             : null,
-          h(Markdown, { text: message.text, variant: 'compact' })),
+          h(Markdown, { text: summary, variant: 'compact' })),
         latest
           ? h('div', { className: 'crew-card-foot' },
             open
@@ -302,12 +326,17 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
           : null,
         accepted && typeof onStartStudio === 'function'
           ? h('div', { className: 'crew-card-foot', 'data-settled': true },
+            h('span', { className: 'crew-conclusion-signoff' }, `${seat?.name ?? 'Lodge 主持'} · ${timeOf(message.ts)}`),
             h('button', {
               type: 'button',
-              className: 'crew-accept',
+              className: 'crew-accept crew-conclusion-next',
+              'aria-label': '按结论新建工作室',
               onClick: () => onStartStudio(chatStudioSeed({ room, conclusion: message.text })),
-            }, '按结论新建工作室'))
-          : null)))
+            },
+            h(StudioIcon, { size: 16 }),
+            '开工作室',
+            h(ArrowRightIcon)))
+          : null))
 }
 
 export { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard }

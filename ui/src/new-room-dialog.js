@@ -1,27 +1,20 @@
 import { createElement as h, useEffect, useState } from 'react'
+import { FolderIcon } from './icons.js'
+import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
-import { buildChatRequest, chatSeatChoicesFrom } from './room/chat/create.js'
-import { seedGoalText } from './room/chat/seed.js'
+import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
-import { buildStudioRequest } from './room/studio/create.js'
+import { roomTypeIcon } from './room/type-icons.js'
+import { modelRowsFor, normalizeSeats, seatChoicesFrom } from './room/seat-options.js'
+import { RoomTypeChoices } from './room/type-choices.js'
 import { uiKindOfType } from './room/kinds.js'
 import { useOverlay } from './overlay.js'
 
-const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
   { id: 'studio', name: '工作室', description: '目标、阶段、验收与交付', defaultVerify: 'test' },
   { id: 'chat', name: '聊天室', description: '随机发言讨论，主持人总结，你来拍板', defaultVerify: 'manual' },
 ]
-
-const normalizeSeats = seats => (Array.isArray(seats) ? seats : []).map(seat => ({
-  role: seat.role,
-  name: seat.name || ROLE_LABEL[seat.role] || seat.role,
-  ...(typeof seat.reason === 'string' && seat.reason !== '' ? { reason: seat.reason } : {}),
-  ...(seat.prompt ? { prompt: seat.prompt } : {}),
-  ...(seat.station ? { station: seat.station } : {}),
-  ...(seat.engine ? { engine: seat.engine } : {}),
-}))
 
 const DEFAULT_SEATS = normalizeSeats([
   { role: 'lead', name: '规划师' },
@@ -38,6 +31,7 @@ function NewRoomDialog({
   engines = [],
   resume = null,
   seed = null,
+  startType = null,
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const [step, setStep] = useState(0)
@@ -57,6 +51,7 @@ function NewRoomDialog({
   const [loginBusy, setLoginBusy] = useState(false)
   const [loginNote, setLoginNote] = useState(null)
   const [error, setError] = useState(null)
+  const [choosingType, setChoosingType] = useState(false)
   const overlayProps = useOverlay({ label: '新建房间', onClose, active: open })
 
   useEffect(() => {
@@ -67,6 +62,21 @@ function NewRoomDialog({
     setLoginNote(null)
     setChatSeats(null)
   }, [open, resume?.id])
+
+  useEffect(() => {
+    if (!open) return
+    if (startType === 'chat' || startType === 'studio') {
+      setRoomType(startType)
+      setChoosingType(false)
+      return
+    }
+    if (resume !== null || seed !== null) {
+      setRoomType('studio')
+      setChoosingType(false)
+      return
+    }
+    setChoosingType(true)
+  }, [open, startType, resume?.id, seed])
 
   useEffect(() => {
     if (!open || resume === null) return
@@ -92,7 +102,7 @@ function NewRoomDialog({
   useEffect(() => {
     if (!open || uiKindOfType(roomType).startMode !== 'direct') return
     const type = typeChoices.find(item => item.id === 'chat')
-    setChatSeatChoices(chatSeatChoicesFrom(type?.defaultSeats ?? []))
+    setChatSeatChoices(seatChoicesFrom(type?.defaultSeats ?? []))
   }, [open, roomType, typeChoices])
 
   if (!open) return null
@@ -100,22 +110,9 @@ function NewRoomDialog({
   const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
   const roomKind = uiKindOfType(roomType)
   const chatRoster = chatSeats ?? (activeType?.defaultSeats ?? [])
-  const needRepo = resume !== null && repoPath.trim() === ''
+  const needRepo = (roomType === 'studio' || resume !== null) && repoPath.trim() === ''
   const proposalSeats = proposal?.seats ?? []
   const engineChoices = engines.filter(item => item.available)
-  const modelRowsFor = engine => {
-    if (engine === undefined) return []
-    const seen = new Set()
-    const rows = []
-    const add = (id, label) => {
-      if (typeof id !== 'string' || id === '' || seen.has(id)) return
-      seen.add(id)
-      rows.push({ id, label: typeof label === 'string' && label !== '' ? label : id })
-    }
-    for (const option of engine.models?.options ?? []) add(option?.id, option?.label)
-    add(engine.models?.default, engine.models?.default)
-    return rows
-  }
   const choiceAt = index => seatChoices[index] ?? { engine: '', model: '' }
   const selectedModelOf = choice => {
     const engine = engineChoices.find(item => item.id === choice.engine)
@@ -180,14 +177,6 @@ function NewRoomDialog({
     }
   }
 
-  const changeRoomType = nextType => {
-    setRoomType(nextType)
-    setProposal(null)
-    setSeatChoices([])
-    setAnswers([])
-    setError(null)
-  }
-
   const recommend = async () => {
     if (goal.trim() === '' || recommending) return
     setRecommending(true)
@@ -232,7 +221,7 @@ function NewRoomDialog({
     setBusy(true)
     setError(null)
     try {
-      const result = await onCreate(goal.trim(), buildChatRequest({
+      const result = await onCreate(goal.trim(), roomKind.buildRequest({
         goal: goal.trim(),
         name: roomTitle,
         repoPath: repoPath.trim(),
@@ -259,7 +248,7 @@ function NewRoomDialog({
     setBusy(true)
     setError(null)
     try {
-      const result = await onCreate(goal.trim(), buildStudioRequest({
+      const result = await onCreate(goal.trim(), roomKind.buildRequest({
         goal: goal.trim(),
         name: roomTitle,
         repoPath: repoPath.trim(),
@@ -310,10 +299,8 @@ function NewRoomDialog({
       className: 'crew-goal-input',
       rows: 3,
       value: constraints,
-      placeholder: '例如：不改数据库结构；提交信息用中文；只改 src/ 下的文件。',
       onChange: event => setConstraints(event.target.value),
-    }),
-    h('p', { className: 'crew-field-hint' }, '随房间生效，席位按它执行。'))
+    }))
 
   const proposalBody = proposal === null ? null : h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-proposal-head' },
@@ -362,17 +349,6 @@ function NewRoomDialog({
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
-    h('div', { className: 'crew-field crew-field-inline' },
-      h('b', null, '房间类型'),
-      h('div', { className: 'crew-segmented', role: 'group', 'aria-label': '房间类型' },
-        typeChoices.map(type => h('button', {
-          key: type.id,
-          type: 'button',
-          className: 'crew-seg',
-          'data-on': roomType === type.id ? 'true' : undefined,
-          'aria-pressed': roomType === type.id ? 'true' : 'false',
-          onClick: () => changeRoomType(type.id),
-        }, type.name)))),
     h('div', { className: 'crew-field' },
       h('b', null, isChat ? '话题' : '目标'),
       h('textarea', {
@@ -380,9 +356,6 @@ function NewRoomDialog({
         rows: 4,
         autoFocus: true,
         value: goal,
-        placeholder: isChat
-          ? '例如：这部剧到底好在哪，值不值得追？'
-          : '例如：给设置页加保存按钮，保存后刷新仍然生效',
         onChange: event => setGoal(event.target.value),
       }),
       isChat
@@ -394,23 +367,6 @@ function NewRoomDialog({
             onChange: event => setShadowReview(event.target.checked),
           }),
           '影子评审：评估建议只记录，不注入验收员')),
-    isChat && resume === null
-      ? null
-      : h('div', { className: 'crew-field crew-field-inline' },
-        h('b', null, isChat ? '上一轮交付目录' : '工作空间'),
-        h('div', { className: 'crew-path-row' },
-          h('button', {
-            type: 'button',
-            className: 'crew-path-picker',
-            title: repoPath === '' ? '选择项目目录' : repoPath,
-            onClick: () => void chooseDirectory(),
-          },
-          h('span', {
-            className: 'crew-path-picker-value',
-            'data-empty': repoPath === '' ? 'true' : undefined,
-          }, repoPath === ''
-            ? resume === null ? '选择项目目录' : '上一轮交付所在的项目目录'
-            : repoPath)))),
     roomKind.setupFields({
       turnLimit: chatTurnLimit,
       onTurnLimit: setChatTurnLimit,
@@ -425,6 +381,22 @@ function NewRoomDialog({
       onInteraction: () => setLoginNote(null),
       constraintsView,
     }),
+    isChat && resume === null
+      ? null
+      : h('div', { className: 'crew-field crew-field-inline crew-field-block' },
+        h('b', null, isChat ? '上一轮交付目录' : '工作空间'),
+        h('button', {
+          type: 'button',
+          className: 'crew-path-row',
+          title: repoPath === '' ? '选择项目目录' : repoPath,
+          onClick: () => void chooseDirectory(),
+        },
+        h('span', { className: 'crew-path-icon', 'aria-hidden': 'true' }, h(FolderIcon)),
+        h('span', {
+          className: 'crew-path-value',
+          'data-empty': repoPath === '' ? 'true' : undefined,
+        }, repoPath === '' ? '选择目录' : repoPath),
+        h('span', { className: 'crew-path-chevron', 'aria-hidden': 'true' }, h(ChevronDownIcon)))),
     resume?.brief?.done?.length > 0
       ? h('div', { className: 'crew-proposal-block' },
         h('b', null, `上一轮的要求 · ${resume.name}`),
@@ -437,9 +409,9 @@ function NewRoomDialog({
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
         h('div', { className: 'crew-dialog-title' },
-          h('span', { className: 'crew-dialog-glyph', 'data-type': roomKind.id, 'aria-hidden': 'true' }, roomKind.glyph),
+          h('span', { className: 'crew-dialog-glyph', 'data-type': roomKind.id, 'aria-hidden': 'true' }, h(roomTypeIcon(roomKind.id), { size: 18 })),
           h('div', { className: 'crew-dialog-title-text' },
-            h('h2', null, `${resume === null ? '新建' : '续做'}${roomKind.label}`),
+            h('h2', null, choosingType ? '新建房间' : `${resume === null ? '新建' : '续做'}${roomKind.label}`),
             step === 0
               ? null
               : h('p', { className: 'crew-dialog-sub' }, '确认开工卡后开工；最后一步由你签字。'))),
@@ -450,8 +422,20 @@ function NewRoomDialog({
           title: '关闭',
           onClick: onClose,
         }, '×')),
-      step === 0 ? setupBody : proposalBody,
-      h('div', { className: 'crew-dialog-foot' },
+      choosingType
+        ? h('div', { className: 'crew-dialog-body' },
+          h(RoomTypeChoices, {
+            onPick: nextType => {
+              setRoomType(nextType)
+              setChoosingType(false)
+              setProposal(null)
+              setSeatChoices([])
+              setAnswers([])
+              setError(null)
+            },
+          }))
+        : step === 0 ? setupBody : proposalBody,
+      choosingType ? null : h('div', { className: 'crew-dialog-foot' },
         step > 0
           ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => setStep(0) }, '改目标')
           : null,

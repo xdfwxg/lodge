@@ -16,7 +16,7 @@ const timeLabel = ts => {
   return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
 
-function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartStudio, compact = false, hideKinds = [] }) {
+function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinueChat, onStartStudio, compact = false, hideKinds = [] }) {
   const [expanded, setExpanded] = useState(false)
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
@@ -64,7 +64,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
           seat,
           room,
           stage: room.stages[message.meta?.stage ?? 0],
-          onAccept,
+          onAccept: onStageAccept === null ? undefined : onStageAccept ?? onAccept,
           evidence: timeline.evidenceFor.get(message.id),
         })
       }

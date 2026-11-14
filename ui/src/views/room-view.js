@@ -155,7 +155,6 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
         ? h(StudioActivityLine, {
           text: activityLine,
           since: typeof room.busySince === 'number' ? room.busySince : null,
-          onPause: () => void store.pause(),
         })
         : null,
       isChat ? null : h(StudioDecisionCard, { decision, onAction: decisionAction }),
@@ -176,6 +175,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
           compact: !isChat,
           hideKinds: [],
           onAccept: stage => void (isChat ? store.chatAccept() : store.accept(stage)),
+          onStageAccept: isChat ? null : showsDecisionCard(decision) ? null : stage => void store.accept(stage),
           onApproval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
           onContinueChat: note => void store.continueChat(note),
           onStartStudio,

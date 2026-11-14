@@ -1,15 +1,7 @@
 import { createElement as h } from 'react'
 import { SeatEnginePicker } from '../seat-engine-picker.js'
 
-const normalizeSeats = seats => (Array.isArray(seats) ? seats : []).map(seat => ({
-  role: seat.role,
-  name: seat.name,
-  ...(seat.engine ? { engine: seat.engine } : {}),
-  ...(seat.model ? { model: seat.model } : {}),
-}))
-
-export const chatSeatChoicesFrom = seats => normalizeSeats(seats)
-  .map(seat => ({ engine: seat.engine ?? '', model: seat.model ?? '' }))
+import { normalizeSeats } from '../seat-options.js'
 
 export const buildChatRequest = ({
   goal,
@@ -57,7 +49,7 @@ export function ChatSetupFields({
   onInteraction,
 }) {
   return h('div', { className: 'crew-chat-fields' },
-    h('div', { className: 'crew-field crew-field-row' },
+    h('div', { className: 'crew-field crew-field-row crew-field-break' },
       h('b', null, '每轮发言上限'),
       h('input', {
         className: 'crew-goal-input crew-input-narrow',
@@ -68,7 +60,7 @@ export function ChatSetupFields({
         'aria-label': '每轮发言上限',
         onChange: event => onTurnLimit(Math.min(20, Math.max(1, Number(event.target.value) || 6))),
       })),
-    h('div', { className: 'crew-field' },
+    h('div', { className: 'crew-field crew-field-block' },
       h('div', { className: 'crew-field-head' },
         h('b', null, '成员与模型')),
       h('div', { className: 'crew-proposal-block' },

@@ -47,7 +47,7 @@ export function DeliverySheet({ delivery, onExport }) {
     h('div', { className: 'crew-delivery-metrics' },
       h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 阶段`),
       h('span', null, commands.length > 0 ? `${passed}/${commands.length} 命令通过` : '人工验收'),
-      h('span', null, `${delivery.artifacts?.length ?? delivery.changedFiles?.length ?? 0} 个文件`),
+      h('span', null, `${(delivery.artifacts?.length ?? 0) > 0 ? delivery.artifacts.length : delivery.changedFiles?.length ?? 0} 个文件`),
       delivery.integrity
         ? h('span', { 'data-bad': delivery.integrity.ok === false ? 'true' : undefined },
           delivery.integrity.ok === false

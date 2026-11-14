@@ -1,12 +1,11 @@
 import { createElement as h } from 'react'
-import { ChatSetupFields } from './create.js'
+import { buildChatRequest, ChatSetupFields } from './create.js'
 
 // 聊天室在界面壳里的全部差异：图标、状态行、rail 能力和建房字段。
 export const chatUi = {
   id: 'chat',
   owns: type => type === 'chat',
   label: '聊天室',
-  glyph: '#',
   teamMode: 'fixed',
   startMode: 'direct',
   cta: '开始讨论',
@@ -25,4 +24,6 @@ export const chatUi = {
   subtitle: () => '聊天室只讨论，不执行交付',
   missingVerifier: () => false,
   setupFields: props => h(ChatSetupFields, props),
+  buildRequest: buildChatRequest,
+  advancedPanel: null,
 }

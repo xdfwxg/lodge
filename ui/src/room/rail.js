@@ -1,5 +1,4 @@
 import { createElement as h } from 'react'
-import { Advanced } from './studio/advanced.js'
 import { uiKindOfRoom } from './kinds.js'
 import { seatNameOf } from './seat-name.js'
 import { money } from '../view-format.js'
@@ -17,6 +16,11 @@ const seatLine = (room, seat) => {
   const model = room.models?.[seat.id] ?? seat.model ?? ''
   return model === '' ? engine : `${engine} · ${model}`
 }
+
+const compactCount = value => new Intl.NumberFormat('zh-CN', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+}).format(Number(value) || 0)
 
 const evidenceStats = room => {
   const messages = room.messages ?? []
@@ -153,7 +157,13 @@ export function RoomRail({
           h('p', { className: 'crew-muted' }, room.independenceLabel ?? '独立性未标注')),
         h('section', { className: 'crew-rail-section' },
           h('b', null, '预算'),
-          h('p', { className: 'crew-muted' }, `已用 ${money(room.usage?.costMicroUsd ?? 0)}${room.usage?.budgetMicroUsd ? ` / ${money(room.usage.budgetMicroUsd)}` : ''}`)))
+          h('p', { className: 'crew-muted' }, `已用 ${money(room.usage?.costMicroUsd ?? 0)}${room.usage?.budgetMicroUsd ? ` / ${money(room.usage.budgetMicroUsd)}` : ''}`),
+          room.usage?.tokens
+            ? h('p', { className: 'crew-muted' }, `Token 入 ${compactCount(room.usage.tokens.input)} / 出 ${compactCount(room.usage.tokens.output)}${room.usage.tokens.cachedInput > 0 ? `（缓存 ${compactCount(room.usage.tokens.cachedInput)}）` : ''}`)
+            : null,
+          room.usage?.tokens && room.usage?.turns > 0
+            ? h('p', { className: 'crew-muted' }, `${room.usage.turns} 轮 · 每轮约 入 ${compactCount(room.usage.tokens.input / room.usage.turns)} / 出 ${compactCount(room.usage.tokens.output / room.usage.turns)}`)
+            : null))
       : null,
     current === 'output'
       ? h('div', { className: 'crew-rail-body', ...panelProps('output') },
@@ -167,6 +177,6 @@ export function RoomRail({
       : null,
     current === 'advanced'
       ? h('div', { className: 'crew-rail-advanced', ...panelProps('advanced') },
-        h(Advanced, { room, seats, store, engines, rooms }))
+        kind.advancedPanel === null ? null : h(kind.advancedPanel, { room, seats, store, engines, rooms }))
       : null)
 }
