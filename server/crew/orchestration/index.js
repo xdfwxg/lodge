@@ -1,32 +1,40 @@
+import * as critique from './critique.js'
 import * as pipeline from './pipeline.js'
+import * as parallel from './parallel.js'
 
 export { resolveAssigneeTokens } from './assignees.js'
 
+const orchestrationStrategies = [pipeline, parallel, critique]
 export const defaultOrchestrationId = pipeline.id
 
 export const resolveOrchestration = value => {
   const raw = typeof value === 'string' ? value.trim() : value
-  if (raw === undefined || raw === null || raw === '' || raw === pipeline.id) return pipeline
-  return null
+  if (raw === undefined || raw === null || raw === '') return pipeline
+  return orchestrationStrategies.find(item => item.id === raw) ?? null
 }
 
-export const listOrchestrations = () => [{
-  id: pipeline.id,
-  name: pipeline.name,
-  description: pipeline.description,
-}]
+export const listOrchestrations = () => orchestrationStrategies.map(item => ({
+  id: item.id,
+  name: item.name,
+  description: item.description,
+  reviewGuidance: item.reviewGuidance,
+}))
 
-// 一期只有一条流水线：一个阶段派一个执行席位。
-export const planDispatch = ({ stage, workers }) => {
-  const proposed = Array.isArray(stage?.assignees)
-    ? stage.assignees.filter(seat => workers.includes(seat))
-    : []
+// 编排层对外只暴露两个决定：这一阶段怎么派、验收要补什么要求。
+export const planDispatch = ({ room, stage, index, workers }) => {
+  const strategy = resolveOrchestration(room?.orchestration) ?? resolveOrchestration()
+  const plan = strategy.planStage({ room, stage, index, workers })
+  const assignees = plan.assignees.filter(worker => workers.includes(worker))
+  const parallel = plan.parallel === true
+  if (!parallel && assignees.length > 1) {
+    throw new Error(`编排策略 ${strategy.id} 返回了非并行多席位派发`)
+  }
   return {
-    strategy: pipeline,
-    assignees: proposed.length > 0 ? proposed.slice(0, 1) : workers.slice(0, 1),
-    parallel: false,
-    note: proposed.length > 1 ? '流水线一次只派一个执行席位；其余席位留到后续阶段。' : '',
+    strategy,
+    assignees,
+    parallel,
+    note: typeof plan.note === 'string' ? plan.note : '',
   }
 }
 
-export const reviewGuidanceFor = () => ''
+export const reviewGuidanceFor = room => resolveOrchestration(room?.orchestration)?.reviewGuidance ?? ''

@@ -192,6 +192,11 @@ export function createStore() {
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
 
+    recommendRoster: async (goal, repoPath) => {
+      const data = await post('/api/roster/recommend', { goal, repoPath })
+      if (data?.proposal === undefined) return { ok: false, error: state.error ?? 'Lodge 没有给出方案' }
+      return { ok: true, proposal: data.proposal }
+    },
     createRoom: async (goal, answers = {}) => {
       const data = await post('/api/rooms', { goal, ...answers })
       if (data?.room === undefined) return { ok: false, error: state.error ?? '建房失败' }

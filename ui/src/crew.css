@@ -197,6 +197,26 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-conclusion[data-settled=true]{box-shadow:inset 0 3px 0 var(--bt-line-success)}
 .crew-result-card{border-color:var(--bt-line-2);box-shadow:inset 0 3px 0 var(--bt-line-success)}
 .crew-result-card[data-pass=false]{border-color:var(--bt-line-2);box-shadow:inset 0 3px 0 var(--bt-line-danger)}
+/* Gate 前置管道：准入结果和外部建议只做一行记录。 */
+.studio-gate-line{align-self:stretch;display:block;padding:7px 10px;border-radius:8px;background:var(--bt-shade-1);text-align:left}
+.studio-gate-line[data-tone=reject]{background:var(--bt-danger-wash);color:var(--bt-danger-text)}
+/* 影子评审：只读对照卡，跟在复核结果之后。 */
+.crew-shadow-card{border-color:var(--bt-line-2);box-shadow:none}
+.crew-shadow-card .crew-verdict[data-tone=pass]{background:var(--bt-success-soft);color:var(--bt-success-text)}
+.crew-shadow-card .crew-verdict[data-tone=reject]{background:var(--bt-danger-soft);color:var(--bt-danger-text)}
+.crew-shadow-card .crew-verdict[data-tone=pending]{background:var(--bt-shade-2);color:var(--bt-ink-3)}
+.crew-shadow-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.crew-shadow-col{display:flex;flex-direction:column;gap:5px;min-width:0}
+.crew-shadow-col-head{font-size:11.5px;line-height:16px;font-weight:600;letter-spacing:.02em;color:var(--bt-ink-3)}
+.crew-shadow-verdict{display:flex;align-items:center;gap:7px;font-size:12.5px;line-height:18px}
+.crew-shadow-verdict b{font-size:11.5px;letter-spacing:.03em}
+.crew-shadow-verdict b[data-pass=true]{color:var(--bt-success-text)}
+.crew-shadow-verdict b[data-pass=false]{color:var(--bt-danger-text)}
+.crew-shadow-score{display:flex;align-items:baseline;gap:8px}
+.crew-shadow-score b{font-size:16px;line-height:21px;font-weight:650}
+.crew-shadow-score span{font-size:11.5px;color:var(--bt-ink-3)}
+.crew-shadow-col p{margin:0;font-size:12.5px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere}
+@media(max-width:640px){.crew-shadow-cols{grid-template-columns:minmax(0,1fr)}}
 .crew-card-head{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bt-line);font-size:13.5px;font-weight:600}
 .crew-card-head .crew-verdict{margin-left:auto}
 .crew-card-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body)}

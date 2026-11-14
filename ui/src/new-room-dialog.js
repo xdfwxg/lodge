@@ -1,4 +1,4 @@
-import { createElement as h, useEffect, useState } from 'react'
+import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
@@ -20,6 +20,12 @@ const FALLBACK_ROOM_TYPES = ROOM_TYPE_MANIFEST.map(({ id, name, description, def
 
 const CHAT_BASE_SEATS = 3
 
+const ORCHESTRATION_LABEL = {
+  pipeline: '流水线',
+  parallel: '并行扇出',
+  critique: '对抗复核',
+}
+
 const DEFAULT_SEATS = normalizeSeats([
   { role: 'lead', name: '规划师' },
   { role: 'worker', name: '执行官' },
@@ -30,6 +36,7 @@ function NewRoomDialog({
   open,
   onClose,
   onCreate,
+  onRecommend,
   roomTypes = [],
   engines = [],
   seed = null,
@@ -38,11 +45,13 @@ function NewRoomDialog({
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
+  const [shadowReview, setShadowReview] = useState(false)
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
   const [proposal, setProposal] = useState(null)
   const [answers, setAnswers] = useState([])
+  const [recommending, setRecommending] = useState(false)
   const [acceptanceDraft, setAcceptanceDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [seatChoices, setSeatChoices] = useState([])
@@ -57,6 +66,8 @@ function NewRoomDialog({
   useEffect(() => {
     if (!open) return
     setSeatChoices([])
+    setRecommending(false)
+    setShadowReview(false)
     setChatTurnLimit(6)
     setLoginNote(null)
     setChatSeats(null)
@@ -179,25 +190,51 @@ function NewRoomDialog({
     }
   }
 
+  const useProposal = next => {
+    const seats = Array.isArray(next?.seats) && next.seats.length > 0 ? next.seats : DEFAULT_SEATS
+    setProposal({ ...next, seats })
+    setSeatChoices(seats.map(seat => ({
+      engine: typeof seat.engine === 'string' ? seat.engine : '',
+      model: typeof seat.model === 'string' ? seat.model : '',
+    })))
+    setAnswers((next?.questions ?? []).map(question => question.recommendation))
+    setAcceptanceDraft('')
+    setStep(1)
+  }
+
+  const recommend = async () => {
+    if (goal.trim() === '' || needRepo || recommending) return
+    if (typeof onRecommend !== 'function') {
+      setError('Lodge 方案生成不可用；可以手动配置席位')
+      return
+    }
+    setRecommending(true)
+    setError(null)
+    try {
+      const result = await onRecommend(goal.trim(), repoPath.trim())
+      if (result?.ok !== true) {
+        setError(result?.error ?? 'Lodge 没有给出方案；可以重试或手动配置')
+        return
+      }
+      useProposal(result.proposal)
+    } catch (caught) {
+      setError(`Lodge 没有给出方案：${String(caught?.message ?? caught)}`)
+    } finally {
+      setRecommending(false)
+    }
+  }
+
   const prepareStudio = () => {
     if (goal.trim() === '') return
-    const seats = DEFAULT_SEATS
-    setProposal({
+    useProposal({
       done: ['目标完成'],
-      seats,
+      seats: DEFAULT_SEATS,
       questions: [],
       stages: [],
       verify: 'test',
       acceptance: '',
       why: '',
     })
-    setSeatChoices(seats.map(seat => ({
-      engine: typeof seat.engine === 'string' ? seat.engine : '',
-      model: typeof seat.model === 'string' ? seat.model : '',
-    })))
-    setAnswers([])
-    setAcceptanceDraft('')
-    setStep(1)
   }
 
   const resetAfterCreate = () => {
@@ -206,6 +243,7 @@ function NewRoomDialog({
     setProposal(null)
     setSeatChoices([])
     setAnswers([])
+    setShadowReview(false)
     setRoomType('studio')
     setChatTurnLimit(6)
     setChatSeats(null)
@@ -251,6 +289,7 @@ function NewRoomDialog({
         repoPath: repoPath.trim(),
         verify,
         acceptance,
+        shadowReview,
         proposal,
         answers,
         seatChoices,
@@ -307,7 +346,10 @@ function NewRoomDialog({
         h('b', null, '执行步骤'),
         h('ul', { className: 'crew-brief' },
           proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
-            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你拍板' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))))
+            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你拍板' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))),
+        ORCHESTRATION_LABEL[proposal.orchestration] === undefined
+          ? null
+          : h('p', { className: 'crew-field-hint' }, `编排：${ORCHESTRATION_LABEL[proposal.orchestration]}`))
       : null,
     (proposal.questions ?? []).length > 0
       ? h('div', { className: 'crew-proposal-block' },
@@ -355,7 +397,16 @@ function NewRoomDialog({
         autoFocus: true,
         value: goal,
         onChange: event => setGoal(event.target.value),
-      })),
+      }),
+      roomKind.showShadowReview
+        ? h('label', { className: 'crew-check crew-check-end' },
+          h('input', {
+            type: 'checkbox',
+            checked: shadowReview,
+            onChange: event => setShadowReview(event.target.checked),
+          }),
+          '影子评审：暂时仅记录评估建议')
+        : null),
     roomKind.setupFields({
       turnLimit: chatTurnLimit,
       onTurnLimit: setChatTurnLimit,
@@ -424,12 +475,19 @@ function NewRoomDialog({
               disabled: busy || goal.trim() === '' || needRepo,
               onClick: () => void startChat(),
             }, busy ? '正在创建…' : roomKind.cta)
-            : h('button', {
-              type: 'button',
-              className: 'crew-accept crew-dialog-primary',
-              disabled: goal.trim() === '' || needRepo,
-              onClick: prepareStudio,
-            }, roomKind.cta)
+            : h(Fragment, null,
+              h('button', {
+                type: 'button',
+                className: 'crew-ghost',
+                disabled: recommending || goal.trim() === '' || needRepo,
+                onClick: prepareStudio,
+              }, '手动配置'),
+              h('button', {
+                type: 'button',
+                className: 'crew-accept crew-dialog-primary',
+                disabled: recommending || goal.trim() === '' || needRepo,
+                onClick: () => void recommend(),
+              }, recommending ? '正在生成方案…' : '让 Lodge 出方案'))
           : h('button', {
             type: 'button',
             className: 'crew-accept crew-dialog-primary',

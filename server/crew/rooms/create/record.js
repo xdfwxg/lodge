@@ -30,6 +30,7 @@ export const buildRoomRecord = ({
   align,
   verify,
   acceptance,
+  shadowReview = false,
   chatTurnLimit = null,
   gate = null,
 }) => {
@@ -42,6 +43,7 @@ export const buildRoomRecord = ({
     acceptance,
     verifiers,
     independence,
+    shadowReview,
     gate,
     builtStages,
     chatLimit,

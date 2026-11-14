@@ -77,6 +77,7 @@ export function App() {
     seed,
     startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
+    onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
   })
 
   if (state.rooms.length === 0) {

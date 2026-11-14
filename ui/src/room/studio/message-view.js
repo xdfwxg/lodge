@@ -1,4 +1,4 @@
-import { createElement as h } from 'react'
+import { Fragment, createElement as h } from 'react'
 import { renderSharedMessage, resolveSeat } from '../message-view.js'
 import { Baton } from './baton.js'
 import { StudioBeat } from './beat.js'
@@ -9,6 +9,7 @@ import {
   VerdictCard,
 } from './cards.js'
 import { isDispatchHandoff } from './handoff.js'
+import { ShadowCard } from './shadow-card.js'
 
 // 工作室先接管自己的消息类型，其余交给共享渲染器。
 export const renderStudioMessage = ({
@@ -28,15 +29,16 @@ export const renderStudioMessage = ({
   if (message.kind === 'evidence') return h(EvidenceCard, { key: message.id, message, seat })
   if (message.kind === 'conclusion') return h(ConclusionCard, { key: message.id, message })
   if (message.kind === 'verdict') {
-    return h(VerdictCard, {
-      key: message.id,
-      message,
-      seat,
-      room,
-      stage: room.stages[message.meta?.stage ?? 0],
-      onAccept: onStageAccept === null ? undefined : onStageAccept ?? onAccept,
-      evidence: timeline.evidenceFor.get(message.id),
-    })
+    return h(Fragment, { key: message.id },
+      h(VerdictCard, {
+        message,
+        seat,
+        room,
+        stage: room.stages[message.meta?.stage ?? 0],
+        onAccept: onStageAccept === null ? undefined : onStageAccept ?? onAccept,
+        evidence: timeline.evidenceFor.get(message.id),
+      }),
+      h(ShadowCard, { room, message, byId }))
   }
   // 席位发言在工作室里是一拍工作记录：第一段可见，完整内容展开。
   if (message.kind === 'chat' && message.authorId !== 'you') {

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { runCommand } from './acceptance.js'
+import { createAdvisorClient } from './advisor.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
 import { readBrief, writeBrief, writeConclusion, writeGoal } from './room-repo.js'
 import { writeSeatEnv } from './seat-env.js'
@@ -26,6 +27,7 @@ export const createCrewPorts = () => ({
     exists: path => existsSync(path),
     remove: path => rmSync(path, { recursive: true, force: true }),
   },
+  advisor: createAdvisorClient(),
   skills: createSkillStore({ dir: fileURLToPath(new URL('../../templates/skills/', import.meta.url)) }),
   commands: {
     run: runCommand,

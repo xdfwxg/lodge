@@ -88,7 +88,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
       h(Speaker, { seat, ts: message.ts }),
       h('div', { className: 'crew-card crew-result-card', 'data-demo': meta.simulated === true, 'data-pass': pass },
         h('div', { className: 'crew-card-head' },
-          '复核结果卡',
+          '复核卡',
           h('span', { className: 'crew-verdict', 'data-pass': pass, 'data-reject': !pass }, pass ? 'PASS' : 'REJECT')),
         h('div', { className: 'crew-card-body' },
           command ? h('div', { className: 'crew-kv' }, h('span', null, '命令'), h('code', null, command)) : null,

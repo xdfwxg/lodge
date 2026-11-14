@@ -84,9 +84,8 @@ Verifier 复核时 `mode: "review"`，附带：
 
 ## 使用位置
 
-- **Gate**：建房预置前调用；`advice` 写进 `room.gate`，建房消息、Planner 交接提示里可见。Gate 的结构化 `allow/reject` 不因 advisor 改写。
-- **Verifier**：复核请求时调用；追加一条 `advisor_advice` 消息，并把建议放进 Verifier prompt。Verifier 仍独立产出 `verdict`。
-- **Planner 的 `check_gate`**：通过 MCP 调用时也会带 advisor 建议返回，不改房间状态。
+- **Gate**：建房预置前调用；`advice` 写进 `room.gate`，在工作室时间线开头以 Gate 行显示。Gate 的结构化 `allow/reject` 不因 advisor 改写。
+- **Verifier**：复核请求时调用；追加一条 `advisor_advice` 消息。默认把建议放进验收员 prompt；房间开启影子评审时只记录，不注入。Verifier 仍独立产出 `verdict`，复核卡之后的影子评审对照卡只做并排展示。
 - 聊天室不调用 advisor。
 
 ## 边界

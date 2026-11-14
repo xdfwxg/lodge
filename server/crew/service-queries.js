@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { presentRoom } from './presentation.js'
+import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { toDisplayText } from './seat-labels.js'
@@ -11,6 +12,7 @@ export const createServiceQueries = ({
   seats,
   roomFiles,
   files,
+  workspace,
 }) => {
   const { readRoom, readRooms, readMessages, readMessagesSince, readEvidence } = store
 
@@ -55,5 +57,7 @@ export const createServiceQueries = ({
     return { ok: true, bytes: files.read(file) }
   }
 
-  return { health, state, messagesSince, evidence }
+  const recommendRoster = body => recommendRosterUseCase({ engine, body, workspace })
+
+  return { health, state, messagesSince, evidence, recommendRoster }
 }

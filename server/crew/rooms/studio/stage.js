@@ -1,7 +1,7 @@
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { seatLabelMap } from '../../seat-labels.js'
-import { buildTasks } from './tasks.js'
-import { activeStageReadOnly } from './turn-utils.js'
+import { buildTasks, markTask } from './tasks.js'
+import { activeStageReadOnly, PARALLEL_TIMEOUT } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
 import { seatDisplayName } from '../../seat-labels.js'
 import { workspaceOf } from './workspace.js'
@@ -26,16 +26,17 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     if (allWorkers.length === 0) throw new Error('房间没有执行席位')
     const workers = allWorkers
     const dispatchPlan = planDispatch({ room, stage, index, workers })
-    // 工作室 v1 是群聊单工作目录：一次只交给一个执行席位，避免同目录并行写。
-    const planned = dispatchPlan.assignees
-    const assignees = planned.slice(0, 1)
+    let assignees = dispatchPlan.assignees
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
-    if (planned.length > 1) {
+    const workspaceCaps = workspaceOf(room).capabilities()
+    if (assignees.length > 1 && workspaceCaps.merge !== true) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `方案要求 ${planned.length} 个执行席位；当前单工作目录一次只跑一个，先交给 ${seatDisplayName(room, assignees[0])}。`,
+        text: `编排策略要求 ${assignees.length} 个执行席位同时开工；当前工作区不支持合并，先交给 ${seatDisplayName(room, assignees[0])}。`,
       })
+      assignees = assignees.slice(0, 1)
     }
+    const parallel = assignees.length > 1
     {
       const updated = store.updateRoom(roomId, current => {
         const moved = transitionStudio(current.closure ?? 'open', 'start_execute', { hasPlan: current.plan !== null && current.plan !== undefined })
@@ -56,12 +57,10 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         ? `验收命令：\`${stage.acceptance}\`。`
         : '验收命令：未设置。'
     const readOnly = activeStageReadOnly(room) || stage.readOnly === true
-    const workspaceCaps = workspaceOf(room).capabilities()
     const seatSkillsOf = worker => (room.seatSpecs?.find(seat => seat.id === worker)?.skills ?? [])
       .map(id => skills?.read?.(id))
       .filter(Boolean)
-    const worker = assignees[0]
-    const prompt = studioWorkerPrompt({
+    const promptFor = worker => studioWorkerPrompt({
       room,
       messages: store.readMessages(roomId),
       stage,
@@ -72,25 +71,108 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       acceptance,
       readOnly,
       seatSkills: seatSkillsOf(worker),
-      workspace: { candidate: workspaceCaps.candidate === true },
+      workspace: {
+        candidate: workspaceCaps.candidate === true,
+        parallel,
+        isolation: workspaceCaps.isolation,
+      },
       port: room.ports?.[worker],
       environment: room.workspaceEnv?.[worker],
     })
+    const from = room.leadSeat ?? room.members?.[0] ?? 'you'
 
-    await handoffTrigger({
+    if (!parallel) {
+      const worker = assignees[0]
+      await handoffTrigger({
+        room,
+        stage,
+        index,
+        from,
+        to: worker,
+        reason: rework ? 'rework' : 'dispatch',
+        prompt: promptFor(worker),
+        acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
+        rework,
+      })
+      return
+    }
+
+    const startedAt = Date.now()
+    const dispatch = {
+      stage: index,
+      workers: [...assignees],
+      pending: [...assignees],
+      failed: [],
+      base: stageBase,
+      startedAt,
+      integrated: false,
+    }
+    const stored = store.updateRoom(roomId, current => {
+      current.stageDispatch = dispatch
+      current.mergeConflict = null
+      return { events: [{ type: 'stage.dispatch', payload: { stage: index, workers: assignees, orchestration: dispatchPlan.strategy.id } }] }
+    })
+    if (stored === null) throw new Error('无法记录并行派发')
+    emit?.('room', stored)
+
+    const settled = await Promise.allSettled(assignees.map(worker => handoffTrigger({
       room,
       stage,
       index,
-      from: room.leadSeat ?? room.members?.[0] ?? 'you',
+      from,
       to: worker,
       reason: rework ? 'rework' : 'dispatch',
-      prompt,
+      prompt: promptFor(worker),
       acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
       rework,
-    })
+    })))
+    const failed = settled
+      .map((result, at) => (result.status === 'rejected' ? assignees[at] : null))
+      .filter(Boolean)
+    if (failed.length > 0) {
+      let ready = null
+      const updated = store.updateRoom(roomId, current => {
+        const currentDispatch = current.stageDispatch
+        if (currentDispatch?.startedAt !== startedAt) return null
+        currentDispatch.failed = [...new Set([...(currentDispatch.failed ?? []), ...failed])]
+        currentDispatch.pending = currentDispatch.pending.filter(id => !failed.includes(id))
+        if (currentDispatch.pending.length === 0) {
+          const remaining = currentDispatch.workers.filter(id => !failed.includes(id))
+          if (remaining.length === 0) currentDispatch.stalled = true
+          ready = { stageIndex: currentDispatch.stage, workers: remaining, base: currentDispatch.base }
+        }
+        return { events: [{ type: 'stage.dispatch_failed', payload: { stage: index, workers: failed } }] }
+      })
+      updateTasks(index, current => failed.reduce((stageState, seat) => markTask(stageState, seat, 'failed'), current))
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `启动执行失败：${failed.map(worker => seatDisplayName(room, worker)).join('、')}；其余席位继续。`,
+      })
+      if (updated !== null && ready !== null) {
+        if (ready.workers.length === 0) {
+          store.appendMessage(roomId, { kind: 'system', text: '没有执行席位启动成功；阶段仍未进入验收。' })
+        } else {
+          void enqueue(() => integrate({ ...ready, turnId: '' }))
+        }
+      }
+    }
 
+    setTimeout(() => {
+      const current = store.readRoom(roomId)
+      const currentDispatch = current?.stageDispatch
+      if (currentDispatch?.startedAt !== startedAt) return
+      if ((currentDispatch.pending ?? []).length === 0) return
+      const waiting = currentDispatch.pending.map(worker => seatDisplayName(current, worker)).join('、')
+      store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: index, workers: currentDispatch.pending })
+      store.appendMessage(roomId, { kind: 'system', text: `并行执行超时：${waiting} 还没有完成；阶段仍未进入验收。` })
+      const updated = store.updateRoom(roomId, inner => {
+        if (inner.stageDispatch?.startedAt !== startedAt) return null
+        inner.stageDispatch.timedOut = true
+        return { events: [] }
+      })
+      if (updated !== null) emit?.('room', updated)
+    }, PARALLEL_TIMEOUT).unref()
   }
-
 
   return { startStage }
 }

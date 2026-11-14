@@ -12,10 +12,10 @@ import { deliverableStageIndex, isWorkStage, seatOf } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, skills }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, skills, advisor = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToSeat, emit })
-  const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks, handoff })
+  const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks, handoff, advisor })
   const acceptance = createAcceptanceRunner({
     store,
     roomId,
@@ -106,12 +106,13 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     const room = store.readRoom(roomId)
     const seat = seatOf(room, authorRef)
     const role = room?.seatSpecs?.find(item => item.id === seat)?.role
-    const parallel = (room?.workers?.length ?? 0) > 1
     const stageIndex = room === null ? 0 : deliverableStageIndex(room)
     const dispatch = room?.stageDispatch
+    const activeDispatch = dispatch?.stage === stageIndex ? dispatch : null
+    const parallel = (activeDispatch?.workers?.length ?? 0) > 1
     const pendingForSeat = role === 'worker' &&
-      dispatch?.stage === stageIndex &&
-      (dispatch.pending ?? []).includes(seat)
+      activeDispatch !== null &&
+      (activeDispatch.pending ?? []).includes(seat)
 
     if ((turn.toolCalls ?? 0) === 0 && (turn.reply ?? '') === '') {
       if (pendingForSeat) {

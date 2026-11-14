@@ -176,6 +176,7 @@ export const studioKind = {
     acceptance,
     verifiers,
     independence,
+    shadowReview,
     gate,
     builtStages,
   }) => ({
@@ -184,6 +185,7 @@ export const studioKind = {
     closure: {
       closure: plan === null ? 'open' : 'planned',
       verificationMode: 'hybrid',
+      shadowReview: shadowReview === true,
       ...(gate === null ? {} : { gate }),
     },
     stages: builtStages.stages,

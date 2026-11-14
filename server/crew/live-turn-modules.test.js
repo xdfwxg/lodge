@@ -125,6 +125,43 @@ test('a single worker stage sends the prompt and hides the base message', async 
   assert.match(prompts[0].prompt, /@Exec/)
 })
 
+test('parallel dispatch wakes every assignee and tracks pending seats', async () => {
+  registerWorkspaceProvider('test-live-parallel', {
+    capabilities: () => ({ candidate: false, merge: true, isolation: 'worktree' }),
+    head: () => 'base',
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-live-parallel' },
+    repoPath: '/repo',
+    orchestration: 'parallel',
+    workers: ['executor', 'executor-2'],
+    seatNames: { executor: 'Exec', 'executor-2': 'Exec2' },
+    seatSpecs: [{ id: 'executor', role: 'worker' }, { id: 'executor-2', role: 'worker' }],
+  })
+  const store = fakeStore(room)
+  const prompts = []
+  const starter = createStageStarter({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      prompts.push({ seat, prompt })
+      return { messageId: `m-${seat}` }
+    },
+    updateTasks: () => {},
+    integrate: async () => {},
+    enqueue: task => task(),
+  })
+  await starter.startStage(room, 0)
+  assert.deepEqual(prompts.map(item => item.seat), ['executor', 'executor-2'])
+  assert.match(prompts[0].prompt, /自己的 worktree/)
+  assert.match(prompts[0].prompt, /@Exec/)
+  assert.match(prompts[1].prompt, /@Exec2/)
+  assert.deepEqual(room.stageDispatch.workers, ['executor', 'executor-2'])
+  assert.deepEqual(room.stageDispatch.pending, ['executor', 'executor-2'])
+  assert.equal(room.stageDispatch.base, 'base')
+})
+
 test('acceptance runs in a disposable copy and records command evidence', async () => {
   registerWorkspaceProvider('test-live-accept', {
     capabilities: () => ({ acceptanceCopy: true, candidate: false }),
@@ -457,4 +494,63 @@ test('a verifier reject returns the studio closure to executing', async () => {
   await review.request(0)
   assert.equal(review.consume({ turn: { reply: 'REJECT\n证据不足' }, seat: 'verifier', turnId: 't1', room }), true)
   assert.equal(room.closure, 'executing')
+})
+
+test('shadow advice is recorded but never injected into the Verifier prompt', async () => {
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      sent.push({ seat, prompt })
+      return { messageId: 'm2' }
+    },
+    updateTasks: () => {},
+    advisor: {
+      advice: async () => ({ available: true, advice: [{ summary: '建议补一条回滚测试', score: 0.4 }] }),
+    },
+  })
+  await review.request(0)
+  assert.doesNotMatch(sent[0].prompt, /评估建议/)
+  const advice = store.messages.find(message => message.kind === 'advisor_advice')
+  assert.ok(advice)
+  assert.match(advice.text, /影子评审/)
+  assert.equal(advice.meta.shadow, true)
+  assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
+  assert.equal(review.consume({ turn: { reply: 'PASS' }, seat: 'verifier', turnId: 't1', room }), true)
+})
+
+test('advisor advice is visible to the Verifier when shadow mode is off', async () => {
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: false })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      sent.push({ seat, prompt })
+      return { messageId: 'm2' }
+    },
+    updateTasks: () => {},
+    advisor: {
+      advice: async () => ({ available: true, advice: [{ summary: '建议补一条回滚测试', score: 0.4 }] }),
+    },
+  })
+  await review.request(0)
+  assert.match(sent[0].prompt, /评估建议/)
+  assert.match(sent[0].prompt, /回滚测试/)
+  const advice = store.messages.find(message => message.kind === 'advisor_advice')
+  assert.equal(advice.meta.shadow, false)
 })

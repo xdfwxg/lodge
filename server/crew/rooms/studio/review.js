@@ -12,7 +12,7 @@ import { seatDisplayName, seatMention } from '../../seat-labels.js'
 const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清产物是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
 
 
-export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, handoff = null }) => {
+export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, handoff = null, advisor = null }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToSeat(to, prompt))
   let round = null
   const staleSeats = new Set()
@@ -191,6 +191,43 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       evidenceId: evidence.id,
       verifiers: targets,
     })
+    const advisorResult = await advisor?.advice?.({
+      mode: 'review',
+      goal: room.goal,
+      stage: { title: stage.title, acceptance: stage.acceptance ?? '', manual },
+      evidence: {
+        id: evidence.id,
+        text: evidence.text,
+        command: meta.command,
+        exit: meta.exit,
+        diff: meta.diff,
+        files: meta.files,
+        artifacts: meta.artifacts,
+      },
+    }) ?? { available: false, advice: [] }
+    const advisorLines = Array.isArray(advisorResult.advice) ? advisorResult.advice : []
+    const shadow = room.shadowReview === true
+    const promptLines = shadow ? [] : advisorLines
+    if (advisorLines.length > 0) {
+      const text = advisorLines
+        .map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；'))
+        .filter(Boolean)
+        .join('；')
+      store.appendMessage(roomId, {
+        kind: 'advisor_advice',
+        authorId: 'system',
+        text: `${shadow ? '影子评审（暂时仅记录评估建议）' : '评估建议（仅参考，不替代验收员）'}：${text}`,
+        meta: {
+          stage: stageIndex,
+          evidenceId: evidence.id,
+          advice: advisorLines,
+          shadow,
+          available: advisorResult.available === true,
+          ...(advisorResult.model === undefined ? {} : { model: advisorResult.model }),
+          ...(advisorResult.version === undefined ? {} : { version: advisorResult.version }),
+        },
+      })
+    }
     const failures = []
     for (const verifier of targets) {
       const verifierName = seatDisplayName(room, verifier)
@@ -214,6 +251,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             `${verifierMention || `@${verifierName}`} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '独立复核：以本轮产物证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildSeatHandoff({ room, messages }),
+            ...(promptLines.length > 0
+              ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
+              : []),
             `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
             '产物证据：',
@@ -233,6 +273,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             `${verifierMention || `@${verifierName}`} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '独立复核：以本轮验收证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildSeatHandoff({ room, messages }),
+            ...(promptLines.length > 0
+              ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
+              : []),
             `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
             `验收命令：${meta.command}`,

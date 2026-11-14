@@ -189,6 +189,10 @@ const server = http.createServer(async (req, res) => {
     }
 
 
+    if (path === '/api/roster/recommend' && req.method === 'POST') {
+      return respond(res, await service.recommendRoster(await readJson(req)))
+    }
+
     if (path === '/api/rooms' && req.method === 'POST') {
       return respond(res, await service.createRoom(await readJson(req)))
     }

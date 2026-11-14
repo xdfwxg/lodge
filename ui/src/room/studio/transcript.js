@@ -1,6 +1,7 @@
 import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../../approval-card.js'
 import { DeliveryCard } from './delivery-card.js'
+import { GateLine } from './gate-line.js'
 import { dedupeChatStreams } from '../timeline-model.js'
 import { renderStudioMessage } from './message-view.js'
 import { StageChapter } from './stage-chapter.js'
@@ -64,6 +65,7 @@ export function StudioTranscript({
   const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
 
   return h('div', { className: 'studio-timeline' }, ...[
+    h(GateLine, { key: 'gate', gate: room.gate }),
     ...items.chapters.map(chapter => h(StageChapter, { key: chapter.key, chapter }, ...renderChapterBody(chapter))),
     delivery === null || delivery === undefined
       ? null

@@ -39,5 +39,6 @@ export const tail = (text, limit) => {
   return value.length > limit ? `…\n${value.slice(-limit)}` : value
 }
 
+export const PARALLEL_TIMEOUT = 15 * 60_000
 export const REVIEW_TIMEOUT = 10 * 60_000
 export const REVIEW_REMINDER = 2 * 60_000

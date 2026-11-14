@@ -6,6 +6,7 @@ export const buildStudioRequest = ({
   repoPath,
   verify,
   acceptance,
+  shadowReview,
   proposal,
   answers,
   seatChoices,
@@ -17,6 +18,7 @@ export const buildStudioRequest = ({
   verify,
   acceptance,
   repoPath,
+  ...(shadowReview ? { shadowReview: true } : {}),
   ...(hasSeatChoice
     ? {
       seats: proposal.seats.map((seat, index) => {

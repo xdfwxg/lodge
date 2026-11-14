@@ -12,7 +12,7 @@ import { roomModeForType } from '../kinds.js'
 export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, name, roomType, verify, acceptance, orchestration, chatTurnLimit } = request
+  const { goal, name, roomType, verify, acceptance, orchestration, shadowReview, chatTurnLimit } = request
   const mode = roomModeForType(roomType.id)
   const capabilities = engine.capabilities()
   if (capabilities.provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
@@ -21,15 +21,29 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const { plan, error: planError } = normalizePlan({ body })
   if (planError !== undefined) return fail('invalid', planError)
   const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
+  const advisor = mode.requiresGate
+    ? await ports.advisor?.advice?.({
+      mode: 'gate',
+      goal,
+      roomType: roomType.id,
+      plan,
+      verify,
+      acceptance: effectiveAcceptance,
+    }) ?? { available: false, advice: [] }
+    : { available: false, advice: [] }
   const gate = mode.evaluateGate({
     goal,
     plan,
     verify,
     acceptance: effectiveAcceptance,
-    advice: [],
+    advice: advisor.advice,
   })
   if (gate.decision === 'reject') {
-    return fail('invalid', `Gate 拒绝：${gate.reasons.join('；')}`)
+    const advice = (Array.isArray(gate.advice) ? gate.advice : [])
+      .map(item => item?.summary ?? [...(item?.reasons ?? []), ...(item?.risks ?? [])].join('；'))
+      .filter(Boolean)
+      .join('；')
+    return fail('invalid', `Gate 拒绝：${gate.reasons.join('；')}${advice === '' ? '' : `；建议：${advice}`}`)
   }
   const seatsResult = resolveSeats(body, roomType)
   if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
@@ -114,7 +128,15 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       verify,
       acceptance,
       chatTurnLimit,
-      gate: { decision: gate.decision, reasons: gate.reasons },
+      shadowReview,
+      gate: {
+        decision: gate.decision,
+        reasons: gate.reasons,
+        advice: gate.advice,
+        available: advisor.available === true,
+        ...(advisor.model === undefined ? {} : { model: advisor.model }),
+        ...(advisor.version === undefined ? {} : { version: advisor.version }),
+      },
     })
     store.writeRoom(room)
     stored = true

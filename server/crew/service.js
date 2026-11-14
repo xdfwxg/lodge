@@ -20,6 +20,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     seats,
     roomFiles,
     files,
+    workspace,
   })
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles })

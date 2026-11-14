@@ -401,3 +401,34 @@ test('a single-vendor studio records the downgrade', async () => {
   assert.equal(result.ok, true)
   assert.equal(result.body.room.independence, 'none')
 })
+
+test('studio creation records gate advice and the shadow review flag', async () => {
+  const store = createStore({ dataDir: temp('lodge-advisor-data-') })
+  const ports = createCrewPorts()
+  ports.advisor = {
+    advice: async request => ({
+      available: true,
+      model: 'advisor-test',
+      advice: [{ source: 'advisor', score: 0.4, summary: `建议补齐 ${request.mode}` }],
+    }),
+  }
+  const result = await createRealRoom({
+    store,
+    engine: fakeEngine(),
+    live: fakeLive(),
+    emit: () => {},
+    body: {
+      goal: '验证 Gate 建议',
+      verify: 'manual',
+      shadowReview: true,
+      seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+    },
+    workspace: null,
+    ports,
+  })
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.gate.decision, 'allow')
+  assert.equal(result.body.room.gate.available, true)
+  assert.equal(result.body.room.gate.advice[0].summary, '建议补齐 gate')
+  assert.equal(result.body.room.shadowReview, true)
+})
