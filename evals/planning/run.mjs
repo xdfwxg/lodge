@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCrewPorts } from '../../server/crew/crew-ports.js'
-import { evaluateProposal } from '../../server/crew/planning-eval.js'
+import { evaluateProposal, promptFormatOf } from '../../server/crew/planning-eval.js'
 import { recommendRoster } from '../../server/crew/roster-recommend.js'
 import { createEngine } from '../../server/engine.js'
 
@@ -72,6 +72,7 @@ for (const testCase of cases) {
         failures: report.failures,
         error: result?.ok === false ? (result.error ?? result.reason ?? 'unknown') : null,
         proposal: report.proposal,
+        format: promptFormatOf(report.proposal),
       }
       results.push(row)
       const seats = row.seats.map(seat => `${seat.role}:${seat.name}`).join(', ') || '—'
@@ -85,6 +86,7 @@ for (const testCase of cases) {
 
 const at = new Date().toISOString()
 const passed = results.filter(item => item.pass).length
+const formatted = results.filter(item => item.format.whyOneLine).length
 const summary = {
   at,
   base: process.env.CREW_BASE_URL ?? 'http://127.0.0.1:8799',
@@ -92,6 +94,7 @@ const summary = {
   cases: results.length,
   passed,
   failed: results.length - passed,
+  formatPassed: formatted,
   results,
 }
 writeFileSync(join(outDir, 'latest.json'), `${JSON.stringify(summary, null, 2)}\n`)
@@ -103,14 +106,16 @@ const lines = [
   `- base: ${summary.base}`,
   `- runs: ${runs}`,
   `- passed: ${passed}/${results.length}`,
+  `- why 一行合规: ${formatted}/${results.length}`,
   '',
-  '| case | run | result | score | seats | questions | acceptance | failures |',
-  '|---|---:|---|---:|---|---:|---|---|',
+  '| case | run | result | score | why | seats | questions | acceptance | failures |',
+  '|---|---:|---|---:|---|---|---|---:|---|---|',
   ...results.map(row => [
     row.caseId,
     row.run,
     row.pass ? 'PASS' : 'FAIL',
     row.score,
+    row.format.whyOneLine ? `ok (${row.format.whyLength})` : `bad (${row.format.whyLength})`,
     row.seats.map(seat => `${seat.role}:${seat.name}`).join('<br>') || '—',
     row.questions.length,
     row.acceptance === '' ? 'manual' : `\`${row.acceptance}\``,

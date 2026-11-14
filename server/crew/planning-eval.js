@@ -7,6 +7,17 @@ const NO_VERIFIER = /(无需|不需要|不加|不另设|没有).{0,12}(验收|�
 
 const asText = value => (typeof value === 'string' ? value.trim() : '')
 
+// 提示词契约的可重复检查：用于对照改提示词前后的格式合规率，不参与业务判定。
+export const promptFormatOf = proposal => {
+  const why = asText(proposal?.why)
+  const length = [...why].length
+  return {
+    whyOneLine: why !== '' && !why.includes('\n') && length <= 60,
+    whyPrefix: /^本任务由 \d+ 人协作完成/.test(why),
+    whyLength: length,
+  }
+}
+
 // 开工卡的语义质量不能靠单次最好成绩；这里是可重复的硬检查 + case 约束。
 export const evaluateProposal = (result, testCase = {}) => {
   const checks = []

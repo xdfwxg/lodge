@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { evaluateProposal } from './planning-eval.js'
+import { evaluateProposal, promptFormatOf } from './planning-eval.js'
 
 const result = proposal => ({ ok: true, body: { proposal } })
 const good = {
@@ -83,4 +83,15 @@ test('a proposal without a worker fails closed', () => {
   }), {})
   assert.equal(report.pass, false)
   assert.equal(report.failures.some(item => item.id === 'workers'), true)
+})
+
+test('prompt format reports a one-line why without judging the plan', () => {
+  assert.deepEqual(promptFormatOf({ why: '本任务由 3 人协作完成：规划师定顺序，执行官落文件，验收员复核。' }), {
+    whyOneLine: true,
+    whyPrefix: true,
+    whyLength: 33,
+  })
+  assert.equal(promptFormatOf({ why: '第一行\n第二行' }).whyOneLine, false)
+  assert.equal(promptFormatOf({ why: '很'.repeat(80) }).whyOneLine, false)
+  assert.equal(promptFormatOf({}).whyPrefix, false)
 })
