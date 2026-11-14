@@ -1,5 +1,6 @@
-import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { createStore, useStore } from './store.js'
+import { Onboarding } from './views/onboarding.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
 import { NewRoomDialog } from './new-room-dialog.js'
@@ -81,15 +82,11 @@ export function App() {
   })
 
   if (state.rooms.length === 0) {
-    return h('div', { className: 'dsb-frame' },
-      h(Sidebar, {
+    return h(Fragment, null,
+      h(Onboarding, {
         state,
-        onSelect: id => store.select(id),
-        onNew: () => openDialog(),
+        onCreate: roomType => openDialog(null, roomType),
       }),
-      h('main', { className: 'dsb-main crew-room' },
-        h('div', { className: 'crew-empty-room' },
-          h('button', { type: 'button', className: 'crew-decision-primary', onClick: () => openDialog() }, '新建房间'))),
       liveRegion,
       needsRegion,
       dialogNode)
