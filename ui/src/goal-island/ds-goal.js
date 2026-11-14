@@ -50,7 +50,7 @@ export function goalView(goal, { roster = {} } = {}) {
                 : checking ? t('Checking · {title}', { title: current.title })
                   : current.title
   const segments = stages.map((stage, i) => (stage.status === 'passed' ? 'done'
-    : i === at && goal.status === 'paused' ? 'paused'
+    : i === at && (goal.status === 'paused' || goal.idle === true) ? 'paused'
       : i === at && goal.status === 'active' ? (checking ? 'checking' : 'current')
         : 'todo'))
   const stageViews = stages.map((stage, i) => ({
@@ -175,7 +175,7 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
     h('div', { className: 'bt-goal-sub' }, label), ...body.map((line, i) => h('div', { key: i, className: 'bt-goal-text' }, line)))
   const hasChecks = goal.objective !== undefined || goal.acceptance !== undefined || goal.constraints?.length > 0
   const admin = roster.byId?.[room.admin]?.name ?? t('a Bot')
-  const evidenceCount = view.stages.filter(stageView => stageView.evidence !== undefined).length
+  const evidenceCount = goal.evidenceCount ?? view.stages.filter(stageView => stageView.evidence !== undefined).length
   const taskCount = view.stages.reduce((sum, stageView) => sum + stageView.tasks.length, 0)
   const ruleCount = goal.constraints?.length ?? 0
   return h('div', { className: 'bt-goal-panel', role: 'region', 'aria-label': view.title },
@@ -190,6 +190,7 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
         'aria-current': i === at ? 'step' : undefined,
         onClick: () => setSelected(i),
       }, h('span', { className: 'bt-goal-node' }, stageView.status === 'passed' ? h(CheckIcon) : stageView.n)))),
+    room.needsYou?.label ? h('div', { className: 'bt-goal-warn' }, room.needsYou.label) : null,
     h('div', { className: 'bt-goal-meta' },
       t('Evidence {evidence} · Tasks {tasks} · Rules {rules}', { evidence: evidenceCount, tasks: taskCount, rules: ruleCount })),
     h('div', { key: `s${selected}`, className: 'bt-goal-bstage' },
@@ -215,6 +216,10 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
       goal.acceptance ? sec('acceptance', t('Done when'), goal.acceptance) : null,
       goal.constraints?.length > 0 ? sec('rules', t('Rules'), h('ul', { className: 'bt-goal-rules' },
         goal.constraints.map((rule, i) => h('li', { key: i }, rule)))) : null) : null),
+    room.needsYou?.kind === 'signoff' && typeof actions.advance === 'function'
+      ? h('div', { className: 'bt-goal-actions' },
+        h('button', { type: 'button', className: 'bt-goal-primary', onClick: () => actions.advance() }, t('Continue')))
+      : null,
     h('div', { className: 'bt-goal-foot' },
       hasChecks ? h('button', {
         type: 'button', className: 'bt-goal-checks', 'aria-expanded': checks, onClick: () => setChecks(!checks),
@@ -331,12 +336,17 @@ export const GOAL_CSS = `
 .bt-goal-mini-segs i[data-seg=checking]{background:var(--bt-accent);opacity:.6}
 .bt-goal-mini-segs i[data-seg=paused]{background:var(--bt-star)}
 .bt-goal-mini-steps{display:flex;align-items:center;gap:7px}
-.bt-goal-mini-step{box-sizing:border-box;width:20px;height:20px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bt-shade-1);border:1.5px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-variant-numeric:tabular-nums;font-weight:600}
+.bt-goal-mini-step{box-sizing:border-box;width:min(20px,100%);height:20px;flex:0 1 20px;min-width:8px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bt-shade-1);border:1.5px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-variant-numeric:tabular-nums;font-weight:600}
 .bt-goal-mini-step>svg{width:10px;height:10px}
 .bt-goal-mini-step[data-step=passed]{background:var(--bt-green);border-color:var(--bt-green);color:var(--bt-main)}
 .bt-goal-mini-step[data-step=current]{background:var(--bt-card);border-color:var(--bt-accent);color:var(--bt-accent)}
 .bt-goal-mini-step[data-step=waiting]{border-color:var(--bt-star);color:var(--bt-warning-text)}
 .bt-goal-meta{margin:8px 14px 0;padding:5px 9px;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:12.5px;line-height:17px}
+.bt-goal-warn{margin:8px 14px 0;padding:6px 9px;border-left:2px solid var(--bt-line-warning);border-radius:0 8px 8px 0;background:var(--bt-warning-wash);color:var(--bt-warning-text);font-size:12.5px;line-height:17px}
+.bt-goal-actions{display:flex;gap:8px;padding:8px 14px 10px;border-top:.5px solid var(--bt-line)}
+.bt-goal-primary{height:var(--bt-control-h-lg);padding:0 14px;border:1px solid var(--bt-accent);border-radius:8px;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:filter .12s ease}
+.bt-goal-primary:hover{filter:brightness(1.06)}
+.bt-goal-primary:not(:disabled):active{filter:brightness(.92)}
 .bt-goal-panel{display:flex;flex-direction:column;max-height:min(62vh,520px);overflow:hidden;border-radius:0 0 18px 18px;animation:bt-veil-in .22s ease-out backwards}
 .bt-goal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
 /* The stepper: one shrinking node per stage on a hairline. */
@@ -353,6 +363,7 @@ export const GOAL_CSS = `
 .bt-goal-step[data-sel]:not([aria-current])>.bt-goal-node{box-shadow:0 0 0 1.5px var(--bt-ink)}
 .bt-goal-step.bt-goal-mini .bt-goal-node{font-size:0}
 .bt-goal-step.bt-goal-mini .bt-goal-node>svg{display:none}
+.bt-goal-step::after{content:"";position:absolute;inset:-4px -3px}
 /* The selected stage below the stepper. */
 .bt-goal-bstage{display:flex;flex-direction:column;padding:4px 14px 14px;font-size:13.5px;line-height:18px;animation:bt-veil-in .22s ease-out backwards}
 .bt-goal-bline{display:flex;align-items:baseline;gap:8px}

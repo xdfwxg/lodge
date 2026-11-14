@@ -11,7 +11,14 @@ import { StudioTranscript } from './transcript.js'
 export const studioView = {
   id: 'studio',
   buildViewModel: ({ room, seats }) => buildGoalView(room, seats),
-  header: ({ room, seats }) => h(DsGoalHeader, { room, seats }),
+  header: ({ room, seats, actions }) => h(DsGoalHeader, {
+    room,
+    seats,
+    onAdvance: () => {
+      const index = room.stages.findIndex(stage => stage.state === 'active')
+      if (index >= 0) actions.accept(index)
+    },
+  }),
   activity: ({ room, viewModel }) => h(StudioActivityLine, {
     text: studioActivityLine(room, viewModel),
     since: typeof room.busySince === 'number' ? room.busySince : null,

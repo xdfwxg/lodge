@@ -1,7 +1,7 @@
 // Lodge 自己的主题令牌：只有界面实际用到的那一层，不依赖 vendored UI。
 const LIGHT = {
   '--bt-main': '#fcfcfc',
-  '--bt-text-body': '14px',
+  '--bt-text-body': '16px',
   '--bt-leading-body': '24px',
   '--bt-tracking-body': '.01em',
   '--bt-text-label': '13.5px',
@@ -77,7 +77,7 @@ const LIGHT = {
 }
 
 const DARK = {
-  '--bt-text-body': '14px',
+  '--bt-text-body': '16px',
   '--bt-leading-body': '24px',
   '--bt-tracking-body': '.01em',
   '--bt-text-label': '13.5px',

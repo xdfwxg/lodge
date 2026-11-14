@@ -18,7 +18,8 @@ body[data-side=rail] .dsb-frame,
 body[data-side=open] .dsb-frame{grid-template-columns:56px minmax(0,1fr)}
 body[data-side=rail] .dsb-side{padding:6px 0 8px}
 body.is-mac-shell[data-side=rail] .dsb-side{padding-top:44px}
-body[data-side=open] .dsb-side{position:fixed;left:0;top:0;bottom:0;width:272px;z-index:40;padding:8px 12px 10px;border-right:1px solid var(--bt-line-2);box-shadow:18px 0 50px rgb(0 0 0 / .22)}
+body[data-side=open] .dsb-side{position:fixed;left:0;top:0;bottom:0;width:272px;z-index:40;padding:8px 12px 10px;border-right:1px solid var(--bt-line-2);box-shadow:18px 0 50px rgb(0 0 0 / .22);opacity:1;transform:none;transition:opacity var(--bt-dur-slow) ease-out,transform var(--bt-dur-slow) ease-out}
+@starting-style{body[data-side=open] .dsb-side{opacity:0;transform:translateX(-12px)}}
 body.is-mac-shell[data-side=open] .dsb-side{padding-top:44px}
 .crew-side-scrim{position:fixed;inset:0;z-index:35;background:rgb(0 0 0 / .2);opacity:0;pointer-events:none;transition:opacity var(--bt-dur-slow) ease-out}
 body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}

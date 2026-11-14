@@ -14,11 +14,13 @@ function Sidebar({ state, onSelect, onNew }) {
   const [folded, setFolded] = useState({})
   const [rail, setRail] = useState(railQuery)
   const [open, setOpen] = useState(false)
+  const [manualCollapsed, setManualCollapsed] = useState(false)
   const sidebarRef = useRef(null)
   const waiting = rooms.filter(room => room.needsYou).length
   const toggle = id => setFolded(current => ({ ...current, [id]: current[id] !== true }))
-  const collapsed = rail && !open
+  const collapsed = rail ? !open : manualCollapsed
   const expanded = !collapsed
+  const overlayOpen = rail && open
 
   useEffect(() => {
     const mq = matchMedia('(max-width:760px)')
@@ -45,10 +47,11 @@ function Sidebar({ state, onSelect, onNew }) {
   }, [])
 
   useLayoutEffect(() => {
-    if (!rail) delete document.body.dataset.side
-    else document.body.dataset.side = open ? 'open' : 'rail'
+    if (rail) document.body.dataset.side = open ? 'open' : 'rail'
+    else if (manualCollapsed) document.body.dataset.side = 'rail'
+    else delete document.body.dataset.side
     return () => { delete document.body.dataset.side }
-  }, [rail, open])
+  }, [rail, open, manualCollapsed])
 
   useEffect(() => {
     if (!open) return undefined
@@ -68,7 +71,8 @@ function Sidebar({ state, onSelect, onNew }) {
   }, [open])
 
   const toggleSide = () => {
-    setOpen(value => !value)
+    if (rail) setOpen(value => !value)
+    else setManualCollapsed(value => !value)
   }
 
   // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。
@@ -108,7 +112,7 @@ function Sidebar({ state, onSelect, onNew }) {
   }
 
   return h(Fragment, null,
-    rail
+    overlayOpen
       ? h('div', {
         className: 'crew-side-scrim',
         onClick: () => setOpen(false),
@@ -116,7 +120,7 @@ function Sidebar({ state, onSelect, onNew }) {
       })
       : null,
     h('aside', { id: 'crew-side', ref: sidebarRef, className: 'dsb-side' },
-      rail
+      rail || manualCollapsed
         ? null
         : h('div', {
           className: 'crew-side-resizer',
@@ -132,6 +136,7 @@ function Sidebar({ state, onSelect, onNew }) {
       state.runtime?.ok === false
         ? h('div', {
           className: 'crew-error crew-side-error',
+          role: 'alert',
           title: `基座未连接：${state.runtime.error}`,
           'aria-label': `基座未连接：${state.runtime.error}`,
         },
@@ -140,16 +145,14 @@ function Sidebar({ state, onSelect, onNew }) {
         : null,
       h('div', { className: 'crew-side-tools' },
         waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个等你`) : h('span'),
-        rail
-          ? h('button', {
-            type: 'button',
-            className: 'crew-side-toggle',
-            'aria-label': expanded ? '收起侧栏' : '展开侧栏',
-            'aria-expanded': expanded,
-            'aria-controls': 'crew-side',
-            onClick: toggleSide,
-          }, expanded ? '«' : '»')
-          : null,
+        h('button', {
+          type: 'button',
+          className: 'crew-side-toggle',
+          'aria-label': expanded ? '收起侧栏' : '展开侧栏',
+          'aria-expanded': expanded,
+          'aria-controls': 'crew-side',
+          onClick: toggleSide,
+        }, expanded ? '«' : '»'),
         h('button', { type: 'button', className: 'crew-new', 'aria-label': '新建房间', onClick: onNew }, '＋ 新建')),
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },
@@ -220,7 +223,7 @@ function RoomRow({ room, active, onSelect }) {
   h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, initialOf(room.name, '·')),
   h('span', { className: 'crew-side-room-name' }, room.name),
   room.chatUnread === true && !active
-    ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' })
+    ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))
     : null,
   metaOf(room) === '' ? null : h('span', { className: 'crew-side-room-meta', 'data-tone': toneOf(room) }, metaOf(room)),
   h('span', { className: 'crew-side-room-dot', 'data-tone': toneOf(room), title: room.needsYou?.label ?? '' }))

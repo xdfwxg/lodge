@@ -54,6 +54,7 @@ export const toDsGoal = room => {
     summary: conclusion?.text,
     evidence: typeof room.delivery?.commit === 'string' ? `commit ${room.delivery.commit.slice(0, 8)}` : undefined,
     reason: room.state === 'stopped' ? '目标已停止' : undefined,
+    evidenceCount: (room.messages ?? []).filter(message => message.kind === 'evidence').length,
   }
 }
 
@@ -65,6 +66,7 @@ const toDsRoom = room => ({
   id: room.id,
   admin: room.leadSeat ?? room.members?.[0],
   members: room.members ?? [],
+  needsYou: room.needsYou ?? null,
 })
 
 export const toDsRoomWork = room => {
@@ -113,7 +115,7 @@ const PILL_CSS = `
 @media (max-width:760px){.crew-ds-goal{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-open]{width:calc(100% - 8px)}}
 `
 
-export function DsGoalHeader({ room, seats }) {
+export function DsGoalHeader({ room, seats, onAdvance }) {
   const [open, setOpen] = useState(false)
   useEffect(() => setOpen(false), [room.id])
   const goal = toDsGoal(room)
@@ -126,6 +128,7 @@ export function DsGoalHeader({ room, seats }) {
     closeGoal: () => setOpen(false),
     closeGoalCompose: () => {},
     goalDraft: async () => {},
+    advance: onAdvance,
     reportError: (error, area) => console.error(`goal ${area}`, error),
   }
   return h('div', { className: 'crew-ds-goal' },

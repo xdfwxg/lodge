@@ -4,6 +4,7 @@ const ZH = {
   'All {count} stages passed': '{count} 个阶段全部通过',
   'Back to current stage': '回到当前阶段',
   Cancel: '取消',
+  Continue: '继续推进',
   'Checking · {title}': '正在核对 · {title}',
   Clear: '清除',
   'Done when': '做到什么算过',

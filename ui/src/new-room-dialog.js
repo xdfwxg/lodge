@@ -368,6 +368,7 @@ function NewRoomDialog({
             : h('input', {
               className: 'crew-goal-input crew-acceptance-input',
               type: 'text',
+              'aria-label': '验收命令',
               value: acceptanceDraft,
               placeholder: '验收命令，例如 npm test',
               onChange: event => setAcceptanceDraft(event.target.value),
@@ -442,7 +443,6 @@ function NewRoomDialog({
         }, '×')),
       choosingType
         ? h('div', { className: 'crew-dialog-body' },
-          h('p', { className: 'crew-dialog-kicker' }, '新建房间'),
           h(RoomTypeChoices, {
             onPick: nextType => {
               setRoomType(nextType)

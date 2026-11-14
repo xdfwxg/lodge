@@ -133,7 +133,7 @@ function ConclusionCard({ message }) {
     h('div', { className: 'crew-msg-avatar' }, h(BotMark, { size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat: { name: '结论', title: '' }, ts: message.ts }),
-      h('div', { className: 'crew-card crew-conclusion' },
+      h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true' },
         h('div', { className: 'crew-card-head' }, `结论 · ${meta.stages ?? '—'} 个阶段`, h('span', { className: 'crew-verdict', 'data-pass': true }, '完成')),
         h('div', { className: 'crew-card-body' },
           h(Markdown, { text: message.text, variant: 'compact' }),
