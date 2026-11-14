@@ -4,7 +4,7 @@ import { createRoomRefresher } from '../../kernel/live/refresh.js'
 import { createSeatSync } from '../../kernel/live/sync.js'
 import { createRoomChat } from '../../kernel/live/bus.js'
 import { seatDisplayName } from '../../seat-labels.js'
-import { kindOfRoom } from '../kinds.js'
+import { roomModeOfRoom } from '../kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
 import { createChatRuntime } from '../chat/runtime.js'
 import { createStudioRuntime } from '../studio/runtime.js'
@@ -21,7 +21,7 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
     emit,
     gateAgent,
     approvalTimeoutMs,
-    readOnlyFor: room => kindOfRoom(room)?.approvalReadOnly?.(room) === true,
+    readOnlyFor: room => roomModeOfRoom(room)?.approvalReadOnly?.(room) === true,
   })
   const sync = createSeatSync({ store, engine, projector })
   const refreshRoom = refresher.refresh

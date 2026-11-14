@@ -1,5 +1,5 @@
 import { fail, ok } from './result.js'
-import { kindOfRoom } from './rooms/kinds.js'
+import { roomModeOfRoom } from './rooms/kinds.js'
 import { rosterFromRoles, validateRoster } from './seats.js'
 
 export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace }) => {
@@ -63,7 +63,7 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
       baseRoom = await engine.createRoom({
         name: `${room.name} · ${seat.name}`,
         goal: room.goal,
-        bulletin: `目标：${room.goal}\n验收：${kindOfRoom(room).bulletinAcceptance(room)}`,
+        bulletin: `目标：${room.goal}\n验收：${roomModeOfRoom(room).bulletinAcceptance(room)}`,
         members: [seatRef.id],
         cwd: placement.path,
         leadId: seatRef.id,
@@ -79,7 +79,7 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
       name: seat.name,
       title: seat.title,
       role: seat.role,
-      ...kindOfRoom(room).seatRole(seat),
+      ...roomModeOfRoom(room).seatRole(seat),
       station: seat.station,
       permissions: seat.permissions,
       writeScope: seat.writeScope,

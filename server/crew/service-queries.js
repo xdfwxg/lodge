@@ -5,7 +5,7 @@ import { buildResources } from './resources.js'
 import { buildReview } from './rooms/studio/review-report.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
-import { kindOfRoom, snapshotOfRoom } from './rooms/kinds.js'
+import { roomModeOfRoom, roomPresentationOfRoom, snapshotOfRoom } from './rooms/kinds.js'
 import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
 import { replayTransitions } from './room-state.js'
@@ -38,15 +38,16 @@ export const createServiceQueries = ({
       seats,
       roomTypes: listRoomTypes(),
       rooms: rooms.map(room => {
-        const kind = kindOfRoom(room)
+        const presentation = roomPresentationOfRoom(room)
         const ordered = readMessages(room.id)
           .slice()
           .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
-        const messages = kind.filterMessages(ordered).map(message => (
+        const messages = presentation.filterMessages(ordered).map(message => (
           typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
         ))
+        const mode = roomModeOfRoom(room)
         return {
-          ...presentRoom(room, messages, room.state === 'complete' && kind.supportsDelivery ? readEvidence(room.id) : null),
+          ...presentRoom(room, messages, room.state === 'complete' && mode.supportsDelivery ? readEvidence(room.id) : null),
           brief: roomFiles.readBrief(room),
           messages,
         }
@@ -140,7 +141,7 @@ export const createServiceQueries = ({
   const shadowReview = roomId => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    if (kindOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '只有工作室有评审对照')
+    if (roomModeOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '只有工作室有评审对照')
     return ok({
       shadowReview: buildShadowComparison({
         evidence: readEvidence(roomId),

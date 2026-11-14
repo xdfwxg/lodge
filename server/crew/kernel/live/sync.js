@@ -1,5 +1,5 @@
 import { seatFor, seatNameOf } from './projection.js'
-import { kindOfRoom } from '../../rooms/kinds.js'
+import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 
 const seatFailureOf = message => {
   if (message?.kind !== 'activity' || message.ok !== false) return null
@@ -36,7 +36,7 @@ export const pauseForSeatFailure = (store, entry, message) => {
     current.pauseReason = 'seat_error'
     current.idle = false
     current.seatError = { seat, kind, at: Date.now(), detail: text.slice(0, 500) }
-    kindOfRoom(current)?.onSeatFailure(current, seat)
+    roomPresentationOfRoom(current)?.onSeatFailure(current, seat)
     return { events: [{ type: 'room.seat_error', payload: { seat, kind, detail: text.slice(0, 500) } }] }
   })
   if (updated !== null) {

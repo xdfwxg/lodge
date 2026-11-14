@@ -103,6 +103,24 @@ server/index.js（唯一组合根）
 
 禁止的拆法：把创建拆成“校验服务/预置服务/记录服务”；把投影从总线拆出；把上下文内部再切 domain/app 空目录；为单一实现预造 Remote 适配器。
 
+## SOLID 落点与接口（2026-11-14）
+
+- 房间是唯一实体：`room` 记录、表、消息、席位和工作区只有一份；聊天/工作室是 `RoomMode` 策略变体，不是两套实体或两张表。
+- 单一职责：`kernel/live` 只处理群聊接入；`rooms/create` 只处理建房；`rooms/<mode>/runtime.js` 只做该模式的本地装配；`facade.js` 只输出只读 DTO。
+- 开闭原则：新增运行模式只需新增一个 mode 目录并在 `rooms/kinds.js` 注册一行；共享层和 UI 壳不改判断逻辑。
+- 里氏替换：每个 mode 实现同一契约，`rooms/kinds.test.js` 校验所有 mode 都具备必需钩子；共享代码只按契约调用。
+- 接口隔离：共享层拿两个窄接口——`roomMode*`（建房/能力/权限）和 `roomPresentation*`（过滤/投影/注意力/刷新），不再拿整个房型对象。
+- 依赖倒置：应用层依赖 `store`/`engine`/`workspace` 端口与 mode 契约，`server/index.js` 注入具体适配器；共享层不 import 适配器。
+
+| 对外接口 | 提供给谁 | 内容 |
+| --- | --- | --- |
+| `roomModeForType` / `roomModeOfRoom` | 建房、席位、服务能力判断 | 席位角色、验房、建房记录、初始消息、预置、启动、门禁、能力位 |
+| `roomPresentationOfRoom` | 消息内核、注意力、查询与资源投影 | 消息过滤、活动隐藏、流式开关、需要人、阶段状态、刷新、席位失败 |
+| `facadeOfRoom` / `snapshotOfRoom` | 跨上下文/只读查询 | 版本化瘦 DTO（chat 的 phase/turns/host；studio 的 closure/stages/delivery） |
+| `runtime` 工厂 | 组合根 | attach/start/cancel/permission 等运行时行为；当前只有本地适配器 |
+
+明确不做：不为单一模式预造远程运行时；不把 mode 再拆成 domain/app/infra 空层；不把 `Room` 拆成 ChatRoom/StudioRoom 两个实体。
+
 ## 上下文边界（2026-11-14）
 
 聊天室和工作室是两个限界上下文，共享内核只保留存储、基座总线、席位身份和通用注意力。

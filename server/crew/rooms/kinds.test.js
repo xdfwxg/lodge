@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { roomKinds, roomModeForType, roomPresentationOfRoom } from './kinds.js'
+
+const MODE_KEYS = [
+  'id', 'owns', 'seatRole', 'validateRoster', 'resolvePlan', 'needsPlannerTools',
+  'requireIndependence', 'requiresGate', 'evaluateGate', 'supportsDelivery',
+  'supportsSubrooms', 'acceptsChatDecision', 'leadSeatOf', 'record',
+  'initialMessages', 'provisionExtra', 'start', 'applyStageDependencies',
+  'bulletinAcceptance', 'approvalReadOnly',
+]
+const PRESENTATION_KEYS = [
+  'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
+  'refresh', 'onSeatFailure', 'partialCount',
+]
+
+test('every room mode implements the same substitutable contract', () => {
+  for (const kind of roomKinds) {
+    const mode = roomModeForType(kind.id)
+    for (const key of MODE_KEYS) assert.ok(key in mode, `${kind.id} mode misses ${key}`)
+    const presentation = roomPresentationOfRoom({ roomType: kind.id })
+    for (const key of PRESENTATION_KEYS) assert.ok(key in presentation, `${kind.id} presentation misses ${key}`)
+  }
+})
+
+test('narrow interfaces expose only their own responsibilities', () => {
+  const mode = roomModeForType('chat')
+  assert.deepEqual(Object.keys(mode).sort(), [...MODE_KEYS].sort())
+  const presentation = roomPresentationOfRoom({ roomType: 'studio' })
+  assert.deepEqual(Object.keys(presentation).sort(), [...PRESENTATION_KEYS].sort())
+  assert.equal('needsYou' in mode, false)
+  assert.equal('record' in presentation, false)
+})

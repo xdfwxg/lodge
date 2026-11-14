@@ -1,5 +1,5 @@
 import { MAX_CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
-import { kindForType } from '../kinds.js'
+import { roomModeForType } from '../kinds.js'
 import { resolveAssigneeTokens, resolveOrchestration } from '../../orchestration/index.js'
 import { workContract } from '../../prompt-modes.js'
 import { resolveRoomType } from '../../room-types/index.js'
@@ -161,8 +161,8 @@ export const resolveSeats = (body, roomType) => {
   }
   // 只读房型的工具调用必须经过审批桥，讨论阶段才能在实际工具面拒绝写入与执行。
   if (roomType.readOnly === true) roster = roster.map(seat => ({ ...seat, approval: 'ask' }))
-  const kind = kindForType(roomType.id)
-  roster = roster.map(seat => ({ ...seat, ...kind.seatRole(seat) }))
+  const mode = roomModeForType(roomType.id)
+  roster = roster.map(seat => ({ ...seat, ...mode.seatRole(seat) }))
   const { workers, verifiers } = roleSeats(roster)
   const worker = workers[0] ?? roster[0]
   const explicitLead = roster.find(seat => seat.role === 'lead')

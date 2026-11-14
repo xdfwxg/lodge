@@ -1,5 +1,5 @@
 import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
-import { kindForType } from '../kinds.js'
+import { roomModeForType } from '../kinds.js'
 
 export const buildRoomRecord = ({
   short,
@@ -45,8 +45,8 @@ export const buildRoomRecord = ({
   depth = 0,
 }) => {
   const chatLimit = Number.isInteger(chatTurnLimit) ? chatTurnLimit : CHAT_TURNS_PER_ROUND
-  const kind = kindForType(roomType.id)
-  const shape = kind.record({
+  const mode = roomModeForType(roomType.id)
+  const shape = mode.record({
     lead,
     plan,
     verify,
@@ -81,7 +81,7 @@ export const buildRoomRecord = ({
   seatRooms,
   chatRoom,
   ...(chatHost === null ? {} : { chatHost }),
-  leadSeat: kind.leadSeatOf(lead),
+  leadSeat: mode.leadSeatOf(lead),
   workers: workers.map(seat => seat.id),
   verifiers: verifiers.map(seat => seat.id),
   sourceRepo,
@@ -155,7 +155,7 @@ export const initialRoomMessages = ({
   projectFile,
   workspaces,
   engineFallbacks,
-}) => kindForType(room.roomType).initialMessages({
+}) => roomModeForType(room.roomType).initialMessages({
   room,
   plan,
   templateId,

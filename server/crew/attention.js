@@ -1,5 +1,5 @@
 import { pendingApprovals } from './external-actions.js'
-import { kindOfRoom } from './rooms/kinds.js'
+import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { seatDisplayName } from './seat-labels.js'
 
 // 注意力路由：只在房间真的卡在人这里时返回一个信号；不是未读数。
@@ -27,5 +27,5 @@ export const roomNeedsYou = (room, messages = []) => {
     return room.idle === true ? { kind: 'idle', stage: null, label: '等你说话' } : null
   }
   if (room.state !== 'active') return null
-  return kindOfRoom(room)?.needsYou?.(room, messages) ?? null
+  return roomPresentationOfRoom(room)?.needsYou?.(room, messages) ?? null
 }

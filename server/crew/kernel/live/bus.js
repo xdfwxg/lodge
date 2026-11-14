@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { matchEcho, seatFor } from './projection.js'
 import { pauseForSeatFailure } from './sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
-import { kindOfRoom } from '../../rooms/kinds.js'
+import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 import { chatFacade } from '../../rooms/chat/facade.js'
 import { toBaseMentions, toDisplayMentions, toDisplayText } from '../../seat-labels.js'
 
@@ -41,7 +41,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
 
   const applyDelta = (entry, room, event) => {
     const current = store.readRoom(room.id) ?? room
-    if (kindOfRoom(current)?.acceptsDelta !== true) return
+    if (roomPresentationOfRoom(current)?.acceptsDelta !== true) return
     // 隐藏主持模型只负责总结，不把它的原始回复流进时间线；结论由 Lodge 写卡片。
     const host = chatFacade.hostOf(current)
     if (host !== null && entry.baseRoom?.busyRef === host.memberRef) return
@@ -76,7 +76,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     const finalIds = finalIdsOf(entry)
     if (finalIds.has(message.id)) return true
     const current = store.readRoom(room.id) ?? room
-    if (kindOfRoom(current)?.acceptsDelta !== true) return false
+    if (roomPresentationOfRoom(current)?.acceptsDelta !== true) return false
     const seat = seatFor(current, message.authorRef) ?? chatFacade.speakerOf(current)
     if (typeof seat !== 'string' || seat === '') return false
     const streams = streamOf(entry)

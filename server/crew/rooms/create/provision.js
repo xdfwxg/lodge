@@ -1,6 +1,6 @@
 import { roomBulletin } from './input.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
-import { kindForType } from '../kinds.js'
+import { roomModeForType } from '../kinds.js'
 import { roleKindOf } from '../../seats.js'
 
 export const createProvisioner = ({ engine }) => {
@@ -9,7 +9,7 @@ export const createProvisioner = ({ engine }) => {
   let cleanupExtra = null
 
   const provision = async ({ roster, short, title, goal, verify, acceptance, align, workspaces, verifiers, roomType = 'studio', leadToolServers = [] }) => {
-    const kind = kindForType(roomType)
+    const mode = roomModeForType(roomType)
     let instances = []
     try {
       instances = await engine.instances()
@@ -70,7 +70,7 @@ export const createProvisioner = ({ engine }) => {
       models[seat.id] = seatRef.model
     }
     const leadSeat = createdSeatRefs.find(({ seat }) => kindOf(seat) === 'planner') ?? createdSeatRefs[0]
-    const extra = await kind.provisionExtra({ engine, short, workspaces, leadSeat }) ?? null
+    const extra = await mode.provisionExtra({ engine, short, workspaces, leadSeat }) ?? null
     cleanupExtra = extra?.cleanup ?? null
     const extraMembers = extra?.members ?? []
     const chatMembers = [

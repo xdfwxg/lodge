@@ -1,7 +1,7 @@
 import { budgetHint, budgetStatus } from './budget.js'
 import { simulateRoom } from './rooms/studio/demo.js'
 import { evaluateRoomGate } from './rooms/studio/gate.js'
-import { kindOfRoom } from './rooms/kinds.js'
+import { roomModeOfRoom } from './rooms/kinds.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
@@ -154,7 +154,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     }
 
     if (action === 'accept' && method === 'POST') {
-      if (kindOfRoom(room)?.acceptsChatDecision === true) return chat.accept(room)
+      if (roomModeOfRoom(room)?.acceptsChatDecision === true) return chat.accept(room)
       return stages.accept(room, await readBody())
     }
 

@@ -1,7 +1,7 @@
 import { roomNeedsYou } from './attention.js'
 import { globalBudgetMicroUsd } from './budget.js'
 import { buildDelivery } from './rooms/studio/delivery.js'
-import { kindOfRoom, snapshotOfRoom } from './rooms/kinds.js'
+import { roomPresentationOfRoom, snapshotOfRoom } from './rooms/kinds.js'
 
 // 调度台资源面板是只读投影：只汇总房间与消息，不路由、不执行。
 export const buildResources = (rooms, readMessages = () => [], readEvidence = () => []) => {
@@ -17,7 +17,7 @@ export const buildResources = (rooms, readMessages = () => [], readEvidence = ()
       message.kind === 'rework'
     )).length
     const conflicts = room.mergeConflict === undefined || room.mergeConflict === null ? 0 : 1
-    const partial = kindOfRoom(room)?.partialCount(room) ?? 0
+    const partial = roomPresentationOfRoom(room)?.partialCount(room) ?? 0
     return {
       roomId: room.id,
       name: room.name,

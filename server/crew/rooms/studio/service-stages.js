@@ -5,7 +5,7 @@ import { acceptanceChangeError } from '../../service-policy.js'
 import { editStages } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
 import { childResultText, childVerdictsOf } from './subrooms.js'
-import { kindOfRoom } from '../../rooms/kinds.js'
+import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from '../../room-state.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, plannerMcp = null }) => {
@@ -118,7 +118,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       if (next >= 0) current.stages[next].state = 'active'
       else current.state = 'complete'
       let closureEvent = null
-      if (kindOfRoom(current)?.supportsDelivery === true) {
+      if (roomModeOfRoom(current)?.supportsDelivery === true) {
         const event = next < 0 ? 'sign' : next === current.stages.length - 1 ? 'await_sign' : 'stage_advanced'
         const moved = transitionStudio(current.closure ?? 'open', event, next < 0 ? { verdictPassed, human: true } : {})
         if (!moved.ok) {
@@ -142,7 +142,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     room = updated
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
-    if (kindOfRoom(room)?.supportsDelivery === true && (gate.stage.kind === 'deliverable' || gate.stage.manual === true)) {
+    if (roomModeOfRoom(room)?.supportsDelivery === true && (gate.stage.kind === 'deliverable' || gate.stage.manual === true)) {
       const evidence = [...readMessages(room.id)].reverse().find(message => (
         message.kind === 'evidence' && (message.meta?.stage ?? 0) === index
       ))

@@ -6,7 +6,7 @@ import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot
 import { buildRoomRecord, initialRoomMessages } from './record.js'
 import { createProvisioner } from './provision.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
-import { kindForType } from '../kinds.js'
+import { roomModeForType } from '../kinds.js'
 
 export { inheritedPlan } from './input.js'
 
@@ -15,7 +15,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
   const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit, independencePolicy } = request
-  const kind = kindForType(roomType.id)
+  const mode = roomModeForType(roomType.id)
   let continueSource = null
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
     continueSource = store.readRoom(body.continueFrom)
@@ -33,7 +33,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const { plan, error: planError } = normalizePlan({ body, continueSource, roomFiles: ports.roomFiles })
   if (planError !== undefined) return fail('invalid', planError)
   const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
-  const advisor = kind.requiresGate
+  const advisor = mode.requiresGate
     ? await ports.advisor?.advice?.({
       mode: 'gate',
       goal,
@@ -43,7 +43,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       acceptance: effectiveAcceptance,
     }) ?? { available: false, advice: [] }
     : { available: false, advice: [] }
-  const gate = kind.evaluateGate({
+  const gate = mode.evaluateGate({
     goal,
     plan,
     verify,
@@ -56,15 +56,15 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const seatsResult = resolveSeats(body, roomType)
   if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
   const { templateId, roster, workers, verifiers, worker, lead, align } = seatsResult
-  if (typeof kind.validateRoster === 'function') {
+  if (typeof mode.validateRoster === 'function') {
     try {
-      kind.validateRoster(roster, { verify })
+      mode.validateRoster(roster, { verify })
     } catch (error) {
       return fail('invalid', `席位组合不可用：${error?.message ?? error}`)
     }
   }
-  const resolvedPlan = kind.resolvePlan(plan, roster)
-  if (kind.requireIndependence && independencePolicy === 'require' && verifiers.length > 0) {
+  const resolvedPlan = mode.resolvePlan(plan, roster)
+  if (mode.requireIndependence && independencePolicy === 'require' && verifiers.length > 0) {
     const listed = typeof engine.instances === 'function' ? await engine.instances().catch(() => []) : []
     const instances = Array.isArray(listed) ? listed : []
     const kinds = new Set(instances
@@ -103,7 +103,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const roomId = `room-${short}`
   let plannerTools = null
   let plannerToolsWarning = ''
-  if (kind.needsPlannerTools && typeof ports.plannerMcp?.ensure === 'function') {
+  if (mode.needsPlannerTools && typeof ports.plannerMcp?.ensure === 'function') {
     try {
       plannerTools = await ports.plannerMcp.ensure(roomId)
     } catch (error) {
@@ -181,10 +181,10 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         ...(advisor.version === undefined ? {} : { version: advisor.version }),
       },
     })
-    if (kind.requireIndependence && independencePolicy === 'require' && verifiers.length > 0 && room.independence !== 'vendor') {
+    if (mode.requireIndependence && independencePolicy === 'require' && verifiers.length > 0 && room.independence !== 'vendor') {
       throw new Error('要求跨厂商复核，但实际执行与验收落在同一厂商')
     }
-    room = kind.applyStageDependencies(room, body.stageDependencies)
+    room = mode.applyStageDependencies(room, body.stageDependencies)
     store.writeRoom(room)
     stored = true
     if (parentRoom !== null) {
@@ -215,7 +215,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       store.appendMessage(room.id, { kind: 'system', text: plannerToolsWarning })
     }
     await live.attach(room, { resume: false })
-    room = await kind.start({
+    room = await mode.start({
       store,
       live,
       room,
