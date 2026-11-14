@@ -1,4 +1,4 @@
-import { createElement as h, useRef, useState } from 'react'
+import { createElement as h, useId, useRef, useState } from 'react'
 import { ArrowUpIcon } from './icons.js'
 
 const mentionAt = (value, cursor) => {
@@ -14,6 +14,7 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
   const [mention, setMention] = useState(null)
   const [picked, setPicked] = useState(0)
   const input = useRef(null)
+  const listId = useId()
 
   const query = mention === null ? '' : mention.query.toLowerCase()
   const matches = mention === null
@@ -87,11 +88,17 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
     }
   }
 
+  const activeOption = matches[picked] ?? matches[0]
+
   return h('div', { className: 'crew-composer-wrap' },
     mention !== null && matches.length > 0
-      ? h('div', { className: 'crew-mentions', role: 'listbox', 'aria-label': '选择群成员' },
+      ? h('div', {
+        className: 'crew-mentions', role: 'listbox', 'aria-label': '选择群成员',
+        'aria-activedescendant': `${listId}-${activeOption.id}`,
+      },
         matches.map((member, index) => h('button', {
           key: member.id,
+          id: `${listId}-${member.id}`,
           type: 'button',
           role: 'option',
           'aria-selected': index === picked,

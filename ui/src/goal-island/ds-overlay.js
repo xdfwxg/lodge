@@ -1,18 +1,12 @@
 import { useEffect, useRef } from 'react'
+import { registerEscapeLayer } from '../overlay.js'
 
 // Adapted from Fei2411/DS-Bot, ds-bot/src/client/overlay-hooks.js (Apache-2.0).
-// Skip escapes another layer already handled and mark ours as handled, so the
-// shared escape stack and sibling layers (mentions, dialogs) see this close.
+// Lodge change: escapes are registered in the app's shared escape stack instead
+// of a private window listener, so one Escape closes only the topmost layer
+// (island vs dialogs) and prevented escapes (mentions) are skipped naturally.
 export function useEscape(onEscape) {
   const handler = useRef(onEscape)
   handler.current = onEscape
-  useEffect(() => {
-    const onKey = event => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return
-      handler.current?.()
-      event.preventDefault()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useEffect(() => registerEscapeLayer(() => handler.current?.()), [])
 }
