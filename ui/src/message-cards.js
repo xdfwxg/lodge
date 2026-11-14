@@ -215,7 +215,6 @@ function MilestoneLine({ message }) {
   return h('div', { className: 'crew-milestone' },
     h('span', { className: 'crew-milestone-check' }, '✓'),
     h('span', { className: 'crew-milestone-title' }, `${title} 已通过`),
-    meta.command ? h('code', null, `${meta.command} · exit ${meta.exit ?? '—'}`) : null,
     meta.next ? h('span', { className: 'crew-milestone-next' }, `下一步 ${meta.next}`) : null)
 }
 
