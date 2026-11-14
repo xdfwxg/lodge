@@ -42,6 +42,43 @@
 /* 关键入口的热区扩到 ≥28px，视觉尺寸不变；四周是留白与非交互元素。 */
 .crew-new::before{content:"";position:absolute;inset:-6px}
 .crew-new:hover{color:var(--bt-ink);background:var(--bt-hover)}
+.crew-side-toggle{flex:none;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:14px;line-height:1;cursor:pointer}
+.crew-side-toggle:hover{color:var(--bt-ink);background:var(--bt-hover)}
+.crew-side-error{margin:0 6px 10px}
+.crew-side-error-mark{display:none}
+.crew-side-room-badge{display:none;flex:none;width:32px;height:32px;border-radius:8px;place-items:center;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:14px;font-weight:650}
+
+/* Rail: same DOM, collapsed styling. Only while rail and closed. */
+body[data-side=rail] .crew-side-brand{justify-content:center;gap:0;padding:10px 0 12px;font-size:0}
+body[data-side=rail] .crew-side-brand-logo{width:24px;height:24px}
+body[data-side=rail] .crew-side-tools{flex-direction:column;align-items:center;gap:6px;padding:0 0 8px}
+body[data-side=rail] .crew-side-tools>span{display:none}
+body[data-side=rail] .crew-side-group-head,
+body[data-side=rail] .crew-side-count,
+body[data-side=rail] .crew-needs-count{display:none}
+body[data-side=rail] .crew-side-group{margin-top:0;padding:8px 0 2px;border-top:1px solid var(--bt-line)}
+body[data-side=rail] .crew-side-group:first-child{border-top:0}
+body[data-side=rail] .bt-row.crew-side-room{min-height:40px;padding:4px 12px;justify-content:center;position:relative}
+body[data-side=rail] .crew-side-room-glyph,
+body[data-side=rail] .crew-side-room-name,
+body[data-side=rail] .crew-side-room-meta{display:none}
+body[data-side=rail] .crew-side-room-badge{display:grid}
+body[data-side=rail] .crew-side-room-dot,
+body[data-side=rail] .crew-unread-dot{position:absolute;box-shadow:0 0 0 2px var(--bt-sidebar)}
+body[data-side=rail] .crew-side-room-dot{right:8px;bottom:6px;width:8px;height:8px}
+body[data-side=rail] .crew-unread-dot{right:8px;top:6px;width:6px;height:6px;margin-left:0}
+body[data-side=rail] .crew-me{justify-content:center;padding:8px 0}
+body[data-side=rail] .crew-me-body{display:none}
+body[data-side=rail] .crew-new{width:28px;height:28px;padding:0;display:grid;place-items:center;font-size:0;border-radius:8px}
+body[data-side=rail] .crew-new::after{content:'＋';font-size:16px;line-height:1}
+body[data-side=rail] .crew-side-error{width:24px;height:24px;margin:0 auto 8px;padding:0;display:grid;place-items:center;border-radius:7px}
+body[data-side=rail] .crew-side-error-mark{display:block;font-size:13px;font-weight:700;color:var(--bt-danger-text)}
+body[data-side=rail] .crew-side-error-text{display:none}
+body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
+@media (forced-colors:active){
+  body[data-side=rail] .crew-side-room-dot,
+  body[data-side=rail] .crew-unread-dot{outline:1px solid CanvasText}
+}
 
 
 .crew-goal{margin:0;font-size:13px;line-height:18px;color:var(--bt-ink-2)}
@@ -308,7 +345,6 @@
 
 /* 紧凑档统一收在 760：侧栏收窄、评审统计降两列、shadow 对照降单列。 */
 @media (max-width:760px){
-  .dsb-frame{grid-template-columns:232px minmax(0,1fr)}
   .crew-review-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .crew-review-stage{flex-direction:column;gap:2px}
 }

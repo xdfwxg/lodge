@@ -17,7 +17,7 @@ const hash = text => {
 
 const colorOf = key => PALETTE[key] ?? FALLBACK[hash(key) % FALLBACK.length]
 
-const initialOf = (text, fallback) => {
+export const initialOf = (text, fallback) => {
   const chars = Array.from(String(text ?? '').trim())
   return chars.length === 0 ? fallback : chars[0].toUpperCase()
 }

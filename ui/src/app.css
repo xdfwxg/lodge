@@ -14,6 +14,14 @@ body{margin:0;background:var(--bt-main);color:var(--bt-ink);font-family:var(--bt
 
 .dsb-frame{display:grid;grid-template-columns:272px minmax(0,1fr);height:100vh;height:100dvh;overflow:hidden}
 .dsb-side{display:flex;flex-direction:column;min-height:0;padding:8px 12px 10px;background:var(--bt-sidebar);border-right:1px solid var(--bt-line-2)}
+body[data-side=rail] .dsb-frame,
+body[data-side=open] .dsb-frame{grid-template-columns:56px minmax(0,1fr)}
+body[data-side=rail] .dsb-side{padding:6px 0 8px}
+body.is-mac-shell[data-side=rail] .dsb-side{padding-top:44px}
+body[data-side=open] .dsb-side{position:fixed;left:0;top:0;bottom:0;width:272px;z-index:40;padding:8px 12px 10px;border-right:1px solid var(--bt-line-2);box-shadow:18px 0 50px rgb(0 0 0 / .22)}
+body.is-mac-shell[data-side=open] .dsb-side{padding-top:44px}
+.crew-side-scrim{position:fixed;inset:0;z-index:35;background:rgb(0 0 0 / .2);opacity:0;pointer-events:none;transition:opacity var(--bt-dur-slow) ease-out}
+body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .dsb-side>.bt-side{padding:0}
 .dsb-main{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bt-main)}
 .crew-room{background:var(--bt-chat-bg)}
