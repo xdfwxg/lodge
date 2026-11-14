@@ -50,8 +50,9 @@ function Sidebar({ state, onSelect, onNew }) {
     const main = document.querySelector('.dsb-main')
     main?.setAttribute('inert', '')
     const onKeyDown = event => {
-      if (event.defaultPrevented) return
-      if (sidebarRef.current?.contains(document.activeElement) !== true) return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      // 看按 ESC 时的目标，而不是 activeElement：上层弹窗可能已同步关闭并把焦点还回侧栏。
+      if (sidebarRef.current?.contains(event.target) !== true) return
       setOpen(false)
     }
     window.addEventListener('keydown', onKeyDown)

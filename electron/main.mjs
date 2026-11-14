@@ -460,7 +460,7 @@ const createWindow = port => {
   window = new BrowserWindow({
     width: 1280,
     height: 860,
-    minWidth: 960,
+    minWidth: 560,
     minHeight: 600,
     title: 'Lodge',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',

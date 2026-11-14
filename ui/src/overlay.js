@@ -83,12 +83,21 @@ export const useOverlay = ({ label, onClose, modal = true, active = true }) => {
   const rootRef = useRef(null)
   const closeRef = useRef(onClose)
   closeRef.current = onClose
+  // autoFocus 在提交阶段就把焦点移进弹窗，effect 再取 activeElement 已经太晚；
+  // 打开那一帧在渲染期记下触发元素，关闭时才能还回去。
+  const restoreRef = useRef(null)
+  const activeRef = useRef(false)
+  if (active && !activeRef.current) {
+    const current = document.activeElement
+    restoreRef.current = current instanceof HTMLElement && current !== document.body ? current : null
+  }
+  activeRef.current = active
 
   useEffect(() => {
     if (!active) return undefined
     const el = rootRef.current
     if (el === null) return undefined
-    const restoreTo = document.activeElement
+    const restoreTo = restoreRef.current
     const entry = { el: modal ? el : null, close: () => closeRef.current() }
     ESC_STACK.push(entry)
     bindEsc()
@@ -106,6 +115,7 @@ export const useOverlay = ({ label, onClose, modal = true, active = true }) => {
       if (restoreTo instanceof HTMLElement && restoreTo.isConnected) {
         restoreTo.focus({ preventScroll: true })
       }
+      restoreRef.current = null
     }
   }, [active])
 
