@@ -1,12 +1,19 @@
 import { roleKindOf } from '../seats.js'
+import { roomTypeMeta } from '../../../shared/room-types.js'
+
+const meta = roomTypeMeta('studio')
 
 export const id = 'studio'
-export const name = '工作室'
-export const description = '目标、阶段、验收与交付；被 @ 的席位才唤醒'
-export const defaultVerify = 'test'
+export const name = meta.name
+export const description = meta.description
+export const defaultVerify = meta.defaultVerify
 export const defaultSeats = null
 export const autoStart = 'stage'
 export const singleDirectory = true
+export const requireWorker = true
+
+// 能力矩阵来自 shared/room-types.js 的产品级房型清单。
+export const capabilities = meta.capabilities
 
 export const normalize = ({ verify, acceptance }) => ({ verify, acceptance })
 

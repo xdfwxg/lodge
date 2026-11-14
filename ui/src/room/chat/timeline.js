@@ -1,7 +1,9 @@
 import { createElement as h, useMemo } from 'react'
-import { ApprovalCard } from '../approval-card.js'
-import { renderMessageBody } from './message-view.js'
-import { buildTimeline, dedupeChatStreams } from './timeline-model.js'
+import { ApprovalCard } from '../../approval-card.js'
+import { renderSharedMessage } from '../message-view.js'
+import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
+import { hostLabelOf } from '../host.js'
+import { ChatConclusionCard } from './conclusion-card.js'
 
 const TIME_GAP = 5 * 60 * 1000
 const timeLabel = ts => {
@@ -13,7 +15,7 @@ const timeLabel = ts => {
   return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
 
-function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinueChat, onStartStudio, hideKinds = [] }) {
+function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartStudio, hideKinds = [] }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
   const timeline = useMemo(() => buildTimeline(messages), [messages])
@@ -27,16 +29,17 @@ function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinue
   }
 
   const renderMessage = message => {
-    const content = renderMessageBody({
-      room,
-      byId,
-      message,
-      timeline,
-      onAccept,
-      onStageAccept,
-      onContinueChat,
-      onStartStudio,
-    })
+    const content = message.kind === 'chat_conclusion'
+      ? h(ChatConclusionCard, {
+        key: message.id,
+        message,
+        seat: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
+        room,
+        onAccept,
+        onContinueChat,
+        onStartStudio,
+      })
+      : renderSharedMessage({ room, byId, message })
     if (content === null) return null
     const mark = timeMarks.get(message.id)
     return mark === undefined

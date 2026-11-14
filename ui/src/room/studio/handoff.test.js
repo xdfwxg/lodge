@@ -31,8 +31,7 @@ test('bold labels do not leak into the acceptance command', () => {
   })
 })
 
-test('short lead chat and chat-room messages stay normal chat', () => {
+test('short lead chat and other speakers stay normal chat', () => {
   assert.equal(isDispatchHandoff(room, message({ text: '@执行官 辛苦，继续。' })), false)
-  assert.equal(isDispatchHandoff({ ...room, roomType: 'chat' }, message()), false)
   assert.equal(isDispatchHandoff(room, message({ authorId: 'worker' })), false)
 })

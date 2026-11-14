@@ -73,7 +73,7 @@ const LIGHT = {
   '--bt-radius-sheet': '20px',
   '--bt-dur-fast': '.12s',
   '--bt-dur-slow': '.2s',
-  '--bt-font': '"Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+  '--bt-font': 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "PingFang TC", "Hiragino Sans", "Apple SD Gothic Neo", "Microsoft YaHei", sans-serif',
 }
 
 const DARK = {
@@ -150,7 +150,7 @@ const DARK = {
   '--bt-radius-sheet': '20px',
   '--bt-dur-fast': '.12s',
   '--bt-dur-slow': '.2s',
-  '--bt-font': '"Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif',
+  '--bt-font': 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "PingFang TC", "Hiragino Sans", "Apple SD Gothic Neo", "Microsoft YaHei", sans-serif',
 }
 
 const declarations = vars => Object.entries(vars).map(([name, value]) => `${name}:${value}`).join(';')

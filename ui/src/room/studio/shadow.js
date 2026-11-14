@@ -1,5 +1,5 @@
 import { createElement as h } from 'react'
-import { useOverlay } from '../overlay.js'
+import { useOverlay } from '../../overlay.js'
 
 const STATUS = {
   agree: { label: '一致', tone: 'ok' },

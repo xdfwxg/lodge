@@ -1,14 +1,9 @@
 import { createBaseClient } from './base.js'
+import { RUNTIME_EVENT } from './crew/runtime-port.js'
 
-// Engine 端口：crew 业务层只依赖这里定义的语义，不认识具体底座。
-// 替换 runtime 时实现同样六个方法即可：
-//   rooms() -> Room[]
-//   history(sessionRef) -> { messages }
-//   sendTurn({ roomId, text, sendId }) -> { accepted, messageId, sendId }
-//   cancelTurn({ roomId }) -> { cancelled, reason? }
-//   usage(roomId) -> { turns, costMicroUsd }
-//   subscribe({ roomId, sessionRef, onEvent, onState }) -> unsubscribe
-// Room: { id, name, sessionRef, goal, working, busyRef, queue, holds, heldMessages, tasks, cwd, usage }
+// Engine 适配器：把具体基座翻译成 crew 的 runtime 端口与规范化事件。
+// 端口方法与事件形状只在 crew/runtime-port.js 声明；换 runtime 时实现那份契约，
+// 并跑 crew/runtime-port.test.js 的同一组契约测试。
 const normalizeRoom = (group, responderName) => ({
   id: group.id,
   name: group.name,
@@ -405,18 +400,18 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
           const event = frame.event
           if (event?.threadId !== sessionRef) return
           if (event.type === 'content.delta' && event.streamKind === 'assistant_text' && typeof event.delta === 'string' && event.delta !== '') {
-            onEvent({ type: 'delta', threadId: sessionRef, turnId: event.turnId ?? '', delta: event.delta, at: Date.now() })
+            onEvent({ type: RUNTIME_EVENT.delta, sessionRef, turnId: event.turnId ?? '', delta: event.delta, at: Date.now() })
           }
           return
         }
         if (frame.kind === 'message' || frame.kind === 'message.patch') {
           if (frame.threadId !== sessionRef) return
           const message = normalizeMessage(frame.message, responderNameFor(sessionRef))
-          if (message !== null) onEvent({ type: 'message', message })
+          if (message !== null) onEvent({ type: RUNTIME_EVENT.message, message })
           return
         }
         if (frame.kind === 'group' && frame.group?.id === roomId) {
-          onEvent({ type: 'room', room: normalizeRoom(frame.group, responderNameFor(frame.group.threadId)) })
+          onEvent({ type: RUNTIME_EVENT.room, room: normalizeRoom(frame.group, responderNameFor(frame.group.threadId)) })
         }
       },
     })

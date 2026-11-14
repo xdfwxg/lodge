@@ -113,6 +113,8 @@ export const chatKind = {
   partialCount: () => 0,
   deliveryOf: () => null,
   reviewOf: () => null,
+  hostOf: room => room.chatHost ?? null,
+  speakerOf: room => room.chat?.speaker ?? '',
   bulletinAcceptance: () => '人确认',
   applyStageDependencies: room => room,
 }

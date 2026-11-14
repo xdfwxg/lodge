@@ -1,4 +1,4 @@
-// 验收结论的第一行是 PASS/REJECT；卡片只露一句，其余进详情。
+// 验收结论的第一行是结论句，其余是理由；两段都在卡片里直接展示。
 export const splitVerdictText = text => {
   const lines = String(text ?? '').split('\n').map(line => line.trim()).filter(Boolean)
   const body = /^(PASS|REJECT)\b/i.test(lines[0] ?? '') ? lines.slice(1) : lines

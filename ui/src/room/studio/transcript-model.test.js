@@ -10,6 +10,7 @@ import {
   presenceLines,
   displayableStep,
   stepLabel,
+  withDelivery,
 } from './transcript-model.js'
 
 const step = (id, authorId, ts, ok = true, tool = 'Bash') => ({
@@ -111,4 +112,17 @@ test('synthetic tool labels are rejected even when the projection carries them',
   const synthetic = { ...step('s', 'w', 1), text: 'recent-work brief covers 1 private chat with you', meta: { ok: true, tool: "Verifierx's recent-work brief covers 1 private chat with you" } }
   assert.equal(displayableStep(synthetic), false)
   assert.equal(stepLabel(synthetic), '')
+})
+
+test('the delivery card sits at its completion time, before later messages', () => {
+  const items = [say('a', 'w', 1000), say('b', 'w', 2000), say('c', 'w', 4000)]
+  const placed = withDelivery(items, { completedAt: 3000 }, 'room-1')
+  assert.deepEqual(placed.map(item => item.kind ?? 'message'), ['chat', 'chat', 'delivery', 'chat'])
+  assert.equal(placed[2].id, 'delivery-room-1')
+})
+
+test('a delivery without a completion time follows the last message', () => {
+  const placed = withDelivery([say('a', 'w', 1000)], { completedAt: null }, 'room-1')
+  assert.deepEqual(placed.map(item => item.kind ?? 'message'), ['chat', 'delivery'])
+  assert.deepEqual(withDelivery([say('a', 'w', 1000)], null, 'room-1').map(item => item.kind), ['chat'])
 })

@@ -145,7 +145,7 @@ export const resolveSeats = (body, roomType) => {
     } else {
       roster = seatsFor(templateId)
     }
-    validateRoster(roster, { requireWorker: roomType.id !== 'chat' })
+    validateRoster(roster, { requireWorker: roomType.requireWorker !== false })
   } catch (error) {
     return { error: `席位组合不可用：${error?.message ?? error}` }
   }

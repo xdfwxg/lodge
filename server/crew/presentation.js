@@ -1,6 +1,6 @@
 import { roomNeedsYou } from './attention.js'
 import { independenceLabel } from './digest.js'
-import { capabilitiesFor } from './room-capabilities.js'
+import { capabilitiesFor } from './room-types/index.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 
 // 房间能力是 opt-in 开关，不是房型分类；默认关闭，旧房间不受影响。

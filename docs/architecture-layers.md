@@ -1,14 +1,15 @@
 # Lodge 分层与依赖
 
 > 原则：层内内聚，层外解耦。判断标准不是行数，而是这段逻辑是否是一个不可拆分的整体。
+> 房型共用边界与三层总览见 [../架构.md](../架构.md)。
 
 ## 1. 层
 
 | 层 | 职责 | 代表模块 |
 | --- | --- | --- |
-| 领域规则 | 纯业务判断：预算、门禁、验收结论、阶段依赖、席位能力、房型策略、编排策略、注意力、交接摘要 | `budget.js`、`gates.js`、`verifiers.js`、`stage-plan.js`、`progress.js`、`result.js`、`attention.js`、`digest.js`、`delivery.js`、`seats.js`、`room-types/*`、`orchestration/*`、`service-policy.js`、`rooms/studio/turn-utils.js`、`mcp*.js` |
+| 领域规则 | 纯业务判断：预算、门禁、验收结论、阶段依赖、席位能力、房型策略、编排策略、注意力、交接摘要 | `budget.js`、`gates.js`、`verifiers.js`、`stage-plan.js`、`progress.js`、`result.js`、`attention.js`、`digest.js`、`delivery.js`、`seats.js`、`room-types/*`、`shared/room-types.js`、`orchestration/*`、`service-policy.js`、`rooms/studio/turn-utils.js`、`mcp*.js` |
 | 应用用例 | 编排一次业务动作：建房、完成、席位、阶段、交付、实时回合、审批、恢复、启动修复、工作区 GC | `rooms/create/*`、`rooms/studio/*`、`kernel/live/*`、`rooms/base/live.js`、`rooms/chat/*`、`service-*.js`、`workspace-gc.js`、`dispatch-service.js`、`resources.js`、`roster-recommend.js`、`presentation.js` |
-| 端口 | 给应用层一组稳定接口，屏蔽具体存储/工作区/项目/用量/交付/命令/文件/交接包实现；组合根装配整包，再按模块分发子端口 | `crew-ports.js` |
+| 端口 | 给应用层一组稳定接口，屏蔽具体存储/工作区/项目/用量/交付/命令/文件/交接包实现；runtime 端口只声明回合、流、席位、权限卡与观测面 | `crew-ports.js`、`runtime-port.js` |
 | 适配器 | 文件、SQLite、基座、git/worktree、直接目录、复制目录、进程、沙箱、系统对话框 | `store.js`、`engine.js`/`base.js`、`workspace*.js`、`room-repo.js`、`handoff-store.js`、`seat-env.js`、`paths.js`、`project.js`、`usage-history.js`、`skill-store.js`、`acceptance.js`、`sandbox.js`、`lock.js`、`system-*.js` |
 | 组合与接口 | 装配具体实现；HTTP/SSE；Electron 与 Web 传输 | `server/index.js`、`electron/*`、`ui/src/store.js`、`ui/src/system.js` |
 
@@ -56,11 +57,11 @@ server/index.js（唯一组合根）
 | `rooms/studio/service-stages.js` | 阶段编辑、验收、签字属于同一阶段门禁；完成态已拆出 |
 | `service-run-control.js` | 预算、暂停/继续/停止、MCP 恢复都属于运行控制面；恢复后启动当前阶段共用同一个私有 helper |
 | `kernel/live/projection.js` | 基座消息到 Lodge 时间线的映射是纯转换，可单独测试 |
-| `timeline.js` | 只负责按时间渲染消息记录；当前阶段动作不在这里，避免“永远钉底” |
-| `stage-gate.js` | 阶段门纯投影：当前阶段、返工地板、PASS/证据与“是否需要人”的判定；不依赖 React，可单独测试 |
-| `stage-controls.js` | 阶段门的展示与动作：确认卡、真实验收卡、演示卡、返工输入；它们共享同一套阶段动作，拆开会让按钮与证据判断漂移 |
-| `stage-dock.js` | 只做阶段门的开关、当前阶段选择与三种卡片的组合；不持有阶段判定规则 |
-| `opening-points.js` | 开工卡已对齐内容同时被开工记录和阶段确认使用，投影只此一份 |
+| `ui/src/room/chat/timeline.js` | 只负责按时间渲染消息记录；当前阶段动作不在这里，避免“永远钉底” |
+| `ui/src/room/studio/stage-gate.js` | 阶段门纯投影：当前阶段、返工地板、PASS/证据与“是否需要人”的判定；不依赖 React，可单独测试 |
+| `ui/src/room/studio/stage-controls.js` | 阶段门的展示与动作：确认卡、真实验收卡、演示卡、返工输入；它们共享同一套阶段动作，拆开会让按钮与证据判断漂移 |
+| `ui/src/room/studio/stage-dock.js` | 只做阶段门的开关、当前阶段选择与三种卡片的组合；不持有阶段判定规则 |
+| `ui/src/room/studio/opening-points.js` | 开工卡已对齐内容同时被开工记录和阶段确认使用，投影只此一份 |
 | `kernel/live/refresh.js` | 忙闲、用量、预算暂停是同一轮房间刷新 |
 | `kernel/live/approvals.js` | 权限卡、外部动作、待批准记录、失效与人工决定必须一起处理，拆开会出现审批状态不一致 |
 | `kernel/live/sync.js` | 席位历史同步与实时订阅共享同一套消息入口 |

@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { uiKindOfType } from './kinds.js'
-import { useOverlay } from '../overlay.js'
+import { uiKindOfType } from '../kinds.js'
+import { useOverlay } from '../../overlay.js'
 
 // 只读回放：解释已有的转移审计事件，不写房间、不补事件。
 export function ReplayDialog({ replay, onClose }) {

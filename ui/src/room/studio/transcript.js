@@ -1,13 +1,15 @@
 import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../../approval-card.js'
+import { DeliveryCard } from './delivery-card.js'
 import { dedupeChatStreams } from '../timeline-model.js'
-import { renderMessageBody } from '../message-view.js'
+import { renderStudioMessage } from './message-view.js'
 import { StepGroup } from './step-group.js'
 import {
   groupSteps,
   insertDayMarkers,
   orderTranscript,
   showsSeat,
+  withDelivery,
 } from './transcript-model.js'
 
 // 工作室时间线：按天分隔、同席连续消息合并说话人、连续步骤收成一条。
@@ -17,8 +19,9 @@ export function StudioTranscript({
   onAccept,
   onStageAccept,
   onApproval,
-  onStartStudio,
+  onExportDelivery,
   hideKinds = [],
+  delivery = null,
 }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
@@ -32,8 +35,11 @@ export function StudioTranscript({
       if (room.state === 'complete' && message.kind === 'system' && /等你签字/.test(String(message.text ?? ''))) return false
       return true
     })
-    return { timeline, grouped: groupSteps(insertDayMarkers(visible)) }
-  }, [messages, hideKinds, room.state])
+    return {
+      timeline,
+      grouped: groupSteps(insertDayMarkers(withDelivery(visible, delivery, room.id))),
+    }
+  }, [messages, hideKinds, room.state, room.id, delivery])
 
   const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
 
@@ -45,16 +51,18 @@ export function StudioTranscript({
       if (item.kind === 'steps') {
         return h(StepGroup, { key: item.key, steps: item.steps })
       }
+      if (item.kind === 'delivery') {
+        return h(DeliveryCard, { key: item.id, delivery, onExport: onExportDelivery })
+      }
       // 单条成功步骤多是基座的内部提示；成串的步骤才值得占一行，失败步骤保留。
       if (item.kind === 'activity' && item.meta?.ok !== false) return null
-      const content = renderMessageBody({
+      const content = renderStudioMessage({
         room,
         byId,
         message: item,
         timeline: items.timeline,
         onAccept,
         onStageAccept,
-        onStartStudio,
       })
       if (content === null) return null
       const lead = item.kind === 'chat' && !showsSeat(items.grouped, index) ? 'cont' : 'first'

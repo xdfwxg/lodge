@@ -6,6 +6,7 @@ import { createRoomChat } from '../../kernel/live/bus.js'
 import { seatDisplayName } from '../../seat-labels.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
+import { supportsRuntime } from '../../runtime-port.js'
 import { createChatRuntime } from '../chat/runtime.js'
 import { createStudioRuntime } from '../studio/runtime.js'
 
@@ -223,6 +224,7 @@ export const createLiveRooms = ({ store, engine, emit, gateAgent = null, ports, 
   const expireApprovals = (roomId, reason) => approvals.expireApprovals(entries.get(roomId), roomId, reason)
 
   const cancel = async ({ roomId }) => {
+    if (!supportsRuntime(engine, 'cancel')) return { cancelled: false, reason: '当前 runtime 不支持取消回合' }
     const entry = entries.get(roomId)
     if (entry === undefined) return { cancelled: false, reason: '实时房间未绑定' }
     const room = store.readRoom(roomId)

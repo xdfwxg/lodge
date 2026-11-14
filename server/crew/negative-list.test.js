@@ -69,7 +69,7 @@ test('advisor advice code has no pass/verdict authority', () => {
 })
 
 test('chat and studio capability flags stay separated', async () => {
-  const { capabilitiesFor } = await import('./room-capabilities.js')
+  const { capabilitiesFor } = await import('./room-types/index.js')
   assert.equal(capabilitiesFor('chat').stages, false)
   assert.equal(capabilitiesFor('chat').closure, false)
   assert.equal(capabilitiesFor('chat').piExecution, false)

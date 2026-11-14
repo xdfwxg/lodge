@@ -1,3 +1,7 @@
+import { roomTypeMeta } from '../../../shared/room-types.js'
+
+const meta = roomTypeMeta('chat')
+
 export const CHAT_TURNS_PER_ROUND = 6
 export const MAX_CHAT_TURNS_PER_ROUND = 20
 
@@ -9,9 +13,9 @@ export const turnLimitOf = room => {
 }
 
 export const id = 'chat'
-export const name = '聊天室'
-export const description = '围绕一个话题讨论，随机唤醒发言，主持人总结后由你确认'
-export const defaultVerify = 'manual'
+export const name = meta.name
+export const description = meta.description
+export const defaultVerify = meta.defaultVerify
 export const readOnly = true
 export const defaultSeats = [
   { role: 'worker', name: '甲', personality: 'assertive' },
@@ -20,6 +24,10 @@ export const defaultSeats = [
 ]
 export const autoStart = 'chat'
 export const singleDirectory = true
+export const requireWorker = false
+
+// 能力矩阵来自 shared/room-types.js 的产品级房型清单。
+export const capabilities = meta.capabilities
 
 export const normalize = () => ({ verify: 'manual', acceptance: '' })
 

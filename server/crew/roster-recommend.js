@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { defaultOrchestrationId, resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { fail, ok } from './result.js'
+import { supportsRuntime } from './runtime-port.js'
 import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
 
 const MAX_GOAL = 2000
@@ -331,9 +332,11 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
     return ok({ proposal })
   } finally {
     if (probeRoom !== null) {
-      try {
-        await engine.cancelTurn({ roomId: probeRoom.id })
-      } catch {}
+      if (supportsRuntime(engine, 'cancel')) {
+        try {
+          await engine.cancelTurn({ roomId: probeRoom.id })
+        } catch {}
+      }
       await engine.deleteRoom(probeRoom.id)
     }
     if (advisorRef !== null) await engine.deleteSeatBot(advisorRef.id)

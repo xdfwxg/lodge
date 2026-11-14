@@ -26,6 +26,7 @@ const setup = () => {
   const answered = []
   const permissions = []
   const engine = {
+    capabilities: () => ({ streaming: true, mentions: true, provisioning: true }),
     createRoom: async input => {
       assert.equal(input.members.length, 3)
       assert.equal(input.bulletin, ROOM_CHAT_BULLETIN)

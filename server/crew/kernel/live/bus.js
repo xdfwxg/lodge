@@ -3,8 +3,12 @@ import { matchEcho, seatFor } from './projection.js'
 import { pauseForSeatFailure } from './sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
-import { chatFacade } from '../../rooms/chat/facade.js'
+import { supportsRuntime } from '../../runtime-port.js'
 import { toBaseMentions, toDisplayMentions, toDisplayText } from '../../seat-labels.js'
+
+// 隐藏主持与当前发言人由房型的 presentation 提供；总线不认识任何具体房型。
+const hostOf = room => roomPresentationOfRoom(room)?.hostOf?.(room) ?? null
+const speakerOf = room => roomPresentationOfRoom(room)?.speakerOf?.(room) ?? ''
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
 // sendId 是基座的幂等键：发送响应和最终落库 ID 不同也能对上同一条话。
@@ -40,14 +44,16 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   }
 
   const applyDelta = (entry, room, event) => {
+    // 流式是可选能力：runtime 没声明就不接增量，历史同步仍会把最终消息补进来。
+    if (!supportsRuntime(engine, 'streaming')) return
     const current = store.readRoom(room.id) ?? room
     if (roomPresentationOfRoom(current)?.acceptsDelta !== true) return
     // 隐藏主持模型只负责总结，不把它的原始回复流进时间线；结论由 Lodge 写卡片。
-    const host = chatFacade.hostOf(current)
+    const host = hostOf(current)
     if (host !== null && entry.baseRoom?.busyRef === host.memberRef) return
     // 基座正在发言的人才是这一段 delta 的作者；自造的 speaker 只在拿不到基座状态时兜底。
     const seat = (entry.baseRoom?.busyRef === undefined ? null : seatFor(current, entry.baseRoom.busyRef))
-      ?? chatFacade.speakerOf(current)
+      ?? speakerOf(current)
     if (typeof seat !== 'string' || seat === '') return
     const streams = streamOf(entry)
     const prior = streams.get(seat)
@@ -79,7 +85,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (finalIds.has(message.id)) return true
     const current = store.readRoom(room.id) ?? room
     if (roomPresentationOfRoom(current)?.acceptsDelta !== true) return false
-    const seat = seatFor(current, message.authorRef) ?? chatFacade.speakerOf(current)
+    const seat = seatFor(current, message.authorRef) ?? speakerOf(current)
     if (typeof seat !== 'string' || seat === '') return false
     const streams = streamOf(entry)
     const state = streams.get(seat)
@@ -106,7 +112,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   // 基座忙碌时消息会排队，发送响应 id 和最终落库 id 不同；回显先占位，落库后只补 baseId，不再重复投影。
   const projectMessage = (room, message) => {
     // 隐藏主持模型的原始回复只喂给总结卡，不进入聊天时间线。
-    const host = chatFacade.hostOf(room)
+    const host = hostOf(room)
     if (host !== null && message.authorRef === host.memberRef) return null
     // 流式消息已经落库的，同步历史时不再补一条同内容的消息。
     if (store.readMessages(room.id).some(item => item.meta?.baseId === message.id)) return null
@@ -151,7 +157,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const ensure = async room => {
     if (room.chatRoom !== undefined) {
       // 群聊默认休眠：只有被 @ 的席位才加载。工作室和聊天室都走同一条总线。
-      if (typeof engine.setRoomMentions === 'function') {
+      if (supportsRuntime(engine, 'mentions') && typeof engine.setRoomMentions === 'function') {
         try {
           await engine.setRoomMentions(room.chatRoom.id)
         } catch (error) {
@@ -163,8 +169,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       }
       return room
     }
-    if (typeof engine.createRoom !== 'function') return room
-    const host = chatFacade.hostOf(room)
+    if (!supportsRuntime(engine, 'provisioning') || typeof engine.createRoom !== 'function') return room
+    const host = hostOf(room)
     const members = [
       ...Object.values(room.seatBots ?? {}),
       ...(host === null ? [] : [host.memberRef]),
@@ -177,7 +183,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         bulletin: ROOM_CHAT_BULLETIN,
         members,
         cwd: room.repoPath,
-        leadId: chatFacade.hostOf(room)?.memberRef ?? room.seatBots?.[room.leadSeat] ?? members[0],
+        leadId: hostOf(room)?.memberRef ?? room.seatBots?.[room.leadSeat] ?? members[0],
         responder: { kind: 'mentions' },
       })
       const updated = store.updateRoom(room.id, current => {
@@ -251,7 +257,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const syncMembers = async room => {
     const chat = room.chatRoom
     if (chat === undefined || typeof engine.updateRoomMembers !== 'function') return
-    const host = chatFacade.hostOf(room)
+    const host = hostOf(room)
     const members = [
       ...Object.values(room.seatBots ?? {}),
       ...(host === null ? [] : [host.memberRef]),

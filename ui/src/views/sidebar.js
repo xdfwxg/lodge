@@ -1,12 +1,10 @@
 import { Fragment, createElement as h, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ROOM_TYPE_MANIFEST } from '../../../shared/room-types.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { money } from '../view-format.js'
 import { initialOf } from '../marks.js'
 
-const GROUPS = [
-  { id: 'studio', label: '工作室' },
-  { id: 'chat', label: '聊天室' },
-]
+const GROUPS = ROOM_TYPE_MANIFEST.map(({ id, name }) => ({ id, label: name }))
 
 const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false

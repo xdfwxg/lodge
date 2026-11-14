@@ -12,6 +12,7 @@ const MODE_KEYS = [
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
   'refresh', 'onSeatFailure', 'partialCount', 'deliveryOf', 'reviewOf',
+  'hostOf', 'speakerOf',
 ]
 
 test('every room mode implements the same substitutable contract', () => {

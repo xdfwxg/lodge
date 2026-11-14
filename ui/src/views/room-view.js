@@ -1,12 +1,7 @@
-import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
-import { DeliverySheet } from '../delivery-sheet.js'
+import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Composer } from '../composer.js'
-import { ReviewDialog } from '../room/studio/advanced.js'
 import { AuditDrawer } from '../room/audit.js'
 import { RoomRail } from '../room/rail.js'
-import { StageDock } from '../room/stage-dock.js'
-import { ReplayDialog } from '../room/replay.js'
-import { ShadowDialog } from '../room/shadow.js'
 import { uiModeOfRoom } from './room-modes.js'
 
 function RoomView({ state, room, store, onContinue, onStartStudio }) {
@@ -15,53 +10,120 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   const [dockOpen, setDockOpen] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
   const scroll = useRef(null)
+  const mainRef = useRef(null)
+  const composerRef = useRef(null)
   const stick = useRef(true)
-  const seenComplete = useRef(false)
+  const lastTop = useRef(0)
+  const touchY = useRef(0)
+  const mode = uiModeOfRoom(room)
   const lastId = room.messages.at(-1)?.id
-  const hasDelivery = room.delivery !== null && room.delivery !== undefined
 
-  const scrollToBottom = () => {
+  // 贴底必须发生在绘制前：rAF 会先画一帧旧位置，再跳到底，连续输出时就是跳屏。
+  const pinToBottom = () => {
     const node = scroll.current
     if (!node) return
-    stick.current = true
-    setAtBottom(true)
     node.scrollTop = node.scrollHeight
+    lastTop.current = node.scrollTop
   }
 
-  useEffect(() => {
-    seenComplete.current = false
+  const followBottom = () => {
+    stick.current = true
+    setAtBottom(true)
+    pinToBottom()
+  }
+
+  const breakFollow = () => {
+    if (!stick.current) return
+    stick.current = false
+    setAtBottom(false)
+  }
+  const atEnd = node => node.scrollHeight - node.scrollTop - node.clientHeight <= 4
+
+  useLayoutEffect(() => {
     stick.current = true
     setAtBottom(true)
     setAuditOpen(false)
+    pinToBottom()
   }, [room.id])
 
   useEffect(() => {
     if (room.chatUnread === true) void store.markRead()
   }, [room.id, room.chatUnread, store])
 
+  useLayoutEffect(() => {
+    if (stick.current) pinToBottom()
+  }, [lastId, room.id])
+
+  // 流式文本、输入框增高、交付单出现都会改变内容高度；回调在绘制前贴底。
   useEffect(() => {
     const node = scroll.current
-    if (!node) return
-    if (hasDelivery && !seenComplete.current) {
-      seenComplete.current = true
-      node.scrollTop = 0
-      return
-    }
-    seenComplete.current = hasDelivery
-    if (stick.current) node.scrollTop = node.scrollHeight
-  }, [lastId, room.id, hasDelivery])
+    if (node === null || typeof ResizeObserver !== 'function') return undefined
+    const observer = new ResizeObserver(() => {
+      if (stick.current) pinToBottom()
+    })
+    observer.observe(node)
+    for (const child of node.children) observer.observe(child)
+    return () => observer.disconnect()
+  }, [room.id])
 
+  // 输入条高度会变；「回到最新」始终浮在它上方，而不是写死 124px。
+  useEffect(() => {
+    const composer = composerRef.current
+    const root = mainRef.current
+    if (composer === null || root === null || typeof ResizeObserver !== 'function') return undefined
+    const sync = () => root.style.setProperty('--crew-composer-h', `${composer.offsetHeight}px`)
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(composer)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--crew-composer-h')
+    }
+  }, [room.id])
+
+  // 只有用户的向上手势才脱离跟随；内容增长/收缩带来的 scroll 事件不能改变跟随态。
   const trackScroll = event => {
     const node = event.currentTarget
-    const near = node.scrollHeight - node.scrollTop - node.clientHeight < 80
-    stick.current = near
-    setAtBottom(near)
+    const previousTop = lastTop.current
+    lastTop.current = node.scrollTop
+    if (stick.current) return
+    if (node.scrollTop > previousTop && atEnd(node)) followBottom()
   }
 
+  const onWheel = event => {
+    if (event.deltaY < 0) breakFollow()
+    else if (atEnd(event.currentTarget)) followBottom()
+  }
+
+  const onTouchStart = event => {
+    touchY.current = event.touches[0]?.clientY ?? 0
+  }
+
+  const onTouchMove = event => {
+    const y = event.touches[0]?.clientY ?? 0
+    if (y > touchY.current + 4) breakFollow()
+    else if (atEnd(event.currentTarget)) followBottom()
+  }
+
+  // 拖动滚动条本身不产生 wheel 事件；滚动条的轨道在 clientWidth 之外。
+  const onPointerDown = event => {
+    const node = event.currentTarget
+    if (event.target === node && event.nativeEvent.offsetX >= node.clientWidth) breakFollow()
+  }
+
+  useEffect(() => {
+    const onKey = event => {
+      const target = event.target
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return
+      if (target instanceof Element && target.closest('select, [contenteditable="true"]') !== null) return
+      if (event.key === 'PageUp' || event.key === 'Home' || event.key === 'ArrowUp') breakFollow()
+      if (event.key === 'End') followBottom()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const locked = room.state === 'paused' || room.state === 'stopped'
-  const mode = uiModeOfRoom(room)
-  const isChat = mode.id === 'chat'
-  const chat = room.chat ?? {}
   const seats = useMemo(() => {
     if (Array.isArray(room.seatSpecs) && room.seatSpecs.length > 0) return room.seatSpecs
     const ids = room.members ?? []
@@ -69,15 +131,6 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   }, [room.seatSpecs, room.members, state.seats])
   const viewModel = useMemo(() => mode.buildViewModel({ room, seats }), [mode, room, seats])
   const decision = useMemo(() => mode.buildDecision({ room, viewModel }), [mode, room, viewModel])
-  const typingSeatId = room.chatBusySeat
-    || (isChat ? chat.speaker : '')
-    || (room.busySeats?.length === 1 ? room.busySeats[0] : '')
-  const typingSeat = seats.find(seat => seat.id === typingSeatId) ?? null
-  const typing = isChat && !locked && typingSeatId !== ''
-    && (room.chatWorking === true || chat.running === true || room.busy === true)
-  useEffect(() => {
-    if (typing && stick.current) scrollToBottom()
-  }, [typingSeatId, typing])
   const mentionMembers = useMemo(() => {
     const members = (room.members ?? []).map(id => ({
       id,
@@ -106,7 +159,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
       return
     }
     if (action === 'delivery') {
-      scroll.current?.scrollTo({ top: 0, behavior: 'smooth' })
+      followBottom()
       return
     }
     if (action === 'export') return void store.exportDelivery()
@@ -125,38 +178,47 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
     continueChat: note => void store.continueChat(note),
     startStudio: onStartStudio,
   }
-  const viewCtx = { room, seats, chat, decision, viewModel, actions, store }
+  // 阶段坞需要宿主动作；只有声明了 dock 的模式会渲染它。
+  const dock = {
+    open: dockOpen,
+    onOpenChange: setDockOpen,
+    onAccept: stage => void store.accept(stage),
+    onAnswer: (stage, text) => void store.answer(stage, text),
+    onSimulate: () => void store.simulate(),
+    onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
+    onVerify: stage => void store.verify(stage),
+    onRework: (stage, note) => void store.rework(stage, note),
+  }
+  const viewCtx = { state, room, seats, locked, decision, viewModel, actions, dock, store }
+  const typing = mode.typing?.(viewCtx) ?? null
 
   return h('main', { className: 'dsb-main crew-room' },
-    h('div', { className: 'crew-room-main' },
+    h('div', { ref: mainRef, className: 'crew-room-main' },
       mode.header(viewCtx),
       mode.activity(viewCtx),
       mode.decisionCard(viewCtx),
-      state.reviewFor === room.id && state.review !== null
-        ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
-        : null,
-      state.replayFor === room.id && state.replay !== null
-        ? h(ReplayDialog, { replay: state.replay, onClose: () => store.closeReplay() })
-        : null,
-      state.shadowFor === room.id && state.shadow !== null
-        ? h(ShadowDialog, { review: state.shadow, focus: state.shadowFocus, onClose: () => store.closeShadow() })
-        : null,
-      h('div', { ref: scroll, className: 'dsb-scroll crew-scroll', onScroll: trackScroll },
-        room.delivery ? h(DeliverySheet, { delivery: room.delivery, onExport: () => void store.exportDelivery() }) : null,
+      mode.overlay?.(viewCtx) ?? null,
+      h('div', {
+        ref: scroll,
+        className: 'dsb-scroll crew-scroll',
+        onScroll: trackScroll,
+        onWheel,
+        onTouchStart,
+        onTouchMove,
+        onPointerDown,
+      },
         h('div', { className: 'crew-flow' },
           mode.transcript(viewCtx),
           mode.presence(viewCtx),
-        typing
-          ? mode.typing({ ...viewCtx, seat: typingSeat, summarizing: isChat && chat.phase === 'summarizing' })
-          : null),
+          typing),
         state.error ? h('div', { className: 'crew-error', role: 'alert' }, state.error) : null),
       !atBottom
-        ? h('button', { type: 'button', className: 'crew-jump-latest', onClick: scrollToBottom }, '回到最新')
+        ? h('button', { type: 'button', className: 'crew-jump-latest', onClick: followBottom }, '回到最新')
         : null,
-      h('div', { className: 'dsb-composer' },
+      h('div', { ref: composerRef, className: 'dsb-composer' },
         h(Composer, {
           members: mentionMembers,
-          onSent: scrollToBottom,
+          onSent: followBottom,
           placeholder: room.state === 'complete'
             ? '这次交付已结束；说话可以开新一轮…'
             : room.state === 'paused'
@@ -168,17 +230,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
           onSend: text => store.send(text),
         }))),
     h(AuditDrawer, { open: auditOpen, onClose: () => setAuditOpen(false) },
-      h(StageDock, {
-        room,
-        open: dockOpen,
-        onOpenChange: setDockOpen,
-        onAccept: stage => void store.accept(stage),
-        onAnswer: (stage, text) => void store.answer(stage, text),
-        onSimulate: () => void store.simulate(),
-        onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
-        onVerify: stage => void store.verify(stage),
-        onRework: (stage, note) => void store.rework(stage, note),
-      }),
+      mode.dock?.(viewCtx) ?? null,
       h(RoomRail, {
         room,
         seats,

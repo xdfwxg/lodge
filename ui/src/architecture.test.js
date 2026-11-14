@@ -76,3 +76,30 @@ test('app.js stays a composition shell', () => {
     assert.match(text, new RegExp(`from\\s+['"]\\./${path.replaceAll('/', '\\/')}['"]`), `app.js does not import ${path}`)
   }
 })
+
+test('shared presentation never imports a room mode', () => {
+  const shared = [
+    'message-cards.js',
+    'approval-card.js',
+    'room/message-view.js',
+    'room/timeline-model.js',
+    'room/decision.js',
+  ]
+  for (const file of shared) {
+    const text = readFileSync(join(root, file), 'utf8')
+    assert.doesNotMatch(
+      text,
+      /from\s+['"][^'"]*room\/(chat|studio)\//,
+      `${file} imports a room-specific module`,
+    )
+  }
+})
+
+test('the room shell never imports a room mode', () => {
+  const text = readFileSync(join(root, 'views/room-view.js'), 'utf8')
+  assert.doesNotMatch(
+    text,
+    /from\s+['"][^'"]*room\/(chat|studio)\//,
+    'views/room-view.js imports a room-specific module',
+  )
+})

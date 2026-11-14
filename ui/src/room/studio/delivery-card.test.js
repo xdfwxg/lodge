@@ -6,7 +6,7 @@ import { build } from 'esbuild'
 
 const load = async () => {
   const bundle = await build({
-    entryPoints: [fileURLToPath(new URL('./delivery-sheet.js', import.meta.url))],
+    entryPoints: [fileURLToPath(new URL('./delivery-card.js', import.meta.url))],
     bundle: true,
     format: 'cjs',
     platform: 'node',
@@ -41,8 +41,8 @@ const text = node => {
 }
 
 test('the delivery sheet shows goal, commit, stage commands, verdicts and files', async () => {
-  const { DeliverySheet } = await load()
-  const tree = render(DeliverySheet({
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
     delivery: {
       name: '设置页保存',
       goal: '保存后刷新仍生效',

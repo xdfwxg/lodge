@@ -1,4 +1,6 @@
 import { createElement as h } from 'react'
+import { roomTypeMeta } from '../../../../shared/room-types.js'
+import { TargetIcon } from '../../icons.js'
 import { Advanced } from './advanced.js'
 import { buildStudioRequest, StudioSetupFields } from './create.js'
 
@@ -11,12 +13,20 @@ const stageTitle = room => {
 export const studioUi = {
   id: 'studio',
   owns: type => type === 'studio' || type === undefined || type === null || type === '',
-  label: '工作室',
+  label: roomTypeMeta('studio').name,
   teamMode: 'proposal',
   startMode: 'proposal',
   cta: '让 Lodge 出方案',
   dialogSub: '说清目标，Lodge 先出方案。',
   resumeSub: '目标已带入；选上一轮项目目录，Lodge 重新出方案。',
+  goalLabel: '目标',
+  goalIcon: TargetIcon,
+  showShadowReview: true,
+  workspace: {
+    show: () => true,
+    required: () => true,
+    label: '工作空间',
+  },
   railTabs: ['status', 'evidence', 'env', 'output', 'advanced'],
   showEvidence: true,
   showDelivery: true,

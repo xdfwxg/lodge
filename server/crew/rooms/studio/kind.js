@@ -236,6 +236,8 @@ export const studioKind = {
       : null
   ),
   reviewOf: (room, messages) => buildReview(room, messages),
+  hostOf: () => null,
+  speakerOf: () => '',
 
   bulletinAcceptance: room => (room.stages ?? [])
     .map(stage => stage.acceptance)

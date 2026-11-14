@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { BotMark } from '../marks.js'
-import { changeWordOf, independenceOf } from '../view-format.js'
+import { BotMark } from '../../marks.js'
+import { changeWordOf, independenceOf } from '../../view-format.js'
 import { ConfirmationPoints } from './opening-points.js'
 import { reworkFloorOf } from './stage-gate.js'
 

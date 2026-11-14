@@ -10,6 +10,9 @@ export const resolveRoomType = value => {
   return roomTypeStrategies.find(item => item.id === value) ?? null
 }
 
+// 能力矩阵跟着房型描述符走；未知房型返回 null，由调用方 fail closed。
+export const capabilitiesFor = typeId => resolveRoomType(typeId)?.capabilities ?? null
+
 export const listRoomTypes = () => roomTypeStrategies.map(item => ({
   id: item.id,
   name: item.name,

@@ -1,7 +1,7 @@
 import { createElement as h } from 'react'
 import { BotAvatar } from '../../marks.js'
 import { buildChatDecision, ChatStatusHeader } from './decision.js'
-import { Timeline } from '../timeline.js'
+import { Timeline } from './timeline.js'
 import { hostLabelOf } from '../host.js'
 
 function TypingLine({ room, seat, summarizing }) {
@@ -27,11 +27,21 @@ export const chatView = {
     seats,
     hideKinds: [],
     onAccept: actions.chatAccept,
-    onStageAccept: null,
     onApproval: actions.approval,
     onContinueChat: actions.continueChat,
     onStartStudio: actions.startStudio,
   }),
   presence: () => null,
-  typing: ({ room, seat, summarizing }) => h(TypingLine, { room, seat, summarizing }),
+  // 「正在输入」是聊天室自己的状态：谁在说、是否在总结，由这里判断。
+  typing: ({ room, seats, locked }) => {
+    const chat = room.chat ?? {}
+    const seatId = room.chatBusySeat
+      || chat.speaker
+      || (room.busySeats?.length === 1 ? room.busySeats[0] : '')
+    const active = !locked && seatId !== ''
+      && (room.chatWorking === true || chat.running === true || room.busy === true)
+    if (!active) return null
+    const seat = seats.find(item => item.id === seatId) ?? null
+    return h(TypingLine, { room, seat, summarizing: chat.phase === 'summarizing' })
+  },
 }

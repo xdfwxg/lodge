@@ -27,12 +27,12 @@
     "eval:planning": "node evals/planning/run.mjs",
     "eval:chat": "node scripts/eval-chat.mjs",
     "samples:generate": "node scripts/generate-samples.mjs",
+    "fixture:studio": "node scripts/fixture-studio.mjs",
     "samples:export": "node scripts/export-sample.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "check:regressions": "node scripts/check-regressions.mjs"
   },
   "dependencies": {
-    "@fontsource-variable/inter": "^5.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",

@@ -28,6 +28,20 @@ export const orderTranscript = messages => {
   return { timeline, items }
 }
 
+// 交付卡是房间在完成时刻的一条记录：按 completedAt 插回时间线，之后的新发言仍在它下面。
+export const withDelivery = (items, delivery, roomId) => {
+  if (delivery === null || delivery === undefined) return items
+  const at = typeof delivery.completedAt === 'number' ? delivery.completedAt : (items.at(-1)?.ts ?? 0)
+  const index = items.findIndex(item => typeof item.ts === 'number' && item.ts > at)
+  const out = [...items]
+  out.splice(index === -1 ? out.length : index, 0, {
+    id: `delivery-${roomId}`,
+    ts: at,
+    kind: 'delivery',
+  })
+  return out
+}
+
 export const insertDayMarkers = (items, now = Date.now()) => {
   const out = []
   let lastKey = null

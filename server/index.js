@@ -14,6 +14,7 @@ import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
 import { seedIfEmpty } from './crew/seeds.js'
 import { SEATS, validateSeats } from './crew/seats.js'
 import { snapshotOfRoom } from './crew/rooms/kinds.js'
+import { assertRuntimePort } from './crew/runtime-port.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
 import { createPlannerMcp } from './planner-mcp.js'
@@ -47,7 +48,7 @@ const emit = (event, payload, id) => {
   broadcast(event, payload, id)
 }
 
-const engine = createEngine()
+const engine = assertRuntimePort(createEngine())
 
 let service = null
 const plannerMcp = createPlannerMcp({

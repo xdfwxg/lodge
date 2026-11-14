@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { ChecklistIcon, TargetIcon } from './icons.js'
-import { ChatIcon } from './room/type-icons.js'
+import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
+import { ChecklistIcon } from './icons.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
 import { inlineCode } from './inline-code.js'
@@ -12,10 +12,12 @@ import { RoomTypeChoices } from './room/type-choices.js'
 import { uiKindOfType } from './room/kinds.js'
 import { useOverlay } from './overlay.js'
 
-const FALLBACK_ROOM_TYPES = [
-  { id: 'studio', name: '工作室', description: '目标、阶段、验收与交付', defaultVerify: 'test' },
-  { id: 'chat', name: '聊天室', description: '随机发言讨论，主持人总结，你来拍板', defaultVerify: 'manual' },
-]
+const FALLBACK_ROOM_TYPES = ROOM_TYPE_MANIFEST.map(({ id, name, description, defaultVerify }) => ({
+  id,
+  name,
+  description,
+  defaultVerify,
+}))
 
 const CHAT_BASE_SEATS = 3
 
@@ -68,7 +70,7 @@ function NewRoomDialog({
 
   useEffect(() => {
     if (!open) return
-    if (startType === 'chat' || startType === 'studio') {
+    if (typeChoices.some(item => item.id === startType)) {
       setRoomType(startType)
       setChoosingType(false)
       return
@@ -79,7 +81,7 @@ function NewRoomDialog({
       return
     }
     setChoosingType(true)
-  }, [open, startType, resume?.id, seed])
+  }, [open, startType, resume?.id, seed, typeChoices])
 
   useEffect(() => {
     if (!open || resume === null) return
@@ -104,7 +106,7 @@ function NewRoomDialog({
 
   useEffect(() => {
     if (!open || uiKindOfType(roomType).startMode !== 'direct') return
-    const type = typeChoices.find(item => item.id === 'chat')
+    const type = typeChoices.find(item => item.id === roomType)
     setChatSeatChoices(seatChoicesFrom(type?.defaultSeats ?? []))
   }, [open, roomType, typeChoices])
 
@@ -113,7 +115,7 @@ function NewRoomDialog({
   const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
   const roomKind = uiKindOfType(roomType)
   const chatRoster = chatSeats ?? (activeType?.defaultSeats ?? [])
-  const needRepo = (roomType === 'studio' || resume !== null) && repoPath.trim() === ''
+  const needRepo = roomKind.workspace.required(resume) && repoPath.trim() === ''
   const proposalSeats = proposal?.seats ?? []
   const engineChoices = engines.filter(item => item.available)
   const choiceAt = index => seatChoices[index] ?? { engine: '', model: '' }
@@ -135,7 +137,6 @@ function NewRoomDialog({
     proposal.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
   const verify = proposal?.verify === 'manual' ? 'manual' : 'test'
   const acceptance = proposal?.acceptance ?? ''
-  const isChat = roomType === 'chat'
   const studioMissingVerifier = roomKind.missingVerifier(hasVerifier)
   const roomTitle = (resume !== null ? (resume.name ?? '') : roomNameFromGoal(goal)).trim()
   const canStart = !busy && !needRepo && seatsReady &&
@@ -374,8 +375,8 @@ function NewRoomDialog({
   const setupBody = h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-field' },
       h('b', { className: 'crew-field-label' },
-        h(isChat ? ChatIcon : TargetIcon, { size: 16 }),
-        isChat ? '话题' : '目标'),
+        h(roomKind.goalIcon, { size: 16 }),
+        roomKind.goalLabel),
       h('textarea', {
         className: 'crew-goal-input crew-goal-lg',
         rows: 4,
@@ -383,15 +384,15 @@ function NewRoomDialog({
         value: goal,
         onChange: event => setGoal(event.target.value),
       }),
-      isChat
-        ? null
-        : h('label', { className: 'crew-check crew-check-end' },
+      roomKind.showShadowReview
+        ? h('label', { className: 'crew-check crew-check-end' },
           h('input', {
             type: 'checkbox',
             checked: shadowReview,
             onChange: event => setShadowReview(event.target.checked),
           }),
-          '影子评审：评估建议只记录，不注入验收员')),
+          '影子评审：评估建议只记录，不注入验收员')
+        : null),
     roomKind.setupFields({
       turnLimit: chatTurnLimit,
       onTurnLimit: setChatTurnLimit,
@@ -408,10 +409,10 @@ function NewRoomDialog({
       onInteraction: () => setLoginNote(null),
       constraintsView,
     }),
-    isChat && resume === null
+    roomKind.workspace.show(resume) === false
       ? null
       : h('div', { className: 'crew-field crew-field-inline crew-field-block' },
-        h('b', null, isChat ? '上一轮交付目录' : '工作空间'),
+        h('b', null, roomKind.workspace.label),
         h('button', {
           type: 'button',
           className: 'crew-path-row',

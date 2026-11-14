@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -93,6 +93,30 @@ const forbiddenDependencies = [
   'system-open.js',
   'system-dialog.js',
 ]
+
+const walk = dir => readdirSync(join(root, dir)).flatMap(name => {
+  const path = join(dir, name)
+  return statSync(join(root, path)).isDirectory() ? walk(path) : [path]
+})
+
+test('the chat kernel never depends on a concrete room engine', () => {
+  for (const file of walk('kernel')) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    const text = readFileSync(join(root, file), 'utf8')
+    assert.doesNotMatch(text, /from\s+['"][^'"]*rooms\/(chat|studio)\//, `${file} imports a concrete room engine`)
+  }
+})
+
+test('room engines never import each other', () => {
+  for (const file of walk('rooms/chat')) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    assert.doesNotMatch(readFileSync(join(root, file), 'utf8'), /from\s+['"][^'"]*rooms\/studio\//, `${file} imports the studio engine`)
+  }
+  for (const file of walk('rooms/studio')) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    assert.doesNotMatch(readFileSync(join(root, file), 'utf8'), /from\s+['"][^'"]*rooms\/chat\//, `${file} imports the chat engine`)
+  }
+})
 
 test('application modules depend on ports, not concrete adapters', () => {
   for (const file of applicationFiles) {
