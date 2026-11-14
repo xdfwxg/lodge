@@ -55,7 +55,7 @@ test('a seat engine error asks the human to intervene with a concrete reason', (
   assert.deepEqual(roomNeedsYou({
     state: 'paused',
     pauseReason: 'seat_error',
-    seatNames: { worker: '执行者' },
+    seatSpecs: [{ id: 'worker', name: '执行者' }],
     seatError: { seat: 'worker', kind: 'quota' },
   }, []), {
     kind: 'error',
@@ -65,7 +65,7 @@ test('a seat engine error asks the human to intervene with a concrete reason', (
   assert.equal(roomNeedsYou({
     state: 'paused',
     pauseReason: 'seat_error',
-    seatNames: { verifier: '验收员' },
+    seatSpecs: [{ id: 'verifier', name: '验收员' }],
     seatError: { seat: 'verifier', kind: 'auth' },
   }, []).label, '验收员登录失效 · 等你处理')
 })
@@ -79,7 +79,7 @@ test('a deliverable without an acceptance command asks for setup', () => {
 test('multiple verifiers report progress and require all PASS', () => {
   const r = atDeliverable()
   r.verifiers = ['v1', 'v2']
-  r.seatNames = { v1: '验收一', v2: '验收二' }
+  r.seatSpecs = [{ id: 'v1', name: '验收一' }, { id: 'v2', name: '验收二' }]
   const e = { id: 'e-10', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'command', command: 'npm test', exit: 0 } }
   const first = { id: 'v-1', kind: 'verdict', authorId: 'v1', seq: 11, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
   const second = { id: 'v-2', kind: 'verdict', authorId: 'v2', seq: 12, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }

@@ -21,14 +21,13 @@ export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
 export const createCrewService = ({ store, engine, live, emit, seats, ports }) => {
   const { readRoom, readRooms, readMessages, writeRoom, appendMessage } = store
-  const { roomFiles, workspace, project, usage, handoff, files } = ports
+  const { roomFiles, workspace, usage, handoff, files } = ports
 
   const queries = createServiceQueries({
     store,
     engine,
     seats,
     roomFiles,
-    project,
     usage,
     files,
     workspace,

@@ -2,7 +2,6 @@ import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, wr
 import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
 import { roomDir, roomRootOf } from './paths.js'
-import { projectConstraintLines } from './project.js'
 import { resolveRoomType } from './room-types/index.js'
 
 export { roomDir }
@@ -48,6 +47,15 @@ export const writeEvidence = (room, message) => {
   mkdirSync(dir, { recursive: true })
   writeDurable(join(roomDir(room), message.meta.evidenceRef), JSON.stringify(message.meta, null, 2))
 }
+
+const projectConstraintLines = content => (
+  String(content ?? '')
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line !== '' && !line.startsWith('#'))
+    .map(line => line.replace(/^[-*]\s*/, '').slice(0, 300))
+    .slice(0, 40)
+)
 
 const briefText = (room, plan = null) => {
   const done = resolveRoomType(room.roomType)?.briefDone?.(room, plan) ?? []
@@ -99,9 +107,7 @@ export const writeGoal = room => {
     `仓库：${roomRootOf(room)}`,
     ...(room.seatSpecs?.length > 0
       ? [`席位：${room.seatSpecs.map(seat => `${seat.name}（${seat.role}）`).join(' · ')}`]
-      : room.seatNames === undefined ? [] : [
-        `席位：队长 ${room.seatNames.planner ?? '—'} · 执行 ${room.seatNames.executor ?? '—'} · 验收 ${room.seatNames.verifier ?? '—'}`,
-      ]),
+      : []),
     '',
     '阶段：',
     ...stages,
@@ -134,9 +140,7 @@ export const readBrief = room => {
   }
 }
 
-const seatLabel = (room, id) => (
-  room.seatSpecs?.find(seat => seat.id === id)?.name ?? room.seatNames?.[id] ?? id
-)
+const seatLabel = (room, id) => room.seatSpecs?.find(seat => seat.id === id)?.name ?? id
 
 // 完成结论是运行时投影；decisions.md 归人，运行时不写。
 export const writeConclusion = room => {

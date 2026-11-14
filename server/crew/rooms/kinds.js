@@ -14,7 +14,7 @@ const facades = {
 // 两种窄接口：建房/能力只拿 mode，消息投影/注意力只拿 presentation。
 const MODE_KEYS = [
   'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'resolvePlan', 'needsPlannerTools',
-  'requireIndependence', 'requiresGate', 'evaluateGate', 'supportsDelivery',
+  'requiresGate', 'evaluateGate', 'supportsDelivery',
   'supportsSubrooms', 'acceptsChatDecision', 'leadSeatOf', 'record',
   'initialMessages', 'provisionExtra', 'start', 'applyStageDependencies',
   'bulletinAcceptance', 'approvalReadOnly', 'replayTransition',
@@ -61,4 +61,3 @@ const facadeOfRoom = room => {
 
 export const snapshotOfRoom = room => facadeOfRoom(room)?.snapshot(room) ?? null
 
-export const displayHostOfRoom = room => facadeOfRoom(room)?.displayHostOf?.(room) ?? null

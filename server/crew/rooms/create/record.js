@@ -26,8 +26,6 @@ export const buildRoomRecord = ({
   continueSource,
   budgetMicroUsd,
   projectContent,
-  projectFile,
-  projectPort,
   roomType,
   orchestration,
   builtStages,
@@ -38,7 +36,6 @@ export const buildRoomRecord = ({
   verifierPolicy = 'all',
   shadowReview = false,
   chatTurnLimit = null,
-  independencePolicy = 'prefer',
   plannerTools = null,
   gate = null,
   parentRoomId = null,
@@ -56,7 +53,6 @@ export const buildRoomRecord = ({
     continueSource,
     verifierPolicy,
     shadowReview,
-    independencePolicy,
     plannerTools,
     gate,
     builtStages,
@@ -129,11 +125,7 @@ export const buildRoomRecord = ({
   ...(projectContent === ''
     ? {}
     : {
-        projectConstraints: {
-          source: projectFile?.layers?.[0]?.name ?? projectPort.file,
-          content: projectContent,
-          layers: projectFile?.layers ?? [],
-        },
+        projectConstraints: { source: '用户输入', content: projectContent },
       }),
   members: roster.map(seat => seat.id),
   roomType: roomType.id,
@@ -153,7 +145,6 @@ export const initialRoomMessages = ({
   builtStages,
   continueSource,
   projectContent,
-  projectFile,
   workspaces,
   engineFallbacks,
 }) => roomModeForType(room.roomType).initialMessages({
@@ -164,7 +155,6 @@ export const initialRoomMessages = ({
   builtStages,
   continueSource,
   projectContent,
-  projectFile,
   workspaces,
   engineFallbacks,
 })

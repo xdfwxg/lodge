@@ -122,7 +122,6 @@ const initialMessages = ({
   builtStages,
   continueSource,
   projectContent,
-  projectFile,
   workspaces,
   engineFallbacks,
 }) => {
@@ -150,7 +149,7 @@ const initialMessages = ({
   if (projectContent !== '') {
     messages.push({
       kind: 'system',
-      text: `已带入项目约束：${projectFile?.layers?.length ?? 1} 层（${projectContent.split('\n').filter(line => line.trim() !== '').length} 行，创建时快照）。`,
+      text: `已带入项目约束（${projectContent.split('\n').filter(line => line.trim() !== '').length} 行，创建时快照）。`,
     })
   }
   const envWarnings = Object.entries(workspaces.environment ?? {})
@@ -197,7 +196,6 @@ export const studioKind = {
   validateRoster: type.validateRoster,
   resolvePlan: (plan, roster) => resolveStageAssignees(plan, roster),
   needsPlannerTools: true,
-  requireIndependence: true,
   requiresGate: true,
   evaluateGate: args => evaluateRoomGate({ enabled: true, ...args }),
   supportsDelivery: true,
@@ -218,7 +216,6 @@ export const studioKind = {
     continueSource,
     verifierPolicy,
     shadowReview,
-    independencePolicy,
     plannerTools,
     gate,
     builtStages,
@@ -230,7 +227,6 @@ export const studioKind = {
       closure: plan === null ? 'open' : 'planned',
       verificationMode: 'hybrid',
       verifierPolicy: verifierPolicy === 'majority' ? 'majority' : 'all',
-      independencePolicy: independencePolicy === 'require' ? 'require' : 'prefer',
       shadowReview: shadowReview === true,
       ...(plannerTools === null ? {} : { plannerTools }),
       ...(gate === null ? {} : { gate }),

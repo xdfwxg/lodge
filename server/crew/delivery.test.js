@@ -12,7 +12,7 @@ const room = (over = {}) => ({
   completedAt: 100,
   completedCommit: 'abcdef123456',
   independence: 'degraded',
-  seatNames: { verifier: '复核' },
+  seatSpecs: [{ id: 'verifier', name: '复核', role: 'verifier' }],
   workspace: { provider: 'git', capabilities: { vcs: 'git', commit: true } },
   stages: [
     { title: '对齐', kind: 'decision', state: 'passed' },

@@ -107,7 +107,6 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
   }
   return h('div', { className: 'crew-adv' },
     h('div', { className: 'crew-adv-meta' },
-      h('span', null, `独立性策略：${room.independencePolicy === 'require' ? 'require（没有第二厂商就拒绝建房）' : 'prefer（同厂商时标注降级）'}`),
       h('span', { key: 'verifier-policy' }, `Verifier 策略：${room.verifierPolicy ?? 'all'}`),
       h('span', { key: 'shadow-review' }, `影子评审：${room.shadowReview === true ? '开（只记录，不拦截）' : '关'}`),
       h('span', { key: 'planner-tools' }, `Planner 工具面：${room.plannerTools?.server ? 'MCP 已挂载' : '文字协议回退'}`),

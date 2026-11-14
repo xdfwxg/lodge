@@ -5,7 +5,7 @@ import { CHAT_DTO_VERSION, chatFacade } from './facade.js'
 test('chat facade exposes a versioned, slim DTO', () => {
   const room = {
     chat: { round: 2, phase: 'awaiting_decision', turns: 4, turnLimit: 4, accepted: false, running: false, speaker: 'worker' },
-    chatHost: { memberRef: 'host-1', name: 'LodgeHost' },
+    chatHost: { memberRef: 'host-1', name: 'LodgeHost', displayName: 'Lodge 主持' },
   }
   assert.equal(chatFacade.runningOf(room), false)
   assert.equal(chatFacade.speakerOf(room), 'worker')

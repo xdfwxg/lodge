@@ -137,15 +137,12 @@ export const createChatScheduler = ({
     let room = store.readRoom(roomId) ?? inputRoom
     const chat = room?.chatRoom
     if (chat === undefined) throw new Error('房间聊天室还没准备好')
-    // 新聊天室由 Lodge 主持：主持模型是隐藏成员，不占三个发言席位。
-    const hostSeat = typeof room.leadSeat === 'string' ? room.leadSeat : null
-    const hostBot = room.chatHost?.memberRef ?? (hostSeat === null ? '' : room.seatBots?.[hostSeat] ?? '')
-    const hostName = room.chatHost?.name ?? (hostSeat === null ? '' : baseName(room, hostSeat))
-    const hostAuthor = room.chatHost === undefined || room.chatHost === null ? hostSeat ?? 'lodge' : 'lodge'
-    if (hostBot === '') throw new Error('聊天室没有主持席位')
-    const speakers = room.chatHost === undefined || room.chatHost === null
-      ? (room.members ?? []).filter(seat => seat !== hostSeat)
-      : [...(room.members ?? [])]
+    // 主持人是 Lodge 自己的隐藏成员，不占发言席位。
+    const hostBot = room.chatHost?.memberRef ?? ''
+    const hostName = room.chatHost?.name ?? ''
+    const hostAuthor = 'lodge'
+    if (hostBot === '' || hostName === '') throw new Error('聊天室没有主持席位')
+    const speakers = [...(room.members ?? [])]
     const turnLimit = chatTurnLimitOf(room)
     const perSeat = speakers.length === 0
       ? turnLimit
@@ -185,9 +182,7 @@ export const createChatScheduler = ({
           last = seat
           if (turn === 1) {
             const text = `本轮围绕【${room.goal}】展开讨论，欢迎大家踊跃发言。`
-            store.appendMessage(roomId, room.chatHost === undefined || room.chatHost === null
-              ? { kind: 'chat', authorId: hostSeat, text, meta: { opening: true, round } }
-              : { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
+            store.appendMessage(roomId, { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
           }
           const before = await messageIds(chat)
           const text = speakerPrompt({

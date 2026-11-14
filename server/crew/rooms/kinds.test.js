@@ -4,7 +4,7 @@ import { roomKinds, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
   'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'resolvePlan', 'needsPlannerTools',
-  'requireIndependence', 'requiresGate', 'evaluateGate', 'supportsDelivery',
+  'requiresGate', 'evaluateGate', 'supportsDelivery',
   'supportsSubrooms', 'acceptsChatDecision', 'leadSeatOf', 'record',
   'initialMessages', 'provisionExtra', 'start', 'applyStageDependencies',
   'bulletinAcceptance', 'approvalReadOnly', 'replayTransition',

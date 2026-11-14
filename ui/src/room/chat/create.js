@@ -30,7 +30,6 @@ export const buildChatRequest = ({
       ...(choice.engine === '' || model === '' ? {} : { model }),
     }
   })
-  const hasChoice = choices.some(choice => choice.engine !== '' || choice.model !== '')
   return {
     name,
     roomType: 'chat',
@@ -38,7 +37,7 @@ export const buildChatRequest = ({
     acceptance: '',
     chatTurnLimit,
     repoPath,
-    ...(hasChoice ? { seats } : {}),
+    ...(seats.length > 0 ? { seats } : {}),
     ...(continueFrom === undefined || continueFrom === null ? {} : { continueFrom }),
     goal,
   }
@@ -47,6 +46,8 @@ export const buildChatRequest = ({
 export function ChatSetupFields({
   turnLimit,
   onTurnLimit,
+  onAddSeat = () => {},
+  canAddSeat = true,
   seats,
   choices,
   setChoices,
@@ -55,29 +56,38 @@ export function ChatSetupFields({
   onLogin,
   onInteraction,
 }) {
-  return h('div', null,
-    h('div', { className: 'crew-field' },
-      h('div', { className: 'crew-field-head' },
-        h('b', null, '每轮发言上限'),
-        h('span', { className: 'crew-field-hint' }, '默认 6')),
+  return h('div', { className: 'crew-chat-fields' },
+    h('div', { className: 'crew-field crew-field-row' },
+      h('b', null, '每轮发言上限'),
       h('input', {
-        className: 'crew-goal-input',
+        className: 'crew-goal-input crew-input-narrow',
         type: 'number',
         min: 1,
         max: 20,
         value: turnLimit,
+        'aria-label': '每轮发言上限',
         onChange: event => onTurnLimit(Math.min(20, Math.max(1, Number(event.target.value) || 6))),
-      }),
-      h('p', { className: 'crew-field-hint' }, '达到上限后主持人总结，你认可或继续追加一轮。')),
-    h('div', { className: 'crew-proposal-block' },
-      h('b', null, '成员与模型'),
-      h(SeatEnginePicker, {
-        seats: normalizeSeats(seats),
-        choices,
-        setChoices,
-        engines,
-        loginBusy,
-        onLogin,
-        onInteraction,
-      })))
+      })),
+    h('div', { className: 'crew-field' },
+      h('div', { className: 'crew-field-head' },
+        h('b', null, '成员与模型')),
+      h('div', { className: 'crew-proposal-block' },
+        h(SeatEnginePicker, {
+          seats: normalizeSeats(seats),
+          choices,
+          setChoices,
+          engines,
+          loginBusy,
+          onLogin,
+          onInteraction,
+        }),
+        h('button', {
+          type: 'button',
+          className: 'crew-seat-add',
+          disabled: !canAddSeat,
+          title: canAddSeat ? '添加成员' : '最多 6 位成员',
+          onClick: onAddSeat,
+        },
+          h('span', { className: 'crew-seat-add-plus', 'aria-hidden': 'true' }, '＋'),
+          '添加成员'))))
 }

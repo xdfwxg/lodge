@@ -33,7 +33,6 @@ test('the service facade keeps every route entry', () => {
     'resetMcp',
     'resources',
     'usage',
-    'projectConstraints',
     'review',
     'transitions',
     'evidenceLedger',

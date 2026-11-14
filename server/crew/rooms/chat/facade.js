@@ -1,5 +1,3 @@
-import { LODGE_HOST_LABEL } from '../../seat-labels.js'
-
 // 聊天室对外 Facade：其他上下文只读这里的瘦 DTO，不直接摸 room.chat。
 export const CHAT_DTO_VERSION = 1
 
@@ -7,15 +5,10 @@ const chatStateOf = room => room?.chat ?? null
 
 const chatHostOf = room => room?.chatHost ?? null
 
-// 主持人显示名随房间记录保存；缺省时用统一标签补齐。
 const displayHostOf = room => {
   const host = chatHostOf(room)
   if (host === null) return null
-  return {
-    memberRef: host.memberRef,
-    name: host.name,
-    displayName: host.displayName || LODGE_HOST_LABEL,
-  }
+  return { memberRef: host.memberRef, name: host.name, displayName: host.displayName }
 }
 
 const chatSpeakerOf = room => room?.chat?.speaker ?? ''

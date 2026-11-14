@@ -51,7 +51,7 @@ test('rejects a stage that is not active', () => {
 test('a manual stage cannot be signed off before its Verifier passes', () => {
   const r = room({
     verifiers: ['verifier'],
-    seatNames: { verifier: '验收员' },
+    seatSpecs: [{ id: 'verifier', name: '验收员' }],
     stages: [
       { title: 'align', kind: 'decision', state: 'passed' },
       { title: 'artifact', kind: 'decision', manual: true, state: 'active' },
@@ -128,7 +128,7 @@ test('live deliverable needs a verifier PASS', () => {
 })
 
 test('multiple verifiers must all PASS the same evidence before sign-off', () => {
-  const r = room({ verifiers: ['v1', 'v2'], seatNames: { v1: '验收一', v2: '验收二' } })
+  const r = room({ verifiers: ['v1', 'v2'], seatSpecs: [{ id: 'v1', name: '验收一' }, { id: 'v2', name: '验收二' }] })
   const e = evidence(1, 10)
   const pending = gateFor(r, 1, [e, verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1')])
   assert.equal(pending.ok, false)
@@ -142,7 +142,7 @@ test('multiple verifiers must all PASS the same evidence before sign-off', () =>
 })
 
 test('a newer failed command invalidates earlier multi-verifier PASSes', () => {
-  const r = room({ verifiers: ['v1', 'v2'], seatNames: { v1: '验收一', v2: '验收二' } })
+  const r = room({ verifiers: ['v1', 'v2'], seatSpecs: [{ id: 'v1', name: '验收一' }, { id: 'v2', name: '验收二' }] })
   const gate = gateFor(r, 1, [
     evidence(1, 10),
     verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1'),
@@ -154,7 +154,7 @@ test('a newer failed command invalidates earlier multi-verifier PASSes', () => {
 })
 
 test('one verifier REJECT blocks sign-off even if the other PASSed', () => {
-  const r = room({ verifiers: ['v1', 'v2'], seatNames: { v1: '验收一', v2: '验收二' } })
+  const r = room({ verifiers: ['v1', 'v2'], seatSpecs: [{ id: 'v1', name: '验收一' }, { id: 'v2', name: '验收二' }] })
   const gate = gateFor(r, 1, [
     evidence(1, 10),
     verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1'),

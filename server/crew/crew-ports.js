@@ -6,7 +6,6 @@ import { createAdvisorClient } from './advisor.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
 import { readBrief, writeBrief, writeConclusion, writeGoal } from './room-repo.js'
 import { writeSeatEnv } from './seat-env.js'
-import { MAX_PROJECT_BYTES, PROJECT_FILE, readProjectConstraints } from './project.js'
 import { aggregateUsage, readUsageHistory, recordUsage } from './usage-history.js'
 import { createSkillStore } from './skill-store.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
@@ -29,11 +28,6 @@ export const createCrewPorts = () => ({
     writeSeatEnv,
     exists: path => existsSync(path),
     remove: path => rmSync(path, { recursive: true, force: true }),
-  },
-  project: {
-    read: readProjectConstraints,
-    file: PROJECT_FILE,
-    maxBytes: MAX_PROJECT_BYTES,
   },
   usage: {
     record: recordUsage,

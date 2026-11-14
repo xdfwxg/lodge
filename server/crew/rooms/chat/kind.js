@@ -23,7 +23,6 @@ export const chatKind = {
   validateRoster: null,
   resolvePlan: () => null,
   needsPlannerTools: false,
-  requireIndependence: false,
   requiresGate: false,
   evaluateGate: () => ({ decision: 'allow', reasons: [], advice: [] }),
   supportsDelivery: false,

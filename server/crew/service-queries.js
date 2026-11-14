@@ -16,7 +16,6 @@ export const createServiceQueries = ({
   engine,
   seats,
   roomFiles,
-  project,
   usage: usagePort,
   files,
   workspace,
@@ -71,17 +70,6 @@ export const createServiceQueries = ({
   const usage = range => ok({
     usage: usagePort.aggregate({ rooms: readRooms(), historyOf: usagePort.read, range }),
   })
-
-  const projectConstraints = repoPath => {
-    const source = typeof repoPath === 'string' ? repoPath.trim() : ''
-    if (source === '') return fail('invalid', '先填工作目录')
-    const file = project.read(source)
-    return ok({
-      path: file?.path ?? null,
-      content: file?.content ?? null,
-      layers: file?.layers ?? [],
-    })
-  }
 
   const review = roomId => {
     const room = readRoom(roomId)
@@ -158,5 +146,5 @@ export const createServiceQueries = ({
     return recommendRosterUseCase({ engine, body, workspace })
   }
 
-  return { health, state, transitions, evidenceLedger, evidenceIntegrity, shadowReview, messagesSince, evidence, resources, usage, projectConstraints, review, recommendRoster }
+  return { health, state, transitions, evidenceLedger, evidenceIntegrity, shadowReview, messagesSince, evidence, resources, usage, review, recommendRoster }
 }

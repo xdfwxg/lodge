@@ -50,15 +50,14 @@ const setup = () => {
       speaker: '',
       note: '',
     },
-    leadSeat: 'lead',
-    members: ['lead', 'a', 'b'],
-    seatBots: { lead: 'L', a: 'A', b: 'B' },
-    seatNames: { lead: 'Lead', a: 'A', b: 'B' },
+    members: ['a', 'b'],
+    seatBots: { a: 'A', b: 'B' },
+    seatNames: { a: 'A', b: 'B' },
     seatSpecs: [
-      { id: 'lead', name: '主持人' },
       { id: 'a', name: '甲' },
       { id: 'b', name: '乙' },
     ],
+    chatHost: { memberRef: 'H', name: 'LodgeHost', displayName: 'Lodge 主持' },
     chatRoom: { id: 'chat', sessionRef: 'thread' },
   }
   const messages = []
@@ -82,7 +81,7 @@ const setup = () => {
     history: async () => ({ messages: [...history] }),
     rooms: async () => [{ id: 'chat', working: false }],
     sendTurn: async ({ text }) => {
-      const ref = ['L', 'A', 'B'].find(item => text.includes(`@${item}`))
+      const ref = text.includes('LodgeHost') ? 'H' : ['A', 'B'].find(item => text.includes(`@${item}`))
       const summary = text.includes('请总结')
       const id = `u${history.length + 1}`
       history.push({ id, role: 'user', kind: 'text', text, authorRef: null, at: Date.now() })
@@ -122,7 +121,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.match(opening.text, /本轮围绕【讨论状态提示】展开讨论/)
   assert.match(opening.text, /欢迎大家踊跃发言/)
   assert.doesNotMatch(opening.text, /先发言/)
-  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lead').length, 6)
+  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 6)
   const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
   assert.equal(conclusion.meta.round, 1)
   assert.equal(conclusion.meta.turns, 6)
@@ -138,7 +137,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   })
   const next = await scheduler.start(ctx.room(), { note: '补充失败态' })
   assert.equal(next.started, true)
-  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lead').length, 12)
+  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 12)
   const conclusions = ctx.messages.filter(message => message.kind === 'chat_conclusion')
   assert.equal(conclusions.length, 2)
   assert.equal(conclusions.at(-1).meta.round, 2)
@@ -160,7 +159,7 @@ test('a chat room can run fewer turns than the default', async () => {
   })
   const result = await scheduler.start(ctx.room())
   assert.equal(result.turns, 2)
-  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lead').length, 2)
+  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 2)
   const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
   assert.equal(conclusion.meta.turns, 2)
   assert.equal(conclusion.meta.turnLimit, 2)

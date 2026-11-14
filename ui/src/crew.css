@@ -267,12 +267,17 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-dialog-glyph[data-type=chat]{color:var(--bt-accent)}
 .crew-dialog-title-text{display:flex;flex-direction:column;gap:2px;min-width:0}
 .crew-dialog-title-text h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.crew-dialog-eyebrow{font-size:11.5px;line-height:15px;font-weight:600;letter-spacing:.03em;color:var(--bt-ink-3)}
 .crew-dialog-sub{margin:5px 0 0;max-width:46em;font-size:13.5px;line-height:18px;color:var(--bt-ink-3)}
 .crew-dialog-close{flex:none;margin-top:-3px;width:30px;height:30px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:24px;line-height:1;cursor:pointer}
 .crew-dialog-close:hover{background:var(--bt-hover);color:var(--bt-ink)}
-.crew-dialog-body{display:flex;flex-direction:column;gap:18px;padding:20px 24px 24px}
+.crew-dialog-body{display:flex;flex-direction:column;gap:20px;padding:20px 24px 24px}
 .crew-field{display:flex;flex-direction:column;gap:8px}
+.crew-field > b{font-size:15px;line-height:20px;font-weight:600;color:var(--bt-ink)}
+.crew-field-row{flex-direction:row;align-items:center;gap:12px}
+.crew-field-row > b{font-size:13.5px;line-height:18px}
+.crew-field-row .crew-input-narrow{height:32px;padding:0 10px;font-size:13.5px;border-radius:8px}
+.crew-setup-extra{display:flex;flex-direction:column;gap:16px}
+.crew-chat-fields{display:flex;flex-direction:column;gap:20px}
 .crew-field-inline{display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;gap:14px}
 .crew-field-inline>b{font-size:13.5px;line-height:18px;font-weight:600;color:var(--bt-ink)}
 @media (max-width:560px){.crew-field-inline{grid-template-columns:74px minmax(0,1fr);gap:10px}}
@@ -296,11 +301,19 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-proposal-head b{font-size:15px}
 .crew-proposal-block{display:flex;flex-direction:column;gap:7px;padding:12px 14px;border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-shade-1)}
 .crew-proposal-block>b{font-size:13.5px;font-weight:600}
-.crew-seat-engine{display:grid;gap:8px;padding:10px 0;border-top:1px solid var(--bt-line)}
-.crew-seat-engine:first-of-type{border-top:0;padding-top:2px}
-.crew-seat-engine-head{font-size:13.5px;line-height:18px;color:var(--bt-ink)}
-.crew-seat-engine-controls{display:flex;gap:8px;flex-wrap:wrap}
-.crew-seat-engine-controls .crew-goal-input{flex:1 1 180px;min-width:0}
+.crew-seat-engine{display:grid;grid-template-columns:56px minmax(0,1fr);align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--bt-line)}
+.crew-seat-engine:first-of-type{border-top:0;padding-top:3px}
+.crew-seat-engine-head{font-size:13px;line-height:18px;color:var(--bt-ink-2)}
+.crew-seat-engine-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}
+.crew-seat-engine-controls .crew-goal-input{flex:1 1 160px;min-width:0;height:32px;padding:0 10px;font-size:13.5px;border-radius:8px}
+.crew-seat-engine > .crew-field-hint{grid-column:2;margin:0}
+.crew-goal-input.crew-input-narrow{width:88px;flex:none}
+.crew-seat-add{display:flex;align-items:center;gap:6px;width:100%;margin-top:2px;padding:10px 0 2px;border:0;border-top:1px solid var(--bt-line);background:transparent;color:var(--bt-ink-2);font:inherit;font-size:13px;line-height:18px;text-align:left;cursor:pointer}
+.crew-seat-add-plus{font-size:15px;line-height:1;color:var(--bt-ink-3)}
+.crew-seat-add:hover{color:var(--bt-ink)}
+.crew-seat-add:hover .crew-seat-add-plus{color:var(--bt-accent)}
+.crew-seat-add:disabled{opacity:.45;cursor:default}
+.crew-seat-add:disabled:hover .crew-seat-add-plus{color:var(--bt-ink-3)}
 .crew-proposal-question{display:flex;flex-direction:column;gap:6px}
 .crew-proposal-question>span{font-size:13.5px;line-height:18px;color:var(--bt-ink-2)}
 .crew-goal-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bt-line-2);border-radius:10px;background:var(--bt-input-bg,transparent);color:var(--bt-ink);font:inherit;font-size:15px;line-height:20px;resize:vertical}
@@ -323,6 +336,7 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-dialog-foot .crew-ghost{height:var(--bt-control-h-lg);padding:0 14px;margin-right:auto;font-size:13.5px}
 .crew-check{display:flex;align-items:center;gap:6px;font-size:12.5px;line-height:18px;color:var(--bt-ink-2)}
 .crew-check input{accent-color:var(--bt-accent)}
+.crew-check-end{align-self:flex-end}
 @media (max-width:560px){
   .crew-overlay{padding:12px}
   .crew-dialog{max-height:calc(100vh - 24px);border-radius:16px}

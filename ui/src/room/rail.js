@@ -150,7 +150,7 @@ export function RoomRail({
         h('section', { className: 'crew-rail-section' },
           h('b', null, '空间'),
           h('p', { className: 'crew-rail-path', title: room.repoPath }, room.repoPath ?? '未设置'),
-          h('p', { className: 'crew-muted' }, `独立性策略：${room.independencePolicy === 'require' ? 'require' : 'prefer'} · ${room.independenceLabel ?? '未标注'}`)),
+          h('p', { className: 'crew-muted' }, room.independenceLabel ?? '独立性未标注')),
         h('section', { className: 'crew-rail-section' },
           h('b', null, '预算'),
           h('p', { className: 'crew-muted' }, `已用 ${money(room.usage?.costMicroUsd ?? 0)}${room.usage?.budgetMicroUsd ? ` / ${money(room.usage.budgetMicroUsd)}` : ''}`)))

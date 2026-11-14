@@ -13,7 +13,7 @@ import { roomModeForType } from '../kinds.js'
 export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit, independencePolicy } = request
+  const { goal, name, roomType, verify, acceptance, orchestration, verifierPolicy, shadowReview, chatTurnLimit } = request
   const mode = roomModeForType(roomType.id)
   let continueSource = null
   if (typeof body.continueFrom === 'string' && body.continueFrom !== '') {
@@ -63,16 +63,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     }
   }
   const resolvedPlan = mode.resolvePlan(plan, roster)
-  if (mode.requireIndependence && independencePolicy === 'require' && verifiers.length > 0) {
-    const listed = typeof engine.instances === 'function' ? await engine.instances().catch(() => []) : []
-    const instances = Array.isArray(listed) ? listed : []
-    const kinds = new Set(instances
-      .filter(item => item.available !== false)
-      .map(item => item.engine ?? item.driverKind ?? item.instanceId))
-    if (kinds.size < 2) {
-      return fail('conflict', '要求跨厂商复核，但当前只有一个可用引擎；改用 prefer，或先接入第二厂商')
-    }
-  }
   for (const seat of roster) {
     const missingSkills = seat.skills.filter(id => ports.skills?.has?.(id) !== true)
     if (missingSkills.length > 0) {
@@ -96,7 +86,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行席位')
   }
-  const { projectFile, projectContent } = projectSnapshot(body, sourceRepo, ports.project)
+  const { projectContent } = projectSnapshot(body)
   const workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
 
   const roomId = `room-${short}`
@@ -155,8 +145,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       continueSource,
       budgetMicroUsd,
       projectContent,
-      projectFile,
-      projectPort: ports.project,
       roomType,
       orchestration: orchestration.id,
       builtStages,
@@ -167,7 +155,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       verifierPolicy,
       shadowReview,
       chatTurnLimit,
-      independencePolicy,
       plannerTools,
       parentRoomId: parentRoom?.id ?? null,
       depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
@@ -180,9 +167,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         ...(advisor.version === undefined ? {} : { version: advisor.version }),
       },
     })
-    if (mode.requireIndependence && independencePolicy === 'require' && verifiers.length > 0 && room.independence !== 'vendor') {
-      throw new Error('要求跨厂商复核，但实际执行与验收落在同一厂商')
-    }
     room = mode.applyStageDependencies(room, body.stageDependencies)
     store.writeRoom(room)
     stored = true
@@ -204,7 +188,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       builtStages,
       continueSource,
       projectContent,
-      projectFile,
       workspaces,
       engineFallbacks: provisioned.engineFallbacks,
     })) {

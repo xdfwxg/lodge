@@ -79,7 +79,6 @@ export function App() {
     seed,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
     onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
-    onProjectConstraints: repoPath => store.loadProjectConstraints(repoPath),
   })
 
   if (state.rooms.length === 0) {

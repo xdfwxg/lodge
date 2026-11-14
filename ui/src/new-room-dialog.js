@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
 import { buildChatRequest, chatSeatChoicesFrom } from './room/chat/create.js'
 import { seedGoalText } from './room/chat/seed.js'
@@ -34,7 +34,6 @@ function NewRoomDialog({
   onClose,
   onCreate,
   onRecommend,
-  onProjectConstraints,
   roomTypes = [],
   engines = [],
   resume = null,
@@ -45,21 +44,16 @@ function NewRoomDialog({
   const [roomType, setRoomType] = useState('studio')
   const [shadowReview, setShadowReview] = useState(false)
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
-  const [requireIndependent, setRequireIndependent] = useState(false)
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
   const [constraints, setConstraints] = useState('')
-  const [constraintsPath, setConstraintsPath] = useState(null)
-  const [constraintLayers, setConstraintLayers] = useState([])
-  const [constraintsChecked, setConstraintsChecked] = useState(false)
-  const [includeConstraints, setIncludeConstraints] = useState(false)
-  const [constraintsLoading, setConstraintsLoading] = useState(false)
   const [proposal, setProposal] = useState(null)
   const [answers, setAnswers] = useState([])
   const [recommending, setRecommending] = useState(false)
   const [busy, setBusy] = useState(false)
   const [seatChoices, setSeatChoices] = useState([])
   const [chatSeatChoices, setChatSeatChoices] = useState([])
+  const [chatSeats, setChatSeats] = useState(null)
   const [loginBusy, setLoginBusy] = useState(false)
   const [loginNote, setLoginNote] = useState(null)
   const [error, setError] = useState(null)
@@ -70,8 +64,8 @@ function NewRoomDialog({
     setSeatChoices([])
     setShadowReview(false)
     setChatTurnLimit(6)
-    setRequireIndependent(false)
     setLoginNote(null)
+    setChatSeats(null)
   }, [open, resume?.id])
 
   useEffect(() => {
@@ -105,6 +99,7 @@ function NewRoomDialog({
 
   const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
   const roomKind = uiKindOfType(roomType)
+  const chatRoster = chatSeats ?? (activeType?.defaultSeats ?? [])
   const needRepo = resume !== null && repoPath.trim() === ''
   const proposalSeats = proposal?.seats ?? []
   const engineChoices = engines.filter(item => item.available)
@@ -140,12 +135,22 @@ function NewRoomDialog({
     proposal.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
   const verify = proposal?.verify === 'manual' ? 'manual' : 'test'
   const acceptance = proposal?.acceptance ?? ''
-  const lineCount = constraints.split('\n').filter(line => line.trim() !== '').length
+  const isChat = roomType === 'chat'
   const studioMissingVerifier = roomKind.missingVerifier(hasVerifier)
   const roomTitle = (resume !== null ? (resume.name ?? '') : roomNameFromGoal(goal)).trim()
   const canStart = !busy && !needRepo && seatsReady &&
     !(verify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
     !studioMissingVerifier
+
+  const addChatSeat = () => {
+    setChatSeats(current => {
+      const base = current ?? (activeType?.defaultSeats ?? [])
+      if (base.length >= 6) return base
+      const names = Array.from('甲乙丙丁戊己庚辛壬癸')
+      const name = names[base.length] ?? `成员 ${base.length + 1}`
+      return [...base, { role: 'worker', name }]
+    })
+  }
 
   const loginEngineFor = async engine => {
     if (engine === undefined || loginBusy) return
@@ -161,42 +166,8 @@ function NewRoomDialog({
     }
   }
 
-  const loadConstraints = async sourceOverride => {
-    const source = (sourceOverride ?? repoPath).trim()
-    if (source === '' || constraintsLoading) return
-    setConstraintsLoading(true)
-    setConstraintsChecked(true)
-    try {
-      const result = await onProjectConstraints(source)
-      if (result?.ok !== true) {
-        setConstraintsPath(null)
-        setConstraintLayers([])
-        setConstraints('')
-        setIncludeConstraints(false)
-        return
-      }
-      setConstraintsPath(result.path ?? null)
-      setConstraintLayers(result.layers ?? [])
-      setConstraints(result.content ?? '')
-      setIncludeConstraints(typeof result.content === 'string' && result.content.trim() !== '')
-    } catch (caught) {
-      setConstraintsPath(null)
-      setConstraintLayers([])
-      setConstraints('')
-      setIncludeConstraints(false)
-      setError(`读取项目约束失败：${String(caught?.message ?? caught)}`)
-    } finally {
-      setConstraintsLoading(false)
-    }
-  }
-
   const changeRepoPath = value => {
     setRepoPath(value)
-    setConstraintsPath(null)
-    setConstraintLayers([])
-    setConstraints('')
-    setIncludeConstraints(false)
-    setConstraintsChecked(false)
   }
 
   const chooseDirectory = async () => {
@@ -204,7 +175,6 @@ function NewRoomDialog({
       const picked = await pickProjectDirectory()
       if (picked === null) return
       changeRepoPath(picked)
-      await loadConstraints(picked)
     } catch (caught) {
       setError(`选择目录失败：${String(caught?.message ?? caught)}`)
     }
@@ -245,19 +215,14 @@ function NewRoomDialog({
 
   const resetAfterCreate = () => {
     setGoal('')
-    setRoomName('')
     setStep(0)
     setProposal(null)
     setSeatChoices([])
     setAnswers([])
     setConstraints('')
-    setConstraintsPath(null)
-    setConstraintLayers([])
-    setConstraintsChecked(false)
-    setIncludeConstraints(false)
     setRoomType('studio')
     setChatTurnLimit(6)
-    setRequireIndependent(false)
+    setChatSeats(null)
     setError(null)
     onClose()
   }
@@ -272,7 +237,7 @@ function NewRoomDialog({
         name: roomTitle,
         repoPath: repoPath.trim(),
         chatTurnLimit,
-        defaultSeats: activeType?.defaultSeats ?? [],
+        defaultSeats: chatRoster,
         choices: chatSeatChoices,
         continueFrom: resume === null ? null : resume.id,
         selectedModelOf,
@@ -301,8 +266,6 @@ function NewRoomDialog({
         verify,
         acceptance,
         shadowReview,
-        requireIndependent,
-        includeConstraints,
         constraints,
         proposal,
         answers,
@@ -341,37 +304,16 @@ function NewRoomDialog({
 
   const constraintsView = h('div', { className: 'crew-field' },
     h('div', { className: 'crew-field-head' },
-      h('b', null, '项目约束（LODGE.md）'),
+      h('b', null, '项目约束'),
       h('span', { className: 'crew-field-hint' }, '可选')),
-    repoPath.trim() === ''
-      ? h('p', { className: 'crew-field-hint' }, '从项目根 LODGE.md 自动读取；没有就不带。')
-      : constraintsLoading
-        ? h('p', { className: 'crew-field-hint' }, '正在读取 LODGE.md…')
-        : constraintsPath !== null
-          ? h(Fragment, null,
-            h('div', { className: 'crew-constraint-line' },
-              h('span', null,
-                `${constraintLayers.length > 0 ? constraintLayers.map(layer => layer.name).join(' · ') : 'LODGE.md'} · ${lineCount} 行`),
-              h('label', { className: 'crew-check' },
-                h('input', {
-                  type: 'checkbox',
-                  checked: includeConstraints,
-                  onChange: event => setIncludeConstraints(event.target.checked),
-                }),
-                '带入房间')),
-            h('details', { className: 'crew-constraint-detail' },
-              h('summary', null, '查看或修改'),
-              h('textarea', {
-                className: 'crew-goal-input',
-                rows: 4,
-                value: constraints,
-                disabled: !includeConstraints,
-                onChange: event => setConstraints(event.target.value),
-              }),
-              h('p', { className: 'crew-field-hint' },
-                '修改只影响这个房间；要长期生效，请编辑项目根目录的 LODGE.md。')))
-          : h('p', { className: 'crew-field-hint' },
-            constraintsChecked ? '没有发现 LODGE.md；可以不填。' : '点击工作空间输入框后读取。'))
+    h('textarea', {
+      className: 'crew-goal-input',
+      rows: 3,
+      value: constraints,
+      placeholder: '例如：不改数据库结构；提交信息用中文；只改 src/ 下的文件。',
+      onChange: event => setConstraints(event.target.value),
+    }),
+    h('p', { className: 'crew-field-hint' }, '随房间生效，席位按它执行。'))
 
   const proposalBody = proposal === null ? null : h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-proposal-head' },
@@ -420,31 +362,6 @@ function NewRoomDialog({
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
-    h('div', { className: 'crew-field' },
-      h('b', null, '目标'),
-      h('textarea', {
-        className: 'crew-goal-input crew-goal-lg',
-        rows: 4,
-        autoFocus: true,
-        value: goal,
-        placeholder: '例如：给项目加一个 --verbose 参数，并让测试通过',
-        onChange: event => setGoal(event.target.value),
-      })),
-    h('div', { className: 'crew-field crew-field-inline' },
-      h('b', null, '工作空间'),
-      h('div', { className: 'crew-path-row' },
-        h('button', {
-          type: 'button',
-          className: 'crew-path-picker',
-          title: repoPath === '' ? '选择项目目录' : repoPath,
-          onClick: () => void chooseDirectory(),
-        },
-        h('span', {
-          className: 'crew-path-picker-value',
-          'data-empty': repoPath === '' ? 'true' : undefined,
-        }, repoPath === ''
-          ? resume === null ? '选择项目目录' : '上一轮交付所在的项目目录'
-          : repoPath)))),
     h('div', { className: 'crew-field crew-field-inline' },
       h('b', null, '房间类型'),
       h('div', { className: 'crew-segmented', role: 'group', 'aria-label': '房间类型' },
@@ -456,20 +373,56 @@ function NewRoomDialog({
           'aria-pressed': roomType === type.id ? 'true' : 'false',
           onClick: () => changeRoomType(type.id),
         }, type.name)))),
+    h('div', { className: 'crew-field' },
+      h('b', null, isChat ? '话题' : '目标'),
+      h('textarea', {
+        className: 'crew-goal-input crew-goal-lg',
+        rows: 4,
+        autoFocus: true,
+        value: goal,
+        placeholder: isChat
+          ? '例如：这部剧到底好在哪，值不值得追？'
+          : '例如：给设置页加保存按钮，保存后刷新仍然生效',
+        onChange: event => setGoal(event.target.value),
+      }),
+      isChat
+        ? null
+        : h('label', { className: 'crew-check crew-check-end' },
+          h('input', {
+            type: 'checkbox',
+            checked: shadowReview,
+            onChange: event => setShadowReview(event.target.checked),
+          }),
+          '影子评审：评估建议只记录，不注入验收员')),
+    isChat && resume === null
+      ? null
+      : h('div', { className: 'crew-field crew-field-inline' },
+        h('b', null, isChat ? '上一轮交付目录' : '工作空间'),
+        h('div', { className: 'crew-path-row' },
+          h('button', {
+            type: 'button',
+            className: 'crew-path-picker',
+            title: repoPath === '' ? '选择项目目录' : repoPath,
+            onClick: () => void chooseDirectory(),
+          },
+          h('span', {
+            className: 'crew-path-picker-value',
+            'data-empty': repoPath === '' ? 'true' : undefined,
+          }, repoPath === ''
+            ? resume === null ? '选择项目目录' : '上一轮交付所在的项目目录'
+            : repoPath)))),
     roomKind.setupFields({
       turnLimit: chatTurnLimit,
       onTurnLimit: setChatTurnLimit,
-      seats: activeType?.defaultSeats ?? [],
+      onAddSeat: addChatSeat,
+      canAddSeat: chatRoster.length < 6,
+      seats: chatRoster,
       choices: chatSeatChoices,
       setChoices: setChatSeatChoices,
       engines,
       loginBusy,
       onLogin: loginEngineFor,
       onInteraction: () => setLoginNote(null),
-      shadowReview,
-      onShadowReview: setShadowReview,
-      requireIndependent,
-      onRequireIndependent: setRequireIndependent,
       constraintsView,
     }),
     resume?.brief?.done?.length > 0
@@ -486,11 +439,7 @@ function NewRoomDialog({
         h('div', { className: 'crew-dialog-title' },
           h('span', { className: 'crew-dialog-glyph', 'data-type': roomKind.id, 'aria-hidden': 'true' }, roomKind.glyph),
           h('div', { className: 'crew-dialog-title-text' },
-            h('span', { className: 'crew-dialog-eyebrow' }, resume === null ? `新建${roomKind.label}` : '续做'),
-            h('h2', null,
-              roomTitle !== ''
-                ? roomTitle
-                : resume === null ? '新建房间' : '基于交接记录续做'),
+            h('h2', null, `${resume === null ? '新建' : '续做'}${roomKind.label}`),
             step === 0
               ? null
               : h('p', { className: 'crew-dialog-sub' }, '确认开工卡后开工；最后一步由你签字。'))),

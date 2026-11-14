@@ -332,20 +332,18 @@ test('an unknown orchestration is rejected before creating a room', async () => 
   assert.equal(result.reason, 'invalid')
 })
 
-test('project constraints are snapshotted into the room and BRIEF', async () => {
+test('typed project constraints are snapshotted into the room and BRIEF', async () => {
   const { store } = completedRoom(temp('lodge-resume-data-'))
-  const repo = gitRepo()
-  writeFileSync(join(repo, 'LODGE.md'), '# 项目约定\n\n- 用 ESM\n- 不改上游\n')
   const result = await run(store, {
     goal: '按项目约定改一下',
     verify: 'manual',
-    repoPath: repo,
-    includeProjectConstraints: true,
+    repoPath: gitRepo(),
+    projectConstraints: '用 ESM\n不改上游',
     seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, true)
   const room = result.body.room
-  assert.equal(room.projectConstraints.source, 'LODGE.md')
+  assert.equal(room.projectConstraints.source, '用户输入')
   assert.match(room.projectConstraints.content, /用 ESM/)
   const brief = readFileSync(join(roomDir(room), 'BRIEF.md'), 'utf8')
   assert.match(brief, /项目约束：用 ESM/)
@@ -663,28 +661,7 @@ test('an invalid chat turn limit fails before touching the workspace', async () 
   assert.equal(prepared, false)
 })
 
-test('strict cross-vendor review fails before creating a single-vendor studio', async () => {
-  const { store } = completedRoom(temp('lodge-independence-require-'))
-  const engine = fakeEngine()
-  engine.capabilities = () => ({ provisioning: true, skills: false, mcp: false })
-  engine.instances = async () => [{ id: 'claude', engine: 'claude', available: true }]
-  const result = await run(store, {
-    goal: '严格要求跨厂商复核',
-    roomType: 'studio',
-    verify: 'manual',
-    independencePolicy: 'require',
-    seats: [
-      { role: 'lead', name: '规划' },
-      { role: 'worker', name: '执行' },
-      { role: 'verifier', name: '验收' },
-    ],
-  }, engine)
-  assert.equal(result.ok, false)
-  assert.equal(result.reason, 'conflict')
-  assert.match(result.error, /只有一个可用引擎/)
-})
-
-test('the default independence policy records a same-vendor downgrade', async () => {
+test('a single-vendor studio records the downgrade', async () => {
   const { store } = completedRoom(temp('lodge-independence-prefer-'))
   const engine = fakeEngine()
   engine.capabilities = () => ({ provisioning: true, skills: false, mcp: false })
@@ -700,6 +677,5 @@ test('the default independence policy records a same-vendor downgrade', async ()
     ],
   }, engine)
   assert.equal(result.ok, true)
-  assert.equal(result.body.room.independencePolicy, 'prefer')
   assert.equal(result.body.room.independence, 'none')
 })
