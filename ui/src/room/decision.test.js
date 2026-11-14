@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildChatDecision } from './chat/decision.js'
-import { buildStudioDecision, showsDecisionCard } from './studio/decision.js'
+import { buildStudioDecision, showsDecisionCard, studioActivityLine } from './studio/decision.js'
 
 const buildDecision = (room, view) => (
   room.roomType === 'chat' ? buildChatDecision(room) : buildStudioDecision(room, view)
@@ -87,6 +87,17 @@ test('an executing or completed studio room does not render a redundant card', (
   }, null)
   assert.equal(chatComplete.key, 'chat-complete')
   assert.equal(showsDecisionCard(buildDecision(room({ needsYou: { kind: 'signoff' } }), view())), true)
+})
+
+test('the activity line names one working seat and its stage', () => {
+  assert.match(studioActivityLine(room({ busySeat: 'worker' }), view()), /执行者 正在处理 · 阶段 2「修复 pad」/)
+  assert.match(studioActivityLine(room({ needsYou: { kind: 'review' } }), view()), /验收员 正在独立复核 · 阶段 2/)
+  assert.match(studioActivityLine(room({
+    busySeat: 'lead',
+    seatSpecs: [{ id: 'lead', name: '规划师', role: 'lead' }],
+  }), view()), /规划师 正在编排/)
+  assert.equal(studioActivityLine(room({ busySeat: 'worker', state: 'complete' }), view()), '')
+  assert.equal(studioActivityLine(room(), view()), '')
 })
 
 test('chat awaiting decision shows the conclusion and the next actions', () => {

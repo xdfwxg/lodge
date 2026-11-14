@@ -104,6 +104,11 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
   const exit = proof.exit ?? meta.exit
   const files = proof.files ?? proof.changedFiles ?? []
   const pass = meta.pass === true
+  const lines = String(message.text ?? '').split('\n').map(line => line.trim()).filter(Boolean)
+  const body = /^(PASS|REJECT)\b/i.test(lines[0] ?? '') ? lines.slice(1) : lines
+  const summary = body[0] ?? ''
+  const detail = body.slice(1).join('\n')
+  const output = typeof proof.output === 'string' && proof.output !== '' ? proof.output : ''
   const active = stage?.state === 'active'
   const independent = room.independence === 'vendor'
   const foot = meta.simulated === true
@@ -122,9 +127,13 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
         h('div', { className: 'crew-card-body' },
           command ? h('div', { className: 'crew-kv' }, h('span', null, '命令'), h('code', null, command)) : null,
           exit !== undefined && exit !== null ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(exit))) : null,
-          message.text ? h(Markdown, { text: message.text, variant: 'compact' }) : null,
-          proof.output ? h('details', { className: 'crew-fold' }, h('summary', null, '输出'), h('pre', { className: 'crew-code' }, proof.output)) : null,
-          files.length > 0 ? h('div', { className: 'crew-receipt-files' }, files.join(' · ')) : null),
+          summary === '' ? null : h(Markdown, { text: summary, variant: 'compact' }),
+          files.length > 0 ? h('div', { className: 'crew-receipt-files' }, files.join(' · ')) : null,
+          detail === '' && output === ''
+            ? null
+            : h('details', { className: 'crew-fold' }, h('summary', null, '查看详情'),
+              detail === '' ? null : h(Markdown, { text: detail, variant: 'compact' }),
+              output === '' ? null : h('pre', { className: 'crew-code' }, output))),
         h('div', { className: 'crew-card-foot' },
           foot,
           evidence === undefined

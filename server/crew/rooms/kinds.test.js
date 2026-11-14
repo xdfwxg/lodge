@@ -36,7 +36,10 @@ test('seat souls carry only their own mode discipline', () => {
   assert.doesNotMatch(studio, /聊天室/)
   const worker = roomModeForType('studio').seatSoul({ name: '乙', role: 'worker', prompt: '你是乙。' })
   assert.match(worker, /不改目标/)
+  assert.match(worker, /不要逐步叙述过程/)
   assert.doesNotMatch(worker, /PASS 或 REJECT/)
+  const leadSoul = roomModeForType('studio').seatSoul({ name: '幕僚长', role: 'lead', prompt: '你是幕僚长。' })
+  assert.match(leadSoul, /只在群里发派活与结论/)
 })
 
 test('narrow interfaces expose only their own responsibilities', () => {

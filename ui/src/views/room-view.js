@@ -6,7 +6,7 @@ import { ReviewDialog } from '../room/studio/advanced.js'
 import { AuditDrawer } from '../room/audit.js'
 import { buildChatDecision, ChatStatusHeader } from '../room/chat/decision.js'
 import { uiKindOfRoom } from '../room/kinds.js'
-import { buildStudioDecision, StudioDecisionCard } from '../room/studio/decision.js'
+import { buildStudioDecision, showsDecisionCard, StudioDecisionCard, studioActivityLine } from '../room/studio/decision.js'
 import { DsGoalHeader } from '../goal-island/ds-adapter.js'
 import { RoomRail } from '../room/rail.js'
 import { StageDock } from '../room/stage-dock.js'
@@ -91,8 +91,9 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
     || (isChat ? chat.speaker : '')
     || (room.busySeats?.length === 1 ? room.busySeats[0] : '')
   const typingSeat = seats.find(seat => seat.id === typingSeatId) ?? null
-  const typing = !locked && typingSeatId !== ''
+  const typing = isChat && !locked && typingSeatId !== ''
     && (room.chatWorking === true || chat.running === true || room.busy === true)
+  const activityLine = isChat ? '' : studioActivityLine(room, goalView)
   useEffect(() => {
     if (typing && stick.current) scrollToBottom()
   }, [typingSeatId, typing])
@@ -148,6 +149,11 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
             continue: onContinue === undefined ? undefined : () => onContinue(room),
           },
         }),
+      !isChat && !showsDecisionCard(decision) && activityLine !== ''
+        ? h('div', { className: 'crew-activity-line', role: 'status' },
+          h('i', { 'aria-hidden': true }),
+          h('span', null, activityLine))
+        : null,
       isChat ? null : h(StudioDecisionCard, { decision, onAction: decisionAction }),
       state.reviewFor === room.id && state.review !== null
         ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })

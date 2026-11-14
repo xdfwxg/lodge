@@ -118,6 +118,23 @@ export const showsDecisionCard = decision => (
   && decision?.key !== 'complete'
 )
 
+// 执行中只留一条状态行：谁在做、做到哪一段；过程不再写进时间线。
+export const studioActivityLine = (room, view) => {
+  if (room?.state !== 'active') return ''
+  const stage = view?.stages?.find(item => item.state === 'active') ?? null
+  const where = stage === null ? '' : ` · 阶段 ${stage.index + 1}「${stage.title}」`
+  if (room.needsYou?.kind === 'review') {
+    const names = (room.verifiers ?? []).map(id => nameOf(room, id)).filter(Boolean).join('、')
+    return `${names === '' ? '验收员' : names} 正在独立复核${where}`
+  }
+  const working = stage?.tasks?.find(task => task.status === 'working')
+  const busySeat = (Array.isArray(room.busySeats) ? room.busySeats[0] : room.busySeat) ?? working?.owner
+  if (busySeat === undefined || busySeat === null) return ''
+  const seat = room.seatSpecs?.find(item => item.id === busySeat)
+  const verb = seat?.role === 'lead' ? '正在编排' : seat?.role === 'verifier' ? '正在复核' : '正在处理'
+  return `${nameOf(room, busySeat)} ${verb}${where}`
+}
+
 export function StudioDecisionCard({ decision, onAction }) {
   const [reworkOpen, setReworkOpen] = useState(false)
   const [note, setNote] = useState('')

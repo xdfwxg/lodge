@@ -1,0 +1,54 @@
+{
+  "name": "产品交付链路",
+  "goal": "从需求走到可验收的产品交付：先产出 PRD 与原型并通过独立复核，再进入开发；开发完成补齐测试并回归，最后由验收席位复核、你签字。",
+  "roomType": "studio",
+  "verify": "test",
+  "repoPath": "/absolute/path/to/your/git/repo",
+  "orchestration": "pipeline",
+  "verifierPolicy": "all",
+  "independencePolicy": "prefer",
+  "shadowReview": false,
+  "seats": [
+    { "role": "lead", "name": "幕僚长", "station": "需求与阶段编排" },
+    { "role": "worker", "name": "产品", "station": "PRD 与原型" },
+    { "role": "worker", "name": "开发", "station": "编码实现" },
+    { "role": "worker", "name": "测试", "station": "用例与回归" },
+    { "role": "verifier", "name": "裁判", "station": "独立复核" }
+  ],
+  "plan": {
+    "done": [
+      "PRD 写明目标、范围与验收标准",
+      "原型覆盖 PRD 的主流程与关键状态",
+      "PRD 与原型经独立复核对齐",
+      "开发实现通过构建",
+      "测试补齐并回归通过",
+      "复核结论由你签字"
+    ],
+    "answers": [
+      { "question": "原型做到什么程度？", "answer": "单页 HTML，可本地打开，覆盖主流程" },
+      { "question": "测试范围？", "answer": "现有测试全绿，再补主流程与边界用例" },
+      { "question": "PRD 与原型不一致时？", "answer": "打回产品重做，不进入开发" }
+    ],
+    "why": "当前一个阶段只派一个执行官：产品同时交 PRD 与原型，开发、测试各一段；需要一个角色一段的话，拆成产品定义与开发交付两个房间。三条验收命令按项目实际脚本替换。",
+    "stages": [
+      {
+        "title": "PRD 与原型",
+        "kind": "deliverable",
+        "assignees": ["产品"],
+        "acceptance": "test -f docs/PRD.md && test -f docs/prototype.html && grep -q '验收标准' docs/PRD.md && grep -qi '<html' docs/prototype.html"
+      },
+      {
+        "title": "开发实现",
+        "kind": "deliverable",
+        "assignees": ["开发"],
+        "acceptance": "npm run build"
+      },
+      {
+        "title": "测试与回归",
+        "kind": "deliverable",
+        "assignees": ["测试"],
+        "acceptance": "npm test"
+      }
+    ]
+  }
+}
