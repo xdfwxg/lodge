@@ -49,13 +49,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         exit: pending.exit,
         evidenceId: pending.evidenceId,
         review: true,
-        blind: true,
+        independent: true,
         verifier: pending.verifier,
         turnId,
         simulated: false,
       },
     })
-    store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, blind: true, turnId })
+    store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, independent: true, turnId })
     if (pass) round.passed = (round.passed ?? 0) + 1
     else round.rejects = (round.rejects ?? 0) + 1
 
@@ -253,7 +253,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       const prompt = manual
         ? [
             `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
-            '盲审：你只拿到目标、约束和本轮产物证据，不读取执行席位的对话；判定只看证据和代码。',
+            '独立复核：以本轮产物证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildSeatHandoff({ room, messages }),
             ...(promptLines.length > 0
               ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
@@ -275,7 +275,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
           ].join('\n')
         : [
             `@${verifierName} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
-            '盲审：你只拿到目标、约束、本轮验收证据和改动，不读取执行席位的对话；判定只看证据和代码。',
+            '独立复核：以本轮验收证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildSeatHandoff({ room, messages }),
             ...(promptLines.length > 0
               ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]

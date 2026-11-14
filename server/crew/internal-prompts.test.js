@@ -24,7 +24,7 @@ test('the studio worker handoff is marked internal', () => {
     acceptance: '验收命令：npm test',
     readOnly: false,
     seatSkills: [],
-    workspace: { multi: false, candidate: false },
+    workspace: { candidate: false },
   })
   assert.equal(prompt.includes(INTERNAL_PROMPT_MARKER), true)
   assert.equal(isInternalPrompt(prompt), true)

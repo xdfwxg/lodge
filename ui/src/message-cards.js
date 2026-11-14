@@ -137,8 +137,8 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
   const foot = meta.simulated === true
     ? `模拟复核 · ${independenceOf(room)}`
     : independent
-      ? '盲审 · 验收只读复核 · 与执行不同厂商'
-      : `盲审 · 验收只读复核 · ${independenceOf(room)}`
+      ? '独立复核 · 只读副本 · 与执行不同厂商'
+      : `独立复核 · 只读副本 · ${independenceOf(room)}`
   return h('div', { className: 'crew-msg' },
     h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },

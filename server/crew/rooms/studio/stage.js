@@ -51,8 +51,15 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     const dispatchPlan = planDispatch({ room, stage, index, workers })
     const { strategy } = dispatchPlan
     // 工作室 v1 是群聊单工作目录：一次只交给一个执行席位，避免同目录并行写。
-    const assignees = dispatchPlan.assignees.slice(0, 1)
+    const planned = dispatchPlan.assignees
+    const assignees = planned.slice(0, 1)
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
+    if (planned.length > 1) {
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `方案要求 ${planned.length} 个执行席位；当前单工作目录一次只跑一个，先交给 ${seatDisplayName(room, assignees[0])}。`,
+      })
+    }
     {
       const updated = store.updateRoom(roomId, current => {
         const moved = transitionStudio(current.closure ?? 'open', 'start_execute', { hasPlan: current.plan !== null && current.plan !== undefined })
@@ -67,7 +74,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       tasks: buildTasks({ stageIndex: index, workers: assignees, seatNames: seatLabelMap(room) }),
     }))
     const workerNames = assignees.map(worker => `@${seatDisplayName(room, worker)}`).join('、')
-    const modeLabel = `（${strategy.name}）`
+    const modeLabel = `（${strategy.name}${planned.length > 1 ? ' · 单席串行' : ''}）`
     store.appendMessage(roomId, {
       kind: 'dispatch',
       authorId: room.leadSeat ?? room.members?.[0] ?? 'planner',
@@ -107,11 +114,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
       acceptance,
       readOnly,
       seatSkills: seatSkillsOf(worker),
-      workspace: {
-        multi: assignees.length > 1,
-        isolation: workspaceCaps.isolation,
-        candidate: workspaceCaps.candidate === true,
-      },
+      workspace: { candidate: workspaceCaps.candidate === true },
       port: room.ports?.[worker],
       environment: room.workspaceEnv?.[worker],
     })

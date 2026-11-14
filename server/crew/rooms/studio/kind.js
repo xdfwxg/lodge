@@ -1,6 +1,7 @@
 import { resolveAssigneeTokens } from '../../orchestration/index.js'
 import * as type from '../../room-types/studio.js'
 import { workContract } from '../../prompt-modes.js'
+import { plannerToolPrompt } from './planner-tools.js'
 import { roleKindOf } from '../../seats.js'
 import { commandEvidenceFor, latestReviewTimeout, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { startInitialStage } from './start.js'
@@ -112,11 +113,10 @@ const studioConstraints = ({
   plan?.stages?.length > 0
     ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
     : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',
-  '工作室使用群聊单工作目录：所有席位在房间目录执行，被 @ 才唤醒',
   ...(verifiers.length === 0
     ? ['这个房间没有独立验收席位，由你凭证据签字']
     : [independence === 'vendor'
-      ? '执行与验收已绑定不同厂商；验收席位走盲审，不共享执行对话'
+      ? '执行与验收已绑定不同厂商；验收席位在独立副本里复核'
       : '当前只有同一厂商引擎可用：验收卡会标「独立性降级」']),
   ...(continueSource === null ? [] : [`续做自交接记录「${continueSource.name}」；上一轮记录保持只读`]),
 ]
@@ -147,22 +147,6 @@ const initialMessages = ({ continueSource, workspaces, engineFallbacks }) => {
   return messages
 }
 
-// 建房仪式、Gate 建议、分支与约束快照只留在房间字段里；旧房间的历史消息
-// 也按这一口径过滤，时间线只留会改变判断的内容。
-const STUDIO_SYSTEM_NOISE = [
-  /^房间已创建 ·/,
-  /^Gate·评估建议/,
-  /^源仓库 .*执行分支/,
-  /^已带入项目约束/,
-  /^MCP 已开启/,
-  /^非交付工作区已清理/,
-  /^已写入 CONClusion\.md/,
-  /^已通知验收席位/,
-  /^评估建议（仅参考，不替代 Verifier）/,
-  /^开工卡已确认；重复的确认阶段/,
-  /^执行方案已确认；重复的确认阶段/,
-]
-
 export const studioKind = {
   id: 'studio',
   type,
@@ -176,11 +160,13 @@ export const studioKind = {
   // 静态纪律只注入一次，后续阶段提示不再重复。
   seatSoul: seat => [
     seat.prompt,
-    '当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才加载。',
+    '当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才会响应。',
     '你是三类席位之一：规划师、执行官、验收员；不要自创角色，也不要承担其他席位的职责。',
     '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
     '回复用一段话说清结论和必要依据；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
     ...workContract(seat.role),
+    // 规划师工具协议随 soul 常驻；阶段推进不再专门唤醒规划师。
+    ...(roleKindOf(seat.role) === 'planner' ? plannerToolPrompt({ mcp: (seat.mcp ?? []).length > 0 }) : []),
   ].filter(Boolean).join('\n'),
 
   validateRoster: type.validateRoster,
@@ -235,10 +221,7 @@ export const studioKind = {
   stateOf: room => (room.closure === 'signed' ? 'signed' : room.closure ?? 'open'),
   replayTransition: replayStudioTransition,
 
-  filterMessages: messages => messages.filter(message => !(
-    message?.kind === 'system'
-    && STUDIO_SYSTEM_NOISE.some(pattern => pattern.test(String(message.text ?? '')))
-  )),
+  filterMessages: messages => messages,
   hideActivity: false,
   acceptsDelta: false,
 
