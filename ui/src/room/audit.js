@@ -3,7 +3,7 @@ import { useOverlay } from '../overlay.js'
 
 // 审计详情是排障视图，不是主流程；默认关闭，按需打开。
 export function AuditDrawer({ open, onClose, children }) {
-  const overlayProps = useOverlay({ label: '审计', onClose, modal: false, active: open })
+  const overlayProps = useOverlay({ label: '审计', onClose, modal: true, active: open })
   if (open !== true) return null
   return h('div', { className: 'crew-audit-overlay', onClick: onClose, ...overlayProps },
     h('aside', {

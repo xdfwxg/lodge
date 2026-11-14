@@ -176,7 +176,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
             summarizing: isChat && chat.phase === 'summarizing',
           })
           : null),
-        state.error ? h('div', { className: 'crew-error' }, state.error) : null),
+        state.error ? h('div', { className: 'crew-error', role: 'alert' }, state.error) : null),
       !atBottom
         ? h('button', { type: 'button', className: 'crew-jump-latest', onClick: scrollToBottom }, '回到最新')
         : null,

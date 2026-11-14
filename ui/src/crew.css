@@ -73,6 +73,11 @@
 .crew-process-body{display:flex;flex-direction:column;gap:2px;margin-top:3px;padding-left:2px;border-left:1px solid var(--bt-line);opacity:.86}
 .crew-process .crew-msg{padding:6px 0 6px 10px}
 .crew-process .crew-activity{margin-left:10px}
+.crew-activity{display:flex;align-items:center;gap:6px;font-size:12.5px;line-height:17px;color:var(--bt-ink-3)}
+.crew-activity-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-green)}
+.crew-activity[data-ok=false] .crew-activity-dot{background:var(--bt-danger)}
+.crew-activity-text{min-width:0;overflow-wrap:anywhere}
+.crew-activity-time{flex:none;font-variant-numeric:tabular-nums}
 .crew-milestone{display:flex;align-items:center;gap:8px;margin:5px 0 5px 44px;padding:5px 0;font-size:13.5px;line-height:18px;color:var(--bt-ink-2)}
 .crew-milestone-check{flex:none;color:var(--bt-success-text);font-weight:700}
 .crew-milestone-title{font-weight:600;color:var(--bt-ink)}
@@ -252,6 +257,7 @@
 .crew-choice[data-on="true"]{border-color:var(--bt-accent);background:var(--bt-accent-wash);color:var(--bt-accent-text);font-weight:600}
 .crew-brief{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:19px;color:var(--bt-ink-2)}
 .crew-dialog-note{margin:0;padding:8px 10px;border-radius:8px;background:var(--bt-warning-soft);color:var(--bt-warning-text);font-size:12.5px;line-height:18px}
+.crew-dialog-note[data-tone=error]{background:var(--bt-danger-wash);color:var(--bt-danger-text);border:1px solid var(--bt-line-danger)}
 .crew-dialog-foot{position:sticky;bottom:0;z-index:2;display:flex;justify-content:flex-end;gap:10px;padding:14px 24px 18px;border-top:1px solid var(--bt-line);background:var(--bt-card)}
 .crew-dialog-foot .crew-accept{margin-left:0;padding:9px 16px;font-size:13.5px}
 .crew-dialog-foot .crew-dialog-primary{flex:1}
@@ -290,6 +296,7 @@
   .crew-review-stage{flex-direction:column;gap:2px}
 }
 .crew-accept:disabled{opacity:.45;cursor:default}
+.crew-ghost:disabled,.crew-choice:disabled{opacity:.45;cursor:default}
 
 @media (max-width:760px){
   .dsb-frame{grid-template-columns:232px minmax(0,1fr)}

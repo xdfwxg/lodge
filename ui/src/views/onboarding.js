@@ -13,7 +13,6 @@ export function Onboarding({ state, onCreate }) {
           disabled: state.phase === 'loading' || state.phase === 'error',
           onClick: onCreate,
         }, '创建房间')),
-      state.runtime?.ok === false ? h('p', { className: 'crew-dialog-note' }, `基座未连接：${state.runtime.error}`) : null,
-      state.phase === 'error' ? h('p', { className: 'crew-dialog-note' }, `连接失败：${state.error}`) : null,
-      state.error ? h('p', { className: 'crew-dialog-note' }, state.error) : null))
+      state.runtime?.ok === false ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, `基座未连接：${state.runtime.error}`) : null,
+      state.phase === 'error' ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, `连接失败：${state.error}`) : null))
 }

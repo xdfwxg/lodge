@@ -82,7 +82,7 @@ const pill = ({ room, view, open, onToggle }) => h('button', {
 }, h('span', { className: 'bt-pill-swap' },
   h('span', { className: 'bt-pill-goal' },
     h('span', { className: 'bt-pill-ico' }, h(BotMark, { bot: (room.seatSpecs ?? []).find(seat => seat.id === room.leadSeat), size: 24 })),
-    h('span', { className: 'bt-pill-title' }, room.name),
+    h('span', { className: 'bt-pill-title', title: room.name }, room.name),
     view === null ? null : h('span', { className: 'bt-pill-count' }, `${view.number ?? 0}/${view.count}`)),
   h('span', { className: 'bt-pill-name' }, room.goal)),
 h('span', { className: 'bt-pill-go' }, h(ChevronDownIcon)))

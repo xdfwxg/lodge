@@ -61,7 +61,7 @@ export const useOverlay = ({ label, onClose, modal = true, active = true }) => {
     const el = rootRef.current
     if (el === null) return
     const items = Array.from(el.querySelectorAll(FOCUSABLE))
-      .filter(node => node.disabled !== true)
+      .filter(node => node.disabled !== true && (node.checkVisibility?.() ?? node.offsetParent !== null))
     if (items.length === 0) {
       event.preventDefault()
       el.focus({ preventScroll: true })

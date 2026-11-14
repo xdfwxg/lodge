@@ -227,7 +227,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               }))
             : h('div', { className: 'crew-acceptance-row' },
               h('span', { className: 'crew-acceptance-label' }, '验收'),
-              h('code', { className: 'crew-acceptance-command' }, savedCommand === '' ? '未设置' : savedCommand),
+              h('code', { className: 'crew-acceptance-command', title: savedCommand === '' ? undefined : savedCommand }, savedCommand === '' ? '未设置' : savedCommand),
               !locked
                 ? h('button', {
                   type: 'button',

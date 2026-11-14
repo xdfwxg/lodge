@@ -430,7 +430,7 @@ function NewRoomDialog({
     verify === 'manual' && hasVerifier
       ? h('p', { className: 'crew-dialog-note' }, '人工验收不需要验收席位；要独立复核就补一条验收命令。')
       : null,
-    error ? h('p', { className: 'crew-dialog-note' }, error) : null)
+    error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-field' },
@@ -485,12 +485,13 @@ function NewRoomDialog({
       h('div', { className: 'crew-field-head' },
         h('b', null, '房间类型'),
         h('span', { className: 'crew-field-hint' }, activeType?.description ?? '')),
-      h('div', { className: 'crew-segmented' },
+      h('div', { className: 'crew-segmented', role: 'group', 'aria-label': '房间类型' },
         typeChoices.map(type => h('button', {
           key: type.id,
           type: 'button',
           className: 'crew-seg',
           'data-on': roomType === type.id ? 'true' : undefined,
+          'aria-pressed': roomType === type.id ? 'true' : 'false',
           onClick: () => changeRoomType(type.id),
         }, type.name)))),
     roomKind.setupFields({
@@ -515,7 +516,7 @@ function NewRoomDialog({
         h('ul', { className: 'crew-brief' },
           resume.brief.done.map((item, index) => h('li', { key: `resume-done-${index}` }, item.text))))
       : null,
-    error ? h('p', { className: 'crew-dialog-note' }, error) : null)
+    error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },

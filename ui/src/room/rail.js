@@ -46,21 +46,28 @@ export function RoomRail({
   const stats = evidenceStats(room)
   const current = tabs.some(item => item.id === tab) ? tab : 'status'
   const ledger = ledgerState
+  const tabIdOf = id => `crew-rail-tab-${room.id}-${id}`
+  const panelIdOf = id => `crew-rail-panel-${room.id}-${id}`
+  const panelProps = id => ({ id: panelIdOf(id), role: 'tabpanel', 'aria-labelledby': tabIdOf(id) })
   const openTab = id => {
     onTab(id)
     if (id === 'evidence' && ledger === null && typeof store?.openLedger === 'function') void store.openLedger(room.id)
   }
   return h('aside', { className: 'crew-rail', 'aria-label': '房间上下文' },
-    h('div', { className: 'crew-rail-tabs' },
+    h('div', { className: 'crew-rail-tabs', role: 'tablist' },
       tabs.map(item => h('button', {
         key: item.id,
         type: 'button',
         className: 'crew-rail-tab',
+        role: 'tab',
+        id: tabIdOf(item.id),
+        'aria-selected': current === item.id ? 'true' : 'false',
+        'aria-controls': panelIdOf(item.id),
         'data-on': current === item.id ? 'true' : undefined,
         onClick: () => openTab(item.id),
       }, item.label))),
     current === 'status'
-      ? h('div', { className: 'crew-rail-body' },
+      ? h('div', { className: 'crew-rail-body', ...panelProps('status') },
         h('section', { className: 'crew-rail-section' },
           h('b', null, '房间状态'),
           h('p', null, kind.statusLine(room)),
@@ -79,7 +86,7 @@ export function RoomRail({
             : null))
       : null,
     current === 'evidence'
-      ? h('div', { className: 'crew-rail-body' },
+      ? h('div', { className: 'crew-rail-body', ...panelProps('evidence') },
         h('section', { className: 'crew-rail-section' },
           h('b', null, '证据账本'),
           h('p', { className: 'crew-muted' }, '只读凭证；执行自述回合不在账本里。')),
@@ -133,7 +140,7 @@ export function RoomRail({
           h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.verifyLedger(room.id) }, '校验账本')))
       : null,
     current === 'env'
-      ? h('div', { className: 'crew-rail-body' },
+      ? h('div', { className: 'crew-rail-body', ...panelProps('env') },
         h('section', { className: 'crew-rail-section' },
           h('b', null, '席位与引擎'),
           (room.seatSpecs ?? []).map(seat => h('div', { key: seat.id, className: 'crew-rail-row' },
@@ -148,7 +155,7 @@ export function RoomRail({
           h('p', { className: 'crew-muted' }, `已用 ${money(room.usage?.costMicroUsd ?? 0)}${room.usage?.budgetMicroUsd ? ` / ${money(room.usage.budgetMicroUsd)}` : ''}`)))
       : null,
     current === 'output'
-      ? h('div', { className: 'crew-rail-body' },
+      ? h('div', { className: 'crew-rail-body', ...panelProps('output') },
         h('section', { className: 'crew-rail-section' },
           h('b', null, '交付'),
           h('p', null, room.delivery === null || room.delivery === undefined ? '还没有交付单' : '交付单已生成'),
@@ -158,7 +165,7 @@ export function RoomRail({
           h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.exportHandoff() }, '导出交接包')))
       : null,
     current === 'advanced'
-      ? h('div', { className: 'crew-rail-advanced' },
+      ? h('div', { className: 'crew-rail-advanced', ...panelProps('advanced') },
         h(Advanced, { room, seats, store, engines, rooms }))
       : null)
 }

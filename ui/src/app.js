@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useEffect, useMemo, useState } from 'react'
+import { Fragment, createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
 import { Onboarding } from './views/onboarding.js'
@@ -27,6 +27,24 @@ export function App() {
     : state.phase === 'loading' ? '正在加载' : ''
   const liveRegion = h('div', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, liveText)
 
+  // Announce a room's needs-you signal only when it appears or changes, so
+  // per-message store updates never flood the region.
+  const [needsText, setNeedsText] = useState('')
+  const seenNeeds = useRef(null)
+  useEffect(() => {
+    const next = {}
+    for (const room of state.rooms) {
+      if (room.needsYou) next[room.id] = room.needsYou.label ?? room.needsYou.kind ?? '等你处理'
+    }
+    const prev = seenNeeds.current
+    seenNeeds.current = next
+    if (prev === null) return
+    const changed = state.rooms.filter(room => room.needsYou && next[room.id] !== prev[room.id])
+    if (changed.length === 0) return
+    setNeedsText(changed.map(room => `${room.name}：${next[room.id]}`).join('；'))
+  }, [state.rooms])
+  const needsRegion = h('div', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, needsText)
+
   useEffect(() => {
     store.start()
     return () => store.disconnect()
@@ -51,6 +69,7 @@ export function App() {
         onCreate: () => openDialog(),
       }),
       liveRegion,
+      needsRegion,
       dialogNode)
   }
 
@@ -70,5 +89,6 @@ export function App() {
       onStartStudio: seedValue => openDialog(null, seedValue),
     }),
     liveRegion,
+    needsRegion,
     dialogNode)
 }
