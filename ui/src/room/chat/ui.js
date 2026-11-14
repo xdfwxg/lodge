@@ -16,6 +16,7 @@ export const chatUi = {
   showEvidence: false,
   showDelivery: false,
   showShadow: false,
+  showReview: false,
   showAdvanced: false,
   statusLine: room => {
     const chat = room.chat ?? {}

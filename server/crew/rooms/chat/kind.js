@@ -110,6 +110,8 @@ export const chatKind = {
 
   onSeatFailure: () => {},
   partialCount: () => 0,
+  deliveryOf: () => null,
+  reviewOf: () => null,
   bulletinAcceptance: () => '人确认',
   applyStageDependencies: room => room,
 }

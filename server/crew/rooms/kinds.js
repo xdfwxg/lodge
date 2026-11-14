@@ -21,7 +21,7 @@ const MODE_KEYS = [
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
-  'refresh', 'onSeatFailure', 'partialCount',
+  'refresh', 'onSeatFailure', 'partialCount', 'deliveryOf', 'reviewOf',
 ]
 
 const pick = (source, keys) => Object.fromEntries(keys.map(key => [key, source[key]]))

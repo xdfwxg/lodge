@@ -7,6 +7,8 @@ import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { evaluateRoomGate } from './gate.js'
 import { replayStudioTransition } from './state.js'
+import { buildDelivery } from './delivery.js'
+import { buildReview } from './review-report.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
@@ -253,6 +255,14 @@ export const studioKind = {
   refresh: () => ({}),
 
   partialCount: room => (room.stages ?? []).filter(stage => (stage.partial?.failed?.length ?? 0) > 0).length,
+
+  // 交付单与复盘都是工作室投影；共享层只拿结果，不碰阶段与证据结构。
+  deliveryOf: (room, messages, ledger) => (
+    room.state === 'complete' && (room.closure !== undefined || Array.isArray(room.stages))
+      ? buildDelivery(room, messages, ledger)
+      : null
+  ),
+  reviewOf: (room, messages) => buildReview(room, messages),
 
   bulletinAcceptance: room => (room.stages ?? [])
     .map(stage => stage.acceptance)

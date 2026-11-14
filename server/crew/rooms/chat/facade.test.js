@@ -12,6 +12,7 @@ test('chat facade exposes a versioned, slim DTO', () => {
   assert.equal(chatFacade.hostOf(room).memberRef, 'host-1')
   assert.deepEqual(chatFacade.snapshot(room), {
     version: CHAT_DTO_VERSION,
+    state: 'awaiting_decision',
     round: 2,
     phase: 'awaiting_decision',
     turns: 4,

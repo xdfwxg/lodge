@@ -21,6 +21,7 @@ export const studioUi = {
   showEvidence: true,
   showDelivery: true,
   showShadow: true,
+  showReview: true,
   showAdvanced: true,
   statusLine: room => {
     const stage = stageTitle(room)

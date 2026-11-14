@@ -11,6 +11,7 @@ test('studio facade exposes a versioned, slim DTO', () => {
   }
   assert.deepEqual(studioFacade.snapshot(room), {
     version: STUDIO_DTO_VERSION,
+    state: 'signed',
     closure: 'signed',
     stages: [{ id: 's1', title: '实现', kind: 'deliverable', state: 'passed' }],
     verifiers: ['verifier'],

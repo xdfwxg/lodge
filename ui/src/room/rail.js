@@ -74,7 +74,9 @@ export function RoomRail({
           kind.showShadow
             ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openShadow(room.id) }, room.shadowReview === true ? '影子评审' : '评审对照')
             : null,
-          h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openReview(room.id) }, '复盘')))
+          kind.showReview
+            ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => void store.openReview(room.id) }, '复盘')
+            : null))
       : null,
     current === 'evidence'
       ? h('div', { className: 'crew-rail-body' },

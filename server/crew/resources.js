@@ -1,7 +1,6 @@
 import { roomNeedsYou } from './attention.js'
 import { globalBudgetMicroUsd } from './budget.js'
-import { buildDelivery } from './rooms/studio/delivery.js'
-import { roomPresentationOfRoom, snapshotOfRoom } from './rooms/kinds.js'
+import { roomPresentationOfRoom } from './rooms/kinds.js'
 
 // 资源投影是只读的：只汇总房间与消息，不路由、不执行。
 export const buildResources = (rooms, readMessages = () => [], readEvidence = () => []) => {
@@ -51,20 +50,22 @@ export const buildResources = (rooms, readMessages = () => [], readEvidence = ()
     },
     rooms: items.sort((a, b) => b.costMicroUsd - a.costMicroUsd),
     deliveries: rooms
-      .filter(room => room.state === 'complete' && snapshotOfRoom(room)?.delivery === true)
-      .map(room => {
-        const delivery = buildDelivery(room, readMessages(room.id), readEvidence(room.id))
-        return {
-          roomId: room.id,
-          name: room.name,
-          goal: room.goal,
-          completedAt: delivery.completedAt,
-          commit: delivery.commit,
-          stages: delivery.stages.length,
-          commands: delivery.commands.length,
-          changedFiles: delivery.changedFiles.length,
-        }
-      })
+      .filter(room => room.state === 'complete')
+      .map(room => ({
+        room,
+        delivery: roomPresentationOfRoom(room)?.deliveryOf?.(room, readMessages(room.id), readEvidence(room.id)) ?? null,
+      }))
+      .filter(item => item.delivery !== null)
+      .map(({ room, delivery }) => ({
+        roomId: room.id,
+        name: room.name,
+        goal: room.goal,
+        completedAt: delivery.completedAt,
+        commit: delivery.commit,
+        stages: delivery.stages.length,
+        commands: delivery.commands.length,
+        changedFiles: delivery.changedFiles.length,
+      }))
       .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
       .slice(0, 10),
   }

@@ -2,7 +2,6 @@ import { join } from 'node:path'
 import { budgetSummary, globalBudgetStatus } from './budget.js'
 import { presentRoom } from './presentation.js'
 import { buildResources } from './resources.js'
-import { buildReview } from './rooms/studio/review-report.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
 import { roomModeOfRoom, roomPresentationOfRoom, snapshotOfRoom } from './rooms/kinds.js'
@@ -87,7 +86,9 @@ export const createServiceQueries = ({
   const review = roomId => {
     const room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-    return ok({ review: buildReview(room, readMessages(roomId)) })
+    const report = roomPresentationOfRoom(room)?.reviewOf?.(room, readMessages(roomId))
+    if (report === null || report === undefined) return fail('invalid', '这个房间没有阶段复盘')
+    return ok({ review: report })
   }
 
   // 只读回放：按审计事件逐步校验转移是否合法，不修改房间。
@@ -98,7 +99,7 @@ export const createServiceQueries = ({
       .filter(item => item.type === 'closure.transition' || item.type === 'chat.transition')
       .sort((a, b) => a.seq - b.seq)
     const snapshot = snapshotOfRoom(room)
-    const currentState = snapshot?.phase ?? snapshot?.closure ?? ''
+    const currentState = snapshot?.state ?? ''
     return ok({
       transitions: {
         roomId,

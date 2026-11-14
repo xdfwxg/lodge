@@ -21,6 +21,7 @@ export const chatFacade = {
     const host = chatHostOf(room)
     return {
       version: CHAT_DTO_VERSION,
+      state: chat.phase ?? 'discussing',
       round: chat.round ?? 1,
       phase: chat.phase ?? 'discussing',
       turns: chat.turns ?? 0,

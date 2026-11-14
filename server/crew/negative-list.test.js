@@ -95,6 +95,20 @@ test('kernel and creation units reach contexts only through kinds or facades', (
   }
 })
 
+test('shared crew modules reach modes only through kinds, facades or assembly points', () => {
+  const allowed = /(?:^|\/)rooms\/kinds\.js$|(?:^|\/)rooms\/(?:chat|studio)\/facade\.js$/
+  // service.js 分发各模式用例，rooms/base/live.js 装配各模式运行时；它们是组合点，不是共享业务。
+  const assembly = new Set(['service.js', 'rooms/base/live.js'])
+  for (const file of sources('.')) {
+    if (file.name.startsWith('rooms/chat/') || file.name.startsWith('rooms/studio/')) continue
+    if (assembly.has(file.name)) continue
+    for (const match of file.text.matchAll(/from ['"]([^'"]+)['"]/g)) {
+      if (!match[1].includes('rooms/')) continue
+      assert.match(match[1], allowed, `${file.name} imports ${match[1]} instead of a facade`)
+    }
+  }
+})
+
 test('static discipline lives in seat souls, not per-turn prompts', () => {
   for (const file of [
     'rooms/studio/prompts.js',

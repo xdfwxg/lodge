@@ -12,6 +12,7 @@ export const studioFacade = {
     if (!studioFacade.hasState(room)) return null
     return {
       version: STUDIO_DTO_VERSION,
+      state: studioStateOf(room) ?? 'open',
       closure: studioStateOf(room) ?? 'open',
       stages: studioStagesOf(room).map(stage => ({
         id: stage.id,
