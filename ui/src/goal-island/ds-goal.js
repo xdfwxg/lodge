@@ -328,10 +328,10 @@ export const GOAL_CSS = `
 /* The track shrinks so 20 stages still fit the bar: each segment is 14px and
    gives up to 3px, the current one 20px. */
 .bt-goal-segs{display:inline-flex;align-items:center;gap:3px;flex:0 1 auto;min-width:0}
-.bt-goal-segs i{display:block;flex:0 1 auto;width:14px;min-width:3px;height:4px;border-radius:999px;background:var(--bt-line-2);transition:${spring(SPRING_SHAPE, 'width')},background-color .12s ease}
+.bt-goal-segs i{display:block;flex:0 1 auto;width:14px;min-width:3px;height:4px;border-radius:999px;background:var(--bt-line-2);transition:${spring(SPRING_SHAPE, 'width')},background-color .12s ease,opacity .12s ease}
 .bt-goal-segs i[data-seg=done]{background:var(--bt-green)}
 .bt-goal-segs i[data-seg=current]{width:20px;background:var(--bt-accent)}
-.bt-goal-segs i[data-seg=checking]{width:20px;background:color-mix(in srgb,var(--bt-accent) 60%,transparent)}
+.bt-goal-segs i[data-seg=checking]{width:20px;background:var(--bt-accent);opacity:.6}
 .bt-goal-segs i[data-seg=paused]{width:20px;background:var(--bt-star)}
 .bt-goal-faces{display:inline-flex;align-items:center;flex:none;margin-left:auto}
 .bt-goal-face{display:inline-flex;flex:none;border-radius:50%;background:var(--bt-main);box-shadow:0 0 0 2px var(--bt-main)}
@@ -368,7 +368,7 @@ export const GOAL_CSS = `
 .bt-goal-line{margin-top:2px;min-width:0;font-size:12px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere}
 .bt-goal-sec{display:flex;flex-direction:column;gap:4px;min-width:0}
 .bt-goal-sub{flex:none;font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink-2)}
-.bt-goal-rw{margin-top:8px;border-radius:8px;padding:6px 10px;background:color-mix(in srgb,var(--bt-star) 10%,transparent);font-size:12px;line-height:18px;color:var(--bt-ink);overflow-wrap:anywhere}
+.bt-goal-rw{margin-top:8px;border-radius:8px;padding:6px 10px;background:var(--bt-warning-wash);font-size:12px;line-height:18px;color:var(--bt-ink);overflow-wrap:anywhere}
 .bt-goal-text{overflow-wrap:anywhere}
 .bt-goal-rules{margin:0;padding-left:18px}
 .bt-goal-evi{margin-top:8px;font-size:12px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
@@ -390,7 +390,7 @@ export const GOAL_CSS = `
 .bt-goal-checks[aria-expanded=true] .bt-goal-mchev svg{transform:rotate(180deg)}
 .bt-goal-facts{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
 .bt-goal-danger{color:var(--bt-danger)}
-.bt-goal-danger[data-armed]{background:color-mix(in srgb,var(--bt-danger) 10%,transparent)}
+.bt-goal-danger[data-armed]{background:var(--bt-danger-wash)}
 .bt-goal-compose{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
 .bt-goal-clabel{font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink-2)}
 .bt-goal-input{min-height:52px;max-height:124px;resize:none;font-size:13px}

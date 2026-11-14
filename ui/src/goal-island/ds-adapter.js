@@ -90,7 +90,7 @@ h('span', { className: 'bt-pill-go' }, h(ChevronDownIcon)))
 const PILL_CSS = `
 .bt-island{--bt-glass-bg:var(--bt-card);--bt-glass-rim:var(--bt-line-2);--bt-glass-shadow:0 10px 30px rgb(0 0 0 / .10)}
 .bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-glass-bg);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);border:.5px solid var(--bt-glass-rim);box-shadow:var(--bt-glass-shadow);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform .16s ease}
-.bt-pill:hover{background:color-mix(in srgb,var(--bt-main),#777 9%)}
+.bt-pill:hover{background:var(--bt-hover)}
 .bt-pill:active{transform:scale(.965)}
 .bt-pill-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
 .bt-pill-go{flex:none;display:inline-flex;align-items:center;justify-content:flex-end;width:0;margin-left:-8px;overflow:hidden;opacity:0;filter:blur(6px);transform:translateX(-6px);color:var(--bt-ink-2);transition:width .2s ease,margin-left .2s ease,transform .2s ease,opacity .18s ease,filter .18s ease}
@@ -106,7 +106,7 @@ const PILL_CSS = `
 .bt-input:focus{border-color:var(--bt-line-2)}
 .bt-input-area{height:auto;min-height:96px;padding:8px 10px;line-height:18px;resize:vertical}
 .bt-goal-danger{color:var(--bt-danger)}
-.bt-goal-danger[data-armed]{background:color-mix(in srgb,var(--bt-danger) 10%,transparent)}
+.bt-goal-danger[data-armed]{background:var(--bt-danger-wash)}
 .crew-ds-goal{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:14px 32px 0}
 .crew-ds-goal-tools{display:flex;align-items:center;gap:6px;padding-left:2px}
 @keyframes bt-veil-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
