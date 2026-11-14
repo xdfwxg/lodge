@@ -46,12 +46,14 @@ function StageEditRow({ stage, index, store }) {
     }, '保存'),
     h('button', {
       type: 'button',
-      className: 'crew-ghost',
+      className: 'crew-ghost crew-move',
+      'aria-label': `上移阶段 ${index + 1}`,
       onClick: () => void store.editStagePlan('move', index, { to: index - 1 }),
     }, '↑'),
     h('button', {
       type: 'button',
-      className: 'crew-ghost',
+      className: 'crew-ghost crew-move',
+      'aria-label': `下移阶段 ${index + 1}`,
       onClick: () => void store.editStagePlan('move', index, { to: index + 1 }),
     }, '↓'),
     h('button', {

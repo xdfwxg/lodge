@@ -347,7 +347,7 @@ export const GOAL_CSS = `
 .bt-goal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
 /* The stepper: one shrinking node per stage on a hairline. */
 .bt-goal-steps{display:flex;align-items:center;gap:6px;padding:10px 14px 0}
-.bt-goal-step{position:relative;flex:0 1 20px;min-width:8px;height:20px;display:flex;align-items:center;justify-content:center;border:0;background:none;cursor:pointer;padding:0}
+.bt-goal-step{position:relative;flex:0 1 22px;min-width:8px;height:28px;display:flex;align-items:center;justify-content:center;border:0;background:none;cursor:pointer;padding:0}
 .bt-goal-step::before{content:"";position:absolute;left:-3px;right:-3px;top:50%;height:1px;background:var(--bt-line-2)}
 .bt-goal-step:first-child::before{left:50%}
 .bt-goal-step:last-child::before{right:50%}
