@@ -5,7 +5,7 @@ body{margin:0;background:var(--bt-main);color:var(--bt-ink);font-family:var(--bt
   outline:var(--bt-focus-ring-w,2px) solid var(--bt-focus-ring,#2F4AB5);
   outline-offset:var(--bt-focus-ring-offset,2px);
 }
-@media (forced-colors:active){:where(*):focus-visible{outline:2px solid Highlight}}
+@media (forced-colors:active){:where(*):focus-visible{outline:2px solid Highlight!important}}
 .is-mac-shell .dsb-side{padding-top:44px}
 .visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion:reduce){
@@ -39,6 +39,9 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-stage-dock-body{max-height:min(52vh,520px);overflow:auto;padding-top:8px}
 .crew-composer-wrap{position:relative;max-width:760px;margin:0 auto}
 .crew-composer{display:flex;align-items:flex-end;gap:8px;max-width:760px;margin:0 auto;padding:8px 8px 8px 14px;background:var(--bt-card);border:1px solid var(--bt-line-2);border-radius:18px;box-shadow:var(--bt-elev-1)}
+/* 焦点落在整个输入条上：内部 textarea 不再自画矩形环，避免在圆角 18 的容器里出现方角框 */
+.crew-composer:focus-within{border-color:var(--bt-accent);box-shadow:var(--bt-elev-1),0 0 0 3px var(--bt-accent-wash)}
+.crew-input:focus-visible{outline:none}
 .crew-mentions{position:absolute;left:0;right:0;bottom:calc(100% + 8px);max-height:220px;overflow:auto;padding:4px;background:var(--bt-card);border:1px solid var(--bt-line-2);border-radius:12px;box-shadow:var(--bt-elev-2);z-index:30}
 .crew-mention-option{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:0;border-radius:8px;background:transparent;color:var(--bt-ink);font:inherit;font-size:15px;line-height:20px;text-align:left;cursor:pointer}
 .crew-mention-option:hover{background:var(--bt-hover)}

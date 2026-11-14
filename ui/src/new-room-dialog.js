@@ -2,6 +2,7 @@ import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
 import { buildChatRequest, chatSeatChoicesFrom } from './room/chat/create.js'
 import { seedGoalText } from './room/chat/seed.js'
+import { roomNameFromGoal } from './room/name-from-goal.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
 import { buildStudioRequest } from './room/studio/create.js'
 import { uiKindOfType } from './room/kinds.js'
@@ -45,7 +46,6 @@ function NewRoomDialog({
   const [shadowReview, setShadowReview] = useState(false)
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [requireIndependent, setRequireIndependent] = useState(false)
-  const [roomName, setRoomName] = useState('')
   const [goal, setGoal] = useState('')
   const [repoPath, setRepoPath] = useState('')
   const [constraints, setConstraints] = useState('')
@@ -67,7 +67,6 @@ function NewRoomDialog({
 
   useEffect(() => {
     if (!open) return
-    setRoomName(resume === null ? '' : resume.name ?? '')
     setSeatChoices([])
     setShadowReview(false)
     setChatTurnLimit(6)
@@ -143,7 +142,8 @@ function NewRoomDialog({
   const acceptance = proposal?.acceptance ?? ''
   const lineCount = constraints.split('\n').filter(line => line.trim() !== '').length
   const studioMissingVerifier = roomKind.missingVerifier(hasVerifier)
-  const canStart = !busy && roomName.trim() !== '' && !needRepo && seatsReady &&
+  const roomTitle = (resume !== null ? (resume.name ?? '') : roomNameFromGoal(goal)).trim()
+  const canStart = !busy && !needRepo && seatsReady &&
     !(verify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
     !studioMissingVerifier
 
@@ -263,13 +263,13 @@ function NewRoomDialog({
   }
 
   const startChat = async () => {
-    if (busy || goal.trim() === '' || roomName.trim() === '' || needRepo) return
+    if (busy || goal.trim() === '' || needRepo) return
     setBusy(true)
     setError(null)
     try {
       const result = await onCreate(goal.trim(), buildChatRequest({
         goal: goal.trim(),
-        name: roomName.trim(),
+        name: roomTitle,
         repoPath: repoPath.trim(),
         chatTurnLimit,
         defaultSeats: activeType?.defaultSeats ?? [],
@@ -296,7 +296,7 @@ function NewRoomDialog({
     try {
       const result = await onCreate(goal.trim(), buildStudioRequest({
         goal: goal.trim(),
-        name: roomName.trim(),
+        name: roomTitle,
         repoPath: repoPath.trim(),
         verify,
         acceptance,
@@ -374,19 +374,6 @@ function NewRoomDialog({
             constraintsChecked ? '没有发现 LODGE.md；可以不填。' : '点击工作空间输入框后读取。'))
 
   const proposalBody = proposal === null ? null : h('div', { className: 'crew-dialog-body' },
-    h('div', { className: 'crew-field' },
-      h('div', { className: 'crew-field-head' },
-        h('b', null, '房间名称'),
-        h('span', { className: 'crew-field-hint' }, '必填')),
-      h('input', {
-        className: 'crew-goal-input',
-        type: 'text',
-        maxLength: 60,
-        value: roomName,
-        placeholder: '例如：修复登录页保存',
-        required: true,
-        onChange: event => setRoomName(event.target.value),
-      })),
     h('div', { className: 'crew-proposal-head' },
       h('div', null,
         h('b', null, 'Lodge 的开工卡'),
@@ -434,19 +421,6 @@ function NewRoomDialog({
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-field' },
-      h('div', { className: 'crew-field-head' },
-        h('b', null, '房间名称'),
-        h('span', { className: 'crew-field-hint' }, '必填')),
-      h('input', {
-        className: 'crew-goal-input',
-        type: 'text',
-        maxLength: 60,
-        value: roomName,
-        placeholder: '例如：修复登录页保存',
-        required: true,
-        onChange: event => setRoomName(event.target.value),
-      })),
-    h('div', { className: 'crew-field' },
       h('b', null, '目标'),
       h('textarea', {
         className: 'crew-goal-input crew-goal-lg',
@@ -456,14 +430,8 @@ function NewRoomDialog({
         placeholder: '例如：给项目加一个 --verbose 参数，并让测试通过',
         onChange: event => setGoal(event.target.value),
       })),
-    seed !== null
-      ? h('p', { className: 'crew-field-hint' },
-        `来自聊天室「${seed.sourceName || seed.goal || '未命名'}」的结论。仅带入结论文本，不会同步聊天记录、轮次、证据或阶段状态；需要的关键信息请手动补充到目标里。`)
-      : null,
-    h('div', { className: 'crew-field' },
-      h('div', { className: 'crew-field-head' },
-        h('b', null, '工作空间'),
-        h('span', { className: 'crew-field-hint' }, resume === null ? '可选' : '必填')),
+    h('div', { className: 'crew-field crew-field-inline' },
+      h('b', null, '工作空间'),
       h('div', { className: 'crew-path-row' },
         h('button', {
           type: 'button',
@@ -476,15 +444,9 @@ function NewRoomDialog({
           'data-empty': repoPath === '' ? 'true' : undefined,
         }, repoPath === ''
           ? resume === null ? '选择项目目录' : '上一轮交付所在的项目目录'
-          : repoPath))),
-      h('p', { className: 'crew-field-hint' },
-        resume === null
-          ? '不选也可以，Lodge 会新建空工作区；选真实项目时，验收命令要能在里面跑。'
-          : '交接包不含代码；选上一轮交付所在的项目目录，旧证据不会复制。')),
-    h('div', { className: 'crew-field' },
-      h('div', { className: 'crew-field-head' },
-        h('b', null, '房间类型'),
-        h('span', { className: 'crew-field-hint' }, activeType?.description ?? '')),
+          : repoPath)))),
+    h('div', { className: 'crew-field crew-field-inline' },
+      h('b', null, '房间类型'),
       h('div', { className: 'crew-segmented', role: 'group', 'aria-label': '房间类型' },
         typeChoices.map(type => h('button', {
           key: type.id,
@@ -521,12 +483,17 @@ function NewRoomDialog({
   return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
-        h('div', null,
-          h('h2', null, resume === null ? '新建房间' : '基于交接记录续做'),
-          h('p', { className: 'crew-dialog-sub' },
+        h('div', { className: 'crew-dialog-title' },
+          h('span', { className: 'crew-dialog-glyph', 'data-type': roomKind.id, 'aria-hidden': 'true' }, roomKind.glyph),
+          h('div', { className: 'crew-dialog-title-text' },
+            h('span', { className: 'crew-dialog-eyebrow' }, resume === null ? `新建${roomKind.label}` : '续做'),
+            h('h2', null,
+              roomTitle !== ''
+                ? roomTitle
+                : resume === null ? '新建房间' : '基于交接记录续做'),
             step === 0
-              ? (resume === null ? roomKind.dialogSub : roomKind.resumeSub)
-              : '确认开工卡后开工；最后一步由你签字。')),
+              ? null
+              : h('p', { className: 'crew-dialog-sub' }, '确认开工卡后开工；最后一步由你签字。'))),
         h('button', {
           type: 'button',
           className: 'crew-dialog-close',
@@ -544,7 +511,7 @@ function NewRoomDialog({
             ? h('button', {
               type: 'button',
               className: 'crew-accept crew-dialog-primary',
-              disabled: busy || goal.trim() === '' || roomName.trim() === '' || needRepo,
+              disabled: busy || goal.trim() === '' || needRepo,
               onClick: () => void startChat(),
             }, busy ? '正在创建…' : roomKind.cta)
             : h('button', {

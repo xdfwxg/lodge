@@ -25,8 +25,8 @@ function ActivityLine({ message }) {
 }
 
 const splitTopic = text => {
-  const match = text.match(/^(.*?)「([^」]*)」(.*)$/s)
-  return match === null ? null : { before: match[1], topic: `「${match[2]}」`, after: match[3] }
+  const match = text.match(/^(.*?)(【[^】]*】)(.*)$/s)
+  return match === null ? null : { before: match[1], topic: match[2], after: match[3] }
 }
 
 function ChatLine({ message, seat }) {
@@ -241,7 +241,7 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
     h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat, ts: message.ts }),
-      h('div', { className: 'crew-card crew-conclusion' },
+      h('div', { className: 'crew-card crew-conclusion', 'data-settled': accepted ? 'true' : undefined },
         h('div', { className: 'crew-card-head' },
           `第 ${round} 轮结论`,
           h('span', { className: 'crew-verdict', 'data-pending': latest, 'data-pass': accepted },
@@ -250,47 +250,50 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
           meta.fallback === true
             ? h('p', { className: 'crew-field-hint' }, '主持人未能在限定时间内总结；以下是原始讨论摘要。')
             : null,
-          h(Markdown, { text: message.text, variant: 'compact' }),
-          open
-            ? h('div', { className: 'crew-rework' },
-              h('input', {
-                className: 'crew-goal-input',
-                type: 'text',
-                value: note,
-                placeholder: '哪里还需要讨论？（可选）',
-                onChange: event => setNote(event.target.value),
-                onKeyDown: event => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    void continueChat()
-                  }
-                },
-              }))
-            : null),
+          h(Markdown, { text: message.text, variant: 'compact' })),
         latest
           ? h('div', { className: 'crew-card-foot' },
             open
               ? h(Fragment, null,
+                h('div', { key: 'note', className: 'crew-rework' },
+                  h('input', {
+                    className: 'crew-goal-input',
+                    type: 'text',
+                    'aria-label': '补充讨论说明（可选）',
+                    value: note,
+                    placeholder: '还需要讨论什么？',
+                    onChange: event => setNote(event.target.value),
+                    onKeyDown: event => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        void continueChat()
+                      }
+                    },
+                  })),
                 h('button', {
-                  type: 'button',
-                  className: 'crew-accept',
-                  disabled: busy || room.state !== 'active',
-                  onClick: () => void continueChat(),
-                }, busy ? '正在继续…' : '继续讨论'),
-                h('button', {
+                  key: 'cancel',
                   type: 'button',
                   className: 'crew-ghost',
                   disabled: busy,
                   onClick: () => { setOpen(false); setNote('') },
-                }, '取消'))
+                }, '取消'),
+                h('button', {
+                  key: 'send',
+                  type: 'button',
+                  className: 'crew-accept',
+                  disabled: busy || room.state !== 'active',
+                  onClick: () => void continueChat(),
+                }, busy ? '正在发送…' : '发送'))
               : h(Fragment, null,
                 h('button', {
+                  key: 'discuss',
                   type: 'button',
                   className: 'crew-ghost',
                   disabled: busy || room.state !== 'active',
                   onClick: () => setOpen(true),
                 }, '继续讨论'),
                 h('button', {
+                  key: 'accept',
                   type: 'button',
                   className: 'crew-accept',
                   disabled: busy || room.state !== 'active',
@@ -303,7 +306,7 @@ function ChatConclusionCard({ message, seat, room, onAccept, onContinueChat, onS
               type: 'button',
               className: 'crew-accept',
               onClick: () => onStartStudio(chatStudioSeed({ room, conclusion: message.text })),
-            }, '用结论新建工作室'))
+            }, '按结论新建工作室'))
           : null)))
 }
 

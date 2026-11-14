@@ -179,7 +179,6 @@ function RoomRow({ room, active, onSelect }) {
     'aria-label': label,
   },
   h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, initialOf(room.name, '·')),
-  h('span', { className: 'crew-side-room-glyph', 'data-type': uiKindOfRoom(room).id }, uiKindOfRoom(room).glyph),
   h('span', { className: 'crew-side-room-name' }, room.name),
   room.chatUnread === true && !active
     ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' })
