@@ -1,31 +1,13 @@
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
-import { BotAvatar } from '../marks.js'
 import { DeliverySheet } from '../delivery-sheet.js'
 import { Composer } from '../composer.js'
 import { ReviewDialog } from '../room/studio/advanced.js'
 import { AuditDrawer } from '../room/audit.js'
-import { buildChatDecision, ChatStatusHeader } from '../room/chat/decision.js'
-import { uiKindOfRoom } from '../room/kinds.js'
-import { buildStudioDecision, showsDecisionCard, StudioDecisionCard, studioActivityLine } from '../room/studio/decision.js'
-import { StudioActivityLine } from '../room/studio/activity-line.js'
-import { DsGoalHeader } from '../goal-island/ds-adapter.js'
 import { RoomRail } from '../room/rail.js'
 import { StageDock } from '../room/stage-dock.js'
-import { Timeline } from '../room/timeline.js'
-import { hostLabelOf } from '../room/host.js'
 import { ReplayDialog } from '../room/replay.js'
 import { ShadowDialog } from '../room/shadow.js'
-import { buildGoalView } from '../goal-island/model.js'
-
-function TypingLine({ room, seat, summarizing }) {
-  return h('div', { className: 'crew-msg crew-typing-line' },
-    h('div', { className: 'crew-msg-avatar' },
-      seat === null || seat === undefined ? null : h(BotAvatar, { bot: seat, size: 30, live: true })),
-    h('div', { className: 'crew-msg-body' },
-      h('span', { className: 'crew-typing-name' },
-        `${summarizing ? hostLabelOf(room) : seat?.name ?? '成员'} ${summarizing ? '正在总结' : '正在输入'}`),
-      h('span', { className: 'crew-typing-dots', 'aria-hidden': true }, h('i'), h('i'), h('i'))))
-}
+import { uiModeOfRoom } from './room-modes.js'
 
 function RoomView({ state, room, store, onContinue, onStartStudio }) {
   const [railTab, setRailTab] = useState('status')
@@ -77,25 +59,22 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
   }
 
   const locked = room.state === 'paused' || room.state === 'stopped'
-  const isChat = uiKindOfRoom(room).id === 'chat'
+  const mode = uiModeOfRoom(room)
+  const isChat = mode.id === 'chat'
   const chat = room.chat ?? {}
   const seats = useMemo(() => {
     if (Array.isArray(room.seatSpecs) && room.seatSpecs.length > 0) return room.seatSpecs
     const ids = room.members ?? []
     return ids.length === 0 ? state.seats : state.seats.filter(seat => ids.includes(seat.id))
   }, [room.seatSpecs, room.members, state.seats])
-  const goalView = useMemo(() => (isChat ? null : buildGoalView(room, seats)), [isChat, room, seats])
-  const decision = useMemo(
-    () => (isChat ? buildChatDecision(room) : buildStudioDecision(room, goalView)),
-    [isChat, room, goalView],
-  )
+  const viewModel = useMemo(() => mode.buildViewModel({ room, seats }), [mode, room, seats])
+  const decision = useMemo(() => mode.buildDecision({ room, viewModel }), [mode, room, viewModel])
   const typingSeatId = room.chatBusySeat
     || (isChat ? chat.speaker : '')
     || (room.busySeats?.length === 1 ? room.busySeats[0] : '')
   const typingSeat = seats.find(seat => seat.id === typingSeatId) ?? null
   const typing = isChat && !locked && typingSeatId !== ''
     && (room.chatWorking === true || chat.running === true || room.busy === true)
-  const activityLine = isChat ? '' : studioActivityLine(room, goalView)
   useEffect(() => {
     if (typing && stick.current) scrollToBottom()
   }, [typingSeatId, typing])
@@ -112,6 +91,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
     if (action === 'sign') return void store.accept(payload)
     if (action === 'rework' || action === 'rework-submit') return void store.rework(payload, note ?? '')
     if (action === 'resume') return void store.resume()
+    if (action === 'verify') return void store.verify(payload)
     if (action === 'chat-accept') return void store.chatAccept()
     if (action === 'continue-chat') return void store.continueChat('')
     if (action === 'chat-resume') return void store.resumeChat()
@@ -133,31 +113,25 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
     setAuditOpen(true)
   }
 
+  const actions = {
+    store,
+    audit: () => setAuditOpen(true),
+    review: () => void store.openReview(room.id),
+    continueRoom: onContinue === undefined ? undefined : () => onContinue(room),
+    decision: decisionAction,
+    accept: stage => void store.accept(stage),
+    chatAccept: () => void store.chatAccept(),
+    approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
+    continueChat: note => void store.continueChat(note),
+    startStudio: onStartStudio,
+  }
+  const viewCtx = { room, seats, chat, decision, viewModel, actions, store }
+
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { className: 'crew-room-main' },
-      isChat
-        ? h(ChatStatusHeader, {
-          room,
-          decision,
-          actions: {},
-        })
-        : h(DsGoalHeader, {
-          room,
-          seats,
-          store,
-          actions: {
-            audit: () => setAuditOpen(true),
-            review: () => void store.openReview(room.id),
-            continue: onContinue === undefined ? undefined : () => onContinue(room),
-          },
-        }),
-      !isChat && !showsDecisionCard(decision)
-        ? h(StudioActivityLine, {
-          text: activityLine,
-          since: typeof room.busySince === 'number' ? room.busySince : null,
-        })
-        : null,
-      isChat ? null : h(StudioDecisionCard, { decision, onAction: decisionAction }),
+      mode.header(viewCtx),
+      mode.activity(viewCtx),
+      mode.decisionCard(viewCtx),
       state.reviewFor === room.id && state.review !== null
         ? h(ReviewDialog, { review: state.review, onClose: () => store.closeReview() })
         : null,
@@ -169,22 +143,11 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
         : null,
       h('div', { ref: scroll, className: 'dsb-scroll crew-scroll', onScroll: trackScroll },
         room.delivery ? h(DeliverySheet, { delivery: room.delivery, onExport: () => void store.exportDelivery() }) : null,
-        h('div', { className: 'crew-flow' }, h(Timeline, {
-          room,
-          seats,
-          hideKinds: [],
-          onAccept: stage => void (isChat ? store.chatAccept() : store.accept(stage)),
-          onStageAccept: isChat ? null : showsDecisionCard(decision) ? null : stage => void store.accept(stage),
-          onApproval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
-          onContinueChat: note => void store.continueChat(note),
-          onStartStudio,
-        }),
+        h('div', { className: 'crew-flow' },
+          mode.transcript(viewCtx),
+          mode.presence(viewCtx),
         typing
-          ? h(TypingLine, {
-            room,
-            seat: typingSeat,
-            summarizing: isChat && chat.phase === 'summarizing',
-          })
+          ? mode.typing({ ...viewCtx, seat: typingSeat, summarizing: isChat && chat.phase === 'summarizing' })
           : null),
         state.error ? h('div', { className: 'crew-error', role: 'alert' }, state.error) : null),
       !atBottom

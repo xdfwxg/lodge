@@ -1,9 +1,7 @@
 import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../approval-card.js'
-import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard } from '../message-cards.js'
-import { isDispatchHandoff } from './handoff.js'
+import { renderMessageBody } from './message-view.js'
 import { buildTimeline, dedupeChatStreams } from './timeline-model.js'
-import { hostLabelOf } from './host.js'
 
 const TIME_GAP = 5 * 60 * 1000
 const timeLabel = ts => {
@@ -29,50 +27,17 @@ function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinue
   }
 
   const renderMessage = message => {
-    if (isDispatchHandoff(room, message)) return h(DispatchSummaryCard, { key: message.id, message })
-    const seat = byId[message.authorId]
-      ?? (message.authorId === 'lodge' ? { id: 'lodge', name: hostLabelOf(room), title: '' } : undefined)
-      ?? (message.authorId === 'system' ? { name: '运行时', title: '验收员' } : undefined)
-    const content = (() => {
-      if (message.kind === 'system') return h('div', { key: message.id, className: 'crew-system' }, message.text)
-      if (message.kind === 'advisor_advice') {
-        return h('div', { key: message.id, className: 'crew-system' }, message.text)
-      }
-      if (message.kind === 'child_result') return h('div', { key: message.id, className: 'crew-system' }, message.text)
-      if (message.kind === 'dispatch') return h(DispatchCard, { key: message.id, message, seat })
-      if (message.kind === 'stage_conclusion') return h(MilestoneLine, { key: message.id, message })
-      if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })
-      if (message.kind === 'evidence') return h(EvidenceCard, { key: message.id, message, seat })
-      if (message.kind === 'conclusion') return h(ConclusionCard, { key: message.id, message })
-      if (message.kind === 'chat_conclusion') {
-        return h(ChatConclusionCard, {
-          key: message.id,
-          message,
-          seat: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
-          room,
-          onAccept,
-          onContinueChat,
-          onStartStudio,
-        })
-      }
-      if (message.kind === 'verdict') {
-        return h(VerdictCard, {
-          key: message.id,
-          message,
-          seat,
-          room,
-          stage: room.stages[message.meta?.stage ?? 0],
-          onAccept: onStageAccept === null ? undefined : onStageAccept ?? onAccept,
-          evidence: timeline.evidenceFor.get(message.id),
-        })
-      }
-      if (message.authorId === 'you') {
-        return h('div', { key: message.id, className: 'crew-human' },
-          h('div', { className: 'bt-ububble' }, h(Markdown, { text: message.text, variant: 'compact' })),
-          h('span', { className: 'crew-human-avatar' }, '你'))
-      }
-      return h(ChatLine, { key: message.id, message, seat })
-    })()
+    const content = renderMessageBody({
+      room,
+      byId,
+      message,
+      timeline,
+      onAccept,
+      onStageAccept,
+      onContinueChat,
+      onStartStudio,
+    })
+    if (content === null) return null
     const mark = timeMarks.get(message.id)
     return mark === undefined
       ? content
@@ -81,7 +46,12 @@ function Timeline({ room, seats, onAccept, onStageAccept, onApproval, onContinue
 
   const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
   const hidden = new Set(['activity', 'advisor_advice', ...hideKinds])
-  const meaningful = timeline.visible.filter(message => !hidden.has(message.kind))
+  const staleSignoff = message => (
+    room.state === 'complete'
+    && message.kind === 'system'
+    && /等你签字/.test(String(message.text ?? ''))
+  )
+  const meaningful = timeline.visible.filter(message => !hidden.has(message.kind) && !staleSignoff(message))
   return [
     ...meaningful.map(renderMessage).flat().filter(Boolean),
     ...pendingApprovals

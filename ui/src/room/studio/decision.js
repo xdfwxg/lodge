@@ -55,6 +55,15 @@ export const buildStudioDecision = (room, view) => {
       secondary: { label: '查看证据', action: 'evidence' },
     }
   }
+  if (room.needsYou?.kind === 'review-timeout') {
+    return {
+      key: 'review-timeout',
+      title: '复核超时，等你处理',
+      detail: '验收席位没有在时限内回报；可以重新发起复核，或先查看证据再决定。',
+      primary: { label: '重新复核', action: 'verify', stage: stageIndex },
+      secondary: { label: '查看证据', action: 'evidence' },
+    }
+  }
   if (room.needsYou?.kind === 'review') {
     const progress = /已回报/.test(reviewLabel) ? reviewLabel : ''
     return {

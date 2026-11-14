@@ -45,7 +45,10 @@ export const createMessageProjector = ({ store }) => {
     // 聊天室只展示真正的发言；基座的 recent-work brief 之类运行提示不是聊天内容。
     if (message.kind === 'activity' && roomPresentationOfRoom(room)?.hideActivity === true) return null
     if (message.kind === 'activity') {
-      return { ...common, kind: 'activity', authorId: seat ?? 'executor', text, meta: { ok: message.ok } }
+      const rawTool = typeof message.tool?.name === 'string' ? message.tool.name.trim() : ''
+      // 基座偶尔把「XX 的 recent-work brief」这类说明塞进 tool.name；只保留工具标识。
+      const tool = /^[\w.:/-]+$/.test(rawTool) ? rawTool : ''
+      return { ...common, kind: 'activity', authorId: seat ?? 'executor', text, meta: { ok: message.ok, ...(tool === '' ? {} : { tool }) } }
     }
     if (message.kind === 'question') return { ...common, kind: 'system', text: `房间在等你处理：${text}` }
     // digest 是基座的上下文摘要，不是席位说的话；notice 等是运行提示，归系统，不伪装成聊天。

@@ -93,6 +93,24 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-scroll{padding:18px 16px 20px}
 .crew-flow{display:flex;flex-direction:column;gap:4px;width:100%;max-width:792px;margin:0 auto}
 
+/* 工作室时间线：席位分组与步骤聚合，颜色和字级沿用 Lodge token。 */
+.studio-timeline{display:flex;flex-direction:column;gap:10px;min-width:0}
+.studio-day{display:flex;justify-content:center;padding:8px 0 2px;font-size:12.5px;line-height:18px;color:var(--bt-ink-3)}
+.studio-seat-block{min-width:0}
+.studio-seat-block[data-lead=false] .crew-speaker{display:none}
+.crew-steps{border:1px solid var(--bt-line);border-radius:10px;background:var(--bt-card);color:var(--bt-ink-2);font-size:13px;line-height:20px}
+.crew-steps>summary{display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;list-style:none}
+.crew-steps>summary::-webkit-details-marker{display:none}
+.crew-steps>summary::before{content:'▸';font-size:10px;color:var(--bt-ink-3)}
+.crew-steps[open]>summary::before{content:'▾'}
+.crew-steps-hint{margin-left:auto;font-size:12px;color:var(--bt-ink-3)}
+.crew-steps-list{display:flex;flex-direction:column;gap:2px;padding:4px 10px 8px 18px;border-top:1px solid var(--bt-line)}
+.studio-presence{display:flex;flex-direction:column;gap:4px;padding:2px 2px 8px;font-size:13px;color:var(--bt-ink-2)}
+.studio-queue{padding-left:2px;font-size:12.5px;line-height:18px;color:var(--bt-ink-3)}
+@media (max-width:760px){
+  .studio-timeline{gap:8px}
+}
+
 .crew-msg{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;padding:9px 0}
 .crew-msg-avatar{padding-top:1px}
 .crew-msg.crew-msg-chat{grid-template-columns:minmax(0,1fr)}
