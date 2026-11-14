@@ -77,15 +77,17 @@ test('rework records the human objection and re-dispatches the active stage', as
   assert.equal(ctx.calls[0].note, '方向不对')
 })
 
-test('accepting a stage writes a conclusion card for the next step', () => {
-  const ctx = setup(room({ live: false }))
+test('accepting the last work stage also confirms the system conclusion', () => {
+  const ctx = setup(room({ live: false, roomType: 'studio', closure: 'verifying', verificationMode: 'hybrid', verifiers: ['verifier'] }))
   ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
+  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, true)
-  const conclusion = ctx.messages.find(message => message.kind === 'stage_conclusion')
-  assert.equal(conclusion.meta.stage, 0)
-  assert.equal(conclusion.meta.command, 'npm test')
-  assert.equal(conclusion.meta.next, '验收与结论')
+  assert.equal(ctx.messages.some(message => message.kind === 'stage_conclusion'), false)
+  assert.equal(ctx.room().stages[1].state, 'passed')
+  assert.equal(ctx.room().state, 'complete')
+  const gates = ctx.messages.filter(message => message.meta?.kind === 'gate')
+  assert.deepEqual(gates.map(message => message.meta.stage), [0, 1])
 })
 
 test('studio signoff records a human Verifier verdict and moves closure', () => {
@@ -107,7 +109,8 @@ test('studio signoff records a human Verifier verdict and moves closure', () => 
   const human = ctx.messages.find(message => message.kind === 'verdict' && message.authorId === 'you')
   assert.equal(human.meta.roleKind, 'verifier')
   assert.equal(human.meta.mode, 'human')
-  assert.equal(ctx.room().closure, 'verifying')
+  assert.equal(ctx.room().closure, 'signed')
+  assert.equal(ctx.room().state, 'complete')
 })
 
 test('the final conclusion signs only after a recorded Verifier PASS', () => {

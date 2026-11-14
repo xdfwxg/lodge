@@ -1,4 +1,4 @@
-const FINAL_TITLE = '验收与结论'
+export const FINAL_TITLE = '验收与结论'
 
 const titleOf = value => (typeof value === 'string' ? value.trim().slice(0, 80) : '')
 

@@ -2,7 +2,7 @@ import { budgetHint, budgetStatus } from '../../budget.js'
 import { gateFor } from './gates.js'
 import { fail, ok } from '../../result.js'
 import { acceptanceChangeError } from '../../service-policy.js'
-import { editStages } from './stage-plan.js'
+import { editStages, FINAL_TITLE } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
 import { childResultText, childVerdictsOf } from './subrooms.js'
 import { roomModeOfRoom } from '../kinds.js'
@@ -106,6 +106,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const index = Number(body.stage)
     let gate = null
     let next = -1
+    let mergedFinal = -1
     let transitionError = null
     const messages = readMessages(room.id)
     const verdictPassed = messages.some(message => message.kind === 'verdict' && message.meta?.pass === true)
@@ -116,6 +117,13 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       stage.state = 'passed'
       if (Array.isArray(stage.tasks)) stage.tasks = stage.tasks.map(task => ({ ...task, status: 'done' }))
       next = current.stages.findIndex(item => item.state === 'pending')
+      // 最后一道「验收与结论」是系统收尾阶段：签掉最后一个工作阶段时一起确认，
+      // 不再让用户为同一个判断点两次。
+      if (next >= 0 && next === current.stages.length - 1 && current.stages[next].title === FINAL_TITLE) {
+        mergedFinal = next
+        current.stages[next].state = 'passed'
+        next = -1
+      }
       if (next >= 0) current.stages[next].state = 'active'
       else current.state = 'complete'
       let closureEvent = null
@@ -173,6 +181,13 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         : `阶段 ${index + 1} 已由你确认`,
       meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you' },
     })
+    if (mergedFinal >= 0) {
+      appendMessage(room.id, {
+        kind: 'system',
+        text: `阶段 ${mergedFinal + 1} 已由你确认`,
+        meta: { kind: 'gate', gate: 'decision', stage: mergedFinal, by: 'you' },
+      })
+    }
     let finalRoom = next < 0 ? completeRoom(room) ?? room : room
     if (next < 0) void plannerMcp?.release?.(room.id)
     if (next < 0 && finalRoom.parentRoomId !== null && finalRoom.parentRoomId !== undefined) notifyParent(finalRoom)

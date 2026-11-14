@@ -171,9 +171,7 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
 
     const first = stages.accept(store.readRoom(room.id), { stage: 1 })
     assert.equal(first.ok, true)
-    assert.equal(store.readRoom(room.id).closure, 'verifying')
-    const final = stages.accept(store.readRoom(room.id), { stage: 2 })
-    assert.equal(final.ok, true)
+    // 签掉最后一个工作阶段时，系统收尾的「验收与结论」一并确认。
     assert.equal(store.readRoom(room.id).closure, 'signed')
     assert.equal(store.readRoom(room.id).state, 'complete')
 
@@ -190,7 +188,6 @@ test('deterministic room scenario reaches signed and accepted with a ledger', as
       'submit_evidence',
       'verdict_reject',
       'submit_evidence',
-      'await_sign',
       'sign',
     ])
 
