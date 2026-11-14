@@ -4,6 +4,7 @@ import { chatStudioSeed } from './room/chat/seed.js'
 import { dispatchSummaryOf } from './room/handoff.js'
 import { MarkdownText } from './primitives.js'
 import { MD, timeOf, independenceOf } from './view-format.js'
+import { splitVerdictText } from './room/verdict-text.js'
 
 function Markdown({ text, variant }) {
   return h(MarkdownText, { text, labels: MD, variant })
@@ -104,10 +105,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
   const exit = proof.exit ?? meta.exit
   const files = proof.files ?? proof.changedFiles ?? []
   const pass = meta.pass === true
-  const lines = String(message.text ?? '').split('\n').map(line => line.trim()).filter(Boolean)
-  const body = /^(PASS|REJECT)\b/i.test(lines[0] ?? '') ? lines.slice(1) : lines
-  const summary = body[0] ?? ''
-  const detail = body.slice(1).join('\n')
+  const { summary, detail } = splitVerdictText(message.text)
   const output = typeof proof.output === 'string' && proof.output !== '' ? proof.output : ''
   const diff = typeof proof.diff === 'string' && proof.diff !== '' ? proof.diff : ''
   const active = stage?.state === 'active'

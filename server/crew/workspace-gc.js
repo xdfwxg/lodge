@@ -5,6 +5,11 @@ const ttlDays = () => {
   return Number.isFinite(value) && value >= 0 ? value : 7
 }
 
+const rewindTtlDays = () => {
+  const value = Number(process.env.CREW_REWIND_TTL_DAYS ?? process.env.CREW_WORKTREE_TTL_DAYS ?? 7)
+  return Number.isFinite(value) && value >= 0 ? value : 7
+}
+
 // 启动与定时 GC：完成/停止的房间清掉非交付席位工作区；孤儿工作区目录超过 TTL 才删。
 export const collectWorkspaceGarbage = ({
   store,
@@ -12,11 +17,26 @@ export const collectWorkspaceGarbage = ({
   files,
   rootPath = workspace.default.scratchRoot(),
   ttlMs = ttlDays() * 24 * 60 * 60 * 1000,
+  rewindTtlMs = rewindTtlDays() * 24 * 60 * 60 * 1000,
   now = Date.now(),
   removeOrphans = process.env.CREW_WORKTREE_GC_ORPHANS === '1',
 } = {}) => {
   let pruned = 0
   let orphans = 0
+  let rewound = 0
+
+  // 回退备份分支不分房间状态；超过 TTL 就清，避免 backups 永久堆积。
+  for (const room of store.readRooms()) {
+    try {
+      const provider = workspace.provider(room)
+      if (typeof provider.pruneRewindBranches !== 'function') continue
+      rewound += provider.pruneRewindBranches({
+        path: room.sourceRepo ?? room.repoPath,
+        ttlMs: rewindTtlMs,
+        now,
+      })
+    } catch {}
+  }
 
   for (const room of store.readRooms()) {
     if (room.state !== 'complete' && room.state !== 'stopped') continue
@@ -31,7 +51,7 @@ export const collectWorkspaceGarbage = ({
   }
 
   // 未知目录可能属于另一个 data dir；孤儿清理默认关闭，显式开启才删。
-  if (!removeOrphans || !files.exists(rootPath)) return { pruned, orphans }
+  if (!removeOrphans || !files.exists(rootPath)) return { pruned, orphans, rewound }
   for (const name of files.list(rootPath)) {
     const path = join(rootPath, name)
     let directory = false
@@ -50,5 +70,5 @@ export const collectWorkspaceGarbage = ({
       orphans += 1
     } catch {}
   }
-  return { pruned, orphans }
+  return { pruned, orphans, rewound }
 }

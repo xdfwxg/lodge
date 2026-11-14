@@ -12,6 +12,7 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceSeats } from './service-seats.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
+import { createStageRewind } from './rooms/studio/rewind.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
 import { createServiceTrust } from './rooms/studio/service-trust.js'
 
@@ -40,6 +41,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
   const seatActions = createServiceSeats({ store, engine, live, emit, roomFiles, workspace })
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles, plannerMcp: ports.plannerMcp })
+  const stageRewind = createStageRewind({ store, live, emit, roomFiles, workspace })
   const chat = createServiceChat({ store, live, emit })
   const closure = createServiceClosure({ store, emit, plannerMcp: ports.plannerMcp })
   const runControl = createServiceRunControl({ store, live, emit, roomFiles })
@@ -183,7 +185,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     }
 
     if (action === 'rewind' && method === 'POST') {
-      return stages.rewind(room, await readBody())
+      return stageRewind(room, await readBody())
     }
 
     if (action === 'simulate' && method === 'POST') {

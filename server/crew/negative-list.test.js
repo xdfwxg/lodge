@@ -37,6 +37,7 @@ test('studio modules do not read room.chat', () => {
     'rooms/studio/service-closure.js',
     'rooms/studio/service-trust.js',
     'rooms/studio/trust.js',
+    'rooms/studio/rewind.js',
     'rooms/studio/service-subrooms.js',
     'rooms/studio/subrooms.js',
     'rooms/studio/verifiers.js',

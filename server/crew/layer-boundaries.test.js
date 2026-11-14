@@ -23,6 +23,7 @@ const applicationFiles = [
   'rooms/studio/service-stages.js',
   'rooms/studio/service-closure.js',
   'rooms/studio/service-trust.js',
+  'rooms/studio/rewind.js',
   'rooms/studio/service-subrooms.js',
   'service-run-control.js',
   'rooms/base/live.js',

@@ -252,6 +252,29 @@ export const removeSeat = ({ room, seat }) => {
 
 export const head = ({ path }) => git(path, ['rev-parse', 'HEAD']).trim()
 
+// 回退备份分支带时间戳；只清自己创建的 rewind/*，看不懂的一律保留。
+export const pruneRewindBranches = ({ path, ttlMs = 7 * 24 * 60 * 60 * 1000, now = Date.now() } = {}) => {
+  if (typeof path !== 'string' || path === '' || !existsSync(path)) return 0
+  let listing = ''
+  try {
+    listing = git(path, ['for-each-ref', '--format=%(refname:short)', 'refs/heads/rewind/'])
+  } catch {
+    return 0
+  }
+  let removed = 0
+  for (const name of listing.split('\n').map(line => line.trim()).filter(Boolean)) {
+    if (!name.startsWith('rewind/')) continue
+    const stamp = Number(name.split('/').at(-1))
+    if (!Number.isFinite(stamp) || stamp <= 0) continue
+    if (now - stamp < ttlMs) continue
+    try {
+      git(path, ['branch', '-D', name])
+      removed += 1
+    } catch {}
+  }
+  return removed
+}
+
 // 回到某个阶段起点：先给当前 HEAD 和执行席位留备份分支，再重置；
 // 有未提交的已跟踪改动就拒绝，避免把人的工作当临时产物丢掉。
 export const restore = ({ room, base }) => {

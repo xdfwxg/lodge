@@ -92,8 +92,8 @@ service = createCrewService({
 const runWorkspaceGc = () => {
   try {
     const result = collectWorkspaceGarbage({ store, workspace: ports.workspace, files: ports.files })
-    if (result.pruned > 0 || result.orphans > 0) {
-      console.log(`workspace gc: pruned ${result.pruned} seats, removed ${result.orphans} orphan dirs`)
+    if (result.pruned > 0 || result.orphans > 0 || result.rewound > 0) {
+      console.log(`workspace gc: pruned ${result.pruned} seats, removed ${result.orphans} orphan dirs, pruned ${result.rewound} rewind branches`)
     }
   } catch (error) {
     console.warn(`workspace gc failed: ${error?.message ?? error}`)

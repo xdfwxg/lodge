@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneSeats, rangeChanges,
+  cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneSeats, rangeChanges,
   refreshReviewCopy, removeIsolatedCopy, restore, submit,
 } from './workspace-git.js'
 import { rosterFromRoles, seatsFor } from './seats.js'
@@ -168,6 +168,27 @@ test('restore rewinds the room to a stage base and keeps a backup branch', () =>
     else process.env.CREW_DISK_MIN_FREE_MB = previousMin
     rmSync(sourceRepo, { recursive: true, force: true })
     rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
+test('only old rewind backup branches are pruned', () => {
+  const sourceRepo = repo()
+  try {
+    const base = head({ path: sourceRepo })
+    execFileSync('git', ['branch', 'rewind/abc/room/1000', base], { cwd: sourceRepo })
+    const fresh = Date.now()
+    execFileSync('git', ['branch', `rewind/abc/worker/${fresh}`, base], { cwd: sourceRepo })
+    execFileSync('git', ['branch', 'rewind/abc/malformed', base], { cwd: sourceRepo })
+    execFileSync('git', ['branch', 'keep/abc', base], { cwd: sourceRepo })
+    const removed = pruneRewindBranches({ path: sourceRepo, ttlMs: 7 * 24 * 60 * 60 * 1000, now: fresh })
+    assert.equal(removed, 1)
+    const branches = execFileSync('git', ['branch', '--format=%(refname:short)'], { cwd: sourceRepo, encoding: 'utf8' })
+    assert.doesNotMatch(branches, /rewind\/abc\/room\/1000/)
+    assert.match(branches, new RegExp(`rewind/abc/worker/${fresh}`))
+    assert.match(branches, /rewind\/abc\/malformed/)
+    assert.match(branches, /keep\/abc/)
+  } finally {
+    rmSync(sourceRepo, { recursive: true, force: true })
   }
 })
 
