@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { externalAction, pendingApprovals } from './external-actions.js'
-import { reviewExternalAction } from './gate.js'
-import { seatNameOf } from './live-projection.js'
-import { decidePermission } from './permission.js'
-import { trustLevelOf } from './trust.js'
+import { externalAction, pendingApprovals } from '../../external-actions.js'
+import { reviewExternalAction } from '../../gate.js'
+import { seatNameOf } from './projection.js'
+import { decidePermission } from '../../permission.js'
+import { trustLevelOf } from '../../trust.js'
 
 export const APPROVAL_TIMEOUT = 10 * 60 * 1000
 

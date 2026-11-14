@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createMessageProjector, matchEcho } from './live-projection.js'
+import { createMessageProjector, matchEcho } from './kernel/live/projection.js'
 import { dropStaleStreams } from './rooms/chat/projection.js'
 
 const projector = createMessageProjector({

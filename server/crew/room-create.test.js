@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { roomDir } from './paths.js'
 import { createCrewPorts } from './crew-ports.js'
-import { createRealRoom } from './room-create.js'
+import { createRealRoom } from './rooms/create/create.js'
 import { writeBrief } from './room-repo.js'
 import { createStore } from './store.js'
 

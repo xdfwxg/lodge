@@ -6,9 +6,9 @@ export const seatFor = (room, ref) => {
   return null
 }
 
-import { toDisplayText } from './seat-labels.js'
-import { isInternalPrompt } from './internal-prompts.js'
-import { kindOfRoom } from './rooms/kinds.js'
+import { toDisplayText } from '../../seat-labels.js'
+import { isInternalPrompt } from '../../internal-prompts.js'
+import { kindOfRoom } from '../../rooms/kinds.js'
 
 export const seatNameOf = (room, seat) => (
   room?.seatNames?.[seat] ?? room?.seatSpecs?.find(item => item.id === seat)?.name ?? seat

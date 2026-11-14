@@ -7,7 +7,7 @@ import { createCrewPorts } from './crew-ports.js'
 import { evidenceDigest, evidenceEntryFromMessage } from './evidence-ledger.js'
 import { buildHandoff as buildHandoffBase, HANDOFF_FORMAT } from './rooms/studio/handoff.js'
 import { roomDir } from './paths.js'
-import { inheritedPlan } from './room-create.js'
+import { inheritedPlan } from './rooms/create/create.js'
 
 const ports = createCrewPorts()
 const buildHandoff = (room, ledger = []) => buildHandoffBase(room, {

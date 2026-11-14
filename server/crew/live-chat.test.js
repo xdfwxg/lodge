@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createRoomChat } from './live-chat.js'
+import { createRoomChat } from './kernel/live/bus.js'
 import { ROOM_CHAT_BULLETIN } from './room-chat.js'
 
 const baseRoom = () => ({

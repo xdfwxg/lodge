@@ -1,7 +1,7 @@
-import { roomBulletin } from './room-create-input.js'
-import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
-import { kindForType } from './rooms/kinds.js'
-import { roleKindOf } from './seats.js'
+import { roomBulletin } from './input.js'
+import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
+import { kindForType } from '../kinds.js'
+import { roleKindOf } from '../../seats.js'
 
 export const createProvisioner = ({ engine }) => {
   const createdSeatRefs = []

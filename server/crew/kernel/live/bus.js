@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { matchEcho, seatFor } from './live-projection.js'
-import { pauseForSeatFailure } from './live-sync.js'
-import { ROOM_CHAT_BULLETIN, roomChatName } from './room-chat.js'
-import { kindOfRoom } from './rooms/kinds.js'
-import { chatFacade } from './rooms/chat/facade.js'
-import { toBaseMentions, toDisplayMentions, toDisplayText } from './seat-labels.js'
+import { matchEcho, seatFor } from './projection.js'
+import { pauseForSeatFailure } from './sync.js'
+import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
+import { kindOfRoom } from '../../rooms/kinds.js'
+import { chatFacade } from '../../rooms/chat/facade.js'
+import { toBaseMentions, toDisplayMentions, toDisplayText } from '../../seat-labels.js'
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
 // sendId 是基座的幂等键：发送响应和最终落库 ID 不同也能对上同一条话。

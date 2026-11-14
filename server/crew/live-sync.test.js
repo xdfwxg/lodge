@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createMessageProjector } from './live-projection.js'
-import { createSeatSync } from './live-sync.js'
+import { createMessageProjector } from './kernel/live/projection.js'
+import { createSeatSync } from './kernel/live/sync.js'
 
 test('an engine-level seat error pauses the room and marks its task failed', async () => {
   let room = {

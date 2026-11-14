@@ -80,21 +80,31 @@ test('chat and studio contexts never import each other', () => {
   }
 })
 
+test('kernel and creation units reach contexts only through kinds or facades', () => {
+  const allowed = /(?:^|\/)rooms\/kinds\.js$|(?:^|\/)rooms\/(?:chat|studio)\/facade\.js$|^\.\.\/kinds\.js$/
+  for (const file of [...sources('kernel/live'), ...sources('rooms/create')]) {
+    for (const match of file.text.matchAll(/from ['"]([^'"]+)['"]/g)) {
+      if (!match[1].includes('rooms/')) continue
+      assert.match(match[1], allowed, `${file.name} imports ${match[1]} instead of a facade`)
+    }
+  }
+})
+
 test('kernel modules read context state only through facades or kinds', () => {
   const kernel = [
-    'live-chat.js',
-    'live-projection.js',
-    'live-refresh.js',
-    'live-sync.js',
-    'live-approvals.js',
+    'kernel/live/bus.js',
+    'kernel/live/projection.js',
+    'kernel/live/refresh.js',
+    'kernel/live/sync.js',
+    'kernel/live/approvals.js',
     'attention.js',
     'presentation.js',
     'resources.js',
     'service-queries.js',
-    'room-create.js',
-    'room-create-input.js',
-    'room-record.js',
-    'room-provision.js',
+    'rooms/create/create.js',
+    'rooms/create/input.js',
+    'rooms/create/record.js',
+    'rooms/create/provision.js',
     'service-seat-add.js',
   ]
   for (const file of kernel) {

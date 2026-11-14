@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
-import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from './budget.js'
-import { created, fail } from './result.js'
-import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot, resolveSeats } from './room-create-input.js'
-import { buildRoomRecord, initialRoomMessages } from './room-record.js'
-import { createProvisioner } from './room-provision.js'
-import { prepareWorkspace, resolveWorkspaceProvider } from './room-workspace.js'
-import { kindForType } from './rooms/kinds.js'
+import { budgetHint, globalBudgetStatus, roomBudgetFromBody } from '../../budget.js'
+import { created, fail } from '../../result.js'
+import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, projectSnapshot, resolveSeats } from './input.js'
+import { buildRoomRecord, initialRoomMessages } from './record.js'
+import { createProvisioner } from './provision.js'
+import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
+import { kindForType } from '../kinds.js'
 
-export { inheritedPlan } from './room-create-input.js'
+export { inheritedPlan } from './input.js'
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
 export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {

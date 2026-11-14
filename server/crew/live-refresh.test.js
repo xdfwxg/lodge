@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createRoomRefresher } from './live-refresh.js'
+import { createRoomRefresher } from './kernel/live/refresh.js'
 
 test('refresh records usage through the injected port', async () => {
   let room = {

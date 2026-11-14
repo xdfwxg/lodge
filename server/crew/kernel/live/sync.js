@@ -1,5 +1,5 @@
-import { seatFor, seatNameOf } from './live-projection.js'
-import { kindOfRoom } from './rooms/kinds.js'
+import { seatFor, seatNameOf } from './projection.js'
+import { kindOfRoom } from '../../rooms/kinds.js'
 
 const seatFailureOf = message => {
   if (message?.kind !== 'activity' || message.ok !== false) return null

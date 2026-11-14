@@ -1,6 +1,6 @@
-import { budgetHint, budgetStatus } from './budget.js'
-import { seatFor } from './live-projection.js'
-import { kindOfRoom } from './rooms/kinds.js'
+import { budgetHint, budgetStatus } from '../../budget.js'
+import { seatFor } from './projection.js'
+import { kindOfRoom } from '../../rooms/kinds.js'
 
 export const createRoomRefresher = ({ store, engine, emit, usage: usagePort }) => {
   // 到预算线只暂停新任务，不取消正在跑的回合；同一暂停只写一条系统消息。

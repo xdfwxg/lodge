@@ -1,5 +1,5 @@
-import { CHAT_TURNS_PER_ROUND } from './room-types/chat.js'
-import { kindForType } from './rooms/kinds.js'
+import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
+import { kindForType } from '../kinds.js'
 
 export const buildRoomRecord = ({
   short,

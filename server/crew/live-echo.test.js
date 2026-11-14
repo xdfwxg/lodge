@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { echoHumanMessage } from './live-chat.js'
+import { echoHumanMessage } from './kernel/live/bus.js'
 
 const fakeStore = () => {
   const calls = []

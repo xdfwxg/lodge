@@ -1,8 +1,8 @@
-import { MAX_CHAT_TURNS_PER_ROUND } from './room-types/chat.js'
-import { kindForType } from './rooms/kinds.js'
-import { resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
-import { workContract } from './prompt-modes.js'
-import { resolveRoomType } from './room-types/index.js'
+import { MAX_CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
+import { kindForType } from '../kinds.js'
+import { resolveAssigneeTokens, resolveOrchestration } from '../../orchestration/index.js'
+import { workContract } from '../../prompt-modes.js'
+import { resolveRoomType } from '../../room-types/index.js'
 import {
   DEFAULT_TEMPLATE_ID,
   roleSeats,
@@ -10,7 +10,7 @@ import {
   seatsFor,
   TEMPLATES,
   validateRoster,
-} from './seats.js'
+} from '../../seats.js'
 
 export const roomBulletin = (goal, verify, acceptance) => [
   `目标：${goal}`,

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createLiveApprovals } from './live-approvals.js'
+import { createLiveApprovals } from './kernel/live/approvals.js'
 
 const setup = trust => {
   let room = {

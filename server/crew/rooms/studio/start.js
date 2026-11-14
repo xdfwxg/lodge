@@ -1,6 +1,6 @@
 import { buildSeatHandoff } from './seat-handoff.js'
 import { markSeatRead } from '../../watermarks.js'
-import { alignmentPrompt, directPrompt } from '../../room-create-input.js'
+import { alignmentPrompt, directPrompt } from '../create/input.js'
 
 // 工作室建房后的第一次派发：先对齐，或直接交给主席位/执行席位。
 export const startInitialStage = async ({

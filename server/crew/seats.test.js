@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { resolveSeats } from './room-create-input.js'
+import { resolveSeats } from './rooms/create/input.js'
 import { resolveRoomType } from './room-types/index.js'
 import { roleSeats, rosterFromRoles, SEATS, seatsFor, TEMPLATES, validateSeats } from './seats.js'
 
