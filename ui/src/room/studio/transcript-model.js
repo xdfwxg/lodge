@@ -83,6 +83,12 @@ export const stepLabel = step => (
 
 export const displayableStep = step => stepLabel(step) !== ''
 
+// MCP 工具名是 mcp__server__tool；摘要里只留 tool，避免把内部字符串铺满一行。
+export const displayToolName = name => {
+  if (typeof name !== 'string' || name === '') return ''
+  return name.startsWith('mcp__') ? name.replace(/^mcp__[^_]+__/, '') || name : name
+}
+
 const isStep = item => item.kind === 'activity' && item.meta?.ok !== false && displayableStep(item)
 
 export const describeSteps = steps => {
@@ -94,7 +100,10 @@ export const describeSteps = steps => {
   }
   const parts = [...counts.entries()]
     .slice(0, 3)
-    .map(([name, count]) => (count > 1 ? `${name} ×${count}` : name))
+    .map(([name, count]) => {
+      const label = displayToolName(name)
+      return count > 1 ? `${label} ×${count}` : label
+    })
   const extra = counts.size > 3 ? ` +${counts.size - 3}` : ''
   return `${steps.length} 步${parts.length > 0 ? ` · ${parts.join('、')}${extra}` : ''}`
 }

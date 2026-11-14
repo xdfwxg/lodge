@@ -190,3 +190,12 @@ test('stage summaries count evidence and verdicts from the full room history', (
   }
   assert.equal(stageChapterSummary([], room, 0), '1 条证据 · 1 次复核')
 })
+
+test('MCP tool names are shortened in the step summary', () => {
+  const steps = [
+    { id: 's1', kind: 'activity', meta: { tool: 'mcp__agents__session_search', ok: true } },
+    { id: 's2', kind: 'activity', meta: { tool: 'mcp__agents__session_search', ok: true } },
+    { id: 's3', kind: 'activity', meta: { tool: 'Bash', ok: true } },
+  ]
+  assert.equal(describeSteps(steps), '3 步 · session_search ×2、Bash')
+})
