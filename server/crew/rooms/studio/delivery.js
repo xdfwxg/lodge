@@ -1,5 +1,6 @@
 import { independenceLabel } from '../../digest.js'
 import { evidenceDigest, evidenceEntryFromMessage, verifyEvidenceIntegrity } from '../../evidence-ledger.js'
+import { seatLabelMap } from '../../seat-labels.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
 
@@ -87,7 +88,7 @@ export const buildDelivery = (room, messages = [], ledger = null) => {
     completedAt: room.completedAt ?? (lastAt > 0 ? lastAt : null),
     commit: typeof room.completedCommit === 'string' && room.completedCommit !== '' ? room.completedCommit : null,
     independenceLabel: independenceLabel(room),
-    seatNames: room.seatNames ?? {},
+    seatNames: seatLabelMap(room),
     workspace: {
       provider: room.workspace?.provider ?? 'git',
       vcs: room.workspace?.capabilities?.vcs ?? 'none',

@@ -71,7 +71,7 @@ export function ShadowDialog({ review, focus = null, onClose }) {
                       ? h('div', { className: 'crew-muted' }, '还没有 verdict')
                       : row.verdicts.map((verdict, index) => h('div', { key: `${row.evidenceId}-v${index}`, className: 'crew-shadow-verdict' },
                         h('b', { 'data-pass': verdict.pass ? 'true' : 'false' }, verdict.pass ? 'PASS' : 'REJECT'),
-                        h('span', null, verdict.authorId),
+                        h('span', null, verdict.authorName ?? verdict.authorId),
                         verdict.reason === '' ? null : h('p', null, verdict.reason.slice(0, 180))))),
                   h('div', { className: 'crew-shadow-col' },
                     h('div', { className: 'crew-shadow-col-head' }, 'advisor（仅对照）'),

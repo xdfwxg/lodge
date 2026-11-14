@@ -5,7 +5,7 @@ import { buildResources } from './resources.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
 import { roomModeOfRoom, roomPresentationOfRoom, snapshotOfRoom } from './rooms/kinds.js'
-import { toDisplayText } from './seat-labels.js'
+import { seatDisplayName, toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
 import { replayTransitions } from './room-state.js'
 import { buildShadowComparison } from './shadow-review.js'
@@ -147,6 +147,7 @@ export const createServiceQueries = ({
       shadowReview: buildShadowComparison({
         evidence: readEvidence(roomId),
         messages: readMessages(roomId),
+        nameOf: seatId => seatDisplayName(room, seatId),
       }),
     })
   }

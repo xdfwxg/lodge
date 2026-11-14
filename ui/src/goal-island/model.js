@@ -1,4 +1,6 @@
 // 目标岛的纯投影：只从房间与消息派生，方便测试，不依赖 React。
+import { seatNameOf } from '../room/seat-name.js'
+
 const NEEDS_TONE = {
   question: 'waiting',
   decision: 'waiting',
@@ -128,7 +130,7 @@ export const seatState = (room, stage, index, seatId) => {
 export const buildGoalView = (room, seats) => {
   const current = activeIndex(room)
   const seatById = new Map(seats.map(seat => [seat.id, seat]))
-  const nameOf = id => id === 'you' ? '你' : room.seatNames?.[id] ?? seatById.get(id)?.name ?? id
+  const nameOf = id => id === 'you' ? '你' : seatNameOf(room, id) || seatById.get(id)?.name || id
   const stages = room.stages.map((stage, index) => {
     const rejects = rejectsFor(room, index)
     const verifierIds = Array.isArray(room.verifiers) ? room.verifiers : []

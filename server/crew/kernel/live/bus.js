@@ -56,9 +56,11 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     const sameTurn = prior !== undefined && prior.turnId === turnId
     const id = sameTurn ? prior.id : `stream:${room.id}:${seat}:${turnId}`
     const existing = store.readMessages(room.id).find(message => message.id === id)
-    const text = sameTurn && typeof existing?.text === 'string'
+    const raw = sameTurn && typeof existing?.text === 'string'
       ? existing.text + event.delta
       : event.delta
+    // 流式阶段也映射基座 handle；否则用户先看到 Worker…，回合结束才变角色名。
+    const text = toDisplayText(current, raw)
     store.upsertMessage({
       id,
       roomId: room.id,

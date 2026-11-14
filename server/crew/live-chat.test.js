@@ -170,6 +170,8 @@ test('a streamed final reply maps base handles to seat names', () => {
   const entry = { roomId: room.id }
   ctx.chat.subscribe(entry, room)
   ctx.subscribed[0].onEvent({ type: 'delta', delta: '@Executorea1 ', turnId: 't1' })
+  assert.equal(ctx.messages.at(-1).text, '@执行者 ')
+  assert.equal(ctx.messages.at(-1).meta.streaming, true)
   ctx.subscribed[0].onEvent({
     message: { id: 'm1', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '@Executorea1 你好', at: Date.now() },
   })

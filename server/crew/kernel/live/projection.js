@@ -6,13 +6,11 @@ export const seatFor = (room, ref) => {
   return null
 }
 
-import { toDisplayText } from '../../seat-labels.js'
+import { seatDisplayName, toDisplayText } from '../../seat-labels.js'
 import { isInternalPrompt } from '../../internal-prompts.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 
-export const seatNameOf = (room, seat) => (
-  room?.seatNames?.[seat] ?? room?.seatSpecs?.find(item => item.id === seat)?.name ?? seat
-)
+export const seatNameOf = seatDisplayName
 
 // 基座忙碌时发出的消息会排队，落库 id 和发送响应 id 不同；用回显文本和落库时间配对，避免同一条人的话出现两次。
 const ECHO_WINDOW_MS = 120_000

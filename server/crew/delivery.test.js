@@ -90,3 +90,14 @@ test('the delivery sheet exports as portable markdown', () => {
   assert.match(text, /digest [a-f0-9]{64}/)
   assert.match(text, /完整性：1\/1 条凭证摘要一致/)
 })
+
+test('delivery verdicts print roster names, not base handles', () => {
+  const withRoster = room({
+    seatNames: { verifier: 'Verifierf0d790' },
+    seatSpecs: [{ id: 'verifier', name: '验收员' }],
+  })
+  const delivery = buildDelivery(withRoster, messages)
+  assert.equal(delivery.seatNames.verifier, '验收员')
+  assert.match(deliveryMarkdown(delivery), /复核：验收员 · PASS/)
+  assert.doesNotMatch(deliveryMarkdown(delivery), /Verifierf0d790/)
+})

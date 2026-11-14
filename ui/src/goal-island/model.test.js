@@ -114,3 +114,20 @@ test('multiple verifier verdicts aggregate on the current evidence round', () =>
   assert.deepEqual(verdictsFor(failedAgain, 1), [])
   assert.equal(buildGoalView(failedAgain, [...seats, secondSeat]).stages[1].verdict, null)
 })
+
+test('seat names come from the room roster, never from base handles', () => {
+  const secondSeat = { id: 'verifier-2', name: '复核二', role: 'verifier' }
+  const current = room({
+    verifiers: ['verifier', 'verifier-2'],
+    seatSpecs: [...seats, secondSeat],
+    seatNames: { worker: 'Workerf0d790', 'worker-2': 'Worker2f0d790', verifier: 'Verifierf0d790', 'verifier-2': 'Verifier2f0d790' },
+    messages: [
+      { id: 'e1', seq: 1, kind: 'evidence', authorId: 'worker', meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0 } },
+      { id: 'v1', seq: 2, kind: 'verdict', authorId: 'verifier', text: 'PASS', meta: { pass: true, stage: 1, evidenceId: 'e1' } },
+      { id: 'v2', seq: 3, kind: 'verdict', authorId: 'verifier-2', text: 'PASS', meta: { pass: true, stage: 1, evidenceId: 'e1' } },
+    ],
+  })
+  const view = buildGoalView(current, [...seats, secondSeat])
+  assert.deepEqual(view.stages[1].verdicts.map(item => item.author), ['复核', '复核二'])
+  assert.doesNotMatch(JSON.stringify(view), /f0d790/)
+})

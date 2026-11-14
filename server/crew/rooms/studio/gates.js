@@ -1,3 +1,4 @@
+import { seatDisplayName } from '../../seat-labels.js'
 import { manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
@@ -24,11 +25,11 @@ export const gateFor = (room, index, messages, evidence) => {
     if (verifierIds(room).length > 0) {
       const outcome = manualReviewState({ room, evidence: ledger, messages, stageIndex: index })
       if (outcome.state === 'reject') {
-        const names = outcome.rejects.map(message => room.seatNames?.[message.authorId] ?? message.authorId).join('、')
+        const names = outcome.rejects.map(message => seatDisplayName(room, message.authorId)).join('、')
         return deny('conflict', `${names} 已打回，先返工再重新提交`)
       }
       if (outcome.state === 'pending') {
-        const names = outcome.missing.map(id => room.seatNames?.[id] ?? id).join('、')
+        const names = outcome.missing.map(id => seatDisplayName(room, id)).join('、')
         return deny('conflict', `还有验收席位没有回报（${names}），不能签字`)
       }
       if (outcome.state !== 'pass') return deny('conflict', '还没有本轮产物证据上的 Verifier PASS，不能签字')
@@ -53,7 +54,7 @@ export const gateFor = (room, index, messages, evidence) => {
   if (verifierIds(room).length > 1) {
     const outcome = reviewState({ room, evidence: ledger, messages: ordered, stageIndex: index })
     if (outcome.state === 'reject') {
-      const names = outcome.rejects.map(message => room.seatNames?.[message.authorId] ?? message.authorId).join('、')
+      const names = outcome.rejects.map(message => seatDisplayName(room, message.authorId)).join('、')
       return deny('conflict', `${names} 已打回，先返工并重新跑验收命令`)
     }
     if (outcome.state === 'failed') {
@@ -61,7 +62,7 @@ export const gateFor = (room, index, messages, evidence) => {
       return deny('conflict', `最新验收命令没有通过（exit ${exit === null || exit === undefined ? '无' : exit}），不能签字`)
     }
     if (outcome.state === 'pending') {
-      const names = outcome.missing.map(id => room.seatNames?.[id] ?? id).join('、')
+      const names = outcome.missing.map(id => seatDisplayName(room, id)).join('、')
       return deny('conflict', `还有验收席位没有回报（${names}），不能签字`)
     }
     if (outcome.state !== 'pass') {

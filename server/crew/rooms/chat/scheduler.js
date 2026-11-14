@@ -140,7 +140,7 @@ export const createChatScheduler = ({
     // 新聊天室由 Lodge 主持：主持模型是隐藏成员，不占三个发言席位。
     const hostSeat = typeof room.leadSeat === 'string' ? room.leadSeat : null
     const hostBot = room.chatHost?.memberRef ?? (hostSeat === null ? '' : room.seatBots?.[hostSeat] ?? '')
-    const hostName = room.chatHost?.name ?? (hostSeat === null ? 'Lodge 主持' : baseName(room, hostSeat))
+    const hostName = room.chatHost?.name ?? (hostSeat === null ? '' : baseName(room, hostSeat))
     const hostAuthor = room.chatHost === undefined || room.chatHost === null ? hostSeat ?? 'lodge' : 'lodge'
     if (hostBot === '') throw new Error('聊天室没有主持席位')
     const speakers = room.chatHost === undefined || room.chatHost === null
@@ -184,7 +184,7 @@ export const createChatScheduler = ({
           counts.set(seat, (counts.get(seat) ?? 0) + 1)
           last = seat
           if (turn === 1) {
-            const text = `本轮围绕「${room.goal}」展开讨论，欢迎大家踊跃发言。`
+            const text = `本轮围绕【${room.goal}】展开讨论，欢迎大家踊跃发言。`
             store.appendMessage(roomId, room.chatHost === undefined || room.chatHost === null
               ? { kind: 'chat', authorId: hostSeat, text, meta: { opening: true, round } }
               : { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })

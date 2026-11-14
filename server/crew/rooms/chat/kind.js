@@ -1,6 +1,7 @@
 import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import * as type from '../../room-types/chat.js'
 import { isChatSystemNoise } from '../../room-chat.js'
+import { LODGE_HOST_LABEL } from '../../seat-labels.js'
 import { chatProjection } from './projection.js'
 import { replayChatTransition } from './state.js'
 
@@ -68,7 +69,7 @@ export const chatKind = {
     return {
       members: [host.id],
       leadId: host.id,
-      chatHost: { memberRef: host.id, name: host.name },
+      chatHost: { memberRef: host.id, name: host.name, displayName: LODGE_HOST_LABEL },
       cleanup: () => engine.deleteSeatBot(host.id),
     }
   },

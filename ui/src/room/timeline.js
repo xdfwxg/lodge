@@ -3,6 +3,7 @@ import { ApprovalCard } from '../approval-card.js'
 import { Markdown, ActivityLine, ChatLine, EvidenceCard, VerdictCard, DispatchCard, DispatchSummaryCard, MilestoneLine, ConclusionCard, ChatConclusionCard } from '../message-cards.js'
 import { isDispatchHandoff } from './handoff.js'
 import { buildTimeline, dedupeChatStreams } from './timeline-model.js'
+import { hostLabelOf } from './host.js'
 import { durationOf } from '../view-format.js'
 
 const TIME_GAP = 5 * 60 * 1000
@@ -32,7 +33,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
   const renderMessage = message => {
     if (isDispatchHandoff(room, message)) return h(DispatchSummaryCard, { key: message.id, message })
     const seat = byId[message.authorId]
-      ?? (message.authorId === 'lodge' ? { id: 'lodge', name: 'Lodge 主持', title: '' } : undefined)
+      ?? (message.authorId === 'lodge' ? { id: 'lodge', name: hostLabelOf(room), title: '' } : undefined)
       ?? (message.authorId === 'system' ? { name: '运行时', title: '验收员' } : undefined)
     const content = (() => {
       if (message.kind === 'system') return h('div', { key: message.id, className: 'crew-system' }, message.text)
@@ -49,7 +50,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
         return h(ChatConclusionCard, {
           key: message.id,
           message,
-          seat: byId[message.authorId] ?? { id: 'lodge', name: 'Lodge 主持', title: '' },
+          seat: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
           room,
           onAccept,
           onContinueChat,

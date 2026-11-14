@@ -34,7 +34,7 @@ const agreementOf = (verdictState, tendency) => {
 }
 
 // 只按日志和账本计算，不读 advisor 以外的上下文，也不改任何状态。
-export const buildShadowComparison = ({ evidence = [], messages = [] }) => {
+export const buildShadowComparison = ({ evidence = [], messages = [], nameOf = id => id }) => {
   const advices = messages.filter(message => message.kind === 'advisor_advice' && typeof message.meta?.evidenceId === 'string')
   const verdicts = messages.filter(message => message.kind === 'verdict' && typeof message.meta?.evidenceId === 'string')
   const rows = evidence
@@ -58,6 +58,7 @@ export const buildShadowComparison = ({ evidence = [], messages = [] }) => {
         status: agreementOf(verdictState, tendency),
         verdicts: rowVerdicts.map(message => ({
           authorId: message.authorId,
+          authorName: nameOf(message.authorId),
           pass: message.meta?.pass === true,
           reason: typeof message.meta?.reason === 'string' ? message.meta.reason : '',
           mode: message.meta?.mode ?? 'agent',

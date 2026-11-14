@@ -2,6 +2,7 @@ import { blockedSeats } from '../../mcp-breaker.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { markSeatRead } from '../../watermarks.js'
 import { buildSeatHandoff } from './seat-handoff.js'
+import { seatLabelMap } from '../../seat-labels.js'
 import { buildTasks } from './tasks.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
@@ -66,7 +67,7 @@ export const createStageStarter = ({ store, roomId, emit, sendToSeat, updateTask
     }
     updateTasks(index, current => ({
       ...current,
-      tasks: buildTasks({ stageIndex: index, workers: assignees, seatNames: room.seatNames ?? {} }),
+      tasks: buildTasks({ stageIndex: index, workers: assignees, seatNames: seatLabelMap(room) }),
     }))
     const workerNames = assignees.map(worker => `@${seatDisplayName(room, worker)}`).join('、')
     const modeLabel = `（${strategy.name}）`

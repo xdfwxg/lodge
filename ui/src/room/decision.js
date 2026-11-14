@@ -1,10 +1,7 @@
+import { seatNameOf } from './seat-name.js'
+
 // 两种房型共用的决策原语：名字、清理文本、暂停/停止态。
-export const nameOf = (room, seatId) => (
-  room.seatSpecs?.find(seat => seat.id === seatId)?.name ??
-  room.seatNames?.[seatId] ??
-  seatId ??
-  '席位'
-)
+export const nameOf = (room, seatId) => seatNameOf(room, seatId) || '席位'
 
 export const cleanText = value => String(value ?? '')
   .replace(/\*\*/g, '')

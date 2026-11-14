@@ -119,7 +119,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(ctx.room().chat.running, false)
   assert.equal(ctx.room().chat.phase, 'awaiting_decision')
   const opening = ctx.messages.find(message => message.kind === 'chat' && message.meta?.opening === true)
-  assert.match(opening.text, /本轮围绕「讨论状态提示」展开讨论/)
+  assert.match(opening.text, /本轮围绕【讨论状态提示】展开讨论/)
   assert.match(opening.text, /欢迎大家踊跃发言/)
   assert.doesNotMatch(opening.text, /先发言/)
   assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lead').length, 6)

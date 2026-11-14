@@ -12,17 +12,18 @@ import { DsGoalHeader } from '../goal-island/ds-adapter.js'
 import { RoomRail } from '../room/rail.js'
 import { StageDock } from '../room/stage-dock.js'
 import { Timeline } from '../room/timeline.js'
+import { hostLabelOf } from '../room/host.js'
 import { ReplayDialog } from '../room/replay.js'
 import { ShadowDialog } from '../room/shadow.js'
 import { buildGoalView } from '../goal-island/model.js'
 
-function TypingLine({ seat, summarizing }) {
+function TypingLine({ room, seat, summarizing }) {
   return h('div', { className: 'crew-msg crew-typing-line' },
     h('div', { className: 'crew-msg-avatar' },
       seat === null || seat === undefined ? null : h(BotAvatar, { bot: seat, size: 30, live: true })),
     h('div', { className: 'crew-msg-body' },
       h('span', { className: 'crew-typing-name' },
-        `${summarizing ? 'Lodge 主持' : seat?.name ?? '成员'} ${summarizing ? '正在总结' : '正在输入'}`),
+        `${summarizing ? hostLabelOf(room) : seat?.name ?? '成员'} ${summarizing ? '正在总结' : '正在输入'}`),
       h('span', { className: 'crew-typing-dots', 'aria-hidden': true }, h('i'), h('i'), h('i'))))
 }
 
@@ -172,7 +173,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
         h('div', { className: 'crew-flow' }, h(Timeline, {
           room,
           seats,
-          compact: true,
+          compact: !isChat,
           hideKinds: [],
           onAccept: stage => void (isChat ? store.chatAccept() : store.accept(stage)),
           onApproval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
@@ -181,6 +182,7 @@ function RoomView({ state, room, store, onContinue, onStartStudio }) {
         }),
         typing
           ? h(TypingLine, {
+            room,
             seat: typingSeat,
             summarizing: isChat && chat.phase === 'summarizing',
           })

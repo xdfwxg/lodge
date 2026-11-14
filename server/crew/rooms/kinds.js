@@ -60,3 +60,5 @@ const facadeOfRoom = room => {
 }
 
 export const snapshotOfRoom = room => facadeOfRoom(room)?.snapshot(room) ?? null
+
+export const displayHostOfRoom = room => facadeOfRoom(room)?.displayHostOf?.(room) ?? null

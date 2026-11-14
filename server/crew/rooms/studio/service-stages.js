@@ -7,6 +7,7 @@ import { reworkFloor } from './verifiers.js'
 import { childResultText, childVerdictsOf } from './subrooms.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
+import { seatDisplayName } from '../../seat-labels.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, plannerMcp = null }) => {
   const { readRooms, readMessages, readEvidence, updateRoom, appendMessage } = store
@@ -49,7 +50,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       ))
       .slice(-5)
       .map(message => ({
-        name: room.seatNames?.[message.authorId] ?? message.authorId,
+        name: seatDisplayName(room, message.authorId),
         pass: message.meta?.pass === true,
       }))
     return {

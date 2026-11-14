@@ -1,6 +1,7 @@
 import { createElement as h } from 'react'
 import { Advanced } from './studio/advanced.js'
 import { uiKindOfRoom } from './kinds.js'
+import { seatNameOf } from './seat-name.js'
 import { money } from '../view-format.js'
 
 const TABS = [
@@ -25,7 +26,7 @@ const evidenceStats = room => {
   return {
     evidence,
     verdicts: verdicts.length,
-    last: last === undefined ? '' : `${last.meta?.pass === true ? 'PASS' : 'REJECT'} · ${last.authorId ?? ''}`,
+    last: last === undefined ? '' : `${last.meta?.pass === true ? 'PASS' : 'REJECT'} · ${seatNameOf(room, last.authorId)}`,
   }
 }
 
@@ -34,7 +35,7 @@ const verdictsOf = (room, evidenceId) => (room.messages ?? []).filter(message =>
 ))
 
 const verdictLabel = (room, verdict) => {
-  const who = room.seatNames?.[verdict.authorId] ?? verdict.authorId ?? ''
+  const who = seatNameOf(room, verdict.authorId)
   return `${verdict.meta?.pass === true ? 'PASS' : 'REJECT'}${who === '' ? '' : ` · ${who}`}`
 }
 
@@ -102,7 +103,7 @@ export function RoomRail({
                     h('b', null, `阶段 ${entry.stage + 1} · ${entry.kind === 'manual' ? '人工产物' : '验收命令'}`),
                     h('span', null, entry.exit === null ? '' : `exit ${entry.exit}`)),
                   h('div', { className: 'crew-ledger-command' }, entry.command || '人工产物'),
-                  h('div', { className: 'crew-ledger-meta' }, `#${entry.seq} · ${entry.digest.slice(0, 12)} · ${entry.authorId}`),
+                  h('div', { className: 'crew-ledger-meta' }, `#${entry.seq} · ${entry.digest.slice(0, 12)} · ${seatNameOf(room, entry.authorId)}`),
                   entry.text === '' ? null : h('p', { className: 'crew-muted' }, entry.text),
                   h('div', { className: 'crew-ledger-verdicts' },
                     verdicts.length === 0

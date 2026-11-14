@@ -10,6 +10,7 @@ test('chat facade exposes a versioned, slim DTO', () => {
   assert.equal(chatFacade.runningOf(room), false)
   assert.equal(chatFacade.speakerOf(room), 'worker')
   assert.equal(chatFacade.hostOf(room).memberRef, 'host-1')
+  assert.equal(chatFacade.displayHostOf(room).displayName, 'Lodge 主持')
   assert.deepEqual(chatFacade.snapshot(room), {
     version: CHAT_DTO_VERSION,
     state: 'awaiting_decision',
@@ -21,7 +22,7 @@ test('chat facade exposes a versioned, slim DTO', () => {
     accepted: false,
     running: false,
     speaker: 'worker',
-    host: { memberRef: 'host-1', name: 'LodgeHost' },
+    host: { memberRef: 'host-1', name: 'LodgeHost', displayName: 'Lodge 主持' },
   })
   assert.equal(chatFacade.snapshot({ roomType: 'studio' }), null)
 })
