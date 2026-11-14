@@ -140,7 +140,8 @@ export const buildRoomRecord = ({
   engine: shape.engine,
   ...(shape.closure ?? {}),
   orchestration,
-  ...(shape.chat === undefined ? { stages: shape.stages } : { chat: shape.chat }),
+  ...(shape.stages === undefined ? {} : { stages: shape.stages }),
+  ...(shape.chat === undefined ? {} : { chat: shape.chat }),
   }
 }
 

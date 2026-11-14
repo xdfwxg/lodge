@@ -1,6 +1,10 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { roomModeOfRoom } from './crew/rooms/kinds.js'
+
+// Planner 工具面只给需要它的房型；判断走模式能力，不认房型字符串。
+const wantsPlannerTools = room => roomModeOfRoom(room)?.needsPlannerTools === true
 
 // Planner 工具面：Lodge 自己跑一个无状态 MCP server，按房间注册到基座，
 // 只挂给该房间的规划师。工具调用仍回到业务层执行，Planner 不能伪造结果。
@@ -268,11 +272,11 @@ export const createPlannerMcp = ({
       if (roomId === null) continue
       const room = byId.get(roomId)
       const expired = room !== undefined &&
-        room.roomType === 'studio' &&
+        wantsPlannerTools(room) &&
         room.state === 'stopped' &&
         now() - Number(room.stoppedAt ?? 0) >= ttlMs
       const removable = room === undefined ||
-        room.roomType !== 'studio' ||
+        !wantsPlannerTools(room) ||
         room.state === 'complete' ||
         room.state === 'rejected' ||
         expired
@@ -297,7 +301,7 @@ export const createPlannerMcp = ({
     const swept = await sweep(roomList)
     const active = (Array.isArray(roomList) ? roomList : []).filter(room => (
       room?.kind === 'room' &&
-      room.roomType === 'studio' &&
+      wantsPlannerTools(room) &&
       ['active', 'paused'].includes(room.state) &&
       typeof room.plannerTools?.server === 'string'
     ))

@@ -53,7 +53,7 @@ export const createSeatAdd = ({ store, engine, live, emit, roomFiles, workspace 
     try {
       seatRef = await engine.createSeatBot({
         name: `${id[0].toUpperCase()}${id.slice(1)}${room.id.slice(-6)}`,
-        soul: seat.prompt,
+        soul: roomModeOfRoom(room)?.seatSoul?.(seat) ?? seat.prompt,
         description: seat.station,
         approval: seat.approval,
         mcp: seat.mcp,

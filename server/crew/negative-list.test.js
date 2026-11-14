@@ -36,6 +36,7 @@ test('studio modules do not read room.chat', () => {
     'rooms/studio/service-stages.js',
     'rooms/studio/service-closure.js',
     'rooms/studio/service-trust.js',
+    'rooms/studio/trust.js',
     'rooms/studio/service-subrooms.js',
     'rooms/studio/subrooms.js',
     'rooms/studio/verifiers.js',
@@ -51,6 +52,10 @@ test('studio modules do not read room.chat', () => {
     const source = read(file)
     assert.doesNotMatch(source, /\broom\??\.chat\b/, `${file} reads room.chat`)
   }
+})
+
+test('shared trust policy does not depend on a room mode', () => {
+  assert.doesNotMatch(read('trust.js'), /from\s+['"][^'"]*rooms\//)
 })
 
 test('advisor advice code has no pass/verdict authority', () => {
@@ -99,6 +104,10 @@ test('static discipline lives in seat souls, not per-turn prompts', () => {
   ]) {
     assert.doesNotMatch(read(file), /workContract|modeGuidance/, `${file} repeats static discipline`)
   }
+})
+
+test('adding a seat reuses the room mode soul', () => {
+  assert.match(read('service-seat-add.js'), /seatSoul/, 'seat added later skips the mode soul')
 })
 
 test('the shared state-machine mechanism knows no room mode', () => {

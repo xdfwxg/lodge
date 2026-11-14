@@ -1,6 +1,7 @@
 import { fail, ok } from '../../result.js'
 import { roomModeOfRoom } from '../kinds.js'
-import { canPromoteTrust, trustLevelOf } from '../../trust.js'
+import { trustLevelOf } from '../../trust.js'
+import { canPromoteTrust } from './trust.js'
 
 // 信任级别是房间策略：升级要证据，降级随时可以，变更留事件与消息。
 export const createServiceTrust = ({ store, emit }) => {
