@@ -11,6 +11,9 @@ import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { seatDisplayName } from '../../seat-labels.js'
 
+const VERDICT_FORMAT = '判定后先写一句结论（不超过 50 字，说清产物是否达标），再最多列 3 条关键证据；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
+
+
 export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, advisor = null }) => {
   let round = null
   const staleSeats = new Set()
@@ -262,7 +265,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
-            '判定后先写一句结论（不超过 50 字，说清产物是否达标），再最多列 3 条关键证据；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。',
+            VERDICT_FORMAT,
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
@@ -291,7 +294,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
-            '判定后先写一句结论（不超过 50 字，说清产物是否达标），再最多列 3 条关键证据；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。',
+            VERDICT_FORMAT,
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
