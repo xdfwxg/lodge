@@ -1,8 +1,10 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { uiKindOfType } from './kinds.js'
+import { useOverlay } from '../overlay.js'
 
 // 只读回放：解释已有的转移审计事件，不写房间、不补事件。
 export function ReplayDialog({ replay, onClose }) {
+  const overlayProps = useOverlay({ label: '状态回放', onClose })
   const steps = replay?.steps ?? []
   const [index, setIndex] = useState(Math.max(0, steps.length - 1))
   useEffect(() => {
@@ -11,7 +13,7 @@ export function ReplayDialog({ replay, onClose }) {
   const step = steps[index] ?? null
   const summary = replay?.summary ?? { total: 0, invalid: 0, finalState: '' }
   const context = step === null ? {} : step.context ?? {}
-  return h('div', { className: 'crew-overlay', onClick: onClose },
+  return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog crew-replay', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
         h('div', null,

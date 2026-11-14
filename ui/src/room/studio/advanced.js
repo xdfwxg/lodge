@@ -1,5 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { money, countOf, timeOf, workspaceOf, seatPermissionOf } from '../../view-format.js'
+import { useOverlay } from '../../overlay.js'
 
 const engineLabelOf = (room, seat) => {
   const engine = room.engines?.[seat.id] ?? seat.engine
@@ -253,6 +254,7 @@ function Advanced({ room, seats, store, engines = [], rooms = [] }) {
 const FAILURE_KIND = { rework: '返工', command: '命令失败', system: '系统' }
 
 function ReviewDialog({ review, onClose }) {
+  const overlayProps = useOverlay({ label: '评审详情', onClose })
   const tokens = review.usage?.tokens ?? null
   const passedStages = review.stages.filter(stage => stage.state === 'passed').length
   const stats = [
@@ -267,7 +269,7 @@ function ReviewDialog({ review, onClose }) {
     ['返工', countOf(review.rework.total)],
     ['阶段', `${passedStages}/${review.stages.length}`],
   ]
-  return h('div', { className: 'crew-overlay', onClick: onClose },
+  return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog crew-review', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
         h('h2', null, `复盘 · ${review.name}`),

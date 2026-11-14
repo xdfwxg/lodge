@@ -22,6 +22,11 @@ export function App() {
     setSeed(null)
   }
 
+  const liveText = state.phase === 'reconnecting'
+    ? '连接中断，正在重连'
+    : state.phase === 'loading' ? '正在加载' : ''
+  const liveRegion = h('div', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, liveText)
+
   useEffect(() => {
     store.start()
     return () => store.disconnect()
@@ -45,6 +50,7 @@ export function App() {
         state,
         onCreate: () => openDialog(),
       }),
+      liveRegion,
       dialogNode)
   }
 
@@ -63,5 +69,6 @@ export function App() {
       onContinue: openDialog,
       onStartStudio: seedValue => openDialog(null, seedValue),
     }),
+    liveRegion,
     dialogNode)
 }

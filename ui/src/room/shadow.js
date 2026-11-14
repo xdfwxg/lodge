@@ -1,4 +1,5 @@
 import { createElement as h } from 'react'
+import { useOverlay } from '../overlay.js'
 
 const STATUS = {
   agree: { label: '一致', tone: 'ok' },
@@ -26,9 +27,10 @@ const exportDisagreements = review => {
 }
 
 export function ShadowDialog({ review, focus = null, onClose }) {
+  const overlayProps = useOverlay({ label: '影子评审', onClose })
   const rows = review?.rows ?? []
   const summary = review?.summary ?? {}
-  return h('div', { className: 'crew-overlay', onClick: onClose },
+  return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog crew-shadow', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
         h('div', null,

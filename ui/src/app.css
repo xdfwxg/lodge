@@ -6,6 +6,11 @@ body{margin:0;background:var(--bt-main);color:var(--bt-ink);font-family:var(--bt
   outline-offset:var(--bt-focus-ring-offset,2px);
 }
 @media (forced-colors:active){:where(*):focus-visible{outline:2px solid Highlight}}
+.is-mac-shell .dsb-side{padding-top:44px}
+.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
 
 .dsb-frame{display:grid;grid-template-columns:272px minmax(0,1fr);height:100vh;height:100dvh;overflow:hidden}
 .dsb-side{display:flex;flex-direction:column;min-height:0;padding:8px 12px 10px;background:var(--bt-sidebar);border-right:1px solid color-mix(in srgb,var(--bt-ink) 9%,var(--bt-line))}

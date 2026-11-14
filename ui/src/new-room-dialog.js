@@ -5,6 +5,7 @@ import { seedGoalText } from './room/chat/seed.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
 import { buildStudioRequest } from './room/studio/create.js'
 import { uiKindOfType } from './room/kinds.js'
+import { useOverlay } from './overlay.js'
 
 const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const FALLBACK_ROOM_TYPES = [
@@ -62,6 +63,7 @@ function NewRoomDialog({
   const [loginBusy, setLoginBusy] = useState(false)
   const [loginNote, setLoginNote] = useState(null)
   const [error, setError] = useState(null)
+  const overlayProps = useOverlay({ label: '新建房间', onClose, active: open })
 
   useEffect(() => {
     if (!open) return
@@ -515,7 +517,7 @@ function NewRoomDialog({
       : null,
     error ? h('p', { className: 'crew-dialog-note' }, error) : null)
 
-  return h('div', { className: 'crew-overlay', onClick: onClose },
+  return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-head' },
         h('div', null,
