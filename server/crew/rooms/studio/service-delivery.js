@@ -1,6 +1,6 @@
-import { buildDelivery, deliveryMarkdown } from './rooms/studio/delivery.js'
-import { buildHandoff } from './rooms/studio/handoff.js'
-import { fail, ok } from './result.js'
+import { buildDelivery, deliveryMarkdown } from '../../rooms/studio/delivery.js'
+import { buildHandoff } from '../../rooms/studio/handoff.js'
+import { fail, ok } from '../../result.js'
 
 export const createServiceDelivery = ({ store, handoff: handoffStore, workspaceRoot }) => {
   const { readRoom, readMessages, readEvidence } = store

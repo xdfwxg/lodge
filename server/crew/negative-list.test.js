@@ -95,6 +95,7 @@ test('kernel modules read context state only through facades or kinds', () => {
     'room-create-input.js',
     'room-record.js',
     'room-provision.js',
+    'service-seat-add.js',
   ]
   for (const file of kernel) {
     const text = read(file)

@@ -1402,7 +1402,7 @@ events(event_id TEXT PRIMARY KEY, room_id, branch_id, seq, type, payload_json, a
 - 未知 `roomType` fail closed，不静默回落；新 UI 一定显式发送 `studio` / `chat`，省略房型的旧调用保留 `task` 兼容。
 - 只有 `studio` / `chat` 两种房型；旧 `task` / `roundtable` / `archive` 已删除，不再读取。
 - `/api/state` 的 `roomTypes` 只暴露 `studio` 和 `chat`；UI 首屏不再提供独立“模式”开关，房型选中后行为固定。
-- **底层两套引擎**：`rooms/chat/scheduler.js` 只做随机发言、轮次和主持总结；`rooms/studio/strategy.js` 组合群聊 @ 推进和阶段交接。`rooms/base/live.js` 按房型选择策略，不在同一套阶段引擎里塞聊天分支。
+- **底层两套引擎**：`rooms/chat/scheduler.js` 只做随机发言、轮次和主持总结；`rooms/studio/runtime.js` 组合群聊 @ 推进和阶段交接。`rooms/base/live.js` 按房型选择上下文运行时，不把聊天分支塞进阶段引擎。
 - 工作室只有三类本质角色：Planner（`lead`）、Executor（`worker`）、Verifier（`verifier`）。其他岗位名称必须派生自这三类，不能新增 `observer` 之类第四类；显式创建工作室时，缺少规划师或独立验收席位都会拒绝。人工验收也必须先经过 Verifier bot，复核通过后由人做最终签字，不能绕过 Verifier。
 - 工作室的派发和复核都通过群聊 `@`：规划师先被 @，再由它交给执行者；执行回合在房间目录完成，Lodge 跑验收命令、写证据，再 @ 验收员。没有第二条直接打席位线程的派发路径。工作室一次只交给一个执行席位，避免单目录并行写。
 - 聊天室只有规则：状态在 `room.chat`，不使用工作室的 `stages / gates / closure / evidence / verdict / trust`。话题、每轮发言上限（默认 6，建房可配置）、主持人总结、人认可或继续一轮；成员、角色名、引擎/模型可自定义，底层角色原语是 `participant`，主持人是 `isHost: true`。每轮结束由主持人 bot 总结成 `chat_conclusion`。人点“认可结论”房间完成；点“继续讨论”按同一上限再跑一轮，旧结论保留但不再是当前轮。调度器的内部 @ 提示词不进 Lodge 时间线，界面只显示轮次进度和“正在发言”。

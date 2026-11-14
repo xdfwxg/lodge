@@ -105,5 +105,6 @@ export const chatKind = {
 
   onSeatFailure: () => {},
   partialCount: () => 0,
+  bulletinAcceptance: () => '人确认',
   applyStageDependencies: room => room,
 }

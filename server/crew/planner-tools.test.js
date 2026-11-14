@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parsePlannerTool, PLANNER_TOOL_NAMES, plannerToolPrompt } from './planner-tools.js'
+import { parsePlannerTool, PLANNER_TOOL_NAMES, plannerToolPrompt } from './rooms/studio/planner-tools.js'
 
 test('Planner tool protocol only accepts the declared tools', () => {
   assert.deepEqual(parsePlannerTool('<lodge-tool>{"name":"create_subroom","args":{"goal":"x"}}</lodge-tool>'), {

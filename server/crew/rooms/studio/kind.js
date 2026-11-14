@@ -245,6 +245,11 @@ export const studioKind = {
 
   partialCount: room => (room.stages ?? []).filter(stage => (stage.partial?.failed?.length ?? 0) > 0).length,
 
+  bulletinAcceptance: room => (room.stages ?? [])
+    .map(stage => stage.acceptance)
+    .filter(Boolean)
+    .join(' / ') || '人确认',
+
   applyStageDependencies: (room, dependencies) => {
     if (!Array.isArray(dependencies) || !Array.isArray(room.stages)) return room
     return {

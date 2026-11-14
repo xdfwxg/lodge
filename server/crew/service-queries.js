@@ -5,7 +5,7 @@ import { buildResources } from './resources.js'
 import { buildReview } from './rooms/studio/review-report.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
-import { kindOfRoom } from './rooms/kinds.js'
+import { kindOfRoom, snapshotOfRoom } from './rooms/kinds.js'
 import { toDisplayText } from './seat-labels.js'
 import { fail, ok } from './result.js'
 import { replayTransitions } from './room-state.js'
@@ -96,7 +96,8 @@ export const createServiceQueries = ({
     const events = readEvents(roomId, 500)
       .filter(item => item.type === 'closure.transition' || item.type === 'chat.transition')
       .sort((a, b) => a.seq - b.seq)
-    const currentState = kindOfRoom(room).stateOf(room)
+    const snapshot = snapshotOfRoom(room)
+    const currentState = snapshot?.phase ?? snapshot?.closure ?? ''
     return ok({
       transitions: {
         roomId,

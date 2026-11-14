@@ -7,12 +7,12 @@ export const studioStagesOf = room => (Array.isArray(room?.stages) ? room.stages
 
 export const studioFacade = {
   version: STUDIO_DTO_VERSION,
-  hasState: room => studioStateOf(room) !== null,
+  hasState: room => studioStateOf(room) !== null || Array.isArray(room?.stages),
   snapshot(room) {
-    if (studioStateOf(room) === null) return null
+    if (!studioFacade.hasState(room)) return null
     return {
       version: STUDIO_DTO_VERSION,
-      closure: studioStateOf(room),
+      closure: studioStateOf(room) ?? 'open',
       stages: studioStagesOf(room).map(stage => ({
         id: stage.id,
         title: stage.title,

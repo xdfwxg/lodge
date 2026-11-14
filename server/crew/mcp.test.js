@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mcpCalls } from './mcp.js'
+import { mcpCalls } from './rooms/studio/mcp.js'
 
 test('mcp calls are grouped by server and tool from runtime tool summaries', () => {
   const calls = mcpCalls([

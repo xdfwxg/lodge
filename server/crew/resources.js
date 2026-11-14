@@ -1,7 +1,7 @@
 import { roomNeedsYou } from './attention.js'
 import { globalBudgetMicroUsd } from './budget.js'
 import { buildDelivery } from './rooms/studio/delivery.js'
-import { kindOfRoom } from './rooms/kinds.js'
+import { kindOfRoom, snapshotOfRoom } from './rooms/kinds.js'
 
 // 调度台资源面板是只读投影：只汇总房间与消息，不路由、不执行。
 export const buildResources = (rooms, readMessages = () => [], readEvidence = () => []) => {
@@ -51,7 +51,7 @@ export const buildResources = (rooms, readMessages = () => [], readEvidence = ()
     },
     rooms: items.sort((a, b) => b.costMicroUsd - a.costMicroUsd),
     deliveries: rooms
-      .filter(room => room.state === 'complete' && kindOfRoom(room)?.supportsDelivery === true)
+      .filter(room => room.state === 'complete' && snapshotOfRoom(room)?.delivery === true)
       .map(room => {
         const delivery = buildDelivery(room, readMessages(room.id), readEvidence(room.id))
         return {
