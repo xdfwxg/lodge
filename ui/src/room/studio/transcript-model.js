@@ -38,16 +38,27 @@ export const stageChapterSummary = (items, room, index = null) => {
 export const buildStageChapters = (items, room) => {
   const stages = Array.isArray(room?.stages) ? room.stages : []
   const lastIndex = Math.max(stages.length - 1, 0)
+  const active = stages.findIndex(stage => stage.state === 'active')
   const buckets = new Map()
-  let current = -1
+  let current = stages.length === 0 ? -1 : 0
+  let started = false
   for (const item of items) {
     const explicit = item?.meta?.stage
-    if (Number.isInteger(explicit)) current = Math.max(0, Math.min(explicit, lastIndex))
+    if (Number.isInteger(explicit)) {
+      current = Math.max(0, Math.min(explicit, lastIndex))
+      started = true
+    } else if (!started && item.kind === 'system') {
+      // 建房期的环境/引擎提示没有阶段；房间一旦开口，后面的消息就属于当前阶段。
+      current = -1
+    } else {
+      started = true
+      if (current < 0 && stages.length > 0) current = 0
+    }
     if (!buckets.has(current)) buckets.set(current, [])
     buckets.get(current).push(item)
   }
+  if (active >= 0 && !buckets.has(active)) buckets.set(active, [])
   const ordered = [...buckets.entries()].sort((a, b) => a[0] - b[0])
-  const active = stages.findIndex(stage => stage.state === 'active')
   // 完成房间优先展开最后一段真正干活的阶段，而不是只放结论的收尾章节。
   const lastWork = ordered
     .filter(([, chapterItems]) => chapterItems.some(item => (

@@ -142,6 +142,18 @@ test('pre-stage room notices stay out of the first stage', () => {
   assert.deepEqual(chapters[1].items.map(item => item.id), ['dispatch', 'evidence'])
 })
 
+test('conversation after a pre-stage notice belongs to the active stage', () => {
+  const room = stagedRoom(['active', 'pending'])
+  const chapters = buildStageChapters([
+    { id: 'notice', ts: 1, seq: 1, kind: 'system', text: '引擎降级' },
+    { id: 'goal', ts: 2, seq: 2, kind: 'chat', authorId: 'lead', text: '目标对齐', meta: {} },
+    { id: 'activity', ts: 3, seq: 3, kind: 'activity', authorId: 'lead', text: 'Bash', meta: { ok: true } },
+  ], room)
+  assert.deepEqual(chapters.map(chapter => chapter.index), [-1, 0])
+  assert.equal(chapters[1].expanded, true)
+  assert.deepEqual(chapters[1].items.map(item => item.id), ['goal', 'activity'])
+})
+
 test('empty stages do not create a chapter', () => {
   const chapters = buildStageChapters([staged('work', 1, 2, 'dispatch')], stagedRoom(['passed', 'passed', 'active']))
   assert.deepEqual(chapters.map(chapter => chapter.index), [2])
