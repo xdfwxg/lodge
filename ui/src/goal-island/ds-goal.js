@@ -3,6 +3,7 @@
 
 import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
 import { BotAvatar } from '../marks.js'
+import { TargetIcon } from '../icons.js'
 import { CheckIcon, ChevronDownIcon } from './ds-icons.js'
 import { useEscape } from './ds-overlay.js'
 import { SPRING_SHAPE, spring, useMorph } from './ds-motion.js'
@@ -102,16 +103,6 @@ function GoalOutside({ island, close }) {
   return null
 }
 
-// The pod's closed face: state dot or check, the bar label and the chevron.
-function GoalBar({ view, open, room, actions }) {
-  return h('button', { type: 'button', className: 'bt-goal-bar', 'aria-expanded': open, onClick: () => actions.toggleGoal(room.id) },
-    view.status === 'complete'
-      ? h('span', { className: 'bt-goal-check', 'aria-hidden': true }, h(CheckIcon))
-      : h('span', { className: 'bt-goal-dot', 'aria-hidden': true }),
-    h('span', { className: 'bt-goal-label' }, view.barLabel),
-    h('span', { className: 'bt-goal-chev', 'aria-hidden': true }, h(ChevronDownIcon)))
-}
-
 // One task in the selected stage: avatar carries the state (pulse while it
 // works, a small check once reported or done, dimmed before it starts).
 function TaskRow({ task, working }) {
@@ -127,27 +118,36 @@ function TaskRow({ task, working }) {
 }
 
 
-// The closed pod keeps the design card's two strongest cues: a full-width
-// segment track and one numbered node per stage. The open panel repeats the
-// stepper at a larger size, so this row is only rendered while closed.
-function GoalMini({ view, room, actions }) {
-  const waiting = view.status === 'paused' || view.idle === true
+// Closed: one compact card. The goal is the headline, the current stage is the
+// subtitle, and the stage track is a single 3px bar — no second stepper, no
+// duplicate status row.
+function GoalClosed({ view, room, actions }) {
+  const title = view?.title || room.name || '目标'
+  const status = room.needsYou?.label ?? view?.barLabel ?? '还没有目标'
+  const tone = view?.status === 'complete' ? 'done'
+    : view?.status === 'stopped' ? 'stopped'
+      : view?.status === 'paused' || view?.idle === true || room.needsYou ? 'waiting'
+        : view?.status === 'drafting' ? 'drafting' : 'active'
+  const count = view?.number === undefined || view?.count === undefined ? '' : `${view.number}/${view.count}`
   return h('button', {
     type: 'button',
-    className: 'bt-goal-mini',
+    className: 'bt-goal-closed',
     'aria-expanded': false,
-    'aria-label': t('Open goal: {title}', { title: view.title }),
+    'aria-label': `打开目标：${[title, status, count].filter(Boolean).join('，')}`,
     onClick: () => actions.toggleGoal(room.id),
   },
-  h('span', { className: 'bt-goal-mini-segs', 'aria-hidden': true },
-    view.segments.map((seg, i) => h('i', { key: i, 'data-seg': seg }))),
-  h('span', { className: 'bt-goal-mini-steps', 'aria-hidden': true },
-    view.stages.map((stageView, i) => h('span', {
-      key: i,
-      className: 'bt-goal-mini-step',
-      'data-step': stageView.kind === 'current' && waiting ? 'waiting' : stageView.kind,
-      title: t('Stage {n}: {title}', { n: stageView.n, title: stageView.title }),
-    }, stageView.status === 'passed' ? h(CheckIcon) : stageView.n))))
+  h('span', { className: 'bt-goal-closed-main' },
+    h('span', { className: 'bt-goal-closed-ico', 'aria-hidden': true }, h(TargetIcon)),
+    h('span', { className: 'bt-goal-closed-title', title }, title),
+    count === '' ? null : h('span', { className: 'bt-goal-closed-count' }, count),
+    h('span', { className: 'bt-goal-chev', 'aria-hidden': true }, h(ChevronDownIcon))),
+  h('span', { className: 'bt-goal-closed-sub' },
+    h('span', { className: 'bt-goal-closed-dot', 'data-tone': tone, 'aria-hidden': true }),
+    h('span', { className: 'bt-goal-closed-label' }, status)),
+  view === null
+    ? null
+    : h('span', { className: 'bt-goal-closed-segs', 'aria-hidden': true },
+      view.segments.map((seg, i) => h('i', { key: i, 'data-seg': seg }))))
 }
 
 // The open pod focuses one stage: a stepper across the top, the selected
@@ -270,7 +270,16 @@ function GoalCompose({ room, roster, actions }) {
 // closed, the panel while open. The pod hangs off the header over the transcript.
 export function GoalIsland({ room, goal, view, open, composing, roomWork, roster, actions, pill }) {
   const island = useRef(null)
+  const wasOpen = useRef(open)
   useMorph(island, open)
+  // The closed card and the open header are different buttons; keep keyboard
+  // focus on the disclosure control across the swap instead of dropping it.
+  useEffect(() => {
+    if (wasOpen.current === open) return
+    wasOpen.current = open
+    const target = island.current?.querySelector(open ? '.bt-pill' : '.bt-goal-closed')
+    if (target instanceof HTMLElement) target.focus({ preventScroll: true })
+  }, [open])
   const working = new Set((roomWork ?? []).map(entry => entry.botId))
   // While the draft form is up, Escape and outside clicks cancel it like Cancel.
   const close = composing ? () => { actions.closeGoalCompose(); actions.closeGoal() } : () => actions.closeGoal()
@@ -280,67 +289,55 @@ export function GoalIsland({ room, goal, view, open, composing, roomWork, roster
     'data-idle': view?.idle || undefined, 'data-open': open || undefined,
   },
   open || composing ? h(GoalOutside, { island, close }) : null,
-  pill,
+  open || composing ? pill : null,
   h('div', { className: 'bt-goal-pod' },
     composing ? h(GoalCompose, { room, roster, actions })
-      : view === null ? null
-        : h(Fragment, null,
-          h(GoalBar, { view, open, room, actions }),
-          open ? h(GoalPanel, { goal, view, room, roster, actions, working }) : h(GoalMini, { view, room, actions }))))
+      : open
+        ? (view === null ? null : h(GoalPanel, { goal, view, room, roster, actions, working }))
+        : h(GoalClosed, { view, room, actions })))
 }
 
 export const GOAL_CSS = `
 /* One surface: the pill's own background, border and shadow. The pill row is
    40px, the pod bar 30px; the surface reshapes on SPRING_SHAPE. */
-.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(380px,calc(100% - 120px));background:var(--bt-card);border:.5px solid var(--bt-line-2);border-radius:20px;box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:13.5px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .2s ease}
-.bt-island[data-open]{width:min(560px,calc(100% - 48px));border-radius:18px;box-shadow:var(--bt-elev-2)}
+.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(440px,calc(100% - 120px));background:var(--bt-card);border:.5px solid var(--bt-line-2);border-radius:20px;box-shadow:var(--bt-island-shadow);color:var(--bt-ink);font-family:inherit;font-size:13.5px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')}}
+.bt-island[data-open]{width:min(560px,calc(100% - 48px));border-radius:18px}
 .bt-island[data-morph]{overflow:hidden}
 .bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:20px 20px 0 0}
 .bt-island[data-open] .bt-pill{border-radius:18px 18px 0 0}
 .bt-island .bt-pill:hover{background:var(--bt-hover)}
 .bt-island .bt-pill:active{transform:none}
-/* The swap area holds the goal title and the group name in one cell, so hover
-   only swaps the text and never resizes the pill. */
-.bt-pill-swap{flex:1 1 auto;min-width:0;display:grid;justify-items:start;text-align:left}
-.bt-pill-swap>*{grid-area:1/1;min-width:0;transition:opacity .18s ease,filter .18s ease}
-.bt-pill-goal{display:flex;align-items:center;gap:6px;min-width:0}
-.bt-pill-swap>.bt-pill-name{opacity:0;filter:blur(4px)}
-.bt-pill:hover .bt-pill-swap>.bt-pill-goal,.bt-pill:focus-visible .bt-pill-swap>.bt-pill-goal,.bt-pill[aria-expanded=true] .bt-pill-swap>.bt-pill-goal{opacity:0;filter:blur(4px)}
-.bt-pill:hover .bt-pill-swap>.bt-pill-name,.bt-pill:focus-visible .bt-pill-swap>.bt-pill-name,.bt-pill[aria-expanded=true] .bt-pill-swap>.bt-pill-name{opacity:1;filter:none}
+.bt-pill-goal{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto;text-align:left}
 .bt-pill-ico{flex:none;display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
 .bt-pill-ico svg{width:14px;height:14px}
-.bt-pill-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.bt-pill-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .bt-pill-count{flex:none;font-size:12.5px;line-height:16px;color:var(--bt-ink-2);font-variant-numeric:tabular-nums}
 .bt-goal-pod{display:flex;flex-direction:column;min-width:0}
-.bt-goal-pod::before{content:"";flex:none;height:.5px;margin:0 12px;background:var(--bt-line)}
-.bt-goal-bar{display:flex;align-items:center;gap:8px;height:30px;padding:0 14px;border:0;background:none;color:var(--bt-ink-2);font:inherit;font-size:12.5px;line-height:16px;cursor:pointer;text-align:left;transition:background-color .12s ease}
-.bt-goal-bar:hover{background:var(--bt-hover)}
-.bt-island:not([data-open]) .bt-goal-bar{border-radius:0 0 20px 20px}
-.bt-goal-dot{flex:none;width:8px;height:8px;border-radius:50%;corner-shape:round;background:var(--bt-green)}
-.bt-island[data-goal=drafting] .bt-goal-dot{background:var(--bt-accent)}
-.bt-island[data-goal=paused] .bt-goal-dot,.bt-island[data-idle] .bt-goal-dot{background:var(--bt-star)}
-.bt-island[data-goal=stopped] .bt-goal-dot{background:var(--bt-ink-3)}
-.bt-goal-check{flex:none;display:inline-flex;width:14px;height:14px;color:var(--bt-green)}
-.bt-goal-check svg{width:14px;height:14px}
-.bt-goal-label{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt-island[data-open] .bt-goal-pod::before,.bt-island[data-goal=compose] .bt-goal-pod::before{content:"";flex:none;height:.5px;margin:0 12px;background:var(--bt-line)}
 .bt-goal-chev{flex:none;display:inline-flex;color:var(--bt-ink-3)}
 .bt-goal-chev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
-.bt-goal-bar[aria-expanded=true] .bt-goal-chev svg{transform:rotate(180deg)}
-.bt-island[data-open] .bt-goal-chev{margin-left:auto}
-.bt-goal-mini{display:flex;flex-direction:column;gap:7px;width:100%;padding:2px 14px 12px;border:0;border-radius:0 0 20px 20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
-.bt-goal-mini:hover{background:var(--bt-hover)}
-.bt-goal-mini-segs{display:flex;gap:6px}
-.bt-goal-mini-segs i{flex:1 1 0;height:8px;border-radius:999px;background:var(--bt-line-2);transition:width .12s ease,background-color .12s ease,opacity .12s ease}
-.bt-goal-mini-segs i[data-seg=done]{background:var(--bt-green)}
-.bt-goal-mini-segs i[data-seg=current]{background:var(--bt-accent)}
-.bt-goal-mini-segs i[data-seg=checking]{background:var(--bt-accent);opacity:.6}
-.bt-goal-mini-segs i[data-seg=paused]{background:var(--bt-star)}
-.bt-goal-mini-steps{display:flex;align-items:center;gap:7px}
-.bt-goal-mini-step{box-sizing:border-box;width:min(20px,100%);height:20px;flex:0 1 20px;min-width:8px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--bt-shade-1);border:1.5px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-variant-numeric:tabular-nums;font-weight:600}
-.bt-goal-mini-step>svg{width:10px;height:10px}
-.bt-goal-mini-step[data-step=passed]{background:var(--bt-green);border-color:var(--bt-green);color:var(--bt-main)}
-.bt-goal-mini-step[data-step=current]{background:var(--bt-card);border-color:var(--bt-accent);color:var(--bt-accent)}
-.bt-goal-mini-step[data-step=waiting]{border-color:var(--bt-star);color:var(--bt-warning-text)}
+.bt-island[data-open] .bt-pill .bt-goal-chev svg{transform:rotate(180deg)}
+.bt-goal-closed{display:flex;flex-direction:column;gap:5px;width:100%;padding:11px 14px 10px;border:0;border-radius:20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .12s ease}
+.bt-goal-closed:hover{background:var(--bt-hover)}
+.bt-goal-closed:active{background:var(--bt-active)}
+.bt-goal-closed-main{display:flex;align-items:center;gap:8px;min-width:0}
+.bt-goal-closed-ico{flex:none;display:inline-flex;color:var(--bt-accent)}
+.bt-goal-closed-ico svg{width:15px;height:15px}
+.bt-goal-closed-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;line-height:20px;font-weight:650;color:var(--bt-ink)}
+.bt-goal-closed-count{flex:none;font-size:12px;line-height:16px;color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
+.bt-goal-closed-main .bt-goal-chev{margin-left:auto}
+.bt-goal-closed-sub{display:flex;align-items:center;gap:6px;min-width:0;font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
+.bt-goal-closed-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bt-goal-closed-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-green)}
+.bt-goal-closed-dot[data-tone=drafting],.bt-goal-closed-dot[data-tone=active]{background:var(--bt-accent)}
+.bt-goal-closed-dot[data-tone=waiting]{background:var(--bt-star)}
+.bt-goal-closed-dot[data-tone=stopped]{background:var(--bt-ink-3)}
+.bt-goal-closed-segs{display:flex;gap:3px;width:100%;margin-top:1px}
+.bt-goal-closed-segs i{flex:1 1 0;height:3px;border-radius:999px;background:var(--bt-line-2)}
+.bt-goal-closed-segs i[data-seg=done]{background:var(--bt-green)}
+.bt-goal-closed-segs i[data-seg=current]{background:var(--bt-accent)}
+.bt-goal-closed-segs i[data-seg=checking]{background:var(--bt-accent);opacity:.6}
+.bt-goal-closed-segs i[data-seg=paused]{background:var(--bt-star)}
 .bt-goal-meta{margin:8px 14px 0;padding:5px 9px;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:12.5px;line-height:17px}
 .bt-goal-warn{margin:8px 14px 0;padding:6px 9px;border-left:2px solid var(--bt-line-warning);border-radius:0 8px 8px 0;background:var(--bt-warning-wash);color:var(--bt-warning-text);font-size:12.5px;line-height:17px}
 .bt-goal-actions{display:flex;gap:8px;padding:8px 14px 10px;border-top:.5px solid var(--bt-line)}
@@ -351,14 +348,14 @@ export const GOAL_CSS = `
 .bt-goal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
 /* The stepper: one shrinking node per stage on a hairline. */
 .bt-goal-steps{display:flex;align-items:center;gap:6px;padding:10px 14px 0}
-.bt-goal-step{position:relative;flex:0 1 22px;min-width:8px;height:28px;display:flex;align-items:center;justify-content:center;border:0;background:none;cursor:pointer;padding:0}
+.bt-goal-step{position:relative;flex:1 1 0;min-width:20px;height:28px;display:flex;align-items:center;justify-content:center;border:0;background:none;cursor:pointer;padding:0}
 .bt-goal-step::before{content:"";position:absolute;left:-3px;right:-3px;top:50%;height:1px;background:var(--bt-line-2)}
 .bt-goal-step:first-child::before{left:50%}
 .bt-goal-step:last-child::before{right:50%}
-.bt-goal-node{position:relative;z-index:1;box-sizing:border-box;width:min(20px,100%);aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bt-shade-1);border:1.5px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-variant-numeric:tabular-nums}
+.bt-goal-node{position:relative;z-index:1;box-sizing:border-box;width:min(20px,100%);aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bt-main);border:1.5px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-variant-numeric:tabular-nums}
 .bt-goal-node>svg{flex:none;width:min(12px,70%);height:auto}
 .bt-goal-step[data-step=passed]>.bt-goal-node{background:var(--bt-green);border-color:var(--bt-green);color:var(--bt-main)}
-.bt-goal-step[data-step=current]>.bt-goal-node{background:var(--bt-card);border-color:var(--bt-accent);color:var(--bt-accent);font-weight:600}
+.bt-goal-step[data-step=current]>.bt-goal-node{border-color:var(--bt-accent);color:var(--bt-accent);font-weight:600}
 .bt-goal-step[data-step=waiting]>.bt-goal-node{border-color:var(--bt-star);color:var(--bt-warning-text);font-weight:600}
 .bt-goal-step[data-sel]:not([aria-current])>.bt-goal-node{box-shadow:0 0 0 1.5px var(--bt-ink)}
 .bt-goal-step.bt-goal-mini .bt-goal-node{font-size:0}
@@ -400,5 +397,5 @@ export const GOAL_CSS = `
 .bt-goal-chint{font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
 .bt-goal-cbtns{display:flex;justify-content:flex-end;gap:6px}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
-@media (prefers-reduced-motion:reduce){.bt-island,.bt-pill-swap>*,.bt-goal-chev svg{transition:none!important}.bt-goal-panel{animation:none}}
+@media (prefers-reduced-motion:reduce){.bt-island,.bt-goal-chev svg{transition:none!important}.bt-goal-panel{animation:none}}
 `

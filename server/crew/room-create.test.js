@@ -69,7 +69,7 @@ const fakeLive = () => ({
   sendToSeat: async () => ({ messageId: null }),
 })
 
-const run = (store, body, engine = fakeEngine(), workspace = null) => createRealRoom({
+const run = (store, body, engine = fakeEngine(), workspace = null, parentRoom = null) => createRealRoom({
   store,
   engine,
   live: fakeLive(),
@@ -77,6 +77,7 @@ const run = (store, body, engine = fakeEngine(), workspace = null) => createReal
   body,
   workspace,
   ports: createCrewPorts(),
+  parentRoom,
 })
 
 test('creation fails closed when the runtime cannot wake seats with @', async () => {
@@ -91,6 +92,42 @@ test('creation fails closed when the runtime cannot wake seats with @', async ()
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'conflict')
   assert.match(result.error, /@ 唤醒/)
+})
+
+test('a subroom records its parent and links back to it', async () => {
+  const { store } = completedRoom(temp('lodge-subroom-data-'))
+  const parent = {
+    id: 'room-parent',
+    kind: 'room',
+    name: '父工作室',
+    goal: '父目标',
+    roomType: 'studio',
+    state: 'active',
+    depth: 0,
+    childRoomIds: [],
+    seatSpecs: [],
+    members: [],
+    leadSeat: 'lead',
+    seatNames: {},
+    stages: [],
+    constraints: [],
+    version: 1,
+    live: true,
+    demo: false,
+    usage: {},
+  }
+  store.writeRoom(parent)
+  const result = await run(store, {
+    goal: '子部门目标',
+    roomType: 'studio',
+    verify: 'manual',
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+  }, fakeEngine(), null, parent)
+  assert.equal(result.ok, true)
+  const child = result.body.room
+  assert.equal(child.parentRoomId, 'room-parent')
+  assert.equal(child.depth, 1)
+  assert.deepEqual(store.readRoom('room-parent').childRoomIds, [child.id])
 })
 
 test('a custom room name is kept while the stage title follows the goal', async () => {

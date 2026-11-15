@@ -76,26 +76,26 @@ export const toDsRoomWork = room => {
   return busy.map(botId => ({ botId }))
 }
 
-const pill = ({ room, view, open, onToggle }) => h('button', {
-  type: 'button',
-  className: 'bt-pill',
-  'aria-expanded': open || undefined,
-  onClick: onToggle,
-}, h('span', { className: 'bt-pill-swap' },
+const pill = ({ room, view, open, onToggle }) => {
+  const title = view?.title || room.name || room.goal
+  return h('button', {
+    type: 'button',
+    className: 'bt-pill',
+    'aria-expanded': open || undefined,
+    onClick: onToggle,
+  },
   h('span', { className: 'bt-pill-goal' },
     h('span', { className: 'bt-pill-ico' }, h(TargetIcon)),
-    h('span', { className: 'bt-pill-title', title: room.name }, room.name),
+    h('span', { className: 'bt-pill-title', title }, title),
     view === null ? null : h('span', { className: 'bt-pill-count' }, `${view.number ?? 0}/${view.count}`)),
-  h('span', { className: 'bt-pill-name' }, room.goal)),
-h('span', { className: 'bt-pill-go' }, h(ChevronDownIcon)))
+  h('span', { className: 'bt-pill-go' }, h(ChevronDownIcon)))
+}
 
 const PILL_CSS = `
 .bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-card);border:.5px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:13.5px;line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform .16s ease}
 .bt-pill:hover{background:var(--bt-hover)}
 .bt-pill:active{transform:scale(.965)}
-.bt-pill-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
-.bt-pill-go{flex:none;display:inline-flex;align-items:center;justify-content:flex-end;width:0;margin-left:-8px;overflow:hidden;opacity:0;filter:blur(6px);transform:translateX(-6px);color:var(--bt-ink-2);transition:width .2s ease,margin-left .2s ease,transform .2s ease,opacity .18s ease,filter .18s ease}
-.bt-pill:hover .bt-pill-go,.bt-pill:focus-visible .bt-pill-go,.bt-pill[aria-expanded=true] .bt-pill-go{width:18px;margin-left:0;opacity:1;filter:none;transform:none}
+.bt-pill-go{flex:none;display:inline-flex;align-items:center;justify-content:flex-end;width:18px;overflow:hidden;color:var(--bt-ink-2)}
 .bt-pill[aria-expanded=true] .bt-pill-go svg{transform:rotate(180deg)}
 .bt-soft{height:36px;border-radius:999px;border:0;background:var(--bt-hover);color:var(--bt-ink);padding:0 16px;font-size:13.5px;cursor:pointer;flex:none;white-space:nowrap}
 .bt-soft:hover{background:var(--bt-active)}

@@ -191,6 +191,12 @@ export function createStore() {
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
+    createSubroom: async goal => {
+      const data = await post(`/api/rooms/${state.activeId}/subrooms`, { goal })
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '创建子部门失败' }
+      await load()
+      return { ok: true, room: data.room }
+    },
 
     recommendRoster: async (goal, repoPath) => {
       const data = await post('/api/roster/recommend', { goal, repoPath })

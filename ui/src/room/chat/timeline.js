@@ -4,6 +4,7 @@ import { renderSharedMessage } from '../message-view.js'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { hostLabelOf } from '../host.js'
 import { ChatConclusionCard } from './conclusion-card.js'
+import { ChatOpeningCard } from './opening-card.js'
 
 const TIME_GAP = 5 * 60 * 1000
 const timeLabel = ts => {
@@ -39,7 +40,14 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
         onContinueChat,
         onStartStudio,
       })
-      : renderSharedMessage({ room, byId, message })
+      : message.kind === 'chat' && message.meta?.opening === true
+        ? h(ChatOpeningCard, {
+          key: message.id,
+          message,
+          seat: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
+          room,
+        })
+        : renderSharedMessage({ room, byId, message })
     if (content === null) return null
     const mark = timeMarks.get(message.id)
     return mark === undefined

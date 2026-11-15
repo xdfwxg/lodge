@@ -3,6 +3,7 @@ import { chatTransitionEvent, transitionChat } from './state.js'
 import { seatDisplayName, seatHandle, toDisplayText } from '../../seat-labels.js'
 import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
+import { personalityTurnCue } from '../../../../shared/personalities.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
@@ -35,15 +36,18 @@ const discussionLines = (store, roomId) => {
 }
 
 const baseName = (room, seat) => seatHandle(room, seat) || seatDisplayName(room, seat)
+const seatSpecOf = (room, seatId) => (room?.seatSpecs ?? []).find(seat => seat.id === seatId) ?? null
 
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
 const speakerPrompt = ({ room, seat, round, turn, turnLimit, note }) => {
+  const personality = seatSpecOf(room, seat)?.personality
   return [
     `@${baseName(room, seat)} 聊天室话题：${room.goal}`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `你上一轮退回了结论，并补充：${note}`,
-    '请补充你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
-    '每次发言控制在 200 字以内：先给判断，再给一两条依据；不要复述他人原话，不要写总结。',
+    '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
+    `本轮表达：${personalityTurnCue(personality)}`,
+    '每次发言控制在 200 字以内；不要写总结。',
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')
 }
@@ -184,7 +188,7 @@ export const createChatScheduler = ({
           counts.set(seat, (counts.get(seat) ?? 0) + 1)
           last = seat
           if (turn === 1) {
-            const text = `本轮围绕【${room.goal}】展开讨论，欢迎大家踊跃发言。`
+            const text = `本轮围绕【${room.goal}】展开讨论。`
             store.appendMessage(roomId, { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
           }
           const before = await messageIds(chat)

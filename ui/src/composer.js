@@ -93,13 +93,11 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
   return h('div', { className: 'crew-composer-wrap' },
     mention !== null && matches.length > 0
       ? h('div', {
-        className: 'crew-mentions', role: 'listbox', 'aria-label': '选择群成员',
-        'aria-activedescendant': `${listId}-${activeOption.id}`,
+        className: 'crew-mentions', id: listId, role: 'listbox', 'aria-label': '选择群成员',
       },
-        matches.map((member, index) => h('button', {
+        matches.map((member, index) => h('div', {
           key: member.id,
           id: `${listId}-${member.id}`,
-          type: 'button',
           role: 'option',
           'aria-selected': index === picked,
           className: 'crew-mention-option',
@@ -120,6 +118,12 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
         value: draft,
         placeholder,
         disabled,
+        role: 'combobox',
+        'aria-label': '房间消息',
+        'aria-autocomplete': 'list',
+        'aria-expanded': mention !== null && matches.length > 0,
+        'aria-controls': mention !== null && matches.length > 0 ? listId : undefined,
+        'aria-activedescendant': activeOption === undefined ? undefined : `${listId}-${activeOption.id}`,
         onChange: change,
         onKeyDown: keyDown,
         onBlur: () => setMention(null),

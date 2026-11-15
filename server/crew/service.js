@@ -6,6 +6,7 @@ import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
+import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
@@ -27,7 +28,8 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
   const chat = createServiceChat({ store, live, emit })
   const closure = createServiceClosure({ store, emit })
 
-  const createRoom = body => createRealRoom({ store, engine, live, emit, seats, body, ports })
+  const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, seats, body, ports, parentRoom: parent })
+  const subrooms = createServiceSubrooms({ createRoom })
 
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
     const room = readRoom(roomId)
@@ -115,6 +117,10 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
 
     if (action === 'rework' && method === 'POST') {
       return stages.rework(room, await readBody())
+    }
+
+    if (action === 'subrooms' && method === 'POST') {
+      return subrooms.create(room, await readBody())
     }
 
     return fail('method', '方法不对')

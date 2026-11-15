@@ -3,7 +3,7 @@ import test from 'node:test'
 import { roomKinds, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
-  'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'resolvePlan',
+  'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'acceptsChatDecision', 'leadSeatOf', 'record',
   'initialMessages', 'provisionExtra', 'start',

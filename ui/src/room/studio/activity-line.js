@@ -17,5 +17,5 @@ export function StudioActivityLine({ text, since }) {
     h('span', null, text),
     elapsed === '' || elapsed === '0s'
       ? null
-      : h('span', { className: 'crew-activity-elapsed' }, elapsed))
+      : h('span', { className: 'crew-activity-elapsed', 'aria-hidden': 'true' }, elapsed))
 }

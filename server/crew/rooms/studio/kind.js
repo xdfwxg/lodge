@@ -159,6 +159,7 @@ export const studioKind = {
   ].filter(Boolean).join('\n'),
 
   validateRoster: type.validateRoster,
+  supportsSubrooms: true,
   resolvePlan: (plan, roster) => resolveStageAssignees(plan, roster),
   requiresGate: true,
   evaluateGate: args => evaluateRoomGate({ enabled: true, ...args }),

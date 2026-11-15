@@ -24,6 +24,7 @@ function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
     h('input', {
       className: 'crew-goal-input',
       type: 'text',
+      'aria-label': '返工说明（可选）',
       value: note,
       placeholder: '哪里不对？（可选）',
       onChange: event => setNote(event.target.value),
@@ -106,6 +107,7 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
             ? h('textarea', {
               className: 'crew-gate-input',
               rows: 2,
+              'aria-label': '回答 Lodge 的问题',
               value: draft,
               placeholder: '写下你的决定…',
               onChange: event => setDraft(event.target.value),
@@ -205,6 +207,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               h('textarea', {
                 className: 'crew-gate-input',
                 rows: 2,
+                'aria-label': '验收命令',
                 value: draft,
                 placeholder: '例如：npm test',
                 disabled: locked,

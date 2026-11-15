@@ -35,7 +35,7 @@ export function ChatConclusionCard({ message, seat, room, onAccept, onContinueCh
     setOpen(false)
     setNote('')
   }
-  return h('div', { className: 'crew-msg-conclusion' },
+  return h('div', { className: 'crew-msg-conclusion crew-msg-chat' },
     h(Speaker, { seat, ts: message.ts, time: false, station: false }),
     h('div', { className: 'crew-card crew-conclusion', 'data-settled': accepted ? 'true' : undefined },
         h('div', { className: 'crew-card-body' },

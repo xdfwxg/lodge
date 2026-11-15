@@ -32,6 +32,8 @@ export const buildRoomRecord = ({
   acceptance,
   shadowReview = false,
   chatTurnLimit = null,
+  parentRoomId = null,
+  depth = 0,
   gate = null,
 }) => {
   const chatLimit = Number.isInteger(chatTurnLimit) ? chatTurnLimit : CHAT_TURNS_PER_ROUND
@@ -78,6 +80,9 @@ export const buildRoomRecord = ({
   live: true,
   demo: false,
   state: 'active',
+  parentRoomId,
+  depth,
+  childRoomIds: [],
   idle: false,
   round: 0,
   noProgress: 0,

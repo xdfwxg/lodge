@@ -22,7 +22,7 @@ export function StudioPresence({ room, seats }) {
       h('i', { 'aria-hidden': true }),
       h('span', null, `${item.name} 正在处理`),
       typeof item.since === 'number'
-        ? h('span', { className: 'crew-activity-elapsed' }, durationOf(tick - item.since))
+        ? h('span', { className: 'crew-activity-elapsed', 'aria-hidden': 'true' }, durationOf(tick - item.since))
         : null)),
     queued.map(item => h('div', { key: `queue-${item.seatId}`, className: 'studio-queue' },
       h('span', { className: 'studio-presence-avatar' },

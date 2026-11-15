@@ -1,10 +1,11 @@
-import { createElement as h } from 'react'
+import { Fragment, createElement as h } from 'react'
 import { DsGoalHeader } from '../../goal-island/ds-adapter.js'
 import { buildGoalView } from '../../goal-island/model.js'
 import { StudioActivityLine } from './activity-line.js'
 import { studioActivityLine } from './status-line.js'
 import { StudioPresence } from './presence.js'
 import { StageDock } from './stage-dock.js'
+import { SubroomTree } from './subroom-tree.js'
 import { StudioTranscript } from './transcript.js'
 
 // 工作室的房间视图：目标岛、状态行、时间线、阶段坞和交付卡。
@@ -23,15 +24,22 @@ export const studioView = {
     text: studioActivityLine(room, viewModel),
     since: typeof room.busySince === 'number' ? room.busySince : null,
   }),
-  transcript: ({ room, seats, actions }) => h(StudioTranscript, {
-    room,
-    seats,
-    hideKinds: [],
-    delivery: room.delivery ?? null,
-    onAccept: actions.accept,
-    onStageAccept: actions.accept,
-    onApproval: actions.approval,
-  }),
+  transcript: ({ room, seats, state, actions }) => h(Fragment, null,
+    h(SubroomTree, {
+      room,
+      rooms: state.rooms,
+      onSelect: actions.selectRoom,
+      onCreate: actions.createSubroom,
+    }),
+    h(StudioTranscript, {
+      room,
+      seats,
+      hideKinds: [],
+      delivery: room.delivery ?? null,
+      onAccept: actions.accept,
+      onStageAccept: actions.accept,
+      onApproval: actions.approval,
+    })),
   presence: ({ room, seats }) => h(StudioPresence, { room, seats }),
   typing: () => null,
   dock: ({ room, dock }) => h(StageDock, { room, ...dock }),

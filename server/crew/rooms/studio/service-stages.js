@@ -3,6 +3,7 @@ import { fail, ok } from '../../result.js'
 import { acceptanceChangeError } from '../../service-policy.js'
 import { FINAL_TITLE } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
+import { childResultText, childVerdictsOf } from './subrooms.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { seatDisplayName } from '../../seat-labels.js'
@@ -43,6 +44,39 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         verdicts,
         next: next >= 0 ? room.stages[next]?.title ?? null : null,
       },
+    }
+  }
+
+  const notifyParent = child => {
+    if (typeof child?.parentRoomId !== 'string' || child.parentRoomId === '') return
+    const parent = store.readRoom(child.parentRoomId)
+    if (parent === null) return
+    const verdicts = childVerdictsOf(readMessages(child.id))
+    const text = childResultText(child, verdicts)
+    appendMessage(parent.id, {
+      kind: 'child_result',
+      authorId: 'system',
+      text,
+      meta: {
+        childRoomId: child.id,
+        childName: child.name,
+        depth: child.depth ?? 1,
+        verdicts,
+      },
+    })
+    const linked = updateRoom(parent.id, current => {
+      current.childResults = [...(current.childResults ?? []), { roomId: child.id, name: child.name, at: Date.now() }].slice(-10)
+      return { events: [{ type: 'room.child_result', payload: { childRoomId: child.id } }] }
+    })
+    if (linked !== null) emit('room', linked)
+    if (typeof live.isAttached === 'function' && live.isAttached(parent.id) === true) {
+      const lead = parent.leadSeat ?? parent.members?.[0]
+      const leadName = parent.seatNames?.[lead]
+      if (typeof lead === 'string' && typeof leadName === 'string') {
+        void live.sendToSeat(parent.id, lead, `@${leadName} ${text}\n请只依据这些 verdict 决定下一步。`).catch(error => {
+          appendMessage(parent.id, { kind: 'system', text: `子部门结果未能唤醒 Planner：${error?.message ?? error}` })
+        })
+      }
     }
   }
 
@@ -144,6 +178,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       })
     }
     let finalRoom = next < 0 ? completeRoom(room) ?? room : room
+    if (next < 0) notifyParent(finalRoom)
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
       void live.startStage(room, next).catch(error => {
         appendMessage(room.id, { kind: 'system', text: `启动执行失败：${error?.message ?? error}` })

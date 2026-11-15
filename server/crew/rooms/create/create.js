@@ -9,7 +9,7 @@ import { roomModeForType } from '../kinds.js'
 
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
-export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports }) => {
+export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
   const { goal, name, roomType, verify, acceptance, orchestration, shadowReview, chatTurnLimit } = request
@@ -129,6 +129,8 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       acceptance,
       chatTurnLimit,
       shadowReview,
+      parentRoomId: parentRoom?.id ?? null,
+      depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
       gate: {
         decision: gate.decision,
         reasons: gate.reasons,
@@ -140,6 +142,13 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     })
     store.writeRoom(room)
     stored = true
+    if (parentRoom !== null) {
+      const linked = store.updateRoom(parentRoom.id, current => {
+        current.childRoomIds = [...new Set([...(current.childRoomIds ?? []), room.id])]
+        return { events: [{ type: 'room.subroom.created', payload: { childRoomId: room.id } }] }
+      })
+      if (linked !== null) emit('room', linked)
+    }
     store.appendEvent(room.id, 'room.created', { live: true, templateId, seats: room.members, sourceRepo, branch: room.branch })
     ports.roomFiles.writeBrief(room, resolvedPlan)
     ports.roomFiles.writeGoal(room)

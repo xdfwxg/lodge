@@ -1,4 +1,4 @@
-import { createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useId, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
@@ -55,6 +55,7 @@ function NewRoomDialog({
   const [loginNote, setLoginNote] = useState(null)
   const [error, setError] = useState(null)
   const [choosingType, setChoosingType] = useState(false)
+  const goalId = useId()
   const overlayProps = useOverlay({ label: '新建房间', onClose, active: open })
 
   useEffect(() => {
@@ -337,6 +338,7 @@ function NewRoomDialog({
           h('textarea', {
             className: 'crew-goal-input',
             rows: 2,
+            'aria-label': `问题 ${index + 1}：${question.text}`,
             value: answers[index] ?? question.recommendation ?? '',
             onChange: event => setAnswers(list => list.map((item, at) => at === index ? event.target.value : item)),
           }))))
@@ -367,10 +369,11 @@ function NewRoomDialog({
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-field' },
-      h('b', { className: 'crew-field-label' },
+      h('label', { className: 'crew-field-label', htmlFor: goalId },
         h(roomKind.goalIcon, { size: 16 }),
         roomKind.goalLabel),
       h('textarea', {
+        id: goalId,
         className: 'crew-goal-input crew-goal-lg',
         rows: 4,
         autoFocus: true,
@@ -420,6 +423,9 @@ function NewRoomDialog({
 
   return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
+      h('div', { className: 'crew-dialog-heading' },
+        h('h2', null, '新建房间'),
+        h('p', null, '给团队开一个工作空间')),
       h('div', { className: 'crew-dialog-head' },
         h('button', {
           type: 'button',

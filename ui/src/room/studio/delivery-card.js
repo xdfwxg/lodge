@@ -70,13 +70,18 @@ export function DeliveryCard({ delivery }) {
             ? h('div', { className: 'studio-delivery-row' },
               h('span', { className: 'studio-delivery-label' }, '位置'),
               h('code', { title: delivery.workspacePath }, delivery.workspacePath),
-              h('button', { type: 'button', className: 'crew-ghost', onClick: () => void open(delivery.workspacePath) }, '打开'))
+              h('button', {
+                type: 'button',
+                className: 'crew-ghost',
+                'aria-label': '打开交付文件夹',
+                onClick: () => void open(delivery.workspacePath),
+              }, '打开'))
             : null),
         delivery.workspacePath && delivery.workspace?.vcs === 'none' && delivery.sourcePath
           ? h('p', { className: 'crew-field-hint' }, `原目录未改：${delivery.sourcePath}`)
           : null,
-        openNotice === null ? null : h('p', { className: 'crew-field-hint' }, openNotice),
-        openError === null ? null : h('p', { className: 'crew-field-hint' }, openError),
+        openNotice === null ? null : h('p', { className: 'crew-field-hint', role: 'status' }, openNotice),
+        openError === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, openError),
         h('details', {
           className: 'crew-fold studio-delivery-details',
           open: detailsOpen || undefined,
@@ -88,7 +93,12 @@ export function DeliveryCard({ delivery }) {
               h('b', null, `工作区文件 · ${delivery.artifacts.length}`),
               h('ul', null, delivery.artifacts.map(artifact => h('li', { key: artifact.path },
                 h('code', { title: artifact.path }, artifact.path.split('/').pop() || artifact.path),
-                h('button', { type: 'button', className: 'crew-ghost', onClick: () => void open(artifact.path) }, '打开')))))
+                h('button', {
+                  type: 'button',
+                  className: 'crew-ghost',
+                  'aria-label': `打开 ${artifact.path}`,
+                  onClick: () => void open(artifact.path),
+                }, '打开')))))
             : null,
           h('div', { className: 'crew-delivery-stages' },
             ...(delivery.stages ?? []).map(stage => h('div', { key: stage.index, className: 'crew-delivery-stage' },
@@ -121,6 +131,7 @@ export function DeliveryCard({ delivery }) {
                   ? h('button', {
                     type: 'button',
                     className: 'crew-ghost',
+                    'aria-label': `打开 ${file}`,
                     onClick: () => void open(joinPath(delivery.workspacePath, file)),
                   }, '打开')
                   : null))))

@@ -141,6 +141,8 @@ function RoomView({ state, room, store, onStartStudio }) {
     chatAccept: () => void store.chatAccept(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
     continueChat: note => void store.continueChat(note),
+    createSubroom: goal => store.createSubroom(goal),
+    selectRoom: id => store.select(id),
     startStudio: onStartStudio,
   }
   // 阶段坞需要宿主动作；只有声明了 dock 的模式会渲染它。

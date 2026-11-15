@@ -54,8 +54,8 @@ const setup = () => {
     seatBots: { a: 'A', b: 'B' },
     seatNames: { a: 'A', b: 'B' },
     seatSpecs: [
-      { id: 'a', name: '甲' },
-      { id: 'b', name: '乙' },
+      { id: 'a', name: '甲', personality: 'assertive' },
+      { id: 'b', name: '乙', personality: 'cheerful' },
     ],
     chatHost: { memberRef: 'H', name: 'LodgeHost', displayName: 'Lodge 主持' },
     chatRoom: { id: 'chat', sessionRef: 'thread' },
@@ -119,7 +119,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(ctx.room().chat.phase, 'awaiting_decision')
   const opening = ctx.messages.find(message => message.kind === 'chat' && message.meta?.opening === true)
   assert.match(opening.text, /本轮围绕【讨论状态提示】展开讨论/)
-  assert.match(opening.text, /欢迎大家踊跃发言/)
+  assert.doesNotMatch(opening.text, /欢迎大家踊跃发言/)
   assert.doesNotMatch(opening.text, /先发言/)
   assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 6)
   const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
@@ -129,6 +129,8 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(ctx.room().chat.conclusionId, conclusion.id)
   const prompts = ctx.history.filter(message => message.role === 'user').map(message => message.text)
   assert.equal(prompts.some(text => text.includes('已有讨论')), false)
+  assert.equal(prompts.some(text => text.includes('本轮表达：【开朗活跃】')), true)
+  assert.equal(prompts.some(text => text.includes('本轮表达：【果敢善辩】')), true)
   assert.equal(Math.max(...prompts.map(text => text.length)) < 400, true)
 
   ctx.store.updateRoom('room-chat', state => {

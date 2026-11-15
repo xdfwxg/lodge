@@ -1,6 +1,6 @@
 # Lodge 房间模型：ChatRoom / WorkRoom
 
-> **一期范围（2026-11-15）**：只保留聊天室基础功能、开工作室（Lodge 生成方案或手动配置）、工作室群聊/阶段、可切换编排（流水线/并行扇出/对抗复核）、Gate 前置准入与 advisor 建议、目标岛、开工卡、工作拍/接力棒、复核卡、影子评审对照卡、交付卡。下文中审计、复盘、交接包、续做/分叉、预算/用量、信任阶梯、Planner MCP、子工作室、阶段编辑/依赖/部分成功、多验收投票、项目约束、资源投影、演示/模拟/种子、运行控制/修复、证据账本/digest 等条目为历史设计，不再代表当前代码。
+> **一期范围（2026-11-15）**：只保留聊天室基础功能、开工作室（Lodge 生成方案或手动配置）、工作室群聊/阶段、可切换编排（流水线/并行扇出/对抗复核）、Gate 前置准入与 advisor 建议、目标岛、开工卡、工作拍/接力棒、复核卡、影子评审对照卡、子部门树、交付卡。下文中审计、复盘、交接包、续做/分叉、预算/用量、信任阶梯、Planner MCP、阶段编辑/依赖/部分成功、多验收投票、项目约束、资源投影、演示/模拟/种子、运行控制/修复、证据账本/digest 等条目为历史设计，不再代表当前代码。
 
 
 > 目标架构。当前实现状态以 `docs/reuse-map.md` §8.5 为准；本文只定义不可随意突破的边界。
@@ -88,9 +88,9 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
   - 独立性策略 `independencePolicy: prefer | require`：默认 `prefer`，优先把验收放到不同厂商并在降级时明确标注；`require` 在没有第二厂商或实际仍同厂商时拒绝建房，不静默降级
 - 内置底座：开工卡状态机、审批卡、权限卡、信任阶梯 `trust.js`、证据持久化、loop 迭代闭环。验收按阶段幂等：执行者没有工具调用或产出的闲聊回合不触发新的命令验收；没有新增交付改动时沿用本轮的验收，不重复提交候选；**工作树干净不等于没有交付**：返工 amend、执行者自己 commit、或新阶段起始 HEAD 已前进时，都按当前 HEAD 重跑验收并重新发起复核，隔离副本用房间 HEAD 的提交哈希，证据用“阶段起点 → 当前 HEAD”的 range diff 补全改动清单，并记录实际被验收的候选提交哈希（不是提交前的 HEAD）。本机运行文件（`.crew`、`.lodge`、`.env`、`node_modules`）不进入候选提交与验收 diff；worktree 级 `core.excludesFile` 让执行者自己 `git add -A` 时也不会带上这些文件；内部派活/复核提示带 `[[lodge-internal]]` 标记，不进入主时间线。席位返回引擎级错误（`error:`，如额度不足、登录失效、限流）时，房间自动暂停为 `seat_error`，当前任务标记 failed，`needsYou` 给出具体席位、原因和下一步（充值/换模型/重新登录/稍后继续），不把原始 429 JSON 直接丢给用户。
 - 流转公约：主任务闭环必须经过 Planner → Executor → Verifier；支持子任务并行、重试、分支，但进入执行阶段后不可绕过 Verifier 放行。
-- 子工作室：最多 3 层，子房必须是 studio；父 Planner 只接收子工作室 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。高级面板以树视图展示父子状态与子房 verdict，父房只读，不提供修改子房内部流转的动作。
-- Planner 工具面：Lodge 自带一个按房间注册的无状态 MCP server（`/mcp/planner/<roomId>`，令牌绑定房间），只挂给该房间的 Planner，提供 `create_subroom`、`reject_plan`、`check_gate`；工具调用回到业务层执行，结果由 MCP 返回，Planner 不能伪造。MCP 不可用时回退到 `<lodge-tool>{"name":"...","args":{...}}</lodge-tool>` 文字协议。两条路径都不是新的 roleKind，也不改变谁有权放行。
-- Planner MCP 生命周期：建房时注册并启用，Planner bot 的 `mcpServers` 只多这一项；房间 `signed`/`rejected` 时移除；`stopped` 房间超过 TTL（默认 10 分钟）后由定时 sweep 回收；正在执行工具调用的房间不中断。启动时先 sweep 再补齐进行中房间。基座最多保存 20 个 MCP server，`/api/health` 暴露 `plannerMcp` 数量与在途调用数。
+- 子部门（子工作室）：最多 3 层，子房必须是 studio；父 Planner 只接收子部门 Verifier 的 verdict，不重审子房证据细节。子房完成后会以 `child_result` 消息回到父房，并唤醒父 Planner。父房时间线顶部以子部门树展示父子状态与子房 verdict；父房只读，不提供修改子房内部流转的动作。子部门由人在树里新建，默认人工签字。
+- Planner 工具面（已移除，保留设计记录）：Lodge 曾自带一个按房间注册的无状态 MCP server（`/mcp/planner/<roomId>`，令牌绑定房间），只挂给该房间的 Planner，提供 `create_subroom`、`reject_plan`、`check_gate`；当前子部门改由人从树里新建，不再给 Planner 挂 MCP。
+- Planner MCP 生命周期（已移除）：建房时注册并启用，Planner bot 的 `mcpServers` 只多这一项；房间 `signed`/`rejected` 时移除；`stopped` 房间超过 TTL（默认 10 分钟）后由定时 sweep 回收。当前代码不再注册 Planner MCP。
 
 ## 公共约束
 
@@ -116,16 +116,16 @@ Lodge 底层将房间划分为两类，房间类型创建时确定，运行期�
 7. **聊天室不挂完整执行引擎**。写文件、执行命令、外部动作都不放行；要执行请新建工作室。
 8. **角色实例不跨房间继承**。身份绑定房间。
 9. **不做交接包或快照导入**。交付结果以交付卡和房间记录为准。
-10. **子工作室最多 3 层，且子工作室不能是聊天室**。父 Planner 只消费子 Verifier 的 verdict。
+10. **子部门最多 3 层，且子部门不能是聊天室**。父 Planner 只消费子 Verifier 的 verdict。
 12. **advisor 不输出 `pass` / `reject` verdict**。它只返回建议；正式判定只能来自 Verifier 或人工签字。
-13. **子工作室不能直接修改父工作室的 `closure`**。父房只能读取子房的 verdict，并由自己的 Planner/Verifier 继续流转。
+13. **子部门不能直接修改父工作室的 `closure`**。父房只能读取子房的 verdict，并由自己的 Planner/Verifier 继续流转。
 
 ## 暂不做（可重新评估）
 
 这些不是永久禁止，只是当前明确的非目标：
 
 - 外部评估产品接入（本地已有规则/模型评估服务，外部地址由 `ADVISOR_URL` 指定）
-- 子工作室 UI 编排
+- 子部门的自动编排（当前只能由人在父房里新建，Planner 不自动拆子部门）
 
 ## 对应门禁
 
