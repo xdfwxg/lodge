@@ -46,8 +46,12 @@ export function StudioTranscript({
   const renderChapterBody = chapter => {
     const body = groupSteps(chapter.items)
     const liveStage = chapter.state === 'active' && room.state === 'active' && room.busy === true
+    const activeIndex = room.stages.findIndex(stage => stage.state === 'active')
+    const decisionStage = room.needsYou?.kind === 'decision' && chapter.index === activeIndex
     return body.map((item, index) => {
       const live = liveStage && index === body.length - 1
+      // 等用户拍板时，工具调用不是主角；决策卡先说话。
+      if (item.kind === 'steps' && decisionStage) return null
       if (item.kind === 'steps') return h(StepGroup, { key: item.key, steps: item.steps, live })
       if (item.kind === 'activity') {
         return displayableStep(item) ? h(StudioStep, { key: item.id, step: item, live }) : null

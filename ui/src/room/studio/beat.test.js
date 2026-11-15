@@ -15,6 +15,12 @@ test('the first paragraph stays in the beat and the rest expands', () => {
   assert.equal(beat.rest, '依据：三条测试都通过。')
 })
 
+test('a short heading is shown together with its body', () => {
+  const beat = workBeatOf('**工作日志**\n\n- 做了什么：写清单\n- 结果：检查通过')
+  assert.equal(beat.preview, '**工作日志**\n\n- 做了什么：写清单\n- 结果：检查通过')
+  assert.equal(beat.rest, '')
+})
+
 test('a long first paragraph is cut near a sentence boundary', () => {
   const text = `${'实现细节。'.repeat(60)}最后一句。`
   const beat = workBeatOf(text, 80)

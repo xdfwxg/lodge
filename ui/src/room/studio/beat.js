@@ -2,6 +2,7 @@ import { createElement as h, useEffect, useState } from 'react'
 import { Markdown, Speaker } from '../../message-cards.js'
 
 const MAX_BEAT = 180
+const HEADING = /^(?:\*\*[^*\n]{1,24}\*\*|[^\n。！？]{1,24}[：:])$/
 
 const cutAt = (text, limit) => {
   const boundary = Math.max(
@@ -17,15 +18,21 @@ export const workBeatOf = (text, limit = MAX_BEAT) => {
   const clean = String(text ?? '').trim()
   if (clean === '') return { preview: '', rest: '' }
   const paragraphs = clean.split(/\n\s*\n/).map(part => part.trim()).filter(Boolean)
-  const first = paragraphs[0] ?? ''
+  let first = paragraphs[0] ?? ''
+  let restParagraphs = paragraphs.slice(1)
+  // 「工作日志」这种短标题不单独占一行，要和下面的正文一起出现在预览里。
+  if (HEADING.test(first) && restParagraphs.length > 0) {
+    first = `${first}\n\n${restParagraphs[0]}`
+    restParagraphs = restParagraphs.slice(1)
+  }
   if (first.length <= limit) {
-    const rest = paragraphs.slice(1).join('\n\n').trim()
+    const rest = restParagraphs.join('\n\n').trim()
     return { preview: first, rest }
   }
   const cut = cutAt(first, limit)
   const rest = [
     first.slice(cut).trim(),
-    paragraphs.slice(1).join('\n\n').trim(),
+    restParagraphs.join('\n\n').trim(),
   ].filter(Boolean).join('\n\n')
   return { preview: first.slice(0, cut).trim(), rest }
 }

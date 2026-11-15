@@ -49,11 +49,9 @@ export const studioView = {
         repoPath: room.repoPath ?? '',
       }),
     })
-    // A finished room leads with the result; the sub-department tree follows
-    // the folded work log. Live rooms keep the tree above the running work.
-    return room.state === 'complete'
-      ? h(Fragment, null, transcript, subrooms)
-      : h(Fragment, null, subrooms, transcript)
+    // The work leads; sub-departments follow it, so an empty tree never sits
+    // above the first thing the room has to say.
+    return h(Fragment, null, transcript, subrooms)
   },
   presence: ({ room, seats }) => h(StudioPresence, { room, seats }),
   composerPlaceholder: () => '交代下一步，或问进度…',

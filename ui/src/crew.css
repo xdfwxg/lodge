@@ -416,6 +416,9 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-subroom-input:disabled{opacity:.55}
 .crew-subroom-submit{flex:none;height:32px;min-width:64px;margin-left:0;font-size:13px}
 .crew-subrooms-error{font-size:12.5px;line-height:17px;color:var(--bt-danger-text)}
+.crew-subrooms-compact{display:flex;flex-direction:column;gap:6px;padding:2px 0}
+.crew-subrooms-compact .crew-subrooms-add{padding:4px 0;color:var(--bt-ink-3)}
+.crew-subrooms-compact .crew-subrooms-add:hover{color:var(--bt-ink)}
 @media (max-width:600px){.crew-subroom-reason{display:none}}
 @media (max-width:560px){.crew-subroom-verdict[data-verdict="none"]{display:none}}
 .crew-ghost{display:inline-flex;align-items:center;justify-content:center;height:var(--bt-control-h);padding:0 12px;border:1px solid var(--bt-line-2);border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink);font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap;transition:background-color .12s ease,border-color .12s ease}
