@@ -22,6 +22,7 @@ export function StudioTranscript({
   onAccept,
   onStageAccept,
   onApproval,
+  onContinue = null,
   hideKinds = [],
   delivery = null,
 }) {
@@ -83,7 +84,7 @@ export function StudioTranscript({
 
   const result = delivery === null || delivery === undefined
     ? null
-    : h(DeliveryCard, { key: 'delivery', delivery })
+    : h(DeliveryCard, { key: 'delivery', delivery, onContinue })
 
   // A finished room leads with what was delivered. The stage-by-stage record
   // stays available, but folded, so the first screen is the outcome.

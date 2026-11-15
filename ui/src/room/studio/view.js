@@ -42,6 +42,12 @@ export const studioView = {
       onAccept: actions.accept,
       onStageAccept: actions.accept,
       onApproval: actions.approval,
+      onContinue: () => actions.startStudio({
+        goal: `${room.goal}\n\n上一次交付「${room.name}」已经完成。现在在这个基础上继续：`,
+        conclusion: '',
+        sourceName: room.name,
+        repoPath: room.repoPath ?? '',
+      }),
     })
     // A finished room leads with the result; the sub-department tree follows
     // the folded work log. Live rooms keep the tree above the running work.

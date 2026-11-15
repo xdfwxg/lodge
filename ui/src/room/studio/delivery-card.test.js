@@ -87,3 +87,18 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.match(text(tree), /2\/2 阶段/)
   assert.match(text(tree), /1\/1 命令通过/)
 })
+
+test('the delivery sheet offers a way to continue', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '设置页保存',
+      goal: '保存后刷新仍生效',
+      stages: [],
+      commands: [],
+      changedFiles: [],
+    },
+    onContinue: () => {},
+  }))
+  assert.match(text(tree), /继续做/)
+})

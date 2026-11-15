@@ -86,6 +86,7 @@ function NewRoomDialog({
     if (!open || seed === null) return
     setRoomType('studio')
     setGoal(seedGoalText(seed))
+    if (typeof seed.repoPath === 'string' && seed.repoPath !== '') setRepoPath(seed.repoPath)
     setStep(0)
     setProposal(null)
     setSeatChoices([])
