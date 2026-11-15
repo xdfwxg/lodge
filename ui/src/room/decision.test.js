@@ -9,18 +9,18 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
   })
-  assert.equal(decision.title, '讨论结束')
+  assert.equal(decision.title, '聊完了，等你定')
   assert.match(decision.detail, /返工台账/)
-  assert.equal(decision.primary.label, '确认结论')
-  assert.equal(decision.extra.label, '用结论新建工作室')
+  assert.equal(decision.primary.label, '就这样，收结论')
+  assert.equal(decision.extra.label, '拿结论开工作室')
   const complete = buildChatDecision({
     roomType: 'chat',
     state: 'complete',
     chat: { phase: 'accepted', accepted: true, running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
   })
-  assert.equal(complete.title, '聊天已结束')
-  assert.equal(complete.extra.label, '用结论新建工作室')
+  assert.equal(complete.title, '这次聊完了')
+  assert.equal(complete.extra.label, '拿结论开工作室')
 
   const interrupted = buildChatDecision({
     roomType: 'chat',
@@ -28,7 +28,7 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     chat: { phase: 'discussing', running: false, turns: 2, turnLimit: 4 },
     messages: [],
   })
-  assert.equal(interrupted.title, '讨论中断')
+  assert.equal(interrupted.title, '刚才断了')
   assert.equal(interrupted.primary.action, 'chat-resume')
   assert.doesNotMatch(interrupted.detail, /\d+\/\d+/)
 })
@@ -39,7 +39,7 @@ test('a free chat does not show speaking counts', () => {
     state: 'active',
     chat: { phase: 'discussing', running: true, turns: 2, turnLimit: 4, speaker: 'worker' },
   })
-  assert.equal(running.title, '讨论中')
+  assert.equal(running.title, '正在聊')
   assert.doesNotMatch(running.title, /\d+/)
   assert.equal(running.key, 'chat-running')
   const waiting = buildChatDecision({

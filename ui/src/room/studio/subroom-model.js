@@ -1,12 +1,12 @@
 export const MAX_SUBROOM_DEPTH = 3
 
 const CLOSURE_LABELS = {
-  open: '未开始',
-  planned: '已规划',
-  executing: '执行中',
-  verifying: '待签字',
-  signed: '已签字',
-  rejected: '已退回',
+  open: '还没开始',
+  planned: '安排好了',
+  executing: '正在做',
+  verifying: '等你签字',
+  signed: '签好了',
+  rejected: '被打回了',
 }
 
 export const canCreateSubroom = room => (
@@ -16,10 +16,10 @@ export const canCreateSubroom = room => (
 )
 
 export const subroomStatusOf = room => {
-  if (room?.state === 'complete') return '完成'
-  if (room?.state === 'paused') return '已暂停'
-  if (room?.state === 'stopped') return '已停止'
-  return CLOSURE_LABELS[room?.closure] ?? '进行中'
+  if (room?.state === 'complete') return '做完了'
+  if (room?.state === 'paused') return '先停一下'
+  if (room?.state === 'stopped') return '停下来了'
+  return CLOSURE_LABELS[room?.closure] ?? '正在做'
 }
 
 export const lastVerdictOf = room => [...(room?.messages ?? [])]
@@ -27,7 +27,7 @@ export const lastVerdictOf = room => [...(room?.messages ?? [])]
   .find(message => message.kind === 'verdict')
 
 export const verdictTextOf = verdict => {
-  if (verdict === undefined || verdict === null) return '暂无复核'
+  if (verdict === undefined || verdict === null) return '还没检查'
   return verdict.meta?.pass === true ? '通过' : '退回'
 }
 

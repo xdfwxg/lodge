@@ -80,7 +80,7 @@ test('an interrupted discussion can restart the same round', () => {
   assert.equal(ctx.room().chat.running, true)
   assert.equal(ctx.room().chat.turns, 0)
   assert.equal(ctx.room().chat.phase, 'discussing')
-  assert.equal(ctx.messages.at(-1).text, '讨论中断，已重新开始本轮。')
+  assert.equal(ctx.messages.at(-1).text, '刚才断了，这一轮重新开始了。')
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '' }])
 })
 
@@ -88,5 +88,5 @@ test('restart refuses when a conclusion is already waiting', () => {
   const ctx = setup()
   const result = ctx.chat.restart(ctx.room(), {})
   assert.equal(result.ok, false)
-  assert.match(result.error, /先确认或再讨论/)
+  assert.match(result.error, /先定下来或者继续聊/)
 })

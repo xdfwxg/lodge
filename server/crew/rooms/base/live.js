@@ -159,7 +159,7 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
   const send = async (roomId, text) => {
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('实时房间未绑定')
-    if (entry.strategy.busyReview(entry)) throw new Error('复核进行中，先等验收结论')
+    if (entry.strategy.busyReview(entry)) throw new Error('验收员还在看，等结论出来再继续')
     const room = store.readRoom(roomId)
     if (room === null) throw new Error('没有这个房间')
     // 成员默认休眠，只有被 @ 才唤醒；人直接说话时默认唤醒主席位，避免“发了没人回”。

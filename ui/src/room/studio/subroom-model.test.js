@@ -48,11 +48,11 @@ test('the last verdict and its label are read from child messages', () => {
     ],
   })
   assert.equal(verdictTextOf(lastVerdictOf(child)), '通过')
-  assert.equal(verdictTextOf(lastVerdictOf(room('empty'))), '暂无复核')
+  assert.equal(verdictTextOf(lastVerdictOf(room('empty'))), '还没检查')
 })
 
 test('status prefers the room state over the closure', () => {
-  assert.equal(subroomStatusOf(room('a', { closure: 'executing' })), '执行中')
-  assert.equal(subroomStatusOf(room('a', { state: 'complete', closure: 'signed' })), '完成')
-  assert.equal(subroomStatusOf(room('a', { state: 'paused' })), '已暂停')
+  assert.equal(subroomStatusOf(room('a', { closure: 'executing' })), '正在做')
+  assert.equal(subroomStatusOf(room('a', { state: 'complete', closure: 'signed' })), '做完了')
+  assert.equal(subroomStatusOf(room('a', { state: 'paused' })), '先停一下')
 })

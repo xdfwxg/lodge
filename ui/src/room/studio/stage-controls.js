@@ -36,13 +36,13 @@ function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
       },
     }),
     h('div', { className: 'crew-rework-actions' },
-      h('button', { type: 'button', className: 'crew-accept', disabled: busy, onClick: () => void submit() }, busy ? '正在重审…' : '确认重做'),
+      h('button', { type: 'button', className: 'crew-accept', disabled: busy, onClick: () => void submit() }, busy ? '正在重做…' : '好，重做'),
       h('button', { type: 'button', className: 'crew-ghost', onClick: () => { setOpen(false); setNote('') } }, '取消')))
 }
 
 function FinalSummary({ room }) {
   return h('div', { className: 'crew-final-summary' },
-    h('b', null, '整房交付确认'),
+    h('b', null, '收尾前，再确认一遍'),
     room.stages.map((item, index) => {
       const floor = reworkFloorOf(room.messages, index)
       const evidence = [...room.messages].reverse().find(message => (
@@ -61,7 +61,7 @@ function FinalSummary({ room }) {
           : item.state === 'passed' ? '已确认' : '你确认'),
         h('span', null, verdict === undefined ? '' : verdict.meta?.pass === true ? '通过' : '退回'))
     }),
-    h('p', { className: 'crew-field-hint' }, '确认后写入结论，房间完成。'))
+    h('p', { className: 'crew-field-hint' }, '确认后写下结论，这次交付就结束。'))
 }
 
 export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }) {
@@ -76,10 +76,10 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
   const [busy, setBusy] = useState(false)
   const canConfirm = !locked && (!blocked || draft.trim() !== '')
   const actionLabel = blocked
-    ? '提交回答并继续'
+    ? '回答并继续'
     : next === undefined
-      ? '确认完成整房'
-      : `确认，进入阶段 ${index + 2}`
+      ? '可以，收尾'
+      : '可以，下一步'
 
   const confirm = async () => {
     if (!canConfirm || busy) return
@@ -94,11 +94,11 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
     h('div', { className: 'crew-msg-body' },
       h('div', { className: 'crew-card crew-human-gate' },
         h('div', { className: 'crew-card-head' },
-          h('span', null, `阶段 ${index + 1} / ${room.stages.length}`),
-          h('span', { className: 'crew-verdict', 'data-pending': true }, blocked ? '待回答' : '待确认')),
+          h('span', null, `第 ${index + 1} 步 · 共 ${room.stages.length} 步`),
+          h('span', { className: 'crew-verdict', 'data-pending': true }, blocked ? '等你回答' : '等你定')),
         h('div', { className: 'crew-card-body' },
           h('p', { className: 'crew-gate-lead' },
-            blocked ? 'Lodge 需要你先回答一个问题。' : '需要你确认的是：'),
+            blocked ? '先回答一个问题，我才好继续。' : '这一步要你定：'),
           h('div', { className: 'crew-gate-title' }, stage.title),
           next === undefined && !blocked ? h(FinalSummary, { room }) : null,
           openingGate ? h(ConfirmationPoints, { room }) : null,
@@ -120,13 +120,13 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
             })
             : h('p', { className: 'crew-gate-question' },
               manualWork
-                ? '检查上方的产出与文件；确认后进入下一步。'
-                : '确认上方的内容；这一步不需要跑检查。'),
+                ? '看看上面的产出和文件，没问题就继续。'
+                : '看看上面的内容，没问题就继续。'),
           h('p', { className: 'crew-gate-next' },
             next === undefined
-              ? '确认后生成结论，完成这次交付。'
-              : `确认后进入阶段 ${index + 2}「${next.title}」。`),
-          blocked ? null : h('p', { className: 'crew-gate-hint' }, '不同意？在下方直接说，Lodge 会先回答。')),
+              ? '没问题的话，这次交付就收尾。'
+              : `没问题的话，下一步是「${next.title}」。`),
+          blocked ? null : h('p', { className: 'crew-gate-hint' }, '哪里不对，直接在下面对我说。')),
         h('div', { className: 'crew-card-foot' },
           stage.manual === true && !blocked
             ? h(ReworkControl, { room, index, onRework })
@@ -188,22 +188,22 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
     h('div', { className: 'crew-msg-body' },
       h('div', { className: 'crew-card crew-human-gate' },
         h('div', { className: 'crew-card-head' },
-          `阶段 ${index + 1} · 检查`,
+          `第 ${index + 1} 步 · 检查`,
           h('span', { className: 'crew-verdict', 'data-pending': true },
-            evidence === undefined ? '等待检查' : exit !== 0 ? '检查没通过' : rejected ? '验收退回' : '等待复核')),
+            evidence === undefined ? '等检查结果' : exit !== 0 ? '检查没通过' : rejected ? '被打回了' : '验收员在看')),
         h('div', { className: 'crew-card-body' },
           h('div', { className: 'crew-gate-title' }, stage.title),
           room.repoPath === null || room.repoPath === undefined
-            ? h('p', { className: 'crew-gate-question' }, '房间还没有工作文件夹，检查不会执行。先选择一个文件夹。')
+            ? h('p', { className: 'crew-gate-question' }, '房间还没有工作文件夹，没法检查。先选一个文件夹。')
             : null,
           rejected
             ? h('div', { className: 'crew-gate-reject' },
-              h('p', null, verdict.text || '验收员打回了这一步。'),
+              h('p', null, verdict.text || '验收员觉得还不行。'),
               h(ReworkControl, { room, index, onRework }))
             : null,
           editing
             ? h('div', { className: 'crew-acceptance-edit' },
-              h('p', { className: 'crew-gate-question' }, '这条检查会在房间工作区里真实运行，结果会记下来。'),
+              h('p', { className: 'crew-gate-question' }, '这条检查会在房间的工作区里真的跑一遍，结果会留下来。'),
               h('textarea', {
                 className: 'crew-gate-input',
                 rows: 2,
@@ -257,7 +257,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               className: 'crew-accept',
               disabled: busy || locked,
               onClick: () => void verify(),
-            }, busy ? '等待复核…' : '请验收员复核')
+            }, busy ? '等验收员看…' : '请验收员复核')
             : null,
           evidence && exit === 0 && !hasVerifier
             ? h('button', {

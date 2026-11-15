@@ -25,7 +25,7 @@ export const toDsGoal = room => {
     const last = evidence.at(-1)
     return {
       title: stage.title,
-      acceptance: stage.acceptance ?? (stage.kind === 'decision' ? '你确认这一步' : undefined),
+      acceptance: stage.acceptance ?? (stage.kind === 'decision' ? '你定这一步' : undefined),
       status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
       tasks,
       evidence: last === undefined

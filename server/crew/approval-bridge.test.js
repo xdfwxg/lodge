@@ -206,7 +206,7 @@ test('stopping a room expires approvals that can no longer be answered', async (
     assert.equal(ctx.room().approvals[0].state, 'expired')
     const late = await ctx.live.decideApproval('room-1', ctx.room().approvals[0].id, 'allow')
     assert.equal(late.ok, false)
-    assert.match(late.reason, /没有待批准/)
+    assert.match(late.reason, /没有等你点头/)
   } finally {
     ctx.close()
   }

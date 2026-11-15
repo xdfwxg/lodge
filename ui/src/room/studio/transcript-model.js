@@ -85,7 +85,7 @@ export const buildStageChapters = (items, room) => {
       kind: index < 0 ? 'prelude' : 'stage',
       key: index < 0 ? 'prelude' : `stage-${index}`,
       index,
-      title: index < 0 ? (stages.length > 0 ? '准备' : '过程') : stage?.title ?? '过程',
+      title: index < 0 ? (stages.length > 0 ? '开始前' : '过程') : stage?.title ?? '过程',
       state: index < 0 ? null : stage?.state ?? 'active',
       expanded: index === expandedIndex,
       summary: stageChapterSummary(chapterItems, room, index),

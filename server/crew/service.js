@@ -168,7 +168,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
       if (text === '' || text.length > 8000) return fail('invalid', '消息不能为空，且不超过 8000 字')
       if (room.live === true) {
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
-        if (live.busyReview(room.id)) return fail('conflict', '复核进行中，先等验收结论')
+        if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
         await live.send(room.id, text)
         return accepted({ accepted: true })
       }

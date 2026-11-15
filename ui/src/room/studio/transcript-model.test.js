@@ -139,7 +139,7 @@ test('pre-stage room notices stay out of the first stage', () => {
   ], room)
   assert.deepEqual(chapters.map(chapter => chapter.index), [-1, 1])
   assert.equal(chapters[0].kind, 'prelude')
-  assert.equal(chapters[0].title, '准备')
+  assert.equal(chapters[0].title, '开始前')
   assert.deepEqual(chapters[1].items.map(item => item.id), ['dispatch', 'evidence'])
 })
 

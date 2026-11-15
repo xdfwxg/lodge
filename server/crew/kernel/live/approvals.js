@@ -86,7 +86,7 @@ export const createLiveApprovals = ({
     entry.heldCards.set(card.requestId, approval.id)
     store.appendMessage(entry.roomId, {
       kind: 'system',
-      text: `需要你批准：${approval.seatName} · ${approval.label} · ${approval.summary}`,
+      text: `有个操作要你点头：${approval.seatName} · ${approval.label} · ${approval.summary}`,
       meta: { kind: 'approval', approvalId: approval.id },
     })
     emit('room', updated)
@@ -141,7 +141,7 @@ export const createLiveApprovals = ({
     if (updated === null) return null
     store.appendMessage(roomId, {
       kind: 'system',
-      text: `待批准的外部动作已失效：${reason}。`,
+      text: `这个操作已经过期：${reason}。`,
     })
     emit('room', updated)
     return updated
@@ -177,7 +177,7 @@ export const createLiveApprovals = ({
           text: observe && blockedByReadOnly
             ? `信任级别 observe：${spec?.name ?? seat} 只读；提升到 verify 后才能使用 ${card.tool ?? card.action}。`
             : blockedByReadOnly
-              ? `只读讨论阶段：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action}；先讨论，结论确认后再改文件。`
+              ? `只读讨论阶段：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action}；先讨论，结论定了再改文件。`
               : `权限拒绝：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,
         })
       }
@@ -194,7 +194,7 @@ export const createLiveApprovals = ({
     if (entry === undefined) return { ok: false, reason: '实时房间未绑定' }
     const room = store.readRoom(roomId)
     const approval = pendingApprovals(room).find(item => item.id === approvalId)
-    if (approval === undefined) return { ok: false, reason: '没有待批准的审批' }
+    if (approval === undefined) return { ok: false, reason: '没有等你点头的操作' }
     if (entry.heldCards.get(approval.requestId) !== approvalId) {
       return { ok: false, reason: '审批已失效，基座权限卡不在等待' }
     }
@@ -205,7 +205,7 @@ export const createLiveApprovals = ({
       const expired = setApprovalState(roomId, approvalId, 'expired')
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `外部动作审批失效：${approval.summary}（席位 ${approval.seatName} 已不在房间）`,
+        text: `这个操作失效了：${approval.summary}（${approval.seatName} 已不在房间）`,
       })
       if (expired !== null) emit('room', expired)
       resumeRoom(roomId, '审批对应的席位已移除，房间已恢复。')

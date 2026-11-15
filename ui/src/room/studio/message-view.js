@@ -42,6 +42,8 @@ export const renderStudioMessage = ({
       const active = Array.isArray(room.stages)
         ? room.stages.findIndex(stage => stage.state === 'active')
         : -1
+      const activeStage = active >= 0 ? room.stages[active] : undefined
+      const opening = active === 0 && /确认|对齐/.test(activeStage?.title ?? '')
       const accept = onStageAccept ?? onAccept
       return h(DecisionBrief, {
         key: message.id,
@@ -50,6 +52,9 @@ export const renderStudioMessage = ({
         items,
         pending,
         disabled: room.state !== 'active',
+        title: opening ? '开工前，先定这几件事' : '这一步，等你定',
+        doneTitle: opening ? '开工前定下的事' : '这一步定下的事',
+        actionLabel: opening ? '就这样，开工' : '可以，下一步',
         onAccept: pending && typeof accept === 'function' && active >= 0
           ? () => accept(active)
           : undefined,

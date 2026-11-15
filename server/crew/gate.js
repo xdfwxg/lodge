@@ -34,7 +34,7 @@ export const reviewExternalAction = ({ approval, room }) => {
   if (role === 'lead' || role === 'verifier') {
     decision = 'deny'
     risk = 'high'
-    reasons.push(`${role === 'lead' ? '队长' : '验收席位'}不应产生外部写入`)
+    reasons.push(`${role === 'lead' ? '规划师' : '验收员'}不能产生外部写入`)
   }
   for (const rule of DENY_PATTERNS) {
     if (rule.pattern.test(command)) {

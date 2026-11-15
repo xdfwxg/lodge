@@ -51,7 +51,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       const coveredByPrior = prior !== undefined && (covered === null || currentHead === null || covered === currentHead)
       if (coveredByPrior || (prior === undefined && floor < 0 && !advanced)) {
         const note = prior !== undefined
-          ? '本轮无新增交付改动，沿用已完成的验收。'
+          ? '这次没有新的改动，沿用上次的检查结果。'
           : '本轮没有可验收的交付改动，验收未执行。'
         const lastSystem = [...messages].reverse().find(message => message.kind === 'system')
         if (lastSystem?.text !== note) store.appendMessage(roomId, { kind: 'system', text: note })
@@ -131,7 +131,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     store.appendMessage(roomId, {
       kind: 'system',
       text: result.exit === 0
-        ? '检查通过 · 等待复核'
+        ? '检查通过 · 等验收员看'
         : '检查没通过 · 返工后才能复核',
     })
     if (result.exit !== 0) {

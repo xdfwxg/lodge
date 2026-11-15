@@ -39,7 +39,7 @@ test('privilege and destructive commands are recommended for denial', () => {
 test('lead and verifier seats are not allowed to create external writes', () => {
   const verifier = reviewExternalAction({ approval: approval('verifier', 'curl https://example.com'), room: room() })
   assert.equal(verifier.decision, 'deny')
-  assert.match(verifier.reasons.join('，'), /验收席位/)
+  assert.match(verifier.reasons.join('，'), /验收员/)
   const lead = reviewExternalAction({ approval: approval('lead', 'npm install left-pad', 'install'), room: room() })
   assert.equal(lead.decision, 'deny')
 })

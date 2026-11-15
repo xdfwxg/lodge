@@ -370,11 +370,11 @@ function NewRoomDialog({
         h('b', null, '执行步骤'),
         h('ul', { className: 'crew-brief' },
           proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
-            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 你确认' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))))
+            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 等你定' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))))
       : null,
     (proposal.questions ?? []).length > 0
       ? h('div', { className: 'crew-proposal-block' },
-        h('b', null, '待确认事项'),
+        h('b', null, '要你定的事'),
         proposal.questions.map((question, index) => h('div', { key: `q-${index}`, className: 'crew-proposal-question' },
           h('span', null, inlineCode(`${index + 1}. ${question.text}`)),
           h('textarea', {
@@ -384,12 +384,12 @@ function NewRoomDialog({
             value: answers[index] ?? question.recommendation ?? '',
             onChange: event => setAnswers(list => list.map((item, at) => at === index ? event.target.value : item)),
           }))))
-      : h('p', { className: 'crew-field-hint' }, '没有待确认的事项。'),
+      : h('p', { className: 'crew-field-hint' }, '没有要你定的事。'),
     teamView,
     h('div', { className: 'crew-proposal-block' },
       h('b', null, '怎么算做完'),
       verify === 'manual'
-        ? h('p', { className: 'crew-field-hint' }, '你自己看产物确认；这一步没有检查记录。')
+        ? h('p', { className: 'crew-field-hint' }, '你自己看产物，满意就继续；这一步没有检查记录。')
         : acceptance.trim() !== ''
           ? h('div', { className: 'crew-acceptance' },
             h('span', { className: 'crew-field-hint' }, '检查命令'),

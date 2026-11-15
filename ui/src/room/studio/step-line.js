@@ -11,5 +11,5 @@ export function StudioStep({ step, live = false }) {
   },
   h('span', { className: 'studio-step-dot' }),
   h('span', { className: 'studio-step-text' }, displayStepText(step.text)),
-  h('span', { className: 'studio-step-time' }, live ? '进行中' : timeOf(step.ts)))
+  h('span', { className: 'studio-step-time' }, live ? '正在做' : timeOf(step.ts)))
 }

@@ -7,10 +7,10 @@ export const createServiceChat = ({ store, live, emit }) => {
 
   const accept = room => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
-    if (room.state !== 'active') return fail('conflict', '房间不在进行中')
+    if (room.state !== 'active') return fail('conflict', '房间已经停了')
     const chat = room.chat
     if (chat === undefined || chat.running === true || chat.phase !== 'awaiting_decision') {
-      return fail('conflict', '现在没有待确认的聊天结论')
+      return fail('conflict', '现在还没有要定的结论')
     }
     const moved = transitionChat(chat.phase, 'accept')
     if (!moved.ok) return fail('conflict', moved.error)
@@ -21,19 +21,19 @@ export const createServiceChat = ({ store, live, emit }) => {
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)
-    appendMessage(room.id, { kind: 'system', text: '聊天结论已确认，房间完成。' })
+    appendMessage(room.id, { kind: 'system', text: '结论定了，房间收尾。' })
     return ok({ room: updated })
   }
 
   const continueChat = (room, body = {}) => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
-    if (room.state !== 'active') return fail('conflict', '房间不在进行中')
+    if (room.state !== 'active') return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
       return fail('conflict', '聊天室没有绑定运行引擎')
     }
     const chat = room.chat
     if (chat === undefined || chat.running === true || chat.phase !== 'awaiting_decision') {
-      return fail('conflict', '现在没有待确认的聊天结论')
+      return fail('conflict', '现在还没有要定的结论')
     }
     const moved = transitionChat(chat.phase, 'continue_discuss')
     if (!moved.ok) return fail('conflict', moved.error)
@@ -75,13 +75,13 @@ export const createServiceChat = ({ store, live, emit }) => {
 
   const restart = (room, body = {}) => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
-    if (room.state !== 'active') return fail('conflict', '房间不在进行中')
+    if (room.state !== 'active') return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
       return fail('conflict', '聊天室没有绑定运行引擎')
     }
     const chat = room.chat
     if (chat === undefined || chat.running === true) return fail('conflict', '聊天讨论已经在进行')
-    if (chat.phase === 'awaiting_decision') return fail('conflict', '现在有结论，先确认或再讨论')
+    if (chat.phase === 'awaiting_decision') return fail('conflict', '已经有结论了，先定下来或者继续聊')
     if (chat.phase !== 'discussing') return fail('conflict', '现在没有可恢复的讨论')
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : ''
     const updated = updateRoom(room.id, current => {
@@ -91,7 +91,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     })
     if (updated === null) return fail('conflict', '聊天状态已变化，重试')
     emit('room', updated)
-    appendMessage(room.id, { kind: 'system', text: '讨论中断，已重新开始本轮。' })
+    appendMessage(room.id, { kind: 'system', text: '刚才断了，这一轮重新开始了。' })
     void live.continueChat(updated, note).catch(error => {
       appendMessage(room.id, { kind: 'system', text: `恢复讨论失败：${error?.message ?? error}` })
       const reset = updateRoom(room.id, current => {

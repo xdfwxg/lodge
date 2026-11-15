@@ -34,9 +34,9 @@ test('studio seats derive from exactly three role classes', () => {
   assert.throws(() => studio.validateRoster([
     { role: 'lead', name: '规划师' },
     { role: 'worker', name: '执行者' },
-  ], { verify: 'test' }), /验收席位/)
+  ], { verify: 'test' }), /验收员/)
   assert.throws(() => studio.validateRoster([
     { role: 'lead', name: '规划师' },
     { role: 'worker', name: '执行者' },
-  ], { verify: 'manual' }), /验收席位/)
+  ], { verify: 'manual' }), /验收员/)
 })

@@ -4,7 +4,7 @@ import { createElement as h } from 'react'
 export function ApprovalCard({ approval, onDecide }) {
   return h('div', { className: 'crew-card crew-approval' },
     h('div', { className: 'crew-card-head' },
-      h('span', null, '需要你批准'),
+      h('span', null, '有个操作要你点头'),
       h('span', { className: 'crew-verdict', 'data-pending': '' }, approval.label)),
     h('div', { className: 'crew-card-body' },
       h('div', { className: 'crew-kv' },
@@ -38,7 +38,7 @@ export function ApprovalCard({ approval, onDecide }) {
             : null)
         : null),
     h('div', { className: 'crew-card-foot' },
-      h('span', { className: 'crew-req-note' }, '只有你允许，Lodge 才会继续'),
-      h('button', { type: 'button', className: 'crew-ghost', onClick: () => onDecide('deny') }, '拒绝'),
-      h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, '允许')))
+      h('span', { className: 'crew-req-note' }, '你点头之前，Lodge 不会动手'),
+      h('button', { type: 'button', className: 'crew-ghost', onClick: () => onDecide('deny') }, '先别做'),
+      h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, '可以做')))
 }

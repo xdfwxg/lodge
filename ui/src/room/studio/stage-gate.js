@@ -34,9 +34,9 @@ export const gateStatus = room => {
   if (room.state === 'paused') return '已暂停'
   if (room.state === 'stopped') return '已停止'
   if (activeStage.kind === 'decision') {
-    if (room.openQuestion) return '待回答'
+    if (room.openQuestion) return '等你回答'
     if (activeStage.manual === true) {
-      if (!manualReady) return room.live === true ? '等待产出' : '待确认'
+      if (!manualReady) return room.live === true ? '等产出' : '等你定'
       if ((room.verifiers?.length ?? 0) > 0) {
         const evidence = [...room.messages].reverse().find(message => (
           message.kind === 'evidence' &&
@@ -44,23 +44,23 @@ export const gateStatus = room => {
           (message.meta?.stage ?? 0) === activeIndex &&
           message.meta?.kind === 'manual'
         ))
-        if (evidence === undefined) return '等待产出'
+        if (evidence === undefined) return '等产出'
         const verdicts = room.messages.filter(message => (
           message.kind === 'verdict' &&
           (message.meta?.stage ?? 0) === activeIndex &&
           (message.seq ?? 0) > (evidence.seq ?? -1) &&
           message.meta?.evidenceId === evidence.id
         ))
-        if (verdicts.some(message => message.meta?.pass !== true)) return '验收退回'
-        if (verdicts.length < (room.verifiers?.length ?? 0)) return '等待复核'
-        return '待签字'
+        if (verdicts.some(message => message.meta?.pass !== true)) return '被打回了'
+        if (verdicts.length < (room.verifiers?.length ?? 0)) return '验收员在看'
+        return '等你签字'
       }
-      return '待确认'
+      return '等你定'
     }
-    return '待确认'
+    return '等你定'
   }
   if (room.demo === true) return '演示'
-  if (hasPass) return '待签字'
+  if (hasPass) return '等你签字'
   const acceptance = typeof activeStage.acceptance === 'string' ? activeStage.acceptance.trim() : ''
   const evidence = [...room.messages].reverse().find(message => (
     message.kind === 'evidence' &&
@@ -69,10 +69,10 @@ export const gateStatus = room => {
     message.meta?.stage === room.stages.indexOf(activeStage) &&
     message.meta?.command === acceptance
   ))
-  if (evidence === undefined) return '等待证据'
-  if (evidence.meta?.exit !== 0) return '命令未通过'
+  if (evidence === undefined) return '等检查结果'
+  if (evidence.meta?.exit !== 0) return '检查没通过'
   const verdict = [...room.messages].reverse().find(message => (
     message.kind === 'verdict' && message.meta?.stage === room.stages.indexOf(activeStage) && message.meta?.evidenceId === evidence.id
   ))
-  return verdict !== undefined && verdict.meta?.pass !== true ? '验收退回' : '等待复核'
+  return verdict !== undefined && verdict.meta?.pass !== true ? '被打回了' : '验收员在看'
 }

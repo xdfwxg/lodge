@@ -73,7 +73,7 @@ export const islandStatus = room => {
   if (room.needsYou) {
     return { label: room.needsYou.label, tone: NEEDS_TONE[room.needsYou.kind] ?? 'waiting' }
   }
-  return { label: '进行中', tone: 'active' }
+  return { label: '正在做', tone: 'active' }
 }
 
 const seatRole = (room, seatId) => (

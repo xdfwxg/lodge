@@ -55,12 +55,12 @@ test('the approval card shows the seat and external command with only two decisi
     },
     onDecide: decision => calls.push(decision),
   }))
-  assert.match(text(tree), /需要你批准/)
+  assert.match(text(tree), /有个操作要你点头/)
   assert.match(text(tree), /执行/)
   assert.match(text(tree), /git push origin main/)
   assert.match(text(tree), /预检：需你判断/)
   assert.match(text(tree), /发布或推送远端/)
-  assert.deepEqual(buttons(tree).map(button => text(button)), ['拒绝', '允许'])
+  assert.deepEqual(buttons(tree).map(button => text(button)), ['先别做', '可以做'])
   buttons(tree)[0].props.onClick()
   buttons(tree)[1].props.onClick()
   assert.deepEqual(calls, ['deny', 'allow'])

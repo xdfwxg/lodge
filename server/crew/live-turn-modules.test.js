@@ -276,7 +276,7 @@ test('acceptance skips a later turn that produced no delivery changes', async ()
   })
   await runner.run(0, 'true', 't-chatter')
   assert.equal(runs, 0)
-  assert.match(store.messages.at(-1).text, /无新增交付改动，沿用已完成的验收/)
+  assert.match(store.messages.at(-1).text, /这次没有新的改动，沿用上次的检查结果/)
   assert.equal(store.messages.filter(message => message.meta?.kind === 'command').length, 1)
 })
 

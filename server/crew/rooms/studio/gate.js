@@ -14,7 +14,7 @@ export const evaluateRoomGate = ({ enabled, goal, plan, verify, acceptance, advi
   const plannedAcceptance = Array.isArray(plan?.stages) &&
     plan.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
   if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
-    reasons.push('交付型工作室没有验收标准')
+    reasons.push('交付型工作室还没有说清楚怎样算做完')
   }
   return {
     decision: reasons.length > 0 ? 'reject' : 'allow',

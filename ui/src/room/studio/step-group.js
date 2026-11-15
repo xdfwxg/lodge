@@ -7,7 +7,7 @@ export function StepGroup({ steps, live = false }) {
   return h('details', { className: 'crew-steps', open: live === true ? true : undefined },
     h('summary', null,
       h('span', { className: 'crew-steps-count' }, describeSteps(steps)),
-      h('span', { className: 'crew-steps-hint' }, live ? '进行中' : '展开')),
+      h('span', { className: 'crew-steps-hint' }, live ? '正在做' : '展开')),
     h('div', { className: 'crew-steps-list' },
       steps.map(step => h(ActivityLine, { key: step.id, message: step }))))
 }

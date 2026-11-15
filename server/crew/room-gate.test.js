@@ -17,7 +17,7 @@ test('studio rejects an unusable target before planning', () => {
   })
   assert.equal(result.decision, 'reject')
   assert.ok(result.reasons.includes('目标为空'))
-  assert.ok(result.reasons.includes('交付型工作室没有验收标准'))
+  assert.ok(result.reasons.includes('交付型工作室还没有说清楚怎样算做完'))
 })
 
 test('advisor advice is returned but never changes the decision', () => {

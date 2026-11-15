@@ -6,7 +6,7 @@ import { studioTransitionEvent, transitionStudio } from './state.js'
 export const createServiceClosure = ({ store, emit }) => {
   const rejectPlan = (room, body = {}) => {
     if (roomModeOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '只有工作室有 closure')
-    if (room.state !== 'active') return fail('conflict', '房间不在进行中')
+    if (room.state !== 'active') return fail('conflict', '房间已经停了')
     if (room.closure !== 'planned') {
       return fail('conflict', room.closure === 'rejected' ? '目标已经被拒绝' : '只有 planned 阶段可以由 Planner 拒绝目标')
     }

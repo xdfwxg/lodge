@@ -35,7 +35,7 @@ export function App() {
   useEffect(() => {
     const next = {}
     for (const room of visibleRooms) {
-      if (room.needsYou) next[room.id] = room.needsYou.label ?? room.needsYou.kind ?? '待处理'
+      if (room.needsYou) next[room.id] = room.needsYou.label ?? room.needsYou.kind ?? '等你'
     }
     const prev = seenNeeds.current
     seenNeeds.current = next

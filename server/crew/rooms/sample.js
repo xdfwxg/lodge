@@ -138,7 +138,7 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
       tasks: [{ owner: 'executor', title: '写清单', status: 'done' }],
     },
     {
-      title: '验收与结论',
+      title: '检查与结论',
       kind: 'decision',
       state: 'passed',
       tasks: [{ owner: 'verifier', title: '复核清单', status: 'done' }],
@@ -180,12 +180,12 @@ export const seedSampleMessages = ({ store, room, now = Date.now() } = {}) => {
   append({
     kind: 'chat',
     authorId: 'planner',
-    text: '**目标对齐 · 结论**\n\n- 目标：给准备发布的团队一份能直接照着勾的清单。\n- 结构：代码、发布、回滚三组，每条带勾选框和负责人。\n- 验收：文件里三组检查齐全，能直接照着勾。\n\n@you 确认这三点后，交执行官写清单。',
+    text: '**目标对齐 · 结论**\n\n- 目标：给准备发布的团队一份能直接照着勾的清单。\n- 结构：代码、发布、回滚三组，每条带勾选框和负责人。\n- 检查：文件里三组检查齐全，能直接照着勾。\n\n@you 定下这三点后，交执行官写清单。',
   })
   append({
     kind: 'handoff',
     authorId: 'planner',
-    text: '把清单交给执行官，按确认后的结构落地。',
+    text: '把清单交给执行官，按定下的结构落地。',
     meta: {
       from: 'planner',
       workers: ['executor'],

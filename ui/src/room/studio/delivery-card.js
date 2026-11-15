@@ -58,7 +58,7 @@ export function DeliveryCard({ delivery, onContinue = null }) {
           : null,
         h('div', { className: 'crew-delivery-metrics' },
           h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 阶段`),
-          h('span', null, commands.length > 0 ? `${passed}/${commands.length} 检查通过` : '你确认验收'),
+          h('span', null, commands.length > 0 ? `${passed}/${commands.length} 检查通过` : '人工验收'),
           h('span', null, `${(delivery.artifacts?.length ?? 0) > 0 ? delivery.artifacts.length : delivery.changedFiles?.length ?? 0} 个文件`)),
         h('div', { className: 'studio-delivery-meta' },
           delivery.workspacePath

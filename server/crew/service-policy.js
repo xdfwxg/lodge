@@ -10,6 +10,6 @@ export const acceptanceChangeError = (stage, command) => {
   if (stage.state === 'passed') return ['conflict', '这个阶段已经过了']
   const trimmed = command.trim()
   if (trimmed.length > 500) return ['invalid', '检查命令不超过 500 字']
-  if (trimmed === '' && stage.state === 'active') return ['conflict', '进行中的交付型阶段不能清空检查命令；先暂停或停止']
+  if (trimmed === '' && stage.state === 'active') return ['conflict', '正在做的交付步骤不能清空检查命令；先暂停或停止']
   return null
 }

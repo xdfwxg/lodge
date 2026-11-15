@@ -25,7 +25,7 @@ const evidence = (seq = 10) => ({ kind: 'evidence', seq, meta: { stage: 1, kind:
 const verdict = (pass, seq = 11) => ({ kind: 'verdict', seq, meta: { stage: 1, pass } })
 
 test('active decision waits for the human', () => {
-  assert.deepEqual(roomNeedsYou(room(), []), { kind: 'decision', stage: 0, label: '待确认' })
+  assert.deepEqual(roomNeedsYou(room(), []), { kind: 'decision', stage: 0, label: '等你定' })
 })
 
 test('an open question outranks the stage type', () => {
@@ -40,7 +40,7 @@ test('a pending external approval outranks a busy seat', () => {
   const r = atDeliverable()
   r.busy = true
   r.approvals = [{ id: 'a', state: 'pending' }]
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'approval', stage: null, label: '待批准' })
+  assert.deepEqual(roomNeedsYou(r, []), { kind: 'approval', stage: null, label: '等你点头' })
 })
 
 test('a seat engine error asks the human to intervene with a concrete reason', () => {
@@ -75,7 +75,7 @@ test('multiple verifiers report progress and require all PASS', () => {
   const e = { id: 'e-10', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'command', command: 'npm test', exit: 0 } }
   const first = { id: 'v-1', kind: 'verdict', authorId: 'v1', seq: 11, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
   const second = { id: 'v-2', kind: 'verdict', authorId: 'v2', seq: 12, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
-  assert.deepEqual(roomNeedsYou(r, [e, first]), { kind: 'review', stage: 1, label: '待复核 · 已回报 1/2' })
+  assert.deepEqual(roomNeedsYou(r, [e, first]), { kind: 'review', stage: 1, label: '验收员在看 · 已回 1/2' })
   assert.equal(roomNeedsYou(r, [e, first, second]).kind, 'signoff')
   const reject = { ...second, meta: { ...second.meta, pass: false } }
   assert.equal(roomNeedsYou(r, [e, first, reject]).kind, 'rework')
@@ -109,9 +109,9 @@ test('a manual stage stays quiet until the product is ready', () => {
   assert.equal(roomNeedsYou(r, []), null)
   assert.equal(roomNeedsYou(r, [evidence()]), null)
   const manual = { kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
-  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'review', stage: 1, label: '待复核 · 已回报 0/1' })
+  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'review', stage: 1, label: '验收员在看 · 已回 0/1' })
   r.verifiers = []
-  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'decision', stage: 1, label: '待确认' })
+  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'decision', stage: 1, label: '等你定' })
 })
 
 test('a parallel merge conflict asks the human', () => {

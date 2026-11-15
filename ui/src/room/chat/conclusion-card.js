@@ -84,14 +84,14 @@ export function ChatConclusionCard({ message, seat, room, onAccept, onContinueCh
                   className: 'crew-ghost',
                   disabled: busy || room.state !== 'active',
                   onClick: () => setOpen(true),
-                }, '继续讨论'),
+                }, '再聊一轮'),
                 h('button', {
                   key: 'accept',
                   type: 'button',
                   className: 'crew-accept crew-conclusion-pending',
                   disabled: busy || room.state !== 'active',
                   onClick: () => void accept(),
-                }, busy ? '处理中…' : '确认结论')))
+                }, busy ? '处理中…' : '就这样，收结论')))
           : null,
         accepted && typeof onStartStudio === 'function'
           ? h('div', { className: 'crew-card-foot', 'data-settled': true },

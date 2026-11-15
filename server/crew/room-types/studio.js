@@ -58,7 +58,7 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
   stages[stages.length - 1].dependsOn = [stages.length - 2]
   return {
     stages,
-    messages: openingGate ? ['执行方案已确认；重复的确认阶段已自动通过，直接进入下一步。'] : [],
+    messages: openingGate ? ['方案已经定了；重复的确认步骤自动通过，直接进入下一步。'] : [],
   }
 }
 
@@ -70,5 +70,5 @@ export const validateRoster = (roster, { verify } = {}) => {
     throw new Error(`工作室席位只能从规划师/执行官/验收员派生：${invalid.map(seat => seat.name ?? seat.id).join('、')}`)
   }
   if (!roster.some(seat => kindOf(seat) === 'planner')) throw new Error('工作室需要规划师席位')
-  if (!roster.some(seat => kindOf(seat) === 'verifier')) throw new Error('工作室需要独立验收席位')
+  if (!roster.some(seat => kindOf(seat) === 'verifier')) throw new Error('工作室需要一位验收员')
 }

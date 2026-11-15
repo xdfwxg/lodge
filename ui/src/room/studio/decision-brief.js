@@ -24,18 +24,28 @@ export const parseDecisionItems = text => {
   return items
 }
 
-export function DecisionBrief({ message, seat, items, pending, onAccept, disabled = false }) {
+export function DecisionBrief({
+  message,
+  seat,
+  items,
+  pending,
+  onAccept,
+  disabled = false,
+  title,
+  doneTitle = '定下的事',
+  actionLabel = '就这样，继续',
+}) {
   return h('div', { className: 'crew-msg crew-msg-chat studio-decision' },
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat, ts: message.ts, time: false, station: false }),
       h('div', { className: 'crew-card crew-decision-brief' },
         h('div', { className: 'crew-card-head' },
-          pending ? '需要你确认' : '开工前的确认',
+          pending ? (title ?? '这几件事，等你定') : doneTitle,
           h('span', {
             className: 'crew-verdict',
             'data-pending': pending ? true : undefined,
             'data-pass': pending ? undefined : true,
-          }, pending ? '待确认' : '已确认')),
+          }, pending ? '等你定' : '已经定了')),
         h('div', { className: 'crew-card-body' },
           h('div', { className: 'crew-decision-list' },
             items.map((item, index) => h('div', { key: `decision-${index}`, className: 'crew-decision-item' },
@@ -45,8 +55,8 @@ export function DecisionBrief({ message, seat, items, pending, onAccept, disable
                 ? null
                 : h('span', { className: 'crew-decision-rec' }, item.recommendation)))),
           h('p', { className: 'crew-field-hint' }, pending
-            ? '确认后开始派活；有不同意见，直接在下方说。'
-            : '这次开工前已经确认过的事项。'),
+            ? '你定下来，我就继续；有不同意见，直接在下面说。'
+            : '这是之前定下的事。'),
           h('details', { className: 'crew-fold' },
             h('summary', null, '完整说明'),
             h(Markdown, { text: message.text, variant: 'compact' }))),
@@ -58,5 +68,5 @@ export function DecisionBrief({ message, seat, items, pending, onAccept, disable
               className: 'crew-accept',
               disabled,
               onClick: onAccept,
-            }, disabled ? '已暂停 · 继续后才能确认' : '确认，开始做')))))
+            }, disabled ? '已暂停 · 继续后才能开工' : actionLabel)))))
 }

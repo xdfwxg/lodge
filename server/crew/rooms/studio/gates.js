@@ -16,7 +16,7 @@ export const gateFor = (room, index, messages, evidence) => {
     .find(item => room.stages[item]?.state !== 'passed')
   if (dependency !== undefined) return deny('conflict', `先完成阶段 ${dependency + 1}，再验收这一阶段`)
   if (room.openQuestion !== null && room.openQuestion !== undefined) {
-    return deny('conflict', '还有问题没答，先答再确认')
+    return deny('conflict', '还有问题没回答，回答后再继续')
   }
   if (stage.manual === true) {
     // 只认本轮最新一条人工凭证；新的执行回合或返工会让旧凭证过期。

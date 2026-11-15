@@ -6,7 +6,7 @@ import { seatDisplayName } from './seat-labels.js'
 // 通用状态在 kernel 判断，房型内部的“下一步该谁做”交给上下文 kind。
 export const roomNeedsYou = (room, messages = []) => {
   if (room.state === 'active' && pendingApprovals(room).length > 0) {
-    return { kind: 'approval', stage: null, label: '待批准' }
+    return { kind: 'approval', stage: null, label: '等你点头' }
   }
   if (room.state === 'paused') {
     if (room.pauseReason === 'mcp') return { kind: 'mcp', stage: null, label: '连接中断' }

@@ -167,13 +167,13 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       kind: 'system',
       text: gate.stage.kind === 'deliverable'
         ? `阶段 ${index + 1} 已按证据验收`
-        : `阶段 ${index + 1} 已由你确认`,
+        : `第 ${index + 1} 步已经定了`,
       meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you' },
     })
     if (mergedFinal >= 0) {
       appendMessage(room.id, {
         kind: 'system',
-        text: `阶段 ${mergedFinal + 1} 已由你确认`,
+        text: `第 ${mergedFinal + 1} 步已经定了`,
         meta: { kind: 'gate', gate: 'decision', stage: mergedFinal, by: 'you' },
       })
     }
@@ -196,9 +196,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (room.state !== 'active') return fail('conflict', '先继续房间，再重做当前阶段')
     if (room.busy === true) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
     if (room.live === true && typeof live.busyReview === 'function' && live.busyReview(room.id)) {
-      return fail('conflict', '复核进行中，先等验收结论')
+      return fail('conflict', '验收员还在看，等结论出来再继续')
     }
-    if (stage.state !== 'active') return fail('conflict', '这个阶段不在待返工状态')
+    if (stage.state !== 'active') return fail('conflict', '这一步现在不需要返工')
     const message = appendMessage(room.id, {
       kind: 'rework',
       authorId: 'you',

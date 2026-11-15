@@ -42,13 +42,13 @@ test('manual gate status follows the Verifier verdict', () => {
     stages: [{ title: '交付', kind: 'decision', manual: true, state: 'active' }],
     messages: [{ id: 'e1', kind: 'evidence', seq: 1, meta: { stage: 0, kind: 'manual' } }],
   }
-  assert.equal(gateStatus(base), '等待复核')
+  assert.equal(gateStatus(base), '验收员在看')
   assert.equal(gateStatus({
     ...base,
     messages: [...base.messages, { id: 'v1', kind: 'verdict', seq: 2, meta: { stage: 0, pass: true, evidenceId: 'e1' } }],
-  }), '待签字')
+  }), '等你签字')
   assert.equal(gateStatus({
     ...base,
     messages: [...base.messages, { id: 'v1', kind: 'verdict', seq: 2, meta: { stage: 0, pass: false, evidenceId: 'e1' } }],
-  }), '验收退回')
+  }), '被打回了')
 })

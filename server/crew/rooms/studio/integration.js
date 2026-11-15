@@ -168,7 +168,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     store.appendMessage(roomId, {
       kind: 'system',
       text: result.exit === 0
-        ? '检查通过 · 等待复核'
+        ? '检查通过 · 等验收员看'
         : '检查没通过 · 返工后才能复核',
     })
     if (result.exit !== 0) return

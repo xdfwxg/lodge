@@ -74,7 +74,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
       })),
     pendingApprovals.length > 1
       ? h('div', { key: 'approval-queue', className: 'crew-system' },
-        `还有 ${pendingApprovals.length - 1} 个待批准，处理完当前这个再出现。`)
+        `还有 ${pendingApprovals.length - 1} 个操作等你点头，先处理眼前这个。`)
       : null,
   ].filter(Boolean)
 }

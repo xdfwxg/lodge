@@ -23,9 +23,9 @@ export const groupRooms = rooms => {
     else recent.push(room)
   }
   return [
-    { id: 'pending', label: '待处理', rooms: byRecent(pending) },
+    { id: 'pending', label: '等你', rooms: byRecent(pending) },
     { id: 'recent', label: '最近', rooms: byRecent(recent) },
-    { id: 'done', label: '已完成', rooms: byRecent(done) },
+    { id: 'done', label: '做完了', rooms: byRecent(done) },
     { id: 'archived', label: '已归档', rooms: byRecent(archived) },
   ].filter(section => section.rooms.length > 0)
 }
@@ -206,15 +206,15 @@ const toneOf = room => {
 }
 
 const NEEDS_META = {
-  signoff: '待签字',
-  review: '待复核',
-  decision: '待确认',
-  question: '待回答',
-  setup: '待设置',
-  rework: '待返工',
-  merge: '合并冲突',
-  parallel: '待处理',
-  approval: '待批准',
+  signoff: '等你签字',
+  review: '验收员在看',
+  decision: '等你定',
+  question: '等你回答',
+  setup: '等你设置',
+  rework: '等你返工',
+  merge: '等你合并',
+  parallel: '等你处理',
+  approval: '等你点头',
   idle: '可继续',
   error: '需要处理',
   mcp: '连接中断',
@@ -222,14 +222,14 @@ const NEEDS_META = {
 
 // The row only shows a status word when the room needs you. Complete and live
 // rooms stay quiet; the dot carries their state and the accessible label says it.
-const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.needsYou.kind] ?? '待处理' : ''
+const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.needsYou.kind] ?? '等你' : ''
 
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
-  if (room?.state === 'complete') return '完成'
-  if (room?.state === 'stopped') return '已停止'
-  if (room?.state === 'paused') return '已暂停'
-  if (room?.state === 'active') return '进行中'
+  if (room?.state === 'complete') return '做完了'
+  if (room?.state === 'stopped') return '停下来了'
+  if (room?.state === 'paused') return '先停一下'
+  if (room?.state === 'active') return '正在做'
   return ''
 }
 
