@@ -27,14 +27,14 @@ export const studioView = {
   }),
   transcript: ({ room, seats, state, actions }) => {
     const subrooms = h(SubroomTree, {
-      key: room.id,
+      key: `subrooms-${room.id}`,
       room,
       rooms: state.rooms,
       onSelect: actions.selectRoom,
       onCreate: actions.createSubroom,
     })
     const transcript = h(StudioTranscript, {
-      key: room.id,
+      key: `transcript-${room.id}`,
       room,
       seats,
       hideKinds: [],
