@@ -116,7 +116,7 @@ export function DeliveryCard({ delivery }) {
               ...stage.verdicts
                 .map(verdict => h('div', { key: verdict.id, className: 'crew-delivery-verdict', 'data-pass': verdict.pass },
                   h('span', null, delivery.seatNames?.[verdict.authorId] ?? verdict.authorId),
-                  h('b', null, verdict.pass ? 'PASS' : 'REJECT'))),
+                  h('b', null, verdict.pass ? '通过' : '退回'))),
               stage.changedFiles?.length
                 ? h('details', { className: 'crew-fold' },
                   h('summary', null, `改动文件 ${stage.changedFiles.length}`),

@@ -176,8 +176,11 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
   const hasChecks = goal.objective !== undefined || goal.acceptance !== undefined || goal.constraints?.length > 0
   const admin = roster.byId?.[room.admin]?.name ?? t('a Bot')
   const evidenceCount = goal.evidenceCount ?? view.stages.filter(stageView => stageView.evidence !== undefined).length
-  const taskCount = view.stages.reduce((sum, stageView) => sum + stageView.tasks.length, 0)
   const ruleCount = goal.constraints?.length ?? 0
+  const meta = [
+    evidenceCount > 0 ? `${evidenceCount} 条证据` : '',
+    ruleCount > 0 ? `${ruleCount} 条约束` : '',
+  ].filter(Boolean).join(' · ')
   return h('div', { className: 'bt-goal-panel', role: 'region', 'aria-label': view.title },
     h('div', { className: 'bt-goal-body' },
     view.status === 'drafting' ? null : h('div', { ref: stepper, className: 'bt-goal-steps', role: 'group', 'aria-label': t('Stages') },
@@ -191,8 +194,7 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
         onClick: () => setSelected(i),
       }, h('span', { className: 'bt-goal-node' }, stageView.status === 'passed' ? h(CheckIcon) : stageView.n)))),
     room.needsYou?.label ? h('div', { className: 'bt-goal-warn' }, room.needsYou.label) : null,
-    h('div', { className: 'bt-goal-meta' },
-      t('Evidence {evidence} · Tasks {tasks} · Rules {rules}', { evidence: evidenceCount, tasks: taskCount, rules: ruleCount })),
+    meta === '' ? null : h('div', { className: 'bt-goal-meta' }, meta),
     h('div', { key: `s${selected}`, className: 'bt-goal-bstage' },
       view.status === 'drafting' ? (goal.brief ? h('div', { className: 'bt-goal-btext' }, goal.brief) : null)
         : stage === undefined

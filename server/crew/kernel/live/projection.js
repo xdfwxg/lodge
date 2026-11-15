@@ -50,7 +50,7 @@ export const createMessageProjector = ({ store }) => {
       const tool = /^[\w.:/-]+$/.test(rawTool) ? rawTool : ''
       return { ...common, kind: 'activity', authorId: seat ?? 'executor', text, meta: { ok: message.ok, ...(tool === '' ? {} : { tool }) } }
     }
-    if (message.kind === 'question') return { ...common, kind: 'system', text: `房间在等你处理：${text}` }
+    if (message.kind === 'question') return { ...common, kind: 'system', text: `需要你处理：${text}` }
     // digest 是基座的上下文摘要，不是席位说的话；notice 等是运行提示，归系统，不伪装成聊天。
     if (message.kind === 'digest') return null
     if (['notice', 'lookup', 'resumed', 'cut', 'stopped', 'done'].includes(message.kind)) {

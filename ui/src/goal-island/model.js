@@ -59,7 +59,7 @@ export const islandStatus = room => {
   if (room.state === 'complete') return { label: '目标达成', tone: 'done' }
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
   if (room.state === 'paused') {
-    if (room.needsYou?.kind === 'idle') return { label: '已暂停 · 等你说话', tone: 'paused' }
+    if (room.needsYou?.kind === 'idle') return { label: '已暂停 · 可以接着聊', tone: 'paused' }
     return ['mcp', 'approval'].includes(room.needsYou?.kind)
       ? { label: room.needsYou.label, tone: 'paused' }
       : { label: '已暂停', tone: 'paused' }
@@ -82,12 +82,12 @@ const seatRole = (room, seatId) => (
 )
 export const seatTask = (seat, stage) => {
   if (seat.role === 'lead') {
-    return stage.kind === 'decision' ? '讲清「做到什么算过」，等你拍板' : '拆出这一段的写范围与验收'
+    return stage.kind === 'decision' ? '讲清「做到什么算过」，由你拍板' : '拆出这一段的写范围与验收'
   }
   if (seat.role === 'worker') {
     return stage.acceptance ? `按 \`${stage.acceptance}\` 交付` : '交付这一步的产物'
   }
-  if (seat.role === 'verifier') return '独立复跑，给 PASS 或 REJECT'
+  if (seat.role === 'verifier') return '独立复跑，给出通过或退回'
   return '只读观察'
 }
 
@@ -154,7 +154,7 @@ export const buildGoalView = (room, seats) => {
         : rejecting.length > 0
           ? { pass: false, text: `已打回：${rejecting.map(item => nameOf(item.id)).join('、')}` }
           : missing.length === 0
-            ? { pass: true, text: `全部 ${verifierIds.length} 个验收席位 PASS` }
+            ? { pass: true, text: `全部 ${verifierIds.length} 个验收席位通过` }
             : { pass: false, pending: true, text: `已回报 ${received.length}/${verifierIds.length} 个验收席位，等待其余` }
     }
     const tasks = (stage.tasks ?? []).map(task => ({ ...task, seat: seatById.get(task.owner) ?? null }))

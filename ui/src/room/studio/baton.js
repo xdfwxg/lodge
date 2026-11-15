@@ -123,7 +123,7 @@ function WorkTurnDetails({ workTurn }) {
       ? null
       : h('div', { className: 'studio-baton-work-row' },
         h('b', null, '上一轮复核'),
-        h('span', { 'data-pass': verdict.pass ? 'true' : 'false' }, verdict.pass ? 'PASS' : 'REJECT',
+        h('span', { 'data-pass': verdict.pass ? 'true' : 'false' }, verdict.pass ? '通过' : '退回',
           verdict.text ? ` · ${verdict.text}` : '')),
     workTurn.candidate === null || workTurn.candidate === undefined
       ? null

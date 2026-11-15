@@ -86,7 +86,7 @@ export const createLiveApprovals = ({
     entry.heldCards.set(card.requestId, approval.id)
     store.appendMessage(entry.roomId, {
       kind: 'system',
-      text: `外部动作等你批准：${approval.seatName} · ${approval.label} · ${approval.summary}`,
+      text: `需要你批准：${approval.seatName} · ${approval.label} · ${approval.summary}`,
       meta: { kind: 'approval', approvalId: approval.id },
     })
     emit('room', updated)

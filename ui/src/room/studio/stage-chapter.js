@@ -13,6 +13,6 @@ export function StageChapter({ chapter, children }) {
       h('summary', { className: 'studio-stage-head' },
         h('span', { className: 'studio-stage-title' }, title),
         prelude ? null : h('span', { className: 'studio-stage-state' }, stateLabel(chapter.state)),
-        h('span', { className: 'studio-stage-summary' }, chapter.summary)),
+        chapter.summary === '' ? null : h('span', { className: 'studio-stage-summary' }, chapter.summary)),
       h('div', { className: 'studio-stage-body' }, children)))
 }

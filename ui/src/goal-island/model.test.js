@@ -39,14 +39,14 @@ const room = over => ({
 
 test('island status reflects pause reasons and needs-you labels', () => {
   assert.deepEqual(islandStatus(room({ state: 'complete' })), { label: '目标达成', tone: 'done' })
-  assert.deepEqual(islandStatus(room({ state: 'paused', needsYou: { kind: 'idle', label: '等你说话' } })),
-    { label: '已暂停 · 等你说话', tone: 'paused' })
-  assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'mcp', needsYou: { kind: 'mcp', label: 'MCP 熔断 · 等你恢复' } })),
-    { label: 'MCP 熔断 · 等你恢复', tone: 'paused' })
-  assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'approval', needsYou: { kind: 'approval', label: '外部动作审批超时 · 等你处理' } })),
-    { label: '外部动作审批超时 · 等你处理', tone: 'paused' })
-  assert.deepEqual(islandStatus(room({ needsYou: { kind: 'rework', label: '验收退回 · 等你处理' } })),
-    { label: '验收退回 · 等你处理', tone: 'paused' })
+  assert.deepEqual(islandStatus(room({ state: 'paused', needsYou: { kind: 'idle', label: '可以接着聊' } })),
+    { label: '已暂停 · 可以接着聊', tone: 'paused' })
+  assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'mcp', needsYou: { kind: 'mcp', label: '连接中断' } })),
+    { label: '连接中断', tone: 'paused' })
+  assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'approval', needsYou: { kind: 'approval', label: '审批超时' } })),
+    { label: '审批超时', tone: 'paused' })
+  assert.deepEqual(islandStatus(room({ needsYou: { kind: 'rework', label: '待返工' } })),
+    { label: '待返工', tone: 'paused' })
 })
 
 test('progress follows the active stage and closes at completion', () => {
@@ -89,7 +89,7 @@ test('multiple verifier verdicts aggregate on the current evidence round', () =>
   })
   const view = buildGoalView(all, [...seats, secondSeat])
   assert.equal(view.stages[1].verdict.pass, true)
-  assert.equal(view.stages[1].verdict.text, '全部 2 个验收席位 PASS')
+  assert.equal(view.stages[1].verdict.text, '全部 2 个验收席位通过')
   assert.deepEqual(view.stages[1].verdicts.map(item => item.author), ['复核', '复核二'])
 
   const rejected = room({

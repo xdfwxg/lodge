@@ -32,7 +32,7 @@ export const gateFor = (room, index, messages, evidence) => {
         const names = outcome.missing.map(id => seatDisplayName(room, id)).join('、')
         return deny('conflict', `还有验收席位没有回报（${names}），不能签字`)
       }
-      if (outcome.state !== 'pass') return deny('conflict', '还没有本轮产物证据上的 Verifier PASS，不能签字')
+      if (outcome.state !== 'pass') return deny('conflict', '本轮产物还没有验收通过，不能签字')
     }
     return { ok: true, stage }
   }
@@ -66,7 +66,7 @@ export const gateFor = (room, index, messages, evidence) => {
       return deny('conflict', `还有验收席位没有回报（${names}），不能签字`)
     }
     if (outcome.state !== 'pass') {
-      return deny('conflict', '还没有本轮验收命令证据上的全部验收 PASS，不能签字')
+      return deny('conflict', '本轮验收还没有全部通过，不能签字')
     }
     return { ok: true, stage }
   }
@@ -95,7 +95,7 @@ export const gateFor = (room, index, messages, evidence) => {
     // 只有显式声明了“没有验收席位”的扩展编制才允许直接由人签字；未知席位表仍按有 verifier 处理。
     const hasVerifier = !(Array.isArray(room.verifiers) && room.verifiers.length === 0)
     if (room.demo === true || hasVerifier) {
-      return deny('conflict', room.demo === true ? '还没有本阶段的 验收 PASS，不能验收' : '还没有验收席位的 PASS，不能签字')
+      return deny('conflict', room.demo === true ? '本阶段还没有验收通过，不能验收' : '还没有验收通过，不能签字')
     }
     return { ok: true, stage }
   }

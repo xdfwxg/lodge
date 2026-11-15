@@ -91,7 +91,7 @@ export function ChatConclusionCard({ message, seat, room, onAccept, onContinueCh
                   className: 'crew-accept crew-conclusion-pending',
                   disabled: busy || room.state !== 'active',
                   onClick: () => void accept(),
-                }, busy ? '处理中…' : '待你确认')))
+                }, busy ? '处理中…' : '确认结论')))
           : null,
         accepted && typeof onStartStudio === 'function'
           ? h('div', { className: 'crew-card-foot', 'data-settled': true },

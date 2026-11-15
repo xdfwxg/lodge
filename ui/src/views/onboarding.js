@@ -4,7 +4,7 @@ import { RoomTypeChoices } from '../room/type-choices.js'
 export function Onboarding({ state, onCreate }) {
   const disabled = state.phase === 'loading' || state.phase === 'error'
   const errorText = state.runtime?.ok === false
-    ? `基座未连接：${state.runtime.error}`
+    ? `Lodge 服务未连接：${state.runtime.error}`
     : state.phase === 'error'
       ? `连接失败：${state.error}`
       : ''

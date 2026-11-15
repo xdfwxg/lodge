@@ -55,7 +55,7 @@ test('the approval card shows the seat and external command with only two decisi
     },
     onDecide: decision => calls.push(decision),
   }))
-  assert.match(text(tree), /外部动作等你批准/)
+  assert.match(text(tree), /需要你批准/)
   assert.match(text(tree), /执行/)
   assert.match(text(tree), /git push origin main/)
   assert.match(text(tree), /独立守门：需你判断/)

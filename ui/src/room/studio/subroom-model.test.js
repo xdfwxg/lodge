@@ -47,8 +47,8 @@ test('the last verdict and its label are read from child messages', () => {
       { kind: 'verdict', meta: { pass: true } },
     ],
   })
-  assert.equal(verdictTextOf(lastVerdictOf(child)), 'PASS')
-  assert.equal(verdictTextOf(lastVerdictOf(room('empty'))), '还没有 verdict')
+  assert.equal(verdictTextOf(lastVerdictOf(child)), '通过')
+  assert.equal(verdictTextOf(lastVerdictOf(room('empty'))), '暂无复核')
 })
 
 test('status prefers the room state over the closure', () => {

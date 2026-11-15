@@ -146,7 +146,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
         store.appendMessage(roomId, { kind: 'system', text: `自动复核未启动：${error?.message ?? error}` })
       }
     } else {
-      store.appendMessage(roomId, { kind: 'system', text: '验收命令完成 · 这个房间没有独立验收席位 · 等你签字' })
+      store.appendMessage(roomId, { kind: 'system', text: '验收命令完成 · 这个房间没有独立验收席位 · 可以签字了' })
     }
   }
 

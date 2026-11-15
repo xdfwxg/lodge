@@ -35,7 +35,7 @@ export const createTurnState = ({ store, roomId, emit }) => {
     })
     if (updated === null) return
     if (paused) {
-      store.appendMessage(roomId, { kind: 'system', text: `连续 ${NO_PROGRESS_LIMIT} 轮没有产出，房间已暂停；等你说话。` })
+      store.appendMessage(roomId, { kind: 'system', text: `连续 ${NO_PROGRESS_LIMIT} 轮没有产出，房间已暂停，可以接着聊。` })
     }
     emit?.('room', updated)
   }

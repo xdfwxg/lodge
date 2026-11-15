@@ -33,7 +33,7 @@ export function StudioTranscript({
       if (hidden.has(message.kind)) return false
       if (message.kind === 'advisor_advice') return false
       if (message.kind === 'verdict' && message.meta?.human === true) return false
-      if (room.state === 'complete' && message.kind === 'system' && /等你签字/.test(String(message.text ?? ''))) return false
+      if (room.state === 'complete' && message.kind === 'system' && /等你签字|可以签字/.test(String(message.text ?? ''))) return false
       return true
     })
     return { timeline, chapters: buildStageChapters(visible, room) }

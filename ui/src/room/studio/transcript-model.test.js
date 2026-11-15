@@ -171,12 +171,12 @@ test('a room without stages keeps one process chapter', () => {
   assert.equal(chapters[0].expanded, true)
 })
 
-test('stage summaries fall back to a record count and skip human sign-offs', () => {
+test('stage summaries stay quiet when there is nothing to count', () => {
   const room = stagedRoom(['passed'])
-  assert.equal(stageChapterSummary([staged('a', 1, 0)], room), '1 条记录')
+  assert.equal(stageChapterSummary([staged('a', 1, 0)], room), '')
   assert.equal(
     stageChapterSummary([staged('v', 1, 0, 'verdict', { human: true })], room),
-    '1 条记录',
+    '',
   )
 })
 

@@ -148,7 +148,7 @@ test('the review request goes to every verifier and all PASS ends the round', as
   turns.captureTurn({ turnId: 't2', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v2')
   assert.equal(turns.busyReview(), false)
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 2)
-  assert.match(messages.at(-1).text, /全部验收席位 PASS/)
+  assert.match(messages.at(-1).text, /全部验收席位通过/)
 })
 
 test('a rejection cancels the remaining verifier round', async () => {

@@ -30,7 +30,7 @@ export const buildChatDecision = room => {
   if (chat.phase === 'awaiting_decision') {
     return {
       key: 'chat-decision',
-      title: '讨论结束，等你确认结论',
+      title: '讨论结束',
       detail: text.length > 260 ? `${text.slice(0, 260)}…` : text,
       primary: { label: '确认结论', action: 'chat-accept' },
       secondary: { label: '再讨论', action: 'continue-chat' },
@@ -39,7 +39,7 @@ export const buildChatDecision = room => {
   }
   return {
     key: 'chat-interrupted',
-    title: '讨论中断，等你处理',
+    title: '讨论中断',
     detail: '上一轮讨论中断了，可以重新开始本轮。',
     primary: { label: '重新开始讨论', action: 'chat-resume' },
     secondary: null,

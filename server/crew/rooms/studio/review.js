@@ -91,15 +91,15 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       store.appendMessage(roomId, {
         kind: 'system',
         text: policy === 'majority'
-          ? `验收 quorum 达成：${passed}/${total} PASS（需要 ${required}），等你签字。`
-          : '全部验收席位 PASS，等你签字。',
+          ? `验收通过：${passed}/${total}（需要 ${required} 位），可以签字了。`
+          : '全部验收席位通过，可以签字了。',
       })
     } else {
       updateTasks(pending.stage, current => markStageTasks(current, 'working'))
       store.appendMessage(roomId, {
         kind: 'system',
         text: policy === 'majority'
-          ? `${name} 后未达到 quorum：${passed}/${total} PASS、${rejected} REJECT（需要 ${required}）；这一轮仍未通过。`
+          ? `${name} 投了退回：${passed}/${total} 通过、${rejected} 退回（需要 ${required} 位通过）；这一轮仍未通过。`
           : `${name} 打回；其余验收席位不再等待，返工后重跑验收命令。`,
       })
       const current = store.readRoom(roomId)

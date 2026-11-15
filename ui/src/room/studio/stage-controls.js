@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { BotMark } from '../../marks.js'
-import { changeWordOf, independenceOf } from '../../view-format.js'
+import { independenceOf } from '../../view-format.js'
 import { ConfirmationPoints } from './opening-points.js'
 import { reworkFloorOf } from './stage-gate.js'
 
@@ -59,7 +59,7 @@ function FinalSummary({ room }) {
         h('span', null, item.kind === 'deliverable'
           ? evidence === undefined ? '无命令证据' : `${evidence.meta.command} · exit ${evidence.meta.exit}`
           : item.state === 'passed' ? '已确认' : '你确认'),
-        h('span', null, verdict === undefined ? '' : verdict.meta?.pass === true ? 'PASS' : 'REJECT'))
+        h('span', null, verdict === undefined ? '' : verdict.meta?.pass === true ? '通过' : '退回'))
     }),
     h('p', { className: 'crew-field-hint' }, '确认后写入结论、生成 commit，房间完成。'))
 }
@@ -95,7 +95,7 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
       h('div', { className: 'crew-card crew-human-gate' },
         h('div', { className: 'crew-card-head' },
           h('span', null, `阶段 ${index + 1} / ${room.stages.length}`),
-          h('span', { className: 'crew-verdict', 'data-pending': true }, blocked ? '需要你回答' : '需要你确认')),
+          h('span', { className: 'crew-verdict', 'data-pending': true }, blocked ? '待回答' : '待确认')),
         h('div', { className: 'crew-card-body' },
           h('p', { className: 'crew-gate-lead' },
             blocked ? 'Lodge 需要你先回答一个问题。' : '需要你确认的是：'),
@@ -203,7 +203,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
             : null,
           editing
             ? h('div', { className: 'crew-acceptance-edit' },
-              h('p', { className: 'crew-gate-question' }, `验收命令在房间工作区里真实执行；退出码、输出与${changeWordOf(room)}会落成证据。`),
+              h('p', { className: 'crew-gate-question' }, `这条命令会在房间工作区里真实运行，结果会记下来。`),
               h('textarea', {
                 className: 'crew-gate-input',
                 rows: 2,

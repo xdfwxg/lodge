@@ -124,7 +124,7 @@ test('a PASS must reference exit 0 command evidence', () => {
 test('live deliverable needs a verifier PASS', () => {
   const gate = gateFor(room(), 1, [evidence()])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /PASS/)
+  assert.match(gate.error, /验收通过/)
 })
 
 test('multiple verifiers must all PASS the same evidence before sign-off', () => {

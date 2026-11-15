@@ -24,11 +24,11 @@ function EvidenceCard({ message, seat }) {
   const command = meta.kind === 'command'
   const manual = meta.kind === 'manual'
   const passed = meta.exit === 0
-  const source = meta.simulated === true ? '模拟执行 · 未真实运行' : meta.sample === true ? '样例数据' : turn ? '真实回合 · 已落盘' : manual ? '产物就绪 · 等你验收' : '命令已真实执行'
+  const source = meta.simulated === true ? '模拟执行 · 未真实运行' : meta.sample === true ? '样例数据' : turn ? '真实回合 · 已落盘' : manual ? '产物就绪 · 待验收' : '命令已真实执行'
   const summary = command
     ? `已交付 · ${meta.command ?? '验收命令'} · exit ${meta.exit ?? '无'}`
     : manual
-      ? `${meta.workers?.length ?? 1} 席产物已就绪 · 等你验收`
+      ? `${meta.workers?.length ?? 1} 席产物已就绪 · 待验收`
       : turn
         ? `真实回合 · ${((meta.durationMs ?? 0) / 1000).toFixed(1)}s`
         : `证据 · 阶段 ${(meta.stage ?? 0) + 1}`
@@ -89,7 +89,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
       h('div', { className: 'crew-card crew-result-card', 'data-demo': meta.simulated === true, 'data-pass': pass },
         h('div', { className: 'crew-card-head' },
           '复核卡',
-          h('span', { className: 'crew-verdict', 'data-pass': pass, 'data-reject': !pass }, pass ? 'PASS' : 'REJECT')),
+          h('span', { className: 'crew-verdict', 'data-pass': pass, 'data-reject': !pass }, pass ? '通过' : '退回')),
         h('div', { className: 'crew-card-body' },
           command ? h('div', { className: 'crew-kv' }, h('span', null, '命令'), h('code', null, command)) : null,
           exit !== undefined && exit !== null ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(exit))) : null,

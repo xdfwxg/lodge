@@ -25,7 +25,7 @@ const evidence = (seq = 10) => ({ kind: 'evidence', seq, meta: { stage: 1, kind:
 const verdict = (pass, seq = 11) => ({ kind: 'verdict', seq, meta: { stage: 1, pass } })
 
 test('active decision waits for the human', () => {
-  assert.deepEqual(roomNeedsYou(room(), []), { kind: 'decision', stage: 0, label: '等你确认' })
+  assert.deepEqual(roomNeedsYou(room(), []), { kind: 'decision', stage: 0, label: '待确认' })
 })
 
 test('an open question outranks the stage type', () => {
@@ -40,7 +40,7 @@ test('a pending external approval outranks a busy seat', () => {
   const r = atDeliverable()
   r.busy = true
   r.approvals = [{ id: 'a', state: 'pending' }]
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'approval', stage: null, label: '等你批准外部动作' })
+  assert.deepEqual(roomNeedsYou(r, []), { kind: 'approval', stage: null, label: '待批准' })
 })
 
 test('a seat engine error asks the human to intervene with a concrete reason', () => {
@@ -52,14 +52,14 @@ test('a seat engine error asks the human to intervene with a concrete reason', (
   }, []), {
     kind: 'error',
     stage: null,
-    label: '执行者额度不足 · 等你处理',
+    label: '执行者额度不足',
   })
   assert.equal(roomNeedsYou({
     state: 'paused',
     pauseReason: 'seat_error',
     seatSpecs: [{ id: 'verifier', name: '验收员' }],
     seatError: { seat: 'verifier', kind: 'auth' },
-  }, []).label, '验收员登录失效 · 等你处理')
+  }, []).label, '验收员登录失效')
 })
 
 test('a deliverable without an acceptance command asks for setup', () => {
@@ -111,31 +111,31 @@ test('a manual stage stays quiet until the product is ready', () => {
   const manual = { kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
   assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'review', stage: 1, label: '待复核 · 已回报 0/1' })
   r.verifiers = []
-  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'decision', stage: 1, label: '等你验收' })
+  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'decision', stage: 1, label: '待确认' })
 })
 
 test('a parallel merge conflict asks the human', () => {
   const r = atDeliverable()
   r.stageDispatch = { stage: 1, pending: [], conflict: { files: ['same.txt'] } }
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'merge', stage: 1, label: '合并冲突 · 等你处理' })
+  assert.deepEqual(roomNeedsYou(r, []), { kind: 'merge', stage: 1, label: '合并冲突' })
 })
 
 test('a timed-out parallel dispatch asks the human', () => {
   const r = atDeliverable()
   r.stageDispatch = { stage: 1, pending: ['worker-2'], timedOut: true }
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'parallel', stage: 1, label: '并行执行超时 · 等你处理' })
+  assert.deepEqual(roomNeedsYou(r, []), { kind: 'parallel', stage: 1, label: '并行执行超时' })
 })
 
 test('a stalled parallel dispatch asks the human', () => {
   const r = atDeliverable()
   r.stageDispatch = { stage: 1, pending: [], stalled: true }
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'parallel', stage: 1, label: '并行执行没有产出 · 等你处理' })
+  assert.deepEqual(roomNeedsYou(r, []), { kind: 'parallel', stage: 1, label: '并行执行无产出' })
 })
 
 test('a room-level merge conflict outlives the dispatch record', () => {
   const r = atDeliverable()
   r.mergeConflict = { stage: 1, files: ['same.txt'] }
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'merge', stage: 1, label: '合并冲突 · 等你处理' })
+  assert.deepEqual(roomNeedsYou(r, []), { kind: 'merge', stage: 1, label: '合并冲突' })
 })
 
 test('a room with no verifier waits for sign-off after evidence', () => {
@@ -152,7 +152,7 @@ test('complete, paused and stopped rooms are quiet', () => {
 
 test('an idle pause asks the human to speak', () => {
   const r = room({ state: 'paused', idle: true })
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'idle', stage: null, label: '等你说话' })
+  assert.deepEqual(roomNeedsYou(r, []), { kind: 'idle', stage: null, label: '可以接着聊' })
 })
 
 test('a manual pause stays quiet', () => {

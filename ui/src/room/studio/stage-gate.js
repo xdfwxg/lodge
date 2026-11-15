@@ -34,9 +34,9 @@ export const gateStatus = room => {
   if (room.state === 'paused') return '已暂停'
   if (room.state === 'stopped') return '已停止'
   if (activeStage.kind === 'decision') {
-    if (room.openQuestion) return '等你回答'
+    if (room.openQuestion) return '待回答'
     if (activeStage.manual === true) {
-      if (!manualReady) return room.live === true ? '等待产出' : '等你确认'
+      if (!manualReady) return room.live === true ? '等待产出' : '待确认'
       if ((room.verifiers?.length ?? 0) > 0) {
         const evidence = [...room.messages].reverse().find(message => (
           message.kind === 'evidence' &&
@@ -53,14 +53,14 @@ export const gateStatus = room => {
         ))
         if (verdicts.some(message => message.meta?.pass !== true)) return '验收退回'
         if (verdicts.length < (room.verifiers?.length ?? 0)) return '等待复核'
-        return '等你签字'
+        return '待签字'
       }
-      return '等你确认'
+      return '待确认'
     }
-    return '等你确认'
+    return '待确认'
   }
   if (room.demo === true) return '演示'
-  if (hasPass) return '等你签字'
+  if (hasPass) return '待签字'
   const acceptance = typeof activeStage.acceptance === 'string' ? activeStage.acceptance.trim() : ''
   const evidence = [...room.messages].reverse().find(message => (
     message.kind === 'evidence' &&

@@ -219,7 +219,7 @@ test('review request and verdict consumption update the round without crossing t
   assert.equal(review.consume({ turn: { reply: 'PASS' }, seat: 'verifier', turnId: 't1', room }), true)
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
-  assert.ok(store.messages.some(message => message.text === '全部验收席位 PASS，等你签字。'))
+  assert.ok(store.messages.some(message => message.text === '全部验收席位通过，可以签字了。'))
 })
 
 test('manual evidence also goes through the Verifier before human signoff', async () => {

@@ -61,7 +61,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
         const files = result.files.length > 0 ? result.files.join('、') : '未知文件'
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `并行合并冲突：${name} 的 ${label} 与房间目录冲突（${files}）。合并已回滚，阶段停下等你处理。`,
+          text: `并行合并冲突：${name} 的 ${label} 与房间目录冲突（${files}）。合并已回滚，阶段停下，需要你处理。`,
         })
         store.appendEvent(roomId, 'stage.merge_conflict', { stage: stageIndex, worker, branch: branch ?? '', files: result.files })
         const updated = store.updateRoom(roomId, current => {
@@ -81,7 +81,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
       store.appendMessage(roomId, {
         kind: 'evidence',
         authorId: 'system',
-        text: '并行产物已合并，等你验收。',
+        text: '并行产物已合并，可以验收了。',
         meta: {
           kind: 'manual',
           vcs: vcsOf(room),
@@ -95,7 +95,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
           capturedAt: new Date().toISOString(),
         },
       })
-      store.appendMessage(roomId, { kind: 'system', text: '并行产物已合并 · 等你验收' })
+      store.appendMessage(roomId, { kind: 'system', text: '并行产物已合并 · 可以验收了' })
       store.appendEvent(roomId, 'room.integration', { stage: stageIndex, head, workers, merged, manual: true })
       markProgress()
       return
@@ -180,7 +180,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
         store.appendMessage(roomId, { kind: 'system', text: `自动复核未启动：${error?.message ?? error}` })
       }
     } else {
-      store.appendMessage(roomId, { kind: 'system', text: '验收命令完成 · 这个房间没有独立验收席位 · 等你签字' })
+      store.appendMessage(roomId, { kind: 'system', text: '验收命令完成 · 这个房间没有独立验收席位 · 可以签字了' })
     }
   }
 

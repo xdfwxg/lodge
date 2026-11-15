@@ -77,7 +77,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: hasVerifier ? '产物已就绪，等验收员复核。' : '产物已就绪，等你验收。',
+      text: hasVerifier ? '产物已就绪，等验收员复核。' : '产物已就绪，可以验收了。',
       meta: {
         kind: 'manual',
         stage: stageIndex,
@@ -91,7 +91,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         capturedAt: new Date().toISOString(),
       },
     })
-    store.appendMessage(roomId, { kind: 'system', text: hasVerifier ? '产物已就绪 · 等验收员复核' : '产物已就绪 · 等你验收' })
+    store.appendMessage(roomId, { kind: 'system', text: hasVerifier ? '产物已就绪 · 等验收员复核' : '产物已就绪 · 可以验收了' })
     state.markProgress()
     if (hasVerifier) {
       void review.request(stageIndex).catch(error => {
@@ -352,7 +352,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
           return { events: [{ type: 'stage.dispatch_stalled', payload: { stage: stageIndex, workers: dispatch.workers ?? [] } }] }
         })
         if (updated !== null) {
-          store.appendMessage(roomId, { kind: 'system', text: '重启后并行执行仍没有产出；阶段等你处理。' })
+          store.appendMessage(roomId, { kind: 'system', text: '重启后并行执行仍没有产出；阶段需要你处理。' })
           emit?.('room', updated)
         }
         return

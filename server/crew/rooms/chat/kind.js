@@ -81,8 +81,8 @@ export const chatKind = {
   needsYou: room => {
     const chat = room.chat
     if (!chat || chat.running === true || chat.accepted === true) return null
-    if (chat.phase === 'awaiting_decision') return { kind: 'decision', stage: null, label: '等你确认结论' }
-    return { kind: 'idle', stage: null, label: '聊天中断 · 等你处理' }
+    if (chat.phase === 'awaiting_decision') return { kind: 'decision', stage: null, label: '待确认' }
+    return { kind: 'idle', stage: null, label: '可继续' }
   },
 
   stateOf: room => room.chat?.phase ?? 'discussing',

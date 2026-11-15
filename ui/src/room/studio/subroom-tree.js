@@ -12,9 +12,9 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
   const [goal, setGoal] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [expanded, setExpanded] = useState(true)
   const inputId = useId()
   const rows = useMemo(() => buildSubroomRows(room, rooms), [room, rooms])
+  const [expanded, setExpanded] = useState(rows.length > 0)
   const canCreate = canCreateSubroom(room)
 
   const submit = async () => {

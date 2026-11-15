@@ -30,7 +30,7 @@ export const stageChapterSummary = (items, room, index = null) => {
   if (transfers > 0) parts.push(`${transfers} 次交接`)
   if (evidence > 0) parts.push(`${evidence} 条证据`)
   if (verdicts > 0) parts.push(`${verdicts} 次复核`)
-  return parts.length > 0 ? parts.join(' · ') : `${items.length} 条记录`
+  return parts.join(' · ')
 }
 
 // 阶段是工作室时间线的章节：当前阶段展开，已完成阶段收成一行，交付卡单独放在最后。

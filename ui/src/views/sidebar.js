@@ -1,9 +1,29 @@
 import { Fragment, createElement as h, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ROOM_TYPE_MANIFEST } from '../../../shared/room-types.js'
 import { uiKindOfRoom } from '../room/kinds.js'
+import { roomTypeIcon } from '../room/type-icons.js'
 import { initialOf } from '../marks.js'
 
-const GROUPS = ROOM_TYPE_MANIFEST.map(({ id, name }) => ({ id, label: name }))
+const lastAtOf = room => (room.messages ?? [])
+  .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
+const byRecent = list => [...list].sort((a, b) => lastAtOf(b) - lastAtOf(a))
+
+// Room type is a property of the room, not a section. The sidebar answers
+// "what needs me, what have I touched recently, what is done".
+export const groupRooms = rooms => {
+  const pending = []
+  const recent = []
+  const done = []
+  for (const room of rooms) {
+    if (room.needsYou) pending.push(room)
+    else if (room.state === 'complete') done.push(room)
+    else recent.push(room)
+  }
+  return [
+    { id: 'pending', label: '待处理', rooms: byRecent(pending) },
+    { id: 'recent', label: '最近', rooms: byRecent(recent) },
+    { id: 'done', label: '已完成', rooms: byRecent(done) },
+  ].filter(section => section.rooms.length > 0)
+}
 
 const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
@@ -11,12 +31,11 @@ const railQuery = () => (
 
 function Sidebar({ state, onSelect, onNew }) {
   const { rooms, activeId } = state
-  const [folded, setFolded] = useState({})
   const [rail, setRail] = useState(railQuery)
   const [open, setOpen] = useState(false)
   const sidebarRef = useRef(null)
-  const waiting = rooms.filter(room => room.needsYou).length
-  const toggle = id => setFolded(current => ({ ...current, [id]: current[id] !== true }))
+  const sections = groupRooms(rooms)
+  const waiting = sections.find(section => section.id === 'pending')?.rooms.length ?? 0
   const collapsed = rail && !open
   const expanded = !collapsed
 
@@ -133,14 +152,14 @@ function Sidebar({ state, onSelect, onNew }) {
         ? h('div', {
           className: 'crew-error crew-side-error',
           role: 'alert',
-          title: `基座未连接：${state.runtime.error}`,
-          'aria-label': `基座未连接：${state.runtime.error}`,
+          title: `Lodge 服务未连接：${state.runtime.error}`,
+          'aria-label': `Lodge 服务未连接：${state.runtime.error}`,
         },
         h('span', { className: 'crew-side-error-mark', 'aria-hidden': 'true' }, '!'),
-        h('span', { className: 'crew-side-error-text' }, `基座未连接：${state.runtime.error}`))
+        h('span', { className: 'crew-side-error-text' }, `Lodge 服务未连接：${state.runtime.error}`))
         : null,
       h('div', { className: 'crew-side-tools' },
-        waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个等你`) : h('span'),
+        waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个待处理`) : h('span'),
         rail
           ? h('button', {
             type: 'button',
@@ -154,27 +173,14 @@ function Sidebar({ state, onSelect, onNew }) {
         h('button', { type: 'button', className: 'crew-new', 'aria-label': '新建房间', onClick: onNew }, '＋ 新建')),
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },
-          GROUPS.map(group => {
-            const items = rooms.filter(room => uiKindOfRoom(room).id === group.id)
-            if (items.length === 0) return null
-            const closed = folded[group.id] === true
-            return h('section', { key: group.id, className: 'crew-side-group' },
-              h('button', {
-                type: 'button',
-                className: 'crew-side-group-head',
-                'aria-expanded': !closed,
-                onClick: () => toggle(group.id),
-              },
-              h('span', { className: 'crew-side-chevron', 'data-open': !closed }, '⌄'),
-              h('span', null, group.label),
-              h('span', { className: 'crew-side-count' }, String(items.length))),
-              collapsed || !closed ? items.map(room => h(RoomRow, {
-                key: room.id,
-                room,
-                active: activeId === room.id,
-                onSelect: () => selectRoom(room.id),
-              })) : null)
-          }))),
+          sections.map(section => h('section', { key: section.id, className: 'crew-side-group' },
+            h('div', { className: 'crew-side-group-label' }, section.label),
+            section.rooms.map(room => h(RoomRow, {
+              key: room.id,
+              room,
+              active: activeId === room.id,
+              onSelect: () => selectRoom(room.id),
+            })))))),
       h('div', { className: 'crew-me' },
         h('span', { className: 'crew-me-badge' }, '你'),
         h('span', { className: 'crew-me-body' }, h('b', null, '你')))))
@@ -189,20 +195,43 @@ const toneOf = room => {
   return room.live === true ? 'active' : 'idle'
 }
 
-const metaOf = room => {
-  if (room.needsYou?.kind === 'signoff') return '签字'
-  if (room.needsYou?.kind === 'review') return '复核'
-  if (room.needsYou?.kind === 'decision') return '确认'
-  if (room.needsYou?.kind === 'rework') return '返工'
-  if (room.needsYou) return '等你'
-  return room.state === 'complete' ? '完成' : room.live === true ? '实时' : ''
+const NEEDS_META = {
+  signoff: '待签字',
+  review: '待复核',
+  decision: '待确认',
+  question: '待回答',
+  setup: '待设置',
+  rework: '待返工',
+  merge: '合并冲突',
+  parallel: '待处理',
+  approval: '待批准',
+  idle: '可继续',
+  error: '需要处理',
+  mcp: '连接中断',
+}
+
+// The row only shows a status word when the room needs you. Complete and live
+// rooms stay quiet; the dot carries their state and the accessible label says it.
+const metaOf = room => room.needsYou ? NEEDS_META[room.needsYou.kind] ?? '待处理' : ''
+
+const stateLabelOf = room => {
+  if (room?.state === 'complete') return '完成'
+  if (room?.state === 'stopped') return '已停止'
+  if (room?.state === 'paused') return '已暂停'
+  if (room?.state === 'active') return '进行中'
+  return ''
 }
 
 // 可达名称：名称 + 状态 + 未读 + needsYou 文案，rail 态不依赖颜色也能读出来。
 export const roomLabelOf = room => {
   const meta = metaOf(room)
   const parts = [room?.name ?? '房间']
-  if (meta !== '') parts.push(meta)
+  if (meta !== '') {
+    parts.push(meta)
+  } else {
+    const state = stateLabelOf(room)
+    if (state !== '') parts.push(state)
+  }
   if (room?.chatUnread === true) parts.push('有新消息')
   if (room?.needsYou?.label && room.needsYou.label !== meta) parts.push(room.needsYou.label)
   return parts.join('，')
@@ -210,6 +239,7 @@ export const roomLabelOf = room => {
 
 function RoomRow({ room, active, onSelect }) {
   const label = roomLabelOf(room)
+  const TypeIcon = roomTypeIcon(uiKindOfRoom(room).id)
   return h('button', {
     type: 'button',
     className: 'bt-row crew-side-room',
@@ -219,6 +249,7 @@ function RoomRow({ room, active, onSelect }) {
     'aria-label': label,
   },
   h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, initialOf(room.name, '·')),
+  h('span', { className: 'crew-side-room-type', 'aria-hidden': 'true' }, h(TypeIcon, { size: 15 })),
   h('span', { className: 'crew-side-room-name' }, room.name),
   room.chatUnread === true && !active
     ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))

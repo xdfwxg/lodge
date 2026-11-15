@@ -104,7 +104,7 @@ test('an unanswered approval pauses the room, and deciding it resumes the room',
     assert.deepEqual(roomNeedsYou(paused), {
       kind: 'approval',
       stage: null,
-      label: '外部动作审批超时 · 等你处理',
+      label: '审批超时',
     })
     const approval = paused.approvals.find(item => item.state === 'pending')
     await ctx.live.decideApproval('room-1', approval.id, 'allow')

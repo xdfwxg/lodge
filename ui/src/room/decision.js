@@ -20,11 +20,11 @@ const statusOfPaused = room => {
         : room.seatError?.kind === 'rate_limit'
           ? `${who}被限流`
           : `${who}调用失败`
-    return { title: `${reason}，等你处理`, tone: 'paused' }
+    return { title: `${reason}，需要处理`, tone: 'paused' }
   }
-  if (room.pauseReason === 'mcp') return { title: 'MCP 熔断，等你恢复', tone: 'paused' }
-  if (room.pauseReason === 'approval') return { title: '外部动作审批超时，等你处理', tone: 'paused' }
-  return { title: room.idle === true ? '已暂停，等你说话' : '已暂停', tone: 'paused' }
+  if (room.pauseReason === 'mcp') return { title: '连接中断，需要处理', tone: 'paused' }
+  if (room.pauseReason === 'approval') return { title: '审批超时，需要处理', tone: 'paused' }
+  return { title: room.idle === true ? '已暂停，可以接着聊' : '已暂停', tone: 'paused' }
 }
 
 export const buildIdleDecision = room => {

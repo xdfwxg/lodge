@@ -60,7 +60,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
   const staleSignoff = message => (
     room.state === 'complete'
     && message.kind === 'system'
-    && /等你签字/.test(String(message.text ?? ''))
+    && /等你签字|可以签字/.test(String(message.text ?? ''))
   )
   const meaningful = timeline.visible.filter(message => !hidden.has(message.kind) && !staleSignoff(message))
   return [

@@ -25,7 +25,7 @@ export function ShadowCard({ room, message, byId = {} }) {
         h('div', { className: 'crew-shadow-col' },
           h('div', { className: 'crew-shadow-col-head' }, '验收员 · 正式'),
           shadow.verdicts.map(verdict => h('div', { key: verdict.id, className: 'crew-shadow-verdict' },
-            h('b', { 'data-pass': verdict.pass ? 'true' : 'false' }, verdict.pass ? 'PASS' : 'REJECT'),
+            h('b', { 'data-pass': verdict.pass ? 'true' : 'false' }, verdict.pass ? '通过' : '退回'),
             h('span', null, nameOf(verdict.authorId))))),
         h('div', { className: 'crew-shadow-col' },
           h('div', { className: 'crew-shadow-col-head' }, 'advisor · 仅对照'),

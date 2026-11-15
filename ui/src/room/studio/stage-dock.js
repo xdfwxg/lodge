@@ -1,4 +1,5 @@
 import { createElement as h, useEffect, useState } from 'react'
+import { ChevronDownIcon } from '../../goal-island/ds-icons.js'
 import { LiveGate, StageAction } from './stage-controls.js'
 import { gateStatus, stageGate, stageNeedsHuman } from './stage-gate.js'
 
@@ -27,12 +28,12 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
       type: 'button',
       className: 'crew-stage-dock-row',
       'aria-expanded': open,
+      'aria-label': `阶段 ${activeIndex + 1} ${activeStage.title}，${gateStatus(room)}`,
       onClick: () => setOpen(!open),
     },
     h('span', { className: 'crew-stage-dock-kicker' }, `阶段 ${activeIndex + 1}`),
     h('span', { className: 'crew-stage-dock-title' }, activeStage.title),
-    h('span', { className: 'crew-stage-dock-badge' }, gateStatus(room)),
-    h('span', { className: 'crew-stage-dock-toggle' }, open ? '收起' : '展开')),
+    h('span', { className: 'crew-stage-dock-chev', 'data-open': open, 'aria-hidden': 'true' }, h(ChevronDownIcon))),
     open ? h('div', { className: 'crew-stage-dock-body' }, body) : null)
 }
 

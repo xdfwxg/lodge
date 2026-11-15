@@ -23,14 +23,14 @@ const studioNeedsYou = (room, messages = []) => {
   const floor = reworkFloor(messages, index)
 
   if (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') {
-    return { kind: 'question', stage: index, label: '等你回答' }
+    return { kind: 'question', stage: index, label: '待回答' }
   }
   if (room.busy === true) return null
   const timeout = latestReviewTimeout(messages, index)
   if (timeout !== undefined) {
     const lastVerdict = latestForStage(messages, 'verdict', index, floor)
     if ((timeout.ts ?? 0) > (room.reviewRetriedAt ?? 0) && (timeout.ts ?? 0) > (lastVerdict?.ts ?? 0)) {
-      return { kind: 'review-timeout', stage: index, label: '复核超时 · 等你处理' }
+      return { kind: 'review-timeout', stage: index, label: '复核超时' }
     }
   }
   if (stage.manual === true) {
@@ -38,50 +38,50 @@ const studioNeedsYou = (room, messages = []) => {
     if (manual?.meta?.kind !== 'manual') return null
     if (verifierIds(room).length > 0) {
       const outcome = manualReviewState({ room, messages, stageIndex: index })
-      if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '验收退回 · 等你处理' }
+      if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待返工' }
       if (outcome.state === 'pending') {
         return { kind: 'review', stage: index, label: `待复核 · 已回报 ${outcome.received}/${outcome.total}` }
       }
-      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '等你签字' }
+      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '待签字' }
       return null
     }
-    return { kind: 'decision', stage: index, label: '等你验收' }
+    return { kind: 'decision', stage: index, label: '待确认' }
   }
-  if (stage.kind === 'decision') return { kind: 'decision', stage: index, label: '等你确认' }
+  if (stage.kind === 'decision') return { kind: 'decision', stage: index, label: '待确认' }
 
   if (typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') {
-    return { kind: 'setup', stage: index, label: '等你设验收命令' }
+    return { kind: 'setup', stage: index, label: '待设置' }
   }
   const dispatch = room.stageDispatch
   if (room.mergeConflict?.stage === index || (dispatch?.stage === index && dispatch?.conflict !== undefined && dispatch?.conflict !== null)) {
-    return { kind: 'merge', stage: index, label: '合并冲突 · 等你处理' }
+    return { kind: 'merge', stage: index, label: '合并冲突' }
   }
   if (dispatch?.stage === index && dispatch?.stalled === true) {
-    return { kind: 'parallel', stage: index, label: '并行执行没有产出 · 等你处理' }
+    return { kind: 'parallel', stage: index, label: '并行执行无产出' }
   }
   if (dispatch?.stage === index && dispatch?.timedOut === true) {
-    return { kind: 'parallel', stage: index, label: '并行执行超时 · 等你处理' }
+    return { kind: 'parallel', stage: index, label: '并行执行超时' }
   }
   const commandEvidence = commandEvidenceFor(room, undefined, messages, index)
   if (commandEvidence !== undefined && commandEvidence.meta?.exit !== 0) {
-    return { kind: 'rework', stage: index, label: '验收未通过 · 等你返工' }
+    return { kind: 'rework', stage: index, label: '待返工' }
   }
   if (verifierIds(room).length > 1) {
     const outcome = reviewState({ room, messages, stageIndex: index })
-    if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '验收退回 · 等你处理' }
-    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '等你签字' }
+    if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待返工' }
+    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '待签字' }
     if (outcome.state === 'pending') {
       return { kind: 'review', stage: index, label: `待复核 · 已回报 ${outcome.received}/${outcome.total}` }
     }
     return null
   }
   const verdict = latestForStage(messages, 'verdict', index, floor)
-  if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '等你签字' }
-  if (verdict !== undefined) return { kind: 'rework', stage: index, label: '验收退回 · 等你处理' }
+  if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '待签字' }
+  if (verdict !== undefined) return { kind: 'rework', stage: index, label: '待返工' }
   if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
     return (room.verifiers?.length ?? 0) > 0
       ? { kind: 'review', stage: index, label: '待复核' }
-      : { kind: 'signoff', stage: index, label: '等你签字' }
+      : { kind: 'signoff', stage: index, label: '待签字' }
   }
   return null
 }

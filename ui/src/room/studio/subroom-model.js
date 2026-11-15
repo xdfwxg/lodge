@@ -1,10 +1,10 @@
 export const MAX_SUBROOM_DEPTH = 3
 
 const CLOSURE_LABELS = {
-  open: '未规划',
+  open: '未开始',
   planned: '已规划',
   executing: '执行中',
-  verifying: '待签',
+  verifying: '待签字',
   signed: '已签字',
   rejected: '已退回',
 }
@@ -27,8 +27,8 @@ export const lastVerdictOf = room => [...(room?.messages ?? [])]
   .find(message => message.kind === 'verdict')
 
 export const verdictTextOf = verdict => {
-  if (verdict === undefined || verdict === null) return '还没有 verdict'
-  return verdict.meta?.pass === true ? 'PASS' : 'REJECT'
+  if (verdict === undefined || verdict === null) return '暂无复核'
+  return verdict.meta?.pass === true ? '通过' : '退回'
 }
 
 // 父房只读树：按 childRoomIds 递归展开，父子关系来自房间记录，不从消息猜。

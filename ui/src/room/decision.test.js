@@ -9,7 +9,7 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
   })
-  assert.equal(decision.title, '讨论结束，等你确认结论')
+  assert.equal(decision.title, '讨论结束')
   assert.match(decision.detail, /返工台账/)
   assert.equal(decision.primary.label, '确认结论')
   assert.equal(decision.extra.label, '用结论新建工作室')
@@ -28,7 +28,7 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     chat: { phase: 'discussing', running: false, turns: 2, turnLimit: 4 },
     messages: [],
   })
-  assert.equal(interrupted.title, '讨论中断，等你处理')
+  assert.equal(interrupted.title, '讨论中断')
   assert.equal(interrupted.primary.action, 'chat-resume')
   assert.doesNotMatch(interrupted.detail, /\d+\/\d+/)
 })

@@ -17,12 +17,11 @@
 
 .crew-side-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 8px;font-size:12.5px;color:var(--bt-ink-3)}
 .crew-side-group{margin-top:8px}
-.crew-side-group-head{display:flex;align-items:center;gap:6px;width:100%;padding:7px 8px;border:0;border-radius:6px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:12.5px;font-weight:600;text-align:left;cursor:pointer}
-.crew-side-group-head:hover{background:var(--bt-hover);color:var(--bt-ink-2)}
-.crew-side-chevron{display:inline-flex;width:12px;justify-content:center;font-size:13.5px;line-height:12px;transition:transform .12s ease;transform:rotate(-90deg)}
-.crew-side-chevron[data-open=true]{transform:rotate(0)}
-.crew-side-count{margin-left:auto;font-size:11.5px;font-weight:500;color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
+.crew-side-group-label{padding:10px 8px 4px;font-size:11.5px;line-height:15px;font-weight:600;color:var(--bt-ink-3);letter-spacing:.04em}
 .bt-row.crew-side-room{min-height:34px;padding:4px 8px;gap:8px;border-radius:8px}
+.crew-side-room-type{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;color:var(--bt-ink-3)}
+.crew-side-room-type svg{width:15px;height:15px}
+.bt-row[aria-current=page] .crew-side-room-type{color:var(--bt-ink-2)}
 .crew-side-room-name{flex:1 1 auto;min-width:0;font-size:13.5px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bt-row[aria-current=page] .crew-side-room-name{font-weight:500}
 .crew-side-room-meta{flex:none;font-size:11.5px;line-height:15px;color:var(--bt-ink-3);white-space:nowrap}
@@ -51,13 +50,13 @@ body[data-side=rail] .crew-side-brand{justify-content:center;gap:0;padding:10px 
 body[data-side=rail] .crew-side-brand-logo{width:24px;height:24px}
 body[data-side=rail] .crew-side-tools{flex-direction:column;align-items:center;gap:6px;padding:0 0 8px}
 body[data-side=rail] .crew-side-tools>span{display:none}
-body[data-side=rail] .crew-side-group-head,
-body[data-side=rail] .crew-side-count,
+body[data-side=rail] .crew-side-group-label,
 body[data-side=rail] .crew-needs-count{display:none}
 body[data-side=rail] .crew-side-group{margin-top:0;padding:8px 0 2px;border-top:1px solid var(--bt-line)}
 body[data-side=rail] .crew-side-group:first-child{border-top:0}
 body[data-side=rail] .bt-row.crew-side-room{min-height:40px;padding:4px 12px;justify-content:center;position:relative}
 body[data-side=rail] .crew-side-room-name,
+body[data-side=rail] .crew-side-room-type,
 body[data-side=rail] .crew-side-room-meta{display:none}
 body[data-side=rail] .crew-side-room-badge{display:grid}
 body[data-side=rail] .crew-side-room-dot,
