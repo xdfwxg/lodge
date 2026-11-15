@@ -9,9 +9,8 @@ const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
 const byRecent = list => [...list].sort((a, b) => lastAtOf(b) - lastAtOf(a))
 
-// Room type is a property of the room, not a section. The sidebar answers
-// "what needs me, what have I touched recently, what is done".
-export const groupRooms = rooms => {
+// 一条列表：先放待处理的，再放最近、完成、归档。类型不是分区。
+export const orderRooms = rooms => {
   const pending = []
   const recent = []
   const done = []
@@ -22,12 +21,7 @@ export const groupRooms = rooms => {
     else if (room.state === 'complete') done.push(room)
     else recent.push(room)
   }
-  return [
-    { id: 'pending', label: '等你', rooms: byRecent(pending) },
-    { id: 'recent', label: '最近', rooms: byRecent(recent) },
-    { id: 'done', label: '做完了', rooms: byRecent(done) },
-    { id: 'archived', label: '已归档', rooms: byRecent(archived) },
-  ].filter(section => section.rooms.length > 0)
+  return [...byRecent(pending), ...byRecent(recent), ...byRecent(done), ...byRecent(archived)]
 }
 
 const railQuery = () => (
@@ -39,7 +33,9 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const [rail, setRail] = useState(railQuery)
   const [open, setOpen] = useState(false)
   const sidebarRef = useRef(null)
-  const sections = groupRooms(rooms)
+  const ordered = orderRooms(rooms)
+  const archivedRooms = ordered.filter(room => room.archivedAt)
+  const activeRooms = ordered.filter(room => !room.archivedAt)
   const collapsed = rail && !open
   const expanded = !collapsed
 
@@ -93,6 +89,16 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const toggleSide = () => {
     setOpen(value => !value)
   }
+
+  const roomRow = room => h(RoomRow, {
+    key: room.id,
+    room,
+    active: activeId === room.id,
+    onSelect: () => selectRoom(room.id),
+    onRename: onRename === undefined ? undefined : name => onRename(room.id, name),
+    onArchive: onArchive === undefined ? undefined : archived => onArchive(room.id, archived),
+    onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
+  })
 
   // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。
   const SIDE_MIN = 200
@@ -176,21 +182,11 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
         h('button', { type: 'button', className: 'crew-new', 'aria-label': '新建房间', onClick: onNew }, '＋ 新建')),
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },
-          sections.map(section => h('section', {
-            key: section.id,
-            className: 'crew-side-group',
-            'data-archived': section.id === 'archived' ? 'true' : undefined,
-          },
-            h('div', { className: 'crew-side-group-label' }, section.label),
-            section.rooms.map(room => h(RoomRow, {
-              key: room.id,
-              room,
-              active: activeId === room.id,
-              onSelect: () => selectRoom(room.id),
-              onRename: onRename === undefined ? undefined : name => onRename(room.id, name),
-              onArchive: onArchive === undefined ? undefined : archived => onArchive(room.id, archived),
-              onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
-            })))))),
+          activeRooms.map(roomRow),
+          archivedRooms.length === 0
+            ? null
+            : h('div', { key: 'archived-label', className: 'crew-side-group-label' }, '已归档'),
+          archivedRooms.map(roomRow))),
       h('div', { className: 'crew-me' },
         h('span', { className: 'crew-me-badge' }, '你'),
         h('span', { className: 'crew-me-body' }, h('b', null, '你')))))
@@ -206,15 +202,15 @@ const toneOf = room => {
 }
 
 const NEEDS_META = {
-  signoff: '等你签字',
+  signoff: '待签字',
   review: '验收员在看',
-  decision: '等你定',
-  question: '等你回答',
-  setup: '等你设置',
-  rework: '等你返工',
-  merge: '等你合并',
-  parallel: '等你处理',
-  approval: '等你点头',
+  decision: '待确认',
+  question: '待回答',
+  setup: '待补检查',
+  rework: '待重做',
+  merge: '待处理冲突',
+  parallel: '待处理',
+  approval: '待确认',
   idle: '可继续',
   error: '需要处理',
   mcp: '连接中断',
@@ -222,13 +218,13 @@ const NEEDS_META = {
 
 // The row only shows a status word when the room needs you. Complete and live
 // rooms stay quiet; the dot carries their state and the accessible label says it.
-const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.needsYou.kind] ?? '等你' : ''
+const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.needsYou.kind] ?? '待处理' : ''
 
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
-  if (room?.state === 'complete') return '做完了'
-  if (room?.state === 'stopped') return '停下来了'
-  if (room?.state === 'paused') return '先停一下'
+  if (room?.state === 'complete') return '已完成'
+  if (room?.state === 'stopped') return '已停止'
+  if (room?.state === 'paused') return '已暂停'
   if (room?.state === 'active') return '正在做'
   return ''
 }
@@ -355,7 +351,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
     const result = await onRename(text)
     setBusy(false)
     if (result?.ok === true) setRenaming(false)
-    else setNote(result?.error ?? '重命名失败')
+    else setNote(result?.error ?? '名字没能改过来')
   }
   const archiveNow = async () => {
     if (busy || onArchive === undefined) return
@@ -364,7 +360,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
     const result = await onArchive(true)
     setBusy(false)
     setConfirm(null)
-    if (result?.ok !== true) setNote(result?.error ?? '归档失败')
+    if (result?.ok !== true) setNote(result?.error ?? '没能归档')
   }
   const restore = async () => {
     if (busy || onArchive === undefined) return
@@ -373,7 +369,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
     const result = await onArchive(false)
     setBusy(false)
     closeMenu()
-    if (result?.ok !== true) setNote(result?.error ?? '取消归档失败')
+    if (result?.ok !== true) setNote(result?.error ?? '没能取消归档')
   }
   const deleteNow = async () => {
     if (busy || onDelete === undefined) return
@@ -382,7 +378,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
     const result = await onDelete()
     setBusy(false)
     setConfirm(null)
-    if (result?.ok !== true) setNote(result?.error ?? '删除失败')
+    if (result?.ok !== true) setNote(result?.error ?? '没能删除')
   }
   const requestArchive = () => {
     closeMenu()
