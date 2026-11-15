@@ -21,7 +21,7 @@ const durationOf = value => {
   const rest = minutes % 60
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
 }
-const independenceOf = room => room.independenceLabel ?? '独立性未标注'
+const independenceOf = room => room.independenceLabel ?? '复核方式未标注'
 const workspaceOf = room => {
   const caps = room.workspace?.capabilities
   if (!caps) return '版本管理（默认）'

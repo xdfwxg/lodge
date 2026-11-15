@@ -180,7 +180,7 @@ export const seedSampleMessages = ({ store, room, now = Date.now() } = {}) => {
   append({
     kind: 'chat',
     authorId: 'planner',
-    text: '**目标对齐 · 结论**\n\n- 目标：给准备发布的团队一份能直接照着勾的清单。\n- 结构：代码、发布、回滚三组，每条带勾选框和负责人。\n- 验收：`test -f RELEASE_CHECKLIST.md`，文件存在且三组齐全。\n\n@you 确认这三点后，交执行官写清单。',
+    text: '**目标对齐 · 结论**\n\n- 目标：给准备发布的团队一份能直接照着勾的清单。\n- 结构：代码、发布、回滚三组，每条带勾选框和负责人。\n- 验收：文件里三组检查齐全，能直接照着勾。\n\n@you 确认这三点后，交执行官写清单。',
   })
   append({
     kind: 'handoff',
@@ -190,7 +190,7 @@ export const seedSampleMessages = ({ store, room, now = Date.now() } = {}) => {
       from: 'planner',
       workers: ['executor'],
       stage: 1,
-      acceptance: 'test -f RELEASE_CHECKLIST.md',
+      acceptance: '文件存在且三组齐全',
       reason: 'dispatch',
       status: 'sent',
     },
@@ -227,7 +227,7 @@ export const seedSampleMessages = ({ store, room, now = Date.now() } = {}) => {
   append({
     kind: 'verdict',
     authorId: 'verifier',
-    text: '已核对：三组检查齐全，每条都能勾选，负责人栏清晰；验收命令在示例工作区通过。',
+    text: '已核对：三组检查齐全，每条都能勾选，负责人栏清晰；检查在示例工作区通过。',
     meta: { stage: 1, pass: true, evidenceId: evidence.id, sample: true },
   })
   append({

@@ -14,7 +14,7 @@ test('room events and state share one projected status and independence label', 
   }
   const presented = presentRoom(room, [])
   assert.deepEqual(presented.needsYou, { kind: 'decision', stage: 0, label: '待确认' })
-  assert.equal(presented.independenceLabel, '人签字验收（无独立复核）')
+  assert.equal(presented.independenceLabel, '你签字验收')
   assert.deepEqual(presented.capabilities, { dispatch: false })
   assert.equal(room.needsYou, undefined, 'projection does not mutate the stored room')
 })

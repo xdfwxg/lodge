@@ -30,7 +30,7 @@ export const gateFor = (room, index, messages, evidence) => {
       }
       if (outcome.state === 'pending') {
         const names = outcome.missing.map(id => seatDisplayName(room, id)).join('、')
-        return deny('conflict', `还有验收席位没有回报（${names}），不能签字`)
+        return deny('conflict', `还有验收员没有回报（${names}），不能签字`)
       }
       if (outcome.state !== 'pass') return deny('conflict', '本轮产物还没有验收通过，不能签字')
     }
@@ -39,7 +39,7 @@ export const gateFor = (room, index, messages, evidence) => {
   if (stage.kind !== 'deliverable') return { ok: true, stage }
   const acceptance = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
   if (acceptance === '') {
-    return deny('conflict', '交付型阶段没有验收命令，不能验收')
+    return deny('conflict', '交付型阶段还没有检查方式，不能验收')
   }
   const isCommandEvidence = message => (
     message.meta?.stage === index &&
@@ -59,11 +59,11 @@ export const gateFor = (room, index, messages, evidence) => {
     }
     if (outcome.state === 'failed') {
       const exit = outcome.evidence?.meta?.exit
-      return deny('conflict', `最新验收命令没有通过（退出码 ${exit === null || exit === undefined ? '无' : exit}），不能签字`)
+      return deny('conflict', '最新检查没有通过，不能签字')
     }
     if (outcome.state === 'pending') {
       const names = outcome.missing.map(id => seatDisplayName(room, id)).join('、')
-      return deny('conflict', `还有验收席位没有回报（${names}），不能签字`)
+      return deny('conflict', `还有验收员没有回报（${names}），不能签字`)
     }
     if (outcome.state !== 'pass') {
       return deny('conflict', '本轮验收还没有全部通过，不能签字')
@@ -87,10 +87,10 @@ export const gateFor = (room, index, messages, evidence) => {
   if (latest === undefined) {
     const phaseEvidence = evidenceBetween(floor, Number.POSITIVE_INFINITY)
     if (phaseEvidence.length === 0) {
-      return deny('conflict', '还没有本阶段的证据（验收命令或人工产物），不能验收')
+      return deny('conflict', '还没有本阶段的证据（检查记录或人工产物），不能验收')
     }
     if (!isCommandEvidence(phaseEvidence.at(-1))) {
-      return deny('conflict', '还没有通过验收命令的证据，不能签字')
+      return deny('conflict', '还没有检查通过的记录，不能签字')
     }
     // 只有显式声明了“没有验收席位”的扩展编制才允许直接由人签字；未知席位表仍按有 verifier 处理。
     const hasVerifier = !(Array.isArray(room.verifiers) && room.verifiers.length === 0)
@@ -116,7 +116,7 @@ export const gateFor = (room, index, messages, evidence) => {
     : undefined
   const covered = referenced !== undefined && (referenced.seq ?? 0) > evidenceFloor ? referenced : phaseEvidence.at(-1)
   if (!isCommandEvidence(covered)) {
-    return deny('conflict', '复核没有对应的验收命令证据，不能签字')
+    return deny('conflict', '复核没有对应的检查记录，不能签字')
   }
   return { ok: true, stage }
 }

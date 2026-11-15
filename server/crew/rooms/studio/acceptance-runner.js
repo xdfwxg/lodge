@@ -11,7 +11,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     if (typeof room.repoPath !== 'string' || room.repoPath === '') {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `阶段 ${stageIndex + 1} 有验收命令，但房间没有固定工作目录，验收未执行`,
+        text: `阶段 ${stageIndex + 1} 需要检查，但房间还没有工作文件夹，检查没有执行`,
       })
       return
     }
@@ -65,7 +65,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
         : null
       if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `候选提交失败，验收未执行：${error?.message ?? error}` })
+      store.appendMessage(roomId, { kind: 'system', text: `没法准备检查副本，验收未执行：${error?.message ?? error}` })
       return
     }
     // 本轮实际被验收的提交：有候选就是候选，否则是执行者自己 commit 的房间 HEAD。
@@ -93,7 +93,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: `验收命令 \`${command}\` 已在一次性验收副本执行，退出码 ${result.exit === null ? '无' : result.exit}。`,
+      text: `检查${result.exit === 0 ? '通过' : '没通过'}；这次检查在独立副本里执行。`,
       meta: {
         kind: 'command',
         vcs: vcsOf(room),
@@ -131,8 +131,8 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     store.appendMessage(roomId, {
       kind: 'system',
       text: result.exit === 0
-        ? '验收命令通过 · 等待独立复核'
-        : `验收命令未通过 · exit ${result.exit === null ? '无' : result.exit} · 返工后才能复核`,
+        ? '检查通过 · 等待复核'
+        : '检查没通过 · 返工后才能复核',
     })
     if (result.exit !== 0) {
       updateTasks(stageIndex, current => markStageTasks(current, 'working'))
@@ -146,7 +146,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
         store.appendMessage(roomId, { kind: 'system', text: `自动复核未启动：${error?.message ?? error}` })
       }
     } else {
-      store.appendMessage(roomId, { kind: 'system', text: '验收命令完成 · 这个房间没有独立验收席位 · 可以签字了' })
+      store.appendMessage(roomId, { kind: 'system', text: '检查完成 · 这个房间没有验收员 · 可以签字了' })
     }
   }
 
@@ -154,7 +154,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     chain = chain
       .then(() => runAcceptance(stageIndex, command, turnId))
       .catch(error => {
-        store.appendMessage(roomId, { kind: 'system', text: `验收命令执行出错：${error?.message ?? error}` })
+        store.appendMessage(roomId, { kind: 'system', text: `检查执行出错：${error?.message ?? error}` })
       })
     return chain
   }

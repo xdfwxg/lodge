@@ -9,6 +9,7 @@ import {
   displayableStep,
   stepLabel,
   buildStageChapters,
+  isStandbyChat,
   stageChapterSummary,
 } from './transcript-model.js'
 
@@ -140,6 +141,13 @@ test('pre-stage room notices stay out of the first stage', () => {
   assert.equal(chapters[0].kind, 'prelude')
   assert.equal(chapters[0].title, '准备')
   assert.deepEqual(chapters[1].items.map(item => item.id), ['dispatch', 'evidence'])
+})
+
+test('standby chatter is not room conversation', () => {
+  const room = { leadSeat: 'planner' }
+  assert.equal(isStandbyChat({ kind: 'chat', authorId: 'executor', text: '执行官待命：阶段 2 未派发' }, room), true)
+  assert.equal(isStandbyChat({ kind: 'chat', authorId: 'planner', text: '规划师待命' }, room), false)
+  assert.equal(isStandbyChat({ kind: 'chat', authorId: 'you', text: '我先待命' }, room), false)
 })
 
 test('conversation after a pre-stage notice belongs to the active stage', () => {

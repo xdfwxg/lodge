@@ -114,6 +114,13 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-flow{display:flex;flex-direction:column;gap:4px;width:100%;max-width:792px;margin:0 auto}
 
 /* 工作室时间线：阶段章节、工作拍、接力棒；颜色和字级沿用 Lodge token。 */
+.studio-decision .crew-card{border:1px solid var(--bt-line-2);background:var(--bt-card)}
+.crew-decision-list{display:flex;flex-direction:column;gap:10px}
+.crew-decision-item{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px}
+.crew-decision-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:12px;font-weight:650}
+.crew-decision-text{font-size:13.5px;line-height:20px;font-weight:600;color:var(--bt-ink)}
+.crew-decision-rec{grid-column:2;font-size:13px;line-height:19px;color:var(--bt-ink-2)}
+.crew-decision-rec::before{content:'建议：';color:var(--bt-ink-3)}
 .studio-timeline{display:flex;flex-direction:column;gap:10px;min-width:0}
 .studio-result-first{margin-bottom:4px}
 .studio-worklog{margin-top:4px;border-top:1px solid var(--bt-line)}
@@ -141,7 +148,6 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .studio-baton-kicker{flex:none;padding:0 5px;border-radius:4px;background:var(--bt-shade-2);color:var(--bt-ink-3);font-size:11.5px;font-weight:600;line-height:17px}
 .studio-baton-from,.studio-baton-to{font-weight:600;color:var(--bt-ink)}
 .studio-baton-stage{color:var(--bt-ink-3)}
-.studio-baton-scope{color:var(--bt-ink-3)}
 .studio-baton code{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:var(--bt-ink-2)}
 .studio-baton-reason{flex:none;padding:0 6px;border-radius:999px;background:var(--bt-shade-2);color:var(--bt-ink-3);font-size:11.5px;line-height:17px}
 .studio-baton-status{flex:none;margin-left:auto;font-size:11.5px;color:var(--bt-ink-3)}
@@ -280,6 +286,8 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .studio-delivery-kicker{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--bt-success-text)}
 .studio-delivery-chip{margin-left:auto;padding:2px 8px;border-radius:999px;background:var(--bt-success-soft);color:var(--bt-success-text);font-size:11.5px;font-weight:600}
 .studio-delivery-sample{padding:2px 7px;border-radius:999px;background:var(--bt-tag-bg);color:var(--bt-ink-3);font-size:11px;font-weight:600}
+.crew-receipt span[data-pass=true],.crew-delivery-stage .crew-kv span[data-pass=true]{color:var(--bt-success-text);font-weight:600}
+.crew-receipt span[data-pass=false],.crew-delivery-stage .crew-kv span[data-pass=false]{color:var(--bt-danger-text);font-weight:600}
 .studio-delivery-name{margin:0;font-size:20px;line-height:26px;letter-spacing:-.01em;font-weight:650;color:var(--bt-ink)}
 .studio-delivery-goal{margin:0;font-size:15px;line-height:21px;color:var(--bt-ink-2)}
 .studio-delivery-meta{display:flex;flex-direction:column;gap:5px}
@@ -523,6 +531,12 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 .crew-new-advanced[open]>summary::before{content:'−'}
 .crew-new-advanced>summary:hover{color:var(--bt-ink)}
 .crew-new-advanced-body{display:flex;flex-direction:column;gap:18px;padding-top:14px}
+.crew-dev-options{margin-top:2px}
+.crew-dev-options>summary{display:flex;align-items:center;min-height:28px;list-style:none;cursor:pointer;font-size:12.5px;line-height:18px;color:var(--bt-ink-3)}
+.crew-dev-options>summary::-webkit-details-marker{display:none}
+.crew-dev-options>summary::before{content:'›';margin-right:5px}
+.crew-dev-options[open]>summary::before{content:'⌄'}
+.crew-dev-options[open]>summary{margin-bottom:6px}
 .crew-choice-row{display:flex;flex-wrap:wrap;gap:8px}
 .crew-new-recommend{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 .crew-dialog-foot{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;padding:14px 24px 18px;border-top:1px solid var(--bt-line);background:var(--bt-card)}

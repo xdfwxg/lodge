@@ -52,7 +52,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
       }
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `候选提交失败：${error?.message ?? error}` })
+      store.appendMessage(roomId, { kind: 'system', text: `没法准备检查副本：${error?.message ?? error}` })
     }
     const head = typeof workspaceOf(room).head === 'function' && typeof room.repoPath === 'string' && room.repoPath !== ''
       ? workspaceOf(room).head({ path: room.repoPath })
@@ -220,7 +220,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
             candidate = workspaceOf(current).submit({ path: worktree, turnId, name: current.name })
             if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, seat, commit: candidate })
           } catch (error) {
-            store.appendMessage(roomId, { kind: 'system', text: `候选提交失败（${seatDisplayName(current, seat)}）：${error?.message ?? error}` })
+            store.appendMessage(roomId, { kind: 'system', text: `没法准备检查副本（${seatDisplayName(current, seat)}）：${error?.message ?? error}` })
           }
         }
         const base = dispatch?.stage === stage && typeof dispatch.base === 'string'

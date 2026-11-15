@@ -26,7 +26,7 @@ function EvidenceCard({ message, seat }) {
   const passed = meta.exit === 0
   const source = meta.simulated === true ? '模拟执行 · 未真实运行' : meta.sample === true ? '样例数据' : turn ? '真实回合 · 已落盘' : manual ? '产物就绪 · 待验收' : '命令已真实执行'
   const summary = command
-    ? `已交付 · ${meta.command ?? '验收命令'} · 退出码 ${meta.exit ?? '无'}`
+    ? `${passed ? '检查通过' : '检查没通过'}${typeof meta.durationMs === 'number' ? ` · 用时 ${(meta.durationMs / 1000).toFixed(1)}s` : ''}`
     : manual
       ? `${meta.workers?.length ?? 1} 席产物已就绪 · 待验收`
       : turn
@@ -46,6 +46,8 @@ function EvidenceCard({ message, seat }) {
     h('summary', null, '证据'),
     h('div', { className: 'studio-result-body' },
       h('p', { className: 'crew-field-hint' }, source),
+      command && meta.command ? h('div', { className: 'crew-kv' }, h('span', null, '命令'), h('code', null, meta.command)) : null,
+      command && meta.exit !== undefined ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(meta.exit ?? '无'))) : null,
       meta.files?.length ? h('div', { className: 'crew-receipt-files' }, meta.files.join(' · ')) : null,
       turn && meta.artifacts?.length
         ? h('details', { className: 'crew-fold' }, h('summary', null, '产物'),
@@ -88,11 +90,9 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
       h(Speaker, { seat, ts: message.ts }),
       h('div', { className: 'crew-card crew-result-card', 'data-demo': meta.simulated === true, 'data-pass': pass },
         h('div', { className: 'crew-card-head' },
-          '复核卡',
+          '检查结果',
           h('span', { className: 'crew-verdict', 'data-pass': pass, 'data-reject': !pass }, pass ? '通过' : '退回')),
         h('div', { className: 'crew-card-body' },
-          command ? h('div', { className: 'crew-kv' }, h('span', null, '命令'), h('code', null, command)) : null,
-          exit !== undefined && exit !== null ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(exit))) : null,
           summary === '' ? null : h(Markdown, { text: summary, variant: 'compact' }),
           files.length > 0 ? h('div', { className: 'crew-receipt-files' }, files.join(' · ')) : null,
           diff === ''
@@ -102,11 +102,15 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
           detail === ''
             ? null
             : h('details', { className: 'crew-fold' },
-              h('summary', null, '复核理由'),
+              h('summary', null, '为什么这样判断'),
               h(Markdown, { text: detail, variant: 'compact' })),
-          output === ''
-            ? null
-            : h('details', { className: 'crew-fold' }, h('summary', null, '原始输出'), h(CodeOutput, { text: output }))),
+          command || (exit !== undefined && exit !== null) || output !== ''
+            ? h('details', { className: 'crew-fold' },
+              h('summary', null, '技术细节'),
+              command ? h('div', { className: 'crew-kv' }, h('span', null, '命令'), h('code', null, command)) : null,
+              exit !== undefined && exit !== null ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(exit))) : null,
+              output === '' ? null : h(CodeOutput, { text: output }))
+            : null),
         canAccept
           ? h('div', { className: 'crew-card-foot' },
             h('button', {
@@ -114,7 +118,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
               className: 'crew-accept',
               disabled: room.state !== 'active',
               onClick: () => onAccept(meta.stage),
-            }, room.state === 'paused' ? '已暂停 · 继续后才能验收' : '接受这一阶段'))
+            }, room.state === 'paused' ? '已暂停 · 继续后才能验收' : '通过这一步'))
           : null)))
 }
 

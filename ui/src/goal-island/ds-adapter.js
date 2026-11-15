@@ -32,7 +32,7 @@ export const toDsGoal = room => {
         ? undefined
         : last.meta?.kind === 'manual'
           ? '人工产物就绪'
-          : `${last.meta?.command ?? '验收命令'} · ${last.meta?.exit === 0 ? '通过' : last.meta?.exit === null || last.meta?.exit === undefined ? '已运行' : '未通过'}`,
+          : `${last.meta?.exit === 0 ? '检查通过' : last.meta?.exit === null || last.meta?.exit === undefined ? '已经检查' : '检查没通过'}`,
       reworks: reworks.length,
       feedback: reworks.at(-1)?.text,
     }

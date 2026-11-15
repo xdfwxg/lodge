@@ -82,12 +82,12 @@ const seatRole = (room, seatId) => (
 )
 export const seatTask = (seat, stage) => {
   if (seat.role === 'lead') {
-    return stage.kind === 'decision' ? '讲清「做到什么算过」，由你拍板' : '拆出这一段的写范围与验收'
+    return stage.kind === 'decision' ? '讲清「怎样算做完」，由你确认' : '拆出这一步要改什么、怎么算过'
   }
   if (seat.role === 'worker') {
-    return stage.acceptance ? `按 \`${stage.acceptance}\` 交付` : '交付这一步的产物'
+    return stage.acceptance ? '按约定交付，并跑一次检查' : '交付这一步的产物'
   }
-  if (seat.role === 'verifier') return '独立复跑，给出通过或退回'
+  if (seat.role === 'verifier') return '独立检查，给出通过或退回'
   return '只读观察'
 }
 
@@ -154,8 +154,8 @@ export const buildGoalView = (room, seats) => {
         : rejecting.length > 0
           ? { pass: false, text: `已打回：${rejecting.map(item => nameOf(item.id)).join('、')}` }
           : missing.length === 0
-            ? { pass: true, text: `全部 ${verifierIds.length} 个验收席位通过` }
-            : { pass: false, pending: true, text: `已回报 ${received.length}/${verifierIds.length} 个验收席位，等待其余` }
+            ? { pass: true, text: `全部 ${verifierIds.length} 位验收员通过` }
+            : { pass: false, pending: true, text: `已收到 ${received.length}/${verifierIds.length} 位验收员的意见，等待其余` }
     }
     const tasks = (stage.tasks ?? []).map(task => ({ ...task, seat: seatById.get(task.owner) ?? null }))
     const taskOwners = new Set(tasks.map(task => task.owner))
@@ -168,7 +168,7 @@ export const buildGoalView = (room, seats) => {
       kind: stage.kind,
       state: stage.state,
       acceptance: stage.acceptance ?? null,
-      acceptanceLabel: stage.kind === 'deliverable' ? (stage.acceptance ?? '未写验收命令') : '你点过才算过',
+      acceptanceLabel: stage.kind === 'deliverable' ? (stage.acceptance ?? '还没有检查方式') : '你点过才算过',
       dependsOn: Array.isArray(stage.dependsOn) ? stage.dependsOn : [],
       conflict,
       reworkCount: rejects.length,
@@ -176,7 +176,7 @@ export const buildGoalView = (room, seats) => {
         id: message.id,
         author: nameOf(message.authorId),
         at: message.ts ?? null,
-        text: message.text || '验收席位打回',
+        text: message.text || '验收员退回',
       })),
       evidence: evidenceFor(room, index).map(message => ({
         id: message.id,

@@ -58,17 +58,9 @@ export function DeliveryCard({ delivery, onContinue = null }) {
           : null,
         h('div', { className: 'crew-delivery-metrics' },
           h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 阶段`),
-          h('span', null, commands.length > 0 ? `${passed}/${commands.length} 命令通过` : '人工验收'),
+          h('span', null, commands.length > 0 ? `${passed}/${commands.length} 检查通过` : '你确认验收'),
           h('span', null, `${(delivery.artifacts?.length ?? 0) > 0 ? delivery.artifacts.length : delivery.changedFiles?.length ?? 0} 个文件`)),
         h('div', { className: 'studio-delivery-meta' },
-          delivery.sample === true
-            ? null
-            : h('div', { className: 'studio-delivery-row' },
-              h('span', { className: 'studio-delivery-label' }, '提交'),
-              delivery.commit
-                ? h('code', null, short(delivery.commit))
-                : h('span', null, delivery.workspace?.vcs === 'git' ? '没有新的提交记录' : `留痕：${delivery.workspace?.vcs === 'none' ? '房间记录归档' : delivery.workspace?.vcs}`),
-              delivery.commit ? h('span', { className: 'studio-delivery-note' }, '未推送') : null),
           delivery.workspacePath
             ? h('div', { className: 'studio-delivery-row' },
               h('span', { className: 'studio-delivery-label' }, '位置'),
@@ -91,6 +83,9 @@ export function DeliveryCard({ delivery, onContinue = null }) {
           onToggle: event => setDetailsOpen(event.currentTarget.open),
         },
           h('summary', null, '交付明细'),
+          delivery.commit
+            ? h('div', { className: 'crew-kv' }, h('span', null, '版本'), h('code', null, short(delivery.commit)))
+            : null,
           delivery.artifacts?.length > 0
             ? h('div', { className: 'crew-delivery-artifacts' },
               h('b', null, `工作区文件 · ${delivery.artifacts.length}`),
@@ -108,18 +103,23 @@ export function DeliveryCard({ delivery, onContinue = null }) {
               h('div', { className: 'crew-delivery-stage-head' },
                 h('b', null, `${stage.index + 1}. ${stage.title}`),
                 h('span', { 'data-state': stage.state }, stage.kind === 'deliverable' ? '交付' : '决策')),
-              stage.acceptance ? h('div', { className: 'crew-kv' },
-                h('span', null, '验收'),
-                h('code', null, stage.acceptance)) : null,
-              ...stage.commands.flatMap(command => [
-                h('div', { key: command.id, className: 'crew-kv' },
-                  h('span', null, '命令'),
-                  h('code', null, `${command.command} · 退出码 ${command.exit === null ? '无' : command.exit}`)),
-              ]),
+              ...stage.commands.map(command => h('div', { key: command.id, className: 'crew-kv' },
+                h('span', null, '检查'),
+                h('span', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'))),
               ...stage.verdicts
                 .map(verdict => h('div', { key: verdict.id, className: 'crew-delivery-verdict', 'data-pass': verdict.pass },
                   h('span', null, delivery.seatNames?.[verdict.authorId] ?? verdict.authorId),
                   h('b', null, verdict.pass ? '通过' : '退回'))),
+              stage.acceptance || stage.commands.length > 0
+                ? h('details', { className: 'crew-fold' },
+                  h('summary', null, '技术细节'),
+                  stage.acceptance ? h('div', { className: 'crew-kv' },
+                    h('span', null, '验收'),
+                    h('code', null, stage.acceptance)) : null,
+                  ...stage.commands.map(command => h('div', { key: `${command.id}-tech`, className: 'crew-kv' },
+                    h('span', null, '命令'),
+                    h('code', null, `${command.command} · 退出码 ${command.exit === null ? '无' : command.exit}`))))
+                : null,
               stage.changedFiles?.length
                 ? h('details', { className: 'crew-fold' },
                   h('summary', null, `改动文件 ${stage.changedFiles.length}`),

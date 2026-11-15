@@ -3,10 +3,10 @@ import test from 'node:test'
 import { independenceLabel } from './digest.js'
 
 test('a multi-seat room without a verifier says the human signs off', () => {
-  assert.equal(independenceLabel({ independence: 'human' }), '人签字验收（无独立复核）')
+  assert.equal(independenceLabel({ independence: 'human' }), '你签字验收')
 })
 
 test('the triad keeps the degraded label when both seats share one engine', () => {
-  assert.equal(independenceLabel({ independence: 'none' }), '独立性降级')
-  assert.equal(independenceLabel({ independence: 'vendor' }), '跨厂商复核')
+  assert.equal(independenceLabel({ independence: 'none' }), '复核独立性有限')
+  assert.equal(independenceLabel({ independence: 'vendor' }), '独立复核')
 })

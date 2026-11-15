@@ -68,7 +68,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     if (!settled) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `${name} ${pass ? 'PASS' : 'REJECT'}；还有 ${round.requests.size} 个验收席位复核中。`,
+        text: `${name} ${pass ? '通过' : '退回'}；还有 ${round.requests.size} 位验收员在看。`,
       })
       return true
     }
@@ -92,7 +92,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         kind: 'system',
         text: policy === 'majority'
           ? `验收通过：${passed}/${total}（需要 ${required} 位），可以签字了。`
-          : '全部验收席位通过，可以签字了。',
+          : '全部验收员通过，可以签字了。',
       })
     } else {
       updateTasks(pending.stage, current => markStageTasks(current, 'working'))
@@ -100,7 +100,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         kind: 'system',
         text: policy === 'majority'
           ? `${name} 投了退回：${passed}/${total} 通过、${rejected} 退回（需要 ${required} 位通过）；这一轮仍未通过。`
-          : `${name} 打回；其余验收席位不再等待，返工后重跑验收命令。`,
+          : `${name} 退回；其余验收员不再等待，返工后再检查一次。`,
       })
       const current = store.readRoom(roomId)
       const moved = transitionStudio(current?.closure ?? 'verifying', 'verdict_reject')
@@ -130,9 +130,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     const outcome = manual
       ? manualReviewState({ room, evidence: ledger, messages, stageIndex })
       : reviewState({ room, evidence: ledger, messages, stageIndex })
-    if (outcome.state === 'pass') reject('conflict', '本阶段全部验收席位已经通过')
-    if (outcome.state === 'reject') reject('conflict', '验收已被打回；先返工并重新跑验收命令')
-    if (outcome.state === 'failed') reject('conflict', '最新验收命令没有通过；先返工并重新跑验收命令')
+    if (outcome.state === 'pass') reject('conflict', '本阶段验收员已经全部通过')
+    if (outcome.state === 'reject') reject('conflict', '验收被打回了；先返工再检查一次')
+    if (outcome.state === 'failed') reject('conflict', '最新检查没有通过；先返工再检查一次')
     const ids = verifierIds(room)
     if (ids.length === 0) reject('conflict', '房间没有验收席位')
     const evidence = outcome.evidence
@@ -216,7 +216,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       store.appendMessage(roomId, {
         kind: 'advisor_advice',
         authorId: 'system',
-        text: `${shadow ? '影子评审（暂时仅记录评估建议）' : '评估建议（仅参考，不替代验收员）'}：${text}`,
+        text: `${shadow ? '第二意见（仅供对照）' : '另一份参考意见（不替代验收员）'}：${text}`,
         meta: {
           stage: stageIndex,
           evidenceId: evidence.id,
@@ -329,7 +329,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
           round = null
           store.appendMessage(roomId, {
             kind: 'system',
-            text: `本轮复核结束：${passed}/${total} 个验收席位通过；其余未回报，不能签字。可以重新发起复核。`,
+            text: `本轮复核结束：${passed}/${total} 位验收员通过；其余未回报，不能签字。可以重新发起复核。`,
             meta: { kind: 'review_timeout', stage: stageIndex, verifiers: timedOut },
           })
         } else {

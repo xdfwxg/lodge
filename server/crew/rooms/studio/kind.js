@@ -113,7 +113,7 @@ const studioConstraints = ({
     ? ['这个房间没有独立验收席位，由你凭证据签字']
     : [independence === 'vendor'
       ? '执行与验收已绑定不同厂商；验收席位在独立副本里复核'
-      : '当前只有同一厂商引擎可用：验收卡会标「独立性降级」']),
+      : '当前只有同一家模型可用：复核和执行来自同一家，独立复核会打折']),
 ]
 
 const initialMessages = ({ workspaces, engineFallbacks }) => {
@@ -140,7 +140,7 @@ const initialMessages = ({ workspaces, engineFallbacks }) => {
       .join('；')
     messages.push({
       kind: 'system',
-      text: `${text}。这次不是跨厂商复核，验收卡会按实际引擎标注。`,
+      text: `${text}。这次不是独立复核，验收卡会按实际模型标注。`,
     })
   }
   return messages

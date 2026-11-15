@@ -11,6 +11,15 @@ export const dayKey = ts => {
 
 const orderOf = message => (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
 
+// 席位“我在等派发”是调度状态，不是房间里值得读的一句话。
+const STANDBY = /待命|暂不动手|未派发/
+export const isStandbyChat = (message, room) => (
+  message?.kind === 'chat' &&
+  message.authorId !== 'you' &&
+  message.authorId !== room?.leadSeat &&
+  STANDBY.test(String(message.text ?? ''))
+)
+
 // 工作室时间线要把过程步骤也拿回来；聊天室仍用原 Timeline。
 export const orderTranscript = messages => {
   const timeline = buildTimeline(messages)

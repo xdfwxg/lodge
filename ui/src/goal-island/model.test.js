@@ -89,7 +89,7 @@ test('multiple verifier verdicts aggregate on the current evidence round', () =>
   })
   const view = buildGoalView(all, [...seats, secondSeat])
   assert.equal(view.stages[1].verdict.pass, true)
-  assert.equal(view.stages[1].verdict.text, '全部 2 个验收席位通过')
+  assert.equal(view.stages[1].verdict.text, '全部 2 位验收员通过')
   assert.deepEqual(view.stages[1].verdicts.map(item => item.author), ['复核', '复核二'])
 
   const rejected = room({

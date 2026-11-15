@@ -189,7 +189,7 @@ test('acceptance runs in a disposable copy and records command evidence', async 
   assert.equal(evidence.meta.diff, 'D')
   assert.ok(store.events.some(event => event.type === 'acceptance.run'))
   assert.equal(progressed, 1)
-  assert.match(store.messages.at(-1).text, /没有独立验收席位/)
+  assert.match(store.messages.at(-1).text, /没有验收员/)
 })
 
 test('review request and verdict consumption update the round without crossing turns', async () => {
@@ -219,7 +219,7 @@ test('review request and verdict consumption update the round without crossing t
   assert.equal(review.consume({ turn: { reply: 'PASS' }, seat: 'verifier', turnId: 't1', room }), true)
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
-  assert.ok(store.messages.some(message => message.text === '全部验收席位通过，可以签字了。'))
+  assert.ok(store.messages.some(message => message.text === '全部验收员通过，可以签字了。'))
 })
 
 test('manual evidence also goes through the Verifier before human signoff', async () => {
@@ -521,7 +521,7 @@ test('shadow advice is recorded but never injected into the Verifier prompt', as
   assert.doesNotMatch(sent[0].prompt, /评估建议/)
   const advice = store.messages.find(message => message.kind === 'advisor_advice')
   assert.ok(advice)
-  assert.match(advice.text, /影子评审/)
+  assert.match(advice.text, /第二意见/)
   assert.equal(advice.meta.shadow, true)
   assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
   assert.equal(review.consume({ turn: { reply: 'PASS' }, seat: 'verifier', turnId: 't1', room }), true)

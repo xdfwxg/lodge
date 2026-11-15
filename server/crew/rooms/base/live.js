@@ -133,18 +133,6 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
       await engine.rooms()
       for (const room of store.readRooms()) {
         if (room.live !== true) continue
-        if (room.seatRooms === undefined) {
-          const migrated = store.updateRoom(room.id, current => {
-            current.live = false
-            current.state = 'stopped'
-            return { events: [{ type: 'room.migrated', payload: { reason: 'legacy single-room live room' } }] }
-          })
-          if (migrated !== null) {
-            store.appendMessage(room.id, { kind: 'system', text: '旧版单线程实时房间已停止；请新建一个隔离房间。' })
-            emit('room', migrated)
-          }
-          continue
-        }
         try {
           await attach(room)
         } catch (error) {

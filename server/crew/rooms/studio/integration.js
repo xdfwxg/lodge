@@ -103,7 +103,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     const range = await workspaceOf(room).rangeChanges({ path: integration, base })
     const command = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
     if (command === '') {
-      store.appendMessage(roomId, { kind: 'system', text: `阶段 ${stageIndex + 1} 没有验收命令，未执行集成验收` })
+      store.appendMessage(roomId, { kind: 'system', text: `阶段 ${stageIndex + 1} 没有检查方式，集成检查没有执行` })
       return
     }
     let copy
@@ -129,7 +129,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: `验收命令 \`${command}\` 已在一次性集成验收副本执行，退出码 ${result.exit === null ? '无' : result.exit}。并行执行：${names}。`,
+      text: `检查${result.exit === 0 ? '通过' : '没通过'}；这次检查在独立副本里执行。并行执行：${names}。`,
       meta: {
         kind: 'command',
         vcs: vcsOf(room),
@@ -168,8 +168,8 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     store.appendMessage(roomId, {
       kind: 'system',
       text: result.exit === 0
-        ? '验收命令通过 · 等待独立复核'
-        : `验收命令未通过 · exit ${result.exit === null ? '无' : result.exit} · 返工后才能复核`,
+        ? '检查通过 · 等待复核'
+        : '检查没通过 · 返工后才能复核',
     })
     if (result.exit !== 0) return
     markProgress()
@@ -180,7 +180,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
         store.appendMessage(roomId, { kind: 'system', text: `自动复核未启动：${error?.message ?? error}` })
       }
     } else {
-      store.appendMessage(roomId, { kind: 'system', text: '验收命令完成 · 这个房间没有独立验收席位 · 可以签字了' })
+      store.appendMessage(roomId, { kind: 'system', text: '检查完成 · 这个房间没有验收员 · 可以签字了' })
     }
   }
 

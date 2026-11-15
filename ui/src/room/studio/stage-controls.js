@@ -57,11 +57,11 @@ function FinalSummary({ room }) {
       return h('div', { key: index, className: 'crew-final-row' },
         h('span', null, `${index + 1}. ${item.title}`),
         h('span', null, item.kind === 'deliverable'
-          ? evidence === undefined ? '无命令证据' : `${evidence.meta.command} · 退出码 ${evidence.meta.exit}`
+          ? evidence === undefined ? '还没有检查结果' : (evidence.meta.exit === 0 ? '检查通过' : '检查没通过')
           : item.state === 'passed' ? '已确认' : '你确认'),
         h('span', null, verdict === undefined ? '' : verdict.meta?.pass === true ? '通过' : '退回'))
     }),
-    h('p', { className: 'crew-field-hint' }, '确认后写入结论、提交改动，房间完成。'))
+    h('p', { className: 'crew-field-hint' }, '确认后写入结论，房间完成。'))
 }
 
 export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }) {
@@ -121,7 +121,7 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
             : h('p', { className: 'crew-gate-question' },
               manualWork
                 ? '检查上方的产出与文件；确认后进入下一步。'
-                : '确认上方的内容；这一步不需要跑命令。'),
+                : '确认上方的内容；这一步不需要跑检查。'),
           h('p', { className: 'crew-gate-next' },
             next === undefined
               ? '确认后生成结论，完成这次交付。'
@@ -188,50 +188,49 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
     h('div', { className: 'crew-msg-body' },
       h('div', { className: 'crew-card crew-human-gate' },
         h('div', { className: 'crew-card-head' },
-          `阶段 ${index + 1} · 真实验收`,
+          `阶段 ${index + 1} · 检查`,
           h('span', { className: 'crew-verdict', 'data-pending': true },
-            evidence === undefined ? '等待证据' : exit !== 0 ? '命令未通过' : rejected ? '验收退回' : '等待复核')),
+            evidence === undefined ? '等待检查' : exit !== 0 ? '检查没通过' : rejected ? '验收退回' : '等待复核')),
         h('div', { className: 'crew-card-body' },
           h('div', { className: 'crew-gate-title' }, stage.title),
           room.repoPath === null || room.repoPath === undefined
-            ? h('p', { className: 'crew-gate-question' }, '房间没有固定工作目录，验收命令不会执行。先给房间设置工作目录。')
+            ? h('p', { className: 'crew-gate-question' }, '房间还没有工作文件夹，检查不会执行。先选择一个文件夹。')
             : null,
           rejected
             ? h('div', { className: 'crew-gate-reject' },
-              h('p', null, verdict.text || '验收席位打回了这一步。'),
+              h('p', null, verdict.text || '验收员打回了这一步。'),
               h(ReworkControl, { room, index, onRework }))
             : null,
           editing
             ? h('div', { className: 'crew-acceptance-edit' },
-              h('p', { className: 'crew-gate-question' }, `这条命令会在房间工作区里真实运行，结果会记下来。`),
+              h('p', { className: 'crew-gate-question' }, '这条检查会在房间工作区里真实运行，结果会记下来。'),
               h('textarea', {
                 className: 'crew-gate-input',
                 rows: 2,
-                'aria-label': '验收命令',
+                'aria-label': '检查命令',
                 value: draft,
                 placeholder: '例如：npm test',
                 disabled: locked,
                 onChange: event => setDraft(event.target.value),
               }))
             : h('div', { className: 'crew-acceptance-row' },
-              h('span', { className: 'crew-acceptance-label' }, '验收'),
+              h('span', { className: 'crew-acceptance-label' }, '检查'),
               h('code', { className: 'crew-acceptance-command', title: savedCommand === '' ? undefined : savedCommand }, savedCommand === '' ? '未设置' : savedCommand),
               !locked
                 ? h('button', {
                   type: 'button',
                   className: 'crew-link',
                   onClick: () => setEditing(true),
-                }, '改命令')
+                }, '改检查')
                 : null),
           evidence
             ? h('div', { className: 'crew-receipt' },
-              h('code', null, evidence.meta.command),
-              h('span', null, `退出码 ${exit ?? '无'}`),
+              h('span', { 'data-pass': exit === 0 ? 'true' : 'false' }, exit === 0 ? '检查通过' : '检查没通过'),
               (evidence.meta.durationMs ?? 0) >= 100
                 ? h('span', null, `${(evidence.meta.durationMs / 1000).toFixed(1)}s`)
                 : null)
             : null,
-          h('p', { className: 'crew-gate-meta' }, `${hasVerifier ? '有独立验收人' : '没有独立验收人'} · ${independenceOf(room)}`)),
+          h('p', { className: 'crew-gate-meta' }, `${hasVerifier ? '有验收员' : '没有验收员'} · ${independenceOf(room)}`)),
         h('div', { className: 'crew-card-foot' },
           rejected ? null : h(ReworkControl, { room, index, onRework }),
           editing && changed
@@ -240,7 +239,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               className: 'crew-ghost',
               disabled: busy || locked,
               onClick: () => void save(),
-            }, busy ? '保存中…' : '保存命令')
+            }, busy ? '保存中…' : '保存检查')
             : null,
           editing && savedCommand !== ''
             ? h('button', {
@@ -258,7 +257,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               className: 'crew-accept',
               disabled: busy || locked,
               onClick: () => void verify(),
-            }, busy ? '等待复核…' : '请求独立复核')
+            }, busy ? '等待复核…' : '请验收员复核')
             : null,
           evidence && exit === 0 && !hasVerifier
             ? h('button', {
@@ -266,9 +265,9 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               className: 'crew-accept',
               disabled: locked,
               onClick: () => onAccept(index),
-            }, '接受这一阶段')
+            }, '通过这一步')
             : null,
           evidence && exit !== 0
-            ? h('span', { className: 'crew-muted' }, '命令未通过：返工后重跑')
+            ? h('span', { className: 'crew-muted' }, '检查没通过：返工后重试')
             : null))))
 }

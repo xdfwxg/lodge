@@ -18,17 +18,17 @@ export function ShadowCard({ room, message, byId = {} }) {
   const nameOf = id => byId?.[id]?.name ?? seatNameOf(room, id)
   return h('div', { className: 'crew-card crew-shadow-card', 'data-status': shadow.status },
     h('div', { className: 'crew-card-head' },
-      shadow.advice.shadow ? '影子评审' : '评估建议',
+      '第二意见',
       h('span', { className: 'crew-verdict', 'data-tone': status.tone }, status.label)),
     h('div', { className: 'crew-card-body' },
       h('div', { className: 'crew-shadow-cols' },
         h('div', { className: 'crew-shadow-col' },
-          h('div', { className: 'crew-shadow-col-head' }, '验收员 · 正式'),
+          h('div', { className: 'crew-shadow-col-head' }, '验收员'),
           shadow.verdicts.map(verdict => h('div', { key: verdict.id, className: 'crew-shadow-verdict' },
             h('b', { 'data-pass': verdict.pass ? 'true' : 'false' }, verdict.pass ? '通过' : '退回'),
             h('span', null, nameOf(verdict.authorId))))),
         h('div', { className: 'crew-shadow-col' },
-          h('div', { className: 'crew-shadow-col-head' }, '顾问 · 仅对照'),
+          h('div', { className: 'crew-shadow-col-head' }, '第二意见'),
           h('div', { className: 'crew-shadow-score' },
             h('b', null, shadow.advice.score === null ? '无分数' : shadow.advice.score.toFixed(2)),
             shadow.advice.model === '' ? null : h('span', null, shadow.advice.model)),
@@ -36,6 +36,6 @@ export function ShadowCard({ room, message, byId = {} }) {
           shadow.advice.reasons.length === 0 ? null : h('p', { className: 'crew-field-hint' }, `理由：${shadow.advice.reasons.join('；')}`),
           shadow.advice.risks.length === 0 ? null : h('p', { className: 'crew-field-hint' }, `风险：${shadow.advice.risks.join('；')}`))),
       h('p', { className: 'crew-field-hint' }, shadow.advice.shadow
-        ? '暂时仅记录评估建议；流转以验收员结论为准。'
-        : '建议已作为参考注入验收员，但判定仍以验收员结论为准。')))
+        ? '只是参考；最后以验收员的结论为准。'
+        : '已作为参考给验收员；最后仍以验收员的判断为准。')))
 }

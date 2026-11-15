@@ -85,7 +85,7 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.match(text(tree), /复核二/)
   assert.match(text(tree), /src\/a\.js/)
   assert.match(text(tree), /2\/2 阶段/)
-  assert.match(text(tree), /1\/1 命令通过/)
+  assert.match(text(tree), /1\/1 检查通过/)
 })
 
 test('the delivery sheet offers a way to continue', async () => {

@@ -387,25 +387,25 @@ function NewRoomDialog({
       : h('p', { className: 'crew-field-hint' }, '没有待确认的事项。'),
     teamView,
     h('div', { className: 'crew-proposal-block' },
-      h('b', null, '验收标准'),
+      h('b', null, '怎么算做完'),
       verify === 'manual'
-        ? h('p', { className: 'crew-field-hint' }, '你自己看产物确认；这一步没有命令证据。')
+        ? h('p', { className: 'crew-field-hint' }, '你自己看产物确认；这一步没有检查记录。')
         : acceptance.trim() !== ''
           ? h('div', { className: 'crew-acceptance' },
-            h('span', { className: 'crew-field-hint' }, '验收命令'),
+            h('span', { className: 'crew-field-hint' }, '检查命令'),
             h('code', { className: 'crew-acceptance-cmd' }, acceptance))
           : plannedAcceptance
-            ? h('p', { className: 'crew-field-hint' }, '按阶段验收；每个交付阶段都有命令。')
+            ? h('p', { className: 'crew-field-hint' }, '每个交付阶段都会跑一条检查。')
             : h('input', {
               className: 'crew-goal-input crew-acceptance-input',
               type: 'text',
-              'aria-label': '验收命令',
+              'aria-label': '检查命令',
               value: acceptanceDraft,
-              placeholder: '验收命令，例如 npm test',
+              placeholder: '检查命令，例如 npm test',
               onChange: event => setAcceptanceDraft(event.target.value),
             })),
     verify === 'manual' && hasVerifier
-      ? h('p', { className: 'crew-dialog-note' }, '人工验收不需要验收员；想独立复核就补一条验收命令。')
+      ? h('p', { className: 'crew-dialog-note' }, '你自己看产物就行；想要独立复核，就补一条检查命令。')
       : null,
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 

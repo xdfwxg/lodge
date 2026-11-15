@@ -56,7 +56,7 @@ export const normalizeRequest = body => {
     ? body.plan.stages.some(stage => typeof stage?.acceptance === 'string' && stage.acceptance.trim() !== '')
     : false
   if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
-    return { error: '交付型房间需要一条验收命令' }
+    return { error: '交付型房间需要一条检查命令' }
   }
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '未知的编排策略' }
@@ -85,7 +85,7 @@ export const normalizePlan = ({ body }) => {
         const kind = manual ? 'decision' : rawKind
         if (title === '') return { error: `第 ${index + 1} 个阶段缺少标题` }
         if (kind === 'deliverable' && stageAcceptance === '') {
-          return { error: `第 ${index + 1} 个交付阶段缺少验收命令` }
+          return { error: `第 ${index + 1} 个交付阶段缺少检查命令` }
         }
         plannedStages.push({
           title,

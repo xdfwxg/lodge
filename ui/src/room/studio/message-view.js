@@ -8,6 +8,7 @@ import {
   MilestoneLine,
   VerdictCard,
 } from './cards.js'
+import { DecisionBrief, parseDecisionItems } from './decision-brief.js'
 import { isDispatchHandoff } from './handoff.js'
 import { ShadowCard } from './shadow-card.js'
 
@@ -41,14 +42,29 @@ export const renderStudioMessage = ({
       h(ShadowCard, { room, message, byId }))
   }
   // 席位发言在工作室里是一拍工作记录：第一段可见，完整内容展开。
-  // 房间在等用户拍板时，主席位那条消息就是决策依据，直接摊开。
+  // 主席位给出两三条要确认的事时，直接变成决策卡，不把整段聊天铺在首屏。
   if (message.kind === 'chat' && message.authorId !== 'you') {
-    return h(StudioBeat, {
-      key: message.id,
-      message,
-      seat,
-      open: room.needsYou?.kind === 'decision' && message.authorId === room.leadSeat,
-    })
+    const isLead = message.authorId === room.leadSeat
+    const pending = room.needsYou?.kind === 'decision' && isLead
+    const items = isLead ? parseDecisionItems(message.text) : []
+    if (items.length >= 2) {
+      const active = Array.isArray(room.stages)
+        ? room.stages.findIndex(stage => stage.state === 'active')
+        : -1
+      const accept = onStageAccept ?? onAccept
+      return h(DecisionBrief, {
+        key: message.id,
+        message,
+        seat,
+        items,
+        pending,
+        disabled: room.state !== 'active',
+        onAccept: pending && typeof accept === 'function' && active >= 0
+          ? () => accept(active)
+          : undefined,
+      })
+    }
+    return h(StudioBeat, { key: message.id, message, seat, open: pending })
   }
   return renderSharedMessage({ room, byId, message })
 }

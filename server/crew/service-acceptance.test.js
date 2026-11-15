@@ -5,7 +5,7 @@ import { acceptanceChangeError, persistenceKind } from './service.js'
 test('an active deliverable cannot lose its acceptance command', () => {
   assert.deepEqual(
     acceptanceChangeError({ kind: 'deliverable', state: 'active', acceptance: 'npm test' }, ''),
-    ['conflict', '进行中的交付型阶段不能清空验收命令；先暂停或停止'],
+    ['conflict', '进行中的交付型阶段不能清空检查命令；先暂停或停止'],
   )
 })
 

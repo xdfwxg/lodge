@@ -58,7 +58,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
 
     if (action === 'approvals' && method === 'POST') {
       if (room.live !== true) return fail('conflict', '只有实时房间有基座权限卡')
-      if (live.isAttached(room.id) !== true) return fail('conflict', '这个旧版实时房间不再绑定；请新建一个真实房间')
+      if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
       const body = await readBody()
       const approvalId = typeof body.id === 'string' ? body.id : ''
       const decision = body.decision === 'allow' ? 'allow' : body.decision === 'deny' ? 'deny' : ''
@@ -76,7 +76,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
 
     if (action === 'verify' && method === 'POST') {
       if (room.live !== true) return fail('conflict', '只有实时房间能用引擎复核；演示房间请用模拟执行')
-      if (live.isAttached(room.id) !== true) return fail('conflict', '这个旧版实时房间不再绑定；请新建一个真实房间')
+      if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
       const body = await readBody()
       try {
         return accepted(await live.requestReview(room.id, Number(body.stage)))
@@ -167,7 +167,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
       const text = typeof body.text === 'string' ? body.text.trim() : ''
       if (text === '' || text.length > 8000) return fail('invalid', '消息不能为空，且不超过 8000 字')
       if (room.live === true) {
-        if (live.isAttached(room.id) !== true) return fail('conflict', '这个旧版实时房间不再绑定；请新建一个真实房间')
+        if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '复核进行中，先等验收结论')
         await live.send(room.id, text)
         return accepted({ accepted: true })

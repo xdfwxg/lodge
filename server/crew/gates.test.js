@@ -85,7 +85,7 @@ test('deliverable without an acceptance command cannot pass', () => {
   delete r.stages[1].acceptance
   const gate = gateFor(r, 1, [evidence()])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /验收命令/)
+  assert.match(gate.error, /检查/)
 })
 
 test('deliverable without evidence cannot pass', () => {
@@ -97,19 +97,19 @@ test('deliverable without evidence cannot pass', () => {
 test('a failed command exit cannot be signed off', () => {
   const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { exit: 1 })])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /没有通过验收命令/)
+  assert.match(gate.error, /还没有检查通过/)
 })
 
 test('a turn summary is not command evidence', () => {
   const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { kind: 'turn', exit: undefined })])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /验收命令/)
+  assert.match(gate.error, /检查/)
 })
 
 test('evidence must match the stage acceptance command', () => {
   const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { command: 'echo ok' })])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /验收命令/)
+  assert.match(gate.error, /检查/)
 })
 
 test('a PASS must reference exit 0 command evidence', () => {
@@ -118,7 +118,7 @@ test('a PASS must reference exit 0 command evidence', () => {
     verdict(1, 11, true, { evidenceId: 'e-10' }),
   ])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /验收命令证据/)
+  assert.match(gate.error, /检查记录/)
 })
 
 test('live deliverable needs a verifier PASS', () => {
