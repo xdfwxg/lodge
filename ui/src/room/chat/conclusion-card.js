@@ -100,7 +100,11 @@ export function ChatConclusionCard({ message, seat, room, onAccept, onContinueCh
               type: 'button',
               className: 'crew-accept crew-conclusion-next',
               'aria-label': '按结论新建工作室',
-              onClick: () => onStartStudio(chatStudioSeed({ room, conclusion: message.text })),
+              onClick: () => onStartStudio(chatStudioSeed({
+                room,
+                conclusion: message.text,
+                handoff: message.meta?.handoff,
+              })),
             },
             h(StudioIcon, { size: 16 }),
             '开工作室',

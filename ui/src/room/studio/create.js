@@ -25,6 +25,7 @@ export const buildStudioRequest = ({
   verify,
   acceptance,
   shadowReview,
+  handoff,
   proposal,
   answers,
   seatChoices,
@@ -56,6 +57,7 @@ export const buildStudioRequest = ({
     verify: resolvedVerify,
     acceptance,
     repoPath,
+    ...(handoff === null || handoff === undefined ? {} : { handoff }),
     ...(shadowReview ? { shadowReview: true } : {}),
     ...((hasSeatChoice || (proposal !== null && proposal !== undefined)) && roster.length > 0
       ? { seats: seatRequests(roster, seatChoices, selectedModelOf) }

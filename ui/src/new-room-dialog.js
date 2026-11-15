@@ -8,6 +8,7 @@ import { roomNameFromGoal } from './room/name-from-goal.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
 import { defaultPersonalityId, modelRowsFor, seatChoicesFrom } from './room/seat-options.js'
 import { DEFAULT_STUDIO_SEATS } from './room/studio/create.js'
+import { HandoffReview } from './room/studio/handoff-review.js'
 import { RoomTypeChoices } from './room/type-choices.js'
 import { uiKindOfType } from './room/kinds.js'
 import { useOverlay } from './overlay.js'
@@ -44,6 +45,8 @@ function NewRoomDialog({
   const [acceptanceDraft, setAcceptanceDraft] = useState('')
   const [verifyMode, setVerifyMode] = useState('manual')
   const [advanced, setAdvanced] = useState(false)
+  const [handoff, setHandoff] = useState(null)
+  const [handoffReviewed, setHandoffReviewed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [seatChoices, setSeatChoices] = useState([])
   const [chatSeatChoices, setChatSeatChoices] = useState([])
@@ -65,6 +68,8 @@ function NewRoomDialog({
     setChatSeats(null)
     setVerifyMode('manual')
     setAdvanced(false)
+    setHandoff(null)
+    setHandoffReviewed(false)
   }, [open])
 
   useEffect(() => {
@@ -84,15 +89,17 @@ function NewRoomDialog({
 
   useEffect(() => {
     if (!open || seed === null) return
-    setRoomType('studio')
+    setRoomType(uiKindOfType(startType).id)
     setGoal(seedGoalText(seed))
+    setHandoff(seed.handoff ?? null)
+    setHandoffReviewed(false)
     if (typeof seed.repoPath === 'string' && seed.repoPath !== '') setRepoPath(seed.repoPath)
     setStep(0)
     setProposal(null)
     setSeatChoices([])
     setAnswers([])
     setError(null)
-  }, [open, seed?.goal, seed?.conclusion, seed?.sourceName])
+  }, [open, seed?.goal, seed?.conclusion, seed?.sourceName, seed?.handoff, startType])
 
   useEffect(() => {
     if (!open || uiKindOfType(roomType).id !== 'chat') return
@@ -140,8 +147,11 @@ function NewRoomDialog({
   const canStartProposal = proposal !== null && !busy && seatsReady &&
     !(proposalVerify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
     !studioMissingVerifier
+  const handoffReady = handoff === null ||
+    (handoff.disagreements?.length ?? 0) === 0 ||
+    handoffReviewed
   const canStartStudio = !busy && goal.trim() !== '' && !needRepo && seatsReady &&
-    (verifyMode !== 'test' || acceptanceDraft.trim() !== '')
+    (verifyMode !== 'test' || acceptanceDraft.trim() !== '') && handoffReady
   const startDisabled = busy || goal.trim() === '' || needRepo || (!isChat && !canStartStudio)
 
   const addChatSeat = () => {
@@ -243,6 +253,8 @@ function NewRoomDialog({
     setAcceptanceDraft('')
     setVerifyMode('manual')
     setAdvanced(false)
+    setHandoff(null)
+    setHandoffReviewed(false)
     setError(null)
     onClose()
   }
@@ -314,6 +326,7 @@ function NewRoomDialog({
         verify: verifyMode,
         acceptance: verifyMode === 'test' ? acceptanceDraft.trim() : '',
         shadowReview,
+        handoff,
         proposal: null,
         seats: DEFAULT_STUDIO_SEATS,
         seatChoices,
@@ -435,6 +448,13 @@ function NewRoomDialog({
   }
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
+    handoff === null
+      ? null
+      : h(HandoffReview, {
+        handoff,
+        reviewed: handoffReviewed,
+        onReviewed: setHandoffReviewed,
+      }),
     h('div', { className: 'crew-field' },
       h('label', { className: 'crew-field-label', htmlFor: goalId },
         h(roomKind.goalIcon, { size: 16 }),

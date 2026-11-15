@@ -110,6 +110,7 @@ export function App() {
       room,
       store,
       onStartStudio: seedValue => openDialog(seedValue),
+      onStartChat: seedValue => openDialog(seedValue, 'chat'),
     }),
     liveRegion,
     needsRegion,

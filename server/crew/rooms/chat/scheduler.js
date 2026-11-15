@@ -4,6 +4,7 @@ import { seatDisplayName, seatHandle, toDisplayText } from '../../seat-labels.js
 import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
+import { parseHandoffFromText } from '../../../../shared/handoff.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
@@ -276,10 +277,12 @@ export const createChatScheduler = ({
       const text = !fallback
         ? (reply.turn?.reply ?? reply.text ?? '')
         : digestText(lines)
+      const displayText = toDisplayText(room, text === '' ? digestText(lines) : text)
+      const handoff = parseHandoffFromText(displayText, store.readRoom(roomId)?.goal ?? room.goal)
       const conclusion = store.appendMessage(roomId, {
         kind: 'chat_conclusion',
         authorId: hostAuthor,
-        text: toDisplayText(room, text === '' ? digestText(lines) : text),
+        text: displayText,
         meta: {
           round,
           turnLimit,
@@ -287,6 +290,7 @@ export const createChatScheduler = ({
           host: hostAuthor,
           fallback: fallback || text === '',
           at: Date.now(),
+          ...(handoff === null ? {} : { handoff }),
         },
       })
       const concluded = transitionChat('summarizing', 'conclude')

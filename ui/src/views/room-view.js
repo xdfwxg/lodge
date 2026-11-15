@@ -2,7 +2,7 @@ import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Composer } from '../composer.js'
 import { uiModeOfRoom } from './room-modes.js'
 
-function RoomView({ state, room, store, onStartStudio }) {
+function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [dockOpen, setDockOpen] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
   const scroll = useRef(null)
@@ -151,6 +151,7 @@ function RoomView({ state, room, store, onStartStudio }) {
     createSubroom: goal => store.createSubroom(goal),
     selectRoom: id => store.select(id),
     startStudio: onStartStudio,
+    startChat: onStartChat,
   }
   // 阶段坞需要宿主动作；只有声明了 dock 的模式会渲染它。
   const dock = {

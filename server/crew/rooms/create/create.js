@@ -12,7 +12,7 @@ import { roomModeForType } from '../kinds.js'
 export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, name, roomType, verify, acceptance, orchestration, shadowReview, chatTurnLimit } = request
+  const { goal, name, roomType, verify, acceptance, orchestration, shadowReview, chatTurnLimit, handoff } = request
   const mode = roomModeForType(roomType.id)
   const capabilities = engine.capabilities()
   if (capabilities.provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
@@ -102,6 +102,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       short,
       title,
       goal,
+      handoff,
       templateId,
       plan: resolvedPlan,
       independence: provisioned.independence,

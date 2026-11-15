@@ -130,6 +130,18 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .studio-worklog[open]>summary::before{content:'▾'}
 .studio-worklog>summary:hover{color:var(--bt-ink)}
 .studio-worklog-body{padding-top:6px}
+.studio-intake{margin:0 0 4px;border-bottom:1px solid var(--bt-line)}
+.studio-intake>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 4px;list-style:none;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--bt-ink-2)}
+.studio-intake>summary::-webkit-details-marker{display:none}
+.studio-intake>summary::before{content:'▸';flex:none;display:inline-block;width:14px;font-size:12px;color:var(--bt-ink-3)}
+.studio-intake[open]>summary::before{content:'▾'}
+.studio-intake-body{display:flex;flex-direction:column;gap:8px;padding:0 4px 10px}
+.crew-handoff-review .crew-card-body{gap:10px}
+.crew-handoff-topic{margin:0;font-size:15px;line-height:21px;font-weight:600;color:var(--bt-ink)}
+.crew-handoff-section{display:flex;flex-direction:column;gap:3px}
+.crew-handoff-section>b{font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink-3)}
+.crew-handoff-section ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px;font-size:13px;line-height:19px;color:var(--bt-ink-2)}
+.crew-handoff-section.is-warning>b,.crew-handoff-section.is-warning li{color:var(--bt-warning-text)}
 .studio-stage-chapter{min-width:0}
 .studio-stage-head{display:flex;align-items:center;gap:10px;min-height:42px;padding:10px 6px;list-style:none;cursor:pointer;font-size:15px;line-height:24px;color:var(--bt-ink-3)}
 .studio-stage-head::-webkit-details-marker{display:none}

@@ -19,7 +19,7 @@ const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice
 const joinPath = (base, file) => file.startsWith('/') ? file : `${base.replace(/\/$/, '')}/${file}`
 
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
-export function DeliveryCard({ delivery, onContinue = null }) {
+export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
   const commands = delivery.commands ?? []
   const passed = commands.filter(command => command.exit === 0).length
   const [openError, setOpenError] = useState(null)
@@ -148,6 +148,13 @@ export function DeliveryCard({ delivery, onContinue = null }) {
             className: 'crew-ghost',
             onClick: onContinue,
           }, '继续做'),
+        onReturn === null
+          ? null
+          : h('button', {
+            type: 'button',
+            className: 'crew-ghost',
+            onClick: onReturn,
+          }, '回流讨论'),
         h('button', {
           type: 'button',
           className: 'crew-accept crew-conclusion-next',

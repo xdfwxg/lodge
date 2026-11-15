@@ -4,6 +4,8 @@ import { buildGoalView } from '../../goal-island/model.js'
 import { StudioActivityLine } from './activity-line.js'
 import { studioActivityLine } from './status-line.js'
 import { StudioPresence } from './presence.js'
+import { HandoffIntake } from './intake.js'
+import { returnToChatSeed } from './return-seed.js'
 import { StageDock } from './stage-dock.js'
 import { SubroomTree } from './subroom-tree.js'
 import { StudioTranscript } from './transcript.js'
@@ -47,10 +49,17 @@ export const studioView = {
         sourceName: room.name,
         repoPath: room.repoPath ?? '',
       }),
+      onReturn: () => {
+        const seed = returnToChatSeed(room)
+        if (seed !== null) actions.startChat(seed)
+      },
     })
     // The work leads; sub-departments follow it, so an empty tree never sits
     // above the first thing the room has to say.
-    return h(Fragment, null, transcript, subrooms)
+    return h(Fragment, null,
+      h(HandoffIntake, { key: `intake-${room.id}`, handoff: room.handoff }),
+      transcript,
+      subrooms)
   },
   presence: ({ room, seats }) => h(StudioPresence, { room, seats }),
   composerPlaceholder: () => '交代下一步，或问进度…',

@@ -2,6 +2,7 @@ import { MAX_CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import { roomModeForType } from '../kinds.js'
 import { resolveOrchestration } from '../../orchestration/index.js'
 import { resolveRoomType } from '../../room-types/index.js'
+import { normalizeHandoff } from '../../../../shared/handoff.js'
 import {
   DEFAULT_TEMPLATE_ID,
   roleSeats,
@@ -61,7 +62,8 @@ export const normalizeRequest = body => {
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '未知的编排策略' }
   const shadowReview = body.shadowReview === true
-  return { goal, name, roomType, verify, acceptance, orchestration, shadowReview, chatTurnLimit }
+  const handoff = normalizeHandoff(body.handoff)
+  return { goal, name, roomType, verify, acceptance, orchestration, shadowReview, chatTurnLimit, handoff }
 }
 
 export const normalizePlan = ({ body }) => {
