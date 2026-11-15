@@ -12,7 +12,7 @@ export const chooseDirectory = async () => {
 
 export const loginRuntime = async id => {
   const login = globalThis.lodge?.loginRuntime
-  if (typeof login !== 'function') throw new Error('内置 runtime 登录只支持 Lodge 桌面版')
+  if (typeof login !== 'function') throw new Error('内置运行环境登录只支持 Lodge 桌面版')
   const result = await login(id)
   if (result?.ok === false) throw new Error(result.error ?? '无法打开登录')
 }

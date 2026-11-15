@@ -80,7 +80,7 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.match(text(tree), /交付卡/)
   assert.match(text(tree), /保存后刷新仍生效/)
   assert.match(text(tree), /abcdef123456/)
-  assert.match(text(tree), /npm test · exit 0/)
+  assert.match(text(tree), /npm test · 退出码 0/)
   assert.match(text(tree), /复核一/)
   assert.match(text(tree), /复核二/)
   assert.match(text(tree), /src\/a\.js/)

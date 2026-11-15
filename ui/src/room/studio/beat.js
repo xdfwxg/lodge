@@ -31,7 +31,7 @@ export const workBeatOf = (text, limit = MAX_BEAT) => {
 }
 
 export function StudioBeat({ message, seat }) {
-  const text = String(message.text ?? '')
+  const text = String(message.text ?? '').replace(/^\s*(PASS|REJECT)\b[：:\s-]*/i, '')
   const { preview, rest } = workBeatOf(text)
   const [expanded, setExpanded] = useState(false)
   return h('div', { className: 'crew-msg crew-msg-chat studio-beat' },

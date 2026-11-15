@@ -36,7 +36,7 @@ const studioTable = {
     sign: {
       to: 'signed',
       guard: context => context.verdictPassed === true && context.human === true,
-      reason: '签字需要 Verifier PASS 和人工确认',
+      reason: '签字需要验收席位通过和人工确认',
     },
   },
   signed: {},

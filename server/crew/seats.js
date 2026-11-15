@@ -26,7 +26,7 @@ const deliveryTriad = [
     name: '执行官',
     title: '实现',
     role: 'worker',
-    station: 'worktree 写 · 改代码跑测试',
+    station: '独立副本写 · 改代码跑测试',
     engine: 'codex-cli',
     permissions: { read: true, exec: true, write: true },
     writeScope: 'own_worktree',

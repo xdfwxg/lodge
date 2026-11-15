@@ -19,7 +19,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       commands: room.stages.map(item => item.acceptance).filter(Boolean),
     })
     if (room.demo === true) {
-      appendMessage(room.id, { kind: 'system', text: '演示房间 · 不写 CONCLUSION.md，不产生 commit' })
+      appendMessage(room.id, { kind: 'system', text: '演示房间 · 不写结论文件，不生成提交记录' })
       return room
     }
     roomFiles.writeConclusion(room)
@@ -63,7 +63,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     const committed = roomWorkspace.persistRoom({ room, files: delivered })
     appendEvent(room.id, 'room.commit', { status: committed ? 'done' : 'failed', vcs: capabilities.vcs })
     if (!committed) {
-      appendMessage(room.id, { kind: 'system', text: capabilities.vcs === 'git' ? 'commit 失败，详见服务端日志' : '交付记录归档失败，详见服务端日志' })
+      appendMessage(room.id, { kind: 'system', text: capabilities.vcs === 'git' ? '提交失败，详见服务端日志' : '交付记录归档失败，详见服务端日志' })
     }
     let commitHash = null
     if (committed && capabilities.commit === true) {

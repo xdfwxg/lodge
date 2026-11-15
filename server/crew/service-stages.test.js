@@ -144,7 +144,7 @@ test('a studio cannot sign without a Verifier PASS', () => {
   }))
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, false)
-  assert.match(result.error, /Verifier/)
+  assert.match(result.error, /验收席位/)
   assert.equal(ctx.room().closure, 'verifying')
 })
 

@@ -97,7 +97,7 @@ test('deliverable without evidence cannot pass', () => {
 test('a failed command exit cannot be signed off', () => {
   const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { exit: 1 })])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /exit 0/)
+  assert.match(gate.error, /没有通过验收命令/)
 })
 
 test('a turn summary is not command evidence', () => {
@@ -118,7 +118,7 @@ test('a PASS must reference exit 0 command evidence', () => {
     verdict(1, 11, true, { evidenceId: 'e-10' }),
   ])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /exit 0/)
+  assert.match(gate.error, /验收命令证据/)
 })
 
 test('live deliverable needs a verifier PASS', () => {

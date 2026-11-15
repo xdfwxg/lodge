@@ -37,7 +37,7 @@ export const evaluateReviewRules = ({ evidence, stage }) => {
     missingEvidence.push('改动文件清单')
   }
   if (typeof evidence?.diff === 'string' && evidence.diff.trim() === '') {
-    missingEvidence.push('diff 或产物证据')
+    missingEvidence.push('改动或产物证据')
   }
   if (stage?.manual === true) {
     risks.push('人工验收：需要 Verifier 实际打开产物核对')

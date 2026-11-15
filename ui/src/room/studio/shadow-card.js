@@ -28,7 +28,7 @@ export function ShadowCard({ room, message, byId = {} }) {
             h('b', { 'data-pass': verdict.pass ? 'true' : 'false' }, verdict.pass ? '通过' : '退回'),
             h('span', null, nameOf(verdict.authorId))))),
         h('div', { className: 'crew-shadow-col' },
-          h('div', { className: 'crew-shadow-col-head' }, 'advisor · 仅对照'),
+          h('div', { className: 'crew-shadow-col-head' }, '顾问 · 仅对照'),
           h('div', { className: 'crew-shadow-score' },
             h('b', null, shadow.advice.score === null ? '无分数' : shadow.advice.score.toFixed(2)),
             shadow.advice.model === '' ? null : h('span', null, shadow.advice.model)),

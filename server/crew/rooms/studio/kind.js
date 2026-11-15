@@ -120,13 +120,23 @@ const initialMessages = ({ workspaces, engineFallbacks }) => {
   // 时间线只保留会改变用户判断的信息；建房仪式、分支、约束快照、MCP 说明都
   // 能从房间字段和交付卡里查到，不再复述。
   const messages = []
+  const label = { lead: '规划师', planner: '规划师', worker: '执行官', executor: '执行官', verifier: '验收员' }
   const envWarnings = Object.entries(workspaces.environment ?? {})
-    .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${seat}: ${text}`))
+    .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${label[seat] ?? seat}: ${text}`))
   if (envWarnings.length > 0) messages.push({ kind: 'system', text: `工作区环境同步警告：${envWarnings.join('；')}` })
   if (Object.keys(engineFallbacks).length > 0) {
-    const label = { lead: '规划师', planner: '规划师', worker: '执行官', executor: '执行官', verifier: '验收员' }
+    const engineLabel = {
+      'claude-cli': 'Claude',
+      'codex-cli': 'Codex',
+      'grok-cli': 'Grok',
+      'kimi-cli': 'Kimi',
+      'qwen-cli': '通义千问',
+      'deepseek-cli': 'DeepSeek',
+      'pi-cli': 'Pi',
+      'gemini-cli': 'Gemini',
+    }
     const text = Object.entries(engineFallbacks)
-      .map(([seat, item]) => `${label[seat] ?? seat} 没能用上 ${item.requested}，实际跑的是 ${item.actual}`)
+      .map(([seat, item]) => `${label[seat] ?? seat} 没能用上 ${engineLabel[item.requested] ?? item.requested}，实际跑的是 ${engineLabel[item.actual] ?? item.actual}`)
       .join('；')
     messages.push({
       kind: 'system',

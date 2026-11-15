@@ -83,10 +83,39 @@ export const stepLabel = step => (
 
 export const displayableStep = step => stepLabel(step) !== ''
 
+const TOOL_LABELS = {
+  bash: '运行命令',
+  shell: '运行命令',
+  read: '读取文件',
+  write: '写入文件',
+  edit: '修改文件',
+  multiedit: '批量修改',
+  applypatch: '应用改动',
+  grep: '搜索内容',
+  glob: '查找文件',
+  ls: '列出目录',
+  list: '列出目录',
+  webfetch: '读取网页',
+  websearch: '搜索网页',
+  task: '分派任务',
+  todowrite: '更新清单',
+  notebookedit: '修改笔记',
+}
+
+const bareToolName = name => (
+  name.startsWith('mcp__') ? name.replace(/^mcp__[^_]+__/, '') || name : name
+)
+
 // MCP 工具名是 mcp__server__tool；摘要里只留 tool，避免把内部字符串铺满一行。
 export const displayToolName = name => {
   if (typeof name !== 'string' || name === '') return ''
-  return name.startsWith('mcp__') ? name.replace(/^mcp__[^_]+__/, '') || name : name
+  const bare = bareToolName(name)
+  return TOOL_LABELS[bare.toLowerCase()] ?? bare
+}
+
+export const displayStepText = text => {
+  if (typeof text !== 'string') return ''
+  return TOOL_LABELS[text.trim().toLowerCase()] ?? text
 }
 
 const isStep = item => item.kind === 'activity' && item.meta?.ok !== false && displayableStep(item)

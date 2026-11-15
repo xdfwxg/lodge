@@ -7,7 +7,7 @@ import {
   verdictTextOf,
 } from './subroom-model.js'
 
-// 子部门是房间记录里的父子关系：父房只读子房状态和 verdict，不碰子房内部流转。
+// 子部门是房间记录里的父子关系：父房只读子房状态和复核结论，不碰子房内部流转。
 export function SubroomTree({ room, rooms, onSelect, onCreate }) {
   const [goal, setGoal] = useState('')
   const [busy, setBusy] = useState(false)
@@ -43,7 +43,7 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
       h('span', { className: 'crew-subrooms-count' }, rows.length === 0 ? '还没有' : `${rows.length} 个`)),
     h('div', { className: 'crew-card-body' },
       rows.length === 0
-        ? h('span', { className: 'crew-subrooms-empty' }, '父房只看子房 verdict，不重审子房细节。')
+        ? h('span', { className: 'crew-subrooms-empty' }, '父房只看子房的复核结论，不重审子房细节。')
         : h('div', { className: 'crew-subrooms-list' },
           rows.map(row => {
             const reason = typeof row.verdict?.meta?.reason === 'string' ? row.verdict.meta.reason.trim() : ''

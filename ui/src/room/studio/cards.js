@@ -26,13 +26,13 @@ function EvidenceCard({ message, seat }) {
   const passed = meta.exit === 0
   const source = meta.simulated === true ? '模拟执行 · 未真实运行' : meta.sample === true ? '样例数据' : turn ? '真实回合 · 已落盘' : manual ? '产物就绪 · 待验收' : '命令已真实执行'
   const summary = command
-    ? `已交付 · ${meta.command ?? '验收命令'} · exit ${meta.exit ?? '无'}`
+    ? `已交付 · ${meta.command ?? '验收命令'} · 退出码 ${meta.exit ?? '无'}`
     : manual
       ? `${meta.workers?.length ?? 1} 席产物已就绪 · 待验收`
       : turn
         ? `真实回合 · ${((meta.durationMs ?? 0) / 1000).toFixed(1)}s`
         : `证据 · 阶段 ${(meta.stage ?? 0) + 1}`
-  const chip = command ? (passed ? 'exit 0' : `exit ${meta.exit ?? '无'}`) : turn ? '基座' : manual ? '人工' : ''
+  const chip = command ? (passed ? '已通过' : '未通过') : turn ? '回合' : manual ? '人工' : ''
   return h('div', {
     className: 'studio-result',
     'data-ok': command ? passed : undefined,
@@ -50,7 +50,7 @@ function EvidenceCard({ message, seat }) {
       turn && meta.artifacts?.length
         ? h('details', { className: 'crew-fold' }, h('summary', null, '产物'),
           meta.artifacts.map(artifact => h('div', { key: artifact.path },
-            h('code', null, `${artifact.path.split('/').at(-1)} · ${artifact.sha256.slice(0, 12)} · ${artifact.bytes}B`),
+            h('code', null, `${artifact.path.split('/').at(-1)} · 指纹 ${artifact.sha256.slice(0, 12)} · ${artifact.bytes} 字节`),
             h(CodeOutput, { text: artifact.content, limit: 200, hint: '打开产物文件查看完整内容' }))))
         : null,
       meta.output

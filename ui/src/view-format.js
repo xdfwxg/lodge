@@ -24,17 +24,17 @@ const durationOf = value => {
 const independenceOf = room => room.independenceLabel ?? '独立性未标注'
 const workspaceOf = room => {
   const caps = room.workspace?.capabilities
-  if (!caps) return 'git（默认）'
+  if (!caps) return '版本管理（默认）'
   if (caps.vcs === 'git') {
-    return `git · ${caps.isolation === 'worktree' ? 'worktree 隔离' : caps.isolation ?? '隔离'}${caps.commit === false ? ' · 无 commit' : ''}`
+    return `版本管理 · ${caps.isolation === 'worktree' ? '独立副本' : caps.isolation ?? '隔离'}${caps.commit === false ? ' · 不改版本' : ''}`
   }
   if (caps.vcs === 'demo') return '演示'
-  return `${caps.vcs === 'none' ? '普通目录' : caps.vcs ?? '未知'} · ${caps.isolation === 'copy' ? '复制隔离' : caps.isolation ?? '隔离'} · ${caps.diff === 'manifest' ? '文件清单' : caps.diff ?? '无 diff'}`
+  return `${caps.vcs === 'none' ? '普通目录' : caps.vcs ?? '未知'} · ${caps.isolation === 'copy' ? '复制隔离' : caps.isolation ?? '隔离'} · ${caps.diff === 'manifest' ? '文件清单' : caps.diff ?? '无改动'}`
 }
-const changeWordOf = room => room.workspace?.capabilities?.diff === 'manifest' ? '文件清单' : 'diff'
+const changeWordOf = room => room.workspace?.capabilities?.diff === 'manifest' ? '文件清单' : '改动'
 const seatPermissionOf = (room, seat) => {
   if (!seat.permissions?.write) return seat.permissions?.exec ? '只读 + 执行' : '只读'
-  return room.workspace?.capabilities?.isolation === 'copy' ? '副本写' : 'worktree 写'
+  return room.workspace?.capabilities?.isolation === 'copy' ? '副本写入' : '独立副本写入'
 }
 
 export {

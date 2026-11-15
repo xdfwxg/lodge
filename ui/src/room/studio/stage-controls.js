@@ -57,11 +57,11 @@ function FinalSummary({ room }) {
       return h('div', { key: index, className: 'crew-final-row' },
         h('span', null, `${index + 1}. ${item.title}`),
         h('span', null, item.kind === 'deliverable'
-          ? evidence === undefined ? '无命令证据' : `${evidence.meta.command} · exit ${evidence.meta.exit}`
+          ? evidence === undefined ? '无命令证据' : `${evidence.meta.command} · 退出码 ${evidence.meta.exit}`
           : item.state === 'passed' ? '已确认' : '你确认'),
         h('span', null, verdict === undefined ? '' : verdict.meta?.pass === true ? '通过' : '退回'))
     }),
-    h('p', { className: 'crew-field-hint' }, '确认后写入结论、生成 commit，房间完成。'))
+    h('p', { className: 'crew-field-hint' }, '确认后写入结论、提交改动，房间完成。'))
 }
 
 export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }) {
@@ -194,7 +194,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
         h('div', { className: 'crew-card-body' },
           h('div', { className: 'crew-gate-title' }, stage.title),
           room.repoPath === null || room.repoPath === undefined
-            ? h('p', { className: 'crew-gate-question' }, '房间没有固定工作目录，验收命令不会执行。先给基座群设置工作目录。')
+            ? h('p', { className: 'crew-gate-question' }, '房间没有固定工作目录，验收命令不会执行。先给房间设置工作目录。')
             : null,
           rejected
             ? h('div', { className: 'crew-gate-reject' },
@@ -226,7 +226,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
           evidence
             ? h('div', { className: 'crew-receipt' },
               h('code', null, evidence.meta.command),
-              h('span', null, `exit ${exit ?? '无'}`),
+              h('span', null, `退出码 ${exit ?? '无'}`),
               (evidence.meta.durationMs ?? 0) >= 100
                 ? h('span', null, `${(evidence.meta.durationMs / 1000).toFixed(1)}s`)
                 : null)

@@ -62,7 +62,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       return fail('invalid', `未知技能：${missingSkills.join('、')}；先放入 templates/skills`)
     }
     if (seat.mcp.length > 0 && capabilities.mcp !== true) {
-      return fail('conflict', '当前 runtime 不支持 MCP')
+      return fail('conflict', '当前运行环境不支持外部工具')
     }
   }
 

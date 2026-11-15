@@ -117,7 +117,7 @@ function WorkTurnDetails({ workTurn }) {
       : h('div', { className: 'studio-baton-work-row' },
         h('b', null, '证据'),
         h('span', null,
-          `${evidence.command || '人工产物'} · exit ${evidence.exit === null ? '无' : evidence.exit}`,
+          `${evidence.command || '人工产物'} · 退出码 ${evidence.exit === null ? '无' : evidence.exit}`,
           evidence.changedFiles?.length > 0 ? ` · ${evidence.changedFiles.join('、')}` : '')),
     verdict === null || verdict === undefined
       ? null

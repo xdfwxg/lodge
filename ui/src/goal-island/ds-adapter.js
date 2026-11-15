@@ -32,7 +32,7 @@ export const toDsGoal = room => {
         ? undefined
         : last.meta?.kind === 'manual'
           ? '人工产物就绪'
-          : `${last.meta?.command ?? '验收命令'} · exit ${last.meta?.exit ?? '—'}`,
+          : `${last.meta?.command ?? '验收命令'} · ${last.meta?.exit === 0 ? '通过' : last.meta?.exit === null || last.meta?.exit === undefined ? '已运行' : '未通过'}`,
       reworks: reworks.length,
       feedback: reworks.at(-1)?.text,
     }
@@ -52,7 +52,7 @@ export const toDsGoal = room => {
     acceptance: acceptance.length === 0 ? undefined : acceptance.join('\n'),
     constraints: room.brief?.constraints ?? [],
     summary: conclusion?.text,
-    evidence: typeof room.delivery?.commit === 'string' ? `commit ${room.delivery.commit.slice(0, 8)}` : undefined,
+    evidence: typeof room.delivery?.commit === 'string' ? `提交 ${room.delivery.commit.slice(0, 8)}` : undefined,
     reason: room.state === 'stopped' ? '目标已停止' : undefined,
     evidenceCount: (room.messages ?? []).filter(message => message.kind === 'evidence').length,
   }

@@ -31,7 +31,7 @@ test('the shadow card renders the verifier verdict beside advisor advice', () =>
   assert.match(html, /影子评审/)
   assert.match(html, /一致/)
   assert.match(html, /验收员 · 正式/)
-  assert.match(html, /advisor · 仅对照/)
+  assert.match(html, /顾问 · 仅对照/)
   assert.match(html, /0\.80/)
   assert.match(html, /建议补一条回滚测试/)
 })

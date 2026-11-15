@@ -277,9 +277,9 @@ const waitForTurn = async ({ engine, sessionRef }) => {
 export const recommendRoster = async ({ engine, body, workspace }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > MAX_GOAL) return fail('invalid', '目标不能为空，且不超过 2000 字')
-  if (engine.capabilities().provisioning !== true) return fail('conflict', '当前 runtime 不支持编队建议')
+  if (engine.capabilities().provisioning !== true) return fail('conflict', '当前运行环境不支持编队建议')
   const health = await engine.health()
-  if (health.ok !== true) throw new Error('基座未连接，先检查 CLI 或基座服务')
+  if (health.ok !== true) throw new Error('服务未连接，先检查命令行或本地服务')
 
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
   const generatedRepo = requestedRepo === ''
@@ -306,7 +306,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
   try {
     workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: [advisor] })
     advisorRef = await engine.createSeatBot({
-      name: `Advisor${short}`,
+      name: `编队评估${short}`,
       soul: '你是规划师。只做编队判断，只输出 JSON，不执行工具。',
       description: advisor.station,
       approval: advisor.approval,

@@ -64,8 +64,8 @@ export function DeliveryCard({ delivery }) {
             h('span', { className: 'studio-delivery-label' }, '提交'),
             delivery.commit
               ? h('code', null, short(delivery.commit))
-              : h('span', null, delivery.workspace?.vcs === 'git' ? '没有新的 commit' : `留痕：${delivery.workspace?.vcs === 'none' ? '房间记录归档' : delivery.workspace?.vcs}`),
-            delivery.commit ? h('span', { className: 'studio-delivery-note' }, '未 push') : null),
+              : h('span', null, delivery.workspace?.vcs === 'git' ? '没有新的提交记录' : `留痕：${delivery.workspace?.vcs === 'none' ? '房间记录归档' : delivery.workspace?.vcs}`),
+            delivery.commit ? h('span', { className: 'studio-delivery-note' }, '未推送') : null),
           delivery.workspacePath
             ? h('div', { className: 'studio-delivery-row' },
               h('span', { className: 'studio-delivery-label' }, '位置'),
@@ -111,7 +111,7 @@ export function DeliveryCard({ delivery }) {
               ...stage.commands.flatMap(command => [
                 h('div', { key: command.id, className: 'crew-kv' },
                   h('span', null, '命令'),
-                  h('code', null, `${command.command} · exit ${command.exit === null ? '无' : command.exit}`)),
+                  h('code', null, `${command.command} · 退出码 ${command.exit === null ? '无' : command.exit}`)),
               ]),
               ...stage.verdicts
                 .map(verdict => h('div', { key: verdict.id, className: 'crew-delivery-verdict', 'data-pass': verdict.pass },

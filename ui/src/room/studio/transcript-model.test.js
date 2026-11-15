@@ -50,7 +50,7 @@ test('step-group summaries count repeated tools and cap the list', () => {
     step('4', 'w', 4, true, 'Edit'),
     step('5', 'w', 5, true, 'Grep'),
   ]
-  assert.equal(describeSteps(steps), '5 步 · Bash ×2、Read、Edit +1')
+  assert.equal(describeSteps(steps), '5 步 · 运行命令 ×2、读取文件、修改文件 +1')
 })
 
 test('only the first message of a same-seat group shows a speaker', () => {
@@ -94,7 +94,7 @@ test('the projection tool name is the only step label', () => {
   assert.equal(displayableStep(tool), true)
   const items = groupSteps([tool, { ...tool, id: 't2', ts: 2 }])
   assert.equal(items[0].kind, 'steps')
-  assert.equal(describeSteps(items[0].steps), '2 步 · Bash ×2')
+  assert.equal(describeSteps(items[0].steps), '2 步 · 运行命令 ×2')
 })
 
 test('synthetic tool labels are rejected even when the projection carries them', () => {
@@ -197,5 +197,5 @@ test('MCP tool names are shortened in the step summary', () => {
     { id: 's2', kind: 'activity', meta: { tool: 'mcp__agents__session_search', ok: true } },
     { id: 's3', kind: 'activity', meta: { tool: 'Bash', ok: true } },
   ]
-  assert.equal(describeSteps(steps), '3 步 · session_search ×2、Bash')
+  assert.equal(describeSteps(steps), '3 步 · session_search ×2、运行命令')
 })
