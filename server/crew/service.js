@@ -7,6 +7,7 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
+import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
@@ -30,6 +31,26 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
 
   const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, seats, body, ports, parentRoom: parent })
   const subrooms = createServiceSubrooms({ createRoom })
+
+  const createSampleRoom = () => {
+    const existing = readRoom(SAMPLE_ROOM_ID)
+    if (existing !== null) {
+      if (existing.archivedAt) {
+        const restored = updateRoom(existing.id, current => {
+          current.archivedAt = null
+          return { events: [{ type: 'room.restored' }] }
+        })
+        if (restored !== null) emit('room', restored)
+        return ok({ room: restored ?? existing })
+      }
+      return ok({ room: existing })
+    }
+    const now = Date.now()
+    const room = writeRoom(sampleRoomRecord({ now }))
+    seedSampleMessages({ store, room, now })
+    emit('room', room)
+    return ok({ room })
+  }
 
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
     const room = readRoom(roomId)
@@ -196,6 +217,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
   return {
     ...queries,
     createRoom,
+    createSampleRoom,
     roomRequest,
   }
 }

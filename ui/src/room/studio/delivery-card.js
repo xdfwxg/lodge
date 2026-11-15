@@ -47,6 +47,7 @@ export function DeliveryCard({ delivery, onContinue = null }) {
       h('div', { className: 'crew-card-body' },
         h('div', { className: 'studio-delivery-head' },
           h('span', { className: 'studio-delivery-kicker' }, '交付卡'),
+          delivery.sample === true ? h('span', { className: 'studio-delivery-sample' }, '示例数据') : null,
           h('span', { className: 'studio-delivery-chip' }, '已交付 ✓')),
         h('h3', { className: 'studio-delivery-name' }, nameText === '' ? '这次交付' : nameText),
         goalFirst === '' || goalFirst === nameText ? null : h('p', { className: 'studio-delivery-goal' }, goalFirst),
@@ -60,12 +61,14 @@ export function DeliveryCard({ delivery, onContinue = null }) {
           h('span', null, commands.length > 0 ? `${passed}/${commands.length} 命令通过` : '人工验收'),
           h('span', null, `${(delivery.artifacts?.length ?? 0) > 0 ? delivery.artifacts.length : delivery.changedFiles?.length ?? 0} 个文件`)),
         h('div', { className: 'studio-delivery-meta' },
-          h('div', { className: 'studio-delivery-row' },
-            h('span', { className: 'studio-delivery-label' }, '提交'),
-            delivery.commit
-              ? h('code', null, short(delivery.commit))
-              : h('span', null, delivery.workspace?.vcs === 'git' ? '没有新的提交记录' : `留痕：${delivery.workspace?.vcs === 'none' ? '房间记录归档' : delivery.workspace?.vcs}`),
-            delivery.commit ? h('span', { className: 'studio-delivery-note' }, '未推送') : null),
+          delivery.sample === true
+            ? null
+            : h('div', { className: 'studio-delivery-row' },
+              h('span', { className: 'studio-delivery-label' }, '提交'),
+              delivery.commit
+                ? h('code', null, short(delivery.commit))
+                : h('span', null, delivery.workspace?.vcs === 'git' ? '没有新的提交记录' : `留痕：${delivery.workspace?.vcs === 'none' ? '房间记录归档' : delivery.workspace?.vcs}`),
+              delivery.commit ? h('span', { className: 'studio-delivery-note' }, '未推送') : null),
           delivery.workspacePath
             ? h('div', { className: 'studio-delivery-row' },
               h('span', { className: 'studio-delivery-label' }, '位置'),

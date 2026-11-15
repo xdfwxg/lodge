@@ -70,6 +70,7 @@ export const buildDelivery = (room, messages = []) => {
     roomId: room.id,
     name: room.name,
     goal: room.goal,
+    sample: room.demo === true,
     completedAt: room.completedAt ?? (lastAt > 0 ? lastAt : null),
     commit: typeof room.completedCommit === 'string' && room.completedCommit !== '' ? room.completedCommit : null,
     independenceLabel: independenceLabel(room),

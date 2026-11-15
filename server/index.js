@@ -197,6 +197,10 @@ const server = http.createServer(async (req, res) => {
       return respond(res, await service.createRoom(await readJson(req)))
     }
 
+    if (path === '/api/rooms/sample' && req.method === 'POST') {
+      return respond(res, await service.createSampleRoom())
+    }
+
     const evidencePath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence\/([\w-]+)$/)
     if (evidencePath !== null && req.method === 'GET') {
       const [, roomId, messageId] = evidencePath

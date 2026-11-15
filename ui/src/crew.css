@@ -279,6 +279,7 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .studio-delivery-head{display:flex;align-items:center;gap:8px}
 .studio-delivery-kicker{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--bt-success-text)}
 .studio-delivery-chip{margin-left:auto;padding:2px 8px;border-radius:999px;background:var(--bt-success-soft);color:var(--bt-success-text);font-size:11.5px;font-weight:600}
+.studio-delivery-sample{padding:2px 7px;border-radius:999px;background:var(--bt-tag-bg);color:var(--bt-ink-3);font-size:11px;font-weight:600}
 .studio-delivery-name{margin:0;font-size:20px;line-height:26px;letter-spacing:-.01em;font-weight:650;color:var(--bt-ink)}
 .studio-delivery-goal{margin:0;font-size:15px;line-height:21px;color:var(--bt-ink-2)}
 .studio-delivery-meta{display:flex;flex-direction:column;gap:5px}
@@ -605,6 +606,7 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 .crew-onboarding-card h1{margin:0;font-size:34px;line-height:1.15;font-weight:700;letter-spacing:-.03em}
 .crew-onboarding-card p{margin:0;max-width:460px;color:var(--bt-ink-2);font-size:17px;line-height:1.65}
 .crew-onboarding-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;margin-top:4px}
+.crew-onboarding-sample{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:2px}
 .crew-onboarding-choice{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid var(--bt-line-2);border-radius:14px;background:var(--bt-card);color:var(--bt-ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .12s ease,box-shadow .12s ease,transform .12s ease}
 .crew-onboarding-choice:hover{border-color:var(--bt-line-control);box-shadow:var(--bt-elev-1)}
 .crew-onboarding-choice:active{transform:translateY(1px)}

@@ -1,8 +1,18 @@
-import { createElement as h } from 'react'
+import { createElement as h, useState } from 'react'
 import { RoomTypeChoices } from '../room/type-choices.js'
 
-export function Onboarding({ state, onCreate }) {
+export function Onboarding({ state, onCreate, onSample }) {
+  const [sampleBusy, setSampleBusy] = useState(false)
+  const [sampleError, setSampleError] = useState('')
   const disabled = state.phase === 'loading' || state.phase === 'error'
+  const openSample = async () => {
+    if (sampleBusy || typeof onSample !== 'function') return
+    setSampleBusy(true)
+    setSampleError('')
+    const result = await onSample()
+    setSampleBusy(false)
+    if (result?.ok !== true) setSampleError(result?.error ?? '打开示例失败')
+  }
   const errorText = state.runtime?.ok === false
     ? `Lodge 服务未连接：${state.runtime.error}`
     : state.phase === 'error'
@@ -14,6 +24,17 @@ export function Onboarding({ state, onCreate }) {
       h('h1', null, 'Lodge'),
       h('p', null, '把一件事交给一个房间。目标、过程、结果，都留在里面。'),
       h(RoomTypeChoices, { disabled, onPick: onCreate }),
+      onSample === undefined
+        ? null
+        : h('div', { className: 'crew-onboarding-sample' },
+          h('button', {
+            type: 'button',
+            className: 'crew-ghost',
+            disabled: disabled || sampleBusy,
+            onClick: () => void openSample(),
+          }, sampleBusy ? '正在打开示例…' : '先看一间完成的示例房间'),
+          h('p', { className: 'crew-field-hint' }, '不用配置，直接看交付卡和工作记录。')),
+      sampleError === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, sampleError),
       state.phase === 'loading' ? h('p', { className: 'crew-field-hint', role: 'status' }, '正在连接 Lodge…') : null,
       errorText === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, errorText)))
 }

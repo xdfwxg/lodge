@@ -87,6 +87,7 @@ export function App() {
       h(Onboarding, {
         state,
         onCreate: roomType => openDialog(null, roomType),
+        onSample: () => store.openSampleRoom(),
       }),
       liveRegion,
       needsRegion,

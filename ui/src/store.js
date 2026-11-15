@@ -219,6 +219,14 @@ export function createStore() {
       patch({ activeId: data.room.id })
       return { ok: true, room: data.room, warning: data.warning ?? null }
     },
+    openSampleRoom: async () => {
+      const data = await post('/api/rooms/sample', {})
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '打开示例失败' }
+      await load()
+      rememberRoom(data.room.id)
+      patch({ activeId: data.room.id })
+      return { ok: true, room: data.room }
+    },
     renameRoom: async (id, name) => {
       const data = await post(`/api/rooms/${id}/rename`, { name })
       if (data?.room === undefined) return { ok: false, error: state.error ?? '重命名失败' }
