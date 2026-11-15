@@ -1,10 +1,20 @@
 import { Fragment, createElement as h } from 'react'
-import { BotAvatar, BotMark } from '../../marks.js'
+import { BotAvatar } from '../../marks.js'
 import { Markdown, Speaker } from '../../message-cards.js'
+import { shadowFor } from './shadow-model.js'
 import { splitVerdictText } from './verdict-text.js'
 
-// 工作室专属消息卡：证据、阶段结论、复核结果、交付结论。
+// 工作室专属消息卡：一张检查结果，或还没复核的证据。
 // 共享层只提供说话人、正文和活动行，不认这些业务结构。
+
+const SHADOW_STATUS = {
+  agree: '一致',
+  disagree: '有分歧',
+  neutral: '中性',
+  pending: '待定',
+  mixed: '多票不一',
+  missing: '没有第二意见',
+}
 
 const OUTPUT_PREVIEW_LINES = 80
 
@@ -84,6 +94,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
   const diff = typeof proof.diff === 'string' && proof.diff !== '' ? proof.diff : ''
   const active = stage?.state === 'active'
   const canAccept = pass && active && stage?.kind === 'deliverable' && typeof onAccept === 'function'
+  const shadow = shadowFor(room, message)
   return h('div', { className: 'crew-msg' },
     h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
@@ -104,6 +115,19 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
             : h('details', { className: 'crew-fold' },
               h('summary', null, '为什么这样判断'),
               h(Markdown, { text: detail, variant: 'compact' })),
+          shadow === null
+            ? null
+            : h('details', { className: 'crew-fold crew-check-second' },
+              h('summary', null, `第二意见 · ${SHADOW_STATUS[shadow.status] ?? '参考'}`),
+              typeof shadow.advice.summary === 'string' && shadow.advice.summary !== ''
+                ? h('p', null, shadow.advice.summary)
+                : null,
+              shadow.advice.reasons?.length > 0
+                ? h('p', { className: 'crew-field-hint' }, `理由：${shadow.advice.reasons.join('；')}`)
+                : null,
+              shadow.advice.risks?.length > 0
+                ? h('p', { className: 'crew-field-hint' }, `风险：${shadow.advice.risks.join('；')}`)
+                : null),
           command || (exit !== undefined && exit !== null) || output !== ''
             ? h('details', { className: 'crew-fold' },
               h('summary', null, '技术细节'),
@@ -122,32 +146,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
           : null)))
 }
 
-function MilestoneLine({ message }) {
-  const meta = message.meta ?? {}
-  const title = typeof meta.title === 'string' && meta.title !== '' ? meta.title : `阶段 ${(meta.stage ?? 0) + 1}`
-  return h('div', { className: 'crew-milestone' },
-    h('span', { className: 'crew-milestone-check' }, '✓'),
-    h('span', { className: 'crew-milestone-title' }, `${title} 已通过`),
-    meta.next ? h('span', { className: 'crew-milestone-next' }, `下一步 ${meta.next}`) : null)
-}
-
-function ConclusionCard({ message }) {
-  const meta = message.meta ?? {}
-  return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotMark, { size: 30, live: false })),
-    h('div', { className: 'crew-msg-body' },
-      h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true' },
-        h('div', { className: 'crew-card-head' }, `结论 · ${meta.stages ?? '—'} 个阶段`, h('span', { className: 'crew-verdict', 'data-pass': true }, '完成')),
-        h('div', { className: 'crew-card-body' },
-          h(Markdown, { text: message.text, variant: 'compact' }),
-          meta.commands?.length
-            ? h('div', { className: 'crew-kv' }, h('span', null, '验收'), h('code', null, meta.commands.join(' · ')))
-            : null))))
-}
-
 export {
   EvidenceCard,
   VerdictCard,
-  MilestoneLine,
-  ConclusionCard,
 }

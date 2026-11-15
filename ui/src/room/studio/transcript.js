@@ -32,9 +32,15 @@ export function StudioTranscript({
   const items = useMemo(() => {
     const { timeline, items: ordered } = orderTranscript(messages)
     const hidden = new Set(hideKinds)
+    // 一张检查结果已经带上被检查的证据；不再单独铺一张证据卡或阶段结论行。
+    const consumedEvidence = new Set(messages
+      .filter(message => message.kind === 'verdict' && typeof message.meta?.evidenceId === 'string')
+      .map(message => message.meta.evidenceId))
     const visible = ordered.filter(message => {
       if (hidden.has(message.kind)) return false
       if (message.kind === 'advisor_advice') return false
+      if (message.kind === 'stage_conclusion' || message.kind === 'conclusion') return false
+      if (message.kind === 'evidence' && consumedEvidence.has(message.id)) return false
       if (message.kind === 'verdict' && message.meta?.human === true) return false
       if (isStandbyChat(message, room)) return false
       if (room.state === 'complete' && message.kind === 'system' && /等你签字|可以签字/.test(String(message.text ?? ''))) return false

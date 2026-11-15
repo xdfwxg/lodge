@@ -127,7 +127,7 @@ test('stage chapters expand the active stage and compress passed stages', () => 
   assert.deepEqual(chapters.map(chapter => chapter.expanded), [false, true])
   assert.match(chapters[0].summary, /1 次交接/)
   assert.match(chapters[0].summary, /1 条证据/)
-  assert.match(chapters[1].summary, /1 条证据 · 1 次复核/)
+  assert.match(chapters[1].summary, /1 次检查/)
 })
 
 test('pre-stage room notices stay out of the first stage', () => {
@@ -208,7 +208,7 @@ test('stage summaries count evidence and verdicts from the full room history', (
       staged('v', 2, 0, 'verdict', { pass: true }),
     ],
   }
-  assert.equal(stageChapterSummary([], room, 0), '1 条证据 · 1 次复核')
+  assert.equal(stageChapterSummary([], room, 0), '1 次检查')
 })
 
 test('MCP tool names are shortened in the step summary', () => {

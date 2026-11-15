@@ -223,10 +223,6 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 .crew-activity[data-ok=false] .crew-activity-dot{background:var(--bt-danger)}
 .crew-activity-text{min-width:0;overflow-wrap:anywhere}
 .crew-activity-time{flex:none;font-variant-numeric:tabular-nums}
-.crew-milestone{display:flex;align-items:center;gap:8px;margin:5px 0 5px 44px;padding:5px 0;font-size:13.5px;line-height:18px;color:var(--bt-ink-2)}
-.crew-milestone-check{flex:none;color:var(--bt-success-text);font-weight:700}
-.crew-milestone-title{font-weight:600;color:var(--bt-ink)}
-.crew-milestone-next{flex:none;margin-left:auto;font-size:12.5px;color:var(--bt-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .crew-card{margin:8px 0 8px 2px;border:1px solid var(--bt-line-2);border-radius:12px;background:var(--bt-card);overflow:hidden}
 .crew-msg-conclusion{width:100%;margin:8px 0}
@@ -247,23 +243,6 @@ body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
 /* Gate 前置管道：准入结果和外部建议只做一行记录。 */
 .studio-gate-line{align-self:stretch;display:block;padding:7px 10px;border-radius:8px;background:var(--bt-shade-1);text-align:left}
 .studio-gate-line[data-tone=reject]{background:var(--bt-danger-wash);color:var(--bt-danger-text)}
-/* 影子评审：只读对照卡，跟在复核结果之后。 */
-.crew-shadow-card{border-color:var(--bt-line-2);box-shadow:none}
-.crew-shadow-card .crew-verdict[data-tone=pass]{background:var(--bt-success-soft);color:var(--bt-success-text)}
-.crew-shadow-card .crew-verdict[data-tone=reject]{background:var(--bt-danger-soft);color:var(--bt-danger-text)}
-.crew-shadow-card .crew-verdict[data-tone=pending]{background:var(--bt-shade-2);color:var(--bt-ink-3)}
-.crew-shadow-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
-.crew-shadow-col{display:flex;flex-direction:column;gap:5px;min-width:0}
-.crew-shadow-col-head{font-size:11.5px;line-height:16px;font-weight:600;letter-spacing:.02em;color:var(--bt-ink-3)}
-.crew-shadow-verdict{display:flex;align-items:center;gap:7px;font-size:12.5px;line-height:18px}
-.crew-shadow-verdict b{font-size:11.5px;letter-spacing:.03em}
-.crew-shadow-verdict b[data-pass=true]{color:var(--bt-success-text)}
-.crew-shadow-verdict b[data-pass=false]{color:var(--bt-danger-text)}
-.crew-shadow-score{display:flex;align-items:baseline;gap:8px}
-.crew-shadow-score b{font-size:16px;line-height:21px;font-weight:650}
-.crew-shadow-score span{font-size:11.5px;color:var(--bt-ink-3)}
-.crew-shadow-col p{margin:0;font-size:12.5px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere}
-@media(max-width:760px){.crew-shadow-cols{grid-template-columns:minmax(0,1fr)}}
 .crew-card-head{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bt-line);font-size:13.5px;font-weight:600}
 .crew-card-head .crew-verdict{margin-left:auto}
 .crew-card-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;line-height:20px}
@@ -667,7 +646,6 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 .crew-speaker-name{font-size:13.5px}
 .crew-speaker-station,.crew-speaker-time{font-size:11.5px}
 .crew-system{margin:10px 0;padding:4px 10px;font-size:12.5px;line-height:17px}
-.crew-milestone{margin-left:39px;font-size:13.5px}
 .crew-card{margin:8px 0 8px 2px;border-radius:12px}
 .crew-card-head{padding:8px 11px;font-size:13.5px}
 .crew-card-body{padding:9px 11px;gap:7px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body)}

@@ -37,8 +37,8 @@ export const stageChapterSummary = (items, room, index = null) => {
   const verdicts = (staged ?? items).filter(item => item.kind === 'verdict' && item.meta?.human !== true).length
   const parts = []
   if (transfers > 0) parts.push(`${transfers} 次交接`)
-  if (evidence > 0) parts.push(`${evidence} 条证据`)
-  if (verdicts > 0) parts.push(`${verdicts} 次复核`)
+  if (verdicts > 0) parts.push(`${verdicts} 次检查`)
+  else if (evidence > 0) parts.push(`${evidence} 条证据`)
   return parts.join(' · ')
 }
 
