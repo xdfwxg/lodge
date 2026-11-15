@@ -1,9 +1,11 @@
 import { createElement as h, useEffect, useState } from 'react'
+import { ApprovalCard } from '../../approval-card.js'
 import { ChevronDownIcon } from '../../goal-island/ds-icons.js'
+import { parseDecisionItems } from './decision-brief.js'
 import { LiveGate, StageAction } from './stage-controls.js'
 import { gateStatus, stageGate, stageNeedsHuman } from './stage-gate.js'
 
-function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswer, onSetAcceptance, onVerify, onRework }) {
+function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswer, onSetAcceptance, onVerify, onRework, onApproval }) {
   const [localOpen, setLocalOpen] = useState(false)
   const open = controlledOpen ?? localOpen
   const setOpen = value => {
@@ -11,11 +13,29 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
     else onOpenChange(value)
   }
   const { activeIndex, activeStage, hasPass, manualReady } = stageGate(room)
+  const approval = (room.approvals ?? []).find(item => item.state === 'pending')
   useEffect(() => {
     if (onOpenChange === undefined) setLocalOpen(false)
     else onOpenChange(false)
   }, [room.id, activeIndex, onOpenChange])
+  // 审批就是一张要你现在决定的卡，不再藏在一行摘要后面。
+  if (approval !== undefined) {
+    return h('div', { className: 'crew-stage-dock crew-stage-dock-approval' },
+      h(ApprovalCard, {
+        approval,
+        onDecide: decision => onApproval?.(approval.id, decision),
+      }))
+  }
   if (activeStage === undefined) return null
+  // 开工对齐已经有一张带问题的决策卡；底部动作条不再重复同一件事。
+  const leadMessage = [...(room.messages ?? [])].reverse().find(message => (
+    message.kind === 'chat' && message.authorId === room.leadSeat
+  ))
+  const openingBrief = activeIndex === 0 &&
+    room.needsYou?.kind === 'decision' &&
+    leadMessage !== undefined &&
+    parseDecisionItems(leadMessage.text).length >= 2
+  if (openingBrief) return null
   const canAct = activeStage.kind === 'decision'
     ? activeStage.manual !== true || manualReady
     : room.live === true && !hasPass

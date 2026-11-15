@@ -161,6 +161,7 @@ function RoomView({ state, room, store, onStartStudio }) {
     onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
     onVerify: stage => void store.verify(stage),
     onRework: (stage, note) => void store.rework(stage, note),
+    onApproval: (id, decision) => void store.decideApproval(id, decision),
   }
   const viewCtx = { state, room, seats, locked, viewModel, actions, dock, store }
   const typing = mode.typing?.(viewCtx) ?? null

@@ -41,7 +41,6 @@ export const studioView = {
       delivery: room.delivery ?? null,
       onAccept: actions.accept,
       onStageAccept: actions.accept,
-      onApproval: actions.approval,
       onContinue: () => actions.startStudio({
         goal: `${room.goal}\n\n上一次交付「${room.name}」已经完成。现在在这个基础上继续：`,
         conclusion: '',

@@ -8,18 +8,18 @@ export function ApprovalCard({ approval, onDecide }) {
       h('span', { className: 'crew-verdict', 'data-pending': '' }, approval.label)),
     h('div', { className: 'crew-card-body' },
       h('div', { className: 'crew-kv' },
-        h('span', null, '席位'),
+        h('span', null, '谁'),
         h('span', null, approval.seatName)),
       h('div', { className: 'crew-kv' },
-        h('span', null, '动作'),
+        h('span', null, '要做什么'),
         h('code', { className: 'crew-code' }, approval.summary)),
       approval.gate
         ? h('div', { className: 'crew-approval-gate', 'data-decision': approval.gate.decision },
           h('b', null, approval.gate.decision === 'deny'
-            ? '独立守门：建议拒绝'
+            ? '预检：建议拒绝'
             : approval.gate.decision === 'review'
-              ? '独立守门：需你判断'
-              : '独立守门：可放行'),
+              ? '预检：需你判断'
+              : '预检：可放行'),
           approval.gate.reasons?.length
             ? h('span', null, ` · ${approval.gate.reasons.join('、')}`)
             : null)
@@ -27,12 +27,12 @@ export function ApprovalCard({ approval, onDecide }) {
       approval.gateAgent
         ? h('div', { className: 'crew-approval-gate', 'data-decision': approval.gateAgent.decision },
           h('b', null, approval.gateAgent.error === true
-            ? '模型守门：不可用'
+            ? '第二意见：不可用'
             : approval.gateAgent.decision === 'deny'
-              ? '模型守门：建议拒绝'
+              ? '第二意见：建议拒绝'
               : approval.gateAgent.decision === 'review'
-                ? '模型守门：需你判断'
-                : '模型守门：可放行'),
+                ? '第二意见：需你判断'
+                : '第二意见：可放行'),
           approval.gateAgent.reasons?.length
             ? h('span', null, ` · ${approval.gateAgent.reasons.join('、')}`)
             : null)

@@ -658,6 +658,7 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 .crew-delivery-stages{gap:7px}
 .crew-delivery-stage{padding:8px 9px}
 .crew-stage-dock{max-width:760px;padding:0 16px 4px}
+.crew-stage-dock-approval{padding-bottom:8px}
 .crew-stage-dock-row{padding:7px 10px;font-size:13.5px}
 .dsb-composer{padding:8px 16px 12px}
 .crew-composer{max-width:760px;padding:7px 7px 7px 12px;border-radius:16px}

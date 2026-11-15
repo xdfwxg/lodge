@@ -1,5 +1,4 @@
 import { Fragment, createElement as h, useMemo } from 'react'
-import { ApprovalCard } from '../../approval-card.js'
 import { DeliveryCard } from './delivery-card.js'
 import { GateLine } from './gate-line.js'
 import { dedupeChatStreams } from '../timeline-model.js'
@@ -22,7 +21,6 @@ export function StudioTranscript({
   seats,
   onAccept,
   onStageAccept,
-  onApproval,
   onContinue = null,
   hideKinds = [],
   delivery = null,
@@ -57,7 +55,7 @@ export function StudioTranscript({
     return body.map((item, index) => {
       const live = liveStage && index === body.length - 1
       // 等用户拍板时，工具调用不是主角；决策卡先说话。
-      if (item.kind === 'steps' && decisionStage) return null
+      if (decisionStage && (item.kind === 'steps' || item.kind === 'activity')) return null
       if (item.kind === 'steps') return h(StepGroup, { key: item.key, steps: item.steps, live })
       if (item.kind === 'activity') {
         return displayableStep(item) ? h(StudioStep, { key: item.id, step: item, live }) : null
@@ -76,22 +74,9 @@ export function StudioTranscript({
     }).filter(Boolean)
   }
 
-  const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
-
   const timeline = h('div', { className: 'studio-timeline' }, ...[
     h(GateLine, { key: 'gate', gate: room.gate }),
     ...items.chapters.map(chapter => h(StageChapter, { key: chapter.key, chapter }, ...renderChapterBody(chapter))),
-    ...pendingApprovals
-      .slice(0, 1)
-      .map(approval => h(ApprovalCard, {
-        key: approval.id,
-        approval,
-        onDecide: decision => onApproval(approval.id, decision),
-      })),
-    pendingApprovals.length > 1
-      ? h('div', { key: 'approval-queue', className: 'crew-system' },
-        `还有 ${pendingApprovals.length - 1} 个待批准，处理完当前这个再出现。`)
-      : null,
   ].filter(Boolean))
 
   const result = delivery === null || delivery === undefined
