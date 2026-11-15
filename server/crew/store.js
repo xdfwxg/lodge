@@ -123,6 +123,21 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     return row
   }
 
+  // 房间记录删除后，消息和事件不能留下孤儿行；工作区文件不在这里处理。
+  const deleteRoom = id => {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      db.prepare('DELETE FROM messages WHERE room_id = ?').run(id)
+      db.prepare('DELETE FROM room_event WHERE room_id = ?').run(id)
+      const result = db.prepare('DELETE FROM room WHERE id = ?').run(id)
+      db.exec('COMMIT')
+      return Number(result.changes) > 0
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+  }
+
   const readEvents = (roomId, limit = 200) => db.prepare(
     'SELECT id, seq, room_id, type, payload, at FROM room_event WHERE room_id = ? ORDER BY seq DESC LIMIT ?',
   ).all(roomId, limit).reverse().map(row => ({
@@ -186,6 +201,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     appendMessage,
     upsertMessage,
     appendEvent,
+    deleteRoom,
     readEvents,
   }
 }

@@ -10,6 +10,7 @@ test('sidebar room labels carry name, status, unread and needs-you text', () => 
   )
   assert.equal(roomLabelOf({ name: '周报', state: 'complete' }), '周报，完成')
   assert.equal(roomLabelOf({ name: '空房', state: 'paused' }), '空房，已暂停')
+  assert.equal(roomLabelOf({ name: '旧房', state: 'complete', archivedAt: 1 }), '旧房，已归档')
 })
 
 test('rooms are grouped by attention, recency and completion', () => {
@@ -18,6 +19,7 @@ test('rooms are grouped by attention, recency and completion', () => {
     { id: 'recent-old', state: 'active', live: true, messages: [{ ts: 2 }] },
     { id: 'pending', state: 'active', needsYou: { kind: 'decision' }, messages: [{ ts: 3 }] },
     { id: 'recent-new', state: 'active', live: true, messages: [{ ts: 4 }] },
+    { id: 'archived', state: 'stopped', archivedAt: 5, needsYou: { kind: 'decision' }, messages: [{ ts: 5 }] },
   ]
   assert.deepEqual(
     groupRooms(rooms).map(section => [section.id, section.rooms.map(room => room.id)]),
@@ -25,6 +27,7 @@ test('rooms are grouped by attention, recency and completion', () => {
       ['pending', ['pending']],
       ['recent', ['recent-new', 'recent-old']],
       ['done', ['done']],
+      ['archived', ['archived']],
     ],
   )
 })

@@ -12,7 +12,7 @@ export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
 export const createCrewService = ({ store, engine, live, emit, seats, ports }) => {
-  const { readRoom, readMessages, writeRoom, appendMessage } = store
+  const { readRoom, readMessages, writeRoom, appendMessage, updateRoom, deleteRoom } = store
   const { roomFiles, workspace, files } = ports
 
   const queries = createServiceQueries({
@@ -68,6 +68,73 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     if (action === 'read' && method === 'POST') {
       if (room.live === true && typeof live.markChatRead === 'function') await live.markChatRead(room)
       return ok({ room: readRoom(roomId) ?? room })
+    }
+
+    if (action === 'rename' && method === 'POST') {
+      const body = await readBody()
+      const name = typeof body.name === 'string' ? body.name.trim() : ''
+      if (name === '' || Array.from(name).length > 60) return fail('invalid', '房间名不能为空，且不超过 60 字')
+      const updated = updateRoom(room.id, current => {
+        current.name = name
+        return { events: [{ type: 'room.renamed', payload: { name } }] }
+      })
+      if (updated === null) return fail('not_found', '没有这个房间')
+      emit('room', updated)
+      return ok({ room: updated })
+    }
+
+    if (action === 'archive' && method === 'POST') {
+      const body = await readBody()
+      if (body.archived === false) {
+        const restored = updateRoom(room.id, current => {
+          current.archivedAt = null
+          return { events: [{ type: 'room.restored' }] }
+        })
+        if (restored === null) return fail('not_found', '没有这个房间')
+        emit('room', restored)
+        return ok({ room: restored })
+      }
+      const wasLive = room.live === true && live.isAttached?.(room.id) === true
+      if (wasLive) {
+        await live.cancel?.({ roomId: room.id })
+        live.detach?.(room.id)
+      }
+      const archivedAt = Date.now()
+      const updated = updateRoom(room.id, current => {
+        current.archivedAt = archivedAt
+        const stopped = current.state === 'active'
+        if (stopped) {
+          current.state = 'stopped'
+          current.live = false
+        }
+        return { events: [{ type: 'room.archived', payload: { stopped } }] }
+      })
+      if (updated === null) return fail('not_found', '没有这个房间')
+      emit('room', updated)
+      return ok({ room: updated })
+    }
+
+    if (action === 'delete' && method === 'POST') {
+      if (room.state === 'active') return fail('conflict', '正在进行的房间不能删除；先归档再删除')
+      if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
+      if (typeof room.parentRoomId === 'string' && room.parentRoomId !== '') {
+        const parent = updateRoom(room.parentRoomId, current => {
+          current.childRoomIds = (current.childRoomIds ?? []).filter(id => id !== room.id)
+          return { events: [{ type: 'room.child_removed', payload: { id: room.id } }] }
+        })
+        if (parent !== null) emit('room', parent)
+      }
+      const removed = typeof deleteRoom === 'function' ? deleteRoom(room.id) : false
+      if (removed !== true) return fail('not_found', '没有这个房间')
+      // 只删房间自己的 .crew/rooms/<id> 过程档案；交付工作区和用户仓库不碰。
+      const roomRoot = roomFiles.roomDir?.(room)
+      if (typeof roomRoot === 'string' && roomRoot !== '') {
+        try { files.remove(roomRoot) } catch (error) {
+          console.warn(`room files remove failed: ${room.id} ${error?.message ?? error}`)
+        }
+      }
+      emit('room.deleted', { id: room.id, name: room.name })
+      return ok({ id: room.id })
     }
 
     if (room.state === 'paused' || room.state === 'stopped') {

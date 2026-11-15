@@ -36,6 +36,29 @@ test('room updates are versioned inside a transaction and write events', () => {
   }
 })
 
+test('deleting a room removes its messages and events but keeps other rooms', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-delete-store-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-delete-repo-'))
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R1', goal: 'g', repoPath: repo, state: 'complete', stages: [], members: [] })
+    store.writeRoom({ id: 'r2', name: 'R2', goal: 'g', repoPath: repo, state: 'complete', stages: [], members: [] })
+    store.appendMessage('r1', { kind: 'system', text: 'hello' })
+    store.appendEvent('r1', 'room.conclusion', {})
+    store.appendMessage('r2', { kind: 'system', text: 'keep me' })
+
+    assert.equal(store.deleteRoom('r1'), true)
+    assert.equal(store.readRoom('r1'), null)
+    assert.deepEqual(store.readMessages('r1'), [])
+    assert.deepEqual(store.readEvents('r1'), [])
+    assert.equal(store.readRoom('r2').id, 'r2')
+    assert.equal(store.readMessages('r2').length, 1)
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 test('room events are mirrored into the room repo for handoff', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-event-store-'))
   const repo = mkdtempSync(join(tmpdir(), 'crew-event-repo-'))

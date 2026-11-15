@@ -1,4 +1,6 @@
 import { Fragment, createElement as h, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useOverlay } from '../overlay.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roomTypeIcon } from '../room/type-icons.js'
 import { initialOf } from '../marks.js'
@@ -13,8 +15,10 @@ export const groupRooms = rooms => {
   const pending = []
   const recent = []
   const done = []
+  const archived = []
   for (const room of rooms) {
-    if (room.needsYou) pending.push(room)
+    if (room.archivedAt) archived.push(room)
+    else if (room.needsYou) pending.push(room)
     else if (room.state === 'complete') done.push(room)
     else recent.push(room)
   }
@@ -22,6 +26,7 @@ export const groupRooms = rooms => {
     { id: 'pending', label: '待处理', rooms: byRecent(pending) },
     { id: 'recent', label: '最近', rooms: byRecent(recent) },
     { id: 'done', label: '已完成', rooms: byRecent(done) },
+    { id: 'archived', label: '已归档', rooms: byRecent(archived) },
   ].filter(section => section.rooms.length > 0)
 }
 
@@ -29,7 +34,7 @@ const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
 
-function Sidebar({ state, onSelect, onNew }) {
+function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
   const [open, setOpen] = useState(false)
@@ -171,13 +176,20 @@ function Sidebar({ state, onSelect, onNew }) {
         h('button', { type: 'button', className: 'crew-new', 'aria-label': '新建房间', onClick: onNew }, '＋ 新建')),
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },
-          sections.map(section => h('section', { key: section.id, className: 'crew-side-group' },
+          sections.map(section => h('section', {
+            key: section.id,
+            className: 'crew-side-group',
+            'data-archived': section.id === 'archived' ? 'true' : undefined,
+          },
             h('div', { className: 'crew-side-group-label' }, section.label),
             section.rooms.map(room => h(RoomRow, {
               key: room.id,
               room,
               active: activeId === room.id,
               onSelect: () => selectRoom(room.id),
+              onRename: onRename === undefined ? undefined : name => onRename(room.id, name),
+              onArchive: onArchive === undefined ? undefined : archived => onArchive(room.id, archived),
+              onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
             })))))),
       h('div', { className: 'crew-me' },
         h('span', { className: 'crew-me-badge' }, '你'),
@@ -210,9 +222,10 @@ const NEEDS_META = {
 
 // The row only shows a status word when the room needs you. Complete and live
 // rooms stay quiet; the dot carries their state and the accessible label says it.
-const metaOf = room => room.needsYou ? NEEDS_META[room.needsYou.kind] ?? '待处理' : ''
+const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.needsYou.kind] ?? '待处理' : ''
 
 const stateLabelOf = room => {
+  if (room?.archivedAt) return '已归档'
   if (room?.state === 'complete') return '完成'
   if (room?.state === 'stopped') return '已停止'
   if (room?.state === 'paused') return '已暂停'
@@ -235,25 +248,243 @@ export const roomLabelOf = room => {
   return parts.join('，')
 }
 
-function RoomRow({ room, active, onSelect }) {
+function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
+  const deleting = kind === 'delete'
+  const dismiss = () => {
+    if (!busy) onCancel()
+  }
+  const overlay = useOverlay({ label: deleting ? '删除房间' : '归档房间', onClose: dismiss, active: true })
+  return h('div', { className: 'crew-overlay', onClick: dismiss, ...overlay },
+    h('div', { className: 'crew-dialog crew-confirm', onClick: event => event.stopPropagation() },
+      h('div', { className: 'crew-dialog-heading' },
+        h('h2', null, deleting ? '删除房间' : '归档房间'),
+        h('p', null, deleting
+          ? `「${room.name}」的房间记录和过程档案会删除，交付文件会保留。`
+          : `「${room.name}」会停止并收进「已归档」；取消归档只会让它重新出现在列表里。`)),
+      deleting ? h('p', { className: 'crew-dialog-note crew-confirm-note' }, '删除后不能恢复。') : null,
+      h('div', { className: 'crew-dialog-foot' },
+        h('button', { type: 'button', className: 'crew-ghost', disabled: busy, onClick: dismiss }, '取消'),
+        h('button', {
+          type: 'button',
+          className: 'crew-accept crew-dialog-primary',
+          'data-danger': deleting ? 'true' : undefined,
+          disabled: busy,
+          onClick: onConfirm,
+        }, busy ? '正在处理…' : deleting ? '删除' : '归档'))))
+}
+
+function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
+  const archived = Boolean(room.archivedAt)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuAt, setMenuAt] = useState(null)
+  const [renaming, setRenaming] = useState(false)
+  const [draft, setDraft] = useState(room.name)
+  const [confirm, setConfirm] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+  const moreRef = useRef(null)
+  const menuRef = useRef(null)
+
+  useEffect(() => { setDraft(room.name) }, [room.name])
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const onPointer = event => {
+      if (menuRef.current?.contains(event.target) === true) return
+      if (moreRef.current?.contains(event.target) === true) return
+      setMenuOpen(false)
+    }
+    const onKey = event => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      setMenuOpen(false)
+      moreRef.current?.focus()
+    }
+    const close = () => setMenuOpen(false)
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [menuOpen])
+
   const label = roomLabelOf(room)
   const TypeIcon = roomTypeIcon(uiKindOfRoom(room).id)
-  return h('button', {
-    type: 'button',
-    className: 'bt-row crew-side-room',
-    'aria-current': active ? 'page' : undefined,
-    onClick: onSelect,
-    title: label,
-    'aria-label': label,
-  },
-  h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, initialOf(room.name, '·')),
-  h('span', { className: 'crew-side-room-type', 'aria-hidden': 'true' }, h(TypeIcon, { size: 15 })),
-  h('span', { className: 'crew-side-room-name' }, room.name),
-  room.chatUnread === true && !active
-    ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))
-    : null,
-  metaOf(room) === '' ? null : h('span', { className: 'crew-side-room-meta', 'data-tone': toneOf(room) }, metaOf(room)),
-  h('span', { className: 'crew-side-room-dot', 'data-tone': toneOf(room), title: room.needsYou?.label ?? '' }))
+  const manage = onRename !== undefined || onArchive !== undefined || onDelete !== undefined
+  const canDelete = room.state !== 'active'
+  const closeMenu = () => setMenuOpen(false)
+  const toggleMenu = () => {
+    if (menuOpen) {
+      setMenuOpen(false)
+      return
+    }
+    const rect = moreRef.current?.getBoundingClientRect()
+    if (rect === undefined || rect === null) return
+    const width = 144
+    const height = 112
+    const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))
+    const top = rect.bottom + height > window.innerHeight - 8
+      ? Math.max(8, rect.top - height - 4)
+      : rect.bottom + 4
+    setMenuAt({ top, left })
+    setMenuOpen(true)
+  }
+  const startRename = () => {
+    setDraft(room.name)
+    setRenaming(true)
+    setNote('')
+    closeMenu()
+  }
+  const cancelRename = () => {
+    setDraft(room.name)
+    setRenaming(false)
+  }
+  const submitRename = async () => {
+    const text = draft.trim()
+    if (busy || onRename === undefined) return
+    if (text === '' || text === room.name) {
+      setRenaming(false)
+      return
+    }
+    setBusy(true)
+    setNote('')
+    const result = await onRename(text)
+    setBusy(false)
+    if (result?.ok === true) setRenaming(false)
+    else setNote(result?.error ?? '重命名失败')
+  }
+  const archiveNow = async () => {
+    if (busy || onArchive === undefined) return
+    setBusy(true)
+    setNote('')
+    const result = await onArchive(true)
+    setBusy(false)
+    setConfirm(null)
+    if (result?.ok !== true) setNote(result?.error ?? '归档失败')
+  }
+  const restore = async () => {
+    if (busy || onArchive === undefined) return
+    setBusy(true)
+    setNote('')
+    const result = await onArchive(false)
+    setBusy(false)
+    closeMenu()
+    if (result?.ok !== true) setNote(result?.error ?? '取消归档失败')
+  }
+  const deleteNow = async () => {
+    if (busy || onDelete === undefined) return
+    setBusy(true)
+    setNote('')
+    const result = await onDelete()
+    setBusy(false)
+    setConfirm(null)
+    if (result?.ok !== true) setNote(result?.error ?? '删除失败')
+  }
+  const requestArchive = () => {
+    closeMenu()
+    if (room.state === 'active') setConfirm('archive')
+    else void archiveNow()
+  }
+  const requestDelete = () => {
+    closeMenu()
+    setConfirm('delete')
+  }
+  return h(Fragment, null,
+    h('div', {
+      className: 'crew-side-row',
+      'data-archived': archived ? 'true' : undefined,
+      'data-menu': menuOpen ? 'true' : undefined,
+    },
+    renaming
+      ? h('form', {
+        className: 'crew-side-rename',
+        onSubmit: event => {
+          event.preventDefault()
+          void submitRename()
+        },
+      },
+      h('input', {
+        className: 'crew-side-rename-input',
+        value: draft,
+        autoFocus: true,
+        maxLength: 60,
+        disabled: busy,
+        'aria-label': '房间名',
+        onChange: event => setDraft(event.target.value),
+        onKeyDown: event => {
+          if (event.key !== 'Escape') return
+          event.preventDefault()
+          cancelRename()
+        },
+      }),
+      h('button', { type: 'submit', className: 'crew-side-rename-save', disabled: busy || draft.trim() === '' }, busy ? '保存中…' : '保存'),
+      h('button', { type: 'button', className: 'crew-side-rename-cancel', disabled: busy, onClick: cancelRename }, '取消'))
+      : h('button', {
+        type: 'button',
+        className: 'bt-row crew-side-room',
+        'aria-current': active ? 'page' : undefined,
+        onClick: onSelect,
+        title: label,
+        'aria-label': label,
+      },
+      h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, initialOf(room.name, '·')),
+      h('span', { className: 'crew-side-room-type', 'aria-hidden': 'true' }, h(TypeIcon, { size: 15 })),
+      h('span', { className: 'crew-side-room-name' }, room.name),
+      room.chatUnread === true && !active
+        ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))
+        : null,
+      metaOf(room) === '' ? null : h('span', { className: 'crew-side-room-meta', 'data-tone': toneOf(room) }, metaOf(room)),
+      h('span', { className: 'crew-side-room-dot', 'data-tone': toneOf(room), title: room.needsYou?.label ?? '' })),
+    manage && !renaming
+      ? h('button', {
+        ref: moreRef,
+        type: 'button',
+        className: 'crew-side-more',
+        'aria-label': `管理 ${room.name}`,
+        'aria-haspopup': 'menu',
+        'aria-expanded': menuOpen,
+        onClick: toggleMenu,
+      }, '⋯')
+      : null,
+    menuOpen && menuAt !== null
+      ? createPortal(h('div', {
+        ref: menuRef,
+        className: 'crew-side-menu',
+        style: { top: `${menuAt.top}px`, left: `${menuAt.left}px` },
+        role: 'menu',
+        'aria-label': `${room.name}的操作`,
+      },
+        onRename === undefined ? null : h('button', {
+          type: 'button', role: 'menuitem', className: 'crew-side-menu-item', onClick: startRename,
+        }, '重命名'),
+        onArchive === undefined ? null : h('button', {
+          type: 'button',
+          role: 'menuitem',
+          className: 'crew-side-menu-item',
+          disabled: busy,
+          onClick: archived ? () => void restore() : requestArchive,
+        }, archived ? '取消归档' : '归档'),
+        onDelete === undefined ? null : h('button', {
+          type: 'button',
+          role: 'menuitem',
+          className: 'crew-side-menu-item crew-side-menu-danger',
+          disabled: busy || !canDelete,
+          title: canDelete ? undefined : '先归档再删除',
+          onClick: requestDelete,
+        }, '删除…')), document.body)
+      : null,
+    note === '' ? null : h('p', { className: 'crew-side-row-note', role: 'alert' }, note)),
+    confirm === null ? null : h(RoomConfirm, {
+      kind: confirm,
+      room,
+      busy,
+      onCancel: () => setConfirm(null),
+      onConfirm: confirm === 'archive' ? () => void archiveNow() : () => void deleteNow(),
+    }))
 }
 
 export { Sidebar }

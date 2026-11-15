@@ -95,6 +95,13 @@ export function createStore() {
     events.addEventListener('room', event => {
       if (!stopped) acceptRoom(JSON.parse(event.data))
     })
+    events.addEventListener('room.deleted', event => {
+      if (stopped) return
+      const { id } = JSON.parse(event.data)
+      const rooms = state.rooms.filter(room => room.id !== id)
+      const visible = rooms.filter(room => !room.archivedAt)
+      patch({ rooms, activeId: state.activeId === id ? (visible[0]?.id ?? null) : state.activeId })
+    })
     events.addEventListener('error', () => {
       if (!stopped) patch({ phase: state.phase === 'loading' ? 'loading' : 'reconnecting' })
     })
@@ -114,11 +121,12 @@ export function createStore() {
       }
       for (const room of data.rooms) for (const message of room.messages) seen.add(message.id)
       if (stopped) return
-      const known = data.rooms.some(room => room.id === state.activeId)
+      const visible = data.rooms.filter(room => !room.archivedAt)
+      const known = visible.some(room => room.id === state.activeId)
       const remembered = rememberedRoom()
       const activeId = known
         ? state.activeId
-        : (data.rooms.some(room => room.id === remembered) ? remembered : (data.rooms[0]?.id ?? null))
+        : (visible.some(room => room.id === remembered) ? remembered : (visible[0]?.id ?? null))
       emit({
         ...state,
         phase: 'ready',
@@ -210,6 +218,26 @@ export function createStore() {
       rememberRoom(data.room.id)
       patch({ activeId: data.room.id })
       return { ok: true, room: data.room, warning: data.warning ?? null }
+    },
+    renameRoom: async (id, name) => {
+      const data = await post(`/api/rooms/${id}/rename`, { name })
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '重命名失败' }
+      await load()
+      return { ok: true, room: data.room }
+    },
+    archiveRoom: async (id, archived = true) => {
+      const data = await post(`/api/rooms/${id}/archive`, { archived })
+      if (data?.room === undefined) {
+        return { ok: false, error: state.error ?? (archived ? '归档失败' : '取消归档失败') }
+      }
+      await load()
+      return { ok: true, room: data.room }
+    },
+    deleteRoom: async id => {
+      const data = await post(`/api/rooms/${id}/delete`, {})
+      if (data?.id === undefined) return { ok: false, error: state.error ?? '删除失败' }
+      await load()
+      return { ok: true, id: data.id }
     },
     activeRoom,
   }

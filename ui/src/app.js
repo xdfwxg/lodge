@@ -8,6 +8,7 @@ import { NewRoomDialog } from './new-room-dialog.js'
 export function App() {
   const store = useMemo(createStore, [])
   const state = useStore(store)
+  const visibleRooms = state.rooms.filter(room => !room.archivedAt)
   const [dialog, setDialog] = useState(false)
   const [seed, setSeed] = useState(null)
   const [startType, setStartType] = useState(null)
@@ -33,13 +34,13 @@ export function App() {
   const seenNeeds = useRef(null)
   useEffect(() => {
     const next = {}
-    for (const room of state.rooms) {
+    for (const room of visibleRooms) {
       if (room.needsYou) next[room.id] = room.needsYou.label ?? room.needsYou.kind ?? '待处理'
     }
     const prev = seenNeeds.current
     seenNeeds.current = next
     if (prev === null) return
-    const changed = state.rooms.filter(room => room.needsYou && next[room.id] !== prev[room.id])
+    const changed = visibleRooms.filter(room => room.needsYou && next[room.id] !== prev[room.id])
     if (changed.length === 0) return
     setNeedsText(changed.map(room => `${room.name}：${next[room.id]}`).join('；'))
   }, [state.rooms])
@@ -61,14 +62,14 @@ export function App() {
         return
       }
       if (!/^[1-9]$/.test(event.key)) return
-      const room = state.rooms[Number(event.key) - 1]
+      const room = visibleRooms[Number(event.key) - 1]
       if (room === undefined) return
       event.preventDefault()
       store.select(room.id)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [dialog, state.rooms, store])
+  }, [dialog, visibleRooms, store])
 
   const dialogNode = h(NewRoomDialog, {
     open: dialog,
@@ -81,7 +82,7 @@ export function App() {
     onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
   })
 
-  if (state.rooms.length === 0) {
+  if (visibleRooms.length === 0) {
     return h(Fragment, null,
       h(Onboarding, {
         state,
@@ -92,13 +93,16 @@ export function App() {
       dialogNode)
   }
 
-  const room = state.rooms.find(item => item.id === state.activeId) ?? state.rooms[0]
+  const room = visibleRooms.find(item => item.id === state.activeId) ?? visibleRooms[0]
 
   return h('div', { className: 'dsb-frame' },
     h(Sidebar, {
       state,
       onSelect: id => store.select(id),
       onNew: () => openDialog(),
+      onRename: (id, name) => store.renameRoom(id, name),
+      onArchive: (id, archived) => store.archiveRoom(id, archived),
+      onDelete: id => store.deleteRoom(id),
     }),
     h(RoomView, {
       state,

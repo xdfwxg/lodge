@@ -214,7 +214,7 @@ const server = http.createServer(async (req, res) => {
       return respond(res, await service.removeSeat(seatPath[1], seatPath[2]))
     }
 
-    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|chat-accept|chat-continue|chat-resume|reject-plan|rework|read|acceptance|verify|approvals|subrooms)$/)
+    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|chat-accept|chat-continue|chat-resume|reject-plan|rework|read|acceptance|verify|approvals|subrooms|rename|archive|delete)$/)
     if (roomAction !== null) {
       const [, roomId, action] = roomAction
       return respond(res, await service.roomRequest(roomId, action, {
