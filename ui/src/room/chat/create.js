@@ -63,7 +63,7 @@ export function ChatSetupFields({
       })),
     h('div', { className: 'crew-field crew-field-block' },
       h('div', { className: 'crew-field-head' },
-        h('b', null, '成员配置')),
+        h('b', null, '成员')),
       h('div', { className: 'crew-proposal-block' },
         h(SeatEnginePicker, {
           seats: normalizeSeats(seats),

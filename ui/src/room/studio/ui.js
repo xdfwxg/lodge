@@ -14,15 +14,17 @@ export const studioUi = {
   owns: type => type === 'studio' || type === undefined || type === null || type === '',
   label: roomTypeMeta('studio').name,
   teamMode: 'proposal',
-  startMode: 'proposal',
-  showShadowReview: true,
-  cta: '下一步：配置席位',
-  goalLabel: '目标',
+  startMode: 'direct',
+  cta: '开始交付',
+  goalLabel: '想让 Lodge 做什么？',
+  goalPlaceholder: '例如：给这个项目补一份新手也能照着跑的本地启动说明。',
+  dialogSubtitle: '说清你想得到什么，Lodge 会安排成员和阶段。',
   goalIcon: TargetIcon,
   workspace: {
     show: () => true,
-    required: () => true,
-    label: '工作空间',
+    required: () => false,
+    label: '工作文件夹',
+    hint: '不选也可以，Lodge 会给房间一个独立工作区。',
   },
   statusLine: room => {
     const stage = stageTitle(room)

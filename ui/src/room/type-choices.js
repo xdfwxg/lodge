@@ -6,13 +6,13 @@ export const ROOM_TYPE_CHOICES = [
     kind: 'chat',
     icon: ChatIcon,
     title: '开个聊天室',
-    hint: '围绕一个话题聊，主持人收敛结论',
+    hint: '围绕一个话题聊，最后收一个结论',
   },
   {
     kind: 'studio',
     icon: StudioIcon,
     title: '开个工作室',
-    hint: '给目标和验收，按阶段交付',
+    hint: '说清要做成什么，成员分阶段交付',
   },
 ]
 

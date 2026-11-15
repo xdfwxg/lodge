@@ -11,12 +11,15 @@ export const chatUi = {
   teamMode: 'fixed',
   startMode: 'direct',
   cta: '开始讨论',
-  goalLabel: '话题',
+  goalLabel: '想聊什么？',
+  goalPlaceholder: '例如：我们下个版本该先做哪三件事？',
+  dialogSubtitle: '说清你想聊什么，成员会自己接话。',
   goalIcon: ChatIcon,
   workspace: {
     show: () => false,
     required: () => false,
-    label: '工作空间',
+    label: '工作文件夹',
+    hint: '',
   },
   statusLine: room => {
     const chat = room.chat ?? {}
