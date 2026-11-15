@@ -25,7 +25,7 @@ export const gateCardState = ({
   }
 }
 
-// Gate 的决策卡：五字段、检查方式和分歧确认都在这里，不再分散到高级设置。
+// Gate 的决策卡：先让人做决定，再把完整交接单收进展开项。
 export function HandoffReview({
   handoff,
   reviewed,
@@ -42,6 +42,11 @@ export function HandoffReview({
   const { ready, status } = gateCardState({ needsReview, reviewed, verify, acceptance, plannedAcceptance })
   const editable = typeof onVerifyMode === 'function'
   const sourceLabel = sourceName === '' ? '来自聊天室的交接' : `来自「${sourceName}」的交接`
+  const detailSummary = [
+    handoff.consensus.length > 0 ? `共识 ${handoff.consensus.length}` : '',
+    handoff.constraints.length > 0 ? `约束 ${handoff.constraints.length}` : '',
+    handoff.todos.length > 0 ? `待办 ${handoff.todos.length}` : '',
+  ].filter(Boolean).join(' · ')
   return h('div', { className: 'crew-card crew-handoff-review' },
     h('div', { className: 'crew-card-head' },
       h('span', { className: 'crew-handoff-source', title: sourceLabel }, sourceLabel),
@@ -52,10 +57,18 @@ export function HandoffReview({
       }, status)),
     h('div', { className: 'crew-card-body' },
       h('p', { className: 'crew-handoff-topic' }, handoff.topic),
-      Section({ label: '共识', items: handoff.consensus }),
-      Section({ label: '还没解决的分歧', items: handoff.disagreements, warning: true }),
-      Section({ label: '约束', items: handoff.constraints }),
-      Section({ label: '待办', items: handoff.todos }),
+      needsReview
+        ? h('div', { className: 'crew-gate-decision' },
+          Section({ label: '需要你定的分歧', items: handoff.disagreements, warning: true }),
+          h('label', { className: 'crew-check', htmlFor: id },
+            h('input', {
+              id,
+              type: 'checkbox',
+              checked: reviewed,
+              onChange: event => onReviewed(event.target.checked),
+            }),
+            '我看过这些分歧，决定继续'))
+        : null,
       h('div', { className: 'crew-gate-check' },
         h('b', null, '开工后'),
         editable
@@ -89,14 +102,12 @@ export function HandoffReview({
               ? h('p', { className: 'crew-field-hint' }, '每个交付阶段跑一条检查')
               : h('p', { className: 'crew-field-hint' }, acceptance === '' ? '还没填检查命令' : `跑一条检查：${acceptance}`)
           : h('p', { className: 'crew-field-hint' }, '你来看结果，再决定下一步')),
-      needsReview
-        ? h('label', { className: 'crew-check', htmlFor: id },
-          h('input', {
-            id,
-            type: 'checkbox',
-            checked: reviewed,
-            onChange: event => onReviewed(event.target.checked),
-          }),
-          '我看过这些分歧，决定继续')
-        : null))
+      detailSummary === ''
+        ? null
+        : h('details', { className: 'crew-handoff-more' },
+          h('summary', null, `完整交接单 · ${detailSummary}`),
+          h('div', { className: 'crew-handoff-more-body' },
+            Section({ label: '共识', items: handoff.consensus }),
+            Section({ label: '约束', items: handoff.constraints }),
+            Section({ label: '待办', items: handoff.todos })))))
 }
