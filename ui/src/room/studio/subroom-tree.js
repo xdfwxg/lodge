@@ -12,6 +12,7 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
   const [goal, setGoal] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [creating, setCreating] = useState(false)
   const inputId = useId()
   const rows = useMemo(() => buildSubroomRows(room, rooms), [room, rooms])
   const [expanded, setExpanded] = useState(rows.length > 0)
@@ -24,8 +25,12 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
     setError('')
     const result = await onCreate(text)
     setBusy(false)
-    if (result?.ok === true) setGoal('')
-    else setError(result?.error ?? '创建子部门失败')
+    if (result?.ok === true) {
+      setGoal('')
+      setCreating(false)
+    } else {
+      setError(result?.error ?? '创建子部门失败')
+    }
   }
 
   return h('details', {
@@ -66,29 +71,35 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
               h('span', { className: 'crew-subroom-chevron', 'aria-hidden': 'true' }, '›')))
           })),
       canCreate
-        ? h('div', { className: 'crew-subroom-create' },
-          h('label', { className: 'crew-subroom-label', htmlFor: inputId }, '新建子部门'),
-          h('div', { className: 'crew-subroom-create-row' },
-            h('input', {
-              id: inputId,
-              type: 'text',
-              className: 'crew-subroom-input',
-              value: goal,
-              placeholder: '描述子部门要完成什么',
-              disabled: busy,
-              onChange: event => setGoal(event.target.value),
-              onKeyDown: event => {
-                if (event.key !== 'Enter') return
-                event.preventDefault()
-                void submit()
-              },
-            }),
-            h('button', {
-              type: 'button',
-              className: 'crew-accept crew-subroom-submit',
-              disabled: busy || goal.trim() === '',
-              onClick: () => void submit(),
-            }, busy ? '创建中…' : '新建')))
+        ? creating
+          ? h('div', { className: 'crew-subroom-create' },
+            h('label', { className: 'crew-subroom-label', htmlFor: inputId }, '新建子部门'),
+            h('div', { className: 'crew-subroom-create-row' },
+              h('input', {
+                id: inputId,
+                type: 'text',
+                className: 'crew-subroom-input',
+                value: goal,
+                placeholder: '描述子部门要完成什么',
+                disabled: busy,
+                onChange: event => setGoal(event.target.value),
+                onKeyDown: event => {
+                  if (event.key !== 'Enter') return
+                  event.preventDefault()
+                  void submit()
+                },
+              }),
+              h('button', {
+                type: 'button',
+                className: 'crew-accept crew-subroom-submit',
+                disabled: busy || goal.trim() === '',
+                onClick: () => void submit(),
+              }, busy ? '创建中…' : '新建')))
+          : h('button', {
+            type: 'button',
+            className: 'crew-subrooms-add',
+            onClick: () => setCreating(true),
+          }, '＋ 新建子部门')
         : h('span', { className: 'crew-subrooms-empty' },
           (room.depth ?? 0) >= MAX_SUBROOM_DEPTH ? '已经达到 3 层上限' : '房间完成后不能再新建子部门'),
       error === '' ? null : h('span', { className: 'crew-subrooms-error', role: 'alert' }, error)))

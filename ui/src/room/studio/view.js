@@ -12,6 +12,7 @@ import { StudioTranscript } from './transcript.js'
 export const studioView = {
   id: 'studio',
   buildViewModel: ({ room, seats }) => buildGoalView(room, seats),
+  opensAtTop: ({ room }) => room.state === 'complete',
   header: ({ room, seats, actions }) => h(DsGoalHeader, {
     room,
     seats,
@@ -24,14 +25,16 @@ export const studioView = {
     text: studioActivityLine(room, viewModel),
     since: typeof room.busySince === 'number' ? room.busySince : null,
   }),
-  transcript: ({ room, seats, state, actions }) => h(Fragment, null,
-    h(SubroomTree, {
+  transcript: ({ room, seats, state, actions }) => {
+    const subrooms = h(SubroomTree, {
+      key: room.id,
       room,
       rooms: state.rooms,
       onSelect: actions.selectRoom,
       onCreate: actions.createSubroom,
-    }),
-    h(StudioTranscript, {
+    })
+    const transcript = h(StudioTranscript, {
+      key: room.id,
       room,
       seats,
       hideKinds: [],
@@ -39,8 +42,15 @@ export const studioView = {
       onAccept: actions.accept,
       onStageAccept: actions.accept,
       onApproval: actions.approval,
-    })),
+    })
+    // A finished room leads with the result; the sub-department tree follows
+    // the folded work log. Live rooms keep the tree above the running work.
+    return room.state === 'complete'
+      ? h(Fragment, null, transcript, subrooms)
+      : h(Fragment, null, subrooms, transcript)
+  },
   presence: ({ room, seats }) => h(StudioPresence, { room, seats }),
+  composerPlaceholder: () => '交代下一步，或问进度…',
   typing: () => null,
   dock: ({ room, dock }) => h(StageDock, { room, ...dock }),
 }

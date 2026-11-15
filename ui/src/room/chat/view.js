@@ -30,6 +30,7 @@ export const chatView = {
     onStartStudio: actions.startStudio,
   }),
   presence: () => null,
+  composerPlaceholder: () => '加入讨论…',
   // 「正在输入」是聊天室自己的状态：谁在说、是否在总结，由这里判断。
   typing: ({ room, seats, locked }) => {
     const chat = room.chat ?? {}

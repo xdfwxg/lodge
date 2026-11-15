@@ -37,10 +37,17 @@ function RoomView({ state, room, store, onStartStudio }) {
 
 
   useLayoutEffect(() => {
-    stick.current = true
+    const top = mode.opensAtTop?.({ room }) === true
+    stick.current = !top
     setAtBottom(true)
-    pinToBottom()
-  }, [room.id])
+    if (top) {
+      const node = scroll.current
+      if (node) node.scrollTop = 0
+      lastTop.current = 0
+    } else {
+      pinToBottom()
+    }
+  }, [room.id, room.state, mode])
 
   useEffect(() => {
     if (room.chatUnread === true) void store.markRead()
@@ -157,6 +164,7 @@ function RoomView({ state, room, store, onStartStudio }) {
   }
   const viewCtx = { state, room, seats, locked, viewModel, actions, dock, store }
   const typing = mode.typing?.(viewCtx) ?? null
+  const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
 
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id },
@@ -190,7 +198,7 @@ function RoomView({ state, room, store, onStartStudio }) {
               ? '已暂停 · 继续后才能派新活'
               : room.state === 'stopped'
                 ? '已停止 · 不会再派新活'
-                : '对房间说话…',
+                : composerPlaceholder,
           disabled: state.phase === 'loading' || locked,
           onSend: text => store.send(text),
         }))))

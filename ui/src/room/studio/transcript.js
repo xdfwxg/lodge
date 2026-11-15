@@ -1,4 +1,4 @@
-import { createElement as h, useMemo } from 'react'
+import { Fragment, createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../../approval-card.js'
 import { DeliveryCard } from './delivery-card.js'
 import { GateLine } from './gate-line.js'
@@ -64,12 +64,9 @@ export function StudioTranscript({
 
   const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
 
-  return h('div', { className: 'studio-timeline' }, ...[
+  const timeline = h('div', { className: 'studio-timeline' }, ...[
     h(GateLine, { key: 'gate', gate: room.gate }),
     ...items.chapters.map(chapter => h(StageChapter, { key: chapter.key, chapter }, ...renderChapterBody(chapter))),
-    delivery === null || delivery === undefined
-      ? null
-      : h(DeliveryCard, { key: 'delivery', delivery }),
     ...pendingApprovals
       .slice(0, 1)
       .map(approval => h(ApprovalCard, {
@@ -82,4 +79,20 @@ export function StudioTranscript({
         `还有 ${pendingApprovals.length - 1} 个待批准，处理完当前这个再出现。`)
       : null,
   ].filter(Boolean))
+
+  const result = delivery === null || delivery === undefined
+    ? null
+    : h(DeliveryCard, { key: 'delivery', delivery })
+
+  // A finished room leads with what was delivered. The stage-by-stage record
+  // stays available, but folded, so the first screen is the outcome.
+  if (room.state === 'complete' && result !== null) {
+    return h(Fragment, null,
+      h('div', { className: 'studio-result-first' }, result),
+      h('details', { className: 'studio-worklog' },
+        h('summary', null, '工作记录'),
+        h('div', { className: 'studio-worklog-body' }, timeline)))
+  }
+
+  return h(Fragment, null, timeline, result)
 }
