@@ -35,7 +35,6 @@ function Sidebar({ state, onSelect, onNew }) {
   const [open, setOpen] = useState(false)
   const sidebarRef = useRef(null)
   const sections = groupRooms(rooms)
-  const waiting = sections.find(section => section.id === 'pending')?.rooms.length ?? 0
   const collapsed = rail && !open
   const expanded = !collapsed
 
@@ -159,7 +158,6 @@ function Sidebar({ state, onSelect, onNew }) {
         h('span', { className: 'crew-side-error-text' }, `Lodge 服务未连接：${state.runtime.error}`))
         : null,
       h('div', { className: 'crew-side-tools' },
-        waiting > 0 ? h('span', { className: 'crew-needs-count' }, `${waiting} 个待处理`) : h('span'),
         rail
           ? h('button', {
             type: 'button',
