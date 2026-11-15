@@ -1,5 +1,6 @@
 import { buildSeatHandoff } from './seat-handoff.js'
 import { markSeatRead } from '../../watermarks.js'
+import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { alignmentPrompt, directPrompt } from '../create/input.js'
 import { seatHandle } from '../../seat-labels.js'
 
@@ -32,7 +33,11 @@ export const startInitialStage = async ({
       ? alignmentPrompt(openingName, goal, verify, acceptance)
       : `@${openingName}\n${directPrompt(goal, verify, acceptance, roster.length === 1)}`
     const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
-    const sent = await live.sendToSeat(room.id, targetSeat.id, `${opening}\n\n${context}`)
+    const sent = await live.sendToSeat(
+      room.id,
+      targetSeat.id,
+      `${opening}\n\n${context}\n${INTERNAL_PROMPT_MARKER}`,
+    )
     if (sent.messageId !== null) {
       const updated = store.updateRoom(room.id, current => {
         current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)

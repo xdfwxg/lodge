@@ -11,6 +11,12 @@ test('room names come from the first meaningful line of the goal', () => {
   assert.equal(roomNameFromGoal(''), '')
 })
 
+test('a long goal becomes the first complete clause', () => {
+  assert.equal(
+    roomNameFromGoal('写一份三行的值班交接说明，让下一位同事知道当前进度、风险和下一步。'),
+    '写一份三行的值班交接说明')
+})
+
 test('long goals are clipped to a title', () => {
   const name = roomNameFromGoal('把简历优化工坊的导出按钮做成可选格式并补上端到端验收用例')
   assert.equal(Array.from(name).length, 25)

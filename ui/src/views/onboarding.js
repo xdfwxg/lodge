@@ -12,7 +12,7 @@ export function Onboarding({ state, onCreate }) {
     h('div', { className: 'crew-onboarding-card' },
       h('img', { className: 'crew-onboarding-logo', src: './logo.svg', alt: 'Lodge', width: 96, height: 96 }),
       h('h1', null, 'Lodge'),
-      h('p', null, '创建你的专属房间，召唤一支 AI 小队。'),
+      h('p', null, '把一件事交给一个房间。目标、过程、结果，都留在里面。'),
       h(RoomTypeChoices, { disabled, onPick: onCreate }),
       state.phase === 'loading' ? h('p', { className: 'crew-field-hint', role: 'status' }, '正在连接 Lodge…') : null,
       errorText === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, errorText)))

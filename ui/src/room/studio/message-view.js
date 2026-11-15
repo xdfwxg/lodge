@@ -41,8 +41,14 @@ export const renderStudioMessage = ({
       h(ShadowCard, { room, message, byId }))
   }
   // 席位发言在工作室里是一拍工作记录：第一段可见，完整内容展开。
+  // 房间在等用户拍板时，主席位那条消息就是决策依据，直接摊开。
   if (message.kind === 'chat' && message.authorId !== 'you') {
-    return h(StudioBeat, { key: message.id, message, seat })
+    return h(StudioBeat, {
+      key: message.id,
+      message,
+      seat,
+      open: room.needsYou?.kind === 'decision' && message.authorId === room.leadSeat,
+    })
   }
   return renderSharedMessage({ room, byId, message })
 }

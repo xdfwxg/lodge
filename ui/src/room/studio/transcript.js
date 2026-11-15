@@ -9,6 +9,7 @@ import { StepGroup } from './step-group.js'
 import { StudioStep } from './step-line.js'
 import {
   buildStageChapters,
+  displayableStep,
   groupSteps,
   orderTranscript,
   showsSeat,
@@ -45,8 +46,8 @@ export function StudioTranscript({
     return body.map((item, index) => {
       const live = liveStage && index === body.length - 1
       if (item.kind === 'steps') return h(StepGroup, { key: item.key, steps: item.steps, live })
-      if (item.kind === 'activity' && item.meta?.ok !== false) {
-        return h(StudioStep, { key: item.id, step: item, live })
+      if (item.kind === 'activity') {
+        return displayableStep(item) ? h(StudioStep, { key: item.id, step: item, live }) : null
       }
       const content = renderStudioMessage({
         room,

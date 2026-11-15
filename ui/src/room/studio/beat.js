@@ -1,4 +1,4 @@
-import { createElement as h, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import { Markdown, Speaker } from '../../message-cards.js'
 
 const MAX_BEAT = 180
@@ -30,10 +30,13 @@ export const workBeatOf = (text, limit = MAX_BEAT) => {
   return { preview: first.slice(0, cut).trim(), rest }
 }
 
-export function StudioBeat({ message, seat }) {
+export function StudioBeat({ message, seat, open = false }) {
   const text = String(message.text ?? '').replace(/^\s*(PASS|REJECT)\b[：:\s-]*/i, '')
   const { preview, rest } = workBeatOf(text)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(open)
+  useEffect(() => {
+    if (open) setExpanded(true)
+  }, [open, message.id])
   return h('div', { className: 'crew-msg crew-msg-chat studio-beat' },
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat, ts: message.ts, time: false, station: false }),
