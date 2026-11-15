@@ -439,6 +439,88 @@ test('a single-vendor studio records the downgrade', async () => {
   assert.equal(result.body.room.independence, 'none')
 })
 
+test('studio creation waits for human review when the handoff has disagreements', async () => {
+  const store = createStore({ dataDir: temp('lodge-handoff-gate-data-') })
+  const handoff = {
+    topic: '发布前检查',
+    consensus: ['先做最小版本'],
+    disagreements: ['是否自动回滚'],
+    constraints: ['单文件'],
+    todos: ['写初稿'],
+  }
+  const body = {
+    goal: '发布前检查',
+    verify: 'manual',
+    handoff,
+    sourceRoomId: 'room-chat-source',
+    sourceName: '圆桌',
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+  }
+  const rejected = await run(store, body)
+  assert.equal(rejected.ok, false)
+  assert.equal(rejected.reason, 'invalid')
+  assert.match(rejected.error, /需要你确认/)
+
+  const accepted = await run(store, { ...body, handoffReviewed: true })
+  assert.equal(accepted.ok, true)
+  assert.equal(accepted.body.room.gate.humanReviewed, true)
+  assert.ok(accepted.body.room.gate.reviewedAt > 0)
+  assert.deepEqual(accepted.body.room.gate.verification, { mode: 'manual' })
+  assert.equal(accepted.body.room.handoff.disagreements[0], '是否自动回滚')
+  assert.equal(accepted.body.room.transfer.kind, 'handoff')
+  assert.equal(accepted.body.room.transfer.fromRoomId, 'room-chat-source')
+  assert.equal(accepted.body.room.transfer.fromRoomName, '圆桌')
+})
+
+test('a handoff reaches the seat bulletin and the opening prompt', async () => {
+  const store = createStore({ dataDir: temp('lodge-handoff-bulletin-data-') })
+  const bulletins = []
+  const engine = fakeEngine()
+  const createRoom = engine.createRoom
+  engine.createRoom = async args => {
+    bulletins.push(args.bulletin ?? '')
+    return createRoom(args)
+  }
+  const handoff = {
+    topic: '发布检查',
+    consensus: ['先做最小版本'],
+    disagreements: [],
+    constraints: ['单文件'],
+    todos: ['写初稿'],
+  }
+  const result = await run(store, {
+    goal: '发布检查',
+    verify: 'manual',
+    handoff,
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+  }, engine)
+  assert.equal(result.ok, true)
+  assert.ok(bulletins.some(text => /交接单/.test(text) && /共识：先做最小版本/.test(text)))
+})
+
+test('a studio receipt becomes the chat room receipt and transfer record', async () => {
+  const store = createStore({ dataDir: temp('lodge-receipt-data-') })
+  const receipt = {
+    result: '发布检查',
+    completeness: '2/2 阶段完成',
+    checks: ['npm test 通过'],
+    openQuestions: ['是否需要自动回滚？'],
+  }
+  const result = await run(store, {
+    goal: '评审这次交付：发布检查',
+    roomType: 'chat',
+    verify: 'manual',
+    receipt,
+    sourceRoomId: 'room-studio-source',
+    sourceName: '发布检查',
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.body.room.receipt, receipt)
+  assert.equal(result.body.room.transfer.kind, 'receipt')
+  assert.equal(result.body.room.transfer.fromRoomId, 'room-studio-source')
+  assert.ok(result.body.room.transfer.at > 0)
+})
+
 test('studio creation records gate advice and the shadow review flag', async () => {
   const store = createStore({ dataDir: temp('lodge-advisor-data-') })
   const ports = createCrewPorts()
@@ -465,7 +547,7 @@ test('studio creation records gate advice and the shadow review flag', async () 
   })
   assert.equal(result.ok, true)
   assert.equal(result.body.room.gate.decision, 'allow')
-  assert.equal(result.body.room.gate.available, true)
+  assert.equal(result.body.room.gate.advisor.available, true)
   assert.equal(result.body.room.gate.advice[0].summary, '建议补齐 gate')
   assert.equal(result.body.room.shadowReview, true)
 })

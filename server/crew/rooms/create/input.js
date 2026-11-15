@@ -2,7 +2,8 @@ import { MAX_CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import { roomModeForType } from '../kinds.js'
 import { resolveOrchestration } from '../../orchestration/index.js'
 import { resolveRoomType } from '../../room-types/index.js'
-import { normalizeHandoff } from '../../../../shared/handoff.js'
+import { handoffGoalText, normalizeHandoff } from '../../../../shared/handoff.js'
+import { normalizeReceipt } from '../../../../shared/receipt.js'
 import {
   DEFAULT_TEMPLATE_ID,
   roleSeats,
@@ -12,19 +13,24 @@ import {
   validateRoster,
 } from '../../seats.js'
 
-export const roomBulletin = (goal, verify, acceptance) => [
-  `目标：${goal}`,
+const handoffSection = handoff => {
+  const text = handoffGoalText(handoff)
+  return text === '' ? '' : `\n交接单：\n${text}`
+}
+
+export const roomBulletin = (goal, verify, acceptance, handoff = null) => [
+  `目标：${goal}${handoffSection(handoff)}`,
   verify === 'test' ? `验收：${acceptance}` : '验收：人确认，不跑命令',
 ].join('\n')
 
-export const alignmentPrompt = (leadName, goal, verify, acceptance) => [
-  `@${leadName} 目标：${goal}`,
+export const alignmentPrompt = (leadName, goal, verify, acceptance, handoff = null) => [
+  `@${leadName} 目标：${goal}${handoffSection(handoff)}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',
   '用户确认阶段后，系统会发一条以「阶段已确认」开头的消息；收到这条消息后只派当前阶段。',
 ].join('\n')
 
-export const directPrompt = (goal, verify, acceptance, singleSeat) => [
-  `目标：${goal}`,
+export const directPrompt = (goal, verify, acceptance, singleSeat, handoff = null) => [
+  `目标：${goal}${handoffSection(handoff)}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',
   singleSeat
     ? '这是单人房间：直接在当前工作区完成，不要等人对齐。'
@@ -63,7 +69,25 @@ export const normalizeRequest = body => {
   if (orchestration === null) return { error: '未知的编排策略' }
   const shadowReview = body.shadowReview === true
   const handoff = normalizeHandoff(body.handoff)
-  return { goal, name, roomType, verify, acceptance, orchestration, shadowReview, chatTurnLimit, handoff }
+  const handoffReviewed = body.handoffReviewed === true
+  const receipt = normalizeReceipt(body.receipt)
+  const sourceRoomId = typeof body.sourceRoomId === 'string' ? body.sourceRoomId.trim().slice(0, 120) : ''
+  const sourceName = typeof body.sourceName === 'string' ? body.sourceName.trim().slice(0, 120) : ''
+  return {
+    goal,
+    name,
+    roomType,
+    verify,
+    acceptance,
+    orchestration,
+    shadowReview,
+    chatTurnLimit,
+    handoff,
+    handoffReviewed,
+    receipt,
+    sourceRoomId,
+    sourceName,
+  }
 }
 
 export const normalizePlan = ({ body }) => {

@@ -5,12 +5,13 @@ import { seedGoalText } from '../seed-text.js'
 
 test('a chat conclusion becomes a structured handoff instead of a raw transcript', () => {
   const seed = chatStudioSeed({
-    room: { goal: '讨论交付边界', name: '圆桌' },
+    room: { id: 'room-chat', goal: '讨论交付边界', name: '圆桌' },
     conclusion: '先验最小闭环。',
   })
   assert.equal(seed.goal, '讨论交付边界')
   assert.equal(seed.conclusion, '先验最小闭环。')
   assert.equal(seed.sourceName, '圆桌')
+  assert.equal(seed.sourceRoomId, 'room-chat')
   assert.deepEqual(seed.handoff, {
     topic: '讨论交付边界',
     consensus: ['先验最小闭环。'],
@@ -18,7 +19,7 @@ test('a chat conclusion becomes a structured handoff instead of a raw transcript
     constraints: [],
     todos: [],
   })
-  assert.equal(seedGoalText(seed), '讨论交付边界\n共识：先验最小闭环。')
+  assert.equal(seedGoalText(seed), '讨论交付边界')
 })
 
 test('a structured conclusion keeps the five handoff fields', () => {
@@ -29,8 +30,9 @@ test('a structured conclusion keeps the five handoff fields', () => {
   assert.equal(seed.handoff.consensus[0], '先做最小版本')
   assert.equal(seed.handoff.disagreements[0], '是否回滚')
   assert.equal(seed.handoff.todos[0], '写清单')
-  assert.match(seedGoalText(seed), /共识：先做最小版本/)
-  assert.match(seedGoalText(seed), /分歧：是否回滚/)
+  assert.equal(seedGoalText(seed), '发布讨论')
+  assert.equal(seed.handoff.consensus[0], '先做最小版本')
+  assert.equal(seed.handoff.disagreements[0], '是否回滚')
 })
 
 test('a return-to-chat seed uses its own context label', () => {
@@ -38,6 +40,22 @@ test('a return-to-chat seed uses its own context label', () => {
     seedGoalText({ goal: '评审这次交付', conclusion: '检查通过', label: '这次交付' }),
     '评审这次交付\n\n这次交付：\n检查通过',
   )
+})
+
+test('a receipt seed carries the four receipt fields into the goal', () => {
+  const text = seedGoalText({
+    goal: '评审这次交付：发布检查',
+    label: '这次交付',
+    receipt: {
+      result: '发布检查',
+      completeness: '2/2 阶段完成',
+      checks: ['npm test 通过'],
+      openQuestions: [],
+    },
+  })
+  assert.match(text, /评审这次交付：发布检查/)
+  assert.match(text, /完成度：2\/2 阶段完成/)
+  assert.match(text, /检查：npm test 通过/)
 })
 
 test('the seeded goal is clipped before it reaches room creation', () => {

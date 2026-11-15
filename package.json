@@ -23,7 +23,7 @@
     "package:linux": "npm run prepare:runtimes && npm run build && electron-builder --linux --publish never",
     "preview": "vite preview",
     "test:e2e": "node --test server/crew/e2e-room.test.js",
-    "test": "node --test \"server/crew/**/*.test.js\" \"ui/src/**/*.test.js\"",
+    "test": "node --test \"shared/**/*.test.js\" \"server/crew/**/*.test.js\" \"ui/src/**/*.test.js\"",
     "eval:planning": "node evals/planning/run.mjs",
     "eval:chat": "node scripts/eval-chat.mjs",
     "check:docs": "node scripts/check-docs.mjs",

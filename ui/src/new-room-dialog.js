@@ -8,7 +8,8 @@ import { roomNameFromGoal } from './room/name-from-goal.js'
 import { SeatEnginePicker } from './room/seat-engine-picker.js'
 import { defaultPersonalityId, modelRowsFor, seatChoicesFrom } from './room/seat-options.js'
 import { DEFAULT_STUDIO_SEATS } from './room/studio/create.js'
-import { HandoffReview } from './room/studio/handoff-review.js'
+import { gateCardState, HandoffReview } from './room/studio/handoff-review.js'
+import { ReceiptReview } from './room/receipt-review.js'
 import { RoomTypeChoices } from './room/type-choices.js'
 import { uiKindOfType } from './room/kinds.js'
 import { useOverlay } from './overlay.js'
@@ -47,6 +48,7 @@ function NewRoomDialog({
   const [advanced, setAdvanced] = useState(false)
   const [handoff, setHandoff] = useState(null)
   const [handoffReviewed, setHandoffReviewed] = useState(false)
+  const [receipt, setReceipt] = useState(null)
   const [busy, setBusy] = useState(false)
   const [seatChoices, setSeatChoices] = useState([])
   const [chatSeatChoices, setChatSeatChoices] = useState([])
@@ -70,6 +72,7 @@ function NewRoomDialog({
     setAdvanced(false)
     setHandoff(null)
     setHandoffReviewed(false)
+    setReceipt(null)
   }, [open])
 
   useEffect(() => {
@@ -93,13 +96,14 @@ function NewRoomDialog({
     setGoal(seedGoalText(seed))
     setHandoff(seed.handoff ?? null)
     setHandoffReviewed(false)
+    setReceipt(seed.receipt ?? null)
     if (typeof seed.repoPath === 'string' && seed.repoPath !== '') setRepoPath(seed.repoPath)
     setStep(0)
     setProposal(null)
     setSeatChoices([])
     setAnswers([])
     setError(null)
-  }, [open, seed?.goal, seed?.conclusion, seed?.sourceName, seed?.handoff, startType])
+  }, [open, seed?.goal, seed?.conclusion, seed?.sourceName, seed?.sourceRoomId, seed?.handoff, seed?.receipt, startType])
 
   useEffect(() => {
     if (!open || uiKindOfType(roomType).id !== 'chat') return
@@ -144,14 +148,23 @@ function NewRoomDialog({
     : ((proposal.acceptance ?? '') || acceptanceDraft)
   const studioMissingVerifier = !isChat && roomKind.missingVerifier(hasVerifier)
   const roomTitle = roomNameFromGoal(goal).trim()
+  const handoffGate = handoff === null
+    ? null
+    : gateCardState({
+      needsReview: (handoff.disagreements?.length ?? 0) > 0,
+      reviewed: handoffReviewed,
+      verify,
+      acceptance,
+      plannedAcceptance,
+    })
+  const gatePending = handoffGate?.pendingText ?? null
+  const checkReady = verifyMode !== 'test' || acceptanceDraft.trim() !== ''
+  const proposalCheckReady = !(proposalVerify === 'test' && acceptance.trim() === '' && !plannedAcceptance)
   const canStartProposal = proposal !== null && !busy && seatsReady &&
-    !(proposalVerify === 'test' && acceptance.trim() === '' && !plannedAcceptance) &&
+    (handoffGate === null ? proposalCheckReady : handoffGate.ready) &&
     !studioMissingVerifier
-  const handoffReady = handoff === null ||
-    (handoff.disagreements?.length ?? 0) === 0 ||
-    handoffReviewed
   const canStartStudio = !busy && goal.trim() !== '' && !needRepo && seatsReady &&
-    (verifyMode !== 'test' || acceptanceDraft.trim() !== '') && handoffReady
+    (handoffGate === null ? checkReady : handoffGate.ready)
   const startDisabled = busy || goal.trim() === '' || needRepo || (!isChat && !canStartStudio)
 
   const addChatSeat = () => {
@@ -272,6 +285,9 @@ function NewRoomDialog({
         defaultSeats: chatRoster,
         choices: chatSeatChoices,
         selectedModelOf,
+        receipt,
+        sourceRoomId: seed?.sourceRoomId,
+        sourceName: seed?.sourceName,
       }))
       if (result?.ok !== true) {
         setError(result?.error ?? '创建聊天室失败')
@@ -297,6 +313,10 @@ function NewRoomDialog({
         verify,
         acceptance,
         shadowReview,
+        handoff,
+        handoffReviewed,
+        sourceRoomId: seed?.sourceRoomId,
+        sourceName: seed?.sourceName,
         proposal,
         answers,
         seatChoices,
@@ -327,6 +347,9 @@ function NewRoomDialog({
         acceptance: verifyMode === 'test' ? acceptanceDraft.trim() : '',
         shadowReview,
         handoff,
+        handoffReviewed,
+        sourceRoomId: seed?.sourceRoomId,
+        sourceName: seed?.sourceName,
         proposal: null,
         seats: DEFAULT_STUDIO_SEATS,
         seatChoices,
@@ -440,6 +463,7 @@ function NewRoomDialog({
     onVerifyMode: setVerifyMode,
     acceptanceDraft,
     onAcceptanceDraft: setAcceptanceDraft,
+    showVerify: handoff === null,
     shadowReview,
     onShadowReview: setShadowReview,
     recommending,
@@ -448,12 +472,19 @@ function NewRoomDialog({
   }
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
+    receipt === null ? null : h(ReceiptReview, { receipt }),
     handoff === null
       ? null
       : h(HandoffReview, {
         handoff,
         reviewed: handoffReviewed,
         onReviewed: setHandoffReviewed,
+        sourceName: seed?.sourceName ?? '',
+        verify,
+        acceptance,
+        plannedAcceptance,
+        onVerifyMode: proposal === null ? setVerifyMode : null,
+        onAcceptanceDraft: proposal === null ? setAcceptanceDraft : null,
       }),
     h('div', { className: 'crew-field' },
       h('label', { className: 'crew-field-label', htmlFor: goalId },
@@ -520,6 +551,7 @@ function NewRoomDialog({
           }))
         : step === 0 ? setupBody : proposalBody,
       choosingType ? null : h('div', { className: 'crew-dialog-foot' },
+        gatePending === null ? null : h('span', { className: 'crew-dialog-foot-hint' }, gatePending),
         step > 0
           ? h('button', {
             type: 'button',

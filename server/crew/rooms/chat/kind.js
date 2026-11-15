@@ -23,7 +23,7 @@ export const chatKind = {
   validateRoster: null,
   resolvePlan: () => null,
   requiresGate: false,
-  evaluateGate: () => ({ decision: 'allow', reasons: [], advice: [] }),
+  evaluateGate: () => ({ decision: 'allow', issues: [], needsHumanReview: false, advice: [] }),
   supportsDelivery: false,
   acceptsChatDecision: true,
   approvalReadOnly: () => false,

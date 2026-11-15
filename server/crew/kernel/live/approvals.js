@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { externalAction, pendingApprovals } from '../../external-actions.js'
-import { reviewExternalAction } from '../../gate.js'
+import { reviewExternalAction } from './action-gate.js'
 import { seatNameOf } from './projection.js'
 import { decidePermission } from '../../permission.js'
 import { supportsRuntime } from '../../runtime-port.js'

@@ -38,7 +38,6 @@ test('studio modules do not read room.chat', () => {
     'rooms/studio/tasks.js',
     'rooms/studio/progress.js',
     'rooms/studio/seat-handoff.js',
-    'rooms/studio/gate.js',
     'room-types/studio.js',
   ]) {
     const source = read(file)

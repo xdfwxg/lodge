@@ -6,13 +6,29 @@ import { buildRoomRecord, initialRoomMessages } from './record.js'
 import { createProvisioner } from './provision.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
+import { gateRecordOf } from '../../gate/index.js'
+import { transferOf } from '../../../../shared/transfer.js'
 
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
 export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
-  const { goal, name, roomType, verify, acceptance, orchestration, shadowReview, chatTurnLimit, handoff } = request
+  const {
+    goal,
+    name,
+    roomType,
+    verify,
+    acceptance,
+    orchestration,
+    shadowReview,
+    chatTurnLimit,
+    handoff,
+    handoffReviewed,
+    receipt,
+    sourceRoomId,
+    sourceName,
+  } = request
   const mode = roomModeForType(roomType.id)
   const capabilities = engine.capabilities()
   if (capabilities.provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
@@ -31,19 +47,14 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       acceptance: effectiveAcceptance,
     }) ?? { available: false, advice: [] }
     : { available: false, advice: [] }
-  const gate = mode.evaluateGate({
-    goal,
-    plan,
-    verify,
-    acceptance: effectiveAcceptance,
-    advice: advisor.advice,
-  })
+  const gate = mode.evaluateGate({ handoff, humanReviewed: handoffReviewed, advice: advisor.advice })
   if (gate.decision === 'reject') {
     const advice = (Array.isArray(gate.advice) ? gate.advice : [])
       .map(item => item?.summary ?? [...(item?.reasons ?? []), ...(item?.risks ?? [])].join('；'))
       .filter(Boolean)
       .join('；')
-    return fail('invalid', `Gate 拒绝：${gate.reasons.join('；')}${advice === '' ? '' : `；建议：${advice}`}`)
+    const issues = gate.issues.map(issue => issue.text).join('；')
+    return fail('invalid', `还不能开工：${issues}${advice === '' ? '' : `；建议：${advice}`}`)
   }
   const seatsResult = resolveSeats(body, roomType)
   if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
@@ -90,6 +101,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       short,
       title,
       goal,
+      handoff,
       verify,
       acceptance: effectiveAcceptance,
       align,
@@ -103,6 +115,8 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       title,
       goal,
       handoff,
+      receipt,
+      transfer: transferOf({ handoff, receipt, fromRoomId: sourceRoomId, fromRoomName: sourceName }),
       templateId,
       plan: resolvedPlan,
       independence: provisioned.independence,
@@ -132,14 +146,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       shadowReview,
       parentRoomId: parentRoom?.id ?? null,
       depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
-      gate: {
-        decision: gate.decision,
-        reasons: gate.reasons,
-        advice: gate.advice,
-        available: advisor.available === true,
-        ...(advisor.model === undefined ? {} : { model: advisor.model }),
-        ...(advisor.version === undefined ? {} : { version: advisor.version }),
-      },
+      gate: gateRecordOf({
+        review: gate,
+        humanReviewed: handoffReviewed,
+        advisor,
+        check: { mode: verify, acceptance: effectiveAcceptance },
+      }),
     })
     store.writeRoom(room)
     stored = true

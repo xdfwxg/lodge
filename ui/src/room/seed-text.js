@@ -1,12 +1,14 @@
-import { handoffGoalText } from '../../../shared/handoff.js'
+import { receiptText } from '../../../shared/receipt.js'
 
-// 聊天结论只转成目标文本；结构化交接单优先，不复制聊天状态、证据或阶段。
+// 交接单本身进入工作室指令，目标只留主题；回执与普通结论才展开成文本。
 export const seedGoalText = seed => {
   if (seed?.handoff !== null && seed?.handoff !== undefined) {
-    return handoffGoalText(seed.handoff).slice(0, 2000)
+    const topic = String(seed.handoff.topic ?? '').trim() || String(seed?.goal ?? '').trim()
+    return topic.slice(0, 2000)
   }
   const goal = String(seed?.goal ?? '').trim()
-  const conclusion = String(seed?.conclusion ?? '').trim()
+  const structured = seed?.receipt ? receiptText(seed.receipt) : ''
+  const conclusion = structured !== '' ? structured : String(seed?.conclusion ?? '').trim()
   const label = typeof seed?.label === 'string' && seed.label !== '' ? seed.label : '聊天室结论'
   const text = conclusion === '' ? goal : `${goal}\n\n${label}：\n${conclusion}`
   return text.slice(0, 2000)

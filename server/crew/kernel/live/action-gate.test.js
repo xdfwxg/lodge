@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { reviewExternalAction } from './gate.js'
+import { reviewExternalAction } from './action-gate.js'
 
 const room = (over = {}) => ({
   seatSpecs: [

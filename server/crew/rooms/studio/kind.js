@@ -5,7 +5,7 @@ import { roleKindOf } from '../../seats.js'
 import { commandEvidenceFor, latestReviewTimeout, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
-import { evaluateRoomGate } from './gate.js'
+import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
@@ -172,7 +172,7 @@ export const studioKind = {
   supportsSubrooms: true,
   resolvePlan: (plan, roster) => resolveStageAssignees(plan, roster),
   requiresGate: true,
-  evaluateGate: args => evaluateRoomGate({ enabled: true, ...args }),
+  evaluateGate: reviewRoomGate,
   supportsDelivery: true,
   acceptsChatDecision: false,
   approvalReadOnly: activeStageReadOnly,

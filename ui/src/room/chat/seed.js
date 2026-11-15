@@ -9,6 +9,7 @@ export const chatStudioSeed = ({ room, conclusion, handoff }) => {
     goal: structured?.topic || String(room?.goal ?? '').trim(),
     conclusion: text,
     sourceName: String(room?.name ?? '').trim(),
+    ...(typeof room?.id === 'string' && room.id !== '' ? { sourceRoomId: room.id } : {}),
     ...(structured === null ? {} : { handoff: structured }),
   }
 }

@@ -1,22 +1,31 @@
-// 工作室 → 聊天室只带结果摘要、状态和待确认问题；不搬房间过程。
+import { normalizeReceipt, receiptText } from '../../../../shared/receipt.js'
+
+// 工作室 → 聊天室只带回执：结果、完成度、检查与开放问题，不搬房间过程。
 export const returnToChatSeed = room => {
   const delivery = room?.delivery
   if (delivery === null || delivery === undefined) return null
   const commands = delivery.commands ?? []
-  const passed = commands.filter(command => command.exit === 0).length
   const stages = delivery.stages ?? []
   const done = stages.filter(stage => stage.state === 'passed').length
+  const passed = commands.filter(command => command.exit === 0).length
   const changed = delivery.changedFiles?.length ?? 0
+  const simulated = commands.some(command => command.simulated === true)
+  const receipt = normalizeReceipt({
+    result: delivery.name,
+    completeness: stages.length > 0
+      ? `${done}/${stages.length} 阶段完成${changed > 0 ? `，${changed} 个文件` : ''}`
+      : changed > 0 ? `${changed} 个文件` : '已交付',
+    checks: commands.length > 0
+      ? [`${passed}/${commands.length} 项检查通过${simulated ? '（含模拟）' : ''}`]
+      : ['人工验收通过'],
+    openQuestions: delivery.openQuestions ?? [],
+  })
   return {
     goal: `评审这次交付：${delivery.name}`,
-    conclusion: [
-      `目标：${delivery.goal}`,
-      `完成：${done}/${stages.length} 步`,
-      `检查：${commands.length > 0 ? `${passed}/${commands.length} 项通过` : '人工验收'}`,
-      `交付：${changed} 个文件`,
-      '待确认：这份结果还需要补什么，或者可以直接用？',
-    ].join('\n'),
+    conclusion: receiptText(receipt),
     label: '这次交付',
     sourceName: delivery.name,
+    sourceRoomId: room.id,
+    receipt,
   }
 }

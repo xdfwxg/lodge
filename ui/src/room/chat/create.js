@@ -11,6 +11,9 @@ export const buildChatRequest = ({
   defaultSeats,
   choices,
   selectedModelOf,
+  receipt,
+  sourceRoomId,
+  sourceName,
 }) => {
   const seats = normalizeSeats(defaultSeats).map((seat, index) => {
     const choice = choices[index] ?? { engine: '', model: '' }
@@ -29,6 +32,9 @@ export const buildChatRequest = ({
     acceptance: '',
     chatTurnLimit,
     repoPath,
+    ...(receipt === null || receipt === undefined ? {} : { receipt }),
+    ...(typeof sourceRoomId === 'string' && sourceRoomId !== '' ? { sourceRoomId } : {}),
+    ...(typeof sourceName === 'string' && sourceName !== '' ? { sourceName } : {}),
     ...(seats.length > 0 ? { seats } : {}),
     goal,
   }

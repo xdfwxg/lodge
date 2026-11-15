@@ -85,6 +85,9 @@ export const buildDelivery = (room, messages = []) => {
     stages,
     commands,
     changedFiles,
+    openQuestions: typeof room.openQuestion === 'string' && room.openQuestion.trim() !== ''
+      ? [room.openQuestion.trim()]
+      : [],
     evidenceCount: stages.reduce((total, stage) => total + stage.commands.length + (stage.manual === null ? 0 : 1), 0),
   }
   return delivery

@@ -11,10 +11,10 @@ export function GateLine({ gate }) {
   const advice = Array.isArray(gate.advice) ? gate.advice : []
   const rejected = gate.decision === 'reject'
   if (!rejected && advice.length === 0) return null
-  const reasons = Array.isArray(gate.reasons) ? gate.reasons : []
+  const issues = Array.isArray(gate.issues) ? gate.issues.map(issue => issue?.text).filter(Boolean) : []
   const adviceText = adviceTextOf(advice)
-  return h('div', { className: 'crew-system studio-gate-line', 'data-tone': rejected ? 'reject' : 'allow' },
-    `Lodge 准入 · ${rejected ? '拒绝' : '通过'}`,
-    reasons.length === 0 ? null : ` · ${reasons.join('；')}`,
-    adviceText === '' ? null : ` · 建议：${adviceText}`)
+  const text = rejected
+    ? ['这个房间没能开工', ...issues].join(' · ')
+    : `Lodge 的建议：${adviceText}`
+  return h('div', { className: 'crew-system studio-gate-line', 'data-tone': rejected ? 'reject' : 'allow' }, text)
 }

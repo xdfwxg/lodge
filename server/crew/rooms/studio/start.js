@@ -30,8 +30,8 @@ export const startInitialStage = async ({
     markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
     const openingName = seatHandle(room, targetSeat.id) || targetSeat.name
     const opening = align
-      ? alignmentPrompt(openingName, goal, verify, acceptance)
-      : `@${openingName}\n${directPrompt(goal, verify, acceptance, roster.length === 1)}`
+      ? alignmentPrompt(openingName, goal, verify, acceptance, room.handoff)
+      : `@${openingName}\n${directPrompt(goal, verify, acceptance, roster.length === 1, room.handoff)}`
     const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
     const sent = await live.sendToSeat(
       room.id,

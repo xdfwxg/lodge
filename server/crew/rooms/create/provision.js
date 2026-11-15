@@ -8,7 +8,7 @@ export const createProvisioner = ({ engine }) => {
   const createdBaseRooms = []
   let cleanupExtra = null
 
-  const provision = async ({ roster, short, title, goal, verify, acceptance, align, workspaces, verifiers, roomType = 'studio' }) => {
+  const provision = async ({ roster, short, title, goal, handoff = null, verify, acceptance, align, workspaces, verifiers, roomType = 'studio' }) => {
     const mode = roomModeForType(roomType)
     let instances = []
     try {
@@ -47,7 +47,7 @@ export const createProvisioner = ({ engine }) => {
       const baseRoom = await engine.createRoom({
         name: `${title} · ${seat.name}`,
         goal,
-        bulletin: roomBulletin(goal, verify, acceptance),
+        bulletin: roomBulletin(goal, verify, acceptance, handoff),
         members: [seatRef.id],
         cwd: workspaces.seats[seat.id].path,
         leadId: seatRef.id,

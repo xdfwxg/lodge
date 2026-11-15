@@ -25,6 +25,18 @@ test('a direct studio request needs no plan or seat override', () => {
   assert.equal('seats' in request, false)
 })
 
+test('a studio started from chat carries where it came from', () => {
+  const request = buildStudioRequest({
+    ...base,
+    handoff: { topic: '发布检查', consensus: [], disagreements: [], constraints: [], todos: [] },
+    sourceRoomId: 'room-chat',
+    sourceName: '圆桌',
+  })
+  assert.equal(request.sourceRoomId, 'room-chat')
+  assert.equal(request.sourceName, '圆桌')
+  assert.equal(request.handoff.topic, '发布检查')
+})
+
 test('command verification carries the acceptance command', () => {
   const request = buildStudioRequest({ ...base, verify: 'test', acceptance: 'npm test' })
   assert.equal(request.verify, 'test')

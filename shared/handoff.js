@@ -51,7 +51,7 @@ const stripTitle = line => line
 
 export const parseHandoffFromText = (text, fallbackTopic = '') => {
   const handoff = emptyHandoff()
-  handoff.topic = clean(fallbackTopic).slice(0, ITEM_LIMIT)
+  const fallback = clean(fallbackTopic).slice(0, ITEM_LIMIT)
   let current = null
   const loose = []
   for (const raw of String(text ?? '').split(/\r?\n/)) {
@@ -86,6 +86,8 @@ export const parseHandoffFromText = (text, fallbackTopic = '') => {
     }
   }
   if (handoff.consensus.length === 0 && loose.length > 0) handoff.consensus = loose.slice(0, LIST_LIMIT)
+  // 显式主题段优先；没有主题段时才用房间目标兜底。
+  if (handoff.topic === '' && fallback !== '') handoff.topic = fallback
   if (handoff.topic === '' && loose.length > 0) handoff.topic = loose[0].slice(0, ITEM_LIMIT)
   if (handoff.consensus.length === 0 && handoff.disagreements.length === 0 &&
     handoff.constraints.length === 0 && handoff.todos.length === 0) {

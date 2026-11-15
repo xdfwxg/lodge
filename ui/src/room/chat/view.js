@@ -1,6 +1,7 @@
-import { createElement as h } from 'react'
+import { Fragment, createElement as h } from 'react'
 import { BotAvatar } from '../../marks.js'
 import { buildChatDecision, ChatStatusHeader } from './decision.js'
+import { ReceiptIntake } from './receipt-intake.js'
 import { Timeline } from './timeline.js'
 import { hostLabelOf } from '../host.js'
 
@@ -20,15 +21,18 @@ export const chatView = {
   buildViewModel: () => null,
   header: ({ room }) => h(ChatStatusHeader, { room, decision: buildChatDecision(room) }),
   activity: () => null,
-  transcript: ({ room, seats, actions }) => h(Timeline, {
-    room,
-    seats,
-    hideKinds: [],
-    onAccept: actions.chatAccept,
-    onApproval: actions.approval,
-    onContinueChat: actions.continueChat,
-    onStartStudio: actions.startStudio,
-  }),
+  transcript: ({ room, seats, actions }) => h(Fragment, null,
+    h(ReceiptIntake, { key: `receipt-${room.id}`, receipt: room.receipt }),
+    h(Timeline, {
+      key: `timeline-${room.id}`,
+      room,
+      seats,
+      hideKinds: [],
+      onAccept: actions.chatAccept,
+      onApproval: actions.approval,
+      onContinueChat: actions.continueChat,
+      onStartStudio: actions.startStudio,
+    })),
   presence: () => null,
   composerPlaceholder: () => '加入讨论…',
   // 「正在输入」是聊天室自己的状态：谁在说、是否在总结，由这里判断。
