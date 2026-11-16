@@ -630,7 +630,7 @@ test('a verifier reject returns the studio closure to executing and wakes the pl
 
 
 test('shadow review records advice without injecting it into the Verifier prompt', async () => {
-  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true })
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, advisorConsent: { host: 'advisor.example' } })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
@@ -663,10 +663,10 @@ test('shadow review records advice without injecting it into the Verifier prompt
   assert.ok(notice)
   assert.match(notice.text, /advisor\.example/)
   assert.match(notice.text, /证据和 diff/)
-  const advice = store.messages.find(message => message.kind === 'advisor_advice')
+  const advice = store.readRoom().advisorShadow?.[0]
   assert.ok(advice)
-  assert.equal(advice.meta.shadow, true)
-  assert.equal('score' in advice.meta.advice[0], false)
+  assert.equal(advice.evidenceId, store.messages.find(message => message.kind === 'evidence').id)
+  assert.equal('score' in advice.advice[0], false)
   assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
 })
 
@@ -688,5 +688,51 @@ test('advisor is not called when the room does not enable shadow review', async 
   await review.request(0)
   await review.shadowSettled()
   assert.equal(calls, 0)
-  assert.equal(store.messages.some(message => message.kind === 'advisor_advice'), false)
+  assert.equal(store.readRoom().advisorShadow, undefined)
+})
+
+test('shadow review says when the advisor is not configured', async () => {
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  let calls = 0
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: 'm2' }),
+    advisor: { available: false, describe: () => ({ available: false, host: '' }), advice: async () => { calls += 1; return { available: false, advice: [] } } },
+  })
+  await review.request(0)
+  await review.shadowSettled()
+  assert.equal(calls, 0)
+  assert.ok(store.messages.some(message => message.meta?.advisorUnavailable === true))
+  assert.equal(store.readRoom().advisorShadow, undefined)
+})
+
+test('shadow review asks for consent when the advisor host changed', async () => {
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, advisorConsent: { host: 'old.example' } })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  let calls = 0
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: 'm2' }),
+    advisor: { available: true, describe: () => ({ available: true, host: 'new.example' }), advice: async () => { calls += 1; return { available: true, advice: [] } } },
+  })
+  await review.request(0)
+  await review.shadowSettled()
+  assert.equal(calls, 0)
+  const notice = store.messages.find(message => message.meta?.advisorConsentNotice === true)
+  assert.ok(notice)
+  assert.match(notice.text, /new\.example/)
+  assert.equal(store.readRoom().advisorShadow, undefined)
 })

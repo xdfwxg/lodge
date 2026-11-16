@@ -24,6 +24,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     roomFiles,
     files,
     workspace,
+    advisor: ports.advisor,
   })
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles })

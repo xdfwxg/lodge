@@ -1,39 +1,36 @@
 import { createElement as h } from 'react'
 
 // 影子评审只保留一份外部意见，供人签字前按需查看；没有分数，也不参与验收判定。
-const adviceOf = message => {
-  const first = Array.isArray(message?.meta?.advice) ? message.meta.advice[0] : null
+const adviceOf = entry => {
+  const first = Array.isArray(entry?.advice) ? entry.advice[0] : null
   if (first === null || typeof first !== 'object') return null
   return {
+    evidenceId: typeof entry.evidenceId === 'string' ? entry.evidenceId : null,
     summary: typeof first.summary === 'string' ? first.summary : '',
     reasons: Array.isArray(first.reasons) ? first.reasons.slice(0, 8) : [],
     risks: Array.isArray(first.risks) ? first.risks.slice(0, 8) : [],
     missingEvidence: Array.isArray(first.missingEvidence) ? first.missingEvidence.slice(0, 8) : [],
-    model: typeof message.meta.model === 'string' ? message.meta.model : '',
+    model: typeof entry.model === 'string' ? entry.model : '',
   }
 }
 
 export const shadowAdviceFor = (room, evidenceId) => {
   if (typeof evidenceId !== 'string' || evidenceId === '') return null
-  const message = [...(room?.messages ?? [])].reverse().find(item => (
-    item.kind === 'advisor_advice' && item.meta?.evidenceId === evidenceId
-  ))
-  return message === undefined ? null : adviceOf(message)
+  const entry = Object.values(room?.advisorShadow ?? {}).find(item => item?.evidenceId === evidenceId)
+  return entry === undefined ? null : adviceOf(entry)
 }
 
 export const shadowAdviceForStage = (room, stageIndex) => {
-  const messages = room?.messages ?? []
+  const entry = room?.advisorShadow?.[stageIndex]
+  if (entry === undefined) return null
   // 只认当前这一步最新证据对应的意见；新一轮证据出来后，旧意见不再上桌。
-  const evidence = [...messages].reverse().find(item => (
+  const evidence = [...(room?.messages ?? [])].reverse().find(item => (
     item.kind === 'evidence' &&
     (item.meta?.stage ?? 0) === stageIndex &&
     (item.meta?.kind === 'manual' || item.meta?.kind === 'command')
   ))
-  if (evidence === undefined) return null
-  const message = [...messages].reverse().find(item => (
-    item.kind === 'advisor_advice' && item.meta?.evidenceId === evidence.id
-  ))
-  return message === undefined ? null : adviceOf(message)
+  if (evidence === undefined || entry.evidenceId !== evidence.id) return null
+  return adviceOf(entry)
 }
 
 export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '外部意见（仅供参考）' }) {

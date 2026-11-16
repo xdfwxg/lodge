@@ -31,6 +31,7 @@ function NewRoomDialog({
   roomTypes = [],
   engines = [],
   features = null,
+  advisor = { available: false, host: '' },
   seed = null,
   startType = null,
 }) {
@@ -479,6 +480,7 @@ function NewRoomDialog({
     showVerify: handoff === null,
     shadowReview,
     onShadowReview: setShadowReview,
+    advisor,
     recommending,
     canRecommend: goal.trim() !== '',
     onRecommend: isChat || handoff !== null || typeof onRecommend !== 'function'

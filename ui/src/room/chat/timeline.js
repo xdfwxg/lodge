@@ -61,7 +61,7 @@ function Timeline({
   }
 
   const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
-  const hidden = new Set(['activity', 'advisor_advice', ...hideKinds])
+  const hidden = new Set(['activity', ...hideKinds])
   const staleSignoff = message => (
     room.state === 'complete'
     && message.kind === 'system'

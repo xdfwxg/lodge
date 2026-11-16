@@ -155,6 +155,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         check: { mode: verify, acceptance: effectiveAcceptance },
       }),
     })
+    if (shadowReview && ports.advisor?.available === true) {
+      room.advisorConsent = {
+        host: ports.advisor.describe?.().host ?? '',
+        at: Date.now(),
+      }
+    }
     store.writeRoom(room)
     stored = true
     if (parentRoom !== null) {

@@ -162,6 +162,7 @@ export function StudioSetupFields({
   onInteraction,
   shadowReview = false,
   onShadowReview = () => {},
+  advisor = { available: false, host: '' },
   recommending = false,
   canRecommend = true,
   onRecommend = null,
@@ -184,11 +185,14 @@ export function StudioSetupFields({
     h('label', { className: 'crew-check' },
       h('input', {
         type: 'checkbox',
-        checked: shadowReview,
+        checked: advisor.available === true && shadowReview,
+        disabled: advisor.available !== true,
         onChange: event => onShadowReview(event.target.checked),
       }),
       '影子评审：复核后另取一份外部意见'),
-    h('p', { className: 'crew-field-hint' }, '会把证据和 diff 发给 advisor 服务；意见只供你签字前参考，不进入验收判定。'),
+    h('p', { className: 'crew-field-hint' }, advisor.available === true
+      ? `会把证据和 diff 发给${advisor.host === '' ? '外部' : ` ${advisor.host} `}；意见只供你签字前参考，不进入验收判定。`
+      : '影子评审现在不可用：先在 Lodge 配置 ADVISOR_URL。'),
     onRecommend === null ? null : h('div', { className: 'crew-new-recommend' },
       h('button', {
         type: 'button',

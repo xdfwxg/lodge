@@ -5,17 +5,14 @@ import { shadowAdviceFor, shadowAdviceForStage } from './advisor-advice.js'
 const room = {
   messages: [
     { id: 'e1', kind: 'evidence', meta: { stage: 0, kind: 'manual' } },
-    {
-      id: 'a1',
-      kind: 'advisor_advice',
-      meta: {
-        evidenceId: 'e1',
-        stage: 0,
-        advice: [{ summary: '补一条回滚测试', reasons: ['缺少回滚测试'], risks: ['网络依赖'], missingEvidence: ['rollback.log'], score: 0.4 }],
-        model: 'advisor-test',
-      },
-    },
   ],
+  advisorShadow: {
+    0: {
+      evidenceId: 'e1',
+      advice: [{ summary: '补一条回滚测试', reasons: ['缺少回滚测试'], risks: ['网络依赖'], missingEvidence: ['rollback.log'], score: 0.4 }],
+      model: 'advisor-test',
+    },
+  },
 }
 
 test('shadow advice is read by evidence and keeps no score', () => {

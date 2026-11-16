@@ -77,6 +77,7 @@ export function App() {
     roomTypes: state.roomTypes ?? [],
     engines: state.engines ?? [],
     features: state.features,
+    advisor: state.advisor ?? { available: false, host: '' },
     seed,
     startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),

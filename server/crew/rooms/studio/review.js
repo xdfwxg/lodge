@@ -231,6 +231,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         roomId,
         advisor,
         room,
+        emit,
         index: stageIndex,
         stage,
         evidence,

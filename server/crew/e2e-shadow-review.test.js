@@ -45,12 +45,15 @@ test('a new room with shadow review records advice outside the verifier prompt',
   const advisorServer = createAdvisorServer()
   await new Promise(resolve => advisorServer.listen(0, '127.0.0.1', resolve))
   try {
+    const port = advisorServer.address().port
+    const advisor = createAdvisorClient({ url: `http://127.0.0.1:${port}/evaluate`, timeoutMs: 2000 })
+    const ports = { ...createCrewPorts(), advisor }
     const created = await createRealRoom({
       store,
       engine: fakeEngine(),
       live: fakeLive(),
       emit: () => {},
-      ports: createCrewPorts(),
+      ports,
       body: {
         goal: '验证影子评审',
         verify: 'test',
@@ -70,15 +73,14 @@ test('a new room with shadow review records advice outside the verifier prompt',
     const index = room.stages.findIndex(stage => stage.manual === true)
     assert.ok(index >= 0)
     assert.equal(room.stages[index].state, 'active')
-    store.appendMessage(room.id, {
+    const evidence = store.appendMessage(room.id, {
       kind: 'evidence',
       authorId: 'executor',
       text: '产物已就绪',
       meta: { kind: 'manual', stage: index, simulated: false },
     })
 
-    const port = advisorServer.address().port
-    const advisor = createAdvisorClient({ url: `http://127.0.0.1:${port}/evaluate`, timeoutMs: 2000 })
+    assert.equal(room.advisorConsent.host, `127.0.0.1:${port}`)
     const sent = []
     const review = createReviewCoordinator({
       store,
@@ -99,12 +101,12 @@ test('a new room with shadow review records advice outside the verifier prompt',
     assert.ok(notice)
     assert.match(notice.text, /127\.0\.0\.1/)
     assert.match(notice.text, /证据和 diff/)
-    const advice = store.readMessages(room.id).find(message => message.kind === 'advisor_advice')
+    const advice = store.readRoom(room.id).advisorShadow?.[index]
     assert.ok(advice)
-    assert.equal(advice.meta.shadow, true)
-    assert.equal(advice.meta.stage, index)
-    assert.equal('score' in advice.meta.advice[0], false)
-    assert.ok((advice.meta.advice[0].reasons ?? []).length > 0 || (advice.meta.advice[0].risks ?? []).length > 0)
+    assert.equal(advice.evidenceId, evidence.id)
+    assert.equal('score' in advice.advice[0], false)
+    assert.ok((advice.advice[0].reasons ?? []).length > 0 || (advice.advice[0].risks ?? []).length > 0)
+    assert.equal(store.readMessages(room.id).some(message => message.kind === 'advisor_advice'), false)
   } finally {
     await new Promise(resolve => advisorServer.close(resolve))
     rmSync(dataDir, { recursive: true, force: true })

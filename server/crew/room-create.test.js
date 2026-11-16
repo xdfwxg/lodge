@@ -556,7 +556,7 @@ test('studio creation keeps advisor off the main path', async () => {
   const store = createStore({ dataDir: temp('lodge-advisor-data-') })
   const ports = createCrewPorts()
   let calls = 0
-  ports.advisor = { advice: async () => { calls += 1; return { available: true, advice: [] } } }
+  ports.advisor = { available: true, describe: () => ({ available: true, host: 'advisor.example' }), advice: async () => { calls += 1; return { available: true, advice: [] } } }
   const result = await createRealRoom({
     store,
     engine: fakeEngine(),
@@ -577,4 +577,5 @@ test('studio creation keeps advisor off the main path', async () => {
   assert.equal('advice' in result.body.room.gate, false)
   assert.equal('advisor' in result.body.room.gate, false)
   assert.equal(result.body.room.shadowReview, true)
+  assert.equal(result.body.room.advisorConsent.host, 'advisor.example')
 })

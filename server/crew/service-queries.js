@@ -14,6 +14,7 @@ export const createServiceQueries = ({
   roomFiles,
   files,
   workspace,
+  advisor = null,
 }) => {
   const { readRoom, readRooms, readMessages, readMessagesSince, readEvidence, readAssignments } = store
 
@@ -36,6 +37,7 @@ export const createServiceQueries = ({
     return {
       roles,
       features,
+      advisor: advisor?.describe?.() ?? { available: false, host: '' },
       roomTypes: listRoomTypes(),
       rooms: rooms.map(room => {
         const presentation = roomPresentationOfRoom(room)
