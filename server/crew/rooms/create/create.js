@@ -8,6 +8,7 @@ import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
 import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
+import { uniqueRoomShort } from './short-id.js'
 
 const deliveryTitleFor = (goalTitle, handoff) => {
   if (handoff === null || handoff === undefined) return goalTitle
@@ -91,12 +92,15 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     }
   }
 
-  const short = randomUUID().slice(0, 6)
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
-  const sourceRepo = requestedRepo === '' ? join(ports.workspace.root(), `room-${short}`) : resolve(requestedRepo)
-  const providerResult = resolveWorkspaceProvider({ body, workspace, requestedRepo, sourceRepo, workspacePort: ports.workspace })
+  const probeShort = randomUUID().slice(0, 8)
+  const probeRepo = requestedRepo === '' ? join(ports.workspace.root(), `room-${probeShort}`) : resolve(requestedRepo)
+  const providerResult = resolveWorkspaceProvider({ body, workspace, requestedRepo, sourceRepo: probeRepo, workspacePort: ports.workspace })
   if (providerResult.error !== undefined) return fail('invalid', providerResult.error)
   const provider = providerResult.provider
+  // 短 id 同时是工作区目录和分支名；撞上残留目录时换一个，而不是复用别人的工作区。
+  const short = uniqueRoomShort({ store, workspace: ports.workspace, provider })
+  const sourceRepo = requestedRepo === '' ? join(ports.workspace.root(), `room-${short}`) : resolve(requestedRepo)
   const workspaceCaps = provider.capabilities()
   if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行成员')

@@ -287,7 +287,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
 
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
   const generatedRepo = requestedRepo === ''
-  const short = randomUUID().slice(0, 6)
+  const short = randomUUID().slice(0, 8)
   const sourceRepo = generatedRepo ? join(workspace.root(), `roster-${short}`) : resolve(requestedRepo)
   let provider = workspace.default
   if (!generatedRepo) {

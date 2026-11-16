@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
-const design = read('docs/lodge-design.md')
-const reuse = read('docs/reuse-map.md')
-const thought = read('设计思想.md')
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const read = file => readFileSync(resolve(root, file), 'utf8')
 
 let failures = 0
 const must = (label, condition) => {
@@ -11,31 +11,49 @@ const must = (label, condition) => {
   console.error(`FAIL ${label}`)
   failures += 1
 }
-const mustNot = (label, pattern, text) => must(label, !pattern.test(text))
 
-must('design has a current-status block', design.includes('当前实现状态'))
-must('design names the room path under .crew', design.includes('.crew/rooms/<room-id>/'))
-must('design lists GOAL.md', design.includes('GOAL.md'))
-must('design lists CONCLUSION.md', design.includes('CONCLUSION.md'))
-must('design has the actual engine port', design.includes('P0 实际端口'))
-must('design has a current milestone progress note', /当前进度（\d{4}-\d{2}-\d{2}）/.test(design))
-must('design does not use the old rooms/ path', !/(?<!\.crew\/)rooms\/<room-id>\//.test(design))
-must('design does not use .data/rooms as the current path', !/\.data\/rooms\//.test(design))
-must('reuse map has a current-status line', /当前实现（\d{4}-\d{2}-\d{2}）/.test(reuse))
-must('reuse map points at the status section', reuse.includes('§8.5'))
-must('reuse map keeps known boundaries', reuse.includes('已知边界'))
-must('thought doc has the external-claims rule', thought.includes('## 12. 对外表述纪律'))
-must('boundary test exists', existsSync(new URL('../server/crew/boundary.test.js', import.meta.url)))
-must('schema migration test exists', existsSync(new URL('../server/crew/store.test.js', import.meta.url)))
-for (const [file, text] of [['design', design], ['reuse', reuse], ['thought', thought]]) {
-  mustNot(`${file} no longer claims a 300-line limit`, /单文件\s*300\s*行上限/, text)
-  mustNot(`${file} no longer says "only CSS is copied"`, /只抄\s*CSS/, text)
-  mustNot(`${file} no longer claims zero-copy`, /零代码复制|零拷贝/, text)
-  mustNot(`${file} no longer claims dmg/zip signing`, /dmg\/zip[^。\n]*未签名|当前[^。\n]*dmg\/zip/, text)
-  mustNot(`${file} no longer uses the old M3 demo gate`, /M3 之前不要|M3 前不演示/, text)
-  mustNot(`${file} no longer says post-create seats are missing`, /建后改席位未接|建后改角色未接/, text)
+const lodge = read('Lodge.md')
+const architecture = read('架构升级.md')
+const feedback = read('README.md')
+
+must('Lodge.md states the room, member and body triad', lodge.includes('房间（Room）是本体') && lodge.includes('Bot 是这个人现在的身体'))
+must('Lodge.md states the assignment line', lodge.includes('一条 Assignment 一条记录'))
+must('Lodge.md keeps the document rule', lodge.includes('## 文档：少而准'))
+must('架构升级.md explains the layers', architecture.includes('## 分层'))
+must('架构升级.md explains assignments', architecture.includes('## Assignment'))
+must('架构升级.md keeps the upgrade log', architecture.includes('## 升级记录'))
+must('架构升级.md records explicit non-goals', architecture.includes('## 明确不做'))
+must('架构升级.md keeps license attribution', architecture.includes('## 许可与归属'))
+must('README links the product story', feedback.includes('[Lodge.md](Lodge.md)'))
+must('README links the architecture record', feedback.includes('[架构升级.md](架构升级.md)'))
+
+for (const file of ['docs/advisor.md', 'docs/macos-desktop.md', 'docs/runtimes.md']) {
+  must(`${file} stays available`, existsSync(resolve(root, file)))
 }
-mustNot('thought no longer says handoff import/export is missing', /一键导出\/导入\/打开未做/, thought)
+
+// 设计文档只留两份；旧文档回流会让文档再次分叉。
+const designDocs = readdirSync(root)
+  .filter(name => name.endsWith('.md') && name !== 'README.md')
+  .sort()
+must('only two design docs live at the root', JSON.stringify(designDocs) === JSON.stringify(['Lodge.md', '架构升级.md'].sort()))
+for (const file of [
+  '理念升级.md',
+  '设计思想.md',
+  '架构.md',
+  '重构.md',
+  '新方案.md',
+  '漫漫人生路.md',
+  'token上下文.md',
+  'docs/lodge-design.md',
+  'docs/architecture.md',
+  'docs/architecture-layers.md',
+  'docs/reuse-map.md',
+  'docs/python-fastapi-feasibility.md',
+]) {
+  must(`${file} stays deleted`, !existsSync(resolve(root, file)))
+}
+
+must('docs do not point at deleted design files', !/(?:理念升级|设计思想\.md|架构\.md|重构\.md|lodge-design|reuse-map)/.test(lodge + architecture + feedback))
 
 if (failures > 0) process.exit(1)
 console.log('docs: ok')
