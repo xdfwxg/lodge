@@ -57,11 +57,18 @@ const completedRoom = dataDir => {
   return { store, room }
 }
 
-const fakeEngine = () => ({
-  capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
-  createSeatBot: async ({ name }) => ({ id: `seat-${name}`, name, engine: 'claude', model: 'claude-sonnet-5' }),
-  createRoom: async ({ name }) => ({ id: `room-${name}`, sessionRef: `thread-${name}` }),
-})
+const fakeEngine = () => {
+  const seatNames = []
+  return {
+    seatNames,
+    capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
+    createSeatBot: async ({ name }) => {
+      seatNames.push(name)
+      return { id: `seat-${name}`, name, engine: 'claude', model: 'claude-sonnet-5' }
+    },
+    createRoom: async ({ name }) => ({ id: `room-${name}`, sessionRef: `thread-${name}` }),
+  }
+}
 
 const fakeLive = () => ({
   attach: async () => {},
@@ -132,17 +139,21 @@ test('a subroom records its parent and links back to it', async () => {
 
 test('a custom room name is kept while the stage title follows the goal', async () => {
   const { store } = completedRoom(temp('lodge-name-data-'))
+  const engine = fakeEngine()
   const result = await run(store, {
     goal: '加一个导出按钮',
     name: '导出交付',
     verify: 'manual',
     seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-  })
+  }, engine)
   assert.equal(result.ok, true)
   const room = result.body.room
   assert.equal(room.name, '导出交付')
   assert.equal(room.goal, '加一个导出按钮')
   assert.equal(room.stages.some(stage => stage.title === '加一个导出按钮'), true)
+  // 房间名就是基座成员名；id 才是稳定身份，不再生成 Lead/Worker 这类隐藏名。
+  assert.deepEqual(engine.seatNames.sort(), ['执行', '规划', '验收'].sort())
+  assert.deepEqual(Object.values(room.seatNames).sort(), ['执行', '规划', '验收'].sort())
 })
 
 test('declared optional skills are validated and kept', async () => {

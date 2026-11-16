@@ -23,16 +23,16 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       })
     }
     const allWorkers = room.workers ?? []
-    if (allWorkers.length === 0) throw new Error('房间没有执行席位')
+    if (allWorkers.length === 0) throw new Error('房间没有执行成员')
     const workers = allWorkers
     const dispatchPlan = planDispatch({ room, stage, index, workers })
     let assignees = dispatchPlan.assignees
-    if (assignees.length === 0) throw new Error('编排策略没有可派发的执行席位')
+    if (assignees.length === 0) throw new Error('编排策略没有可派发的执行成员')
     const workspaceCaps = workspaceOf(room).capabilities()
     if (assignees.length > 1 && workspaceCaps.merge !== true) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `编排策略要求 ${assignees.length} 个执行席位同时开工；当前工作区不支持合并，先交给 ${seatDisplayName(room, assignees[0])}。`,
+        text: `这个安排方式要求 ${assignees.length} 位执行成员同时开工；这个文件夹不能合并改动，先交给 ${seatDisplayName(room, assignees[0])}。`,
       })
       assignees = assignees.slice(0, 1)
     }
@@ -48,11 +48,11 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     }
     updateTasks(index, current => ({
       ...current,
-      tasks: buildTasks({ stageIndex: index, workers: assignees, seatNames: seatLabelMap(room) }),
+      tasks: buildTasks({ stageIndex: index, workers: assignees, seatLabels: seatLabelMap(room) }),
     }))
     if (dispatchPlan.note !== '') store.appendMessage(roomId, { kind: 'system', text: dispatchPlan.note })
     const acceptance = stage.manual === true
-      ? '验收方式：人看产物，不跑命令。'
+      ? '验收方式：人看结果，不跑命令。'
       : typeof stage.acceptance === 'string' && stage.acceptance !== ''
         ? `验收命令：\`${stage.acceptance}\`。`
         : '验收命令：未设置。'
@@ -146,11 +146,11 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       updateTasks(index, current => failed.reduce((stageState, seat) => markTask(stageState, seat, 'failed'), current))
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `启动执行失败：${failed.map(worker => seatDisplayName(room, worker)).join('、')}；其余席位继续。`,
+        text: `启动执行失败：${failed.map(worker => seatDisplayName(room, worker)).join('、')}；其余成员继续。`,
       })
       if (updated !== null && ready !== null) {
         if (ready.workers.length === 0) {
-          store.appendMessage(roomId, { kind: 'system', text: '没有执行席位启动成功；阶段仍未进入验收。' })
+          store.appendMessage(roomId, { kind: 'system', text: '没有执行成员启动成功；这一步还没有进入验收。' })
         } else {
           void enqueue(() => integrate({ ...ready, turnId: '' }))
         }
@@ -164,7 +164,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       if ((currentDispatch.pending ?? []).length === 0) return
       const waiting = currentDispatch.pending.map(worker => seatDisplayName(current, worker)).join('、')
       store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: index, workers: currentDispatch.pending })
-      store.appendMessage(roomId, { kind: 'system', text: `并行执行超时：${waiting} 还没有完成；阶段仍未进入验收。` })
+      store.appendMessage(roomId, { kind: 'system', text: `并行执行超时：${waiting} 还没有完成；这一步还没有进入验收。` })
       const updated = store.updateRoom(roomId, inner => {
         if (inner.stageDispatch?.startedAt !== startedAt) return null
         inner.stageDispatch.timedOut = true

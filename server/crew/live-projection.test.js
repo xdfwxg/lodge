@@ -55,7 +55,7 @@ test('stale stream placeholders give way to the final message', () => {
   assert.deepEqual(dropStaleStreams(messages).map(message => message.id), ['b1', 'stream:room-1:worker-2'])
 })
 
-test('bare base handles in prose become seat names', () => {
+test('bare base names in prose become seat names', () => {
   const room = {
     seatBots: { worker: 'Worker6459f3' },
     seatNames: { worker: 'Worker6459f3' },

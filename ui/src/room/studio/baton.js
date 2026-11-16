@@ -19,7 +19,6 @@ export const batonOf = (message, room, byId = {}) => {
     return {
       from: nameOf(room, byId, meta.from ?? message.authorId),
       to: namesOf(room, byId, Array.isArray(meta.workers) ? meta.workers : (meta.to ? [meta.to] : [])),
-      handle: typeof meta.targetHandle === 'string' ? meta.targetHandle : '',
       status: typeof meta.status === 'string' ? meta.status : '',
       reason: typeof meta.reason === 'string' ? meta.reason : '',
       stage: Number.isInteger(meta.stage) ? String(meta.stage + 1) : '',
@@ -34,7 +33,6 @@ export const batonOf = (message, room, byId = {}) => {
     return {
       from: nameOf(room, byId, message.authorId),
       to: namesOf(room, byId, Array.isArray(meta.workers) ? meta.workers : []),
-      handle: '',
       status: '',
       reason: 'dispatch',
       stage: Number.isInteger(meta.stage) ? String(meta.stage + 1) : '',
@@ -49,7 +47,6 @@ export const batonOf = (message, room, byId = {}) => {
   return {
     from: nameOf(room, byId, message.authorId),
     to: summary.mention,
-    handle: '',
     status: '',
     reason: 'dispatch',
     stage: summary.stage,
@@ -63,16 +60,16 @@ export const batonOf = (message, room, byId = {}) => {
 
 // 派活不是一张工单，而是一次接力：谁交给谁、第几阶段、验收什么。
 const REASON = {
-  dispatch: '阶段开始',
+  dispatch: '开始这一步',
   review: '复核',
-  rework: '返工',
+  rework: '重做',
   retry: '重试',
 }
 
 const STATUS = {
-  sending: '正在交',
+  sending: '正在送达',
   sent: '已送达',
-  failed: '没交出去',
+  failed: '没能送达',
 }
 
 export function Baton({ message, room, byId }) {
@@ -88,11 +85,11 @@ export function Baton({ message, room, byId }) {
     h(ArrowRightIcon),
     h('span', { className: 'studio-baton-to' }, baton.to === '' ? '执行官' : baton.to),
     baton.reason === '' ? null : h('span', { className: 'studio-baton-reason' }, REASON[baton.reason] ?? baton.reason),
-    baton.stage === '' ? null : h('span', { className: 'studio-baton-stage' }, `阶段 ${baton.stage}`),
+    baton.stage === '' ? null : h('span', { className: 'studio-baton-stage' }, `第 ${baton.stage} 步`),
     baton.acceptance === '' ? null : h('span', null, '验收：', h('code', null, baton.acceptance)),
     baton.status === '' ? null : h('span', { className: 'studio-baton-status', 'data-status': baton.status }, STATUS[baton.status] ?? baton.status),
     h('details', { className: 'studio-baton-more' },
-      h('summary', null, baton.workTurn === null ? (baton.rework ? '返工说明' : '交接说明') : '交接详情'),
+      h('summary', null, baton.workTurn === null ? (baton.rework ? '重做说明' : '交接说明') : '交接详情'),
       h('div', { className: 'studio-baton-body' },
         baton.workTurn === null ? null : h(WorkTurnDetails, { workTurn: baton.workTurn }),
         h(Markdown, { text: baton.text, variant: 'compact' }))))

@@ -6,7 +6,7 @@ import { createReviewCoordinator } from './rooms/studio/review.js'
 import { createStageStarter } from './rooms/studio/stage.js'
 import { createLiveTurns } from './rooms/studio/turns.js'
 import { createTurnState } from './rooms/studio/turn-state.js'
-import { deliverableStageIndex, parseVerdict } from './rooms/studio/turn-utils.js'
+import { deliverableStageIndex, parsePlannerDecision, parseVerdict } from './rooms/studio/turn-utils.js'
 import { registerWorkspaceProvider } from './workspace.js'
 
 const makeRoom = overrides => ({
@@ -16,7 +16,10 @@ const makeRoom = overrides => ({
   state: 'active',
   stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
   seatNames: { executor: 'Exec', verifier: 'Verifier' },
-  seatSpecs: [{ id: 'executor', role: 'worker' }, { id: 'verifier', role: 'verifier' }],
+  seatSpecs: [
+    { id: 'executor', name: '执行官', role: 'worker' },
+    { id: 'verifier', name: '验收员', role: 'verifier' },
+  ],
   workers: ['executor'],
   verifiers: [],
   seatBots: { executor: 'bot-exec' },
@@ -63,6 +66,79 @@ test('live turn helpers keep stage and verdict semantics', () => {
       { title: 'impl', kind: 'deliverable', state: 'active' },
     ],
   })), 1)
+  assert.deepEqual(parsePlannerDecision('返工\n改成写入欢迎语'), { kind: 'rework', note: '改成写入欢迎语' })
+  assert.deepEqual(parsePlannerDecision('REWORK\nredo it'), { kind: 'rework', note: 'redo it' })
+  assert.equal(parsePlannerDecision('交给人\n需要你决定权限').kind, 'human')
+})
+
+test('a rejected stage routes the planner decision to the executor or the human', () => {
+  const room = makeRoom({
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-plan', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+  })
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      sent.push({ seat, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    skills: [],
+  })
+  turns.captureTurn({ reply: '返工\n改成写入欢迎语', turnId: 't-lead-1', toolCalls: 0 }, 'bot-plan')
+  const worker = sent.find(item => item.seat === 'executor')
+  assert.ok(worker)
+  assert.match(worker.prompt, /规划师的返工要求：改成写入欢迎语/)
+  assert.match(worker.prompt, /lodge-internal/)
+  assert.equal(room.lastPlannerDecision.kind, 'rework')
+
+  const humanRoom = makeRoom({
+    leadSeat: 'planner',
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-plan', executor: 'bot-exec' },
+  })
+  const humanStore = fakeStore(humanRoom)
+  humanStore.appendMessage('room-1', {
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+  })
+  const humanSent = []
+  const humanTurns = createLiveTurns({
+    store: humanStore,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToSeat: async (seat, prompt) => {
+      humanSent.push({ seat, prompt })
+      return { messageId: `m${humanSent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    skills: [],
+  })
+  humanTurns.captureTurn({ reply: '交给人\n需要你决定权限', turnId: 't-lead-2', toolCalls: 0 }, 'bot-plan')
+  assert.equal(humanSent.length, 0)
+  assert.equal(humanRoom.lastPlannerDecision.kind, 'human')
+  assert.equal(humanStore.messages.some(message => message.kind === 'system' && /规划师把/.test(message.text)), false)
 })
 
 test('turn state resets progress and updates stage tasks', () => {
@@ -122,7 +198,7 @@ test('a single worker stage sends the prompt and hides the base message', async 
   assert.equal(prompts.length, 1)
   assert.equal(prompts[0].seat, room.workers[0])
   assert.match(prompts[0].prompt, /验收命令：`true`/)
-  assert.match(prompts[0].prompt, /@Exec/)
+  assert.match(prompts[0].prompt, /@执行官/)
 })
 
 test('parallel dispatch wakes every assignee and tracks pending seats', async () => {
@@ -136,7 +212,10 @@ test('parallel dispatch wakes every assignee and tracks pending seats', async ()
     orchestration: 'parallel',
     workers: ['executor', 'executor-2'],
     seatNames: { executor: 'Exec', 'executor-2': 'Exec2' },
-    seatSpecs: [{ id: 'executor', role: 'worker' }, { id: 'executor-2', role: 'worker' }],
+    seatSpecs: [
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'executor-2', name: '执行官 2', role: 'worker' },
+    ],
   })
   const store = fakeStore(room)
   const prompts = []
@@ -155,8 +234,8 @@ test('parallel dispatch wakes every assignee and tracks pending seats', async ()
   await starter.startStage(room, 0)
   assert.deepEqual(prompts.map(item => item.seat), ['executor', 'executor-2'])
   assert.match(prompts[0].prompt, /自己的 worktree/)
-  assert.match(prompts[0].prompt, /@Exec/)
-  assert.match(prompts[1].prompt, /@Exec2/)
+  assert.match(prompts[0].prompt, /@执行官/)
+  assert.match(prompts[1].prompt, /@执行官 2/)
   assert.deepEqual(room.stageDispatch.workers, ['executor', 'executor-2'])
   assert.deepEqual(room.stageDispatch.pending, ['executor', 'executor-2'])
   assert.equal(room.stageDispatch.base, 'base')
@@ -246,7 +325,7 @@ test('manual evidence also goes through the Verifier before human signoff', asyn
   })
   await review.request(0)
   assert.equal(sent[0].seat, 'verifier')
-  assert.match(sent[0].prompt, /产物证据/)
+  assert.match(sent[0].prompt, /结果证据/)
   assert.doesNotMatch(sent[0].prompt, /验收命令：/)
   assert.equal(review.consume({ turn: { reply: 'PASS\nok' }, seat: 'verifier', turnId: 't1', room }), true)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
@@ -477,23 +556,45 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   assert.equal(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true), true)
 })
 
-test('a verifier reject returns the studio closure to executing', async () => {
-  const room = makeRoom({ verifiers: ['verifier'], closure: 'verifying' })
+test('a verifier reject returns the studio closure to executing and wakes the planner', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    closure: 'verifying',
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', role: 'lead' },
+      { id: 'executor', role: 'worker' },
+      { id: 'verifier', role: 'verifier' },
+    ],
+  })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
     meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
   })
+  const sent = []
   const review = createReviewCoordinator({
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async () => ({ messageId: 'm2' }),
+    sendToSeat: async (seat, prompt) => {
+      sent.push({ seat, prompt })
+      return { messageId: `m${sent.length}` }
+    },
     updateTasks: () => {},
   })
   await review.request(0)
   assert.equal(review.consume({ turn: { reply: 'REJECT\n证据不足' }, seat: 'verifier', turnId: 't1', room }), true)
   assert.equal(room.closure, 'executing')
+  const planner = sent.find(item => item.seat === 'planner')
+  assert.ok(planner)
+  assert.match(planner.prompt, /验收员退回了第 1 步/)
+  assert.match(planner.prompt, /证据不足/)
+  assert.match(planner.prompt, /第一行只写「返工」或「交给人」/)
+  assert.match(planner.prompt, /不要在回复里 @ 任何人/)
+  assert.match(planner.prompt, /lodge-internal/)
 })
 
 test('shadow advice is recorded but never injected into the Verifier prompt', async () => {

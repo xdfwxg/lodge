@@ -76,7 +76,7 @@ test('a room gets one shared chat room with every seat', async () => {
   assert.deepEqual(room.chatRoom, { id: 'chat-1', sessionRef: 'thread-1' })
 })
 
-test('chat goes to the shared room, with display names translated to handles', async () => {
+test('chat goes to the shared room, with display names translated to base names', async () => {
   const ctx = setup()
   const room = await ctx.chat.ensure(ctx.room())
   await ctx.chat.send(room, '@执行者 20 个字告诉我你能干啥')
@@ -162,7 +162,7 @@ test('a sendId reconciles the echo even when the stored id changes', () => {
   assert.equal(ctx.messages.length, 1)
 })
 
-test('a streamed final reply maps base handles to seat names', () => {
+test('a streamed final reply maps base names to seat names', () => {
   const ctx = setup()
   const base = ctx.room()
   base.roomType = 'chat'

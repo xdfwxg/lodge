@@ -108,3 +108,28 @@ test('application modules depend on ports, not concrete adapters', () => {
     assert.doesNotMatch(text, /from\s+['"]node:fs['"]/, `${file} imports node:fs directly`)
   }
 })
+
+test('business files never resolve base names or addresses', () => {
+  const businessFiles = [
+    'rooms/studio/handoff.js',
+    'rooms/studio/prompts.js',
+    'rooms/studio/start.js',
+    'rooms/studio/review.js',
+    'rooms/studio/stage.js',
+    'rooms/studio/turns.js',
+    'rooms/chat/scheduler.js',
+  ]
+  for (const file of businessFiles) {
+    const text = readFileSync(join(root, file), 'utf8')
+    assert.doesNotMatch(
+      text,
+      /seatBaseName|seatAddress|hostAddress|toBaseMentions|toDisplayMentions/,
+      `${file} resolves a base address instead of naming a seat`,
+    )
+  }
+})
+
+test('prompt builders do not send messages', () => {
+  const text = readFileSync(join(root, 'rooms/studio/prompts.js'), 'utf8')
+  assert.doesNotMatch(text, /sendTurn|engine\./, 'prompts.js both builds prompts and delivers them')
+})

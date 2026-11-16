@@ -7,7 +7,7 @@ const room = {
   seatSpecs: [{ id: 'executor', name: '执行者' }],
 }
 
-test('seat names resolve from the roster, not from base handles', () => {
+test('seat names resolve from the roster, not from base names', () => {
   assert.equal(seatNameOf(room, 'executor'), '执行者')
   assert.equal(seatNameOf({ seatNames: { executor: 'Executorea924d' } }, 'executor'), 'executor')
   assert.equal(seatNameOf(room, undefined), '')

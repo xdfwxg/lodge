@@ -21,7 +21,6 @@ test('a dispatch becomes a stage baton with the receiving seats', () => {
   assert.deepEqual(baton, {
     from: '规划师',
     to: '执行官',
-    handle: '',
     status: '',
     reason: 'dispatch',
     stage: '2',
@@ -77,7 +76,7 @@ test('a rework dispatch keeps its rework marker', () => {
   assert.equal(baton.stage, '1')
 })
 
-test('a handoff baton carries the target handle, status and work turn', () => {
+test('a handoff baton carries the target, status and work turn', () => {
   const baton = batonOf({
     kind: 'handoff',
     authorId: 'worker',
@@ -87,7 +86,6 @@ test('a handoff baton carries the target handle, status and work turn', () => {
       from: 'worker',
       to: 'verifier',
       workers: ['verifier'],
-      targetHandle: 'VerifierBase',
       reason: 'review',
       status: 'sent',
       acceptance: 'npm test',
@@ -102,7 +100,6 @@ test('a handoff baton carries the target handle, status and work turn', () => {
   }, room)
   assert.equal(baton.from, '执行官')
   assert.equal(baton.to, '验收员')
-  assert.equal(baton.handle, 'VerifierBase')
   assert.equal(baton.status, 'sent')
   assert.equal(baton.reason, 'review')
   assert.equal(baton.workTurn.done[0], '测试通过')

@@ -18,7 +18,7 @@ export const createProvisioner = ({ engine }) => {
     }
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
     const kindOf = seat => seat.roleKind ?? roleKindOf(seat.role)
-    // 工人先建，验收席位才有事实可依；没有显式引擎时优先选不同厂商。
+    // 工人先建，验收成员才有事实可依；没有显式引擎时优先选不同厂商。
     const ordered = [...roster].sort((a, b) => (kindOf(a) === 'verifier' ? 1 : 0) - (kindOf(b) === 'verifier' ? 1 : 0))
     for (const seat of ordered) {
       let requestedEngine = seat.engine
@@ -30,7 +30,8 @@ export const createProvisioner = ({ engine }) => {
         if (candidate !== undefined) requestedEngine = candidate.id
       }
       const seatRef = await engine.createSeatBot({
-        name: `${seat.id[0].toUpperCase()}${seat.id.slice(1)}${short}`,
+        // 房间里的名字就是基座里的名字；id 才是稳定身份。
+        name: seat.name,
         soul: mode.seatSoul?.(seat) ?? seat.prompt,
         description: seat.station,
         approval: seat.approval,

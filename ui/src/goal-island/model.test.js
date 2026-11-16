@@ -38,15 +38,15 @@ const room = over => ({
 })
 
 test('island status reflects pause reasons and needs-you labels', () => {
-  assert.deepEqual(islandStatus(room({ state: 'complete' })), { label: '目标达成', tone: 'done' })
+  assert.deepEqual(islandStatus(room({ state: 'complete' })), { label: '已交付', tone: 'done' })
   assert.deepEqual(islandStatus(room({ state: 'paused', needsYou: { kind: 'idle', label: '可以接着聊' } })),
     { label: '已暂停 · 可以接着聊', tone: 'paused' })
   assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'mcp', needsYou: { kind: 'mcp', label: '连接中断' } })),
     { label: '连接中断', tone: 'paused' })
-  assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'approval', needsYou: { kind: 'approval', label: '审批超时' } })),
-    { label: '审批超时', tone: 'paused' })
-  assert.deepEqual(islandStatus(room({ needsYou: { kind: 'rework', label: '待返工' } })),
-    { label: '待返工', tone: 'paused' })
+  assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'approval', needsYou: { kind: 'approval', label: '确认超时' } })),
+    { label: '确认超时', tone: 'paused' })
+  assert.deepEqual(islandStatus(room({ needsYou: { kind: 'rework', label: '待重做' } })),
+    { label: '待重做', tone: 'paused' })
 })
 
 test('progress follows the active stage and closes at completion', () => {
@@ -113,7 +113,7 @@ test('multiple verifier verdicts aggregate on the current evidence round', () =>
   assert.equal(buildGoalView(failedAgain, [...seats, secondSeat]).stages[1].verdict, null)
 })
 
-test('seat names come from the room roster, never from base handles', () => {
+test('seat names come from the room roster, never from base names', () => {
   const secondSeat = { id: 'verifier-2', name: '复核二', role: 'verifier' }
   const current = room({
     verifiers: ['verifier', 'verifier-2'],

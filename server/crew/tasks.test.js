@@ -3,7 +3,7 @@ import test from 'node:test'
 import { buildTasks, markStageTasks, markTask } from './rooms/studio/tasks.js'
 
 const stage = {
-  tasks: buildTasks({ stageIndex: 1, workers: ['甲', '乙'], seatNames: { 甲: '前端', 乙: '后端' } }),
+  tasks: buildTasks({ stageIndex: 1, workers: ['甲', '乙'], seatLabels: { 甲: '前端', 乙: '后端' } }),
 }
 
 test('stage tasks start working and track owner status and evidence', () => {

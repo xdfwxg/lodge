@@ -72,7 +72,7 @@ test('a completed child posts only its Verifier verdicts to the parent and wakes
   assert.doesNotMatch(message.text, /transcript|evidence/)
   assert.equal(sent[0].id, 'parent')
   assert.equal(sent[0].seat, 'lead')
-  assert.match(sent[0].text, /@Lead/)
+  assert.doesNotMatch(sent[0].text, /^@/)
   assert.match(sent[0].text, /Verifier 结果/)
   assert.equal(store.readRoom('parent').childResults.length, 1)
   assert.equal(store.readRoom('parent').childResults[0].roomId, 'child')

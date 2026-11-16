@@ -203,9 +203,15 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     })
     assert.equal(chatRoom.ok, true)
     const chatId = chatRoom.body.room.id
+    const sendToSeat = (seat, text) => {
+      const room = store.readRoom(chatId)
+      const name = seat === 'host' ? room.chatHost.name : room.seatNames[seat]
+      return engine.sendTurn({ roomId: room.chatRoom.id, text: `@${name} ${text}` })
+    }
     const scheduler = createChatScheduler({
       store,
       engine,
+      sendToSeat,
       roomId: chatId,
       random: () => 0,
       waitMs: 500,

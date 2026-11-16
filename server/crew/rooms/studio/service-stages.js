@@ -34,7 +34,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     return {
       kind: 'stage_conclusion',
       authorId: 'system',
-      text: `阶段 ${index + 1}「${stage.title}」已通过`,
+      text: `第 ${index + 1} 步「${stage.title}」已确认通过`,
       meta: {
         stage: index,
         title: stage.title,
@@ -71,10 +71,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (linked !== null) emit('room', linked)
     if (typeof live.isAttached === 'function' && live.isAttached(parent.id) === true) {
       const lead = parent.leadSeat ?? parent.members?.[0]
-      const leadName = parent.seatNames?.[lead]
-      if (typeof lead === 'string' && typeof leadName === 'string') {
-        void live.sendToSeat(parent.id, lead, `@${leadName} ${text}\n请只依据这些 verdict 决定下一步。`).catch(error => {
-          appendMessage(parent.id, { kind: 'system', text: `子部门结果未能唤醒 Planner：${error?.message ?? error}` })
+      if (typeof lead === 'string' && lead !== '') {
+        void live.sendToSeat(parent.id, lead, `${text}\n请只依据这些 verdict 决定下一步。`).catch(error => {
+          appendMessage(parent.id, { kind: 'system', text: `子房间的结果没能叫醒规划师：${error?.message ?? error}` })
         })
       }
     }
@@ -191,14 +190,14 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const index = Number(body?.stage)
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : ''
     const stage = room.stages?.[index]
-    if (stage === undefined) return fail('invalid', '没有这个阶段')
-    if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这个阶段不能重做')
-    if (room.state !== 'active') return fail('conflict', '先继续房间，再重做当前阶段')
+    if (stage === undefined) return fail('invalid', '没有这一步')
+    if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这一步不能重做')
+    if (room.state !== 'active') return fail('conflict', '先让房间继续，再重做这一步')
     if (room.busy === true) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
     if (room.live === true && typeof live.busyReview === 'function' && live.busyReview(room.id)) {
       return fail('conflict', '验收员还在看，等结论出来再继续')
     }
-    if (stage.state !== 'active') return fail('conflict', '这一步现在不需要返工')
+    if (stage.state !== 'active') return fail('conflict', '这一步现在不需要重做')
     const message = appendMessage(room.id, {
       kind: 'rework',
       authorId: 'you',
@@ -211,14 +210,14 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       if (Array.isArray(target.tasks)) target.tasks = target.tasks.map(task => ({ ...task, status: 'working' }))
       return { events: [{ type: 'stage.rework', payload: { stage: index, note } }] }
     })
-    if (updated === null) return fail('conflict', '阶段状态已变化，重试')
+    if (updated === null) return fail('conflict', '这一步的状态变了，再试一次')
     emit('room', updated)
     if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {
-        appendMessage(room.id, { kind: 'system', text: `重审返工启动失败：${error?.message ?? error}` })
+        appendMessage(room.id, { kind: 'system', text: `重做没能开始：${error?.message ?? error}` })
       })
     } else {
-      appendMessage(room.id, { kind: 'system', text: '已记录返工意见；这个房间没有连接实时基座，需要你继续或重新开工。' })
+      appendMessage(room.id, { kind: 'system', text: '已记录重做意见；这个房间现在没有连上，需要你继续或重新开始。' })
     }
     return ok({ room: updated, message })
   }
@@ -255,7 +254,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     })
     if (changed && trimmed !== '' && room.live === true && room.stages[index]?.state === 'active' && typeof live.isAttached === 'function' && live.isAttached(room.id) === true && typeof live.resume === 'function') {
       void live.resume(room.id, { forceAcceptance: true }).catch(error => {
-        appendMessage(room.id, { kind: 'system', text: `验收命令已更新，但重新执行失败：${error?.message ?? error}` })
+        appendMessage(room.id, { kind: 'system', text: `检查已经更新，但没能重新跑：${error?.message ?? error}` })
       })
     }
     return ok({ room, message })

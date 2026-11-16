@@ -100,7 +100,11 @@ const setup = ({ summaryText = '这是总结。' } = {}) => {
       return { accepted: true, messageId: id }
     },
   }
-  return { store, engine, room: () => current, messages, history }
+  const sendToSeat = async (seat, text) => {
+    const name = seat === 'host' ? current.chatHost.name : current.seatNames[seat]
+    return engine.sendTurn({ roomId: current.chatRoom.id, text: `@${name} ${text}` })
+  }
+  return { store, engine, sendToSeat, room: () => current, messages, history }
 }
 
 test('a chat round runs six speakers, then the host summarizes', async () => {
@@ -108,6 +112,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   const scheduler = createChatScheduler({
     store: ctx.store,
     engine: ctx.engine,
+    sendToSeat: ctx.sendToSeat,
     roomId: 'room-chat',
     random: () => 0,
     waitMs: 100,
@@ -171,6 +176,7 @@ test('the host conclusion keeps all five handoff fields', async () => {
   const scheduler = createChatScheduler({
     store: ctx.store,
     engine: ctx.engine,
+    sendToSeat: ctx.sendToSeat,
     roomId: 'room-chat',
     random: () => 0,
     waitMs: 100,
@@ -193,6 +199,7 @@ test('a late seat message is synced before the host concludes', async () => {
   const scheduler = createChatScheduler({
     store: ctx.store,
     engine: ctx.engine,
+    sendToSeat: ctx.sendToSeat,
     roomId: 'room-chat',
     random: () => 0,
     waitMs: 100,
@@ -219,6 +226,7 @@ test('a chat room can run fewer turns than the default', async () => {
   const scheduler = createChatScheduler({
     store: ctx.store,
     engine: ctx.engine,
+    sendToSeat: ctx.sendToSeat,
     roomId: 'room-chat',
     random: () => 0,
     waitMs: 100,

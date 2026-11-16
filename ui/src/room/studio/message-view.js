@@ -20,7 +20,10 @@ export const renderStudioMessage = ({
   if (isDispatchHandoff(room, message)) return h(Baton, { key: message.id, message, room, byId })
   const seat = resolveSeat(room, byId, message)
   if (message.kind === 'dispatch' || message.kind === 'handoff') return h(Baton, { key: message.id, message, room, byId })
-  if (message.kind === 'evidence') return h(EvidenceCard, { key: message.id, message, seat })
+  // 检查是这一步的结果，不是群里的第四个人；系统证据不显示作者名。
+  if (message.kind === 'evidence') {
+    return h(EvidenceCard, { key: message.id, message, seat: message.authorId === 'system' ? null : seat })
+  }
   if (message.kind === 'verdict') {
     return h(VerdictCard, {
       key: message.id,
@@ -32,8 +35,8 @@ export const renderStudioMessage = ({
       evidence: timeline.evidenceFor.get(message.id),
     })
   }
-  // 席位发言在工作室里是一拍工作记录：第一段可见，完整内容展开。
-  // 主席位给出两三条要确认的事时，直接变成决策卡，不把整段聊天铺在首屏。
+  // 成员发言在工作室里是一拍工作记录：第一段可见，完整内容展开。
+  // 主成员给出两三条要确认的事时，直接变成决策卡，不把整段聊天铺在首屏。
   if (message.kind === 'chat' && message.authorId !== 'you') {
     const isLead = message.authorId === room.leadSeat
     const pending = room.needsYou?.kind === 'decision' && isLead
@@ -52,9 +55,9 @@ export const renderStudioMessage = ({
         items,
         pending,
         disabled: room.state !== 'active',
-        title: opening ? '开工前，先定这几件事' : '这一步，等你定',
+        title: opening ? '开工前，先定这几件事' : '这一步，待确认',
         doneTitle: opening ? '开工前定下的事' : '这一步定下的事',
-        actionLabel: opening ? '就这样，开工' : '可以，下一步',
+        actionLabel: opening ? '按这个开工' : '按这个继续',
         onAccept: pending && typeof accept === 'function' && active >= 0
           ? () => accept(active)
           : undefined,

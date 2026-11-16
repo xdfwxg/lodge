@@ -52,6 +52,21 @@ test('seat prompts and semantic capability settings cross the engine port', asyn
   assert.equal(engine.capabilities().schedules, false)
 })
 
+test('exact mention ids cross the engine port with the text', async () => {
+  const calls = []
+  const engine = createEngine({
+    client: {
+      sendGroupMessage: async (...args) => {
+        calls.push(args)
+        return { message: { id: 'm1', sendId: 's1' } }
+      },
+    },
+  })
+  const result = await engine.sendTurn({ roomId: 'group-1', text: '@Exec go', mentions: ['bot-1'] })
+  assert.deepEqual(calls[0], ['group-1', '@Exec go', { sendId: undefined, mentions: ['bot-1'] }])
+  assert.equal(result.messageId, 'm1')
+})
+
 test('room tools are mounted next to external MCP grants', async () => {
   const client = fakeClient()
   const engine = createEngine({ client })

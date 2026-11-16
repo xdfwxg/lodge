@@ -7,7 +7,7 @@ import { workspaceOf } from './workspace.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
 import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
-import { seatDisplayName, seatMention } from '../../seat-labels.js'
+import { seatDisplayName } from '../../seat-labels.js'
 
 const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
 
@@ -108,6 +108,25 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         store.updateRoom(roomId, roomState => {
           roomState.closure = moved.state
           return { events: [studioTransitionEvent(moved, 'verdict_reject', pending.verifier, {}, 'Verifier 打回')] }
+        })
+      }
+      // A reject is a handoff, not a silent status change. Wake the planner so
+      // it decides whether the executor reworks or the human takes over.
+      const lead = room.leadSeat ?? room.members?.[0]
+      if (typeof lead === 'string' && lead !== '') {
+        const leadName = seatDisplayName(room, lead)
+        const leadMention = `@${leadName}`
+        const stageTitle = room.stages?.[pending.stage]?.title ?? ''
+        const reason = String(turn.reply ?? '').trim().slice(0, 300)
+        void sendToSeat(lead, [
+          `${leadMention} 验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
+          `判定：${reason === '' ? '未通过' : reason}`,
+          '第一行只写「返工」或「交给人」。返工时从第二行起写清改什么、怎么算完成；交给人时从第二行起写清要人拍板什么。',
+          '不要在回复里 @ 任何人；系统会按第一行转交。',
+          '不要自己改文件，也不要自己验收。',
+          INTERNAL_PROMPT_MARKER,
+        ].join('\n')).catch(error => {
+          store.appendMessage(roomId, { kind: 'system', text: `没能叫醒规划师：${error?.message ?? error}` })
         })
       }
     }
@@ -231,7 +250,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     const failures = []
     for (const verifier of targets) {
       const verifierName = seatDisplayName(room, verifier)
-      const verifierMention = seatMention(room, verifier)
+      const verifierMention = `@${verifierName}`
       if (typeof verifierName !== 'string' || verifierName === '') {
         failures.push(`${verifier}: 没有成员名字`)
         continue
@@ -264,7 +283,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             '只评审交付结果；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
-            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时在理由里 @ 规划师或执行官，指出具体缺口；PASS 时不必 @ 人。',
+            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时只写具体缺口；系统会把判定交给规划师，不用自己 @ 人。PASS 时也不用 @ 人。',
             VERDICT_FORMAT,
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
@@ -293,7 +312,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             '只评审交付改动；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
-            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时在理由里 @ 规划师或执行官，指出具体缺口；PASS 时不必 @ 人。',
+            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时只写具体缺口；系统会把判定交给规划师，不用自己 @ 人。PASS 时也不用 @ 人。',
             VERDICT_FORMAT,
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,

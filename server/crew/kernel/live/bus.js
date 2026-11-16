@@ -58,14 +58,14 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     const streams = streamOf(entry)
     const prior = streams.get(seat)
     const turnId = typeof event.turnId === 'string' ? event.turnId : ''
-    // 流式消息按回合区分：同一席位在一轮里发多次言时不能覆盖上一条。
+    // 流式消息按回合区分：同一成员在一轮里发多次言时不能覆盖上一条。
     const sameTurn = prior !== undefined && prior.turnId === turnId
     const id = sameTurn ? prior.id : `stream:${room.id}:${seat}:${turnId}`
     const existing = store.readMessages(room.id).find(message => message.id === id)
     const raw = sameTurn && typeof existing?.text === 'string'
       ? existing.text + event.delta
       : event.delta
-    // 流式阶段也映射基座 handle；否则用户先看到 Worker…，回合结束才变角色名。
+    // 流式阶段也映射基座成员名；否则用户先看到内部名，回合结束才变角色名。
     const text = toDisplayText(current, raw)
     store.upsertMessage({
       id,
@@ -95,7 +95,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       streams.delete(seat)
       return false
     }
-    // 流式回合的最终文本也要过一遍显示名映射，否则基座 handle 会留在气泡里。
+    // 流式回合的最终文本也要过一遍显示名映射，否则基座成员名会留在气泡里。
     const text = toDisplayText(current, raw)
     const existing = store.readMessages(room.id).find(item => item.id === state.id)
     store.upsertMessage({
@@ -156,7 +156,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
 
   const ensure = async room => {
     if (room.chatRoom !== undefined) {
-      // 群聊默认休眠：只有被 @ 的席位才加载。工作室和聊天室都走同一条总线。
+      // 群聊默认休眠：只有被 @ 的成员才加载。工作室和聊天室都走同一条总线。
       if (supportsRuntime(engine, 'mentions') && typeof engine.setRoomMentions === 'function') {
         try {
           await engine.setRoomMentions(room.chatRoom.id)
@@ -201,7 +201,12 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const subscribe = (entry, room) => {
     const chat = room.chatRoom
     if (chat === undefined) return
-    entry.chat = { roomRef: chat.id, sessionRef: chat.sessionRef, unsubscribe: null }
+    entry.chat = {
+      roomRef: chat.id,
+      sessionRef: chat.sessionRef,
+      unsubscribe: null,
+      sync: () => sync(entry),
+    }
     entry.chat.unsubscribe = engine.subscribe({
       roomId: chat.id,
       sessionRef: chat.sessionRef,

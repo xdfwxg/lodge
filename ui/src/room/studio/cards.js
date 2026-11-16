@@ -34,39 +34,43 @@ function EvidenceCard({ message, seat }) {
   const command = meta.kind === 'command'
   const manual = meta.kind === 'manual'
   const passed = meta.exit === 0
-  const source = meta.simulated === true ? '模拟执行 · 未真实运行' : meta.sample === true ? '样例数据' : turn ? '真实回合 · 已落盘' : manual ? '产物就绪 · 待验收' : '命令已真实执行'
+  const source = meta.simulated === true ? '示例运行 · 没有真的跑' : meta.sample === true ? '样例数据' : turn ? '真的跑过 · 已保存' : manual ? '结果就绪 · 待验收' : '检查真的跑过'
   const summary = command
     ? `${passed ? '检查通过' : '检查没通过'}${typeof meta.durationMs === 'number' ? ` · 用时 ${(meta.durationMs / 1000).toFixed(1)}s` : ''}`
     : manual
-      ? `${meta.workers?.length ?? 1} 席产物已就绪 · 待验收`
+      ? `${meta.workers?.length ?? 1} 位成员的结果已经好了 · 待验收`
       : turn
-        ? `真实回合 · ${((meta.durationMs ?? 0) / 1000).toFixed(1)}s`
-        : `证据 · 阶段 ${(meta.stage ?? 0) + 1}`
-  const chip = command ? (passed ? '已通过' : '未通过') : turn ? '回合' : manual ? '人工' : ''
+        ? `真的跑过 · ${((meta.durationMs ?? 0) / 1000).toFixed(1)}s`
+        : `证据 · 第 ${(meta.stage ?? 0) + 1} 步`
+  const chip = command ? (passed ? '已通过' : '未通过') : turn ? '这一轮' : manual ? '人工' : ''
   return h('div', {
     className: 'studio-result',
     'data-ok': command ? passed : undefined,
     'data-demo': meta.simulated === true || meta.sample === true,
   },
-  h('span', { className: 'studio-result-avatar' }, h(BotAvatar, { bot: seat, size: 22, live: false })),
-  h('span', { className: 'studio-result-who' }, seat?.name ?? '—'),
+  seat === null || seat === undefined
+    ? null
+    : h('span', { className: 'studio-result-avatar' }, h(BotAvatar, { bot: seat, size: 22, live: false })),
+  seat === null || seat === undefined
+    ? null
+    : h('span', { className: 'studio-result-who' }, seat.name),
   h('span', { className: 'studio-result-what' }, summary),
   chip === '' ? null : h('span', { className: 'studio-result-chip', 'data-pass': command ? passed : undefined }, chip),
   h('details', { className: 'studio-result-more' },
     h('summary', null, '证据'),
     h('div', { className: 'studio-result-body' },
       h('p', { className: 'crew-field-hint' }, source),
-      command && meta.command ? h('div', { className: 'crew-kv' }, h('span', null, '命令'), h('code', null, meta.command)) : null,
+      command && meta.command ? h('div', { className: 'crew-kv' }, h('span', null, '检查'), h('code', null, meta.command)) : null,
       command && meta.exit !== undefined ? h('div', { className: 'crew-kv' }, h('span', null, '退出码'), h('code', null, String(meta.exit ?? '无'))) : null,
       meta.files?.length ? h('div', { className: 'crew-receipt-files' }, meta.files.join(' · ')) : null,
       turn && meta.artifacts?.length
-        ? h('details', { className: 'crew-fold' }, h('summary', null, '产物'),
+        ? h('details', { className: 'crew-fold' }, h('summary', null, '结果'),
           meta.artifacts.map(artifact => h('div', { key: artifact.path },
             h('code', null, `${artifact.path.split('/').at(-1)} · 指纹 ${artifact.sha256.slice(0, 12)} · ${artifact.bytes} 字节`),
-            h(CodeOutput, { text: artifact.content, limit: 200, hint: '打开产物文件查看完整内容' }))))
+            h(CodeOutput, { text: artifact.content, limit: 200, hint: '打开结果文件查看完整内容' }))))
         : null,
       meta.output
-        ? h('details', { className: 'crew-fold' }, h('summary', null, turn ? '原始回合数据' : '输出'), h(CodeOutput, { text: meta.output }))
+        ? h('details', { className: 'crew-fold' }, h('summary', null, turn ? '原始记录' : '输出'), h(CodeOutput, { text: meta.output }))
         : null,
       meta.diff
         ? h('details', { className: 'crew-fold' },
@@ -142,7 +146,7 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
               className: 'crew-accept',
               disabled: room.state !== 'active',
               onClick: () => onAccept(meta.stage),
-            }, room.state === 'paused' ? '已暂停 · 继续后才能验收' : '通过这一步'))
+            }, room.state === 'paused' ? '已暂停 · 继续后才能验收' : '确认通过'))
           : null)))
 }
 

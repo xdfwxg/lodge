@@ -147,8 +147,8 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { messages }
   }
 
-  const sendTurn = async ({ roomId, text, sendId }) => {
-    const body = await client.sendGroupMessage(roomId, text, { sendId })
+  const sendTurn = async ({ roomId, text, sendId, mentions = [] }) => {
+    const body = await client.sendGroupMessage(roomId, text, { sendId, mentions })
     return { accepted: true, messageId: body?.message?.id ?? null, sendId: body?.message?.sendId ?? sendId ?? null }
   }
 

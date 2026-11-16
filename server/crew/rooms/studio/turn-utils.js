@@ -34,6 +34,16 @@ export const parseVerdict = reply => {
   return /(PASS|通过|接受|同意)/i.test(head)
 }
 
+export const parsePlannerDecision = reply => {
+  const text = String(reply ?? '').trim()
+  const lines = text.split('\n')
+  const first = lines.map(line => line.trim()).find(line => line !== '') ?? ''
+  const head = first.replace(/^[*#>\s]+/, '')
+  const note = lines.slice(1).join('\n').trim()
+  if (/(返工|REWORK)/i.test(head)) return { kind: 'rework', note: note === '' ? text : note }
+  return { kind: 'human', note: note === '' ? text : note }
+}
+
 export const tail = (text, limit) => {
   const value = String(text ?? '')
   return value.length > limit ? `…\n${value.slice(-limit)}` : value

@@ -2,9 +2,8 @@ import { buildSeatHandoff } from './seat-handoff.js'
 import { markSeatRead } from '../../watermarks.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { alignmentPrompt, directPrompt } from '../create/input.js'
-import { seatHandle } from '../../seat-labels.js'
 
-// 工作室建房后的第一次派发：先对齐，或直接交给主席位/执行席位。
+// 工作室建房后的第一次派发：先对齐，或直接交给主成员/执行成员。
 export const startInitialStage = async ({
   store,
   live,
@@ -28,7 +27,7 @@ export const startInitialStage = async ({
   } else {
     const targetSeat = align ? lead : worker
     markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
-    const openingName = seatHandle(room, targetSeat.id) || targetSeat.name
+    const openingName = targetSeat.name
     const opening = align
       ? alignmentPrompt(openingName, goal, verify, acceptance, room.handoff)
       : `@${openingName}\n${directPrompt(goal, verify, acceptance, roster.length === 1, room.handoff)}`

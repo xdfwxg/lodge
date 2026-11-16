@@ -16,10 +16,14 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
 
     threadMessages: (threadId, limit = 200) => json(`/api/threads/${threadId}/messages?limit=${limit}`),
 
-    sendGroupMessage: (groupId, text, { sendId } = {}) => json(`/api/groups/${groupId}/messages`, {
+    sendGroupMessage: (groupId, text, { sendId, mentions = [] } = {}) => json(`/api/groups/${groupId}/messages`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text, ...(sendId === undefined ? {} : { sendId }) }),
+      body: JSON.stringify({
+        text,
+        ...(sendId === undefined ? {} : { sendId }),
+        ...(mentions.length === 0 ? {} : { mentions }),
+      }),
       timeout: 15_000,
     }),
 

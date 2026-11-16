@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { markTask } from './tasks.js'
 import { seatDisplayName } from '../../seat-labels.js'
+import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { reviewState } from './verifiers.js'
 import { createAcceptanceRunner } from './acceptance-runner.js'
 import { createStageIntegrator } from './integration.js'
@@ -8,7 +9,7 @@ import { createReviewCoordinator } from './review.js'
 import { createHandoff } from './handoff.js'
 import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
-import { deliverableStageIndex, isWorkStage, seatOf } from './turn-utils.js'
+import { deliverableStageIndex, isWorkStage, parsePlannerDecision, seatOf } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
@@ -77,7 +78,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: hasVerifier ? '产物已就绪，等验收员复核。' : '产物已就绪，可以验收了。',
+      text: hasVerifier ? '结果已经好了，等验收员复核。' : '结果已经好了，可以验收了。',
       meta: {
         kind: 'manual',
         stage: stageIndex,
@@ -91,13 +92,51 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         capturedAt: new Date().toISOString(),
       },
     })
-    store.appendMessage(roomId, { kind: 'system', text: hasVerifier ? '产物已就绪 · 等验收员复核' : '产物已就绪 · 可以验收了' })
+    store.appendMessage(roomId, { kind: 'system', text: hasVerifier ? '结果已经好了 · 等验收员复核' : '结果已经好了 · 可以验收了' })
     state.markProgress()
     if (hasVerifier) {
       void review.request(stageIndex).catch(error => {
         store.appendMessage(roomId, { kind: 'system', text: `人工验收复核未启动：${error?.message ?? error}` })
       })
     }
+  }
+
+  // 退回后规划师的第一行是决定；系统按它转交，不依赖模型是否写出可唤醒的 @。
+  const routePlannerDecision = (room, stageIndex, turn) => {
+    const messages = store.readMessages(roomId)
+    const latestVerdict = [...messages].reverse()
+      .find(message => message.kind === 'verdict' && (message.meta?.stage ?? 0) === stageIndex)
+    if (latestVerdict === undefined || latestVerdict.meta?.pass !== false) return false
+    const verdictIndex = messages.indexOf(latestVerdict)
+    if (messages.slice(verdictIndex + 1).some(message => (
+      message.kind === 'evidence' && (message.meta?.stage ?? 0) === stageIndex
+    ))) return false
+    const verdictId = latestVerdict.id ?? latestVerdict.seq
+    if (room.lastPlannerDecision?.verdictId === verdictId) return false
+
+    const decision = parsePlannerDecision(turn.reply)
+    store.updateRoom(roomId, current => {
+      current.lastPlannerDecision = { stage: stageIndex, verdictId, kind: decision.kind, at: Date.now() }
+      return { events: [] }
+    })
+    const stage = room.stages?.[stageIndex]
+    if (decision.kind !== 'rework') return true
+    const target = (stage?.assignees ?? []).find(id => (room.workers ?? []).includes(id)) ?? room.workers?.[0]
+    if (typeof target !== 'string' || target === '') {
+      store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把返工交出去。' })
+      return true
+    }
+    const name = seatDisplayName(room, target)
+    const mention = `@${name}`
+    void sendToSeat(target, [
+      `${mention} 验收员退回了第 ${stageIndex + 1} 步「${stage?.title ?? ''}」。`,
+      `规划师的返工要求：${decision.note}`,
+      '只重做这一步；完成后不要 @ 人，系统会交给验收员。',
+      INTERNAL_PROMPT_MARKER,
+    ].join('\n')).catch(error => {
+      store.appendMessage(roomId, { kind: 'system', text: `没能把返工交给${name}：${error?.message ?? error}` })
+    })
+    return true
   }
 
   const captureTurn = (turn, authorRef) => {
@@ -120,13 +159,13 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         state.updateTasks(stageIndex, current => markTask(current, seat, 'failed'))
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `并行执行：${seatDisplayName(room, seat)} 这一回合没有产出；继续等其它席位。`,
+          text: `并行执行：${seatDisplayName(room, seat)} 这一回合没有产出；继续等其它成员。`,
         })
         const done = integrator.settle(seat, turnId, true)
         if (done !== null) {
           const remaining = done.workers.filter(worker => !done.failed.includes(worker))
           if (remaining.length === 0) {
-            store.appendMessage(roomId, { kind: 'system', text: '并行执行：所有执行席位都没有产出；阶段仍未进入验收。' })
+            store.appendMessage(roomId, { kind: 'system', text: '并行执行：所有执行成员都没有产出；这一步还没有进入验收。' })
             const updated = store.updateRoom(roomId, current => {
               const currentDispatch = current.stageDispatch
               if (currentDispatch === null || currentDispatch === undefined) return null
@@ -150,6 +189,10 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     }
 
     store.appendEvent(roomId, 'turn.completed', { turnId, seat: seat ?? 'unknown' })
+    if (role === 'lead' && routePlannerDecision(room, stageIndex, turn)) {
+      state.recordTurn(false)
+      return
+    }
     if (role !== 'worker') {
       state.recordTurn(false)
       return
@@ -251,7 +294,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         if (done !== null) {
           const remaining = done.workers.filter(worker => !done.failed.includes(worker))
           if (remaining.length === 0) {
-            store.appendMessage(roomId, { kind: 'system', text: '并行执行：没有可合并的执行席位；阶段仍未进入验收。' })
+            store.appendMessage(roomId, { kind: 'system', text: '并行执行：没有可合并的执行成员；这一步还没有进入验收。' })
           } else {
             await integrator.integrate({ ...done, workers: remaining, turnId })
           }
@@ -352,7 +395,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
           return { events: [{ type: 'stage.dispatch_stalled', payload: { stage: stageIndex, workers: dispatch.workers ?? [] } }] }
         })
         if (updated !== null) {
-          store.appendMessage(roomId, { kind: 'system', text: '重启后并行执行仍没有产出；阶段需要你处理。' })
+          store.appendMessage(roomId, { kind: 'system', text: '重启后并行执行仍没有产出；这一步需要你处理。' })
           emit?.('room', updated)
         }
         return

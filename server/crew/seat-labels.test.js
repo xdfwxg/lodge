@@ -1,12 +1,26 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { seatDisplayName, seatHandle, seatLabelMap, seatMention, toBaseMentions, toDisplayMentions, toDisplayText } from './seat-labels.js'
+import {
+  hostAddress,
+  seatAddress,
+  seatBaseName,
+  seatDisplayName,
+  seatLabelMap,
+  toBaseMentions,
+  toDisplayMentions,
+  toDisplayText,
+} from './seat-labels.js'
 
 const room = {
   seatNames: {
     planner: 'Plannerea924d',
     executor: 'Executorea924d',
     verifier: 'Verifierea924d',
+  },
+  seatBots: {
+    planner: 'bot-planner',
+    executor: 'bot-executor',
+    verifier: 'bot-verifier',
   },
   seatSpecs: [
     { id: 'planner', name: '规划师' },
@@ -15,7 +29,7 @@ const room = {
   ],
 }
 
-test('display names turn into base handles only when crossing the boundary', () => {
+test('display names turn into base names only when crossing the boundary', () => {
   assert.equal(toBaseMentions(room, '@执行者 先跑一遍'), '@Executorea924d 先跑一遍')
   assert.equal(toDisplayMentions(room, '@Executorea924d 报告好了'), '@执行者 报告好了')
   assert.equal(toDisplayMentions(room, '没有提任何人'), '没有提任何人')
@@ -47,9 +61,23 @@ test('the label map is built from the roster only', () => {
 })
 
 
-test('handle and mention conversion live in one place', () => {
-  assert.equal(seatHandle(room, 'executor'), 'Executorea924d')
-  assert.equal(seatHandle({ seatNames: {} }, 'executor'), '')
-  assert.equal(seatMention(room, 'executor'), '@Executorea924d')
-  assert.equal(seatMention({ seatNames: {} }, 'executor'), '')
+test('base name conversion lives in one place', () => {
+  assert.equal(seatBaseName(room, 'executor'), 'Executorea924d')
+  assert.equal(seatBaseName({ seatNames: {} }, 'executor'), '')
+})
+
+test('only the transport layer resolves a seat into a base address', () => {
+  assert.deepEqual(seatAddress(room, 'executor'), {
+    name: 'Executorea924d',
+    mention: '@Executorea924d',
+    memberRef: 'bot-executor',
+  })
+  assert.equal(seatAddress(room, 'ghost'), null)
+  assert.equal(seatAddress({ seatNames: { executor: 'Executorea924d' } }, 'executor'), null)
+  assert.deepEqual(hostAddress({ chatHost: { name: 'LodgeHost1', memberRef: 'bot-host' } }), {
+    name: 'LodgeHost1',
+    mention: '@LodgeHost1',
+    memberRef: 'bot-host',
+  })
+  assert.equal(hostAddress({ chatHost: { name: 'LodgeHost1' } }), null)
 })

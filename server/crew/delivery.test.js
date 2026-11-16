@@ -65,7 +65,7 @@ test('a manual stage carries its changed files into the delivery card', () => {
   assert.deepEqual(delivery.changedFiles, ['NOTES.md'])
 })
 
-test('delivery verdicts print roster names, not base handles', () => {
+test('delivery verdicts print roster names, not base names', () => {
   const withRoster = room({
     seatNames: { verifier: 'Verifierf0d790' },
     seatSpecs: [{ id: 'verifier', name: '验收员' }],

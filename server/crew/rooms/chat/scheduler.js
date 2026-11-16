@@ -1,6 +1,6 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
-import { seatDisplayName, seatHandle, toDisplayText } from '../../seat-labels.js'
+import { seatDisplayName } from '../../seat-labels.js'
 import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
@@ -32,18 +32,17 @@ const discussionLines = (store, roomId) => {
     .filter(message => message.kind === 'chat' || message.kind === 'chat_rework')
   const nameOf = message => message.authorId === 'you'
     ? '你'
-    : message.authorId === 'system' ? '系统' : seatDisplayName(room, message.authorId)
+    : message.authorId === 'system' ? '房间' : seatDisplayName(room, message.authorId)
   return recentAndOlder(messages, { nameOf })
 }
 
-const baseName = (room, seat) => seatHandle(room, seat) || seatDisplayName(room, seat)
 const seatSpecOf = (room, seatId) => (room?.seatSpecs ?? []).find(seat => seat.id === seatId) ?? null
 
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
 const speakerPrompt = ({ room, seat, round, turn, turnLimit, note }) => {
   const personality = seatSpecOf(room, seat)?.personality
   return [
-    `@${baseName(room, seat)} 聊天室话题：${room.goal}`,
+    `@${seatDisplayName(room, seat)} 聊天室话题：${room.goal}`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `你上一轮退回了结论，并补充：${note}`,
     '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
@@ -53,8 +52,8 @@ const speakerPrompt = ({ room, seat, round, turn, turnLimit, note }) => {
   ].filter(Boolean).join('\n')
 }
 
-const hostPrompt = ({ room, hostName, round, note }) => [
-  `@${hostName} 聊天室第 ${round} 轮讨论到此结束，请总结。`,
+const hostPrompt = ({ room, round, note }) => [
+  `聊天室第 ${round} 轮讨论到此结束，请总结。`,
   `话题：${room.goal}`,
   note === '' ? '' : `用户退回了上一轮结论，并补充：${note}`,
   '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。严格按下面五段输出，标题固定：',
@@ -79,6 +78,7 @@ const digestText = lines => lines.length === 0
 export const createChatScheduler = ({
   store,
   engine,
+  sendToSeat,
   roomId,
   emit = () => {},
   refresh = () => {},
@@ -212,7 +212,7 @@ export const createChatScheduler = ({
             turnLimit,
             note,
           })
-          const sent = await engine.sendTurn({ roomId: chat.id, text })
+          const sent = await sendToSeat(seat, text)
           hidePrompt(sent?.messageId)
           patch(state => {
             state.chat = {
@@ -272,19 +272,13 @@ export const createChatScheduler = ({
         return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', hostAuthor, '达到发言上限')] }
       })
       let before = await messageIds(chat)
-      let sent = await engine.sendTurn({
-        roomId: chat.id,
-        text: hostPrompt({ room: store.readRoom(roomId) ?? room, hostName, round, note }),
-      })
+      let sent = await sendToSeat('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
       hidePrompt(sent?.messageId)
       let reply = await waitForBot(chat, hostBot, before, run)
       if (reply === null && !run.cancelled) {
         await waitIdle(chat.id, run, 30_000)
         before = await messageIds(chat)
-        sent = await engine.sendTurn({
-          roomId: chat.id,
-          text: hostPrompt({ room: store.readRoom(roomId) ?? room, hostName, round, note }),
-        })
+        sent = await sendToSeat('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
         hidePrompt(sent?.messageId)
         reply = await waitForBot(chat, hostBot, before, run)
       }
@@ -294,12 +288,12 @@ export const createChatScheduler = ({
       const text = !fallback
         ? (reply.turn?.reply ?? reply.text ?? '')
         : digestText(lines)
-      const displayText = toDisplayText(room, text === '' ? digestText(lines) : text)
-      const handoff = parseHandoffFromText(displayText, store.readRoom(roomId)?.goal ?? room.goal)
+      const conclusionText = text === '' ? digestText(lines) : text
+      const handoff = parseHandoffFromText(conclusionText, store.readRoom(roomId)?.goal ?? room.goal)
       const conclusion = store.appendMessage(roomId, {
         kind: 'chat_conclusion',
         authorId: hostAuthor,
-        text: displayText,
+        text: conclusionText,
         meta: {
           round,
           turnLimit,

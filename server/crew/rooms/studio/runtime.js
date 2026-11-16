@@ -1,7 +1,7 @@
 import { createLiveTurns } from './turns.js'
-import { createStudioEngine } from './prompts.js'
+import { deliverToSeat } from '../../seat-delivery.js'
 
-// 工作室上下文运行时：阶段派发、执行、验收、返工和签字都走群聊 @，没有讨论轮次。
+// 工作室上下文运行时：阶段派发、执行、验收、重做和签字都走群聊 @，没有讨论轮次。
 export const createStudioRuntime = ({
   store,
   engine,
@@ -10,8 +10,6 @@ export const createStudioRuntime = ({
   approvals,
   refreshRoom,
 }) => {
-  const studioEngine = createStudioEngine({ engine })
-
   return {
     owns: typeId => typeId === 'studio',
 
@@ -21,7 +19,7 @@ export const createStudioRuntime = ({
         engine,
         roomId: room.id,
         emit,
-        sendToSeat: (seat, text) => studioEngine.send(store.readRoom(room.id) ?? room, text),
+        sendToSeat: (seat, text) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text }),
         commands: ports.commands,
         files: ports.files,
         skills: ports.skills,
@@ -58,9 +56,6 @@ export const createStudioRuntime = ({
 
     requestReview: async (entry, stage) => entry.turns.requestReview(stage),
     startStage: async (entry, room, index, options = {}) => entry.turns.startStage(room, index, options),
-    sendToSeat: async (entry, room, seat, text) => {
-      const sent = await studioEngine.send(room, text)
-      return { ...sent, messageId: null, broadcast: true }
-    },
+    sendToSeat: (entry, room, seat, text) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text }),
   }
 }
