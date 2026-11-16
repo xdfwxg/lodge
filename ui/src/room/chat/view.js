@@ -12,7 +12,7 @@ function TypingLine({ room, seat, summarizing }) {
       seat === null || seat === undefined ? null : h(BotAvatar, { bot: seat, size: 30, live: true })),
     h('div', { className: 'crew-msg-body' },
       h('span', { className: 'crew-typing-name' },
-        `${summarizing ? hostLabelOf(room) : seat?.name ?? '成员'} ${summarizing ? '正在总结' : '正在输入'}`),
+        summarizing ? `${hostLabelOf(room)} 正在总结` : '正在思考'),
       h('span', { className: 'crew-typing-dots', 'aria-hidden': true }, h('i'), h('i'), h('i'))))
 }
 

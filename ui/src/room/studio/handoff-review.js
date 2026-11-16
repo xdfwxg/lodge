@@ -1,11 +1,6 @@
 import { createElement as h, useId } from 'react'
-
-function Section({ label, items, warning = false }) {
-  if (items.length === 0) return null
-  return h('div', { className: `crew-handoff-section${warning ? ' is-warning' : ''}` },
-    h('b', null, label),
-    h('ul', null, items.map((item, index) => h('li', { key: `${label}-${index}` }, item))))
-}
+import { IntakeSection } from '../intake-section.js'
+import { VerifyChoice } from './create.js'
 
 export const gateCardState = ({
   needsReview,
@@ -18,10 +13,10 @@ export const gateCardState = ({
   const ready = (!needsReview || reviewed) && !missingCommand
   return {
     ready,
-    status: ready ? '可以开工' : needsReview && !reviewed ? '有分歧' : '还差检查命令',
+    status: ready ? '可以开工' : needsReview && !reviewed ? '有分歧' : '还差一条检查',
     pendingText: ready
       ? null
-      : needsReview && !reviewed ? '先确认这些分歧，再开工。' : '填写检查命令后再开工。',
+      : needsReview && !reviewed ? '先确认这些分歧，再开工。' : '填一条检查后再开工。',
   }
 }
 
@@ -59,7 +54,7 @@ export function HandoffReview({
       h('p', { className: 'crew-handoff-topic' }, handoff.topic),
       needsReview
         ? h('div', { className: 'crew-gate-decision' },
-          Section({ label: '需要你定的分歧', items: handoff.disagreements, warning: true }),
+          h(IntakeSection, { label: '待确认的分歧', items: handoff.disagreements, warning: true }),
           h('label', { className: 'crew-check', htmlFor: id },
             h('input', {
               id,
@@ -72,42 +67,26 @@ export function HandoffReview({
       h('div', { className: 'crew-gate-check' },
         h('b', null, '开工后'),
         editable
-          ? h('div', { className: 'crew-choice-row', role: 'group', 'aria-label': '检查方式' },
-            h('button', {
-              type: 'button',
-              className: 'crew-choice',
-              'data-on': verify === 'manual' ? 'true' : undefined,
-              'aria-pressed': verify === 'manual',
-              onClick: () => onVerifyMode('manual'),
-            }, '我自己看'),
-            h('button', {
-              type: 'button',
-              className: 'crew-choice',
-              'data-on': verify === 'test' ? 'true' : undefined,
-              'aria-pressed': verify === 'test',
-              onClick: () => onVerifyMode('test'),
-            }, '跑一条检查'))
-          : null,
-        verify === 'test'
-          ? editable
-            ? h('input', {
-              className: 'crew-goal-input',
-              type: 'text',
-              'aria-label': '检查命令',
-              placeholder: '例如：npm test',
-              value: acceptance,
-              onChange: event => onAcceptanceDraft(event.target.value),
-            })
-            : plannedAcceptance
-              ? h('p', { className: 'crew-field-hint' }, '每个交付阶段跑一条检查')
-              : h('p', { className: 'crew-field-hint' }, acceptance === '' ? '还没填检查命令' : `跑一条检查：${acceptance}`)
-          : h('p', { className: 'crew-field-hint' }, '你来看结果，再决定下一步')),
+          ? h(VerifyChoice, {
+            verifyMode: verify,
+            onVerifyMode,
+            acceptanceDraft: acceptance,
+            onAcceptanceDraft,
+          })
+          : verify === 'test'
+            ? plannedAcceptance
+              ? h('p', { className: 'crew-field-hint' }, '每一步都会跑一条检查')
+              : h('p', { className: 'crew-field-hint' }, acceptance === '' ? '还没填检查' : `跑一条检查：${acceptance}`)
+            : h('p', { className: 'crew-field-hint' }, '你来看结果，再决定下一步'),
+        verify === 'test' && editable
+          ? h('p', { className: 'crew-field-hint' }, '会在房间的工作文件夹里真的跑一遍，结果显示在交付卡上。')
+          : null),
       detailSummary === ''
         ? null
         : h('details', { className: 'crew-handoff-more' },
           h('summary', null, `完整交接单 · ${detailSummary}`),
           h('div', { className: 'crew-handoff-more-body' },
-            Section({ label: '共识', items: handoff.consensus }),
-            Section({ label: '约束', items: handoff.constraints }),
-            Section({ label: '待办', items: handoff.todos })))))
+            h(IntakeSection, { label: '共识', items: handoff.consensus }),
+            h(IntakeSection, { label: '约束', items: handoff.constraints }),
+            h(IntakeSection, { label: '待办', items: handoff.todos })))))
 }

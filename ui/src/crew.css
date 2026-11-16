@@ -454,6 +454,8 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-dialog-kicker{margin:0;font-size:13.5px;line-height:20px;font-weight:600;letter-spacing:.01em;color:var(--bt-ink-3)}
 .crew-field{display:flex;flex-direction:column;gap:8px}
 .crew-field > b{font-size:15px;line-height:20px;font-weight:600;color:var(--bt-ink)}
+.crew-team-summary{display:flex;flex-wrap:wrap;gap:8px}
+.crew-team-chip{display:inline-flex;align-items:center;padding:6px 10px;border:1px solid var(--bt-line);border-radius:999px;background:var(--bt-shade-1);font-size:13.5px;line-height:18px;color:var(--bt-ink-2)}
 .crew-field > .crew-field-label{font-size:15px;line-height:20px;font-weight:600;color:var(--bt-ink)}
 .crew-field-label{display:inline-flex;align-items:center;gap:6px}
 .crew-field-label svg{flex:none;color:var(--bt-ink-3)}

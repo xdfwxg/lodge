@@ -1,4 +1,4 @@
-import { createElement as h, useEffect, useId, useState } from 'react'
+import { Fragment, createElement as h, useEffect, useId, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
@@ -62,6 +62,10 @@ function NewRoomDialog({
 
   useEffect(() => {
     if (!open) return
+    setStep(0)
+    setProposal(null)
+    setAnswers([])
+    setGoal('')
     setSeatChoices([])
     setRecommending(false)
     setShadowReview(false)
@@ -215,7 +219,7 @@ function NewRoomDialog({
       if (picked === null) return
       changeRepoPath(picked)
     } catch (caught) {
-      setError(`选择文件夹失败：${String(caught?.message ?? caught)}`)
+      setError(`文件夹没能选上：${String(caught?.message ?? caught)}`)
     }
   }
 
@@ -234,7 +238,7 @@ function NewRoomDialog({
   const recommend = async () => {
     if (goal.trim() === '' || recommending) return
     if (typeof onRecommend !== 'function') {
-      setError('暂时不能生成方案')
+      setError('暂时没能给出方案')
       return
     }
     setRecommending(true)
@@ -242,12 +246,12 @@ function NewRoomDialog({
     try {
       const result = await onRecommend(goal.trim(), repoPath.trim())
       if (result?.ok !== true) {
-        setError(result?.error ?? 'Lodge 没有排出版方案；请重试')
+        setError(result?.error ?? 'Lodge 没有给出方案；请重试')
         return
       }
       useProposal(result.proposal)
     } catch (caught) {
-      setError(`方案生成失败：${String(caught?.message ?? caught)}`)
+      setError(`Lodge 没能给出方案：${String(caught?.message ?? caught)}`)
     } finally {
       setRecommending(false)
     }
@@ -290,12 +294,12 @@ function NewRoomDialog({
         sourceName: seed?.sourceName,
       }))
       if (result?.ok !== true) {
-        setError(result?.error ?? '创建聊天室失败')
+        setError(result?.error ?? '聊天室没能建起来')
         return
       }
       resetAfterCreate()
     } catch (caught) {
-      setError(`创建聊天室失败：${String(caught?.message ?? caught)}`)
+      setError(`聊天室没能建起来：${String(caught?.message ?? caught)}`)
     } finally {
       setBusy(false)
     }
@@ -324,12 +328,12 @@ function NewRoomDialog({
         selectedModelOf,
       }))
       if (result?.ok !== true) {
-        setError(result?.error ?? '创建房间失败')
+        setError(result?.error ?? '房间没能建起来')
         return
       }
       resetAfterCreate()
     } catch (caught) {
-      setError(`创建房间失败：${String(caught?.message ?? caught)}`)
+      setError(`房间没能建起来：${String(caught?.message ?? caught)}`)
     } finally {
       setBusy(false)
     }
@@ -357,12 +361,12 @@ function NewRoomDialog({
         selectedModelOf,
       }))
       if (result?.ok !== true) {
-        setError(result?.error ?? '创建房间失败')
+        setError(result?.error ?? '房间没能建起来')
         return
       }
       resetAfterCreate()
     } catch (caught) {
-      setError(`创建房间失败：${String(caught?.message ?? caught)}`)
+      setError(`房间没能建起来：${String(caught?.message ?? caught)}`)
     } finally {
       setBusy(false)
     }
@@ -380,7 +384,7 @@ function NewRoomDialog({
       onInteraction: () => setLoginNote(null),
     }),
     studioMissingVerifier
-      ? h('p', { className: 'crew-field-hint' }, '工作室需要一位验收员；让 Lodge 重新排一版，补上验收员。')
+      ? h('p', { className: 'crew-field-hint' }, '工作室需要一位验收员；让 Lodge 重新出方案，补上验收员。')
       : null,
     loginNote !== null ? h('p', { className: 'crew-dialog-note' }, loginNote) : null)
 
@@ -389,7 +393,7 @@ function NewRoomDialog({
   const proposalBody = proposal === null ? null : h('div', { className: 'crew-dialog-body' },
     h('div', { className: 'crew-proposal-head' },
       h('div', null,
-        h('b', null, '执行方案'),
+        h('b', null, '方案'),
         h('p', {
           className: 'crew-dialog-sub crew-proposal-lede',
           title: typeof proposal.why === 'string' ? proposal.why : '',
@@ -398,15 +402,15 @@ function NewRoomDialog({
             ? proposal.why
             : `这件事由 ${proposal.seats.length} 位成员一起完成。`)))),
     h('div', { className: 'crew-proposal-block' },
-      h('b', null, '交付内容'),
+      h('b', null, '会交付什么'),
       h('ul', { className: 'crew-brief' },
         proposal.done.map((text, index) => h('li', { key: `done-${index}` }, inlineCode(text))))),
     Array.isArray(proposal.stages) && proposal.stages.length > 0
       ? h('div', { className: 'crew-proposal-block' },
-        h('b', null, '执行步骤'),
+        h('b', null, '步骤'),
         h('ul', { className: 'crew-brief' },
           proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
-            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 等你定' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))))
+            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 待确认' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))))
       : null,
     (proposal.questions ?? []).length > 0
       ? h('div', { className: 'crew-proposal-block' },
@@ -425,23 +429,23 @@ function NewRoomDialog({
     h('div', { className: 'crew-proposal-block' },
       h('b', null, '怎么算做完'),
       verify === 'manual'
-        ? h('p', { className: 'crew-field-hint' }, '你自己看产物，满意就继续；这一步没有检查记录。')
+        ? h('p', { className: 'crew-field-hint' }, '你自己看结果，满意就继续；这一步没有检查记录。')
         : acceptance.trim() !== ''
           ? h('div', { className: 'crew-acceptance' },
-            h('span', { className: 'crew-field-hint' }, '检查命令'),
+            h('span', { className: 'crew-field-hint' }, '检查'),
             h('code', { className: 'crew-acceptance-cmd' }, acceptance))
           : plannedAcceptance
-            ? h('p', { className: 'crew-field-hint' }, '每个交付阶段都会跑一条检查。')
+            ? h('p', { className: 'crew-field-hint' }, '每一步都会跑一条检查。')
             : h('input', {
               className: 'crew-goal-input crew-acceptance-input',
               type: 'text',
-              'aria-label': '检查命令',
+              'aria-label': '要跑的检查',
               value: acceptanceDraft,
-              placeholder: '检查命令，例如 npm test',
+              placeholder: '例如：npm test',
               onChange: event => setAcceptanceDraft(event.target.value),
             })),
     verify === 'manual' && hasVerifier
-      ? h('p', { className: 'crew-dialog-note' }, '你自己看产物就行；想要独立复核，就补一条检查命令。')
+      ? h('p', { className: 'crew-dialog-note' }, '你自己看结果就行；想要独立复核，就补一条检查。')
       : null,
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
@@ -459,6 +463,7 @@ function NewRoomDialog({
     loginBusy,
     onLogin: loginEngineFor,
     onInteraction: () => setLoginNote(null),
+    onAdvanced: () => setAdvanced(true),
     verifyMode,
     onVerifyMode: setVerifyMode,
     acceptanceDraft,
@@ -471,10 +476,41 @@ function NewRoomDialog({
     onRecommend: isChat || typeof onRecommend !== 'function' ? null : () => void recommend(),
   }
 
+  const goalField = h('div', { className: 'crew-field' },
+    h('label', { className: 'crew-field-label', htmlFor: goalId },
+      h(roomKind.goalIcon, { size: 16 }),
+      roomKind.goalLabel),
+    h('textarea', {
+      id: goalId,
+      className: 'crew-goal-input crew-goal-lg',
+      rows: 4,
+      autoFocus: true,
+      placeholder: roomKind.goalPlaceholder,
+      value: goal,
+      onChange: event => setGoal(event.target.value),
+    }))
+
+  const workspaceField = roomKind.workspace.show(null) === false
+    ? null
+    : h('div', { className: 'crew-field' },
+      h('b', null, roomKind.workspace.label),
+      h('button', {
+        type: 'button',
+        className: 'crew-path-row',
+        title: repoPath === '' ? `选择${roomKind.workspace.label}` : repoPath,
+        onClick: () => void chooseDirectory(),
+      },
+      h('span', {
+        className: 'crew-path-value',
+        'data-empty': repoPath === '' ? 'true' : undefined,
+      }, repoPath === '' ? '选择文件夹' : repoPath),
+      h('span', { className: 'crew-path-chevron', 'aria-hidden': 'true' }, h(ChevronDownIcon))),
+      roomKind.workspace.hint === '' ? null : h('p', { className: 'crew-field-hint' }, roomKind.workspace.hint))
+
   const setupBody = h('div', { className: 'crew-dialog-body' },
     receipt === null ? null : h(ReceiptReview, { receipt }),
     handoff === null
-      ? null
+      ? goalField
       : h(HandoffReview, {
         handoff,
         reviewed: handoffReviewed,
@@ -486,49 +522,26 @@ function NewRoomDialog({
         onVerifyMode: proposal === null ? setVerifyMode : null,
         onAcceptanceDraft: proposal === null ? setAcceptanceDraft : null,
       }),
-    h('div', { className: 'crew-field' },
-      h('label', { className: 'crew-field-label', htmlFor: goalId },
-        h(roomKind.goalIcon, { size: 16 }),
-        roomKind.goalLabel),
-      h('textarea', {
-        id: goalId,
-        className: 'crew-goal-input crew-goal-lg',
-        rows: 4,
-        autoFocus: true,
-        placeholder: roomKind.goalPlaceholder,
-        value: goal,
-        onChange: event => setGoal(event.target.value),
-      })),
-    roomKind.workspace.show(null) === false
-      ? null
-      : h('div', { className: 'crew-field' },
-        h('b', null, roomKind.workspace.label),
-        h('button', {
-          type: 'button',
-          className: 'crew-path-row',
-          title: repoPath === '' ? `选择${roomKind.workspace.label}` : repoPath,
-          onClick: () => void chooseDirectory(),
-        },
-        h('span', {
-          className: 'crew-path-value',
-          'data-empty': repoPath === '' ? 'true' : undefined,
-        }, repoPath === '' ? '选择文件夹' : repoPath),
-        h('span', { className: 'crew-path-chevron', 'aria-hidden': 'true' }, h(ChevronDownIcon))),
-        roomKind.workspace.hint === '' ? null : h('p', { className: 'crew-field-hint' }, roomKind.workspace.hint)),
+    roomKind.primaryFields(setupProps),
     h('details', {
       className: 'crew-new-advanced',
       open: advanced,
       onToggle: event => setAdvanced(event.currentTarget.open),
     },
-    h('summary', null, '更多设置'),
-    h('div', { className: 'crew-new-advanced-body' }, roomKind.setupFields(setupProps))),
+    h('summary', null, '更多选项'),
+    h('div', { className: 'crew-new-advanced-body' },
+      h(Fragment, null,
+        roomKind.setupFields(setupProps),
+        workspaceField))),
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-heading' },
         h('h2', null, '新建房间'),
-        h('p', null, choosingType ? '先选一种房间，再说你想做什么。' : roomKind.dialogSubtitle)),
+        h('p', null, choosingType
+          ? '先选一种房间，再说你想做什么。'
+          : handoff !== null ? '这件事从聊天室带过来；先确认分歧，再开工。' : roomKind.dialogSubtitle)),
       h('div', { className: 'crew-dialog-head' },
         h('button', {
           type: 'button',
@@ -576,7 +589,7 @@ function NewRoomDialog({
             className: 'crew-accept crew-dialog-primary',
             disabled: !canStartProposal,
             onClick: () => void start(),
-          }, busy ? '正在创建…' : '开始交付')))
+          }, busy ? '正在创建…' : '开工')))
   )
 }
 

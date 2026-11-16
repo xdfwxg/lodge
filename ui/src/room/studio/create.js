@@ -72,6 +72,75 @@ export const buildStudioRequest = ({
   }
 }
 
+export function VerifyChoice({
+  verifyMode = 'manual',
+  onVerifyMode = () => {},
+  acceptanceDraft = '',
+  onAcceptanceDraft = () => {},
+  disabled = false,
+}) {
+  return h(Fragment, null,
+    h('div', { className: 'crew-choice-row', role: 'group', 'aria-label': '怎么验收' },
+      h('button', {
+        type: 'button',
+        className: 'crew-choice',
+        'data-on': verifyMode === 'manual' ? 'true' : undefined,
+        'aria-pressed': verifyMode === 'manual',
+        disabled,
+        onClick: () => onVerifyMode('manual'),
+      }, '我自己看'),
+      h('button', {
+        type: 'button',
+        className: 'crew-choice',
+        'data-on': verifyMode === 'test' ? 'true' : undefined,
+        'aria-pressed': verifyMode === 'test',
+        disabled,
+        onClick: () => onVerifyMode('test'),
+      }, '跑一条检查')),
+    verifyMode === 'test'
+      ? h('input', {
+        className: 'crew-goal-input',
+        type: 'text',
+        'aria-label': '要跑的检查',
+        placeholder: '例如：npm test',
+        value: acceptanceDraft,
+        disabled,
+        onChange: event => onAcceptanceDraft(event.target.value),
+      })
+      : null)
+}
+
+export function StudioPrimaryFields({
+  seats = DEFAULT_STUDIO_SEATS,
+  showVerify = true,
+  verifyMode = 'manual',
+  onVerifyMode = () => {},
+  acceptanceDraft = '',
+  onAcceptanceDraft = () => {},
+  onAdvanced = () => {},
+}) {
+  return h(Fragment, null,
+    h('div', { className: 'crew-field' },
+      h('div', { className: 'crew-field-head' },
+        h('b', null, '成员'),
+        h('button', { type: 'button', className: 'crew-link', onClick: onAdvanced }, '调整成员与模型')),
+      h('div', { className: 'crew-team-summary' },
+        normalizeSeats(seats).map(seat => h('span', {
+          key: seat.id ?? seat.name,
+          className: 'crew-team-chip',
+          'data-role': seat.role,
+        }, seat.name))),
+      h('p', { className: 'crew-field-hint' }, '默认三人组：规划、执行、验收。')),
+    showVerify
+      ? h('div', { className: 'crew-field' },
+        h('b', null, '怎么验收'),
+        h(VerifyChoice, { verifyMode, onVerifyMode, acceptanceDraft, onAcceptanceDraft }),
+        h('p', { className: 'crew-field-hint' }, verifyMode === 'test'
+          ? '会在房间的工作文件夹里真的跑一遍，结果显示在交付卡上。'
+          : '成员做完后由你确认；想自动检查，就选「跑一条检查」。'))
+      : null)
+}
+
 export function StudioSetupFields({
   seats = DEFAULT_STUDIO_SEATS,
   choices = [],
@@ -80,11 +149,6 @@ export function StudioSetupFields({
   loginBusy = false,
   onLogin,
   onInteraction,
-  verifyMode = 'manual',
-  onVerifyMode = () => {},
-  acceptanceDraft = '',
-  onAcceptanceDraft = () => {},
-  showVerify = true,
   shadowReview = false,
   onShadowReview = () => {},
   recommending = false,
@@ -93,64 +157,30 @@ export function StudioSetupFields({
 }) {
   return h(Fragment, null,
     h('div', { className: 'crew-field' },
-      h('b', null, '团队'),
-      h('p', { className: 'crew-field-hint' }, '默认：规划师、执行官、验收员'),
-      h('details', { className: 'crew-dev-options' },
-        h('summary', null, '换人或换模型'),
-        h(SeatEnginePicker, {
-          seats: normalizeSeats(seats),
-          choices,
-          setChoices,
-          engines,
-          loginBusy,
-          onLogin,
-          onInteraction,
-        }))),
-    showVerify
-      ? h('div', { className: 'crew-field' },
-        h('b', null, '验收'),
-        h('div', { className: 'crew-choice-row', role: 'group', 'aria-label': '验收方式' },
-          h('button', {
-            type: 'button',
-            className: 'crew-choice',
-            'data-on': verifyMode === 'manual' ? 'true' : undefined,
-            'aria-pressed': verifyMode === 'manual',
-            onClick: () => onVerifyMode('manual'),
-          }, '我自己看'),
-          h('button', {
-            type: 'button',
-            className: 'crew-choice',
-            'data-on': verifyMode === 'test' ? 'true' : undefined,
-            'aria-pressed': verifyMode === 'test',
-            onClick: () => onVerifyMode('test'),
-          }, '跑一条检查')),
-        verifyMode === 'test'
-          ? h('input', {
-            className: 'crew-goal-input',
-            type: 'text',
-            'aria-label': '检查命令',
-            placeholder: '例如：npm test',
-            value: acceptanceDraft,
-            onChange: event => onAcceptanceDraft(event.target.value),
-          })
-          : null,
-        h('p', { className: 'crew-field-hint' }, verifyMode === 'test'
-          ? '会在房间工作区里真实运行，结果显示在交付卡上。'
-          : '成员做完后由你确认；想自动检查就选右边。'))
-      : null,
+      h('b', null, '成员与模型'),
+      h(SeatEnginePicker, {
+        seats: normalizeSeats(seats),
+        choices,
+        setChoices,
+        engines,
+        loginBusy,
+        onLogin,
+        onInteraction,
+      })),
     h('label', { className: 'crew-check' },
       h('input', {
         type: 'checkbox',
         checked: shadowReview,
         onChange: event => onShadowReview(event.target.checked),
       }),
-      '第二意见：额外记录一份独立判断'),
+      '第二意见：再让一个模型独立看一遍'),
+    h('p', { className: 'crew-field-hint' }, '多一份独立判断，供你对照。'),
     onRecommend === null ? null : h('div', { className: 'crew-new-recommend' },
       h('button', {
         type: 'button',
         className: 'crew-ghost',
         disabled: recommending || !canRecommend,
         onClick: onRecommend,
-      }, recommending ? '正在排…' : '先让 Lodge 排一版'),
-      h('p', { className: 'crew-field-hint' }, '会多花一点时间，给你阶段和验收建议。')))
+      }, recommending ? '正在出方案…' : '先让 Lodge 出方案'),
+      h('p', { className: 'crew-field-hint' }, '会多花一点时间，给你方案和验收建议。')))
 }

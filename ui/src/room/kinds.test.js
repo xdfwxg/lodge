@@ -5,8 +5,8 @@ import { roomUiKinds, uiKindOfRoom, uiKindOfType } from './kinds.js'
 
 const KEYS = [
   'id', 'owns', 'label', 'teamMode', 'startMode', 'cta',
-  'goalLabel', 'goalIcon', 'workspace', 'statusLine', 'subtitle',
-  'missingVerifier', 'setupFields', 'buildRequest',
+  'goalLabel', 'goalIcon', 'workspace',
+  'missingVerifier', 'primaryFields', 'setupFields', 'buildRequest',
 ]
 
 test('both UI room kinds satisfy the same interface', () => {

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { ChatIsland } from './island.js'
 import { ReceiptIntake } from './receipt-intake.js'
 import { chatView } from './view.js'
@@ -44,4 +45,14 @@ test('a plain chat room has no receipt to show', () => {
   const tree = chatView.transcript({ room: { id: 'room-chat' }, seats: [], actions })
   const [strip] = tree.props.children
   assert.equal(strip.props.receipt, undefined)
+})
+
+test('a typing member says it is thinking without repeating the name', () => {
+  const html = renderToStaticMarkup(chatView.typing({
+    room: { id: 'room-chat', chatBusySeat: 'a', chatWorking: true },
+    seats: [{ id: 'a', name: '甲' }],
+    locked: false,
+  }))
+  assert.match(html, /正在思考/)
+  assert.doesNotMatch(html, /甲 正在思考/)
 })
