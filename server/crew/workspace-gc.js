@@ -40,7 +40,12 @@ export const collectWorkspaceGarbage = ({
 
   for (const room of store.readRooms()) {
     if (room.state !== 'complete' && room.state !== 'stopped') continue
-    const members = workspace.provider(room).pruneMembers(room)
+    let members
+    try {
+      members = workspace.provider(room).pruneMembers(room)
+    } catch {
+      continue
+    }
     const fresh = members.filter(member => !(room.prunedMembers ?? []).includes(member))
     if (fresh.length === 0) continue
     const updated = store.updateRoom(room.id, current => {

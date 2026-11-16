@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { externalAction, pendingApprovals } from './external-actions.js'
+import { reviewExternalAction } from './kernel/live/action-gate.js'
 
 const card = (subtitle, tool = 'Bash') => ({ tool, action: 'exec', subtitle })
 
@@ -47,4 +48,16 @@ test('common option and wrapper forms are still external', () => {
   assert.equal(externalAction(card('env rm -rf build'))?.kind, 'delete')
   assert.equal(externalAction(card('cmd /c del build\\x.js'))?.kind, 'delete')
   assert.equal(externalAction(card('git -C /repo fetch'))?.kind, 'network')
+})
+
+test('the full command survives truncation for approval review', async () => {
+  const long = `${'echo '.repeat(80)} && git push origin main`
+  const action = externalAction(card(long))
+  assert.equal(action.kind, 'push')
+  assert.match(action.command, /git push origin main/)
+  const review = reviewExternalAction({
+    approval: { memberId: 'worker', kind: action.kind, summary: action.summary, command: action.command },
+    room: { members: [{ id: 'worker', role: 'worker' }], constraints: [] },
+  })
+  assert.equal(review.decision, 'review')
 })

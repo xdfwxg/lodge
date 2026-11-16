@@ -27,7 +27,7 @@ const constrains = (room, kind) => {
 }
 
 export const reviewExternalAction = ({ approval, room }) => {
-  const command = typeof approval?.summary === 'string' ? approval.summary : ''
+  const command = typeof approval?.command === 'string' && approval.command !== '' ? approval.command : (typeof approval?.summary === 'string' ? approval.summary : '')
   const role = memberOf(room, approval?.memberId)?.role
   const reasons = []
   let risk = 'low'

@@ -7,6 +7,16 @@ import { decidePermission } from '../../permission.js'
 import { supportsRuntime } from '../../runtime-port.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
+const ANSWERED_KEEP = 500
+const PENDING_LIMIT = 50
+
+// 已回答的卡只用于去重，保留最近一批即可；待确认的卡不能丢，它们还在基座里等人。
+const rememberAnswer = (entry, requestId) => {
+  entry.answeredCards.add(requestId)
+  while (entry.answeredCards.size > ANSWERED_KEEP) {
+    entry.answeredCards.delete(entry.answeredCards.values().next().value)
+  }
+}
 
 export const createLiveApprovals = ({
   store,
@@ -60,6 +70,17 @@ export const createLiveApprovals = ({
   const holdForApproval = async (entry, memberId, card, external, sessionRef) => {
     const room = store.readRoom(entry.roomId)
     if (room === null) return
+    if (pendingApprovals(room).length >= PENDING_LIMIT) {
+      rememberAnswer(entry, card.requestId)
+      if (typeof sessionRef === 'string' && sessionRef !== '') {
+        await engine.answerCard({ sessionRef, requestId: card.requestId, behavior: 'deny' }).catch(() => {})
+      }
+      store.appendMessage(entry.roomId, {
+        kind: 'system',
+        text: `待确认的操作已经有 ${PENDING_LIMIT} 个，这次先拒绝；处理完再继续。`,
+      })
+      return
+    }
     const approval = {
       id: randomUUID(),
       memberId,
@@ -70,6 +91,7 @@ export const createLiveApprovals = ({
       kind: external.kind,
       label: external.label,
       summary: external.summary,
+      ...(typeof external.command === 'string' && external.command !== '' ? { command: external.command } : {}),
       state: 'pending',
       at: Date.now(),
     }
@@ -183,7 +205,7 @@ export const createLiveApprovals = ({
       await holdForApproval(entry, memberId, card, external, cardSession)
       return
     }
-    entry.answeredCards.add(card.requestId)
+    rememberAnswer(entry, card.requestId)
     try {
       const result = await engine.answerCard({
         sessionRef: cardSession,
@@ -222,7 +244,7 @@ export const createLiveApprovals = ({
     try {
       const result = await engine.answerCard({ sessionRef, requestId, behavior: 'answer', message: text })
       if (result?.ok === false) throw new Error(result.error ?? '基座没有接受这个回答')
-      entry.answeredCards.add(requestId)
+      rememberAnswer(entry, requestId)
       store.appendMessage(roomId, {
         kind: 'system',
         text: `已回答${memberNameOf(room, memberId)}的问题。`,
@@ -281,7 +303,7 @@ export const createLiveApprovals = ({
       return { ok: false, reason: `房间已经不在等这次确认：${error?.message ?? error}` }
     }
     entry.heldCards.delete(approval.requestId)
-    entry.answeredCards.add(approval.requestId)
+    rememberAnswer(entry, approval.requestId)
     const state = decision === 'allow' ? 'allowed' : 'denied'
     const updated = setApprovalState(roomId, approvalId, state)
     store.appendMessage(roomId, {

@@ -44,6 +44,42 @@ const setup = trust => {
   return { approvals, entry, answered, events, messages, room: () => room }
 }
 
+test('answered cards keep only the latest batch', async () => {
+  const ctx = setup('verify')
+  for (let index = 0; index < 501; index += 1) {
+    await ctx.approvals.answerCard({
+      entry: ctx.entry,
+      roomId: 'room-1',
+      memberId: 'worker',
+      requestId: `q${index}`,
+      message: '继续',
+      refresh: () => {},
+    })
+  }
+  assert.equal(ctx.entry.answeredCards.size, 500)
+  assert.equal(ctx.entry.answeredCards.has('q0'), false)
+  assert.equal(ctx.entry.answeredCards.has('q500'), true)
+})
+
+test('a room at the pending limit denies the next external action', async () => {
+  const ctx = setup('verify')
+  ctx.room().approvals = Array.from({ length: 50 }, (_, index) => ({
+    id: `approval-${index}`,
+    requestId: `request-${index}`,
+    memberId: 'worker',
+    state: 'pending',
+  }))
+  await ctx.approvals.answerPermission(ctx.entry, 'worker', {
+    card: { requestType: 'permission', requestId: 'request-new', action: 'exec', tool: 'Bash', subtitle: 'git push origin main' },
+  }, () => {})
+  assert.deepEqual(ctx.answered.at(-1), {
+    sessionRef: 'thread-worker',
+    requestId: 'request-new',
+    behavior: 'deny',
+  })
+  assert.match(ctx.messages.at(-1).text, /待确认的操作已经有 50 个/)
+})
+
 test('a question card is answered once in the member thread', async () => {
   const ctx = setup('verify')
   const result = await ctx.approvals.answerCard({

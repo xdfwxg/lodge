@@ -206,6 +206,7 @@ test('a non-git directory is edited in place without a worker copy', async () =>
   const source = join(root, 'docs')
   mkdirSync(source, { recursive: true })
   writeFileSync(join(source, 'README.md'), '# docs\n')
+  writeFileSync(join(source, '.env'), 'TOKEN=secret\n')
   const previousRoot = process.env.CREW_WORKSPACE_ROOT
   const previousCopy = process.env.CREW_COPY_ROOT
   process.env.CREW_WORKSPACE_ROOT = join(root, 'workspace')
@@ -230,7 +231,11 @@ test('a non-git directory is edited in place without a worker copy', async () =>
     assert.deepEqual(verifier.toolSurface, ['read'])
     assert.equal(existsSync(join(source, '.git')), false)
     assert.equal(existsSync(join(source, 'README.md')), true)
-    assert.equal(existsSync(join(root, 'copies')), false)
+    const verifierPath = room.worktrees.verifier
+    assert.notEqual(verifierPath, source)
+    assert.equal(existsSync(join(verifierPath, 'README.md')), true)
+    assert.equal(existsSync(join(verifierPath, '.env')), false)
+    assert.equal(existsSync(join(root, 'copies')), true)
   } finally {
     if (previousRoot === undefined) delete process.env.CREW_WORKSPACE_ROOT
     else process.env.CREW_WORKSPACE_ROOT = previousRoot

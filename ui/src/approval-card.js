@@ -13,6 +13,11 @@ export function ApprovalCard({ approval, onDecide }) {
       h('div', { className: 'crew-kv' },
         h('span', null, '要做什么'),
         h('code', { className: 'crew-code' }, approval.summary)),
+      approval.command && approval.command !== approval.summary
+        ? h('details', { className: 'crew-fold' },
+          h('summary', null, '完整命令'),
+          h('pre', { className: 'crew-code' }, approval.command))
+        : null,
       approval.gate
         ? h('div', { className: 'crew-approval-gate', 'data-decision': approval.gate.decision },
           h('b', null, approval.gate.decision === 'deny'

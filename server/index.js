@@ -126,6 +126,10 @@ const MIME = {
   '.woff2': 'font/woff2',
 }
 
+const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+const htmlHeaders = { 'content-type': MIME['.html'], 'content-security-policy': CSP }
+
 const serveStatic = (req, res, pathname) => {
   const dist = join(root, 'ui', 'dist')
   if (!existsSync(dist)) {
@@ -137,11 +141,12 @@ const serveStatic = (req, res, pathname) => {
   const file = join(dist, wanted)
   if (!file.startsWith(dist) || !existsSync(file)) {
     const fallback = join(dist, 'index.html')
-    res.writeHead(200, { 'content-type': MIME['.html'] })
+    res.writeHead(200, htmlHeaders)
     res.end(readFileSync(fallback))
     return
   }
-  res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' })
+  const type = MIME[extname(file)] ?? 'application/octet-stream'
+  res.writeHead(200, type.startsWith('text/html') ? { ...htmlHeaders, 'content-type': type } : { 'content-type': type })
   res.end(readFileSync(file))
 }
 

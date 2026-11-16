@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, session, shell } from 'electron'
 import { execFileSync, spawn } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -435,8 +435,13 @@ const buildMenu = () => {
     {
       label: '视图',
       submenu: [
-        { role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' },
-        { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
+        ...(app.isPackaged
+          ? []
+          : [
+            { role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' },
+            { type: 'separator' },
+          ]),
+        { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
         { type: 'separator' }, { role: 'togglefullscreen' },
       ],
     },
@@ -473,8 +478,10 @@ const createWindow = port => {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      devTools: !app.isPackaged,
     },
   })
+  window.webContents.on('will-attach-webview', event => event.preventDefault())
   const origin = `http://127.0.0.1:${port}`
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (sameOrigin(url, origin)) return { action: 'allow' }
@@ -521,6 +528,11 @@ const boot = async () => {
     const error = await shell.openPath(verdict.path)
     return error === '' ? { ok: true } : { ok: false, error }
   })
+  const allowedPermissions = new Set(['clipboard-sanitized-write'])
+  session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
+    callback(allowedPermissions.has(permission))
+  })
+  session.defaultSession.setPermissionCheckHandler((_contents, permission) => allowedPermissions.has(permission))
   ipcMain.handle('lodge:choose-directory', async () => {
     const options = {
       title: '选择 Lodge 的项目目录',

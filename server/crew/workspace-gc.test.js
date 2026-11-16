@@ -36,6 +36,22 @@ test('rewind branches are pruned for active rooms too', () => {
   assert.deepEqual(calls, [{ path: '/repo', ttlMs: 5_000, now: 100_000 }])
 })
 
+test('a room with an unknown provider is skipped instead of failing GC', () => {
+  const workspace = {
+    default: { scratchRoot: () => '/nonexistent' },
+    provider: () => {
+      throw new Error('未知的工作区 provider：demo')
+    },
+  }
+  const store = {
+    readRooms: () => [{ id: 'room-sample', state: 'complete', workspace: { provider: 'demo' } }],
+    readRoom: () => null,
+    updateRoom: () => null,
+  }
+  const result = collectWorkspaceGarbage({ store, workspace, files: { exists: () => false } })
+  assert.equal(result.pruned, 0)
+})
+
 test('old orphan worktree dirs are removed; known rooms are kept', () => {
   const root = mkdtempSync(join(tmpdir(), 'crew-gc-'))
   const orphan = join(root, 'orphan')

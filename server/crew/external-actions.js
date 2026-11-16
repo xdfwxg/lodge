@@ -43,6 +43,7 @@ const clip = (text, limit = 240) => (text.length > limit ? `${text.slice(0, limi
 const TOOL_RULES = [
   { kind: 'network', label: '访问网络', pattern: /web|fetch|search|browser/i },
   { kind: 'message', label: '对外发送', pattern: /slack|mail|message|email|telegram|discord|webhook/i },
+  { kind: 'network', label: '外部工具', pattern: /mcp/i },
 ]
 
 export const externalAction = card => {
@@ -50,14 +51,14 @@ export const externalAction = card => {
   if (command !== '') {
     for (const rule of RULES) {
       if (rule.pattern.test(command)) {
-        return { kind: rule.kind, label: rule.label, summary: clip(command) }
+        return { kind: rule.kind, label: rule.label, summary: clip(command), command: clip(command, 4000) }
       }
     }
     return null
   }
   const tool = String(card?.tool ?? '')
   for (const rule of TOOL_RULES) {
-    if (rule.pattern.test(tool)) return { kind: rule.kind, label: rule.label, summary: clip(tool) }
+    if (rule.pattern.test(tool)) return { kind: rule.kind, label: rule.label, summary: clip(tool), command: '' }
   }
   return null
 }

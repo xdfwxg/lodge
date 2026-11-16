@@ -51,6 +51,7 @@ test('the approval card shows the seat and external command with only two decisi
       memberName: '执行',
       label: '推送到远端',
       summary: 'git push origin main',
+      command: 'git push origin main --force',
       gate: { decision: 'review', reasons: ['发布或推送远端'] },
     },
     onDecide: decision => calls.push(decision),
@@ -58,6 +59,8 @@ test('the approval card shows the seat and external command with only two decisi
   assert.match(text(tree), /有个操作要你确认/)
   assert.match(text(tree), /执行/)
   assert.match(text(tree), /git push origin main/)
+  assert.match(text(tree), /完整命令/)
+  assert.match(text(tree), /--force/)
   assert.match(text(tree), /系统判断：拿不准/)
   assert.match(text(tree), /发布或推送远端/)
   assert.deepEqual(buttons(tree).map(button => text(button)), ['先别做', '可以做'])
