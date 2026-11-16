@@ -8,34 +8,45 @@ import { basename, dirname, join } from 'node:path'
 // 非交付内容不复制、不进文件清单：版本控制与本地运行文件都不是交付物。
 const EXCLUDED = new Set(['.git', '.crew', '.env', '.env.local', 'node_modules'])
 
-export const syncLocalEnvironment = (source, target) => {
+const nodeModulesMode = () => {
+  const mode = process.env.CREW_NODE_MODULES_MODE
+  return ['copy', 'link', 'none'].includes(mode) ? mode : 'copy'
+}
+
+// 依赖默认复制而不是 symlink：共享源目录的 node_modules 会让一个工作区的写入穿过隔离。
+export const syncLocalEnvironment = (source, target, { copyEnv = true, nodeModules = nodeModulesMode() } = {}) => {
   const copied = []
   const linked = []
   const warnings = []
-  for (const name of ['.env', '.env.local']) {
-    const from = join(source, name)
-    const to = join(target, name)
-    if (!existsSync(from) || existsSync(to)) continue
-    try {
-      copyFileSync(from, to)
-      chmodSync(to, statSync(from).mode & 0o777)
-      copied.push(name)
-    } catch (error) {
-      warnings.push(`${name}: ${error?.message ?? error}`)
+  if (copyEnv) {
+    for (const name of ['.env', '.env.local']) {
+      const from = join(source, name)
+      const to = join(target, name)
+      if (!existsSync(from) || existsSync(to)) continue
+      try {
+        copyFileSync(from, to)
+        chmodSync(to, statSync(from).mode & 0o777)
+        copied.push(name)
+      } catch (error) {
+        warnings.push(`${name}: ${error?.message ?? error}`)
+      }
     }
   }
-  for (const name of ['node_modules']) {
-    const from = join(source, name)
-    const to = join(target, name)
-    if (!existsSync(from) || existsSync(to)) continue
+  const from = join(source, 'node_modules')
+  const to = join(target, 'node_modules')
+  if (nodeModules !== 'none' && existsSync(from) && !existsSync(to)) {
     try {
-      symlinkSync(from, to, 'dir')
-      linked.push(name)
+      if (nodeModules === 'link') {
+        symlinkSync(from, to, 'dir')
+        linked.push('node_modules')
+      } else {
+        cpSync(from, to, { recursive: true, force: true })
+      }
     } catch (error) {
-      warnings.push(`${name}: ${error?.message ?? error}`)
+      warnings.push(`node_modules: ${error?.message ?? error}`)
     }
   }
-  return { copied, linked, warnings }
+  return { copied, linked, warnings, nodeModules }
 }
 
 export const copyWorkspace = (source, target) => {

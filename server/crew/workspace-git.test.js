@@ -71,7 +71,7 @@ test('prepares isolated member workspaces and refreshes the verifier copy', () =
   }
 })
 
-test('execution members get a local env copy, a dependency link and a port hint', () => {
+test('execution members get env and dependencies without sharing the source tree', () => {
   const sourceRepo = repo()
   writeFileSync(join(sourceRepo, '.gitignore'), '.env\nnode_modules/\n')
   execFileSync('git', ['add', '.gitignore'], { cwd: sourceRepo })
@@ -91,10 +91,12 @@ test('execution members get a local env copy, a dependency link and a port hint'
     const verifier = workspaces.members.verifier.path
     const planner = workspaces.members.planner.path
     assert.equal(readFileSync(join(executor, '.env'), 'utf8'), 'TOKEN=ok\n')
-    assert.equal(readFileSync(join(verifier, '.env'), 'utf8'), 'TOKEN=ok\n')
+    assert.equal(existsSync(join(verifier, '.env')), false)
     assert.equal(existsSync(join(planner, '.env')), false)
-    assert.equal(lstatSync(join(executor, 'node_modules')).isSymbolicLink(), true)
-    assert.equal(lstatSync(join(verifier, 'node_modules')).isSymbolicLink(), true)
+    assert.equal(lstatSync(join(executor, 'node_modules')).isSymbolicLink(), false)
+    assert.equal(lstatSync(join(verifier, 'node_modules')).isSymbolicLink(), false)
+    writeFileSync(join(executor, 'node_modules', 'x.js'), 'module.exports=2\n')
+    assert.equal(readFileSync(join(sourceRepo, 'node_modules', 'x.js'), 'utf8'), 'module.exports=1\n')
     assert.equal(new Set(Object.values(workspaces.ports)).size, Object.values(workspaces.ports).length)
     assert.doesNotMatch(execFileSync('git', ['status', '--porcelain'], { cwd: executor, encoding: 'utf8' }), /\.lodge/)
     execFileSync('git', ['add', '-A'], { cwd: executor })
@@ -286,5 +288,23 @@ test('parallel workers merge into an integration worktree and conflicts stay vis
     else process.env.CREW_WORKTREE_ROOT = previous
     rmSync(sourceRepo, { recursive: true, force: true })
     rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
+test('pruning never deletes outside the workspace root', () => {
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-prune-root-'))
+  const outside = mkdtempSync(join(tmpdir(), 'crew-outside-'))
+  const previousRoot = process.env.CREW_WORKTREE_ROOT
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  try {
+    writeFileSync(join(outside, 'keep.txt'), 'keep\n')
+    const pruned = pruneMembers({ worktrees: { worker: outside }, prunedMembers: [] })
+    assert.deepEqual(pruned, [])
+    assert.equal(existsSync(join(outside, 'keep.txt')), true)
+  } finally {
+    if (previousRoot === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previousRoot
+    rmSync(worktreeRoot, { recursive: true, force: true })
+    rmSync(outside, { recursive: true, force: true })
   }
 })

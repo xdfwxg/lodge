@@ -3,6 +3,7 @@ import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { copyEntry, copyWorkspace, manifestDigest, manifestOf, syncLocalEnvironment } from './workspace-fs.js'
 import { chooseFreePort } from './workspace-ports.js'
+import { isWithin } from './workspace-paths.js'
 
 // 普通目录 provider：复制隔离、文件清单证据、复制合并；不产生分支或 commit。
 export const id = 'plain'
@@ -80,7 +81,7 @@ export const prepareRoom = ({ source, short, members }) => {
     const path = join(base, member.id)
     copyWorkspace(source, path)
     byMember[member.id] = { path, kind: 'copy' }
-    environment[member.id] = syncLocalEnvironment(source, path)
+    environment[member.id] = syncLocalEnvironment(source, path, { copyEnv: member.role !== 'verifier' })
     ports[member.id] = takePort()
   }
   const workers = members.filter(member => member.role === 'worker')
@@ -125,13 +126,14 @@ export const addMember = ({ room, member }) => {
     branch: null,
     kind: 'copy',
     port: nextMemberPort(room),
-    environment: syncLocalEnvironment(source, path),
+    environment: syncLocalEnvironment(source, path, { copyEnv: member.role !== 'verifier' }),
   }
 }
 
 export const removeMember = ({ room, member }) => {
   const path = room?.worktrees?.[member?.id ?? member]
   if (typeof path !== 'string' || path === '') return false
+  if (!isWithin(scratchRoot(), path)) return false
   rmSync(path, { recursive: true, force: true })
   return true
 }
@@ -171,7 +173,7 @@ export const refreshReviewCopy = ({ path, from }) => {
   if (typeof from !== 'string' || from === '' || path === from) return
   rmSync(path, { recursive: true, force: true })
   copyWorkspace(from, path)
-  syncLocalEnvironment(from, path)
+  syncLocalEnvironment(from, path, { copyEnv: false })
 }
 
 export const isolatedCopy = ({ source }) => {

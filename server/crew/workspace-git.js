@@ -7,6 +7,7 @@ import { roomDir, roomRootOf } from './paths.js'
 import { syncLocalEnvironment } from './workspace-fs.js'
 import { chooseFreePort } from './workspace-ports.js'
 import { workerIds } from './room-members.js'
+import { isWithin } from './workspace-paths.js'
 
 // 房间本地的运行文件不是交付内容：不进候选 commit、不进验收 diff。
 export const LOCAL_ONLY = ['.crew', '.lodge', '.env', '.env.local', 'node_modules']
@@ -164,7 +165,7 @@ export const prepareRoom = ({ source, short, members }) => {
       git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
       ensureLocalExcludes(path, base)
       byMember[member.id] = { path, kind: 'verify' }
-      environment[member.id] = syncLocalEnvironment(source, path)
+      environment[member.id] = syncLocalEnvironment(source, path, { copyEnv: false })
       ports[member.id] = takePort()
       continue
     }
@@ -234,7 +235,7 @@ export const addMember = ({ room, member }) => {
     branch,
     kind: member.role === 'worker' ? 'worktree' : member.role === 'verifier' ? 'verify' : 'clone',
     port: nextMemberPort(room),
-    environment: syncLocalEnvironment(source, path),
+    environment: syncLocalEnvironment(source, path, { copyEnv: member.role !== 'verifier' }),
   }
 }
 
@@ -243,6 +244,7 @@ const memberPathOf = (room, member) => room?.worktrees?.[member?.id ?? member]
 export const removeMember = ({ room, member }) => {
   const path = memberPathOf(room, member)
   if (typeof path !== 'string' || path === '') return false
+  if (!isWithin(scratchRoot(), path)) return false
   try {
     git(room.sourceRepo, ['worktree', 'remove', '--force', path])
   } catch {
@@ -345,7 +347,7 @@ export const integrate = ({ path, branch }) => {
 export const refreshReviewCopy = ({ path, branch, source }) => {
   git(path, ['checkout', '--detach', '--force', branch])
   git(path, ['clean', '-fdx'])
-  if (typeof source === 'string' && source !== '') syncLocalEnvironment(source, path)
+  if (typeof source === 'string' && source !== '') syncLocalEnvironment(source, path, { copyEnv: false })
 }
 
 // 复核前把执行改动提交成候选；房间运行记录与本地环境不进入候选 commit。
@@ -382,6 +384,7 @@ export const pruneMembers = room => {
   for (const [member, path] of Object.entries(room.worktrees ?? {})) {
     if (typeof path !== 'string' || path === '') continue
     const target = resolve(path)
+    if (!isWithin(scratchRoot(), target)) continue
     if (keep !== null && target === keep) continue
     if (pruned.has(member)) continue
     if (!existsSync(target)) {

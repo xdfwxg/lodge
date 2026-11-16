@@ -40,3 +40,11 @@ test('only pending approvals need attention', () => {
   assert.deepEqual(pendingApprovals(room).map(item => item.id), ['a'])
   assert.deepEqual(pendingApprovals({}), [])
 })
+
+test('common option and wrapper forms are still external', () => {
+  assert.equal(externalAction(card('git -C /repo push origin main'))?.kind, 'push')
+  assert.equal(externalAction(card('npm --prefix . install'))?.kind, 'install')
+  assert.equal(externalAction(card('env rm -rf build'))?.kind, 'delete')
+  assert.equal(externalAction(card('cmd /c del build\\x.js'))?.kind, 'delete')
+  assert.equal(externalAction(card('git -C /repo fetch'))?.kind, 'network')
+})

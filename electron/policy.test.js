@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { externalUrl, openablePath, sameOrigin } from './policy.mjs'
+import { externalUrl, openablePath, runtimeBinary, sameOrigin } from './policy.mjs'
 
 test('sameOrigin rejects userinfo tricks', () => {
   const origin = 'http://127.0.0.1:8787'
@@ -42,6 +42,21 @@ test('openable paths exclude executables and app bundles', () => {
     assert.equal(openablePath(app).ok, false)
     assert.equal(openablePath(join(root, 'missing')).ok, false)
     assert.equal(openablePath('').ok, false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('runtime binaries cannot escape their directory', () => {
+  const root = mkdtempSync(join(tmpdir(), 'lodge-runtime-'))
+  try {
+    const runtime = join(root, 'pi')
+    mkdirSync(runtime)
+    writeFileSync(join(runtime, 'pi'), '#!/bin/sh\n')
+    assert.equal(runtimeBinary(runtime, 'pi'), realpathSync(join(runtime, 'pi')))
+    assert.equal(runtimeBinary(runtime, '../outside'), null)
+    assert.equal(runtimeBinary(runtime, join(root, 'outside')), null)
+    assert.equal(runtimeBinary(runtime, 'missing'), null)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

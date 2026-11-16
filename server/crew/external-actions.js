@@ -3,17 +3,17 @@ const RULES = [
   {
     kind: 'push',
     label: '推送到远端',
-    pattern: /\bgit\s+(?:push|send-email)\b|\bgh\s+release\s+(?:create|upload)\b|\bnpm\s+publish\b|\b(?:pnpm|yarn)\s+publish\b|\bcargo\s+publish\b|\btwine\s+upload\b/i,
+    pattern: /\bgit\b[^\n]*\bpush\b|\bgh\s+release\s+(?:create|upload)\b|\bnpm\s+publish\b|\b(?:pnpm|yarn)\s+publish\b|\bcargo\s+publish\b|\btwine\s+upload\b/i,
   },
   {
     kind: 'install',
     label: '安装或更新依赖',
-    pattern: /\b(?:npm|pnpm|yarn)\s+(?:i|install|add|ci)\b|\b(?:npx|bunx)\s+|\bpip3?\s+install\b|\bpython3?\s+-m\s+pip\s+install\b|\buv\s+(?:pip\s+)?(?:install|add)\b|\b(?:brew|apt|apt-get|dnf|yum|apk|choco|winget|scoop|conda|gem|cargo|go)\s+(?:install|add)\b|\b(?:dotnet|composer)\s+(?:add|require)\b|\bbundle\s+install\b/i,
+    pattern: /\b(?:npm|pnpm|yarn)\b[^\n]*\b(?:i|install|add|ci)\b|\b(?:npx|bunx)\s+|\bpip3?\s+install\b|\bpython3?\s+-m\s+pip\s+install\b|\buv\s+(?:pip\s+)?(?:install|add)\b|\b(?:brew|apt|apt-get|dnf|yum|apk|choco|winget|scoop|conda|gem|cargo|go)\s+(?:install|add)\b|\b(?:dotnet|composer)\s+(?:add|require)\b|\bbundle\s+install\b/i,
   },
   {
     kind: 'delete',
     label: '删除文件',
-    pattern: /(?:^|[;&|]\s*)(?:rm|rmdir|unlink|shred|trash|del|rd)\s|\bfind\b[^\n]*-delete\b|\bgit\s+clean\b|\bRemove-Item\b/i,
+    pattern: /(?:^|[;&|]\s*)(?:(?:env|command|xargs)\s+)*(?:rm|rmdir|unlink|shred|trash)\s|\b(?:del|rd)\s|\bfind\b[^\n]*-delete\b|\bgit\b[^\n]*\bclean\b|\bRemove-Item\b/i,
   },
   {
     kind: 'message',
@@ -28,7 +28,7 @@ const RULES = [
   {
     kind: 'network',
     label: '访问网络或远端',
-    pattern: /\b(?:curl|wget|ssh|scp|sftp|rsync|netcat|telnet|ping)\b|\bnc\s|\bgit\s+(?:clone|fetch|pull|remote|ls-remote|submodule)\b|\bgh\s+|\b(?:docker|podman)\s+(?:push|pull|login|run)\b|\b(?:kubectl|helm|terraform|aws|gcloud|az)\s/i,
+    pattern: /\b(?:curl|wget|ssh|scp|sftp|rsync|netcat|telnet|ping)\b|\bnc\s|\bgit\b[^\n]*\b(?:clone|fetch|pull|remote|ls-remote|submodule)\b|\bgh\s+|\b(?:docker|podman)\s+(?:push|pull|login|run)\b|\b(?:kubectl|helm|terraform|aws|gcloud|az)\s/i,
   },
 ]
 

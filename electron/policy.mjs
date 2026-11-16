@@ -1,5 +1,5 @@
 import { realpathSync, statSync } from 'node:fs'
-import { basename, extname } from 'node:path'
+import { basename, extname, isAbsolute, relative, resolve } from 'node:path'
 
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:'])
 const BLOCKED_EXTENSIONS = new Set([
@@ -52,4 +52,26 @@ export const openablePath = (target, { stat = statSync, realpath = realpathSync 
     return { ok: false, error: '不能直接打开这个类型的文件' }
   }
   return { ok: true, path: file }
+}
+
+// runtime 包里的 binary 必须留在自己的目录里，不能借 ../ 或绝对路径执行外部程序。
+export const runtimeBinary = (dir, binary, { stat = statSync, realpath = realpathSync } = {}) => {
+  if (typeof dir !== 'string' || dir === '') return null
+  if (typeof binary !== 'string' || binary.trim() === '' || isAbsolute(binary)) return null
+  const root = realpath(dir)
+  const target = resolve(root, binary)
+  let real
+  try {
+    real = realpath(target)
+  } catch {
+    return null
+  }
+  const rel = relative(root, real)
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return null
+  try {
+    if (!stat(real).isFile()) return null
+  } catch {
+    return null
+  }
+  return real
 }

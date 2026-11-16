@@ -75,7 +75,13 @@ export const createLiveApprovals = ({
     }
     approval.gate = reviewExternalAction({ approval, room })
     const updated = store.updateRoom(entry.roomId, current => {
-      current.approvals = [...(current.approvals ?? []), approval].slice(-20)
+      const existing = current.approvals ?? []
+      // pending 不能被历史截断：截掉的卡在基座还在等，但人已经看不到。
+      current.approvals = [
+        ...existing.filter(item => item?.state === 'pending'),
+        ...existing.filter(item => item?.state !== 'pending').slice(-20),
+        approval,
+      ]
       return {
         events: [{
           type: 'approval.requested',
@@ -124,7 +130,19 @@ export const createLiveApprovals = ({
     const room = store.readRoom(roomId)
     const pending = pendingApprovals(room)
     if (pending.length === 0) return null
-    for (const approval of pending) entry?.heldCards.delete(approval.requestId)
+    for (const approval of pending) {
+      entry?.heldCards.delete(approval.requestId)
+      const target = entry?.members.get(approval.memberId)
+      const sessionRef = approval.sessionRef ?? target?.sessionRef
+      if (typeof sessionRef === 'string' && sessionRef !== '') {
+        // 本地卡作废时也告诉基座，否则它会一直等一个永远不会来的回答。
+        void engine.answerCard({
+          sessionRef,
+          requestId: approval.requestId,
+          behavior: 'deny',
+        }).catch(() => {})
+      }
+    }
     const updated = store.updateRoom(roomId, current => {
       const now = Date.now()
       for (const approval of current.approvals ?? []) {
@@ -224,6 +242,10 @@ export const createLiveApprovals = ({
     const approval = pendingApprovals(room).find(item => item.id === approvalId)
     if (approval === undefined) return { ok: false, reason: '没有待确认的操作' }
     if (entry.heldCards.get(approval.requestId) !== approvalId) {
+      const expired = setApprovalState(roomId, approvalId, 'expired')
+      store.appendMessage(roomId, { kind: 'system', text: `这个操作已经失效：${approval.summary}` })
+      if (expired !== null) emit('room', expired)
+      resumeRoom(roomId, '这个操作已经失效，房间已恢复。')
       return { ok: false, reason: '这个操作已经失效，房间没在等这次确认' }
     }
     const target = entry.members.get(approval.memberId)

@@ -247,3 +247,31 @@ test('a direct-workspace verifier loses exec', async () => {
     ctx.close()
   }
 })
+
+test('a detached room denies its pending card instead of leaving the base waiting', async () => {
+  const ctx = await setup()
+  try {
+    ctx.permission('git push origin main')
+    await tick()
+    const approval = ctx.room().approvals.find(item => item.state === 'pending')
+    ctx.live.detach('room-1')
+    await tick()
+    assert.ok(ctx.answers.some(answer => answer.requestId === approval.requestId && answer.behavior === 'deny'))
+    assert.equal(ctx.room().approvals.find(item => item.id === approval.id).state, 'expired')
+  } finally {
+    ctx.close()
+  }
+})
+
+test('pending approvals are never dropped by the history cap', async () => {
+  const ctx = await setup()
+  try {
+    for (let index = 0; index < 21; index += 1) ctx.permission(`git push origin branch-${index}`)
+    await tick()
+    const pending = ctx.room().approvals.filter(item => item.state === 'pending')
+    assert.equal(pending.length, 21)
+    assert.equal(ctx.room().approvals.length, 21)
+  } finally {
+    ctx.close()
+  }
+})

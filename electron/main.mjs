@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, write
 import { createServer } from 'node:net'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
-import { externalUrl, openablePath, sameOrigin } from './policy.mjs'
+import { externalUrl, openablePath, runtimeBinary, sameOrigin } from './policy.mjs'
 
 const APP_NAME = 'Lodge'
 const DEFAULT_PORT = 8787
@@ -125,8 +125,8 @@ const readRuntime = dir => {
     const manifest = JSON.parse(readFileSync(join(dir, 'runtime.json'), 'utf8'))
     if (typeof manifest?.id !== 'string' || !RUNTIME_ID.test(manifest.id)) return null
     if (typeof manifest.binary !== 'string' || manifest.binary === '') return null
-    const binaryPath = join(dir, manifest.binary)
-    if (!existsSync(binaryPath)) return null
+    const binaryPath = runtimeBinary(dir, manifest.binary)
+    if (binaryPath === null) return null
     return { ...manifest, dir, binaryPath }
   } catch {
     return null
@@ -336,11 +336,11 @@ const startServer = async () => {
 }
 
 const stopChild = child => {
-  if (child === null || child.killed) return
+  if (child === null || child.exitCode !== null || child.signalCode !== null) return
   try {
     child.kill('SIGTERM')
     setTimeout(() => {
-      if (!child.killed) child.kill('SIGKILL')
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
     }, 2_000).unref()
   } catch (error) {
     log(`stop failed: ${error?.message ?? error}`)
