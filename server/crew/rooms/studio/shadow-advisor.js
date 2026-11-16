@@ -4,6 +4,7 @@ const clip = (value, max) => (typeof value === 'string' ? value.slice(0, max) : 
 
 const noticeText = (host, kind) => {
   if (kind === 'unavailable') return '影子评审开着，但 Lodge 没有配置外部 advisor；这次没有外部意见。'
+  if (kind === 'failed') return '影子评审这次没取回意见；验收不受影响。'
   if (kind === 'consent') {
     return `影子评审需要先确认外部服务${host === '' ? '' : `（${host}）`}：这间房没有记录过向它发送证据和 diff 的确认，这次跳过。`
   }
@@ -11,7 +12,13 @@ const noticeText = (host, kind) => {
 }
 
 const ensureNotice = ({ store, roomId, kind, host }) => {
-  const metaKey = kind === 'privacy' ? 'advisorNotice' : kind === 'unavailable' ? 'advisorUnavailable' : 'advisorConsentNotice'
+  const metaKey = kind === 'privacy'
+    ? 'advisorNotice'
+    : kind === 'unavailable'
+      ? 'advisorUnavailable'
+      : kind === 'failed'
+        ? 'advisorFailed'
+        : 'advisorConsentNotice'
   const seen = store.readMessages(roomId).some(message => message.meta?.[metaKey] === true)
   if (seen) return
   store.appendMessage(roomId, {
@@ -75,6 +82,10 @@ export const recordShadowAdvice = async ({
   }
   ensureNotice({ store, roomId, kind: 'privacy', host })
   const result = await advisor.advice(reviewPayload({ room, stage, evidence, manual }))
+  if (result?.available !== true) {
+    ensureNotice({ store, roomId, kind: 'failed', host })
+    return result
+  }
   const lines = Array.isArray(result?.advice) ? result.advice : []
   if (lines.length === 0) return result
   const updated = store.updateRoom(roomId, current => {

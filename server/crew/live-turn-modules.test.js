@@ -736,3 +736,27 @@ test('shadow review asks for consent when the advisor host changed', async () =>
   assert.match(notice.text, /new\.example/)
   assert.equal(store.readRoom().advisorShadow, undefined)
 })
+
+test('shadow review says when the advisor call failed', async () => {
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, advisorConsent: { host: 'advisor.example' } })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: 'm2' }),
+    advisor: {
+      available: true,
+      describe: () => ({ available: true, host: 'advisor.example' }),
+      advice: async () => ({ available: false, advice: [], error: 'timeout' }),
+    },
+  })
+  await review.request(0)
+  await review.shadowSettled()
+  assert.ok(store.messages.some(message => message.meta?.advisorFailed === true))
+  assert.equal(store.readRoom().advisorShadow, undefined)
+})
