@@ -15,10 +15,13 @@ const must = (label, condition) => {
 const lodge = read('Lodge.md')
 const architecture = read('架构升级.md')
 const feedback = read('README.md')
+const operations = read('docs/operations.md')
 
 must('Lodge.md states the room, member and body triad', lodge.includes('房间（Room）是本体') && lodge.includes('Bot 是这个人现在的身体'))
 must('Lodge.md states the assignment line', lodge.includes('一条 Assignment 一条记录'))
 must('Lodge.md keeps the document rule', lodge.includes('## 文档：少而准'))
+must('Lodge.md keeps the shadow review position', lodge.includes('## 影子评审：只在签字前出现') && lodge.includes('机制不常驻'))
+must('operations keeps shadow review in the signoff card', operations.includes('签字卡里') && operations.includes('重新确认影子评审'))
 must('架构升级.md explains the layers', architecture.includes('## 分层'))
 must('架构升级.md explains assignments', architecture.includes('## Assignment'))
 must('架构升级.md keeps the upgrade log', architecture.includes('## 升级记录'))
