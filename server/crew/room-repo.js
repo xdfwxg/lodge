@@ -1,4 +1,4 @@
-import { closeSync, fsyncSync, openSync, writeSync } from 'node:fs'
+import { closeSync, existsSync, fsyncSync, openSync, readFileSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
 import { roomDir, roomRootOf } from './paths.js'
@@ -27,6 +27,21 @@ export const appendTranscript = (room, message) => {
   } finally {
     closeSync(fd)
   }
+}
+
+// transcript 是崩溃恢复日志与可读镜像；SQLite 才是房间、消息和交接的真相。
+export const readTranscript = room => {
+  const file = join(roomDir(room), 'transcript.jsonl')
+  if (!existsSync(file)) return []
+  const messages = []
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    if (line.trim() === '') continue
+    try {
+      const message = JSON.parse(line)
+      if (typeof message?.id === 'string' && message.id !== '') messages.push(message)
+    } catch {}
+  }
+  return messages
 }
 
 // 治理事件镜像：clone 房间时不只拿讨论，也拿阶段、复核、审批与提交的轨迹。

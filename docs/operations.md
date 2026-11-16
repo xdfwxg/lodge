@@ -160,17 +160,43 @@ ADVISOR_URL=http://127.0.0.1:8798/evaluate
 ## 数据、日志与恢复
 
 - 源码运行数据：仓库下 `.data/`
-- 桌面版数据：`~/Library/Application Support/Lodge/data`
-- 基座数据：`~/Library/Application Support/Lodge/base-data`
-- 日志：`~/Library/Application Support/Lodge/logs/server.log`
+- 桌面版数据：`~/Library/Application Support/lodge/data`
+- 基座数据：`~/Library/Application Support/lodge/base-data`
+- 日志：`~/Library/Application Support/lodge/logs/server.log`
 - 帮助菜单：检查更新（GitHub Releases）、打开日志、打开数据目录
 - Lodge 服务异常退出会自动重启一次；仍失败时弹错误并指向日志
 
 停止窗口不会删除数据；退出 app 会停止 Lodge 服务和由它启动的基座进程。
 
+### 数据真相
+
+SQLite（`crew.db`）是房间、消息、交接和审计事件的唯一真相。`transcript.jsonl` 是逐条 fsync 的崩溃恢复日志和可读镜像，不单独重建整间房。启动时会把“日志已写、库还没写”的消息补进库；已有消息永远以库为准。
+
+- 启动前和每 6 小时留一份 `backups/crew-<时间>-<原因>.db`，保留最近 10 份
+- 启动时检查 `PRAGMA integrity_check`；库损坏会拒绝启动，而不是带着坏数据继续跑
+- 数据库带 `PRAGMA user_version`；比当前 Lodge 新的库会拒绝打开
+
+### 从备份恢复
+
+先退出 Lodge，再执行：
+
+```bash
+npm run data:restore -- --list
+npm run data:restore -- --latest
+npm run data:restore -- --backup /path/to/crew-2026-11-16-...db
+```
+
+桌面版的数据目录要显式传入：
+
+```bash
+npm run data:restore -- --data-dir "$HOME/Library/Application Support/lodge/data" --latest
+```
+
+恢复前会先把当前库留一份 `pre-restore` 快照；命令会先校验备份，再替换 `crew.db` 并清掉旧的 WAL。Lodge 还在运行时命令会拒绝执行。
+
 ## 发布
 
-`.github/workflows/release.yml` 在推送 `v*` 标签时构建 arm64 和 x64 两个 zip，校验 ad-hoc 签名，生成 `SHA256SUMS.txt`，挂到 GitHub Release。也可以手动触发，只产出构建工件，不发布 Release。
+`.github/workflows/release.yml` 在推送 `v*` 标签时构建 arm64 zip，校验 ad-hoc 签名，生成 `SHA256SUMS.txt`，挂到 GitHub Release。也可以手动触发，只产出构建工件，不发布 Release。
 
 当前没有接自动更新；发布后在 GitHub Releases 手动下载替换。没有 Developer ID 签名和公证时，macOS 自动更新无法可靠工作。
 

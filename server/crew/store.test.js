@@ -40,6 +40,18 @@ test('room updates are versioned inside a transaction and write events', () => {
   }
 })
 
+test('a database from a newer Lodge is refused instead of being guessed at', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-newer-'))
+  try {
+    const store = createStore({ dataDir })
+    store.db.exec('PRAGMA user_version = 99')
+    store.db.close()
+    assert.throws(() => createStore({ dataDir }), /比当前 Lodge 新/)
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})
+
 test('deleting a room removes its messages and events but keeps other rooms', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-delete-store-'))
   const repo = mkdtempSync(join(tmpdir(), 'crew-delete-repo-'))

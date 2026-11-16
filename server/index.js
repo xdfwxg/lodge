@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCrewPorts } from './crew/crew-ports.js'
@@ -18,6 +18,8 @@ import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
 import { requestGuard } from './http-guard.js'
+import { recoverMessages } from './crew/recovery.js'
+import { pruneBackups, snapshotDatabase } from './crew/data-recovery.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
 validateRoster(ROLES)
@@ -33,22 +35,41 @@ const broadcast = (event, payload, id) => {
   for (const client of clients) send(client, event, payload, id)
 }
 
-const store = createStore({ dataDir, emit: broadcast })
-
-// 迁移前留最近 5 份快照；出错时还能回到上一版。
+// schema 迁移前先对旧库做快照；CLI 恢复也用同一份快照格式。
 try {
-  const backups = join(dataDir, 'backups')
-  mkdirSync(backups, { recursive: true })
-  store.backup(join(backups, `crew-${Date.now()}.db`))
-  const old = readdirSync(backups).filter(name => name.startsWith('crew-') && name.endsWith('.db')).sort().slice(0, -5)
-  for (const name of old) rmSync(join(backups, name), { force: true })
+  const file = snapshotDatabase({ dataDir, reason: 'startup', keep: 10 })
+  if (file !== null) console.log(`store snapshot: ${file}`)
 } catch (error) {
-  console.warn(`store backup failed: ${error?.message ?? error}`)
+  console.warn(`store snapshot failed: ${error?.message ?? error}`)
 }
 
+const store = createStore({ dataDir, emit: broadcast })
 migrateRoomMembers(store)
 migrateAssignments(store)
 compactAssignments(store)
+
+// 补齐“transcript 已 fsync、SQLite 还没写”的崩溃窗口；库仍是唯一真相。
+try {
+  const recovered = recoverMessages(store)
+  if (recovered.recovered > 0) console.log(`recovered ${recovered.recovered} messages from transcript`)
+  if (recovered.roomsWithoutTranscript.length > 0) {
+    console.warn(`transcript unavailable: ${recovered.roomsWithoutTranscript.join(', ')}`)
+  }
+} catch (error) {
+  console.warn(`message recovery failed: ${error?.message ?? error}`)
+}
+
+const snapshotNow = reason => {
+  try {
+    mkdirSync(join(dataDir, 'backups'), { recursive: true })
+    const file = join(dataDir, 'backups', `crew-${Date.now()}-${reason}.db`)
+    store.backup(file)
+    pruneBackups(dataDir, 10)
+  } catch (error) {
+    console.warn(`store backup failed: ${error?.message ?? error}`)
+  }
+}
+setInterval(() => snapshotNow('periodic'), 6 * 60 * 60 * 1000).unref()
 
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {

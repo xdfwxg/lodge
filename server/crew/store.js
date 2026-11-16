@@ -4,6 +4,8 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { appendEventLog, appendTranscript, writeEvidence } from './room-repo.js'
 
+const SCHEMA_VERSION = 1
+
 export const createStore = ({ dataDir, emit = () => {} }) => {
   mkdirSync(dataDir, { recursive: true })
   const db = new DatabaseSync(join(dataDir, 'crew.db'))
@@ -33,12 +35,19 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     );
     CREATE INDEX IF NOT EXISTS room_event_room ON room_event(room_id, seq);
   `)
-  // 旧版本的全局成员表已经并入 room.members；不保留空表。
-  db.exec('DROP TABLE IF EXISTS member')
-  const roomColumns = db.prepare('PRAGMA table_info(room)').all()
-  if (!roomColumns.some(column => column.name === 'version')) {
-    db.exec('ALTER TABLE room ADD COLUMN version INTEGER NOT NULL DEFAULT 1')
+  const schemaVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version ?? 0)
+  if (schemaVersion > SCHEMA_VERSION) throw new Error(`数据库版本 ${schemaVersion} 比当前 Lodge 新，请先升级 Lodge`)
+  if (schemaVersion < 1) {
+    // v1：旧版本的全局成员表已经并入 room.members；房间增加 version 列。
+    db.exec('DROP TABLE IF EXISTS member')
+    const roomColumns = db.prepare('PRAGMA table_info(room)').all()
+    if (!roomColumns.some(column => column.name === 'version')) {
+      db.exec('ALTER TABLE room ADD COLUMN version INTEGER NOT NULL DEFAULT 1')
+    }
+    db.exec('PRAGMA user_version = 1')
   }
+  const integrity = db.prepare('PRAGMA integrity_check').get()?.integrity_check
+  if (integrity !== 'ok') throw new Error(`数据库损坏：${integrity ?? '未知错误'}`)
 
 
   // 迁移或升级前留一份一致快照；VACUUM INTO 会包含 WAL 里的已提交数据。
@@ -231,7 +240,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     at: row.at,
   }))
 
-  // transcript.jsonl 先写，SQLite 后写：jsonl 是持久日志，库是索引，可从日志重建。
+  // transcript.jsonl 先写，SQLite 后写；库是真相，jsonl 是崩溃恢复日志与可读镜像。
   // 示例种子只进 SQLite，不写目标仓库，避免样例数据污染用户仓库。
   const persistMessage = (message, { transcript = true } = {}) => {
     const room = readRoom(message.roomId)
@@ -262,11 +271,27 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     if (row !== undefined) {
       const updated = { ...message, seq: row.seq }
       db.prepare('UPDATE messages SET payload = ? WHERE id = ?').run(JSON.stringify(updated), updated.id)
+      // 流式消息只在收口时追加一次最终版本，让 transcript 可读；库仍是真相。
+      if (message.meta?.final === true) {
+        try { appendTranscript(readRoom(message.roomId) ?? message.roomId, updated) } catch {}
+      }
       emit('msg.patch', updated, updated.seq)
       return updated
     }
     const stored = persistMessage({ ...message, seq: nextSeq() })
     emit('msg', stored, stored.seq)
+    return stored
+  }
+
+  // 崩溃恢复只补日志里有、库里没有的消息；已有消息永远以库为准。
+  const recoverMessage = message => {
+    if (typeof message?.id !== 'string' || message.id === '' || typeof message?.roomId !== 'string') return null
+    if (db.prepare('SELECT 1 FROM messages WHERE id = ?').get(message.id) !== undefined) return null
+    const seqFree = Number.isInteger(message.seq) &&
+      db.prepare('SELECT 1 FROM messages WHERE seq = ?').get(message.seq) === undefined
+    const stored = { ...message, seq: seqFree ? message.seq : nextSeq() }
+    db.prepare('INSERT INTO messages (seq, id, room_id, payload) VALUES (?, ?, ?, ?)')
+      .run(stored.seq, stored.id, stored.roomId, JSON.stringify(stored))
     return stored
   }
 
@@ -290,6 +315,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     readEvidence,
     nextSeq,
     persistMessage,
+    recoverMessage,
     appendMessage,
     upsertMessage,
     appendEvent,
