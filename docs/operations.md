@@ -113,7 +113,7 @@ ADVISOR_TIMEOUT_MS=8000
 }
 ```
 
-`mode: "review"` 时附带阶段和证据摘要。响应支持一条建议或 `{ "advice": [...] }`：
+`mode: "review"` 时附带阶段和证据摘要；`stage.manual: true` 表示人工验收，不要要求验收命令。响应支持一条建议或 `{ "advice": [...] }`：
 
 ```json
 {

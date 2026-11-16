@@ -27,18 +27,23 @@ export const evaluateReviewRules = ({ evidence, stage }) => {
   const reasons = []
   const risks = []
   const missingEvidence = []
-  const command = typeof evidence?.command === 'string' ? evidence.command : ''
-  const exit = evidence?.exit
-  if (command === '') missingEvidence.push('验收命令')
-  if (exit !== 0) reasons.push(`验收命令退出码 ${exit ?? '无'}`)
-  if (!Array.isArray(evidence?.files) || evidence.files.length === 0) {
-    missingEvidence.push('改动文件清单')
-  }
-  if (typeof evidence?.diff === 'string' && evidence.diff.trim() === '') {
-    missingEvidence.push('改动或产物证据')
-  }
-  if (stage?.manual === true) {
+  const manual = stage?.manual === true
+  if (!manual) {
+    const command = typeof evidence?.command === 'string' ? evidence.command : ''
+    const exit = evidence?.exit
+    if (command === '') missingEvidence.push('验收命令')
+    if (exit !== 0) reasons.push(`验收命令退出码 ${exit ?? '无'}`)
+    if (!Array.isArray(evidence?.files) || evidence.files.length === 0) {
+      missingEvidence.push('改动文件清单')
+    }
+    if (typeof evidence?.diff === 'string' && evidence.diff.trim() === '') {
+      missingEvidence.push('改动或产物证据')
+    }
+  } else {
     risks.push('人工验收：需要 Verifier 实际打开产物核对')
+    if (!Array.isArray(evidence?.files) || evidence.files.length === 0) {
+      missingEvidence.push('改动文件清单')
+    }
   }
   return {
     summary: reasons[0] ?? (missingEvidence.length > 0 ? `证据不完整：${missingEvidence.join('、')}` : '证据结构完整，建议人工复核'),

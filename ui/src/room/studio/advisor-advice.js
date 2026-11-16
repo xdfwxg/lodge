@@ -22,8 +22,16 @@ export const shadowAdviceFor = (room, evidenceId) => {
 }
 
 export const shadowAdviceForStage = (room, stageIndex) => {
-  const message = [...(room?.messages ?? [])].reverse().find(item => (
-    item.kind === 'advisor_advice' && item.meta?.stage === stageIndex
+  const messages = room?.messages ?? []
+  // 只认当前这一步最新证据对应的意见；新一轮证据出来后，旧意见不再上桌。
+  const evidence = [...messages].reverse().find(item => (
+    item.kind === 'evidence' &&
+    (item.meta?.stage ?? 0) === stageIndex &&
+    (item.meta?.kind === 'manual' || item.meta?.kind === 'command')
+  ))
+  if (evidence === undefined) return null
+  const message = [...messages].reverse().find(item => (
+    item.kind === 'advisor_advice' && item.meta?.evidenceId === evidence.id
   ))
   return message === undefined ? null : adviceOf(message)
 }

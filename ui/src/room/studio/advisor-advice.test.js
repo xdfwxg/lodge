@@ -4,6 +4,7 @@ import { shadowAdviceFor, shadowAdviceForStage } from './advisor-advice.js'
 
 const room = {
   messages: [
+    { id: 'e1', kind: 'evidence', meta: { stage: 0, kind: 'manual' } },
     {
       id: 'a1',
       kind: 'advisor_advice',
