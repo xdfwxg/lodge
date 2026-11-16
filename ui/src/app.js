@@ -76,6 +76,7 @@ export function App() {
     onClose: closeDialog,
     roomTypes: state.roomTypes ?? [],
     engines: state.engines ?? [],
+    features: state.features,
     seed,
     startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),

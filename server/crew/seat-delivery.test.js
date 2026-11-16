@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { deliverToSeat, envelopeOf } from './seat-delivery.js'
+import { envelopeOf } from './seat-delivery.js'
+import { deliverToSeat } from './surface-delivery.js'
 
 const room = (over = {}) => ({
   id: 'room-1',

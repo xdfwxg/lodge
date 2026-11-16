@@ -30,6 +30,7 @@ function NewRoomDialog({
   onRecommend,
   roomTypes = [],
   engines = [],
+  features = null,
   seed = null,
   startType = null,
 }) {
@@ -385,6 +386,7 @@ function NewRoomDialog({
       setChoices: setSeatChoices,
       engines,
       loginBusy,
+      allowSkills: features?.skillsLibrary === true,
       onLogin: loginEngineFor,
       onInteraction: () => setLoginNote(null),
     }),
@@ -465,6 +467,7 @@ function NewRoomDialog({
     choices: directChoices,
     setChoices: setDirectChoices,
     engines,
+    features,
     loginBusy,
     onLogin: loginEngineFor,
     onInteraction: () => setLoginNote(null),

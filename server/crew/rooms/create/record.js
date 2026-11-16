@@ -17,6 +17,7 @@ export const buildRoomRecord = ({
   seatBots,
   seatNames,
   seatRooms,
+  memberIdBySeat,
   chatRoom,
   chatHost = null,
   lead,
@@ -97,6 +98,7 @@ export const buildRoomRecord = ({
   version: 1,
   seatSpecs: roster.map(({ id, name, title: seatTitle, role, roleKind, roleProfile, isHost, station, engine, model, permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget, personality }) => ({
     id,
+    memberId: memberIdBySeat?.[id] ?? `member-${short}-${id}`,
     name,
     title: seatTitle,
     role,

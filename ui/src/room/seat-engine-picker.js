@@ -11,6 +11,7 @@ export function SeatEnginePicker({
   loginBusy = false,
   personalities = [],
   allowCapabilities = false,
+  allowSkills = false,
   onRemove = null,
   canRemove = false,
   canRemoveSeat = null,
@@ -95,19 +96,21 @@ export function SeatEnginePicker({
             : null),
         allowCapabilities
           ? h('details', { className: 'crew-seat-capabilities' },
-            h('summary', null, '技能 / 外部工具'),
-            h('input', {
-              className: 'crew-goal-input',
-              value: choice.skillsText ?? '',
-              placeholder: '技能名，用逗号分隔',
-              'aria-label': `${seat.name ?? seat.role}的技能`,
-              onChange: event => {
-                const next = [...choices]
-                next[index] = { ...choice, skillsText: event.target.value }
-                setChoices(next)
-                onInteraction()
-              },
-            }),
+            h('summary', null, allowSkills ? '技能 / 外部工具' : '外部工具'),
+            allowSkills
+              ? h('input', {
+                className: 'crew-goal-input',
+                value: choice.skillsText ?? '',
+                placeholder: '技能名，用逗号分隔',
+                'aria-label': `${seat.name ?? seat.role}的技能`,
+                onChange: event => {
+                  const next = [...choices]
+                  next[index] = { ...choice, skillsText: event.target.value }
+                  setChoices(next)
+                  onInteraction()
+                },
+              })
+              : null,
             h('input', {
               className: 'crew-goal-input',
               value: choice.mcpText ?? '',

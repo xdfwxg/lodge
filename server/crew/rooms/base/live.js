@@ -4,6 +4,7 @@ import { createRoomRefresher } from '../../kernel/live/refresh.js'
 import { createSeatSync } from '../../kernel/live/sync.js'
 import { createRoomChat } from '../../kernel/live/bus.js'
 import { seatDisplayName } from '../../seat-labels.js'
+import { createSurfaces } from '../../surface-delivery.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
 import { supportsRuntime } from '../../runtime-port.js'
@@ -11,7 +12,14 @@ import { createChatRuntime } from '../chat/runtime.js'
 import { createStudioRuntime } from '../studio/runtime.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
-export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs }) => {
+export const createLiveRooms = ({
+  store,
+  engine,
+  emit,
+  ports,
+  approvalTimeoutMs,
+  surfaces = createSurfaces({ engine, store }),
+}) => {
   const { roomFiles } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
@@ -223,7 +231,7 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
     const room = store.readRoom(roomId)
     const chatId = room?.chatRoom?.id
     if (typeof chatId !== 'string' || chatId === '') throw new Error('聊天室还没准备好')
-    const result = await engine.cancelRoomQueue(chatId, queueId)
+    const result = await surfaces.of(room, room.leadSeat ?? room.members?.[0] ?? '').cancel({ room, queueId })
     if (result.cancelled === true) {
       const echo = store.readMessages(roomId).find(message => message.meta?.queueId === queueId)
       if (echo !== undefined) {
@@ -261,7 +269,7 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
     if (typeof memberRef !== 'string' || memberRef === '' || typeof chatId !== 'string' || chatId === '') {
       throw new Error('这个成员没有基座地址')
     }
-    await engine.setRoomHold(chatId, memberRef, held)
+    await surfaces.of(room, seat).hold({ room, seat, held })
     await refreshRoom(entry, { force: true })
     return store.readRoom(roomId) ?? room
   }

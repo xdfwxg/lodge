@@ -1,5 +1,5 @@
 import { createLiveTurns } from './turns.js'
-import { deliverToSeat } from '../../seat-delivery.js'
+import { deliverToSeat } from '../../surface-delivery.js'
 
 // 工作室上下文运行时：阶段派发、执行、验收、重做和签字都走群聊 @，没有讨论轮次。
 export const createStudioRuntime = ({

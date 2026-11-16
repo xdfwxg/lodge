@@ -78,6 +78,15 @@ test('seat skills cross the engine port as base skill names', async () => {
   assert.deepEqual(client.captured.skills, { botId: 'seat-1', skills: ['evidence-review'] })
 })
 
+test('feature switches come from the base config and fail closed', async () => {
+  const on = createEngine({ client: { config: async () => ({ features: { skillsLibrary: true } }) } })
+  assert.deepEqual(await on.features(), { skillsLibrary: true })
+  const off = createEngine({ client: { config: async () => ({ features: {} }) } })
+  assert.deepEqual(await off.features(), { skillsLibrary: false })
+  const broken = createEngine({ client: { config: async () => { throw new Error('offline') } } })
+  assert.deepEqual(await broken.features(), { skillsLibrary: false })
+})
+
 test('cancelling a queued room message reports whether it was still there', async () => {
   const sent = createEngine({ client: { cancelGroupQueue: async () => ({ ok: true }) } })
   assert.deepEqual(await sent.cancelRoomQueue('group-1', 'q1'), { cancelled: true })
@@ -264,6 +273,25 @@ test('permission cards cross the engine port with a semantic action', async () =
   assert.equal(actionForTool('Bash'), 'exec')
   assert.equal(actionForTool('Read'), 'read')
   assert.equal(actionForTool('WebFetch'), null)
+})
+
+test('question cards keep the base choices as options', async () => {
+  const client = {
+    threadMessages: async () => ({
+      messages: [{
+        id: 'q1',
+        at: 1,
+        kind: 'question',
+        text: 'Which file?',
+        card: { requestId: 'ask-1', requestType: 'question', tool: 'ask_user', choices: ['README', 'Guide'] },
+      }],
+    }),
+  }
+  const engine = createEngine({ client })
+  const { messages } = await engine.history('thread-1')
+  assert.equal(messages[0].kind, 'question')
+  assert.deepEqual(messages[0].card.options, ['README', 'Guide'])
+  assert.equal(messages[0].card.tool, 'ask_user')
 })
 
 test('answerCard forwards the decision to the runtime thread', async () => {

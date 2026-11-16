@@ -83,8 +83,11 @@ const normalizeMessage = (raw, responderName) => {
       tool: { id: tool.itemId, name: tool.name, input: tool.input },
     }
   }
-  if (raw.kind === 'options') {
+  if (raw.kind === 'options' || raw.kind === 'question') {
     const card = raw.card ?? {}
+    const options = Array.isArray(card.options)
+      ? card.options
+      : Array.isArray(card.choices) ? card.choices : []
     return {
       ...common,
       kind: 'question',
@@ -98,7 +101,7 @@ const normalizeMessage = (raw, responderName) => {
             tool: card.tool,
             action: actionForTool(card.tool),
             subtitle: card.subtitle,
-            options: Array.isArray(card.options) ? card.options : [],
+            options: options.filter(option => typeof option === 'string'),
           },
         }
         : {}),
@@ -212,6 +215,18 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       return { cancelled: true }
     } catch (error) {
       return { cancelled: false, reason: String(error?.message ?? error) }
+    }
+  }
+
+  // 基座特性开关是数据，不是端口常量；打开技能库后 Lodge 才能挂技能。
+  const features = async () => {
+    try {
+      const config = await client.config()
+      return {
+        skillsLibrary: config?.features?.skillsLibrary === true,
+      }
+    } catch {
+      return { skillsLibrary: false }
     }
   }
 
@@ -480,6 +495,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     answerCard,
     cancelTurn,
     capabilities,
+    features,
     health,
     createSeatBot,
     setBotSkills,

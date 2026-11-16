@@ -1,6 +1,6 @@
 import { chatFacade } from './facade.js'
 import { createChatScheduler } from './scheduler.js'
-import { deliverToSeat } from '../../seat-delivery.js'
+import { deliverToSeat } from '../../surface-delivery.js'
 
 // 聊天室上下文运行时：只有随机发言、主持总结和拍板，没有阶段、验收或交付回合。
 export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {

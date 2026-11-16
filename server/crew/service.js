@@ -7,6 +7,7 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
+import { registerRoomMembers } from './members.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
@@ -47,6 +48,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     }
     const now = Date.now()
     const room = writeRoom(sampleRoomRecord({ now }))
+    registerRoomMembers(store, room)
     seedSampleMessages({ store, room, now })
     emit('room', room)
     return ok({ room })

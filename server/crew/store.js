@@ -11,6 +11,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS room (id TEXT PRIMARY KEY, payload TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1);
+    CREATE TABLE IF NOT EXISTS member (id TEXT PRIMARY KEY, payload TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS messages (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, room_id TEXT NOT NULL, payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS room_event (
       seq INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,6 +47,27 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   }
   const readRooms = () => db.prepare("SELECT payload, version FROM room WHERE id <> 'dispatch' ORDER BY rowid").all()
     .map(row => ({ ...JSON.parse(row.payload), version: row.version }))
+  const readMember = id => {
+    const row = db.prepare('SELECT payload FROM member WHERE id = ?').get(id)
+    return row === undefined ? null : JSON.parse(row.payload)
+  }
+  const readMembers = () => db.prepare('SELECT payload FROM member ORDER BY created_at, rowid').all()
+    .map(row => JSON.parse(row.payload))
+  const writeMember = member => {
+    const existing = readMember(member.id)
+    const now = Date.now()
+    const stored = {
+      ...existing,
+      ...member,
+      createdAt: existing?.createdAt ?? member.createdAt ?? now,
+      updatedAt: member.updatedAt ?? now,
+    }
+    db.prepare(
+      'INSERT INTO member (id, payload, created_at, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at',
+    ).run(stored.id, JSON.stringify(stored), stored.createdAt, stored.updatedAt)
+    return stored
+  }
+  const deleteMember = id => Number(db.prepare('DELETE FROM member WHERE id = ?').run(id).changes) > 0
   const readMessages = roomId => db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId).map(row => JSON.parse(row.payload))
   // 证据就是消息流里的命令/人工结果；不再维护单独的账本表与摘要。
   const readEvidence = roomId => readMessages(roomId)
@@ -193,6 +215,10 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     writeRoom,
     updateRoom,
     readRooms,
+    readMember,
+    readMembers,
+    writeMember,
+    deleteMember,
     readMessages,
     readMessagesSince,
     readEvidence,

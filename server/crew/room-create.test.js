@@ -169,6 +169,24 @@ test('declared seat skills are assigned to the created base member', async () =>
   assert.deepEqual(result.body.room.seatSpecs.find(seat => seat.name === '执行').skills, ['evidence-review'])
 })
 
+test('seat skills fail before creating anything when the base library is off', async () => {
+  const { store } = completedRoom(temp('lodge-skill-off-data-'))
+  const engine = { ...fakeEngine(), features: async () => ({ skillsLibrary: false }) }
+  const result = await run(store, {
+    goal: '带一个复核技能',
+    verify: 'manual',
+    seats: [
+      { role: 'lead', name: '规划' },
+      { role: 'worker', name: '执行', skills: ['evidence-review'] },
+      { role: 'verifier', name: '验收' },
+    ],
+  }, engine)
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'conflict')
+  assert.match(result.error, /技能库/)
+  assert.deepEqual(engine.seatNames, [])
+})
+
 test('a room name longer than 60 characters is rejected', async () => {
   const { store } = completedRoom(temp('lodge-name-limit-data-'))
   const result = await run(store, {

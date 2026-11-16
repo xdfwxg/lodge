@@ -7,6 +7,7 @@ import { createProvisioner } from './provision.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
 import { gateRecordOf } from '../../gate/index.js'
+import { memberIdFor, registerRoomMembers } from '../../members.js'
 import { transferOf } from '../../../../shared/transfer.js'
 
 const deliveryTitleFor = (goalTitle, handoff) => {
@@ -83,6 +84,13 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       return fail('conflict', '当前版本还不支持外部工具')
     }
   }
+  const wantsSkills = roster.some(seat => (seat.skills ?? []).length > 0)
+  if (wantsSkills && typeof engine.features === 'function') {
+    const features = await engine.features()
+    if (features?.skillsLibrary !== true) {
+      return fail('conflict', '基座的技能库还没打开；先在基座设置里打开技能库，或去掉成员技能')
+    }
+  }
 
   const short = randomUUID().slice(0, 6)
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
@@ -97,6 +105,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
 
   const roomId = `room-${short}`
+  const memberIdBySeat = Object.fromEntries(roster.map(seat => [seat.id, memberIdFor(roomId, seat.id)]))
   const provisioner = createProvisioner({ engine })
   let room = null
   let stored = false
@@ -134,6 +143,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       seatBots: provisioned.seatBots,
       seatNames: provisioned.seatNames,
       seatRooms: provisioned.seatRooms,
+      memberIdBySeat,
       chatRoom: provisioned.chatRoom,
       chatHost: provisioned.chatHost,
       lead,
@@ -162,6 +172,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       }),
     })
     store.writeRoom(room)
+    registerRoomMembers(store, room)
     stored = true
     if (parentRoom !== null) {
       const linked = store.updateRoom(parentRoom.id, current => {

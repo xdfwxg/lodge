@@ -21,8 +21,10 @@ export const envelopeOf = ({ from = '', intent = 'handoff' } = {}) => {
   return `[来自 ${from || 'Lodge'} · ${entry.label} · ${entry.authority}]`
 }
 
-// 投递边界：业务说交给哪个席位和什么意图，这里负责地址、信封、幂等键与发送。
-export const deliverToSeat = ({
+export const envelopeFor = (room, from, intent = 'handoff') => envelopeOf({ from: fromLabel(room, from), intent })
+
+// 基座投递原语：负责地址、信封、幂等键与发送，不决定这个席位用哪种身体。
+export const deliverToBase = ({
   engine,
   store,
   roomId,
@@ -32,6 +34,7 @@ export const deliverToSeat = ({
   sendId = randomUUID(),
   intent = 'handoff',
   from = '',
+  envelope = null,
 }) => {
   const current = store.readRoom(roomId) ?? room
   const address = seat === 'host' ? hostAddress(current) : seatAddress(current, seat)
@@ -50,7 +53,7 @@ export const deliverToSeat = ({
     : trimmed
   const body = [
     address.mention,
-    envelopeOf({ from: fromLabel(current, from), intent }),
+    envelope ?? envelopeFor(current, from, intent),
     withoutMention,
   ].filter(line => line !== '').join('\n')
   return engine.sendTurn({ roomId: chatId, text: body, sendId, mentions: [address.memberRef] })

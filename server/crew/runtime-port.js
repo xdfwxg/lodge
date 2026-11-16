@@ -28,7 +28,7 @@ export const RUNTIME_METHOD_GROUPS = Object.freeze({
   ]),
   seats: Object.freeze(['createSeatBot', 'setBotSkills', 'deleteSeatBot', 'instances']),
   cards: Object.freeze(['answerCard']),
-  observability: Object.freeze(['health', 'capabilities']),
+  observability: Object.freeze(['health', 'capabilities', 'features']),
 })
 
 export const RUNTIME_NAMESPACES = Object.freeze({

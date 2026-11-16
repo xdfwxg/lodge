@@ -165,6 +165,7 @@ export function StudioSetupFields({
   recommending = false,
   canRecommend = true,
   onRecommend = null,
+  features = null,
 }) {
   return h(Fragment, null,
     h('div', { className: 'crew-field' },
@@ -176,6 +177,7 @@ export function StudioSetupFields({
         engines,
         loginBusy,
         allowCapabilities: true,
+        allowSkills: features?.skillsLibrary === true,
         onLogin,
         onInteraction,
       })),

@@ -15,7 +15,7 @@ export const createServiceQueries = ({
   files,
   workspace,
 }) => {
-  const { readRoom, readRooms, readMessages, readMessagesSince, readEvidence } = store
+  const { readRoom, readRooms, readMembers, readMessages, readMessagesSince, readEvidence } = store
 
   const health = async () => ok({ runtime: await engine.health() })
 
@@ -27,8 +27,16 @@ export const createServiceQueries = ({
     } catch {
       engines = []
     }
+    let features = { skillsLibrary: false }
+    try {
+      features = await engine.features()
+    } catch {
+      features = { skillsLibrary: false }
+    }
     return {
       seats,
+      members: readMembers(),
+      features,
       roomTypes: listRoomTypes(),
       rooms: rooms.map(room => {
         const presentation = roomPresentationOfRoom(room)
