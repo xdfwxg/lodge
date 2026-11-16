@@ -1,13 +1,14 @@
 import { execFile } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { promisify } from 'node:util'
+import { openablePath } from '../shared/system-policy.js'
 
 const run = promisify(execFile)
 
 export const openPath = async target => {
-  if (typeof target !== 'string' || target.trim() === '') throw new Error('缺少路径')
-  const path = target.trim()
-  if (!existsSync(path)) throw new Error(`路径不存在：${path}`)
+  const verdict = openablePath(target)
+  if (!verdict.ok) throw new Error(verdict.error)
+  const path = verdict.path
   const directory = statSync(path).isDirectory()
   if (process.platform === 'darwin') {
     await run('open', directory ? ['-a', 'Finder', path] : [path], { timeout: 10_000 })

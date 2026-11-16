@@ -33,7 +33,8 @@ const deliveryTriad = [
     toolSurface: ['read', 'exec', 'write'],
     skills: [],
     mcp: [],
-    approval: 'auto',
+    // 基座在 auto 下会自动放行 WebSearch；外部访问仍要经过 Lodge 的审批卡。
+    approval: 'ask',
     speakBudget: 8,
     prompt: '你是执行官。你的验收成员是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
   },

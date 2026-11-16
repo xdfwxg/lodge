@@ -51,7 +51,7 @@ export const externalAction = card => {
   if (command !== '') {
     for (const rule of RULES) {
       if (rule.pattern.test(command)) {
-        return { kind: rule.kind, label: rule.label, summary: clip(command), command: clip(command, 4000) }
+        return { kind: rule.kind, label: rule.label, summary: clip(command), command: clip(command, 8000) }
       }
     }
   }

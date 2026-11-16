@@ -34,6 +34,34 @@ test('acceptance runs in a disposable copy and cannot write the source repo', ()
   assert.equal(existsSync(copy.path), false)
 })
 
+test('verifier worktrees never receive tracked env secrets', () => {
+  const sourceRepo = repo()
+  writeFileSync(join(sourceRepo, '.env'), 'TOKEN=secret\n')
+  writeFileSync(join(sourceRepo, '.env.example'), 'TOKEN=\n')
+  execFileSync('git', ['add', '.env', '.env.example'], { cwd: sourceRepo })
+  execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'env'], { cwd: sourceRepo })
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-worktrees-'))
+  const previous = process.env.CREW_WORKTREE_ROOT
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  let workspaces = null
+  try {
+    workspaces = prepareRoom({ source: sourceRepo, short: 'env1234', members: membersFor('delivery-triad') })
+    const executor = workspaces.members.executor.path
+    const verifier = workspaces.members.verifier.path
+    assert.equal(existsSync(join(executor, '.env')), true)
+    assert.equal(existsSync(join(verifier, '.env')), false)
+    assert.equal(existsSync(join(verifier, '.env.example')), true)
+    refreshReviewCopy({ path: verifier, branch: workspaces.branches.executor })
+    assert.equal(existsSync(join(verifier, '.env')), false)
+  } finally {
+    cleanupRoom({ source: sourceRepo, workspaces })
+    if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previous
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
 test('prepares isolated member workspaces and refreshes the verifier copy', () => {
   const sourceRepo = repo()
   const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-worktrees-'))

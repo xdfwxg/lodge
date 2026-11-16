@@ -15,6 +15,20 @@ export const diffScope = ['.', ...LOCAL_ONLY.map(path => `:(exclude)${path}`)]
 
 // 执行者可能自己 git add -A；worktree 级别的 excludes 让本地运行文件不会被误提交。
 const LOCAL_EXCLUDES = ['.crew/', '.lodge/', '.env', '.env.*', '!.env.example', '!.env.sample', '!.env.template', 'node_modules/']
+const EXAMPLE_ENV = new Set(['.env.example', '.env.sample', '.env.template'])
+const isSecretName = name => name === '.env' || (name.startsWith('.env.') && !EXAMPLE_ENV.has(name))
+
+// 仓库把 .env 跟踪进来时，验收 worktree 仍不应拿到它；删掉的是复核副本，不是源仓库。
+const stripTrackedSecrets = path => {
+  try {
+    const listing = git(path, ['ls-files', '-z']).split('\0').filter(Boolean)
+    for (const file of listing) {
+      if (!isSecretName(basename(file))) continue
+      try { rmSync(join(path, file), { force: true }) } catch {}
+    }
+  } catch {}
+}
+
 const ensureLocalExcludes = (path, base) => {
   try {
     const file = join(base, '.lodge-exclude')
@@ -171,6 +185,7 @@ export const prepareRoom = ({ source, short, members }) => {
       if (member.role === 'verifier') {
         git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
         ensureLocalExcludes(path, base)
+        stripTrackedSecrets(path)
         byMember[member.id] = { path, kind: 'verify' }
         environment[member.id] = syncLocalEnvironment(source, path, { copyEnv: false })
         ports[member.id] = takePort()
@@ -236,6 +251,7 @@ export const addMember = ({ room, member }) => {
   } else if (member.role === 'verifier') {
     git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
     ensureLocalExcludes(path, base)
+    stripTrackedSecrets(path)
   } else {
     execFileSync('git', ['clone', '--quiet', '--no-hardlinks', source, path], {
       cwd: base,
@@ -361,6 +377,7 @@ export const refreshReviewCopy = ({ path, branch, source }) => {
   if (typeof path !== 'string' || path === '' || !isWithin(scratchRoot(), path)) return
   git(path, ['checkout', '--detach', '--force', branch])
   git(path, ['clean', '-fdx'])
+  stripTrackedSecrets(path)
   if (typeof source === 'string' && source !== '') syncLocalEnvironment(source, path, { copyEnv: false })
 }
 

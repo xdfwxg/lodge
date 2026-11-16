@@ -121,6 +121,42 @@ test('an unanswered approval pauses the room, and deciding it resumes the room',
   }
 })
 
+test('a double click answers the runtime only once', async () => {
+  const ctx = await setup()
+  try {
+    ctx.permission('git push origin main')
+    await tick()
+    const approval = ctx.room().approvals.find(item => item.state === 'pending')
+    const [first, second] = await Promise.all([
+      ctx.live.decideApproval('room-1', approval.id, 'allow'),
+      ctx.live.decideApproval('room-1', approval.id, 'allow'),
+    ])
+    assert.equal([first, second].filter(result => result.ok === true).length, 1)
+    assert.equal(ctx.answers.filter(answer => answer.behavior === 'allow').length, 1)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('a pending card keeps its timer while another card has paused the room', async () => {
+  const ctx = await setup({ approvalTimeoutMs: 30 })
+  try {
+    ctx.permission('git push origin main')
+    ctx.permission('git push origin next')
+    await tick()
+    await new Promise(resolve => setTimeout(resolve, 80))
+    assert.equal(ctx.room().state, 'paused')
+    const [first, second] = ctx.room().approvals.filter(item => item.state === 'pending')
+    await ctx.live.decideApproval('room-1', first.id, 'allow')
+    await new Promise(resolve => setTimeout(resolve, 80))
+    const paused = ctx.room()
+    assert.equal(paused.state, 'paused')
+    assert.equal(paused.approvals.find(item => item.id === second.id).state, 'pending')
+  } finally {
+    ctx.close()
+  }
+})
+
 test('reopening a room paused by an expired approval resumes it', async () => {
   const ctx = await setup({ approvalTimeoutMs: 30 })
   try {
@@ -204,7 +240,7 @@ test('stopping a room expires approvals that can no longer be answered', async (
   try {
     ctx.permission('npm install left-pad')
     await tick()
-    const expiry = ctx.live.expireApprovals('room-1', '房间已停止')
+    const expiry = await ctx.live.expireApprovals('room-1', '房间已停止')
     assert.equal(expiry.approvals[0].state, 'expired')
     assert.equal(ctx.room().approvals[0].state, 'expired')
     const late = await ctx.live.decideApproval('room-1', ctx.room().approvals[0].id, 'allow')

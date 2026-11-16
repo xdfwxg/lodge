@@ -71,13 +71,14 @@ export const createLiveRooms = ({
       syncing: new Set(),
       answeredCards: new Set(),
       heldCards: new Map(),
+      deciding: new Set(),
       approvalTimers: new Map(),
       refreshedAt: 0,
     }
     // 每套房型自己创建运行时：聊天室是发言调度，工作室是阶段/验收回合。
     strategy.create(entry, room)
     entries.set(room.id, entry)
-    approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
+    await approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
     const bases = await engine.rooms()
     for (const member of members) {
       const base = bases.find(item => item.id === member.body.roomRef)
@@ -129,7 +130,7 @@ export const createLiveRooms = ({
     const entry = entries.get(roomId)
     if (entry === undefined) return
     entry.strategy?.detach(entry)
-    approvals.expireApprovals(entry, roomId, '房间绑定已断开，上一张权限卡已不在等待')
+    void approvals.expireApprovals(entry, roomId, '房间绑定已断开，上一张权限卡已不在等待')
     chat.detach(entry)
     for (const target of entry.members.values()) target.unsubscribe?.()
     entries.delete(roomId)

@@ -66,6 +66,45 @@ export const createLiveApprovals = ({
     return updated
   }
 
+  // 另一张卡把房间暂停时，先等它恢复；否则这张卡的计时会永久丢失。
+  const armApprovalTimer = (entry, approval) => {
+    const tick = () => {
+      entry.approvalTimers.delete(approval.id)
+      const current = store.readRoom(entry.roomId)
+      if (current === null) return
+      if (!pendingApprovals(current).some(item => item.id === approval.id)) return
+      if (current.state !== 'active') {
+        if (current.state === 'paused' && current.pauseReason === 'approval') {
+          const timer = setTimeout(tick, Math.min(30_000, approvalTimeoutMs))
+          timer.unref?.()
+          entry.approvalTimers.set(approval.id, timer)
+        }
+        return
+      }
+      const paused = store.updateRoom(entry.roomId, room => {
+        if (room.state !== 'active') return null
+        room.state = 'paused'
+        room.pauseReason = 'approval'
+        room.idle = false
+        return {
+          events: [{
+            type: 'approval.timeout',
+            payload: { id: approval.id, memberId: approval.memberId, kind: approval.kind },
+          }],
+        }
+      })
+      if (paused === null) return
+      store.appendMessage(entry.roomId, {
+        kind: 'system',
+        text: '这个操作等太久了，房间已暂停；确认后继续。',
+      })
+      emit('room', paused)
+    }
+    const timer = setTimeout(tick, approvalTimeoutMs)
+    timer.unref?.()
+    entry.approvalTimers.set(approval.id, timer)
+  }
+
   // 外部动作默认由人批准；只有显式 auto 信任，且规则守门明确 allow 时才自动放行。
   const holdForApproval = async (entry, memberId, card, external, sessionRef) => {
     const room = store.readRoom(entry.roomId)
@@ -119,63 +158,47 @@ export const createLiveApprovals = ({
       meta: { kind: 'approval', approvalId: approval.id },
     })
     emit('room', updated)
-    const timer = setTimeout(() => {
-      entry.approvalTimers.delete(approval.id)
-      const current = store.readRoom(entry.roomId)
-      if (current === null || current.state !== 'active') return
-      if (!pendingApprovals(current).some(item => item.id === approval.id)) return
-      const paused = store.updateRoom(entry.roomId, room => {
-        if (room.state !== 'active') return null
-        room.state = 'paused'
-        room.pauseReason = 'approval'
-        room.idle = false
-        return {
-          events: [{
-            type: 'approval.timeout',
-            payload: { id: approval.id, memberId, kind: approval.kind },
-          }],
-        }
-      })
-      if (paused === null) return
-      store.appendMessage(entry.roomId, {
-        kind: 'system',
-        text: '这个操作等太久了，房间已暂停；确认后继续。',
-      })
-      emit('room', paused)
-    }, approvalTimeoutMs)
-    timer.unref?.()
-    entry.approvalTimers.set(approval.id, timer)
+    armApprovalTimer(entry, approval)
   }
 
-  const expireApprovals = (entry, roomId, reason) => {
+  const expireApprovals = async (entry, roomId, reason) => {
     clearTimers(entry)
     const room = store.readRoom(roomId)
     const pending = pendingApprovals(room)
     if (pending.length === 0) return null
+    const expired = []
     for (const approval of pending) {
-      entry?.heldCards.delete(approval.requestId)
       const target = entry?.members.get(approval.memberId)
       const sessionRef = approval.sessionRef ?? target?.sessionRef
       if (typeof sessionRef === 'string' && sessionRef !== '') {
-        // 本地卡作废时也告诉基座，否则它会一直等一个永远不会来的回答。
-        void engine.answerCard({
-          sessionRef,
-          requestId: approval.requestId,
-          behavior: 'deny',
-        }).catch(() => {})
+        try {
+          const result = await engine.answerCard({
+            sessionRef,
+            requestId: approval.requestId,
+            behavior: 'deny',
+          })
+          if (result?.ok === false) throw new Error(result.error ?? '基座没有接受拒绝')
+        } catch {
+          // 基座还没收到拒绝就把本地卡留着；重连时还有机会再送一次。
+          continue
+        }
       }
+      entry?.heldCards.delete(approval.requestId)
+      expired.push(approval)
     }
+    if (expired.length === 0) return null
+    const ids = new Set(expired.map(item => item.id))
     const updated = store.updateRoom(roomId, current => {
       const now = Date.now()
       for (const approval of current.approvals ?? []) {
-        if (approval?.state !== 'pending') continue
+        if (approval?.state !== 'pending' || !ids.has(approval.id)) continue
         approval.state = 'expired'
         approval.decidedAt = now
       }
       return {
         events: [{
           type: 'approval.expired',
-          payload: { ids: pending.map(item => item.id), reason },
+          payload: { ids: [...ids], reason },
         }],
       }
     })
@@ -256,7 +279,7 @@ export const createLiveApprovals = ({
     }
   }
 
-  const decideApproval = async ({ entry, roomId, approvalId, decision, refresh }) => {
+  const decideApprovalNow = async ({ entry, roomId, approvalId, decision, refresh }) => {
     if (!supportsRuntime(engine, 'approvals')) return { ok: false, reason: '当前版本还不支持操作确认' }
     if (!['allow', 'deny'].includes(decision)) return { ok: false, reason: '这个操作只能选“可以做”或“先别做”' }
     if (entry === undefined) return { ok: false, reason: '房间还没有连上' }
@@ -314,6 +337,20 @@ export const createLiveApprovals = ({
     resumeRoom(roomId, '审批已处理，房间继续。')
     refresh(entry, { force: true })
     return { ok: true, room: updated ?? store.readRoom(roomId) }
+  }
+
+  // 双击或两个客户端同时点，只让第一次真正回答基座。
+  const decideApproval = async args => {
+    const { entry, approvalId } = args
+    if (entry === undefined) return { ok: false, reason: '房间还没有连上' }
+    entry.deciding ??= new Set()
+    if (entry.deciding.has(approvalId)) return { ok: false, reason: '这个操作正在处理' }
+    entry.deciding.add(approvalId)
+    try {
+      return await decideApprovalNow(args)
+    } finally {
+      entry.deciding.delete(approvalId)
+    }
   }
 
   const resumeApprovalPauseIfSettled = roomId => {
