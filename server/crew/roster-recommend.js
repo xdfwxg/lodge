@@ -299,30 +299,30 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
       if (!probe.ok) return fail('invalid', probe.error)
     }
   }
-  const advisor = rosterFromRoles([{ role: 'lead', name: '规划师' }])[0]
+  const scout = rosterFromRoles([{ role: 'lead', name: '规划师' }])[0]
   const prompt = recommendationPrompt(goal, sourceRepo, handoff)
   // 只读克隆是一次性工作区；不弹审批，避免读仓库时卡在 permission 卡上。
-  advisor.approval = 'auto'
+  scout.approval = 'auto'
 
   let workspaces = null
-  let advisorRef = null
+  let scoutRef = null
   let probeRoom = null
   try {
-    workspaces = provider.prepareRoom({ source: sourceRepo, short, members: [advisor] })
-    advisorRef = await engine.createMemberBot({
+    workspaces = provider.prepareRoom({ source: sourceRepo, short, members: [scout] })
+    scoutRef = await engine.createMemberBot({
       name: `编队评估${short}`,
       soul: '你是规划师。只做编队判断，只输出 JSON，不执行工具。',
-      description: advisor.station,
-      approval: advisor.approval,
-      mcp: advisor.mcp,
+      description: scout.station,
+      approval: scout.approval,
+      mcp: scout.mcp,
     })
     probeRoom = await engine.createRoom({
       name: `编队建议 · ${short}`,
       goal,
       bulletin: `目标：${goal}\n仓库：${sourceRepo}${handoff === null ? '' : `\n交接单：\n${handoffGoalText(handoff)}`}`,
-      members: [advisorRef.id],
-      cwd: workspaces.members[advisor.id].path,
-      leadId: advisorRef.id,
+      members: [scoutRef.id],
+      cwd: workspaces.members[scout.id].path,
+      leadId: scoutRef.id,
     })
     await engine.sendTurn({ roomId: probeRoom.id, text: prompt })
     const reply = await waitForTurn({ engine, sessionRef: probeRoom.sessionRef })
@@ -343,7 +343,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
       }
       await engine.deleteRoom(probeRoom.id)
     }
-    if (advisorRef !== null) await engine.deleteMemberBot(advisorRef.id)
+    if (scoutRef !== null) await engine.deleteMemberBot(scoutRef.id)
     try {
       if (workspaces !== null) provider.cleanupRoom({ source: sourceRepo, workspaces })
     } catch {}
