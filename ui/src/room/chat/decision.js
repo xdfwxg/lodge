@@ -1,16 +1,12 @@
-import { handoffOf } from '../../../../shared/handoff.js'
-import { buildIdleDecision, cleanText } from '../decision.js'
+import { normalizeHandoff } from '../../../../shared/handoff.js'
+import { buildIdleDecision } from '../decision.js'
 
 export const chatConclusionOf = room => {
   const message = [...(room.messages ?? [])].reverse().find(item => item.kind === 'chat_conclusion')
   return message === undefined ? null : message
 }
 
-export const chatConclusionHandoffOf = (message, room) => handoffOf({
-  handoff: message?.meta?.handoff,
-  text: message?.text,
-  fallbackTopic: room?.goal,
-})
+export const chatConclusionHandoffOf = message => normalizeHandoff(message?.meta?.handoff)
 
 // 聊天室只关心：讨论中、出结论、已确认、中断；没有阶段和验收。
 export const buildChatDecision = room => {
@@ -18,9 +14,8 @@ export const buildChatDecision = room => {
   if (idle !== null) return idle
   const chat = room.chat ?? {}
   const conclusion = chatConclusionOf(room)
-  const handoff = chatConclusionHandoffOf(conclusion, room)
-  const text = cleanText(conclusion?.text)
-  const summary = handoff?.consensus?.[0] ?? handoff?.topic ?? text
+  const handoff = chatConclusionHandoffOf(conclusion)
+  const summary = handoff?.consensus?.[0] ?? handoff?.topic ?? ''
 
   if (room.state === 'complete') {
     return {

@@ -59,15 +59,6 @@ test('empty fields stay visible with quiet hints', () => {
   assert.match(html, /没有待办/)
 })
 
-test('an old conclusion without meta still parses into fields', () => {
-  const html = render(message({
-    text: '## 主题\n旧主题\n## 共识\n- 旧共识',
-  }))
-  assert.match(html, /旧主题/)
-  assert.match(html, /旧共识/)
-  assert.match(html, /完整结论/)
-})
-
 test('a timed-out host keeps the discussion open', () => {
   const html = render(message({
     text: '讨论记录：甲说先做，乙说再等等。',

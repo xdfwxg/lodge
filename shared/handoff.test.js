@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { handoffGoalText, handoffOf, normalizeHandoff, parseHandoffFromText } from './handoff.js'
+import { handoffGoalText, normalizeHandoff, parseHandoffFromText } from './handoff.js'
 
 test('a structured conclusion becomes five handoff fields', () => {
   const handoff = parseHandoffFromText(`
@@ -63,21 +63,6 @@ test('placeholder values become empty fields, not bullets', () => {
     constraints: [],
     todos: [],
   })
-})
-
-test('a stored handoff wins over parsing the old text again', () => {
-  const stored = {
-    topic: '已存主题',
-    consensus: ['已存共识'],
-    disagreements: [],
-    constraints: [],
-    todos: [],
-  }
-  assert.deepEqual(
-    handoffOf({ handoff: stored, text: '## 主题\n文本主题\n## 共识\n- 文本共识' }),
-    stored,
-  )
-  assert.equal(handoffOf({ handoff: null, text: '## 主题\n文本主题' }).topic, '文本主题')
 })
 
 test('handoff values are bounded and empty values are rejected', () => {

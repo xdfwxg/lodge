@@ -3,53 +3,25 @@ import test from 'node:test'
 import { chatStudioSeed } from './seed.js'
 import { seedGoalText } from '../seed-text.js'
 
-test('a chat conclusion becomes a structured handoff instead of a raw transcript', () => {
-  const seed = chatStudioSeed({
-    room: { id: 'room-chat', goal: '讨论交付边界', name: '圆桌' },
-    conclusion: '先验最小闭环。',
-  })
-  assert.equal(seed.goal, '讨论交付边界')
-  assert.equal(seed.conclusion, '先验最小闭环。')
-  assert.equal(seed.sourceName, '圆桌')
-  assert.equal(seed.sourceRoomId, 'room-chat')
-  assert.deepEqual(seed.handoff, {
-    topic: '讨论交付边界',
-    consensus: ['先验最小闭环。'],
-    disagreements: [],
-    constraints: [],
-    todos: [],
-  })
-  assert.equal(seedGoalText(seed), '讨论交付边界')
-})
-
-test('a structured conclusion keeps the five handoff fields', () => {
-  const seed = chatStudioSeed({
-    room: { goal: '发布讨论', name: '发布会' },
-    conclusion: '## 共识\n- 先做最小版本\n## 分歧\n- 是否回滚\n## 待办\n- 写清单',
-  })
-  assert.equal(seed.handoff.consensus[0], '先做最小版本')
-  assert.equal(seed.handoff.disagreements[0], '是否回滚')
-  assert.equal(seed.handoff.todos[0], '写清单')
-  assert.equal(seedGoalText(seed), '发布讨论')
-  assert.equal(seed.handoff.consensus[0], '先做最小版本')
-  assert.equal(seed.handoff.disagreements[0], '是否回滚')
-})
-
-test('a stored handoff wins over parsing the conclusion text again', () => {
+test('a stored handoff becomes the studio seed', () => {
   const handoff = {
-    topic: '已存主题',
-    consensus: ['已存共识'],
-    disagreements: ['已存分歧'],
+    topic: '发布讨论',
+    consensus: ['先做最小版本'],
+    disagreements: ['是否回滚'],
     constraints: [],
-    todos: [],
+    todos: ['写清单'],
   }
   const seed = chatStudioSeed({
-    room: { goal: '房间目标', name: '圆桌' },
-    conclusion: '## 主题\n文本主题\n## 共识\n- 文本共识',
+    room: { id: 'room-chat', goal: '房间目标', name: '圆桌' },
+    conclusion: '完整结论原文',
     handoff,
   })
+  assert.equal(seed.goal, '发布讨论')
+  assert.equal(seed.conclusion, '完整结论原文')
+  assert.equal(seed.sourceName, '圆桌')
+  assert.equal(seed.sourceRoomId, 'room-chat')
   assert.deepEqual(seed.handoff, handoff)
-  assert.equal(seed.goal, '已存主题')
+  assert.equal(seedGoalText(seed), '发布讨论')
 })
 
 test('a return-to-chat seed uses its own context label', () => {

@@ -16,7 +16,7 @@ export function ChatConclusionCard({ message, seat, room }) {
     ?? null
   const latest = latestId === null || latestId === message.id
   const history = !latest || accepted
-  const handoff = chatConclusionHandoffOf(message, room)
+  const handoff = chatConclusionHandoffOf(message)
   const fields = handoff ?? {
     topic: room?.goal ?? '',
     consensus: [],

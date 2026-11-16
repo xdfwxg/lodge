@@ -7,7 +7,19 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     roomType: 'chat',
     state: 'active',
     chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
-    messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
+    messages: [{
+      kind: 'chat_conclusion',
+      text: '结论：先做返工台账。',
+      meta: {
+        handoff: {
+          topic: '返工',
+          consensus: ['先做返工台账。'],
+          disagreements: [],
+          constraints: [],
+          todos: [],
+        },
+      },
+    }],
   })
   assert.equal(decision.title, '聊完了，待确认')
   assert.match(decision.detail, /返工台账/)
@@ -17,7 +29,19 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     roomType: 'chat',
     state: 'complete',
     chat: { phase: 'accepted', accepted: true, running: false, round: 1, turns: 4, turnLimit: 4 },
-    messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
+    messages: [{
+      kind: 'chat_conclusion',
+      text: '结论：先做返工台账。',
+      meta: {
+        handoff: {
+          topic: '返工',
+          consensus: ['先做返工台账。'],
+          disagreements: [],
+          constraints: [],
+          todos: [],
+        },
+      },
+    }],
   })
   assert.equal(complete.title, '这次聊完了')
   assert.equal(complete.extra.label, '用结论开工')

@@ -104,11 +104,6 @@ export const parseHandoffFromText = (text, fallbackTopic = '') => {
   return normalizeHandoff(handoff)
 }
 
-// Stored handoff wins; text parsing is only for old conclusions.
-export const handoffOf = ({ handoff, text, fallbackTopic = '' }) => (
-  normalizeHandoff(handoff) ?? parseHandoffFromText(text, fallbackTopic)
-)
-
 export const handoffGoalText = handoff => {
   const normalized = normalizeHandoff(handoff)
   if (normalized === null) return ''
