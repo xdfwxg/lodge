@@ -24,11 +24,13 @@ must('架构升级.md explains assignments', architecture.includes('## Assignmen
 must('架构升级.md keeps the upgrade log', architecture.includes('## 升级记录'))
 must('架构升级.md records explicit non-goals', architecture.includes('## 明确不做'))
 must('架构升级.md keeps license attribution', architecture.includes('## 许可与归属'))
-must('README links the product story', feedback.includes('[Lodge.md](Lodge.md)'))
-must('README links the architecture record', feedback.includes('[架构升级.md](架构升级.md)'))
+must('README links the product story', feedback.includes('(Lodge.md)'))
+must('README links the architecture record', feedback.includes('(架构升级.md)'))
+must('README links the operations manual', feedback.includes('[docs/operations.md](docs/operations.md)'))
 
+must('docs/operations.md stays available', existsSync(resolve(root, 'docs/operations.md')))
 for (const file of ['docs/advisor.md', 'docs/macos-desktop.md', 'docs/runtimes.md']) {
-  must(`${file} stays available`, existsSync(resolve(root, file)))
+  must(`${file} stays merged`, !existsSync(resolve(root, file)))
 }
 
 // 设计文档只留两份；旧文档回流会让文档再次分叉。
