@@ -35,6 +35,23 @@ test('a structured conclusion keeps the five handoff fields', () => {
   assert.equal(seed.handoff.disagreements[0], '是否回滚')
 })
 
+test('a stored handoff wins over parsing the conclusion text again', () => {
+  const handoff = {
+    topic: '已存主题',
+    consensus: ['已存共识'],
+    disagreements: ['已存分歧'],
+    constraints: [],
+    todos: [],
+  }
+  const seed = chatStudioSeed({
+    room: { goal: '房间目标', name: '圆桌' },
+    conclusion: '## 主题\n文本主题\n## 共识\n- 文本共识',
+    handoff,
+  })
+  assert.deepEqual(seed.handoff, handoff)
+  assert.equal(seed.goal, '已存主题')
+})
+
 test('a return-to-chat seed uses its own context label', () => {
   assert.equal(
     seedGoalText({ goal: '评审这次交付', conclusion: '检查通过', label: '这次交付' }),
@@ -48,13 +65,13 @@ test('a receipt seed carries the four receipt fields into the goal', () => {
     label: '这次交付',
     receipt: {
       result: '发布检查',
-      completeness: '2/2 阶段完成',
+      completeness: '2/2 步完成',
       checks: ['npm test 通过'],
       openQuestions: [],
     },
   })
   assert.match(text, /评审这次交付：发布检查/)
-  assert.match(text, /完成度：2\/2 阶段完成/)
+  assert.match(text, /完成度：2\/2 步完成/)
   assert.match(text, /检查：npm test 通过/)
 })
 

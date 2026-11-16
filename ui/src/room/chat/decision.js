@@ -1,3 +1,4 @@
+import { handoffOf } from '../../../../shared/handoff.js'
 import { buildIdleDecision, cleanText } from '../decision.js'
 
 export const chatConclusionOf = room => {
@@ -5,19 +6,27 @@ export const chatConclusionOf = room => {
   return message === undefined ? null : message
 }
 
+export const chatConclusionHandoffOf = (message, room) => handoffOf({
+  handoff: message?.meta?.handoff,
+  text: message?.text,
+  fallbackTopic: room?.goal,
+})
+
 // 聊天室只关心：讨论中、出结论、已确认、中断；没有阶段和验收。
 export const buildChatDecision = room => {
   const idle = buildIdleDecision(room)
   if (idle !== null) return idle
   const chat = room.chat ?? {}
   const conclusion = chatConclusionOf(room)
+  const handoff = chatConclusionHandoffOf(conclusion, room)
   const text = cleanText(conclusion?.text)
+  const summary = handoff?.consensus?.[0] ?? handoff?.topic ?? text
 
   if (room.state === 'complete') {
     return {
       key: 'chat-complete',
       title: '这次聊完了',
-      detail: text.length > 260 ? `${text.slice(0, 260)}…` : text,
+      detail: summary.length > 260 ? `${summary.slice(0, 260)}…` : summary,
       primary: null,
       secondary: null,
       extra: { label: '用结论开工', action: 'start-studio' },
@@ -30,7 +39,7 @@ export const buildChatDecision = room => {
     return {
       key: 'chat-decision',
       title: '聊完了，待确认',
-      detail: text.length > 260 ? `${text.slice(0, 260)}…` : text,
+      detail: summary.length > 260 ? `${summary.slice(0, 260)}…` : summary,
       primary: { label: '确认结论', action: 'chat-accept' },
       secondary: { label: '再聊一轮', action: 'continue-chat' },
       extra: { label: '用结论开工', action: 'start-studio' },

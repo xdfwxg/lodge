@@ -222,6 +222,7 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     const conclusion = store.readMessages(chatId).find(message => message.kind === 'chat_conclusion')
     assert.equal(conclusion.meta.turns, 6)
     assert.equal(conclusion.meta.fallback, false)
+    assert.equal(conclusion.meta.handoff.topic, store.readRoom(chatId).goal)
 
     const chat = createServiceChat({ store, live, emit: () => {} })
     const accepted = chat.accept(store.readRoom(chatId))

@@ -32,7 +32,7 @@ test('the same speaker is not picked twice in a row when another is eligible', (
   assert.equal(seat, 'b')
 })
 
-const setup = () => {
+const setup = ({ summaryText = '这是总结。' } = {}) => {
   let current = {
     id: 'room-chat',
     kind: 'room',
@@ -89,7 +89,7 @@ const setup = () => {
         id: `a${history.length + 1}`,
         role: 'agent',
         kind: 'text',
-        text: summary ? '这是总结。' : '这是发言。',
+        text: summary ? summaryText : '这是发言。',
         authorRef: ref,
         at: Date.now(),
       })
@@ -126,12 +126,20 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(conclusion.meta.round, 1)
   assert.equal(conclusion.meta.turns, 6)
   assert.equal(conclusion.meta.fallback, false)
+  assert.deepEqual(conclusion.meta.handoff, {
+    topic: '讨论状态提示',
+    consensus: ['这是总结。'],
+    disagreements: [],
+    constraints: [],
+    todos: [],
+  })
   assert.equal(ctx.room().chat.conclusionId, conclusion.id)
   const prompts = ctx.history.filter(message => message.role === 'user').map(message => message.text)
   assert.equal(prompts.some(text => text.includes('已有讨论')), false)
   assert.equal(prompts.some(text => text.includes('本轮表达：【开朗活跃】')), true)
   assert.equal(prompts.some(text => text.includes('本轮表达：【果敢善辩】')), true)
-  assert.equal(Math.max(...prompts.map(text => text.length)) < 400, true)
+  assert.equal(prompts.filter(text => !text.includes('请总结')).every(text => text.length < 400), true)
+  assert.equal(prompts.filter(text => text.includes('请总结')).every(text => text.length < 900), true)
 
   ctx.store.updateRoom('room-chat', state => {
     state.chat = { ...state.chat, round: 2, running: false, turns: 0, phase: 'awaiting_decision' }
@@ -143,6 +151,63 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   const conclusions = ctx.messages.filter(message => message.kind === 'chat_conclusion')
   assert.equal(conclusions.length, 2)
   assert.equal(conclusions.at(-1).meta.round, 2)
+})
+
+test('the host conclusion keeps all five handoff fields', async () => {
+  const ctx = setup({
+    summaryText: [
+      '## 主题',
+      '状态提示',
+      '## 共识',
+      '- 用一句话说明',
+      '## 分歧',
+      '- 无',
+      '## 约束',
+      '- 不改接口',
+      '## 待办',
+      '- 写测试',
+    ].join('\n'),
+  })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    engine: ctx.engine,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  await scheduler.start(ctx.room())
+  const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
+  assert.deepEqual(conclusion.meta.handoff, {
+    topic: '状态提示',
+    consensus: ['用一句话说明'],
+    disagreements: [],
+    constraints: ['不改接口'],
+    todos: ['写测试'],
+  })
+})
+
+test('a late seat message is synced before the host concludes', async () => {
+  const ctx = setup()
+  let synced = false
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    engine: ctx.engine,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+    syncChat: async () => {
+      if (synced) return
+      synced = true
+      ctx.store.appendMessage('room-chat', { kind: 'chat', authorId: 'a', text: '甲补充' })
+    },
+  })
+  await scheduler.start(ctx.room())
+  const late = ctx.messages.findIndex(message => message.text === '甲补充')
+  const conclusion = ctx.messages.findIndex(message => message.kind === 'chat_conclusion')
+  assert.ok(late >= 0)
+  assert.ok(late < conclusion)
 })
 
 test('a chat room can run fewer turns than the default', async () => {

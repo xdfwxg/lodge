@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { handoffGoalText, normalizeHandoff, parseHandoffFromText } from './handoff.js'
+import { handoffGoalText, handoffOf, normalizeHandoff, parseHandoffFromText } from './handoff.js'
 
 test('a structured conclusion becomes five handoff fields', () => {
   const handoff = parseHandoffFromText(`
@@ -41,6 +41,43 @@ test('a plain conclusion becomes a topic and one consensus item', () => {
   const handoff = parseHandoffFromText('大家认为先做导出，暂时不做同步。', '导出')
   assert.equal(handoff.topic, '导出')
   assert.deepEqual(handoff.consensus, ['大家认为先做导出，暂时不做同步。'])
+})
+
+test('placeholder values become empty fields, not bullets', () => {
+  const handoff = parseHandoffFromText(`
+## 主题
+发布前检查
+## 共识
+- 无
+## 分歧
+- 暂无
+## 约束
+- 不适用
+## 待办
+- 没有
+`, '兜底主题')
+  assert.deepEqual(handoff, {
+    topic: '发布前检查',
+    consensus: [],
+    disagreements: [],
+    constraints: [],
+    todos: [],
+  })
+})
+
+test('a stored handoff wins over parsing the old text again', () => {
+  const stored = {
+    topic: '已存主题',
+    consensus: ['已存共识'],
+    disagreements: [],
+    constraints: [],
+    todos: [],
+  }
+  assert.deepEqual(
+    handoffOf({ handoff: stored, text: '## 主题\n文本主题\n## 共识\n- 文本共识' }),
+    stored,
+  )
+  assert.equal(handoffOf({ handoff: null, text: '## 主题\n文本主题' }).topic, '文本主题')
 })
 
 test('handoff values are bounded and empty values are rejected', () => {

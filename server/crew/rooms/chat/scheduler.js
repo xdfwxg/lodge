@@ -57,8 +57,18 @@ const hostPrompt = ({ room, hostName, round, note }) => [
   `@${hostName} 聊天室第 ${round} 轮讨论到此结束，请总结。`,
   `话题：${room.goal}`,
   note === '' ? '' : `用户退回了上一轮结论，并补充：${note}`,
-  '请给出：结论、主要分歧、建议下一步。不要调用工具。直接回复总结。',
-  '总结控制在 300 字以内，分点最多 5 条；不要逐条复述发言。',
+  '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。严格按下面五段输出，标题固定：',
+  '## 主题',
+  '一句话说清这轮在解决什么。',
+  '## 共识',
+  '- 已达成的结论，最多 5 条',
+  '## 分歧',
+  '- 未解决的分歧，最多 5 条；没有写「无」',
+  '## 约束',
+  '- 前提、限制、风险，最多 5 条；没有写「无」',
+  '## 待办',
+  '- 下一步要做什么，最多 5 条；没有写「无」',
+  '每段不超过 100 字，总长不超过 800 字。',
   INTERNAL_PROMPT_MARKER,
 ].filter(Boolean).join('\n')
 
@@ -75,6 +85,7 @@ export const createChatScheduler = ({
   random = Math.random,
   waitMs = DEFAULT_WAIT_MS,
   pollMs = POLL_MS,
+  syncChat = async () => {},
 }) => {
   const runs = new Map()
 
@@ -145,11 +156,11 @@ export const createChatScheduler = ({
     let room = store.readRoom(roomId) ?? inputRoom
     const chat = room?.chatRoom
     if (chat === undefined) throw new Error('房间聊天室还没准备好')
-    // 主持人是 Lodge 自己的隐藏成员，不占发言席位。
+    // 主持人是 Lodge 自己的隐藏成员，不占发言位置。
     const hostBot = room.chatHost?.memberRef ?? ''
     const hostName = room.chatHost?.name ?? ''
     const hostAuthor = 'lodge'
-    if (hostBot === '' || hostName === '') throw new Error('聊天室没有主持席位')
+    if (hostBot === '' || hostName === '') throw new Error('聊天室没有主持人')
     const speakers = [...(room.members ?? [])]
     const turnLimit = chatTurnLimitOf(room)
     const perSeat = speakers.length === 0
@@ -242,6 +253,12 @@ export const createChatScheduler = ({
         return { started: true, cancelled: true, round }
       }
 
+      // 基座事件可能晚于发言轮次到达；总结前强制同步一次，迟到的发言也会落在结论之前。
+      try {
+        await syncChat()
+      } catch {
+        // 同步失败不阻塞总结；房间已有消息仍可总结。
+      }
       const lines = discussionLines(store, roomId)
       const summarizing = transitionChat(store.readRoom(roomId)?.chat?.phase ?? 'discussing', 'summarize')
       if (!summarizing.ok) throw new Error(summarizing.error)

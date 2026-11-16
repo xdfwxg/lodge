@@ -9,10 +9,10 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
   })
-  assert.equal(decision.title, '聊完了，等你定')
+  assert.equal(decision.title, '聊完了，待确认')
   assert.match(decision.detail, /返工台账/)
-  assert.equal(decision.primary.label, '就这样，收结论')
-  assert.equal(decision.extra.label, '拿结论开工作室')
+  assert.equal(decision.primary.label, '确认结论')
+  assert.equal(decision.extra.label, '用结论开工')
   const complete = buildChatDecision({
     roomType: 'chat',
     state: 'complete',
@@ -20,7 +20,7 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
   })
   assert.equal(complete.title, '这次聊完了')
-  assert.equal(complete.extra.label, '拿结论开工作室')
+  assert.equal(complete.extra.label, '用结论开工')
 
   const interrupted = buildChatDecision({
     roomType: 'chat',
@@ -31,6 +31,29 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
   assert.equal(interrupted.title, '刚才断了')
   assert.equal(interrupted.primary.action, 'chat-resume')
   assert.doesNotMatch(interrupted.detail, /\d+\/\d+/)
+})
+
+test('the island line comes from the stored five-field consensus', () => {
+  const decision = buildChatDecision({
+    roomType: 'chat',
+    state: 'active',
+    chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
+    messages: [{
+      kind: 'chat_conclusion',
+      text: '原始讨论长文，不应该成为岛的一行结论。',
+      meta: {
+        handoff: {
+          topic: '状态提示',
+          consensus: ['先做最小版本'],
+          disagreements: [],
+          constraints: [],
+          todos: [],
+        },
+      },
+    }],
+  })
+  assert.match(decision.detail, /先做最小版本/)
+  assert.doesNotMatch(decision.detail, /原始讨论长文/)
 })
 
 test('a free chat does not show speaking counts', () => {
