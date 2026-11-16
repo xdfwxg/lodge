@@ -12,6 +12,7 @@ export function MemberEnginePicker({
   personalities = [],
   allowCapabilities = false,
   allowSkills = false,
+  requireApprovalGate = false,
   onRemove = null,
   canRemove = false,
   canRemoveMember = null,
@@ -32,6 +33,8 @@ export function MemberEnginePicker({
         h('span', null, '模型')),
     ...members.map((member, index) => {
       const choice = choices[index] ?? { engine: '', model: '' }
+      const execRole = member.permissions?.exec ?? ['worker', 'executor', 'verifier'].includes(member.role)
+      const needsGate = requireApprovalGate === true && execRole === true
       const engine = engineChoices.find(item => item.id === choice.engine)
       const rows = modelRowsFor(engine)
       const model = choice.model !== '' ? choice.model : (engine?.models?.default || rows[0]?.id || '')
@@ -66,10 +69,14 @@ export function MemberEnginePicker({
             },
           },
           h('option', { value: '' }, '按角色默认'),
-          engineChoices.map(item => h('option', {
-            key: item.id,
-            value: item.id,
-          }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}`))),
+          engineChoices.map(item => {
+            const allowed = needsGate !== true || item.capabilities?.approvalReview === true
+            return h('option', {
+              key: item.id,
+              value: item.id,
+              disabled: !allowed,
+            }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}${allowed ? '' : ' · 不能执行'}`)
+          })),
           engine !== undefined && rows.length > 0
             ? h('select', {
               className: 'crew-member-menu',
@@ -94,8 +101,8 @@ export function MemberEnginePicker({
           engine !== undefined && rows.length === 0
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型服务还没有可用模型。')
             : null,
-          engine !== undefined && engine.capabilities !== undefined && engine.capabilities !== null && engine.capabilities.approvalReview !== true
-            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你：联网、安装、推送这类对外操作会直接执行。')
+          needsGate === true && engine !== undefined && engine.capabilities?.approvalReview !== true
+            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
             : null),
         allowCapabilities
           ? h('details', { className: 'crew-member-capabilities' },

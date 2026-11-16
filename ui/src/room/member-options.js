@@ -12,6 +12,7 @@ export const normalizeMembers = members => (Array.isArray(members) ? members : [
   ...(member.engine ? { engine: member.engine } : {}),
   ...(member.model ? { model: member.model } : {}),
   ...(member.personality ? { personality: member.personality } : {}),
+  ...(member.permissions && typeof member.permissions === 'object' ? { permissions: member.permissions } : {}),
 }))
 
 export const memberChoicesFrom = members => normalizeMembers(members)

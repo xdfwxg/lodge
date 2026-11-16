@@ -106,6 +106,16 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const provisioner = createProvisioner({ engine })
   let room = null
   let stored = false
+  // 建房失败或政策拒绝时，把已经建出来的成员、基座房间和工作区一起收回。
+  const discard = async () => {
+    await provisioner.cleanup()
+    try {
+      if (workspaces !== null) provider.cleanupRoom({ source: sourceRepo, workspaces })
+    } catch {}
+    if (requestedRepo === '') {
+      try { ports.workspace.remove(sourceRepo) } catch {}
+    }
+  }
   try {
     workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
     const goalTitle = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
@@ -124,6 +134,17 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       verifiers,
       roomType: roomType.id,
     })
+    // 外部动作只有在驱动会停下来问人时才安全；不会问的执行成员不能开工。
+    const blocked = roomType.readOnly === true
+      ? []
+      : provisioned.members.filter(member => member.permissions?.exec === true && member.approvalGate === false)
+    if (blocked.length > 0) {
+      await discard()
+      return fail(
+        'invalid',
+        `${blocked.map(member => member.name).join('、')}用的模型不会逐次确认外部动作；换一个会先问你的模型，或把这件事放进聊天室讨论。`,
+      )
+    }
     const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, verify, acceptance, align: initialAlign })
     room = buildRoomRecord({
       short,
@@ -214,13 +235,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     return created({ room })
   } catch (error) {
     if (!stored) {
-      await provisioner.cleanup()
-      try {
-        if (workspaces !== null) provider.cleanupRoom({ source: sourceRepo, workspaces })
-      } catch {}
-      if (requestedRepo === '') {
-        try { ports.workspace.remove(sourceRepo) } catch {}
-      }
+      await discard()
       throw new Error(`房间没能建起来：${error?.message ?? error}`)
     }
     store.appendMessage(room.id, { kind: 'system', text: `房间建好了，但没能启动：${error?.message ?? error}` })

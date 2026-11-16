@@ -21,15 +21,15 @@ export const studioActivityLine = (room, view) => {
   if (room.needsYou?.kind === 'review') {
     const names = (room.verifiers ?? []).map(id => nameOf(room, id)).filter(Boolean).join('、')
     const who = names === '' ? '验收员' : names
-    const label = room.independence === 'vendor'
-      ? '正在独立复核'
-      : room.independence === 'model' ? '正在复核；同一家模型，独立性有限' : '正在复核'
+    const label = room.independence === 'vendor' ? '正在独立复核' : '正在自查；同一家模型'
     return `${who} ${label}${where}`
   }
   const working = stage?.tasks?.find(task => task.status === 'working')
   const busyMember = (Array.isArray(room.busyMembers) ? room.busyMembers[0] : room.busyMember) ?? working?.owner
   if (busyMember === undefined || busyMember === null) return ''
   const member = room.members?.find(item => item.id === busyMember)
-  const verb = member?.role === 'lead' ? '正在安排' : member?.role === 'verifier' ? '正在复核' : '正在处理'
+  const verb = member?.role === 'lead'
+    ? '正在安排'
+    : member?.role === 'verifier' ? (room.independence === 'vendor' ? '正在复核' : '正在自查') : '正在处理'
   return `${nameOf(room, busyMember)} ${verb}${where}`
 }

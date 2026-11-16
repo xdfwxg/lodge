@@ -16,14 +16,16 @@ import { createStore } from './store.js'
 const temp = prefix => mkdtempSync(join(tmpdir(), prefix))
 
 // 固定脚本运行时：不启动 CLI，被 @ 的席位立刻回一条可预测的消息。
-const scriptedEngine = store => {
+const scriptedEngine = (store, { approvalReview = true } = {}) => {
   const history = []
   let seq = 0
   return {
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
-    instances: async () => [{ id: 'fake', engine: 'fake', available: true, capabilities: { approvalReview: false } }],
+    instances: async () => [{ id: 'fake', engine: 'fake', available: true, capabilities: { approvalReview } }],
     createMemberBot: async ({ name }) => ({ id: `member-${name}`, name, engine: 'fake', model: 'fake-model' }),
     createRoom: async ({ name }) => ({ id: `chat-${name}`, sessionRef: `thread-${name}` }),
+    deleteRoom: async () => {},
+    deleteMemberBot: async () => {},
     history: async () => ({ messages: [...history] }),
     rooms: async () => [],
     sendTurn: async ({ roomId, text }) => {
@@ -114,13 +116,6 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     assert.equal(studio.ok, true)
     const room = studio.body.room
     assert.equal(room.closure, 'planned')
-    // 运行时不做权限复核时，房间要诚实说明外部动作不会停下来问人。
-    assert.equal(room.members.find(member => member.role === 'worker').approvalGate, false)
-    const notice = store.readMessages(room.id).find(message => (
-      message.kind === 'system' && message.text.includes('不会先问你')
-    ))
-    assert.ok(notice, 'room should warn that external actions run without asking')
-    assert.match(notice.text, /联网、安装、推送/)
 
     const move = moveStudio(store, room.id)
     move('start_execute', {}, 'planner', '计划确认')
@@ -247,6 +242,44 @@ test('deterministic room scenario reaches signed and accepted', async () => {
       .filter(event => event.type === 'chat.transition')
       .map(event => event.payload.event)
     assert.deepEqual(chatSequence, ['summarize', 'conclude', 'accept'])
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+    if (previous === undefined) delete process.env.CREW_WORKSPACE_ROOT
+    else process.env.CREW_WORKSPACE_ROOT = previous
+  }
+})
+
+test('a delivery room refuses exec members whose model cannot ask', async () => {
+  const previous = process.env.CREW_WORKSPACE_ROOT
+  const root = temp('lodge-block-workspace-')
+  process.env.CREW_WORKSPACE_ROOT = root
+  const dataDir = temp('lodge-block-data-')
+  const store = createStore({ dataDir })
+  const engine = scriptedEngine(store, { approvalReview: false })
+  const ports = createCrewPorts()
+  try {
+    const result = await createRealRoom({
+      store,
+      engine,
+      live: fakeLive(),
+      emit: () => {},
+      body: {
+        goal: '写一个文件',
+        roomType: 'studio',
+        verify: 'test',
+        plan: {
+          done: ['文件存在'],
+          stages: [{ title: '写文件', kind: 'deliverable', acceptance: 'test -f A.md' }],
+        },
+      },
+      ports,
+    })
+    assert.equal(result.ok, false)
+    assert.equal(result.reason, 'invalid')
+    assert.match(result.error, /不会逐次确认外部动作/)
+    assert.match(result.error, /聊天室/)
+    assert.deepEqual(store.readRooms(), [])
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
     rmSync(root, { recursive: true, force: true })

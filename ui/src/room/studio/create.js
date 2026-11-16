@@ -123,6 +123,7 @@ export function VerifyChoice({
 
 export function StudioPrimaryFields({
   members = DEFAULT_STUDIO_MEMBERS,
+  engines = [],
   showVerify = true,
   verifyMode = 'manual',
   onVerifyMode = () => {},
@@ -130,6 +131,18 @@ export function StudioPrimaryFields({
   onAcceptanceDraft = () => {},
   onAdvanced = () => {},
 }) {
+  const available = (Array.isArray(engines) ? engines : []).filter(item => item.available)
+  const capable = available.some(item => item.capabilities?.approvalReview === true)
+  const vendors = new Set(available.map(item => item.engine ?? item.id))
+  const modelNote = engines.length === 0
+    ? ''
+    : available.length === 0
+      ? '还没有可用的模型服务。先在「调整成员与模型」里配置一家。'
+      : !capable
+        ? '现在没有会逐次确认外部动作的模型，工作室开不了工。先装好一家会先问你的模型，或把这件事放进聊天室讨论。'
+        : vendors.size < 2
+          ? '现在只有一家模型可用：验收会是同一家模型自查。要独立复核，先在「调整成员与模型」里选另一家模型服务；没有就先装一家。'
+          : ''
   return h(Fragment, null,
     h('div', { className: 'crew-field' },
       h('div', { className: 'crew-field-head' },
@@ -141,7 +154,8 @@ export function StudioPrimaryFields({
           className: 'crew-team-chip',
           'data-role': member.role,
         }, member.name))),
-      h('p', { className: 'crew-field-hint' }, '默认三人组：规划、执行、验收。')),
+      h('p', { className: 'crew-field-hint' }, '默认三人组：规划、执行、验收。'),
+      modelNote === '' ? null : h('p', { className: 'crew-field-hint', role: 'status' }, modelNote)),
     showVerify
       ? h('div', { className: 'crew-field' },
         h('b', null, '怎么验收'),
@@ -179,6 +193,7 @@ export function StudioSetupFields({
         loginBusy,
         allowCapabilities: true,
         allowSkills: features?.skillsLibrary === true,
+        requireApprovalGate: true,
         onLogin,
         onInteraction,
       })),

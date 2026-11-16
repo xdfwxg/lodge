@@ -27,3 +27,29 @@ test('choosing a command reveals the check input', () => {
   assert.match(html, /要跑的检查/)
   assert.match(html, /npm test/)
 })
+
+const engine = (id, approvalReview) => ({
+  id,
+  engine: id,
+  name: id,
+  available: true,
+  capabilities: { approvalReview },
+})
+
+test('a model that never asks blocks the studio before it starts', () => {
+  const html = render({ engines: [engine('pi', false)] })
+  assert.match(html, /工作室开不了工/)
+  assert.match(html, /聊天室/)
+})
+
+test('one available vendor points at the same-vendor self check', () => {
+  const html = render({ engines: [engine('claude', true)] })
+  assert.match(html, /只有一家模型可用/)
+  assert.match(html, /自查/)
+})
+
+test('two vendors show no guidance', () => {
+  const html = render({ engines: [engine('claude', true), engine('codex', true)] })
+  assert.doesNotMatch(html, /只有一家模型可用/)
+  assert.doesNotMatch(html, /开不了工/)
+})
