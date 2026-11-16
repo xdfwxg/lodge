@@ -38,8 +38,8 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
       onClick: event => event.stopPropagation(),
     },
     h('div', { className: 'crew-dialog-heading' },
-      h('h2', null, '给房间添一位成员'),
-      h('p', null, '只加执行官或验收员；规划师是这间房唯一的主机器人。')),
+      h('h2', null, '添一位成员'),
+      h('p', null, '规划师每间房只有一位。')),
     h('div', { className: 'crew-dialog-body' },
       h('label', { className: 'crew-field crew-body-swap-field' },
         h('b', null, '角色'),
@@ -99,20 +99,20 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
         : null,
       h(BodySpecFields, { value: spec, onChange: setSpec, disabled: busy }),
       available.length === 0
-        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '还没有可用的模型服务；先安装或登录一家，再回来。')
+        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个模型服务。')
         : engineId === '' && readiness.ready.length === 0 && readiness.noModels.length > 0 &&
           readiness.loginTargets.length + readiness.manualLogin.length === 0
           ? h('p', { className: 'crew-field-hint', role: 'alert' },
-            `${readiness.noModels.map(item => item.name ?? item.id).join('、')}没有配置模型；先在服务里配置一个模型。`)
+            `${readiness.noModels.map(item => item.name ?? item.id).join('、')}还没有模型。`)
           : engineId === '' || !blocked
-            ? h('p', { className: 'crew-field-hint' }, '权限由角色决定；新成员会成为房间里的正式成员，可以接 Assignment。')
+            ? h('p', { className: 'crew-field-hint' }, '权限由角色决定。')
           : h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
-            ? '执行成员要用会先问你外部动作的模型。'
+            ? '执行成员要用会先问你的模型。'
             : blockedReason === '登录失效'
-              ? '这个模型服务没有登录；先用下面的登录或刷新。'
+              ? '这个模型服务还没登录。'
               : blockedReason === '没有配置模型'
-                ? '这个模型服务没有配置模型；先在服务里配置一个模型。'
-                : '这个模型服务现在不可用；选一个可用的。'),
+                ? '这个模型服务还没有模型。'
+                : '换一个可用的模型服务。'),
       h(EngineLogin, {
         readiness,
         busyId: loginBusyId,

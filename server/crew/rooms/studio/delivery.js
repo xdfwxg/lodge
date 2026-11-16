@@ -10,8 +10,14 @@ const artifactList = (messages, roots = []) => {
     for (const artifact of message.meta?.artifacts ?? []) {
       if (artifact === null || typeof artifact !== 'object' || typeof artifact.path !== 'string' || artifact.path === '') continue
       if (normalizedRoots.length > 0 && !normalizedRoots.some(root => artifact.path === root || artifact.path.startsWith(`${root}/`))) continue
+      const root = normalizedRoots
+        .filter(item => artifact.path === item || artifact.path.startsWith(`${item}/`))
+        .sort((a, b) => b.length - a.length)[0]
       byPath.set(artifact.path, {
         path: artifact.path,
+        relativePath: root === undefined || artifact.path === root
+          ? artifact.path
+          : artifact.path.slice(root.length + 1),
         bytes: Number.isFinite(artifact.bytes) ? artifact.bytes : null,
       })
     }
@@ -68,7 +74,9 @@ export const buildDelivery = (room, messages = []) => {
   const lastAt = messages.reduce((latest, message) => Math.max(latest, message.ts ?? 0), 0)
   const delivery = {
     roomId: room.id,
-    name: room.name,
+    name: room.demo === true
+      ? String(room.name ?? '').replace(/^示例[：:]\s*/, '')
+      : room.name,
     goal: room.goal,
     sample: room.demo === true,
     completedAt: room.completedAt ?? (lastAt > 0 ? lastAt : null),

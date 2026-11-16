@@ -16,11 +16,11 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
     const blocked = bodyChangeBlocker(room, '移除成员')
     if (blocked !== null) return fail('conflict', blocked)
     if ((room.approvals ?? []).some(item => item.state === 'pending' && item.memberId === memberId)) {
-      return fail('conflict', '这个成员还有待确认的操作，先处理掉再移除')
+      return fail('conflict', '先处理掉待确认的操作，再移除。')
     }
     const kind = member.roleKind ?? member.role
     if (kind === 'planner' || kind === 'lead' || member.id === room.leadMemberId) {
-      return fail('invalid', '主机器人不能移除；房间需要一个规划师')
+      return fail('invalid', '规划师不能移除。')
     }
     const activeAssignments = typeof store.readAssignments === 'function'
       ? store.readAssignments(room.id, { limit: 5000 })
@@ -29,7 +29,7 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
       ACTIVE_ASSIGNMENT.has(assignment.status) &&
       (assignment.toMemberId === memberId || assignment.fromMemberId === memberId)
     ))) {
-      return fail('conflict', '这个成员手里还有没结束的交接，先处理交接再移除')
+      return fail('conflict', '先处理完没结束的交接，再移除。')
     }
 
     const instances = await bodies.instances()

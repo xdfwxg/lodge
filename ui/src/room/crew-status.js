@@ -27,11 +27,11 @@ export function CrewStatusLine({ room, members, onSwap = null, onAdd = null, lab
     ...(onSwap === null ? {} : {
       type: 'button',
       onClick: () => onSwap(item.memberId),
-      'aria-label': `给${item.name}换身体`,
+      'aria-label': `调整${item.name}`,
     }),
     className: 'crew-crew-member',
     'data-tone': item.tone,
-    title: [item.engine, item.model, item.label, onSwap === null ? '' : '点击换身体'].filter(value => value !== '').join(' · '),
+    title: [item.engine, item.model, item.label, onSwap === null ? '' : '点击调整'].filter(value => value !== '').join(' · '),
   },
   h('span', { className: 'crew-crew-dot', 'aria-hidden': 'true' }),
   h('span', { className: 'crew-crew-name' }, item.name),

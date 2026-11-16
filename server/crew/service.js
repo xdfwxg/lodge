@@ -146,11 +146,11 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     }
 
     if (action === 'shadow-review' && method === 'POST') {
-      if (room.roomType !== 'studio') return fail('conflict', '只有工作室有影子评审')
+      if (room.roomType !== 'studio') return fail('conflict', '只有工作室能用第二意见')
       const body = await readBody()
       if (body.enabled === true) {
         const described = ports.advisor?.describe?.() ?? { available: false, host: '' }
-        if (described.available !== true) return fail('conflict', '还没有配置外部 advisor')
+        if (described.available !== true) return fail('conflict', '还没配置第二意见的外部服务')
         const updated = updateRoom(room.id, current => {
           current.shadowReview = true
           current.advisorConsent = { host: described.host, at: Date.now() }
@@ -160,7 +160,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         if (updated === null) return fail('not_found', '没有这个房间')
         appendMessage(room.id, {
           kind: 'system',
-          text: `影子评审已${room.shadowReview === true ? '重新确认' : '开启'}：复核时证据和 diff 会发给外部 advisor${described.host === '' ? '' : `（${described.host}）`}。意见只供你签字前参考。`,
+          text: `第二意见已${room.shadowReview === true ? '重新确认' : '开启'}。复核时会把证据和改动发给外部服务${described.host === '' ? '' : `（${described.host}）`}，只供参考。`,
           meta: { advisorNotice: true },
         })
         emit('room', updated)
@@ -185,7 +185,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
             stage,
             evidence,
             manual: stage.manual === true,
-          }).catch(error => appendMessage(room.id, { kind: 'system', text: `影子评审没能取回意见：${error?.message ?? error}` }))
+          }).catch(error => appendMessage(room.id, { kind: 'system', text: `第二意见没能取回：${error?.message ?? error}` }))
         }
         return ok({ room: current })
       }
@@ -196,7 +196,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         return { events: [{ type: 'room.shadow_review', payload: { enabled: false } }] }
       })
       if (updated === null) return fail('not_found', '没有这个房间')
-      appendMessage(room.id, { kind: 'system', text: '影子评审已关闭。' })
+      appendMessage(room.id, { kind: 'system', text: '第二意见已关闭。' })
       emit('room', updated)
       return ok({ room: readRoom(room.id) ?? updated })
     }

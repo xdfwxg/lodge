@@ -45,7 +45,7 @@ const memberRole = (room, memberId) => (
 )
 export const memberTask = (member, stage) => {
   if (member.role === 'lead') {
-    return stage.kind === 'decision' ? '讲清「怎样算做完」，由你确认' : '拆出这一步要改什么、怎么算过'
+    return stage.kind === 'decision' ? '讲清「怎么验收」，由你确认' : '拆出这一步要改什么、怎么验收'
   }
   if (member.role === 'worker') {
     return stage.acceptance ? '按约定完成，并跑一次检查' : '完成这一步的结果'

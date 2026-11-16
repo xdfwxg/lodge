@@ -19,12 +19,12 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     const memberId = typeof body.memberId === 'string' ? body.memberId : ''
     const member = (room.members ?? []).find(item => item.id === memberId)
     if (member === undefined || typeof member.body?.ref !== 'string' || member.body.ref === '') {
-      return fail('invalid', '没有这个成员的身体')
+      return fail('invalid', '没有这个成员')
     }
-    const blocked = bodyChangeBlocker(room, '换身体')
+    const blocked = bodyChangeBlocker(room, '调整成员')
     if (blocked !== null) return fail('conflict', blocked)
     if ((room.approvals ?? []).some(item => item.state === 'pending' && item.memberId === memberId)) {
-      return fail('conflict', '这个成员还有待确认的操作，先处理掉再换身体')
+      return fail('conflict', '先处理掉待确认的操作，再调整。')
     }
     const engineId = typeof body.engine === 'string' ? body.engine.trim() : ''
     const modelId = typeof body.model === 'string' ? body.model.trim() : ''
@@ -38,7 +38,7 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     const hasSpec = member.body?.spec !== undefined && member.body?.spec !== null
     const providedSpec = body.prompt !== undefined || body.skills !== undefined || body.mcp !== undefined
     if (!hasSpec && !providedSpec) {
-      return fail('invalid', '这具身体没有配置记录；先补上行为说明、技能和 MCP，再换身体')
+      return fail('invalid', '先补上行为说明、技能和 MCP，再保存。')
     }
     const currentSpec = member.body?.spec ?? {}
     const current = {
@@ -55,12 +55,12 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     const requiresGate = resolveRoomType(room.roomType)?.readOnly !== true && member.permissions?.exec === true
     const issue = engineBlockReason(instance, { requireApproval: requiresGate })
     if (issue !== '') {
-      if (issue === '登录失效') return fail('invalid', '这个模型服务没有登录，先登录再换身体')
+      if (issue === '登录失效') return fail('invalid', '这个模型服务还没登录，先登录。')
       if (issue === '不会先问你外部动作') return fail('invalid', '这个模型不会先问你，不能用来执行')
       return fail('invalid', issue === '没有这个模型服务' ? '这个模型服务现在不可用' : `这个模型服务现在不可用：${issue}`)
     }
     if (engineId === member.body.engine && modelId === (member.body.model ?? '') && JSON.stringify(spec) === JSON.stringify(current)) {
-      return fail('invalid', '身体没有变化')
+      return fail('invalid', '还没有改动')
     }
 
     const oldBody = { ...member.body }
@@ -150,7 +150,7 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
         }
         if (incarnation !== null) await bodies.retire(incarnation.body)
       }
-      return fail('conflict', `换身体没完成：${plainRuntimeError(error)}`)
+      return fail('conflict', `没能保存：${plainRuntimeError(error)}`)
     }
   }
 

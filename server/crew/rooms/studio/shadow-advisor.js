@@ -3,12 +3,12 @@
 const clip = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '')
 
 const noticeText = (host, kind) => {
-  if (kind === 'unavailable') return '影子评审开着，但 Lodge 没有配置外部 advisor；这次没有外部意见。'
-  if (kind === 'failed') return '影子评审这次没取回意见；验收不受影响。'
+  if (kind === 'unavailable') return '第二意见开着，但还没配置外部服务。'
+  if (kind === 'failed') return '第二意见没取回；验收不受影响。'
   if (kind === 'consent') {
-    return `影子评审需要先确认外部服务${host === '' ? '' : `（${host}）`}：这间房没有记录过向它发送证据和 diff 的确认，这次跳过。`
+    return `第二意见需要先确认外部服务${host === '' ? '' : `（${host}）`}。这间房还没确认过，这次跳过。`
   }
-  return `影子评审已开启：这次复核的证据和 diff 会发给外部 advisor 服务${host === '' ? '' : `（${host}）`}。意见只供你签字前参考，不进入验收判定。`
+  return `第二意见已开启：这次复核的证据和改动会发给外部服务${host === '' ? '' : `（${host}）`}，只供参考，不进入验收。`
 }
 
 const ensureNotice = ({ store, roomId, kind, host }) => {

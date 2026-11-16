@@ -32,7 +32,7 @@ test('no installed model blocks the first room instead of failing later', () => 
     onQuickStart: () => {},
   }))
   assert.match(html, /还不能开工/)
-  assert.match(html, /还没有可用的模型服务/)
+  assert.match(html, /先装一个会先问你的模型/)
   assert.match(html, /disabled/)
 })
 
@@ -47,7 +47,7 @@ test('a logged-out model without a login command still shows the way out', () =>
   }))
   assert.match(html, /Claude还没登录/)
   assert.match(html, /刷新/)
-  assert.match(html, /先在这台电脑上登录/)
+  assert.match(html, /先登录/)
 })
 
 test('a ready engine starts normally', () => {

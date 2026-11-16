@@ -43,6 +43,6 @@ export const bodyStatuses = (room, members = [], { labels = {} } = {}) => {
       }
     }
     if (room?.state === 'paused') return { ...base, state: 'waiting', label: '等待', tone: 'muted' }
-    return { ...base, state: 'idle', label: '在线', tone: 'idle' }
+    return { ...base, state: 'idle', label: '待命', tone: 'idle' }
   })
 }

@@ -265,7 +265,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     if (process.env.CREW_MODEL_INSTANCE && process.env.CREW_MODEL) {
       return { instanceId: process.env.CREW_MODEL_INSTANCE, model: process.env.CREW_MODEL }
     }
-    throw new Error('基座里没有可复用的引擎模型；先在基座里建一个 bot')
+    throw new Error('还没有可用的模型；先在模型服务里配置一个。')
   }
 
   const ENGINE_ALIASES = {

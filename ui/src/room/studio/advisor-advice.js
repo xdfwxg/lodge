@@ -63,21 +63,22 @@ export function ShadowReconfirm({ room, advisor, onConfirm }) {
   const unavailable = advisor?.available !== true
   const host = advisor?.host ?? ''
   const text = unavailable
-    ? '影子评审这次接不上：没有可用的外部 advisor。'
-    : `外部服务已换成 ${host}；重新确认后，这次签字才会带上影子评审。`
+    ? '第二意见这次接不上。'
+    : `外部服务已换成 ${host}。重新确认后，签字会带上第二意见。`
   return h('div', { className: 'crew-shadow-reconfirm' },
     h('p', null, text),
     unavailable ? null : h('button', {
       type: 'button',
       className: 'crew-ghost',
+      'aria-label': '重新确认第二意见',
       disabled: busy,
       onClick: async () => {
         setBusy(true)
         const result = await onConfirm?.()
         setBusy(false)
-        if (result?.ok !== true) setError(result?.error ?? '影子评审没能重新确认')
+        if (result?.ok !== true) setError(result?.error ?? '第二意见没能重新确认')
       },
-    }, busy ? '正在确认…' : '重新确认影子评审'),
+    }, busy ? '正在确认…' : '重新确认'),
     error === '' ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, error),
     h('p', { className: 'crew-field-hint' }, '验收不受影响。'))
 }

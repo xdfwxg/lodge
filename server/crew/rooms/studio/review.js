@@ -246,7 +246,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         evidence,
         manual,
       }).catch(error => {
-        store.appendMessage(roomId, { kind: 'system', text: `影子评审没能取回意见：${error?.message ?? error}` })
+        store.appendMessage(roomId, { kind: 'system', text: `第二意见没能取回：${error?.message ?? error}` })
         return null
       })
       : null

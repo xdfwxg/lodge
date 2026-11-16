@@ -46,7 +46,7 @@ test('chat participants show a body status row and can swap bodies', () => {
   }))
   assert.match(html, /成员状态/)
   assert.match(html, /发言中/)
-  assert.match(html, /给甲换身体/)
+  assert.match(html, /调整甲/)
 })
 
 test('a chat room shows the receipt strip before its timeline', () => {
@@ -77,7 +77,7 @@ test('an empty chat room explains that its conclusion becomes studio work', () =
   })
   const [intro] = tree.props.children.filter(Boolean)
   assert.equal(intro.type, StatePanel)
-  assert.match(intro.props.title, /聊天室/)
+  assert.match(intro.props.title, /先聊清楚/)
   assert.match(intro.props.body, /工作室/)
 })
 

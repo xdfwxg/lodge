@@ -46,6 +46,6 @@ export const runCommand = ({ command, cwd, env, timeoutMs = 120_000, sandbox = f
       sandbox: plan.mode,
     })
   }
-  child.on('error', error => finish(null, `无法执行验收命令：${error.message}`))
+  child.on('error', error => finish(null, `无法执行检查：${error.message}`))
   child.on('close', (code, signal) => finish(signal === null ? code : null, signal === null ? '' : `命令被信号 ${signal} 终止`))
 })

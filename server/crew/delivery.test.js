@@ -54,7 +54,14 @@ test('manual evidence is not a passed command and artifacts stay in the workspac
   ])
   assert.equal(delivery.commands.length, 0)
   assert.deepEqual(delivery.artifacts.map(artifact => artifact.path), ['/tmp/room/worker/logo/logo.svg'])
+  assert.equal(delivery.artifacts[0].relativePath, 'logo/logo.svg')
   assert.equal(delivery.workspacePath, '/tmp/room')
+})
+
+test('a demo delivery drops the sample prefix from its result name', () => {
+  const delivery = buildDelivery(room({ demo: true, name: '示例：发布前检查清单' }), [])
+  assert.equal(delivery.name, '发布前检查清单')
+  assert.equal(delivery.sample, true)
 })
 
 test('a manual stage carries its changed files into the delivery card', () => {

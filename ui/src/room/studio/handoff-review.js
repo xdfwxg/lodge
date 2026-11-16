@@ -58,7 +58,7 @@ export function HandoffReview({
               checked: reviewed,
               onChange: event => onReviewed(event.target.checked),
             }),
-            '我看过这些分歧，决定继续'))
+            '这些分歧我看过了'))
         : null,
       h('div', { className: 'crew-gate-check' },
         h('b', null, '开工后'),

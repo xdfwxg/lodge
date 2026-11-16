@@ -64,5 +64,5 @@ test('the login row offers a terminal and a manual refresh', () => {
   }))
   assert.match(html, /登录 claude/)
   assert.match(html, /刷新/)
-  assert.match(html, /先在这台电脑上登录 pi/)
+  assert.match(html, /先登录 pi/)
 })

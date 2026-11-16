@@ -87,7 +87,7 @@ test('a body without a spec cannot be swapped by model alone', async () => {
   delete room.members.find(item => item.id === 'worker').body.spec
   const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /没有配置记录/)
+  assert.match(result.error, /先补上行为说明/)
 })
 
 test('swapping keeps the member and its history, and replaces the body', async () => {
@@ -153,7 +153,7 @@ test('a logged-out model cannot become the new body', async () => {
   const { swap, calls } = harness({ authenticated: false })
   const result = await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /没有登录/)
+  assert.match(result.error, /还没登录/)
   assert.equal(calls.created.length, 0)
 })
 

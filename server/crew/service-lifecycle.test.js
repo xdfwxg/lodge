@@ -173,5 +173,5 @@ test('shadow review cannot be enabled without an advisor', async () => {
   )
   const result = await ctx.service.roomRequest('r1', 'shadow-review', post({ enabled: true }))
   assert.equal(result.ok, false)
-  assert.match(result.error, /没有配置外部 advisor/)
+  assert.match(result.error, /还没配置第二意见的外部服务/)
 })

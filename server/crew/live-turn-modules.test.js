@@ -685,7 +685,7 @@ test('shadow review records advice without injecting it into the Verifier prompt
   const notice = store.messages.find(message => message.meta?.advisorNotice === true)
   assert.ok(notice)
   assert.match(notice.text, /advisor\.example/)
-  assert.match(notice.text, /证据和 diff/)
+  assert.match(notice.text, /证据和改动/)
   const advice = store.readRoom().advisorShadow?.[0]
   assert.ok(advice)
   assert.equal(advice.evidenceId, store.messages.find(message => message.kind === 'evidence').id)

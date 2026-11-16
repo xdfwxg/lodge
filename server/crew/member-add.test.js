@@ -115,7 +115,7 @@ test('a second planner is refused: the room keeps one main bot', async () => {
   const { add, calls } = harness()
   const result = await add.add(roomOf(), { role: 'planner', name: '规划师二号' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /只有一个主机器人/)
+  assert.match(result.error, /只能添加执行官或验收员/)
   assert.equal(calls.members.length, 0)
 })
 
@@ -133,7 +133,7 @@ test('a failed incarnation removes the new station and body', async () => {
   const { add, calls } = harness({ failCreate: true })
   const result = await add.add(roomOf(), { role: 'verifier', name: '验收员二号', engine: 'claude' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /成员没加进去/)
+  assert.match(result.error, /没能添加成员/)
   assert.ok(calls.retired.includes('bot-new'))
   assert.ok(calls.retired.includes('ws-verifier-2'))
 })

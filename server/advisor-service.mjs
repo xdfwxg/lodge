@@ -31,16 +31,16 @@ export const evaluateReviewRules = ({ evidence, stage }) => {
   if (!manual) {
     const command = typeof evidence?.command === 'string' ? evidence.command : ''
     const exit = evidence?.exit
-    if (command === '') missingEvidence.push('验收命令')
-    if (exit !== 0) reasons.push(`验收命令退出码 ${exit ?? '无'}`)
+    if (command === '') missingEvidence.push('检查命令')
+    if (exit !== 0) reasons.push(`检查命令退出码 ${exit ?? '无'}`)
     if (!Array.isArray(evidence?.files) || evidence.files.length === 0) {
       missingEvidence.push('改动文件清单')
     }
     if (typeof evidence?.diff === 'string' && evidence.diff.trim() === '') {
-      missingEvidence.push('改动或产物证据')
+      missingEvidence.push('改动内容')
     }
   } else {
-    risks.push('人工验收：需要 Verifier 实际打开产物核对')
+    risks.push('人工验收：需要验收员打开改动核对')
     if (!Array.isArray(evidence?.files) || evidence.files.length === 0) {
       missingEvidence.push('改动文件清单')
     }

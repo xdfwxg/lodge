@@ -24,18 +24,18 @@ const uniqueId = (room, role) => {
 export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }) => {
   const bodies = createBodyFactory({ engine })
   const add = async (room, body = {}) => {
-    if (resolveRoomType(room.roomType)?.id !== 'studio') return fail('invalid', '聊天室暂不支持添加成员')
+    if (resolveRoomType(room.roomType)?.id !== 'studio') return fail('invalid', '聊天室不能添加成员')
     const blocked = bodyChangeBlocker(room, '加成员')
     if (blocked !== null) return fail('conflict', blocked)
     const role = ROLE_ALIASES[typeof body.role === 'string' ? body.role : '']
-    if (role === undefined) return fail('invalid', '只能添加执行官或验收员；房间只有一个主机器人')
+    if (role === undefined) return fail('invalid', '只能添加执行官或验收员')
     const name = typeof body.name === 'string' ? body.name.trim().slice(0, 32) : ''
     if (name === '') return fail('invalid', '先给成员起个名字')
     if ((room.members ?? []).some(member => String(member.name ?? '').toLowerCase() === name.toLowerCase())) {
       return fail('invalid', '房间里已经有同名成员')
     }
     const provider = workspace.provider(room)
-    if (typeof provider.addMember !== 'function') return fail('conflict', '当前工作文件夹类型还不支持添加成员')
+    if (typeof provider.addMember !== 'function') return fail('conflict', '这个工作文件夹还不支持添加成员')
 
     const instances = await bodies.instances()
     const requested = typeof body.engine === 'string' ? body.engine.trim() : ''
@@ -44,8 +44,8 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       : instances.find(item => engineReady(item, { requireApproval: true }))
     const issue = engineBlockReason(instance, { requireApproval: true })
     if (issue !== '') {
-      if (issue === '登录失效') return fail('invalid', '这个模型服务没有登录，先登录再加')
-      if (issue === '不会先问你外部动作') return fail('invalid', '执行成员要用会先问你外部动作的模型')
+      if (issue === '登录失效') return fail('invalid', '这个模型服务还没登录。')
+      if (issue === '不会先问你外部动作') return fail('invalid', '执行成员要用会先问你的模型。')
       return fail('invalid', issue === '没有这个模型服务' ? '这个模型服务现在不可用' : `这个模型服务现在不可用：${issue}`)
     }
     const model = typeof body.model === 'string' && body.model.trim() !== ''
@@ -156,7 +156,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       if (memberWorkspace !== null && typeof provider.removeMember === 'function') {
         try { provider.removeMember({ room, member: spec }) } catch {}
       }
-      return fail('conflict', `成员没加进去：${plainRuntimeError(error)}`)
+      return fail('conflict', `没能添加成员：${plainRuntimeError(error)}`)
     }
   }
 

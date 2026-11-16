@@ -44,18 +44,21 @@ const railQuery = () => (
 function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
+  const [sideCollapsed, setSideCollapsed] = useState(false)
   const [open, setOpen] = useState(false)
   const [sideWidth, setSideWidthPx] = useState(248)
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const sidebarRef = useRef(null)
   const searchRef = useRef(null)
+  const collapsedRef = useRef(false)
   const liveCount = rooms.filter(room => !room.archivedAt).length
   const showSearch = liveCount >= SEARCH_MIN_ROOMS || searchOpen || query.trim() !== ''
   const ordered = orderRooms(filterRooms(rooms, query))
   const archivedRooms = ordered.filter(room => room.archivedAt)
   const activeRooms = ordered.filter(room => !room.archivedAt)
-  const collapsed = rail && !open
+  const hasRail = rail || sideCollapsed
+  const collapsed = hasRail && !open
   const expanded = !collapsed
 
   useEffect(() => {
@@ -71,8 +74,8 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   }, [])
 
   useEffect(() => {
-    if (!rail) setOpen(false)
-  }, [rail])
+    if (!hasRail) setOpen(false)
+  }, [hasRail])
 
   // 搜索框第一次出现时由 effect 接管焦点，避免 setState 与 RAF 抢时序。
   useEffect(() => {
@@ -102,20 +105,28 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
 
   useEffect(() => {
     let stored = ''
-    try { stored = localStorage.getItem('lodge:side-width') ?? '' } catch {}
+    let storedCollapsed = ''
+    try {
+      stored = localStorage.getItem('lodge:side-width') ?? ''
+      storedCollapsed = localStorage.getItem('lodge:side-collapsed') ?? ''
+    } catch {}
     const width = Number.parseFloat(stored)
     if (Number.isFinite(width)) {
       document.body.style.setProperty('--crew-side-w', `${clampSide(width)}px`)
       setSideWidthPx(clampSide(width))
     }
+    if (storedCollapsed === '1') {
+      collapsedRef.current = true
+      setSideCollapsed(true)
+    }
     return () => { document.body.style.removeProperty('--crew-side-w') }
   }, [])
 
   useLayoutEffect(() => {
-    if (!rail) delete document.body.dataset.side
+    if (!hasRail) delete document.body.dataset.side
     else document.body.dataset.side = open ? 'open' : 'rail'
     return () => { delete document.body.dataset.side }
-  }, [rail, open])
+  }, [hasRail, open])
 
   useEffect(() => {
     if (!open) return undefined
@@ -148,12 +159,26 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
     onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
   })
 
-  // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。
+  // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。拖到一列图标时收成 rail。
   const SIDE_MIN = 200
   const SIDE_MAX = 480
+  const RAIL_WIDTH = 56
+  const COLLAPSE_AT = 150
   const clampSide = value => Math.min(SIDE_MAX, Math.max(SIDE_MIN, value))
+  const setCollapsed = value => {
+    if (collapsedRef.current === value) return
+    collapsedRef.current = value
+    setSideCollapsed(value)
+    try { localStorage.setItem('lodge:side-collapsed', value ? '1' : '0') } catch {}
+  }
   const setSideWidth = width => {
-    const value = clampSide(Math.round(width))
+    const raw = Math.round(width)
+    if (raw < COLLAPSE_AT) {
+      setCollapsed(true)
+      return
+    }
+    setCollapsed(false)
+    const value = clampSide(raw)
     document.body.style.setProperty('--crew-side-w', `${value}px`)
     setSideWidthPx(value)
     try { localStorage.setItem('lodge:side-width', `${value}px`) } catch {}
@@ -161,6 +186,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const startResize = event => {
     if (event.button !== 0 || sidebarRef.current === null) return
     event.preventDefault()
+    setOpen(false)
     const left = sidebarRef.current.getBoundingClientRect().left
     const move = moveEvent => setSideWidth(moveEvent.clientX - left)
     const stop = () => {
@@ -171,10 +197,19 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
     window.addEventListener('pointerup', stop, { once: true })
   }
   const resizeWithKeyboard = event => {
+    if (sideCollapsed && event.key === 'ArrowRight') {
+      event.preventDefault()
+      setSideWidth(SIDE_MIN)
+      return
+    }
+    if (sideCollapsed && event.key === 'ArrowLeft') {
+      event.preventDefault()
+      return
+    }
     const current = Number.parseFloat(getComputedStyle(document.body).getPropertyValue('--crew-side-w')) || 248
     const next = event.key === 'ArrowLeft' ? current - 16
       : event.key === 'ArrowRight' ? current + 16
-        : event.key === 'Home' ? SIDE_MIN
+        : event.key === 'Home' ? (sideCollapsed ? RAIL_WIDTH : SIDE_MIN)
           : event.key === 'End' ? SIDE_MAX
             : null
     if (next === null) return
@@ -187,7 +222,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   }
 
   return h(Fragment, null,
-    rail
+    hasRail
       ? h('div', {
         className: 'crew-side-scrim',
         onClick: () => setOpen(false),
@@ -202,8 +237,8 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
           role: 'separator',
           'aria-orientation': 'vertical',
           'aria-label': '调整侧栏宽度',
-          'aria-valuenow': sideWidth,
-          'aria-valuemin': SIDE_MIN,
+          'aria-valuenow': collapsed ? RAIL_WIDTH : sideWidth,
+          'aria-valuemin': collapsed ? RAIL_WIDTH : SIDE_MIN,
           'aria-valuemax': SIDE_MAX,
           tabIndex: 0,
           onPointerDown: startResize,
@@ -338,7 +373,7 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
         h('h2', null, deleting ? '删除房间' : '归档房间'),
         h('p', null, deleting
           ? `「${room.name}」的房间记录和过程档案会删除，文件会留着。`
-          : `「${room.name}」会停止并收进「已归档」；取消归档只会让它重新出现在列表里。`)),
+          : `「${room.name}」会停止，收进「已归档」。随时可以恢复。`)),
       deleting ? h('p', { className: 'crew-dialog-note crew-confirm-note' }, '删除后不能恢复。') : null,
       h('div', { className: 'crew-dialog-foot' },
         h('button', { type: 'button', className: 'crew-ghost', disabled: busy, onClick: dismiss }, '取消'),

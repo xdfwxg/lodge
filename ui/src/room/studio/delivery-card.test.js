@@ -84,8 +84,43 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.match(text(tree), /复核一/)
   assert.match(text(tree), /复核二/)
   assert.match(text(tree), /src\/a\.js/)
-  assert.match(text(tree), /2\/2 步/)
-  assert.match(text(tree), /1\/1 检查通过/)
+  assert.match(text(tree), /2 步/)
+  assert.match(text(tree), /1 项检查/)
+})
+
+test('an artifact and its relative changed path are counted once', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '设置页保存',
+      workspacePath: '/tmp/room',
+      stages: [],
+      commands: [],
+      artifacts: [{ path: '/tmp/room/src/a.js', relativePath: 'src/a.js' }],
+      changedFiles: ['src/a.js'],
+    },
+  }))
+  assert.match(text(tree), /1 个文件/)
+  assert.doesNotMatch(text(tree), /其他改动/)
+  assert.doesNotMatch(text(tree), /改动文件/)
+})
+
+test('a failed check reads as failed and a simulated check says so', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '设置页保存',
+      stages: [],
+      commands: [
+        { id: 'e1', command: 'npm test', exit: 1 },
+        { id: 'e2', command: 'npm run lint', exit: 0, simulated: true },
+      ],
+      changedFiles: [],
+    },
+  }))
+  assert.match(text(tree), /没通过/)
+  assert.match(text(tree), /示例运行/)
+  assert.match(text(tree), /×/)
 })
 
 test('the delivery sheet offers a way to continue', async () => {

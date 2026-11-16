@@ -88,7 +88,7 @@ test('the main bot cannot be removed', async () => {
   const { remove, calls } = harness()
   const result = await remove.remove(roomOf(), { memberId: 'lead' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /主机器人不能移除/)
+  assert.match(result.error, /规划师不能移除/)
   assert.equal(calls.retired.length, 0)
 })
 

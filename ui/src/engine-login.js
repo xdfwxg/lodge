@@ -18,7 +18,7 @@ export const useEngineLogin = onRefresh => {
   const login = async engine => {
     if (engine === undefined || busyId !== '') return
     setBusyId(engine.id)
-    setNote(`已打开 ${engine.name ?? engine.id} 登录终端；登录完成后这里会自动更新。`)
+    setNote('已打开登录窗口。完成后这里会自动更新。')
     try {
       await loginRuntime(engine.id)
       if (typeof onRefresh === 'function') {
@@ -29,7 +29,7 @@ export const useEngineLogin = onRefresh => {
           await onRefresh()
           if (tries >= 45) {
             clearInterval(timer.current)
-            setNote('还没检测到登录完成；完成后点“刷新”再试。')
+            setNote('还没检测到登录。完成后点“刷新”。')
           }
         }, 2000)
       }
@@ -65,7 +65,7 @@ export function EngineLogin({ readiness, busyId = '', note = '', disabled = fals
       }, '刷新')
       : null,
     manualLogin.length > 0
-      ? h('span', { className: 'crew-field-hint' }, `先在这台电脑上登录 ${names}，完成后点“刷新”。`)
+      ? h('span', { className: 'crew-field-hint' }, `先登录 ${names}。`)
       : null,
     note === '' ? null : h('span', { className: 'crew-field-hint', role: 'status' }, note))
 }

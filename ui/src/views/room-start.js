@@ -47,19 +47,19 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
     h('div', { className: 'crew-room-main crew-start-main' },
       h('div', { className: 'crew-start-copy' },
         h('h1', null, '新房间'),
-        h('p', null, '一间房，把一件事做完。成员分工，结果可看，检查可查。')),
+        h('p', null, '一间房，把一件事做完。')),
       needsLogin
         ? h('div', { className: 'crew-start-setup', role: 'status' },
-          h('b', null, '工作室还不能开工'),
+          h('b', null, '还不能开工'),
           h('p', null, installed.length === 0
-            ? '还没有可用的模型服务；先安装并登录一家会先问你的模型。'
+            ? '先装一个会先问你的模型。'
             : ready.length === 0 && loginTargets.length > 0
-              ? '开工前要先登录一个会先问你的模型服务。'
+              ? '先登录一个模型服务。'
               : ready.length === 0 && manualLogin.length > 0
                 ? `${manualNames}还没登录。`
                 : ready.length === 0 && noModels.length > 0
-                  ? `${modelNames}没有配置模型；先在模型服务里配置一个模型。`
-                  : '已装的模型服务不会逐次确认外部动作，不能用来执行。'),
+                  ? `${modelNames}还没有模型。`
+                  : '这些模型不会先问你，不能用来执行。'),
           h(EngineLogin, {
             readiness,
             busyId: loginBusy,
@@ -70,7 +70,7 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
           }))
         : null,
       h('form', { className: 'crew-start-form', onSubmit: quickStart },
-        h('label', { className: 'crew-start-label', htmlFor: 'room-start-goal' }, '你想让房间做什么？'),
+        h('label', { className: 'crew-start-label', htmlFor: 'room-start-goal' }, '要做什么？'),
         h('textarea', {
           id: 'room-start-goal',
           className: 'crew-goal-input',
@@ -80,7 +80,7 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
           placeholder: '例如：把这个项目的启动说明补成新人能照着跑的一页。',
           onChange: event => setGoal(event.target.value),
         }),
-        h('label', { className: 'crew-start-label', htmlFor: 'room-start-check' }, '做完后跑什么检查？'),
+        h('label', { className: 'crew-start-label', htmlFor: 'room-start-check' }, '怎么验收？'),
         h('input', {
           id: 'room-start-check',
           className: 'crew-goal-input',
@@ -95,8 +95,8 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
           disabled: disabled || quickBusy || goal.trim() === '' || needsLogin,
         }, quickBusy ? '开工中…' : '开工')),
       h('div', { className: 'crew-start-secondary' },
-        h('button', { type: 'button', className: 'crew-ghost', disabled, onClick: () => onCreate('chat') }, '开一间聊天室'),
-        h('button', { type: 'button', className: 'crew-ghost', disabled, onClick: () => onCreate('studio') }, '自定义一间工作室')),
+        h('button', { type: 'button', className: 'crew-ghost', disabled, onClick: () => onCreate('chat') }, '开聊天室'),
+        h('button', { type: 'button', className: 'crew-ghost', disabled, onClick: () => onCreate('studio') }, '开工作室')),
       onSample === undefined
         ? null
         : h('div', { className: 'crew-start-sample' },
@@ -105,10 +105,10 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
             className: 'crew-ghost',
             disabled: disabled || sampleBusy,
             onClick: () => void openSample(),
-          }, sampleBusy ? '正在打开示例…' : '先看一间完成的示例房间'),
-          h('p', { className: 'crew-field-hint' }, '不用配置，直接看结果和工作记录。')),
+          }, sampleBusy ? '正在打开…' : '看一间完成的示例'),
+          h('p', { className: 'crew-field-hint' }, '不用配置，直接看结果和过程。')),
       quickError === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, quickError),
       sampleError === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, sampleError),
-      state.phase === 'loading' ? h('p', { className: 'crew-field-hint', role: 'status' }, '正在连接 Lodge…') : null,
+      state.phase === 'loading' ? h('p', { className: 'crew-field-hint', role: 'status' }, '正在连接…') : null,
       errorText === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, errorText)))
 }

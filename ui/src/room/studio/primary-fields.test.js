@@ -45,12 +45,12 @@ test('a model that never asks blocks the studio before it starts', () => {
 test('one available vendor points at the same-vendor self check', () => {
   const html = render({ engines: [engine('claude', true)] })
   assert.match(html, /只有一家模型可用/)
-  assert.match(html, /自查/)
+  assert.match(html, /同一家/)
 })
 
 test('logged-out services do not count as usable models', () => {
-  const html = render({ engines: [{ ...engine('claude', true), authenticated: false }] })
-  assert.match(html, /先在这台电脑上登录/)
+  const html = render({ engines: [{ ...engine('claude', true), authenticated: false }], onRefresh: () => {} })
+  assert.match(html, /先登录/)
   assert.match(html, /刷新/)
 })
 

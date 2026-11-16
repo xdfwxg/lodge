@@ -130,13 +130,13 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     }
     const target = (stage?.assignees ?? []).find(id => workerIds(room).includes(id)) ?? workerIds(room)[0]
     if (typeof target !== 'string' || target === '') {
-      store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把返工交出去。' })
+      store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把重做交出去。' })
       return true
     }
     const name = memberDisplayName(room, target)
     const mention = `@${name}`
     const parent = latestDispatchAssignment(store, roomId, stageIndex, target)
-    if (parent !== null) transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，规划师安排返工' })
+    if (parent !== null) transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，规划师安排重做' })
     void handoff.trigger({
       room,
       stage,
@@ -154,7 +154,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       rework: true,
       parentAssignmentId: parent?.id ?? null,
     }).catch(error => {
-      store.appendMessage(roomId, { kind: 'system', text: `没能把返工交给${name}：${error?.message ?? error}` })
+      store.appendMessage(roomId, { kind: 'system', text: `没能把重做交给${name}：${error?.message ?? error}` })
     })
     return true
   }

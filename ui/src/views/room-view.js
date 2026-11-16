@@ -3,6 +3,7 @@ import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { uiKindOfRoom } from '../room/kinds.js'
+import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat }) {
@@ -146,8 +147,11 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       id: member.id,
       name: member.name ?? member.id,
       mention: member.body?.name ?? member.name ?? member.id,
+      roleLabel: roleLabelOf(member),
     }))
-    return list.length > 1 ? [...list, { id: 'all', name: '所有人', mention: '所有人' }] : list
+    return list.length > 1
+      ? [...list, { id: 'all', name: '所有人', mention: '所有人', roleLabel: '每位成员' }]
+      : list
   }, [room.members])
 
   const actions = {
@@ -219,7 +223,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           members: mentionMembers,
           onSent: followBottom,
           placeholder: room.state === 'complete'
-            ? '这次工作已完成；说话可以开新一轮…'
+            ? '这间房已完成。说话可以开新一轮。'
             : room.state === 'paused'
               ? '已暂停 · 继续后才能派新活'
               : room.state === 'stopped'
@@ -253,7 +257,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           const result = await store.swapBody(swapId, input.engine, input.model, input)
           setSwapBusy(false)
           if (result?.ok !== true) {
-            setSwapError(result?.error ?? '身体没换成')
+            setSwapError(result?.error ?? '没能保存')
             return
           }
           setSwapId(null)
@@ -264,7 +268,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           const result = await store.removeMember(swapId)
           setSwapBusy(false)
           if (result?.ok !== true) {
-            setSwapError(result?.error ?? '成员没移除')
+            setSwapError(result?.error ?? '没能移除成员')
             return
           }
           setSwapId(null)
@@ -287,7 +291,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           const result = await store.addMember(input.name, input.role, input.engine, input.model, input)
           setAddBusy(false)
           if (result?.ok !== true) {
-            setAddError(result?.error ?? '成员没加进去')
+            setAddError(result?.error ?? '没能添加成员')
             return
           }
           setAddOpen(false)

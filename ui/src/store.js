@@ -245,7 +245,7 @@ export function createStore() {
     },
     shadowReviewRoom: async (id, enabled) => {
       const data = await post(`/api/rooms/${id}/shadow-review`, { enabled })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '影子评审没能更新' }
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '第二意见没能更新' }
       await load()
       return { ok: true, room: data.room }
     },
@@ -265,19 +265,19 @@ export function createStore() {
     },
     addMember: async (name, role, engine, model, spec = {}) => {
       const data = await post(`/api/rooms/${state.activeId}/add-member`, { name, role, engine, model, ...spec })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '成员没加进去' }
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '没能添加成员' }
       acceptRoom(data.room)
       return { ok: true, room: data.room }
     },
     removeMember: async memberId => {
       const data = await post(`/api/rooms/${state.activeId}/remove-member`, { memberId })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '成员没移除' }
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '没能移除成员' }
       acceptRoom(data.room)
       return { ok: true, room: data.room }
     },
     swapBody: async (memberId, engine, model, spec = {}) => {
       const data = await post(`/api/rooms/${state.activeId}/swap-body`, { memberId, engine, model, ...spec })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '身体没换成' }
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '没能保存' }
       acceptRoom(data.room)
       return { ok: true, room: data.room }
     },

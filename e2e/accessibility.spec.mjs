@@ -23,7 +23,7 @@ test('the first screen has no WCAG A/AA violations', async ({ page }) => {
 test('the sample room, result card and goal panel have no WCAG A/AA violations', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: '示例：发布前检查清单' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '发布前检查清单' })).toBeVisible()
   await expectClean(page)
 
   await page.locator('.bt-goal-closed').click()
@@ -39,6 +39,6 @@ test('a narrow dark room has no WCAG A/AA violations', async ({ page, request })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: '示例：发布前检查清单' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '发布前检查清单' })).toBeVisible()
   await expectClean(page)
 })

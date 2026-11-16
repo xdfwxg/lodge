@@ -35,7 +35,7 @@ const decisionText = (kind, label, fallback) => {
     case 'merge': return label === '' ? '合并没合上' : `${label}合并没合上`
     case 'parallel': return '并行执行卡住了'
     case 'review-timeout': return label === '' ? '复核没按时回来' : `${label}的复核没按时回来`
-    case 'setup': return label === '' ? '还没定怎么算过' : `${label}还没定怎么算过`
+    case 'setup': return label === '' ? '还没定怎么验收' : `${label}还没定怎么验收`
     case 'approval': return '有一个操作要你点头'
     case 'error': return '有成员出错了'
     case 'mcp': return '连接断了'

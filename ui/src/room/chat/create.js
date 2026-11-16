@@ -55,7 +55,7 @@ export function ChatPrimaryFields({
   const needsLogin = readiness.loginTargets.length + readiness.manualLogin.length > 0
   return h('div', { className: 'crew-field' },
     readiness.installed.length === 0
-      ? h('p', { className: 'crew-field-hint', role: 'status' }, '还没有可用的模型服务。先安装一家，再点“刷新”。')
+      ? h('p', { className: 'crew-field-hint', role: 'status' }, '先安装一个模型服务，再点“刷新”。')
       : !needsLogin && readiness.noModels.length > 0
         ? h('p', { className: 'crew-field-hint', role: 'status' }, `${missingNames}没有配置模型；先在模型服务里配置一个模型。`)
         : null,

@@ -24,14 +24,14 @@ export const bodySpecPayload = spec => {
 export function BodySpecFields({ value, onChange, disabled = false }) {
   const update = patch => onChange({ ...value, ...patch })
   return h('details', { className: 'crew-body-spec' },
-    h('summary', null, '身体配置'),
+    h('summary', null, '成员设置'),
     h('label', { className: 'crew-field crew-body-swap-field' },
       h('b', null, '行为说明'),
       h('textarea', {
         className: 'crew-goal-input',
         rows: 3,
-        'aria-label': '身体的行为说明',
-        placeholder: '写给这具身体的长期说明；留空就用角色默认纪律。',
+        'aria-label': '行为说明',
+        placeholder: '写给这位成员的长期说明；留空就用角色默认。',
         value: value.prompt ?? '',
         disabled,
         onChange: event => update({ prompt: event.target.value }),
@@ -41,7 +41,7 @@ export function BodySpecFields({ value, onChange, disabled = false }) {
       h('input', {
         className: 'crew-goal-input',
         type: 'text',
-        'aria-label': '身体的技能',
+        'aria-label': '技能',
         placeholder: '技能名，用逗号分隔',
         value: value.skillsText ?? '',
         disabled,
@@ -52,7 +52,7 @@ export function BodySpecFields({ value, onChange, disabled = false }) {
       h('input', {
         className: 'crew-goal-input',
         type: 'text',
-        'aria-label': '身体的 MCP 服务',
+        'aria-label': 'MCP 服务',
         placeholder: 'MCP 服务名，用逗号分隔',
         value: value.mcpText ?? '',
         disabled,

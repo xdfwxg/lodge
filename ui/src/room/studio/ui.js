@@ -11,9 +11,9 @@ export const studioUi = {
   teamMode: 'proposal',
   startMode: 'direct',
   cta: '开工',
-  goalLabel: '想让 Lodge 做什么？',
+  goalLabel: '要做什么？',
   goalPlaceholder: '例如：给这个项目补一份新手也能照着跑的本地启动说明。',
-  dialogSubtitle: '说清你想得到什么，Lodge 会安排成员和步骤。',
+  dialogSubtitle: '说清你想得到什么。',
   goalIcon: TargetIcon,
   workspace: {
     show: () => true,

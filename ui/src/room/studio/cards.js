@@ -89,14 +89,19 @@ function VerdictCard({ message, member, stage, room, onAccept, advisor, onShadow
   const diff = typeof proof.diff === 'string' && proof.diff !== '' ? proof.diff : ''
   const active = stage?.state === 'active'
   const canAccept = pass && active && stage?.kind === 'deliverable' && typeof onAccept === 'function'
-  const card = h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: member, size: 30, live: false })),
+  const card = h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { member, ts: message.ts }),
+      h('div', { className: 'crew-verdict-speaker' },
+        h('span', { className: 'crew-verdict-avatar' }, h(BotAvatar, { bot: member, size: 30, live: false })),
+        h(Speaker, { member, ts: message.ts })),
       h('div', { className: 'crew-card crew-result-card', 'data-demo': meta.simulated === true, 'data-pass': pass },
         h('div', { className: 'crew-card-head' },
           '检查结果',
-          h('span', { className: 'crew-verdict', 'data-pass': pass, 'data-reject': !pass }, pass ? '通过' : '退回')),
+          h('span', {
+            className: 'crew-verdict',
+            'data-pass': pass ? true : undefined,
+            'data-reject': pass ? undefined : true,
+          }, pass ? '通过' : '退回')),
         h('div', { className: 'crew-card-body' },
           summary === '' ? null : h(Markdown, { text: summary, variant: 'compact' }),
           files.length > 0 ? h('div', { className: 'crew-receipt-files' }, files.join(' · ')) : null,

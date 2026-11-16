@@ -138,15 +138,15 @@ export function StudioPrimaryFields({
   const { installed, ready, loginTargets, manualLogin, noModels } = readiness
   const vendors = new Set(ready.map(item => item.engine ?? item.id))
   const modelNote = installed.length === 0
-    ? '还没有可用的模型服务。先装一家会先问你的模型，或把这件事放进聊天室讨论。'
+    ? '先装一个会先问你的模型。也可以先进聊天室讨论。'
     : ready.length === 0
       ? loginTargets.length + manualLogin.length > 0
         ? ''
         : noModels.length > 0
-          ? `${noModels.map(item => item.name ?? item.id).join('、')}没有配置模型；先在模型服务里配置一个模型。`
-          : '现在没有会逐次确认外部动作的模型，工作室开不了工。先装好一家会先问你的模型，或把这件事放进聊天室讨论。'
+          ? `${noModels.map(item => item.name ?? item.id).join('、')}还没有模型。`
+          : '还没有会先问你的模型，工作室开不了工。也可以先进聊天室讨论。'
       : vendors.size < 2
-        ? '现在只有一家模型可用：验收会是同一家模型自查。要独立复核，先在「调整成员与模型」里选另一家模型服务；没有就先装一家。'
+        ? '只有一家模型可用：复核会由同一家完成。'
         : ''
   const listed = normalizeMembers(members)
   const defaultTrio = listed.length === 3 &&
@@ -164,7 +164,7 @@ export function StudioPrimaryFields({
         }, member.name))),
       h('p', { className: 'crew-field-hint' }, defaultTrio
         ? '默认三人组：规划、执行、验收。'
-        : '成员已经调整；改完直接开工。'),
+        : '成员已调整。'),
       modelNote === '' ? null : h('p', { className: 'crew-field-hint', role: 'status' }, modelNote),
       h(EngineLogin, {
         readiness,
@@ -178,8 +178,8 @@ export function StudioPrimaryFields({
         h('b', null, '怎么验收'),
         h(VerifyChoice, { verifyMode, onVerifyMode, acceptanceDraft, onAcceptanceDraft }),
         h('p', { className: 'crew-field-hint' }, verifyMode === 'test'
-          ? '会在房间的工作文件夹里真的跑一遍，结果显示在结果里。'
-          : '成员做完后由你确认；想自动检查，就选「跑一条检查」。'))
+          ? '每一步都会真的跑一遍，结果留在房间里。'
+          : '成员做完，你来确认。'))
       : null)
 }
 
@@ -217,16 +217,16 @@ export function StudioSetupFields({
         disabled: advisor.available !== true,
         onChange: event => onShadowReview(event.target.checked),
       }),
-      '影子评审：复核后另取一份外部意见'),
+      '第二意见：再请一位看看'),
     h('p', { className: 'crew-field-hint' }, advisor.available === true
-      ? `会把这一步的结果和改动发给${advisor.host === '' ? '外部' : ` ${advisor.host} `}；意见只供你签字前参考，不进入验收判定。`
-      : '影子评审现在不可用：先在 Lodge 配置 ADVISOR_URL。'),
+      ? `结果和改动会发给${advisor.host === '' ? '外部' : ` ${advisor.host} `}，只供参考，不参与验收。`
+      : '第二意见还没配置。'),
     onRecommend === null ? null : h('div', { className: 'crew-new-recommend' },
       h('button', {
         type: 'button',
         className: 'crew-ghost',
         disabled: recommending || !canRecommend,
         onClick: onRecommend,
-      }, recommending ? '正在出方案…' : '先让 Lodge 出方案'),
-      h('p', { className: 'crew-field-hint' }, '会多花一点时间，给你方案和验收建议。')))
+      }, recommending ? '正在出方案…' : '先出方案'),
+      h('p', { className: 'crew-field-hint' }, '多花一点时间，先看方案。')))
 }

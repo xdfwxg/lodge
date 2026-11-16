@@ -26,7 +26,7 @@ test('a chat with no usable engine says why and offers refresh', () => {
     engines: [],
     onRefresh: () => {},
   }))
-  assert.match(html, /还没有可用的模型服务/)
+  assert.match(html, /先安装一个模型服务/)
   assert.match(html, /刷新/)
 })
 

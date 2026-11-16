@@ -45,12 +45,17 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 /* 焦点落在整个输入条上：内部 textarea 不再自画矩形环，避免在圆角 18 的容器里出现方角框 */
 .crew-composer:focus-within{border-color:var(--bt-accent);box-shadow:var(--bt-elev-1),0 0 0 3px var(--bt-accent-wash)}
 .crew-input:focus-visible{outline:none}
-.crew-mentions{position:absolute;left:0;right:0;bottom:calc(100% + 8px);max-height:220px;overflow:auto;padding:4px;background:var(--bt-card);border:1px solid var(--bt-line-2);border-radius:12px;box-shadow:var(--bt-elev-2);z-index:30}
-.crew-mention-option{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:0;border-radius:8px;background:transparent;color:var(--bt-ink);font:inherit;font-size:15px;line-height:20px;text-align:left;cursor:pointer}
+.crew-mentions{position:absolute;left:0;bottom:calc(100% + 8px);width:min(320px,100%);max-height:260px;overflow:auto;overscroll-behavior:contain;padding:6px;background:var(--bt-card);border:1px solid var(--bt-line-2);border-radius:14px;box-shadow:var(--bt-elev-2);z-index:30;transform-origin:bottom left;animation:crew-mentions-in .14s ease-out}
+@keyframes crew-mentions-in{from{opacity:0;transform:translateY(4px) scale(.985)}to{opacity:1;transform:none}}
+.crew-mention-option{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:7px 9px;border:0;border-radius:9px;background:transparent;color:var(--bt-ink);font:inherit;font-size:13.5px;line-height:18px;text-align:left;cursor:pointer}
 .crew-mention-option:hover{background:var(--bt-hover)}
 .crew-mention-option:disabled{opacity:.45;cursor:default}
-.crew-mention-option[data-active=true]{background:var(--bt-hover)}
-.crew-mention-option-name{font-weight:600}
+.crew-mention-option[data-active=true]{background:var(--bt-active)}
+.crew-mention-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center}
+.crew-mention-copy{display:flex;align-items:baseline;gap:8px;min-width:0;flex:1 1 auto}
+.crew-mention-option-name{min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-mention-role{flex:none;font-size:12px;line-height:16px;color:var(--bt-ink-3);white-space:nowrap}
+.crew-mention-return{margin-left:auto;color:var(--bt-ink-3);font-size:12px;line-height:16px}
 .crew-input{flex:1;field-sizing:content;min-height:24px;max-height:160px;resize:none;border:0;background:none;color:var(--bt-ink);font:inherit;font-size:16px;line-height:22px;padding:1px 0}
 .crew-input::placeholder{color:var(--bt-ink-3)}
 .crew-input:disabled{cursor:not-allowed;opacity:.55}

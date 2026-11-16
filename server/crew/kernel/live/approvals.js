@@ -334,7 +334,7 @@ export const createLiveApprovals = ({
       text: `这个操作你已选${decision === 'allow' ? '可以做' : '先别做'}：${approval.memberName} · ${approval.summary}`,
     })
     if (updated !== null) emit('room', updated)
-    resumeRoom(roomId, '审批已处理，房间继续。')
+    resumeRoom(roomId, '外部操作已确认，房间继续。')
     refresh(entry, { force: true })
     return { ok: true, room: updated ?? store.readRoom(roomId) }
   }
@@ -357,7 +357,7 @@ export const createLiveApprovals = ({
     const room = store.readRoom(roomId)
     if (room?.state !== 'paused' || room.pauseReason !== 'approval') return null
     if (pendingApprovals(room).length > 0) return null
-    return resumeRoom(roomId, '审批在重启后失效，房间已恢复。')
+    return resumeRoom(roomId, '外部操作确认在重启后失效，房间已恢复。')
   }
 
   return {

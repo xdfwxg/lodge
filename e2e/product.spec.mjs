@@ -8,12 +8,12 @@ test('onboarding, focused dialog, sample room, goal panel and archive restore', 
   }
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
-  await expect(page.getByRole('button', { name: '开工' })).toBeDisabled()
-  await page.getByLabel('你想让房间做什么？').fill('把启动说明补成新人能照着跑的一页')
+  await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
+  await page.getByLabel('要做什么？').fill('把启动说明补成新人能照着跑的一页')
   // 测试环境故意不接基座；没有可用模型时开工必须继续禁用，而不是等服务端拒绝。
-  await expect(page.getByRole('button', { name: '开工' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
 
-  await page.getByRole('button', { name: '自定义一间工作室' }).click()
+  await page.getByRole('button', { name: '开工作室' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.locator(':focus')).toHaveAttribute('aria-label', '关闭')
   await page.keyboard.press('Escape')
@@ -46,7 +46,7 @@ test('a narrow dark window still renders the room without horizontal overflow', 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: '示例：发布前检查清单' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '发布前检查清单' })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
 })

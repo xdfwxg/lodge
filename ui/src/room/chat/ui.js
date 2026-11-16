@@ -13,7 +13,7 @@ export const chatUi = {
   cta: '开始讨论',
   goalLabel: '想聊什么？',
   goalPlaceholder: '例如：我们下个版本该先做哪三件事？',
-  dialogSubtitle: '说清你想聊什么，成员会自己接话。',
+  dialogSubtitle: '说清你想聊什么。',
   goalIcon: ChatIcon,
   workspace: {
     show: () => false,

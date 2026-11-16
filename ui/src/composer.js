@@ -1,5 +1,6 @@
 import { createElement as h, useId, useRef, useState } from 'react'
 import { ArrowUpIcon } from './icons.js'
+import { BotMark } from './marks.js'
 
 const mentionAt = (value, cursor) => {
   const before = value.slice(0, cursor)
@@ -93,7 +94,7 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
   return h('div', { className: 'crew-composer-wrap' },
     mention !== null && matches.length > 0
       ? h('div', {
-        className: 'crew-mentions', id: listId, role: 'listbox', 'aria-label': '选择群成员',
+        className: 'crew-mentions', id: listId, role: 'listbox', 'aria-label': '选择成员',
       },
         matches.map((member, index) => h('div', {
           key: member.id,
@@ -108,7 +109,16 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
             insert(member)
           },
         },
-        h('span', { className: 'crew-mention-option-name' }, member.name))))
+        h('span', { className: 'crew-mention-avatar', 'aria-hidden': 'true' },
+          h(BotMark, { bot: { id: member.id, name: member.name }, size: 24 })),
+        h('span', { className: 'crew-mention-copy' },
+          h('span', { className: 'crew-mention-option-name' }, member.name),
+          member.roleLabel === '' || member.roleLabel === member.name
+            ? null
+            : h('span', { className: 'crew-mention-role' }, member.roleLabel)),
+        index === picked
+          ? h('span', { className: 'crew-mention-return', 'aria-hidden': 'true' }, '↵')
+          : null)))
       : null,
     h('div', { className: 'crew-composer' },
       h('textarea', {

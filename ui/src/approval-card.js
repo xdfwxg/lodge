@@ -4,7 +4,7 @@ import { createElement as h } from 'react'
 export function ApprovalCard({ approval, onDecide }) {
   return h('div', { className: 'crew-card crew-approval' },
     h('div', { className: 'crew-card-head' },
-      h('span', null, '有个操作要你确认'),
+      h('span', null, '要你确认'),
       h('span', { className: 'crew-verdict', 'data-pending': '' }, approval.label)),
     h('div', { className: 'crew-card-body' },
       h('div', { className: 'crew-kv' },
@@ -21,16 +21,16 @@ export function ApprovalCard({ approval, onDecide }) {
       approval.gate
         ? h('div', { className: 'crew-approval-gate', 'data-decision': approval.gate.decision },
           h('b', null, approval.gate.decision === 'deny'
-            ? '系统判断：建议先别做'
+            ? '建议先别做'
             : approval.gate.decision === 'review'
-              ? '系统判断：拿不准'
-              : '系统判断：可以做'),
+              ? '拿不准'
+              : '看起来可以做'),
           approval.gate.reasons?.length
             ? h('span', null, ` · ${approval.gate.reasons.join('、')}`)
             : null)
         : null),
     h('div', { className: 'crew-card-foot' },
-      h('span', { className: 'crew-req-note' }, '你确认之前，Lodge 不会动手'),
+      h('span', { className: 'crew-req-note' }, '你决定之前，Lodge 不动手。'),
       h('button', { type: 'button', className: 'crew-ghost', onClick: () => onDecide('deny') }, '先别做'),
       h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, '可以做')))
 }

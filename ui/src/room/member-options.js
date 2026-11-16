@@ -3,6 +3,13 @@ import { PERSONALITY_IDS, PERSONALITIES } from '../../../shared/personalities.js
 // 成员名字、默认值和模型选项在聊天和工作室内共用；只做纯数据整形，不碰 React。
 export const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员', participant: '成员' }
 
+const ROLE_ALIASES = { planner: 'lead', executor: 'worker' }
+
+export const roleLabelOf = member => {
+  const role = member?.roleKind ?? member?.role
+  return ROLE_LABEL[ROLE_ALIASES[role] ?? role] ?? '成员'
+}
+
 export const normalizeMembers = members => (Array.isArray(members) ? members : []).map(member => ({
   role: member.role,
   name: member.name || ROLE_LABEL[member.role] || member.role,

@@ -96,11 +96,11 @@ test('a new room with shadow review records advice outside the verifier prompt',
     await review.shadowSettled()
 
     assert.equal(sent.length, 1)
-    assert.doesNotMatch(sent[0].prompt, /外部意见|评估建议|验收命令退出码 无/)
+    assert.doesNotMatch(sent[0].prompt, /外部意见|评估建议|检查命令退出码 无/)
     const notice = store.readMessages(room.id).find(message => message.meta?.advisorNotice === true)
     assert.ok(notice)
     assert.match(notice.text, /127\.0\.0\.1/)
-    assert.match(notice.text, /证据和 diff/)
+    assert.match(notice.text, /证据和改动/)
     const advice = store.readRoom(room.id).advisorShadow?.[index]
     assert.ok(advice)
     assert.equal(advice.evidenceId, evidence.id)

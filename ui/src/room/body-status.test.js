@@ -14,7 +14,7 @@ const byId = list => Object.fromEntries(list.map(item => [item.memberId, item]))
 
 test('idle bodies read as present, not as status noise', () => {
   const status = byId(bodyStatuses({ state: 'active' }, members))
-  assert.equal(status.worker.label, '在线')
+  assert.equal(status.worker.label, '待命')
   assert.equal(status.worker.tone, 'idle')
 })
 
@@ -111,6 +111,6 @@ test('each body is a button that opens the swap dialog', () => {
     members,
     onSwap: () => {},
   }))
-  assert.match(html, /aria-label="给执行官换身体"/)
+  assert.match(html, /aria-label="调整执行官"/)
   assert.match(html, /button/)
 })

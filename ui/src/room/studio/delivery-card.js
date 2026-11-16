@@ -21,7 +21,6 @@ const joinPath = (base, file) => file.startsWith('/') ? file : `${base.replace(/
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
 export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
   const commands = delivery.commands ?? []
-  const passed = commands.filter(command => command.exit === 0).length
   const manualNotes = (delivery.stages ?? [])
     .map(stage => stage.manual?.text?.trim() ?? '')
     .filter(Boolean)
@@ -41,17 +40,26 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
   const goalText = typeof delivery.goal === 'string' ? delivery.goal.replace(/\*\*/g, '').trim() : ''
   const goalFirst = goalText.split('\n').map(line => line.trim()).find(line => line !== '') ?? ''
   const nameText = typeof delivery.name === 'string' ? delivery.name.trim() : ''
-  const signoff = [
-    delivery.completedAt ? timeOf(delivery.completedAt) : '',
-    delivery.independenceLabel ?? '',
+  const stepTotal = delivery.stages?.length ?? 0
+  const artifactPaths = new Set((delivery.artifacts ?? []).map(artifact => artifact.relativePath ?? artifact.path))
+  const changedFiles = delivery.changedFiles ?? []
+  const otherChangedFiles = changedFiles.filter(file => !artifactPaths.has(file))
+  const fileCount = new Set([...artifactPaths, ...changedFiles]).size
+  const metrics = [
+    stepTotal > 0 ? `${stepTotal} 步` : '',
+    commands.length > 0 ? `${commands.length} 项检查` : '',
+    fileCount > 0 ? `${fileCount} 个文件` : '',
   ].filter(Boolean).join(' · ')
+  const signoff = delivery.independenceLabel ?? ''
   return h('div', { className: 'crew-msg-conclusion', 'data-outcome': 'delivery' },
     h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true', 'aria-label': '结果' },
       h('div', { className: 'crew-card-body' },
         h('div', { className: 'studio-delivery-head' },
           h('span', { className: 'studio-delivery-kicker' }, '结果'),
-          delivery.sample === true ? h('span', { className: 'studio-delivery-sample' }, '示例数据') : null,
-          h('span', { className: 'studio-delivery-chip' }, '已完成 ✓')),
+          delivery.sample === true ? h('span', { className: 'studio-delivery-sample' }, '示例') : null,
+          h('span', { className: 'studio-delivery-chip' },
+            h('span', { className: 'studio-delivery-check-icon', 'aria-hidden': 'true' }, '✓'),
+            '已完成')),
         h('h3', { className: 'studio-delivery-name' }, nameText === '' ? '这次做出来的' : nameText),
         goalFirst === '' || goalFirst === nameText ? null : h('p', { className: 'studio-delivery-goal' }, goalFirst),
         goalText !== goalFirst
@@ -59,22 +67,26 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             h('summary', null, '完整目标'),
             h('p', { className: 'crew-field-hint' }, goalText))
           : null,
-        h('div', { className: 'studio-delivery-proof' },
-          h('div', { className: 'studio-delivery-proof-block' },
-            h('b', null, '检查'),
-            commands.length > 0
-              ? commands.map(command => h('div', { key: command.id, className: 'studio-delivery-check' },
-                h('code', null, command.command || '检查命令'),
-                h('span', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'),
-                h('span', { className: 'studio-delivery-check-exit' }, `退出码 ${command.exit === null ? '无' : command.exit}`),
-                command.simulated === true ? h('span', { className: 'studio-delivery-check-exit' }, '示例运行') : null))
-              : manualNotes.length > 0
-                ? h('span', { className: 'crew-field-hint' }, manualNotes[0])
-                : h('span', { className: 'crew-field-hint' }, '没有自动检查，由人确认后签字。'))),
-        h('div', { className: 'crew-delivery-metrics' },
-          h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 步`),
-          h('span', null, commands.length > 0 ? `${passed}/${commands.length} 检查通过` : '人工验收'),
-          h('span', null, `${(delivery.artifacts?.length ?? 0) > 0 ? delivery.artifacts.length : delivery.changedFiles?.length ?? 0} 个文件`)),
+        h('div', { className: 'studio-delivery-proof', role: 'group', 'aria-label': '检查' },
+          commands.length > 0
+            ? commands.map(command => h('div', {
+              key: command.id,
+              className: 'studio-delivery-check',
+              title: `退出码 ${command.exit === null ? '无' : command.exit}`,
+            },
+            h('span', {
+              className: 'studio-delivery-check-mark',
+              'data-pass': command.exit === 0,
+              'aria-hidden': 'true',
+            }, command.exit === 0 ? '✓' : '×'),
+            h('code', null, command.command || '检查命令'),
+            command.simulated === true && delivery.sample !== true
+              ? h('span', { className: 'studio-delivery-check-note' }, '示例运行')
+              : null,
+            h('span', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'),
+            h('span', { className: 'visually-hidden' }, `退出码 ${command.exit === null || command.exit === undefined ? '无' : command.exit}`)))
+            : h('span', { className: 'crew-field-hint' }, manualNotes[0] ?? '人工验收')),
+        metrics === '' ? null : h('p', { className: 'crew-delivery-metrics' }, metrics),
         h('div', { className: 'studio-delivery-meta' },
           delivery.workspacePath
             ? h('div', { className: 'studio-delivery-row' },
@@ -97,13 +109,21 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
           open: detailsOpen || undefined,
           onToggle: event => setDetailsOpen(event.currentTarget.open),
         },
-          h('summary', null, '结果明细'),
-          delivery.commit
-            ? h('div', { className: 'crew-kv' }, h('span', null, '版本'), h('code', null, short(delivery.commit)))
+          h('summary', null, '明细'),
+          delivery.completedAt || delivery.commit
+            ? h('div', { className: 'studio-delivery-detail-meta' },
+              delivery.completedAt
+                ? h('div', { className: 'crew-kv' }, h('span', null, '完成'), h('span', null, timeOf(delivery.completedAt)))
+                : null,
+              delivery.commit
+                ? h('div', { className: 'crew-kv' }, h('span', null, '版本'), h('code', null, short(delivery.commit)))
+                : null)
             : null,
           delivery.artifacts?.length > 0
             ? h('div', { className: 'crew-delivery-artifacts' },
-              h('b', null, `文件 · ${delivery.artifacts.length}`),
+              h('div', { className: 'studio-delivery-file-head' },
+                h('b', null, '文件'),
+                h('span', null, delivery.artifacts.length)),
               h('ul', null, delivery.artifacts.map(artifact => h('li', { key: artifact.path },
                 h('code', { title: artifact.path }, artifact.path.split('/').pop() || artifact.path),
                 h('button', {
@@ -116,34 +136,37 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
           h('div', { className: 'crew-delivery-stages' },
             ...(delivery.stages ?? []).map(stage => h('div', { key: stage.index, className: 'crew-delivery-stage' },
               h('div', { className: 'crew-delivery-stage-head' },
-                h('b', null, `${stage.index + 1}. ${stage.title}`),
-                h('span', { 'data-state': stage.state }, stage.kind === 'deliverable' ? '结果' : '决策')),
-              ...stage.commands.map(command => h('div', { key: command.id, className: 'crew-kv' },
-                h('span', null, '检查'),
-                h('span', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'))),
-              ...stage.verdicts
-                .map(verdict => h('div', { key: verdict.id, className: 'crew-delivery-verdict', 'data-pass': verdict.pass },
+                h('span', { className: 'crew-delivery-stage-index' }, stage.index + 1),
+                h('b', null, stage.title),
+                h('span', { className: 'crew-delivery-stage-kind' }, stage.kind === 'deliverable' ? '交付' : '确认')),
+              h('div', { className: 'crew-delivery-stage-body' },
+                ...stage.commands.map(command => h('div', { key: command.id, className: 'crew-delivery-fact crew-delivery-fact-command-row' },
+                  h('span', null, '检查'),
+                  h('code', { className: 'crew-delivery-fact-command' }, command.command || '检查命令'),
+                  h('b', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'))),
+                ...stage.verdicts.map(verdict => h('div', { key: verdict.id, className: 'crew-delivery-fact' },
+                  h('span', null, '复核'),
                   h('span', null, delivery.memberNames?.[verdict.authorId] ?? verdict.authorId),
-                  h('b', null, verdict.pass ? '通过' : '退回'))),
-              stage.acceptance || stage.commands.length > 0
-                ? h('details', { className: 'crew-fold' },
-                  h('summary', null, '技术细节'),
-                  stage.acceptance ? h('div', { className: 'crew-kv' },
-                    h('span', null, '检查'),
-                    h('code', null, stage.acceptance)) : null,
-                  ...stage.commands.map(command => h('div', { key: `${command.id}-tech`, className: 'crew-kv' },
-                    h('span', null, '命令'),
-                    h('code', null, `${command.command} · 退出码 ${command.exit === null ? '无' : command.exit}`))))
-                : null,
-              stage.changedFiles?.length
-                ? h('details', { className: 'crew-fold' },
-                  h('summary', null, `改动文件 ${stage.changedFiles.length}`),
-                  h('ul', null, stage.changedFiles.map(file => h('li', { key: file }, h('code', null, file)))))
-                : null))),
-          delivery.changedFiles?.length
+                  h('b', { 'data-pass': verdict.pass }, verdict.pass ? '通过' : '退回'))),
+                stage.acceptance || stage.commands.length > 0
+                  ? h('details', { className: 'crew-fold' },
+                    h('summary', null, '技术细节'),
+                    stage.acceptance ? h('div', { className: 'crew-kv' },
+                      h('span', null, '检查'),
+                      h('code', null, stage.acceptance)) : null,
+                    ...stage.commands.map(command => h('div', { key: `${command.id}-tech`, className: 'crew-kv' },
+                      h('span', null, '命令'),
+                      h('code', null, `${command.command} · 退出码 ${command.exit === null ? '无' : command.exit}`))))
+                  : null,
+                stage.changedFiles?.length
+                  ? h('details', { className: 'crew-fold' },
+                    h('summary', null, `改动文件 ${stage.changedFiles.length}`),
+                    h('ul', null, stage.changedFiles.map(file => h('li', { key: file }, h('code', null, file)))))
+                  : null)))),
+          otherChangedFiles.length > 0
             ? h('details', { className: 'crew-fold crew-delivery-files' },
-              h('summary', null, `全部改动文件 · ${delivery.changedFiles.length}`),
-              h('ul', null, delivery.changedFiles.map(file => h('li', { key: file },
+              h('summary', null, `${artifactPaths.size > 0 ? '其他改动' : '改动文件'} · ${otherChangedFiles.length}`),
+              h('ul', null, otherChangedFiles.map(file => h('li', { key: file },
                 h('code', null, file),
                 delivery.workspacePath
                   ? h('button', {
@@ -160,7 +183,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
           ? null
           : h('button', {
             type: 'button',
-            className: 'crew-ghost',
+            className: 'crew-accept crew-conclusion-next',
             onClick: onContinue,
           }, '继续做'),
         onReturn === null
@@ -169,12 +192,5 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             type: 'button',
             className: 'crew-ghost',
             onClick: onReturn,
-          }, '回聊天室讨论'),
-        delivery.workspacePath
-          ? h('button', {
-            type: 'button',
-            className: 'crew-accept crew-conclusion-next',
-            onClick: () => void open(delivery.workspacePath),
-          }, '打开文件夹')
-          : null)))
+          }, '回聊天室'))))
 }
