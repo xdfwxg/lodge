@@ -6,7 +6,7 @@ const CHECKLIST = `# 发布前检查清单
 
 ## 代码与构建
 - [ ] 主分支 CI 通过
-- [ ] 版本号与构建产物一致
+- [ ] 版本号与构建结果一致
 - [ ] 没有未合并的临时改动
 
 ## 发布
@@ -24,7 +24,7 @@ const DIFF = `+ # 发布前检查清单
 +
 + ## 代码与构建
 + - [ ] 主分支 CI 通过
-+ - [ ] 版本号与构建产物一致
++ - [ ] 版本号与构建结果一致
 + - [ ] 没有未合并的临时改动
 +
 + ## 发布
@@ -68,7 +68,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
       permissions: { read: true, exec: false, write: false },
       writeScope: 'none',
       toolSurface: ['read'],
-      skills: [],
       mcp: [],
       approval: 'ask',
       speakBudget: 6,
@@ -82,7 +81,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
       permissions: { read: true, exec: true, write: true },
       writeScope: 'own_worktree',
       toolSurface: ['read', 'exec', 'write'],
-      skills: [],
       mcp: [],
       approval: 'auto',
       speakBudget: 8,
@@ -96,25 +94,12 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
       permissions: { read: true, exec: true, write: false },
       writeScope: 'none',
       toolSurface: ['read', 'exec'],
-      skills: [],
       mcp: [],
       approval: 'ask',
       speakBudget: 6,
     },
   ],
   independence: 'model',
-  brief: {
-    objective: '给一个准备发布的团队一份能直接照着勾的发布前检查清单。',
-    done: [
-      '覆盖代码、发布、回滚三组检查',
-      '每条都能勾选，并有负责人',
-      '单文件 Markdown，放在房间工作区',
-    ],
-    constraints: [
-      '已确认：交付形式 → 单文件 Markdown',
-      '已确认：验收方式 → 文件存在且三组齐全',
-    ],
-  },
   plan: {
     done: [
       '覆盖代码、发布、回滚三组检查',
@@ -239,7 +224,7 @@ export const seedSampleMessages = ({ store, room, now = Date.now() } = {}) => {
   append({
     kind: 'conclusion',
     authorId: 'planner',
-    text: '目标达成：示例交付了一份能直接拿去用的发布前检查清单。',
+    text: '已交付：示例交付了一份能直接拿去用的发布前检查清单。',
     meta: { stages: 3, commands: ['test -f RELEASE_CHECKLIST.md'], sample: true },
   })
 }

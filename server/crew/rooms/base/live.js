@@ -12,7 +12,7 @@ import { createStudioRuntime } from '../studio/runtime.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs }) => {
-  const { roomFiles, commands, files, skills } = ports
+  const { roomFiles } = ports
   const entries = new Map()
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit })
@@ -54,7 +54,7 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
     if (entries.has(room.id)) return entries.get(room.id)
     const seatRefs = room.seatRooms ?? {}
     const seatKeys = Object.keys(seatRefs)
-    if (seatKeys.length === 0) throw new Error('房间没有席位线程')
+    if (seatKeys.length === 0) throw new Error('房间没有成员线程')
     const strategy = strategyFor(room)
     const entry = {
       roomId: room.id,
@@ -74,14 +74,13 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
     for (const seat of seatKeys) {
       const ref = seatRefs[seat]
       const base = bases.find(item => item.id === ref.id)
-      if (base === undefined) throw new Error(`engine 里没有 ${seat} 席位线程`)
+      if (base === undefined) throw new Error(`engine 里没有 ${seat} 成员线程`)
       entry.seats.set(seat, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
       await sync.syncSeat(entry, seat)
       sync.subscribeSeat(entry, seat, seatHandlers)
     }
     const liveRoom = await chat.ensure(room)
     chat.subscribe(entry, liveRoom)
-    roomFiles.writeBrief(liveRoom)
     roomFiles.writeGoal(liveRoom)
     await refreshRoom(entry, { force: true })
     if (approvals.resumeApprovalPauseIfSettled(room.id) !== null) await refreshRoom(entry, { force: true })
@@ -99,10 +98,10 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
     if (entry.seats.has(seat)) return true
     const room = store.readRoom(roomId)
     const ref = room?.seatRooms?.[seat]
-    if (ref === undefined) throw new Error(`房间没有 ${seat} 席位线程`)
+    if (ref === undefined) throw new Error(`房间没有 ${seat} 成员线程`)
     const bases = await engine.rooms()
     const base = bases.find(item => item.id === ref.id)
-    if (base === undefined) throw new Error(`engine 里没有 ${seat} 席位线程`)
+    if (base === undefined) throw new Error(`engine 里没有 ${seat} 成员线程`)
     entry.seats.set(seat, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
     await sync.syncSeat(entry, seat)
     sync.subscribeSeat(entry, seat, seatHandlers)
@@ -150,19 +149,19 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
 
   const sendToSeat = async (roomId, seat, text) => {
     const entry = entries.get(roomId)
-    if (entry === undefined) throw new Error('实时房间未绑定')
+    if (entry === undefined) throw new Error('房间还没有连上')
     const room = store.readRoom(roomId)
-    // 工作室的派发和复核都走群聊 @；聊天室没有席位线程派发。
+    // 工作室的派发和复核都走群聊 @；聊天室没有成员线程派发。
     return entry.strategy.sendToSeat(entry, room, seat, text)
   }
 
   const send = async (roomId, text) => {
     const entry = entries.get(roomId)
-    if (entry === undefined) throw new Error('实时房间未绑定')
+    if (entry === undefined) throw new Error('房间还没有连上')
     if (entry.strategy.busyReview(entry)) throw new Error('验收员还在看，等结论出来再继续')
     const room = store.readRoom(roomId)
     if (room === null) throw new Error('没有这个房间')
-    // 成员默认休眠，只有被 @ 才唤醒；人直接说话时默认唤醒主席位，避免“发了没人回”。
+    // 成员默认休眠，只有被 @ 才唤醒；人直接说话时默认唤醒主成员，避免“发了没人回”。
     const lead = !/@[^\s，,。]+/.test(text)
       ? seatDisplayName(room, room.leadSeat ?? room.members?.[0])
       : ''
@@ -172,31 +171,31 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
 
   const requestReview = async (roomId, stage) => {
     const entry = entries.get(roomId)
-    if (entry === undefined) throw new Error('实时房间未绑定')
+    if (entry === undefined) throw new Error('房间还没有连上')
     return entry.strategy.requestReview(entry, stage)
   }
 
   const startStage = async (room, index) => {
     const entry = entries.get(room.id)
-    if (entry === undefined) throw new Error('实时房间未绑定')
+    if (entry === undefined) throw new Error('房间还没有连上')
     return entry.strategy.startStage(entry, room, index)
   }
 
   const startChat = async (room, options = {}) => {
     const entry = entries.get(room.id)
-    if (entry === undefined) throw new Error('实时房间未绑定')
+    if (entry === undefined) throw new Error('房间还没有连上')
     return entry.strategy.start(entry, room, options)
   }
 
   const continueChat = async (room, note = '') => {
     const entry = entries.get(room.id)
-    if (entry === undefined) throw new Error('实时房间未绑定')
+    if (entry === undefined) throw new Error('房间还没有连上')
     return entry.strategy.continue(entry, store.readRoom(room.id) ?? room, note)
   }
 
   const reworkStage = async (room, index, note) => {
     const entry = entries.get(room.id)
-    if (entry === undefined) throw new Error('实时房间未绑定')
+    if (entry === undefined) throw new Error('房间还没有连上')
     return entry.strategy.startStage(entry, room, index, { note, rework: true })
   }
 
@@ -210,10 +209,27 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
 
   const expireApprovals = (roomId, reason) => approvals.expireApprovals(entries.get(roomId), roomId, reason)
 
-  const cancel = async ({ roomId }) => {
-    if (!supportsRuntime(engine, 'cancel')) return { cancelled: false, reason: '当前 runtime 不支持取消回合' }
+  // 叫停/继续归基座的 room holds；Lodge 只把 seat 映射成成员引用。
+  const holdSeat = async (roomId, seat, held) => {
+    if (!supportsRuntime(engine, 'holds')) throw new Error('当前版本还不支持叫停成员')
     const entry = entries.get(roomId)
-    if (entry === undefined) return { cancelled: false, reason: '实时房间未绑定' }
+    if (entry === undefined) throw new Error('房间还没有连上')
+    const room = store.readRoom(roomId)
+    if (room === null) throw new Error('房间不存在')
+    const memberRef = room.seatBots?.[seat]
+    const chatId = room.chatRoom?.id
+    if (typeof memberRef !== 'string' || memberRef === '' || typeof chatId !== 'string' || chatId === '') {
+      throw new Error('这个成员没有基座地址')
+    }
+    await engine.setRoomHold(chatId, memberRef, held)
+    await refreshRoom(entry, { force: true })
+    return store.readRoom(roomId) ?? room
+  }
+
+  const cancel = async ({ roomId }) => {
+    if (!supportsRuntime(engine, 'cancel')) return { cancelled: false, reason: '当前版本还不支持取消回合' }
+    const entry = entries.get(roomId)
+    if (entry === undefined) return { cancelled: false, reason: '房间还没有连上' }
     const room = store.readRoom(roomId)
     if (room === null) return { cancelled: false, reason: '房间不存在' }
     entry.strategy.cancel(entry)
@@ -230,7 +246,7 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
       const cancelled = results.filter(result => result.cancelled === true).length
       return cancelled > 0
         ? { cancelled: true, seats: busy.length, cancelledSeats: cancelled }
-        : { cancelled: false, reason: results.find(result => result.reason)?.reason ?? '基座没有取消任何回合' }
+        : { cancelled: false, reason: results.find(result => result.reason)?.reason ?? '现在没有可以取消的回合' }
     } catch (error) {
       return { cancelled: false, reason: String(error?.message ?? error) }
     }
@@ -247,6 +263,7 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
     requestReview,
     decideApproval,
     expireApprovals,
+    holdSeat,
     busyReview: roomId => {
       const entry = entries.get(roomId)
       return entry === undefined ? false : entry.strategy.busyReview(entry)

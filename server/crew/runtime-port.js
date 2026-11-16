@@ -22,7 +22,7 @@ export const RUNTIME_METHOD_GROUPS = Object.freeze({
   turns: Object.freeze(['sendTurn', 'cancelTurn', 'history', 'subscribe']),
   rooms: Object.freeze([
     'rooms', 'createRoom', 'deleteRoom', 'updateRoomMembers',
-    'setRoomMentions', 'markRoomRead',
+    'setRoomMentions', 'setRoomHold', 'markRoomRead',
   ]),
   seats: Object.freeze(['createSeatBot', 'deleteSeatBot', 'instances']),
   cards: Object.freeze(['answerCard']),

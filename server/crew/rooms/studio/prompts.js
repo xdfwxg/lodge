@@ -1,5 +1,5 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { skillPrompt, stageGuidance } from '../../prompt-modes.js'
+import { stageGuidance } from '../../prompt-modes.js'
 import { buildSeatHandoff } from './seat-handoff.js'
 import { seatDisplayName } from '../../seat-labels.js'
 
@@ -14,7 +14,6 @@ export const studioWorkerPrompt = ({
   note = '',
   acceptance = '',
   readOnly = false,
-  seatSkills = [],
   workspace = {},
   port,
   environment,
@@ -26,7 +25,6 @@ export const studioWorkerPrompt = ({
       ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : note}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求重做。`
       : '',
     ...stageGuidance({ readOnly }),
-    ...skillPrompt(seatSkills),
     buildSeatHandoff({ room, messages }),
     workspace.parallel === true
       ? workspace.isolation === 'worktree'

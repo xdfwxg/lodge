@@ -25,6 +25,10 @@ const fakeClient = () => {
       captured.task = { id, threadId, payload }
     },
     deleteGroup: async () => {},
+    setGroupHold: async (groupId, botId, held) => {
+      captured.hold = { groupId, botId, held }
+      return { ok: true }
+    },
   }
 }
 
@@ -50,6 +54,13 @@ test('seat prompts and semantic capability settings cross the engine port', asyn
   assert.equal(engine.capabilities().mcp, true)
   assert.equal(engine.capabilities().cancel, true)
   assert.equal(engine.capabilities().schedules, false)
+})
+
+test('room holds cross the engine port as a member reference', async () => {
+  const client = fakeClient()
+  const engine = createEngine({ client })
+  await engine.setRoomHold('group-1', 'member-1', true)
+  assert.deepEqual(client.captured.hold, { groupId: 'group-1', botId: 'member-1', held: true })
 })
 
 test('exact mention ids cross the engine port with the text', async () => {

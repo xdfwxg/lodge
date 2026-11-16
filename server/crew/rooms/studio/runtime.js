@@ -22,7 +22,6 @@ export const createStudioRuntime = ({
         sendToSeat: (seat, text) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text }),
         commands: ports.commands,
         files: ports.files,
-        skills: ports.skills,
         advisor: ports.advisor,
       })
       // 已落证据的回合在重启后会被基座历史重放；先标记，避免重复采集。

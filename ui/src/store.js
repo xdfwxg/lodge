@@ -184,6 +184,7 @@ export function createStore() {
     select: activeId => (rememberRoom(activeId), patch({ activeId })),
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
+    holdSeat: (seat, held) => post(`/api/rooms/${state.activeId}/hold`, { seat, held }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
     chatAccept: () => post(`/api/rooms/${state.activeId}/chat-accept`, {}),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),

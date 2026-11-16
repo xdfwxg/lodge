@@ -99,6 +99,10 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-activity-line{display:flex;align-items:center;gap:7px;padding:0 24px 8px;font-size:12.5px;line-height:17px;color:var(--bt-ink-3)}
 .crew-activity-line i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-accent);animation:crew-typing 1.2s infinite}
 .crew-activity-elapsed{font-variant-numeric:tabular-nums;color:var(--bt-ink-3)}
+.studio-presence-action{margin-left:2px;padding:0;border:0;background:none;color:var(--bt-ink-3);font:inherit;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.studio-presence-action:hover{color:var(--bt-ink-1)}
+.studio-queue{display:flex;align-items:center;gap:7px;padding:0 24px 8px;font-size:12.5px;line-height:17px;color:var(--bt-ink-3)}
+.studio-queue[data-held=true]{opacity:.72}
 .crew-activity-action{margin-left:auto;border:0;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:12.5px;cursor:pointer;padding:2px 6px;border-radius:5px}
 .crew-activity-action:hover{color:var(--bt-ink);background:var(--bt-hover)}
 @media (max-width:760px){.crew-activity-line{padding:0 16px 8px}}

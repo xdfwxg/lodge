@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { briefOf } from './brief.js'
 import { presentRoom } from './presentation.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
@@ -39,7 +40,7 @@ export const createServiceQueries = ({
         ))
         return {
           ...presentRoom(room, messages),
-          brief: roomFiles.readBrief(room),
+          brief: briefOf(room),
           messages,
         }
       }),

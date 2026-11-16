@@ -13,7 +13,7 @@ import { deliverableStageIndex, isWorkStage, parsePlannerDecision, seatOf } from
 import { vcsOf, workspaceOf } from './workspace.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, skills, advisor = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, advisor = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToSeat, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks, handoff, advisor })
@@ -42,7 +42,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     handoff,
     integrate: integrator.integrate,
     enqueue: integrator.enqueue,
-    skills,
   })
 
   const markManualReady = (room, stageIndex, turnId, worked) => {

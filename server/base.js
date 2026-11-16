@@ -27,6 +27,13 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
       timeout: 15_000,
     }),
 
+    setGroupHold: (groupId, botId, held) => json(`/api/groups/${groupId}/holds`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ botId, held }),
+      timeout: 10_000,
+    }),
+
     respondToCard: (threadId, requestId, behavior) => json(`/api/threads/${threadId}/respond`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

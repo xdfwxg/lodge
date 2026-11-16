@@ -1,8 +1,7 @@
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, writeFileSync, writeSync } from 'node:fs'
+import { closeSync, fsyncSync, mkdirSync, openSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
 import { roomDir, roomRootOf } from './paths.js'
-import { resolveRoomType } from './room-types/index.js'
 
 export { roomDir }
 
@@ -48,49 +47,6 @@ export const writeEvidence = (room, message) => {
   writeDurable(join(roomDir(room), message.meta.evidenceRef), JSON.stringify(message.meta, null, 2))
 }
 
-const projectConstraintLines = content => (
-  String(content ?? '')
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line !== '' && !line.startsWith('#'))
-    .map(line => line.replace(/^[-*]\s*/, '').slice(0, 300))
-    .slice(0, 40)
-)
-
-const briefText = (room, plan = null) => {
-  const done = resolveRoomType(room.roomType)?.briefDone?.(room, plan) ?? []
-  const confirmed = (plan?.answers ?? []).map(item => `已确认：${item.question} → ${item.answer}`)
-  const constraints = [...new Set([
-    ...confirmed,
-    ...(plan?.why ? [`编制理由：${plan.why}`] : []),
-    ...(room.constraints ?? []),
-    '决策型阶段必须由人点过，不能由模型代点',
-    '交付型阶段必须在本阶段有证据落盘（证据在 evidence/，与 transcript 同一份真相）',
-    ...(room.verifiers?.length > 0
-      ? ['验收由验收员独立复核，最终由你签字']
-      : ['验收由你凭证据签字']),
-  ])]
-  return [
-    `# 目标：${room.goal}`,
-    '',
-    'done:',
-    ...done,
-    '',
-    'constraints:',
-    ...constraints.map(text => `- ${text}`),
-    '',
-  ].join('\n')
-}
-
-// BRIEF.md 归人：只在不存在时给一份初稿，之后运行时绝不改写。
-export const writeBrief = (room, plan = null) => {
-  const file = join(roomDir(room), 'BRIEF.md')
-  if (existsSync(file)) return false
-  mkdirSync(roomDir(room), { recursive: true })
-  writeFileSync(file, briefText(room, plan))
-  return true
-}
-
 // GOAL.md 是运行时投影，每次状态变化重写，不是人的编辑对象。
 export const writeGoal = room => {
   mkdirSync(roomDir(room), { recursive: true })
@@ -105,38 +61,13 @@ export const writeGoal = room => {
     `状态：${room.state}`,
     `仓库：${roomRootOf(room)}`,
     ...(room.seatSpecs?.length > 0
-      ? [`席位：${room.seatSpecs.map(seat => `${seat.name}（${seat.role}）`).join(' · ')}`]
+      ? [`成员：${room.seatSpecs.map(seat => `${seat.name}（${seat.role}）`).join(' · ')}`]
       : []),
     '',
     '阶段：',
     ...stages,
     '',
   ].join('\n'))
-}
-
-export const readBrief = room => {
-  const file = join(roomDir(room), 'BRIEF.md')
-  if (!existsSync(file)) return null
-  const lines = readFileSync(file, 'utf8').split('\n')
-  const objective = (lines.find(line => line.startsWith('# 目标')) ?? '').replace(/^#\s*目标[:：]\s*/, '')
-  const section = name => {
-    const start = lines.findIndex(line => line.trim() === `${name}:`)
-    if (start < 0) return []
-    const out = []
-    for (const line of lines.slice(start + 1)) {
-      if (/^[a-z_]+:\s*$/i.test(line)) break
-      if (line.startsWith('- ')) out.push(line.slice(2).trim())
-    }
-    return out
-  }
-  return {
-    objective,
-    done: section('done').map(text => {
-      const checked = text.match(/^\[( |x)\]\s*(.*)$/i)
-      return checked ? { done: checked[1].toLowerCase() === 'x', text: checked[2] } : { done: false, text }
-    }),
-    constraints: section('constraints'),
-  }
 }
 
 const seatLabel = (room, id) => room.seatSpecs?.find(seat => seat.id === id)?.name ?? id

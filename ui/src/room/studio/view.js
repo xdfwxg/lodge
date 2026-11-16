@@ -61,7 +61,7 @@ export const studioView = {
       transcript,
       subrooms)
   },
-  presence: ({ room, seats }) => h(StudioPresence, { room, seats }),
+  presence: ({ room, seats, actions }) => h(StudioPresence, { room, seats, onHold: actions.hold }),
   composerPlaceholder: () => '交代下一步，或问进度…',
   typing: () => null,
   dock: ({ room, dock }) => h(StageDock, { room, ...dock }),

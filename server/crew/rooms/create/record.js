@@ -95,7 +95,7 @@ export const buildRoomRecord = ({
   seatCursors: Object.fromEntries(roster.map(seat => [seat.id, 0])),
   openQuestion: null,
   version: 1,
-  seatSpecs: roster.map(({ id, name, title: seatTitle, role, roleKind, roleProfile, isHost, station, engine, model, permissions, writeScope, toolSurface, skills, mcp, approval, speakBudget, personality }) => ({
+  seatSpecs: roster.map(({ id, name, title: seatTitle, role, roleKind, roleProfile, isHost, station, engine, model, permissions, writeScope, toolSurface, mcp, approval, speakBudget, personality }) => ({
     id,
     name,
     title: seatTitle,
@@ -109,7 +109,6 @@ export const buildRoomRecord = ({
     permissions,
     writeScope,
     toolSurface,
-    skills,
     mcp,
     approval,
     speakBudget,

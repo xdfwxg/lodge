@@ -1,5 +1,5 @@
-// 席位运行态投影：基座已经保证同一房间一次只跑一个回合，这里把队列
-// 从成员引用翻译成席位视角，供所有房型共用；不新增执行通道。
+// 成员运行态投影：基座已经保证同一房间一次只跑一个回合，这里把队列
+// 从成员引用翻译成成员视角，供所有房型共用；不新增执行通道。
 const seatsOf = toSeat => (typeof toSeat === 'function' ? toSeat : value => value)
 
 export const seatQueueOf = ({ queue = [], toSeat } = {}) => {
@@ -28,7 +28,18 @@ export const presenceOf = queue => queue.map(entry => ({
   state: entry.state === 'running' ? 'working' : 'queued',
 }))
 
+export const heldSeatsOf = ({ holds = {}, toSeat } = {}) => {
+  const seatOf = seatsOf(toSeat)
+  return Object.keys(holds ?? {})
+    .map(ref => seatOf(ref))
+    .filter(seatId => typeof seatId === 'string' && seatId !== '')
+}
+
 export const seatActivityOf = (chatBase, toSeat) => {
   const turnQueue = seatQueueOf({ queue: chatBase?.queue, toSeat })
-  return { turnQueue, presence: presenceOf(turnQueue) }
+  return {
+    turnQueue,
+    presence: presenceOf(turnQueue),
+    heldSeats: heldSeatsOf({ holds: chatBase?.holds, toSeat }),
+  }
 }

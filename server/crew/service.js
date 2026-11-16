@@ -57,13 +57,13 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
 
     if (action === 'approvals' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '只有实时房间有基座权限卡')
+      if (room.live !== true) return fail('conflict', '只有正在运行的房间有待确认的操作')
       if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
       const body = await readBody()
       const approvalId = typeof body.id === 'string' ? body.id : ''
       const decision = body.decision === 'allow' ? 'allow' : body.decision === 'deny' ? 'deny' : ''
-      if (approvalId === '') return fail('invalid', '缺少审批 id')
-      if (decision === '') return fail('invalid', '审批只接受 allow/deny')
+      if (approvalId === '') return fail('invalid', '缺少要确认的操作')
+      if (decision === '') return fail('invalid', '这个操作只能选“可以做”或“先别做”')
       const result = await live.decideApproval(room.id, approvalId, decision)
       if (result.ok !== true) return fail('conflict', result.reason)
       return ok({ room: result.room })
@@ -75,7 +75,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     }
 
     if (action === 'verify' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '只有实时房间能用引擎复核；演示房间请用模拟执行')
+      if (room.live !== true) return fail('conflict', '只有正在运行的房间能真的检查；示例房间用示例数据')
       if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
       const body = await readBody()
       try {
@@ -89,6 +89,20 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     if (action === 'read' && method === 'POST') {
       if (room.live === true && typeof live.markChatRead === 'function') await live.markChatRead(room)
       return ok({ room: readRoom(roomId) ?? room })
+    }
+
+    if (action === 'hold' && method === 'POST') {
+      if (room.live !== true) return fail('conflict', '只有正在运行的房间能叫停成员')
+      if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
+      const body = await readBody()
+      const seat = typeof body.seat === 'string' ? body.seat : ''
+      if (!(room.members ?? []).includes(seat)) return fail('invalid', '没有这个成员')
+      try {
+        const updated = await live.holdSeat(room.id, seat, body.held === true)
+        return ok({ room: updated ?? readRoom(room.id) ?? room })
+      } catch (error) {
+        return fail('conflict', String(error?.message ?? error))
+      }
     }
 
     if (action === 'rename' && method === 'POST') {

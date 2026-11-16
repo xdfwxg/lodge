@@ -182,6 +182,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     cancel: true,
     provisioning: true,
     mentions: true,
+    holds: true,
     mcp: true,
     // 定时/事件触发归基座 routines/webhooks；适配层尚未接线。
     schedules: false,
@@ -338,6 +339,11 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { ok: true }
   }
 
+  const setRoomHold = async (roomId, memberRef, held) => {
+    await client.setGroupHold(roomId, memberRef, held)
+    return { ok: true }
+  }
+
   // 群聊默认不唤醒任何成员；只有被 @ 的席位才加载。工作室和聊天室都用这一种总线。
   const setRoomMentions = async roomId => {
     await client.patchGroup(roomId, { defaultResponder: { kind: 'mentions' } })
@@ -430,6 +436,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     createRoom,
     updateRoomMembers,
     setRoomMentions,
+    setRoomHold,
     markRoomRead,
     deleteSeatBot,
     deleteRoom,

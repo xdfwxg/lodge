@@ -79,10 +79,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   }
   const resolvedPlan = mode.resolvePlan(plan, roster)
   for (const seat of roster) {
-    const missingSkills = seat.skills.filter(id => ports.skills?.has?.(id) !== true)
-    if (missingSkills.length > 0) {
-      return fail('invalid', `这些技能还没准备好：${missingSkills.join('、')}；先放入 templates/skills`)
-    }
     if (seat.mcp.length > 0 && capabilities.mcp !== true) {
       return fail('conflict', '当前版本还不支持外部工具')
     }
@@ -175,7 +171,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       if (linked !== null) emit('room', linked)
     }
     store.appendEvent(room.id, 'room.created', { live: true, templateId, seats: room.members, sourceRepo, branch: room.branch })
-    ports.roomFiles.writeBrief(room, resolvedPlan)
     ports.roomFiles.writeGoal(room)
     for (const message of initialRoomMessages({
       room,

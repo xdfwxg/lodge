@@ -16,7 +16,7 @@ const roomRecord = (overrides = {}) => ({
   ...overrides,
 })
 
-const setup = room => {
+const setup = (room, liveOverrides = {}) => {
   let current = room
   const emitted = []
   const removedPaths = []
@@ -47,7 +47,7 @@ const setup = room => {
   const service = createCrewService({
     store,
     engine: { health: async () => ({}), instances: async () => [] },
-    live: { isAttached: () => false, detach: () => {} },
+    live: { isAttached: () => false, detach: () => {}, ...liveOverrides },
     emit: (event, payload) => emitted.push([event, payload]),
     seats: [],
     ports,
@@ -79,6 +79,26 @@ test('restoring a room clears the archive marker', async () => {
   const result = await ctx.service.roomRequest('r1', 'archive', post({ archived: false }))
   assert.equal(result.ok, true)
   assert.equal(result.body.room.archivedAt, null)
+})
+
+test('holding a seat goes through the live runtime', async () => {
+  const calls = []
+  const ctx = setup(roomRecord({
+    live: true,
+    members: ['worker'],
+    seatBots: { worker: 'member-1' },
+    chatRoom: { id: 'chat-1' },
+  }), {
+    isAttached: () => true,
+    holdSeat: async (roomId, seat, held) => {
+      calls.push({ roomId, seat, held })
+      return roomRecord({ live: true, members: ['worker'], heldSeats: held ? [seat] : [] })
+    },
+  })
+  const result = await ctx.service.roomRequest('r1', 'hold', post({ seat: 'worker', held: true }))
+  assert.equal(result.ok, true)
+  assert.deepEqual(calls, [{ roomId: 'r1', seat: 'worker', held: true }])
+  assert.deepEqual(result.body.room.heldSeats, ['worker'])
 })
 
 test('an active room cannot be deleted', async () => {

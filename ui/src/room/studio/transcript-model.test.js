@@ -78,6 +78,19 @@ test('presence lines name seats and describe queue position', () => {
   }, seats)
   assert.deepEqual(lines.working, [{ seatId: 'lead', name: '规划师', since: 10 }])
   assert.deepEqual(lines.queued, [{ seatId: 'verifier', name: '验收员', position: 3, of: 3, waitingFor: '执行官' }])
+  assert.deepEqual(lines.held, [])
+})
+
+test('a held seat leaves the working and queue lines', () => {
+  const seats = [{ id: 'worker', name: '执行官' }]
+  const lines = presenceLines({
+    heldSeats: ['worker'],
+    presence: [{ seatId: 'worker', state: 'working' }],
+    turnQueue: [{ seatId: 'worker', state: 'queued', position: 1, of: 1 }],
+  }, seats)
+  assert.deepEqual(lines.working, [])
+  assert.deepEqual(lines.queued, [])
+  assert.deepEqual(lines.held, [{ seatId: 'worker', name: '执行官' }])
 })
 
 test('activity without a tool name is skipped without breaking the run', () => {

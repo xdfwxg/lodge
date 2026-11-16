@@ -1,5 +1,5 @@
 import { personalityById } from '../../shared/personalities.js'
-// 席位是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
+// 成员是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
 const TOOL_SCOPES = ['read', 'exec', 'write']
 const sameSet = (a, b) => a.length === b.length && [...a].sort().join('\0') === [...b].sort().join('\0')
 const isId = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
@@ -15,11 +15,10 @@ const deliveryTriad = [
     permissions: { read: true, exec: false, write: false },
     writeScope: 'none',
     toolSurface: ['read'],
-    skills: [],
     mcp: [],
     approval: 'ask',
     speakBudget: 6,
-    prompt: '你是规划师。你的执行席位是 @执行官，验收席位是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。',
+    prompt: '你是规划师。你的执行成员是 @执行官，验收成员是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。',
   },
   {
     id: 'executor',
@@ -31,11 +30,10 @@ const deliveryTriad = [
     permissions: { read: true, exec: true, write: true },
     writeScope: 'own_worktree',
     toolSurface: ['read', 'exec', 'write'],
-    skills: [],
     mcp: [],
     approval: 'auto',
     speakBudget: 8,
-    prompt: '你是执行官。你的验收席位是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
+    prompt: '你是执行官。你的验收成员是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
   },
   {
     id: 'verifier',
@@ -47,7 +45,6 @@ const deliveryTriad = [
     permissions: { read: true, exec: true, write: false },
     writeScope: 'none',
     toolSurface: ['read', 'exec'],
-    skills: [],
     mcp: [],
     approval: 'ask',
     speakBudget: 4,
@@ -76,7 +73,6 @@ const cloneSeat = seat => ({
   ...seat,
   permissions: { ...seat.permissions },
   toolSurface: [...seat.toolSurface],
-  skills: [...seat.skills],
   mcp: seat.mcp.map(grant => ({ ...grant, scopes: [...grant.scopes] })),
 })
 
@@ -107,7 +103,6 @@ export const rosterFromRoles = entries => {
       ? entry.model.trim().slice(0, 160)
       : base.model
     const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
-    const skills = Array.isArray(entry.skills) ? entry.skills.filter(isId).slice(0, 8) : base.skills
     const personality = personalityById(entry.personality) === null ? '' : entry.personality
     return cloneSeat({
       ...base,
@@ -118,15 +113,14 @@ export const rosterFromRoles = entries => {
       engineExplicit,
       model,
       station,
-      skills,
       prompt: customPrompt ? entry.prompt.trim().slice(0, 4_000) : base.prompt,
       customPrompt,
     })
   })
 
   const { workers, verifiers } = roleSeats(seats)
-  const workerRef = workers.map(seat => `@${seat.name}`).join('、') || '执行席位'
-  const verifierRef = verifiers.length === 0 ? '验收席位' : verifiers.map(seat => `@${seat.name}`).join('、')
+  const workerRef = workers.map(seat => `@${seat.name}`).join('、') || '执行成员'
+  const verifierRef = verifiers.length === 0 ? '验收成员' : verifiers.map(seat => `@${seat.name}`).join('、')
   return seats.map(seat => {
     if (seat.customPrompt === true) return seat
     if (seat.role === 'lead') {
@@ -143,7 +137,7 @@ export const rosterFromRoles = entries => {
 }
 
 export const roleSeats = seats => ({
-  // 自定义扩展可能没有显式 lead：第一个席位就是这间房的负责人。
+  // 自定义扩展可能没有显式 lead：第一个成员就是这间房的负责人。
   lead: seats.find(seat => seat.role === 'lead') ?? seats[0],
   workers: seats.filter(seat => seat.role === 'worker'),
   verifiers: seats.filter(seat => seat.role === 'verifier'),
@@ -156,9 +150,6 @@ const validateCapabilities = seat => {
   }
   if (seat.model !== undefined && (typeof seat.model !== 'string' || seat.model.trim() === '' || seat.model.length > 160)) {
     throw new Error(`seat contract: ${seat.id} model must be a model id`)
-  }
-  if (!Array.isArray(seat.skills) || seat.skills.some(id => !isId(id))) {
-    throw new Error(`seat contract: ${seat.id} skills must be ids, not content`)
   }
   if (!Array.isArray(seat.mcp)) throw new Error(`seat contract: ${seat.id} mcp must be an array`)
   for (const grant of seat.mcp) {

@@ -42,16 +42,3 @@ export const stageGuidance = ({ readOnly = false } = {}) => (
   readOnly ? ['当前阶段只读：可以读仓库、讨论和评审；不要改文件，也不要运行会写文件的命令。'] : []
 )
 
-export const skillPrompt = (skills = [], maxChars = 16_000) => {
-  const lines = []
-  let used = 0
-  for (const skill of skills) {
-    if (!skill?.body) continue
-    const block = [`技能：${skill.name ?? skill.id}`, skill.body]
-    const size = block.join('\n').length
-    if (lines.length > 0 && used + size > maxChars) continue
-    lines.push(...block)
-    used += size
-  }
-  return lines
-}

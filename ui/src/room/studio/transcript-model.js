@@ -11,7 +11,7 @@ export const dayKey = ts => {
 
 const orderOf = message => (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
 
-// 席位“我在等派发”是调度状态，不是房间里值得读的一句话。
+// 成员“我在等派发”是调度状态，不是房间里值得读的一句话。
 const STANDBY = /待命|暂不动手|未派发/
 export const isStandbyChat = (message, room) => (
   message?.kind === 'chat' &&
@@ -204,12 +204,14 @@ export const presenceLines = (room, seats = []) => {
   const nameOf = id => seats.find(seat => seat.id === id)?.name ?? id
   const presence = Array.isArray(room?.presence) ? room.presence : []
   const queue = Array.isArray(room?.turnQueue) ? room.turnQueue : []
+  const heldSeats = new Set(Array.isArray(room?.heldSeats) ? room.heldSeats : [])
+  const held = [...heldSeats].map(seatId => ({ seatId, name: nameOf(seatId) }))
   const working = presence
-    .filter(item => item.state === 'working')
+    .filter(item => item.state === 'working' && !heldSeats.has(item.seatId))
     .map(item => ({ seatId: item.seatId, name: nameOf(item.seatId), since: room?.busySince ?? null }))
   const seen = new Set(working.map(item => item.seatId))
   const queued = queue
-    .filter(item => item.state === 'queued' && !seen.has(item.seatId))
+    .filter(item => item.state === 'queued' && !seen.has(item.seatId) && !heldSeats.has(item.seatId))
     .map(item => ({
       seatId: item.seatId,
       name: nameOf(item.seatId),
@@ -217,5 +219,5 @@ export const presenceLines = (room, seats = []) => {
       of: item.of ?? null,
       waitingFor: item.waitingForSeatId === undefined ? '' : nameOf(item.waitingForSeatId),
     }))
-  return { working, queued }
+  return { working, queued, held }
 }

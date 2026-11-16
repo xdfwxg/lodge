@@ -7,7 +7,7 @@ import { seatDisplayName } from '../../seat-labels.js'
 import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 
-export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToSeat = null, updateTasks, integrate, enqueue, skills }) => {
+export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToSeat = null, updateTasks, integrate, enqueue }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToSeat?.(to, prompt))
   const startStage = async (room, index, { note = '', rework = false } = {}) => {
     const stage = room.stages[index]
@@ -57,9 +57,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         ? `验收命令：\`${stage.acceptance}\`。`
         : '验收命令：未设置。'
     const readOnly = activeStageReadOnly(room) || stage.readOnly === true
-    const seatSkillsOf = worker => (room.seatSpecs?.find(seat => seat.id === worker)?.skills ?? [])
-      .map(id => skills?.read?.(id))
-      .filter(Boolean)
     const promptFor = worker => studioWorkerPrompt({
       room,
       messages: store.readMessages(roomId),
@@ -70,7 +67,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       note,
       acceptance,
       readOnly,
-      seatSkills: seatSkillsOf(worker),
       workspace: {
         candidate: workspaceCaps.candidate === true,
         parallel,

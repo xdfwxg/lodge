@@ -99,7 +99,6 @@ test('a rejected stage routes the planner decision to the executor or the human'
     },
     commands: { run: async () => ({}) },
     files: { exists: () => false, read: () => Buffer.from('') },
-    skills: [],
   })
   turns.captureTurn({ reply: '返工\n改成写入欢迎语', turnId: 't-lead-1', toolCalls: 0 }, 'bot-plan')
   const worker = sent.find(item => item.seat === 'executor')
@@ -133,7 +132,6 @@ test('a rejected stage routes the planner decision to the executor or the human'
     },
     commands: { run: async () => ({}) },
     files: { exists: () => false, read: () => Buffer.from('') },
-    skills: [],
   })
   humanTurns.captureTurn({ reply: '交给人\n需要你决定权限', turnId: 't-lead-2', toolCalls: 0 }, 'bot-plan')
   assert.equal(humanSent.length, 0)

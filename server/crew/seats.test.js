@@ -50,13 +50,6 @@ test('toolSurface must match the declared permissions', () => {
   assert.throws(() => validateSeats(bad), /toolSurface/)
 })
 
-test('skills are ids, not inline content', () => {
-  const bad = SEATS.map(seat => seat.id === 'planner'
-    ? { ...seat, skills: ['./skills/goal-grill.md'] }
-    : seat)
-  assert.throws(() => validateSeats(bad), /skills/)
-})
-
 test('full approval is not allowed', () => {
   const bad = SEATS.map(seat => seat.id === 'executor'
     ? { ...seat, approval: 'full' }
@@ -148,12 +141,6 @@ test('custom names flow into the prompts', () => {
   assert.match(lead.prompt, /@前端/)
   assert.match(worker.prompt, /你是前端/)
   assert.match(worker.prompt, /@复核/)
-})
-
-test('custom rosters can declare optional skill ids', () => {
-  const roster = rosterFromRoles([{ role: 'worker', name: '前端', skills: ['evidence-review'] }])
-  assert.deepEqual(roster[0].skills, ['evidence-review'])
-  assert.doesNotThrow(() => validateSeats(roster))
 })
 
 test('an unknown custom role fails closed', () => {

@@ -4,10 +4,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { roomDir } from './paths.js'
 import { createCrewPorts } from './crew-ports.js'
 import { createRealRoom } from './rooms/create/create.js'
-import { writeBrief } from './room-repo.js'
 import { createStore } from './store.js'
 
 const temp = prefix => mkdtempSync(join(tmpdir(), prefix))
@@ -42,17 +40,6 @@ const completedRoom = dataDir => {
     version: 1,
   }
   store.writeRoom(room)
-  writeBrief(room)
-  writeFileSync(join(roomDir(room), 'BRIEF.md'), [
-    '# 目标：加一个导出按钮',
-    '',
-    'done:',
-    '- [x] 按钮可用',
-    '',
-    'constraints:',
-    '- 不改上游',
-    '',
-  ].join('\n'))
   store.appendMessage(room.id, { kind: 'system', text: '上一轮完成' })
   return { store, room }
 }
@@ -154,40 +141,6 @@ test('a custom room name is kept while the stage title follows the goal', async 
   // 房间名就是基座成员名；id 才是稳定身份，不再生成 Lead/Worker 这类隐藏名。
   assert.deepEqual(engine.seatNames.sort(), ['执行', '规划', '验收'].sort())
   assert.deepEqual(Object.values(room.seatNames).sort(), ['执行', '规划', '验收'].sort())
-})
-
-test('declared optional skills are validated and kept', async () => {
-  const { store } = completedRoom(temp('lodge-skill-data-'))
-  const result = await run(store, {
-    goal: '带一个复核技能',
-    verify: 'manual',
-    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行', skills: ['evidence-review'] }, { role: 'verifier', name: '验收' }],
-  })
-  assert.equal(result.ok, true)
-  assert.deepEqual(
-    result.body.room.seatSpecs.find(seat => seat.name === '执行').skills,
-    ['evidence-review'],
-  )
-})
-
-test('an unknown optional skill fails closed before preparing a workspace', async () => {
-  const { store } = completedRoom(temp('lodge-skill-missing-data-'))
-  let prepared = false
-  const workspace = {
-    id: 'plain',
-    capabilities: () => ({ merge: true }),
-    prepareRoom: () => { prepared = true; return { seats: {} } },
-    cleanupRoom: () => {},
-  }
-  const result = await run(store, {
-    goal: '带一个不存在的技能',
-    verify: 'manual',
-    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行', skills: ['missing-skill'] }, { role: 'verifier', name: '验收' }],
-  }, fakeEngine(), workspace)
-  assert.equal(result.ok, false)
-  assert.equal(result.reason, 'invalid')
-  assert.match(result.error, /这些技能还没准备好/)
-  assert.equal(prepared, false)
 })
 
 test('a room name longer than 60 characters is rejected', async () => {
