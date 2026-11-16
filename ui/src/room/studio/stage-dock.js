@@ -13,7 +13,8 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
     else onOpenChange(value)
   }
   const { activeIndex, activeStage, hasPass, manualReady } = stageGate(room)
-  const approval = (room.approvals ?? []).find(item => item.state === 'pending')
+  const pendingApprovals = (room.approvals ?? []).filter(item => item.state === 'pending')
+  const approval = pendingApprovals[0]
   useEffect(() => {
     if (onOpenChange === undefined) setLocalOpen(false)
     else onOpenChange(false)
@@ -24,7 +25,10 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
       h(ApprovalCard, {
         approval,
         onDecide: decision => onApproval?.(approval.id, decision),
-      }))
+      }),
+      pendingApprovals.length > 1
+        ? h('p', { className: 'crew-field-hint crew-stage-dock-more' }, `还有 ${pendingApprovals.length - 1} 个待确认；处理完这张再出现。`)
+        : null)
   }
   if (activeStage === undefined) return null
   // 开工对齐已经有一张带问题的决策卡；底部动作条不再重复同一件事。

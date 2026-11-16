@@ -45,6 +45,7 @@ for (const testCase of cases) {
   }
   for (let run = 1; run <= runs; run += 1) {
     const repo = mkdtempSync(join(tmpdir(), `crew-eval-${testCase.id}-`))
+    const startedAt = Date.now()
     try {
       cpSync(fixture, repo, { recursive: true })
       git(repo, ['init', '-q'])
@@ -73,6 +74,7 @@ for (const testCase of cases) {
         error: result?.ok === false ? (result.error ?? result.reason ?? 'unknown') : null,
         proposal: report.proposal,
         format: promptFormatOf(report.proposal),
+        elapsedMs: Date.now() - startedAt,
       }
       results.push(row)
       const seats = row.seats.map(seat => `${seat.role}:${seat.name}`).join(', ') || '—'
@@ -87,6 +89,11 @@ for (const testCase of cases) {
 const at = new Date().toISOString()
 const passed = results.filter(item => item.pass).length
 const formatted = results.filter(item => item.format.whyOneLine).length
+const durations = results.map(item => item.elapsedMs).sort((a, b) => a - b)
+const percentile = p => durations.length === 0
+  ? 0
+  : durations[Math.min(durations.length - 1, Math.floor((durations.length - 1) * p))]
+const questions = results.reduce((total, item) => total + item.questions.length, 0)
 const summary = {
   at,
   base: process.env.CREW_BASE_URL ?? 'http://127.0.0.1:8799',
@@ -95,6 +102,12 @@ const summary = {
   passed,
   failed: results.length - passed,
   formatPassed: formatted,
+  questions,
+  durationMs: {
+    p50: percentile(0.5),
+    p95: percentile(0.95),
+    max: durations.at(-1) ?? 0,
+  },
   results,
 }
 writeFileSync(join(outDir, 'latest.json'), `${JSON.stringify(summary, null, 2)}\n`)
@@ -107,15 +120,18 @@ const lines = [
   `- runs: ${runs}`,
   `- passed: ${passed}/${results.length}`,
   `- why 一行合规: ${formatted}/${results.length}`,
+  `- 决策问题总数: ${questions}`,
+  `- 墙钟: p50 ${summary.durationMs.p50}ms · p95 ${summary.durationMs.p95}ms · max ${summary.durationMs.max}ms`,
   '',
-  '| case | run | result | score | why | seats | questions | acceptance | failures |',
-  '|---|---:|---|---:|---|---|---|---:|---|---|',
+  '| case | run | result | score | why | ms | seats | questions | acceptance | failures |',
+  '|---|---:|---|---:|---|---:|---|---|---|---:|---|',
   ...results.map(row => [
     row.caseId,
     row.run,
     row.pass ? 'PASS' : 'FAIL',
     row.score,
     row.format.whyOneLine ? `ok (${row.format.whyLength})` : `bad (${row.format.whyLength})`,
+    row.elapsedMs,
     row.seats.map(seat => `${seat.role}:${seat.name}`).join('<br>') || '—',
     row.questions.length,
     row.acceptance === '' ? 'manual' : `\`${row.acceptance}\``,
@@ -126,5 +142,5 @@ const lines = [
   '',
 ]
 writeFileSync(join(outDir, 'latest.md'), lines.join('\n'))
-console.log(`\n${passed}/${results.length} passed · ${join(outDir, 'latest.md')}`)
+console.log(`\n${passed}/${results.length} passed · p50 ${summary.durationMs.p50}ms · p95 ${summary.durationMs.p95}ms · ${join(outDir, 'latest.md')}`)
 process.exitCode = passed === results.length ? 0 : 1

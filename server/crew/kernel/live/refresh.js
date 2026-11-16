@@ -7,17 +7,21 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
     const now = Date.now()
     if (!force && now - entry.refreshedAt < 1_500) return
     entry.refreshedAt = now
+    entry.refreshSeq = (entry.refreshSeq ?? 0) + 1
+    const sequence = entry.refreshSeq
     return (async () => {
       const room = store.readRoom(entry.roomId)
       if (room === null) return
       try {
         const bases = await engine.rooms()
+        if (entry.refreshSeq !== sequence) return
         const memberBases = (room.members ?? [])
           .map(member => ({ memberId: member.id, base: bases.find(item => item.id === member.body?.roomRef) }))
           .filter(item => item.base !== undefined)
         const busyMembers = memberBases.filter(item => item.base.working === true).map(item => item.memberId)
         const chatBase = room.chatRoom === undefined ? undefined : bases.find(item => item.id === room.chatRoom.id)
         entry.baseRoom = chatBase ?? entry.baseRoom
+        if (entry.refreshSeq !== sequence) return
         const updated = store.updateRoom(entry.roomId, current => {
           const toMember = ref => (typeof ref === 'string' ? memberForRef(current, ref) ?? ref : ref)
           const toMembers = map => Object.fromEntries(Object.entries(map ?? {}).map(([ref, value]) => [toMember(ref), value]))
@@ -46,10 +50,12 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
           Object.assign(current, roomPresentationOfRoom(current)?.refresh(chatBase, toMember, toMembers) ?? {})
           return { events: [] }
         })
-        if (updated === null) return
+        if (updated === null || entry.refreshSeq !== sequence) return
         emit('room', updated)
-      } catch {
-        return
+      } catch (error) {
+        if (entry.refreshSeq === sequence) {
+          console.warn(`room refresh failed: ${entry.roomId} ${error?.message ?? error}`)
+        }
       }
     })()
   }

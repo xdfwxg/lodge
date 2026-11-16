@@ -1,5 +1,6 @@
 import { roomModeOfRoom } from './rooms/kinds.js'
 import { memberOf } from './room-members.js'
+import { transitionAssignment } from './assignments.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
@@ -32,7 +33,46 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
   const chat = createServiceChat({ store, live, emit })
   const closure = createServiceClosure({ store, emit })
 
-  const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, roles, body, ports, parentRoom: parent })
+  // 子房间归档或删除时，父房里等它的那条交接不能一直停在 sent。
+  const closeSubroomAssignment = (child, text) => {
+    const parentId = child?.parentRoomId
+    if (typeof parentId !== 'string' || parentId === '') return
+    const assignments = store.readAssignments(parentId, { limit: 5000 })
+    let changed = false
+    for (const assignment of assignments) {
+      if (assignment.reason !== 'subroom' || assignment.context?.childRoomId !== child.id) continue
+      if (['passed', 'rejected', 'failed', 'cancelled'].includes(assignment.status)) continue
+      if (transitionAssignment(store, assignment.id, 'cancelled', { resultText: String(text).slice(0, 4000) }) !== null) changed = true
+    }
+    if (!changed) return
+    const parent = store.readRoom(parentId)
+    if (parent !== null) emit('room', parent)
+  }
+
+  // 父房删除时，仍在进行的子房不能留下悬空的父子关系。
+  const closeChildRooms = async room => {
+    for (const childId of room.childRoomIds ?? []) {
+      const child = store.readRoom(childId)
+      if (child === null) continue
+      if (child.live === true && live.isAttached?.(child.id) === true) {
+        await live.cancel?.({ roomId: child.id })
+        live.detach?.(child.id)
+      }
+      const updated = updateRoom(child.id, current => {
+        current.archivedAt = current.archivedAt ?? Date.now()
+        if (current.state === 'active') {
+          current.state = 'stopped'
+          current.live = false
+        }
+        current.parentRoomId = null
+        current.parentAssignmentId = null
+        return { events: [{ type: 'room.parent_removed', payload: { id: room.id } }] }
+      })
+      if (updated !== null) emit('room', updated)
+    }
+  }
+
+    const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, roles, body, ports, parentRoom: parent })
   const subrooms = createServiceSubrooms({ createRoom, store, emit })
 
   const createSampleRoom = () => {
@@ -243,12 +283,15 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       })
       if (updated === null) return fail('not_found', '没有这个房间')
       emit('room', updated)
+      if (updated.parentRoomId) closeSubroomAssignment(updated, `子房间「${updated.name}」已归档。`)
       return ok({ room: updated })
     }
 
     if (action === 'delete' && method === 'POST') {
       if (room.state === 'active') return fail('conflict', '正在进行的房间不能删除；先归档再删除')
       if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
+      if (room.parentRoomId) closeSubroomAssignment(room, `子房间「${room.name}」已删除。`)
+      await closeChildRooms(room)
       if (typeof room.parentRoomId === 'string' && room.parentRoomId !== '') {
         const parent = updateRoom(room.parentRoomId, current => {
           current.childRoomIds = (current.childRoomIds ?? []).filter(id => id !== room.id)
@@ -286,9 +329,11 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text })
       const active = room.stages.find(stage => stage.state === 'active')
       if (room.openQuestion !== null && active?.kind === 'decision') {
-        room.openQuestion = null
-        writeRoom(room)
-        emit('room', room)
+        const updated = updateRoom(roomId, current => {
+          current.openQuestion = null
+          return { events: [] }
+        })
+        if (updated !== null) emit('room', updated)
       }
       return created({ message })
     }

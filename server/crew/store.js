@@ -41,6 +41,12 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   }
 
 
+  // 迁移或升级前留一份一致快照；VACUUM INTO 会包含 WAL 里的已提交数据。
+  const backup = file => {
+    db.exec(`VACUUM INTO '${String(file).replaceAll("'", "''")}'`)
+    return file
+  }
+
   const readRoom = id => {
     const row = db.prepare('SELECT payload, version FROM room WHERE id = ?').get(id)
     if (row === undefined) return null
@@ -60,6 +66,11 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   const readRooms = () => db.prepare("SELECT payload, version FROM room WHERE id <> 'dispatch' ORDER BY rowid").all()
     .map(row => ({ ...JSON.parse(row.payload), version: row.version }))
   const readMessages = roomId => db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId).map(row => JSON.parse(row.payload))
+  // 展示层只取最近一段；内部迁移和证据仍用 readMessages 读全量。
+  const readRecentMessages = (roomId, limit = 5000) => db.prepare(
+    'SELECT payload FROM (SELECT seq, payload FROM messages WHERE room_id = ? ORDER BY seq DESC LIMIT ?) ORDER BY seq',
+  ).all(roomId, Math.max(1, Math.min(10000, Number(limit) || 5000))).map(row => JSON.parse(row.payload))
+  const maxMessageSeq = roomId => db.prepare('SELECT COALESCE(MAX(seq), 0) AS seq FROM messages WHERE room_id = ?').get(roomId)?.seq ?? 0
   // 证据就是消息流里的命令/人工结果；不再维护单独的账本表与摘要。
   const readEvidence = roomId => readMessages(roomId)
     .filter(message => message.kind === 'evidence' && (message.meta?.kind === 'command' || message.meta?.kind === 'manual'))
@@ -262,6 +273,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   return {
     db,
     readRoom,
+    backup,
     writeRoom,
     updateRoom,
     readRooms,
@@ -272,6 +284,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     deleteAssignments,
     pruneAssignments,
     readMessages,
+    readRecentMessages,
+    maxMessageSeq,
     readMessagesSince,
     readEvidence,
     nextSeq,

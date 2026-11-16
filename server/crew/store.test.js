@@ -27,6 +27,10 @@ test('room updates are versioned inside a transaction and write events', () => {
     assert.equal(store.readRoom('r1').version, 2)
 
     store.appendMessage('r1', { kind: 'system', text: 'hello' })
+    store.appendMessage('r1', { kind: 'system', text: 'two' })
+    store.appendMessage('r1', { kind: 'system', text: 'three' })
+    assert.deepEqual(store.readRecentMessages('r1', 2).map(message => message.text), ['two', 'three'])
+    assert.equal(store.maxMessageSeq('r1'), store.readMessages('r1').at(-1).seq)
     const transcript = join(repo, '.crew', 'rooms', 'r1', 'transcript.jsonl')
     assert.equal(existsSync(transcript), true)
     assert.match(readFileSync(transcript, 'utf8'), /hello/)

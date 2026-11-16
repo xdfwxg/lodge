@@ -13,7 +13,7 @@ const ASSIGNMENT_TRANSITIONS = Object.freeze({
   created: ['sent', 'failed', 'cancelled'],
   sent: ['working', 'reported', 'passed', 'rejected', 'failed', 'cancelled'],
   working: ['reported', 'passed', 'rejected', 'failed', 'cancelled'],
-  reported: ['reviewing', 'passed', 'rejected', 'failed'],
+  reported: ['reviewing', 'passed', 'rejected', 'failed', 'cancelled'],
   reviewing: ['passed', 'rejected', 'failed', 'cancelled'],
   passed: [],
   rejected: ['failed'],

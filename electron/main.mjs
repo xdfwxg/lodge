@@ -151,16 +151,25 @@ const findBundledRuntimes = () => {
   return [...found.values()].sort((a, b) => a.id.localeCompare(b.id))
 }
 
+const baseEntryOf = dir => {
+  const bundled = join(dir, 'dist-server', 'openmausbot.js')
+  if (existsSync(bundled)) return { kind: 'bundled', file: bundled }
+  const source = join(dir, 'server', 'openmausbot.ts')
+  if (existsSync(source)) return { kind: 'source', file: source }
+  return null
+}
+
 const findBaseDir = () => {
-  if (typeof process.env.LODGE_BASE_DIR === 'string' && existsSync(process.env.LODGE_BASE_DIR)) return process.env.LODGE_BASE_DIR
-  const settings = readSettings()
-  if (typeof settings.baseDir === 'string' && existsSync(settings.baseDir)) return settings.baseDir
-  const candidates = [
-    join(app.getAppPath(), '..', 'crew-chat-base'),
+  const preferred = [
+    process.env.LODGE_BASE_DIR,
+    readSettings().baseDir,
     join(process.resourcesPath, 'base'),
+    join(app.getAppPath(), '..', 'crew-chat-base'),
     join(homedir(), 'workspace', 'crew-chat-base'),
-  ]
-  for (const candidate of candidates) if (existsSync(join(candidate, 'server', 'openmausbot.ts'))) return candidate
+  ].filter(item => typeof item === 'string' && item !== '')
+  for (const candidate of preferred) {
+    if (baseEntryOf(candidate) !== null) return candidate
+  }
   return null
 }
 
@@ -186,15 +195,24 @@ const chooseBaseDir = async () => {
 
 const startBase = async dir => {
   baseDir = dir
-  const node = findNode()
-  if (node === null) {
-    await dialog.showMessageBox({
-      type: 'error',
-      buttons: ['退出'],
-      message: '没有找到 Node.js',
-      detail: 'Lodge 的基座需要 Node.js 22.5 或更高版本。安装后重启 Lodge。',
-    })
-    return null
+  const entry = baseEntryOf(dir)
+  if (entry === null) throw new Error('基座目录里没有可运行的入口')
+  let node = process.execPath
+  let args = ['--experimental-strip-types', entry.file]
+  const bundled = entry.kind === 'bundled'
+  if (bundled) {
+    args = [entry.file]
+  } else {
+    node = findNode()
+    if (node === null) {
+      await dialog.showMessageBox({
+        type: 'error',
+        buttons: ['退出'],
+        message: '没有找到 Node.js',
+        detail: '这个基座是源码目录，需要 Node.js 24 或更高版本。安装后重启 Lodge。',
+      })
+      return null
+    }
   }
   const port = await findPort(DEFAULT_BASE_PORT)
   const baseData = join(app.getPath('userData'), 'base-data')
@@ -204,8 +222,7 @@ const startBase = async dir => {
     process.env.OMB_EXTRA_PATH,
   ].filter(Boolean).join(delimiter)
   const child = spawn(node, [
-    '--experimental-strip-types',
-    'server/openmausbot.ts',
+    ...args,
     'serve',
     '--port', String(port),
     '--data-dir', baseData,
@@ -213,6 +230,7 @@ const startBase = async dir => {
     cwd: dir,
     env: {
       ...process.env,
+      ...(bundled ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
       LODGE_BASE_DIR: dir,
       ...(extraPath === '' ? {} : { OMB_EXTRA_PATH: extraPath }),
     },

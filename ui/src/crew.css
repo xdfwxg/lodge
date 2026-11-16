@@ -415,6 +415,7 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-subroom-row:hover{background:var(--bt-hover)}
 .crew-subroom-row:active{background:var(--bt-shade-3)}
 .crew-subroom-row:focus-visible{outline:2px solid var(--bt-accent);outline-offset:-2px}
+.crew-side-resizer:focus-visible{outline:2px solid var(--bt-accent);outline-offset:-2px}
 .crew-subroom-body{display:flex;flex-direction:column;min-width:0;gap:1px}
 .crew-subroom-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px;line-height:19px;font-weight:600;color:var(--bt-ink)}
 .crew-subroom-reason{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;line-height:16px;color:var(--bt-ink-3)}
@@ -654,6 +655,9 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-onboarding-card p{margin:0;max-width:460px;color:var(--bt-ink-2);font-size:17px;line-height:1.65}
 .crew-onboarding-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;margin-top:4px}
 .crew-onboarding-sample{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:2px}
+.crew-connection-banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:80;padding:8px 14px;border-radius:999px;background:var(--bt-card);border:1px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);font-size:13px;color:var(--bt-ink-2)}
+.crew-onboarding-archived{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;margin-top:4px}
+.crew-onboarding-archived p{width:100%;margin:0;text-align:center}
 .crew-onboarding-choice{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid var(--bt-line-2);border-radius:14px;background:var(--bt-card);color:var(--bt-ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .12s ease,box-shadow .12s ease,transform .12s ease}
 .crew-onboarding-choice:hover{border-color:var(--bt-line-control);box-shadow:var(--bt-elev-1)}
 .crew-onboarding-choice:active{transform:translateY(1px)}

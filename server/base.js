@@ -16,7 +16,7 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
 
     instances: () => json('/api/instances'),
 
-    threadMessages: (threadId, limit = 200) => json(`/api/threads/${threadId}/messages?limit=${limit}`),
+    threadMessages: (threadId, limit = 1000) => json(`/api/threads/${threadId}/messages?limit=${limit}`),
 
     sendGroupMessage: (groupId, text, { sendId, mentions = [] } = {}) => json(`/api/groups/${groupId}/messages`, {
       method: 'POST',
@@ -142,11 +142,15 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
 
     async watchEvents({ onFrame, onState, signal }) {
       const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+      let lastEventId = null
       while (!signal?.aborted) {
         try {
           const response = await fetch(new URL('/api/events', baseUrl), {
             signal,
-            headers: { accept: 'text/event-stream' },
+            headers: {
+              accept: 'text/event-stream',
+              ...(lastEventId === null ? {} : { 'last-event-id': lastEventId }),
+            },
           })
           if (!response.ok || response.body === null) throw new Error(`events ${response.status}`)
           onState?.({ connected: true, error: null })
@@ -161,17 +165,23 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
             while ((cut = buffer.indexOf('\n\n')) >= 0) {
               const block = buffer.slice(0, cut)
               buffer = buffer.slice(cut + 2)
-              const data = block.split('\n')
+              const lines = block.split('\n')
+              const eventId = lines.find(line => line.startsWith('id:'))?.slice(3).trim() ?? null
+              const data = lines
                 .filter(line => line.startsWith('data:'))
                 .map(line => line.slice(5).trimStart())
                 .join('\n')
-              if (data === '') continue
+              if (data === '') {
+                if (eventId !== null && eventId !== '') lastEventId = eventId
+                continue
+              }
               let frame
               try {
                 frame = JSON.parse(data)
               } catch {
                 continue
               }
+              if (eventId !== null && eventId !== '') lastEventId = eventId
               onFrame?.(frame)
             }
           }

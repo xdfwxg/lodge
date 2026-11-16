@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useEffect, useId, useState } from 'react'
+import { Fragment, createElement as h, useEffect, useId, useRef, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
@@ -62,7 +62,20 @@ function NewRoomDialog({
   const [choosingType, setChoosingType] = useState(false)
   const goalId = useId()
   const nameId = useId()
+  const closeRef = useRef(null)
+  const proposalHeadRef = useRef(null)
   const overlayProps = useOverlay({ label: '新建房间', onClose, active: open })
+
+  useEffect(() => {
+    if (!open) return
+    const timer = setTimeout(() => closeRef.current?.focus(), 0)
+    return () => clearTimeout(timer)
+  }, [open])
+
+  useEffect(() => {
+    if (!open || step !== 1) return
+    proposalHeadRef.current?.focus()
+  }, [open, step])
 
   useEffect(() => {
     if (!open) return
@@ -399,7 +412,7 @@ function NewRoomDialog({
 
 
   const proposalBody = proposal === null ? null : h('div', { className: 'crew-dialog-body' },
-    h('div', { className: 'crew-proposal-head' },
+    h('div', { className: 'crew-proposal-head', ref: proposalHeadRef, tabIndex: -1 },
       h('div', null,
         h('b', null, '方案'),
         h('p', {
@@ -564,7 +577,7 @@ function NewRoomDialog({
         workspaceField))),
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
-  return h('div', { className: 'crew-overlay', onClick: onClose, ...overlayProps },
+  return h('div', { className: 'crew-overlay', ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-heading' },
         h('h2', null, '新建房间'),
@@ -573,6 +586,7 @@ function NewRoomDialog({
           : handoff !== null ? '这件事从聊天室带过来；先确认分歧，再开工。' : roomKind.dialogSubtitle)),
       h('div', { className: 'crew-dialog-head' },
         h('button', {
+          ref: closeRef,
           type: 'button',
           className: 'crew-dialog-close',
           'aria-label': '关闭',

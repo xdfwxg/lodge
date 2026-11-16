@@ -1,7 +1,7 @@
 import { createElement as h, useState } from 'react'
 import { RoomTypeChoices } from '../room/type-choices.js'
 
-export function Onboarding({ state, onCreate, onSample }) {
+export function Onboarding({ state, archived = [], onRestore, onCreate, onSample }) {
   const [sampleBusy, setSampleBusy] = useState(false)
   const [sampleError, setSampleError] = useState('')
   const disabled = state.phase === 'loading' || state.phase === 'error'
@@ -35,6 +35,16 @@ export function Onboarding({ state, onCreate, onSample }) {
           }, sampleBusy ? '正在打开示例…' : '先看一间完成的示例房间'),
           h('p', { className: 'crew-field-hint' }, '不用配置，直接看交付卡和工作记录。')),
       sampleError === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, sampleError),
+      archived.length === 0 || typeof onRestore !== 'function'
+        ? null
+        : h('div', { className: 'crew-onboarding-archived' },
+          h('p', { className: 'crew-field-hint' }, '已归档的房间'),
+          ...archived.map(room => h('button', {
+            key: room.id,
+            type: 'button',
+            className: 'crew-ghost',
+            onClick: () => void onRestore(room.id),
+          }, `恢复「${room.name}」`))),
       state.phase === 'loading' ? h('p', { className: 'crew-field-hint', role: 'status' }, '正在连接 Lodge…') : null,
       errorText === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, errorText)))
 }

@@ -8,23 +8,28 @@ directories:
 
 files:
   - electron/**
+  - shared/**
   - package.json
 
 extraResources:
   - from: server
     to: app/server
+  - from: shared
+    to: app/shared
   - from: ui/dist
     to: app/ui/dist
   - from: templates
     to: app/templates
   - from: electron/app-package.json
     to: app/package.json
-  - from: node_modules/yaml
-    to: app/node_modules/yaml
   - from: LICENSE
     to: licenses/LICENSE.txt
+  - from: third_party
+    to: licenses/third_party
   - from: build/runtimes
     to: runtimes
+  - from: build/base
+    to: base
   - from: build/icon.png
     to: icon.png
 

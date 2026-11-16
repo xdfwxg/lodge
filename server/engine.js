@@ -147,7 +147,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return list
   }
 
-  const history = async (sessionRef, { limit = 200 } = {}) => {
+  const history = async (sessionRef, { limit = 1000 } = {}) => {
     const page = await client.threadMessages(sessionRef, limit)
     const messages = (page.messages ?? [])
       .map(raw => normalizeMessage(raw, responderNameFor(sessionRef)))

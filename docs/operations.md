@@ -18,14 +18,14 @@ npm run desktop    # 构建 UI 后启动 Electron
 CREW_BASE_URL=http://127.0.0.1:8799 npm run dev
 ```
 
-基座是独立的 `crew-chat-base` 仓库，固定 OpenMausBot OSS 版本；Lodge 不把基座打进仓库。
+开发时基座仍是独立的 `crew-chat-base` 仓库；发布包会把它的 `dist-server` 打进去，用户不需要再装仓库或系统 Node。
 
 ## 桌面版
 
 Electron 壳只做三件事：启动 Lodge 的 Node 服务、把同源 UI 装进窗口、寻找或启动基座。
 
 - 开发：`npm run desktop`
-- 打包：`npm run package:mac`，产物在 `release/`
+- 打包：先在 `crew-chat-base` 运行 `pnpm build:server`，再 `npm run package:mac`；脚本会准备 Pi、基座和 UI，产物在 `release/`
 - 只发 zip，不发 dmg；ad-hoc 签名，不公证，没有自动更新
 - 第一次打开被 Gatekeeper 拦下时，到“系统设置 → 隐私与安全性”点“仍要打开”
 - Windows/Linux 打包脚本已加，未真机验证
@@ -38,15 +38,15 @@ Electron 壳只做三件事：启动 Lodge 的 Node 服务、把同源 UI 装进
 
 1. `CREW_BASE_URL` 指定的地址
 2. `http://127.0.0.1:8799`
-3. `LODGE_BASE_DIR`、已保存设置、`~/workspace/crew-chat-base` 或 `Resources/base`
+3. `LODGE_BASE_DIR`、已保存设置、`Resources/base`、`~/workspace/crew-chat-base`
 
-找到基座目录但没运行时，app 会用本机 Node 启动：
+发布包里的 `Resources/base` 是已经 bundle 的 `dist-server`，app 用 Electron 自带的 Node 24 启动它：
 
 ```bash
-node --experimental-strip-types server/openmausbot.ts serve --port <free> --data-dir <userData>/base-data
+ELECTRON_RUN_AS_NODE=1 Lodge Resources/base/openmausbot.js serve --port <free> --data-dir <userData>/base-data
 ```
 
-找不到基座目录时，首次启动会弹出目录选择器。app 不会自动安装 CLI，也不会修改基座目录。
+只有源码基座才需要系统 Node 24。app 不会自动安装 CLI，也不会修改基座目录。
 
 ## 内置 runtime
 

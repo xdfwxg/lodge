@@ -16,7 +16,7 @@ export const createServiceQueries = ({
   workspace,
   advisor = null,
 }) => {
-  const { readRoom, readRooms, readMessages, readMessagesSince, readEvidence, readAssignments } = store
+  const { readRoom, readRooms, readRecentMessages, readMessagesSince, readAssignments } = store
 
   const health = async () => ok({ runtime: await engine.health() })
 
@@ -41,7 +41,7 @@ export const createServiceQueries = ({
       roomTypes: listRoomTypes(),
       rooms: rooms.map(room => {
         const presentation = roomPresentationOfRoom(room)
-        const ordered = readMessages(room.id)
+        const ordered = readRecentMessages(room.id)
           .slice()
           .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
         const messages = presentation.filterMessages(ordered).map(message => (

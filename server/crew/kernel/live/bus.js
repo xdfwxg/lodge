@@ -8,6 +8,8 @@ import { supportsRuntime } from '../../runtime-port.js'
 import { toBaseMentions, toDisplayMentions, toDisplayText, unknownMentionsOf } from '../../member-labels.js'
 
 // 隐藏主持与当前发言人由房型的 presentation 提供；总线不认识任何具体房型。
+const FINAL_IDS_KEEP = 500
+
 const hostOf = room => roomPresentationOfRoom(room)?.hostOf?.(room) ?? null
 const speakerOf = room => roomPresentationOfRoom(room)?.speakerOf?.(room) ?? ''
 
@@ -46,6 +48,12 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   const finalIdsOf = entry => {
     if (entry.chatFinalIds === undefined) entry.chatFinalIds = new Set()
     return entry.chatFinalIds
+  }
+
+  const rememberFinal = (entry, id) => {
+    const ids = finalIdsOf(entry)
+    ids.add(id)
+    while (ids.size > FINAL_IDS_KEEP) ids.delete(ids.values().next().value)
   }
 
   const applyDelta = (entry, room, event) => {
@@ -110,7 +118,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       meta: { ...(existing?.meta ?? {}), streaming: false, final: true, baseId: message.id },
     })
     streams.delete(memberId)
-    finalIds.add(message.id)
+    rememberFinal(entry, message.id)
     return true
   }
 

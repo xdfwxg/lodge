@@ -86,13 +86,13 @@
 
 从 GitHub Releases 下载 zip；第一次打开被 Gatekeeper 拦下时，到“系统设置 → 隐私与安全性”点“仍要打开”。
 
-桌面版会寻找本机已经运行的基座；找不到时让你选择基座目录，或用本机 Node 启动。基座与 agent CLI 不打进 app 包。
+桌面版内置基座和 Pi runtime，不需要再装 `crew-chat-base` 或系统 Node。Claude、Codex 等其他 agent CLI 仍需本机安装并登录；模型凭据不进 app 包。
 
 ### 源码运行
 
 需要：
 
-- Node 22.5+（基座要求 Node 24）
+- Node 24+
 - git
 - 一个已经登录的 agent CLI
 - 本机运行的 OpenMausBot 基座（独立仓库 `crew-chat-base`，默认端口 8799）

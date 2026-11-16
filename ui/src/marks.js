@@ -28,6 +28,7 @@ export function BotMark({ bot, size = 36, live = false, label }) {
   const color = colorOf(key)
   return h('span', {
     className: 'crew-mark',
+    'aria-hidden': 'true',
     'data-live': live ? 'true' : undefined,
     style: { width: size, height: size, '--crew-mark-color': color, fontSize: Math.round(size * 0.44) },
   }, h('span', { className: 'crew-mark-face' }, initialOf(name, 'L')))

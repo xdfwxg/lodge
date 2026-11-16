@@ -27,6 +27,9 @@ export function App() {
     ? '连接中断，正在重连'
     : state.phase === 'loading' ? '正在加载' : ''
   const liveRegion = h('div', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, liveText)
+  const connectionBanner = state.phase === 'reconnecting'
+    ? h('div', { className: 'crew-connection-banner', role: 'status' }, '连接中断，正在重连…')
+    : null
 
   // Announce a room's needs-you signal only when it appears or changes, so
   // per-message store updates never flood the region.
@@ -88,9 +91,12 @@ export function App() {
     return h(Fragment, null,
       h(Onboarding, {
         state,
+        archived: state.rooms.filter(room => room.archivedAt),
+        onRestore: id => store.archiveRoom(id, false),
         onCreate: roomType => openDialog(null, roomType),
         onSample: () => store.openSampleRoom(),
       }),
+      connectionBanner,
       liveRegion,
       needsRegion,
       dialogNode)
@@ -99,6 +105,7 @@ export function App() {
   const room = visibleRooms.find(item => item.id === state.activeId) ?? visibleRooms[0]
 
   return h('div', { className: 'dsb-frame' },
+    connectionBanner,
     h(Sidebar, {
       state,
       onSelect: id => store.select(id),

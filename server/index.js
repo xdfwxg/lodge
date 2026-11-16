@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { extname, join, normalize, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCrewPorts } from './crew/crew-ports.js'
@@ -34,6 +34,18 @@ const broadcast = (event, payload, id) => {
 }
 
 const store = createStore({ dataDir, emit: broadcast })
+
+// 迁移前留最近 5 份快照；出错时还能回到上一版。
+try {
+  const backups = join(dataDir, 'backups')
+  mkdirSync(backups, { recursive: true })
+  store.backup(join(backups, `crew-${Date.now()}.db`))
+  const old = readdirSync(backups).filter(name => name.startsWith('crew-') && name.endsWith('.db')).sort().slice(0, -5)
+  for (const name of old) rmSync(join(backups, name), { force: true })
+} catch (error) {
+  console.warn(`store backup failed: ${error?.message ?? error}`)
+}
+
 migrateRoomMembers(store)
 migrateAssignments(store)
 compactAssignments(store)
@@ -41,7 +53,7 @@ compactAssignments(store)
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
-    payload = presentRoom(payload, store.readMessages(payload.id), store.readAssignments(payload.id, { limit: 500 }))
+    payload = presentRoom(payload, store.readRecentMessages(payload.id), store.readAssignments(payload.id, { limit: 500 }))
   }
   broadcast(event, payload, id)
 }

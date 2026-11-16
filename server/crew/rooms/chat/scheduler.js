@@ -8,6 +8,7 @@ import { parseHandoffFromText } from '../../../../shared/handoff.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
+const MAX_MISSES = 3
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -104,7 +105,7 @@ export const createChatScheduler = ({
   }
 
   const messageIds = async chat => {
-    const { messages } = await engine.history(chat.sessionRef, { limit: 200 })
+    const { messages } = await engine.history(chat.sessionRef, { limit: 1000 })
     return new Set(messages.map(message => message.id))
   }
 
@@ -114,7 +115,7 @@ export const createChatScheduler = ({
     while (Date.now() < deadline) {
       if (run.cancelled) return null
       try {
-        const { messages } = await engine.history(chat.sessionRef, { limit: 200 })
+        const { messages } = await engine.history(chat.sessionRef, { limit: 1000 })
         const hit = messages.find(message => (
           !before.has(message.id) &&
           message.authorRef === memberRef &&
@@ -190,7 +191,10 @@ export const createChatScheduler = ({
 
     try {
       if (speakers.length > 0) {
-        await waitIdle(chat.id, run)
+        if (!(await waitIdle(chat.id, run))) {
+          store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
+        }
+        let misses = 0
         for (let turn = 1; turn <= turnLimit; turn += 1) {
           const current = store.readRoom(roomId)
           if (run.cancelled || current === null || current.state !== 'active') break
@@ -227,10 +231,14 @@ export const createChatScheduler = ({
           const reply = await waitForBot(chat, memberOf(room, memberId)?.body?.ref, before, run)
           if (run.cancelled) break
           if (reply === null) {
+            misses += 1
             store.appendMessage(roomId, {
               kind: 'system',
-              text: `${memberDisplayName(room, memberId)} 没有在限定时间内回应；继续下一位。`,
+              text: `${memberDisplayName(room, memberId)} 没有在限定时间内回应${misses >= MAX_MISSES ? '；本轮提前收尾' : '；继续下一位'}。`,
             })
+            if (misses >= MAX_MISSES) break
+          } else {
+            misses = 0
           }
           completed = turn
           patch(state => {
@@ -243,7 +251,10 @@ export const createChatScheduler = ({
             }
             return { events: [] }
           })
-          await waitIdle(chat.id, run)
+          if (!(await waitIdle(chat.id, run))) {
+            store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
+            break
+          }
         }
       }
 

@@ -77,7 +77,11 @@ export const createMemberSync = ({ store, engine, projector }) => {
       roomId: target.roomRef,
       sessionRef: target.sessionRef,
       onState: state => {
-        if (state.connected) void syncMember(entry, memberId)
+        if (state.connected) {
+          void syncMember(entry, memberId).catch(error => {
+            console.warn(`member resync failed: ${entry.roomId} ${memberId} ${error?.message ?? error}`)
+          })
+        }
       },
       onEvent: event => {
         if (event.type === 'room') {

@@ -23,6 +23,7 @@ export const createLiveRooms = ({
 }) => {
   const { roomFiles } = ports
   const entries = new Map()
+  const pendingAttach = new Map()
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit })
   const approvals = createLiveApprovals({
@@ -59,8 +60,7 @@ export const createLiveRooms = ({
     onTurn: (entry, room, message) => entry.strategy.captureTurn?.(entry, message),
   })
 
-  const attach = async (room, { resume = true } = {}) => {
-    if (entries.has(room.id)) return entries.get(room.id)
+  const attachNow = async (room, { resume = true } = {}) => {
     const members = (room.members ?? []).filter(member => typeof member.body?.roomRef === 'string' && member.body.roomRef !== '')
     if (members.length === 0) throw new Error('房间没有成员线程')
     const strategy = strategyFor(room)
@@ -75,29 +75,54 @@ export const createLiveRooms = ({
       approvalTimers: new Map(),
       refreshedAt: 0,
     }
-    // 每套房型自己创建运行时：聊天室是发言调度，工作室是阶段/验收回合。
-    strategy.create(entry, room)
-    entries.set(room.id, entry)
-    await approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
-    const bases = await engine.rooms()
-    for (const member of members) {
-      const base = bases.find(item => item.id === member.body.roomRef)
-      if (base === undefined) throw new Error(`engine 里没有 ${member.id} 成员线程`)
-      entry.members.set(member.id, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
-      await sync.syncMember(entry, member.id)
-      sync.subscribeMember(entry, member.id, memberHandlers)
+    try {
+      // 每套房型自己创建运行时：聊天室是发言调度，工作室是阶段/验收回合。
+      strategy.create(entry, room)
+      entries.set(room.id, entry)
+      await approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
+      const bases = await engine.rooms()
+      for (const member of members) {
+        const base = bases.find(item => item.id === member.body.roomRef)
+        if (base === undefined) throw new Error(`engine 里没有 ${member.id} 成员线程`)
+        entry.members.set(member.id, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
+        await sync.syncMember(entry, member.id)
+        sync.subscribeMember(entry, member.id, memberHandlers)
+      }
+      const liveRoom = await chat.ensure(room)
+      chat.subscribe(entry, liveRoom)
+      roomFiles.writeGoal(liveRoom)
+      await refreshRoom(entry, { force: true })
+      if (approvals.resumeApprovalPauseIfSettled(room.id) !== null) await refreshRoom(entry, { force: true })
+      if (resume) await strategy.resume(entry)
+      const current = store.readRoom(room.id) ?? room
+      await strategy.resumeIfRunning(entry, current)
+      emit('room', current)
+      console.log(`live room attached: ${current.name} ${room.id}`)
+      return entry
+    } catch (error) {
+      // 半途失败不能留下一个“已连接”的空 entry，否则后续 attach 会直接复用它。
+      try { entry.strategy?.detach?.(entry) } catch {}
+      try { chat.detach(entry) } catch {}
+      for (const target of entry.members.values()) {
+        try { target.unsubscribe?.() } catch {}
+      }
+      entries.delete(room.id)
+      throw error
     }
-    const liveRoom = await chat.ensure(room)
-    chat.subscribe(entry, liveRoom)
-    roomFiles.writeGoal(liveRoom)
-    await refreshRoom(entry, { force: true })
-    if (approvals.resumeApprovalPauseIfSettled(room.id) !== null) await refreshRoom(entry, { force: true })
-    if (resume) await strategy.resume(entry)
-    const current = store.readRoom(room.id) ?? room
-    await strategy.resumeIfRunning(entry, current)
-    emit('room', current)
-    console.log(`live room attached: ${current.name} ${room.id}`)
-    return entry
+  }
+
+  const attach = async (room, options) => {
+    const existing = entries.get(room.id)
+    if (existing !== undefined) return existing
+    const pending = pendingAttach.get(room.id)
+    if (pending !== undefined) return pending
+    const task = attachNow(room, options)
+    pendingAttach.set(room.id, task)
+    try {
+      return await task
+    } finally {
+      pendingAttach.delete(room.id)
+    }
   }
 
   const attachMember = async (roomId, memberId) => {

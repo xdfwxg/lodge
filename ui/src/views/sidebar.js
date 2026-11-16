@@ -32,6 +32,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
   const [open, setOpen] = useState(false)
+  const [sideWidth, setSideWidthPx] = useState(248)
   const sidebarRef = useRef(null)
   const ordered = orderRooms(rooms)
   const archivedRooms = ordered.filter(room => room.archivedAt)
@@ -59,7 +60,10 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
     let stored = ''
     try { stored = localStorage.getItem('lodge:side-width') ?? '' } catch {}
     const width = Number.parseFloat(stored)
-    if (Number.isFinite(width)) document.body.style.setProperty('--crew-side-w', `${clampSide(width)}px`)
+    if (Number.isFinite(width)) {
+      document.body.style.setProperty('--crew-side-w', `${clampSide(width)}px`)
+      setSideWidthPx(clampSide(width))
+    }
     return () => { document.body.style.removeProperty('--crew-side-w') }
   }, [])
 
@@ -105,8 +109,10 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const SIDE_MAX = 480
   const clampSide = value => Math.min(SIDE_MAX, Math.max(SIDE_MIN, value))
   const setSideWidth = width => {
-    document.body.style.setProperty('--crew-side-w', `${clampSide(Math.round(width))}px`)
-    try { localStorage.setItem('lodge:side-width', `${clampSide(Math.round(width))}px`) } catch {}
+    const value = clampSide(Math.round(width))
+    document.body.style.setProperty('--crew-side-w', `${value}px`)
+    setSideWidthPx(value)
+    try { localStorage.setItem('lodge:side-width', `${value}px`) } catch {}
   }
   const startResize = event => {
     if (event.button !== 0 || sidebarRef.current === null) return
@@ -152,6 +158,9 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
           role: 'separator',
           'aria-orientation': 'vertical',
           'aria-label': '调整侧栏宽度',
+          'aria-valuenow': sideWidth,
+          'aria-valuemin': SIDE_MIN,
+          'aria-valuemax': SIDE_MAX,
           tabIndex: 0,
           onPointerDown: startResize,
           onKeyDown: resizeWithKeyboard,
@@ -308,6 +317,26 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
     }
   }, [menuOpen])
 
+  useEffect(() => {
+    if (!menuOpen || menuRef.current === null) return
+    const first = menuRef.current.querySelector('[role=menuitem]:not([disabled])')
+    first?.focus()
+  }, [menuOpen])
+
+  const menuKeyDown = event => {
+    const items = [...(menuRef.current?.querySelectorAll('[role=menuitem]:not([disabled])') ?? [])]
+    if (items.length === 0) return
+    const at = items.indexOf(document.activeElement)
+    const next = event.key === 'ArrowDown' ? (at + 1) % items.length
+      : event.key === 'ArrowUp' ? (at - 1 + items.length) % items.length
+        : event.key === 'Home' ? 0
+          : event.key === 'End' ? items.length - 1
+            : null
+    if (next === null) return
+    event.preventDefault()
+    items[next].focus()
+  }
+
   const label = roomLabelOf(room)
   const TypeIcon = roomTypeIcon(uiKindOfRoom(room).id)
   const manage = onRename !== undefined || onArchive !== undefined || onDelete !== undefined
@@ -453,6 +482,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
         style: { top: `${menuAt.top}px`, left: `${menuAt.left}px` },
         role: 'menu',
         'aria-label': `${room.name}的操作`,
+        onKeyDown: menuKeyDown,
       },
         onRename === undefined ? null : h('button', {
           type: 'button', role: 'menuitem', className: 'crew-side-menu-item', onClick: startRename,
