@@ -1,13 +1,7 @@
-// 留痕只记这次准入发生了什么：决定、原因、外部建议、检查方式，以及人有没有看过分歧。
-export const gateRecordOf = ({ review, humanReviewed = false, advisor = {}, check = null }) => ({
+// 留痕只记这次准入发生了什么：决定、原因、检查方式，以及人有没有看过分歧。
+export const gateRecordOf = ({ review, humanReviewed = false, check = null }) => ({
   decision: review.decision,
   issues: review.issues,
-  advice: review.advice,
-  advisor: {
-    available: advisor.available === true,
-    ...(advisor.model === undefined ? {} : { model: advisor.model }),
-    ...(advisor.version === undefined ? {} : { version: advisor.version }),
-  },
   ...(check === null
     ? {}
     : {

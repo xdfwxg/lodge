@@ -796,3 +796,5 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 input.crew-goal-input,
 .crew-stage-edit-row input,
 .crew-stage-edit-row select{box-sizing:border-box;height:var(--bt-control-h);padding:0 10px}
+.crew-shadow-advice-row{margin:-2px 0 10px 42px}
+.crew-shadow-advice summary{cursor:pointer;color:var(--bt-muted);font-size:12.5px}

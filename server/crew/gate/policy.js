@@ -17,7 +17,7 @@ const RULES = [
   },
 ]
 
-export const reviewRoomGate = ({ handoff = null, humanReviewed = false, advice = [] } = {}) => {
+export const reviewRoomGate = ({ handoff = null, humanReviewed = false } = {}) => {
   const issues = handoff === null || handoff === undefined
     ? []
     : RULES
@@ -30,6 +30,5 @@ export const reviewRoomGate = ({ handoff = null, humanReviewed = false, advice =
       handoff !== undefined &&
       Array.isArray(handoff.disagreements) &&
       handoff.disagreements.length > 0,
-    advice: Array.isArray(advice) ? advice : [],
   }
 }

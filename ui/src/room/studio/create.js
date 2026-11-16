@@ -71,11 +71,11 @@ export const buildStudioRequest = ({
     verify: resolvedVerify,
     acceptance,
     repoPath,
+    ...(shadowReview ? { shadowReview: true } : {}),
     ...(handoff === null || handoff === undefined ? {} : { handoff }),
     ...(handoffReviewed ? { handoffReviewed: true } : {}),
     ...(typeof sourceRoomId === 'string' && sourceRoomId !== '' ? { sourceRoomId } : {}),
     ...(typeof sourceName === 'string' && sourceName !== '' ? { sourceName } : {}),
-    ...(shadowReview ? { shadowReview: true } : {}),
     ...((hasMemberChoice || (proposal !== null && proposal !== undefined)) && roster.length > 0
       ? { members: memberRequests(roster, memberChoices, selectedModelOf) }
       : {}),
@@ -187,8 +187,8 @@ export function StudioSetupFields({
         checked: shadowReview,
         onChange: event => onShadowReview(event.target.checked),
       }),
-      '第二意见：再让一个模型独立看一遍'),
-    h('p', { className: 'crew-field-hint' }, '多一份独立判断，供你对照。'),
+      '影子评审：复核后另取一份外部意见'),
+    h('p', { className: 'crew-field-hint' }, '会把证据和 diff 发给 advisor 服务；意见只供你签字前参考，不进入验收判定。'),
     onRecommend === null ? null : h('div', { className: 'crew-new-recommend' },
       h('button', {
         type: 'button',

@@ -18,7 +18,7 @@ test('advisor advice is normalized and sent as a separate advisory payload', asy
     req.on('end', () => {
       received = JSON.parse(body)
       res.writeHead(200, { 'content-type': 'application/json' })
-      res.end(JSON.stringify({ score: 0.72, reasons: ['缺少回滚测试'], risks: ['网络依赖'], model: 'advisor-test' }))
+      res.end(JSON.stringify({ summary: '补一条测试', reasons: ['缺少回滚测试'], risks: ['网络依赖'], model: 'advisor-test' }))
     })
   })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
@@ -28,7 +28,8 @@ test('advisor advice is normalized and sent as a separate advisory payload', asy
     const result = await client.advice({ mode: 'gate', goal: '发布' })
     assert.equal(received.mode, 'gate')
     assert.equal(result.available, true)
-    assert.equal(result.advice[0].score, 0.72)
+    assert.equal(result.advice[0].summary, '补一条测试')
+    assert.equal('score' in result.advice[0], false)
     assert.equal(result.advice[0].source, 'advisor')
     assert.deepEqual(result.advice[0].missingEvidence, undefined)
   } finally {

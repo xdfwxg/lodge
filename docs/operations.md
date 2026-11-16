@@ -80,9 +80,19 @@ Pi 是 BYOK。登录凭据写到 `~/.pi/agent/auth.json`；登录后重启 Lodge
 - 聊天与验收的软预算靠提示词，硬预算由装配器裁剪；
 - 大部分输入来自基座线程历史，不是 Lodge 拼的提示词。
 
-## advisor 端口
+## advisor 端口（可选，不在主链路）
 
-advisor 是外部评估/打分端口，只提供建议，不产生 verdict，也不阻塞房间。代码、配置和消息统一用 `advisor`。
+advisor 是可选的外部建议端口，只服务**影子评审**：房间开启后，复核时并行取一份对照意见。
+
+- 默认关闭：没有 `ADVISOR_URL` 时客户端返回 `{ available: false, advice: [] }`。
+- 只返回建议：`summary`、`reasons`、`risks`、`missingEvidence`；没有分数，没有 verdict。
+- 只记录：意见写成一条影子评审记录，不进入验收员提示词，不进入 Gate 决定，也不阻塞验收派发。
+- 只在人签字前按需出现：验收卡不展示，人在签字前主动展开才看到。
+- 隐私：房间开启影子评审后，第一次调用前会留一条可见提示，说明证据和 diff 会发给外部服务；没有开启的房间不发送。
+- 失败不阻塞：超时、HTTP 错误、非法 JSON 都 fail soft；调用方不依赖它做决定。
+- 边界：不是角色，不写 PASS，不替代验收员。
+
+配置：
 
 ```bash
 ADVISOR_URL=https://advisor.example/evaluate
@@ -90,19 +100,7 @@ ADVISOR_TOKEN=...
 ADVISOR_TIMEOUT_MS=8000
 ```
 
-未配置时返回 `{ available: false, advice: [] }`。超时、HTTP 错误、非法 JSON 都 fail soft；Gate 和验收员继续按自己的规则工作。
-
-本仓库带一个可独立运行的评估服务：
-
-```bash
-npm run advisor:serve
-ADVISOR_URL=http://127.0.0.1:8798/evaluate
-```
-
-- `rules`（默认）：按目标结构、验收命令、证据字段做规则打分。
-- `model`：接 OpenAI 兼容的 chat completions 端点，要求只返回 JSON；失败自动回退规则。
-
-请求（Gate）：
+请求：
 
 ```json
 {
@@ -115,13 +113,10 @@ ADVISOR_URL=http://127.0.0.1:8798/evaluate
 }
 ```
 
-验收复核时 `mode: "review"`，附带阶段和证据摘要。
-
-响应支持一条建议或 `{ "advice": [...] }`，最多保留 10 条：
+`mode: "review"` 时附带阶段和证据摘要。响应支持一条建议或 `{ "advice": [...] }`：
 
 ```json
 {
-  "score": 0.72,
   "summary": "建议补一条回滚测试",
   "reasons": ["缺少回滚测试"],
   "risks": ["依赖外部网络"],
@@ -131,13 +126,17 @@ ADVISOR_URL=http://127.0.0.1:8798/evaluate
 }
 ```
 
-使用位置：
+本仓库带一个可独立运行的参考服务：
 
-- **Gate**：建房预置前调用；建议写进房间记录，在时间线开头显示。Gate 的 allow/reject 不因建议改写。
-- **验收员**：复核请求时调用，追加一条建议消息；房间开启影子评审时只记录，不注入验收员提示词。
-- 聊天室不调用 advisor。
+```bash
+npm run advisor:serve
+ADVISOR_URL=http://127.0.0.1:8798/evaluate
+```
 
-advisor 不是角色，不写 PASS，不替代验收员，不因为“建议通过”直接放行。
+- `rules`（默认）：按目标结构、验收命令、证据字段给出具体建议。
+- `model`：接 OpenAI 兼容的 chat completions 端点；失败自动回退规则。
+
+它只是端口的一个样例实现，不是产品依赖。
 
 ## 数据、日志与恢复
 

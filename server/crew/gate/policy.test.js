@@ -42,9 +42,3 @@ test('a handoff without a topic keeps the room from starting', () => {
   assert.deepEqual(review.issues.map(issue => issue.code), ['handoff-topic-missing'])
 })
 
-test('advisor advice is carried but never changes the decision', () => {
-  const advice = [{ source: 'advisor', score: 0.2 }]
-  const review = reviewRoomGate({ advice })
-  assert.equal(review.decision, 'allow')
-  assert.deepEqual(review.advice, advice)
-})

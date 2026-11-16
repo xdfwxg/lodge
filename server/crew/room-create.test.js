@@ -552,23 +552,18 @@ test('a studio receipt becomes the chat room receipt and transfer record', async
   assert.ok(result.body.room.transfer.at > 0)
 })
 
-test('studio creation records gate advice and the shadow review flag', async () => {
+test('studio creation keeps advisor off the main path', async () => {
   const store = createStore({ dataDir: temp('lodge-advisor-data-') })
   const ports = createCrewPorts()
-  ports.advisor = {
-    advice: async request => ({
-      available: true,
-      model: 'advisor-test',
-      advice: [{ source: 'advisor', score: 0.4, summary: `建议补齐 ${request.mode}` }],
-    }),
-  }
+  let calls = 0
+  ports.advisor = { advice: async () => { calls += 1; return { available: true, advice: [] } } }
   const result = await createRealRoom({
     store,
     engine: fakeEngine(),
     live: fakeLive(),
     emit: () => {},
     body: {
-      goal: '验证 Gate 建议',
+      goal: '验证 Gate 不再调用 advisor',
       verify: 'manual',
       shadowReview: true,
       members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
@@ -577,8 +572,9 @@ test('studio creation records gate advice and the shadow review flag', async () 
     ports,
   })
   assert.equal(result.ok, true)
+  assert.equal(calls, 0)
   assert.equal(result.body.room.gate.decision, 'allow')
-  assert.equal(result.body.room.gate.advisor.available, true)
-  assert.equal(result.body.room.gate.advice[0].summary, '建议补齐 gate')
+  assert.equal('advice' in result.body.room.gate, false)
+  assert.equal('advisor' in result.body.room.gate, false)
   assert.equal(result.body.room.shadowReview, true)
 })

@@ -23,19 +23,6 @@ export function ApprovalCard({ approval, onDecide }) {
           approval.gate.reasons?.length
             ? h('span', null, ` · ${approval.gate.reasons.join('、')}`)
             : null)
-        : null,
-      approval.gateAgent
-        ? h('div', { className: 'crew-approval-gate', 'data-decision': approval.gateAgent.decision },
-          h('b', null, approval.gateAgent.error === true
-            ? '第二意见：暂时没有'
-            : approval.gateAgent.decision === 'deny'
-              ? '第二意见：建议先别做'
-              : approval.gateAgent.decision === 'review'
-                ? '第二意见：拿不准'
-                : '第二意见：可以做'),
-          approval.gateAgent.reasons?.length
-            ? h('span', null, ` · ${approval.gateAgent.reasons.join('、')}`)
-            : null)
         : null),
     h('div', { className: 'crew-card-foot' },
       h('span', { className: 'crew-req-note' }, '你确认之前，Lodge 不会动手'),

@@ -23,6 +23,7 @@ export const createCrewPorts = () => ({
     exists: path => existsSync(path),
     remove: path => rmSync(path, { recursive: true, force: true }),
   },
+  // 可选端口；当前不在建房、Gate 或复核主链路上。
   advisor: createAdvisorClient(),
   commands: {
     run: runCommand,

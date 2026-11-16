@@ -2,6 +2,7 @@ import { createElement as h, useEffect, useState } from 'react'
 import { BotMark } from '../../marks.js'
 import { independenceOf } from '../../view-format.js'
 import { ConfirmationPoints } from './opening-points.js'
+import { ShadowAdvice } from './advisor-advice.js'
 import { reworkFloorOf } from './stage-gate.js'
 
 function ReworkControl({ room, index, onRework, label = '重做这一步' }) {
@@ -128,6 +129,7 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
               : `没问题的话，下一步是「${next.title}」。`),
           blocked ? null : h('p', { className: 'crew-gate-hint' }, '哪里不对，直接在下面对我说。')),
         h('div', { className: 'crew-card-foot' },
+          blocked ? null : h(ShadowAdvice, { room, stageIndex: index }),
           stage.manual === true && !blocked
             ? h(ReworkControl, { room, index, onRework })
             : null,
@@ -232,6 +234,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
             : null,
           h('p', { className: 'crew-gate-meta' }, `${hasVerifier ? '有验收员' : '没有验收员'} · ${independenceOf(room)}`)),
         h('div', { className: 'crew-card-foot' },
+          rejected || !evidence ? null : h(ShadowAdvice, { room, stageIndex: index }),
           rejected ? null : h(ReworkControl, { room, index, onRework }),
           editing && changed
             ? h('button', {

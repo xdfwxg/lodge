@@ -1,8 +1,8 @@
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 
-// 本地 advisor 服务：可用规则评估，也可接一个 OpenAI 兼容模型做语义评估。
-// 它只返回 advice，不写 verdict、不替代 Verifier。
+// 本地 advisor 参考服务：可用规则评估，也可接一个 OpenAI 兼容模型做语义评估。
+// 它只返回 advice，不写 verdict、不替代 Verifier，也不给分数。
 const textOf = (value, max = 8_000) => typeof value === 'string' ? value.slice(0, max) : ''
 
 const unique = items => [...new Set(items.filter(item => typeof item === 'string' && item.trim() !== ''))]
@@ -13,15 +13,13 @@ export const evaluateGateRules = ({ goal, plan, verify, acceptance }) => {
   if (typeof goal !== 'string' || goal.trim() === '') reasons.push('目标为空')
   if (plan !== null && Array.isArray(plan?.done) === false) missingEvidence.push('done')
   if (verify === 'test' && typeof acceptance !== 'string') missingEvidence.push('验收命令')
-  const score = reasons.length > 0 ? 0.25 : missingEvidence.length > 0 ? 0.55 : 0.8
   return {
-    score,
     summary: reasons[0] ?? (missingEvidence.length > 0 ? `建议补齐：${missingEvidence.join('、')}` : '目标结构完整，可以进入规划'),
     reasons,
     risks: [],
     missingEvidence,
     model: 'lodge-advisor-rules',
-    version: '2',
+    version: '3',
   }
 }
 
@@ -42,15 +40,13 @@ export const evaluateReviewRules = ({ evidence, stage }) => {
   if (stage?.manual === true) {
     risks.push('人工验收：需要 Verifier 实际打开产物核对')
   }
-  const score = reasons.length > 0 ? 0.2 : missingEvidence.length > 0 ? 0.5 : 0.8
   return {
-    score,
     summary: reasons[0] ?? (missingEvidence.length > 0 ? `证据不完整：${missingEvidence.join('、')}` : '证据结构完整，建议人工复核'),
     reasons,
     risks,
     missingEvidence,
     model: 'lodge-advisor-rules',
-    version: '2',
+    version: '3',
   }
 }
 
@@ -61,9 +57,9 @@ export const evaluateRules = body => body?.mode === 'review'
 const SYSTEM_PROMPT = [
   '你是 advisor，一个独立的评估与打分服务，服务于多 Agent 房间的前置检查和独立复核。',
   '你只输出一个 JSON 对象，不要 Markdown，不要额外解释。',
-  '字段：score（0 到 1 的数字）、summary（一句话结论）、reasons（字符串数组）、risks（字符串数组）、missingEvidence（字符串数组）。',
+  '字段：summary（一句话结论）、reasons（字符串数组）、risks（字符串数组）、missingEvidence（字符串数组）。',
   '你给的是建议，不是通过/不通过的裁决；不要输出 verdict，不要声称替代验收员。',
-  '证据不足时降低 score，并把它写进 missingEvidence；发现风险写进 risks。',
+  '证据不足时写进 missingEvidence；发现风险写进 risks。不要给分数，不要暗示通过或不通过。',
 ].join('\n')
 
 const parseModelJson = text => {
@@ -76,15 +72,13 @@ const parseModelJson = text => {
 }
 
 const normalizeModelAdvice = (parsed, model) => {
-  const score = Number(parsed?.score)
   return {
-    score: Number.isFinite(score) ? Math.min(1, Math.max(0, score)) : 0.5,
     summary: textOf(parsed?.summary, 1_000) || '模型没有给出摘要',
     reasons: unique(Array.isArray(parsed?.reasons) ? parsed.reasons : []).slice(0, 8),
     risks: unique(Array.isArray(parsed?.risks) ? parsed.risks : []).slice(0, 8),
     missingEvidence: unique(Array.isArray(parsed?.missingEvidence) ? parsed.missingEvidence : []).slice(0, 8),
     model,
-    version: '2',
+    version: '3',
   }
 }
 
@@ -193,7 +187,7 @@ export const createAdvisorServer = () => createServer(async (req, res) => {
       ok: true,
       mode,
       model: mode === 'model' ? process.env.ADVISOR_MODEL ?? 'advisor' : 'lodge-advisor-rules',
-      version: '2',
+      version: '3',
     })
   }
   if (req.method !== 'POST' || (req.url !== '/evaluate' && req.url !== '/')) {

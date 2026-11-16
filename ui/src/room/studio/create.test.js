@@ -7,7 +7,6 @@ const base = {
   repoPath: '',
   verify: 'manual',
   acceptance: '',
-  shadowReview: false,
   proposal: null,
   answers: [],
   memberChoices: [],
@@ -16,7 +15,7 @@ const base = {
   selectedModelOf: () => '',
 }
 
-test('a direct studio request needs no plan or seat override', () => {
+test('a direct studio request needs no plan or member override', () => {
   const request = buildStudioRequest(base)
   assert.equal(request.roomType, 'studio')
   assert.equal(request.verify, 'manual')
@@ -80,4 +79,9 @@ test('a proposal still carries its plan and answers', () => {
   assert.deepEqual(request.plan.answers, [
     { question: '写给谁？', answer: '第一次接触项目的人' },
   ])
+})
+
+test('shadow review is requested only when enabled', () => {
+  assert.equal('shadowReview' in buildStudioRequest(base), false)
+  assert.equal(buildStudioRequest({ ...base, shadowReview: true }).shadowReview, true)
 })

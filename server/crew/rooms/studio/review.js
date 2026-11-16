@@ -9,6 +9,7 @@ import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf } from '../../room-members.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { memberDisplayName } from '../../member-labels.js'
+import { recordShadowAdvice } from './shadow-advisor.js'
 
 const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
 
@@ -16,6 +17,7 @@ const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（�
 export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, advisor = null }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
   let round = null
+  let shadowTask = null
   const staleMembers = new Set()
 
   const isBusy = () => round !== null && round.requests.size > 0
@@ -222,43 +224,22 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidenceId: evidence.id,
       verifiers: targets,
     })
-    const advisorResult = await advisor?.advice?.({
-      mode: 'review',
-      goal: room.goal,
-      stage: { title: stage.title, acceptance: stage.acceptance ?? '', manual },
-      evidence: {
-        id: evidence.id,
-        text: evidence.text,
-        command: meta.command,
-        exit: meta.exit,
-        diff: meta.diff,
-        files: meta.files,
-        artifacts: meta.artifacts,
-      },
-    }) ?? { available: false, advice: [] }
-    const advisorLines = Array.isArray(advisorResult.advice) ? advisorResult.advice : []
-    const shadow = room.shadowReview === true
-    const promptLines = shadow ? [] : advisorLines
-    if (advisorLines.length > 0) {
-      const text = advisorLines
-        .map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；'))
-        .filter(Boolean)
-        .join('；')
-      store.appendMessage(roomId, {
-        kind: 'advisor_advice',
-        authorId: 'system',
-        text: `${shadow ? '第二意见（仅供对照）' : '另一份参考意见（不替代验收员）'}：${text}`,
-        meta: {
-          stage: stageIndex,
-          evidenceId: evidence.id,
-          advice: advisorLines,
-          shadow,
-          available: advisorResult.available === true,
-          ...(advisorResult.model === undefined ? {} : { model: advisorResult.model }),
-          ...(advisorResult.version === undefined ? {} : { version: advisorResult.version }),
-        },
+    // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
+    shadowTask = room.shadowReview === true
+      ? recordShadowAdvice({
+        store,
+        roomId,
+        advisor,
+        room,
+        index: stageIndex,
+        stage,
+        evidence,
+        manual,
+      }).catch(error => {
+        store.appendMessage(roomId, { kind: 'system', text: `影子评审没能取回意见：${error?.message ?? error}` })
+        return null
       })
-    }
+      : null
     const failures = []
     for (const verifier of targets) {
       const verifierName = memberDisplayName(room, verifier)
@@ -282,9 +263,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             `${verifierMention || `@${verifierName}`} 你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '独立复核：以本轮结果证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildMemberHandoff({ room, messages }),
-            ...(promptLines.length > 0
-              ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
-              : []),
             `工作文件夹：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
             '结果证据：',
@@ -304,9 +282,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             `${verifierMention || `@${verifierName}`} 你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '独立复核：以本轮验收证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildMemberHandoff({ room, messages }),
-            ...(promptLines.length > 0
-              ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
-              : []),
             `工作文件夹：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
             `验收命令：${meta.command}`,
@@ -409,5 +384,5 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     return { requested: true, stage: stageIndex, verifiers: [...nextRound.requests.keys()] }
   }
 
-  return { request, consume, isBusy }
+  return { request, consume, isBusy, shadowSettled: () => shadowTask ?? Promise.resolve() }
 }

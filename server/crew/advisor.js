@@ -1,14 +1,13 @@
-// advisor 是外部评估/打分端口：只返回建议，不产生 verdict，也不阻塞主链路。
+// advisor 是可选的外部建议端口：只返回建议，不产生 verdict，也不阻塞主链路。
 // 配置只读 ADVISOR_*；以后接外部产品时再新增独立适配器，不做名字别名。
 const normalizeAdvice = body => {
   const raw = Array.isArray(body?.advice)
     ? body.advice
-    : body?.score === undefined && body?.reasons === undefined
+    : body?.summary === undefined && body?.reasons === undefined && body?.risks === undefined && body?.missingEvidence === undefined
       ? []
       : [body]
   return raw.slice(0, 10).map(item => ({
     source: 'advisor',
-    ...(Number.isFinite(item?.score) ? { score: item.score } : {}),
     ...(Array.isArray(item?.reasons) ? { reasons: item.reasons.slice(0, 8) } : {}),
     ...(Array.isArray(item?.risks) ? { risks: item.risks.slice(0, 8) } : {}),
     ...(Array.isArray(item?.missingEvidence) ? { missingEvidence: item.missingEvidence.slice(0, 8) } : {}),
@@ -22,11 +21,20 @@ export const createAdvisorClient = ({
   timeoutMs = Number(process.env.ADVISOR_TIMEOUT_MS ?? 8000),
 } = {}) => {
   const available = typeof url === 'string' && url.trim() !== ''
+  const host = (() => {
+    try {
+      return available ? new URL(url).host : ''
+    } catch {
+      return ''
+    }
+  })()
 
   const advice = async ({ mode, ...payload }) => {
     if (!available) return { available: false, advice: [] }
+    const configured = Number(timeoutMs)
+    const waitMs = Number.isFinite(configured) && configured > 0 ? configured : 8000
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs))
+    const timer = setTimeout(() => controller.abort(), Math.max(1000, waitMs))
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -52,5 +60,5 @@ export const createAdvisorClient = ({
     }
   }
 
-  return { available, advice }
+  return { available, host, advice, describe: () => ({ available, host }) }
 }

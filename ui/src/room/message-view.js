@@ -23,7 +23,7 @@ export const renderSharedMessage = ({
   if (message.kind === 'question') {
     return h(QuestionCard, { key: message.id, message, member, onAnswer: onAnswerCard })
   }
-  if (message.kind === 'system' || message.kind === 'advisor_advice' || message.kind === 'child_result') {
+  if (message.kind === 'system' || message.kind === 'child_result') {
     return h('div', { key: message.id, className: 'crew-system' }, message.text)
   }
   if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })

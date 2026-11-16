@@ -46,24 +46,10 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const { plan, error: planError } = normalizePlan({ body })
   if (planError !== undefined) return fail('invalid', planError)
   const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
-  const advisor = mode.requiresGate
-    ? await ports.advisor?.advice?.({
-      mode: 'gate',
-      goal,
-      roomType: roomType.id,
-      plan,
-      verify,
-      acceptance: effectiveAcceptance,
-    }) ?? { available: false, advice: [] }
-    : { available: false, advice: [] }
-  const gate = mode.evaluateGate({ handoff, humanReviewed: handoffReviewed, advice: advisor.advice })
+  const gate = mode.evaluateGate({ handoff, humanReviewed: handoffReviewed })
   if (gate.decision === 'reject') {
-    const advice = (Array.isArray(gate.advice) ? gate.advice : [])
-      .map(item => item?.summary ?? [...(item?.reasons ?? []), ...(item?.risks ?? [])].join('；'))
-      .filter(Boolean)
-      .join('；')
     const issues = gate.issues.map(issue => issue.text).join('；')
-    return fail('invalid', `还不能开工：${issues}${advice === '' ? '' : `；建议：${advice}`}`)
+    return fail('invalid', `还不能开工：${issues}`)
   }
   const membersResult = resolveMembers(body, roomType)
   if (membersResult.error !== undefined) return fail('invalid', membersResult.error)
@@ -154,19 +140,18 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       workspaceCaps,
       roomType,
       orchestration: orchestration.id,
+      shadowReview,
       builtStages,
       roster,
       align: initialAlign,
       verify,
       acceptance,
       chatTurnLimit,
-      shadowReview,
-      parentRoomId: parentRoom?.id ?? null,
+        parentRoomId: parentRoom?.id ?? null,
       depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
       gate: gateRecordOf({
         review: gate,
         humanReviewed: handoffReviewed,
-        advisor,
         check: { mode: verify, acceptance: effectiveAcceptance },
       }),
     })

@@ -40,8 +40,7 @@ export function StudioTranscript({
       .map(message => message.meta.evidenceId))
     const visible = ordered.filter(message => {
       if (hidden.has(message.kind)) return false
-      if (message.kind === 'advisor_advice') return false
-      if (message.kind === 'stage_conclusion' || message.kind === 'conclusion') return false
+      if (message.kind === 'stage_conclusion' || message.kind === 'conclusion' || message.kind === 'advisor_advice') return false
       if (message.kind === 'evidence' && consumedEvidence.has(message.id)) return false
       if (message.kind === 'verdict' && message.meta?.human === true) return false
       if (isStandbyChat(message, room)) return false

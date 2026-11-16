@@ -628,7 +628,8 @@ test('a verifier reject returns the studio closure to executing and wakes the pl
   assert.match(planner.prompt, /lodge-internal/)
 })
 
-test('shadow advice is recorded but never injected into the Verifier prompt', async () => {
+
+test('shadow review records advice without injecting it into the Verifier prompt', async () => {
   const room = makeRoom({ verifiers: ['verifier'], shadowReview: true })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
@@ -636,6 +637,7 @@ test('shadow advice is recorded but never injected into the Verifier prompt', as
     meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
   })
   const sent = []
+  let calls = 0
   const review = createReviewCoordinator({
     store,
     roomId: 'room-1',
@@ -644,45 +646,47 @@ test('shadow advice is recorded but never injected into the Verifier prompt', as
       sent.push({ memberId, prompt })
       return { messageId: 'm2' }
     },
-    updateTasks: () => {},
     advisor: {
-      advice: async () => ({ available: true, advice: [{ summary: '建议补一条回滚测试', score: 0.4 }] }),
+      describe: () => ({ available: true, host: 'advisor.example' }),
+      advice: async () => {
+        calls += 1
+        return { available: true, model: 'advisor-test', advice: [{ summary: '建议补一条回滚测试', reasons: ['缺少回滚测试'] }] }
+      },
     },
   })
   await review.request(0)
-  assert.doesNotMatch(sent[0].prompt, /评估建议/)
+  await review.shadowSettled()
+  assert.equal(calls, 1)
+  assert.doesNotMatch(sent[0].prompt, /回滚测试/)
+  assert.doesNotMatch(sent[0].prompt, /外部意见/)
+  const notice = store.messages.find(message => message.meta?.advisorNotice === true)
+  assert.ok(notice)
+  assert.match(notice.text, /advisor\.example/)
+  assert.match(notice.text, /证据和 diff/)
   const advice = store.messages.find(message => message.kind === 'advisor_advice')
   assert.ok(advice)
-  assert.match(advice.text, /第二意见/)
   assert.equal(advice.meta.shadow, true)
+  assert.equal('score' in advice.meta.advice[0], false)
   assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
-  assert.equal(review.consume({ turn: { reply: 'PASS' }, memberId: 'verifier', turnId: 't1', room }), true)
 })
 
-test('advisor advice is visible to the Verifier when shadow mode is off', async () => {
-  const room = makeRoom({ verifiers: ['verifier'], shadowReview: false })
+test('advisor is not called when the room does not enable shadow review', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
     meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
   })
-  const sent = []
+  let calls = 0
   const review = createReviewCoordinator({
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToMember: async (memberId, prompt) => {
-      sent.push({ memberId, prompt })
-      return { messageId: 'm2' }
-    },
-    updateTasks: () => {},
-    advisor: {
-      advice: async () => ({ available: true, advice: [{ summary: '建议补一条回滚测试', score: 0.4 }] }),
-    },
+    sendToMember: async () => ({ messageId: 'm2' }),
+    advisor: { advice: async () => { calls += 1; return { available: true, advice: [] } } },
   })
   await review.request(0)
-  assert.match(sent[0].prompt, /评估建议/)
-  assert.match(sent[0].prompt, /回滚测试/)
-  const advice = store.messages.find(message => message.kind === 'advisor_advice')
-  assert.equal(advice.meta.shadow, false)
+  await review.shadowSettled()
+  assert.equal(calls, 0)
+  assert.equal(store.messages.some(message => message.kind === 'advisor_advice'), false)
 })

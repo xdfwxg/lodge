@@ -65,9 +65,9 @@ export const normalizeRequest = body => {
   if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
     return { error: '要交付的房间需要一条检查' }
   }
+  const shadowReview = body.shadowReview === true
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '未知的编排策略' }
-  const shadowReview = body.shadowReview === true
   const handoff = normalizeHandoff(body.handoff)
   const handoffReviewed = body.handoffReviewed === true
   const receipt = normalizeReceipt(body.receipt)

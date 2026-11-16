@@ -3,19 +3,19 @@ import test from 'node:test'
 import { createAdvisorServer, evaluate, evaluateReviewRules } from '../advisor-service.mjs'
 import { createAdvisorClient } from './advisor.js'
 
-test('rules evaluation scores gate and review without producing a verdict', () => {
+test('rules evaluation gives advice without a score or verdict', () => {
   const gate = evaluateReviewRules({ evidence: { command: 'npm test', exit: 0, diff: 'D', files: ['a.js'] } })
-  assert.equal(gate.score, 0.8)
+  assert.equal('score' in gate, false)
   assert.equal(gate.pass, undefined)
   assert.equal(gate.model, 'lodge-advisor-rules')
 
   const review = evaluateReviewRules({ evidence: { command: 'npm test', exit: 1 }, stage: { manual: true } })
-  assert.equal(review.score, 0.2)
+  assert.equal('score' in review, false)
   assert.equal(review.pass, undefined)
   assert.ok(review.risks.some(text => text.includes('人工验收')))
 })
 
-test('model evaluation normalizes JSON advice and clamps the score', async () => {
+test('model evaluation normalizes JSON advice without a score', async () => {
   const result = await evaluate(
     { mode: 'gate', goal: '发布', verify: 'test', acceptance: 'npm test' },
     {
@@ -25,12 +25,12 @@ test('model evaluation normalizes JSON advice and clamps the score', async () =>
       fetchImpl: async () => ({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: '```json\n{"score":1.4,"summary":"结构完整","reasons":["目标清楚"],"risks":[],"missingEvidence":[]}\n```' } }],
+          choices: [{ message: { content: '```json\n{"summary":"结构完整","reasons":["目标清楚"],"risks":[],"missingEvidence":[]}\n```' } }],
         }),
       }),
     },
   )
-  assert.equal(result.score, 1)
+  assert.equal('score' in result, false)
   assert.equal(result.summary, '结构完整')
   assert.equal(result.model, 'advisor-test')
   assert.equal(result.pass, undefined)
@@ -65,7 +65,7 @@ test('the reference service speaks the same contract as the Lodge client', async
       evidence: { command: 'npm test', exit: 0, diff: 'D', files: ['a.js'] },
     })
     assert.equal(result.available, true)
-    assert.equal(result.advice[0].score, 0.8)
+    assert.equal('score' in result.advice[0], false)
     assert.match(result.advice[0].summary, /人工复核/)
     assert.equal(result.advice[0].source, 'advisor')
   } finally {
