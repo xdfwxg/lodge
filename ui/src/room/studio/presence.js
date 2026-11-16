@@ -42,6 +42,6 @@ export function StudioPresence({ room, seats, onHold = null }) {
     held.map(item => h('div', { key: `held-${item.seatId}`, className: 'studio-queue', 'data-held': 'true' },
       h('span', { className: 'studio-presence-avatar' },
         seatOf(item.seatId) === null ? null : h(BotAvatar, { bot: seatOf(item.seatId), size: 18, live: false })),
-      h('span', null, `已叫停 · ${item.name}`),
+      h('span', null, `已叫停 · ${item.name}${item.count > 0 ? ` · ${item.count} 条待读` : ''}`),
       action(item.seatId, false, '继续'))))
 }

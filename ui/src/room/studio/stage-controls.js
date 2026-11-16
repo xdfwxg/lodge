@@ -4,7 +4,7 @@ import { independenceOf } from '../../view-format.js'
 import { ConfirmationPoints } from './opening-points.js'
 import { reworkFloorOf } from './stage-gate.js'
 
-function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
+function ReworkControl({ room, index, onRework, label = '重做这一步' }) {
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -24,7 +24,7 @@ function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
     h('input', {
       className: 'crew-goal-input',
       type: 'text',
-      'aria-label': '返工说明（可选）',
+      'aria-label': '重做说明（可选）',
       value: note,
       placeholder: '哪里不对？（可选）',
       onChange: event => setNote(event.target.value),
@@ -36,7 +36,7 @@ function ReworkControl({ room, index, onRework, label = '不对，重来' }) {
       },
     }),
     h('div', { className: 'crew-rework-actions' },
-      h('button', { type: 'button', className: 'crew-accept', disabled: busy, onClick: () => void submit() }, busy ? '正在重做…' : '好，重做'),
+      h('button', { type: 'button', className: 'crew-accept', disabled: busy, onClick: () => void submit() }, busy ? '正在重做…' : '重做这一步'),
       h('button', { type: 'button', className: 'crew-ghost', onClick: () => { setOpen(false); setNote('') } }, '取消')))
 }
 
@@ -76,10 +76,10 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
   const [busy, setBusy] = useState(false)
   const canConfirm = !locked && (!blocked || draft.trim() !== '')
   const actionLabel = blocked
-    ? '回答并继续'
+    ? '回答，继续'
     : next === undefined
-      ? '可以，收尾'
-      : '可以，下一步'
+      ? '确认，收尾'
+      : '按这个继续'
 
   const confirm = async () => {
     if (!canConfirm || busy) return
@@ -95,7 +95,7 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }
       h('div', { className: 'crew-card crew-human-gate' },
         h('div', { className: 'crew-card-head' },
           h('span', null, `第 ${index + 1} 步 · 共 ${room.stages.length} 步`),
-          h('span', { className: 'crew-verdict', 'data-pending': true }, blocked ? '等你回答' : '等你定')),
+          h('span', { className: 'crew-verdict', 'data-pending': true }, blocked ? '待回答' : '待确认')),
         h('div', { className: 'crew-card-body' },
           h('p', { className: 'crew-gate-lead' },
             blocked ? '先回答一个问题，我才好继续。' : '这一步要你定：'),
@@ -190,7 +190,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
         h('div', { className: 'crew-card-head' },
           `第 ${index + 1} 步 · 检查`,
           h('span', { className: 'crew-verdict', 'data-pending': true },
-            evidence === undefined ? '等检查结果' : exit !== 0 ? '检查没通过' : rejected ? '被打回了' : '验收员在看')),
+            evidence === undefined ? '等检查结果' : exit !== 0 ? '检查没通过' : rejected ? '退回了' : '验收员在看')),
         h('div', { className: 'crew-card-body' },
           h('div', { className: 'crew-gate-title' }, stage.title),
           room.repoPath === null || room.repoPath === undefined
@@ -207,7 +207,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               h('textarea', {
                 className: 'crew-gate-input',
                 rows: 2,
-                'aria-label': '检查命令',
+                'aria-label': '要跑的检查',
                 value: draft,
                 placeholder: '例如：npm test',
                 disabled: locked,
@@ -257,7 +257,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               className: 'crew-accept',
               disabled: busy || locked,
               onClick: () => void verify(),
-            }, busy ? '等验收员看…' : '请验收员复核')
+            }, busy ? '等验收员看…' : '让验收员复核')
             : null,
           evidence && exit === 0 && !hasVerifier
             ? h('button', {
@@ -265,9 +265,9 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
               className: 'crew-accept',
               disabled: locked,
               onClick: () => onAccept(index),
-            }, '通过这一步')
+            }, '确认通过')
             : null,
           evidence && exit !== 0
-            ? h('span', { className: 'crew-muted' }, '检查没通过：返工后重试')
+            ? h('span', { className: 'crew-muted' }, '检查没通过：重做后再检查一次')
             : null))))
 }

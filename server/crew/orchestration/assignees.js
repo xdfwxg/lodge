@@ -1,5 +1,5 @@
-// 规划师提案里的席位 id / 名字，由这一处映射到真实执行席位。
-// 验收与规划席位不由提案派发；未知 token 直接丢弃。
+// 规划师提案里的成员 id / 名字，由这一处映射到真实执行成员。
+// 验收与规划成员不由提案派发；未知 token 直接丢弃。
 const MAX_ASSIGNEES = 8
 
 export const resolveAssigneeTokens = (tokens, roster) => {

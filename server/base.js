@@ -34,10 +34,26 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
       timeout: 10_000,
     }),
 
-    respondToCard: (threadId, requestId, behavior) => json(`/api/threads/${threadId}/respond`, {
+    steerGroupQueue: (groupId, queueId) => json(`/api/groups/${groupId}/queue/${queueId}/steer`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ requestId, behavior }),
+      body: '{}',
+      timeout: 10_000,
+    }),
+
+    cancelGroupQueue: (groupId, queueId) => json(`/api/groups/${groupId}/queue/${queueId}`, {
+      method: 'DELETE',
+      timeout: 10_000,
+    }),
+
+    respondToCard: (threadId, requestId, behavior, message) => json(`/api/threads/${threadId}/respond`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        requestId,
+        behavior,
+        ...(typeof message === 'string' && message !== '' ? { message } : {}),
+      }),
       timeout: 10_000,
     }),
 
@@ -77,6 +93,13 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
     }),
 
     deleteBot: botId => json(`/api/bots/${botId}`, { method: 'DELETE', timeout: 10_000 }),
+
+    setBotSkills: (botId, skills) => json(`/api/bots/${botId}/skills-library`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ skills }),
+      timeout: 10_000,
+    }),
 
     interruptBot: (botId, body = {}) => json(`/api/bots/${botId}/interrupt`, {
       method: 'POST',

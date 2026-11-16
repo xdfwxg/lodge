@@ -1,4 +1,4 @@
-// 多验收席位只看“当前这轮验收命令证据”上的结论；旧轮的 PASS/REJECT 不参与本轮判定。
+// 多验收成员只看“当前这轮验收命令证据”上的结论；旧轮的 PASS/REJECT 不参与本轮判定。
 export const verifierIds = room => (
   Array.isArray(room?.verifiers)
     ? room.verifiers.filter(id => typeof id === 'string' && id !== '')
@@ -77,7 +77,7 @@ export const manualEvidenceFor = (room, evidence, messages, stageIndex) => {
   ))
 }
 
-// 人工验收不是绕过 Verifier：产物证据也要经过独立 Verifier，再交给人签字。
+// 人工验收不是绕过 Verifier：结果证据也要经过独立 Verifier，再交给人签字。
 export const manualReviewState = ({ room, evidence, messages, stageIndex }) => {
   const ids = verifierIds(room)
   const found = manualEvidenceFor(room, evidence, messages, stageIndex)

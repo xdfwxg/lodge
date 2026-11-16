@@ -72,7 +72,10 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (typeof live.isAttached === 'function' && live.isAttached(parent.id) === true) {
       const lead = parent.leadSeat ?? parent.members?.[0]
       if (typeof lead === 'string' && lead !== '') {
-        void live.sendToSeat(parent.id, lead, `${text}\n请只依据这些 verdict 决定下一步。`).catch(error => {
+        void live.sendToSeat(parent.id, lead, `${text}\n请只依据这些 verdict 决定下一步。`, {
+          intent: 'notice',
+          from: '子房间',
+        }).catch(error => {
           appendMessage(parent.id, { kind: 'system', text: `子房间的结果没能叫醒规划师：${error?.message ?? error}` })
         })
       }

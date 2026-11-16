@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 
-// 端口预检：有 lsof 时跳过已监听端口；没有 lsof 时退回原分配，不假装检测成功。
+// 端口系统判断：有 lsof 时跳过已监听端口；没有 lsof 时退回原分配，不假装检测成功。
 export const portIsFree = (port, { exec = execFileSync } = {}) => {
   try {
     const output = exec('lsof', ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-t'], {

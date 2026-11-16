@@ -3,7 +3,7 @@ const clip = (text, limit) => {
   return value.length > limit ? `${value.slice(0, limit)}…` : value
 }
 
-// 工作拍是接力棒的产物：只装下一席需要的事实，不复制整场对话。
+// 工作拍是接力棒的结果：只装下一席需要的事实，不复制整场对话。
 export const buildWorkTurn = ({
   room,
   stage,

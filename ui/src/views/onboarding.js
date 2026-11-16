@@ -11,12 +11,12 @@ export function Onboarding({ state, onCreate, onSample }) {
     setSampleError('')
     const result = await onSample()
     setSampleBusy(false)
-    if (result?.ok !== true) setSampleError(result?.error ?? '打开示例失败')
+    if (result?.ok !== true) setSampleError(result?.error ?? '示例房间没能打开')
   }
   const errorText = state.runtime?.ok === false
     ? `Lodge 服务未连接：${state.runtime.error}`
     : state.phase === 'error'
-      ? `连接失败：${state.error}`
+      ? `没连上 Lodge：${state.error}`
       : ''
   return h('div', { className: 'crew-onboarding' },
     h('div', { className: 'crew-onboarding-card' },

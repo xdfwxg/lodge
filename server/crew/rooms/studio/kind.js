@@ -23,7 +23,7 @@ const studioNeedsYou = (room, messages = []) => {
   const floor = reworkFloor(messages, index)
 
   if (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') {
-    return { kind: 'question', stage: index, label: '等你回答' }
+    return { kind: 'question', stage: index, label: '待回答' }
   }
   if (room.busy === true) return null
   const timeout = latestReviewTimeout(messages, index)
@@ -38,19 +38,19 @@ const studioNeedsYou = (room, messages = []) => {
     if (manual?.meta?.kind !== 'manual') return null
     if (verifierIds(room).length > 0) {
       const outcome = manualReviewState({ room, messages, stageIndex: index })
-      if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '等你返工' }
+      if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待重做' }
       if (outcome.state === 'pending') {
         return { kind: 'review', stage: index, label: `验收员在看 · 已回 ${outcome.received}/${outcome.total}` }
       }
-      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '等你签字' }
+      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '待签字' }
       return null
     }
-    return { kind: 'decision', stage: index, label: '等你定' }
+    return { kind: 'decision', stage: index, label: '待确认' }
   }
-  if (stage.kind === 'decision') return { kind: 'decision', stage: index, label: '等你定' }
+  if (stage.kind === 'decision') return { kind: 'decision', stage: index, label: '待确认' }
 
   if (typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') {
-    return { kind: 'setup', stage: index, label: '等你设置' }
+    return { kind: 'setup', stage: index, label: '待补检查' }
   }
   const dispatch = room.stageDispatch
   if (room.mergeConflict?.stage === index || (dispatch?.stage === index && dispatch?.conflict !== undefined && dispatch?.conflict !== null)) {
@@ -64,24 +64,24 @@ const studioNeedsYou = (room, messages = []) => {
   }
   const commandEvidence = commandEvidenceFor(room, undefined, messages, index)
   if (commandEvidence !== undefined && commandEvidence.meta?.exit !== 0) {
-    return { kind: 'rework', stage: index, label: '等你返工' }
+    return { kind: 'rework', stage: index, label: '待重做' }
   }
   if (verifierIds(room).length > 1) {
     const outcome = reviewState({ room, messages, stageIndex: index })
-    if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '等你返工' }
-    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '等你签字' }
+    if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待重做' }
+    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '待签字' }
     if (outcome.state === 'pending') {
       return { kind: 'review', stage: index, label: `验收员在看 · 已回 ${outcome.received}/${outcome.total}` }
     }
     return null
   }
   const verdict = latestForStage(messages, 'verdict', index, floor)
-  if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '等你签字' }
-  if (verdict !== undefined) return { kind: 'rework', stage: index, label: '等你返工' }
+  if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '待签字' }
+  if (verdict !== undefined) return { kind: 'rework', stage: index, label: '待重做' }
   if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
     return (room.verifiers?.length ?? 0) > 0
       ? { kind: 'review', stage: index, label: '验收员在看' }
-      : { kind: 'signoff', stage: index, label: '等你签字' }
+      : { kind: 'signoff', stage: index, label: '待签字' }
   }
   return null
 }
@@ -110,20 +110,20 @@ const studioConstraints = ({
     ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
     : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',
   ...(verifiers.length === 0
-    ? ['这个房间没有独立验收席位，由你凭证据签字']
+    ? ['这个房间没有独立验收成员，由你凭证据签字']
     : [independence === 'vendor'
-      ? '执行与验收已绑定不同厂商；验收席位在独立副本里复核'
+      ? '执行与验收已绑定不同厂商；验收成员在独立副本里复核'
       : '当前只有同一家模型可用：复核和执行来自同一家，独立复核会打折']),
 ]
 
-const initialMessages = ({ workspaces, engineFallbacks }) => {
+const initialMessages = ({ room, workspaces, engineFallbacks }) => {
   // 时间线只保留会改变用户判断的信息；建房仪式、分支、约束快照、MCP 说明都
   // 能从房间字段和交付卡里查到，不再复述。
   const messages = []
   const label = { lead: '规划师', planner: '规划师', worker: '执行官', executor: '执行官', verifier: '验收员' }
   const envWarnings = Object.entries(workspaces.environment ?? {})
     .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${label[seat] ?? seat}: ${text}`))
-  if (envWarnings.length > 0) messages.push({ kind: 'system', text: `工作区环境同步警告：${envWarnings.join('；')}` })
+  if (envWarnings.length > 0) messages.push({ kind: 'system', text: `工作文件夹同步警告：${envWarnings.join('；')}` })
   if (Object.keys(engineFallbacks).length > 0) {
     const engineLabel = {
       'claude-cli': 'Claude',
@@ -134,13 +134,23 @@ const initialMessages = ({ workspaces, engineFallbacks }) => {
       'deepseek-cli': 'DeepSeek',
       'pi-cli': 'Pi',
       'gemini-cli': 'Gemini',
+      claude: 'Claude',
+      codex: 'Codex',
+      grok: 'Grok',
+      kimi: 'Kimi',
+      qwen: '通义千问',
+      deepseek: 'DeepSeek',
+      pi: 'Pi',
+      gemini: 'Gemini',
     }
     const text = Object.entries(engineFallbacks)
       .map(([seat, item]) => `${label[seat] ?? seat} 没能用上 ${engineLabel[item.requested] ?? item.requested}，实际跑的是 ${engineLabel[item.actual] ?? item.actual}`)
       .join('；')
     messages.push({
       kind: 'system',
-      text: `${text}。这次不是独立复核，验收卡会按实际模型标注。`,
+      text: room?.independence === 'vendor'
+        ? `${text}。验收仍由另一家模型独立复核，交付卡会按实际模型标注。`
+        : `${text}。这次不是独立复核，验收卡会按实际模型标注。`,
     })
   }
   return messages
@@ -159,8 +169,8 @@ export const studioKind = {
   // 静态纪律只注入一次，后续阶段提示不再重复。
   seatSoul: seat => [
     seat.prompt,
-    '当前是工作室：所有席位在同一个房间目录执行；只有被 @ 的席位才会响应。',
-    '你是三类席位之一：规划师、执行官、验收员；不要自创角色，也不要承担其他席位的职责。',
+    '当前是工作室：所有成员在同一个房间目录执行；只有被 @ 的成员才会响应。',
+    '你是三类成员之一：规划师、执行官、验收员；不要自创角色，也不要承担其他成员的职责。',
     '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
     '群消息按角色工作日志格式写；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
     '不要先发“我来/我将/开始检查”之类的准备句或过程声明；直接给工作日志或结论。',

@@ -46,12 +46,18 @@ const completedRoom = dataDir => {
 
 const fakeEngine = () => {
   const seatNames = []
+  const skillAssignments = []
   return {
     seatNames,
+    skillAssignments,
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
     createSeatBot: async ({ name }) => {
       seatNames.push(name)
       return { id: `seat-${name}`, name, engine: 'claude', model: 'claude-sonnet-5' }
+    },
+    setBotSkills: async (botId, skills) => {
+      skillAssignments.push({ botId, skills })
+      return { assignedSkills: skills }
     },
     createRoom: async ({ name }) => ({ id: `room-${name}`, sessionRef: `thread-${name}` }),
   }
@@ -141,6 +147,26 @@ test('a custom room name is kept while the stage title follows the goal', async 
   // 房间名就是基座成员名；id 才是稳定身份，不再生成 Lead/Worker 这类隐藏名。
   assert.deepEqual(engine.seatNames.sort(), ['执行', '规划', '验收'].sort())
   assert.deepEqual(Object.values(room.seatNames).sort(), ['执行', '规划', '验收'].sort())
+})
+
+test('declared seat skills are assigned to the created base member', async () => {
+  const { store } = completedRoom(temp('lodge-skill-data-'))
+  const engine = fakeEngine()
+  const result = await run(store, {
+    goal: '带一个复核技能',
+    verify: 'manual',
+    seats: [
+      { role: 'lead', name: '规划' },
+      { role: 'worker', name: '执行', skills: ['evidence-review'] },
+      { role: 'verifier', name: '验收' },
+    ],
+  }, engine)
+  assert.equal(result.ok, true)
+  assert.deepEqual(engine.skillAssignments, [{
+    botId: 'seat-执行',
+    skills: ['evidence-review'],
+  }])
+  assert.deepEqual(result.body.room.seatSpecs.find(seat => seat.name === '执行').skills, ['evidence-review'])
 })
 
 test('a room name longer than 60 characters is rejected', async () => {

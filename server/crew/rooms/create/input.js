@@ -63,7 +63,7 @@ export const normalizeRequest = body => {
     ? body.plan.stages.some(stage => typeof stage?.acceptance === 'string' && stage.acceptance.trim() !== '')
     : false
   if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
-    return { error: '交付型房间需要一条检查命令' }
+    return { error: '要交付的房间需要一条检查' }
   }
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '未知的编排策略' }
@@ -99,19 +99,19 @@ export const normalizePlan = ({ body }) => {
         .map(item => item.trim().slice(0, 200))
         .slice(0, 6)
       : []
-    if (done.length === 0) return { error: '执行方案缺少可核对的 done' }
+    if (done.length === 0) return { error: '方案里没有可核对的结果' }
     const plannedStages = []
     if (Array.isArray(body.plan.stages)) {
-      if (body.plan.stages.length > 3) return { error: '执行方案最多拆 3 个可交付阶段' }
+      if (body.plan.stages.length > 3) return { error: '方案最多拆成 3 步' }
       for (const [index, item] of body.plan.stages.entries()) {
         const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 80) : ''
         const rawKind = item?.kind === 'decision' ? 'decision' : 'deliverable'
         const stageAcceptance = typeof item?.acceptance === 'string' ? item.acceptance.trim().slice(0, 500) : ''
         const manual = rawKind === 'deliverable' && /^manual$/i.test(stageAcceptance)
         const kind = manual ? 'decision' : rawKind
-        if (title === '') return { error: `第 ${index + 1} 个阶段缺少标题` }
+        if (title === '') return { error: `第 ${index + 1} 步缺少名字` }
         if (kind === 'deliverable' && stageAcceptance === '') {
-          return { error: `第 ${index + 1} 个交付阶段缺少检查命令` }
+          return { error: `第 ${index + 1} 步缺少检查` }
         }
         plannedStages.push({
           title,
@@ -123,7 +123,7 @@ export const normalizePlan = ({ body }) => {
       }
     }
     if (Array.isArray(body.plan.answers) && body.plan.answers.length > 3) {
-      return { error: '执行方案最多 3 个问题；先把不必要的分叉合并或留到执行中再说' }
+      return { error: '方案最多 3 个问题；先把不必要的分叉合并或留到后面再说' }
     }
     const answers = Array.isArray(body.plan.answers)
       ? body.plan.answers
@@ -159,7 +159,7 @@ export const resolveSeats = (body, roomType) => {
     }
     validateRoster(roster, { requireWorker: roomType.requireWorker !== false })
   } catch (error) {
-    return { error: `席位组合不可用：${error?.message ?? error}` }
+    return { error: `成员组合不可用：${error?.message ?? error}` }
   }
   // 只读房型的工具调用必须经过审批桥，讨论阶段才能在实际工具面拒绝写入与执行。
   if (roomType.readOnly === true) roster = roster.map(seat => ({ ...seat, approval: 'ask' }))

@@ -2,7 +2,7 @@ import { Fragment, createElement as h } from 'react'
 
 import { ROLE_LABEL, modelRowsFor } from './seat-options.js'
 
-// 席位引擎/模型/性格是两种房型共用的小组件；表单本身归各自上下文。
+// 成员引擎/模型/性格是两种房型共用的小组件；表单本身归各自上下文。
 export function SeatEnginePicker({
   seats,
   choices,
@@ -10,6 +10,7 @@ export function SeatEnginePicker({
   engines = [],
   loginBusy = false,
   personalities = [],
+  allowCapabilities = false,
   onRemove = null,
   canRemove = false,
   canRemoveSeat = null,
@@ -54,7 +55,7 @@ export function SeatEnginePicker({
         h('div', { className: 'crew-seat-engine-controls' },
           h('select', {
             className: 'crew-seat-menu',
-            'aria-label': `${seat.name ?? seat.role}的引擎`,
+            'aria-label': `${seat.name ?? seat.role}的模型服务`,
             value: choice.engine,
             onChange: event => {
               const next = [...choices]
@@ -90,8 +91,36 @@ export function SeatEnginePicker({
             }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)
             : null,
           engine !== undefined && rows.length === 0
-            ? h('p', { className: 'crew-field-hint crew-seat-hint' }, '这个引擎还没有可用模型。')
+            ? h('p', { className: 'crew-field-hint crew-seat-hint' }, '这个模型服务还没有可用模型。')
             : null),
+        allowCapabilities
+          ? h('details', { className: 'crew-seat-capabilities' },
+            h('summary', null, '技能 / 外部工具'),
+            h('input', {
+              className: 'crew-goal-input',
+              value: choice.skillsText ?? '',
+              placeholder: '技能名，用逗号分隔',
+              'aria-label': `${seat.name ?? seat.role}的技能`,
+              onChange: event => {
+                const next = [...choices]
+                next[index] = { ...choice, skillsText: event.target.value }
+                setChoices(next)
+                onInteraction()
+              },
+            }),
+            h('input', {
+              className: 'crew-goal-input',
+              value: choice.mcpText ?? '',
+              placeholder: 'MCP 服务名，用逗号分隔',
+              'aria-label': `${seat.name ?? seat.role}的外部工具`,
+              onChange: event => {
+                const next = [...choices]
+                next[index] = { ...choice, mcpText: event.target.value }
+                setChoices(next)
+                onInteraction()
+              },
+            }))
+          : null,
         canRemove && typeof onRemove === 'function' && (canRemoveSeat === null || canRemoveSeat(seat, index))
           ? h('button', {
             type: 'button',

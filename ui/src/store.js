@@ -185,6 +185,8 @@ export function createStore() {
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     holdSeat: (seat, held) => post(`/api/rooms/${state.activeId}/hold`, { seat, held }),
+    cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),
+    steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
     chatAccept: () => post(`/api/rooms/${state.activeId}/chat-accept`, {}),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
@@ -200,6 +202,7 @@ export function createStore() {
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
+    answerCard: (seat, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { seat, requestId, message }),
     createSubroom: async goal => {
       const data = await post(`/api/rooms/${state.activeId}/subrooms`, { goal })
       if (data?.room === undefined) return { ok: false, error: state.error ?? '子房间没能建起来' }

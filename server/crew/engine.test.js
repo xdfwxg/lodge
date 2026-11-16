@@ -29,6 +29,11 @@ const fakeClient = () => {
       captured.hold = { groupId, botId, held }
       return { ok: true }
     },
+    steerGroupQueue: async () => ({ steered: true, messages: [{ id: 'm1' }], queueIds: ['q1'] }),
+    setBotSkills: async (botId, skills) => {
+      captured.skills = { botId, skills }
+      return { assignedSkills: skills }
+    },
   }
 }
 
@@ -61,6 +66,41 @@ test('room holds cross the engine port as a member reference', async () => {
   const engine = createEngine({ client })
   await engine.setRoomHold('group-1', 'member-1', true)
   assert.deepEqual(client.captured.hold, { groupId: 'group-1', botId: 'member-1', held: true })
+})
+
+test('seat skills cross the engine port as base skill names', async () => {
+  const client = fakeClient()
+  const engine = createEngine({ client })
+  assert.deepEqual(await engine.setBotSkills('seat-1', ['evidence-review']), {
+    ok: true,
+    assignedSkills: ['evidence-review'],
+  })
+  assert.deepEqual(client.captured.skills, { botId: 'seat-1', skills: ['evidence-review'] })
+})
+
+test('cancelling a queued room message reports whether it was still there', async () => {
+  const sent = createEngine({ client: { cancelGroupQueue: async () => ({ ok: true }) } })
+  assert.deepEqual(await sent.cancelRoomQueue('group-1', 'q1'), { cancelled: true })
+  const gone = createEngine({ client: { cancelGroupQueue: async () => { throw new Error('base 404 no such queued message') } } })
+  assert.equal((await gone.cancelRoomQueue('group-1', 'q1')).cancelled, false)
+})
+
+test('steering a queued room message keeps three outcomes distinct', async () => {
+  const steered = createEngine({ client: fakeClient() })
+  assert.deepEqual(await steered.steerRoomQueue('group-1', 'q1'), {
+    outcome: 'steered',
+    messageIds: ['m1'],
+    queueIds: ['q1'],
+  })
+
+  const queued = createEngine({ client: { steerGroupQueue: async () => ({ queued: true }) } })
+  assert.equal((await queued.steerRoomQueue('group-1', 'q1')).outcome, 'refused')
+
+  const refused = createEngine({ client: { steerGroupQueue: async () => { throw new Error('base 409 only the first queued message can steer') } } })
+  assert.equal((await refused.steerRoomQueue('group-1', 'q1')).outcome, 'refused')
+
+  const unknown = createEngine({ client: { steerGroupQueue: async () => { throw new Error('socket hang up') } } })
+  assert.equal((await unknown.steerRoomQueue('group-1', 'q1')).outcome, 'indeterminate')
 })
 
 test('exact mention ids cross the engine port with the text', async () => {
@@ -236,8 +276,11 @@ test('answerCard forwards the decision to the runtime thread', async () => {
   }
   const engine = createEngine({ client })
   assert.deepEqual(await engine.answerCard({ sessionRef: 'thread-1', requestId: 'r1', behavior: 'deny' }), { ok: true })
-  assert.deepEqual(captured, ['thread-1', 'r1', 'deny'])
-  await assert.rejects(engine.answerCard({ sessionRef: 'thread-1', requestId: 'r1', behavior: 'maybe' }), /allow\/deny/)
+  assert.deepEqual(captured, ['thread-1', 'r1', 'deny', undefined])
+  assert.deepEqual(await engine.answerCard({ sessionRef: 'thread-1', requestId: 'r1', behavior: 'answer', message: '选 A' }), { ok: true })
+  assert.deepEqual(captured, ['thread-1', 'r1', 'answer', '选 A'])
+  await assert.rejects(engine.answerCard({ sessionRef: 'thread-1', requestId: 'r1', behavior: 'answer' }), /需要一个答案/)
+  await assert.rejects(engine.answerCard({ sessionRef: 'thread-1', requestId: 'r1', behavior: 'maybe' }), /allow、deny 或 answer/)
   assert.equal(engine.capabilities().approvals, true)
 })
 

@@ -17,7 +17,7 @@ export const chatKind = {
     ...(seat.role === 'lead' ? { isHost: true } : {}),
   }),
 
-  // 聊天室席位只带讨论纪律，不继承工作室的执行 SOP。
+  // 聊天室成员只带讨论纪律，不继承工作室的执行 SOP。
   seatSoul: seat => `你是${seat.name}。当前是聊天室，只讨论话题、补充观点与质疑；不改文件、不调用工具。用中文发言，控制在 200 字以内，直接回复。\n${personalityPrompt(seat.personality)}`,
 
   validateRoster: null,
@@ -57,7 +57,7 @@ export const chatKind = {
   initialMessages: () => [],
 
   provisionExtra: async ({ engine, short }) => {
-    // 主持人是 Lodge 自己：不占发言席位，只用来开场和总结。
+    // 主持人是 Lodge 自己：不占发言位置，只用来开场和总结。
     const host = await engine.createSeatBot({
       name: `LodgeHost${short}`,
       soul: '你是 Lodge 的主持人。你只负责开场、总结和收敛讨论，不替发言者下结论；不要调用工具。',
@@ -81,7 +81,7 @@ export const chatKind = {
   needsYou: room => {
     const chat = room.chat
     if (!chat || chat.running === true || chat.accepted === true) return null
-    if (chat.phase === 'awaiting_decision') return { kind: 'decision', stage: null, label: '等你定' }
+    if (chat.phase === 'awaiting_decision') return { kind: 'decision', stage: null, label: '待确认' }
     return { kind: 'idle', stage: null, label: '可继续' }
   },
 

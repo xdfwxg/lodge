@@ -104,7 +104,7 @@ test('an unanswered approval pauses the room, and deciding it resumes the room',
     assert.deepEqual(roomNeedsYou(paused), {
       kind: 'approval',
       stage: null,
-      label: '审批超时',
+      label: '确认超时',
     })
     const approval = paused.approvals.find(item => item.state === 'pending')
     await ctx.live.decideApproval('room-1', approval.id, 'allow')
@@ -164,7 +164,7 @@ test('an external command is held for the human instead of being auto-allowed', 
       behavior: 'allow',
     }])
     assert.equal(ctx.room().approvals[0].state, 'allowed')
-    assert.match(ctx.store.readMessages('room-1').at(-1).text, /已允许/)
+    assert.match(ctx.store.readMessages('room-1').at(-1).text, /可以做/)
   } finally {
     ctx.close()
   }
@@ -206,7 +206,7 @@ test('stopping a room expires approvals that can no longer be answered', async (
     assert.equal(ctx.room().approvals[0].state, 'expired')
     const late = await ctx.live.decideApproval('room-1', ctx.room().approvals[0].id, 'allow')
     assert.equal(late.ok, false)
-    assert.match(late.reason, /没有等你点头/)
+    assert.match(late.reason, /没有待确认/)
   } finally {
     ctx.close()
   }

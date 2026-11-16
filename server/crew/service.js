@@ -91,6 +91,44 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
       return ok({ room: readRoom(roomId) ?? room })
     }
 
+    if (action === 'answer-card' && method === 'POST') {
+      if (room.live !== true) return fail('conflict', '只有正在运行的房间能回答问题')
+      if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
+      const body = await readBody()
+      const seat = typeof body.seat === 'string' ? body.seat : ''
+      const requestId = typeof body.requestId === 'string' ? body.requestId : ''
+      const message = typeof body.message === 'string' ? body.message : ''
+      const result = await live.answerCard(room.id, seat, requestId, message)
+      if (result.ok !== true) return fail('conflict', result.reason)
+      return ok({ room: result.room })
+    }
+
+    if (action === 'cancel-queue' && method === 'POST') {
+      if (room.live !== true) return fail('conflict', '只有正在运行的房间能撤回排队消息')
+      const body = await readBody()
+      const queueId = typeof body.queueId === 'string' ? body.queueId : ''
+      if (queueId === '') return fail('invalid', '缺少排队消息')
+      try {
+        const result = await live.cancelQueued(room.id, queueId)
+        return result.cancelled === true ? ok(result) : fail('conflict', result.reason)
+      } catch (error) {
+        return fail('conflict', String(error?.message ?? error))
+      }
+    }
+
+    if (action === 'steer' && method === 'POST') {
+      if (room.live !== true) return fail('conflict', '只有正在运行的房间能插话')
+      if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
+      const body = await readBody()
+      const queueId = typeof body.queueId === 'string' ? body.queueId : ''
+      if (queueId === '') return fail('invalid', '缺少排队消息')
+      try {
+        return ok(await live.steerQueued(room.id, queueId))
+      } catch (error) {
+        return fail('conflict', String(error?.message ?? error))
+      }
+    }
+
     if (action === 'hold' && method === 'POST') {
       if (room.live !== true) return fail('conflict', '只有正在运行的房间能叫停成员')
       if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')

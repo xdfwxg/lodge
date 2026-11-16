@@ -36,6 +36,9 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
           current.heldSeats = members.size === 0
             ? seatActivity.heldSeats
             : seatActivity.heldSeats.filter(seat => members.has(seat))
+          current.heldMessages = members.size === 0
+            ? seatActivity.heldMessages
+            : Object.fromEntries(Object.entries(seatActivity.heldMessages).filter(([seat]) => members.has(seat)))
           // 状态行的计时锚点：同一批成员连续工作时不清零。
           current.busySince = busySeats.length === 0
             ? null

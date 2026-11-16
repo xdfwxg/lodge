@@ -4,7 +4,7 @@ import { pauseForSeatFailure } from './sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 import { supportsRuntime } from '../../runtime-port.js'
-import { toBaseMentions, toDisplayMentions, toDisplayText } from '../../seat-labels.js'
+import { toBaseMentions, toDisplayMentions, toDisplayText, unknownMentionsOf } from '../../seat-labels.js'
 
 // 隐藏主持与当前发言人由房型的 presentation 提供；总线不认识任何具体房型。
 const hostOf = room => roomPresentationOfRoom(room)?.hostOf?.(room) ?? null
@@ -12,14 +12,18 @@ const speakerOf = room => roomPresentationOfRoom(room)?.speakerOf?.(room) ?? ''
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
 // sendId 是基座的幂等键：发送响应和最终落库 ID 不同也能对上同一条话。
-export const echoHumanMessage = ({ store, roomId, text, messageId, sendId }) => {
+export const echoHumanMessage = ({ store, roomId, text, messageId, sendId, queueId }) => {
   const echo = {
     roomId,
     ts: Date.now(),
     kind: 'chat',
     authorId: 'you',
     text,
-    meta: { echo: true, ...(typeof sendId === 'string' && sendId !== '' ? { sendId } : {}) },
+    meta: {
+      echo: true,
+      ...(typeof sendId === 'string' && sendId !== '' ? { sendId } : {}),
+      ...(typeof queueId === 'string' && queueId !== '' ? { queueId } : {}),
+    },
   }
   if (typeof sendId === 'string' && sendId !== '') {
     store.upsertMessage({ ...echo, id: `optimistic:${sendId}` })
@@ -123,17 +127,19 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         const echo = messages.find(item => item.meta?.sendId === message.sendId)
         if (echo !== undefined) {
           // 回显保留人输入的原话；基座消息里自动补的 @ 只用于唤醒，不改房间记录。
+          const { queueId: _queued, ...meta } = echo.meta ?? {}
           store.upsertMessage({
             ...echo,
             ts: message.at ?? echo.ts,
-            meta: { ...(echo.meta ?? {}), baseId: message.id },
+            meta: { ...meta, baseId: message.id },
           })
           return null
         }
       }
       const echo = matchEcho(messages, toDisplayMentions(room, message.text), message.at)
       if (echo !== undefined) {
-        store.upsertMessage({ ...echo, meta: { ...(echo.meta ?? {}), baseId: message.id } })
+        const { queueId: _queued, ...meta } = echo.meta ?? {}
+        store.upsertMessage({ ...echo, meta: { ...meta, baseId: message.id } })
         return null
       }
     }
@@ -255,9 +261,23 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (chat === undefined) throw new Error('房间聊天室还没准备好；重连房间后再试')
     // 基座原生支持 @everyone；产品文案 @所有人 只在这里映射，不自己展开成员。
     const outgoing = toBaseMentions(room, text).split('@所有人').join('@everyone')
+    const unknown = unknownMentionsOf(room, text)
+    if (unknown.length > 0) {
+      store.appendMessage(room.id, {
+        kind: 'system',
+        text: `这些 @ 没有对应成员：${unknown.map(name => `@${name}`).join('、')}；消息还是会发出，但他们收不到。`,
+      })
+    }
     const sendId = randomUUID()
     const sent = await engine.sendTurn({ roomId: chat.id, text: outgoing, sendId })
-    echoHumanMessage({ store, roomId: room.id, text: displayText, messageId: sent?.messageId, sendId })
+    echoHumanMessage({
+      store,
+      roomId: room.id,
+      text: displayText,
+      messageId: sent?.messageId,
+      sendId,
+      queueId: sent?.queueId,
+    })
     return sent
   }
 

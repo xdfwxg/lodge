@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { heldSeatsOf, presenceOf, seatQueueOf, seatActivityOf } from './seat-activity.js'
+import { heldMessageCountsOf, heldSeatsOf, presenceOf, seatQueueOf, seatActivityOf } from './seat-activity.js'
 
 const toSeat = ref => ({ 'bot-a': 'lead', 'bot-b': 'worker', 'bot-c': 'verifier' }[ref] ?? ref)
 
@@ -56,13 +56,29 @@ test('the shared projection publishes the queue, presence and holds', () => {
       { memberRef: 'bot-c', state: 'queued', position: 2, of: 2, waitingForRef: 'bot-a' },
     ],
     holds: { 'bot-b': { at: 1 } },
+    heldMessages: { 'bot-b': [{ threadId: 't1', messageId: 'm1' }, { threadId: 't1', messageId: 'm2' }] },
   }, toSeat)
   assert.deepEqual(out.turnQueue.map(item => [item.seatId, item.state]), [['lead', 'running'], ['verifier', 'queued']])
   assert.deepEqual(out.presence, [{ seatId: 'lead', state: 'working' }, { seatId: 'verifier', state: 'queued' }])
   assert.deepEqual(out.heldSeats, ['worker'])
+  assert.deepEqual(out.heldMessages, { worker: 2 })
 })
 
 test('holds map onto seats and ignore unknown members', () => {
   assert.deepEqual(heldSeatsOf({ toSeat, holds: { 'bot-a': { at: 1 }, 'bot-x': { at: 2 } } }), ['lead', 'bot-x'])
   assert.deepEqual(heldSeatsOf({ toSeat }), [])
+})
+
+test('held messages count per seat and drop empty members', () => {
+  assert.deepEqual(
+    heldMessageCountsOf({
+      toSeat,
+      heldMessages: {
+        'bot-a': [{ messageId: 'm1' }],
+        'bot-b': [],
+        'bot-x': [{ messageId: 'm2' }],
+      },
+    }),
+    { lead: 1, 'bot-x': 1 },
+  )
 })

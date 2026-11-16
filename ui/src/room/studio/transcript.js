@@ -21,6 +21,9 @@ export function StudioTranscript({
   seats,
   onAccept,
   onStageAccept,
+  onAnswerCard = null,
+  onCancelQueue = null,
+  onSteerQueue = null,
   onContinue = null,
   onReturn = null,
   hideKinds = [],
@@ -42,7 +45,7 @@ export function StudioTranscript({
       if (message.kind === 'evidence' && consumedEvidence.has(message.id)) return false
       if (message.kind === 'verdict' && message.meta?.human === true) return false
       if (isStandbyChat(message, room)) return false
-      if (room.state === 'complete' && message.kind === 'system' && /等你签字|可以签字/.test(String(message.text ?? ''))) return false
+      if (room.state === 'complete' && message.kind === 'system' && /待签字|等你签字|可以签字/.test(String(message.text ?? ''))) return false
       return true
     })
     return { timeline, chapters: buildStageChapters(visible, room) }
@@ -68,6 +71,9 @@ export function StudioTranscript({
         timeline: items.timeline,
         onAccept,
         onStageAccept,
+        onAnswerCard,
+        onCancelQueue,
+        onSteerQueue,
       })
       if (content === null) return null
       const lead = item.kind === 'chat' && !showsSeat(body, index) ? 'cont' : 'first'

@@ -147,12 +147,12 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
     }
   }
 
-  const sendToSeat = async (roomId, seat, text) => {
+  const sendToSeat = async (roomId, seat, text, options = {}) => {
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('房间还没有连上')
     const room = store.readRoom(roomId)
     // 工作室的派发和复核都走群聊 @；聊天室没有成员线程派发。
-    return entry.strategy.sendToSeat(entry, room, seat, text)
+    return entry.strategy.sendToSeat(entry, room, seat, text, options)
   }
 
   const send = async (roomId, text) => {
@@ -209,7 +209,47 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
 
   const expireApprovals = (roomId, reason) => approvals.expireApprovals(entries.get(roomId), roomId, reason)
 
+  const answerCard = (roomId, seat, requestId, message) => approvals.answerCard({
+    entry: entries.get(roomId),
+    roomId,
+    seat,
+    requestId,
+    message,
+    refresh: refreshRoom,
+  })
+
   // 叫停/继续归基座的 room holds；Lodge 只把 seat 映射成成员引用。
+  const cancelQueued = async (roomId, queueId) => {
+    const room = store.readRoom(roomId)
+    const chatId = room?.chatRoom?.id
+    if (typeof chatId !== 'string' || chatId === '') throw new Error('聊天室还没准备好')
+    const result = await engine.cancelRoomQueue(chatId, queueId)
+    if (result.cancelled === true) {
+      const echo = store.readMessages(roomId).find(message => message.meta?.queueId === queueId)
+      if (echo !== undefined) {
+        store.upsertMessage({
+          ...echo,
+          meta: { ...echo.meta, queueId: undefined, cancelled: true },
+        })
+      }
+      const entry = entries.get(roomId)
+      if (entry !== undefined) await refreshRoom(entry, { force: true })
+      emit('room', store.readRoom(roomId) ?? room)
+    }
+    return result
+  }
+
+  const steerQueued = async (roomId, queueId) => {
+    const entry = entries.get(roomId)
+    if (entry === undefined) throw new Error('房间还没有连上')
+    const room = store.readRoom(roomId)
+    const chatId = room?.chatRoom?.id
+    if (typeof chatId !== 'string' || chatId === '') throw new Error('聊天室还没准备好')
+    const result = await engine.steerRoomQueue(chatId, queueId)
+    if (result.outcome === 'steered') await refreshRoom(entry, { force: true })
+    return result
+  }
+
   const holdSeat = async (roomId, seat, held) => {
     if (!supportsRuntime(engine, 'holds')) throw new Error('当前版本还不支持叫停成员')
     const entry = entries.get(roomId)
@@ -263,7 +303,10 @@ export const createLiveRooms = ({ store, engine, emit, ports, approvalTimeoutMs 
     requestReview,
     decideApproval,
     expireApprovals,
+    answerCard,
     holdSeat,
+    cancelQueued,
+    steerQueued,
     busyReview: roomId => {
       const entry = entries.get(roomId)
       return entry === undefined ? false : entry.strategy.busyReview(entry)

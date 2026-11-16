@@ -101,6 +101,34 @@ test('holding a seat goes through the live runtime', async () => {
   assert.deepEqual(result.body.room.heldSeats, ['worker'])
 })
 
+test('cancelling a queued message goes through the live runtime', async () => {
+  const calls = []
+  const ctx = setup(roomRecord({ live: true, chatRoom: { id: 'chat-1' } }), {
+    cancelQueued: async (roomId, queueId) => {
+      calls.push({ roomId, queueId })
+      return { cancelled: true }
+    },
+  })
+  const result = await ctx.service.roomRequest('r1', 'cancel-queue', post({ queueId: 'q1' }))
+  assert.equal(result.ok, true)
+  assert.deepEqual(calls, [{ roomId: 'r1', queueId: 'q1' }])
+})
+
+test('steering a queued message returns the engine outcome', async () => {
+  const calls = []
+  const ctx = setup(roomRecord({ live: true, chatRoom: { id: 'chat-1' } }), {
+    isAttached: () => true,
+    steerQueued: async (roomId, queueId) => {
+      calls.push({ roomId, queueId })
+      return { outcome: 'steered', messageIds: ['m1'], queueIds: [queueId] }
+    },
+  })
+  const result = await ctx.service.roomRequest('r1', 'steer', post({ queueId: 'q1' }))
+  assert.equal(result.ok, true)
+  assert.deepEqual(calls, [{ roomId: 'r1', queueId: 'q1' }])
+  assert.equal(result.body.outcome, 'steered')
+})
+
 test('an active room cannot be deleted', async () => {
   const ctx = setup(roomRecord())
   const result = await ctx.service.roomRequest('r1', 'delete', post({}))

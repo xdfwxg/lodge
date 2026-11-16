@@ -55,7 +55,7 @@ test('an engine-level seat error pauses the room and marks its task failed', asy
   assert.equal(room.seatError.seat, 'worker')
   assert.equal(room.seatError.kind, 'quota')
   assert.equal(room.stages[0].tasks[0].status, 'failed')
-  assert.match(messages.at(-1).text, /额度不足/)
+  assert.match(messages.at(-1).text, /模型额度不够/)
   assert.match(messages.at(-1).text, /点“继续”/)
   assert.equal(messages.some(message => /recent-work/.test(message.text ?? '')), false)
 })

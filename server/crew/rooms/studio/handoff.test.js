@@ -45,8 +45,8 @@ const setup = (initial = room(), deliver = null) => {
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: deliver ?? (async (seat, text) => {
-      sent.push({ seat, text })
+    sendToSeat: deliver ?? (async (seat, text, options = {}) => {
+      sent.push({ seat, text, options })
       return { messageId: null }
     }),
   })
@@ -70,10 +70,32 @@ test('a handoff writes a work-turn card, wakes the seat and moves its cursor', a
   assert.equal(ctx.sent.length, 1)
   assert.equal(ctx.sent[0].seat, 'worker')
   assert.equal(ctx.sent[0].text, '阶段 1「实现」已确认。验收命令：npm test。')
+  assert.equal(ctx.sent[0].options.intent, 'handoff')
+  assert.equal(ctx.sent[0].options.from, 'lead')
+  assert.equal(ctx.sent[0].options.sendId, ctx.messages[0].meta.deliveryId)
+  assert.match(ctx.sent[0].options.sendId, /^h-[a-f0-9]{32}$/)
   assert.equal(ctx.messages[0].kind, 'handoff')
   assert.equal(ctx.messages[0].meta.workTurn.done[0], '测试通过')
   assert.equal(ctx.room().seatCursors.worker, ctx.messages[0].seq)
   assert.deepEqual(ctx.events.map(event => event.type), ['handoff.requested', 'handoff.sent'])
+})
+
+test('a retried handoff keeps one delivery id', async () => {
+  const ctx = setup()
+  const params = {
+    room: ctx.room(),
+    stage: ctx.room().stages[0],
+    index: 0,
+    from: 'lead',
+    to: 'worker',
+    reason: 'dispatch',
+    prompt: '阶段 1「实现」已确认。',
+    acceptance: 'npm test',
+  }
+  await ctx.handoff.trigger(params)
+  await ctx.handoff.trigger(params)
+  assert.equal(ctx.sent.length, 2)
+  assert.equal(ctx.sent[0].options.sendId, ctx.sent[1].options.sendId)
 })
 
 test('a transport failure marks the handoff failed without changing the stage', async () => {

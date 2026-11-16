@@ -7,6 +7,7 @@ import {
   seatDisplayName,
   seatLabelMap,
   toBaseMentions,
+  unknownMentionsOf,
   toDisplayMentions,
   toDisplayText,
 } from './seat-labels.js'
@@ -64,6 +65,12 @@ test('the label map is built from the roster only', () => {
 test('base name conversion lives in one place', () => {
   assert.equal(seatBaseName(room, 'executor'), 'Executorea924d')
   assert.equal(seatBaseName({ seatNames: {} }, 'executor'), '')
+})
+
+test('unknown @ names are reported, known names and @everyone are not', () => {
+  assert.deepEqual(unknownMentionsOf(room, '@执行者 和 @张三 看下 @所有人'), ['张三'])
+  assert.deepEqual(unknownMentionsOf(room, '@Executorea924d @规划师'), [])
+  assert.deepEqual(unknownMentionsOf(room, '没有 @'), [])
 })
 
 test('only the transport layer resolves a seat into a base address', () => {

@@ -35,11 +35,24 @@ export const heldSeatsOf = ({ holds = {}, toSeat } = {}) => {
     .filter(seatId => typeof seatId === 'string' && seatId !== '')
 }
 
+export const heldMessageCountsOf = ({ heldMessages = {}, toSeat } = {}) => {
+  const seatOf = seatsOf(toSeat)
+  const counts = {}
+  for (const [ref, items] of Object.entries(heldMessages ?? {})) {
+    const seatId = seatOf(ref)
+    if (typeof seatId !== 'string' || seatId === '') continue
+    const count = Array.isArray(items) ? items.length : 0
+    if (count > 0) counts[seatId] = count
+  }
+  return counts
+}
+
 export const seatActivityOf = (chatBase, toSeat) => {
   const turnQueue = seatQueueOf({ queue: chatBase?.queue, toSeat })
   return {
     turnQueue,
     presence: presenceOf(turnQueue),
     heldSeats: heldSeatsOf({ holds: chatBase?.holds, toSeat }),
+    heldMessages: heldMessageCountsOf({ heldMessages: chatBase?.heldMessages, toSeat }),
   }
 }

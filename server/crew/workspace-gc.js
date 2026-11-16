@@ -10,7 +10,7 @@ const rewindTtlDays = () => {
   return Number.isFinite(value) && value >= 0 ? value : 7
 }
 
-// 启动与定时 GC：完成/停止的房间清掉非交付席位工作区；孤儿工作区目录超过 TTL 才删。
+// 启动与定时 GC：完成/停止的房间清掉非交付成员工作区；孤儿工作区目录超过 TTL 才删。
 export const collectWorkspaceGarbage = ({
   store,
   workspace,

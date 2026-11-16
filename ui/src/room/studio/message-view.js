@@ -3,6 +3,7 @@ import { renderSharedMessage, resolveSeat } from '../message-view.js'
 import { Baton } from './baton.js'
 import { StudioBeat } from './beat.js'
 import { EvidenceCard, VerdictCard } from './cards.js'
+import { QuestionCard } from '../question-card.js'
 import { DecisionBrief, parseDecisionItems } from './decision-brief.js'
 import { isDispatchHandoff } from './handoff.js'
 
@@ -14,11 +15,17 @@ export const renderStudioMessage = ({
   timeline,
   onAccept,
   onStageAccept,
+  onAnswerCard = null,
+  onCancelQueue = null,
+  onSteerQueue = null,
 }) => {
   // 人工签字已有系统行；不再复制一张验收员样式的卡。
   if (message.kind === 'verdict' && message.meta?.human === true) return null
   if (isDispatchHandoff(room, message)) return h(Baton, { key: message.id, message, room, byId })
   const seat = resolveSeat(room, byId, message)
+  if (message.kind === 'question') {
+    return h(QuestionCard, { key: message.id, message, seat, onAnswer: onAnswerCard })
+  }
   if (message.kind === 'dispatch' || message.kind === 'handoff') return h(Baton, { key: message.id, message, room, byId })
   // 检查是这一步的结果，不是群里的第四个人；系统证据不显示作者名。
   if (message.kind === 'evidence') {
@@ -65,5 +72,5 @@ export const renderStudioMessage = ({
     }
     return h(StudioBeat, { key: message.id, message, seat, open: pending })
   }
-  return renderSharedMessage({ room, byId, message })
+  return renderSharedMessage({ room, byId, message, onAnswerCard, onCancelQueue, onSteerQueue })
 }

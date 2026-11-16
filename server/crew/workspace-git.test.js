@@ -150,7 +150,7 @@ test('restore rewinds the room to a stage base and keeps a backup branch', () =>
     assert.equal(typeof candidate, 'string')
 
     writeFileSync(join(worker, 'README.md'), 'dirty\n')
-    assert.throws(() => restore({ room, base }), /未提交的改动/)
+    assert.throws(() => restore({ room, base }), /没保存的改动/)
     execFileSync('git', ['checkout', '--', 'README.md'], { cwd: worker })
 
     const result = restore({ room, base })

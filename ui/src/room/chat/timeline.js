@@ -16,7 +16,15 @@ const timeLabel = ts => {
   return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
 
-function Timeline({ room, seats, onApproval, hideKinds = [] }) {
+function Timeline({
+  room,
+  seats,
+  onApproval,
+  onAnswerCard = null,
+  onCancelQueue = null,
+  onSteerQueue = null,
+  hideKinds = [],
+}) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
   const timeline = useMemo(() => buildTimeline(messages), [messages])
@@ -44,7 +52,7 @@ function Timeline({ room, seats, onApproval, hideKinds = [] }) {
           seat: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
           room,
         })
-        : renderSharedMessage({ room, byId, message })
+        : renderSharedMessage({ room, byId, message, onAnswerCard, onCancelQueue, onSteerQueue })
     if (content === null) return null
     const mark = timeMarks.get(message.id)
     return mark === undefined

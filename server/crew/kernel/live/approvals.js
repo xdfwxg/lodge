@@ -40,7 +40,7 @@ export const createLiveApprovals = ({
     entry?.approvalTimers?.clear()
   }
 
-  // 审批超时只暂停房间，不替人做决定；基座仍在等这张卡，所以处理后可以原地恢复。
+  // 确认超时只暂停房间，不替人做决定；基座仍在等这张卡，所以处理后可以原地恢复。
   const resumeRoom = (roomId, text) => {
     const updated = store.updateRoom(roomId, current => {
       if (current.state !== 'paused' || current.pauseReason !== 'approval') return null
@@ -86,7 +86,7 @@ export const createLiveApprovals = ({
     entry.heldCards.set(card.requestId, approval.id)
     store.appendMessage(entry.roomId, {
       kind: 'system',
-      text: `有个操作要你点头：${approval.seatName} · ${approval.label} · ${approval.summary}`,
+      text: `有个操作要你确认：${approval.seatName} · ${approval.label} · ${approval.summary}`,
       meta: { kind: 'approval', approvalId: approval.id },
     })
     emit('room', updated)
@@ -110,7 +110,7 @@ export const createLiveApprovals = ({
       if (paused === null) return
       store.appendMessage(entry.roomId, {
         kind: 'system',
-        text: '外部动作审批超时无人处理，房间已暂停；批准或拒绝后继续。',
+        text: '这个操作等太久了，房间已暂停；确认后继续。',
       })
       emit('room', paused)
     }, approvalTimeoutMs)
@@ -169,7 +169,7 @@ export const createLiveApprovals = ({
         requestId: card.requestId,
         behavior: allowed ? 'allow' : 'deny',
       })
-      if (result?.ok === false) throw new Error(result.error ?? '基座拒绝了权限卡答案')
+      if (result?.ok === false) throw new Error(result.error ?? '房间没接受这次确认')
       if (!allowed) {
         const blockedByReadOnly = readOnly && (card.action === 'write' || card.action === 'exec')
         store.appendMessage(entry.roomId, {
@@ -188,15 +188,40 @@ export const createLiveApprovals = ({
     }
   }
 
+  const answerCard = async ({ entry, roomId, seat, requestId, message, refresh }) => {
+    if (!supportsRuntime(engine, 'approvals')) return { ok: false, reason: '当前版本还不支持回答问题' }
+    if (entry === undefined) return { ok: false, reason: '房间还没有连上' }
+    if (typeof requestId !== 'string' || requestId === '') return { ok: false, reason: '缺少要回答的问题' }
+    const text = typeof message === 'string' ? message.trim() : ''
+    if (text === '') return { ok: false, reason: '先写下答案' }
+    if (entry.answeredCards.has(requestId)) return { ok: false, reason: '这个问题已经回答过' }
+    const room = store.readRoom(roomId)
+    const target = entry.seats.get(seat)
+    const sessionRef = target?.sessionRef ?? room?.chatRoom?.sessionRef
+    try {
+      const result = await engine.answerCard({ sessionRef, requestId, behavior: 'answer', message: text })
+      if (result?.ok === false) throw new Error(result.error ?? '基座没有接受这个回答')
+      entry.answeredCards.add(requestId)
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `已回答${seatNameOf(room, seat)}的问题。`,
+      })
+      refresh(entry, { force: true })
+      return { ok: true, room: store.readRoom(roomId) }
+    } catch (error) {
+      return { ok: false, reason: String(error?.message ?? error) }
+    }
+  }
+
   const decideApproval = async ({ entry, roomId, approvalId, decision, refresh }) => {
-    if (!supportsRuntime(engine, 'approvals')) return { ok: false, reason: '当前 runtime 不支持权限卡' }
-    if (!['allow', 'deny'].includes(decision)) return { ok: false, reason: '审批只接受 allow/deny' }
-    if (entry === undefined) return { ok: false, reason: '实时房间未绑定' }
+    if (!supportsRuntime(engine, 'approvals')) return { ok: false, reason: '当前版本还不支持操作确认' }
+    if (!['allow', 'deny'].includes(decision)) return { ok: false, reason: '这个操作只能选“可以做”或“先别做”' }
+    if (entry === undefined) return { ok: false, reason: '房间还没有连上' }
     const room = store.readRoom(roomId)
     const approval = pendingApprovals(room).find(item => item.id === approvalId)
-    if (approval === undefined) return { ok: false, reason: '没有等你点头的操作' }
+    if (approval === undefined) return { ok: false, reason: '没有待确认的操作' }
     if (entry.heldCards.get(approval.requestId) !== approvalId) {
-      return { ok: false, reason: '审批已失效，基座权限卡不在等待' }
+      return { ok: false, reason: '这个操作已经失效，房间没在等这次确认' }
     }
     const target = entry.seats.get(approval.seat)
     if (target === undefined) {
@@ -208,8 +233,8 @@ export const createLiveApprovals = ({
         text: `这个操作失效了：${approval.summary}（${approval.seatName} 已不在房间）`,
       })
       if (expired !== null) emit('room', expired)
-      resumeRoom(roomId, '审批对应的席位已移除，房间已恢复。')
-      return { ok: false, reason: `审批对应的席位 ${approval.seatName} 已不在房间` }
+      resumeRoom(roomId, '要确认的成员已经不在房间，房间已恢复。')
+      return { ok: false, reason: `要确认的成员 ${approval.seatName} 已不在房间` }
     }
     clearTimer(entry, approvalId)
     try {
@@ -218,17 +243,17 @@ export const createLiveApprovals = ({
         requestId: approval.requestId,
         behavior: decision,
       })
-      if (result?.ok === false) throw new Error(result.error ?? '基座拒绝了权限卡答案')
+      if (result?.ok === false) throw new Error(result.error ?? '房间没接受这次确认')
     } catch (error) {
       entry.heldCards.delete(approval.requestId)
       const expired = setApprovalState(roomId, approvalId, 'expired')
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `外部动作审批失效：${approval.summary}（${error?.message ?? error}）`,
+        text: `这个操作已经失效：${approval.summary}（${error?.message ?? error}）`,
       })
       if (expired !== null) emit('room', expired)
-      resumeRoom(roomId, '审批已失效，房间已恢复；可继续或重新发起。')
-      return { ok: false, reason: `基座权限卡已不在等待：${error?.message ?? error}` }
+      resumeRoom(roomId, '这个操作已经失效，房间已恢复；可以继续，或重新发起。')
+      return { ok: false, reason: `房间已经不在等这次确认：${error?.message ?? error}` }
     }
     entry.heldCards.delete(approval.requestId)
     entry.answeredCards.add(approval.requestId)
@@ -236,7 +261,7 @@ export const createLiveApprovals = ({
     const updated = setApprovalState(roomId, approvalId, state)
     store.appendMessage(roomId, {
       kind: 'system',
-      text: `外部动作已${decision === 'allow' ? '允许' : '拒绝'}：${approval.seatName} · ${approval.summary}`,
+      text: `这个操作你已选${decision === 'allow' ? '可以做' : '先别做'}：${approval.seatName} · ${approval.summary}`,
     })
     if (updated !== null) emit('room', updated)
     resumeRoom(roomId, '审批已处理，房间继续。')
@@ -254,6 +279,7 @@ export const createLiveApprovals = ({
   return {
     expireApprovals,
     answerPermission,
+    answerCard,
     decideApproval,
     resumeApprovalPauseIfSettled,
   }

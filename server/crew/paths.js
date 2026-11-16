@@ -19,7 +19,7 @@ const gitToplevel = () => {
 // CREW_REPO 是手动房间的默认仓库；实时房间用自己的 repoPath。
 const projectRoot = resolve(process.env.CREW_REPO ?? gitToplevel() ?? process.cwd())
 
-// 房间记录落点；roomRoot 不要求是 git 仓库。repoPath 是房间工作目录字段。
+// 房间记录落点；roomRoot 不要求是 git 仓库。repoPath 是房间工作文件夹字段。
 export const roomRootOf = room => {
   if (typeof room === 'string' || room === undefined || room === null) return projectRoot
   return typeof room.repoPath === 'string' && room.repoPath !== '' ? resolve(room.repoPath) : projectRoot

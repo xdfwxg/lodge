@@ -8,14 +8,25 @@ export const DEFAULT_STUDIO_SEATS = normalizeSeats([
   { role: 'verifier', name: '验收员' },
 ])
 
+const nameList = value => String(value ?? '')
+  .split(/[,，\n]/)
+  .map(item => item.trim())
+  .filter(Boolean)
+
 const seatRequests = (seats, seatChoices, selectedModelOf) => seats.map((seat, index) => {
   const choice = seatChoices[index] ?? { engine: '', model: '' }
   const model = choice.model !== '' ? choice.model : selectedModelOf(choice)
+  const skills = nameList(choice.skillsText)
+  const mcp = nameList(choice.mcpText)
   return {
     role: seat.role,
     name: seat.name,
     ...(choice.engine === '' ? {} : { engine: choice.engine }),
     ...(choice.engine === '' || model === '' ? {} : { model }),
+    ...(skills.length === 0 ? {} : { skills }),
+    ...(mcp.length === 0 ? {} : {
+      mcp: mcp.map(server => ({ server, scopes: ['read'], approval: 'ask' })),
+    }),
   }
 })
 
@@ -164,6 +175,7 @@ export function StudioSetupFields({
         setChoices,
         engines,
         loginBusy,
+        allowCapabilities: true,
         onLogin,
         onInteraction,
       })),

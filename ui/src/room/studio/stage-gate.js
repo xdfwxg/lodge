@@ -10,7 +10,7 @@ export const stageNeedsHuman = (room, activeIndex) => {
       (needs.kind === 'signoff' && ((room.verifiers?.length ?? 0) === 0 || manualStage)))
 }
 
-// 人的返工意见之后，这一阶段的旧证据和旧结论不再算数。
+// 人的重做意见之后，这一阶段的旧证据和旧结论不再算数。
 export const reworkFloorOf = (messages, stageIndex) => messages.reduce((floor, message) => (
   message.kind === 'rework' && (message.meta?.stage ?? 0) === stageIndex ? Math.max(floor, message.seq ?? 0) : floor
 ), -1)
@@ -34,9 +34,9 @@ export const gateStatus = room => {
   if (room.state === 'paused') return '已暂停'
   if (room.state === 'stopped') return '已停止'
   if (activeStage.kind === 'decision') {
-    if (room.openQuestion) return '等你回答'
+    if (room.openQuestion) return '待回答'
     if (activeStage.manual === true) {
-      if (!manualReady) return room.live === true ? '等产出' : '等你定'
+      if (!manualReady) return room.live === true ? '等结果' : '待确认'
       if ((room.verifiers?.length ?? 0) > 0) {
         const evidence = [...room.messages].reverse().find(message => (
           message.kind === 'evidence' &&
@@ -44,23 +44,23 @@ export const gateStatus = room => {
           (message.meta?.stage ?? 0) === activeIndex &&
           message.meta?.kind === 'manual'
         ))
-        if (evidence === undefined) return '等产出'
+        if (evidence === undefined) return '等结果'
         const verdicts = room.messages.filter(message => (
           message.kind === 'verdict' &&
           (message.meta?.stage ?? 0) === activeIndex &&
           (message.seq ?? 0) > (evidence.seq ?? -1) &&
           message.meta?.evidenceId === evidence.id
         ))
-        if (verdicts.some(message => message.meta?.pass !== true)) return '被打回了'
+        if (verdicts.some(message => message.meta?.pass !== true)) return '退回了'
         if (verdicts.length < (room.verifiers?.length ?? 0)) return '验收员在看'
-        return '等你签字'
+        return '待签字'
       }
-      return '等你定'
+      return '待确认'
     }
-    return '等你定'
+    return '待确认'
   }
-  if (room.demo === true) return '演示'
-  if (hasPass) return '等你签字'
+  if (room.demo === true) return '示例'
+  if (hasPass) return '待签字'
   const acceptance = typeof activeStage.acceptance === 'string' ? activeStage.acceptance.trim() : ''
   const evidence = [...room.messages].reverse().find(message => (
     message.kind === 'evidence' &&
@@ -74,5 +74,5 @@ export const gateStatus = room => {
   const verdict = [...room.messages].reverse().find(message => (
     message.kind === 'verdict' && message.meta?.stage === room.stages.indexOf(activeStage) && message.meta?.evidenceId === evidence.id
   ))
-  return verdict !== undefined && verdict.meta?.pass !== true ? '被打回了' : '验收员在看'
+  return verdict !== undefined && verdict.meta?.pass !== true ? '退回了' : '验收员在看'
 }

@@ -24,7 +24,7 @@ const studioTable = {
     submit_evidence: {
       to: 'verifying',
       guard: context => context.manual === true || context.exitCode === 0,
-      reason: '验收命令未通过，不能进入复核',
+      reason: '检查没有通过，不能进入复核',
     },
   },
   verifying: {

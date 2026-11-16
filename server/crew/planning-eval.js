@@ -46,10 +46,10 @@ export const evaluateProposal = (result, testCase = {}) => {
   check('workers', workers.length >= 1, `${workers.length} 个执行`)
   check('seat-limits', leads.length <= 1, `队长 ${leads.length}，验收 ${verifiers.length}`)
   check('seat-count', seats.length >= 1 && seats.length <= 8, `${seats.length} 席`)
-  check('seat-role-name', !seats.some(seat => seat?.role !== 'verifier' && VERIFIER_NAME.test(asText(seat?.name))), '非验收席位不要命名为验收/复核')
+  check('seat-role-name', !seats.some(seat => seat?.role !== 'verifier' && VERIFIER_NAME.test(asText(seat?.name))), '非验收成员不要命名为验收/复核')
   const why = asText(proposal.why)
   if (WANTS_VERIFIER.test(why) && !NO_VERIFIER.test(why) && verifiers.length === 0) {
-    check('why-verifier', false, 'why 提到加验收，但席位里没有 verifier')
+    check('why-verifier', false, 'why 提到加验收，但成员里没有 verifier')
   }
   if (typeof proposal.note === 'string' && /超过 [36] 个|超过 6 条/.test(proposal.note)) {
     check('parser-trim', false, proposal.note)
@@ -63,7 +63,7 @@ export const evaluateProposal = (result, testCase = {}) => {
     check('case-require-test', proposal.verify === 'test' && asText(proposal.acceptance) !== '', '需要可执行验收命令')
   }
   if (verifiers.length > 0) {
-    check('verifier-acceptance', proposal.verify === 'test' && asText(proposal.acceptance) !== '', '有验收席位就需要命令')
+    check('verifier-acceptance', proposal.verify === 'test' && asText(proposal.acceptance) !== '', '有验收成员就需要命令')
   }
   if (testCase.acceptancePattern !== undefined) {
     let matched = true
@@ -78,7 +78,7 @@ export const evaluateProposal = (result, testCase = {}) => {
   const questions = Array.isArray(proposal.questions) ? proposal.questions : []
   check('question-count', questions.length <= 3, `${questions.length} 个`)
   check('question-answers', questions.every(item => asText(item?.text) !== '' && asText(item?.recommendation) !== ''), '每个问题带推荐答案')
-  check('question-no-mechanism', questions.every(item => !MECHANISM.test(asText(item?.text))), '不要问模型/人数/席位/并行机制')
+  check('question-no-mechanism', questions.every(item => !MECHANISM.test(asText(item?.text))), '不要问模型/人数/成员/并行机制')
   if (Number.isFinite(testCase.maxQuestions)) {
     check('case-max-questions', questions.length <= testCase.maxQuestions, `最多 ${testCase.maxQuestions} 个`)
   }

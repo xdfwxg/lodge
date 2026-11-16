@@ -2,8 +2,9 @@ import { createBaseClient } from './base.js'
 import { RUNTIME_EVENT } from './crew/runtime-port.js'
 
 // Engine 适配器：把具体基座翻译成 crew 的 runtime 端口与规范化事件。
-// 端口方法与事件形状只在 crew/runtime-port.js 声明；换 runtime 时实现那份契约，
-// 并跑 crew/runtime-port.test.js 的同一组契约测试。
+// 这是 Lodge 与基座之间唯一的 HTTP/词汇边界。基座冻结：不改基座本体；
+// 新能力先加到 crew/runtime-port.js，再由这里适配。以后换自己的 runtime，
+// 实现同一份端口并跑同一组契约测试即可。
 const normalizeRoom = (group, responderName) => ({
   id: group.id,
   name: group.name,
@@ -149,13 +150,54 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
 
   const sendTurn = async ({ roomId, text, sendId, mentions = [] }) => {
     const body = await client.sendGroupMessage(roomId, text, { sendId, mentions })
-    return { accepted: true, messageId: body?.message?.id ?? null, sendId: body?.message?.sendId ?? sendId ?? null }
+    return {
+      accepted: true,
+      messageId: body?.message?.id ?? null,
+      sendId: body?.message?.sendId ?? sendId ?? null,
+      queued: body?.queued === true,
+      queueId: typeof body?.queueId === 'string' ? body.queueId : null,
+      threadId: typeof body?.threadId === 'string' ? body.threadId : null,
+    }
   }
 
-  const answerCard = async ({ sessionRef, requestId, behavior }) => {
-    if (typeof sessionRef !== 'string' || typeof requestId !== 'string') throw new Error('权限卡缺少线程或请求 id')
-    if (!['allow', 'deny'].includes(behavior)) throw new Error('权限卡只接受 allow/deny')
-    return client.respondToCard(sessionRef, requestId, behavior)
+  const cancelRoomQueue = async (roomId, queueId) => {
+    try {
+      await client.cancelGroupQueue(roomId, queueId)
+      return { cancelled: true }
+    } catch (error) {
+      const text = String(error?.message ?? error)
+      return /base 404/.test(text) ? { cancelled: false, reason: '这条排队消息已经不在队列里' } : { cancelled: false, reason: text }
+    }
+  }
+
+  // 插话三态：steered 已进入运行中的回合；refused 确定没进；indeterminate 可能已进，不能重发。
+  const steerRoomQueue = async (roomId, queueId) => {
+    try {
+      const body = await client.steerGroupQueue(roomId, queueId)
+      if (body?.steered === true) {
+        return {
+          outcome: 'steered',
+          messageIds: Array.isArray(body.messages) ? body.messages.map(message => message.id).filter(Boolean) : [],
+          queueIds: Array.isArray(body.queueIds) ? body.queueIds : [],
+        }
+      }
+      if (body?.queued === true) return { outcome: 'refused', reason: '引擎不能插话，消息留在队列' }
+      return { outcome: 'indeterminate', reason: '基座没有给出明确结果' }
+    } catch (error) {
+      const text = String(error?.message ?? error)
+      return /base (404|409)/.test(text)
+        ? { outcome: 'refused', reason: text }
+        : { outcome: 'indeterminate', reason: text }
+    }
+  }
+
+  const answerCard = async ({ sessionRef, requestId, behavior, message }) => {
+    if (typeof sessionRef !== 'string' || typeof requestId !== 'string') throw new Error('卡片缺少线程或请求 id')
+    if (!['allow', 'deny', 'answer'].includes(behavior)) throw new Error('卡片只接受 allow、deny 或 answer')
+    if (behavior === 'answer' && (typeof message !== 'string' || message.trim() === '')) {
+      throw new Error('回答卡片需要一个答案')
+    }
+    return client.respondToCard(sessionRef, requestId, behavior, message)
   }
 
   // Stop 走基座的 interrupt；没有正在跑的回合就如实报告。
@@ -329,6 +371,11 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
+  const setBotSkills = async (botId, skills) => {
+    const body = await client.setBotSkills(botId, skills)
+    return { ok: true, assignedSkills: Array.isArray(body?.assignedSkills) ? body.assignedSkills : skills }
+  }
+
   const updateRoomMembers = async (roomId, members) => {
     await client.patchGroup(roomId, { memberIds: members })
     return { ok: true }
@@ -428,11 +475,14 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     history,
     instances,
     sendTurn,
+    steerRoomQueue,
+    cancelRoomQueue,
     answerCard,
     cancelTurn,
     capabilities,
     health,
     createSeatBot,
+    setBotSkills,
     createRoom,
     updateRoomMembers,
     setRoomMentions,

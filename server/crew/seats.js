@@ -15,6 +15,7 @@ const deliveryTriad = [
     permissions: { read: true, exec: false, write: false },
     writeScope: 'none',
     toolSurface: ['read'],
+    skills: [],
     mcp: [],
     approval: 'ask',
     speakBudget: 6,
@@ -30,6 +31,7 @@ const deliveryTriad = [
     permissions: { read: true, exec: true, write: true },
     writeScope: 'own_worktree',
     toolSurface: ['read', 'exec', 'write'],
+    skills: [],
     mcp: [],
     approval: 'auto',
     speakBudget: 8,
@@ -45,6 +47,7 @@ const deliveryTriad = [
     permissions: { read: true, exec: true, write: false },
     writeScope: 'none',
     toolSurface: ['read', 'exec'],
+    skills: [],
     mcp: [],
     approval: 'ask',
     speakBudget: 4,
@@ -73,6 +76,7 @@ const cloneSeat = seat => ({
   ...seat,
   permissions: { ...seat.permissions },
   toolSurface: [...seat.toolSurface],
+  skills: [...seat.skills],
   mcp: seat.mcp.map(grant => ({ ...grant, scopes: [...grant.scopes] })),
 })
 
@@ -103,6 +107,7 @@ export const rosterFromRoles = entries => {
       ? entry.model.trim().slice(0, 160)
       : base.model
     const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
+    const skills = Array.isArray(entry.skills) ? entry.skills.filter(isId).slice(0, 8) : base.skills
     const personality = personalityById(entry.personality) === null ? '' : entry.personality
     return cloneSeat({
       ...base,
@@ -113,6 +118,7 @@ export const rosterFromRoles = entries => {
       engineExplicit,
       model,
       station,
+      skills,
       prompt: customPrompt ? entry.prompt.trim().slice(0, 4_000) : base.prompt,
       customPrompt,
     })
@@ -150,6 +156,9 @@ const validateCapabilities = seat => {
   }
   if (seat.model !== undefined && (typeof seat.model !== 'string' || seat.model.trim() === '' || seat.model.length > 160)) {
     throw new Error(`seat contract: ${seat.id} model must be a model id`)
+  }
+  if (!Array.isArray(seat.skills) || seat.skills.some(id => !isId(id))) {
+    throw new Error(`seat contract: ${seat.id} skills must be base skill names`)
   }
   if (!Array.isArray(seat.mcp)) throw new Error(`seat contract: ${seat.id} mcp must be an array`)
   for (const grant of seat.mcp) {

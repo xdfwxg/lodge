@@ -127,12 +127,17 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     }
     const name = seatDisplayName(room, target)
     const mention = `@${name}`
+    const decisionSendId = `d-${createHash('sha256').update(`${verdictId}:${target}`).digest('hex').slice(0, 32)}`
     void sendToSeat(target, [
       `${mention} 验收员退回了第 ${stageIndex + 1} 步「${stage?.title ?? ''}」。`,
       `规划师的返工要求：${decision.note}`,
       '只重做这一步；完成后不要 @ 人，系统会交给验收员。',
       INTERNAL_PROMPT_MARKER,
-    ].join('\n')).catch(error => {
+    ].join('\n'), {
+      intent: 'handoff',
+      from: room.leadSeat,
+      sendId: decisionSendId,
+    }).catch(error => {
       store.appendMessage(roomId, { kind: 'system', text: `没能把返工交给${name}：${error?.message ?? error}` })
     })
     return true

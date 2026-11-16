@@ -1,6 +1,6 @@
 import { PERSONALITY_IDS, PERSONALITIES } from '../../../shared/personalities.js'
 
-// 席位名字、默认值和模型选项在聊天和工作室内共用；只做纯数据整形，不碰 React。
+// 成员名字、默认值和模型选项在聊天和工作室内共用；只做纯数据整形，不碰 React。
 export const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员', participant: '成员' }
 
 export const normalizeSeats = seats => (Array.isArray(seats) ? seats : []).map(seat => ({

@@ -3,7 +3,7 @@ export const isDispatchHandoff = (room, message) => {
   if (message?.kind !== 'chat' || message.authorId !== room.leadSeat) return false
   const text = String(message.text ?? '')
   return /^@[^\s，,。]+/.test(text.trim()) &&
-    text.includes('工作目录') &&
+    (text.includes('工作文件夹') || text.includes('工作目录')) &&
     (text.includes('验收命令') || text.includes('完成标准'))
 }
 

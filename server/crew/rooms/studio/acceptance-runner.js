@@ -11,13 +11,13 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     if (typeof room.repoPath !== 'string' || room.repoPath === '') {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `阶段 ${stageIndex + 1} 需要检查，但房间还没有工作文件夹，检查没有执行`,
+        text: `第 ${stageIndex + 1} 步需要检查，但房间还没有工作文件夹，检查没有执行`,
       })
       return
     }
     const capabilities = workspaceOf(room).capabilities()
     if (capabilities.acceptanceCopy !== true) {
-      store.appendMessage(roomId, { kind: 'system', text: '当前工作区不支持一次性验收副本，验收未执行' })
+      store.appendMessage(roomId, { kind: 'system', text: '这个文件夹不能准备单独的检查副本，检查没有执行' })
       return
     }
     // diff 必须在候选提交前采集：提交后工作树变干净，provider 会看不到交付改动。
@@ -47,7 +47,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       ))
       const covered = prior?.meta?.head ?? prior?.meta?.candidate ?? null
       const currentHead = typeof head === 'string' && head !== '' ? head : null
-      // 工作树干净不等于没有交付：执行者可能自己 commit，或返工 amend 了候选提交。
+      // 工作树干净不等于没有交付：执行者可能自己 commit，或重做 amend 了候选提交。
       const coveredByPrior = prior !== undefined && (covered === null || currentHead === null || covered === currentHead)
       if (coveredByPrior || (prior === undefined && floor < 0 && !advanced)) {
         const note = prior !== undefined
@@ -65,7 +65,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
         : null
       if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `没法准备检查副本，验收未执行：${error?.message ?? error}` })
+      store.appendMessage(roomId, { kind: 'system', text: `没能准备检查用的副本，检查没有执行：${error?.message ?? error}` })
       return
     }
     // 本轮实际被验收的提交：有候选就是候选，否则是执行者自己 commit 的房间 HEAD。
@@ -75,7 +75,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       // 不能用源仓库的 HEAD；执行者自己 commit 时房间 HEAD 才是交付。
       copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: acceptedRef ?? 'HEAD' })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `验收隔离副本创建失败，验收未执行：${error?.message ?? error}` })
+      store.appendMessage(roomId, { kind: 'system', text: `单独的检查副本没能准备好，检查没有执行：${error?.message ?? error}` })
       return
     }
     const port = room.ports?.[room.workers?.[0]]
@@ -132,7 +132,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       kind: 'system',
       text: result.exit === 0
         ? '检查通过 · 等验收员看'
-        : '检查没通过 · 返工后才能复核',
+        : '检查没通过 · 重做后才能复核',
     })
     if (result.exit !== 0) {
       updateTasks(stageIndex, current => markStageTasks(current, 'working'))

@@ -4,7 +4,7 @@ export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourc
   if (provider === null) {
     if (explicitWorkspace !== '') {
       provider = workspacePort.byId(explicitWorkspace)
-      if (provider === undefined) return { error: '未知的工作区类型' }
+      if (provider === undefined) return { error: '这个工作文件夹类型还不支持' }
     } else if (requestedRepo === '') {
       provider = workspacePort.default
     } else {
@@ -13,7 +13,7 @@ export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourc
       provider = gitProbe.ok ? workspacePort.default : directProbe.ok ? workspacePort.byId('direct') : workspacePort.default
     }
   }
-  if (provider === undefined) return { error: '未知的工作区类型' }
+  if (provider === undefined) return { error: '这个工作文件夹类型还不支持' }
   if (requestedRepo !== '' && provider.id === 'plain') {
     const probe = provider.probeSource({ source: sourceRepo })
     if (!probe.ok) return { error: probe.error }
@@ -27,7 +27,7 @@ export const prepareWorkspace = ({ provider, sourceRepo, short, roster, workspac
     workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: roster })
   } catch (error) {
     // git / 磁盘 / 权限问题不是用户的业务拒绝；交给组合根显式 500。
-    throw new Error(`工作区不可用：${error?.message ?? error}`)
+    throw new Error(`工作文件夹不可用：${error?.message ?? error}`)
   }
   const roomId = `room-${short}`
   for (const seat of roster) {

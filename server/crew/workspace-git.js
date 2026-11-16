@@ -83,7 +83,7 @@ export const probeSource = ({ source }) => {
     execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: source, stdio: 'ignore' })
     return { ok: true }
   } catch {
-    return { ok: false, error: '工作目录不是 git 仓库；先 git init，或留空让队长在临时仓库里判断' }
+    return { ok: false, error: '工作文件夹不是 git 仓库；先 git init，或留空让队长在临时仓库里判断' }
   }
 }
 
@@ -130,7 +130,7 @@ const portOffset = short => {
   return (hash % 40) * 10
 }
 
-// 每个席位一个工作区：worker 一个分支 worktree，verifier 一个 detached worktree，其余只读克隆。
+// 每个成员一个工作区：worker 一个分支 worktree，verifier 一个 detached worktree，其余只读克隆。
 export const prepareRoom = ({ source, short, seats }) => {
   ensureRepo(source)
   ensureDiskSpace(scratchRoot())
@@ -174,7 +174,7 @@ export const prepareRoom = ({ source, short, seats }) => {
     bySeat[seat.id] = { path, kind: 'clone' }
   }
   const workers = seats.filter(seat => seat.role === 'worker')
-  // 多执行席位时，房间的交付目录是集成 worktree；各执行分支合并到这里，源仓库主分支不动。
+  // 多执行成员时，房间的交付目录是集成 worktree；各执行分支合并到这里，源仓库主分支不动。
   let integration = null
   if (workers.length > 1) {
     const path = join(base, 'integration')
@@ -204,14 +204,14 @@ const nextSeatPort = room => {
   return chooseFreePort(start).port
 }
 
-// 建后加席位：沿用 prepareRoom 的隔离规则，只创建新增席位的工作区。
+// 建后加成员：沿用 prepareRoom 的隔离规则，只创建新增成员的工作区。
 export const addSeat = ({ room, seat }) => {
   const source = room?.sourceRepo
-  if (typeof source !== 'string' || source === '') throw new Error('房间没有源仓库，不能新增席位')
+  if (typeof source !== 'string' || source === '') throw new Error('房间没有源仓库，不能新增成员')
   const short = roomShort(room)
   const base = join(scratchRoot(), short)
   const path = join(base, seat.id)
-  if (existsSync(path)) throw new Error(`席位工作区已存在：${seat.id}`)
+  if (existsSync(path)) throw new Error(`成员的工作文件夹已经有了：${seat.id}`)
   mkdirSync(base, { recursive: true })
   enableWorktreeConfig(source)
   let branch = null
@@ -275,20 +275,20 @@ export const pruneRewindBranches = ({ path, ttlMs = 7 * 24 * 60 * 60 * 1000, now
   return removed
 }
 
-// 回到某个阶段起点：先给当前 HEAD 和执行席位留备份分支，再重置；
-// 有未提交的已跟踪改动就拒绝，避免把人的工作当临时产物丢掉。
+// 回到某个阶段起点：先给当前 HEAD 和执行成员留备份分支，再重置；
+// 有未提交的已跟踪改动就拒绝，避免把人的工作当临时结果丢掉。
 export const restore = ({ room, base }) => {
   const repoPath = room?.repoPath
-  if (typeof repoPath !== 'string' || repoPath === '') throw new Error('房间没有仓库路径')
+  if (typeof repoPath !== 'string' || repoPath === '') throw new Error('房间没有工作文件夹')
   const workers = Array.isArray(room?.workers) ? room.workers : []
   const seatPaths = Object.entries(room?.worktrees ?? {})
     .filter(([seat, path]) => workers.includes(seat) && typeof path === 'string' && existsSync(path))
   const targets = [{ name: 'room', path: repoPath }, ...seatPaths.map(([seat, path]) => ({ name: seat, path }))]
     .filter((item, index, list) => list.findIndex(other => other.path === item.path) === index)
   const dirty = targets.find(item => git(item.path, ['status', '--porcelain', '--untracked-files=no']).trim() !== '')
-  if (dirty !== undefined) throw new Error(`还有未提交的改动：${dirty.path}；先等系统合并或清理再回退`)
+  if (dirty !== undefined) throw new Error(`还有没保存的改动：${dirty.path}；先等系统合并或清理，再回到这一步`)
   if (git(repoPath, ['cat-file', '-t', base]).trim() !== 'commit') {
-    throw new Error('阶段起点不是一个提交，不能回退')
+    throw new Error('这一步的起点没有版本记录，不能回到这里')
   }
   const stamp = Date.now()
   const short = roomShort(room)
@@ -374,7 +374,7 @@ export const submit = ({ path, turnId, name }) => {
   return git(path, ['rev-parse', 'HEAD']).trim()
 }
 
-// 完成/停止后清掉非交付席位工作区；保留房间交付仓库与候选分支，人仍可重建 worktree 查看。
+// 完成/停止后清掉非交付成员工作区；保留房间交付仓库与候选分支，人仍可重建 worktree 查看。
 export const pruneSeats = room => {
   const keep = typeof room.repoPath === 'string' && room.repoPath !== '' ? resolve(room.repoPath) : null
   const pruned = new Set(room.prunedSeats ?? [])
@@ -443,7 +443,7 @@ export const rangeChanges = async ({ path, base }) => {
   return { diff: clip(diff), files }
 }
 
-// 人工产物凭证没有验收命令，仍需要阶段起点到当前 HEAD 的文件清单。
+// 人工结果凭证没有验收命令，仍需要阶段起点到当前 HEAD 的文件清单。
 export const changedFilesSince = ({ path, base }) => {
   if (typeof base !== 'string' || base === '') return []
   try {
@@ -462,7 +462,7 @@ export const changes = async ({ path }) => {
   if (status === '') return { diff: '', status: '', note: '', files: [] }
 
   const inside = (await gitAsync(['rev-parse', '--is-inside-work-tree'], path)).trim()
-  if (inside !== 'true') return { diff: '', status, note: '工作目录不是 git 仓库，无法生成 diff', files: [] }
+  if (inside !== 'true') return { diff: '', status, note: '工作文件夹不是 git 仓库，无法生成 diff', files: [] }
 
   let diff = await gitAsync(['diff', 'HEAD', '--no-color', '--relative', '--', ...scope], path)
   const tracked = (await gitAsync(['diff', 'HEAD', '--name-only', '--relative', '--', ...scope], path))

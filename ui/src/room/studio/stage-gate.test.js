@@ -46,9 +46,9 @@ test('manual gate status follows the Verifier verdict', () => {
   assert.equal(gateStatus({
     ...base,
     messages: [...base.messages, { id: 'v1', kind: 'verdict', seq: 2, meta: { stage: 0, pass: true, evidenceId: 'e1' } }],
-  }), '等你签字')
+  }), '待签字')
   assert.equal(gateStatus({
     ...base,
     messages: [...base.messages, { id: 'v1', kind: 'verdict', seq: 2, meta: { stage: 0, pass: false, evidenceId: 'e1' } }],
-  }), '被打回了')
+  }), '退回了')
 })

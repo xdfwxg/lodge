@@ -205,7 +205,11 @@ export const presenceLines = (room, seats = []) => {
   const presence = Array.isArray(room?.presence) ? room.presence : []
   const queue = Array.isArray(room?.turnQueue) ? room.turnQueue : []
   const heldSeats = new Set(Array.isArray(room?.heldSeats) ? room.heldSeats : [])
-  const held = [...heldSeats].map(seatId => ({ seatId, name: nameOf(seatId) }))
+  const held = [...heldSeats].map(seatId => ({
+    seatId,
+    name: nameOf(seatId),
+    count: room?.heldMessages?.[seatId] ?? 0,
+  }))
   const working = presence
     .filter(item => item.state === 'working' && !heldSeats.has(item.seatId))
     .map(item => ({ seatId: item.seatId, name: nameOf(item.seatId), since: room?.busySince ?? null }))

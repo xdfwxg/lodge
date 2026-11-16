@@ -7,7 +7,7 @@ import {
   verdictTextOf,
 } from './subroom-model.js'
 
-// 子部门是房间记录里的父子关系：父房只读子房状态和复核结论，不碰子房内部流转。
+// 子房间是房间记录里的父子关系：父房只读子房状态和复核结论，不碰子房内部流转。
 export function SubroomTree({ room, rooms, onSelect, onCreate }) {
   const [goal, setGoal] = useState('')
   const [busy, setBusy] = useState(false)
@@ -34,21 +34,21 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
       setCreating(false)
       setExpanded(true)
     } else {
-      setError(result?.error ?? '创建子部门失败')
+      setError(result?.error ?? '子房间没能建起来')
     }
   }
 
   const createRow = canCreate
     ? creating
       ? h('div', { className: 'crew-subroom-create' },
-        h('label', { className: 'crew-subroom-label', htmlFor: inputId }, '新建子部门'),
+        h('label', { className: 'crew-subroom-label', htmlFor: inputId }, '新建子房间'),
         h('div', { className: 'crew-subroom-create-row' },
           h('input', {
             id: inputId,
             type: 'text',
             className: 'crew-subroom-input',
             value: goal,
-            placeholder: '描述子部门要完成什么',
+            placeholder: '描述子房间要完成什么',
             disabled: busy,
             onChange: event => setGoal(event.target.value),
             onKeyDown: event => {
@@ -67,11 +67,11 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
         type: 'button',
         className: 'crew-subrooms-add',
         onClick: () => setCreating(true),
-      }, '＋ 新建子部门')
+      }, '＋ 新建子房间')
     : h('span', { className: 'crew-subrooms-empty' },
-      (room.depth ?? 0) >= MAX_SUBROOM_DEPTH ? '已经达到 3 层上限' : '房间完成后不能再新建子部门')
+      (room.depth ?? 0) >= MAX_SUBROOM_DEPTH ? '最多只能再分 3 层' : '房间完成后不能再新建子房间')
 
-  // 没有子部门也没有新建入口时，不要留一张空卡占着首屏。
+  // 没有子房间也没有新建入口时，不要留一张空卡占着首屏。
   if (rows.length === 0 && !canCreate) return null
   if (rows.length === 0) {
     return h('div', { className: 'crew-subrooms-compact' },
@@ -85,7 +85,7 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
     onToggle: event => setExpanded(event.currentTarget.open),
   },
     h('summary', { className: 'crew-card-head crew-subrooms-head' },
-      h('span', { className: 'crew-subrooms-title' }, '子部门'),
+      h('span', { className: 'crew-subrooms-title' }, '子房间'),
       h('span', { className: 'crew-subrooms-count' }, `${rows.length} 个`)),
     h('div', { className: 'crew-card-body' },
       h('div', { className: 'crew-subrooms-list' },
@@ -100,7 +100,7 @@ export function SubroomTree({ room, rooms, onSelect, onCreate }) {
             style: { paddingLeft: `${12 + row.depth * 18}px` },
             title: row.room.name,
             onClick: () => onSelect(row.room.id),
-            'aria-label': `打开子部门 ${row.room.name}，${status}，${verdict}`,
+            'aria-label': `打开子房间 ${row.room.name}，${status}，${verdict}`,
           },
           h('span', { className: 'crew-subroom-body' },
             h('span', { className: 'crew-subroom-name' }, row.room.name),

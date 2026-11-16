@@ -13,7 +13,7 @@ export const returnToChatSeed = room => {
   const receipt = normalizeReceipt({
     result: delivery.name,
     completeness: stages.length > 0
-      ? `${done}/${stages.length} 阶段完成${changed > 0 ? `，${changed} 个文件` : ''}`
+      ? `${done}/${stages.length} 步完成${changed > 0 ? `，${changed} 个文件` : ''}`
       : changed > 0 ? `${changed} 个文件` : '已交付',
     checks: commands.length > 0
       ? [`${passed}/${commands.length} 项检查通过${simulated ? '（含模拟）' : ''}`]

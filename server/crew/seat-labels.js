@@ -55,6 +55,28 @@ export const toBaseMentions = (room, text) => {
   return output
 }
 
+const MENTION_TOKEN = /@([\p{L}\p{N}._-]+)/gu
+
+// 人写的 @ 如果找不到成员，基座不会替我们猜；这里只负责把没送到的名字告诉人。
+export const unknownMentionsOf = (room, text) => {
+  const known = new Set(['所有人', 'everyone'])
+  for (const seat of room?.seatSpecs ?? []) {
+    if (typeof seat.name === 'string' && seat.name !== '') known.add(seat.name)
+  }
+  for (const name of Object.values(room?.seatNames ?? {})) {
+    if (typeof name === 'string' && name !== '') known.add(name)
+  }
+  if (typeof room?.chatHost?.name === 'string') known.add(room.chatHost.name)
+  if (typeof room?.chatHost?.displayName === 'string') known.add(room.chatHost.displayName)
+  const unknown = []
+  for (const match of String(text ?? '').matchAll(MENTION_TOKEN)) {
+    const name = match[1]
+    if (known.has(name) || unknown.includes(name)) continue
+    unknown.push(name)
+  }
+  return unknown
+}
+
 export const toDisplayMentions = (room, text) => {
   let output = text
   for (const seat of room?.seatSpecs ?? []) {

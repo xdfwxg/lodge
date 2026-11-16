@@ -125,7 +125,11 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
           '不要在回复里 @ 任何人；系统会按第一行转交。',
           '不要自己改文件，也不要自己验收。',
           INTERNAL_PROMPT_MARKER,
-        ].join('\n')).catch(error => {
+        ].join('\n'), {
+          intent: 'decision',
+          from: '验收流程',
+          sendId: `r-${String(pending.evidenceId ?? pending.verifier).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`,
+        }).catch(error => {
           store.appendMessage(roomId, { kind: 'system', text: `没能叫醒规划师：${error?.message ?? error}` })
         })
       }

@@ -8,7 +8,7 @@ export const createServiceClosure = ({ store, emit }) => {
     if (roomModeOfRoom(room)?.supportsDelivery !== true) return fail('invalid', '只有工作室有 closure')
     if (room.state !== 'active') return fail('conflict', '房间已经停了')
     if (room.closure !== 'planned') {
-      return fail('conflict', room.closure === 'rejected' ? '目标已经被拒绝' : '只有 planned 阶段可以由 Planner 拒绝目标')
+      return fail('conflict', room.closure === 'rejected' ? '目标已经被拒绝' : '只有计划中的步骤可以由规划师拒绝目标')
     }
     const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 2000) : ''
     if (reason === '') return fail('invalid', '拒绝目标需要理由')

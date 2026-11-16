@@ -65,7 +65,7 @@ export const prepareRoom = ({ source, short, seats }) => {
 }
 
 export const addSeat = ({ room, seat }) => {
-  if (seat.role === 'worker') throw new Error('普通目录原地修改只能有一个执行席位')
+  if (seat.role === 'worker') throw new Error('普通目录原地修改只能有一个执行成员')
   const source = room?.sourceRepo
   const used = Math.max(0, ...Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value)))
   return {

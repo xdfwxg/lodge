@@ -23,7 +23,7 @@ export const verdictFor = (room, index) => [...room.messages].reverse().find(mes
   message.kind === 'verdict' && (message.meta?.stage ?? 0) === index
 ))
 
-// 多验收席位只看当前验收命令证据上的结论；旧轮 PASS 不能覆盖新一轮。
+// 多验收成员只看当前验收命令证据上的结论；旧轮 PASS 不能覆盖新一轮。
 export const verdictsFor = (room, index) => {
   const stage = room.stages?.[index]
   const evidence = [...room.messages].reverse().find(message => (
@@ -56,7 +56,7 @@ export const rejectsFor = (room, index) => room.messages.filter(message => (
 ))
 
 export const islandStatus = room => {
-  if (room.state === 'complete') return { label: '目标达成', tone: 'done' }
+  if (room.state === 'complete') return { label: '已交付', tone: 'done' }
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
   if (room.state === 'paused') {
     if (room.needsYou?.kind === 'idle') return { label: '已暂停 · 可以接着聊', tone: 'paused' }
@@ -68,7 +68,7 @@ export const islandStatus = room => {
     const busy = Array.isArray(room.busySeats) ? room.busySeats : room.busySeat ? [room.busySeat] : []
     if (busy.length > 1) return { label: `${busy.length} 个执行在做`, tone: 'active' }
     const seat = room.seatSpecs?.find(item => item.id === busy[0])?.name
-    return { label: `${seat ?? '席位'}在做`, tone: 'active' }
+    return { label: `${seat ?? '成员'}在做`, tone: 'active' }
   }
   if (room.needsYou) {
     return { label: room.needsYou.label, tone: NEEDS_TONE[room.needsYou.kind] ?? 'waiting' }
@@ -85,7 +85,7 @@ export const seatTask = (seat, stage) => {
     return stage.kind === 'decision' ? '讲清「怎样算做完」，由你确认' : '拆出这一步要改什么、怎么算过'
   }
   if (seat.role === 'worker') {
-    return stage.acceptance ? '按约定交付，并跑一次检查' : '交付这一步的产物'
+    return stage.acceptance ? '按约定交付，并跑一次检查' : '交付这一步的结果'
   }
   if (seat.role === 'verifier') return '独立检查，给出通过或退回'
   return '只读观察'
@@ -152,7 +152,7 @@ export const buildGoalView = (room, seats) => {
       verdict = received.length === 0
         ? null
         : rejecting.length > 0
-          ? { pass: false, text: `已打回：${rejecting.map(item => nameOf(item.id)).join('、')}` }
+          ? { pass: false, text: `退回了：${rejecting.map(item => nameOf(item.id)).join('、')}` }
           : missing.length === 0
             ? { pass: true, text: `全部 ${verifierIds.length} 位验收员通过` }
             : { pass: false, pending: true, text: `已收到 ${received.length}/${verifierIds.length} 位验收员的意见，等待其余` }

@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-// 席位环境预置：应用可以读取 .lodge/env 与 .lodge/seat-data；
+// 成员环境预置：应用可以读取 .lodge/env 与 .lodge/seat-data；
 // 它不是 OS 级沙箱，不能阻止应用无视这些变量。
 export const writeSeatEnv = ({ room, seatId, path, port }) => {
   if (typeof path !== 'string' || path === '') return null

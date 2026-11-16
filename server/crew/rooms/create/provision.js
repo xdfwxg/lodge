@@ -40,6 +40,13 @@ export const createProvisioner = ({ engine }) => {
         model: seat.model,
       })
       createdSeatRefs.push({ seat, seatRef })
+      if (Array.isArray(seat.skills) && seat.skills.length > 0) {
+        try {
+          await engine.setBotSkills(seatRef.id, seat.skills)
+        } catch (error) {
+          throw new Error(`技能没挂上（${seat.name}）：${error?.message ?? error}`)
+        }
+      }
     }
     const engineFallbacks = Object.fromEntries(createdSeatRefs
       .filter(({ seatRef }) => seatRef.fallback === true)

@@ -16,7 +16,7 @@ test('open disagreements keep the card pending until reviewed', () => {
 })
 
 test('a command check needs a command unless every stage has one', () => {
-  assert.equal(gateCardState({ needsReview: false, reviewed: false, verify: 'test', acceptance: '' }).status, '还差检查命令')
+  assert.equal(gateCardState({ needsReview: false, reviewed: false, verify: 'test', acceptance: '' }).status, '还差一条检查')
   assert.equal(gateCardState({
     needsReview: false,
     reviewed: false,

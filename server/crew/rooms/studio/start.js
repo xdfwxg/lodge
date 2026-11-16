@@ -36,6 +36,7 @@ export const startInitialStage = async ({
       room.id,
       targetSeat.id,
       `${opening}\n\n${context}\n${INTERNAL_PROMPT_MARKER}`,
+      { intent: align ? 'align' : 'handoff', from: 'Lodge' },
     )
     if (sent.messageId !== null) {
       const updated = store.updateRoom(room.id, current => {

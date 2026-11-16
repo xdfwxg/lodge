@@ -138,7 +138,14 @@ test('the adapter exposes normalized rooms, history, turns and events', async ()
   assert.equal(messages[2].turn.reply, '完成')
 
   const sent = await engine.sendTurn({ roomId: 'g1', text: '@甲 做事', sendId: 's1' })
-  assert.deepEqual(sent, { accepted: true, messageId: 'base-message', sendId: 's1' })
+  assert.deepEqual(sent, {
+    accepted: true,
+    messageId: 'base-message',
+    sendId: 's1',
+    queued: false,
+    queueId: null,
+    threadId: null,
+  })
 
   const cancelled = await engine.cancelTurn({ roomId: 'g1' })
   assert.deepEqual(cancelled, { cancelled: true })

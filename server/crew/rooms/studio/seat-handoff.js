@@ -1,6 +1,6 @@
 import { evidenceDigest, stageDigest } from '../../prompt-context.js'
 
-// 席位交接包：永久素材优先，transcript 只给引用，不重发整场对话。
+// 成员交接包：永久素材优先，transcript 只给引用，不重发整场对话。
 const DONE_LIMIT = 4
 const CONSTRAINT_LIMIT = 6
 const FEEDBACK_LIMIT = 1

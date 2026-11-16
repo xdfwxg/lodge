@@ -32,7 +32,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
       setOpenNotice('已打开')
       setTimeout(() => setOpenNotice(null), 2000)
     } catch (error) {
-      setOpenError(`打开失败：${String(error?.message ?? error)}`)
+      setOpenError(`没能打开：${String(error?.message ?? error)}`)
     }
   }
   const goalText = typeof delivery.goal === 'string' ? delivery.goal.replace(/\*\*/g, '').trim() : ''
@@ -57,7 +57,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             h('p', { className: 'crew-field-hint' }, goalText))
           : null,
         h('div', { className: 'crew-delivery-metrics' },
-          h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 阶段`),
+          h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 步`),
           h('span', null, commands.length > 0 ? `${passed}/${commands.length} 检查通过` : '人工验收'),
           h('span', null, `${(delivery.artifacts?.length ?? 0) > 0 ? delivery.artifacts.length : delivery.changedFiles?.length ?? 0} 个文件`)),
         h('div', { className: 'studio-delivery-meta' },
@@ -88,7 +88,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             : null,
           delivery.artifacts?.length > 0
             ? h('div', { className: 'crew-delivery-artifacts' },
-              h('b', null, `工作区文件 · ${delivery.artifacts.length}`),
+              h('b', null, `文件 · ${delivery.artifacts.length}`),
               h('ul', null, delivery.artifacts.map(artifact => h('li', { key: artifact.path },
                 h('code', { title: artifact.path }, artifact.path.split('/').pop() || artifact.path),
                 h('button', {
@@ -154,7 +154,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             type: 'button',
             className: 'crew-ghost',
             onClick: onReturn,
-          }, '回流讨论'),
+          }, '回聊天室讨论'),
         h('button', {
           type: 'button',
           className: 'crew-accept crew-conclusion-next',

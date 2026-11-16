@@ -47,7 +47,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   const readRooms = () => db.prepare("SELECT payload, version FROM room WHERE id <> 'dispatch' ORDER BY rowid").all()
     .map(row => ({ ...JSON.parse(row.payload), version: row.version }))
   const readMessages = roomId => db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId).map(row => JSON.parse(row.payload))
-  // 证据就是消息流里的命令/人工产物；不再维护单独的账本表与摘要。
+  // 证据就是消息流里的命令/人工结果；不再维护单独的账本表与摘要。
   const readEvidence = roomId => readMessages(roomId)
     .filter(message => message.kind === 'evidence' && (message.meta?.kind === 'command' || message.meta?.kind === 'manual'))
     .map(message => ({
@@ -149,7 +149,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   }))
 
   // transcript.jsonl 先写，SQLite 后写：jsonl 是持久日志，库是索引，可从日志重建。
-  // 演示种子只进 SQLite，不写目标仓库，避免样例数据污染用户仓库。
+  // 示例种子只进 SQLite，不写目标仓库，避免样例数据污染用户仓库。
   const persistMessage = (message, { transcript = true } = {}) => {
     const room = readRoom(message.roomId)
     if (message.kind === 'evidence' && transcript) {

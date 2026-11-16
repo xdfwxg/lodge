@@ -1,5 +1,7 @@
 // Runtime 端口：业务层只依赖这里声明的方法与规范化事件。
 // 具体基座在组合根装配；换 runtime 时实现同一份端口，并跑同一组契约测试。
+// 基座是第一个实现，不是唯一实现。具身机器人不是新角色：同一席位换一个
+// surface 实现这组端口；角色仍是规划师、执行官、验收员。
 //
 // 规范化事件：
 //   { type: 'delta',   sessionRef, turnId, delta, at }
@@ -19,12 +21,12 @@ export const RUNTIME_EVENT = Object.freeze({
 })
 
 export const RUNTIME_METHOD_GROUPS = Object.freeze({
-  turns: Object.freeze(['sendTurn', 'cancelTurn', 'history', 'subscribe']),
+  turns: Object.freeze(['sendTurn', 'steerRoomQueue', 'cancelRoomQueue', 'cancelTurn', 'history', 'subscribe']),
   rooms: Object.freeze([
     'rooms', 'createRoom', 'deleteRoom', 'updateRoomMembers',
     'setRoomMentions', 'setRoomHold', 'markRoomRead',
   ]),
-  seats: Object.freeze(['createSeatBot', 'deleteSeatBot', 'instances']),
+  seats: Object.freeze(['createSeatBot', 'setBotSkills', 'deleteSeatBot', 'instances']),
   cards: Object.freeze(['answerCard']),
   observability: Object.freeze(['health', 'capabilities']),
 })

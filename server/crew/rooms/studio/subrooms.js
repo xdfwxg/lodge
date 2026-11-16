@@ -21,8 +21,8 @@ export const childVerdictsOf = messages => messages
 export const childResultText = (child, verdicts) => {
   const lines = verdicts.map(item => `${item.pass ? 'PASS' : 'REJECT'}（阶段 ${(item.stage ?? 0) + 1}）${item.text}`)
   return [
-    `子部门「${child.name}」做完了。`,
+    `子房间「${child.name}」已交付。`,
     ...(lines.length === 0 ? ['没有 Verifier verdict。'] : [`Verifier 结果：\n${lines.join('\n')}`]),
-    '父 Planner 只依据这些 verdict 决定下一步，不重审子部门细节。',
+    '父 Planner 只依据这些 verdict 决定下一步，不重审子房间细节。',
   ].join('\n')
 }

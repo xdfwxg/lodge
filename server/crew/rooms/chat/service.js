@@ -29,7 +29,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
     if (room.state !== 'active') return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
-      return fail('conflict', '聊天室没有绑定运行引擎')
+      return fail('conflict', '聊天室还没有连上模型服务')
     }
     const chat = room.chat
     if (chat === undefined || chat.running === true || chat.phase !== 'awaiting_decision') {
@@ -77,7 +77,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
     if (room.state !== 'active') return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
-      return fail('conflict', '聊天室没有绑定运行引擎')
+      return fail('conflict', '聊天室还没有连上模型服务')
     }
     const chat = room.chat
     if (chat === undefined || chat.running === true) return fail('conflict', '聊天讨论已经在进行')

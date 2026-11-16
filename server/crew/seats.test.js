@@ -143,6 +143,12 @@ test('custom names flow into the prompts', () => {
   assert.match(worker.prompt, /@复核/)
 })
 
+test('custom rosters can declare base skill names', () => {
+  const roster = rosterFromRoles([{ role: 'worker', name: '前端', skills: ['evidence-review'] }])
+  assert.deepEqual(roster[0].skills, ['evidence-review'])
+  assert.doesNotThrow(() => validateSeats(roster))
+})
+
 test('an unknown custom role fails closed', () => {
   assert.throws(() => rosterFromRoles([{ role: 'designer' }]), /unknown role/)
 })

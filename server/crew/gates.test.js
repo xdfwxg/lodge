@@ -200,7 +200,7 @@ test('a room without verifiers still needs evidence before sign-off', () => {
 test('a room without verifiers with a REJECT must rework', () => {
   const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10), verdict(1, 11, false)])
   assert.equal(gate.ok, false)
-  assert.match(gate.error, /返工/)
+  assert.match(gate.error, /重做/)
 })
 
 test('a human rework invalidates an earlier PASS', () => {

@@ -67,8 +67,8 @@ export const validateRoster = (roster, { verify } = {}) => {
   const kindOf = seat => seat.roleKind ?? roleKindOf(seat.role)
   const invalid = roster.filter(seat => !['planner', 'executor', 'verifier'].includes(kindOf(seat)))
   if (invalid.length > 0) {
-    throw new Error(`工作室席位只能从规划师/执行官/验收员派生：${invalid.map(seat => seat.name ?? seat.id).join('、')}`)
+    throw new Error(`工作室成员只能从规划师/执行官/验收员派生：${invalid.map(seat => seat.name ?? seat.id).join('、')}`)
   }
-  if (!roster.some(seat => kindOf(seat) === 'planner')) throw new Error('工作室需要规划师席位')
+  if (!roster.some(seat => kindOf(seat) === 'planner')) throw new Error('工作室需要规划师成员')
   if (!roster.some(seat => kindOf(seat) === 'verifier')) throw new Error('工作室需要一位验收员')
 }

@@ -25,12 +25,12 @@ export const scratchRoot = () => (
 
 export const probeSource = ({ source }) => {
   if (typeof source !== 'string' || source === '' || !existsSync(source)) {
-    return { ok: false, error: '工作目录不存在' }
+    return { ok: false, error: '工作文件夹不存在' }
   }
   try {
-    if (!statSync(source).isDirectory()) return { ok: false, error: '工作目录不是目录' }
+    if (!statSync(source).isDirectory()) return { ok: false, error: '工作文件夹不是目录' }
   } catch {
-    return { ok: false, error: '工作目录不可读' }
+    return { ok: false, error: '工作文件夹不可读' }
   }
   return { ok: true }
 }
@@ -116,9 +116,9 @@ const nextSeatPort = room => {
 
 export const addSeat = ({ room, seat }) => {
   const source = room?.sourceRepo
-  if (typeof source !== 'string' || source === '') throw new Error('房间没有源目录，不能新增席位')
+  if (typeof source !== 'string' || source === '') throw new Error('房间没有源目录，不能新增成员')
   const path = join(scratchRoot(), roomShort(room), seat.id)
-  if (existsSync(path)) throw new Error(`席位工作区已存在：${seat.id}`)
+  if (existsSync(path)) throw new Error(`成员的工作文件夹已经有了：${seat.id}`)
   copyWorkspace(source, path)
   return {
     path,

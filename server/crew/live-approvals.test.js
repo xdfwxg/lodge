@@ -44,3 +44,33 @@ const setup = trust => {
   return { approvals, entry, answered, events, messages, room: () => room }
 }
 
+test('a question card is answered once in the member thread', async () => {
+  const ctx = setup('verify')
+  const result = await ctx.approvals.answerCard({
+    entry: ctx.entry,
+    roomId: 'room-1',
+    seat: 'worker',
+    requestId: 'q1',
+    message: '选 A',
+    refresh: () => {},
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.answered[0], {
+    sessionRef: 'thread-worker',
+    requestId: 'q1',
+    behavior: 'answer',
+    message: '选 A',
+  })
+  assert.equal(ctx.entry.answeredCards.has('q1'), true)
+  const again = await ctx.approvals.answerCard({
+    entry: ctx.entry,
+    roomId: 'room-1',
+    seat: 'worker',
+    requestId: 'q1',
+    message: '选 B',
+    refresh: () => {},
+  })
+  assert.equal(again.ok, false)
+  assert.equal(ctx.answered.length, 1)
+})
+

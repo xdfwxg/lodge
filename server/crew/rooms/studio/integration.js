@@ -41,11 +41,11 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     if (stage === undefined || !isWorkStage(stage) || stage.state !== 'active') return
     const integration = room.repoPath
     if (typeof integration !== 'string' || integration === '') {
-      store.appendMessage(roomId, { kind: 'system', text: '房间没有集成工作目录，并行合并未执行' })
+      store.appendMessage(roomId, { kind: 'system', text: '房间没有集成工作文件夹，并行合并未执行' })
       return
     }
     if (workspaceOf(room).capabilities().merge !== true) {
-      store.appendMessage(roomId, { kind: 'system', text: '当前工作区不支持分支合并，集成验收未执行' })
+      store.appendMessage(roomId, { kind: 'system', text: '这个文件夹不能合并多人改动，集成检查没有执行' })
       return
     }
 
@@ -61,7 +61,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
         const files = result.files.length > 0 ? result.files.join('、') : '未知文件'
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `并行合并冲突：${name} 的 ${label} 与房间目录冲突（${files}）。合并已回滚，阶段停下，需要你处理。`,
+          text: `并行合并冲突：${name} 的 ${label} 与房间目录冲突（${files}）。合并已回滚，这一步停下，需要你处理。`,
         })
         store.appendEvent(roomId, 'stage.merge_conflict', { stage: stageIndex, worker, branch: branch ?? '', files: result.files })
         const updated = store.updateRoom(roomId, current => {
@@ -81,7 +81,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
       store.appendMessage(roomId, {
         kind: 'evidence',
         authorId: 'system',
-        text: '并行产物已合并，可以验收了。',
+        text: '并行结果已合并，可以验收了。',
         meta: {
           kind: 'manual',
           vcs: vcsOf(room),
@@ -95,7 +95,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
           capturedAt: new Date().toISOString(),
         },
       })
-      store.appendMessage(roomId, { kind: 'system', text: '并行产物已合并 · 可以验收了' })
+      store.appendMessage(roomId, { kind: 'system', text: '并行结果已合并 · 可以验收了' })
       store.appendEvent(roomId, 'room.integration', { stage: stageIndex, head, workers, merged, manual: true })
       markProgress()
       return
@@ -103,14 +103,14 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     const range = await workspaceOf(room).rangeChanges({ path: integration, base })
     const command = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
     if (command === '') {
-      store.appendMessage(roomId, { kind: 'system', text: `阶段 ${stageIndex + 1} 没有检查方式，集成检查没有执行` })
+      store.appendMessage(roomId, { kind: 'system', text: `第 ${stageIndex + 1} 步没有检查方式，集成检查没有执行` })
       return
     }
     let copy
     try {
       copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: head })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `集成验收副本创建失败，验收未执行：${error?.message ?? error}` })
+      store.appendMessage(roomId, { kind: 'system', text: `集成检查的副本没能准备好，检查没有执行：${error?.message ?? error}` })
       return
     }
     const port = room.ports?.integration
@@ -169,7 +169,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
       kind: 'system',
       text: result.exit === 0
         ? '检查通过 · 等验收员看'
-        : '检查没通过 · 返工后才能复核',
+        : '检查没通过 · 重做后才能复核',
     })
     if (result.exit !== 0) return
     markProgress()

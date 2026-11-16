@@ -133,3 +133,13 @@ test('prompt builders do not send messages', () => {
   const text = readFileSync(join(root, 'rooms/studio/prompts.js'), 'utf8')
   assert.doesNotMatch(text, /sendTurn|engine\./, 'prompts.js both builds prompts and delivers them')
 })
+
+test('base HTTP paths stay inside the base adapter', () => {
+  for (const file of walk('.')) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    const text = readFileSync(join(root, file), 'utf8')
+    assert.doesNotMatch(text, /\/api\//, `${file} knows a base HTTP path`)
+  }
+  const engine = readFileSync(new URL('../engine.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(engine, /\/api\//, 'engine.js knows a base HTTP path')
+})

@@ -19,7 +19,7 @@ export const createStudioRuntime = ({
         engine,
         roomId: room.id,
         emit,
-        sendToSeat: (seat, text) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text }),
+        sendToSeat: (seat, text, options = {}) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text, ...options }),
         commands: ports.commands,
         files: ports.files,
         advisor: ports.advisor,
@@ -55,6 +55,6 @@ export const createStudioRuntime = ({
 
     requestReview: async (entry, stage) => entry.turns.requestReview(stage),
     startStage: async (entry, room, index, options = {}) => entry.turns.startStage(room, index, options),
-    sendToSeat: (entry, room, seat, text) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text }),
+    sendToSeat: (entry, room, seat, text, options = {}) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text, ...options }),
   }
 }

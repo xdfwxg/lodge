@@ -1,7 +1,7 @@
 import { createElement as h } from 'react'
 
 const stateLabel = state => (
-  state === 'passed' ? '做完了' : state === 'active' ? '正在做' : '还没开始'
+  state === 'passed' ? '已完成' : state === 'active' ? '正在做' : '还没开始'
 )
 
 // 阶段是工作室时间线的章节：当前阶段展开，已完成阶段收成一行。

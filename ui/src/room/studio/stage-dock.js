@@ -48,10 +48,10 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
       type: 'button',
       className: 'crew-stage-dock-row',
       'aria-expanded': open,
-      'aria-label': `阶段 ${activeIndex + 1} ${activeStage.title}，${gateStatus(room)}`,
+      'aria-label': `第 ${activeIndex + 1} 步 ${activeStage.title}，${gateStatus(room)}`,
       onClick: () => setOpen(!open),
     },
-    h('span', { className: 'crew-stage-dock-kicker' }, `阶段 ${activeIndex + 1}`),
+    h('span', { className: 'crew-stage-dock-kicker' }, `第 ${activeIndex + 1} 步`),
     h('span', { className: 'crew-stage-dock-title' }, activeStage.title),
     h('span', { className: 'crew-stage-dock-chev', 'data-open': open, 'aria-hidden': 'true' }, h(ChevronDownIcon))),
     open ? h('div', { className: 'crew-stage-dock-body' }, body) : null)

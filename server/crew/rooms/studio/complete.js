@@ -8,7 +8,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     appendMessage(room.id, {
       kind: 'conclusion',
       authorId: 'planner',
-      text: `目标达成：${room.goal}`,
+      text: `已交付：${room.goal}`,
       meta: {
         stages: room.stages.length,
         commands: room.stages.map(item => item.acceptance).filter(Boolean),
@@ -19,7 +19,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       commands: room.stages.map(item => item.acceptance).filter(Boolean),
     })
     if (room.demo === true) {
-      appendMessage(room.id, { kind: 'system', text: '演示房间 · 不写结论文件，不生成提交记录' })
+      appendMessage(room.id, { kind: 'system', text: '示例房间 · 不写结论文件，也不生成版本记录' })
       return room
     }
     roomFiles.writeConclusion(room)
@@ -38,7 +38,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       ...(message.meta?.artifacts ?? []).map(artifact => artifact.path).filter(Boolean),
       ...(message.meta?.changedFiles ?? []).map(file => join(roomFiles.roomRootOf(room), file)),
     ])
-    // 交付目录保留；只清掉非交付席位工作区。git 房间的候选分支仍在源仓库，可人工重建查看。
+    // 交付目录保留；只清掉非交付成员工作区。git 房间的候选分支仍在源仓库，可人工重建查看。
     try {
       const pruned = roomWorkspace.pruneSeats(room)
       const fresh = pruned.filter(seat => !(room.prunedSeats ?? []).includes(seat))
@@ -50,7 +50,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
         if (updated !== null) emit('room', updated)
       }
     } catch (error) {
-      appendMessage(room.id, { kind: 'system', text: `非交付工作区清理失败：${error?.message ?? error}` })
+      appendMessage(room.id, { kind: 'system', text: `临时文件没能清理：${error?.message ?? error}` })
     }
     const persistence = persistenceKind(capabilities)
     if (persistence !== 'commit') {
@@ -63,7 +63,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     const committed = roomWorkspace.persistRoom({ room, files: delivered })
     appendEvent(room.id, 'room.commit', { status: committed ? 'done' : 'failed', vcs: capabilities.vcs })
     if (!committed) {
-      appendMessage(room.id, { kind: 'system', text: capabilities.vcs === 'git' ? '提交失败，详见服务端日志' : '交付记录归档失败，详见服务端日志' })
+      appendMessage(room.id, { kind: 'system', text: capabilities.vcs === 'git' ? '版本没能保存，详情在服务端日志' : '交付记录没能归档，详见服务端日志' })
     }
     let commitHash = null
     if (committed && capabilities.commit === true) {

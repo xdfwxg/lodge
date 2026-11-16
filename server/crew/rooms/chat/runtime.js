@@ -11,7 +11,16 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
       entry.chatRun = createChatScheduler({
         store,
         engine,
-        sendToSeat: (seat, text) => deliverToSeat({ engine, store, roomId: entry.roomId, room, seat, text }),
+        sendToSeat: (seat, text, options = {}) => deliverToSeat({
+          engine,
+          store,
+          roomId: entry.roomId,
+          room,
+          seat,
+          text,
+          intent: seat === 'host' ? 'notice' : 'chat',
+          ...options,
+        }),
         roomId: room.id,
         emit,
         refresh: () => refreshRoom(entry, { force: true }),
@@ -69,6 +78,15 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
 
     requestReview: async () => { throw new Error('聊天室没有验收回合') },
     startStage: async () => { throw new Error('聊天室没有阶段执行') },
-    sendToSeat: (entry, room, seat, text) => deliverToSeat({ engine, store, roomId: entry.roomId, room, seat, text }),
+    sendToSeat: (entry, room, seat, text, options = {}) => deliverToSeat({
+      engine,
+      store,
+      roomId: entry.roomId,
+      room,
+      seat,
+      text,
+      intent: seat === 'host' ? 'notice' : 'chat',
+      ...options,
+    }),
   }
 }

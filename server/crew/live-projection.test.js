@@ -40,6 +40,20 @@ test('an echo matches its queued base message once', () => {
   assert.equal(matchEcho([echo], '别的', now), undefined)
 })
 
+test('a question card stays answerable instead of becoming a system line', () => {
+  const stored = projector.toStored('room-1', {
+    id: 'q1',
+    kind: 'question',
+    role: 'bot',
+    authorRef: 'bot-1',
+    text: '选哪个方案？',
+    card: { requestId: 'ask-1', requestType: 'question', options: ['A', 'B'] },
+  })
+  assert.equal(stored.kind, 'question')
+  assert.equal(stored.authorId, 'executor')
+  assert.deepEqual(stored.meta.card.options, ['A', 'B'])
+})
+
 test('seat messages keep their seat author', () => {
   const stored = projector.toStored('room-1', { id: 'm1', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '在' })
   assert.equal(stored.kind, 'chat')
