@@ -175,7 +175,7 @@ test('an unknown optional skill fails closed before preparing a workspace', asyn
   }, fakeEngine(), workspace)
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'invalid')
-  assert.match(result.error, /未知技能/)
+  assert.match(result.error, /这些技能还没准备好/)
   assert.equal(prepared, false)
 })
 
@@ -470,6 +470,29 @@ test('studio creation waits for human review when the handoff has disagreements'
   assert.equal(accepted.body.room.transfer.kind, 'handoff')
   assert.equal(accepted.body.room.transfer.fromRoomId, 'room-chat-source')
   assert.equal(accepted.body.room.transfer.fromRoomName, '圆桌')
+})
+
+test('a long handoff topic becomes a short delivery step', async () => {
+  const store = createStore({ dataDir: temp('lodge-handoff-stage-data-') })
+  const handoff = {
+    topic: '把欢迎语写进 WELCOME.md，并保证任何新成员第一次进来就能看见',
+    consensus: ['单句中文'],
+    disagreements: [],
+    constraints: ['不超过 20 字'],
+    todos: ['定稿'],
+  }
+  const result = await run(store, {
+    goal: handoff.topic,
+    verify: 'manual',
+    handoff,
+    seats: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+  })
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.body.room.stages.map(stage => stage.title), [
+    '目标对齐',
+    '完成交接单',
+    '验收与结论',
+  ])
 })
 
 test('a handoff reaches the seat bulletin and the opening prompt', async () => {

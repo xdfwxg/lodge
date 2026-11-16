@@ -10,7 +10,7 @@ import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
 
 
-// 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个席位一个基座线程与工作区。
+// 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个成员一个基座线程与工作区。
 export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
@@ -31,8 +31,8 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   } = request
   const mode = roomModeForType(roomType.id)
   const capabilities = engine.capabilities()
-  if (capabilities.provisioning !== true) return fail('conflict', '当前 runtime 不支持从界面建房')
-  if (capabilities.mentions !== true) return fail('conflict', '当前 runtime 不支持 @ 唤醒，无法建房')
+  if (capabilities.provisioning !== true) return fail('conflict', '当前版本还不支持从界面建房')
+  if (capabilities.mentions !== true) return fail('conflict', '当前版本还不支持 @ 唤醒，无法建房')
 
   const { plan, error: planError } = normalizePlan({ body })
   if (planError !== undefined) return fail('invalid', planError)
@@ -63,17 +63,17 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     try {
       mode.validateRoster(roster, { verify })
     } catch (error) {
-      return fail('invalid', `席位组合不可用：${error?.message ?? error}`)
+      return fail('invalid', `成员组合不可用：${error?.message ?? error}`)
     }
   }
   const resolvedPlan = mode.resolvePlan(plan, roster)
   for (const seat of roster) {
     const missingSkills = seat.skills.filter(id => ports.skills?.has?.(id) !== true)
     if (missingSkills.length > 0) {
-      return fail('invalid', `未知技能：${missingSkills.join('、')}；先放入 templates/skills`)
+      return fail('invalid', `这些技能还没准备好：${missingSkills.join('、')}；先放入 templates/skills`)
     }
     if (seat.mcp.length > 0 && capabilities.mcp !== true) {
-      return fail('conflict', '当前运行环境不支持外部工具')
+      return fail('conflict', '当前版本还不支持外部工具')
     }
   }
 
@@ -85,7 +85,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const provider = providerResult.provider
   const workspaceCaps = provider.capabilities()
   if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
-    return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行席位')
+    return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行成员')
   }
   const workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
 
@@ -95,6 +95,11 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   let stored = false
   try {
     const goalTitle = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
+    // A handoff topic is a sentence, not a step name. Keep the sentence in the
+    // handoff card and give the default delivery stage a short, honest title.
+    const deliveryTitle = handoff !== null && handoff !== undefined && handoff.topic.length > 24
+      ? '完成交接单'
+      : goalTitle
     const title = name === '' ? goalTitle : name
     const provisioned = await provisioner.provision({
       roster,
@@ -109,7 +114,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       verifiers,
       roomType: roomType.id,
     })
-    const builtStages = roomType.buildStages({ title: goalTitle, plan: resolvedPlan, verify, acceptance, align })
+    const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, verify, acceptance, align })
     room = buildRoomRecord({
       short,
       title,
@@ -199,9 +204,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     if (!stored) {
       await provisioner.cleanup()
       provider.cleanupRoom({ source: sourceRepo, workspaces })
-      throw new Error(`建房失败：${error?.message ?? error}`)
+      throw new Error(`房间没能建起来：${error?.message ?? error}`)
     }
-    store.appendMessage(room.id, { kind: 'system', text: `房间已建，但启动失败：${error?.message ?? error}` })
+    store.appendMessage(room.id, { kind: 'system', text: `房间建好了，但没能启动：${error?.message ?? error}` })
     return created({ room, warning: String(error?.message ?? error) })
   }
 }

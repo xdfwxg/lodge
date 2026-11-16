@@ -440,6 +440,11 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-link{border:0;background:transparent;padding:0;font:inherit;font-size:13.5px;font-weight:600;color:var(--bt-accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .crew-req-note{flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--bt-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+:where(button, a, summary, [role=button]):focus-visible {
+  outline: var(--bt-focus-ring-w) solid var(--bt-focus-ring);
+  outline-offset: var(--bt-focus-ring-offset);
+}
+
 /* New room dialog */
 .crew-overlay{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:24px;background:rgb(0 0 0 / .32)}
 .crew-dialog{position:relative;width:min(600px,100%);max-height:calc(100vh - 40px);overflow:auto;border:1px solid var(--bt-line-2);border-radius:20px;background:var(--bt-card);box-shadow:var(--bt-elev-3)}
@@ -470,6 +475,8 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-field-inline>b{font-size:13.5px;line-height:18px;font-weight:600;color:var(--bt-ink)}
 @media (max-width:560px){.crew-field-inline{grid-template-columns:max-content minmax(0,1fr);gap:10px}}
 .crew-field-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.crew-field-head .crew-link{padding:4px 6px;margin:-4px -6px;border-radius:6px;text-decoration:none}
+.crew-field-head .crew-link:hover{background:var(--bt-hover);text-decoration:underline}
 .crew-field-head b{font-size:var(--bt-text-label);font-weight:600}
 .crew-field-hint{margin:0;font-size:var(--bt-text-helper);line-height:18px;color:var(--bt-ink-3)}
 .crew-goal-lg{min-height:104px;padding:14px 15px;border-radius:12px;font-size:15px;line-height:22px}

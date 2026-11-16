@@ -37,11 +37,7 @@ export function HandoffReview({
   const { ready, status } = gateCardState({ needsReview, reviewed, verify, acceptance, plannedAcceptance })
   const editable = typeof onVerifyMode === 'function'
   const sourceLabel = sourceName === '' ? '来自聊天室的交接' : `来自「${sourceName}」的交接`
-  const detailSummary = [
-    handoff.consensus.length > 0 ? `共识 ${handoff.consensus.length}` : '',
-    handoff.constraints.length > 0 ? `约束 ${handoff.constraints.length}` : '',
-    handoff.todos.length > 0 ? `待办 ${handoff.todos.length}` : '',
-  ].filter(Boolean).join(' · ')
+  const detailSummary = `共识 ${handoff.consensus.length} · 约束 ${handoff.constraints.length} · 待办 ${handoff.todos.length}`
   return h('div', { className: 'crew-card crew-handoff-review' },
     h('div', { className: 'crew-card-head' },
       h('span', { className: 'crew-handoff-source', title: sourceLabel }, sourceLabel),
@@ -81,12 +77,10 @@ export function HandoffReview({
         verify === 'test' && editable
           ? h('p', { className: 'crew-field-hint' }, '会在房间的工作文件夹里真的跑一遍，结果显示在交付卡上。')
           : null),
-      detailSummary === ''
-        ? null
-        : h('details', { className: 'crew-handoff-more' },
-          h('summary', null, `完整交接单 · ${detailSummary}`),
-          h('div', { className: 'crew-handoff-more-body' },
-            h(IntakeSection, { label: '共识', items: handoff.consensus }),
-            h(IntakeSection, { label: '约束', items: handoff.constraints }),
-            h(IntakeSection, { label: '待办', items: handoff.todos })))))
+      h('details', { className: 'crew-handoff-more' },
+        h('summary', null, `完整交接单 · ${detailSummary}`),
+        h('div', { className: 'crew-handoff-more-body' },
+          h(IntakeSection, { label: '共识', items: handoff.consensus, empty: '没有记录共识' }),
+          h(IntakeSection, { label: '约束', items: handoff.constraints, empty: '没有额外约束' }),
+          h(IntakeSection, { label: '待办', items: handoff.todos, empty: '没有待办' })))))
 }
