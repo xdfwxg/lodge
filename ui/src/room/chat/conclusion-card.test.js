@@ -77,6 +77,28 @@ test('a timed-out host keeps the discussion open', () => {
   assert.match(html, /完整讨论/)
 })
 
+test('older conclusions collapse to one summary line', () => {
+  const html = render(message({
+    id: 'old',
+    meta: {
+      round: 1,
+      handoff: {
+        topic: '上一轮主题',
+        consensus: ['上一轮共识'],
+        disagreements: [],
+        constraints: [],
+        todos: [],
+      },
+    },
+  }), room({
+    chat: { round: 2, conclusionId: 'new' },
+    messages: [{ id: 'new', kind: 'chat_conclusion' }],
+  }))
+  assert.match(html, /crew-conclusion-history/)
+  assert.match(html, /上一轮主题/)
+  assert.match(html, /共识 1/)
+})
+
 test('an accepted conclusion keeps the signoff', () => {
   const html = render(message({
     ts: 1710000000000,
@@ -86,4 +108,5 @@ test('an accepted conclusion keeps the signoff', () => {
     },
   }), room({ state: 'complete' }))
   assert.match(html, /Lodge 主持/)
+  assert.match(html, /crew-conclusion-history/)
 })
