@@ -7,6 +7,7 @@ import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
+import { activeDispatchAssignments, dispatchFrom, tasksFrom, updateAssignment } from '../../assignments.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
@@ -52,7 +53,7 @@ const studioNeedsYou = (room, messages = []) => {
   if (typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') {
     return { kind: 'setup', stage: index, label: '待补检查' }
   }
-  const dispatch = room.stageDispatch
+  const dispatch = dispatchFrom(room.assignments ?? [], index)
   if (room.mergeConflict?.stage === index || (dispatch?.stage === index && dispatch?.conflict !== undefined && dispatch?.conflict !== null)) {
     return { kind: 'merge', stage: index, label: '合并冲突' }
   }
@@ -243,12 +244,24 @@ export const studioKind = {
     .filter(Boolean)
     .join(' / ') || '人确认',
 
-  onMemberFailure: (current, memberId) => {
-    const stageIndex = current.stages?.findIndex(stage => stage.state === 'active') ?? -1
-    if (stageIndex < 0 || !Array.isArray(current.stages[stageIndex].tasks)) return
-    current.stages[stageIndex].tasks = current.stages[stageIndex].tasks.map(task => (
-      task.owner === memberId ? { ...task, status: 'failed' } : task
-    ))
+  onMemberFailure: () => {},
+
+  markMemberFailure: (store, room, memberId) => {
+    const stageIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
+    if (stageIndex < 0) return
+    for (const assignment of activeDispatchAssignments(store, room.id, stageIndex)) {
+      if (assignment.toMemberId !== memberId) continue
+      updateAssignment(store, assignment.id, { status: 'failed' })
+    }
+  },
+
+  // 阶段任务与派发状态是 Assignment 的投影；共享层只拿结果，不碰阶段结构。
+  projectWork: (room, assignments) => {
+    if (!Array.isArray(assignments) || assignments.length === 0) return null
+    const nameOf = id => (room.members ?? []).find(member => member.id === id)?.name ?? id
+    return {
+      stages: (room.stages ?? []).map((stage, index) => ({ ...stage, tasks: tasksFrom(assignments, index, nameOf) })),
+    }
   },
 }
 

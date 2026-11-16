@@ -159,9 +159,7 @@ export const buildGoalView = (room, members) => {
     }
     const tasks = (stage.tasks ?? []).map(task => ({ ...task, member: memberById.get(task.owner) ?? null }))
     const taskOwners = new Set(tasks.map(task => task.owner))
-    const conflict = room.mergeConflict?.stage === index
-      ? room.mergeConflict
-      : room.stageDispatch?.stage === index ? room.stageDispatch?.conflict ?? null : null
+    const conflict = room.mergeConflict?.stage === index ? room.mergeConflict : null
     return {
       index,
       title: stage.title,

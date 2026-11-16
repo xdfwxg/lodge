@@ -11,6 +11,7 @@ import { openPath } from './system-open.js'
 import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
 import { ROLES, validateRoster } from './crew/roster.js'
 import { assertRuntimePort } from './crew/runtime-port.js'
+import { migrateAssignments } from './crew/assignments.js'
 import { migrateRoomMembers } from './crew/room-members.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
@@ -32,11 +33,12 @@ const broadcast = (event, payload, id) => {
 
 const store = createStore({ dataDir, emit: broadcast })
 migrateRoomMembers(store)
+migrateAssignments(store)
 
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
-    payload = presentRoom(payload, store.readMessages(payload.id))
+    payload = presentRoom(payload, store.readMessages(payload.id), store.readAssignments(payload.id, { limit: 200 }))
   }
   broadcast(event, payload, id)
 }

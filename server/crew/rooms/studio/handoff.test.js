@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHandoff } from './handoff.js'
-import { normalizeLegacyTestRoom } from '../../testing/room.js'
+import { normalizeLegacyTestRoom, withAssignments } from '../../testing/room.js'
 
 const room = (over = {}) => normalizeLegacyTestRoom({
   id: 'room-1',
@@ -22,7 +22,7 @@ const setup = (initial = room(), deliver = null) => {
   const messages = []
   const events = []
   let seq = 0
-  const store = {
+  const store = withAssignments({
     readRoom: () => current,
     readMessages: () => messages,
     appendMessage: (roomId, message) => {
@@ -40,7 +40,7 @@ const setup = (initial = room(), deliver = null) => {
       return current
     },
     appendEvent: (roomId, type, payload) => events.push({ roomId, type, payload }),
-  }
+  })
   const sent = []
   const handoff = createHandoff({
     store,
@@ -66,19 +66,20 @@ test('a handoff writes a work-turn card, wakes the member and moves its cursor',
     prompt: '阶段 1「实现」已确认。验收命令：npm test。',
     acceptance: 'npm test',
   })
-  assert.equal(sent.meta.status, 'sent')
-  assert.equal(sent.kind, 'handoff')
+  assert.equal(sent.status, 'sent')
+  assert.equal(sent.reason, 'dispatch')
   assert.equal(ctx.sent.length, 1)
   assert.equal(ctx.sent[0].memberId, 'worker')
   assert.equal(ctx.sent[0].text, '阶段 1「实现」已确认。验收命令：npm test。')
   assert.equal(ctx.sent[0].options.intent, 'handoff')
   assert.equal(ctx.sent[0].options.from, 'lead')
-  assert.equal(ctx.sent[0].options.sendId, ctx.messages[0].meta.deliveryId)
-  assert.match(ctx.sent[0].options.sendId, /^h-[a-f0-9]{32}$/)
+  assert.equal(ctx.sent[0].options.sendId, sent.sendId)
+  assert.match(ctx.sent[0].options.sendId, /^a-[a-f0-9]{32}$/)
   assert.equal(ctx.messages[0].kind, 'handoff')
-  assert.equal(ctx.messages[0].meta.workTurn.done[0], '测试通过')
+  assert.equal(ctx.messages[0].meta.assignmentId, sent.id)
+  assert.equal(ctx.store.readAssignment(sent.id).brief.done[0], '测试通过')
   assert.equal(ctx.room().memberCursors.worker, ctx.messages[0].seq)
-  assert.deepEqual(ctx.events.map(event => event.type), ['handoff.requested', 'handoff.sent'])
+  assert.deepEqual(ctx.events.map(event => event.type), ['assignment.created', 'assignment.sent'])
 })
 
 test('a retried handoff keeps one delivery id', async () => {
@@ -116,7 +117,7 @@ test('a transport failure marks the handoff failed without changing the stage', 
     }),
     /没有基座地址/,
   )
-  assert.equal(ctx.messages[0].meta.status, 'failed')
+  assert.equal(ctx.store.readAssignments('room-1')[0].status, 'failed')
   assert.equal(ctx.room().stages[0].state, 'active')
-  assert.deepEqual(ctx.events.map(event => event.type), ['handoff.requested', 'handoff.failed'])
+  assert.deepEqual(ctx.events.map(event => event.type), ['assignment.created', 'assignment.failed'])
 })

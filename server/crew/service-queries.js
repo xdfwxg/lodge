@@ -15,7 +15,7 @@ export const createServiceQueries = ({
   files,
   workspace,
 }) => {
-  const { readRoom, readRooms, readMessages, readMessagesSince, readEvidence } = store
+  const { readRoom, readRooms, readMessages, readMessagesSince, readEvidence, readAssignments } = store
 
   const health = async () => ok({ runtime: await engine.health() })
 
@@ -45,8 +45,9 @@ export const createServiceQueries = ({
         const messages = presentation.filterMessages(ordered).map(message => (
           typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
         ))
+        const assignments = typeof readAssignments === 'function' ? readAssignments(room.id, { limit: 200 }) : []
         return {
-          ...presentRoom(room, messages),
+          ...presentRoom(room, messages, assignments),
           brief: briefOf(room),
           messages,
         }

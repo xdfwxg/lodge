@@ -12,6 +12,17 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS room (id TEXT PRIMARY KEY, payload TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS messages (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, room_id TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS assignment (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      stage INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS assignment_room ON assignment(room_id, created_at);
+    CREATE INDEX IF NOT EXISTS assignment_room_stage ON assignment(room_id, stage, created_at);
     CREATE TABLE IF NOT EXISTS room_event (
       seq INTEGER PRIMARY KEY AUTOINCREMENT,
       id TEXT NOT NULL UNIQUE,
@@ -63,6 +74,51 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       meta: message.meta ?? {},
     }))
   const readMessagesSince = since => db.prepare('SELECT payload FROM messages WHERE seq > ? ORDER BY seq').all(since).map(row => JSON.parse(row.payload))
+  const readAssignment = id => {
+    const row = db.prepare('SELECT payload FROM assignment WHERE id = ?').get(id)
+    return row === undefined ? null : JSON.parse(row.payload)
+  }
+  const readAssignments = (roomId, { stage = null, status = null, limit = 500 } = {}) => {
+    const where = ['room_id = ?']
+    const params = [roomId]
+    if (Number.isInteger(stage)) { where.push('stage = ?'); params.push(stage) }
+    if (typeof status === 'string' && status !== '') { where.push('status = ?'); params.push(status) }
+    const rows = db.prepare(`SELECT payload FROM assignment WHERE ${where.join(' AND ')} ORDER BY created_at DESC, rowid DESC LIMIT ?`)
+      .all(...params, Math.max(1, Math.min(5000, Number(limit) || 500)))
+    return rows.reverse().map(row => JSON.parse(row.payload))
+  }
+  const writeAssignment = assignment => {
+    const now = Date.now()
+    const stored = {
+      ...assignment,
+      createdAt: assignment.createdAt ?? now,
+      updatedAt: assignment.updatedAt ?? now,
+    }
+    db.prepare(
+      'INSERT INTO assignment (id, room_id, stage, status, created_at, updated_at, payload) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET stage = excluded.stage, status = excluded.status, updated_at = excluded.updated_at, payload = excluded.payload',
+    ).run(stored.id, stored.roomId, stored.stageIndex ?? 0, stored.status ?? 'created', stored.createdAt, stored.updatedAt, JSON.stringify(stored))
+    return stored
+  }
+  const updateAssignment = (id, mutate) => {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      const row = db.prepare('SELECT payload FROM assignment WHERE id = ?').get(id)
+      if (row === undefined) { db.exec('ROLLBACK'); return null }
+      const assignment = JSON.parse(row.payload)
+      const change = mutate(assignment)
+      if (change === null || change === undefined || change === false) { db.exec('ROLLBACK'); return null }
+      const stored = { ...assignment, ...(change === true ? {} : change), updatedAt: Date.now() }
+      db.prepare('UPDATE assignment SET stage = ?, status = ?, updated_at = ?, payload = ? WHERE id = ?')
+        .run(stored.stageIndex ?? 0, stored.status ?? 'created', stored.updatedAt, JSON.stringify(stored), id)
+      db.exec('COMMIT')
+      return stored
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+  }
+  const deleteAssignments = roomId => Number(db.prepare('DELETE FROM assignment WHERE room_id = ?').run(roomId).changes)
+
   const nextSeq = () => Number(db.prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS next FROM messages').get().next)
 
   const insertEvent = (roomId, event) => {
@@ -130,6 +186,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     db.exec('BEGIN IMMEDIATE')
     try {
       db.prepare('DELETE FROM messages WHERE room_id = ?').run(id)
+      db.prepare('DELETE FROM assignment WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM room_event WHERE room_id = ?').run(id)
       const result = db.prepare('DELETE FROM room WHERE id = ?').run(id)
       db.exec('COMMIT')
@@ -195,6 +252,11 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     writeRoom,
     updateRoom,
     readRooms,
+    readAssignment,
+    readAssignments,
+    writeAssignment,
+    updateAssignment,
+    deleteAssignments,
     readMessages,
     readMessagesSince,
     readEvidence,

@@ -1,3 +1,4 @@
+import { activeDispatchAssignments, updateAssignment } from '../../assignments.js'
 import { leadMemberOf } from '../../room-members.js'
 import { gateFor } from './gates.js'
 import { fail, ok } from '../../result.js'
@@ -96,7 +97,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       if (!gate.ok) return null
       const stage = current.stages[index]
       stage.state = 'passed'
-      if (Array.isArray(stage.tasks)) stage.tasks = stage.tasks.map(task => ({ ...task, status: 'done' }))
       next = current.stages.findIndex(item => item.state === 'pending')
       // 最后一道「验收与结论」是系统收尾阶段：签掉最后一个工作阶段时一起确认，
       // 不再让用户为同一个判断点两次。
@@ -180,6 +180,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         meta: { kind: 'gate', gate: 'decision', stage: mergedFinal, by: 'you' },
       })
     }
+    for (const assignment of activeDispatchAssignments(store, room.id, index)) {
+      updateAssignment(store, assignment.id, { status: 'passed' })
+    }
     let finalRoom = next < 0 ? completeRoom(room) ?? room : room
     if (next < 0) notifyParent(finalRoom)
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
@@ -211,10 +214,12 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const updated = updateRoom(room.id, current => {
       const target = current.stages?.[index]
       if (target === undefined || target.state !== 'active') return null
-      if (Array.isArray(target.tasks)) target.tasks = target.tasks.map(task => ({ ...task, status: 'working' }))
       return { events: [{ type: 'stage.rework', payload: { stage: index, note } }] }
     })
     if (updated === null) return fail('conflict', '这一步的状态变了，再试一次')
+    for (const assignment of activeDispatchAssignments(store, room.id, index)) {
+      updateAssignment(store, assignment.id, { status: 'failed' })
+    }
     emit('room', updated)
     if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {

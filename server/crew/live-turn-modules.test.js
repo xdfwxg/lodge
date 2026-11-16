@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createAcceptanceRunner } from './rooms/studio/acceptance-runner.js'
+import { createHandoff } from './rooms/studio/handoff.js'
 import { createStageIntegrator } from './rooms/studio/integration.js'
 import { createReviewCoordinator } from './rooms/studio/review.js'
 import { createStageStarter } from './rooms/studio/stage.js'
@@ -8,7 +9,7 @@ import { createLiveTurns } from './rooms/studio/turns.js'
 import { createTurnState } from './rooms/studio/turn-state.js'
 import { deliverableStageIndex, parsePlannerDecision, parseVerdict } from './rooms/studio/turn-utils.js'
 import { registerWorkspaceProvider } from './workspace.js'
-import { normalizeLegacyTestRoom } from './testing/room.js'
+import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
 
 const makeRoom = overrides => normalizeLegacyTestRoom({
   id: 'room-1',
@@ -32,7 +33,7 @@ const fakeStore = room => {
   let current = room
   const messages = []
   const events = []
-  return {
+  return withAssignments({
     readRoom: () => current,
     readRooms: () => [current],
     readMessages: () => messages,
@@ -49,7 +50,7 @@ const fakeStore = room => {
     messages,
     events,
     get current() { return current },
-  }
+  })
 }
 
 test('live turn helpers keep stage and verdict semantics', () => {
@@ -140,35 +141,48 @@ test('a rejected stage routes the planner decision to the executor or the human'
   assert.equal(humanStore.messages.some(message => message.kind === 'system' && /规划师把/.test(message.text)), false)
 })
 
-test('turn state resets progress and updates stage tasks', () => {
+test('turn state resets progress', () => {
   const room = makeRoom({ noProgress: 3 })
   const store = fakeStore(room)
   const state = createTurnState({ store, roomId: 'room-1', emit: () => {} })
   state.markProgress()
   assert.equal(room.noProgress, 0)
   assert.ok(room.lastProgressAt > 0)
-  state.updateTasks(0, stage => ({ ...stage, tasks: [{ memberId: 'executor', state: 'working' }] }))
-  assert.equal(room.stages[0].tasks[0].state, 'working')
 })
 
 test('the integrator settles the last worker and turns queue failures into room messages', async () => {
-  const room = makeRoom({
-    stageDispatch: { stage: 0, workers: ['a', 'b'], pending: ['a', 'b'], failed: [], base: 'base', startedAt: 1 },
-  })
+  const room = makeRoom()
   const store = fakeStore(room)
+  for (const worker of ['a', 'b']) {
+    store.writeAssignment({
+      id: `as-${worker}`,
+      roomId: 'room-1',
+      stageIndex: 0,
+      fromMemberId: 'planner',
+      toMemberId: worker,
+      reason: 'dispatch',
+      brief: {},
+      status: 'reported',
+      context: { base: 'base' },
+      flags: {},
+      createdAt: 1,
+      updatedAt: 1,
+    })
+  }
   const integrator = createStageIntegrator({
     store,
     roomId: 'room-1',
     emit: () => {},
-    updateTasks: () => {},
     markProgress: () => {},
     requestReview: async () => {},
     run: async () => ({ exit: 0 }),
   })
+  store.updateAssignment('as-b', assignment => { assignment.status = 'sent'; return true })
   assert.equal(integrator.settle('a', 't1', false), null)
+  store.updateAssignment('as-b', assignment => { assignment.status = 'reported'; return true })
   const done = integrator.settle('b', 't2', false)
   assert.deepEqual(done.workers, ['a', 'b'])
-  assert.deepEqual(room.stageDispatch.pending, [])
+  assert.equal(done.base, 'base')
   await integrator.enqueue(async () => { throw new Error('boom') })
   assert.match(store.messages.at(-1).text, /并行执行出错：boom/)
 })
@@ -218,26 +232,30 @@ test('parallel dispatch wakes every assignee and tracks pending seats', async ()
   })
   const store = fakeStore(room)
   const prompts = []
+  const sendToMember = async (memberId, prompt) => {
+    prompts.push({ memberId, prompt })
+    return { messageId: `m-${memberId}` }
+  }
+  const handoff = createHandoff({ store, roomId: 'room-1', sendToMember, emit: () => {} })
   const starter = createStageStarter({
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToMember: async (memberId, prompt) => {
-      prompts.push({ memberId, prompt })
-      return { messageId: `m-${memberId}` }
-    },
-    updateTasks: () => {},
+    handoff,
+    sendToMember,
     integrate: async () => {},
     enqueue: task => task(),
   })
   await starter.startStage(room, 0)
   assert.deepEqual(prompts.map(item => item.memberId), ['executor', 'executor-2'])
   assert.match(prompts[0].prompt, /自己的 worktree/)
-  assert.match(prompts[0].prompt, /@执行官/)
-  assert.match(prompts[1].prompt, /@执行官 2/)
-  assert.deepEqual(room.stageDispatch.workers, ['executor', 'executor-2'])
-  assert.deepEqual(room.stageDispatch.pending, ['executor', 'executor-2'])
-  assert.equal(room.stageDispatch.base, 'base')
+  assert.match(prompts[0].prompt, /自己的 worktree/)
+  assert.match(prompts[1].prompt, /自己的 worktree/)
+  const assignments = store.readAssignments('room-1')
+  assert.deepEqual(assignments.map(assignment => assignment.toMemberId), ['executor', 'executor-2'])
+  assert.deepEqual(assignments.filter(assignment => assignment.status === 'sent').map(assignment => assignment.toMemberId), ['executor', 'executor-2'])
+  assert.equal(assignments[0].context.base, 'base')
+  assert.equal(room.stageDispatch, undefined)
 })
 
 test('acceptance runs in a disposable copy and records command evidence', async () => {

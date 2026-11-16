@@ -11,7 +11,7 @@ const MODE_KEYS = [
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
-  'refresh', 'onMemberFailure', 'deliveryOf',
+  'refresh', 'onMemberFailure', 'markMemberFailure', 'projectWork', 'deliveryOf',
   'hostOf', 'speakerOf',
 ]
 

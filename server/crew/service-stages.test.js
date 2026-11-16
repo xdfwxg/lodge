@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createServiceStages } from './rooms/studio/service-stages.js'
+import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
 
-const room = (over = {}) => ({
+const room = (over = {}) => normalizeLegacyTestRoom({
   id: 'room-1',
   kind: 'room',
   state: 'active',
@@ -18,13 +19,15 @@ const room = (over = {}) => ({
     { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
     { title: '验收与结论', kind: 'decision', state: 'pending' },
   ],
+  seatSpecs: [{ id: 'worker', name: '执行者', role: 'worker' }],
+  seatBots: { worker: 'bot-worker' },
   ...over,
 })
 
 const setup = initial => {
   let current = initial
   const messages = []
-  const store = {
+  const store = withAssignments({
     readRooms: () => [current],
     readMessages: () => messages,
     updateRoom: (id, mutate) => {
@@ -38,7 +41,7 @@ const setup = initial => {
       messages.push(stored)
       return stored
     },
-  }
+  })
   const calls = []
   const stages = createServiceStages({
     store,

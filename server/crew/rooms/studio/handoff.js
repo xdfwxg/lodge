@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto'
 import { markMemberRead } from '../../watermarks.js'
 import { memberDisplayName } from '../../member-labels.js'
-import { buildWorkTurn } from './work-turn.js'
+import { createAssignment, updateAssignment } from '../../assignments.js'
 
-const deliveryId = ({ index, from, to, reason, acceptance, evidence, candidate, rework }) => (
-  `h-${createHash('sha256')
+const assignmentDigest = ({ index, from, to, reason, acceptance, evidence, candidate, rework }) => (
+  createHash('sha256')
     .update(JSON.stringify({
       index,
       from,
@@ -16,11 +16,11 @@ const deliveryId = ({ index, from, to, reason, acceptance, evidence, candidate, 
       rework,
     }))
     .digest('hex')
-    .slice(0, 32)}`
+    .slice(0, 32)
 )
 
-// 接力棒只执行交接：写工作拍、交给目标成员、记事件。
-// 地址由传输层解析；能不能交接由 stage/review 判断，这里不改阶段状态。
+// 接力只做一件事：写一条 Assignment，再把它投递给目标成员。
+// 消息是这次 Assignment 的界面投影，不是交接事实的第二份存储。
 export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
   const trigger = async ({
     room,
@@ -35,44 +35,47 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     verdict = null,
     candidate = null,
     rework = false,
+    context = {},
   }) => {
     const current = store.readRoom(roomId) ?? room
     const body = String(prompt ?? '').replace(/^@\S+\s*/, '').trim()
-    const targetText = body
     const label = memberDisplayName(current, to)
     const summary = `阶段 ${index + 1}${stage?.title ? `「${stage.title}」` : ''}接力 → ${label}${acceptance ? ` · 验收 ${acceptance}` : ''}`
-    const workTurn = buildWorkTurn({
-      room: current,
-      stage,
-      index,
-      from,
-      to,
+    const sendId = `a-${assignmentDigest({ index, from, to, reason, acceptance, evidence, candidate, rework })}`
+    const assignment = createAssignment({
+      store,
+      id: sendId,
+      roomId,
+      stageIndex: index,
+      fromMemberId: from,
+      toMemberId: to,
       reason,
-      acceptance,
-      evidence,
-      verdict,
-      candidate,
+      brief: {
+        stageTitle: stage?.title ?? '',
+        kind: stage?.kind ?? '',
+        goal: current.goal ?? '',
+        done: Array.isArray(current.plan?.done) ? current.plan.done.slice(0, 6) : [],
+        constraints: Array.isArray(current.constraints) ? current.constraints.slice(0, 6) : [],
+        acceptance: acceptance ?? stage?.acceptance ?? '',
+        prompt: body,
+      },
+      context: {
+        ...context,
+        ...(candidate === null ? {} : { candidate }),
+        ...(evidence?.id === undefined ? {} : { evidenceId: evidence.id }),
+        ...(verdict?.id === undefined ? {} : { verdictId: verdict.id }),
+      },
+      status: 'created',
     })
-    const sendId = deliveryId({ index, from, to, reason, acceptance, evidence, candidate, rework })
     const stored = store.appendMessage(roomId, {
       kind: 'handoff',
       authorId: from,
       text: summary,
-      meta: {
-        stage: index,
-        from,
-        to,
-        workers: [to],
-        reason,
-        acceptance: acceptance ?? '',
-        rework,
-        deliveryId: sendId,
-        status: 'sending',
-        workTurn,
-      },
+      meta: { assignmentId: assignment.id, stage: index, status: 'sending' },
     })
     markMemberRead({ store, roomId, memberId: to, emit })
-    store.appendEvent(roomId, 'handoff.requested', {
+    store.appendEvent(roomId, 'assignment.created', {
+      assignmentId: assignment.id,
       stage: index,
       from,
       to,
@@ -80,31 +83,42 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       messageId: stored.id,
     })
     try {
-      await sendToMember(to, targetText, {
+      await sendToMember(to, body, {
         intent: reason === 'review' ? 'review' : 'handoff',
         from,
         sendId,
       })
-      const sent = {
+      const sent = updateAssignment(store, assignment.id, {
+        status: 'sent',
+        sendId,
+        messageId: stored.id,
+        sentAt: Date.now(),
+      })
+      store.upsertMessage?.({
         ...stored,
         meta: { ...stored.meta, status: 'sent', sentAt: Date.now() },
-      }
-      store.upsertMessage?.(sent)
-      store.appendEvent(roomId, 'handoff.sent', {
+      })
+      store.appendEvent(roomId, 'assignment.sent', {
+        assignmentId: assignment.id,
         stage: index,
         from,
         to,
         reason,
         messageId: stored.id,
       })
-      return sent
+      return sent ?? assignment
     } catch (error) {
-      const failed = {
+      updateAssignment(store, assignment.id, {
+        status: 'failed',
+        messageId: stored.id,
+        resultText: String(error?.message ?? error),
+      })
+      store.upsertMessage?.({
         ...stored,
         meta: { ...stored.meta, status: 'failed', error: String(error?.message ?? error) },
-      }
-      store.upsertMessage?.(failed)
-      store.appendEvent(roomId, 'handoff.failed', {
+      })
+      store.appendEvent(roomId, 'assignment.failed', {
+        assignmentId: assignment.id,
         stage: index,
         from,
         to,

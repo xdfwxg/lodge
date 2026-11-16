@@ -5,7 +5,7 @@ import { createLiveTurns } from './rooms/studio/turns.js'
 
 const ports = createCrewPorts()
 import { reviewState } from './rooms/studio/verifiers.js'
-import { normalizeLegacyTestRoom } from './testing/room.js'
+import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
 
 const room = (over = {}) => normalizeLegacyTestRoom({
   id: 'room-1',
@@ -110,7 +110,7 @@ test('the review request goes to every verifier and all PASS ends the round', as
   const state = room()
   const messages = [evidence()]
   let seq = 11
-  const store = {
+  const store = withAssignments({
     readRoom: () => state,
     readRooms: () => [],
     readMessages: () => messages,
@@ -124,7 +124,7 @@ test('the review request goes to every verifier and all PASS ends the round', as
       mutate(state)
       return state
     },
-  }
+  })
   const sent = []
   const turns = createLiveTurns({
     store,
@@ -156,7 +156,7 @@ test('a rejection cancels the remaining verifier round', async () => {
   const state = room()
   const messages = [evidence()]
   let seq = 11
-  const store = {
+  const store = withAssignments({
     readRoom: () => state,
     readRooms: () => [],
     readMessages: () => messages,
@@ -170,7 +170,7 @@ test('a rejection cancels the remaining verifier round', async () => {
       mutate(state)
       return state
     },
-  }
+  })
   const turns = createLiveTurns({
     store,
     engine: {},

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createServiceStages } from './rooms/studio/service-stages.js'
-import { normalizeLegacyTestRoom } from './testing/room.js'
+import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
 
 test('a completed child posts only its Verifier verdicts to the parent and wakes its Planner', async () => {
   const parent = normalizeLegacyTestRoom({
@@ -41,7 +41,7 @@ test('a completed child posts only its Verifier verdicts to the parent and wakes
     ],
   }
   const sent = []
-  const store = {
+  const store = withAssignments({
     readRoom: id => rooms[id] ?? null,
     readRooms: () => [parent, child],
     readMessages: id => messages[id] ?? [],
@@ -56,7 +56,7 @@ test('a completed child posts only its Verifier verdicts to the parent and wakes
       messages[id].push(stored)
       return stored
     },
-  }
+  })
   const stages = createServiceStages({
     store,
     live: {

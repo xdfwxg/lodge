@@ -22,6 +22,16 @@ const atDeliverable = () => {
   return r
 }
 
+const dispatchAssignment = flags => ({
+  id: 'as-1',
+  stageIndex: 1,
+  toMemberId: 'worker',
+  reason: 'dispatch',
+  status: 'working',
+  context: { parallel: true },
+  flags,
+})
+
 const evidence = (seq = 10) => ({ kind: 'evidence', seq, meta: { stage: 1, kind: 'command', exit: 0 } })
 const verdict = (pass, seq = 11) => ({ kind: 'verdict', seq, meta: { stage: 1, pass } })
 
@@ -114,21 +124,15 @@ test('a manual stage stays quiet until the product is ready', () => {
   assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'decision', stage: 1, label: '待确认' })
 })
 
-test('a parallel merge conflict asks the human', () => {
+test('a timed-out parallel assignment asks the human', () => {
   const r = atDeliverable()
-  r.stageDispatch = { stage: 1, pending: [], conflict: { files: ['same.txt'] } }
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'merge', stage: 1, label: '合并冲突' })
-})
-
-test('a timed-out parallel dispatch asks the human', () => {
-  const r = atDeliverable()
-  r.stageDispatch = { stage: 1, pending: ['worker-2'], timedOut: true }
+  r.assignments = [dispatchAssignment({ timedOut: true })]
   assert.deepEqual(roomNeedsYou(r, []), { kind: 'parallel', stage: 1, label: '并行执行超时' })
 })
 
-test('a stalled parallel dispatch asks the human', () => {
+test('a stalled parallel assignment asks the human', () => {
   const r = atDeliverable()
-  r.stageDispatch = { stage: 1, pending: [], stalled: true }
+  r.assignments = [dispatchAssignment({ stalled: true })]
   assert.deepEqual(roomNeedsYou(r, []), { kind: 'parallel', stage: 1, label: '并行执行无产出' })
 })
 

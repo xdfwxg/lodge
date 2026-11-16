@@ -1,14 +1,13 @@
 import { studioTransitionEvent, transitionStudio } from './state.js'
-import { memberLabelMap } from '../../member-labels.js'
 import { leadMemberOf, workerIds } from '../../room-members.js'
-import { buildTasks, markTask } from './tasks.js'
+import { activeDispatchAssignments, dispatchOf, updateAssignment } from '../../assignments.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 
-export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, updateTasks, integrate, enqueue }) => {
+export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, integrate, enqueue }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
   const startStage = async (room, index, { note = '', rework = false } = {}) => {
     const stage = room.stages[index]
@@ -47,10 +46,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       })
       if (updated !== null) emit?.('room', updated)
     }
-    updateTasks(index, current => ({
-      ...current,
-      tasks: buildTasks({ stageIndex: index, workers: assignees, memberLabels: memberLabelMap(room) }),
-    }))
     if (dispatchPlan.note !== '') store.appendMessage(roomId, { kind: 'system', text: dispatchPlan.note })
     const acceptance = stage.manual === true
       ? '验收方式：人看结果，不跑命令。'
@@ -95,22 +90,10 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     }
 
     const startedAt = Date.now()
-    const dispatch = {
-      stage: index,
-      workers: [...assignees],
-      pending: [...assignees],
-      failed: [],
-      base: stageBase,
-      startedAt,
-      integrated: false,
-    }
-    const stored = store.updateRoom(roomId, current => {
-      current.stageDispatch = dispatch
+    store.updateRoom(roomId, current => {
       current.mergeConflict = null
       return { events: [{ type: 'stage.dispatch', payload: { stage: index, workers: assignees, orchestration: dispatchPlan.strategy.id } }] }
     })
-    if (stored === null) throw new Error('无法记录并行派发')
-    emit?.('room', stored)
 
     const settled = await Promise.allSettled(assignees.map(worker => handoffTrigger({
       room,
@@ -122,52 +105,39 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       prompt: promptFor(worker),
       acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
       rework,
+      context: { base: stageBase, parallel: true },
     })))
     const failed = settled
       .map((result, at) => (result.status === 'rejected' ? assignees[at] : null))
       .filter(Boolean)
     if (failed.length > 0) {
-      let ready = null
-      const updated = store.updateRoom(roomId, current => {
-        const currentDispatch = current.stageDispatch
-        if (currentDispatch?.startedAt !== startedAt) return null
-        currentDispatch.failed = [...new Set([...(currentDispatch.failed ?? []), ...failed])]
-        currentDispatch.pending = currentDispatch.pending.filter(id => !failed.includes(id))
-        if (currentDispatch.pending.length === 0) {
-          const remaining = currentDispatch.workers.filter(id => !failed.includes(id))
-          if (remaining.length === 0) currentDispatch.stalled = true
-          ready = { stageIndex: currentDispatch.stage, workers: remaining, base: currentDispatch.base }
-        }
-        return { events: [{ type: 'stage.dispatch_failed', payload: { stage: index, workers: failed } }] }
-      })
-      updateTasks(index, current => failed.reduce((stageState, member) => markTask(stageState, member, 'failed'), current))
+      store.appendEvent(roomId, 'stage.dispatch_failed', { stage: index, workers: failed })
       store.appendMessage(roomId, {
         kind: 'system',
         text: `启动执行失败：${failed.map(worker => memberDisplayName(room, worker)).join('、')}；其余成员继续。`,
       })
-      if (updated !== null && ready !== null) {
-        if (ready.workers.length === 0) {
+      const dispatch = dispatchOf(store, roomId, index)
+      if (dispatch !== null && dispatch.pending.length === 0) {
+        const remaining = dispatch.workers.filter(id => !failed.includes(id))
+        if (remaining.length === 0) {
           store.appendMessage(roomId, { kind: 'system', text: '没有执行成员启动成功；这一步还没有进入验收。' })
         } else {
-          void enqueue(() => integrate({ ...ready, turnId: '' }))
+          void enqueue(() => integrate({ stageIndex: index, workers: remaining, base: dispatch.base, failed, turnId: '' }))
         }
       }
     }
 
     setTimeout(() => {
-      const current = store.readRoom(roomId)
-      const currentDispatch = current?.stageDispatch
-      if (currentDispatch?.startedAt !== startedAt) return
-      if ((currentDispatch.pending ?? []).length === 0) return
-      const waiting = currentDispatch.pending.map(worker => memberDisplayName(current, worker)).join('、')
-      store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: index, workers: currentDispatch.pending })
+      const dispatch = dispatchOf(store, roomId, index)
+      if (dispatch === null || dispatch.pending.length === 0) return
+      const waiting = dispatch.pending.map(worker => memberDisplayName(store.readRoom(roomId) ?? room, worker)).join('、')
+      store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: index, workers: dispatch.pending })
       store.appendMessage(roomId, { kind: 'system', text: `并行执行超时：${waiting} 还没有完成；这一步还没有进入验收。` })
-      const updated = store.updateRoom(roomId, inner => {
-        if (inner.stageDispatch?.startedAt !== startedAt) return null
-        inner.stageDispatch.timedOut = true
-        return { events: [] }
-      })
-      if (updated !== null) emit?.('room', updated)
+      for (const assignment of activeDispatchAssignments(store, roomId, index)) {
+        if (!dispatch.pending.includes(assignment.toMemberId)) continue
+        updateAssignment(store, assignment.id, { flags: { ...(assignment.flags ?? {}), timedOut: true } })
+      }
+      emit?.('room', store.readRoom(roomId) ?? room)
     }, PARALLEL_TIMEOUT).unref()
   }
 

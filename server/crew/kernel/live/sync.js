@@ -36,10 +36,10 @@ export const pauseForMemberFailure = (store, entry, message) => {
     current.pauseReason = 'member_error'
     current.idle = false
     current.memberError = { memberId, kind, at: Date.now(), detail: text.slice(0, 500) }
-    roomPresentationOfRoom(current)?.onMemberFailure(current, memberId)
     return { events: [{ type: 'room.member_error', payload: { memberId, kind, detail: text.slice(0, 500) } }] }
   })
   if (updated !== null) {
+    roomPresentationOfRoom(updated)?.markMemberFailure?.(store, updated, memberId)
     store.appendMessage(entry.roomId, {
       kind: 'system',
       text: failureCopy(kind, memberNameOf(room, memberId)),

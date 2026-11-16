@@ -49,18 +49,6 @@ export const createTurnState = ({ store, roomId, emit }) => {
     if (updated !== null) emit?.('room', updated)
   }
 
-  const updateTasks = (stageIndex, mutate) => {
-    const updated = store.updateRoom(roomId, current => {
-      const stage = current.stages[stageIndex]
-      if (stage === undefined) return null
-      const next = mutate(stage)
-      if (next === stage) return null
-      current.stages[stageIndex] = next
-      return { events: [] }
-    })
-    if (updated !== null) emit?.('room', updated)
-  }
-
   return {
     turns,
     capturedTurns,
@@ -69,6 +57,5 @@ export const createTurnState = ({ store, roomId, emit }) => {
     trackTool,
     recordTurn,
     markProgress,
-    updateTasks,
   }
 }

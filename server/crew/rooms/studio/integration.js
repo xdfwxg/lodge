@@ -1,9 +1,10 @@
 import { verifierIds } from '../../room-members.js'
 import { isWorkStage } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
-import { markTask } from './tasks.js'
+import { memberDisplayName } from '../../member-labels.js'
+import { activeDispatchAssignments, dispatchOf, updateAssignment } from '../../assignments.js'
 
-export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markProgress, requestReview, run }) => {
+export const createStageIntegrator = ({ store, roomId, emit, markProgress, requestReview, run }) => {
   let chain = Promise.resolve()
 
   // 合并、集成验收都串行执行，避免多个回合同时动集成 worktree。
@@ -15,24 +16,20 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
   }
 
   const settleWorker = (member, turnId, failed) => {
-    let done = null
-    const updated = store.updateRoom(roomId, current => {
-      const dispatch = current.stageDispatch
-      if (dispatch === null || dispatch === undefined) return null
-      if (!Array.isArray(dispatch.pending) || !dispatch.pending.includes(member)) return null
-      dispatch.pending = dispatch.pending.filter(id => id !== member)
-      if (failed) dispatch.failed = [...new Set([...(dispatch.failed ?? []), member])]
-      if (dispatch.pending.length === 0) {
-        done = {
-          stageIndex: dispatch.stage,
-          workers: [...dispatch.workers],
-          base: dispatch.base,
-          failed: [...(dispatch.failed ?? [])],
-        }
-      }
-      return { events: [{ type: failed ? 'stage.member_failed' : 'stage.member_done', payload: { stage: dispatch.stage, member, turnId } }] }
-    })
-    return updated === null ? null : done
+    const assignment = store.readAssignments(roomId, { limit: 1000 })
+      .filter(item => item.toMemberId === member && ['dispatch', 'rework', 'retry'].includes(item.reason))
+      .at(-1)
+    if (assignment === undefined) return null
+    if (failed) updateAssignment(store, assignment.id, { status: 'failed', turnId })
+    store.appendEvent(roomId, failed ? 'stage.member_failed' : 'stage.member_done', { stage: assignment.stageIndex, member, turnId })
+    const dispatch = dispatchOf(store, roomId, assignment.stageIndex)
+    if (dispatch === null || dispatch.pending.length > 0) return null
+    return {
+      stageIndex: assignment.stageIndex,
+      workers: [...dispatch.workers],
+      base: dispatch.base,
+      failed: [...dispatch.failed],
+    }
   }
 
   const integrateStage = async ({ stageIndex, workers, base, turnId, failed = [] }) => {
@@ -68,7 +65,6 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
         const updated = store.updateRoom(roomId, current => {
           const conflict = { stage: stageIndex, worker, branch, files: result.files }
           current.mergeConflict = conflict
-          if (current.stageDispatch?.stage === stageIndex) current.stageDispatch.conflict = { worker, branch, files: result.files }
           return { events: [] }
         })
         if (updated !== null) emit?.('room', updated)
@@ -78,6 +74,9 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     }
 
     const head = workspaceOf(room).head({ path: integration })
+    for (const item of activeDispatchAssignments(store, roomId, stageIndex)) {
+      updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), integrated: true } })
+    }
     if (stage.manual === true) {
       store.appendMessage(roomId, {
         kind: 'evidence',

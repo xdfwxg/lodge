@@ -1,9 +1,8 @@
 import { verifierIds, workerIds } from '../../room-members.js'
-import { markStageTasks } from './tasks.js'
 import { reworkFloor } from './verifiers.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 
-export const createAcceptanceRunner = ({ store, roomId, markProgress, requestReview, updateTasks, run }) => {
+export const createAcceptanceRunner = ({ store, roomId, markProgress, requestReview, run }) => {
   let chain = Promise.resolve()
 
   const runAcceptance = async (stageIndex, command, turnId) => {
@@ -136,7 +135,6 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
         : '检查没通过 · 重做后才能复核',
     })
     if (result.exit !== 0) {
-      updateTasks(stageIndex, current => markStageTasks(current, 'working'))
       return
     }
     markProgress()

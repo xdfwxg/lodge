@@ -45,7 +45,6 @@ const applicationFiles = [
   'rooms/studio/gates.js',
   'rooms/studio/verifiers.js',
   'rooms/studio/stage-plan.js',
-  'rooms/studio/tasks.js',
   'rooms/studio/progress.js',
   'rooms/studio/member-handoff.js',
   'workspace-gc.js',

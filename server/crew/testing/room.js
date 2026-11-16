@@ -35,3 +35,38 @@ export const normalizeLegacyTestRoom = room => {
     memberCursors: room.memberCursors ?? room.seatCursors ?? {},
   }
 }
+
+// 测试用 Assignment 内存表；产品代码用 SQLite assignment 表。
+export const withAssignments = store => {
+  const rows = []
+  return Object.assign(store, {
+    writeAssignment(assignment) {
+      const now = Date.now()
+      const stored = { ...assignment, createdAt: assignment.createdAt ?? now, updatedAt: assignment.updatedAt ?? now }
+      const index = rows.findIndex(item => item.id === stored.id)
+      if (index >= 0) rows[index] = stored
+      else rows.push(stored)
+      return stored
+    },
+    readAssignments(roomId, { stage = null, status = null, limit = 500 } = {}) {
+      return rows
+        .filter(item => item.roomId === roomId)
+        .filter(item => !Number.isInteger(stage) || item.stageIndex === stage)
+        .filter(item => status === null || item.status === status)
+        .slice(-limit)
+    },
+    readAssignment(id) {
+      return rows.find(item => item.id === id) ?? null
+    },
+    updateAssignment(id, mutate) {
+      const assignment = rows.find(item => item.id === id)
+      if (assignment === undefined) return null
+      const change = mutate(assignment)
+      if (change === null || change === undefined || change === false) return null
+      const next = { ...assignment, ...(change === true ? {} : change), updatedAt: Date.now() }
+      const index = rows.findIndex(item => item.id === id)
+      rows[index] = next
+      return next
+    },
+  })
+}

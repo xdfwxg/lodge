@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createMessageProjector } from './kernel/live/projection.js'
 import { createMemberSync } from './kernel/live/sync.js'
-import { normalizeLegacyTestRoom } from './testing/room.js'
+import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
 
-test('an engine-level member error pauses the room and marks its task failed', async () => {
+test('an engine-level member error pauses the room and marks its assignment failed', async () => {
   let room = normalizeLegacyTestRoom({
     id: 'room-1',
     state: 'active',
@@ -18,11 +18,10 @@ test('an engine-level member error pauses the room and marks its task failed', a
       kind: 'deliverable',
       state: 'active',
       acceptance: 'true',
-      tasks: [{ owner: 'worker', status: 'working' }],
     }],
   })
   const messages = []
-  const store = {
+  const store = withAssignments({
     readRoom: () => room,
     updateRoom: (_id, mutate) => {
       const next = structuredClone(room)
@@ -33,7 +32,19 @@ test('an engine-level member error pauses the room and marks its task failed', a
     },
     upsertMessage: message => messages.push(message),
     appendMessage: (_id, message) => messages.push(message),
-  }
+  })
+  store.writeAssignment({
+    id: 'as-1',
+    roomId: 'room-1',
+    stageIndex: 0,
+    fromMemberId: 'lead',
+    toMemberId: 'worker',
+    reason: 'dispatch',
+    brief: {},
+    status: 'working',
+    context: { parallel: true },
+    flags: {},
+  })
   const projector = createMessageProjector({ store })
   const sync = createMemberSync({
     store,
@@ -55,7 +66,7 @@ test('an engine-level member error pauses the room and marks its task failed', a
   assert.equal(room.pauseReason, 'member_error')
   assert.equal(room.memberError.memberId, 'worker')
   assert.equal(room.memberError.kind, 'quota')
-  assert.equal(room.stages[0].tasks[0].status, 'failed')
+  assert.equal(store.readAssignment('as-1').status, 'failed')
   assert.match(messages.at(-1).text, /模型额度不够/)
   assert.match(messages.at(-1).text, /点“继续”/)
   assert.equal(messages.some(message => /recent-work/.test(message.text ?? '')), false)
@@ -72,7 +83,7 @@ test('ordinary activity is not treated as an engine failure', async () => {
     hiddenBaseMessages: [],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
   })
-  const store = {
+  const store = withAssignments({
     readRoom: () => room,
     updateRoom: (_id, mutate) => {
       const next = structuredClone(room)
@@ -82,7 +93,7 @@ test('ordinary activity is not treated as an engine failure', async () => {
     },
     upsertMessage: () => {},
     appendMessage: () => {},
-  }
+  })
   const projector = createMessageProjector({ store })
   const sync = createMemberSync({
     store,

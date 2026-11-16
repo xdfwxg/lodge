@@ -27,7 +27,7 @@ test('a dispatch becomes a stage baton with the receiving members', () => {
     acceptance: 'npm test',
     scope: '',
     rework: false,
-    workTurn: null,
+    brief: null,
     text: '阶段 2 交给执行官。',
   })
 })
@@ -76,32 +76,27 @@ test('a rework dispatch keeps its rework marker', () => {
   assert.equal(baton.stage, '1')
 })
 
-test('a handoff baton carries the target, status and work turn', () => {
+test('a handoff baton reads its assignment brief', () => {
+  const assignment = {
+    id: 'as-1',
+    stageIndex: 1,
+    fromMemberId: 'worker',
+    toMemberId: 'verifier',
+    reason: 'review',
+    status: 'sent',
+    brief: { done: ['测试通过'], constraints: ['不改测试'], acceptance: 'npm test' },
+  }
   const baton = batonOf({
     kind: 'handoff',
     authorId: 'worker',
     text: '阶段 2「实现」接力 → 验收员 · 验收 npm test',
-    meta: {
-      stage: 1,
-      from: 'worker',
-      to: 'verifier',
-      workers: ['verifier'],
-      reason: 'review',
-      status: 'sent',
-      acceptance: 'npm test',
-      workTurn: {
-        done: ['测试通过'],
-        constraints: ['不改测试'],
-        evidence: { command: 'npm test', exit: 0, changedFiles: ['src/add.js'] },
-        verdict: null,
-        candidate: null,
-      },
-    },
-  }, room)
+    meta: { assignmentId: 'as-1', stage: 1, status: 'sent' },
+  }, { ...room, assignments: [assignment] })
   assert.equal(baton.from, '执行官')
   assert.equal(baton.to, '验收员')
   assert.equal(baton.status, 'sent')
   assert.equal(baton.reason, 'review')
-  assert.equal(baton.workTurn.done[0], '测试通过')
-  assert.equal(baton.workTurn.evidence.changedFiles[0], 'src/add.js')
+  assert.equal(baton.acceptance, 'npm test')
+  assert.equal(baton.brief.done[0], '测试通过')
+  assert.equal(baton.brief.constraints[0], '不改测试')
 })

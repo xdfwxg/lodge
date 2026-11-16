@@ -106,6 +106,8 @@ export const chatKind = {
   }),
 
   onMemberFailure: () => {},
+  markMemberFailure: () => {},
+  projectWork: () => null,
   deliveryOf: () => null,
   hostOf: room => room.chatHost ?? null,
   speakerOf: room => room.chat?.speaker ?? '',

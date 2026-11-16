@@ -5,15 +5,15 @@ import { parseVerdict, REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-util
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { workspaceOf } from './workspace.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
-import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf } from '../../room-members.js'
+import { updateAssignment } from '../../assignments.js'
 import { memberDisplayName } from '../../member-labels.js'
 
 const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
 
 
-export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, updateTasks, handoff = null, advisor = null }) => {
+export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, advisor = null }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
   let round = null
   const staleMembers = new Set()
@@ -34,7 +34,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, upd
     const pass = parseVerdict(turn.reply)
     const name = memberDisplayName(room, memberId)
     const spec = memberOf(room, pending.verifier)
-    store.appendMessage(roomId, {
+    const verdictMessage = store.appendMessage(roomId, {
       kind: 'verdict',
       authorId: pending.verifier,
       text: turn.reply || '复核回合没有给出文字结论。',
@@ -56,6 +56,16 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, upd
       },
     })
     store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, independent: true, turnId })
+    const reviewAssignment = store.readAssignments(roomId, { stage: pending.stage, limit: 500 })
+      .filter(item => item.reason === 'review' && item.toMemberId === pending.verifier)
+      .at(-1)
+    if (reviewAssignment !== undefined) {
+      updateAssignment(store, reviewAssignment.id, {
+        status: pass ? 'passed' : 'rejected',
+        turnId,
+        verdictIds: [...(reviewAssignment.verdictIds ?? []), verdictMessage.id],
+      })
+    }
     if (pass) round.passed = (round.passed ?? 0) + 1
     else round.rejects = (round.rejects ?? 0) + 1
 
@@ -88,7 +98,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, upd
     const policy = round.policy
     round = null
     if (reachedQuorum) {
-      updateTasks(pending.stage, current => markStageTasks(current, 'done'))
       store.appendMessage(roomId, {
         kind: 'system',
         text: policy === 'majority'
@@ -96,7 +105,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, upd
           : '全部验收员通过，可以签字了。',
       })
     } else {
-      updateTasks(pending.stage, current => markStageTasks(current, 'working'))
       store.appendMessage(roomId, {
         kind: 'system',
         text: policy === 'majority'
