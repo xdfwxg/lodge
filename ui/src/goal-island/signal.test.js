@@ -78,14 +78,14 @@ test('a conclusion outranks the stage conclusion that came with it', () => {
     ],
   })
   const { event } = milestoneOf(previous, next, baselineSeen(previous))
-  assert.equal(event.title, '交付完成')
+  assert.equal(event.title, '已完成')
 })
 
 test('a new delivery peeks even without a message', () => {
   const previous = room()
   const next = room({ delivery: { commit: null } })
   const { event, seen } = milestoneOf(previous, next, baselineSeen(previous))
-  assert.equal(event.title, '交付已就绪')
+  assert.equal(event.title, '可以看了')
   assert.equal(milestoneOf(next, next, seen).event, null)
 })
 

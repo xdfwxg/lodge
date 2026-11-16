@@ -46,13 +46,13 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
     delivery.independenceLabel ?? '',
   ].filter(Boolean).join(' · ')
   return h('div', { className: 'crew-msg-conclusion', 'data-outcome': 'delivery' },
-    h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true', 'aria-label': '交付卡' },
+    h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true', 'aria-label': '结果' },
       h('div', { className: 'crew-card-body' },
         h('div', { className: 'studio-delivery-head' },
-          h('span', { className: 'studio-delivery-kicker' }, '交付卡'),
+          h('span', { className: 'studio-delivery-kicker' }, '结果'),
           delivery.sample === true ? h('span', { className: 'studio-delivery-sample' }, '示例数据') : null,
-          h('span', { className: 'studio-delivery-chip' }, '已交付 ✓')),
-        h('h3', { className: 'studio-delivery-name' }, nameText === '' ? '这次交付' : nameText),
+          h('span', { className: 'studio-delivery-chip' }, '已完成 ✓')),
+        h('h3', { className: 'studio-delivery-name' }, nameText === '' ? '这次做出来的' : nameText),
         goalFirst === '' || goalFirst === nameText ? null : h('p', { className: 'studio-delivery-goal' }, goalFirst),
         goalText !== goalFirst
           ? h('details', { className: 'crew-fold' },
@@ -83,7 +83,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
               h('button', {
                 type: 'button',
                 className: 'crew-ghost',
-                'aria-label': '打开交付文件夹',
+                'aria-label': '打开结果文件夹',
                 onClick: () => void open(delivery.workspacePath),
               }, '打开'))
             : null),
@@ -97,7 +97,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
           open: detailsOpen || undefined,
           onToggle: event => setDetailsOpen(event.currentTarget.open),
         },
-          h('summary', null, '交付明细'),
+          h('summary', null, '结果明细'),
           delivery.commit
             ? h('div', { className: 'crew-kv' }, h('span', null, '版本'), h('code', null, short(delivery.commit)))
             : null,
@@ -117,7 +117,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             ...(delivery.stages ?? []).map(stage => h('div', { key: stage.index, className: 'crew-delivery-stage' },
               h('div', { className: 'crew-delivery-stage-head' },
                 h('b', null, `${stage.index + 1}. ${stage.title}`),
-                h('span', { 'data-state': stage.state }, stage.kind === 'deliverable' ? '交付' : '决策')),
+                h('span', { 'data-state': stage.state }, stage.kind === 'deliverable' ? '结果' : '决策')),
               ...stage.commands.map(command => h('div', { key: command.id, className: 'crew-kv' },
                 h('span', null, '检查'),
                 h('span', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'))),

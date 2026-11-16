@@ -42,7 +42,7 @@ export const stageChapterSummary = (items, room, index = null) => {
   return parts.join(' · ')
 }
 
-// 阶段是工作室时间线的章节：当前阶段展开，已完成阶段收成一行，交付卡单独放在最后。
+// 阶段是工作室时间线的章节：当前阶段展开，已完成阶段收成一行，结果卡单独放在最后。
 // 建房期的环境/引擎提示没有阶段，单独放进「准备」，不能混进第一阶段。
 export const buildStageChapters = (items, room) => {
   const stages = Array.isArray(room?.stages) ? room.stages : []

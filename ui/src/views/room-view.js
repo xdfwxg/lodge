@@ -57,7 +57,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     if (stick.current) pinToBottom()
   }, [lastId, room.id])
 
-  // 流式文本、输入框增高、交付卡出现都会改变内容高度；回调在绘制前贴底。
+  // 流式文本、输入框增高、结果卡出现都会改变内容高度；回调在绘制前贴底。
   useEffect(() => {
     const node = scroll.current
     if (node === null || typeof ResizeObserver !== 'function') return undefined
@@ -201,7 +201,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           members: mentionMembers,
           onSent: followBottom,
           placeholder: room.state === 'complete'
-            ? '这次交付已结束；说话可以开新一轮…'
+            ? '这次工作已完成；说话可以开新一轮…'
             : room.state === 'paused'
               ? '已暂停 · 继续后才能派新活'
               : room.state === 'stopped'

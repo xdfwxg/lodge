@@ -10,7 +10,7 @@ import { StageDock } from './stage-dock.js'
 import { SubroomTree } from './subroom-tree.js'
 import { StudioTranscript } from './transcript.js'
 
-// 工作室的房间视图：目标岛、状态行、时间线、阶段坞和交付卡。
+// 工作室的房间视图：目标岛、状态行、时间线、阶段坞和结果卡。
 export const studioView = {
   id: 'studio',
   buildViewModel: ({ room, members }) => buildGoalView(room, members),
@@ -49,7 +49,7 @@ export const studioView = {
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,
       onContinue: () => actions.startStudio({
-        goal: `${room.goal}\n\n上一次交付「${room.name}」已经完成。现在在这个基础上继续：`,
+        goal: `${room.goal}\n\n上一次结果「${room.name}」已经完成。现在在这个基础上继续：`,
         conclusion: '',
         sourceName: room.name,
         repoPath: room.repoPath ?? '',

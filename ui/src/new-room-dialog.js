@@ -423,7 +423,7 @@ function NewRoomDialog({
             ? proposal.why
             : `这件事由 ${proposal.members.length} 位成员一起完成。`)))),
     h('div', { className: 'crew-proposal-block' },
-      h('b', null, '会交付什么'),
+      h('b', null, '你会拿到'),
       h('ul', { className: 'crew-brief' },
         proposal.done.map((text, index) => h('li', { key: `done-${index}` }, inlineCode(text))))),
     Array.isArray(proposal.stages) && proposal.stages.length > 0

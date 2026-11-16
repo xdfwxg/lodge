@@ -56,7 +56,7 @@ export const rejectsFor = (room, index) => room.messages.filter(message => (
 ))
 
 export const islandStatus = room => {
-  if (room.state === 'complete') return { label: '已交付', tone: 'done' }
+  if (room.state === 'complete') return { label: '已完成', tone: 'done' }
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
   if (room.state === 'paused') {
     if (room.needsYou?.kind === 'idle') return { label: '已暂停 · 可以接着聊', tone: 'paused' }
@@ -85,7 +85,7 @@ export const memberTask = (member, stage) => {
     return stage.kind === 'decision' ? '讲清「怎样算做完」，由你确认' : '拆出这一步要改什么、怎么算过'
   }
   if (member.role === 'worker') {
-    return stage.acceptance ? '按约定交付，并跑一次检查' : '交付这一步的结果'
+    return stage.acceptance ? '按约定完成，并跑一次检查' : '完成这一步的结果'
   }
   if (member.role === 'verifier') return '独立检查，给出通过或退回'
   return '只读观察'

@@ -26,15 +26,15 @@ test('a stored handoff becomes the studio seed', () => {
 
 test('a return-to-chat seed uses its own context label', () => {
   assert.equal(
-    seedGoalText({ goal: '评审这次交付', conclusion: '检查通过', label: '这次交付' }),
-    '评审这次交付\n\n这次交付：\n检查通过',
+    seedGoalText({ goal: '评审这次做出来的', conclusion: '检查通过', label: '这次做出来的' }),
+    '评审这次做出来的\n\n这次做出来的：\n检查通过',
   )
 })
 
 test('a receipt seed carries the four receipt fields into the goal', () => {
   const text = seedGoalText({
-    goal: '评审这次交付：发布检查',
-    label: '这次交付',
+    goal: '评审这次做出来的：发布检查',
+    label: '这次做出来的',
     receipt: {
       result: '发布检查',
       completeness: '2/2 步完成',
@@ -42,7 +42,7 @@ test('a receipt seed carries the four receipt fields into the goal', () => {
       openQuestions: [],
     },
   })
-  assert.match(text, /评审这次交付：发布检查/)
+  assert.match(text, /评审这次做出来的：发布检查/)
   assert.match(text, /完成度：2\/2 步完成/)
   assert.match(text, /检查：npm test 通过/)
 })

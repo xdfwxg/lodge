@@ -33,7 +33,7 @@ export function Onboarding({ state, archived = [], onRestore, onCreate, onSample
             disabled: disabled || sampleBusy,
             onClick: () => void openSample(),
           }, sampleBusy ? '正在打开示例…' : '先看一间完成的示例房间'),
-          h('p', { className: 'crew-field-hint' }, '不用配置，直接看交付卡和工作记录。')),
+          h('p', { className: 'crew-field-hint' }, '不用配置，直接看结果和工作记录。')),
       sampleError === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, sampleError),
       archived.length === 0 || typeof onRestore !== 'function'
         ? null

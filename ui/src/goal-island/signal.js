@@ -78,8 +78,8 @@ const eventForMessage = (room, message) => {
     case 'conclusion':
       return wrap(60, {
         key, kind: 'milestone', tone: 'done', at,
-        title: '交付完成',
-        detail: clean(message.text) || '交付已经写好，可以查看交付卡',
+        title: '已完成',
+        detail: clean(message.text) || '结果已经写好，可以查看结果',
       })
     case 'chat_conclusion':
       return wrap(60, {
@@ -152,8 +152,8 @@ export const milestoneOf = (previous, room, seen = new Set()) => {
     nextSeen.add('delivery')
     candidates.push(wrap(35, {
       key: 'delivery', kind: 'milestone', tone: 'done', at: 0,
-      title: '交付已就绪',
-      detail: '可以查看交付卡了',
+      title: '可以看了',
+      detail: '可以查看结果了',
     }))
   }
 

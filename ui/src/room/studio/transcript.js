@@ -15,7 +15,7 @@ import {
   showsMember,
 } from './transcript-model.js'
 
-// 工作室时间线按阶段分章：当前阶段展开，已完成阶段收成一行，交付卡在最后。
+// 工作室时间线按阶段分章：当前阶段展开，已完成阶段收成一行，结果卡在最后。
 export function StudioTranscript({
   room,
   members,

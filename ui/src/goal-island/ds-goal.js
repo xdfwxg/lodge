@@ -261,7 +261,7 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
       goal.objective ? sec('objective', t('Objective'), goal.objective) : null,
       goal.deliverables?.length > 0
         ? h('div', { key: 'deliverables', className: 'bt-goal-sec' },
-          h('div', { className: 'bt-goal-sub' }, '交付'),
+          h('div', { className: 'bt-goal-sub' }, '结果'),
           h('ul', { className: 'bt-goal-rules' }, goal.deliverables.map((item, index) => h('li', { key: index }, item))))
         : null,
       h('div', { key: 'checks', className: 'bt-goal-sec' },

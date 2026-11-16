@@ -29,7 +29,7 @@ test('a studio room becomes the DS goal shape', () => {
   assert.equal(goal.current, 1)
   assert.equal(goal.stages[1].status, 'active')
   assert.equal(goal.stages[1].tasks.length, 3)
-  assert.match(goal.stages[1].tasks[1].task, /按约定交付/)
+  assert.match(goal.stages[1].tasks[1].task, /按约定完成/)
   assert.equal(toDsRoster(room().members).byId.worker.name, '执行官')
   assert.deepEqual(toDsRoomWork(room({ busyMembers: ['worker'] })), [{ botId: 'worker' }])
 })

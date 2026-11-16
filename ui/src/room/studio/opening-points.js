@@ -12,7 +12,7 @@ const confirmationItems = room => (room.brief?.constraints ?? [])
       : /改动|调整|方向/.test(question)
         ? '改动方向'
         : /交付物|尺寸|放到哪里/.test(question)
-          ? '交付物'
+          ? '结果'
           : null
     return { question: question.trim(), answer, label }
   })

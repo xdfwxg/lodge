@@ -12,7 +12,7 @@ export const ROOM_TYPE_CHOICES = [
     kind: 'studio',
     icon: StudioIcon,
     title: '直接做出来',
-    hint: '说清要交付什么，成员分步完成',
+    hint: '说清要得到什么，成员分步完成',
   },
 ]
 

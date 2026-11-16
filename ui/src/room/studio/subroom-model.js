@@ -16,7 +16,7 @@ export const canCreateSubroom = room => (
 )
 
 export const subroomStatusOf = room => {
-  if (room?.state === 'complete') return '已交付'
+  if (room?.state === 'complete') return '已完成'
   if (room?.state === 'paused') return '已暂停'
   if (room?.state === 'stopped') return '已停止'
   return CLOSURE_LABELS[room?.closure] ?? '正在做'

@@ -147,7 +147,7 @@ export function StudioPrimaryFields({
         h('b', null, '怎么验收'),
         h(VerifyChoice, { verifyMode, onVerifyMode, acceptanceDraft, onAcceptanceDraft }),
         h('p', { className: 'crew-field-hint' }, verifyMode === 'test'
-          ? '会在房间的工作文件夹里真的跑一遍，结果显示在交付卡上。'
+          ? '会在房间的工作文件夹里真的跑一遍，结果显示在结果里。'
           : '成员做完后由你确认；想自动检查，就选「跑一条检查」。'))
       : null)
 }

@@ -62,7 +62,7 @@ function FinalSummary({ room }) {
           : item.state === 'passed' ? '已确认' : '你确认'),
         h('span', null, verdict === undefined ? '' : verdict.meta?.pass === true ? '通过' : '退回'))
     }),
-    h('p', { className: 'crew-field-hint' }, '确认后写下结论，这次交付就结束。'))
+    h('p', { className: 'crew-field-hint' }, '确认后写下结论，这次工作就结束。'))
 }
 
 export function StageAction({ room, stage, index, onAccept, onAnswer, onRework, advisor, onShadowReconfirm }) {
@@ -125,7 +125,7 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework, 
                 : '看看上面的内容，没问题就继续。'),
           h('p', { className: 'crew-gate-next' },
             next === undefined
-              ? '没问题的话，这次交付就收尾。'
+              ? '没问题的话，这次工作就收尾。'
               : `没问题的话，下一步是「${next.title}」。`),
           blocked ? null : h('p', { className: 'crew-gate-hint' }, '哪里不对，直接在下面对我说。')),
         h('div', { className: 'crew-card-foot' },

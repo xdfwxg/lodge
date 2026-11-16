@@ -7,7 +7,7 @@ export function ReceiptReview({ receipt }) {
   return h('div', { className: 'crew-card crew-handoff-review' },
     h('div', { className: 'crew-card-head' },
       '从工作室带回的结果',
-      h('span', { className: 'crew-verdict', 'data-pass': true }, '已交付')),
+      h('span', { className: 'crew-verdict', 'data-pass': true }, '已完成')),
     h('div', { className: 'crew-card-body' },
       h('p', { className: 'crew-handoff-topic' }, receipt.result),
       receipt.completeness === ''

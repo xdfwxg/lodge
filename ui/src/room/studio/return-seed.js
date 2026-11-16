@@ -14,16 +14,16 @@ export const returnToChatSeed = room => {
     result: delivery.name,
     completeness: stages.length > 0
       ? `${done}/${stages.length} 步完成${changed > 0 ? `，${changed} 个文件` : ''}`
-      : changed > 0 ? `${changed} 个文件` : '已交付',
+      : changed > 0 ? `${changed} 个文件` : '已完成',
     checks: commands.length > 0
       ? [`${passed}/${commands.length} 项检查通过${simulated ? '（含模拟）' : ''}`]
       : ['人工验收通过'],
     openQuestions: delivery.openQuestions ?? [],
   })
   return {
-    goal: `评审这次交付：${delivery.name}`,
+    goal: `评审这次做出来的：${delivery.name}`,
     conclusion: receiptText(receipt),
-    label: '这次交付',
+    label: '这次做出来的',
     sourceName: delivery.name,
     sourceRoomId: room.id,
     receipt,

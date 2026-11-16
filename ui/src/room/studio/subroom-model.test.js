@@ -53,6 +53,6 @@ test('the last verdict and its label are read from child messages', () => {
 
 test('status prefers the room state over the closure', () => {
   assert.equal(subroomStatusOf(room('a', { closure: 'executing' })), '正在做')
-  assert.equal(subroomStatusOf(room('a', { state: 'complete', closure: 'signed' })), '已交付')
+  assert.equal(subroomStatusOf(room('a', { state: 'complete', closure: 'signed' })), '已完成')
   assert.equal(subroomStatusOf(room('a', { state: 'paused' })), '已暂停')
 })

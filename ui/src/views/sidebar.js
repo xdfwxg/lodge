@@ -264,7 +264,7 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
       h('div', { className: 'crew-dialog-heading' },
         h('h2', null, deleting ? '删除房间' : '归档房间'),
         h('p', null, deleting
-          ? `「${room.name}」的房间记录和过程档案会删除，交付文件会保留。`
+          ? `「${room.name}」的房间记录和过程档案会删除，文件会留着。`
           : `「${room.name}」会停止并收进「已归档」；取消归档只会让它重新出现在列表里。`)),
       deleting ? h('p', { className: 'crew-dialog-note crew-confirm-note' }, '删除后不能恢复。') : null,
       h('div', { className: 'crew-dialog-foot' },

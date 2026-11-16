@@ -14,8 +14,8 @@ test('a finished delivery returns to chat as a structured receipt', () => {
       openQuestions: ['是否需要自动回滚？'],
     },
   })
-  assert.equal(seed.goal, '评审这次交付：发布检查清单')
-  assert.equal(seed.label, '这次交付')
+  assert.equal(seed.goal, '评审这次做出来的：发布检查清单')
+  assert.equal(seed.label, '这次做出来的')
   assert.equal(seed.sourceRoomId, 'room-studio')
   assert.deepEqual(seed.receipt, {
     result: '发布检查清单',
