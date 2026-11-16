@@ -16,7 +16,7 @@ const timeLabel = ts => {
   return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`
 }
 
-function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartStudio, hideKinds = [] }) {
+function Timeline({ room, seats, onApproval, hideKinds = [] }) {
   const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
   const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
   const timeline = useMemo(() => buildTimeline(messages), [messages])
@@ -36,9 +36,6 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
         message,
         seat: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
         room,
-        onAccept,
-        onContinueChat,
-        onStartStudio,
       })
       : message.kind === 'chat' && message.meta?.opening === true
         ? h(ChatOpeningCard, {
@@ -60,7 +57,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
   const staleSignoff = message => (
     room.state === 'complete'
     && message.kind === 'system'
-    && /等你签字|可以签字/.test(String(message.text ?? ''))
+    && /待签字|等你签字|可以签字/.test(String(message.text ?? ''))
   )
   const meaningful = timeline.visible.filter(message => !hidden.has(message.kind) && !staleSignoff(message))
   return [
@@ -74,7 +71,7 @@ function Timeline({ room, seats, onAccept, onApproval, onContinueChat, onStartSt
       })),
     pendingApprovals.length > 1
       ? h('div', { key: 'approval-queue', className: 'crew-system' },
-        `还有 ${pendingApprovals.length - 1} 个操作等你点头，先处理眼前这个。`)
+        `还有 ${pendingApprovals.length - 1} 个操作待确认，先处理眼前这个。`)
       : null,
   ].filter(Boolean)
 }

@@ -1,8 +1,9 @@
-import { createElement as h, useEffect, useState } from 'react'
+import { createElement as h } from 'react'
 import { GoalIsland, GOAL_CSS, goalView } from './ds-goal.js'
 import { ChevronDownIcon } from './ds-icons.js'
 import { TargetIcon } from '../icons.js'
 import { activeIndex, evidenceFor, rejectsFor, seatState, seatTask } from './model.js'
+import { useGoalSignal } from './use-goal-signal.js'
 
 // DS-Bot's goal island wants goal/roster/roomWork; Lodge keeps room/stages/verdicts.
 // This adapter is the only place that translates between the two shapes.
@@ -31,7 +32,7 @@ export const toDsGoal = room => {
       evidence: last === undefined
         ? undefined
         : last.meta?.kind === 'manual'
-          ? '人工产物就绪'
+          ? '结果待确认'
           : `${last.meta?.exit === 0 ? '检查通过' : last.meta?.exit === null || last.meta?.exit === undefined ? '已经检查' : '检查没通过'}`,
       reworks: reworks.length,
       feedback: reworks.at(-1)?.text,
@@ -52,7 +53,7 @@ export const toDsGoal = room => {
     acceptance: acceptance.length === 0 ? undefined : acceptance.join('\n'),
     constraints: room.brief?.constraints ?? [],
     summary: conclusion?.text,
-    evidence: typeof room.delivery?.commit === 'string' ? `提交 ${room.delivery.commit.slice(0, 8)}` : undefined,
+    evidence: typeof room.delivery?.commit === 'string' ? '已保存版本' : undefined,
     reason: room.state === 'stopped' ? '目标已停止' : undefined,
     evidenceCount: (room.messages ?? []).filter(message => message.kind === 'evidence').length,
   }
@@ -112,32 +113,33 @@ const PILL_CSS = `
 .crew-ds-goal>*{pointer-events:auto}
 .crew-ds-goal .bt-island{align-self:center}
 @keyframes bt-veil-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (max-width:760px){.crew-ds-goal{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-open]{width:calc(100% - 8px)}}
+@media (max-width:760px){.crew-ds-goal{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
 `
 
 export function DsGoalHeader({ room, seats, onAdvance }) {
-  const [open, setOpen] = useState(false)
-  useEffect(() => setOpen(false), [room.id])
+  const activity = useGoalSignal(room)
+  const open = activity.mode === 'open'
   const goal = toDsGoal(room)
   const roster = toDsRoster(seats)
   const roomWork = toDsRoomWork(room)
   const view = goalView(goal, { roster })
   const dsRoom = toDsRoom(room)
   const goalActions = {
-    toggleGoal: () => setOpen(value => !value),
-    closeGoal: () => setOpen(false),
-    closeGoalCompose: () => {},
-    goalDraft: async () => {},
+    toggleGoal: () => (open ? activity.onClose() : activity.onOpen()),
+    closeGoal: activity.onClose,
+    openSignal: activity.onOpen,
+    dismissSignal: activity.onDismiss,
+    pauseSignal: activity.onPause,
+    resumeSignal: activity.onResume,
     advance: onAdvance,
-    reportError: (error, area) => console.error(`goal ${area}`, error),
   }
   return h('div', { className: 'crew-ds-goal' },
     h(GoalIsland, {
       room: dsRoom,
       goal,
       view,
-      open,
-      composing: false,
+      mode: activity.mode,
+      signal: activity.signal,
       roomWork,
       roster,
       actions: goalActions,

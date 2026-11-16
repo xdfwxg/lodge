@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { ChatIsland } from './island.js'
 import { ReceiptIntake } from './receipt-intake.js'
 import { chatView } from './view.js'
 
@@ -9,6 +10,21 @@ const actions = {
   startStudio: () => {},
   chatAccept: () => {},
 }
+
+test('the chat header is the collapsed island', () => {
+  const tree = chatView.header({
+    room: {
+      id: 'room-chat',
+      name: '圆桌',
+      goal: '讨论交付边界',
+      state: 'active',
+      chat: { phase: 'discussing' },
+      messages: [],
+    },
+    seats: [],
+  })
+  assert.equal(tree.type, ChatIsland)
+})
 
 test('a chat room shows the receipt strip before its timeline', () => {
   const receipt = {

@@ -1,6 +1,7 @@
 import { Fragment, createElement as h } from 'react'
 import { BotAvatar } from '../../marks.js'
-import { buildChatDecision, ChatStatusHeader } from './decision.js'
+import { buildChatDecision } from './decision.js'
+import { ChatIsland } from './island.js'
 import { ReceiptIntake } from './receipt-intake.js'
 import { Timeline } from './timeline.js'
 import { hostLabelOf } from '../host.js'
@@ -19,7 +20,7 @@ function TypingLine({ room, seat, summarizing }) {
 export const chatView = {
   id: 'chat',
   buildViewModel: () => null,
-  header: ({ room }) => h(ChatStatusHeader, { room, decision: buildChatDecision(room) }),
+  header: ({ room, actions }) => h(ChatIsland, { room, decision: buildChatDecision(room), actions }),
   activity: () => null,
   transcript: ({ room, seats, actions }) => h(Fragment, null,
     h(ReceiptIntake, { key: `receipt-${room.id}`, receipt: room.receipt }),
@@ -28,10 +29,7 @@ export const chatView = {
       room,
       seats,
       hideKinds: [],
-      onAccept: actions.chatAccept,
       onApproval: actions.approval,
-      onContinueChat: actions.continueChat,
-      onStartStudio: actions.startStudio,
     })),
   presence: () => null,
   composerPlaceholder: () => '加入讨论…',

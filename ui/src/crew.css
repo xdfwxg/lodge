@@ -16,7 +16,6 @@
 .crew-side-brand small{font-size:12.5px;font-weight:500;color:var(--bt-ink-3)}
 
 .crew-side-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 8px 8px;font-size:12.5px;color:var(--bt-ink-3)}
-.crew-side-group{margin-top:8px}
 .crew-side-group-label{padding:10px 8px 4px;font-size:11.5px;line-height:15px;font-weight:600;color:var(--bt-ink-3);letter-spacing:.04em}
 .bt-row.crew-side-room{min-height:34px;padding:4px 8px;gap:8px;border-radius:8px}
 .crew-side-room-type{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;color:var(--bt-ink-3)}
@@ -37,7 +36,7 @@
 .crew-side-room-dot[data-tone=waiting]{background:var(--bt-star)}
 .crew-side-row{position:relative;display:flex;align-items:center;flex-wrap:wrap;min-width:0}
 .crew-side-row .bt-row.crew-side-room{flex:1 1 auto;min-width:0;padding-right:26px}
-.crew-side-group[data-archived=true] .bt-row.crew-side-room{opacity:.62}
+.crew-side-row[data-archived=true] .bt-row.crew-side-room{opacity:.62}
 .crew-side-more{position:absolute;right:2px;top:17px;transform:translateY(-50%);display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:15px;line-height:1;cursor:pointer;opacity:0;pointer-events:none}
 .crew-side-more::before{content:"";position:absolute;inset:-2px}
 .crew-side-row:hover .crew-side-more,.crew-side-row:focus-within .crew-side-more,.crew-side-row[data-menu=true] .crew-side-more{opacity:1;pointer-events:auto}
@@ -71,8 +70,6 @@ body[data-side=rail] .crew-side-brand{justify-content:center;gap:0;padding:10px 
 body[data-side=rail] .crew-side-brand-logo{width:24px;height:24px}
 body[data-side=rail] .crew-side-tools{flex-direction:column;align-items:center;gap:6px;padding:0 0 8px}
 body[data-side=rail] .crew-side-group-label{display:none}
-body[data-side=rail] .crew-side-group{margin-top:0;padding:8px 0 2px;border-top:1px solid var(--bt-line)}
-body[data-side=rail] .crew-side-group:first-child{border-top:0}
 body[data-side=rail] .bt-row.crew-side-room{min-height:40px;padding:4px 12px;justify-content:center;position:relative}
 body[data-side=rail] .crew-side-room-name,
 body[data-side=rail] .crew-side-room-type,
@@ -91,7 +88,7 @@ body[data-side=rail] .crew-new::after{content:'＋';font-size:16px;line-height:1
 body[data-side=rail] .crew-side-error{width:24px;height:24px;margin:0 auto 8px;padding:0;display:grid;place-items:center;border-radius:7px}
 body[data-side=rail] .crew-side-error-mark{display:block;font-size:13.5px;font-weight:700;color:var(--bt-danger-text)}
 body[data-side=rail] .crew-side-error-text{display:none}
-body.is-mac-shell[data-side=rail] .crew-decision-head{padding-top:36px}
+body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 @media (forced-colors:active){
   body[data-side=rail] .crew-side-room-dot,
   body[data-side=rail] .crew-unread-dot{outline:1px solid CanvasText}
@@ -696,12 +693,26 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 .crew-room-main{flex:1 1 auto;width:100%;max-width:none}
 .crew-room-main[data-mode=studio] .crew-scroll{padding-top:116px}
 .crew-room-main[data-mode=studio]>.crew-activity-line{position:absolute;top:88px;left:50%;z-index:19;width:fit-content;max-width:calc(100% - 64px);transform:translateX(-50%);padding:2px 9px;border:1px solid var(--bt-line-2);border-radius:999px;background:var(--bt-card);box-shadow:var(--bt-elev-1);pointer-events:none}
-.crew-decision-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:26px 32px 10px;max-width:880px}
-.crew-decision-heading{min-width:0}
-.crew-decision-heading h1{margin:0;font-size:20px;line-height:26px;font-weight:650;color:var(--bt-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.crew-decision-state{margin:5px 0 0;font-size:13.5px;line-height:19px;color:var(--bt-ink-3)}
-.crew-decision-state[data-tone=done]{color:var(--bt-success-text)}
-.crew-decision-state[data-tone=paused]{color:var(--bt-danger-text)}
+.crew-island-wrap{display:flex;justify-content:center;padding:18px 32px 8px;box-sizing:border-box}
+.crew-island{display:inline-flex;flex-direction:column;max-width:min(440px,calc(100% - 24px));border-radius:999px;background:var(--bt-card);border:.5px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-size:13.5px;line-height:20px;box-sizing:border-box;overflow:hidden}
+.crew-island-row{display:flex;align-items:center;gap:8px;height:40px;padding:7px 14px 7px 8px;box-sizing:border-box;min-width:0}
+.crew-island[data-expanded=true]{max-width:min(480px,calc(100% - 24px));border-radius:16px}
+.crew-island-detail{padding:0 16px 8px 40px;color:var(--bt-ink-2);font-size:13.5px;line-height:19px}
+.crew-island-detail-text{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crew-island-note{display:flex;gap:8px;margin-top:8px}
+.crew-island-note .crew-goal-input{flex:1;min-width:0}
+.crew-island-foot{display:flex;align-items:center;padding:0 14px 12px 40px}
+.crew-island-actions{display:flex;align-items:center;gap:10px;width:100%}
+.crew-island-actions .crew-accept{margin-left:0;height:32px;padding:0 14px}
+.crew-island-secondary{margin-left:auto;height:32px;padding:0 4px;border:0;background:none;color:var(--bt-ink-3);font:inherit;font-size:12.5px;cursor:pointer}
+.crew-island-secondary:hover{color:var(--bt-ink)}
+.crew-island-secondary:disabled{opacity:.45;cursor:default}
+.crew-island-ico{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--bt-shade-2);color:var(--bt-ink-2)}
+.crew-island-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.crew-island-status{flex:none;color:var(--bt-ink-3);transition:color .12s ease}
+.crew-island[data-tone=waiting] .crew-island-status{color:var(--bt-warning-text)}
+.crew-island[data-tone=done] .crew-island-status{color:var(--bt-success-text)}
+.crew-island[data-tone=paused] .crew-island-status{color:var(--bt-danger-text)}
 .crew-decision-card{max-width:880px;margin:4px 32px 18px;padding:18px 20px 16px;border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-card)}
 .crew-decision-card h2{margin:7px 0 0;font-size:17px;line-height:23px;font-weight:650;color:var(--bt-ink)}
 .crew-decision-detail{margin:7px 0 0;font-size:13.5px;line-height:19px;color:var(--bt-ink-2);white-space:pre-wrap;max-height:120px;overflow:auto}
@@ -717,7 +728,7 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 .crew-decision-rework textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--bt-line);border-radius:8px;background:var(--bt-main);color:var(--bt-ink);font:inherit;font-size:13.5px;line-height:18px;resize:vertical}
 .crew-decision-rework-actions{display:flex;gap:8px}
 @media (max-width:760px){
-  .crew-decision-head{padding:20px 18px 8px}
+  .crew-island-wrap{padding:12px 14px 6px}
   .crew-decision-card{margin:4px 18px 14px}
   .crew-scroll{padding-left:18px;padding-right:18px}
   .crew-room-main[data-mode=studio] .crew-scroll{padding-top:112px}

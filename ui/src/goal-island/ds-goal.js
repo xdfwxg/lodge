@@ -118,9 +118,8 @@ function TaskRow({ task, working }) {
 }
 
 
-// Closed: one compact card. The goal is the headline, the current stage is the
-// subtitle, and the stage track is a single 3px bar — no second stepper, no
-// duplicate status row.
+// Closed: one 40px capsule with the goal, progress, status and stage track.
+// The signal row below it is the only thing that grows the island on its own.
 function GoalClosed({ view, room, actions }) {
   const title = view?.title || room.name || '目标'
   const status = room.needsYou?.label ?? view?.barLabel ?? '还没有目标'
@@ -140,14 +139,59 @@ function GoalClosed({ view, room, actions }) {
     h('span', { className: 'bt-goal-closed-ico', 'aria-hidden': true }, h(TargetIcon)),
     h('span', { className: 'bt-goal-closed-title', title }, title),
     count === '' ? null : h('span', { className: 'bt-goal-closed-count' }, count),
+    h('span', { className: 'bt-goal-closed-sub' },
+      h('span', {
+        className: 'bt-goal-closed-dot',
+        'data-tone': tone,
+        'data-live': room.busy === true ? 'true' : undefined,
+        'aria-hidden': true,
+      }),
+      h('span', { className: 'bt-goal-closed-label' }, status)),
     h('span', { className: 'bt-goal-chev', 'aria-hidden': true }, h(ChevronDownIcon))),
-  h('span', { className: 'bt-goal-closed-sub' },
-    h('span', { className: 'bt-goal-closed-dot', 'data-tone': tone, 'aria-hidden': true }),
-    h('span', { className: 'bt-goal-closed-label' }, status)),
   view === null
     ? null
     : h('span', { className: 'bt-goal-closed-segs', 'aria-hidden': true },
       view.segments.map((seg, i) => h('i', { key: i, 'data-seg': seg }))))
+}
+
+// A single line under the capsule: one thing happened, one way to look at it.
+// Decisions keep the line until they are handled; milestones expire.
+function GoalSignal({ signal, mode, actions }) {
+  const inside = event => event.currentTarget.contains(event.relatedTarget)
+  return h('div', {
+    className: 'bt-goal-signal',
+    'data-tone': signal.tone,
+    'data-kind': signal.kind,
+    'data-signal-key': signal.key,
+    onPointerEnter: actions.pauseSignal,
+    onPointerLeave: actions.resumeSignal,
+    onFocus: event => { if (!inside(event)) actions.pauseSignal() },
+    onBlur: event => { if (!inside(event)) actions.resumeSignal() },
+  },
+  h('button', {
+    type: 'button',
+    className: 'bt-goal-signal-main',
+    title: signal.detail,
+    onClick: actions.openSignal,
+  },
+  h('span', { className: 'bt-goal-signal-dot', 'aria-hidden': true }),
+  h('span', { className: 'bt-goal-signal-text' }, signal.title),
+  h('span', { className: 'bt-goal-signal-go' }, '查看')),
+  mode === 'decision'
+    ? h('button', {
+      type: 'button',
+      className: 'bt-goal-signal-close',
+      'aria-label': '收起这条提醒',
+      onClick: event => {
+        const capsule = event.currentTarget.closest('.bt-island')?.querySelector('.bt-goal-closed')
+        actions.dismissSignal()
+        requestAnimationFrame(() => capsule?.focus({ preventScroll: true }))
+      },
+    }, '×')
+    : null,
+  signal.kind === 'milestone'
+    ? h('span', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, signal.title)
+    : null)
 }
 
 // The open pod focuses one stage: a stepper across the top, the selected
@@ -229,52 +273,14 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
       h('span', { className: 'bt-goal-facts' })))
 }
 
-// The pod while the user writes the brief: the message goes to the admin, who
-// aligns the goal in the chat before starting it.
-function GoalCompose({ room, roster, actions }) {
-  const [text, setText] = useState('')
-  const [sending, setSending] = useState(false)
-  const admin = roster.byId?.[room.admin]?.name ?? t('a Bot')
-  const close = () => { actions.closeGoalCompose(); actions.closeGoal() }
-  const submit = () => {
-    const brief = text.trim()
-    if (brief === '' || sending) return
-    setSending(true)
-    void Promise.resolve(actions.goalDraft(room.id, brief)).then(
-      () => { actions.closeGoalCompose(); actions.closeGoal() },
-      (error) => { actions.reportError(error, 'goal'); setSending(false) },
-    )
-  }
-  return h('div', { className: 'bt-goal-compose' },
-    h('label', { className: 'bt-goal-clabel', htmlFor: 'bt-goal-brief' }, t('What should this group achieve?')),
-    h('textarea', {
-      id: 'bt-goal-brief', className: 'bt-input bt-input-area bt-goal-input', rows: 2, value: text,
-      onChange: (event) => {
-        setText(event.target.value)
-        const box = event.currentTarget
-        box.style.height = 'auto'
-        box.style.height = `${box.scrollHeight}px`
-      },
-      onKeyDown: (event) => {
-        if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); submit() }
-        if (event.key === 'Escape') { event.stopPropagation(); close() }
-      },
-      // eslint-disable-next-line jsx-a11y/no-autofocus
-      autoFocus: true,
-    }),
-    h('div', { className: 'bt-goal-chint' }, t('{admin} asks what is still open, then writes the goal with its checks and stages.', { admin })),
-    h('div', { className: 'bt-goal-cbtns' },
-      h('button', { type: 'button', className: 'bt-soft bt-soft-sm', onClick: close }, t('Cancel')),
-      h('button', { type: 'button', className: 'bt-send bt-soft-sm', disabled: text.trim() === '' || sending, onClick: submit }, t('Start'))))
-}
-
-// The surface that wraps the pill: pod with the bar (or the draft form) while
-// closed, the panel while open. The pod hangs off the header over the transcript.
-export function GoalIsland({ room, goal, view, open, composing, roomWork, roster, actions, pill }) {
+// The surface that wraps the capsule: signal or panel hangs under it. Closed
+// is a 40px capsule; a signal makes it grow one row; open shows the panel.
+export function GoalIsland({ room, goal, view, mode, signal, roomWork, roster, actions, pill }) {
   const island = useRef(null)
+  const open = mode === 'open'
   const wasOpen = useRef(open)
-  useMorph(island, open)
-  // The closed card and the open header are different buttons; keep keyboard
+  useMorph(island, `${mode}:${signal?.key ?? ''}`)
+  // The closed capsule and the open header are different buttons; keep keyboard
   // focus on the disclosure control across the swap instead of dropping it.
   useEffect(() => {
     if (wasOpen.current === open) return
@@ -283,30 +289,36 @@ export function GoalIsland({ room, goal, view, open, composing, roomWork, roster
     if (target instanceof HTMLElement) target.focus({ preventScroll: true })
   }, [open])
   const working = new Set((roomWork ?? []).map(entry => entry.botId))
-  // While the draft form is up, Escape and outside clicks cancel it like Cancel.
-  const close = composing ? () => { actions.closeGoalCompose(); actions.closeGoal() } : () => actions.closeGoal()
   return h('div', {
-    ref: island, className: 'bt-island',
-    'data-goal': view?.status ?? (composing ? 'compose' : undefined),
-    'data-idle': view?.idle || undefined, 'data-open': open || undefined,
+    ref: island,
+    className: 'bt-island',
+    'data-goal': view?.status,
+    'data-idle': view?.idle || undefined,
+    'data-mode': mode,
+    'data-signal': signal?.kind,
+    'data-signal-key': signal?.key,
   },
-  open || composing ? h(GoalOutside, { island, close }) : null,
-  open || composing ? pill : null,
+  open ? h(GoalOutside, { island, close: actions.closeGoal }) : null,
+  open ? pill : null,
   h('div', { className: 'bt-goal-pod' },
-    composing ? h(GoalCompose, { room, roster, actions })
-      : open
-        ? (view === null ? null : h(GoalPanel, { goal, view, room, roster, actions, working }))
-        : h(GoalClosed, { view, room, actions })))
+    open
+      ? (view === null ? null : h(GoalPanel, { goal, view, room, roster, actions, working }))
+      : h(Fragment, null,
+        h(GoalClosed, { view, room, actions }),
+        signal === null || signal === undefined
+          ? null
+          : h(GoalSignal, { signal, mode, actions }))))
 }
 
 export const GOAL_CSS = `
 /* One surface: the pill's own background, border and shadow. The pill row is
    40px, the pod bar 30px; the surface reshapes on SPRING_SHAPE. */
 .bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(440px,calc(100% - 120px));background:var(--bt-card);border:.5px solid var(--bt-line-2);border-radius:20px;box-shadow:var(--bt-island-shadow);color:var(--bt-ink);font-family:inherit;font-size:13.5px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')}}
-.bt-island[data-open]{width:min(560px,calc(100% - 48px));border-radius:18px}
+.bt-island[data-mode=peek],.bt-island[data-mode=decision]{width:min(480px,calc(100% - 120px));border-radius:18px}
+.bt-island[data-mode=open]{width:min(560px,calc(100% - 48px));border-radius:18px}
 .bt-island[data-morph]{overflow:hidden}
 .bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:20px 20px 0 0}
-.bt-island[data-open] .bt-pill{border-radius:18px 18px 0 0}
+.bt-island[data-mode=open] .bt-pill{border-radius:18px 18px 0 0}
 .bt-island .bt-pill:hover{background:var(--bt-hover)}
 .bt-island .bt-pill:active{transform:none}
 .bt-pill-goal{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto;text-align:left}
@@ -315,31 +327,44 @@ export const GOAL_CSS = `
 .bt-pill-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .bt-pill-count{flex:none;font-size:12.5px;line-height:16px;color:var(--bt-ink-2);font-variant-numeric:tabular-nums}
 .bt-goal-pod{display:flex;flex-direction:column;min-width:0}
-.bt-island[data-open] .bt-goal-pod::before,.bt-island[data-goal=compose] .bt-goal-pod::before{content:"";flex:none;height:.5px;margin:0 12px;background:var(--bt-line)}
+.bt-island[data-mode=open] .bt-goal-pod::before{content:"";flex:none;height:.5px;margin:0 12px;background:var(--bt-line)}
 .bt-goal-chev{flex:none;display:inline-flex;color:var(--bt-ink-3)}
 .bt-goal-chev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
-.bt-island[data-open] .bt-pill .bt-goal-chev svg{transform:rotate(180deg)}
-.bt-goal-closed{display:flex;flex-direction:column;gap:5px;width:100%;padding:11px 14px 10px;border:0;border-radius:20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .12s ease}
+.bt-island[data-mode=open] .bt-pill .bt-goal-chev svg{transform:rotate(180deg)}
+.bt-goal-closed{display:flex;flex-direction:column;width:100%;padding:0;border:0;border-radius:20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .12s ease}
 .bt-goal-closed:hover{background:var(--bt-hover)}
 .bt-goal-closed:active{background:var(--bt-active)}
-.bt-goal-closed-main{display:flex;align-items:center;gap:8px;min-width:0}
+.bt-goal-closed-main{display:flex;align-items:center;gap:8px;min-width:0;height:40px;padding:7px 12px 7px 8px;box-sizing:border-box}
 .bt-goal-closed-ico{flex:none;display:inline-flex;color:var(--bt-accent)}
 .bt-goal-closed-ico svg{width:15px;height:15px}
-.bt-goal-closed-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;line-height:20px;font-weight:650;color:var(--bt-ink)}
+.bt-goal-closed-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;font-weight:650;color:var(--bt-ink)}
 .bt-goal-closed-count{flex:none;font-size:12px;line-height:16px;color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
-.bt-goal-closed-main .bt-goal-chev{margin-left:auto}
-.bt-goal-closed-sub{display:flex;align-items:center;gap:6px;min-width:0;font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
+.bt-goal-closed-sub{flex:none;display:inline-flex;align-items:center;gap:6px;max-width:38%;min-width:0;font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
 .bt-goal-closed-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bt-goal-closed-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-green)}
 .bt-goal-closed-dot[data-tone=drafting],.bt-goal-closed-dot[data-tone=active]{background:var(--bt-accent)}
 .bt-goal-closed-dot[data-tone=waiting]{background:var(--bt-star)}
 .bt-goal-closed-dot[data-tone=stopped]{background:var(--bt-ink-3)}
-.bt-goal-closed-segs{display:flex;gap:3px;width:100%;margin-top:1px}
-.bt-goal-closed-segs i{flex:1 1 0;height:3px;border-radius:999px;background:var(--bt-line-2)}
+.bt-goal-closed-dot[data-live]{animation:bt-live-pulse 1.4s ease-in-out infinite}
+.bt-goal-closed-main .bt-goal-chev{margin-left:2px}
+.bt-goal-closed-segs{display:flex;gap:3px;width:100%;padding:0 8px 7px;box-sizing:border-box}
+.bt-goal-closed-segs i{flex:1 1 0;height:3px;border-radius:999px;background:var(--bt-line-2);transition:background-color .3s ease}
 .bt-goal-closed-segs i[data-seg=done]{background:var(--bt-green)}
 .bt-goal-closed-segs i[data-seg=current]{background:var(--bt-accent)}
 .bt-goal-closed-segs i[data-seg=checking]{background:var(--bt-accent);opacity:.6}
 .bt-goal-closed-segs i[data-seg=paused]{background:var(--bt-star)}
+.bt-goal-signal{display:flex;align-items:center;min-width:0;border-radius:0 0 20px 20px;animation:bt-signal-in .18s ease-out}
+.bt-goal-signal-main{flex:1 1 auto;display:flex;align-items:center;gap:8px;min-width:0;height:40px;padding:0 8px 0 14px;border:0;border-radius:0 0 20px 20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.bt-goal-signal-main:hover{background:var(--bt-hover)}
+.bt-goal-signal-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-accent)}
+.bt-goal-signal[data-tone=waiting] .bt-goal-signal-dot{background:var(--bt-star)}
+.bt-goal-signal[data-tone=done] .bt-goal-signal-dot{background:var(--bt-green)}
+.bt-goal-signal[data-tone=paused] .bt-goal-signal-dot{background:var(--bt-danger-text)}
+.bt-goal-signal[data-tone=active] .bt-goal-signal-dot{background:var(--bt-accent)}
+.bt-goal-signal-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;line-height:17px;color:var(--bt-ink-2)}
+.bt-goal-signal-go{flex:none;font-size:12.5px;line-height:17px;color:var(--bt-accent)}
+.bt-goal-signal-close{flex:none;width:28px;height:28px;margin-right:4px;border:0;border-radius:50%;background:none;color:var(--bt-ink-3);font:inherit;font-size:16px;line-height:1;cursor:pointer}
+.bt-goal-signal-close:hover{background:var(--bt-hover);color:var(--bt-ink)}
 .bt-goal-meta{margin:8px 14px 0;padding:5px 9px;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:12.5px;line-height:17px}
 .bt-goal-warn{margin:8px 14px 0;padding:6px 9px;border-left:2px solid var(--bt-line-warning);border-radius:0 8px 8px 0;background:var(--bt-warning-wash);color:var(--bt-warning-text);font-size:12.5px;line-height:17px}
 .bt-goal-actions{display:flex;gap:8px;padding:8px 14px 10px;border-top:.5px solid var(--bt-line)}
@@ -399,5 +424,7 @@ export const GOAL_CSS = `
 .bt-goal-chint{font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
 .bt-goal-cbtns{display:flex;justify-content:flex-end;gap:6px}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
-@media (prefers-reduced-motion:reduce){.bt-island,.bt-goal-chev svg{transition:none!important}.bt-goal-panel{animation:none}}
+@keyframes bt-signal-in{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@keyframes bt-live-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+@media (prefers-reduced-motion:reduce){.bt-island,.bt-goal-chev svg{transition:none!important}.bt-goal-panel,.bt-goal-signal{animation:none}.bt-goal-closed-dot[data-live]{animation:none}.bt-goal-closed-segs i{transition:none}}
 `
