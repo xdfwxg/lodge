@@ -132,7 +132,6 @@ function GoalClosed({ view, room, actions }) {
     type: 'button',
     className: 'bt-goal-closed',
     'aria-expanded': false,
-    'aria-label': `打开目标：${[title, status, count].filter(Boolean).join('，')}`,
     onClick: () => actions.toggleGoal(room.id),
   },
   h('span', { className: 'bt-goal-closed-main' },

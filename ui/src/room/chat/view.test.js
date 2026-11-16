@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ChatIsland } from './island.js'
 import { ReceiptIntake } from './receipt-intake.js'
 import { chatView } from './view.js'
+import { StatePanel } from '../../state-panel.js'
 
 const actions = {
   approval: () => {},
@@ -45,6 +46,18 @@ test('a plain chat room has no receipt to show', () => {
   const tree = chatView.transcript({ room: { id: 'room-chat' }, members: [], actions })
   const [strip] = tree.props.children.filter(Boolean)
   assert.equal(strip.props.receipt, undefined)
+})
+
+test('an empty chat room explains that its conclusion becomes studio work', () => {
+  const tree = chatView.transcript({
+    room: { id: 'room-chat', state: 'active', messages: [], chat: {} },
+    members: [],
+    actions,
+  })
+  const [intro] = tree.props.children.filter(Boolean)
+  assert.equal(intro.type, StatePanel)
+  assert.match(intro.props.title, /聊天室/)
+  assert.match(intro.props.body, /工作室/)
 })
 
 test('a typing member says it is thinking without repeating the name', () => {

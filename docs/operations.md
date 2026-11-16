@@ -205,7 +205,7 @@ npm run data:restore -- --data-dir "$HOME/Library/Application Support/lodge/data
 
 ```bash
 npm test
-npm run test:ui          # 需要本机 Chrome；CI 里用 chrome channel
+npm run test:ui          # 构建 UI，跑 Playwright + axe；需要本机 Chrome
 npm run build
 npm run prepare:runtimes
 npm run package:mac:dir

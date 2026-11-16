@@ -17,7 +17,7 @@ test('onboarding, focused dialog, sample room, goal panel and archive restore', 
   await page.reload()
   await expect(page.getByText('示例：发布前检查清单').first()).toBeVisible()
 
-  await page.getByRole('button', { name: /打开目标/ }).click()
+  await page.locator('.bt-goal-closed').click()
   await page.getByRole('button', { name: '目标和检查' }).click()
   await expect(page.getByText('目标', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('检查', { exact: true }).first()).toBeVisible()

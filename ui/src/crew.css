@@ -306,7 +306,7 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .studio-delivery-head{display:flex;align-items:center;gap:8px}
 .studio-delivery-kicker{font-size:11.5px;font-weight:700;letter-spacing:.08em;color:var(--bt-success-text)}
 .studio-delivery-chip{margin-left:auto;padding:2px 8px;border-radius:999px;background:var(--bt-success-soft);color:var(--bt-success-text);font-size:11.5px;font-weight:600}
-.studio-delivery-sample{padding:2px 7px;border-radius:999px;background:var(--bt-tag-bg);color:var(--bt-ink-3);font-size:11px;font-weight:600}
+.studio-delivery-sample{padding:2px 7px;border-radius:999px;background:var(--bt-tag-bg);color:var(--bt-ink);font-size:11px;font-weight:600}
 .crew-receipt span[data-pass=true],.crew-delivery-stage .crew-kv span[data-pass=true]{color:var(--bt-success-text);font-weight:600}
 .crew-receipt span[data-pass=false],.crew-delivery-stage .crew-kv span[data-pass=false]{color:var(--bt-danger-text);font-weight:600}
 .studio-delivery-name{margin:0;font-size:20px;line-height:26px;letter-spacing:-.01em;font-weight:650;color:var(--bt-ink)}
@@ -711,7 +711,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
   .dsb-side{padding:6px 10px 8px}
 }
 .crew-goal{font-size:12.5px;line-height:17px}
-.crew-scroll{padding:16px 20px 52px}
+.crew-scroll{padding:16px 20px 24px}
 .crew-flow{max-width:760px;gap:2px}
 .crew-msg{grid-template-columns:30px minmax(0,1fr);gap:9px;padding:8px 0}
 .crew-speaker-name{font-size:13.5px}
