@@ -1,6 +1,6 @@
-import { Fragment, createElement as h, useEffect, useMemo, useRef, useState } from 'react'
+import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { createStore, useStore } from './store.js'
-import { Onboarding } from './views/onboarding.js'
+import { RoomStart } from './views/room-start.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
 import { NewRoomDialog } from './new-room-dialog.js'
@@ -127,27 +127,7 @@ export function App() {
     onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
   })
 
-  if (visibleRooms.length === 0) {
-    return h(Fragment, null,
-      h(Onboarding, {
-        state,
-        archived: state.rooms.filter(room => room.archivedAt),
-        onRestore: id => store.archiveRoom(id, false),
-        onQuickStart: (goal, check) => store.createRoom(goal, {
-          roomType: 'studio',
-          verify: check === '' ? 'manual' : 'test',
-          acceptance: check,
-        }),
-        onCreate: roomType => openDialog(null, roomType),
-        onSample: () => store.openSampleRoom(),
-      }),
-      connectionBanner,
-      liveRegion,
-      needsRegion,
-      dialogNode)
-  }
-
-  const room = visibleRooms.find(item => item.id === state.activeId) ?? visibleRooms[0]
+  const room = visibleRooms.find(item => item.id === state.activeId) ?? visibleRooms[0] ?? null
 
   return h('div', { className: 'dsb-frame' },
     connectionBanner,
@@ -159,13 +139,24 @@ export function App() {
       onArchive: (id, archived) => store.archiveRoom(id, archived),
       onDelete: id => store.deleteRoom(id),
     }),
-    h(RoomView, {
-      state,
-      room,
-      store,
-      onStartStudio: seedValue => openDialog(seedValue),
-      onStartChat: seedValue => openDialog(seedValue, 'chat'),
-    }),
+    room === null
+      ? h(RoomStart, {
+        state,
+        onQuickStart: (goal, check) => store.createRoom(goal, {
+          roomType: 'studio',
+          verify: check === '' ? 'manual' : 'test',
+          acceptance: check,
+        }),
+        onCreate: roomType => openDialog(null, roomType),
+        onSample: () => store.openSampleRoom(),
+      })
+      : h(RoomView, {
+        state,
+        room,
+        store,
+        onStartStudio: seedValue => openDialog(seedValue),
+        onStartChat: seedValue => openDialog(seedValue, 'chat'),
+      }),
     liveRegion,
     needsRegion,
     dialogNode)

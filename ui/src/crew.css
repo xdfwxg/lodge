@@ -50,6 +50,7 @@
 .crew-side-row-note{flex-basis:100%;margin:2px 8px 4px;font-size:12px;line-height:16px;color:var(--bt-danger-text)}
 .crew-side-rename{display:flex;align-items:center;gap:6px;flex:1;min-width:0;padding:3px 4px}
 .crew-side-rename-input{flex:1;min-width:0;height:28px;padding:0 8px;border:1px solid var(--bt-accent);border-radius:7px;background:var(--bt-input-bg);color:var(--bt-ink);font:inherit;font-size:13.5px}
+.crew-side-rename-input:focus{outline:none;box-shadow:0 0 0 3px var(--bt-accent-wash)}
 .crew-side-rename-save,.crew-side-rename-cancel{flex:none;height:28px;padding:0 8px;border-radius:6px;font:inherit;font-size:12px;cursor:pointer}
 .crew-side-rename-save{border:1px solid var(--bt-accent);background:var(--bt-accent);color:var(--bt-accent-ink,#fff)}
 .crew-side-rename-save:disabled,.crew-side-rename-cancel:disabled{opacity:.45;cursor:default}
@@ -578,7 +579,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-proposal-question>span{font-size:13.5px;line-height:19px;font-weight:600;color:var(--bt-ink)}
 .crew-proposal-question .crew-goal-input{font-size:13.5px;line-height:19px;padding:8px 10px;border-radius:8px}
 .crew-goal-input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bt-line-2);border-radius:10px;background:var(--bt-input-bg,transparent);color:var(--bt-ink);font:inherit;font-size:15px;line-height:20px;resize:vertical}
-.crew-goal-input:focus{border-color:var(--bt-accent)}
+.crew-goal-input:focus{outline:none;border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash)}
 .crew-goal-input::placeholder,.crew-gate-input::placeholder,.crew-decision-rework textarea::placeholder{color:var(--bt-ink-3);opacity:1}
 .crew-acceptance{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 .crew-acceptance-cmd{display:inline-block;max-width:100%;padding:4px 8px;border-radius:6px;background:var(--bt-shade-1);color:var(--bt-ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:18px;white-space:pre-wrap;word-break:break-word}
@@ -686,34 +687,20 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 
 .crew-empty-room{display:grid;place-items:center;height:100%}
 /* First run */
-.crew-onboarding{height:100vh;height:100dvh;display:grid;place-items:center;padding:48px 24px;background:var(--bt-main)}
-.crew-onboarding-card{display:flex;flex-direction:column;align-items:center;gap:22px;max-width:560px;text-align:center}
-.crew-onboarding-logo{display:block;width:96px;height:96px;filter:drop-shadow(0 10px 22px rgb(0 0 0 / .12))}
-.crew-onboarding-card h1{margin:0;font-size:34px;line-height:1.15;font-weight:700;letter-spacing:-.03em}
-.crew-onboarding-card p{margin:0;max-width:460px;color:var(--bt-ink-2);font-size:17px;line-height:1.65}
-.crew-onboarding-quick{display:flex;flex-direction:column;gap:7px;width:100%;margin-top:2px;text-align:left}
-.crew-onboarding-quick-label{font-size:12.5px;line-height:17px;font-weight:600;color:var(--bt-ink-2)}
-.crew-onboarding-quick .crew-goal-input{width:100%;box-sizing:border-box;resize:vertical;background:var(--bt-input-bg)}
-.crew-onboarding-start{height:44px;border:1px solid var(--bt-accent);border-radius:11px;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font:inherit;font-size:15px;font-weight:650;cursor:pointer}
-.crew-onboarding-start:disabled{opacity:.45;cursor:default}
-.crew-onboarding-secondary{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:2px}
-.crew-onboarding-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;margin-top:4px}
-.crew-onboarding-sample{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:2px}
 .crew-connection-banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:80;padding:8px 14px;border-radius:999px;background:var(--bt-card);border:1px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);font-size:13px;color:var(--bt-ink-2)}
-.crew-onboarding-archived{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;margin-top:4px}
-.crew-onboarding-archived p{width:100%;margin:0;text-align:center}
-.crew-onboarding-choice{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1px solid var(--bt-line-2);border-radius:14px;background:var(--bt-card);color:var(--bt-ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .12s ease,box-shadow .12s ease,transform .12s ease}
-.crew-onboarding-choice:hover{border-color:var(--bt-line-control);box-shadow:var(--bt-elev-1)}
-.crew-onboarding-choice:active{transform:translateY(1px)}
-.crew-onboarding-choice:disabled{opacity:.55;cursor:default;box-shadow:none}
-.crew-onboarding-choice-glyph{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:var(--bt-shade-2);color:var(--bt-ink-2)}
-.crew-onboarding-choice-glyph svg{display:block}
-.crew-onboarding-choice[data-kind=chat] .crew-onboarding-choice-glyph{color:var(--bt-accent)}
-.crew-onboarding-choice-body{display:flex;flex-direction:column;gap:3px;min-width:0}
-.crew-onboarding-choice-body b{font-size:15px;font-weight:600}
-.crew-onboarding-choice-body span{font-size:12.5px;line-height:18px;color:var(--bt-ink-3)}
-@media (max-width:560px){.crew-onboarding-choices{grid-template-columns:1fr}}
-@media (max-width:560px){.is-mac-shell .crew-onboarding{padding-top:64px}}
+.crew-room-main.crew-start-main{display:flex;flex-direction:column;gap:20px;width:100%;max-width:640px;margin:0 auto;align-self:center;padding:72px 24px 32px;box-sizing:border-box;overflow-y:auto}
+.crew-start-copy{display:flex;flex-direction:column;gap:8px}
+.crew-start-copy h1{margin:0;font-size:26px;line-height:32px;font-weight:700;letter-spacing:-.02em}
+.crew-start-copy p{margin:0;color:var(--bt-ink-2);font-size:15px;line-height:22px}
+.crew-start-form{display:flex;flex-direction:column;gap:8px}
+.crew-start-form .crew-goal-input{width:100%;box-sizing:border-box;resize:vertical;background:var(--bt-input-bg)}
+.crew-start-label{font-size:12.5px;line-height:17px;font-weight:600;color:var(--bt-ink-2)}
+.crew-start-button{height:40px;border:1px solid var(--bt-accent);border-radius:9px;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.crew-start-button:disabled{opacity:.45;cursor:default}
+.crew-start-secondary{display:flex;flex-wrap:wrap;gap:8px}
+.crew-start-sample{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+@media (max-width:760px){.crew-room-main.crew-start-main{padding:64px 18px 24px}}
+
 
 /* Attention: one needs-you signal per room, not unread counts. */
 .crew-unread-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bt-accent);margin-left:2px}
@@ -847,11 +834,11 @@ input.crew-goal-input,
 
 
 /* HIG pass: one control rhythm, one state surface, one room vocabulary. */
-.crew-accept,.crew-ghost,.crew-onboarding-start,.crew-send,.crew-side-menu-item,.crew-dialog-close{
+.crew-accept,.crew-ghost,.crew-start-button,.crew-send,.crew-side-menu-item,.crew-dialog-close{
   transition:background-color var(--bt-dur-fast) var(--bt-ease),border-color var(--bt-dur-fast) var(--bt-ease),color var(--bt-dur-fast) var(--bt-ease),transform var(--bt-dur-fast) var(--bt-ease)
 }
-.crew-accept,.crew-ghost,.crew-onboarding-start{font-weight:600}
-.crew-accept:not(:disabled):active,.crew-ghost:not(:disabled):active,.crew-onboarding-start:not(:disabled):active{transform:scale(.985)}
+.crew-accept,.crew-ghost,.crew-start-button{font-weight:600}
+.crew-accept:not(:disabled):active,.crew-ghost:not(:disabled):active,.crew-start-button:not(:disabled):active{transform:scale(.985)}
 .crew-state{display:flex;align-items:flex-start;gap:12px;max-width:520px;margin:24px auto;padding:16px;border:1px solid var(--bt-line-2);border-radius:var(--bt-radius-card);background:var(--bt-card);color:var(--bt-ink)}
 .crew-state-mark{flex:none;width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--bt-accent)}
 .crew-state[data-tone=waiting] .crew-state-mark{background:var(--bt-star)}

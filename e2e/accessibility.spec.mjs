@@ -16,7 +16,7 @@ const expectClean = async page => {
 
 test('the first screen has no WCAG A/AA violations', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Lodge' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
   await expectClean(page)
 })
 
@@ -29,6 +29,8 @@ test('the sample room, result card and goal panel have no WCAG A/AA violations',
   await page.locator('.bt-goal-closed').click()
   await page.getByRole('button', { name: '目标和检查' }).click()
   await expect(page.getByText('结果', { exact: true }).first()).toBeVisible()
+  // 面板有进入动画；等透明度稳定后再量对比度。
+  await page.waitForTimeout(500)
   await expectClean(page)
 })
 

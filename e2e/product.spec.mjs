@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('onboarding, focused dialog, sample room, goal panel and archive restore', async ({ page, request }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Lodge' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
   await expect(page.getByRole('button', { name: '开工' })).toBeDisabled()
   await page.getByLabel('你想让房间做什么？').fill('把启动说明补成新人能照着跑的一页')
   await expect(page.getByRole('button', { name: '开工' })).toBeEnabled()
@@ -28,8 +28,10 @@ test('onboarding, focused dialog, sample room, goal panel and archive restore', 
   expect(id).toBeTruthy()
   expect((await request.post(`/api/rooms/${id}/archive`, { data: { archived: true } })).ok()).toBe(true)
   await page.reload()
-  await expect(page.getByText('已归档的房间')).toBeVisible()
-  await page.getByRole('button', { name: /恢复「/ }).click()
+  // 行内的“⋯”只在悬停或键盘聚焦时出现；先让行进入悬停态。
+  await page.getByRole('button', { name: '示例：发布前检查清单，已归档' }).hover()
+  await page.getByRole('button', { name: '管理 示例：发布前检查清单' }).click()
+  await page.getByRole('menuitem', { name: '取消归档' }).click()
   await expect(page.getByText('示例：发布前检查清单').first()).toBeVisible()
 })
 
