@@ -73,24 +73,6 @@ export function goalView(goal, { roster = {} } = {}) {
   }
 }
 
-// The transcript's one event line per goal change.
-export function goalEventText(reply) {
-  switch (reply?.event) {
-    case 'draft': return t('Setting a goal')
-    case 'start': return t('Goal set: {title} · {count} stages', { title: reply.title, count: reply.count })
-    case 'pass': return reply.next === undefined
-      ? t('All {count} stages passed', { count: reply.count })
-      : t('Stage {n} passed · now stage {m}: {next}', { n: reply.stage, m: (reply.stage ?? 0) + 1, next: reply.next })
-    case 'rework': return t('Stage {n} sent back for rework', { n: reply.stage })
-    case 'revise': return t('Goal updated')
-    case 'pause': return t('Goal paused')
-    case 'resume': return t('Goal resumed')
-    case 'complete': return t('Goal reached: {title}', { title: reply.title })
-    case 'stop': return t('Goal stopped')
-    default: return reply?.title ?? ''
-  }
-}
-
 // Escape and outside clicks close the open panel; mounted only while it is open
 // so the shared Escape stack sees it as the newest layer.
 function GoalOutside({ island, close }) {

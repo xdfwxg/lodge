@@ -20,7 +20,12 @@ test('an unknown decision keeps its own title and tone', () => {
 
 test('a pending conclusion grows the island into one decision', () => {
   const view = chatIslandView({
-    decision: { key: 'chat-decision', detail: '先把返工台账做出来。' },
+    decision: {
+      key: 'chat-decision',
+      detail: '先把返工台账做出来。',
+      primary: { label: '确认结论', action: 'chat-accept' },
+      secondary: { label: '再聊一轮', action: 'continue-chat' },
+    },
   })
   assert.equal(view.label, '待确认')
   assert.equal(view.detail, '先把返工台账做出来。')
@@ -29,7 +34,9 @@ test('a pending conclusion grows the island into one decision', () => {
 })
 
 test('a confirmed conclusion offers the one next step', () => {
-  const view = chatIslandView({ decision: { key: 'chat-complete' } })
+  const view = chatIslandView({
+    decision: { key: 'chat-complete', primary: { label: '用结论开工', action: 'start-studio' } },
+  })
   assert.equal(view.label, '结论已确认')
   assert.deepEqual(view.primary, { label: '用结论开工', action: 'start-studio' })
   assert.equal(view.secondary, undefined)
@@ -38,7 +45,12 @@ test('a confirmed conclusion offers the one next step', () => {
 test('the chat header uses the shared island', () => {
   const html = renderToStaticMarkup(h(ChatIsland, {
     room: { name: '圆桌' },
-    decision: { key: 'chat-decision', detail: '先把返工台账做出来。' },
+    decision: {
+      key: 'chat-decision',
+      detail: '先把返工台账做出来。',
+      primary: { label: '确认结论', action: 'chat-accept' },
+      secondary: { label: '再聊一轮', action: 'continue-chat' },
+    },
   }))
   assert.match(html, /crew-island/)
   assert.match(html, /待确认/)

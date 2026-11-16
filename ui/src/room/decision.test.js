@@ -24,11 +24,11 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
   assert.equal(decision.title, '聊完了，待确认')
   assert.match(decision.detail, /返工台账/)
   assert.equal(decision.primary.label, '确认结论')
-  assert.equal(decision.extra.label, '用结论开工')
+  assert.equal(decision.secondary.label, '再聊一轮')
   const complete = buildChatDecision({
     roomType: 'chat',
     state: 'complete',
-    chat: { phase: 'accepted', accepted: true, running: false, round: 1, turns: 4, turnLimit: 4 },
+    chat: { phase: 'accepted', running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{
       kind: 'chat_conclusion',
       text: '结论：先做返工台账。',
@@ -44,7 +44,7 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     }],
   })
   assert.equal(complete.title, '这次聊完了')
-  assert.equal(complete.extra.label, '用结论开工')
+  assert.equal(complete.primary.label, '用结论开工')
 
   const interrupted = buildChatDecision({
     roomType: 'chat',

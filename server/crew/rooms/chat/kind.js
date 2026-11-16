@@ -45,7 +45,6 @@ export const chatKind = {
         turnLimit: limit,
         turns: 0,
         conclusionId: null,
-        accepted: false,
         running: false,
         speaker: '',
         note: '',
@@ -79,7 +78,7 @@ export const chatKind = {
 
   needsYou: room => {
     const chat = room.chat
-    if (!chat || chat.running === true || chat.accepted === true) return null
+    if (!chat || chat.running === true || chat.phase === 'accepted') return null
     if (chat.phase === 'awaiting_decision') return { kind: 'decision', stage: null, label: '待确认' }
     return { kind: 'idle', stage: null, label: '可继续' }
   },

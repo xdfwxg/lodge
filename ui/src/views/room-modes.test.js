@@ -6,7 +6,7 @@ import { roomUiKinds } from '../room/kinds.js'
 import { uiModes } from './room-modes.js'
 
 const REQUIRED = [
-  'buildViewModel', 'header', 'activity',
+  'header', 'activity',
   'transcript', 'presence', 'typing',
 ]
 

@@ -81,12 +81,11 @@ test('a conclusion leaves completion to the result card', () => {
   assert.notEqual(event?.title, '已完成')
 })
 
-test('a new delivery peeks even without a message', () => {
+test('a new delivery leaves the announcement to the result card', () => {
   const previous = room()
   const next = room({ delivery: { commit: null } })
-  const { event, seen } = milestoneOf(previous, next, baselineSeen(previous))
-  assert.equal(event.title, '可以看了')
-  assert.equal(milestoneOf(next, next, seen).event, null)
+  const { event } = milestoneOf(previous, next, baselineSeen(previous))
+  assert.equal(event, null)
 })
 
 test('a passed stage is a fallback when no message arrived', () => {

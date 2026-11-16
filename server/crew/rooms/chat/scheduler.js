@@ -182,7 +182,6 @@ export const createChatScheduler = ({
         phase: 'discussing',
         turns: 0,
         conclusionId: null,
-        accepted: false,
         running: true,
         speaker: '',
         note,
@@ -325,7 +324,6 @@ export const createChatScheduler = ({
           phase: concluded.state,
           turns: completed,
           conclusionId: conclusion?.id ?? null,
-          accepted: false,
           running: false,
           speaker: '',
         }

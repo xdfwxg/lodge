@@ -46,7 +46,6 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false }
       phase: 'discussing',
       turns: 0,
       conclusionId: null,
-      accepted: false,
       running: false,
       speaker: '',
       note: '',

@@ -1,6 +1,5 @@
 import { Fragment, createElement as h } from 'react'
 import { DsGoalHeader } from '../../goal-island/ds-adapter.js'
-import { buildGoalView } from '../../goal-island/model.js'
 import { CrewStatusLine } from '../crew-status.js'
 import { StudioPresence } from './presence.js'
 import { HandoffIntake } from './intake.js'
@@ -12,7 +11,6 @@ import { StudioTranscript } from './transcript.js'
 // 工作室的房间视图：目标岛、状态行、时间线、阶段坞和结果卡。
 export const studioView = {
   id: 'studio',
-  buildViewModel: ({ room, members }) => buildGoalView(room, members),
   opensAtTop: ({ room }) => room.state === 'complete',
   header: ({ room, members, actions }) => h(DsGoalHeader, {
     room,

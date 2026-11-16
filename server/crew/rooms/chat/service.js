@@ -15,7 +15,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     const moved = transitionChat(chat.phase, 'accept')
     if (!moved.ok) return fail('conflict', moved.error)
     const updated = updateRoom(room.id, current => {
-      current.chat = { ...current.chat, phase: moved.state, accepted: true, running: false, speaker: '' }
+      current.chat = { ...current.chat, phase: moved.state, running: false, speaker: '' }
       current.state = 'complete'
       return { events: [{ type: 'room.complete', payload: { kind: 'chat' } }, chatTransitionEvent(moved, 'accept', 'you', '人工认可结论')] }
     })
@@ -51,7 +51,6 @@ export const createServiceChat = ({ store, live, emit }) => {
         phase: moved.state,
         turns: 0,
         conclusionId: null,
-        accepted: false,
         running: true,
         speaker: '',
         note,

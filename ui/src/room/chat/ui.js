@@ -1,7 +1,7 @@
 import { createElement as h } from 'react'
 import { roomTypeMeta } from '../../../../shared/room-types.js'
 import { ChatIcon } from '../type-icons.js'
-import { buildChatRequest, ChatSetupFields } from './create.js'
+import { buildChatRequest, ChatPrimaryFields, ChatSetupFields } from './create.js'
 
 // 聊天室在界面壳里的全部差异：图标和建房字段。
 export const chatUi = {
@@ -23,7 +23,7 @@ export const chatUi = {
   },
   missingVerifier: () => false,
   readOnly: roomTypeMeta('chat').readOnly,
-  primaryFields: () => null,
+  primaryFields: props => h(ChatPrimaryFields, props),
   setupFields: props => h(ChatSetupFields, props),
   buildRequest: buildChatRequest,
 }

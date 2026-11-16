@@ -36,6 +36,14 @@ test('a chat room can use a logged-in engine without approval review', () => {
   assert.equal(engineReady(readiness.installed[0]), true)
 })
 
+test('no installed engine still offers a refresh', () => {
+  const html = renderToStaticMarkup(h(EngineLogin, {
+    readiness: engineReadiness([]),
+    onRefresh: () => {},
+  }))
+  assert.match(html, /刷新/)
+})
+
 test('the login row offers a terminal and a manual refresh', () => {
   const readiness = engineReadiness([
     engine('claude', { authenticated: false, login: { args: ['auth', 'login'] } }),

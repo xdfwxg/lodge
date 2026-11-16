@@ -65,7 +65,6 @@ export const baselineSeen = room => {
   for (const [index, stage] of (room?.stages ?? []).entries()) {
     if (stage?.state === 'passed') seen.add(`stage:${index}:passed`)
   }
-  if (room?.delivery !== null && room?.delivery !== undefined) seen.add('delivery')
   return seen
 }
 
@@ -137,18 +136,8 @@ export const milestoneOf = (previous, room, seen = new Set()) => {
     if (message.kind === 'stage_conclusion' && Number.isInteger(message.meta?.stage)) {
       nextSeen.add(`stage:${message.meta.stage}:passed`)
     }
-    if (message.kind === 'conclusion' || message.kind === 'chat_conclusion') nextSeen.add('delivery')
     const candidate = eventForMessage(room, message)
     if (candidate !== null) candidates.push(candidate)
-  }
-
-  if (previous.delivery == null && room.delivery != null && !nextSeen.has('delivery')) {
-    nextSeen.add('delivery')
-    candidates.push(wrap(35, {
-      key: 'delivery', kind: 'milestone', tone: 'done', at: 0,
-      title: '可以看了',
-      detail: '可以查看结果了',
-    }))
   }
 
   const stages = room.stages ?? []

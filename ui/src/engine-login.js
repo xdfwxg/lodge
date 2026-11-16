@@ -45,7 +45,8 @@ export const useEngineLogin = onRefresh => {
 
 export function EngineLogin({ readiness, busyId = '', note = '', disabled = false, onLogin = null, onRefresh = null }) {
   const { loginTargets = [], manualLogin = [] } = readiness ?? {}
-  if (loginTargets.length === 0 && manualLogin.length === 0 && note === '') return null
+  if (loginTargets.length === 0 && manualLogin.length === 0 &&
+    (readiness?.canStart === true || (note === '' && onRefresh === null))) return null
   const names = manualLogin.map(item => item.name ?? item.id).join('、')
   return h('div', { className: 'crew-primary-login' },
     loginTargets.map(engine => h('button', {

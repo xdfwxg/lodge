@@ -15,7 +15,6 @@ const setup = () => {
       phase: 'awaiting_decision',
       turns: 6,
       conclusionId: 'c-1',
-      accepted: false,
       running: false,
       speaker: '',
       note: '',
@@ -53,7 +52,7 @@ test('accepting a chat conclusion completes the room without stages', () => {
   const result = ctx.chat.accept(ctx.room())
   assert.equal(result.ok, true)
   assert.equal(ctx.room().state, 'complete')
-  assert.equal(ctx.room().chat.accepted, true)
+  assert.equal(ctx.room().chat.phase, 'accepted')
   assert.equal(ctx.room().chat.running, false)
   assert.equal(ctx.messages.at(-1).kind, 'system')
 })

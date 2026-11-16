@@ -21,24 +21,12 @@ export const chatIslandState = decision => (
 // The island only grows at the two moments that change what happens next:
 // a conclusion waiting for confirmation, and a confirmed conclusion ready to
 // become work. Every other state stays a quiet pill.
-export const chatIslandView = ({ decision } = {}) => {
-  const state = chatIslandState(decision)
-  if (decision?.key === 'chat-decision') {
-    return {
-      ...state,
-      detail: decision.detail,
-      primary: { label: '确认结论', action: 'chat-accept' },
-      secondary: { label: '再聊一轮', action: 'continue-chat' },
-    }
-  }
-  if (decision?.key === 'chat-complete') {
-    return {
-      ...state,
-      primary: { label: '用结论开工', action: 'start-studio' },
-    }
-  }
-  return state
-}
+export const chatIslandView = ({ decision } = {}) => ({
+  ...chatIslandState(decision),
+  detail: decision?.detail,
+  primary: decision?.primary ?? undefined,
+  secondary: decision?.secondary ?? undefined,
+})
 
 export function ChatIsland({ room, decision, actions = {} }) {
   const view = chatIslandView({ decision })

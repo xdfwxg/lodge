@@ -1,14 +1,11 @@
 import { Fragment, createElement as h } from 'react'
+import { roomTypeMeta } from '../../../../shared/room-types.js'
 import { EngineLogin } from '../../engine-login.js'
 import { engineReadiness } from '../../../../shared/engine-readiness.js'
 import { MemberEnginePicker } from '../member-engine-picker.js'
 import { normalizeMembers } from '../member-options.js'
 
-export const DEFAULT_STUDIO_MEMBERS = normalizeMembers([
-  { role: 'lead', name: '规划师' },
-  { role: 'worker', name: '执行官' },
-  { role: 'verifier', name: '验收员' },
-])
+export const DEFAULT_STUDIO_MEMBERS = normalizeMembers(roomTypeMeta('studio').defaultMembers)
 
 const nameList = value => String(value ?? '')
   .split(/[,，\n]/)

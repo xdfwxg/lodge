@@ -95,11 +95,13 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
       specMissing && !specFilled
         ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这具身体没有配置记录；先补上行为说明、技能或 MCP，再换身体。')
         : null,
-      blocked && blockedReason !== '登录失效'
-        ? h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
-          ? '这个模型不会先问你，不能用来执行。换一个会先问你的模型。'
-          : '这个模型服务现在不可用；选一个可用的。')
-        : null,
+      available.length === 0
+        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '还没有可用的模型服务；先安装或登录一家，再回来。')
+        : blocked && blockedReason !== '登录失效'
+          ? h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
+            ? '这个模型不会先问你，不能用来执行。换一个会先问你的模型。'
+            : '这个模型服务现在不可用；选一个可用的。')
+          : null,
       h(EngineLogin, {
         readiness,
         busyId: loginBusyId,

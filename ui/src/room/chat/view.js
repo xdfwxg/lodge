@@ -21,7 +21,6 @@ function TypingLine({ room, member, summarizing }) {
 // 聊天室的房间视图：只认自己的决策、时间线与输入中状态，不碰工作室。
 export const chatView = {
   id: 'chat',
-  buildViewModel: () => null,
   header: ({ room, members, actions }) => h(Fragment, null,
     h(ChatIsland, { room, decision: buildChatDecision(room), actions }),
     (room.state === 'active' || room.state === 'paused') && (members?.length ?? 0) > 0

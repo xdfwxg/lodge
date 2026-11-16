@@ -98,11 +98,15 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
           rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
         : null,
       h(BodySpecFields, { value: spec, onChange: setSpec, disabled: busy }),
-      blocked
-        ? h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
-          ? '执行成员要用会先问你外部动作的模型。'
-          : '这个模型服务现在不可用；选一个可用的。')
-        : h('p', { className: 'crew-field-hint' }, '权限由角色决定；新成员会成为房间里的正式成员，可以接 Assignment。'),
+      available.length === 0
+        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '还没有可用的模型服务；先安装或登录一家，再回来。')
+        : engineId === '' || !blocked
+          ? h('p', { className: 'crew-field-hint' }, '权限由角色决定；新成员会成为房间里的正式成员，可以接 Assignment。')
+          : h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
+            ? '执行成员要用会先问你外部动作的模型。'
+            : blockedReason === '登录失效'
+              ? '这个模型服务没有登录；先用下面的登录或刷新。'
+              : '这个模型服务现在不可用；选一个可用的。'),
       h(EngineLogin, {
         readiness,
         busyId: loginBusyId,

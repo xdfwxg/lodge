@@ -1,5 +1,9 @@
 import { personalityById } from '../../shared/personalities.js'
+import { roomTypeMeta } from '../../shared/room-types.js'
+
 // 成员是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
+const DEFAULT_STUDIO = roomTypeMeta('studio').defaultMembers
+const ROLE_NAME = Object.fromEntries(DEFAULT_STUDIO.map(member => [member.role, member.name]))
 const TOOL_SCOPES = ['read', 'exec', 'write']
 const sameSet = (a, b) => a.length === b.length && [...a].sort().join('\0') === [...b].sort().join('\0')
 const isId = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
@@ -7,7 +11,7 @@ const isId = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
 const deliveryTriad = [
   {
     id: 'planner',
-    name: '规划师',
+    name: ROLE_NAME.lead,
     title: '规划',
     role: 'lead',
     station: '只读 · 拆阶段与派活',
@@ -22,7 +26,7 @@ const deliveryTriad = [
   },
   {
     id: 'executor',
-    name: '执行官',
+    name: ROLE_NAME.worker,
     title: '实现',
     role: 'worker',
     station: '独立副本写 · 改代码跑测试',
@@ -38,7 +42,7 @@ const deliveryTriad = [
   },
   {
     id: 'verifier',
-    name: '验收员',
+    name: ROLE_NAME.verifier,
     title: '复核',
     role: 'verifier',
     station: '只读副本 · 只写结论',
@@ -58,7 +62,6 @@ const ROLE_TEMPLATE = {
   worker: deliveryTriad[1],
   verifier: deliveryTriad[2],
 }
-const ROLE_NAME = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 
 // 底层 roleKind 只有三类本原能力；lead/worker 是界面角色名。
 const ROLE_KIND = { lead: 'planner', worker: 'executor', verifier: 'verifier' }

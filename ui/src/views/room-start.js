@@ -49,7 +49,7 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
         h('p', null, '一间房，把一件事做完。成员分工，结果可看，检查可查。')),
       needsLogin
         ? h('div', { className: 'crew-start-setup', role: 'status' },
-          h('b', null, '还不能开工'),
+          h('b', null, '工作室还不能开工'),
           h('p', null, installed.length === 0
             ? '还没有可用的模型服务；先安装并登录一家会先问你的模型。'
             : ready.length === 0 && loginTargets.length > 0

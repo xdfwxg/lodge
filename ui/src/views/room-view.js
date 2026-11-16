@@ -141,7 +141,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     if (Array.isArray(room.members) && room.members.length > 0) return room.members
     return state.roles ?? []
   }, [room.members, state.roles])
-  const viewModel = useMemo(() => mode.buildViewModel({ room, members }), [mode, room, members])
   const mentionMembers = useMemo(() => {
     const list = (room.members ?? []).map(member => ({
       id: member.id,
@@ -188,7 +187,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     advisor: state.advisor ?? { available: false, host: '' },
     onShadowReconfirm: () => store.shadowReviewRoom(room.id, true),
   }
-  const viewCtx = { state, room, members, locked, viewModel, actions, dock, store }
+  const viewCtx = { state, room, members, locked, actions, dock, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
 

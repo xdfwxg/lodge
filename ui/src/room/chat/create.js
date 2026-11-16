@@ -42,6 +42,28 @@ export const buildChatRequest = ({
   }
 }
 
+export function ChatPrimaryFields({
+  engines = [],
+  loginBusyId = '',
+  loginNote = '',
+  onLogin = null,
+  onRefresh = null,
+}) {
+  const readiness = engineReadiness(engines)
+  if (readiness.canStart) return null
+  return h('div', { className: 'crew-field' },
+    readiness.installed.length === 0
+      ? h('p', { className: 'crew-field-hint', role: 'status' }, '还没有可用的模型服务。先安装一家，再点“刷新”。')
+      : null,
+    h(EngineLogin, {
+      readiness,
+      busyId: loginBusyId,
+      note: loginNote,
+      onLogin,
+      onRefresh,
+    }))
+}
+
 export function ChatSetupFields({
   turnLimit,
   onTurnLimit,
@@ -53,24 +75,9 @@ export function ChatSetupFields({
   choices,
   setChoices,
   engines,
-  loginBusyId = '',
-  loginNote = '',
-  onLogin,
-  onRefresh = null,
   onInteraction,
 }) {
-  const readiness = engineReadiness(engines)
   return h('div', { className: 'crew-chat-fields' },
-    !readiness.canStart && readiness.installed.length === 0
-      ? h('p', { className: 'crew-field-hint', role: 'status' }, '还没有可用的模型服务。')
-      : null,
-    h(EngineLogin, {
-      readiness,
-      busyId: loginBusyId,
-      note: loginNote,
-      onLogin,
-      onRefresh,
-    }),
     h('div', { className: 'crew-field crew-field-row crew-field-break' },
       h('b', null, '每轮发言上限'),
       h('input', {
