@@ -134,6 +134,8 @@ export function createStore() {
         roles: data.roles,
         roomTypes: data.roomTypes ?? [],
         engines: data.engines ?? [],
+        features: data.features ?? null,
+        advisor: data.advisor ?? { available: false, host: '' },
         runtime,
         activeId,
         error: null,
