@@ -31,7 +31,7 @@
     "check:regressions": "node scripts/check-regressions.mjs",
     "data:restore": "node scripts/data-restore.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
-    "test:ui": "playwright test"
+    "test:ui": "npm run build && playwright test"
   },
   "dependencies": {
     "react": "19.3.0",

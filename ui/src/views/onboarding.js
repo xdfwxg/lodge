@@ -40,7 +40,7 @@ export function Onboarding({ state, archived = [], onRestore, onCreate, onQuickS
     h('div', { className: 'crew-onboarding-card' },
       h('img', { className: 'crew-onboarding-logo', src: './logo.svg', alt: 'Lodge', width: 96, height: 96 }),
       h('h1', null, 'Lodge'),
-      h('p', null, '把一件事交给一个房间。目标、过程、结果，都留在里面。'),
+      h('p', null, '一间房，把一件事做完。成员分工，结果可看，检查可查。'),
       h('form', { className: 'crew-onboarding-quick', onSubmit: quickStart },
         h('label', { className: 'crew-onboarding-quick-label', htmlFor: 'quick-goal' }, '你想让房间做什么？'),
         h('textarea', {
@@ -67,8 +67,8 @@ export function Onboarding({ state, archived = [], onRestore, onCreate, onQuickS
           disabled: disabled || quickBusy || goal.trim() === '',
         }, quickBusy ? '开工中…' : '开工')),
       h('div', { className: 'crew-onboarding-secondary' },
-        h('button', { type: 'button', className: 'crew-ghost', disabled, onClick: () => onCreate('chat') }, '先聊清楚'),
-        h('button', { type: 'button', className: 'crew-ghost', disabled, onClick: () => onCreate('studio') }, '更多设置')),
+        h('button', { type: 'button', className: 'crew-ghost', disabled, onClick: () => onCreate('chat') }, '开一间聊天室'),
+        h('button', { type: 'button', className: 'crew-ghost', disabled, onClick: () => onCreate('studio') }, '自定义一间工作室')),
       quickError === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, quickError),
       onSample === undefined
         ? null

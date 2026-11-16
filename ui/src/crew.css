@@ -818,3 +818,20 @@ input.crew-goal-input,
 .crew-stage-edit-row select{box-sizing:border-box;height:var(--bt-control-h);padding:0 10px}
 .crew-shadow-advice-row{margin:-2px 0 10px 42px}
 .crew-shadow-advice summary{cursor:pointer;color:var(--bt-muted);font-size:12.5px}
+
+
+/* HIG pass: one control rhythm, one state surface, one room vocabulary. */
+.crew-accept,.crew-ghost,.crew-onboarding-start,.crew-send,.crew-side-menu-item,.crew-dialog-close{
+  transition:background-color var(--bt-dur-fast) var(--bt-ease),border-color var(--bt-dur-fast) var(--bt-ease),color var(--bt-dur-fast) var(--bt-ease),transform var(--bt-dur-fast) var(--bt-ease)
+}
+.crew-accept,.crew-ghost,.crew-onboarding-start{font-weight:600}
+.crew-accept:not(:disabled):active,.crew-ghost:not(:disabled):active,.crew-onboarding-start:not(:disabled):active{transform:scale(.985)}
+.crew-state{display:flex;align-items:flex-start;gap:12px;max-width:520px;margin:24px auto;padding:16px;border:1px solid var(--bt-line-2);border-radius:var(--bt-radius-card);background:var(--bt-card);color:var(--bt-ink)}
+.crew-state-mark{flex:none;width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--bt-accent)}
+.crew-state[data-tone=waiting] .crew-state-mark{background:var(--bt-star)}
+.crew-state[data-tone=error] .crew-state-mark{background:var(--bt-danger)}
+.crew-state-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.crew-state-title{font-size:var(--bt-text-label);line-height:18px;font-weight:650}
+.crew-state-body{margin:0;font-size:var(--bt-text-helper);line-height:18px;color:var(--bt-ink-3)}
+.crew-room-intro{margin:18px auto 0}
+@media (max-width:560px){.crew-state{margin:16px 0;padding:14px}}

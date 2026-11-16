@@ -35,7 +35,7 @@ test('a chat room shows the receipt strip before its timeline', () => {
     openQuestions: [],
   }
   const tree = chatView.transcript({ room: { id: 'room-chat', receipt }, members: [], actions })
-  const [strip, timeline] = tree.props.children
+  const [strip, timeline] = tree.props.children.filter(Boolean)
   assert.equal(strip.type, ReceiptIntake)
   assert.deepEqual(strip.props.receipt, receipt)
   assert.equal(timeline.props.room.id, 'room-chat')
@@ -43,7 +43,7 @@ test('a chat room shows the receipt strip before its timeline', () => {
 
 test('a plain chat room has no receipt to show', () => {
   const tree = chatView.transcript({ room: { id: 'room-chat' }, members: [], actions })
-  const [strip] = tree.props.children
+  const [strip] = tree.props.children.filter(Boolean)
   assert.equal(strip.props.receipt, undefined)
 })
 
