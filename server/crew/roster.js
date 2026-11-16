@@ -1,9 +1,8 @@
 import { personalityById } from '../../shared/personalities.js'
-import { roomTypeMeta } from '../../shared/room-types.js'
+import { DEFAULT_STUDIO_ROSTER } from '../../shared/studio-roster.js'
 
 // 成员是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
-const DEFAULT_STUDIO = roomTypeMeta('studio').defaultMembers
-const ROLE_NAME = Object.fromEntries(DEFAULT_STUDIO.map(member => [member.role, member.name]))
+const ROLE_NAME = Object.fromEntries(DEFAULT_STUDIO_ROSTER.map(member => [member.role, member.name]))
 const TOOL_SCOPES = ['read', 'exec', 'write']
 const sameSet = (a, b) => a.length === b.length && [...a].sort().join('\0') === [...b].sort().join('\0')
 const isId = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)

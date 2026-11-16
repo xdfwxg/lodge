@@ -8,6 +8,7 @@ test('a represented body is ready unless it is missing, unavailable or logged ou
   assert.equal(bodyIssueOf({ available: true, authenticated: false }), '登录失效')
   assert.equal(bodyIssueOf({ available: false, reason: 'CLI not found' }), 'CLI not found')
   assert.equal(bodyIssueOf({ available: false, reason: '' }), '模型服务不可用')
+  assert.equal(bodyIssueOf({ available: true, models: { default: '', options: [] } }), '没有配置模型')
 })
 
 test('body issues name the member they belong to', () => {

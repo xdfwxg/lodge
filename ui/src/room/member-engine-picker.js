@@ -1,6 +1,6 @@
 import { Fragment, createElement as h } from 'react'
 
-import { engineBlockReason } from '../../../shared/engine-readiness.js'
+import { engineBlockLabel, engineBlockReason } from '../../../shared/engine-readiness.js'
 import { ROLE_LABEL, modelRowsFor } from './member-options.js'
 
 // 选择列表可能比成员列表短：补齐空洞，避免后面的渲染读到 undefined。
@@ -72,11 +72,14 @@ export function MemberEnginePicker({
           h('option', { value: '' }, '按角色默认'),
           engineChoices.map(item => {
             const reason = engineBlockReason(item, { requireApproval: needsGate })
+            const modelLabel = item.models?.default
+              ? ` · ${item.models.default}`
+              : reason === '' ? ' · 未配置模型' : ''
             return h('option', {
               key: item.id,
               value: item.id,
               disabled: reason !== '',
-            }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}${reason === '' ? '' : ` · ${reason === '登录失效' ? '未登录' : '不能执行'}`}`)
+            }, `${item.name}${modelLabel}${reason === '' ? '' : ` · ${engineBlockLabel(reason)}`}`)
           })),
           engine !== undefined && rows.length > 0
             ? h('select', {

@@ -1,6 +1,6 @@
 import { Fragment, createElement as h, useState } from 'react'
 import { EngineLogin, useEngineLogin } from '../engine-login.js'
-import { engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
+import { engineBlockLabel, engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor } from './member-options.js'
 import { BodySpecFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
@@ -77,7 +77,7 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
             key: item.id,
             value: item.id,
             disabled: reason !== '',
-          }, `${labelOf(item)}${reason === '' ? '' : ` · ${reason === '登录失效' ? '未登录' : '不能执行'}`}`)
+          }, `${labelOf(item)}${reason === '' ? '' : ` · ${engineBlockLabel(reason)}`}`)
         }))),
       engine !== undefined && rows.length > 0
         ? h('label', { className: 'crew-field crew-body-swap-field' },
@@ -100,7 +100,9 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
         : blocked && blockedReason !== '登录失效'
           ? h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
             ? '这个模型不会先问你，不能用来执行。换一个会先问你的模型。'
-            : '这个模型服务现在不可用；选一个可用的。')
+            : blockedReason === '没有配置模型'
+              ? '这个模型服务没有配置模型；先在服务里配置一个模型。'
+              : '这个模型服务现在不可用；选一个可用的。')
           : null,
       h(EngineLogin, {
         readiness,

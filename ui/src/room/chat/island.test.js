@@ -42,6 +42,18 @@ test('a confirmed conclusion offers the one next step', () => {
   assert.equal(view.secondary, undefined)
 })
 
+test('interrupted chat resumes; an action the island cannot run is not shown', () => {
+  const resume = chatIslandView({
+    decision: { key: 'chat-interrupted', primary: { label: '重新开始', action: 'chat-resume' } },
+  })
+  assert.deepEqual(resume.primary, { label: '重新开始', action: 'chat-resume' })
+
+  const paused = chatIslandView({
+    decision: { key: 'paused', primary: { label: '继续', action: 'resume' } },
+  })
+  assert.equal(paused.primary, undefined)
+})
+
 test('the chat header uses the shared island', () => {
   const html = renderToStaticMarkup(h(ChatIsland, {
     room: { name: '圆桌' },

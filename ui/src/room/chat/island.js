@@ -21,11 +21,18 @@ export const chatIslandState = decision => (
 // The island only grows at the two moments that change what happens next:
 // a conclusion waiting for confirmation, and a confirmed conclusion ready to
 // become work. Every other state stays a quiet pill.
+const ACTIONABLE = new Set(['chat-accept', 'continue-chat', 'start-studio', 'chat-resume'])
+const actionOf = action => ACTIONABLE.has(action) ? action : undefined
+
 export const chatIslandView = ({ decision } = {}) => ({
   ...chatIslandState(decision),
   detail: decision?.detail,
-  primary: decision?.primary ?? undefined,
-  secondary: decision?.secondary ?? undefined,
+  primary: decision?.primary === undefined || decision?.primary === null || actionOf(decision.primary.action) === undefined
+    ? undefined
+    : decision.primary,
+  secondary: decision?.secondary === undefined || decision?.secondary === null || actionOf(decision.secondary.action) === undefined
+    ? undefined
+    : decision.secondary,
 })
 
 export function ChatIsland({ room, decision, actions = {} }) {
@@ -68,10 +75,20 @@ export function ChatIsland({ room, decision, actions = {} }) {
       handoff: conclusion.meta?.handoff,
     }))
   }
+  const resume = async () => {
+    if (busy || typeof actions.resumeChat !== 'function') return
+    setBusy(true)
+    try {
+      await actions.resumeChat()
+    } finally {
+      setBusy(false)
+    }
+  }
   const run = action => {
     if (action === 'chat-accept') void accept()
     else if (action === 'continue-chat') setNoteOpen(value => !value)
     else if (action === 'start-studio') startStudio()
+    else if (action === 'chat-resume') void resume()
   }
 
   const noteBox = noteOpen

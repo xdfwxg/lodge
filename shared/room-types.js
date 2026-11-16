@@ -8,11 +8,6 @@ export const ROOM_TYPE_MANIFEST = Object.freeze([
     description: '目标、阶段、验收与交付；被 @ 的成员才唤醒',
     defaultVerify: 'test',
     readOnly: false,
-    defaultMembers: Object.freeze([
-      Object.freeze({ role: 'lead', name: '规划师' }),
-      Object.freeze({ role: 'worker', name: '执行官' }),
-      Object.freeze({ role: 'verifier', name: '验收员' }),
-    ]),
     capabilities: Object.freeze({
       workCard: true,
       stages: true,

@@ -12,9 +12,10 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
   const [quickError, setQuickError] = useState('')
   const engines = state.engines ?? []
   const readiness = engineReadiness(engines, { requireApproval: true })
-  const { installed, ready, loginTargets, manualLogin } = readiness
+  const { installed, ready, loginTargets, manualLogin, noModels } = readiness
   const needsLogin = state.phase !== 'loading' && !readiness.canStart
   const manualNames = manualLogin.map(item => item.name ?? item.id).join('、')
+  const modelNames = noModels.map(item => item.name ?? item.id).join('、')
   const { busyId: loginBusy, note: loginNote, login: signIn } = useEngineLogin(onRefresh)
   const disabled = state.phase === 'loading' || state.phase === 'error'
   const openSample = async () => {
@@ -56,7 +57,9 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
               ? '开工前要先登录一个会先问你的模型服务。'
               : ready.length === 0 && manualLogin.length > 0
                 ? `${manualNames}还没登录。`
-                : '已装的模型服务不会逐次确认外部动作，不能用来执行。'),
+                : ready.length === 0 && noModels.length > 0
+                  ? `${modelNames}没有配置模型；先在模型服务里配置一个模型。`
+                  : '已装的模型服务不会逐次确认外部动作，不能用来执行。'),
           h(EngineLogin, {
             readiness,
             busyId: loginBusy,

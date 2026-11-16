@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { EngineLogin } from './engine-login.js'
-import { engineReadiness, engineReady } from '../../shared/engine-readiness.js'
+import { engineBlockReason, engineReadiness, engineReady } from '../../shared/engine-readiness.js'
 
 const engine = (id, overrides = {}) => ({
   id,
@@ -34,6 +34,14 @@ test('a chat room can use a logged-in engine without approval review', () => {
   const readiness = engineReadiness([engine('pi', { capabilities: { approvalReview: false } })])
   assert.equal(readiness.canStart, true)
   assert.equal(engineReady(readiness.installed[0]), true)
+})
+
+test('an engine with no configured model is not ready', () => {
+  const noModel = engine('pi', { models: { default: '', options: [] } })
+  const readiness = engineReadiness([noModel])
+  assert.equal(readiness.canStart, false)
+  assert.deepEqual(readiness.noModels.map(item => item.id), ['pi'])
+  assert.equal(engineBlockReason(noModel), '没有配置模型')
 })
 
 test('no installed engine still offers a refresh', () => {
