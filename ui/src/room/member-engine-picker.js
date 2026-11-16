@@ -2,6 +2,12 @@ import { Fragment, createElement as h } from 'react'
 
 import { ROLE_LABEL, modelRowsFor } from './member-options.js'
 
+// 选择列表可能比成员列表短：补齐空洞，避免后面的渲染读到 undefined。
+const replaceChoice = (choices, index, value) => Array.from(
+  { length: Math.max(choices.length, index + 1) },
+  (_, position) => (position === index ? value : choices[position] ?? { engine: '', model: '' }),
+)
+
 // 成员引擎/模型/性格是两种房型共用的小组件；表单本身归各自上下文。
 export function MemberEnginePicker({
   members,
@@ -49,9 +55,7 @@ export function MemberEnginePicker({
             'aria-label': `${member.name ?? member.role}的性格`,
             value: personalityId,
             onChange: event => {
-              const next = [...choices]
-              next[index] = { ...choice, personality: event.target.value }
-              setChoices(next)
+              setChoices(replaceChoice(choices, index, { ...choice, personality: event.target.value }))
               onInteraction()
             },
           },
@@ -62,9 +66,7 @@ export function MemberEnginePicker({
             'aria-label': `${member.name ?? member.role}的模型服务`,
             value: choice.engine,
             onChange: event => {
-              const next = [...choices]
-              next[index] = { engine: event.target.value, model: '', personality: choice.personality || member.personality || '' }
-              setChoices(next)
+              setChoices(replaceChoice(choices, index, { engine: event.target.value, model: '', personality: choice.personality || member.personality || '' }))
               onInteraction()
             },
           },
@@ -83,9 +85,7 @@ export function MemberEnginePicker({
               'aria-label': `${member.name ?? member.role}的模型`,
               value: model,
               onChange: event => {
-                const next = [...choices]
-                next[index] = { ...choice, model: event.target.value }
-                setChoices(next)
+                setChoices(replaceChoice(choices, index, { ...choice, model: event.target.value }))
               },
             },
             rows.map(item => h('option', { key: item.id, value: item.id }, item.label)))
@@ -114,9 +114,7 @@ export function MemberEnginePicker({
                 placeholder: '技能名，用逗号分隔',
                 'aria-label': `${member.name ?? member.role}的技能`,
                 onChange: event => {
-                  const next = [...choices]
-                  next[index] = { ...choice, skillsText: event.target.value }
-                  setChoices(next)
+                  setChoices(replaceChoice(choices, index, { ...choice, skillsText: event.target.value }))
                   onInteraction()
                 },
               })
@@ -127,9 +125,7 @@ export function MemberEnginePicker({
               placeholder: 'MCP 服务名，用逗号分隔',
               'aria-label': `${member.name ?? member.role}的外部工具`,
               onChange: event => {
-                const next = [...choices]
-                next[index] = { ...choice, mcpText: event.target.value }
-                setChoices(next)
+                setChoices(replaceChoice(choices, index, { ...choice, mcpText: event.target.value }))
                 onInteraction()
               },
             }))

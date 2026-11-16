@@ -1,8 +1,7 @@
 import { Fragment, createElement as h } from 'react'
 import { DsGoalHeader } from '../../goal-island/ds-adapter.js'
 import { buildGoalView } from '../../goal-island/model.js'
-import { StudioActivityLine } from './activity-line.js'
-import { studioActivityLine } from './status-line.js'
+import { CrewStatusLine } from './crew-status.js'
 import { StudioPresence } from './presence.js'
 import { HandoffIntake } from './intake.js'
 import { returnToChatSeed } from './return-seed.js'
@@ -18,15 +17,13 @@ export const studioView = {
   header: ({ room, members, actions }) => h(DsGoalHeader, {
     room,
     members,
+    status: h(CrewStatusLine, { room, members }),
     onAdvance: () => {
       const index = room.stages.findIndex(stage => stage.state === 'active')
       if (index >= 0) actions.accept(index)
     },
   }),
-  activity: ({ room, viewModel }) => h(StudioActivityLine, {
-    text: studioActivityLine(room, viewModel),
-    since: typeof room.busySince === 'number' ? room.busySince : null,
-  }),
+  activity: () => null,
   transcript: ({ room, members, state, actions }) => {
     const subrooms = h(SubroomTree, {
       key: `subrooms-${room.id}`,

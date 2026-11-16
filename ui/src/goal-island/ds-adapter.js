@@ -143,7 +143,7 @@ const PILL_CSS = `
 @media (max-width:760px){.crew-ds-goal{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
 `
 
-export function DsGoalHeader({ room, members, onAdvance }) {
+export function DsGoalHeader({ room, members, status = null, onAdvance }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
   const goal = toDsGoal(room)
@@ -182,5 +182,6 @@ export function DsGoalHeader({ room, members, onAdvance }) {
       actions: goalActions,
       pill: pill({ room, view, open, onToggle: goalActions.toggleGoal }),
     }),
+    status,
     h('style', null, `${GOAL_CSS}\n${PILL_CSS}`))
 }

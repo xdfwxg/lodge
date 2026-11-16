@@ -53,7 +53,7 @@ function NewRoomDialog({
   const [handoffReviewed, setHandoffReviewed] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [memberChoices, setMemberChoices] = useState([])
+  const [memberChoices, setMemberChoices] = useState(() => memberChoicesFrom(DEFAULT_STUDIO_MEMBERS))
   const [chatMemberChoices, setChatMemberChoices] = useState([])
   const [chatMembers, setChatMembers] = useState(null)
   const [loginBusy, setLoginBusy] = useState(false)
@@ -162,7 +162,7 @@ function NewRoomDialog({
     return engine !== undefined && modelRowsFor(engine).length > 0
   }
   const membersReady = rosterMembers.every((_, index) => memberChoiceReady(index))
-  const hasMemberChoice = memberChoices.some(choice => choice.engine !== '' || choice.model !== '')
+  const hasMemberChoice = memberChoices.some(choice => choice !== undefined && (choice.engine !== '' || choice.model !== ''))
   const hasVerifier = rosterMembers.some(member => member.role === 'verifier')
   const plannedAcceptance = Array.isArray(proposal?.stages) &&
     proposal.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
