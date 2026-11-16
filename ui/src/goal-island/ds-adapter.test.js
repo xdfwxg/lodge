@@ -34,6 +34,26 @@ test('a studio room becomes the DS goal shape', () => {
   assert.deepEqual(toDsRoomWork(room({ busyMembers: ['worker'] })), [{ botId: 'worker' }])
 })
 
+test('the goal panel separates acceptance, checks and constraints', () => {
+  const goal = toDsGoal(room({
+    messages: [{ id: 'e1', kind: 'evidence', meta: { kind: 'command', stage: 1, command: 'test -f hello.txt', exit: 0 } }],
+    brief: {
+      constraints: ['验收命令: test -f hello.txt', '不要改接口'],
+      done: ['创建 hello.txt'],
+    },
+  }))
+  assert.deepEqual(goal.checks, [{
+    stage: 1,
+    title: '创建文件',
+    command: 'test -f hello.txt',
+    exit: 0,
+    ran: true,
+    passed: true,
+  }])
+  assert.equal(goal.acceptance, '第 2 步：test -f hello.txt')
+  assert.deepEqual(goal.constraints, ['不要改接口'])
+})
+
 test('a completed room with no commit does not crash', () => {
   const complete = room({ state: 'complete', delivery: { commit: null }, messages: [{ kind: 'conclusion', text: '完成' }] })
   const goal = toDsGoal(complete)

@@ -10,7 +10,7 @@ import { ShadowAdvice, ShadowReconfirm } from './advisor-advice.js'
 const OUTPUT_PREVIEW_LINES = 80
 
 // 长输出只给前 N 行；完整内容留在证据文件里，不在聊天里铺开。
-function CodeOutput({ text, limit = OUTPUT_PREVIEW_LINES, hint = '打开「证据」看完整输出' }) {
+function CodeOutput({ text, limit = OUTPUT_PREVIEW_LINES, hint = '打开「结果」看完整输出' }) {
   const lines = String(text ?? '').split('\n')
   const hidden = Math.max(0, lines.length - limit)
   return h(Fragment, null,
@@ -32,7 +32,7 @@ function EvidenceCard({ message, member }) {
       ? `${meta.workers?.length ?? 1} 位成员的结果已经好了 · 待验收`
       : turn
         ? `真的跑过 · ${((meta.durationMs ?? 0) / 1000).toFixed(1)}s`
-        : `证据 · 第 ${(meta.stage ?? 0) + 1} 步`
+        : `结果 · 第 ${(meta.stage ?? 0) + 1} 步`
   const chip = command ? (passed ? '已通过' : '未通过') : turn ? '这一轮' : manual ? '人工' : ''
   return h('div', {
     className: 'studio-result',
@@ -48,7 +48,7 @@ function EvidenceCard({ message, member }) {
   h('span', { className: 'studio-result-what' }, summary),
   chip === '' ? null : h('span', { className: 'studio-result-chip', 'data-pass': command ? passed : undefined }, chip),
   h('details', { className: 'studio-result-more' },
-    h('summary', null, '证据'),
+    h('summary', null, '结果'),
     h('div', { className: 'studio-result-body' },
       h('p', { className: 'crew-field-hint' }, source),
       command && meta.command ? h('div', { className: 'crew-kv' }, h('span', null, '检查'), h('code', null, meta.command)) : null,

@@ -191,7 +191,7 @@ export function StudioSetupFields({
       }),
       '影子评审：复核后另取一份外部意见'),
     h('p', { className: 'crew-field-hint' }, advisor.available === true
-      ? `会把证据和 diff 发给${advisor.host === '' ? '外部' : ` ${advisor.host} `}；意见只供你签字前参考，不进入验收判定。`
+      ? `会把这一步的结果和改动发给${advisor.host === '' ? '外部' : ` ${advisor.host} `}；意见只供你签字前参考，不进入验收判定。`
       : '影子评审现在不可用：先在 Lodge 配置 ADVISOR_URL。'),
     onRecommend === null ? null : h('div', { className: 'crew-new-recommend' },
       h('button', {

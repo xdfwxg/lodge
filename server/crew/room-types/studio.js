@@ -21,7 +21,7 @@ export const briefDone = (room, plan) => {
   if (plan?.done?.length > 0) return plan.done.map(text => `- [ ] ${text}`)
   const stages = Array.isArray(room.stages) ? room.stages : []
   return stages.map((stage, index) => (
-    `- [${stage.state === 'passed' ? 'x' : ' '}] 阶段 ${index + 1}：${stage.title}${stage.kind === 'deliverable' ? '（交付型 · 需证据）' : '（决策型 · 需人确认）'}`
+    `- [${stage.state === 'passed' ? 'x' : ' '}] 阶段 ${index + 1}：${stage.title}${stage.kind === 'deliverable' ? '（要交结果）' : '（需要你确认）'}`
   ))
 }
 

@@ -25,7 +25,7 @@ const ZH = {
   Paused: '已暂停',
   'Paused · {title}': '已暂停 · {title}',
   Resume: '继续',
-  Rules: '约束',
+  Rules: '约定',
   'Sent back by {admin}: {feedback}': '{admin} 退回：{feedback}',
   'Sent back {n} times by {admin}. Last time: {feedback}': '{admin} 退回过 {n} 次，最后一次：{feedback}',
   'Setting a goal': '正在设定目标',

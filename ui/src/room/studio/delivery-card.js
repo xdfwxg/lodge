@@ -22,6 +22,9 @@ const joinPath = (base, file) => file.startsWith('/') ? file : `${base.replace(/
 export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
   const commands = delivery.commands ?? []
   const passed = commands.filter(command => command.exit === 0).length
+  const manualNotes = (delivery.stages ?? [])
+    .map(stage => stage.manual?.text?.trim() ?? '')
+    .filter(Boolean)
   const [openError, setOpenError] = useState(null)
   const [openNotice, setOpenNotice] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -56,6 +59,18 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             h('summary', null, '完整目标'),
             h('p', { className: 'crew-field-hint' }, goalText))
           : null,
+        h('div', { className: 'studio-delivery-proof' },
+          h('div', { className: 'studio-delivery-proof-block' },
+            h('b', null, '检查'),
+            commands.length > 0
+              ? commands.map(command => h('div', { key: command.id, className: 'studio-delivery-check' },
+                h('code', null, command.command || '检查命令'),
+                h('span', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'),
+                h('span', { className: 'studio-delivery-check-exit' }, `退出码 ${command.exit === null ? '无' : command.exit}`),
+                command.simulated === true ? h('span', { className: 'studio-delivery-check-exit' }, '示例运行') : null))
+              : manualNotes.length > 0
+                ? h('span', { className: 'crew-field-hint' }, manualNotes[0])
+                : h('span', { className: 'crew-field-hint' }, '没有自动检查，由人确认后签字。'))),
         h('div', { className: 'crew-delivery-metrics' },
           h('span', null, `${delivery.stages?.filter(stage => stage.state === 'passed').length ?? 0}/${delivery.stages?.length ?? 0} 步`),
           h('span', null, commands.length > 0 ? `${passed}/${commands.length} 检查通过` : '人工验收'),
@@ -114,7 +129,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
                 ? h('details', { className: 'crew-fold' },
                   h('summary', null, '技术细节'),
                   stage.acceptance ? h('div', { className: 'crew-kv' },
-                    h('span', null, '验收'),
+                    h('span', null, '检查'),
                     h('code', null, stage.acceptance)) : null,
                   ...stage.commands.map(command => h('div', { key: `${command.id}-tech`, className: 'crew-kv' },
                     h('span', null, '命令'),

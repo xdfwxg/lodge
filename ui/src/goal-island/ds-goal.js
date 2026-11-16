@@ -217,13 +217,13 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
   const stage = selected >= 0 ? view.stages[selected] : undefined
   const sec = (key, label, ...body) => h('div', { key, className: 'bt-goal-sec' },
     h('div', { className: 'bt-goal-sub' }, label), ...body.map((line, i) => h('div', { key: i, className: 'bt-goal-text' }, line)))
-  const hasChecks = goal.objective !== undefined || goal.acceptance !== undefined || goal.constraints?.length > 0
+  const hasChecks = goal.objective !== undefined || goal.checks?.length > 0 || goal.constraints?.length > 0 || goal.deliverables?.length > 0
   const admin = roster.byId?.[room.admin]?.name ?? t('a Bot')
   const evidenceCount = goal.evidenceCount ?? view.stages.filter(stageView => stageView.evidence !== undefined).length
   const ruleCount = goal.constraints?.length ?? 0
   const meta = [
-    evidenceCount > 0 ? `${evidenceCount} 条证据` : '',
-    ruleCount > 0 ? `${ruleCount} 条约束` : '',
+    evidenceCount > 0 ? `${evidenceCount} 条结果` : '',
+    ruleCount > 0 ? `${ruleCount} 条约定` : '',
   ].filter(Boolean).join(' · ')
   return h('div', { className: 'bt-goal-panel', role: 'region', 'aria-label': view.title },
     h('div', { className: 'bt-goal-body' },
@@ -259,7 +259,19 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
             stage.tasks.length > 0 ? h('div', { className: 'bt-goal-tasks' }, stage.tasks.map((task, i) => h(TaskRow, { key: i, task, working }))) : null)),
     checks && hasChecks ? h('div', { className: 'bt-goal-ckbody' },
       goal.objective ? sec('objective', t('Objective'), goal.objective) : null,
-      goal.acceptance ? sec('acceptance', t('Done when'), goal.acceptance) : null,
+      goal.deliverables?.length > 0
+        ? h('div', { key: 'deliverables', className: 'bt-goal-sec' },
+          h('div', { className: 'bt-goal-sub' }, '交付'),
+          h('ul', { className: 'bt-goal-rules' }, goal.deliverables.map((item, index) => h('li', { key: index }, item))))
+        : null,
+      h('div', { key: 'checks', className: 'bt-goal-sec' },
+        h('div', { className: 'bt-goal-sub' }, '检查'),
+        goal.checks?.length > 0
+          ? goal.checks.map(check => h('div', { key: `check-${check.stage}`, className: 'bt-goal-check' },
+            h('code', null, check.command),
+            h('span', { 'data-pass': check.ran ? check.passed : undefined }, check.passed ? '通过' : check.ran ? '没通过' : '还没跑'),
+            h('span', { className: 'bt-goal-check-exit' }, check.exit === null ? '没有退出码' : `退出码 ${check.exit}`)))
+          : h('div', { className: 'bt-goal-check' }, '由你看过结果后确认')),
       goal.constraints?.length > 0 ? sec('rules', t('Rules'), h('ul', { className: 'bt-goal-rules' },
         goal.constraints.map((rule, i) => h('li', { key: i }, rule)))) : null) : null),
     room.needsYou?.kind === 'signoff' && typeof actions.advance === 'function'
@@ -400,6 +412,11 @@ export const GOAL_CSS = `
 .bt-goal-rw{margin-top:8px;border-radius:8px;padding:6px 10px;background:var(--bt-warning-wash);font-size:12.5px;line-height:18px;color:var(--bt-ink);overflow-wrap:anywhere}
 .bt-goal-text{overflow-wrap:anywhere}
 .bt-goal-rules{margin:0;padding-left:18px}
+.bt-goal-check{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 9px;font-size:12.5px;line-height:18px;color:var(--bt-ink-2);min-width:0}
+.bt-goal-check code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--bt-ink);overflow-wrap:anywhere}
+.bt-goal-check span[data-pass=true]{color:var(--bt-success-text);font-weight:650}
+.bt-goal-check span[data-pass=false]{color:var(--bt-danger-text);font-weight:650}
+.bt-goal-check-exit{color:var(--bt-ink-3)}
 .bt-goal-evi{margin-top:8px;font-size:12.5px;line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .bt-goal-tasks{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .bt-goal-task{display:flex;align-items:flex-start;gap:8px;min-width:0}

@@ -310,6 +310,15 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-receipt span[data-pass=false],.crew-delivery-stage .crew-kv span[data-pass=false]{color:var(--bt-danger-text);font-weight:600}
 .studio-delivery-name{margin:0;font-size:20px;line-height:26px;letter-spacing:-.01em;font-weight:650;color:var(--bt-ink)}
 .studio-delivery-goal{margin:0;font-size:15px;line-height:21px;color:var(--bt-ink-2)}
+.studio-delivery-proof{display:flex;flex-direction:column;gap:9px;padding:11px 12px;border:1px solid var(--bt-line-2);border-radius:11px;background:var(--bt-shade-1)}
+.studio-delivery-proof-block{display:flex;flex-direction:column;gap:5px;min-width:0}
+.studio-delivery-proof-block>b{font-size:12px;font-weight:650;color:var(--bt-ink-3)}
+.studio-delivery-check{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 9px;font-size:12.5px;line-height:18px;color:var(--bt-ink-2)}
+.studio-delivery-check code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--bt-ink);overflow-wrap:anywhere}
+.studio-delivery-check span[data-pass=true]{color:var(--bt-success-text);font-weight:650}
+.studio-delivery-check span[data-pass=false]{color:var(--bt-danger-text);font-weight:650}
+.studio-delivery-check-exit{color:var(--bt-ink-3)}
+.studio-delivery-check-command{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--bt-ink);overflow-wrap:anywhere}
 .studio-delivery-meta{display:flex;flex-direction:column;gap:5px}
 .studio-delivery-row{display:flex;align-items:baseline;gap:8px;min-width:0;font-size:12.5px;line-height:18px;color:var(--bt-ink-2)}
 .studio-delivery-label{flex:none;width:34px;color:var(--bt-ink-3)}

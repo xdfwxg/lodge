@@ -140,7 +140,7 @@ test('stage chapters expand the active stage and compress passed stages', () => 
   assert.deepEqual(chapters.map(chapter => chapter.index), [0, 1])
   assert.deepEqual(chapters.map(chapter => chapter.expanded), [false, true])
   assert.match(chapters[0].summary, /1 次交接/)
-  assert.match(chapters[0].summary, /1 条证据/)
+  assert.match(chapters[0].summary, /1 条结果/)
   assert.match(chapters[1].summary, /1 次检查/)
 })
 

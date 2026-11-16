@@ -46,7 +46,7 @@ export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label
       ? h('p', { className: 'crew-field-hint' }, `风险：${advice.risks.join('；')}`)
       : null,
     advice.missingEvidence.length > 0
-      ? h('p', { className: 'crew-field-hint' }, `缺失证据：${advice.missingEvidence.join('；')}`)
+      ? h('p', { className: 'crew-field-hint' }, `缺失结果：${advice.missingEvidence.join('；')}`)
       : null,
     advice.model === '' ? null : h('p', { className: 'crew-field-hint' }, `来源：${advice.model}`))
 }

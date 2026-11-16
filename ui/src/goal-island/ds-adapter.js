@@ -26,6 +26,7 @@ export const toDsGoal = room => {
     const last = evidence.at(-1)
     return {
       title: stage.title,
+      kind: stage.kind,
       acceptance: stage.acceptance ?? (stage.kind === 'decision' ? '你定这一步' : undefined),
       status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
       tasks,
@@ -39,7 +40,31 @@ export const toDsGoal = room => {
     }
   })
   const conclusion = [...(room.messages ?? [])].reverse().find(message => message.kind === 'chat_conclusion' || message.kind === 'conclusion')
-  const acceptance = (room.brief?.done ?? []).map(item => (typeof item === 'string' ? item : item?.text ?? '')).filter(Boolean)
+  const commandEvidence = (room.messages ?? []).filter(message => (
+    message.kind === 'evidence' && message.meta?.kind === 'command'
+  ))
+  const checks = stages.map((stage, index) => {
+    if (stage.kind !== 'deliverable' || typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') return null
+    const last = commandEvidence.filter(message => (message.meta?.stage ?? 0) === index).at(-1)
+    return {
+      stage: index,
+      title: stage.title,
+      command: stage.acceptance.trim(),
+      exit: last?.meta?.exit ?? null,
+      ran: last !== undefined,
+      passed: last?.meta?.exit === 0,
+    }
+  }).filter(Boolean)
+  const acceptance = checks.map(check => `第 ${check.stage + 1} 步：${check.command}`)
+  const plannedDone = (room.plan?.done ?? []).map(item => (typeof item === 'string' ? item : item?.text ?? '')).filter(Boolean)
+  const delivered = (room.delivery?.changedFiles ?? room.delivery?.artifacts?.map(artifact => artifact.path) ?? []).filter(Boolean)
+  const deliverables = delivered.length > 0
+    ? delivered
+    : plannedDone.length > 0
+      ? plannedDone
+      : (room.stages ?? []).filter(stage => stage.kind === 'deliverable').map(stage => stage.title)
+  const constraints = (room.brief?.constraints ?? [])
+    .filter(item => typeof item === 'string' && !/^验收命令\s*[:：]/.test(item.trim()))
   return {
     id: room.id,
     title: room.name,
@@ -50,8 +75,10 @@ export const toDsGoal = room => {
     current: activeIndex(room),
     stages,
     objective: room.brief?.objective || room.goal,
-    acceptance: acceptance.length === 0 ? undefined : acceptance.join('\n'),
-    constraints: room.brief?.constraints ?? [],
+    acceptance: acceptance.length === 0 ? '由你看过结果后确认' : acceptance.join('\n'),
+    deliverables,
+    checks,
+    constraints,
     summary: conclusion?.text,
     evidence: typeof room.delivery?.commit === 'string' ? '已保存版本' : undefined,
     reason: room.state === 'stopped' ? '目标已停止' : undefined,
