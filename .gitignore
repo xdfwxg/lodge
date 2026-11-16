@@ -8,6 +8,3 @@ build/runtime-cache/
 .DS_Store
 
 evals/planning/results/
-
-.workbuddy/
-macui-survey/
