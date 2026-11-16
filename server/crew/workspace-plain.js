@@ -41,6 +41,11 @@ const diskMinMb = () => Number(process.env.CREW_DISK_MIN_FREE_MB ?? 512)
 const ensureDiskSpace = path => {
   const min = diskMinMb()
   if (!Number.isFinite(min) || min <= 0) return
+  try {
+    mkdirSync(path, { recursive: true })
+  } catch {
+    return
+  }
   let free
   try {
     const stat = statfsSync(path)
@@ -65,46 +70,51 @@ const portOffset = short => {
 }
 
 export const prepareRoom = ({ source, short, members }) => {
-  ensureDiskSpace(scratchRoot())
   const base = join(scratchRoot(), short)
-  mkdirSync(base, { recursive: true })
-  const byMember = {}
-  const ports = {}
-  const environment = {}
-  let nextPort = portBase() + portOffset(short)
-  const takePort = () => {
-    const chosen = chooseFreePort(nextPort)
-    nextPort = chosen.next
-    return chosen.port
-  }
-  for (const member of members) {
-    const path = join(base, member.id)
-    copyWorkspace(source, path)
-    byMember[member.id] = { path, kind: 'copy' }
-    environment[member.id] = syncLocalEnvironment(source, path, { copyEnv: member.role !== 'verifier' })
-    ports[member.id] = takePort()
-  }
-  const workers = members.filter(member => member.role === 'worker')
-  let integration = null
-  if (workers.length > 1) {
-    const path = join(base, 'integration')
-    // 集成目录从空开始：每个 worker 都是完整副本，合并时只按文件写入，
-    // 冲突只发生在两个 worker 改了同一路径且内容不同，而不是与源目录基线比。
-    mkdirSync(path, { recursive: true })
-    integration = { path, kind: 'copy' }
-    environment.integration = syncLocalEnvironment(source, path)
-    ports.integration = takePort()
-  }
-  return {
-    root: base,
-    sourceRepo: source,
-    members: byMember,
-    branches: {},
-    integration,
-    ports,
-    environment,
-    primaryBranch: '',
-    roomPath: integration?.path ?? byMember[workers[0]?.id]?.path,
+  try {
+    ensureDiskSpace(scratchRoot())
+    mkdirSync(base, { recursive: true })
+    const byMember = {}
+    const ports = {}
+    const environment = {}
+    let nextPort = portBase() + portOffset(short)
+    const takePort = () => {
+      const chosen = chooseFreePort(nextPort)
+      nextPort = chosen.next
+      return chosen.port
+    }
+    for (const member of members) {
+      const path = join(base, member.id)
+      copyWorkspace(source, path)
+      byMember[member.id] = { path, kind: 'copy' }
+      environment[member.id] = syncLocalEnvironment(source, path, { copyEnv: member.role !== 'verifier' })
+      ports[member.id] = takePort()
+    }
+    const workers = members.filter(member => member.role === 'worker')
+    let integration = null
+    if (workers.length > 1) {
+      const path = join(base, 'integration')
+      // 集成目录从空开始：每个 worker 都是完整副本，合并时只按文件写入，
+      // 冲突只发生在两个 worker 改了同一路径且内容不同，而不是与源目录基线比。
+      mkdirSync(path, { recursive: true })
+      integration = { path, kind: 'copy' }
+      environment.integration = syncLocalEnvironment(source, path)
+      ports.integration = takePort()
+    }
+    return {
+      root: base,
+      sourceRepo: source,
+      members: byMember,
+      branches: {},
+      integration,
+      ports,
+      environment,
+      primaryBranch: '',
+      roomPath: integration?.path ?? byMember[workers[0]?.id]?.path,
+    }
+  } catch (error) {
+    try { rmSync(base, { recursive: true, force: true }) } catch {}
+    throw error
   }
 }
 
@@ -171,6 +181,7 @@ export const integrate = ({ path, source }) => {
 
 export const refreshReviewCopy = ({ path, from }) => {
   if (typeof from !== 'string' || from === '' || path === from) return
+  if (typeof path !== 'string' || path === '' || !isWithin(scratchRoot(), path)) return
   rmSync(path, { recursive: true, force: true })
   copyWorkspace(from, path)
   syncLocalEnvironment(from, path, { copyEnv: false })
@@ -202,6 +213,7 @@ export const pruneMembers = room => {
   for (const [member, path] of Object.entries(room.worktrees ?? {})) {
     if (typeof path !== 'string' || path === '') continue
     const target = resolve(path)
+    if (!isWithin(scratchRoot(), target)) continue
     if (keep !== null && target === keep) continue
     if (pruned.has(member)) continue
     rmSync(target, { recursive: true, force: true })

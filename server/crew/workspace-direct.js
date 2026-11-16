@@ -51,31 +51,36 @@ export const prepareRoom = ({ source, short, members }) => {
   const ports = {}
   const environment = {}
   let cursor = portBase() + portOffset(short)
-  for (const member of members) {
-    const chosen = chooseFreePort(cursor)
-    cursor = chosen.next
-    if (member.role === 'verifier') {
-      // 原地目录的验收员看一份不含 .env/node_modules 的快照，避免直接读源目录秘密。
-      const path = join(copyRoot(), `direct-${short}`, member.id)
-      mkdirSync(path, { recursive: true })
-      copyWorkspace(source, path)
-      byMember[member.id] = { path, kind: 'copy' }
-    } else {
-      byMember[member.id] = { path: source, kind: 'direct' }
+  try {
+    for (const member of members) {
+      const chosen = chooseFreePort(cursor)
+      cursor = chosen.next
+      if (member.role === 'verifier') {
+        // 原地目录的验收员看一份不含 .env/node_modules 的快照，避免直接读源目录秘密。
+        const path = join(copyRoot(), `direct-${short}`, member.id)
+        mkdirSync(path, { recursive: true })
+        copyWorkspace(source, path)
+        byMember[member.id] = { path, kind: 'copy' }
+      } else {
+        byMember[member.id] = { path: source, kind: 'direct' }
+      }
+      environment[member.id] = { copied: [], linked: [], warnings: [] }
+      ports[member.id] = chosen.port
     }
-    environment[member.id] = { copied: [], linked: [], warnings: [] }
-    ports[member.id] = chosen.port
-  }
-  return {
-    root: source,
-    sourceRepo: source,
-    members: byMember,
-    branches: {},
-    integration: null,
-    ports,
-    environment,
-    primaryBranch: '',
-    roomPath: source,
+    return {
+      root: source,
+      sourceRepo: source,
+      members: byMember,
+      branches: {},
+      integration: null,
+      ports,
+      environment,
+      primaryBranch: '',
+      roomPath: source,
+    }
+  } catch (error) {
+    try { rmSync(join(copyRoot(), `direct-${short}`), { recursive: true, force: true }) } catch {}
+    throw error
   }
 }
 

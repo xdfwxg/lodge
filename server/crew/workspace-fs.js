@@ -6,7 +6,11 @@ import {
 import { basename, dirname, join } from 'node:path'
 
 // 非交付内容不复制、不进文件清单：版本控制与本地运行文件都不是交付物。
-const EXCLUDED = new Set(['.git', '.crew', '.env', '.env.local', 'node_modules'])
+const EXAMPLE_ENV = new Set(['.env.example', '.env.sample', '.env.template'])
+const isEnvName = name => name === '.env' || (name.startsWith('.env.') && !EXAMPLE_ENV.has(name))
+const excludedName = name => (
+  name === '.git' || name === '.crew' || name === '.lodge' || name === 'node_modules' || isEnvName(name)
+)
 
 const nodeModulesMode = () => {
   const mode = process.env.CREW_NODE_MODULES_MODE
@@ -52,7 +56,7 @@ export const syncLocalEnvironment = (source, target, { copyEnv = true, nodeModul
 export const copyWorkspace = (source, target) => {
   cpSync(source, target, {
     recursive: true,
-    filter: src => !EXCLUDED.has(basename(src)),
+    filter: src => !excludedName(basename(src)),
   })
 }
 
@@ -62,7 +66,7 @@ export const manifestOf = root => {
   const files = []
   const walk = (dir, prefix) => {
     for (const name of readdirSync(dir).sort()) {
-      if (EXCLUDED.has(name)) continue
+      if (excludedName(name)) continue
       const absolute = join(dir, name)
       const path = prefix === '' ? name : `${prefix}/${name}`
       let stat
@@ -93,7 +97,11 @@ export const manifestOf = root => {
 export const manifestDigest = files => createHash('sha256').update(JSON.stringify(files)).digest('hex')
 
 export const copyEntry = (source, target, path) => {
+  const from = join(source, path)
+  // 清单里的软链只记录链接文本；复制内容会把工作区外的文件带进集成区。
+  if (lstatSync(from).isSymbolicLink()) return false
   const to = join(target, path)
   mkdirSync(dirname(to), { recursive: true })
-  copyFileSync(join(source, path), to)
+  copyFileSync(from, to)
+  return true
 }

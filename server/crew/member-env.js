@@ -1,15 +1,16 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { ensureDirInside } from './workspace-paths.js'
 
 // 成员环境预置：应用可以读取 .lodge/env 与 .lodge/member-data；
 // 它不是 OS 级沙箱，不能阻止应用无视这些变量。
 export const writeMemberEnv = ({ room, memberId, path, port }) => {
   if (typeof path !== 'string' || path === '') return null
   const lodge = join(path, '.lodge')
-  const data = join(lodge, 'member-data')
-  const tmp = join(lodge, 'tmp')
-  mkdirSync(data, { recursive: true })
-  mkdirSync(tmp, { recursive: true })
+  // 先确认 .lodge 本身在工作区里，再创建子目录；仓库里的软链不能把写入带出去。
+  ensureDirInside(path, lodge)
+  const data = ensureDirInside(path, join(lodge, 'member-data'))
+  const tmp = ensureDirInside(path, join(lodge, 'tmp'))
   const values = {
     LODGE_ROOM_ID: room?.id ?? '',
     LODGE_MEMBER_ID: memberId ?? '',

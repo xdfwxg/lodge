@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, write
 import { createServer } from 'node:net'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
-import { externalUrl, openablePath, runtimeBinary, sameOrigin } from './policy.mjs'
+import { externalUrl, loginBinary, openablePath, runtimeBinary, sameOrigin } from './policy.mjs'
 
 const APP_NAME = 'Lodge'
 const DEFAULT_PORT = 8787
@@ -381,11 +381,13 @@ const openRuntimeLogin = instance => {
   const login = instance.login
   if (!Array.isArray(login?.args) || login.args.length === 0) return
   const bundled = findBundledRuntimes().find(runtime => runtime.id === instance.instanceId)
-  const binary = bundled?.binaryPath
+  const binary = loginBinary(
+    bundled?.binaryPath
     ?? (Array.isArray(instance.cliCandidates) ? instance.cliCandidates[0] : undefined)
     ?? login.command
     ?? instance.cliDefault
-  if (typeof binary !== 'string' || binary === '') {
+  )
+  if (binary === null) {
     dialog.showErrorBox(APP_NAME, `${instance.displayName ?? instance.instanceId} 没有可用的登录命令。`)
     return
   }

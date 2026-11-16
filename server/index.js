@@ -17,6 +17,7 @@ import { migrateRoomMembers } from './crew/room-members.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
+import { requestGuard } from './http-guard.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
 validateRoster(ROLES)
@@ -155,6 +156,9 @@ const server = http.createServer(async (req, res) => {
   const path = url.pathname
 
   try {
+    const blocked = requestGuard(req)
+    if (blocked !== null) return json(res, 403, { error: blocked })
+
     if (path === '/api/state' && req.method === 'GET') {
       return json(res, 200, await service.state())
     }

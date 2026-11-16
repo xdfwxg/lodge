@@ -54,8 +54,8 @@ export const externalAction = card => {
         return { kind: rule.kind, label: rule.label, summary: clip(command), command: clip(command, 4000) }
       }
     }
-    return null
   }
+  // 没有 shell 命令命中的工具仍要看工具本身：MCP/网页工具的 subtitle 是描述，不是本地命令。
   const tool = String(card?.tool ?? '')
   for (const rule of TOOL_RULES) {
     if (rule.pattern.test(tool)) return { kind: rule.kind, label: rule.label, summary: clip(tool), command: '' }

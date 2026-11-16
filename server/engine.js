@@ -55,6 +55,8 @@ export const actionForTool = tool => {
   if (name === '') return null
   if (/(write|edit|multiedit|notebookedit)/.test(name)) return 'write'
   if (/(bash|shell|exec|command|terminal|kill)/.test(name)) return 'exec'
+  // MCP 工具名可能带 list/search 等词，不能先按本地只读工具放行。
+  if (/^mcp__/.test(name)) return 'exec'
   if (/(read|grep|glob|ls|list|notebookread)/.test(name)) return 'read'
   // 网络、浏览器和 MCP 工具不是本地读写；按 exec 权限处理，再走外部动作审批。
   if (/(webfetch|websearch|browser|fetch|http|mcp)/.test(name)) return 'exec'

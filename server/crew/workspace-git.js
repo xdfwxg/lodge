@@ -1,5 +1,5 @@
 import { execFile, execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { basename, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
@@ -10,15 +10,16 @@ import { workerIds } from './room-members.js'
 import { isWithin } from './workspace-paths.js'
 
 // 房间本地的运行文件不是交付内容：不进候选 commit、不进验收 diff。
-export const LOCAL_ONLY = ['.crew', '.lodge', '.env', '.env.local', 'node_modules']
+export const LOCAL_ONLY = ['.crew', '.lodge', '.env', '.env.local', '.env.*', 'node_modules']
 export const diffScope = ['.', ...LOCAL_ONLY.map(path => `:(exclude)${path}`)]
 
 // 执行者可能自己 git add -A；worktree 级别的 excludes 让本地运行文件不会被误提交。
-const LOCAL_EXCLUDES = ['.crew/', '.lodge/', '.env', '.env.local', 'node_modules/']
+const LOCAL_EXCLUDES = ['.crew/', '.lodge/', '.env', '.env.*', '!.env.example', '!.env.sample', '!.env.template', 'node_modules/']
 const ensureLocalExcludes = (path, base) => {
   try {
     const file = join(base, '.lodge-exclude')
-    if (!existsSync(file)) writeFileSync(file, `${LOCAL_EXCLUDES.join('\n')}\n`)
+    const content = `${LOCAL_EXCLUDES.join('\n')}\n`
+    if (!existsSync(file) || readFileSync(file, 'utf8') !== content) writeFileSync(file, content)
     git(path, ['config', '--worktree', 'core.excludesFile', file])
   } catch {}
 }
@@ -109,6 +110,11 @@ const diskMinMb = () => Number(process.env.CREW_DISK_MIN_FREE_MB ?? 512)
 const ensureDiskSpace = path => {
   const min = diskMinMb()
   if (!Number.isFinite(min) || min <= 0) return
+  try {
+    mkdirSync(path, { recursive: true })
+  } catch {
+    return
+  }
   let free
   try {
     const stat = statfsSync(path)
@@ -134,68 +140,74 @@ const portOffset = short => {
 
 // 每个成员一个工作区：worker 一个分支 worktree，verifier 一个 detached worktree，其余只读克隆。
 export const prepareRoom = ({ source, short, members }) => {
-  ensureRepo(source)
-  ensureDiskSpace(scratchRoot())
   const base = join(scratchRoot(), short)
-  mkdirSync(base, { recursive: true })
-  enableWorktreeConfig(source)
-  const byMember = {}
-  const branches = {}
-  const ports = {}
-  const environment = {}
-  let nextPort = portBase() + portOffset(short)
-  const takePort = () => {
-    const chosen = chooseFreePort(nextPort)
-    nextPort = chosen.next
-    return chosen.port
-  }
-  for (const member of members) {
-    const path = join(base, member.id)
-    if (member.role === 'worker') {
-      const branch = `crew/${short}/${member.id}`
+  try {
+    ensureRepo(source)
+    ensureDiskSpace(scratchRoot())
+    mkdirSync(base, { recursive: true })
+    enableWorktreeConfig(source)
+    const byMember = {}
+    const branches = {}
+    const ports = {}
+    const environment = {}
+    let nextPort = portBase() + portOffset(short)
+    const takePort = () => {
+      const chosen = chooseFreePort(nextPort)
+      nextPort = chosen.next
+      return chosen.port
+    }
+    for (const member of members) {
+      const path = join(base, member.id)
+      if (member.role === 'worker') {
+        const branch = `crew/${short}/${member.id}`
+        git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
+        ensureLocalExcludes(path, base)
+        branches[member.id] = branch
+        byMember[member.id] = { path, kind: 'worktree', branch }
+        environment[member.id] = syncLocalEnvironment(source, path)
+        ports[member.id] = takePort()
+        continue
+      }
+      if (member.role === 'verifier') {
+        git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
+        ensureLocalExcludes(path, base)
+        byMember[member.id] = { path, kind: 'verify' }
+        environment[member.id] = syncLocalEnvironment(source, path, { copyEnv: false })
+        ports[member.id] = takePort()
+        continue
+      }
+      execFileSync('git', ['clone', '--quiet', '--no-hardlinks', source, path], {
+        cwd: base,
+        stdio: ['ignore', 'ignore', 'pipe'],
+      })
+      byMember[member.id] = { path, kind: 'clone' }
+    }
+    const workers = members.filter(member => member.role === 'worker')
+    // 多执行成员时，房间的交付目录是集成 worktree；各执行分支合并到这里，源仓库主分支不动。
+    let integration = null
+    if (workers.length > 1) {
+      const path = join(base, 'integration')
+      const branch = `crew/${short}/integration`
       git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
-      ensureLocalExcludes(path, base)
-      branches[member.id] = branch
-      byMember[member.id] = { path, kind: 'worktree', branch }
-      environment[member.id] = syncLocalEnvironment(source, path)
-      ports[member.id] = takePort()
-      continue
+      integration = { path, branch, kind: 'worktree' }
+      environment.integration = syncLocalEnvironment(source, path)
+      ports.integration = takePort()
     }
-    if (member.role === 'verifier') {
-      git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
-      ensureLocalExcludes(path, base)
-      byMember[member.id] = { path, kind: 'verify' }
-      environment[member.id] = syncLocalEnvironment(source, path, { copyEnv: false })
-      ports[member.id] = takePort()
-      continue
+    return {
+      root: base,
+      sourceRepo: source,
+      members: byMember,
+      branches,
+      integration,
+      ports,
+      environment,
+      primaryBranch: integration?.branch ?? branches[workers[0]?.id] ?? '',
+      roomPath: integration?.path ?? byMember[workers[0]?.id]?.path,
     }
-    execFileSync('git', ['clone', '--quiet', '--no-hardlinks', source, path], {
-      cwd: base,
-      stdio: ['ignore', 'ignore', 'pipe'],
-    })
-    byMember[member.id] = { path, kind: 'clone' }
-  }
-  const workers = members.filter(member => member.role === 'worker')
-  // 多执行成员时，房间的交付目录是集成 worktree；各执行分支合并到这里，源仓库主分支不动。
-  let integration = null
-  if (workers.length > 1) {
-    const path = join(base, 'integration')
-    const branch = `crew/${short}/integration`
-    git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
-    integration = { path, branch, kind: 'worktree' }
-    environment.integration = syncLocalEnvironment(source, path)
-    ports.integration = takePort()
-  }
-  return {
-    root: base,
-    sourceRepo: source,
-    members: byMember,
-    branches,
-    integration,
-    ports,
-    environment,
-    primaryBranch: integration?.branch ?? branches[workers[0]?.id] ?? '',
-    roomPath: integration?.path ?? byMember[workers[0]?.id]?.path,
+  } catch (error) {
+    try { rmSync(base, { recursive: true, force: true }) } catch {}
+    try { git(source, ['worktree', 'prune']) } catch {}
+    throw error
   }
 }
 
@@ -283,9 +295,10 @@ export const pruneRewindBranches = ({ path, ttlMs = 7 * 24 * 60 * 60 * 1000, now
 export const restore = ({ room, base }) => {
   const repoPath = room?.repoPath
   if (typeof repoPath !== 'string' || repoPath === '') throw new Error('房间没有工作文件夹')
+  if (!isWithin(scratchRoot(), repoPath)) throw new Error('房间工作文件夹不在工作区内，不能回退')
   const workers = workerIds(room)
   const memberPaths = Object.entries(room?.worktrees ?? {})
-    .filter(([member, path]) => workers.includes(member) && typeof path === 'string' && existsSync(path))
+    .filter(([member, path]) => workers.includes(member) && typeof path === 'string' && existsSync(path) && isWithin(scratchRoot(), path))
   const targets = [{ name: 'room', path: repoPath }, ...memberPaths.map(([member, path]) => ({ name: member, path }))]
     .filter((item, index, list) => list.findIndex(other => other.path === item.path) === index)
   const dirty = targets.find(item => git(item.path, ['status', '--porcelain', '--untracked-files=no']).trim() !== '')
@@ -345,6 +358,7 @@ export const integrate = ({ path, branch }) => {
 
 // 复核前把 verifier 目录重置到 executor 的最新候选提交；之前复核写下的东西全部丢掉，本地环境再同步。
 export const refreshReviewCopy = ({ path, branch, source }) => {
+  if (typeof path !== 'string' || path === '' || !isWithin(scratchRoot(), path)) return
   git(path, ['checkout', '--detach', '--force', branch])
   git(path, ['clean', '-fdx'])
   if (typeof source === 'string' && source !== '') syncLocalEnvironment(source, path, { copyEnv: false })

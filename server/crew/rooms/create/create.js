@@ -100,13 +100,14 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行成员')
   }
-  const workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
+  let workspaces = null
 
   const roomId = `room-${short}`
   const provisioner = createProvisioner({ engine })
   let room = null
   let stored = false
   try {
+    workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
     const goalTitle = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
     const deliveryTitle = deliveryTitleFor(goalTitle, handoff)
     const title = name === '' ? goalTitle : name
@@ -214,7 +215,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   } catch (error) {
     if (!stored) {
       await provisioner.cleanup()
-      provider.cleanupRoom({ source: sourceRepo, workspaces })
+      try {
+        if (workspaces !== null) provider.cleanupRoom({ source: sourceRepo, workspaces })
+      } catch {}
+      if (requestedRepo === '') {
+        try { ports.workspace.remove(sourceRepo) } catch {}
+      }
       throw new Error(`房间没能建起来：${error?.message ?? error}`)
     }
     store.appendMessage(room.id, { kind: 'system', text: `房间建好了，但没能启动：${error?.message ?? error}` })

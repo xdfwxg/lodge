@@ -13,6 +13,7 @@ const env = {
 
 const result = spawnSync(process.execPath, [
   '--test',
+  'server/*.test.js',
   'shared/**/*.test.js',
   'server/crew/**/*.test.js',
   'ui/src/**/*.test.js',

@@ -15,7 +15,7 @@ export const collectWorkspaceGarbage = ({
   store,
   workspace,
   files,
-  rootPath = workspace.default.scratchRoot(),
+  rootPath = null,
   ttlMs = ttlDays() * 24 * 60 * 60 * 1000,
   rewindTtlMs = rewindTtlDays() * 24 * 60 * 60 * 1000,
   now = Date.now(),
@@ -56,24 +56,35 @@ export const collectWorkspaceGarbage = ({
   }
 
   // 未知目录可能属于另一个 data dir；孤儿清理默认关闭，显式开启才删。
-  if (!removeOrphans || !files.exists(rootPath)) return { pruned, orphans, rewound }
-  for (const name of files.list(rootPath)) {
-    const path = join(rootPath, name)
-    let directory = false
-    let mtimeMs = 0
-    try {
-      directory = files.isDirectory(path)
-      mtimeMs = files.mtimeMs(path)
-    } catch {
-      continue
+  if (!removeOrphans) return { pruned, orphans, rewound }
+  const roots = rootPath === null
+    ? [...new Set([
+      workspace.default.scratchRoot(),
+      workspace.byId?.('plain')?.scratchRoot?.(),
+    ].filter(item => typeof item === 'string' && item !== ''))]
+    : [rootPath]
+  for (const root of roots) {
+    if (!files.exists(root)) continue
+    for (const name of files.list(root)) {
+      // direct 验收快照按房间分组，不是房间 id 本身；由房间清理负责。
+      if (name.startsWith('direct-')) continue
+      const path = join(root, name)
+      let directory = false
+      let mtimeMs = 0
+      try {
+        directory = files.isDirectory(path)
+        mtimeMs = files.mtimeMs(path)
+      } catch {
+        continue
+      }
+      if (!directory) continue
+      if (store.readRoom(`room-${name}`) !== null) continue
+      if (now - mtimeMs < ttlMs) continue
+      try {
+        files.remove(path)
+        orphans += 1
+      } catch {}
     }
-    if (!directory) continue
-    if (store.readRoom(`room-${name}`) !== null) continue
-    if (now - mtimeMs < ttlMs) continue
-    try {
-      files.remove(path)
-      orphans += 1
-    } catch {}
   }
   return { pruned, orphans, rewound }
 }

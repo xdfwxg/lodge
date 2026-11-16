@@ -1,7 +1,8 @@
-import { closeSync, fsyncSync, mkdirSync, openSync, writeSync } from 'node:fs'
+import { closeSync, fsyncSync, openSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
 import { roomDir, roomRootOf } from './paths.js'
+import { ensureDirInside } from './workspace-paths.js'
 import { memberName, workerIds } from './room-members.js'
 
 export { roomDir }
@@ -18,8 +19,7 @@ const writeDurable = (file, content) => {
 
 // transcript.jsonl 是持久日志：先追加并 fsync，再提交 SQLite。
 export const appendTranscript = (room, message) => {
-  const dir = roomDir(room)
-  mkdirSync(dir, { recursive: true })
+  const dir = ensureDirInside(roomRootOf(room), roomDir(room))
   const fd = openSync(join(dir, 'transcript.jsonl'), 'a')
   try {
     writeSync(fd, `${JSON.stringify(message)}\n`)
@@ -31,8 +31,7 @@ export const appendTranscript = (room, message) => {
 
 // 治理事件镜像：clone 房间时不只拿讨论，也拿阶段、复核、审批与提交的轨迹。
 export const appendEventLog = (room, event) => {
-  const dir = roomDir(room)
-  mkdirSync(dir, { recursive: true })
+  const dir = ensureDirInside(roomRootOf(room), roomDir(room))
   const fd = openSync(join(dir, 'events.jsonl'), 'a')
   try {
     writeSync(fd, `${JSON.stringify(event)}\n`)
@@ -43,14 +42,13 @@ export const appendEventLog = (room, event) => {
 }
 
 export const writeEvidence = (room, message) => {
-  const dir = join(roomDir(room), 'evidence')
-  mkdirSync(dir, { recursive: true })
+  const dir = ensureDirInside(roomRootOf(room), join(roomDir(room), 'evidence'))
   writeDurable(join(roomDir(room), message.meta.evidenceRef), JSON.stringify(message.meta, null, 2))
 }
 
 // GOAL.md 是运行时投影，每次状态变化重写，不是人的编辑对象。
 export const writeGoal = room => {
-  mkdirSync(roomDir(room), { recursive: true })
+  ensureDirInside(roomRootOf(room), roomDir(room))
   const rootStages = Array.isArray(room.stages) ? room.stages : []
   const stages = rootStages.map((stage, index) => (
     `- [${stage.state}] ${index + 1}. ${stage.title} · ${stage.kind}${stage.acceptance ? ` · 验收：${stage.acceptance}` : ''}${Array.isArray(stage.dependsOn) && stage.dependsOn.length > 0 ? ` · 依赖：阶段 ${stage.dependsOn.map(item => item + 1).join('、')}` : ''}`
@@ -74,7 +72,7 @@ export const writeGoal = room => {
 
 // 完成结论是运行时投影；decisions.md 归人，运行时不写。
 export const writeConclusion = room => {
-  mkdirSync(roomDir(room), { recursive: true })
+  ensureDirInside(roomRootOf(room), roomDir(room))
   writeDurable(join(roomDir(room), 'CONCLUSION.md'), [
     `# 结论：${room.goal}`,
     '',

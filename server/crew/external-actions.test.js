@@ -50,6 +50,13 @@ test('common option and wrapper forms are still external', () => {
   assert.equal(externalAction(card('git -C /repo fetch'))?.kind, 'network')
 })
 
+test('tool descriptions never turn an external tool into a local action', () => {
+  assert.equal(externalAction({ tool: 'mcp__github__create_issue', action: 'exec', subtitle: 'Create issue in repo' })?.kind, 'network')
+  assert.equal(externalAction({ tool: 'mcp__github__list_issues', action: 'exec', subtitle: 'List issues' })?.kind, 'network')
+  assert.equal(externalAction({ tool: 'WebFetch', action: 'exec', subtitle: 'https://example.com' })?.kind, 'network')
+  assert.equal(externalAction(card('ls -la')), null)
+})
+
 test('the full command survives truncation for approval review', async () => {
   const long = `${'echo '.repeat(80)} && git push origin main`
   const action = externalAction(card(long))

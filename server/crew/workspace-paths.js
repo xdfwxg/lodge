@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync, mkdirSync, realpathSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 
 const canonical = path => {
@@ -15,4 +15,14 @@ export const isWithin = (root, target) => {
   const inside = (base, path) => path === base || path.startsWith(`${base}${sep}`)
   if (existsSync(target)) return inside(canonical(root), realpathSync(target))
   return inside(resolve(root), resolve(target))
+}
+
+// 运行文件目录不能顺着仓库里的软链跑到工作区外。
+export const ensureDirInside = (root, dir) => {
+  if (typeof root !== 'string' || root === '' || typeof dir !== 'string' || dir === '') {
+    throw new Error('缺少工作区目录')
+  }
+  mkdirSync(dir, { recursive: true })
+  if (!isWithin(root, dir)) throw new Error(`目录不在工作区内：${dir}`)
+  return dir
 }
