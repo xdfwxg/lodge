@@ -16,7 +16,7 @@ const roomRecord = (overrides = {}) => ({
   ...overrides,
 })
 
-const setup = (room, liveOverrides = {}) => {
+const setup = (room, liveOverrides = {}, portOverrides = {}) => {
   let current = room
   const emitted = []
   const removedPaths = []
@@ -42,7 +42,7 @@ const setup = (room, liveOverrides = {}) => {
     appendMessage: () => ({}),
     appendEvent: () => {},
   }
-  const ports = createCrewPorts()
+  const ports = { ...createCrewPorts(), ...portOverrides }
   ports.files = { ...ports.files, remove: path => removedPaths.push(path) }
   const service = createCrewService({
     store,
@@ -52,7 +52,7 @@ const setup = (room, liveOverrides = {}) => {
     roles: [],
     ports,
   })
-  return { service, emitted, removedPaths, deleted: () => deleted }
+  return { service, emitted, removedPaths, deleted: () => deleted, room: () => current }
 }
 
 const post = body => ({ method: 'POST', readBody: async () => body })
@@ -145,4 +145,33 @@ test('deleting a finished room removes it and emits room.deleted', async () => {
   assert.equal(ctx.removedPaths.length, 1)
   assert.match(ctx.removedPaths[0], /\.crew\/rooms\/r1$/)
   assert.equal(ctx.emitted.some(([event]) => event === 'room.deleted'), true)
+})
+
+test('shadow review can be confirmed and disabled on an existing studio', async () => {
+  const ctx = setup(
+    roomRecord({ roomType: 'studio' }),
+    {},
+    { advisor: { available: true, describe: () => ({ available: true, host: 'a.example' }), advice: async () => ({ available: true, advice: [] }) } },
+  )
+  const enabled = await ctx.service.roomRequest('r1', 'shadow-review', post({ enabled: true }))
+  assert.equal(enabled.ok, true)
+  assert.equal(ctx.room().shadowReview, true)
+  assert.equal(ctx.room().advisorConsent.host, 'a.example')
+  assert.ok(ctx.emitted.some(([event]) => event === 'room'))
+  const disabled = await ctx.service.roomRequest('r1', 'shadow-review', post({ enabled: false }))
+  assert.equal(disabled.ok, true)
+  assert.equal(ctx.room().shadowReview, false)
+  assert.equal('advisorConsent' in ctx.room(), false)
+  assert.equal('advisorShadow' in ctx.room(), false)
+})
+
+test('shadow review cannot be enabled without an advisor', async () => {
+  const ctx = setup(
+    roomRecord({ roomType: 'studio' }),
+    {},
+    { advisor: { available: false, describe: () => ({ available: false, host: '' }), advice: async () => ({ available: false, advice: [] }) } },
+  )
+  const result = await ctx.service.roomRequest('r1', 'shadow-review', post({ enabled: true }))
+  assert.equal(result.ok, false)
+  assert.match(result.error, /没有配置外部 advisor/)
 })

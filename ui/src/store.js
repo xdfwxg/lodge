@@ -243,6 +243,12 @@ export function createStore() {
       await load()
       return { ok: true, room: data.room }
     },
+    shadowReviewRoom: async (id, enabled) => {
+      const data = await post(`/api/rooms/${id}/shadow-review`, { enabled })
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '影子评审没能更新' }
+      await load()
+      return { ok: true, room: data.room }
+    },
     archiveRoom: async (id, archived = true) => {
       const data = await post(`/api/rooms/${id}/archive`, { archived })
       if (data?.room === undefined) {

@@ -88,6 +88,38 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       }
     }
 
+    if (action === 'shadow-review' && method === 'POST') {
+      if (room.roomType !== 'studio') return fail('conflict', '只有工作室有影子评审')
+      const body = await readBody()
+      if (body.enabled === true) {
+        const described = ports.advisor?.describe?.() ?? { available: false, host: '' }
+        if (described.available !== true) return fail('conflict', '还没有配置外部 advisor')
+        const updated = updateRoom(room.id, current => {
+          current.shadowReview = true
+          current.advisorConsent = { host: described.host, at: Date.now() }
+          delete current.advisorShadow
+          return { events: [{ type: 'room.shadow_review', payload: { enabled: true, host: described.host } }] }
+        })
+        if (updated === null) return fail('not_found', '没有这个房间')
+        appendMessage(room.id, {
+          kind: 'system',
+          text: `影子评审已${room.shadowReview === true ? '重新确认' : '开启'}：复核时证据和 diff 会发给外部 advisor${described.host === '' ? '' : `（${described.host}）`}。意见只供你签字前参考。`,
+        })
+        emit('room', updated)
+        return ok({ room: readRoom(room.id) ?? updated })
+      }
+      const updated = updateRoom(room.id, current => {
+        current.shadowReview = false
+        delete current.advisorConsent
+        delete current.advisorShadow
+        return { events: [{ type: 'room.shadow_review', payload: { enabled: false } }] }
+      })
+      if (updated === null) return fail('not_found', '没有这个房间')
+      appendMessage(room.id, { kind: 'system', text: '影子评审已关闭。' })
+      emit('room', updated)
+      return ok({ room: readRoom(room.id) ?? updated })
+    }
+
     if (action === 'read' && method === 'POST') {
       if (room.live === true && typeof live.markChatRead === 'function') await live.markChatRead(room)
       return ok({ room: readRoom(roomId) ?? room })

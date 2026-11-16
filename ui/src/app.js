@@ -106,6 +106,8 @@ export function App() {
       onRename: (id, name) => store.renameRoom(id, name),
       onArchive: (id, archived) => store.archiveRoom(id, archived),
       onDelete: id => store.deleteRoom(id),
+      advisor: state.advisor ?? { available: false, host: '' },
+      onShadowReview: (id, enabled) => store.shadowReviewRoom(id, enabled),
     }),
     h(RoomView, {
       state,
