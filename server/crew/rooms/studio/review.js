@@ -9,7 +9,7 @@ import { markStageTasks } from './tasks.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { seatDisplayName, seatMention } from '../../seat-labels.js'
 
-const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清产物是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
+const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
 
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updateTasks, handoff = null, advisor = null }) => {
@@ -79,7 +79,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       store.appendEvent(roomId, 'review.cancelled', {
         stage: pending.stage,
         verifier: remainingSeat,
-        reason: reachedQuorum ? '已达到验收 quorum' : '验收已不可能达到 quorum',
+        reason: reachedQuorum ? '验收意见已经够了' : '验收意见不可能凑齐了',
       })
     }
     round.requests.clear()
@@ -100,7 +100,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
         kind: 'system',
         text: policy === 'majority'
           ? `${name} 投了退回：${passed}/${total} 通过、${rejected} 退回（需要 ${required} 位通过）；这一轮仍未通过。`
-          : `${name} 退回；其余验收员不再等待，返工后再检查一次。`,
+          : `${name} 退回；其余验收员不再等待，重做后再检查一次。`,
       })
       const current = store.readRoom(roomId)
       const moved = transitionStudio(current?.closure ?? 'verifying', 'verdict_reject')
@@ -131,13 +131,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       ? manualReviewState({ room, evidence: ledger, messages, stageIndex })
       : reviewState({ room, evidence: ledger, messages, stageIndex })
     if (outcome.state === 'pass') reject('conflict', '本阶段验收员已经全部通过')
-    if (outcome.state === 'reject') reject('conflict', '验收被打回了；先返工再检查一次')
-    if (outcome.state === 'failed') reject('conflict', '最新检查没有通过；先返工再检查一次')
+    if (outcome.state === 'reject') reject('conflict', '验收退回了；先重做再检查一次')
+    if (outcome.state === 'failed') reject('conflict', '最新检查没有通过；先重做再检查一次')
     const ids = verifierIds(room)
-    if (ids.length === 0) reject('conflict', '房间没有验收席位')
+    if (ids.length === 0) reject('conflict', '房间没有验收成员')
     const evidence = outcome.evidence
     if (evidence === undefined || evidence === null) {
-      reject('conflict', manual ? '还没有本阶段的产物证据' : '还没有本阶段的验收命令证据')
+      reject('conflict', manual ? '还没有本阶段的结果证据' : '还没有本阶段的验收命令证据')
     }
     if (room.closure === 'executing') {
       const moved = transitionStudio(room.closure, 'submit_evidence', {
@@ -166,7 +166,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       round = null
     }
     const targets = outcome.state === 'pending' ? outcome.missing : ids
-    if (targets.length === 0) reject('conflict', '所有验收席位都已回报')
+    if (targets.length === 0) reject('conflict', '所有验收成员都已回报')
 
     const meta = evidence.meta
     const reviewGuidance = reviewGuidanceFor(room)
@@ -233,7 +233,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       const verifierName = seatDisplayName(room, verifier)
       const verifierMention = seatMention(room, verifier)
       if (typeof verifierName !== 'string' || verifierName === '') {
-        failures.push(`${verifier}: 没有席位名字`)
+        failures.push(`${verifier}: 没有成员名字`)
         continue
       }
       if (room.worktrees?.[verifier] !== undefined && typeof room.branch === 'string') {
@@ -248,35 +248,35 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
       const verifierPort = room.ports?.[verifier]
       const prompt = manual
         ? [
-            `${verifierMention || `@${verifierName}`} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
-            '独立复核：以本轮产物证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
+            `${verifierMention || `@${verifierName}`} 你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+            '独立复核：以本轮结果证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildSeatHandoff({ room, messages }),
             ...(promptLines.length > 0
               ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
               : []),
-            `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
+            `工作文件夹：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
-            '产物证据：',
+            '结果证据：',
             '```',
             tail(evidence.text, 2000),
             '```',
-            '请自己打开产物核对；这是人工验收阶段，没有验收命令。',
-            '只评审交付产物；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
-            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
+            '请自己打开结果核对；这是人工验收阶段，没有验收命令。',
+            '只评审交付结果；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
+            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
-            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
+            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时在理由里 @ 规划师或执行官，指出具体缺口；PASS 时不必 @ 人。',
             VERDICT_FORMAT,
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
         : [
-            `${verifierMention || `@${verifierName}`} 你现在是验收席位${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+            `${verifierMention || `@${verifierName}`} 你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '独立复核：以本轮验收证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             buildSeatHandoff({ room, messages }),
             ...(promptLines.length > 0
               ? [`评估建议（仅参考，不替代你的判定）：${promptLines.map(item => item.summary ?? [...(item.reasons ?? []), ...(item.risks ?? [])].join('；')).filter(Boolean).join('；')}`]
               : []),
-            `工作目录：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
+            `工作文件夹：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
             ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
             `验收命令：${meta.command}`,
             `退出码：${meta.exit === null ? '无' : meta.exit}`,
@@ -291,9 +291,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
             '',
             '请自己打开改动过的文件核对；必要时自己重跑验收命令，不要把上面的输出当成唯一依据。',
             '只评审交付改动；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
-            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收席位；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
+            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
-            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS，也不要 @ 任何人。',
+            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时在理由里 @ 规划师或执行官，指出具体缺口；PASS 时不必 @ 人。',
             VERDICT_FORMAT,
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
@@ -367,7 +367,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToSeat, updat
     }
     if (nextRound.requests.size === 0) {
       round = null
-      reject('conflict', `复核请求没有发出：${failures.join('；') || '没有可用验收席位'}`)
+      reject('conflict', `复核请求没有发出：${failures.join('；') || '没有可用验收成员'}`)
     }
     return { requested: true, stage: stageIndex, verifiers: [...nextRound.requests.keys()] }
   }
