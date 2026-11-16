@@ -291,6 +291,8 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       name: item.displayName ?? item.instanceId,
       available: item.snapshot?.state === 'available',
       reason: item.snapshot?.reason ?? '',
+      // 基座已经探测过登录；undefined 表示这个驱动没有这项信息。
+      authenticated: item.snapshot?.authenticated,
       models: item.models ?? { default: '', options: [] },
       capabilities: item.capabilities ?? {},
       login: item.login ?? null,

@@ -131,13 +131,19 @@ export function StudioPrimaryFields({
   onAcceptanceDraft = () => {},
   onAdvanced = () => {},
 }) {
-  const available = (Array.isArray(engines) ? engines : []).filter(item => item.available)
+  const installed = (Array.isArray(engines) ? engines : []).filter(item => item.available)
+  const available = installed.filter(item => item.authenticated !== false)
+  const capableInstalled = installed.filter(item => item.capabilities?.approvalReview === true)
   const capable = available.some(item => item.capabilities?.approvalReview === true)
   const vendors = new Set(available.map(item => item.engine ?? item.id))
   const modelNote = engines.length === 0
     ? ''
     : available.length === 0
-      ? '还没有可用的模型服务。先在「调整成员与模型」里配置一家。'
+      ? installed.length > 0
+        ? capableInstalled.length > 0
+          ? `${capableInstalled.map(item => item.name ?? item.id).join('、')}还没登录；先登录，或把这件事放进聊天室讨论。`
+          : '装好的模型服务都不会逐次确认外部动作；先装好一家会先问你的模型，或把这件事放进聊天室讨论。'
+        : '还没有可用的模型服务。先在「调整成员与模型」里配置一家。'
       : !capable
         ? '现在没有会逐次确认外部动作的模型，工作室开不了工。先装好一家会先问你的模型，或把这件事放进聊天室讨论。'
         : vendors.size < 2

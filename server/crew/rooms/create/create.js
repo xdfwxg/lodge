@@ -4,6 +4,7 @@ import { created, fail } from '../../result.js'
 import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, resolveMembers } from './input.js'
 import { buildRoomRecord, initialRoomMessages } from './record.js'
 import { createProvisioner } from './provision.js'
+import { bodyIssueText } from '../../body-check.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
 import { gateRecordOf } from '../../gate/index.js'
@@ -134,6 +135,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       verifiers,
       roomType: roomType.id,
     })
+    // 身体体检：没装好或没登录的模型在开工前就拦下，不把失败留到第一回合。
+    const bodyIssues = (provisioned.bodyIssues ?? []).filter(item => item.issue !== '')
+    if (bodyIssues.length > 0) {
+      await discard()
+      return fail('invalid', `身体没准备好：${bodyIssueText(bodyIssues)}`)
+    }
     // 外部动作只有在驱动会停下来问人时才安全；不会问的执行成员不能开工。
     const blocked = roomType.readOnly === true
       ? []

@@ -48,6 +48,11 @@ test('one available vendor points at the same-vendor self check', () => {
   assert.match(html, /自查/)
 })
 
+test('logged-out services do not count as usable models', () => {
+  const html = render({ engines: [{ ...engine('claude', true), authenticated: false }] })
+  assert.match(html, /还没登录/)
+})
+
 test('two vendors show no guidance', () => {
   const html = render({ engines: [engine('claude', true), engine('codex', true)] })
   assert.doesNotMatch(html, /只有一家模型可用/)

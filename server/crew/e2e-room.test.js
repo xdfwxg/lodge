@@ -16,12 +16,12 @@ import { createStore } from './store.js'
 const temp = prefix => mkdtempSync(join(tmpdir(), prefix))
 
 // 固定脚本运行时：不启动 CLI，被 @ 的席位立刻回一条可预测的消息。
-const scriptedEngine = (store, { approvalReview = true } = {}) => {
+const scriptedEngine = (store, { approvalReview = true, authenticated } = {}) => {
   const history = []
   let seq = 0
   return {
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
-    instances: async () => [{ id: 'fake', engine: 'fake', available: true, capabilities: { approvalReview } }],
+    instances: async () => [{ id: 'fake', engine: 'fake', available: true, ...(authenticated === undefined ? {} : { authenticated }), capabilities: { approvalReview } }],
     createMemberBot: async ({ name }) => ({ id: `member-${name}`, name, engine: 'fake', model: 'fake-model' }),
     createRoom: async ({ name }) => ({ id: `chat-${name}`, sessionRef: `thread-${name}` }),
     deleteRoom: async () => {},
@@ -242,6 +242,43 @@ test('deterministic room scenario reaches signed and accepted', async () => {
       .filter(event => event.type === 'chat.transition')
       .map(event => event.payload.event)
     assert.deepEqual(chatSequence, ['summarize', 'conclude', 'accept'])
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(root, { recursive: true, force: true })
+    if (previous === undefined) delete process.env.CREW_WORKSPACE_ROOT
+    else process.env.CREW_WORKSPACE_ROOT = previous
+  }
+})
+
+test('a body that is not logged in never starts the room', async () => {
+  const previous = process.env.CREW_WORKSPACE_ROOT
+  const root = temp('lodge-login-workspace-')
+  process.env.CREW_WORKSPACE_ROOT = root
+  const dataDir = temp('lodge-login-data-')
+  const store = createStore({ dataDir })
+  const engine = scriptedEngine(store, { authenticated: false })
+  const ports = createCrewPorts()
+  try {
+    const result = await createRealRoom({
+      store,
+      engine,
+      live: fakeLive(),
+      emit: () => {},
+      body: {
+        goal: '写一个文件',
+        roomType: 'studio',
+        verify: 'test',
+        plan: {
+          done: ['文件存在'],
+          stages: [{ title: '写文件', kind: 'deliverable', acceptance: 'test -f A.md' }],
+        },
+      },
+      ports,
+    })
+    assert.equal(result.ok, false)
+    assert.match(result.error, /身体没准备好/)
+    assert.match(result.error, /登录失效/)
+    assert.deepEqual(store.readRooms(), [])
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
     rmSync(root, { recursive: true, force: true })

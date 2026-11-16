@@ -1,26 +1,12 @@
 import { memberForRef, memberNameOf } from './projection.js'
 import { roomLifecycleOfRoom } from '../../rooms/kinds.js'
+import { failureCopy, isMemberFailureText, memberFailureKind } from '../../member-failure.js'
 
 const memberFailureOf = message => {
   if (message?.kind !== 'activity' || message.ok !== false) return null
   const text = String(message.text ?? '')
-  return /^error:\s/i.test(text) ? text : null
+  return isMemberFailureText(text) ? text : null
 }
-
-const memberFailureKind = text => {
-  const lower = text.toLowerCase()
-  if (lower.includes('余额') || lower.includes('insufficient') || lower.includes('quota') || lower.includes('credit')) return 'quota'
-  if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized') || lower.includes('invalid api key')) return 'auth'
-  if (lower.includes('429') || lower.includes('rate_limit') || lower.includes('rate limit')) return 'rate_limit'
-  return 'engine'
-}
-
-const failureCopy = (kind, name) => ({
-  quota: `${name}的模型额度不够，房间已暂停。充值或给这位成员换个模型后，点“继续”。`,
-  auth: `${name}的登录失效了，房间已暂停。重新登录或换个模型服务后，点“继续”。`,
-  rate_limit: `${name}被模型服务限流了，房间已暂停。稍后点“继续”，或给这位成员换个模型。`,
-  engine: `${name}没能回应，房间已暂停。检查模型服务设置后，点“继续”。`,
-}[kind])
 
 // 引擎级错误（余额、鉴权、限流）不是普通命令失败；房间要停下来等人处理。
 export const pauseForMemberFailure = (store, entry, message) => {

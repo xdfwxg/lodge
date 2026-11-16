@@ -148,7 +148,7 @@ function NewRoomDialog({
   const engineChoices = engines.filter(item => item.available)
   // 工作室需要会停下来问人的执行模型；一家都没有时，开工按钮不应把人送进一次必然失败。
   const noAskingEngine = !isChat && engineChoices.length > 0 &&
-    !engineChoices.some(item => item.capabilities?.approvalReview === true)
+    !engineChoices.some(item => item.authenticated !== false && item.capabilities?.approvalReview === true)
   const choiceAt = index => directChoices[index] ?? { engine: '', model: '' }
   const selectedModelOf = choice => {
     const engine = engineChoices.find(item => item.id === choice.engine)

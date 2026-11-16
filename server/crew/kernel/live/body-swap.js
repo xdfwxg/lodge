@@ -1,6 +1,7 @@
 import { fail, ok } from '../../result.js'
 import { roomBulletin, roomModeOfRoom } from '../../rooms/kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
+import { bodyIssueOf } from '../../body-check.js'
 
 const roleKindOf = member => member.roleKind ?? member.role
 const engineKindOf = (instances, id) => instances.find(item => item.id === id)?.engine ?? id
@@ -52,7 +53,8 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
       instances = []
     }
     const instance = instances.find(item => item.id === engineId)
-    if (instance === undefined || instance.available !== true) return fail('invalid', '这个模型服务现在不可用')
+    const issue = bodyIssueOf(instance)
+    if (issue !== '') return fail('invalid', issue === '登录失效' ? '这个模型服务没有登录，先登录再换身体' : `这个模型服务现在不可用：${issue}`)
     const requiresGate = resolveRoomType(room.roomType)?.readOnly !== true && member.permissions?.exec === true
     if (requiresGate && instance.capabilities?.approvalReview !== true) {
       return fail('invalid', '这个模型不会先问你，不能用来执行')

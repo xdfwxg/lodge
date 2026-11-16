@@ -12,7 +12,8 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, bus
   const engine = available.find(item => item.id === engineId)
   const rows = modelRowsFor(engine)
   const model = modelId !== '' ? modelId : (engine?.models?.default ?? rows[0]?.id ?? '')
-  const blocked = requiresGate === true && engine !== undefined && engine.capabilities?.approvalReview !== true
+  const unauthenticated = engine !== undefined && engine.authenticated === false
+  const blocked = unauthenticated || (requiresGate === true && engine !== undefined && engine.capabilities?.approvalReview !== true)
   const unchanged = engineId === (member.body?.engine ?? '') && model === (member.body?.model ?? '')
   const overlay = useOverlay({ label: '换身体', onClose: busy ? () => {} : onCancel, active: true })
   return h('div', { className: 'crew-overlay', onClick: busy ? undefined : onCancel, ...overlay },
@@ -43,12 +44,13 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, bus
         },
         h('option', { value: '' }, '选一个模型服务'),
         available.map(item => {
-          const allowed = requiresGate !== true || item.capabilities?.approvalReview === true
+          const unauthenticatedItem = item.authenticated === false
+          const allowed = !unauthenticatedItem && (requiresGate !== true || item.capabilities?.approvalReview === true)
           return h('option', {
             key: item.id,
             value: item.id,
             disabled: !allowed,
-          }, `${labelOf(item)}${allowed ? '' : ' · 不能执行'}`)
+          }, `${labelOf(item)}${unauthenticatedItem ? ' · 未登录' : allowed ? '' : ' · 不能执行'}`)
         }))),
       engine !== undefined && rows.length > 0
         ? h('label', { className: 'crew-field crew-body-swap-field' },
@@ -62,9 +64,11 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, bus
           },
           rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
         : null,
-      blocked
-        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
-        : null,
+      unauthenticated
+        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个模型服务没有登录，先登录再用。')
+        : blocked
+          ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
+          : null,
       error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error)),
     h('div', { className: 'crew-dialog-foot' },
       h('button', { type: 'button', className: 'crew-ghost', disabled: busy, onClick: onCancel }, '取消'),

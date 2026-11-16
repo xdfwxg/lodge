@@ -38,7 +38,7 @@ const roomOf = () => ({
   approvals: [],
 })
 
-const harness = () => {
+const harness = ({ authenticated } = {}) => {
   let room = roomOf()
   const calls = { created: [], shared: [], deleted: [], messages: [], events: [], detached: [], attached: [] }
   const store = {
@@ -52,7 +52,7 @@ const harness = () => {
   }
   const engine = {
     instances: async () => [
-      { id: 'claude', engine: 'claude', name: 'Claude', available: true, capabilities: { approvalReview: true } },
+      { id: 'claude', engine: 'claude', name: 'Claude', available: true, ...(authenticated === undefined ? {} : { authenticated }), capabilities: { approvalReview: true } },
       { id: 'pi', engine: 'pi', name: 'Pi', available: true, capabilities: { approvalReview: false } },
     ],
     createMemberBot: async input => {
@@ -105,6 +105,14 @@ test('a model that never asks cannot become the body of an exec member', async (
   const result = await swap.swap(roomOf(), { memberId: 'worker', engine: 'pi', model: 'other-model' })
   assert.equal(result.ok, false)
   assert.match(result.error, /不会先问你/)
+  assert.equal(calls.created.length, 0)
+})
+
+test('a logged-out model cannot become the new body', async () => {
+  const { swap, calls } = harness({ authenticated: false })
+  const result = await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', model: 'sonnet' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /没有登录/)
   assert.equal(calls.created.length, 0)
 })
 

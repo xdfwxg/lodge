@@ -72,12 +72,13 @@ export function MemberEnginePicker({
           },
           h('option', { value: '' }, '按角色默认'),
           engineChoices.map(item => {
-            const allowed = needsGate !== true || item.capabilities?.approvalReview === true
+            const unauthenticated = item.authenticated === false
+            const allowed = !unauthenticated && (needsGate !== true || item.capabilities?.approvalReview === true)
             return h('option', {
               key: item.id,
               value: item.id,
               disabled: !allowed,
-            }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}${allowed ? '' : ' · 不能执行'}`)
+            }, `${item.name}${item.models?.default ? ` · ${item.models.default}` : ' · 未配置模型'}${unauthenticated ? ' · 未登录' : allowed ? '' : ' · 不能执行'}`)
           })),
           engine !== undefined && rows.length > 0
             ? h('select', {
@@ -101,7 +102,10 @@ export function MemberEnginePicker({
           engine !== undefined && rows.length === 0
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型服务还没有可用模型。')
             : null,
-          needsGate === true && engine !== undefined && engine.capabilities?.approvalReview !== true
+          engine !== undefined && engine.authenticated === false
+            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型服务没有登录，先登录再用。')
+            : null,
+          engine !== undefined && engine.authenticated !== false && needsGate === true && engine.capabilities?.approvalReview !== true
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
             : null),
         allowCapabilities

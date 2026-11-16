@@ -1,5 +1,6 @@
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { roomBulletin, roomModeForType } from '../kinds.js'
+import { bodyIssueOf } from '../../body-check.js'
 import { roleKindOf } from '../../roster.js'
 
 export const createProvisioner = ({ engine }) => {
@@ -53,6 +54,11 @@ export const createProvisioner = ({ engine }) => {
         }
       }
     }
+    // 身体体检：只读基座表示的可用性，建房前就把没装好或没登录的身体拦下来。
+    const bodyIssues = createdMembers.map(({ member, memberRef }) => ({
+      member,
+      issue: bodyIssueOf(instances.find(item => item.id === memberRef.engine)),
+    }))
     const engineFallbacks = Object.fromEntries(createdMembers
       .filter(({ memberRef }) => memberRef.fallback === true)
       .map(({ member, memberRef }) => [member.id, { requested: memberRef.requestedEngine, actual: memberRef.engine, reason: memberRef.reason }]))
@@ -148,12 +154,12 @@ export const createProvisioner = ({ engine }) => {
         },
       }
     })
-    return { members, engines, models, engineFallbacks, independence, chatRoom, chatHost }
+    return { members, engines, models, engineFallbacks, independence, chatRoom, chatHost, bodyIssues }
   }
 
   const cleanup = async () => {
-    for (const baseRoom of createdBaseRooms) await engine.deleteRoom(baseRoom.id)
-    for (const item of createdMembers) await engine.deleteMemberBot(item.memberRef.id)
+    for (const baseRoom of createdBaseRooms) await engine.deleteRoom?.(baseRoom.id)
+    for (const item of createdMembers) await engine.deleteMemberBot?.(item.memberRef.id)
     if (cleanupExtra !== null) await cleanupExtra()
   }
 

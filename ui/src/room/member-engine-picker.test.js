@@ -4,7 +4,7 @@ import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MemberEnginePicker } from './member-engine-picker.js'
 
-const render = ({ approvalReview, requireApprovalGate = true, permissions = { exec: true } } = {}) => (
+const render = ({ approvalReview, authenticated, requireApprovalGate = true, permissions = { exec: true } } = {}) => (
   renderToStaticMarkup(h(MemberEnginePicker, {
     members: [{ role: 'worker', name: '执行官', permissions }],
     choices: [{ engine: 'pi', model: '' }],
@@ -16,6 +16,7 @@ const render = ({ approvalReview, requireApprovalGate = true, permissions = { ex
       available: true,
       engine: 'pi',
       models: { default: 'deepseek-flash', options: [{ id: 'deepseek-flash' }] },
+      ...(authenticated === undefined ? {} : { authenticated }),
       capabilities: { approvalReview },
     }],
   }))
@@ -32,6 +33,13 @@ test('a model with permission review stays selectable', () => {
   const html = render({ approvalReview: true })
   assert.doesNotMatch(html, /不能用来执行/)
   assert.doesNotMatch(html, /不能执行/)
+})
+
+test('a logged-out service is not selectable and says why', () => {
+  const html = render({ approvalReview: true, authenticated: false })
+  assert.match(html, /未登录/)
+  assert.ok(html.includes('disabled'))
+  assert.match(html, /没有登录/)
 })
 
 test('rooms without exec work still allow the same model', () => {
