@@ -2,7 +2,8 @@ import { verifierIds } from '../../room-members.js'
 import { isWorkStage } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 import { memberDisplayName } from '../../member-labels.js'
-import { activeDispatchAssignments, dispatchOf, transitionAssignment, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, transitionAssignment, updateAssignment } from '../../assignments.js'
+import { dispatchOf } from '../../assignment-projections.js'
 
 export const createStageIntegrator = ({ store, roomId, emit, markProgress, requestReview, run }) => {
   let chain = Promise.resolve()

@@ -7,7 +7,7 @@ import { workspaceOf } from './workspace.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf } from '../../room-members.js'
-import { activeDispatchAssignments, transitionAssignment, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { memberDisplayName } from '../../member-labels.js'
 
 const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'

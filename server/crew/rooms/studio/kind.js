@@ -7,7 +7,8 @@ import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
-import { activeDispatchAssignments, dispatchFrom, tasksFrom, transitionAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
+import { dispatchFrom, tasksFrom } from '../../assignment-projections.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()

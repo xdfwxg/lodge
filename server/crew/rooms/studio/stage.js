@@ -1,6 +1,7 @@
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { leadMemberOf, workerIds } from '../../room-members.js'
-import { activeDispatchAssignments, dispatchOf, latestDispatchAssignment, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, latestDispatchAssignment, updateAssignment } from '../../assignments.js'
+import { dispatchOf } from '../../assignment-projections.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
 import { memberDisplayName } from '../../member-labels.js'

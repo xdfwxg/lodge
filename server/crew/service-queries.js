@@ -45,7 +45,7 @@ export const createServiceQueries = ({
         const messages = presentation.filterMessages(ordered).map(message => (
           typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
         ))
-        const assignments = typeof readAssignments === 'function' ? readAssignments(room.id, { limit: 500 }) : []
+        const assignments = readAssignments(room.id, { limit: 500 })
         return {
           ...presentRoom(room, messages, assignments),
           brief: briefOf(room),

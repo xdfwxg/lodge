@@ -235,3 +235,32 @@ test('resume wakes only the assignments that have not reported', async () => {
   assert.deepEqual(sent.map(item => item[0]), ['w2'])
   assert.match(sent[0][1], /阶段 1「impl」已确认/)
 })
+
+test('resume does not dispatch a step the planner handed to the human', async () => {
+  let sent = 0
+  const room = normalizeLegacyTestRoom({
+    ...store([]).readRoom(),
+    live: true,
+    state: 'active',
+    busy: false,
+    workers: ['worker'],
+    seatNames: { worker: 'Worker' },
+    seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    lastPlannerDecision: { stage: 0, kind: 'human', verdictId: 'v1' },
+  })
+  const turns = createLiveTurns({
+    store: { ...store([]), readRoom: () => room, updateRoom: () => null },
+    engine: {},
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => {
+      sent += 1
+      return { messageId: null }
+    },
+    commands: ports.commands,
+    files: ports.files,
+  })
+  await turns.resume()
+  assert.equal(sent, 0)
+})

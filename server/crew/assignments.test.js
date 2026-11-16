@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createAssignment, dispatchFrom, migrateAssignments, pageAssignments, tasksFrom, transitionAssignment } from './assignments.js'
+import { createAssignment, transitionAssignment } from './assignments.js'
+import { dispatchFrom, tasksFrom } from './assignment-projections.js'
+import { compactRoom, pageAssignments } from './assignment-history.js'
+import { migrateAssignments } from './assignment-migration.js'
 import { withAssignments } from './testing/room.js'
-import { settleCompletedSubrooms } from './rooms/studio/subrooms.js'
 
 const makeStore = (room, messages = []) => {
   const writes = []
   const store = withAssignments({
     readRooms: () => [room],
+    readRoom: () => room,
     readMessages: () => messages,
     upsertMessage: message => {
       const index = messages.findIndex(item => item.id === message.id)
@@ -147,31 +150,8 @@ test('pruning keeps open work and the newest terminal assignments', () => {
   const { store } = makeStore({ id: 'room-1', stages: [] })
   for (let at = 1; at <= 5; at += 1) seed(store, { id: `as-${at}`, status: 'passed', createdAt: at })
   seed(store, { id: 'as-open', status: 'sent', createdAt: 6 })
-  assert.equal(store.pruneAssignments('room-1', { keep: 2 }), 3)
+  assert.equal(compactRoom(store, 'room-1', { keep: 2 }), 3)
   assert.deepEqual(store.readAssignments('room-1').map(item => item.id), ['as-4', 'as-5', 'as-open'])
-})
-
-test('a completed subroom settles its parent assignment once', () => {
-  const parent = { id: 'parent', childRoomIds: ['child'], members: [{ id: 'lead', name: 'Lead' }] }
-  const child = { id: 'child', name: 'Child', state: 'complete', parentAssignmentId: 'as-child' }
-  const verdict = {
-    id: 'v1',
-    kind: 'verdict',
-    authorId: 'verifier',
-    text: 'PASS\n测试通过',
-    meta: { pass: true, roleKind: 'verifier', stage: 0 },
-  }
-  const store = withAssignments({
-    readRoom: id => (id === 'parent' ? parent : id === 'child' ? child : null),
-    readMessages: id => (id === 'child' ? [verdict] : []),
-  })
-  seed(store, { id: 'as-child', reason: 'subroom', toMemberId: null, status: 'sent' })
-  assert.equal(settleCompletedSubrooms(store, 'parent'), 1)
-  const settled = store.readAssignment('as-child')
-  assert.equal(settled.status, 'passed')
-  assert.deepEqual(settled.evidenceIds, ['v1'])
-  assert.match(settled.resultText, /Child/)
-  assert.equal(settleCompletedSubrooms(store, 'parent'), 0)
 })
 
 test('creating an existing assignment again never overwrites its result', () => {
@@ -201,4 +181,25 @@ test('creating an existing assignment again never overwrites its result', () => 
   assert.equal(stored.status, 'reported')
   assert.equal(stored.resultText, 'done')
   assert.deepEqual(stored.evidenceIds, ['e1'])
+})
+
+test('assignment targets are explicit and stay inside the room', () => {
+  const { store } = makeStore({ id: 'room-1', stages: [], members: [{ id: 'worker' }] })
+  assert.throws(
+    () => createAssignment({ store, roomId: 'room-1', stageIndex: 0, toMemberId: 'ghost' }),
+    /不在房间/,
+  )
+  assert.throws(
+    () => createAssignment({ store, roomId: 'room-1', stageIndex: 0, toMemberId: null, reason: 'subroom' }),
+    /需要一个子房/,
+  )
+  const child = createAssignment({
+    store,
+    roomId: 'room-1',
+    stageIndex: 0,
+    toMemberId: null,
+    toRoomId: 'child',
+    reason: 'subroom',
+  })
+  assert.equal(child.toRoomId, 'child')
 })

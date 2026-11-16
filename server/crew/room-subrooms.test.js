@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { canCreateSubroom, childResultText, childVerdictsOf } from './rooms/studio/subrooms.js'
+import { canCreateSubroom, childResultText, childVerdictsOf, settleCompletedSubrooms } from './rooms/studio/subrooms.js'
+import { withAssignments } from './testing/room.js'
 
 test('only a studio below the depth limit can create a subroom', () => {
   assert.equal(canCreateSubroom({ roomType: 'studio', state: 'active', depth: 0 }), true)
@@ -22,3 +23,43 @@ test('parent gets only child Verifier verdicts', () => {
   assert.match(childResultText({ name: '子房' }, verdicts), /Verifier 结果/)
   assert.match(childResultText({ name: '子房' }, []), /没有 Verifier verdict/)
 })
+
+const seed = (store, over) => store.writeAssignment({
+  id: 'as-1',
+  roomId: 'room-1',
+  stageIndex: 0,
+  fromMemberId: 'lead',
+  toMemberId: 'worker',
+  reason: 'dispatch',
+  brief: {},
+  status: 'sent',
+  context: {},
+  flags: {},
+  createdAt: 1,
+  updatedAt: 1,
+  ...over,
+})
+
+test('a completed subroom settles its parent assignment once', () => {
+  const parent = { id: 'parent', childRoomIds: ['child'], members: [{ id: 'lead', name: 'Lead' }] }
+  const child = { id: 'child', name: 'Child', state: 'complete', parentAssignmentId: 'as-child' }
+  const verdict = {
+    id: 'v1',
+    kind: 'verdict',
+    authorId: 'verifier',
+    text: 'PASS\n测试通过',
+    meta: { pass: true, roleKind: 'verifier', stage: 0 },
+  }
+  const store = withAssignments({
+    readRoom: id => (id === 'parent' ? parent : id === 'child' ? child : null),
+    readMessages: id => (id === 'child' ? [verdict] : []),
+  })
+  seed(store, { id: 'as-child', reason: 'subroom', toMemberId: null, status: 'sent' })
+  assert.equal(settleCompletedSubrooms(store, 'parent'), 1)
+  const settled = store.readAssignment('as-child')
+  assert.equal(settled.status, 'passed')
+  assert.deepEqual(settled.evidenceIds, ['v1'])
+  assert.match(settled.resultText, /Child/)
+  assert.equal(settleCompletedSubrooms(store, 'parent'), 0)
+})
+

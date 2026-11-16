@@ -9,7 +9,8 @@ import { createHandoff } from './handoff.js'
 import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
 import { deliverableStageIndex, isWorkStage, parsePlannerDecision, memberForRef } from './turn-utils.js'
-import { activeDispatchAssignments as activeDispatch, assignmentForTurn, dispatchOf, latestDispatchAssignment, transitionAssignment, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments as activeDispatch, assignmentForTurn, latestDispatchAssignment, transitionAssignment, updateAssignment } from '../../assignments.js'
+import { dispatchOf } from '../../assignment-projections.js'
 import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-members.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 import { settleCompletedSubrooms } from './subrooms.js'
@@ -118,7 +119,15 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       return { events: [] }
     })
     const stage = room.stages?.[stageIndex]
-    if (decision.kind !== 'rework') return true
+    if (decision.kind !== 'rework') {
+      // 交给人是这一步的当前收口：执行交接不再挂着，等人的决定。
+      for (const item of activeDispatch(store, roomId, stageIndex)) {
+        transitionAssignment(store, item.id, 'rejected', {
+          resultText: decision.note === '' ? '规划师把这一步交给人' : `交给人：${decision.note}`,
+        })
+      }
+      return true
+    }
     const target = (stage?.assignees ?? []).find(id => workerIds(room).includes(id)) ?? workerIds(room)[0]
     if (typeof target !== 'string' || target === '') {
       store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把返工交出去。' })
@@ -355,6 +364,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     if (stageIndex < 0) return
     const stage = room.stages[stageIndex]
     if (!isWorkStage(stage) && stage.manual !== true) return
+    // 规划师已经把它交给人：重启不替人继续派活。
+    if (!forceAcceptance && room.lastPlannerDecision?.stage === stageIndex && room.lastPlannerDecision?.kind === 'human') return
 
     const messages = store.readMessages(roomId)
     const evidence = messages.filter(message => (

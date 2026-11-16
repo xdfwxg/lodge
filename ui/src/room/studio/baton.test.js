@@ -113,3 +113,17 @@ test('a handoff baton reads its assignment brief', () => {
   assert.equal(baton.brief.verdict.pass, true)
   assert.match(baton.brief.verdict.text, /测试通过/)
 })
+
+test('a handoff whose assignment is gone says the record is archived', () => {
+  const baton = batonOf({
+    kind: 'handoff',
+    authorId: 'lead',
+    text: '阶段 1「实现」接力 → 执行官',
+    meta: { assignmentId: 'as-gone', stage: 0, status: 'sent' },
+  }, { ...room, assignments: [], messages: [] })
+  assert.equal(baton.from, '规划师')
+  assert.equal(baton.to, '记录已归档')
+  assert.equal(baton.archived, true)
+  assert.equal(baton.acceptance, '')
+  assert.equal(baton.brief, null)
+})

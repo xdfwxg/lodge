@@ -35,6 +35,7 @@ export const createServiceSubrooms = ({ createRoom, store, emit = () => {} }) =>
       stageIndex,
       fromMemberId: parent.leadMemberId ?? leadMemberOf(parent)?.id ?? null,
       toMemberId: null,
+      toRoomId: child.id,
       reason: 'subroom',
       brief: {
         stageTitle: child.name ?? goal,

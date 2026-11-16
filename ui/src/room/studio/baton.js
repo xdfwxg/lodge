@@ -48,16 +48,18 @@ export const batonOf = (message, room, byId = {}) => {
     }
   }
   if (message.kind === 'handoff') {
+    // 只保留了交接引用，历史记录已归档：不假装还知道接收人和验收内容。
     return {
-      from: nameOf(room, byId, meta.from ?? message.authorId),
-      to: namesOf(room, byId, Array.isArray(meta.workers) ? meta.workers : (meta.to ? [meta.to] : [])),
+      from: nameOf(room, byId, message.authorId),
+      to: '记录已归档',
       status: typeof meta.status === 'string' ? meta.status : '',
-      reason: typeof meta.reason === 'string' ? meta.reason : '',
+      reason: '',
       stage: Number.isInteger(meta.stage) ? String(meta.stage + 1) : '',
-      acceptance: typeof meta.acceptance === 'string' ? meta.acceptance : '',
+      acceptance: '',
       scope: '',
-      rework: meta.rework === true,
+      rework: false,
       brief: null,
+      archived: true,
       text: String(message.text ?? ''),
     }
   }
@@ -119,13 +121,13 @@ export function Baton({ message, room, byId }) {
     'data-handoff': message.kind === 'handoff' ? 'true' : undefined,
     'data-status': baton.status || undefined,
   },
-    message.kind === 'handoff' ? h('span', { className: 'studio-baton-kicker' }, '交接') : null,
+    message.kind === 'handoff' ? h('span', { className: 'studio-baton-kicker' }, baton.archived ? '交接 · 已归档' : '交接') : null,
     h('span', { className: 'studio-baton-from' }, baton.from),
     h(ArrowRightIcon),
     h('span', { className: 'studio-baton-to' }, baton.to === '' ? '执行官' : baton.to),
-    baton.reason === '' ? null : h('span', { className: 'studio-baton-reason' }, REASON[baton.reason] ?? baton.reason),
+    baton.archived ? null : baton.reason === '' ? null : h('span', { className: 'studio-baton-reason' }, REASON[baton.reason] ?? baton.reason),
     baton.stage === '' ? null : h('span', { className: 'studio-baton-stage' }, `第 ${baton.stage} 步`),
-    baton.acceptance === '' ? null : h('span', null, '验收：', h('code', null, baton.acceptance)),
+    baton.archived ? null : baton.acceptance === '' ? null : h('span', null, '验收：', h('code', null, baton.acceptance)),
     baton.status === '' ? null : h('span', { className: 'studio-baton-status', 'data-status': baton.status }, STATUS[baton.status] ?? baton.status),
     h('details', { className: 'studio-baton-more' },
       h('summary', null, baton.brief === null ? (baton.rework ? '重做说明' : '交接说明') : '交接详情'),

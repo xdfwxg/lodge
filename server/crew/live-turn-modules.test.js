@@ -127,6 +127,10 @@ test('a rejected stage routes the planner decision to the executor or the human'
     seatBots: { planner: 'bot-plan', executor: 'bot-exec' },
   })
   const humanStore = fakeStore(humanRoom)
+  humanStore.writeAssignment({
+    id: 'as-human', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: {}, status: 'reported', context: {}, flags: {},
+  })
   humanStore.appendMessage('room-1', {
     kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
   })
@@ -145,6 +149,7 @@ test('a rejected stage routes the planner decision to the executor or the human'
   humanTurns.captureTurn({ reply: '交给人\n需要你决定权限', turnId: 't-lead-2', toolCalls: 0 }, 'bot-plan')
   assert.equal(humanSent.length, 0)
   assert.equal(humanRoom.lastPlannerDecision.kind, 'human')
+  assert.equal(humanStore.readAssignment('as-human').status, 'rejected')
   assert.equal(humanStore.messages.some(message => message.kind === 'system' && /规划师把/.test(message.text)), false)
 })
 

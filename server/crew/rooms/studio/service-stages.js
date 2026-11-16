@@ -1,4 +1,5 @@
-import { ASSIGNMENT_KEEP, activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
+import { compactRoom } from '../../assignment-history.js'
 import { leadMemberOf } from '../../room-members.js'
 import { gateFor } from './gates.js'
 import { fail, ok } from '../../result.js'
@@ -191,7 +192,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     for (const assignment of activeDispatchAssignments(store, room.id, index)) {
       transitionAssignment(store, assignment.id, 'passed')
     }
-    store.pruneAssignments?.(room.id, { keep: ASSIGNMENT_KEEP })
+    compactRoom(store, room.id)
     let finalRoom = next < 0 ? completeRoom(room) ?? room : room
     if (next < 0) notifyParent(finalRoom)
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
