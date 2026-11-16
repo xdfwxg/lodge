@@ -118,6 +118,40 @@ const studioConstraints = ({
       : '当前只有同一家模型可用：复核和执行来自同一家，独立复核会打折']),
 ]
 
+const ENGINE_LABEL = {
+  'claude-cli': 'Claude',
+  'codex-cli': 'Codex',
+  'grok-cli': 'Grok',
+  'kimi-cli': 'Kimi',
+  'qwen-cli': '通义千问',
+  'deepseek-cli': 'DeepSeek',
+  'pi-cli': 'Pi',
+  'gemini-cli': 'Gemini',
+  claude: 'Claude',
+  codex: 'Codex',
+  grok: 'Grok',
+  kimi: 'Kimi',
+  qwen: '通义千问',
+  deepseek: 'DeepSeek',
+  pi: 'Pi',
+  gemini: 'Gemini',
+}
+
+// 驱动不支持权限复核时，外部动作不会停下来等人；在房间里把这件事说清楚。
+const approvalNotice = room => {
+  const rows = (room?.members ?? []).filter(member => (
+    member.approvalGate === false && member.permissions?.exec === true
+  ))
+  if (rows.length === 0) return null
+  const names = rows.map(member => member.name ?? member.role).join('、')
+  const engines = [...new Set(rows
+    .map(member => room.engines?.[member.id])
+    .filter(id => typeof id === 'string' && id !== '')
+    .map(id => ENGINE_LABEL[id] ?? id))]
+  const engineText = engines.length === 0 ? '当前模型' : engines.join('、')
+  return `${names}用的 ${engineText} 不会先问你：联网、安装、推送这类对外操作会直接执行。`
+}
+
 const initialMessages = ({ room, workspaces, engineFallbacks }) => {
   // 时间线只保留会改变用户判断的信息；建房仪式、分支、约束快照、MCP 说明都
   // 能从房间字段和交付卡里查到，不再复述。
@@ -127,26 +161,8 @@ const initialMessages = ({ room, workspaces, engineFallbacks }) => {
     .flatMap(([member, env]) => (env.warnings ?? []).map(text => `${label[member] ?? member}: ${text}`))
   if (envWarnings.length > 0) messages.push({ kind: 'system', text: `工作文件夹同步警告：${envWarnings.join('；')}` })
   if (Object.keys(engineFallbacks).length > 0) {
-    const engineLabel = {
-      'claude-cli': 'Claude',
-      'codex-cli': 'Codex',
-      'grok-cli': 'Grok',
-      'kimi-cli': 'Kimi',
-      'qwen-cli': '通义千问',
-      'deepseek-cli': 'DeepSeek',
-      'pi-cli': 'Pi',
-      'gemini-cli': 'Gemini',
-      claude: 'Claude',
-      codex: 'Codex',
-      grok: 'Grok',
-      kimi: 'Kimi',
-      qwen: '通义千问',
-      deepseek: 'DeepSeek',
-      pi: 'Pi',
-      gemini: 'Gemini',
-    }
     const text = Object.entries(engineFallbacks)
-      .map(([member, item]) => `${label[member] ?? member} 没能用上 ${engineLabel[item.requested] ?? item.requested}，实际跑的是 ${engineLabel[item.actual] ?? item.actual}`)
+      .map(([member, item]) => `${label[member] ?? member} 没能用上 ${ENGINE_LABEL[item.requested] ?? item.requested}，实际跑的是 ${ENGINE_LABEL[item.actual] ?? item.actual}`)
       .join('；')
     messages.push({
       kind: 'system',
@@ -155,6 +171,8 @@ const initialMessages = ({ room, workspaces, engineFallbacks }) => {
         : `${text}。这次不是独立复核，验收卡会按实际模型标注。`,
     })
   }
+  const notice = approvalNotice(room)
+  if (notice !== null) messages.push({ kind: 'system', text: notice })
   return messages
 }
 

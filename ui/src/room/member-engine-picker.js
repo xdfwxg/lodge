@@ -93,6 +93,9 @@ export function MemberEnginePicker({
             : null,
           engine !== undefined && rows.length === 0
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型服务还没有可用模型。')
+            : null,
+          engine !== undefined && engine.capabilities !== undefined && engine.capabilities !== null && engine.capabilities.approvalReview !== true
+            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你：联网、安装、推送这类对外操作会直接执行。')
             : null),
         allowCapabilities
           ? h('details', { className: 'crew-member-capabilities' },

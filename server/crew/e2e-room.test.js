@@ -21,7 +21,7 @@ const scriptedEngine = store => {
   let seq = 0
   return {
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
-    instances: async () => [{ engine: 'fake', available: true }],
+    instances: async () => [{ id: 'fake', engine: 'fake', available: true, capabilities: { approvalReview: false } }],
     createMemberBot: async ({ name }) => ({ id: `member-${name}`, name, engine: 'fake', model: 'fake-model' }),
     createRoom: async ({ name }) => ({ id: `chat-${name}`, sessionRef: `thread-${name}` }),
     history: async () => ({ messages: [...history] }),
@@ -114,6 +114,13 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     assert.equal(studio.ok, true)
     const room = studio.body.room
     assert.equal(room.closure, 'planned')
+    // 运行时不做权限复核时，房间要诚实说明外部动作不会停下来问人。
+    assert.equal(room.members.find(member => member.role === 'worker').approvalGate, false)
+    const notice = store.readMessages(room.id).find(message => (
+      message.kind === 'system' && message.text.includes('不会先问你')
+    ))
+    assert.ok(notice, 'room should warn that external actions run without asking')
+    assert.match(notice.text, /联网、安装、推送/)
 
     const move = moveStudio(store, room.id)
     move('start_execute', {}, 'planner', '计划确认')

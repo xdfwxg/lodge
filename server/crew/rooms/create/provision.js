@@ -17,6 +17,12 @@ export const createProvisioner = ({ engine }) => {
       instances = []
     }
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
+    // 基座只有在驱动支持权限复核时才会把外部动作停下来问人；不支持就不能假装会问。
+    const approvalGateOf = id => {
+      const capabilities = instances.find(item => item.id === id)?.capabilities
+      if (capabilities === undefined || capabilities === null) return undefined
+      return capabilities.approvalReview === true
+    }
     const kindOf = member => member.roleKind ?? roleKindOf(member.role)
     // 工人先建，验收成员才有事实可依；没有显式引擎时优先选不同厂商。
     const ordered = [...roster].sort((a, b) => (kindOf(a) === 'verifier' ? 1 : 0) - (kindOf(b) === 'verifier' ? 1 : 0))
@@ -109,6 +115,7 @@ export const createProvisioner = ({ engine }) => {
     const members = roster.map(member => {
       const { memberRef } = byId.get(member.id)
       const baseRoom = baseRooms.get(member.id)
+      const approvalGate = approvalGateOf(memberRef.engine)
       return {
         id: member.id,
         kind: 'ai',
@@ -120,6 +127,7 @@ export const createProvisioner = ({ engine }) => {
         ...(member.isHost === true ? { isHost: true } : {}),
         station: member.station,
         engine: member.engine,
+        ...(approvalGate === undefined ? {} : { approvalGate }),
         ...(member.model === undefined ? {} : { model: member.model }),
         permissions: member.permissions,
         writeScope: member.writeScope,
