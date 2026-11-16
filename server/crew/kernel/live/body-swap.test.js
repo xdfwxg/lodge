@@ -38,7 +38,7 @@ const roomOf = () => ({
   approvals: [],
 })
 
-const harness = ({ authenticated } = {}) => {
+const harness = ({ authenticated, failShared } = {}) => {
   let room = roomOf()
   const calls = { created: [], shared: [], deleted: [], messages: [], events: [], detached: [], attached: [] }
   const store = {
@@ -60,7 +60,10 @@ const harness = ({ authenticated } = {}) => {
       return { id: 'bot-new', name: input.name, engine: 'claude', model: input.model ?? 'sonnet' }
     },
     createRoom: async input => ({ id: 'base-new', sessionRef: 'thread-new', input }),
-    updateRoomMembers: async (id, members) => calls.shared.push({ id, members }),
+    updateRoomMembers: async (id, members) => {
+      if (failShared === true) throw new Error('base 409 /api/groups/x: {"error":"this channel is working or waiting on you — finish that turn first"}')
+      calls.shared.push({ id, members })
+    },
     deleteRoom: async id => calls.deleted.push({ room: id }),
     deleteMemberBot: async id => calls.deleted.push({ bot: id }),
   }
@@ -114,6 +117,25 @@ test('a logged-out model cannot become the new body', async () => {
   assert.equal(result.ok, false)
   assert.match(result.error, /没有登录/)
   assert.equal(calls.created.length, 0)
+})
+
+test('a busy chat room waits for the round to end', async () => {
+  const { swap, calls } = harness()
+  const room = roomOf()
+  room.chat = { running: true }
+  room.chatWorking = true
+  const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /等这一回合结束/)
+  assert.equal(calls.created.length, 0)
+})
+
+test('a base that is still talking is reported in plain Chinese', async () => {
+  const { swap } = harness({ failShared: true })
+  const result = await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', model: 'sonnet' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /等这一轮结束/)
+  assert.doesNotMatch(result.error, /channel is working/)
 })
 
 test('a busy room keeps its body until the turn ends', async () => {

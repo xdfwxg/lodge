@@ -1,10 +1,10 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { durationOf } from '../../view-format.js'
+import { durationOf } from '../view-format.js'
 import { bodyStatuses } from './body-status.js'
 
 // 一行成员状态：谁在线、谁在工作、谁在等、谁不舒服。位置沿用原来的活动行。
-export function CrewStatusLine({ room, members, onSwap = null }) {
-  const statuses = bodyStatuses(room, members)
+export function CrewStatusLine({ room, members, onSwap = null, onAdd = null, labels = {} }) {
+  const statuses = bodyStatuses(room, members, { labels })
   const working = statuses.some(item => item.state === 'working')
   const since = typeof room?.busySince === 'number' ? room.busySince : null
   const [tick, setTick] = useState(Date.now())
@@ -38,5 +38,12 @@ export function CrewStatusLine({ room, members, onSwap = null }) {
   h('span', { className: 'crew-crew-state' }, item.label),
   item.state === 'working' && elapsed !== '' && elapsed !== '0s'
     ? h('span', { className: 'crew-crew-elapsed', 'aria-hidden': 'true' }, elapsed)
-    : null)))
+    : null)),
+  onAdd === null
+    ? null
+    : h('button', {
+      type: 'button',
+      className: 'crew-crew-add',
+      onClick: onAdd,
+    }, '＋ 添加成员'))
 }

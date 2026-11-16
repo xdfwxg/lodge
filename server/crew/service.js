@@ -9,6 +9,7 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
+import { createMemberAdd } from './member-add.js'
 import { recordShadowAdvice } from './rooms/studio/shadow-advisor.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 
@@ -31,6 +32,13 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles })
   const chat = createServiceChat({ store, live, emit })
+  const memberAdd = createMemberAdd({
+    store,
+    engine,
+    emit,
+    workspace,
+    attachMember: (roomId, memberId) => live.attachMember?.(roomId, memberId),
+  })
   const closure = createServiceClosure({ store, emit })
 
   // 子房间归档或删除时，父房里等它的那条交接不能一直停在 sent。
@@ -312,7 +320,12 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       return ok({ id: room.id })
     }
 
-    // 换身体允许在暂停时进行（例如模型登录失效后换一家），所以放在暂停门禁之前。
+    // 添加成员与换身体允许在暂停时进行（例如模型登录失效后补人），放在暂停门禁之前。
+    if (action === 'add-member' && method === 'POST') {
+      if (room.live !== true) return fail('conflict', '房间没有连上，不能加成员')
+      return memberAdd.add(room, await readBody())
+    }
+
     if (action === 'swap-body' && method === 'POST') {
       if (room.live !== true || typeof live.swapBody !== 'function') return fail('conflict', '当前房间没有可换的身体')
       return live.swapBody(room, await readBody())

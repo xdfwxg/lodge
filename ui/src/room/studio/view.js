@@ -1,7 +1,7 @@
 import { Fragment, createElement as h } from 'react'
 import { DsGoalHeader } from '../../goal-island/ds-adapter.js'
 import { buildGoalView } from '../../goal-island/model.js'
-import { CrewStatusLine } from './crew-status.js'
+import { CrewStatusLine } from '../crew-status.js'
 import { StudioPresence } from './presence.js'
 import { HandoffIntake } from './intake.js'
 import { returnToChatSeed } from './return-seed.js'
@@ -17,7 +17,7 @@ export const studioView = {
   header: ({ room, members, actions }) => h(DsGoalHeader, {
     room,
     members,
-    status: h(CrewStatusLine, { room, members, onSwap: actions.swapBody }),
+    status: h(CrewStatusLine, { room, members, onSwap: actions.swapBody, onAdd: actions.addMember }),
     onAdvance: () => {
       const index = room.stages.findIndex(stage => stage.state === 'active')
       if (index >= 0) actions.accept(index)

@@ -6,6 +6,7 @@ import { ReceiptIntake } from './receipt-intake.js'
 import { Timeline } from './timeline.js'
 import { hostLabelOf } from '../host.js'
 import { StatePanel } from '../../state-panel.js'
+import { CrewStatusLine } from '../crew-status.js'
 
 function TypingLine({ room, member, summarizing }) {
   return h('div', { className: 'crew-msg crew-typing-line' },
@@ -21,7 +22,17 @@ function TypingLine({ room, member, summarizing }) {
 export const chatView = {
   id: 'chat',
   buildViewModel: () => null,
-  header: ({ room, actions }) => h(ChatIsland, { room, decision: buildChatDecision(room), actions }),
+  header: ({ room, members, actions }) => h(Fragment, null,
+    h(ChatIsland, { room, decision: buildChatDecision(room), actions }),
+    (room.state === 'active' || room.state === 'paused') && (members?.length ?? 0) > 0
+      ? h('div', { className: 'crew-crew-status-wrap' },
+        h(CrewStatusLine, {
+          room,
+          members,
+          onSwap: actions.swapBody,
+          labels: { lead: '主持中', member: '发言中' },
+        }))
+      : null),
   activity: () => null,
   transcript: ({ room, members, actions }) => {
     const hasConversation = (room.messages ?? []).some(message => (

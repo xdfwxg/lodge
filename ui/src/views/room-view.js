@@ -1,6 +1,7 @@
 import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
+import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { uiModeOfRoom } from './room-modes.js'
 
@@ -10,6 +11,9 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [swapId, setSwapId] = useState(null)
   const [swapBusy, setSwapBusy] = useState(false)
   const [swapError, setSwapError] = useState(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [addBusy, setAddBusy] = useState(false)
+  const [addError, setAddError] = useState(null)
   const scroll = useRef(null)
   const mainRef = useRef(null)
   const composerRef = useRef(null)
@@ -166,6 +170,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       setSwapError(null)
       setSwapId(memberId)
     },
+    addMember: () => {
+      setAddError(null)
+      setAddOpen(true)
+    },
   }
   // 阶段坞需要宿主动作；只有声明了 dock 的模式会渲染它。
   const dock = {
@@ -245,7 +253,30 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           }
           setSwapId(null)
         },
-      }))
+      }),
+    addOpen
+      ? h(MemberAddDialog, {
+        engines: state.engines ?? [],
+        busy: addBusy,
+        error: addError,
+        onCancel: () => {
+          if (addBusy) return
+          setAddOpen(false)
+          setAddError(null)
+        },
+        onConfirm: async input => {
+          setAddBusy(true)
+          setAddError(null)
+          const result = await store.addMember(input.name, input.role, input.engine, input.model)
+          setAddBusy(false)
+          if (result?.ok !== true) {
+            setAddError(result?.error ?? '成员没加进去')
+            return
+          }
+          setAddOpen(false)
+        },
+      })
+      : null)
 }
 
 export { RoomView }

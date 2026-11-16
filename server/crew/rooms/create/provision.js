@@ -1,21 +1,18 @@
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
+import { createBodyFactory } from '../../body.js'
 import { roomBulletin, roomModeForType } from '../kinds.js'
-import { bodyIssueOf } from '../../body-check.js'
 import { roleKindOf } from '../../roster.js'
+import { independenceOf } from '../../independence.js'
 
 export const createProvisioner = ({ engine }) => {
-  const createdMembers = []
-  const createdBaseRooms = []
+  const bodies = createBodyFactory({ engine })
+  const created = []
+  const createdRooms = []
   let cleanupExtra = null
 
-  const provision = async ({ roster, short, title, goal, handoff = null, verify, acceptance, align, workspaces, verifiers, roomType = 'studio' }) => {
+  const provision = async ({ roster, short, title, goal, handoff = null, verify, acceptance, workspaces, roomType = 'studio' }) => {
     const mode = roomModeForType(roomType)
-    let instances = []
-    try {
-      instances = await engine.instances()
-    } catch {
-      instances = []
-    }
+    const instances = await bodies.instances()
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
     // 基座只有在驱动支持权限复核时才会把外部动作停下来问人；不支持就不能假装会问。
     const approvalGateOf = id => {
@@ -29,66 +26,44 @@ export const createProvisioner = ({ engine }) => {
     for (const member of ordered) {
       let requestedEngine = member.engine
       if (kindOf(member) === 'verifier' && member.engineExplicit !== true) {
-        const workerKinds = new Set(createdMembers
+        const workerKinds = new Set(created
           .filter(({ member: item }) => kindOf(item) === 'executor')
-          .map(({ memberRef }) => engineKind(memberRef.engine)))
+          .map(({ body }) => engineKind(body.engine)))
         const candidate = instances.find(item => item.available && !workerKinds.has(item.engine))
         if (candidate !== undefined) requestedEngine = candidate.id
       }
-      const memberRef = await engine.createMemberBot({
-        // 房间里的名字就是基座里的名字；id 才是稳定身份。
-        name: member.name,
-        soul: mode.memberSoul?.(member) ?? member.prompt,
-        description: member.station,
-        approval: member.approval,
-        mcp: member.mcp,
-        engine: requestedEngine,
-        model: member.model,
+      const incarnation = await bodies.incarnate({
+        member,
+        config: {
+          engine: requestedEngine,
+          model: member.model,
+          soul: mode.memberSoul?.(member) ?? member.prompt,
+        },
+        thread: {
+          name: `${title} · ${member.name}`,
+          goal,
+          bulletin: roomBulletin(goal, verify, acceptance, handoff),
+          cwd: workspaces.members[member.id].path,
+        },
       })
-      createdMembers.push({ member, memberRef })
-      if (Array.isArray(member.skills) && member.skills.length > 0) {
-        try {
-          await engine.setBotSkills(memberRef.id, member.skills)
-        } catch (error) {
-          throw new Error(`技能没挂上（${member.name}）：${error?.message ?? error}`)
-        }
-      }
+      created.push({ member, memberRef: incarnation.memberRef, body: incarnation.body })
     }
     // 身体体检：只读基座表示的可用性，建房前就把没装好或没登录的身体拦下来。
-    const bodyIssues = createdMembers.map(({ member, memberRef }) => ({
+    const bodyIssues = created.map(({ member, body }) => ({
       member,
-      issue: bodyIssueOf(instances.find(item => item.id === memberRef.engine)),
+      issue: bodies.healthOf(body.engine, instances),
     }))
-    const engineFallbacks = Object.fromEntries(createdMembers
+    const engineFallbacks = Object.fromEntries(created
       .filter(({ memberRef }) => memberRef.fallback === true)
       .map(({ member, memberRef }) => [member.id, { requested: memberRef.requestedEngine, actual: memberRef.engine, reason: memberRef.reason }]))
-    const baseRoomFor = async (member, memberRef) => {
-      const baseRoom = await engine.createRoom({
-        name: `${title} · ${member.name}`,
-        goal,
-        bulletin: roomBulletin(goal, verify, acceptance, handoff),
-        members: [memberRef.id],
-        cwd: workspaces.members[member.id].path,
-        leadId: memberRef.id,
-      })
-      createdBaseRooms.push(baseRoom)
-      return baseRoom
-    }
-    const baseRooms = new Map()
-    const engines = {}
-    const models = {}
-    for (const { member, memberRef } of createdMembers) {
-      const baseRoom = await baseRoomFor(member, memberRef)
-      baseRooms.set(member.id, baseRoom)
-      engines[member.id] = memberRef.engine
-      models[member.id] = memberRef.model
-    }
-    const leadMember = createdMembers.find(({ member }) => kindOf(member) === 'planner') ?? createdMembers[0]
+    const engines = Object.fromEntries(created.map(({ member, body }) => [member.id, body.engine]))
+    const models = Object.fromEntries(created.map(({ member, body }) => [member.id, body.model]))
+    const leadMember = created.find(({ member }) => kindOf(member) === 'planner') ?? created[0]
     const extra = await mode.provisionExtra({ engine, short, workspaces, leadMember }) ?? null
     cleanupExtra = extra?.cleanup ?? null
     const extraMembers = extra?.members ?? []
     const chatMembers = [
-      ...createdMembers.map(({ memberRef }) => memberRef.id),
+      ...created.map(({ memberRef }) => memberRef.id),
       ...extraMembers,
     ]
     const chatRoom = await engine.createRoom({
@@ -100,26 +75,17 @@ export const createProvisioner = ({ engine }) => {
       leadId: extra?.leadId ?? leadMember.memberRef.id,
       responder: { kind: 'mentions' },
     })
-    createdBaseRooms.push(chatRoom)
+    createdRooms.push(chatRoom)
     const chatHost = extra?.chatHost ?? null
 
-    const workerEngines = new Set(createdMembers
-      .filter(({ member }) => kindOf(member) === 'executor')
-      .map(({ memberRef }) => memberRef.engine))
-    const verifierEngines = createdMembers
-      .filter(({ member }) => kindOf(member) === 'verifier')
-      .map(({ memberRef }) => memberRef.engine)
-    const independence = verifiers.length === 0
-      ? 'human'
-      : verifierEngines.length > 0 && verifierEngines.every(id => (
-        [...workerEngines].every(workerId => engineKind(workerId) !== engineKind(id))
-      ))
-        ? 'vendor'
-        : 'none'
-    const byId = new Map(createdMembers.map(item => [item.member.id, item]))
+    const independence = independenceOf({
+      members: created.map(({ member }) => ({ id: member.id, role: member.role, roleKind: kindOf(member) })),
+      engines,
+      instances,
+    })
+    const byId = new Map(created.map(item => [item.member.id, item]))
     const members = roster.map(member => {
-      const { memberRef } = byId.get(member.id)
-      const baseRoom = baseRooms.get(member.id)
+      const { memberRef, body } = byId.get(member.id)
       const approvalGate = approvalGateOf(memberRef.engine)
       return {
         id: member.id,
@@ -143,23 +109,15 @@ export const createProvisioner = ({ engine }) => {
         speakBudget: member.speakBudget,
         ...(typeof member.prompt === 'string' && member.prompt !== '' ? { prompt: member.prompt } : {}),
         ...(member.personality === undefined || member.personality === '' ? {} : { personality: member.personality }),
-        body: {
-          kind: 'base',
-          ref: memberRef.id,
-          name: memberRef.name,
-          roomRef: baseRoom.id,
-          sessionRef: baseRoom.sessionRef,
-          engine: memberRef.engine,
-          ...(memberRef.model === undefined ? {} : { model: memberRef.model }),
-        },
+        body,
       }
     })
     return { members, engines, models, engineFallbacks, independence, chatRoom, chatHost, bodyIssues }
   }
 
   const cleanup = async () => {
-    for (const baseRoom of createdBaseRooms) await engine.deleteRoom?.(baseRoom.id)
-    for (const item of createdMembers) await engine.deleteMemberBot?.(item.memberRef.id)
+    for (const { body } of created) await bodies.retire(body)
+    for (const room of createdRooms) await engine.deleteRoom?.(room.id)
     if (cleanupExtra !== null) await cleanupExtra()
   }
 

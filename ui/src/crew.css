@@ -104,10 +104,13 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-activity-line{display:flex;align-items:center;gap:7px;padding:0 24px 8px;font-size:12.5px;line-height:17px;color:var(--bt-ink-3)}
 .crew-activity-line i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-accent);animation:crew-typing 1.2s infinite}
 .crew-activity-elapsed{font-variant-numeric:tabular-nums;color:var(--bt-ink-3)}
+.crew-crew-status-wrap{display:flex;justify-content:center;padding:0 32px 8px;box-sizing:border-box}
 .crew-crew-status{display:flex;align-items:center;gap:12px;max-width:min(760px,calc(100vw - 64px));padding:4px 12px;border:1px solid var(--bt-line-2);border-radius:999px;background:var(--bt-card);box-shadow:var(--bt-elev-1);color:var(--bt-ink-3);font-size:12.5px;line-height:17px;overflow:hidden;white-space:nowrap}
 .crew-crew-member{display:inline-flex;align-items:center;gap:5px;min-width:0}
 button.crew-crew-member{padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;border-radius:6px}
 button.crew-crew-member:hover .crew-crew-name{color:var(--bt-ink)}
+button.crew-crew-add{flex:none;margin-left:2px;padding:1px 6px;border:0;border-radius:6px;background:none;color:var(--bt-ink-3);font:inherit;font-size:12px;cursor:pointer}
+button.crew-crew-add:hover{color:var(--bt-ink);background:var(--bt-hover)}
 button.crew-crew-member::after{content:'换';margin-left:2px;color:var(--bt-ink-3);font-size:11px;opacity:0;transition:opacity .12s ease}
 button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::after{opacity:1}
 .crew-crew-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-line-2)}
@@ -125,6 +128,7 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 .studio-queue[data-held=true]{opacity:.72}
 .crew-queue-actions{display:flex;align-items:center;gap:8px;margin-top:4px;color:var(--bt-ink-3);font-size:12px}
 .crew-body-swap{max-width:440px}
+.crew-member-add{max-width:460px}
 .crew-body-swap-field{display:flex;flex-direction:column;gap:6px}
 .crew-body-swap-field .crew-member-menu{width:100%}
 .crew-member-capabilities{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:4px}
@@ -801,6 +805,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-decision-rework-actions{display:flex;gap:8px}
 @media (max-width:760px){
   .crew-island-wrap{padding:12px 14px 6px}
+  .crew-crew-status-wrap{padding:0 14px 6px}
   .crew-decision-card{margin:4px 18px 14px}
   .crew-scroll{padding-left:18px;padding-right:18px}
   .crew-room-main[data-mode=studio] .crew-scroll{padding-top:112px}

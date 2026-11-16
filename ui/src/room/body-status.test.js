@@ -18,6 +18,19 @@ test('idle bodies read as present, not as status noise', () => {
   assert.equal(status.worker.tone, 'idle')
 })
 
+test('a chat speaker shows as speaking and the queue shows as waiting', () => {
+  const room = {
+    state: 'active',
+    chatWorking: true,
+    chatBusyMember: 'worker',
+    chat: { running: true, speaker: 'worker' },
+    chatQueue: [{ memberId: 'verifier', state: 'queued' }],
+  }
+  const status = byId(bodyStatuses(room, members, { labels: { member: '发言中' } }))
+  assert.equal(status.worker.label, '发言中')
+  assert.equal(status.verifier.label, '排队中')
+})
+
 test('working, queued and held bodies win over idle', () => {
   const room = {
     state: 'active',
@@ -30,6 +43,11 @@ test('working, queued and held bodies win over idle', () => {
   assert.equal(status.worker.tone, 'active')
   assert.equal(status.verifier.label, '排队中')
   assert.equal(status.lead.label, '已叫停')
+})
+
+test('chat rooms can name speaking instead of processing', () => {
+  const room = { state: 'active', presence: [{ memberId: 'worker', state: 'working' }] }
+  assert.equal(byId(bodyStatuses(room, members, { labels: { member: '发言中' } })).worker.label, '发言中')
 })
 
 test('a verifier working on its own vendor says self check, not independent review', () => {
@@ -76,6 +94,16 @@ test('the status line renders one quiet row with accessible labels', () => {
 test('a finished room does not keep a body status line', () => {
   const html = renderToStaticMarkup(h(CrewStatusLine, { room: { state: 'complete' }, members }))
   assert.equal(html, '')
+})
+
+test('a studio can add a member from the status row', () => {
+  const html = renderToStaticMarkup(h(CrewStatusLine, {
+    room: { state: 'active' },
+    members,
+    onSwap: () => {},
+    onAdd: () => {},
+  }))
+  assert.match(html, /添加成员/)
 })
 
 test('each body is a button that opens the swap dialog', () => {

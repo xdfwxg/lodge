@@ -2,21 +2,8 @@ import { fail, ok } from '../../result.js'
 import { roomBulletin, roomModeOfRoom } from '../../rooms/kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
 import { bodyIssueOf } from '../../body-check.js'
-
-const roleKindOf = member => member.roleKind ?? member.role
-const engineKindOf = (instances, id) => instances.find(item => item.id === id)?.engine ?? id
-
-// 换身体只换载体，不换人：成员的 id、交接、证据和历史都留在房间里。
-const independenceAfterSwap = ({ members, engines, instances, current }) => {
-  const verifiers = members.filter(member => roleKindOf(member) === 'verifier')
-  if (verifiers.length === 0) return 'human'
-  const workers = members.filter(member => roleKindOf(member) === 'executor' || roleKindOf(member) === 'worker')
-  if (workers.length === 0) return current
-  const workerKinds = new Set(workers.map(member => engineKindOf(instances, engines[member.id])))
-  return verifiers.every(member => !workerKinds.has(engineKindOf(instances, engines[member.id])))
-    ? 'vendor'
-    : 'none'
-}
+import { independenceOf } from '../../independence.js'
+import { createBodyFactory } from '../../body.js'
 
 const labelOf = (instances, engineId, model) => {
   const instance = instances.find(item => item.id === engineId)
@@ -24,6 +11,7 @@ const labelOf = (instances, engineId, model) => {
 }
 
 export const createBodySwap = ({ store, engine, emit, attachMember, detachMember }) => {
+  const bodies = createBodyFactory({ engine })
   const swap = async (room, body = {}) => {
     const memberId = typeof body.memberId === 'string' ? body.memberId : ''
     const member = (room.members ?? []).find(item => item.id === memberId)
@@ -36,7 +24,8 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     if (typeof room.connectionError === 'string' && room.connectionError !== '') {
       return fail('conflict', '基座连接中断，等连上再换')
     }
-    if (room.busy === true || (room.presence ?? []).some(item => item.state === 'working') || (room.turnQueue ?? []).length > 0) {
+    const chatRunning = room.chat?.running === true || room.chatWorking === true
+    if (room.busy === true || chatRunning || (room.presence ?? []).some(item => item.state === 'working') || (room.turnQueue ?? []).length > 0) {
       return fail('conflict', '房间正在做事，等这一回合结束再换身体')
     }
     if (room.pauseReason === 'approval') return fail('conflict', '先处理待确认的操作，再换身体')
@@ -64,37 +53,32 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     }
 
     const oldBody = { ...member.body }
+    let incarnation = null
     let created = null
-    let baseRoom = null
     let sharedUpdated = false
     let stored = false
     try {
-      created = await engine.createMemberBot({
-        name: member.name,
-        soul: roomModeOfRoom(room)?.memberSoul?.(member) ?? member.prompt ?? '',
-        description: member.station,
-        approval: member.approval,
-        mcp: member.mcp,
-        engine: instance.id,
-        model: modelId === '' ? undefined : modelId,
+      incarnation = await bodies.incarnate({
+        member,
+        config: {
+          engine: instance.id,
+          model: modelId === '' ? undefined : modelId,
+          soul: roomModeOfRoom(room)?.memberSoul?.(member) ?? member.prompt ?? '',
+        },
+        thread: {
+          name: `${room.name} · ${member.name}`,
+          goal: room.goal,
+          bulletin: roomBulletin(room.goal, room.verify ?? 'manual', room.acceptance ?? '', room.handoff ?? null),
+          cwd: room.worktrees?.[member.id] ?? room.repoPath,
+        },
       })
-      baseRoom = await engine.createRoom({
-        name: `${room.name} · ${member.name}`,
-        goal: room.goal,
-        bulletin: roomBulletin(room.goal, room.verify ?? 'manual', room.acceptance ?? '', room.handoff ?? null),
-        members: [created.id],
-        cwd: room.worktrees?.[member.id] ?? room.repoPath,
-        leadId: created.id,
-      })
+      created = incarnation.memberRef
       const sharedRoomId = room.chatRoom?.id
-      if (typeof sharedRoomId === 'string' && sharedRoomId !== '') {
-        const refs = (room.members ?? [])
-          .map(item => (item.id === memberId ? created.id : item.body?.ref))
-          .filter(ref => typeof ref === 'string' && ref !== '')
-        if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
-        await engine.updateRoomMembers(sharedRoomId, [...new Set(refs)])
-        sharedUpdated = true
-      }
+      const refs = (room.members ?? [])
+        .map(item => (item.id === memberId ? created.id : item.body?.ref))
+        .filter(ref => typeof ref === 'string' && ref !== '')
+      if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
+      sharedUpdated = await bodies.join({ sharedRoomId, refs })
 
       detachMember?.(room.id, memberId)
       const engines = { ...(room.engines ?? {}), [memberId]: created.engine }
@@ -102,23 +86,10 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
       const updated = store.updateRoom(room.id, current => {
         const target = (current.members ?? []).find(item => item.id === memberId)
         if (target === undefined) return null
-        target.body = {
-          kind: 'base',
-          ref: created.id,
-          name: created.name,
-          roomRef: baseRoom.id,
-          sessionRef: baseRoom.sessionRef,
-          engine: created.engine,
-          ...(created.model === undefined ? {} : { model: created.model }),
-        }
+        target.body = incarnation.body
         current.engines = engines
         current.models = models
-        current.independence = independenceAfterSwap({
-          members: current.members,
-          engines,
-          instances,
-          current: current.independence,
-        })
+        current.independence = independenceOf({ members: current.members, engines, instances })
         if (current.pauseReason === 'member_error' && current.memberError?.memberId === memberId) {
           current.state = 'active'
           current.pauseReason = null
@@ -150,12 +121,7 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
         kind: 'system',
         text: `${member.name}换好了身体：${labelOf(instances, oldBody.engine, oldBody.model)} → ${labelOf(instances, created.engine, created.model)}。历史不变，接着做。`,
       })
-      if (typeof oldBody.roomRef === 'string' && oldBody.roomRef !== '') {
-        try { await engine.deleteRoom(oldBody.roomRef) } catch {}
-      }
-      if (typeof oldBody.ref === 'string' && oldBody.ref !== '') {
-        try { await engine.deleteMemberBot(oldBody.ref) } catch {}
-      }
+      await bodies.retire(oldBody)
       emit('room', store.readRoom(room.id) ?? updated)
       return ok({ room: updated, memberId })
     } catch (error) {
@@ -166,17 +132,16 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
               .map(item => item.body?.ref)
               .filter(ref => typeof ref === 'string' && ref !== '')
             if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
-            await engine.updateRoomMembers(room.chatRoom.id, [...new Set(refs)])
+            await bodies.join({ sharedRoomId: room.chatRoom.id, refs })
           } catch {}
         }
-        if (baseRoom !== null) {
-          try { await engine.deleteRoom(baseRoom.id) } catch {}
-        }
-        if (created !== null) {
-          try { await engine.deleteMemberBot(created.id) } catch {}
-        }
+        if (incarnation !== null) await bodies.retire(incarnation.body)
       }
-      return fail('conflict', `换身体没完成：${error?.message ?? error}`)
+      const raw = String(error?.message ?? error)
+      const friendly = /this channel is working|waiting on you|finish that turn first/i.test(raw)
+        ? '房间正在做事，等这一轮结束再换身体'
+        : /base 404/i.test(raw) ? '基座里找不到这具身体，刷新后再试' : raw
+      return fail('conflict', `换身体没完成：${friendly}`)
     }
   }
 

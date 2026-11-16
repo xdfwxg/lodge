@@ -6,13 +6,13 @@ const ERROR_LABEL = {
   engine: '没回应',
 }
 
-const workingLabel = (member, room) => {
-  if (member.role === 'lead') return '安排中'
-  if (member.role !== 'verifier') return '处理中'
+const workingLabel = (member, room, labels) => {
+  if (member.role === 'lead') return labels.lead ?? '安排中'
+  if (member.role !== 'verifier') return labels.member ?? '处理中'
   return room?.independence === 'vendor' ? '独立复核中' : '自查中'
 }
 
-export const bodyStatuses = (room, members = []) => {
+export const bodyStatuses = (room, members = [], { labels = {} } = {}) => {
   const held = new Set(Array.isArray(room?.heldMembers) ? room.heldMembers : [])
   const presence = new Map((Array.isArray(room?.presence) ? room.presence : [])
     .map(item => [item.memberId, item.state]))
@@ -21,6 +21,14 @@ export const bodyStatuses = (room, members = []) => {
     .map(item => item.memberId))
   const offline = typeof room?.connectionError === 'string' && room.connectionError !== ''
   const reviewing = room?.needsYou?.kind === 'review'
+  const chatSpeaker = typeof room?.chatBusyMember === 'string' && room.chatBusyMember !== ''
+    ? room.chatBusyMember
+    : (room?.chat?.speaker ?? '')
+  const chatRunning = room?.chatWorking === true || room?.chat?.running === true
+  const chatQueued = new Set((Array.isArray(room?.chatQueue) ? room.chatQueue : [])
+    .filter(item => item.state === 'queued')
+    .map(item => item.memberId))
+
   return members.map(member => {
     const base = {
       memberId: member.id,
@@ -34,10 +42,10 @@ export const bodyStatuses = (room, members = []) => {
     }
     if (offline) return { ...base, state: 'offline', label: '连接中断', tone: 'danger' }
     if (held.has(member.id)) return { ...base, state: 'held', label: '已叫停', tone: 'muted' }
-    if (presence.get(member.id) === 'working') {
-      return { ...base, state: 'working', label: workingLabel(member, room), tone: 'active' }
+    if (presence.get(member.id) === 'working' || (chatRunning && chatSpeaker === member.id)) {
+      return { ...base, state: 'working', label: workingLabel(member, room, labels), tone: 'active' }
     }
-    if (queued.has(member.id)) return { ...base, state: 'queued', label: '排队中', tone: 'waiting' }
+    if (queued.has(member.id) || chatQueued.has(member.id)) return { ...base, state: 'queued', label: '排队中', tone: 'waiting' }
     if (reviewing && member.role === 'verifier') {
       return {
         ...base,
