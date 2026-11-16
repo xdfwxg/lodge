@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { dispatchFrom, migrateAssignments, tasksFrom } from './assignments.js'
+import { createAssignment, dispatchFrom, migrateAssignments, pageAssignments, tasksFrom, transitionAssignment } from './assignments.js'
 import { withAssignments } from './testing/room.js'
+import { settleCompletedSubrooms } from './rooms/studio/subrooms.js'
 
 const makeStore = (room, messages = []) => {
   const writes = []
@@ -98,4 +99,106 @@ test('dispatch and tasks project from assignments without the room', () => {
   assert.equal(dispatch.integrated, false)
   const tasks = tasksFrom(assignments, 0, id => id.toUpperCase())
   assert.deepEqual(tasks.map(task => [task.title, task.status]), [['W1', 'reported'], ['W2', 'working']])
+})
+
+const seed = (store, over) => store.writeAssignment({
+  id: 'as-1',
+  roomId: 'room-1',
+  stageIndex: 0,
+  fromMemberId: 'lead',
+  toMemberId: 'worker',
+  reason: 'dispatch',
+  brief: {},
+  status: 'sent',
+  context: {},
+  flags: {},
+  createdAt: 1,
+  updatedAt: 1,
+  ...over,
+})
+
+test('assignment status only moves along the declared transitions', () => {
+  const { store } = makeStore({ id: 'room-1', stages: [] })
+  seed(store)
+  assert.equal(transitionAssignment(store, 'as-1', 'reported').status, 'reported')
+  assert.equal(transitionAssignment(store, 'as-1', 'passed').status, 'passed')
+  assert.equal(transitionAssignment(store, 'as-1', 'sent'), null)
+  assert.equal(store.readAssignment('as-1').status, 'passed')
+  assert.equal(transitionAssignment(store, 'missing', 'sent'), null)
+})
+
+test('assignment history pages from newest to oldest with a cursor', () => {
+  const { store } = makeStore({ id: 'room-1', stages: [] })
+  for (let at = 1; at <= 5; at += 1) seed(store, { id: `as-${at}`, createdAt: at })
+  const first = pageAssignments(store, 'room-1', { limit: 2 })
+  assert.deepEqual(first.items.map(item => item.id), ['as-4', 'as-5'])
+  assert.equal(first.hasMore, true)
+  assert.equal(first.next, 'as-4')
+  const second = pageAssignments(store, 'room-1', { limit: 2, before: first.next })
+  assert.deepEqual(second.items.map(item => item.id), ['as-2', 'as-3'])
+  assert.equal(second.next, 'as-2')
+  const last = pageAssignments(store, 'room-1', { limit: 2, before: second.next })
+  assert.deepEqual(last.items.map(item => item.id), ['as-1'])
+  assert.equal(last.hasMore, false)
+  assert.equal(last.next, null)
+})
+
+test('pruning keeps open work and the newest terminal assignments', () => {
+  const { store } = makeStore({ id: 'room-1', stages: [] })
+  for (let at = 1; at <= 5; at += 1) seed(store, { id: `as-${at}`, status: 'passed', createdAt: at })
+  seed(store, { id: 'as-open', status: 'sent', createdAt: 6 })
+  assert.equal(store.pruneAssignments('room-1', { keep: 2 }), 3)
+  assert.deepEqual(store.readAssignments('room-1').map(item => item.id), ['as-4', 'as-5', 'as-open'])
+})
+
+test('a completed subroom settles its parent assignment once', () => {
+  const parent = { id: 'parent', childRoomIds: ['child'], members: [{ id: 'lead', name: 'Lead' }] }
+  const child = { id: 'child', name: 'Child', state: 'complete', parentAssignmentId: 'as-child' }
+  const verdict = {
+    id: 'v1',
+    kind: 'verdict',
+    authorId: 'verifier',
+    text: 'PASS\n测试通过',
+    meta: { pass: true, roleKind: 'verifier', stage: 0 },
+  }
+  const store = withAssignments({
+    readRoom: id => (id === 'parent' ? parent : id === 'child' ? child : null),
+    readMessages: id => (id === 'child' ? [verdict] : []),
+  })
+  seed(store, { id: 'as-child', reason: 'subroom', toMemberId: null, status: 'sent' })
+  assert.equal(settleCompletedSubrooms(store, 'parent'), 1)
+  const settled = store.readAssignment('as-child')
+  assert.equal(settled.status, 'passed')
+  assert.deepEqual(settled.evidenceIds, ['v1'])
+  assert.match(settled.resultText, /Child/)
+  assert.equal(settleCompletedSubrooms(store, 'parent'), 0)
+})
+
+test('creating an existing assignment again never overwrites its result', () => {
+  const { store } = makeStore({ id: 'room-1', stages: [] })
+  const first = createAssignment({
+    store,
+    id: 'as-fixed',
+    roomId: 'room-1',
+    stageIndex: 0,
+    toMemberId: 'worker',
+    evidenceIds: ['e1'],
+  })
+  store.updateAssignment('as-fixed', assignment => {
+    assignment.status = 'reported'
+    assignment.resultText = 'done'
+    return true
+  })
+  const second = createAssignment({
+    store,
+    id: 'as-fixed',
+    roomId: 'room-1',
+    stageIndex: 0,
+    toMemberId: 'worker',
+  })
+  assert.equal(second.id, first.id)
+  const stored = store.readAssignment('as-fixed')
+  assert.equal(stored.status, 'reported')
+  assert.equal(stored.resultText, 'done')
+  assert.deepEqual(stored.evidenceIds, ['e1'])
 })

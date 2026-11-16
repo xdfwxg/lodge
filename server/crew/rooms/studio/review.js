@@ -7,7 +7,7 @@ import { workspaceOf } from './workspace.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf } from '../../room-members.js'
-import { updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { memberDisplayName } from '../../member-labels.js'
 
 const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
@@ -60,8 +60,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       .filter(item => item.reason === 'review' && item.toMemberId === pending.verifier)
       .at(-1)
     if (reviewAssignment !== undefined) {
-      updateAssignment(store, reviewAssignment.id, {
-        status: pass ? 'passed' : 'rejected',
+      transitionAssignment(store, reviewAssignment.id, pass ? 'passed' : 'rejected', {
         turnId,
         verdictIds: [...(reviewAssignment.verdictIds ?? []), verdictMessage.id],
       })
@@ -373,6 +372,11 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         message.meta?.kind === 'turn' &&
         (message.meta?.stage ?? 0) === stageIndex
       ))?.authorId
+      const parent = activeDispatchAssignments(store, roomId, stageIndex)
+        .filter(item => item.toMemberId === (source ?? evidence.authorId))
+        .at(-1)
+        ?? activeDispatchAssignments(store, roomId, stageIndex).at(-1)
+        ?? null
       try {
         await handoffTrigger({
           room,
@@ -385,6 +389,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           acceptance: stage.acceptance ?? '',
           evidence,
           verdict: outcome.verdicts?.at(-1) ?? null,
+          parentAssignmentId: parent?.id ?? null,
         })
       } catch (error) {
         clearTimeout(request.timer)

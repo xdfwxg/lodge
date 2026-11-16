@@ -121,3 +121,57 @@ test('a transport failure marks the handoff failed without changing the stage', 
   assert.equal(ctx.room().stages[0].state, 'active')
   assert.deepEqual(ctx.events.map(event => event.type), ['assignment.created', 'assignment.failed'])
 })
+
+test('a retry after a transport failure starts a new assignment linked to the failed one', async () => {
+  let attempts = 0
+  const ctx = setup(room(), async () => {
+    attempts += 1
+    if (attempts === 1) throw new Error('暂时送不到')
+    return { messageId: null }
+  })
+  const params = {
+    room: ctx.room(),
+    stage: ctx.room().stages[0],
+    index: 0,
+    from: 'lead',
+    to: 'worker',
+    reason: 'dispatch',
+    prompt: '阶段 1「实现」已确认。',
+    acceptance: 'npm test',
+  }
+  await assert.rejects(() => ctx.handoff.trigger(params), /暂时送不到/)
+  const failed = ctx.store.readAssignments('room-1')[0]
+  assert.equal(failed.status, 'failed')
+  const sent = await ctx.handoff.trigger(params)
+  const rows = ctx.store.readAssignments('room-1')
+  assert.equal(rows.length, 2)
+  assert.notEqual(sent.id, failed.id)
+  assert.equal(sent.parentAssignmentId, failed.id)
+  assert.equal(ctx.store.readAssignment(failed.id).resultText, '暂时送不到')
+  assert.deepEqual(ctx.events.map(event => event.type), [
+    'assignment.created', 'assignment.failed', 'assignment.created', 'assignment.sent',
+  ])
+})
+
+test('a delivered assignment is not woken twice', async () => {
+  const ctx = setup()
+  const params = {
+    room: ctx.room(),
+    stage: ctx.room().stages[0],
+    index: 0,
+    from: 'lead',
+    to: 'worker',
+    reason: 'dispatch',
+    prompt: '阶段 1「实现」已确认。',
+    acceptance: 'npm test',
+  }
+  const first = await ctx.handoff.trigger(params)
+  ctx.store.updateAssignment(first.id, assignment => {
+    assignment.status = 'reported'
+    return true
+  })
+  const second = await ctx.handoff.trigger(params)
+  assert.equal(second.status, 'reported')
+  assert.equal(ctx.sent.length, 1)
+  assert.equal(ctx.messages.length, 1)
+})

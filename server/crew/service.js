@@ -31,7 +31,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
   const closure = createServiceClosure({ store, emit })
 
   const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, roles, body, ports, parentRoom: parent })
-  const subrooms = createServiceSubrooms({ createRoom })
+  const subrooms = createServiceSubrooms({ createRoom, store, emit })
 
   const createSampleRoom = () => {
     const existing = readRoom(SAMPLE_ROOM_ID)

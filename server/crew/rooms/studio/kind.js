@@ -7,7 +7,7 @@ import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
-import { activeDispatchAssignments, dispatchFrom, tasksFrom, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, dispatchFrom, tasksFrom, transitionAssignment } from '../../assignments.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
@@ -244,14 +244,12 @@ export const studioKind = {
     .filter(Boolean)
     .join(' / ') || '人确认',
 
-  onMemberFailure: () => {},
-
   markMemberFailure: (store, room, memberId) => {
     const stageIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
     if (stageIndex < 0) return
     for (const assignment of activeDispatchAssignments(store, room.id, stageIndex)) {
       if (assignment.toMemberId !== memberId) continue
-      updateAssignment(store, assignment.id, { status: 'failed' })
+      transitionAssignment(store, assignment.id, 'failed')
     }
   },
 

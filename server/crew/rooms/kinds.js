@@ -14,14 +14,17 @@ const MODE_KEYS = [
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
-  'refresh', 'onMemberFailure', 'markMemberFailure', 'projectWork', 'deliveryOf',
+  'refresh', 'projectWork', 'deliveryOf',
   'hostOf', 'speakerOf',
 ]
+// 生命周期钩子会改房间状态，和只读投影分开；presentation 不拿 store。
+const LIFECYCLE_KEYS = ['markMemberFailure']
 
 const pick = (source, keys) => Object.fromEntries(keys.map(key => [key, source[key]]))
 const views = new Map(roomKinds.map(kind => [kind, {
   mode: pick(kind, MODE_KEYS),
   presentation: pick(kind, PRESENTATION_KEYS),
+  lifecycle: pick(kind, LIFECYCLE_KEYS),
 }]))
 
 const kindForType = typeId => roomKinds.find(kind => kind.owns(typeId)) ?? null
@@ -45,5 +48,10 @@ export const roomModeOfRoom = room => {
 export const roomPresentationOfRoom = room => {
   const kind = kindOfRoom(room)
   return kind === null ? null : views.get(kind).presentation
+}
+
+export const roomLifecycleOfRoom = room => {
+  const kind = kindOfRoom(room)
+  return kind === null ? null : views.get(kind).lifecycle
 }
 

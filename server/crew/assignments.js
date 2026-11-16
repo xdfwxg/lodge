@@ -2,10 +2,28 @@ import { randomUUID } from 'node:crypto'
 
 // Assignment 是房间内的一次交接：谁把什么交给谁，交付证据是什么。
 // Member 是长期身份；Assignment 只引用 memberId，不复制成员属性。
-export const ASSIGNMENT_REASONS = Object.freeze(['dispatch', 'review', 'rework', 'retry'])
+export const ASSIGNMENT_REASONS = Object.freeze(['dispatch', 'review', 'rework', 'retry', 'subroom'])
 export const ASSIGNMENT_STATUSES = Object.freeze([
   'created', 'sent', 'working', 'reported', 'reviewing', 'passed', 'rejected', 'failed', 'cancelled',
 ])
+export const ASSIGNMENT_TERMINAL = Object.freeze(['passed', 'rejected', 'failed', 'cancelled'])
+
+// 交接只有一条状态链：创建 → 送达 → 交付 → 收口。终态不再被改回去。
+export const ASSIGNMENT_TRANSITIONS = Object.freeze({
+  created: ['sent', 'failed', 'cancelled'],
+  sent: ['working', 'reported', 'passed', 'rejected', 'failed', 'cancelled'],
+  working: ['reported', 'passed', 'rejected', 'failed', 'cancelled'],
+  reported: ['reviewing', 'passed', 'rejected', 'failed'],
+  reviewing: ['passed', 'rejected', 'failed', 'cancelled'],
+  passed: [],
+  rejected: ['failed'],
+  failed: [],
+  cancelled: [],
+})
+
+export const canTransition = (from, to) => (
+  from === to || (ASSIGNMENT_TRANSITIONS[from] ?? []).includes(to)
+)
 
 const now = () => Date.now()
 
@@ -20,8 +38,14 @@ export const createAssignment = ({
   parentAssignmentId = null,
   context = {},
   status = 'created',
+  evidenceIds = [],
   id = null,
 }) => {
+  // 同一个 id 永远对应同一次交接：存在就返回原记录，不覆盖证据和结果。
+  if (id !== null) {
+    const existing = store.readAssignment(id)
+    if (existing !== null) return existing
+  }
   const at = now()
   return store.writeAssignment({
     id: id ?? `as-${randomUUID()}`,
@@ -35,7 +59,7 @@ export const createAssignment = ({
     sendId: null,
     messageId: null,
     turnId: null,
-    evidenceIds: [],
+    evidenceIds: Array.isArray(evidenceIds) ? evidenceIds : [],
     verdictIds: [],
     candidate: null,
     resultText: '',
@@ -139,11 +163,46 @@ export const reviewAssignmentsForStage = (store, roomId, stageIndex) => (
 export const updateAssignment = (store, id, patch) => store.updateAssignment(id, assignment => {
   Object.assign(assignment, patch)
   if (patch.status === 'sent' && assignment.sentAt === null) assignment.sentAt = now()
-  if (['passed', 'rejected', 'failed', 'cancelled'].includes(patch.status) && assignment.finishedAt === null) {
+  if (ASSIGNMENT_TERMINAL.includes(patch.status) && assignment.finishedAt === null) {
     assignment.finishedAt = now()
   }
   return true
 })
+
+// 状态只从这里改：非法跃迁返回 null，调用方知道这次没生效。
+export const transitionAssignment = (store, id, status, patch = {}) => {
+  if (!ASSIGNMENT_STATUSES.includes(status)) return null
+  const current = store.readAssignment?.(id) ?? null
+  if (current === null || !canTransition(current.status, status)) return null
+  return updateAssignment(store, id, { ...patch, status })
+}
+
+export const latestDispatchAssignment = (store, roomId, stageIndex, memberId = null) => (
+  assignmentsForStage(store, roomId, stageIndex)
+    .filter(item => ['dispatch', 'rework', 'retry'].includes(item.reason))
+    .filter(item => memberId === null || item.toMemberId === memberId)
+    .at(-1)
+    ?? null
+)
+
+// 历史分页：先给最新一页，再按 before=上一页最早的 id 往前翻。
+export const pageAssignments = (store, roomId, { stage = null, status = null, before = null, limit = 50 } = {}) => {
+  const size = Math.max(1, Math.min(500, Number(limit) || 50))
+  const rows = store.readAssignments(roomId, { stage, status, before, limit: size + 1 })
+  const hasMore = rows.length > size
+  const items = hasMore ? rows.slice(1) : rows
+  return { items, hasMore, next: hasMore ? items[0]?.id ?? null : null }
+}
+
+export const ASSIGNMENT_KEEP = 2000
+
+// 每个房间只保留最近的终态记录；未收口的交接和最近 keep 条不删。
+export const compactAssignments = store => {
+  if (typeof store.pruneAssignments !== 'function') return 0
+  let removed = 0
+  for (const room of store.readRooms()) removed += store.pruneAssignments(room.id, { keep: ASSIGNMENT_KEEP })
+  return removed
+}
 
 const legacyStatus = status => {
   if (status === 'failed') return 'failed'

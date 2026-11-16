@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { roomKinds, roomModeForType, roomPresentationOfRoom } from './kinds.js'
+import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
   'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
@@ -11,9 +11,10 @@ const MODE_KEYS = [
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
-  'refresh', 'onMemberFailure', 'markMemberFailure', 'projectWork', 'deliveryOf',
+  'refresh', 'projectWork', 'deliveryOf',
   'hostOf', 'speakerOf',
 ]
+const LIFECYCLE_KEYS = ['markMemberFailure']
 
 test('every room mode implements the same substitutable contract', () => {
   for (const kind of roomKinds) {
@@ -21,6 +22,8 @@ test('every room mode implements the same substitutable contract', () => {
     for (const key of MODE_KEYS) assert.ok(key in mode, `${kind.id} mode misses ${key}`)
     const presentation = roomPresentationOfRoom({ roomType: kind.id })
     for (const key of PRESENTATION_KEYS) assert.ok(key in presentation, `${kind.id} presentation misses ${key}`)
+    const lifecycle = roomLifecycleOfRoom({ roomType: kind.id })
+    for (const key of LIFECYCLE_KEYS) assert.ok(key in lifecycle, `${kind.id} lifecycle misses ${key}`)
   }
 })
 
@@ -49,6 +52,9 @@ test('narrow interfaces expose only their own responsibilities', () => {
   assert.deepEqual(Object.keys(mode).sort(), [...MODE_KEYS].sort())
   const presentation = roomPresentationOfRoom({ roomType: 'studio' })
   assert.deepEqual(Object.keys(presentation).sort(), [...PRESENTATION_KEYS].sort())
+  const lifecycle = roomLifecycleOfRoom({ roomType: 'studio' })
+  assert.deepEqual(Object.keys(lifecycle).sort(), [...LIFECYCLE_KEYS].sort())
   assert.equal('needsYou' in mode, false)
   assert.equal('record' in presentation, false)
+  assert.equal('markMemberFailure' in presentation, false)
 })

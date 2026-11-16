@@ -87,6 +87,10 @@ test('a rejected stage routes the planner decision to the executor or the human'
     workers: ['executor'],
   })
   const store = fakeStore(room)
+  store.writeAssignment({
+    id: 'as-old', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: {}, status: 'reported', context: {}, flags: {},
+  })
   store.appendMessage('room-1', {
     kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
   })
@@ -108,6 +112,9 @@ test('a rejected stage routes the planner decision to the executor or the human'
   assert.match(worker.prompt, /规划师的返工要求：改成写入欢迎语/)
   assert.match(worker.prompt, /lodge-internal/)
   assert.equal(room.lastPlannerDecision.kind, 'rework')
+  const reworkAssignment = store.readAssignments('room-1').find(item => item.reason === 'rework')
+  assert.equal(reworkAssignment.parentAssignmentId, 'as-old')
+  assert.equal(store.readAssignment('as-old').status, 'failed')
 
   const humanRoom = makeRoom({
     leadSeat: 'planner',

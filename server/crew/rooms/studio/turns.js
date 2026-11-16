@@ -9,9 +9,10 @@ import { createHandoff } from './handoff.js'
 import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
 import { deliverableStageIndex, isWorkStage, parsePlannerDecision, memberForRef } from './turn-utils.js'
-import { activeDispatchAssignments as activeDispatch, assignmentForTurn, dispatchOf, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments as activeDispatch, assignmentForTurn, dispatchOf, latestDispatchAssignment, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-members.js'
 import { vcsOf, workspaceOf } from './workspace.js'
+import { settleCompletedSubrooms } from './subrooms.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
 export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, files, advisor = null }) => {
@@ -125,6 +126,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     }
     const name = memberDisplayName(room, target)
     const mention = `@${name}`
+    const parent = latestDispatchAssignment(store, roomId, stageIndex, target)
+    if (parent !== null) transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，规划师安排返工' })
     void handoff.trigger({
       room,
       stage,
@@ -140,6 +143,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       ].join('\n'),
       acceptance: stage?.acceptance ?? '',
       rework: true,
+      parentAssignmentId: parent?.id ?? null,
     }).catch(error => {
       store.appendMessage(roomId, { kind: 'system', text: `没能把返工交给${name}：${error?.message ?? error}` })
     })
@@ -166,7 +170,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     if ((turn.toolCalls ?? 0) === 0 && (turn.reply ?? '') === '') {
       if (pendingForMember) {
         state.capturedTurns.add(turnId)
-        if (assignment !== null) updateAssignment(store, assignment.id, { status: 'failed', resultText: '没有产出' })
+        if (assignment !== null) transitionAssignment(store, assignment.id, 'failed', { resultText: '没有产出' })
         store.appendMessage(roomId, {
           kind: 'system',
           text: `并行执行：${memberDisplayName(room, memberId)} 这一回合没有产出；继续等其它成员。`,
@@ -292,7 +296,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
             candidate,
           },
         })
-        if (assignment !== null) updateAssignment(store, assignment.id, { status: 'reported', turnId, evidenceIds: [stored.id], ...(candidate === null ? {} : { candidate }) })
+        if (assignment !== null) transitionAssignment(store, assignment.id, 'reported', { turnId, evidenceIds: [stored.id], ...(candidate === null ? {} : { candidate }) })
         store.appendEvent(roomId, 'turn.evidence', { stage, turnId, memberId })
         state.recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
 
@@ -321,7 +325,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
 
     const storedEvidence = store.appendMessage(roomId, evidence)
     if (assignment !== null) {
-      updateAssignment(store, assignment.id, { status: 'reported', turnId, evidenceIds: [storedEvidence.id] })
+      transitionAssignment(store, assignment.id, 'reported', { turnId, evidenceIds: [storedEvidence.id] })
     }
     store.appendEvent(roomId, 'turn.evidence', { stage, turnId })
     state.recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
@@ -343,7 +347,9 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
   // 服务重启后以已落盘的消息为准续跑：缺回合就重新派发，缺验收就重跑命令，待复核就重发请求，待集成就先合并。
   const resumeOnce = async ({ forceAcceptance = false } = {}) => {
     const room = store.readRoom(roomId)
-    if (room === null || room.live !== true || room.state !== 'active') return
+    if (room === null) return
+    settleCompletedSubrooms(store, roomId)
+    if (room.live !== true || room.state !== 'active') return
     if (room.busy === true || workerIds(room).length === 0) return
     const stageIndex = room.stages.findIndex(stage => stage.state === 'active')
     if (stageIndex < 0) return
@@ -386,6 +392,22 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       const reported = new Set(
         evidence.filter(message => message.meta?.kind === 'turn').map(message => message.authorId),
       )
+      // 只补叫醒还没交回回合的交接；已经交回的成员不再收到第二次唤醒。
+      const openDispatch = activeDispatch(store, roomId, stageIndex)
+        .filter(item => ['created', 'sent', 'working'].includes(item.status))
+      const missing = openDispatch.filter(item => !reported.has(item.toMemberId))
+      if (missing.length > 0) {
+        for (const rework of [false, true]) {
+          const only = missing.filter(item => (item.reason === 'rework') === rework).map(item => item.toMemberId)
+          if (only.length === 0) continue
+          try {
+            await stageStarter.startStage(room, stageIndex, { only, rework })
+          } catch (error) {
+            store.appendMessage(roomId, { kind: 'system', text: `重启后没能继续叫醒成员：${error?.message ?? error}` })
+          }
+        }
+        return
+      }
       const failed = [...new Set([
         ...(dispatch.failed ?? []),
         ...(dispatch.workers ?? []).filter(worker => !reported.has(worker)),

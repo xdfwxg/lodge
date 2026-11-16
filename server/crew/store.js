@@ -78,14 +78,27 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     const row = db.prepare('SELECT payload FROM assignment WHERE id = ?').get(id)
     return row === undefined ? null : JSON.parse(row.payload)
   }
-  const readAssignments = (roomId, { stage = null, status = null, limit = 500 } = {}) => {
+  const readAssignments = (roomId, { stage = null, status = null, before = null, limit = 500 } = {}) => {
     const where = ['room_id = ?']
     const params = [roomId]
     if (Number.isInteger(stage)) { where.push('stage = ?'); params.push(stage) }
     if (typeof status === 'string' && status !== '') { where.push('status = ?'); params.push(status) }
+    if (typeof before === 'string' && before !== '') {
+      const anchor = db.prepare('SELECT created_at, rowid AS row_id FROM assignment WHERE id = ? AND room_id = ?').get(before, roomId)
+      if (anchor !== undefined) {
+        where.push('(created_at < ? OR (created_at = ? AND rowid < ?))')
+        params.push(anchor.created_at, anchor.created_at, anchor.row_id)
+      }
+    }
     const rows = db.prepare(`SELECT payload FROM assignment WHERE ${where.join(' AND ')} ORDER BY created_at DESC, rowid DESC LIMIT ?`)
       .all(...params, Math.max(1, Math.min(5000, Number(limit) || 500)))
     return rows.reverse().map(row => JSON.parse(row.payload))
+  }
+  const pruneAssignments = (roomId, { keep = 2000 } = {}) => {
+    const size = Math.max(0, Number(keep) || 0)
+    const terminal = "status IN ('passed', 'rejected', 'failed', 'cancelled')"
+    return Number(db.prepare(`DELETE FROM assignment WHERE id IN (SELECT id FROM assignment WHERE room_id = ? AND ${terminal} ORDER BY created_at DESC, rowid DESC LIMIT -1 OFFSET ?)`)
+      .run(roomId, size).changes)
   }
   const writeAssignment = assignment => {
     const now = Date.now()
@@ -257,6 +270,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     writeAssignment,
     updateAssignment,
     deleteAssignments,
+    pruneAssignments,
     readMessages,
     readMessagesSince,
     readEvidence,

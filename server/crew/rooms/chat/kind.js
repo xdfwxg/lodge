@@ -105,7 +105,6 @@ export const chatKind = {
     chatUnread: chatBase?.unread === true,
   }),
 
-  onMemberFailure: () => {},
   markMemberFailure: () => {},
   projectWork: () => null,
   deliveryOf: () => null,

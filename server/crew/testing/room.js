@@ -48,12 +48,23 @@ export const withAssignments = store => {
       else rows.push(stored)
       return stored
     },
-    readAssignments(roomId, { stage = null, status = null, limit = 500 } = {}) {
-      return rows
+    readAssignments(roomId, { stage = null, status = null, before = null, limit = 500 } = {}) {
+      let list = rows
         .filter(item => item.roomId === roomId)
         .filter(item => !Number.isInteger(stage) || item.stageIndex === stage)
         .filter(item => status === null || item.status === status)
-        .slice(-limit)
+      if (typeof before === 'string' && before !== '') {
+        const index = list.findIndex(item => item.id === before)
+        if (index >= 0) list = list.slice(0, index)
+      }
+      return list.slice(-limit)
+    },
+    pruneAssignments(roomId, { keep = 2000 } = {}) {
+      const terminal = row => ['passed', 'rejected', 'failed', 'cancelled'].includes(row.status)
+      const owned = rows.filter(item => item.roomId === roomId && terminal(item))
+      const stale = owned.slice(0, Math.max(0, owned.length - keep))
+      for (const item of stale) rows.splice(rows.indexOf(item), 1)
+      return stale.length
     },
     readAssignment(id) {
       return rows.find(item => item.id === id) ?? null

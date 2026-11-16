@@ -2,7 +2,7 @@ import { verifierIds } from '../../room-members.js'
 import { isWorkStage } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 import { memberDisplayName } from '../../member-labels.js'
-import { activeDispatchAssignments, dispatchOf, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, dispatchOf, transitionAssignment, updateAssignment } from '../../assignments.js'
 
 export const createStageIntegrator = ({ store, roomId, emit, markProgress, requestReview, run }) => {
   let chain = Promise.resolve()
@@ -20,7 +20,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       .filter(item => item.toMemberId === member && ['dispatch', 'rework', 'retry'].includes(item.reason))
       .at(-1)
     if (assignment === undefined) return null
-    if (failed) updateAssignment(store, assignment.id, { status: 'failed', turnId })
+    if (failed) transitionAssignment(store, assignment.id, 'failed', { turnId })
     store.appendEvent(roomId, failed ? 'stage.member_failed' : 'stage.member_done', { stage: assignment.stageIndex, member, turnId })
     const dispatch = dispatchOf(store, roomId, assignment.stageIndex)
     if (dispatch === null || dispatch.pending.length > 0) return null

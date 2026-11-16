@@ -85,13 +85,22 @@ test('a handoff baton reads its assignment brief', () => {
     reason: 'review',
     status: 'sent',
     brief: { done: ['测试通过'], constraints: ['不改测试'], acceptance: 'npm test' },
+    evidenceIds: ['e-1'],
+    verdictIds: ['v-1'],
   }
   const baton = batonOf({
     kind: 'handoff',
     authorId: 'worker',
     text: '阶段 2「实现」接力 → 验收员 · 验收 npm test',
     meta: { assignmentId: 'as-1', stage: 1, status: 'sent' },
-  }, { ...room, assignments: [assignment] })
+  }, {
+    ...room,
+    assignments: [assignment],
+    messages: [
+      { id: 'e-1', kind: 'evidence', meta: { exit: 0, changedFiles: ['src/add.js'] } },
+      { id: 'v-1', kind: 'verdict', text: 'PASS\n测试通过', meta: { pass: true } },
+    ],
+  })
   assert.equal(baton.from, '执行官')
   assert.equal(baton.to, '验收员')
   assert.equal(baton.status, 'sent')
@@ -99,4 +108,8 @@ test('a handoff baton reads its assignment brief', () => {
   assert.equal(baton.acceptance, 'npm test')
   assert.equal(baton.brief.done[0], '测试通过')
   assert.equal(baton.brief.constraints[0], '不改测试')
+  assert.equal(baton.brief.evidence.exit, 0)
+  assert.equal(baton.brief.evidence.changedFiles[0], 'src/add.js')
+  assert.equal(baton.brief.verdict.pass, true)
+  assert.match(baton.brief.verdict.text, /测试通过/)
 })

@@ -1,5 +1,5 @@
 import { memberForRef, memberNameOf } from './projection.js'
-import { roomPresentationOfRoom } from '../../rooms/kinds.js'
+import { roomLifecycleOfRoom } from '../../rooms/kinds.js'
 
 const memberFailureOf = message => {
   if (message?.kind !== 'activity' || message.ok !== false) return null
@@ -39,7 +39,7 @@ export const pauseForMemberFailure = (store, entry, message) => {
     return { events: [{ type: 'room.member_error', payload: { memberId, kind, detail: text.slice(0, 500) } }] }
   })
   if (updated !== null) {
-    roomPresentationOfRoom(updated)?.markMemberFailure?.(store, updated, memberId)
+    roomLifecycleOfRoom(updated)?.markMemberFailure?.(store, updated, memberId)
     store.appendMessage(entry.roomId, {
       kind: 'system',
       text: failureCopy(kind, memberNameOf(room, memberId)),

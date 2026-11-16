@@ -125,6 +125,10 @@ test('the review request goes to every verifier and all PASS ends the round', as
       return state
     },
   })
+  store.writeAssignment({
+    id: 'as-work', roomId: 'room-1', stageIndex: 0, toMemberId: 'worker', reason: 'dispatch',
+    brief: {}, status: 'reported', context: {}, flags: {},
+  })
   const sent = []
   const turns = createLiveTurns({
     store,
@@ -140,6 +144,9 @@ test('the review request goes to every verifier and all PASS ends the round', as
   })
   await turns.requestReview(0)
   assert.deepEqual(sent.map(item => item.member), ['v1', 'v2'])
+  const reviews = store.readAssignments('room-1').filter(item => item.reason === 'review')
+  assert.ok(reviews.length > 0)
+  assert.equal(reviews[0].parentAssignmentId, 'as-work')
   assert.equal(turns.busyReview(), true)
 
   turns.captureTurn({ turnId: 't1', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v1')

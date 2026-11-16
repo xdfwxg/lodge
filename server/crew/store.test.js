@@ -150,3 +150,34 @@ test('command and manual evidence are read from the message stream, turn reports
     rmSync(repo, { recursive: true, force: true })
   }
 })
+
+test('assignments page by cursor and prune only terminal rows', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-assignment-store-'))
+  const store = createStore({ dataDir })
+  try {
+    for (let at = 1; at <= 5; at += 1) {
+      store.writeAssignment({
+        id: `as-${at}`,
+        roomId: 'r1',
+        stageIndex: 0,
+        status: 'passed',
+        createdAt: at,
+        updatedAt: at,
+      })
+    }
+    store.writeAssignment({
+      id: 'as-open',
+      roomId: 'r1',
+      stageIndex: 0,
+      status: 'sent',
+      createdAt: 6,
+      updatedAt: 6,
+    })
+    assert.deepEqual(store.readAssignments('r1', { limit: 2 }).map(item => item.id), ['as-5', 'as-open'])
+    assert.deepEqual(store.readAssignments('r1', { limit: 2, before: 'as-5' }).map(item => item.id), ['as-3', 'as-4'])
+    assert.equal(store.pruneAssignments('r1', { keep: 2 }), 3)
+    assert.deepEqual(store.readAssignments('r1').map(item => item.id), ['as-4', 'as-5', 'as-open'])
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})

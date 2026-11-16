@@ -1,6 +1,6 @@
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { leadMemberOf, workerIds } from '../../room-members.js'
-import { activeDispatchAssignments, dispatchOf, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, dispatchOf, latestDispatchAssignment, updateAssignment } from '../../assignments.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
 import { memberDisplayName } from '../../member-labels.js'
@@ -9,7 +9,7 @@ import { studioWorkerPrompt } from './prompts.js'
 
 export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, integrate, enqueue }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
-  const startStage = async (room, index, { note = '', rework = false } = {}) => {
+  const startStage = async (room, index, { note = '', rework = false, only = null } = {}) => {
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
     // 验收要能判断“执行者自己 commit 了但工作树干净”的新交付；按阶段记下起始 HEAD。
@@ -27,7 +27,9 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     const workers = allWorkers
     const dispatchPlan = planDispatch({ room, stage, index, workers })
     let assignees = dispatchPlan.assignees
+    if (Array.isArray(only) && only.length > 0) assignees = assignees.filter(id => only.includes(id))
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行成员')
+    const parentAssignment = rework ? latestDispatchAssignment(store, roomId, index) : null
     const workspaceCaps = workspaceOf(room).capabilities()
     if (assignees.length > 1 && workspaceCaps.merge !== true) {
       store.appendMessage(roomId, {
@@ -85,6 +87,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         prompt: promptFor(worker),
         acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
         rework,
+        parentAssignmentId: parentAssignment?.id ?? null,
       })
       return
     }
@@ -105,6 +108,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       prompt: promptFor(worker),
       acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
       rework,
+      parentAssignmentId: parentAssignment?.id ?? null,
       context: { base: stageBase, parallel: true },
     })))
     const failed = settled

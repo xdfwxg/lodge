@@ -71,6 +71,10 @@ test('changing the acceptance command reruns it, but an unchanged save does not'
 
 test('rework records the human objection and re-dispatches the active stage', async () => {
   const ctx = setup(room())
+  ctx.store.writeAssignment({
+    id: 'as-work', roomId: 'room-1', stageIndex: 0, toMemberId: 'worker', reason: 'dispatch',
+    brief: {}, status: 'reported', context: {}, flags: {},
+  })
   const result = await ctx.stages.rework(ctx.room(), { stage: 0, note: '方向不对' })
   assert.equal(result.ok, true)
   assert.equal(ctx.messages.at(-1).kind, 'rework')
@@ -78,14 +82,20 @@ test('rework records the human objection and re-dispatches the active stage', as
   assert.equal(ctx.calls.length, 1)
   assert.equal(ctx.calls[0].index, 0)
   assert.equal(ctx.calls[0].note, '方向不对')
+  assert.equal(ctx.store.readAssignment('as-work').status, 'failed')
 })
 
 test('accepting the last work stage also confirms the system conclusion', () => {
   const ctx = setup(room({ live: false, roomType: 'studio', closure: 'verifying', verificationMode: 'hybrid', verifiers: ['verifier'] }))
   ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
   ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
+  ctx.store.writeAssignment({
+    id: 'as-work', roomId: 'room-1', stageIndex: 0, toMemberId: 'worker', reason: 'dispatch',
+    brief: {}, status: 'reported', context: {}, flags: {},
+  })
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, true)
+  assert.equal(ctx.store.readAssignment('as-work').status, 'passed')
   assert.equal(ctx.messages.some(message => message.kind === 'stage_conclusion'), false)
   assert.equal(ctx.room().stages[1].state, 'passed')
   assert.equal(ctx.room().state, 'complete')

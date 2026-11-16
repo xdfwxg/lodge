@@ -18,6 +18,11 @@ export const batonOf = (message, room, byId = {}) => {
   const assignment = (room?.assignments ?? []).find(item => item.id === meta.assignmentId)
   if (message.kind === 'handoff' && assignment !== undefined) {
     const brief = assignment.brief ?? {}
+    const messages = room?.messages ?? []
+    const messagesOf = ids => (ids ?? []).map(id => messages.find(item => item.id === id)).filter(Boolean)
+    const evidence = messagesOf(assignment.evidenceIds).at(-1)
+      ?? (assignment.context?.evidenceId === undefined ? undefined : messages.find(item => item.id === assignment.context.evidenceId))
+    const verdict = messagesOf(assignment.verdictIds).at(-1)
     return {
       from: nameOf(room, byId, assignment.fromMemberId),
       to: nameOf(room, byId, assignment.toMemberId),
@@ -30,6 +35,14 @@ export const batonOf = (message, room, byId = {}) => {
       brief: {
         done: Array.isArray(brief.done) ? brief.done : [],
         constraints: Array.isArray(brief.constraints) ? brief.constraints : [],
+        evidence: evidence === undefined ? null : {
+          exit: evidence.meta?.exit ?? null,
+          changedFiles: Array.isArray(evidence.meta?.changedFiles) ? evidence.meta.changedFiles : [],
+        },
+        verdict: verdict === undefined ? null : {
+          pass: verdict.meta?.pass === true,
+          text: String(verdict.text ?? ''),
+        },
       },
       text: String(message.text ?? ''),
     }
@@ -128,5 +141,17 @@ function BriefDetails({ brief }) {
       : null,
     brief.constraints?.length > 0
       ? h('div', { className: 'studio-baton-work-row' }, h('b', null, '限制'), h('span', null, brief.constraints.join('；')))
-      : null)
+      : null,
+    brief.evidence === null || brief.evidence === undefined
+      ? null
+      : h('div', { className: 'studio-baton-work-row' },
+        h('b', null, '检查结果'),
+        h('span', { 'data-pass': brief.evidence.exit === 0 ? 'true' : 'false' }, brief.evidence.exit === 0 ? '通过' : '没通过',
+          brief.evidence.changedFiles?.length > 0 ? ` · ${brief.evidence.changedFiles.join('、')}` : '')),
+    brief.verdict === null || brief.verdict === undefined
+      ? null
+      : h('div', { className: 'studio-baton-work-row' },
+        h('b', null, '验收意见'),
+        h('span', { 'data-pass': brief.verdict.pass ? 'true' : 'false' }, brief.verdict.pass ? '通过' : '退回',
+          brief.verdict.text ? ` · ${brief.verdict.text}` : '')))
 }

@@ -128,6 +128,7 @@ test('a subroom records its parent and links back to it', async () => {
   assert.equal(child.parentRoomId, 'room-parent')
   assert.equal(child.depth, 1)
   assert.deepEqual(store.readRoom('room-parent').childRoomIds, [child.id])
+  assert.deepEqual(store.readAssignments('room-parent'), [])
 })
 
 test('a custom room name is kept while the stage title follows the goal', async () => {

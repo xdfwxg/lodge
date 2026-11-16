@@ -1,11 +1,11 @@
-import { activeDispatchAssignments, updateAssignment } from '../../assignments.js'
+import { ASSIGNMENT_KEEP, activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { leadMemberOf } from '../../room-members.js'
 import { gateFor } from './gates.js'
 import { fail, ok } from '../../result.js'
 import { acceptanceChangeError } from '../../service-policy.js'
 import { FINAL_TITLE } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
-import { childResultText, childVerdictsOf } from './subrooms.js'
+import { childResultText, childVerdictsOf, settleSubroomAssignment } from './subrooms.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { memberDisplayName } from '../../member-labels.js'
@@ -53,8 +53,16 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (typeof child?.parentRoomId !== 'string' || child.parentRoomId === '') return
     const parent = store.readRoom(child.parentRoomId)
     if (parent === null) return
-    const verdicts = childVerdictsOf(readMessages(child.id))
+    const childMessages = readMessages(child.id)
+    const verdicts = childVerdictsOf(childMessages)
     const text = childResultText(child, verdicts)
+    settleSubroomAssignment({
+      store,
+      parent,
+      child,
+      resultText: text,
+      verdictMessages: childMessages.filter(message => message.kind === 'verdict' && (message.meta?.roleKind ?? 'verifier') === 'verifier'),
+    })
     appendMessage(parent.id, {
       kind: 'child_result',
       authorId: 'system',
@@ -181,8 +189,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       })
     }
     for (const assignment of activeDispatchAssignments(store, room.id, index)) {
-      updateAssignment(store, assignment.id, { status: 'passed' })
+      transitionAssignment(store, assignment.id, 'passed')
     }
+    store.pruneAssignments?.(room.id, { keep: ASSIGNMENT_KEEP })
     let finalRoom = next < 0 ? completeRoom(room) ?? room : room
     if (next < 0) notifyParent(finalRoom)
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
@@ -218,7 +227,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     })
     if (updated === null) return fail('conflict', '这一步的状态变了，再试一次')
     for (const assignment of activeDispatchAssignments(store, room.id, index)) {
-      updateAssignment(store, assignment.id, { status: 'failed' })
+      transitionAssignment(store, assignment.id, 'failed', { resultText: '人要求重做这一步' })
     }
     emit('room', updated)
     if (room.live === true && typeof live.reworkStage === 'function') {

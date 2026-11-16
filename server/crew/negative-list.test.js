@@ -123,10 +123,25 @@ test('kernel modules read context state only through facades or kinds', () => {
     for (const field of ['chat', 'chatHost', 'stages', 'closure']) {
       assert.doesNotMatch(
         text,
-        new RegExp(`(?<!['"])\\b(?:room|current)\\??\\.${field}\\b`),
+        new RegExp(`(?<!['"])\\b(?:room|parentRoom|current)\\??\\.${field}\\b`),
         `${file} reads ${field} directly instead of using a facade`,
       )
     }
   }
 })
 
+
+test('generic room creation knows no room engine handoff', () => {
+  for (const file of sources('rooms/create')) {
+    assert.doesNotMatch(
+      file.text,
+      /from ['"][^'"]*assignments\.js['"]/,
+      `${file.name} imports assignments into generic creation`,
+    )
+    assert.doesNotMatch(
+      file.text,
+      /\b(?:parentRoom|room|current)\??\.(?:stages|closure)\b/,
+      `${file.name} reads a room engine's stage state`,
+    )
+  }
+})

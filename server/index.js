@@ -11,7 +11,7 @@ import { openPath } from './system-open.js'
 import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
 import { ROLES, validateRoster } from './crew/roster.js'
 import { assertRuntimePort } from './crew/runtime-port.js'
-import { migrateAssignments } from './crew/assignments.js'
+import { compactAssignments, migrateAssignments, pageAssignments } from './crew/assignments.js'
 import { migrateRoomMembers } from './crew/room-members.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
@@ -34,11 +34,12 @@ const broadcast = (event, payload, id) => {
 const store = createStore({ dataDir, emit: broadcast })
 migrateRoomMembers(store)
 migrateAssignments(store)
+compactAssignments(store)
 
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
-    payload = presentRoom(payload, store.readMessages(payload.id), store.readAssignments(payload.id, { limit: 200 }))
+    payload = presentRoom(payload, store.readMessages(payload.id), store.readAssignments(payload.id, { limit: 500 }))
   }
   broadcast(event, payload, id)
 }
@@ -203,6 +204,19 @@ const server = http.createServer(async (req, res) => {
 
     if (path === '/api/rooms/sample' && req.method === 'POST') {
       return respond(res, await service.createSampleRoom())
+    }
+
+    const assignmentsPath = path.match(/^\/api\/rooms\/([\w-]+)\/assignments$/)
+    if (assignmentsPath !== null && req.method === 'GET') {
+      const [, roomId] = assignmentsPath
+      const stage = url.searchParams.get('stage')
+      const page = pageAssignments(store, roomId, {
+        stage: stage === null || stage === '' ? null : Number(stage),
+        status: url.searchParams.get('status'),
+        before: url.searchParams.get('before'),
+        limit: Number(url.searchParams.get('limit') ?? 50),
+      })
+      return json(res, 200, page)
     }
 
     const evidencePath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence\/([\w-]+)$/)

@@ -168,3 +168,70 @@ test('a business rejection from review is a typed failure, not a system error', 
     error => error instanceof BusinessError && error.reason === 'conflict' && /证据/.test(error.message),
   )
 })
+
+test('resume wakes only the assignments that have not reported', async () => {
+  const sent = []
+  const room = normalizeLegacyTestRoom({
+    ...store([]).readRoom(),
+    live: true,
+    state: 'active',
+    busy: false,
+    leadSeat: 'planner',
+    members: ['planner', 'w1', 'w2'],
+    workers: ['w1', 'w2'],
+    seatNames: { planner: 'Planner', w1: 'W1', w2: 'W2' },
+    seatSpecs: [
+      { id: 'planner', role: 'lead', name: 'Planner' },
+      { id: 'w1', role: 'worker', name: 'W1' },
+      { id: 'w2', role: 'worker', name: 'W2' },
+    ],
+    orchestration: 'parallel',
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+  })
+  const evidence = {
+    id: 'e1',
+    kind: 'evidence',
+    authorId: 'w1',
+    seq: 1,
+    meta: { stage: 0, kind: 'turn', turnId: 't1' },
+  }
+  const base = withAssignments({
+    readRoom: () => room,
+    readMessages: () => [evidence],
+    readRooms: () => [room],
+    updateRoom: () => null,
+    appendEvent: () => {},
+    appendMessage: (roomId, message) => ({ ...message, id: 'm-handoff', seq: 2 }),
+  })
+  for (const worker of ['w1', 'w2']) {
+    base.writeAssignment({
+      id: `as-${worker}`,
+      roomId: 'room-1',
+      stageIndex: 0,
+      fromMemberId: 'planner',
+      toMemberId: worker,
+      reason: 'dispatch',
+      brief: {},
+      status: 'sent',
+      context: { parallel: true },
+      flags: {},
+      createdAt: 1,
+      updatedAt: 1,
+    })
+  }
+  const turns = createLiveTurns({
+    store: base,
+    engine: {},
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (member, text) => {
+      sent.push([member, text])
+      return { messageId: null }
+    },
+    commands: ports.commands,
+    files: ports.files,
+  })
+  await turns.resume()
+  assert.deepEqual(sent.map(item => item[0]), ['w2'])
+  assert.match(sent[0][1], /阶段 1「impl」已确认/)
+})
