@@ -61,16 +61,10 @@ export const chatView = {
   },
   presence: () => null,
   composerPlaceholder: () => '加入讨论…',
-  // 「正在输入」是聊天室自己的状态：谁在说、是否在总结，由这里判断。
-  typing: ({ room, members, locked }) => {
+  // 谁在发言由身体状态行说；这里只补主持人的“正在总结”。
+  typing: ({ room, locked }) => {
     const chat = room.chat ?? {}
-    const memberId = room.chatBusyMember
-      || chat.speaker
-      || (room.busyMembers?.length === 1 ? room.busyMembers[0] : '')
-    const active = !locked && memberId !== ''
-      && (room.chatWorking === true || chat.running === true || room.busy === true)
-    if (!active) return null
-    const member = members.find(item => item.id === memberId) ?? null
-    return h(TypingLine, { room, member, summarizing: chat.phase === 'summarizing' })
+    const summarizing = !locked && chat.phase === 'summarizing'
+    return summarizing ? h(TypingLine, { room, member: null, summarizing: true }) : null
   },
 }

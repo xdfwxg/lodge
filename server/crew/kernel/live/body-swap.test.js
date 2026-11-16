@@ -10,8 +10,15 @@ const member = (id, role, engine) => ({
   station: '工位',
   approval: 'ask',
   permissions: { read: true, exec: role !== 'lead', write: role !== 'lead' },
-  body: { kind: 'base', ref: `bot-${id}`, roomRef: `base-${id}`, sessionRef: `thread-${id}`, engine, model: 'old-model' },
-  prompt: `你是${id}`,
+  body: {
+    kind: 'base',
+    ref: `bot-${id}`,
+    roomRef: `base-${id}`,
+    sessionRef: `thread-${id}`,
+    engine,
+    model: 'old-model',
+    spec: { prompt: `你是${id}`, skills: [], mcp: [] },
+  },
 })
 
 const roomOf = () => ({
@@ -28,8 +35,6 @@ const roomOf = () => ({
   repoPath: '/tmp/room',
   worktrees: { worker: '/tmp/worker' },
   members: [member('lead', 'lead', 'claude'), member('worker', 'worker', 'pi'), member('verifier', 'verifier', 'pi')],
-  engines: { lead: 'claude', worker: 'pi', verifier: 'pi' },
-  models: { lead: 'sonnet', worker: 'old-model', verifier: 'old-model' },
   independence: 'none',
   pauseReason: 'member_error',
   memberError: { memberId: 'worker', kind: 'auth' },
@@ -40,7 +45,7 @@ const roomOf = () => ({
 
 const harness = ({ authenticated, failShared } = {}) => {
   let room = roomOf()
-  const calls = { created: [], shared: [], deleted: [], messages: [], events: [], detached: [], attached: [] }
+  const calls = { created: [], shared: [], deleted: [], messages: [], events: [], detached: [], attached: [], skills: [] }
   const store = {
     readRoom: () => room,
     updateRoom: (_id, mutator) => {
@@ -59,6 +64,7 @@ const harness = ({ authenticated, failShared } = {}) => {
       calls.created.push(input)
       return { id: 'bot-new', name: input.name, engine: 'claude', model: input.model ?? 'sonnet' }
     },
+    setBotSkills: async (id, skills) => calls.skills.push({ id, skills }),
     createRoom: async input => ({ id: 'base-new', sessionRef: 'thread-new', input }),
     updateRoomMembers: async (id, members) => {
       if (failShared === true) throw new Error('base 409 /api/groups/x: {"error":"this channel is working or waiting on you — finish that turn first"}')
@@ -87,8 +93,6 @@ test('swapping keeps the member and its history, and replaces the body', async (
   assert.equal(worker.body.sessionRef, 'thread-new')
   assert.equal(worker.body.engine, 'claude')
   assert.equal(worker.body.model, 'sonnet')
-  assert.equal(room.engines.worker, 'claude')
-  assert.equal(room.models.worker, 'sonnet')
   assert.equal(room.state, 'active')
   assert.equal(room.pauseReason, null)
   assert.equal(room.memberError, undefined)
@@ -101,6 +105,33 @@ test('swapping keeps the member and its history, and replaces the body', async (
   assert.match(calls.messages.at(-1).text, /换好了身体/)
   assert.equal(calls.events.some(event => event.type === 'member.body.swapped'), true)
   assert.match(calls.created[0].soul, /你是worker/)
+})
+
+test('the body carries an editable soul, skills and tools', async () => {
+  const { swap, calls, room } = harness()
+  const result = await swap.swap(room, {
+    memberId: 'worker',
+    engine: 'claude',
+    model: 'sonnet',
+    prompt: '只做复核，不解释。',
+    skills: ['review'],
+    mcp: ['github'],
+  })
+  assert.equal(result.ok, true, result.error)
+  const worker = room.members.find(item => item.id === 'worker')
+  assert.equal(worker.body.spec.prompt, '只做复核，不解释。')
+  assert.deepEqual(worker.body.spec.skills, ['review'])
+  assert.deepEqual(worker.body.spec.mcp, [{ server: 'github', scopes: ['read'], approval: 'ask' }])
+  assert.match(calls.created[0].soul, /只做复核，不解释/)
+  assert.deepEqual(calls.skills[0].skills, ['review'])
+  assert.equal(calls.created[0].mcp[0].server, 'github')
+})
+
+test('bad skill or tool names are refused', async () => {
+  const { swap, calls } = harness()
+  assert.match((await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', skills: ['bad name'] })).error, /技能名/)
+  assert.match((await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', mcp: ['https://x'] })).error, /服务名/)
+  assert.equal(calls.created.length, 0)
 })
 
 test('a model that never asks cannot become the body of an exec member', async () => {

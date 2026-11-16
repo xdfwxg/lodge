@@ -2,6 +2,9 @@ import { fail, ok } from '../../result.js'
 import { roomBulletin, roomModeOfRoom } from '../../rooms/kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
 import { bodyIssueOf } from '../../body-check.js'
+import { bodyChangeBlocker } from '../../body-change.js'
+import { normalizeBodySpec } from '../../body-spec.js'
+import { plainRuntimeError } from '../../base-error.js'
 import { independenceOf } from '../../independence.js'
 import { createBodyFactory } from '../../body.js'
 
@@ -18,17 +21,8 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     if (member === undefined || typeof member.body?.ref !== 'string' || member.body.ref === '') {
       return fail('invalid', '没有这个成员的身体')
     }
-    if (room.state !== 'active' && room.state !== 'paused') {
-      return fail('conflict', '房间已经结束，不能再换身体')
-    }
-    if (typeof room.connectionError === 'string' && room.connectionError !== '') {
-      return fail('conflict', '基座连接中断，等连上再换')
-    }
-    const chatRunning = room.chat?.running === true || room.chatWorking === true
-    if (room.busy === true || chatRunning || (room.presence ?? []).some(item => item.state === 'working') || (room.turnQueue ?? []).length > 0) {
-      return fail('conflict', '房间正在做事，等这一回合结束再换身体')
-    }
-    if (room.pauseReason === 'approval') return fail('conflict', '先处理待确认的操作，再换身体')
+    const blocked = bodyChangeBlocker(room, '换身体')
+    if (blocked !== null) return fail('conflict', blocked)
     if ((room.approvals ?? []).some(item => item.state === 'pending' && item.memberId === memberId)) {
       return fail('conflict', '这个成员还有待确认的操作，先处理掉再换身体')
     }
@@ -41,6 +35,17 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     } catch {
       instances = []
     }
+    const currentSpec = member.body?.spec ?? {}
+    const current = {
+      prompt: typeof currentSpec.prompt === 'string' ? currentSpec.prompt : '',
+      skills: Array.isArray(currentSpec.skills) ? currentSpec.skills : [],
+      mcp: Array.isArray(currentSpec.mcp) ? currentSpec.mcp : [],
+    }
+    const { spec, error: specError } = normalizeBodySpec({
+      input: { prompt: body.prompt, skills: body.skills, mcp: body.mcp },
+      fallback: current,
+    })
+    if (specError !== undefined) return fail('invalid', specError)
     const instance = instances.find(item => item.id === engineId)
     const issue = bodyIssueOf(instance)
     if (issue !== '') return fail('invalid', issue === '登录失效' ? '这个模型服务没有登录，先登录再换身体' : `这个模型服务现在不可用：${issue}`)
@@ -48,7 +53,7 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     if (requiresGate && instance.capabilities?.approvalReview !== true) {
       return fail('invalid', '这个模型不会先问你，不能用来执行')
     }
-    if (engineId === member.body.engine && modelId === (member.body.model ?? '')) {
+    if (engineId === member.body.engine && modelId === (member.body.model ?? '') && JSON.stringify(spec) === JSON.stringify(current)) {
       return fail('invalid', '身体没有变化')
     }
 
@@ -63,7 +68,13 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
         config: {
           engine: instance.id,
           model: modelId === '' ? undefined : modelId,
-          soul: roomModeOfRoom(room)?.memberSoul?.(member) ?? member.prompt ?? '',
+          soul: roomModeOfRoom(room)?.memberSoul?.({
+            ...member,
+            prompt: spec.prompt,
+            skills: spec.skills,
+            mcp: spec.mcp,
+          }) ?? spec.prompt,
+          spec,
         },
         thread: {
           name: `${room.name} · ${member.name}`,
@@ -81,15 +92,11 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
       sharedUpdated = await bodies.join({ sharedRoomId, refs })
 
       detachMember?.(room.id, memberId)
-      const engines = { ...(room.engines ?? {}), [memberId]: created.engine }
-      const models = { ...(room.models ?? {}), [memberId]: created.model ?? '' }
       const updated = store.updateRoom(room.id, current => {
         const target = (current.members ?? []).find(item => item.id === memberId)
         if (target === undefined) return null
         target.body = incarnation.body
-        current.engines = engines
-        current.models = models
-        current.independence = independenceOf({ members: current.members, engines, instances })
+        current.independence = independenceOf({ members: current.members, instances })
         if (current.pauseReason === 'member_error' && current.memberError?.memberId === memberId) {
           current.state = 'active'
           current.pauseReason = null
@@ -137,11 +144,7 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
         }
         if (incarnation !== null) await bodies.retire(incarnation.body)
       }
-      const raw = String(error?.message ?? error)
-      const friendly = /this channel is working|waiting on you|finish that turn first/i.test(raw)
-        ? '房间正在做事，等这一轮结束再换身体'
-        : /base 404/i.test(raw) ? '基座里找不到这具身体，刷新后再试' : raw
-      return fail('conflict', `换身体没完成：${friendly}`)
+      return fail('conflict', `换身体没完成：${plainRuntimeError(error)}`)
     }
   }
 

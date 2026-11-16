@@ -145,7 +145,7 @@ const approvalNotice = room => {
   if (rows.length === 0) return null
   const names = rows.map(member => member.name ?? member.role).join('、')
   const engines = [...new Set(rows
-    .map(member => room.engines?.[member.id])
+    .map(member => member.body?.engine)
     .filter(id => typeof id === 'string' && id !== '')
     .map(id => ENGINE_LABEL[id] ?? id))]
   const engineText = engines.length === 0 ? '当前模型' : engines.join('、')

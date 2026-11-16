@@ -122,6 +122,7 @@ export function App() {
     features: state.features,
     advisor: state.advisor ?? { available: false, host: '' },
     seed,
+    onRefresh: () => store.refresh(),
     startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
     onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
@@ -149,6 +150,7 @@ export function App() {
         }),
         onCreate: roomType => openDialog(null, roomType),
         onSample: () => store.openSampleRoom(),
+        onRefresh: () => store.refresh(),
       })
       : h(RoomView, {
         state,

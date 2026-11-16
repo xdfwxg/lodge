@@ -10,15 +10,8 @@ export const memberFailureKind = text => {
 }
 
 export const failureCopy = (kind, name) => ({
-  quota: `${name}的模型额度不够，房间已暂停。充值或给这位成员换个模型后，点“继续”。`,
+  quota: `${name}的模型额度用完了，房间已暂停。充值或给这位成员换个模型后，点“继续”。`,
   auth: `${name}的登录失效了，房间已暂停。重新登录或换个模型服务后，点“继续”。`,
   rate_limit: `${name}被模型服务限流了，房间已暂停。稍后点“继续”，或给这位成员换个模型。`,
   engine: `${name}没能回应，房间已暂停。检查模型服务设置后，点“继续”。`,
-}[kind])
-
-export const failureReason = kind => ({
-  quota: '额度不够',
-  auth: '登录失效',
-  rate_limit: '被限流',
-  engine: '没回应',
 }[kind])

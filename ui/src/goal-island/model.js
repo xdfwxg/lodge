@@ -58,7 +58,8 @@ export const rejectsFor = (room, index) => room.messages.filter(message => (
 ))
 
 export const islandStatus = room => {
-  if (room.state === 'complete') return { label: '已完成', tone: 'done' }
+  // 完成只由结果卡说一次；顶部岛留标题和步数。
+  if (room.state === 'complete') return { label: '', tone: 'done' }
   if (room.state === 'stopped') return { label: '已停止', tone: 'stopped' }
   if (room.state === 'paused') {
     if (room.needsYou?.kind === 'idle') return { label: '已暂停 · 可以接着聊', tone: 'paused' }

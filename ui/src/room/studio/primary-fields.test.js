@@ -53,6 +53,14 @@ test('logged-out services do not count as usable models', () => {
   assert.match(html, /还没登录/)
 })
 
+test('a logged-out model offers a login button in the primary fields', () => {
+  const html = render({
+    engines: [{ ...engine('claude', true), authenticated: false, name: 'Claude', login: { args: ['auth', 'login'] } }],
+    onLogin: () => {},
+  })
+  assert.match(html, /登录 Claude/)
+})
+
 test('two vendors show no guidance', () => {
   const html = render({ engines: [engine('claude', true), engine('codex', true)] })
   assert.doesNotMatch(html, /只有一家模型可用/)

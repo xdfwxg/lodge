@@ -105,12 +105,20 @@ export function MemberEnginePicker({
           engine !== undefined && engine.authenticated === false
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型服务没有登录，先登录再用。')
             : null,
+          engine !== undefined && engine.authenticated === false && Array.isArray(engine.login?.args)
+            ? h('button', {
+              type: 'button',
+              className: 'crew-ghost',
+              disabled: loginBusy,
+              onClick: () => void onLogin(engine),
+            }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)
+            : null,
           engine !== undefined && engine.authenticated !== false && needsGate === true && engine.capabilities?.approvalReview !== true
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
             : null),
         allowCapabilities
           ? h('details', { className: 'crew-member-capabilities' },
-            h('summary', null, allowSkills ? '技能 / 外部工具' : '外部工具'),
+            h('summary', null, allowSkills ? '技能 / MCP 工具' : 'MCP 工具'),
             allowSkills
               ? h('input', {
                 className: 'crew-goal-input',
@@ -127,7 +135,7 @@ export function MemberEnginePicker({
               className: 'crew-goal-input',
               value: choice.mcpText ?? '',
               placeholder: 'MCP 服务名，用逗号分隔',
-              'aria-label': `${member.name ?? member.role}的外部工具`,
+              'aria-label': `${member.name ?? member.role}的 MCP 服务`,
               onChange: event => {
                 setChoices(replaceChoice(choices, index, { ...choice, mcpText: event.target.value }))
                 onInteraction()

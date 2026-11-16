@@ -81,12 +81,20 @@ test('an empty chat room explains that its conclusion becomes studio work', () =
   assert.match(intro.props.body, /工作室/)
 })
 
-test('a typing member says it is thinking without repeating the name', () => {
-  const html = renderToStaticMarkup(chatView.typing({
+test('a speaking member is left to the body status row', () => {
+  const tree = chatView.typing({
     room: { id: 'room-chat', chatBusyMember: 'a', chatWorking: true },
     members: [{ id: 'a', name: '甲' }],
     locked: false,
+  })
+  assert.equal(tree, null)
+})
+
+test('only the host summarizing gets a typing line', () => {
+  const html = renderToStaticMarkup(chatView.typing({
+    room: { id: 'room-chat', chat: { phase: 'summarizing' }, chatWorking: true },
+    members: [],
+    locked: false,
   }))
-  assert.match(html, /正在思考/)
-  assert.doesNotMatch(html, /甲 正在思考/)
+  assert.match(html, /正在总结/)
 })

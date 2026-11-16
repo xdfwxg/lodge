@@ -1,0 +1,21 @@
+// 基座错误对用户只说中文原因：接口路径、状态码和原始英文留在日志里。
+export const plainRuntimeError = error => {
+  const raw = String(error?.message ?? error ?? '')
+  if (/this channel is working|waiting on you|finish that turn first/i.test(raw)) {
+    return '房间正在做事，等这一轮结束再试'
+  }
+  if (/must come from the desktop app|paired device/i.test(raw)) {
+    return '这个基座属于另一个桌面应用，Lodge 不能改它'
+  }
+  if (/401|unauthorized|invalid api key|not logged in|run \/login/i.test(raw)) {
+    return '模型服务没有登录，先登录再试'
+  }
+  if (/423|locked/i.test(raw)) return '基座暂时被占用，稍后再试'
+  if (/403|forbidden/i.test(raw)) return '基座拒绝了这次操作'
+  if (/404|not found/i.test(raw)) return '基座里找不到对应的记录'
+  if (/409|conflict/i.test(raw)) return '房间状态已经变化，刷新后再试'
+  if (/ECONNREFUSED|ECONNRESET|fetch failed|socket hang up|aborted|timeout/i.test(raw)) {
+    return '基座没有响应，稍后再试'
+  }
+  return raw
+}

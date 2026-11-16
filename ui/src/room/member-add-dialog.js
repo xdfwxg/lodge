@@ -1,6 +1,7 @@
 import { createElement as h, useState } from 'react'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor } from './member-options.js'
+import { BodySpecFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
 
 const ROLE_LABEL = { executor: '执行官', verifier: '验收员' }
 
@@ -16,6 +17,7 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
   const [name, setName] = useState('')
   const [engineId, setEngineId] = useState(ready?.id ?? '')
   const [modelId, setModelId] = useState(ready?.models?.default ?? '')
+  const [spec, setSpec] = useState(() => bodySpecOf({}))
   const engine = available.find(item => item.id === engineId)
   const rows = modelRowsFor(engine)
   const model = modelId !== '' ? modelId : (engine?.models?.default ?? rows[0]?.id ?? '')
@@ -91,6 +93,7 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
           },
           rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
         : null,
+      h(BodySpecFields, { value: spec, onChange: setSpec, disabled: busy }),
       unauthenticated
         ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个模型服务没有登录，先登录再加。')
         : noGate
@@ -103,6 +106,6 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
         type: 'button',
         className: 'crew-accept crew-dialog-primary',
         disabled: busy || blocked || name.trim() === '' || engineId === '' || model === '',
-        onClick: () => onConfirm({ role, name: name.trim(), engine: engineId, model }),
+        onClick: () => onConfirm({ role, name: name.trim(), engine: engineId, model, ...bodySpecPayload(spec) }),
       }, busy ? '正在添加…' : '添加'))))
 }

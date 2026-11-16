@@ -31,8 +31,6 @@ const roomOf = () => ({
   branches: {},
   workspace: { provider: 'git', capabilities: {} },
   members: [member('lead', 'lead', 'claude'), member('worker', 'worker', 'pi'), member('verifier', 'verifier', 'pi')],
-  engines: { lead: 'claude', worker: 'pi', verifier: 'pi' },
-  models: { lead: 'sonnet', worker: 'm', verifier: 'm' },
   independence: 'none',
   presence: [],
   turnQueue: [],
@@ -100,13 +98,18 @@ test('adding an executor appends a member with a body and a station', async () =
   assert.equal(added.role, 'worker')
   assert.equal(added.roleKind, 'executor')
   assert.equal(added.body.ref, 'bot-new')
-  assert.equal(room.engines['worker-2'], 'claude')
+  assert.equal(added.body.engine, 'claude')
+  assert.equal(added.engine, undefined)
+  assert.equal(added.prompt, undefined)
+  assert.equal(added.skills, undefined)
   assert.equal(room.worktrees['worker-2'], '/wt/worker-2')
   assert.ok(calls.shared.some(call => call.refs.includes('bot-new')))
   assert.deepEqual(calls.attached, ['worker-2'])
   assert.equal(calls.events.some(event => event.type === 'member.added'), true)
   assert.match(calls.messages.at(-1).text, /加了一位执行官：执行官二号/)
   assert.match(calls.members[0].soul, /你是执行官二号/)
+  assert.match(added.body.spec.prompt, /你是执行官二号/)
+  assert.deepEqual(added.body.spec.skills, [])
 })
 
 test('a second planner is refused: the room keeps one main bot', async () => {

@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 
 test('onboarding, focused dialog, sample room, goal panel and archive restore', async ({ page, request }) => {
+  // 前面的用例可能留下了示例房；先归档，保证从“新房间”开始。
+  const existing = await (await request.get('/api/state')).json()
+  for (const room of existing.rooms.filter(item => !item.archivedAt)) {
+    await request.post(`/api/rooms/${room.id}/archive`, { data: { archived: true } })
+  }
   await page.goto('/')
   await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
   await expect(page.getByRole('button', { name: '开工' })).toBeDisabled()

@@ -67,7 +67,7 @@ test('an engine-level member error pauses the room and marks its assignment fail
   assert.equal(room.memberError.memberId, 'worker')
   assert.equal(room.memberError.kind, 'quota')
   assert.equal(store.readAssignment('as-1').status, 'failed')
-  assert.match(messages.at(-1).text, /模型额度不够/)
+  assert.match(messages.at(-1).text, /模型额度用完了/)
   assert.match(messages.at(-1).text, /点“继续”/)
   assert.equal(messages.some(message => /recent-work/.test(message.text ?? '')), false)
 })

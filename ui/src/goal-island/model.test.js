@@ -35,7 +35,7 @@ const room = over => ({
 })
 
 test('island status reflects pause reasons and needs-you labels', () => {
-  assert.deepEqual(islandStatus(room({ state: 'complete' })), { label: '已完成', tone: 'done' })
+  assert.deepEqual(islandStatus(room({ state: 'complete' })), { label: '', tone: 'done' })
   assert.deepEqual(islandStatus(room({ state: 'paused', needsYou: { kind: 'idle', label: '可以接着聊' } })),
     { label: '已暂停 · 可以接着聊', tone: 'paused' })
   assert.deepEqual(islandStatus(room({ state: 'paused', pauseReason: 'mcp', needsYou: { kind: 'mcp', label: '连接中断' } })),

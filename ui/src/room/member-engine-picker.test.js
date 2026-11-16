@@ -15,6 +15,7 @@ const render = ({ approvalReview, authenticated, requireApprovalGate = true, per
       name: 'Pi',
       available: true,
       engine: 'pi',
+      login: { args: ['auth', 'login'] },
       models: { default: 'deepseek-flash', options: [{ id: 'deepseek-flash' }] },
       ...(authenticated === undefined ? {} : { authenticated }),
       capabilities: { approvalReview },
@@ -40,6 +41,7 @@ test('a logged-out service is not selectable and says why', () => {
   assert.match(html, /未登录/)
   assert.ok(html.includes('disabled'))
   assert.match(html, /没有登录/)
+  assert.match(html, /登录 Pi/)
 })
 
 test('rooms without exec work still allow the same model', () => {

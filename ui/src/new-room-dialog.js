@@ -33,6 +33,7 @@ function NewRoomDialog({
   features = null,
   advisor = { available: false, host: '' },
   seed = null,
+  onRefresh = null,
   startType = null,
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
@@ -58,6 +59,7 @@ function NewRoomDialog({
   const [chatMembers, setChatMembers] = useState(null)
   const [loginBusy, setLoginBusy] = useState(false)
   const [loginNote, setLoginNote] = useState(null)
+  const loginTimer = useRef(null)
   const [error, setError] = useState(null)
   const [choosingType, setChoosingType] = useState(false)
   const goalId = useId()
@@ -223,7 +225,17 @@ function NewRoomDialog({
     setLoginNote(null)
     try {
       await loginRuntime(engine.id)
-      setLoginNote(`已打开 ${engine.name ?? engine.id} 登录终端；完成后重启 Lodge，模型才会出现。`)
+      setLoginNote(`已打开 ${engine.name ?? engine.id} 登录终端；登录完成后这里会自动更新。`)
+      let tries = 0
+      clearInterval(loginTimer.current)
+      loginTimer.current = setInterval(async () => {
+        tries += 1
+        await onRefresh?.()
+        if (tries >= 45) {
+          clearInterval(loginTimer.current)
+          setLoginNote('还没检测到登录完成；完成后点“刷新”再试。')
+        }
+      }, 2000)
     } catch (caught) {
       setLoginNote(String(caught?.message ?? caught))
     } finally {
@@ -484,6 +496,7 @@ function NewRoomDialog({
     choices: directChoices,
     setChoices: setDirectChoices,
     engines,
+    onRefresh,
     features,
     loginBusy,
     onLogin: loginEngineFor,
@@ -584,9 +597,9 @@ function NewRoomDialog({
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-heading' },
         h('h2', null, '新建房间'),
-        h('p', null, choosingType
-          ? '你想先聊清楚，还是直接做出来？'
-          : handoff !== null ? '这件事从聊天室带过来；先确认分歧，再开工。' : roomKind.dialogSubtitle)),
+        choosingType
+          ? null
+          : h('p', null, handoff !== null ? '这件事从聊天室带过来；先确认分歧，再开工。' : roomKind.dialogSubtitle)),
       h('div', { className: 'crew-dialog-head' },
         h('button', {
           ref: closeRef,

@@ -1,5 +1,6 @@
 import { fail, ok } from './result.js'
 import { createBodyFactory } from './body.js'
+import { bodyChangeBlocker } from './body-change.js'
 import { independenceOf } from './independence.js'
 
 const without = (map, id) => Object.fromEntries(Object.entries(map ?? {}).filter(([key]) => key !== id))
@@ -12,12 +13,8 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
     const memberId = typeof body.memberId === 'string' ? body.memberId : ''
     const member = (room.members ?? []).find(item => item.id === memberId)
     if (member === undefined) return fail('invalid', '没有这个成员')
-    if (room.state !== 'active' && room.state !== 'paused') return fail('conflict', '房间已经结束，不能移除成员')
-    if (typeof room.connectionError === 'string' && room.connectionError !== '') return fail('conflict', '基座连接中断，等连上再移除')
-    if (room.busy === true || (room.presence ?? []).some(item => item.state === 'working') || (room.turnQueue ?? []).length > 0) {
-      return fail('conflict', '房间正在做事，等这一回合结束再移除')
-    }
-    if (room.pauseReason === 'approval') return fail('conflict', '先处理待确认的操作，再移除成员')
+    const blocked = bodyChangeBlocker(room, '移除成员')
+    if (blocked !== null) return fail('conflict', blocked)
     if ((room.approvals ?? []).some(item => item.state === 'pending' && item.memberId === memberId)) {
       return fail('conflict', '这个成员还有待确认的操作，先处理掉再移除')
     }
@@ -37,14 +34,11 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
 
     const instances = await bodies.instances()
     const members = (room.members ?? []).filter(item => item.id !== memberId)
-    const engines = without(room.engines, memberId)
-    const independence = independenceOf({ members, engines, instances })
+    const independence = independenceOf({ members, instances })
     const updated = store.updateRoom(room.id, current => {
       const target = (current.members ?? []).find(item => item.id === memberId)
       if (target === undefined) return null
       current.members = (current.members ?? []).filter(item => item.id !== memberId)
-      current.engines = without(current.engines, memberId)
-      current.models = without(current.models, memberId)
       current.worktrees = without(current.worktrees, memberId)
       current.branches = without(current.branches, memberId)
       current.ports = without(current.ports, memberId)

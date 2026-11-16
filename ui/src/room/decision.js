@@ -14,7 +14,7 @@ const statusOfPaused = room => {
   if (room.pauseReason === 'member_error') {
     const who = nameOf(room, room.memberError?.memberId)
     const reason = room.memberError?.kind === 'quota'
-      ? `${who}的模型额度不够`
+      ? `${who}的模型额度用完了`
       : room.memberError?.kind === 'auth'
         ? `${who}的登录失效了`
         : room.memberError?.kind === 'rate_limit'

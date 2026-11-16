@@ -1,6 +1,6 @@
 // 身体状态：成员此刻的载体在做什么、哪里不舒服。只做投影，不发请求。
 const ERROR_LABEL = {
-  quota: '额度不够',
+  quota: '额度用完',
   auth: '登录失效',
   rate_limit: '被限流',
   engine: '没回应',
@@ -34,8 +34,8 @@ export const bodyStatuses = (room, members = [], { labels = {} } = {}) => {
       memberId: member.id,
       name: member.name,
       role: member.role,
-      engine: member.body?.engine ?? member.engine ?? '',
-      model: member.body?.model ?? member.model ?? '',
+      engine: member.body?.engine ?? '',
+      model: member.body?.model ?? '',
     }
     if (room?.memberError?.memberId === member.id) {
       return { ...base, state: 'error', label: ERROR_LABEL[room.memberError.kind] ?? '没回应', tone: 'danger' }

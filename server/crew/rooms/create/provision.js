@@ -38,6 +38,11 @@ export const createProvisioner = ({ engine }) => {
           engine: requestedEngine,
           model: member.model,
           soul: mode.memberSoul?.(member) ?? member.prompt,
+          spec: {
+            prompt: roomType === 'chat' ? '' : (member.prompt ?? ''),
+            skills: member.skills ?? [],
+            mcp: member.mcp ?? [],
+          },
         },
         thread: {
           name: `${title} · ${member.name}`,
@@ -56,8 +61,6 @@ export const createProvisioner = ({ engine }) => {
     const engineFallbacks = Object.fromEntries(created
       .filter(({ memberRef }) => memberRef.fallback === true)
       .map(({ member, memberRef }) => [member.id, { requested: memberRef.requestedEngine, actual: memberRef.engine, reason: memberRef.reason }]))
-    const engines = Object.fromEntries(created.map(({ member, body }) => [member.id, body.engine]))
-    const models = Object.fromEntries(created.map(({ member, body }) => [member.id, body.model]))
     const leadMember = created.find(({ member }) => kindOf(member) === 'planner') ?? created[0]
     const extra = await mode.provisionExtra({ engine, short, workspaces, leadMember }) ?? null
     cleanupExtra = extra?.cleanup ?? null
@@ -79,8 +82,12 @@ export const createProvisioner = ({ engine }) => {
     const chatHost = extra?.chatHost ?? null
 
     const independence = independenceOf({
-      members: created.map(({ member }) => ({ id: member.id, role: member.role, roleKind: kindOf(member) })),
-      engines,
+      members: created.map(({ member, body }) => ({
+        id: member.id,
+        role: member.role,
+        roleKind: kindOf(member),
+        body,
+      })),
       instances,
     })
     const byId = new Map(created.map(item => [item.member.id, item]))
@@ -97,22 +104,17 @@ export const createProvisioner = ({ engine }) => {
         roleProfile: member.roleProfile,
         ...(member.isHost === true ? { isHost: true } : {}),
         station: member.station,
-        engine: member.engine,
         ...(approvalGate === undefined ? {} : { approvalGate }),
-        ...(member.model === undefined ? {} : { model: member.model }),
         permissions: member.permissions,
         writeScope: member.writeScope,
         toolSurface: member.toolSurface,
-        skills: member.skills,
-        mcp: member.mcp,
         approval: member.approval,
         speakBudget: member.speakBudget,
-        ...(typeof member.prompt === 'string' && member.prompt !== '' ? { prompt: member.prompt } : {}),
         ...(member.personality === undefined || member.personality === '' ? {} : { personality: member.personality }),
         body,
       }
     })
-    return { members, engines, models, engineFallbacks, independence, chatRoom, chatHost, bodyIssues }
+    return { members, engineFallbacks, independence, chatRoom, chatHost, bodyIssues }
   }
 
   const cleanup = async () => {

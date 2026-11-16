@@ -44,16 +44,20 @@ const completedRoom = dataDir => {
   return { store, room }
 }
 
-const fakeEngine = () => {
+const fakeEngine = ({ available = ['claude', 'pi', 'deepseek'] } = {}) => {
   const seatNames = []
   const skillAssignments = []
   return {
     seatNames,
     skillAssignments,
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
-    createMemberBot: async ({ name }) => {
+    createMemberBot: async ({ name, engine, model }) => {
       seatNames.push(name)
-      return { id: `member-${name}`, name, engine: 'claude', model: 'claude-sonnet-5' }
+      const actual = engine !== undefined && available.includes(engine) ? engine : available[0]
+      const actualModel = actual === engine && model !== undefined
+        ? model
+        : (actual === 'claude' ? 'claude-sonnet-5' : '')
+      return { id: `member-${name}`, name, engine: actual, model: actualModel }
     },
     setBotSkills: async (botId, skills) => {
       skillAssignments.push({ botId, skills })
@@ -167,7 +171,7 @@ test('declared member skills are assigned to the created base member', async () 
     botId: 'member-执行',
     skills: ['evidence-review'],
   }])
-  assert.deepEqual(result.body.room.members.find(member => member.name === '执行').skills, ['evidence-review'])
+  assert.deepEqual(result.body.room.members.find(member => member.name === '执行').body.spec.skills, ['evidence-review'])
 })
 
 test('member skills fail before creating anything when the base library is off', async () => {
@@ -413,8 +417,8 @@ test('chat speakers can pin their own engine and model', async () => {
   })
   assert.equal(result.ok, true)
   const members = result.body.room.members
-  assert.equal(members[0].engine, 'pi')
-  assert.equal(members[0].model, 'deepseek/deepseek-flash')
+  assert.equal(members[0].body.engine, 'pi')
+  assert.equal(members[0].body.model, 'deepseek/deepseek-flash')
   assert.equal(members[0].name, '甲')
 })
 
@@ -439,7 +443,7 @@ test('an invalid chat turn limit fails before touching the workspace', async () 
 
 test('a single-vendor studio records the downgrade', async () => {
   const { store } = completedRoom(temp('lodge-independence-prefer-'))
-  const engine = fakeEngine()
+  const engine = fakeEngine({ available: ['claude'] })
   engine.capabilities = () => ({ provisioning: true, mentions: true, mcp: false })
   engine.instances = async () => [{ id: 'claude', engine: 'claude', available: true }]
   const result = await run(store, {

@@ -44,7 +44,7 @@ export function goalView(goal, { roster = {} } = {}) {
   const barLabel =
     goal.status === 'drafting' ? t('Aligning the goal with you')
       : goal.status === 'stopped' ? t('Stopped')
-        : goal.status === 'complete' ? t('Goal reached')
+        : goal.status === 'complete' ? ''
           : goal.status === 'paused' ? (current ? t('Paused · {title}', { title: current.title }) : t('Paused'))
             : goal.idle === true ? (current ? t('Waiting for you · {title}', { title: current.title }) : t('Waiting for you'))
               : current === undefined ? t('Final check')
@@ -138,14 +138,16 @@ function GoalClosed({ view, room, actions }) {
     h('span', { className: 'bt-goal-closed-ico', 'aria-hidden': true }, h(TargetIcon)),
     h('span', { className: 'bt-goal-closed-title', title }, title),
     count === '' ? null : h('span', { className: 'bt-goal-closed-count' }, count),
-    h('span', { className: 'bt-goal-closed-sub' },
-      h('span', {
-        className: 'bt-goal-closed-dot',
-        'data-tone': tone,
-        'data-live': room.busy === true ? 'true' : undefined,
-        'aria-hidden': true,
-      }),
-      h('span', { className: 'bt-goal-closed-label' }, status)),
+    status === ''
+      ? null
+      : h('span', { className: 'bt-goal-closed-sub' },
+        h('span', {
+          className: 'bt-goal-closed-dot',
+          'data-tone': tone,
+          'data-live': room.busy === true ? 'true' : undefined,
+          'aria-hidden': true,
+        }),
+        h('span', { className: 'bt-goal-closed-label' }, status)),
     h('span', { className: 'bt-goal-chev', 'aria-hidden': true }, h(ChevronDownIcon))),
   view === null
     ? null

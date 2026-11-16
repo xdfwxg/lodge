@@ -246,10 +246,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           setSwapId(null)
           setSwapError(null)
         },
-        onConfirm: async (engine, model) => {
+        onConfirm: async input => {
           setSwapBusy(true)
           setSwapError(null)
-          const result = await store.swapBody(swapId, engine, model)
+          const result = await store.swapBody(swapId, input.engine, input.model, input)
           setSwapBusy(false)
           if (result?.ok !== true) {
             setSwapError(result?.error ?? '身体没换成')
@@ -282,7 +282,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
         onConfirm: async input => {
           setAddBusy(true)
           setAddError(null)
-          const result = await store.addMember(input.name, input.role, input.engine, input.model)
+          const result = await store.addMember(input.name, input.role, input.engine, input.model, input)
           setAddBusy(false)
           if (result?.ok !== true) {
             setAddError(result?.error ?? '成员没加进去')

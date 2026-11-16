@@ -5,6 +5,7 @@ import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, resolveMembers 
 import { buildRoomRecord, initialRoomMessages } from './record.js'
 import { createProvisioner } from './provision.js'
 import { bodyIssueText } from '../../body-check.js'
+import { plainRuntimeError } from '../../base-error.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
 import { gateRecordOf } from '../../gate/index.js'
@@ -163,8 +164,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       templateId,
       plan: resolvedPlan,
       independence: provisioned.independence,
-      engines: provisioned.engines,
-      models: provisioned.models,
       engineFallbacks: provisioned.engineFallbacks,
       members: provisioned.members,
       chatRoom: provisioned.chatRoom,
@@ -179,7 +178,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       roomType,
       orchestration: orchestration.id,
       shadowReview,
-      builtStages,
+        builtStages,
       roster,
       align: initialAlign,
       verify,
@@ -243,9 +242,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   } catch (error) {
     if (!stored) {
       await discard()
-      throw new Error(`房间没能建起来：${error?.message ?? error}`)
+      throw new Error(`房间没能建起来：${plainRuntimeError(error)}`)
     }
-    store.appendMessage(room.id, { kind: 'system', text: `房间建好了，但没能启动：${error?.message ?? error}` })
-    return created({ room, warning: String(error?.message ?? error) })
+    store.appendMessage(room.id, { kind: 'system', text: `房间建好了，但没能启动：${plainRuntimeError(error)}` })
+    return created({ room, warning: plainRuntimeError(error) })
   }
 }

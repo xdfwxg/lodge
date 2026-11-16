@@ -25,7 +25,7 @@ export const roomNeedsYou = (room, messages = []) => {
       const memberId = room.memberError?.memberId
       const name = memberId === undefined ? '成员' : memberDisplayName(room, memberId)
       const label = room.memberError?.kind === 'quota'
-        ? `${name}的模型额度不够`
+        ? `${name}的模型额度用完了`
         : room.memberError?.kind === 'auth'
           ? `${name}的登录失效了`
           : room.memberError?.kind === 'rate_limit'

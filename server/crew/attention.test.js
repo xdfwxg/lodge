@@ -75,7 +75,7 @@ test('a member engine error asks the human to intervene with a concrete reason',
   }, []), {
     kind: 'error',
     stage: null,
-    label: '执行者的模型额度不够',
+    label: '执行者的模型额度用完了',
   })
   assert.equal(roomNeedsYou({
     state: 'paused',

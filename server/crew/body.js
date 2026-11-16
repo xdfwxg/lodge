@@ -14,19 +14,27 @@ export const createBodyFactory = ({ engine }) => {
   const healthOf = (engineId, list) => bodyIssueOf(list.find(item => item.id === engineId))
 
   const incarnate = async ({ member, config, thread }) => {
+    const spec = config.spec ?? {}
+    const skills = Array.isArray(spec.skills) ? spec.skills : []
+    const mcp = Array.isArray(spec.mcp) ? spec.mcp : []
+    const bodySpec = {
+      prompt: typeof spec.prompt === 'string' ? spec.prompt : '',
+      skills,
+      mcp,
+    }
     const memberRef = await engine.createMemberBot({
       name: member.name,
       soul: config.soul,
       description: member.station,
       approval: member.approval,
-      mcp: member.mcp,
+      mcp,
       engine: config.engine,
       model: config.model,
     })
     try {
-      if (Array.isArray(member.skills) && member.skills.length > 0) {
+      if (skills.length > 0) {
         try {
-          await engine.setBotSkills(memberRef.id, member.skills)
+          await engine.setBotSkills(memberRef.id, skills)
         } catch (error) {
           throw new Error(`技能没挂上（${member.name}）：${error?.message ?? error}`)
         }
@@ -50,6 +58,7 @@ export const createBodyFactory = ({ engine }) => {
           sessionRef: baseRoom.sessionRef,
           engine: memberRef.engine,
           ...(memberRef.model === undefined ? {} : { model: memberRef.model }),
+          spec: bodySpec,
         },
       }
     } catch (error) {

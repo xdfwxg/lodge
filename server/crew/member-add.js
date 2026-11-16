@@ -1,6 +1,9 @@
 import { fail, ok } from './result.js'
 import { createBodyFactory } from './body.js'
+import { bodyChangeBlocker } from './body-change.js'
+import { plainRuntimeError } from './base-error.js'
 import { bodyIssueOf } from './body-check.js'
+import { normalizeBodySpec } from './body-spec.js'
 import { independenceOf } from './independence.js'
 import { roomBulletin, roomModeOfRoom } from './rooms/kinds.js'
 import { resolveRoomType } from './room-types/index.js'
@@ -22,12 +25,8 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
   const bodies = createBodyFactory({ engine })
   const add = async (room, body = {}) => {
     if (resolveRoomType(room.roomType)?.id !== 'studio') return fail('invalid', '聊天室暂不支持添加成员')
-    if (room.state !== 'active' && room.state !== 'paused') return fail('conflict', '房间已经结束，不能再加成员')
-    if (typeof room.connectionError === 'string' && room.connectionError !== '') return fail('conflict', '基座连接中断，等连上再加')
-    if (room.busy === true || (room.presence ?? []).some(item => item.state === 'working') || (room.turnQueue ?? []).length > 0) {
-      return fail('conflict', '房间正在做事，等这一回合结束再加')
-    }
-    if (room.pauseReason === 'approval') return fail('conflict', '先处理待确认的操作，再加成员')
+    const blocked = bodyChangeBlocker(room, '加成员')
+    if (blocked !== null) return fail('conflict', blocked)
     const role = ROLE_ALIASES[typeof body.role === 'string' ? body.role : '']
     if (role === undefined) return fail('invalid', '只能添加执行官或验收员；房间只有一个主机器人')
     const name = typeof body.name === 'string' ? body.name.trim().slice(0, 32) : ''
@@ -59,14 +58,29 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       .filter(member => (member.roleKind ?? member.role) === 'verifier')
       .map(member => `@${member.name}`)
       .join('、') || '@验收员'
-    const prompt = template.prompt
+    const defaultPrompt = template.prompt
       .replaceAll('你是执行官', `你是${name}`)
       .replaceAll('你是验收员', `你是${name}`)
       .replaceAll('@验收员', verifierRefs)
+    const { spec: bodySpec, error: specError } = normalizeBodySpec({
+      input: { prompt: body.prompt, skills: body.skills, mcp: body.mcp },
+      fallback: { prompt: defaultPrompt, skills: template.skills, mcp: template.mcp },
+    })
+    if (specError !== undefined) return fail('invalid', specError)
     const mode = roomModeOfRoom(room)
-    const spec = { ...template, id, name, engine: instance.id, model, prompt, engineExplicit: true }
+    const spec = {
+      ...template,
+      id,
+      name,
+      engine: instance.id,
+      model,
+      prompt: bodySpec.prompt,
+      skills: bodySpec.skills,
+      mcp: bodySpec.mcp,
+      engineExplicit: true,
+    }
     Object.assign(spec, mode.memberRole?.(spec) ?? {})
-    const soul = mode.memberSoul?.(spec) ?? prompt
+    const soul = mode.memberSoul?.(spec) ?? bodySpec.prompt
 
     let memberWorkspace = null
     let incarnation = null
@@ -75,7 +89,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       memberWorkspace = provider.addMember({ room, member: spec })
       incarnation = await bodies.incarnate({
         member: spec,
-        config: { engine: instance.id, model, soul },
+        config: { engine: instance.id, model, soul, spec: bodySpec },
         thread: {
           name: `${room.name} · ${name}`,
           goal: room.goal,
@@ -88,8 +102,6 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
       sharedUpdated = await bodies.join({ sharedRoomId: room.chatRoom?.id, refs })
 
-      const engines = { ...(room.engines ?? {}), [id]: incarnation.body.engine }
-      const models = { ...(room.models ?? {}), [id]: model }
       const updated = store.updateRoom(room.id, current => {
         current.members = [...(current.members ?? []), {
           id,
@@ -100,26 +112,19 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
           roleKind: spec.roleKind ?? (role === 'worker' ? 'executor' : 'verifier'),
           roleProfile: spec.roleProfile ?? name,
           station: template.station,
-          engine: instance.id,
-          ...(model === '' ? {} : { model }),
           approvalGate: true,
           permissions: template.permissions,
           writeScope: template.writeScope,
           toolSurface: template.toolSurface,
-          skills: template.skills,
-          mcp: template.mcp,
           approval: template.approval,
           speakBudget: template.speakBudget,
-          prompt,
           body: incarnation.body,
         }]
-        current.engines = engines
-        current.models = models
         current.worktrees = { ...(current.worktrees ?? {}), [id]: memberWorkspace.path }
         current.branches = { ...(current.branches ?? {}), [id]: memberWorkspace.branch }
         current.ports = { ...(current.ports ?? {}), [id]: memberWorkspace.port }
         current.workspaceEnv = { ...(current.workspaceEnv ?? {}), [id]: memberWorkspace.environment }
-        current.independence = independenceOf({ members: current.members, engines, instances })
+        current.independence = independenceOf({ members: current.members, instances })
         return {
           events: [{
             type: 'member.added',
@@ -154,7 +159,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       if (memberWorkspace !== null && typeof provider.removeMember === 'function') {
         try { provider.removeMember({ room, member: spec }) } catch {}
       }
-      return fail('conflict', `成员没加进去：${error?.message ?? error}`)
+      return fail('conflict', `成员没加进去：${plainRuntimeError(error)}`)
     }
   }
 

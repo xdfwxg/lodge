@@ -1,4 +1,5 @@
 node_modules/
+.crew/
 .claude/
 .data/
 .data.backup-*/
