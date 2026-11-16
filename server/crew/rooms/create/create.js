@@ -53,7 +53,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   }
   const membersResult = resolveMembers(body, roomType)
   if (membersResult.error !== undefined) return fail('invalid', membersResult.error)
-  const { templateId, roster, workers, verifiers, worker, lead, align } = membersResult
+  let { templateId, roster, workers, verifiers, worker, lead, align } = membersResult
   // A confirmed handoff already did the alignment at the Gate; do not ask for it
   // again inside the studio.
   const initialAlign = align && (handoff === null || handoff === undefined)
@@ -88,6 +88,15 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const short = uniqueRoomShort({ store, workspace: ports.workspace, provider })
   const sourceRepo = requestedRepo === '' ? join(ports.workspace.root(), `room-${short}`) : resolve(requestedRepo)
   const workspaceCaps = provider.capabilities()
+  if (workspaceCaps.isolation === 'direct') {
+    // 原地修改没有验收副本；验收员只读，避免 exec 改到用户目录。
+    roster = roster.map(member => (
+      member.role === 'verifier' || member.roleKind === 'verifier'
+        ? { ...member, permissions: { ...member.permissions, exec: false, write: false }, toolSurface: ['read'] }
+        : member
+    ))
+    verifiers = roster.filter(member => member.role === 'verifier')
+  }
   if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行成员')
   }

@@ -22,13 +22,14 @@ const setup = async (options = {}) => {
     live: true,
     repoPath: dir,
     sourceRepo: dir,
+    workspace: { provider: options.provider ?? 'git', capabilities: {} },
     stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
     members: [{
       id: 'worker',
       name: '执行',
-      role: 'worker',
-      roleKind: 'executor',
-      permissions: { read: true, exec: true, write: true },
+      role: options.role ?? 'worker',
+      roleKind: options.roleKind ?? 'executor',
+      permissions: options.permissions ?? { read: true, exec: true, write: true },
       toolSurface: ['read', 'exec', 'write'],
       skills: [],
       mcp: [],
@@ -74,7 +75,7 @@ const setup = async (options = {}) => {
     engine,
     answers,
     room: () => store.readRoom('room-1'),
-    permission: subtitle => {
+    permission: (subtitle, cardOverrides = {}) => {
       onEvent({
         type: 'message',
         message: {
@@ -86,6 +87,7 @@ const setup = async (options = {}) => {
             action: 'exec',
             subtitle,
             options: [],
+            ...cardOverrides,
           },
         },
       })
@@ -208,6 +210,39 @@ test('stopping a room expires approvals that can no longer be answered', async (
     const late = await ctx.live.decideApproval('room-1', ctx.room().approvals[0].id, 'allow')
     assert.equal(late.ok, false)
     assert.match(late.reason, /没有待确认/)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('a permission denial answers the base and is not replayed', async () => {
+  const ctx = await setup({ permissions: { read: true, exec: false, write: false } })
+  try {
+    ctx.permission('forbidden.txt', { requestId: 'req-deny', tool: 'Write', action: 'write' })
+    await tick()
+    assert.equal(ctx.answers[0].behavior, 'deny')
+    assert.ok(ctx.store.readMessages('room-1').some(message => /权限拒绝/.test(message.text ?? '')))
+    assert.equal(ctx.store.readMessages('room-1').some(message => /权限卡处理失败/.test(message.text ?? '')), false)
+    ctx.permission('forbidden.txt', { requestId: 'req-deny', tool: 'Write', action: 'write' })
+    await tick()
+    assert.equal(ctx.answers.length, 1)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('a direct-workspace verifier loses exec', async () => {
+  const ctx = await setup({
+    provider: 'direct',
+    role: 'verifier',
+    roleKind: 'verifier',
+    permissions: { read: true, exec: true, write: false },
+  })
+  try {
+    ctx.permission('npm test', { requestId: 'req-direct', tool: 'Bash', action: 'exec' })
+    await tick()
+    assert.equal(ctx.answers[0].behavior, 'deny')
+    assert.ok(ctx.store.readMessages('room-1').some(message => /原地目录没有独立复核副本/.test(message.text ?? '')))
   } finally {
     ctx.close()
   }

@@ -33,3 +33,11 @@ test('unknown actions and missing seats fail closed', () => {
   assert.equal(decidePermission(undefined, 'read'), false)
   assert.equal(decidePermission({}, 'write'), false)
 })
+
+test('a verifier in a direct workspace cannot exec', async () => {
+  const { decidePermission } = await import('./permission.js')
+  const verifier = { role: 'verifier', permissions: { read: true, exec: true, write: false } }
+  assert.equal(decidePermission(verifier, 'read', { direct: true }), true)
+  assert.equal(decidePermission(verifier, 'exec', { direct: true }), false)
+  assert.equal(decidePermission(verifier, 'exec'), true)
+})

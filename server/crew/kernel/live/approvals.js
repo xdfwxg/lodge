@@ -156,7 +156,9 @@ export const createLiveApprovals = ({
     const room = store.readRoom(entry.roomId)
     const member = memberOf(room, memberId)
     const readOnly = readOnlyFor(room)
-    const allowed = decidePermission(member, card.action, { readOnly })
+    const directVerifier = room?.workspace?.provider === 'direct' &&
+      (member?.role === 'verifier' || member?.roleKind === 'verifier')
+    const allowed = decidePermission(member, card.action, { readOnly, direct: room?.workspace?.provider === 'direct' })
     const external = allowed ? externalAction(card) : null
     const cardSession = sessionRef ?? entry.members.get(memberId)?.sessionRef
     if (external !== null) {
@@ -175,8 +177,8 @@ export const createLiveApprovals = ({
         const blockedByReadOnly = readOnly && (card.action === 'write' || card.action === 'exec')
         store.appendMessage(entry.roomId, {
           kind: 'system',
-          text: observe && blockedByReadOnly
-            ? `信任级别 observe：${member?.name ?? memberId} 只读；提升到 verify 后才能使用 ${card.tool ?? card.action}。`
+          text: directVerifier
+            ? `原地目录没有独立复核副本：${member?.name ?? memberId} 只能读，不能使用 ${card.tool ?? card.action}；要跑命令请改用 git 或复制工作区。`
             : blockedByReadOnly
               ? `只读讨论阶段：${member?.name ?? memberId} 不能使用 ${card.tool ?? card.action}；先讨论，结论定了再改文件。`
               : `权限拒绝：${member?.name ?? memberId} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,

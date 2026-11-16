@@ -16,6 +16,7 @@ const result = spawnSync(process.execPath, [
   'shared/**/*.test.js',
   'server/crew/**/*.test.js',
   'ui/src/**/*.test.js',
+  'electron/**/*.test.js',
 ], { stdio: 'inherit', env })
 
 rmSync(root, { recursive: true, force: true })

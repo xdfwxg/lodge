@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, write
 import { createServer } from 'node:net'
 import { homedir } from 'node:os'
 import { delimiter, join } from 'node:path'
+import { externalUrl, openablePath, sameOrigin } from './policy.mjs'
 
 const APP_NAME = 'Lodge'
 const DEFAULT_PORT = 8787
@@ -476,15 +477,16 @@ const createWindow = port => {
   })
   const origin = `http://127.0.0.1:${port}`
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith(origin)) return { action: 'allow' }
-    void shell.openExternal(url)
+    if (sameOrigin(url, origin)) return { action: 'allow' }
+    const external = externalUrl(url)
+    if (external !== null) void shell.openExternal(external)
     return { action: 'deny' }
   })
   window.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(origin)) {
-      event.preventDefault()
-      void shell.openExternal(url)
-    }
+    if (sameOrigin(url, origin)) return
+    event.preventDefault()
+    const external = externalUrl(url)
+    if (external !== null) void shell.openExternal(external)
   })
   window.once('ready-to-show', () => window?.show())
   void window.loadURL(origin)
@@ -514,10 +516,9 @@ const boot = async () => {
     }
   })
   ipcMain.handle('lodge:open-path', async (_event, target) => {
-    if (typeof target !== 'string' || target.trim() === '') {
-      return { ok: false, error: '缺少路径' }
-    }
-    const error = await shell.openPath(target.trim())
+    const verdict = openablePath(target)
+    if (verdict.ok !== true) return verdict
+    const error = await shell.openPath(verdict.path)
     return error === '' ? { ok: true } : { ok: false, error }
   })
   ipcMain.handle('lodge:choose-directory', async () => {
