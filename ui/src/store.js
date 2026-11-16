@@ -117,7 +117,7 @@ export function createStore() {
         const health = await fetch('/api/health')
         if (health.ok) runtime = (await health.json()).runtime ?? null
       } catch {
-        runtime = { ok: false, error: '健康检查失败' }
+        runtime = { ok: false, error: 'Lodge 服务没有响应' }
       }
       for (const room of data.rooms) for (const message of room.messages) seen.add(message.id)
       if (stopped) return
@@ -201,19 +201,23 @@ export function createStore() {
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
     createSubroom: async goal => {
       const data = await post(`/api/rooms/${state.activeId}/subrooms`, { goal })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '创建子部门失败' }
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '子房间没能建起来' }
       await load()
       return { ok: true, room: data.room }
     },
 
-    recommendRoster: async (goal, repoPath) => {
-      const data = await post('/api/roster/recommend', { goal, repoPath })
+    recommendRoster: async (goal, repoPath, handoff) => {
+      const data = await post('/api/roster/recommend', {
+        goal,
+        repoPath,
+        ...(handoff === null || handoff === undefined ? {} : { handoff }),
+      })
       if (data?.proposal === undefined) return { ok: false, error: state.error ?? 'Lodge 没有给出方案' }
       return { ok: true, proposal: data.proposal }
     },
     createRoom: async (goal, answers = {}) => {
       const data = await post('/api/rooms', { goal, ...answers })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '建房失败' }
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '房间没能建起来' }
       await load()
       rememberRoom(data.room.id)
       patch({ activeId: data.room.id })
@@ -221,7 +225,7 @@ export function createStore() {
     },
     openSampleRoom: async () => {
       const data = await post('/api/rooms/sample', {})
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '打开示例失败' }
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '示例房间没能打开' }
       await load()
       rememberRoom(data.room.id)
       patch({ activeId: data.room.id })
@@ -229,21 +233,21 @@ export function createStore() {
     },
     renameRoom: async (id, name) => {
       const data = await post(`/api/rooms/${id}/rename`, { name })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '重命名失败' }
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '名字没能改过来' }
       await load()
       return { ok: true, room: data.room }
     },
     archiveRoom: async (id, archived = true) => {
       const data = await post(`/api/rooms/${id}/archive`, { archived })
       if (data?.room === undefined) {
-        return { ok: false, error: state.error ?? (archived ? '归档失败' : '取消归档失败') }
+        return { ok: false, error: state.error ?? (archived ? '没能归档' : '没能取消归档') }
       }
       await load()
       return { ok: true, room: data.room }
     },
     deleteRoom: async id => {
       const data = await post(`/api/rooms/${id}/delete`, {})
-      if (data?.id === undefined) return { ok: false, error: state.error ?? '删除失败' }
+      if (data?.id === undefined) return { ok: false, error: state.error ?? '没能删除' }
       await load()
       return { ok: true, id: data.id }
     },

@@ -173,6 +173,7 @@ function NewRoomDialog({
   const canStartStudio = !busy && goal.trim() !== '' && !needRepo && seatsReady &&
     (handoffGate === null ? checkReady : handoffGate.ready)
   const startDisabled = busy || goal.trim() === '' || needRepo || (!isChat && !canStartStudio)
+  const planFirst = !isChat && handoff !== null && proposal === null && typeof onRecommend === 'function'
 
   const addChatSeat = () => {
     setChatSeats(current => {
@@ -247,7 +248,7 @@ function NewRoomDialog({
     setRecommending(true)
     setError(null)
     try {
-      const result = await onRecommend(goal.trim(), repoPath.trim())
+      const result = await onRecommend(goal.trim(), repoPath.trim(), handoff)
       if (result?.ok !== true) {
         setError(result?.error ?? 'Lodge 没有给出方案；请重试')
         return
@@ -477,7 +478,9 @@ function NewRoomDialog({
     onShadowReview: setShadowReview,
     recommending,
     canRecommend: goal.trim() !== '',
-    onRecommend: isChat || typeof onRecommend !== 'function' ? null : () => void recommend(),
+    onRecommend: isChat || handoff !== null || typeof onRecommend !== 'function'
+      ? null
+      : () => void recommend(),
   }
 
   const goalField = h('div', { className: 'crew-field' },
@@ -540,6 +543,9 @@ function NewRoomDialog({
         onAcceptanceDraft: proposal === null ? setAcceptanceDraft : null,
       }),
     roomKind.primaryFields(setupProps),
+    recommending
+      ? h('p', { className: 'crew-dialog-note' }, '规划师正在把交接单拆成步骤…')
+      : null,
     h('details', {
       className: 'crew-new-advanced',
       open: advanced,
@@ -595,13 +601,23 @@ function NewRoomDialog({
             },
           }, '返回修改')
           : null,
+        planFirst && !recommending
+          ? h('button', {
+            type: 'button',
+            className: 'crew-ghost',
+            disabled: startDisabled,
+            onClick: () => void startStudio(),
+          }, '直接开工')
+          : null,
         step === 0
           ? h('button', {
             type: 'button',
             className: 'crew-accept crew-dialog-primary',
-            disabled: startDisabled,
-            onClick: () => void (isChat ? startChat() : startStudio()),
-          }, busy ? '正在创建…' : roomKind.cta)
+            disabled: startDisabled || (planFirst && recommending),
+            onClick: () => void (planFirst ? recommend() : (isChat ? startChat() : startStudio())),
+          }, planFirst
+            ? (recommending ? '规划师正在拆步骤…' : '让规划师拆步骤')
+            : (busy ? '正在创建…' : roomKind.cta))
           : h('button', {
             type: 'button',
             className: 'crew-accept crew-dialog-primary',

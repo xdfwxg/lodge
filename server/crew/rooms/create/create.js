@@ -67,6 +67,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const seatsResult = resolveSeats(body, roomType)
   if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
   const { templateId, roster, workers, verifiers, worker, lead, align } = seatsResult
+  // A confirmed handoff already did the alignment at the Gate; do not ask for it
+  // again inside the studio.
+  const initialAlign = align && (handoff === null || handoff === undefined)
   if (typeof mode.validateRoster === 'function') {
     try {
       mode.validateRoster(roster, { verify })
@@ -113,12 +116,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       handoff,
       verify,
       acceptance: effectiveAcceptance,
-      align,
+      align: initialAlign,
       workspaces,
       verifiers,
       roomType: roomType.id,
     })
-    const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, verify, acceptance, align })
+    const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, verify, acceptance, align: initialAlign })
     room = buildRoomRecord({
       short,
       title,
@@ -148,7 +151,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       orchestration: orchestration.id,
       builtStages,
       roster,
-      align,
+      align: initialAlign,
       verify,
       acceptance,
       chatTurnLimit,
@@ -191,7 +194,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       live,
       room,
       plan: resolvedPlan,
-      align,
+      align: initialAlign,
       workers,
       lead,
       worker,

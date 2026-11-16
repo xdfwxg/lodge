@@ -138,7 +138,7 @@ test('a proposal without done fails closed', () => {
     done: [],
     seats: [{ role: 'worker', name: '执行' }],
     verify: 'manual',
-  })), /done/)
+  })), /可核对的结果/)
 })
 
 test('a manual proposal with a verifier fails closed', () => {
@@ -148,7 +148,7 @@ test('a manual proposal with a verifier fails closed', () => {
       { role: 'verifier', name: '复核' },
     ],
     verify: 'manual',
-  })), /验收命令/)
+  })), /一条能跑的检查/)
 })
 
 test('a second verifier is rejected by the seat contract', () => {
@@ -204,12 +204,16 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
     acceptance: 'npm test',
     why: '固定三人小队分工',
   })
+  let sentPrompt = ''
   const engine = {
     capabilities: () => ({ provisioning: true, mentions: true }),
     health: async () => ({ ok: true }),
     createSeatBot: async () => ({ id: 'bot-1' }),
     createRoom: async () => ({ id: 'probe-1', sessionRef: 'thread-1' }),
-    sendTurn: async () => ({ accepted: true }),
+    sendTurn: async ({ text }) => {
+      sentPrompt = text
+      return { accepted: true }
+    },
     history: async () => ({ messages: [{ kind: 'turn', turn: { reply: proposalReply } }] }),
     cancelTurn: async () => {},
     deleteRoom: async () => {},
@@ -224,9 +228,26 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
     default: provider,
     remove: source => removed.push(source),
   }
-  const result = await recommendRoster({ engine, body: { goal: '小改动', repoPath: '' }, workspace })
+  const result = await recommendRoster({
+    engine,
+    body: {
+      goal: '小改动',
+      repoPath: '',
+      handoff: {
+        topic: '发布检查',
+        consensus: ['先做最小版本'],
+        disagreements: [],
+        constraints: [],
+        todos: ['写清单'],
+      },
+    },
+    workspace,
+  })
   assert.equal(result.ok, true, JSON.stringify(result))
   assert.equal(result.body.proposal.seats.length, 3)
+  assert.match(sentPrompt, /已经确认的交接单/)
+  assert.match(sentPrompt, /先做最小版本/)
+  assert.match(sentPrompt, /不要再生成目标对齐/)
   assert.equal(cleaned, 1)
   assert.equal(removed.length, 1)
 })

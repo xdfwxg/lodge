@@ -4,6 +4,7 @@ import { defaultOrchestrationId, resolveAssigneeTokens, resolveOrchestration } f
 import { fail, ok } from './result.js'
 import { supportsRuntime } from './runtime-port.js'
 import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
+import { handoffGoalText, normalizeHandoff } from '../../shared/handoff.js'
 
 const MAX_GOAL = 2000
 const RECOMMEND_TIMEOUT = 90_000
@@ -19,23 +20,25 @@ const normalizeRole = role => {
   return ROLE_ALIASES.get(raw) ?? ROLE_ALIASES.get(raw.toLowerCase()) ?? null
 }
 
-// 编队是语义判断，归规划师：先看目标与仓库事实，再决定需要几个席位。
-const recommendationPrompt = (goal, repoPath) => [
+// 编队是语义判断，归规划师：先看目标与仓库事实，再决定需要几个成员。
+const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '你是规划师。现在只做编队判断：不写代码、不改文件、不建群。',
   `目标：${goal}`,
-  `工作目录（只读副本）：${repoPath}`,
+  `工作文件夹（只读副本）：${repoPath}`,
+  handoff === null ? '' : `已经确认的交接单：\n${handoffGoalText(handoff)}`,
+  handoff === null ? '' : '交接单已经由人确认；不要再生成目标对齐/确认阶段，直接按主题、共识、约束、待办拆 1–3 个可交付步骤。',
   '先看仓库事实（README、package.json、测试命令、目录结构）。默认三席：规划师、执行官、验收员。',
   '- seats 默认输出三个：一个 lead、一个 worker、一个 verifier。只有工作能清晰拆成互不冲突的两块、确实需要并行时，才输出两个 worker；此时 orchestration 必须是 parallel。不要输出单人房或其它角色。',
   '- seats[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
-  '- 名字用「规划师」「执行官」「验收员」；reason 说明各席位负责什么。',
+  '- 名字用「规划师」「执行官」「验收员」；reason 说明各成员负责什么。',
   '- why 只写一句话、不超过 45 字：默认写三人如何分工；parallel 时说明两块工作如何并行。不要复述目标，也不要加总结句。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
   '- stages 写 1–3 个可交付阶段；每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
-  '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline。parallel 必须有两个执行席位，只用于可并行的阶段；critique 不增加席位，用于关键交付，让验收席位主动找反例。',
-  '- stages[].assignees 只写执行席位（id 或名字，通常是「执行官」）；parallel 阶段写两个执行席位，其它阶段写一个。不要写验收员，验收由系统按独立性规则派发。',
-  '- 执行方案就是对齐与确认。不要生成第一个只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
+  '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline。parallel 必须有两个执行成员，只用于可并行的阶段；critique 不增加成员，用于关键交付，让验收成员主动找反例。',
+  '- stages[].assignees 只写执行成员（id 或名字，通常是「执行官」）；parallel 阶段写两个执行成员，其它阶段写一个。不要写验收员，验收由系统按独立性规则派发。',
+  '- 方案就是对齐与确认。不要生成第一个只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
   '- JSON 代码块必须完整闭合。',
   '只输出一个 JSON 代码块，不要其他文字：',
   '```json',
@@ -142,7 +145,7 @@ const repairJson = text => {
   return out
 }
 
-// 模型只给语义建议；权限、席位上限与验收方式仍在这里由业务规则校验。
+// 模型只给语义建议；权限、成员上限与验收方式仍在这里由业务规则校验。
 export const parseProposal = reply => {
   const json = extractJsonBlock(reply)
   if (json === null) throw new Error('Lodge 没有给出可用的方案，请重试')
@@ -161,7 +164,7 @@ export const parseProposal = reply => {
       .map(item => item.trim().slice(0, 200))
       .slice(0, 6)
     : []
-  if (done.length === 0) throw new Error('开工方案缺少可核对的 done')
+  if (done.length === 0) throw new Error('开工方案里没有可核对的结果')
   const tooManyDone = Array.isArray(data.done) && data.done.length > 6
   const questions = Array.isArray(data.questions)
     ? data.questions
@@ -178,7 +181,7 @@ export const parseProposal = reply => {
   const entries = data.seats.map((seat, index) => {
     const role = normalizeRole(seat?.role)
     if (role === null) {
-      throw new Error(`第 ${index + 1} 个席位角色不合法：${String(seat?.role ?? '空')}`)
+      throw new Error(`第 ${index + 1} 个成员角色不合法：${String(seat?.role ?? '空')}`)
     }
     const rawName = typeof seat.name === 'string' ? seat.name.trim() : ''
     const reason = typeof seat.reason === 'string' ? seat.reason.trim().slice(0, 160) : ''
@@ -217,12 +220,12 @@ export const parseProposal = reply => {
     : []
   const manual = data.verify === 'manual' || (rawAcceptance === '' && stages.every(stage => stage.kind === 'decision'))
   if (manual && verifiers.length > 0 && stages.every(stage => stage.kind === 'decision')) {
-    throw new Error('有验收席位时需要可执行验收命令；去掉验收席位或补一条命令')
+    throw new Error('有验收成员时，得有一条能跑的检查；去掉验收成员，或补一条检查')
   }
   const orchestrationId = orchestration?.id ?? defaultOrchestrationId
   const notes = [
     requestedOrchestration !== '' && orchestration === null ? `未知编排策略「${requestedOrchestration}」，按流水线执行` : '',
-    orchestrationId === 'parallel' && workers.length < 2 ? '并行需要至少两个执行席位；当前按单席位执行' : '',
+    orchestrationId === 'parallel' && workers.length < 2 ? '并行需要至少两个执行成员；当前按单成员执行' : '',
     data.verify === 'test' && rawAcceptance === '' ? '方案没有给出可执行命令，验收改为你确认' : '',
     tooManyQuestions ? '规划师给了超过 3 个问题，只保留前 3 个' : '',
     tooManyDone ? '规划师给了超过 6 条 done，只保留前 6 条' : '',
@@ -254,7 +257,7 @@ const waitForTurn = async ({ engine, sessionRef }) => {
       message.turn.reply.trim() !== ''
     ))
     if (turn !== undefined) {
-      // 基座 digest 可能截断长回复；原文在席位线程的 text 消息里，优先取含 seats 的最长一段。
+      // 基座 digest 可能截断长回复；原文在成员线程的 text 消息里，优先取含 seats 的最长一段。
       const candidates = [
         turn.turn.reply,
         ...messages
@@ -277,9 +280,10 @@ const waitForTurn = async ({ engine, sessionRef }) => {
 export const recommendRoster = async ({ engine, body, workspace }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > MAX_GOAL) return fail('invalid', '目标不能为空，且不超过 2000 字')
-  if (engine.capabilities().provisioning !== true) return fail('conflict', '当前运行环境不支持编队建议')
+  const handoff = normalizeHandoff(body.handoff)
+  if (engine.capabilities().provisioning !== true) return fail('conflict', '当前版本还不支持编队建议')
   const health = await engine.health()
-  if (health.ok !== true) throw new Error('服务未连接，先检查命令行或本地服务')
+  if (health.ok !== true) throw new Error('Lodge 服务没有连上，先看看它是否还在运行')
 
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
   const generatedRepo = requestedRepo === ''
@@ -287,7 +291,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
   const sourceRepo = generatedRepo ? join(workspace.root(), `roster-${short}`) : resolve(requestedRepo)
   let provider = workspace.default
   if (!generatedRepo) {
-    if (!workspace.exists(sourceRepo)) return fail('invalid', '工作目录不存在')
+    if (!workspace.exists(sourceRepo)) return fail('invalid', '工作文件夹不存在')
     // 建议是只读的；不在用户目录里 git init 或写文件。
     if (!workspace.default.probeSource({ source: sourceRepo }).ok) {
       provider = workspace.byId('direct')
@@ -296,7 +300,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
     }
   }
   const advisor = rosterFromRoles([{ role: 'lead', name: '规划师' }])[0]
-  const prompt = recommendationPrompt(goal, sourceRepo)
+  const prompt = recommendationPrompt(goal, sourceRepo, handoff)
   // 只读克隆是一次性工作区；不弹审批，避免读仓库时卡在 permission 卡上。
   advisor.approval = 'auto'
 
@@ -315,7 +319,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
     probeRoom = await engine.createRoom({
       name: `编队建议 · ${short}`,
       goal,
-      bulletin: `目标：${goal}\n仓库：${sourceRepo}`,
+      bulletin: `目标：${goal}\n仓库：${sourceRepo}${handoff === null ? '' : `\n交接单：\n${handoffGoalText(handoff)}`}`,
       members: [advisorRef.id],
       cwd: workspaces.seats[advisor.id].path,
       leadId: advisorRef.id,

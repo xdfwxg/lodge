@@ -35,7 +35,7 @@ export function App() {
   useEffect(() => {
     const next = {}
     for (const room of visibleRooms) {
-      if (room.needsYou) next[room.id] = room.needsYou.label ?? room.needsYou.kind ?? '等你'
+      if (room.needsYou) next[room.id] = room.needsYou.label ?? room.needsYou.kind ?? '待处理'
     }
     const prev = seenNeeds.current
     seenNeeds.current = next
@@ -79,7 +79,7 @@ export function App() {
     seed,
     startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
-    onRecommend: (goal, repoPath) => store.recommendRoster(goal, repoPath),
+    onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
   })
 
   if (visibleRooms.length === 0) {
