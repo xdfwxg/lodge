@@ -186,6 +186,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
     setBusy(false)
   }
 
+  const blocked = room.blocked?.stage === index ? room.blocked.reason : null
   return h('div', { className: 'crew-msg' },
     h('div', { className: 'crew-msg-avatar' }, h(BotMark, { size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
@@ -193,9 +194,10 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
         h('div', { className: 'crew-card-head' },
           `第 ${index + 1} 步 · 检查`,
           h('span', { className: 'crew-verdict', 'data-pending': true },
-            evidence === undefined ? '等检查结果' : exit !== 0 ? '检查没通过' : rejected ? '退回了' : '验收员在看')),
+            blocked !== null ? (blocked === 'restart' ? '重启后没完成' : '执行超时') : evidence === undefined ? '等检查结果' : exit !== 0 ? '检查没通过' : rejected ? '退回了' : '验收员在看')),
         h('div', { className: 'crew-card-body' },
           h('div', { className: 'crew-gate-title' }, stage.title),
+          blocked === null ? null : h('p', { className: 'crew-gate-question' }, '没完成的成员已经停下；可以退回重做，或把这一步拆小。'),
           room.repoPath === null || room.repoPath === undefined
             ? h('p', { className: 'crew-gate-question' }, '房间还没有工作文件夹，没法检查。先选一个文件夹。')
             : null,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  windowTranscript,
   dayKey,
   groupSteps,
   describeSteps,
@@ -232,4 +233,15 @@ test('MCP tool names are shortened in the step summary', () => {
     { id: 's3', kind: 'activity', meta: { tool: 'Bash', ok: true } },
   ]
   assert.equal(describeSteps(steps), '3 步 · session_search ×2、运行命令')
+})
+
+
+test('the transcript window keeps recent chat but never drops evidence or verdicts', () => {
+  const messages = Array.from({ length: 8 }, (_, index) => ({
+    id: `m${index}`,
+    kind: index === 1 ? 'evidence' : index === 2 ? 'verdict' : 'chat',
+    seq: index,
+  }))
+  const windowed = windowTranscript(messages, { limit: 3 })
+  assert.deepEqual(windowed.map(message => message.id), ['m1', 'm2', 'm5', 'm6', 'm7'])
 })

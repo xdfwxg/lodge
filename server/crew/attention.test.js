@@ -43,6 +43,18 @@ test('an open question outranks the stage type', () => {
   assert.equal(roomNeedsYou(room({ openQuestion: 'which path?' }), []).kind, 'question')
 })
 
+test('a lost base connection and a timed-out stage both ask the human', () => {
+  const lost = atDeliverable()
+  lost.live = true
+  lost.connectionError = '基座连接中断：timeout'
+  assert.deepEqual(roomNeedsYou(lost, []), { kind: 'connection', stage: null, label: '连接中断' })
+  const blocked = atDeliverable()
+  blocked.blocked = { stage: 1, reason: 'timeout' }
+  assert.deepEqual(roomNeedsYou(blocked, []), { kind: 'blocked', stage: 1, label: '执行超时，需要你退回重做' })
+  blocked.blocked.reason = 'restart'
+  assert.equal(roomNeedsYou(blocked, []).label, '重启后未完成，需要你处理')
+})
+
 test('a busy member is not a needs-you state', () => {
   assert.equal(roomNeedsYou(room({ busy: true }), []), null)
 })

@@ -332,6 +332,29 @@ test('review request and verdict consumption update the round without crossing t
   assert.ok(store.messages.some(message => message.text === '全部验收员通过，可以签字了。'))
 })
 
+test('critique review is blind to the execution conversation', async () => {
+  const room = makeRoom({ verifiers: ['verifier'], orchestration: 'critique' })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: 'm2' }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  assert.match(sent[0].prompt, /对抗复核：只依据本轮证据/)
+  assert.doesNotMatch(sent[0].prompt, /阶段进展/)
+})
+
 test('manual evidence also goes through the Verifier before human signoff', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
@@ -759,4 +782,123 @@ test('shadow review says when the advisor call failed', async () => {
   await review.shadowSettled()
   assert.ok(store.messages.some(message => message.meta?.advisorFailed === true))
   assert.equal(store.readRoom().advisorShadow, undefined)
+})
+
+
+test('restart wakes an assignment that never reported', async () => {
+  const room = makeRoom({ live: true, busy: false })
+  const store = fakeStore(room)
+  store.writeAssignment({
+    id: 'as-open', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: {}, status: 'sent', context: {}, flags: {},
+  })
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  await turns.resume()
+  assert.ok(sent.some(item => item.memberId === 'executor'))
+})
+
+
+test('an integration check failure leaves evidence and does not start review', async () => {
+  registerWorkspaceProvider('test-integration-check', {
+    capabilities: () => ({ merge: true }),
+    integrate: () => ({ ok: true, files: [] }),
+    head: () => 'head-1',
+    rangeChanges: async () => ({ diff: '', files: ['hello.txt'], manifest: [] }),
+    isolatedCopy: () => ({ root: '/tmp/lodge-copy', path: '/tmp/lodge-copy/ws' }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-integration-check' },
+    repoPath: '/repo',
+    sourceRepo: '/src',
+    branches: { executor: 'crew/room/executor' },
+    worktrees: { executor: '/wt/executor' },
+  })
+  const store = fakeStore(room)
+  let reviewed = 0
+  const integrator = createStageIntegrator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    markProgress: () => {},
+    requestReview: async () => { reviewed += 1 },
+    run: async () => ({ exit: 1, output: 'failed', durationMs: 5, sandbox: true }),
+  })
+  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
+  const evidence = store.messages.find(message => message.kind === 'evidence')
+  assert.equal(evidence.meta.exit, 1)
+  assert.equal(reviewed, 0)
+  assert.ok(store.messages.some(message => /检查没通过/.test(message.text ?? '')))
+})
+
+test('a merge conflict stops integration with a concrete room conflict', async () => {
+  registerWorkspaceProvider('test-integration-conflict', {
+    capabilities: () => ({ merge: true }),
+    integrate: () => ({ ok: false, files: ['src/app.js'] }),
+    head: () => 'head-1',
+    rangeChanges: async () => ({ diff: '', files: [], manifest: [] }),
+    isolatedCopy: () => ({ root: '/tmp/lodge-copy', path: '/tmp/lodge-copy/ws' }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-integration-conflict' },
+    repoPath: '/repo',
+    sourceRepo: '/src',
+    branches: { executor: 'crew/room/executor' },
+    worktrees: { executor: '/wt/executor' },
+  })
+  const store = fakeStore(room)
+  const integrator = createStageIntegrator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    markProgress: () => {},
+    requestReview: async () => {},
+    run: async () => ({ exit: 0 }),
+  })
+  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
+  assert.equal(store.current.mergeConflict.files[0], 'src/app.js')
+  assert.equal(store.messages.some(message => message.kind === 'evidence'), false)
+})
+
+
+test('an unavailable isolated copy stops integration without inventing evidence', async () => {
+  registerWorkspaceProvider('test-integration-copy-fail', {
+    capabilities: () => ({ merge: true }),
+    integrate: () => ({ ok: true, files: [] }),
+    head: () => 'head-1',
+    rangeChanges: async () => ({ diff: '', files: [], manifest: [] }),
+    isolatedCopy: () => { throw new Error('no copy') },
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-integration-copy-fail' },
+    repoPath: '/repo',
+    sourceRepo: '/src',
+    branches: { executor: 'crew/room/executor' },
+    worktrees: { executor: '/wt/executor' },
+  })
+  const store = fakeStore(room)
+  const integrator = createStageIntegrator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    markProgress: () => {},
+    requestReview: async () => {},
+    run: async () => ({ exit: 0 }),
+  })
+  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
+  assert.equal(store.messages.some(message => message.kind === 'evidence'), false)
+  assert.ok(store.messages.some(message => /副本没能准备好/.test(message.text ?? '')))
 })

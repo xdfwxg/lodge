@@ -40,15 +40,19 @@ const setup = async (options = {}) => {
   store.writeRoom(room)
   const answers = []
   let onEvent = null
+  let roomsFailure = null
   const engine = {
     capabilities: () => ({ approvals: true, streaming: true, provisioning: true, mentions: true }),
-    rooms: async () => [{
+    rooms: async () => {
+      if (roomsFailure !== null) throw roomsFailure
+      return [{
       id: 'base-1',
       name: '执行',
       sessionRef: 'thread-1',
       working: false,
       usage: { turns: 0, costMicroUsd: 0, tokens: {} },
-    }],
+    }]
+    },
     history: async () => ({ messages: [] }),
     subscribe: ({ onEvent: handler }) => {
       onEvent = handler
@@ -66,6 +70,8 @@ const setup = async (options = {}) => {
     emit: () => {},
       ports: createCrewPorts(),
     approvalTimeoutMs: options.approvalTimeoutMs,
+    retryMs: options.retryMs,
+    startAttempts: options.startAttempts,
   })
   await live.attach(store.readRoom('room-1'))
   return {
@@ -74,6 +80,7 @@ const setup = async (options = {}) => {
     live,
     engine,
     answers,
+    failRooms: error => { roomsFailure = error },
     room: () => store.readRoom('room-1'),
     permission: (subtitle, cardOverrides = {}) => {
       onEvent({
@@ -95,6 +102,22 @@ const setup = async (options = {}) => {
     close: () => rmSync(dir, { recursive: true, force: true }),
   }
 }
+
+test('concurrent attach reuses one live entry, and a failed attach leaves no half entry', async () => {
+  const ctx = await setup()
+  try {
+    ctx.live.detach('room-1')
+    ctx.failRooms(new Error('base down'))
+    await assert.rejects(ctx.live.attach(ctx.room()), /base down/)
+    ctx.failRooms(null)
+    const room = ctx.room()
+    const [first, second] = await Promise.all([ctx.live.attach(room), ctx.live.attach(room)])
+    assert.equal(first, second)
+    assert.equal(ctx.live.isAttached('room-1'), true)
+  } finally {
+    ctx.close()
+  }
+})
 
 test('an unanswered approval pauses the room, and deciding it resumes the room', async () => {
   const ctx = await setup({ approvalTimeoutMs: 30 })
@@ -278,7 +301,7 @@ test('a direct-workspace verifier loses exec', async () => {
     ctx.permission('npm test', { requestId: 'req-direct', tool: 'Bash', action: 'exec' })
     await tick()
     assert.equal(ctx.answers[0].behavior, 'deny')
-    assert.ok(ctx.store.readMessages('room-1').some(message => /原地目录没有独立复核副本/.test(message.text ?? '')))
+    assert.ok(ctx.store.readMessages('room-1').some(message => /原地目录的验收员只能读/.test(message.text ?? '')))
   } finally {
     ctx.close()
   }
@@ -307,6 +330,22 @@ test('pending approvals are never dropped by the history cap', async () => {
     const pending = ctx.room().approvals.filter(item => item.state === 'pending')
     assert.equal(pending.length, 21)
     assert.equal(ctx.room().approvals.length, 21)
+  } finally {
+    ctx.close()
+  }
+})
+
+
+test('a lost base marks the room and a later start clears it', async () => {
+  const ctx = await setup({ retryMs: 10, startAttempts: 0 })
+  try {
+    ctx.failRooms(new Error('base down'))
+    await ctx.live.start()
+    await new Promise(resolve => setTimeout(resolve, 20))
+    assert.match(ctx.room().connectionError ?? '', /base down/)
+    ctx.failRooms(null)
+    await new Promise(resolve => setTimeout(resolve, 40))
+    assert.equal(ctx.room().connectionError, undefined)
   } finally {
     ctx.close()
   }

@@ -173,6 +173,7 @@ ADVISOR_URL=http://127.0.0.1:8798/evaluate
 SQLite（`crew.db`）是房间、消息、交接和审计事件的唯一真相。`transcript.jsonl` 是逐条 fsync 的崩溃恢复日志和可读镜像，不单独重建整间房。启动时会把“日志已写、库还没写”的消息补进库；已有消息永远以库为准。
 
 - 启动前和每 6 小时留一份 `backups/crew-<时间>-<原因>.db`，保留最近 10 份
+- 工具步骤只保留最近 2000 条，审计事件保留最近 5000 条；聊天、证据和结论不自动删
 - 启动时检查 `PRAGMA integrity_check`；库损坏会拒绝启动，而不是带着坏数据继续跑
 - 数据库带 `PRAGMA user_version`；比当前 Lodge 新的库会拒绝打开
 
@@ -196,7 +197,7 @@ npm run data:restore -- --data-dir "$HOME/Library/Application Support/lodge/data
 
 ## 发布
 
-`.github/workflows/release.yml` 在推送 `v*` 标签时构建 arm64 zip，校验 ad-hoc 签名，生成 `SHA256SUMS.txt`，挂到 GitHub Release。也可以手动触发，只产出构建工件，不发布 Release。
+`.github/workflows/release.yml` 在推送 `v*` 标签时构建 Mac arm64 zip，并在 Windows/Linux runner 上构建对应安装包，做包内容检查和启动 smoke；Mac zip 校验 ad-hoc 签名并生成 `SHA256SUMS.txt` 挂到 GitHub Release。Windows/Linux 产物先作为构建工件，不做签名和自动更新。
 
 当前没有接自动更新；发布后在 GitHub Releases 手动下载替换。没有 Developer ID 签名和公证时，macOS 自动更新无法可靠工作。
 
@@ -204,9 +205,11 @@ npm run data:restore -- --data-dir "$HOME/Library/Application Support/lodge/data
 
 ```bash
 npm test
+npm run test:ui          # 需要本机 Chrome；CI 里用 chrome channel
 npm run build
 npm run prepare:runtimes
 npm run package:mac:dir
+npm run smoke:package -- --app release/mac-arm64/Lodge.app
 ```
 
 端到端验证需要 Pi 已登录：新建工作室，执行引擎选 Pi，给一条可执行的验收命令，确认执行成员实际跑了命令并产生证据。

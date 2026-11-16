@@ -479,6 +479,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     resume,
     requestReview: review.request,
     startStage: stageStarter.startStage,
+    watchStageTimeout: stageStarter.watchStageTimeout,
     busyReview: review.isBusy,
   }
 }

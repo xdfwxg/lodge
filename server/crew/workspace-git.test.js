@@ -34,6 +34,29 @@ test('acceptance runs in a disposable copy and cannot write the source repo', ()
   assert.equal(existsSync(copy.path), false)
 })
 
+test('a low disk watermark stops preparation before worktrees are left behind', () => {
+  const sourceRepo = repo()
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-disk-'))
+  const previousRoot = process.env.CREW_WORKTREE_ROOT
+  const previousMin = process.env.CREW_DISK_MIN_FREE_MB
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  process.env.CREW_DISK_MIN_FREE_MB = '999999999'
+  try {
+    assert.throws(
+      () => prepareRoom({ source: sourceRepo, short: 'disk1', members: membersFor('delivery-triad') }),
+      /磁盘可用空间不足/,
+    )
+    assert.equal(existsSync(join(worktreeRoot, 'disk1')), false)
+  } finally {
+    if (previousRoot === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previousRoot
+    if (previousMin === undefined) delete process.env.CREW_DISK_MIN_FREE_MB
+    else process.env.CREW_DISK_MIN_FREE_MB = previousMin
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
 test('verifier worktrees never receive tracked env secrets', () => {
   const sourceRepo = repo()
   writeFileSync(join(sourceRepo, '.env'), 'TOKEN=secret\n')

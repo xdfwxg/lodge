@@ -33,7 +33,7 @@ test('the same speaker is not picked twice in a row when another is eligible', (
   assert.equal(member, 'b')
 })
 
-const setup = ({ summaryText = '这是总结。' } = {}) => {
+const setup = ({ summaryText = '这是总结。', silent = false, busy = false } = {}) => {
   let current = normalizeLegacyTestRoom({
     id: 'room-chat',
     kind: 'room',
@@ -80,20 +80,22 @@ const setup = ({ summaryText = '这是总结。' } = {}) => {
   }
   const engine = {
     history: async () => ({ messages: [...history] }),
-    rooms: async () => [{ id: 'chat', working: false }],
+    rooms: async () => [{ id: 'chat', working: busy }],
     sendTurn: async ({ text }) => {
       const ref = text.includes('LodgeHost') ? 'H' : ['A', 'B'].find(item => text.includes(`@${item}`))
       const summary = text.includes('请总结')
       const id = `u${history.length + 1}`
       history.push({ id, role: 'user', kind: 'text', text, authorRef: null, at: Date.now() })
-      history.push({
-        id: `a${history.length + 1}`,
-        role: 'agent',
-        kind: 'text',
-        text: summary ? summaryText : '这是发言。',
-        authorRef: ref,
-        at: Date.now(),
-      })
+      if (!silent) {
+        history.push({
+          id: `a${history.length + 1}`,
+          role: 'agent',
+          kind: 'text',
+          text: summary ? summaryText : '这是发言。',
+          authorRef: ref,
+          at: Date.now(),
+        })
+      }
       if (!summary) {
         const authorId = Object.entries(current.seatBots).find(([, value]) => value === ref)?.[0]
         store.appendMessage(current.id, { kind: 'chat', authorId, text: '这是发言。' })
@@ -239,4 +241,39 @@ test('a chat room can run fewer turns than the default', async () => {
   const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
   assert.equal(conclusion.meta.turns, 2)
   assert.equal(conclusion.meta.turnLimit, 2)
+})
+
+
+test('a busy base skips the round instead of queueing every speaker', async () => {
+  const ctx = setup({ busy: true })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    engine: ctx.engine,
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 10,
+    pollMs: 1,
+    idleMs: 5,
+  })
+  await scheduler.start(ctx.room())
+  assert.equal(ctx.history.filter(message => message.role === 'user' && !message.text.includes('请总结')).length, 0)
+  assert.ok(ctx.messages.some(message => /基座一直忙/.test(message.text ?? '')))
+})
+
+test('three silent speakers end the round early', async () => {
+  const ctx = setup({ silent: true })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    engine: ctx.engine,
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 5,
+    pollMs: 1,
+    idleMs: 5,
+  })
+  await scheduler.start(ctx.room())
+  assert.ok(ctx.messages.some(message => /本轮提前收尾/.test(message.text ?? '')))
+  assert.equal(ctx.history.filter(message => message.role === 'user' && !message.text.includes('请总结')).length, 3)
 })

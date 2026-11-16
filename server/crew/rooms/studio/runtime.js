@@ -46,7 +46,10 @@ export const createStudioRuntime = ({
       await entry.turns.resume(options)
     },
 
-    resumeIfRunning: async () => {},
+    resumeIfRunning: async (entry, room) => {
+      const index = (room?.stages ?? []).findIndex(stage => stage.state === 'active')
+      if (index >= 0) entry.turns.watchStageTimeout(index)
+    },
 
     start: async () => { throw new Error('工作室没有讨论流程') },
     continue: async () => { throw new Error('工作室没有继续讨论') },

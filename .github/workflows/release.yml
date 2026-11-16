@@ -53,22 +53,7 @@ jobs:
           test -f "$app/Contents/Resources/licenses/third_party/OpenMausBot-LICENSE.txt"
 
       - name: Smoke test packaged server
-        run: |
-          set -e
-          app="release/mac-arm64/Lodge.app"
-          data="$(mktemp -d)"
-          ELECTRON_RUN_AS_NODE=1 CREW_PORT=8788 CREW_DATA_DIR="$data" \
-            "$app/Contents/MacOS/Lodge" "$app/Contents/Resources/app/server/index.js" &
-          pid=$!
-          trap 'kill $pid 2>/dev/null || true; rm -rf "$data"' EXIT
-          for _ in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:8788/api/health >/dev/null; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "packaged server did not answer" >&2
-          exit 1
+        run: node scripts/smoke-package.mjs --app release/mac-arm64/Lodge.app
 
       - name: Verify ad-hoc signatures
         run: |
@@ -97,3 +82,59 @@ jobs:
             release/Lodge-*.zip
             release/SHA256SUMS.txt
           generate_release_notes: true
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/checkout@v4
+        with:
+          repository: milind-soni/OpenMausBot
+          ref: v0.1.161
+          path: base-src
+      - run: npm ci
+      - run: cd base-src; pnpm install --frozen-lockfile; pnpm build:server
+      - run: $env:LODGE_BASE_DIST = 'base-src/dist-server'; npm run prepare:base
+      - run: npm run prepare:runtimes
+      - run: npm run build
+      - run: npx electron-builder --win --x64 --publish never
+      - run: node scripts/smoke-package.mjs --app release/win-unpacked --platform win32
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: release/*.exe
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/checkout@v4
+        with:
+          repository: milind-soni/OpenMausBot
+          ref: v0.1.161
+          path: base-src
+      - run: npm ci
+      - run: cd base-src && pnpm install --frozen-lockfile && pnpm build:server
+      - run: LODGE_BASE_DIST=base-src/dist-server npm run prepare:base
+      - run: npm run prepare:runtimes
+      - run: npm run build
+      - run: npx electron-builder --linux --x64 --publish never
+      - run: node scripts/smoke-package.mjs --app release/linux-unpacked --platform linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: release/*.AppImage

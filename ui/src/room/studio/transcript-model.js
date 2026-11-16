@@ -21,6 +21,18 @@ export const isStandbyChat = (message, room) => (
 )
 
 // 工作室时间线要把过程步骤也拿回来；聊天室仍用原 Timeline。
+// 时间线只渲染最近一段；证据和结论不能被窗口切掉，否则结果卡会失去依据。
+export const windowTranscript = (messages, { limit = 600 } = {}) => {
+  const list = Array.isArray(messages) ? messages : []
+  if (list.length <= limit) return list
+  const recent = list.slice(-limit)
+  const keep = new Set(recent.map(message => message.id))
+  for (const message of list.slice(0, -limit)) {
+    if (message.kind === 'evidence' || message.kind === 'verdict') keep.add(message.id)
+  }
+  return list.filter(message => keep.has(message.id))
+}
+
 export const orderTranscript = messages => {
   const timeline = buildTimeline(messages)
   const steps = timeline.process.filter(message => message.kind === 'activity')

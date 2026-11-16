@@ -5,7 +5,7 @@ import { memberOf } from './room-members.js'
 const INTENTS = Object.freeze({
   handoff: { label: '阶段交接', authority: '按你的角色执行' },
   align: { label: '目标对齐', authority: '只写对齐判断和待确认项' },
-  review: { label: '独立复核', authority: '只读 · 只写结论' },
+  review: { label: '复核', authority: '只读 · 只写结论' },
   decision: { label: '退回决定', authority: '只写你的决定和理由' },
   chat: { label: '聊天发言', authority: '信息' },
   notice: { label: '通知', authority: '信息' },

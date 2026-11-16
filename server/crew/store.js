@@ -93,7 +93,9 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       at: message.ts,
       meta: message.meta ?? {},
     }))
-  const readMessagesSince = since => db.prepare('SELECT payload FROM messages WHERE seq > ? ORDER BY seq').all(since).map(row => JSON.parse(row.payload))
+  const readMessagesSince = (since, { limit = 5000 } = {}) => db.prepare(
+    'SELECT payload FROM (SELECT seq, payload FROM messages WHERE seq > ? ORDER BY seq DESC LIMIT ?) ORDER BY seq',
+  ).all(since, Math.max(1, Math.min(10000, Number(limit) || 5000))).map(row => JSON.parse(row.payload))
   const readAssignment = id => {
     const row = db.prepare('SELECT payload FROM assignment WHERE id = ?').get(id)
     return row === undefined ? null : JSON.parse(row.payload)
@@ -283,6 +285,34 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     return stored
   }
 
+  // 事件镜像也补缺，不覆盖库里的记录。
+  const recoverEvent = event => {
+    if (typeof event?.id !== 'string' || event.id === '' || typeof event?.roomId !== 'string') return null
+    if (db.prepare('SELECT 1 FROM room_event WHERE id = ?').get(event.id) !== undefined) return null
+    db.prepare('INSERT INTO room_event (id, room_id, type, payload, at) VALUES (?, ?, ?, ?, ?)')
+      .run(event.id, event.roomId, String(event.type ?? ''), JSON.stringify(event.payload ?? {}), event.at ?? Date.now())
+    return event
+  }
+
+  // 工具步骤和审计事件可以保留最近一段；聊天、证据和结论不自动删。
+  const pruneActivityMessages = (roomId, { keep = 2000 } = {}) => {
+    const size = Math.max(0, Number(keep) || 0)
+    const rows = db.prepare("SELECT id, payload FROM messages WHERE room_id = ? ORDER BY seq DESC").all(roomId)
+    const old = rows
+      .filter(row => JSON.parse(row.payload).kind === 'activity')
+      .slice(size)
+      .map(row => row.id)
+    for (const id of old) db.prepare('DELETE FROM messages WHERE id = ?').run(id)
+    return old.length
+  }
+
+  const pruneEvents = (roomId, { keep = 5000 } = {}) => {
+    const size = Math.max(0, Number(keep) || 0)
+    return Number(db.prepare(
+      'DELETE FROM room_event WHERE room_id = ? AND seq NOT IN (SELECT seq FROM room_event WHERE room_id = ? ORDER BY seq DESC LIMIT ?)',
+    ).run(roomId, roomId, size).changes)
+  }
+
   // 崩溃恢复只补日志里有、库里没有的消息；已有消息永远以库为准。
   const recoverMessage = message => {
     if (typeof message?.id !== 'string' || message.id === '' || typeof message?.roomId !== 'string') return null
@@ -316,6 +346,9 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     nextSeq,
     persistMessage,
     recoverMessage,
+    recoverEvent,
+    pruneActivityMessages,
+    pruneEvents,
     appendMessage,
     upsertMessage,
     appendEvent,

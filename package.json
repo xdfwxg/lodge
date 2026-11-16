@@ -29,7 +29,9 @@
     "eval:chat": "node scripts/eval-chat.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "check:regressions": "node scripts/check-regressions.mjs",
-    "data:restore": "node scripts/data-restore.mjs"
+    "data:restore": "node scripts/data-restore.mjs",
+    "smoke:package": "node scripts/smoke-package.mjs",
+    "test:ui": "playwright test"
   },
   "dependencies": {
     "react": "19.3.0",
@@ -38,6 +40,7 @@
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "concurrently": "^9.2.5",
     "electron": "^43.8.8",
     "electron-builder": "^26.18.0",

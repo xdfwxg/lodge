@@ -7,6 +7,6 @@ test('a multi-member room without a verifier says the human signs off', () => {
 })
 
 test('the triad keeps the degraded label when both seats share one engine', () => {
-  assert.equal(independenceLabel({ independence: 'none' }), '这次复核不够独立')
+  assert.equal(independenceLabel({ independence: 'none' }), '复核独立性有限')
   assert.equal(independenceLabel({ independence: 'vendor' }), '独立复核')
 })

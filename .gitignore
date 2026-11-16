@@ -9,3 +9,5 @@ build/base/
 .DS_Store
 
 evals/planning/results/
+test-results/
+playwright-report/

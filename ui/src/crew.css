@@ -126,6 +126,7 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-decision-text{font-size:13.5px;line-height:20px;font-weight:600;color:var(--bt-ink)}
 .crew-decision-rec{grid-column:2;font-size:13px;line-height:19px;color:var(--bt-ink-2)}
 .crew-decision-rec::before{content:'建议：';color:var(--bt-ink-3)}
+.studio-transcript-more{align-self:center;margin:2px auto 8px}
 .studio-timeline{display:flex;flex-direction:column;gap:10px;min-width:0}
 .studio-result-first{margin-bottom:4px}
 .studio-worklog{margin-top:4px;border-top:1px solid var(--bt-line)}

@@ -241,7 +241,7 @@ export const createLiveApprovals = ({
         store.appendMessage(entry.roomId, {
           kind: 'system',
           text: directVerifier
-            ? `原地目录没有独立复核副本：${member?.name ?? memberId} 只能读，不能使用 ${card.tool ?? card.action}；要跑命令请改用 git 或复制工作区。`
+            ? `原地目录的验收员只能读，不能使用 ${card.tool ?? card.action}；要跑命令请改用 git 或复制工作区。`
             : blockedByReadOnly
               ? `只读讨论阶段：${member?.name ?? memberId} 不能使用 ${card.tool ?? card.action}；先讨论，结论定了再改文件。`
               : `权限拒绝：${member?.name ?? memberId} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,

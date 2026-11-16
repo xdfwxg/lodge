@@ -1,5 +1,5 @@
 // 阶段门的纯投影：只看房间与消息，不依赖 React，方便单独验证。
-const HUMAN_GATE_KINDS = new Set(['decision', 'setup', 'rework'])
+const HUMAN_GATE_KINDS = new Set(['decision', 'setup', 'rework', 'blocked'])
 
 export const stageNeedsHuman = (room, activeIndex) => {
   const needs = room.needsYou

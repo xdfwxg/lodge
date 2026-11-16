@@ -42,6 +42,21 @@ test('a message written to transcript but missing from SQLite is recovered', () 
   }
 })
 
+test('an event written to the mirror but missing from SQLite is recovered', () => {
+  const ctx = setup()
+  try {
+    const event = ctx.store.appendEvent('room-1', 'room.test', { value: 1 })
+    ctx.store.db.prepare('DELETE FROM room_event WHERE id = ?').run(event.id)
+    const result = recoverMessages(ctx.store)
+    assert.equal(result.events, 1)
+    assert.equal(ctx.store.readEvents('room-1').some(item => item.id === event.id), true)
+  } finally {
+    ctx.store.db.close()
+    rmSync(ctx.dataDir, { recursive: true, force: true })
+    rmSync(ctx.repo, { recursive: true, force: true })
+  }
+})
+
 test('recovery never overwrites a newer SQLite version with a transcript line', () => {
   const ctx = setup()
   try {

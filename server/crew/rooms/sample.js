@@ -98,7 +98,7 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
       title: '复核',
       role: 'verifier',
       roleKind: 'verifier',
-      station: '只读 · 独立复核',
+      station: '只读 · 只写结论',
       engine: 'demo',
       permissions: { read: true, exec: true, write: false },
       writeScope: 'none',

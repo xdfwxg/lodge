@@ -466,7 +466,7 @@ function NewRoomDialog({
               onChange: event => setAcceptanceDraft(event.target.value),
             })),
     verify === 'manual' && hasVerifier
-      ? h('p', { className: 'crew-dialog-note' }, '你自己看结果就行；想要独立复核，就补一条检查。')
+      ? h('p', { className: 'crew-dialog-note' }, '你自己看结果就行；想要复核有据可查，就补一条检查。')
       : null,
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 

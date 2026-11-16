@@ -52,6 +52,29 @@ test('a database from a newer Lodge is refused instead of being guessed at', () 
   }
 })
 
+test('activity steps and audit events keep only the recent window', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-retention-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-retention-repo-'))
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', kind: 'room', name: 'R', goal: 'g', state: 'active', repoPath: repo, stages: [], members: [] })
+    for (const text of ['one', 'two', 'three']) {
+      store.appendMessage('r1', { kind: 'activity', text })
+    }
+    store.appendMessage('r1', { kind: 'chat', text: 'keep me' })
+    assert.equal(store.pruneActivityMessages('r1', { keep: 1 }), 2)
+    assert.deepEqual(store.readMessages('r1').filter(message => message.kind === 'activity').map(message => message.text), ['three'])
+    assert.equal(store.readMessages('r1').some(message => message.text === 'keep me'), true)
+    for (let index = 0; index < 3; index += 1) store.appendEvent('r1', `room.test.${index}`, {})
+    assert.equal(store.pruneEvents('r1', { keep: 1 }), 2)
+    assert.equal(store.readEvents('r1').length, 1)
+  } finally {
+    store.db.close()
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
 test('deleting a room removes its messages and events but keeps other rooms', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-delete-store-'))
   const repo = mkdtempSync(join(tmpdir(), 'crew-delete-repo-'))

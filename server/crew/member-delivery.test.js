@@ -65,7 +65,7 @@ test('a room-facing name is already the address and is not prefixed twice', asyn
 
 test('the envelope names the intent and authority', () => {
   assert.equal(envelopeOf({ from: '验收流程', intent: 'decision' }), '[来自 验收流程 · 退回决定 · 只写你的决定和理由]')
-  assert.equal(envelopeOf({ from: '规划师', intent: 'review' }), '[来自 规划师 · 独立复核 · 只读 · 只写结论]')
+  assert.equal(envelopeOf({ from: '规划师', intent: 'review' }), '[来自 规划师 · 复核 · 只读 · 只写结论]')
   assert.equal(envelopeOf({}), '[来自 Lodge · 阶段交接 · 按你的角色执行]')
 })
 

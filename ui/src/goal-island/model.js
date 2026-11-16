@@ -13,6 +13,8 @@ const NEEDS_TONE = {
   merge: 'paused',
   parallel: 'paused',
   mcp: 'paused',
+  connection: 'paused',
+  blocked: 'waiting',
 }
 
 export const activeIndex = room => room.stages.findIndex(stage => stage.state === 'active')

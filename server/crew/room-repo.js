@@ -56,6 +56,20 @@ export const appendEventLog = (room, event) => {
   }
 }
 
+export const readEventLog = room => {
+  const file = join(roomDir(room), 'events.jsonl')
+  if (!existsSync(file)) return []
+  const events = []
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    if (line.trim() === '') continue
+    try {
+      const event = JSON.parse(line)
+      if (typeof event?.id === 'string' && event.id !== '') events.push(event)
+    } catch {}
+  }
+  return events
+}
+
 export const writeEvidence = (room, message) => {
   const dir = ensureDirInside(roomRootOf(room), join(roomDir(room), 'evidence'))
   writeDurable(join(roomDir(room), message.meta.evidenceRef), JSON.stringify(message.meta, null, 2))

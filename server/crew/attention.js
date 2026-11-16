@@ -8,6 +8,16 @@ export const roomNeedsYou = (room, messages = []) => {
   if (room.state === 'active' && pendingApprovals(room).length > 0) {
     return { kind: 'approval', stage: null, label: '待确认' }
   }
+  if (room.state === 'active' && room.live === true && typeof room.connectionError === 'string' && room.connectionError !== '') {
+    return { kind: 'connection', stage: null, label: '连接中断' }
+  }
+  if (room.state === 'active' && room.blocked?.reason !== undefined) {
+    return {
+      kind: 'blocked',
+      stage: Number.isInteger(room.blocked.stage) ? room.blocked.stage : null,
+      label: room.blocked.reason === 'restart' ? '重启后未完成，需要你处理' : '执行超时，需要你退回重做',
+    }
+  }
   if (room.state === 'paused') {
     if (room.pauseReason === 'mcp') return { kind: 'mcp', stage: null, label: '连接中断' }
     if (room.pauseReason === 'approval') return { kind: 'approval', stage: null, label: '确认超时' }

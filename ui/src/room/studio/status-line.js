@@ -20,7 +20,11 @@ export const studioActivityLine = (room, view) => {
   const where = stage === null ? '' : ` · 第 ${stage.index + 1} 步「${stage.title}」`
   if (room.needsYou?.kind === 'review') {
     const names = (room.verifiers ?? []).map(id => nameOf(room, id)).filter(Boolean).join('、')
-    return `${names === '' ? '验收员' : names} 正在独立复核${where}`
+    const who = names === '' ? '验收员' : names
+    const label = room.independence === 'vendor'
+      ? '正在独立复核'
+      : room.independence === 'model' ? '正在复核；同一家模型，独立性有限' : '正在复核'
+    return `${who} ${label}${where}`
   }
   const working = stage?.tasks?.find(task => task.status === 'working')
   const busyMember = (Array.isArray(room.busyMembers) ? room.busyMembers[0] : room.busyMember) ?? working?.owner

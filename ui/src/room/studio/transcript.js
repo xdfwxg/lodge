@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useMemo } from 'react'
+import { Fragment, createElement as h, useMemo, useState } from 'react'
 import { DeliveryCard } from './delivery-card.js'
 import { GateLine } from './gate-line.js'
 import { dedupeChatStreams } from '../timeline-model.js'
@@ -13,6 +13,7 @@ import {
   isStandbyChat,
   orderTranscript,
   showsMember,
+  windowTranscript,
 } from './transcript-model.js'
 
 // 工作室时间线按阶段分章：当前阶段展开，已完成阶段收成一行，结果卡在最后。
@@ -32,7 +33,12 @@ export function StudioTranscript({
   delivery = null,
 }) {
   const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
-  const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
+  const allMessages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
+  const [expanded, setExpanded] = useState(false)
+  const messages = useMemo(
+    () => expanded ? allMessages : windowTranscript(allMessages),
+    [allMessages, expanded],
+  )
   const items = useMemo(() => {
     const { timeline, items: ordered } = orderTranscript(messages)
     const hidden = new Set(hideKinds)
@@ -82,8 +88,17 @@ export function StudioTranscript({
     }).filter(Boolean)
   }
 
+  const hiddenCount = allMessages.length - messages.length
   const timeline = h('div', { className: 'studio-timeline' }, ...[
     h(GateLine, { key: 'gate', gate: room.gate }),
+    hiddenCount > 0
+      ? h('button', {
+        key: 'older',
+        type: 'button',
+        className: 'crew-ghost studio-transcript-more',
+        onClick: () => setExpanded(true),
+      }, `显示更早的 ${hiddenCount} 条`)
+      : null,
     ...items.chapters.map(chapter => h(StageChapter, { key: chapter.key, chapter }, ...renderChapterBody(chapter))),
   ].filter(Boolean))
 

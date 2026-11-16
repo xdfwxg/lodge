@@ -223,6 +223,8 @@ const NEEDS_META = {
   idle: '可继续',
   error: '需要处理',
   mcp: '连接中断',
+  connection: '连接中断',
+  blocked: '待处理',
 }
 
 // The row only shows a status word when the room needs you. Complete and live

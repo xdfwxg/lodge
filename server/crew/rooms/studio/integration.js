@@ -33,6 +33,15 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     }
   }
 
+  const clearBlocked = stageIndex => {
+    const updated = store.updateRoom(roomId, current => {
+      if (current.blocked?.stage !== stageIndex) return null
+      current.blocked = null
+      return { events: [] }
+    })
+    if (updated !== null) emit?.('room', updated)
+  }
+
   const integrateStage = async ({ stageIndex, workers, base, turnId, failed = [] }) => {
     const room = store.readRoom(roomId)
     if (room === null) return
@@ -66,6 +75,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         const updated = store.updateRoom(roomId, current => {
           const conflict = { stage: stageIndex, worker, branch, files: result.files }
           current.mergeConflict = conflict
+          if (current.blocked?.stage === stageIndex) current.blocked = null
           return { events: [] }
         })
         if (updated !== null) emit?.('room', updated)
@@ -98,6 +108,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       })
       store.appendMessage(roomId, { kind: 'system', text: '并行结果已合并 · 可以验收了' })
       store.appendEvent(roomId, 'room.integration', { stage: stageIndex, head, workers, merged, manual: true })
+      clearBlocked(stageIndex)
       markProgress()
       return
     }
@@ -166,6 +177,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       isolated: true,
       sandbox: result.sandbox,
     })
+    clearBlocked(stageIndex)
     store.appendMessage(roomId, {
       kind: 'system',
       text: result.exit === 0

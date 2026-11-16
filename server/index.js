@@ -51,7 +51,9 @@ compactAssignments(store)
 // 补齐“transcript 已 fsync、SQLite 还没写”的崩溃窗口；库仍是唯一真相。
 try {
   const recovered = recoverMessages(store)
-  if (recovered.recovered > 0) console.log(`recovered ${recovered.recovered} messages from transcript`)
+  if (recovered.recovered > 0 || recovered.events > 0) {
+    console.log(`recovered ${recovered.recovered} messages and ${recovered.events} events from room logs`)
+  }
   if (recovered.roomsWithoutTranscript.length > 0) {
     console.warn(`transcript unavailable: ${recovered.roomsWithoutTranscript.join(', ')}`)
   }
@@ -59,8 +61,20 @@ try {
   console.warn(`message recovery failed: ${error?.message ?? error}`)
 }
 
+const compactHistory = () => {
+  let activities = 0
+  let events = 0
+  for (const room of store.readRooms()) {
+    if (room.demo === true) continue
+    activities += store.pruneActivityMessages(room.id, { keep: 2000 })
+    events += store.pruneEvents(room.id, { keep: 5000 })
+  }
+  if (activities > 0 || events > 0) console.log(`history compacted: ${activities} steps, ${events} events`)
+}
+
 const snapshotNow = reason => {
   try {
+    compactHistory()
     mkdirSync(join(dataDir, 'backups'), { recursive: true })
     const file = join(dataDir, 'backups', `crew-${Date.now()}-${reason}.db`)
     store.backup(file)
@@ -69,6 +83,7 @@ const snapshotNow = reason => {
     console.warn(`store backup failed: ${error?.message ?? error}`)
   }
 }
+compactHistory()
 setInterval(() => snapshotNow('periodic'), 6 * 60 * 60 * 1000).unref()
 
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。

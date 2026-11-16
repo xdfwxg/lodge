@@ -43,7 +43,7 @@ const deliveryTriad = [
     name: '验收员',
     title: '复核',
     role: 'verifier',
-    station: '只读副本 · 独立复核',
+    station: '只读副本 · 只写结论',
     engine: 'claude-cli',
     permissions: { read: true, exec: true, write: false },
     writeScope: 'none',

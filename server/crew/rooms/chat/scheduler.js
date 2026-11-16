@@ -87,6 +87,7 @@ export const createChatScheduler = ({
   waitMs = DEFAULT_WAIT_MS,
   pollMs = POLL_MS,
   syncChat = async () => {},
+  idleMs = 60_000,
 }) => {
   const runs = new Map()
 
@@ -191,9 +192,9 @@ export const createChatScheduler = ({
 
     try {
       if (speakers.length > 0) {
-        if (!(await waitIdle(chat.id, run))) {
-          store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
-        }
+        const idle = await waitIdle(chat.id, run, idleMs)
+        if (!idle) store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
+        if (idle) {
         let misses = 0
         for (let turn = 1; turn <= turnLimit; turn += 1) {
           const current = store.readRoom(roomId)
@@ -251,10 +252,11 @@ export const createChatScheduler = ({
             }
             return { events: [] }
           })
-          if (!(await waitIdle(chat.id, run))) {
+          if (!(await waitIdle(chat.id, run, idleMs))) {
             store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
             break
           }
+        }
         }
       }
 
@@ -287,7 +289,7 @@ export const createChatScheduler = ({
       hidePrompt(sent?.messageId)
       let reply = await waitForBot(chat, hostBot, before, run)
       if (reply === null && !run.cancelled) {
-        await waitIdle(chat.id, run, 30_000)
+        await waitIdle(chat.id, run, Math.min(30_000, idleMs))
         before = await messageIds(chat)
         sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
         hidePrompt(sent?.messageId)

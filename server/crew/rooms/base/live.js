@@ -19,11 +19,14 @@ export const createLiveRooms = ({
   emit,
   ports,
   approvalTimeoutMs,
+  retryMs = 30_000,
+  startAttempts = 4,
   surfaces = createSurfaces({ engine, store }),
 }) => {
   const { roomFiles } = ports
   const entries = new Map()
   const pendingAttach = new Map()
+  let retryScheduled = false
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit })
   const approvals = createLiveApprovals({
@@ -60,6 +63,37 @@ export const createLiveRooms = ({
     onTurn: (entry, room, message) => entry.strategy.captureTurn?.(entry, message),
   })
 
+  const markDisconnected = (roomId, error) => {
+    const text = `基座连接中断：${error?.message ?? error}`
+    const updated = store.updateRoom(roomId, current => {
+      if (current.live !== true) return null
+      if (current.connectionError === text) return null
+      current.connectionError = text
+      return { events: [{ type: 'room.connection', payload: { connected: false } }] }
+    })
+    if (updated !== null) emit('room', updated)
+  }
+
+  const markConnected = roomId => {
+    const updated = store.updateRoom(roomId, current => {
+      if (current.connectionError === undefined || current.connectionError === null) return null
+      delete current.connectionError
+      return { events: [{ type: 'room.connection', payload: { connected: true } }] }
+    })
+    if (updated !== null) emit('room', updated)
+  }
+
+  let retry = () => {}
+  const scheduleRetry = () => {
+    if (retryScheduled) return
+    retryScheduled = true
+    retry = () => {
+      retryScheduled = false
+      void start(0)
+    }
+    setTimeout(() => retry(), retryMs).unref()
+  }
+
   const attachNow = async (room, { resume = true } = {}) => {
     const members = (room.members ?? []).filter(member => typeof member.body?.roomRef === 'string' && member.body.roomRef !== '')
     if (members.length === 0) throw new Error('房间没有成员线程')
@@ -94,6 +128,7 @@ export const createLiveRooms = ({
       await refreshRoom(entry, { force: true })
       if (approvals.resumeApprovalPauseIfSettled(room.id) !== null) await refreshRoom(entry, { force: true })
       if (resume) await strategy.resume(entry)
+      markConnected(room.id)
       const current = store.readRoom(room.id) ?? room
       await strategy.resumeIfRunning(entry, current)
       emit('room', current)
@@ -162,23 +197,33 @@ export const createLiveRooms = ({
   }
 
   const start = async (attempt = 0) => {
+    let failed = false
     try {
       await engine.rooms()
       for (const room of store.readRooms()) {
         if (room.live !== true) continue
         try {
           await attach(room)
+          markConnected(room.id)
         } catch (error) {
+          failed = true
+          markDisconnected(room.id, error)
           console.warn(`live room not attached: ${room.id} ${error?.message ?? error}`)
         }
       }
     } catch (error) {
-      if (attempt < 4) {
-        setTimeout(() => void start(attempt + 1), 3_000).unref()
+      if (attempt < startAttempts) {
+        setTimeout(() => void start(attempt + 1), retryMs).unref()
         return
       }
+      for (const room of store.readRooms()) {
+        if (room.live === true) markDisconnected(room.id, error)
+      }
       console.warn(`live rooms not started: ${error?.message ?? error}`)
+      scheduleRetry()
+      return
     }
+    if (failed) scheduleRetry()
   }
 
   const sendToMember = async (roomId, memberId, text, options = {}) => {

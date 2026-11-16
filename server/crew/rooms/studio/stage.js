@@ -1,6 +1,6 @@
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { leadMemberOf, workerIds } from '../../room-members.js'
-import { activeDispatchAssignments, latestDispatchAssignment, updateAssignment } from '../../assignments.js'
+import { activeDispatchAssignments, latestDispatchAssignment, transitionAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
@@ -8,8 +8,63 @@ import { memberDisplayName } from '../../member-labels.js'
 import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 
-export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, integrate, enqueue }) => {
+export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
+  const timeoutTimers = new Map()
+
+  const timeoutStage = stageIndex => {
+    timeoutTimers.delete(stageIndex)
+    const dispatch = dispatchOf(store, roomId, stageIndex)
+    if (dispatch === null || dispatch.pending.length === 0) return
+    const room = store.readRoom(roomId)
+    if (room === null || room.stages?.[stageIndex]?.state !== 'active') return
+    const completed = dispatch.workers.filter(worker => !dispatch.pending.includes(worker))
+    const waiting = dispatch.pending.map(worker => memberDisplayName(room, worker)).join('、')
+    for (const assignment of activeDispatchAssignments(store, roomId, stageIndex)) {
+      if (!dispatch.pending.includes(assignment.toMemberId)) continue
+      transitionAssignment(store, assignment.id, 'failed', {
+        resultText: '执行超时，已停止。',
+        flags: { ...(assignment.flags ?? {}), timedOut: true },
+      })
+    }
+    store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: stageIndex, workers: dispatch.pending })
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: completed.length > 0
+        ? `执行超时：${waiting} 已停下；已完成的部分继续合并。`
+        : `执行超时：${waiting} 已停下；这一步需要你退回重做。`,
+    })
+    const updated = store.updateRoom(roomId, current => {
+      current.blocked = {
+        stage: stageIndex,
+        reason: 'timeout',
+        workers: dispatch.pending,
+        at: Date.now(),
+      }
+      return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'timeout', workers: dispatch.pending } }] }
+    })
+    if (updated !== null) emit?.('room', updated)
+    if (completed.length > 0) {
+      void enqueue(() => integrate({
+        stageIndex,
+        workers: completed,
+        base: dispatch.base,
+        failed: dispatch.pending,
+        turnId: '',
+      }))
+    }
+  }
+
+  const watchStageTimeout = stageIndex => {
+    const dispatch = dispatchOf(store, roomId, stageIndex)
+    if (dispatch === null || dispatch.pending.length === 0) return false
+    const prior = timeoutTimers.get(stageIndex)
+    if (prior !== undefined) clearTimeout(prior)
+    const timer = setTimeout(() => timeoutStage(stageIndex), timeoutMs)
+    timer.unref?.()
+    timeoutTimers.set(stageIndex, timer)
+    return true
+  }
   const startStage = async (room, index, { note = '', rework = false, only = null } = {}) => {
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
@@ -20,6 +75,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     if (typeof stageBase === 'string' && stageBase !== '') {
       store.updateRoom(roomId, current => {
         current.stageBases = { ...(current.stageBases ?? {}), [index]: stageBase }
+        if (current.blocked?.stage === index) current.blocked = null
         return { events: [] }
       })
     }
@@ -90,6 +146,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         rework,
         parentAssignmentId: parentAssignment?.id ?? null,
       })
+      watchStageTimeout(index)
       return
     }
 
@@ -132,19 +189,8 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       }
     }
 
-    setTimeout(() => {
-      const dispatch = dispatchOf(store, roomId, index)
-      if (dispatch === null || dispatch.pending.length === 0) return
-      const waiting = dispatch.pending.map(worker => memberDisplayName(store.readRoom(roomId) ?? room, worker)).join('、')
-      store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: index, workers: dispatch.pending })
-      store.appendMessage(roomId, { kind: 'system', text: `并行执行超时：${waiting} 还没有完成；这一步还没有进入验收。` })
-      for (const assignment of activeDispatchAssignments(store, roomId, index)) {
-        if (!dispatch.pending.includes(assignment.toMemberId)) continue
-        updateAssignment(store, assignment.id, { flags: { ...(assignment.flags ?? {}), timedOut: true } })
-      }
-      emit?.('room', store.readRoom(roomId) ?? room)
-    }, PARALLEL_TIMEOUT).unref()
+    watchStageTimeout(index)
   }
 
-  return { startStage }
+  return { startStage, watchStageTimeout }
 }
