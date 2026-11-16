@@ -10,7 +10,8 @@ test('onboarding, focused dialog, sample room, goal panel and archive restore', 
   await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
   await expect(page.getByRole('button', { name: '开工' })).toBeDisabled()
   await page.getByLabel('你想让房间做什么？').fill('把启动说明补成新人能照着跑的一页')
-  await expect(page.getByRole('button', { name: '开工' })).toBeEnabled()
+  // 测试环境故意不接基座；没有可用模型时开工必须继续禁用，而不是等服务端拒绝。
+  await expect(page.getByRole('button', { name: '开工' })).toBeDisabled()
 
   await page.getByRole('button', { name: '自定义一间工作室' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()

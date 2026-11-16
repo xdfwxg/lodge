@@ -38,7 +38,6 @@ const roomOf = () => ({
   independence: 'none',
   pauseReason: 'member_error',
   memberError: { memberId: 'worker', kind: 'auth' },
-  presence: [],
   turnQueue: [],
   approvals: [],
 })
@@ -82,6 +81,14 @@ const harness = ({ authenticated, failShared } = {}) => {
   })
   return { swap, calls, get room() { return room } }
 }
+
+test('a body without a spec cannot be swapped by model alone', async () => {
+  const { swap, room } = harness()
+  delete room.members.find(item => item.id === 'worker').body.spec
+  const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /没有配置记录/)
+})
 
 test('swapping keeps the member and its history, and replaces the body', async () => {
   const { swap, calls, room } = harness()

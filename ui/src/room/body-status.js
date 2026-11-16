@@ -1,10 +1,6 @@
+import { FAILURE_LABELS } from '../../../shared/failure.js'
+
 // 身体状态：成员此刻的载体在做什么、哪里不舒服。只做投影，不发请求。
-const ERROR_LABEL = {
-  quota: '额度用完',
-  auth: '登录失效',
-  rate_limit: '被限流',
-  engine: '没回应',
-}
 
 const workingLabel = (member, room, labels) => {
   if (member.role === 'lead') return labels.lead ?? '安排中'
@@ -14,8 +10,11 @@ const workingLabel = (member, room, labels) => {
 
 export const bodyStatuses = (room, members = [], { labels = {} } = {}) => {
   const held = new Set(Array.isArray(room?.heldMembers) ? room.heldMembers : [])
-  const presence = new Map((Array.isArray(room?.presence) ? room.presence : [])
-    .map(item => [item.memberId, item.state]))
+  const working = new Set(
+    Array.isArray(room?.busyMembers) && room.busyMembers.length > 0
+      ? room.busyMembers
+      : (room?.busyMember ? [room.busyMember] : []),
+  )
   const queued = new Set((Array.isArray(room?.turnQueue) ? room.turnQueue : [])
     .filter(item => item.state === 'queued')
     .map(item => item.memberId))
@@ -38,11 +37,11 @@ export const bodyStatuses = (room, members = [], { labels = {} } = {}) => {
       model: member.body?.model ?? '',
     }
     if (room?.memberError?.memberId === member.id) {
-      return { ...base, state: 'error', label: ERROR_LABEL[room.memberError.kind] ?? '没回应', tone: 'danger' }
+      return { ...base, state: 'error', label: FAILURE_LABELS[room.memberError.kind] ?? FAILURE_LABELS.engine, tone: 'danger' }
     }
     if (offline) return { ...base, state: 'offline', label: '连接中断', tone: 'danger' }
     if (held.has(member.id)) return { ...base, state: 'held', label: '已叫停', tone: 'muted' }
-    if (presence.get(member.id) === 'working' || (chatRunning && chatSpeaker === member.id)) {
+    if (working.has(member.id) || (chatRunning && chatSpeaker === member.id)) {
       return { ...base, state: 'working', label: workingLabel(member, room, labels), tone: 'active' }
     }
     if (queued.has(member.id) || chatQueued.has(member.id)) return { ...base, state: 'queued', label: '排队中', tone: 'waiting' }

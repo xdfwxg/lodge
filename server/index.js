@@ -13,7 +13,6 @@ import { ROLES, validateRoster } from './crew/roster.js'
 import { assertRuntimePort } from './crew/runtime-port.js'
 import { compactAssignments, pageAssignments } from './crew/assignment-history.js'
 import { migrateAssignments } from './crew/assignment-migration.js'
-import { migrateRoomMembers } from './crew/room-members.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
@@ -44,7 +43,6 @@ try {
 }
 
 const store = createStore({ dataDir, emit: broadcast })
-migrateRoomMembers(store)
 migrateAssignments(store)
 compactAssignments(store)
 

@@ -7,6 +7,7 @@ export const id = 'studio'
 export const name = meta.name
 export const description = meta.description
 export const defaultVerify = meta.defaultVerify
+export const readOnly = meta.readOnly
 export const defaultMembers = null
 export const autoStart = 'stage'
 export const singleDirectory = true

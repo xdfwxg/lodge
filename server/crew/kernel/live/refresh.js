@@ -35,7 +35,6 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
           // 成员运行态归共享投影：谁在跑、谁在等，两套房型拿到同一份数据。
           const activity = memberActivityOf(chatBase, toMember)
           current.turnQueue = activity.turnQueue
-          current.presence = activity.presence
           const memberSet = new Set((current.members ?? []).map(member => member.id))
           current.heldMembers = memberSet.size === 0
             ? activity.heldMembers

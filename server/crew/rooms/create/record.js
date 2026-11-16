@@ -103,6 +103,7 @@ export const initialRoomMessages = ({
   builtStages,
   workspaces,
   engineFallbacks,
+  approvalGates = {},
 }) => roomModeForType(room.roomType).initialMessages({
   room,
   plan,
@@ -111,4 +112,5 @@ export const initialRoomMessages = ({
   builtStages,
   workspaces,
   engineFallbacks,
+  approvalGates,
 })

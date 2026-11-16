@@ -34,7 +34,7 @@ test('a chat speaker shows as speaking and the queue shows as waiting', () => {
 test('working, queued and held bodies win over idle', () => {
   const room = {
     state: 'active',
-    presence: [{ memberId: 'worker', state: 'working' }],
+    busyMembers: ['worker'],
     turnQueue: [{ memberId: 'verifier', state: 'queued' }],
     heldMembers: ['lead'],
   }
@@ -46,12 +46,12 @@ test('working, queued and held bodies win over idle', () => {
 })
 
 test('chat rooms can name speaking instead of processing', () => {
-  const room = { state: 'active', presence: [{ memberId: 'worker', state: 'working' }] }
+  const room = { state: 'active', busyMembers: ['worker'] }
   assert.equal(byId(bodyStatuses(room, members, { labels: { member: '发言中' } })).worker.label, '发言中')
 })
 
 test('a verifier working on its own vendor says self check, not independent review', () => {
-  const room = { state: 'active', independence: 'none', presence: [{ memberId: 'verifier', state: 'working' }] }
+  const room = { state: 'active', independence: 'none', busyMembers: ['verifier'] }
   assert.equal(byId(bodyStatuses(room, members)).verifier.label, '自查中')
   room.independence = 'vendor'
   assert.equal(byId(bodyStatuses(room, members)).verifier.label, '独立复核中')
@@ -66,7 +66,7 @@ test('a sick body says why before anything else', () => {
   const room = {
     state: 'paused',
     memberError: { memberId: 'worker', kind: 'auth' },
-    presence: [{ memberId: 'worker', state: 'working' }],
+    busyMembers: ['worker'],
   }
   const status = byId(bodyStatuses(room, members))
   assert.equal(status.worker.label, '登录失效')
@@ -81,7 +81,7 @@ test('a broken connection marks every body offline', () => {
 
 test('the status line renders one quiet row with accessible labels', () => {
   const html = renderToStaticMarkup(h(CrewStatusLine, {
-    room: { state: 'active', independence: 'none', presence: [{ memberId: 'worker', state: 'working' }], busySince: Date.now() - 12_000 },
+    room: { state: 'active', independence: 'none', busyMembers: ['worker'], busySince: Date.now() - 12_000 },
     members,
   }))
   assert.match(html, /aria-label="成员状态"/)

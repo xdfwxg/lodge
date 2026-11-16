@@ -71,7 +71,7 @@ test('presence lines name seats and describe queue position', () => {
   const seats = [{ id: 'lead', name: '规划师' }, { id: 'worker', name: '执行官' }, { id: 'verifier', name: '验收员' }]
   const lines = presenceLines({
     busySince: 10,
-    presence: [{ memberId: 'lead', state: 'working' }],
+    busyMembers: ['lead'],
     turnQueue: [
       { memberId: 'lead', state: 'running', position: 1, of: 3 },
       { memberId: 'verifier', state: 'queued', position: 3, of: 3, waitingForMemberId: 'worker' },
@@ -87,7 +87,7 @@ test('a held seat leaves the working and queue lines', () => {
   const lines = presenceLines({
     heldMembers: ['worker'],
     heldMessages: { worker: 2 },
-    presence: [{ memberId: 'worker', state: 'working' }],
+    busyMembers: ['worker'],
     turnQueue: [{ memberId: 'worker', state: 'queued', position: 1, of: 1 }],
   }, seats)
   assert.deepEqual(lines.working, [])

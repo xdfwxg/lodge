@@ -22,7 +22,7 @@ export const studioUi = {
     hint: '不选也可以，Lodge 会建一个临时文件夹。',
   },
   missingVerifier: hasVerifier => !hasVerifier,
-  bodySwapGate: true,
+  readOnly: roomTypeMeta('studio').readOnly,
   primaryFields: props => h(StudioPrimaryFields, props),
   setupFields: props => h(StudioSetupFields, props),
   buildRequest: buildStudioRequest,

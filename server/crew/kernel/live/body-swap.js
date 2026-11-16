@@ -35,6 +35,11 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     } catch {
       instances = []
     }
+    const hasSpec = member.body?.spec !== undefined && member.body?.spec !== null
+    const providedSpec = body.prompt !== undefined || body.skills !== undefined || body.mcp !== undefined
+    if (!hasSpec && !providedSpec) {
+      return fail('invalid', '这具身体没有配置记录；先补上行为说明、技能和 MCP，再换身体')
+    }
     const currentSpec = member.body?.spec ?? {}
     const current = {
       prompt: typeof currentSpec.prompt === 'string' ? currentSpec.prompt : '',

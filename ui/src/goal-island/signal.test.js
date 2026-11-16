@@ -69,7 +69,7 @@ test('a failure outranks a passing stage in the same snapshot', () => {
   assert.equal(event.tone, 'paused')
 })
 
-test('a conclusion outranks the stage conclusion that came with it', () => {
+test('a conclusion leaves completion to the result card', () => {
   const previous = room()
   const next = room({
     messages: [
@@ -78,7 +78,7 @@ test('a conclusion outranks the stage conclusion that came with it', () => {
     ],
   })
   const { event } = milestoneOf(previous, next, baselineSeen(previous))
-  assert.equal(event.title, '已完成')
+  assert.notEqual(event?.title, '已完成')
 })
 
 test('a new delivery peeks even without a message', () => {

@@ -75,12 +75,6 @@ const eventForMessage = (room, message) => {
   const at = message.ts ?? message.seq ?? 0
   const key = `msg:${message.id}`
   switch (message.kind) {
-    case 'conclusion':
-      return wrap(60, {
-        key, kind: 'milestone', tone: 'done', at,
-        title: '已完成',
-        detail: clean(message.text) || '结果已经写好，可以查看结果',
-      })
     case 'chat_conclusion':
       return wrap(60, {
         key, kind: 'milestone', tone: 'done', at,

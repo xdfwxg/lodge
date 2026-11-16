@@ -27,7 +27,6 @@ const roomOf = () => ({
   memberCursors: { worker: 3 },
   members: [member('lead', 'lead', 'claude'), member('worker', 'worker', 'pi'), member('verifier', 'verifier', 'claude')],
   independence: 'none',
-  presence: [],
   turnQueue: [],
   approvals: [],
 })

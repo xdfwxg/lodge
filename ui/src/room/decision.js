@@ -12,14 +12,7 @@ export const cleanText = value => String(value ?? '')
 
 const statusOfPaused = room => {
   if (room.pauseReason === 'member_error') {
-    const who = nameOf(room, room.memberError?.memberId)
-    const reason = room.memberError?.kind === 'quota'
-      ? `${who}的模型额度用完了`
-      : room.memberError?.kind === 'auth'
-        ? `${who}的登录失效了`
-        : room.memberError?.kind === 'rate_limit'
-          ? `${who}被模型服务限流了`
-          : `${who}没能回应`
+    const reason = room.needsYou?.label ?? `${nameOf(room, room.memberError?.memberId)}没能回应`
     return { title: `${reason}，需要处理`, tone: 'paused' }
   }
   if (room.pauseReason === 'mcp') return { title: '连接中断，需要处理', tone: 'paused' }

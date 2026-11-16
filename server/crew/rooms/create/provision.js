@@ -90,10 +90,10 @@ export const createProvisioner = ({ engine }) => {
       })),
       instances,
     })
+    const approvalGates = Object.fromEntries(created.map(({ member, body }) => [member.id, approvalGateOf(body.engine)]))
     const byId = new Map(created.map(item => [item.member.id, item]))
     const members = roster.map(member => {
-      const { memberRef, body } = byId.get(member.id)
-      const approvalGate = approvalGateOf(memberRef.engine)
+      const { body } = byId.get(member.id)
       return {
         id: member.id,
         kind: 'ai',
@@ -104,7 +104,6 @@ export const createProvisioner = ({ engine }) => {
         roleProfile: member.roleProfile,
         ...(member.isHost === true ? { isHost: true } : {}),
         station: member.station,
-        ...(approvalGate === undefined ? {} : { approvalGate }),
         permissions: member.permissions,
         writeScope: member.writeScope,
         toolSurface: member.toolSurface,
@@ -114,7 +113,7 @@ export const createProvisioner = ({ engine }) => {
         body,
       }
     })
-    return { members, engineFallbacks, independence, chatRoom, chatHost, bodyIssues }
+    return { members, approvalGates, engineFallbacks, independence, chatRoom, chatHost, bodyIssues }
   }
 
   const cleanup = async () => {

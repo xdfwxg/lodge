@@ -145,7 +145,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     // 外部动作只有在驱动会停下来问人时才安全；不会问的执行成员不能开工。
     const blocked = roomType.readOnly === true
       ? []
-      : provisioned.members.filter(member => member.permissions?.exec === true && member.approvalGate === false)
+      : provisioned.members.filter(member => (
+        member.permissions?.exec === true && provisioned.approvalGates?.[member.id] === false
+      ))
     if (blocked.length > 0) {
       await discard()
       return fail(
@@ -217,6 +219,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       builtStages,
       workspaces,
       engineFallbacks: provisioned.engineFallbacks,
+      approvalGates: provisioned.approvalGates,
     })) {
       store.appendMessage(room.id, message)
     }

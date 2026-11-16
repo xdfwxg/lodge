@@ -1,4 +1,6 @@
 import { createElement as h } from 'react'
+import { EngineLogin } from '../../engine-login.js'
+import { engineReadiness } from '../../engine-readiness.js'
 import { MemberEnginePicker } from '../member-engine-picker.js'
 
 import { defaultPersonalityId, normalizeMembers, PERSONALITIES } from '../member-options.js'
@@ -52,10 +54,27 @@ export function ChatSetupFields({
   setChoices,
   engines,
   loginBusy,
+  loginBusyId = '',
+  loginNote = '',
   onLogin,
+  onRefresh = null,
   onInteraction,
 }) {
+  const readiness = engineReadiness(engines)
+  const names = [...readiness.loginTargets, ...readiness.manualLogin].map(item => item.name ?? item.id).join('、')
   return h('div', { className: 'crew-chat-fields' },
+    readiness.canStart
+      ? null
+      : h('p', { className: 'crew-field-hint', role: 'status' }, names === ''
+        ? '还没有可用的模型服务。'
+        : `${names}还没登录；登录后点“刷新”。`),
+    h(EngineLogin, {
+      readiness,
+      busyId: loginBusyId,
+      note: loginNote,
+      onLogin,
+      onRefresh,
+    }),
     h('div', { className: 'crew-field crew-field-row crew-field-break' },
       h('b', null, '每轮发言上限'),
       h('input', {

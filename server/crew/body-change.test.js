@@ -5,7 +5,6 @@ import { bodyChangeBlocker } from './body-change.js'
 const room = overrides => ({
   state: 'active',
   busy: false,
-  presence: [],
   turnQueue: [],
   pauseReason: null,
   ...overrides,
@@ -14,7 +13,7 @@ const room = overrides => ({
 test('body changes wait for a busy or speaking room', () => {
   assert.match(bodyChangeBlocker(room({ busy: true }), '换身体'), /等这一回合结束/)
   assert.match(bodyChangeBlocker(room({ chat: { running: true } }), '移除成员'), /等这一回合结束/)
-  assert.match(bodyChangeBlocker(room({ presence: [{ state: 'working' }] }), '加成员'), /等这一回合结束/)
+  assert.match(bodyChangeBlocker(room({ turnQueue: [{ state: 'queued' }] }), '加成员'), /等这一回合结束/)
   assert.equal(bodyChangeBlocker(room({}), '换身体'), null)
 })
 

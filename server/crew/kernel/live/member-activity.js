@@ -23,11 +23,6 @@ export const memberQueueOf = ({ queue = [], toMember } = {}) => {
   return [...byMember.values()].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
 }
 
-export const presenceOf = queue => queue.map(entry => ({
-  memberId: entry.memberId,
-  state: entry.state === 'running' ? 'working' : 'queued',
-}))
-
 export const heldMembersOf = ({ holds = {}, toMember } = {}) => {
   const memberOf = membersOf(toMember)
   return Object.keys(holds ?? {})
@@ -48,10 +43,8 @@ export const heldMessageCountsOf = ({ heldMessages = {}, toMember } = {}) => {
 }
 
 export const memberActivityOf = (chatBase, toMember) => {
-  const turnQueue = memberQueueOf({ queue: chatBase?.queue, toMember })
   return {
-    turnQueue,
-    presence: presenceOf(turnQueue),
+    turnQueue: memberQueueOf({ queue: chatBase?.queue, toMember }),
     heldMembers: heldMembersOf({ holds: chatBase?.holds, toMember }),
     heldMessages: heldMessageCountsOf({ heldMessages: chatBase?.heldMessages, toMember }),
   }

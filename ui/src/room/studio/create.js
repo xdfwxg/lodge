@@ -1,4 +1,6 @@
 import { Fragment, createElement as h } from 'react'
+import { EngineLogin } from '../../engine-login.js'
+import { engineReadiness } from '../../engine-readiness.js'
 import { MemberEnginePicker } from '../member-engine-picker.js'
 import { normalizeMembers } from '../member-options.js'
 
@@ -125,7 +127,8 @@ export function StudioPrimaryFields({
   members = DEFAULT_STUDIO_MEMBERS,
   engines = [],
   onLogin = null,
-  loginBusy = false,
+  loginBusyId = '',
+  loginNote = '',
   onRefresh = null,
   showVerify = true,
   verifyMode = 'manual',
@@ -134,56 +137,44 @@ export function StudioPrimaryFields({
   onAcceptanceDraft = () => {},
   onAdvanced = () => {},
 }) {
-  const installed = (Array.isArray(engines) ? engines : []).filter(item => item.available)
-  const available = installed.filter(item => item.authenticated !== false)
-  const capableInstalled = installed.filter(item => item.capabilities?.approvalReview === true)
-  const loginTargets = capableInstalled.filter(item => item.authenticated === false && Array.isArray(item.login?.args))
-  const loginManual = capableInstalled.filter(item => item.authenticated === false && !Array.isArray(item.login?.args))
-  const manualNames = loginManual.map(item => item.name ?? item.id).join('、')
-  const capable = available.some(item => item.capabilities?.approvalReview === true)
-  const vendors = new Set(available.map(item => item.engine ?? item.id))
-  const modelNote = engines.length === 0
-    ? ''
-    : available.length === 0
-      ? installed.length > 0
-        ? capableInstalled.length > 0
-          ? `${capableInstalled.map(item => item.name ?? item.id).join('、')}还没登录；登录后点“刷新”，或把这件事放进聊天室讨论。`
-          : '装好的模型服务都不会逐次确认外部动作；先装好一家会先问你的模型，或把这件事放进聊天室讨论。'
-        : '还没有可用的模型服务。先在「调整成员与模型」里配置一家。'
-      : !capable
-        ? '现在没有会逐次确认外部动作的模型，工作室开不了工。先装好一家会先问你的模型，或把这件事放进聊天室讨论。'
-        : vendors.size < 2
-          ? '现在只有一家模型可用：验收会是同一家模型自查。要独立复核，先在「调整成员与模型」里选另一家模型服务；没有就先装一家。'
-          : ''
+  const readiness = engineReadiness(engines, { requireApproval: true })
+  const { installed, ready, loginTargets, manualLogin } = readiness
+  const manualNames = [...loginTargets, ...manualLogin].map(item => item.name ?? item.id).join('、')
+  const vendors = new Set(ready.map(item => item.engine ?? item.id))
+  const modelNote = installed.length === 0
+    ? '还没有可用的模型服务。先装一家会先问你的模型，或把这件事放进聊天室讨论。'
+    : ready.length === 0
+      ? loginTargets.length + manualLogin.length > 0
+        ? `${manualNames}还没登录；登录后点“刷新”，或把这件事放进聊天室讨论。`
+        : '现在没有会逐次确认外部动作的模型，工作室开不了工。先装好一家会先问你的模型，或把这件事放进聊天室讨论。'
+      : vendors.size < 2
+        ? '现在只有一家模型可用：验收会是同一家模型自查。要独立复核，先在「调整成员与模型」里选另一家模型服务；没有就先装一家。'
+        : ''
+  const listed = normalizeMembers(members)
+  const defaultTrio = listed.length === 3 &&
+    ['lead', 'worker', 'verifier'].every(role => listed.some(member => member.role === role))
   return h(Fragment, null,
     h('div', { className: 'crew-field' },
       h('div', { className: 'crew-field-head' },
         h('b', null, '成员'),
         h('button', { type: 'button', className: 'crew-link', onClick: onAdvanced }, '调整成员与模型')),
       h('div', { className: 'crew-team-summary' },
-        normalizeMembers(members).map(member => h('span', {
+        listed.map(member => h('span', {
           key: member.id ?? member.name,
           className: 'crew-team-chip',
           'data-role': member.role,
         }, member.name))),
-      h('p', { className: 'crew-field-hint' }, '默认三人组：规划、执行、验收。'),
+      h('p', { className: 'crew-field-hint' }, defaultTrio
+        ? '默认三人组：规划、执行、验收。'
+        : '成员已经调整；改完直接开工。'),
       modelNote === '' ? null : h('p', { className: 'crew-field-hint', role: 'status' }, modelNote),
-      loginTargets.length === 0 || onLogin === null
-        ? null
-        : h('div', { className: 'crew-primary-login' },
-          loginTargets.map(engine => h('button', {
-            key: engine.id,
-            type: 'button',
-            className: 'crew-ghost',
-            disabled: loginBusy,
-            onClick: () => onLogin(engine),
-          }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)),
-          loginManual.length > 0 && onRefresh !== null
-            ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => onRefresh() }, '刷新')
-            : null,
-          loginManual.length > 0
-            ? h('span', { className: 'crew-field-hint' }, `先在这台电脑上登录 ${manualNames}`)
-            : null)),
+      h(EngineLogin, {
+        readiness,
+        busyId: loginBusyId,
+        note: loginNote,
+        onLogin,
+        onRefresh,
+      })),
     showVerify
       ? h('div', { className: 'crew-field' },
         h('b', null, '怎么验收'),

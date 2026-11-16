@@ -7,6 +7,7 @@ export const ROOM_TYPE_MANIFEST = Object.freeze([
     name: '工作室',
     description: '目标、阶段、验收与交付；被 @ 的成员才唤醒',
     defaultVerify: 'test',
+    readOnly: false,
     capabilities: Object.freeze({
       workCard: true,
       stages: true,
@@ -23,6 +24,7 @@ export const ROOM_TYPE_MANIFEST = Object.freeze([
     name: '聊天室',
     description: '围绕一个话题讨论，随机唤醒发言，主持人总结后由你确认',
     defaultVerify: 'manual',
+    readOnly: true,
     capabilities: Object.freeze({
       workCard: false,
       stages: false,

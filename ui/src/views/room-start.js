@@ -1,5 +1,6 @@
-import { createElement as h, useEffect, useRef, useState } from 'react'
-import { loginRuntime } from '../system.js'
+import { createElement as h, useState } from 'react'
+import { EngineLogin, useEngineLogin } from '../engine-login.js'
+import { engineReadiness } from '../engine-readiness.js'
 
 // 还没有房间时，直接给一间“新房间”的外壳：只问目标和检查，不再有独立首页。
 export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh = null }) {
@@ -9,45 +10,12 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
   const [check, setCheck] = useState('')
   const [quickBusy, setQuickBusy] = useState(false)
   const [quickError, setQuickError] = useState('')
-  const [loginBusy, setLoginBusy] = useState('')
-  const [loginNote, setLoginNote] = useState('')
-  const timer = useRef(null)
   const engines = state.engines ?? []
-  const usable = engines.filter(item => (
-    item.available === true && item.authenticated !== false && item.capabilities?.approvalReview === true
-  ))
-  const installed = engines.filter(item => item.available === true)
-  const needsLogin = engines.length > 0 && usable.length === 0
-  const loginTargets = installed.filter(item => item.authenticated === false && Array.isArray(item.login?.args))
-  const loginManual = installed.filter(item => item.authenticated === false && !Array.isArray(item.login?.args))
-  const noGate = installed.filter(item => item.authenticated !== false && item.capabilities?.approvalReview !== true)
-  const manualNames = loginManual.map(item => item.name ?? item.id).join('、')
-  useEffect(() => () => clearInterval(timer.current), [])
-  const watchLogin = () => {
-    let tries = 0
-    clearInterval(timer.current)
-    timer.current = setInterval(async () => {
-      tries += 1
-      await onRefresh?.()
-      if (tries >= 45) {
-        clearInterval(timer.current)
-        setLoginNote('还没检测到登录完成；完成后点“刷新”再试。')
-      }
-    }, 2000)
-  }
-  const signIn = async engine => {
-    if (loginBusy !== '' || typeof loginRuntime !== 'function') return
-    setLoginBusy(engine.id)
-    setLoginNote(`已打开 ${engine.name ?? engine.id} 登录终端；登录完成后这里会自动更新。`)
-    try {
-      await loginRuntime(engine.id)
-      watchLogin()
-    } catch (error) {
-      setLoginNote(String(error?.message ?? error))
-    } finally {
-      setLoginBusy('')
-    }
-  }
+  const readiness = engineReadiness(engines, { requireApproval: true })
+  const { installed, ready, loginTargets, manualLogin } = readiness
+  const needsLogin = state.phase !== 'loading' && !readiness.canStart
+  const manualNames = manualLogin.map(item => item.name ?? item.id).join('、')
+  const { busyId: loginBusy, note: loginNote, login: signIn } = useEngineLogin(onRefresh)
   const disabled = state.phase === 'loading' || state.phase === 'error'
   const openSample = async () => {
     if (sampleBusy || typeof onSample !== 'function') return
@@ -84,30 +52,19 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
           h('b', null, '还不能开工'),
           h('p', null, installed.length === 0
             ? '还没有可用的模型服务；先安装并登录一家会先问你的模型。'
-            : loginTargets.length > 0
+            : ready.length === 0 && loginTargets.length > 0
               ? '开工前要先登录一个会先问你的模型服务。'
-              : loginManual.length > 0
+              : ready.length === 0 && manualLogin.length > 0
                 ? `${manualNames}还没登录。`
                 : '已装的模型服务不会逐次确认外部动作，不能用来执行。'),
-          loginTargets.map(engine => h('button', {
-            key: engine.id,
-            type: 'button',
-            className: 'crew-ghost',
-            disabled: loginBusy !== '',
-            onClick: () => void signIn(engine),
-          }, loginBusy === engine.id ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)),
-          loginManual.length > 0 || (loginTargets.length === 0 && noGate.length === 0 && installed.length > 0)
-            ? h('button', {
-              type: 'button',
-              className: 'crew-ghost',
-              disabled: loginBusy !== '' || onRefresh === null,
-              onClick: () => void onRefresh?.(),
-            }, '刷新')
-            : null,
-          loginManual.length > 0
-            ? h('p', { className: 'crew-field-hint' }, `先在这台电脑上登录 ${manualNames}，完成后点“刷新”。`)
-            : null,
-          loginNote === '' ? null : h('p', { className: 'crew-field-hint' }, loginNote))
+          h(EngineLogin, {
+            readiness,
+            busyId: loginBusy,
+            note: loginNote,
+            disabled,
+            onLogin: signIn,
+            onRefresh,
+          }))
         : null,
       h('form', { className: 'crew-start-form', onSubmit: quickStart },
         h('label', { className: 'crew-start-label', htmlFor: 'room-start-goal' }, '你想让房间做什么？'),

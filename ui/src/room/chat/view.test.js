@@ -39,7 +39,7 @@ test('chat participants show a body status row and can swap bodies', () => {
       state: 'active',
       chat: { phase: 'discussing' },
       messages: [],
-      presence: [{ memberId: 'worker', state: 'working' }],
+      busyMembers: ['worker'],
     },
     members: [{ id: 'worker', name: '甲', role: 'worker', body: { engine: 'pi', model: 'deepseek-flash' } }],
     actions: { ...actions, swapBody: () => {} },

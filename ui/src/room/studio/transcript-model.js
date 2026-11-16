@@ -214,7 +214,6 @@ export const showsMember = (items, index) => {
 
 export const presenceLines = (room, members = []) => {
   const nameOf = id => members.find(member => member.id === id)?.name ?? id
-  const presence = Array.isArray(room?.presence) ? room.presence : []
   const queue = Array.isArray(room?.turnQueue) ? room.turnQueue : []
   const heldMembers = new Set(Array.isArray(room?.heldMembers) ? room.heldMembers : [])
   const held = [...heldMembers].map(memberId => ({
@@ -222,9 +221,12 @@ export const presenceLines = (room, members = []) => {
     name: nameOf(memberId),
     count: room?.heldMessages?.[memberId] ?? 0,
   }))
-  const working = presence
-    .filter(item => item.state === 'working' && !heldMembers.has(item.memberId))
-    .map(item => ({ memberId: item.memberId, name: nameOf(item.memberId), since: room?.busySince ?? null }))
+  const busy = Array.isArray(room?.busyMembers) && room.busyMembers.length > 0
+    ? room.busyMembers
+    : (room?.busyMember ? [room.busyMember] : [])
+  const working = busy
+    .filter(memberId => !heldMembers.has(memberId))
+    .map(memberId => ({ memberId, name: nameOf(memberId), since: room?.busySince ?? null }))
   const seen = new Set(working.map(item => item.memberId))
   const queued = queue
     .filter(item => item.state === 'queued' && !seen.has(item.memberId) && !heldMembers.has(item.memberId))

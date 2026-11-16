@@ -16,7 +16,7 @@ export const id = 'chat'
 export const name = meta.name
 export const description = meta.description
 export const defaultVerify = meta.defaultVerify
-export const readOnly = true
+export const readOnly = meta.readOnly
 export const defaultMembers = [
   { role: 'worker', name: '甲', personality: 'assertive' },
   { role: 'worker', name: '乙', personality: 'cheerful' },

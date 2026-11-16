@@ -238,9 +238,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
             ?? members.find(item => item.id === swapId)?.role,
         ),
         engines: state.engines ?? [],
-        requiresGate: kind.bodySwapGate === true && (members.find(item => item.id === swapId)?.permissions?.exec === true),
+        requiresGate: kind.readOnly !== true && (members.find(item => item.id === swapId)?.permissions?.exec === true),
         busy: swapBusy,
         error: swapError,
+        onRefresh: () => store.refresh(),
         onCancel: () => {
           if (swapBusy) return
           setSwapId(null)
@@ -274,6 +275,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
         engines: state.engines ?? [],
         busy: addBusy,
         error: addError,
+        onRefresh: () => store.refresh(),
         onCancel: () => {
           if (addBusy) return
           setAddOpen(false)

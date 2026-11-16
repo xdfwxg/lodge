@@ -25,6 +25,17 @@ test('a blocked first run offers a login button instead of a dead end', () => {
   assert.match(html, /disabled/)
 })
 
+test('no installed model blocks the first room instead of failing later', () => {
+  const html = renderToStaticMarkup(h(RoomStart, {
+    state: state([]),
+    onCreate: () => {},
+    onQuickStart: () => {},
+  }))
+  assert.match(html, /还不能开工/)
+  assert.match(html, /还没有可用的模型服务/)
+  assert.match(html, /disabled/)
+})
+
 test('a logged-out model without a login command still shows the way out', () => {
   const html = renderToStaticMarkup(h(RoomStart, {
     state: state([

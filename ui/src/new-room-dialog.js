@@ -1,7 +1,9 @@
 import { Fragment, createElement as h, useEffect, useId, useRef, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
-import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.js'
+import { chooseDirectory as pickProjectDirectory } from './system.js'
+import { engineReady, engineReadiness } from './engine-readiness.js'
+import { useEngineLogin } from './engine-login.js'
 import { inlineCode } from './inline-code.js'
 import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
@@ -57,9 +59,8 @@ function NewRoomDialog({
   const [memberChoices, setMemberChoices] = useState(() => memberChoicesFrom(DEFAULT_STUDIO_MEMBERS))
   const [chatMemberChoices, setChatMemberChoices] = useState([])
   const [chatMembers, setChatMembers] = useState(null)
-  const [loginBusy, setLoginBusy] = useState(false)
-  const [loginNote, setLoginNote] = useState(null)
-  const loginTimer = useRef(null)
+  const { busyId: loginBusyId, note: loginNote, login: loginEngineFor, reset: resetLogin, clearNote } = useEngineLogin(onRefresh)
+  const loginBusy = loginBusyId !== ''
   const [error, setError] = useState(null)
   const [choosingType, setChoosingType] = useState(false)
   const goalId = useId()
@@ -90,7 +91,7 @@ function NewRoomDialog({
     setRecommending(false)
     setShadowReview(false)
     setChatTurnLimit(6)
-    setLoginNote(null)
+    resetLogin()
     setChatMembers(null)
     setVerifyMode('manual')
     setAdvanced(false)
@@ -148,9 +149,9 @@ function NewRoomDialog({
   const directChoices = isChat ? chatMemberChoices : memberChoices
   const setDirectChoices = isChat ? setChatMemberChoices : setMemberChoices
   const engineChoices = engines.filter(item => item.available)
-  // 工作室需要会停下来问人的执行模型；一家都没有时，开工按钮不应把人送进一次必然失败。
-  const noAskingEngine = !isChat && engineChoices.length > 0 &&
-    !engineChoices.some(item => item.authenticated !== false && item.capabilities?.approvalReview === true)
+  // 有没有能开工的模型只看一份判断；一家都没装时也要拦住，而不是等服务端拒绝。
+  const readiness = engineReadiness(engines, { requireApproval: !isChat })
+  const noAskingEngine = !isChat && !readiness.canStart
   const choiceAt = index => directChoices[index] ?? { engine: '', model: '' }
   const selectedModelOf = choice => {
     const engine = engineChoices.find(item => item.id === choice.engine)
@@ -161,7 +162,7 @@ function NewRoomDialog({
     const choice = choiceAt(index)
     if (choice.engine === '') return true
     const engine = engineChoices.find(item => item.id === choice.engine)
-    return engine !== undefined && modelRowsFor(engine).length > 0
+    return engine !== undefined && engineReady(engine, { requireApproval: !isChat }) && modelRowsFor(engine).length > 0
   }
   const membersReady = rosterMembers.every((_, index) => memberChoiceReady(index))
   const hasMemberChoice = memberChoices.some(choice => choice !== undefined && (choice.engine !== '' || choice.model !== ''))
@@ -187,12 +188,12 @@ function NewRoomDialog({
   const gatePending = handoffGate?.pendingText ?? null
   const checkReady = verifyMode !== 'test' || acceptanceDraft.trim() !== ''
   const proposalCheckReady = !(proposalVerify === 'test' && acceptance.trim() === '' && !plannedAcceptance)
-  const canStartProposal = proposal !== null && !busy && membersReady &&
+  const canStartProposal = proposal !== null && !busy && membersReady && readiness.canStart &&
     (handoffGate === null ? proposalCheckReady : handoffGate.ready) &&
     !studioMissingVerifier
-  const canStartStudio = !busy && goal.trim() !== '' && !needRepo && membersReady &&
+  const canStartStudio = !busy && goal.trim() !== '' && !needRepo && membersReady && readiness.canStart &&
     (handoffGate === null ? checkReady : handoffGate.ready) && !noAskingEngine
-  const startDisabled = busy || goal.trim() === '' || needRepo || (!isChat && !canStartStudio)
+  const startDisabled = busy || goal.trim() === '' || needRepo || !readiness.canStart || (!isChat && !canStartStudio)
   const planFirst = !isChat && handoff !== null && proposal === null && typeof onRecommend === 'function'
 
   const addChatMember = () => {
@@ -217,30 +218,6 @@ function NewRoomDialog({
       next.splice(index, 1)
       return next
     })
-  }
-
-  const loginEngineFor = async engine => {
-    if (engine === undefined || loginBusy) return
-    setLoginBusy(true)
-    setLoginNote(null)
-    try {
-      await loginRuntime(engine.id)
-      setLoginNote(`已打开 ${engine.name ?? engine.id} 登录终端；登录完成后这里会自动更新。`)
-      let tries = 0
-      clearInterval(loginTimer.current)
-      loginTimer.current = setInterval(async () => {
-        tries += 1
-        await onRefresh?.()
-        if (tries >= 45) {
-          clearInterval(loginTimer.current)
-          setLoginNote('还没检测到登录完成；完成后点“刷新”再试。')
-        }
-      }, 2000)
-    } catch (caught) {
-      setLoginNote(String(caught?.message ?? caught))
-    } finally {
-      setLoginBusy(false)
-    }
   }
 
   const changeRepoPath = value => {
@@ -417,12 +394,12 @@ function NewRoomDialog({
       loginBusy,
       allowSkills: features?.skillsLibrary === true,
       onLogin: loginEngineFor,
-      onInteraction: () => setLoginNote(null),
+      onInteraction: clearNote,
     }),
     studioMissingVerifier
       ? h('p', { className: 'crew-field-hint' }, '工作室需要一位验收员；让 Lodge 重新出方案，补上验收员。')
       : null,
-    loginNote !== null ? h('p', { className: 'crew-dialog-note' }, loginNote) : null)
+    loginNote !== '' ? h('p', { className: 'crew-dialog-note' }, loginNote) : null)
 
 
 
@@ -499,8 +476,10 @@ function NewRoomDialog({
     onRefresh,
     features,
     loginBusy,
+    loginBusyId,
+    loginNote,
     onLogin: loginEngineFor,
-    onInteraction: () => setLoginNote(null),
+    onInteraction: clearNote,
     onAdvanced: () => setAdvanced(true),
     verifyMode,
     onVerifyMode: setVerifyMode,

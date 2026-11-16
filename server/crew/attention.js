@@ -1,3 +1,4 @@
+import { failureLabel } from '../../shared/failure.js'
 import { pendingApprovals } from './external-actions.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { memberDisplayName } from './member-labels.js'
@@ -24,14 +25,7 @@ export const roomNeedsYou = (room, messages = []) => {
     if (room.pauseReason === 'member_error') {
       const memberId = room.memberError?.memberId
       const name = memberId === undefined ? '成员' : memberDisplayName(room, memberId)
-      const label = room.memberError?.kind === 'quota'
-        ? `${name}的模型额度用完了`
-        : room.memberError?.kind === 'auth'
-          ? `${name}的登录失效了`
-          : room.memberError?.kind === 'rate_limit'
-            ? `${name}被模型服务限流了`
-            : `${name}没能回应`
-      return { kind: 'error', stage: null, label }
+      return { kind: 'error', stage: null, label: failureLabel(room.memberError?.kind, name) }
     }
     return room.idle === true ? { kind: 'idle', stage: null, label: '可以接着聊' } : null
   }

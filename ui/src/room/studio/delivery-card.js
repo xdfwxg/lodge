@@ -170,11 +170,11 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             className: 'crew-ghost',
             onClick: onReturn,
           }, '回聊天室讨论'),
-        h('button', {
-          type: 'button',
-          className: 'crew-accept crew-conclusion-next',
-          onClick: delivery.workspacePath
-            ? () => void open(delivery.workspacePath)
-            : () => setDetailsOpen(true),
-        }, delivery.workspacePath ? '打开文件夹' : '查看明细'))))
+        delivery.workspacePath
+          ? h('button', {
+            type: 'button',
+            className: 'crew-accept crew-conclusion-next',
+            onClick: () => void open(delivery.workspacePath),
+          }, '打开文件夹')
+          : null)))
 }

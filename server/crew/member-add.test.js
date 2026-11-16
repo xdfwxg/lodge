@@ -32,7 +32,6 @@ const roomOf = () => ({
   workspace: { provider: 'git', capabilities: {} },
   members: [member('lead', 'lead', 'claude'), member('worker', 'worker', 'pi'), member('verifier', 'verifier', 'pi')],
   independence: 'none',
-  presence: [],
   turnQueue: [],
   approvals: [],
 })

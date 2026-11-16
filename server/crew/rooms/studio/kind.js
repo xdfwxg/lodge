@@ -138,9 +138,9 @@ const ENGINE_LABEL = {
 }
 
 // 驱动不支持权限复核时，外部动作不会停下来等人；在房间里把这件事说清楚。
-const approvalNotice = room => {
+const approvalNotice = (room, approvalGates = {}) => {
   const rows = (room?.members ?? []).filter(member => (
-    member.approvalGate === false && member.permissions?.exec === true
+    approvalGates[member.id] === false && member.permissions?.exec === true
   ))
   if (rows.length === 0) return null
   const names = rows.map(member => member.name ?? member.role).join('、')
@@ -152,7 +152,7 @@ const approvalNotice = room => {
   return `${names}用的 ${engineText} 不会先问你：联网、安装、推送这类对外操作会直接执行。`
 }
 
-const initialMessages = ({ room, workspaces, engineFallbacks }) => {
+const initialMessages = ({ room, workspaces, engineFallbacks, approvalGates = {} }) => {
   // 时间线只保留会改变用户判断的信息；建房仪式、分支、约束快照、MCP 说明都
   // 能从房间字段和交付卡里查到，不再复述。
   const messages = []
@@ -171,7 +171,7 @@ const initialMessages = ({ room, workspaces, engineFallbacks }) => {
         : `${text}。这次不是独立复核，验收卡会按实际模型标注。`,
     })
   }
-  const notice = approvalNotice(room)
+  const notice = approvalNotice(room, approvalGates)
   if (notice !== null) messages.push({ kind: 'system', text: notice })
   return messages
 }

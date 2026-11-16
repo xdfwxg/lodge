@@ -22,7 +22,7 @@ export const chatUi = {
     hint: '',
   },
   missingVerifier: () => false,
-  bodySwapGate: false,
+  readOnly: roomTypeMeta('chat').readOnly,
   primaryFields: () => null,
   setupFields: props => h(ChatSetupFields, props),
   buildRequest: buildChatRequest,

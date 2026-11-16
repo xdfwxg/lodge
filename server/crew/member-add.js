@@ -112,7 +112,6 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
           roleKind: spec.roleKind ?? (role === 'worker' ? 'executor' : 'verifier'),
           roleProfile: spec.roleProfile ?? name,
           station: template.station,
-          approvalGate: true,
           permissions: template.permissions,
           writeScope: template.writeScope,
           toolSurface: template.toolSurface,

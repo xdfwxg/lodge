@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { heldMessageCountsOf, heldMembersOf, presenceOf, memberQueueOf, memberActivityOf } from './member-activity.js'
+import { heldMessageCountsOf, heldMembersOf, memberQueueOf, memberActivityOf } from './member-activity.js'
 
 const toMember = ref => ({ 'bot-a': 'lead', 'bot-b': 'worker', 'bot-c': 'verifier' }[ref] ?? ref)
 
@@ -32,24 +32,9 @@ test('a member repeated in the queue is kept once, running wins', () => {
 test('empty or unmapped queues produce nothing', () => {
   assert.deepEqual(memberQueueOf(), [])
   assert.deepEqual(memberQueueOf({ queue: [], toMember }), [])
-  assert.deepEqual(presenceOf([]), [])
 })
 
-test('presence turns running into working and keeps queued members', () => {
-  const queue = memberQueueOf({
-    toMember,
-    queue: [
-      { memberRef: 'bot-a', state: 'running', position: 1, of: 2 },
-      { memberRef: 'bot-c', state: 'queued', position: 2, of: 2 },
-    ],
-  })
-  assert.deepEqual(presenceOf(queue), [
-    { memberId: 'lead', state: 'working' },
-    { memberId: 'verifier', state: 'queued' },
-  ])
-})
-
-test('the shared projection publishes the queue, presence and holds', () => {
+test('the shared projection publishes the queue and holds', () => {
   const out = memberActivityOf({
     queue: [
       { memberRef: 'bot-a', state: 'running', position: 1, of: 2 },
@@ -59,7 +44,6 @@ test('the shared projection publishes the queue, presence and holds', () => {
     heldMessages: { 'bot-b': [{ threadId: 't1', messageId: 'm1' }, { threadId: 't1', messageId: 'm2' }] },
   }, toMember)
   assert.deepEqual(out.turnQueue.map(item => [item.memberId, item.state]), [['lead', 'running'], ['verifier', 'queued']])
-  assert.deepEqual(out.presence, [{ memberId: 'lead', state: 'working' }, { memberId: 'verifier', state: 'queued' }])
   assert.deepEqual(out.heldMembers, ['worker'])
   assert.deepEqual(out.heldMessages, { worker: 2 })
 })
