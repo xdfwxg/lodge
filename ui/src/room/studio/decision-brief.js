@@ -33,19 +33,14 @@ export function DecisionBrief({
   disabled = false,
   title,
   doneTitle = '定下的事',
-  actionLabel = '就这样，继续',
+  actionLabel = '按这个继续',
 }) {
   return h('div', { className: 'crew-msg crew-msg-chat studio-decision' },
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { seat, ts: message.ts, time: false, station: false }),
       h('div', { className: 'crew-card crew-decision-brief' },
         h('div', { className: 'crew-card-head' },
-          pending ? (title ?? '这几件事，等你定') : doneTitle,
-          h('span', {
-            className: 'crew-verdict',
-            'data-pending': pending ? true : undefined,
-            'data-pass': pending ? undefined : true,
-          }, pending ? '等你定' : '已经定了')),
+          pending ? (title ?? '这几件事，待确认') : doneTitle),
         h('div', { className: 'crew-card-body' },
           h('div', { className: 'crew-decision-list' },
             items.map((item, index) => h('div', { key: `decision-${index}`, className: 'crew-decision-item' },
@@ -67,6 +62,7 @@ export function DecisionBrief({
               type: 'button',
               className: 'crew-accept',
               disabled,
+              'data-room-decision': pending ? 'true' : undefined,
               onClick: onAccept,
             }, disabled ? '已暂停 · 继续后才能开工' : actionLabel)))))
 }

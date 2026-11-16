@@ -490,7 +490,7 @@ test('a long handoff topic becomes a short delivery step', async () => {
   assert.equal(result.ok, true)
   assert.deepEqual(result.body.room.stages.map(stage => stage.title), [
     '目标对齐',
-    '完成交接单',
+    '写入 WELCOME.md',
     '验收与结论',
   ])
 })

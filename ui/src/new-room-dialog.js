@@ -39,6 +39,7 @@ function NewRoomDialog({
   const [shadowReview, setShadowReview] = useState(false)
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [goal, setGoal] = useState('')
+  const [nameDraft, setNameDraft] = useState('')
   const [repoPath, setRepoPath] = useState('')
   const [proposal, setProposal] = useState(null)
   const [answers, setAnswers] = useState([])
@@ -58,6 +59,7 @@ function NewRoomDialog({
   const [error, setError] = useState(null)
   const [choosingType, setChoosingType] = useState(false)
   const goalId = useId()
+  const nameId = useId()
   const overlayProps = useOverlay({ label: '新建房间', onClose, active: open })
 
   useEffect(() => {
@@ -66,6 +68,7 @@ function NewRoomDialog({
     setProposal(null)
     setAnswers([])
     setGoal('')
+    setNameDraft('')
     setSeatChoices([])
     setRecommending(false)
     setShadowReview(false)
@@ -151,7 +154,7 @@ function NewRoomDialog({
     ? (verifyMode === 'test' ? acceptanceDraft.trim() : '')
     : ((proposal.acceptance ?? '') || acceptanceDraft)
   const studioMissingVerifier = !isChat && roomKind.missingVerifier(hasVerifier)
-  const roomTitle = roomNameFromGoal(goal).trim()
+  const roomTitle = (nameDraft.trim() || roomNameFromGoal(goal)).trim()
   const handoffGate = handoff === null
     ? null
     : gateCardState({
@@ -259,6 +262,7 @@ function NewRoomDialog({
 
   const resetAfterCreate = () => {
     setGoal('')
+    setNameDraft('')
     setStep(0)
     setProposal(null)
     setSeatChoices([])
@@ -490,6 +494,19 @@ function NewRoomDialog({
       onChange: event => setGoal(event.target.value),
     }))
 
+  const nameField = h('div', { className: 'crew-field' },
+    h('label', { className: 'crew-field-label', htmlFor: nameId }, '房间名'),
+    h('input', {
+      id: nameId,
+      className: 'crew-goal-input',
+      type: 'text',
+      maxLength: 60,
+      placeholder: roomNameFromGoal(goal) || '自动起名',
+      value: nameDraft,
+      onChange: event => setNameDraft(event.target.value),
+    }),
+    h('p', { className: 'crew-field-hint' }, '不填就按目标自动起名。'))
+
   const workspaceField = roomKind.workspace.show(null) === false
     ? null
     : h('div', { className: 'crew-field' },
@@ -531,6 +548,7 @@ function NewRoomDialog({
     h('summary', null, '更多选项'),
     h('div', { className: 'crew-new-advanced-body' },
       h(Fragment, null,
+        nameField,
         roomKind.setupFields(setupProps),
         workspaceField))),
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
@@ -540,7 +558,7 @@ function NewRoomDialog({
       h('div', { className: 'crew-dialog-heading' },
         h('h2', null, '新建房间'),
         h('p', null, choosingType
-          ? '先选一种房间，再说你想做什么。'
+          ? '你想先聊清楚，还是直接做出来？'
           : handoff !== null ? '这件事从聊天室带过来；先确认分歧，再开工。' : roomKind.dialogSubtitle)),
       h('div', { className: 'crew-dialog-head' },
         h('button', {

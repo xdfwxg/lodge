@@ -9,6 +9,14 @@ import { roomModeForType } from '../kinds.js'
 import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
 
+const deliveryTitleFor = (goalTitle, handoff) => {
+  if (handoff === null || handoff === undefined) return goalTitle
+  const topic = String(handoff.topic ?? '').trim()
+  const target = /[写存落交放](?:入|进|到)\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/.exec(topic)
+  if (target !== null) return `写入 ${target[1]}`
+  if (topic === '') return '完成交接单'
+  return topic.length <= 24 ? `完成${topic}` : '完成交接单'
+}
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个成员一个基座线程与工作区。
 export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
@@ -95,11 +103,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   let stored = false
   try {
     const goalTitle = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
-    // A handoff topic is a sentence, not a step name. Keep the sentence in the
-    // handoff card and give the default delivery stage a short, honest title.
-    const deliveryTitle = handoff !== null && handoff !== undefined && handoff.topic.length > 24
-      ? '完成交接单'
-      : goalTitle
+    const deliveryTitle = deliveryTitleFor(goalTitle, handoff)
     const title = name === '' ? goalTitle : name
     const provisioned = await provisioner.provision({
       roster,

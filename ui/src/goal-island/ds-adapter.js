@@ -127,7 +127,17 @@ export function DsGoalHeader({ room, seats, onAdvance }) {
   const goalActions = {
     toggleGoal: () => (open ? activity.onClose() : activity.onOpen()),
     closeGoal: activity.onClose,
-    openSignal: activity.onOpen,
+    openSignal: () => {
+      const target = typeof document === 'undefined'
+        ? null
+        : document.querySelector('[data-room-decision]')
+      if (target instanceof HTMLElement) {
+        target.scrollIntoView({ block: 'center' })
+        target.focus({ preventScroll: true })
+        return
+      }
+      activity.onOpen()
+    },
     dismissSignal: activity.onDismiss,
     pauseSignal: activity.onPause,
     resumeSignal: activity.onResume,

@@ -176,7 +176,7 @@ function GoalSignal({ signal, mode, actions }) {
   },
   h('span', { className: 'bt-goal-signal-dot', 'aria-hidden': true }),
   h('span', { className: 'bt-goal-signal-text' }, signal.title),
-  h('span', { className: 'bt-goal-signal-go' }, '查看')),
+  h('span', { className: 'bt-goal-signal-go' }, signal.kind === 'decision' ? '去处理' : '查看')),
   mode === 'decision'
     ? h('button', {
       type: 'button',
