@@ -67,34 +67,34 @@ const ROLE_KIND = { lead: 'planner', worker: 'executor', verifier: 'verifier' }
 export const roleKindOf = role => ROLE_KIND[role] ?? role
 
 export const TEMPLATES = {
-  'delivery-triad': { id: 'delivery-triad', name: '交付三人组', seats: deliveryTriad },
-  custom: { id: 'custom', name: '自定义', seats: [] },
+  'delivery-triad': { id: 'delivery-triad', name: '交付三人组', members: deliveryTriad },
+  custom: { id: 'custom', name: '自定义', members: [] },
 }
 export const DEFAULT_TEMPLATE_ID = 'delivery-triad'
 
-const cloneSeat = seat => ({
-  ...seat,
-  permissions: { ...seat.permissions },
-  toolSurface: [...seat.toolSurface],
-  skills: [...seat.skills],
-  mcp: seat.mcp.map(grant => ({ ...grant, scopes: [...grant.scopes] })),
+const cloneMember = member => ({
+  ...member,
+  permissions: { ...member.permissions },
+  toolSurface: [...member.toolSurface],
+  skills: [...member.skills],
+  mcp: member.mcp.map(grant => ({ ...grant, scopes: [...grant.scopes] })),
 })
 
-export const seatsFor = (id = DEFAULT_TEMPLATE_ID) => {
+export const membersFor = (id = DEFAULT_TEMPLATE_ID) => {
   const template = TEMPLATES[id] ?? TEMPLATES[DEFAULT_TEMPLATE_ID]
-  return template.seats.map(cloneSeat)
+  return template.members.map(cloneMember)
 }
 
 // 自定义编制：请求只声明角色与名字，权限仍由角色派生，不让界面自己发明能力。
 export const rosterFromRoles = entries => {
   if (!Array.isArray(entries) || entries.length === 0) {
-    throw new Error('seat contract: a custom roster needs at least one seat')
+    throw new Error('member contract: a custom roster needs at least one member')
   }
   const counts = {}
-  const seats = entries.map(entry => {
+  const members = entries.map(entry => {
     const role = entry?.role
     const base = ROLE_TEMPLATE[role]
-    if (base === undefined) throw new Error(`seat contract: unknown role ${role}`)
+    if (base === undefined) throw new Error(`member contract: unknown role ${role}`)
     counts[role] = (counts[role] ?? 0) + 1
     const id = counts[role] === 1 ? role : `${role}-${counts[role]}`
     const fallback = counts[role] === 1 ? ROLE_NAME[role] : `${ROLE_NAME[role]} ${counts[role]}`
@@ -109,7 +109,7 @@ export const rosterFromRoles = entries => {
     const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
     const skills = Array.isArray(entry.skills) ? entry.skills.filter(isId).slice(0, 8) : base.skills
     const personality = personalityById(entry.personality) === null ? '' : entry.personality
-    return cloneSeat({
+    return cloneMember({
       ...base,
       id,
       name,
@@ -124,104 +124,103 @@ export const rosterFromRoles = entries => {
     })
   })
 
-  const { workers, verifiers } = roleSeats(seats)
-  const workerRef = workers.map(seat => `@${seat.name}`).join('、') || '执行成员'
-  const verifierRef = verifiers.length === 0 ? '验收成员' : verifiers.map(seat => `@${seat.name}`).join('、')
-  return seats.map(seat => {
-    if (seat.customPrompt === true) return seat
-    if (seat.role === 'lead') {
-      return { ...seat, prompt: seat.prompt.replaceAll('你是规划师', `你是${seat.name}`).replaceAll('@执行官', workerRef) }
+  const { workers, verifiers } = roleMembers(members)
+  const workerRef = workers.map(member => `@${member.name}`).join('、') || '执行成员'
+  const verifierRef = verifiers.length === 0 ? '验收成员' : verifiers.map(member => `@${member.name}`).join('、')
+  return members.map(member => {
+    if (member.customPrompt === true) return member
+    if (member.role === 'lead') {
+      return { ...member, prompt: member.prompt.replaceAll('你是规划师', `你是${member.name}`).replaceAll('@执行官', workerRef) }
     }
-    if (seat.role === 'worker') {
-      return { ...seat, prompt: seat.prompt.replaceAll('你是执行官', `你是${seat.name}`).replaceAll('@验收员', verifierRef) }
+    if (member.role === 'worker') {
+      return { ...member, prompt: member.prompt.replaceAll('你是执行官', `你是${member.name}`).replaceAll('@验收员', verifierRef) }
     }
-    if (seat.role === 'verifier') {
-      return { ...seat, prompt: seat.prompt.replaceAll('你是验收员', `你是${seat.name}`) }
+    if (member.role === 'verifier') {
+      return { ...member, prompt: member.prompt.replaceAll('你是验收员', `你是${member.name}`) }
     }
-    return seat
+    return member
   })
 }
 
-export const roleSeats = seats => ({
+export const roleMembers = members => ({
   // 自定义扩展可能没有显式 lead：第一个成员就是这间房的负责人。
-  lead: seats.find(seat => seat.role === 'lead') ?? seats[0],
-  workers: seats.filter(seat => seat.role === 'worker'),
-  verifiers: seats.filter(seat => seat.role === 'verifier'),
-  observers: seats.filter(seat => seat.role === 'observer'),
+  lead: members.find(member => member.role === 'lead') ?? members[0],
+  workers: members.filter(member => member.role === 'worker'),
+  verifiers: members.filter(member => member.role === 'verifier'),
+  observers: members.filter(member => member.role === 'observer'),
 })
 
-const validateCapabilities = seat => {
-  if (!['lead', 'worker', 'verifier', 'observer'].includes(seat.role)) {
-    throw new Error(`seat contract: ${seat.id} has an invalid role`)
+const validateCapabilities = member => {
+  if (!['lead', 'worker', 'verifier', 'observer'].includes(member.role)) {
+    throw new Error(`member contract: ${member.id} has an invalid role`)
   }
-  if (seat.model !== undefined && (typeof seat.model !== 'string' || seat.model.trim() === '' || seat.model.length > 160)) {
-    throw new Error(`seat contract: ${seat.id} model must be a model id`)
+  if (member.model !== undefined && (typeof member.model !== 'string' || member.model.trim() === '' || member.model.length > 160)) {
+    throw new Error(`member contract: ${member.id} model must be a model id`)
   }
-  if (!Array.isArray(seat.skills) || seat.skills.some(id => !isId(id))) {
-    throw new Error(`seat contract: ${seat.id} skills must be base skill names`)
+  if (!Array.isArray(member.skills) || member.skills.some(id => !isId(id))) {
+    throw new Error(`member contract: ${member.id} skills must be base skill names`)
   }
-  if (!Array.isArray(seat.mcp)) throw new Error(`seat contract: ${seat.id} mcp must be an array`)
-  for (const grant of seat.mcp) {
+  if (!Array.isArray(member.mcp)) throw new Error(`member contract: ${member.id} mcp must be an array`)
+  for (const grant of member.mcp) {
     if (!isId(grant?.server)) {
-      throw new Error(`seat contract: ${seat.id} mcp server must be a name, not a URL or credential`)
+      throw new Error(`member contract: ${member.id} mcp server must be a name, not a URL or credential`)
     }
     if (!Array.isArray(grant.scopes) || grant.scopes.length === 0 || grant.scopes.some(scope => !TOOL_SCOPES.includes(scope))) {
-      throw new Error(`seat contract: ${seat.id} mcp scopes are invalid`)
+      throw new Error(`member contract: ${member.id} mcp scopes are invalid`)
     }
     if (grant.approval !== 'ask') {
-      throw new Error(`seat contract: ${seat.id} external tools require approval`)
+      throw new Error(`member contract: ${member.id} external tools require approval`)
     }
   }
-  if (!['ask', 'auto'].includes(seat.approval)) {
-    throw new Error(`seat contract: ${seat.id} approval must be ask or auto`)
+  if (!['ask', 'auto'].includes(member.approval)) {
+    throw new Error(`member contract: ${member.id} approval must be ask or auto`)
   }
-  if (seat.mcp.length > 0 && seat.approval !== 'ask') {
-    throw new Error(`seat contract: ${seat.id} external tools require approval mode ask`)
+  if (member.mcp.length > 0 && member.approval !== 'ask') {
+    throw new Error(`member contract: ${member.id} external tools require approval mode ask`)
   }
-  if (!Array.isArray(seat.toolSurface) || seat.toolSurface.some(tool => !TOOL_SCOPES.includes(tool))) {
-    throw new Error(`seat contract: ${seat.id} toolSurface is invalid`)
+  if (!Array.isArray(member.toolSurface) || member.toolSurface.some(tool => !TOOL_SCOPES.includes(tool))) {
+    throw new Error(`member contract: ${member.id} toolSurface is invalid`)
   }
-  const declared = TOOL_SCOPES.filter(tool => seat.permissions?.[tool] === true)
-  if (!sameSet(seat.toolSurface, declared)) {
-    throw new Error(`seat contract: ${seat.id} toolSurface must match permissions`)
+  const declared = TOOL_SCOPES.filter(tool => member.permissions?.[tool] === true)
+  if (!sameSet(member.toolSurface, declared)) {
+    throw new Error(`member contract: ${member.id} toolSurface must match permissions`)
   }
 }
 
-export const validateRoster = (seats, { requireWorker = true } = {}) => {
-  if (!Array.isArray(seats) || seats.length < 1 || seats.length > 8) {
-    throw new Error('seat contract: a roster needs 1–8 seats')
+export const validateRoster = (members, { requireWorker = true } = {}) => {
+  if (!Array.isArray(members) || members.length < 1 || members.length > 8) {
+    throw new Error('member contract: a roster needs 1–8 members')
   }
-  const ids = seats.map(seat => seat.id)
+  const ids = members.map(member => member.id)
   if (new Set(ids).size !== ids.length || ids.some(id => !isId(id))) {
-    throw new Error('seat contract: seat ids must be unique names')
+    throw new Error('member contract: member ids must be unique names')
   }
-  for (const seat of seats) validateCapabilities(seat)
-  const { workers, verifiers } = roleSeats(seats)
-  if (verifiers.length > 1) throw new Error('seat contract: at most one verifier')
-  const leads = seats.filter(seat => seat.role === 'lead')
-  if (leads.length > 1) throw new Error('seat contract: at most one lead')
-  if (requireWorker && workers.length === 0) throw new Error('seat contract: at least one worker is required')
+  for (const member of members) validateCapabilities(member)
+  const { workers, verifiers } = roleMembers(members)
+  if (verifiers.length > 1) throw new Error('member contract: at most one verifier')
+  const leads = members.filter(member => member.role === 'lead')
+  if (leads.length > 1) throw new Error('member contract: at most one lead')
+  if (requireWorker && workers.length === 0) throw new Error('member contract: at least one worker is required')
   for (const worker of workers) {
     if (worker.permissions?.read !== true || worker.permissions?.write !== true || worker.writeScope !== 'own_worktree') {
-      throw new Error(`seat contract: worker ${worker.id} may write only its own worktree`)
+      throw new Error(`member contract: worker ${worker.id} may write only its own worktree`)
     }
   }
   for (const verifier of verifiers) {
     if (verifier.permissions?.read !== true || verifier.permissions?.exec !== true || verifier.permissions?.write === true) {
-      throw new Error(`seat contract: verifier ${verifier.id} must be read+exec with no write`)
+      throw new Error(`member contract: verifier ${verifier.id} must be read+exec with no write`)
     }
-    if (verifier.mcp.length > 0) throw new Error('seat contract: external tools belong to a separate role, not verifier')
+    if (verifier.mcp.length > 0) throw new Error('member contract: external tools belong to a separate role, not verifier')
   }
-  const lead = roleSeats(seats).lead
+  const lead = roleMembers(members).lead
   if (lead.role === 'lead' && lead.mcp.length > 0) {
-    throw new Error('seat contract: external tools belong to a separate role, not lead')
+    throw new Error('member contract: external tools belong to a separate role, not lead')
   }
-  return seats
+  return members
 }
 
-export const SEATS = seatsFor(DEFAULT_TEMPLATE_ID)
-export const SEAT_IDS = SEATS.map(seat => seat.id)
-export const validateSeats = validateRoster
-validateRoster(SEATS)
+export const ROLES = membersFor(DEFAULT_TEMPLATE_ID)
+export const ROLE_IDS = ROLES.map(member => member.id)
+validateRoster(ROLES)
 
 export const min = n => n * 60_000

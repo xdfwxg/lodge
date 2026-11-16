@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { hostAddress, seatAddress, seatDisplayName, toBaseMentions } from './seat-labels.js'
+import { hostAddress, memberAddress, memberDisplayName, toBaseMentions } from './member-labels.js'
+import { memberOf } from './room-members.js'
 
 const INTENTS = Object.freeze({
   handoff: { label: '阶段交接', authority: '按你的角色执行' },
@@ -12,7 +13,7 @@ const INTENTS = Object.freeze({
 
 const fromLabel = (room, from) => {
   if (typeof from !== 'string' || from === '') return ''
-  return (room?.seatSpecs ?? []).some(seat => seat.id === from) ? seatDisplayName(room, from) : from
+  return memberOf(room, from) === null ? from : memberDisplayName(room, from)
 }
 
 // 信封由 harness 写，不由模型写；下面的正文才是模型内容。
@@ -23,13 +24,13 @@ export const envelopeOf = ({ from = '', intent = 'handoff' } = {}) => {
 
 export const envelopeFor = (room, from, intent = 'handoff') => envelopeOf({ from: fromLabel(room, from), intent })
 
-// 基座投递原语：负责地址、信封、幂等键与发送，不决定这个席位用哪种身体。
+// 基座投递原语：负责地址、信封、幂等键与发送，不决定这个成员用哪种身体。
 export const deliverToBase = ({
   engine,
   store,
   roomId,
   room = null,
-  seat,
+  memberId,
   text,
   sendId = randomUUID(),
   intent = 'handoff',
@@ -37,9 +38,9 @@ export const deliverToBase = ({
   envelope = null,
 }) => {
   const current = store.readRoom(roomId) ?? room
-  const address = seat === 'host' ? hostAddress(current) : seatAddress(current, seat)
+  const address = memberId === 'host' ? hostAddress(current) : memberAddress(current, memberId)
   if (address === null) {
-    const name = seat === 'host' ? '主持人' : seatDisplayName(current, seat)
+    const name = memberId === 'host' ? '主持人' : memberDisplayName(current, memberId)
     return Promise.reject(new Error(`${name} 没有基座地址，消息没有送出`))
   }
   const chatId = current?.chatRoom?.id ?? room?.chatRoom?.id

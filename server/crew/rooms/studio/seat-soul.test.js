@@ -3,7 +3,7 @@ import test from 'node:test'
 import { roomModeForType } from '../kinds.js'
 
 const mode = roomModeForType('studio')
-const soulOf = seat => mode.seatSoul({ prompt: '', mcp: [], ...seat })
+const soulOf = member => mode.memberSoul({ prompt: '', mcp: [], ...member })
 
 test('studio souls ask for work logs instead of essays', () => {
   const lead = soulOf({ role: 'lead', name: '规划师' })

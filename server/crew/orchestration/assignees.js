@@ -5,16 +5,16 @@ const MAX_ASSIGNEES = 8
 export const resolveAssigneeTokens = (tokens, roster) => {
   if (!Array.isArray(tokens) || tokens.length === 0) return []
   const byToken = new Map()
-  for (const seat of roster) {
-    byToken.set(seat.id, seat)
-    byToken.set(seat.name, seat)
+  for (const member of roster) {
+    byToken.set(member.id, member)
+    byToken.set(member.name, member)
   }
   const resolved = []
   for (const token of tokens) {
     const raw = typeof token === 'string' ? token.trim() : ''
     if (raw === '') continue
-    const seat = byToken.get(raw)
-    if (seat?.role === 'worker') resolved.push(seat.id)
+    const member = byToken.get(raw)
+    if (member?.role === 'worker') resolved.push(member.id)
   }
   return [...new Set(resolved)].slice(0, MAX_ASSIGNEES)
 }

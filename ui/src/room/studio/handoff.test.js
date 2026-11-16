@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { dispatchSummaryOf, isDispatchHandoff } from './handoff.js'
 
-const room = { roomType: 'studio', leadSeat: 'lead' }
+const room = { roomType: 'studio', leadMemberId: 'lead' }
 const message = over => ({
   kind: 'chat',
   authorId: 'lead',

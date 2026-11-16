@@ -1,4 +1,4 @@
-import { seatDisplayName } from '../../seat-labels.js'
+import { memberDisplayName } from '../../member-labels.js'
 import { manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
@@ -25,11 +25,11 @@ export const gateFor = (room, index, messages, evidence) => {
     if (verifierIds(room).length > 0) {
       const outcome = manualReviewState({ room, evidence: ledger, messages, stageIndex: index })
       if (outcome.state === 'reject') {
-        const names = outcome.rejects.map(message => seatDisplayName(room, message.authorId)).join('、')
+        const names = outcome.rejects.map(message => memberDisplayName(room, message.authorId)).join('、')
         return deny('conflict', `${names} 退回了，先重做再再交一次`)
       }
       if (outcome.state === 'pending') {
-        const names = outcome.missing.map(id => seatDisplayName(room, id)).join('、')
+        const names = outcome.missing.map(id => memberDisplayName(room, id)).join('、')
         return deny('conflict', `还有验收员没有回报（${names}），不能签字`)
       }
       if (outcome.state !== 'pass') return deny('conflict', '本轮结果还没有验收通过，不能签字')
@@ -54,7 +54,7 @@ export const gateFor = (room, index, messages, evidence) => {
   if (verifierIds(room).length > 1) {
     const outcome = reviewState({ room, evidence: ledger, messages: ordered, stageIndex: index })
     if (outcome.state === 'reject') {
-      const names = outcome.rejects.map(message => seatDisplayName(room, message.authorId)).join('、')
+      const names = outcome.rejects.map(message => memberDisplayName(room, message.authorId)).join('、')
       return deny('conflict', `${names} 退回了，先重做并重新跑验收命令`)
     }
     if (outcome.state === 'failed') {
@@ -62,7 +62,7 @@ export const gateFor = (room, index, messages, evidence) => {
       return deny('conflict', '最新检查没有通过，不能签字')
     }
     if (outcome.state === 'pending') {
-      const names = outcome.missing.map(id => seatDisplayName(room, id)).join('、')
+      const names = outcome.missing.map(id => memberDisplayName(room, id)).join('、')
       return deny('conflict', `还有验收员没有回报（${names}），不能签字`)
     }
     if (outcome.state !== 'pass') {
@@ -93,7 +93,7 @@ export const gateFor = (room, index, messages, evidence) => {
       return deny('conflict', '还没有检查通过的记录，不能签字')
     }
     // 只有显式声明了“没有验收成员”的扩展编制才允许直接由人签字；未知成员表仍按有 verifier 处理。
-    const hasVerifier = !(Array.isArray(room.verifiers) && room.verifiers.length === 0)
+    const hasVerifier = verifierIds(room).length > 0
     if (room.demo === true || hasVerifier) {
       return deny('conflict', room.demo === true ? '本阶段还没有验收通过，不能验收' : '还没有验收通过，不能签字')
     }

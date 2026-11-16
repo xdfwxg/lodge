@@ -48,7 +48,7 @@ test('the approval card shows the seat and external command with only two decisi
   const calls = []
   const tree = render(ApprovalCard({
     approval: {
-      seatName: '执行',
+      memberName: '执行',
       label: '推送到远端',
       summary: 'git push origin main',
       gate: { decision: 'review', reasons: ['发布或推送远端'] },

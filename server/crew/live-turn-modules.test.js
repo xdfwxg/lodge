@@ -8,8 +8,9 @@ import { createLiveTurns } from './rooms/studio/turns.js'
 import { createTurnState } from './rooms/studio/turn-state.js'
 import { deliverableStageIndex, parsePlannerDecision, parseVerdict } from './rooms/studio/turn-utils.js'
 import { registerWorkspaceProvider } from './workspace.js'
+import { normalizeLegacyTestRoom } from './testing/room.js'
 
-const makeRoom = overrides => ({
+const makeRoom = overrides => normalizeLegacyTestRoom({
   id: 'room-1',
   name: 'Room',
   goal: 'ship it',
@@ -93,15 +94,15 @@ test('a rejected stage routes the planner decision to the executor or the human'
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      sent.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
       return { messageId: `m${sent.length}` }
     },
     commands: { run: async () => ({}) },
     files: { exists: () => false, read: () => Buffer.from('') },
   })
   turns.captureTurn({ reply: '返工\n改成写入欢迎语', turnId: 't-lead-1', toolCalls: 0 }, 'bot-plan')
-  const worker = sent.find(item => item.seat === 'executor')
+  const worker = sent.find(item => item.memberId === 'executor')
   assert.ok(worker)
   assert.match(worker.prompt, /规划师的返工要求：改成写入欢迎语/)
   assert.match(worker.prompt, /lodge-internal/)
@@ -126,8 +127,8 @@ test('a rejected stage routes the planner decision to the executor or the human'
     store: humanStore,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      humanSent.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      humanSent.push({ memberId, prompt })
       return { messageId: `m${humanSent.length}` }
     },
     commands: { run: async () => ({}) },
@@ -146,7 +147,7 @@ test('turn state resets progress and updates stage tasks', () => {
   state.markProgress()
   assert.equal(room.noProgress, 0)
   assert.ok(room.lastProgressAt > 0)
-  state.updateTasks(0, stage => ({ ...stage, tasks: [{ seat: 'executor', state: 'working' }] }))
+  state.updateTasks(0, stage => ({ ...stage, tasks: [{ memberId: 'executor', state: 'working' }] }))
   assert.equal(room.stages[0].tasks[0].state, 'working')
 })
 
@@ -184,8 +185,8 @@ test('a single worker stage sends the prompt and hides the base message', async 
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      prompts.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      prompts.push({ memberId, prompt })
       return { messageId: 'm1' }
     },
     updateTasks: () => {},
@@ -194,7 +195,7 @@ test('a single worker stage sends the prompt and hides the base message', async 
   })
   await starter.startStage(room, 0)
   assert.equal(prompts.length, 1)
-  assert.equal(prompts[0].seat, room.workers[0])
+  assert.equal(prompts[0].memberId, room.workers[0])
   assert.match(prompts[0].prompt, /验收命令：`true`/)
   assert.match(prompts[0].prompt, /@执行官/)
 })
@@ -221,16 +222,16 @@ test('parallel dispatch wakes every assignee and tracks pending seats', async ()
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      prompts.push({ seat, prompt })
-      return { messageId: `m-${seat}` }
+    sendToMember: async (memberId, prompt) => {
+      prompts.push({ memberId, prompt })
+      return { messageId: `m-${memberId}` }
     },
     updateTasks: () => {},
     integrate: async () => {},
     enqueue: task => task(),
   })
   await starter.startStage(room, 0)
-  assert.deepEqual(prompts.map(item => item.seat), ['executor', 'executor-2'])
+  assert.deepEqual(prompts.map(item => item.memberId), ['executor', 'executor-2'])
   assert.match(prompts[0].prompt, /自己的 worktree/)
   assert.match(prompts[0].prompt, /@执行官/)
   assert.match(prompts[1].prompt, /@执行官 2/)
@@ -250,6 +251,8 @@ test('acceptance runs in a disposable copy and records command evidence', async 
     repoPath: '/repo',
     sourceRepo: '/repo',
     workspace: { provider: 'test-live-accept' },
+    seatSpecs: [{ id: 'executor', name: '执行官', role: 'worker' }],
+    verifiers: [],
   })
   const store = fakeStore(room)
   let progressed = 0
@@ -284,16 +287,16 @@ test('review request and verdict consumption update the round without crossing t
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      sent.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
       return { messageId: 'm2' }
     },
     updateTasks: () => {},
   })
   await review.request(0)
   assert.equal(review.isBusy(), true)
-  assert.equal(sent[0].seat, 'verifier')
-  assert.equal(review.consume({ turn: { reply: 'PASS' }, seat: 'verifier', turnId: 't1', room }), true)
+  assert.equal(sent[0].memberId, 'verifier')
+  assert.equal(review.consume({ turn: { reply: 'PASS' }, memberId: 'verifier', turnId: 't1', room }), true)
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
   assert.ok(store.messages.some(message => message.text === '全部验收员通过，可以签字了。'))
@@ -315,17 +318,17 @@ test('manual evidence also goes through the Verifier before human signoff', asyn
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      sent.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
       return { messageId: 'm2' }
     },
     updateTasks: () => {},
   })
   await review.request(0)
-  assert.equal(sent[0].seat, 'verifier')
+  assert.equal(sent[0].memberId, 'verifier')
   assert.match(sent[0].prompt, /结果证据/)
   assert.doesNotMatch(sent[0].prompt, /验收命令：/)
-  assert.equal(review.consume({ turn: { reply: 'PASS\nok' }, seat: 'verifier', turnId: 't1', room }), true)
+  assert.equal(review.consume({ turn: { reply: 'PASS\nok' }, memberId: 'verifier', turnId: 't1', room }), true)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
 })
 
@@ -481,7 +484,7 @@ test('a worker chatter turn does not start another acceptance round', async () =
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async () => ({ messageId: null }),
+    sendToMember: async () => ({ messageId: null }),
     commands: { run: async () => { runs += 1; return { exit: 0 } } },
     files: { exists: () => false, read: () => Buffer.from('') },
   })
@@ -511,7 +514,7 @@ test('a repeated manual turn on the same HEAD does not duplicate manual evidence
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async () => ({ messageId: null }),
+    sendToMember: async () => ({ messageId: null }),
     commands: { run: async () => ({ exit: 0 }) },
     files: { exists: () => false, read: () => Buffer.from('') },
   })
@@ -535,8 +538,8 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      sent.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
       return { messageId: `m${sent.length}` }
     },
     updateTasks: () => {},
@@ -549,8 +552,8 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   await review.request(0)
   assert.equal(sent.length, 2)
   assert.equal(review.isBusy(), true)
-  assert.equal(review.consume({ turn: { reply: 'REJECT old' }, seat: 'verifier', turnId: 't-old', room }), false)
-  assert.equal(review.consume({ turn: { reply: 'PASS new' }, seat: 'verifier', turnId: 't-new', room }), true)
+  assert.equal(review.consume({ turn: { reply: 'REJECT old' }, memberId: 'verifier', turnId: 't-old', room }), false)
+  assert.equal(review.consume({ turn: { reply: 'PASS new' }, memberId: 'verifier', turnId: 't-new', room }), true)
   assert.equal(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true), true)
 })
 
@@ -577,16 +580,16 @@ test('a verifier reject returns the studio closure to executing and wakes the pl
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      sent.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
       return { messageId: `m${sent.length}` }
     },
     updateTasks: () => {},
   })
   await review.request(0)
-  assert.equal(review.consume({ turn: { reply: 'REJECT\n证据不足' }, seat: 'verifier', turnId: 't1', room }), true)
+  assert.equal(review.consume({ turn: { reply: 'REJECT\n证据不足' }, memberId: 'verifier', turnId: 't1', room }), true)
   assert.equal(room.closure, 'executing')
-  const planner = sent.find(item => item.seat === 'planner')
+  const planner = sent.find(item => item.memberId === 'planner')
   assert.ok(planner)
   assert.match(planner.prompt, /验收员退回了第 1 步/)
   assert.match(planner.prompt, /证据不足/)
@@ -607,8 +610,8 @@ test('shadow advice is recorded but never injected into the Verifier prompt', as
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      sent.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
       return { messageId: 'm2' }
     },
     updateTasks: () => {},
@@ -623,7 +626,7 @@ test('shadow advice is recorded but never injected into the Verifier prompt', as
   assert.match(advice.text, /第二意见/)
   assert.equal(advice.meta.shadow, true)
   assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
-  assert.equal(review.consume({ turn: { reply: 'PASS' }, seat: 'verifier', turnId: 't1', room }), true)
+  assert.equal(review.consume({ turn: { reply: 'PASS' }, memberId: 'verifier', turnId: 't1', room }), true)
 })
 
 test('advisor advice is visible to the Verifier when shadow mode is off', async () => {
@@ -638,8 +641,8 @@ test('advisor advice is visible to the Verifier when shadow mode is off', async 
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      sent.push({ seat, prompt })
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
       return { messageId: 'm2' }
     },
     updateTasks: () => {},

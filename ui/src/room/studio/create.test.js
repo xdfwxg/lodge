@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildStudioRequest, DEFAULT_STUDIO_SEATS } from './create.js'
+import { buildStudioRequest, DEFAULT_STUDIO_MEMBERS } from './create.js'
 
 const base = {
   name: '交付演练',
@@ -10,9 +10,9 @@ const base = {
   shadowReview: false,
   proposal: null,
   answers: [],
-  seatChoices: [],
-  hasSeatChoice: false,
-  seats: DEFAULT_STUDIO_SEATS,
+  memberChoices: [],
+  hasMemberChoice: false,
+  members: DEFAULT_STUDIO_MEMBERS,
   selectedModelOf: () => '',
 }
 
@@ -22,7 +22,7 @@ test('a direct studio request needs no plan or seat override', () => {
   assert.equal(request.verify, 'manual')
   assert.equal(request.acceptance, '')
   assert.equal('plan' in request, false)
-  assert.equal('seats' in request, false)
+  assert.equal('members' in request, false)
 })
 
 test('a studio started from chat carries where it came from', () => {
@@ -51,19 +51,19 @@ test('model overrides send the default roster', () => {
   ]
   const request = buildStudioRequest({
     ...base,
-    seatChoices: choices,
-    hasSeatChoice: true,
+    memberChoices: choices,
+    hasMemberChoice: true,
     selectedModelOf: choice => `${choice.engine}-default`,
   })
-  assert.deepEqual(request.seats.map(seat => seat.role), ['lead', 'worker', 'verifier'])
-  assert.equal(request.seats[0].engine, 'claude-cli')
-  assert.equal(request.seats[0].model, 'claude-cli-default')
+  assert.deepEqual(request.members.map(seat => seat.role), ['lead', 'worker', 'verifier'])
+  assert.equal(request.members[0].engine, 'claude-cli')
+  assert.equal(request.members[0].model, 'claude-cli-default')
 })
 
 test('a proposal still carries its plan and answers', () => {
   const proposal = {
     verify: 'test',
-    seats: [{ role: 'lead', name: '规划师' }, { role: 'verifier', name: '验收员' }],
+    members: [{ role: 'lead', name: '规划师' }, { role: 'verifier', name: '验收员' }],
     done: ['跑通启动说明'],
     stages: [{ title: '写说明', acceptance: 'npm test' }],
     questions: [{ text: '写给谁？', recommendation: '新同事' }],
@@ -75,7 +75,7 @@ test('a proposal still carries its plan and answers', () => {
     acceptance: 'npm test',
   })
   assert.equal(request.verify, 'test')
-  assert.deepEqual(request.seats.map(seat => seat.role), ['lead', 'verifier'])
+  assert.deepEqual(request.members.map(seat => seat.role), ['lead', 'verifier'])
   assert.deepEqual(request.plan.done, ['跑通启动说明'])
   assert.deepEqual(request.plan.answers, [
     { question: '写给谁？', answer: '第一次接触项目的人' },

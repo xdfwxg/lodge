@@ -2,10 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { roomNeedsYou } from './attention.js'
 
+const member = (id, name, role, roleKind) => ({ id, name, role, roleKind, permissions: {}, toolSurface: [], skills: [], mcp: [], body: { kind: 'base', ref: `bot-${id}`, name } })
 const room = (over = {}) => ({
   state: 'active',
   busy: false,
-  verifiers: ['verifier'],
+  members: [member('planner', '规划师', 'lead', 'planner'), member('worker', '执行官', 'worker', 'executor'), member('verifier', '验收员', 'verifier', 'verifier')],
   openQuestion: null,
   stages: [
     { title: 'align', kind: 'decision', state: 'active', acceptance: undefined },
@@ -32,23 +33,23 @@ test('an open question outranks the stage type', () => {
   assert.equal(roomNeedsYou(room({ openQuestion: 'which path?' }), []).kind, 'question')
 })
 
-test('a busy seat is not a needs-you state', () => {
+test('a busy member is not a needs-you state', () => {
   assert.equal(roomNeedsYou(room({ busy: true }), []), null)
 })
 
-test('a pending external approval outranks a busy seat', () => {
+test('a pending external approval outranks a busy member', () => {
   const r = atDeliverable()
   r.busy = true
   r.approvals = [{ id: 'a', state: 'pending' }]
   assert.deepEqual(roomNeedsYou(r, []), { kind: 'approval', stage: null, label: '待确认' })
 })
 
-test('a seat engine error asks the human to intervene with a concrete reason', () => {
+test('a member engine error asks the human to intervene with a concrete reason', () => {
   assert.deepEqual(roomNeedsYou({
     state: 'paused',
-    pauseReason: 'seat_error',
-    seatSpecs: [{ id: 'worker', name: '执行者' }],
-    seatError: { seat: 'worker', kind: 'quota' },
+    pauseReason: 'member_error',
+    members: [member('worker', '执行者', 'worker', 'executor')],
+    memberError: { memberId: 'worker', kind: 'quota' },
   }, []), {
     kind: 'error',
     stage: null,
@@ -56,9 +57,9 @@ test('a seat engine error asks the human to intervene with a concrete reason', (
   })
   assert.equal(roomNeedsYou({
     state: 'paused',
-    pauseReason: 'seat_error',
-    seatSpecs: [{ id: 'verifier', name: '验收员' }],
-    seatError: { seat: 'verifier', kind: 'auth' },
+    pauseReason: 'member_error',
+    members: [member('verifier', '验收员', 'verifier', 'verifier')],
+    memberError: { memberId: 'verifier', kind: 'auth' },
   }, []).label, '验收员的登录失效了')
 })
 
@@ -70,8 +71,7 @@ test('a deliverable without an acceptance command asks for setup', () => {
 
 test('multiple verifiers report progress and require all PASS', () => {
   const r = atDeliverable()
-  r.verifiers = ['v1', 'v2']
-  r.seatSpecs = [{ id: 'v1', name: '验收一' }, { id: 'v2', name: '验收二' }]
+  r.members = [...r.members.filter(item => item.roleKind !== 'verifier'), member('v1', '验收一', 'verifier', 'verifier'), member('v2', '验收二', 'verifier', 'verifier')]
   const e = { id: 'e-10', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'command', command: 'npm test', exit: 0 } }
   const first = { id: 'v-1', kind: 'verdict', authorId: 'v1', seq: 11, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
   const second = { id: 'v-2', kind: 'verdict', authorId: 'v2', seq: 12, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
@@ -85,9 +85,9 @@ test('a failed acceptance command asks for rework, not review or sign-off', () =
   const failed = { id: 'e-failed', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'command', command: 'npm test', exit: 1 } }
   assert.equal(roomNeedsYou(atDeliverable(), [failed]).kind, 'rework')
   const two = atDeliverable()
-  two.verifiers = ['v1', 'v2']
+  two.members = [...two.members, member('v1', '验收一', 'verifier', 'verifier'), member('v2', '验收二', 'verifier', 'verifier')]
   assert.equal(roomNeedsYou(two, [failed]).kind, 'rework')
-  two.verifiers = []
+  two.members = two.members.filter(member => member.roleKind !== 'verifier')
   assert.equal(roomNeedsYou(two, [failed]).kind, 'rework')
 })
 
@@ -110,7 +110,7 @@ test('a manual stage stays quiet until the product is ready', () => {
   assert.equal(roomNeedsYou(r, [evidence()]), null)
   const manual = { kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
   assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'review', stage: 1, label: '验收员在看 · 已回 0/1' })
-  r.verifiers = []
+  r.members = r.members.filter(member => member.roleKind !== 'verifier')
   assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'decision', stage: 1, label: '待确认' })
 })
 
@@ -140,7 +140,7 @@ test('a room-level merge conflict outlives the dispatch record', () => {
 
 test('a room with no verifier waits for sign-off after evidence', () => {
   const r = atDeliverable()
-  r.verifiers = []
+  r.members = r.members.filter(member => member.roleKind !== 'verifier')
   assert.equal(roomNeedsYou(r, [evidence()]).kind, 'signoff')
 })
 

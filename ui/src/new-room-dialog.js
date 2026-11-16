@@ -5,9 +5,9 @@ import { chooseDirectory as pickProjectDirectory, loginRuntime } from './system.
 import { inlineCode } from './inline-code.js'
 import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
-import { SeatEnginePicker } from './room/seat-engine-picker.js'
-import { defaultPersonalityId, modelRowsFor, seatChoicesFrom } from './room/seat-options.js'
-import { DEFAULT_STUDIO_SEATS } from './room/studio/create.js'
+import { MemberEnginePicker } from './room/member-engine-picker.js'
+import { defaultPersonalityId, modelRowsFor, memberChoicesFrom } from './room/member-options.js'
+import { DEFAULT_STUDIO_MEMBERS } from './room/studio/create.js'
 import { gateCardState, HandoffReview } from './room/studio/handoff-review.js'
 import { ReceiptReview } from './room/receipt-review.js'
 import { RoomTypeChoices } from './room/type-choices.js'
@@ -21,7 +21,7 @@ const FALLBACK_ROOM_TYPES = ROOM_TYPE_MANIFEST.map(({ id, name, description, def
   defaultVerify,
 }))
 
-const CHAT_BASE_SEATS = 3
+const CHAT_BASE_MEMBERS = 3
 
 function NewRoomDialog({
   open,
@@ -52,9 +52,9 @@ function NewRoomDialog({
   const [handoffReviewed, setHandoffReviewed] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [seatChoices, setSeatChoices] = useState([])
-  const [chatSeatChoices, setChatSeatChoices] = useState([])
-  const [chatSeats, setChatSeats] = useState(null)
+  const [memberChoices, setMemberChoices] = useState([])
+  const [chatMemberChoices, setChatMemberChoices] = useState([])
+  const [chatMembers, setChatMembers] = useState(null)
   const [loginBusy, setLoginBusy] = useState(false)
   const [loginNote, setLoginNote] = useState(null)
   const [error, setError] = useState(null)
@@ -70,12 +70,12 @@ function NewRoomDialog({
     setAnswers([])
     setGoal('')
     setNameDraft('')
-    setSeatChoices([])
+    setMemberChoices([])
     setRecommending(false)
     setShadowReview(false)
     setChatTurnLimit(6)
     setLoginNote(null)
-    setChatSeats(null)
+    setChatMembers(null)
     setVerifyMode('manual')
     setAdvanced(false)
     setHandoff(null)
@@ -108,7 +108,7 @@ function NewRoomDialog({
     if (typeof seed.repoPath === 'string' && seed.repoPath !== '') setRepoPath(seed.repoPath)
     setStep(0)
     setProposal(null)
-    setSeatChoices([])
+    setMemberChoices([])
     setAnswers([])
     setError(null)
   }, [open, seed?.goal, seed?.conclusion, seed?.sourceName, seed?.sourceRoomId, seed?.handoff, seed?.receipt, startType])
@@ -116,7 +116,7 @@ function NewRoomDialog({
   useEffect(() => {
     if (!open || uiKindOfType(roomType).id !== 'chat') return
     const type = typeChoices.find(item => item.id === roomType)
-    setChatSeatChoices(seatChoicesFrom(type?.defaultSeats ?? []))
+    setChatMemberChoices(memberChoicesFrom(type?.defaultMembers ?? []))
   }, [open, roomType, typeChoices])
 
   if (!open) return null
@@ -124,13 +124,13 @@ function NewRoomDialog({
   const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
   const roomKind = uiKindOfType(roomType)
   const isChat = roomKind.id === 'chat'
-  const chatRoster = chatSeats ?? (activeType?.defaultSeats ?? [])
+  const chatRoster = chatMembers ?? (activeType?.defaultMembers ?? [])
   const needRepo = roomKind.workspace.required(null) && repoPath.trim() === ''
-  const proposalSeats = proposal?.seats ?? []
-  const rosterSeats = proposalSeats.length > 0 ? proposalSeats : DEFAULT_STUDIO_SEATS
-  const directSeats = isChat ? chatRoster : DEFAULT_STUDIO_SEATS
-  const directChoices = isChat ? chatSeatChoices : seatChoices
-  const setDirectChoices = isChat ? setChatSeatChoices : setSeatChoices
+  const proposalMembers = proposal?.members ?? []
+  const rosterMembers = proposalMembers.length > 0 ? proposalMembers : DEFAULT_STUDIO_MEMBERS
+  const directMembers = isChat ? chatRoster : DEFAULT_STUDIO_MEMBERS
+  const directChoices = isChat ? chatMemberChoices : memberChoices
+  const setDirectChoices = isChat ? setChatMemberChoices : setMemberChoices
   const engineChoices = engines.filter(item => item.available)
   const choiceAt = index => directChoices[index] ?? { engine: '', model: '' }
   const selectedModelOf = choice => {
@@ -138,15 +138,15 @@ function NewRoomDialog({
     if (choice.model !== '') return choice.model
     return engine?.models?.default || modelRowsFor(engine)[0]?.id || ''
   }
-  const seatChoiceReady = index => {
+  const memberChoiceReady = index => {
     const choice = choiceAt(index)
     if (choice.engine === '') return true
     const engine = engineChoices.find(item => item.id === choice.engine)
     return engine !== undefined && modelRowsFor(engine).length > 0
   }
-  const seatsReady = rosterSeats.every((_, index) => seatChoiceReady(index))
-  const hasSeatChoice = seatChoices.some(choice => choice.engine !== '' || choice.model !== '')
-  const hasVerifier = rosterSeats.some(seat => seat.role === 'verifier')
+  const membersReady = rosterMembers.every((_, index) => memberChoiceReady(index))
+  const hasMemberChoice = memberChoices.some(choice => choice.engine !== '' || choice.model !== '')
+  const hasVerifier = rosterMembers.some(member => member.role === 'verifier')
   const plannedAcceptance = Array.isArray(proposal?.stages) &&
     proposal.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
   const proposalVerify = proposal?.verify === 'manual' ? 'manual' : 'test'
@@ -168,32 +168,32 @@ function NewRoomDialog({
   const gatePending = handoffGate?.pendingText ?? null
   const checkReady = verifyMode !== 'test' || acceptanceDraft.trim() !== ''
   const proposalCheckReady = !(proposalVerify === 'test' && acceptance.trim() === '' && !plannedAcceptance)
-  const canStartProposal = proposal !== null && !busy && seatsReady &&
+  const canStartProposal = proposal !== null && !busy && membersReady &&
     (handoffGate === null ? proposalCheckReady : handoffGate.ready) &&
     !studioMissingVerifier
-  const canStartStudio = !busy && goal.trim() !== '' && !needRepo && seatsReady &&
+  const canStartStudio = !busy && goal.trim() !== '' && !needRepo && membersReady &&
     (handoffGate === null ? checkReady : handoffGate.ready)
   const startDisabled = busy || goal.trim() === '' || needRepo || (!isChat && !canStartStudio)
   const planFirst = !isChat && handoff !== null && proposal === null && typeof onRecommend === 'function'
 
-  const addChatSeat = () => {
-    setChatSeats(current => {
-      const base = current ?? (activeType?.defaultSeats ?? [])
+  const addChatMember = () => {
+    setChatMembers(current => {
+      const base = current ?? (activeType?.defaultMembers ?? [])
       if (base.length >= 6) return base
       const names = Array.from('甲乙丙丁戊己庚辛壬癸')
-      const used = new Set(base.map(seat => seat.name))
+      const used = new Set(base.map(member => member.name))
       const name = names.find(item => !used.has(item)) ?? `成员 ${base.length + 1}`
       return [...base, { role: 'worker', name, personality: defaultPersonalityId(base.length) }]
     })
   }
 
-  const removeChatSeat = (seat, index) => {
-    if (index < CHAT_BASE_SEATS) return
+  const removeChatMember = (member, index) => {
+    if (index < CHAT_BASE_MEMBERS) return
     const base = [...chatRoster]
-    if (base.length <= CHAT_BASE_SEATS) return
+    if (base.length <= CHAT_BASE_MEMBERS) return
     base.splice(index, 1)
-    setChatSeats(base)
-    setChatSeatChoices(current => {
+    setChatMembers(base)
+    setChatMemberChoices(current => {
       const next = [...current]
       next.splice(index, 1)
       return next
@@ -229,11 +229,11 @@ function NewRoomDialog({
   }
 
   const useProposal = next => {
-    const seats = Array.isArray(next?.seats) && next.seats.length > 0 ? next.seats : DEFAULT_STUDIO_SEATS
-    setProposal({ ...next, seats })
-    setSeatChoices(seats.map(seat => ({
-      engine: typeof seat.engine === 'string' ? seat.engine : '',
-      model: typeof seat.model === 'string' ? seat.model : '',
+    const members = Array.isArray(next?.members) && next.members.length > 0 ? next.members : DEFAULT_STUDIO_MEMBERS
+    setProposal({ ...next, members })
+    setMemberChoices(members.map(member => ({
+      engine: typeof member.engine === 'string' ? member.engine : '',
+      model: typeof member.model === 'string' ? member.model : '',
     })))
     setAnswers((next?.questions ?? []).map(question => question.recommendation))
     setAcceptanceDraft('')
@@ -267,12 +267,12 @@ function NewRoomDialog({
     setNameDraft('')
     setStep(0)
     setProposal(null)
-    setSeatChoices([])
+    setMemberChoices([])
     setAnswers([])
     setShadowReview(false)
     setRoomType('studio')
     setChatTurnLimit(6)
-    setChatSeats(null)
+    setChatMembers(null)
     setAcceptanceDraft('')
     setVerifyMode('manual')
     setAdvanced(false)
@@ -292,8 +292,8 @@ function NewRoomDialog({
         name: roomTitle,
         repoPath: repoPath.trim(),
         chatTurnLimit,
-        defaultSeats: chatRoster,
-        choices: chatSeatChoices,
+        defaultMembers: chatRoster,
+        choices: chatMemberChoices,
         selectedModelOf,
         receipt,
         sourceRoomId: seed?.sourceRoomId,
@@ -329,8 +329,8 @@ function NewRoomDialog({
         sourceName: seed?.sourceName,
         proposal,
         answers,
-        seatChoices,
-        hasSeatChoice,
+        memberChoices,
+        hasMemberChoice,
         selectedModelOf,
       }))
       if (result?.ok !== true) {
@@ -361,9 +361,9 @@ function NewRoomDialog({
         sourceRoomId: seed?.sourceRoomId,
         sourceName: seed?.sourceName,
         proposal: null,
-        seats: DEFAULT_STUDIO_SEATS,
-        seatChoices,
-        hasSeatChoice,
+        members: DEFAULT_STUDIO_MEMBERS,
+        memberChoices,
+        hasMemberChoice,
         selectedModelOf,
       }))
       if (result?.ok !== true) {
@@ -380,10 +380,10 @@ function NewRoomDialog({
 
   const teamView = h('div', { className: 'crew-proposal-block' },
     h('b', null, '成员'),
-    h(SeatEnginePicker, {
-      seats: proposalSeats,
-      choices: seatChoices,
-      setChoices: setSeatChoices,
+    h(MemberEnginePicker, {
+      members: proposalMembers,
+      choices: memberChoices,
+      setChoices: setMemberChoices,
       engines,
       loginBusy,
       allowSkills: features?.skillsLibrary === true,
@@ -407,7 +407,7 @@ function NewRoomDialog({
         },
           inlineCode(typeof proposal.why === 'string' && proposal.why !== ''
             ? proposal.why
-            : `这件事由 ${proposal.seats.length} 位成员一起完成。`)))),
+            : `这件事由 ${proposal.members.length} 位成员一起完成。`)))),
     h('div', { className: 'crew-proposal-block' },
       h('b', null, '会交付什么'),
       h('ul', { className: 'crew-brief' },
@@ -459,11 +459,11 @@ function NewRoomDialog({
   const setupProps = {
     turnLimit: chatTurnLimit,
     onTurnLimit: setChatTurnLimit,
-    onAddSeat: addChatSeat,
-    canAddSeat: chatRoster.length < 6,
-    onRemoveSeat: removeChatSeat,
-    canRemoveSeat: (seat, index) => index >= CHAT_BASE_SEATS,
-    seats: directSeats,
+    onAddMember: addChatMember,
+    canAddMember: chatRoster.length < 6,
+    onRemoveMember: removeChatMember,
+    canRemoveMember: (member, index) => index >= CHAT_BASE_MEMBERS,
+    members: directMembers,
     choices: directChoices,
     setChoices: setDirectChoices,
     engines,
@@ -584,7 +584,7 @@ function NewRoomDialog({
               setRoomType(nextType)
               setChoosingType(false)
               setProposal(null)
-              setSeatChoices([])
+              setMemberChoices([])
               setAnswers([])
               setError(null)
             },
@@ -599,7 +599,7 @@ function NewRoomDialog({
             onClick: () => {
               setStep(0)
               setProposal(null)
-              setSeatChoices([])
+              setMemberChoices([])
               setAnswers([])
             },
           }, '返回修改')

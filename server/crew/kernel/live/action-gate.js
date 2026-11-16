@@ -1,3 +1,5 @@
+import { memberOf } from '../../room-members.js'
+
 // 独立守门检查：只看动作、成员角色与房间约束，不看执行成员的对话。
 // 它给建议，不替人做最终决定；审批权仍在人手里。
 const DENY_PATTERNS = [
@@ -26,7 +28,7 @@ const constrains = (room, kind) => {
 
 export const reviewExternalAction = ({ approval, room }) => {
   const command = typeof approval?.summary === 'string' ? approval.summary : ''
-  const role = room?.seatSpecs?.find(seat => seat.id === approval?.seat)?.role
+  const role = memberOf(room, approval?.memberId)?.role
   const reasons = []
   let risk = 'low'
   let decision = 'allow'

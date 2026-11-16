@@ -1,9 +1,10 @@
 import { createLiveApprovals } from '../../kernel/live/approvals.js'
 import { createMessageProjector } from '../../kernel/live/projection.js'
 import { createRoomRefresher } from '../../kernel/live/refresh.js'
-import { createSeatSync } from '../../kernel/live/sync.js'
+import { createMemberSync } from '../../kernel/live/sync.js'
 import { createRoomChat } from '../../kernel/live/bus.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { memberDisplayName } from '../../member-labels.js'
+import { leadMemberOf } from '../../room-members.js'
 import { createSurfaces } from '../../surface-delivery.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
@@ -31,7 +32,7 @@ export const createLiveRooms = ({
     approvalTimeoutMs,
     readOnlyFor: room => roomModeOfRoom(room)?.approvalReadOnly?.(room) === true,
   })
-  const sync = createSeatSync({ store, engine, projector })
+  const sync = createMemberSync({ store, engine, projector })
   const refreshRoom = refresher.refresh
   const strategies = [
     createChatRuntime({ store, engine, emit, refreshRoom }),
@@ -43,8 +44,8 @@ export const createLiveRooms = ({
     if (strategy === undefined) throw new Error(`没有 ${room?.roomType ?? '未知'} 房型的策略`)
     return strategy
   }
-  const seatHandlers = {
-    answerPermission: (entry, seat, message) => approvals.answerPermission(entry, seat, message, refreshRoom),
+  const memberHandlers = {
+    answerPermission: (entry, memberId, message) => approvals.answerPermission(entry, memberId, message, refreshRoom),
     refresh: refreshRoom,
   }
 
@@ -54,19 +55,18 @@ export const createLiveRooms = ({
     projector,
     refresh: refreshRoom,
     emit,
-    onPermission: (entry, seat, message, chatRoom) => entry.strategy.permissionCard(entry, seat, message, chatRoom),
+    onPermission: (entry, memberId, message, chatRoom) => entry.strategy.permissionCard(entry, memberId, message, chatRoom),
     onTurn: (entry, room, message) => entry.strategy.captureTurn?.(entry, message),
   })
 
   const attach = async (room, { resume = true } = {}) => {
     if (entries.has(room.id)) return entries.get(room.id)
-    const seatRefs = room.seatRooms ?? {}
-    const seatKeys = Object.keys(seatRefs)
-    if (seatKeys.length === 0) throw new Error('房间没有成员线程')
+    const members = (room.members ?? []).filter(member => typeof member.body?.roomRef === 'string' && member.body.roomRef !== '')
+    if (members.length === 0) throw new Error('房间没有成员线程')
     const strategy = strategyFor(room)
     const entry = {
       roomId: room.id,
-      seats: new Map(),
+      members: new Map(),
       strategy,
       syncing: new Set(),
       answeredCards: new Set(),
@@ -79,13 +79,12 @@ export const createLiveRooms = ({
     entries.set(room.id, entry)
     approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
     const bases = await engine.rooms()
-    for (const seat of seatKeys) {
-      const ref = seatRefs[seat]
-      const base = bases.find(item => item.id === ref.id)
-      if (base === undefined) throw new Error(`engine 里没有 ${seat} 成员线程`)
-      entry.seats.set(seat, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
-      await sync.syncSeat(entry, seat)
-      sync.subscribeSeat(entry, seat, seatHandlers)
+    for (const member of members) {
+      const base = bases.find(item => item.id === member.body.roomRef)
+      if (base === undefined) throw new Error(`engine 里没有 ${member.id} 成员线程`)
+      entry.members.set(member.id, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
+      await sync.syncMember(entry, member.id)
+      sync.subscribeMember(entry, member.id, memberHandlers)
     }
     const liveRoom = await chat.ensure(room)
     chat.subscribe(entry, liveRoom)
@@ -100,28 +99,29 @@ export const createLiveRooms = ({
     return entry
   }
 
-  const attachSeat = async (roomId, seat) => {
+  const attachMember = async (roomId, memberId) => {
     const entry = entries.get(roomId)
     if (entry === undefined) return false
-    if (entry.seats.has(seat)) return true
+    if (entry.members.has(memberId)) return true
     const room = store.readRoom(roomId)
-    const ref = room?.seatRooms?.[seat]
-    if (ref === undefined) throw new Error(`房间没有 ${seat} 成员线程`)
+    const member = room?.members?.find(item => item.id === memberId)
+    const ref = member?.body?.roomRef
+    if (typeof ref !== 'string' || ref === '') throw new Error(`房间没有 ${memberId} 成员线程`)
     const bases = await engine.rooms()
-    const base = bases.find(item => item.id === ref.id)
-    if (base === undefined) throw new Error(`engine 里没有 ${seat} 成员线程`)
-    entry.seats.set(seat, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
-    await sync.syncSeat(entry, seat)
-    sync.subscribeSeat(entry, seat, seatHandlers)
+    const base = bases.find(item => item.id === ref)
+    if (base === undefined) throw new Error(`engine 里没有 ${memberId} 成员线程`)
+    entry.members.set(memberId, { roomRef: base.id, sessionRef: base.sessionRef, unsubscribe: null })
+    await sync.syncMember(entry, memberId)
+    sync.subscribeMember(entry, memberId, memberHandlers)
     return true
   }
 
-  const detachSeat = (roomId, seat) => {
+  const detachMember = (roomId, memberId) => {
     const entry = entries.get(roomId)
-    const target = entry?.seats.get(seat)
+    const target = entry?.members.get(memberId)
     if (target === undefined) return false
     target.unsubscribe?.()
-    entry.seats.delete(seat)
+    entry.members.delete(memberId)
     return true
   }
 
@@ -131,7 +131,7 @@ export const createLiveRooms = ({
     entry.strategy?.detach(entry)
     approvals.expireApprovals(entry, roomId, '房间绑定已断开，上一张权限卡已不在等待')
     chat.detach(entry)
-    for (const target of entry.seats.values()) target.unsubscribe?.()
+    for (const target of entry.members.values()) target.unsubscribe?.()
     entries.delete(roomId)
   }
 
@@ -155,12 +155,12 @@ export const createLiveRooms = ({
     }
   }
 
-  const sendToSeat = async (roomId, seat, text, options = {}) => {
+  const sendToMember = async (roomId, memberId, text, options = {}) => {
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('房间还没有连上')
     const room = store.readRoom(roomId)
     // 工作室的派发和复核都走群聊 @；聊天室没有成员线程派发。
-    return entry.strategy.sendToSeat(entry, room, seat, text, options)
+    return entry.strategy.sendToMember(entry, room, memberId, text, options)
   }
 
   const send = async (roomId, text) => {
@@ -171,7 +171,7 @@ export const createLiveRooms = ({
     if (room === null) throw new Error('没有这个房间')
     // 成员默认休眠，只有被 @ 才唤醒；人直接说话时默认唤醒主成员，避免“发了没人回”。
     const lead = !/@[^\s，,。]+/.test(text)
-      ? seatDisplayName(room, room.leadSeat ?? room.members?.[0])
+      ? memberDisplayName(room, leadMemberOf(room)?.id ?? '')
       : ''
     // 自动唤醒的 @ 只发给基座，不写进房间记录；人看到的仍是自己说的话。
     return chat.send(room, lead === '' ? text : `@${lead} ${text}`, { displayText: text })
@@ -217,21 +217,21 @@ export const createLiveRooms = ({
 
   const expireApprovals = (roomId, reason) => approvals.expireApprovals(entries.get(roomId), roomId, reason)
 
-  const answerCard = (roomId, seat, requestId, message) => approvals.answerCard({
+  const answerCard = (roomId, memberId, requestId, message) => approvals.answerCard({
     entry: entries.get(roomId),
     roomId,
-    seat,
+    memberId,
     requestId,
     message,
     refresh: refreshRoom,
   })
 
-  // 叫停/继续归基座的 room holds；Lodge 只把 seat 映射成成员引用。
+  // 叫停/继续归基座的 room holds；Lodge 只把成员映射成身体引用。
   const cancelQueued = async (roomId, queueId) => {
     const room = store.readRoom(roomId)
     const chatId = room?.chatRoom?.id
     if (typeof chatId !== 'string' || chatId === '') throw new Error('聊天室还没准备好')
-    const result = await surfaces.of(room, room.leadSeat ?? room.members?.[0] ?? '').cancel({ room, queueId })
+    const result = await surfaces.of(room, leadMemberOf(room)?.id ?? '').cancel({ room, queueId })
     if (result.cancelled === true) {
       const echo = store.readMessages(roomId).find(message => message.meta?.queueId === queueId)
       if (echo !== undefined) {
@@ -258,18 +258,19 @@ export const createLiveRooms = ({
     return result
   }
 
-  const holdSeat = async (roomId, seat, held) => {
+  const holdMember = async (roomId, memberId, held) => {
     if (!supportsRuntime(engine, 'holds')) throw new Error('当前版本还不支持叫停成员')
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('房间还没有连上')
     const room = store.readRoom(roomId)
     if (room === null) throw new Error('房间不存在')
-    const memberRef = room.seatBots?.[seat]
+    const member = room.members?.find(item => item.id === memberId)
+    const memberRef = member?.body?.ref
     const chatId = room.chatRoom?.id
     if (typeof memberRef !== 'string' || memberRef === '' || typeof chatId !== 'string' || chatId === '') {
       throw new Error('这个成员没有基座地址')
     }
-    await surfaces.of(room, seat).hold({ room, seat, held })
+    await surfaces.of(room, memberId).hold({ room, memberId, held })
     await refreshRoom(entry, { force: true })
     return store.readRoom(roomId) ?? room
   }
@@ -285,7 +286,7 @@ export const createLiveRooms = ({
       const bases = await engine.rooms()
       const busy = bases.filter(base => (
         base.working === true &&
-        (Object.values(room.seatRooms ?? {}).some(ref => ref.id === base.id) ||
+        ((room.members ?? []).some(member => member.body?.roomRef === base.id) ||
           (room.chatRoom !== undefined && room.chatRoom.id === base.id))
       ))
       if (busy.length === 0) return { cancelled: false, reason: '当前没有正在跑的回合' }
@@ -293,7 +294,7 @@ export const createLiveRooms = ({
       for (const base of busy) results.push(await engine.cancelTurn({ roomId: base.id }))
       const cancelled = results.filter(result => result.cancelled === true).length
       return cancelled > 0
-        ? { cancelled: true, seats: busy.length, cancelledSeats: cancelled }
+        ? { cancelled: true, members: busy.length, cancelledMembers: cancelled }
         : { cancelled: false, reason: results.find(result => result.reason)?.reason ?? '现在没有可以取消的回合' }
     } catch (error) {
       return { cancelled: false, reason: String(error?.message ?? error) }
@@ -303,16 +304,16 @@ export const createLiveRooms = ({
   return {
     start,
     attach,
-    attachSeat,
-    detachSeat,
+    attachMember,
+    detachMember,
     detach,
     send,
-    sendToSeat,
+    sendToMember,
     requestReview,
     decideApproval,
     expireApprovals,
     answerCard,
-    holdSeat,
+    holdMember,
     cancelQueued,
     steerQueued,
     busyReview: roomId => {
@@ -336,7 +337,7 @@ export const createLiveRooms = ({
     sync: async roomId => {
       const entry = entries.get(roomId)
       if (entry === undefined) return
-      for (const seat of entry.seats.keys()) await sync.syncSeat(entry, seat)
+      for (const memberId of entry.members.keys()) await sync.syncMember(entry, memberId)
     },
     
   }

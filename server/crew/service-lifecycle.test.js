@@ -49,7 +49,7 @@ const setup = (room, liveOverrides = {}) => {
     engine: { health: async () => ({}), instances: async () => [] },
     live: { isAttached: () => false, detach: () => {}, ...liveOverrides },
     emit: (event, payload) => emitted.push([event, payload]),
-    seats: [],
+    roles: [],
     ports,
   })
   return { service, emitted, removedPaths, deleted: () => deleted }
@@ -81,24 +81,23 @@ test('restoring a room clears the archive marker', async () => {
   assert.equal(result.body.room.archivedAt, null)
 })
 
-test('holding a seat goes through the live runtime', async () => {
+test('holding a member goes through the live runtime', async () => {
   const calls = []
   const ctx = setup(roomRecord({
     live: true,
-    members: ['worker'],
-    seatBots: { worker: 'member-1' },
+    members: [{ id: 'worker', name: '执行官', body: { kind: 'base', ref: 'member-1', name: '执行官' } }],
     chatRoom: { id: 'chat-1' },
   }), {
     isAttached: () => true,
-    holdSeat: async (roomId, seat, held) => {
-      calls.push({ roomId, seat, held })
-      return roomRecord({ live: true, members: ['worker'], heldSeats: held ? [seat] : [] })
+    holdMember: async (roomId, memberId, held) => {
+      calls.push({ roomId, memberId, held })
+      return roomRecord({ live: true, members: [{ id: 'worker', name: '执行官', body: { kind: 'base', ref: 'member-1', name: '执行官' } }], heldMembers: held ? [memberId] : [] })
     },
   })
-  const result = await ctx.service.roomRequest('r1', 'hold', post({ seat: 'worker', held: true }))
+  const result = await ctx.service.roomRequest('r1', 'hold', post({ memberId: 'worker', held: true }))
   assert.equal(result.ok, true)
-  assert.deepEqual(calls, [{ roomId: 'r1', seat: 'worker', held: true }])
-  assert.deepEqual(result.body.room.heldSeats, ['worker'])
+  assert.deepEqual(calls, [{ roomId: 'r1', memberId: 'worker', held: true }])
+  assert.deepEqual(result.body.room.heldMembers, ['worker'])
 })
 
 test('cancelling a queued message goes through the live runtime', async () => {

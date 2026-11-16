@@ -37,7 +37,7 @@ test('studio modules do not read room.chat', () => {
     'rooms/studio/stage-plan.js',
     'rooms/studio/tasks.js',
     'rooms/studio/progress.js',
-    'rooms/studio/seat-handoff.js',
+    'rooms/studio/member-handoff.js',
     'room-types/studio.js',
   ]) {
     const source = read(file)
@@ -87,7 +87,7 @@ test('shared crew modules reach modes only through kinds, facades or assembly po
   }
 })
 
-test('static discipline lives in seat souls, not per-turn prompts', () => {
+test('static discipline lives in member souls, not per-turn prompts', () => {
   for (const file of [
     'rooms/studio/prompts.js',
     'rooms/studio/review.js',

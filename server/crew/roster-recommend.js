@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path'
 import { defaultOrchestrationId, resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { fail, ok } from './result.js'
 import { supportsRuntime } from './runtime-port.js'
-import { roleSeats, rosterFromRoles, validateRoster } from './seats.js'
+import { roleMembers, rosterFromRoles, validateRoster } from './roster.js'
 import { handoffGoalText, normalizeHandoff } from '../../shared/handoff.js'
 
 const MAX_GOAL = 2000
@@ -27,9 +27,9 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   `工作文件夹（只读副本）：${repoPath}`,
   handoff === null ? '' : `已经确认的交接单：\n${handoffGoalText(handoff)}`,
   handoff === null ? '' : '交接单已经由人确认；不要再生成目标对齐/确认阶段，直接按主题、共识、约束、待办拆 1–3 个可交付步骤。',
-  '先看仓库事实（README、package.json、测试命令、目录结构）。默认三席：规划师、执行官、验收员。',
-  '- seats 默认输出三个：一个 lead、一个 worker、一个 verifier。只有工作能清晰拆成互不冲突的两块、确实需要并行时，才输出两个 worker；此时 orchestration 必须是 parallel。不要输出单人房或其它角色。',
-  '- seats[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
+  '先看仓库事实（README、package.json、测试命令、目录结构）。默认三位成员：规划师、执行官、验收员。',
+  '- members 默认输出三个：一个 lead、一个 worker、一个 verifier。只有工作能清晰拆成互不冲突的两块、确实需要并行时，才输出两个 worker；此时 orchestration 必须是 parallel。不要输出单人房或其它角色。',
+  '- members[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
   '- 名字用「规划师」「执行官」「验收员」；reason 说明各成员负责什么。',
   '- why 只写一句话、不超过 45 字：默认写三人如何分工；parallel 时说明两块工作如何并行。不要复述目标，也不要加总结句。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
@@ -47,7 +47,7 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '  "questions": [',
   '    {"text": "真正要人拍板的问题", "recommendation": "推荐答案"}',
   '  ],',
-  '  "seats": [',
+  '  "members": [',
   '    {"role": "lead", "name": "规划师", "reason": "对齐目标与阶段"},',
   '    {"role": "worker", "name": "执行官", "reason": "实现与跑测试"},',
   '    {"role": "verifier", "name": "验收员", "reason": "独立复核证据"}',
@@ -155,8 +155,8 @@ export const parseProposal = reply => {
   } catch {
     throw new Error('Lodge 给出的方案格式不完整，请重试')
   }
-  if (data === null || typeof data !== 'object' || !Array.isArray(data.seats)) {
-    throw new Error('开工方案缺少 seats')
+  if (data === null || typeof data !== 'object' || !Array.isArray(data.members)) {
+    throw new Error('开工方案缺少 members')
   }
   const done = Array.isArray(data.done)
     ? data.done
@@ -178,13 +178,13 @@ export const parseProposal = reply => {
     : []
   const tooManyQuestions = Array.isArray(data.questions) && data.questions.length > 3
 
-  const entries = data.seats.map((seat, index) => {
-    const role = normalizeRole(seat?.role)
+  const entries = data.members.map((member, index) => {
+    const role = normalizeRole(member?.role)
     if (role === null) {
-      throw new Error(`第 ${index + 1} 个成员角色不合法：${String(seat?.role ?? '空')}`)
+      throw new Error(`第 ${index + 1} 个成员角色不合法：${String(member?.role ?? '空')}`)
     }
-    const rawName = typeof seat.name === 'string' ? seat.name.trim() : ''
-    const reason = typeof seat.reason === 'string' ? seat.reason.trim().slice(0, 160) : ''
+    const rawName = typeof member.name === 'string' ? member.name.trim() : ''
+    const reason = typeof member.reason === 'string' ? member.reason.trim().slice(0, 160) : ''
     return {
       role,
       name: (rawName === '' ? ROLE_LABEL[role] : rawName).slice(0, 32),
@@ -199,8 +199,8 @@ export const parseProposal = reply => {
   } catch (error) {
     throw new Error(`编制不可用：${error?.message ?? error}`)
   }
-  const verifiers = roleSeats(roster).verifiers
-  const workers = roleSeats(roster).workers
+  const verifiers = roleMembers(roster).verifiers
+  const workers = roleMembers(roster).workers
   const orchestration = resolveOrchestration(data.orchestration)
   const requestedOrchestration = typeof data.orchestration === 'string' ? data.orchestration.trim() : ''
 
@@ -233,9 +233,9 @@ export const parseProposal = reply => {
   return {
     done,
     questions,
-    seats: roster.map((seat, index) => ({
-      role: seat.role,
-      name: seat.name,
+    members: roster.map((member, index) => ({
+      role: member.role,
+      name: member.name,
       reason: entries[index]?.reason ?? '',
     })),
     stages,
@@ -257,15 +257,15 @@ const waitForTurn = async ({ engine, sessionRef }) => {
       message.turn.reply.trim() !== ''
     ))
     if (turn !== undefined) {
-      // 基座 digest 可能截断长回复；原文在成员线程的 text 消息里，优先取含 seats 的最长一段。
+      // 基座 digest 可能截断长回复；原文在成员线程的 text 消息里，优先取含 members 的最长一段。
       const candidates = [
         turn.turn.reply,
         ...messages
           .filter(message => message.kind === 'text' && message.role === 'agent' && typeof message.text === 'string')
           .map(message => message.text),
       ].filter(text => text.trim() !== '')
-      const withSeats = candidates.filter(text => text.includes('"seats"'))
-      const pool = withSeats.length > 0 ? withSeats : candidates
+      const withMembers = candidates.filter(text => text.includes('"members"'))
+      const pool = withMembers.length > 0 ? withMembers : candidates
       return pool.sort((a, b) => b.length - a.length)[0] ?? turn.turn.reply
     }
     const failed = [...messages].reverse().find(message => (
@@ -308,8 +308,8 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
   let advisorRef = null
   let probeRoom = null
   try {
-    workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: [advisor] })
-    advisorRef = await engine.createSeatBot({
+    workspaces = provider.prepareRoom({ source: sourceRepo, short, members: [advisor] })
+    advisorRef = await engine.createMemberBot({
       name: `编队评估${short}`,
       soul: '你是规划师。只做编队判断，只输出 JSON，不执行工具。',
       description: advisor.station,
@@ -321,7 +321,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
       goal,
       bulletin: `目标：${goal}\n仓库：${sourceRepo}${handoff === null ? '' : `\n交接单：\n${handoffGoalText(handoff)}`}`,
       members: [advisorRef.id],
-      cwd: workspaces.seats[advisor.id].path,
+      cwd: workspaces.members[advisor.id].path,
       leadId: advisorRef.id,
     })
     await engine.sendTurn({ roomId: probeRoom.id, text: prompt })
@@ -343,7 +343,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
       }
       await engine.deleteRoom(probeRoom.id)
     }
-    if (advisorRef !== null) await engine.deleteSeatBot(advisorRef.id)
+    if (advisorRef !== null) await engine.deleteMemberBot(advisorRef.id)
     try {
       if (workspaces !== null) provider.cleanupRoom({ source: sourceRepo, workspaces })
     } catch {}

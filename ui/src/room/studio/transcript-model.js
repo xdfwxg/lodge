@@ -16,7 +16,7 @@ const STANDBY = /待命|暂不动手|未派发/
 export const isStandbyChat = (message, room) => (
   message?.kind === 'chat' &&
   message.authorId !== 'you' &&
-  message.authorId !== room?.leadSeat &&
+  message.authorId !== room?.leadMemberId &&
   STANDBY.test(String(message.text ?? ''))
 )
 
@@ -190,7 +190,7 @@ export const groupSteps = items => {
   return out
 }
 
-export const showsSeat = (items, index) => {
+export const showsMember = (items, index) => {
   const item = items[index]
   if (item === undefined || item.kind === 'day' || item.kind === 'steps') return false
   const previous = items[index - 1]
@@ -200,28 +200,28 @@ export const showsSeat = (items, index) => {
   return previous.authorId !== item.authorId || dayKey(previous.ts) !== dayKey(item.ts)
 }
 
-export const presenceLines = (room, seats = []) => {
-  const nameOf = id => seats.find(seat => seat.id === id)?.name ?? id
+export const presenceLines = (room, members = []) => {
+  const nameOf = id => members.find(member => member.id === id)?.name ?? id
   const presence = Array.isArray(room?.presence) ? room.presence : []
   const queue = Array.isArray(room?.turnQueue) ? room.turnQueue : []
-  const heldSeats = new Set(Array.isArray(room?.heldSeats) ? room.heldSeats : [])
-  const held = [...heldSeats].map(seatId => ({
-    seatId,
-    name: nameOf(seatId),
-    count: room?.heldMessages?.[seatId] ?? 0,
+  const heldMembers = new Set(Array.isArray(room?.heldMembers) ? room.heldMembers : [])
+  const held = [...heldMembers].map(memberId => ({
+    memberId,
+    name: nameOf(memberId),
+    count: room?.heldMessages?.[memberId] ?? 0,
   }))
   const working = presence
-    .filter(item => item.state === 'working' && !heldSeats.has(item.seatId))
-    .map(item => ({ seatId: item.seatId, name: nameOf(item.seatId), since: room?.busySince ?? null }))
-  const seen = new Set(working.map(item => item.seatId))
+    .filter(item => item.state === 'working' && !heldMembers.has(item.memberId))
+    .map(item => ({ memberId: item.memberId, name: nameOf(item.memberId), since: room?.busySince ?? null }))
+  const seen = new Set(working.map(item => item.memberId))
   const queued = queue
-    .filter(item => item.state === 'queued' && !seen.has(item.seatId) && !heldSeats.has(item.seatId))
+    .filter(item => item.state === 'queued' && !seen.has(item.memberId) && !heldMembers.has(item.memberId))
     .map(item => ({
-      seatId: item.seatId,
-      name: nameOf(item.seatId),
+      memberId: item.memberId,
+      name: nameOf(item.memberId),
       position: item.position ?? null,
       of: item.of ?? null,
-      waitingFor: item.waitingForSeatId === undefined ? '' : nameOf(item.waitingForSeatId),
+      waitingFor: item.waitingForMemberId === undefined ? '' : nameOf(item.waitingForMemberId),
     }))
   return { working, queued, held }
 }

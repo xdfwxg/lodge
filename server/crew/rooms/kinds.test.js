@@ -3,15 +3,15 @@ import test from 'node:test'
 import { roomKinds, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
-  'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
-  'acceptsChatDecision', 'leadSeatOf', 'record',
+  'acceptsChatDecision', 'leadMemberIdOf', 'record',
   'initialMessages', 'provisionExtra', 'start',
   'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
-  'refresh', 'onSeatFailure', 'deliveryOf',
+  'refresh', 'onMemberFailure', 'deliveryOf',
   'hostOf', 'speakerOf',
 ]
 
@@ -24,22 +24,22 @@ test('every room mode implements the same substitutable contract', () => {
   }
 })
 
-test('seat souls carry only their own mode discipline', () => {
-  const chat = roomModeForType('chat').seatSoul({ name: '甲', role: 'worker' })
+test('member souls carry only their own mode discipline', () => {
+  const chat = roomModeForType('chat').memberSoul({ name: '甲', role: 'worker' })
   assert.match(chat, /聊天室/)
   assert.match(chat, /只讨论/)
   assert.doesNotMatch(chat, /执行官|git commit|验收/)
-  const studio = roomModeForType('studio').seatSoul({ name: '验收员', role: 'verifier', prompt: '你是验收员。' })
+  const studio = roomModeForType('studio').memberSoul({ name: '验收员', role: 'verifier', prompt: '你是验收员。' })
   assert.match(studio, /PASS 或 REJECT/)
   assert.match(studio, /同一个房间目录/)
   assert.match(studio, /不要自创角色/)
   assert.match(studio, /不重新规划/)
   assert.doesNotMatch(studio, /聊天室/)
-  const worker = roomModeForType('studio').seatSoul({ name: '乙', role: 'worker', prompt: '你是乙。' })
+  const worker = roomModeForType('studio').memberSoul({ name: '乙', role: 'worker', prompt: '你是乙。' })
   assert.match(worker, /不改目标/)
   assert.match(worker, /三行工作日志/)
   assert.doesNotMatch(worker, /PASS 或 REJECT/)
-  const leadSoul = roomModeForType('studio').seatSoul({ name: '幕僚长', role: 'lead', prompt: '你是幕僚长。' })
+  const leadSoul = roomModeForType('studio').memberSoul({ name: '幕僚长', role: 'lead', prompt: '你是幕僚长。' })
   assert.match(leadSoul, /不写文件、不跑验收/)
   assert.match(leadSoul, /不再重复对齐/)
 })

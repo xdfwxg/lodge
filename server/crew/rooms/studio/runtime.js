@@ -1,5 +1,5 @@
 import { createLiveTurns } from './turns.js'
-import { deliverToSeat } from '../../surface-delivery.js'
+import { deliverToMember } from '../../surface-delivery.js'
 
 // 工作室上下文运行时：阶段派发、执行、验收、重做和签字都走群聊 @，没有讨论轮次。
 export const createStudioRuntime = ({
@@ -19,7 +19,7 @@ export const createStudioRuntime = ({
         engine,
         roomId: room.id,
         emit,
-        sendToSeat: (seat, text, options = {}) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text, ...options }),
+        sendToMember: (memberId, text, options = {}) => deliverToMember({ engine, store, roomId: room.id, room, memberId, text, ...options }),
         commands: ports.commands,
         files: ports.files,
         advisor: ports.advisor,
@@ -34,9 +34,9 @@ export const createStudioRuntime = ({
     busyReview: entry => entry.turns.busyReview(),
     acceptsDelta: false,
 
-    permissionCard: async (entry, seat, message, chat) => {
+    permissionCard: async (entry, memberId, message, chat) => {
       try {
-        await approvals.answerPermission(entry, seat, message, refreshRoom, { sessionRef: chat.sessionRef })
+        await approvals.answerPermission(entry, memberId, message, refreshRoom, { sessionRef: chat.sessionRef })
       } catch (error) {
         store.appendMessage(entry.roomId, { kind: 'system', text: `群聊权限卡处理失败：${error?.message ?? error}` })
       }
@@ -55,6 +55,6 @@ export const createStudioRuntime = ({
 
     requestReview: async (entry, stage) => entry.turns.requestReview(stage),
     startStage: async (entry, room, index, options = {}) => entry.turns.startStage(room, index, options),
-    sendToSeat: (entry, room, seat, text, options = {}) => deliverToSeat({ engine, store, roomId: room.id, room, seat, text, ...options }),
+    sendToMember: (entry, room, memberId, text, options = {}) => deliverToMember({ engine, store, roomId: room.id, room, memberId, text, ...options }),
   }
 }

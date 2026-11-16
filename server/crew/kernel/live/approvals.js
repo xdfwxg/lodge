@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { externalAction, pendingApprovals } from '../../external-actions.js'
 import { reviewExternalAction } from './action-gate.js'
-import { seatNameOf } from './projection.js'
+import { memberNameOf } from './projection.js'
+import { memberOf } from '../../room-members.js'
 import { decidePermission } from '../../permission.js'
 import { supportsRuntime } from '../../runtime-port.js'
 
@@ -23,7 +24,7 @@ export const createLiveApprovals = ({
     return {
       events: [{
         type: `approval.${state}`,
-        payload: { id: approvalId, seat: approval.seat, kind: approval.kind, requestId: approval.requestId },
+        payload: { id: approvalId, memberId: approval.memberId, kind: approval.kind, requestId: approval.requestId },
       }],
     }
   })
@@ -56,13 +57,13 @@ export const createLiveApprovals = ({
   }
 
   // 外部动作默认由人批准；只有显式 auto 信任，且规则守门明确 allow 时才自动放行。
-  const holdForApproval = async (entry, seat, card, external, sessionRef) => {
+  const holdForApproval = async (entry, memberId, card, external, sessionRef) => {
     const room = store.readRoom(entry.roomId)
     if (room === null) return
     const approval = {
       id: randomUUID(),
-      seat,
-      seatName: seatNameOf(room, seat),
+      memberId,
+      memberName: memberNameOf(room, memberId),
       requestId: card.requestId,
       ...(typeof sessionRef === 'string' && sessionRef !== '' ? { sessionRef } : {}),
       tool: typeof card.tool === 'string' ? card.tool : '',
@@ -78,7 +79,7 @@ export const createLiveApprovals = ({
       return {
         events: [{
           type: 'approval.requested',
-          payload: { id: approval.id, seat, kind: approval.kind, summary: approval.summary },
+          payload: { id: approval.id, memberId, kind: approval.kind, summary: approval.summary },
         }],
       }
     })
@@ -86,7 +87,7 @@ export const createLiveApprovals = ({
     entry.heldCards.set(card.requestId, approval.id)
     store.appendMessage(entry.roomId, {
       kind: 'system',
-      text: `有个操作要你确认：${approval.seatName} · ${approval.label} · ${approval.summary}`,
+      text: `有个操作要你确认：${approval.memberName} · ${approval.label} · ${approval.summary}`,
       meta: { kind: 'approval', approvalId: approval.id },
     })
     emit('room', updated)
@@ -103,7 +104,7 @@ export const createLiveApprovals = ({
         return {
           events: [{
             type: 'approval.timeout',
-            payload: { id: approval.id, seat, kind: approval.kind },
+            payload: { id: approval.id, memberId, kind: approval.kind },
           }],
         }
       })
@@ -147,19 +148,19 @@ export const createLiveApprovals = ({
     return updated
   }
 
-  const answerPermission = async (entry, seat, message, refresh, { sessionRef } = {}) => {
+  const answerPermission = async (entry, memberId, message, refresh, { sessionRef } = {}) => {
     if (!supportsRuntime(engine, 'approvals')) return
     const card = message?.card
     if (card?.requestType !== 'permission' || typeof card.requestId !== 'string') return
     if (entry.answeredCards.has(card.requestId) || entry.heldCards.has(card.requestId)) return
     const room = store.readRoom(entry.roomId)
-    const spec = room?.seatSpecs?.find(item => item.id === seat)
+    const member = memberOf(room, memberId)
     const readOnly = readOnlyFor(room)
-    const allowed = decidePermission(spec, card.action, { readOnly })
+    const allowed = decidePermission(member, card.action, { readOnly })
     const external = allowed ? externalAction(card) : null
-    const cardSession = sessionRef ?? entry.seats.get(seat)?.sessionRef
+    const cardSession = sessionRef ?? entry.members.get(memberId)?.sessionRef
     if (external !== null) {
-      await holdForApproval(entry, seat, card, external, cardSession)
+      await holdForApproval(entry, memberId, card, external, cardSession)
       return
     }
     entry.answeredCards.add(card.requestId)
@@ -175,10 +176,10 @@ export const createLiveApprovals = ({
         store.appendMessage(entry.roomId, {
           kind: 'system',
           text: observe && blockedByReadOnly
-            ? `信任级别 observe：${spec?.name ?? seat} 只读；提升到 verify 后才能使用 ${card.tool ?? card.action}。`
+            ? `信任级别 observe：${member?.name ?? memberId} 只读；提升到 verify 后才能使用 ${card.tool ?? card.action}。`
             : blockedByReadOnly
-              ? `只读讨论阶段：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action}；先讨论，结论定了再改文件。`
-              : `权限拒绝：${spec?.name ?? seat} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,
+              ? `只读讨论阶段：${member?.name ?? memberId} 不能使用 ${card.tool ?? card.action}；先讨论，结论定了再改文件。`
+              : `权限拒绝：${member?.name ?? memberId} 不能使用 ${card.tool ?? card.action ?? '该工具'}。`,
         })
       }
       refresh(entry, { force: true })
@@ -188,7 +189,7 @@ export const createLiveApprovals = ({
     }
   }
 
-  const answerCard = async ({ entry, roomId, seat, requestId, message, refresh }) => {
+  const answerCard = async ({ entry, roomId, memberId, requestId, message, refresh }) => {
     if (!supportsRuntime(engine, 'approvals')) return { ok: false, reason: '当前版本还不支持回答问题' }
     if (entry === undefined) return { ok: false, reason: '房间还没有连上' }
     if (typeof requestId !== 'string' || requestId === '') return { ok: false, reason: '缺少要回答的问题' }
@@ -196,7 +197,7 @@ export const createLiveApprovals = ({
     if (text === '') return { ok: false, reason: '先写下答案' }
     if (entry.answeredCards.has(requestId)) return { ok: false, reason: '这个问题已经回答过' }
     const room = store.readRoom(roomId)
-    const target = entry.seats.get(seat)
+    const target = entry.members.get(memberId)
     const sessionRef = target?.sessionRef ?? room?.chatRoom?.sessionRef
     try {
       const result = await engine.answerCard({ sessionRef, requestId, behavior: 'answer', message: text })
@@ -204,7 +205,7 @@ export const createLiveApprovals = ({
       entry.answeredCards.add(requestId)
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `已回答${seatNameOf(room, seat)}的问题。`,
+        text: `已回答${memberNameOf(room, memberId)}的问题。`,
       })
       refresh(entry, { force: true })
       return { ok: true, room: store.readRoom(roomId) }
@@ -223,18 +224,18 @@ export const createLiveApprovals = ({
     if (entry.heldCards.get(approval.requestId) !== approvalId) {
       return { ok: false, reason: '这个操作已经失效，房间没在等这次确认' }
     }
-    const target = entry.seats.get(approval.seat)
+    const target = entry.members.get(approval.memberId)
     if (target === undefined) {
       clearTimer(entry, approvalId)
       entry.heldCards.delete(approval.requestId)
       const expired = setApprovalState(roomId, approvalId, 'expired')
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `这个操作失效了：${approval.summary}（${approval.seatName} 已不在房间）`,
+        text: `这个操作失效了：${approval.summary}（${approval.memberName} 已不在房间）`,
       })
       if (expired !== null) emit('room', expired)
       resumeRoom(roomId, '要确认的成员已经不在房间，房间已恢复。')
-      return { ok: false, reason: `要确认的成员 ${approval.seatName} 已不在房间` }
+      return { ok: false, reason: `要确认的成员 ${approval.memberName} 已不在房间` }
     }
     clearTimer(entry, approvalId)
     try {
@@ -261,7 +262,7 @@ export const createLiveApprovals = ({
     const updated = setApprovalState(roomId, approvalId, state)
     store.appendMessage(roomId, {
       kind: 'system',
-      text: `这个操作你已选${decision === 'allow' ? '可以做' : '先别做'}：${approval.seatName} · ${approval.summary}`,
+      text: `这个操作你已选${decision === 'allow' ? '可以做' : '先别做'}：${approval.memberName} · ${approval.summary}`,
     })
     if (updated !== null) emit('room', updated)
     resumeRoom(roomId, '审批已处理，房间继续。')

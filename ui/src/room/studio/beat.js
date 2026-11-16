@@ -37,7 +37,7 @@ export const workBeatOf = (text, limit = MAX_BEAT) => {
   return { preview: first.slice(0, cut).trim(), rest }
 }
 
-export function StudioBeat({ message, seat, open = false }) {
+export function StudioBeat({ message, member, open = false }) {
   const text = String(message.text ?? '').replace(/^\s*(PASS|REJECT)\b[：:\s-]*/i, '')
   const { preview, rest } = workBeatOf(text)
   const [expanded, setExpanded] = useState(open)
@@ -46,7 +46,7 @@ export function StudioBeat({ message, seat, open = false }) {
   }, [open, message.id])
   return h('div', { className: 'crew-msg crew-msg-chat studio-beat' },
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { seat, ts: message.ts, time: false, station: false }),
+      h(Speaker, { member, ts: message.ts, time: false, station: false }),
       h('div', { className: 'bt-bubble' }, h(Markdown, { text: expanded ? text : preview })),
       rest === ''
         ? null

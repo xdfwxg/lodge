@@ -20,7 +20,7 @@ test('pipeline is the default and dispatches one proposed worker', () => {
   )
 })
 
-test('parallel dispatches every worker and degrades honestly with one seat', () => {
+test('parallel dispatches every worker and degrades honestly with one member', () => {
   const strategy = resolveOrchestration('parallel')
   assert.deepEqual(strategy.planStage({ stage: {}, workers }), {
     assignees: ['executor', 'executor-2'],

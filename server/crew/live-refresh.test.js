@@ -2,13 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRoomRefresher } from './kernel/live/refresh.js'
 
-test('busy seats carry a start time that survives repeated refreshes', async () => {
+test('busy members carry a start time that survives repeated refreshes', async () => {
   let working = true
   let room = {
     id: 'room-1',
     kind: 'room',
     state: 'active',
-    seatRooms: { worker: { id: 'base-1' } },
+    members: [{ id: 'worker', body: { kind: 'base', roomRef: 'base-1' } }],
   }
   const store = {
     readRoom: () => room,
@@ -34,7 +34,7 @@ test('busy seats carry a start time that survives repeated refreshes', async () 
   await refresher.refresh({ roomId: 'room-1', refreshedAt: 0 }, { force: true })
   const started = room.busySince
   assert.equal(typeof started, 'number')
-  assert.deepEqual(room.busySeats, ['worker'])
+  assert.deepEqual(room.busyMembers, ['worker'])
   await new Promise(resolve => setTimeout(resolve, 5))
   await refresher.refresh({ roomId: 'room-1', refreshedAt: 0 }, { force: true })
   assert.equal(room.busySince, started)

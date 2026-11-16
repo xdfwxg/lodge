@@ -1,10 +1,10 @@
 import { createElement as h } from 'react'
 import { ArrowRightIcon } from '../../icons.js'
 import { Markdown } from '../../message-cards.js'
-import { seatNameOf } from '../seat-name.js'
+import { memberNameOf } from '../member-name.js'
 import { dispatchSummaryOf } from './handoff.js'
 
-const nameOf = (room, byId, id) => byId?.[id]?.name ?? seatNameOf(room, id)
+const nameOf = (room, byId, id) => byId?.[id]?.name ?? memberNameOf(room, id)
 
 const namesOf = (room, byId, ids) => ids
   .map(id => nameOf(room, byId, id))

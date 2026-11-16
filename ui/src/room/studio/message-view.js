@@ -1,5 +1,5 @@
 import { createElement as h } from 'react'
-import { renderSharedMessage, resolveSeat } from '../message-view.js'
+import { renderSharedMessage, resolveMember } from '../message-view.js'
 import { Baton } from './baton.js'
 import { StudioBeat } from './beat.js'
 import { EvidenceCard, VerdictCard } from './cards.js'
@@ -22,20 +22,20 @@ export const renderStudioMessage = ({
   // 人工签字已有系统行；不再复制一张验收员样式的卡。
   if (message.kind === 'verdict' && message.meta?.human === true) return null
   if (isDispatchHandoff(room, message)) return h(Baton, { key: message.id, message, room, byId })
-  const seat = resolveSeat(room, byId, message)
+  const member = resolveMember(room, byId, message)
   if (message.kind === 'question') {
-    return h(QuestionCard, { key: message.id, message, seat, onAnswer: onAnswerCard })
+    return h(QuestionCard, { key: message.id, message, member, onAnswer: onAnswerCard })
   }
   if (message.kind === 'dispatch' || message.kind === 'handoff') return h(Baton, { key: message.id, message, room, byId })
   // 检查是这一步的结果，不是群里的第四个人；系统证据不显示作者名。
   if (message.kind === 'evidence') {
-    return h(EvidenceCard, { key: message.id, message, seat: message.authorId === 'system' ? null : seat })
+    return h(EvidenceCard, { key: message.id, message, member: message.authorId === 'system' ? null : member })
   }
   if (message.kind === 'verdict') {
     return h(VerdictCard, {
       key: message.id,
       message,
-      seat,
+      member,
       room,
       stage: room.stages[message.meta?.stage ?? 0],
       onAccept: onStageAccept === null ? undefined : onStageAccept ?? onAccept,
@@ -45,7 +45,7 @@ export const renderStudioMessage = ({
   // 成员发言在工作室里是一拍工作记录：第一段可见，完整内容展开。
   // 主成员给出两三条要确认的事时，直接变成决策卡，不把整段聊天铺在首屏。
   if (message.kind === 'chat' && message.authorId !== 'you') {
-    const isLead = message.authorId === room.leadSeat
+    const isLead = message.authorId === room.leadMemberId
     const pending = room.needsYou?.kind === 'decision' && isLead
     const items = isLead ? parseDecisionItems(message.text) : []
     if (items.length >= 2) {
@@ -58,7 +58,7 @@ export const renderStudioMessage = ({
       return h(DecisionBrief, {
         key: message.id,
         message,
-        seat,
+        member,
         items,
         pending,
         disabled: room.state !== 'active',
@@ -70,7 +70,7 @@ export const renderStudioMessage = ({
           : undefined,
       })
     }
-    return h(StudioBeat, { key: message.id, message, seat, open: pending })
+    return h(StudioBeat, { key: message.id, message, member, open: pending })
   }
   return renderSharedMessage({ room, byId, message, onAnswerCard, onCancelQueue, onSteerQueue })
 }

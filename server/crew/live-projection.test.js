@@ -4,10 +4,10 @@ import { createMessageProjector, matchEcho } from './kernel/live/projection.js'
 import { dropStaleStreams } from './rooms/chat/projection.js'
 
 const projector = createMessageProjector({
-  store: { readRoom: () => ({ seatBots: { executor: 'bot-1' }, hiddenBaseMessages: [] }) },
+  store: { readRoom: () => ({ members: [{ id: 'executor', name: '执行官', body: { kind: 'base', ref: 'bot-1', name: '执行官' } }], hiddenBaseMessages: [] }) },
 })
 
-test('base digests never become a seat chat message', () => {
+test('base digests never become a member chat message', () => {
   assert.equal(projector.toStored('room-1', { id: 'd1', kind: 'digest', role: 'bot', text: '[digest]' }), null)
 })
 
@@ -54,7 +54,7 @@ test('a question card stays answerable instead of becoming a system line', () =>
   assert.deepEqual(stored.meta.card.options, ['A', 'B'])
 })
 
-test('seat messages keep their seat author', () => {
+test('member messages keep their member author', () => {
   const stored = projector.toStored('room-1', { id: 'm1', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '在' })
   assert.equal(stored.kind, 'chat')
   assert.equal(stored.authorId, 'executor')
@@ -69,11 +69,9 @@ test('stale stream placeholders give way to the final message', () => {
   assert.deepEqual(dropStaleStreams(messages).map(message => message.id), ['b1', 'stream:room-1:worker-2'])
 })
 
-test('bare base names in prose become seat names', () => {
+test('bare base names in prose become member names', () => {
   const room = {
-    seatBots: { worker: 'Worker6459f3' },
-    seatNames: { worker: 'Worker6459f3' },
-    seatSpecs: [{ id: 'worker', name: '甲' }],
+    members: [{ id: 'worker', name: '甲', body: { kind: 'base', ref: 'Worker6459f3', name: 'Worker6459f3' } }],
   }
   const chatProjector = createMessageProjector({ store: { readRoom: () => room } })
   const stored = chatProjector.toStored('room-1', {

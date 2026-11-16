@@ -26,7 +26,7 @@ export const parseDecisionItems = text => {
 
 export function DecisionBrief({
   message,
-  seat,
+  member,
   items,
   pending,
   onAccept,
@@ -37,7 +37,7 @@ export function DecisionBrief({
 }) {
   return h('div', { className: 'crew-msg crew-msg-chat studio-decision' },
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { seat, ts: message.ts, time: false, station: false }),
+      h(Speaker, { member, ts: message.ts, time: false, station: false }),
       h('div', { className: 'crew-card crew-decision-brief' },
         h('div', { className: 'crew-card-head' },
           pending ? (title ?? '这几件事，待确认') : doneTitle),

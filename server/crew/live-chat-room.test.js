@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CHAT_TURNS_PER_ROUND, turnLimitOf as chatTurnLimitOf } from './room-types/chat.js'
 import { createChatScheduler, pickChatSpeaker } from './rooms/chat/scheduler.js'
+import { normalizeLegacyTestRoom } from './testing/room.js'
 
 test('a chat round defaults to six speakers and accepts a room limit', () => {
   assert.equal(CHAT_TURNS_PER_ROUND, 6)
@@ -11,29 +12,29 @@ test('a chat round defaults to six speakers and accepts a room limit', () => {
 })
 
 test('unspoken speakers are covered before anyone repeats', () => {
-  const seat = pickChatSpeaker({
+  const member = pickChatSpeaker({
     speakers: ['a', 'b', 'c'],
     counts: new Map([['a', 1], ['b', 1], ['c', 0]]),
-    perSeat: 2,
+    perMember: 2,
     last: 'b',
     random: () => 0,
   })
-  assert.equal(seat, 'c')
+  assert.equal(member, 'c')
 })
 
 test('the same speaker is not picked twice in a row when another is eligible', () => {
-  const seat = pickChatSpeaker({
+  const member = pickChatSpeaker({
     speakers: ['a', 'b'],
     counts: new Map([['a', 1], ['b', 1]]),
-    perSeat: 3,
+    perMember: 3,
     last: 'a',
     random: () => 0,
   })
-  assert.equal(seat, 'b')
+  assert.equal(member, 'b')
 })
 
 const setup = ({ summaryText = '这是总结。' } = {}) => {
-  let current = {
+  let current = normalizeLegacyTestRoom({
     id: 'room-chat',
     kind: 'room',
     name: '聊天室',
@@ -59,7 +60,7 @@ const setup = ({ summaryText = '这是总结。' } = {}) => {
     ],
     chatHost: { memberRef: 'H', name: 'LodgeHost', displayName: 'Lodge 主持' },
     chatRoom: { id: 'chat', sessionRef: 'thread' },
-  }
+  })
   const messages = []
   const history = []
   const store = {
@@ -100,11 +101,11 @@ const setup = ({ summaryText = '这是总结。' } = {}) => {
       return { accepted: true, messageId: id }
     },
   }
-  const sendToSeat = async (seat, text) => {
-    const name = seat === 'host' ? current.chatHost.name : current.seatNames[seat]
+  const sendToMember = async (member, text) => {
+    const name = member === 'host' ? current.chatHost.name : current.seatNames[member]
     return engine.sendTurn({ roomId: current.chatRoom.id, text: `@${name} ${text}` })
   }
-  return { store, engine, sendToSeat, room: () => current, messages, history }
+  return { store, engine, sendToMember, room: () => current, messages, history }
 }
 
 test('a chat round runs six speakers, then the host summarizes', async () => {
@@ -112,7 +113,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   const scheduler = createChatScheduler({
     store: ctx.store,
     engine: ctx.engine,
-    sendToSeat: ctx.sendToSeat,
+    sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
     waitMs: 100,
@@ -176,7 +177,7 @@ test('the host conclusion keeps all five handoff fields', async () => {
   const scheduler = createChatScheduler({
     store: ctx.store,
     engine: ctx.engine,
-    sendToSeat: ctx.sendToSeat,
+    sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
     waitMs: 100,
@@ -193,13 +194,13 @@ test('the host conclusion keeps all five handoff fields', async () => {
   })
 })
 
-test('a late seat message is synced before the host concludes', async () => {
+test('a late member message is synced before the host concludes', async () => {
   const ctx = setup()
   let synced = false
   const scheduler = createChatScheduler({
     store: ctx.store,
     engine: ctx.engine,
-    sendToSeat: ctx.sendToSeat,
+    sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
     waitMs: 100,
@@ -226,7 +227,7 @@ test('a chat room can run fewer turns than the default', async () => {
   const scheduler = createChatScheduler({
     store: ctx.store,
     engine: ctx.engine,
-    sendToSeat: ctx.sendToSeat,
+    sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
     waitMs: 100,

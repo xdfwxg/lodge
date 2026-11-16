@@ -1,7 +1,7 @@
-import { seatNameOf } from './seat-name.js'
+import { memberNameOf } from './member-name.js'
 
 // 两种房型共用的决策原语：名字、清理文本、暂停/停止态。
-export const nameOf = (room, seatId) => seatNameOf(room, seatId) || '成员'
+export const nameOf = (room, memberId) => memberNameOf(room, memberId) || '成员'
 
 export const cleanText = value => String(value ?? '')
   .replace(/\*\*/g, '')
@@ -11,13 +11,13 @@ export const cleanText = value => String(value ?? '')
   .trim()
 
 const statusOfPaused = room => {
-  if (room.pauseReason === 'seat_error') {
-    const who = nameOf(room, room.seatError?.seat)
-    const reason = room.seatError?.kind === 'quota'
+  if (room.pauseReason === 'member_error') {
+    const who = nameOf(room, room.memberError?.memberId)
+    const reason = room.memberError?.kind === 'quota'
       ? `${who}的模型额度不够`
-      : room.seatError?.kind === 'auth'
+      : room.memberError?.kind === 'auth'
         ? `${who}的登录失效了`
-        : room.seatError?.kind === 'rate_limit'
+        : room.memberError?.kind === 'rate_limit'
           ? `${who}被模型服务限流了`
           : `${who}没能回应`
     return { title: `${reason}，需要处理`, tone: 'paused' }
@@ -36,7 +36,7 @@ export const buildIdleDecision = room => {
   return {
     key: 'paused',
     title: paused.title,
-    detail: room.seatError?.kind === 'quota'
+    detail: room.memberError?.kind === 'quota'
       ? '充值或给这位成员换个模型后，点“继续”。'
       : '处理完成后点“继续”。',
     primary: { label: '继续', action: 'resume' },

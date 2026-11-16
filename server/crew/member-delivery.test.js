@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { envelopeOf } from './seat-delivery.js'
-import { deliverToSeat } from './surface-delivery.js'
+import { envelopeOf } from './member-delivery.js'
+import { deliverToMember } from './surface-delivery.js'
 
 const room = (over = {}) => ({
   id: 'room-1',
   chatRoom: { id: 'chat-1' },
-  seatNames: { worker: 'Worker123' },
-  seatBots: { worker: 'member-1' },
-  seatSpecs: [{ id: 'worker', name: '执行官' }, { id: 'lead', name: '规划师' }],
+  members: [
+    { id: 'worker', name: '执行官', body: { kind: 'base', ref: 'member-1', name: 'Worker123' } },
+    { id: 'lead', name: '规划师', body: { kind: 'base', ref: 'member-2', name: 'Planner123' } },
+  ],
   ...over,
 })
 
@@ -28,11 +29,11 @@ const setup = (current = room()) => {
 
 test('delivery writes the address, harness envelope and stable member ref', async () => {
   const ctx = setup()
-  await deliverToSeat({
+  await deliverToMember({
     engine: ctx.engine,
     store: ctx.store,
     roomId: 'room-1',
-    seat: 'worker',
+    memberId: 'worker',
     from: 'lead',
     sendId: 'test-delivery-0001',
     text: '开始这一步',
@@ -46,12 +47,12 @@ test('delivery writes the address, harness envelope and stable member ref', asyn
 })
 
 test('a room-facing name is already the address and is not prefixed twice', async () => {
-  const ctx = setup(room({ seatNames: { worker: '执行官' } }))
-  await deliverToSeat({
+  const ctx = setup(room({ members: [{ id: 'worker', name: '执行官', body: { kind: 'base', ref: 'member-1', name: '执行官' } }] }))
+  await deliverToMember({
     engine: ctx.engine,
     store: ctx.store,
     roomId: 'room-1',
-    seat: 'worker',
+    memberId: 'worker',
     sendId: 'test-delivery-0002',
     text: '@执行官 开始这一步',
   })
@@ -70,11 +71,11 @@ test('the envelope names the intent and authority', () => {
 
 test('the host is addressed by its own room name', async () => {
   const ctx = setup(room({ chatHost: { name: 'LodgeHost9', memberRef: 'host-1' } }))
-  await deliverToSeat({
+  await deliverToMember({
     engine: ctx.engine,
     store: ctx.store,
     roomId: 'room-1',
-    seat: 'host',
+    memberId: 'host',
     sendId: 'test-delivery-0003',
     text: '请总结这一轮',
   })
@@ -85,14 +86,14 @@ test('the host is addressed by its own room name', async () => {
   assert.deepEqual(ctx.calls[0].mentions, ['host-1'])
 })
 
-test('delivery fails closed when the seat has no base address', async () => {
-  const ctx = setup(room({ seatNames: {}, seatBots: {} }))
+test('delivery fails closed when the member has no base address', async () => {
+  const ctx = setup(room({ members: [{ id: 'worker', name: '执行官', body: { kind: 'base', name: '执行官' } }] }))
   await assert.rejects(
-    () => deliverToSeat({
+    () => deliverToMember({
       engine: ctx.engine,
       store: ctx.store,
       roomId: 'room-1',
-      seat: 'worker',
+      memberId: 'worker',
       text: '开始',
     }),
     /没有基座地址/,

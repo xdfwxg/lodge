@@ -5,7 +5,7 @@ export const ROOM_TYPE_MANIFEST = Object.freeze([
   Object.freeze({
     id: 'studio',
     name: '工作室',
-    description: '目标、阶段、验收与交付；被 @ 的席位才唤醒',
+    description: '目标、阶段、验收与交付；被 @ 的成员才唤醒',
     defaultVerify: 'test',
     capabilities: Object.freeze({
       workCard: true,

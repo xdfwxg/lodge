@@ -12,7 +12,7 @@ const fakeClient = () => {
     }),
     createBot: async payload => {
       captured.bot = payload
-      return { bot: { id: 'seat-1', name: payload.name } }
+      return { bot: { id: 'member-1', name: payload.name } }
     },
     createGroup: async payload => {
       captured.group = payload
@@ -37,10 +37,10 @@ const fakeClient = () => {
   }
 }
 
-test('seat prompts and semantic capability settings cross the engine port', async () => {
+test('member prompts and semantic capability settings cross the engine port', async () => {
   const client = fakeClient()
   const engine = createEngine({ client })
-  const seat = await engine.createSeatBot({
+  const member = await engine.createMemberBot({
     name: 'PlannerAbc',
     soul: '你是队长',
     description: '规划',
@@ -48,7 +48,7 @@ test('seat prompts and semantic capability settings cross the engine port', asyn
     mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }],
   })
 
-  assert.equal(seat.id, 'seat-1')
+  assert.equal(member.id, 'member-1')
   assert.equal(client.captured.bot.name, 'PlannerAbc')
   assert.equal(client.captured.bot.soul, undefined)
   assert.equal(client.captured.bot.settings.soul, '你是队长')
@@ -68,14 +68,14 @@ test('room holds cross the engine port as a member reference', async () => {
   assert.deepEqual(client.captured.hold, { groupId: 'group-1', botId: 'member-1', held: true })
 })
 
-test('seat skills cross the engine port as base skill names', async () => {
+test('member skills cross the engine port as base skill names', async () => {
   const client = fakeClient()
   const engine = createEngine({ client })
-  assert.deepEqual(await engine.setBotSkills('seat-1', ['evidence-review']), {
+  assert.deepEqual(await engine.setBotSkills('member-1', ['evidence-review']), {
     ok: true,
     assignedSkills: ['evidence-review'],
   })
-  assert.deepEqual(client.captured.skills, { botId: 'seat-1', skills: ['evidence-review'] })
+  assert.deepEqual(client.captured.skills, { botId: 'member-1', skills: ['evidence-review'] })
 })
 
 test('feature switches come from the base config and fail closed', async () => {
@@ -130,7 +130,7 @@ test('exact mention ids cross the engine port with the text', async () => {
 test('room tools are mounted next to external MCP grants', async () => {
   const client = fakeClient()
   const engine = createEngine({ client })
-  await engine.createSeatBot({
+  await engine.createMemberBot({
     name: 'PlannerAbc',
     approval: 'ask',
     mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }],
@@ -139,7 +139,7 @@ test('room tools are mounted next to external MCP grants', async () => {
   assert.deepEqual(client.captured.bot.settings.mcpServers, ['github', 'lodge-planner-room-abc123'])
 })
 
-test('a seat engine binds to an available runtime instance', async () => {
+test('a member engine binds to an available runtime instance', async () => {
   const client = fakeClient()
   client.instances = async () => ({
     instances: [{
@@ -152,10 +152,10 @@ test('a seat engine binds to an available runtime instance', async () => {
     }],
   })
   const engine = createEngine({ client })
-  const seat = await engine.createSeatBot({ name: 'Executor', engine: 'codex-cli' })
-  assert.equal(seat.engine, 'codex')
-  assert.equal(seat.model, 'gpt-5.6-sol')
-  assert.equal(seat.fallback, false)
+  const member = await engine.createMemberBot({ name: 'Executor', engine: 'codex-cli' })
+  assert.equal(member.engine, 'codex')
+  assert.equal(member.model, 'gpt-5.6-sol')
+  assert.equal(member.fallback, false)
   assert.equal(client.captured.bot.modelSelection.instanceId, 'codex')
   assert.equal(client.captured.bot.modelSelection.model, 'gpt-5.6-sol')
 })
@@ -173,10 +173,10 @@ test('pi-cli binds to a piAgent instance', async () => {
     }],
   })
   const engine = createEngine({ client })
-  const seat = await engine.createSeatBot({ name: 'Executor', engine: 'pi-cli', model: 'deepseekAnthropic/deepseek-flash' })
-  assert.equal(seat.engine, 'pi')
-  assert.equal(seat.model, 'deepseekAnthropic/deepseek-flash')
-  assert.equal(seat.fallback, false)
+  const member = await engine.createMemberBot({ name: 'Executor', engine: 'pi-cli', model: 'deepseekAnthropic/deepseek-flash' })
+  assert.equal(member.engine, 'pi')
+  assert.equal(member.model, 'deepseekAnthropic/deepseek-flash')
+  assert.equal(member.fallback, false)
   assert.equal(client.captured.bot.modelSelection.instanceId, 'pi')
   assert.equal(client.captured.bot.modelSelection.model, 'deepseekAnthropic/deepseek-flash')
 })
@@ -194,21 +194,21 @@ test('an unoffered model falls back explicitly instead of silently switching', a
     }],
   })
   const engine = createEngine({ client })
-  const seat = await engine.createSeatBot({ name: 'Executor', engine: 'pi', model: 'unknown/model' })
-  assert.equal(seat.fallback, true)
-  assert.equal(seat.model, 'deepseekAnthropic/deepseek-v4-pro')
-  assert.match(seat.reason, /不在.*可选列表/)
+  const member = await engine.createMemberBot({ name: 'Executor', engine: 'pi', model: 'unknown/model' })
+  assert.equal(member.fallback, true)
+  assert.equal(member.model, 'deepseekAnthropic/deepseek-v4-pro')
+  assert.match(member.reason, /不在.*可选列表/)
 })
 
-test('an unavailable seat engine falls back explicitly', async () => {
+test('an unavailable member engine falls back explicitly', async () => {
   const client = fakeClient()
   client.instances = async () => ({ instances: [] })
   const engine = createEngine({ client })
-  const seat = await engine.createSeatBot({ name: 'Executor', engine: 'grok-cli' })
-  assert.equal(seat.engine, 'claude')
-  assert.equal(seat.fallback, true)
-  assert.equal(seat.requestedEngine, 'grok-cli')
-  assert.match(seat.reason, /grok-cli/)
+  const member = await engine.createMemberBot({ name: 'Executor', engine: 'grok-cli' })
+  assert.equal(member.engine, 'claude')
+  assert.equal(member.fallback, true)
+  assert.equal(member.requestedEngine, 'grok-cli')
+  assert.match(member.reason, /grok-cli/)
   assert.equal(client.captured.bot.modelSelection.instanceId, 'claude')
 })
 

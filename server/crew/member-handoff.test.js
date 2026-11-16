@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildSeatHandoff } from './rooms/studio/seat-handoff.js'
+import { buildMemberHandoff } from './rooms/studio/member-handoff.js'
 
 const room = {
   id: 'room-h1',
@@ -11,8 +11,8 @@ const room = {
   projectConstraints: { source: 'LODGE.md', content: '# 约定\n- 用 ESM\n- 组件不引外部状态库\n' },
 }
 
-test('a seat handoff carries business material and references the transcript', () => {
-  const text = buildSeatHandoff({
+test('a member handoff carries business material and references the transcript', () => {
+  const text = buildMemberHandoff({
     room,
     messages: [
       { kind: 'verdict', text: 'REJECT：少一个设置项', meta: { pass: false, stage: 0 } },
@@ -28,8 +28,8 @@ test('a seat handoff carries business material and references the transcript', (
   assert.doesNotMatch(text, /# 约定/)
 })
 
-test('a seat handoff stays bounded', () => {
-  const text = buildSeatHandoff({
+test('a member handoff stays bounded', () => {
+  const text = buildMemberHandoff({
     room: { ...room, constraints: Array.from({ length: 200 }, (_, index) => `约束 ${index} ${'x'.repeat(400)}`) },
     messages: [],
   })

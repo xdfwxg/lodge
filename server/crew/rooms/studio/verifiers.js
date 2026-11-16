@@ -1,9 +1,6 @@
 // 多验收成员只看“当前这轮验收命令证据”上的结论；旧轮的 PASS/REJECT 不参与本轮判定。
-export const verifierIds = room => (
-  Array.isArray(room?.verifiers)
-    ? room.verifiers.filter(id => typeof id === 'string' && id !== '')
-    : []
-)
+import { verifierIds } from '../../room-members.js'
+export { verifierIds }
 
 const verdictOutcome = ({ ids, verdicts }) => {
   const total = ids.length

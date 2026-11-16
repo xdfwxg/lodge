@@ -1,8 +1,8 @@
 import { Fragment, createElement as h } from 'react'
-import { SeatEnginePicker } from '../seat-engine-picker.js'
-import { normalizeSeats } from '../seat-options.js'
+import { MemberEnginePicker } from '../member-engine-picker.js'
+import { normalizeMembers } from '../member-options.js'
 
-export const DEFAULT_STUDIO_SEATS = normalizeSeats([
+export const DEFAULT_STUDIO_MEMBERS = normalizeMembers([
   { role: 'lead', name: '规划师' },
   { role: 'worker', name: '执行官' },
   { role: 'verifier', name: '验收员' },
@@ -13,14 +13,14 @@ const nameList = value => String(value ?? '')
   .map(item => item.trim())
   .filter(Boolean)
 
-const seatRequests = (seats, seatChoices, selectedModelOf) => seats.map((seat, index) => {
-  const choice = seatChoices[index] ?? { engine: '', model: '' }
+const memberRequests = (members, memberChoices, selectedModelOf) => members.map((member, index) => {
+  const choice = memberChoices[index] ?? { engine: '', model: '' }
   const model = choice.model !== '' ? choice.model : selectedModelOf(choice)
   const skills = nameList(choice.skillsText)
   const mcp = nameList(choice.mcpText)
   return {
-    role: seat.role,
-    name: seat.name,
+    role: member.role,
+    name: member.name,
     ...(choice.engine === '' ? {} : { engine: choice.engine }),
     ...(choice.engine === '' || model === '' ? {} : { model }),
     ...(skills.length === 0 ? {} : { skills }),
@@ -42,14 +42,14 @@ export const buildStudioRequest = ({
   sourceName,
   proposal,
   answers,
-  seatChoices,
-  hasSeatChoice,
-  seats,
+  memberChoices,
+  hasMemberChoice,
+  members,
   selectedModelOf,
 }) => {
-  const roster = Array.isArray(proposal?.seats) && proposal.seats.length > 0
-    ? proposal.seats
-    : normalizeSeats(seats)
+  const roster = Array.isArray(proposal?.members) && proposal.members.length > 0
+    ? proposal.members
+    : normalizeMembers(members)
   const plan = proposal === null || proposal === undefined
     ? null
     : {
@@ -76,8 +76,8 @@ export const buildStudioRequest = ({
     ...(typeof sourceRoomId === 'string' && sourceRoomId !== '' ? { sourceRoomId } : {}),
     ...(typeof sourceName === 'string' && sourceName !== '' ? { sourceName } : {}),
     ...(shadowReview ? { shadowReview: true } : {}),
-    ...((hasSeatChoice || (proposal !== null && proposal !== undefined)) && roster.length > 0
-      ? { seats: seatRequests(roster, seatChoices, selectedModelOf) }
+    ...((hasMemberChoice || (proposal !== null && proposal !== undefined)) && roster.length > 0
+      ? { members: memberRequests(roster, memberChoices, selectedModelOf) }
       : {}),
     ...(plan === null ? {} : { plan }),
   }
@@ -122,7 +122,7 @@ export function VerifyChoice({
 }
 
 export function StudioPrimaryFields({
-  seats = DEFAULT_STUDIO_SEATS,
+  members = DEFAULT_STUDIO_MEMBERS,
   showVerify = true,
   verifyMode = 'manual',
   onVerifyMode = () => {},
@@ -136,11 +136,11 @@ export function StudioPrimaryFields({
         h('b', null, '成员'),
         h('button', { type: 'button', className: 'crew-link', onClick: onAdvanced }, '调整成员与模型')),
       h('div', { className: 'crew-team-summary' },
-        normalizeSeats(seats).map(seat => h('span', {
-          key: seat.id ?? seat.name,
+        normalizeMembers(members).map(member => h('span', {
+          key: member.id ?? member.name,
           className: 'crew-team-chip',
-          'data-role': seat.role,
-        }, seat.name))),
+          'data-role': member.role,
+        }, member.name))),
       h('p', { className: 'crew-field-hint' }, '默认三人组：规划、执行、验收。')),
     showVerify
       ? h('div', { className: 'crew-field' },
@@ -153,7 +153,7 @@ export function StudioPrimaryFields({
 }
 
 export function StudioSetupFields({
-  seats = DEFAULT_STUDIO_SEATS,
+  members = DEFAULT_STUDIO_MEMBERS,
   choices = [],
   setChoices = () => {},
   engines = [],
@@ -170,8 +170,8 @@ export function StudioSetupFields({
   return h(Fragment, null,
     h('div', { className: 'crew-field' },
       h('b', null, '成员与模型'),
-      h(SeatEnginePicker, {
-        seats: normalizeSeats(seats),
+      h(MemberEnginePicker, {
+        members: normalizeMembers(members),
         choices,
         setChoices,
         engines,

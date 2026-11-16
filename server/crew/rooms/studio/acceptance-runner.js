@@ -1,3 +1,4 @@
+import { verifierIds, workerIds } from '../../room-members.js'
 import { markStageTasks } from './tasks.js'
 import { reworkFloor } from './verifiers.js'
 import { vcsOf, workspaceOf } from './workspace.js'
@@ -78,7 +79,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       store.appendMessage(roomId, { kind: 'system', text: `单独的检查副本没能准备好，检查没有执行：${error?.message ?? error}` })
       return
     }
-    const port = room.ports?.[room.workers?.[0]]
+    const port = room.ports?.[workerIds(room)[0]]
     let result
     try {
       result = await run({
@@ -139,7 +140,7 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       return
     }
     markProgress()
-    if ((room.verifiers?.length ?? 0) > 0) {
+    if (verifierIds(room).length > 0) {
       try {
         await requestReview(stageIndex)
       } catch (error) {

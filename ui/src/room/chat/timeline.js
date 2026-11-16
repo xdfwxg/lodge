@@ -18,14 +18,14 @@ const timeLabel = ts => {
 
 function Timeline({
   room,
-  seats,
+  members,
   onApproval,
   onAnswerCard = null,
   onCancelQueue = null,
   onSteerQueue = null,
   hideKinds = [],
 }) {
-  const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
+  const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
   const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
   const timeline = useMemo(() => buildTimeline(messages), [messages])
 
@@ -42,14 +42,14 @@ function Timeline({
       ? h(ChatConclusionCard, {
         key: message.id,
         message,
-        seat: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
+        member: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
         room,
       })
       : message.kind === 'chat' && message.meta?.opening === true
         ? h(ChatOpeningCard, {
           key: message.id,
           message,
-          seat: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
+          member: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
           room,
         })
         : renderSharedMessage({ room, byId, message, onAnswerCard, onCancelQueue, onSteerQueue })

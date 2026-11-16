@@ -9,15 +9,15 @@ import { presentRoom } from './crew/presentation.js'
 import { createCrewService } from './crew/service.js'
 import { openPath } from './system-open.js'
 import { collectWorkspaceGarbage } from './crew/workspace-gc.js'
-import { SEATS, validateSeats } from './crew/seats.js'
+import { ROLES, validateRoster } from './crew/roster.js'
 import { assertRuntimePort } from './crew/runtime-port.js'
-import { migrateMemberRegistry } from './crew/members.js'
+import { migrateRoomMembers } from './crew/room-members.js'
 import { createStore } from './crew/store.js'
 import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
-validateSeats(SEATS)
+validateRoster(ROLES)
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const dataDir = process.env.CREW_DATA_DIR === undefined ? join(root, '.data') : resolve(process.env.CREW_DATA_DIR)
 acquireDataLock(dataDir)
@@ -31,7 +31,7 @@ const broadcast = (event, payload, id) => {
 }
 
 const store = createStore({ dataDir, emit: broadcast })
-migrateMemberRegistry(store)
+migrateRoomMembers(store)
 
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
@@ -58,7 +58,7 @@ service = createCrewService({
   engine,
   live,
   emit,
-  seats: SEATS,
+  roles: ROLES,
   ports,
 })
 
@@ -66,7 +66,7 @@ const runWorkspaceGc = () => {
   try {
     const result = collectWorkspaceGarbage({ store, workspace: ports.workspace, files: ports.files })
     if (result.pruned > 0 || result.orphans > 0 || result.rewound > 0) {
-      console.log(`workspace gc: pruned ${result.pruned} seats, removed ${result.orphans} orphan dirs, pruned ${result.rewound} rewind branches`)
+      console.log(`workspace gc: pruned ${result.pruned} members, removed ${result.orphans} orphan dirs, pruned ${result.rewound} rewind branches`)
     }
   } catch (error) {
     console.warn(`workspace gc failed: ${error?.message ?? error}`)
@@ -207,17 +207,6 @@ const server = http.createServer(async (req, res) => {
     if (evidencePath !== null && req.method === 'GET') {
       const [, roomId, messageId] = evidencePath
       return respond(res, service.evidence(roomId, messageId))
-    }
-
-    const seatRolePath = path.match(/^\/api\/rooms\/([\w-]+)\/seats\/([\w-]+)\/role$/)
-    if (seatRolePath !== null && req.method === 'POST') {
-      const body = await readJson(req)
-      return respond(res, await service.changeSeatRole(seatRolePath[1], seatRolePath[2], body?.role))
-    }
-
-    const seatPath = path.match(/^\/api\/rooms\/([\w-]+)\/seats\/([\w-]+)$/)
-    if (seatPath !== null && req.method === 'DELETE') {
-      return respond(res, await service.removeSeat(seatPath[1], seatPath[2]))
     }
 
     const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|chat-accept|chat-continue|chat-resume|reject-plan|rework|read|hold|steer|cancel-queue|answer-card|acceptance|verify|approvals|subrooms|rename|archive|delete)$/)

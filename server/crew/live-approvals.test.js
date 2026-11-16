@@ -7,7 +7,7 @@ const setup = trust => {
     id: 'room-1',
     state: 'active',
     trust,
-    seatSpecs: [{ id: 'worker', role: 'worker', name: '执行', permissions: { read: true, exec: true, write: true } }],
+    members: [{ id: 'worker', role: 'worker', roleKind: 'executor', name: '执行', permissions: { read: true, exec: true, write: true }, toolSurface: [], skills: [], mcp: [], body: { kind: 'base', ref: 'bot-worker', name: '执行' } }],
     stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'true' }],
     approvals: [],
   }
@@ -36,7 +36,7 @@ const setup = trust => {
   })
   const entry = {
     roomId: room.id,
-    seats: new Map([['worker', { sessionRef: 'thread-worker' }]]),
+    members: new Map([['worker', { sessionRef: 'thread-worker' }]]),
     answeredCards: new Set(),
     heldCards: new Map(),
     approvalTimers: new Map(),
@@ -49,7 +49,7 @@ test('a question card is answered once in the member thread', async () => {
   const result = await ctx.approvals.answerCard({
     entry: ctx.entry,
     roomId: 'room-1',
-    seat: 'worker',
+    memberId: 'worker',
     requestId: 'q1',
     message: '选 A',
     refresh: () => {},
@@ -65,7 +65,7 @@ test('a question card is answered once in the member thread', async () => {
   const again = await ctx.approvals.answerCard({
     entry: ctx.entry,
     roomId: 'room-1',
-    seat: 'worker',
+    memberId: 'worker',
     requestId: 'q1',
     message: '选 B',
     refresh: () => {},

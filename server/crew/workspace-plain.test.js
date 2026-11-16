@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  changes, cleanupRoom, head, integrate, isolatedCopy, persistRoom, prepareRoom, pruneSeats, removeIsolatedCopy,
+  changes, cleanupRoom, head, integrate, isolatedCopy, persistRoom, prepareRoom, pruneMembers, removeIsolatedCopy,
 } from './workspace-plain.js'
 
 const temp = prefix => mkdtempSync(join(tmpdir(), prefix))
@@ -37,16 +37,16 @@ const withRoot = fn => {
 test('plain workspaces copy content without git or local-only files', () => {
   const source = sourceDir()
   withRoot(() => {
-    const workspaces = prepareRoom({ source, short: 'plain1', seats: [{ id: 'executor', role: 'worker' }] })
-    const seat = workspaces.seats.executor.path
-    assert.equal(readFileSync(join(seat, 'README.md'), 'utf8'), '# demo\n')
-    assert.equal(readFileSync(join(seat, '.env'), 'utf8'), 'TOKEN=local\n')
-    assert.equal(existsSync(join(seat, '.git')), false)
-    assert.equal(existsSync(join(seat, 'node_modules')), true)
-    assert.equal(workspaces.roomPath, seat)
+    const workspaces = prepareRoom({ source, short: 'plain1', members: [{ id: 'executor', role: 'worker' }] })
+    const member = workspaces.members.executor.path
+    assert.equal(readFileSync(join(member, 'README.md'), 'utf8'), '# demo\n')
+    assert.equal(readFileSync(join(member, '.env'), 'utf8'), 'TOKEN=local\n')
+    assert.equal(existsSync(join(member, '.git')), false)
+    assert.equal(existsSync(join(member, 'node_modules')), true)
+    assert.equal(workspaces.roomPath, member)
     assert.deepEqual(workspaces.branches, {})
     cleanupRoom({ source, workspaces })
-    assert.equal(existsSync(seat), false)
+    assert.equal(existsSync(member), false)
   })
   rmSync(source, { recursive: true, force: true })
 })
@@ -57,13 +57,13 @@ test('plain evidence is a file manifest, not a diff', async () => {
   const root = temp('lodge-plain-copies-')
   process.env.CREW_COPY_ROOT = root
   try {
-    const workspaces = prepareRoom({ source, short: 'plain2', seats: [{ id: 'executor', role: 'worker' }] })
-    const seat = workspaces.seats.executor.path
-    const result = await changes({ path: seat })
+    const workspaces = prepareRoom({ source, short: 'plain2', members: [{ id: 'executor', role: 'worker' }] })
+    const member = workspaces.members.executor.path
+    const result = await changes({ path: member })
     assert.equal(result.diff, '')
     assert.deepEqual(result.files.sort(), ['README.md', 'src/a.txt'])
     assert.match(result.note, /文件清单/)
-    assert.equal(typeof head({ path: seat }), 'string')
+    assert.equal(typeof head({ path: member }), 'string')
     cleanupRoom({ source, workspaces })
   } finally {
     if (previous === undefined) delete process.env.CREW_COPY_ROOT
@@ -79,10 +79,10 @@ test('plain integration copies files and reports same-path conflicts', () => {
     const workspaces = prepareRoom({
       source,
       short: 'plain3',
-      seats: [{ id: 'worker', role: 'worker' }, { id: 'worker-2', role: 'worker' }],
+      members: [{ id: 'worker', role: 'worker' }, { id: 'worker-2', role: 'worker' }],
     })
-    const first = workspaces.seats.worker.path
-    const second = workspaces.seats['worker-2'].path
+    const first = workspaces.members.worker.path
+    const second = workspaces.members['worker-2'].path
     const integration = workspaces.integration.path
     writeFileSync(join(first, 'src', 'a.txt'), 'from-first\n')
     assert.deepEqual(integrate({ path: integration, source: first }), { ok: true })
@@ -101,7 +101,7 @@ test('plain integration copies files and reports same-path conflicts', () => {
 test('plain acceptance copies are disposable and do not need a commit', () => {
   const source = sourceDir()
   withRoot(() => {
-    const workspaces = prepareRoom({ source, short: 'plain4', seats: [{ id: 'executor', role: 'worker' }] })
+    const workspaces = prepareRoom({ source, short: 'plain4', members: [{ id: 'executor', role: 'worker' }] })
     const copy = isolatedCopy({ source: workspaces.roomPath })
     writeFileSync(join(copy.path, 'side-effect.txt'), 'discard\n')
     assert.equal(existsSync(join(workspaces.roomPath, 'side-effect.txt')), false)
@@ -113,22 +113,22 @@ test('plain acceptance copies are disposable and do not need a commit', () => {
   rmSync(source, { recursive: true, force: true })
 })
 
-test('pruning keeps the delivery copy and removes other seats', () => {
+test('pruning keeps the delivery copy and removes other members', () => {
   const source = sourceDir()
   withRoot(() => {
     const workspaces = prepareRoom({
       source,
       short: 'plain5',
-      seats: [{ id: 'worker', role: 'worker' }, { id: 'verifier', role: 'verifier' }],
+      members: [{ id: 'worker', role: 'worker' }, { id: 'verifier', role: 'verifier' }],
     })
     const room = {
       repoPath: workspaces.roomPath,
-      worktrees: { worker: workspaces.seats.worker.path, verifier: workspaces.seats.verifier.path },
+      worktrees: { worker: workspaces.members.worker.path, verifier: workspaces.members.verifier.path },
     }
-    const pruned = pruneSeats(room)
+    const pruned = pruneMembers(room)
     assert.deepEqual(pruned, ['verifier'])
-    assert.equal(existsSync(workspaces.seats.worker.path), true)
-    assert.equal(existsSync(workspaces.seats.verifier.path), false)
+    assert.equal(existsSync(workspaces.members.worker.path), true)
+    assert.equal(existsSync(workspaces.members.verifier.path), false)
     cleanupRoom({ source, workspaces })
   })
   rmSync(source, { recursive: true, force: true })

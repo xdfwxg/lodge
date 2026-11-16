@@ -6,7 +6,7 @@ const result = proposal => ({ ok: true, body: { proposal } })
 const good = {
   done: ['`node --test` 通过', '`--verbose` 输出每步耗时'],
   questions: [{ text: '耗时写到 stderr 还是 stdout？', recommendation: 'stderr' }],
-  seats: [
+  members: [
     { role: 'lead', name: '规划师', reason: '对齐目标' },
     { role: 'worker', name: '执行者', reason: '实现与跑测试' },
     { role: 'verifier', name: '验收员', reason: '独立复核' },
@@ -16,10 +16,10 @@ const good = {
   why: '固定三人小队分工',
 }
 
-test('a concrete three-seat opening card passes the rubric', () => {
+test('a concrete three-member opening card passes the rubric', () => {
   const report = evaluateProposal(result(good), {
-    minSeats: 3,
-    maxSeats: 3,
+    minMembers: 3,
+    maxMembers: 3,
     maxVerifiers: 1,
     maxQuestions: 2,
     requireTest: true,
@@ -33,7 +33,7 @@ test('a concrete three-seat opening card passes the rubric', () => {
 test('a mechanism question and missing acceptance fail the rubric', () => {
   const report = evaluateProposal(result({
     ...good,
-    questions: [{ text: '要不要加一个验收席位？', recommendation: '要' }],
+    questions: [{ text: '要不要加一个验收成员？', recommendation: '要' }],
     verify: 'manual',
     acceptance: '',
   }), { requireTest: true })
@@ -45,7 +45,7 @@ test('a mechanism question and missing acceptance fail the rubric', () => {
 test('a fixed-team why does not claim a missing verifier', () => {
   const report = evaluateProposal(result({
     ...good,
-    why: '固定三人分工，验收席位独立复核',
+    why: '固定三人分工，验收成员独立复核',
   }), {})
   assert.equal(report.failures.some(item => item.id === 'why-verifier'), false)
 })
@@ -61,10 +61,10 @@ test('a product question about page count is not a mechanism question', () => {
 test('a worker named 验收 and a why claiming a verifier fail', () => {
   const report = evaluateProposal(result({
     ...good,
-    seats: [{ role: 'worker', name: '验收' }],
-    why: '两个执行席位加一个独立验收正好',
+    members: [{ role: 'worker', name: '验收' }],
+    why: '两个执行成员加一个独立验收正好',
   }), {})
-  assert.equal(report.failures.some(item => item.id === 'seat-role-name'), true)
+  assert.equal(report.failures.some(item => item.id === 'member-role-name'), true)
   assert.equal(report.failures.some(item => item.id === 'why-verifier'), true)
 })
 
@@ -79,7 +79,7 @@ test('parser trimming is visible to the rubric', () => {
 test('a proposal without a worker fails closed', () => {
   const report = evaluateProposal(result({
     ...good,
-    seats: [{ role: 'lead', name: '队长' }],
+    members: [{ role: 'lead', name: '队长' }],
   }), {})
   assert.equal(report.pass, false)
   assert.equal(report.failures.some(item => item.id === 'workers'), true)

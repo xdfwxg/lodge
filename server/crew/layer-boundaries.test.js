@@ -47,7 +47,7 @@ const applicationFiles = [
   'rooms/studio/stage-plan.js',
   'rooms/studio/tasks.js',
   'rooms/studio/progress.js',
-  'rooms/studio/seat-handoff.js',
+  'rooms/studio/member-handoff.js',
   'workspace-gc.js',
   'presentation.js',
 ]
@@ -58,7 +58,7 @@ const forbiddenDependencies = [
   'engine.js',
   'base.js',
   'room-repo.js',
-  'seat-env.js',
+  'member-env.js',
   'paths.js',
   'project.js',
   'template-store.js',
@@ -123,8 +123,8 @@ test('business files never resolve base names or addresses', () => {
     const text = readFileSync(join(root, file), 'utf8')
     assert.doesNotMatch(
       text,
-      /seatBaseName|seatAddress|hostAddress|toBaseMentions|toDisplayMentions/,
-      `${file} resolves a base address instead of naming a seat`,
+      /memberSurfaceName|memberAddress|hostAddress|toBaseMentions|toDisplayMentions/,
+      `${file} resolves a base address instead of naming a member`,
     )
   }
 })

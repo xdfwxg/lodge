@@ -3,7 +3,7 @@ import { BotAvatar } from '../marks.js'
 import { Markdown, Speaker } from '../message-cards.js'
 
 // 基座的问答卡：选项是一等答案，也可以自己写；回答走同一个 card request。
-export function QuestionCard({ message, seat, onAnswer = null }) {
+export function QuestionCard({ message, member, onAnswer = null }) {
   const [text, setText] = useState('')
   const card = message.meta?.card ?? {}
   const options = Array.isArray(card.options) ? card.options.filter(option => typeof option === 'string') : []
@@ -15,9 +15,9 @@ export function QuestionCard({ message, seat, onAnswer = null }) {
   }
   return h('div', { className: 'crew-msg' },
     h('div', { className: 'crew-msg-avatar' },
-      seat === null || seat === undefined ? null : h(BotAvatar, { bot: seat, size: 30, live: false })),
+      member === null || member === undefined ? null : h(BotAvatar, { bot: member, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { seat, ts: message.ts }),
+      h(Speaker, { member, ts: message.ts }),
       h('div', { className: 'crew-card crew-question-card' },
         h('div', { className: 'crew-card-head' }, card.subtitle || '需要你回答'),
         h('div', { className: 'crew-card-body' },

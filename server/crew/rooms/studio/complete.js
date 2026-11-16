@@ -40,12 +40,12 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     ])
     // 交付目录保留；只清掉非交付成员工作区。git 房间的候选分支仍在源仓库，可人工重建查看。
     try {
-      const pruned = roomWorkspace.pruneSeats(room)
-      const fresh = pruned.filter(seat => !(room.prunedSeats ?? []).includes(seat))
+      const pruned = roomWorkspace.pruneMembers(room)
+      const fresh = pruned.filter(member => !(room.prunedMembers ?? []).includes(member))
       if (fresh.length > 0) {
         const updated = updateRoom(room.id, current => {
-          current.prunedSeats = pruned
-          return { events: [{ type: 'room.prune', payload: { seats: fresh } }] }
+          current.prunedMembers = pruned
+          return { events: [{ type: 'room.prune', payload: { members: fresh } }] }
         })
         if (updated !== null) emit('room', updated)
       }

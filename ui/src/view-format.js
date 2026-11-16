@@ -32,8 +32,8 @@ const workspaceOf = room => {
   return `${caps.vcs === 'none' ? '普通文件夹' : caps.vcs ?? '文件夹'} · ${caps.isolation === 'copy' ? '复制一份' : caps.isolation ?? '单独'} · ${caps.diff === 'manifest' ? '文件清单' : caps.diff ?? '没有改动'}`
 }
 const changeWordOf = room => room.workspace?.capabilities?.diff === 'manifest' ? '文件清单' : '改动'
-const seatPermissionOf = (room, seat) => {
-  if (!seat.permissions?.write) return seat.permissions?.exec ? '只能看，能运行' : '只能看'
+const memberPermissionOf = (room, member) => {
+  if (!member.permissions?.write) return member.permissions?.exec ? '只能看，能运行' : '只能看'
   return room.workspace?.capabilities?.isolation === 'copy' ? '写在副本里' : '写在单独副本里'
 }
 
@@ -44,5 +44,5 @@ export {
   independenceOf,
   workspaceOf,
   changeWordOf,
-  seatPermissionOf,
+  memberPermissionOf,
 }

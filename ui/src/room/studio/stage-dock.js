@@ -29,7 +29,7 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
   if (activeStage === undefined) return null
   // 开工对齐已经有一张带问题的决策卡；底部动作条不再重复同一件事。
   const leadMessage = [...(room.messages ?? [])].reverse().find(message => (
-    message.kind === 'chat' && message.authorId === room.leadSeat
+    message.kind === 'chat' && message.authorId === room.leadMemberId
   ))
   const openingBrief = activeIndex === 0 &&
     room.needsYou?.kind === 'decision' &&

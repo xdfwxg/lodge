@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRoomChat } from './kernel/live/bus.js'
 import { ROOM_CHAT_BULLETIN } from './room-chat.js'
+import { normalizeLegacyTestRoom } from './testing/room.js'
 
-const baseRoom = () => ({
+const baseRoom = () => normalizeLegacyTestRoom({
   id: 'room-1',
   name: '样例房',
   goal: '把事做完',
@@ -65,12 +66,12 @@ const setup = (capabilities = { streaming: true, mentions: true, provisioning: t
     engine,
     projector: { toStored: (roomId, message) => ({ ...message, id: 'stored-1', roomId }) },
     refresh: async () => {},
-    onPermission: (entry, seat, message) => permissions.push({ seat, message }),
+    onPermission: (entry, member, message) => permissions.push({ member, message }),
   })
   return { chat, engine, store, sent, subscribed, answered, permissions, messages, room: () => room }
 }
 
-test('a room gets one shared chat room with every seat', async () => {
+test('a room gets one shared chat room with every member', async () => {
   const ctx = setup()
   const room = await ctx.chat.ensure(ctx.room())
   assert.deepEqual(room.chatRoom, { id: 'chat-1', sessionRef: 'thread-1' })
@@ -162,7 +163,7 @@ test('a sendId reconciles the echo even when the stored id changes', () => {
   assert.equal(ctx.messages.length, 1)
 })
 
-test('a streamed final reply maps base names to seat names', () => {
+test('a streamed final reply maps base names to member names', () => {
   const ctx = setup()
   const base = ctx.room()
   base.roomType = 'chat'
@@ -181,7 +182,7 @@ test('a streamed final reply maps base names to seat names', () => {
   assert.equal(ctx.messages.at(-1).meta.final, true)
 })
 
-test('a seat that speaks twice keeps both turns', () => {
+test('a member that speaks twice keeps both turns', () => {
   const ctx = setup()
   const base = ctx.room()
   base.roomType = 'chat'

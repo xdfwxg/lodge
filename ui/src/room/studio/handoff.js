@@ -1,6 +1,6 @@
 // 规划师的长派活消息是编排记录，不是聊天内容；主时间线只留一条摘要。
 export const isDispatchHandoff = (room, message) => {
-  if (message?.kind !== 'chat' || message.authorId !== room.leadSeat) return false
+  if (message?.kind !== 'chat' || message.authorId !== room.leadMemberId) return false
   const text = String(message.text ?? '')
   return /^@[^\s，,。]+/.test(text.trim()) &&
     (text.includes('工作文件夹') || text.includes('工作目录')) &&

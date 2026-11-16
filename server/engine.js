@@ -293,8 +293,8 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }))
   }
 
-  // 席位声明的是引擎类别；绑定到基座可用的具体 instance/model，找不到才显式降级。
-  const resolveSeatEngine = async (requested, requestedModel = '') => {
+  // 成员声明的是引擎类别；绑定到基座可用的具体 instance/model，找不到才显式降级。
+  const resolveMemberEngine = async (requested, requestedModel = '') => {
     if (typeof requested !== 'string' || requested === '') {
       const selection = await defaultModelSelection()
       return { selection, engine: selection.instanceId, requested: '', fallback: false, reason: '' }
@@ -354,8 +354,8 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
-  const createSeatBot = async ({ name, soul, description, approval, mcp, roomTools = [], engine, model }) => {
-    const resolved = await resolveSeatEngine(engine, model)
+  const createMemberBot = async ({ name, soul, description, approval, mcp, roomTools = [], engine, model }) => {
+    const resolved = await resolveMemberEngine(engine, model)
     const selection = resolved.selection
     const servers = [...new Set([
       ...(Array.isArray(mcp) ? mcp.map(grant => grant.server) : []),
@@ -366,7 +366,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       ...(typeof description === 'string' && description !== '' ? { description } : {}),
       ...(approval === undefined ? {} : { approvalMode: approval }),
       ...(servers.length > 0 ? { mcpServers: servers } : {}),
-      // 基座会给每个 bot 自动挂内置 agents MCP；Lodge 的席位只用原生 read/exec/write，
+      // 基座会给每个 bot 自动挂内置 agents MCP；Lodge 的成员只用原生 read/exec/write，
       // 不把 coordinate_bots/session_search 这类团队工具带进房间。
       toolScope: { deny: ['mcp:agents:*'] },
     }
@@ -406,7 +406,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { ok: true }
   }
 
-  // 群聊默认不唤醒任何成员；只有被 @ 的席位才加载。工作室和聊天室都用这一种总线。
+  // 群聊默认不唤醒任何成员；只有被 @ 的成员才加载。工作室和聊天室都用这一种总线。
   const setRoomMentions = async roomId => {
     await client.patchGroup(roomId, { defaultResponder: { kind: 'mentions' } })
     return { ok: true }
@@ -435,7 +435,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { id: group.id, sessionRef: group.threadId }
   }
 
-  const deleteSeatBot = async botId => {
+  const deleteMemberBot = async botId => {
     try {
       await client.deleteBot(botId)
     } catch {}
@@ -476,7 +476,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
   }
 
   // 基座 MCP 注册表：Lodge 自己的 Planner 工具面也按外部 MCP server 注册，
-  // 只有拿到名字的席位才会加载。
+  // 只有拿到名字的成员才会加载。
   const mcp = {
     list: () => client.mcpServers(),
     create: payload => client.createMcpServer(payload),
@@ -497,14 +497,14 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     capabilities,
     features,
     health,
-    createSeatBot,
+    createMemberBot,
     setBotSkills,
     createRoom,
     updateRoomMembers,
     setRoomMentions,
     setRoomHold,
     markRoomRead,
-    deleteSeatBot,
+    deleteMemberBot,
     deleteRoom,
     subscribe,
     mcp,

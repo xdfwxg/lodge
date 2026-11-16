@@ -24,20 +24,20 @@ export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourc
 export const prepareWorkspace = ({ provider, sourceRepo, short, roster, workspacePort }) => {
   let workspaces
   try {
-    workspaces = provider.prepareRoom({ source: sourceRepo, short, seats: roster })
+    workspaces = provider.prepareRoom({ source: sourceRepo, short, members: roster })
   } catch (error) {
     // git / 磁盘 / 权限问题不是用户的业务拒绝；交给组合根显式 500。
     throw new Error(`工作文件夹不可用：${error?.message ?? error}`)
   }
   const roomId = `room-${short}`
-  for (const seat of roster) {
-    const seatPath = workspaces.seats[seat.id]?.path
-    if (typeof seatPath === 'string') {
-      workspacePort.writeSeatEnv({ room: { id: roomId }, seatId: seat.id, path: seatPath, port: workspaces.ports?.[seat.id] })
+  for (const member of roster) {
+    const memberPath = workspaces.members[member.id]?.path
+    if (typeof memberPath === 'string') {
+      workspacePort.writeMemberEnv({ room: { id: roomId }, memberId: member.id, path: memberPath, port: workspaces.ports?.[member.id] })
     }
   }
   if (workspaces.integration?.path !== undefined) {
-    workspacePort.writeSeatEnv({ room: { id: roomId }, seatId: 'integration', path: workspaces.integration.path, port: workspaces.ports?.integration })
+    workspacePort.writeMemberEnv({ room: { id: roomId }, memberId: 'integration', path: workspaces.integration.path, port: workspaces.ports?.integration })
   }
   return workspaces
 }

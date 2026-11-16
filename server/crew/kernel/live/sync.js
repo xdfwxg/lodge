@@ -1,13 +1,13 @@
-import { seatFor, seatNameOf } from './projection.js'
+import { memberForRef, memberNameOf } from './projection.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 
-const seatFailureOf = message => {
+const memberFailureOf = message => {
   if (message?.kind !== 'activity' || message.ok !== false) return null
   const text = String(message.text ?? '')
   return /^error:\s/i.test(text) ? text : null
 }
 
-const seatFailureKind = text => {
+const memberFailureKind = text => {
   const lower = text.toLowerCase()
   if (lower.includes('余额') || lower.includes('insufficient') || lower.includes('quota') || lower.includes('credit')) return 'quota'
   if (lower.includes('401') || lower.includes('403') || lower.includes('unauthorized') || lower.includes('invalid api key')) return 'auth'
@@ -23,36 +23,36 @@ const failureCopy = (kind, name) => ({
 }[kind])
 
 // 引擎级错误（余额、鉴权、限流）不是普通命令失败；房间要停下来等人处理。
-export const pauseForSeatFailure = (store, entry, message) => {
-  const text = seatFailureOf(message)
+export const pauseForMemberFailure = (store, entry, message) => {
+  const text = memberFailureOf(message)
   if (text === null) return
   const room = store.readRoom(entry.roomId)
   if (room === null) return
-  const seat = seatFor(room, message.authorRef) ?? 'executor'
-  const kind = seatFailureKind(text)
+  const memberId = memberForRef(room, message.authorRef) ?? 'executor'
+  const kind = memberFailureKind(text)
   const updated = store.updateRoom(entry.roomId, current => {
     if (current.state !== 'active') return null
     current.state = 'paused'
-    current.pauseReason = 'seat_error'
+    current.pauseReason = 'member_error'
     current.idle = false
-    current.seatError = { seat, kind, at: Date.now(), detail: text.slice(0, 500) }
-    roomPresentationOfRoom(current)?.onSeatFailure(current, seat)
-    return { events: [{ type: 'room.seat_error', payload: { seat, kind, detail: text.slice(0, 500) } }] }
+    current.memberError = { memberId, kind, at: Date.now(), detail: text.slice(0, 500) }
+    roomPresentationOfRoom(current)?.onMemberFailure(current, memberId)
+    return { events: [{ type: 'room.member_error', payload: { memberId, kind, detail: text.slice(0, 500) } }] }
   })
   if (updated !== null) {
     store.appendMessage(entry.roomId, {
       kind: 'system',
-      text: failureCopy(kind, seatNameOf(room, seat)),
+      text: failureCopy(kind, memberNameOf(room, memberId)),
     })
   }
 }
 
-export const createSeatSync = ({ store, engine, projector }) => {
-  const syncSeat = async (entry, seat) => {
-    if (entry.syncing.has(seat)) return
-    const target = entry.seats.get(seat)
+export const createMemberSync = ({ store, engine, projector }) => {
+  const syncMember = async (entry, memberId) => {
+    if (entry.syncing.has(memberId)) return
+    const target = entry.members.get(memberId)
     if (target === undefined) return
-    entry.syncing.add(seat)
+    entry.syncing.add(memberId)
     try {
       const { messages } = await engine.history(target.sessionRef)
       for (const message of messages) {
@@ -62,22 +62,22 @@ export const createSeatSync = ({ store, engine, projector }) => {
         } else {
           const stored = projector.toStored(entry.roomId, message)
           if (stored !== null) store.upsertMessage(stored)
-          pauseForSeatFailure(store, entry, message)
+          pauseForMemberFailure(store, entry, message)
         }
       }
     } finally {
-      entry.syncing.delete(seat)
+      entry.syncing.delete(memberId)
     }
   }
 
-  const subscribeSeat = (entry, seat, { answerPermission, refresh }) => {
-    const target = entry.seats.get(seat)
+  const subscribeMember = (entry, memberId, { answerPermission, refresh }) => {
+    const target = entry.members.get(memberId)
     if (target === undefined) return
     target.unsubscribe = engine.subscribe({
       roomId: target.roomRef,
       sessionRef: target.sessionRef,
       onState: state => {
-        if (state.connected) void syncSeat(entry, seat)
+        if (state.connected) void syncMember(entry, memberId)
       },
       onEvent: event => {
         if (event.type === 'room') {
@@ -86,7 +86,7 @@ export const createSeatSync = ({ store, engine, projector }) => {
         }
         const message = event.message
         if (message?.card?.requestType === 'permission') {
-          void answerPermission(entry, seat, message)
+          void answerPermission(entry, memberId, message)
           return
         }
         entry.turns.trackTool(message)
@@ -96,12 +96,12 @@ export const createSeatSync = ({ store, engine, projector }) => {
         } else {
           const stored = projector.toStored(entry.roomId, message)
           if (stored !== null) store.upsertMessage(stored)
-          pauseForSeatFailure(store, entry, message)
+          pauseForMemberFailure(store, entry, message)
           refresh(entry)
         }
       },
     })
   }
 
-  return { syncSeat, subscribeSeat }
+  return { syncMember, subscribeMember }
 }

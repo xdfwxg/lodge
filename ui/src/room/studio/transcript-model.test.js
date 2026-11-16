@@ -4,7 +4,7 @@ import {
   dayKey,
   groupSteps,
   describeSteps,
-  showsSeat,
+  showsMember,
   presenceLines,
   displayableStep,
   stepLabel,
@@ -56,42 +56,42 @@ test('step-group summaries count repeated tools and cap the list', () => {
 
 test('only the first message of a same-seat group shows a speaker', () => {
   const items = [say('a', 'w', 1), say('b', 'w', 2), say('c', 'v', 3)]
-  assert.deepEqual(items.map((_, index) => showsSeat(items, index)), [true, false, true])
+  assert.deepEqual(items.map((_, index) => showsMember(items, index)), [true, false, true])
 })
 
 test('a day marker and a same-seat step group start a new group', () => {
   const afterDay = [{ kind: 'day', key: 'd', ts: 0, label: '今天' }, say('a', 'w', 1)]
-  assert.equal(showsSeat(afterDay, 1), true)
+  assert.equal(showsMember(afterDay, 1), true)
   const afterGroup = [{ kind: 'steps', key: 'r', authorId: 'w', ts: 0, steps: [] }, say('a', 'w', 1)]
-  assert.equal(showsSeat(afterGroup, 1), false)
+  assert.equal(showsMember(afterGroup, 1), false)
 })
 
 test('presence lines name seats and describe queue position', () => {
   const seats = [{ id: 'lead', name: '规划师' }, { id: 'worker', name: '执行官' }, { id: 'verifier', name: '验收员' }]
   const lines = presenceLines({
     busySince: 10,
-    presence: [{ seatId: 'lead', state: 'working' }],
+    presence: [{ memberId: 'lead', state: 'working' }],
     turnQueue: [
-      { seatId: 'lead', state: 'running', position: 1, of: 3 },
-      { seatId: 'verifier', state: 'queued', position: 3, of: 3, waitingForSeatId: 'worker' },
+      { memberId: 'lead', state: 'running', position: 1, of: 3 },
+      { memberId: 'verifier', state: 'queued', position: 3, of: 3, waitingForMemberId: 'worker' },
     ],
   }, seats)
-  assert.deepEqual(lines.working, [{ seatId: 'lead', name: '规划师', since: 10 }])
-  assert.deepEqual(lines.queued, [{ seatId: 'verifier', name: '验收员', position: 3, of: 3, waitingFor: '执行官' }])
+  assert.deepEqual(lines.working, [{ memberId: 'lead', name: '规划师', since: 10 }])
+  assert.deepEqual(lines.queued, [{ memberId: 'verifier', name: '验收员', position: 3, of: 3, waitingFor: '执行官' }])
   assert.deepEqual(lines.held, [])
 })
 
 test('a held seat leaves the working and queue lines', () => {
   const seats = [{ id: 'worker', name: '执行官' }]
   const lines = presenceLines({
-    heldSeats: ['worker'],
+    heldMembers: ['worker'],
     heldMessages: { worker: 2 },
-    presence: [{ seatId: 'worker', state: 'working' }],
-    turnQueue: [{ seatId: 'worker', state: 'queued', position: 1, of: 1 }],
+    presence: [{ memberId: 'worker', state: 'working' }],
+    turnQueue: [{ memberId: 'worker', state: 'queued', position: 1, of: 1 }],
   }, seats)
   assert.deepEqual(lines.working, [])
   assert.deepEqual(lines.queued, [])
-  assert.deepEqual(lines.held, [{ seatId: 'worker', name: '执行官', count: 2 }])
+  assert.deepEqual(lines.held, [{ memberId: 'worker', name: '执行官', count: 2 }])
 })
 
 test('activity without a tool name is skipped without breaking the run', () => {
@@ -119,7 +119,7 @@ test('synthetic tool labels are rejected even when the projection carries them',
 })
 
 const stagedRoom = (states = ['passed', 'active', 'pending']) => ({
-  leadSeat: 'lead',
+  leadMemberId: 'lead',
   stages: states.map((state, index) => ({ title: `阶段${index + 1}`, state })),
 })
 
@@ -158,7 +158,7 @@ test('pre-stage room notices stay out of the first stage', () => {
 })
 
 test('standby chatter is not room conversation', () => {
-  const room = { leadSeat: 'planner' }
+  const room = { leadMemberId: 'planner' }
   assert.equal(isStandbyChat({ kind: 'chat', authorId: 'executor', text: '执行官待命：阶段 2 未派发' }, room), true)
   assert.equal(isStandbyChat({ kind: 'chat', authorId: 'planner', text: '规划师待命' }, room), false)
   assert.equal(isStandbyChat({ kind: 'chat', authorId: 'you', text: '我先待命' }, room), false)

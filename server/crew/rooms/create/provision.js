@@ -1,10 +1,10 @@
 import { roomBulletin } from './input.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { roomModeForType } from '../kinds.js'
-import { roleKindOf } from '../../seats.js'
+import { roleKindOf } from '../../roster.js'
 
 export const createProvisioner = ({ engine }) => {
-  const createdSeatRefs = []
+  const createdMembers = []
   const createdBaseRooms = []
   let cleanupExtra = null
 
@@ -17,71 +17,67 @@ export const createProvisioner = ({ engine }) => {
       instances = []
     }
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
-    const kindOf = seat => seat.roleKind ?? roleKindOf(seat.role)
+    const kindOf = member => member.roleKind ?? roleKindOf(member.role)
     // 工人先建，验收成员才有事实可依；没有显式引擎时优先选不同厂商。
     const ordered = [...roster].sort((a, b) => (kindOf(a) === 'verifier' ? 1 : 0) - (kindOf(b) === 'verifier' ? 1 : 0))
-    for (const seat of ordered) {
-      let requestedEngine = seat.engine
-      if (kindOf(seat) === 'verifier' && seat.engineExplicit !== true) {
-        const workerKinds = new Set(createdSeatRefs
-          .filter(({ seat: item }) => kindOf(item) === 'executor')
-          .map(({ seatRef }) => engineKind(seatRef.engine)))
+    for (const member of ordered) {
+      let requestedEngine = member.engine
+      if (kindOf(member) === 'verifier' && member.engineExplicit !== true) {
+        const workerKinds = new Set(createdMembers
+          .filter(({ member: item }) => kindOf(item) === 'executor')
+          .map(({ memberRef }) => engineKind(memberRef.engine)))
         const candidate = instances.find(item => item.available && !workerKinds.has(item.engine))
         if (candidate !== undefined) requestedEngine = candidate.id
       }
-      const seatRef = await engine.createSeatBot({
+      const memberRef = await engine.createMemberBot({
         // 房间里的名字就是基座里的名字；id 才是稳定身份。
-        name: seat.name,
-        soul: mode.seatSoul?.(seat) ?? seat.prompt,
-        description: seat.station,
-        approval: seat.approval,
-        mcp: seat.mcp,
+        name: member.name,
+        soul: mode.memberSoul?.(member) ?? member.prompt,
+        description: member.station,
+        approval: member.approval,
+        mcp: member.mcp,
         engine: requestedEngine,
-        model: seat.model,
+        model: member.model,
       })
-      createdSeatRefs.push({ seat, seatRef })
-      if (Array.isArray(seat.skills) && seat.skills.length > 0) {
+      createdMembers.push({ member, memberRef })
+      if (Array.isArray(member.skills) && member.skills.length > 0) {
         try {
-          await engine.setBotSkills(seatRef.id, seat.skills)
+          await engine.setBotSkills(memberRef.id, member.skills)
         } catch (error) {
-          throw new Error(`技能没挂上（${seat.name}）：${error?.message ?? error}`)
+          throw new Error(`技能没挂上（${member.name}）：${error?.message ?? error}`)
         }
       }
     }
-    const engineFallbacks = Object.fromEntries(createdSeatRefs
-      .filter(({ seatRef }) => seatRef.fallback === true)
-      .map(({ seat, seatRef }) => [seat.id, { requested: seatRef.requestedEngine, actual: seatRef.engine, reason: seatRef.reason }]))
-    const baseRoomFor = async (seat, seatRef) => {
+    const engineFallbacks = Object.fromEntries(createdMembers
+      .filter(({ memberRef }) => memberRef.fallback === true)
+      .map(({ member, memberRef }) => [member.id, { requested: memberRef.requestedEngine, actual: memberRef.engine, reason: memberRef.reason }]))
+    const baseRoomFor = async (member, memberRef) => {
       const baseRoom = await engine.createRoom({
-        name: `${title} · ${seat.name}`,
+        name: `${title} · ${member.name}`,
         goal,
         bulletin: roomBulletin(goal, verify, acceptance, handoff),
-        members: [seatRef.id],
-        cwd: workspaces.seats[seat.id].path,
-        leadId: seatRef.id,
+        members: [memberRef.id],
+        cwd: workspaces.members[member.id].path,
+        leadId: memberRef.id,
       })
       createdBaseRooms.push(baseRoom)
       return baseRoom
     }
-    const seatRooms = {}
-    const seatBots = {}
-    const seatNames = {}
+    const baseRooms = new Map()
     const engines = {}
     const models = {}
-    for (const { seat, seatRef } of createdSeatRefs) {
-      const baseRoom = await baseRoomFor(seat, seatRef)
-      seatRooms[seat.id] = { id: baseRoom.id, sessionRef: baseRoom.sessionRef }
-      seatBots[seat.id] = seatRef.id
-      seatNames[seat.id] = seatRef.name
-      engines[seat.id] = seatRef.engine
-      models[seat.id] = seatRef.model
+    for (const { member, memberRef } of createdMembers) {
+      const baseRoom = await baseRoomFor(member, memberRef)
+      baseRooms.set(member.id, baseRoom)
+      engines[member.id] = memberRef.engine
+      models[member.id] = memberRef.model
     }
-    const leadSeat = createdSeatRefs.find(({ seat }) => kindOf(seat) === 'planner') ?? createdSeatRefs[0]
-    const extra = await mode.provisionExtra({ engine, short, workspaces, leadSeat }) ?? null
+    const leadMember = createdMembers.find(({ member }) => kindOf(member) === 'planner') ?? createdMembers[0]
+    const extra = await mode.provisionExtra({ engine, short, workspaces, leadMember }) ?? null
     cleanupExtra = extra?.cleanup ?? null
     const extraMembers = extra?.members ?? []
     const chatMembers = [
-      ...createdSeatRefs.map(({ seatRef }) => seatRef.id),
+      ...createdMembers.map(({ memberRef }) => memberRef.id),
       ...extraMembers,
     ]
     const chatRoom = await engine.createRoom({
@@ -89,19 +85,19 @@ export const createProvisioner = ({ engine }) => {
       goal,
       bulletin: ROOM_CHAT_BULLETIN,
       members: chatMembers,
-      cwd: workspaces.roomPath ?? workspaces.seats[leadSeat.seat.id].path,
-      leadId: extra?.leadId ?? leadSeat.seatRef.id,
+      cwd: workspaces.roomPath ?? workspaces.members[leadMember.member.id].path,
+      leadId: extra?.leadId ?? leadMember.memberRef.id,
       responder: { kind: 'mentions' },
     })
     createdBaseRooms.push(chatRoom)
     const chatHost = extra?.chatHost ?? null
 
-    const workerEngines = new Set(createdSeatRefs
-      .filter(({ seat }) => kindOf(seat) === 'executor')
-      .map(({ seatRef }) => seatRef.engine))
-    const verifierEngines = createdSeatRefs
-      .filter(({ seat }) => kindOf(seat) === 'verifier')
-      .map(({ seatRef }) => seatRef.engine)
+    const workerEngines = new Set(createdMembers
+      .filter(({ member }) => kindOf(member) === 'executor')
+      .map(({ memberRef }) => memberRef.engine))
+    const verifierEngines = createdMembers
+      .filter(({ member }) => kindOf(member) === 'verifier')
+      .map(({ memberRef }) => memberRef.engine)
     const independence = verifiers.length === 0
       ? 'human'
       : verifierEngines.length > 0 && verifierEngines.every(id => (
@@ -109,12 +105,47 @@ export const createProvisioner = ({ engine }) => {
       ))
         ? 'vendor'
         : 'none'
-    return { seatRooms, seatBots, seatNames, engines, models, engineFallbacks, independence, chatRoom, chatHost }
+    const byId = new Map(createdMembers.map(item => [item.member.id, item]))
+    const members = roster.map(member => {
+      const { memberRef } = byId.get(member.id)
+      const baseRoom = baseRooms.get(member.id)
+      return {
+        id: member.id,
+        kind: 'ai',
+        name: member.name,
+        title: member.title,
+        role: member.role,
+        roleKind: member.roleKind ?? kindOf(member),
+        roleProfile: member.roleProfile,
+        ...(member.isHost === true ? { isHost: true } : {}),
+        station: member.station,
+        engine: member.engine,
+        ...(member.model === undefined ? {} : { model: member.model }),
+        permissions: member.permissions,
+        writeScope: member.writeScope,
+        toolSurface: member.toolSurface,
+        skills: member.skills,
+        mcp: member.mcp,
+        approval: member.approval,
+        speakBudget: member.speakBudget,
+        ...(member.personality === undefined || member.personality === '' ? {} : { personality: member.personality }),
+        body: {
+          kind: 'base',
+          ref: memberRef.id,
+          name: memberRef.name,
+          roomRef: baseRoom.id,
+          sessionRef: baseRoom.sessionRef,
+          engine: memberRef.engine,
+          ...(memberRef.model === undefined ? {} : { model: memberRef.model }),
+        },
+      }
+    })
+    return { members, engines, models, engineFallbacks, independence, chatRoom, chatHost }
   }
 
   const cleanup = async () => {
     for (const baseRoom of createdBaseRooms) await engine.deleteRoom(baseRoom.id)
-    for (const item of createdSeatRefs) await engine.deleteSeatBot(item.seatRef.id)
+    for (const item of createdMembers) await engine.deleteMemberBot(item.memberRef.id)
     if (cleanupExtra !== null) await cleanupExtra()
   }
 

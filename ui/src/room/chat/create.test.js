@@ -7,7 +7,7 @@ const base = {
   name: '评审',
   repoPath: '',
   chatTurnLimit: 6,
-  defaultSeats: [{ role: 'worker', name: '甲' }],
+  defaultMembers: [{ role: 'worker', name: '甲' }],
   choices: [],
   selectedModelOf: () => '',
 }

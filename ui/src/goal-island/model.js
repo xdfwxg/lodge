@@ -1,5 +1,5 @@
 // 目标岛的纯投影：只从房间与消息派生，方便测试，不依赖 React。
-import { seatNameOf } from '../room/seat-name.js'
+import { memberNameOf } from '../room/member-name.js'
 
 const NEEDS_TONE = {
   question: 'waiting',
@@ -41,13 +41,13 @@ export const verdictsFor = (room, index) => {
   const source = evidence !== undefined && tagged.length > 0
     ? tagged.filter(message => message.meta.evidenceId === evidence.id)
     : all
-  const latestBySeat = new Map()
-  for (const message of source) latestBySeat.set(message.authorId ?? 'verifier', message)
-  return [...latestBySeat.values()]
+  const latestByMember = new Map()
+  for (const message of source) latestByMember.set(message.authorId ?? 'verifier', message)
+  return [...latestByMember.values()]
 }
 
-export const verdictForSeat = (room, index, seatId) => (
-  verdictsFor(room, index).find(message => (message.authorId ?? 'verifier') === seatId)
+export const verdictForMember = (room, index, memberId) => (
+  verdictsFor(room, index).find(message => (message.authorId ?? 'verifier') === memberId)
 )
 
 export const rejectsFor = (room, index) => room.messages.filter(message => (
@@ -65,10 +65,10 @@ export const islandStatus = room => {
       : { label: '已暂停', tone: 'paused' }
   }
   if (room.busy === true) {
-    const busy = Array.isArray(room.busySeats) ? room.busySeats : room.busySeat ? [room.busySeat] : []
+    const busy = Array.isArray(room.busyMembers) ? room.busyMembers : room.busyMember ? [room.busyMember] : []
     if (busy.length > 1) return { label: `${busy.length} 个执行在做`, tone: 'active' }
-    const seat = room.seatSpecs?.find(item => item.id === busy[0])?.name
-    return { label: `${seat ?? '成员'}在做`, tone: 'active' }
+    const member = room.members?.find(item => item.id === busy[0])?.name
+    return { label: `${member ?? '成员'}在做`, tone: 'active' }
   }
   if (room.needsYou) {
     return { label: room.needsYou.label, tone: NEEDS_TONE[room.needsYou.kind] ?? 'waiting' }
@@ -76,45 +76,45 @@ export const islandStatus = room => {
   return { label: '正在做', tone: 'active' }
 }
 
-const seatRole = (room, seatId) => (
-  room.seatSpecs?.find(seat => seat.id === seatId)?.role
-  ?? (seatId === 'planner' ? 'lead' : seatId === 'verifier' ? 'verifier' : 'worker')
+const memberRole = (room, memberId) => (
+  room.members?.find(member => member.id === memberId)?.role
+  ?? (memberId === 'planner' ? 'lead' : memberId === 'verifier' ? 'verifier' : 'worker')
 )
-export const seatTask = (seat, stage) => {
-  if (seat.role === 'lead') {
+export const memberTask = (member, stage) => {
+  if (member.role === 'lead') {
     return stage.kind === 'decision' ? '讲清「怎样算做完」，由你确认' : '拆出这一步要改什么、怎么算过'
   }
-  if (seat.role === 'worker') {
+  if (member.role === 'worker') {
     return stage.acceptance ? '按约定交付，并跑一次检查' : '交付这一步的结果'
   }
-  if (seat.role === 'verifier') return '独立检查，给出通过或退回'
+  if (member.role === 'verifier') return '独立检查，给出通过或退回'
   return '只读观察'
 }
 
-export const seatState = (room, stage, index, seatId) => {
-  const busy = Array.isArray(room.busySeats) ? room.busySeats : room.busySeat ? [room.busySeat] : []
-  if (busy.includes(seatId)) return 'working'
+export const memberState = (room, stage, index, memberId) => {
+  const busy = Array.isArray(room.busyMembers) ? room.busyMembers : room.busyMember ? [room.busyMember] : []
+  if (busy.includes(memberId)) return 'working'
   if (stage.state === 'passed') return 'done'
   if (stage.state === 'pending') return 'pending'
   if (room.state === 'paused' || room.state === 'stopped') return 'paused'
   const evidence = evidenceFor(room, index)
   const verdict = verdictFor(room, index)
-  const role = seatRole(room, seatId)
-  const task = stage.tasks?.find(item => item.owner === seatId)
+  const role = memberRole(room, memberId)
+  const task = stage.tasks?.find(item => item.owner === memberId)
   if (task?.status === 'failed') return 'failed'
   if (task?.status === 'reported' || task?.status === 'done') return 'done'
-  const seatEvidence = room.messages.some(message => (
-    message.kind === 'evidence' && message.authorId === seatId && (message.meta?.stage ?? 0) === index
+  const memberEvidence = room.messages.some(message => (
+    message.kind === 'evidence' && message.authorId === memberId && (message.meta?.stage ?? 0) === index
   ))
   if (role === 'lead') return stage.kind === 'decision' ? (room.live === true ? 'idle' : 'working') : 'done'
   if (role === 'worker') {
-    if (seatEvidence) return 'done'
+    if (memberEvidence) return 'done'
     if (stage.kind !== 'deliverable') return 'pending'
     return room.live === true ? 'idle' : 'working'
   }
   if (role === 'verifier') {
-    if (Array.isArray(room.verifiers) && room.verifiers.length > 1) {
-      if (verdictForSeat(room, index, seatId) !== undefined) return 'done'
+    if ((room.members ?? []).filter(member => member.roleKind === 'verifier' || member.role === 'verifier').length > 1) {
+      if (verdictForMember(room, index, memberId) !== undefined) return 'done'
       if (evidence.length === 0) return 'pending'
       return room.live === true ? 'idle' : 'working'
     }
@@ -126,24 +126,24 @@ export const seatState = (room, stage, index, seatId) => {
 }
 
 // 房间页只构造这份标准 view；换实现时不需要房间内部结构。
-export const buildGoalView = (room, seats) => {
+export const buildGoalView = (room, members) => {
   const current = activeIndex(room)
-  const seatById = new Map(seats.map(seat => [seat.id, seat]))
-  const nameOf = id => id === 'you' ? '你' : seatNameOf(room, id) || seatById.get(id)?.name || id
+  const memberById = new Map(members.map(member => [member.id, member]))
+  const nameOf = id => id === 'you' ? '你' : memberNameOf(room, id) || memberById.get(id)?.name || id
   const stages = room.stages.map((stage, index) => {
     const rejects = rejectsFor(room, index)
-    const verifierIds = Array.isArray(room.verifiers) ? room.verifiers : []
+    const verifierIds = (room.members ?? []).filter(member => member.roleKind === 'verifier' || member.role === 'verifier').map(member => member.id)
     const multi = verifierIds.length > 1
     let verdict = multi ? null : verdictFor(room, index)
     let verdicts = []
     if (multi) {
       const latest = verdictsFor(room, index)
-      const bySeat = new Map(latest.map(message => [message.authorId ?? 'verifier', message]))
+      const byMember = new Map(latest.map(message => [message.authorId ?? 'verifier', message]))
       const received = verifierIds
-        .map(id => ({ id, message: bySeat.get(id) }))
+        .map(id => ({ id, message: byMember.get(id) }))
         .filter(item => item.message !== undefined)
       const rejecting = received.filter(item => item.message.meta?.pass !== true)
-      const missing = verifierIds.filter(id => !bySeat.has(id))
+      const missing = verifierIds.filter(id => !byMember.has(id))
       verdicts = received.map(item => ({
         author: nameOf(item.id),
         pass: item.message.meta?.pass === true,
@@ -157,7 +157,7 @@ export const buildGoalView = (room, seats) => {
             ? { pass: true, text: `全部 ${verifierIds.length} 位验收员通过` }
             : { pass: false, pending: true, text: `已收到 ${received.length}/${verifierIds.length} 位验收员的意见，等待其余` }
     }
-    const tasks = (stage.tasks ?? []).map(task => ({ ...task, seat: seatById.get(task.owner) ?? null }))
+    const tasks = (stage.tasks ?? []).map(task => ({ ...task, member: memberById.get(task.owner) ?? null }))
     const taskOwners = new Set(tasks.map(task => task.owner))
     const conflict = room.mergeConflict?.stage === index
       ? room.mergeConflict
@@ -192,10 +192,10 @@ export const buildGoalView = (room, seats) => {
           : { pass: verdict.meta?.pass === true, text: verdict.text ?? '' },
       verdicts,
       tasks,
-      otherSeats: seats.filter(seat => !taskOwners.has(seat.id)).map(seat => ({
-        seat,
-        state: seatState(room, stage, index, seat.id),
-        task: seatTask(seat, stage),
+      otherMembers: members.filter(member => !taskOwners.has(member.id)).map(member => ({
+        member,
+        state: memberState(room, stage, index, member.id),
+        task: memberTask(member, stage),
       })),
     }
   })

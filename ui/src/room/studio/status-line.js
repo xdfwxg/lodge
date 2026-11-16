@@ -5,11 +5,11 @@ export const studioActivityLine = (room, view) => {
   if (room?.state !== 'active') return ''
   // 基座已经保证一次只跑一个回合；有成员排队时把“谁在跑、谁在等”放在一行。
   const presence = Array.isArray(room.presence) ? room.presence : []
-  const waiting = presence.filter(item => item.state === 'queued').map(item => nameOf(room, item.seatId)).filter(Boolean)
+  const waiting = presence.filter(item => item.state === 'queued').map(item => nameOf(room, item.memberId)).filter(Boolean)
   if (waiting.length > 0) {
     const working = presence
       .filter(item => item.state === 'working')
-      .map(item => nameOf(room, item.seatId))
+      .map(item => nameOf(room, item.memberId))
       .filter(Boolean)
     return [
       working.length > 0 ? `${working.join('、')} 正在处理` : '',
@@ -23,9 +23,9 @@ export const studioActivityLine = (room, view) => {
     return `${names === '' ? '验收员' : names} 正在独立复核${where}`
   }
   const working = stage?.tasks?.find(task => task.status === 'working')
-  const busySeat = (Array.isArray(room.busySeats) ? room.busySeats[0] : room.busySeat) ?? working?.owner
-  if (busySeat === undefined || busySeat === null) return ''
-  const seat = room.seatSpecs?.find(item => item.id === busySeat)
-  const verb = seat?.role === 'lead' ? '正在安排' : seat?.role === 'verifier' ? '正在复核' : '正在处理'
-  return `${nameOf(room, busySeat)} ${verb}${where}`
+  const busyMember = (Array.isArray(room.busyMembers) ? room.busyMembers[0] : room.busyMember) ?? working?.owner
+  if (busyMember === undefined || busyMember === null) return ''
+  const member = room.members?.find(item => item.id === busyMember)
+  const verb = member?.role === 'lead' ? '正在安排' : member?.role === 'verifier' ? '正在复核' : '正在处理'
+  return `${nameOf(room, busyMember)} ${verb}${where}`
 }

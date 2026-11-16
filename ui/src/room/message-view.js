@@ -5,7 +5,7 @@ import { hostLabelOf } from './host.js'
 
 // 共享层只处理两种房型都存在的消息；专属类型由各自的渲染器先接管。
 
-export const resolveSeat = (room, byId, message) => (
+export const resolveMember = (room, byId, message) => (
   byId[message.authorId]
   ?? (message.authorId === 'lodge' ? { id: 'lodge', name: hostLabelOf(room), title: '' } : undefined)
   ?? (message.authorId === 'system' ? { name: '系统', title: '' } : undefined)
@@ -19,9 +19,9 @@ export const renderSharedMessage = ({
   onCancelQueue = null,
   onSteerQueue = null,
 }) => {
-  const seat = resolveSeat(room, byId, message)
+  const member = resolveMember(room, byId, message)
   if (message.kind === 'question') {
-    return h(QuestionCard, { key: message.id, message, seat, onAnswer: onAnswerCard })
+    return h(QuestionCard, { key: message.id, message, member, onAnswer: onAnswerCard })
   }
   if (message.kind === 'system' || message.kind === 'advisor_advice' || message.kind === 'child_result') {
     return h('div', { key: message.id, className: 'crew-system' }, message.text)
@@ -45,5 +45,5 @@ export const renderSharedMessage = ({
             : h('button', { type: 'button', className: 'studio-presence-action', onClick: () => onSteerQueue(message.meta.queueId) }, '插话')),
       h('span', { className: 'crew-human-avatar' }, '你'))
   }
-  return h(ChatLine, { key: message.id, message, seat })
+  return h(ChatLine, { key: message.id, message, member })
 }

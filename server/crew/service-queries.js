@@ -4,18 +4,18 @@ import { presentRoom } from './presentation.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
 import { listRoomTypes } from './room-types/index.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
-import { toDisplayText } from './seat-labels.js'
+import { toDisplayText } from './member-labels.js'
 import { fail, ok } from './result.js'
 
 export const createServiceQueries = ({
   store,
   engine,
-  seats,
+  roles,
   roomFiles,
   files,
   workspace,
 }) => {
-  const { readRoom, readRooms, readMembers, readMessages, readMessagesSince, readEvidence } = store
+  const { readRoom, readRooms, readMessages, readMessagesSince, readEvidence } = store
 
   const health = async () => ok({ runtime: await engine.health() })
 
@@ -34,8 +34,7 @@ export const createServiceQueries = ({
       features = { skillsLibrary: false }
     }
     return {
-      seats,
-      members: readMembers(),
+      roles,
       features,
       roomTypes: listRoomTypes(),
       rooms: rooms.map(room => {

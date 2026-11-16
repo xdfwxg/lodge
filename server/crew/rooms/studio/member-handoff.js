@@ -21,7 +21,7 @@ const feedbackOf = messages => {
   })
 }
 
-export const buildSeatHandoff = ({ room, messages = [] } = {}) => {
+export const buildMemberHandoff = ({ room, messages = [] } = {}) => {
   if (room === null || room === undefined) return ''
   const lines = [`房间目标：${room.goal}`]
   const done = doneOf(room).slice(0, DONE_LIMIT)

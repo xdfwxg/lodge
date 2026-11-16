@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  activeIndex, buildGoalView, evidenceFor, islandStatus, rejectsFor, seatState,
-  verdictFor, verdictForSeat, verdictsFor,
+  activeIndex, buildGoalView, evidenceFor, islandStatus, rejectsFor, memberState,
+  verdictFor, verdictForMember, verdictsFor,
 } from './model.js'
 
 const seats = [
@@ -25,10 +25,7 @@ const room = over => ({
     ], partial: { failed: ['worker-2'], workers: ['worker'] } },
     { title: '回归', kind: 'deliverable', state: 'pending', acceptance: 'npm run e2e' },
   ],
-  workers: ['worker', 'worker-2'],
-  verifiers: ['verifier'],
-  seatNames: { worker: '前端', 'worker-2': '后端', verifier: '复核' },
-  seatSpecs: seats,
+  members: seats,
   messages: [
     { id: 'e1', seq: 1, kind: 'evidence', authorId: 'worker', meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0 } },
     { id: 'v1', seq: 2, kind: 'verdict', authorId: 'verifier', text: 'REJECT：刷新没生效', meta: { pass: false, stage: 1 } },
@@ -61,23 +58,21 @@ test('evidence, verdict and rework projections are stage-scoped', () => {
   assert.deepEqual(evidenceFor(current, 1).map(message => message.id), ['e1'])
   assert.equal(verdictFor(current, 1).id, 'v2')
   assert.deepEqual(rejectsFor(current, 1).map(message => message.id), ['v1', 'v2'])
-  assert.equal(seatState(current, current.stages[1], 1, 'worker'), 'done')
-  assert.equal(seatState(current, current.stages[1], 1, 'worker-2'), 'failed')
+  assert.equal(memberState(current, current.stages[1], 1, 'worker'), 'done')
+  assert.equal(memberState(current, current.stages[1], 1, 'worker-2'), 'failed')
 })
 
 test('multiple verifier verdicts aggregate on the current evidence round', () => {
   const secondSeat = { id: 'verifier-2', name: '复核二', role: 'verifier' }
   const current = room({
-    verifiers: ['verifier', 'verifier-2'],
-    seatSpecs: [...seats, secondSeat],
-    seatNames: { worker: '前端', 'worker-2': '后端', verifier: '复核', 'verifier-2': '复核二' },
+    members: [...seats, secondSeat],
     messages: [
       { id: 'e1', seq: 1, kind: 'evidence', authorId: 'worker', meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0 } },
       { id: 'v1', seq: 2, kind: 'verdict', authorId: 'verifier', text: 'PASS', meta: { pass: true, stage: 1, evidenceId: 'e1' } },
     ],
   })
   assert.deepEqual(verdictsFor(current, 1).map(message => message.authorId), ['verifier'])
-  assert.equal(verdictForSeat(current, 1, 'verifier').id, 'v1')
+  assert.equal(verdictForMember(current, 1, 'verifier').id, 'v1')
   assert.equal(buildGoalView(current, [...seats, secondSeat]).stages[1].verdict.pending, true)
 
   const all = room({
@@ -113,12 +108,10 @@ test('multiple verifier verdicts aggregate on the current evidence round', () =>
   assert.equal(buildGoalView(failedAgain, [...seats, secondSeat]).stages[1].verdict, null)
 })
 
-test('seat names come from the room roster, never from base names', () => {
+test('member names come from the room roster, never from base names', () => {
   const secondSeat = { id: 'verifier-2', name: '复核二', role: 'verifier' }
   const current = room({
-    verifiers: ['verifier', 'verifier-2'],
-    seatSpecs: [...seats, secondSeat],
-    seatNames: { worker: 'Workerf0d790', 'worker-2': 'Worker2f0d790', verifier: 'Verifierf0d790', 'verifier-2': 'Verifier2f0d790' },
+    members: [...seats, secondSeat],
     messages: [
       { id: 'e1', seq: 1, kind: 'evidence', authorId: 'worker', meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0 } },
       { id: 'v1', seq: 2, kind: 'verdict', authorId: 'verifier', text: 'PASS', meta: { pass: true, stage: 1, evidenceId: 'e1' } },

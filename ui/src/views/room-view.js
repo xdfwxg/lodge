@@ -127,28 +127,27 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   }, [])
 
   const locked = room.state === 'paused' || room.state === 'stopped'
-  const seats = useMemo(() => {
-    if (Array.isArray(room.seatSpecs) && room.seatSpecs.length > 0) return room.seatSpecs
-    const ids = room.members ?? []
-    return ids.length === 0 ? state.seats : state.seats.filter(seat => ids.includes(seat.id))
-  }, [room.seatSpecs, room.members, state.seats])
-  const viewModel = useMemo(() => mode.buildViewModel({ room, seats }), [mode, room, seats])
+  const members = useMemo(() => {
+    if (Array.isArray(room.members) && room.members.length > 0) return room.members
+    return state.roles ?? []
+  }, [room.members, state.roles])
+  const viewModel = useMemo(() => mode.buildViewModel({ room, members }), [mode, room, members])
   const mentionMembers = useMemo(() => {
-    const members = (room.members ?? []).map(id => ({
-      id,
-      name: seats.find(seat => seat.id === id)?.name ?? id,
-      mention: room.seatNames?.[id] ?? id,
+    const list = (room.members ?? []).map(member => ({
+      id: member.id,
+      name: member.name ?? member.id,
+      mention: member.body?.name ?? member.name ?? member.id,
     }))
-    return members.length > 1 ? [...members, { id: 'all', name: '所有人', mention: '所有人' }] : members
-  }, [room.members, room.seatNames, seats])
+    return list.length > 1 ? [...list, { id: 'all', name: '所有人', mention: '所有人' }] : list
+  }, [room.members])
 
   const actions = {
     store,
     accept: stage => void store.accept(stage),
     chatAccept: () => store.chatAccept(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
-    answerCard: (seat, requestId, message) => void store.answerCard(seat, requestId, message),
-    hold: (seat, held) => void store.holdSeat(seat, held),
+    answerCard: (memberId, requestId, message) => void store.answerCard(memberId, requestId, message),
+    hold: (memberId, held) => void store.holdMember(memberId, held),
     cancelQueue: queueId => void store.cancelQueued(queueId),
     steerQueue: queueId => void store.steerQueued(queueId),
     continueChat: note => store.continueChat(note),
@@ -168,7 +167,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     onRework: (stage, note) => void store.rework(stage, note),
     onApproval: (id, decision) => void store.decideApproval(id, decision),
   }
-  const viewCtx = { state, room, seats, locked, viewModel, actions, dock, store }
+  const viewCtx = { state, room, members, locked, viewModel, actions, dock, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
 

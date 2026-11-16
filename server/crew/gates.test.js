@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { gateFor } from './rooms/studio/gates.js'
 
+const verifier = (id, name) => ({ id, name, role: 'verifier', roleKind: 'verifier', permissions: { read: true, exec: true, write: false }, toolSurface: ['read', 'exec'], skills: [], mcp: [], body: { kind: 'base', ref: `bot-${id}`, name } })
 const room = (over = {}) => ({
   id: 'room-1',
+  members: [verifier('verifier', '验收员')],
   demo: false,
   live: true,
   openQuestion: null,
@@ -29,7 +31,7 @@ const verdict = (stage = 1, seq = 11, pass = true, meta = {}, authorId = 'verifi
 })
 
 test('a stage waits for its declared dependencies', () => {
-  const r = room({ verifiers: [] })
+  const r = room({ members: [] })
   r.stages[0].state = 'active'
   r.stages[1].dependsOn = [0]
   const blocked = gateFor(r, 1, [evidence(), verdict()])
@@ -50,8 +52,7 @@ test('rejects a stage that is not active', () => {
 
 test('a manual stage cannot be signed off before its Verifier passes', () => {
   const r = room({
-    verifiers: ['verifier'],
-    seatSpecs: [{ id: 'verifier', name: '验收员' }],
+    members: [verifier('verifier', '验收员')],
     stages: [
       { title: 'align', kind: 'decision', state: 'passed' },
       { title: 'artifact', kind: 'decision', manual: true, state: 'active' },
@@ -95,19 +96,19 @@ test('deliverable without evidence cannot pass', () => {
 })
 
 test('a failed command exit cannot be signed off', () => {
-  const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { exit: 1 })])
+  const gate = gateFor(room({ members: [] }), 1, [evidence(1, 10, { exit: 1 })])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /还没有检查通过/)
 })
 
 test('a turn summary is not command evidence', () => {
-  const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { kind: 'turn', exit: undefined })])
+  const gate = gateFor(room({ members: [] }), 1, [evidence(1, 10, { kind: 'turn', exit: undefined })])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /检查/)
 })
 
 test('evidence must match the stage acceptance command', () => {
-  const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10, { command: 'echo ok' })])
+  const gate = gateFor(room({ members: [] }), 1, [evidence(1, 10, { command: 'echo ok' })])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /检查/)
 })
@@ -128,7 +129,7 @@ test('live deliverable needs a verifier PASS', () => {
 })
 
 test('multiple verifiers must all PASS the same evidence before sign-off', () => {
-  const r = room({ verifiers: ['v1', 'v2'], seatSpecs: [{ id: 'v1', name: '验收一' }, { id: 'v2', name: '验收二' }] })
+  const r = room({ members: [verifier('v1', '验收一'), verifier('v2', '验收二')] })
   const e = evidence(1, 10)
   const pending = gateFor(r, 1, [e, verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1')])
   assert.equal(pending.ok, false)
@@ -142,7 +143,7 @@ test('multiple verifiers must all PASS the same evidence before sign-off', () =>
 })
 
 test('a newer failed command invalidates earlier multi-verifier PASSes', () => {
-  const r = room({ verifiers: ['v1', 'v2'], seatSpecs: [{ id: 'v1', name: '验收一' }, { id: 'v2', name: '验收二' }] })
+  const r = room({ members: [verifier('v1', '验收一'), verifier('v2', '验收二')] })
   const gate = gateFor(r, 1, [
     evidence(1, 10),
     verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1'),
@@ -154,7 +155,7 @@ test('a newer failed command invalidates earlier multi-verifier PASSes', () => {
 })
 
 test('one verifier REJECT blocks sign-off even if the other PASSed', () => {
-  const r = room({ verifiers: ['v1', 'v2'], seatSpecs: [{ id: 'v1', name: '验收一' }, { id: 'v2', name: '验收二' }] })
+  const r = room({ members: [verifier('v1', '验收一'), verifier('v2', '验收二')] })
   const gate = gateFor(r, 1, [
     evidence(1, 10),
     verdict(1, 11, true, { evidenceId: 'e-10' }, 'v1'),
@@ -165,7 +166,7 @@ test('one verifier REJECT blocks sign-off even if the other PASSed', () => {
 })
 
 test('a manual stage waits for the product before sign-off', () => {
-  const r = room()
+  const r = room({ members: [] })
   r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }
   assert.equal(gateFor(r, 1, []).ok, false)
   assert.match(gateFor(r, 1, []).error, /还没有产出/)
@@ -176,7 +177,7 @@ test('a manual stage waits for the product before sign-off', () => {
 })
 
 test('a stale manual evidence does not survive a newer turn', () => {
-  const r = room()
+  const r = room({ members: [] })
   r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }
   const manual = { id: 'm-1', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'manual' } }
   const turn = { id: 't-1', kind: 'evidence', seq: 11, meta: { stage: 1, kind: 'turn' } }
@@ -186,19 +187,19 @@ test('a stale manual evidence does not survive a newer turn', () => {
 })
 
 test('a room without verifiers is signed off by the human on evidence', () => {
-  const gate = gateFor(room({ verifiers: [] }), 1, [evidence()])
+  const gate = gateFor(room({ members: [] }), 1, [evidence()])
   assert.equal(gate.ok, true)
   assert.equal(gate.stage.title, 'impl')
 })
 
 test('a room without verifiers still needs evidence before sign-off', () => {
-  const gate = gateFor(room({ verifiers: [] }), 1, [])
+  const gate = gateFor(room({ members: [] }), 1, [])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /证据/)
 })
 
 test('a room without verifiers with a REJECT must rework', () => {
-  const gate = gateFor(room({ verifiers: [] }), 1, [evidence(1, 10), verdict(1, 11, false)])
+  const gate = gateFor(room({ members: [] }), 1, [evidence(1, 10), verdict(1, 11, false)])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /重做/)
 })

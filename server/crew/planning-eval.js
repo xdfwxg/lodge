@@ -1,4 +1,4 @@
-const MECHANISM = /(模型|引擎|worktree|并发|人数|几个\s*(席|人|agent|执行|验收)|席位|agent|claude|codex|deepseek|gpt|队长|验收席位|独立验收|并行执行)/i
+const MECHANISM = /(模型|引擎|worktree|并发|人数|几个\s*(位成员|人|agent|执行|验收)|agent|claude|codex|deepseek|gpt|队长|验收成员|执行成员|独立验收|并行执行)/i
 const CONCRETE = /(`[^`]+`|\b(npm|node|pnpm|yarn|test|curl|git|grep|cat|sleep|test -f)\b|退出码|diff|文件|输出|文档|测试|README)/i
 const VAGUE = /^(完成|做好|优化|提升|实现|交付|搞定|处理)$/
 const VERIFIER_NAME = /(验收|复核|审查|verifier)/i
@@ -39,14 +39,14 @@ export const evaluateProposal = (result, testCase = {}) => {
     check('done-keywords', keywords.some(word => done.join(' ').includes(word)), `需要包含：${keywords.join(' / ')}`)
   }
 
-  const seats = Array.isArray(proposal.seats) ? proposal.seats : []
-  const workers = seats.filter(seat => seat?.role === 'worker')
-  const leads = seats.filter(seat => seat?.role === 'lead')
-  const verifiers = seats.filter(seat => seat?.role === 'verifier')
+  const members = Array.isArray(proposal.members) ? proposal.members : []
+  const workers = members.filter(member => member?.role === 'worker')
+  const leads = members.filter(member => member?.role === 'lead')
+  const verifiers = members.filter(member => member?.role === 'verifier')
   check('workers', workers.length >= 1, `${workers.length} 个执行`)
-  check('seat-limits', leads.length <= 1, `队长 ${leads.length}，验收 ${verifiers.length}`)
-  check('seat-count', seats.length >= 1 && seats.length <= 8, `${seats.length} 席`)
-  check('seat-role-name', !seats.some(seat => seat?.role !== 'verifier' && VERIFIER_NAME.test(asText(seat?.name))), '非验收成员不要命名为验收/复核')
+  check('member-limits', leads.length <= 1, `队长 ${leads.length}，验收 ${verifiers.length}`)
+  check('member-count', members.length >= 1 && members.length <= 8, `${members.length} 位成员`)
+  check('member-role-name', !members.some(member => member?.role !== 'verifier' && VERIFIER_NAME.test(asText(member?.name))), '非验收成员不要命名为验收/复核')
   const why = asText(proposal.why)
   if (WANTS_VERIFIER.test(why) && !NO_VERIFIER.test(why) && verifiers.length === 0) {
     check('why-verifier', false, 'why 提到加验收，但成员里没有 verifier')
@@ -54,8 +54,8 @@ export const evaluateProposal = (result, testCase = {}) => {
   if (typeof proposal.note === 'string' && /超过 [36] 个|超过 6 条/.test(proposal.note)) {
     check('parser-trim', false, proposal.note)
   }
-  if (Number.isFinite(testCase.minSeats)) check('case-min-seats', seats.length >= testCase.minSeats, `至少 ${testCase.minSeats} 席`)
-  if (Number.isFinite(testCase.maxSeats)) check('case-max-seats', seats.length <= testCase.maxSeats, `最多 ${testCase.maxSeats} 席`)
+  if (Number.isFinite(testCase.minMembers)) check('case-min-members', members.length >= testCase.minMembers, `至少 ${testCase.minMembers} 位成员`)
+  if (Number.isFinite(testCase.maxMembers)) check('case-max-members', members.length <= testCase.maxMembers, `最多 ${testCase.maxMembers} 位成员`)
   if (Number.isFinite(testCase.maxVerifiers)) {
     check('case-max-verifiers', verifiers.length <= testCase.maxVerifiers, `最多 ${testCase.maxVerifiers} 个验收`)
   }

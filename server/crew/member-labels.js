@@ -1,18 +1,19 @@
-// 房间用展示名，基座用成员名；两者只在跨边界时转换，房间记录仍显示人话。
-export const seatDisplayName = (room, seatId) => (
-  room?.seatSpecs?.find(seat => seat.id === seatId)?.name ?? seatId
-)
+import { memberLabelMap, memberOf } from './room-members.js'
 
-// 新房间的基座成员名就是展示名；旧房间可能不同。展示、日志、卡片统一走 seatDisplayName。
-export const seatBaseName = (room, seatId) => {
-  const name = room?.seatNames?.[seatId]
+export { memberLabelMap }
+
+// 房间用成员名，基座用身体名；两者只在跨边界时转换。
+export const memberDisplayName = (room, memberId) => memberOf(room, memberId)?.name ?? memberId
+
+export const memberSurfaceName = (room, memberId) => {
+  const name = memberOf(room, memberId)?.body?.name
   return typeof name === 'string' ? name.trim() : ''
 }
 
-// 传输层用：席位在基座里的地址是成员名 + 成员引用；缺一个就不能投递。
-export const seatAddress = (room, seatId) => {
-  const name = seatBaseName(room, seatId)
-  const memberRef = room?.seatBots?.[seatId]
+// 传输层用：成员在基座里的地址是身体名 + 身体引用；缺一个就不能投递。
+export const memberAddress = (room, memberId) => {
+  const name = memberSurfaceName(room, memberId)
+  const memberRef = memberOf(room, memberId)?.body?.ref
   if (name === '' || typeof memberRef !== 'string' || memberRef === '') return null
   return { name, mention: `@${name}`, memberRef }
 }
@@ -23,11 +24,6 @@ export const hostAddress = room => {
   if (typeof name !== 'string' || name === '' || typeof memberRef !== 'string' || memberRef === '') return null
   return { name, mention: `@${name}`, memberRef }
 }
-
-// 只给展示用的成员名映射；seatNames 存的是基座成员名，不参与展示。
-export const seatLabelMap = room => Object.fromEntries(
-  (room?.seatSpecs ?? []).map(seat => [seat.id, seat.name]),
-)
 
 const replaceAll = (text, from, to) => {
   if (typeof text !== 'string' || text === '' || from === '' || from === to) return text
@@ -47,10 +43,10 @@ const hostDisplayNameOf = room => (
 
 export const toBaseMentions = (room, text) => {
   let output = text
-  for (const seat of room?.seatSpecs ?? []) {
-    const baseName = room?.seatNames?.[seat.id]
-    if (typeof baseName !== 'string' || baseName === '' || baseName === seat.name) continue
-    output = replaceAll(output, `@${seat.name}`, `@${baseName}`)
+  for (const member of room?.members ?? []) {
+    const baseName = member?.body?.name
+    if (typeof baseName !== 'string' || baseName === '' || baseName === member.name) continue
+    output = replaceAll(output, `@${member.name}`, `@${baseName}`)
   }
   return output
 }
@@ -60,11 +56,9 @@ const MENTION_TOKEN = /@([\p{L}\p{N}._-]+)/gu
 // 人写的 @ 如果找不到成员，基座不会替我们猜；这里只负责把没送到的名字告诉人。
 export const unknownMentionsOf = (room, text) => {
   const known = new Set(['所有人', 'everyone'])
-  for (const seat of room?.seatSpecs ?? []) {
-    if (typeof seat.name === 'string' && seat.name !== '') known.add(seat.name)
-  }
-  for (const name of Object.values(room?.seatNames ?? {})) {
-    if (typeof name === 'string' && name !== '') known.add(name)
+  for (const member of room?.members ?? []) {
+    if (typeof member.name === 'string' && member.name !== '') known.add(member.name)
+    if (typeof member.body?.name === 'string' && member.body.name !== '') known.add(member.body.name)
   }
   if (typeof room?.chatHost?.name === 'string') known.add(room.chatHost.name)
   if (typeof room?.chatHost?.displayName === 'string') known.add(room.chatHost.displayName)
@@ -79,10 +73,10 @@ export const unknownMentionsOf = (room, text) => {
 
 export const toDisplayMentions = (room, text) => {
   let output = text
-  for (const seat of room?.seatSpecs ?? []) {
-    const baseName = room?.seatNames?.[seat.id]
-    if (typeof baseName !== 'string' || baseName === '' || baseName === seat.name) continue
-    output = replaceAll(output, `@${baseName}`, `@${seat.name}`)
+  for (const member of room?.members ?? []) {
+    const baseName = member?.body?.name
+    if (typeof baseName !== 'string' || baseName === '' || baseName === member.name) continue
+    output = replaceAll(output, `@${baseName}`, `@${member.name}`)
   }
   const host = hostBaseNameOf(room)
   const label = hostDisplayNameOf(room)
@@ -92,10 +86,10 @@ export const toDisplayMentions = (room, text) => {
 // 前端看到的文本统一用成员名，连基座反馈里没带 @ 的成员名也换掉。
 export const toDisplayText = (room, text) => {
   let output = toDisplayMentions(room, text)
-  for (const seat of room?.seatSpecs ?? []) {
-    const baseName = room?.seatNames?.[seat.id]
-    if (typeof baseName !== 'string' || baseName === '' || baseName === seat.name) continue
-    output = replaceAll(output, baseName, seat.name)
+  for (const member of room?.members ?? []) {
+    const baseName = member?.body?.name
+    if (typeof baseName !== 'string' || baseName === '' || baseName === member.name) continue
+    output = replaceAll(output, baseName, member.name)
   }
   const host = hostBaseNameOf(room)
   const label = hostDisplayNameOf(room)

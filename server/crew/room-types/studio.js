@@ -1,4 +1,4 @@
-import { roleKindOf } from '../seats.js'
+import { roleKindOf } from '../roster.js'
 import { roomTypeMeta } from '../../../shared/room-types.js'
 
 const meta = roomTypeMeta('studio')
@@ -7,7 +7,7 @@ export const id = 'studio'
 export const name = meta.name
 export const description = meta.description
 export const defaultVerify = meta.defaultVerify
-export const defaultSeats = null
+export const defaultMembers = null
 export const autoStart = 'stage'
 export const singleDirectory = true
 export const requireWorker = true
@@ -64,11 +64,11 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
 
 // 工作室只有三类本质角色；其他岗位名称必须映射到这三类之一，不能再造 observer 之类第四类。
 export const validateRoster = (roster, { verify } = {}) => {
-  const kindOf = seat => seat.roleKind ?? roleKindOf(seat.role)
-  const invalid = roster.filter(seat => !['planner', 'executor', 'verifier'].includes(kindOf(seat)))
+  const kindOf = member => member.roleKind ?? roleKindOf(member.role)
+  const invalid = roster.filter(member => !['planner', 'executor', 'verifier'].includes(kindOf(member)))
   if (invalid.length > 0) {
-    throw new Error(`工作室成员只能从规划师/执行官/验收员派生：${invalid.map(seat => seat.name ?? seat.id).join('、')}`)
+    throw new Error(`工作室成员只能从规划师/执行官/验收员派生：${invalid.map(member => member.name ?? member.id).join('、')}`)
   }
-  if (!roster.some(seat => kindOf(seat) === 'planner')) throw new Error('工作室需要规划师成员')
-  if (!roster.some(seat => kindOf(seat) === 'verifier')) throw new Error('工作室需要一位验收员')
+  if (!roster.some(member => kindOf(member) === 'planner')) throw new Error('工作室需要规划师成员')
+  if (!roster.some(member => kindOf(member) === 'verifier')) throw new Error('工作室需要一位验收员')
 }

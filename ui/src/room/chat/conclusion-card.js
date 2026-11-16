@@ -5,7 +5,7 @@ import { IntakeSection } from '../intake-section.js'
 import { chatConclusionHandoffOf } from './decision.js'
 
 // 轮次结论是五字段交接单，不是一段散文。确认和开工仍由顶部的岛负责。
-export function ChatConclusionCard({ message, seat, room }) {
+export function ChatConclusionCard({ message, member, room }) {
   const meta = message.meta ?? {}
   const round = meta.round ?? 1
   const chat = room.chat ?? {}
@@ -72,11 +72,11 @@ export function ChatConclusionCard({ message, seat, room }) {
       h('div', { className: 'crew-conclusion-history-body' },
         fallbackHint, fieldsView, narrative))
   return h('div', { className: 'crew-msg-conclusion crew-msg-chat' },
-    h(Speaker, { seat, ts: message.ts, time: false, station: false }),
+    h(Speaker, { member, ts: message.ts, time: false, station: false }),
     h('div', { className: 'crew-card crew-conclusion', 'data-settled': accepted ? 'true' : undefined },
       h('div', { className: 'crew-card-body' }, body),
       accepted
         ? h('div', { className: 'crew-card-foot', 'data-settled': true },
-          h('span', { className: 'crew-conclusion-signoff' }, `${seat?.name ?? 'Lodge 主持'} · ${timeOf(message.ts)}`))
+          h('span', { className: 'crew-conclusion-signoff' }, `${member?.name ?? 'Lodge 主持'} · ${timeOf(message.ts)}`))
         : null))
 }

@@ -63,11 +63,11 @@ const portOffset = short => {
   return (hash % 40) * 10
 }
 
-export const prepareRoom = ({ source, short, seats }) => {
+export const prepareRoom = ({ source, short, members }) => {
   ensureDiskSpace(scratchRoot())
   const base = join(scratchRoot(), short)
   mkdirSync(base, { recursive: true })
-  const bySeat = {}
+  const byMember = {}
   const ports = {}
   const environment = {}
   let nextPort = portBase() + portOffset(short)
@@ -76,14 +76,14 @@ export const prepareRoom = ({ source, short, seats }) => {
     nextPort = chosen.next
     return chosen.port
   }
-  for (const seat of seats) {
-    const path = join(base, seat.id)
+  for (const member of members) {
+    const path = join(base, member.id)
     copyWorkspace(source, path)
-    bySeat[seat.id] = { path, kind: 'copy' }
-    environment[seat.id] = syncLocalEnvironment(source, path)
-    ports[seat.id] = takePort()
+    byMember[member.id] = { path, kind: 'copy' }
+    environment[member.id] = syncLocalEnvironment(source, path)
+    ports[member.id] = takePort()
   }
-  const workers = seats.filter(seat => seat.role === 'worker')
+  const workers = members.filter(member => member.role === 'worker')
   let integration = null
   if (workers.length > 1) {
     const path = join(base, 'integration')
@@ -97,40 +97,40 @@ export const prepareRoom = ({ source, short, seats }) => {
   return {
     root: base,
     sourceRepo: source,
-    seats: bySeat,
+    members: byMember,
     branches: {},
     integration,
     ports,
     environment,
     primaryBranch: '',
-    roomPath: integration?.path ?? bySeat[workers[0]?.id]?.path,
+    roomPath: integration?.path ?? byMember[workers[0]?.id]?.path,
   }
 }
 
 const roomShort = room => String(room?.id ?? '').replace(/^room-/, '') || 'room'
-const nextSeatPort = room => {
+const nextMemberPort = room => {
   const used = Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value))
   const start = used.length === 0 ? portBase() + portOffset(roomShort(room)) : Math.max(...used) + 10
   return chooseFreePort(start).port
 }
 
-export const addSeat = ({ room, seat }) => {
+export const addMember = ({ room, member }) => {
   const source = room?.sourceRepo
   if (typeof source !== 'string' || source === '') throw new Error('房间没有源目录，不能新增成员')
-  const path = join(scratchRoot(), roomShort(room), seat.id)
-  if (existsSync(path)) throw new Error(`成员的工作文件夹已经有了：${seat.id}`)
+  const path = join(scratchRoot(), roomShort(room), member.id)
+  if (existsSync(path)) throw new Error(`成员的工作文件夹已经有了：${member.id}`)
   copyWorkspace(source, path)
   return {
     path,
     branch: null,
     kind: 'copy',
-    port: nextSeatPort(room),
+    port: nextMemberPort(room),
     environment: syncLocalEnvironment(source, path),
   }
 }
 
-export const removeSeat = ({ room, seat }) => {
-  const path = room?.worktrees?.[seat?.id ?? seat]
+export const removeMember = ({ room, member }) => {
+  const path = room?.worktrees?.[member?.id ?? member]
   if (typeof path !== 'string' || path === '') return false
   rmSync(path, { recursive: true, force: true })
   return true
@@ -194,16 +194,16 @@ export const removeIsolatedCopy = ({ copy }) => {
 
 export const submit = () => null
 
-export const pruneSeats = room => {
+export const pruneMembers = room => {
   const keep = typeof room.repoPath === 'string' && room.repoPath !== '' ? resolve(room.repoPath) : null
-  const pruned = new Set(room.prunedSeats ?? [])
-  for (const [seat, path] of Object.entries(room.worktrees ?? {})) {
+  const pruned = new Set(room.prunedMembers ?? [])
+  for (const [member, path] of Object.entries(room.worktrees ?? {})) {
     if (typeof path !== 'string' || path === '') continue
     const target = resolve(path)
     if (keep !== null && target === keep) continue
-    if (pruned.has(seat)) continue
+    if (pruned.has(member)) continue
     rmSync(target, { recursive: true, force: true })
-    pruned.add(seat)
+    pruned.add(member)
   }
   return [...pruned]
 }
@@ -211,7 +211,7 @@ export const pruneSeats = room => {
 export const cleanupRoom = ({ workspaces }) => {
   if (!workspaces) return
   const items = [
-    ...Object.values(workspaces.seats ?? {}),
+    ...Object.values(workspaces.members ?? {}),
     ...(workspaces.integration === undefined || workspaces.integration === null ? [] : [workspaces.integration]),
   ]
   for (const item of items) rmSync(item.path, { recursive: true, force: true })

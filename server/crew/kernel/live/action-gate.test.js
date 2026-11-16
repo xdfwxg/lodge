@@ -3,17 +3,17 @@ import test from 'node:test'
 import { reviewExternalAction } from './action-gate.js'
 
 const room = (over = {}) => ({
-  seatSpecs: [
-    { id: 'worker', role: 'worker' },
-    { id: 'verifier', role: 'verifier' },
-    { id: 'lead', role: 'lead' },
+  members: [
+    { id: 'worker', role: 'worker', roleKind: 'executor' },
+    { id: 'verifier', role: 'verifier', roleKind: 'verifier' },
+    { id: 'lead', role: 'lead', roleKind: 'planner' },
   ],
   constraints: [],
   ...over,
 })
 
-const approval = (seat, summary, kind = 'network') => ({
-  seat,
+const approval = (memberId, summary, kind = 'network') => ({
+  memberId,
   summary,
   kind,
   label: '访问网络',
@@ -36,7 +36,7 @@ test('privilege and destructive commands are recommended for denial', () => {
   assert.equal(clean.decision, 'deny')
 })
 
-test('lead and verifier seats are not allowed to create external writes', () => {
+test('lead and verifier members are not allowed to create external writes', () => {
   const verifier = reviewExternalAction({ approval: approval('verifier', 'curl https://example.com'), room: room() })
   assert.equal(verifier.decision, 'deny')
   assert.match(verifier.reasons.join('，'), /验收员/)

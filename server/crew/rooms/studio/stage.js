@@ -1,14 +1,15 @@
 import { studioTransitionEvent, transitionStudio } from './state.js'
-import { seatLabelMap } from '../../seat-labels.js'
+import { memberLabelMap } from '../../member-labels.js'
+import { leadMemberOf, workerIds } from '../../room-members.js'
 import { buildTasks, markTask } from './tasks.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './turn-utils.js'
 import { planDispatch } from '../../orchestration/index.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { memberDisplayName } from '../../member-labels.js'
 import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 
-export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToSeat = null, updateTasks, integrate, enqueue }) => {
-  const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToSeat?.(to, prompt))
+export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, updateTasks, integrate, enqueue }) => {
+  const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
   const startStage = async (room, index, { note = '', rework = false } = {}) => {
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
@@ -22,7 +23,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         return { events: [] }
       })
     }
-    const allWorkers = room.workers ?? []
+    const allWorkers = workerIds(room)
     if (allWorkers.length === 0) throw new Error('房间没有执行成员')
     const workers = allWorkers
     const dispatchPlan = planDispatch({ room, stage, index, workers })
@@ -32,7 +33,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     if (assignees.length > 1 && workspaceCaps.merge !== true) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `这个安排方式要求 ${assignees.length} 位执行成员同时开工；这个文件夹不能合并改动，先交给 ${seatDisplayName(room, assignees[0])}。`,
+        text: `这个安排方式要求 ${assignees.length} 位执行成员同时开工；这个文件夹不能合并改动，先交给 ${memberDisplayName(room, assignees[0])}。`,
       })
       assignees = assignees.slice(0, 1)
     }
@@ -48,7 +49,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     }
     updateTasks(index, current => ({
       ...current,
-      tasks: buildTasks({ stageIndex: index, workers: assignees, seatLabels: seatLabelMap(room) }),
+      tasks: buildTasks({ stageIndex: index, workers: assignees, memberLabels: memberLabelMap(room) }),
     }))
     if (dispatchPlan.note !== '') store.appendMessage(roomId, { kind: 'system', text: dispatchPlan.note })
     const acceptance = stage.manual === true
@@ -75,7 +76,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       port: room.ports?.[worker],
       environment: room.workspaceEnv?.[worker],
     })
-    const from = room.leadSeat ?? room.members?.[0] ?? 'you'
+    const from = leadMemberOf(room)?.id ?? 'you'
 
     if (!parallel) {
       const worker = assignees[0]
@@ -139,10 +140,10 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         }
         return { events: [{ type: 'stage.dispatch_failed', payload: { stage: index, workers: failed } }] }
       })
-      updateTasks(index, current => failed.reduce((stageState, seat) => markTask(stageState, seat, 'failed'), current))
+      updateTasks(index, current => failed.reduce((stageState, member) => markTask(stageState, member, 'failed'), current))
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `启动执行失败：${failed.map(worker => seatDisplayName(room, worker)).join('、')}；其余成员继续。`,
+        text: `启动执行失败：${failed.map(worker => memberDisplayName(room, worker)).join('、')}；其余成员继续。`,
       })
       if (updated !== null && ready !== null) {
         if (ready.workers.length === 0) {
@@ -158,7 +159,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       const currentDispatch = current?.stageDispatch
       if (currentDispatch?.startedAt !== startedAt) return
       if ((currentDispatch.pending ?? []).length === 0) return
-      const waiting = currentDispatch.pending.map(worker => seatDisplayName(current, worker)).join('、')
+      const waiting = currentDispatch.pending.map(worker => memberDisplayName(current, worker)).join('、')
       store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: index, workers: currentDispatch.pending })
       store.appendMessage(roomId, { kind: 'system', text: `并行执行超时：${waiting} 还没有完成；这一步还没有进入验收。` })
       const updated = store.updateRoom(roomId, inner => {

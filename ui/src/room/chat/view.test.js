@@ -22,7 +22,7 @@ test('the chat header is the collapsed island', () => {
       chat: { phase: 'discussing' },
       messages: [],
     },
-    seats: [],
+    members: [],
   })
   assert.equal(tree.type, ChatIsland)
 })
@@ -34,7 +34,7 @@ test('a chat room shows the receipt strip before its timeline', () => {
     checks: ['2/2 项检查通过'],
     openQuestions: [],
   }
-  const tree = chatView.transcript({ room: { id: 'room-chat', receipt }, seats: [], actions })
+  const tree = chatView.transcript({ room: { id: 'room-chat', receipt }, members: [], actions })
   const [strip, timeline] = tree.props.children
   assert.equal(strip.type, ReceiptIntake)
   assert.deepEqual(strip.props.receipt, receipt)
@@ -42,15 +42,15 @@ test('a chat room shows the receipt strip before its timeline', () => {
 })
 
 test('a plain chat room has no receipt to show', () => {
-  const tree = chatView.transcript({ room: { id: 'room-chat' }, seats: [], actions })
+  const tree = chatView.transcript({ room: { id: 'room-chat' }, members: [], actions })
   const [strip] = tree.props.children
   assert.equal(strip.props.receipt, undefined)
 })
 
 test('a typing member says it is thinking without repeating the name', () => {
   const html = renderToStaticMarkup(chatView.typing({
-    room: { id: 'room-chat', chatBusySeat: 'a', chatWorking: true },
-    seats: [{ id: 'a', name: '甲' }],
+    room: { id: 'room-chat', chatBusyMember: 'a', chatWorking: true },
+    members: [{ id: 'a', name: '甲' }],
     locked: false,
   }))
   assert.match(html, /正在思考/)

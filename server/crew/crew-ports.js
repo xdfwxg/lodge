@@ -3,7 +3,7 @@ import { runCommand } from './acceptance.js'
 import { createAdvisorClient } from './advisor.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
 import { writeConclusion, writeGoal } from './room-repo.js'
-import { writeSeatEnv } from './seat-env.js'
+import { writeMemberEnv } from './member-env.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
 
 // 应用层只依赖这组端口；具体存储/工作区/运行时实现只在组合根装配。
@@ -19,7 +19,7 @@ export const createCrewPorts = () => ({
     byId: workspaceById,
     default: defaultWorkspace,
     root: workspaceRoot,
-    writeSeatEnv,
+    writeMemberEnv,
     exists: path => existsSync(path),
     remove: path => rmSync(path, { recursive: true, force: true }),
   },

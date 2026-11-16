@@ -13,10 +13,10 @@ export const deliverableStageIndex = room => {
   return first >= 0 ? first : 0
 }
 
-export const seatOf = (room, ref) => {
+export const memberForRef = (room, ref) => {
   if (typeof ref !== 'string' || ref === '') return null
-  for (const [seat, memberRef] of Object.entries(room?.seatBots ?? {})) {
-    if (memberRef === ref) return seat
+  for (const member of room?.members ?? []) {
+    if (member?.body?.ref === ref) return member.id
   }
   return null
 }

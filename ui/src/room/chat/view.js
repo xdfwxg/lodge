@@ -6,10 +6,10 @@ import { ReceiptIntake } from './receipt-intake.js'
 import { Timeline } from './timeline.js'
 import { hostLabelOf } from '../host.js'
 
-function TypingLine({ room, seat, summarizing }) {
+function TypingLine({ room, member, summarizing }) {
   return h('div', { className: 'crew-msg crew-typing-line' },
     h('div', { className: 'crew-msg-avatar' },
-      seat === null || seat === undefined ? null : h(BotAvatar, { bot: seat, size: 30, live: true })),
+      member === null || member === undefined ? null : h(BotAvatar, { bot: member, size: 30, live: true })),
     h('div', { className: 'crew-msg-body' },
       h('span', { className: 'crew-typing-name' },
         summarizing ? `${hostLabelOf(room)} 正在总结` : '正在思考'),
@@ -22,12 +22,12 @@ export const chatView = {
   buildViewModel: () => null,
   header: ({ room, actions }) => h(ChatIsland, { room, decision: buildChatDecision(room), actions }),
   activity: () => null,
-  transcript: ({ room, seats, actions }) => h(Fragment, null,
+  transcript: ({ room, members, actions }) => h(Fragment, null,
     h(ReceiptIntake, { key: `receipt-${room.id}`, receipt: room.receipt }),
     h(Timeline, {
       key: `timeline-${room.id}`,
       room,
-      seats,
+      members,
       hideKinds: [],
       onApproval: actions.approval,
       onAnswerCard: actions.answerCard,
@@ -37,15 +37,15 @@ export const chatView = {
   presence: () => null,
   composerPlaceholder: () => '加入讨论…',
   // 「正在输入」是聊天室自己的状态：谁在说、是否在总结，由这里判断。
-  typing: ({ room, seats, locked }) => {
+  typing: ({ room, members, locked }) => {
     const chat = room.chat ?? {}
-    const seatId = room.chatBusySeat
+    const memberId = room.chatBusyMember
       || chat.speaker
-      || (room.busySeats?.length === 1 ? room.busySeats[0] : '')
-    const active = !locked && seatId !== ''
+      || (room.busyMembers?.length === 1 ? room.busyMembers[0] : '')
+    const active = !locked && memberId !== ''
       && (room.chatWorking === true || chat.running === true || room.busy === true)
     if (!active) return null
-    const seat = seats.find(item => item.id === seatId) ?? null
-    return h(TypingLine, { room, seat, summarizing: chat.phase === 'summarizing' })
+    const member = members.find(item => item.id === memberId) ?? null
+    return h(TypingLine, { room, member, summarizing: chat.phase === 'summarizing' })
   },
 }

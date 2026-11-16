@@ -22,7 +22,7 @@ const scriptedEngine = store => {
   return {
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
     instances: async () => [{ engine: 'fake', available: true }],
-    createSeatBot: async ({ name }) => ({ id: `seat-${name}`, name, engine: 'fake', model: 'fake-model' }),
+    createMemberBot: async ({ name }) => ({ id: `member-${name}`, name, engine: 'fake', model: 'fake-model' }),
     createRoom: async ({ name }) => ({ id: `chat-${name}`, sessionRef: `thread-${name}` }),
     history: async () => ({ messages: [...history] }),
     rooms: async () => [],
@@ -33,14 +33,14 @@ const scriptedEngine = store => {
       const summary = text.includes('请总结')
       const mention = /@([^\s，,。]+)/.exec(text)?.[1]
       const hostTurn = summary && room?.chatHost?.name === mention
-      const seat = (room?.members ?? []).find(item => (room.seatNames?.[item] ?? item) === mention)
-        ?? room?.leadSeat
+      const member = (room?.members ?? []).find(item => item.name === mention || item.body?.name === mention)
+        ?? (room?.members ?? []).find(item => item.id === room.leadMemberId)
         ?? room?.members?.[0]
-      const authorRef = hostTurn ? room.chatHost.memberRef : room?.seatBots?.[seat] ?? null
+      const authorRef = hostTurn ? room.chatHost.memberRef : member?.body?.ref ?? null
       const reply = summary
         ? '结论：按讨论继续推进。'
-        : `${room?.seatNames?.[seat] ?? seat} 补充了一条观点。`
-      if (hostTurn || seat !== undefined) {
+        : `${member?.name ?? member?.id ?? '成员'} 补充了一条观点。`
+      if (hostTurn || member !== undefined) {
         history.push({
           id: `a${++seq}`,
           role: 'agent',
@@ -49,7 +49,7 @@ const scriptedEngine = store => {
           authorRef,
           at: Date.now(),
         })
-        if (!summary) store.appendMessage(room.id, { kind: 'chat', authorId: seat, text: reply })
+        if (!summary) store.appendMessage(room.id, { kind: 'chat', authorId: member.id, text: reply })
       }
       return { accepted: true, messageId: id }
     },
@@ -60,7 +60,7 @@ const fakeLive = () => ({
   attach: async () => {},
   startStage: async () => {},
   startChat: async () => {},
-  sendToSeat: async () => ({ messageId: null }),
+  sendToMember: async () => ({ messageId: null }),
   busyReview: () => false,
   reworkStage: async () => {},
   isAttached: () => true,
@@ -203,15 +203,15 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     })
     assert.equal(chatRoom.ok, true)
     const chatId = chatRoom.body.room.id
-    const sendToSeat = (seat, text) => {
+    const sendToMember = (memberId, text) => {
       const room = store.readRoom(chatId)
-      const name = seat === 'host' ? room.chatHost.name : room.seatNames[seat]
+      const name = memberId === 'host' ? room.chatHost.name : (room.members ?? []).find(item => item.id === memberId)?.name ?? memberId
       return engine.sendTurn({ roomId: room.chatRoom.id, text: `@${name} ${text}` })
     }
     const scheduler = createChatScheduler({
       store,
       engine,
-      sendToSeat,
+      sendToMember,
       roomId: chatId,
       random: () => 0,
       waitMs: 500,
@@ -222,7 +222,7 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     assert.equal(round.error, undefined)
     assert.equal(store.readRoom(chatId).chat.phase, 'awaiting_decision')
     assert.equal(store.readRoom(chatId).chat.turns, 6)
-    const chatHost = chatRoom.body.room.leadSeat
+    const chatHost = chatRoom.body.room.leadMemberId
     assert.equal(store.readMessages(chatId).filter(message => message.kind === 'chat' && message.meta?.opening !== true && message.authorId !== chatHost).length, 6)
     assert.equal(store.readMessages(chatId).some(message => message.meta?.opening === true), true)
     const conclusion = store.readMessages(chatId).find(message => message.kind === 'chat_conclusion')

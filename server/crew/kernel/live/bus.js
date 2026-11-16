@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import { matchEcho, seatFor } from './projection.js'
-import { pauseForSeatFailure } from './sync.js'
+import { matchEcho, memberForRef } from './projection.js'
+import { leadMemberOf } from '../../room-members.js'
+import { pauseForMemberFailure } from './sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 import { supportsRuntime } from '../../runtime-port.js'
-import { toBaseMentions, toDisplayMentions, toDisplayText, unknownMentionsOf } from '../../seat-labels.js'
+import { toBaseMentions, toDisplayMentions, toDisplayText, unknownMentionsOf } from '../../member-labels.js'
 
 // 隐藏主持与当前发言人由房型的 presentation 提供；总线不认识任何具体房型。
 const hostOf = room => roomPresentationOfRoom(room)?.hostOf?.(room) ?? null
@@ -56,15 +57,15 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     const host = hostOf(current)
     if (host !== null && entry.baseRoom?.busyRef === host.memberRef) return
     // 基座正在发言的人才是这一段 delta 的作者；自造的 speaker 只在拿不到基座状态时兜底。
-    const seat = (entry.baseRoom?.busyRef === undefined ? null : seatFor(current, entry.baseRoom.busyRef))
+    const memberId = (entry.baseRoom?.busyRef === undefined ? null : memberForRef(current, entry.baseRoom.busyRef))
       ?? speakerOf(current)
-    if (typeof seat !== 'string' || seat === '') return
+    if (typeof memberId !== 'string' || memberId === '') return
     const streams = streamOf(entry)
-    const prior = streams.get(seat)
+    const prior = streams.get(memberId)
     const turnId = typeof event.turnId === 'string' ? event.turnId : ''
     // 流式消息按回合区分：同一成员在一轮里发多次言时不能覆盖上一条。
     const sameTurn = prior !== undefined && prior.turnId === turnId
-    const id = sameTurn ? prior.id : `stream:${room.id}:${seat}:${turnId}`
+    const id = sameTurn ? prior.id : `stream:${room.id}:${memberId}:${turnId}`
     const existing = store.readMessages(room.id).find(message => message.id === id)
     const raw = sameTurn && typeof existing?.text === 'string'
       ? existing.text + event.delta
@@ -76,11 +77,11 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       roomId: room.id,
       ts: Date.now(),
       kind: 'chat',
-      authorId: seat,
+      authorId: memberId,
       text,
       meta: { streaming: true, turnId },
     })
-    streams.set(seat, { id, turnId })
+    streams.set(memberId, { id, turnId })
   }
 
   const finishStream = (entry, room, message) => {
@@ -89,26 +90,26 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (finalIds.has(message.id)) return true
     const current = store.readRoom(room.id) ?? room
     if (roomPresentationOfRoom(current)?.acceptsDelta !== true) return false
-    const seat = seatFor(current, message.authorRef) ?? speakerOf(current)
-    if (typeof seat !== 'string' || seat === '') return false
+    const memberId = memberForRef(current, message.authorRef) ?? speakerOf(current)
+    if (typeof memberId !== 'string' || memberId === '') return false
     const streams = streamOf(entry)
-    const state = streams.get(seat)
+    const state = streams.get(memberId)
     if (state === undefined) return false
     const raw = message.kind === 'turn' ? message.turn?.reply : message.text
     if (typeof raw !== 'string' || raw.trim() === '') {
-      streams.delete(seat)
+      streams.delete(memberId)
       return false
     }
     // 流式回合的最终文本也要过一遍显示名映射，否则基座成员名会留在气泡里。
     const text = toDisplayText(current, raw)
     const existing = store.readMessages(room.id).find(item => item.id === state.id)
     store.upsertMessage({
-      ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: seat }),
+      ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: memberId }),
       text,
       ts: message.at ?? Date.now(),
       meta: { ...(existing?.meta ?? {}), streaming: false, final: true, baseId: message.id },
     })
-    streams.delete(seat)
+    streams.delete(memberId)
     finalIds.add(message.id)
     return true
   }
@@ -156,7 +157,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       const streamed = finishStream(entry, room, message)
       const stored = streamed ? null : projectMessage(room, message)
       if (stored !== null) store.upsertMessage(stored)
-      pauseForSeatFailure(store, entry, message)
+      pauseForMemberFailure(store, entry, message)
     }
   }
 
@@ -178,7 +179,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (!supportsRuntime(engine, 'provisioning') || typeof engine.createRoom !== 'function') return room
     const host = hostOf(room)
     const members = [
-      ...Object.values(room.seatBots ?? {}),
+      ...(room.members ?? []).map(member => member.body?.ref).filter(ref => typeof ref === 'string' && ref !== ''),
       ...(host === null ? [] : [host.memberRef]),
     ]
     if (members.length === 0) return room
@@ -189,7 +190,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         bulletin: ROOM_CHAT_BULLETIN,
         members,
         cwd: room.repoPath,
-        leadId: hostOf(room)?.memberRef ?? room.seatBots?.[room.leadSeat] ?? members[0],
+        leadId: hostOf(room)?.memberRef ?? leadMemberOf(room)?.body?.ref ?? members[0],
         responder: { kind: 'mentions' },
       })
       const updated = store.updateRoom(room.id, current => {
@@ -239,9 +240,9 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         if (message.card?.requestType === 'permission') {
           // 权限卡是可选能力：runtime 不支持时不接管，也不把卡片投进时间线。
           if (!supportsRuntime(engine, 'approvals')) return
-          const seat = seatFor(current, message.authorRef)
+          const memberId = memberForRef(current, message.authorRef)
           // 权限策略归房型策略；总线只把卡片交给当前房间的策略。
-          void onPermission(entry, seat, message, chat)
+          void onPermission(entry, memberId, message, chat)
           return
         }
         if (message.kind === 'turn') onTurn?.(entry, current, message)
@@ -250,7 +251,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
           const stored = projectMessage(current, message)
           if (stored !== null) store.upsertMessage(stored)
         }
-        pauseForSeatFailure(store, entry, message)
+        pauseForMemberFailure(store, entry, message)
         void refresh(entry)
       },
     })
@@ -286,7 +287,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (chat === undefined || typeof engine.updateRoomMembers !== 'function') return
     const host = hostOf(room)
     const members = [
-      ...Object.values(room.seatBots ?? {}),
+      ...(room.members ?? []).map(member => member.body?.ref).filter(ref => typeof ref === 'string' && ref !== ''),
       ...(host === null ? [] : [host.memberRef]),
     ]
     if (members.length === 0) return

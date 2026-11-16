@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { markTask } from './tasks.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { memberDisplayName } from '../../member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { reviewState } from './verifiers.js'
 import { createAcceptanceRunner } from './acceptance-runner.js'
@@ -9,14 +9,15 @@ import { createReviewCoordinator } from './review.js'
 import { createHandoff } from './handoff.js'
 import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
-import { deliverableStageIndex, isWorkStage, parsePlannerDecision, seatOf } from './turn-utils.js'
+import { deliverableStageIndex, isWorkStage, parsePlannerDecision, memberForRef } from './turn-utils.js'
+import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-members.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, files, advisor = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, files, advisor = null }) => {
   const state = createTurnState({ store, roomId, emit })
-  const handoff = createHandoff({ store, roomId, sendToSeat, emit })
-  const review = createReviewCoordinator({ store, roomId, emit, sendToSeat, updateTasks: state.updateTasks, handoff, advisor })
+  const handoff = createHandoff({ store, roomId, sendToMember, emit })
+  const review = createReviewCoordinator({ store, roomId, emit, sendToMember, updateTasks: state.updateTasks, handoff, advisor })
   const acceptance = createAcceptanceRunner({
     store,
     roomId,
@@ -73,7 +74,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
       if (covered !== null && acceptedRef !== null && covered === acceptedRef) return
       if (!worked && covered === null) return
     }
-    const hasVerifier = (room.verifiers?.length ?? 0) > 0
+    const hasVerifier = verifierIds(room).length > 0
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
@@ -120,22 +121,22 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     })
     const stage = room.stages?.[stageIndex]
     if (decision.kind !== 'rework') return true
-    const target = (stage?.assignees ?? []).find(id => (room.workers ?? []).includes(id)) ?? room.workers?.[0]
+    const target = (stage?.assignees ?? []).find(id => workerIds(room).includes(id)) ?? workerIds(room)[0]
     if (typeof target !== 'string' || target === '') {
       store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把返工交出去。' })
       return true
     }
-    const name = seatDisplayName(room, target)
+    const name = memberDisplayName(room, target)
     const mention = `@${name}`
     const decisionSendId = `d-${createHash('sha256').update(`${verdictId}:${target}`).digest('hex').slice(0, 32)}`
-    void sendToSeat(target, [
+    void sendToMember(target, [
       `${mention} 验收员退回了第 ${stageIndex + 1} 步「${stage?.title ?? ''}」。`,
       `规划师的返工要求：${decision.note}`,
       '只重做这一步；完成后不要 @ 人，系统会交给验收员。',
       INTERNAL_PROMPT_MARKER,
     ].join('\n'), {
       intent: 'handoff',
-      from: room.leadSeat,
+      from: leadMemberOf(room)?.id,
       sendId: decisionSendId,
     }).catch(error => {
       store.appendMessage(roomId, { kind: 'system', text: `没能把返工交给${name}：${error?.message ?? error}` })
@@ -147,25 +148,25 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     const turnId = turn?.turnId
     if (typeof turnId !== 'string' || state.capturedTurns.has(turnId)) return
     const room = store.readRoom(roomId)
-    const seat = seatOf(room, authorRef)
-    const role = room?.seatSpecs?.find(item => item.id === seat)?.role
+    const memberId = memberForRef(room, authorRef)
+    const role = memberOf(room, memberId)?.role
     const stageIndex = room === null ? 0 : deliverableStageIndex(room)
     const dispatch = room?.stageDispatch
     const activeDispatch = dispatch?.stage === stageIndex ? dispatch : null
     const parallel = (activeDispatch?.workers?.length ?? 0) > 1
-    const pendingForSeat = role === 'worker' &&
+    const pendingForMember = role === 'worker' &&
       activeDispatch !== null &&
-      (activeDispatch.pending ?? []).includes(seat)
+      (activeDispatch.pending ?? []).includes(memberId)
 
     if ((turn.toolCalls ?? 0) === 0 && (turn.reply ?? '') === '') {
-      if (pendingForSeat) {
+      if (pendingForMember) {
         state.capturedTurns.add(turnId)
-        state.updateTasks(stageIndex, current => markTask(current, seat, 'failed'))
+        state.updateTasks(stageIndex, current => markTask(current, memberId, 'failed'))
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `并行执行：${seatDisplayName(room, seat)} 这一回合没有产出；继续等其它成员。`,
+          text: `并行执行：${memberDisplayName(room, memberId)} 这一回合没有产出；继续等其它成员。`,
         })
-        const done = integrator.settle(seat, turnId, true)
+        const done = integrator.settle(memberId, turnId, true)
         if (done !== null) {
           const remaining = done.workers.filter(worker => !done.failed.includes(worker))
           if (remaining.length === 0) {
@@ -187,12 +188,12 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     }
     state.capturedTurns.add(turnId)
 
-    if (review.consume({ turn, seat, turnId, room })) {
+    if (review.consume({ turn, memberId, turnId, room })) {
       state.recordTurn(true)
       return
     }
 
-    store.appendEvent(roomId, 'turn.completed', { turnId, seat: seat ?? 'unknown' })
+    store.appendEvent(roomId, 'turn.completed', { turnId, memberId: memberId ?? 'unknown' })
     if (role === 'lead' && routePlannerDecision(room, stageIndex, turn)) {
       state.recordTurn(false)
       return
@@ -236,7 +237,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
     ].join(' · ')
     const evidence = {
       kind: 'evidence',
-      authorId: seat ?? 'worker',
+      authorId: memberId ?? 'worker',
       text: turn.reply || summary,
       meta: {
         kind: 'turn',
@@ -260,14 +261,14 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
       void integrator.enqueue(async () => {
         const current = store.readRoom(roomId)
         if (current === null) return
-        const worktree = current.worktrees?.[seat]
+        const worktree = current.worktrees?.[memberId]
         let candidate = null
         if (worktree !== undefined && workspaceOf(current).capabilities().candidate === true) {
           try {
             candidate = workspaceOf(current).submit({ path: worktree, turnId, name: current.name })
-            if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, seat, commit: candidate })
+            if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, memberId, commit: candidate })
           } catch (error) {
-            store.appendMessage(roomId, { kind: 'system', text: `没法准备检查副本（${seatDisplayName(current, seat)}）：${error?.message ?? error}` })
+            store.appendMessage(roomId, { kind: 'system', text: `没法准备检查副本（${memberDisplayName(current, memberId)}）：${error?.message ?? error}` })
           }
         }
         const base = dispatch?.stage === stage && typeof dispatch.base === 'string'
@@ -282,7 +283,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
           meta: {
             ...evidence.meta,
             repoPath: worktree ?? '',
-            branch: current.branches?.[seat] ?? '',
+            branch: current.branches?.[memberId] ?? '',
             head,
             diff: range.diff,
             manifest: range.manifest ?? [],
@@ -290,11 +291,11 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
             candidate,
           },
         })
-        state.updateTasks(stage, stageState => markTask(stageState, seat, 'reported', stored.id))
-        store.appendEvent(roomId, 'turn.evidence', { stage, turnId, seat })
+        state.updateTasks(stage, stageState => markTask(stageState, memberId, 'reported', stored.id))
+        store.appendEvent(roomId, 'turn.evidence', { stage, turnId, memberId })
         state.recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
 
-        const done = integrator.settle(seat, turnId, false)
+        const done = integrator.settle(memberId, turnId, false)
         if (done !== null) {
           const remaining = done.workers.filter(worker => !done.failed.includes(worker))
           if (remaining.length === 0) {
@@ -304,7 +305,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
           }
           return
         }
-        if (pendingForSeat) return
+        if (pendingForMember) return
         if (dispatch !== null && dispatch !== undefined && dispatch.stage !== stage) return
         const active = current.stages[stage]
         if (active === undefined || !isWorkStage(active) || active.state !== 'active') return
@@ -312,14 +313,14 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
         const latest = [...store.readMessages(roomId)].reverse()
           .find(message => message.kind === 'verdict' && message.meta?.stage === stage)
         if (latest?.meta?.pass === true) return
-        await integrator.integrate({ stageIndex: stage, workers: [seat], base: workspaceOf(current).head({ path: current.repoPath }), turnId })
+        await integrator.integrate({ stageIndex: stage, workers: [memberId], base: workspaceOf(current).head({ path: current.repoPath }), turnId })
       })
       return
     }
 
     const storedEvidence = store.appendMessage(roomId, evidence)
-    if (seat !== null && seat !== undefined) {
-      state.updateTasks(stage, stageState => markTask(stageState, seat, 'reported', storedEvidence.id))
+    if (memberId !== null && memberId !== undefined) {
+      state.updateTasks(stage, stageState => markTask(stageState, memberId, 'reported', storedEvidence.id))
     }
     store.appendEvent(roomId, 'turn.evidence', { stage, turnId })
     state.recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
@@ -342,7 +343,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToSeat, commands, fil
   const resumeOnce = async ({ forceAcceptance = false } = {}) => {
     const room = store.readRoom(roomId)
     if (room === null || room.live !== true || room.state !== 'active') return
-    if (room.busy === true || (room.workers?.length ?? 0) === 0) return
+    if (room.busy === true || workerIds(room).length === 0) return
     const stageIndex = room.stages.findIndex(stage => stage.state === 'active')
     if (stageIndex < 0) return
     const stage = room.stages[stageIndex]

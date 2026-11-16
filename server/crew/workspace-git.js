@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { roomDir, roomRootOf } from './paths.js'
 import { syncLocalEnvironment } from './workspace-fs.js'
 import { chooseFreePort } from './workspace-ports.js'
+import { workerIds } from './room-members.js'
 
 // 房间本地的运行文件不是交付内容：不进候选 commit、不进验收 diff。
 export const LOCAL_ONLY = ['.crew', '.lodge', '.env', '.env.local', 'node_modules']
@@ -131,13 +132,13 @@ const portOffset = short => {
 }
 
 // 每个成员一个工作区：worker 一个分支 worktree，verifier 一个 detached worktree，其余只读克隆。
-export const prepareRoom = ({ source, short, seats }) => {
+export const prepareRoom = ({ source, short, members }) => {
   ensureRepo(source)
   ensureDiskSpace(scratchRoot())
   const base = join(scratchRoot(), short)
   mkdirSync(base, { recursive: true })
   enableWorktreeConfig(source)
-  const bySeat = {}
+  const byMember = {}
   const branches = {}
   const ports = {}
   const environment = {}
@@ -147,33 +148,33 @@ export const prepareRoom = ({ source, short, seats }) => {
     nextPort = chosen.next
     return chosen.port
   }
-  for (const seat of seats) {
-    const path = join(base, seat.id)
-    if (seat.role === 'worker') {
-      const branch = `crew/${short}/${seat.id}`
+  for (const member of members) {
+    const path = join(base, member.id)
+    if (member.role === 'worker') {
+      const branch = `crew/${short}/${member.id}`
       git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
       ensureLocalExcludes(path, base)
-      branches[seat.id] = branch
-      bySeat[seat.id] = { path, kind: 'worktree', branch }
-      environment[seat.id] = syncLocalEnvironment(source, path)
-      ports[seat.id] = takePort()
+      branches[member.id] = branch
+      byMember[member.id] = { path, kind: 'worktree', branch }
+      environment[member.id] = syncLocalEnvironment(source, path)
+      ports[member.id] = takePort()
       continue
     }
-    if (seat.role === 'verifier') {
+    if (member.role === 'verifier') {
       git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
       ensureLocalExcludes(path, base)
-      bySeat[seat.id] = { path, kind: 'verify' }
-      environment[seat.id] = syncLocalEnvironment(source, path)
-      ports[seat.id] = takePort()
+      byMember[member.id] = { path, kind: 'verify' }
+      environment[member.id] = syncLocalEnvironment(source, path)
+      ports[member.id] = takePort()
       continue
     }
     execFileSync('git', ['clone', '--quiet', '--no-hardlinks', source, path], {
       cwd: base,
       stdio: ['ignore', 'ignore', 'pipe'],
     })
-    bySeat[seat.id] = { path, kind: 'clone' }
+    byMember[member.id] = { path, kind: 'clone' }
   }
-  const workers = seats.filter(seat => seat.role === 'worker')
+  const workers = members.filter(member => member.role === 'worker')
   // 多执行成员时，房间的交付目录是集成 worktree；各执行分支合并到这里，源仓库主分支不动。
   let integration = null
   if (workers.length > 1) {
@@ -187,39 +188,39 @@ export const prepareRoom = ({ source, short, seats }) => {
   return {
     root: base,
     sourceRepo: source,
-    seats: bySeat,
+    members: byMember,
     branches,
     integration,
     ports,
     environment,
     primaryBranch: integration?.branch ?? branches[workers[0]?.id] ?? '',
-    roomPath: integration?.path ?? bySeat[workers[0]?.id]?.path,
+    roomPath: integration?.path ?? byMember[workers[0]?.id]?.path,
   }
 }
 
 const roomShort = room => String(room?.id ?? '').replace(/^room-/, '') || 'room'
-const nextSeatPort = room => {
+const nextMemberPort = room => {
   const used = Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value))
   const start = used.length === 0 ? portBase() + portOffset(roomShort(room)) : Math.max(...used) + 10
   return chooseFreePort(start).port
 }
 
 // 建后加成员：沿用 prepareRoom 的隔离规则，只创建新增成员的工作区。
-export const addSeat = ({ room, seat }) => {
+export const addMember = ({ room, member }) => {
   const source = room?.sourceRepo
   if (typeof source !== 'string' || source === '') throw new Error('房间没有源仓库，不能新增成员')
   const short = roomShort(room)
   const base = join(scratchRoot(), short)
-  const path = join(base, seat.id)
-  if (existsSync(path)) throw new Error(`成员的工作文件夹已经有了：${seat.id}`)
+  const path = join(base, member.id)
+  if (existsSync(path)) throw new Error(`成员的工作文件夹已经有了：${member.id}`)
   mkdirSync(base, { recursive: true })
   enableWorktreeConfig(source)
   let branch = null
-  if (seat.role === 'worker') {
-    branch = `crew/${short}/${seat.id}`
+  if (member.role === 'worker') {
+    branch = `crew/${short}/${member.id}`
     git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
     ensureLocalExcludes(path, base)
-  } else if (seat.role === 'verifier') {
+  } else if (member.role === 'verifier') {
     git(source, ['worktree', 'add', '--detach', path, 'HEAD'])
     ensureLocalExcludes(path, base)
   } else {
@@ -231,16 +232,16 @@ export const addSeat = ({ room, seat }) => {
   return {
     path,
     branch,
-    kind: seat.role === 'worker' ? 'worktree' : seat.role === 'verifier' ? 'verify' : 'clone',
-    port: nextSeatPort(room),
+    kind: member.role === 'worker' ? 'worktree' : member.role === 'verifier' ? 'verify' : 'clone',
+    port: nextMemberPort(room),
     environment: syncLocalEnvironment(source, path),
   }
 }
 
-const seatPathOf = (room, seat) => room?.worktrees?.[seat?.id ?? seat]
+const memberPathOf = (room, member) => room?.worktrees?.[member?.id ?? member]
 
-export const removeSeat = ({ room, seat }) => {
-  const path = seatPathOf(room, seat)
+export const removeMember = ({ room, member }) => {
+  const path = memberPathOf(room, member)
   if (typeof path !== 'string' || path === '') return false
   try {
     git(room.sourceRepo, ['worktree', 'remove', '--force', path])
@@ -280,10 +281,10 @@ export const pruneRewindBranches = ({ path, ttlMs = 7 * 24 * 60 * 60 * 1000, now
 export const restore = ({ room, base }) => {
   const repoPath = room?.repoPath
   if (typeof repoPath !== 'string' || repoPath === '') throw new Error('房间没有工作文件夹')
-  const workers = Array.isArray(room?.workers) ? room.workers : []
-  const seatPaths = Object.entries(room?.worktrees ?? {})
-    .filter(([seat, path]) => workers.includes(seat) && typeof path === 'string' && existsSync(path))
-  const targets = [{ name: 'room', path: repoPath }, ...seatPaths.map(([seat, path]) => ({ name: seat, path }))]
+  const workers = workerIds(room)
+  const memberPaths = Object.entries(room?.worktrees ?? {})
+    .filter(([member, path]) => workers.includes(member) && typeof path === 'string' && existsSync(path))
+  const targets = [{ name: 'room', path: repoPath }, ...memberPaths.map(([member, path]) => ({ name: member, path }))]
     .filter((item, index, list) => list.findIndex(other => other.path === item.path) === index)
   const dirty = targets.find(item => git(item.path, ['status', '--porcelain', '--untracked-files=no']).trim() !== '')
   if (dirty !== undefined) throw new Error(`还有没保存的改动：${dirty.path}；先等系统合并或清理，再回到这一步`)
@@ -375,16 +376,16 @@ export const submit = ({ path, turnId, name }) => {
 }
 
 // 完成/停止后清掉非交付成员工作区；保留房间交付仓库与候选分支，人仍可重建 worktree 查看。
-export const pruneSeats = room => {
+export const pruneMembers = room => {
   const keep = typeof room.repoPath === 'string' && room.repoPath !== '' ? resolve(room.repoPath) : null
-  const pruned = new Set(room.prunedSeats ?? [])
-  for (const [seat, path] of Object.entries(room.worktrees ?? {})) {
+  const pruned = new Set(room.prunedMembers ?? [])
+  for (const [member, path] of Object.entries(room.worktrees ?? {})) {
     if (typeof path !== 'string' || path === '') continue
     const target = resolve(path)
     if (keep !== null && target === keep) continue
-    if (pruned.has(seat)) continue
+    if (pruned.has(member)) continue
     if (!existsSync(target)) {
-      pruned.add(seat)
+      pruned.add(member)
       continue
     }
     let removed = false
@@ -400,7 +401,7 @@ export const pruneSeats = room => {
         removed = true
       } catch {}
     }
-    if (removed) pruned.add(seat)
+    if (removed) pruned.add(member)
   }
   return [...pruned]
 }
@@ -408,7 +409,7 @@ export const pruneSeats = room => {
 export const cleanupRoom = ({ source, workspaces }) => {
   if (!workspaces) return
   const items = [
-    ...Object.values(workspaces.seats ?? {}),
+    ...Object.values(workspaces.members ?? {}),
     ...(workspaces.integration === undefined || workspaces.integration === null ? [] : [workspaces.integration]),
   ]
   for (const item of items) {

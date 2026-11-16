@@ -6,12 +6,12 @@ import { handoffGoalText, normalizeHandoff } from '../../../../shared/handoff.js
 import { normalizeReceipt } from '../../../../shared/receipt.js'
 import {
   DEFAULT_TEMPLATE_ID,
-  roleSeats,
+  roleMembers,
   rosterFromRoles,
-  seatsFor,
+  membersFor,
   TEMPLATES,
   validateRoster,
-} from '../../seats.js'
+} from '../../roster.js'
 
 const handoffSection = handoff => {
   const text = handoffGoalText(handoff)
@@ -29,10 +29,10 @@ export const alignmentPrompt = (leadName, goal, verify, acceptance, handoff = nu
   '用户确认阶段后，系统会发一条以「阶段已确认」开头的消息；收到这条消息后只派当前阶段。',
 ].join('\n')
 
-export const directPrompt = (goal, verify, acceptance, singleSeat, handoff = null) => [
+export const directPrompt = (goal, verify, acceptance, singleMember, handoff = null) => [
   `目标：${goal}${handoffSection(handoff)}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',
-  singleSeat
+  singleMember
     ? '这是单人房间：直接在当前工作区完成，不要等人对齐。'
     : '这个房间没有单独的队长：直接在当前工作区完成，不要等人对齐。',
 ].join('\n')
@@ -142,32 +142,32 @@ export const normalizePlan = ({ body }) => {
 }
 
 
-export const resolveSeats = (body, roomType) => {
-  const requestedSeats = Array.isArray(body.seats)
-    ? body.seats
-    : roomType.defaultSeats ?? null
-  let templateId = typeof body.templateId === 'string' && TEMPLATES[body.templateId]?.seats.length > 0
+export const resolveMembers = (body, roomType) => {
+  const requestedMembers = Array.isArray(body.members)
+    ? body.members
+    : roomType.defaultMembers ?? null
+  let templateId = typeof body.templateId === 'string' && TEMPLATES[body.templateId]?.members.length > 0
     ? body.templateId
     : DEFAULT_TEMPLATE_ID
   let roster
   try {
-    if (requestedSeats !== null && requestedSeats.length > 0) {
+    if (requestedMembers !== null && requestedMembers.length > 0) {
       templateId = 'custom'
-      roster = rosterFromRoles(requestedSeats)
+      roster = rosterFromRoles(requestedMembers)
     } else {
-      roster = seatsFor(templateId)
+      roster = membersFor(templateId)
     }
     validateRoster(roster, { requireWorker: roomType.requireWorker !== false })
   } catch (error) {
     return { error: `成员组合不可用：${error?.message ?? error}` }
   }
   // 只读房型的工具调用必须经过审批桥，讨论阶段才能在实际工具面拒绝写入与执行。
-  if (roomType.readOnly === true) roster = roster.map(seat => ({ ...seat, approval: 'ask' }))
+  if (roomType.readOnly === true) roster = roster.map(member => ({ ...member, approval: 'ask' }))
   const mode = roomModeForType(roomType.id)
-  roster = roster.map(seat => ({ ...seat, ...mode.seatRole(seat) }))
-  const { workers, verifiers } = roleSeats(roster)
+  roster = roster.map(member => ({ ...member, ...mode.memberRole(member) }))
+  const { workers, verifiers } = roleMembers(roster)
   const worker = workers[0] ?? roster[0]
-  const explicitLead = roster.find(seat => seat.role === 'lead')
+  const explicitLead = roster.find(member => member.role === 'lead')
   const lead = explicitLead ?? worker
   return { templateId, roster, workers, verifiers, worker, lead, align: explicitLead !== undefined }
 }

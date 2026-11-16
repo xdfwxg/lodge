@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { independenceLabel } from './digest.js'
 
-test('a multi-seat room without a verifier says the human signs off', () => {
+test('a multi-member room without a verifier says the human signs off', () => {
   assert.equal(independenceLabel({ independence: 'human' }), '你签字验收')
 })
 

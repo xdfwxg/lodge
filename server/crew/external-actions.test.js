@@ -18,7 +18,7 @@ test('remote pushes, installs, deletes, messages and network commands are extern
   assert.equal(externalAction(card('sudo rm -rf /tmp/x'))?.kind, 'privilege')
 })
 
-test('local test and build commands stay inside the seat permission', () => {
+test('local test and build commands stay inside the member permission', () => {
   assert.equal(externalAction(card('npm test')), null)
   assert.equal(externalAction(card('npm run build')), null)
   assert.equal(externalAction(card('node --test')), null)

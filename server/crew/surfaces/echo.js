@@ -1,4 +1,4 @@
-// 回声身体：不连基座，只记录“业务交给这个席位什么”。用于测试和未来本地预览。
+// 回声身体：不连基座，只记录“业务交给这个成员什么”。用于测试和未来本地预览。
 export const createEchoSurface = ({ kind = 'echo' } = {}) => {
   const deliveries = []
   const operations = []
@@ -9,9 +9,9 @@ export const createEchoSurface = ({ kind = 'echo' } = {}) => {
     deliveries,
     operations,
 
-    async send({ roomId, seat, text, sendId, intent = 'handoff', from = '', envelope = '' }) {
+    async send({ roomId, memberId, text, sendId, intent = 'handoff', from = '', envelope = '' }) {
       const body = [envelope, text].filter(line => line !== '').join('\n')
-      deliveries.push({ roomId, seat, text: body, sendId, intent, from })
+      deliveries.push({ roomId, memberId, text: body, sendId, intent, from })
       return { accepted: true, echo: true, messageId: `echo-${sendId}`, sendId }
     },
 
@@ -20,15 +20,15 @@ export const createEchoSurface = ({ kind = 'echo' } = {}) => {
       return { cancelled: true, echo: true }
     },
 
-    async hold({ roomId, seat, held: next }) {
-      operations.push({ op: 'hold', roomId, seat, held: next })
-      if (next) held.add(seat)
-      else held.delete(seat)
-      return { ok: true, echo: true, seat, held: next }
+    async hold({ roomId, memberId, held: next }) {
+      operations.push({ op: 'hold', roomId, memberId, held: next })
+      if (next) held.add(memberId)
+      else held.delete(memberId)
+      return { ok: true, echo: true, memberId, held: next }
     },
 
-    state({ roomId, seat }) {
-      return { kind, roomId, seat, held: held.has(seat) }
+    state({ roomId, memberId }) {
+      return { kind, roomId, memberId, held: held.has(memberId) }
     },
 
     capabilities: () => ({

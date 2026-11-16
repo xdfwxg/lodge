@@ -1,3 +1,4 @@
+import { leadMemberOf } from '../../room-members.js'
 import { fail, ok } from '../../result.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
@@ -19,12 +20,12 @@ export const createServiceClosure = ({ store, emit }) => {
       current.closure = moved.state
       current.state = 'stopped'
       current.pauseReason = 'rejected'
-      return { events: [{ type: 'plan.rejected', payload: { reason } }, studioTransitionEvent(moved, 'reject_plan', room.leadSeat ?? 'planner', {}, reason)] }
+      return { events: [{ type: 'plan.rejected', payload: { reason } }, studioTransitionEvent(moved, 'reject_plan', leadMemberOf(room)?.id ?? 'planner', {}, reason)] }
     })
     if (updated === null) return fail('conflict', '房间状态已变化，重试')
     const message = store.appendMessage(room.id, {
       kind: 'plan_rejection',
-      authorId: room.leadSeat ?? 'planner',
+      authorId: leadMemberOf(room)?.id ?? 'planner',
       text: reason,
       meta: { roleKind: 'planner', closure: 'rejected', at: Date.now() },
     })

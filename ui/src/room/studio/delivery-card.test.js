@@ -49,7 +49,7 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
       completedAt: Date.UTC(2026, 10, 12, 4, 0),
       commit: 'abcdef1234567890',
       independenceLabel: '同引擎 · 独立性降级',
-      seatNames: { v1: '复核一', v2: '复核二' },
+      memberNames: { v1: '复核一', v2: '复核二' },
       workspace: { vcs: 'git' },
       stages: [
         {

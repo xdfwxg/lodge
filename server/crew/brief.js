@@ -1,4 +1,5 @@
 import { resolveRoomType } from './room-types/index.js'
+import { verifierMembers } from './room-members.js'
 
 const doneOf = line => {
   const text = String(line ?? '').trim()
@@ -22,7 +23,7 @@ export const briefOf = room => {
     ...(room.constraints ?? []),
     '决策型阶段必须由人点过，不能由模型代点',
     '交付型阶段必须在本阶段有证据落盘（证据在 evidence/，与 transcript 同一份真相）',
-    ...(room.verifiers?.length > 0
+    ...(verifierMembers(room).length > 0
       ? ['验收由验收员独立复核，最终由你签字']
       : ['验收由你凭证据签字']),
   ])]

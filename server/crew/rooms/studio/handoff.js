@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
-import { markSeatRead } from '../../watermarks.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { markMemberRead } from '../../watermarks.js'
+import { memberDisplayName } from '../../member-labels.js'
 import { buildWorkTurn } from './work-turn.js'
 
 const deliveryId = ({ index, from, to, reason, acceptance, evidence, candidate, rework }) => (
@@ -19,9 +19,9 @@ const deliveryId = ({ index, from, to, reason, acceptance, evidence, candidate, 
     .slice(0, 32)}`
 )
 
-// 接力棒只执行交接：写工作拍、交给目标席位、记事件。
+// 接力棒只执行交接：写工作拍、交给目标成员、记事件。
 // 地址由传输层解析；能不能交接由 stage/review 判断，这里不改阶段状态。
-export const createHandoff = ({ store, roomId, sendToSeat, emit }) => {
+export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
   const trigger = async ({
     room,
     stage,
@@ -39,7 +39,7 @@ export const createHandoff = ({ store, roomId, sendToSeat, emit }) => {
     const current = store.readRoom(roomId) ?? room
     const body = String(prompt ?? '').replace(/^@\S+\s*/, '').trim()
     const targetText = body
-    const label = seatDisplayName(current, to)
+    const label = memberDisplayName(current, to)
     const summary = `阶段 ${index + 1}${stage?.title ? `「${stage.title}」` : ''}接力 → ${label}${acceptance ? ` · 验收 ${acceptance}` : ''}`
     const workTurn = buildWorkTurn({
       room: current,
@@ -71,7 +71,7 @@ export const createHandoff = ({ store, roomId, sendToSeat, emit }) => {
         workTurn,
       },
     })
-    markSeatRead({ store, roomId, seat: to, emit })
+    markMemberRead({ store, roomId, memberId: to, emit })
     store.appendEvent(roomId, 'handoff.requested', {
       stage: index,
       from,
@@ -80,7 +80,7 @@ export const createHandoff = ({ store, roomId, sendToSeat, emit }) => {
       messageId: stored.id,
     })
     try {
-      await sendToSeat(to, targetText, {
+      await sendToMember(to, targetText, {
         intent: reason === 'review' ? 'review' : 'handoff',
         from,
         sendId,

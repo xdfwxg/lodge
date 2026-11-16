@@ -9,7 +9,7 @@ export function ApprovalCard({ approval, onDecide }) {
     h('div', { className: 'crew-card-body' },
       h('div', { className: 'crew-kv' },
         h('span', null, '谁'),
-        h('span', null, approval.seatName)),
+        h('span', null, approval.memberName)),
       h('div', { className: 'crew-kv' },
         h('span', null, '要做什么'),
         h('code', { className: 'crew-code' }, approval.summary)),

@@ -1,3 +1,4 @@
+import { verifierIds } from '../../room-members.js'
 import { isWorkStage } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 import { markTask } from './tasks.js'
@@ -13,14 +14,14 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     return chain
   }
 
-  const settleWorker = (seat, turnId, failed) => {
+  const settleWorker = (member, turnId, failed) => {
     let done = null
     const updated = store.updateRoom(roomId, current => {
       const dispatch = current.stageDispatch
       if (dispatch === null || dispatch === undefined) return null
-      if (!Array.isArray(dispatch.pending) || !dispatch.pending.includes(seat)) return null
-      dispatch.pending = dispatch.pending.filter(id => id !== seat)
-      if (failed) dispatch.failed = [...new Set([...(dispatch.failed ?? []), seat])]
+      if (!Array.isArray(dispatch.pending) || !dispatch.pending.includes(member)) return null
+      dispatch.pending = dispatch.pending.filter(id => id !== member)
+      if (failed) dispatch.failed = [...new Set([...(dispatch.failed ?? []), member])]
       if (dispatch.pending.length === 0) {
         done = {
           stageIndex: dispatch.stage,
@@ -29,7 +30,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
           failed: [...(dispatch.failed ?? [])],
         }
       }
-      return { events: [{ type: failed ? 'stage.seat_failed' : 'stage.seat_done', payload: { stage: dispatch.stage, seat, turnId } }] }
+      return { events: [{ type: failed ? 'stage.member_failed' : 'stage.member_done', payload: { stage: dispatch.stage, member, turnId } }] }
     })
     return updated === null ? null : done
   }
@@ -56,7 +57,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
       if ((typeof branch !== 'string' || branch === '') && (typeof source !== 'string' || source === '')) continue
       const result = workspaceOf(room).integrate({ path: integration, branch: branch ?? '', source })
       if (!result.ok) {
-        const name = seatDisplayName(room, worker)
+        const name = memberDisplayName(room, worker)
         const label = typeof branch === 'string' && branch !== '' ? branch : '工作副本'
         const files = result.files.length > 0 ? result.files.join('、') : '未知文件'
         store.appendMessage(roomId, {
@@ -125,7 +126,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     } finally {
       workspaceOf(room).removeIsolatedCopy({ source: room.sourceRepo, copy })
     }
-    const names = workers.map(worker => seatDisplayName(room, worker)).join('、')
+    const names = workers.map(worker => memberDisplayName(room, worker)).join('、')
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
@@ -173,7 +174,7 @@ export const createStageIntegrator = ({ store, roomId, emit, updateTasks, markPr
     })
     if (result.exit !== 0) return
     markProgress()
-    if ((room.verifiers?.length ?? 0) > 0) {
+    if (verifierIds(room).length > 0) {
       try {
         await requestReview(stageIndex)
       } catch (error) {

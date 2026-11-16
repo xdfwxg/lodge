@@ -24,8 +24,8 @@ test('each turn cue names the personality and its speaking habit', () => {
   assert.match(personalityTurnCue('unknown'), /中立持衡/)
 })
 
-test('chat seat souls carry the personality instruction', () => {
-  const soul = chatKind.seatSoul({ name: '甲', personality: 'gentle' })
+test('chat member souls carry the personality instruction', () => {
+  const soul = chatKind.memberSoul({ name: '甲', personality: 'gentle' })
   assert.match(soul, /温良善听/)
   assert.match(soul, /200 字以内/)
 })

@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { created, fail } from '../../result.js'
-import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, resolveSeats } from './input.js'
+import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, resolveMembers } from './input.js'
 import { buildRoomRecord, initialRoomMessages } from './record.js'
 import { createProvisioner } from './provision.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
 import { gateRecordOf } from '../../gate/index.js'
-import { memberIdFor, registerRoomMembers } from '../../members.js'
 import { transferOf } from '../../../../shared/transfer.js'
 
 const deliveryTitleFor = (goalTitle, handoff) => {
@@ -65,9 +64,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     const issues = gate.issues.map(issue => issue.text).join('；')
     return fail('invalid', `还不能开工：${issues}${advice === '' ? '' : `；建议：${advice}`}`)
   }
-  const seatsResult = resolveSeats(body, roomType)
-  if (seatsResult.error !== undefined) return fail('invalid', seatsResult.error)
-  const { templateId, roster, workers, verifiers, worker, lead, align } = seatsResult
+  const membersResult = resolveMembers(body, roomType)
+  if (membersResult.error !== undefined) return fail('invalid', membersResult.error)
+  const { templateId, roster, workers, verifiers, worker, lead, align } = membersResult
   // A confirmed handoff already did the alignment at the Gate; do not ask for it
   // again inside the studio.
   const initialAlign = align && (handoff === null || handoff === undefined)
@@ -79,12 +78,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     }
   }
   const resolvedPlan = mode.resolvePlan(plan, roster)
-  for (const seat of roster) {
-    if (seat.mcp.length > 0 && capabilities.mcp !== true) {
+  for (const member of roster) {
+    if (member.mcp.length > 0 && capabilities.mcp !== true) {
       return fail('conflict', '当前版本还不支持外部工具')
     }
   }
-  const wantsSkills = roster.some(seat => (seat.skills ?? []).length > 0)
+  const wantsSkills = roster.some(member => (member.skills ?? []).length > 0)
   if (wantsSkills && typeof engine.features === 'function') {
     const features = await engine.features()
     if (features?.skillsLibrary !== true) {
@@ -105,7 +104,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
 
   const roomId = `room-${short}`
-  const memberIdBySeat = Object.fromEntries(roster.map(seat => [seat.id, memberIdFor(roomId, seat.id)]))
   const provisioner = createProvisioner({ engine })
   let room = null
   let stored = false
@@ -140,10 +138,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       engines: provisioned.engines,
       models: provisioned.models,
       engineFallbacks: provisioned.engineFallbacks,
-      seatBots: provisioned.seatBots,
-      seatNames: provisioned.seatNames,
-      seatRooms: provisioned.seatRooms,
-      memberIdBySeat,
+      members: provisioned.members,
       chatRoom: provisioned.chatRoom,
       chatHost: provisioned.chatHost,
       lead,
@@ -172,7 +167,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       }),
     })
     store.writeRoom(room)
-    registerRoomMembers(store, room)
     stored = true
     if (parentRoom !== null) {
       const linked = store.updateRoom(parentRoom.id, current => {
@@ -181,7 +175,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       })
       if (linked !== null) emit('room', linked)
     }
-    store.appendEvent(room.id, 'room.created', { live: true, templateId, seats: room.members, sourceRepo, branch: room.branch })
+    store.appendEvent(room.id, 'room.created', { live: true, templateId, members: room.members, sourceRepo, branch: room.branch })
     ports.roomFiles.writeGoal(room)
     for (const message of initialRoomMessages({
       room,

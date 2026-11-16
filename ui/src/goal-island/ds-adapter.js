@@ -2,24 +2,24 @@ import { createElement as h } from 'react'
 import { GoalIsland, GOAL_CSS, goalView } from './ds-goal.js'
 import { ChevronDownIcon } from './ds-icons.js'
 import { TargetIcon } from '../icons.js'
-import { activeIndex, evidenceFor, rejectsFor, seatState, seatTask } from './model.js'
+import { activeIndex, evidenceFor, rejectsFor, memberState, memberTask } from './model.js'
 import { useGoalSignal } from './use-goal-signal.js'
 
 // DS-Bot's goal island wants goal/roster/roomWork; Lodge keeps room/stages/verdicts.
 // This adapter is the only place that translates between the two shapes.
 export const toDsGoal = room => {
   const stages = room.stages.map((stage, index) => {
-    const seats = room.seatSpecs ?? []
+    const members = room.members ?? []
     const assigned = (stage.tasks ?? []).map(task => {
-      const seat = seats.find(item => item.id === task.owner) ?? { id: task.owner, name: task.title }
-      return { botId: task.owner, status: task.status, task: seatTask(seat, stage) }
+      const member = members.find(item => item.id === task.owner) ?? { id: task.owner, name: task.title }
+      return { botId: task.owner, status: task.status, task: memberTask(member, stage) }
     })
     const tasks = assigned.length > 0
       ? assigned
-      : seats.map(seat => ({
-        botId: seat.id,
-        status: seatState(room, stage, index, seat.id),
-        task: seatTask(seat, stage),
+      : members.map(member => ({
+        botId: member.id,
+        status: memberState(room, stage, index, member.id),
+        task: memberTask(member, stage),
       }))
     const evidence = evidenceFor(room, index)
     const reworks = rejectsFor(room, index)
@@ -59,21 +59,21 @@ export const toDsGoal = room => {
   }
 }
 
-export const toDsRoster = seats => ({
-  byId: Object.fromEntries(seats.map(seat => [seat.id, seat])),
+export const toDsRoster = members => ({
+  byId: Object.fromEntries(members.map(member => [member.id, member])),
 })
 
 const toDsRoom = room => ({
   id: room.id,
-  admin: room.leadSeat ?? room.members?.[0],
+  admin: room.leadMemberId ?? room.members?.[0],
   members: room.members ?? [],
   needsYou: room.needsYou ?? null,
 })
 
 export const toDsRoomWork = room => {
-  const busy = Array.isArray(room.busySeats) && room.busySeats.length > 0
-    ? room.busySeats
-    : room.busySeat ? [room.busySeat] : []
+  const busy = Array.isArray(room.busyMembers) && room.busyMembers.length > 0
+    ? room.busyMembers
+    : room.busyMember ? [room.busyMember] : []
   return busy.map(botId => ({ botId }))
 }
 
@@ -116,11 +116,11 @@ const PILL_CSS = `
 @media (max-width:760px){.crew-ds-goal{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
 `
 
-export function DsGoalHeader({ room, seats, onAdvance }) {
+export function DsGoalHeader({ room, members, onAdvance }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
   const goal = toDsGoal(room)
-  const roster = toDsRoster(seats)
+  const roster = toDsRoster(members)
   const roomWork = toDsRoomWork(room)
   const view = goalView(goal, { roster })
   const dsRoom = toDsRoom(room)

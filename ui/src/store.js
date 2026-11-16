@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 const EMPTY = {
   phase: 'loading',
   rooms: [],
-  seats: [],
+  roles: [],
   roomTypes: [],
   engines: [],
   runtime: null,
@@ -131,7 +131,7 @@ export function createStore() {
         ...state,
         phase: 'ready',
         rooms: data.rooms,
-        seats: data.seats,
+        roles: data.roles,
         roomTypes: data.roomTypes ?? [],
         engines: data.engines ?? [],
         runtime,
@@ -184,7 +184,7 @@ export function createStore() {
     select: activeId => (rememberRoom(activeId), patch({ activeId })),
     send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
-    holdSeat: (seat, held) => post(`/api/rooms/${state.activeId}/hold`, { seat, held }),
+    holdMember: (memberId, held) => post(`/api/rooms/${state.activeId}/hold`, { memberId, held }),
     cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),
     steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
@@ -202,7 +202,7 @@ export function createStore() {
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
-    answerCard: (seat, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { seat, requestId, message }),
+    answerCard: (memberId, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { memberId, requestId, message }),
     createSubroom: async goal => {
       const data = await post(`/api/rooms/${state.activeId}/subrooms`, { goal })
       if (data?.room === undefined) return { ok: false, error: state.error ?? '子房间没能建起来' }

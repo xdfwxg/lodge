@@ -108,7 +108,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
                 h('span', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'))),
               ...stage.verdicts
                 .map(verdict => h('div', { key: verdict.id, className: 'crew-delivery-verdict', 'data-pass': verdict.pass },
-                  h('span', null, delivery.seatNames?.[verdict.authorId] ?? verdict.authorId),
+                  h('span', null, delivery.memberNames?.[verdict.authorId] ?? verdict.authorId),
                   h('b', null, verdict.pass ? '通过' : '退回'))),
               stage.acceptance || stage.commands.length > 0
                 ? h('details', { className: 'crew-fold' },

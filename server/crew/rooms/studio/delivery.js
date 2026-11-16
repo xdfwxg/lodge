@@ -1,5 +1,5 @@
 import { independenceLabel } from '../../digest.js'
-import { seatLabelMap } from '../../seat-labels.js'
+import { memberLabelMap } from '../../member-labels.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
 
@@ -74,7 +74,7 @@ export const buildDelivery = (room, messages = []) => {
     completedAt: room.completedAt ?? (lastAt > 0 ? lastAt : null),
     commit: typeof room.completedCommit === 'string' && room.completedCommit !== '' ? room.completedCommit : null,
     independenceLabel: independenceLabel(room),
-    seatNames: seatLabelMap(room),
+    memberNames: memberLabelMap(room),
     workspace: {
       provider: room.workspace?.provider ?? 'git',
       vcs: room.workspace?.capabilities?.vcs ?? 'none',

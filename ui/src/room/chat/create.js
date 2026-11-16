@@ -1,26 +1,26 @@
 import { createElement as h } from 'react'
-import { SeatEnginePicker } from '../seat-engine-picker.js'
+import { MemberEnginePicker } from '../member-engine-picker.js'
 
-import { defaultPersonalityId, normalizeSeats, PERSONALITIES } from '../seat-options.js'
+import { defaultPersonalityId, normalizeMembers, PERSONALITIES } from '../member-options.js'
 
 export const buildChatRequest = ({
   goal,
   name,
   repoPath,
   chatTurnLimit,
-  defaultSeats,
+  defaultMembers,
   choices,
   selectedModelOf,
   receipt,
   sourceRoomId,
   sourceName,
 }) => {
-  const seats = normalizeSeats(defaultSeats).map((seat, index) => {
+  const members = normalizeMembers(defaultMembers).map((member, index) => {
     const choice = choices[index] ?? { engine: '', model: '' }
     const model = choice.model !== '' ? choice.model : selectedModelOf(choice)
     return {
-      ...seat,
-      personality: choice.personality || seat.personality || defaultPersonalityId(index),
+      ...member,
+      personality: choice.personality || member.personality || defaultPersonalityId(index),
       ...(choice.engine === '' ? {} : { engine: choice.engine }),
       ...(choice.engine === '' || model === '' ? {} : { model }),
     }
@@ -35,7 +35,7 @@ export const buildChatRequest = ({
     ...(receipt === null || receipt === undefined ? {} : { receipt }),
     ...(typeof sourceRoomId === 'string' && sourceRoomId !== '' ? { sourceRoomId } : {}),
     ...(typeof sourceName === 'string' && sourceName !== '' ? { sourceName } : {}),
-    ...(seats.length > 0 ? { seats } : {}),
+    ...(members.length > 0 ? { members } : {}),
     goal,
   }
 }
@@ -43,11 +43,11 @@ export const buildChatRequest = ({
 export function ChatSetupFields({
   turnLimit,
   onTurnLimit,
-  onAddSeat = () => {},
-  canAddSeat = true,
-  onRemoveSeat = null,
-  canRemoveSeat = null,
-  seats,
+  onAddMember = () => {},
+  canAddMember = true,
+  onRemoveMember = null,
+  canRemoveMember = null,
+  members,
   choices,
   setChoices,
   engines,
@@ -71,26 +71,26 @@ export function ChatSetupFields({
       h('div', { className: 'crew-field-head' },
         h('b', null, '成员')),
       h('div', { className: 'crew-proposal-block' },
-        h(SeatEnginePicker, {
-          seats: normalizeSeats(seats),
+        h(MemberEnginePicker, {
+          members: normalizeMembers(members),
           choices,
           setChoices,
           engines,
           personalities: PERSONALITIES,
-          onRemove: onRemoveSeat,
-          canRemove: canRemoveSeat !== null,
-          canRemoveSeat,
+          onRemove: onRemoveMember,
+          canRemove: canRemoveMember !== null,
+          canRemoveMember,
           loginBusy,
           onLogin,
           onInteraction,
         }),
         h('button', {
           type: 'button',
-          className: 'crew-seat-add',
-          disabled: !canAddSeat,
-          title: canAddSeat ? '添加成员' : '最多 6 位成员',
-          onClick: onAddSeat,
+          className: 'crew-member-add',
+          disabled: !canAddMember,
+          title: canAddMember ? '添加成员' : '最多 6 位成员',
+          onClick: onAddMember,
         },
-          h('span', { className: 'crew-seat-add-plus', 'aria-hidden': 'true' }, '＋'),
+          h('span', { className: 'crew-member-add-plus', 'aria-hidden': 'true' }, '＋'),
           '添加成员'))))
 }

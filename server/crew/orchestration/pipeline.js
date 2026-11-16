@@ -6,7 +6,7 @@ export const reviewGuidance = ''
 
 export const planStage = ({ stage, workers }) => {
   const proposed = Array.isArray(stage?.assignees)
-    ? stage.assignees.filter(seat => workers.includes(seat))
+    ? stage.assignees.filter(member => workers.includes(member))
     : []
   return {
     assignees: proposed.length > 0 ? proposed.slice(0, 1) : workers.slice(0, 1),

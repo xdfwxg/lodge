@@ -1,16 +1,16 @@
-export const seatFor = (room, ref) => {
+export const memberForRef = (room, ref) => {
   if (typeof ref !== 'string' || ref === '') return null
-  for (const [seat, memberRef] of Object.entries(room?.seatBots ?? {})) {
-    if (memberRef === ref) return seat
+  for (const member of room?.members ?? []) {
+    if (member?.body?.ref === ref) return member.id
   }
   return null
 }
 
-import { seatDisplayName, toDisplayText } from '../../seat-labels.js'
+import { memberDisplayName, toDisplayText } from '../../member-labels.js'
 import { isInternalPrompt } from '../../internal-prompts.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 
-export const seatNameOf = seatDisplayName
+export const memberNameOf = memberDisplayName
 
 // 基座忙碌时发出的消息会排队，落库 id 和发送响应 id 不同；用回显文本和落库时间配对，避免同一条人的话出现两次。
 const ECHO_WINDOW_MS = 120_000
@@ -36,7 +36,7 @@ export const createMessageProjector = ({ store }) => {
     const room = store.readRoom(roomId)
     if (room?.hiddenBaseMessages?.includes(message.id) === true) return null
     if (isInternalPrompt(message.text)) return null
-    const seat = seatFor(room, message.authorRef)
+    const memberId = memberForRef(room, message.authorRef)
     const common = { id: message.id, roomId, ts: message.at }
     const text = toDisplayText(room, message.text)
     // 基座会在一条回答后再补一条空 text；它不是一句话，不该变成空气泡。
@@ -48,19 +48,19 @@ export const createMessageProjector = ({ store }) => {
       const rawTool = typeof message.tool?.name === 'string' ? message.tool.name.trim() : ''
       // 基座偶尔把「XX 的 recent-work brief」这类说明塞进 tool.name；只保留工具标识。
       const tool = /^[\w.:/-]+$/.test(rawTool) ? rawTool : ''
-      return { ...common, kind: 'activity', authorId: seat ?? 'executor', text, meta: { ok: message.ok, ...(tool === '' ? {} : { tool }) } }
+      return { ...common, kind: 'activity', authorId: memberId ?? 'executor', text, meta: { ok: message.ok, ...(tool === '' ? {} : { tool }) } }
     }
     if (message.kind === 'question') {
       return message.card?.requestId === undefined
         ? { ...common, kind: 'system', text: `需要你处理：${text}` }
-        : { ...common, kind: 'question', authorId: seat ?? 'executor', text, meta: { card: message.card } }
+        : { ...common, kind: 'question', authorId: memberId ?? 'executor', text, meta: { card: message.card } }
     }
     // digest 是基座的上下文摘要，不是成员说的话；notice 等是运行提示，归系统，不伪装成聊天。
     if (message.kind === 'digest') return null
     if (['notice', 'lookup', 'resumed', 'cut', 'stopped', 'done'].includes(message.kind)) {
       return text === '' ? null : { ...common, kind: 'system', text }
     }
-    return { ...common, kind: 'chat', authorId: seat ?? 'executor', text }
+    return { ...common, kind: 'chat', authorId: memberId ?? 'executor', text }
   }
 
   return { toStored }

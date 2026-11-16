@@ -5,8 +5,9 @@ import { createLiveTurns } from './rooms/studio/turns.js'
 
 const ports = createCrewPorts()
 import { reviewState } from './rooms/studio/verifiers.js'
+import { normalizeLegacyTestRoom } from './testing/room.js'
 
-const room = (over = {}) => ({
+const room = (over = {}) => normalizeLegacyTestRoom({
   id: 'room-1',
   state: 'active',
   live: true,
@@ -130,15 +131,15 @@ test('the review request goes to every verifier and all PASS ends the round', as
     engine: {},
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, prompt) => {
-      sent.push({ seat, prompt })
+    sendToMember: async (member, prompt) => {
+      sent.push({ member, prompt })
       return { messageId: null }
     },
     commands: ports.commands,
     files: ports.files,
   })
   await turns.requestReview(0)
-  assert.deepEqual(sent.map(item => item.seat), ['v1', 'v2'])
+  assert.deepEqual(sent.map(item => item.member), ['v1', 'v2'])
   assert.equal(turns.busyReview(), true)
 
   turns.captureTurn({ turnId: 't1', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v1')
@@ -175,7 +176,7 @@ test('a rejection cancels the remaining verifier round', async () => {
     engine: {},
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async () => ({ messageId: null }),
+    sendToMember: async () => ({ messageId: null }),
     commands: ports.commands,
     files: ports.files,
   })

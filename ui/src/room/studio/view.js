@@ -13,11 +13,11 @@ import { StudioTranscript } from './transcript.js'
 // 工作室的房间视图：目标岛、状态行、时间线、阶段坞和交付卡。
 export const studioView = {
   id: 'studio',
-  buildViewModel: ({ room, seats }) => buildGoalView(room, seats),
+  buildViewModel: ({ room, members }) => buildGoalView(room, members),
   opensAtTop: ({ room }) => room.state === 'complete',
-  header: ({ room, seats, actions }) => h(DsGoalHeader, {
+  header: ({ room, members, actions }) => h(DsGoalHeader, {
     room,
-    seats,
+    members,
     onAdvance: () => {
       const index = room.stages.findIndex(stage => stage.state === 'active')
       if (index >= 0) actions.accept(index)
@@ -27,7 +27,7 @@ export const studioView = {
     text: studioActivityLine(room, viewModel),
     since: typeof room.busySince === 'number' ? room.busySince : null,
   }),
-  transcript: ({ room, seats, state, actions }) => {
+  transcript: ({ room, members, state, actions }) => {
     const subrooms = h(SubroomTree, {
       key: `subrooms-${room.id}`,
       room,
@@ -38,7 +38,7 @@ export const studioView = {
     const transcript = h(StudioTranscript, {
       key: `transcript-${room.id}`,
       room,
-      seats,
+      members,
       hideKinds: [],
       delivery: room.delivery ?? null,
       onAccept: actions.accept,
@@ -64,7 +64,7 @@ export const studioView = {
       transcript,
       subrooms)
   },
-  presence: ({ room, seats, actions }) => h(StudioPresence, { room, seats, onHold: actions.hold }),
+  presence: ({ room, members, actions }) => h(StudioPresence, { room, members, onHold: actions.hold }),
   composerPlaceholder: () => '交代下一步，或问进度…',
   typing: () => null,
   dock: ({ room, dock }) => h(StageDock, { room, ...dock }),

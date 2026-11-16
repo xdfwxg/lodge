@@ -27,7 +27,7 @@ function CodeOutput({ text, limit = OUTPUT_PREVIEW_LINES, hint = '打开「证�
     hidden === 0 ? null : h('p', { className: 'crew-code-more' }, `还有 ${hidden} 行未显示 · ${hint}`))
 }
 
-function EvidenceCard({ message, seat }) {
+function EvidenceCard({ message, member }) {
   const meta = message.meta ?? {}
   const ref = meta.evidenceRef
   const turn = meta.kind === 'turn'
@@ -48,12 +48,12 @@ function EvidenceCard({ message, seat }) {
     'data-ok': command ? passed : undefined,
     'data-demo': meta.simulated === true || meta.sample === true,
   },
-  seat === null || seat === undefined
+  member === null || member === undefined
     ? null
-    : h('span', { className: 'studio-result-avatar' }, h(BotAvatar, { bot: seat, size: 22, live: false })),
-  seat === null || seat === undefined
+    : h('span', { className: 'studio-result-avatar' }, h(BotAvatar, { bot: member, size: 22, live: false })),
+  member === null || member === undefined
     ? null
-    : h('span', { className: 'studio-result-who' }, seat.name),
+    : h('span', { className: 'studio-result-who' }, member.name),
   h('span', { className: 'studio-result-what' }, summary),
   chip === '' ? null : h('span', { className: 'studio-result-chip', 'data-pass': command ? passed : undefined }, chip),
   h('details', { className: 'studio-result-more' },
@@ -86,7 +86,7 @@ function EvidenceCard({ message, seat }) {
   }, ref) : null)
 }
 
-function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
+function VerdictCard({ message, member, stage, room, onAccept, evidence }) {
   const meta = message.meta ?? {}
   const proof = evidence?.meta ?? {}
   const command = typeof proof.command === 'string' ? proof.command : meta.command
@@ -100,9 +100,9 @@ function VerdictCard({ message, seat, stage, room, onAccept, evidence }) {
   const canAccept = pass && active && stage?.kind === 'deliverable' && typeof onAccept === 'function'
   const shadow = shadowFor(room, message)
   return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: seat, size: 30, live: false })),
+    h('div', { className: 'crew-msg-avatar' }, h(BotAvatar, { bot: member, size: 30, live: false })),
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { seat, ts: message.ts }),
+      h(Speaker, { member, ts: message.ts }),
       h('div', { className: 'crew-card crew-result-card', 'data-demo': meta.simulated === true, 'data-pass': pass },
         h('div', { className: 'crew-card-head' },
           '检查结果',

@@ -3,14 +3,15 @@ import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { createLiveTurns } from './rooms/studio/turns.js'
 import { BusinessError } from './result.js'
+import { normalizeLegacyTestRoom } from './testing/room.js'
 
 const ports = createCrewPorts()
 
 const store = messages => ({
-  readRoom: () => ({
+  readRoom: () => normalizeLegacyTestRoom({
     id: 'room-1',
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
-    verifiers: ['verifier'],
+    seatSpecs: [{ id: 'verifier', role: 'verifier', name: 'Verifier' }],
     seatNames: { verifier: 'Verifier' },
     seatRooms: {},
   }),
@@ -23,7 +24,7 @@ const store = messages => ({
 
 test('resume starts an active stage by waking the executor', async () => {
   const sent = []
-  const room = {
+  const room = normalizeLegacyTestRoom({
     ...store([]).readRoom(),
     live: true,
     state: 'active',
@@ -37,7 +38,7 @@ test('resume starts an active stage by waking the executor', async () => {
       { id: 'worker', role: 'worker', name: 'Worker' },
     ],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
-  }
+  })
   const turns = createLiveTurns({
     store: {
       ...store([]),
@@ -47,8 +48,8 @@ test('resume starts an active stage by waking the executor', async () => {
     engine: {},
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async (seat, text) => {
-      sent.push([seat, text])
+    sendToMember: async (member, text) => {
+      sent.push([member, text])
       return { messageId: null }
     },
     commands: ports.commands,
@@ -62,7 +63,7 @@ test('resume starts an active stage by waking the executor', async () => {
 
 test('resume re-requests a review that was pending before restart', async () => {
   const sent = []
-  const room = {
+  const room = normalizeLegacyTestRoom({
     ...store([]).readRoom(),
     live: true,
     state: 'active',
@@ -76,7 +77,7 @@ test('resume re-requests a review that was pending before restart', async () => 
     ],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
     usage: { costMicroUsd: 0, budgetMicroUsd: 5_000_000 },
-  }
+  })
   const evidence = {
     id: 'e1',
     kind: 'evidence',
@@ -94,8 +95,8 @@ test('resume re-requests a review that was pending before restart', async () => 
     engine: {},
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async seat => {
-      sent.push(seat)
+    sendToMember: async member => {
+      sent.push(member)
       return { messageId: null }
     },
     commands: ports.commands,
@@ -107,7 +108,7 @@ test('resume re-requests a review that was pending before restart', async () => 
 
 test('resume leaves a busy room alone', async () => {
   let sent = 0
-  const room = {
+  const room = normalizeLegacyTestRoom({
     ...store([]).readRoom(),
     live: true,
     state: 'active',
@@ -116,13 +117,13 @@ test('resume leaves a busy room alone', async () => {
     seatNames: { worker: 'Worker' },
     seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
-  }
+  })
   const turns = createLiveTurns({
     store: { ...store([]), readRoom: () => room, updateRoom: () => null },
     engine: {},
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async () => {
+    sendToMember: async () => {
       sent += 1
       return { messageId: null }
     },
@@ -143,7 +144,7 @@ test('turns already captured before restart are not captured again', () => {
     engine: {},
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async () => ({ messageId: null }),
+    sendToMember: async () => ({ messageId: null }),
     commands: ports.commands,
     files: ports.files,
   })
@@ -158,7 +159,7 @@ test('a business rejection from review is a typed failure, not a system error', 
     engine: {},
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: async () => ({ messageId: null }),
+    sendToMember: async () => ({ messageId: null }),
     commands: ports.commands,
     files: ports.files,
   })

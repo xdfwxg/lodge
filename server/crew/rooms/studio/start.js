@@ -1,5 +1,5 @@
-import { buildSeatHandoff } from './seat-handoff.js'
-import { markSeatRead } from '../../watermarks.js'
+import { buildMemberHandoff } from './member-handoff.js'
+import { markMemberRead } from '../../watermarks.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { alignmentPrompt, directPrompt } from '../create/input.js'
 
@@ -25,16 +25,16 @@ export const startInitialStage = async ({
   } else if (!align && workers.length > 1) {
     if (activeStage >= 0) await live.startStage(room, activeStage)
   } else {
-    const targetSeat = align ? lead : worker
-    markSeatRead({ store, roomId: room.id, seat: targetSeat.id, emit })
-    const openingName = targetSeat.name
+    const targetMember = align ? lead : worker
+    markMemberRead({ store, roomId: room.id, memberId: targetMember.id, emit })
+    const openingName = targetMember.name
     const opening = align
       ? alignmentPrompt(openingName, goal, verify, acceptance, room.handoff)
       : `@${openingName}\n${directPrompt(goal, verify, acceptance, roster.length === 1, room.handoff)}`
-    const context = buildSeatHandoff({ room, messages: store.readMessages(room.id), seat: targetSeat.id })
-    const sent = await live.sendToSeat(
+    const context = buildMemberHandoff({ room, messages: store.readMessages(room.id), memberId: targetMember.id })
+    const sent = await live.sendToMember(
       room.id,
-      targetSeat.id,
+      targetMember.id,
       `${opening}\n\n${context}\n${INTERNAL_PROMPT_MARKER}`,
       { intent: align ? 'align' : 'handoff', from: 'Lodge' },
     )

@@ -1,6 +1,6 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { memberDisplayName } from '../../member-labels.js'
 import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
@@ -16,12 +16,12 @@ const truncate = (text, limit) => {
   return value.length <= limit ? value : `${value.slice(0, limit)}…`
 }
 
-export const pickChatSpeaker = ({ speakers, counts, perSeat, last, random = Math.random }) => {
+export const pickChatSpeaker = ({ speakers, counts, perMember, last, random = Math.random }) => {
   if (speakers.length === 0) return null
-  const eligible = speakers.filter(seat => (counts.get(seat) ?? 0) < perSeat)
+  const eligible = speakers.filter(memberId => (counts.get(memberId) ?? 0) < perMember)
   const pool = eligible.length === 0 ? speakers : eligible
-  const unspoken = pool.filter(seat => (counts.get(seat) ?? 0) === 0)
-  const candidates = unspoken.length > 0 ? unspoken : pool.filter(seat => seat !== last)
+  const unspoken = pool.filter(memberId => (counts.get(memberId) ?? 0) === 0)
+  const candidates = unspoken.length > 0 ? unspoken : pool.filter(memberId => memberId !== last)
   const final = candidates.length > 0 ? candidates : pool
   return final[Math.min(final.length - 1, Math.floor(random() * final.length))] ?? null
 }
@@ -32,17 +32,17 @@ const discussionLines = (store, roomId) => {
     .filter(message => message.kind === 'chat' || message.kind === 'chat_rework')
   const nameOf = message => message.authorId === 'you'
     ? '你'
-    : message.authorId === 'system' ? '房间' : seatDisplayName(room, message.authorId)
+    : message.authorId === 'system' ? '房间' : memberDisplayName(room, message.authorId)
   return recentAndOlder(messages, { nameOf })
 }
 
-const seatSpecOf = (room, seatId) => (room?.seatSpecs ?? []).find(seat => seat.id === seatId) ?? null
+const memberOf = (room, memberId) => (room?.members ?? []).find(member => member.id === memberId) ?? null
 
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
-const speakerPrompt = ({ room, seat, round, turn, turnLimit, note }) => {
-  const personality = seatSpecOf(room, seat)?.personality
+const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
+  const personality = memberOf(room, memberId)?.personality
   return [
-    `@${seatDisplayName(room, seat)} 聊天室话题：${room.goal}`,
+    `@${memberDisplayName(room, memberId)} 聊天室话题：${room.goal}`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `你上一轮退回了结论，并补充：${note}`,
     '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
@@ -78,7 +78,7 @@ const digestText = lines => lines.length === 0
 export const createChatScheduler = ({
   store,
   engine,
-  sendToSeat,
+  sendToMember,
   roomId,
   emit = () => {},
   refresh = () => {},
@@ -161,9 +161,9 @@ export const createChatScheduler = ({
     const hostName = room.chatHost?.name ?? ''
     const hostAuthor = 'lodge'
     if (hostBot === '' || hostName === '') throw new Error('聊天室没有主持人')
-    const speakers = [...(room.members ?? [])]
+    const speakers = (room.members ?? []).map(member => member.id)
     const turnLimit = chatTurnLimitOf(room)
-    const perSeat = speakers.length === 0
+    const perMember = speakers.length === 0
       ? turnLimit
       : Math.max(1, Math.ceil(turnLimit / speakers.length))
     const run = { cancelled: false }
@@ -194,11 +194,11 @@ export const createChatScheduler = ({
         for (let turn = 1; turn <= turnLimit; turn += 1) {
           const current = store.readRoom(roomId)
           if (run.cancelled || current === null || current.state !== 'active') break
-          const seat = pickChatSpeaker({ speakers, counts, perSeat, last, random })
-          if (seat === null) break
+          const memberId = pickChatSpeaker({ speakers, counts, perMember, last, random })
+          if (memberId === null) break
           room = current
-          counts.set(seat, (counts.get(seat) ?? 0) + 1)
-          last = seat
+          counts.set(memberId, (counts.get(memberId) ?? 0) + 1)
+          last = memberId
           if (turn === 1) {
             const text = `本轮围绕【${room.goal}】展开讨论。`
             store.appendMessage(roomId, { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
@@ -206,30 +206,30 @@ export const createChatScheduler = ({
           const before = await messageIds(chat)
           const text = speakerPrompt({
             room,
-            seat,
+            memberId,
             round,
             turn,
             turnLimit,
             note,
           })
-          const sent = await sendToSeat(seat, text)
+          const sent = await sendToMember(memberId, text)
           hidePrompt(sent?.messageId)
           patch(state => {
             state.chat = {
               ...state.chat,
               phase: 'discussing',
               turns: turn,
-              speaker: seat,
+              speaker: memberId,
               running: true,
             }
-            return { events: [{ type: 'chat.speaker', payload: { seat, turn } }] }
+            return { events: [{ type: 'chat.speaker', payload: { memberId, turn } }] }
           })
-          const reply = await waitForBot(chat, room.seatBots?.[seat], before, run)
+          const reply = await waitForBot(chat, memberOf(room, memberId)?.body?.ref, before, run)
           if (run.cancelled) break
           if (reply === null) {
             store.appendMessage(roomId, {
               kind: 'system',
-              text: `${seatDisplayName(room, seat)} 没有在限定时间内回应；继续下一位。`,
+              text: `${memberDisplayName(room, memberId)} 没有在限定时间内回应；继续下一位。`,
             })
           }
           completed = turn
@@ -272,13 +272,13 @@ export const createChatScheduler = ({
         return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', hostAuthor, '达到发言上限')] }
       })
       let before = await messageIds(chat)
-      let sent = await sendToSeat('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
+      let sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
       hidePrompt(sent?.messageId)
       let reply = await waitForBot(chat, hostBot, before, run)
       if (reply === null && !run.cancelled) {
         await waitIdle(chat.id, run, 30_000)
         before = await messageIds(chat)
-        sent = await sendToSeat('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
+        sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
         hidePrompt(sent?.messageId)
         reply = await waitForBot(chat, hostBot, before, run)
       }

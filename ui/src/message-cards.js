@@ -9,11 +9,11 @@ function Markdown({ text, variant }) {
   return h(MarkdownText, { text, labels: MD, variant })
 }
 
-function Speaker({ seat, ts, time = true, station = true, persona = '' }) {
+function Speaker({ member, ts, time = true, station = true, persona = '' }) {
   return h('div', { className: 'crew-speaker' },
-    h('span', { className: 'crew-speaker-name' }, seat?.name ?? '—'),
+    h('span', { className: 'crew-speaker-name' }, member?.name ?? '—'),
     persona === '' ? null : h('span', { className: 'crew-speaker-persona' }, `（${persona}）`),
-    station ? h('span', { className: 'crew-speaker-station' }, seat?.title ?? '') : null,
+    station ? h('span', { className: 'crew-speaker-station' }, member?.title ?? '') : null,
     time ? h('span', { className: 'crew-speaker-time' }, timeOf(ts)) : null)
 }
 
@@ -36,11 +36,11 @@ function ChatTopicText({ text, topic = false }) {
     : h('span', null, parts.before, h('strong', { className: 'crew-chat-topic' }, parts.topic), parts.after)
 }
 
-function ChatLine({ message, seat }) {
+function ChatLine({ message, member }) {
   const streaming = message.meta?.streaming === true
   return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { seat, ts: message.ts, time: false, station: false, persona: personalityLabel(seat?.personality) }),
+      h(Speaker, { member, ts: message.ts, time: false, station: false, persona: personalityLabel(member?.personality) }),
       h('div', {
         className: streaming ? 'bt-bubble crew-streaming' : 'bt-bubble',
       }, h(ChatTopicText, { text: String(message.text ?? ''), topic: message.meta?.opening === true }))))

@@ -1,7 +1,7 @@
 import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import * as type from '../../room-types/chat.js'
 import { isChatSystemNoise } from '../../room-chat.js'
-import { LODGE_HOST_LABEL } from '../../seat-labels.js'
+import { LODGE_HOST_LABEL } from '../../member-labels.js'
 import { personalityPrompt } from '../../../../shared/personalities.js'
 import { chatProjection } from './projection.js'
 
@@ -11,14 +11,14 @@ export const chatKind = {
   type,
   owns: typeId => typeId === 'chat',
 
-  seatRole: seat => ({
+  memberRole: member => ({
     roleKind: 'participant',
-    roleProfile: seat.name,
-    ...(seat.role === 'lead' ? { isHost: true } : {}),
+    roleProfile: member.name,
+    ...(member.role === 'lead' ? { isHost: true } : {}),
   }),
 
   // 聊天室成员只带讨论纪律，不继承工作室的执行 SOP。
-  seatSoul: seat => `你是${seat.name}。当前是聊天室，只讨论话题、补充观点与质疑；不改文件、不调用工具。用中文发言，控制在 200 字以内，直接回复。\n${personalityPrompt(seat.personality)}`,
+  memberSoul: member => `你是${member.name}。当前是聊天室，只讨论话题、补充观点与质疑；不改文件、不调用工具。用中文发言，控制在 200 字以内，直接回复。\n${personalityPrompt(member.personality)}`,
 
   validateRoster: null,
   resolvePlan: () => null,
@@ -29,7 +29,7 @@ export const chatKind = {
   approvalReadOnly: () => false,
   appliesStageDependencies: false,
 
-  leadSeatOf: () => null,
+  leadMemberIdOf: () => null,
 
   record: ({ chatLimit }) => {
     const limit = Number.isInteger(chatLimit) ? chatLimit : CHAT_TURNS_PER_ROUND
@@ -58,7 +58,7 @@ export const chatKind = {
 
   provisionExtra: async ({ engine, short }) => {
     // 主持人是 Lodge 自己：不占发言位置，只用来开场和总结。
-    const host = await engine.createSeatBot({
+    const host = await engine.createMemberBot({
       name: `LodgeHost${short}`,
       soul: '你是 Lodge 的主持人。你只负责开场、总结和收敛讨论，不替发言者下结论；不要调用工具。',
       approval: 'ask',
@@ -67,7 +67,7 @@ export const chatKind = {
       members: [host.id],
       leadId: host.id,
       chatHost: { memberRef: host.id, name: host.name, displayName: LODGE_HOST_LABEL },
-      cleanup: () => engine.deleteSeatBot(host.id),
+      cleanup: () => engine.deleteMemberBot(host.id),
     }
   },
 
@@ -91,21 +91,21 @@ export const chatKind = {
   hideActivity: chatProjection.hideActivity,
   acceptsDelta: chatProjection.acceptsDelta,
 
-  refresh: (chatBase, toSeat, toSeats) => ({
+  refresh: (chatBase, toMember, toMembers) => ({
     chatWorking: chatBase?.working === true,
-    chatBusySeat: toSeat(chatBase?.busyRef) ?? '',
+    chatBusyMember: toMember(chatBase?.busyRef) ?? '',
     chatQueue: (chatBase?.queue ?? []).map(item => ({
-      seat: toSeat(item.memberRef),
+      memberId: toMember(item.memberRef),
       state: item.state,
       position: item.position,
       of: item.of,
-      waitingFor: item.waitingForRef === undefined ? null : toSeat(item.waitingForRef),
+      waitingForMemberId: item.waitingForRef === undefined ? null : toMember(item.waitingForRef),
     })),
-    chatHolds: toSeats(chatBase?.holds),
+    chatHolds: toMembers(chatBase?.holds),
     chatUnread: chatBase?.unread === true,
   }),
 
-  onSeatFailure: () => {},
+  onMemberFailure: () => {},
   deliveryOf: () => null,
   hostOf: room => room.chatHost ?? null,
   speakerOf: room => room.chat?.speaker ?? '',

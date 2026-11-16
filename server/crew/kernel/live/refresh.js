@@ -1,6 +1,6 @@
-import { seatFor } from './projection.js'
+import { memberForRef } from './projection.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
-import { seatActivityOf } from './seat-activity.js'
+import { memberActivityOf } from './member-activity.js'
 
 export const createRoomRefresher = ({ store, engine, emit }) => {
   const refresh = (entry, { force = false } = {}) => {
@@ -12,38 +12,38 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
       if (room === null) return
       try {
         const bases = await engine.rooms()
-        const seatBases = Object.entries(room.seatRooms ?? {})
-          .map(([seat, ref]) => ({ seat, base: bases.find(item => item.id === ref.id) }))
+        const memberBases = (room.members ?? [])
+          .map(member => ({ memberId: member.id, base: bases.find(item => item.id === member.body?.roomRef) }))
           .filter(item => item.base !== undefined)
-        const busySeats = seatBases.filter(item => item.base.working === true).map(item => item.seat)
+        const busyMembers = memberBases.filter(item => item.base.working === true).map(item => item.memberId)
         const chatBase = room.chatRoom === undefined ? undefined : bases.find(item => item.id === room.chatRoom.id)
         entry.baseRoom = chatBase ?? entry.baseRoom
         const updated = store.updateRoom(entry.roomId, current => {
-          const toSeat = ref => (typeof ref === 'string' ? seatFor(current, ref) ?? ref : ref)
-          const toSeats = map => Object.fromEntries(Object.entries(map ?? {}).map(([ref, value]) => [toSeat(ref), value]))
+          const toMember = ref => (typeof ref === 'string' ? memberForRef(current, ref) ?? ref : ref)
+          const toMembers = map => Object.fromEntries(Object.entries(map ?? {}).map(([ref, value]) => [toMember(ref), value]))
           const sameBusy = current.busy === true &&
-            Array.isArray(current.busySeats) &&
-            current.busySeats.length === busySeats.length &&
-            current.busySeats.every((seat, index) => seat === busySeats[index])
-          current.busy = busySeats.length > 0
-          current.busySeat = busySeats[0] ?? ''
-          current.busySeats = busySeats
+            Array.isArray(current.busyMembers) &&
+            current.busyMembers.length === busyMembers.length &&
+            current.busyMembers.every((memberId, index) => memberId === busyMembers[index])
+          current.busy = busyMembers.length > 0
+          current.busyMember = busyMembers[0] ?? ''
+          current.busyMembers = busyMembers
           // 成员运行态归共享投影：谁在跑、谁在等，两套房型拿到同一份数据。
-          const seatActivity = seatActivityOf(chatBase, toSeat)
-          current.turnQueue = seatActivity.turnQueue
-          current.presence = seatActivity.presence
-          const members = new Set(current.members ?? [])
-          current.heldSeats = members.size === 0
-            ? seatActivity.heldSeats
-            : seatActivity.heldSeats.filter(seat => members.has(seat))
-          current.heldMessages = members.size === 0
-            ? seatActivity.heldMessages
-            : Object.fromEntries(Object.entries(seatActivity.heldMessages).filter(([seat]) => members.has(seat)))
+          const activity = memberActivityOf(chatBase, toMember)
+          current.turnQueue = activity.turnQueue
+          current.presence = activity.presence
+          const memberSet = new Set((current.members ?? []).map(member => member.id))
+          current.heldMembers = memberSet.size === 0
+            ? activity.heldMembers
+            : activity.heldMembers.filter(memberId => memberSet.has(memberId))
+          current.heldMessages = memberSet.size === 0
+            ? activity.heldMessages
+            : Object.fromEntries(Object.entries(activity.heldMessages).filter(([memberId]) => memberSet.has(memberId)))
           // 状态行的计时锚点：同一批成员连续工作时不清零。
-          current.busySince = busySeats.length === 0
+          current.busySince = busyMembers.length === 0
             ? null
             : sameBusy ? (current.busySince ?? now) : now
-          Object.assign(current, roomPresentationOfRoom(current)?.refresh(chatBase, toSeat, toSeats) ?? {})
+          Object.assign(current, roomPresentationOfRoom(current)?.refresh(chatBase, toMember, toMembers) ?? {})
           return { events: [] }
         })
         if (updated === null) return

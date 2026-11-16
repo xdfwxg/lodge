@@ -5,17 +5,17 @@ import { parseProposal, recommendRoster } from './roster-recommend.js'
 const reply = body => `这是队长的方案：\n\n\`\`\`json\n${JSON.stringify({ done: ['完成条件'], ...body })}\n\`\`\`\n`
 
 test('raw newlines and trailing commas inside the reply still parse', () => {
-  const text = '```json\n{"done": ["第一行\n第二行",],"seats": [{"role":"lead","name":"规划师"},{"role":"worker","name":"执行官"},{"role":"verifier","name":"验收员"}],"verify":"test","acceptance":"npm test"}\n```'
+  const text = '```json\n{"done": ["第一行\n第二行",],"members": [{"role":"lead","name":"规划师"},{"role":"worker","name":"执行官"},{"role":"verifier","name":"验收员"}],"verify":"test","acceptance":"npm test"}\n```'
   const proposal = parseProposal(text)
   assert.equal(proposal.done[0], '第一行\n第二行')
-  assert.deepEqual(proposal.seats.map(seat => seat.role), ['lead', 'worker', 'verifier'])
+  assert.deepEqual(proposal.members.map(member => member.role), ['lead', 'worker', 'verifier'])
 })
 
-test('the fixed three-seat squad keeps names and reasons in the card', () => {
+test('the fixed three-member squad keeps names and reasons in the card', () => {
   const proposal = parseProposal(reply({
     done: ['hello.txt 内容为 crew ok'],
     questions: [{ text: '文件放在根目录吗？', recommendation: '放根目录' }],
-    seats: [
+    members: [
       { role: 'lead', name: '规划师', reason: '对齐目标' },
       { role: 'worker', name: '执行者', reason: '实现与跑测试' },
       { role: 'verifier', name: '验收员', reason: '独立复核' },
@@ -24,7 +24,7 @@ test('the fixed three-seat squad keeps names and reasons in the card', () => {
     acceptance: 'npm test',
     why: '固定三人小队分工',
   }))
-  assert.deepEqual(proposal.seats.map(seat => seat.role), ['lead', 'worker', 'verifier'])
+  assert.deepEqual(proposal.members.map(member => member.role), ['lead', 'worker', 'verifier'])
   assert.deepEqual(proposal.done, ['hello.txt 内容为 crew ok'])
   assert.equal(proposal.questions.length, 1)
   assert.equal(proposal.questions[0].recommendation, '放根目录')
@@ -34,7 +34,7 @@ test('the fixed three-seat squad keeps names and reasons in the card', () => {
 
 test('the card carries orchestration and only worker assignees', () => {
   const proposal = parseProposal(reply({
-    seats: [
+    members: [
       { role: 'lead', name: '规划师' },
       { role: 'worker', name: '甲' },
       { role: 'worker', name: '乙' },
@@ -52,7 +52,7 @@ test('the card carries orchestration and only worker assignees', () => {
 
 test('an unknown orchestration falls back to pipeline with a visible note', () => {
   const proposal = parseProposal(reply({
-    seats: [{ role: 'worker', name: '执行者' }],
+    members: [{ role: 'worker', name: '执行者' }],
     orchestration: 'swarm',
     verify: 'manual',
     why: '单人',
@@ -63,7 +63,7 @@ test('an unknown orchestration falls back to pipeline with a visible note', () =
 
 test('a team proposal keeps names and reasons and derives permissions later', () => {
   const proposal = parseProposal(reply({
-    seats: [
+    members: [
       { role: 'lead', name: '统筹', reason: '负责对齐' },
       { role: 'worker', name: '前端', reason: '实现界面' },
       { role: 'worker', name: '后端', reason: '实现接口' },
@@ -73,14 +73,14 @@ test('a team proposal keeps names and reasons and derives permissions later', ()
     acceptance: 'npm test',
     why: '工作可拆且需要独立验收',
   }))
-  assert.deepEqual(proposal.seats.map(seat => seat.name), ['统筹', '前端', '后端', '复核'])
-  assert.equal(proposal.seats[1].reason, '实现界面')
+  assert.deepEqual(proposal.members.map(member => member.name), ['统筹', '前端', '后端', '复核'])
+  assert.equal(proposal.members[1].reason, '实现界面')
   assert.deepEqual(proposal.questions, [])
 })
 
 test('common role aliases are normalized', () => {
   const proposal = parseProposal(reply({
-    seats: [
+    members: [
       { role: 'planner', name: '统筹' },
       { role: 'executor', name: '前端' },
       { role: 'reviewer', name: '复核' },
@@ -88,7 +88,7 @@ test('common role aliases are normalized', () => {
     verify: 'test',
     acceptance: 'npm test',
   }))
-  assert.deepEqual(proposal.seats.map(seat => seat.role), ['lead', 'worker', 'verifier'])
+  assert.deepEqual(proposal.members.map(member => member.role), ['lead', 'worker', 'verifier'])
 })
 
 test('questions are capped at three and keep their recommendation', () => {
@@ -99,7 +99,7 @@ test('questions are capped at three and keep their recommendation', () => {
       { text: 'q3', recommendation: 'a3' },
       { text: 'q4', recommendation: 'a4' },
     ],
-    seats: [{ role: 'worker', name: '执行' }],
+    members: [{ role: 'worker', name: '执行' }],
     verify: 'manual',
   }))
   assert.deepEqual(proposal.questions.map(item => item.text), ['q1', 'q2', 'q3'])
@@ -108,7 +108,7 @@ test('questions are capped at three and keep their recommendation', () => {
 
 test('a test proposal without a command falls back to human confirmation', () => {
   const proposal = parseProposal(reply({
-    seats: [{ role: 'worker', name: '执行' }],
+    members: [{ role: 'worker', name: '执行' }],
     verify: 'test',
     acceptance: '',
     why: '文档任务',
@@ -125,7 +125,7 @@ test('an unparsable reply fails closed', () => {
 test('too many done items are trimmed visibly', () => {
   const proposal = parseProposal(reply({
     done: Array.from({ length: 7 }, (_, index) => `条件 ${index + 1}`),
-    seats: [{ role: 'worker', name: '执行' }],
+    members: [{ role: 'worker', name: '执行' }],
     verify: 'test',
     acceptance: 'npm test',
   }))
@@ -136,14 +136,14 @@ test('too many done items are trimmed visibly', () => {
 test('a proposal without done fails closed', () => {
   assert.throws(() => parseProposal(reply({
     done: [],
-    seats: [{ role: 'worker', name: '执行' }],
+    members: [{ role: 'worker', name: '执行' }],
     verify: 'manual',
   })), /可核对的结果/)
 })
 
 test('a manual proposal with a verifier fails closed', () => {
   assert.throws(() => parseProposal(reply({
-    seats: [
+    members: [
       { role: 'worker', name: '执行' },
       { role: 'verifier', name: '复核' },
     ],
@@ -151,9 +151,9 @@ test('a manual proposal with a verifier fails closed', () => {
   })), /一条能跑的检查/)
 })
 
-test('a second verifier is rejected by the seat contract', () => {
+test('a second verifier is rejected by the member contract', () => {
   assert.throws(() => parseProposal(reply({
-    seats: [
+    members: [
       { role: 'worker', name: '执行' },
       { role: 'verifier', name: '复核 A' },
       { role: 'verifier', name: '复核 B' },
@@ -165,21 +165,21 @@ test('a second verifier is rejected by the seat contract', () => {
 
 test('an unknown role fails closed', () => {
   assert.throws(() => parseProposal(reply({
-    seats: [{ role: 'observer', name: '观察' }],
+    members: [{ role: 'observer', name: '观察' }],
     verify: 'manual',
   })), /角色不合法/)
 })
 
 test('a proposal without a worker fails closed', () => {
   assert.throws(() => parseProposal(reply({
-    seats: [{ role: 'lead', name: '队长' }],
+    members: [{ role: 'lead', name: '队长' }],
     verify: 'manual',
   })), /worker/)
 })
 
 test('a proposal can carry up to three planned stages', () => {
   const proposal = parseProposal(reply({
-    seats: [{ role: 'worker', name: '执行' }, { role: 'verifier', name: '复核' }],
+    members: [{ role: 'worker', name: '执行' }, { role: 'verifier', name: '复核' }],
     verify: 'test',
     acceptance: 'npm test',
     stages: [
@@ -195,7 +195,7 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
   const removed = []
   let cleaned = 0
   const proposalReply = reply({
-    seats: [
+    members: [
       { role: 'lead', name: '规划师', reason: '对齐目标' },
       { role: 'worker', name: '执行者', reason: '实现与跑测试' },
       { role: 'verifier', name: '验收员', reason: '独立复核' },
@@ -208,7 +208,7 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
   const engine = {
     capabilities: () => ({ provisioning: true, mentions: true }),
     health: async () => ({ ok: true }),
-    createSeatBot: async () => ({ id: 'bot-1' }),
+    createMemberBot: async () => ({ id: 'bot-1' }),
     createRoom: async () => ({ id: 'probe-1', sessionRef: 'thread-1' }),
     sendTurn: async ({ text }) => {
       sentPrompt = text
@@ -217,10 +217,10 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
     history: async () => ({ messages: [{ kind: 'turn', turn: { reply: proposalReply } }] }),
     cancelTurn: async () => {},
     deleteRoom: async () => {},
-    deleteSeatBot: async () => {},
+    deleteMemberBot: async () => {},
   }
   const provider = {
-    prepareRoom: ({ source, seats }) => ({ seats: { [seats[0].id]: { path: source } } }),
+    prepareRoom: ({ source, members }) => ({ members: { [members[0].id]: { path: source } } }),
     cleanupRoom: () => { cleaned += 1 },
   }
   const workspace = {
@@ -244,7 +244,7 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
     workspace,
   })
   assert.equal(result.ok, true, JSON.stringify(result))
-  assert.equal(result.body.proposal.seats.length, 3)
+  assert.equal(result.body.proposal.members.length, 3)
   assert.match(sentPrompt, /已经确认的交接单/)
   assert.match(sentPrompt, /先做最小版本/)
   assert.match(sentPrompt, /不要再生成目标对齐/)

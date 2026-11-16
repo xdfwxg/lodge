@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHandoff } from './handoff.js'
+import { normalizeLegacyTestRoom } from '../../testing/room.js'
 
-const room = (over = {}) => ({
+const room = (over = {}) => normalizeLegacyTestRoom({
   id: 'room-1',
   goal: '把 hello 改成 greet',
   seatNames: { worker: 'WorkerBase', verifier: 'VerifierBase' },
@@ -45,15 +46,15 @@ const setup = (initial = room(), deliver = null) => {
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToSeat: deliver ?? (async (seat, text, options = {}) => {
-      sent.push({ seat, text, options })
+    sendToMember: deliver ?? (async (memberId, text, options = {}) => {
+      sent.push({ memberId, text, options })
       return { messageId: null }
     }),
   })
   return { handoff, store, messages, events, sent, room: () => current }
 }
 
-test('a handoff writes a work-turn card, wakes the seat and moves its cursor', async () => {
+test('a handoff writes a work-turn card, wakes the member and moves its cursor', async () => {
   const ctx = setup()
   const sent = await ctx.handoff.trigger({
     room: ctx.room(),
@@ -68,7 +69,7 @@ test('a handoff writes a work-turn card, wakes the seat and moves its cursor', a
   assert.equal(sent.meta.status, 'sent')
   assert.equal(sent.kind, 'handoff')
   assert.equal(ctx.sent.length, 1)
-  assert.equal(ctx.sent[0].seat, 'worker')
+  assert.equal(ctx.sent[0].memberId, 'worker')
   assert.equal(ctx.sent[0].text, '阶段 1「实现」已确认。验收命令：npm test。')
   assert.equal(ctx.sent[0].options.intent, 'handoff')
   assert.equal(ctx.sent[0].options.from, 'lead')
@@ -76,7 +77,7 @@ test('a handoff writes a work-turn card, wakes the seat and moves its cursor', a
   assert.match(ctx.sent[0].options.sendId, /^h-[a-f0-9]{32}$/)
   assert.equal(ctx.messages[0].kind, 'handoff')
   assert.equal(ctx.messages[0].meta.workTurn.done[0], '测试通过')
-  assert.equal(ctx.room().seatCursors.worker, ctx.messages[0].seq)
+  assert.equal(ctx.room().memberCursors.worker, ctx.messages[0].seq)
   assert.deepEqual(ctx.events.map(event => event.type), ['handoff.requested', 'handoff.sent'])
 })
 

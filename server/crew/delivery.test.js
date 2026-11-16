@@ -11,7 +11,7 @@ const room = (over = {}) => ({
   completedAt: 100,
   completedCommit: 'abcdef123456',
   independence: 'degraded',
-  seatSpecs: [{ id: 'verifier', name: '复核', role: 'verifier' }],
+  members: [{ id: 'verifier', name: '复核', role: 'verifier', roleKind: 'verifier', body: { kind: 'base', ref: 'bot-verifier', name: 'Verifierf0d790' } }],
   workspace: { provider: 'git', capabilities: { vcs: 'git', commit: true } },
   stages: [
     { title: '对齐', kind: 'decision', state: 'passed' },
@@ -67,9 +67,8 @@ test('a manual stage carries its changed files into the delivery card', () => {
 
 test('delivery verdicts print roster names, not base names', () => {
   const withRoster = room({
-    seatNames: { verifier: 'Verifierf0d790' },
-    seatSpecs: [{ id: 'verifier', name: '验收员' }],
+    members: [{ id: 'verifier', name: '验收员', role: 'verifier', roleKind: 'verifier', body: { kind: 'base', ref: 'bot-verifier', name: 'Verifierf0d790' } }],
   })
   const delivery = buildDelivery(withRoster, messages)
-  assert.equal(delivery.seatNames.verifier, '验收员')
+  assert.equal(delivery.memberNames.verifier, '验收员')
 })

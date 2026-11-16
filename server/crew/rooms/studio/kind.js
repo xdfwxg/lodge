@@ -1,7 +1,7 @@
 import { resolveAssigneeTokens } from '../../orchestration/index.js'
 import * as type from '../../room-types/studio.js'
 import { workContract } from '../../prompt-modes.js'
-import { roleKindOf } from '../../seats.js'
+import { roleKindOf } from '../../roster.js'
 import { commandEvidenceFor, latestReviewTimeout, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
@@ -79,7 +79,7 @@ const studioNeedsYou = (room, messages = []) => {
   if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '待签字' }
   if (verdict !== undefined) return { kind: 'rework', stage: index, label: '待重做' }
   if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
-    return (room.verifiers?.length ?? 0) > 0
+    return verifierIds(room).length > 0
       ? { kind: 'review', stage: index, label: '验收员在看' }
       : { kind: 'signoff', stage: index, label: '待签字' }
   }
@@ -122,7 +122,7 @@ const initialMessages = ({ room, workspaces, engineFallbacks }) => {
   const messages = []
   const label = { lead: '规划师', planner: '规划师', worker: '执行官', executor: '执行官', verifier: '验收员' }
   const envWarnings = Object.entries(workspaces.environment ?? {})
-    .flatMap(([seat, env]) => (env.warnings ?? []).map(text => `${label[seat] ?? seat}: ${text}`))
+    .flatMap(([member, env]) => (env.warnings ?? []).map(text => `${label[member] ?? member}: ${text}`))
   if (envWarnings.length > 0) messages.push({ kind: 'system', text: `工作文件夹同步警告：${envWarnings.join('；')}` })
   if (Object.keys(engineFallbacks).length > 0) {
     const engineLabel = {
@@ -144,7 +144,7 @@ const initialMessages = ({ room, workspaces, engineFallbacks }) => {
       gemini: 'Gemini',
     }
     const text = Object.entries(engineFallbacks)
-      .map(([seat, item]) => `${label[seat] ?? seat} 没能用上 ${engineLabel[item.requested] ?? item.requested}，实际跑的是 ${engineLabel[item.actual] ?? item.actual}`)
+      .map(([member, item]) => `${label[member] ?? member} 没能用上 ${engineLabel[item.requested] ?? item.requested}，实际跑的是 ${engineLabel[item.actual] ?? item.actual}`)
       .join('；')
     messages.push({
       kind: 'system',
@@ -161,20 +161,20 @@ export const studioKind = {
   type,
   owns: typeId => typeId === 'studio',
 
-  seatRole: seat => ({
-    roleKind: seat.roleKind ?? roleKindOf(seat.role),
-    roleProfile: seat.name,
+  memberRole: member => ({
+    roleKind: member.roleKind ?? roleKindOf(member.role),
+    roleProfile: member.name,
   }),
 
   // 静态纪律只注入一次，后续阶段提示不再重复。
-  seatSoul: seat => [
-    seat.prompt,
+  memberSoul: member => [
+    member.prompt,
     '当前是工作室：所有成员在同一个房间目录执行；只有被 @ 的成员才会响应。',
     '你是三类成员之一：规划师、执行官、验收员；不要自创角色，也不要承担其他成员的职责。',
     '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
     '群消息按角色工作日志格式写；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
     '不要先发“我来/我将/开始检查”之类的准备句或过程声明；直接给工作日志或结论。',
-    ...workContract(seat.role),
+    ...workContract(member.role),
     // 规划师工具协议随 soul 常驻；阶段推进不再专门唤醒规划师。
   ].filter(Boolean).join('\n'),
 
@@ -188,7 +188,7 @@ export const studioKind = {
   approvalReadOnly: activeStageReadOnly,
   appliesStageDependencies: true,
 
-  leadSeatOf: lead => lead.id,
+  leadMemberIdOf: lead => lead.id,
 
   record: ({
     lead,
@@ -243,11 +243,11 @@ export const studioKind = {
     .filter(Boolean)
     .join(' / ') || '人确认',
 
-  onSeatFailure: (current, seat) => {
+  onMemberFailure: (current, memberId) => {
     const stageIndex = current.stages?.findIndex(stage => stage.state === 'active') ?? -1
     if (stageIndex < 0 || !Array.isArray(current.stages[stageIndex].tasks)) return
     current.stages[stageIndex].tasks = current.stages[stageIndex].tasks.map(task => (
-      task.owner === seat ? { ...task, status: 'failed' } : task
+      task.owner === memberId ? { ...task, status: 'failed' } : task
     ))
   },
 }

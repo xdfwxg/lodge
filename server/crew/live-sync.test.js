@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createMessageProjector } from './kernel/live/projection.js'
-import { createSeatSync } from './kernel/live/sync.js'
+import { createMemberSync } from './kernel/live/sync.js'
+import { normalizeLegacyTestRoom } from './testing/room.js'
 
-test('an engine-level seat error pauses the room and marks its task failed', async () => {
-  let room = {
+test('an engine-level member error pauses the room and marks its task failed', async () => {
+  let room = normalizeLegacyTestRoom({
     id: 'room-1',
     state: 'active',
     roomType: 'studio',
@@ -19,7 +20,7 @@ test('an engine-level seat error pauses the room and marks its task failed', asy
       acceptance: 'true',
       tasks: [{ owner: 'worker', status: 'working' }],
     }],
-  }
+  })
   const messages = []
   const store = {
     readRoom: () => room,
@@ -34,7 +35,7 @@ test('an engine-level seat error pauses the room and marks its task failed', asy
     appendMessage: (_id, message) => messages.push(message),
   }
   const projector = createMessageProjector({ store })
-  const sync = createSeatSync({
+  const sync = createMemberSync({
     store,
     engine: {
       history: async () => ({
@@ -45,15 +46,15 @@ test('an engine-level seat error pauses the room and marks its task failed', asy
   })
   const entry = {
     roomId: 'room-1',
-    seats: new Map([['worker', { sessionRef: 's' }]]),
+    members: new Map([['worker', { sessionRef: 's' }]]),
     syncing: new Set(),
     turns: { trackTool: () => {}, captureTurn: () => {} },
   }
-  await sync.syncSeat(entry, 'worker')
+  await sync.syncMember(entry, 'worker')
   assert.equal(room.state, 'paused')
-  assert.equal(room.pauseReason, 'seat_error')
-  assert.equal(room.seatError.seat, 'worker')
-  assert.equal(room.seatError.kind, 'quota')
+  assert.equal(room.pauseReason, 'member_error')
+  assert.equal(room.memberError.memberId, 'worker')
+  assert.equal(room.memberError.kind, 'quota')
   assert.equal(room.stages[0].tasks[0].status, 'failed')
   assert.match(messages.at(-1).text, /模型额度不够/)
   assert.match(messages.at(-1).text, /点“继续”/)
@@ -61,7 +62,7 @@ test('an engine-level seat error pauses the room and marks its task failed', asy
 })
 
 test('ordinary activity is not treated as an engine failure', async () => {
-  let room = {
+  let room = normalizeLegacyTestRoom({
     id: 'room-1',
     state: 'active',
     roomType: 'studio',
@@ -70,7 +71,7 @@ test('ordinary activity is not treated as an engine failure', async () => {
     seatSpecs: [{ id: 'worker', role: 'worker', name: '执行者' }],
     hiddenBaseMessages: [],
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
-  }
+  })
   const store = {
     readRoom: () => room,
     updateRoom: (_id, mutate) => {
@@ -83,7 +84,7 @@ test('ordinary activity is not treated as an engine failure', async () => {
     appendMessage: () => {},
   }
   const projector = createMessageProjector({ store })
-  const sync = createSeatSync({
+  const sync = createMemberSync({
     store,
     engine: {
       history: async () => ({
@@ -94,10 +95,10 @@ test('ordinary activity is not treated as an engine failure', async () => {
   })
   const entry = {
     roomId: 'room-1',
-    seats: new Map([['worker', { sessionRef: 's' }]]),
+    members: new Map([['worker', { sessionRef: 's' }]]),
     syncing: new Set(),
     turns: { trackTool: () => {}, captureTurn: () => {} },
   }
-  await sync.syncSeat(entry, 'worker')
+  await sync.syncMember(entry, 'worker')
   assert.equal(room.state, 'active')
 })

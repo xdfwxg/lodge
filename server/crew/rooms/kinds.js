@@ -6,15 +6,15 @@ export const roomKinds = [studioKind, chatKind]
 
 // 两种窄接口：建房/能力只拿 mode，消息投影/注意力只拿 presentation。
 const MODE_KEYS = [
-  'id', 'owns', 'seatRole', 'seatSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
-  'acceptsChatDecision', 'leadSeatOf', 'record',
+  'acceptsChatDecision', 'leadMemberIdOf', 'record',
   'initialMessages', 'provisionExtra', 'start',
   'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
-  'refresh', 'onSeatFailure', 'deliveryOf',
+  'refresh', 'onMemberFailure', 'deliveryOf',
   'hostOf', 'speakerOf',
 ]
 

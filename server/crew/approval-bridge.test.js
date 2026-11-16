@@ -23,16 +23,17 @@ const setup = async (options = {}) => {
     repoPath: dir,
     sourceRepo: dir,
     stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
-    seatRooms: { worker: { id: 'base-1' } },
-    seatSpecs: [{
+    members: [{
       id: 'worker',
       name: '执行',
       role: 'worker',
+      roleKind: 'executor',
       permissions: { read: true, exec: true, write: true },
+      toolSurface: ['read', 'exec', 'write'],
+      skills: [],
+      mcp: [],
+      body: { kind: 'base', ref: 'bot-worker', name: '执行', roomRef: 'base-1', sessionRef: 'thread-1' },
     }],
-    members: ['worker'],
-    seatNames: { worker: '执行' },
-    verifiers: [],
     usage: { turns: 0, costMicroUsd: 0 },
   }
   store.writeRoom(room)
@@ -184,7 +185,7 @@ test('a denial answers the base card with deny and leaves the approval denied', 
   }
 })
 
-test('an internal command still follows the seat permission without an approval', async () => {
+test('an internal command still follows the member permission without an approval', async () => {
   const ctx = await setup()
   try {
     ctx.permission('npm test')

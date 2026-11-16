@@ -1,7 +1,7 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { stageGuidance } from '../../prompt-modes.js'
-import { buildSeatHandoff } from './seat-handoff.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { buildMemberHandoff } from './member-handoff.js'
+import { memberDisplayName } from '../../member-labels.js'
 
 // 执行成员的阶段交接包：由代码装配，规划师只决定交给谁，不转述事实。
 export const studioWorkerPrompt = ({
@@ -18,14 +18,14 @@ export const studioWorkerPrompt = ({
   port,
   environment,
 }) => {
-  const workerName = seatDisplayName(room, assignee)
+  const workerName = memberDisplayName(room, assignee)
   return [
     `@${workerName} 阶段 ${index + 1}「${stage.title}」已确认。${acceptance}`,
     rework
       ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : note}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求重做。`
       : '',
     ...stageGuidance({ readOnly }),
-    buildSeatHandoff({ room, messages }),
+    buildMemberHandoff({ room, messages }),
     workspace.parallel === true
       ? workspace.isolation === 'worktree'
         ? '你在自己的 worktree 里与其他执行成员并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'

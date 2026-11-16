@@ -3,15 +3,15 @@ import test from 'node:test'
 import { batonOf } from './baton.js'
 
 const room = {
-  leadSeat: 'lead',
-  seatSpecs: [
+  leadMemberId: 'lead',
+  members: [
     { id: 'lead', name: '规划师' },
     { id: 'worker', name: '执行官' },
     { id: 'verifier', name: '验收员' },
   ],
 }
 
-test('a dispatch becomes a stage baton with the receiving seats', () => {
+test('a dispatch becomes a stage baton with the receiving members', () => {
   const baton = batonOf({
     kind: 'dispatch',
     authorId: 'lead',
@@ -44,13 +44,13 @@ test('a planner handoff message reads its mention, stage and acceptance', () => 
   assert.equal(baton.acceptance, 'npm test')
 })
 
-test('seat names fall back to the UI seat map', () => {
+test('member names fall back to the UI member map', () => {
   const baton = batonOf({
     kind: 'dispatch',
     authorId: 'lead',
     text: '派活。',
     meta: { stage: 0, workers: ['worker'] },
-  }, { seatSpecs: [] }, { lead: { name: '规划师' }, worker: { name: '执行官' } })
+  }, { members: [] }, { lead: { name: '规划师' }, worker: { name: '执行官' } })
   assert.equal(baton.from, '规划师')
   assert.equal(baton.to, '执行官')
 })

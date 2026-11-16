@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneSeats, rangeChanges,
+  cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
   refreshReviewCopy, removeIsolatedCopy, restore, submit,
 } from './workspace-git.js'
-import { rosterFromRoles, seatsFor } from './seats.js'
+import { rosterFromRoles, membersFor } from './roster.js'
 
 const repo = () => {
   const dir = mkdtempSync(join(tmpdir(), 'crew-worktree-src-'))
@@ -34,18 +34,18 @@ test('acceptance runs in a disposable copy and cannot write the source repo', ()
   assert.equal(existsSync(copy.path), false)
 })
 
-test('prepares isolated seat workspaces and refreshes the verifier copy', () => {
+test('prepares isolated member workspaces and refreshes the verifier copy', () => {
   const sourceRepo = repo()
   const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-worktrees-'))
   const previous = process.env.CREW_WORKTREE_ROOT
   process.env.CREW_WORKTREE_ROOT = worktreeRoot
   let workspaces = null
   try {
-    workspaces = prepareRoom({ source: sourceRepo, short: 'abc123', seats: seatsFor('delivery-triad') })
-    const executor = workspaces.seats.executor.path
-    const verifier = workspaces.seats.verifier.path
+    workspaces = prepareRoom({ source: sourceRepo, short: 'abc123', members: membersFor('delivery-triad') })
+    const executor = workspaces.members.executor.path
+    const verifier = workspaces.members.verifier.path
     assert.equal(existsSync(executor), true)
-    assert.equal(existsSync(workspaces.seats.planner.path), true)
+    assert.equal(existsSync(workspaces.members.planner.path), true)
     assert.equal(existsSync(verifier), true)
 
     writeFileSync(join(executor, 'hello.txt'), 'crew ok\n')
@@ -71,7 +71,7 @@ test('prepares isolated seat workspaces and refreshes the verifier copy', () => 
   }
 })
 
-test('execution seats get a local env copy, a dependency link and a port hint', () => {
+test('execution members get a local env copy, a dependency link and a port hint', () => {
   const sourceRepo = repo()
   writeFileSync(join(sourceRepo, '.gitignore'), '.env\nnode_modules/\n')
   execFileSync('git', ['add', '.gitignore'], { cwd: sourceRepo })
@@ -86,10 +86,10 @@ test('execution seats get a local env copy, a dependency link and a port hint', 
   process.env.CREW_DISK_MIN_FREE_MB = '0'
   let workspaces = null
   try {
-    workspaces = prepareRoom({ source: sourceRepo, short: 'env123', seats: seatsFor('delivery-triad') })
-    const executor = workspaces.seats.executor.path
-    const verifier = workspaces.seats.verifier.path
-    const planner = workspaces.seats.planner.path
+    workspaces = prepareRoom({ source: sourceRepo, short: 'env123', members: membersFor('delivery-triad') })
+    const executor = workspaces.members.executor.path
+    const verifier = workspaces.members.verifier.path
+    const planner = workspaces.members.planner.path
     assert.equal(readFileSync(join(executor, '.env'), 'utf8'), 'TOKEN=ok\n')
     assert.equal(readFileSync(join(verifier, '.env'), 'utf8'), 'TOKEN=ok\n')
     assert.equal(existsSync(join(planner, '.env')), false)
@@ -130,18 +130,18 @@ test('restore rewinds the room to a stage base and keeps a backup branch', () =>
   process.env.CREW_DISK_MIN_FREE_MB = '0'
   let workspaces = null
   try {
-    const seats = rosterFromRoles([
+    const members = rosterFromRoles([
       { role: 'lead', name: '队长' },
       { role: 'worker', name: '甲' },
       { role: 'verifier', name: '复核' },
     ])
-    workspaces = prepareRoom({ source: sourceRepo, short: 'rew1', seats })
-    const worker = workspaces.seats.worker.path
+    workspaces = prepareRoom({ source: sourceRepo, short: 'rew1', members })
+    const worker = workspaces.members.worker.path
     const room = {
       id: 'room-rew1',
       repoPath: workspaces.roomPath,
       workers: ['worker'],
-      worktrees: Object.fromEntries(Object.entries(workspaces.seats).map(([id, item]) => [id, item.path])),
+      worktrees: Object.fromEntries(Object.entries(workspaces.members).map(([id, item]) => [id, item.path])),
       workspace: { provider: 'git' },
     }
     const base = head({ path: worker })
@@ -201,24 +201,24 @@ test('pruning keeps the delivery worktree and candidate branches', () => {
   process.env.CREW_DISK_MIN_FREE_MB = '0'
   let workspaces = null
   try {
-    const seats = rosterFromRoles([
+    const members = rosterFromRoles([
       { role: 'lead', name: '队长' },
       { role: 'worker', name: '前端' },
       { role: 'worker', name: '后端' },
       { role: 'verifier', name: '复核' },
     ])
-    workspaces = prepareRoom({ source: sourceRepo, short: 'prune1', seats })
+    workspaces = prepareRoom({ source: sourceRepo, short: 'prune1', members })
     const room = {
       repoPath: workspaces.integration.path,
       sourceRepo,
-      worktrees: Object.fromEntries(Object.entries(workspaces.seats).map(([id, item]) => [id, item.path])),
-      prunedSeats: [],
+      worktrees: Object.fromEntries(Object.entries(workspaces.members).map(([id, item]) => [id, item.path])),
+      prunedMembers: [],
     }
-    const pruned = pruneSeats(room).sort()
+    const pruned = pruneMembers(room).sort()
     assert.deepEqual(pruned, ['lead', 'verifier', 'worker', 'worker-2'])
     assert.equal(existsSync(workspaces.integration.path), true)
-    assert.equal(existsSync(workspaces.seats.worker.path), false)
-    assert.equal(existsSync(workspaces.seats['worker-2'].path), false)
+    assert.equal(existsSync(workspaces.members.worker.path), false)
+    assert.equal(existsSync(workspaces.members['worker-2'].path), false)
     const branches = execFileSync('git', ['branch', '--list', 'crew/prune1/*'], { cwd: sourceRepo, encoding: 'utf8' })
     assert.match(branches, /worker/)
     assert.match(branches, /worker-2/)
@@ -241,16 +241,16 @@ test('parallel workers merge into an integration worktree and conflicts stay vis
   process.env.CREW_WORKTREE_ROOT = worktreeRoot
   let workspaces = null
   try {
-    const seats = rosterFromRoles([
+    const members = rosterFromRoles([
       { role: 'worker', name: '前端' },
       { role: 'worker', name: '后端' },
       { role: 'verifier' },
     ])
-    workspaces = prepareRoom({ source: sourceRepo, short: 'par123', seats })
+    workspaces = prepareRoom({ source: sourceRepo, short: 'par123', members })
     assert.equal(workspaces.primaryBranch, 'crew/par123/integration')
     assert.equal(workspaces.roomPath, workspaces.integration.path)
-    const front = workspaces.seats.worker.path
-    const back = workspaces.seats['worker-2'].path
+    const front = workspaces.members.worker.path
+    const back = workspaces.members['worker-2'].path
     assert.notEqual(front, back)
     assert.equal(existsSync(workspaces.integration.path), true)
 

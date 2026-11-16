@@ -40,12 +40,12 @@ export const collectWorkspaceGarbage = ({
 
   for (const room of store.readRooms()) {
     if (room.state !== 'complete' && room.state !== 'stopped') continue
-    const seats = workspace.provider(room).pruneSeats(room)
-    const fresh = seats.filter(seat => !(room.prunedSeats ?? []).includes(seat))
+    const members = workspace.provider(room).pruneMembers(room)
+    const fresh = members.filter(member => !(room.prunedMembers ?? []).includes(member))
     if (fresh.length === 0) continue
     const updated = store.updateRoom(room.id, current => {
-      current.prunedSeats = seats
-      return { events: [{ type: 'room.prune', payload: { seats: fresh } }] }
+      current.prunedMembers = members
+      return { events: [{ type: 'room.prune', payload: { members: fresh } }] }
     })
     if (updated !== null) pruned += fresh.length
   }

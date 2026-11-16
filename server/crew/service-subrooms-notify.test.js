@@ -1,19 +1,21 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createServiceStages } from './rooms/studio/service-stages.js'
+import { normalizeLegacyTestRoom } from './testing/room.js'
 
 test('a completed child posts only its Verifier verdicts to the parent and wakes its Planner', async () => {
-  const parent = {
+  const parent = normalizeLegacyTestRoom({
     id: 'parent',
     roomType: 'studio',
     state: 'active',
     leadSeat: 'lead',
     seatNames: { lead: 'Lead' },
     childRoomIds: ['child'],
+    seatSpecs: [{ id: 'lead', name: 'Lead', role: 'lead' }],
     usage: { costMicroUsd: 0, budgetMicroUsd: 0 },
     stages: [],
-  }
-  const child = {
+  })
+  const child = normalizeLegacyTestRoom({
     id: 'child',
     roomType: 'studio',
     state: 'active',
@@ -21,14 +23,15 @@ test('a completed child posts only its Verifier verdicts to the parent and wakes
     depth: 1,
     parentRoomId: 'parent',
     closure: 'verifying',
-    verifiers: ['verifier'],
+    members: ['verifier'],
     seatNames: { verifier: 'Verifier' },
+    seatSpecs: [{ id: 'verifier', name: 'Verifier', role: 'verifier' }],
     usage: { costMicroUsd: 0, budgetMicroUsd: 0 },
     stages: [
       { title: '交付', kind: 'deliverable', state: 'passed', acceptance: 'true' },
       { title: '验收与结论', kind: 'decision', state: 'active' },
     ],
-  }
+  })
   const rooms = { parent, child }
   const messages = {
     parent: [],
@@ -58,7 +61,7 @@ test('a completed child posts only its Verifier verdicts to the parent and wakes
     store,
     live: {
       isAttached: id => id === 'parent',
-      sendToSeat: async (id, seat, text) => { sent.push({ id, seat, text }); return { messageId: null } },
+      sendToMember: async (id, memberId, text) => { sent.push({ id, memberId, text }); return { messageId: null } },
     },
     emit: () => {},
     completeRoom: room => ({ ...room, state: 'complete', closure: 'signed' }),
@@ -71,7 +74,7 @@ test('a completed child posts only its Verifier verdicts to the parent and wakes
   assert.match(message.text, /PASS/)
   assert.doesNotMatch(message.text, /transcript|evidence/)
   assert.equal(sent[0].id, 'parent')
-  assert.equal(sent[0].seat, 'lead')
+  assert.equal(sent[0].memberId, 'lead')
   assert.doesNotMatch(sent[0].text, /^@/)
   assert.match(sent[0].text, /Verifier 结果/)
   assert.equal(store.readRoom('parent').childResults.length, 1)

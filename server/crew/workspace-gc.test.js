@@ -11,7 +11,7 @@ test('rewind branches are pruned for active rooms too', () => {
   const workspace = {
     default: { scratchRoot: () => '/nonexistent' },
     provider: () => ({
-      pruneSeats: () => [],
+      pruneMembers: () => [],
       pruneRewindBranches: args => {
         calls.push(args)
         return 2

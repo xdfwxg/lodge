@@ -39,22 +39,22 @@ const nextPort = (start, used = 0) => {
   return chooseFreePort(port).port
 }
 
-export const prepareRoom = ({ source, short, seats }) => {
-  const bySeat = {}
+export const prepareRoom = ({ source, short, members }) => {
+  const byMember = {}
   const ports = {}
   const environment = {}
   let cursor = portBase() + portOffset(short)
-  for (const seat of seats) {
+  for (const member of members) {
     const chosen = chooseFreePort(cursor)
     cursor = chosen.next
-    bySeat[seat.id] = { path: source, kind: 'direct' }
-    environment[seat.id] = { copied: [], linked: [], warnings: [] }
-    ports[seat.id] = chosen.port
+    byMember[member.id] = { path: source, kind: 'direct' }
+    environment[member.id] = { copied: [], linked: [], warnings: [] }
+    ports[member.id] = chosen.port
   }
   return {
     root: source,
     sourceRepo: source,
-    seats: bySeat,
+    members: byMember,
     branches: {},
     integration: null,
     ports,
@@ -64,8 +64,8 @@ export const prepareRoom = ({ source, short, seats }) => {
   }
 }
 
-export const addSeat = ({ room, seat }) => {
-  if (seat.role === 'worker') throw new Error('普通目录原地修改只能有一个执行成员')
+export const addMember = ({ room, member }) => {
+  if (member.role === 'worker') throw new Error('普通目录原地修改只能有一个执行成员')
   const source = room?.sourceRepo
   const used = Math.max(0, ...Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value)))
   return {
@@ -77,7 +77,7 @@ export const addSeat = ({ room, seat }) => {
   }
 }
 
-export const removeSeat = () => false
+export const removeMember = () => false
 
 export const head = ({ path }) => manifestHead({ path })
 
@@ -91,7 +91,7 @@ export const refreshReviewCopy = () => {}
 
 export const submit = () => null
 
-export const pruneSeats = room => [...(room?.prunedSeats ?? [])]
+export const pruneMembers = room => [...(room?.prunedMembers ?? [])]
 
 export const cleanupRoom = () => {}
 

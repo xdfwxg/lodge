@@ -1,4 +1,5 @@
 import { roomModeOfRoom } from './rooms/kinds.js'
+import { memberOf } from './room-members.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
@@ -7,20 +8,19 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
-import { registerRoomMembers } from './members.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
-export const createCrewService = ({ store, engine, live, emit, seats, ports }) => {
+export const createCrewService = ({ store, engine, live, emit, roles, ports }) => {
   const { readRoom, readMessages, writeRoom, appendMessage, updateRoom, deleteRoom } = store
   const { roomFiles, workspace, files } = ports
 
   const queries = createServiceQueries({
     store,
     engine,
-    seats,
+    roles,
     roomFiles,
     files,
     workspace,
@@ -30,7 +30,7 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
   const chat = createServiceChat({ store, live, emit })
   const closure = createServiceClosure({ store, emit })
 
-  const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, seats, body, ports, parentRoom: parent })
+  const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, roles, body, ports, parentRoom: parent })
   const subrooms = createServiceSubrooms({ createRoom })
 
   const createSampleRoom = () => {
@@ -48,7 +48,6 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
     }
     const now = Date.now()
     const room = writeRoom(sampleRoomRecord({ now }))
-    registerRoomMembers(store, room)
     seedSampleMessages({ store, room, now })
     emit('room', room)
     return ok({ room })
@@ -97,10 +96,10 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
       if (room.live !== true) return fail('conflict', '只有正在运行的房间能回答问题')
       if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
       const body = await readBody()
-      const seat = typeof body.seat === 'string' ? body.seat : ''
+      const memberId = typeof body.memberId === 'string' ? body.memberId : ''
       const requestId = typeof body.requestId === 'string' ? body.requestId : ''
       const message = typeof body.message === 'string' ? body.message : ''
-      const result = await live.answerCard(room.id, seat, requestId, message)
+      const result = await live.answerCard(room.id, memberId, requestId, message)
       if (result.ok !== true) return fail('conflict', result.reason)
       return ok({ room: result.room })
     }
@@ -135,10 +134,10 @@ export const createCrewService = ({ store, engine, live, emit, seats, ports }) =
       if (room.live !== true) return fail('conflict', '只有正在运行的房间能叫停成员')
       if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
       const body = await readBody()
-      const seat = typeof body.seat === 'string' ? body.seat : ''
-      if (!(room.members ?? []).includes(seat)) return fail('invalid', '没有这个成员')
+      const memberId = typeof body.memberId === 'string' ? body.memberId : ''
+      if (memberOf(room, memberId) === null) return fail('invalid', '没有这个成员')
       try {
-        const updated = await live.holdSeat(room.id, seat, body.held === true)
+        const updated = await live.holdMember(room.id, memberId, body.held === true)
         return ok({ room: updated ?? readRoom(room.id) ?? room })
       } catch (error) {
         return fail('conflict', String(error?.message ?? error))

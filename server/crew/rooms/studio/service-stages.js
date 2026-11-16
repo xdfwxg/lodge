@@ -1,3 +1,4 @@
+import { leadMemberOf } from '../../room-members.js'
 import { gateFor } from './gates.js'
 import { fail, ok } from '../../result.js'
 import { acceptanceChangeError } from '../../service-policy.js'
@@ -6,7 +7,7 @@ import { reworkFloor } from './verifiers.js'
 import { childResultText, childVerdictsOf } from './subrooms.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
-import { seatDisplayName } from '../../seat-labels.js'
+import { memberDisplayName } from '../../member-labels.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
@@ -28,7 +29,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       ))
       .slice(-5)
       .map(message => ({
-        name: seatDisplayName(room, message.authorId),
+        name: memberDisplayName(room, message.authorId),
         pass: message.meta?.pass === true,
       }))
     return {
@@ -70,9 +71,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     })
     if (linked !== null) emit('room', linked)
     if (typeof live.isAttached === 'function' && live.isAttached(parent.id) === true) {
-      const lead = parent.leadSeat ?? parent.members?.[0]
+      const lead = leadMemberOf(parent)?.id
       if (typeof lead === 'string' && lead !== '') {
-        void live.sendToSeat(parent.id, lead, `${text}\n请只依据这些 verdict 决定下一步。`, {
+        void live.sendToMember(parent.id, lead, `${text}\n请只依据这些 verdict 决定下一步。`, {
           intent: 'notice',
           from: '子房间',
         }).catch(error => {

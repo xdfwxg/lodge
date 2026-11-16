@@ -12,13 +12,13 @@ import {
   groupSteps,
   isStandbyChat,
   orderTranscript,
-  showsSeat,
+  showsMember,
 } from './transcript-model.js'
 
 // 工作室时间线按阶段分章：当前阶段展开，已完成阶段收成一行，交付卡在最后。
 export function StudioTranscript({
   room,
-  seats,
+  members,
   onAccept,
   onStageAccept,
   onAnswerCard = null,
@@ -29,7 +29,7 @@ export function StudioTranscript({
   hideKinds = [],
   delivery = null,
 }) {
-  const byId = useMemo(() => Object.fromEntries(seats.map(seat => [seat.id, seat])), [seats])
+  const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
   const messages = useMemo(() => dedupeChatStreams(room.messages), [room.messages])
   const items = useMemo(() => {
     const { timeline, items: ordered } = orderTranscript(messages)
@@ -49,7 +49,7 @@ export function StudioTranscript({
       return true
     })
     return { timeline, chapters: buildStageChapters(visible, room) }
-  }, [messages, hideKinds, room.state, room.stages, room.leadSeat])
+  }, [messages, hideKinds, room.state, room.stages, room.leadMemberId])
 
   const renderChapterBody = chapter => {
     const body = groupSteps(chapter.items)
@@ -76,8 +76,8 @@ export function StudioTranscript({
         onSteerQueue,
       })
       if (content === null) return null
-      const lead = item.kind === 'chat' && !showsSeat(body, index) ? 'cont' : 'first'
-      return h('div', { key: item.id, className: 'studio-seat-block', 'data-lead': lead === 'first' ? 'true' : 'false' }, content)
+      const lead = item.kind === 'chat' && !showsMember(body, index) ? 'cont' : 'first'
+      return h('div', { key: item.id, className: 'studio-member-block', 'data-lead': lead === 'first' ? 'true' : 'false' }, content)
     }).filter(Boolean)
   }
 

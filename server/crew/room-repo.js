@@ -2,6 +2,7 @@ import { closeSync, fsyncSync, mkdirSync, openSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
 import { roomDir, roomRootOf } from './paths.js'
+import { memberName, workerIds } from './room-members.js'
 
 export { roomDir }
 
@@ -60,8 +61,8 @@ export const writeGoal = room => {
     `目标：${room.goal}`,
     `状态：${room.state}`,
     `仓库：${roomRootOf(room)}`,
-    ...(room.seatSpecs?.length > 0
-      ? [`成员：${room.seatSpecs.map(seat => `${seat.name}（${seat.role}）`).join(' · ')}`]
+    ...(room.members?.length > 0
+      ? [`成员：${room.members.map(member => `${member.name}（${member.role}）`).join(' · ')}`]
       : []),
     '',
     '阶段：',
@@ -70,7 +71,6 @@ export const writeGoal = room => {
   ].join('\n'))
 }
 
-const seatLabel = (room, id) => room.seatSpecs?.find(seat => seat.id === id)?.name ?? id
 
 // 完成结论是运行时投影；decisions.md 归人，运行时不写。
 export const writeConclusion = room => {
@@ -83,8 +83,8 @@ export const writeConclusion = room => {
     `- 目标仓库：${roomRootOf(room)}`,
     ...(typeof room.sourceRepo === 'string' && room.sourceRepo !== '' ? [`- 源仓库：${room.sourceRepo}`] : []),
     `- 交付分支：${room.branch || '(无分支)'}`,
-    ...(room.workers?.length > 1
-      ? [`- 并行候选：${room.workers.map(worker => `${seatLabel(room, worker)} → ${room.branches?.[worker] ?? '(无分支)'}`).join('；')}`]
+    ...(workerIds(room).length > 1
+      ? [`- 并行候选：${workerIds(room).map(worker => `${memberName(room, worker)} → ${room.branches?.[worker] ?? '(无分支)'}`).join('；')}`]
       : []),
     '',
     '## 阶段与验收',

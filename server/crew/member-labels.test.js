@@ -2,31 +2,22 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   hostAddress,
-  seatAddress,
-  seatBaseName,
-  seatDisplayName,
-  seatLabelMap,
+  memberAddress,
+  memberSurfaceName,
+  memberDisplayName,
+  memberLabelMap,
   toBaseMentions,
   unknownMentionsOf,
   toDisplayMentions,
   toDisplayText,
-} from './seat-labels.js'
+} from './member-labels.js'
 
+const member = (id, name, baseName, ref) => ({ id, name, body: { kind: 'base', name: baseName, ref } })
 const room = {
-  seatNames: {
-    planner: 'Plannerea924d',
-    executor: 'Executorea924d',
-    verifier: 'Verifierea924d',
-  },
-  seatBots: {
-    planner: 'bot-planner',
-    executor: 'bot-executor',
-    verifier: 'bot-verifier',
-  },
-  seatSpecs: [
-    { id: 'planner', name: '规划师' },
-    { id: 'executor', name: '执行者' },
-    { id: 'verifier', name: '验收员' },
+  members: [
+    member('planner', '规划师', 'Plannerea924d', 'bot-planner'),
+    member('executor', '执行者', 'Executorea924d', 'bot-executor'),
+    member('verifier', '验收员', 'Verifierea924d', 'bot-verifier'),
   ],
 }
 
@@ -44,27 +35,26 @@ test('the hidden chat host maps to the display name stored on the room', () => {
   assert.equal(toDisplayText(room, 'LodgeHost3f3199'), 'LodgeHost3f3199')
 })
 
-test('seat display names come from the roster and fall back to the id', () => {
-  assert.equal(seatDisplayName(room, 'executor'), '执行者')
-  assert.equal(seatDisplayName(room, 'ghost'), 'ghost')
+test('member display names come from the roster and fall back to the id', () => {
+  assert.equal(memberDisplayName(room, 'executor'), '执行者')
+  assert.equal(memberDisplayName(room, 'ghost'), 'ghost')
 })
 
 test('the label map is built from the roster only', () => {
   const withHandles = {
-    seatNames: { executor: 'Executorea924d', verifier: 'Verifierea924d' },
-    seatSpecs: [
-      { id: 'executor', name: '执行者' },
-      { id: 'verifier', name: '验收员' },
+    members: [
+      member('executor', '执行者', 'Executorea924d', 'bot-executor'),
+      member('verifier', '验收员', 'Verifierea924d', 'bot-verifier'),
     ],
   }
-  assert.deepEqual(seatLabelMap(withHandles), { executor: '执行者', verifier: '验收员' })
-  assert.deepEqual(seatLabelMap({ seatNames: { executor: 'Executorea924d' } }), {})
+  assert.deepEqual(memberLabelMap(withHandles), { executor: '执行者', verifier: '验收员' })
+  assert.deepEqual(memberLabelMap({}), {})
 })
 
 
 test('base name conversion lives in one place', () => {
-  assert.equal(seatBaseName(room, 'executor'), 'Executorea924d')
-  assert.equal(seatBaseName({ seatNames: {} }, 'executor'), '')
+  assert.equal(memberSurfaceName(room, 'executor'), 'Executorea924d')
+  assert.equal(memberSurfaceName({ members: [] }, 'executor'), '')
 })
 
 test('unknown @ names are reported, known names and @everyone are not', () => {
@@ -73,14 +63,14 @@ test('unknown @ names are reported, known names and @everyone are not', () => {
   assert.deepEqual(unknownMentionsOf(room, '没有 @'), [])
 })
 
-test('only the transport layer resolves a seat into a base address', () => {
-  assert.deepEqual(seatAddress(room, 'executor'), {
+test('only the transport layer resolves a member into a base address', () => {
+  assert.deepEqual(memberAddress(room, 'executor'), {
     name: 'Executorea924d',
     mention: '@Executorea924d',
     memberRef: 'bot-executor',
   })
-  assert.equal(seatAddress(room, 'ghost'), null)
-  assert.equal(seatAddress({ seatNames: { executor: 'Executorea924d' } }, 'executor'), null)
+  assert.equal(memberAddress(room, 'ghost'), null)
+  assert.equal(memberAddress({ members: [member('executor', '执行者', 'Executorea924d')] }, 'executor'), null)
   assert.deepEqual(hostAddress({ chatHost: { name: 'LodgeHost1', memberRef: 'bot-host' } }), {
     name: 'LodgeHost1',
     mention: '@LodgeHost1',
