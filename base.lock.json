@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/milind-soni/OpenMausBot",
+  "tag": "v0.1.161",
+  "upstreamCommit": "c31dd5d101098c81ff9025249caf24e4e172cb4d",
+  "localCommit": "46762e179576c4f98661177b17990324b1c6aece",
+  "localPatch": "Publish terminal login metadata for BYOK drivers",
+  "pinnedAt": "2026-11-16",
+  "note": "Lodge targets this release tag. It is not a tracking branch: update deliberately, then rerun the runtime-port contract tests and a real room smoke."
+}
