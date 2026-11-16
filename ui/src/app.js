@@ -93,6 +93,11 @@ export function App() {
         state,
         archived: state.rooms.filter(room => room.archivedAt),
         onRestore: id => store.archiveRoom(id, false),
+        onQuickStart: (goal, check) => store.createRoom(goal, {
+          roomType: 'studio',
+          verify: check === '' ? 'manual' : 'test',
+          acceptance: check,
+        }),
         onCreate: roomType => openDialog(null, roomType),
         onSample: () => store.openSampleRoom(),
       }),

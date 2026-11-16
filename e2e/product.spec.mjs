@@ -3,8 +3,11 @@ import { expect, test } from '@playwright/test'
 test('onboarding, focused dialog, sample room, goal panel and archive restore', async ({ page, request }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Lodge' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '开工' })).toBeDisabled()
+  await page.getByLabel('你想让房间做什么？').fill('把启动说明补成新人能照着跑的一页')
+  await expect(page.getByRole('button', { name: '开工' })).toBeEnabled()
 
-  await page.getByRole('button', { name: /直接做出来/ }).click()
+  await page.getByRole('button', { name: '更多设置' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await expect(page.locator(':focus')).toHaveAttribute('aria-label', '关闭')
   await page.keyboard.press('Escape')

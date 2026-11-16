@@ -663,6 +663,12 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-onboarding-logo{display:block;width:96px;height:96px;filter:drop-shadow(0 10px 22px rgb(0 0 0 / .12))}
 .crew-onboarding-card h1{margin:0;font-size:34px;line-height:1.15;font-weight:700;letter-spacing:-.03em}
 .crew-onboarding-card p{margin:0;max-width:460px;color:var(--bt-ink-2);font-size:17px;line-height:1.65}
+.crew-onboarding-quick{display:flex;flex-direction:column;gap:7px;width:100%;margin-top:2px;text-align:left}
+.crew-onboarding-quick-label{font-size:12.5px;line-height:17px;font-weight:600;color:var(--bt-ink-2)}
+.crew-onboarding-quick .crew-goal-input{width:100%;box-sizing:border-box;resize:vertical;background:var(--bt-input-bg)}
+.crew-onboarding-start{height:44px;border:1px solid var(--bt-accent);border-radius:11px;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font:inherit;font-size:15px;font-weight:650;cursor:pointer}
+.crew-onboarding-start:disabled{opacity:.45;cursor:default}
+.crew-onboarding-secondary{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:2px}
 .crew-onboarding-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;margin-top:4px}
 .crew-onboarding-sample{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:2px}
 .crew-connection-banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:80;padding:8px 14px;border-radius:999px;background:var(--bt-card);border:1px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);font-size:13px;color:var(--bt-ink-2)}

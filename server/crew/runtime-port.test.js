@@ -182,3 +182,53 @@ test('the adapter exposes normalized rooms, history, turns and events', async ()
   assert.equal(events[2].room.working, false)
   off()
 })
+
+test('failure results are explicit and createRoom cleans up a half-created group', async () => {
+  const calls = []
+  const base = fakeClient()
+  const client = {
+    ...base,
+    cancelGroupQueue: async () => { throw new Error('base 404 /api/groups/g1/queue/q1') },
+    steerGroupQueue: async () => ({ steered: true, messages: [{ id: 'm1' }], queueIds: ['q1'] }),
+    respondToCard: async input => { calls.push(input); return { ok: true } },
+    config: async () => { throw new Error('config down') },
+    createGroup: async () => ({ group: { id: 'g2', threadId: 't2' } }),
+    setupGroup: async () => { throw new Error('setup down') },
+    deleteGroup: async id => { calls.push({ deleteGroup: id }) },
+  }
+  const engine = assertRuntimePort(createEngine({ client }))
+  assert.deepEqual(await engine.cancelRoomQueue('g1', 'q1'), { cancelled: false, reason: '这条排队消息已经不在队列里' })
+  assert.deepEqual(await engine.steerRoomQueue('g1', 'q1'), { outcome: 'steered', messageIds: ['m1'], queueIds: ['q1'] })
+  client.steerGroupQueue = async () => { throw new Error('base 409 conflict') }
+  assert.equal((await engine.steerRoomQueue('g1', 'q1')).outcome, 'refused')
+  client.steerGroupQueue = async () => { throw new Error('connection reset') }
+  assert.equal((await engine.steerRoomQueue('g1', 'q1')).outcome, 'indeterminate')
+  await assert.rejects(() => engine.answerCard({ requestId: 'r1', behavior: 'allow' }), /缺少线程/)
+  await assert.rejects(() => engine.answerCard({ sessionRef: 't1', requestId: 'r1', behavior: 'maybe' }), /allow/)
+  await assert.rejects(() => engine.answerCard({ sessionRef: 't1', requestId: 'r1', behavior: 'answer', message: ' ' }), /答案/)
+  assert.deepEqual(await engine.answerCard({ sessionRef: 't1', requestId: 'r1', behavior: 'allow' }), { ok: true })
+  assert.deepEqual(await engine.features(), { skillsLibrary: false })
+  await assert.rejects(() => engine.createRoom({ name: 'x', goal: 'g', members: ['b1'], cwd: '/tmp', leadId: 'b1' }), /setup down/)
+  assert.deepEqual(calls.filter(item => item.deleteGroup === 'g2'), [{ deleteGroup: 'g2' }])
+})
+
+test('an unavailable engine falls back explicitly with a reason', async () => {
+  const client = {
+    ...fakeClient(),
+    instances: async () => ({
+      instances: [{
+        instanceId: 'i1',
+        driverKind: 'claudeAgent',
+        snapshot: { state: 'available' },
+        models: { default: 'm1', options: [{ id: 'm1' }] },
+        capabilities: { streaming: true },
+      }],
+    }),
+    createBot: async input => { client.created = input; return { bot: { id: 'b2', name: '乙' } } },
+  }
+  const engine = assertRuntimePort(createEngine({ client }))
+  const member = await engine.createMemberBot({ name: '乙', engine: 'claude-cli', model: 'missing-model' })
+  assert.equal(member.fallback, true)
+  assert.match(member.reason, /已回退 m1/)
+  assert.deepEqual(client.created.modelSelection, { instanceId: 'i1', model: 'm1' })
+})
