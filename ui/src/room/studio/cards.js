@@ -2,7 +2,7 @@ import { Fragment, createElement as h } from 'react'
 import { BotAvatar } from '../../marks.js'
 import { Markdown, Speaker } from '../../message-cards.js'
 import { splitVerdictText } from './verdict-text.js'
-import { ShadowAdvice } from './advisor-advice.js'
+import { ShadowAdvice, ShadowReconfirm } from './advisor-advice.js'
 
 // 工作室专属消息卡：一张检查结果，或还没复核的证据。
 // 共享层只提供说话人、正文和活动行，不认这些业务结构。
@@ -77,7 +77,7 @@ function EvidenceCard({ message, member }) {
   }, ref) : null)
 }
 
-function VerdictCard({ message, member, stage, room, onAccept, evidence }) {
+function VerdictCard({ message, member, stage, room, onAccept, advisor, onShadowReconfirm, evidence }) {
   const meta = message.meta ?? {}
   const proof = evidence?.meta ?? {}
   const command = typeof proof.command === 'string' ? proof.command : meta.command
@@ -126,7 +126,9 @@ function VerdictCard({ message, member, stage, room, onAccept, evidence }) {
             }, room.state === 'paused' ? '已暂停 · 继续后才能验收' : '确认通过'))
           : null)))
   return canAccept
-    ? h(Fragment, null, card, h('div', { className: 'crew-shadow-advice-row' }, h(ShadowAdvice, { room, evidenceId: message.meta?.evidenceId ?? message.id })))
+    ? h(Fragment, null, card, h('div', { className: 'crew-shadow-advice-row' },
+      h(ShadowReconfirm, { room, advisor, onConfirm: onShadowReconfirm }),
+      h(ShadowAdvice, { room, evidenceId: message.meta?.evidenceId ?? message.id })))
     : card
 }
 

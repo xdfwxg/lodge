@@ -43,6 +43,8 @@ export const studioView = {
       delivery: room.delivery ?? null,
       onAccept: actions.accept,
       onStageAccept: actions.accept,
+      advisor: state.advisor ?? { available: false, host: '' },
+      onShadowReconfirm: () => actions.shadowReview(true),
       onAnswerCard: actions.answerCard,
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,

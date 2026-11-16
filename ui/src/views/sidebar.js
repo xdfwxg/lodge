@@ -28,7 +28,7 @@ const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
 
-function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, advisor = { available: false, host: '' }, onShadowReview }) {
+function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
   const [open, setOpen] = useState(false)
@@ -98,8 +98,6 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, adviso
     onRename: onRename === undefined ? undefined : name => onRename(room.id, name),
     onArchive: onArchive === undefined ? undefined : archived => onArchive(room.id, archived),
     onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
-    advisor,
-    onShadowReview: onShadowReview === undefined ? undefined : enabled => onShadowReview(room.id, enabled),
   })
 
   // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。
@@ -271,51 +269,13 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
         }, busy ? '正在处理…' : deleting ? '删除' : '归档'))))
 }
 
-function ShadowReviewDialog({ room, advisor, busy, onClose, onConfirm }) {
-  const on = room.shadowReview === true
-  const available = advisor?.available === true
-  const host = advisor?.host ?? ''
-  const matched = room.advisorConsent?.host === host
-  const dismiss = () => {
-    if (!busy) onClose()
-  }
-  const overlay = useOverlay({ label: '影子评审', onClose: dismiss, active: true })
-  const text = !available
-    ? '现在没有配置外部 advisor，暂时不能开启影子评审。'
-    : on && matched
-      ? `已开启：复核时证据和 diff 会发给 ${host}。`
-      : on
-        ? `外部服务是 ${host}，和房间记录的不一致；重新确认后才会使用新服务。`
-        : `开启后，复核时证据和 diff 会发给 ${host}；意见只供签字前参考。`
-  return h('div', { className: 'crew-overlay', onClick: dismiss, ...overlay },
-    h('div', { className: 'crew-dialog crew-confirm', onClick: event => event.stopPropagation() },
-      h('div', { className: 'crew-dialog-heading' },
-        h('h2', null, '影子评审'),
-        h('p', null, `「${room.name}」`)),
-      h('p', { className: 'crew-dialog-note' }, text),
-      h('p', { className: 'crew-dialog-note crew-confirm-note' }, '意见不会进入验收员提示词，也不会改变通过或退回。'),
-      h('div', { className: 'crew-dialog-foot' },
-        on ? h('button', {
-          type: 'button', className: 'crew-ghost', disabled: busy, onClick: () => onConfirm(false),
-        }, busy ? '正在处理…' : '关闭影子评审') : h('button', {
-          type: 'button', className: 'crew-ghost', disabled: busy, onClick: dismiss,
-        }, '取消'),
-        h('button', {
-          type: 'button',
-          className: 'crew-accept crew-dialog-primary',
-          disabled: busy || !available,
-          onClick: () => onConfirm(true),
-        }, busy ? '正在处理…' : on ? '重新确认' : '开启'))))
-}
-
-function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete, advisor, onShadowReview }) {
+function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
   const archived = Boolean(room.archivedAt)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuAt, setMenuAt] = useState(null)
   const [renaming, setRenaming] = useState(false)
   const [draft, setDraft] = useState(room.name)
   const [confirm, setConfirm] = useState(null)
-  const [shadowOpen, setShadowOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const moreRef = useRef(null)
@@ -350,7 +310,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete, adviso
 
   const label = roomLabelOf(room)
   const TypeIcon = roomTypeIcon(uiKindOfRoom(room).id)
-  const manage = onRename !== undefined || onArchive !== undefined || onDelete !== undefined || onShadowReview !== undefined
+  const manage = onRename !== undefined || onArchive !== undefined || onDelete !== undefined
   const canDelete = room.state !== 'active'
   const closeMenu = () => setMenuOpen(false)
   const toggleMenu = () => {
@@ -361,7 +321,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete, adviso
     const rect = moreRef.current?.getBoundingClientRect()
     if (rect === undefined || rect === null) return
     const width = 144
-    const height = onShadowReview === undefined ? 112 : 150
+    const height = 112
     const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))
     const top = rect.bottom + height > window.innerHeight - 8
       ? Math.max(8, rect.top - height - 4)
@@ -494,16 +454,6 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete, adviso
         role: 'menu',
         'aria-label': `${room.name}的操作`,
       },
-        uiKindOfRoom(room).id !== 'studio' || onShadowReview === undefined ? null : h('button', {
-          type: 'button',
-          role: 'menuitem',
-          className: 'crew-side-menu-item',
-          disabled: busy,
-          onClick: () => {
-            closeMenu()
-            setShadowOpen(true)
-          },
-        }, room.shadowReview === true ? '影子评审…' : '开启影子评审…'),
         onRename === undefined ? null : h('button', {
           type: 'button', role: 'menuitem', className: 'crew-side-menu-item', onClick: startRename,
         }, '重命名'),
@@ -523,24 +473,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete, adviso
           onClick: requestDelete,
         }, '删除…')), document.body)
       : null,
-    note === '' ? null : h('p', { className: 'crew-side-row-note', role: 'alert' }, note),
-    shadowOpen ? h(ShadowReviewDialog, {
-      room,
-      advisor,
-      busy,
-      onClose: () => setShadowOpen(false),
-      onConfirm: async enabled => {
-        setBusy(true)
-        const result = await onShadowReview(enabled)
-        setBusy(false)
-        if (result?.ok !== true) {
-          setNote(result?.error ?? '影子评审没能更新')
-          return
-        }
-        setNote(enabled ? '影子评审已确认' : '影子评审已关闭')
-        setShadowOpen(false)
-      },
-    }) : null),
+    note === '' ? null : h('p', { className: 'crew-side-row-note', role: 'alert' }, note)),
     confirm === null ? null : h(RoomConfirm, {
       kind: confirm,
       room,

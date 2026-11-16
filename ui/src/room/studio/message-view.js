@@ -16,6 +16,8 @@ export const renderStudioMessage = ({
   onAccept,
   onStageAccept,
   onAnswerCard = null,
+  advisor = { available: false, host: '' },
+  onShadowReconfirm = null,
   onCancelQueue = null,
   onSteerQueue = null,
 }) => {
@@ -39,6 +41,8 @@ export const renderStudioMessage = ({
       room,
       stage: room.stages[message.meta?.stage ?? 0],
       onAccept: onStageAccept === null ? undefined : onStageAccept ?? onAccept,
+      advisor,
+      onShadowReconfirm,
       evidence: timeline.evidenceFor.get(message.id),
     })
   }

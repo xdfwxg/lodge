@@ -152,6 +152,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     steerQueue: queueId => void store.steerQueued(queueId),
     continueChat: note => store.continueChat(note),
     createSubroom: goal => store.createSubroom(goal),
+    shadowReview: enabled => store.shadowReviewRoom(room.id, enabled),
     selectRoom: id => store.select(id),
     startStudio: onStartStudio,
     startChat: onStartChat,
@@ -166,6 +167,8 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     onVerify: stage => void store.verify(stage),
     onRework: (stage, note) => void store.rework(stage, note),
     onApproval: (id, decision) => void store.decideApproval(id, decision),
+    advisor: state.advisor ?? { available: false, host: '' },
+    onShadowReconfirm: () => store.shadowReviewRoom(room.id, true),
   }
   const viewCtx = { state, room, members, locked, viewModel, actions, dock, store }
   const typing = mode.typing?.(viewCtx) ?? null

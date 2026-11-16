@@ -8,6 +8,7 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
+import { recordShadowAdvice } from './rooms/studio/shadow-advisor.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
@@ -104,9 +105,33 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         appendMessage(room.id, {
           kind: 'system',
           text: `影子评审已${room.shadowReview === true ? '重新确认' : '开启'}：复核时证据和 diff 会发给外部 advisor${described.host === '' ? '' : `（${described.host}）`}。意见只供你签字前参考。`,
+          meta: { advisorNotice: true },
         })
         emit('room', updated)
-        return ok({ room: readRoom(room.id) ?? updated })
+        const current = readRoom(room.id) ?? updated
+        const index = (current.stages ?? []).findIndex(stage => stage.state === 'active')
+        const stage = index >= 0 ? current.stages[index] : undefined
+        const evidence = index < 0
+          ? undefined
+          : [...readMessages(room.id)].reverse().find(message => (
+            message.kind === 'evidence' &&
+            (message.meta?.stage ?? 0) === index &&
+            (message.meta?.kind === 'manual' || message.meta?.kind === 'command')
+          ))
+        if (stage !== undefined && evidence !== undefined) {
+          void recordShadowAdvice({
+            store,
+            roomId: room.id,
+            advisor: ports.advisor,
+            room: current,
+            emit,
+            index,
+            stage,
+            evidence,
+            manual: stage.manual === true,
+          }).catch(error => appendMessage(room.id, { kind: 'system', text: `影子评审没能取回意见：${error?.message ?? error}` }))
+        }
+        return ok({ room: current })
       }
       const updated = updateRoom(room.id, current => {
         current.shadowReview = false
