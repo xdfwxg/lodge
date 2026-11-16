@@ -1,6 +1,5 @@
-import { roomBulletin } from './input.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
-import { roomModeForType } from '../kinds.js'
+import { roomBulletin, roomModeForType } from '../kinds.js'
 import { roleKindOf } from '../../roster.js'
 
 export const createProvisioner = ({ engine }) => {
@@ -136,6 +135,7 @@ export const createProvisioner = ({ engine }) => {
         mcp: member.mcp,
         approval: member.approval,
         speakBudget: member.speakBudget,
+        ...(typeof member.prompt === 'string' && member.prompt !== '' ? { prompt: member.prompt } : {}),
         ...(member.personality === undefined || member.personality === '' ? {} : { personality: member.personality }),
         body: {
           kind: 'base',

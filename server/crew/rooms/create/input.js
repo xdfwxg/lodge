@@ -18,11 +18,6 @@ const handoffSection = handoff => {
   return text === '' ? '' : `\n交接单：\n${text}`
 }
 
-export const roomBulletin = (goal, verify, acceptance, handoff = null) => [
-  `目标：${goal}${handoffSection(handoff)}`,
-  verify === 'test' ? `验收：${acceptance}` : '验收：人确认，不跑命令',
-].join('\n')
-
 export const alignmentPrompt = (leadName, goal, verify, acceptance, handoff = null) => [
   `@${leadName} 目标：${goal}${handoffSection(handoff)}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',

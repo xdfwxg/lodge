@@ -1,3 +1,4 @@
+import { createBodySwap } from '../../kernel/live/body-swap.js'
 import { createLiveApprovals } from '../../kernel/live/approvals.js'
 import { createMessageProjector } from '../../kernel/live/projection.js'
 import { createRoomRefresher } from '../../kernel/live/refresh.js'
@@ -185,6 +186,8 @@ export const createLiveRooms = ({
     entry.members.delete(memberId)
     return true
   }
+
+  const bodySwap = createBodySwap({ store, engine, emit, attachMember, detachMember })
 
   const detach = roomId => {
     const entry = entries.get(roomId)
@@ -377,6 +380,7 @@ export const createLiveRooms = ({
     attach,
     attachMember,
     detachMember,
+    swapBody: (room, body) => bodySwap.swap(room, body),
     detach,
     send,
     sendToMember,

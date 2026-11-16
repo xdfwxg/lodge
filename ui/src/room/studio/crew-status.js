@@ -3,7 +3,7 @@ import { durationOf } from '../../view-format.js'
 import { bodyStatuses } from './body-status.js'
 
 // 一行成员状态：谁在线、谁在工作、谁在等、谁不舒服。位置沿用原来的活动行。
-export function CrewStatusLine({ room, members }) {
+export function CrewStatusLine({ room, members, onSwap = null }) {
   const statuses = bodyStatuses(room, members)
   const working = statuses.some(item => item.state === 'working')
   const since = typeof room?.busySince === 'number' ? room.busySince : null
@@ -19,14 +19,19 @@ export function CrewStatusLine({ room, members }) {
   const elapsed = since === null ? '' : durationOf(tick - since)
   return h('div', {
     className: 'crew-crew-status',
-    role: 'status',
+    role: 'group',
     'aria-label': '成员状态',
   },
-  statuses.map(item => h('span', {
+  statuses.map(item => h(onSwap === null ? 'span' : 'button', {
     key: item.memberId,
+    ...(onSwap === null ? {} : {
+      type: 'button',
+      onClick: () => onSwap(item.memberId),
+      'aria-label': `给${item.name}换身体`,
+    }),
     className: 'crew-crew-member',
     'data-tone': item.tone,
-    title: [item.engine, item.model, item.label].filter(value => value !== '').join(' · '),
+    title: [item.engine, item.model, item.label, onSwap === null ? '' : '点击换身体'].filter(value => value !== '').join(' · '),
   },
   h('span', { className: 'crew-crew-dot', 'aria-hidden': 'true' }),
   h('span', { className: 'crew-crew-name' }, item.name),

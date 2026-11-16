@@ -263,6 +263,12 @@ export function createStore() {
       await load()
       return { ok: true, id: data.id }
     },
+    swapBody: async (memberId, engine, model) => {
+      const data = await post(`/api/rooms/${state.activeId}/swap-body`, { memberId, engine, model })
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '身体没换成' }
+      acceptRoom(data.room)
+      return { ok: true, room: data.room }
+    },
     activeRoom,
   }
 }

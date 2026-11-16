@@ -106,6 +106,10 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-activity-elapsed{font-variant-numeric:tabular-nums;color:var(--bt-ink-3)}
 .crew-crew-status{display:flex;align-items:center;gap:12px;max-width:min(760px,calc(100vw - 64px));padding:4px 12px;border:1px solid var(--bt-line-2);border-radius:999px;background:var(--bt-card);box-shadow:var(--bt-elev-1);color:var(--bt-ink-3);font-size:12.5px;line-height:17px;overflow:hidden;white-space:nowrap}
 .crew-crew-member{display:inline-flex;align-items:center;gap:5px;min-width:0}
+button.crew-crew-member{padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;border-radius:6px}
+button.crew-crew-member:hover .crew-crew-name{color:var(--bt-ink)}
+button.crew-crew-member::after{content:'换';margin-left:2px;color:var(--bt-ink-3);font-size:11px;opacity:0;transition:opacity .12s ease}
+button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::after{opacity:1}
 .crew-crew-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-line-2)}
 .crew-crew-member[data-tone=active] .crew-crew-dot{background:var(--bt-accent)}
 .crew-crew-member[data-tone=waiting] .crew-crew-dot{background:var(--bt-warning-text)}
@@ -120,6 +124,9 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .studio-queue{display:flex;align-items:center;gap:7px;padding:0 24px 8px;font-size:12.5px;line-height:17px;color:var(--bt-ink-3)}
 .studio-queue[data-held=true]{opacity:.72}
 .crew-queue-actions{display:flex;align-items:center;gap:8px;margin-top:4px;color:var(--bt-ink-3);font-size:12px}
+.crew-body-swap{max-width:440px}
+.crew-body-swap-field{display:flex;flex-direction:column;gap:6px}
+.crew-body-swap-field .crew-member-menu{width:100%}
 .crew-member-capabilities{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:4px}
 .crew-member-capabilities summary{cursor:pointer;color:var(--bt-ink-3);font-size:12.5px}
 .crew-member-capabilities .crew-goal-input{padding:7px 9px;font-size:13px;line-height:18px;border-radius:8px}

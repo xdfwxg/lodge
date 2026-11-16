@@ -1,10 +1,15 @@
 import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Composer } from '../composer.js'
+import { BodySwapDialog } from '../room/body-swap-dialog.js'
+import { uiKindOfRoom } from '../room/kinds.js'
 import { uiModeOfRoom } from './room-modes.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [dockOpen, setDockOpen] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
+  const [swapId, setSwapId] = useState(null)
+  const [swapBusy, setSwapBusy] = useState(false)
+  const [swapError, setSwapError] = useState(null)
   const scroll = useRef(null)
   const mainRef = useRef(null)
   const composerRef = useRef(null)
@@ -12,6 +17,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const lastTop = useRef(0)
   const touchY = useRef(0)
   const mode = uiModeOfRoom(room)
+  const kind = uiKindOfRoom(room)
   const lastId = room.messages.at(-1)?.id
 
   // 贴底必须发生在绘制前：rAF 会先画一帧旧位置，再跳到底，连续输出时就是跳屏。
@@ -156,6 +162,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     selectRoom: id => store.select(id),
     startStudio: onStartStudio,
     startChat: onStartChat,
+    swapBody: memberId => {
+      setSwapError(null)
+      setSwapId(memberId)
+    },
   }
   // 阶段坞需要宿主动作；只有声明了 dock 的模式会渲染它。
   const dock = {
@@ -209,7 +219,33 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
                 : composerPlaceholder,
           disabled: state.phase === 'loading' || locked,
           onSend: text => store.send(text),
-        }))))
+        }))),
+    swapId === null
+      ? null
+      : h(BodySwapDialog, {
+        key: swapId,
+        member: members.find(item => item.id === swapId) ?? { id: swapId, name: '成员', body: {} },
+        engines: state.engines ?? [],
+        requiresGate: kind.bodySwapGate === true && (members.find(item => item.id === swapId)?.permissions?.exec === true),
+        busy: swapBusy,
+        error: swapError,
+        onCancel: () => {
+          if (swapBusy) return
+          setSwapId(null)
+          setSwapError(null)
+        },
+        onConfirm: async (engine, model) => {
+          setSwapBusy(true)
+          setSwapError(null)
+          const result = await store.swapBody(swapId, engine, model)
+          setSwapBusy(false)
+          if (result?.ok !== true) {
+            setSwapError(result?.error ?? '身体没换成')
+            return
+          }
+          setSwapId(null)
+        },
+      }))
 }
 
 export { RoomView }

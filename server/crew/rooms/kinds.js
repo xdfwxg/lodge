@@ -1,8 +1,19 @@
+import { handoffGoalText } from '../../../shared/handoff.js'
 import { resolveRoomType } from '../room-types/index.js'
 import { chatKind } from './chat/kind.js'
 import { studioKind } from './studio/kind.js'
 
 export const roomKinds = [studioKind, chatKind]
+
+// 基座房间公告：建房和换身体都要生成同一份，不各写一遍。
+export const roomBulletin = (goal, verify, acceptance, handoff = null) => {
+  const text = handoffGoalText(handoff)
+  const handoffSection = text === '' ? '' : `\n交接单：\n${text}`
+  return [
+    `目标：${goal}${handoffSection}`,
+    verify === 'test' ? `验收：${acceptance}` : '验收：人确认，不跑命令',
+  ].join('\n')
+}
 
 // 两种窄接口：建房/能力只拿 mode，消息投影/注意力只拿 presentation。
 const MODE_KEYS = [

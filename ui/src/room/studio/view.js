@@ -17,7 +17,7 @@ export const studioView = {
   header: ({ room, members, actions }) => h(DsGoalHeader, {
     room,
     members,
-    status: h(CrewStatusLine, { room, members }),
+    status: h(CrewStatusLine, { room, members, onSwap: actions.swapBody }),
     onAdvance: () => {
       const index = room.stages.findIndex(stage => stage.state === 'active')
       if (index >= 0) actions.accept(index)

@@ -312,6 +312,12 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       return ok({ id: room.id })
     }
 
+    // 换身体允许在暂停时进行（例如模型登录失效后换一家），所以放在暂停门禁之前。
+    if (action === 'swap-body' && method === 'POST') {
+      if (room.live !== true || typeof live.swapBody !== 'function') return fail('conflict', '当前房间没有可换的身体')
+      return live.swapBody(room, await readBody())
+    }
+
     if (room.state === 'paused' || room.state === 'stopped') {
       return fail('conflict', room.state === 'paused' ? '房间已暂停' : '房间已停止')
     }

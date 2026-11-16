@@ -77,3 +77,13 @@ test('a finished room does not keep a body status line', () => {
   const html = renderToStaticMarkup(h(CrewStatusLine, { room: { state: 'complete' }, members }))
   assert.equal(html, '')
 })
+
+test('each body is a button that opens the swap dialog', () => {
+  const html = renderToStaticMarkup(h(CrewStatusLine, {
+    room: { state: 'active' },
+    members,
+    onSwap: () => {},
+  }))
+  assert.match(html, /aria-label="给执行官换身体"/)
+  assert.match(html, /button/)
+})

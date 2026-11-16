@@ -22,6 +22,7 @@ export const chatUi = {
     hint: '',
   },
   missingVerifier: () => false,
+  bodySwapGate: false,
   primaryFields: () => null,
   setupFields: props => h(ChatSetupFields, props),
   buildRequest: buildChatRequest,
