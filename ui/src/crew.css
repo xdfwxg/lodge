@@ -712,6 +712,7 @@ body[data-ds-dark-theme] .crew-seat-menu{background-image:url("data:image/svg+xm
 .crew-room-main{flex:1 1 auto;width:100%;max-width:none}
 .crew-room-main[data-mode=studio] .crew-scroll{padding-top:116px}
 .crew-room-main[data-mode=studio]>.crew-activity-line{position:absolute;top:88px;left:50%;z-index:19;width:fit-content;max-width:calc(100% - 64px);transform:translateX(-50%);padding:2px 9px;border:1px solid var(--bt-line-2);border-radius:999px;background:var(--bt-card);box-shadow:var(--bt-elev-1);pointer-events:none}
+.crew-room-main[data-mode=studio]:has(.bt-island[data-mode=decision])>.crew-activity-line,.crew-room-main[data-mode=studio]:has(.bt-island[data-mode=peek])>.crew-activity-line{display:none}
 .crew-island-wrap{display:flex;justify-content:center;padding:18px 32px 8px;box-sizing:border-box}
 .crew-island{display:inline-flex;flex-direction:column;max-width:min(440px,calc(100% - 24px));border-radius:999px;background:var(--bt-card);border:.5px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-size:13.5px;line-height:20px;box-sizing:border-box;overflow:hidden}
 .crew-island-row{display:flex;align-items:center;gap:8px;height:40px;padding:7px 14px 7px 8px;box-sizing:border-box;min-width:0}
