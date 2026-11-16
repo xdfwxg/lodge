@@ -269,6 +269,12 @@ export function createStore() {
       acceptRoom(data.room)
       return { ok: true, room: data.room }
     },
+    removeMember: async memberId => {
+      const data = await post(`/api/rooms/${state.activeId}/remove-member`, { memberId })
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '成员没移除' }
+      acceptRoom(data.room)
+      return { ok: true, room: data.room }
+    },
     swapBody: async (memberId, engine, model) => {
       const data = await post(`/api/rooms/${state.activeId}/swap-body`, { memberId, engine, model })
       if (data?.room === undefined) return { ok: false, error: state.error ?? '身体没换成' }

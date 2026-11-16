@@ -257,11 +257,9 @@ const startBase = async dir => {
 }
 
 const ensureBase = async () => {
+  // 只认显式配置的基座；默认端口上可能是另一个 OpenMausBot 桌面应用，
+  // 它的数据与信任策略都不属于 Lodge，不能悄悄接管。
   if (baseUrl !== '' && await isBaseUp(baseUrl)) return baseUrl
-  if (await isBaseUp(`http://127.0.0.1:${DEFAULT_BASE_PORT}`)) {
-    baseUrl = `http://127.0.0.1:${DEFAULT_BASE_PORT}`
-    return baseUrl
-  }
   let dir = findBaseDir()
   if (dir === null) dir = await chooseBaseDir()
   if (dir === null) return null

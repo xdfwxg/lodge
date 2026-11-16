@@ -129,6 +129,7 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 .crew-queue-actions{display:flex;align-items:center;gap:8px;margin-top:4px;color:var(--bt-ink-3);font-size:12px}
 .crew-body-swap{max-width:440px}
 .crew-member-add{max-width:460px}
+.crew-body-swap-remove{margin-right:auto}
 .crew-body-swap-field{display:flex;flex-direction:column;gap:6px}
 .crew-body-swap-field .crew-member-menu{width:100%}
 .crew-member-capabilities{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:4px}

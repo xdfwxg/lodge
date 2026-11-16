@@ -233,6 +233,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       : h(BodySwapDialog, {
         key: swapId,
         member: members.find(item => item.id === swapId) ?? { id: swapId, name: '成员', body: {} },
+        canRemove: !['planner', 'lead'].includes(
+          members.find(item => item.id === swapId)?.roleKind
+            ?? members.find(item => item.id === swapId)?.role,
+        ),
         engines: state.engines ?? [],
         requiresGate: kind.bodySwapGate === true && (members.find(item => item.id === swapId)?.permissions?.exec === true),
         busy: swapBusy,
@@ -249,6 +253,17 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           setSwapBusy(false)
           if (result?.ok !== true) {
             setSwapError(result?.error ?? '身体没换成')
+            return
+          }
+          setSwapId(null)
+        },
+        onRemove: async () => {
+          setSwapBusy(true)
+          setSwapError(null)
+          const result = await store.removeMember(swapId)
+          setSwapBusy(false)
+          if (result?.ok !== true) {
+            setSwapError(result?.error ?? '成员没移除')
             return
           }
           setSwapId(null)

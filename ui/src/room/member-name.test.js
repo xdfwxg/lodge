@@ -9,6 +9,7 @@ const room = {
 test('member names resolve from the roster, not from base names', () => {
   assert.equal(memberNameOf(room, 'executor'), '执行者')
   assert.equal(memberNameOf({ members: [] }, 'executor'), 'executor')
+  assert.equal(memberNameOf({ members: [], removedMembers: { executor: { name: '执行者' } } }, 'executor'), '执行者')
   assert.equal(memberNameOf(room, undefined), '')
   assert.equal(memberNameOf(room, 'ghost'), 'ghost')
 })

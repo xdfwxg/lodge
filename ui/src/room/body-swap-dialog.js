@@ -1,14 +1,15 @@
-import { createElement as h, useState } from 'react'
+import { Fragment, createElement as h, useState } from 'react'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor } from './member-options.js'
 
 const labelOf = engine => `${engine.name ?? engine.id}${engine.models?.default ? ` · ${engine.models.default}` : ''}`
 
 // 换身体：只换模型或运行时；成员 id、证据、交接和历史都不动。
-export function BodySwapDialog({ member, engines = [], requiresGate = false, busy = false, error = null, onCancel, onConfirm }) {
+export function BodySwapDialog({ member, engines = [], requiresGate = false, canRemove = false, busy = false, error = null, onCancel, onConfirm, onRemove = null }) {
   const available = engines.filter(item => item.available)
   const [engineId, setEngineId] = useState(member.body?.engine ?? '')
   const [modelId, setModelId] = useState(member.body?.model ?? '')
+  const [confirming, setConfirming] = useState(false)
   const engine = available.find(item => item.id === engineId)
   const rows = modelRowsFor(engine)
   const model = modelId !== '' ? modelId : (engine?.models?.default ?? rows[0]?.id ?? '')
@@ -69,13 +70,35 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, bus
         : blocked
           ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
           : null,
+      confirming
+        ? h('p', { className: 'crew-dialog-note', role: 'alert' }, `把${member.name}移出房间后，身体和工位会撤掉，聊天记录和证据还在。`)
+        : null,
       error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error)),
     h('div', { className: 'crew-dialog-foot' },
+      canRemove && onRemove !== null && !confirming
+        ? h('button', {
+          type: 'button',
+          className: 'crew-ghost crew-body-swap-remove',
+          disabled: busy,
+          onClick: () => setConfirming(true),
+        }, '移除成员')
+        : null,
+      confirming
+        ? h(Fragment, null,
+          h('button', { type: 'button', className: 'crew-ghost', disabled: busy, onClick: () => setConfirming(false) }, '取消'),
+          h('button', {
+            type: 'button',
+            className: 'crew-accept crew-dialog-primary',
+            'data-danger': 'true',
+            disabled: busy,
+            onClick: () => onRemove(),
+          }, busy ? '正在移除…' : '移除'))
+        : h(Fragment, null,
       h('button', { type: 'button', className: 'crew-ghost', disabled: busy, onClick: onCancel }, '取消'),
       h('button', {
         type: 'button',
         className: 'crew-accept crew-dialog-primary',
         disabled: busy || blocked || unchanged || engineId === '' || model === '',
         onClick: () => onConfirm(engineId, model),
-      }, busy ? '正在换…' : '换身体'))))
+      }, busy ? '正在换…' : '换身体')))))
 }

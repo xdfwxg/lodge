@@ -3,7 +3,9 @@ import { memberLabelMap, memberOf } from './room-members.js'
 export { memberLabelMap }
 
 // 房间用成员名，基座用身体名；两者只在跨边界时转换。
-export const memberDisplayName = (room, memberId) => memberOf(room, memberId)?.name ?? memberId
+export const memberDisplayName = (room, memberId) => (
+  memberOf(room, memberId)?.name ?? room?.removedMembers?.[memberId]?.name ?? memberId
+)
 
 export const memberSurfaceName = (room, memberId) => {
   const name = memberOf(room, memberId)?.body?.name

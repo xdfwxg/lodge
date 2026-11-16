@@ -10,6 +10,7 @@ import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
 import { createMemberAdd } from './member-add.js'
+import { createMemberRemove } from './member-remove.js'
 import { recordShadowAdvice } from './rooms/studio/shadow-advisor.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 
@@ -38,6 +39,13 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     emit,
     workspace,
     attachMember: (roomId, memberId) => live.attachMember?.(roomId, memberId),
+  })
+  const memberRemove = createMemberRemove({
+    store,
+    engine,
+    emit,
+    workspace,
+    detachMember: (roomId, memberId) => live.detachMember?.(roomId, memberId),
   })
   const closure = createServiceClosure({ store, emit })
 
@@ -324,6 +332,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     if (action === 'add-member' && method === 'POST') {
       if (room.live !== true) return fail('conflict', '房间没有连上，不能加成员')
       return memberAdd.add(room, await readBody())
+    }
+
+    if (action === 'remove-member' && method === 'POST') {
+      return memberRemove.remove(room, await readBody())
     }
 
     if (action === 'swap-body' && method === 'POST') {
