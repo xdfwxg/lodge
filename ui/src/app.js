@@ -42,11 +42,51 @@ export function App() {
     }
     const prev = seenNeeds.current
     seenNeeds.current = next
-    if (prev === null) return
+    const count = Object.keys(next).length
+    if (prev === null) {
+      window.lodge?.attention?.({ count })
+      return
+    }
     const changed = visibleRooms.filter(room => room.needsYou && next[room.id] !== prev[room.id])
+    const appearing = visibleRooms.filter(room => room.needsYou && prev[room.id] === undefined)
+    if (appearing.length > 0) {
+      const room = appearing[0]
+      window.lodge?.attention?.({
+        count,
+        notify: { roomId: room.id, title: 'Lodge 需要你', body: `${room.name}：${next[room.id]}` },
+      })
+    } else if (count !== Object.keys(prev).length) {
+      window.lodge?.attention?.({ count })
+    }
     if (changed.length === 0) return
     setNeedsText(changed.map(room => `${room.name}：${next[room.id]}`).join('；'))
   }, [state.rooms])
+
+  // 房间菜单只显示前 9 个；名字或顺序变了才重发，避免每条消息都重建菜单。
+  const menuSignature = visibleRooms.slice(0, 9)
+    .map(room => `${room.id}\u0000${room.name ?? ''}`)
+    .join('\n')
+  useEffect(() => {
+    window.lodge?.syncRooms?.(visibleRooms.slice(0, 9).map(room => ({ id: room.id, name: room.name ?? '' })))
+  }, [menuSignature])
+
+  useEffect(() => {
+    const offCommand = window.lodge?.onCommand?.(name => {
+      if (name === 'new-room') {
+        setSeed(null)
+        setStartType(null)
+        setDialog(true)
+      }
+      if (name === 'search') window.dispatchEvent(new Event('lodge:focus-search'))
+    })
+    const offOpenRoom = window.lodge?.onOpenRoom?.(id => {
+      if (typeof id === 'string') store.select(id)
+    })
+    return () => {
+      offCommand?.()
+      offOpenRoom?.()
+    }
+  }, [store])
   const needsRegion = h('div', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, needsText)
 
   useEffect(() => {

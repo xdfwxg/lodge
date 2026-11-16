@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, session, shell } from 'electron'
+import { app, BrowserWindow, Menu, Notification, dialog, ipcMain, session, shell } from 'electron'
 import { execFileSync, spawn } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
@@ -27,6 +27,8 @@ let baseUrl = process.env.CREW_BASE_URL ?? ''
 let quitting = false
 let serverRestarts = 0
 let runtimeLogins = []
+let menuRooms = []
+let lastNeedsCount = 0
 
 const readSettings = () => {
   try {
@@ -431,6 +433,19 @@ const openRuntimeLogin = instance => {
   }
 }
 
+const revealWindow = () => {
+  if (window === null) return false
+  if (window.isMinimized()) window.restore()
+  window.show()
+  window.focus()
+  return true
+}
+
+const sendToWindow = (channel, payload) => {
+  if (!revealWindow()) return
+  window.webContents.send(channel, payload)
+}
+
 const buildMenu = () => {
   const template = [
     ...(process.platform === 'darwin' ? [{
@@ -445,6 +460,25 @@ const buildMenu = () => {
         { role: 'quit' },
       ],
     }] : []),
+    {
+      label: '文件',
+      submenu: [
+        { label: '新建房间', accelerator: 'CmdOrCtrl+N', click: () => sendToWindow('lodge:command', 'new-room') },
+        { label: '搜索房间', accelerator: 'CmdOrCtrl+F', click: () => sendToWindow('lodge:command', 'search') },
+        { type: 'separator' },
+        { role: 'close', label: '关闭窗口' },
+      ],
+    },
+    {
+      label: '房间',
+      submenu: menuRooms.length === 0
+        ? [{ label: '还没有房间', enabled: false }]
+        : menuRooms.map((room, index) => ({
+          label: `${index + 1}  ${room.name}`,
+          accelerator: `CmdOrCtrl+${index + 1}`,
+          click: () => sendToWindow('lodge:open-room', room.id),
+        })),
+    },
     {
       label: '编辑',
       submenu: [
@@ -562,6 +596,36 @@ const boot = async () => {
       ? await dialog.showOpenDialog(options)
       : await dialog.showOpenDialog(window, options)
     return picked.canceled ? null : picked.filePaths?.[0] ?? null
+  })
+  // 渲染层只报“有几个房间需要你”；菜单和角标由主进程统一维护。
+  ipcMain.on('lodge:rooms', (_event, rooms) => {
+    menuRooms = Array.isArray(rooms)
+      ? rooms
+        .filter(room => typeof room?.id === 'string' && typeof room?.name === 'string')
+        .slice(0, 9)
+        .map(room => ({ id: room.id.slice(0, 120), name: room.name.slice(0, 80) }))
+      : []
+    buildMenu()
+  })
+  ipcMain.on('lodge:attention', (_event, payload) => {
+    const count = Number.isInteger(payload?.count) ? Math.max(0, Math.min(99, payload.count)) : 0
+    if (count !== lastNeedsCount) {
+      lastNeedsCount = count
+      app.setBadgeCount(count)
+    }
+    const notify = payload?.notify
+    if (notify === undefined || notify === null || !Notification.isSupported()) return
+    if (typeof notify.roomId !== 'string' || typeof notify.title !== 'string' || typeof notify.body !== 'string') return
+    // 人正看着窗口时不打扰；离开窗口才提醒。
+    if (window !== null && window.isFocused()) return
+    const notification = new Notification({
+      title: notify.title.slice(0, 120),
+      body: notify.body.slice(0, 240),
+    })
+    notification.on('click', () => sendToWindow('lodge:open-room', notify.roomId))
+    try {
+      notification.show()
+    } catch {}
   })
   buildMenu()
   try {

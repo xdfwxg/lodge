@@ -24,6 +24,19 @@ export const orderRooms = rooms => {
   return [...byRecent(pending), ...byRecent(recent), ...byRecent(done), ...byRecent(archived)]
 }
 
+export const SEARCH_MIN_ROOMS = 7
+
+export const filterRooms = (rooms, query) => {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return rooms
+  return rooms.filter(room => [
+    room.name,
+    room.goal,
+    roomLabelOf(room),
+    room.needsYou?.label,
+  ].some(value => typeof value === 'string' && value.toLowerCase().includes(needle)))
+}
+
 const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
@@ -33,8 +46,13 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const [rail, setRail] = useState(railQuery)
   const [open, setOpen] = useState(false)
   const [sideWidth, setSideWidthPx] = useState(248)
+  const [query, setQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const sidebarRef = useRef(null)
-  const ordered = orderRooms(rooms)
+  const searchRef = useRef(null)
+  const liveCount = rooms.filter(room => !room.archivedAt).length
+  const showSearch = liveCount >= SEARCH_MIN_ROOMS || searchOpen || query.trim() !== ''
+  const ordered = orderRooms(filterRooms(rooms, query))
   const archivedRooms = ordered.filter(room => room.archivedAt)
   const activeRooms = ordered.filter(room => !room.archivedAt)
   const collapsed = rail && !open
@@ -55,6 +73,32 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   useEffect(() => {
     if (!rail) setOpen(false)
   }, [rail])
+
+  // 搜索框第一次出现时由 effect 接管焦点，避免 setState 与 RAF 抢时序。
+  useEffect(() => {
+    if (searchOpen && searchRef.current !== null) searchRef.current.focus()
+  }, [searchOpen])
+
+  useEffect(() => {
+    const focusSearch = () => {
+      setSearchOpen(true)
+      setOpen(true)
+      searchRef.current?.focus()
+    }
+    const onKeyDown = event => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
+      if (event.key.toLowerCase() !== 'f') return
+      if (document.querySelector('[role=dialog]') !== null) return
+      event.preventDefault()
+      focusSearch()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('lodge:focus-search', focusSearch)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('lodge:focus-search', focusSearch)
+    }
+  }, [])
 
   useEffect(() => {
     let stored = ''
@@ -189,8 +233,35 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
           }, expanded ? '«' : '»')
           : null,
         h('button', { type: 'button', className: 'crew-new', 'aria-label': '新建房间', onClick: onNew }, '＋ 新建')),
+      showSearch && !collapsed
+        ? h('div', { className: 'crew-side-search' },
+          h('input', {
+            ref: searchRef,
+            type: 'search',
+            className: 'crew-side-search-input',
+            placeholder: '搜索房间',
+            'aria-label': '搜索房间',
+            value: query,
+            onChange: event => setQuery(event.target.value),
+            onKeyDown: event => {
+              if (event.key !== 'Escape') return
+              event.preventDefault()
+              if (query !== '') {
+                setQuery('')
+                return
+              }
+              if (liveCount < SEARCH_MIN_ROOMS) {
+                setSearchOpen(false)
+                event.currentTarget.blur()
+              }
+            },
+          }))
+        : null,
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },
+          query.trim() !== '' && activeRooms.length === 0 && archivedRooms.length === 0
+            ? h('p', { className: 'crew-side-empty', role: 'status' }, '没有匹配的房间')
+            : null,
           activeRooms.map(roomRow),
           archivedRooms.length === 0
             ? null

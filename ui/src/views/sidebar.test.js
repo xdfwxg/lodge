@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { orderRooms, roomLabelOf } from './sidebar.js'
+import { filterRooms, orderRooms, roomLabelOf } from './sidebar.js'
 
 test('sidebar room labels carry name, status, unread and needs-you text', () => {
   assert.equal(roomLabelOf({ name: '简历', state: 'active', live: true }), '简历，正在做')
@@ -13,6 +13,19 @@ test('sidebar room labels carry name, status, unread and needs-you text', () => 
   assert.equal(roomLabelOf({ name: '旧房', state: 'complete', archivedAt: 1 }), '旧房，已归档')
 })
 
+
+test('room search matches name, goal and status text', () => {
+  const rooms = [
+    { id: 'a', name: '发布检查', goal: '把清单做成可勾选的一页', state: 'active', live: true },
+    { id: 'b', name: '周会讨论', goal: '把周会压到二十分钟', state: 'complete' },
+    { id: 'c', name: '简历', state: 'active', needsYou: { kind: 'signoff', label: '待签字' } },
+  ]
+  assert.deepEqual(filterRooms(rooms, '发布').map(room => room.id), ['a'])
+  assert.deepEqual(filterRooms(rooms, '周会').map(room => room.id), ['b'])
+  assert.deepEqual(filterRooms(rooms, '待签字').map(room => room.id), ['c'])
+  assert.deepEqual(filterRooms(rooms, '  ').map(room => room.id), ['a', 'b', 'c'])
+  assert.deepEqual(filterRooms(rooms, '不存在'), [])
+})
 
 test('rooms are ordered by attention, recency and completion', () => {
   const rooms = [
