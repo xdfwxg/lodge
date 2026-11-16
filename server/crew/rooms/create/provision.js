@@ -1,3 +1,4 @@
+import { engineReady } from '../../../../shared/engine-readiness.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { createBodyFactory } from '../../body.js'
 import { roomBulletin, roomModeForType } from '../kinds.js'
@@ -16,9 +17,8 @@ export const createProvisioner = ({ engine }) => {
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
     // 基座只有在驱动支持权限复核时才会把外部动作停下来问人；不支持就不能假装会问。
     const approvalGateOf = id => {
-      const capabilities = instances.find(item => item.id === id)?.capabilities
-      if (capabilities === undefined || capabilities === null) return undefined
-      return capabilities.approvalReview === true
+      const instance = instances.find(item => item.id === id)
+      return instance === undefined ? undefined : engineReady(instance, { requireApproval: true })
     }
     const kindOf = member => member.roleKind ?? roleKindOf(member.role)
     // 工人先建，验收成员才有事实可依；没有显式引擎时优先选不同厂商。
@@ -96,7 +96,6 @@ export const createProvisioner = ({ engine }) => {
       const { body } = byId.get(member.id)
       return {
         id: member.id,
-        kind: 'ai',
         name: member.name,
         title: member.title,
         role: member.role,
@@ -108,7 +107,6 @@ export const createProvisioner = ({ engine }) => {
         writeScope: member.writeScope,
         toolSurface: member.toolSurface,
         approval: member.approval,
-        speakBudget: member.speakBudget,
         ...(member.personality === undefined || member.personality === '' ? {} : { personality: member.personality }),
         body,
       }

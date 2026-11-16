@@ -144,7 +144,7 @@ function GoalClosed({ view, room, actions }) {
         h('span', {
           className: 'bt-goal-closed-dot',
           'data-tone': tone,
-          'data-live': room.busy === true ? 'true' : undefined,
+          'data-live': (room.busyMembers ?? []).length > 0 ? 'true' : undefined,
           'aria-hidden': true,
         }),
         h('span', { className: 'bt-goal-closed-label' }, status)),

@@ -78,7 +78,6 @@ test('a handoff writes a work-turn card, wakes the member and moves its cursor',
   assert.equal(ctx.messages[0].kind, 'handoff')
   assert.equal(ctx.messages[0].meta.assignmentId, sent.id)
   assert.equal(ctx.store.readAssignment(sent.id).brief.done[0], '测试通过')
-  assert.equal(ctx.room().memberCursors.worker, ctx.messages[0].seq)
   assert.deepEqual(ctx.events.map(event => event.type), ['assignment.created', 'assignment.sent'])
 })
 

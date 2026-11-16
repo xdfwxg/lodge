@@ -36,12 +36,10 @@ test('a model with permission review stays selectable', () => {
   assert.doesNotMatch(html, /不能执行/)
 })
 
-test('a logged-out service is not selectable and says why', () => {
+test('a logged-out service is not selectable', () => {
   const html = render({ approvalReview: true, authenticated: false })
   assert.match(html, /未登录/)
   assert.ok(html.includes('disabled'))
-  assert.match(html, /没有登录/)
-  assert.match(html, /登录 Pi/)
 })
 
 test('rooms without exec work still allow the same model', () => {

@@ -18,7 +18,6 @@ const deliveryTriad = [
     skills: [],
     mcp: [],
     approval: 'ask',
-    speakBudget: 6,
     prompt: '你是规划师。你的执行成员是 @执行官，验收成员是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。',
   },
   {
@@ -35,7 +34,6 @@ const deliveryTriad = [
     mcp: [],
     // 基座在 auto 下会自动放行 WebSearch；外部访问仍要经过 Lodge 的审批卡。
     approval: 'ask',
-    speakBudget: 8,
     prompt: '你是执行官。你的验收成员是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
   },
   {
@@ -51,7 +49,6 @@ const deliveryTriad = [
     skills: [],
     mcp: [],
     approval: 'ask',
-    speakBudget: 4,
     prompt: '你是验收员。用简洁、直接的中文沟通；只依据证据判断，不替执行官解释。',
   },
 ]

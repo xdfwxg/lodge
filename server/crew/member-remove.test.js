@@ -24,7 +24,6 @@ const roomOf = () => ({
   branches: { worker: 'crew/x/worker' },
   ports: { worker: 4000 },
   workspaceEnv: { worker: {} },
-  memberCursors: { worker: 3 },
   members: [member('lead', 'lead', 'claude'), member('worker', 'worker', 'pi'), member('verifier', 'verifier', 'claude')],
   independence: 'none',
   turnQueue: [],
@@ -74,7 +73,6 @@ test('removing a member retires the body and keeps its name for history', async 
   assert.equal(result.ok, true, result.error)
   assert.deepEqual(room.members.map(item => item.id), ['lead', 'verifier'])
   assert.equal(room.worktrees.worker, undefined)
-  assert.equal(room.memberCursors.worker, undefined)
   assert.equal(room.removedMembers.worker.name, '执行官')
   assert.ok(calls.shared.some(call => call.refs.includes('bot-lead') && !call.refs.includes('bot-worker')))
   assert.ok(calls.retired.includes('base-worker'))
@@ -108,7 +106,6 @@ test('a chat room cannot remove a member while someone is speaking', async () =>
   const { remove, calls } = harness()
   const room = roomOf()
   room.chat = { running: true }
-  room.chatWorking = true
   const result = await remove.remove(room, { memberId: 'worker' })
   assert.equal(result.ok, false)
   assert.match(result.error, /等这一回合结束/)
@@ -118,7 +115,7 @@ test('a chat room cannot remove a member while someone is speaking', async () =>
 test('a busy room waits before removing anyone', async () => {
   const { remove, calls } = harness()
   const room = roomOf()
-  room.busy = true
+  room.busyMembers = ['worker']
   const result = await remove.remove(room, { memberId: 'worker' })
   assert.equal(result.ok, false)
   assert.match(result.error, /等这一回合结束/)

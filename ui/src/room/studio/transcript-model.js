@@ -221,9 +221,7 @@ export const presenceLines = (room, members = []) => {
     name: nameOf(memberId),
     count: room?.heldMessages?.[memberId] ?? 0,
   }))
-  const busy = Array.isArray(room?.busyMembers) && room.busyMembers.length > 0
-    ? room.busyMembers
-    : (room?.busyMember ? [room.busyMember] : [])
+  const busy = Array.isArray(room?.busyMembers) ? room.busyMembers : []
   const working = busy
     .filter(memberId => !heldMembers.has(memberId))
     .map(memberId => ({ memberId, name: nameOf(memberId), since: room?.busySince ?? null }))

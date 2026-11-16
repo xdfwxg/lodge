@@ -2,8 +2,8 @@ import { Fragment, createElement as h, useEffect, useId, useRef, useState } from
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/ds-icons.js'
 import { chooseDirectory as pickProjectDirectory } from './system.js'
-import { engineReady, engineReadiness } from './engine-readiness.js'
-import { useEngineLogin } from './engine-login.js'
+import { EngineLogin, useEngineLogin } from './engine-login.js'
+import { engineReady, engineReadiness } from '../../shared/engine-readiness.js'
 import { inlineCode } from './inline-code.js'
 import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
@@ -60,7 +60,6 @@ function NewRoomDialog({
   const [chatMemberChoices, setChatMemberChoices] = useState([])
   const [chatMembers, setChatMembers] = useState(null)
   const { busyId: loginBusyId, note: loginNote, login: loginEngineFor, reset: resetLogin, clearNote } = useEngineLogin(onRefresh)
-  const loginBusy = loginBusyId !== ''
   const [error, setError] = useState(null)
   const [choosingType, setChoosingType] = useState(false)
   const goalId = useId()
@@ -391,15 +390,19 @@ function NewRoomDialog({
       choices: memberChoices,
       setChoices: setMemberChoices,
       engines,
-      loginBusy,
       allowSkills: features?.skillsLibrary === true,
-      onLogin: loginEngineFor,
       onInteraction: clearNote,
     }),
     studioMissingVerifier
       ? h('p', { className: 'crew-field-hint' }, '工作室需要一位验收员；让 Lodge 重新出方案，补上验收员。')
       : null,
-    loginNote !== '' ? h('p', { className: 'crew-dialog-note' }, loginNote) : null)
+    h(EngineLogin, {
+      readiness: engineReadiness(engines, { requireApproval: true }),
+      busyId: loginBusyId,
+      note: loginNote,
+      onLogin: loginEngineFor,
+      onRefresh,
+    }))
 
 
 
@@ -475,7 +478,6 @@ function NewRoomDialog({
     engines,
     onRefresh,
     features,
-    loginBusy,
     loginBusyId,
     loginNote,
     onLogin: loginEngineFor,
@@ -614,14 +616,6 @@ function NewRoomDialog({
               setAnswers([])
             },
           }, '返回修改')
-          : null,
-        planFirst && !recommending
-          ? h('button', {
-            type: 'button',
-            className: 'crew-ghost',
-            disabled: startDisabled,
-            onClick: () => void startStudio(),
-          }, '直接开工')
           : null,
         step === 0
           ? h('button', {

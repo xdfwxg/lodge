@@ -210,7 +210,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (stage === undefined) return fail('invalid', '没有这一步')
     if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这一步不能重做')
     if (room.state !== 'active') return fail('conflict', '先让房间继续，再重做这一步')
-    if (room.busy === true) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
+    if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
     if (room.live === true && typeof live.busyReview === 'function' && live.busyReview(room.id)) {
       return fail('conflict', '验收员还在看，等结论出来再继续')
     }

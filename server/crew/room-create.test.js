@@ -445,7 +445,7 @@ test('a single-vendor studio records the downgrade', async () => {
   const { store } = completedRoom(temp('lodge-independence-prefer-'))
   const engine = fakeEngine({ available: ['claude'] })
   engine.capabilities = () => ({ provisioning: true, mentions: true, mcp: false })
-  engine.instances = async () => [{ id: 'claude', engine: 'claude', available: true }]
+  engine.instances = async () => [{ id: 'claude', engine: 'claude', available: true, capabilities: { approvalReview: true } }]
   const result = await run(store, {
     goal: '默认允许同厂商但标注降级',
     roomType: 'studio',

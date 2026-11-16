@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { markMemberRead } from '../../watermarks.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { createAssignment, transitionAssignment } from '../../assignments.js'
 
@@ -87,7 +86,6 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       text: summary,
       meta: { assignmentId: assignment.id, stage: index, status: 'sending' },
     })
-    markMemberRead({ store, roomId, memberId: to, emit })
     if (created) {
       store.appendEvent(roomId, 'assignment.created', {
         assignmentId: assignment.id,

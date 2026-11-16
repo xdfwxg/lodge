@@ -50,7 +50,8 @@ test('one available vendor points at the same-vendor self check', () => {
 
 test('logged-out services do not count as usable models', () => {
   const html = render({ engines: [{ ...engine('claude', true), authenticated: false }] })
-  assert.match(html, /还没登录/)
+  assert.match(html, /先在这台电脑上登录/)
+  assert.match(html, /刷新/)
 })
 
 test('a logged-out model offers a login button in the primary fields', () => {

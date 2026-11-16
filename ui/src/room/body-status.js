@@ -10,23 +10,12 @@ const workingLabel = (member, room, labels) => {
 
 export const bodyStatuses = (room, members = [], { labels = {} } = {}) => {
   const held = new Set(Array.isArray(room?.heldMembers) ? room.heldMembers : [])
-  const working = new Set(
-    Array.isArray(room?.busyMembers) && room.busyMembers.length > 0
-      ? room.busyMembers
-      : (room?.busyMember ? [room.busyMember] : []),
-  )
+  const working = new Set(Array.isArray(room?.busyMembers) ? room.busyMembers : [])
   const queued = new Set((Array.isArray(room?.turnQueue) ? room.turnQueue : [])
     .filter(item => item.state === 'queued')
     .map(item => item.memberId))
   const offline = typeof room?.connectionError === 'string' && room.connectionError !== ''
   const reviewing = room?.needsYou?.kind === 'review'
-  const chatSpeaker = typeof room?.chatBusyMember === 'string' && room.chatBusyMember !== ''
-    ? room.chatBusyMember
-    : (room?.chat?.speaker ?? '')
-  const chatRunning = room?.chatWorking === true || room?.chat?.running === true
-  const chatQueued = new Set((Array.isArray(room?.chatQueue) ? room.chatQueue : [])
-    .filter(item => item.state === 'queued')
-    .map(item => item.memberId))
 
   return members.map(member => {
     const base = {
@@ -41,10 +30,10 @@ export const bodyStatuses = (room, members = [], { labels = {} } = {}) => {
     }
     if (offline) return { ...base, state: 'offline', label: '连接中断', tone: 'danger' }
     if (held.has(member.id)) return { ...base, state: 'held', label: '已叫停', tone: 'muted' }
-    if (working.has(member.id) || (chatRunning && chatSpeaker === member.id)) {
+    if (working.has(member.id)) {
       return { ...base, state: 'working', label: workingLabel(member, room, labels), tone: 'active' }
     }
-    if (queued.has(member.id) || chatQueued.has(member.id)) return { ...base, state: 'queued', label: '排队中', tone: 'waiting' }
+    if (queued.has(member.id)) return { ...base, state: 'queued', label: '排队中', tone: 'waiting' }
     if (reviewing && member.role === 'verifier') {
       return {
         ...base,

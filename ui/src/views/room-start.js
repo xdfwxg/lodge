@@ -1,6 +1,6 @@
 import { createElement as h, useState } from 'react'
 import { EngineLogin, useEngineLogin } from '../engine-login.js'
-import { engineReadiness } from '../engine-readiness.js'
+import { engineReadiness } from '../../../shared/engine-readiness.js'
 
 // 还没有房间时，直接给一间“新房间”的外壳：只问目标和检查，不再有独立首页。
 export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh = null }) {

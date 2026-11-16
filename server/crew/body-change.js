@@ -4,8 +4,8 @@ export const bodyChangeBlocker = (room, verb) => {
   if (typeof room.connectionError === 'string' && room.connectionError !== '') {
     return `基座连接中断，等连上再${verb}`
   }
-  const chatRunning = room.chat?.running === true || room.chatWorking === true
-  if (room.busy === true || chatRunning || (room.turnQueue ?? []).length > 0) {
+  const chatRunning = room.chat?.running === true
+  if ((room.busyMembers ?? []).length > 0 || chatRunning || (room.turnQueue ?? []).length > 0) {
     return `房间正在做事，等这一回合结束再${verb}`
   }
   if (room.pauseReason === 'approval') return `先处理待确认的操作，再${verb}`

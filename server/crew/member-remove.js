@@ -43,7 +43,6 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
       current.branches = without(current.branches, memberId)
       current.ports = without(current.ports, memberId)
       current.workspaceEnv = without(current.workspaceEnv, memberId)
-      current.memberCursors = without(current.memberCursors, memberId)
       current.removedMembers = {
         ...(current.removedMembers ?? {}),
         [memberId]: {

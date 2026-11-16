@@ -1,3 +1,4 @@
+import { failureNextStep } from '../../../shared/failure.js'
 import { memberNameOf } from './member-name.js'
 
 // 两种房型共用的决策原语：名字、清理文本、暂停/停止态。
@@ -29,9 +30,7 @@ export const buildIdleDecision = room => {
   return {
     key: 'paused',
     title: paused.title,
-    detail: room.memberError?.kind === 'quota'
-      ? '充值或给这位成员换个模型后，点“继续”。'
-      : '处理完成后点“继续”。',
+    detail: failureNextStep(room.memberError?.kind),
     primary: { label: '继续', action: 'resume' },
     secondary: null,
   }

@@ -40,6 +40,6 @@ test('busy members carry a start time that survives repeated refreshes', async (
   assert.equal(room.busySince, started)
   working = false
   await refresher.refresh({ roomId: 'room-1', refreshedAt: 0 }, { force: true })
-  assert.equal(room.busy, false)
+  assert.deepEqual(room.busyMembers, [])
   assert.equal(room.busySince, null)
 })

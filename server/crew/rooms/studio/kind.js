@@ -27,7 +27,7 @@ const studioNeedsYou = (room, messages = []) => {
   if (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') {
     return { kind: 'question', stage: index, label: '待回答' }
   }
-  if (room.busy === true) return null
+  if ((room.busyMembers ?? []).length > 0) return null
   const timeout = latestReviewTimeout(messages, index)
   if (timeout !== undefined) {
     const lastVerdict = latestForStage(messages, 'verdict', index, floor)
@@ -221,7 +221,6 @@ export const studioKind = {
     gate,
     builtStages,
   }) => ({
-    engine: 'delivery',
     constraints: studioConstraints({ plan, verify, acceptance, verifiers, independence }),
     closure: {
       closure: plan === null ? 'open' : 'planned',

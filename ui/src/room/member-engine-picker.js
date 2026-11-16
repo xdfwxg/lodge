@@ -1,6 +1,6 @@
 import { Fragment, createElement as h } from 'react'
 
-import { engineBlockReason } from '../engine-readiness.js'
+import { engineBlockReason } from '../../../shared/engine-readiness.js'
 import { ROLE_LABEL, modelRowsFor } from './member-options.js'
 
 // 选择列表可能比成员列表短：补齐空洞，避免后面的渲染读到 undefined。
@@ -15,7 +15,6 @@ export function MemberEnginePicker({
   choices,
   setChoices,
   engines = [],
-  loginBusy = false,
   personalities = [],
   allowCapabilities = false,
   allowSkills = false,
@@ -23,7 +22,6 @@ export function MemberEnginePicker({
   onRemove = null,
   canRemove = false,
   canRemoveMember = null,
-  onLogin = () => {},
   onInteraction = () => {},
 }) {
   const engineChoices = engines.filter(item => item.available)
@@ -91,27 +89,8 @@ export function MemberEnginePicker({
             },
             rows.map(item => h('option', { key: item.id, value: item.id }, item.label)))
             : null,
-          engine !== undefined && rows.length === 0 && Array.isArray(engine.login?.args)
-            ? h('button', {
-              type: 'button',
-              className: 'crew-ghost',
-              disabled: loginBusy,
-              onClick: () => void onLogin(engine),
-            }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)
-            : null,
           engine !== undefined && rows.length === 0
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型服务还没有可用模型。')
-            : null,
-          engine !== undefined && engine.authenticated === false
-            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型服务没有登录，先登录再用。')
-            : null,
-          engine !== undefined && engine.authenticated === false && Array.isArray(engine.login?.args)
-            ? h('button', {
-              type: 'button',
-              className: 'crew-ghost',
-              disabled: loginBusy,
-              onClick: () => void onLogin(engine),
-            }, loginBusy ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)
             : null,
           engine !== undefined && engine.authenticated !== false && needsGate === true && engine.capabilities?.approvalReview !== true
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')

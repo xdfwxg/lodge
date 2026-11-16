@@ -67,8 +67,8 @@ export const islandStatus = room => {
       ? { label: room.needsYou.label, tone: 'paused' }
       : { label: '已暂停', tone: 'paused' }
   }
-  if (room.busy === true) {
-    const busy = Array.isArray(room.busyMembers) ? room.busyMembers : room.busyMember ? [room.busyMember] : []
+  const busy = Array.isArray(room.busyMembers) ? room.busyMembers : []
+  if (busy.length > 0) {
     if (busy.length > 1) return { label: `${busy.length} 个执行在做`, tone: 'active' }
     const member = room.members?.find(item => item.id === busy[0])?.name
     return { label: `${member ?? '成员'}在做`, tone: 'active' }
@@ -95,7 +95,7 @@ export const memberTask = (member, stage) => {
 }
 
 export const memberState = (room, stage, index, memberId) => {
-  const busy = Array.isArray(room.busyMembers) ? room.busyMembers : room.busyMember ? [room.busyMember] : []
+  const busy = Array.isArray(room.busyMembers) ? room.busyMembers : []
   if (busy.includes(memberId)) return 'working'
   if (stage.state === 'passed') return 'done'
   if (stage.state === 'pending') return 'pending'

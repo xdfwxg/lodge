@@ -3,7 +3,7 @@ import test from 'node:test'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { EngineLogin } from './engine-login.js'
-import { engineReadiness, engineReady } from './engine-readiness.js'
+import { engineReadiness, engineReady } from '../../shared/engine-readiness.js'
 
 const engine = (id, overrides = {}) => ({
   id,

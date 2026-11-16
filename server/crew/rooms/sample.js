@@ -53,11 +53,9 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   completedAt: now - 3 * 60_000,
   completedCommit: null,
   leadMemberId: 'planner',
-  memberCursors: {},
   members: [
     {
       id: 'planner',
-      kind: 'ai',
       name: '规划师',
       title: '规划',
       role: 'lead',
@@ -67,7 +65,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
       writeScope: 'none',
       toolSurface: ['read'],
       approval: 'ask',
-      speakBudget: 6,
       body: {
         kind: 'base',
         ref: 'sample-planner',
@@ -78,7 +75,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
     },
     {
       id: 'executor',
-      kind: 'ai',
       name: '执行官',
       title: '实现',
       role: 'worker',
@@ -88,7 +84,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
       writeScope: 'own_worktree',
       toolSurface: ['read', 'exec', 'write'],
       approval: 'auto',
-      speakBudget: 8,
       body: {
         kind: 'base',
         ref: 'sample-executor',
@@ -99,7 +94,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
     },
     {
       id: 'verifier',
-      kind: 'ai',
       name: '验收员',
       title: '复核',
       role: 'verifier',
@@ -109,7 +103,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
       writeScope: 'none',
       toolSurface: ['read', 'exec'],
       approval: 'ask',
-      speakBudget: 6,
       body: {
         kind: 'base',
         ref: 'sample-verifier',
@@ -165,7 +158,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   childRoomIds: [],
   idle: false,
   round: 0,
-  busy: false,
   turnQueue: [],
   approvals: [],
   openQuestion: null,

@@ -1,6 +1,6 @@
 import { Fragment, createElement as h, useState } from 'react'
 import { EngineLogin, useEngineLogin } from '../engine-login.js'
-import { engineBlockReason, engineReadiness } from '../engine-readiness.js'
+import { engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor } from './member-options.js'
 import { BodySpecFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
@@ -57,8 +57,6 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
       h('p', { className: 'crew-body-swap-identity' },
         [roleLabelOf(member), permissionOf(member), member.approval === 'ask' ? '外部操作先问你' : ''].filter(Boolean).join(' · '))),
     h('div', { className: 'crew-dialog-body' },
-      h('p', { className: 'crew-field-hint' },
-        `现在：${member.body?.engine ?? '未知'}${member.body?.model ? ` · ${member.body.model}` : ''}`),
       h('label', { className: 'crew-field crew-body-swap-field' },
         h('b', null, '模型服务'),
         h('select', {

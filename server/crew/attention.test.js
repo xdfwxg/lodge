@@ -56,12 +56,12 @@ test('a lost base connection and a timed-out stage both ask the human', () => {
 })
 
 test('a busy member is not a needs-you state', () => {
-  assert.equal(roomNeedsYou(room({ busy: true }), []), null)
+  assert.equal(roomNeedsYou(room({ busyMembers: ['worker'] }), []), null)
 })
 
 test('a pending external approval outranks a busy member', () => {
   const r = atDeliverable()
-  r.busy = true
+  r.busyMembers = ['worker']
   r.approvals = [{ id: 'a', state: 'pending' }]
   assert.deepEqual(roomNeedsYou(r, []), { kind: 'approval', stage: null, label: '待确认' })
 })

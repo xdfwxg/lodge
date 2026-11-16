@@ -112,7 +112,7 @@ test('resume leaves a busy room alone', async () => {
     ...store([]).readRoom(),
     live: true,
     state: 'active',
-    busy: true,
+    busyMembers: ['worker'],
     workers: ['worker'],
     seatNames: { worker: 'Worker' },
     seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],

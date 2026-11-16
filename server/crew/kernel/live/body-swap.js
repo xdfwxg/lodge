@@ -1,7 +1,7 @@
 import { fail, ok } from '../../result.js'
 import { roomBulletin, roomModeOfRoom } from '../../rooms/kinds.js'
 import { resolveRoomType } from '../../room-types/index.js'
-import { bodyIssueOf } from '../../body-check.js'
+import { engineBlockReason } from '../../../../shared/engine-readiness.js'
 import { bodyChangeBlocker } from '../../body-change.js'
 import { normalizeBodySpec } from '../../body-spec.js'
 import { plainRuntimeError } from '../../base-error.js'
@@ -52,11 +52,12 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
     })
     if (specError !== undefined) return fail('invalid', specError)
     const instance = instances.find(item => item.id === engineId)
-    const issue = bodyIssueOf(instance)
-    if (issue !== '') return fail('invalid', issue === '登录失效' ? '这个模型服务没有登录，先登录再换身体' : `这个模型服务现在不可用：${issue}`)
     const requiresGate = resolveRoomType(room.roomType)?.readOnly !== true && member.permissions?.exec === true
-    if (requiresGate && instance.capabilities?.approvalReview !== true) {
-      return fail('invalid', '这个模型不会先问你，不能用来执行')
+    const issue = engineBlockReason(instance, { requireApproval: requiresGate })
+    if (issue !== '') {
+      if (issue === '登录失效') return fail('invalid', '这个模型服务没有登录，先登录再换身体')
+      if (issue === '不会先问你外部动作') return fail('invalid', '这个模型不会先问你，不能用来执行')
+      return fail('invalid', issue === '没有这个模型服务' ? '这个模型服务现在不可用' : `这个模型服务现在不可用：${issue}`)
     }
     if (engineId === member.body.engine && modelId === (member.body.model ?? '') && JSON.stringify(spec) === JSON.stringify(current)) {
       return fail('invalid', '身体没有变化')

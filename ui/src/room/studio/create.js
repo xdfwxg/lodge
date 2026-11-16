@@ -1,6 +1,6 @@
 import { Fragment, createElement as h } from 'react'
 import { EngineLogin } from '../../engine-login.js'
-import { engineReadiness } from '../../engine-readiness.js'
+import { engineReadiness } from '../../../../shared/engine-readiness.js'
 import { MemberEnginePicker } from '../member-engine-picker.js'
 import { normalizeMembers } from '../member-options.js'
 
@@ -139,13 +139,12 @@ export function StudioPrimaryFields({
 }) {
   const readiness = engineReadiness(engines, { requireApproval: true })
   const { installed, ready, loginTargets, manualLogin } = readiness
-  const manualNames = [...loginTargets, ...manualLogin].map(item => item.name ?? item.id).join('、')
   const vendors = new Set(ready.map(item => item.engine ?? item.id))
   const modelNote = installed.length === 0
     ? '还没有可用的模型服务。先装一家会先问你的模型，或把这件事放进聊天室讨论。'
     : ready.length === 0
       ? loginTargets.length + manualLogin.length > 0
-        ? `${manualNames}还没登录；登录后点“刷新”，或把这件事放进聊天室讨论。`
+        ? ''
         : '现在没有会逐次确认外部动作的模型，工作室开不了工。先装好一家会先问你的模型，或把这件事放进聊天室讨论。'
       : vendors.size < 2
         ? '现在只有一家模型可用：验收会是同一家模型自查。要独立复核，先在「调整成员与模型」里选另一家模型服务；没有就先装一家。'
@@ -190,8 +189,6 @@ export function StudioSetupFields({
   choices = [],
   setChoices = () => {},
   engines = [],
-  loginBusy = false,
-  onLogin,
   onInteraction,
   shadowReview = false,
   onShadowReview = () => {},
@@ -209,11 +206,9 @@ export function StudioSetupFields({
         choices,
         setChoices,
         engines,
-        loginBusy,
         allowCapabilities: true,
         allowSkills: features?.skillsLibrary === true,
         requireApprovalGate: true,
-        onLogin,
         onInteraction,
       })),
     h('label', { className: 'crew-check' },

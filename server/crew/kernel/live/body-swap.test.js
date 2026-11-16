@@ -161,7 +161,6 @@ test('a busy chat room waits for the round to end', async () => {
   const { swap, calls } = harness()
   const room = roomOf()
   room.chat = { running: true }
-  room.chatWorking = true
   const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
   assert.match(result.error, /等这一回合结束/)
@@ -179,7 +178,7 @@ test('a base that is still talking is reported in plain Chinese', async () => {
 test('a busy room keeps its body until the turn ends', async () => {
   const { swap, calls } = harness()
   const room = roomOf()
-  room.busy = true
+  room.busyMembers = ['worker']
   const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
   assert.match(result.error, /等这一回合结束/)

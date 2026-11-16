@@ -1,5 +1,4 @@
 import { buildMemberHandoff } from './member-handoff.js'
-import { markMemberRead } from '../../watermarks.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { alignmentPrompt, directPrompt } from '../create/input.js'
 
@@ -26,7 +25,6 @@ export const startInitialStage = async ({
     if (activeStage >= 0) await live.startStage(room, activeStage)
   } else {
     const targetMember = align ? lead : worker
-    markMemberRead({ store, roomId: room.id, memberId: targetMember.id, emit })
     const openingName = targetMember.name
     const opening = align
       ? alignmentPrompt(openingName, goal, verify, acceptance, room.handoff)

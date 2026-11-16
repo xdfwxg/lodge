@@ -97,12 +97,7 @@ const toDsRoom = room => ({
   needsYou: room.needsYou ?? null,
 })
 
-export const toDsRoomWork = room => {
-  const busy = Array.isArray(room.busyMembers) && room.busyMembers.length > 0
-    ? room.busyMembers
-    : room.busyMember ? [room.busyMember] : []
-  return busy.map(botId => ({ botId }))
-}
+export const toDsRoomWork = room => (room.busyMembers ?? []).map(botId => ({ botId }))
 
 const pill = ({ room, view, open, onToggle }) => {
   const title = view?.title || room.name || room.goal

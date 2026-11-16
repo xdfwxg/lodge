@@ -8,7 +8,6 @@ export const normalizeLegacyTestRoom = room => {
   const members = specs.length > 0
     ? specs.map(spec => ({
       ...spec,
-      kind: spec.kind ?? 'ai',
       roleKind: spec.roleKind ?? roleKindOf(spec.role),
       body: {
         kind: 'base',
@@ -18,7 +17,6 @@ export const normalizeLegacyTestRoom = room => {
     }))
     : ids.map(id => ({
       id,
-      kind: 'ai',
       name: room.seatNames?.[id] ?? id,
       role: id === room.leadSeat ? 'lead' : (room.verifiers ?? []).includes(id) ? 'verifier' : 'worker',
       roleKind: roleKindOf(id === room.leadSeat ? 'lead' : (room.verifiers ?? []).includes(id) ? 'verifier' : 'worker'),
@@ -32,7 +30,6 @@ export const normalizeLegacyTestRoom = room => {
     ...room,
     members,
     leadMemberId: room.leadMemberId ?? room.leadSeat ?? members.find(member => member.role === 'lead')?.id ?? members[0]?.id ?? null,
-    memberCursors: room.memberCursors ?? room.seatCursors ?? {},
   }
 }
 

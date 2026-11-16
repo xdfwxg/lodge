@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { EngineLogin, useEngineLogin } from '../engine-login.js'
-import { engineBlockReason, engineReadiness } from '../engine-readiness.js'
+import { engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor } from './member-options.js'
 import { BodySpecFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'

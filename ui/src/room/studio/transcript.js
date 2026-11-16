@@ -60,7 +60,7 @@ export function StudioTranscript({
 
   const renderChapterBody = chapter => {
     const body = groupSteps(chapter.items)
-    const liveStage = chapter.state === 'active' && room.state === 'active' && room.busy === true
+    const liveStage = chapter.state === 'active' && room.state === 'active' && (room.busyMembers ?? []).length > 0
     const activeIndex = room.stages.findIndex(stage => stage.state === 'active')
     const decisionStage = room.needsYou?.kind === 'decision' && chapter.index === activeIndex
     return body.map((item, index) => {

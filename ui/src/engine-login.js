@@ -55,7 +55,7 @@ export function EngineLogin({ readiness, busyId = '', note = '', disabled = fals
       disabled: disabled || busyId !== '' || onLogin === null,
       onClick: () => void onLogin?.(engine),
     }, busyId === engine.id ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)),
-    manualLogin.length > 0 && onRefresh !== null
+    onRefresh !== null
       ? h('button', {
         type: 'button',
         className: 'crew-ghost',

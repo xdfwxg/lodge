@@ -7,7 +7,6 @@ const setup = () => {
     id: 'room-chat',
     kind: 'room',
     roomType: 'chat',
-    engine: 'chat',
     state: 'active',
     live: true,
     usage: { costMicroUsd: 0, budgetMicroUsd: 0 },

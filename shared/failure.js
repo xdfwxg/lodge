@@ -13,6 +13,10 @@ export const failureLabel = (kind, name) => ({
   engine: `${name}没能回应`,
 }[kind] ?? `${name}没能回应`)
 
+export const failureNextStep = kind => (
+  kind === 'quota' ? '充值或给这位成员换个模型后，点“继续”。' : '处理完成后点“继续”。'
+)
+
 export const failureCopy = (kind, name) => ({
   quota: `${failureLabel(kind, name)}，房间已暂停。充值或给这位成员换个模型后，点“继续”。`,
   auth: `${failureLabel(kind, name)}，房间已暂停。重新登录或换个模型服务后，点“继续”。`,

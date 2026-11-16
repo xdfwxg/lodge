@@ -21,10 +21,9 @@ test('idle bodies read as present, not as status noise', () => {
 test('a chat speaker shows as speaking and the queue shows as waiting', () => {
   const room = {
     state: 'active',
-    chatWorking: true,
-    chatBusyMember: 'worker',
+    busyMembers: ['worker'],
     chat: { running: true, speaker: 'worker' },
-    chatQueue: [{ memberId: 'verifier', state: 'queued' }],
+    turnQueue: [{ memberId: 'verifier', state: 'queued' }],
   }
   const status = byId(bodyStatuses(room, members, { labels: { member: '发言中' } }))
   assert.equal(status.worker.label, '发言中')

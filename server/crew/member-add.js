@@ -1,8 +1,8 @@
+import { engineBlockReason, engineReady } from '../../shared/engine-readiness.js'
 import { fail, ok } from './result.js'
 import { createBodyFactory } from './body.js'
 import { bodyChangeBlocker } from './body-change.js'
 import { plainRuntimeError } from './base-error.js'
-import { bodyIssueOf } from './body-check.js'
 import { normalizeBodySpec } from './body-spec.js'
 import { independenceOf } from './independence.js'
 import { roomBulletin, roomModeOfRoom } from './rooms/kinds.js'
@@ -41,13 +41,13 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
     const requested = typeof body.engine === 'string' ? body.engine.trim() : ''
     const instance = requested !== ''
       ? instances.find(item => item.id === requested)
-      : instances.find(item => item.available === true && item.authenticated !== false && item.capabilities?.approvalReview === true)
-    if (instance === undefined || instance.available !== true) return fail('invalid', '这个模型服务现在不可用')
-    const health = bodyIssueOf(instance)
-    if (health !== '') {
-      return fail('invalid', health === '登录失效' ? '这个模型服务没有登录，先登录再加' : `这个模型服务现在不可用：${health}`)
+      : instances.find(item => engineReady(item, { requireApproval: true }))
+    const issue = engineBlockReason(instance, { requireApproval: true })
+    if (issue !== '') {
+      if (issue === '登录失效') return fail('invalid', '这个模型服务没有登录，先登录再加')
+      if (issue === '不会先问你外部动作') return fail('invalid', '执行成员要用会先问你外部动作的模型')
+      return fail('invalid', issue === '没有这个模型服务' ? '这个模型服务现在不可用' : `这个模型服务现在不可用：${issue}`)
     }
-    if (instance.capabilities?.approvalReview !== true) return fail('invalid', '执行成员要用会先问你外部动作的模型')
     const model = typeof body.model === 'string' && body.model.trim() !== ''
       ? body.model.trim()
       : (instance.models?.default ?? '')
@@ -105,7 +105,6 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       const updated = store.updateRoom(room.id, current => {
         current.members = [...(current.members ?? []), {
           id,
-          kind: 'ai',
           name,
           title: template.title,
           role: template.role,
@@ -116,7 +115,6 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
           writeScope: template.writeScope,
           toolSurface: template.toolSurface,
           approval: template.approval,
-          speakBudget: template.speakBudget,
           body: incarnation.body,
         }]
         current.worktrees = { ...(current.worktrees ?? {}), [id]: memberWorkspace.path }

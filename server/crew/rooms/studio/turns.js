@@ -359,7 +359,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     if (room === null) return
     settleCompletedSubrooms(store, roomId)
     if (room.live !== true || room.state !== 'active') return
-    if (room.busy === true || workerIds(room).length === 0) return
+    if ((room.busyMembers ?? []).length > 0 || workerIds(room).length === 0) return
     const stageIndex = room.stages.findIndex(stage => stage.state === 'active')
     if (stageIndex < 0) return
     const stage = room.stages[stageIndex]

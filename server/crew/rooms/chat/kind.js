@@ -34,7 +34,6 @@ export const chatKind = {
   record: ({ chatLimit }) => {
     const limit = Number.isInteger(chatLimit) ? chatLimit : CHAT_TURNS_PER_ROUND
     return {
-      engine: 'chat',
       constraints: [
         '聊天室只读：成员只讨论，不执行工具、不改文件',
         `系统随机唤醒成员，每轮 ${limit} 次；主持人最后总结`,
@@ -91,17 +90,7 @@ export const chatKind = {
   hideActivity: chatProjection.hideActivity,
   acceptsDelta: chatProjection.acceptsDelta,
 
-  refresh: (chatBase, toMember, toMembers) => ({
-    chatWorking: chatBase?.working === true,
-    chatBusyMember: toMember(chatBase?.busyRef) ?? '',
-    chatQueue: (chatBase?.queue ?? []).map(item => ({
-      memberId: toMember(item.memberRef),
-      state: item.state,
-      position: item.position,
-      of: item.of,
-      waitingForMemberId: item.waitingForRef === undefined ? null : toMember(item.waitingForRef),
-    })),
-    chatHolds: toMembers(chatBase?.holds),
+  refresh: chatBase => ({
     chatUnread: chatBase?.unread === true,
   }),
 

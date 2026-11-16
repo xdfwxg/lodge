@@ -1,6 +1,6 @@
 import { createElement as h } from 'react'
 import { EngineLogin } from '../../engine-login.js'
-import { engineReadiness } from '../../engine-readiness.js'
+import { engineReadiness } from '../../../../shared/engine-readiness.js'
 import { MemberEnginePicker } from '../member-engine-picker.js'
 
 import { defaultPersonalityId, normalizeMembers, PERSONALITIES } from '../member-options.js'
@@ -53,7 +53,6 @@ export function ChatSetupFields({
   choices,
   setChoices,
   engines,
-  loginBusy,
   loginBusyId = '',
   loginNote = '',
   onLogin,
@@ -61,13 +60,10 @@ export function ChatSetupFields({
   onInteraction,
 }) {
   const readiness = engineReadiness(engines)
-  const names = [...readiness.loginTargets, ...readiness.manualLogin].map(item => item.name ?? item.id).join('、')
   return h('div', { className: 'crew-chat-fields' },
-    readiness.canStart
-      ? null
-      : h('p', { className: 'crew-field-hint', role: 'status' }, names === ''
-        ? '还没有可用的模型服务。'
-        : `${names}还没登录；登录后点“刷新”。`),
+    !readiness.canStart && readiness.installed.length === 0
+      ? h('p', { className: 'crew-field-hint', role: 'status' }, '还没有可用的模型服务。')
+      : null,
     h(EngineLogin, {
       readiness,
       busyId: loginBusyId,
@@ -99,8 +95,6 @@ export function ChatSetupFields({
           onRemove: onRemoveMember,
           canRemove: canRemoveMember !== null,
           canRemoveMember,
-          loginBusy,
-          onLogin,
           onInteraction,
         }),
         h('button', {

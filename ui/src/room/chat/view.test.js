@@ -83,7 +83,7 @@ test('an empty chat room explains that its conclusion becomes studio work', () =
 
 test('a speaking member is left to the body status row', () => {
   const tree = chatView.typing({
-    room: { id: 'room-chat', chatBusyMember: 'a', chatWorking: true },
+    room: { id: 'room-chat', chat: { running: true, speaker: 'a' } },
     members: [{ id: 'a', name: '甲' }],
     locked: false,
   })
@@ -92,7 +92,7 @@ test('a speaking member is left to the body status row', () => {
 
 test('only the host summarizing gets a typing line', () => {
   const html = renderToStaticMarkup(chatView.typing({
-    room: { id: 'room-chat', chat: { phase: 'summarizing' }, chatWorking: true },
+    room: { id: 'room-chat', chat: { phase: 'summarizing' } },
     members: [],
     locked: false,
   }))

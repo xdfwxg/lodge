@@ -25,12 +25,9 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
         const updated = store.updateRoom(entry.roomId, current => {
           const toMember = ref => (typeof ref === 'string' ? memberForRef(current, ref) ?? ref : ref)
           const toMembers = map => Object.fromEntries(Object.entries(map ?? {}).map(([ref, value]) => [toMember(ref), value]))
-          const sameBusy = current.busy === true &&
-            Array.isArray(current.busyMembers) &&
+          const sameBusy = Array.isArray(current.busyMembers) &&
             current.busyMembers.length === busyMembers.length &&
             current.busyMembers.every((memberId, index) => memberId === busyMembers[index])
-          current.busy = busyMembers.length > 0
-          current.busyMember = busyMembers[0] ?? ''
           current.busyMembers = busyMembers
           // 成员运行态归共享投影：谁在跑、谁在等，两套房型拿到同一份数据。
           const activity = memberActivityOf(chatBase, toMember)
