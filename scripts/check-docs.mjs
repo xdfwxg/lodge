@@ -35,6 +35,8 @@ must('架构升级.md points to the design language', architecture.includes('设
 must('设计语言.md keeps the type scale', style.includes('## 字号与字重') && style.includes('卡片内正文默认 13 / 20'))
 must('设计语言.md keeps motion and states', style.includes('## 动效') && style.includes('## 状态与反馈'))
 must('设计语言.md keeps the interaction rules', style.includes('方向键') && style.includes('头像标记为装饰'))
+must('设计语言.md keeps the human error rule', style.includes('原始错误') && style.includes('不写实现旁白'))
+must('operations keeps the human error rule', operations.includes('systemNotice') && operations.includes('meta.detail') && operations.includes('humanErrorText'))
 must('README links the product story', feedback.includes('(Lodge.md)'))
 must('README links the architecture record', feedback.includes('(架构升级.md)'))
 must('README links the design language', feedback.includes('(设计语言.md)'))
