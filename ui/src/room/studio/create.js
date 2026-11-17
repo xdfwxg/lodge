@@ -149,22 +149,17 @@ export function StudioPrimaryFields({
         ? '只有一家模型可用：复核会由同一家完成。'
         : ''
   const listed = normalizeMembers(members)
-  const defaultTrio = listed.length === 3 &&
-    ['lead', 'worker', 'verifier'].every(role => listed.some(member => member.role === role))
   return h(Fragment, null,
     h('div', { className: 'crew-field' },
       h('div', { className: 'crew-field-head' },
         h('b', null, '成员'),
-        h('button', { type: 'button', className: 'crew-link', onClick: onAdvanced }, '调整成员与模型')),
+        h('button', { type: 'button', className: 'crew-link', onClick: onAdvanced }, '调整成员')),
       h('div', { className: 'crew-team-summary' },
         listed.map(member => h('span', {
           key: member.id ?? member.name,
           className: 'crew-team-chip',
           'data-role': member.role,
         }, member.name))),
-      h('p', { className: 'crew-field-hint' }, defaultTrio
-        ? '默认三人组：规划、执行、验收。'
-        : '成员已调整。'),
       modelNote === '' ? null : h('p', { className: 'crew-field-hint', role: 'status' }, modelNote),
       h(EngineLogin, {
         readiness,
@@ -178,7 +173,7 @@ export function StudioPrimaryFields({
         h('b', null, '怎么验收'),
         h(VerifyChoice, { verifyMode, onVerifyMode, acceptanceDraft, onAcceptanceDraft }),
         h('p', { className: 'crew-field-hint' }, verifyMode === 'test'
-          ? '每一步都会真的跑一遍，结果留在房间里。'
+          ? '每一步都真跑，结果留在房间里。'
           : '成员做完，你来确认。'))
       : null)
 }

@@ -40,7 +40,7 @@ test('a structured conclusion renders all five fields', () => {
   assert.match(html, /第 1 轮结论/)
   assert.match(html, /crew-handoff-topic[^>]*>状态提示/)
   assert.match(html, /共识[\s\S]*用一句话说明/)
-  assert.match(html, /未解决的分歧[\s\S]*是否公开/)
+  assert.match(html, /<b>分歧<\/b>[\s\S]*是否公开/)
   assert.match(html, /is-warning/)
   assert.match(html, /约束[\s\S]*不改接口/)
   assert.match(html, /待办[\s\S]*写测试/)
@@ -53,10 +53,7 @@ test('empty fields stay visible with quiet hints', () => {
     meta: { round: 1 },
   }), room({ goal: '' }))
   assert.match(html, /未给出主题/)
-  assert.match(html, /没有记录共识/)
-  assert.match(html, /没有未解决的分歧/)
-  assert.match(html, /没有额外约束/)
-  assert.match(html, /没有待办/)
+  assert.equal((html.match(/>无</g) ?? []).length, 4)
 })
 
 test('a timed-out host keeps the discussion open', () => {
@@ -64,7 +61,7 @@ test('a timed-out host keeps the discussion open', () => {
     text: '讨论记录：甲说先做，乙说再等等。',
     meta: { round: 1, fallback: true },
   }))
-  assert.match(html, /主持人未能在限定时间内总结/)
+  assert.match(html, /这次没来得及总结/)
   assert.match(html, /完整讨论/)
 })
 
@@ -88,6 +85,7 @@ test('older conclusions collapse to one summary line', () => {
   assert.match(html, /crew-conclusion-history/)
   assert.match(html, /上一轮主题/)
   assert.match(html, /共识 1/)
+  assert.doesNotMatch(html, /分歧 0/)
 })
 
 test('an accepted conclusion keeps the signoff', () => {

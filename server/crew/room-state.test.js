@@ -40,6 +40,7 @@ test('chat rooms move only between the four chat states', () => {
   assert.equal(transitionChat('summarizing', 'conclude').state, 'awaiting_decision')
   assert.equal(transitionChat('awaiting_decision', 'accept').state, 'accepted')
   assert.equal(transitionChat('awaiting_decision', 'continue_discuss').state, 'discussing')
+  assert.equal(transitionChat('accepted', 'reopen').state, 'discussing')
   assert.equal(transitionChat('accepted', 'continue_discuss').ok, false)
   assert.equal(transitionChat('accepted', 'summarize').ok, false)
   assert.deepEqual(CHAT_STATES.includes('closed'), false)
@@ -67,6 +68,7 @@ test('the full chat state x event matrix is explicit', () => {
     'discussing:summarize', 'discussing:abort',
     'summarizing:conclude', 'summarizing:abort',
     'awaiting_decision:accept', 'awaiting_decision:continue_discuss',
+    'accepted:reopen',
   ])
   for (const state of CHAT_STATES) {
     for (const event of CHAT_EVENTS) {

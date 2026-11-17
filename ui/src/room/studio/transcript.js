@@ -89,6 +89,7 @@ export function StudioTranscript({
   }
 
   const hiddenCount = allMessages.length - messages.length
+  const lastStageKey = [...items.chapters].reverse().find(chapter => chapter.kind === 'stage')?.key
   const timeline = h('div', { className: 'studio-timeline' }, ...[
     h(GateLine, { key: 'gate', gate: room.gate }),
     hiddenCount > 0
@@ -99,7 +100,11 @@ export function StudioTranscript({
         onClick: () => setExpanded(true),
       }, `显示更早的 ${hiddenCount} 条`)
       : null,
-    ...items.chapters.map(chapter => h(StageChapter, { key: chapter.key, chapter }, ...renderChapterBody(chapter))),
+    ...items.chapters.map(chapter => h(StageChapter, {
+      key: chapter.key,
+      chapter,
+      conclusion: chapter.key === lastStageKey ? delivery : null,
+    }, ...renderChapterBody(chapter))),
   ].filter(Boolean))
 
   const result = delivery === null || delivery === undefined

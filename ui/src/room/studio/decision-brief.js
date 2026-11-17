@@ -24,6 +24,25 @@ export const parseDecisionItems = text => {
   return items
 }
 
+const plainLine = line => line.replace(/\*\*/g, '').replace(/[。；;\s]+$/, '').trim()
+const HEADING = /^(?:目标对齐|结论|决定|决策|开工前)(?:\s*·.*)?$/
+
+export const decisionDetail = (text, items = []) => {
+  const wanted = new Set(items.map(item => plainLine(item.question)))
+  const kept = []
+  for (const line of String(text ?? '').split('\n')) {
+    const trimmed = line.trim()
+    if (trimmed === '') continue
+    const match = LIST_ITEM.exec(line)
+    if (match !== null && wanted.has(plainLine(match[1]))) continue
+    const plain = line.replace(/\*\*/g, '').trim()
+    if (HEADING.test(plain)) continue
+    const withoutMention = plain.replace(/@[A-Za-z0-9_\-一-龥]+/g, '').replace(/\s{2,}/g, ' ').trim()
+    if (withoutMention !== '') kept.push(withoutMention)
+  }
+  return kept.join('\n')
+}
+
 export function DecisionBrief({
   message,
   member,
@@ -31,16 +50,20 @@ export function DecisionBrief({
   pending,
   onAccept,
   disabled = false,
-  title,
-  doneTitle = '定下的事',
   actionLabel = '按这个继续',
 }) {
+  const detail = decisionDetail(message.text, items)
   return h('div', { className: 'crew-msg crew-msg-chat studio-decision' },
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { member, ts: message.ts, time: false, station: false }),
       h('div', { className: 'crew-card crew-decision-brief' },
         h('div', { className: 'crew-card-head' },
-          pending ? (title ?? '这几件事，待确认') : doneTitle),
+          `${items.length} 件事`,
+          h('span', {
+            className: 'crew-verdict',
+            'data-pass': pending ? undefined : true,
+            'data-pending': pending ? true : undefined,
+          }, pending ? '等你定' : '已定')),
         h('div', { className: 'crew-card-body' },
           h('div', { className: 'crew-decision-list' },
             items.map((item, index) => h('div', { key: `decision-${index}`, className: 'crew-decision-item' },
@@ -49,12 +72,11 @@ export function DecisionBrief({
               item.recommendation === ''
                 ? null
                 : h('span', { className: 'crew-decision-rec' }, item.recommendation)))),
-          h('p', { className: 'crew-field-hint' }, pending
-            ? '你定下来，我就继续；有不同意见，直接在下面说。'
-            : '这是之前定下的事。'),
-          h('details', { className: 'crew-fold' },
-            h('summary', null, '完整说明'),
-            h(Markdown, { text: message.text, variant: 'compact' }))),
+          detail === ''
+            ? null
+            : h('details', { className: 'crew-fold' },
+              h('summary', null, '补充'),
+              h(Markdown, { text: detail, variant: 'compact' }))),
         onAccept === undefined
           ? null
           : h('div', { className: 'crew-card-foot' },

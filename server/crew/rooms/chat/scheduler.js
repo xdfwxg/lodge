@@ -45,8 +45,9 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
   return [
     `@${memberDisplayName(room, memberId)} 聊天室话题：${room.goal}`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
-    note === '' ? '' : `你上一轮退回了结论，并补充：${note}`,
+    note === '' ? '' : `用户这轮的要求：${note}`,
     '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
+    '只讨论话题本身；不要评论讨论次数、样本数量或流程。',
     `本轮表达：${personalityTurnCue(personality)}`,
     '每次发言控制在 200 字以内；不要写总结。',
     INTERNAL_PROMPT_MARKER,
@@ -56,7 +57,7 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
 const hostPrompt = ({ room, round, note }) => [
   `聊天室第 ${round} 轮讨论到此结束，请总结。`,
   `话题：${room.goal}`,
-  note === '' ? '' : `用户退回了上一轮结论，并补充：${note}`,
+  note === '' ? '' : `用户这轮的要求：${note}`,
   '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。严格按下面五段输出，标题固定：',
   '## 主题',
   '一句话说清这轮在解决什么。',
@@ -164,7 +165,10 @@ export const createChatScheduler = ({
     const hostAuthor = 'lodge'
     if (hostBot === '' || hostName === '') throw new Error('聊天室没有主持人')
     const speakers = (room.members ?? []).map(member => member.id)
-    const turnLimit = chatTurnLimitOf(room)
+    const requestedTurns = Number(room.chat?.roundTurnLimit)
+    const turnLimit = Number.isInteger(requestedTurns) && requestedTurns >= 1
+      ? chatTurnLimitOf({ chat: { turnLimit: requestedTurns } })
+      : chatTurnLimitOf(room)
     const perMember = speakers.length === 0
       ? turnLimit
       : Math.max(1, Math.ceil(turnLimit / speakers.length))
@@ -204,7 +208,7 @@ export const createChatScheduler = ({
           counts.set(memberId, (counts.get(memberId) ?? 0) + 1)
           last = memberId
           if (turn === 1) {
-            const text = `本轮围绕【${room.goal}】展开讨论。`
+            const text = `【${room.goal}】`
             store.appendMessage(roomId, { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
           }
           const before = await messageIds(chat)

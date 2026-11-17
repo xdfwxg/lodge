@@ -125,7 +125,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(ctx.room().chat.running, false)
   assert.equal(ctx.room().chat.phase, 'awaiting_decision')
   const opening = ctx.messages.find(message => message.kind === 'chat' && message.meta?.opening === true)
-  assert.match(opening.text, /本轮围绕【讨论状态提示】展开讨论/)
+  assert.equal(opening.text, '【讨论状态提示】')
   assert.doesNotMatch(opening.text, /欢迎大家踊跃发言/)
   assert.doesNotMatch(opening.text, /先发言/)
   assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 6)
@@ -242,6 +242,28 @@ test('a chat room can run fewer turns than the default', async () => {
   assert.equal(conclusion.meta.turnLimit, 2)
 })
 
+
+test('a per-round request caps that round without changing the room default', async () => {
+  const ctx = setup()
+  ctx.store.updateRoom('room-chat', state => {
+    state.chat = { ...state.chat, turnLimit: 6, roundTurnLimit: 2 }
+    return { events: [] }
+  })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    engine: ctx.engine,
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  const result = await scheduler.start(ctx.room())
+  assert.equal(result.turns, 2)
+  const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
+  assert.equal(conclusion.meta.turnLimit, 2)
+  assert.equal(ctx.store.readRoom().chat.turnLimit, 6)
+})
 
 test('a busy base skips the round instead of queueing every speaker', async () => {
   const ctx = setup({ busy: true })

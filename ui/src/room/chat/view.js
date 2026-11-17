@@ -1,5 +1,4 @@
 import { Fragment, createElement as h } from 'react'
-import { BotAvatar } from '../../marks.js'
 import { buildChatDecision } from './decision.js'
 import { ChatIsland } from './island.js'
 import { ReceiptIntake } from './receipt-intake.js'
@@ -8,10 +7,8 @@ import { hostLabelOf } from '../host.js'
 import { StatePanel } from '../../state-panel.js'
 import { CrewStatusLine } from '../crew-status.js'
 
-function TypingLine({ room, member, summarizing }) {
-  return h('div', { className: 'crew-msg crew-typing-line' },
-    h('div', { className: 'crew-msg-avatar' },
-      member === null || member === undefined ? null : h(BotAvatar, { bot: member, size: 30, live: true })),
+function TypingLine({ room, summarizing }) {
+  return h('div', { className: 'crew-msg crew-msg-chat crew-typing-line' },
     h('div', { className: 'crew-msg-body' },
       h('span', { className: 'crew-typing-name' },
         summarizing ? `${hostLabelOf(room)} 正在总结` : '正在思考'),
@@ -42,7 +39,7 @@ export const chatView = {
       : h(StatePanel, {
         key: `intro-${room.id}`,
         title: '先聊清楚',
-        body: '谈定了，交给工作室做出来。结果和检查都会留下。',
+        body: '定下来，再交给工作室做。',
       })
     return h(Fragment, null,
       intro,
@@ -59,11 +56,11 @@ export const chatView = {
     }))
   },
   presence: () => null,
-  composerPlaceholder: () => '加入讨论…',
+  composerPlaceholder: ({ room }) => room.state === 'complete' ? '已完成 · 可以继续聊。' : '说点什么…',
   // 谁在发言由身体状态行说；这里只补主持人的“正在总结”。
   typing: ({ room, locked }) => {
     const chat = room.chat ?? {}
     const summarizing = !locked && chat.phase === 'summarizing'
-    return summarizing ? h(TypingLine, { room, member: null, summarizing: true }) : null
+    return summarizing ? h(TypingLine, { room, summarizing: true }) : null
   },
 }

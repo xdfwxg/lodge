@@ -461,7 +461,7 @@ function NewRoomDialog({
               onChange: event => setAcceptanceDraft(event.target.value),
             })),
     verify === 'manual' && hasVerifier
-      ? h('p', { className: 'crew-dialog-note' }, '想留下检查记录，就补一条检查。')
+      ? h('p', { className: 'crew-dialog-note' }, '可选：补一条检查。')
       : null,
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
@@ -580,7 +580,7 @@ function NewRoomDialog({
         h('h2', null, '新房间'),
         choosingType
           ? null
-          : h('p', null, handoff !== null ? '从聊天室带过来。先看分歧，再开工。' : roomKind.dialogSubtitle)),
+          : h('p', null, handoff !== null ? '从聊天室带来。先看分歧，再开工。' : roomKind.dialogSubtitle)),
       h('div', { className: 'crew-dialog-head' },
         h('button', {
           ref: closeRef,

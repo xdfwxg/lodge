@@ -171,7 +171,7 @@ export const seedSampleMessages = ({ store, room, now = Date.now() } = {}) => {
 
   append({
     kind: 'system',
-    text: '这是一间示例房间：所有内容都是样例数据，可以直接查看交付卡，也可以删掉。',
+    text: '这是示例房间，内容都是样例。看结果，或直接删掉。',
   })
   append({
     kind: 'chat',
@@ -221,10 +221,23 @@ export const seedSampleMessages = ({ store, room, now = Date.now() } = {}) => {
     },
   })
   append({
+    kind: 'handoff',
+    authorId: 'executor',
+    text: '清单已写好，交验收员核对结构与可读性。',
+    meta: {
+      from: 'executor',
+      workers: ['verifier'],
+      stage: 2,
+      acceptance: '文件存在且三组齐全',
+      reason: 'review',
+      status: 'sent',
+    },
+  })
+  append({
     kind: 'verdict',
     authorId: 'verifier',
-    text: '已核对：三组检查齐全，每条都能勾选，负责人栏清晰；检查在示例工作区通过。',
-    meta: { stage: 1, pass: true, evidenceId: evidence.id, sample: true },
+    text: '三组检查齐全，能直接勾选，检查已通过。',
+    meta: { stage: 2, pass: true, evidenceId: evidence.id, sample: true },
   })
   append({
     kind: 'stage_conclusion',

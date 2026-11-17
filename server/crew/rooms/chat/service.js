@@ -1,4 +1,5 @@
 import { fail, ok } from '../../result.js'
+import { requestedTurnLimitOf } from '../../room-types/chat.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
 
 // 聊天室只有 room.chat；结论确认和继续讨论都不经过工作室的 stages/gates。
@@ -27,17 +28,20 @@ export const createServiceChat = ({ store, live, emit }) => {
 
   const continueChat = (room, body = {}) => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
-    if (room.state !== 'active') return fail('conflict', '房间已经停了')
+    if (room.state !== 'active' && room.state !== 'complete') return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
       return fail('conflict', '聊天室还没有连上模型服务')
     }
     const chat = room.chat
-    if (chat === undefined || chat.running === true || chat.phase !== 'awaiting_decision') {
+    const reopen = room.state === 'complete' && chat?.phase === 'accepted'
+    if (chat === undefined || chat.running === true || (chat.phase !== 'awaiting_decision' && !reopen)) {
       return fail('conflict', '现在还没有要定的结论')
     }
-    const moved = transitionChat(chat.phase, 'continue_discuss')
+    const event = reopen ? 'reopen' : 'continue_discuss'
+    const moved = transitionChat(chat.phase, event)
     if (!moved.ok) return fail('conflict', moved.error)
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : ''
+    const roundTurnLimit = requestedTurnLimitOf(note)
     const message = appendMessage(room.id, {
       kind: 'chat_rework',
       authorId: 'you',
@@ -45,6 +49,11 @@ export const createServiceChat = ({ store, live, emit }) => {
       meta: { round: chat.round ?? 1, phase: chat.phase },
     })
     const updated = updateRoom(room.id, current => {
+      if (reopen) {
+        current.state = 'active'
+        current.completedAt = null
+        current.closure = null
+      }
       current.chat = {
         ...current.chat,
         round: (current.chat.round ?? 1) + 1,
@@ -54,8 +63,9 @@ export const createServiceChat = ({ store, live, emit }) => {
         running: true,
         speaker: '',
         note,
+        roundTurnLimit,
       }
-      return { events: [{ type: 'chat.continued', payload: { round: current.chat.round } }, chatTransitionEvent(moved, 'continue_discuss', 'you', note === '' ? '继续讨论' : note)] }
+      return { events: [{ type: 'chat.continued', payload: { round: current.chat.round } }, chatTransitionEvent(moved, event, 'you', note === '' ? '继续讨论' : note)] }
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)

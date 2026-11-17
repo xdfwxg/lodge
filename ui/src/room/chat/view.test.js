@@ -97,4 +97,6 @@ test('only the host summarizing gets a typing line', () => {
     locked: false,
   }))
   assert.match(html, /正在总结/)
+  assert.match(html, /crew-msg-chat/)
+  assert.doesNotMatch(html, /crew-msg-avatar/)
 })

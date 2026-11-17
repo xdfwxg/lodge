@@ -142,7 +142,7 @@ test('stage chapters expand the active stage and compress passed stages', () => 
   assert.deepEqual(chapters.map(chapter => chapter.expanded), [false, true])
   assert.match(chapters[0].summary, /1 次交接/)
   assert.match(chapters[0].summary, /1 条结果/)
-  assert.match(chapters[1].summary, /1 次检查/)
+  assert.match(chapters[1].summary, /通过/)
 })
 
 test('pre-stage room notices stay out of the first stage', () => {
@@ -175,6 +175,31 @@ test('conversation after a pre-stage notice belongs to the active stage', () => 
   assert.deepEqual(chapters.map(chapter => chapter.index), [-1, 0])
   assert.equal(chapters[1].expanded, true)
   assert.deepEqual(chapters[1].items.map(item => item.id), ['goal', 'activity'])
+})
+
+test('a complete room shows every stage, including an empty closing stage', () => {
+  const room = { ...stagedRoom(['passed', 'passed', 'passed']), state: 'complete' }
+  const chapters = buildStageChapters([staged('e', 1, 0, 'evidence')], room)
+  assert.deepEqual(chapters.map(chapter => chapter.index), [0, 1, 2])
+  assert.equal(chapters[2].title, '阶段3')
+})
+
+test('a decision stage summarizes the outcome', () => {
+  const room = { stages: [{ title: '目标对齐', kind: 'decision', state: 'passed' }] }
+  assert.equal(stageChapterSummary([], room, 0), '已定')
+})
+
+test('only decision stages use 已定', () => {
+  const deliverable = { stages: [{ title: '写清单', kind: 'deliverable', state: 'passed' }] }
+  assert.equal(stageChapterSummary([], deliverable, 0), '')
+})
+
+test('a decision stage with a verdict reports the verdict, not 已定', () => {
+  const room = {
+    stages: [{ title: '检查与结论', kind: 'decision', state: 'passed' }],
+    messages: [staged('v', 1, 0, 'verdict', { pass: true })],
+  }
+  assert.equal(stageChapterSummary([], room, 0), '通过')
 })
 
 test('empty stages do not create a chapter', () => {
@@ -215,7 +240,7 @@ test('stage summaries stay quiet when there is nothing to count', () => {
   )
 })
 
-test('stage summaries count evidence and verdicts from the full room history', () => {
+test('stage summaries report the verdict outcome from the full room history', () => {
   const room = {
     ...stagedRoom(['passed']),
     messages: [
@@ -223,7 +248,7 @@ test('stage summaries count evidence and verdicts from the full room history', (
       staged('v', 2, 0, 'verdict', { pass: true }),
     ],
   }
-  assert.equal(stageChapterSummary([], room, 0), '1 次检查')
+  assert.equal(stageChapterSummary([], room, 0), '通过')
 })
 
 test('MCP tool names are shortened in the step summary', () => {

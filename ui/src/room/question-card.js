@@ -13,11 +13,13 @@ export function QuestionCard({ message, member, onAnswer = null }) {
     onAnswer(message.authorId, card.requestId, next)
     setText('')
   }
-  return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' },
-      member === null || member === undefined ? null : h(BotAvatar, { bot: member, size: 30, live: false })),
+  return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { member, ts: message.ts }),
+      h('div', { className: 'crew-inline-speaker' },
+        member === null || member === undefined
+          ? null
+          : h('span', { className: 'crew-inline-avatar' }, h(BotAvatar, { bot: member, size: 30, live: false })),
+        h(Speaker, { member, ts: message.ts })),
       h('div', { className: 'crew-card crew-question-card' },
         h('div', { className: 'crew-card-head' }, card.subtitle || '需要你回答'),
         h('div', { className: 'crew-card-body' },

@@ -44,13 +44,25 @@ export const stageChapterSummary = (items, room, index = null) => {
   const staged = Number.isInteger(index) && index >= 0 && Array.isArray(room?.messages)
     ? room.messages.filter(message => message.meta?.stage === index)
     : null
+  const source = staged ?? items
   const transfers = items.filter(item => item.kind === 'dispatch' || item.kind === 'handoff' || isDispatchHandoff(room, item)).length
-  const evidence = (staged ?? items).filter(item => item.kind === 'evidence').length
-  const verdicts = (staged ?? items).filter(item => item.kind === 'verdict' && item.meta?.human !== true).length
+  const evidence = source.filter(item => item.kind === 'evidence').length
+  const commands = source.filter(item => item.kind === 'evidence' && item.meta?.kind === 'command').length
+  const verdicts = source.filter(item => item.kind === 'verdict' && item.meta?.human !== true)
   const parts = []
   if (transfers > 0) parts.push(`${transfers} 次交接`)
-  if (verdicts > 0) parts.push(`${verdicts} 次检查`)
-  else if (evidence > 0) parts.push(`${evidence} 条结果`)
+  if (verdicts.length > 0) {
+    parts.push(verdicts.every(item => item.meta?.pass === true) ? '通过' : '退回')
+  } else if (commands > 0) {
+    parts.push(`${commands} 次检查`)
+  } else if (evidence > 0) {
+    parts.push(`${evidence} 条结果`)
+  }
+  const stage = Number.isInteger(index) && index >= 0 ? room?.stages?.[index] : null
+  // 已定/待定只属于拍板型阶段；执行阶段用交接和检查计数说话。
+  if (parts.length === 0 && stage?.kind === 'decision') {
+    parts.push(stage.state === 'passed' ? '已定' : '待定')
+  }
   return parts.join(' · ')
 }
 
@@ -79,6 +91,12 @@ export const buildStageChapters = (items, room) => {
     buckets.get(current).push(item)
   }
   if (active >= 0 && !buckets.has(active)) buckets.set(active, [])
+  // 完成态要看到每一步；收尾阶段可能只有结论，没有自己的消息。
+  if (room?.state === 'complete') {
+    for (let index = 0; index < stages.length; index += 1) {
+      if (!buckets.has(index)) buckets.set(index, [])
+    }
+  }
   const ordered = [...buckets.entries()].sort((a, b) => a[0] - b[0])
   // 完成房间优先展开最后一段真正干活的阶段，而不是只放结论的收尾章节。
   const lastWork = ordered

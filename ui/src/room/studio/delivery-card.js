@@ -1,22 +1,30 @@
 import { createElement as h, useState } from 'react'
 import { openPath as openTarget } from '../../system.js'
-
-const timeOf = ts => {
-  if (typeof ts !== 'number') return ''
-  try {
-    return new Intl.DateTimeFormat('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(ts))
-  } catch {
-    return ''
-  }
-}
+import { dateTimeOf } from '../../view-format.js'
 
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
-const joinPath = (base, file) => file.startsWith('/') ? file : `${base.replace(/\/$/, '')}/${file}`
+const isAbsolutePath = value => value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
+const joinPath = (base, file) => isAbsolutePath(file) ? file : `${base.replace(/\/$/, '')}/${file}`
+
+const FileIcon = () => h('svg', {
+  width: 14,
+  height: 14,
+  viewBox: '0 0 20 20',
+  fill: 'none',
+  'aria-hidden': 'true',
+},
+h('path', {
+  d: 'M6 2.75h5l3 3v11.5H6z',
+  stroke: 'currentColor',
+  strokeWidth: 1.4,
+  strokeLinejoin: 'round',
+}),
+h('path', {
+  d: 'M11 2.75v3h3',
+  stroke: 'currentColor',
+  strokeWidth: 1.4,
+  strokeLinejoin: 'round',
+}))
 
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
 export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
@@ -74,11 +82,6 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
               className: 'studio-delivery-check',
               title: `退出码 ${command.exit === null ? '无' : command.exit}`,
             },
-            h('span', {
-              className: 'studio-delivery-check-mark',
-              'data-pass': command.exit === 0,
-              'aria-hidden': 'true',
-            }, command.exit === 0 ? '✓' : '×'),
             h('code', null, command.command || '检查命令'),
             command.simulated === true && delivery.sample !== true
               ? h('span', { className: 'studio-delivery-check-note' }, '示例运行')
@@ -109,11 +112,11 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
           open: detailsOpen || undefined,
           onToggle: event => setDetailsOpen(event.currentTarget.open),
         },
-          h('summary', null, '明细'),
+          h('summary', null, '详情'),
           delivery.completedAt || delivery.commit
             ? h('div', { className: 'studio-delivery-detail-meta' },
               delivery.completedAt
-                ? h('div', { className: 'crew-kv' }, h('span', null, '完成'), h('span', null, timeOf(delivery.completedAt)))
+                ? h('div', { className: 'crew-kv' }, h('span', null, '完成时间'), h('span', null, dateTimeOf(delivery.completedAt)))
                 : null,
               delivery.commit
                 ? h('div', { className: 'crew-kv' }, h('span', null, '版本'), h('code', null, short(delivery.commit)))
@@ -124,21 +127,36 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
               h('div', { className: 'studio-delivery-file-head' },
                 h('b', null, '文件'),
                 h('span', null, delivery.artifacts.length)),
-              h('ul', null, delivery.artifacts.map(artifact => h('li', { key: artifact.path },
-                h('code', { title: artifact.path }, artifact.path.split('/').pop() || artifact.path),
-                h('button', {
-                  type: 'button',
-                  className: 'crew-ghost',
-                  'aria-label': `打开 ${artifact.path}`,
-                  onClick: () => void open(artifact.path),
-                }, '打开')))))
+              h('ul', null, delivery.artifacts.map(artifact => {
+                const content = typeof artifact.content === 'string' && artifact.content !== '' ? artifact.content : null
+                const target = isAbsolutePath(artifact.path)
+                  ? artifact.path
+                  : delivery.workspacePath
+                    ? joinPath(delivery.workspacePath, artifact.path)
+                    : null
+                return h('li', { key: artifact.path },
+                  h('span', { className: 'studio-delivery-file-icon' }, h(FileIcon)),
+                  h('code', { title: artifact.path }, artifact.path.split('/').pop() || artifact.path),
+                  content !== null
+                    ? h('details', { className: 'crew-fold studio-delivery-file-view' },
+                      h('summary', { 'aria-label': `查看 ${artifact.path}` }, '查看'),
+                      h('pre', { className: 'crew-code' }, content))
+                    : target === null
+                      ? null
+                      : h('button', {
+                        type: 'button',
+                        className: 'crew-ghost',
+                        'aria-label': `打开 ${artifact.path}`,
+                        onClick: () => void open(target),
+                      }, '打开'))
+              })))
             : null,
           h('div', { className: 'crew-delivery-stages' },
             ...(delivery.stages ?? []).map(stage => h('div', { key: stage.index, className: 'crew-delivery-stage' },
               h('div', { className: 'crew-delivery-stage-head' },
                 h('span', { className: 'crew-delivery-stage-index' }, stage.index + 1),
                 h('b', null, stage.title),
-                h('span', { className: 'crew-delivery-stage-kind' }, stage.kind === 'deliverable' ? '交付' : '确认')),
+                h('span', { className: 'crew-delivery-stage-kind' }, stage.kind === 'deliverable' ? '已交付' : '已确认')),
               h('div', { className: 'crew-delivery-stage-body' },
                 ...stage.commands.map(command => h('div', { key: command.id, className: 'crew-delivery-fact crew-delivery-fact-command-row' },
                   h('span', null, '检查'),

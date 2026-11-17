@@ -58,10 +58,24 @@ test('manual evidence is not a passed command and artifacts stay in the workspac
   assert.equal(delivery.workspacePath, '/tmp/room')
 })
 
-test('a demo delivery drops the sample prefix from its result name', () => {
-  const delivery = buildDelivery(room({ demo: true, name: '示例：发布前检查清单' }), [])
+test('a demo delivery drops the sample prefix and carries artifact content', () => {
+  const delivery = buildDelivery(room({ demo: true, name: '示例：发布前检查清单' }), [
+    { id: 'a1', kind: 'activity', ts: 11, meta: { stage: 1, artifacts: [
+      { path: 'RELEASE_CHECKLIST.md', bytes: 5, content: '- [ ] 检查' },
+    ] } },
+  ])
   assert.equal(delivery.name, '发布前检查清单')
   assert.equal(delivery.sample, true)
+  assert.equal(delivery.artifacts[0].content, '- [ ] 检查')
+})
+
+test('a real delivery does not send artifact content to the card', () => {
+  const delivery = buildDelivery(room({ repoPath: '/tmp/room' }), [
+    { id: 'a1', kind: 'activity', ts: 11, meta: { stage: 1, artifacts: [
+      { path: '/tmp/room/RELEASE_CHECKLIST.md', bytes: 5, content: '- [ ] 检查' },
+    ] } },
+  ])
+  assert.equal(delivery.artifacts[0].content, undefined)
 })
 
 test('a manual stage carries its changed files into the delivery card', () => {

@@ -56,16 +56,16 @@ export function EngineLogin({ readiness, busyId = '', note = '', disabled = fals
       disabled: disabled || busyId !== '' || onLogin === null,
       onClick: () => void onLogin?.(engine),
     }, busyId === engine.id ? '正在打开…' : `登录 ${engine.name ?? engine.id}`)),
+    manualLogin.length > 0
+      ? h('span', { className: 'crew-field-hint' }, `先登录 ${names}。`)
+      : null,
     onRefresh !== null
       ? h('button', {
         type: 'button',
-        className: 'crew-ghost',
+        className: 'crew-link',
         disabled: disabled,
         onClick: () => void onRefresh(),
       }, '刷新')
-      : null,
-    manualLogin.length > 0
-      ? h('span', { className: 'crew-field-hint' }, `先登录 ${names}。`)
       : null,
     note === '' ? null : h('span', { className: 'crew-field-hint', role: 'status' }, note))
 }

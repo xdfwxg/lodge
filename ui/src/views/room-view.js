@@ -16,6 +16,8 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [addBusy, setAddBusy] = useState(false)
   const [addError, setAddError] = useState(null)
   const scroll = useRef(null)
+  const holdPin = useRef(false)
+  const holdTimer = useRef(null)
   const mainRef = useRef(null)
   const composerRef = useRef(null)
   const stick = useRef(true)
@@ -69,16 +71,33 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   }, [lastId, room.id])
 
   // 流式文本、输入框增高、结果卡出现都会改变内容高度；回调在绘制前贴底。
+  // 展开详情是用户在当前阅读位置的主动动作，不能把页面重新贴到底。
   useEffect(() => {
     const node = scroll.current
     if (node === null || typeof ResizeObserver !== 'function') return undefined
     const observer = new ResizeObserver(() => {
-      if (stick.current) pinToBottom()
+      if (stick.current && !holdPin.current) pinToBottom()
     })
     observer.observe(node)
     for (const child of node.children) observer.observe(child)
     return () => observer.disconnect()
   }, [room.id])
+
+  useEffect(() => () => clearTimeout(holdTimer.current), [])
+
+  const holdOnSummary = event => {
+    const summary = event.target?.closest?.('summary')
+    if (summary === null || summary === undefined) return
+    holdPin.current = true
+    // 展开详情时让浏览器按锚点保住当前阅读位置；贴底逻辑在这段时间里让路。
+    const node = scroll.current
+    if (node !== null) node.style.overflowAnchor = 'auto'
+    clearTimeout(holdTimer.current)
+    holdTimer.current = setTimeout(() => {
+      holdPin.current = false
+      if (node !== null) node.style.removeProperty('overflow-anchor')
+    }, 400)
+  }
 
   // 输入条高度会变；「回到最新」始终浮在它上方，而不是写死 124px。
   useEffect(() => {
@@ -203,6 +222,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       h('div', {
         ref: scroll,
         className: 'dsb-scroll crew-scroll',
+        onClickCapture: holdOnSummary,
         onScroll: trackScroll,
         onWheel,
         onTouchStart,
@@ -222,13 +242,11 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
         h(Composer, {
           members: mentionMembers,
           onSent: followBottom,
-          placeholder: room.state === 'complete'
-            ? '这间房已完成。说话可以开新一轮。'
-            : room.state === 'paused'
-              ? '已暂停 · 继续后才能派新活'
-              : room.state === 'stopped'
-                ? '已停止 · 不会再派新活'
-                : composerPlaceholder,
+          placeholder: room.state === 'paused'
+            ? '已暂停 · 继续后才能派新活'
+            : room.state === 'stopped'
+              ? '已停止 · 不会再派新活'
+              : composerPlaceholder,
           disabled: state.phase === 'loading' || locked,
           onSend: text => store.send(text),
         }))),

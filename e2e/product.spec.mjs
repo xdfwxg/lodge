@@ -41,6 +41,55 @@ test('onboarding, focused dialog, sample room, goal panel and archive restore', 
   await expect(page.getByText('示例：发布前检查清单').first()).toBeVisible()
 })
 
+test('opening a detail keeps the reading position', async ({ page, request }) => {
+  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
+  await page.goto('/')
+
+  const scroller = page.locator('.dsb-scroll')
+  const summary = page.locator('.studio-delivery-details > summary')
+  await expect(summary).toBeVisible()
+  const before = await summary.boundingBox()
+  const scrollBefore = await scroller.evaluate(node => node.scrollTop)
+  await summary.click()
+  const after = await summary.boundingBox()
+  const scrollAfter = await scroller.evaluate(node => node.scrollTop)
+  expect(scrollAfter).toBe(scrollBefore)
+  expect(Math.abs(after.y - before.y)).toBeLessThan(1)
+})
+
+test('expanding the worklog keeps the reading position', async ({ page, request }) => {
+  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
+  await page.goto('/')
+
+  const scroller = page.locator('.dsb-scroll')
+  const summary = page.locator('.studio-worklog > summary')
+  await summary.scrollIntoViewIfNeeded()
+  const before = await summary.boundingBox()
+  const scrollBefore = await scroller.evaluate(node => node.scrollTop)
+  await summary.click()
+  const after = await summary.boundingBox()
+  const scrollAfter = await scroller.evaluate(node => node.scrollTop)
+  expect(scrollAfter).toBe(scrollBefore)
+  expect(Math.abs(after.y - before.y)).toBeLessThan(1)
+})
+
+test('expanding new-room options keeps the dialog anchored', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '新建房间' }).click()
+  await page.getByRole('button', { name: '工作室', exact: true }).click()
+
+  const dialog = page.locator('.crew-dialog')
+  const summary = page.locator('.crew-new-advanced > summary')
+  await summary.scrollIntoViewIfNeeded()
+  const summaryBefore = await summary.boundingBox()
+  const dialogBefore = await dialog.boundingBox()
+  await summary.click()
+  const summaryAfter = await summary.boundingBox()
+  const dialogAfter = await dialog.boundingBox()
+  expect(dialogAfter.y).toBeCloseTo(dialogBefore.y, 1)
+  expect(Math.abs(summaryAfter.y - summaryBefore.y)).toBeLessThan(1)
+})
+
 test('a narrow dark window still renders the room without horizontal overflow', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.setViewportSize({ width: 390, height: 844 })

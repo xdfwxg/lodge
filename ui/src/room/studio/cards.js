@@ -1,6 +1,6 @@
 import { Fragment, createElement as h } from 'react'
 import { BotAvatar } from '../../marks.js'
-import { Markdown, Speaker } from '../../message-cards.js'
+import { Markdown } from '../../message-cards.js'
 import { splitVerdictText } from './verdict-text.js'
 import { ShadowAdvice, ShadowReconfirm } from './advisor-advice.js'
 
@@ -91,12 +91,15 @@ function VerdictCard({ message, member, stage, room, onAccept, advisor, onShadow
   const canAccept = pass && active && stage?.kind === 'deliverable' && typeof onAccept === 'function'
   const card = h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
-      h('div', { className: 'crew-verdict-speaker' },
-        h('span', { className: 'crew-verdict-avatar' }, h(BotAvatar, { bot: member, size: 30, live: false })),
-        h(Speaker, { member, ts: message.ts })),
       h('div', { className: 'crew-card crew-result-card', 'data-demo': meta.simulated === true, 'data-pass': pass },
         h('div', { className: 'crew-card-head' },
+          member === null || member === undefined
+            ? null
+            : h('span', { className: 'crew-result-avatar' }, h(BotAvatar, { bot: member, size: 20, live: false })),
           '检查结果',
+          member === null || member === undefined
+            ? null
+            : h('span', { className: 'crew-result-author' }, `· ${member.name}`),
           h('span', {
             className: 'crew-verdict',
             'data-pass': pass ? true : undefined,

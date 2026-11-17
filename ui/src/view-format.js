@@ -1,14 +1,19 @@
 
 
 const MD = { code: { copyLabel: '复制', copiedLabel: '已复制' } }
-const clock = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' })
+const pad = value => String(value).padStart(2, '0')
 
+// 行内时钟：同一天的聊天里只显示 HH:mm；正式时间用 dateTimeOf。
 const timeOf = ts => {
-  try {
-    return clock.format(new Date(ts))
-  } catch {
-    return ''
-  }
+  const date = new Date(ts)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const dateTimeOf = ts => {
+  const date = new Date(ts)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${timeOf(ts)}`
 }
 
 const durationOf = value => {
@@ -40,6 +45,7 @@ const memberPermissionOf = (room, member) => {
 export {
   MD,
   timeOf,
+  dateTimeOf,
   durationOf,
   independenceOf,
   workspaceOf,

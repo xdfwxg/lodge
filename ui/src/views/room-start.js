@@ -77,7 +77,7 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
           rows: 2,
           value: goal,
           disabled,
-          placeholder: '例如：把这个项目的启动说明补成新人能照着跑的一页。',
+          placeholder: '例如：写一页新人能跑起来的启动说明。',
           onChange: event => setGoal(event.target.value),
         }),
         h('label', { className: 'crew-start-label', htmlFor: 'room-start-check' }, '怎么验收？'),

@@ -12,7 +12,7 @@ export const studioUi = {
   startMode: 'direct',
   cta: '开工',
   goalLabel: '要做什么？',
-  goalPlaceholder: '例如：给这个项目补一份新手也能照着跑的本地启动说明。',
+  goalPlaceholder: '例如：写一页新人能跑起来的启动说明。',
   dialogSubtitle: '说清你想得到什么。',
   goalIcon: TargetIcon,
   workspace: {

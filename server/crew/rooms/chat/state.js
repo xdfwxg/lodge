@@ -1,7 +1,7 @@
 import { createStateMachine } from '../../room-state.js'
 
 export const CHAT_STATES = ['discussing', 'summarizing', 'awaiting_decision', 'accepted']
-export const CHAT_EVENTS = ['summarize', 'conclude', 'accept', 'continue_discuss', 'abort']
+export const CHAT_EVENTS = ['summarize', 'conclude', 'accept', 'continue_discuss', 'reopen', 'abort']
 
 const chatTable = {
   discussing: {
@@ -16,7 +16,9 @@ const chatTable = {
     accept: { to: 'accepted', guard: () => true },
     continue_discuss: { to: 'discussing', guard: () => true },
   },
-  accepted: {},
+  accepted: {
+    reopen: { to: 'discussing', guard: () => true },
+  },
 }
 
 const machine = createStateMachine(chatTable)

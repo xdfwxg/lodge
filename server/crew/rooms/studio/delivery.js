@@ -3,7 +3,7 @@ import { memberLabelMap } from '../../member-labels.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
 
-const artifactList = (messages, roots = []) => {
+const artifactList = (messages, roots = [], { withContent = false } = {}) => {
   const normalizedRoots = roots.filter(root => typeof root === 'string' && root !== '').map(root => root.replace(/\/$/, ''))
   const byPath = new Map()
   for (const message of messages) {
@@ -19,6 +19,7 @@ const artifactList = (messages, roots = []) => {
           ? artifact.path
           : artifact.path.slice(root.length + 1),
         bytes: Number.isFinite(artifact.bytes) ? artifact.bytes : null,
+        ...(withContent && typeof artifact.content === 'string' ? { content: artifact.content } : {}),
       })
     }
   }
@@ -89,7 +90,11 @@ export const buildDelivery = (room, messages = []) => {
     },
     workspacePath: room.repoPath ?? Object.values(room.worktrees ?? {})[0] ?? null,
     sourcePath: room.sourceRepo ?? null,
-    artifacts: artifactList(messages, [room.repoPath, ...Object.values(room.worktrees ?? {})]),
+    artifacts: artifactList(
+      messages,
+      [room.repoPath, ...Object.values(room.worktrees ?? {})],
+      { withContent: room.demo === true },
+    ),
     stages,
     commands,
     changedFiles,

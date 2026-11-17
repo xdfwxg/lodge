@@ -70,6 +70,34 @@ test('rejecting a chat conclusion starts another round', async () => {
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '还缺反方观点' }])
 })
 
+test('a turn count in the note caps the next round', () => {
+  const ctx = setup()
+  const result = ctx.chat.continue(ctx.room(), { note: '讨论三次' })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().chat.roundTurnLimit, 3)
+  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '讨论三次' }])
+})
+
+test('a note without a count clears an old cap', () => {
+  const ctx = setup()
+  ctx.room().chat = { ...ctx.room().chat, roundTurnLimit: 3 }
+  const result = ctx.chat.continue(ctx.room(), { note: '还缺反方观点' })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().chat.roundTurnLimit, null)
+})
+
+test('a completed chat can reopen for another round', () => {
+  const ctx = setup()
+  ctx.chat.accept(ctx.room())
+  const result = ctx.chat.continue(ctx.room(), { note: '再来3次' })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().state, 'active')
+  assert.equal(ctx.room().chat.phase, 'discussing')
+  assert.equal(ctx.room().chat.round, 2)
+  assert.equal(ctx.room().chat.roundTurnLimit, 3)
+  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '再来3次' }])
+})
+
 test('an interrupted discussion can restart the same round', () => {
   const ctx = setup()
   ctx.room().chat = { ...ctx.room().chat, phase: 'discussing', running: false, turns: 2, conclusionId: null }

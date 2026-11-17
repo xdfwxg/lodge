@@ -76,6 +76,25 @@ test('a rework dispatch keeps its rework marker', () => {
   assert.equal(baton.stage, '1')
 })
 
+test('a handoff without an assignment still names its workers', () => {
+  const baton = batonOf({
+    kind: 'handoff',
+    authorId: 'lead',
+    text: '把清单交给执行官。',
+    meta: {
+      from: 'lead',
+      workers: ['worker'],
+      stage: 1,
+      acceptance: 'test -f RELEASE_CHECKLIST.md',
+      reason: 'dispatch',
+      status: 'sent',
+    },
+  }, room)
+  assert.equal(baton.to, '执行官')
+  assert.equal(baton.status, 'sent')
+  assert.equal(baton.archived, undefined)
+})
+
 test('a handoff baton reads its assignment brief', () => {
   const assignment = {
     id: 'as-1',

@@ -62,7 +62,7 @@ export const studioView = {
       subrooms)
   },
   presence: ({ room, members, actions }) => h(StudioPresence, { room, members, onHold: actions.hold }),
-  composerPlaceholder: () => '交代下一步，或问进度…',
+  composerPlaceholder: ({ room }) => room.state === 'complete' ? '已完成 · 说句话，再开一轮。' : '交代下一步，或问进度…',
   typing: () => null,
   dock: ({ room, dock }) => h(StageDock, { room, ...dock }),
 }

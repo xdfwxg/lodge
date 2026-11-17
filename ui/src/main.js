@@ -2,6 +2,7 @@ import { createElement as h } from 'react'
 import { createRoot } from 'react-dom/client'
 import { applyTheme } from './theme.js'
 import { App } from './app.js'
+import { installSummaryScrollGuard } from './summary-scroll.js'
 import './app.css'
 import './crew.css'
 
@@ -18,4 +19,5 @@ const paint = () => { document.body.toggleAttribute('data-ds-dark-theme', dark.m
 paint()
 dark.addEventListener('change', paint)
 
+installSummaryScrollGuard()
 createRoot(document.getElementById('root')).render(h(App))

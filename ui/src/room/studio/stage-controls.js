@@ -1,5 +1,4 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { BotMark } from '../../marks.js'
 import { independenceOf } from '../../view-format.js'
 import { ConfirmationPoints } from './opening-points.js'
 import { ShadowAdvice, ShadowReconfirm } from './advisor-advice.js'
@@ -90,8 +89,7 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework, 
     setBusy(false)
   }
 
-  return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotMark, { size: 30, live: false })),
+  return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
       h('div', { className: 'crew-card crew-human-gate' },
         h('div', { className: 'crew-card-head' },
@@ -187,8 +185,7 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
   }
 
   const blocked = room.blocked?.stage === index ? room.blocked.reason : null
-  return h('div', { className: 'crew-msg' },
-    h('div', { className: 'crew-msg-avatar' }, h(BotMark, { size: 30, live: false })),
+  return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
       h('div', { className: 'crew-card crew-human-gate' },
         h('div', { className: 'crew-card-head' },

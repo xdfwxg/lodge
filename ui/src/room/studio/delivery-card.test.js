@@ -120,7 +120,22 @@ test('a failed check reads as failed and a simulated check says so', async () =>
   }))
   assert.match(text(tree), /没通过/)
   assert.match(text(tree), /示例运行/)
-  assert.match(text(tree), /×/)
+})
+
+test('a sample artifact opens its content in the card instead of the filesystem', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '发布前检查清单',
+      sample: true,
+      stages: [],
+      commands: [],
+      artifacts: [{ path: 'RELEASE_CHECKLIST.md', content: '- [ ] 检查' }],
+    },
+  }))
+  assert.match(text(tree), /查看/)
+  assert.match(text(tree), /- \[ \] 检查/)
+  assert.doesNotMatch(text(tree), /打开/)
 })
 
 test('the delivery sheet offers a way to continue', async () => {

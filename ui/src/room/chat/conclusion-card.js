@@ -29,30 +29,30 @@ export function ChatConclusionCard({ message, member, room }) {
   const summary = String(message.text ?? '').replace(/^#{0,3}\s*第\s*\d+\s*轮\s*(总结|结论)[:：]?\s*\n+/, '')
   const narrativeOpen = handoff === null || meta.fallback === true
   const fallbackHint = meta.fallback === true
-    ? h('p', { className: 'crew-field-hint' }, '主持人未能在限定时间内总结；以下是原始讨论摘要。')
+    ? h('p', { className: 'crew-field-hint' }, '这次没来得及总结，下面是原始讨论。')
     : null
   const fieldsView = h('div', { className: 'crew-conclusion-fields' },
     h('p', { className: 'crew-handoff-topic' }, topic),
     h(IntakeSection, {
       label: '共识',
       items: fields.consensus,
-      empty: '没有记录共识',
+      empty: '无',
     }),
     h(IntakeSection, {
-      label: '未解决的分歧',
+      label: '分歧',
       items: fields.disagreements,
       warning: true,
-      empty: '没有未解决的分歧',
+      empty: '无',
     }),
     h(IntakeSection, {
       label: '约束',
       items: fields.constraints,
-      empty: '没有额外约束',
+      empty: '无',
     }),
     h(IntakeSection, {
       label: '待办',
       items: fields.todos,
-      empty: '没有待办',
+      empty: '无',
     }))
   const narrative = summary.trim() === ''
     ? null
@@ -61,7 +61,11 @@ export function ChatConclusionCard({ message, member, room }) {
       h('div', { className: 'crew-handoff-more-body' },
         h(Markdown, { text: summary, variant: 'compact' })))
   const title = h('b', { className: 'crew-conclusion-title' }, `第 ${round} 轮结论`)
-  const counts = `共识 ${fields.consensus.length} · 分歧 ${fields.disagreements.length} · 待办 ${fields.todos.length}`
+  const counts = [
+    fields.consensus.length > 0 ? `共识 ${fields.consensus.length}` : '',
+    fields.disagreements.length > 0 ? `分歧 ${fields.disagreements.length}` : '',
+    fields.todos.length > 0 ? `待办 ${fields.todos.length}` : '',
+  ].filter(Boolean).join(' · ') || '无'
   const body = !history
     ? h(Fragment, null, title, fallbackHint, fieldsView, narrative)
     : h('details', { className: 'crew-conclusion-history' },

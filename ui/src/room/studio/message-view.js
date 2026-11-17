@@ -66,8 +66,6 @@ export const renderStudioMessage = ({
         items,
         pending,
         disabled: room.state !== 'active',
-        title: opening ? '开工前，先定这几件事' : '这一步，待确认',
-        doneTitle: opening ? '开工前定下的事' : '这一步定下的事',
         actionLabel: opening ? '按这个开工' : '按这个继续',
         onAccept: pending && typeof accept === 'function' && active >= 0
           ? () => accept(active)
