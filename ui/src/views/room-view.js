@@ -88,15 +88,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const holdOnSummary = event => {
     const summary = event.target?.closest?.('summary')
     if (summary === null || summary === undefined) return
+    // 展开详情是当前阅读位置的动作；贴底逻辑在这段时间里让路，位置由公共滚动守卫保住。
     holdPin.current = true
-    // 展开详情时让浏览器按锚点保住当前阅读位置；贴底逻辑在这段时间里让路。
-    const node = scroll.current
-    if (node !== null) node.style.overflowAnchor = 'auto'
     clearTimeout(holdTimer.current)
-    holdTimer.current = setTimeout(() => {
-      holdPin.current = false
-      if (node !== null) node.style.removeProperty('overflow-anchor')
-    }, 400)
+    holdTimer.current = setTimeout(() => { holdPin.current = false }, 400)
   }
 
   // 输入条高度会变；「回到最新」始终浮在它上方，而不是写死 124px。

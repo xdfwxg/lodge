@@ -223,7 +223,7 @@ test('a single worker stage sends the prompt and hides the base message', async 
   assert.equal(prompts.length, 1)
   assert.equal(prompts[0].memberId, room.workers[0])
   assert.match(prompts[0].prompt, /验收命令：`true`/)
-  assert.match(prompts[0].prompt, /@执行官/)
+  assert.match(prompts[0].prompt, /阶段 1/)
 })
 
 test('parallel dispatch wakes every assignee and tracks pending seats', async () => {

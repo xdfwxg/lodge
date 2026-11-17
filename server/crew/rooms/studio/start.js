@@ -25,10 +25,9 @@ export const startInitialStage = async ({
     if (activeStage >= 0) await live.startStage(room, activeStage)
   } else {
     const targetMember = align ? lead : worker
-    const openingName = targetMember.name
     const opening = align
-      ? alignmentPrompt(openingName, goal, verify, acceptance, room.handoff)
-      : `@${openingName}\n${directPrompt(goal, verify, acceptance, roster.length === 1, room.handoff)}`
+      ? alignmentPrompt(goal, verify, acceptance, room.handoff)
+      : directPrompt(goal, verify, acceptance, roster.length === 1, room.handoff)
     const context = buildMemberHandoff({ room, messages: store.readMessages(room.id), memberId: targetMember.id })
     const sent = await live.sendToMember(
       room.id,

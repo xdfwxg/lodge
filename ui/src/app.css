@@ -41,7 +41,7 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-stage-dock-toggle{flex:none;font-size:12.5px;color:var(--bt-accent)}
 .crew-stage-dock-body{max-height:min(52vh,520px);overflow:auto;padding-top:8px}
 .crew-composer-wrap{position:relative;max-width:760px;margin:0 auto}
-.crew-composer{display:flex;align-items:flex-end;gap:8px;max-width:760px;margin:0 auto;padding:8px 8px 8px 14px;background:var(--bt-card);border:1px solid var(--bt-line-2);border-radius:18px;box-shadow:var(--bt-elev-1)}
+.crew-composer{display:flex;align-items:flex-end;gap:8px;max-width:760px;margin:0 auto;padding:8px 8px 8px 16px;background:var(--bt-card);border:1px solid var(--bt-line-2);border-radius:16px;box-shadow:var(--bt-elev-1)}
 /* 焦点落在整个输入条上：内部 textarea 不再自画矩形环，避免在圆角 18 的容器里出现方角框 */
 .crew-composer:focus-within{border-color:var(--bt-accent);box-shadow:var(--bt-elev-1),0 0 0 3px var(--bt-accent-wash)}
 .crew-input:focus-visible{outline:none}

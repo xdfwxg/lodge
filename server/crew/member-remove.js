@@ -67,9 +67,8 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
       .filter(item => item.id !== memberId)
       .map(item => item.body?.ref)
       .filter(ref => typeof ref === 'string' && ref !== '')
-    if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
     try {
-      await bodies.join({ sharedRoomId: room.chatRoom?.id, refs })
+      await bodies.join({ room, refs })
     } catch (error) {
       store.appendMessage(room.id, {
         kind: 'system',

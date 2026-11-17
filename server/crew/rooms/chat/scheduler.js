@@ -43,7 +43,7 @@ const memberOf = (room, memberId) => (room?.members ?? []).find(member => member
 const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
   const personality = memberOf(room, memberId)?.personality
   return [
-    `@${memberDisplayName(room, memberId)} 聊天室话题：${room.goal}`,
+    `聊天室话题：${room.goal}`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `用户这轮的要求：${note}`,
     '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
@@ -79,7 +79,7 @@ const digestText = lines => lines.length === 0
 
 export const createChatScheduler = ({
   store,
-  engine,
+  transport,
   sendToMember,
   roomId,
   emit = () => {},
@@ -106,42 +106,22 @@ export const createChatScheduler = ({
     })
   }
 
-  const messageIds = async chat => {
-    const { messages } = await engine.history(chat.sessionRef, { limit: 1000 })
-    return new Set(messages.map(message => message.id))
-  }
-
-  const waitForBot = async (chat, memberRef, before, run) => {
-    if (typeof memberRef !== 'string' || memberRef === '') return null
+  const waitForBot = async (memberId, before, run) => {
     const deadline = Date.now() + waitMs
     while (Date.now() < deadline) {
       if (run.cancelled) return null
-      try {
-        const { messages } = await engine.history(chat.sessionRef, { limit: 1000 })
-        const hit = messages.find(message => (
-          !before.has(message.id) &&
-          message.authorRef === memberRef &&
-          (message.kind === 'text' || (message.kind === 'turn' && message.turn?.reply))
-        ))
-        if (hit !== undefined) return hit
-      } catch {
-        // 基座短暂不可用不等于发言失败；继续在窗口内轮询。
-      }
+      const hit = await transport.findReply(memberId, before)
+      if (hit !== null) return hit
       await sleep(pollMs)
     }
     return null
   }
 
-  const waitIdle = async (chatId, run, timeout = 60_000) => {
+  const waitIdle = async (run, timeout = 60_000) => {
     const deadline = Date.now() + timeout
     while (Date.now() < deadline) {
       if (run.cancelled) return false
-      try {
-        const room = (await engine.rooms()).find(item => item.id === chatId)
-        if (room === undefined || room.working !== true) return true
-      } catch {
-        return true
-      }
+      if (await transport.isIdle()) return true
       await sleep(pollMs)
     }
     return false
@@ -157,13 +137,9 @@ export const createChatScheduler = ({
   const start = async (inputRoom, { note = '' } = {}) => {
     if (runs.has(roomId)) return { started: false, reason: '聊天讨论已经在进行' }
     let room = store.readRoom(roomId) ?? inputRoom
-    const chat = room?.chatRoom
-    if (chat === undefined) throw new Error('房间聊天室还没准备好')
+    if (transport.ready() !== true) throw new Error('房间聊天室还没准备好')
     // 主持人是 Lodge 自己的隐藏成员，不占发言位置。
-    const hostBot = room.chatHost?.memberRef ?? ''
-    const hostName = room.chatHost?.name ?? ''
     const hostAuthor = 'lodge'
-    if (hostBot === '' || hostName === '') throw new Error('聊天室没有主持人')
     const speakers = (room.members ?? []).map(member => member.id)
     const requestedTurns = Number(room.chat?.roundTurnLimit)
     const turnLimit = Number.isInteger(requestedTurns) && requestedTurns >= 1
@@ -195,7 +171,7 @@ export const createChatScheduler = ({
 
     try {
       if (speakers.length > 0) {
-        const idle = await waitIdle(chat.id, run, idleMs)
+        const idle = await waitIdle(run, idleMs)
         if (!idle) store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
         if (idle) {
         let misses = 0
@@ -211,7 +187,7 @@ export const createChatScheduler = ({
             const text = `【${room.goal}】`
             store.appendMessage(roomId, { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
           }
-          const before = await messageIds(chat)
+          const before = await transport.messageIds()
           const text = speakerPrompt({
             room,
             memberId,
@@ -232,7 +208,7 @@ export const createChatScheduler = ({
             }
             return { events: [{ type: 'chat.speaker', payload: { memberId, turn } }] }
           })
-          const reply = await waitForBot(chat, memberOf(room, memberId)?.body?.ref, before, run)
+          const reply = await waitForBot(memberId, before, run)
           if (run.cancelled) break
           if (reply === null) {
             misses += 1
@@ -255,7 +231,7 @@ export const createChatScheduler = ({
             }
             return { events: [] }
           })
-          if (!(await waitIdle(chat.id, run, idleMs))) {
+          if (!(await waitIdle(run, idleMs))) {
             store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
             break
           }
@@ -287,22 +263,22 @@ export const createChatScheduler = ({
         }
         return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', hostAuthor, '达到发言上限')] }
       })
-      let before = await messageIds(chat)
+      let before = await transport.messageIds()
       let sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
       hidePrompt(sent?.messageId)
-      let reply = await waitForBot(chat, hostBot, before, run)
+      let reply = await waitForBot('host', before, run)
       if (reply === null && !run.cancelled) {
-        await waitIdle(chat.id, run, Math.min(30_000, idleMs))
-        before = await messageIds(chat)
+        await waitIdle(run, Math.min(30_000, idleMs))
+        before = await transport.messageIds()
         sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
         hidePrompt(sent?.messageId)
-        reply = await waitForBot(chat, hostBot, before, run)
+        reply = await waitForBot('host', before, run)
       }
       if (run.cancelled) return { started: true, cancelled: true, round }
 
       const fallback = reply === null
       const text = !fallback
-        ? (reply.turn?.reply ?? reply.text ?? '')
+        ? (reply.text ?? '')
         : digestText(lines)
       const conclusionText = text === '' ? digestText(lines) : text
       const handoff = parseHandoffFromText(conclusionText, store.readRoom(roomId)?.goal ?? room.goal)

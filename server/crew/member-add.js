@@ -99,8 +99,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       })
       workspace.writeMemberEnv({ room: { id: room.id }, memberId: id, path: memberWorkspace.path, port: memberWorkspace.port })
       const refs = [...(room.members ?? []).map(member => member.body?.ref), incarnation.body.ref]
-      if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
-      sharedUpdated = await bodies.join({ sharedRoomId: room.chatRoom?.id, refs })
+      sharedUpdated = await bodies.join({ room, refs })
 
       const updated = store.updateRoom(room.id, current => {
         current.members = [...(current.members ?? []), {
@@ -145,11 +144,10 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       emit('room', store.readRoom(room.id) ?? updated)
       return ok({ room: updated, memberId: id })
     } catch (error) {
-      if (sharedUpdated === true && typeof room.chatRoom?.id === 'string') {
+      if (sharedUpdated === true) {
         try {
           const refs = (room.members ?? []).map(member => member.body?.ref)
-          if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
-          await bodies.join({ sharedRoomId: room.chatRoom.id, refs })
+          await bodies.join({ room, refs })
         } catch {}
       }
       if (incarnation !== null) await bodies.retire(incarnation.body)

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CHAT_TURNS_PER_ROUND, turnLimitOf as chatTurnLimitOf } from './room-types/chat.js'
 import { createChatScheduler, pickChatSpeaker } from './rooms/chat/scheduler.js'
+import { createChatTransport } from './rooms/chat/transport.js'
 import { normalizeLegacyTestRoom } from './testing/room.js'
 
 test('a chat round defaults to six speakers and accepts a room limit', () => {
@@ -109,11 +110,13 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false }
   return { store, engine, sendToMember, room: () => current, messages, history }
 }
 
+const transportFor = ctx => createChatTransport({ engine: ctx.engine, store: ctx.store, roomId: 'room-chat' })
+
 test('a chat round runs six speakers, then the host summarizes', async () => {
   const ctx = setup()
   const scheduler = createChatScheduler({
     store: ctx.store,
-    engine: ctx.engine,
+    transport: transportFor(ctx),
     sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
@@ -177,7 +180,7 @@ test('the host conclusion keeps all five handoff fields', async () => {
   })
   const scheduler = createChatScheduler({
     store: ctx.store,
-    engine: ctx.engine,
+    transport: transportFor(ctx),
     sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
@@ -200,7 +203,7 @@ test('a late member message is synced before the host concludes', async () => {
   let synced = false
   const scheduler = createChatScheduler({
     store: ctx.store,
-    engine: ctx.engine,
+    transport: transportFor(ctx),
     sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
@@ -227,7 +230,7 @@ test('a chat room can run fewer turns than the default', async () => {
   })
   const scheduler = createChatScheduler({
     store: ctx.store,
-    engine: ctx.engine,
+    transport: transportFor(ctx),
     sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
@@ -251,7 +254,7 @@ test('a per-round request caps that round without changing the room default', as
   })
   const scheduler = createChatScheduler({
     store: ctx.store,
-    engine: ctx.engine,
+    transport: transportFor(ctx),
     sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
@@ -269,7 +272,7 @@ test('a busy base skips the round instead of queueing every speaker', async () =
   const ctx = setup({ busy: true })
   const scheduler = createChatScheduler({
     store: ctx.store,
-    engine: ctx.engine,
+    transport: transportFor(ctx),
     sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,
@@ -286,7 +289,7 @@ test('three silent speakers end the round early', async () => {
   const ctx = setup({ silent: true })
   const scheduler = createChatScheduler({
     store: ctx.store,
-    engine: ctx.engine,
+    transport: transportFor(ctx),
     sendToMember: ctx.sendToMember,
     roomId: 'room-chat',
     random: () => 0,

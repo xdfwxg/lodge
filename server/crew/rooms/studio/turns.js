@@ -134,7 +134,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       return true
     }
     const name = memberDisplayName(room, target)
-    const mention = `@${name}`
     const parent = latestDispatchAssignment(store, roomId, stageIndex, target)
     if (parent !== null) transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，规划师安排重做' })
     void handoff.trigger({
@@ -145,7 +144,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       to: target,
       reason: 'rework',
       prompt: [
-        `${mention} 验收员退回了第 ${stageIndex + 1} 步「${stage?.title ?? ''}」。`,
+        `验收员退回了第 ${stageIndex + 1} 步「${stage?.title ?? ''}」。`,
         `规划师的返工要求：${decision.note}`,
         '只重做这一步；完成后不要 @ 人，系统会交给验收员。',
         INTERNAL_PROMPT_MARKER,

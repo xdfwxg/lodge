@@ -109,7 +109,6 @@ function GoalClosed({ view, room, actions }) {
     : view?.status === 'stopped' ? 'stopped'
       : view?.status === 'paused' || view?.idle === true || room.needsYou ? 'waiting'
         : view?.status === 'drafting' ? 'drafting' : 'active'
-  const count = view?.number === undefined || view?.count === undefined ? '' : `${view.number}/${view.count}`
   return h('button', {
     type: 'button',
     className: 'bt-goal-closed',
@@ -119,7 +118,6 @@ function GoalClosed({ view, room, actions }) {
   h('span', { className: 'bt-goal-closed-main' },
     h('span', { className: 'bt-goal-closed-ico', 'aria-hidden': true }, h(TargetIcon)),
     h('span', { className: 'bt-goal-closed-title', title }, title),
-    count === '' ? null : h('span', { className: 'bt-goal-closed-count' }, count),
     status === ''
       ? null
       : h('span', { className: 'bt-goal-closed-sub' },
@@ -342,7 +340,7 @@ export const GOAL_CSS = `
 .bt-goal-closed-dot[data-tone=stopped]{background:var(--bt-ink-3)}
 .bt-goal-closed-dot[data-live]{animation:bt-live-pulse 1.4s ease-in-out infinite}
 .bt-goal-closed-main .bt-goal-chev{margin-left:2px}
-.bt-goal-closed-segs{display:flex;gap:3px;width:100%;padding:0 8px 7px;box-sizing:border-box}
+.bt-goal-closed-segs{display:flex;gap:3px;width:100%;padding:0 16px 8px;box-sizing:border-box}
 .bt-goal-closed-segs i{flex:1 1 0;height:3px;border-radius:999px;background:var(--bt-line-2);transition:background-color .3s ease}
 .bt-goal-closed-segs i[data-seg=done]{background:var(--bt-green)}
 .bt-goal-closed-segs i[data-seg=current]{background:var(--bt-accent)}

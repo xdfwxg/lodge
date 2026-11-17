@@ -124,7 +124,7 @@ export function ChatIsland({ room, decision, actions = {} }) {
       }, '取消'),
       h('button', {
         type: 'button',
-        className: 'crew-accept',
+        className: 'crew-accept crew-quiet-primary',
         disabled: busy,
         onClick: () => void continueChat(),
       }, busy ? '发送中…' : '发送'))
@@ -141,12 +141,6 @@ export function ChatIsland({ room, decision, actions = {} }) {
   const footer = view.primary === undefined
     ? null
     : h('div', { className: 'crew-island-actions' },
-      h('button', {
-        type: 'button',
-        className: 'crew-accept',
-        disabled: busy,
-        onClick: () => run(view.primary.action),
-      }, view.primary.label),
       view.secondary === undefined
         ? null
         : h('button', {
@@ -154,7 +148,13 @@ export function ChatIsland({ room, decision, actions = {} }) {
           className: 'crew-island-secondary',
           disabled: busy,
           onClick: () => run(view.secondary.action),
-        }, noteOpen ? '收起' : view.secondary.label))
+        }, noteOpen ? '收起' : view.secondary.label),
+      h('button', {
+        type: 'button',
+        className: 'crew-accept crew-quiet-primary',
+        disabled: busy,
+        onClick: () => run(view.primary.action),
+      }, view.primary.label))
 
   return h(Island, {
     title: room.name || room.goal || '聊天室',

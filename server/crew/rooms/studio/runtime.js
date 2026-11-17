@@ -10,6 +10,16 @@ export const createStudioRuntime = ({
   approvals,
   refreshRoom,
 }) => {
+  const sendMember = (roomId, room, memberId, text, options = {}) => deliverToMember({
+    engine,
+    store,
+    roomId,
+    room,
+    memberId,
+    text,
+    ...options,
+  })
+
   return {
     owns: typeId => typeId === 'studio',
 
@@ -19,7 +29,7 @@ export const createStudioRuntime = ({
         engine,
         roomId: room.id,
         emit,
-        sendToMember: (memberId, text, options = {}) => deliverToMember({ engine, store, roomId: room.id, room, memberId, text, ...options }),
+        sendToMember: (memberId, text, options = {}) => sendMember(room.id, room, memberId, text, options),
         commands: ports.commands,
         files: ports.files,
         advisor: ports.advisor,
@@ -58,6 +68,6 @@ export const createStudioRuntime = ({
 
     requestReview: async (entry, stage) => entry.turns.requestReview(stage),
     startStage: async (entry, room, index, options = {}) => entry.turns.startStage(room, index, options),
-    sendToMember: (entry, room, memberId, text, options = {}) => deliverToMember({ engine, store, roomId: room.id, room, memberId, text, ...options }),
+    sendToMember: (entry, room, memberId, text, options = {}) => sendMember(room.id, room, memberId, text, options),
   }
 }

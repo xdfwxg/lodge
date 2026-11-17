@@ -1,29 +1,30 @@
 import { chatFacade } from './facade.js'
 import { createChatScheduler } from './scheduler.js'
+import { createChatTransport } from './transport.js'
 import { deliverToMember } from '../../surface-delivery.js'
 import { memberOf } from '../../room-members.js'
 
 // 聊天室上下文运行时：只有随机发言、主持总结和拍板，没有阶段、验收或交付回合。
 export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
+  const sendMember = (roomId, room, memberId, text, options = {}) => deliverToMember({
+    engine,
+    store,
+    roomId,
+    room,
+    memberId,
+    text,
+    intent: memberId === 'host' ? 'notice' : 'chat',
+    ...options,
+  })
+
   return {
     owns: typeId => typeId === 'chat',
 
     create(entry, room) {
       entry.chatRun = createChatScheduler({
         store,
-        engine,
-        sendToMember: (memberId, text, options = {}) => {
-          return deliverToMember({
-            engine,
-            store,
-            roomId: entry.roomId,
-            room,
-            memberId,
-            text,
-            intent: memberId === 'host' ? 'notice' : 'chat',
-            ...options,
-          })
-        },
+        transport: createChatTransport({ engine, store, roomId: entry.roomId }),
+        sendToMember: (memberId, text, options = {}) => sendMember(entry.roomId, room, memberId, text, options),
         roomId: room.id,
         emit,
         refresh: () => refreshRoom(entry, { force: true }),
@@ -81,17 +82,6 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
 
     requestReview: async () => { throw new Error('聊天室没有验收回合') },
     startStage: async () => { throw new Error('聊天室没有阶段执行') },
-    sendToMember: (entry, room, memberId, text, options = {}) => {
-      return deliverToMember({
-        engine,
-        store,
-        roomId: entry.roomId,
-        room,
-        memberId,
-        text,
-        intent: memberId === 'host' ? 'notice' : 'chat',
-        ...options,
-      })
-    },
+    sendToMember: (entry, room, memberId, text, options = {}) => sendMember(entry.roomId, room, memberId, text, options),
   }
 }

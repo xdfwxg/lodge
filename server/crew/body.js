@@ -67,10 +67,13 @@ export const createBodyFactory = ({ engine }) => {
     }
   }
 
-  // 共享基座房间的成员是整体替换；调用方给出完整的 ref 列表。
-  const join = async ({ sharedRoomId, refs }) => {
+  // 共享基座房间的成员是整体替换；房间和主持人的基座地址留在这一层，不往业务层漏。
+  const join = async ({ room, refs = [] }) => {
+    const sharedRoomId = room?.chatRoom?.id
     if (typeof sharedRoomId !== 'string' || sharedRoomId === '') return false
-    await engine.updateRoomMembers(sharedRoomId, [...new Set(refs.filter(ref => typeof ref === 'string' && ref !== ''))])
+    const allRefs = [...refs]
+    if (typeof room?.chatHost?.memberRef === 'string' && room.chatHost.memberRef !== '') allRefs.push(room.chatHost.memberRef)
+    await engine.updateRoomMembers(sharedRoomId, [...new Set(allRefs.filter(ref => typeof ref === 'string' && ref !== ''))])
     return true
   }
 

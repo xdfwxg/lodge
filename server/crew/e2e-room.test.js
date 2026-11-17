@@ -6,6 +6,7 @@ import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { buildDelivery } from './rooms/studio/delivery.js'
 import { createChatScheduler } from './rooms/chat/scheduler.js'
+import { createChatTransport } from './rooms/chat/transport.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
 import { studioTransitionEvent, transitionStudio } from './rooms/studio/state.js'
@@ -212,7 +213,7 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     }
     const scheduler = createChatScheduler({
       store,
-      engine,
+      transport: createChatTransport({ engine, store, roomId: chatId }),
       sendToMember,
       roomId: chatId,
       random: () => 0,

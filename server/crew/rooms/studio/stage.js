@@ -117,7 +117,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       messages: store.readMessages(roomId),
       stage,
       index,
-      assignee: worker,
       rework,
       note,
       acceptance,

@@ -132,12 +132,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       // it decides whether the executor reworks or the human takes over.
       const lead = leadMemberOf(room)?.id
       if (typeof lead === 'string' && lead !== '') {
-        const leadName = memberDisplayName(room, lead)
-        const leadMention = `@${leadName}`
         const stageTitle = room.stages?.[pending.stage]?.title ?? ''
         const reason = String(turn.reply ?? '').trim().slice(0, 300)
         void sendToMember(lead, [
-          `${leadMention} 验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
+          `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
           `判定：${reason === '' ? '未通过' : reason}`,
           '第一行只写「返工」或「交给人」。返工时从第二行起写清改什么、怎么算完成；交给人时从第二行起写清要人拍板什么。',
           '不要在回复里 @ 任何人；系统会按第一行转交。',
@@ -253,7 +251,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const failures = []
     for (const verifier of targets) {
       const verifierName = memberDisplayName(room, verifier)
-      const verifierMention = `@${verifierName}`
       if (typeof verifierName !== 'string' || verifierName === '') {
         failures.push(`${verifier}: 没有成员名字`)
         continue
@@ -270,7 +267,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       const verifierPort = room.ports?.[verifier]
       const prompt = manual
         ? [
-            `${verifierMention || `@${verifierName}`} 你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+            `你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '复核：以本轮结果证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             ...(blind
               ? [`房间目标：${room.goal}`, '对抗复核：只依据本轮证据和改动；执行对话不提供。']
@@ -289,7 +286,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             INTERNAL_PROMPT_MARKER,
           ].join('\n')
         : [
-            `${verifierMention || `@${verifierName}`} 你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
+            `你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '复核：以本轮验收证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             ...(blind
               ? [`房间目标：${room.goal}`, '对抗复核：只依据本轮证据和改动；执行对话不提供。']
@@ -325,7 +322,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       nextRound.requests.set(verifier, request)
       request.reminder = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
-        void sendToMember(verifier, `${verifierMention || `@${verifierName}`} 复核还没有结论。请现在只回复一行 PASS 或 REJECT；不要继续调研，不要调用工具。`).catch(() => {})
+        void sendToMember(verifier, '复核还没有结论。请现在只回复一行 PASS 或 REJECT；不要继续调研，不要调用工具。').catch(() => {})
       }, REVIEW_REMINDER).unref()
       request.timer = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return

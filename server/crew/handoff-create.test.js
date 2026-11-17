@@ -39,7 +39,7 @@ test('the handoff is part of the bulletin and the opening prompt', () => {
   assert.match(bulletin, /共识：三组检查/)
   assert.match(bulletin, /待办：写初稿/)
 
-  const aligned = alignmentPrompt('甲', '发布检查清单', 'manual', '', handoff)
+  const aligned = alignmentPrompt('发布检查清单', 'manual', '', handoff)
   assert.match(aligned, /交接单/)
   assert.match(aligned, /分歧：是否自动回滚/)
 

@@ -90,12 +90,10 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
         },
       })
       created = incarnation.memberRef
-      const sharedRoomId = room.chatRoom?.id
       const refs = (room.members ?? [])
         .map(item => (item.id === memberId ? created.id : item.body?.ref))
         .filter(ref => typeof ref === 'string' && ref !== '')
-      if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
-      sharedUpdated = await bodies.join({ sharedRoomId, refs })
+      sharedUpdated = await bodies.join({ room, refs })
 
       detachMember?.(room.id, memberId)
       const updated = store.updateRoom(room.id, current => {
@@ -139,13 +137,12 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
       return ok({ room: updated, memberId })
     } catch (error) {
       if (!stored) {
-        if (sharedUpdated === true && typeof room.chatRoom?.id === 'string') {
+        if (sharedUpdated === true) {
           try {
             const refs = (room.members ?? [])
               .map(item => item.body?.ref)
               .filter(ref => typeof ref === 'string' && ref !== '')
-            if (room.chatHost?.memberRef) refs.push(room.chatHost.memberRef)
-            await bodies.join({ sharedRoomId: room.chatRoom.id, refs })
+            await bodies.join({ room, refs })
           } catch {}
         }
         if (incarnation !== null) await bodies.retire(incarnation.body)

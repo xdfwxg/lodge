@@ -18,8 +18,8 @@ const handoffSection = handoff => {
   return text === '' ? '' : `\n交接单：\n${text}`
 }
 
-export const alignmentPrompt = (leadName, goal, verify, acceptance, handoff = null) => [
-  `@${leadName} 目标：${goal}${handoffSection(handoff)}`,
+export const alignmentPrompt = (goal, verify, acceptance, handoff = null) => [
+  `目标：${goal}${handoffSection(handoff)}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',
   '用户确认阶段后，系统会发一条以「阶段已确认」开头的消息；收到这条消息后只派当前阶段。',
 ].join('\n')

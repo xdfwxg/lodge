@@ -197,18 +197,18 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             : null)),
       h('div', { className: 'crew-card-foot' },
         h('span', { className: 'crew-conclusion-signoff' }, signoff),
-        onContinue === null
-          ? null
-          : h('button', {
-            type: 'button',
-            className: 'crew-accept crew-conclusion-next',
-            onClick: onContinue,
-          }, '继续做'),
         onReturn === null
           ? null
           : h('button', {
             type: 'button',
             className: 'crew-ghost',
             onClick: onReturn,
-          }, '回聊天室'))))
+          }, '回聊天室'),
+        onContinue === null
+          ? null
+          : h('button', {
+            type: 'button',
+            className: 'crew-accept crew-conclusion-next crew-quiet-primary',
+            onClick: onContinue,
+          }, '继续做'))))
 }
