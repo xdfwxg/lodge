@@ -57,15 +57,14 @@ test('the chat header uses the shared island', () => {
   const html = renderToStaticMarkup(h(ChatIsland, {
     room: { name: '圆桌' },
     decision: {
-      key: 'chat-concluded',
-      detail: '先把返工台账做出来。',
-      primary: null,
+      key: 'chat-interrupted',
+      detail: '刚才断了，可以重新开始。',
+      primary: { label: '重新开始', action: 'chat-resume' },
       secondary: null,
     },
   }))
   assert.match(html, /crew-island/)
-  assert.match(html, /聊完了/)
-  assert.match(html, /先把返工台账做出来/)
+  assert.match(html, /断了/)
+  assert.match(html, /重新开始/)
   assert.doesNotMatch(html, /确认结论/)
-  assert.doesNotMatch(html, /再聊一轮/)
 })

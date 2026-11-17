@@ -1,4 +1,4 @@
-import { createElement as h, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import { Island } from '../../island.js'
 import { TargetIcon } from '../../icons.js'
 
@@ -33,6 +33,22 @@ export const chatIslandView = ({ decision } = {}) => ({
 export function ChatIsland({ room, decision, actions = {} }) {
   const view = chatIslandView({ decision })
   const [busy, setBusy] = useState(false)
+  const [visible, setVisible] = useState(() => decision?.key === 'chat-interrupted')
+  // 岛只在状态变化时浮一下；断了才留下等你点重开。
+  useEffect(() => {
+    const key = decision?.key
+    if (key === 'chat-interrupted') {
+      setVisible(true)
+      return undefined
+    }
+    if (key === 'chat-running' || key === 'chat-concluded') {
+      setVisible(true)
+      const timer = setTimeout(() => setVisible(false), 2600)
+      return () => clearTimeout(timer)
+    }
+    setVisible(false)
+    return undefined
+  }, [decision?.key, room.id])
 
   const resume = async () => {
     if (busy || typeof actions.resumeChat !== 'function') return
@@ -44,6 +60,7 @@ export function ChatIsland({ room, decision, actions = {} }) {
     }
   }
 
+  if (!visible) return null
   const detail = view.detail === undefined
     ? null
     : h('p', { className: 'crew-island-detail-text', title: view.detail }, view.detail)
