@@ -11,7 +11,6 @@ const actions = {
   approval: () => {},
   continueChat: () => {},
   startStudio: () => {},
-  chatAccept: () => {},
 }
 
 test('the chat header is the collapsed island', () => {

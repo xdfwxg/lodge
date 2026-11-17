@@ -175,7 +175,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const actions = {
     store,
     accept: stage => void store.accept(stage),
-    chatAccept: () => store.chatAccept(),
     resumeChat: () => store.resumeChat(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
     answerCard: (memberId, requestId, message) => void store.answerCard(memberId, requestId, message),

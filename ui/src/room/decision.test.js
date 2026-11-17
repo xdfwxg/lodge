@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildChatDecision } from './chat/decision.js'
 
-test('chat awaiting decision shows the conclusion and the next actions', () => {
+test('a concluded chat shows the summary and no actions', () => {
   const decision = buildChatDecision({
     roomType: 'chat',
     state: 'active',
-    chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
+    chat: { phase: 'concluded', running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{
       kind: 'chat_conclusion',
       text: '结论：先做返工台账。',
@@ -21,30 +21,10 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
       },
     }],
   })
-  assert.equal(decision.title, '聊完了，待确认')
+  assert.equal(decision.title, '聊完了')
   assert.match(decision.detail, /返工台账/)
-  assert.equal(decision.primary.label, '确认结论')
-  assert.equal(decision.secondary.label, '再聊一轮')
-  const complete = buildChatDecision({
-    roomType: 'chat',
-    state: 'complete',
-    chat: { phase: 'accepted', running: false, round: 1, turns: 4, turnLimit: 4 },
-    messages: [{
-      kind: 'chat_conclusion',
-      text: '结论：先做返工台账。',
-      meta: {
-        handoff: {
-          topic: '返工',
-          consensus: ['先做返工台账。'],
-          disagreements: [],
-          constraints: [],
-          todos: [],
-        },
-      },
-    }],
-  })
-  assert.equal(complete.title, '这次聊完了')
-  assert.equal(complete.primary.label, '转成工作室任务')
+  assert.equal(decision.primary, null)
+  assert.equal(decision.secondary, null)
 
   const interrupted = buildChatDecision({
     roomType: 'chat',
@@ -61,7 +41,7 @@ test('the island line comes from the stored five-field consensus', () => {
   const decision = buildChatDecision({
     roomType: 'chat',
     state: 'active',
-    chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
+    chat: { phase: 'concluded', running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{
       kind: 'chat_conclusion',
       text: '原始讨论长文，不应该成为岛的一行结论。',
@@ -92,8 +72,8 @@ test('a free chat does not show speaking counts', () => {
   const waiting = buildChatDecision({
     roomType: 'chat',
     state: 'active',
-    chat: { phase: 'awaiting_decision', running: false, round: 1, turns: 4, turnLimit: 4 },
+    chat: { phase: 'concluded', running: false, round: 1, turns: 4, turnLimit: 4 },
     messages: [{ kind: 'chat_conclusion', text: '结论：先做返工台账。' }],
   })
-  assert.equal(waiting.key, 'chat-decision')
+  assert.equal(waiting.key, 'chat-concluded')
 })

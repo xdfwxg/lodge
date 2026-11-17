@@ -17,26 +17,17 @@ export const buildChatDecision = room => {
   const handoff = chatConclusionHandoffOf(conclusion)
   const summary = handoff?.consensus?.[0] ?? handoff?.topic ?? ''
 
-  if (room.state === 'complete') {
+  if (chat.phase === 'concluded') {
     return {
-      key: 'chat-complete',
-      title: '这次聊完了',
+      key: 'chat-concluded',
+      title: '聊完了',
       detail: summary.length > 260 ? `${summary.slice(0, 260)}…` : summary,
-      primary: { label: '转成工作室任务', action: 'start-studio' },
+      primary: null,
       secondary: null,
     }
   }
   if (chat.running === true) {
     return { key: 'chat-running', title: '正在聊', detail: '成员正在发言', primary: null, secondary: null }
-  }
-  if (chat.phase === 'awaiting_decision') {
-    return {
-      key: 'chat-decision',
-      title: '聊完了，待确认',
-      detail: summary.length > 260 ? `${summary.slice(0, 260)}…` : summary,
-      primary: { label: '确认结论', action: 'chat-accept' },
-      secondary: { label: '再聊一轮', action: 'continue-chat' },
-    }
   }
   return {
     key: 'chat-interrupted',

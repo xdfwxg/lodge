@@ -1,9 +1,10 @@
 import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../../approval-card.js'
+import { ChatLine } from '../../message-cards.js'
 import { renderSharedMessage } from '../message-view.js'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { hostLabelOf } from '../host.js'
-import { ChatConclusionCard } from './conclusion-card.js'
+import { chatStudioSeed } from './seed.js'
 import { ChatOpeningCard } from './opening-card.js'
 
 const TIME_GAP = 5 * 60 * 1000
@@ -23,6 +24,7 @@ function Timeline({
   onAnswerCard = null,
   onCancelQueue = null,
   onSteerQueue = null,
+  onStartStudio = null,
   hideKinds = [],
 }) {
   const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
@@ -39,12 +41,22 @@ function Timeline({
 
   const renderMessage = message => {
     const content = message.kind === 'chat_conclusion'
-      ? h(ChatConclusionCard, {
-        key: message.id,
-        message,
-        member: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
-        room,
-      })
+      ? h('div', { key: message.id, className: 'crew-msg-wrap' },
+        h(ChatLine, {
+          message,
+          member: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
+        }),
+        typeof onStartStudio === 'function'
+          ? h('button', {
+            type: 'button',
+            className: 'crew-link crew-conclusion-convert',
+            onClick: () => onStartStudio(chatStudioSeed({
+              room,
+              conclusion: message.text,
+              handoff: message.meta?.handoff,
+            })),
+          }, '转成工作室')
+          : null)
       : message.kind === 'chat' && message.meta?.opening === true
         ? h(ChatOpeningCard, {
           key: message.id,

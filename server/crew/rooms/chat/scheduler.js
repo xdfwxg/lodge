@@ -7,6 +7,7 @@ import { personalityTurnCue } from '../../../../shared/personalities.js'
 import { parseHandoffFromText } from '../../../../shared/handoff.js'
 import { ensureRoundWhenAsked, hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { systemNotice } from '../../notices.js'
+import { FLOOR_RULE, parseFloorSignal } from './floor-signal.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
@@ -17,16 +18,6 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 const truncate = (text, limit) => {
   const value = String(text ?? '').trim()
   return value.length <= limit ? value : `${value.slice(0, limit)}…`
-}
-
-export const pickChatSpeaker = ({ speakers, counts, perMember, last, random = Math.random }) => {
-  if (speakers.length === 0) return null
-  const eligible = speakers.filter(memberId => (counts.get(memberId) ?? 0) < perMember)
-  const pool = eligible.length === 0 ? speakers : eligible
-  const unspoken = pool.filter(memberId => (counts.get(memberId) ?? 0) === 0)
-  const candidates = unspoken.length > 0 ? unspoken : pool.filter(memberId => memberId !== last)
-  const final = candidates.length > 0 ? candidates : pool
-  return final[Math.min(final.length - 1, Math.floor(random() * final.length))] ?? null
 }
 
 const discussionLines = (store, roomId) => {
@@ -49,6 +40,8 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `用户这轮的要求：${note}`,
     '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
+    '被邀请可以接，也可以说「这次我不接，@更合适的人」把话交出去。',
+    FLOOR_RULE,
     '像普通人聊天一样说自己的看法，不用报告、分点或小标题。',
     '只讨论话题本身；不要评论讨论次数、样本数量或流程。',
     `本轮表达：${personalityTurnCue(personality)}`,
@@ -56,6 +49,22 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')
 }
+
+// 开场只定一次顺序；后面靠成员 @ 接力，冷场再由房间按顺序补位。
+const hostOrderPrompt = ({ room, round, turnLimit, speakers }) => [
+  `第 ${round} 轮讨论要开始了。话题：${room.goal}`,
+  `成员：${speakers.map(id => memberDisplayName(room, id)).join('、')}。`,
+  `按顺序列出这轮要发言的成员，用顿号隔开；总次数不超过 ${turnLimit} 次，可以重复。`,
+  '按讨论需要排顺序；开场优先给这轮还没怎么说话的人。只回复名字和顺序，不要解释。',
+  INTERNAL_PROMPT_MARKER,
+].join('\n')
+
+const hostQueuePrompt = ({ room, queue, done, turnLimit }) => [
+  `本轮已经说了 ${done}/${turnLimit} 次。举手想补充的人：${queue.map(id => memberDisplayName(room, id)).join('、')}。`,
+  '下一位给谁？只回复一个名字。如果讨论已经够了，只回复「收尾」。',
+  '不要自己发言，不要解释。',
+  INTERNAL_PROMPT_MARKER,
+].join('\n')
 
 const hostPrompt = ({ room, round, note, turnLimit }) => [
   `聊天室第 ${round} 轮讨论到此结束，请总结。`,
@@ -157,7 +166,6 @@ export const createChatScheduler = ({
     runs.set(roomId, run)
     const round = Number.isInteger(room.chat?.round) && room.chat.round > 0 ? room.chat.round : 1
     const counts = new Map()
-    let last = null
     let completed = 0
 
     patch(current => {
@@ -180,29 +188,86 @@ export const createChatScheduler = ({
         if (!idle) store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
         if (idle) {
         let misses = 0
+        const orderBefore = await transport.messageIds()
+        const orderSent = await sendToMember('host', hostOrderPrompt({ room, round, turnLimit, speakers }))
+        hidePrompt(orderSent?.messageId)
+        const orderReply = await waitForBot('host', orderBefore, run)
+        const order = []
+        if (orderReply !== null) {
+          for (const token of String(orderReply.text ?? '').split(/[、，,\s]+/).filter(Boolean)) {
+            const hit = speakers.find(id => token === memberDisplayName(room, id) || token === id)
+            if (hit !== undefined) order.push(hit)
+            if (order.length >= turnLimit) break
+          }
+        }
+        const plan = order.length > 0
+          ? order
+          : Array.from({ length: turnLimit }, (_, index) => speakers[index % speakers.length])
+        const grantQueue = async roomNow => {
+          if (queue.length === 0) return null
+          const before = await transport.messageIds()
+          const sent = await sendToMember('host', hostQueuePrompt({
+            room: roomNow,
+            queue,
+            done: completed,
+            turnLimit,
+          }))
+          hidePrompt(sent?.messageId)
+          const reply = await waitForBot('host', before, run)
+          const text = String(reply?.text ?? '')
+          if (/收尾|总结|够了|结束/.test(text)) return null
+          const named = queue.find(id => text.includes(memberDisplayName(roomNow, id)) || text.includes(id))
+          if (named !== undefined) {
+            queue.splice(queue.indexOf(named), 1)
+            return named
+          }
+          return queue.shift() ?? null
+        }
+        let planIndex = 0
+        let pending = null
+        let pendingBefore = null
+        const queue = []
+        let coldUsed = false
         for (let turn = 1; turn <= turnLimit; turn += 1) {
           const current = store.readRoom(roomId)
           if (run.cancelled || current === null || current.state !== 'active') break
-          const memberId = pickChatSpeaker({ speakers, counts, perMember, last, random })
-          if (memberId === null) break
           room = current
-          counts.set(memberId, (counts.get(memberId) ?? 0) + 1)
-          last = memberId
           if (turn === 1) {
             const text = `【${room.goal}】`
             store.appendMessage(roomId, { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
           }
-          const before = await transport.messageIds()
-          const text = speakerPrompt({
-            room,
-            memberId,
-            round,
-            turn,
-            turnLimit,
-            note,
-          })
-          const sent = await sendToMember(memberId, text)
-          hidePrompt(sent?.messageId)
+          let memberId = null
+          let before = null
+          if (pending !== null) {
+            memberId = pending
+            before = pendingBefore
+            pending = null
+          } else {
+            while (planIndex < plan.length && (counts.get(plan[planIndex]) ?? 0) >= perMember) planIndex += 1
+            if (planIndex < plan.length) {
+              memberId = plan[planIndex]
+              planIndex += 1
+            } else if (queue.length > 0) {
+              memberId = await grantQueue(room)
+              if (memberId === null) break
+            } else {
+              const eligible = speakers.filter(id => (counts.get(id) ?? 0) < perMember)
+              if (eligible.length === 0 || coldUsed) break
+              coldUsed = true
+              memberId = eligible.slice().sort((a, b) => (counts.get(a) ?? 0) - (counts.get(b) ?? 0))[0]
+            }
+            before = await transport.messageIds()
+            const sent = await sendToMember(memberId, speakerPrompt({
+              room,
+              memberId,
+              round,
+              turn,
+              turnLimit,
+              note,
+            }))
+            hidePrompt(sent?.messageId)
+          }
+          counts.set(memberId, (counts.get(memberId) ?? 0) + 1)
           patch(state => {
             state.chat = {
               ...state.chat,
@@ -222,9 +287,9 @@ export const createChatScheduler = ({
               text: `${memberDisplayName(room, memberId)} 没有在限定时间内回应${misses >= MAX_MISSES ? '；本轮提前收尾' : '；继续下一位'}。`,
             })
             if (misses >= MAX_MISSES) break
-          } else {
-            misses = 0
+            continue
           }
+          misses = 0
           completed = turn
           patch(state => {
             state.chat = {
@@ -236,11 +301,33 @@ export const createChatScheduler = ({
             }
             return { events: [] }
           })
+          // 成员在回复里 @ 了谁，就让基座叫醒谁；下一位不再由房间点名。
+          const floor = parseFloorSignal(reply.text)
+          const said = floor.text
+          const wantsFloor = floor.action === 'want' || /我想补|补一句|举手/.test(said)
+          if (wantsFloor && !queue.includes(memberId) && (counts.get(memberId) ?? 0) < perMember) {
+            queue.push(memberId)
+          }
+          if (floor.action === 'listen' || (!floor.action && /只听|不接|不发言|pass/i.test(said))) {
+            counts.set(memberId, Math.max(0, (counts.get(memberId) ?? 1) - 1))
+          }
+          const passTo = floor.action === 'pass' && floor.to !== ''
+            ? speakers.find(id => floor.to === memberDisplayName(room, id) || floor.to === id)
+            : undefined
+          const mentioned = passTo ?? speakers.find(id => (
+            id !== memberId &&
+            (counts.get(id) ?? 0) < perMember &&
+            (said.includes(`@${memberDisplayName(room, id)}`) || said.includes(`@${id}`))
+          ))
+          if (mentioned !== undefined) {
+            pending = mentioned
+            pendingBefore = before
+          }
           if (!(await waitIdle(run, idleMs))) {
             store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
             break
           }
-        }
+       }
         }
       }
 

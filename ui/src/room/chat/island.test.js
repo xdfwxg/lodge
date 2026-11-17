@@ -6,8 +6,7 @@ import { ChatIsland, chatIslandState, chatIslandView } from './island.js'
 
 test('chat island states stay short and carry a tone', () => {
   assert.deepEqual(chatIslandState({ key: 'chat-running' }), { label: '正在聊', tone: 'active' })
-  assert.deepEqual(chatIslandState({ key: 'chat-decision' }), { label: '待确认', tone: 'waiting' })
-  assert.deepEqual(chatIslandState({ key: 'chat-complete' }), { label: '结论已确认', tone: 'done' })
+  assert.deepEqual(chatIslandState({ key: 'chat-concluded' }), { label: '聊完了', tone: 'done' })
   assert.deepEqual(chatIslandState({ key: 'chat-interrupted' }), { label: '断了', tone: 'paused' })
 })
 
@@ -18,27 +17,27 @@ test('an unknown decision keeps its own title and tone', () => {
   )
 })
 
-test('a pending conclusion grows the island into one decision', () => {
+test('a conclusion is a quiet status, not a decision', () => {
   const view = chatIslandView({
     decision: {
-      key: 'chat-decision',
+      key: 'chat-concluded',
       detail: '先把返工台账做出来。',
-      primary: { label: '确认结论', action: 'chat-accept' },
-      secondary: { label: '再聊一轮', action: 'continue-chat' },
+      primary: null,
+      secondary: null,
     },
   })
-  assert.equal(view.label, '待确认')
+  assert.equal(view.label, '聊完了')
   assert.equal(view.detail, '先把返工台账做出来。')
-  assert.deepEqual(view.primary, { label: '确认结论', action: 'chat-accept' })
-  assert.deepEqual(view.secondary, { label: '再聊一轮', action: 'continue-chat' })
+  assert.equal(view.primary, undefined)
+  assert.equal(view.secondary, undefined)
 })
 
-test('a confirmed conclusion offers the one next step', () => {
+test('an old work action never grows on the island', () => {
   const view = chatIslandView({
-    decision: { key: 'chat-complete', primary: { label: '转成工作室任务', action: 'start-studio' } },
+    decision: { key: 'chat-concluded', primary: { label: '转成工作室任务', action: 'start-studio' } },
   })
-  assert.equal(view.label, '结论已确认')
-  assert.deepEqual(view.primary, { label: '转成工作室任务', action: 'start-studio' })
+  assert.equal(view.label, '聊完了')
+  assert.equal(view.primary, undefined)
   assert.equal(view.secondary, undefined)
 })
 
@@ -58,15 +57,15 @@ test('the chat header uses the shared island', () => {
   const html = renderToStaticMarkup(h(ChatIsland, {
     room: { name: '圆桌' },
     decision: {
-      key: 'chat-decision',
+      key: 'chat-concluded',
       detail: '先把返工台账做出来。',
-      primary: { label: '确认结论', action: 'chat-accept' },
-      secondary: { label: '再聊一轮', action: 'continue-chat' },
+      primary: null,
+      secondary: null,
     },
   }))
   assert.match(html, /crew-island/)
-  assert.match(html, /待确认/)
+  assert.match(html, /聊完了/)
   assert.match(html, /先把返工台账做出来/)
-  assert.match(html, /确认结论/)
-  assert.match(html, /再聊一轮/)
+  assert.doesNotMatch(html, /确认结论/)
+  assert.doesNotMatch(html, /再聊一轮/)
 })

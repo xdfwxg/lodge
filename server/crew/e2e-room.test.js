@@ -10,7 +10,6 @@ import { createChatTransport } from './rooms/chat/transport.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
 import { studioTransitionEvent, transitionStudio } from './rooms/studio/state.js'
-import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createStore } from './store.js'
 
@@ -34,15 +33,22 @@ const scriptedEngine = (store, { approvalReview = true, authenticated } = {}) =>
       history.push({ id, role: 'user', kind: 'text', text, authorRef: null, at: Date.now() })
       const room = store.readRooms().find(item => item.chatRoom?.id === roomId)
       const summary = text.includes('请总结')
+      const pick = text.includes('下一位从这些成员里选')
+      const order = text.includes('按顺序列出这轮要发言的成员')
       const mention = /@([^\s，,。]+)/.exec(text)?.[1]
-      const hostTurn = summary && room?.chatHost?.name === mention
+      const hostTurn = (summary || pick || order) && room?.chatHost?.name === mention
       const member = (room?.members ?? []).find(item => item.name === mention || item.body?.name === mention)
         ?? (room?.members ?? []).find(item => item.id === room.leadMemberId)
         ?? room?.members?.[0]
       const authorRef = hostTurn ? room.chatHost.memberRef : member?.body?.ref ?? null
+      const picked = pick ? text.match(/选：([^。]+)。/)?.[1]?.split('、')[0] ?? member?.name : ''
+      const names = (room?.members ?? []).map(item => item.name)
+      const limit = Number(text.match(/不超过 (\d+) 次/)?.[1] ?? 6)
       const reply = summary
         ? '结论：按讨论继续推进。'
-        : `${member?.name ?? member?.id ?? '成员'} 补充了一条观点。`
+        : order
+          ? Array.from({ length: limit }, (_, index) => names[index % names.length] ?? '成员').join('、')
+          : pick ? picked : `${member?.name ?? member?.id ?? '成员'} 补充了一条观点。`
       if (hostTurn || member !== undefined) {
         history.push({
           id: `a${++seq}`,
@@ -52,7 +58,7 @@ const scriptedEngine = (store, { approvalReview = true, authenticated } = {}) =>
           authorRef,
           at: Date.now(),
         })
-        if (!summary) store.appendMessage(room.id, { kind: 'chat', authorId: member.id, text: reply })
+        if (!summary && !pick && !order) store.appendMessage(room.id, { kind: 'chat', authorId: member.id, text: reply })
       }
       return { accepted: true, messageId: id }
     },
@@ -222,7 +228,7 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     const round = await scheduler.start(chatRoom.body.room)
     assert.equal(round.started, true)
     assert.equal(round.error, undefined)
-    assert.equal(store.readRoom(chatId).chat.phase, 'awaiting_decision')
+    assert.equal(store.readRoom(chatId).chat.phase, 'concluded')
     assert.equal(store.readRoom(chatId).chat.turns, 6)
     const chatHost = chatRoom.body.room.leadMemberId
     assert.equal(store.readMessages(chatId).filter(message => message.kind === 'chat' && message.meta?.opening !== true && message.authorId !== chatHost).length, 6)
@@ -232,16 +238,12 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     assert.equal(conclusion.meta.fallback, false)
     assert.equal(conclusion.meta.handoff.topic, store.readRoom(chatId).goal)
 
-    const chat = createServiceChat({ store, live, emit: () => {} })
-    const accepted = chat.accept(store.readRoom(chatId))
-    assert.equal(accepted.ok, true)
-    assert.equal(store.readRoom(chatId).state, 'complete')
-    assert.equal(store.readRoom(chatId).chat.phase, 'accepted')
+    assert.equal(store.readRoom(chatId).state, 'active')
 
     const chatSequence = store.readEvents(chatId)
       .filter(event => event.type === 'chat.transition')
       .map(event => event.payload.event)
-    assert.deepEqual(chatSequence, ['summarize', 'conclude', 'accept'])
+    assert.deepEqual(chatSequence, ['summarize', 'conclude'])
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
     rmSync(root, { recursive: true, force: true })

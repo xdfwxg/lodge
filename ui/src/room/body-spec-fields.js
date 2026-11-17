@@ -1,4 +1,4 @@
-import { createElement as h } from 'react'
+import { Fragment, createElement as h } from 'react'
 
 const listText = list => (Array.isArray(list) ? list : [])
   .map(item => (typeof item === 'string' ? item : item?.server ?? ''))
@@ -21,9 +21,36 @@ export const bodySpecPayload = spec => {
 }
 
 // 身体规格：行为说明、技能、MCP；权限和角色仍归成员。
-export function BodySpecFields({ value, onChange, disabled = false }) {
+export function CapabilityFields({ value, onChange, disabled = false }) {
   const update = patch => onChange({ ...value, ...patch })
-  return h('details', { className: 'crew-body-spec' },
+  return h(Fragment, null,
+    h('label', { className: 'crew-field crew-body-swap-field' },
+      h('b', null, '技能'),
+      h('input', {
+        className: 'crew-goal-input',
+        type: 'text',
+        'aria-label': '技能',
+        placeholder: '技能名，用逗号分隔',
+        value: value.skillsText ?? '',
+        disabled,
+        onChange: event => update({ skillsText: event.target.value }),
+      })),
+    h('label', { className: 'crew-field crew-body-swap-field' },
+      h('b', null, 'MCP 服务'),
+      h('input', {
+        className: 'crew-goal-input',
+        type: 'text',
+        'aria-label': 'MCP 服务',
+        placeholder: 'MCP 服务名，用逗号分隔',
+        value: value.mcpText ?? '',
+        disabled,
+        onChange: event => update({ mcpText: event.target.value }),
+      })))
+}
+
+export function BodySpecFields({ value, onChange, disabled = false, open = false }) {
+  const update = patch => onChange({ ...value, ...patch })
+  return h('details', { className: 'crew-body-spec', open: open || undefined },
     h('summary', null, '成员设置'),
     h('label', { className: 'crew-field crew-body-swap-field' },
       h('b', null, '行为说明'),

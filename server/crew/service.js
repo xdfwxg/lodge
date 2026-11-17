@@ -323,12 +323,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     }
 
     if (action === 'accept' && method === 'POST') {
-      if (roomModeOfRoom(room)?.acceptsChatDecision === true) return chat.accept(room)
       return stages.accept(room, await readBody())
-    }
-
-    if (action === 'chat-accept' && method === 'POST') {
-      return chat.accept(room)
     }
 
     if (action === 'chat-continue' && method === 'POST') {

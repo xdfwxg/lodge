@@ -5,7 +5,7 @@ import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom
 const MODE_KEYS = [
   'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
-  'acceptsChatDecision', 'leadMemberIdOf', 'record',
+  'leadMemberIdOf', 'record',
   'initialMessages', 'provisionExtra', 'start',
   'bulletinAcceptance', 'approvalReadOnly',
 ]

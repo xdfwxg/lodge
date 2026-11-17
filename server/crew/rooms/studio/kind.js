@@ -230,7 +230,6 @@ export const studioKind = {
   requiresGate: true,
   evaluateGate: reviewRoomGate,
   supportsDelivery: true,
-  acceptsChatDecision: false,
   approvalReadOnly: activeStageReadOnly,
   appliesStageDependencies: true,
 

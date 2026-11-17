@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CHAT_TURNS_PER_ROUND, turnLimitOf as chatTurnLimitOf } from './room-types/chat.js'
-import { createChatScheduler, pickChatSpeaker } from './rooms/chat/scheduler.js'
+import { createChatScheduler } from './rooms/chat/scheduler.js'
 import { createChatTransport } from './rooms/chat/transport.js'
 import { normalizeLegacyTestRoom } from './testing/room.js'
 
@@ -10,28 +10,6 @@ test('a chat round defaults to six speakers and accepts a room limit', () => {
   assert.equal(chatTurnLimitOf({}), 6)
   assert.equal(chatTurnLimitOf({ chat: { turnLimit: 4 } }), 4)
   assert.equal(chatTurnLimitOf({ chat: { turnLimit: 99 } }), 6)
-})
-
-test('unspoken speakers are covered before anyone repeats', () => {
-  const member = pickChatSpeaker({
-    speakers: ['a', 'b', 'c'],
-    counts: new Map([['a', 1], ['b', 1], ['c', 0]]),
-    perMember: 2,
-    last: 'b',
-    random: () => 0,
-  })
-  assert.equal(member, 'c')
-})
-
-test('the same speaker is not picked twice in a row when another is eligible', () => {
-  const member = pickChatSpeaker({
-    speakers: ['a', 'b'],
-    counts: new Map([['a', 1], ['b', 1]]),
-    perMember: 3,
-    last: 'a',
-    random: () => 0,
-  })
-  assert.equal(member, 'b')
 })
 
 const setup = ({ summaryText = '这是总结。', silent = false, busy = false } = {}) => {
@@ -83,20 +61,32 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false }
     rooms: async () => [{ id: 'chat', working: busy }],
     sendTurn: async ({ text }) => {
       const ref = text.includes('LodgeHost') ? 'H' : ['A', 'B'].find(item => text.includes(`@${item}`))
+      const pick = text.includes('下一位从这些成员里选')
+      const order = text.includes('按顺序列出这轮要发言的成员')
       const summary = text.includes('请总结')
       const id = `u${history.length + 1}`
       history.push({ id, role: 'user', kind: 'text', text, authorRef: null, at: Date.now() })
-      if (!silent) {
+      const names = current.members.map(member => member.name)
+
+      const limit = Number(text.match(/不超过 (\d+) 次/)?.[1] ?? 6)
+      const reply = summary
+        ? summaryText
+        : order
+          ? Array.from({ length: limit }, (_, index) => names[index % names.length] ?? '甲').join('、')
+          : pick
+            ? (text.match(/选：([^。]+)。/)?.[1]?.split('、')[0] ?? '甲')
+            : '这是发言。'
+      if (!silent || pick || order) {
         history.push({
           id: `a${history.length + 1}`,
           role: 'agent',
           kind: 'text',
-          text: summary ? summaryText : '这是发言。',
+          text: reply,
           authorRef: ref,
           at: Date.now(),
         })
       }
-      if (!summary) {
+      if (!summary && !pick && !order) {
         const authorId = Object.entries(current.seatBots).find(([, value]) => value === ref)?.[0]
         store.appendMessage(current.id, { kind: 'chat', authorId, text: '这是发言。' })
       }
@@ -126,7 +116,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   const result = await scheduler.start(ctx.room())
   assert.equal(result.started, true)
   assert.equal(ctx.room().chat.running, false)
-  assert.equal(ctx.room().chat.phase, 'awaiting_decision')
+  assert.equal(ctx.room().chat.phase, 'concluded')
   const opening = ctx.messages.find(message => message.kind === 'chat' && message.meta?.opening === true)
   assert.equal(opening.text, '【讨论状态提示】')
   assert.doesNotMatch(opening.text, /欢迎大家踊跃发言/)
@@ -152,7 +142,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(prompts.filter(text => text.includes('请总结')).every(text => text.length < 900), true)
 
   ctx.store.updateRoom('room-chat', state => {
-    state.chat = { ...state.chat, round: 2, running: false, turns: 0, phase: 'awaiting_decision' }
+    state.chat = { ...state.chat, round: 2, running: false, turns: 0, phase: 'concluded' }
     return { events: [] }
   })
   const next = await scheduler.start(ctx.room(), { note: '补充失败态' })
@@ -277,5 +267,5 @@ test('three silent speakers end the round early', async () => {
   })
   await scheduler.start(ctx.room())
   assert.ok(ctx.messages.some(message => /本轮提前收尾/.test(message.text ?? '')))
-  assert.equal(ctx.history.filter(message => message.role === 'user' && !message.text.includes('请总结')).length, 3)
+  assert.equal(ctx.history.filter(message => message.role === 'user' && /@[AB]/.test(message.text)).length, 3)
 })

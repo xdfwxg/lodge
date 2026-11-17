@@ -35,14 +35,10 @@ test('studio guards block the architecture red lines', () => {
   assert.equal(transitionStudio('executing', 'verdict_pass').ok, false)
 })
 
-test('chat rooms move only between the four chat states', () => {
+test('chat rooms conclude without asking for a signoff', () => {
   assert.equal(transitionChat('discussing', 'summarize').state, 'summarizing')
-  assert.equal(transitionChat('summarizing', 'conclude').state, 'awaiting_decision')
-  assert.equal(transitionChat('awaiting_decision', 'accept').state, 'accepted')
-  assert.equal(transitionChat('awaiting_decision', 'continue_discuss').state, 'discussing')
-  assert.equal(transitionChat('accepted', 'reopen').state, 'discussing')
-  assert.equal(transitionChat('accepted', 'continue_discuss').ok, false)
-  assert.equal(transitionChat('accepted', 'summarize').ok, false)
+  assert.equal(transitionChat('summarizing', 'conclude').state, 'concluded')
+  assert.equal(transitionChat('concluded', 'continue_discuss').state, 'discussing')
   assert.deepEqual(CHAT_STATES.includes('closed'), false)
   assert.deepEqual(STUDIO_STATES.includes('verifying'), true)
 })
@@ -67,8 +63,7 @@ test('the full chat state x event matrix is explicit', () => {
   const allowed = new Set([
     'discussing:summarize', 'discussing:abort',
     'summarizing:conclude', 'summarizing:abort',
-    'awaiting_decision:accept', 'awaiting_decision:continue_discuss',
-    'accepted:reopen',
+    'concluded:continue_discuss',
   ])
   for (const state of CHAT_STATES) {
     for (const event of CHAT_EVENTS) {

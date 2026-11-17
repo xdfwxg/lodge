@@ -12,7 +12,7 @@ const setup = () => {
     usage: { costMicroUsd: 0, budgetMicroUsd: 0 },
     chat: {
       round: 1,
-      phase: 'awaiting_decision',
+      phase: 'concluded',
       turns: 6,
       conclusionId: 'c-1',
       running: false,
@@ -63,17 +63,7 @@ const setup = () => {
   }
 }
 
-test('accepting a chat conclusion completes the room without stages', () => {
-  const ctx = setup()
-  const result = ctx.chat.accept(ctx.room())
-  assert.equal(result.ok, true)
-  assert.equal(ctx.room().state, 'complete')
-  assert.equal(ctx.room().chat.phase, 'accepted')
-  assert.equal(ctx.room().chat.running, false)
-  assert.equal(ctx.messages.at(-1).kind, 'system')
-})
-
-test('rejecting a chat conclusion starts another round', async () => {
+test('a concluded chat starts another round without asking for confirmation', async () => {
   const ctx = setup()
   const result = ctx.chat.continue(ctx.room(), { note: '还缺反方观点' })
   assert.equal(result.ok, true)
@@ -91,7 +81,7 @@ test('a host reply answers without reopening the room', async () => {
   ctx.setIntent({ action: 'reply', reply: '我在，先说你的判断。', speakers: [] })
   const result = await ctx.chat.input(ctx.room(), { note: '你怎么看？' })
   assert.equal(result.ok, true)
-  assert.equal(ctx.room().chat.phase, 'awaiting_decision')
+  assert.equal(ctx.room().chat.phase, 'concluded')
   assert.equal(ctx.messages.at(-1).kind, 'chat')
   assert.equal(ctx.messages.at(-1).authorId, 'lodge')
   assert.equal(ctx.messages.at(-1).text, '我在，先说你的判断。')
@@ -125,17 +115,6 @@ test('the host pending state is visible while it reads the input', async () => {
   assert.equal(ctx.room().chat.hostThinking, false)
 })
 
-test('a completed chat can reopen for another round', () => {
-  const ctx = setup()
-  ctx.chat.accept(ctx.room())
-  const result = ctx.chat.continue(ctx.room(), { note: '再来3次' })
-  assert.equal(result.ok, true)
-  assert.equal(ctx.room().state, 'active')
-  assert.equal(ctx.room().chat.phase, 'discussing')
-  assert.equal(ctx.room().chat.round, 2)
-  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '再来3次' }])
-})
-
 test('an interrupted discussion can restart the same round', () => {
   const ctx = setup()
   ctx.room().chat = { ...ctx.room().chat, phase: 'discussing', running: false, turns: 2, conclusionId: null }
@@ -148,9 +127,9 @@ test('an interrupted discussion can restart the same round', () => {
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '' }])
 })
 
-test('restart refuses when a conclusion is already waiting', () => {
+test('restart refuses when the room has already concluded', () => {
   const ctx = setup()
   const result = ctx.chat.restart(ctx.room(), {})
   assert.equal(result.ok, false)
-  assert.match(result.error, /先定下来或者继续聊/)
+  assert.match(result.error, /没有可恢复/)
 })
