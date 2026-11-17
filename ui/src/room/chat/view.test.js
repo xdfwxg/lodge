@@ -49,6 +49,13 @@ test('chat participants show a body status row and can swap bodies', () => {
   assert.match(html, /调整甲/)
 })
 
+test('a demo chat says it cannot continue instead of promising a reply', () => {
+  assert.equal(
+    chatView.composerPlaceholder({ room: { state: 'complete', demo: true, live: false } }),
+    '示例房间不接模型 · 已停在结论',
+  )
+})
+
 test('a chat room shows the receipt strip before its timeline', () => {
   const receipt = {
     result: '发布检查',

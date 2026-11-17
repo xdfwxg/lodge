@@ -1,146 +1,71 @@
-import { createHash } from 'node:crypto'
+import { LODGE_HOST_LABEL } from '../member-labels.js'
 
 export const SAMPLE_ROOM_ID = 'room-sample'
 
-const CHECKLIST = `# 发布前检查清单
-
-## 代码与构建
-- [ ] 主分支 CI 通过
-- [ ] 版本号与构建结果一致
-- [ ] 没有未合并的临时改动
-
-## 发布
-- [ ] 数据库迁移已演练
-- [ ] 环境变量与密钥已确认
-- [ ] 灰度名单已准备
-
-## 回滚
-- [ ] 上一版构建可下载
-- [ ] 回滚步骤有负责人
-- [ ] 发布后 30 分钟有人盯监控
-`
-
-const DIFF = `+ # 发布前检查清单
-+
-+ ## 代码与构建
-+ - [ ] 主分支 CI 通过
-+ - [ ] 版本号与构建结果一致
-+ - [ ] 没有未合并的临时改动
-+
-+ ## 发布
-+ - [ ] 数据库迁移已演练
-+ - [ ] 环境变量与密钥已确认
-+ - [ ] 灰度名单已准备
-+
-+ ## 回滚
-+ - [ ] 上一版构建可下载
-+ - [ ] 回滚步骤有负责人
-+ - [ ] 发布后 30 分钟有人盯监控`
-
-const sha256 = text => createHash('sha256').update(text).digest('hex')
+const member = ({ id, name, station }) => ({
+  id,
+  name,
+  title: '讨论',
+  role: 'worker',
+  roleKind: 'participant',
+  roleProfile: name,
+  station,
+  permissions: { read: true, exec: false, write: false },
+  writeScope: 'none',
+  toolSurface: ['read'],
+  approval: 'ask',
+  body: {
+    kind: 'base',
+    ref: `sample-${id}`,
+    name,
+    engine: 'demo',
+    spec: { prompt: '', skills: [], mcp: [] },
+  },
+})
 
 export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   id: SAMPLE_ROOM_ID,
   kind: 'room',
-  name: '示例：发布前检查清单',
-  goal: '把发布前的检查做成一份人人能照着勾的清单。',
-  roomType: 'studio',
+  name: '示例：兰香如故中的羽仙记写的好不好，我们能超越写一篇吗',
+  goal: '兰香如故中的羽仙记写的好不好，我们能超越写一篇吗',
+  templateId: 'custom',
+  roomType: 'chat',
   engine: 'demo',
   demo: true,
   live: false,
   state: 'complete',
-  closure: 'signed',
+  closure: null,
   completedAt: now - 3 * 60_000,
   completedCommit: null,
-  leadMemberId: 'planner',
+  leadMemberId: null,
   members: [
-    {
-      id: 'planner',
-      name: '规划师',
-      title: '规划',
-      role: 'lead',
-      roleKind: 'planner',
-      station: '只读 · 拆阶段与派活',
-      permissions: { read: true, exec: false, write: false },
-      writeScope: 'none',
-      toolSurface: ['read'],
-      approval: 'ask',
-      body: {
-        kind: 'base',
-        ref: 'sample-planner',
-        name: '规划师',
-        engine: 'demo',
-        spec: { prompt: '', skills: [], mcp: [] },
-      },
-    },
-    {
-      id: 'executor',
-      name: '执行官',
-      title: '实现',
-      role: 'worker',
-      roleKind: 'executor',
-      station: '独立副本写 · 改代码跑测试',
-      permissions: { read: true, exec: true, write: true },
-      writeScope: 'own_worktree',
-      toolSurface: ['read', 'exec', 'write'],
-      approval: 'auto',
-      body: {
-        kind: 'base',
-        ref: 'sample-executor',
-        name: '执行官',
-        engine: 'demo',
-        spec: { prompt: '', skills: [], mcp: [] },
-      },
-    },
-    {
-      id: 'verifier',
-      name: '验收员',
-      title: '复核',
-      role: 'verifier',
-      roleKind: 'verifier',
-      station: '只读 · 只写结论',
-      permissions: { read: true, exec: true, write: false },
-      writeScope: 'none',
-      toolSurface: ['read', 'exec'],
-      approval: 'ask',
-      body: {
-        kind: 'base',
-        ref: 'sample-verifier',
-        name: '验收员',
-        engine: 'demo',
-        spec: { prompt: '', skills: [], mcp: [] },
-      },
-    },
+    member({ id: 'reader', name: '读者', station: '只读 · 从读者角度判断' }),
+    member({ id: 'writer', name: '写作者', station: '只读 · 关心怎么改写' }),
+    member({ id: 'editor', name: '编辑', station: '只读 · 看结构和可读性' }),
   ],
-  independence: 'none',
-  plan: {
-    done: [
-      '覆盖代码、发布、回滚三组检查',
-      '每条都能勾选，并有负责人',
-      '单文件 Markdown，放在房间工作区',
-    ],
-    why: '这份清单要能被下一位值班同事直接拿去用，所以先确认三组结构和验收方式。',
+  independence: 'human',
+  plan: null,
+  stages: [],
+  chatRoom: null,
+  chatHost: {
+    memberRef: 'sample-host',
+    name: 'LodgeHostSample',
+    displayName: LODGE_HOST_LABEL,
   },
-  stages: [
-    {
-      title: '目标对齐',
-      kind: 'decision',
-      state: 'passed',
-      tasks: [{ owner: 'planner', title: '对齐目标', status: 'done' }],
-    },
-    {
-      title: '写发布检查清单',
-      kind: 'deliverable',
-      state: 'passed',
-      acceptance: 'test -f RELEASE_CHECKLIST.md',
-      tasks: [{ owner: 'executor', title: '写清单', status: 'done' }],
-    },
-    {
-      title: '检查与结论',
-      kind: 'decision',
-      state: 'passed',
-      tasks: [{ owner: 'verifier', title: '复核清单', status: 'done' }],
-    },
+  chat: {
+    round: 1,
+    phase: 'accepted',
+    turnLimit: 6,
+    turns: 6,
+    conclusionId: null,
+    running: false,
+    speaker: '',
+    note: '',
+  },
+  constraints: [
+    '聊天室只读：成员只讨论，不执行工具、不改文件',
+    '系统随机唤醒成员，每轮 6 次；主持人最后总结',
+    '结论由你认可；不认可就继续讨论 6 次',
   ],
   workspace: {
     provider: 'demo',
@@ -148,6 +73,7 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   },
   repoPath: null,
   sourceRepo: null,
+  branch: null,
   worktrees: {},
   branches: {},
   ports: {},
@@ -158,97 +84,71 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   childRoomIds: [],
   idle: false,
   round: 0,
+  noProgress: 0,
   turnQueue: [],
+  heldMembers: [],
+  heldMessages: {},
+  busyMembers: [],
+  busySince: null,
+  chatUnread: false,
   approvals: [],
   openQuestion: null,
   gate: null,
   pastGoals: [],
+  prunedMembers: [],
   version: 1,
 })
 
-export const seedSampleMessages = ({ store, room, now = Date.now() } = {}) => {
+export const seedSampleMessages = ({ store, room } = {}) => {
   const append = message => store.appendMessage(room.id, message)
 
   append({
     kind: 'system',
-    text: '这是示例房间，内容都是样例。看结果，或直接删掉。',
+    text: '这是示例聊天室，内容都是样例。聊天室可以单独聊完；需要动手时，再把结论转成工作室任务，转过去时才会让你选工作目录。',
   })
   append({
     kind: 'chat',
-    authorId: 'planner',
-    text: '**目标对齐 · 结论**\n\n- 目标：给准备发布的团队一份能直接照着勾的清单。\n- 结构：代码、发布、回滚三组，每条带勾选框和负责人。\n- 检查：文件里三组检查齐全，能直接照着勾。\n\n@you 定下这三点后，交执行官写清单。',
-  })
-  append({
-    kind: 'handoff',
-    authorId: 'planner',
-    text: '把清单交给执行官，按定下的结构落地。',
-    meta: {
-      from: 'planner',
-      workers: ['executor'],
-      stage: 1,
-      acceptance: '文件存在且三组齐全',
-      reason: 'dispatch',
-      status: 'sent',
-    },
+    authorId: 'lodge-host',
+    meta: { opening: true, round: 1 },
+    text: '今天聊《兰香如故》里的《羽仙记》：它写得好不好，我们能不能写一版更好的。',
   })
   append({
     kind: 'chat',
-    authorId: 'executor',
-    text: '**工作日志**\n\n- 做了什么：新建 `RELEASE_CHECKLIST.md`，按三组结构写了 9 条检查。\n- 结果：每条都有勾选框和负责人栏，没有改动其他文件。\n- 交给谁：交验收员核对结构与可读性。',
+    authorId: 'reader',
+    text: '我先给判断：好在人物关系有张力，兰香囊和羽衣这两个意象也立住了；弱在羽仙最后为什么留下，主要靠旁白解释，前面少一个能看见的动作。整体是佳作，但没到“非这样写不可”。',
   })
-  const evidence = append({
-    kind: 'evidence',
-    authorId: 'executor',
-    text: '`RELEASE_CHECKLIST.md` 已写好，三组检查共 9 条。',
+  append({
+    kind: 'chat',
+    authorId: 'writer',
+    text: '我同意“选择要可见”。如果只改一处，我会把“她舍不得”改成动作：收起羽衣，却把兰香囊挂在门外。这样读者自己看见她留下，不用旁白替她说。',
+  })
+  append({
+    kind: 'chat',
+    authorId: 'editor',
+    text: '结构上可以再收一点。结尾如果只留“门开得更大些”，比再补一段解释更有余味。试写不用整篇重来，先写一段替代文本，再和原文对照。',
+  })
+  append({
+    kind: 'chat',
+    authorId: 'reader',
+    text: '那就把结论落到一份交接单：先判断，再挑一处改写，最后去工作室写一段。写的时候记得选你的工作目录。',
+  })
+  append({
+    kind: 'chat_conclusion',
+    authorId: 'lodge-host',
+    text: '先把判断说清，再只改一处。试写是段落级的对照，不是重写整篇。',
     meta: {
-      kind: 'command',
-      stage: 1,
-      command: 'test -f RELEASE_CHECKLIST.md',
-      exit: 0,
-      durationMs: 180,
-      sample: true,
-      simulated: true,
-      output: 'RELEASE_CHECKLIST.md',
-      files: ['RELEASE_CHECKLIST.md'],
-      changedFiles: ['RELEASE_CHECKLIST.md'],
-      diff: DIFF,
-      artifacts: [{
-        path: 'RELEASE_CHECKLIST.md',
-        bytes: Buffer.byteLength(CHECKLIST),
-        sha256: sha256(CHECKLIST),
-        content: CHECKLIST,
-      }],
+      round: 1,
+      handoff: {
+        topic: '《羽仙记》写得怎么样，能不能超越写一篇',
+        consensus: [
+          '是佳作，但没到非这样写不可',
+          '先改一处：让羽仙的选择变成动作',
+          '试写只写一段，不重写整篇',
+        ],
+        disagreements: ['结尾是留白，还是收得太快'],
+        constraints: ['不引用原文长段', '试写是自己的版本，不是复述'],
+        todos: ['如果你想把判断变成一篇文章，转成工作室任务再试写', '和原文对照一次'],
+      },
     },
-  })
-  append({
-    kind: 'handoff',
-    authorId: 'executor',
-    text: '清单已写好，交验收员核对结构与可读性。',
-    meta: {
-      from: 'executor',
-      workers: ['verifier'],
-      stage: 2,
-      acceptance: '文件存在且三组齐全',
-      reason: 'review',
-      status: 'sent',
-    },
-  })
-  append({
-    kind: 'verdict',
-    authorId: 'verifier',
-    text: '三组检查齐全，能直接勾选，检查已通过。',
-    meta: { stage: 2, pass: true, evidenceId: evidence.id, sample: true },
-  })
-  append({
-    kind: 'stage_conclusion',
-    authorId: 'system',
-    text: '清单已通过复核。',
-    meta: { stage: 1, title: '写发布检查清单', next: '验收与结论' },
-  })
-  append({
-    kind: 'conclusion',
-    authorId: 'planner',
-    text: '已交付：示例交付了一份能直接拿去用的发布前检查清单。',
-    meta: { stages: 3, commands: ['test -f RELEASE_CHECKLIST.md'], sample: true },
   })
 }

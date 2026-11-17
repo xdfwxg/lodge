@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('onboarding, focused dialog, sample room, goal panel and archive restore', async ({ page, request }) => {
+test('onboarding, focused dialog, sample chat and archive restore', async ({ page, request }) => {
   // 前面的用例可能留下了示例房；先归档，保证从“新房间”开始。
   const existing = await (await request.get('/api/state')).json()
   for (const room of existing.rooms.filter(item => !item.archivedAt)) {
@@ -21,12 +21,20 @@ test('onboarding, focused dialog, sample room, goal panel and archive restore', 
 
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.reload()
-  await expect(page.getByText('示例：发布前检查清单').first()).toBeVisible()
+  await expect(page.getByText(/示例：兰香如故中的羽仙记/).first()).toBeVisible()
 
-  await page.locator('.bt-goal-closed').click()
-  await page.getByRole('button', { name: '目标和检查' }).click()
-  await expect(page.getByText('目标', { exact: true }).first()).toBeVisible()
-  await expect(page.getByText('检查', { exact: true }).first()).toBeVisible()
+  const composer = page.getByRole('combobox', { name: '房间消息' })
+  await expect(composer).toHaveAttribute('placeholder', '示例房间不接模型 · 已停在结论')
+  await composer.fill('继续讨论一轮')
+  await composer.press('Enter')
+  await expect(page.getByText(/这是示例房间，不接模型/)).toBeVisible()
+
+  await page.getByRole('button', { name: '转成工作室任务' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('工作文件夹').first()).toBeVisible()
+  await expect(dialog.getByText('工作室会在你选的文件夹里读写；先选这次要改的项目目录。')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: '先出方案', exact: true })).toBeDisabled()
   await page.keyboard.press('Escape')
 
   const state = await (await request.get('/api/state')).json()
@@ -35,10 +43,10 @@ test('onboarding, focused dialog, sample room, goal panel and archive restore', 
   expect((await request.post(`/api/rooms/${id}/archive`, { data: { archived: true } })).ok()).toBe(true)
   await page.reload()
   // 行内的“⋯”只在悬停或键盘聚焦时出现；先让行进入悬停态。
-  await page.getByRole('button', { name: '示例：发布前检查清单，已归档' }).hover()
-  await page.getByRole('button', { name: '管理 示例：发布前检查清单' }).click()
+  await page.getByRole('button', { name: /示例：兰香如故中的羽仙记.*已归档/ }).hover()
+  await page.getByRole('button', { name: /管理 示例：兰香如故中的羽仙记/ }).click()
   await page.getByRole('menuitem', { name: '取消归档' }).click()
-  await expect(page.getByText('示例：发布前检查清单').first()).toBeVisible()
+  await expect(page.getByText(/示例：兰香如故中的羽仙记/).first()).toBeVisible()
 })
 
 test('opening a detail keeps the reading position', async ({ page, request }) => {
@@ -46,7 +54,7 @@ test('opening a detail keeps the reading position', async ({ page, request }) =>
   await page.goto('/')
 
   const scroller = page.locator('.dsb-scroll')
-  const summary = page.locator('.studio-delivery-details > summary')
+  const summary = page.locator('.crew-conclusion-history > summary')
   await expect(summary).toBeVisible()
   const before = await summary.boundingBox()
   const scrollBefore = await scroller.evaluate(node => node.scrollTop)
@@ -57,16 +65,19 @@ test('opening a detail keeps the reading position', async ({ page, request }) =>
   expect(Math.abs(after.y - before.y)).toBeLessThan(1)
 })
 
-test('expanding the worklog keeps the reading position', async ({ page, request }) => {
+test('expanding the full conclusion keeps the reading position', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
 
   const scroller = page.locator('.dsb-scroll')
-  const summary = page.locator('.studio-worklog > summary')
-  await summary.scrollIntoViewIfNeeded()
+  await page.locator('.crew-conclusion-history > summary').click()
+  const summary = page.locator('.crew-conclusion-history .crew-handoff-more > summary')
+  await summary.evaluate(node => node.scrollIntoView({ block: 'center' }))
+  await page.waitForTimeout(50)
   const before = await summary.boundingBox()
   const scrollBefore = await scroller.evaluate(node => node.scrollTop)
-  await summary.click()
+  await summary.evaluate(node => node.click())
+  await page.waitForTimeout(120)
   const after = await summary.boundingBox()
   const scrollAfter = await scroller.evaluate(node => node.scrollTop)
   expect(scrollAfter).toBe(scrollBefore)
@@ -81,9 +92,11 @@ test('expanding new-room options keeps the dialog anchored', async ({ page }) =>
   const dialog = page.locator('.crew-dialog')
   const summary = page.locator('.crew-new-advanced > summary')
   await summary.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(50)
   const summaryBefore = await summary.boundingBox()
   const dialogBefore = await dialog.boundingBox()
-  await summary.click()
+  await summary.evaluate(node => node.click())
+  await page.waitForTimeout(120)
   const summaryAfter = await summary.boundingBox()
   const dialogAfter = await dialog.boundingBox()
   expect(dialogAfter.y).toBeCloseTo(dialogBefore.y, 1)
@@ -95,7 +108,7 @@ test('a narrow dark window still renders the room without horizontal overflow', 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: '发布前检查清单' })).toBeVisible()
+  await expect(page.locator('.dsb-main').getByText(/羽仙记/).first()).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
 })

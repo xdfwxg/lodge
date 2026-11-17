@@ -22,7 +22,7 @@ export const buildChatDecision = room => {
       key: 'chat-complete',
       title: '这次聊完了',
       detail: summary.length > 260 ? `${summary.slice(0, 260)}…` : summary,
-      primary: { label: '用结论开工', action: 'start-studio' },
+      primary: { label: '转成工作室任务', action: 'start-studio' },
       secondary: null,
     }
   }

@@ -44,7 +44,7 @@ test('chat awaiting decision shows the conclusion and the next actions', () => {
     }],
   })
   assert.equal(complete.title, '这次聊完了')
-  assert.equal(complete.primary.label, '用结论开工')
+  assert.equal(complete.primary.label, '转成工作室任务')
 
   const interrupted = buildChatDecision({
     roomType: 'chat',

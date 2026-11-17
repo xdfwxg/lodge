@@ -5,6 +5,7 @@ import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
+import { ArrowUpIcon } from '../icons.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [dockOpen, setDockOpen] = useState(false)
@@ -52,7 +53,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   useLayoutEffect(() => {
     const top = mode.opensAtTop?.({ room }) === true
     stick.current = !top
-    setAtBottom(true)
+    setAtBottom(!top)
     if (top) {
       const node = scroll.current
       if (node) node.scrollTop = 0
@@ -112,10 +113,12 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   // 只有用户的向上手势才脱离跟随；内容增长/收缩带来的 scroll 事件不能改变跟随态。
   const trackScroll = event => {
     const node = event.currentTarget
-    const previousTop = lastTop.current
     lastTop.current = node.scrollTop
-    if (stick.current) return
-    if (node.scrollTop > previousTop && atEnd(node)) followBottom()
+    if (atEnd(node)) {
+      if (!stick.current) followBottom()
+      return
+    }
+    if (stick.current) breakFollow()
   }
 
   const onWheel = event => {
@@ -229,8 +232,14 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           mode.presence(viewCtx),
           typing),
         state.error ? h('div', { className: 'crew-error', role: 'alert' }, state.error) : null),
-      !atBottom
-        ? h('button', { type: 'button', className: 'crew-jump-latest', onClick: followBottom }, '回到最新')
+      !atBottom && (room.messages?.length ?? 0) > 0
+        ? h('button', {
+          type: 'button',
+          className: 'crew-jump-latest',
+          'aria-label': '回到最新',
+          title: '回到最新',
+          onClick: followBottom,
+        }, h(ArrowUpIcon))
         : null,
       mode.dock?.(viewCtx) ?? null,
       h('div', { ref: composerRef, className: 'dsb-composer' },

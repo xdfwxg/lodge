@@ -1,5 +1,8 @@
 /* Lodge's own UI layer and design tokens. */
 
+/* Bold is one step above regular, not the browser default. */
+b,strong{font-weight:600}
+
 /* Sidebar row/list styles, written for Lodge. */
 .bt-side{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;gap:2px;padding:0;color:var(--bt-ink);font-family:var(--bt-font)}
 .bt-list{display:flex;flex-direction:column;gap:4px;overflow-y:auto;min-height:0;flex:1 1 auto}
@@ -195,8 +198,8 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 .crew-gate-check{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--bt-line)}
 .crew-gate-check>b{font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:600;color:var(--bt-ink-3)}
 .studio-stage-chapter{min-width:0}
-.studio-stage-head{display:flex;align-items:center;gap:9px;min-height:40px;padding:8px 6px;cursor:pointer;font-size:var(--bt-text-body);line-height:var(--bt-leading-body);color:var(--bt-ink-3)}
-.studio-stage-title{min-width:0;font-size:var(--bt-text-body);line-height:var(--bt-leading-body);font-weight:600;color:var(--bt-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.studio-stage-head{display:flex;align-items:center;gap:9px;min-height:36px;padding:6px;cursor:pointer;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);color:var(--bt-ink-3)}
+.studio-stage-title{min-width:0;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);font-weight:600;color:var(--bt-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .studio-stage-state{flex:none;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .studio-stage-chapter[data-state=active] .studio-stage-title{color:var(--bt-ink)}
 .studio-stage-chapter[data-state=active] .studio-stage-state{color:var(--bt-accent)}
@@ -320,6 +323,36 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 .crew-conclusion .crew-card-foot{padding:12px 24px}
 .crew-conclusion[data-settled=true]{box-shadow:none}
 .crew-result-card{border-color:var(--bt-line-2);box-shadow:none}
+/* 检查、决定、交接和审批是工作记录里的回执卡，不是主阅读流：正文跟随标签字阶。 */
+.crew-result-card .crew-card-body,
+.crew-result-card .crew-card-body .md_markdown,
+.crew-decision-brief .crew-card-body,
+.crew-decision-brief .crew-card-body .md_markdown,
+.crew-handoff-review .crew-card-body,
+.crew-handoff-review .crew-card-body .md_markdown,
+.crew-handoff-review .crew-handoff-section ul,
+.crew-approval .crew-card-body,
+.crew-subrooms .crew-card-body,
+.crew-question-card .crew-card-body,
+.crew-question-card .crew-card-body .md_markdown,
+.crew-human-gate .crew-card-body,
+.crew-human-gate .crew-gate-title,
+.crew-human-gate .crew-gate-question,
+.crew-handoff-review .crew-handoff-topic,
+.studio-intake-body,
+.studio-intake-body .crew-handoff-section ul{font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}
+/* 工作记录是回执流：进来就说明已经重要，统一 13/20，重点只靠 600。 */
+.studio-worklog-body,
+.studio-worklog-body .md_markdown,
+.studio-worklog-body .bt-bubble,
+.studio-worklog-body .bt-bubble .md_markdown,
+.studio-worklog-body .crew-card-body,
+.studio-worklog-body .crew-card-body .md_markdown,
+.studio-worklog-body .crew-gate-title,
+.studio-worklog-body .crew-gate-question,
+.studio-worklog-body .crew-handoff-topic,
+.studio-worklog-body .studio-stage-conclusion{font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}
+.studio-worklog-body .md_markdown code{font-size:var(--bt-text-label)}
 .crew-result-card[data-pass=false]{border-color:var(--bt-line-2);box-shadow:none}
 /* Gate 前置管道：准入结果和外部建议只做一行记录。 */
 .studio-gate-line{align-self:stretch;display:block;padding:7px 10px;border-radius:8px;background:var(--bt-shade-1);text-align:left}
@@ -440,7 +473,7 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 .crew-receipt code{font-family:var(--bt-font-mono);font-size:var(--bt-text-helper);padding:2px 6px;border-radius:5px;background:var(--bt-shade-2)}
 .crew-receipt span{flex:none;font-size:var(--bt-text-helper);color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
 .crew-receipt-files{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
-.crew-fold>summary{cursor:pointer;font-size:var(--bt-text-label);color:var(--bt-ink-3);user-select:none}
+.crew-fold>summary{cursor:pointer;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);color:var(--bt-ink-3);user-select:none}
 .crew-fold[open]>summary{margin-bottom:6px}
 .crew-ref{margin-left:auto;font-family:var(--bt-font-mono);font-size:var(--bt-text-helper);color:var(--bt-ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%;text-decoration:none}
 .crew-ref:hover{color:var(--bt-accent);text-decoration:underline}
@@ -898,10 +931,10 @@ summary::before{
   flex:none;
   width:0;
   height:0;
-  margin-right:5px;
-  border-top:2px solid transparent;
-  border-bottom:2px solid transparent;
-  border-left:3px solid var(--bt-ink-3);
+  margin-right:6px;
+  border-top:3.5px solid transparent;
+  border-bottom:3.5px solid transparent;
+  border-left:5px solid var(--bt-ink-3);
   transform:rotate(0deg);
   transition:transform .12s ease;
 }

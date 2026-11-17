@@ -35,10 +35,10 @@ test('a pending conclusion grows the island into one decision', () => {
 
 test('a confirmed conclusion offers the one next step', () => {
   const view = chatIslandView({
-    decision: { key: 'chat-complete', primary: { label: '用结论开工', action: 'start-studio' } },
+    decision: { key: 'chat-complete', primary: { label: '转成工作室任务', action: 'start-studio' } },
   })
   assert.equal(view.label, '结论已确认')
-  assert.deepEqual(view.primary, { label: '用结论开工', action: 'start-studio' })
+  assert.deepEqual(view.primary, { label: '转成工作室任务', action: 'start-studio' })
   assert.equal(view.secondary, undefined)
 })
 

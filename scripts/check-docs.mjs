@@ -14,6 +14,7 @@ const must = (label, condition) => {
 
 const lodge = read('Lodge.md')
 const architecture = read('架构升级.md')
+const style = read('设计语言.md')
 const feedback = read('README.md')
 const operations = read('docs/operations.md')
 
@@ -27,9 +28,15 @@ must('架构升级.md explains assignments', architecture.includes('## Assignmen
 must('架构升级.md keeps the upgrade log', architecture.includes('## 升级记录'))
 must('架构升级.md records explicit non-goals', architecture.includes('## 明确不做'))
 must('架构升级.md keeps license attribution', architecture.includes('## 许可与归属'))
+must('Lodge.md points to the design language', lodge.includes('(设计语言.md)'))
+must('Lodge.md keeps the three-doc rule', lodge.includes('只保留三份设计文档'))
+must('架构升级.md points to the design language', architecture.includes('设计语言.md'))
+must('设计语言.md keeps the type scale', style.includes('## 字号与字重') && style.includes('卡片内正文默认 13 / 20'))
+must('设计语言.md keeps motion and states', style.includes('## 动效') && style.includes('## 状态与反馈'))
+must('设计语言.md keeps the interaction rules', style.includes('方向键') && style.includes('头像标记为装饰'))
 must('README links the product story', feedback.includes('(Lodge.md)'))
 must('README links the architecture record', feedback.includes('(架构升级.md)'))
-must('README links the design style', feedback.includes('(设计风格.md)'))
+must('README links the design language', feedback.includes('(设计语言.md)'))
 must('README links the operations manual', feedback.includes('[docs/operations.md](docs/operations.md)'))
 
 must('docs/operations.md stays available', existsSync(resolve(root, 'docs/operations.md')))
@@ -41,7 +48,7 @@ for (const file of ['docs/advisor.md', 'docs/macos-desktop.md', 'docs/runtimes.m
 const designDocs = readdirSync(root)
   .filter(name => name.endsWith('.md') && name !== 'README.md')
   .sort()
-must('only three design docs live at the root', JSON.stringify(designDocs) === JSON.stringify(['Lodge.md', '架构升级.md', '设计风格.md'].sort()))
+must('only three design docs live at the root', JSON.stringify(designDocs) === JSON.stringify(['Lodge.md', '架构升级.md', '设计语言.md'].sort()))
 for (const file of [
   '理念升级.md',
   '设计思想.md',

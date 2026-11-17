@@ -56,7 +56,9 @@ export const chatView = {
     }))
   },
   presence: () => null,
-  composerPlaceholder: ({ room }) => room.state === 'complete' ? '已完成 · 可以继续聊。' : '说点什么…',
+  composerPlaceholder: ({ room }) => room.demo === true && room.live !== true
+    ? '示例房间不接模型 · 已停在结论'
+    : room.state === 'complete' ? '已完成 · 可以继续聊。' : '说点什么…',
   // 谁在发言由身体状态行说；这里只补主持人的“正在总结”。
   typing: ({ room, locked }) => {
     const chat = room.chat ?? {}

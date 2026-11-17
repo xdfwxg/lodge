@@ -116,18 +116,18 @@ const pill = ({ room, view, open, onToggle }) => {
 }
 
 const PILL_CSS = `
-.bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-card);border:.5px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:13.5px;line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform .16s ease}
+.bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-card);border:.5px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:var(--bt-text-label);line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform .16s ease}
 .bt-pill:hover{background:var(--bt-hover)}
 .bt-pill:active{transform:scale(.965)}
 .bt-pill-go{flex:none;display:inline-flex;align-items:center;justify-content:flex-end;width:18px;overflow:hidden;color:var(--bt-ink-2)}
 .bt-pill[aria-expanded=true] .bt-pill-go svg{transform:rotate(180deg)}
-.bt-soft{height:36px;border-radius:999px;border:0;background:var(--bt-hover);color:var(--bt-ink);padding:0 16px;font-size:13.5px;cursor:pointer;flex:none;white-space:nowrap}
+.bt-soft{height:36px;border-radius:999px;border:0;background:var(--bt-hover);color:var(--bt-ink);padding:0 16px;font-size:var(--bt-text-label);cursor:pointer;flex:none;white-space:nowrap}
 .bt-soft:hover{background:var(--bt-active)}
 .bt-soft:disabled{opacity:.4;cursor:default}
-.bt-soft-sm{height:28px;padding:0 12px;font-size:12.5px}
-.bt-send{height:40px;min-width:40px;border-radius:999px;border:0;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font-size:13.5px;padding:0 14px;cursor:pointer;flex:none;white-space:nowrap}
+.bt-soft-sm{height:28px;padding:0 12px;font-size:var(--bt-text-helper)}
+.bt-send{height:40px;min-width:40px;border-radius:999px;border:0;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font-size:var(--bt-text-label);padding:0 14px;cursor:pointer;flex:none;white-space:nowrap}
 .bt-send:disabled{opacity:.35;cursor:default}
-.bt-input{width:100%;box-sizing:border-box;height:var(--bt-control-h);border:1px solid var(--bt-line-2);border-radius:8px;padding:0 10px;background:var(--bt-input-bg);color:var(--bt-ink);font:inherit;font-size:13.5px;outline:none}
+.bt-input{width:100%;box-sizing:border-box;height:var(--bt-control-h);border:1px solid var(--bt-line-2);border-radius:8px;padding:0 10px;background:var(--bt-input-bg);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-label);outline:none}
 .bt-input:hover{border-color:var(--bt-line-control)}
 .bt-input:focus{border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash);outline:none}
 .bt-input:disabled{opacity:.55;cursor:not-allowed}

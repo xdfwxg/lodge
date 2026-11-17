@@ -557,6 +557,7 @@ function NewRoomDialog({
         onVerifyMode: proposal === null ? setVerifyMode : null,
         onAcceptanceDraft: proposal === null ? setAcceptanceDraft : null,
       }),
+    workspaceField,
     roomKind.primaryFields(setupProps),
     recommending
       ? h('p', { className: 'crew-dialog-note' }, '正在出方案…')
@@ -570,8 +571,7 @@ function NewRoomDialog({
     h('div', { className: 'crew-new-advanced-body' },
       h(Fragment, null,
         nameField,
-        roomKind.setupFields(setupProps),
-        workspaceField))),
+        roomKind.setupFields(setupProps)))),
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   return h('div', { className: 'crew-overlay', ...overlayProps },

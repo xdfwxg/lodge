@@ -23,7 +23,7 @@ const setup = () => {
   return { dataDir, store, service }
 }
 
-test('the sample room is a complete studio delivery with sample evidence', () => {
+test('the sample room is a complete chat with a confirmed conclusion', () => {
   const { dataDir, store, service } = setup()
   try {
     const result = service.createSampleRoom()
@@ -33,13 +33,16 @@ test('the sample room is a complete studio delivery with sample evidence', () =>
     const room = store.readRoom(SAMPLE_ROOM_ID)
     const messages = store.readMessages(SAMPLE_ROOM_ID)
     const view = presentRoom(room, messages)
+    assert.equal(view.roomType, 'chat')
     assert.equal(view.state, 'complete')
     assert.equal(view.needsYou, null)
-    assert.equal(view.delivery.sample, true)
-    assert.equal(view.delivery.stages.length, 3)
-    assert.equal(view.delivery.commands[0].exit, 0)
-    assert.equal(view.delivery.artifacts[0].path, 'RELEASE_CHECKLIST.md')
+    assert.equal(view.hostLabel, 'Lodge 主持')
+    assert.equal(room.chat.phase, 'accepted')
     assert.equal(room.demo, true)
+
+    const conclusion = messages.find(message => message.kind === 'chat_conclusion')
+    assert.match(conclusion.meta.handoff.topic, /羽仙记/)
+    assert.equal(conclusion.meta.handoff.todos.length, 2)
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
   }

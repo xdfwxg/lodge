@@ -366,6 +366,9 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         return accepted({ accepted: true })
       }
       const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text })
+      if (room.demo === true && room.roomType === 'chat') {
+        appendMessage(roomId, { kind: 'system', text: '这是示例房间，不接模型；要动手就把结论转成工作室任务。' })
+      }
       const active = room.stages.find(stage => stage.state === 'active')
       if (room.openQuestion !== null && active?.kind === 'decision') {
         const updated = updateRoom(roomId, current => {
