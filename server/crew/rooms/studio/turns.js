@@ -15,20 +15,21 @@ import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-membe
 import { vcsOf, workspaceOf } from './workspace.js'
 import { settleCompletedSubrooms } from './subrooms.js'
 import { detectCheckCommand } from '../../project-checks.js'
+import { AUTO_REWORK_WINDOW_MS, nextAutoRework } from './auto-rework.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
 export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, files, shadow = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, shadow })
-  const autoFailures = new Map()
+  const autoLoops = new Map()
   const acceptance = createAcceptanceRunner({
     store,
     roomId,
     markProgress: state.markProgress,
     requestReview: review.request,
     run: commands.run,
-    onAutoPass: ({ stageIndex }) => autoFailures.delete(stageIndex),
+    onAutoPass: ({ stageIndex }) => autoLoops.delete(stageIndex),
     onAutoFail: info => autoRework(info),
   })
   const integrator = createStageIntegrator({
@@ -50,22 +51,50 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
   const autoChecks = new Set()
   const noCheckNoted = new Set()
 
-  // 自动检查没通过就退回重做，把人从“要不要在意这个红结果”里解放出来；
-  // 连续两次还不过就停手，交给用户决定。
+  // 自动检查没通过就退回重做，带着失败输出和影子评审的另一个角度；
+  // 原地打转、次数、时间或额度触顶就停手，交给人决定。
+  const shadowAdviceText = (room, stageIndex) => {
+    const entry = room.advisorShadow?.[stageIndex]
+    const advice = Array.isArray(entry?.advice) ? entry.advice[0] : null
+    if (advice === null || typeof advice !== 'object') return ''
+    const lines = [
+      typeof advice.summary === 'string' ? advice.summary : '',
+      ...(Array.isArray(advice.risks) ? advice.risks.map(item => `风险：${item}`) : []),
+      ...(Array.isArray(advice.missingEvidence) ? advice.missingEvidence.map(item => `缺证据：${item}`) : []),
+    ].filter(Boolean).slice(0, 5)
+    return lines.length === 0 ? '' : `影子评审的另一个角度（仅供参考）：\n${lines.join('\n')}`
+  }
+
+  const stopAutoRework = ({ stageIndex, reason, attempts, exit }) => {
+    const text = reason === 'same-failure'
+      ? '自动检查又卡在同一个地方；先停下来，由你决定下一步。'
+      : reason === 'time'
+        ? `自动检查在 ${Math.round(AUTO_REWORK_WINDOW_MS / 60_000)} 分钟内没能通过；先停下来，由你决定下一步。`
+        : reason === 'budget'
+          ? '这个房间的额度用完了，自动检查先停下；结果和失败输出都还在房间里。'
+          : `自动检查试了 ${attempts} 次仍未通过（最后一次退出码 ${exit}）；先停下来，由你决定下一步。`
+    store.appendMessage(roomId, { kind: 'system', text })
+    store.appendEvent(roomId, 'auto_rework.stopped', { stage: stageIndex, reason, attempts })
+  }
+
   const autoRework = async ({ stageIndex, command, exit, output }) => {
     const room = store.readRoom(roomId)
     if (room === null || room.state !== 'active') return
     const stage = room.stages?.[stageIndex]
     if (stage === undefined || stage.state !== 'active' || stage.manual !== true) return
     if ((room.busyMembers ?? []).length > 0) return
-    const failures = (autoFailures.get(stageIndex) ?? 0) + 1
-    autoFailures.set(stageIndex, failures)
-    if (failures > 2) {
-      store.appendMessage(roomId, { kind: 'system', text: '自动检查连续没通过；先停下来，由你决定下一步。' })
+    const decision = nextAutoRework({ state: autoLoops.get(stageIndex), command, exit, output, room })
+    autoLoops.set(stageIndex, decision.state)
+    if (decision.retry !== true) {
+      stopAutoRework({ stageIndex, reason: decision.reason, attempts: decision.state.attempts, exit })
       return
     }
     const tail = String(output ?? '').trim().slice(-1500)
-    const note = [`自动检查没通过：${command}（退出码 ${exit}）。`, tail].filter(Boolean).join('\n')
+    const note = [
+      `自动检查没通过（第 ${decision.state.attempts} 次）：${command}（退出码 ${exit}）。`,
+      tail,
+      shadowAdviceText(room, stageIndex),
+    ].filter(Boolean).join('\n')
     try {
       await stageStarter.startStage(room, stageIndex, { note, rework: true })
     } catch (error) {
