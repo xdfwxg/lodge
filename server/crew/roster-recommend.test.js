@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { parseProposal, recommendRoster } from './roster-recommend.js'
+import { createRosterProbe } from './roster-probe.js'
 
 const reply = body => `这是队长的方案：\n\n\`\`\`json\n${JSON.stringify({ done: ['完成条件'], ...body })}\n\`\`\`\n`
 
@@ -229,7 +230,7 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
     remove: source => removed.push(source),
   }
   const result = await recommendRoster({
-    engine,
+    probe: createRosterProbe({ engine }),
     body: {
       goal: '小改动',
       repoPath: '',

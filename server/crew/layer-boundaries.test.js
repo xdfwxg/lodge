@@ -134,6 +134,13 @@ test('the chat scheduler depends on the transport port, not runtime history', ()
   assert.match(text, /transport\./)
 })
 
+test('roster recommendations and chat host provisioning stay behind ports', () => {
+  const roster = readFileSync(join(root, 'roster-recommend.js'), 'utf8')
+  assert.doesNotMatch(roster, /engine\.|sessionRef|createMemberBot|createRoom|sendTurn|history/)
+  const kind = readFileSync(join(root, 'rooms/chat/kind.js'), 'utf8')
+  assert.doesNotMatch(kind, /engine\.|createMemberBot|deleteMemberBot/)
+})
+
 test('prompt builders do not send messages', () => {
   const text = readFileSync(join(root, 'rooms/studio/prompts.js'), 'utf8')
   assert.doesNotMatch(text, /sendTurn|engine\./, 'prompts.js both builds prompts and delivers them')

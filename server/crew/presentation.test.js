@@ -2,6 +2,29 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { presentRoom } from './presentation.js'
 
+test('room presentation hides base fields and keeps the display host label', () => {
+  const room = {
+    id: 'room-1',
+    state: 'active',
+    roomType: 'chat',
+    chatRoom: { id: 'base-room', sessionRef: 'session-1' },
+    chatHost: { memberRef: 'base-host', name: 'LodgeHost1', displayName: 'Lodge 主持' },
+    hiddenBaseMessages: ['base-message'],
+    members: [{
+      id: 'worker',
+      name: '甲',
+      body: { kind: 'base', ref: 'base-member', roomRef: 'base-room', sessionRef: 'session-1', engine: 'pi', model: 'deepseek' },
+    }],
+    stages: [],
+  }
+  const presented = presentRoom(room, [])
+  assert.equal(presented.chatRoom, undefined)
+  assert.equal(presented.chatHost, undefined)
+  assert.equal(presented.hiddenBaseMessages, undefined)
+  assert.equal(presented.hostLabel, 'Lodge 主持')
+  assert.deepEqual(presented.members[0].body, { kind: 'base', engine: 'pi', model: 'deepseek' })
+})
+
 test('room events and state share one projected status and independence label', () => {
   const room = {
     id: 'room-1',

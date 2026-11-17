@@ -62,7 +62,7 @@ export const createProvisioner = ({ engine }) => {
       .filter(({ memberRef }) => memberRef.fallback === true)
       .map(({ member, memberRef }) => [member.id, { requested: memberRef.requestedEngine, actual: memberRef.engine, reason: memberRef.reason }]))
     const leadMember = created.find(({ member }) => kindOf(member) === 'planner') ?? created[0]
-    const extra = await mode.provisionExtra({ engine, short, workspaces, leadMember }) ?? null
+    const extra = await mode.provisionExtra({ host: bodies, short, workspaces, leadMember }) ?? null
     cleanupExtra = extra?.cleanup ?? null
     const extraMembers = extra?.members ?? []
     const chatMembers = [

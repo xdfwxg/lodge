@@ -2,12 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { defaultOrchestrationId, resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { fail, ok } from './result.js'
-import { supportsRuntime } from './runtime-port.js'
 import { roleMembers, rosterFromRoles, validateRoster } from './roster.js'
 import { handoffGoalText, normalizeHandoff } from '../../shared/handoff.js'
 
 const MAX_GOAL = 2000
-const RECOMMEND_TIMEOUT = 90_000
 const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const ROLE_ALIASES = new Map([
   ['lead', 'lead'], ['leader', 'lead'], ['planner', 'lead'], ['planning', 'lead'], ['队长', 'lead'], ['规划', 'lead'], ['负责人', 'lead'], ['规划者', 'lead'], ['规划师', 'lead'], ['主控', 'lead'],
@@ -247,42 +245,12 @@ export const parseProposal = reply => {
   }
 }
 
-const waitForTurn = async ({ engine, sessionRef }) => {
-  const deadline = Date.now() + RECOMMEND_TIMEOUT
-  while (Date.now() < deadline) {
-    const { messages } = await engine.history(sessionRef, { limit: 100 })
-    const turn = [...messages].reverse().find(message => (
-      message.kind === 'turn' &&
-      typeof message.turn?.reply === 'string' &&
-      message.turn.reply.trim() !== ''
-    ))
-    if (turn !== undefined) {
-      // 基座 digest 可能截断长回复；原文在成员线程的 text 消息里，优先取含 members 的最长一段。
-      const candidates = [
-        turn.turn.reply,
-        ...messages
-          .filter(message => message.kind === 'text' && message.role === 'agent' && typeof message.text === 'string')
-          .map(message => message.text),
-      ].filter(text => text.trim() !== '')
-      const withMembers = candidates.filter(text => text.includes('"members"'))
-      const pool = withMembers.length > 0 ? withMembers : candidates
-      return pool.sort((a, b) => b.length - a.length)[0] ?? turn.turn.reply
-    }
-    const failed = [...messages].reverse().find(message => (
-      message.kind === 'activity' && message.meta?.ok === false
-    ))
-    if (failed !== undefined) throw new Error(`Lodge 生成方案失败：${failed.text}`)
-    await new Promise(resolve => setTimeout(resolve, 1_000))
-  }
-  throw new Error('Lodge 在 90 秒内没有给出方案，请重试')
-}
-
-export const recommendRoster = async ({ engine, body, workspace }) => {
+export const recommendRoster = async ({ probe, body, workspace }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > MAX_GOAL) return fail('invalid', '目标不能为空，且不超过 2000 字')
   const handoff = normalizeHandoff(body.handoff)
-  if (engine.capabilities().provisioning !== true) return fail('conflict', '当前版本还不支持编队建议')
-  const health = await engine.health()
+  if (probe.available() !== true) return fail('conflict', '当前版本还不支持编队建议')
+  const health = await probe.health()
   if (health.ok !== true) throw new Error('Lodge 服务没有连上，先看看它是否还在运行')
 
   const requestedRepo = typeof body.repoPath === 'string' ? body.repoPath.trim() : ''
@@ -305,27 +273,20 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
   scout.approval = 'auto'
 
   let workspaces = null
-  let scoutRef = null
-  let probeRoom = null
   try {
     workspaces = provider.prepareRoom({ source: sourceRepo, short, members: [scout] })
-    scoutRef = await engine.createMemberBot({
+    await probe.start({
       name: `编队评估${short}`,
       soul: '你是规划师。只做编队判断，只输出 JSON，不执行工具。',
       description: scout.station,
       approval: scout.approval,
       mcp: scout.mcp,
-    })
-    probeRoom = await engine.createRoom({
-      name: `编队建议 · ${short}`,
+      roomName: `编队建议 · ${short}`,
       goal,
       bulletin: `目标：${goal}\n仓库：${sourceRepo}${handoff === null ? '' : `\n交接单：\n${handoffGoalText(handoff)}`}`,
-      members: [scoutRef.id],
       cwd: workspaces.members[scout.id].path,
-      leadId: scoutRef.id,
     })
-    await engine.sendTurn({ roomId: probeRoom.id, text: prompt })
-    const reply = await waitForTurn({ engine, sessionRef: probeRoom.sessionRef })
+    const reply = await probe.ask(prompt)
     let proposal
     try {
       proposal = parseProposal(reply)
@@ -335,15 +296,7 @@ export const recommendRoster = async ({ engine, body, workspace }) => {
     }
     return ok({ proposal })
   } finally {
-    if (probeRoom !== null) {
-      if (supportsRuntime(engine, 'cancel')) {
-        try {
-          await engine.cancelTurn({ roomId: probeRoom.id })
-        } catch {}
-      }
-      await engine.deleteRoom(probeRoom.id)
-    }
-    if (scoutRef !== null) await engine.deleteMemberBot(scoutRef.id)
+    await probe.stop()
     try {
       if (workspaces !== null) provider.cleanupRoom({ source: sourceRepo, workspaces })
     } catch {}

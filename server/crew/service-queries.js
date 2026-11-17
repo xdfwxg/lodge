@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { briefOf } from './brief.js'
 import { presentRoom } from './presentation.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
+import { createRosterProbe } from './roster-probe.js'
 import { listRoomTypes } from './room-types/index.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { toDisplayText } from './member-labels.js'
@@ -17,6 +18,12 @@ export const createServiceQueries = ({
   advisor = null,
 }) => {
   const { readRoom, readRooms, readRecentMessages, readMessagesSince, readAssignments } = store
+
+  const publicMessage = message => {
+    if (message.meta === undefined) return message
+    const { baseId, turnId, sendId, echo, ...meta } = message.meta
+    return { ...message, meta }
+  }
 
   const health = async () => ok({ runtime: await engine.health() })
 
@@ -44,9 +51,11 @@ export const createServiceQueries = ({
         const ordered = readRecentMessages(room.id)
           .slice()
           .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
-        const messages = presentation.filterMessages(ordered).map(message => (
-          typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
-        ))
+        const messages = presentation.filterMessages(ordered)
+          .map(publicMessage)
+          .map(message => (
+            typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
+          ))
         const assignments = readAssignments(room.id, { limit: 500 })
         return {
           ...presentRoom(room, messages, assignments),
@@ -58,7 +67,7 @@ export const createServiceQueries = ({
     }
   }
 
-  const messagesSince = since => readMessagesSince(since)
+  const messagesSince = since => readMessagesSince(since).map(publicMessage)
 
   const evidence = (roomId, messageId) => {
     const room = readRoom(roomId)
@@ -68,7 +77,11 @@ export const createServiceQueries = ({
     return { ok: true, bytes: files.read(file) }
   }
 
-  const recommendRoster = body => recommendRosterUseCase({ engine, body, workspace })
+  const recommendRoster = body => recommendRosterUseCase({
+    probe: createRosterProbe({ engine }),
+    body,
+    workspace,
+  })
 
   return { health, state, messagesSince, evidence, recommendRoster }
 }

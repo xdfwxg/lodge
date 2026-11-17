@@ -67,6 +67,19 @@ export const createBodyFactory = ({ engine }) => {
     }
   }
 
+  // 主持人只占一个基座席位，不占成员位置；创建和退役都留在身体适配层。
+  const createHost = async ({ name, soul, description, approval, mcp = [] }) => engine.createMemberBot({
+    name,
+    soul,
+    description,
+    approval,
+    mcp,
+  })
+
+  const retireHost = async ref => {
+    if (typeof ref === 'string' && ref !== '') await engine.deleteMemberBot(ref)
+  }
+
   // 共享基座房间的成员是整体替换；房间和主持人的基座地址留在这一层，不往业务层漏。
   const join = async ({ room, refs = [] }) => {
     const sharedRoomId = room?.chatRoom?.id
@@ -86,5 +99,5 @@ export const createBodyFactory = ({ engine }) => {
     }
   }
 
-  return { instances, healthOf, incarnate, join, retire }
+  return { instances, healthOf, incarnate, createHost, retireHost, join, retire }
 }

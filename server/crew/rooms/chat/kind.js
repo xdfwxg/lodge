@@ -54,18 +54,18 @@ export const chatKind = {
 
   initialMessages: () => [],
 
-  provisionExtra: async ({ engine, short }) => {
+  provisionExtra: async ({ host: hostPort, short }) => {
     // 主持人是 Lodge 自己：不占发言位置，只用来开场和总结。
-    const host = await engine.createMemberBot({
+    const created = await hostPort.createHost({
       name: `LodgeHost${short}`,
       soul: '你是 Lodge 的主持人。你只负责开场、总结和收敛讨论，不替发言者下结论；不要调用工具。',
       approval: 'ask',
     })
     return {
-      members: [host.id],
-      leadId: host.id,
-      chatHost: { memberRef: host.id, name: host.name, displayName: LODGE_HOST_LABEL },
-      cleanup: () => engine.deleteMemberBot(host.id),
+      members: [created.id],
+      leadId: created.id,
+      chatHost: { memberRef: created.id, name: created.name, displayName: LODGE_HOST_LABEL },
+      cleanup: () => hostPort.retireHost(created.id),
     }
   },
 

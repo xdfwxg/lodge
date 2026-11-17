@@ -11,10 +11,31 @@ const roomCapabilities = room => ({
 })
 
 // 房间事件与状态查询共用同一份投影，UI 不再自己重算业务状态和独立性文案。
+const publicBody = body => {
+  if (body === undefined || body === null) return body
+  const { ref, roomRef, sessionRef, ...rest } = body
+  return rest
+}
+
+// 外层只看到房间、成员和交付；基座房间、身体地址和隐藏消息留在适配层。
 export const presentRoom = (room, messages = [], assignments = []) => {
+  const {
+    chatRoom,
+    chatHost,
+    hiddenBaseMessages,
+    seatBots,
+    seatNames,
+    seatSpecs,
+    ...visibleRoom
+  } = room
+  const visible = {
+    ...visibleRoom,
+    members: (room.members ?? []).map(member => ({ ...member, body: publicBody(member.body) })),
+    hostLabel: typeof chatHost?.displayName === 'string' ? chatHost.displayName : '',
+  }
   const projection = roomPresentationOfRoom(room)?.projectWork?.(room, assignments) ?? null
   const view = {
-    ...room,
+    ...visible,
     ...(projection ?? {}),
     ...(projection === null ? {} : { assignments }),
   }

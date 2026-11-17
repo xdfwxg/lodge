@@ -1,2 +1,2 @@
-// 主持人显示名由服务端随房间记录下发，UI 不自己拼名字。
-export const hostLabelOf = room => room?.chatHost?.displayName ?? ''
+// 主持人显示名由服务端的房间投影下发，UI 不读取基座字段。
+export const hostLabelOf = room => room?.hostLabel ?? ''
