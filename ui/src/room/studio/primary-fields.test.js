@@ -6,20 +6,14 @@ import { StudioPrimaryFields, VerifyChoice } from './create.js'
 
 const render = props => renderToStaticMarkup(h(StudioPrimaryFields, props))
 
-test('the primary setup shows the default team and the verification choice', () => {
+test('the primary setup shows the default team and never asks for a check command', () => {
   const html = render({})
   assert.match(html, /规划师/)
   assert.match(html, /执行官/)
   assert.match(html, /验收员/)
   assert.match(html, /调整成员/)
-  assert.match(html, /我自己看/)
-  assert.match(html, /跑一条检查/)
-})
-
-test('a handoff hides the duplicate verification choice but keeps the team', () => {
-  const html = render({ showVerify: false })
-  assert.match(html, /规划师/)
   assert.doesNotMatch(html, /我自己看/)
+  assert.doesNotMatch(html, /跑一条检查/)
 })
 
 test('choosing a command reveals the check input', () => {

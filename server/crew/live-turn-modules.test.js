@@ -547,6 +547,116 @@ test('a worker chatter turn does not start another acceptance round', async () =
   assert.equal(store.messages.some(message => message.meta?.kind === 'command'), false)
 })
 
+test('a failed auto check sends the step back instead of asking for sign-off', async () => {
+  registerWorkspaceProvider('test-auto-fail', {
+    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
+    changes: async () => ({ diff: 'diff', status: ' M a.js', files: ['a.js'], manifest: [] }),
+    head: () => 'auto-fail-head',
+    submit: () => 'auto-fail-candidate',
+    isolatedCopy: () => ({ path: '/tmp/auto-fail-copy' }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    stageBases: { 0: 'auto-fail-base' },
+    workspace: { provider: 'test-auto-fail' },
+  })
+  const store = fakeStore(room)
+  let asked = 0
+  let failed = null
+  const runner = createAcceptanceRunner({
+    store,
+    roomId: 'room-1',
+    markProgress: () => {},
+    requestReview: async () => { asked += 1 },
+    run: async () => ({ exit: 1, output: 'boom' }),
+    onAutoFail: info => { failed = info },
+  })
+  await runner.run(0, 'npm test', 't-fail', { auto: true, reason: 'package.json 里有 test 脚本' })
+  assert.equal(asked, 0)
+  assert.deepEqual(failed, { stageIndex: 0, command: 'npm test', exit: 1, output: 'boom' })
+  const evidence = store.messages.find(message => message.meta?.auto === true)
+  assert.equal(evidence.meta.exit, 1)
+  assert.ok(store.messages.some(message => /已退回重做/.test(message.text ?? '')))
+})
+
+test('a manual stage runs the check the repository itself declares', async () => {
+  registerWorkspaceProvider('test-manual-autocheck', {
+    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
+    changes: async () => ({ diff: 'diff', status: ' M a.js', files: ['a.js'], manifest: [] }),
+    head: () => 'auto-head',
+    submit: () => 'auto-candidate',
+    isolatedCopy: () => ({ path: '/tmp/auto-copy' }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    stageBases: { 0: 'auto-base' },
+    workspace: { provider: 'test-manual-autocheck' },
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', manual: true }],
+    workers: ['worker'],
+    verifiers: [],
+    seatBots: { worker: 'bot-worker' },
+    seatSpecs: [{ id: 'worker', name: 'Worker', role: 'worker' }],
+  })
+  const store = fakeStore(room)
+  let ran = ''
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async ({ command }) => { ran = command; return { exit: 0, output: 'ok' } } },
+    files: {
+      exists: path => path.endsWith('package.json'),
+      read: path => path.endsWith('package.json') ? Buffer.from('{"scripts":{"test":"vitest run"}}') : Buffer.from(''),
+    },
+  })
+  turns.captureTurn({ turnId: 't-auto', reply: '改完了', toolCalls: 1, tools: [{ id: 'write' }] }, 'bot-worker')
+  await new Promise(resolve => setTimeout(resolve, 300))
+  assert.equal(ran, 'npm test')
+  const evidence = store.messages.find(message => message.meta?.kind === 'command' && message.meta?.auto === true)
+  assert.ok(evidence)
+  assert.equal(evidence.meta.command, 'npm test')
+  assert.match(evidence.meta.detected, /test 脚本/)
+  assert.ok(store.messages.some(message => /自动检查通过/.test(message.text ?? '')))
+})
+
+test('a manual stage says when there is no check to run', async () => {
+  registerWorkspaceProvider('test-manual-nocheck', {
+    capabilities: () => ({ candidate: true }),
+    head: () => 'nocheck-head',
+    submit: () => 'nocheck-candidate',
+    changes: async () => ({ diff: 'diff', status: ' M a.js', files: ['a.js'], manifest: [] }),
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    stageBases: { 0: 'nocheck-base' },
+    workspace: { provider: 'test-manual-nocheck' },
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', manual: true }],
+    workers: ['worker'],
+    verifiers: [],
+    seatBots: { worker: 'bot-worker' },
+    seatSpecs: [{ id: 'worker', name: 'Worker', role: 'worker' }],
+  })
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({ exit: 0 }) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ turnId: 't-nocheck', reply: '改完了', toolCalls: 1, tools: [{ id: 'write' }] }, 'bot-worker')
+  await new Promise(resolve => setTimeout(resolve, 100))
+  assert.ok(store.messages.some(message => /没有可自动运行的检查/.test(message.text ?? '')))
+  assert.equal(store.messages.some(message => message.meta?.kind === 'command'), false)
+})
+
 test('a repeated manual turn on the same HEAD does not duplicate manual evidence', async () => {
   registerWorkspaceProvider('test-manual-dedupe', {
     capabilities: () => ({ candidate: true }),
@@ -653,7 +763,7 @@ test('a verifier reject returns the studio closure to executing and wakes the pl
 
 
 test('shadow review records advice without injecting it into the Verifier prompt', async () => {
-  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, advisorConsent: { host: 'advisor.example' } })
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, shadowBot: { memberRef: 'bot-shadow', name: 'ShadowReview1' } })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
@@ -669,11 +779,10 @@ test('shadow review records advice without injecting it into the Verifier prompt
       sent.push({ memberId, prompt })
       return { messageId: 'm2' }
     },
-    advisor: {
-      describe: () => ({ available: true, host: 'advisor.example' }),
-      advice: async () => {
+    shadow: {
+      ask: async () => {
         calls += 1
-        return { available: true, model: 'advisor-test', advice: [{ summary: '建议补一条回滚测试', reasons: ['缺少回滚测试'] }] }
+        return { available: true, advice: [{ source: 'shadow', summary: '建议补一条回滚测试', reasons: ['缺少回滚测试'] }] }
       },
     },
   })
@@ -681,11 +790,7 @@ test('shadow review records advice without injecting it into the Verifier prompt
   await review.shadowSettled()
   assert.equal(calls, 1)
   assert.doesNotMatch(sent[0].prompt, /回滚测试/)
-  assert.doesNotMatch(sent[0].prompt, /外部意见/)
-  const notice = store.messages.find(message => message.meta?.advisorNotice === true)
-  assert.ok(notice)
-  assert.match(notice.text, /advisor\.example/)
-  assert.match(notice.text, /证据和改动/)
+  assert.doesNotMatch(sent[0].prompt, /影子评审/)
   const advice = store.readRoom().advisorShadow?.[0]
   assert.ok(advice)
   assert.equal(advice.evidenceId, store.messages.find(message => message.kind === 'evidence').id)
@@ -693,7 +798,7 @@ test('shadow review records advice without injecting it into the Verifier prompt
   assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
 })
 
-test('advisor is not called when the room does not enable shadow review', async () => {
+test('shadow review is not asked when the room did not enable it', async () => {
   const room = makeRoom({ verifiers: ['verifier'] })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
@@ -706,7 +811,7 @@ test('advisor is not called when the room does not enable shadow review', async 
     roomId: 'room-1',
     emit: () => {},
     sendToMember: async () => ({ messageId: 'm2' }),
-    advisor: { advice: async () => { calls += 1; return { available: true, advice: [] } } },
+    shadow: { ask: async () => { calls += 1; return { available: true, advice: [] } } },
   })
   await review.request(0)
   await review.shadowSettled()
@@ -714,76 +819,25 @@ test('advisor is not called when the room does not enable shadow review', async 
   assert.equal(store.readRoom().advisorShadow, undefined)
 })
 
-test('shadow review says when the advisor is not configured', async () => {
+test('shadow review says once when the reviewer could not answer', async () => {
   const room = makeRoom({ verifiers: ['verifier'], shadowReview: true })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
     meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
   })
-  let calls = 0
   const review = createReviewCoordinator({
     store,
     roomId: 'room-1',
     emit: () => {},
     sendToMember: async () => ({ messageId: 'm2' }),
-    advisor: { available: false, describe: () => ({ available: false, host: '' }), advice: async () => { calls += 1; return { available: false, advice: [] } } },
-  })
-  await review.request(0)
-  await review.shadowSettled()
-  assert.equal(calls, 0)
-  assert.ok(store.messages.some(message => message.meta?.advisorUnavailable === true))
-  assert.equal(store.readRoom().advisorShadow, undefined)
-})
-
-test('shadow review asks for consent when the advisor host changed', async () => {
-  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, advisorConsent: { host: 'old.example' } })
-  const store = fakeStore(room)
-  store.appendMessage('room-1', {
-    kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
-  })
-  let calls = 0
-  const review = createReviewCoordinator({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async () => ({ messageId: 'm2' }),
-    advisor: { available: true, describe: () => ({ available: true, host: 'new.example' }), advice: async () => { calls += 1; return { available: true, advice: [] } } },
-  })
-  await review.request(0)
-  await review.shadowSettled()
-  assert.equal(calls, 0)
-  const notice = store.messages.find(message => message.meta?.advisorConsentNotice === true)
-  assert.ok(notice)
-  assert.match(notice.text, /new\.example/)
-  assert.equal(store.readRoom().advisorShadow, undefined)
-})
-
-test('shadow review says when the advisor call failed', async () => {
-  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, advisorConsent: { host: 'advisor.example' } })
-  const store = fakeStore(room)
-  store.appendMessage('room-1', {
-    kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
-  })
-  const review = createReviewCoordinator({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async () => ({ messageId: 'm2' }),
-    advisor: {
-      available: true,
-      describe: () => ({ available: true, host: 'advisor.example' }),
-      advice: async () => ({ available: false, advice: [], error: 'timeout' }),
-    },
+    shadow: { ask: async () => ({ available: false, advice: [], error: 'timeout' }) },
   })
   await review.request(0)
   await review.shadowSettled()
   assert.ok(store.messages.some(message => message.meta?.advisorFailed === true))
   assert.equal(store.readRoom().advisorShadow, undefined)
 })
-
 
 test('restart wakes an assignment that never reported', async () => {
   const room = makeRoom({ live: true, busy: false })

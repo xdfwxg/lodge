@@ -90,10 +90,10 @@ export function VerifyChoice({
   disabled = false,
 }) {
   return h(Fragment, null,
-    h('div', { className: 'crew-choice-row', role: 'group', 'aria-label': '怎么验收' },
+    h('div', { className: 'crew-seg', role: 'group', 'aria-label': '怎么验收' },
       h('button', {
         type: 'button',
-        className: 'crew-choice',
+        className: 'crew-seg-item',
         'data-on': verifyMode === 'manual' ? 'true' : undefined,
         'aria-pressed': verifyMode === 'manual',
         disabled,
@@ -101,7 +101,7 @@ export function VerifyChoice({
       }, '我自己看'),
       h('button', {
         type: 'button',
-        className: 'crew-choice',
+        className: 'crew-seg-item',
         'data-on': verifyMode === 'test' ? 'true' : undefined,
         'aria-pressed': verifyMode === 'test',
         disabled,
@@ -127,11 +127,6 @@ export function StudioPrimaryFields({
   loginBusyId = '',
   loginNote = '',
   onRefresh = null,
-  showVerify = true,
-  verifyMode = 'manual',
-  onVerifyMode = () => {},
-  acceptanceDraft = '',
-  onAcceptanceDraft = () => {},
   onAdvanced = () => {},
 }) {
   const readiness = engineReadiness(engines, { requireApproval: true })
@@ -167,15 +162,7 @@ export function StudioPrimaryFields({
         note: loginNote,
         onLogin,
         onRefresh,
-      })),
-    showVerify
-      ? h('div', { className: 'crew-field' },
-        h('b', null, '怎么验收'),
-        h(VerifyChoice, { verifyMode, onVerifyMode, acceptanceDraft, onAcceptanceDraft }),
-        h('p', { className: 'crew-field-hint' }, verifyMode === 'test'
-          ? '每一步都真跑，结果留在房间里。'
-          : '成员做完，你来确认。'))
-      : null)
+      })))
 }
 
 export function StudioSetupFields({
@@ -186,10 +173,6 @@ export function StudioSetupFields({
   onInteraction,
   shadowReview = false,
   onShadowReview = () => {},
-  advisor = { available: false, host: '' },
-  recommending = false,
-  canRecommend = true,
-  onRecommend = null,
   features = null,
 }) {
   return h(Fragment, null,
@@ -205,23 +188,13 @@ export function StudioSetupFields({
         requireApprovalGate: true,
         onInteraction,
       })),
-    h('label', { className: 'crew-check' },
-      h('input', {
-        type: 'checkbox',
-        checked: advisor.available === true && shadowReview,
-        disabled: advisor.available !== true,
-        onChange: event => onShadowReview(event.target.checked),
-      }),
-      '第二意见：再请一位看看'),
-    h('p', { className: 'crew-field-hint' }, advisor.available === true
-      ? `结果和改动会发给${advisor.host === '' ? '外部' : ` ${advisor.host} `}，只供参考，不参与验收。`
-      : '第二意见还没配置。'),
-    onRecommend === null ? null : h('div', { className: 'crew-new-recommend' },
-      h('button', {
-        type: 'button',
-        className: 'crew-ghost',
-        disabled: recommending || !canRecommend,
-        onClick: onRecommend,
-      }, recommending ? '正在出方案…' : '先出方案'),
-      h('p', { className: 'crew-field-hint' }, '多花一点时间，先看方案。')))
+    h('div', { className: 'crew-check-block' },
+      h('label', { className: 'crew-check' },
+        h('input', {
+          type: 'checkbox',
+          checked: shadowReview === true,
+          onChange: event => onShadowReview(event.target.checked),
+        }),
+        '影子评审'),
+      h('p', { className: 'crew-field-hint' }, '由一个评审成员换一个角度再看一遍：找验收可能漏掉的东西，只供参考，不参与验收。')))
 }

@@ -1,5 +1,5 @@
 import { memberDisplayName } from '../../member-labels.js'
-import { manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
+import { latestAutoCheck, manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
 
@@ -22,6 +22,11 @@ export const gateFor = (room, index, messages, evidence) => {
     // 只认本轮最新一条人工凭证；新的执行回合或重做会让旧凭证过期。
     const latestEvidence = manualEvidenceFor(room, ledger, messages, index)
     if (latestEvidence === undefined) return deny('conflict', '执行还没有产出，不能验收')
+    // 产品自己跑的检查没通过时，这一步不交给人签字；先重做。
+    const auto = latestAutoCheck(messages, index, reworkFloor(messages, index))
+    if (auto !== undefined && auto.meta?.exit !== 0 && (auto.seq ?? 0) > (latestEvidence.seq ?? 0)) {
+      return deny('conflict', '自动检查没通过，先重做')
+    }
     if (verifierIds(room).length > 0) {
       const outcome = manualReviewState({ room, evidence: ledger, messages, stageIndex: index })
       if (outcome.state === 'reject') {

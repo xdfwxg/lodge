@@ -2,10 +2,18 @@ import { verifierIds, workerIds } from '../../room-members.js'
 import { reworkFloor } from './verifiers.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 
-export const createAcceptanceRunner = ({ store, roomId, markProgress, requestReview, run }) => {
+export const createAcceptanceRunner = ({
+  store,
+  roomId,
+  markProgress,
+  requestReview,
+  run,
+  onAutoPass = null,
+  onAutoFail = null,
+}) => {
   let chain = Promise.resolve()
 
-  const runAcceptance = async (stageIndex, command, turnId) => {
+  const runAcceptance = async (stageIndex, command, turnId, { auto = false, reason = '' } = {}) => {
     const room = store.readRoom(roomId)
     if (room === null) return
     if (typeof room.repoPath !== 'string' || room.repoPath === '') {
@@ -93,9 +101,11 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: `检查${result.exit === 0 ? '通过' : '没通过'}；这次检查在独立副本里执行。`,
+      text: `${auto ? '自动检查' : '检查'}${result.exit === 0 ? '通过' : '没通过'}；这次检查在独立副本里执行。`,
       meta: {
         kind: 'command',
+        ...(auto ? { auto: true } : {}),
+        ...(reason === '' ? {} : { detected: reason }),
         vcs: vcsOf(room),
         stage: stageIndex,
         command,
@@ -127,7 +137,23 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
       isolated: true,
       sandbox: result.sandbox,
       candidate,
+      ...(auto ? { auto: true } : {}),
     })
+    if (auto === true) {
+      const passed = result.exit === 0
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: passed ? '自动检查通过 · 结果供你确认' : '自动检查没通过 · 已退回重做',
+      })
+      if (passed) {
+        markProgress()
+        onAutoPass?.({ stageIndex, command })
+      } else {
+        // 没通过就不交给人：直接退回重做，让执行者拿着失败输出改。
+        await onAutoFail?.({ stageIndex, command, exit: result.exit, output: result.output })
+      }
+      return
+    }
     store.appendMessage(roomId, {
       kind: 'system',
       text: result.exit === 0
@@ -149,9 +175,9 @@ export const createAcceptanceRunner = ({ store, roomId, markProgress, requestRev
     }
   }
 
-  const schedule = (stageIndex, command, turnId) => {
+  const schedule = (stageIndex, command, turnId, options = {}) => {
     chain = chain
-      .then(() => runAcceptance(stageIndex, command, turnId))
+      .then(() => runAcceptance(stageIndex, command, turnId, options))
       .catch(error => {
         store.appendMessage(roomId, { kind: 'system', text: `检查执行出错：${error?.message ?? error}` })
       })

@@ -15,7 +15,6 @@ export const createServiceQueries = ({
   roomFiles,
   files,
   workspace,
-  advisor = null,
 }) => {
   const { readRoom, readRooms, readRecentMessages, readMessagesSince, readAssignments } = store
 
@@ -44,7 +43,6 @@ export const createServiceQueries = ({
     return {
       roles,
       features,
-      advisor: advisor?.describe?.() ?? { available: false, host: '' },
       roomTypes: listRoomTypes(),
       rooms: rooms.map(room => {
         const presentation = roomPresentationOfRoom(room)
@@ -57,8 +55,12 @@ export const createServiceQueries = ({
             typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
           ))
         const assignments = readAssignments(room.id, { limit: 500 })
+        const children = (room.childRoomIds ?? [])
+          .map(childId => readRoom(childId))
+          .filter(child => child !== null)
+          .map(child => ({ room: child, messages: readRecentMessages(child.id) }))
         return {
-          ...presentRoom(room, messages, assignments),
+          ...presentRoom(room, messages, assignments, { children }),
           brief: briefOf(room),
           messages,
         }

@@ -176,6 +176,25 @@ test('a manual stage waits for the product before sign-off', () => {
   assert.equal(gateFor(r, 1, [turnEvidence, manual]).ok, true)
 })
 
+test('a failed automatic check keeps a manual stage from being signed off', () => {
+  const r = room({ members: [] })
+  r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }
+  const manual = { id: 'm-1', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'manual', simulated: false } }
+  const failedCheck = {
+    id: 'c-1',
+    kind: 'evidence',
+    seq: 12,
+    meta: { stage: 1, kind: 'command', auto: true, command: 'npm test', exit: 1 },
+  }
+  const gate = gateFor(r, 1, [manual, failedCheck])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /自动检查没通过/)
+  // 重做后又跑通了，就放行让人签字。
+  const passedCheck = { ...failedCheck, id: 'c-2', seq: 13, meta: { ...failedCheck.meta, exit: 0 } }
+  const fresh = { ...manual, id: 'm-2', seq: 14 }
+  assert.equal(gateFor(r, 1, [manual, failedCheck, passedCheck, fresh]).ok, true)
+})
+
 test('a stale manual evidence does not survive a newer turn', () => {
   const r = room({ members: [] })
   r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }

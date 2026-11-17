@@ -36,8 +36,8 @@ const room = {
 
 const goal = { status: 'active', current: 0, stages: [], constraints: [] }
 
-const render = (mode, signal) => renderToStaticMarkup(h(GoalIsland, {
-  room,
+const render = (mode, signal, roomOverride = {}) => renderToStaticMarkup(h(GoalIsland, {
+  room: { ...room, ...roomOverride },
   goal,
   view,
   mode,
@@ -68,6 +68,27 @@ test('a decision renders one signal line and a dismiss control', () => {
   assert.match(html, /第 1 步「目标对齐」有一处要你拍板/)
   assert.match(html, /aria-label="收起这条提醒"/)
   assert.doesNotMatch(html, /bt-pill/)
+})
+
+test('the open panel lists every waiting item, including a subroom', () => {
+  const html = render('open', null, {
+    attention: [
+      { kind: 'signoff', stage: 0, label: '待签字' },
+      { kind: 'decision', stage: 0, label: '待确认', roomId: 'child-1', roomName: '写欢迎语' },
+    ],
+  })
+  assert.match(html, /在等你/)
+  assert.match(html, /待签字/)
+  assert.match(html, /写欢迎语/)
+  assert.match(html, /去处理/)
+})
+
+test('a single waiting item keeps the old one-line warning', () => {
+  const html = render('open', null, {
+    attention: [{ kind: 'decision', stage: 0, label: '待确认' }],
+  })
+  assert.doesNotMatch(html, /在等你/)
+  assert.match(html, /bt-goal-warn/)
 })
 
 test('a milestone renders a polite announcement and no dismiss control', () => {

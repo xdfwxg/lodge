@@ -47,6 +47,16 @@ const ledgerOf = (evidence, messages) => Array.isArray(evidence)
     message.kind === 'evidence' && (message.meta?.kind === 'command' || message.meta?.kind === 'manual')
   ))
 
+// 产品自己跑的那条检查（不是验收命令）；最近一条失败时，这一步还没资格交给人。
+export const latestAutoCheck = (messages, stageIndex, floor = -1) => [...messages]
+  .reverse()
+  .find(message => (
+    message.kind === 'evidence' &&
+    message.meta?.auto === true &&
+    (message.meta?.stage ?? 0) === stageIndex &&
+    (message.seq ?? 0) > floor
+  ))
+
 // 只看最新一条验收命令证据；失败的那一条会让此前所有 PASS 作废。
 export const commandEvidenceFor = (room, evidence, messages, stageIndex) => {
   const stage = room?.stages?.[stageIndex]

@@ -28,6 +28,26 @@ test('a human decision becomes a sticky signal that opens the panel', () => {
   assert.match(event.detail, /待签字/)
 })
 
+test('more waiting items put a count on the same signal line', () => {
+  const event = decisionOf(room({
+    needsYou: { kind: 'signoff', stage: 1, label: '待签字' },
+    attention: [
+      { kind: 'signoff', stage: 1, label: '待签字' },
+      { kind: 'decision', roomId: 'child-1', roomName: '写欢迎语', stage: 0, label: '待确认' },
+    ],
+  }))
+  assert.match(event.title, /还有 1 件$/)
+})
+
+test('a subroom decision says whose it is', () => {
+  const event = decisionOf(room({
+    needsYou: { kind: 'decision', roomId: 'child-1', roomName: '写欢迎语', stage: 0, label: '待确认' },
+    attention: [{ kind: 'decision', roomId: 'child-1', roomName: '写欢迎语', stage: 0, label: '待确认' }],
+  }))
+  assert.match(event.title, /写欢迎语/)
+  assert.doesNotMatch(event.title, /还有/)
+})
+
 test('ambient states do not become decisions', () => {
   assert.equal(decisionOf(room({ needsYou: { kind: 'review', stage: 1, label: '验收员在看' } })), null)
   assert.equal(decisionOf(room({ needsYou: { kind: 'idle', stage: 1, label: '可继续' } })), null)

@@ -2,7 +2,7 @@ import { resolveAssigneeTokens } from '../../orchestration/index.js'
 import * as type from '../../room-types/studio.js'
 import { workContract } from '../../prompt-modes.js'
 import { roleKindOf } from '../../roster.js'
-import { commandEvidenceFor, latestReviewTimeout, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
+import { commandEvidenceFor, latestAutoCheck, latestReviewTimeout, manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
@@ -36,7 +36,11 @@ const studioNeedsYou = (room, messages = []) => {
     }
   }
   if (stage.manual === true) {
-    const manual = latestForStage(messages, 'evidence', index, floor)
+    const manual = manualEvidenceFor(room, undefined, messages, index)
+    const auto = latestAutoCheck(messages, index, floor)
+    if (auto !== undefined && auto.meta?.exit !== 0 && (manual === undefined || (auto.seq ?? 0) > (manual.seq ?? 0))) {
+      return { kind: 'rework', stage: index, label: '自动检查没通过，先重做' }
+    }
     if (manual?.meta?.kind !== 'manual') return null
     if (verifierIds(room).length > 0) {
       const outcome = manualReviewState({ room, messages, stageIndex: index })
@@ -233,7 +237,20 @@ export const studioKind = {
 
   initialMessages,
 
-  provisionExtra: async () => null,
+  provisionExtra: async ({ host: hostPort, short, shadowReview }) => {
+    if (shadowReview !== true) return null
+    // 影子评审是房间里的隐藏成员：不占席位、没有工具，只给一份对照意见。
+    const created = await hostPort.createHost({
+      name: `ShadowReview${short}`,
+      soul: '你是 Lodge 的影子评审。你只在一份证据交上来时给一份对照意见：验收员判是否达标，你换一个角度找漏掉的东西。不写 PASS 或 REJECT，不打分，不参与验收，不调用工具。',
+      approval: 'ask',
+    })
+    return {
+      members: [created.id],
+      shadowBot: { memberRef: created.id, name: created.name },
+      cleanup: () => hostPort.retireHost(created.id),
+    }
+  },
 
   start: startInitialStage,
 

@@ -1,4 +1,5 @@
 import { createLiveTurns } from './turns.js'
+import { createShadowReviewer } from './shadow-reviewer.js'
 import { deliverToMember } from '../../surface-delivery.js'
 
 // 工作室上下文运行时：阶段派发、执行、验收、重做和签字都走群聊 @，没有讨论轮次。
@@ -24,6 +25,13 @@ export const createStudioRuntime = ({
     owns: typeId => typeId === 'studio',
 
     create(entry, room) {
+      // 影子评审用的是本房的一个隐藏成员，不走外部服务；没有它就自动跳过。
+      const shadow = createShadowReviewer({
+        engine,
+        store,
+        roomId: room.id,
+        sendToMember: (memberId, text, options = {}) => sendMember(room.id, room, memberId, text, options),
+      })
       entry.turns = createLiveTurns({
         store,
         engine,
@@ -32,7 +40,7 @@ export const createStudioRuntime = ({
         sendToMember: (memberId, text, options = {}) => sendMember(room.id, room, memberId, text, options),
         commands: ports.commands,
         files: ports.files,
-        advisor: ports.advisor,
+        shadow,
       })
       // 已落证据的回合在重启后会被基座历史重放；先标记，避免重复采集。
       entry.turns.seed(store.readMessages(room.id))

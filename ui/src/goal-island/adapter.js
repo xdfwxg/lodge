@@ -96,6 +96,7 @@ const toIslandRoom = room => ({
   admin: room.leadMemberId ?? room.members?.[0],
   members: room.members ?? [],
   needsYou: room.needsYou ?? null,
+  attention: Array.isArray(room.attention) ? room.attention : [],
 })
 
 export const toIslandRoomWork = room => (room.busyMembers ?? []).map(memberId => ({ memberId }))
@@ -139,7 +140,7 @@ const PILL_CSS = `
 @media (max-width:760px){.crew-goal-island{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
 `
 
-export function GoalIslandHeader({ room, members, status = null, onAdvance }) {
+export function GoalIslandHeader({ room, members, status = null, onAdvance, onOpenRoom }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
   const goal = toIslandGoal(room)
@@ -165,6 +166,14 @@ export function GoalIslandHeader({ room, members, status = null, onAdvance }) {
     pauseSignal: activity.onPause,
     resumeSignal: activity.onResume,
     advance: onAdvance,
+    // 收件箱里的一条：子房的事跳过去，本房的事滚到要你处理的位置。
+    openItem: item => {
+      if (typeof item?.roomId === 'string' && item.roomId !== room.id && typeof onOpenRoom === 'function') {
+        onOpenRoom(item.roomId)
+        return
+      }
+      goalActions.openSignal()
+    },
   }
   return h('div', { className: 'crew-goal-island' },
     h(GoalIsland, {

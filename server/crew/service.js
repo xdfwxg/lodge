@@ -11,7 +11,6 @@ import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
 import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
-import { recordShadowAdvice } from './rooms/studio/shadow-advisor.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
@@ -28,7 +27,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     roomFiles,
     files,
     workspace,
-    advisor: ports.advisor,
   })
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles })
@@ -143,62 +141,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         if (error instanceof BusinessError) return fail(error.reason, error.message)
         throw error
       }
-    }
-
-    if (action === 'shadow-review' && method === 'POST') {
-      if (room.roomType !== 'studio') return fail('conflict', '只有工作室能用第二意见')
-      const body = await readBody()
-      if (body.enabled === true) {
-        const described = ports.advisor?.describe?.() ?? { available: false, host: '' }
-        if (described.available !== true) return fail('conflict', '还没配置第二意见的外部服务')
-        const updated = updateRoom(room.id, current => {
-          current.shadowReview = true
-          current.advisorConsent = { host: described.host, at: Date.now() }
-          delete current.advisorShadow
-          return { events: [{ type: 'room.shadow_review', payload: { enabled: true, host: described.host } }] }
-        })
-        if (updated === null) return fail('not_found', '没有这个房间')
-        appendMessage(room.id, {
-          kind: 'system',
-          text: `第二意见已${room.shadowReview === true ? '重新确认' : '开启'}。复核时会把证据和改动发给外部服务${described.host === '' ? '' : `（${described.host}）`}，只供参考。`,
-          meta: { advisorNotice: true },
-        })
-        emit('room', updated)
-        const current = readRoom(room.id) ?? updated
-        const index = (current.stages ?? []).findIndex(stage => stage.state === 'active')
-        const stage = index >= 0 ? current.stages[index] : undefined
-        const evidence = index < 0
-          ? undefined
-          : [...readMessages(room.id)].reverse().find(message => (
-            message.kind === 'evidence' &&
-            (message.meta?.stage ?? 0) === index &&
-            (message.meta?.kind === 'manual' || message.meta?.kind === 'command')
-          ))
-        if (stage !== undefined && evidence !== undefined) {
-          void recordShadowAdvice({
-            store,
-            roomId: room.id,
-            advisor: ports.advisor,
-            room: current,
-            emit,
-            index,
-            stage,
-            evidence,
-            manual: stage.manual === true,
-          }).catch(error => appendMessage(room.id, { kind: 'system', text: `第二意见没能取回：${error?.message ?? error}` }))
-        }
-        return ok({ room: current })
-      }
-      const updated = updateRoom(room.id, current => {
-        current.shadowReview = false
-        delete current.advisorConsent
-        delete current.advisorShadow
-        return { events: [{ type: 'room.shadow_review', payload: { enabled: false } }] }
-      })
-      if (updated === null) return fail('not_found', '没有这个房间')
-      appendMessage(room.id, { kind: 'system', text: '第二意见已关闭。' })
-      emit('room', updated)
-      return ok({ room: readRoom(room.id) ?? updated })
     }
 
     if (action === 'read' && method === 'POST') {

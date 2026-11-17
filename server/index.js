@@ -84,10 +84,18 @@ const snapshotNow = reason => {
 compactHistory()
 setInterval(() => snapshotNow('periodic'), 6 * 60 * 60 * 1000).unref()
 
+// 子房等人的事也要出现在父房的收件箱里，所以投影前先读一眼子房。
+const attentionChildrenOf = room => (room.childRoomIds ?? [])
+  .map(childId => store.readRoom(childId))
+  .filter(child => child !== null)
+  .map(child => ({ room: child, messages: store.readRecentMessages(child.id) }))
+
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
-    payload = presentRoom(payload, store.readRecentMessages(payload.id), store.readAssignments(payload.id, { limit: 500 }))
+    payload = presentRoom(payload, store.readRecentMessages(payload.id), store.readAssignments(payload.id, { limit: 500 }), {
+      children: attentionChildrenOf(payload),
+    })
   }
   broadcast(event, payload, id)
 }

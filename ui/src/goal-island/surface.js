@@ -170,6 +170,13 @@ function GoalSignal({ signal, mode, actions }) {
 // The open pod focuses one stage: a stepper across the top, the selected
 // stage's checks and tasks under it, and a bottom row with the rest.
 function GoalPanel({ goal, view, room, roster, actions, working }) {
+  // 收件箱：一行放一条，第一条同时也在信号行和胶囊上；只有一条时不重复列。
+  const attention = Array.isArray(room.attention) && room.attention.length > 0
+    ? room.attention
+    : room.needsYou ? [room.needsYou] : []
+  // 一条是子房的事也照样列出来，否则只看一行 label 会以为是自己这层的。
+  const listAttention = attention.length > 1
+    || (attention.length === 1 && typeof attention[0].roomId === 'string')
   const at = RUNNING.has(view.status) && goal.current < view.stages.length ? goal.current : -1
   const [selected, setSelected] = useState(at)
   const [checks, setChecks] = useState(false)
@@ -210,7 +217,19 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
         'aria-current': i === at ? 'step' : undefined,
         onClick: () => setSelected(i),
       }, h('span', { className: 'bt-goal-node' }, stageView.status === 'passed' ? h(CheckIcon) : stageView.n)))),
-    room.needsYou?.label ? h('div', { className: 'bt-goal-warn' }, room.needsYou.label) : null,
+    listAttention
+      ? h('div', { key: 'attention', className: 'bt-goal-att' },
+        h('div', { className: 'bt-goal-sub' }, '在等你'),
+        attention.map((item, index) => h('button', {
+          key: `${item.kind ?? ''}:${item.roomId ?? ''}:${item.stage ?? '-'}:${index}`,
+          type: 'button',
+          className: 'bt-goal-att-row',
+          onClick: () => actions.openItem?.(item),
+        },
+        h('span', { className: 'bt-goal-att-name' }, item.roomName ?? ''),
+        h('span', { className: 'bt-goal-att-label' }, item.label ?? '待处理'),
+        h('span', { className: 'bt-goal-att-go' }, '去处理'))))
+      : room.needsYou?.label ? h('div', { className: 'bt-goal-warn' }, room.needsYou.label) : null,
     meta === '' ? null : h('div', { className: 'bt-goal-meta' }, meta),
     h('div', { key: `s${selected}`, className: 'bt-goal-bstage' },
       view.status === 'drafting' ? (goal.brief ? h('div', { className: 'bt-goal-btext' }, goal.brief) : null)
@@ -352,6 +371,13 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-signal-close:hover{background:var(--bt-hover);color:var(--bt-ink)}
 .bt-goal-meta{margin:8px 14px 0;padding:5px 9px;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:17px}
 .bt-goal-warn{margin:8px 14px 0;padding:6px 9px;border-left:2px solid var(--bt-line-warning);border-radius:0 8px 8px 0;background:var(--bt-warning-wash);color:var(--bt-warning-text);font-size:var(--bt-text-helper);line-height:17px}
+.bt-goal-att{display:flex;flex-direction:column;gap:2px;margin:8px 14px 0}
+.bt-goal-att .bt-goal-sub{padding:0 2px 2px}
+.bt-goal-att-row{display:flex;align-items:baseline;gap:8px;min-width:0;width:100%;padding:5px 8px;border:0;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-helper);line-height:17px;text-align:left;cursor:pointer}
+.bt-goal-att-row:hover{background:var(--bt-hover)}
+.bt-goal-att-name{flex:none;max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.bt-goal-att-label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink-2)}
+.bt-goal-att-go{flex:none;color:var(--bt-accent)}
 .bt-goal-actions{display:flex;gap:8px;padding:8px 14px 10px;border-top:.5px solid var(--bt-line)}
 .bt-goal-primary{height:var(--bt-control-h-lg);padding:0 14px;border:1px solid var(--bt-accent);border-radius:8px;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font:inherit;font-size:var(--bt-text-helper);font-weight:600;cursor:pointer;transition:filter .12s ease}
 .bt-goal-primary:hover{filter:brightness(1.06)}

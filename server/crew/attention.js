@@ -32,3 +32,22 @@ export const roomNeedsYou = (room, messages = []) => {
   if (room.state !== 'active') return null
   return roomPresentationOfRoom(room)?.needsYou?.(room, messages) ?? null
 }
+
+// 收件箱：这间房自己等人处理的，加上子房里还在等你的。第一条给胶囊和侧栏，
+// 其余的只在岛里列出来；不用再开第二个注意力来源。
+export const roomAttention = (room, messages = [], children = []) => {
+  const own = roomNeedsYou(room, messages)
+  const items = own === null ? [] : [own]
+  for (const child of children) {
+    const childRoom = child?.room
+    if (childRoom === undefined || childRoom === null || childRoom.state !== 'active') continue
+    const needs = roomNeedsYou(childRoom, child.messages ?? [])
+    if (needs === null) continue
+    items.push({
+      ...needs,
+      roomId: childRoom.id,
+      roomName: typeof childRoom.name === 'string' ? childRoom.name : childRoom.id,
+    })
+  }
+  return items
+}

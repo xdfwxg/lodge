@@ -5,7 +5,7 @@ import { parseDecisionItems } from './decision-brief.js'
 import { LiveGate, StageAction } from './stage-controls.js'
 import { gateStatus, stageGate, stageNeedsHuman } from './stage-gate.js'
 
-function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswer, onSetAcceptance, onVerify, onRework, onApproval, advisor, onShadowReconfirm }) {
+function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswer, onSetAcceptance, onVerify, onRework, onApproval }) {
   const [localOpen, setLocalOpen] = useState(false)
   const open = controlledOpen ?? localOpen
   const setOpen = value => {
@@ -45,8 +45,8 @@ function StageDock({ room, open: controlledOpen, onOpenChange, onAccept, onAnswe
     : room.live === true && !hasPass
   if (!canAct || !stageNeedsHuman(room, activeIndex)) return null
   const body = activeStage.kind === 'decision'
-    ? h(StageAction, { room, stage: activeStage, index: activeIndex, onAccept, onAnswer, onRework, advisor, onShadowReconfirm })
-    : h(LiveGate, { room, stage: activeStage, index: activeIndex, onSetAcceptance, onVerify, onAccept, onRework, advisor, onShadowReconfirm })
+    ? h(StageAction, { room, stage: activeStage, index: activeIndex, onAccept, onAnswer, onRework })
+    : h(LiveGate, { room, stage: activeStage, index: activeIndex, onSetAcceptance, onVerify, onAccept, onRework })
   return h('div', { className: 'crew-stage-dock', 'data-open': open },
     h('button', {
       type: 'button',

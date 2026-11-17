@@ -23,8 +23,6 @@ export function StudioTranscript({
   onAccept,
   onStageAccept,
   onAnswerCard = null,
-  advisor = { available: false, host: '' },
-  onShadowReconfirm = null,
   onCancelQueue = null,
   onSteerQueue = null,
   onContinue = null,

@@ -564,30 +564,48 @@ test('a studio receipt becomes the chat room receipt and transfer record', async
   assert.ok(result.body.room.transfer.at > 0)
 })
 
-test('studio creation keeps advisor off the main path', async () => {
-  const store = createStore({ dataDir: temp('lodge-advisor-data-') })
-  const ports = createCrewPorts()
-  let calls = 0
-  ports.advisor = { available: true, describe: () => ({ available: true, host: 'advisor.example' }), advice: async () => { calls += 1; return { available: true, advice: [] } } }
+test('studio creation puts the shadow reviewer in a hidden bot, not the gate', async () => {
+  const store = createStore({ dataDir: temp('lodge-shadow-data-') })
   const result = await createRealRoom({
     store,
     engine: fakeEngine(),
     live: fakeLive(),
     emit: () => {},
     body: {
-      goal: '验证 Gate 不再调用 advisor',
+      goal: '验证影子评审不进主链路',
       verify: 'manual',
       shadowReview: true,
       members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     },
     workspace: null,
-    ports,
+    ports: createCrewPorts(),
   })
   assert.equal(result.ok, true)
-  assert.equal(calls, 0)
-  assert.equal(result.body.room.gate.decision, 'allow')
-  assert.equal('advice' in result.body.room.gate, false)
-  assert.equal('advisor' in result.body.room.gate, false)
-  assert.equal(result.body.room.shadowReview, true)
-  assert.equal(result.body.room.advisorConsent.host, 'advisor.example')
+  const room = result.body.room
+  assert.equal(room.shadowReview, true)
+  assert.ok(room.shadowBot?.memberRef)
+  assert.equal(room.members.some(member => member.body?.ref === room.shadowBot.memberRef), false)
+  assert.equal(room.gate.decision, 'allow')
+  assert.equal('advice' in room.gate, false)
+  assert.equal('advisor' in room.gate, false)
+})
+
+test('studio creation leaves no shadow bot when the option is off', async () => {
+  const store = createStore({ dataDir: temp('lodge-shadow-off-data-') })
+  const result = await createRealRoom({
+    store,
+    engine: fakeEngine(),
+    live: fakeLive(),
+    emit: () => {},
+    body: {
+      goal: '不勾影子评审',
+      verify: 'manual',
+      members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+    },
+    workspace: null,
+    ports: createCrewPorts(),
+  })
+  assert.equal(result.ok, true)
+  assert.equal('shadowBot' in result.body.room, false)
+  assert.notEqual(result.body.room.shadowReview, true)
 })

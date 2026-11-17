@@ -35,6 +35,8 @@ export const createMessageProjector = ({ store }) => {
   const toStored = (roomId, message) => {
     const room = store.readRoom(roomId)
     if (room?.hiddenBaseMessages?.includes(message.id) === true) return null
+    // 影子评审不在房间里发言：它的回复只进 advice，不进时间线。
+    if (typeof room?.shadowBot?.memberRef === 'string' && message.authorRef === room.shadowBot.memberRef) return null
     if (isInternalPrompt(message.text)) return null
     const memberId = memberForRef(room, message.authorRef)
     const common = { id: message.id, roomId, ts: message.at }

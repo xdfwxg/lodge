@@ -11,7 +11,7 @@ export const createProvisioner = ({ engine }) => {
   const createdRooms = []
   let cleanupExtra = null
 
-  const provision = async ({ roster, short, title, goal, handoff = null, verify, acceptance, workspaces, roomType = 'studio' }) => {
+  const provision = async ({ roster, short, title, goal, handoff = null, verify, acceptance, workspaces, roomType = 'studio', shadowReview = false }) => {
     const mode = roomModeForType(roomType)
     const instances = await bodies.instances()
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
@@ -62,7 +62,7 @@ export const createProvisioner = ({ engine }) => {
       .filter(({ memberRef }) => memberRef.fallback === true)
       .map(({ member, memberRef }) => [member.id, { requested: memberRef.requestedEngine, actual: memberRef.engine, reason: memberRef.reason }]))
     const leadMember = created.find(({ member }) => kindOf(member) === 'planner') ?? created[0]
-    const extra = await mode.provisionExtra({ host: bodies, short, workspaces, leadMember }) ?? null
+    const extra = await mode.provisionExtra({ host: bodies, short, workspaces, leadMember, shadowReview }) ?? null
     cleanupExtra = extra?.cleanup ?? null
     const extraMembers = extra?.members ?? []
     const chatMembers = [
@@ -111,7 +111,16 @@ export const createProvisioner = ({ engine }) => {
         body,
       }
     })
-    return { members, approvalGates, engineFallbacks, independence, chatRoom, chatHost, bodyIssues }
+    return {
+      members,
+      approvalGates,
+      engineFallbacks,
+      independence,
+      chatRoom,
+      chatHost,
+      bodyIssues,
+      shadowBot: extra?.shadowBot ?? null,
+    }
   }
 
   const cleanup = async () => {

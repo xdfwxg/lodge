@@ -33,7 +33,6 @@ function NewRoomDialog({
   roomTypes = [],
   engines = [],
   features = null,
-  advisor = { available: false, host: '' },
   seed = null,
   onRefresh = null,
   startType = null,
@@ -484,18 +483,8 @@ function NewRoomDialog({
     onInteraction: clearNote,
     onAdvanced: () => setAdvanced(true),
     verifyMode,
-    onVerifyMode: setVerifyMode,
-    acceptanceDraft,
-    onAcceptanceDraft: setAcceptanceDraft,
-    showVerify: handoff === null,
     shadowReview,
     onShadowReview: setShadowReview,
-    advisor,
-    recommending,
-    canRecommend: goal.trim() !== '',
-    onRecommend: isChat || handoff !== null || typeof onRecommend !== 'function'
-      ? null
-      : () => void recommend(),
   }
 
   const goalField = h('div', { className: 'crew-field' },

@@ -1,6 +1,5 @@
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { runCommand } from './acceptance.js'
-import { createAdvisorClient } from './advisor.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
 import { writeConclusion, writeGoal } from './room-repo.js'
 import { writeMemberEnv } from './member-env.js'
@@ -23,8 +22,6 @@ export const createCrewPorts = () => ({
     exists: path => existsSync(path),
     remove: path => rmSync(path, { recursive: true, force: true }),
   },
-  // 可选端口；当前不在建房、Gate 或复核主链路上。
-  advisor: createAdvisorClient(),
   commands: {
     run: runCommand,
   },

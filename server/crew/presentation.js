@@ -1,4 +1,4 @@
-import { roomNeedsYou } from './attention.js'
+import { roomAttention } from './attention.js'
 import { independenceLabel } from './digest.js'
 import { capabilitiesFor } from './room-types/index.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
@@ -18,10 +18,11 @@ const publicBody = body => {
 }
 
 // 外层只看到房间、成员和交付；基座房间、身体地址和隐藏消息留在适配层。
-export const presentRoom = (room, messages = [], assignments = []) => {
+export const presentRoom = (room, messages = [], assignments = [], { children = [] } = {}) => {
   const {
     chatRoom,
     chatHost,
+    shadowBot,
     hiddenBaseMessages,
     seatBots,
     seatNames,
@@ -39,11 +40,13 @@ export const presentRoom = (room, messages = [], assignments = []) => {
     ...(projection ?? {}),
     ...(projection === null ? {} : { assignments }),
   }
+  const attention = roomAttention(view, messages, children)
   return {
     ...view,
     revision: room.version ?? 1,
     capabilities: roomCapabilities(room),
-    needsYou: roomNeedsYou(view, messages),
+    attention,
+    needsYou: attention[0] ?? null,
     modeCapabilities: capabilitiesFor(room.roomType),
     independenceLabel: independenceLabel(room),
     delivery: roomPresentationOfRoom(view)?.deliveryOf?.(view, messages) ?? null,

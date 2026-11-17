@@ -55,3 +55,25 @@ test('room events and state share one projected status and independence label', 
   assert.deepEqual(presented.capabilities, { dispatch: false })
   assert.equal(room.needsYou, undefined, 'projection does not mutate the stored room')
 })
+
+test('a subroom that waits on you is listed next to this room', () => {
+  const child = {
+    id: 'child-1',
+    name: '写欢迎语',
+    state: 'active',
+    stages: [{ title: 'welcome', kind: 'decision', state: 'active' }],
+  }
+  const room = {
+    id: 'room-1',
+    state: 'active',
+    busy: false,
+    openQuestion: null,
+    stages: [{ title: 'docs', kind: 'decision', state: 'active' }],
+    childRoomIds: ['child-1'],
+  }
+  const presented = presentRoom(room, [], [], { children: [{ room: child, messages: [] }] })
+  assert.equal(presented.attention.length, 2)
+  assert.equal(presented.needsYou.label, '待确认')
+  assert.equal(presented.attention[1].roomId, 'child-1')
+  assert.equal(presented.attention[1].roomName, '写欢迎语')
+})

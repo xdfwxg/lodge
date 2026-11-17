@@ -689,6 +689,13 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-dev-options>summary{display:flex;align-items:center;min-height:28px;cursor:pointer;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .crew-dev-options[open]>summary{margin-bottom:6px}
 .crew-choice-row{display:flex;flex-wrap:wrap;gap:8px}
+/* 两个选项只用一条分段控件，选中的一块浮起来。 */
+.crew-seg{display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:999px;background:var(--bt-shade-2);align-self:flex-start}
+.crew-seg-item{height:28px;padding:0 12px;border:0;border-radius:999px;background:none;color:var(--bt-ink-2);font:inherit;font-size:var(--bt-text-helper);line-height:1;cursor:pointer;white-space:nowrap}
+.crew-seg-item:hover:not([data-on="true"]){color:var(--bt-ink)}
+.crew-seg-item[data-on="true"]{background:var(--bt-card);color:var(--bt-ink);font-weight:600;box-shadow:0 1px 2px rgba(20,20,20,.08)}
+.crew-seg-item:disabled{opacity:.45;cursor:default}
+.crew-seg + .crew-goal-input{margin-top:8px}
 .crew-new-recommend{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
 .crew-dialog-foot{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding:16px 24px 24px;border-top:1px solid var(--bt-line);background:var(--bt-card)}
 .crew-dialog-foot-hint{margin-right:auto;align-self:center;max-width:58%;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
@@ -700,6 +707,9 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-accept[data-danger=true]{background:var(--bt-danger-soft);border-color:var(--bt-line-danger);color:var(--bt-danger-text)}
 .crew-accept[data-danger=true]:hover{filter:brightness(1.02)}
 .crew-check{display:flex;align-items:center;gap:6px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-2)}
+/* 勾选一行加一句从属说明：说明缩到文字下面，整组用细边和上面的成员列表分开。 */
+.crew-check-block{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;border:.5px solid var(--bt-line-2);background:transparent}
+.crew-check-block > .crew-field-hint{padding-left:22px}
 .crew-check input{accent-color:var(--bt-accent)}
 .crew-check-end{align-self:flex-end}
 @media (max-width:560px){

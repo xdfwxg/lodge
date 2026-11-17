@@ -135,7 +135,6 @@ export function createStore() {
         roomTypes: data.roomTypes ?? [],
         engines: data.engines ?? [],
         features: data.features ?? null,
-        advisor: data.advisor ?? { available: false, host: '' },
         runtime,
         activeId,
         error: null,
@@ -243,12 +242,6 @@ export function createStore() {
     renameRoom: async (id, name) => {
       const data = await post(`/api/rooms/${id}/rename`, { name })
       if (data?.room === undefined) return { ok: false, error: state.error ?? '名字没能改过来' }
-      await load()
-      return { ok: true, room: data.room }
-    },
-    shadowReviewRoom: async (id, enabled) => {
-      const data = await post(`/api/rooms/${id}/shadow-review`, { enabled })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '第二意见没能更新' }
       await load()
       return { ok: true, room: data.room }
     },

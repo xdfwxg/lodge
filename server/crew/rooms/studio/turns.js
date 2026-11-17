@@ -14,18 +14,22 @@ import { dispatchOf } from '../../assignment-projections.js'
 import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-members.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 import { settleCompletedSubrooms } from './subrooms.js'
+import { detectCheckCommand } from '../../project-checks.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, files, advisor = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, files, shadow = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
-  const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, advisor })
+  const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, shadow })
+  const autoFailures = new Map()
   const acceptance = createAcceptanceRunner({
     store,
     roomId,
     markProgress: state.markProgress,
     requestReview: review.request,
     run: commands.run,
+    onAutoPass: ({ stageIndex }) => autoFailures.delete(stageIndex),
+    onAutoFail: info => autoRework(info),
   })
   const integrator = createStageIntegrator({
     store,
@@ -43,6 +47,54 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     integrate: integrator.integrate,
     enqueue: integrator.enqueue,
   })
+  const autoChecks = new Set()
+  const noCheckNoted = new Set()
+
+  // 自动检查没通过就退回重做，把人从“要不要在意这个红结果”里解放出来；
+  // 连续两次还不过就停手，交给用户决定。
+  const autoRework = async ({ stageIndex, command, exit, output }) => {
+    const room = store.readRoom(roomId)
+    if (room === null || room.state !== 'active') return
+    const stage = room.stages?.[stageIndex]
+    if (stage === undefined || stage.state !== 'active' || stage.manual !== true) return
+    if ((room.busyMembers ?? []).length > 0) return
+    const failures = (autoFailures.get(stageIndex) ?? 0) + 1
+    autoFailures.set(stageIndex, failures)
+    if (failures > 2) {
+      store.appendMessage(roomId, { kind: 'system', text: '自动检查连续没通过；先停下来，由你决定下一步。' })
+      return
+    }
+    const tail = String(output ?? '').trim().slice(-1500)
+    const note = [`自动检查没通过：${command}（退出码 ${exit}）。`, tail].filter(Boolean).join('\n')
+    try {
+      await stageStarter.startStage(room, stageIndex, { note, rework: true })
+    } catch (error) {
+      store.appendMessage(roomId, { kind: 'system', text: `自动退回重做没能开始：${error?.message ?? error}` })
+    }
+  }
+
+  // 产品自己保证检查：仓库里有能跑的检查就跑，认不出来就说清楚，不拿空命令问人。
+  const autoCheck = (room, stageIndex, turnId) => {
+    const key = `${stageIndex}:${turnId}`
+    if (autoChecks.has(key)) return
+    autoChecks.add(key)
+    const detected = detectCheckCommand(files, room.repoPath)
+    if (detected === null) {
+      if (!noCheckNoted.has(stageIndex)) {
+        noCheckNoted.add(stageIndex)
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: `第 ${stageIndex + 1} 步没有可自动运行的检查；结果由你确认。`,
+        })
+      }
+      return
+    }
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: `自动检查：${detected.command}（${detected.reason}）`,
+    })
+    void acceptance.run(stageIndex, detected.command, turnId, { auto: true, reason: detected.reason })
+  }
 
   const markManualReady = (room, stageIndex, turnId, worked) => {
     let candidate = null
@@ -345,6 +397,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       if (target?.manual === true && target.state === 'active' && !state.acceptanceRuns.has(key)) {
         state.acceptanceRuns.add(key)
         markManualReady(room, stage, turnId, worked)
+        if (worked === true) autoCheck(room, stage, turnId)
       } else if (command !== '' && target?.kind === 'deliverable' && target.state === 'active' && worked && !state.acceptanceRuns.has(key)) {
         state.acceptanceRuns.add(key)
         void acceptance.run(stage, command, turnId)

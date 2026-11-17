@@ -48,13 +48,19 @@ export const decisionOf = room => {
   if (needs === null || needs === undefined || !DECISION_KINDS.has(needs.kind)) return null
   const index = Number.isInteger(needs.stage) ? needs.stage : null
   const label = stageLabel(room, index)
+  const fromChild = typeof needs.roomId === 'string' && needs.roomId !== room.id
+  const childName = typeof needs.roomName === 'string' && needs.roomName !== '' ? needs.roomName : '子房间'
+  const own = fromChild ? `${childName}：${needs.label ?? '待处理'}` : decisionText(needs.kind, label, needs.label)
+  const more = Array.isArray(room?.attention) ? room.attention.length - 1 : 0
   return {
-    key: `decision:${needs.kind}:${index ?? '-'}`,
+    key: fromChild
+      ? `decision:${needs.roomId}:${needs.kind}:${index ?? '-'}`
+      : `decision:${needs.kind}:${index ?? '-'}`,
     kind: 'decision',
     needs: needs.kind,
     tone: DECISION_TONE[needs.kind] ?? 'waiting',
-    title: decisionText(needs.kind, label, needs.label),
-    detail: label === '' ? needs.label ?? '' : `${label} · ${needs.label ?? ''}`,
+    title: more > 0 ? `${own} · 还有 ${more} 件` : own,
+    detail: fromChild ? own : label === '' ? needs.label ?? '' : `${label} · ${needs.label ?? ''}`,
     action: 'open',
   }
 }

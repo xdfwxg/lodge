@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { independenceOf } from '../../view-format.js'
 import { ConfirmationPoints } from './opening-points.js'
-import { ShadowAdvice, ShadowReconfirm } from './advisor-advice.js'
+import { ShadowAdvice } from './advisor-advice.js'
 import { reworkFloorOf } from './stage-gate.js'
 
 function ReworkControl({ room, index, onRework, label = '重做这一步' }) {
@@ -64,7 +64,7 @@ function FinalSummary({ room }) {
     h('p', { className: 'crew-field-hint' }, '确认后，这间房就完成了。'))
 }
 
-export function StageAction({ room, stage, index, onAccept, onAnswer, onRework, advisor, onShadowReconfirm }) {
+export function StageAction({ room, stage, index, onAccept, onAnswer, onRework }) {
   const blocked = Boolean(room.openQuestion)
   const locked = room.state !== 'active'
   const next = room.stages[index + 1]
@@ -127,7 +127,6 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework, 
               : `没问题的话，下一步是「${next.title}」。`),
           blocked ? null : h('p', { className: 'crew-gate-hint' }, '哪里不对，直接在下面对我说。')),
         h('div', { className: 'crew-card-foot' },
-          blocked ? null : h(ShadowReconfirm, { room, advisor, onConfirm: onShadowReconfirm }),
           blocked ? null : h(ShadowAdvice, { room, stageIndex: index }),
           stage.manual === true && !blocked
             ? h(ReworkControl, { room, index, onRework })
@@ -140,7 +139,7 @@ export function StageAction({ room, stage, index, onAccept, onAnswer, onRework, 
           }, actionLabel)))))
 }
 
-export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept, onRework, advisor, onShadowReconfirm }) {
+export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAccept, onRework }) {
   const [draft, setDraft] = useState(stage.acceptance ?? '')
   const [busy, setBusy] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -234,7 +233,6 @@ export function LiveGate({ room, stage, index, onSetAcceptance, onVerify, onAcce
             : null,
           h('p', { className: 'crew-gate-meta' }, `${hasVerifier ? '有验收员' : '没有验收员'} · ${independenceOf(room)}`)),
         h('div', { className: 'crew-card-foot' },
-          rejected || !evidence ? null : h(ShadowReconfirm, { room, advisor, onConfirm: onShadowReconfirm }),
           rejected || !evidence ? null : h(ShadowAdvice, { room, stageIndex: index }),
           rejected ? null : h(ReworkControl, { room, index, onRework }),
           editing && changed

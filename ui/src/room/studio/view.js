@@ -16,6 +16,7 @@ export const studioView = {
     room,
     members,
     status: h(CrewStatusLine, { room, members, onSwap: actions.swapBody, onAdd: actions.addMember }),
+    onOpenRoom: actions.selectRoom,
     onAdvance: () => {
       const index = room.stages.findIndex(stage => stage.state === 'active')
       if (index >= 0) actions.accept(index)
@@ -38,8 +39,6 @@ export const studioView = {
       delivery: room.delivery ?? null,
       onAccept: actions.accept,
       onStageAccept: actions.accept,
-      advisor: state.advisor ?? { available: false, host: '' },
-      onShadowReconfirm: () => actions.shadowReview(true),
       onAnswerCard: actions.answerCard,
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,

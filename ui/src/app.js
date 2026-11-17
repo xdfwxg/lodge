@@ -120,7 +120,6 @@ export function App() {
     roomTypes: state.roomTypes ?? [],
     engines: state.engines ?? [],
     features: state.features,
-    advisor: state.advisor ?? { available: false, host: '' },
     seed,
     onRefresh: () => store.refresh(),
     startType,

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { hostAddress, memberAddress, memberDisplayName, toBaseMentions } from './member-labels.js'
+import { hostAddress, memberAddress, memberDisplayName, shadowAddress, toBaseMentions } from './member-labels.js'
 import { memberOf } from './room-members.js'
 
 const INTENTS = Object.freeze({
@@ -38,9 +38,13 @@ export const deliverToBase = ({
   envelope = null,
 }) => {
   const current = store.readRoom(roomId) ?? room
-  const address = memberId === 'host' ? hostAddress(current) : memberAddress(current, memberId)
+  const address = memberId === 'host'
+    ? hostAddress(current)
+    : memberId === 'shadow' ? shadowAddress(current) : memberAddress(current, memberId)
   if (address === null) {
-    const name = memberId === 'host' ? '主持人' : memberDisplayName(current, memberId)
+    const name = memberId === 'host'
+      ? '主持人'
+      : memberId === 'shadow' ? '影子评审' : memberDisplayName(current, memberId)
     return Promise.reject(new Error(`${name} 没有基座地址，消息没有送出`))
   }
   const chatId = current?.chatRoom?.id ?? room?.chatRoom?.id

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { roomNeedsYou } from './attention.js'
+import { roomAttention, roomNeedsYou } from './attention.js'
 
 const member = (id, name, role, roleKind) => ({ id, name, role, roleKind, permissions: {}, toolSurface: [], skills: [], mcp: [], body: { kind: 'base', ref: `bot-${id}`, name } })
 const room = (over = {}) => ({
@@ -173,4 +173,39 @@ test('an idle pause asks the human to speak', () => {
 
 test('a manual pause stays quiet', () => {
   assert.equal(roomNeedsYou(room({ state: 'paused', idle: false }), []), null)
+})
+
+test('a failed automatic check asks for rework, not sign-off', () => {
+  const r = room()
+  r.stages = [{ title: 'manual', kind: 'deliverable', state: 'active', manual: true }]
+  const messages = [
+    { id: 'm1', kind: 'evidence', seq: 10, meta: { stage: 0, kind: 'manual' } },
+    { id: 'c1', kind: 'evidence', seq: 11, meta: { stage: 0, kind: 'command', auto: true, exit: 1 } },
+  ]
+  assert.deepEqual(roomNeedsYou(r, messages), {
+    kind: 'rework',
+    stage: 0,
+    label: '自动检查没通过，先重做',
+  })
+})
+
+test('the inbox holds this room and the subrooms waiting on you', () => {
+  const parent = room()
+  const child = room({ id: 'child-1', name: '写欢迎语' })
+  const delivered = room({ id: 'child-2', name: '已经交付', state: 'complete' })
+  const items = roomAttention(parent, [], [
+    { room: child, messages: [] },
+    { room: delivered, messages: [] },
+  ])
+  assert.equal(items.length, 2)
+  assert.deepEqual(items[0], { kind: 'decision', stage: 0, label: '待确认' })
+  assert.equal(items[1].roomId, 'child-1')
+  assert.equal(items[1].roomName, '写欢迎语')
+  assert.equal(items[1].label, '待确认')
+})
+
+test('an idle room with quiet subrooms has an empty inbox', () => {
+  const parent = room({ state: 'complete' })
+  const child = room({ id: 'child-1', name: '写欢迎语', state: 'paused', idle: false })
+  assert.deepEqual(roomAttention(parent, [], [{ room: child, messages: [] }]), [])
 })

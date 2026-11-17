@@ -1,6 +1,6 @@
-import { createElement as h, useState } from 'react'
+import { createElement as h } from 'react'
 
-// 影子评审只保留一份外部意见，供人签字前按需查看；没有分数，也不参与验收判定。
+// 影子评审只保留一份对照意见，供人签字前按需查看；没有分数，也不参与验收判定。
 const adviceOf = entry => {
   const first = Array.isArray(entry?.advice) ? entry.advice[0] : null
   if (first === null || typeof first !== 'object') return null
@@ -33,7 +33,7 @@ export const shadowAdviceForStage = (room, stageIndex) => {
   return adviceOf(entry)
 }
 
-export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '外部意见（仅供参考）' }) {
+export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '影子评审（仅供参考）' }) {
   const advice = stageIndex === null ? shadowAdviceFor(room, evidenceId) : shadowAdviceForStage(room, stageIndex)
   if (advice === null) return null
   return h('details', { className: 'crew-fold crew-shadow-advice' },
@@ -49,36 +49,4 @@ export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label
       ? h('p', { className: 'crew-field-hint' }, `缺失结果：${advice.missingEvidence.join('；')}`)
       : null,
     advice.model === '' ? null : h('p', { className: 'crew-field-hint' }, `来源：${advice.model}`))
-}
-
-export const needsShadowReconfirm = (room, advisor) => (
-  room?.shadowReview === true &&
-  (advisor?.available !== true || room.advisorConsent?.host !== advisor?.host)
-)
-
-export function ShadowReconfirm({ room, advisor, onConfirm }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  if (!needsShadowReconfirm(room, advisor)) return null
-  const unavailable = advisor?.available !== true
-  const host = advisor?.host ?? ''
-  const text = unavailable
-    ? '第二意见这次接不上。'
-    : `外部服务已换成 ${host}。重新确认后，签字会带上第二意见。`
-  return h('div', { className: 'crew-shadow-reconfirm' },
-    h('p', null, text),
-    unavailable ? null : h('button', {
-      type: 'button',
-      className: 'crew-ghost',
-      'aria-label': '重新确认第二意见',
-      disabled: busy,
-      onClick: async () => {
-        setBusy(true)
-        const result = await onConfirm?.()
-        setBusy(false)
-        if (result?.ok !== true) setError(result?.error ?? '第二意见没能重新确认')
-      },
-    }, busy ? '正在确认…' : '重新确认'),
-    error === '' ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, error),
-    h('p', { className: 'crew-field-hint' }, '验收不受影响。'))
 }

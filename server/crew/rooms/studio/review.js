@@ -22,7 +22,7 @@ const untrusted = (text, lang = '') => {
 }
 
 
-export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, advisor = null }) => {
+export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
   let round = null
   let shadowTask = null
@@ -236,7 +236,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       ? recordShadowAdvice({
         store,
         roomId,
-        advisor,
+        shadow,
         room,
         emit,
         index: stageIndex,
@@ -244,7 +244,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         evidence,
         manual,
       }).catch(error => {
-        store.appendMessage(roomId, { kind: 'system', text: `第二意见没能取回：${error?.message ?? error}` })
+        store.appendMessage(roomId, { kind: 'system', text: `影子评审没能取回：${error?.message ?? error}` })
         return null
       })
       : null
