@@ -175,6 +175,18 @@ test('a manual pause stays quiet', () => {
   assert.equal(roomNeedsYou(room({ state: 'paused', idle: false }), []), null)
 })
 
+test('a stopped automatic check says what the person should do now', () => {
+  const r = room()
+  r.autoCheck = { stage: 0, status: 'blocked', attempts: 3, maxAttempts: 3, reason: 'attempts' }
+  assert.deepEqual(roomNeedsYou(r, []), {
+    kind: 'auto-check',
+    stage: 0,
+    label: '这一步没做成，需要你决定',
+  })
+  r.autoCheck = { ...r.autoCheck, status: 'limit-reached', reason: 'time' }
+  assert.equal(roomNeedsYou(r, []).label, '这一步还没做成，可以再试一次')
+})
+
 test('a failed automatic check asks for rework, not sign-off', () => {
   const r = room()
   r.stages = [{ title: 'manual', kind: 'deliverable', state: 'active', manual: true }]

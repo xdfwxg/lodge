@@ -28,6 +28,16 @@ const studioNeedsYou = (room, messages = []) => {
     return { kind: 'question', stage: index, label: '待回答' }
   }
   if ((room.busyMembers ?? []).length > 0) return null
+  const auto = room.autoCheck
+  if (auto?.stage === index && (auto.status === 'blocked' || auto.status === 'limit-reached')) {
+    return {
+      kind: 'auto-check',
+      stage: index,
+      label: auto.status === 'limit-reached'
+        ? '这一步还没做成，可以再试一次'
+        : '这一步没做成，需要你决定',
+    }
+  }
   const timeout = latestReviewTimeout(messages, index)
   if (timeout !== undefined) {
     const lastVerdict = latestForStage(messages, 'verdict', index, floor)

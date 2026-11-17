@@ -48,6 +48,15 @@ test('a subroom decision says whose it is', () => {
   assert.doesNotMatch(event.title, /还有/)
 })
 
+test('a stopped automatic check reads as one plain sentence', () => {
+  const event = decisionOf(room({
+    needsYou: { kind: 'auto-check', stage: 1, label: '这一步没做成，需要你决定' },
+  }))
+  assert.equal(event.kind, 'decision')
+  assert.equal(event.tone, 'paused')
+  assert.equal(event.title, '这一步没做成，需要你决定')
+})
+
 test('ambient states do not become decisions', () => {
   assert.equal(decisionOf(room({ needsYou: { kind: 'review', stage: 1, label: '验收员在看' } })), null)
   assert.equal(decisionOf(room({ needsYou: { kind: 'idle', stage: 1, label: '可继续' } })), null)

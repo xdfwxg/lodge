@@ -4,10 +4,11 @@
 
 const DECISION_KINDS = new Set([
   'decision', 'signoff', 'question', 'rework', 'merge', 'parallel',
-  'review-timeout', 'setup', 'approval', 'error', 'mcp',
+  'review-timeout', 'setup', 'approval', 'error', 'mcp', 'auto-check',
 ])
 
 const DECISION_TONE = {
+  'auto-check': 'paused',
   rework: 'paused',
   merge: 'paused',
   parallel: 'paused',
@@ -34,6 +35,7 @@ const decisionText = (kind, label, fallback) => {
     case 'rework': return label === '' ? '有一步被退回了' : `${label}被验收退回了`
     case 'merge': return label === '' ? '合并没合上' : `${label}合并没合上`
     case 'parallel': return '并行执行卡住了'
+    case 'auto-check': return fallback ?? '这一步没做成'
     case 'review-timeout': return label === '' ? '复核没按时回来' : `${label}的复核没按时回来`
     case 'setup': return label === '' ? '还没定怎么验收' : `${label}还没定怎么验收`
     case 'approval': return '有一个操作要你点头'

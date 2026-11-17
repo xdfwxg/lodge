@@ -12,6 +12,31 @@ export const failureSignature = output => String(output ?? '')
   .slice(-5)
   .join('\n')
 
+// 停下来时告诉人下一步：blocked 要人处理，limit-reached 可以再来一轮。
+export const stopStatusOf = reason => (
+  reason === 'time' ? 'limit-reached'
+    : reason === 'same-failure' || reason === 'attempts' || reason === 'budget' ? 'blocked'
+      : ''
+)
+
+// 把前几次检查压成几行，作为重做时的进度账本；只取最后一条有内容的输出。
+export const checkLedger = (checks, { startAt = 1, limit = 3 } = {}) => {
+  const prior = checks.slice(-limit)
+  if (prior.length === 0) return ''
+  const lines = prior.map((message, offset) => {
+    const last = String(message.meta?.output ?? '')
+      .trim()
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line !== '')
+      .at(-1) ?? ''
+    const command = String(message.meta?.command ?? '')
+    const exit = message.meta?.exit ?? '?'
+    return `- 第 ${startAt + offset} 次：${command} 退出码 ${exit}${last === '' ? '' : `；${last.slice(0, 120)}`}`
+  })
+  return `前几次检查：\n${lines.join('\n')}`
+}
+
 export const nextAutoRework = ({ state, command, exit, output, room, now = Date.now() }) => {
   const signature = `${command}:${exit}:${failureSignature(output)}`
   const previous = state ?? { attempts: 0, firstAt: now, signature: '' }
@@ -32,6 +57,7 @@ export const nextAutoRework = ({ state, command, exit, output, room, now = Date.
   return {
     retry: reason === '',
     reason,
+    status: stopStatusOf(reason),
     state: { attempts, firstAt, signature },
   }
 }

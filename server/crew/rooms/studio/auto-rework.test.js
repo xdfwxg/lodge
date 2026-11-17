@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { AUTO_REWORK_WINDOW_MS, MAX_AUTO_REWORKS, nextAutoRework } from './auto-rework.js'
+import { AUTO_REWORK_WINDOW_MS, MAX_AUTO_REWORKS, checkLedger, nextAutoRework, stopStatusOf } from './auto-rework.js'
 
 const room = over => ({ usage: { costMicroUsd: 0, budgetMicroUsd: 0 }, ...over })
 const fail = (state, over = {}) => nextAutoRework({
@@ -37,6 +37,25 @@ test('a different failure keeps going until the attempt limit', () => {
   const over = fail(state, { output: 'FAIL a new one', now: 5_000 })
   assert.equal(over.retry, false)
   assert.equal(over.reason, 'attempts')
+})
+
+test('each stop says whether the person must step in or can retry', () => {
+  assert.equal(stopStatusOf('same-failure'), 'blocked')
+  assert.equal(stopStatusOf('attempts'), 'blocked')
+  assert.equal(stopStatusOf('budget'), 'blocked')
+  assert.equal(stopStatusOf('time'), 'limit-reached')
+  assert.equal(stopStatusOf(''), '')
+})
+
+test('the ledger names the last attempts and their last output line', () => {
+  const check = (command, exit, output) => ({ meta: { auto: true, command, exit, output } })
+  const ledger = checkLedger([
+    check('npm test', 1, 'FAIL one\n  expected 1'),
+    check('npm test', 1, 'FAIL two\n  expected 2'),
+  ])
+  assert.match(ledger, /第 1 次：npm test 退出码 1；expected 1/)
+  assert.match(ledger, /第 2 次：npm test 退出码 1；expected 2/)
+  assert.equal(checkLedger([]), '')
 })
 
 test('a long loop or an exhausted budget stops as well', () => {

@@ -15,7 +15,7 @@ import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-membe
 import { vcsOf, workspaceOf } from './workspace.js'
 import { settleCompletedSubrooms } from './subrooms.js'
 import { detectCheckCommand } from '../../project-checks.js'
-import { AUTO_REWORK_WINDOW_MS, nextAutoRework } from './auto-rework.js'
+import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from './auto-rework.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
 export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, files, shadow = null }) => {
@@ -29,7 +29,10 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     markProgress: state.markProgress,
     requestReview: review.request,
     run: commands.run,
-    onAutoPass: ({ stageIndex }) => autoLoops.delete(stageIndex),
+    onAutoPass: ({ stageIndex }) => {
+      autoLoops.delete(stageIndex)
+      setAutoCheck(stageIndex, null)
+    },
     onAutoFail: info => autoRework(info),
   })
   const integrator = createStageIntegrator({
@@ -65,16 +68,50 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     return lines.length === 0 ? '' : `影子评审的另一个角度（仅供参考）：\n${lines.join('\n')}`
   }
 
-  const stopAutoRework = ({ stageIndex, reason, attempts, exit }) => {
+  const stopAutoRework = ({ stageIndex, reason, status, attempts }) => {
     const text = reason === 'same-failure'
-      ? '自动检查又卡在同一个地方；先停下来，由你决定下一步。'
+      ? '这一步没做成：同一处失败反复出现，重做也没绕开。需要你决定下一步。'
       : reason === 'time'
-        ? `自动检查在 ${Math.round(AUTO_REWORK_WINDOW_MS / 60_000)} 分钟内没能通过；先停下来，由你决定下一步。`
+        ? '这一步还没做成：自动检查到时间上限就先停了。可以再试一次，或自己处理。'
         : reason === 'budget'
-          ? '这个房间的额度用完了，自动检查先停下；结果和失败输出都还在房间里。'
-          : `自动检查试了 ${attempts} 次仍未通过（最后一次退出码 ${exit}）；先停下来，由你决定下一步。`
-    store.appendMessage(roomId, { kind: 'system', text })
-    store.appendEvent(roomId, 'auto_rework.stopped', { stage: stageIndex, reason, attempts })
+          ? '这一步先停下了：房间额度用完了。结果和失败输出都还在房间里。'
+          : '这一步没做成：自动检查试了几次都没通过。需要你决定下一步。'
+    store.appendMessage(roomId, { kind: 'system', text, meta: { autoCheckStop: status } })
+    store.appendEvent(roomId, 'auto_rework.stopped', { stage: stageIndex, reason, status, attempts })
+    setAutoCheck(stageIndex, { status, reason, attempts })
+  }
+
+  // 停止状态记在房间里：界面只说人话，次数和原因留在记录里备查。
+  const setAutoCheck = (stageIndex, patch) => {
+    const updated = store.updateRoom(roomId, current => {
+      if (patch === null) {
+        if (current.autoCheck?.stage !== stageIndex) return null
+        delete current.autoCheck
+        return { events: [] }
+      }
+      current.autoCheck = {
+        stage: stageIndex,
+        maxAttempts: MAX_AUTO_REWORKS,
+        at: Date.now(),
+        ...(current.autoCheck?.stage === stageIndex ? current.autoCheck : {}),
+        ...patch,
+      }
+      return { events: [{ type: 'room.auto_check', payload: { stage: stageIndex, status: patch.status, attempts: patch.attempts ?? 0 } }] }
+    })
+    if (updated !== null) emit?.('room', updated)
+    return updated
+  }
+
+  // 房间记录就是进度账本：重做时把前几次试过什么一并带上，不只看见最后一次失败。
+  const autoLedger = stageIndex => {
+    const prior = store.readMessages(roomId)
+      .filter(message => (
+        message.kind === 'evidence' &&
+        message.meta?.auto === true &&
+        (message.meta?.stage ?? 0) === stageIndex
+      ))
+      .slice(0, -1)
+    return checkLedger(prior, { startAt: Math.max(1, prior.length - 2) })
   }
 
   const autoRework = async ({ stageIndex, command, exit, output }) => {
@@ -86,11 +123,12 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     const decision = nextAutoRework({ state: autoLoops.get(stageIndex), command, exit, output, room })
     autoLoops.set(stageIndex, decision.state)
     if (decision.retry !== true) {
-      stopAutoRework({ stageIndex, reason: decision.reason, attempts: decision.state.attempts, exit })
+      stopAutoRework({ stageIndex, reason: decision.reason, status: decision.status, attempts: decision.state.attempts })
       return
     }
     const tail = String(output ?? '').trim().slice(-1500)
     const note = [
+      autoLedger(stageIndex),
       `自动检查没通过（第 ${decision.state.attempts} 次）：${command}（退出码 ${exit}）。`,
       tail,
       shadowAdviceText(room, stageIndex),
@@ -113,15 +151,13 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
         noCheckNoted.add(stageIndex)
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `第 ${stageIndex + 1} 步没有可自动运行的检查；结果由你确认。`,
+          text: `第 ${stageIndex + 1} 步没有可自动运行的检查；需要你看过结果后确认。`,
+          meta: { autoCheckStop: 'needs-input' },
         })
+        setAutoCheck(stageIndex, { status: 'needs-input', reason: 'no-check', attempts: 0 })
       }
       return
     }
-    store.appendMessage(roomId, {
-      kind: 'system',
-      text: `自动检查：${detected.command}（${detected.reason}）`,
-    })
     void acceptance.run(stageIndex, detected.command, turnId, { auto: true, reason: detected.reason })
   }
 

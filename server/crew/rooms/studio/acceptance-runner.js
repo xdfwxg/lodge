@@ -140,16 +140,12 @@ export const createAcceptanceRunner = ({
       ...(auto ? { auto: true } : {}),
     })
     if (auto === true) {
-      const passed = result.exit === 0
-      store.appendMessage(roomId, {
-        kind: 'system',
-        text: passed ? '自动检查通过 · 结果供你确认' : '自动检查没通过 · 已退回重做',
-      })
-      if (passed) {
+      if (result.exit === 0) {
+        store.appendMessage(roomId, { kind: 'system', text: '自动检查通过 · 结果供你确认' })
         markProgress()
         onAutoPass?.({ stageIndex, command })
       } else {
-        // 没通过就不交给人：直接退回重做，让执行者拿着失败输出改。
+        // 没通过就退回重做；失败本身留在证据里，不往时间线里再喊一遍。
         await onAutoFail?.({ stageIndex, command, exit: result.exit, output: result.output })
       }
       return

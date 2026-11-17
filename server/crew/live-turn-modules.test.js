@@ -578,7 +578,7 @@ test('a failed auto check sends the step back instead of asking for sign-off', a
   assert.deepEqual(failed, { stageIndex: 0, command: 'npm test', exit: 1, output: 'boom' })
   const evidence = store.messages.find(message => message.meta?.auto === true)
   assert.equal(evidence.meta.exit, 1)
-  assert.ok(store.messages.some(message => /已退回重做/.test(message.text ?? '')))
+  assert.equal(store.messages.some(message => /退回重做/.test(message.text ?? '')), false)
 })
 
 test('a manual stage runs the check the repository itself declares', async () => {
