@@ -12,6 +12,7 @@ import { studioTransitionEvent, transitionStudio } from './state.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { verifierIds } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
+import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
@@ -150,20 +151,14 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
     if (next >= 0) appendMessage(room.id, stageConclusion(room, room.stages[index], index, next))
+    const finalStage = mergedFinal >= 0 ? room.stages[mergedFinal] : null
     appendMessage(room.id, {
       kind: 'system',
-      text: gate.stage.kind === 'deliverable'
-        ? `阶段 ${index + 1} 已按证据验收`
-        : `第 ${index + 1} 步已经定了`,
+      text: finalStage === null
+        ? `第 ${index + 1} 步「${gate.stage.title}」${gate.stage.kind === 'deliverable' ? '通过了' : '确认了'}。`
+        : `第 ${index + 1} 步「${gate.stage.title}」通过了；第 ${mergedFinal + 1} 步「${finalStage.title}」也一起确认了。`,
       meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you' },
     })
-    if (mergedFinal >= 0) {
-      appendMessage(room.id, {
-        kind: 'system',
-        text: `第 ${mergedFinal + 1} 步已经定了`,
-        meta: { kind: 'gate', gate: 'decision', stage: mergedFinal, by: 'you' },
-      })
-    }
     for (const assignment of activeDispatchAssignments(store, room.id, index)) {
       transitionAssignment(store, assignment.id, 'passed')
     }
@@ -172,10 +167,19 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const completes = next < 0 && typeof room.parentRoomId === 'string' && room.parentRoomId !== ''
     const finalRoom = completes ? completeRoom(room) ?? room : room
     if (completes) notifyParent(finalRoom)
-    if (next >= 0 && room.live === true && (room.stages[next]?.kind === 'deliverable' || room.stages[next]?.manual === true) && typeof live.startStage === 'function') {
-      void live.startStage(room, next).catch(error => {
-        systemNotice({ store, roomId: room.id, text: '这一步没能开始；需要你处理。', error })
-      })
+    // 往下走由规划师决定：房间只把“通过”和下一步的事实告诉它。
+    const lead = leadMemberOf(room)?.id
+    if (room.live === true && typeof lead === 'string' && lead !== '' && typeof live.sendToMember === 'function') {
+      const nextStage = next >= 0 ? room.stages[next] : null
+      const prompt = nextStage === null
+        ? `第 ${index + 1} 步「${gate.stage.title}」通过，计划里的工作步骤走完了。说一句收尾，或者接着安排下一步。`
+        : [
+          `第 ${index + 1} 步「${gate.stage.title}」验收通过了。下一步是第 ${next + 1} 步「${nextStage.title}」。`,
+          nextStage.acceptance ? `完成标准：${nextStage.acceptance}` : '',
+          '要继续，就在群里 @ 执行成员，把下一步说清楚；要收尾或改计划，就直说。',
+        ].filter(Boolean).join('\n')
+      void live.sendToMember(room.id, lead, `${prompt}\n${INTERNAL_PROMPT_MARKER}`, { intent: 'notice', from: '房间' })
+        .catch(error => systemNotice({ store, roomId: room.id, text: '没能叫住规划师；下一步还没安排。', error }))
     }
     return ok({ room: finalRoom })
   }

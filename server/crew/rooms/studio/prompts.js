@@ -33,6 +33,7 @@ export const studioWorkerPrompt = ({
       ? 'node_modules 已软链为只读依赖，不要修改它。'
       : '',
     workspace.candidate === true ? '系统会提交候选。' : '不要改房间记录。',
+    '回复时像对同事说话：一两句讲清做了什么、结果怎样；不分点、不写小标题、不复述目标。',
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')
 }

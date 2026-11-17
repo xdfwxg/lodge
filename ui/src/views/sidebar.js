@@ -370,12 +370,12 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
   const overlay = useOverlay({ label: deleting ? '删除房间' : '归档房间', onClose: dismiss, active: true })
   return h('div', { className: 'crew-overlay', onClick: dismiss, ...overlay },
     h('div', { className: 'crew-dialog crew-confirm', onClick: event => event.stopPropagation() },
-      h('div', { className: 'crew-dialog-heading' },
-        h('h2', null, deleting ? '删除房间' : '归档房间'),
+      h('div', { className: 'crew-dialog-heading crew-confirm-body' },
+        h('h2', null, deleting ? `删除「${room.name}」？` : `归档「${room.name}」？`),
         h('p', null, deleting
-          ? `「${room.name}」的房间记录和过程档案会删除，文件会留着。`
-          : `「${room.name}」会停止，收进「已归档」。随时可以恢复。`)),
-      deleting ? h('p', { className: 'crew-dialog-note crew-confirm-note' }, '删除后不能恢复。') : null,
+          ? '房间记录和过程档案会被删除，文件留着。'
+          : '房间会停止，收进「已归档」，随时可以恢复。'),
+        deleting ? h('p', { className: 'crew-confirm-warn' }, '删除后不能恢复。') : null),
       h('div', { className: 'crew-dialog-foot' },
         h('button', { type: 'button', className: 'crew-ghost', disabled: busy, onClick: dismiss }, '取消'),
         h('button', {

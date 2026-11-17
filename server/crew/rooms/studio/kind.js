@@ -171,21 +171,15 @@ const initialMessages = ({ room, workspaces, engineFallbacks, approvalGates = {}
   // 能从房间字段和交付卡里查到，不再复述。
   const messages = []
   // 规划师的排期要像一条消息说出来，而不是只藏在岛上。
-  const stages = Array.isArray(room?.stages) ? room.stages : []
-  if (stages.length > 0) {
+  // 计划是规划师自己在方案里说的话，平台不再替它复述步骤。
+  const prose = typeof room?.plan?.prose === 'string' ? room.plan.prose.trim() : ''
+  if (prose !== '') {
     const lead = room?.leadMemberId
       ?? (room?.members ?? []).find(member => member.role === 'lead' || member.roleKind === 'planner')?.id
-    const lines = stages.map((stage, index) => (
-      `${index + 1}. ${stage.title} — ${stage.manual === true
-        ? '人看过结果再算完'
-        : typeof stage.acceptance === 'string' && stage.acceptance.trim() !== ''
-          ? `检查：${stage.acceptance.trim()}`
-          : '人确认'}`
-    ))
     messages.push({
       kind: 'plan',
       ...(typeof lead === 'string' && lead !== '' ? { authorId: lead } : {}),
-      text: `这次分 ${stages.length} 步：\n${lines.join('\n')}`,
+      text: prose,
     })
   }
   const label = { lead: '规划师', planner: '规划师', worker: '执行官', executor: '执行官', verifier: '验收员' }
@@ -224,8 +218,8 @@ export const studioKind = {
     '当前是工作室：所有成员在同一个房间目录执行；只有被 @ 的成员才会响应。',
     '你是三类成员之一：规划师、执行官、验收员；不要自创角色，也不要承担其他成员的职责。',
     '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
-    '群消息按角色工作日志格式写；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
-    '不要先发“我来/我将/开始检查”之类的准备句或过程声明；直接给工作日志或结论。',
+    '群消息像给同事发消息一样说人话；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
+    '不要先发“我来/我将/开始检查”之类的准备句，也不要写小标题；直接说结果或结论。',
     ...workContract(member.role),
     // 规划师工具协议随 soul 常驻；阶段推进不再专门唤醒规划师。
   ].filter(Boolean).join('\n'),

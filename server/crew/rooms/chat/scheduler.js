@@ -49,6 +49,7 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `用户这轮的要求：${note}`,
     '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
+    '像普通人聊天一样说自己的看法，不用报告、分点或小标题。',
     '只讨论话题本身；不要评论讨论次数、样本数量或流程。',
     `本轮表达：${personalityTurnCue(personality)}`,
     '每次发言控制在 200 字以内；不要写总结。',

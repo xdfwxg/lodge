@@ -31,6 +31,9 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     reason,
     prompt,
     acceptance,
+    message = '',
+    visible = true,
+    deliver = true,
     evidence = null,
     verdict = null,
     candidate = null,
@@ -41,14 +44,17 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     const current = store.readRoom(roomId) ?? room
     const body = String(prompt ?? '').replace(/^@\S+\s*/, '').trim()
     const label = memberDisplayName(current, to)
-    const sender = from === 'you' ? '你' : memberDisplayName(current, from)
     const step = `第 ${index + 1} 步${stage?.title ? `「${stage.title}」` : ''}`
     const check = acceptance === 'manual' || acceptance === undefined || acceptance === ''
       ? ''
-      : `（检查：${acceptance}）`
-    const summary = reason === 'review'
-      ? `${sender} @${label}：${step}做完了，请复核。`
-      : `${sender} @${label}：${rework ? '重做' : '开始'}${step}${check}。`
+      : `，验收跑 ${acceptance}`
+    const summary = String(message ?? '').trim() !== ''
+      ? String(message).trim()
+      : reason === 'review'
+        ? `@${label} ${step}做完了，帮我复核一下。`
+        : rework
+          ? `@${label} ${step}还得再改一下。`
+          : `@${label} ${step}交给你了${check}。`
     const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework })}`
     const existing = store.readAssignment(deliveryKey)
     // 已经交回或正在做的交接不再重复唤醒；同一次交接只发一次。
@@ -88,7 +94,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       })
       : existing
     const sendId = assignment.id
-    const stored = store.appendMessage(roomId, {
+    const stored = visible === false ? null : store.appendMessage(roomId, {
       kind: 'handoff',
       authorId: from,
       text: summary,
@@ -101,8 +107,25 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         from,
         to,
         reason,
-        messageId: stored.id,
+        messageId: stored?.id,
       })
+    }
+    // 规划师已经在群里 @ 了对方，基座会负责叫醒；这里只记账，不再重复投递。
+    if (deliver === false) {
+      const sent = transitionAssignment(store, assignment.id, 'sent', {
+        sendId,
+        messageId: stored?.id,
+        sentAt: Date.now(),
+      })
+      store.appendEvent(roomId, 'assignment.sent', {
+        assignmentId: assignment.id,
+        stage: index,
+        from,
+        to,
+        reason,
+        messageId: stored?.id,
+      })
+      return sent ?? assignment
     }
     try {
       await sendToMember(to, body, {
@@ -112,38 +135,42 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       })
       const sent = transitionAssignment(store, assignment.id, 'sent', {
         sendId,
-        messageId: stored.id,
+        messageId: stored?.id,
         sentAt: Date.now(),
       })
-      store.upsertMessage?.({
-        ...stored,
-        meta: { ...stored.meta, status: 'sent', sentAt: Date.now() },
-      })
+      if (stored !== null) {
+        store.upsertMessage?.({
+          ...stored,
+          meta: { ...stored.meta, status: 'sent', sentAt: Date.now() },
+        })
+      }
       store.appendEvent(roomId, 'assignment.sent', {
         assignmentId: assignment.id,
         stage: index,
         from,
         to,
         reason,
-        messageId: stored.id,
+        messageId: stored?.id,
       })
       return sent ?? assignment
     } catch (error) {
       transitionAssignment(store, assignment.id, 'failed', {
-        messageId: stored.id,
+        messageId: stored?.id,
         resultText: String(error?.message ?? error),
       })
-      store.upsertMessage?.({
-        ...stored,
-        meta: { ...stored.meta, status: 'failed', error: String(error?.message ?? error) },
-      })
+      if (stored !== null) {
+        store.upsertMessage?.({
+          ...stored,
+          meta: { ...stored.meta, status: 'failed', error: String(error?.message ?? error) },
+        })
+      }
       store.appendEvent(roomId, 'assignment.failed', {
         assignmentId: assignment.id,
         stage: index,
         from,
         to,
         reason,
-        messageId: stored.id,
+        messageId: stored?.id,
         error: String(error?.message ?? error),
       })
       throw error

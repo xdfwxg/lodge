@@ -61,13 +61,8 @@ function Timeline({
   }
 
   const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
-  const hidden = new Set(['activity', ...hideKinds])
-  const staleSignoff = message => (
-    room.state === 'complete'
-    && message.kind === 'system'
-    && /待签字|等你签字|可以签字/.test(String(message.text ?? ''))
-  )
-  const meaningful = timeline.visible.filter(message => !hidden.has(message.kind) && !staleSignoff(message))
+  const hidden = new Set(['activity', 'system', ...hideKinds])
+  const meaningful = timeline.visible.filter(message => !hidden.has(message.kind))
   return [
     ...meaningful.map(renderMessage).flat().filter(Boolean),
     ...pendingApprovals

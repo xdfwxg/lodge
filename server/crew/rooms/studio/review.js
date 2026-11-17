@@ -139,7 +139,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
           `判定：${reason === '' ? '未通过' : reason}`,
           '第一行只写「返工」或「交给人」。返工时从第二行起写清改什么、怎么算完成；交给人时从第二行起写清要人拍板什么。',
-          '不要在回复里 @ 任何人；系统会按第一行转交。',
+          '决定返工时，在话里 @ 执行成员，把要求直接说给他；第一行仍只写「返工」。',
           '不要自己改文件，也不要自己验收。',
           INTERNAL_PROMPT_MARKER,
         ].join('\n'), {
@@ -367,6 +367,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           to: verifier,
           reason: 'review',
           prompt,
+          visible: false,
           acceptance: stage.acceptance ?? '',
           evidence,
           verdict: outcome.verdicts?.at(-1) ?? null,

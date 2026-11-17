@@ -3,7 +3,6 @@
 // maintained here. See third_party/THIRD_PARTY_NOTICES.md.
 
 import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
-import { BotAvatar } from '../marks.js'
 import { TargetIcon } from '../icons.js'
 import { CheckIcon, ChevronDownIcon } from './glyphs.js'
 import { useEscape } from './dismiss.js'
@@ -16,18 +15,16 @@ import { t } from './copy.js'
 // closed, the full plan while open. `goalView` derives everything shown as
 // plain data.
 
-const REPORTED = new Set(['reported', 'done'])
 const RUNNING = new Set(['active', 'paused'])
 
-// What the island and panel draw, as plain data: goal + live room work in, the
-// current label, the stage segments and the panel's stage rows out.
-export function goalView(goal, { roster = {} } = {}) {
+// What the island and panel draw, as plain data: the goal, its stages and where
+// the work stands. Everything else belongs in the room.
+export function goalView(goal) {
   if (goal === null || goal === undefined) return null
   const stages = goal.stages ?? []
   const count = stages.length
   const at = goal.current
   const current = RUNNING.has(goal.status) ? stages[at] : undefined
-  const checking = current !== undefined && (current.tasks ?? []).every(task => REPORTED.has(task.status))
   // The capsule counts the stage the goal is at, not the stages done.
   const number = goal.status === 'drafting' ? undefined
     : goal.status === 'stopped' ? stages.filter(stage => stage.status === 'passed').length
@@ -39,25 +36,19 @@ export function goalView(goal, { roster = {} } = {}) {
         : goal.status === 'complete' ? ''
           : goal.status === 'paused' ? (current ? t('Paused · {title}', { title: current.title }) : t('Paused'))
             : goal.idle === true ? (current ? t('Waiting for you · {title}', { title: current.title }) : t('Waiting for you'))
-              : current === undefined ? t('Final check')
-                : checking ? t('Checking · {title}', { title: current.title })
-                  : current.title
+              : current === undefined ? t('All stages done')
+                : current.title
   const segments = stages.map((stage, i) => (stage.status === 'passed' ? 'done'
     : i === at && (goal.status === 'paused' || goal.idle === true) ? 'paused'
-      : i === at && goal.status === 'active' ? (checking ? 'checking' : 'current')
+      : i === at && goal.status === 'active' ? 'current'
         : 'todo'))
   const stageViews = stages.map((stage, i) => ({
     n: i + 1,
     title: stage.title,
-    acceptance: stage.acceptance,
     status: stage.status,
     kind: stage.status === 'passed' ? 'passed'
       : i === at && RUNNING.has(goal.status) ? 'current'
         : 'upcoming',
-    tasks: (stage.tasks ?? []).map(task => ({ bot: roster.byId?.[task.memberId], task: task.task, status: task.status })),
-    evidence: stage.evidence,
-    reworks: stage.reworks ?? 0,
-    feedback: stage.feedback,
   }))
   return {
     status: goal.status, idle: goal.idle === true, title: goal.title ?? '',
@@ -76,21 +67,6 @@ function GoalOutside({ island, close }) {
   }, [close])
   return null
 }
-
-// One task in the selected stage: avatar carries the state (pulse while it
-// works, a small check once reported or done, dimmed before it starts).
-function TaskRow({ task, working }) {
-  const live = working.has(task.bot?.id) || task.status === 'working'
-  const returned = REPORTED.has(task.status)
-  return h('div', { className: 'bt-goal-task', 'data-task': task.status === 'pending' ? 'pending' : undefined },
-    h('span', { className: 'bt-goal-tav' },
-      task.bot ? h(BotAvatar, { bot: task.bot, size: 20, live }) : null,
-      returned ? h('span', { className: 'bt-goal-tdone', 'aria-hidden': true }, h(CheckIcon)) : null),
-    h('span', { className: 'bt-goal-ttext' },
-      h('span', { className: 'bt-goal-tname' }, task.bot?.name ?? t('a Bot')),
-      ' ', task.task))
-}
-
 
 // Closed: the goal stays the kicker, the current step leads, the track stays
 // underneath. It is the room's live status, not a title bar.
@@ -167,9 +143,9 @@ function GoalSignal({ signal, mode, actions }) {
     : null)
 }
 
-// The open pod focuses one stage: a stepper across the top, the selected
-// stage's checks and tasks under it, and a bottom row with the rest.
-function GoalPanel({ goal, view, room, roster, actions, working }) {
+// The open pod is a progress card: the goal in full, its steps, and where the
+// work stands. Evidence, results and member details stay in the room.
+function GoalPanel({ goal, view, room, actions }) {
   // 收件箱：一行放一条，第一条同时也在信号行和胶囊上；只有一条时不重复列。
   const attention = Array.isArray(room.attention) && room.attention.length > 0
     ? room.attention
@@ -179,7 +155,6 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
     || (attention.length === 1 && typeof attention[0].roomId === 'string')
   const at = RUNNING.has(view.status) && goal.current < view.stages.length ? goal.current : -1
   const [selected, setSelected] = useState(at)
-  const [checks, setChecks] = useState(false)
   // The selected stage follows the goal's current one as stages pass.
   useEffect(() => setSelected(RUNNING.has(view.status) && goal.current < view.stages.length ? goal.current : -1), [view.status, goal.current])
   // Nodes too narrow for their number (14px, or 17px for two digits) drop it so the stepper still fits.
@@ -195,18 +170,12 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
     return () => observer.disconnect()
   }, [view.stages.length])
   const stage = selected >= 0 ? view.stages[selected] : undefined
-  const sec = (key, label, ...body) => h('div', { key, className: 'bt-goal-sec' },
-    h('div', { className: 'bt-goal-sub' }, label), ...body.map((line, i) => h('div', { key: i, className: 'bt-goal-text' }, line)))
-  const hasChecks = goal.objective !== undefined || goal.checks?.length > 0 || goal.constraints?.length > 0 || goal.deliverables?.length > 0
-  const admin = roster.byId?.[room.admin]?.name ?? t('a Bot')
-  const evidenceCount = goal.evidenceCount ?? view.stages.filter(stageView => stageView.evidence !== undefined).length
-  const ruleCount = goal.constraints?.length ?? 0
-  const meta = [
-    evidenceCount > 0 ? `${evidenceCount} 条结果` : '',
-    ruleCount > 0 ? `${ruleCount} 条约定` : '',
-  ].filter(Boolean).join(' · ')
+  const stateLabel = stage === undefined ? ''
+    : stage.status === 'passed' ? '已完成'
+      : stage.status === 'active' ? '正在做' : '还没到'
   return h('div', { className: 'bt-goal-panel', role: 'region', 'aria-label': view.title },
     h('div', { className: 'bt-goal-body' },
+    goal.objective ? h('div', { className: 'bt-goal-goal' }, goal.objective) : null,
     view.status === 'drafting' ? null : h('div', { ref: stepper, className: 'bt-goal-steps', role: 'group', 'aria-label': t('Stages') },
       view.stages.map((stageView, i) => h('button', {
         key: stageView.n, type: 'button',
@@ -230,56 +199,16 @@ function GoalPanel({ goal, view, room, roster, actions, working }) {
         h('span', { className: 'bt-goal-att-label' }, item.label ?? '待处理'),
         h('span', { className: 'bt-goal-att-go' }, '去处理'))))
       : room.needsYou?.label ? h('div', { className: 'bt-goal-warn' }, room.needsYou.label) : null,
-    meta === '' ? null : h('div', { className: 'bt-goal-meta' }, meta),
-    h('div', { key: `s${selected}`, className: 'bt-goal-bstage' },
-      view.status === 'drafting' ? (goal.brief ? h('div', { className: 'bt-goal-btext' }, goal.brief) : null)
-        : stage === undefined
-          ? h(Fragment, null,
-            goal.summary ? h('div', { className: 'bt-goal-btext' }, goal.summary) : null,
-            goal.evidence ? h('div', { className: 'bt-goal-evi' }, goal.evidence) : null,
-            view.status === 'stopped' && goal.reason ? h('div', { className: 'bt-goal-evi' }, goal.reason) : null)
-          : h(Fragment, null,
-            h('div', { className: 'bt-goal-bline' },
-              h('span', { className: 'bt-goal-btitle' }, stage.title),
-              selected !== at && at >= 0 ? h('button', { type: 'button', className: 'bt-goal-back', onClick: () => setSelected(at) }, t('Back to current stage')) : null),
-            stage.acceptance ? h('div', { className: 'bt-goal-line' }, t('Done when: {text}', { text: stage.acceptance })) : null,
-            selected === at && stage.reworks > 0 && stage.feedback
-              ? h('div', { className: 'bt-goal-rw' }, stage.reworks > 1
-                ? t('Sent back {n} times by {admin}. Last time: {feedback}', { n: stage.reworks, admin, feedback: stage.feedback })
-                : t('Sent back by {admin}: {feedback}', { admin, feedback: stage.feedback })) : null,
-            stage.evidence !== undefined && stage.status === 'passed' ? h('div', { className: 'bt-goal-evi' }, t('Evidence: {text}', { text: stage.evidence })) : null,
-            stage.tasks.length > 0 ? h('div', { className: 'bt-goal-tasks' }, stage.tasks.map((task, i) => h(TaskRow, { key: i, task, working }))) : null)),
-    checks && hasChecks ? h('div', { className: 'bt-goal-ckbody' },
-      goal.objective ? sec('objective', t('Objective'), goal.objective) : null,
-      goal.deliverables?.length > 0
-        ? h('div', { key: 'deliverables', className: 'bt-goal-sec' },
-          h('div', { className: 'bt-goal-sub' }, '结果'),
-          h('ul', { className: 'bt-goal-rules' }, goal.deliverables.map((item, index) => h('li', { key: index }, item))))
-        : null,
-      h('div', { key: 'checks', className: 'bt-goal-sec' },
-        h('div', { className: 'bt-goal-sub' }, '检查'),
-        goal.checks?.length > 0
-          ? goal.checks.map(check => h('div', { key: `check-${check.stage}`, className: 'bt-goal-check' },
-            h('code', null, check.command),
-            h('span', { 'data-pass': check.ran ? check.passed : undefined }, check.passed ? '通过' : check.ran ? '没通过' : '还没跑'),
-            h('span', { className: 'bt-goal-check-exit' }, check.exit === null ? '没有退出码' : `退出码 ${check.exit}`)))
-          : h('div', { className: 'bt-goal-check' }, '由你看过结果后确认')),
-      goal.constraints?.length > 0 ? sec('rules', t('Rules'), h('ul', { className: 'bt-goal-rules' },
-        goal.constraints.map((rule, i) => h('li', { key: i }, rule)))) : null) : null),
-    room.needsYou?.kind === 'signoff' && typeof actions.advance === 'function'
-      ? h('div', { className: 'bt-goal-actions' },
-        h('button', { type: 'button', className: 'bt-goal-primary', onClick: () => actions.advance() }, t('Continue')))
-      : null,
-    h('div', { className: 'bt-goal-foot' },
-      hasChecks ? h('button', {
-        type: 'button', className: 'bt-goal-checks', 'aria-expanded': checks, onClick: () => setChecks(!checks),
-      }, h('span', { className: 'bt-goal-mchev', 'aria-hidden': true }, h(ChevronDownIcon)), t('Goal and checks')) : h('span'),
-      h('span', { className: 'bt-goal-facts' })))
+    stage === undefined ? null : h('div', { key: `s${selected}`, className: 'bt-goal-bstage' },
+      h('div', { className: 'bt-goal-bline' },
+        h('span', { className: 'bt-goal-btitle' }, stage.title),
+        selected !== at && at >= 0 ? h('button', { type: 'button', className: 'bt-goal-back', onClick: () => setSelected(at) }, t('Back to current stage')) : null),
+      h('div', { className: 'bt-goal-state', 'data-state': stage.status }, stateLabel))))
 }
 
 // The surface that wraps the capsule: signal or panel hangs under it. Closed
 // is a 40px capsule; a signal makes it grow one row; open shows the panel.
-export function GoalIsland({ room, goal, view, mode, signal, roomWork, roster, actions, pill }) {
+export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
   const island = useRef(null)
   const open = mode === 'open'
   const wasOpen = useRef(open)
@@ -292,7 +221,6 @@ export function GoalIsland({ room, goal, view, mode, signal, roomWork, roster, a
     const target = island.current?.querySelector(open ? '.bt-pill' : '.bt-goal-closed')
     if (target instanceof HTMLElement) target.focus({ preventScroll: true })
   }, [open])
-  const working = new Set((roomWork ?? []).map(entry => entry.memberId))
   return h('div', {
     ref: island,
     className: 'bt-island',
@@ -306,7 +234,7 @@ export function GoalIsland({ room, goal, view, mode, signal, roomWork, roster, a
   open ? pill : null,
   h('div', { className: 'bt-goal-pod' },
     open
-      ? (view === null ? null : h(GoalPanel, { goal, view, room, roster, actions, working }))
+      ? (view === null ? null : h(GoalPanel, { goal, view, room, actions }))
       : h(Fragment, null,
         h(GoalClosed, { view, room, actions }),
         signal === null || signal === undefined
@@ -400,40 +328,13 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-step.bt-goal-mini .bt-goal-node>svg{display:none}
 .bt-goal-step::after{content:"";position:absolute;inset:-4px -3px}
 /* The selected stage below the stepper. */
+.bt-goal-goal{margin:10px 14px 0;font-size:var(--bt-text-label);line-height:19px;overflow-wrap:anywhere}
 .bt-goal-bstage{display:flex;flex-direction:column;padding:4px 14px 14px;font-size:var(--bt-text-label);line-height:18px;animation:bt-veil-in .22s ease-out backwards}
 .bt-goal-bline{display:flex;align-items:baseline;gap:8px}
 .bt-goal-btitle{flex:1 1 auto;font-weight:600}
 .bt-goal-back{flex:none;border:0;background:none;padding:0;font:inherit;font-size:var(--bt-text-helper);line-height:16px;color:var(--bt-accent);cursor:pointer}
-.bt-goal-btext{overflow-wrap:anywhere}
-.bt-goal-line{margin-top:2px;min-width:0;font-size:var(--bt-text-helper);line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere}
-.bt-goal-sec{display:flex;flex-direction:column;gap:4px;min-width:0}
+.bt-goal-state{margin-top:2px;font-size:var(--bt-text-helper);line-height:17px;color:var(--bt-ink-2)}
 .bt-goal-sub{flex:none;font-size:var(--bt-text-helper);line-height:16px;font-weight:600;color:var(--bt-ink-2)}
-.bt-goal-rw{margin-top:8px;border-radius:8px;padding:6px 10px;background:var(--bt-warning-wash);font-size:var(--bt-text-helper);line-height:18px;color:var(--bt-ink);overflow-wrap:anywhere}
-.bt-goal-text{overflow-wrap:anywhere}
-.bt-goal-rules{margin:0;padding-left:18px}
-.bt-goal-check{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 9px;font-size:var(--bt-text-helper);line-height:18px;color:var(--bt-ink-2);min-width:0}
-.bt-goal-check code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--bt-ink);overflow-wrap:anywhere}
-.bt-goal-check span[data-pass=true]{color:var(--bt-success-text);font-weight:600}
-.bt-goal-check span[data-pass=false]{color:var(--bt-danger-text);font-weight:600}
-.bt-goal-check-exit{color:var(--bt-ink-3)}
-.bt-goal-evi{margin-top:8px;font-size:var(--bt-text-helper);line-height:18px;color:var(--bt-ink-2);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.bt-goal-tasks{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-.bt-goal-task{display:flex;align-items:flex-start;gap:8px;min-width:0}
-.bt-goal-task[data-task=pending]{opacity:.55}
-.bt-goal-tav{position:relative;flex:none;display:inline-flex;margin-top:1px}
-.bt-goal-tdone{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:var(--bt-green);color:var(--bt-main);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px var(--bt-main)}
-.bt-goal-tdone svg{width:9px;height:9px}
-.bt-goal-ttext{flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
-.bt-goal-tname{font-weight:500}
-.bt-goal-ckbody{display:flex;flex-direction:column;gap:10px;padding:0 14px 10px;font-size:var(--bt-text-label);line-height:18px;text-align:left}
-/* The bottom row: disclosure on the left, controls on the right. */
-.bt-goal-foot{display:flex;align-items:center;gap:8px;height:40px;flex:none;padding:0 8px 0 14px;border-top:.5px solid var(--bt-line)}
-.bt-goal-checks{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:4px 6px;margin-left:-6px;border-radius:6px;font:inherit;font-size:var(--bt-text-helper);line-height:16px;color:var(--bt-ink-2);cursor:pointer}
-.bt-goal-checks:hover{background:var(--bt-hover)}
-.bt-goal-mchev{display:inline-flex;width:14px;height:14px;color:var(--bt-ink-3)}
-.bt-goal-mchev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
-.bt-goal-checks[aria-expanded=true] .bt-goal-mchev svg{transform:rotate(180deg)}
-.bt-goal-facts{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
 .bt-goal-compose{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
 .bt-goal-clabel{font-size:var(--bt-text-helper);line-height:16px;font-weight:600;color:var(--bt-ink-2)}
 .bt-goal-input{min-height:52px;max-height:124px;resize:none;font-size:var(--bt-text-label)}

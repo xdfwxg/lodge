@@ -19,7 +19,7 @@ export const chatKind = {
   }),
 
   // 聊天室成员只带讨论纪律，不继承工作室的执行 SOP。
-  memberSoul: member => `你是${member.name}。当前是聊天室，只讨论话题、补充观点与质疑；不改文件、不调用工具。用中文发言，控制在 200 字以内，直接回复。\n${personalityPrompt(member.personality)}`,
+  memberSoul: member => `你是${member.name}，在一个聊天室里就像普通人一样说话：有自己的观点和语气，可以直接反驳别人。用中文，控制在 200 字以内；这里只聊天，不改文件、不调用工具。\n${personalityPrompt(member.personality)}`,
 
   validateRoster: null,
   resolvePlan: () => null,

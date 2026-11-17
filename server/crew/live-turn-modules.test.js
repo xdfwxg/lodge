@@ -109,7 +109,7 @@ test('a rejected stage routes the planner decision to the executor or the human'
   turns.captureTurn({ reply: '返工\n改成写入欢迎语', turnId: 't-lead-1', toolCalls: 0 }, 'bot-plan')
   const worker = sent.find(item => item.memberId === 'executor')
   assert.ok(worker)
-  assert.match(worker.prompt, /规划师的返工要求：改成写入欢迎语/)
+  assert.match(worker.prompt, /改成写入欢迎语/)
   assert.match(worker.prompt, /lodge-internal/)
   assert.equal(room.lastPlannerDecision.kind, 'rework')
   const reworkAssignment = store.readAssignments('room-1').find(item => item.reason === 'rework')
@@ -758,7 +758,7 @@ test('a verifier reject returns the studio closure to executing and wakes the pl
   assert.match(planner.prompt, /验收员退回了第 1 步/)
   assert.match(planner.prompt, /证据不足/)
   assert.match(planner.prompt, /第一行只写「返工」或「交给人」/)
-  assert.match(planner.prompt, /不要在回复里 @ 任何人/)
+  assert.match(planner.prompt, /在话里 @ 执行成员/)
   assert.match(planner.prompt, /lodge-internal/)
 })
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { toIslandGoal, toIslandRoomWork, toIslandRoster } from './adapter.js'
+import { toIslandGoal } from './adapter.js'
 
 const room = over => ({
   id: 'room-1',
@@ -27,37 +27,29 @@ test('a studio room becomes the island goal shape', () => {
   const goal = toIslandGoal(room())
   assert.equal(goal.status, 'active')
   assert.equal(goal.current, 1)
+  assert.equal(goal.objective, '创建一个文件')
+  assert.deepEqual(goal.stages.map(stage => stage.title), ['目标对齐', '创建文件', '验收与结论'])
   assert.equal(goal.stages[1].status, 'active')
-  assert.equal(goal.stages[1].tasks.length, 3)
-  assert.match(goal.stages[1].tasks[1].task, /按约定完成/)
-  assert.equal(toIslandRoster(room().members).byId.worker.name, '执行官')
-  assert.deepEqual(toIslandRoomWork(room({ busyMembers: ['worker'] })), [{ memberId: 'worker' }])
+  assert.equal(goal.stages[1].kind, 'deliverable')
+  assert.equal(goal.stages[1].tasks, undefined)
 })
 
-test('the goal panel separates acceptance, checks and constraints', () => {
+test('the island carries no check mechanics or side detail', () => {
   const goal = toIslandGoal(room({
     messages: [{ id: 'e1', kind: 'evidence', meta: { kind: 'command', stage: 1, command: 'test -f hello.txt', exit: 0 } }],
-    brief: {
-      constraints: ['验收命令: test -f hello.txt', '不要改接口'],
-      done: ['创建 hello.txt'],
-    },
+    plan: { done: ['创建 hello.txt'] },
+    brief: { constraints: ['验收命令: test -f hello.txt', '不要改接口'] },
   }))
-  assert.deepEqual(goal.checks, [{
-    stage: 1,
-    title: '创建文件',
-    command: 'test -f hello.txt',
-    exit: 0,
-    ran: true,
-    passed: true,
-  }])
-  assert.equal(goal.acceptance, '第 2 步：test -f hello.txt')
-  assert.deepEqual(goal.constraints, ['不要改接口'])
+  assert.equal(goal.checks, undefined)
+  assert.equal(goal.acceptance, undefined)
+  assert.equal(goal.deliverables, undefined)
+  assert.equal(goal.constraints, undefined)
+  assert.equal(goal.summary, undefined)
 })
 
-test('a completed room with no commit does not crash', () => {
-  const complete = room({ state: 'complete', delivery: { commit: null }, messages: [{ kind: 'conclusion', text: '完成' }] })
+test('a completed room still reports all stages passed', () => {
+  const complete = room({ state: 'complete', stages: room().stages.map(stage => ({ ...stage, state: 'passed' })) })
   const goal = toIslandGoal(complete)
   assert.equal(goal.status, 'complete')
-  assert.equal(goal.evidence, undefined)
-  assert.equal(goal.summary, '完成')
+  assert.equal(goal.stages.every(stage => stage.status === 'passed'), true)
 })

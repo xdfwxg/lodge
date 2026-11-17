@@ -30,7 +30,7 @@ test('every room mode implements the same substitutable contract', () => {
 test('member souls carry only their own mode discipline', () => {
   const chat = roomModeForType('chat').memberSoul({ name: '甲', role: 'worker' })
   assert.match(chat, /聊天室/)
-  assert.match(chat, /只讨论/)
+  assert.match(chat, /只聊天/)
   assert.doesNotMatch(chat, /执行官|git commit|验收/)
   const studio = roomModeForType('studio').memberSoul({ name: '验收员', role: 'verifier', prompt: '你是验收员。' })
   assert.match(studio, /PASS 或 REJECT/)
@@ -40,7 +40,7 @@ test('member souls carry only their own mode discipline', () => {
   assert.doesNotMatch(studio, /聊天室/)
   const worker = roomModeForType('studio').memberSoul({ name: '乙', role: 'worker', prompt: '你是乙。' })
   assert.match(worker, /不改目标/)
-  assert.match(worker, /三行工作日志/)
+  assert.match(worker, /像对同事说话/)
   assert.doesNotMatch(worker, /PASS 或 REJECT/)
   const leadSoul = roomModeForType('studio').memberSoul({ name: '幕僚长', role: 'lead', prompt: '你是幕僚长。' })
   assert.match(leadSoul, /不写文件、不跑验收/)

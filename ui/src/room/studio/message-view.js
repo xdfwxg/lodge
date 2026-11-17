@@ -1,7 +1,8 @@
 import { createElement as h } from 'react'
 import { renderSharedMessage, resolveMember } from '../message-view.js'
-import { ChatLine } from '../../message-cards.js'
+import { ActivityLine, ChatLine } from '../../message-cards.js'
 import { QuestionCard } from '../question-card.js'
+import { displayToolName } from './transcript-model.js'
 import { splitVerdictText } from './verdict-text.js'
 
 // 工作室就是聊天：成员说什么就是一条消息，细节（命令、输出、改动）折在消息下面。
@@ -61,8 +62,13 @@ export const renderStudioMessage = ({
   if (message.kind === 'verdict') {
     const verdict = splitVerdictText(message.text)
     const passed = message.meta?.pass === true
-    const text = `${passed ? '通过' : '退回'}：${verdict.summary || (passed ? '符合这一步的要求。' : '这一步还不行，需要重做。')}`
-    return chat(text, fold('理由', verdict.detail))
+    const text = verdict.summary || (passed ? '符合这一步的要求。' : '这一步还不行，需要重做。')
+    return chat(`${passed ? '我看过了，没问题：' : '我看过了，还得改：'}${text}`, fold('理由', verdict.detail))
+  }
+
+  if (message.kind === 'activity') {
+    const label = displayToolName(message.meta?.tool)
+    return h(ActivityLine, { key: message.id, message: label === '' ? message : { ...message, text: label } })
   }
 
   if (message.kind === 'chat' && message.authorId !== 'you') {

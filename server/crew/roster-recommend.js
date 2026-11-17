@@ -24,7 +24,7 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   `目标：${goal}`,
   `工作文件夹（只读副本）：${repoPath}`,
   handoff === null ? '' : `已经确认的交接单：\n${handoffGoalText(handoff)}`,
-  handoff === null ? '' : '交接单已经由人确认；不要再生成目标对齐/确认阶段，直接按主题、共识、约束、待办拆 1–3 个可交付步骤。',
+  handoff === null ? '' : '交接单已经由人确认；不要再生成目标对齐/确认阶段，直接按主题、共识、约束、待办拆步骤。',
   '先看仓库事实（README、package.json、测试命令、目录结构）。默认三位成员：规划师、执行官、验收员。',
   '- members 默认输出三个：一个 lead、一个 worker、一个 verifier。只有工作能清晰拆成互不冲突的两块、确实需要并行时，才输出两个 worker；此时 orchestration 必须是 parallel。不要输出单人房或其它角色。',
   '- members[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
@@ -33,12 +33,12 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
-  '- stages 写 1–3 个可交付阶段；每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
+  '- stages 由你按任务自己拆：简单任务 1 步就够，复杂的拆到 5 步；不要为了好看硬拆。每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
   '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline。parallel 必须有两个执行成员，只用于可并行的阶段；critique 不增加成员，用于关键交付，让验收成员主动找反例。',
   '- stages[].assignees 只写执行成员（id 或名字，通常是「执行官」）；parallel 阶段写两个执行成员，其它阶段写一个。不要写验收员，验收由系统按独立性规则派发。',
   '- 方案就是对齐与确认。不要生成第一个只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
   '- JSON 代码块必须完整闭合。',
-  '只输出一个 JSON 代码块，不要其他文字：',
+  '先用两句人话把你的计划说给屋里的人听（分几步、谁做、怎么算完成），然后只输出一个 JSON 代码块给系统建步骤；JSON 之外只许有这段计划，不要寒暄，不要小标题。',
   '```json',
   '{',
   '  "done": ["可核对的完成条件"],',
@@ -60,6 +60,14 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '}',
   '```',
 ].join('\n')
+
+// 规划师在 JSON 之外说的话也是它说的：保留下来，作为房间里的第一条计划消息。
+const proseFromReply = reply => {
+  const text = String(reply ?? '')
+  const fenced = text.match(/```(?:json)?\s*[\s\S]*?```/i)
+  const prose = fenced === null ? text.split('{')[0] : text.replace(fenced[0], '')
+  return prose.trim().slice(0, 2000)
+}
 
 const extractJsonBlock = reply => {
   const text = String(reply ?? '')
@@ -229,6 +237,7 @@ export const parseProposal = reply => {
     tooManyDone ? '规划师给了超过 6 条 done，只保留前 6 条' : '',
   ].filter(Boolean)
   return {
+    prose: proseFromReply(reply),
     done,
     questions,
     members: roster.map((member, index) => ({
@@ -277,7 +286,7 @@ export const recommendRoster = async ({ probe, body, workspace }) => {
     workspaces = provider.prepareRoom({ source: sourceRepo, short, members: [scout] })
     await probe.start({
       name: `编队评估${short}`,
-      soul: '你是规划师。只做编队判断，只输出 JSON，不执行工具。',
+      soul: '你是规划师。只做编队判断：先用两句人话说计划，再给一段 JSON 建步骤；不执行工具。',
       description: scout.station,
       approval: scout.approval,
       mcp: scout.mcp,

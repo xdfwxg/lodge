@@ -9,15 +9,11 @@ import { TypingLine } from '../typing-line.js'
 export const studioView = {
   id: 'studio',
   opensAtTop: ({ room }) => room.state === 'complete',
-  header: ({ room, members, actions }) => h(GoalIslandHeader, {
+  header: ({ state, room, members, actions }) => h(GoalIslandHeader, {
     room,
-    members,
+    railRooms: state.rooms,
     status: h(CrewStatusLine, { room, members, onSwap: actions.swapBody, onAdd: actions.addMember }),
     onOpenRoom: actions.selectRoom,
-    onAdvance: () => {
-      const index = room.stages.findIndex(stage => stage.state === 'active')
-      if (index >= 0) actions.accept(index)
-    },
   }),
   activity: () => null,
   transcript: ({ room, members, actions }) => h(StudioTranscript, {

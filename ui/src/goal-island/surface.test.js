@@ -22,7 +22,11 @@ const view = {
   count: 3,
   barLabel: '目标对齐',
   segments: ['current', 'todo', 'todo'],
-  stages: [],
+  stages: [
+    { n: 1, title: '目标对齐', status: 'active', kind: 'current' },
+    { n: 2, title: '写欢迎语', status: 'pending', kind: 'upcoming' },
+    { n: 3, title: '验收与结论', status: 'pending', kind: 'upcoming' },
+  ],
 }
 
 const room = {
@@ -34,7 +38,12 @@ const room = {
   needsYou: { kind: 'decision', label: '待确认' },
 }
 
-const goal = { status: 'active', current: 0, stages: [], constraints: [] }
+const goal = {
+  status: 'active',
+  current: 0,
+  objective: '做一个欢迎语',
+  stages: view.stages.map(stage => ({ title: stage.title, status: stage.status, kind: stage.kind })),
+}
 
 const render = (mode, signal, roomOverride = {}) => renderToStaticMarkup(h(GoalIsland, {
   room: { ...room, ...roomOverride },
@@ -42,8 +51,6 @@ const render = (mode, signal, roomOverride = {}) => renderToStaticMarkup(h(GoalI
   view,
   mode,
   signal,
-  roomWork: [],
-  roster: { byId: {} },
   actions,
   pill: h('button', { className: 'bt-pill' }, '打开'),
 }))
@@ -68,6 +75,15 @@ test('a decision renders one signal line and a dismiss control', () => {
   assert.match(html, /第 1 步「目标对齐」有一处要你拍板/)
   assert.match(html, /aria-label="收起这条提醒"/)
   assert.doesNotMatch(html, /bt-pill/)
+})
+
+test('the open panel is the goal, its steps and where the work stands', () => {
+  const html = render('open', null, { attention: [], needsYou: null })
+  assert.match(html, /做一个欢迎语/)
+  assert.match(html, /目标对齐/)
+  assert.match(html, /正在做/)
+  assert.doesNotMatch(html, /详情/)
+  assert.doesNotMatch(html, /检查/)
 })
 
 test('the open panel lists every waiting item, including a subroom', () => {

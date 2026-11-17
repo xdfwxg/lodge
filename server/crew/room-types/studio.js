@@ -48,9 +48,9 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
     }))
     : [{ ...delivery, state: align && plan === null ? 'pending' : 'active' }]
   const stages = [
-    ...(align ? [{ title: '目标对齐', kind: 'decision', state: plan !== null ? 'passed' : 'active' }] : []),
+    ...(align ? [{ title: '目标对齐', kind: 'decision', spine: true, state: plan !== null ? 'passed' : 'active' }] : []),
     ...work,
-    { title: '验收与结论', kind: 'decision', state: 'pending' },
+    { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
   ]
   if (!stages.some(stage => stage.state === 'active')) {
     const next = stages.find(stage => stage.state === 'pending')

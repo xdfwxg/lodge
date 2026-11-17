@@ -44,6 +44,8 @@ export function StudioTranscript({
       .filter(message => message.kind === 'verdict' && typeof message.meta?.evidenceId === 'string')
       .map(message => message.meta.evidenceId))
     return messages.filter(message => {
+      // 工作式聊天只留人和成员说的话；系统小字不占时间线。
+      if (message.kind === 'system' || message.authorId === 'system') return false
       // 基座把运行提示混进 activity：没有工具名的行不是谁说的话，直接不显示。
       if (message.kind === 'activity' && !displayableStep(message)) return false
       if (message.kind === 'evidence') {

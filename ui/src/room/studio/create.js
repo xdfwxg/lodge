@@ -53,6 +53,7 @@ export const buildStudioRequest = ({
     ? null
     : {
       done: proposal.done,
+      ...(typeof proposal.prose === 'string' && proposal.prose.trim() !== '' ? { prose: proposal.prose.trim() } : {}),
       ...(typeof proposal.orchestration === 'string' ? { orchestration: proposal.orchestration } : {}),
       ...(typeof proposal.why === 'string' && proposal.why !== '' ? { why: proposal.why } : {}),
       ...(Array.isArray(proposal.stages) && proposal.stages.length > 0 ? { stages: proposal.stages } : {}),

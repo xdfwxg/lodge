@@ -130,6 +130,9 @@ export const normalizePlan = ({ body }) => {
       done,
       answers,
       stages: plannedStages,
+      ...(typeof body.plan.prose === 'string' && body.plan.prose.trim() !== ''
+        ? { prose: body.plan.prose.trim().slice(0, 2000) }
+        : {}),
       why: typeof body.plan.why === 'string' ? body.plan.why.trim().slice(0, 300) : '',
     }
   }

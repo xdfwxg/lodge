@@ -3,103 +3,34 @@
 
 import { createElement as h } from 'react'
 import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
+import { IslandRail } from './rail.js'
 import { ChevronDownIcon } from './glyphs.js'
 import { TargetIcon } from '../icons.js'
-import { activeIndex, evidenceFor, rejectsFor, memberState, memberTask } from './model.js'
 import { useGoalSignal } from './use-goal-signal.js'
 
-export const toIslandGoal = room => {
-  const stages = room.stages.map((stage, index) => {
-    const members = room.members ?? []
-    const assigned = (stage.tasks ?? []).map(task => {
-      const member = members.find(item => item.id === task.owner) ?? { id: task.owner, name: task.title }
-      return { memberId: task.owner, status: task.status, task: memberTask(member, stage) }
-    })
-    const tasks = assigned.length > 0
-      ? assigned
-      : members.map(member => ({
-        memberId: member.id,
-        status: memberState(room, stage, index, member.id),
-        task: memberTask(member, stage),
-      }))
-    const evidence = evidenceFor(room, index)
-    const reworks = rejectsFor(room, index)
-    const last = evidence.at(-1)
-    return {
-      title: stage.title,
-      kind: stage.kind,
-      acceptance: stage.acceptance ?? (stage.kind === 'decision' ? '你定这一步' : undefined),
-      status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
-      tasks,
-      evidence: last === undefined
-        ? undefined
-        : last.meta?.kind === 'manual'
-          ? '结果待确认'
-          : `${last.meta?.exit === 0 ? '检查通过' : last.meta?.exit === null || last.meta?.exit === undefined ? '已经检查' : '检查没通过'}`,
-      reworks: reworks.length,
-      feedback: reworks.at(-1)?.text,
-    }
-  })
-  const conclusion = [...(room.messages ?? [])].reverse().find(message => message.kind === 'chat_conclusion' || message.kind === 'conclusion')
-  const commandEvidence = (room.messages ?? []).filter(message => (
-    message.kind === 'evidence' && message.meta?.kind === 'command'
-  ))
-  const checks = stages.map((stage, index) => {
-    if (stage.kind !== 'deliverable' || typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') return null
-    const last = commandEvidence.filter(message => (message.meta?.stage ?? 0) === index).at(-1)
-    return {
-      stage: index,
-      title: stage.title,
-      command: stage.acceptance.trim(),
-      exit: last?.meta?.exit ?? null,
-      ran: last !== undefined,
-      passed: last?.meta?.exit === 0,
-    }
-  }).filter(Boolean)
-  const acceptance = checks.map(check => `第 ${check.stage + 1} 步：${check.command}`)
-  const plannedDone = (room.plan?.done ?? []).map(item => (typeof item === 'string' ? item : item?.text ?? '')).filter(Boolean)
-  const delivered = (room.delivery?.changedFiles ?? room.delivery?.artifacts?.map(artifact => artifact.path) ?? []).filter(Boolean)
-  const deliverables = delivered.length > 0
-    ? delivered
-    : plannedDone.length > 0
-      ? plannedDone
-      : (room.stages ?? []).filter(stage => stage.kind === 'deliverable').map(stage => stage.title)
-  const constraints = (room.brief?.constraints ?? [])
-    .filter(item => typeof item === 'string' && !/^验收命令\s*[:：]/.test(item.trim()))
-  return {
-    id: room.id,
-    title: room.name,
-    status: room.state === 'complete'
-      ? 'complete'
-      : room.state === 'paused' ? 'paused' : room.state === 'stopped' ? 'stopped' : 'active',
-    idle: room.idle === true || room.needsYou?.kind === 'idle',
-    current: activeIndex(room),
-    stages,
-    objective: room.brief?.objective || room.goal,
-    acceptance: acceptance.length === 0 ? '由你看过结果后确认' : acceptance.join('\n'),
-    deliverables,
-    checks,
-    constraints,
-    summary: conclusion?.text,
-    evidence: typeof room.delivery?.commit === 'string' ? '已保存版本' : undefined,
-    reason: room.state === 'stopped' ? '目标已停止' : undefined,
-    evidenceCount: (room.messages ?? []).filter(message => message.kind === 'evidence').length,
-  }
-}
+const activeIndex = room => room.stages.findIndex(stage => stage.state === 'active')
 
-export const toIslandRoster = members => ({
-  byId: Object.fromEntries(members.map(member => [member.id, member])),
+export const toIslandGoal = room => ({
+  id: room.id,
+  title: room.name,
+  status: room.state === 'complete'
+    ? 'complete'
+    : room.state === 'paused' ? 'paused' : room.state === 'stopped' ? 'stopped' : 'active',
+  idle: room.idle === true || room.needsYou?.kind === 'idle',
+  current: activeIndex(room),
+  stages: room.stages.map(stage => ({
+    title: stage.title,
+    kind: stage.kind,
+    status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
+  })),
+  objective: room.brief?.objective || room.goal,
 })
 
 const toIslandRoom = room => ({
   id: room.id,
-  admin: room.leadMemberId ?? room.members?.[0],
-  members: room.members ?? [],
   needsYou: room.needsYou ?? null,
   attention: Array.isArray(room.attention) ? room.attention : [],
 })
-
-export const toIslandRoomWork = room => (room.busyMembers ?? []).map(memberId => ({ memberId }))
 
 const pill = ({ room, view, open, onToggle }) => {
   const title = view?.title || room.name || room.goal
@@ -140,13 +71,11 @@ const PILL_CSS = `
 @media (max-width:760px){.crew-goal-island{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
 `
 
-export function GoalIslandHeader({ room, members, status = null, onAdvance, onOpenRoom }) {
+export function GoalIslandHeader({ room, railRooms = [], status = null, onOpenRoom }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
   const goal = toIslandGoal(room)
-  const roster = toIslandRoster(members)
-  const roomWork = toIslandRoomWork(room)
-  const view = goalView(goal, { roster })
+  const view = goalView(goal)
   const islandRoom = toIslandRoom(room)
   const goalActions = {
     toggleGoal: () => (open ? activity.onClose() : activity.onOpen()),
@@ -165,7 +94,6 @@ export function GoalIslandHeader({ room, members, status = null, onAdvance, onOp
     dismissSignal: activity.onDismiss,
     pauseSignal: activity.onPause,
     resumeSignal: activity.onResume,
-    advance: onAdvance,
     // 收件箱里的一条：子房的事跳过去，本房的事滚到要你处理的位置。
     openItem: item => {
       if (typeof item?.roomId === 'string' && item.roomId !== room.id && typeof onOpenRoom === 'function') {
@@ -182,11 +110,10 @@ export function GoalIslandHeader({ room, members, status = null, onAdvance, onOp
       view,
       mode: activity.mode,
       signal: activity.signal,
-      roomWork,
-      roster,
       actions: goalActions,
       pill: pill({ room, view, open, onToggle: goalActions.toggleGoal }),
     }),
+    h(IslandRail, { rooms: railRooms, currentId: room.id, onSelect: onOpenRoom }),
     status,
     h('style', null, `${GOAL_CSS}\n${PILL_CSS}`))
 }

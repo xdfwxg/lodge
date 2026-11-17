@@ -19,7 +19,7 @@ import { systemNotice } from '../../notices.js'
 import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from './auto-rework.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, files, shadow = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, shadow })
@@ -49,6 +49,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     roomId,
     emit,
     handoff,
+    askPlanner,
     integrate: integrator.integrate,
     enqueue: integrator.enqueue,
   })
@@ -254,6 +255,9 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     const name = memberDisplayName(room, target)
     const parent = latestDispatchAssignment(store, roomId, stageIndex, target)
     if (parent !== null) transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，规划师安排重做' })
+    // 规划师已经在群里 @ 了执行成员；基座会叫醒对方。没写 @ 时，系统才把同一段话转过去。
+    const addressed = String(turn.reply ?? '').includes(`@${name}`)
+    const note = String(turn.reply ?? '').split('\n').slice(1).join('\n').trim() || decision.note
     void handoff.trigger({
       room,
       stage,
@@ -261,12 +265,10 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       from: leadMemberOf(room)?.id,
       to: target,
       reason: 'rework',
-      prompt: [
-        `验收员退回了第 ${stageIndex + 1} 步「${stage?.title ?? ''}」。`,
-        `规划师的返工要求：${decision.note}`,
-        '只重做这一步；完成后不要 @ 人，系统会交给验收员。',
-        INTERNAL_PROMPT_MARKER,
-      ].join('\n'),
+      prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
+      message: note,
+      visible: false,
+      deliver: !addressed,
       acceptance: stage?.acceptance ?? '',
       rework: true,
       parentAssignmentId: parent?.id ?? null,

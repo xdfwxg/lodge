@@ -101,7 +101,8 @@ test('accepting the last work stage also confirms the system conclusion', () => 
   // 纯聊天：最后一步通过后房间保持打开，不再收尾。
   assert.equal(ctx.room().state, 'active')
   const gates = ctx.messages.filter(message => message.meta?.kind === 'gate')
-  assert.deepEqual(gates.map(message => message.meta.stage), [0, 1])
+  assert.deepEqual(gates.map(message => message.meta.stage), [0])
+  assert.equal(gates[0].text, '第 1 步「实现」通过了；第 2 步「验收与结论」也一起确认了。')
 })
 
 

@@ -7,8 +7,9 @@ import { planDispatch } from '../../orchestration/index.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
+import { systemNotice } from '../../notices.js'
 
-export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
+export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
   const timeoutTimers = new Map()
 
@@ -130,6 +131,23 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       environment: room.workspaceEnv?.[worker],
     })
     const from = leadMemberOf(room)?.id ?? 'you'
+    // 交接这句话由规划师自己说。它不 @ 人，系统只把它的话和任务一起转给执行成员。
+    let spoken = ''
+    if (typeof askPlanner === 'function') {
+      const assigneeNames = assignees.map(id => memberDisplayName(room, id)).join('、')
+      const planPrompt = [
+        `第 ${index + 1} 步「${stage.title}」要交给${assigneeNames}。`,
+        `在话里 @${assigneeNames}，让对方收到；用一两句说清做什么、怎么算完成。`,
+        '不要写自己的名字，不要分点或小标题。',
+        acceptance,
+      ].filter(Boolean).join('\n')
+      try {
+        spoken = await askPlanner(planPrompt)
+      } catch (error) {
+        systemNotice({ store, roomId, text: '规划师没有开口，这一步还没开始。', error })
+        return
+      }
+    }
 
     if (!parallel) {
       const worker = assignees[0]
@@ -141,6 +159,9 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         to: worker,
         reason: rework ? 'rework' : 'dispatch',
         prompt: promptFor(worker),
+        message: spoken,
+        visible: spoken === '',
+        deliver: spoken === '',
         acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
         rework,
         parentAssignmentId: parentAssignment?.id ?? null,
@@ -163,6 +184,9 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       to: worker,
       reason: rework ? 'rework' : 'dispatch',
       prompt: promptFor(worker),
+      message: spoken,
+      visible: spoken === '',
+      deliver: spoken === '',
       acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
       rework,
       parentAssignmentId: parentAssignment?.id ?? null,

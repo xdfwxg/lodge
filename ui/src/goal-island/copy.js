@@ -3,16 +3,14 @@
 const ZH = {
   'Aligning the goal with you': '正在和你对齐目标',
   'All {count} stages passed': '全部 {count} 步已完成',
+  'All stages done': '全部做完了',
   'Back to current stage': '回到现在这一步',
   Cancel: '取消',
   Continue: '继续推进',
   'Checking · {title}': '正在核对 · {title}',
   Clear: '清除',
-  'Done when': '怎么验收',
-  'Done when: {text}': '怎么验收：{text}',
-  'Evidence: {text}': '检查记录：{text}',
-  'Final check': '最后检查',
-  'Goal and checks': '目标和检查',
+  Details: '详情',
+  'Evidence: {text}': '依据：{text}',
   'Goal paused': '目标已暂停',
   'Goal resumed': '目标已继续',
   'Goal set: {title} · {count} stages': '目标定好了：{title} · 共 {count} 步',
@@ -41,7 +39,6 @@ const ZH = {
   'Waiting for you · {title}': '待处理 · {title}',
   'What should this group achieve?': '这个房间要达成什么？',
   'a Bot': '一位成员',
-  '{admin} asks what is still open, then writes the goal with its checks and stages.': '{admin} 会先问清还没定的地方，再写出带检查方法和步骤的目标。',
 }
 
 export const t = (key, vars = {}) => String(ZH[key] ?? key)

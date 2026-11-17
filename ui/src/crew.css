@@ -700,11 +700,13 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-dialog-foot{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding:16px 24px 24px;border-top:1px solid var(--bt-line);background:var(--bt-card)}
 .crew-dialog-foot-hint{margin-right:auto;align-self:center;max-width:58%;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .crew-dialog-foot .crew-accept{margin-left:0;height:var(--bt-control-h-lg);padding:0 16px;font-size:var(--bt-text-label)}
-.crew-dialog-foot .crew-dialog-primary{flex:0 0 auto;min-width:220px;height:var(--bt-control-h-lg);padding:0 26px;font-size:var(--bt-text-label)}
+.crew-dialog-foot .crew-dialog-primary{flex:0 0 auto;min-width:84px;height:var(--bt-control-h-lg);padding:0 18px;font-size:var(--bt-text-label)}
 .crew-dialog-foot .crew-ghost{height:var(--bt-control-h-lg);padding:0 14px;font-size:var(--bt-text-label)}
-.crew-confirm{width:min(440px,100%)}
-.crew-confirm-note{margin:0 24px 18px}
-.crew-accept[data-danger=true]{background:var(--bt-danger-soft);border-color:var(--bt-line-danger);color:var(--bt-danger-text)}
+.crew-confirm{width:min(400px,100%)}
+.crew-confirm-body{padding-bottom:18px}
+.crew-confirm-warn{margin:8px 0 0;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:600;color:var(--bt-danger-text)}
+.crew-accept[data-danger=true]{background:var(--bt-card);border-color:var(--bt-line-2);color:var(--bt-danger-text);font-weight:600}
+.crew-accept[data-danger=true]:hover{background:var(--bt-danger-wash);border-color:var(--bt-line-danger)}
 .crew-accept[data-danger=true]:hover{filter:brightness(1.02)}
 .crew-check{display:flex;align-items:center;gap:6px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-2)}
 /* 勾选一行加一句从属说明：说明缩到文字下面，整组用细边和上面的成员列表分开。 */
@@ -842,7 +844,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 /* Decision-first room: one decision, audit on demand */
 .crew-room{display:flex;flex-direction:column;background:var(--bt-main)}
 .crew-room-main{flex:1 1 auto;width:100%;max-width:none}
-.crew-room-main[data-mode=studio] .crew-scroll{padding-top:116px}
+.crew-room-main[data-mode=studio] .crew-scroll{padding-top:154px}
 .crew-island-wrap{display:flex;justify-content:center;padding:18px 32px 8px;box-sizing:border-box}
 .crew-island{display:inline-flex;flex-direction:column;max-width:min(440px,calc(100% - 24px));border-radius:999px;background:var(--bt-card);border:1px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-size:var(--bt-text-label);line-height:var(--bt-leading-label);box-sizing:border-box;overflow:hidden}
 .crew-island-row{display:flex;align-items:center;gap:8px;height:40px;padding:8px 16px 8px 8px;box-sizing:border-box;min-width:0}
@@ -884,7 +886,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
   .crew-crew-status-wrap{padding:0 14px 6px}
   .crew-decision-card{margin:4px 18px 14px}
   .crew-scroll{padding-left:18px;padding-right:18px}
-  .crew-room-main[data-mode=studio] .crew-scroll{padding-top:112px}
+  .crew-room-main[data-mode=studio] .crew-scroll{padding-top:150px}
 }
 .crew-streaming::after{content:'▍';display:inline-block;margin-left:2px;color:var(--bt-ink-3);animation:crew-cursor 1s steps(2,start) infinite}
 @keyframes crew-cursor{0%,45%{opacity:1}46%,100%{opacity:0}}
@@ -975,3 +977,24 @@ details[open]>summary::before{transform:rotate(90deg)}
 /* 工作室消息和聊天室同一套气泡；明细缩在气泡下面。 */
 .crew-msg-wrap{display:flex;flex-direction:column}
 .crew-msg-wrap .crew-msg-fold{margin-left:44px}
+
+/* 多个目标岛：当前房间之外的目标缩成一行小岛，点一下切过去。 */
+.bt-rail{display:flex;align-items:center;justify-content:flex-start;width:100%;max-width:100%;margin:0 auto 12px;padding:0;overflow-x:auto;scrollbar-width:none}
+.bt-rail-track{display:flex;align-items:center;gap:6px;margin:0 auto;padding:0 4px}
+.bt-rail::-webkit-scrollbar{display:none}
+.bt-rail-island{flex:none;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border:.5px solid var(--bt-line-2);border-radius:999px;background:color-mix(in srgb,var(--bt-card) 90%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-helper);line-height:16px;cursor:pointer;white-space:nowrap;transition:background-color .12s var(--bt-ease),transform .12s var(--bt-ease)}
+.bt-rail-island:hover{background:var(--bt-card)}
+.bt-rail-island:active{transform:scale(.97)}
+.bt-rail-island[data-tone=waiting]{border-color:var(--bt-line-warning)}
+.bt-rail-name{max-width:140px;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.bt-rail-count{font-variant-numeric:tabular-nums;color:var(--bt-ink-2)}
+.bt-rail-segs{display:inline-flex;gap:2px}
+.bt-rail-segs i{width:9px;height:4px;border-radius:2px;background:var(--bt-shade-3)}
+.bt-rail-segs i[data-seg=done]{background:var(--bt-green)}
+.bt-rail-segs i[data-seg=current],.bt-rail-segs i[data-seg=checking]{background:var(--bt-accent)}
+.bt-rail-segs i[data-seg=checking]{opacity:.55}
+.bt-rail-segs i[data-seg=paused]{background:var(--bt-star)}
+.bt-rail-wait{font-weight:600;color:var(--bt-warning-text)}
+.crew-goal-island .bt-rail{width:100%;max-width:100%;padding:0 4px;box-sizing:border-box}
+.crew-island-rail-wrap{display:flex;justify-content:center;padding:6px 16px 0}
+.crew-island-rail-wrap .bt-rail{margin-bottom:0}
