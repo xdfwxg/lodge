@@ -31,7 +31,7 @@ export const presentRoom = (room, messages = [], assignments = []) => {
   const visible = {
     ...visibleRoom,
     members: (room.members ?? []).map(member => ({ ...member, body: publicBody(member.body) })),
-    hostLabel: typeof chatHost?.displayName === 'string' ? chatHost.displayName : '',
+    hostLabel: room.roomType === 'chat' && typeof chatHost?.displayName === 'string' ? chatHost.displayName : '',
   }
   const projection = roomPresentationOfRoom(room)?.projectWork?.(room, assignments) ?? null
   const view = {

@@ -108,6 +108,17 @@ test('application modules depend on ports, not concrete adapters', () => {
   }
 })
 
+test('the chat host stays inside the chat room', () => {
+  for (const file of walk('rooms/studio')) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    assert.doesNotMatch(
+      readFileSync(join(root, file), 'utf8'),
+      /chatHost|hostLabel/,
+      `${file} reaches into the chat host`,
+    )
+  }
+})
+
 test('business files never resolve base names or addresses', () => {
   const businessFiles = [
     'rooms/studio/handoff.js',

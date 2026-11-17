@@ -1,5 +1,4 @@
 import { fail, ok } from '../../result.js'
-import { requestedTurnLimitOf } from '../../room-types/chat.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
 
 // 聊天室只有 room.chat；结论确认和继续讨论都不经过工作室的 stages/gates。
@@ -22,7 +21,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)
-    appendMessage(room.id, { kind: 'system', text: '结论定了，房间收尾。' })
+    appendMessage(room.id, { kind: 'system', text: '结论定了，可以继续聊，或转成工作室任务。' })
     return ok({ room: updated })
   }
 
@@ -41,7 +40,6 @@ export const createServiceChat = ({ store, live, emit }) => {
     const moved = transitionChat(chat.phase, event)
     if (!moved.ok) return fail('conflict', moved.error)
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : ''
-    const roundTurnLimit = requestedTurnLimitOf(note)
     const message = appendMessage(room.id, {
       kind: 'chat_rework',
       authorId: 'you',
@@ -63,13 +61,12 @@ export const createServiceChat = ({ store, live, emit }) => {
         running: true,
         speaker: '',
         note,
-        roundTurnLimit,
       }
       return { events: [{ type: 'chat.continued', payload: { round: current.chat.round } }, chatTransitionEvent(moved, event, 'you', note === '' ? '继续讨论' : note)] }
     })
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)
-    void live.continueChat(updated, note).catch(error => {
+    void live.continueChat(updated, note, { speakerIds: body.speakerIds }).catch(error => {
       appendMessage(room.id, { kind: 'system', text: `继续讨论启动失败：${error?.message ?? error}` })
       const reset = updateRoom(room.id, current => {
         if (current.chat?.running !== true) return null
@@ -113,5 +110,40 @@ export const createServiceChat = ({ store, live, emit }) => {
     return ok({ room: updated })
   }
 
-  return { accept, continue: continueChat, restart }
+  const setHostThinking = (room, value) => {
+    const updated = updateRoom(room.id, current => {
+      if (current.chat === undefined) return null
+      current.chat = { ...current.chat, hostThinking: value }
+      return { events: [] }
+    })
+    if (updated !== null) emit('room', updated)
+  }
+
+  const input = async (room, body = {}) => {
+    if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
+    if (room.live !== true || typeof live.hostIntent !== 'function' || live.isAttached?.(room.id) !== true) {
+      return fail('conflict', '聊天室还没有连上模型服务')
+    }
+    const text = typeof body.note === 'string' ? body.note.trim().slice(0, 8000) : ''
+    if (text === '') return fail('invalid', '消息不能为空')
+    let intent
+    setHostThinking(room, true)
+    try {
+      intent = await live.hostIntent(room, text)
+    } catch (error) {
+      return fail('conflict', String(error?.message ?? error))
+    } finally {
+      setHostThinking(room, false)
+    }
+    if (intent.action === 'round') {
+      const result = continueChat(room, { note: text, speakerIds: intent.speakers })
+      if (result.ok !== true) return result
+      if (intent.reply !== '') appendMessage(room.id, { kind: 'chat', authorId: 'lodge', text: intent.reply })
+      return result
+    }
+    const message = appendMessage(room.id, { kind: 'chat', authorId: 'lodge', text: intent.reply })
+    return ok({ room, message })
+  }
+
+  return { accept, continue: continueChat, input, restart }
 }

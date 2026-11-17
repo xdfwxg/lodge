@@ -5,6 +5,7 @@ import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
 import { parseHandoffFromText } from '../../../../shared/handoff.js'
+import { hostIntentPrompt, parseHostIntent } from './host-intent.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
@@ -54,9 +55,10 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
   ].filter(Boolean).join('\n')
 }
 
-const hostPrompt = ({ room, round, note }) => [
+const hostPrompt = ({ room, round, note, turnLimit }) => [
   `聊天室第 ${round} 轮讨论到此结束，请总结。`,
   `话题：${room.goal}`,
+  `固定成员：${(room.members ?? []).map(member => `${member.id}（${member.name}）`).join('、') || '无'}；本轮上限 ${turnLimit} 次发言。`,
   note === '' ? '' : `用户这轮的要求：${note}`,
   '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。严格按下面五段输出，标题固定：',
   '## 主题',
@@ -134,17 +136,18 @@ export const createChatScheduler = ({
     return true
   }
 
-  const start = async (inputRoom, { note = '' } = {}) => {
+  const start = async (inputRoom, { note = '', speakerIds = null } = {}) => {
     if (runs.has(roomId)) return { started: false, reason: '聊天讨论已经在进行' }
     let room = store.readRoom(roomId) ?? inputRoom
     if (transport.ready() !== true) throw new Error('房间聊天室还没准备好')
-    // 主持人是 Lodge 自己的隐藏成员，不占发言位置。
+    // 主持人是 Lodge 自己的隐藏成员，不占发言位置。成员和轮数都是房间固定配置。
     const hostAuthor = 'lodge'
-    const speakers = (room.members ?? []).map(member => member.id)
-    const requestedTurns = Number(room.chat?.roundTurnLimit)
-    const turnLimit = Number.isInteger(requestedTurns) && requestedTurns >= 1
-      ? chatTurnLimitOf({ chat: { turnLimit: requestedTurns } })
-      : chatTurnLimitOf(room)
+    const allowedSpeakers = (room.members ?? []).map(member => member.id)
+    const selected = Array.isArray(speakerIds)
+      ? [...new Set(speakerIds.filter(id => allowedSpeakers.includes(id)))].slice(0, 3)
+      : []
+    const speakers = selected.length > 0 ? selected : allowedSpeakers
+    const turnLimit = chatTurnLimitOf(room)
     const perMember = speakers.length === 0
       ? turnLimit
       : Math.max(1, Math.ceil(turnLimit / speakers.length))
@@ -264,13 +267,13 @@ export const createChatScheduler = ({
         return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', hostAuthor, '达到发言上限')] }
       })
       let before = await transport.messageIds()
-      let sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
+      let sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note, turnLimit }))
       hidePrompt(sent?.messageId)
       let reply = await waitForBot('host', before, run)
       if (reply === null && !run.cancelled) {
         await waitIdle(run, Math.min(30_000, idleMs))
         before = await transport.messageIds()
-        sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note }))
+        sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note, turnLimit }))
         hidePrompt(sent?.messageId)
         reply = await waitForBot('host', before, run)
       }
@@ -334,5 +337,23 @@ export const createChatScheduler = ({
     }
   }
 
-  return { start, cancel, isRunning: () => runs.has(roomId) }
+  const hostIntent = async (inputRoom, text) => {
+    if (runs.has(roomId)) return { action: 'reply', reply: '这一轮还在进行，等他们说完再继续。', speakers: [] }
+    const room = store.readRoom(roomId) ?? inputRoom
+    if (transport.ready() !== true) return { action: 'reply', reply: '聊天室还没准备好。', speakers: [] }
+    const before = await transport.messageIds()
+    const sent = await sendToMember('host', hostIntentPrompt({
+      room,
+      text,
+      turnLimit: chatTurnLimitOf(room),
+    }))
+    hidePrompt(sent?.messageId)
+    const reply = await waitForBot('host', before, { cancelled: false })
+    if (reply === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }
+    return parseHostIntent(reply.text ?? reply.turn?.reply ?? '', {
+      speakers: (room.members ?? []).map(member => member.id),
+    })
+  }
+
+  return { start, hostIntent, cancel, isRunning: () => runs.has(roomId) }
 }

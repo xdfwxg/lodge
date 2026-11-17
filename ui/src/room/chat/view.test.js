@@ -97,6 +97,15 @@ test('a speaking member is left to the body status row', () => {
   assert.equal(tree, null)
 })
 
+test('the host shows a pending line while it reads the input', () => {
+  const html = renderToStaticMarkup(chatView.typing({
+    room: { chat: { hostThinking: true }, hostLabel: 'Lodge 主持' },
+    members: [],
+    locked: false,
+  }))
+  assert.match(html, /Lodge 主持 正在看/)
+})
+
 test('only the host summarizing gets a typing line', () => {
   const html = renderToStaticMarkup(chatView.typing({
     room: { id: 'room-chat', chat: { phase: 'summarizing' } },

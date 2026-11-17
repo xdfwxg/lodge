@@ -25,6 +25,20 @@ test('room presentation hides base fields and keeps the display host label', () 
   assert.deepEqual(presented.members[0].body, { kind: 'base', engine: 'pi', model: 'deepseek' })
 })
 
+test('a studio room never exposes a chat host', () => {
+  const room = {
+    id: 'room-studio',
+    state: 'active',
+    roomType: 'studio',
+    chatHost: { memberRef: 'base-host', name: 'LodgeHost1', displayName: 'Lodge 主持' },
+    members: [],
+    stages: [],
+  }
+  const presented = presentRoom(room, [])
+  assert.equal(presented.chatHost, undefined)
+  assert.equal(presented.hostLabel, '')
+})
+
 test('room events and state share one projected status and independence label', () => {
   const room = {
     id: 'room-1',

@@ -246,28 +246,6 @@ test('a chat room can run fewer turns than the default', async () => {
 })
 
 
-test('a per-round request caps that round without changing the room default', async () => {
-  const ctx = setup()
-  ctx.store.updateRoom('room-chat', state => {
-    state.chat = { ...state.chat, turnLimit: 6, roundTurnLimit: 2 }
-    return { events: [] }
-  })
-  const scheduler = createChatScheduler({
-    store: ctx.store,
-    transport: transportFor(ctx),
-    sendToMember: ctx.sendToMember,
-    roomId: 'room-chat',
-    random: () => 0,
-    waitMs: 100,
-    pollMs: 1,
-  })
-  const result = await scheduler.start(ctx.room())
-  assert.equal(result.turns, 2)
-  const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
-  assert.equal(conclusion.meta.turnLimit, 2)
-  assert.equal(ctx.store.readRoom().chat.turnLimit, 6)
-})
-
 test('a busy base skips the round instead of queueing every speaker', async () => {
   const ctx = setup({ busy: true })
   const scheduler = createChatScheduler({

@@ -22,6 +22,8 @@ const setup = () => {
   }
   const messages = []
   const calls = []
+  let intent = { action: 'reply', reply: '我在。', speakers: [] }
+  let readIntent = async () => intent
   const store = {
     readMessages: () => messages,
     updateRoom: (id, mutate) => {
@@ -40,11 +42,25 @@ const setup = () => {
     store,
     live: {
       isAttached: () => true,
-      continueChat: async (room, note) => { calls.push({ roomId: room.id, note }) },
+      hostIntent: async () => readIntent(),
+      continueChat: async (room, note, options = {}) => {
+        calls.push({
+          roomId: room.id,
+          note,
+          ...(Array.isArray(options.speakerIds) ? { speakers: options.speakerIds } : {}),
+        })
+      },
     },
     emit: () => {},
   })
-  return { chat, room: () => current, messages, calls }
+  return {
+    chat,
+    room: () => current,
+    messages,
+    calls,
+    setIntent: next => { intent = next },
+    setHostIntent: next => { readIntent = next },
+  }
 }
 
 test('accepting a chat conclusion completes the room without stages', () => {
@@ -70,20 +86,43 @@ test('rejecting a chat conclusion starts another round', async () => {
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '还缺反方观点' }])
 })
 
-test('a turn count in the note caps the next round', () => {
+test('a host reply answers without reopening the room', async () => {
   const ctx = setup()
-  const result = ctx.chat.continue(ctx.room(), { note: '讨论三次' })
+  ctx.setIntent({ action: 'reply', reply: '我在，先说你的判断。', speakers: [] })
+  const result = await ctx.chat.input(ctx.room(), { note: '你怎么看？' })
   assert.equal(result.ok, true)
-  assert.equal(ctx.room().chat.roundTurnLimit, 3)
-  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '讨论三次' }])
+  assert.equal(ctx.room().chat.phase, 'awaiting_decision')
+  assert.equal(ctx.messages.at(-1).kind, 'chat')
+  assert.equal(ctx.messages.at(-1).authorId, 'lodge')
+  assert.equal(ctx.messages.at(-1).text, '我在，先说你的判断。')
+  assert.deepEqual(ctx.calls, [])
 })
 
-test('a note without a count clears an old cap', () => {
+test('a host round reopens with the speakers it named', async () => {
   const ctx = setup()
-  ctx.room().chat = { ...ctx.room().chat, roundTurnLimit: 3 }
-  const result = ctx.chat.continue(ctx.room(), { note: '还缺反方观点' })
+  ctx.room().members = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+  ctx.setIntent({ action: 'round', reply: '我请三位说说。', speakers: ['a', 'b', 'c'] })
+  const result = await ctx.chat.input(ctx.room(), { note: '大家怎么看？' })
   assert.equal(result.ok, true)
-  assert.equal(ctx.room().chat.roundTurnLimit, null)
+  assert.equal(ctx.room().state, 'active')
+  assert.equal(ctx.room().chat.round, 2)
+  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '大家怎么看？', speakers: ['a', 'b', 'c'] }])
+  assert.equal(ctx.messages.at(-1).authorId, 'lodge')
+  assert.equal(ctx.messages.at(-1).text, '我请三位说说。')
+})
+
+test('the host pending state is visible while it reads the input', async () => {
+  const ctx = setup()
+  let release
+  const intent = new Promise(resolve => { release = resolve })
+  ctx.setHostIntent(async () => intent)
+  const pending = ctx.chat.input(ctx.room(), { note: '你在吗？' })
+  await Promise.resolve()
+  assert.equal(ctx.room().chat.hostThinking, true)
+  release({ action: 'reply', reply: '在。', speakers: [] })
+  const result = await pending
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().chat.hostThinking, false)
 })
 
 test('a completed chat can reopen for another round', () => {
@@ -94,7 +133,6 @@ test('a completed chat can reopen for another round', () => {
   assert.equal(ctx.room().state, 'active')
   assert.equal(ctx.room().chat.phase, 'discussing')
   assert.equal(ctx.room().chat.round, 2)
-  assert.equal(ctx.room().chat.roundTurnLimit, 3)
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '再来3次' }])
 })
 

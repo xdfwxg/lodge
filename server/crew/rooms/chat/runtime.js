@@ -65,6 +65,14 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
     resume: async () => {},
 
     resumeIfRunning(entry, room) {
+      if (room.chat?.hostThinking === true) {
+        const updated = store.updateRoom(entry.roomId, current => {
+          if (current.chat?.hostThinking !== true) return null
+          current.chat = { ...current.chat, hostThinking: false }
+          return { events: [] }
+        })
+        if (updated !== null) emit('room', updated)
+      }
       if (room.state === 'active' && chatFacade.runningOf(room)) void entry.chatRun.start(room)
     },
 
@@ -72,8 +80,12 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
       return entry.chatRun.start(room, options)
     },
 
-    continue(entry, room, note = '') {
-      return entry.chatRun.start(store.readRoom(room.id) ?? room, { note })
+    continue(entry, room, note = '', options = {}) {
+      return entry.chatRun.start(store.readRoom(room.id) ?? room, { note, speakerIds: options.speakerIds })
+    },
+
+    hostIntent(entry, room, text) {
+      return entry.chatRun.hostIntent(store.readRoom(room.id) ?? room, text)
     },
 
     cancel(entry) {

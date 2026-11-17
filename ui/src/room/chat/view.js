@@ -7,11 +7,10 @@ import { hostLabelOf } from '../host.js'
 import { StatePanel } from '../../state-panel.js'
 import { CrewStatusLine } from '../crew-status.js'
 
-function TypingLine({ room, summarizing }) {
+function TypingLine({ label }) {
   return h('div', { className: 'crew-msg crew-msg-chat crew-typing-line' },
     h('div', { className: 'crew-msg-body' },
-      h('span', { className: 'crew-typing-name' },
-        summarizing ? `${hostLabelOf(room)} 正在总结` : '正在思考'),
+      h('span', { className: 'crew-typing-name' }, label),
       h('span', { className: 'crew-typing-dots', 'aria-hidden': true }, h('i'), h('i'), h('i'))))
 }
 
@@ -58,11 +57,15 @@ export const chatView = {
   presence: () => null,
   composerPlaceholder: ({ room }) => room.demo === true && room.live !== true
     ? '示例房间不接模型 · 已停在结论'
-    : room.state === 'complete' ? '已完成 · 可以继续聊。' : '说点什么…',
-  // 谁在发言由身体状态行说；这里只补主持人的“正在总结”。
+    : `对 ${hostLabelOf(room) || 'Lodge 主持'} 说…`,
+  // 谁在发言由身体状态行说；这里只补主持人的“正在看”和“正在总结”。
   typing: ({ room, locked }) => {
     const chat = room.chat ?? {}
-    const summarizing = !locked && chat.phase === 'summarizing'
-    return summarizing ? h(TypingLine, { room, summarizing: true }) : null
+    if (chat.hostThinking === true) {
+      return h(TypingLine, { label: `${hostLabelOf(room)} 正在看` })
+    }
+    return !locked && chat.phase === 'summarizing'
+      ? h(TypingLine, { label: `${hostLabelOf(room)} 正在总结` })
+      : null
   },
 }

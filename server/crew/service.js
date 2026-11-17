@@ -6,7 +6,6 @@ import { accepted, BusinessError, created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
-import { requestedTurnLimitOf } from './room-types/chat.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
@@ -355,13 +354,11 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       if (room.live === true) {
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
-        // 带 @ 的消息交给基座原生群聊，由被 @ 的成员回答；次数请求由调度器开一轮，已确认的聊天室则先重开。
-        const chatRoundRequested = room.roomType === 'chat'
-          && !text.includes('@')
-          && requestedTurnLimitOf(text) !== null
-          && (room.chat?.phase === 'awaiting_decision'
-            || (room.state === 'complete' && room.chat?.phase === 'accepted'))
-        if (chatRoundRequested) return chat.continue(room, { note: text })
+        // 聊天室里用户是在对主持说话；主持判断直接回答还是请成员讨论。
+        // @ 是结构化指令，仍然直接交给被 @ 的成员。
+        if (room.roomType === 'chat' && !text.includes('@')) {
+          return chat.input(room, { note: text })
+        }
         await live.send(room.id, text)
         return accepted({ accepted: true })
       }

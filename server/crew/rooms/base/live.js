@@ -269,10 +269,17 @@ export const createLiveRooms = ({
     return entry.strategy.start(entry, room, options)
   }
 
-  const continueChat = async (room, note = '') => {
+  const continueChat = async (room, note = '', options = {}) => {
     const entry = entries.get(room.id)
     if (entry === undefined) throw new Error('房间还没有连上')
-    return entry.strategy.continue(entry, store.readRoom(room.id) ?? room, note)
+    return entry.strategy.continue(entry, store.readRoom(room.id) ?? room, note, options)
+  }
+
+  const hostIntent = async (room, text) => {
+    const entry = entries.get(room.id)
+    if (entry === undefined) throw new Error('房间还没有连上')
+    if (typeof entry.strategy.hostIntent !== 'function') throw new Error('这个房型没有聊天主持')
+    return entry.strategy.hostIntent(entry, store.readRoom(room.id) ?? room, text)
   }
 
   const reworkStage = async (room, index, note) => {
@@ -400,6 +407,7 @@ export const createLiveRooms = ({
     reworkStage,
     startChat,
     continueChat,
+    hostIntent,
     chatRunning: roomId => entries.get(roomId)?.strategy.isRunning?.(entries.get(roomId)) ?? false,
     syncChatMembers: room => chat.syncMembers(room),
     markChatRead: room => chat.markRead(room),
