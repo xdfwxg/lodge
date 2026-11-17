@@ -23,7 +23,7 @@ const setup = () => {
   return { dataDir, store, service }
 }
 
-test('the sample room is a complete chat with a confirmed conclusion', () => {
+test('the sample room is a finished studio that shows the whole handoff', () => {
   const { dataDir, store, service } = setup()
   try {
     const result = service.createSampleRoom()
@@ -33,16 +33,16 @@ test('the sample room is a complete chat with a confirmed conclusion', () => {
     const room = store.readRoom(SAMPLE_ROOM_ID)
     const messages = store.readMessages(SAMPLE_ROOM_ID)
     const view = presentRoom(room, messages)
-    assert.equal(view.roomType, 'chat')
+    assert.equal(view.roomType, 'studio')
     assert.equal(view.state, 'complete')
     assert.equal(view.needsYou, null)
-    assert.equal(view.hostLabel, 'Lodge 主持')
-    assert.equal(room.chat.phase, 'accepted')
     assert.equal(room.demo, true)
-
-    const conclusion = messages.find(message => message.kind === 'chat_conclusion')
-    assert.match(conclusion.meta.handoff.topic, /羽仙记/)
-    assert.equal(conclusion.meta.handoff.todos.length, 2)
+    assert.equal(room.leadMemberId, 'planner')
+    assert.equal(room.stages.every(stage => stage.state === 'passed'), true)
+    assert.match(room.plan.prose, /我分两步/)
+    assert.ok(messages.some(message => message.kind === 'plan' && message.authorId === 'planner'))
+    assert.ok(messages.some(message => message.kind === 'handoff' && message.authorId === 'executor'))
+    assert.ok(messages.some(message => message.kind === 'verdict' && message.meta?.pass === true))
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
   }

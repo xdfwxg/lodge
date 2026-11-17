@@ -5,7 +5,7 @@ import { stageGuidance, workContract } from './prompt-modes.js'
 test('work contracts carry stage discipline, not room identity', () => {
   assert.match(workContract('worker').join('\n'), /不要自己 git commit/)
   assert.match(workContract('worker').join('\n'), /不要创建额外的报告/)
-  assert.match(workContract('worker').join('\n'), /完成后不用 @ 人，系统会把结果和证据交给验收员/)
+  assert.match(workContract('worker').join('\n'), /@验收员，请对方复核/)
   assert.match(workContract('worker').join('\n'), /只有真正阻塞、需要改派时才 @ 规划师/)
   assert.match(workContract('verifier').join('\n'), /第一行只写 PASS 或 REJECT/)
   assert.match(workContract('verifier').join('\n'), /只在自己的复核副本里读文件/)
