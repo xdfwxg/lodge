@@ -1,4 +1,4 @@
-import { createElement as h, useId, useRef, useState } from 'react'
+import { createElement as h, useEffect, useId, useRef, useState } from 'react'
 import { ArrowUpIcon } from './icons.js'
 import { BotMark } from './marks.js'
 
@@ -10,12 +10,33 @@ const mentionAt = (value, cursor) => {
   return { start, end: cursor, query: match[2] }
 }
 
-function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
-  const [draft, setDraft] = useState('')
+const draftKeyOf = key => `lodge:draft:${key}`
+const readDraft = key => {
+  if (key === '') return ''
+  try { return globalThis.localStorage?.getItem(draftKeyOf(key)) ?? '' } catch { return '' }
+}
+const writeDraft = (key, value) => {
+  if (key === '') return
+  try {
+    if (value === '') globalThis.localStorage?.removeItem(draftKeyOf(key))
+    else globalThis.localStorage?.setItem(draftKeyOf(key), value)
+  } catch {}
+}
+
+function Composer({ placeholder, disabled, onSend, onSent, members = [], draftKey = '' }) {
+  const [draft, setDraft] = useState(() => readDraft(draftKey))
   const [mention, setMention] = useState(null)
   const [picked, setPicked] = useState(0)
   const input = useRef(null)
+  const pickedMentions = useRef([])
   const listId = useId()
+
+  // 每个房间留着自己的草稿，切走再切回来还在。
+  useEffect(() => {
+    setDraft(readDraft(draftKey))
+    setMention(null)
+    pickedMentions.current = []
+  }, [draftKey])
 
   const query = mention === null ? '' : mention.query.toLowerCase()
   const matches = mention === null
@@ -28,6 +49,7 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
   const change = event => {
     const value = event.target.value
     setDraft(value)
+    writeDraft(draftKey, value)
     const next = mentionAt(value, event.target.selectionStart ?? value.length)
     setMention(next)
     setPicked(0)
@@ -40,6 +62,14 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
     const token = /\s/.test(member.name) ? member.mention : member.name
     const next = `${before}@${token} ${after}`
     setDraft(next)
+    writeDraft(draftKey, next)
+    // 记下“挑中的是谁”，发送时带 id，重名也不会送错人。
+    if (member.id !== 'all') {
+      pickedMentions.current = [
+        ...pickedMentions.current.filter(item => item.id !== member.id),
+        { id: member.id, token: `@${token}` },
+      ]
+    }
     setMention(null)
     setPicked(0)
     requestAnimationFrame(() => {
@@ -52,10 +82,15 @@ function Composer({ placeholder, disabled, onSend, onSent, members = [] }) {
   const send = () => {
     const text = draft.trim()
     if (text === '' || disabled) return
+    const mentions = pickedMentions.current
+      .filter(item => text.includes(item.token))
+      .map(item => item.id)
     setDraft('')
+    writeDraft(draftKey, '')
+    pickedMentions.current = []
     setMention(null)
     setPicked(0)
-    void onSend(text)
+    void onSend(text, { mentions })
     onSent?.()
     setTimeout(() => onSent?.(), 400)
   }

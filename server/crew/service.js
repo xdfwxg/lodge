@@ -351,6 +351,9 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       const body = await readBody()
       const text = typeof body.text === 'string' ? body.text.trim() : ''
       if (text === '' || text.length > 8000) return fail('invalid', '消息不能为空，且不超过 8000 字')
+      const mentions = Array.isArray(body.mentions)
+        ? body.mentions.filter(id => typeof id === 'string' && id !== '').slice(0, 8)
+        : []
       if (room.live === true) {
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
@@ -359,7 +362,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         if (room.roomType === 'chat' && !text.includes('@')) {
           return chat.input(room, { note: text })
         }
-        await live.send(room.id, text)
+        await live.send(room.id, text, { mentions })
         return accepted({ accepted: true })
       }
       const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text })

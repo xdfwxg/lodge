@@ -245,6 +245,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       h('div', { ref: composerRef, className: 'dsb-composer' },
         h(Composer, {
           members: mentionMembers,
+          draftKey: room.id,
           onSent: followBottom,
           placeholder: room.state === 'paused'
             ? '已暂停 · 继续后才能派新活'
@@ -252,7 +253,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
               ? '已停止 · 不会再派新活'
               : composerPlaceholder,
           disabled: state.phase === 'loading' || locked,
-          onSend: text => store.send(text),
+          onSend: (text, options) => store.send(text, options),
         }))),
     swapId === null
       ? null

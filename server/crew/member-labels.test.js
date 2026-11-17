@@ -7,6 +7,7 @@ import {
   memberDisplayName,
   memberLabelMap,
   toBaseMentions,
+  toIdMentions,
   unknownMentionsOf,
   toDisplayMentions,
   toDisplayText,
@@ -55,6 +56,19 @@ test('the label map is built from the roster only', () => {
 test('base name conversion lives in one place', () => {
   assert.equal(memberSurfaceName(room, 'executor'), 'Executorea924d')
   assert.equal(memberSurfaceName({ members: [] }, 'executor'), '')
+})
+
+test('a picked member is addressed by id even when two members share a name', () => {
+  const twins = {
+    members: [
+      member('a', '甲', 'Bota1', 'bot-a'),
+      member('b', '甲', 'Botb2', 'bot-b'),
+    ],
+  }
+  assert.equal(toIdMentions(twins, '@甲 你说', ['b']), '@Botb2 你说')
+  assert.equal(toIdMentions(twins, '@甲 你说', ['a']), '@Bota1 你说')
+  assert.equal(toIdMentions(twins, '@甲 你说', []), '@甲 你说')
+  assert.equal(toIdMentions(twins, '@甲 你说', ['gone']), '@甲 你说')
 })
 
 test('unknown @ names are reported, known names and @everyone are not', () => {

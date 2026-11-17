@@ -27,7 +27,7 @@ test('onboarding, focused dialog, sample chat and archive restore', async ({ pag
   await expect(composer).toHaveAttribute('placeholder', '示例房间不接模型 · 已停在结论')
   await composer.fill('继续讨论一轮')
   await composer.press('Enter')
-  await expect(page.getByText(/这是示例房间，不接模型/)).toBeVisible()
+  await expect(page.getByText(/这是示例房间，不接模型/).last()).toBeVisible()
 
   await page.getByRole('button', { name: '转成工作室任务' }).click()
   const dialog = page.getByRole('dialog')
@@ -47,6 +47,20 @@ test('onboarding, focused dialog, sample chat and archive restore', async ({ pag
   await page.getByRole('button', { name: /管理 示例：兰香如故中的羽仙记/ }).click()
   await page.getByRole('menuitem', { name: '取消归档' }).click()
   await expect(page.getByText(/示例：兰香如故中的羽仙记/).first()).toBeVisible()
+})
+
+test('a room keeps its unsent draft across a reload', async ({ page, request }) => {
+  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
+  await page.goto('/')
+
+  await page.getByRole('combobox', { name: '房间消息' }).fill('先写到一半')
+  await page.reload()
+  const composer = page.getByRole('combobox', { name: '房间消息' })
+  await expect(composer).toHaveValue('先写到一半')
+  // 清空后草稿不该留着，免得下次进来看见旧话。
+  await composer.fill('')
+  await page.reload()
+  await expect(page.getByRole('combobox', { name: '房间消息' })).toHaveValue('')
 })
 
 test('opening a detail keeps the reading position', async ({ page, request }) => {

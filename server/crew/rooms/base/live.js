@@ -237,18 +237,19 @@ export const createLiveRooms = ({
     return entry.strategy.sendToMember(entry, room, memberId, text, options)
   }
 
-  const send = async (roomId, text) => {
+  const send = async (roomId, text, { mentions = [] } = {}) => {
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('房间还没有连上')
     if (entry.strategy.busyReview(entry)) throw new Error('验收员还在看，等结论出来再继续')
     const room = store.readRoom(roomId)
     if (room === null) throw new Error('没有这个房间')
     // 成员默认休眠，只有被 @ 才唤醒；人直接说话时默认唤醒主成员，避免“发了没人回”。
-    const lead = !/@[^\s，,。]+/.test(text)
+    const addressed = mentions.some(id => room.members?.some(member => member.id === id))
+    const lead = !addressed && !/@[^\s，,。]+/.test(text)
       ? memberDisplayName(room, leadMemberOf(room)?.id ?? '')
       : ''
     // 自动唤醒的 @ 只发给基座，不写进房间记录；人看到的仍是自己说的话。
-    return chat.send(room, lead === '' ? text : `@${lead} ${text}`, { displayText: text })
+    return chat.send(room, lead === '' ? text : `@${lead} ${text}`, { displayText: text, mentions })
   }
 
   const requestReview = async (roomId, stage) => {

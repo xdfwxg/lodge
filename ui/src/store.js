@@ -184,7 +184,10 @@ export function createStore() {
       seen.clear()
     },
     select: activeId => (rememberRoom(activeId), patch({ activeId })),
-    send: text => post(`/api/rooms/${state.activeId}/messages`, { text }),
+    send: (text, options = {}) => post(`/api/rooms/${state.activeId}/messages`, {
+      text,
+      ...(Array.isArray(options.mentions) && options.mentions.length > 0 ? { mentions: options.mentions } : {}),
+    }),
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     holdMember: (memberId, held) => post(`/api/rooms/${state.activeId}/hold`, { memberId, held }),
     cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),

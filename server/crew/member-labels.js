@@ -53,6 +53,20 @@ export const toBaseMentions = (room, text) => {
   return output
 }
 
+// 人挑中的成员按 id 寻址：同名时也只会唤到挑中的那一个。
+export const toIdMentions = (room, text, ids = []) => {
+  let output = text
+  for (const id of ids) {
+    const member = memberOf(room, id)
+    const display = member?.name
+    const baseName = member?.body?.name
+    if (typeof display !== 'string' || display === '') continue
+    if (typeof baseName !== 'string' || baseName === '' || baseName === display) continue
+    output = replaceAll(output, `@${display}`, `@${baseName}`)
+  }
+  return output
+}
+
 const MENTION_TOKEN = /@([\p{L}\p{N}._-]+)/gu
 
 // 人写的 @ 如果找不到成员，基座不会替我们猜；这里只负责把没送到的名字告诉人。

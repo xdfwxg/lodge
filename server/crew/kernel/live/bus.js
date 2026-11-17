@@ -5,7 +5,7 @@ import { pauseForMemberFailure } from './sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 import { supportsRuntime } from '../../runtime-port.js'
-import { toBaseMentions, toDisplayMentions, toDisplayText, unknownMentionsOf } from '../../member-labels.js'
+import { toBaseMentions, toDisplayMentions, toDisplayText, toIdMentions, unknownMentionsOf } from '../../member-labels.js'
 
 // 隐藏主持与当前发言人由房型的 presentation 提供；总线不认识任何具体房型。
 const FINAL_IDS_KEEP = 500
@@ -265,11 +265,12 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     })
   }
 
-  const send = async (room, text, { displayText = text } = {}) => {
+  const send = async (room, text, { displayText = text, mentions = [] } = {}) => {
     const chat = room.chatRoom
     if (chat === undefined) throw new Error('房间聊天室还没准备好；重连房间后再试')
     // 基座原生支持 @everyone；产品文案 @所有人 只在这里映射，不自己展开成员。
-    const outgoing = toBaseMentions(room, text).split('@所有人').join('@everyone')
+    // 人挑中的成员先按 id 落成基座名，剩下的 @ 再按名字转换。
+    const outgoing = toBaseMentions(room, toIdMentions(room, text, mentions)).split('@所有人').join('@everyone')
     const unknown = unknownMentionsOf(room, text)
     if (unknown.length > 0) {
       store.appendMessage(room.id, {
