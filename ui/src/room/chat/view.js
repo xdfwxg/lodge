@@ -6,13 +6,8 @@ import { Timeline } from './timeline.js'
 import { hostLabelOf } from '../host.js'
 import { StatePanel } from '../../state-panel.js'
 import { CrewStatusLine } from '../crew-status.js'
+import { TypingLine } from '../typing-line.js'
 
-function TypingLine({ label }) {
-  return h('div', { className: 'crew-msg crew-msg-chat crew-typing-line' },
-    h('div', { className: 'crew-msg-body' },
-      h('span', { className: 'crew-typing-name' }, label),
-      h('span', { className: 'crew-typing-dots', 'aria-hidden': true }, h('i'), h('i'), h('i'))))
-}
 
 // 聊天室的房间视图：只认自己的决策、时间线与输入中状态，不碰工作室。
 export const chatView = {

@@ -956,3 +956,18 @@ details[open]>summary::before{transform:rotate(90deg)}
 .crew-plan-note{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:10px;background:var(--bt-shade-2)}
 .crew-plan-name{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
 .crew-plan-text{white-space:pre-line;font-size:var(--bt-text-label);line-height:20px;color:var(--bt-ink)}
+
+.crew-chat-line{display:flex;gap:8px;align-items:baseline;padding:4px 0;font-size:var(--bt-text-label);line-height:20px;color:var(--bt-ink)}
+.crew-chat-line-name{flex:none;font-weight:600;color:var(--bt-ink-2)}
+.crew-chat-line-text{min-width:0;overflow-wrap:anywhere}
+
+/* 工作室顶部只留一行：做什么、现在到哪了。 */
+.studio-status-line{display:flex;align-items:baseline;gap:10px;min-width:0;padding:10px 4px 6px}
+.studio-status-goal{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
+.studio-status-state{flex:none;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
+.crew-room-actions{display:flex;gap:8px;padding:12px 4px 18px}
+.crew-msg-fold{margin-top:6px}
+.crew-msg-fold summary{cursor:pointer;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
+.crew-msg-fold pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 0;font-size:var(--bt-text-helper);line-height:18px}
+.crew-msg[data-tone=reject] .crew-msg-text{color:var(--bt-danger-text)}
+.crew-msg[data-tone=pass] .crew-msg-text{color:var(--bt-ink)}
