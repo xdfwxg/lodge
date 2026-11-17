@@ -5,7 +5,7 @@ import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
 import { parseHandoffFromText } from '../../../../shared/handoff.js'
-import { hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { ensureRoundWhenAsked, hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { systemNotice } from '../../notices.js'
 
 const DEFAULT_WAIT_MS = 120_000
@@ -342,18 +342,33 @@ export const createChatScheduler = ({
     if (runs.has(roomId)) return { action: 'reply', reply: '这一轮还在进行，等他们说完再继续。', speakers: [] }
     const room = store.readRoom(roomId) ?? inputRoom
     if (transport.ready() !== true) return { action: 'reply', reply: '聊天室还没准备好。', speakers: [] }
-    const before = await transport.messageIds()
-    const sent = await sendToMember('host', hostIntentPrompt({
+    const speakers = (room.members ?? []).map(member => member.id)
+    const ask = async prompt => {
+      const before = await transport.messageIds()
+      const sent = await sendToMember('host', prompt)
+      hidePrompt(sent?.messageId)
+      const reply = await waitForBot('host', before, { cancelled: false })
+      return reply === null ? null : String(reply.text ?? reply.turn?.reply ?? '')
+    }
+    const prompt = hostIntentPrompt({
       room,
       text,
       turnLimit: chatTurnLimitOf(room),
-    }))
-    hidePrompt(sent?.messageId)
-    const reply = await waitForBot('host', before, { cancelled: false })
-    if (reply === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }
-    return parseHostIntent(reply.text ?? reply.turn?.reply ?? '', {
-      speakers: (room.members ?? []).map(member => member.id),
+      phase: room.chat?.phase ?? '',
     })
+    const first = await ask(prompt)
+    if (first === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }
+    const parsed = parseHostIntent(first, { speakers })
+    if (parsed.structured === true) return ensureRoundWhenAsked(parsed, text, room)
+    // 第一次没给 JSON 就再要一次，只补格式，不重新理解。
+    const repaired = await ask([
+      '上一次回复不是 JSON，没法执行。',
+      '只回一个 JSON，不要解释：',
+      '{"action":"reply","reply":"..."} 或 {"action":"round","speakers":["成员 id"],"reply":"..."}',
+    ].join('\n'))
+    if (repaired === null) return parsed
+    const second = parseHostIntent(repaired, { speakers })
+    return ensureRoundWhenAsked(second.structured === true ? second : parsed, text, room)
   }
 
   return { start, hostIntent, cancel, isRunning: () => runs.has(roomId) }

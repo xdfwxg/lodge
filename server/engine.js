@@ -283,6 +283,12 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     'gemini-cli': 'antigravityAgent',
   }
 
+  // 本机用 CLI 自己的 token 配置（例如 Claude Code 指向 DeepSeek 的 anthropic 端点）时，
+  // `claude auth status` 仍是 loggedIn:false。显式打开这个开关就把这条 CLI 当成可用；
+  // 只对 claude 生效，也只在开发机自己设置时才开。
+  const CLI_TOKEN_ENGINES = new Set(['claudeAgent'])
+  const acceptCliToken = process.env.LODGE_ACCEPT_CLI_TOKEN === '1'
+
   const instances = async () => {
     const page = await client.instances()
     return (page?.instances ?? []).map(item => ({
@@ -292,7 +298,12 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       available: item.snapshot?.state === 'available',
       reason: item.snapshot?.reason ?? '',
       // 基座已经探测过登录；undefined 表示这个驱动没有这项信息。
-      authenticated: item.snapshot?.authenticated,
+      authenticated: item.snapshot?.authenticated === true
+        ? true
+        : acceptCliToken && CLI_TOKEN_ENGINES.has(item.driverKind) ? true : item.snapshot?.authenticated,
+      ...(acceptCliToken && CLI_TOKEN_ENGINES.has(item.driverKind) && item.snapshot?.authenticated !== true
+        ? { authSource: 'cli-token' }
+        : {}),
       models: item.models ?? { default: '', options: [] },
       capabilities: item.capabilities ?? {},
       login: item.login ?? null,

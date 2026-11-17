@@ -35,6 +35,7 @@ test('the prompt asks for a different angle and never a verdict', () => {
   assert.match(prompt, /有没有漏/)
   assert.match(prompt, /npm test/)
   assert.match(prompt, /反例/)
+  assert.match(prompt, /lodge-internal/)
 })
 
 test('advice parsing keeps the four fields and tolerates fences', () => {
