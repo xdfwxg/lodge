@@ -66,6 +66,8 @@ export const renderStudioMessage = ({
     return chat(`${passed ? '我看过了，没问题：' : '我看过了，还得改：'}${text}`, fold('理由', verdict.detail))
   }
 
+  if (message.kind === 'activity_steps') return h(ActivityLine, { key: message.id, message })
+
   if (message.kind === 'activity') {
     const label = displayToolName(message.meta?.tool)
     return h(ActivityLine, { key: message.id, message: label === '' ? message : { ...message, text: label } })

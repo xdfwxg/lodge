@@ -483,7 +483,7 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 .crew-conclusion .crew-card-foot[data-settled=true] .crew-accept{margin-left:0}
 .crew-conclusion-next{display:inline-flex;align-items:center;gap:6px}
 .crew-conclusion-next svg{flex:none}
-.crew-accept, .crew-ghost, .crew-choice, .crew-start-button, .crew-decision-primary, .crew-decision-secondary{
+.crew-accept, .crew-ghost, .crew-choice, .crew-decision-primary, .crew-decision-secondary{
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -492,7 +492,7 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
   white-space:nowrap;
   transition:background-color var(--bt-dur-fast) var(--bt-ease),border-color var(--bt-dur-fast) var(--bt-ease),filter var(--bt-dur-fast) var(--bt-ease);
 }
-.crew-accept, .crew-start-button, .crew-decision-primary{
+.crew-accept, .crew-decision-primary{
   border:1px solid var(--bt-accent);
   border-radius:8px;
   background:var(--bt-accent);
@@ -784,23 +784,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-empty-room{display:grid;place-items:center;height:100%}
 /* First run */
 .crew-connection-banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:80;padding:8px 14px;border-radius:999px;background:var(--bt-card);border:1px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);font-size:var(--bt-text-label);color:var(--bt-ink-2)}
-.crew-room-main.crew-start-main{display:flex;flex-direction:column;gap:24px;width:100%;max-width:640px;margin:0 auto;align-self:center;padding:80px 24px 40px;box-sizing:border-box;overflow-y:auto}
-.crew-start-copy{display:flex;flex-direction:column;gap:10px}
-.crew-start-copy h1{margin:0;font-size:var(--bt-text-hero);line-height:var(--bt-leading-hero);font-weight:600;letter-spacing:var(--bt-tracking-hero)}
-.crew-start-copy p{margin:0;color:var(--bt-ink-2);font-size:var(--bt-text-section);line-height:var(--bt-leading-section)}
-.crew-start-form{display:flex;flex-direction:column;gap:9px}
-.crew-start-form .crew-goal-input{width:100%;box-sizing:border-box;resize:vertical;background:var(--bt-input-bg)}
-.crew-start-label{font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:600;color:var(--bt-ink-2)}
-.crew-start-button{height:40px;margin-top:6px;font-size:var(--bt-text-label)}
-.crew-start-button:disabled{opacity:.45;cursor:default}
-.crew-start-setup{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px 16px;border:1px solid var(--bt-line-2);border-radius:12px;background:var(--bt-shade-1)}
-.crew-start-setup b{font-size:var(--bt-text-label);font-weight:600}
-.crew-start-setup p{margin:0;color:var(--bt-ink-2);font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}
-.crew-start-setup .crew-field-hint{margin:0}
 .crew-primary-login{display:flex;flex-wrap:wrap;gap:8px}
-.crew-start-secondary{display:flex;flex-wrap:wrap;gap:8px}
-.crew-start-sample{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
-@media (max-width:760px){.crew-room-main.crew-start-main{padding:64px 18px 28px}}
 
 
 /* Attention: one needs-you signal per room, not unread counts. */
@@ -920,11 +904,11 @@ input.crew-goal-input,
 
 
 /* HIG pass: one control rhythm, one state surface, one room vocabulary. */
-.crew-accept,.crew-ghost,.crew-start-button,.crew-send,.crew-side-menu-item,.crew-dialog-close{
+.crew-accept,.crew-ghost,.crew-send,.crew-side-menu-item,.crew-dialog-close{
   transition:background-color var(--bt-dur-fast) var(--bt-ease),border-color var(--bt-dur-fast) var(--bt-ease),color var(--bt-dur-fast) var(--bt-ease),transform var(--bt-dur-fast) var(--bt-ease)
 }
-.crew-accept,.crew-start-button{font-weight:600}
-.crew-accept:not(:disabled):active,.crew-ghost:not(:disabled):active,.crew-start-button:not(:disabled):active{transform:scale(.985)}
+.crew-accept{font-weight:600}
+.crew-accept:not(:disabled):active,.crew-ghost:not(:disabled):active{transform:scale(.985)}
 .crew-state{display:flex;align-items:flex-start;gap:12px;max-width:520px;margin:24px auto;padding:16px;border:1px solid var(--bt-line-2);border-radius:var(--bt-radius-card);background:var(--bt-card);color:var(--bt-ink)}
 .crew-state-mark{flex:none;width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--bt-accent)}
 .crew-state[data-tone=waiting] .crew-state-mark{background:var(--bt-star)}

@@ -1,6 +1,5 @@
 import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { createStore, useStore } from './store.js'
-import { RoomStart } from './views/room-start.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
 import { NewRoomDialog } from './new-room-dialog.js'
@@ -94,6 +93,17 @@ export function App() {
     return () => store.disconnect()
   }, [store])
 
+  // 没有房间就没有首页：直接进那间示例房。
+  const autoOpened = useRef(false)
+  useEffect(() => {
+    if (autoOpened.current || state.phase === 'loading') return
+    autoOpened.current = true
+    if (visibleRooms.length !== 0) return
+    void store.openSampleRoom().then(result => {
+      if (result?.ok !== true) openDialog()
+    })
+  }, [state.phase, visibleRooms.length])
+
   // macOS 惯例：⌘N 新房间，⌘1..9 切房间；弹窗打开时不抢键。
   useEffect(() => {
     const onKeyDown = event => {
@@ -140,17 +150,8 @@ export function App() {
       onDelete: id => store.deleteRoom(id),
     }),
     room === null
-      ? h(RoomStart, {
-        state,
-        onQuickStart: (goal, check) => store.createRoom(goal, {
-          roomType: 'studio',
-          verify: check === '' ? 'manual' : 'test',
-          acceptance: check,
-        }),
-        onCreate: roomType => openDialog(null, roomType),
-        onSample: () => store.openSampleRoom(),
-        onRefresh: () => store.refresh(),
-      })
+      ? h('main', { className: 'dsb-main crew-room' },
+        h('div', { className: 'crew-room-main' }))
       : h(RoomView, {
         state,
         room,

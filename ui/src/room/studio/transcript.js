@@ -1,6 +1,6 @@
 import { Fragment, createElement as h, useMemo } from 'react'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
-import { displayableStep } from './transcript-model.js'
+import { describeSteps, displayableStep } from './transcript-model.js'
 import { ShadowAdvice } from './advisor-advice.js'
 import { renderStudioMessage } from './message-view.js'
 
@@ -58,12 +58,32 @@ export function StudioTranscript({
   }, [messages])
 
   const items = []
-  for (const message of renderable) {
+  for (let index = 0; index < renderable.length; index += 1) {
+    const message = renderable[index]
     if (hidden.has(message.kind)) continue
+    let shown = message
+    // 同一个人的连续工具步骤合成一行，聊天里不铺终端日志。
+    if (message.kind === 'activity') {
+      const batch = [message]
+      while (
+        renderable[index + 1]?.kind === 'activity' &&
+        renderable[index + 1]?.authorId === message.authorId
+      ) {
+        index += 1
+        batch.push(renderable[index])
+      }
+      shown = {
+        ...message,
+        id: `steps-${message.id}`,
+        kind: 'activity_steps',
+        text: describeSteps(batch),
+        meta: { ...message.meta, ok: batch.every(item => item.meta?.ok !== false) },
+      }
+    }
     const content = renderStudioMessage({
       room,
       byId,
-      message,
+      message: shown,
       timeline,
       onAccept,
       onStageAccept,
