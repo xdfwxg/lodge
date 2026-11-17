@@ -1,6 +1,7 @@
 import { createElement as h, useState } from 'react'
 import { openPath as openTarget } from '../../system.js'
 import { dateTimeOf } from '../../view-format.js'
+import { errorSuffix } from '../../error-text.js'
 
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
 const isAbsolutePath = value => value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
@@ -42,7 +43,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
       setOpenNotice('已打开')
       setTimeout(() => setOpenNotice(null), 2000)
     } catch (error) {
-      setOpenError(`没能打开：${String(error?.message ?? error)}`)
+      setOpenError(`没能打开${errorSuffix(error)}`)
     }
   }
   const goalText = typeof delivery.goal === 'string' ? delivery.goal.replace(/\*\*/g, '').trim() : ''

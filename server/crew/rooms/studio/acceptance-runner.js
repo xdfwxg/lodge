@@ -1,4 +1,5 @@
 import { verifierIds, workerIds } from '../../room-members.js'
+import { systemNotice } from '../../notices.js'
 import { reworkFloor } from './verifiers.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 
@@ -25,7 +26,7 @@ export const createAcceptanceRunner = ({
     }
     const capabilities = workspaceOf(room).capabilities()
     if (capabilities.acceptanceCopy !== true) {
-      store.appendMessage(roomId, { kind: 'system', text: '这个文件夹不能准备单独的检查副本，检查没有执行' })
+      systemNotice({ store, roomId, text: '这个文件夹没法单独检查；结果由你确认。' })
       return
     }
     // diff 必须在候选提交前采集：提交后工作树变干净，provider 会看不到交付改动。
@@ -73,7 +74,7 @@ export const createAcceptanceRunner = ({
         : null
       if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `没能准备检查用的副本，检查没有执行：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: '这一步没法准备检查；结果由你确认。', error })
       return
     }
     // 本轮实际被验收的提交：有候选就是候选，否则是执行者自己 commit 的房间 HEAD。
@@ -83,7 +84,7 @@ export const createAcceptanceRunner = ({
       // 不能用源仓库的 HEAD；执行者自己 commit 时房间 HEAD 才是交付。
       copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: acceptedRef ?? 'HEAD' })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `单独的检查副本没能准备好，检查没有执行：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: '这一步没法准备检查；结果由你确认。', error })
       return
     }
     const port = room.ports?.[workerIds(room)[0]]
@@ -150,11 +151,12 @@ export const createAcceptanceRunner = ({
       }
       return
     }
-    store.appendMessage(roomId, {
-      kind: 'system',
+    systemNotice({
+      store,
+      roomId,
       text: result.exit === 0
-        ? '检查通过 · 等验收员看'
-        : '检查没通过 · 重做后才能复核',
+        ? '检查通过 · 等验收员看结果'
+        : '检查没通过 · 需要重做这一步',
     })
     if (result.exit !== 0) {
       return
@@ -164,10 +166,10 @@ export const createAcceptanceRunner = ({
       try {
         await requestReview(stageIndex)
       } catch (error) {
-        store.appendMessage(roomId, { kind: 'system', text: `自动复核未启动：${error?.message ?? error}` })
+        systemNotice({ store, roomId, text: '检查做完了，但没能叫验收员来看；结果还在房间里。', error })
       }
     } else {
-      store.appendMessage(roomId, { kind: 'system', text: '检查完成 · 这个房间没有验收员 · 可以签字了' })
+      store.appendMessage(roomId, { kind: 'system', text: '检查完成 · 可以签字了' })
     }
   }
 
@@ -175,7 +177,7 @@ export const createAcceptanceRunner = ({
     chain = chain
       .then(() => runAcceptance(stageIndex, command, turnId, options))
       .catch(error => {
-        store.appendMessage(roomId, { kind: 'system', text: `检查执行出错：${error?.message ?? error}` })
+        systemNotice({ store, roomId, text: '这次检查没跑完；结果还在房间里。', error })
       })
     return chain
   }

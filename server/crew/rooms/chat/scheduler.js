@@ -6,6 +6,7 @@ import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
 import { parseHandoffFromText } from '../../../../shared/handoff.js'
 import { hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { systemNotice } from '../../notices.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
@@ -316,7 +317,7 @@ export const createChatScheduler = ({
       void refresh()
       return { started: true, round, turns: completed, fallback }
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `聊天调度失败：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: '聊天室调度出了点问题；需要你处理。', error })
       return { started: true, error: String(error?.message ?? error) }
     } finally {
       runs.delete(roomId)

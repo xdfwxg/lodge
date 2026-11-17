@@ -15,6 +15,7 @@ import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-membe
 import { vcsOf, workspaceOf } from './workspace.js'
 import { settleCompletedSubrooms } from './subrooms.js'
 import { detectCheckCommand } from '../../project-checks.js'
+import { systemNotice } from '../../notices.js'
 import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from './auto-rework.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
@@ -136,7 +137,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     try {
       await stageStarter.startStage(room, stageIndex, { note, rework: true })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `自动退回重做没能开始：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: '这一步没能自动重做；需要你处理。', error })
     }
   }
 
@@ -169,7 +170,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
         if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage: stageIndex, turnId, commit: candidate })
       }
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `没法准备检查副本：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: '这一步没法准备检查；结果由你确认。', error })
     }
     const head = typeof workspaceOf(room).head === 'function' && typeof room.repoPath === 'string' && room.repoPath !== ''
       ? workspaceOf(room).head({ path: room.repoPath })
@@ -212,7 +213,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     state.markProgress()
     if (hasVerifier) {
       void review.request(stageIndex).catch(error => {
-        store.appendMessage(roomId, { kind: 'system', text: `人工验收复核未启动：${error?.message ?? error}` })
+        systemNotice({ store, roomId, text: '结果已经好了，但没能叫验收员来看；需要你处理。', error })
       })
     }
   }
@@ -270,7 +271,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       rework: true,
       parentAssignmentId: parent?.id ?? null,
     }).catch(error => {
-      store.appendMessage(roomId, { kind: 'system', text: `没能把重做交给${name}：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: `重做没能交给${name}；需要你处理。`, error })
     })
     return true
   }
@@ -298,13 +299,13 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
         if (assignment !== null) transitionAssignment(store, assignment.id, 'failed', { resultText: '没有产出' })
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `并行执行：${memberDisplayName(room, memberId)} 这一回合没有产出；继续等其它成员。`,
+          text: `${memberDisplayName(room, memberId)} 这一回合没有产出；继续等其它成员。`,
         })
         const done = integrator.settle(memberId, turnId, true)
         if (done !== null) {
           const remaining = done.workers.filter(worker => !done.failed.includes(worker))
           if (remaining.length === 0) {
-            store.appendMessage(roomId, { kind: 'system', text: '并行执行：所有执行成员都没有产出；这一步还没有进入验收。' })
+            systemNotice({ store, roomId, text: '这一步没有产出；需要你处理。' })
             for (const item of activeDispatch(store, roomId, done.stageIndex)) {
               updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), stalled: true } })
             }
@@ -398,7 +399,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
             candidate = workspaceOf(current).submit({ path: worktree, turnId, name: current.name })
             if (candidate !== null) store.appendEvent(roomId, 'room.candidate', { stage, turnId, memberId, commit: candidate })
           } catch (error) {
-            store.appendMessage(roomId, { kind: 'system', text: `没法准备检查副本（${memberDisplayName(current, memberId)}）：${error?.message ?? error}` })
+            systemNotice({ store, roomId, text: '这一步没法准备检查；结果由你确认。', error })
           }
         }
         const base = dispatch?.stage === stage && typeof dispatch.base === 'string'
@@ -429,7 +430,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
         if (done !== null) {
           const remaining = done.workers.filter(worker => !done.failed.includes(worker))
           if (remaining.length === 0) {
-            store.appendMessage(roomId, { kind: 'system', text: '并行执行：没有可合并的执行成员；这一步还没有进入验收。' })
+            systemNotice({ store, roomId, text: '这一步没有可合并的结果；需要你处理。' })
           } else {
             await integrator.integrate({ ...done, workers: remaining, turnId })
           }
@@ -503,7 +504,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
       try {
         await review.request(stageIndex)
       } catch (error) {
-        store.appendMessage(roomId, { kind: 'system', text: `重启后复核未恢复：${error?.message ?? error}` })
+        systemNotice({ store, roomId, text: '这一步上次没做完，已经停了；需要你处理。', error })
       }
       return
     }
@@ -531,7 +532,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
           try {
             await stageStarter.startStage(room, stageIndex, { only, rework })
           } catch (error) {
-            store.appendMessage(roomId, { kind: 'system', text: `重启后没能继续叫醒成员：${error?.message ?? error}` })
+            systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；需要你处理。', error })
           }
         }
         return
@@ -545,7 +546,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
         for (const item of activeDispatch(store, roomId, stageIndex)) {
           updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), stalled: true } })
         }
-        store.appendMessage(roomId, { kind: 'system', text: '重启后并行执行仍没有产出；这一步需要你处理。' })
+        systemNotice({ store, roomId, text: '上次没做完的这一步仍然没有产出；需要你处理。' })
         emit?.('room', store.readRoom(roomId))
         return
       }
@@ -585,7 +586,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, commands, f
     try {
       await resumeOnce(options)
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `重启后未能自动续跑：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；需要你处理。', error })
     }
   }
 

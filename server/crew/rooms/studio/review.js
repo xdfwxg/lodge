@@ -10,6 +10,7 @@ import { leadMemberOf, memberOf } from '../../room-members.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { recordShadowAdvice } from './shadow-advisor.js'
+import { systemNotice } from '../../notices.js'
 
 const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
 
@@ -146,7 +147,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           from: '验收流程',
           sendId: `r-${String(pending.evidenceId ?? pending.verifier).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`,
         }).catch(error => {
-          store.appendMessage(roomId, { kind: 'system', text: `没能叫醒规划师：${error?.message ?? error}` })
+          systemNotice({ store, roomId, text: '没能叫醒规划师；稍后会自动再试。', error })
         })
       }
     }
@@ -244,7 +245,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         evidence,
         manual,
       }).catch(error => {
-        store.appendMessage(roomId, { kind: 'system', text: `影子评审没能取回：${error?.message ?? error}` })
+        systemNotice({ store, roomId, text: '影子评审这次没取到；验收不受影响。', error })
         return null
       })
       : null
@@ -260,7 +261,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           workspaceOf(room).refreshReviewCopy({ path: room.worktrees[verifier], branch: room.branch, source: room.sourceRepo, from: room.repoPath })
         } catch (error) {
           failures.push(`${verifierName}: 复核副本不可用（${error?.message ?? error}）`)
-          store.appendMessage(roomId, { kind: 'system', text: `复核副本不可用（${verifierName}）：${error?.message ?? error}` })
+          systemNotice({ store, roomId, text: `${verifierName} 的复核没法开始；需要你处理。`, error })
           continue
         }
       }
@@ -378,13 +379,14 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         failures.push(`${verifierName}: ${error?.message ?? error}`)
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `复核请求发送失败（${verifierName}）：${error?.message ?? error}`,
+          text: `没能把复核请求发给${verifierName}；需要你处理。`,
         })
       }
     }
     if (nextRound.requests.size === 0) {
       round = null
-      reject('conflict', `复核请求没有发出：${failures.join('；') || '没有可用验收成员'}`)
+      if (failures.length > 0) console.warn(`[lodge] 复核请求没有发出：${failures.join('；')}`)
+      reject('conflict', '复核请求没能发出去；需要你处理。')
     }
     return { requested: true, stage: stageIndex, verifiers: [...nextRound.requests.keys()] }
   }

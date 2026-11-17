@@ -3,6 +3,7 @@ import { externalAction, pendingApprovals } from '../../external-actions.js'
 import { reviewExternalAction } from './action-gate.js'
 import { memberNameOf } from './projection.js'
 import { memberOf } from '../../room-members.js'
+import { systemNotice } from '../../notices.js'
 import { decidePermission } from '../../permission.js'
 import { supportsRuntime } from '../../runtime-port.js'
 
@@ -250,7 +251,7 @@ export const createLiveApprovals = ({
       refresh(entry, { force: true })
     } catch (error) {
       entry.answeredCards.delete(card.requestId)
-      store.appendMessage(entry.roomId, { kind: 'system', text: `权限卡处理失败：${error?.message ?? error}` })
+      systemNotice({ store, roomId: entry.roomId, text: '有一步确认没能处理；需要你处理。', error })
     }
   }
 
@@ -319,11 +320,11 @@ export const createLiveApprovals = ({
       const expired = setApprovalState(roomId, approvalId, 'expired')
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `这个操作已经失效：${approval.summary}（${error?.message ?? error}）`,
+        text: `这个操作已经失效：${approval.summary}。需要你重新发起。`,
       })
       if (expired !== null) emit('room', expired)
       resumeRoom(roomId, '这个操作已经失效，房间已恢复；可以继续，或重新发起。')
-      return { ok: false, reason: `房间已经不在等这次确认：${error?.message ?? error}` }
+      return { ok: false, reason: '房间已经不在等这次确认；需要你重新发起。' }
     }
     entry.heldCards.delete(approval.requestId)
     rememberAnswer(entry, approval.requestId)

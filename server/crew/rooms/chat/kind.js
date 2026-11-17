@@ -1,6 +1,7 @@
 import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import * as type from '../../room-types/chat.js'
 import { isChatSystemNoise } from '../../room-chat.js'
+import { systemNotice } from '../../notices.js'
 import { LODGE_HOST_LABEL } from '../../member-labels.js'
 import { personalityPrompt } from '../../../../shared/personalities.js'
 import { chatProjection } from './projection.js'
@@ -71,7 +72,7 @@ export const chatKind = {
 
   start: async ({ store, live, room }) => {
     void live.startChat(room).catch(error => {
-      store.appendMessage(room.id, { kind: 'system', text: `聊天室启动失败：${error?.message ?? error}` })
+      systemNotice({ store, roomId: room.id, text: '聊天室没启动起来；稍后再试。', error })
     })
     return room
   },

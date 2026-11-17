@@ -175,13 +175,13 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       store.appendEvent(roomId, 'stage.dispatch_failed', { stage: index, workers: failed })
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `启动执行失败：${failed.map(worker => memberDisplayName(room, worker)).join('、')}；其余成员继续。`,
+        text: `${failed.map(worker => memberDisplayName(room, worker)).join('、')} 没能开工；其余成员继续。`,
       })
       const dispatch = dispatchOf(store, roomId, index)
       if (dispatch !== null && dispatch.pending.length === 0) {
         const remaining = dispatch.workers.filter(id => !failed.includes(id))
         if (remaining.length === 0) {
-          store.appendMessage(roomId, { kind: 'system', text: '没有执行成员启动成功；这一步还没有进入验收。' })
+          store.appendMessage(roomId, { kind: 'system', text: '这一步没有成员能开工；需要你处理。' })
         } else {
           void enqueue(() => integrate({ stageIndex: index, workers: remaining, base: dispatch.base, failed, turnId: '' }))
         }

@@ -1,6 +1,7 @@
 import { createElement as h, useState } from 'react'
 import { EngineLogin, useEngineLogin } from '../engine-login.js'
 import { engineReadiness } from '../../../shared/engine-readiness.js'
+import { humanErrorText } from '../error-text.js'
 
 // 还没有房间时，直接给一间“新房间”的外壳：只问目标和检查，不再有独立首页。
 export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh = null }) {
@@ -36,13 +37,13 @@ export function RoomStart({ state, onCreate, onQuickStart, onSample, onRefresh =
       const result = await onQuickStart(text, check.trim())
       if (result?.ok !== true) setQuickError(result?.error ?? '房间没能建起来')
     } catch (error) {
-      setQuickError(String(error?.message ?? error))
+      setQuickError(humanErrorText(error, '房间没能建起来，稍后再试'))
     } finally {
       setQuickBusy(false)
     }
   }
   // 连接状态只在侧栏说一次；这里只说建房页自己的加载失败。
-  const errorText = state.phase === 'error' ? `没连上 Lodge：${state.error}` : ''
+  const errorText = state.phase === 'error' ? humanErrorText(state.error, 'Lodge 没连上，稍后自动重试') : ''
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { className: 'crew-room-main crew-start-main' },
       h('div', { className: 'crew-start-copy' },

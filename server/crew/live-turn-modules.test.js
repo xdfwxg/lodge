@@ -196,7 +196,8 @@ test('the integrator settles the last worker and turns queue failures into room 
   assert.deepEqual(done.workers, ['a', 'b'])
   assert.equal(done.base, 'base')
   await integrator.enqueue(async () => { throw new Error('boom') })
-  assert.match(store.messages.at(-1).text, /并行执行出错：boom/)
+  assert.match(store.messages.at(-1).text, /合改动时出了点问题/)
+  assert.equal(store.messages.at(-1).meta?.detail, 'boom')
 })
 
 test('a single worker stage sends the prompt and hides the base message', async () => {
@@ -299,7 +300,7 @@ test('acceptance runs in a disposable copy and records command evidence', async 
   assert.equal(evidence.meta.diff, 'D')
   assert.ok(store.events.some(event => event.type === 'acceptance.run'))
   assert.equal(progressed, 1)
-  assert.match(store.messages.at(-1).text, /没有验收员/)
+  assert.match(store.messages.at(-1).text, /可以签字了/)
 })
 
 test('review request and verdict consumption update the round without crossing turns', async () => {
@@ -954,5 +955,5 @@ test('an unavailable isolated copy stops integration without inventing evidence'
   })
   await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
   assert.equal(store.messages.some(message => message.kind === 'evidence'), false)
-  assert.ok(store.messages.some(message => /副本没能准备好/.test(message.text ?? '')))
+  assert.ok(store.messages.some(message => /集成检查没跑成/.test(message.text ?? '')))
 })

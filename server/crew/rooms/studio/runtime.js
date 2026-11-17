@@ -1,6 +1,7 @@
 import { createLiveTurns } from './turns.js'
 import { createShadowReviewer } from './shadow-reviewer.js'
 import { deliverToMember } from '../../surface-delivery.js'
+import { systemNotice } from '../../notices.js'
 
 // 工作室上下文运行时：阶段派发、执行、验收、重做和签字都走群聊 @，没有讨论轮次。
 export const createStudioRuntime = ({
@@ -56,7 +57,7 @@ export const createStudioRuntime = ({
       try {
         await approvals.answerPermission(entry, memberId, message, refreshRoom, { sessionRef: chat.sessionRef })
       } catch (error) {
-        store.appendMessage(entry.roomId, { kind: 'system', text: `群聊权限卡处理失败：${error?.message ?? error}` })
+        systemNotice({ store, roomId: entry.roomId, text: '有一步确认没能处理；需要你处理。', error })
       }
     },
 

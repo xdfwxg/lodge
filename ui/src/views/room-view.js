@@ -6,6 +6,7 @@ import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
 import { ArrowUpIcon } from '../icons.js'
+import { humanErrorText } from '../error-text.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [dockOpen, setDockOpen] = useState(false)
@@ -228,7 +229,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           mode.transcript(viewCtx),
           mode.presence(viewCtx),
           typing),
-        state.error ? h('div', { className: 'crew-error', role: 'alert' }, state.error) : null),
+        state.error ? h('div', { className: 'crew-error', role: 'alert' }, humanErrorText(state.error)) : null),
       !atBottom && (room.messages?.length ?? 0) > 0
         ? h('button', {
           type: 'button',

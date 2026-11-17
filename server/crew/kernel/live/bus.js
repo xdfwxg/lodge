@@ -6,6 +6,7 @@ import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 import { supportsRuntime } from '../../runtime-port.js'
 import { toBaseMentions, toDisplayMentions, toDisplayText, toIdMentions, unknownMentionsOf } from '../../member-labels.js'
+import { systemNotice } from '../../notices.js'
 
 // 隐藏主持与当前发言人由房型的 presentation 提供；总线不认识任何具体房型。
 const FINAL_IDS_KEEP = 500
@@ -178,7 +179,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         } catch (error) {
           // 基座通道正在跑回合时会拒绝改规则；规则通常已经生效，不把它当成房间错误。
           if (!/409|working or waiting/.test(String(error?.message ?? error))) {
-            store.appendMessage(room.id, { kind: 'system', text: `群聊唤醒规则未启用：${error?.message ?? error}` })
+            systemNotice({ store, roomId: room.id, text: '房间的群聊没能准备好；需要你处理。', error })
           }
         }
       }
@@ -208,7 +209,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       })
       return updated ?? store.readRoom(room.id) ?? room
     } catch (error) {
-      store.appendMessage(room.id, { kind: 'system', text: `房间聊天室创建失败：${error?.message ?? error}` })
+      systemNotice({ store, roomId: room.id, text: '房间的群聊没能准备好；需要你处理。', error })
       return room
     }
   }
@@ -228,7 +229,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       onState: state => {
         if (!state.connected) return
         void sync(entry).catch(error => {
-          store.appendMessage(room.id, { kind: 'system', text: `聊天记录同步失败：${error?.message ?? error}` })
+          systemNotice({ store, roomId: room.id, text: '聊天记录没能对上；需要你处理。', error })
         })
       },
       onEvent: event => {

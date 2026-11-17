@@ -125,7 +125,7 @@ export const createBodySwap = ({ store, engine, emit, attachMember, detachMember
       } catch (error) {
         store.appendMessage(room.id, {
           kind: 'system',
-          text: `${member.name}的身体已经换好，但连接还没接上；稍后重试会自动连上（${error?.message ?? error}）。`,
+          text: `${member.name}的身体已经换好，但连接还没接上；稍后重试会自动连上。`,
         })
       }
       store.appendMessage(room.id, {

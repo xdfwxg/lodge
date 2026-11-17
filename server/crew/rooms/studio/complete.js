@@ -50,7 +50,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
         if (updated !== null) emit('room', updated)
       }
     } catch (error) {
-      appendMessage(room.id, { kind: 'system', text: `临时文件没能清理：${error?.message ?? error}` })
+      console.warn(`[lodge] 临时文件没能清理：${error?.message ?? error}`)
     }
     const persistence = persistenceKind(capabilities)
     if (persistence !== 'commit') {

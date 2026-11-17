@@ -2,6 +2,7 @@ import { verifierIds } from '../../room-members.js'
 import { isWorkStage } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 import { memberDisplayName } from '../../member-labels.js'
+import { systemNotice } from '../../notices.js'
 import { activeDispatchAssignments, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 
@@ -11,7 +12,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
   // 合并、集成验收都串行执行，避免多个回合同时动集成 worktree。
   const enqueue = task => {
     chain = chain.then(task).catch(error => {
-      store.appendMessage(roomId, { kind: 'system', text: `并行执行出错：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: '合改动时出了点问题；需要你处理。', error })
     })
     return chain
   }
@@ -49,11 +50,11 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     if (stage === undefined || !isWorkStage(stage) || stage.state !== 'active') return
     const integration = room.repoPath
     if (typeof integration !== 'string' || integration === '') {
-      store.appendMessage(roomId, { kind: 'system', text: '房间没有集成工作文件夹，并行合并未执行' })
+      systemNotice({ store, roomId, text: '改动没能合到一起；需要你处理。' })
       return
     }
     if (workspaceOf(room).capabilities().merge !== true) {
-      store.appendMessage(roomId, { kind: 'system', text: '这个文件夹不能合并多人改动，集成检查没有执行' })
+      systemNotice({ store, roomId, text: '这个文件夹没法合并多人改动；检查没有执行。' })
       return
     }
 
@@ -69,7 +70,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         const files = result.files.length > 0 ? result.files.join('、') : '未知文件'
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `并行合并冲突：${name} 的 ${label} 与房间目录冲突（${files}）。合并已回滚，这一步停下，需要你处理。`,
+          text: `${name} 的 ${label} 和房间里的文件冲突（${files}）；已经恢复原样，需要你处理。`,
         })
         store.appendEvent(roomId, 'stage.merge_conflict', { stage: stageIndex, worker, branch: branch ?? '', files: result.files })
         const updated = store.updateRoom(roomId, current => {
@@ -106,7 +107,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
           capturedAt: new Date().toISOString(),
         },
       })
-      store.appendMessage(roomId, { kind: 'system', text: '并行结果已合并 · 可以验收了' })
+      systemNotice({ store, roomId, text: '改动已经合到一起 · 可以验收了' })
       store.appendEvent(roomId, 'room.integration', { stage: stageIndex, head, workers, merged, manual: true })
       clearBlocked(stageIndex)
       markProgress()
@@ -115,14 +116,14 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     const range = await workspaceOf(room).rangeChanges({ path: integration, base })
     const command = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
     if (command === '') {
-      store.appendMessage(roomId, { kind: 'system', text: `第 ${stageIndex + 1} 步没有检查方式，集成检查没有执行` })
+      systemNotice({ store, roomId, text: `第 ${stageIndex + 1} 步没有检查方式；结果由你确认。` })
       return
     }
     let copy
     try {
       copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: head })
     } catch (error) {
-      store.appendMessage(roomId, { kind: 'system', text: `集成检查的副本没能准备好，检查没有执行：${error?.message ?? error}` })
+      systemNotice({ store, roomId, text: '集成检查没跑成；结果由你确认。', error })
       return
     }
     const port = room.ports?.integration
@@ -190,10 +191,10 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       try {
         await requestReview(stageIndex)
       } catch (error) {
-        store.appendMessage(roomId, { kind: 'system', text: `自动复核未启动：${error?.message ?? error}` })
+        systemNotice({ store, roomId, text: '检查做完了，但没能叫验收员来看；结果还在房间里。', error })
       }
     } else {
-      store.appendMessage(roomId, { kind: 'system', text: '检查完成 · 这个房间没有验收员 · 可以签字了' })
+      systemNotice({ store, roomId, text: '检查完成 · 可以签字了' })
     }
   }
 

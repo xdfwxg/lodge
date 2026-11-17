@@ -4,6 +4,7 @@ import { useOverlay } from '../overlay.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roomTypeIcon } from '../room/type-icons.js'
 import { initialOf } from '../marks.js'
+import { humanErrorText } from '../error-text.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
@@ -250,11 +251,11 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
         ? h('div', {
           className: 'crew-error crew-side-error',
           role: 'alert',
-          title: `Lodge 服务未连接：${state.runtime.error}`,
-          'aria-label': `Lodge 服务未连接：${state.runtime.error}`,
+          title: humanErrorText(state.runtime.error, 'Lodge 没连上，稍后自动重试'),
+          'aria-label': humanErrorText(state.runtime.error, 'Lodge 没连上，稍后自动重试'),
         },
         h('span', { className: 'crew-side-error-mark', 'aria-hidden': 'true' }, '!'),
-        h('span', { className: 'crew-side-error-text' }, `Lodge 服务未连接：${state.runtime.error}`))
+        h('span', { className: 'crew-side-error-text' }, humanErrorText(state.runtime.error, 'Lodge 没连上，稍后自动重试')))
         : null,
       h('div', { className: 'crew-side-tools' },
         rail

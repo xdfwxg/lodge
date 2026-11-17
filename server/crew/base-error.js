@@ -17,5 +17,7 @@ export const plainRuntimeError = error => {
   if (/ECONNREFUSED|ECONNRESET|fetch failed|socket hang up|aborted|timeout/i.test(raw)) {
     return '基座没有响应，稍后再试'
   }
-  return raw
+  if (/[\u4e00-\u9fff]/.test(raw)) return raw
+  console.warn(`[lodge] 基座错误：${raw}`)
+  return '基座出了点问题，稍后再试'
 }

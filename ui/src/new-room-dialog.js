@@ -15,6 +15,7 @@ import { ReceiptReview } from './room/receipt-review.js'
 import { RoomTypeChoices } from './room/type-choices.js'
 import { uiKindOfType } from './room/kinds.js'
 import { useOverlay } from './overlay.js'
+import { errorSuffix } from './error-text.js'
 
 const FALLBACK_ROOM_TYPES = ROOM_TYPE_MANIFEST.map(({ id, name, description, defaultVerify }) => ({
   id,
@@ -228,7 +229,7 @@ function NewRoomDialog({
       if (picked === null) return
       changeRepoPath(picked)
     } catch (caught) {
-      setError(`文件夹没能选上：${String(caught?.message ?? caught)}`)
+      setError(`文件夹没能选上${errorSuffix(caught)}`)
     }
   }
 
@@ -260,7 +261,7 @@ function NewRoomDialog({
       }
       useProposal(result.proposal)
     } catch (caught) {
-      setError(`Lodge 没能给出方案：${String(caught?.message ?? caught)}`)
+      setError(`Lodge 没能给出方案${errorSuffix(caught)}`)
     } finally {
       setRecommending(false)
     }
@@ -309,7 +310,7 @@ function NewRoomDialog({
       }
       resetAfterCreate()
     } catch (caught) {
-      setError(`聊天室没能建起来：${String(caught?.message ?? caught)}`)
+      setError(`聊天室没能建起来${errorSuffix(caught)}`)
     } finally {
       setBusy(false)
     }
@@ -343,7 +344,7 @@ function NewRoomDialog({
       }
       resetAfterCreate()
     } catch (caught) {
-      setError(`房间没能建起来：${String(caught?.message ?? caught)}`)
+      setError(`房间没能建起来${errorSuffix(caught)}`)
     } finally {
       setBusy(false)
     }
@@ -376,7 +377,7 @@ function NewRoomDialog({
       }
       resetAfterCreate()
     } catch (caught) {
-      setError(`房间没能建起来：${String(caught?.message ?? caught)}`)
+      setError(`房间没能建起来${errorSuffix(caught)}`)
     } finally {
       setBusy(false)
     }

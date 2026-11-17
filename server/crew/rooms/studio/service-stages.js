@@ -10,6 +10,7 @@ import { childResultText, childVerdictsOf, settleSubroomAssignment } from './sub
 import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { memberDisplayName } from '../../member-labels.js'
+import { systemNotice } from '../../notices.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
@@ -87,7 +88,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
           intent: 'notice',
           from: '子房间',
         }).catch(error => {
-          appendMessage(parent.id, { kind: 'system', text: `子房间的结果没能叫醒规划师：${error?.message ?? error}` })
+          systemNotice({ store, roomId: parent.id, text: '子房间的结果没能叫醒规划师；稍后会自动再试。', error })
         })
       }
     }
@@ -197,7 +198,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (next < 0) notifyParent(finalRoom)
     if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
       void live.startStage(room, next).catch(error => {
-        appendMessage(room.id, { kind: 'system', text: `启动执行失败：${error?.message ?? error}` })
+        systemNotice({ store, roomId: room.id, text: '这一步没能开始；需要你处理。', error })
       })
     }
     return ok({ room: finalRoom })
@@ -233,7 +234,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     emit('room', updated)
     if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {
-        appendMessage(room.id, { kind: 'system', text: `重做没能开始：${error?.message ?? error}` })
+        systemNotice({ store, roomId: room.id, text: '重做没能开始；需要你处理。', error })
       })
     } else {
       appendMessage(room.id, { kind: 'system', text: '已记录重做意见；这个房间现在没有连上，需要你继续或重新开始。' })
@@ -273,7 +274,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     })
     if (changed && trimmed !== '' && room.live === true && room.stages[index]?.state === 'active' && typeof live.isAttached === 'function' && live.isAttached(room.id) === true && typeof live.resume === 'function') {
       void live.resume(room.id, { forceAcceptance: true }).catch(error => {
-        appendMessage(room.id, { kind: 'system', text: `检查已经更新，但没能重新跑：${error?.message ?? error}` })
+        systemNotice({ store, roomId: room.id, text: '检查已经更新，但这次没跑成；需要你处理。', error })
       })
     }
     return ok({ room, message })

@@ -1,5 +1,6 @@
 import { createElement as h, useEffect, useRef, useState } from 'react'
 import { loginRuntime } from './system.js'
+import { humanErrorText } from './error-text.js'
 
 // 登录入口只有这一份：打开终端、等基座刷新、手动登录后的“刷新”都在这里。
 export const useEngineLogin = onRefresh => {
@@ -34,7 +35,7 @@ export const useEngineLogin = onRefresh => {
         }, 2000)
       }
     } catch (error) {
-      setNote(String(error?.message ?? error))
+      setNote(humanErrorText(error, '登录没能完成，稍后再试'))
     } finally {
       setBusyId('')
     }

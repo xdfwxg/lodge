@@ -1,4 +1,7 @@
 import { useSyncExternalStore } from 'react'
+import { humanErrorText } from './error-text.js'
+
+const failureText = fallback => (state.error === null || state.error === undefined ? fallback : humanErrorText(state.error, fallback))
 
 const EMPTY = {
   phase: 'loading',
@@ -209,7 +212,7 @@ export function createStore() {
     answerCard: (memberId, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { memberId, requestId, message }),
     createSubroom: async goal => {
       const data = await post(`/api/rooms/${state.activeId}/subrooms`, { goal })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '子房间没能建起来' }
+      if (data?.room === undefined) return { ok: false, error: failureText('子房间没能建起来') }
       await load()
       return { ok: true, room: data.room }
     },
@@ -220,12 +223,12 @@ export function createStore() {
         repoPath,
         ...(handoff === null || handoff === undefined ? {} : { handoff }),
       })
-      if (data?.proposal === undefined) return { ok: false, error: state.error ?? 'Lodge 没有给出方案' }
+      if (data?.proposal === undefined) return { ok: false, error: failureText('Lodge 没有给出方案') }
       return { ok: true, proposal: data.proposal }
     },
     createRoom: async (goal, answers = {}) => {
       const data = await post('/api/rooms', { goal, ...answers })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '房间没能建起来' }
+      if (data?.room === undefined) return { ok: false, error: failureText('房间没能建起来') }
       await load()
       rememberRoom(data.room.id)
       patch({ activeId: data.room.id })
@@ -233,7 +236,7 @@ export function createStore() {
     },
     openSampleRoom: async () => {
       const data = await post('/api/rooms/sample', {})
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '示例房间没能打开' }
+      if (data?.room === undefined) return { ok: false, error: failureText('示例房间没能打开') }
       await load()
       rememberRoom(data.room.id)
       patch({ activeId: data.room.id })
@@ -241,39 +244,39 @@ export function createStore() {
     },
     renameRoom: async (id, name) => {
       const data = await post(`/api/rooms/${id}/rename`, { name })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '名字没能改过来' }
+      if (data?.room === undefined) return { ok: false, error: failureText('名字没能改过来') }
       await load()
       return { ok: true, room: data.room }
     },
     archiveRoom: async (id, archived = true) => {
       const data = await post(`/api/rooms/${id}/archive`, { archived })
       if (data?.room === undefined) {
-        return { ok: false, error: state.error ?? (archived ? '没能归档' : '没能取消归档') }
+        return { ok: false, error: failureText(archived ? '没能归档' : '没能取消归档') }
       }
       await load()
       return { ok: true, room: data.room }
     },
     deleteRoom: async id => {
       const data = await post(`/api/rooms/${id}/delete`, {})
-      if (data?.id === undefined) return { ok: false, error: state.error ?? '没能删除' }
+      if (data?.id === undefined) return { ok: false, error: failureText('没能删除') }
       await load()
       return { ok: true, id: data.id }
     },
     addMember: async (name, role, engine, model, spec = {}) => {
       const data = await post(`/api/rooms/${state.activeId}/add-member`, { name, role, engine, model, ...spec })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '没能添加成员' }
+      if (data?.room === undefined) return { ok: false, error: failureText('没能添加成员') }
       acceptRoom(data.room)
       return { ok: true, room: data.room }
     },
     removeMember: async memberId => {
       const data = await post(`/api/rooms/${state.activeId}/remove-member`, { memberId })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '没能移除成员' }
+      if (data?.room === undefined) return { ok: false, error: failureText('没能移除成员') }
       acceptRoom(data.room)
       return { ok: true, room: data.room }
     },
     swapBody: async (memberId, engine, model, spec = {}) => {
       const data = await post(`/api/rooms/${state.activeId}/swap-body`, { memberId, engine, model, ...spec })
-      if (data?.room === undefined) return { ok: false, error: state.error ?? '没能保存' }
+      if (data?.room === undefined) return { ok: false, error: failureText('没能保存') }
       acceptRoom(data.room)
       return { ok: true, room: data.room }
     },

@@ -1,5 +1,6 @@
 import { engineBlockReason, engineReady } from '../../shared/engine-readiness.js'
 import { fail, ok } from './result.js'
+import { systemNotice } from './notices.js'
 import { createBodyFactory } from './body.js'
 import { bodyChangeBlocker } from './body-change.js'
 import { plainRuntimeError } from './base-error.js'
@@ -132,9 +133,11 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       try {
         await attachMember?.(room.id, id)
       } catch (error) {
-        store.appendMessage(room.id, {
-          kind: 'system',
-          text: `${name}已经加进房间，但连接还没接上；稍后重试会自动连上（${error?.message ?? error}）。`,
+        systemNotice({
+          store,
+          roomId: room.id,
+          text: `${name}已经加进房间，但连接还没接上；稍后重试会自动连上。`,
+          error,
         })
       }
       store.appendMessage(room.id, {

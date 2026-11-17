@@ -3,6 +3,7 @@ import { createChatScheduler } from './scheduler.js'
 import { createChatTransport } from './transport.js'
 import { deliverToMember } from '../../surface-delivery.js'
 import { memberOf } from '../../room-members.js'
+import { systemNotice } from '../../notices.js'
 
 // 聊天室上下文运行时：只有随机发言、主持总结和拍板，没有阶段、验收或交付回合。
 export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
@@ -58,7 +59,7 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
           })
         }
       } catch (error) {
-        store.appendMessage(entry.roomId, { kind: 'system', text: `聊天权限卡处理失败：${error?.message ?? error}` })
+        systemNotice({ store, roomId: entry.roomId, text: '有一步确认没能处理；需要你处理。', error })
       }
     },
 

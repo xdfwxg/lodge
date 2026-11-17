@@ -1,5 +1,6 @@
 import { fail, ok } from '../../result.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
+import { systemNotice } from '../../notices.js'
 
 // 聊天室只有 room.chat；结论确认和继续讨论都不经过工作室的 stages/gates。
 export const createServiceChat = ({ store, live, emit }) => {
@@ -67,7 +68,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     if (updated === null) return fail('not_found', '没有这个房间')
     emit('room', updated)
     void live.continueChat(updated, note, { speakerIds: body.speakerIds }).catch(error => {
-      appendMessage(room.id, { kind: 'system', text: `继续讨论启动失败：${error?.message ?? error}` })
+      systemNotice({ store, roomId: room.id, text: '没能继续讨论；稍后再试。', error })
       const reset = updateRoom(room.id, current => {
         if (current.chat?.running !== true) return null
         const rolled = transitionChat(current.chat.phase ?? 'discussing', 'abort')
@@ -99,7 +100,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     emit('room', updated)
     appendMessage(room.id, { kind: 'system', text: '刚才断了，这一轮重新开始了。' })
     void live.continueChat(updated, note).catch(error => {
-      appendMessage(room.id, { kind: 'system', text: `恢复讨论失败：${error?.message ?? error}` })
+      systemNotice({ store, roomId: room.id, text: '没能恢复讨论；稍后再试。', error })
       const reset = updateRoom(room.id, current => {
         if (current.chat?.running !== true) return null
         current.chat = { ...current.chat, running: false, speaker: '' }
