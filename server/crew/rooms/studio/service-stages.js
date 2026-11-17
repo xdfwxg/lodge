@@ -10,6 +10,7 @@ import { childResultText, childVerdictsOf, settleSubroomAssignment } from './sub
 import { roomModeOfRoom } from '../kinds.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { memberDisplayName } from '../../member-labels.js'
+import { verifierIds } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
@@ -116,33 +117,28 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         next = -1
       }
       if (next >= 0) current.stages[next].state = 'active'
-      else current.state = 'complete'
-      const closureEvents = []
-      if (roomModeOfRoom(current)?.supportsDelivery === true) {
-        // 最后一段可能是在 planned/executing 里直接签的（前面的确认阶段不走执行转移）；
-        // 签字前先把房间送进 verifying，再走 sign，状态机才完整。
-        if (next < 0 && (current.closure ?? 'open') !== 'verifying') {
-          const waiting = transitionStudio(current.closure ?? 'open', 'await_sign')
-          if (!waiting.ok) {
-            transitionError = waiting.error
-            return null
-          }
-          current.closure = waiting.state
-          closureEvents.push(studioTransitionEvent(waiting, 'await_sign', 'you', {}, '人工签字前进入待签'))
+      // 纯聊天：最后一步通过后房间不结束；但有验收员时，仍必须看到他回报通过。
+      if (next < 0 && roomModeOfRoom(current)?.supportsDelivery === true) {
+        const hasVerifiers = verifierIds(current).length > 0 || (Array.isArray(current.verifiers) && current.verifiers.length > 0)
+        if (hasVerifiers && verdictPassed !== true) {
+          transitionError = '验收员还没有回报通过，不能结束这一步'
+          return null
         }
-        const event = next < 0 ? 'sign' : next === current.stages.length - 1 ? 'await_sign' : 'stage_advanced'
-        const moved = transitionStudio(current.closure ?? 'open', event, next < 0 ? { verdictPassed, human: true } : {})
+      }
+      const closureEvents = []
+      if (next >= 0 && roomModeOfRoom(current)?.supportsDelivery === true) {
+        const event = next === current.stages.length - 1 ? 'await_sign' : 'stage_advanced'
+        const moved = transitionStudio(current.closure ?? 'open', event, {})
         if (!moved.ok) {
           transitionError = moved.error
           return null
         }
         current.closure = moved.state
-        closureEvents.push(studioTransitionEvent(moved, event, 'you', {}, next < 0 ? '人工签字' : next === current.stages.length - 1 ? '等待人工签字' : '阶段通过'))
+        closureEvents.push(studioTransitionEvent(moved, event, 'you', {}, next === current.stages.length - 1 ? '等待人工签字' : '阶段通过'))
       }
       return {
         events: [
           { type: 'stage.passed', payload: { stage: index, kind: stage.kind, by: 'you' } },
-          ...(next < 0 ? [{ type: 'room.complete', payload: {} }] : []),
           ...closureEvents,
         ],
       }
@@ -153,28 +149,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     room = updated
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
-    if (roomModeOfRoom(room)?.supportsDelivery === true && (gate.stage.kind === 'deliverable' || gate.stage.manual === true)) {
-      const evidence = [...readMessages(room.id)].reverse().find(message => (
-        message.kind === 'evidence' && (message.meta?.stage ?? 0) === index
-      ))
-      if (evidence !== undefined) {
-        appendMessage(room.id, {
-          kind: 'verdict',
-          authorId: 'you',
-          text: '人工签字通过。',
-          meta: {
-            pass: true,
-            reason: 'human signoff',
-            roleKind: 'verifier',
-            verifierProfile: 'human',
-            mode: 'human',
-            stage: index,
-            evidenceId: evidence.id,
-            human: true,
-          },
-        })
-      }
-    }
     if (next >= 0) appendMessage(room.id, stageConclusion(room, room.stages[index], index, next))
     appendMessage(room.id, {
       kind: 'system',
@@ -194,9 +168,11 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       transitionAssignment(store, assignment.id, 'passed')
     }
     compactRoom(store, room.id)
-    let finalRoom = next < 0 ? completeRoom(room) ?? room : room
-    if (next < 0) notifyParent(finalRoom)
-    if (next >= 0 && room.live === true && room.stages[next]?.kind === 'deliverable' && typeof live.startStage === 'function') {
+    // 纯聊天：顶层房间不结束，最后一步通过也只是继续可聊；子房间仍要收尾回填父房间。
+    const completes = next < 0 && typeof room.parentRoomId === 'string' && room.parentRoomId !== ''
+    const finalRoom = completes ? completeRoom(room) ?? room : room
+    if (completes) notifyParent(finalRoom)
+    if (next >= 0 && room.live === true && (room.stages[next]?.kind === 'deliverable' || room.stages[next]?.manual === true) && typeof live.startStage === 'function') {
       void live.startStage(room, next).catch(error => {
         systemNotice({ store, roomId: room.id, text: '这一步没能开始；需要你处理。', error })
       })

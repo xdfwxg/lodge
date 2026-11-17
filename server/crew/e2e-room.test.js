@@ -169,9 +169,9 @@ test('deterministic room scenario reaches signed and accepted', async () => {
 
     const first = stages.accept(store.readRoom(room.id), { stage: 1 })
     assert.equal(first.ok, true)
-    // 签掉最后一个工作阶段时，系统收尾的「验收与结论」一并确认。
-    assert.equal(store.readRoom(room.id).closure, 'signed')
-    assert.equal(store.readRoom(room.id).state, 'complete')
+    // 纯聊天：最后一个工作阶段通过后，房间保持打开，不进入签字收尾。
+    assert.equal(store.readRoom(room.id).closure, 'verifying')
+    assert.equal(store.readRoom(room.id).state, 'active')
 
     const delivery = buildDelivery(store.readRoom(room.id), store.readMessages(room.id))
     assert.equal(delivery.evidenceCount, 2)
@@ -184,7 +184,6 @@ test('deterministic room scenario reaches signed and accepted', async () => {
       'submit_evidence',
       'verdict_reject',
       'submit_evidence',
-      'sign',
     ])
 
     const chatRoom = await createRealRoom({

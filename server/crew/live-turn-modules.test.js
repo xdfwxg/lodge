@@ -300,7 +300,7 @@ test('acceptance runs in a disposable copy and records command evidence', async 
   assert.equal(evidence.meta.diff, 'D')
   assert.ok(store.events.some(event => event.type === 'acceptance.run'))
   assert.equal(progressed, 1)
-  assert.match(store.messages.at(-1).text, /可以签字了/)
+  assert.match(store.messages.at(-1).text, /这一步做完了/)
 })
 
 test('review request and verdict consumption update the round without crossing turns', async () => {
@@ -330,7 +330,7 @@ test('review request and verdict consumption update the round without crossing t
   assert.equal(review.consume({ turn: { reply: 'PASS' }, memberId: 'verifier', turnId: 't1', room }), true)
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
-  assert.ok(store.messages.some(message => message.text === '全部验收员通过，可以签字了。'))
+  assert.ok(store.messages.some(message => message.text === '全部验收员通过，这一步做完了。'))
 })
 
 test('critique review is blind to the execution conversation', async () => {

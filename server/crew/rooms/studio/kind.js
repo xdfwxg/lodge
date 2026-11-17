@@ -58,7 +58,7 @@ const studioNeedsYou = (room, messages = []) => {
       if (outcome.state === 'pending') {
         return { kind: 'review', stage: index, label: `验收员在看 · 已回 ${outcome.received}/${outcome.total}` }
       }
-      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '待签字' }
+      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
       return null
     }
     return { kind: 'decision', stage: index, label: '待确认' }
@@ -85,19 +85,19 @@ const studioNeedsYou = (room, messages = []) => {
   if (verifierIds(room).length > 1) {
     const outcome = reviewState({ room, messages, stageIndex: index })
     if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待重做' }
-    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '待签字' }
+    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
     if (outcome.state === 'pending') {
       return { kind: 'review', stage: index, label: `验收员在看 · 已回 ${outcome.received}/${outcome.total}` }
     }
     return null
   }
   const verdict = latestForStage(messages, 'verdict', index, floor)
-  if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '待签字' }
+  if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '' }
   if (verdict !== undefined) return { kind: 'rework', stage: index, label: '待重做' }
   if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
     return verifierIds(room).length > 0
       ? { kind: 'review', stage: index, label: '验收员在看' }
-      : { kind: 'signoff', stage: index, label: '待签字' }
+      : { kind: 'signoff', stage: index, label: '' }
   }
   return null
 }

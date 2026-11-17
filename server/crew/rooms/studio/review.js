@@ -111,8 +111,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       store.appendMessage(roomId, {
         kind: 'system',
         text: policy === 'majority'
-          ? `验收通过：${passed}/${total}（需要 ${required} 位），可以签字了。`
-          : '全部验收员通过，可以签字了。',
+          ? `验收通过：${passed}/${total}（需要 ${required} 位），这一步做完了。`
+          : '全部验收员通过，这一步做完了。',
       })
     } else {
       store.appendMessage(roomId, {

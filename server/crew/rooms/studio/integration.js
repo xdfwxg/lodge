@@ -194,7 +194,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         systemNotice({ store, roomId, text: '检查做完了，但没能叫验收员来看；结果还在房间里。', error })
       }
     } else {
-      systemNotice({ store, roomId, text: '检查完成 · 可以签字了' })
+      systemNotice({ store, roomId, text: '检查通过 · 这一步做完了' })
     }
   }
 

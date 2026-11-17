@@ -90,12 +90,33 @@ const attentionChildrenOf = room => (room.childRoomIds ?? [])
   .filter(child => child !== null)
   .map(child => ({ room: child, messages: store.readRecentMessages(child.id) }))
 
+// 工作室不再等人签字：阶段一通过就自动往下走，房间像聊天一样继续。
+const autoAcceptPending = new Set()
+const nudgeStudio = room => {
+  if (service === null || room?.roomType !== 'studio' || room.state !== 'active' || room.demo === true) return
+  const need = room.needsYou
+  if (need === null || need === undefined || !Number.isInteger(need.stage)) return
+  // 只自动收尾工作阶段；开工的决策阶段沿用建房/规划流程，避免抢跑。
+  if (need.kind !== 'signoff') return
+  const key = `${room.id}:${need.stage}`
+  if (autoAcceptPending.has(key)) return
+  autoAcceptPending.add(key)
+  setTimeout(() => {
+    autoAcceptPending.delete(key)
+    service?.roomRequest(room.id, 'accept', {
+      method: 'POST',
+      readBody: async () => ({ stage: need.stage }),
+    }).catch(error => console.warn(`[lodge] 自动确认阶段失败：${error?.message ?? error}`))
+  }, 400)
+}
+
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
     payload = presentRoom(payload, store.readRecentMessages(payload.id), store.readAssignments(payload.id, { limit: 500 }), {
       children: attentionChildrenOf(payload),
     })
+    nudgeStudio(payload)
   }
   broadcast(event, payload, id)
 }

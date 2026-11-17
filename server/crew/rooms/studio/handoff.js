@@ -2,9 +2,10 @@ import { createHash, randomUUID } from 'node:crypto'
 import { memberDisplayName } from '../../member-labels.js'
 import { createAssignment, transitionAssignment } from '../../assignments.js'
 
-const assignmentDigest = ({ index, from, to, reason, acceptance, evidence, candidate, rework }) => (
+const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework }) => (
   createHash('sha256')
     .update(JSON.stringify({
+      roomId,
       index,
       from,
       to,
@@ -48,7 +49,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     const summary = reason === 'review'
       ? `${sender} @${label}：${step}做完了，请复核。`
       : `${sender} @${label}：${rework ? '重做' : '开始'}${step}${check}。`
-    const deliveryKey = `a-${assignmentDigest({ index, from, to, reason, acceptance, evidence, candidate, rework })}`
+    const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework })}`
     const existing = store.readAssignment(deliveryKey)
     // 已经交回或正在做的交接不再重复唤醒；同一次交接只发一次。
     if (existing !== null && ['working', 'reported', 'passed', 'rejected', 'cancelled'].includes(existing.status)) {

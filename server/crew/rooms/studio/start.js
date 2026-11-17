@@ -18,6 +18,8 @@ export const startInitialStage = async ({
   acceptance,
   emit,
 }) => {
+  // 建房记录里的阶段状态可能还是旧的；以落库后的房间为准再决定从哪一步开始。
+  room = store.readRoom(room.id) ?? room
   const activeStage = room.stages.findIndex(stage => stage.state === 'active')
   if (plan !== null) {
     if (activeStage >= 0) await live.startStage(room, activeStage)

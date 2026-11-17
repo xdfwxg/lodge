@@ -98,53 +98,15 @@ test('accepting the last work stage also confirms the system conclusion', () => 
   assert.equal(ctx.store.readAssignment('as-work').status, 'passed')
   assert.equal(ctx.messages.some(message => message.kind === 'stage_conclusion'), false)
   assert.equal(ctx.room().stages[1].state, 'passed')
-  assert.equal(ctx.room().state, 'complete')
+  // 纯聊天：最后一步通过后房间保持打开，不再收尾。
+  assert.equal(ctx.room().state, 'active')
   const gates = ctx.messages.filter(message => message.meta?.kind === 'gate')
   assert.deepEqual(gates.map(message => message.meta.stage), [0, 1])
 })
 
-test('studio signoff records a human Verifier verdict and moves closure', () => {
-  const ctx = setup(room({
-    live: false,
-    roomType: 'studio',
-    closure: 'verifying',
-    verificationMode: 'hybrid',
-    verifiers: ['verifier'],
-    stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
-      { title: '验收与结论', kind: 'decision', state: 'pending' },
-    ],
-  }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
-  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
-  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
-  assert.equal(result.ok, true)
-  const human = ctx.messages.find(message => message.kind === 'verdict' && message.authorId === 'you')
-  assert.equal(human.meta.roleKind, 'verifier')
-  assert.equal(human.meta.mode, 'human')
-  assert.equal(ctx.room().closure, 'signed')
-  assert.equal(ctx.room().state, 'complete')
-})
 
-test('the final conclusion signs only after a recorded Verifier PASS', () => {
-  const ctx = setup(room({
-    live: false,
-    roomType: 'studio',
-    closure: 'verifying',
-    verificationMode: 'hybrid',
-    verifiers: ['verifier'],
-    stages: [
-      { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test', tasks: [] },
-      { title: '验收与结论', kind: 'decision', state: 'active' },
-    ],
-  }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
-  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
-  const result = ctx.stages.accept(ctx.room(), { stage: 1 })
-  assert.equal(result.ok, true)
-  assert.equal(ctx.room().closure, 'signed')
-  assert.equal(ctx.room().state, 'complete')
-})
+
+
 
 test('a studio cannot sign without a Verifier PASS', () => {
   const ctx = setup(room({
@@ -183,26 +145,8 @@ test('accepting a work stage writes a stage conclusion before the next stage sta
   assert.equal(conclusion.meta.stage, 0)
   assert.equal(conclusion.meta.next, '回归')
   assert.equal(conclusion.meta.command, 'npm test')
-  assert.deepEqual(conclusion.meta.verdicts, [{ name: 'verifier', pass: true }, { name: 'you', pass: true }])
+  assert.deepEqual(conclusion.meta.verdicts, [{ name: 'verifier', pass: true }])
   assert.equal(ctx.room().stages[1].state, 'active')
 })
 
-test('signing the last work stage from planned first enters verifying', () => {
-  const ctx = setup(room({
-    live: false,
-    roomType: 'studio',
-    closure: 'planned',
-    verificationMode: 'hybrid',
-    verifiers: ['verifier'],
-    stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
-      { title: '验收与结论', kind: 'decision', state: 'pending' },
-    ],
-  }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
-  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
-  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
-  assert.equal(result.ok, true)
-  assert.equal(ctx.room().closure, 'signed')
-  assert.equal(ctx.room().state, 'complete')
-})
+

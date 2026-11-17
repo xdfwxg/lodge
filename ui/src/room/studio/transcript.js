@@ -1,10 +1,8 @@
 import { Fragment, createElement as h, useMemo } from 'react'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
-import { DeliveryCard } from './delivery-card.js'
+import { displayableStep } from './transcript-model.js'
 import { ShadowAdvice } from './advisor-advice.js'
 import { renderStudioMessage } from './message-view.js'
-import { displayableStep } from './transcript-model.js'
-import { StudioStep } from './step-line.js'
 
 const orderOf = message => (
   (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
@@ -46,6 +44,8 @@ export function StudioTranscript({
       .filter(message => message.kind === 'verdict' && typeof message.meta?.evidenceId === 'string')
       .map(message => message.meta.evidenceId))
     return messages.filter(message => {
+      // 基座把运行提示混进 activity：没有工具名的行不是谁说的话，直接不显示。
+      if (message.kind === 'activity' && !displayableStep(message)) return false
       if (message.kind === 'evidence') {
         if (consumed.has(message.id)) return false
         if (chats.has(chatKey(message))) return false
@@ -56,22 +56,8 @@ export function StudioTranscript({
   }, [messages])
 
   const items = []
-  let lastStage = null
   for (const message of renderable) {
     if (hidden.has(message.kind)) continue
-    const stage = message.meta?.stage
-    if (Number.isInteger(stage) && stage !== lastStage) {
-      lastStage = stage
-      const title = room.stages?.[stage]?.title ?? ''
-      items.push(h('div', { key: `stage-${stage}-${message.id}`, className: 'crew-stage-divider' },
-        h('span', { className: 'crew-stage-divider-text' },
-          `第 ${stage + 1} 步${title === '' ? '' : ` · ${title}`}`)))
-    }
-    if (message.kind === 'activity') {
-      if (!displayableStep(message)) continue
-      items.push(h(StudioStep, { key: message.id, step: message, live: false }))
-      continue
-    }
     const content = renderStudioMessage({
       room,
       byId,
@@ -87,37 +73,11 @@ export function StudioTranscript({
   }
 
   const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
-  const need = room.needsYou
-  const canAccept = room.state === 'active' && activeIndex >= 0
-    && (need?.kind === 'signoff' || need?.kind === 'decision')
-  const canRework = room.state === 'active' && activeIndex >= 0 && typeof onRework === 'function'
-  const actions = canAccept || canRework
-    ? h('div', { key: 'actions', className: 'crew-room-actions' },
-      canAccept
-        ? h('button', {
-          type: 'button',
-          className: 'crew-accept',
-          onClick: () => (onStageAccept ?? onAccept)?.(activeIndex),
-        }, need?.kind === 'signoff' ? '签字收尾' : '按这个继续')
-        : null,
-      canRework
-        ? h('button', {
-          type: 'button',
-          className: 'crew-ghost',
-          onClick: () => onRework(activeIndex),
-        }, '退回重做')
-        : null)
-    : null
-
   const advice = activeIndex >= 0
     ? h(ShadowAdvice, { key: `advice-${activeIndex}`, room, stageIndex: activeIndex, label: '影子评审（仅供参考）' })
     : null
 
   return h(Fragment, null,
     h('div', { className: 'studio-timeline' }, ...items),
-    advice,
-    delivery === null || delivery === undefined
-      ? null
-      : h(DeliveryCard, { key: 'delivery', delivery, onContinue, onReturn }),
-    actions)
+    advice)
 }

@@ -169,7 +169,7 @@ export const createAcceptanceRunner = ({
         systemNotice({ store, roomId, text: '检查做完了，但没能叫验收员来看；结果还在房间里。', error })
       }
     } else {
-      store.appendMessage(roomId, { kind: 'system', text: '检查完成 · 可以签字了' })
+      store.appendMessage(roomId, { kind: 'system', text: '检查通过 · 这一步做完了' })
     }
   }
 

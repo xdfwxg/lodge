@@ -971,3 +971,7 @@ details[open]>summary::before{transform:rotate(90deg)}
 .crew-msg-fold pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 0;font-size:var(--bt-text-helper);line-height:18px}
 .crew-msg[data-tone=reject] .crew-msg-text{color:var(--bt-danger-text)}
 .crew-msg[data-tone=pass] .crew-msg-text{color:var(--bt-ink)}
+
+/* 工作室消息和聊天室同一套气泡；明细缩在气泡下面。 */
+.crew-msg-wrap{display:flex;flex-direction:column}
+.crew-msg-wrap .crew-msg-fold{margin-left:44px}
