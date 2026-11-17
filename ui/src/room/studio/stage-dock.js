@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { ApprovalCard } from '../../approval-card.js'
-import { ChevronDownIcon } from '../../goal-island/ds-icons.js'
+import { ChevronDownIcon } from '../../goal-island/glyphs.js'
 import { parseDecisionItems } from './decision-brief.js'
 import { LiveGate, StageAction } from './stage-controls.js'
 import { gateStatus, stageGate, stageNeedsHuman } from './stage-gate.js'

@@ -1,34 +1,26 @@
-// Vendored from Fei2411/DS-Bot, ds-bot/src/client/goal.js (Apache-2.0).
-// Kept close to the upstream component; only imports, avatars and i18n are adapted to Lodge.
+// Lodge's goal island. The original capsule and spring idea started in
+// Fei2411/DS-Bot (Apache-2.0); this surface has since been rewritten and is
+// maintained here. See third_party/THIRD_PARTY_NOTICES.md.
 
 import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
 import { BotAvatar } from '../marks.js'
 import { TargetIcon } from '../icons.js'
-import { CheckIcon, ChevronDownIcon } from './ds-icons.js'
-import { useEscape } from './ds-overlay.js'
-import { SPRING_SHAPE, spring, useMorph } from './ds-motion.js'
-import { t } from './ds-i18n.js'
+import { CheckIcon, ChevronDownIcon } from './glyphs.js'
+import { useEscape } from './dismiss.js'
+import { SPRING_SHAPE, spring, useMorph } from './motion.js'
+import { t } from './copy.js'
 
 // -------------------------------------------------------------------------
-// Group goal: the header island is the goal's status screen. One surface wraps
-// the pill (title and progress on the top row) with a pod hanging under it —
-// a status bar while closed, the full plan while open, a draft form while the
-// user writes the brief. `goalView` derives everything shown as plain data.
+// The header island is the room's status screen. One surface wraps the
+// current step and progress with a pod hanging under it — a live bar while
+// closed, the full plan while open. `goalView` derives everything shown as
+// plain data.
 
 const REPORTED = new Set(['reported', 'done'])
 const RUNNING = new Set(['active', 'paused'])
 
-// The admin runs a goal, so a goal needs one among the members.
-export const hasGoalAdmin = (room, roster) => room !== undefined
-  && room.members?.includes(room.admin) === true && roster.byId?.[room.admin] !== undefined
-
-// A draft is allowed while no goal is in flight; a finished one is archived away.
-export const canSetGoal = (room, roster) => hasGoalAdmin(room, roster)
-  && room.goal?.status !== 'active' && room.goal?.status !== 'paused'
-
 // What the island and panel draw, as plain data: goal + live room work in, the
-// capsule number, the bar's label, the stage segments and the panel's stage
-// rows out.
+// current label, the stage segments and the panel's stage rows out.
 export function goalView(goal, { roster = {} } = {}) {
   if (goal === null || goal === undefined) return null
   const stages = goal.stages ?? []
@@ -62,7 +54,7 @@ export function goalView(goal, { roster = {} } = {}) {
     kind: stage.status === 'passed' ? 'passed'
       : i === at && RUNNING.has(goal.status) ? 'current'
         : 'upcoming',
-    tasks: (stage.tasks ?? []).map(task => ({ bot: roster.byId?.[task.botId], task: task.task, status: task.status })),
+    tasks: (stage.tasks ?? []).map(task => ({ bot: roster.byId?.[task.memberId], task: task.task, status: task.status })),
     evidence: stage.evidence,
     reworks: stage.reworks ?? 0,
     feedback: stage.feedback,
@@ -100,11 +92,12 @@ function TaskRow({ task, working }) {
 }
 
 
-// Closed: one 40px capsule with the goal, progress, status and stage track.
-// The signal row below it is the only thing that grows the island on its own.
+// Closed: the goal stays the kicker, the current step leads, the track stays
+// underneath. It is the room's live status, not a title bar.
 function GoalClosed({ view, room, actions }) {
   const title = view?.title || room.name || '目标'
-  const status = room.needsYou?.label ?? view?.barLabel ?? '还没有目标'
+  const status = view?.barLabel || room.needsYou?.label
+    || (view?.status === 'complete' ? '已完成 · 看结果' : '还没有目标')
   const tone = view?.status === 'complete' ? 'done'
     : view?.status === 'stopped' ? 'stopped'
       : view?.status === 'paused' || view?.idle === true || room.needsYou ? 'waiting'
@@ -116,18 +109,17 @@ function GoalClosed({ view, room, actions }) {
     onClick: () => actions.toggleGoal(room.id),
   },
   h('span', { className: 'bt-goal-closed-main' },
-    h('span', { className: 'bt-goal-closed-ico', 'aria-hidden': true }, h(TargetIcon)),
-    h('span', { className: 'bt-goal-closed-title', title }, title),
-    status === ''
-      ? null
-      : h('span', { className: 'bt-goal-closed-sub' },
-        h('span', {
-          className: 'bt-goal-closed-dot',
-          'data-tone': tone,
-          'data-live': (room.busyMembers ?? []).length > 0 ? 'true' : undefined,
-          'aria-hidden': true,
-        }),
-        h('span', { className: 'bt-goal-closed-label' }, status)),
+    h('span', {
+      className: 'bt-goal-closed-ico',
+      'data-tone': tone,
+      'data-live': (room.busyMembers ?? []).length > 0 ? 'true' : undefined,
+      'aria-hidden': true,
+    },
+    h(TargetIcon),
+    h('i', { className: 'bt-goal-closed-pip' })),
+    h('span', { className: 'bt-goal-closed-copy' },
+      h('span', { className: 'bt-goal-closed-kicker' }, title),
+      h('span', { className: 'bt-goal-closed-title' }, status)),
     h('span', { className: 'bt-goal-chev', 'aria-hidden': true }, h(ChevronDownIcon))),
   view === null
     ? null
@@ -281,7 +273,7 @@ export function GoalIsland({ room, goal, view, mode, signal, roomWork, roster, a
     const target = island.current?.querySelector(open ? '.bt-pill' : '.bt-goal-closed')
     if (target instanceof HTMLElement) target.focus({ preventScroll: true })
   }, [open])
-  const working = new Set((roomWork ?? []).map(entry => entry.botId))
+  const working = new Set((roomWork ?? []).map(entry => entry.memberId))
   return h('div', {
     ref: island,
     className: 'bt-island',
@@ -304,14 +296,15 @@ export function GoalIsland({ room, goal, view, mode, signal, roomWork, roster, a
 }
 
 export const GOAL_CSS = `
-/* One surface: the pill's own background, border and shadow. The pill row is
-   40px, the pod bar 30px; the surface reshapes on SPRING_SHAPE. */
-.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(440px,calc(100% - 120px));background:var(--bt-card);border:.5px solid var(--bt-line-2);border-radius:20px;box-shadow:var(--bt-island-shadow);color:var(--bt-ink);font-family:inherit;font-size:13.5px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')}}
-.bt-island[data-mode=peek],.bt-island[data-mode=decision]{width:min(480px,calc(100% - 120px));border-radius:18px}
-.bt-island[data-mode=open]{width:min(560px,calc(100% - 48px));border-radius:18px}
+/* One surface: the island is the room's only glass object. The capsule shape,
+   the pod and the open panel all reshape on the same spring. */
+.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(440px,calc(100% - 120px));--bt-island-glass:color-mix(in srgb,var(--bt-card) 88%,transparent);--bt-island-glass-open:color-mix(in srgb,var(--bt-card) 97%,transparent);--bt-island-fill:var(--bt-island-glass);--bt-island-sheen:rgba(255,255,255,.72);--bt-island-edge:color-mix(in srgb,var(--bt-ink) 11%,transparent);--bt-island-depth:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(20,20,20,.05),0 1px 2px rgba(20,20,20,.06),0 16px 40px rgba(20,20,20,.16);--bt-island-depth-open:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(20,20,20,.05),0 2px 4px rgba(20,20,20,.06),0 28px 64px rgba(20,20,20,.2);background:radial-gradient(120% 160% at 16% -40%,var(--bt-island-sheen),transparent 58%),radial-gradient(90% 120% at 100% -20%,color-mix(in srgb,var(--bt-accent) 12%,transparent),transparent 62%),var(--bt-island-fill);border:1px solid var(--bt-island-edge);border-radius:22px;box-shadow:var(--bt-island-depth);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);color:var(--bt-ink);font-family:inherit;font-size:13.5px;line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .3s var(--bt-ease),background-color .3s var(--bt-ease)}
+body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt-card) 86%,transparent);--bt-island-glass-open:color-mix(in srgb,var(--bt-card) 96%,transparent);--bt-island-sheen:rgba(255,255,255,.1);--bt-island-edge:rgba(255,255,255,.14);--bt-island-depth:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,0,0,.4),0 2px 4px rgba(0,0,0,.35),0 24px 56px rgba(0,0,0,.5);--bt-island-depth-open:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.45),0 4px 10px rgba(0,0,0,.35),0 32px 72px rgba(0,0,0,.58)}
+.bt-island[data-mode=peek],.bt-island[data-mode=decision]{width:min(480px,calc(100% - 120px));border-radius:20px}
+.bt-island[data-mode=open]{width:min(560px,calc(100% - 48px));border-radius:20px;box-shadow:var(--bt-island-depth-open);--bt-island-fill:var(--bt-island-glass-open)}
 .bt-island[data-morph]{overflow:hidden}
-.bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:20px 20px 0 0}
-.bt-island[data-mode=open] .bt-pill{border-radius:18px 18px 0 0}
+.bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:22px 22px 0 0;animation:bt-island-layer-in .24s var(--bt-ease) backwards}
+.bt-island[data-mode=open] .bt-pill{border-radius:20px 20px 0 0}
 .bt-island .bt-pill:hover{background:var(--bt-hover)}
 .bt-island .bt-pill:active{transform:none}
 .bt-pill-goal{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto;text-align:left}
@@ -324,29 +317,28 @@ export const GOAL_CSS = `
 .bt-goal-chev{flex:none;display:inline-flex;color:var(--bt-ink-3)}
 .bt-goal-chev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
 .bt-island[data-mode=open] .bt-pill .bt-goal-chev svg{transform:rotate(180deg)}
-.bt-goal-closed{display:flex;flex-direction:column;width:100%;padding:0;border:0;border-radius:20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .12s ease}
+.bt-goal-closed{display:flex;flex-direction:column;width:100%;padding:0;border:0;border-radius:22px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .12s ease}
 .bt-goal-closed:hover{background:var(--bt-hover)}
 .bt-goal-closed:active{background:var(--bt-active)}
-.bt-goal-closed-main{display:flex;align-items:center;gap:8px;min-width:0;height:40px;padding:7px 12px 7px 8px;box-sizing:border-box}
-.bt-goal-closed-ico{flex:none;display:inline-flex;color:var(--bt-accent)}
+.bt-goal-closed-main{display:flex;align-items:center;gap:9px;min-width:0;height:46px;padding:5px 12px 5px 7px;box-sizing:border-box}
+.bt-goal-closed-ico{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--bt-accent-wash);color:var(--bt-accent-text);box-shadow:inset 0 0 0 1px var(--bt-line-accent),0 1px 2px rgba(20,20,20,.05);animation:bt-island-layer-in .26s var(--bt-ease) backwards}
 .bt-goal-closed-ico svg{width:15px;height:15px}
-.bt-goal-closed-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:20px;font-weight:650;color:var(--bt-ink)}
-.bt-goal-closed-count{flex:none;font-size:12px;line-height:16px;color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
-.bt-goal-closed-sub{flex:none;display:inline-flex;align-items:center;gap:6px;max-width:38%;min-width:0;font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
-.bt-goal-closed-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bt-goal-closed-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-green)}
-.bt-goal-closed-dot[data-tone=drafting],.bt-goal-closed-dot[data-tone=active]{background:var(--bt-accent)}
-.bt-goal-closed-dot[data-tone=waiting]{background:var(--bt-star)}
-.bt-goal-closed-dot[data-tone=stopped]{background:var(--bt-ink-3)}
-.bt-goal-closed-dot[data-live]{animation:bt-live-pulse 1.4s ease-in-out infinite}
+.bt-goal-closed-pip{position:absolute;right:-1px;bottom:-1px;width:8px;height:8px;border-radius:50%;background:var(--bt-green);box-shadow:0 0 0 2px var(--bt-card)}
+.bt-goal-closed-ico[data-tone=drafting] .bt-goal-closed-pip,.bt-goal-closed-ico[data-tone=active] .bt-goal-closed-pip{background:var(--bt-accent)}
+.bt-goal-closed-ico[data-tone=waiting] .bt-goal-closed-pip{background:var(--bt-star)}
+.bt-goal-closed-ico[data-tone=stopped] .bt-goal-closed-pip{background:var(--bt-ink-3)}
+.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:bt-live-pulse 1.4s ease-in-out infinite}
+.bt-goal-closed-copy{display:flex;flex-direction:column;gap:1px;flex:1 1 auto;min-width:0;text-align:left;animation:bt-island-layer-in .26s var(--bt-ease) .02s backwards}
+.bt-goal-closed-kicker{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:14px;font-weight:500;letter-spacing:.01em;color:var(--bt-ink-3)}
+.bt-goal-closed-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:19px;font-weight:600;color:var(--bt-ink)}
 .bt-goal-closed-main .bt-goal-chev{margin-left:2px}
-.bt-goal-closed-segs{display:flex;gap:3px;width:100%;padding:0 16px 8px;box-sizing:border-box}
-.bt-goal-closed-segs i{flex:1 1 0;height:3px;border-radius:999px;background:var(--bt-line-2);transition:background-color .3s ease}
-.bt-goal-closed-segs i[data-seg=done]{background:var(--bt-green)}
-.bt-goal-closed-segs i[data-seg=current]{background:var(--bt-accent)}
+.bt-goal-closed-segs{display:flex;gap:4px;width:100%;padding:0 16px 9px;box-sizing:border-box;animation:bt-island-layer-in .34s var(--bt-ease) .04s backwards}
+.bt-goal-closed-segs i{flex:1 1 0;height:3px;border-radius:999px;background:var(--bt-line-2);transition:background-color .45s var(--bt-ease),box-shadow .45s var(--bt-ease)}
+.bt-goal-closed-segs i[data-seg=done]{background:var(--bt-green);box-shadow:0 0 10px color-mix(in srgb,var(--bt-green) 45%,transparent)}
+.bt-goal-closed-segs i[data-seg=current]{background:var(--bt-accent);box-shadow:0 0 10px color-mix(in srgb,var(--bt-accent) 35%,transparent)}
 .bt-goal-closed-segs i[data-seg=checking]{background:var(--bt-accent);opacity:.6}
 .bt-goal-closed-segs i[data-seg=paused]{background:var(--bt-star)}
-.bt-goal-signal{display:flex;align-items:center;min-width:0;border-radius:0 0 20px 20px;animation:bt-signal-in .18s ease-out}
+.bt-goal-signal{display:flex;align-items:center;min-width:0;border-radius:0 0 20px 20px;animation:bt-island-layer-in .26s var(--bt-ease) .03s backwards}
 .bt-goal-signal-main{flex:1 1 auto;display:flex;align-items:center;gap:8px;min-width:0;height:40px;padding:0 8px 0 14px;border:0;border-radius:0 0 20px 20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .bt-goal-signal-main:hover{background:var(--bt-hover)}
 .bt-goal-signal-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-accent)}
@@ -364,7 +356,7 @@ export const GOAL_CSS = `
 .bt-goal-primary{height:var(--bt-control-h-lg);padding:0 14px;border:1px solid var(--bt-accent);border-radius:8px;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;transition:filter .12s ease}
 .bt-goal-primary:hover{filter:brightness(1.06)}
 .bt-goal-primary:not(:disabled):active{filter:brightness(.92)}
-.bt-goal-panel{display:flex;flex-direction:column;max-height:min(62vh,520px);overflow:hidden;border-radius:0 0 18px 18px;animation:bt-veil-in .22s ease-out backwards}
+.bt-goal-panel{display:flex;flex-direction:column;max-height:min(62vh,520px);overflow:hidden;border-radius:0 0 20px 20px;animation:bt-island-layer-in .28s var(--bt-ease) backwards}
 .bt-goal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
 /* The stepper: one shrinking node per stage on a hairline. */
 .bt-goal-steps{display:flex;align-items:center;gap:6px;padding:10px 14px 0}
@@ -422,7 +414,7 @@ export const GOAL_CSS = `
 .bt-goal-chint{font-size:12.5px;line-height:16px;color:var(--bt-ink-3)}
 .bt-goal-cbtns{display:flex;justify-content:flex-end;gap:6px}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
-@keyframes bt-signal-in{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@keyframes bt-island-layer-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
 @keyframes bt-live-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-@media (prefers-reduced-motion:reduce){.bt-island,.bt-goal-chev svg{transition:none!important}.bt-goal-panel,.bt-goal-signal{animation:none}.bt-goal-closed-dot[data-live]{animation:none}.bt-goal-closed-segs i{transition:none}}
+@media (prefers-reduced-motion:reduce){.bt-island,.bt-goal-chev svg{transition:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-goal-closed-segs,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-goal-closed-segs i{transition:none}}
 `

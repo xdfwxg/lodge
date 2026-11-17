@@ -1,6 +1,8 @@
+// Island glyphs owned by Lodge. The first shapes came from Fei2411/DS-Bot
+// (Apache-2.0); see third_party/THIRD_PARTY_NOTICES.md.
+
 import { createElement as h } from 'react'
 
-// Adapted from Fei2411/DS-Bot, ds-bot/src/client/icons.js (Apache-2.0).
 export const ChevronDownIcon = () => h('svg', {
   width: 14,
   height: 14,

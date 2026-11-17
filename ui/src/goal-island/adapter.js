@@ -1,23 +1,24 @@
+// The island is Lodge's own shape: rooms, stages and verdicts in; surface data out.
+// This is the only place that translates room state for the island.
+
 import { createElement as h } from 'react'
-import { GoalIsland, GOAL_CSS, goalView } from './ds-goal.js'
-import { ChevronDownIcon } from './ds-icons.js'
+import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
+import { ChevronDownIcon } from './glyphs.js'
 import { TargetIcon } from '../icons.js'
 import { activeIndex, evidenceFor, rejectsFor, memberState, memberTask } from './model.js'
 import { useGoalSignal } from './use-goal-signal.js'
 
-// DS-Bot's goal island wants goal/roster/roomWork; Lodge keeps room/stages/verdicts.
-// This adapter is the only place that translates between the two shapes.
-export const toDsGoal = room => {
+export const toIslandGoal = room => {
   const stages = room.stages.map((stage, index) => {
     const members = room.members ?? []
     const assigned = (stage.tasks ?? []).map(task => {
       const member = members.find(item => item.id === task.owner) ?? { id: task.owner, name: task.title }
-      return { botId: task.owner, status: task.status, task: memberTask(member, stage) }
+      return { memberId: task.owner, status: task.status, task: memberTask(member, stage) }
     })
     const tasks = assigned.length > 0
       ? assigned
       : members.map(member => ({
-        botId: member.id,
+        memberId: member.id,
         status: memberState(room, stage, index, member.id),
         task: memberTask(member, stage),
       }))
@@ -86,18 +87,18 @@ export const toDsGoal = room => {
   }
 }
 
-export const toDsRoster = members => ({
+export const toIslandRoster = members => ({
   byId: Object.fromEntries(members.map(member => [member.id, member])),
 })
 
-const toDsRoom = room => ({
+const toIslandRoom = room => ({
   id: room.id,
   admin: room.leadMemberId ?? room.members?.[0],
   members: room.members ?? [],
   needsYou: room.needsYou ?? null,
 })
 
-export const toDsRoomWork = room => (room.busyMembers ?? []).map(botId => ({ botId }))
+export const toIslandRoomWork = room => (room.busyMembers ?? []).map(memberId => ({ memberId }))
 
 const pill = ({ room, view, open, onToggle }) => {
   const title = view?.title || room.name || room.goal
@@ -131,21 +132,21 @@ const PILL_CSS = `
 .bt-input:focus{border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash);outline:none}
 .bt-input:disabled{opacity:.55;cursor:not-allowed}
 .bt-input-area{height:auto;min-height:96px;padding:8px 10px;line-height:18px;resize:vertical}
-.crew-ds-goal{position:absolute;top:12px;left:32px;right:32px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;pointer-events:none}
-.crew-ds-goal>*{pointer-events:auto}
-.crew-ds-goal .bt-island{align-self:center}
+.crew-goal-island{position:absolute;top:12px;left:32px;right:32px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;pointer-events:none}
+.crew-goal-island>*{pointer-events:auto}
+.crew-goal-island .bt-island{align-self:center}
 @keyframes bt-veil-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (max-width:760px){.crew-ds-goal{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
+@media (max-width:760px){.crew-goal-island{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
 `
 
-export function DsGoalHeader({ room, members, status = null, onAdvance }) {
+export function GoalIslandHeader({ room, members, status = null, onAdvance }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
-  const goal = toDsGoal(room)
-  const roster = toDsRoster(members)
-  const roomWork = toDsRoomWork(room)
+  const goal = toIslandGoal(room)
+  const roster = toIslandRoster(members)
+  const roomWork = toIslandRoomWork(room)
   const view = goalView(goal, { roster })
-  const dsRoom = toDsRoom(room)
+  const islandRoom = toIslandRoom(room)
   const goalActions = {
     toggleGoal: () => (open ? activity.onClose() : activity.onOpen()),
     closeGoal: activity.onClose,
@@ -165,9 +166,9 @@ export function DsGoalHeader({ room, members, status = null, onAdvance }) {
     resumeSignal: activity.onResume,
     advance: onAdvance,
   }
-  return h('div', { className: 'crew-ds-goal' },
+  return h('div', { className: 'crew-goal-island' },
     h(GoalIsland, {
-      room: dsRoom,
+      room: islandRoom,
       goal,
       view,
       mode: activity.mode,

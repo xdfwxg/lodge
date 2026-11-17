@@ -29,6 +29,7 @@ must('架构升级.md records explicit non-goals', architecture.includes('## 明
 must('架构升级.md keeps license attribution', architecture.includes('## 许可与归属'))
 must('README links the product story', feedback.includes('(Lodge.md)'))
 must('README links the architecture record', feedback.includes('(架构升级.md)'))
+must('README links the design style', feedback.includes('(设计风格.md)'))
 must('README links the operations manual', feedback.includes('[docs/operations.md](docs/operations.md)'))
 
 must('docs/operations.md stays available', existsSync(resolve(root, 'docs/operations.md')))
@@ -36,11 +37,11 @@ for (const file of ['docs/advisor.md', 'docs/macos-desktop.md', 'docs/runtimes.m
   must(`${file} stays merged`, !existsSync(resolve(root, file)))
 }
 
-// 设计文档只留两份；旧文档回流会让文档再次分叉。
+// 设计文档只留三份；旧文档回流会让文档再次分叉。
 const designDocs = readdirSync(root)
   .filter(name => name.endsWith('.md') && name !== 'README.md')
   .sort()
-must('only two design docs live at the root', JSON.stringify(designDocs) === JSON.stringify(['Lodge.md', '架构升级.md'].sort()))
+must('only three design docs live at the root', JSON.stringify(designDocs) === JSON.stringify(['Lodge.md', '架构升级.md', '设计风格.md'].sort()))
 for (const file of [
   '理念升级.md',
   '设计思想.md',

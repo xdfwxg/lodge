@@ -1,6 +1,8 @@
+// Lodge's island motion. The spring model started from Fei2411/DS-Bot
+// (Apache-2.0); see third_party/THIRD_PARTY_NOTICES.md.
+
 import { useEffect, useLayoutEffect, useRef } from 'react'
 
-// Adapted from Fei2411/DS-Bot, ds-bot/src/client/motion.js (Apache-2.0).
 export const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 
 export function springEasing(stiffness, damping) {

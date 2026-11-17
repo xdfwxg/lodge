@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { GoalIsland } from './ds-goal.js'
+import { GoalIsland } from './surface.js'
 
 const actions = {
   toggleGoal: () => {},
@@ -47,6 +47,13 @@ const render = (mode, signal) => renderToStaticMarkup(h(GoalIsland, {
   actions,
   pill: h('button', { className: 'bt-pill' }, '打开'),
 }))
+
+test('the compact capsule leads with the current step and keeps the goal above it', () => {
+  const html = render('closed')
+  assert.match(html, /class="bt-goal-closed-kicker">欢迎语落地</)
+  assert.match(html, /class="bt-goal-closed-title">目标对齐</)
+  assert.doesNotMatch(html, /1\/3/)
+})
 
 test('a decision renders one signal line and a dismiss control', () => {
   const html = render('decision', {

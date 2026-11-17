@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { toDsGoal, toDsRoomWork, toDsRoster } from './ds-adapter.js'
+import { toIslandGoal, toIslandRoomWork, toIslandRoster } from './adapter.js'
 
 const room = over => ({
   id: 'room-1',
@@ -23,19 +23,19 @@ const room = over => ({
   ...over,
 })
 
-test('a studio room becomes the DS goal shape', () => {
-  const goal = toDsGoal(room())
+test('a studio room becomes the island goal shape', () => {
+  const goal = toIslandGoal(room())
   assert.equal(goal.status, 'active')
   assert.equal(goal.current, 1)
   assert.equal(goal.stages[1].status, 'active')
   assert.equal(goal.stages[1].tasks.length, 3)
   assert.match(goal.stages[1].tasks[1].task, /按约定完成/)
-  assert.equal(toDsRoster(room().members).byId.worker.name, '执行官')
-  assert.deepEqual(toDsRoomWork(room({ busyMembers: ['worker'] })), [{ botId: 'worker' }])
+  assert.equal(toIslandRoster(room().members).byId.worker.name, '执行官')
+  assert.deepEqual(toIslandRoomWork(room({ busyMembers: ['worker'] })), [{ memberId: 'worker' }])
 })
 
 test('the goal panel separates acceptance, checks and constraints', () => {
-  const goal = toDsGoal(room({
+  const goal = toIslandGoal(room({
     messages: [{ id: 'e1', kind: 'evidence', meta: { kind: 'command', stage: 1, command: 'test -f hello.txt', exit: 0 } }],
     brief: {
       constraints: ['验收命令: test -f hello.txt', '不要改接口'],
@@ -56,7 +56,7 @@ test('the goal panel separates acceptance, checks and constraints', () => {
 
 test('a completed room with no commit does not crash', () => {
   const complete = room({ state: 'complete', delivery: { commit: null }, messages: [{ kind: 'conclusion', text: '完成' }] })
-  const goal = toDsGoal(complete)
+  const goal = toIslandGoal(complete)
   assert.equal(goal.status, 'complete')
   assert.equal(goal.evidence, undefined)
   assert.equal(goal.summary, '完成')

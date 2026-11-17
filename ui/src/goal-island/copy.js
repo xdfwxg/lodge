@@ -1,4 +1,5 @@
-// The strings used by the vendored DS-Bot goal island, in Lodge's language.
+// Lodge island copy, kept in one place so the surface stays language-neutral.
+
 const ZH = {
   'Aligning the goal with you': '正在和你对齐目标',
   'All {count} stages passed': '全部 {count} 步已完成',

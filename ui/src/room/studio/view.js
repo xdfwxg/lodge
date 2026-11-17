@@ -1,5 +1,5 @@
 import { Fragment, createElement as h } from 'react'
-import { DsGoalHeader } from '../../goal-island/ds-adapter.js'
+import { GoalIslandHeader } from '../../goal-island/adapter.js'
 import { CrewStatusLine } from '../crew-status.js'
 import { StudioPresence } from './presence.js'
 import { HandoffIntake } from './intake.js'
@@ -12,7 +12,7 @@ import { StudioTranscript } from './transcript.js'
 export const studioView = {
   id: 'studio',
   opensAtTop: ({ room }) => room.state === 'complete',
-  header: ({ room, members, actions }) => h(DsGoalHeader, {
+  header: ({ room, members, actions }) => h(GoalIslandHeader, {
     room,
     members,
     status: h(CrewStatusLine, { room, members, onSwap: actions.swapBody, onAdd: actions.addMember }),

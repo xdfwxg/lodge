@@ -1,6 +1,6 @@
 import { Fragment, createElement as h, useEffect, useId, useRef, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
-import { ChevronDownIcon } from './goal-island/ds-icons.js'
+import { ChevronDownIcon } from './goal-island/glyphs.js'
 import { chooseDirectory as pickProjectDirectory } from './system.js'
 import { EngineLogin, useEngineLogin } from './engine-login.js'
 import { engineReady, engineReadiness } from '../../shared/engine-readiness.js'

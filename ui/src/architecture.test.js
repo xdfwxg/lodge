@@ -59,10 +59,12 @@ test('danger text uses the semantic text token', () => {
   }
 })
 
-test('the visual layer has no blur and no legacy soft shadow', () => {
+test('only the goal island may use blur, and no file uses the retired soft shadow', () => {
   for (const file of sourceFiles) {
     const text = readFileSync(file, 'utf8')
-    assert.doesNotMatch(text, /backdrop-filter/, `${rel(file)} keeps a blur`)
+    if (rel(file) !== 'goal-island/surface.js') {
+      assert.doesNotMatch(text, /backdrop-filter/, `${rel(file)} keeps a blur`)
+    }
     assert.doesNotMatch(text, /--bt-shadow-soft/, `${rel(file)} uses the retired soft shadow`)
   }
 })
