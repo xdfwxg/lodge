@@ -949,3 +949,10 @@ summary::before{
   transition:transform .12s ease;
 }
 details[open]>summary::before{transform:rotate(90deg)}
+
+/* 工作室时间线是一条聊天记录，阶段只用一条细线分开。 */
+.crew-stage-divider{display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:16px}
+.crew-stage-divider::before,.crew-stage-divider::after{content:"";flex:1 1 auto;height:.5px;background:var(--bt-line-2)}
+.crew-plan-note{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:10px;background:var(--bt-shade-2)}
+.crew-plan-name{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
+.crew-plan-text{white-space:pre-line;font-size:var(--bt-text-label);line-height:20px;color:var(--bt-ink)}

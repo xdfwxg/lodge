@@ -23,6 +23,12 @@ export const renderStudioMessage = ({
   if (message.kind === 'verdict' && message.meta?.human === true) return null
   if (isDispatchHandoff(room, message)) return h(Baton, { key: message.id, message, room, byId })
   const member = resolveMember(room, byId, message)
+  // 规划师的排期就是群里的一条消息，步骤直接读得出来。
+  if (message.kind === 'plan') {
+    return h('div', { key: message.id, className: 'crew-plan-note' },
+      h('div', { className: 'crew-plan-name' }, member?.name ?? '规划师'),
+      h('div', { className: 'crew-plan-text' }, message.text))
+  }
   if (message.kind === 'question') {
     return h(QuestionCard, { key: message.id, message, member, onAnswer: onAnswerCard })
   }

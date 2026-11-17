@@ -170,6 +170,24 @@ const initialMessages = ({ room, workspaces, engineFallbacks, approvalGates = {}
   // 时间线只保留会改变用户判断的信息；建房仪式、分支、约束快照、MCP 说明都
   // 能从房间字段和交付卡里查到，不再复述。
   const messages = []
+  // 规划师的排期要像一条消息说出来，而不是只藏在岛上。
+  const stages = Array.isArray(room?.stages) ? room.stages : []
+  if (stages.length > 0) {
+    const lead = room?.leadMemberId
+      ?? (room?.members ?? []).find(member => member.role === 'lead' || member.roleKind === 'planner')?.id
+    const lines = stages.map((stage, index) => (
+      `${index + 1}. ${stage.title} — ${stage.manual === true
+        ? '人看过结果再算完'
+        : typeof stage.acceptance === 'string' && stage.acceptance.trim() !== ''
+          ? `检查：${stage.acceptance.trim()}`
+          : '人确认'}`
+    ))
+    messages.push({
+      kind: 'plan',
+      ...(typeof lead === 'string' && lead !== '' ? { authorId: lead } : {}),
+      text: `这次分 ${stages.length} 步：\n${lines.join('\n')}`,
+    })
+  }
   const label = { lead: '规划师', planner: '规划师', worker: '执行官', executor: '执行官', verifier: '验收员' }
   const envWarnings = Object.entries(workspaces.environment ?? {})
     .flatMap(([member, env]) => (env.warnings ?? []).map(text => `${label[member] ?? member}: ${text}`))

@@ -40,7 +40,14 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     const current = store.readRoom(roomId) ?? room
     const body = String(prompt ?? '').replace(/^@\S+\s*/, '').trim()
     const label = memberDisplayName(current, to)
-    const summary = `阶段 ${index + 1}${stage?.title ? `「${stage.title}」` : ''}接力 → ${label}${acceptance ? ` · 验收 ${acceptance}` : ''}`
+    const sender = from === 'you' ? '你' : memberDisplayName(current, from)
+    const step = `第 ${index + 1} 步${stage?.title ? `「${stage.title}」` : ''}`
+    const check = acceptance === 'manual' || acceptance === undefined || acceptance === ''
+      ? ''
+      : `（检查：${acceptance}）`
+    const summary = reason === 'review'
+      ? `${sender} @${label}：${step}做完了，请复核。`
+      : `${sender} @${label}：${rework ? '重做' : '开始'}${step}${check}。`
     const deliveryKey = `a-${assignmentDigest({ index, from, to, reason, acceptance, evidence, candidate, rework })}`
     const existing = store.readAssignment(deliveryKey)
     // 已经交回或正在做的交接不再重复唤醒；同一次交接只发一次。
