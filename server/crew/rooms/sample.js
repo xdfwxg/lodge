@@ -3,7 +3,7 @@ export const SAMPLE_ROOM_ID = 'room-sample'
 const member = ({ id, name, role, roleKind, station, permissions }) => ({
   id,
   name,
-  title: roleKind === 'planner' ? '规划' : roleKind === 'verifier' ? '验收' : '执行',
+  title: roleKind === 'planner' ? '规划' : roleKind === 'verifier' ? '复核' : '实现',
   role,
   roleKind,
   roleProfile: name,
@@ -48,9 +48,9 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   workers: ['executor'],
   independence: 'human',
   members: [
-    member({ id: 'planner', name: '规划', role: 'lead', roleKind: 'planner', station: '定步骤 · 派活', permissions: { read: true, exec: false, write: false } }),
-    member({ id: 'executor', name: '执行', role: 'worker', roleKind: 'executor', station: '写试写 · 交结果', permissions: { read: true, exec: true, write: true } }),
-    member({ id: 'verifier', name: '验收', role: 'verifier', roleKind: 'verifier', station: '只读 · 判断达没达到', permissions: { read: true, exec: false, write: false } }),
+    member({ id: 'planner', name: '规划师', role: 'lead', roleKind: 'planner', station: '定步骤 · 派活', permissions: { read: true, exec: false, write: false } }),
+    member({ id: 'executor', name: '执行官', role: 'worker', roleKind: 'executor', station: '写试写 · 交结果', permissions: { read: true, exec: true, write: true } }),
+    member({ id: 'verifier', name: '验收员', role: 'verifier', roleKind: 'verifier', station: '只读 · 判断达没达到', permissions: { read: true, exec: false, write: false } }),
   ],
   plan: {
     done: ['有一段可对照的试写', '改动只发生在结尾一处'],
@@ -98,7 +98,7 @@ export const seedSampleMessages = ({ store, room } = {}) => {
   append({
     kind: 'handoff',
     authorId: 'planner',
-    text: '@执行 第 2 步「写一段试写」交给你：把结尾改成动作，让读者自己看见她留下；写完把段落发出来。',
+    text: '@执行官 第 2 步「写一段试写」交给你：把结尾改成动作，让读者自己看见她留下；写完把段落发出来。',
     meta: { stage: 1, status: 'sent' },
   })
   append({
@@ -109,7 +109,7 @@ export const seedSampleMessages = ({ store, room } = {}) => {
   append({
     kind: 'handoff',
     authorId: 'executor',
-    text: '@验收 第 2 步做完了，帮我对照原文看一下。',
+    text: '@验收员 第 2 步做完了，帮我对照原文看一下。',
     meta: { stage: 1, status: 'sent' },
   })
   append({

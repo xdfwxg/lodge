@@ -33,7 +33,8 @@ test('a concluded chat shows the summary and no actions', () => {
     messages: [],
   })
   assert.equal(interrupted.title, '刚才断了')
-  assert.equal(interrupted.primary.action, 'chat-resume')
+  assert.equal(interrupted.primary, null)
+  assert.match(interrupted.detail, /发一句/)
   assert.doesNotMatch(interrupted.detail, /\d+\/\d+/)
 })
 

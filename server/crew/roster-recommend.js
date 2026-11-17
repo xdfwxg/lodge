@@ -6,7 +6,6 @@ import { roleMembers, rosterFromRoles, validateRoster } from './roster.js'
 import { handoffGoalText, normalizeHandoff } from '../../shared/handoff.js'
 
 const MAX_GOAL = 2000
-const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 const ROLE_ALIASES = new Map([
   ['lead', 'lead'], ['leader', 'lead'], ['planner', 'lead'], ['planning', 'lead'], ['队长', 'lead'], ['规划', 'lead'], ['负责人', 'lead'], ['规划者', 'lead'], ['规划师', 'lead'], ['主控', 'lead'],
   ['worker', 'worker'], ['executor', 'worker'], ['implementer', 'worker'], ['developer', 'worker'], ['engineer', 'worker'], ['执行', 'worker'], ['执行官', 'worker'], ['开发', 'worker'], ['开发者', 'worker'], ['工程师', 'worker'], ['实现', 'worker'],
@@ -28,7 +27,7 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '先看仓库事实（README、package.json、测试命令、目录结构）。默认三位成员：规划师、执行官、验收员。',
   '- members 默认输出三个：一个 lead、一个 worker、一个 verifier。只有工作能清晰拆成互不冲突的两块、确实需要并行时，才输出两个 worker；此时 orchestration 必须是 parallel。不要输出单人房或其它角色。',
   '- members[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
-  '- 名字用「规划师」「执行官」「验收员」；reason 说明各成员负责什么。',
+  '- 名字由角色决定：规划师、执行官、验收员；members 里不用另起名字，reason 说明各成员负责什么。',
   '- why 只写一句话、不超过 45 字：默认写三人如何分工；parallel 时说明两块工作如何并行。不要复述目标，也不要加总结句。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
@@ -46,9 +45,9 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '    {"text": "真正要人拍板的问题", "recommendation": "推荐答案"}',
   '  ],',
   '  "members": [',
-  '    {"role": "lead", "name": "规划师", "reason": "对齐目标与阶段"},',
-  '    {"role": "worker", "name": "执行官", "reason": "实现与跑测试"},',
-  '    {"role": "verifier", "name": "验收员", "reason": "独立复核证据"}',
+  '    {"role": "lead", "reason": "对齐目标与阶段"},',
+  '    {"role": "worker", "reason": "实现与跑测试"},',
+  '    {"role": "verifier", "reason": "独立复核证据"}',
   '  ],',
   '  "orchestration": "pipeline",',
   '  "stages": [',
@@ -189,13 +188,8 @@ export const parseProposal = reply => {
     if (role === null) {
       throw new Error(`第 ${index + 1} 个成员角色不合法：${String(member?.role ?? '空')}`)
     }
-    const rawName = typeof member.name === 'string' ? member.name.trim() : ''
     const reason = typeof member.reason === 'string' ? member.reason.trim().slice(0, 160) : ''
-    return {
-      role,
-      name: (rawName === '' ? ROLE_LABEL[role] : rawName).slice(0, 32),
-      reason,
-    }
+    return { role, reason }
   })
 
   let roster

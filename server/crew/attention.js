@@ -1,4 +1,4 @@
-import { failureLabel } from '../../shared/failure.js'
+import { failureLabel, failureNextStep } from '../../shared/failure.js'
 import { pendingApprovals } from './external-actions.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { memberDisplayName } from './member-labels.js'
@@ -10,13 +10,20 @@ export const roomNeedsYou = (room, messages = []) => {
     return { kind: 'approval', stage: null, label: '待确认' }
   }
   if (room.state === 'active' && room.live === true && typeof room.connectionError === 'string' && room.connectionError !== '') {
-    return { kind: 'connection', stage: null, label: '连接中断' }
+    return { kind: 'connection', stage: null, label: '连接断了', detail: '模型服务掉线了；连上后点继续。' }
   }
   if (room.state === 'active' && room.blocked?.reason !== undefined) {
+    const workers = Array.isArray(room.blocked.workers) ? room.blocked.workers : []
+    const names = workers.map(id => memberDisplayName(room, id)).join('、')
     return {
       kind: 'blocked',
       stage: Number.isInteger(room.blocked.stage) ? room.blocked.stage : null,
-      label: room.blocked.reason === 'restart' ? '重启后未完成，需要你处理' : '执行超时，需要你退回重做',
+      label: room.blocked.reason === 'restart'
+        ? '重启后没接着做'
+        : names === '' ? '执行超时' : `执行超时：${names}停下了`,
+      detail: room.blocked.reason === 'restart'
+        ? '点继续，或退回重做这一步。'
+        : '退回重做，或叫停后重新派活。',
     }
   }
   if (room.state === 'paused') {
@@ -25,7 +32,12 @@ export const roomNeedsYou = (room, messages = []) => {
     if (room.pauseReason === 'member_error') {
       const memberId = room.memberError?.memberId
       const name = memberId === undefined ? '成员' : memberDisplayName(room, memberId)
-      return { kind: 'error', stage: null, label: failureLabel(room.memberError?.kind, name) }
+      return {
+        kind: 'error',
+        stage: null,
+        label: failureLabel(room.memberError?.kind, name),
+        detail: failureNextStep(room.memberError?.kind),
+      }
     }
     return room.idle === true ? { kind: 'idle', stage: null, label: '可以接着聊' } : null
   }

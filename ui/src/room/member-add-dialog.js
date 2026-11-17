@@ -1,9 +1,10 @@
-import { createElement as h, useEffect, useState } from 'react'
+import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { EngineLogin, useEngineLogin } from '../engine-login.js'
 import { engineBlockLabel, engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor } from './member-options.js'
-import { BodySpecFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { CapabilityFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { Segmented } from '../segmented.js'
 
 const ROLE_LABEL = { executor: '执行官', verifier: '验收员' }
 
@@ -14,6 +15,7 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
   const ready = readiness.ready[0]
   const [role, setRole] = useState('executor')
   const [name, setName] = useState('')
+  const [tab, setTab] = useState('body')
   const [engineId, setEngineId] = useState(ready?.id ?? '')
   const [modelId, setModelId] = useState(ready?.models?.default ?? '')
   const [spec, setSpec] = useState(() => bodySpecOf({}))
@@ -31,16 +33,15 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
   const overlay = useOverlay({ label: '添加成员', onClose: busy ? () => {} : onCancel, active: true })
   return h('div', { className: 'crew-overlay', onClick: busy ? undefined : onCancel, ...overlay },
     h('div', {
-      className: 'crew-dialog crew-member-add',
+      className: 'crew-dialog crew-member-add-dialog',
       role: 'dialog',
       'aria-modal': 'true',
       'aria-label': '添加成员',
       onClick: event => event.stopPropagation(),
     },
     h('div', { className: 'crew-dialog-heading' },
-      h('h2', null, '添一位成员'),
-      h('p', null, '规划师每间房只有一位。')),
-    h('div', { className: 'crew-dialog-body' },
+      h('h2', null, '加一位成员')),
+    h('div', { className: 'crew-add-who' },
       h('label', { className: 'crew-field crew-body-swap-field' },
         h('b', null, '角色'),
         h('select', {
@@ -62,65 +63,87 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
           maxLength: 32,
           disabled: busy,
           onChange: event => setName(event.target.value),
-        })),
-      h('label', { className: 'crew-field crew-body-swap-field' },
-        h('b', null, '模型服务'),
-        h('select', {
-          className: 'crew-member-menu',
-          'aria-label': '新成员的模型服务',
-          value: engineId,
-          disabled: busy,
-          onChange: event => {
-            setEngineId(event.target.value)
-            setModelId('')
-            clearNote()
-          },
-        },
-        h('option', { value: '' }, '选一个模型服务'),
-        available.map(item => {
-          const reason = engineBlockReason(item, { requireApproval: true })
-          return h('option', {
-            key: item.id,
-            value: item.id,
-            disabled: reason !== '',
-          }, `${item.name ?? item.id}${reason === '' ? '' : ` · ${engineBlockLabel(reason)}`}`)
         }))),
-      engine !== undefined && rows.length > 0
-        ? h('label', { className: 'crew-field crew-body-swap-field' },
-          h('b', null, '模型'),
+    h(Segmented, {
+      label: '换身体或性格',
+      value: tab,
+      onChange: setTab,
+      disabled: busy,
+      className: 'crew-dialog-seg',
+      options: [
+        { value: 'body', label: '身体' },
+        { value: 'mind', label: '性格' },
+      ],
+    }),
+    h('div', { className: 'crew-dialog-body' },
+      tab === 'body' ? h(Fragment, null,
+        h('label', { className: 'crew-field crew-body-swap-field' },
+          h('b', null, 'Agent'),
           h('select', {
             className: 'crew-member-menu',
-            'aria-label': '新成员的模型',
-            value: model,
+            'aria-label': '新成员的 Agent',
+            value: engineId,
             disabled: busy,
-            onChange: event => setModelId(event.target.value),
+            onChange: event => {
+              setEngineId(event.target.value)
+              setModelId('')
+              clearNote()
+            },
           },
-          rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
-        : null,
-      h(BodySpecFields, { value: spec, onChange: setSpec, disabled: busy }),
-      available.length === 0
-        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个模型服务。')
-        : engineId === '' && readiness.ready.length === 0 && readiness.noModels.length > 0 &&
-          readiness.loginTargets.length + readiness.manualLogin.length === 0
-          ? h('p', { className: 'crew-field-hint', role: 'alert' },
-            `${readiness.noModels.map(item => item.name ?? item.id).join('、')}还没有模型。`)
-          : engineId === '' || !blocked
-            ? h('p', { className: 'crew-field-hint' }, '权限由角色决定。')
-          : h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
-            ? '执行成员要用会先问你的模型。'
-            : blockedReason === '登录失效'
-              ? '这个模型服务还没登录。'
-              : blockedReason === '没有配置模型'
-                ? '这个模型服务还没有模型。'
-                : '换一个可用的模型服务。'),
-      h(EngineLogin, {
-        readiness,
-        busyId: loginBusyId,
-        note: loginNote,
-        disabled: busy,
-        onLogin: login,
-        onRefresh,
-      }),
+          h('option', { value: '' }, '选一个模型服务'),
+          available.map(item => {
+            const reason = engineBlockReason(item, { requireApproval: true })
+            return h('option', {
+              key: item.id,
+              value: item.id,
+              disabled: reason !== '',
+            }, `${item.name ?? item.id}${reason === '' ? '' : ` · ${engineBlockLabel(reason)}`}`)
+          }))),
+        engine !== undefined && rows.length > 0
+          ? h('label', { className: 'crew-field crew-body-swap-field' },
+            h('b', null, '模型'),
+            h('select', {
+              className: 'crew-member-menu',
+              'aria-label': '新成员的模型',
+              value: model,
+              disabled: busy,
+              onChange: event => setModelId(event.target.value),
+            },
+            rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
+          : null,
+        available.length === 0
+          ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个模型服务。')
+          : engineId === '' && readiness.ready.length === 0 && readiness.noModels.length > 0 &&
+            readiness.loginTargets.length + readiness.manualLogin.length === 0
+            ? h('p', { className: 'crew-field-hint', role: 'alert' },
+              `${readiness.noModels.map(item => item.name ?? item.id).join('、')}还没有模型。`)
+            : engineId === '' || !blocked
+              ? null
+            : h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
+              ? '执行成员要用会先问你的模型。'
+              : blockedReason === '登录失效'
+                ? '这个模型服务还没登录。'
+                : blockedReason === '没有配置模型'
+                  ? '这个模型服务还没有模型。'
+                  : '换一个可用的模型服务。'),
+        h(EngineLogin, {
+          readiness,
+          busyId: loginBusyId,
+          note: loginNote,
+          disabled: busy,
+          onLogin: login,
+          onRefresh,
+        })) : h(Fragment, null,
+        h('textarea', {
+          className: 'crew-mind-raw',
+          rows: 4,
+          'aria-label': '性格',
+          placeholder: '留空就按角色默认。',
+          value: spec.prompt ?? '',
+          disabled: busy,
+          onChange: event => setSpec({ ...spec, prompt: event.target.value }),
+        }),
+        h(CapabilityFields, { value: spec, onChange: setSpec, disabled: busy })),
       error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error)),
     h('div', { className: 'crew-dialog-foot' },
       h('button', { type: 'button', className: 'crew-ghost', disabled: busy, onClick: onCancel }, '取消'),
@@ -129,5 +152,5 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
         className: 'crew-accept crew-dialog-primary',
         disabled: busy || blocked || name.trim() === '' || engineId === '' || model === '',
         onClick: () => onConfirm({ role, name: name.trim(), engine: engineId, model, ...bodySpecPayload(spec) }),
-      }, busy ? '正在添加…' : '添加'))))
+      }, busy ? '正在添加…' : '加入'))))
 }

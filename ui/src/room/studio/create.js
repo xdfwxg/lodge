@@ -1,9 +1,11 @@
 import { Fragment, createElement as h } from 'react'
+import { Segmented } from '../../segmented.js'
 import { EngineLogin } from '../../engine-login.js'
 import { engineReadiness } from '../../../../shared/engine-readiness.js'
 import { DEFAULT_STUDIO_ROSTER } from '../../../../shared/studio-roster.js'
 import { MemberEnginePicker } from '../member-engine-picker.js'
 import { normalizeMembers } from '../member-options.js'
+import { RoleIcon } from '../role-icon.js'
 
 export const DEFAULT_STUDIO_MEMBERS = normalizeMembers(DEFAULT_STUDIO_ROSTER)
 
@@ -91,23 +93,16 @@ export function VerifyChoice({
   disabled = false,
 }) {
   return h(Fragment, null,
-    h('div', { className: 'crew-seg', role: 'group', 'aria-label': '怎么验收' },
-      h('button', {
-        type: 'button',
-        className: 'crew-seg-item',
-        'data-on': verifyMode === 'manual' ? 'true' : undefined,
-        'aria-pressed': verifyMode === 'manual',
-        disabled,
-        onClick: () => onVerifyMode('manual'),
-      }, '我自己看'),
-      h('button', {
-        type: 'button',
-        className: 'crew-seg-item',
-        'data-on': verifyMode === 'test' ? 'true' : undefined,
-        'aria-pressed': verifyMode === 'test',
-        disabled,
-        onClick: () => onVerifyMode('test'),
-      }, '跑一条检查')),
+    h(Segmented, {
+      label: '怎么验收',
+      value: verifyMode,
+      onChange: onVerifyMode,
+      disabled,
+      options: [
+        { value: 'manual', label: '我自己看' },
+        { value: 'test', label: '跑一条检查' },
+      ],
+    }),
     verifyMode === 'test'
       ? h('input', {
         className: 'crew-goal-input',
@@ -155,7 +150,7 @@ export function StudioPrimaryFields({
           key: member.id ?? member.name,
           className: 'crew-team-chip',
           'data-role': member.role,
-        }, member.name))),
+        }, h(RoleIcon, { member }), member.name))),
       modelNote === '' ? null : h('p', { className: 'crew-field-hint', role: 'status' }, modelNote),
       h(EngineLogin, {
         readiness,

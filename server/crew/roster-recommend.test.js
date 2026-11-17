@@ -12,20 +12,22 @@ test('raw newlines and trailing commas inside the reply still parse', () => {
   assert.deepEqual(proposal.members.map(member => member.role), ['lead', 'worker', 'verifier'])
 })
 
-test('the fixed three-member squad keeps names and reasons in the card', () => {
+test('the fixed three-member squad keeps role names and reasons in the card', () => {
   const proposal = parseProposal(reply({
     done: ['hello.txt 内容为 crew ok'],
     questions: [{ text: '文件放在根目录吗？', recommendation: '放根目录' }],
     members: [
-      { role: 'lead', name: '规划师', reason: '对齐目标' },
-      { role: 'worker', name: '执行者', reason: '实现与跑测试' },
-      { role: 'verifier', name: '验收员', reason: '独立复核' },
+      { role: 'lead', name: '规划', reason: '对齐目标' },
+      { role: 'worker', name: '执行', reason: '实现与跑测试' },
+      { role: 'verifier', name: '验收', reason: '独立复核' },
     ],
     verify: 'test',
     acceptance: 'npm test',
     why: '固定三人小队分工',
   }))
   assert.deepEqual(proposal.members.map(member => member.role), ['lead', 'worker', 'verifier'])
+  assert.deepEqual(proposal.members.map(member => member.name), ['规划师', '执行官', '验收员'])
+  assert.equal(proposal.members[1].reason, '实现与跑测试')
   assert.deepEqual(proposal.done, ['hello.txt 内容为 crew ok'])
   assert.equal(proposal.questions.length, 1)
   assert.equal(proposal.questions[0].recommendation, '放根目录')
@@ -37,12 +39,12 @@ test('the card carries orchestration and only worker assignees', () => {
   const proposal = parseProposal(reply({
     members: [
       { role: 'lead', name: '规划师' },
-      { role: 'worker', name: '甲' },
-      { role: 'worker', name: '乙' },
+      { role: 'worker' },
+      { role: 'worker' },
       { role: 'verifier', name: '验收员' },
     ],
     orchestration: 'parallel',
-    stages: [{ title: '实现', kind: 'deliverable', acceptance: 'npm test', assignees: ['甲', '验收员', '不存在'] }],
+    stages: [{ title: '实现', kind: 'deliverable', acceptance: 'npm test', assignees: ['worker', '验收员', '不存在'] }],
     verify: 'test',
     acceptance: 'npm test',
     why: '两个执行席位可并行',
@@ -62,7 +64,7 @@ test('an unknown orchestration falls back to pipeline with a visible note', () =
   assert.match(proposal.note, /未知编排策略/)
 })
 
-test('a team proposal keeps names and reasons and derives permissions later', () => {
+test('a team proposal keeps canonical names and reasons and derives permissions later', () => {
   const proposal = parseProposal(reply({
     members: [
       { role: 'lead', name: '统筹', reason: '负责对齐' },
@@ -74,8 +76,9 @@ test('a team proposal keeps names and reasons and derives permissions later', ()
     acceptance: 'npm test',
     why: '工作可拆且需要独立验收',
   }))
-  assert.deepEqual(proposal.members.map(member => member.name), ['统筹', '前端', '后端', '复核'])
+  assert.deepEqual(proposal.members.map(member => member.name), ['规划师', '执行官', '执行官 2', '验收员'])
   assert.equal(proposal.members[1].reason, '实现界面')
+  assert.equal(proposal.members[2].reason, '实现接口')
   assert.deepEqual(proposal.questions, [])
 })
 

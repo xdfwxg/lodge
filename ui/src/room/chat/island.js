@@ -15,66 +15,33 @@ export const chatIslandState = decision => (
   }
 )
 
-// 聊天室只保留一个动作：断了要重开。结论不确认，继续聊就是发消息。
-const ACTIONABLE = new Set(['chat-resume'])
-const actionOf = action => ACTIONABLE.has(action) ? action : undefined
-
+// 岛只报状态，不放操作；要继续聊，在下面发一句就行。
 export const chatIslandView = ({ decision } = {}) => ({
   ...chatIslandState(decision),
   detail: decision?.detail,
-  primary: decision?.primary === undefined || decision?.primary === null || actionOf(decision.primary.action) === undefined
-    ? undefined
-    : decision.primary,
-  secondary: decision?.secondary === undefined || decision?.secondary === null || actionOf(decision.secondary.action) === undefined
-    ? undefined
-    : decision.secondary,
 })
 
-export function ChatIsland({ room, decision, actions = {} }) {
+const SHOWN = new Set(['chat-running', 'chat-concluded', 'chat-interrupted'])
+
+export function ChatIsland({ room, decision }) {
   const view = chatIslandView({ decision })
-  const [busy, setBusy] = useState(false)
-  const [visible, setVisible] = useState(() => decision?.key === 'chat-interrupted')
-  // 岛只在状态变化时浮一下；断了才留下等你点重开。
+  const [visible, setVisible] = useState(() => SHOWN.has(decision?.key))
+  // 岛只在状态变化时浮一下，说完就淡出。
   useEffect(() => {
     const key = decision?.key
-    if (key === 'chat-interrupted') {
-      setVisible(true)
+    if (!SHOWN.has(key)) {
+      setVisible(false)
       return undefined
     }
-    if (key === 'chat-running' || key === 'chat-concluded') {
-      setVisible(true)
-      const timer = setTimeout(() => setVisible(false), 2600)
-      return () => clearTimeout(timer)
-    }
-    setVisible(false)
-    return undefined
+    setVisible(true)
+    const timer = setTimeout(() => setVisible(false), 2600)
+    return () => clearTimeout(timer)
   }, [decision?.key, room.id])
-
-  const resume = async () => {
-    if (busy || typeof actions.resumeChat !== 'function') return
-    setBusy(true)
-    try {
-      await actions.resumeChat()
-    } finally {
-      setBusy(false)
-    }
-  }
 
   if (!visible) return null
   const detail = view.detail === undefined
     ? null
     : h('p', { className: 'crew-island-detail-text', title: view.detail }, view.detail)
-  const footer = view.primary === undefined
-    ? null
-    : h('div', { className: 'crew-island-actions' },
-      h('button', {
-        type: 'button',
-        className: 'crew-accept crew-quiet-primary',
-        disabled: busy,
-        onClick: () => {
-          if (view.primary.action === 'chat-resume') void resume()
-        },
-      }, view.primary.label))
 
   return h(Island, {
     title: room.name || room.goal || '聊天室',
@@ -83,6 +50,5 @@ export function ChatIsland({ room, decision, actions = {} }) {
     icon: h(TargetIcon),
     titleText: room.goal,
     detail,
-    footer,
   })
 }

@@ -9,6 +9,7 @@ import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { dispatchFrom, tasksFrom } from '../../assignment-projections.js'
+import { memberDisplayName } from '../../member-labels.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
@@ -42,7 +43,16 @@ const studioNeedsYou = (room, messages = []) => {
   if (timeout !== undefined) {
     const lastVerdict = latestForStage(messages, 'verdict', index, floor)
     if ((timeout.ts ?? 0) > (room.reviewRetriedAt ?? 0) && (timeout.ts ?? 0) > (lastVerdict?.ts ?? 0)) {
-      return { kind: 'review-timeout', stage: index, label: '复核超时' }
+      const names = (Array.isArray(timeout.meta?.verifiers) ? timeout.meta.verifiers : [])
+        .map(id => memberDisplayName(room, id)).join('、')
+      return {
+        kind: 'review-timeout',
+        stage: index,
+        label: names === '' ? '复核没按时回来' : `${names}的复核没按时回来`,
+        detail: room.independence === 'none'
+          ? '只有一家厂商，复核其实是自查；再装一个 Agent 才算独立复核。'
+          : '可以再叫一次复核，或退回重做。',
+      }
     }
   }
   if (stage.manual === true) {
@@ -66,17 +76,34 @@ const studioNeedsYou = (room, messages = []) => {
   if (stage.kind === 'decision') return { kind: 'decision', stage: index, label: '待确认' }
 
   if (typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') {
-    return { kind: 'setup', stage: index, label: '待补检查' }
+    return {
+      kind: 'setup',
+      stage: index,
+      label: '待补检查',
+      detail: '给这一步补一条能跑的检查，或改成你看结果。',
+    }
   }
   const dispatch = dispatchFrom(room.assignments ?? [], index)
   if (room.mergeConflict?.stage === index || (dispatch?.stage === index && dispatch?.conflict !== undefined && dispatch?.conflict !== null)) {
     return { kind: 'merge', stage: index, label: '合并冲突' }
   }
   if (dispatch?.stage === index && dispatch?.stalled === true) {
-    return { kind: 'parallel', stage: index, label: '并行执行无产出' }
+    const names = (dispatch.pending ?? []).map(id => memberDisplayName(room, id)).join('、')
+    return {
+      kind: 'parallel',
+      stage: index,
+      label: names === '' ? '并行执行没有产出' : `${names}卡住了，没有产出`,
+      detail: '退回重做，或只留一位执行官继续。',
+    }
   }
   if (dispatch?.stage === index && dispatch?.timedOut === true) {
-    return { kind: 'parallel', stage: index, label: '并行执行超时' }
+    const names = (dispatch.pending ?? []).map(id => memberDisplayName(room, id)).join('、')
+    return {
+      kind: 'parallel',
+      stage: index,
+      label: names === '' ? '并行执行超时' : `${names}并行执行超时`,
+      detail: '退回重做，或只留一位执行官继续。',
+    }
   }
   const commandEvidence = commandEvidenceFor(room, undefined, messages, index)
   if (commandEvidence !== undefined && commandEvidence.meta?.exit !== 0) {

@@ -47,12 +47,22 @@ test('a lost base connection and a timed-out stage both ask the human', () => {
   const lost = atDeliverable()
   lost.live = true
   lost.connectionError = '基座连接中断：timeout'
-  assert.deepEqual(roomNeedsYou(lost, []), { kind: 'connection', stage: null, label: '连接中断' })
+  assert.deepEqual(roomNeedsYou(lost, []), {
+    kind: 'connection',
+    stage: null,
+    label: '连接断了',
+    detail: '模型服务掉线了；连上后点继续。',
+  })
   const blocked = atDeliverable()
   blocked.blocked = { stage: 1, reason: 'timeout' }
-  assert.deepEqual(roomNeedsYou(blocked, []), { kind: 'blocked', stage: 1, label: '执行超时，需要你退回重做' })
+  assert.deepEqual(roomNeedsYou(blocked, []), {
+    kind: 'blocked',
+    stage: 1,
+    label: '执行超时',
+    detail: '退回重做，或叫停后重新派活。',
+  })
   blocked.blocked.reason = 'restart'
-  assert.equal(roomNeedsYou(blocked, []).label, '重启后未完成，需要你处理')
+  assert.equal(roomNeedsYou(blocked, []).label, '重启后没接着做')
 })
 
 test('a busy member is not a needs-you state', () => {
@@ -76,6 +86,7 @@ test('a member engine error asks the human to intervene with a concrete reason',
     kind: 'error',
     stage: null,
     label: '执行者的模型额度用完了',
+    detail: '充值或给这位成员换个模型后，点“继续”。',
   })
   assert.equal(roomNeedsYou({
     state: 'paused',
@@ -139,13 +150,23 @@ test('a manual stage stays quiet until the product is ready', () => {
 test('a timed-out parallel assignment asks the human', () => {
   const r = atDeliverable()
   r.assignments = [dispatchAssignment({ timedOut: true })]
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'parallel', stage: 1, label: '并行执行超时' })
+  assert.deepEqual(roomNeedsYou(r, []), {
+    kind: 'parallel',
+    stage: 1,
+    label: '执行官并行执行超时',
+    detail: '退回重做，或只留一位执行官继续。',
+  })
 })
 
 test('a stalled parallel assignment asks the human', () => {
   const r = atDeliverable()
   r.assignments = [dispatchAssignment({ stalled: true })]
-  assert.deepEqual(roomNeedsYou(r, []), { kind: 'parallel', stage: 1, label: '并行执行无产出' })
+  assert.deepEqual(roomNeedsYou(r, []), {
+    kind: 'parallel',
+    stage: 1,
+    label: '执行官卡住了，没有产出',
+    detail: '退回重做，或只留一位执行官继续。',
+  })
 })
 
 test('a room-level merge conflict outlives the dispatch record', () => {

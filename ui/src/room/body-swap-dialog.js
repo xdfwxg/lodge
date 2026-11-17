@@ -3,21 +3,22 @@ import { EngineLogin, useEngineLogin } from '../engine-login.js'
 import { engineBlockLabel, engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor, roleLabelOf } from './member-options.js'
-import { BodySpecFields, CapabilityFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { CapabilityFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { Segmented } from '../segmented.js'
 
 const MIND_PRESETS = [
-  { id: 'rigorous', label: '严谨', prompt: '先核对事实与证据，指出不确定的地方；不轻易下结论。', sample: '我先核对证据，再给结论；没把握的地方我会直说。' },
-  { id: 'decisive', label: '果断', prompt: '先给判断和推荐答案，再补理由；不绕弯。', sample: '我的判断是这样，理由有三点；先按这个走。' },
-  { id: 'gentle', label: '温和', prompt: '先理解对方，再提出不同意见；语气克制，不压人。', sample: '我理解你的顾虑；我这边有个不同看法，可以一起看看。' },
-  { id: 'critical', label: '挑刺', prompt: '主动找反例、漏洞和风险；宁可多问一句，不放过疑点。', sample: '这里可能有个漏洞：如果前提不成立，结论就站不住。' },
+  { id: 'rigorous', label: '严谨', prompt: '先核对事实与证据，指出不确定的地方；不轻易下结论。' },
+  { id: 'decisive', label: '果断', prompt: '先给判断和推荐答案，再补理由；不绕弯。' },
+  { id: 'gentle', label: '温和', prompt: '先理解对方，再提出不同意见；语气克制，不压人。' },
+  { id: 'critical', label: '挑刺', prompt: '主动找反例、漏洞和风险；宁可多问一句，不放过疑点。' },
 ]
 
 const labelOf = engine => `${engine.name ?? engine.id}${engine.models?.default ? ` · ${engine.models.default}` : ''}`
 
 const permissionOf = member => (
   member.permissions?.write === true
-    ? '可写工作副本'
-    : member.permissions?.exec === true ? '可跑检查' : '只读'
+    ? '能改文件'
+    : member.permissions?.exec === true ? '能跑命令' : '只能看'
 )
 
 // 调整成员：只换模型或运行时；成员 id、证据、交接和历史都不动。
@@ -29,6 +30,12 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
   const [modelId, setModelId] = useState(member.body?.model ?? '')
   const [confirming, setConfirming] = useState(false)
   const [spec, setSpec] = useState(() => bodySpecOf(member))
+  const [customOpen, setCustomOpen] = useState(() => {
+    // 工作室成员只有角色默认性格，没有预设可选。
+    if (roleLabelOf(member) !== '成员') return false
+    const prompt = bodySpecOf(member).prompt.trim()
+    return prompt === '' || !MIND_PRESETS.some(item => item.prompt === prompt)
+  })
   const { busyId: loginBusyId, note: loginNote, login, clearNote } = useEngineLogin(onRefresh)
   const engine = available.find(item => item.id === engineId)
   const rows = modelRowsFor(engine)
@@ -43,11 +50,11 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
   const mindChanged = (currentSpec.prompt ?? '') !== (originalSpec.prompt ?? '')
   const capabilityChanged = JSON.stringify({ skills: currentSpec.skills, mcp: currentSpec.mcp })
     !== JSON.stringify({ skills: originalSpec.skills, mcp: originalSpec.mcp })
-  const [mindConfirmed, setMindConfirmed] = useState(false)
   const unchanged = engineId === (member.body?.engine ?? '')
     && model === (member.body?.model ?? '')
     && !mindChanged
     && !capabilityChanged
+  const roleBound = roleLabelOf(member) !== '成员'
   const overlay = useOverlay({ label: '调整成员', onClose: busy ? () => {} : onCancel, active: true })
   return h('div', { className: 'crew-overlay', onClick: busy ? undefined : onCancel, ...overlay },
     h('div', {
@@ -58,34 +65,28 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
       onClick: event => event.stopPropagation(),
     },
     h('div', { className: 'crew-dialog-heading' },
-      h('h2', null, `调整 ${member.name}`),
-      h('p', null, '身体和想法分开换；成员、记录都留在房间里。'),
+      h('h2', null, member.name),
       h('p', { className: 'crew-body-swap-identity' },
-        [roleLabelOf(member), permissionOf(member), member.approval === 'ask' ? '外部操作先问你' : ''].filter(Boolean).join(' · '))),
-    h('div', { className: 'crew-dialog-tabs', role: 'tablist', 'aria-label': '换身体或换想法' },
-      h('button', {
-        type: 'button',
-        role: 'tab',
-        className: 'crew-dialog-tab',
-        'aria-selected': tab === 'body',
-        'data-active': tab === 'body' || undefined,
-        onClick: () => setTab('body'),
-      }, '换身体'),
-      h('button', {
-        type: 'button',
-        role: 'tab',
-        className: 'crew-dialog-tab',
-        'aria-selected': tab === 'mind',
-        'data-active': tab === 'mind' || undefined,
-        onClick: () => setTab('mind'),
-      }, '换想法')),
+        [roleLabelOf(member) === '成员' ? '' : roleLabelOf(member), permissionOf(member), member.approval === 'ask' ? '动手前会问你' : '']
+          .filter(Boolean).join(' · '))),
+    h(Segmented, {
+      label: '换身体或换性格',
+      value: tab,
+      onChange: setTab,
+      disabled: busy,
+      className: 'crew-dialog-seg',
+      options: [
+        { value: 'body', label: '身体' },
+        { value: 'mind', label: '性格' },
+      ],
+    }),
     h('div', { className: 'crew-dialog-body' },
       tab === 'body' ? h(Fragment, null,
       h('label', { className: 'crew-field crew-body-swap-field' },
-        h('b', null, '模型服务'),
+        h('b', null, 'Agent'),
         h('select', {
           className: 'crew-member-menu',
-          'aria-label': `${member.name}的模型服务`,
+          'aria-label': `${member.name}的 Agent`,
           value: engineId,
           disabled: busy,
           onChange: event => {
@@ -135,42 +136,61 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
         onLogin: login,
         onRefresh,
       })) : h(Fragment, null,
-        h('p', { className: 'crew-field-hint', role: 'note' }, '换想法会改变它的判断方式；名字、记录和房间位置不变。'),
-        h('div', { className: 'crew-mind-presets', role: 'group', 'aria-label': '换一种想法' },
+        roleBound
+          ? h('div', { className: 'crew-mind-presets', role: 'group', 'aria-label': '性格' },
+            h('button', {
+              type: 'button',
+              className: 'crew-mind-preset',
+              disabled: true,
+              'data-active': true,
+            }, '默认'))
+          : h('div', { className: 'crew-mind-presets', role: 'group', 'aria-label': '换一种性格' },
           MIND_PRESETS.map(item => h('button', {
             key: item.id,
             type: 'button',
             className: 'crew-mind-preset',
             disabled: busy,
-            'data-active': spec.prompt === item.prompt || undefined,
+            'data-active': (!customOpen && spec.prompt === item.prompt) || undefined,
             onClick: () => {
               setSpec({ ...spec, prompt: item.prompt })
-              setMindConfirmed(false)
+              setCustomOpen(false)
             },
-          }, item.label))),
-        h('p', { className: 'crew-mind-preview' }, `换完之后，它会这样说话：${(MIND_PRESETS.find(item => item.prompt === spec.prompt) ?? { sample: '它会按你写的说明来判断。' }).sample}`),
-        h('details', { className: 'crew-body-spec', open: MIND_PRESETS.some(item => item.prompt === spec.prompt) ? undefined : true },
-          h('summary', null, '高级：自己写行为说明'),
-          h('textarea', {
-            className: 'crew-goal-input',
-            rows: 3,
-            'aria-label': '行为说明',
-            placeholder: '写给这位成员的长期说明；留空就用角色默认。',
-            value: spec.prompt ?? '',
+          }, item.label)),
+          h('button', {
+            type: 'button',
+            className: 'crew-mind-preset',
             disabled: busy,
-            onChange: event => {
-              setSpec({ ...spec, prompt: event.target.value })
-              setMindConfirmed(false)
+            'data-active': customOpen || undefined,
+            onClick: () => {
+              // 自定义从空白开始，不把上一个预设的话抄进来。
+              setSpec(current => (
+                MIND_PRESETS.some(item => item.prompt === current.prompt)
+                  ? { ...current, prompt: '' }
+                  : current
+              ))
+              setCustomOpen(true)
             },
-          })),
-        h('p', { className: 'crew-field-hint' }, '能力（不会改变性格）'),
+          }, '自定义')),
+        h('textarea', {
+          className: 'crew-mind-raw',
+          rows: 4,
+          'aria-label': '性格',
+          placeholder: '写给这位成员的长期说明；留空就用角色默认。',
+          value: spec.prompt ?? '',
+          readOnly: !customOpen,
+          disabled: busy,
+          'data-readonly': !customOpen || undefined,
+          onChange: event => {
+            setSpec({ ...spec, prompt: event.target.value })
+          },
+        }),
         h(CapabilityFields, {
           value: spec,
           onChange: value => setSpec(value),
           disabled: busy,
         })),
       confirming
-        ? h('p', { className: 'crew-dialog-note', role: 'alert' }, `移出后，${member.name}的工作位会撤掉。聊天记录还在。`)
+        ? h('p', { className: 'crew-dialog-note', role: 'alert' }, `移出后，${member.name}不再在这间房。聊天记录还在。`)
         : null,
       error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error)),
     h('div', { className: 'crew-dialog-foot' },
@@ -180,7 +200,7 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
           className: 'crew-ghost crew-body-swap-remove',
           disabled: busy,
           onClick: () => setConfirming(true),
-        }, '移除成员')
+        }, '移出房间')
         : null,
       confirming
         ? h(Fragment, null,
@@ -198,12 +218,6 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
         type: 'button',
         className: 'crew-accept crew-dialog-primary',
         disabled: busy || blocked || unchanged || engineId === '' || model === '' || !specFilled,
-        onClick: () => {
-          if (mindChanged && !mindConfirmed) {
-            setMindConfirmed(true)
-            return
-          }
-          onConfirm({ engine: engineId, model, ...bodySpecPayload(spec) })
-        },
-      }, busy ? '正在保存…' : mindChanged && !mindConfirmed ? '确认换想法' : '保存')))))
+        onClick: () => onConfirm({ engine: engineId, model, ...bodySpecPayload(spec) }),
+      }, busy ? '正在保存…' : '完成')))))
 }

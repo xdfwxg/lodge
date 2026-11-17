@@ -5,6 +5,7 @@
 const DECISION_KINDS = new Set([
   'decision', 'signoff', 'question', 'rework', 'merge', 'parallel',
   'review-timeout', 'setup', 'approval', 'error', 'mcp', 'auto-check',
+  'blocked', 'connection',
 ])
 
 const DECISION_TONE = {
@@ -27,6 +28,10 @@ const stageLabel = (room, value) => {
     : `第 ${value + 1} 步`
 }
 
+const withStage = (label, text) => (
+  label === '' || text.startsWith(label) ? text : `${label} · ${text}`
+)
+
 const decisionText = (kind, label, fallback) => {
   switch (kind) {
     case 'signoff': return label === '' ? '这一步通过了' : `${label}通过了`
@@ -34,13 +39,15 @@ const decisionText = (kind, label, fallback) => {
     case 'question': return '成员问了一个问题'
     case 'rework': return label === '' ? '有一步被退回了' : `${label}被验收退回了`
     case 'merge': return label === '' ? '合并没合上' : `${label}合并没合上`
-    case 'parallel': return '并行执行卡住了'
+    case 'parallel': return withStage(label, fallback === undefined || fallback === '' ? '并行执行卡住了' : fallback)
     case 'auto-check': return fallback ?? '这一步没做成'
-    case 'review-timeout': return label === '' ? '复核没按时回来' : `${label}的复核没按时回来`
+    case 'review-timeout': return withStage(label, fallback === undefined || fallback === '' ? '复核没按时回来' : fallback)
     case 'setup': return label === '' ? '还没定怎么验收' : `${label}还没定怎么验收`
     case 'approval': return '有一个操作要你点头'
-    case 'error': return '有成员出错了'
+    case 'error': return fallback === undefined || fallback === '' ? '有成员出错了' : fallback
     case 'mcp': return '连接断了'
+    case 'connection': return fallback === undefined || fallback === '' ? '连接断了' : fallback
+    case 'blocked': return withStage(label, fallback === undefined || fallback === '' ? '执行超时' : fallback)
     default: return fallback ?? '需要你处理'
   }
 }
@@ -54,6 +61,7 @@ export const decisionOf = room => {
   const childName = typeof needs.roomName === 'string' && needs.roomName !== '' ? needs.roomName : '子房间'
   const own = fromChild ? `${childName}：${needs.label ?? '待处理'}` : decisionText(needs.kind, label, needs.label)
   const more = Array.isArray(room?.attention) ? room.attention.length - 1 : 0
+  const missing = typeof needs.detail === 'string' && needs.detail !== '' ? needs.detail : ''
   return {
     key: fromChild
       ? `decision:${needs.roomId}:${needs.kind}:${index ?? '-'}`
@@ -62,7 +70,10 @@ export const decisionOf = room => {
     needs: needs.kind,
     tone: DECISION_TONE[needs.kind] ?? 'waiting',
     title: more > 0 ? `${own} · 还有 ${more} 件` : own,
-    detail: fromChild ? own : label === '' ? needs.label ?? '' : `${label} · ${needs.label ?? ''}`,
+    // 说清缺什么、下一步怎么处理，不让人翻记录找原因。
+    detail: fromChild
+      ? missing || own
+      : missing || (label === '' ? needs.label ?? '' : `${label} · ${needs.label ?? ''}`),
     action: 'open',
   }
 }

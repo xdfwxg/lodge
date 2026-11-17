@@ -1,4 +1,4 @@
-import { Fragment, createElement as h } from 'react'
+import { createElement as h } from 'react'
 
 const listText = list => (Array.isArray(list) ? list : [])
   .map(item => (typeof item === 'string' ? item : item?.server ?? ''))
@@ -20,69 +20,33 @@ export const bodySpecPayload = spec => {
   return { prompt: spec.prompt ?? '', skills, mcp }
 }
 
-// 身体规格：行为说明、技能、MCP；权限和角色仍归成员。
+// 能力是 skills 和 mcp，放在一组里；它们不改性格。
 export function CapabilityFields({ value, onChange, disabled = false }) {
   const update = patch => onChange({ ...value, ...patch })
-  return h(Fragment, null,
-    h('label', { className: 'crew-field crew-body-swap-field' },
-      h('b', null, '技能'),
+  return h('div', { className: 'crew-capability' },
+    h('div', { className: 'crew-capability-head' },
+      h('b', null, '能力')),
+    h('label', { className: 'crew-capability-row' },
+      h('span', { className: 'crew-capability-label' }, 'skills'),
       h('input', {
-        className: 'crew-goal-input',
+        className: 'crew-capability-input',
         type: 'text',
-        'aria-label': '技能',
-        placeholder: '技能名，用逗号分隔',
+        'aria-label': 'skills',
+        placeholder: '代码审查、写测试',
         value: value.skillsText ?? '',
         disabled,
         onChange: event => update({ skillsText: event.target.value }),
       })),
-    h('label', { className: 'crew-field crew-body-swap-field' },
-      h('b', null, 'MCP 服务'),
+    h('label', { className: 'crew-capability-row' },
+      h('span', { className: 'crew-capability-label' }, 'mcp'),
       h('input', {
-        className: 'crew-goal-input',
+        className: 'crew-capability-input',
         type: 'text',
-        'aria-label': 'MCP 服务',
-        placeholder: 'MCP 服务名，用逗号分隔',
+        'aria-label': 'mcp',
+        placeholder: '浏览器、搜索',
         value: value.mcpText ?? '',
         disabled,
         onChange: event => update({ mcpText: event.target.value }),
       })))
 }
 
-export function BodySpecFields({ value, onChange, disabled = false, open = false }) {
-  const update = patch => onChange({ ...value, ...patch })
-  return h('details', { className: 'crew-body-spec', open: open || undefined },
-    h('summary', null, '成员设置'),
-    h('label', { className: 'crew-field crew-body-swap-field' },
-      h('b', null, '行为说明'),
-      h('textarea', {
-        className: 'crew-goal-input',
-        rows: 3,
-        'aria-label': '行为说明',
-        placeholder: '写给这位成员的长期说明；留空就用角色默认。',
-        value: value.prompt ?? '',
-        disabled,
-        onChange: event => update({ prompt: event.target.value }),
-      })),
-    h('label', { className: 'crew-field crew-body-swap-field' },
-      h('b', null, '技能'),
-      h('input', {
-        className: 'crew-goal-input',
-        type: 'text',
-        'aria-label': '技能',
-        placeholder: '技能名，用逗号分隔',
-        value: value.skillsText ?? '',
-        disabled,
-        onChange: event => update({ skillsText: event.target.value }),
-      })),
-    h('label', { className: 'crew-field crew-body-swap-field' },
-      h('b', null, 'MCP 服务'),
-      h('input', {
-        className: 'crew-goal-input',
-        type: 'text',
-        'aria-label': 'MCP 服务',
-        placeholder: 'MCP 服务名，用逗号分隔',
-        value: value.mcpText ?? '',
-        disabled,
-        onChange: event => update({ mcpText: event.target.value }),
-      })))
-}

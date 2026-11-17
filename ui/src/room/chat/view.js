@@ -14,7 +14,7 @@ import { TypingLine } from '../typing-line.js'
 export const chatView = {
   id: 'chat',
   header: ({ state, room, members, actions }) => h(Fragment, null,
-    h(ChatIsland, { room, decision: buildChatDecision(room), actions }),
+    h(ChatIsland, { room, decision: buildChatDecision(room) }),
     h('div', { className: 'crew-island-rail-wrap' },
       h(IslandRail, { rooms: state?.rooms ?? [], currentId: room.id, onSelect: actions?.selectRoom })),
     (room.state === 'active' || room.state === 'paused') && (members?.length ?? 0) > 0

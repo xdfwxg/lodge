@@ -32,8 +32,8 @@ export const buildChatDecision = room => {
   return {
     key: 'chat-interrupted',
     title: '刚才断了',
-    detail: '可以重新开始这一轮。',
-    primary: { label: '重新开始', action: 'chat-resume' },
+    detail: '再发一句就能接着说。',
+    primary: null,
     secondary: null,
   }
 }

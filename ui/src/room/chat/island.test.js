@@ -41,16 +41,13 @@ test('an old work action never grows on the island', () => {
   assert.equal(view.secondary, undefined)
 })
 
-test('interrupted chat resumes; an action the island cannot run is not shown', () => {
-  const resume = chatIslandView({
-    decision: { key: 'chat-interrupted', primary: { label: '重新开始', action: 'chat-resume' } },
+test('the island carries no actions; continuing is just speaking', () => {
+  const interrupted = chatIslandView({
+    decision: { key: 'chat-interrupted', detail: '再发一句就能接着说。', primary: { label: '重新开始', action: 'chat-resume' } },
   })
-  assert.deepEqual(resume.primary, { label: '重新开始', action: 'chat-resume' })
-
-  const paused = chatIslandView({
-    decision: { key: 'paused', primary: { label: '继续', action: 'resume' } },
-  })
-  assert.equal(paused.primary, undefined)
+  assert.equal(interrupted.primary, undefined)
+  assert.equal(interrupted.secondary, undefined)
+  assert.match(interrupted.detail, /发一句/)
 })
 
 test('the chat header uses the shared island', () => {
@@ -58,13 +55,14 @@ test('the chat header uses the shared island', () => {
     room: { name: '圆桌' },
     decision: {
       key: 'chat-interrupted',
-      detail: '刚才断了，可以重新开始。',
-      primary: { label: '重新开始', action: 'chat-resume' },
+      detail: '再发一句就能接着说。',
+      primary: null,
       secondary: null,
     },
   }))
   assert.match(html, /crew-island/)
   assert.match(html, /断了/)
-  assert.match(html, /重新开始/)
+  assert.match(html, /发一句/)
+  assert.doesNotMatch(html, /重新开始/)
   assert.doesNotMatch(html, /确认结论/)
 })
