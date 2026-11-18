@@ -78,12 +78,19 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       : (typeof room.repoPath === 'string' && room.repoPath !== '' && typeof workspaceOf(room).head === 'function'
         ? workspaceOf(room).head({ path: room.repoPath })
         : null)
-    if ((typeof stageBase === 'string' && stageBase !== '') || room.blocked?.stage === index) {
+    if (
+      (typeof stageBase === 'string' && stageBase !== '') ||
+      room.blocked?.stage === index ||
+      room.mergeConflict?.stage === index
+    ) {
       store.updateRoom(roomId, current => {
         if (typeof stageBase === 'string' && stageBase !== '' && storedBase === '') {
           current.stageBases = { ...(current.stageBases ?? {}), [index]: stageBase }
         }
         if (current.blocked?.stage === index) current.blocked = null
+        // 重做会把冲突现场一起丢掉；旧冲突和旧的“人已解决”标记不能拦住新一轮的合并。
+        if (current.mergeConflict?.stage === index) current.mergeConflict = null
+        if (current.mergeResolved?.stage === index) current.mergeResolved = null
         return { events: [] }
       })
     }

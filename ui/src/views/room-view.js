@@ -190,6 +190,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     store,
     accept: stage => void store.accept(stage),
     rework: (stage, note) => store.rework(stage, note),
+    resolveMerge: () => store.resolveMerge(),
     retry: (stage, note) => void store.retry(stage, note),
     rewind: (stage, note) => store.rewind(stage, note),
     switchMode: (mode, roles) => store.switchMode(mode, roles),

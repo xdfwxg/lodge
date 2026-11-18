@@ -8,6 +8,7 @@ export const ROOM_ACTIONS = Object.freeze([
   'resume',
   'reject-plan',
   'rework',
+  'resolve-merge',
   'retry',
   'rewind',
   'switch-mode',

@@ -42,6 +42,7 @@ export const studioView = {
     onAccept: actions.accept,
     onStageAccept: actions.accept,
     onRework: actions.rework,
+    onResolveMerge: actions.resolveMerge,
     onAnswerCard: actions.answerCard,
     onCancelQueue: actions.cancelQueue,
     onSteerQueue: actions.steerQueue,

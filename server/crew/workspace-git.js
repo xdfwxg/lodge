@@ -368,7 +368,7 @@ export const removeIsolatedCopy = ({ source, copy }) => {
 }
 
 // 把执行分支合进房间集成分支；冲突时回滚合并并把冲突文件交给人，不自动选边。
-export const integrate = ({ path, branch }) => {
+export const integrate = ({ path, branch, keepConflict = false }) => {
   try {
     git(path, [...GIT_IDENTITY, 'merge', '--no-edit', '--no-ff', branch])
     return { ok: true }
@@ -377,9 +377,12 @@ export const integrate = ({ path, branch }) => {
     try {
       files = git(path, ['diff', '--name-only', '--diff-filter=U']).split('\n').filter(Boolean)
     } catch {}
-    try {
-      git(path, ['merge', '--abort'])
-    } catch {}
+    // 留给人处理时保留合并现场：冲突文件、MERGE_HEAD 都在，解决并提交后才能继续。
+    if (!keepConflict) {
+      try {
+        git(path, ['merge', '--abort'])
+      } catch {}
+    }
     return { ok: false, files, error: String(error?.stderr ?? error?.message ?? error).trim() }
   }
 }

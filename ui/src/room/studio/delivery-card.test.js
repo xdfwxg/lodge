@@ -46,6 +46,7 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
     delivery: {
       name: '设置页保存',
       goal: '保存后刷新仍生效',
+      workspacePath: '/tmp/room',
       completedAt: Date.UTC(2026, 10, 12, 4, 0),
       commit: 'abcdef1234567890',
       independenceLabel: '同引擎 · 独立性降级',
@@ -84,8 +85,9 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.match(text(tree), /复核一/)
   assert.match(text(tree), /复核二/)
   assert.match(text(tree), /src\/a\.js/)
-  assert.match(text(tree), /2 步/)
+  assert.doesNotMatch(text(tree), /2 步/)
   assert.match(text(tree), /1 项检查/)
+  assert.match(text(tree), /打开结果文件夹/)
 })
 
 test('a verified manual stage shows the verdict, not the waiting notice', async () => {

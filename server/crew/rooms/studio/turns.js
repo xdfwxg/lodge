@@ -873,6 +873,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     captureTurn,
     resume,
     requestReview: review.request,
+    resolveMerged: integrator.resolve,
     startStage: stageStarter.startStage,
     watchStageTimeout: stageStarter.watchStageTimeout,
     busyReview: review.isBusy,

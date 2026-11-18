@@ -73,6 +73,8 @@ LODGE_RUNTIMES_DIR=/path/to/runtimes npm run desktop
 
 Pi 是 BYOK。登录凭据写到 `~/.pi/agent/auth.json`；登录后重启 Lodge，基座才会重新读取模型目录。没有可用模型时，建房界面会提示登录，不会静默换模型。
 
+只有 `auth.json` 不代表可用：`pi` 可执行文件必须在基座可见的 PATH 里（源码模式常见是 `~/.local/bin`，可用 `command -v pi` 检查）。基座只在启动时探测 CLI 和模型目录；装好或更新 Pi 后要重启基座，`/api/instances` 里的 `pi` 才会从“CLI not found”变成 available。
+
 ## 上下文装配
 
 `server/crew/prompt-context.js` 负责把房间事实裁成提示词：

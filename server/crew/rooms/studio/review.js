@@ -324,11 +324,15 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         }
       }
       const verifierPort = room.ports?.[verifier]
+      const mergeNote = room.mergeResolved?.stage === stageIndex
+        ? '这一步的合并冲突已经由人解决并提交；不要因为冲突现场消失而退回，按解决后的结果对照目标。'
+        : ''
       const prompt = manual
         ? [
             `你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '复核：以本轮结果证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             `房间目标（判定标准，以此为准）：${room.goal}`,
+            ...(mergeNote === '' ? [] : [mergeNote]),
             `当前阶段：第 ${stageIndex + 1} 步「${stage.title}」`,
             blind
               ? '对抗复核：只依据本轮证据和改动；执行对话不提供。'
@@ -353,6 +357,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             `你现在是验收成员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,
             '复核：以本轮验收证据、改动和验收命令为准；执行对话只作背景，不作为判定依据。',
             `房间目标（判定标准，以此为准）：${room.goal}`,
+            ...(mergeNote === '' ? [] : [mergeNote]),
             `当前阶段：第 ${stageIndex + 1} 步「${stage.title}」`,
             blind
               ? '对抗复核：只依据本轮证据和改动；执行对话不提供。'

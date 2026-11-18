@@ -197,6 +197,10 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .studio-timeline{display:flex;flex-direction:column;gap:12px;min-width:0}
 .studio-room-closing{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;padding:8px 0 4px;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
 .studio-room-closing-wrap{display:flex;flex-direction:column;gap:4px;padding-top:8px}
+.studio-result{display:flex;flex-direction:column;gap:8px;min-width:0}
+.studio-result .studio-room-closing-wrap{padding-top:0}
+.studio-process-lead{display:flex;justify-content:center;padding:2px 0 8px}
+.studio-process-timeline{margin-top:4px;padding-top:16px;border-top:1px solid var(--bt-line)}
 .studio-result-first{margin-bottom:4px}
 .studio-worklog{margin-top:4px;border-top:1px solid var(--bt-line)}
 .studio-worklog>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 4px;cursor:pointer;font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink-2)}
@@ -428,6 +432,19 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .studio-delivery-label{flex:none;width:34px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .studio-delivery-row code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--bt-font-mono);font-size:var(--bt-text-label);line-height:var(--bt-leading-label);color:var(--bt-ink)}
 .studio-delivery-row .crew-ghost{flex:none;height:22px;padding:0 8px}
+.studio-delivery-open{display:flex}
+.studio-delivery-open .crew-ghost{height:26px;padding:0 10px}
+.studio-delivery-proof-summary{display:flex;align-items:baseline;gap:8px;margin:0;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);font-weight:600;color:var(--bt-ink)}
+.studio-delivery-proof-summary::before{content:'✓';color:var(--bt-success-text)}
+.studio-delivery-proof-summary[data-pass=false]::before{content:'!';color:var(--bt-danger-text)}
+.studio-delivery-proof-count{font-size:var(--bt-text-helper);font-weight:400;color:var(--bt-ink-3)}
+.crew-delivery-checks{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--bt-line);padding-top:16px}
+.crew-delivery-checks ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.crew-delivery-checks li{display:flex;align-items:baseline;gap:10px;min-width:0}
+.crew-delivery-checks code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--bt-font-mono);font-size:var(--bt-text-label);color:var(--bt-ink-2)}
+.crew-delivery-checks b{flex:none;font-size:var(--bt-text-label);font-weight:600}
+.crew-delivery-checks b[data-pass=true]{color:var(--bt-success-text)}
+.crew-delivery-checks b[data-pass=false]{color:var(--bt-danger-text)}
 .crew-delivery-metrics{margin:0;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .studio-delivery-details[open]{display:flex;flex-direction:column;gap:18px}
 .studio-delivery-detail-meta{display:flex;flex-direction:column;gap:8px}
@@ -902,6 +919,10 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-human-gate p{margin:0;font-size:var(--bt-text-label);line-height:var(--bt-leading-helper);color:var(--bt-ink-2)}
 .crew-human-gate-input{width:100%}
 .crew-human-gate-actions{display:flex;justify-content:flex-end}
+.crew-merge-card{display:flex;flex-direction:column;gap:8px;margin:14px 16px;padding:14px 16px;border:1px solid var(--bt-line-danger);border-radius:12px;background:var(--bt-card)}
+.crew-merge-card b{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
+.crew-merge-card p{margin:0;font-size:var(--bt-text-label);line-height:var(--bt-leading-helper);color:var(--bt-ink-2)}
+.crew-merge-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
 .crew-memory-conclusion{margin:0;font-size:var(--bt-text-helper);color:var(--bt-ink-2);line-height:1.6}
 .crew-memory-meta{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .crew-human-label{font-size:var(--bt-text-helper);color:var(--bt-ink-3);margin-bottom:4px}

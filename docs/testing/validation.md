@@ -174,3 +174,13 @@
 - 规划师通过 `submit_decision` 的“返工”路径（本次真跑的是“交给人”）
 - 多成员并行时某个分支取消后重跑，兄弟分支是否完整恢复
 - macOS 打包、ad-hoc 签名和桌面外壳
+
+## 2026-11-19 · 合并冲突人工闭环与结果优先
+
+- `room-e2764cee`「Dogfood 冲突闭环」：两位执行官并行改 `shared.txt`，集成时在阶段 1 产生冲突，房间停在合并冲突上
+- 人在 `/Users/wangxuguang/CrewWorktrees/e2764cee/integration` 里保留 `alpha` + `beta`，提交 `9fcffe5`，调用 `POST /api/rooms/room-e2764cee/resolve-merge` 继续
+- 验收员 PASS，理由写明“冲突已由人合并成一条提交”；房间完成，交付提交 `1fdd4f0`；从继续到 PASS 约 13 秒
+- 用量：11 个回合、约 $1.00；上一轮同类冲突场景 21 个回合、$2.01
+- 界面：交付页默认只有结果卡和岛，岛只写“已交付”；内部路径、费用、版本、模型自查折进“详情”，规划对话和阶段过程折进“看过程”；`ui/src/room/studio/transcript.test.js` 覆盖完成/进行中两种视图
+- 自动覆盖：`server/crew/workspace-git.test.js` 增加 `keepConflict` 保留冲突现场；`ui/src/room/studio/merge-conflict.test.js` 覆盖解决卡；`ui/src/room/studio/transcript.test.js` 覆盖结果优先
+- Pi：CLI 装在 `~/.local/bin` 后重启基座，`/api/instances` 返回 available + authenticated；临时房间 `room-c0b11531` 的 Pi 成员实际回复后归档删除

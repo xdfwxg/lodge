@@ -16,6 +16,7 @@ import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
+import { systemNotice } from './notices.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
@@ -93,6 +94,49 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     if (room === null) return null
     return stages.accept(room, { stage: index })
   })
+  // 合并冲突留给人：打开冲突目录、解决并提交，再由这里清掉冲突继续验收。
+  const resolveMerge = async room => {
+    const conflict = room?.mergeConflict
+    if (conflict === null || conflict === undefined) return fail('conflict', '这一步没有合并冲突')
+    const path = typeof conflict.path === 'string' && conflict.path !== '' ? conflict.path : room.repoPath
+    const provider = workspace.provider(room)
+    if (typeof path !== 'string' || path === '' || typeof provider.changes !== 'function') {
+      return fail('unavailable', '冲突目录现在不可用')
+    }
+    let state = null
+    try {
+      state = await provider.changes({ path })
+    } catch (error) {
+      return fail('unavailable', `读不到冲突目录：${error?.message ?? error}`)
+    }
+    const status = typeof state?.status === 'string' ? state.status.trim() : ''
+    const diff = typeof state?.diff === 'string' ? state.diff : ''
+    if (/^(UU|AA|DD|AU|UA|DU|UD) /m.test(status)) return fail('conflict', '还有没解决的冲突文件')
+    if (status !== '') return fail('conflict', '解决结果还没有提交；先提交再继续')
+    if (diff.includes('<<<<<<<')) return fail('conflict', '文件里还留着冲突标记')
+    const updated = updateRoom(room.id, current => {
+      current.mergeConflict = null
+      current.mergeResolved = { stage: conflict.stage, at: Date.now() }
+      return { events: [{ type: 'room.merge_resolved', payload: { stage: conflict.stage } }] }
+    })
+    if (updated === null) return fail('not_found', '没有这个房间')
+    appendMessage(room.id, { kind: 'system', text: '合并冲突已经处理，继续验收。' })
+    appendMessage(room.id, {
+      kind: 'chat',
+      authorId: 'you',
+      text: '我在冲突目录里处理了合并：保留两条内容并提交，冲突已经由我解决。',
+      meta: { stage: conflict.stage, source: 'merge' },
+    })
+    emit('room', updated)
+    if (room.live === true && typeof live.resolveMerged === 'function') {
+      try {
+        await live.resolveMerged(room.id, conflict.stage)
+      } catch (error) {
+        systemNotice({ store, roomId: room.id, text: '冲突处理完了，但验收没有接上；需要你处理。', error })
+      }
+    }
+    return ok({ room: updated })
+  }
   const chat = createServiceChat({ store, live, emit })
   const modeSwitch = createModeSwitch({ store, engine, live, emit })
   const memberAdd = createMemberAdd({
@@ -491,6 +535,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
 
     if (action === 'reject-plan' && method === 'POST') {
       return closure.rejectPlan(room, await readBody())
+    }
+
+    if (action === 'resolve-merge' && method === 'POST') {
+      return resolveMerge(room)
     }
 
     if (action === 'rework' && method === 'POST') {

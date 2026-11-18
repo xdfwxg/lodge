@@ -79,7 +79,7 @@ function DoneIsland({ goal, label }) {
     className: 'crew-island-done-wrap',
     'data-peek': peek ? 'true' : undefined,
     tabIndex: 0,
-    'aria-label': `房间${label}，共 ${goal.stages.length} 步`,
+    'aria-label': `房间${label}`,
     onPointerEnter: event => { if (event.pointerType !== 'touch') setPeek(true) },
     onPointerLeave: () => setPeek(false),
     onFocus: event => { if (event.target.matches(':focus-visible')) setPeek(true) },
@@ -89,8 +89,7 @@ function DoneIsland({ goal, label }) {
     h('span', { className: 'crew-island-done-dot', 'aria-hidden': true }),
     h('span', { className: 'crew-island-done-copy' },
       h('span', { className: 'crew-island-done-kicker' }, goal.objective || goal.title),
-      h('span', { className: 'crew-island-done-title' }, label)),
-    h('span', { className: 'crew-island-done-detail' }, `${goal.stages.length} 步`)))
+      h('span', { className: 'crew-island-done-title' }, label))))
 }
 
 export function GoalIslandHeader({ room, goal: goalOverride = null, status = null, onOpenRoom }) {

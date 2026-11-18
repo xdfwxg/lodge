@@ -245,6 +245,12 @@ export function createStore() {
     steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
+    resolveMerge: async () => {
+      const data = await post(`/api/rooms/${state.activeId}/resolve-merge`, {})
+      if (data?.room === undefined) return { ok: false, error: failureText('冲突还没解决完') }
+      acceptRoom(data.room)
+      return { ok: true }
+    },
     retry: (stage, note) => post(`/api/rooms/${state.activeId}/retry`, { stage, note }),
     rewind: (stage, note) => post(`/api/rooms/${state.activeId}/rewind`, { stage, note }),
     switchMode: async (mode, roles = {}) => {

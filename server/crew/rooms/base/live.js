@@ -447,6 +447,10 @@ export const createLiveRooms = ({
     send,
     sendToMember,
     requestReview,
+    resolveMerged: (roomId, stageIndex) => {
+      const entry = entries.get(roomId)
+      return entry === undefined ? null : entry.strategy.resolveMerged?.(entry, stageIndex)
+    },
     setConfirmStage: handler => { confirmStage = handler },
     decideApproval,
     expireApprovals,

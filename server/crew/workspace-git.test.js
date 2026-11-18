@@ -405,8 +405,10 @@ test('parallel workers merge into an integration worktree and conflicts stay vis
     const conflict = integrate({ path: workspaces.integration.path, branch: workspaces.branches['worker-2'] })
     assert.equal(conflict.ok, false)
     assert.deepEqual(conflict.files, ['same.txt'])
+    const kept = integrate({ path: workspaces.integration.path, branch: workspaces.branches['worker-2'], keepConflict: true })
+    assert.equal(kept.ok, false)
     const status = execFileSync('git', ['status', '--porcelain'], { cwd: workspaces.integration.path, encoding: 'utf8' }).trim()
-    assert.equal(status, '')
+    assert.match(status, /^(UU|AA) same\.txt$/m)
   } finally {
     cleanupRoom({ source: sourceRepo, workspaces })
     if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT

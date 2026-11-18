@@ -122,6 +122,7 @@ export const createStudioRuntime = ({
     isRunning: () => false,
 
     requestReview: async (entry, stage) => entry.turns.requestReview(stage),
+    resolveMerged: async (entry, stage) => entry.turns.resolveMerged(stage),
     startStage: async (entry, room, index, options = {}) => entry.turns.startStage(room, index, options),
     sendToMember: (entry, room, memberId, text, options = {}) => sendMember(room.id, room, memberId, text, options),
   }

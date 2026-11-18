@@ -1,10 +1,11 @@
-import { Fragment, createElement as h, useMemo } from 'react'
+import { Fragment, createElement as h, useMemo, useState } from 'react'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { humanNoteKeys, isDuplicateHumanRework } from '../human-note.js'
 import { ShadowAdvice } from './advisor-advice.js'
 import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
 import { HumanGateCard } from './human-gate.js'
+import { MergeConflictCard } from './merge-conflict.js'
 import { DeliveryCard } from './delivery-card.js'
 
 const orderOf = message => (
@@ -25,9 +26,11 @@ export function StudioTranscript({
   onDiscussChat = null,
   onReturn = null,
   onRework = null,
+  onResolveMerge = null,
   hideKinds = [],
   delivery = null,
 }) {
+  const [processOpen, setProcessOpen] = useState(false)
   const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
   const messages = useMemo(
     () => dedupeChatStreams(room.messages).slice().sort((a, b) => orderOf(a) - orderOf(b)),
@@ -94,26 +97,45 @@ export function StudioTranscript({
 
   const finished = (room.stages ?? []).length > 0 &&
     room.stages.every(stage => stage.state === 'passed')
-  return h(Fragment, null,
-    h('div', { className: 'studio-timeline' }, ...items,
-      finished
-        ? h('div', { key: 'room-closing', className: 'studio-room-closing-wrap' },
-          delivery === null
-            ? h('div', { className: 'studio-room-closing' }, h('span', null, '目标完成'))
-            : h(DeliveryCard, { delivery }),
-          h('div', { className: 'studio-room-closing studio-room-actions' },
+  const closingActions = h('div', { key: 'room-actions', className: 'studio-room-closing studio-room-actions' },
+    h('button', {
+      type: 'button',
+      className: 'crew-link',
+      onClick: () => { downloadDeliveryRecord(room) },
+    }, '下载交付记录'),
+    typeof onDiscussChat === 'function'
+      ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
+      : null,
+    typeof onContinue === 'function'
+      ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '开一间新房')
+      : null)
+  // 做完了就只给结果；过程留在“看过程”里，需要时再出现。
+  if (finished) {
+    return h('div', { className: 'studio-result' },
+      h('div', { key: 'room-closing', className: 'studio-room-closing-wrap' },
+        delivery === null
+          ? h('div', { className: 'studio-room-closing' }, h('span', null, '目标完成'))
+          : h(DeliveryCard, { delivery }),
+        closingActions),
+      items.length === 0 && advice === null
+        ? null
+        : h(Fragment, null,
+          h('div', { key: 'process-lead', className: 'studio-process-lead' },
             h('button', {
               type: 'button',
               className: 'crew-link',
-              onClick: () => { downloadDeliveryRecord(room) },
-            }, '下载交付记录'),
-            typeof onDiscussChat === 'function'
-              ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
-              : null,
-            typeof onContinue === 'function'
-              ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '开一间新房')
-              : null))
-        : null),
+              'aria-expanded': processOpen || undefined,
+              onClick: () => setProcessOpen(open => !open),
+            }, processOpen ? '收起过程' : '看过程')),
+          processOpen
+            ? h(Fragment, null,
+              h('div', { className: 'studio-timeline studio-process-timeline' }, ...items),
+              advice)
+            : null))
+  }
+  return h(Fragment, null,
+    h('div', { className: 'studio-timeline' }, ...items),
     h(HumanGateCard, { key: `human-gate-${activeIndex}`, room, onRework }),
+    h(MergeConflictCard, { key: `merge-${activeIndex}`, room, onResolve: onResolveMerge }),
     advice)
 }
