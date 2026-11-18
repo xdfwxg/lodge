@@ -9,7 +9,9 @@ import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 import { systemNotice } from '../../notices.js'
 
-export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
+const PARALLEL_WAKE_MS = 12_000
+
+export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT, wakeMs = PARALLEL_WAKE_MS }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
   const timeoutTimers = new Map()
 
@@ -195,6 +197,25 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     const failed = settled
       .map((result, at) => (result.status === 'rejected' ? assignees[at] : null))
       .filter(Boolean)
+    // 规划师在群里说了话时，派发只记账、交给基座的 @ 叫醒；并行时 @ 可能只叫醒第一位。
+    // 给还没拿到回合的成员补一次直接投递，不重复创建交接。
+    if (spoken !== '') {
+      setTimeout(() => {
+        const current = store.readRoom(roomId)
+        if (current === null || current.stages?.[index]?.state !== 'active') return
+        for (const worker of assignees) {
+          void handoff?.wake?.({
+            room: current,
+            stage,
+            index,
+            from,
+            to: worker,
+            prompt: promptFor(worker),
+            reason: rework ? 'rework' : 'dispatch',
+          }).catch(() => {})
+        }
+      }, wakeMs)
+    }
     if (failed.length > 0) {
       store.appendEvent(roomId, 'stage.dispatch_failed', { stage: index, workers: failed })
       store.appendMessage(roomId, {

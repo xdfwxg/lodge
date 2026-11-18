@@ -41,6 +41,7 @@ const setup = async (options = {}) => {
   const answers = []
   let onEvent = null
   let roomsFailure = null
+  let history = options.history ?? []
   const engine = {
     capabilities: () => ({ approvals: true, streaming: true, provisioning: true, mentions: true }),
     rooms: async () => {
@@ -53,7 +54,7 @@ const setup = async (options = {}) => {
       usage: { turns: 0, costMicroUsd: 0, tokens: {} },
     }]
     },
-    history: async () => ({ messages: [] }),
+    history: async () => ({ messages: history }),
     subscribe: ({ onEvent: handler }) => {
       onEvent = handler
       return () => {}
@@ -81,15 +82,17 @@ const setup = async (options = {}) => {
     engine,
     answers,
     failRooms: error => { roomsFailure = error },
+    setHistory: messages => { history = messages },
     room: () => store.readRoom('room-1'),
     permission: (subtitle, cardOverrides = {}) => {
+      const requestId = `req-${Math.random()}`
       onEvent({
         type: 'message',
         message: {
           id: `msg-${Math.random()}`,
           card: {
             requestType: 'permission',
-            requestId: `req-${Math.random()}`,
+            requestId,
             tool: 'Bash',
             action: 'exec',
             subtitle,
@@ -98,10 +101,58 @@ const setup = async (options = {}) => {
           },
         },
       })
+      return requestId
     },
     close: () => rmSync(dir, { recursive: true, force: true }),
   }
 }
+
+test('a permission card from replayed history is taken down instead of keeping the room waiting', async () => {
+  const ctx = await setup()
+  try {
+    ctx.live.detach('room-1')
+    ctx.setHistory([{
+      id: 'msg-old',
+      at: Date.now() - 1000,
+      kind: 'question',
+      authorRef: 'base-1',
+      text: '允许运行 echo？',
+      card: {
+        requestType: 'permission',
+        requestId: 'req-old',
+        tool: 'Bash',
+        action: 'exec',
+        subtitle: 'echo hi',
+        options: [],
+      },
+    }])
+    await ctx.live.attach(ctx.room())
+    const messages = ctx.store.readMessages('room-1')
+    assert.ok(messages.some(message => (
+      message.kind === 'system' &&
+      message.meta?.kind === 'card-answered' &&
+      message.meta?.requestId === 'req-old'
+    )))
+    assert.equal(roomNeedsYou(ctx.room(), messages), null)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('a permission card the base no longer waits for is taken down quietly', async () => {
+  const ctx = await setup()
+  try {
+    ctx.engine.answerCard = async () => {
+      throw new Error('nothing is waiting for this request')
+    }
+    const requestId = ctx.permission('echo hi')
+    await tick()
+    assert.ok((ctx.room().cardAnswers ?? []).includes(requestId))
+    assert.ok(!ctx.store.readMessages('room-1').some(message => message.text.includes('有一步确认没能处理')))
+  } finally {
+    ctx.close()
+  }
+})
 
 test('concurrent attach reuses one live entry, and a failed attach leaves no half entry', async () => {
   const ctx = await setup()

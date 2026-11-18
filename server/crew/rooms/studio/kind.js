@@ -149,6 +149,7 @@ const studioConstraints = ({
   verifiers,
   independence,
 }) => [
+  '同时 @ 多位成员时，用空格分开每个 @，不要用顿号连写',
   plan?.stages?.length > 0
     ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
     : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',

@@ -271,6 +271,48 @@ test('parallel dispatch wakes every assignee and tracks pending seats', async ()
   assert.equal(room.stageDispatch, undefined)
 })
 
+test('a parallel assignment without a turn is woken directly', async () => {
+  const room = makeRoom({
+    orchestration: 'parallel',
+    workers: ['executor', 'executor-2'],
+    seatNames: { executor: 'Exec', 'executor-2': 'Exec2' },
+    seatSpecs: [
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'executor-2', name: '执行官 2', role: 'worker' },
+    ],
+  })
+  const store = fakeStore(room)
+  const sent = []
+  const sendToMember = async (memberId, prompt) => {
+    sent.push({ memberId, prompt })
+    return { messageId: `m-${memberId}` }
+  }
+  const handoff = createHandoff({ store, roomId: 'room-1', sendToMember, emit: () => {} })
+  await handoff.trigger({
+    room,
+    stage: room.stages[0],
+    index: 0,
+    from: 'lead',
+    to: 'executor-2',
+    reason: 'dispatch',
+    prompt: '写文件',
+    deliver: false,
+    visible: false,
+  })
+  assert.equal(sent.length, 0)
+  await handoff.wake({
+    room,
+    stage: room.stages[0],
+    index: 0,
+    from: 'lead',
+    to: 'executor-2',
+    prompt: '写文件',
+    reason: 'dispatch',
+  })
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].memberId, 'executor-2')
+})
+
 test('acceptance runs in a disposable copy and records command evidence', async () => {
   registerWorkspaceProvider('test-live-accept', {
     capabilities: () => ({ acceptanceCopy: true, candidate: false }),

@@ -177,5 +177,19 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     }
   }
 
-  return { trigger }
+  // 基座的 @ 可能只叫醒第一位；还没拿到回合的交接，补一次直接投递。
+  const wake = async ({ room, stage, index, from, to, prompt, reason = 'dispatch' }) => {
+    const assignments = store.readAssignments(roomId, { stage: index, limit: 200 })
+    const assignment = [...assignments].reverse().find(item => (
+      item.toMemberId === to &&
+      item.reason === reason &&
+      ['created', 'sent', 'working'].includes(item.status)
+    ))
+    if (assignment === undefined) return null
+    if (typeof assignment.turnId === 'string' && assignment.turnId !== '') return assignment
+    await sendToMember(to, prompt, { intent: 'handoff', from, sendId: assignment.id })
+    return assignment
+  }
+
+  return { trigger, wake }
 }

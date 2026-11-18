@@ -242,3 +242,9 @@ test('an idle room with quiet subrooms has an empty inbox', () => {
   const child = room({ id: 'child-1', name: '写欢迎语', state: 'paused', idle: false })
   assert.deepEqual(roomAttention(parent, [], [{ room: child, messages: [] }]), [])
 })
+
+test('a question card already answered on the room no longer asks', () => {
+  const card = { kind: 'question', seq: 1, meta: { card: { requestId: 'req-1', requestType: 'permission' } } }
+  assert.equal(roomNeedsYou(room(), [card]).kind, 'approval')
+  assert.equal(roomNeedsYou(room({ cardAnswers: ['req-1'] }), [card]).kind, 'decision')
+})

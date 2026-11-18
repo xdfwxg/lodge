@@ -14,6 +14,35 @@ import { createChatRuntime } from '../chat/runtime.js'
 import { createStudioRuntime } from '../studio/runtime.js'
 import { createBodyFactory } from '../../body.js'
 
+// 基座重启后，之前等回答的卡在基座那边已经不存在：本地标成已失效，别让它永远挂着。
+// 历史重放会把旧卡重新落库，所以要在成员历史同步之后调用。
+const sweepStaleCards = (store, roomId, before) => {
+  const room = store.readRoom(roomId)
+  const messages = store.readMessages(roomId)
+  const answered = new Set([
+    ...(Array.isArray(room?.cardAnswers) ? room.cardAnswers : []),
+    ...messages
+      .filter(message => message.kind === 'system' && message.meta?.kind === 'card-answered')
+      .map(message => message.meta?.requestId),
+  ])
+  // 只收比 attach 更早的卡；attach 期间实时送来的问题还在等，不能当成旧卡。
+  const stale = [...new Set(messages
+    .filter(message => (
+      message.kind === 'question' &&
+      typeof message.meta?.card?.requestId === 'string' &&
+      (typeof message.ts !== 'number' || message.ts < before)
+    ))
+    .map(message => message.meta.card.requestId))]
+    .filter(requestId => !answered.has(requestId))
+  for (const requestId of stale) {
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: '房间重新连接，之前等回答的问题已失效。',
+      meta: { kind: 'card-answered', requestId },
+    })
+  }
+}
+
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({
   store,
@@ -116,24 +145,7 @@ export const createLiveRooms = ({
       strategy.create(entry, room)
       entries.set(room.id, entry)
       await approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
-      // 基座重启后，之前等回答的卡在基座那边已经不存在：本地标成已失效，别让它永远挂着。
-      {
-        const messages = store.readMessages(room.id)
-        const answered = new Set(messages
-          .filter(message => message.kind === 'system' && message.meta?.kind === 'card-answered')
-          .map(message => message.meta?.requestId))
-        const stale = [...new Set(messages
-          .filter(message => message.kind === 'question' && typeof message.meta?.card?.requestId === 'string')
-          .map(message => message.meta.card.requestId))]
-          .filter(requestId => !answered.has(requestId))
-        for (const requestId of stale) {
-          store.appendMessage(room.id, {
-            kind: 'system',
-            text: '房间重新连接，之前等回答的问题已失效。',
-            meta: { kind: 'card-answered', requestId },
-          })
-        }
-      }
+      const attachedAt = Date.now()
       const bases = await engine.rooms()
       for (const member of members) {
         const base = bases.find(item => item.id === member.body.roomRef)
@@ -142,6 +154,8 @@ export const createLiveRooms = ({
         await sync.syncMember(entry, member.id)
         sync.subscribeMember(entry, member.id, memberHandlers)
       }
+      // 成员历史同步会把基座重放出来的旧卡重新落库，所以扫完旧卡再进房间。
+      sweepStaleCards(store, room.id, attachedAt)
       const liveRoom = await chat.ensure(room)
       chat.subscribe(entry, liveRoom)
       roomFiles.writeGoal(liveRoom)

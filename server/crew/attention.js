@@ -15,11 +15,12 @@ export const roomNeedsYou = (room, messages = []) => {
   ))
   if (room.state === 'active' && card !== undefined) {
     const requestId = card.meta.card.requestId
-    const answered = messages.some(message => (
-      message.kind === 'system' &&
-      message.meta?.kind === 'card-answered' &&
-      message.meta?.requestId === requestId
-    ))
+    const answered = (Array.isArray(room.cardAnswers) && room.cardAnswers.includes(requestId)) ||
+      messages.some(message => (
+        message.kind === 'system' &&
+        message.meta?.kind === 'card-answered' &&
+        message.meta?.requestId === requestId
+      ))
     if (!answered) {
       const permission = card.meta.card.requestType === 'permission'
       return permission

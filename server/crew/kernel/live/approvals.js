@@ -19,6 +19,15 @@ const rememberAnswer = (entry, requestId) => {
   }
 }
 
+const markRoomAnswer = (store, roomId, requestId) => {
+  store.updateRoom(roomId, current => {
+    const answers = Array.isArray(current.cardAnswers) ? current.cardAnswers : []
+    if (answers.includes(requestId)) return null
+    current.cardAnswers = [...answers, requestId].slice(-200)
+    return { events: [] }
+  })
+}
+
 export const createLiveApprovals = ({
   store,
   engine,
@@ -237,6 +246,7 @@ export const createLiveApprovals = ({
         behavior: allowed ? 'allow' : 'deny',
       })
       if (result?.ok === false) throw new Error(result.error ?? '房间没接受这次确认')
+      markRoomAnswer(store, entry.roomId, card.requestId)
       if (!allowed) {
         const blockedByReadOnly = readOnly && (card.action === 'write' || card.action === 'exec')
         store.appendMessage(entry.roomId, {
@@ -251,6 +261,13 @@ export const createLiveApprovals = ({
       refresh(entry, { force: true })
     } catch (error) {
       entry.answeredCards.delete(card.requestId)
+      const reason = String(error?.message ?? error)
+      // 基座已经不在等这张卡（例如重启后重放历史）：本地收起来，别让人对着一张死卡。
+      if (/nothing is waiting/i.test(reason)) {
+        markRoomAnswer(store, entry.roomId, card.requestId)
+        refresh(entry, { force: true })
+        return
+      }
       systemNotice({ store, roomId: entry.roomId, text: '有一步确认没能处理；需要你处理。', error })
     }
   }
@@ -269,6 +286,7 @@ export const createLiveApprovals = ({
       const result = await engine.answerCard({ sessionRef, requestId, behavior: 'answer', message: text })
       if (result?.ok === false) throw new Error(result.error ?? '基座没有接受这个回答')
       rememberAnswer(entry, requestId)
+      markRoomAnswer(store, roomId, requestId)
       store.appendMessage(roomId, {
         kind: 'system',
         text: `已回答${memberNameOf(room, memberId)}的问题。`,
