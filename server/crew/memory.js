@@ -44,7 +44,12 @@ const recordOf = (room, messages) => {
       state: stage.state,
     })),
     files,
-    commit: typeof room.completedCommit === 'string' && room.completedCommit !== '' ? room.completedCommit : null,
+    commit: typeof room.completedCommit === 'string' && room.completedCommit !== ''
+      ? room.completedCommit
+      : (typeof room.workspaceHead === 'string' && room.workspaceHead !== '' ? room.workspaceHead : null),
+    commitSource: typeof room.completedCommit === 'string' && room.completedCommit !== ''
+      ? 'room'
+      : (typeof room.workspaceHead === 'string' && room.workspaceHead !== '' ? 'workspace-head' : null),
     completedAt: Number.isFinite(room.completedAt) ? room.completedAt : Date.now(),
     verdict: lastVerdict === undefined
       ? null

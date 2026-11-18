@@ -87,6 +87,7 @@ test('rework records the human objection and re-dispatches the active stage', as
   assert.equal(ctx.calls[0].index, 0)
   assert.equal(ctx.calls[0].note, '方向不对')
   assert.equal(ctx.store.readAssignment('as-work').status, 'failed')
+  assert.equal(ctx.room().lastPlannerDecision ?? null, null)
 })
 
 test('rewinding to an earlier step reopens it and resets everything after it', async () => {

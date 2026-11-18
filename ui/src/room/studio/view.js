@@ -61,6 +61,10 @@ export const studioView = {
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
     if (room.state === 'complete' || done) return '已交付 · 还能和规划师聊聊。'
+    const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
+    if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === active) {
+      return '把缺的信息发给这一步…'
+    }
     const lead = (members ?? []).find(member => member.role === 'lead' || member.roleKind === 'planner')
     return `对${lead?.name ?? '规划师'}说…`
   },

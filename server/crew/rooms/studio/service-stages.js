@@ -251,6 +251,8 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const updated = updateRoom(room.id, current => {
       const target = current.stages?.[index]
       if (target === undefined || target.state !== 'active') return null
+      // 人的补充已经进入这次重跑；旧的“交给人”收口不能再拦住下一次输入。
+      current.lastPlannerDecision = null
       return { events: [{ type: 'stage.rework', payload: { stage: index, note } }] }
     })
     if (updated === null) return fail('conflict', '这一步的状态变了，再试一次')

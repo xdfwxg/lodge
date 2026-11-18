@@ -10,6 +10,7 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
+import { humanHandoffStageOf } from './human-handoff.js'
 import { createModeSwitch } from './mode-switch.js'
 import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
@@ -57,12 +58,21 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     files,
     workspace,
   })
+  const memoryRoom = room => {
+    if (typeof room.completedCommit === 'string' && room.completedCommit !== '') return room
+    try {
+      const head = workspace.provider(room)?.head?.({ path: roomFiles.roomRootOf(room) })
+      return typeof head === 'string' && head !== '' ? { ...room, workspaceHead: head } : room
+    } catch {
+      return room
+    }
+  }
   const recordMemory = room => {
     if (room === null || room === undefined || room.demo === true) return
     if (!Array.isArray(room.stages) || room.stages.length === 0) return
     if (!room.stages.every(stage => stage.state === 'passed')) return
     try {
-      const result = ports.memory?.appendRoom?.({ room, messages: readMessages(room.id) })
+      const result = ports.memory?.appendRoom?.({ room: memoryRoom(room), messages: readMessages(room.id) })
       if (result?.ok === false && result.reason !== 'demo' && result.reason !== 'no-workspace') {
         console.warn(`[lodge] 房间记忆没有写入：${result.reason}`)
       }
@@ -404,6 +414,15 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       if (room.live === true) {
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
+        // 规划师已经把这步交给人：人的这句话就是补充上下文，直接重跑这一步。
+        if (room.roomType === 'studio') {
+          const handoff = humanHandoffStageOf(room, readMessages(room.id))
+          if (handoff !== null) {
+            const result = await stages.rework(room, { stage: handoff, note: text })
+            if (result.ok !== true) return result
+            return accepted({ room: result.body?.room ?? readRoom(room.id) })
+          }
+        }
         // 所有步骤都通过以后，房间进入完成态：只和规划师说话，不再派活。
         const allPassed = Array.isArray(room.stages) &&
           room.stages.length > 0 &&

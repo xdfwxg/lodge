@@ -40,8 +40,18 @@ test('a completed room appends one read-only record per workspace', () => withSt
   assert.equal(entries[0].conclusion, '符合目标')
   assert.equal(entries[0].verdict.reason, '符合目标')
   assert.deepEqual(entries[0].files, ['RELEASE.md', '.crew/x'])
+  assert.equal(entries[0].commit, 'abc123')
+  assert.equal(entries[0].commitSource, 'room')
   const file = join(root, `${memoryKeyFor(room())}.jsonl`)
   assert.equal(readFileSync(file, 'utf8').trim().split('\n').length, 1)
+}))
+
+test('a room without a recorded commit keeps the workspace head it was written at', () => withStore(memory => {
+  const result = memory.appendRoom({ room: room({ completedCommit: undefined, workspaceHead: 'head-9' }), messages: [] })
+  assert.equal(result.ok, true)
+  const entry = memory.list({ room: room() })[0]
+  assert.equal(entry.commit, 'head-9')
+  assert.equal(entry.commitSource, 'workspace-head')
 }))
 
 test('demos and rooms without a workspace do not write memory', () => withStore(memory => {

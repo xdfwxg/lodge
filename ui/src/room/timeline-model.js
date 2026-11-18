@@ -1,3 +1,5 @@
+import { humanNoteKeys, isDuplicateHumanRework } from './human-note.js'
+
 const PROCESS_KINDS = new Set(['activity', 'conclusion'])
 
 const isEmptyChat = message => message.kind === 'chat' && String(message.text ?? '').trim() === ''
@@ -20,15 +22,9 @@ export const dedupeChatStreams = messages => {
 
 export const buildTimeline = messages => {
   messages = dedupeChatStreams(messages)
-  // 人的重做标记和 human-context 是同一条输入的两种记录；主时间线只留后者，旧记录没有配对时照常显示。
-  const humanContext = new Set(messages
-    .filter(message => message.kind === 'human-context')
-    .map(message => `${message.meta?.stage ?? ''}|${String(message.text ?? '').trim()}`))
-  const isProcess = message => isProcessMessage(message) || (
-    message.kind === 'rework' &&
-    message.authorId === 'you' &&
-    humanContext.has(`${message.meta?.stage ?? ''}|${String(message.text ?? '').trim()}`)
-  )
+  // 人的重做标记和 human-context 是同一条输入的两种记录；主时间线只留后者。
+  const humanNotes = humanNoteKeys(messages)
+  const isProcess = message => isProcessMessage(message) || isDuplicateHumanRework(message, humanNotes)
   const evidenceById = new Map()
   for (const message of messages) {
     if (message.kind === 'evidence') evidenceById.set(message.id, message)

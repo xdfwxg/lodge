@@ -153,6 +153,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         `第 ${index + 1} 步「${stage.title}」要交给${assigneeNames}。`,
         `房间目标（原文，不要改写）：${room.goal}`,
         `验收标准：${stage.manual === true ? '人看结果，没有命令。' : acceptance}`,
+        rework && note !== '' ? `用户补充（原文，必须保留）：${note}` : '',
         parallel
           ? '在群里用一两句说清各自做什么、怎么算完成；不要 @ 任何人，系统会把任务分别送进他们自己的工作副本。'
           : `在话里 @${assigneeNames}，让对方收到；用一两句说清做什么、怎么算完成。`,
@@ -179,7 +180,8 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         prompt: promptFor(worker),
         message: spoken,
         visible: spoken === '',
-        deliver: spoken === '',
+        // 重做必须把带补充的完整任务私下送到成员手里；规划师的话可能漏掉补充。
+        deliver: rework === true || spoken === '',
         acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
         rework,
         parentAssignmentId: parentAssignment?.id ?? null,

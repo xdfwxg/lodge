@@ -1,5 +1,6 @@
 import { Fragment, createElement as h, useMemo } from 'react'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
+import { humanNoteKeys, isDuplicateHumanRework } from '../human-note.js'
 import { describeSteps, displayableStep } from './transcript-model.js'
 import { ShadowAdvice } from './advisor-advice.js'
 import { downloadDeliveryRecord } from './delivery-record.js'
@@ -46,17 +47,11 @@ export function StudioTranscript({
       .filter(message => message.kind === 'verdict' && typeof message.meta?.evidenceId === 'string')
       .map(message => message.meta.evidenceId))
     // 人的重做标记和 human-context 是同一条输入；主时间线只留带“补充上下文”的那一条。
-    const humanContext = new Set(messages
-      .filter(message => message.kind === 'human-context')
-      .map(message => `${message.meta?.stage ?? ''}|${String(message.text ?? '').trim()}`))
+    const humanNotes = humanNoteKeys(messages)
     return messages.filter(message => {
       // 工作式聊天只留人和成员说的话；系统小字不占时间线。
       if (message.kind === 'system' || message.authorId === 'system') return false
-      if (
-        message.kind === 'rework' &&
-        message.authorId === 'you' &&
-        humanContext.has(`${message.meta?.stage ?? ''}|${String(message.text ?? '').trim()}`)
-      ) return false
+      if (isDuplicateHumanRework(message, humanNotes)) return false
       // 基座把运行提示混进 activity：没有工具名的行不是谁说的话，直接不显示。
       if (message.kind === 'activity' && !displayableStep(message)) return false
       if (message.kind === 'evidence') {

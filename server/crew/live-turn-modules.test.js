@@ -665,6 +665,46 @@ test('a parallel stage delivers into each worktree even when the planner speaks'
   assert.equal(prompts[1].options.privateRoom, true)
 })
 
+test('a rework note reaches the worker even when the planner speaks', async () => {
+  registerWorkspaceProvider('test-live-rework-note', {
+    capabilities: () => ({ candidate: false, merge: true, isolation: 'worktree' }),
+    head: () => 'base',
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-live-rework-note' },
+    repoPath: '/repo',
+    stageBases: { 0: 'base' },
+    workers: ['executor'],
+    seatNames: { executor: 'Exec' },
+    seatSpecs: [{ id: 'executor', name: '执行官', role: 'worker' }],
+  })
+  const store = fakeStore(room)
+  const prompts = []
+  const plannerPrompts = []
+  const sendToMember = async (memberId, prompt, options = {}) => {
+    prompts.push({ memberId, prompt, options })
+    return { messageId: `m-${memberId}` }
+  }
+  const starter = createStageStarter({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    handoff: createHandoff({ store, roomId: 'room-1', sendToMember, emit: () => {} }),
+    sendToMember,
+    askPlanner: async prompt => {
+      plannerPrompts.push(prompt)
+      return '@Exec 按用户的补充重做。'
+    },
+    integrate: async () => {},
+    enqueue: task => task(),
+  })
+  await starter.startStage(room, 0, { rework: true, note: '版本号 1.2.0' })
+  assert.match(plannerPrompts[0], /用户补充（原文，必须保留）：版本号 1.2.0/)
+  assert.equal(prompts.length, 1)
+  assert.equal(prompts[0].memberId, 'executor')
+  assert.match(prompts[0].prompt, /版本号 1.2.0/)
+})
+
 test('retrying one branch revives the cancelled sibling on the same stage', async () => {
   registerWorkspaceProvider('test-live-parallel-revive', {
     capabilities: () => ({ candidate: false, merge: true, isolation: 'worktree' }),

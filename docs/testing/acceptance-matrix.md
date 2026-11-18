@@ -25,6 +25,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 返工预算耗尽转人 | `server/crew/live-turn-modules.test.js` | 无 |
 | 晚到回合围栏（旧尝试不污染新结果） | `server/crew/live-turn-modules.test.js`、`server/crew/engine.test.js` | 无 |
 | 人的输入落成证据 | `server/crew/service-stages.test.js`、`server/crew/live-approvals.test.js` | 无 |
+| 交给人后的输入回路 | `server/crew/human-handoff.test.js`、`server/crew/live-turn-modules.test.js` | 真实模型可选 |
 | 成本状态（已报告 / 部分未知 / 未知） | `shared/usage.test.js`、`server/crew/delivery.test.js`、`ui/src/room/studio/delivery-card.test.js` | 无 |
 | 执行诊断包 | `server/crew/room-repo.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/turn-assessment.test.js` | 无 |
 | 并行分支复活（重试一个分支带回兄弟） | `server/crew/live-turn-modules.test.js` | 无 |
