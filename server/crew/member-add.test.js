@@ -111,6 +111,16 @@ test('adding an executor appends a member with a body and a station', async () =
   assert.deepEqual(added.body.spec.skills, [])
 })
 
+test('a delivered room refuses new members', async () => {
+  const { add, calls, room } = harness()
+  room.stages = [{ title: '实现', state: 'passed' }]
+  const result = await add.add(room, { role: 'executor', name: '执行官二号', engine: 'claude', model: 'sonnet' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /已经交付/)
+  assert.equal(room.members.length, 3)
+  assert.equal(calls.members.length, 0)
+})
+
 test('a second planner is refused: the room keeps one main bot', async () => {
   const { add, calls } = harness()
   const result = await add.add(roomOf(), { role: 'planner', name: '规划师二号' })

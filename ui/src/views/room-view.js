@@ -186,6 +186,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     store,
     accept: stage => void store.accept(stage),
     resumeChat: () => store.resumeChat(),
+    resume: () => store.resumeRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
     answerCard: (memberId, requestId, message) => void store.answerCard(memberId, requestId, message),
     hold: (memberId, held) => void store.holdMember(memberId, held),

@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
-  refreshReviewCopy, removeIsolatedCopy, restore, submit,
+  addMember, cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
+  refreshReviewCopy, removeIsolatedCopy, removeMember, restore, submit,
 } from './workspace-git.js'
 import { rosterFromRoles, membersFor } from './roster.js'
 
@@ -115,6 +115,38 @@ test('prepares isolated member workspaces and refreshes the verifier copy', () =
     assert.equal(readFileSync(join(verifier, 'hello.txt'), 'utf8'), 'crew ok\n')
   } finally {
     cleanupRoom({ source: sourceRepo, workspaces })
+    if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previous
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
+test('a removed member can be added again without a stale branch', () => {
+  const sourceRepo = repo()
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-readd-'))
+  const previous = process.env.CREW_WORKTREE_ROOT
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  try {
+    const workspaces = prepareRoom({ source: sourceRepo, short: 'readd1', members: membersFor('delivery-triad') })
+    const member = { ...membersFor('delivery-triad').find(item => item.id === 'executor'), id: 'worker-2' }
+    const baseRoom = {
+      id: 'room-readd1',
+      sourceRepo,
+      branches: { ...workspaces.branches },
+      worktrees: Object.fromEntries(Object.entries(workspaces.members).map(([id, item]) => [id, item.path])),
+      ports: { ...workspaces.ports },
+    }
+    const first = addMember({ room: baseRoom, member })
+    const room = {
+      ...baseRoom,
+      branches: { ...baseRoom.branches, 'worker-2': first.branch },
+      worktrees: { ...baseRoom.worktrees, 'worker-2': first.path },
+    }
+    removeMember({ room, member })
+    const again = addMember({ room, member })
+    assert.equal(existsSync(again.path), true)
+  } finally {
     if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT
     else process.env.CREW_WORKTREE_ROOT = previous
     rmSync(sourceRepo, { recursive: true, force: true })

@@ -3,6 +3,14 @@ export const NO_PROGRESS_LIMIT = 6
 // 空转守卫：只数“有没有产出”，不数消息条数。六轮没有产出就暂停并等人。
 export const advanceProgress = (room, { progressed, at = Date.now() }) => {
   room.round = Number(room.round ?? 0) + 1
+  // 已交付的房间只剩聊天，没有阶段可推进；空转守卫不该把它暂停。
+  const delivered = Array.isArray(room.stages) &&
+    room.stages.length > 0 &&
+    room.stages.every(stage => stage.state === 'passed')
+  if (delivered) {
+    room.noProgress = 0
+    return { paused: false }
+  }
   if (progressed) {
     room.noProgress = 0
     room.lastProgressAt = at

@@ -197,6 +197,7 @@ export function createStore() {
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     resumeChat: () => post(`/api/rooms/${state.activeId}/chat-resume`, {}),
+    resumeRoom: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     answer: async (stage, text) => {
       if (text !== '') {
         const sent = await post(`/api/rooms/${state.activeId}/messages`, { text })

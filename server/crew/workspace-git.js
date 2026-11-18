@@ -246,6 +246,11 @@ export const addMember = ({ room, member }) => {
   let branch = null
   if (member.role === 'worker') {
     branch = `crew/${short}/${member.id}`
+    // 同一成员被移除后再加回来时，旧分支还在；先清掉，否则 worktree add -b 会失败。
+    try {
+      git(source, ['rev-parse', '--verify', `refs/heads/${branch}`])
+      git(source, ['branch', '-D', branch])
+    } catch {}
     git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
     ensureLocalExcludes(path, base)
   } else if (member.role === 'verifier') {
@@ -277,6 +282,10 @@ export const removeMember = ({ room, member }) => {
     git(room.sourceRepo, ['worktree', 'remove', '--force', path])
   } catch {
     rmSync(path, { recursive: true, force: true })
+  }
+  const branch = room?.branches?.[member?.id ?? member]
+  if (typeof branch === 'string' && branch.startsWith(`crew/${roomShort(room)}/`)) {
+    try { git(room.sourceRepo, ['branch', '-D', branch]) } catch {}
   }
   return true
 }

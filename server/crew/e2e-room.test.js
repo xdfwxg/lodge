@@ -210,6 +210,10 @@ test('deterministic room scenario reaches signed and accepted', async () => {
       ports,
     })
     assert.equal(chatRoom.ok, true)
+    for (const member of chatRoom.body.room.members) {
+      assert.deepEqual(member.permissions, { read: true, exec: false, write: false })
+      assert.deepEqual(member.toolSurface, ['read'])
+    }
     const chatId = chatRoom.body.room.id
     const sendToMember = (memberId, text) => {
       const room = store.readRoom(chatId)

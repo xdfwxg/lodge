@@ -99,6 +99,15 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     ))
     verifiers = roster.filter(member => member.role === 'verifier')
   }
+  if (roomType.readOnly === true) {
+    // 聊天室只读：成员只讨论，不执行工具、不改文件。
+    roster = roster.map(member => ({
+      ...member,
+      permissions: { read: true, exec: false, write: false },
+      toolSurface: ['read'],
+      writeScope: 'none',
+    }))
+  }
   if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行成员')
   }

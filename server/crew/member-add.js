@@ -26,6 +26,10 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
   const bodies = createBodyFactory({ engine })
   const add = async (room, body = {}) => {
     if (resolveRoomType(room.roomType)?.id !== 'studio') return fail('invalid', '聊天室不能添加成员')
+    const stages = Array.isArray(room.stages) ? room.stages : []
+    if (stages.length > 0 && stages.every(stage => stage.state === 'passed')) {
+      return fail('conflict', '房间已经交付，不能再加成员；要改成员，开一间新房')
+    }
     const blocked = bodyChangeBlocker(room, '加成员')
     if (blocked !== null) return fail('conflict', blocked)
     const role = ROLE_ALIASES[typeof body.role === 'string' ? body.role : '']

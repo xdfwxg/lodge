@@ -17,6 +17,32 @@ import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sa
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
+const completionFacts = (room, messages = []) => {
+  const stages = (room.stages ?? []).map((stage, index) => (
+    `${index + 1}. ${stage.title}：${stage.state === 'passed' ? '通过' : stage.state}`
+  )).join('\n')
+  const verdicts = messages.filter(message => message.kind === 'verdict')
+  const last = verdicts.at(-1)
+  const name = last === undefined
+    ? ''
+    : (room.members ?? []).find(member => member.id === last.authorId)?.name ?? '验收员'
+  const verdict = last === undefined
+    ? '没有验收结论'
+    : `${name} ${last.meta?.pass === true ? 'PASS' : 'REJECT'}：${String(last.text ?? '').split('\n')[0].slice(0, 160)}`
+  const files = new Set()
+  for (const message of messages) {
+    for (const file of message.meta?.changedFiles ?? []) files.add(file)
+  }
+  return [
+    '房间事实（只依据这些回答，不要补充或推测）：',
+    `目标：${room.goal}`,
+    `阶段：\n${stages}`,
+    `最后一次验收：${verdict}`,
+    files.size === 0 ? '' : `改动文件：${[...files].join('、')}`,
+    typeof room.branch === 'string' && room.branch !== '' ? `交付分支：${room.branch}` : '',
+  ].filter(value => value !== '').join('\n')
+}
+
 export const createCrewService = ({ store, engine, live, emit, roles, ports }) => {
   const { readRoom, readMessages, writeRoom, appendMessage, updateRoom, deleteRoom } = store
   const { roomFiles, workspace, files } = ports
@@ -125,6 +151,24 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       const result = await live.decideApproval(room.id, approvalId, decision)
       if (result.ok !== true) return fail('conflict', result.reason)
       return ok({ room: result.room })
+    }
+
+    if (action === 'resume' && method === 'POST') {
+      if (room.state !== 'paused') return fail('conflict', '房间没有暂停')
+      if (room.live !== true || live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
+      const resumed = updateRoom(room.id, current => {
+        current.state = 'active'
+        current.idle = false
+        current.pauseReason = null
+        current.noProgress = 0
+        return { events: [{ type: 'room.resumed' }] }
+      })
+      if (resumed === null) return fail('not_found', '没有这个房间')
+      emit('room', resumed)
+      try { await live.resume?.(room.id) } catch (error) {
+        console.warn(`room resume failed: ${room.id} ${error?.message ?? error}`)
+      }
+      return ok({ room: readRoom(room.id) ?? resumed })
     }
 
     if (action === 'acceptance' && method === 'POST') {
@@ -316,8 +360,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
             appendMessage(roomId, { kind: 'chat', authorId: 'you', text })
             await live.sendToMember(roomId, lead, [
               text,
+              completionFacts(room, readMessages(room.id)),
               '所有步骤都已经通过，这间房在收尾：不要再派活，也不要转给执行官或验收员。',
               '直接回答；要给新任务，建议人开一间新房。',
+              '以本次给出的事实清单为准；和它冲突的旧说法作废。房间里没有的记录，直接说不知道，不要补全；不要调用工具。',
               INTERNAL_PROMPT_MARKER,
             ].join('\n'), { intent: 'chat', from: 'you' })
             return accepted({ accepted: true })
@@ -327,6 +373,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         // @ 是结构化指令，仍然直接交给被 @ 的成员。
         if (room.roomType === 'chat' && !text.includes('@')) {
           return chat.input(room, { note: text })
+        }
+        // 结论之后 @ 成员：开一轮有主持和上限的讨论，不让成员在结论外自由接力。
+        if (room.roomType === 'chat' && room.chat?.phase === 'concluded' && room.chat?.running !== true) {
+          return chat.continue(room, { note: text })
         }
         await live.send(room.id, text, { mentions })
         return accepted({ accepted: true })

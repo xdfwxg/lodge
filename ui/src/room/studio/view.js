@@ -1,6 +1,8 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
 import { StudioPresence } from './presence.js'
+import { StatePanel } from '../../state-panel.js'
+import { buildIdleDecision } from '../decision.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
@@ -9,10 +11,24 @@ import { TypingLine } from '../typing-line.js'
 export const studioView = {
   id: 'studio',
   opensAtTop: ({ room }) => room.state === 'complete',
-  header: ({ room, actions }) => h(GoalIslandHeader, {
-    room,
-    onOpenRoom: actions.selectRoom,
-  }),
+  header: ({ room, actions }) => {
+    const paused = room.state === 'paused' ? buildIdleDecision(room) : null
+    return h(Fragment, null,
+      h(GoalIslandHeader, { room, onOpenRoom: actions.selectRoom }),
+      paused === null
+        ? null
+        : h(StatePanel, {
+          key: `paused-${room.id}`,
+          title: paused.title,
+          body: paused.detail,
+          tone: 'paused',
+          action: h('button', {
+            type: 'button',
+            className: 'crew-link',
+            onClick: () => actions.resume(),
+          }, paused.primary?.label ?? '继续'),
+        }))
+  },
   activity: () => null,
   transcript: ({ room, members, actions }) => h(StudioTranscript, {
     key: `transcript-${room.id}`,

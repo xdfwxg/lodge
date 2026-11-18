@@ -30,8 +30,8 @@ export const recordShadowAdvice = async ({
   const lines = Array.isArray(result.advice) ? result.advice : []
   if (lines.length === 0) return result
   const updated = store.updateRoom(roomId, current => {
-    // 证据已经换轮或阶段已经推进时，迟到的意见不再落进房间。
-    if (current.stages?.[index]?.state !== 'active') return null
+    // 意见可能比验收慢；只要阶段还在，就挂到该阶段的证据上。界面按 evidenceId 匹配，不会串到别的证据。
+    if (current.stages?.[index] === undefined) return null
     current.advisorShadow = {
       ...(current.advisorShadow ?? {}),
       [index]: {

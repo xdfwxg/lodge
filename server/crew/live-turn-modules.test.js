@@ -864,6 +864,32 @@ test('shadow review records advice without injecting it into the Verifier prompt
   assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
 })
 
+test('a shadow opinion still lands after its stage has passed', async () => {
+  const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, shadowBot: { memberRef: 'bot-shadow', name: 'ShadowReview1' } })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  let release = null
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: 'm2' }),
+    shadow: {
+      ask: () => new Promise(resolve => {
+        release = () => resolve({ available: true, advice: [{ source: 'shadow', summary: '补一个反例', reasons: ['边界未测'] }] })
+      }),
+    },
+  })
+  await review.request(0)
+  store.readRoom().stages[0].state = 'passed'
+  release()
+  await review.shadowSettled()
+  assert.ok(store.readRoom().advisorShadow?.[0])
+})
+
 test('shadow review stays quiet when the check is strong and nothing points at risk', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
