@@ -10,6 +10,7 @@ import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
 import { deliverableStageIndex, isWorkStage, memberForRef } from './turn-utils.js'
 import { judgmentOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
+import { gateSubmissionOf } from '../../../../shared/gate.js'
 import { activeDispatchAssignments as activeDispatch, assignmentForTurn, latestDispatchAssignment, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-members.js'
@@ -230,7 +231,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
   }
 
   // 退回后规划师的第一行是决定；系统按它转交，不依赖模型是否写出可唤醒的 @。
-  const routePlannerDecision = (room, stageIndex, turn) => {
+  const routePlannerDecision = (room, stageIndex, turn, calls = []) => {
     const messages = store.readMessages(roomId)
     const latestVerdict = [...messages].reverse()
       .find(message => message.kind === 'verdict' && (message.meta?.stage ?? 0) === stageIndex)
@@ -242,7 +243,11 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const verdictId = latestVerdict.id ?? latestVerdict.seq
     if (room.lastPlannerDecision?.verdictId === verdictId) return false
 
-    const judgment = normalizeJudgment({
+    const judgment = gateSubmissionOf(calls, {
+      type: 'planner',
+      stage: stageIndex,
+      actorId: leadMemberOf(room)?.id,
+    }) ?? normalizeJudgment({
       type: 'planner',
       text: turn.reply,
       stage: stageIndex,
@@ -346,14 +351,16 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       return
     }
     state.capturedTurns.add(turnId)
+    const calls = state.turns.get(turnId) ?? []
+    state.turns.delete(turnId)
 
-    if (review.consume({ turn, memberId, turnId, room })) {
+    if (review.consume({ turn, memberId, turnId, room, calls })) {
       state.recordTurn(true)
       return
     }
 
     store.appendEvent(roomId, 'turn.completed', { turnId, memberId: memberId ?? 'unknown' })
-    if (role === 'lead' && routePlannerDecision(room, stageIndex, turn)) {
+    if (role === 'lead' && routePlannerDecision(room, stageIndex, turn, calls)) {
       state.recordTurn(false)
       return
     }
@@ -362,8 +369,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       return
     }
 
-    const calls = state.turns.get(turnId) ?? []
-    state.turns.delete(turnId)
     const stage = stageIndex
 
     const artifacts = []

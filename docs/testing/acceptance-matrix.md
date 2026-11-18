@@ -19,6 +19,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 聊天室主持、@、轮次、结论 | `server/crew/live-chat.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/service-chat.test.js`、`server/crew/live-turns.test.js` | 真实模型仅整房 dogfood |
 | 工作室阶段、验收、签字、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
 | 判定契约（首行结论 + JSON 明细） | `shared/judgment.test.js`、`server/crew/live-turn-modules.test.js`、`ui/src/room/studio/message-view.test.js` | 无 |
+| 判定工具（MCP gate） | `shared/gate.test.js`、`server/crew/gate/mcp-server.test.js`、`server/crew/gate/tool.test.js`、`server/crew/live-turn-modules.test.js` | 真实基座可选 |
 | 卡片有效期（阶段 + 重做轮次） | `shared/attempt.test.js`、`server/crew/attention.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/question-card.test.js` | 无 |
 | 退回指定步骤、补上下文再跑 | `server/crew/service-stages.test.js`、`ui/src/room/studio/rewind-dialog.test.js` | 无 |
 | 并行执行、合并冲突、超时 | `server/crew/live-turn-modules.test.js`、`server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/studio/auto-rework.test.js` | 无 |
@@ -29,6 +30,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 重启恢复、断线重连 | `server/crew/recovery.test.js`、`server/crew/live-sync.test.js`、`ui/src/store.test.js` | 无 |
 | API 路由与动作清单 | `server/route-table.test.js`、`server/crew/route-sweep.test.js` | 无 |
 | 驱动边界、运行端口、分层 | `server/crew/engine.test.js`、`server/crew/runtime-port.test.js`、`server/crew/layer-boundaries.test.js`、`server/crew/boundary.test.js` | 真实基座可选 |
+| 基座旧房间回收（gc:base） | `server/base-gc.test.js`、`server/crew/base-error.test.js` | 真实基座可选 |
 | 成员身体与换模型 | `server/crew/body-change.test.js`、`server/crew/body-check.test.js`、`server/crew/body-spec.test.js` | 无 |
 | 界面阶段门与结论卡 | `ui/src/room/studio/stage-gate.test.js`、`ui/src/room/studio/message-view.test.js`、`ui/src/room/studio/transcript-model.test.js` | 无 |
 
@@ -38,7 +40,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 - 真实 `git push`、远端分支和 PR：需要外部仓库和凭据，靠 dogfood。
 - 复核超时：定时是 10 分钟，单元级只覆盖判定逻辑，没有实跑完整超时。
 - macOS 打包、ad-hoc 签名和桌面外壳：手工 smoke，不在单元测试里。
-- 外部通知、MCP 市场和第三方服务：没有接入，不做假覆盖。
+- 外部 MCP 市场、第三方工具和外部通知：没有接入，不做假覆盖。
 
 ## 加一条能力时
 

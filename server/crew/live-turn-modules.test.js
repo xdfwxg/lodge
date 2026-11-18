@@ -159,6 +159,51 @@ test('a rejected stage routes the planner decision to the executor or the human'
   assert.equal(humanStore.messages.some(message => message.kind === 'system' && /规划师把/.test(message.text)), false)
 })
 
+test('a planner gate call decides without parsing the reply', () => {
+  const room = makeRoom({
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-plan', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+  })
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.trackTool({
+    kind: 'activity',
+    turnId: 't-lead-gate',
+    tool: {
+      id: 'call-gate',
+      name: 'mcp__lodge_gate__submit_decision',
+      input: JSON.stringify({ decision: 'human', reason: '权限要你定', actionRequired: '选一个权限' }),
+    },
+  })
+  turns.captureTurn({ reply: '已提交', turnId: 't-lead-gate', toolCalls: 1 }, 'bot-plan')
+  assert.equal(room.lastPlannerDecision.kind, 'human')
+  assert.equal(room.lastPlannerDecision.judgment.source, 'gate')
+  assert.equal(room.lastPlannerDecision.judgment.actionRequired, '选一个权限')
+  assert.equal(sent.length, 0)
+})
+
 test('a merge conflict is left for the human instead of being auto-reworked', () => {
   const room = makeRoom({
     leadSeat: 'planner',
@@ -525,6 +570,47 @@ test('review request and verdict consumption update the round without crossing t
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
   assert.ok(store.messages.some(message => message.text === '全部验收员通过，这一步做完了。'))
+})
+
+test('a gate tool call supplies the verdict without parsing the reply', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    seatNames: { executor: 'Exec', verifier: 'Verifier' },
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: 'm2' }),
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  const calls = [{
+    name: 'mcp__lodge_gate__submit_verdict',
+    input: JSON.stringify({
+      decision: 'REJECT',
+      reason: '缺少日志',
+      findings: [{ title: '没有运行记录', severity: 'major' }],
+    }),
+  }]
+  assert.equal(review.consume({
+    turn: { reply: '已提交' },
+    memberId: 'verifier',
+    turnId: 't1',
+    room,
+    calls,
+  }), true)
+  const verdict = store.messages.find(message => message.kind === 'verdict')
+  assert.equal(verdict.meta.pass, false)
+  assert.equal(verdict.meta.judgment.source, 'gate')
+  assert.equal(verdict.meta.reason, '缺少日志')
+  assert.equal(verdict.text, '缺少日志')
+  assert.equal(verdict.meta.judgment.findings[0].title, '没有运行记录')
 })
 
 test('critique review is blind to the execution conversation', async () => {

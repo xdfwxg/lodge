@@ -4,6 +4,7 @@ import { buildMemberHandoff } from './member-handoff.js'
 import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
 import { DECISION_JSON_HINT, VERDICT_JSON_HINT, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
+import { gateSubmissionOf } from '../../../../shared/gate.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { workspaceOf } from './workspace.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
@@ -35,7 +36,7 @@ export const shadowNeeded = ({ room, stage, evidence, manual, messages = [], sta
   return rejected
 }
 
-const VERDICT_FORMAT = `第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）。${VERDICT_JSON_HINT}命令和退出码卡片已经显示，不要再复述。`
+const VERDICT_FORMAT = `如果工具列表里有 submit_verdict，直接调用它提交判定；工具不可用时才按文本回复。第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）。${VERDICT_JSON_HINT}命令和退出码卡片已经显示，不要再复述。`
 
 // 证据、命令输出和 diff 都可能带外部内容；用比正文更长的围栏包住，并明确不是指令。
 const untrusted = (text, lang = '') => {
@@ -54,7 +55,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
 
   const isBusy = () => round !== null && round.requests.size > 0
 
-  const consume = ({ turn, memberId, turnId, room }) => {
+  const consume = ({ turn, memberId, turnId, room, calls = [] }) => {
     // 新证据已经让旧复核作废时，忽略旧提示词触发的那一回合，等新回合的结论。
     if (staleMembers.has(memberId)) {
       staleMembers.delete(memberId)
@@ -65,7 +66,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     round.requests.delete(memberId)
     clearTimeout(pending.timer)
     clearTimeout(pending.reminder)
-    const judgment = normalizeJudgment({
+    const gate = gateSubmissionOf(calls, {
+      type: 'verdict',
+      stage: pending.stage,
+      evidenceId: pending.evidenceId,
+      actorId: pending.verifier,
+    })
+    const judgment = gate ?? normalizeJudgment({
       type: 'verdict',
       text: turn.reply,
       stage: pending.stage,
@@ -78,11 +85,11 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const verdictMessage = store.appendMessage(roomId, {
       kind: 'verdict',
       authorId: pending.verifier,
-      text: turn.reply || '复核回合没有给出文字结论。',
+      text: gate === null ? (turn.reply || '复核回合没有给出文字结论。') : (judgment.reason || '验收员通过工具提交了判定。'),
       meta: {
         pass,
         judgment,
-        reason: turn.reply ?? '',
+        reason: gate === null ? (turn.reply ?? '') : judgment.reason,
         roleKind: 'verifier',
         verifierProfile: spec?.roleProfile ?? name,
         mode: 'bot',
@@ -165,11 +172,12 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       const lead = leadMemberOf(room)?.id
       if (typeof lead === 'string' && lead !== '') {
         const stageTitle = room.stages?.[pending.stage]?.title ?? ''
-        const reason = String(turn.reply ?? '').trim().slice(0, 300)
+        const reason = String(gate === null ? (turn.reply ?? '') : judgment.reason).trim().slice(0, 300)
         const parallel = (dispatchOf(store, roomId, pending.stage)?.workers?.length ?? 0) > 1
         void sendToMember(lead, [
           `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
           `判定：${reason === '' ? '未通过' : reason}`,
+          '如果工具列表里有 submit_decision，直接调用它提交决定；工具不可用时才按下面的格式回复。',
           '第一行只写「返工」或「交给人」。返工时写清改什么、怎么算完成；交给人时写清要人拍板什么。',
           DECISION_JSON_HINT,
           parallel
@@ -364,7 +372,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       nextRound.requests.set(verifier, request)
       request.reminder = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
-        void sendToMember(verifier, '复核还没有结论。请现在只回复一行 PASS 或 REJECT；不要继续调研，不要调用工具。').catch(() => {})
+        void sendToMember(verifier, '复核还没有结论。请现在调用 submit_verdict 提交判定；没有这个工具就只回复一行 PASS 或 REJECT。不要继续调研。').catch(() => {})
       }, REVIEW_REMINDER).unref()
       request.timer = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return

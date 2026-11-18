@@ -13,6 +13,8 @@ export const plainRuntimeError = error => {
   if (/423|locked/i.test(raw)) return '基座暂时被占用，稍后再试'
   if (/403|forbidden/i.test(raw)) return '基座拒绝了这次操作'
   if (/404|not found/i.test(raw)) return '基座里找不到对应的记录'
+  const botLimit = /limited to (\d+) bots/i.exec(raw)
+  if (botLimit !== null) return `基座 Bot 已满（${botLimit[1]} 个）；先删除不用的旧房间再建新房`
   if (/409|conflict/i.test(raw)) return '房间状态已经变化，刷新后再试'
   if (/ECONNREFUSED|ECONNRESET|fetch failed|socket hang up|aborted|timeout/i.test(raw)) {
     return '基座没有响应，稍后再试'

@@ -104,6 +104,62 @@ export const normalizeJudgment = ({ type, text, stage = null, evidenceId = null,
   }
 }
 
+const GATE_VERDICT = new Map([
+  ['pass', 'pass'],
+  ['通过', 'pass'],
+  ['接受', 'pass'],
+  ['同意', 'pass'],
+  ['reject', 'reject'],
+  ['fail', 'reject'],
+  ['不通过', 'reject'],
+  ['未通过', 'reject'],
+  ['退回', 'reject'],
+  ['拒绝', 'reject'],
+  ['失败', 'reject'],
+])
+
+const GATE_PLANNER = new Map([
+  ['rework', 'rework'],
+  ['返工', 'rework'],
+  ['重做', 'rework'],
+  ['human', 'human'],
+  ['handoff', 'human'],
+  ['交给人', 'human'],
+  ['人工', 'human'],
+  ['转人工', 'human'],
+])
+
+// MCP gate 直接给结构化字段，不再经过首行文本；字段仍汇入同一份契约。
+export const judgmentFromGate = ({
+  type,
+  input,
+  stage = null,
+  evidenceId = null,
+  actorId = null,
+  at = Date.now(),
+}) => {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) return null
+  const table = type === 'planner' ? GATE_PLANNER : GATE_VERDICT
+  const decision = table.get(String(input.decision ?? '').trim().toLowerCase())
+  if (decision === undefined) return null
+  const reason = clip(input.reason ?? input.message, LIMITS.reason)
+  if (reason === '') return null
+  const actionRequired = clip(input.actionRequired, LIMITS.actionRequired)
+  return validateJudgment({
+    version: JUDGMENT_VERSION,
+    type,
+    decision,
+    reason,
+    findings: type === 'verdict' ? normalizeFindings(input.findings) : [],
+    actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
+    stage,
+    evidenceId,
+    actorId,
+    at,
+    source: 'gate',
+  })
+}
+
 export const validateJudgment = value => {
   if (value === null || typeof value !== 'object') return null
   if (value.version !== JUDGMENT_VERSION) return null
@@ -123,7 +179,7 @@ export const validateJudgment = value => {
     evidenceId: typeof value.evidenceId === 'string' && value.evidenceId !== '' ? value.evidenceId : null,
     actorId: typeof value.actorId === 'string' && value.actorId !== '' ? value.actorId : null,
     at: typeof value.at === 'number' ? value.at : 0,
-    source: ['json', 'text', 'legacy'].includes(value.source) ? value.source : 'text',
+    source: ['json', 'text', 'legacy', 'gate'].includes(value.source) ? value.source : 'text',
   }
 }
 

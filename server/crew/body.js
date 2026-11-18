@@ -1,4 +1,5 @@
 import { bodyIssueOf } from './body-check.js'
+import { ensureGateServer, roomToolsFor } from './gate/tool.js'
 
 // 身体工厂：只负责让一具基座身体上线、进入共享房间、退役。
 // 成员身份、权限、交接、房间状态都不在这里；建房、换身体、添加成员共用这一条路。
@@ -22,12 +23,22 @@ export const createBodyFactory = ({ engine }) => {
       skills,
       mcp,
     }
+    let roomTools = roomToolsFor(member)
+    if (roomTools.length > 0) {
+      try {
+        await ensureGateServer(engine)
+      } catch (error) {
+        console.warn(`[lodge] 判定工具没能注册，先用文本判定：${error?.message ?? error}`)
+        roomTools = []
+      }
+    }
     const memberRef = await engine.createMemberBot({
       name: member.name,
       soul: config.soul,
       description: member.station,
       approval: member.approval,
       mcp,
+      roomTools,
       engine: config.engine,
       model: config.model,
     })

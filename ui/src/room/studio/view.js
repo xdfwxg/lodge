@@ -7,6 +7,7 @@ import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
 import { StudioAdjust } from './rewind-dialog.js'
+import { studioTyping } from './typing.js'
 
 // 工作室的房间视图：一条聊天记录、一行状态、一个输入框；动作只在轮到你时出现。
 export const studioView = {
@@ -64,12 +65,7 @@ export const studioView = {
     return `对${lead?.name ?? '规划师'}说…`
   },
   typing: ({ room, members }) => {
-    if (room.state !== 'active') return null
-    const busy = Array.isArray(room.busyMembers) ? room.busyMembers : []
-    if (busy.length === 0) return null
-    const names = busy
-      .map(id => (members ?? []).find(member => member.id === id)?.name ?? id)
-      .join('、')
-    return h(TypingLine, { label: `${names} 正在输入` })
+    const line = studioTyping(room, members ?? [])
+    return line === null ? null : h(TypingLine, line)
   },
 }
