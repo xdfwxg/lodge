@@ -22,12 +22,29 @@ const verdictOutcome = ({ ids, verdicts }) => {
   return { state, total, required, received: verdicts.length, missing, verdicts, rejects }
 }
 
-// 新的执行回合会让之前的凭证过期，但回合本身不是凭证；它只作为账本的排序下限。
+// 只有真的动过工具或产出文件的回合，才会让之前的凭证过期；
+// 成员后来补的一句说明不应该把已经验收的结果作废。
+const turnDidWork = message => {
+  const meta = message.meta ?? {}
+  let toolCalls = Number(meta.toolCalls ?? 0)
+  if (!Number.isFinite(toolCalls) || toolCalls === 0) {
+    try {
+      toolCalls = Number(JSON.parse(String(meta.output ?? '')).toolCalls ?? 0)
+    } catch {
+      toolCalls = 0
+    }
+  }
+  return (Array.isArray(meta.files) && meta.files.length > 0) ||
+    (Array.isArray(meta.artifacts) && meta.artifacts.length > 0) ||
+    toolCalls > 0
+}
+
 const turnFloor = (messages, stageIndex) => (
   messages.reduce((floor, message) => (
     message.kind === 'evidence' &&
     message.meta?.kind === 'turn' &&
-    (message.meta?.stage ?? 0) === stageIndex
+    (message.meta?.stage ?? 0) === stageIndex &&
+    turnDidWork(message)
       ? Math.max(floor, message.seq ?? 0)
       : floor
   ), -1)

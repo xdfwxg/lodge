@@ -87,6 +87,12 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     return done
   }
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles })
+  // 规划师对齐回合结束后由实时层回调：对齐这一步没有界面动作，自动确认后继续。
+  live.setConfirmStage?.((roomId, index) => {
+    const room = store.readRoom(roomId)
+    if (room === null) return null
+    return stages.accept(room, { stage: index })
+  })
   const chat = createServiceChat({ store, live, emit })
   const modeSwitch = createModeSwitch({ store, engine, live, emit })
   const memberAdd = createMemberAdd({

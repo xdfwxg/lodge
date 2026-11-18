@@ -33,6 +33,10 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
   const manualNotes = (delivery.stages ?? [])
     .map(stage => stage.manual?.text?.trim() ?? '')
     .filter(Boolean)
+  const manualVerdict = (delivery.stages ?? [])
+    .flatMap(stage => stage.verdicts ?? [])
+    .filter(verdict => verdict.pass === true && typeof verdict.text === 'string' && verdict.text.trim() !== '')
+    .slice(-1)[0] ?? null
   const [openError, setOpenError] = useState(null)
   const [openNotice, setOpenNotice] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -97,7 +101,9 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
               : null,
             h('span', { 'data-pass': command.exit === 0 }, command.exit === 0 ? '通过' : '没通过'),
             h('span', { className: 'visually-hidden' }, `退出码 ${command.exit === null || command.exit === undefined ? '无' : command.exit}`)))
-            : h('span', { className: 'crew-field-hint' }, manualNotes[0] ?? '人工验收')),
+            : manualVerdict !== null
+              ? h('p', { className: 'crew-field-hint' }, `验收：${manualVerdict.text}`)
+              : h('span', { className: 'crew-field-hint' }, manualNotes[0] ?? '人工验收')),
         metrics === '' ? null : h('p', { className: 'crew-delivery-metrics' }, metrics),
         h('div', { className: 'studio-delivery-meta' },
           delivery.workspacePath

@@ -354,6 +354,36 @@ test('turn usage accumulates on the room and keeps unknown costs visible', () =>
   assert.equal(room.usage.costMicroUsd, 2000)
 })
 
+test('the planner align turn confirms the alignment stage without a human click', () => {
+  const room = makeRoom({
+    stages: [
+      { title: '目标对齐', kind: 'decision', spine: true, state: 'active' },
+      { title: 'impl', kind: 'deliverable', state: 'pending' },
+    ],
+    seatNames: { planner: 'Planner' },
+    seatSpecs: [{ id: 'planner', name: '规划师', role: 'lead' }],
+    seatBots: { planner: 'bot-planner' },
+    workers: [],
+  })
+  const store = fakeStore(room)
+  const confirmed = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    confirmStage: (roomId, index) => { confirmed.push([roomId, index]) },
+  })
+  turns.captureTurn({
+    turnId: 't-align',
+    reply: '目标清楚，对齐通过，没有待确认项。',
+    toolCalls: 0,
+  }, 'bot-planner')
+  assert.deepEqual(confirmed, [['room-1', 0]])
+})
+
 test('a captured turn writes a diagnostic with its outcome and usage', () => {
   const room = makeRoom({})
   const store = fakeStore(room)
@@ -473,6 +503,13 @@ test('a parallel rework decided by the planner goes into the member private work
     ],
     seatBots: { planner: 'bot-plan', executor: 'bot-exec', 'executor-2': 'bot-exec2', verifier: 'bot-ver' },
     workers: ['executor', 'executor-2'],
+    stages: [{
+      title: 'impl',
+      kind: 'deliverable',
+      state: 'active',
+      acceptance: 'true',
+      assignees: ['executor', 'executor-2'],
+    }],
   })
   const store = fakeStore(room)
   for (const id of ['executor', 'executor-2']) {
@@ -497,8 +534,9 @@ test('a parallel rework decided by the planner goes into the member private work
     files: { exists: () => false, read: () => Buffer.from('') },
   })
   turns.captureTurn({ reply: '返工\n两人各写自己的文件', turnId: 't-lead-parallel', toolCalls: 0 }, 'bot-plan')
-  assert.equal(sent.length, 1)
-  assert.equal(sent[0].options.privateRoom, true)
+  assert.equal(sent.length, 2)
+  assert.deepEqual(sent.map(item => item.memberId).sort(), ['executor', 'executor-2'])
+  assert.ok(sent.every(item => item.options.privateRoom === true))
 })
 
 test('turn state resets progress', () => {

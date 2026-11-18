@@ -29,9 +29,9 @@ export const studioView = {
             className: 'crew-link',
             onClick: () => actions.resume(),
           }, paused.primary?.label ?? '继续'),
-        }),
-      h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind }))
+        }))
   },
+  tools: ({ room, actions }) => h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind }),
   activity: () => null,
   transcript: ({ room, members, actions }) => h(StudioTranscript, {
     key: `transcript-${room.id}`,

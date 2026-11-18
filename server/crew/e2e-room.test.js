@@ -175,9 +175,9 @@ test('deterministic room scenario reaches signed and accepted', async () => {
 
     const first = stages.accept(store.readRoom(room.id), { stage: 1 })
     assert.equal(first.ok, true)
-    // 纯聊天：最后一个工作阶段通过后，房间保持打开，不进入签字收尾。
+    // 最后一个工作阶段通过就收尾：房间进入已交付，交付卡才有内容。
     assert.equal(store.readRoom(room.id).closure, 'verifying')
-    assert.equal(store.readRoom(room.id).state, 'active')
+    assert.equal(store.readRoom(room.id).state, 'complete')
 
     const delivery = buildDelivery(store.readRoom(room.id), store.readMessages(room.id))
     assert.equal(delivery.evidenceCount, 2)

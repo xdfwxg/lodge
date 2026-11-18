@@ -175,10 +175,11 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       transitionAssignment(store, assignment.id, 'passed')
     }
     compactRoom(store, room.id)
-    // 纯聊天：顶层房间不结束，最后一步通过也只是继续可聊；子房间仍要收尾回填父房间。
-    const completes = next < 0 && typeof room.parentRoomId === 'string' && room.parentRoomId !== ''
+    // 工作室的顶层房间也要收尾：最后一步通过就生成交付记录、写记忆；
+    // 子房间另外把结果回填给父房间。
+    const completes = next < 0
     const finalRoom = completes ? completeRoom(room) ?? room : room
-    if (completes) notifyParent(finalRoom)
+    if (completes && typeof room.parentRoomId === 'string' && room.parentRoomId !== '') notifyParent(finalRoom)
     // 有下一步才叫醒规划师；最后一步通过就是句号，不再叫它补一句收尾。
     const nextStage = next >= 0 ? room.stages[next] : null
     const lead = leadMemberOf(room)?.id

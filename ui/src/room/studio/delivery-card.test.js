@@ -88,6 +88,29 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.match(text(tree), /1 项检查/)
 })
 
+test('a verified manual stage shows the verdict, not the waiting notice', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '零准备',
+      goal: '写一个 hello.txt',
+      stages: [{
+        index: 1,
+        title: '写文件',
+        kind: 'decision',
+        manual: { text: '结果已经好了，等验收员复核。' },
+        commands: [],
+        verdicts: [{ id: 'v1', authorId: 'v1', pass: true, text: 'hello.txt 内容正确' }],
+        changedFiles: [],
+      }],
+      commands: [],
+      changedFiles: [],
+    },
+  }))
+  assert.match(text(tree), /验收：hello\.txt 内容正确/)
+  assert.doesNotMatch(text(tree), /等验收员复核/)
+})
+
 test('cost reads as a number, a lower bound, or unknown', async () => {
   const { DeliveryCard } = await load()
   const base = { name: '设置页保存', stages: [], commands: [], changedFiles: [] }

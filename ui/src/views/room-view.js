@@ -234,14 +234,25 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id, 'data-room-done': finished ? 'true' : undefined },
       mode.header(viewCtx),
       h('div', { className: 'crew-room-tools' },
-        h(RoomModeSwitch, { key: `mode-${room.id}`, room, onSwitch: actions.switchMode }),
-        h(RoomMemory, {
-          key: `memory-${room.id}`,
-          room,
-          onLoad: () => store.roomMemory(),
-          onReview: (memoryId, decision) => store.reviewMemory(memoryId, decision),
-        }),
-        h(RoomHelp, { key: `help-${room.id}`, autoOpen: room.demo === true })),
+        h('details', { className: 'crew-room-more' },
+          h('summary', { 'aria-label': '房间设置', title: '房间设置' }, '⋯'),
+          h('div', {
+            className: 'crew-room-more-body',
+            onClick: event => {
+              if (event.target instanceof Element && event.target.closest('button') !== null) {
+                event.currentTarget.closest('details')?.removeAttribute('open')
+              }
+            },
+          },
+          mode.tools?.(viewCtx) ?? null,
+          h(RoomModeSwitch, { key: `mode-${room.id}`, room, onSwitch: actions.switchMode }),
+          h(RoomMemory, {
+            key: `memory-${room.id}`,
+            room,
+            onLoad: () => store.roomMemory(),
+            onReview: (memoryId, decision) => store.reviewMemory(memoryId, decision),
+          }),
+          h(RoomHelp, { key: `help-${room.id}`, autoOpen: room.demo === true })))),
       h(RoomHealth, { key: `health-${room.id}`, room, onForgetMemory: () => store.forgetMemory() }),
       mode.activity(viewCtx),
       h('div', {

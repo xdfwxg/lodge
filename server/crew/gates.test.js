@@ -195,14 +195,16 @@ test('a failed automatic check keeps a manual stage from being signed off', () =
   assert.equal(gateFor(r, 1, [manual, failedCheck, passedCheck, fresh]).ok, true)
 })
 
-test('a stale manual evidence does not survive a newer turn', () => {
+test('a work turn makes older manual evidence stale, a reply does not', () => {
   const r = room({ members: [] })
   r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }
   const manual = { id: 'm-1', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'manual' } }
-  const turn = { id: 't-1', kind: 'evidence', seq: 11, meta: { stage: 1, kind: 'turn' } }
-  assert.equal(gateFor(r, 1, [manual, turn]).ok, false)
-  const fresh = { id: 'm-2', kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
-  assert.equal(gateFor(r, 1, [manual, turn, fresh]).ok, true)
+  const reply = { id: 't-1', kind: 'evidence', seq: 11, meta: { stage: 1, kind: 'turn', toolCalls: 0, output: '{"toolCalls":0}' } }
+  assert.equal(gateFor(r, 1, [manual, reply]).ok, true)
+  const turn = { id: 't-2', kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'turn', toolCalls: 1 } }
+  assert.equal(gateFor(r, 1, [manual, reply, turn]).ok, false)
+  const fresh = { id: 'm-2', kind: 'evidence', seq: 13, meta: { stage: 1, kind: 'manual' } }
+  assert.equal(gateFor(r, 1, [manual, reply, turn, fresh]).ok, true)
 })
 
 test('a room without verifiers is signed off by the human on evidence', () => {

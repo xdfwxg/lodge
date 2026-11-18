@@ -144,7 +144,10 @@ export const createModeSwitch = ({ store, engine, live, emit }) => {
       if (createdHost && host !== null) {
         try { await engine.deleteMemberBot(host.memberRef) } catch {}
       }
-      return fail('conflict', `没能切换：${error?.message ?? error}`)
+      const raw = String(error?.message ?? error)
+      // 聊天刚给出结论时，基座还会把频道当成“等你收尾”；这是几秒钟的窗口，不是用户做错了什么。
+      const reason = /working or waiting on you/.test(raw) ? '聊天室刚结束，还在收尾；几秒后再切换' : raw
+      return fail('conflict', `没能切换：${reason}`)
     }
 
     if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)

@@ -40,6 +40,8 @@ Electron 壳只做三件事：启动 Lodge 的 Node 服务、把同源 UI 装进
 2. `http://127.0.0.1:8799`
 3. `LODGE_BASE_DIR`、已保存设置、`Resources/base`、`~/workspace/crew-chat-base`
 
+源码模式重启基座时，要让它继承 `~/.claude/settings.json` 里的 CLI 环境（`ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN` 等）；否则 `claude` CLI 会报 `Not logged in`，房间会以“规划师没能回应”暂停。清空基座数据后尤其要检查这一点。
+
 发布包里的 `Resources/base` 是已经 bundle 的 `dist-server`，app 用 Electron 自带的 Node 24 启动它：
 
 ```bash

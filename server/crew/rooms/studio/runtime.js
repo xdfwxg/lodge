@@ -13,6 +13,7 @@ export const createStudioRuntime = ({
   ports,
   approvals,
   refreshRoom,
+  confirmStage = null,
 }) => {
   const sendMember = (roomId, room, memberId, text, options = {}) => deliverToMember({
     engine,
@@ -72,6 +73,7 @@ export const createStudioRuntime = ({
         commands: ports.commands,
         files: ports.files,
         writeDiagnostic: ports.roomFiles?.writeDiagnostic,
+        confirmStage,
         shadow,
         expireCards: () => {
           const task = approvals.expireApprovals(entry, room.id, '这一步已经重做了')

@@ -25,7 +25,7 @@ import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from './auto-rework.js'
 const MAX_STAGE_REWORKS = 3
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, shadow })
@@ -356,17 +356,21 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       }
       return true
     }
-    const target = (stage?.assignees ?? []).find(id => workerIds(room).includes(id)) ?? workerIds(room)[0]
-    if (typeof target !== 'string' || target === '') {
+    // 并行阶段的重做要送进每一位执行成员的工作副本；只叫一个人会把另一条分支留在旧结果上。
+    const assignees = (Array.isArray(stage?.assignees) ? stage.assignees : [])
+      .filter(id => workerIds(room).includes(id))
+    const targets = assignees.length > 0 ? assignees : workerIds(room).slice(0, 1)
+    if (targets.length === 0) {
       store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把重做交出去。' })
       return true
     }
-    const name = memberDisplayName(room, target)
-    const parent = latestDispatchAssignment(store, roomId, stageIndex, target)
-    if (parent !== null) transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，规划师安排重做' })
-    // 并行阶段逐个送进各自的工作副本；群里再 @ 一次会让成员在同一个目录里重复干活。
-    const parallel = (dispatchOf(store, roomId, stageIndex)?.workers?.length ?? 0) > 1
-    const addressed = !parallel && String(turn.reply ?? '').includes(`@${name}`)
+    const parents = new Map()
+    for (const target of targets) {
+      const parent = latestDispatchAssignment(store, roomId, stageIndex, target)
+      parents.set(target, parent)
+      if (parent !== null) transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，规划师安排重做' })
+    }
+    const parallel = targets.length > 1
     const note = judgment.reason
     store.appendMessage(roomId, {
       kind: 'rework',
@@ -375,24 +379,28 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       meta: { stage: stageIndex, source: 'planner', note, verdictId, judgment },
     })
     if (typeof expireCards === 'function') expireCards()
-    void handoff.trigger({
-      room,
-      stage,
-      index: stageIndex,
-      from: leadMemberOf(room)?.id,
-      to: target,
-      reason: 'rework',
-      prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
-      message: note,
-      visible: false,
-      deliver: parallel ? true : !addressed,
-      ...(parallel ? { privateRoom: true } : {}),
-      acceptance: stage?.acceptance ?? '',
-      rework: true,
-      parentAssignmentId: parent?.id ?? null,
-    }).catch(error => {
-      systemNotice({ store, roomId, text: `重做没能交给${name}；需要你处理。`, error })
-    })
+    for (const target of targets) {
+      const name = memberDisplayName(room, target)
+      const addressed = !parallel && String(turn.reply ?? '').includes(`@${name}`)
+      void handoff.trigger({
+        room,
+        stage,
+        index: stageIndex,
+        from: leadMemberOf(room)?.id,
+        to: target,
+        reason: 'rework',
+        prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
+        message: note,
+        visible: false,
+        deliver: parallel ? true : !addressed,
+        ...(parallel ? { privateRoom: true } : {}),
+        acceptance: stage?.acceptance ?? '',
+        rework: true,
+        parentAssignmentId: parents.get(target)?.id ?? null,
+      }).catch(error => {
+        systemNotice({ store, roomId, text: `重做没能交给${name}；需要你处理。`, error })
+      })
+    }
     return true
   }
 
@@ -410,6 +418,22 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const room = store.readRoom(roomId)
     const memberId = memberForRef(room, authorRef)
     const role = memberOf(room, memberId)?.role
+    // 规划师把目标对齐说清楚、又没有留下问题时，对齐这一步自动通过；
+    // 这一步没有界面动作，等人只会让零准备开工停在第一屏。
+    const alignIndex = room === null ? -1 : room.stages.findIndex(stage => stage.state === 'active')
+    const alignStage = alignIndex >= 0 ? room.stages[alignIndex] : null
+    if (
+      alignStage?.kind === 'decision' &&
+      alignStage?.spine === true &&
+      alignStage?.title === '目标对齐' &&
+      memberId !== null &&
+      memberId === leadMemberOf(room)?.id &&
+      String(turn?.reply ?? '').trim() !== '' &&
+      (room.openQuestion === null || room.openQuestion === undefined || room.openQuestion === '') &&
+      typeof confirmStage === 'function'
+    ) {
+      void Promise.resolve(confirmStage(roomId, alignIndex)).catch(() => {})
+    }
     const stageIndex = room === null ? 0 : deliverableStageIndex(room)
     const dispatch = room === null ? null : dispatchOf(store, roomId, stageIndex)
     const assignment = memberId === null || room === null

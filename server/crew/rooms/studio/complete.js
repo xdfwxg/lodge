@@ -24,6 +24,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     }
     roomFiles.writeConclusion(room)
     const archived = updateRoom(room.id, current => {
+      current.state = 'complete'
       current.pastGoals = [...(current.pastGoals ?? []), {
         goal: current.goal,
         stages: current.stages.map(stage => ({ title: stage.title, kind: stage.kind, state: stage.state })),

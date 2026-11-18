@@ -58,6 +58,8 @@ export const createLiveRooms = ({
   const entries = new Map()
   const pendingAttach = new Map()
   let retryScheduled = false
+  // 服务层在建房时注入：规划师对齐回合结束后自动确认对齐，不再等人点一个没有界面的确认。
+  let confirmStage = null
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit })
   const approvals = createLiveApprovals({
@@ -71,7 +73,15 @@ export const createLiveRooms = ({
   const refreshRoom = refresher.refresh
   const strategies = [
     createChatRuntime({ store, engine, emit, refreshRoom }),
-    createStudioRuntime({ store, engine, emit, ports, approvals, refreshRoom }),
+    createStudioRuntime({
+      store,
+      engine,
+      emit,
+      ports,
+      approvals,
+      refreshRoom,
+      confirmStage: (roomId, index) => confirmStage?.(roomId, index),
+    }),
   ]
   const strategyFor = room => {
     const typeId = resolveRoomType(room?.roomType)?.id ?? ''
@@ -437,6 +447,7 @@ export const createLiveRooms = ({
     send,
     sendToMember,
     requestReview,
+    setConfirmStage: handler => { confirmStage = handler },
     decideApproval,
     expireApprovals,
     answerCard,
