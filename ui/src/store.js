@@ -1,8 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { humanErrorText } from './error-text.js'
 
-const failureText = fallback => (state.error === null || state.error === undefined ? fallback : humanErrorText(state.error, fallback))
-
 const EMPTY = {
   phase: 'loading',
   rooms: [],
@@ -16,6 +14,7 @@ const EMPTY = {
 
 export function createStore() {
   let state = EMPTY
+  const failureText = fallback => (state.error === null || state.error === undefined ? fallback : humanErrorText(state.error, fallback))
   let source = null
   let stopped = false
   const seen = new Set()

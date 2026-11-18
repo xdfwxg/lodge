@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createElement as h } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 import { bodyStatuses } from './body-status.js'
-import { CrewStatusLine } from './crew-status.js'
 
 const members = [
   { id: 'lead', name: '规划师', role: 'lead', body: { engine: 'claude', model: 'sonnet' } },
@@ -76,41 +73,4 @@ test('a sick body says why before anything else', () => {
 test('a broken connection marks every body offline', () => {
   const room = { state: 'active', connectionError: 'fetch failed' }
   assert.deepEqual(bodyStatuses(room, members).map(item => item.label), ['连接中断', '连接中断', '连接中断'])
-})
-
-test('the status line renders one quiet row with accessible labels', () => {
-  const html = renderToStaticMarkup(h(CrewStatusLine, {
-    room: { state: 'active', independence: 'none', busyMembers: ['worker'], busySince: Date.now() - 12_000 },
-    members,
-  }))
-  assert.match(html, /aria-label="成员状态"/)
-  assert.match(html, /执行官/)
-  assert.match(html, /处理中/)
-  assert.match(html, /12s/)
-  assert.match(html, /验收员/)
-})
-
-test('a finished room does not keep a body status line', () => {
-  const html = renderToStaticMarkup(h(CrewStatusLine, { room: { state: 'complete' }, members }))
-  assert.equal(html, '')
-})
-
-test('a studio can add a member from the status row', () => {
-  const html = renderToStaticMarkup(h(CrewStatusLine, {
-    room: { state: 'active' },
-    members,
-    onSwap: () => {},
-    onAdd: () => {},
-  }))
-  assert.match(html, /添加成员/)
-})
-
-test('each body is a button that opens the swap dialog', () => {
-  const html = renderToStaticMarkup(h(CrewStatusLine, {
-    room: { state: 'active' },
-    members,
-    onSwap: () => {},
-  }))
-  assert.match(html, /aria-label="调整执行官"/)
-  assert.match(html, /button/)
 })

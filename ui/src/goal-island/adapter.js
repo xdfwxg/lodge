@@ -3,7 +3,6 @@
 
 import { createElement as h } from 'react'
 import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
-import { ChevronDownIcon } from './glyphs.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
 
@@ -42,16 +41,13 @@ const pill = ({ room, view, open, onToggle }) => {
   h('span', { className: 'bt-pill-goal' },
     h('span', { className: 'bt-pill-ico' }, h(TargetIcon)),
     h('span', { className: 'bt-pill-title', title }, title),
-    view === null ? null : h('span', { className: 'bt-pill-count' }, `${view.number ?? 0}/${view.count}`)),
-  h('span', { className: 'bt-pill-go' }, h(ChevronDownIcon)))
+    view === null ? null : h('span', { className: 'bt-pill-count' }, `${view.number ?? 0}/${view.count}`)))
 }
 
 const PILL_CSS = `
 .bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-card);border:.5px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-family:inherit;font-size:var(--bt-text-label);line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform .16s ease}
 .bt-pill:hover{background:var(--bt-hover)}
 .bt-pill:active{transform:scale(.965)}
-.bt-pill-go{flex:none;display:inline-flex;align-items:center;justify-content:flex-end;width:18px;overflow:hidden;color:var(--bt-ink-2)}
-.bt-pill[aria-expanded=true] .bt-pill-go svg{transform:rotate(180deg)}
 .bt-soft{height:36px;border-radius:999px;border:0;background:var(--bt-hover);color:var(--bt-ink);padding:0 16px;font-size:var(--bt-text-label);cursor:pointer;flex:none;white-space:nowrap}
 .bt-soft:hover{background:var(--bt-active)}
 .bt-soft:disabled{opacity:.4;cursor:default}

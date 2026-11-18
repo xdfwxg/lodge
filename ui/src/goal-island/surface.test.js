@@ -55,10 +55,11 @@ const render = (mode, signal, roomOverride = {}) => renderToStaticMarkup(h(GoalI
   pill: h('button', { className: 'bt-pill' }, '打开'),
 }))
 
-test('the compact capsule leads with the current step and keeps the goal above it', () => {
+test('the resting capsule is one small pill: the current step, no kicker', () => {
   const html = render('closed')
-  assert.match(html, /class="bt-goal-closed-kicker">欢迎语落地</)
+  assert.match(html, /data-compact="true"/)
   assert.match(html, /class="bt-goal-closed-title">目标对齐</)
+  assert.doesNotMatch(html, /bt-goal-closed-kicker/)
   assert.doesNotMatch(html, /1\/3/)
 })
 
@@ -71,6 +72,8 @@ test('a decision renders one signal line and a dismiss control', () => {
     detail: '第 1 步 · 待确认',
   })
   assert.match(html, /data-mode="decision"/)
+  assert.match(html, /class="bt-goal-closed-kicker">欢迎语落地</)
+  assert.doesNotMatch(html, /data-compact="true"/)
   assert.match(html, /bt-goal-signal/)
   assert.match(html, /第 1 步「目标对齐」有一处要你拍板/)
   assert.match(html, /aria-label="收起这条提醒"/)

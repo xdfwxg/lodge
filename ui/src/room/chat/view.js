@@ -5,24 +5,13 @@ import { ReceiptIntake } from './receipt-intake.js'
 import { Timeline } from './timeline.js'
 import { hostLabelOf } from '../host.js'
 import { StatePanel } from '../../state-panel.js'
-import { CrewStatusLine } from '../crew-status.js'
 import { TypingLine } from '../typing-line.js'
 
 
 // 聊天室的房间视图：只认自己的决策、时间线与输入中状态，不碰工作室。
 export const chatView = {
   id: 'chat',
-  header: ({ state, room, members, actions }) => h(Fragment, null,
-    h(ChatIsland, { room, decision: buildChatDecision(room) }),
-    (room.state === 'active' || room.state === 'paused') && (members?.length ?? 0) > 0
-      ? h('div', { className: 'crew-crew-status-wrap' },
-        h(CrewStatusLine, {
-          room,
-          members,
-          onSwap: actions.swapBody,
-          labels: { lead: '主持中', member: '发言中' },
-        }))
-      : null),
+  header: ({ room }) => h(ChatIsland, { room, decision: buildChatDecision(room) }),
   activity: () => null,
   transcript: ({ room, members, actions }) => {
     const hasConversation = (room.messages ?? []).some(message => (

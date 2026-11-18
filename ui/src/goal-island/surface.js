@@ -3,8 +3,7 @@
 // maintained here. See third_party/THIRD_PARTY_NOTICES.md.
 
 import { createElement as h, Fragment, useEffect, useRef, useState } from 'react'
-import { TargetIcon } from '../icons.js'
-import { CheckIcon, ChevronDownIcon } from './glyphs.js'
+import { CheckIcon } from './glyphs.js'
 import { useEscape } from './dismiss.js'
 import { SPRING_SHAPE, spring, useMorph } from './motion.js'
 import { t } from './copy.js'
@@ -68,9 +67,9 @@ function GoalOutside({ island, close }) {
   return null
 }
 
-// Closed: the goal stays the kicker, the current step leads, the track stays
-// underneath. It is the room's live status, not a title bar.
-function GoalClosed({ view, room, actions }) {
+// Closed: the goal stays the kicker, the current step leads. The ring around
+// the mark is the stage track, so progress reads at a glance without a second row.
+function GoalClosed({ view, room, actions, compact = false, plan = false }) {
   const title = view?.title || room.name || '目标'
   const status = view?.barLabel || room.needsYou?.label
     || (view?.status === 'complete' ? '已完成 · 看结果' : '还没有目标')
@@ -78,10 +77,21 @@ function GoalClosed({ view, room, actions }) {
     : view?.status === 'stopped' ? 'stopped'
       : view?.status === 'paused' || view?.idle === true || room.needsYou ? 'waiting'
         : view?.status === 'drafting' ? 'drafting' : 'active'
+  const total = view?.count ?? 0
+  const done = (view?.segments ?? []).filter(seg => seg === 'done').length
+  const currentIndex = (view?.number ?? 0) - 1
+  const stages = view?.stages ?? []
+  const nextStage = currentIndex >= 0 ? stages[currentIndex + 1] : stages[0]
+  const nextTitle = nextStage?.title ?? ''
+  const atLast = stages.length > 0 && currentIndex === stages.length - 1
+  const radius = 15.5
+  const circumference = 2 * Math.PI * radius
   return h('button', {
     type: 'button',
     className: 'bt-goal-closed',
+    'data-compact': compact ? 'true' : undefined,
     'aria-expanded': false,
+    title: `${title} · ${status}`,
     onClick: () => actions.toggleGoal(room.id),
   },
   h('span', { className: 'bt-goal-closed-main' },
@@ -89,18 +99,36 @@ function GoalClosed({ view, room, actions }) {
       className: 'bt-goal-closed-ico',
       'data-tone': tone,
       'data-live': (room.busyMembers ?? []).length > 0 ? 'true' : undefined,
+      'data-track': total > 0 ? 'true' : undefined,
       'aria-hidden': true,
     },
-    h(TargetIcon),
+    h('svg', { className: 'bt-goal-ring', viewBox: '0 0 36 36' },
+      h('circle', { className: 'bt-ring-track', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2 }),
+      total === 0 ? null : h('circle', {
+        className: 'bt-ring-fill', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2.5,
+        strokeLinecap: 'round', transform: 'rotate(-90 18 18)',
+        strokeDasharray: `${circumference * (done / total)} ${circumference}`,
+      })),
+    h('span', { key: view?.number ?? 'none', className: 'bt-goal-ico-num' }, view?.number ?? '·'),
     h('i', { className: 'bt-goal-closed-pip' })),
     h('span', { className: 'bt-goal-closed-copy' },
-      h('span', { className: 'bt-goal-closed-kicker' }, title),
+      compact ? null : h('span', { className: 'bt-goal-closed-kicker' }, title),
       h('span', { className: 'bt-goal-closed-title' }, status)),
-    h('span', { className: 'bt-goal-chev', 'aria-hidden': true }, h(ChevronDownIcon))),
-  view === null
-    ? null
-    : h('span', { className: 'bt-goal-closed-segs', 'aria-hidden': true },
-      view.segments.map((seg, i) => h('i', { key: i, 'data-seg': seg }))))
+    plan && stages.length > 0
+      ? h('span', { className: 'bt-goal-plan' },
+        h('span', { className: 'bt-goal-plan-rail', 'aria-hidden': true },
+          stages.map((stageView, index) => h('i', {
+            key: stageView.n,
+            className: 'bt-goal-plan-node',
+            'data-state': stageView.status === 'passed' ? 'done'
+              : index === currentIndex ? 'current' : 'todo',
+          }, stageView.status === 'passed' ? h(CheckIcon) : h('span', { className: 'bt-goal-plan-n' }, stageView.n)))),
+        nextTitle === '' && !atLast
+          ? null
+          : h('span', { className: 'bt-goal-plan-next' },
+            nextTitle === '' ? null : h('span', { className: 'bt-goal-plan-k' }, '下一步'),
+            h('span', { className: 'bt-goal-plan-t' }, nextTitle === '' ? '最后一步' : nextTitle)))
+      : null))
 }
 
 // A single line under the capsule: one thing happened, one way to look at it.
@@ -211,8 +239,22 @@ function GoalPanel({ goal, view, room, actions }) {
 export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
   const island = useRef(null)
   const open = mode === 'open'
+  // 收成小药囊；鼠标移上去或键盘聚焦时展开，有事件时一直展开。
+  const [peeking, setPeeking] = useState(false)
+  const compact = !open && (signal === null || signal === undefined) && !peeking
+  // 阶段一变，岛面扫一次光；不循环，也不代替内容变化。
+  const progressKey = `${view?.status ?? ''}:${(view?.segments ?? []).join('')}`
+  const lastProgress = useRef(progressKey)
+  const [sweeping, setSweeping] = useState(false)
+  useEffect(() => {
+    if (lastProgress.current === progressKey) return undefined
+    lastProgress.current = progressKey
+    setSweeping(true)
+    const timer = setTimeout(() => setSweeping(false), 900)
+    return () => clearTimeout(timer)
+  }, [progressKey])
   const wasOpen = useRef(open)
-  useMorph(island, `${mode}:${signal?.key ?? ''}`)
+  useMorph(island, `${mode}:${signal?.key ?? ''}:${compact ? 'c' : 'e'}`)
   // The closed capsule and the open header are different buttons; keep keyboard
   // focus on the disclosure control across the swap instead of dropping it.
   useEffect(() => {
@@ -227,8 +269,16 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
     'data-goal': view?.status,
     'data-idle': view?.idle || undefined,
     'data-mode': mode,
+    'data-compact': compact ? 'true' : undefined,
+    'data-waiting': room.needsYou ? 'true' : undefined,
+    'data-signal-tone': signal?.tone,
     'data-signal': signal?.kind,
     'data-signal-key': signal?.key,
+    'data-sweep': sweeping ? 'true' : undefined,
+    onPointerEnter: event => { if (event.pointerType !== 'touch') setPeeking(true) },
+    onPointerLeave: () => setPeeking(false),
+    onFocus: event => { if (event.target.matches(':focus-visible')) setPeeking(true) },
+    onBlur: event => { if (!event.currentTarget.contains(event.relatedTarget)) setPeeking(false) },
   },
   open ? h(GoalOutside, { island, close: actions.closeGoal }) : null,
   open ? pill : null,
@@ -236,7 +286,7 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
     open
       ? (view === null ? null : h(GoalPanel, { goal, view, room, actions }))
       : h(Fragment, null,
-        h(GoalClosed, { view, room, actions }),
+        h(GoalClosed, { view, room, actions, compact, plan: !compact && (signal === null || signal === undefined) }),
         signal === null || signal === undefined
           ? null
           : h(GoalSignal, { signal, mode, actions }))))
@@ -245,13 +295,27 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
 export const GOAL_CSS = `
 /* One surface: the island is the room's only glass object. The capsule shape,
    the pod and the open panel all reshape on the same spring. */
-.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(440px,calc(100% - 120px));--bt-island-glass:color-mix(in srgb,var(--bt-card) 88%,transparent);--bt-island-glass-open:color-mix(in srgb,var(--bt-card) 97%,transparent);--bt-island-fill:var(--bt-island-glass);--bt-island-sheen:rgba(255,255,255,.72);--bt-island-edge:color-mix(in srgb,var(--bt-ink) 11%,transparent);--bt-island-depth:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(20,20,20,.05),0 1px 2px rgba(20,20,20,.06),0 16px 40px rgba(20,20,20,.16);--bt-island-depth-open:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(20,20,20,.05),0 2px 4px rgba(20,20,20,.06),0 28px 64px rgba(20,20,20,.2);background:radial-gradient(120% 160% at 16% -40%,var(--bt-island-sheen),transparent 58%),radial-gradient(90% 120% at 100% -20%,color-mix(in srgb,var(--bt-accent) 12%,transparent),transparent 62%),var(--bt-island-fill);border:1px solid var(--bt-island-edge);border-radius:22px;box-shadow:var(--bt-island-depth);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);color:var(--bt-ink);font-family:inherit;font-size:var(--bt-text-label);line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .3s var(--bt-ease),background-color .3s var(--bt-ease)}
-body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt-card) 86%,transparent);--bt-island-glass-open:color-mix(in srgb,var(--bt-card) 96%,transparent);--bt-island-sheen:rgba(255,255,255,.1);--bt-island-edge:rgba(255,255,255,.14);--bt-island-depth:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(0,0,0,.4),0 2px 4px rgba(0,0,0,.35),0 24px 56px rgba(0,0,0,.5);--bt-island-depth-open:inset 0 1px 0 rgba(255,255,255,.2),inset 0 -1px 0 rgba(0,0,0,.45),0 4px 10px rgba(0,0,0,.35),0 32px 72px rgba(0,0,0,.58)}
-.bt-island[data-mode=peek],.bt-island[data-mode=decision]{width:min(480px,calc(100% - 120px));border-radius:20px}
-.bt-island[data-mode=open]{width:min(560px,calc(100% - 48px));border-radius:20px;box-shadow:var(--bt-island-depth-open);--bt-island-fill:var(--bt-island-glass-open)}
+.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(400px,calc(100% - 120px));--bt-island-glass:color-mix(in srgb,var(--bt-card) 88%,transparent);--bt-island-glass-open:color-mix(in srgb,var(--bt-card) 97%,transparent);--bt-island-fill:var(--bt-island-glass);--bt-island-sheen:rgba(255,255,255,.72);--bt-island-edge:color-mix(in srgb,var(--bt-ink) 11%,transparent);--bt-island-depth:0 1px 1px rgba(20,20,20,.04),0 12px 28px -12px rgba(20,20,20,.22),0 30px 60px -30px rgba(20,20,20,.32);--bt-island-depth-open:0 2px 4px rgba(20,20,20,.06),0 28px 64px rgba(20,20,20,.2);background:radial-gradient(130% 180% at 14% -55%,var(--bt-island-sheen),transparent 58%),radial-gradient(90% 130% at 104% -18%,color-mix(in srgb,var(--bt-accent) 13%,transparent),transparent 62%),radial-gradient(120% 130% at 100% 130%,color-mix(in srgb,var(--bt-green) 7%,transparent),transparent 64%),var(--bt-island-fill);border:0;border-radius:999px;box-shadow:var(--bt-island-depth);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);color:var(--bt-ink);font-family:inherit;font-size:var(--bt-text-label);line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .3s var(--bt-ease),background-color .3s var(--bt-ease)}
+/* The one deep object in a light room: black glass, a green progress ring,
+   and a single warm note when something waits. */
+.bt-island{--bt-ink:#f5f5f7;--bt-ink-2:rgba(245,245,247,.72);--bt-ink-3:rgba(245,245,247,.46);--bt-ink-4:rgba(245,245,247,.32);--bt-line:rgba(255,255,255,.12);--bt-line-2:rgba(255,255,255,.18);--bt-main:#131316;--bt-card:#1a1a1e;--bt-hover:rgba(255,255,255,.07);--bt-active:rgba(255,255,255,.11);--bt-shade-2:rgba(255,255,255,.07);--bt-accent:#7fb2ff;--bt-accent-text:#c6dcff;--bt-accent-wash:rgba(99,148,255,.2);--bt-line-accent:rgba(127,178,255,.36);--bt-accent-ink:#0b111c;--bt-green:#3fd97a;--bt-star:#f6c453;--bt-warning-text:#f3c96d;--bt-warning-wash:rgba(246,196,83,.14);--bt-line-warning:rgba(246,196,83,.36);--bt-danger-text:#ff7c72;--bt-island-glass:rgba(20,20,24,.9);--bt-island-glass-open:rgba(20,20,24,.97);--bt-island-sheen:rgba(255,255,255,.15);--bt-island-edge:rgba(255,255,255,.14)}
+.bt-island[data-signal-tone=paused] .bt-goal-signal-go{color:#ffb3ad;font-weight:600}
+.bt-island[data-sweep]::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 22%,rgba(255,255,255,.16) 48%,transparent 74%);transform:translateX(-130%);animation:bt-island-sweep .9s var(--bt-ease) 1;pointer-events:none}
+@keyframes bt-island-sweep{from{transform:translateX(-130%)}to{transform:translateX(130%)}}
+.bt-island[data-sweep] .bt-goal-closed-ico{animation:bt-medal-pop .8s var(--bt-ease) 1}
+@keyframes bt-medal-pop{0%,100%{transform:scale(1)}38%{transform:scale(1.06)}}
+@keyframes bt-num-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt-card) 86%,transparent);--bt-island-glass-open:color-mix(in srgb,var(--bt-card) 96%,transparent);--bt-island-sheen:rgba(255,255,255,.1);--bt-island-edge:rgba(255,255,255,.14);--bt-island-depth:0 2px 4px rgba(0,0,0,.35),0 24px 56px rgba(0,0,0,.5);--bt-island-depth-open:0 4px 10px rgba(0,0,0,.35),0 32px 72px rgba(0,0,0,.58)}
+.bt-island[data-mode=peek],.bt-island[data-mode=decision]{width:min(400px,calc(100% - 120px));border-radius:999px}
+.bt-island[data-mode=open]{width:min(560px,calc(100% - 48px));border-radius:30px;box-shadow:var(--bt-island-depth-open);--bt-island-fill:var(--bt-island-glass-open)}
+.bt-island[data-compact]{width:min(216px,calc(100% - 48px));border-radius:999px}
+.bt-island[data-compact] .bt-goal-closed{border-radius:999px}
+.bt-island[data-compact] .bt-goal-closed-main{height:44px;padding:5px 12px 5px 5px;gap:9px}
+.bt-island[data-compact] .bt-goal-closed-copy{gap:0}
+.bt-island[data-compact] .bt-goal-closed-title{font-size:13.5px;line-height:18px}
 .bt-island[data-morph]{overflow:hidden}
-.bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:22px 22px 0 0;animation:bt-island-layer-in .24s var(--bt-ease) backwards}
-.bt-island[data-mode=open] .bt-pill{border-radius:20px 20px 0 0}
+.bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:30px 30px 0 0;animation:bt-island-layer-in .24s var(--bt-ease) backwards}
+.bt-island[data-mode=open] .bt-pill{border-radius:30px 30px 0 0}
 .bt-island .bt-pill:hover{background:var(--bt-hover)}
 .bt-island .bt-pill:active{transform:none}
 .bt-pill-goal{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 auto;text-align:left}
@@ -261,41 +325,48 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-pill-count{flex:none;font-size:var(--bt-text-helper);line-height:16px;color:var(--bt-ink-2);font-variant-numeric:tabular-nums}
 .bt-goal-pod{display:flex;flex-direction:column;min-width:0}
 .bt-island[data-mode=open] .bt-goal-pod::before{content:"";flex:none;height:.5px;margin:0 12px;background:var(--bt-line)}
-.bt-goal-chev{flex:none;display:inline-flex;color:var(--bt-ink-3)}
-.bt-goal-chev svg{width:14px;height:14px;transition:${spring(SPRING_SHAPE, 'transform')}}
-.bt-island[data-mode=open] .bt-pill .bt-goal-chev svg{transform:rotate(180deg)}
-.bt-goal-closed{display:flex;flex-direction:column;width:100%;padding:0;border:0;border-radius:22px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .12s ease}
+.bt-goal-closed{display:flex;flex-direction:column;width:100%;padding:0;border:0;border-radius:999px 999px 0 0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .12s ease}
 .bt-goal-closed:hover{background:var(--bt-hover)}
 .bt-goal-closed:active{background:var(--bt-active)}
-.bt-goal-closed-main{display:flex;align-items:center;gap:9px;min-width:0;height:46px;padding:5px 12px 5px 7px;box-sizing:border-box}
-.bt-goal-closed-ico{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--bt-accent-wash);color:var(--bt-accent-text);box-shadow:inset 0 0 0 1px var(--bt-line-accent),0 1px 2px rgba(20,20,20,.05);animation:bt-island-layer-in .26s var(--bt-ease) backwards}
-.bt-goal-closed-ico svg{width:15px;height:15px}
-.bt-goal-closed-pip{position:absolute;right:-1px;bottom:-1px;width:8px;height:8px;border-radius:50%;background:var(--bt-green);box-shadow:0 0 0 2px var(--bt-card)}
-.bt-goal-closed-ico[data-tone=drafting] .bt-goal-closed-pip,.bt-goal-closed-ico[data-tone=active] .bt-goal-closed-pip{background:var(--bt-accent)}
-.bt-goal-closed-ico[data-tone=waiting] .bt-goal-closed-pip{background:var(--bt-star)}
-.bt-goal-closed-ico[data-tone=stopped] .bt-goal-closed-pip{background:var(--bt-ink-3)}
-.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:bt-live-pulse 1.4s ease-in-out infinite}
+.bt-goal-closed-main{display:flex;align-items:center;gap:10px;min-width:0;height:54px;padding:8px 12px 8px 9px;box-sizing:border-box}
+.bt-goal-closed-ico{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;color:var(--bt-accent-text);animation:bt-island-layer-in .26s var(--bt-ease) backwards}
+.bt-goal-closed-ico::before{content:"";position:absolute;inset:4px;border-radius:50%;background:radial-gradient(120% 120% at 32% 18%,rgba(255,255,255,.34),var(--bt-accent-wash) 76%);box-shadow:inset 0 0 0 .5px var(--bt-line-accent),0 1px 2px rgba(0,0,0,.4)}
+.bt-goal-ico-num{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;font-size:12.5px;line-height:18px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--bt-ink);animation:bt-num-in .34s var(--bt-ease) 1}
+.bt-goal-ring{position:absolute;inset:0;width:34px;height:34px;overflow:visible}
+.bt-ring-track{stroke:var(--bt-line-2)}
+.bt-ring-fill{stroke:var(--bt-green);filter:drop-shadow(0 0 2.5px color-mix(in srgb,var(--bt-green) 50%,transparent));transition:stroke-dasharray .7s var(--bt-ease)}
+.bt-goal-closed-ico[data-tone=stopped] .bt-ring-fill{stroke:var(--bt-ink-3);filter:none}
+.bt-goal-closed-pip{display:none}
+.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{display:block;position:absolute;right:0;bottom:0;width:8px;height:8px;border-radius:50%;background:var(--bt-green);box-shadow:0 0 0 2px var(--bt-card),0 0 6px color-mix(in srgb,var(--bt-green) 55%,transparent);animation:bt-live-pulse 1.4s ease-in-out infinite}
 .bt-goal-closed-copy{display:flex;flex-direction:column;gap:1px;flex:1 1 auto;min-width:0;text-align:left;animation:bt-island-layer-in .26s var(--bt-ease) .02s backwards}
 .bt-goal-closed-kicker{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:500;letter-spacing:.01em;color:var(--bt-ink-3)}
 .bt-goal-closed-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:19px;font-weight:600;color:var(--bt-ink)}
-.bt-goal-closed-main .bt-goal-chev{margin-left:2px}
-.bt-goal-closed-segs{display:flex;gap:4px;width:100%;padding:0 16px 9px;box-sizing:border-box;animation:bt-island-layer-in .34s var(--bt-ease) .04s backwards}
-.bt-goal-closed-segs i{flex:1 1 0;height:3px;border-radius:999px;background:var(--bt-line-2);transition:background-color .45s var(--bt-ease),box-shadow .45s var(--bt-ease)}
-.bt-goal-closed-segs i[data-seg=done]{background:var(--bt-green);box-shadow:0 0 10px color-mix(in srgb,var(--bt-green) 45%,transparent)}
-.bt-goal-closed-segs i[data-seg=current]{background:linear-gradient(90deg,var(--bt-accent),color-mix(in srgb,var(--bt-accent) 55%,#fff));background-size:200% 100%;box-shadow:0 0 10px color-mix(in srgb,var(--bt-accent) 35%,transparent);animation:bt-seg-drift 3.2s linear infinite}
-.bt-goal-closed-segs i[data-seg=checking]{background:var(--bt-accent);opacity:.6}
-.bt-goal-closed-segs i[data-seg=paused]{background:var(--bt-star)}
-.bt-goal-signal{display:flex;align-items:center;min-width:0;border-radius:0 0 20px 20px;animation:bt-island-layer-in .26s var(--bt-ease) .03s backwards}
-.bt-goal-signal-main{flex:1 1 auto;display:flex;align-items:center;gap:8px;min-width:0;height:40px;padding:0 8px 0 14px;border:0;border-radius:0 0 20px 20px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+
+.bt-goal-plan{flex:none;display:flex;align-items:center;gap:10px;min-width:0;margin-left:auto;padding:0;animation:bt-island-layer-in .3s var(--bt-ease) .02s backwards}
+.bt-goal-plan-rail{display:flex;align-items:center;flex:none}
+.bt-goal-plan-node{position:relative;box-sizing:border-box;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-style:normal;font-variant-numeric:tabular-nums;transition:background-color .45s var(--bt-ease),border-color .45s var(--bt-ease),box-shadow .45s var(--bt-ease)}
+.bt-goal-plan-node>svg{flex:none;width:10px;height:10px}
+.bt-goal-plan-node + .bt-goal-plan-node{margin-left:12px}
+.bt-goal-plan-node + .bt-goal-plan-node::before{content:"";position:absolute;right:100%;top:50%;width:12px;height:1px;background:var(--bt-line-2);transform:translateY(-50%)}
+.bt-goal-plan-node[data-state=done]{background:var(--bt-green);border-color:var(--bt-green);color:#0c2416}
+.bt-goal-plan-node[data-state=current]{border-color:var(--bt-green);color:var(--bt-ink);box-shadow:0 0 0 2px rgba(63,217,122,.16),0 0 7px rgba(63,217,122,.45)}
+.bt-goal-plan-node[data-state=todo]{opacity:.55}
+.bt-goal-plan-next{flex:0 1 auto;display:flex;align-items:baseline;gap:8px;min-width:0;padding-left:10px}
+.bt-goal-plan-k{flex:none;font-size:11px;line-height:16px;color:var(--bt-ink-3)}
+.bt-goal-plan-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;line-height:17px;color:var(--bt-ink)}
+.bt-goal-signal{display:flex;align-items:center;min-width:0;padding:0 10px 8px 16px;animation:bt-island-layer-in .26s var(--bt-ease) .03s backwards}
+.bt-goal-signal-main{flex:1 1 auto;display:flex;align-items:center;gap:7px;min-width:0;height:24px;padding:0 5px;border:0;border-radius:7px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .bt-goal-signal-main:hover{background:var(--bt-hover)}
-.bt-goal-signal-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-accent)}
+.bt-goal-signal-dot{flex:none;width:5px;height:5px;border-radius:50%;background:var(--bt-accent)}
 .bt-goal-signal[data-tone=waiting] .bt-goal-signal-dot{background:var(--bt-star)}
 .bt-goal-signal[data-tone=done] .bt-goal-signal-dot{background:var(--bt-green)}
 .bt-goal-signal[data-tone=paused] .bt-goal-signal-dot{background:var(--bt-danger-text)}
 .bt-goal-signal[data-tone=active] .bt-goal-signal-dot{background:var(--bt-accent)}
-.bt-goal-signal-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--bt-text-helper);line-height:17px;color:var(--bt-ink-2)}
-.bt-goal-signal-go{flex:none;font-size:var(--bt-text-helper);line-height:17px;color:var(--bt-accent)}
-.bt-goal-signal-close{flex:none;width:28px;height:28px;margin-right:4px;border:0;border-radius:50%;background:none;color:var(--bt-ink-3);font:inherit;font-size:16px;line-height:1;cursor:pointer}
+.bt-goal-signal-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:16px;color:var(--bt-ink-2)}
+.bt-goal-signal[data-tone=waiting] .bt-goal-signal-text{color:var(--bt-warning-text)}
+.bt-goal-signal-go{flex:none;font-size:12px;line-height:16px;color:var(--bt-ink-3)}
+.bt-goal-signal[data-tone=waiting] .bt-goal-signal-go{color:var(--bt-warning-text);font-weight:600}
+.bt-goal-signal-close{flex:none;width:22px;height:22px;border:0;border-radius:6px;background:none;color:var(--bt-ink-3);font:inherit;font-size:15px;line-height:1;cursor:pointer}
 .bt-goal-signal-close:hover{background:var(--bt-hover);color:var(--bt-ink)}
 .bt-goal-meta{margin:8px 14px 0;padding:5px 9px;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:17px}
 .bt-goal-warn{margin:8px 14px 0;padding:6px 9px;border-left:2px solid var(--bt-line-warning);border-radius:0 8px 8px 0;background:var(--bt-warning-wash);color:var(--bt-warning-text);font-size:var(--bt-text-helper);line-height:17px}
@@ -310,7 +381,7 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-primary{height:var(--bt-control-h-lg);padding:0 14px;border:1px solid var(--bt-accent);border-radius:8px;background:var(--bt-accent);color:var(--bt-accent-ink,#fff);font:inherit;font-size:var(--bt-text-helper);font-weight:600;cursor:pointer;transition:filter .12s ease}
 .bt-goal-primary:hover{filter:brightness(1.06)}
 .bt-goal-primary:not(:disabled):active{filter:brightness(.92)}
-.bt-goal-panel{display:flex;flex-direction:column;max-height:min(62vh,520px);overflow:hidden;border-radius:0 0 20px 20px;animation:bt-island-layer-in .28s var(--bt-ease) backwards}
+.bt-goal-panel{display:flex;flex-direction:column;max-height:min(62vh,520px);overflow:hidden;border-radius:0 0 30px 30px;animation:bt-island-layer-in .28s var(--bt-ease) backwards}
 .bt-goal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
 /* The stepper: one shrinking node per stage on a hairline. */
 .bt-goal-steps{display:flex;align-items:center;gap:6px;padding:10px 14px 0}
@@ -342,7 +413,6 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-cbtns{display:flex;justify-content:flex-end;gap:6px}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
 @keyframes bt-island-layer-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
-@keyframes bt-seg-drift{from{background-position:0% 0}to{background-position:200% 0}}
 @keyframes bt-live-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-@media (prefers-reduced-motion:reduce){.bt-island,.bt-goal-chev svg{transition:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-goal-closed-segs,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-goal-closed-segs i{transition:none;animation:none!important}}
+@media (prefers-reduced-motion:reduce){.bt-island{transition:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-plan,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-ring-fill{transition:none!important}.bt-island[data-sweep]::after{display:none!important}.bt-island[data-sweep] .bt-goal-closed-ico{animation:none!important}.bt-goal-ico-num{animation:none!important}}
 `

@@ -5,6 +5,7 @@ import { uiKindOfRoom } from '../room/kinds.js'
 import { roomTypeIcon } from '../room/type-icons.js'
 import { initialOf } from '../marks.js'
 import { humanErrorText } from '../error-text.js'
+import { SideMembers } from './side-members.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
@@ -298,7 +299,9 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
           query.trim() !== '' && activeRooms.length === 0 && archivedRooms.length === 0
             ? h('p', { className: 'crew-side-empty', role: 'status' }, '没有匹配的房间')
             : null,
-          activeRooms.map(roomRow),
+          activeRooms.map(room => h(Fragment, { key: room.id },
+            roomRow(room),
+            activeId === room.id ? h(SideMembers, { room }) : null)),
           archivedRooms.length === 0
             ? null
             : h('div', { key: 'archived-label', className: 'crew-side-group-label' }, '已归档'),

@@ -1,6 +1,5 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
-import { CrewStatusLine } from '../crew-status.js'
 import { StudioPresence } from './presence.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
@@ -10,14 +9,10 @@ import { TypingLine } from '../typing-line.js'
 export const studioView = {
   id: 'studio',
   opensAtTop: ({ room }) => room.state === 'complete',
-  header: ({ state, room, members, actions }) => {
-    const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    return h(GoalIslandHeader, {
-      room,
-      status: finished ? null : h(CrewStatusLine, { room, members, onSwap: actions.swapBody, onAdd: actions.addMember }),
-      onOpenRoom: actions.selectRoom,
-    })
-  },
+  header: ({ room, actions }) => h(GoalIslandHeader, {
+    room,
+    onOpenRoom: actions.selectRoom,
+  }),
   activity: () => null,
   transcript: ({ room, members, actions }) => h(StudioTranscript, {
     key: `transcript-${room.id}`,

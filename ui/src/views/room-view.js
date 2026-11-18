@@ -7,6 +7,7 @@ import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
 import { ArrowUpIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
+import { onMemberDialog } from '../room/member-dialog.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [dockOpen, setDockOpen] = useState(false)
@@ -17,6 +18,15 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [addOpen, setAddOpen] = useState(false)
   const [addBusy, setAddBusy] = useState(false)
   const [addError, setAddError] = useState(null)
+  useEffect(() => onMemberDialog(request => {
+    if (request.kind === 'add') {
+      setAddError(null)
+      setAddOpen(true)
+      return
+    }
+    setSwapError(null)
+    setSwapId(request.memberId)
+  }), [])
   const scroll = useRef(null)
   const holdPin = useRef(false)
   const holdTimer = useRef(null)

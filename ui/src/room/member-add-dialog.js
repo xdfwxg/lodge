@@ -49,7 +49,7 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
       onClick: event => event.stopPropagation(),
     },
     h('div', { className: 'crew-dialog-heading' },
-      h('h2', null, '加一位成员')),
+      h('h2', null, '添加成员')),
     h('div', { className: 'crew-add-who' },
       h('div', { className: 'crew-field crew-add-role' },
         h('b', null, '角色'),

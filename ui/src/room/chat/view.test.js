@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Fragment } from 'react'
 import { ChatIsland } from './island.js'
 import { ReceiptIntake } from './receipt-intake.js'
 import { chatView } from './view.js'
@@ -25,11 +24,10 @@ test('the chat header is the collapsed island', () => {
     },
     members: [],
   })
-  assert.equal(tree.type, Fragment)
-  assert.equal(tree.props.children[0].type, ChatIsland)
+  assert.equal(tree.type, ChatIsland)
 })
 
-test('chat participants show a body status row and can swap bodies', () => {
+test('the chat header leaves the crew to the sidebar', () => {
   const html = renderToStaticMarkup(chatView.header({
     room: {
       id: 'room-chat',
@@ -41,11 +39,9 @@ test('chat participants show a body status row and can swap bodies', () => {
       busyMembers: ['worker'],
     },
     members: [{ id: 'worker', name: '甲', role: 'worker', body: { engine: 'pi', model: 'deepseek-flash' } }],
-    actions: { ...actions, swapBody: () => {} },
   }))
-  assert.match(html, /成员状态/)
-  assert.match(html, /发言中/)
-  assert.match(html, /调整甲/)
+  assert.doesNotMatch(html, /成员状态/)
+  assert.doesNotMatch(html, /发言中/)
 })
 
 test('a demo chat says it cannot continue instead of promising a reply', () => {
