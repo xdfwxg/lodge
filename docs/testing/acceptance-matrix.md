@@ -34,7 +34,11 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | HTTP 错误分类与附加字段 | `server/http-coverage.test.js` | 无 |
 | 成员工具面裁剪（隐藏协调与判定工具） | `server/crew/tool-scope.test.js`、`server/crew/engine.test.js` | 真实基座可选 |
 | 不可信内容清洗与字符预算 | `shared/untrusted-text.test.js` | 无 |
-| 房间记忆（审核后只读引用） | `server/crew/memory.test.js`、`server/crew/service-composition.test.js`、`server/crew/prompt-order.test.js`、`server/http-coverage.test.js` | 真实交付可选 |
+| 房间记忆（审核后只读引用、删除、停用） | `server/crew/memory.test.js`、`server/crew/service-composition.test.js`、`server/crew/prompt-order.test.js`、`server/http-coverage.test.js` | 真实交付可选 |
+| 房间记忆备份与恢复边界 | `server/crew/data-recovery.test.js` | 无 |
+| 房间健康卡（证据 / 未知 / 下一步、费用、返工） | `ui/src/room/health.test.js`、`server/crew/turn-assessment.test.js` | 无 |
+| 人工门没有死路（交给人后可见输入动作） | `ui/src/room/studio/human-gate.test.js`、`server/crew/human-handoff.test.js` | 无 |
+| 首次使用与模式说明 | `ui/src/room/help.test.js` | 无 |
 | 提示词与工具面的确定性顺序 | `server/crew/prompt-order.test.js`、`server/crew/tool-scope.test.js` | 无 |
 | 判定工具（MCP gate） | `shared/gate.test.js`、`server/crew/gate/mcp-server.test.js`、`server/crew/gate/tool.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/engine.test.js`、`server/crew/permission.test.js`、`server/crew/external-actions.test.js` | 真实基座可选 |
 | 卡片有效期（阶段 + 重做轮次 + assignment） | `shared/attempt.test.js`、`server/crew/assignments.test.js`、`server/crew/attention.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/question-card.test.js` | 无 |

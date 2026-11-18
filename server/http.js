@@ -174,6 +174,11 @@ export const createHttpHandler = ({
       return respond(res, await service.memory({ roomId, limit: Number(url.searchParams.get('limit') ?? 20) }))
     }
 
+    const memoryOptOutPath = path.match(/^\/api\/rooms\/([\w-]+)\/memory\/opt-out$/)
+    if (memoryOptOutPath !== null && req.method === 'POST') {
+      return respond(res, await service.forgetMemory({ roomId: memoryOptOutPath[1] }))
+    }
+
     const memoryReviewPath = path.match(/^\/api\/rooms\/([\w-]+)\/memory\/([\w-]+)\/review$/)
     if (memoryReviewPath !== null && req.method === 'POST') {
       const [, roomId, memoryId] = memoryReviewPath

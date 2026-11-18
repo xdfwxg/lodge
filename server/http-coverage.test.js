@@ -22,6 +22,7 @@ const start = async ({ roomRequest = null } = {}) => {
     evidence: async () => ({ ok: true, body: { evidence: {} } }),
     memory: async () => ({ ok: true, body: { entries: [], canReview: true } }),
     memoryReview: async () => ({ ok: true, body: { entries: [], canReview: true } }),
+    forgetMemory: async () => ({ ok: true, body: { room: { id: 'room-1' } } }),
     roomRequest: roomRequest ?? (async (roomId, action) => {
       actions.push(action)
       return { ok: true, body: { room: { id: roomId, action } } }
@@ -76,6 +77,11 @@ test('every successful HTTP route is counted only when it returns 2xx or 3xx', a
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ decision: 'approve' }),
     })).status, 200)
+    assert.equal((await check('/api/rooms/room-1/memory/opt-out', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    })).status, 200)
     assert.equal((await check('/')).status, 200)
     for (const action of ROOM_ACTIONS) {
       const response = await check(`/api/rooms/room-1/${action}`, {
@@ -86,7 +92,7 @@ test('every successful HTTP route is counted only when it returns 2xx or 3xx', a
       assert.equal(response.status, 200, `${action} returned ${response.status}`)
     }
     assert.deepEqual(ctx.actions.sort(), [...ROOM_ACTIONS].sort())
-    assert.equal(covered.length, 9 + ROOM_ACTIONS.length)
+    assert.equal(covered.length, 10 + ROOM_ACTIONS.length)
   } finally {
     await ctx.close()
   }

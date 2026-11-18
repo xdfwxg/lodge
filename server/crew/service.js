@@ -522,6 +522,18 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
       return ok({ entries: ports.memory?.list?.({ room, limit }) ?? [], canReview: true })
     },
+    forgetMemory: ({ roomId } = {}) => {
+      const room = readRoom(roomId)
+      if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+      const updated = updateRoom(roomId, current => {
+        current.sharedMemory = []
+        return { events: [{ type: 'room.memory.optout' }] }
+      })
+      if (updated === null) return fail('conflict', '房间状态已经变化，再试一次')
+      appendMessage(roomId, { kind: 'system', text: '这间房不再参考工作区记忆。' })
+      emit('room', updated)
+      return ok({ room: updated })
+    },
     memoryReview: ({ roomId, memoryId, decision } = {}) => {
       const room = readRoom(roomId)
       if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')

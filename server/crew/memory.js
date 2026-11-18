@@ -85,6 +85,7 @@ const statusOf = (memoryId, reviews) => {
   const decision = reviews.get(memoryId)?.decision
   if (decision === 'approve') return 'approved'
   if (decision === 'reject') return 'rejected'
+  if (decision === 'delete') return 'deleted'
   return 'draft'
 }
 
@@ -105,7 +106,11 @@ export const createRoomMemory = ({ root }) => {
     if (file === null) return []
     const size = Math.max(1, Math.min(MAX_ENTRIES, Number(limit) || 20))
     const { memories, reviews } = readState(file)
-    return [...memories.values()].slice(-size).reverse().map(entry => visibleEntry(entry, reviews))
+    return [...memories.values()]
+      .filter(entry => statusOf(entry.roomId, reviews) !== 'deleted')
+      .slice(-size)
+      .reverse()
+      .map(entry => visibleEntry(entry, reviews))
   }
 
   const shared = ({ room, sourceRepo = '', limit = 3 }) => {
@@ -149,7 +154,7 @@ export const createRoomMemory = ({ root }) => {
   }
 
   const review = ({ room, memoryId, decision }) => {
-    if (decision !== 'approve' && decision !== 'reject') return { ok: false, reason: 'invalid' }
+    if (!['approve', 'reject', 'delete'].includes(decision)) return { ok: false, reason: 'invalid' }
     const file = fileFor(room)
     if (file === null) return { ok: false, reason: 'no-workspace' }
     const { memories } = readState(file)

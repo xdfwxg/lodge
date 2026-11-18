@@ -20,7 +20,7 @@ import { clearLodgeBaseResources } from './base-gc.js'
 import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
 import { recoverMessages } from './crew/recovery.js'
-import { pruneBackups, snapshotDatabase } from './crew/data-recovery.js'
+import { pruneBackups, snapshotDatabase, snapshotMemory } from './crew/data-recovery.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
 validateRoster(ROLES)
@@ -42,6 +42,12 @@ try {
   if (file !== null) console.log(`store snapshot: ${file}`)
 } catch (error) {
   console.warn(`store snapshot failed: ${error?.message ?? error}`)
+}
+try {
+  const dir = snapshotMemory({ dataDir, reason: 'startup', keep: 10 })
+  if (dir !== null) console.log(`memory snapshot: ${dir}`)
+} catch (error) {
+  console.warn(`memory snapshot failed: ${error?.message ?? error}`)
 }
 
 const store = createStore({ dataDir, emit: broadcast })
@@ -79,6 +85,7 @@ const snapshotNow = reason => {
     const file = join(dataDir, 'backups', `crew-${Date.now()}-${reason}.db`)
     store.backup(file)
     pruneBackups(dataDir, 10)
+    snapshotMemory({ dataDir, reason, keep: 10 })
   } catch (error) {
     console.warn(`store backup failed: ${error?.message ?? error}`)
   }

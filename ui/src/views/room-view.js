@@ -4,6 +4,8 @@ import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { RoomModeSwitch } from '../room/mode-switch.js'
 import { RoomMemory } from '../room/memory.js'
+import { RoomHealth } from '../room/health.js'
+import { RoomHelp } from '../room/help.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
@@ -187,7 +189,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const actions = {
     store,
     accept: stage => void store.accept(stage),
-    rework: (stage, note) => void store.rework(stage, note),
+    rework: (stage, note) => store.rework(stage, note),
     retry: (stage, note) => void store.retry(stage, note),
     rewind: (stage, note) => store.rewind(stage, note),
     switchMode: (mode, roles) => store.switchMode(mode, roles),
@@ -238,7 +240,9 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           room,
           onLoad: () => store.roomMemory(),
           onReview: (memoryId, decision) => store.reviewMemory(memoryId, decision),
-        })),
+        }),
+        h(RoomHelp, { key: `help-${room.id}`, autoOpen: room.demo === true })),
+      h(RoomHealth, { key: `health-${room.id}`, room, onForgetMemory: () => store.forgetMemory() }),
       mode.activity(viewCtx),
       h('div', {
         ref: scroll,

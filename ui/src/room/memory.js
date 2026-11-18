@@ -100,7 +100,16 @@ export function RoomMemory({ room, onLoad, onReview }) {
                     className: 'crew-link',
                     disabled: busyId !== null,
                     onClick: () => review(entry, 'reject'),
-                  }, '不采用')))))),
+                  }, '不采用'),
+                h('button', {
+                  type: 'button',
+                  className: 'crew-link',
+                  disabled: busyId !== null,
+                  onClick: () => {
+                    if (typeof window !== 'undefined' && !window.confirm('删除这条房间记忆？')) return
+                    review(entry, 'delete')
+                  },
+                }, '删除')))))),
         h('div', { className: 'crew-dialog-foot' },
           h('button', { type: 'button', className: 'crew-ghost', onClick: () => { setOpen(false); setError(null) } }, '关闭'))))
       : null)

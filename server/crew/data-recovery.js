@@ -1,9 +1,10 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
 export const databaseFile = dataDir => join(dataDir, 'crew.db')
 export const backupsDir = dataDir => join(dataDir, 'backups')
+export const memoryDir = dataDir => join(dataDir, 'memory')
 
 const check = file => {
   let db = null
@@ -64,6 +65,44 @@ export const snapshotDatabase = ({ dataDir, reason = 'manual', keep = 10, now = 
     try { db?.close() } catch {}
   }
   pruneBackups(dataDir, keep)
+  return target
+}
+
+export const listMemoryBackups = dataDir => {
+  const dir = backupsDir(dataDir)
+  if (!existsSync(dir)) return []
+  return readdirSync(dir)
+    .filter(name => name.startsWith('memory-'))
+    .map(name => {
+      const file = join(dir, name)
+      const info = statSync(file)
+      return { name, file, mtimeMs: info.mtimeMs, directory: info.isDirectory() }
+    })
+    .filter(item => item.directory)
+    .sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name))
+    .map(({ name, file, mtimeMs }) => ({ name, file, mtimeMs }))
+}
+
+export const pruneMemoryBackups = (dataDir, keep = 10) => {
+  const size = Math.max(1, Number(keep) || 10)
+  const old = listMemoryBackups(dataDir).slice(size)
+  for (const item of old) {
+    try { rmSync(item.file, { recursive: true, force: true }) } catch {}
+  }
+  return old.length
+}
+
+// 房间记忆是追加式 JSONL，与数据库分开备份；恢复时把它拷回 .data/memory 即可。
+export const snapshotMemory = ({ dataDir, reason = 'manual', keep = 10, now = Date.now() }) => {
+  const source = memoryDir(dataDir)
+  if (!existsSync(source)) return null
+  const dir = backupsDir(dataDir)
+  mkdirSync(dir, { recursive: true })
+  const safeReason = String(reason).replace(/[^\w-]/g, '-').slice(0, 24) || 'manual'
+  const target = join(dir, `memory-${now}-${safeReason}`)
+  if (existsSync(target)) return target
+  cpSync(source, target, { recursive: true })
+  pruneMemoryBackups(dataDir, keep)
   return target
 }
 

@@ -5,6 +5,7 @@ import { describeSteps, displayableStep } from './transcript-model.js'
 import { ShadowAdvice } from './advisor-advice.js'
 import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
+import { HumanGateCard } from './human-gate.js'
 
 const orderOf = message => (
   (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
@@ -129,5 +130,6 @@ export function StudioTranscript({
             ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '开一间新房')
             : null)
         : null),
+    h(HumanGateCard, { key: `human-gate-${activeIndex}`, room, onRework }),
     advice)
 }

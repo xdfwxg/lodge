@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { createStore } from './store.js'
 import {
-  databaseFile, latestBackup, listBackups, restoreBackup, snapshotDatabase, verifyDatabase,
+  databaseFile, latestBackup, listBackups, listMemoryBackups, memoryDir, restoreBackup,
+  snapshotDatabase, snapshotMemory, verifyDatabase,
 } from './data-recovery.js'
 
 test('a database snapshot verifies and can restore the previous room state', () => {
@@ -36,6 +37,26 @@ test('a database snapshot verifies and can restore the previous room state', () 
     try { store.db.close() } catch {}
     rmSync(dataDir, { recursive: true, force: true })
     rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('room memory gets its own snapshot and keeps only the newest ten', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'lodge-memory-backup-'))
+  try {
+    mkdirSync(memoryDir(dataDir), { recursive: true })
+    writeFileSync(join(memoryDir(dataDir), 'workspace.jsonl'), '{"roomId":"room-1"}\n')
+    const first = snapshotMemory({ dataDir, reason: 'startup', now: 1 })
+    assert.equal(readFileSync(join(first, 'workspace.jsonl'), 'utf8'), '{"roomId":"room-1"}\n')
+    for (let index = 2; index <= 12; index += 1) {
+      snapshotMemory({ dataDir, reason: 'periodic', now: index })
+    }
+    const kept = listMemoryBackups(dataDir)
+    assert.equal(kept.length, 10)
+    assert.equal(kept[0].name, 'memory-12-periodic')
+    assert.equal(existsSync(join(dataDir, 'backups', 'memory-1-startup')), false)
+    assert.equal(existsSync(join(dataDir, 'backups', 'memory-2-periodic')), false)
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
   }
 })
 

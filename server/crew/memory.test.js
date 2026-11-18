@@ -61,6 +61,15 @@ test('only approved entries are shared with new rooms', () => withStore(memory =
   assert.deepEqual(memory.shared({ room: room() }), [])
 }))
 
+test('a deleted entry leaves the list and is never shared', () => withStore(memory => {
+  memory.appendRoom({ room: room(), messages: [] })
+  memory.review({ room: room(), memoryId: 'room-1', decision: 'approve' })
+  assert.equal(memory.shared({ room: room() }).length, 1)
+  memory.review({ room: room(), memoryId: 'room-1', decision: 'delete' })
+  assert.deepEqual(memory.list({ room: room() }), [])
+  assert.deepEqual(memory.shared({ room: room() }), [])
+}))
+
 test('reviewing a missing entry or an unknown decision is refused', () => withStore(memory => {
   assert.equal(memory.review({ room: room(), memoryId: 'missing', decision: 'approve' }).ok, false)
   memory.appendRoom({ room: room(), messages: [] })

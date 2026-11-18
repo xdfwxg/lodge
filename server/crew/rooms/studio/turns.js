@@ -439,6 +439,19 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
           ...extra,
         }
         void Promise.resolve(writeDiagnostic(room, turnId, diagnostic)).catch(() => {})
+        store.updateRoom(roomId, current => {
+          current.stageDiagnostics = {
+            ...(current.stageDiagnostics ?? {}),
+            [stageIndex]: {
+              at: diagnostic.at ?? Date.now(),
+              memberId,
+              outcome,
+              turnId,
+              assessment: diagnostic.assessment,
+            },
+          }
+          return { events: [] }
+        })
       } catch {}
     }
     writeTurnDiagnostic('captured')

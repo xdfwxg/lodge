@@ -384,6 +384,9 @@ test('a captured turn writes a diagnostic with its outcome and usage', () => {
   assert.ok(last.payload.assessment.evidence.includes('耗时 1.2s'))
   assert.ok(last.payload.assessment.unknown.includes('回复为空'))
   assert.ok(last.payload.assessment.next.includes('检查续接或重开记录；必要时交给人'))
+  assert.equal(room.stageDiagnostics[0].outcome, 'empty')
+  assert.equal(room.stageDiagnostics[0].memberId, 'executor')
+  assert.deepEqual(room.stageDiagnostics[0].assessment, last.payload.assessment)
 })
 
 test('a late turn from an older attempt is dropped before it touches evidence', () => {

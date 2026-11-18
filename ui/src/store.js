@@ -346,6 +346,12 @@ export function createStore() {
       const data = await post(`/api/rooms/${state.activeId}/memory/${memoryId}/review`, { decision })
       return Array.isArray(data?.entries) ? data.entries : null
     },
+    forgetMemory: async () => {
+      const data = await post(`/api/rooms/${state.activeId}/memory/opt-out`, {})
+      if (data?.room === undefined) return { ok: false }
+      acceptRoom(data.room)
+      return { ok: true }
+    },
     refresh: load,
   }
 }
