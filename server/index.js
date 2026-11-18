@@ -18,6 +18,7 @@ import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
 import { requestGuard } from './http-guard.js'
 import { recoverMessages } from './crew/recovery.js'
+import { matchRoomAction } from './route-table.js'
 import { pruneBackups, snapshotDatabase } from './crew/data-recovery.js'
 
 // 组合根：只做装配与 HTTP 传输，业务全在 server/crew/。
@@ -310,10 +311,9 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.evidence(roomId, messageId))
     }
 
-    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|chat-continue|chat-resume|resume|reject-plan|rework|rewind|read|hold|steer|cancel-queue|answer-card|acceptance|verify|approvals|subrooms|add-member|remove-member|swap-body|rename|shadow-review|archive|delete)$/)
+    const roomAction = matchRoomAction(path)
     if (roomAction !== null) {
-      const [, roomId, action] = roomAction
-      return respond(res, await service.roomRequest(roomId, action, {
+      return respond(res, await service.roomRequest(roomAction.roomId, roomAction.action, {
         method: req.method,
         readBody: () => readJson(req),
       }))

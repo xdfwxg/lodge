@@ -5,7 +5,7 @@ import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
-import { ArrowUpIcon } from '../icons.js'
+import { ArrowDownIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
 
@@ -249,7 +249,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           'aria-label': '回到最新',
           title: '回到最新',
           onClick: followBottom,
-        }, h(ArrowUpIcon))
+        }, h(ArrowDownIcon))
         : null,
       mode.dock?.(viewCtx) ?? null,
       h('div', { ref: composerRef, className: 'dsb-composer' },

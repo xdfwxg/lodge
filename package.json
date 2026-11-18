@@ -27,6 +27,7 @@
     "eval:planning": "node evals/planning/run.mjs",
     "eval:chat": "node scripts/eval-chat.mjs",
     "check:docs": "node scripts/check-docs.mjs",
+    "check:acceptance": "node scripts/check-acceptance.mjs",
     "check:regressions": "node scripts/check-regressions.mjs",
     "data:restore": "node scripts/data-restore.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
