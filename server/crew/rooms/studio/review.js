@@ -177,8 +177,11 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         void sendToMember(lead, [
           `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
           `判定：${reason === '' ? '未通过' : reason}`,
-          '如果工具列表里有 submit_decision，直接调用它提交决定；工具不可用时才按下面的格式回复。',
-          '第一行只写「返工」或「交给人」。返工时写清改什么、怎么算完成；交给人时写清要人拍板什么。',
+          '判定必须先用工具提交，不要在回复里只写结论：',
+          '1. 调用 lodge_gate_submit_decision（基座可能显示为 mcp__lodge_gate__submit_decision）。',
+          '2. 如果工具列表里没有它，先调用 ToolSearch，查询 "lodge_gate_submit_decision"，再调用它。',
+          '3. 只有工具确实不可用时，才按下面的文本格式回复；此时第一行只写「返工」或「交给人」。',
+          '返工时写清改什么、怎么算完成；交给人时写清要人拍板什么。',
           DECISION_JSON_HINT,
           parallel
             ? '决定返工时不要 @ 任何人；系统会把要求直接送进执行成员自己的工作副本。第一行仍只写「返工」。'

@@ -35,8 +35,15 @@
 - 实际页面：`room-9893a8bc` 的岛显示“1/2 讨论”，展开后是目标原句和讨论/结论两步；工作室的岛（`room-47b3f3ac`）保持原样，已交付的示例房仍显示“已交付”
 - 已确认的聊天室用“已确认”，不借用工作室的“已交付”
 
+## 2026-11-19 · submit_decision
+
+- 第一次尝试 `room-a8d294c4`：验收员通过 `lodge_gate_submit_verdict` 退回（source=gate），但规划师回合工具调用为 0，判定走文本兜底（source=text）
+- 修正：判定提示改为必须调用 `lodge_gate_submit_decision`，工具列表里没有就先 `ToolSearch` 查它；工具描述也写明“判定一律先调用本工具”
+- 第二次尝试 `room-3a189c90`「submit_decision 验收 3」：验收员再次 REJECT（source=gate）；规划师回合先 `ToolSearch` 再调用 `mcp__lodge_gate__submit_decision`，`lastPlannerDecision.judgment.source` 为 `gate`，decision 为 `human`，rejectTo 为 `human`
+- 同时修正注意力：规划师把步骤交给人后，房间显示“规划师把这一步交给你”并带上 `actionRequired`，不再显示“待重做”
+
 ## 仍需真实环境
 
-- 规划师通过 `submit_decision` 的返工/交给人路径
+- 规划师通过 `submit_decision` 的“返工”路径（本次真跑的是“交给人”）
 - 多成员并行时某个分支取消后重跑，兄弟分支是否完整恢复
 - macOS 打包、ad-hoc 签名和桌面外壳

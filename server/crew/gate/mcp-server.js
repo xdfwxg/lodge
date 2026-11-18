@@ -34,7 +34,7 @@ export const GATE_TOOLS = Object.freeze([
   },
   {
     name: 'submit_decision',
-    description: '提交规划师对退回的决定：返工或交给人。调用后不用再把 JSON 写进回复。',
+    description: '规划师收到验收退回时用它提交决定（返工或交给人）。判定一律先调用本工具；调用后不用再把 JSON 写进回复。',
     inputSchema: {
       type: 'object',
       properties: {

@@ -132,6 +132,25 @@ test('a REJECT verdict waits for rework', () => {
   assert.equal(roomNeedsYou(atDeliverable(), [evidence(), verdict(false)]).kind, 'rework')
 })
 
+test('a planner handoff asks the human instead of showing rework', () => {
+  const r = atDeliverable()
+  r.stages[1] = { title: 'docs', kind: 'deliverable', state: 'active', manual: true }
+  const manual = { id: 'e-12', kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
+  const reject = { id: 'v-13', kind: 'verdict', authorId: 'verifier', seq: 13, meta: { stage: 1, pass: false } }
+  const needs = roomNeedsYou({
+    ...r,
+    lastPlannerDecision: {
+      stage: 1,
+      verdictId: 'v-13',
+      kind: 'human',
+      judgment: { reason: '缺真实版本号', actionRequired: '请给出版本号和发布日期' },
+    },
+  }, [manual, reject])
+  assert.equal(needs.kind, 'decision')
+  assert.match(needs.label, /交给你/)
+  assert.match(needs.detail, /版本号/)
+})
+
 test('command evidence without a verdict waits for review', () => {
   assert.equal(roomNeedsYou(atDeliverable(), [evidence()]).kind, 'review')
 })

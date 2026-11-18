@@ -30,6 +30,20 @@ const studioNeedsYou = (room, messages = []) => {
     return { kind: 'question', stage: index, label: '待回答' }
   }
   if ((room.busyMembers ?? []).length > 0) return null
+  // 规划师把这一步交给人以后，下一步是人拍板，不再显示“待重做”。
+  const handoff = room.lastPlannerDecision
+  if (handoff?.stage === index && handoff?.kind === 'human') {
+    const latestVerdict = latestForStage(messages, 'verdict', index, floor)
+    if (latestVerdict !== undefined && (latestVerdict.id ?? latestVerdict.seq) === handoff.verdictId) {
+      const judgment = handoff.judgment ?? {}
+      return {
+        kind: 'decision',
+        stage: index,
+        label: '规划师把这一步交给你',
+        detail: judgment.actionRequired || judgment.reason || '',
+      }
+    }
+  }
   const auto = room.autoCheck
   if (auto?.stage === index && (auto.status === 'blocked' || auto.status === 'limit-reached')) {
     return {
