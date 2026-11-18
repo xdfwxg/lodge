@@ -36,9 +36,6 @@ b,strong{font-weight:600}
 .crew-home-links{display:flex;flex-wrap:wrap;align-items:center;gap:18px}
 .crew-home-links .crew-link{font-size:var(--bt-text-helper)}
 @media (max-width:760px){.crew-home{padding:32px 18px}.crew-home h1{font-size:26px}}
-.crew-side-section-fold>summary{display:flex;align-items:center;gap:6px;list-style:none;cursor:pointer}
-.crew-side-section-fold>summary::-webkit-details-marker{display:none}
-.crew-side-section-fold>summary::after{content:"›";margin-left:auto;color:var(--bt-ink-4);transition:transform .15s var(--bt-ease)}.crew-side-section-fold[open]>summary::after{transform:rotate(90deg)}
 .crew-side-row .crew-side-room-dot{display:none}
 .crew-side-row[data-needs=true] .crew-side-room-dot{display:block}
 .crew-side-row[data-done=true] .crew-side-room-name{color:var(--bt-ink-2)}

@@ -98,6 +98,14 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         void live.sendToMember(parent.id, lead, `${text}\n请只依据这些 verdict 决定下一步。`, {
           intent: 'notice',
           from: '子房间',
+        }).then(sent => {
+          // 这条是系统转给规划师的内部通知，不是用户说的话；基座会把它当群消息回放，必须藏掉。
+          if (typeof sent?.messageId !== 'string') return
+          const updated = updateRoom(parent.id, current => {
+            current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)
+            return { events: [] }
+          })
+          if (updated !== null) emit('room', updated)
         }).catch(error => {
           systemNotice({ store, roomId: parent.id, text: '子房间的结果没能叫醒规划师；稍后会自动再试。', error })
         })

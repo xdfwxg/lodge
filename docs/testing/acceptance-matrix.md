@@ -38,7 +38,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 房间记忆备份与恢复边界 | `server/crew/data-recovery.test.js` | 无 |
 | 房间健康卡（证据 / 未知 / 下一步、费用、返工） | `ui/src/room/health.test.js`、`server/crew/turn-assessment.test.js` | 无 |
 | 前门（写下目标开始） | `ui/src/views/home.test.js` | 无 |
-| 房间列表分区（需要你 / 正在做 / 已交付 / 已归档） | `ui/src/views/sidebar.test.js` | 无 |
+| 房间列表顺序（待办在前、归档在后） | `ui/src/views/sidebar.test.js` | 无 |
 | 人工门没有死路（交给人后可见输入动作） | `ui/src/room/studio/human-gate.test.js`、`server/crew/human-handoff.test.js` | 无 |
 | 首次使用与模式说明 | `ui/src/room/help.test.js` | 无 |
 | 提示词与工具面的确定性顺序 | `server/crew/prompt-order.test.js`、`server/crew/tool-scope.test.js` | 无 |

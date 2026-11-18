@@ -359,7 +359,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     // 并行阶段的重做要送进每一位执行成员的工作副本；只叫一个人会把另一条分支留在旧结果上。
     const assignees = (Array.isArray(stage?.assignees) ? stage.assignees : [])
       .filter(id => workerIds(room).includes(id))
-    const targets = assignees.length > 0 ? assignees : workerIds(room).slice(0, 1)
+    const targets = assignees.length > 0 ? assignees : workerIds(room)
     if (targets.length === 0) {
       store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把重做交出去。' })
       return true
