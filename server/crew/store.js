@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { appendEventLog, appendTranscript, writeEvidence } from './room-repo.js'
@@ -8,6 +8,7 @@ const SCHEMA_VERSION = 1
 
 export const createStore = ({ dataDir, emit = () => {} }) => {
   mkdirSync(dataDir, { recursive: true })
+  const fresh = !existsSync(join(dataDir, 'crew.db'))
   const db = new DatabaseSync(join(dataDir, 'crew.db'))
   db.exec(`
     PRAGMA journal_mode = WAL;
@@ -327,6 +328,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
 
   return {
     db,
+    fresh,
     readRoom,
     backup,
     writeRoom,

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { gateSubmissionOf } from './gate.js'
+import { gateSubmissionOf, isGateToolName } from './gate.js'
 import { judgmentFromGate } from './judgment.js'
 
 const verdict = overrides => ({
@@ -72,11 +72,29 @@ test('a verdict submission is not reused as a planner decision', () => {
   assert.equal(gateSubmissionOf(null), null)
 })
 
+test('the base activity label with a single underscore is recognized', () => {
+  const judgment = gateSubmissionOf([{
+    name: 'lodge_gate_submit_verdict',
+    input: JSON.stringify({ decision: 'PASS', reason: 'base label' }),
+  }], { type: 'verdict' })
+  assert.equal(judgment.source, 'gate')
+  assert.equal(judgment.decision, 'pass')
+})
+
 test('another MCP server cannot submit a room judgment', () => {
   assert.equal(gateSubmissionOf([{
     name: 'mcp__other__submit_verdict',
     input: JSON.stringify({ decision: 'PASS', reason: 'not ours' }),
   }], { type: 'verdict' }), null)
+})
+
+test('only the lodge_gate tool names are recognized by the permission bridge', () => {
+  assert.equal(isGateToolName('lodge_gate:submit_verdict'), true)
+  assert.equal(isGateToolName('lodge_gate_submit_decision'), true)
+  assert.equal(isGateToolName('mcp__lodge_gate__submit_verdict'), true)
+  assert.equal(isGateToolName('Allow lodge_gate:submit_verdict?'), true)
+  assert.equal(isGateToolName('mcp__other__submit_verdict'), false)
+  assert.equal(isGateToolName('submit_verdict'), false)
 })
 
 test('gate judgments need a recognized decision and a reason', () => {

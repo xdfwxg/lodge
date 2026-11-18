@@ -256,6 +256,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
           void onPermission(entry, memberId, message, chat)
           return
         }
+        // 复核和规划也可能在群聊里回合；工具活动必须先记进这一轮，判定工具才读得到。
+        entry.turns?.trackTool?.(message)
         if (message.kind === 'turn') onTurn?.(entry, current, message)
         const streamed = finishStream(entry, current, message)
         if (!streamed) {

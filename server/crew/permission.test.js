@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { decidePermission } from './permission.js'
 
-const planner = { permissions: { read: true, exec: false, write: false } }
-const verifier = { permissions: { read: true, exec: true, write: false } }
-const executor = { permissions: { read: true, exec: true, write: true } }
+const planner = { role: 'lead', roleKind: 'planner', permissions: { read: true, exec: false, write: false } }
+const verifier = { role: 'verifier', roleKind: 'verifier', permissions: { read: true, exec: true, write: false } }
+const executor = { role: 'worker', roleKind: 'executor', permissions: { read: true, exec: true, write: true } }
 
 test('read-only seats cannot execute or write', () => {
   assert.equal(decidePermission(planner, 'read'), true)
@@ -26,6 +26,14 @@ test('a read-only discussion stage blocks write and exec even for a worker', () 
   assert.equal(decidePermission(executor, 'read', { readOnly: true }), true)
   assert.equal(decidePermission(executor, 'write', { readOnly: true }), false)
   assert.equal(decidePermission(executor, 'exec', { readOnly: true }), false)
+})
+
+test('the built-in gate tool is allowed for planners and verifiers only', () => {
+  assert.equal(decidePermission(planner, 'gate'), true)
+  assert.equal(decidePermission(verifier, 'gate'), true)
+  assert.equal(decidePermission(executor, 'gate'), false)
+  assert.equal(decidePermission(planner, 'gate', { readOnly: true }), true)
+  assert.equal(decidePermission(verifier, 'gate', { direct: true }), true)
 })
 
 test('unknown actions and missing seats fail closed', () => {

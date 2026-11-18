@@ -1,5 +1,6 @@
 import { createBaseClient } from './base.js'
 import { RUNTIME_EVENT } from './crew/runtime-port.js'
+import { isGateToolName } from '../shared/gate.js'
 
 // Engine 适配器：把具体基座翻译成 crew 的 runtime 端口与规范化事件。
 // 这是 Lodge 与基座之间唯一的 HTTP/词汇边界。基座冻结：不改基座本体；
@@ -53,6 +54,8 @@ const normalizeActivity = (label, responderName) => (
 export const actionForTool = tool => {
   const name = String(tool ?? '').toLowerCase()
   if (name === '') return null
+  // 内置判定工具只提交结论，不是 shell，也不走外部动作审批。
+  if (isGateToolName(name)) return 'gate'
   if (/(write|edit|multiedit|notebookedit)/.test(name)) return 'write'
   if (/(bash|shell|exec|command|terminal|kill)/.test(name)) return 'exec'
   // MCP 工具名可能带 list/search 等词，不能先按本地只读工具放行。

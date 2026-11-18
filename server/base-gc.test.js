@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { lodgeRootsOf, roomResourceRefs, selectOrphanResources } from './base-gc.js'
+import { clearLodgeBaseResources, lodgeRootsOf, roomResourceRefs, selectOrphanResources } from './base-gc.js'
 
 const env = { CREW_WORKTREE_ROOT: '/tmp/lodge/worktrees' }
 
@@ -73,4 +73,21 @@ test('an empty Lodge store selects every old Lodge resource, not other apps', ()
   assert.ok(result.bots.some(bot => bot.id === 'bot-old'))
   assert.equal(result.bots.some(bot => bot.id === 'bot-other'), false)
   assert.equal(result.groups.some(group => group.id === 'grp-other'), false)
+})
+
+test('clearing a fresh Lodge store deletes its base resources and keeps other apps', async () => {
+  const deleted = []
+  const client = {
+    bootstrap: async () => ({ bots, groups }),
+    deleteGroup: async id => { deleted.push(`group:${id}`) },
+    deleteBot: async id => { deleted.push(`bot:${id}`) },
+  }
+  const result = await clearLodgeBaseResources(client, { env })
+  assert.equal(result.failures.length, 0)
+  assert.ok(result.groups > 0)
+  assert.ok(result.bots > 0)
+  assert.equal(deleted.includes('group:grp-other'), false)
+  assert.equal(deleted.includes('bot:bot-other'), false)
+  assert.ok(deleted.includes('group:grp-old'))
+  assert.ok(deleted.includes('bot:bot-old'))
 })

@@ -275,6 +275,8 @@ test('permission cards cross the engine port with a semantic action', async () =
   assert.equal(actionForTool('WebFetch'), 'exec')
   assert.equal(actionForTool('mcp__github__create_issue'), 'exec')
   assert.equal(actionForTool('mcp__github__list_issues'), 'exec')
+  assert.equal(actionForTool('lodge_gate:submit_verdict'), 'gate')
+  assert.equal(actionForTool('mcp__lodge_gate__submit_decision'), 'gate')
 })
 
 test('question cards keep the base choices as options', async () => {

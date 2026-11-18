@@ -12,7 +12,7 @@ import { resolveRoomType } from '../../room-types/index.js'
 import { supportsRuntime } from '../../runtime-port.js'
 import { createChatRuntime } from '../chat/runtime.js'
 import { createStudioRuntime } from '../studio/runtime.js'
-import { createBodyFactory } from '../../body.js'
+import { retireRoomResources } from './retire.js'
 
 // 基座重启后，之前等回答的卡在基座那边已经不存在：本地标成已失效，别让它永远挂着。
 // 历史重放会把旧卡重新落库，所以要在成员历史同步之后调用。
@@ -222,16 +222,8 @@ export const createLiveRooms = ({
 
   const bodySwap = createBodySwap({ store, engine, emit, attachMember, detachMember })
 
-  // 删房时把成员身体和隐藏 Bot 一起退役；工作区与用户文件不在这层处理。
-  const retireRoomBots = async room => {
-    const bodies = createBodyFactory({ engine })
-    for (const member of room.members ?? []) {
-      if (member?.body !== undefined) await bodies.retire(member.body)
-    }
-    for (const ref of [room.chatHost?.memberRef, room.shadowBot?.memberRef]) {
-      await bodies.retireHost(ref)
-    }
-  }
+  // 删房时把成员身体、隐藏 Bot 和房间聊天群一起退役；工作区与用户文件不在这层处理。
+  const retireRoomBots = async room => retireRoomResources({ engine, room })
 
   const detach = roomId => {
     const entry = entries.get(roomId)

@@ -75,6 +75,37 @@ export const lodgeRootsOf = (rooms = [], env = process.env) => {
 // 只删两类 Lodge 资源：
 // 1. 旧房间自己的群，且群里没有当前房间还在用的 bot；
 // 2. 不在任何保留群里的旧成员、影子评审或主持 bot。
+// 数据被清空后的首次启动：把基座里所有 Lodge 资源退掉，别的应用不动。
+export const clearLodgeBaseResources = async (client, { env = process.env } = {}) => {
+  const bootstrap = await client.bootstrap()
+  const selected = selectOrphanResources({
+    rooms: [],
+    bots: bootstrap.bots ?? [],
+    groups: bootstrap.groups ?? [],
+    env,
+  })
+  let bots = 0
+  let groups = 0
+  const failures = []
+  for (const group of selected.groups) {
+    try {
+      await client.deleteGroup(group.id)
+      groups += 1
+    } catch (error) {
+      failures.push(`${group.name}: ${error?.message ?? error}`)
+    }
+  }
+  for (const bot of selected.bots) {
+    try {
+      await client.deleteBot(bot.id)
+      bots += 1
+    } catch (error) {
+      failures.push(`${bot.name}: ${error?.message ?? error}`)
+    }
+  }
+  return { bots, groups, failures }
+}
+
 export const selectOrphanResources = ({ rooms, bots = [], groups = [], env = process.env }) => {
   const refs = roomResourceRefs(rooms)
   const roots = lodgeRootsOf(rooms, env)

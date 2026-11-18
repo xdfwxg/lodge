@@ -30,6 +30,11 @@ test('a network tool without a command is still classified', () => {
   assert.equal(externalAction({ tool: 'WebFetch', subtitle: '' })?.kind, 'network')
 })
 
+test('the built-in gate tool is not an external action', () => {
+  assert.equal(externalAction({ tool: 'lodge_gate:submit_verdict', action: 'gate', subtitle: '' }), null)
+  assert.equal(externalAction({ tool: 'mcp__lodge_gate__submit_decision', action: 'gate', subtitle: '' }), null)
+})
+
 test('only pending approvals need attention', () => {
   const room = {
     approvals: [

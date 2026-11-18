@@ -6,6 +6,20 @@ import { DatabaseSync } from 'node:sqlite'
 import test from 'node:test'
 import { createStore } from './store.js'
 
+test('a store opened without a database reports a fresh start', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-fresh-'))
+  try {
+    const first = createStore({ dataDir })
+    assert.equal(first.fresh, true)
+    first.db.close()
+    const second = createStore({ dataDir })
+    assert.equal(second.fresh, false)
+    second.db.close()
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})
+
 test('room updates are versioned inside a transaction and write events', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-'))
   const repo = mkdtempSync(join(tmpdir(), 'crew-repo-'))

@@ -1,3 +1,5 @@
+import { isGateToolName } from '../../shared/gate.js'
+
 // 外部动作分类：只认命令语义，不猜模型意图。命中就停下等人，不按成员权限自动放行。
 const RULES = [
   {
@@ -47,6 +49,9 @@ const TOOL_RULES = [
 ]
 
 export const externalAction = card => {
+  const tool = String(card?.tool ?? '')
+  // 房间内置判定工具不是外部服务，不在这里拦。
+  if (isGateToolName(tool)) return null
   const command = commandOf(card)
   if (command !== '') {
     for (const rule of RULES) {
@@ -56,7 +61,6 @@ export const externalAction = card => {
     }
   }
   // 没有 shell 命令命中的工具仍要看工具本身：MCP/网页工具的 subtitle 是描述，不是本地命令。
-  const tool = String(card?.tool ?? '')
   for (const rule of TOOL_RULES) {
     if (rule.pattern.test(tool)) return { kind: rule.kind, label: rule.label, summary: clip(tool), command: '' }
   }

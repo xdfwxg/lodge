@@ -14,6 +14,8 @@ import { assertRuntimePort } from './crew/runtime-port.js'
 import { compactAssignments, pageAssignments } from './crew/assignment-history.js'
 import { migrateAssignments } from './crew/assignment-migration.js'
 import { createStore } from './crew/store.js'
+import { createBaseClient } from './base.js'
+import { clearLodgeBaseResources } from './base-gc.js'
 import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
 import { requestGuard } from './http-guard.js'
@@ -83,6 +85,20 @@ const snapshotNow = reason => {
   }
 }
 compactHistory()
+// 清掉 Lodge 数据库后，基座里旧房间的 bot/群不会自己消失；首次启动按 Lodge 标记一起清掉。
+if (store.fresh === true && store.readRooms().length === 0) {
+  try {
+    const cleared = await clearLodgeBaseResources(createBaseClient())
+    if (cleared.bots > 0 || cleared.groups > 0) {
+      console.log(`base cleared after data reset: ${cleared.groups} groups, ${cleared.bots} bots`)
+    }
+    if (cleared.failures.length > 0) {
+      console.warn(`base clear left ${cleared.failures.length} items: ${cleared.failures.slice(0, 3).join('；')}`)
+    }
+  } catch (error) {
+    console.warn(`base clear after data reset failed: ${error?.message ?? error}`)
+  }
+}
 setInterval(() => snapshotNow('periodic'), 6 * 60 * 60 * 1000).unref()
 
 // 子房等人的事也要出现在父房的收件箱里，所以投影前先读一眼子房。
