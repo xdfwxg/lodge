@@ -115,6 +115,24 @@ export const createLiveRooms = ({
       strategy.create(entry, room)
       entries.set(room.id, entry)
       await approvals.expireApprovals(entry, room.id, '房间重新连接，上一张权限卡已不在等待')
+      // 基座重启后，之前等回答的卡在基座那边已经不存在：本地标成已失效，别让它永远挂着。
+      {
+        const messages = store.readMessages(room.id)
+        const answered = new Set(messages
+          .filter(message => message.kind === 'system' && message.meta?.kind === 'card-answered')
+          .map(message => message.meta?.requestId))
+        const stale = [...new Set(messages
+          .filter(message => message.kind === 'question' && typeof message.meta?.card?.requestId === 'string')
+          .map(message => message.meta.card.requestId))]
+          .filter(requestId => !answered.has(requestId))
+        for (const requestId of stale) {
+          store.appendMessage(room.id, {
+            kind: 'system',
+            text: '房间重新连接，之前等回答的问题已失效。',
+            meta: { kind: 'card-answered', requestId },
+          })
+        }
+      }
       const bases = await engine.rooms()
       for (const member of members) {
         const base = bases.find(item => item.id === member.body.roomRef)

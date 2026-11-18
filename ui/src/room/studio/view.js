@@ -44,7 +44,7 @@ export const studioView = {
   presence: ({ room, members, actions }) => h(StudioPresence, { room, members, onHold: actions.hold }),
   composerPlaceholder: ({ room }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    return room.state === 'complete' || done ? '已完成 · 说句话，再开一轮。' : '交代下一步，或问进度…'
+    return room.state === 'complete' || done ? '已完成 · 和规划师聊聊，或开一间新房。' : '交代下一步，或问进度…'
   },
   typing: ({ room, members }) => {
     if (room.state !== 'active') return null

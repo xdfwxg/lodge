@@ -6,6 +6,7 @@ import { vcsOf, workspaceOf } from './workspace.js'
 export const createAcceptanceRunner = ({
   store,
   roomId,
+  emit,
   markProgress,
   requestReview,
   run,
@@ -64,6 +65,15 @@ export const createAcceptanceRunner = ({
           : '本轮没有可验收的交付改动，验收未执行。'
         const lastSystem = [...messages].reverse().find(message => message.kind === 'system')
         if (lastSystem?.text !== note) store.appendMessage(roomId, { kind: 'system', text: note })
+        // 返工后没有任何新改动：不能再静默停下，房间要等人处理。
+        if (floor >= 0) {
+          const updated = store.updateRoom(roomId, current => {
+            if (current.blocked?.stage === stageIndex && current.blocked?.reason === 'no-progress') return null
+            current.blocked = { stage: stageIndex, reason: 'no-progress', workers: [], at: Date.now() }
+            return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'no-progress' } }] }
+          })
+          if (updated !== null) emit?.('room', updated)
+        }
         return
       }
     }
@@ -159,6 +169,13 @@ export const createAcceptanceRunner = ({
         : '检查没通过 · 需要重做这一步',
     })
     if (result.exit !== 0) {
+      // 检查没通过不能静默停下：把房间标成等人处理，岛和侧栏都能看见。
+      const updated = store.updateRoom(roomId, current => {
+        if (current.blocked?.stage === stageIndex && current.blocked?.reason === 'check-failed') return null
+        current.blocked = { stage: stageIndex, reason: 'check-failed', command, at: Date.now() }
+        return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'check-failed' } }] }
+      })
+      if (updated !== null) emit?.('room', updated)
       return
     }
     markProgress()

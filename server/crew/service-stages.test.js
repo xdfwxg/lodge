@@ -109,6 +109,23 @@ test('accepting the last work stage also confirms the system conclusion', () => 
 
 
 
+test('a person can confirm a plain decision stage without a verdict', () => {
+  const ctx = setup(room({
+    live: false,
+    roomType: 'studio',
+    closure: 'planned',
+    verificationMode: 'manual',
+    verifiers: ['verifier'],
+    stages: [
+      { title: '定方向', kind: 'decision', state: 'active' },
+      { title: '验收与结论', kind: 'decision', state: 'pending' },
+    ],
+  }))
+  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
+  assert.equal(result.ok, true, result.error)
+  assert.equal(ctx.room().stages[0].state, 'passed')
+})
+
 test('a studio cannot sign without a Verifier PASS', () => {
   const ctx = setup(room({
     live: false,

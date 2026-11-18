@@ -27,6 +27,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
   const acceptance = createAcceptanceRunner({
     store,
     roomId,
+    emit,
     markProgress: state.markProgress,
     requestReview: review.request,
     run: commands.run,
@@ -528,11 +529,30 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
         .filter(item => ['created', 'sent', 'working'].includes(item.status))
       const missing = openDispatch.filter(item => !reported.has(item.toMemberId))
       if (missing.length > 0) {
-        for (const rework of [false, true]) {
-          const only = missing.filter(item => (item.reason === 'rework') === rework).map(item => item.toMemberId)
-          if (only.length === 0) continue
+        // 重启后把同一份任务再送给没交回的成员；不再经过规划师，避免它重新开口失败。
+        for (const item of missing) {
+          const prompt = typeof item.brief?.prompt === 'string' ? item.brief.prompt : ''
+          if (prompt === '') {
+            // 旧记录没有存任务原文：退回原来的派发方式。
+            try {
+              await stageStarter.startStage(room, stageIndex, { only: [item.toMemberId], rework: item.reason === 'rework' })
+            } catch (error) {
+              systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；需要你处理。', error })
+            }
+            continue
+          }
           try {
-            await stageStarter.startStage(room, stageIndex, { only, rework })
+            await sendToMember(item.toMemberId, prompt, {
+              intent: item.reason === 'review' ? 'review' : 'handoff',
+              from: item.fromMemberId ?? leadMemberOf(room)?.id ?? '房间',
+              sendId: item.sendId,
+            })
+            const cleared = store.updateRoom(roomId, current => {
+              if (current.blocked?.stage !== stageIndex) return null
+              current.blocked = null
+              return { events: [] }
+            })
+            if (cleared !== null) emit?.('room', cleared)
           } catch (error) {
             systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；需要你处理。', error })
           }

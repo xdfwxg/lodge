@@ -118,8 +118,10 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         next = -1
       }
       if (next >= 0) current.stages[next].state = 'active'
-      // 纯聊天：最后一步通过后房间不结束；但有验收员时，仍必须看到他回报通过。
-      if (next < 0 && roomModeOfRoom(current)?.supportsDelivery === true) {
+      // 纯聊天：最后一步通过后房间不结束；但有验收员时，交付型步骤仍必须看到他回报通过。
+      // 纯决策步骤由人确认就算通过，不该再等验收员。
+      const needsVerdict = stage.kind !== 'decision' || stage.manual === true || stage.title === FINAL_TITLE
+      if (next < 0 && needsVerdict && roomModeOfRoom(current)?.supportsDelivery === true) {
         const hasVerifiers = verifierIds(current).length > 0 || (Array.isArray(current.verifiers) && current.verifiers.length > 0)
         if (hasVerifiers && verdictPassed !== true) {
           transitionError = '验收员还没有回报通过，不能结束这一步'

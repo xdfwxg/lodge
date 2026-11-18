@@ -272,11 +272,24 @@ export const createLiveApprovals = ({
       store.appendMessage(roomId, {
         kind: 'system',
         text: `已回答${memberNameOf(room, memberId)}的问题。`,
+        meta: { kind: 'card-answered', requestId },
       })
       refresh(entry, { force: true })
       return { ok: true, room: store.readRoom(roomId) }
     } catch (error) {
-      return { ok: false, reason: String(error?.message ?? error) }
+      const reason = String(error?.message ?? error)
+      // 基座那边已经不在等这张卡（例如房间重启过）：本地视为回答过，别让人对着死卡点。
+      if (/nothing is waiting/i.test(reason)) {
+        rememberAnswer(entry, requestId)
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: '这张问题已经不在等待，自动收起了。',
+          meta: { kind: 'card-answered', requestId },
+        })
+        refresh(entry, { force: true })
+        return { ok: true, room: store.readRoom(roomId) }
+      }
+      return { ok: false, reason }
     }
   }
 

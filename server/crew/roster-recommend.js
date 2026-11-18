@@ -29,7 +29,7 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '- members[].role 只能写 lead / worker / verifier，不要写 planner / executor / reviewer。',
   '- 名字由角色决定：规划师、执行官、验收员；members 里不用另起名字，reason 说明各成员负责什么。',
   '- why 只写一句话、不超过 45 字：默认写三人如何分工；parallel 时说明两块工作如何并行。不要复述目标，也不要加总结句。',
-  '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。',
+  '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。命令要能检验目标本身，不要只检查文件是否存在。',
   '- 只问真正要人拍板的问题；最多 3 个，每个带推荐答案；没有就空数组。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
   '- stages 由你按任务自己拆：简单任务 1 步就够，复杂的拆到 5 步；不要为了好看硬拆。每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',

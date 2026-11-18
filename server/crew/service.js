@@ -1,5 +1,6 @@
 import { roomModeOfRoom } from './rooms/kinds.js'
-import { memberOf } from './room-members.js'
+import { leadMemberOf, memberOf } from './room-members.js'
+import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
 import { transitionAssignment } from './assignments.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
@@ -299,6 +300,23 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       if (room.live === true) {
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
+        // 所有步骤都通过以后，房间进入完成态：只和规划师说话，不再派活。
+        const allPassed = Array.isArray(room.stages) &&
+          room.stages.length > 0 &&
+          room.stages.every(stage => stage.state === 'passed')
+        if (room.roomType === 'studio' && allPassed && typeof live.sendToMember === 'function') {
+          const lead = leadMemberOf(room)?.id
+          if (typeof lead === 'string' && lead !== '') {
+            appendMessage(roomId, { kind: 'chat', authorId: 'you', text })
+            await live.sendToMember(roomId, lead, [
+              text,
+              '所有步骤都已经通过，这间房在收尾：不要再派活，也不要转给执行官或验收员。',
+              '直接回答；要给新任务，建议人开一间新房。',
+              INTERNAL_PROMPT_MARKER,
+            ].join('\n'), { intent: 'chat', from: 'you' })
+            return accepted({ accepted: true })
+          }
+        }
         // 聊天室里用户是在对主持说话；主持判断直接回答还是请成员讨论。
         // @ 是结构化指令，仍然直接交给被 @ 的成员。
         if (room.roomType === 'chat' && !text.includes('@')) {

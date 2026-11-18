@@ -85,7 +85,17 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       merged.push({ worker, branch })
     }
 
-    const head = workspaceOf(room).head({ path: integration })
+    // 合并结果先落成候选提交：验收副本必须能看见两份改动，不能只 checkout 到旧 HEAD。
+    let candidate = null
+    try {
+      candidate = workspaceOf(room).capabilities().candidate === true
+        ? workspaceOf(room).submit({ path: integration, turnId, name: room.name })
+        : null
+    } catch (error) {
+      systemNotice({ store, roomId, text: '合改动时没能留下结果；需要你处理。', error })
+      return
+    }
+    const head = candidate ?? workspaceOf(room).head({ path: integration })
     for (const item of activeDispatchAssignments(store, roomId, stageIndex)) {
       updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), integrated: true } })
     }

@@ -303,6 +303,71 @@ test('acceptance runs in a disposable copy and records command evidence', async 
   assert.match(store.messages.at(-1).text, /这一步做完了/)
 })
 
+test('a failed acceptance surfaces a blocked room instead of going quiet', async () => {
+  registerWorkspaceProvider('test-live-failcheck', {
+    capabilities: () => ({ acceptanceCopy: true, candidate: false }),
+    changes: () => ({ diff: 'D', status: 'M', files: ['a.js'], manifest: [] }),
+    isolatedCopy: () => ({ path: '/tmp/copy' }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    workspace: { provider: 'test-live-failcheck' },
+    verifiers: [],
+  })
+  const store = fakeStore(room)
+  const emitted = []
+  const runner = createAcceptanceRunner({
+    store,
+    roomId: 'room-1',
+    emit: (_event, updated) => emitted.push(updated),
+    markProgress: () => {},
+    requestReview: async () => {},
+    run: async () => ({ exit: 1, output: 'boom', durationMs: 5 }),
+  })
+  await runner.run(0, 'false', 't3')
+  assert.equal(store.current.blocked?.reason, 'check-failed')
+  assert.equal(store.current.blocked?.command, 'false')
+  assert.ok(emitted.some(updated => updated?.blocked?.reason === 'check-failed'))
+})
+
+test('a rework turn with no new changes surfaces a blocked room instead of stalling', async () => {
+  registerWorkspaceProvider('test-live-nochange', {
+    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
+    changes: () => ({ diff: '', status: '', files: [], manifest: [] }),
+    head: () => 'c1',
+    submit: () => { throw new Error('submit should not run when there is no change') },
+    isolatedCopy: () => { throw new Error('no copy should be made') },
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    workspace: { provider: 'test-live-nochange' },
+    stageBases: { 0: 'base' },
+    verifiers: [],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', { kind: 'rework', seq: 1, meta: { stage: 0 } })
+  store.appendMessage('room-1', {
+    kind: 'evidence', seq: 2, meta: { stage: 0, kind: 'command', command: 'true', exit: 0, head: 'c1' },
+  })
+  const emitted = []
+  const runner = createAcceptanceRunner({
+    store,
+    roomId: 'room-1',
+    emit: (_event, updated) => emitted.push(updated),
+    markProgress: () => {},
+    requestReview: async () => {},
+    run: async () => ({ exit: 0, output: '', durationMs: 1 }),
+  })
+  await runner.run(0, 'true', 't2')
+  assert.equal(store.current.blocked?.reason, 'no-progress')
+  assert.equal(store.current.blocked?.stage, 0)
+  assert.ok(emitted.some(updated => updated?.blocked?.reason === 'no-progress'))
+})
+
 test('review request and verdict consumption update the round without crossing turns', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
@@ -863,6 +928,38 @@ test('restart wakes an assignment that never reported', async () => {
   assert.ok(sent.some(item => item.memberId === 'executor'))
 })
 
+
+test('integration commits the merged tree before the acceptance copy', async () => {
+  let copiedRef = ''
+  registerWorkspaceProvider('test-integration-candidate', {
+    capabilities: () => ({ merge: true, candidate: true }),
+    integrate: () => ({ ok: true, files: [] }),
+    submit: () => 'cand-1',
+    head: () => 'head-1',
+    rangeChanges: async () => ({ diff: '', files: ['a.js'], manifest: [] }),
+    isolatedCopy: ({ ref }) => { copiedRef = ref; return { path: '/tmp/copy' } },
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-integration-candidate' },
+    repoPath: '/repo',
+    sourceRepo: '/src',
+    branches: { executor: 'crew/room/executor' },
+    worktrees: { executor: '/wt/executor' },
+  })
+  const store = fakeStore(room)
+  const integrator = createStageIntegrator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    markProgress: () => {},
+    requestReview: async () => {},
+    run: async () => ({ exit: 0, output: '', durationMs: 1 }),
+  })
+  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
+  assert.equal(copiedRef, 'cand-1')
+  assert.ok(store.messages.some(message => message.kind === 'evidence' && message.meta?.exit === 0))
+})
 
 test('an integration check failure leaves evidence and does not start review', async () => {
   registerWorkspaceProvider('test-integration-check', {
