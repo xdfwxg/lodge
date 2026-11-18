@@ -33,16 +33,35 @@ const firstLine = text => {
   return line.replace(/^[*#>\s]+/, '').replace(/^(结论|判定|验收结论|verdict)\s*[:：]?\s*/i, '')
 }
 
+const VERDICT_REJECT = /(REJECT|不通过|未通过|无法通过|不能通过|没有通过|退回|打回|拒绝|失败)/i
+const VERDICT_PASS = /(PASS|通过|接受|同意)/i
+const PLANNER_REWORK = /(返工|REWORK)/i
+const PLANNER_HUMAN = /(交给人|转人工|handoff|human)/i
+
+// 首行是不是一个明确的判定锚点；没有锚点就说明模型在解释而不是下结论。
+export const judgmentAnchorOf = (type, text) => {
+  const head = firstLine(text)
+  if (head === '') return null
+  if (type === 'planner') {
+    if (PLANNER_REWORK.test(head)) return 'rework'
+    if (PLANNER_HUMAN.test(head)) return 'human'
+    return null
+  }
+  if (VERDICT_REJECT.test(head)) return 'reject'
+  if (VERDICT_PASS.test(head)) return 'pass'
+  return null
+}
+
 // 判定不清按退回，与旧 parseVerdict 的语义保持一致。
 const verdictDecision = text => {
   const head = firstLine(text)
-  if (/(REJECT|不通过|未通过|无法通过|不能通过|没有通过|退回|打回|拒绝|失败)/i.test(head)) return 'reject'
-  if (/(PASS|通过|接受|同意)/i.test(head)) return 'pass'
+  if (VERDICT_REJECT.test(head)) return 'reject'
+  if (VERDICT_PASS.test(head)) return 'pass'
   return 'reject'
 }
 
 const plannerDecision = text => (
-  /(返工|REWORK)/i.test(firstLine(text)) ? 'rework' : 'human'
+  PLANNER_REWORK.test(firstLine(text)) ? 'rework' : 'human'
 )
 
 export const extractJudgmentJson = text => {
@@ -191,7 +210,7 @@ export const validateJudgment = value => {
     actorId: typeof value.actorId === 'string' && value.actorId !== '' ? value.actorId : null,
     rejectTo: REJECT_TARGETS.has(value.rejectTo) ? value.rejectTo : rejectToFor(type, decision),
     at: typeof value.at === 'number' ? value.at : 0,
-    source: ['json', 'text', 'legacy', 'gate'].includes(value.source) ? value.source : 'text',
+    source: ['json', 'text', 'legacy', 'gate', 'missing'].includes(value.source) ? value.source : 'text',
   }
 }
 

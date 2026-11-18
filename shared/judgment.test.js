@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  extractJudgmentJson, gateResultOf, judgmentOf, normalizeJudgment, plannerDecisionOf, validateJudgment, verdictPassed,
+  extractJudgmentJson, gateResultOf, judgmentAnchorOf, judgmentOf, normalizeJudgment, plannerDecisionOf, validateJudgment, verdictPassed,
 } from './judgment.js'
 
 const verdict = (text, extra = {}) => normalizeJudgment({ type: 'verdict', text, stage: 1, evidenceId: 'e1', actorId: 'v1', ...extra })
@@ -131,6 +131,28 @@ test('the gate view maps a verdict reject to fail and routes it', () => {
   const human = gateResultOf(normalizeJudgment({ type: 'planner', text: '交给人\n你定', stage: 0 }))
   assert.equal(human.decision, 'human')
   assert.equal(human.rejectTo, 'human')
+})
+
+test('only an explicit first-line anchor counts as a submitted judgment', () => {
+  assert.equal(judgmentAnchorOf('verdict', 'PASS\nok'), 'pass')
+  assert.equal(judgmentAnchorOf('verdict', '**REJECT**\nmissing'), 'reject')
+  assert.equal(judgmentAnchorOf('verdict', '我看了一下改动，似乎没问题'), null)
+  assert.equal(judgmentAnchorOf('verdict', ''), null)
+  assert.equal(judgmentAnchorOf('planner', '返工\n重写'), 'rework')
+  assert.equal(judgmentAnchorOf('planner', '交给人\n请你定'), 'human')
+  assert.equal(judgmentAnchorOf('planner', '@you 验收员判了没过，需要你拍板'), null)
+})
+
+test('the missing source survives validation', () => {
+  const missing = validateJudgment({
+    version: 1,
+    type: 'planner',
+    decision: 'human',
+    reason: '规划师没有提交决定',
+    rejectTo: 'human',
+    source: 'missing',
+  })
+  assert.equal(missing.source, 'missing')
 })
 
 test('a room planner decision reads its stored contract', () => {

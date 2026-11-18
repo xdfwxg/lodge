@@ -9,7 +9,7 @@ import { createHandoff } from './handoff.js'
 import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
 import { deliverableStageIndex, isWorkStage, memberForRef } from './turn-utils.js'
-import { judgmentOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
+import { judgmentAnchorOf, judgmentOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../shared/gate.js'
 import { activeDispatchAssignments as activeDispatch, assignmentForTurn, latestDispatchAssignment, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
@@ -26,6 +26,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, shadow })
   const autoLoops = new Map()
+  const plannerNudges = new Set()
   const acceptance = createAcceptanceRunner({
     store,
     roomId,
@@ -243,15 +244,77 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const verdictId = latestVerdict.id ?? latestVerdict.seq
     if (room.lastPlannerDecision?.verdictId === verdictId) return false
 
-    const judgment = gateSubmissionOf(calls, {
+    const lead = leadMemberOf(room)?.id
+    const gateJudgment = gateSubmissionOf(calls, {
       type: 'planner',
       stage: stageIndex,
-      actorId: leadMemberOf(room)?.id,
-    }) ?? normalizeJudgment({
+      actorId: lead,
+    })
+    const anchor = gateJudgment === null ? judgmentAnchorOf('planner', turn.reply) : null
+    const nudgeKey = `${stageIndex}:${verdictId}`
+    const settleMissing = () => {
+      const current = store.readRoom(roomId)
+      if (current === null || current.lastPlannerDecision?.verdictId === verdictId) return
+      const missing = {
+        version: 1,
+        type: 'planner',
+        decision: 'human',
+        reason: '规划师没有提交决定，房间先把这一步交给你。',
+        findings: [],
+        actionRequired: '规划师没有提交决定；请决定这一步是重做，还是由你接手。',
+        stage: stageIndex,
+        evidenceId: null,
+        actorId: lead ?? null,
+        rejectTo: 'human',
+        at: Date.now(),
+        source: 'missing',
+      }
+      store.updateRoom(roomId, roomState => {
+        roomState.lastPlannerDecision = {
+          stage: stageIndex,
+          verdictId,
+          kind: 'human',
+          judgment: missing,
+          at: Date.now(),
+        }
+        return { events: [] }
+      })
+      for (const item of activeDispatch(store, roomId, stageIndex)) {
+        transitionAssignment(store, item.id, 'rejected', { resultText: '规划师没有提交决定，已交给人' })
+      }
+      store.appendMessage(roomId, { kind: 'system', text: '规划师没有提交决定，已把这一步交给你处理。' })
+    }
+    // 没有工具提交、首行也不是「返工/交给人」：先催它只提交决定，再收口给人，不猜。
+    if (gateJudgment === null && anchor === null) {
+      if (plannerNudges.has(nudgeKey)) {
+        settleMissing()
+        return true
+      }
+      plannerNudges.add(nudgeKey)
+      if (typeof lead !== 'string' || lead === '' || typeof sendToMember !== 'function') {
+        settleMissing()
+        return true
+      }
+      void sendToMember(lead, [
+        '你这一回合没有提交决定。现在只做一件事：调用 lodge_gate_submit_decision 提交「返工」或「交给人」；',
+        '工具确实不可用时只回复一行「返工」或「交给人」。不要继续调研，也不要改文件。',
+        INTERNAL_PROMPT_MARKER,
+      ].join('\n'), {
+        intent: 'decision',
+        from: '验收流程',
+        sendId: `n-${createHash('sha1').update(nudgeKey).digest('hex').slice(0, 32)}`,
+      }).catch(error => {
+        systemNotice({ store, roomId, text: '没能再叫规划师提交决定；稍后会把这一步交给你。', error })
+      })
+      const timer = setTimeout(settleMissing, 120_000)
+      timer.unref?.()
+      return true
+    }
+    const judgment = gateJudgment ?? normalizeJudgment({
       type: 'planner',
       text: turn.reply,
       stage: stageIndex,
-      actorId: leadMemberOf(room)?.id,
+      actorId: lead,
     })
     store.updateRoom(roomId, current => {
       current.lastPlannerDecision = { stage: stageIndex, verdictId, kind: judgment.decision, judgment, at: Date.now() }

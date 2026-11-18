@@ -204,6 +204,90 @@ test('a planner gate call decides without parsing the reply', () => {
   assert.equal(sent.length, 0)
 })
 
+test('a planner turn without a submitted decision is nudged once, then handed to the human', () => {
+  const room = makeRoom({
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-plan', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+  })
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ reply: '验收员判了没过，需要你拍板', turnId: 't-lead-1', toolCalls: 0 }, 'bot-plan')
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].memberId, 'planner')
+  assert.match(sent[0].prompt, /submit_decision/)
+  assert.equal(room.lastPlannerDecision, undefined)
+
+  turns.captureTurn({ reply: '还是需要你拍板', turnId: 't-lead-2', toolCalls: 0 }, 'bot-plan')
+  assert.equal(room.lastPlannerDecision.kind, 'human')
+  assert.equal(room.lastPlannerDecision.judgment.source, 'missing')
+  assert.match(room.lastPlannerDecision.judgment.actionRequired, /没有提交决定/)
+})
+
+test('a verifier reply without a verdict is nudged, then expires the review', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    seatNames: { executor: 'Exec', verifier: 'Verifier' },
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  assert.equal(review.consume({
+    turn: { reply: '我看了证据，还需要再看看' },
+    memberId: 'verifier',
+    turnId: 't1',
+    room,
+  }), true)
+  assert.equal(review.isBusy(), true)
+  assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+  assert.match(sent.at(-1).prompt, /submit_verdict/)
+
+  assert.equal(review.consume({
+    turn: { reply: '还是没结论' },
+    memberId: 'verifier',
+    turnId: 't2',
+    room,
+  }), true)
+  assert.equal(review.isBusy(), false)
+  assert.ok(store.messages.some(message => message.meta?.kind === 'review_timeout'))
+  assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+})
+
 test('a merge conflict is left for the human instead of being auto-reworked', () => {
   const room = makeRoom({
     leadSeat: 'planner',

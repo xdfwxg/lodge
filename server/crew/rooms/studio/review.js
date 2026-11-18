@@ -3,7 +3,7 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { buildMemberHandoff } from './member-handoff.js'
 import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
-import { DECISION_JSON_HINT, VERDICT_JSON_HINT, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
+import { DECISION_JSON_HINT, VERDICT_JSON_HINT, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../shared/gate.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { workspaceOf } from './workspace.js'
@@ -63,15 +63,27 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     }
     const pending = round?.requests.get(memberId)
     if (pending === undefined) return false
-    round.requests.delete(memberId)
-    clearTimeout(pending.timer)
-    clearTimeout(pending.reminder)
     const gate = gateSubmissionOf(calls, {
       type: 'verdict',
       stage: pending.stage,
       evidenceId: pending.evidenceId,
       actorId: pending.verifier,
     })
+    // 没有工具提交，首行也不是 PASS/REJECT：先催一次，再按“没有判定”收口，不猜结论。
+    if (gate === null && judgmentAnchorOf('verdict', turn.reply) === null) {
+      const name = memberDisplayName(room, memberId)
+      if (pending.nudged !== true) {
+        pending.nudged = true
+        clearTimeout(pending.reminder)
+        void sendToMember(memberId, '你这一回合没有提交判定。现在只做一件事：调用 lodge_gate_submit_verdict 提交 PASS 或 REJECT；工具确实不可用时只回复一行 PASS 或 REJECT。不要继续调研，也不要改文件。').catch(() => {})
+        return true
+      }
+      pending.expire?.(`${name} 没有提交验收判定，这一轮仍未通过。`)
+      return true
+    }
+    round.requests.delete(memberId)
+    clearTimeout(pending.timer)
+    clearTimeout(pending.reminder)
     const judgment = gate ?? normalizeJudgment({
       type: 'verdict',
       text: turn.reply,
@@ -373,19 +385,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         reminder: null,
       }
       nextRound.requests.set(verifier, request)
-      request.reminder = setTimeout(() => {
-        if (round !== nextRound || round.requests.get(verifier) !== request) return
-        void sendToMember(verifier, '复核还没有结论。请现在调用 submit_verdict 提交判定；没有这个工具就只回复一行 PASS 或 REJECT。不要继续调研。').catch(() => {})
-      }, REVIEW_REMINDER).unref()
-      request.timer = setTimeout(() => {
+      const expire = text => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
         round.requests.delete(verifier)
         clearTimeout(request.reminder)
+        clearTimeout(request.timer)
         store.appendEvent(roomId, 'review.timeout', { stage: stageIndex, verifier })
-        store.appendMessage(roomId, {
-          kind: 'system',
-          text: `${verifierName} 复核超时，没有收到验收结论；这一轮仍未通过。`,
-        })
+        store.appendMessage(roomId, { kind: 'system', text })
         if (round.requests.size === 0) {
           const passed = round.passed
           const total = round.total
@@ -399,7 +405,16 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         } else {
           round.timedOut = [...(round.timedOut ?? []), verifier]
         }
-      }, REVIEW_TIMEOUT).unref()
+      }
+      request.expire = expire
+      request.reminder = setTimeout(() => {
+        if (round !== nextRound || round.requests.get(verifier) !== request) return
+        void sendToMember(verifier, '复核还没有结论。请现在调用 submit_verdict 提交判定；没有这个工具就只回复一行 PASS 或 REJECT。不要继续调研。').catch(() => {})
+      }, REVIEW_REMINDER).unref()
+      request.timer = setTimeout(
+        () => expire(`${verifierName} 复核超时，没有收到验收结论；这一轮仍未通过。`),
+        REVIEW_TIMEOUT,
+      ).unref()
       const source = [...messages].reverse().find(message => (
         message.kind === 'evidence' &&
         message.meta?.kind === 'turn' &&

@@ -42,6 +42,12 @@
 - 第二次尝试 `room-3a189c90`「submit_decision 验收 3」：验收员再次 REJECT（source=gate）；规划师回合先 `ToolSearch` 再调用 `mcp__lodge_gate__submit_decision`，`lastPlannerDecision.judgment.source` 为 `gate`，decision 为 `human`，rejectTo 为 `human`
 - 同时修正注意力：规划师把步骤交给人后，房间显示“规划师把这一步交给你”并带上 `actionRequired`，不再显示“待重做”
 
+## 2026-11-19 · 判定提交强制
+
+- 规则：判定回合没有门工具提交、首行也不是 PASS/REJECT 或 返工/交给人 时，先向同一位成员催一次“只提交判定”；再次没有提交，就按“规划师没有提交决定”交给人，不再把解释性文字猜成结论
+- 自动覆盖：`shared/judgment.test.js` 的锚点判定、`server/crew/live-turn-modules.test.js` 的规划师先催后升级与验收员先催后过期
+- 正常路径 smoke：`room-e815cc00` 的验收员只回复 `PASS` 文本，仍然被接受（source=text），没有误触催提交；模型侧没有被强制制造“不提交”的场景，升级路径靠单测覆盖
+
 ## 仍需真实环境
 
 - 规划师通过 `submit_decision` 的“返工”路径（本次真跑的是“交给人”）
