@@ -58,7 +58,11 @@ export const createMessageProjector = ({ store }) => {
         return { ...common, kind: 'system', text: `需要你处理：${text}` }
       }
       // 卡片只属于产生它的阶段和重做轮次；阶段推进或重做后自然失效。
-      const scope = attemptScopeOf({ room, messages: store.readMessages?.(roomId) ?? [] })
+      const scope = attemptScopeOf({
+        room,
+        messages: store.readMessages?.(roomId) ?? [],
+        memberId,
+      })
       return {
         ...common,
         kind: 'question',

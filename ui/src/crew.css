@@ -835,6 +835,8 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 /* Attention: one needs-you signal per room, not unread counts. */
 .crew-unread-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bt-accent);margin-left:2px}
 
+.crew-room-mode-switch{display:flex;justify-content:flex-end;padding:0 16px}
+.crew-room-mode-switch .crew-link{font-size:var(--bt-text-helper)}
 /* Chat room: the scheduler stays invisible; only round progress and a typing hint surface. */
 .crew-typing-line{color:var(--bt-ink-3)}
 .crew-typing-line .crew-msg-body{display:flex;align-items:center;gap:6px;min-height:30px;font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}

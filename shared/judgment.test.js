@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  extractJudgmentJson, judgmentOf, normalizeJudgment, plannerDecisionOf, validateJudgment, verdictPassed,
+  extractJudgmentJson, gateResultOf, judgmentOf, normalizeJudgment, plannerDecisionOf, validateJudgment, verdictPassed,
 } from './judgment.js'
 
 const verdict = (text, extra = {}) => normalizeJudgment({ type: 'verdict', text, stage: 1, evidenceId: 'e1', actorId: 'v1', ...extra })
@@ -116,6 +116,21 @@ test('legacy verdicts still read through the contract', () => {
   assert.equal(judgmentOf(legacy).source, 'legacy')
   assert.equal(judgmentOf(legacy).stage, 0)
   assert.equal(judgmentOf({ kind: 'chat' }), null)
+})
+
+test('the gate view maps a verdict reject to fail and routes it', () => {
+  const reject = gateResultOf(verdict('REJECT\n缺 beta'))
+  assert.equal(reject.decision, 'fail')
+  assert.equal(reject.rejectTo, 'planner')
+  const pass = gateResultOf(verdict('PASS\n可以'))
+  assert.equal(pass.decision, 'pass')
+  assert.equal(pass.rejectTo, null)
+  const rework = gateResultOf(normalizeJudgment({ type: 'planner', text: '返工\n再试一次', stage: 0 }))
+  assert.equal(rework.decision, 'rework')
+  assert.equal(rework.rejectTo, 'worker')
+  const human = gateResultOf(normalizeJudgment({ type: 'planner', text: '交给人\n你定', stage: 0 }))
+  assert.equal(human.decision, 'human')
+  assert.equal(human.rejectTo, 'human')
 })
 
 test('a room planner decision reads its stored contract', () => {

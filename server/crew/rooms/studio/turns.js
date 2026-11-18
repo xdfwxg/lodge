@@ -260,7 +260,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     // 合并冲突要人拍板；规划师自动返工会把冲突清掉，等于替人做了决定。
     if (room.mergeConflict?.stage === stageIndex) return true
     const stage = room.stages?.[stageIndex]
-    if (judgment.decision !== 'rework') {
+    if (judgment.rejectTo !== 'worker') {
       // 交给人是这一步的当前收口：执行交接不再挂着，等人的决定。
       for (const item of activeDispatch(store, roomId, stageIndex)) {
         transitionAssignment(store, item.id, 'rejected', {

@@ -132,7 +132,7 @@ test('adding context to the current step reruns it in place', async () => {
   assert.equal(markers[0].meta.source, 'rewind')
 })
 
-test('rewind needs a note and refuses pending or non-work steps', () => {
+test('rewind needs a note, refuses pending steps, and can reopen a decision node', () => {
   const ctx = setup(room())
   assert.equal(ctx.stages.rewind(ctx.room(), { stage: 0, note: '' }).ok, false)
   const pending = room({
@@ -143,7 +143,10 @@ test('rewind needs a note and refuses pending or non-work steps', () => {
   })
   assert.match(ctx.stages.rewind(pending, { stage: 1, note: 'x' }).error, /还没开始/)
   const decision = room({ stages: [{ title: '定方向', kind: 'decision', state: 'passed' }] })
-  assert.match(ctx.stages.rewind(decision, { stage: 0, note: 'x' }).error, /交付或人工/)
+  const reopened = ctx.stages.rewind(decision, { stage: 0, note: '重新对一下方向' })
+  assert.equal(reopened.ok, true)
+  assert.equal(reopened.body.room.stages[0].state, 'active')
+  assert.equal(reopened.body.room.closure, 'open')
 })
 
 test('rewinding a delivered room reopens it without losing the first step base', async () => {

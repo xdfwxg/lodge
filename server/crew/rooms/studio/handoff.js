@@ -20,6 +20,12 @@ const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidenc
     .slice(0, 32)
 )
 
+const LEASE_MS = 30 * 60_000
+const leaseOf = () => {
+  const at = Date.now()
+  return { token: randomUUID(), at, expiresAt: at + LEASE_MS }
+}
+
 // 接力只做一件事：写一条 Assignment，再把它投递给目标成员。
 // 消息是这次 Assignment 的界面投影，不是交接事实的第二份存储。
 export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
@@ -119,6 +125,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         sendId,
         messageId: stored?.id,
         sentAt: Date.now(),
+        lease: leaseOf(),
       })
       store.appendEvent(roomId, 'assignment.sent', {
         assignmentId: assignment.id,
@@ -141,6 +148,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         sendId,
         messageId: stored?.id,
         sentAt: Date.now(),
+        lease: leaseOf(),
       })
       if (stored !== null) {
         store.upsertMessage?.({

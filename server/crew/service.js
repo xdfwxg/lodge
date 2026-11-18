@@ -10,6 +10,7 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
+import { createModeSwitch } from './mode-switch.js'
 import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
@@ -59,6 +60,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
   const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles })
   const chat = createServiceChat({ store, live, emit })
+  const modeSwitch = createModeSwitch({ store, engine, live, emit })
   const memberAdd = createMemberAdd({
     store,
     engine,
@@ -450,8 +452,16 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       return stages.rework(room, await readBody())
     }
 
+    if (action === 'retry' && method === 'POST') {
+      return stages.retry(room, await readBody())
+    }
+
     if (action === 'rewind' && method === 'POST') {
       return stages.rewind(room, await readBody())
+    }
+
+    if (action === 'switch-mode' && method === 'POST') {
+      return modeSwitch.switchMode(room, await readBody())
     }
 
     if (action === 'subrooms' && method === 'POST') {
@@ -466,5 +476,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     createRoom,
     createSampleRoom,
     roomRequest,
+    switchMode: modeSwitch.switchMode,
   }
 }

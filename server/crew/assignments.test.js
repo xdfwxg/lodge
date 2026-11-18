@@ -90,6 +90,35 @@ test('migration is idempotent and does not duplicate a stage member', () => {
   assert.equal(store.readAssignments('room-1').length, afterFirst)
 })
 
+test('each new handoff to the same member is a new attempt', () => {
+  const room = {
+    id: 'room-1',
+    members: [{ id: 'lead' }, { id: 'worker' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }],
+  }
+  const { store } = makeStore(room)
+  const first = createAssignment({ store, roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker' })
+  const second = createAssignment({ store, roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker', reason: 'rework' })
+  assert.equal(first.attempt, 1)
+  assert.equal(second.attempt, 2)
+})
+
+test('a sent branch carries a lease and releases it when it reports', () => {
+  const room = {
+    id: 'room-1',
+    members: [{ id: 'lead' }, { id: 'worker' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }],
+  }
+  const { store } = makeStore(room)
+  const assignment = createAssignment({ store, roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker' })
+  assert.equal(assignment.lease, null)
+  const lease = { token: 'lease-1', at: 10, expiresAt: 20 }
+  transitionAssignment(store, assignment.id, 'sent', { lease })
+  assert.equal(store.readAssignment(assignment.id).lease.token, 'lease-1')
+  transitionAssignment(store, assignment.id, 'reported')
+  assert.equal(store.readAssignment(assignment.id).lease, null)
+})
+
 test('dispatch and tasks project from assignments without the room', () => {
   const assignments = [
     { id: 'a1', stageIndex: 0, toMemberId: 'w1', reason: 'dispatch', status: 'reported', context: { base: 'base' }, flags: { integrated: true }, createdAt: 1 },

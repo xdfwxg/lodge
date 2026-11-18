@@ -26,7 +26,7 @@ export const RUNTIME_METHOD_GROUPS = Object.freeze({
     'rooms', 'createRoom', 'deleteRoom', 'updateRoomMembers',
     'setRoomMentions', 'setRoomHold', 'markRoomRead',
   ]),
-  members: Object.freeze(['createMemberBot', 'setBotSkills', 'deleteMemberBot', 'instances']),
+  members: Object.freeze(['createMemberBot', 'patchMemberBot', 'setBotSkills', 'deleteMemberBot', 'instances']),
   cards: Object.freeze(['answerCard']),
   observability: Object.freeze(['health', 'capabilities', 'features']),
 })

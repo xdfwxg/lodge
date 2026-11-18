@@ -42,9 +42,9 @@ const roomOf = () => ({
   approvals: [],
 })
 
-const harness = ({ authenticated, failShared } = {}) => {
+const harness = ({ authenticated, failPatch } = {}) => {
   let room = roomOf()
-  const calls = { created: [], shared: [], deleted: [], messages: [], events: [], detached: [], attached: [], skills: [] }
+  const calls = { created: [], patched: [], messages: [], events: [], detached: [], attached: [], skills: [] }
   const store = {
     readRoom: () => room,
     updateRoom: (_id, mutator) => {
@@ -63,14 +63,12 @@ const harness = ({ authenticated, failShared } = {}) => {
       calls.created.push(input)
       return { id: 'bot-new', name: input.name, engine: 'claude', model: input.model ?? 'sonnet' }
     },
-    setBotSkills: async (id, skills) => calls.skills.push({ id, skills }),
-    createRoom: async input => ({ id: 'base-new', sessionRef: 'thread-new', input }),
-    updateRoomMembers: async (id, members) => {
-      if (failShared === true) throw new Error('base 409 /api/groups/x: {"error":"this channel is working or waiting on you — finish that turn first"}')
-      calls.shared.push({ id, members })
+    patchMemberBot: async (id, payload) => {
+      if (failPatch === true) throw new Error('base 409 /api/bots/x: {"error":"this channel is working — stop that turn first"}')
+      calls.patched.push({ id, payload })
+      return { id, threadId: 'thread-worker', engine: payload.modelSelection.instanceId, model: payload.modelSelection.model }
     },
-    deleteRoom: async id => calls.deleted.push({ room: id }),
-    deleteMemberBot: async id => calls.deleted.push({ bot: id }),
+    setBotSkills: async (id, skills) => calls.skills.push({ id, skills }),
   }
   const swap = createBodySwap({
     store,
@@ -95,23 +93,20 @@ test('swapping keeps the member and its history, and replaces the body', async (
   const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, true, result.error)
   const worker = room.members.find(item => item.id === 'worker')
-  assert.equal(worker.body.ref, 'bot-new')
-  assert.equal(worker.body.roomRef, 'base-new')
-  assert.equal(worker.body.sessionRef, 'thread-new')
+  assert.equal(worker.body.ref, 'bot-worker')
+  assert.equal(worker.body.roomRef, 'base-worker')
+  assert.equal(worker.body.sessionRef, 'thread-worker')
   assert.equal(worker.body.engine, 'claude')
   assert.equal(worker.body.model, 'sonnet')
   assert.equal(room.state, 'active')
   assert.equal(room.pauseReason, null)
   assert.equal(room.memberError, undefined)
   assert.equal(room.independence, 'vendor')
-  assert.deepEqual(calls.detached, ['worker'])
-  assert.deepEqual(calls.attached, ['worker'])
-  assert.ok(calls.shared.some(call => call.members.includes('bot-new') && !call.members.includes('bot-worker')))
-  assert.ok(calls.deleted.some(item => item.room === 'base-worker'))
-  assert.ok(calls.deleted.some(item => item.bot === 'bot-worker'))
+  assert.equal(calls.created.length, 0)
+  assert.equal(calls.patched[0].id, 'bot-worker')
+  assert.match(calls.patched[0].payload.soul, /你是worker/)
   assert.match(calls.messages.at(-1).text, /换好了身体/)
   assert.equal(calls.events.some(event => event.type === 'member.body.swapped'), true)
-  assert.match(calls.created[0].soul, /你是worker/)
 })
 
 test('the body carries an editable soul, skills and tools', async () => {
@@ -129,9 +124,9 @@ test('the body carries an editable soul, skills and tools', async () => {
   assert.equal(worker.body.spec.prompt, '只做复核，不解释。')
   assert.deepEqual(worker.body.spec.skills, ['review'])
   assert.deepEqual(worker.body.spec.mcp, [{ server: 'github', scopes: ['read'], approval: 'ask' }])
-  assert.match(calls.created[0].soul, /只做复核，不解释/)
+  assert.match(calls.patched[0].payload.soul, /只做复核，不解释/)
   assert.deepEqual(calls.skills[0].skills, ['review'])
-  assert.equal(calls.created[0].mcp[0].server, 'github')
+  assert.deepEqual(calls.patched[0].payload.mcp.map(grant => grant.server), ['github'])
 })
 
 test('bad skill or tool names are refused', async () => {
@@ -167,8 +162,8 @@ test('a busy chat room waits for the round to end', async () => {
   assert.equal(calls.created.length, 0)
 })
 
-test('a base that is still talking is reported in plain Chinese', async () => {
-  const { swap } = harness({ failShared: true })
+test('a base that refuses the patch is reported in plain Chinese', async () => {
+  const { swap } = harness({ failPatch: true })
   const result = await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
   assert.match(result.error, /等这一轮结束/)

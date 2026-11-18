@@ -14,6 +14,14 @@ const LIMITS = Object.freeze({
 const SEVERITIES = new Set(['blocker', 'major', 'minor'])
 const VERDICT_DECISIONS = new Set(['pass', 'reject'])
 const PLANNER_DECISIONS = new Set(['rework', 'human'])
+const REJECT_TARGETS = new Set(['planner', 'worker', 'human'])
+
+export const GATE_DECISIONS = Object.freeze(['pass', 'rework', 'fail', 'human'])
+
+const rejectToFor = (type, decision) => {
+  if (type === 'planner') return decision === 'human' ? 'human' : 'worker'
+  return decision === 'pass' ? null : 'planner'
+}
 
 const clip = (value, max) => {
   const text = String(value ?? '').trim()
@@ -99,6 +107,7 @@ export const normalizeJudgment = ({ type, text, stage = null, evidenceId = null,
     stage: Number.isInteger(stage) ? stage : null,
     evidenceId: typeof evidenceId === 'string' && evidenceId !== '' ? evidenceId : null,
     actorId: typeof actorId === 'string' && actorId !== '' ? actorId : null,
+    rejectTo: rejectToFor(type, decision),
     at: typeof at === 'number' ? at : Date.now(),
     source: json === null ? 'text' : 'json',
   }
@@ -152,6 +161,8 @@ export const judgmentFromGate = ({
     reason,
     findings: type === 'verdict' ? normalizeFindings(input.findings) : [],
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
+    // rejectTo 是业务路由，模型不能把失败退回给别的角色。
+    rejectTo: rejectToFor(type, decision),
     stage,
     evidenceId,
     actorId,
@@ -178,6 +189,7 @@ export const validateJudgment = value => {
     stage: Number.isInteger(value.stage) ? value.stage : null,
     evidenceId: typeof value.evidenceId === 'string' && value.evidenceId !== '' ? value.evidenceId : null,
     actorId: typeof value.actorId === 'string' && value.actorId !== '' ? value.actorId : null,
+    rejectTo: REJECT_TARGETS.has(value.rejectTo) ? value.rejectTo : rejectToFor(type, decision),
     at: typeof value.at === 'number' ? value.at : 0,
     source: ['json', 'text', 'legacy', 'gate'].includes(value.source) ? value.source : 'text',
   }
@@ -199,6 +211,7 @@ export const judgmentOf = message => {
     stage: Number.isInteger(message?.meta?.stage) ? message.meta.stage : null,
     evidenceId: typeof message?.meta?.evidenceId === 'string' ? message.meta.evidenceId : null,
     actorId: typeof message?.authorId === 'string' ? message.authorId : null,
+    rejectTo: pass ? null : 'planner',
     at: typeof message?.ts === 'number' ? message.ts : 0,
     source: 'legacy',
   }
@@ -207,6 +220,21 @@ export const judgmentOf = message => {
 export const verdictPassed = message => judgmentOf(message)?.decision === 'pass'
 
 export const plannerDecisionOf = room => validateJudgment(room?.lastPlannerDecision?.judgment)
+
+// 统一的人工门视图：验收的 reject 就是 GateResult 里的 fail。
+export const gateResultOf = judgment => {
+  const valid = validateJudgment(judgment)
+  if (valid === null) return null
+  return {
+    decision: valid.type === 'verdict'
+      ? (valid.decision === 'pass' ? 'pass' : 'fail')
+      : valid.decision,
+    reason: valid.reason,
+    actionRequired: valid.actionRequired,
+    findings: valid.findings,
+    rejectTo: valid.rejectTo,
+  }
+}
 
 export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据"}]}；最多 3 条 findings，没有就写空数组。'
 

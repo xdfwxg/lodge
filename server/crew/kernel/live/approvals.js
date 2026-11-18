@@ -142,7 +142,11 @@ export const createLiveApprovals = ({
       label: external.label,
       summary: external.summary,
       ...(typeof external.command === 'string' && external.command !== '' ? { command: external.command } : {}),
-      scope: attemptScopeOf({ room, messages: store.readMessages?.(entry.roomId) ?? [] }),
+      scope: attemptScopeOf({
+        room,
+        messages: store.readMessages?.(entry.roomId) ?? [],
+        memberId,
+      }),
       state: 'pending',
       at: Date.now(),
     }

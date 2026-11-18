@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { gateStatus, stageNeedsHuman } from './stage-gate.js'
+import { gateStatus, stageGate, stageNeedsHuman } from './stage-gate.js'
 
 const room = (needsYou, verifiers = []) => ({ needsYou, verifiers })
 
@@ -30,6 +30,18 @@ test('a manual stage still asks the human to sign after the Verifier passes', ()
     stages: [{ manual: true, kind: 'decision', state: 'active' }],
   }
   assert.equal(stageNeedsHuman(manual, 0), true)
+})
+
+test('stageGate exposes valid human actions for the current stage', () => {
+  const active = {
+    state: 'active',
+    stages: [{ state: 'active', kind: 'deliverable', manual: true, acceptance: 'npm test' }],
+    messages: [{ kind: 'evidence', id: 'e1', seq: 2, meta: { kind: 'manual', stage: 0 } }],
+    needsYou: { kind: 'auto-check', stage: 0 },
+    verifiers: [],
+  }
+  const ids = stageGate(active).actions.map(action => action.id)
+  assert.deepEqual(ids, ['pass', 'rework', 'retry', 'manual-pass', 'rewind', 'no-retry'])
 })
 
 test('manual gate status follows the Verifier verdict', () => {

@@ -325,6 +325,13 @@ export const createLiveRooms = ({
     return entry.strategy.startStage(entry, room, index, { note, rework: true })
   }
 
+  // 并行阶段只重开一个分支，其他成员的工作和证据不动。
+  const retryMember = async (room, index, memberId, note) => {
+    const entry = entries.get(room.id)
+    if (entry === undefined) throw new Error('房间还没有连上')
+    return entry.strategy.startStage(entry, room, index, { note, rework: true, only: [memberId] })
+  }
+
   const decideApproval = async (roomId, approvalId, decision) => approvals.decideApproval({
     entry: entries.get(roomId),
     roomId,
@@ -443,6 +450,7 @@ export const createLiveRooms = ({
     isAttached: roomId => entries.has(roomId),
     startStage,
     reworkStage,
+    retryMember,
     startChat,
     continueChat,
     hostIntent,

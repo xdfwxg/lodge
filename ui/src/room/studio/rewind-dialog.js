@@ -7,6 +7,11 @@ export const workStagesOf = room => (room?.stages ?? [])
   .map((stage, index) => ({ ...stage, index }))
   .filter(isWorkStage)
 
+// 人工门可以从任意非 pending 节点重开；决策节点重开后由规划师重新说明或由人重新确认。
+export const adjustableStagesOf = room => (room?.stages ?? [])
+  .map((stage, index) => ({ ...stage, index }))
+  .filter(stage => stage.state !== 'pending')
+
 export const rewindActionLabel = state => (state === 'active' ? '补一句再跑' : '退回并重跑')
 
 const stateLabel = stage => (
@@ -15,7 +20,7 @@ const stateLabel = stage => (
 
 // 调整步骤：当前步骤是“补一句再跑”，已通过的步骤是“退回并重跑”。
 export function StageRewindDialog({ room, busy = false, error = null, onCancel, onConfirm }) {
-  const stages = workStagesOf(room)
+  const stages = adjustableStagesOf(room)
   const active = stages.find(stage => stage.state === 'active')
   const lastPassed = [...stages].reverse().find(stage => stage.state === 'passed')
   const [selected, setSelected] = useState(active?.index ?? lastPassed?.index ?? stages[0]?.index ?? -1)
@@ -77,7 +82,7 @@ export function StudioAdjust({ room, onRewind }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
-  const stages = (room.stages ?? []).filter(isWorkStage)
+  const stages = (room.stages ?? []).filter(stage => stage.state !== 'pending')
   if (room.state !== 'active' || room.live !== true || stages.length === 0) return null
   const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
   return h(Fragment, null,

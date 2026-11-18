@@ -1,5 +1,6 @@
 import { personalityById } from '../../shared/personalities.js'
 import { DEFAULT_STUDIO_ROSTER } from '../../shared/studio-roster.js'
+import { materializeRole } from '../../shared/role-definitions.js'
 
 // 成员是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
 const ROLE_NAME = Object.fromEntries(DEFAULT_STUDIO_ROSTER.map(member => [member.role, member.name]))
@@ -7,54 +8,7 @@ const TOOL_SCOPES = ['read', 'exec', 'write']
 const sameSet = (a, b) => a.length === b.length && [...a].sort().join('\0') === [...b].sort().join('\0')
 const isId = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
 
-const deliveryTriad = [
-  {
-    id: 'planner',
-    name: ROLE_NAME.lead,
-    title: '规划',
-    role: 'lead',
-    station: '只读 · 拆阶段与派活',
-    engine: 'claude-cli',
-    permissions: { read: true, exec: false, write: false },
-    writeScope: 'none',
-    toolSurface: ['read'],
-    skills: [],
-    mcp: [],
-    approval: 'ask',
-    prompt: '你是规划师。你的执行成员是 @执行官，验收成员是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。',
-  },
-  {
-    id: 'executor',
-    name: ROLE_NAME.worker,
-    title: '实现',
-    role: 'worker',
-    station: '独立副本写 · 改代码跑测试',
-    engine: 'codex-cli',
-    permissions: { read: true, exec: true, write: true },
-    writeScope: 'own_worktree',
-    toolSurface: ['read', 'exec', 'write'],
-    skills: [],
-    mcp: [],
-    // 基座在 auto 下会自动放行 WebSearch；外部访问仍要经过 Lodge 的审批卡。
-    approval: 'ask',
-    prompt: '你是执行官。你的验收成员是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
-  },
-  {
-    id: 'verifier',
-    name: ROLE_NAME.verifier,
-    title: '复核',
-    role: 'verifier',
-    station: '只读副本 · 只写结论',
-    engine: 'claude-cli',
-    permissions: { read: true, exec: true, write: false },
-    writeScope: 'none',
-    toolSurface: ['read', 'exec'],
-    skills: [],
-    mcp: [],
-    approval: 'ask',
-    prompt: '你是验收员。用简洁、直接的中文沟通；只依据证据判断，不替执行官解释。',
-  },
-]
+const deliveryTriad = ['lead', 'worker', 'verifier'].map(role => materializeRole(role))
 
 const ROLE_TEMPLATE = {
   lead: deliveryTriad[0],

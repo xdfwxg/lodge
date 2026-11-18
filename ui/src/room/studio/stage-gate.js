@@ -1,6 +1,7 @@
 // 阶段门的纯投影：只看房间与消息，不依赖 React，方便单独验证。
 import { reworkFloor } from '../../../../shared/attempt.js'
 import { verdictPassed } from '../../../../shared/judgment.js'
+import { humanGateActionsOf } from '../../../../shared/human-gate.js'
 
 const HUMAN_GATE_KINDS = new Set(['decision', 'setup', 'rework', 'blocked'])
 
@@ -23,7 +24,18 @@ export const stageGate = room => {
   const manualReady = activeStage?.manual === true && room.messages.some(message => (
     message.kind === 'evidence' && (message.seq ?? 0) > floor && message.meta?.kind === 'manual' && (message.meta?.stage ?? 0) === activeIndex
   ))
-  return { activeIndex, activeStage, floor, hasPass, manualReady }
+  const needs = room.needsYou
+  const actions = humanGateActionsOf({
+    state: activeStage === undefined ? 'stale' : 'open',
+    canPass: hasPass || manualReady,
+    canRework: activeStage !== undefined && activeStage.state === 'active' && room.state === 'active',
+    canRetry: needs?.kind === 'review-timeout' || needs?.kind === 'auto-check',
+    canContinue: room.state === 'paused',
+    canManualPass: manualReady,
+    canRewind: activeStage !== undefined && (activeStage.kind === 'deliverable' || activeStage.manual === true),
+    canNoRetry: needs?.kind === 'rework' || needs?.kind === 'auto-check',
+  })
+  return { activeIndex, activeStage, floor, hasPass, manualReady, actions }
 }
 
 export const gateStatus = room => {

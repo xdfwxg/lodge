@@ -193,6 +193,40 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     return ok({ room: finalRoom })
   }
 
+  // 重试是重做的一种：不要求人再写一段原因，直接按当前目标再跑一次。
+  // 带 memberId 时只重开这条并行分支，兄弟分支的证据和结果保留。
+  const retry = (room, body) => {
+    const note = typeof body?.note === 'string' && body.note.trim() !== ''
+      ? body.note.trim().slice(0, 2000)
+      : '按当前目标再试一次。'
+    const memberId = typeof body?.memberId === 'string' ? body.memberId.trim() : ''
+    if (memberId === '') return rework(room, { ...body, note })
+    const index = Number(body?.stage)
+    const stage = room.stages?.[index]
+    if (stage === undefined) return fail('invalid', '没有这一步')
+    if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这一步不能重试')
+    if (stage.state !== 'active') return fail('conflict', '这一步现在不需要重试')
+    if (room.state !== 'active') return fail('conflict', '先让房间继续，再重试这一分支')
+    if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
+    if (activeDispatchAssignments(store, room.id, index).every(item => item.toMemberId !== memberId)) {
+      return fail('invalid', '这个成员没有这一步的分支')
+    }
+    const message = appendMessage(room.id, {
+      kind: 'rework',
+      authorId: 'you',
+      text: note,
+      meta: { stage: index, source: 'retry', memberId, requestedAt: Date.now() },
+    })
+    if (room.live === true && typeof live.retryMember === 'function') {
+      void live.retryMember(room, index, memberId, note).catch(error => {
+        systemNotice({ store, roomId: room.id, text: '这一分支没能重试；需要你处理。', error })
+      })
+    } else {
+      appendMessage(room.id, { kind: 'system', text: '已记录重试意见；这个房间现在没有连上，需要你继续或重新开始。' })
+    }
+    return ok({ room, message })
+  }
+
   const rework = (room, body) => {
     const index = Number(body?.stage)
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : ''
@@ -239,7 +273,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 4000) : ''
     const stage = room.stages?.[index]
     if (stage === undefined) return fail('invalid', '没有这一步')
-    if (!isWorkStage(stage)) return fail('invalid', '只有交付或人工步骤能退回')
+    if (!isWorkStage(stage) && stage.kind !== 'decision') return fail('invalid', '只有步骤能退回')
     if (stage.state === 'pending') return fail('conflict', '这一步还没开始，不能退回')
     if (room.state !== 'active') return fail('conflict', '先让房间继续，再退回这一步')
     if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
@@ -257,7 +291,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       for (const key of Object.keys(current.stageBases ?? {})) {
         if (Number(key) > index) delete current.stageBases[key]
       }
-      current.closure = 'executing'
+      current.closure = stage.kind === 'decision' ? 'open' : 'executing'
       current.mergeConflict = null
       current.blocked = null
       current.autoCheck = null
@@ -289,7 +323,24 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     }
     emit('room', updated)
     expireCards(room.id, '这一步已经重做了')
-    if (room.live === true && typeof live.reworkStage === 'function') {
+    if (stage.kind === 'decision') {
+      const lead = leadMemberOf(updated)?.id
+      if (stage.manual === true) {
+        appendMessage(room.id, { kind: 'system', text: `第 ${index + 1} 步「${stage.title}」重新打开，请你重新确认。` })
+      } else if (typeof lead === 'string' && lead !== '' && room.live === true && typeof live.sendToMember === 'function') {
+        const prompt = [
+          `第 ${index + 1} 步「${stage.title}」要重新确认。`,
+          `用户补充：${note}`,
+          '请只重新说明这一步的结论或方案；不要改文件，不要验收。',
+          INTERNAL_PROMPT_MARKER,
+        ].join('\n')
+        void live.sendToMember(updated.id, lead, prompt, { intent: 'notice', from: 'you' }).catch(error => {
+          systemNotice({ store, roomId: room.id, text: '这一步没能重新开始；需要你处理。', error })
+        })
+      } else {
+        appendMessage(room.id, { kind: 'system', text: '这一步已经重新打开；需要你继续或重新开始。' })
+      }
+    } else if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {
         systemNotice({ store, roomId: room.id, text: '退回没能开始；需要你处理。', error })
       })
@@ -337,5 +388,5 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     return ok({ room, message })
   }
 
-  return { accept, rework, rewind, setAcceptance }
+  return { accept, rework, retry, rewind, setAcceptance }
 }

@@ -2,6 +2,7 @@ import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
+import { RoomModeSwitch } from '../room/mode-switch.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
@@ -185,7 +186,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const actions = {
     store,
     accept: stage => void store.accept(stage),
+    rework: (stage, note) => void store.rework(stage, note),
+    retry: (stage, note) => void store.retry(stage, note),
     rewind: (stage, note) => store.rewind(stage, note),
+    switchMode: (mode, roles) => store.switchMode(mode, roles),
     resumeChat: () => store.resumeChat(),
     resume: () => store.resumeRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
@@ -226,6 +230,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id, 'data-room-done': finished ? 'true' : undefined },
       mode.header(viewCtx),
+      h(RoomModeSwitch, { key: `mode-${room.id}`, room, onSwitch: actions.switchMode }),
       mode.activity(viewCtx),
       h('div', {
         ref: scroll,

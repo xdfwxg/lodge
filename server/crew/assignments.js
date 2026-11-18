@@ -44,6 +44,13 @@ const assertTarget = ({ store, roomId, reason, toMemberId, toRoomId }) => {
   }
 }
 
+const nextAttempt = (store, roomId, stageIndex, toMemberId) => {
+  if (typeof toMemberId !== 'string' || toMemberId === '') return 1
+  const prior = assignmentsForStage(store, roomId, stageIndex)
+    .filter(item => isWorkAssignment(item) && item.toMemberId === toMemberId)
+  return prior.reduce((max, item) => Math.max(max, Number(item.attempt) || 0), 0) + 1
+}
+
 export const createAssignment = ({
   store,
   roomId,
@@ -58,6 +65,7 @@ export const createAssignment = ({
   status = 'created',
   evidenceIds = [],
   id = null,
+  attempt = null,
 }) => {
   // 同一个 id 永远对应同一次交接：存在就返回原记录，不覆盖证据和结果。
   if (id !== null) {
@@ -74,6 +82,7 @@ export const createAssignment = ({
     toMemberId,
     toRoomId,
     reason,
+    attempt: Number.isInteger(attempt) && attempt > 0 ? attempt : nextAttempt(store, roomId, stageIndex, toMemberId),
     brief,
     status,
     sendId: null,
@@ -85,6 +94,7 @@ export const createAssignment = ({
     resultText: '',
     parentAssignmentId,
     context,
+    lease: null,
     flags: {},
     createdAt: at,
     sentAt: null,
@@ -122,9 +132,8 @@ export const latestDispatchAssignment = (store, roomId, stageIndex, memberId = n
 export const updateAssignment = (store, id, patch) => store.updateAssignment(id, assignment => {
   Object.assign(assignment, patch)
   if (patch.status === 'sent' && assignment.sentAt === null) assignment.sentAt = now()
-  if (ASSIGNMENT_TERMINAL.includes(patch.status) && assignment.finishedAt === null) {
-    assignment.finishedAt = now()
-  }
+  if (patch.status === 'reported' || ASSIGNMENT_TERMINAL.includes(patch.status)) assignment.lease = null
+  if (ASSIGNMENT_TERMINAL.includes(patch.status) && assignment.finishedAt === null) assignment.finishedAt = now()
   return true
 })
 
@@ -135,6 +144,7 @@ export const transitionAssignment = (store, id, status, patch = {}) => {
     if (!canTransition(assignment.status, status)) return false
     Object.assign(assignment, patch, { status })
     if (status === 'sent' && assignment.sentAt === null) assignment.sentAt = now()
+    if (status === 'reported' || ASSIGNMENT_TERMINAL.includes(status)) assignment.lease = null
     if (ASSIGNMENT_TERMINAL.includes(status) && assignment.finishedAt === null) assignment.finishedAt = now()
     return true
   })

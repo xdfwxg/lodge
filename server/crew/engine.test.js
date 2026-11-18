@@ -14,6 +14,10 @@ const fakeClient = () => {
       captured.bot = payload
       return { bot: { id: 'member-1', name: payload.name } }
     },
+    patchBot: async (id, payload) => {
+      captured.botPatch = { id, payload }
+      return { bot: { id, threadId: 'thread-1', modelSelection: payload.modelSelection } }
+    },
     createGroup: async payload => {
       captured.group = payload
       return { group: { id: 'group-1', threadId: 'thread-1' } }
@@ -59,6 +63,28 @@ test('member prompts and semantic capability settings cross the engine port', as
   assert.equal(engine.capabilities().mcp, true)
   assert.equal(engine.capabilities().cancel, true)
   assert.equal(engine.capabilities().schedules, false)
+})
+
+test('a body patch keeps semantic fields on this side of the port', async () => {
+  const client = fakeClient()
+  const engine = createEngine({ client })
+  const result = await engine.patchMemberBot('bot-1', {
+    soul: '新性格',
+    description: '工位',
+    approval: 'ask',
+    mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }],
+    roomTools: ['lodge_gate'],
+    modelSelection: { instanceId: 'pi', model: 'deepseek/deepseek-flash' },
+  })
+  assert.equal(result.threadId, 'thread-1')
+  assert.deepEqual(client.captured.botPatch.payload, {
+    soul: '新性格',
+    description: '工位',
+    approvalMode: 'ask',
+    mcpServers: ['github', 'lodge_gate'],
+    toolScope: { deny: ['mcp:agents:*'] },
+    modelSelection: { instanceId: 'pi', model: 'deepseek/deepseek-flash' },
+  })
 })
 
 test('room holds cross the engine port as a member reference', async () => {

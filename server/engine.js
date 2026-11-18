@@ -406,6 +406,30 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
+  // 原地换身体：基座支持在同一个 bot/thread 上换模型和设定，历史不用重开。
+  // 语义参数留在业务侧，基座字段只在这个适配层出现。
+  const patchMemberBot = async (botId, { soul, description, approval, mcp = [], roomTools = [], modelSelection }) => {
+    const servers = [...new Set([
+      ...(Array.isArray(mcp) ? mcp.map(grant => grant.server) : []),
+      ...(Array.isArray(roomTools) ? roomTools : []),
+    ])]
+    const body = await client.patchBot(botId, {
+      ...(typeof soul === 'string' && soul !== '' ? { soul } : {}),
+      ...(typeof description === 'string' && description !== '' ? { description } : {}),
+      ...(approval === undefined ? {} : { approvalMode: approval }),
+      mcpServers: servers,
+      toolScope: { deny: ['mcp:agents:*'] },
+      modelSelection,
+    })
+    const bot = body?.bot ?? body
+    return {
+      id: bot?.id ?? botId,
+      threadId: typeof bot?.threadId === 'string' ? bot.threadId : null,
+      engine: bot?.modelSelection?.instanceId ?? null,
+      model: bot?.modelSelection?.model ?? null,
+    }
+  }
+
   const setBotSkills = async (botId, skills) => {
     const body = await client.setBotSkills(botId, skills)
     return { ok: true, assignedSkills: Array.isArray(body?.assignedSkills) ? body.assignedSkills : skills }
@@ -518,6 +542,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     features,
     health,
     createMemberBot,
+    patchMemberBot,
     setBotSkills,
     createRoom,
     updateRoomMembers,

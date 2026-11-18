@@ -66,6 +66,13 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
       timeout: 20_000,
     }),
 
+    patchBot: (botId, payload) => json(`/api/bots/${botId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      timeout: 20_000,
+    }),
+
     mcpServers: () => json('/api/mcp/servers'),
 
     createMcpServer: payload => json('/api/mcp/servers', {
