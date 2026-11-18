@@ -112,6 +112,12 @@ test('a rejected stage routes the planner decision to the executor or the human'
   assert.match(worker.prompt, /改成写入欢迎语/)
   assert.match(worker.prompt, /lodge-internal/)
   assert.equal(room.lastPlannerDecision.kind, 'rework')
+  assert.equal(room.lastPlannerDecision.judgment.decision, 'rework')
+  assert.ok(store.messages.some(message => (
+    message.kind === 'rework' &&
+    message.meta?.stage === 0 &&
+    message.meta?.source === 'planner'
+  )))
   const reworkAssignment = store.readAssignments('room-1').find(item => item.reason === 'rework')
   assert.equal(reworkAssignment.parentAssignmentId, 'as-old')
   assert.equal(store.readAssignment('as-old').status, 'failed')

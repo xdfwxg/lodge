@@ -24,6 +24,41 @@ test('a question card renders options and a free-text answer', () => {
   assert.match(html, /回答/)
 })
 
+test('a stale question card hides its controls', () => {
+  const html = renderToStaticMarkup(h(QuestionCard, {
+    message: {
+      id: 'q1',
+      ts: 1,
+      authorId: 'worker',
+      text: '选哪个方案？',
+      meta: { card: { requestId: 'ask-1', options: ['A', 'B'], scope: { stage: 0, floor: -1 } } },
+    },
+    state: 'stale',
+    onAnswer: () => {},
+  }))
+  assert.match(html, /这一步已经变了/)
+  assert.match(html, /这张卡已失效/)
+  assert.doesNotMatch(html, /写下回答/)
+  assert.doesNotMatch(html, />A</)
+})
+
+test('an answered question card stays readable without inputs', () => {
+  const html = renderToStaticMarkup(h(QuestionCard, {
+    message: {
+      id: 'q1',
+      ts: 1,
+      authorId: 'worker',
+      text: '选哪个方案？',
+      meta: { card: { requestId: 'ask-1', options: ['A', 'B'] } },
+    },
+    state: 'answered',
+    onAnswer: () => {},
+  }))
+  assert.match(html, /已回答/)
+  assert.match(html, /这张问题已经回答/)
+  assert.doesNotMatch(html, /写下回答/)
+})
+
 test('a queued human message offers cancel and steer', () => {
   const room = { seatSpecs: [] }
   const message = {

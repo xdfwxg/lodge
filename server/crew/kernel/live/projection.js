@@ -9,6 +9,7 @@ export const memberForRef = (room, ref) => {
 import { memberDisplayName, toDisplayText } from '../../member-labels.js'
 import { isInternalPrompt } from '../../internal-prompts.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
+import { attemptScopeOf } from '../../../../shared/attempt.js'
 
 export const memberNameOf = memberDisplayName
 
@@ -53,9 +54,18 @@ export const createMessageProjector = ({ store }) => {
       return { ...common, kind: 'activity', authorId: memberId ?? 'executor', text, meta: { ok: message.ok, ...(tool === '' ? {} : { tool }) } }
     }
     if (message.kind === 'question') {
-      return message.card?.requestId === undefined
-        ? { ...common, kind: 'system', text: `需要你处理：${text}` }
-        : { ...common, kind: 'question', authorId: memberId ?? 'executor', text, meta: { card: message.card } }
+      if (message.card?.requestId === undefined) {
+        return { ...common, kind: 'system', text: `需要你处理：${text}` }
+      }
+      // 卡片只属于产生它的阶段和重做轮次；阶段推进或重做后自然失效。
+      const scope = attemptScopeOf({ room, messages: store.readMessages?.(roomId) ?? [] })
+      return {
+        ...common,
+        kind: 'question',
+        authorId: memberId ?? 'executor',
+        text,
+        meta: { card: { ...message.card, scope } },
+      }
     }
     // digest 是基座的上下文摘要，不是成员说的话；notice 等是运行提示，归系统，不伪装成聊天。
     if (message.kind === 'digest') return null

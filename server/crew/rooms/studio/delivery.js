@@ -1,5 +1,6 @@
 import { independenceLabel } from '../../digest.js'
 import { memberLabelMap } from '../../member-labels.js'
+import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
 
@@ -46,8 +47,8 @@ export const buildDelivery = (room, messages = []) => {
       .map(message => ({
         id: message.id,
         authorId: message.authorId ?? 'verifier',
-        pass: message.meta?.pass === true,
-        text: message.text ?? '',
+        pass: verdictPassed(message),
+        text: judgmentOf(message)?.reason || message.text || '',
         evidenceId: message.meta?.evidenceId ?? null,
       }))
     const manual = stageMessages.find(message => message.kind === 'evidence' && message.meta?.kind === 'manual')

@@ -416,6 +416,51 @@ test('pending approvals are never dropped by the history cap', async () => {
 })
 
 
+test('answering a card from an earlier stage is refused without touching the base', async () => {
+  const ctx = await setup()
+  try {
+    ctx.store.appendMessage('room-1', {
+      kind: 'question',
+      authorId: 'worker',
+      text: '选哪个方案？',
+      meta: {
+        card: {
+          requestId: 'req-old',
+          requestType: 'question',
+          scope: { stage: 1, floor: -1 },
+        },
+      },
+    })
+    const result = await ctx.live.answerCard('room-1', 'worker', 'req-old', '选 B')
+    assert.equal(result.ok, false)
+    assert.match(result.reason, /过期/)
+    assert.equal(ctx.answers.length, 0)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('a pending approval from an earlier stage expires instead of being decided', async () => {
+  const ctx = await setup()
+  try {
+    ctx.permission('git push origin main')
+    await tick()
+    const approval = ctx.room().approvals.find(item => item.state === 'pending')
+    ctx.store.updateRoom('room-1', current => {
+      current.stages[0].state = 'passed'
+      current.stages.push({ title: '下一步', kind: 'deliverable', state: 'active', acceptance: 'npm test' })
+      return { events: [] }
+    })
+    const result = await ctx.live.decideApproval('room-1', approval.id, 'allow')
+    assert.equal(result.ok, false)
+    assert.match(result.reason, /过期/)
+    assert.equal(ctx.room().approvals.find(item => item.id === approval.id).state, 'expired')
+    assert.ok(ctx.answers.some(answer => answer.behavior === 'deny'))
+  } finally {
+    ctx.close()
+  }
+})
+
 test('a lost base marks the room and a later start clears it', async () => {
   const ctx = await setup({ retryMs: 10, startAttempts: 0 })
   try {

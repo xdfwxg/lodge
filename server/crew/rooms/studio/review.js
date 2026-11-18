@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { buildMemberHandoff } from './member-handoff.js'
 import { reject } from '../../result.js'
-import { parseVerdict, REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
+import { REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
+import { DECISION_JSON_HINT, VERDICT_JSON_HINT, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { workspaceOf } from './workspace.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
@@ -29,12 +30,12 @@ export const shadowNeeded = ({ room, stage, evidence, manual, messages = [], sta
   const rejected = (messages ?? []).some(message => (
     message.kind === 'verdict' &&
     (stageIndex === null || (message.meta?.stage ?? 0) === stageIndex) &&
-    message.meta?.pass !== true
+    !verdictPassed(message)
   ))
   return rejected
 }
 
-const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
+const VERDICT_FORMAT = `第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）。${VERDICT_JSON_HINT}命令和退出码卡片已经显示，不要再复述。`
 
 // 证据、命令输出和 diff 都可能带外部内容；用比正文更长的围栏包住，并明确不是指令。
 const untrusted = (text, lang = '') => {
@@ -64,7 +65,14 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     round.requests.delete(memberId)
     clearTimeout(pending.timer)
     clearTimeout(pending.reminder)
-    const pass = parseVerdict(turn.reply)
+    const judgment = normalizeJudgment({
+      type: 'verdict',
+      text: turn.reply,
+      stage: pending.stage,
+      evidenceId: pending.evidenceId,
+      actorId: pending.verifier,
+    })
+    const pass = judgment.decision === 'pass'
     const name = memberDisplayName(room, memberId)
     const spec = memberOf(room, pending.verifier)
     const verdictMessage = store.appendMessage(roomId, {
@@ -73,6 +81,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       text: turn.reply || '复核回合没有给出文字结论。',
       meta: {
         pass,
+        judgment,
         reason: turn.reply ?? '',
         roleKind: 'verifier',
         verifierProfile: spec?.roleProfile ?? name,
@@ -161,7 +170,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         void sendToMember(lead, [
           `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
           `判定：${reason === '' ? '未通过' : reason}`,
-          '第一行只写「返工」或「交给人」。返工时从第二行起写清改什么、怎么算完成；交给人时从第二行起写清要人拍板什么。',
+          '第一行只写「返工」或「交给人」。返工时写清改什么、怎么算完成；交给人时写清要人拍板什么。',
+          DECISION_JSON_HINT,
           parallel
             ? '决定返工时不要 @ 任何人；系统会把要求直接送进执行成员自己的工作副本。第一行仍只写「返工」。'
             : '决定返工时，在话里 @ 执行成员，把要求直接说给他；第一行仍只写「返工」。',
@@ -243,8 +253,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       exit: manual ? null : meta.exit,
       total: ids.length,
       required: ids.length,
-      passed: outcome.verdicts.filter(message => message.meta?.pass === true).length,
-      rejects: outcome.verdicts.filter(message => message.meta?.pass !== true).length,
+      passed: outcome.verdicts.filter(verdictPassed).length,
+      rejects: outcome.verdicts.filter(message => !verdictPassed(message)).length,
       requests: new Map(),
     }
     round = nextRound

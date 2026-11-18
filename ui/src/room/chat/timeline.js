@@ -6,6 +6,7 @@ import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { hostLabelOf } from '../host.js'
 import { chatStudioSeed } from './seed.js'
 import { ChatOpeningCard } from './opening-card.js'
+import { scopeIsValid } from '../../../../shared/attempt.js'
 
 const TIME_GAP = 5 * 60 * 1000
 const timeLabel = ts => {
@@ -72,7 +73,10 @@ function Timeline({
       : [h('div', { key: `time-${message.id}`, className: 'crew-time' }, timeLabel(mark)), content]
   }
 
-  const pendingApprovals = (room.approvals ?? []).filter(approval => approval.state === 'pending')
+  const roomMessages = Array.isArray(room.messages) ? room.messages : []
+  const pendingApprovals = (room.approvals ?? []).filter(approval => (
+    approval.state === 'pending' && scopeIsValid(approval.scope, { room, messages: roomMessages })
+  ))
   const hidden = new Set(['activity', 'system', ...hideKinds])
   const meaningful = timeline.visible.filter(message => !hidden.has(message.kind))
   return [

@@ -1,5 +1,6 @@
 // 上下文装配：事实优先（BRIEF/阶段/证据），聊天只补还没进记录的新信息。
 // 三问自检：现在做什么、为什么这么做、怎么算完成；答不出的事实不能裁。
+import { verdictPassed } from '../../shared/judgment.js'
 export const CONTEXT_BUDGET = {
   recent: 2_000,
   older: 1_000,
@@ -39,7 +40,7 @@ export const stageDigest = (room, messages, { budget = 300 } = {}) => {
   const verdicts = (Array.isArray(messages) ? messages : []).filter(message => message.kind === 'verdict')
   const lines = (room?.stages ?? []).map((stage, index) => {
     const last = verdicts.filter(message => (message.meta?.stage ?? 0) === index).at(-1)
-    const result = last === undefined ? '' : ` · ${last.meta?.pass === true ? 'PASS' : 'REJECT'}`
+    const result = last === undefined ? '' : ` · ${verdictPassed(last) ? 'PASS' : 'REJECT'}`
     return `${index + 1}. ${stage.title} · ${stage.state}${result}`
   })
   let remaining = budget

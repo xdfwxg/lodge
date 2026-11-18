@@ -13,9 +13,16 @@ import { memberDisplayName } from '../../member-labels.js'
 import { verifierIds } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
+import { verdictPassed } from '../../../../shared/judgment.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
+
+  // 阶段推进或重做后，旧尝试的确认卡不再等人；拒绝基座卡并把记录标成过期。
+  const expireCards = (roomId, reason) => {
+    const task = live?.expireApprovals?.(roomId, reason)
+    if (task !== undefined && task !== null && typeof task.catch === 'function') task.catch(() => {})
+  }
 
   const stageConclusion = (room, stage, index, next) => {
     const messages = readMessages(room.id)
@@ -35,7 +42,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       .slice(-5)
       .map(message => ({
         name: memberDisplayName(room, message.authorId),
-        pass: message.meta?.pass === true,
+        pass: verdictPassed(message),
       }))
     return {
       kind: 'stage_conclusion',
@@ -103,7 +110,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     let mergedFinal = -1
     let transitionError = null
     const messages = readMessages(room.id)
-    const verdictPassed = messages.some(message => message.kind === 'verdict' && message.meta?.pass === true)
+    const hasPassedVerdict = messages.some(message => message.kind === 'verdict' && verdictPassed(message))
     const updated = updateRoom(room.id, current => {
       gate = gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
       if (!gate.ok) return null
@@ -123,7 +130,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       const needsVerdict = stage.kind !== 'decision' || stage.manual === true || stage.title === FINAL_TITLE
       if (next < 0 && needsVerdict && roomModeOfRoom(current)?.supportsDelivery === true) {
         const hasVerifiers = verifierIds(current).length > 0 || (Array.isArray(current.verifiers) && current.verifiers.length > 0)
-        if (hasVerifiers && verdictPassed !== true) {
+        if (hasVerifiers && hasPassedVerdict !== true) {
           transitionError = '验收员还没有回报通过，不能结束这一步'
           return null
         }
@@ -152,6 +159,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     room = updated
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
+    expireCards(room.id, '这一步已经过了')
     if (next >= 0) appendMessage(room.id, stageConclusion(room, room.stages[index], index, next))
     const finalStage = mergedFinal >= 0 ? room.stages[mergedFinal] : null
     appendMessage(room.id, {
@@ -200,7 +208,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       kind: 'rework',
       authorId: 'you',
       text: note === '' ? '结果不对，请重新对照目标后重做。' : note,
-      meta: { stage: index, requestedAt: Date.now() },
+      meta: { stage: index, source: 'human', requestedAt: Date.now() },
     })
     const updated = updateRoom(room.id, current => {
       const target = current.stages?.[index]
@@ -212,6 +220,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       transitionAssignment(store, assignment.id, 'failed', { resultText: '人要求重做这一步' })
     }
     emit('room', updated)
+    expireCards(room.id, '这一步已经重做了')
     if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {
         systemNotice({ store, roomId: room.id, text: '重做没能开始；需要你处理。', error })

@@ -1,8 +1,10 @@
 import { createElement as h } from 'react'
+import { cardActionsOf } from '../../shared/attempt.js'
 
 // 外部动作审批卡：只展示事实与两个决定，不把“模型说可以”当成批准。
-export function ApprovalCard({ approval, onDecide }) {
-  return h('div', { className: 'crew-card crew-approval' },
+export function ApprovalCard({ approval, onDecide, state = 'pending' }) {
+  const actions = cardActionsOf({ kind: 'approval', state })
+  return h('div', { className: 'crew-card crew-approval', 'data-card-state': state },
     h('div', { className: 'crew-card-head' },
       h('span', null, '要你确认'),
       h('span', { className: 'crew-verdict', 'data-pending': '' }, approval.label)),
@@ -30,7 +32,11 @@ export function ApprovalCard({ approval, onDecide }) {
             : null)
         : null),
     h('div', { className: 'crew-card-foot' },
-      h('span', { className: 'crew-req-note' }, '你决定之前，Lodge 不动手。'),
-      h('button', { type: 'button', className: 'crew-ghost', onClick: () => onDecide('deny') }, '先别做'),
-      h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, '可以做')))
+      h('span', { className: 'crew-req-note' }, actions.length === 0 ? '这张确认已经失效。' : '你决定之前，Lodge 不动手。'),
+      actions.includes('deny')
+        ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => onDecide('deny') }, '先别做')
+        : null,
+      actions.includes('allow')
+        ? h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, '可以做')
+        : null))
 }

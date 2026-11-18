@@ -72,6 +72,10 @@ export const createStudioRuntime = ({
         commands: ports.commands,
         files: ports.files,
         shadow,
+        expireCards: () => {
+          const task = approvals.expireApprovals(entry, room.id, '这一步已经重做了')
+          if (task !== undefined && task !== null && typeof task.catch === 'function') task.catch(() => {})
+        },
       })
       // 已落证据的回合在重启后会被基座历史重放；先标记，避免重复采集。
       entry.turns.seed(store.readMessages(room.id))

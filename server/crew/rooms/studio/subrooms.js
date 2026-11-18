@@ -1,5 +1,6 @@
 import { roomModeOfRoom } from '../kinds.js'
 import { transitionAssignment } from '../../assignments.js'
+import { verdictPassed } from '../../../../shared/judgment.js'
 
 export const MAX_SUBROOM_DEPTH = 3
 
@@ -13,7 +14,7 @@ export const childVerdictsOf = messages => messages
   .filter(message => message.kind === 'verdict' && (message.meta?.roleKind ?? 'verifier') === 'verifier')
   .slice(-5)
   .map(message => ({
-    pass: message.meta?.pass === true,
+    pass: verdictPassed(message),
     text: String(message.text ?? '').slice(0, 500),
     stage: message.meta?.stage ?? null,
     mode: message.meta?.mode ?? 'agent',

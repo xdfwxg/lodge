@@ -2,6 +2,7 @@ import { createElement as h } from 'react'
 import { ActivityLine, ChatLine, Markdown } from '../message-cards.js'
 import { QuestionCard } from './question-card.js'
 import { hostLabelOf } from './host.js'
+import { cardStateOf } from '../../../shared/attempt.js'
 
 // 共享层只处理两种房型都存在的消息；专属类型由各自的渲染器先接管。
 
@@ -21,7 +22,14 @@ export const renderSharedMessage = ({
 }) => {
   const member = resolveMember(room, byId, message)
   if (message.kind === 'question') {
-    return h(QuestionCard, { key: message.id, message, member, onAnswer: onAnswerCard })
+    const messages = Array.isArray(room?.messages) ? room.messages : []
+    return h(QuestionCard, {
+      key: message.id,
+      message,
+      member,
+      onAnswer: onAnswerCard,
+      state: cardStateOf(room, message, messages),
+    })
   }
   if (message.kind === 'system' || message.kind === 'child_result') {
     return h('div', { key: message.id, className: 'crew-system' }, message.text)

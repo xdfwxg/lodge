@@ -1,5 +1,7 @@
 // 交付记录：把房间里的目标、步骤、证据、结论压成一份能带走的 Markdown。
 // 只读房间记录，不重算业务判断；没有的记录就省略，不补想象。
+import { judgmentOf } from '../../../../shared/judgment.js'
+
 const line = value => String(value ?? '').replace(/\s+/g, ' ').trim()
 const when = ts => {
   if (typeof ts !== 'number' || ts <= 0) return ''
@@ -29,7 +31,7 @@ const verdictRows = room => (room.messages ?? [])
   .map(message => {
     const stage = `第 ${(message.meta?.stage ?? 0) + 1} 步`
     const pass = message.meta?.pass === true ? 'PASS' : 'REJECT'
-    const text = line(String(message.text ?? '').split('\n')[0]).slice(0, 200)
+    const text = line(judgmentOf(message)?.reason || String(message.text ?? '').split('\n')[0]).slice(0, 200)
     return `- ${stage}：${pass} · ${nameOf(room.members, message.authorId)}${text === '' ? '' : ` · ${text}`}`
   })
 

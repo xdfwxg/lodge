@@ -1,3 +1,4 @@
+import { verdictPassed } from '../../../../shared/judgment.js'
 import { resolveAssigneeTokens } from '../../orchestration/index.js'
 import * as type from '../../room-types/studio.js'
 import { workContract } from '../../prompt-modes.js'
@@ -119,7 +120,7 @@ const studioNeedsYou = (room, messages = []) => {
     return null
   }
   const verdict = latestForStage(messages, 'verdict', index, floor)
-  if (verdict?.meta?.pass === true) return { kind: 'signoff', stage: index, label: '' }
+  if (verdict !== undefined && verdictPassed(verdict)) return { kind: 'signoff', stage: index, label: '' }
   if (verdict !== undefined) return { kind: 'rework', stage: index, label: '待重做' }
   if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
     return verifierIds(room).length > 0

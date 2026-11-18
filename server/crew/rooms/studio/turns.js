@@ -8,7 +8,8 @@ import { createReviewCoordinator } from './review.js'
 import { createHandoff } from './handoff.js'
 import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
-import { deliverableStageIndex, isWorkStage, parsePlannerDecision, memberForRef } from './turn-utils.js'
+import { deliverableStageIndex, isWorkStage, memberForRef } from './turn-utils.js'
+import { judgmentOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { activeDispatchAssignments as activeDispatch, assignmentForTurn, latestDispatchAssignment, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-members.js'
@@ -19,7 +20,7 @@ import { systemNotice } from '../../notices.js'
 import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from './auto-rework.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, shadow })
@@ -137,6 +138,13 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       tail,
       shadowAdviceText(room, stageIndex),
     ].filter(Boolean).join('\n')
+    store.appendMessage(roomId, {
+      kind: 'rework',
+      authorId: 'system',
+      text: '自动检查没通过，已重做这一步。',
+      meta: { stage: stageIndex, source: 'auto', note },
+    })
+    if (typeof expireCards === 'function') expireCards()
     try {
       await stageStarter.startStage(room, stageIndex, { note, rework: true })
     } catch (error) {
@@ -226,7 +234,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const messages = store.readMessages(roomId)
     const latestVerdict = [...messages].reverse()
       .find(message => message.kind === 'verdict' && (message.meta?.stage ?? 0) === stageIndex)
-    if (latestVerdict === undefined || latestVerdict.meta?.pass !== false) return false
+    if (latestVerdict === undefined || judgmentOf(latestVerdict)?.decision !== 'reject') return false
     const verdictIndex = messages.indexOf(latestVerdict)
     if (messages.slice(verdictIndex + 1).some(message => (
       message.kind === 'evidence' && (message.meta?.stage ?? 0) === stageIndex
@@ -234,19 +242,24 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const verdictId = latestVerdict.id ?? latestVerdict.seq
     if (room.lastPlannerDecision?.verdictId === verdictId) return false
 
-    const decision = parsePlannerDecision(turn.reply)
+    const judgment = normalizeJudgment({
+      type: 'planner',
+      text: turn.reply,
+      stage: stageIndex,
+      actorId: leadMemberOf(room)?.id,
+    })
     store.updateRoom(roomId, current => {
-      current.lastPlannerDecision = { stage: stageIndex, verdictId, kind: decision.kind, at: Date.now() }
+      current.lastPlannerDecision = { stage: stageIndex, verdictId, kind: judgment.decision, judgment, at: Date.now() }
       return { events: [] }
     })
     // 合并冲突要人拍板；规划师自动返工会把冲突清掉，等于替人做了决定。
     if (room.mergeConflict?.stage === stageIndex) return true
     const stage = room.stages?.[stageIndex]
-    if (decision.kind !== 'rework') {
+    if (judgment.decision !== 'rework') {
       // 交给人是这一步的当前收口：执行交接不再挂着，等人的决定。
       for (const item of activeDispatch(store, roomId, stageIndex)) {
         transitionAssignment(store, item.id, 'rejected', {
-          resultText: decision.note === '' ? '规划师把这一步交给人' : `交给人：${decision.note}`,
+          resultText: judgment.reason === '' ? '规划师把这一步交给人' : `交给人：${judgment.reason}`,
         })
       }
       return true
@@ -262,7 +275,14 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     // 并行阶段逐个送进各自的工作副本；群里再 @ 一次会让成员在同一个目录里重复干活。
     const parallel = (dispatchOf(store, roomId, stageIndex)?.workers?.length ?? 0) > 1
     const addressed = !parallel && String(turn.reply ?? '').includes(`@${name}`)
-    const note = String(turn.reply ?? '').split('\n').slice(1).join('\n').trim() || decision.note
+    const note = judgment.reason
+    store.appendMessage(roomId, {
+      kind: 'rework',
+      authorId: 'system',
+      text: '验收退回，规划师安排重做。',
+      meta: { stage: stageIndex, source: 'planner', note, verdictId, judgment },
+    })
+    if (typeof expireCards === 'function') expireCards()
     void handoff.trigger({
       room,
       stage,
@@ -451,7 +471,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
         if (review.isBusy()) return
         const latest = [...store.readMessages(roomId)].reverse()
           .find(message => message.kind === 'verdict' && message.meta?.stage === stage)
-        if (latest?.meta?.pass === true) return
+        if (latest !== undefined && verdictPassed(latest)) return
         await integrator.integrate({ stageIndex: stage, workers: [memberId], base: workspaceOf(current).head({ path: current.repoPath }), turnId })
       })
       return

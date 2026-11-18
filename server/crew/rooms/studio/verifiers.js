@@ -1,12 +1,14 @@
 // 多验收成员只看“当前这轮验收命令证据”上的结论；旧轮的 PASS/REJECT 不参与本轮判定。
 import { verifierIds } from '../../room-members.js'
-export { verifierIds }
+import { reworkFloor } from '../../../../shared/attempt.js'
+import { verdictPassed } from '../../../../shared/judgment.js'
+export { reworkFloor, verifierIds }
 
 const verdictOutcome = ({ ids, verdicts }) => {
   const total = ids.length
   const required = total
-  const passes = verdicts.filter(message => message.meta?.pass === true).length
-  const rejects = verdicts.filter(message => message.meta?.pass !== true)
+  const passes = verdicts.filter(verdictPassed).length
+  const rejects = verdicts.filter(message => !verdictPassed(message))
   const missing = ids.filter(id => !verdicts.some(message => message.authorId === id))
   const state = total === 0
     ? 'none'
@@ -19,14 +21,6 @@ const verdictOutcome = ({ ids, verdicts }) => {
           : 'pending'
   return { state, total, required, received: verdicts.length, missing, verdicts, rejects }
 }
-
-export const reworkFloor = (messages, stageIndex) => (
-  messages.reduce((floor, message) => (
-    message.kind === 'rework' && (message.meta?.stage ?? 0) === stageIndex
-      ? Math.max(floor, message.seq ?? 0)
-      : floor
-  ), -1)
-)
 
 // 新的执行回合会让之前的凭证过期，但回合本身不是凭证；它只作为账本的排序下限。
 const turnFloor = (messages, stageIndex) => (

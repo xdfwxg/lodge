@@ -1,3 +1,5 @@
+import { verdictPassed } from '../../../../shared/judgment.js'
+
 const clip = (text, limit) => {
   const value = String(text ?? '').trim()
   return value.length > limit ? `${value.slice(0, limit)}…` : value
@@ -37,6 +39,6 @@ export const buildWorkTurn = ({
       },
   verdict: verdict === undefined || verdict === null
     ? null
-    : { pass: verdict.meta?.pass === true, text: clip(verdict.text, 500) },
+    : { pass: verdictPassed(verdict), text: clip(verdict.text, 500) },
   candidate: typeof candidate === 'string' && candidate !== '' ? candidate : null,
 })

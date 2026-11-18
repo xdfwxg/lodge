@@ -1,3 +1,5 @@
+import { normalizeJudgment } from '../../../../shared/judgment.js'
+
 export const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
 
 export const activeStageReadOnly = room => (
@@ -21,27 +23,14 @@ export const memberForRef = (room, ref) => {
   return null
 }
 
-export const parseVerdict = reply => {
-  const first = String(reply ?? '')
-    .split('\n')
-    .map(line => line.trim())
-    .find(line => line !== '') ?? ''
-  const head = first
-    .replace(/^[*#>\s]+/, '')
-    .replace(/^(结论|判定|验收结论|verdict)\s*[:：]?\s*/i, '')
-  // 模型不一定把 PASS 放在行首；只读第一行，先认退回，再认通过。
-  if (/(REJECT|不通过|未通过|无法通过|不能通过|没有通过|退回|打回|拒绝|失败)/i.test(head)) return false
-  return /(PASS|通过|接受|同意)/i.test(head)
-}
+// 旧调用方仍可拿到布尔/kind；解析本身已经归 shared/judgment.js 的契约。
+export const parseVerdict = reply => (
+  normalizeJudgment({ type: 'verdict', text: reply }).decision === 'pass'
+)
 
 export const parsePlannerDecision = reply => {
-  const text = String(reply ?? '').trim()
-  const lines = text.split('\n')
-  const first = lines.map(line => line.trim()).find(line => line !== '') ?? ''
-  const head = first.replace(/^[*#>\s]+/, '')
-  const note = lines.slice(1).join('\n').trim()
-  if (/(返工|REWORK)/i.test(head)) return { kind: 'rework', note: note === '' ? text : note }
-  return { kind: 'human', note: note === '' ? text : note }
+  const judgment = normalizeJudgment({ type: 'planner', text: reply })
+  return { kind: judgment.decision, note: judgment.reason }
 }
 
 export const tail = (text, limit) => {

@@ -1,4 +1,5 @@
 import { memberDisplayName } from '../../member-labels.js'
+import { verdictPassed } from '../../../../shared/judgment.js'
 import { latestAutoCheck, manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
@@ -105,12 +106,12 @@ export const gateFor = (room, index, messages, evidence) => {
     return { ok: true, stage }
   }
 
-  if (latest.meta?.pass !== true) {
+  if (!verdictPassed(latest)) {
     return deny('conflict', '验收复核未通过，先重做')
   }
 
   // PASS 之前必须有一段“上一次 REJECT 之后”的新证据；否则只是口头翻案。
-  const previousReject = [...verdicts].reverse().slice(1).find(message => message.meta?.pass !== true)
+  const previousReject = [...verdicts].reverse().slice(1).find(message => !verdictPassed(message))
   const evidenceFloor = Math.max(floor, previousReject?.seq ?? -1)
   const phaseEvidence = evidenceBetween(evidenceFloor, latest.seq ?? Number.POSITIVE_INFINITY)
   if (phaseEvidence.length === 0) {

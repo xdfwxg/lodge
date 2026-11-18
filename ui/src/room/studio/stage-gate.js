@@ -1,4 +1,7 @@
 // 阶段门的纯投影：只看房间与消息，不依赖 React，方便单独验证。
+import { reworkFloor } from '../../../../shared/attempt.js'
+import { verdictPassed } from '../../../../shared/judgment.js'
+
 const HUMAN_GATE_KINDS = new Set(['decision', 'setup', 'rework', 'blocked'])
 
 export const stageNeedsHuman = (room, activeIndex) => {
@@ -10,17 +13,12 @@ export const stageNeedsHuman = (room, activeIndex) => {
       (needs.kind === 'signoff' && ((room.verifiers?.length ?? 0) === 0 || manualStage)))
 }
 
-// 人的重做意见之后，这一阶段的旧证据和旧结论不再算数。
-export const reworkFloorOf = (messages, stageIndex) => messages.reduce((floor, message) => (
-  message.kind === 'rework' && (message.meta?.stage ?? 0) === stageIndex ? Math.max(floor, message.seq ?? 0) : floor
-), -1)
-
 export const stageGate = room => {
   const activeIndex = room.stages.findIndex(stage => stage.state === 'active')
   const activeStage = room.stages[activeIndex]
-  const floor = reworkFloorOf(room.messages, activeIndex)
+  const floor = reworkFloor(room.messages, activeIndex)
   const hasPass = activeIndex >= 0 && room.messages.some(message => (
-    message.kind === 'verdict' && (message.seq ?? 0) > floor && message.meta?.pass === true && message.meta?.stage === activeIndex
+    message.kind === 'verdict' && (message.seq ?? 0) > floor && verdictPassed(message) && message.meta?.stage === activeIndex
   ))
   const manualReady = activeStage?.manual === true && room.messages.some(message => (
     message.kind === 'evidence' && (message.seq ?? 0) > floor && message.meta?.kind === 'manual' && (message.meta?.stage ?? 0) === activeIndex

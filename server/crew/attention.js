@@ -2,31 +2,32 @@ import { failureLabel, failureNextStep } from '../../shared/failure.js'
 import { pendingApprovals } from './external-actions.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { memberDisplayName } from './member-labels.js'
+import { answeredCardIds, scopeIsValid } from '../../shared/attempt.js'
 
 // 注意力路由：只在房间真的卡在人这里时返回一个信号；不是未读数。
 // 通用状态在 kernel 判断，房型内部的“下一步该谁做”交给上下文 kind。
 export const roomNeedsYou = (room, messages = []) => {
-  if (room.state === 'active' && pendingApprovals(room).length > 0) {
+  const approvals = room.state === 'active'
+    ? pendingApprovals(room).filter(item => scopeIsValid(item.scope, { room, messages }))
+    : []
+  if (approvals.length > 0) {
     return { kind: 'approval', stage: null, label: '待确认' }
   }
-  // 基座的问答卡也在等人：最后一张没回答，就把房间标成需要你。
-  const card = [...messages].reverse().find(message => (
-    message.kind === 'question' && typeof message.meta?.card?.requestId === 'string'
-  ))
-  if (room.state === 'active' && card !== undefined) {
-    const requestId = card.meta.card.requestId
-    const answered = (Array.isArray(room.cardAnswers) && room.cardAnswers.includes(requestId)) ||
-      messages.some(message => (
-        message.kind === 'system' &&
-        message.meta?.kind === 'card-answered' &&
-        message.meta?.requestId === requestId
-      ))
-    if (!answered) {
-      const permission = card.meta.card.requestType === 'permission'
-      return permission
-        ? { kind: 'approval', stage: null, label: '有一个操作要你点头', detail: '允许或拒绝后，这一步继续。' }
-        : { kind: 'question', stage: null, label: '待回答', detail: '有成员在等你的回答。' }
-    }
+  // 基座的问答卡也在等人：最后一张没回答、且仍属于当前这一步的卡，才算数。
+  const answered = answeredCardIds(room, messages)
+  const card = room.state === 'active'
+    ? [...messages].reverse().find(message => (
+      message.kind === 'question' &&
+      typeof message.meta?.card?.requestId === 'string' &&
+      !answered.has(message.meta.card.requestId) &&
+      scopeIsValid(message.meta.card.scope, { room, messages })
+    ))
+    : undefined
+  if (card !== undefined) {
+    const permission = card.meta.card.requestType === 'permission'
+    return permission
+      ? { kind: 'approval', stage: null, label: '有一个操作要你点头', detail: '允许或拒绝后，这一步继续。' }
+      : { kind: 'question', stage: null, label: '待回答', detail: '有成员在等你的回答。' }
   }
   if (room.state === 'active' && room.live === true && typeof room.connectionError === 'string' && room.connectionError !== '') {
     return { kind: 'connection', stage: null, label: '连接断了', detail: '模型服务掉线了；连上后点继续。' }

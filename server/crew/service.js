@@ -13,6 +13,7 @@ import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
 import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
+import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
@@ -28,7 +29,7 @@ const completionFacts = (room, messages = []) => {
     : (room.members ?? []).find(member => member.id === last.authorId)?.name ?? '验收员'
   const verdict = last === undefined
     ? '没有验收结论'
-    : `${name} ${last.meta?.pass === true ? 'PASS' : 'REJECT'}：${String(last.text ?? '').split('\n')[0].slice(0, 160)}`
+    : `${name} ${verdictPassed(last) ? 'PASS' : 'REJECT'}：${(judgmentOf(last)?.reason || String(last.text ?? '').split('\n')[0]).slice(0, 160)}`
   const files = new Set()
   for (const message of messages) {
     for (const file of message.meta?.changedFiles ?? []) files.add(file)

@@ -776,6 +776,8 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-verdict-card[data-pass=true] .crew-verdict-tag{color:var(--bt-green)}
 .crew-verdict-card[data-pass=false] .crew-verdict-tag{color:var(--bt-danger-text)}
 .crew-verdict-text{min-width:0}
+.crew-verdict-findings{display:grid;gap:2px;margin-top:4px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
+.crew-verdict-finding{display:block}
 .crew-human-avatar{flex:none;width:28px;height:28px;border-radius:8px;background:var(--bt-user);color:var(--bt-user-ink);display:inline-flex;align-items:center;justify-content:center;font-size:var(--bt-text-label);font-weight:600}
 
 .md_markdown{color:var(--bt-ink);font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body)}

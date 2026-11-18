@@ -243,6 +243,32 @@ test('an idle room with quiet subrooms has an empty inbox', () => {
   assert.deepEqual(roomAttention(parent, [], [{ room: child, messages: [] }]), [])
 })
 
+test('a question card from an earlier stage no longer asks', () => {
+  const stale = { kind: 'question', seq: 2, meta: { card: { requestId: 'req-old', requestType: 'permission', scope: { stage: 0, floor: -1 } } } }
+  assert.equal(roomNeedsYou(atDeliverable(), [stale]), null)
+  const fresh = { kind: 'question', seq: 2, meta: { card: { requestId: 'req-new', requestType: 'permission', scope: { stage: 1, floor: -1 } } } }
+  assert.equal(roomNeedsYou(atDeliverable(), [fresh]).kind, 'approval')
+})
+
+test('a question card from an earlier rework round no longer asks', () => {
+  const r = atDeliverable()
+  const messages = [
+    { kind: 'rework', seq: 4, meta: { stage: 1 } },
+    { kind: 'question', seq: 5, meta: { card: { requestId: 'req-old', requestType: 'permission', scope: { stage: 1, floor: -1 } } } },
+  ]
+  assert.equal(roomNeedsYou(r, messages), null)
+  const current = { kind: 'question', seq: 6, meta: { card: { requestId: 'req-new', requestType: 'permission', scope: { stage: 1, floor: 4 } } } }
+  assert.equal(roomNeedsYou(r, [...messages, current]).kind, 'approval')
+})
+
+test('an approval from an earlier stage no longer asks', () => {
+  const r = atDeliverable()
+  r.approvals = [{ id: 'a', state: 'pending', scope: { stage: 0, floor: -1 } }]
+  assert.notEqual(roomNeedsYou(r, [])?.kind, 'approval')
+  r.approvals = [{ id: 'a', state: 'pending', scope: { stage: 1, floor: -1 } }]
+  assert.equal(roomNeedsYou(r, []).kind, 'approval')
+})
+
 test('a question card already answered on the room no longer asks', () => {
   const card = { kind: 'question', seq: 1, meta: { card: { requestId: 'req-1', requestType: 'permission' } } }
   assert.equal(roomNeedsYou(room(), [card]).kind, 'approval')

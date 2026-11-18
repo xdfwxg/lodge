@@ -1,5 +1,6 @@
 import { buildTimeline } from '../timeline-model.js'
 import { isDispatchHandoff } from './handoff.js'
+import { verdictPassed } from '../../../../shared/judgment.js'
 
 const pad = value => String(value).padStart(2, '0')
 
@@ -52,7 +53,7 @@ export const stageChapterSummary = (items, room, index = null) => {
   const parts = []
   if (transfers > 0) parts.push(`${transfers} 次交接`)
   if (verdicts.length > 0) {
-    parts.push(verdicts.every(item => item.meta?.pass === true) ? '通过' : '退回')
+    parts.push(verdicts.every(verdictPassed) ? '通过' : '退回')
   } else if (commands > 0) {
     parts.push(`${commands} 次检查`)
   } else if (evidence > 0) {

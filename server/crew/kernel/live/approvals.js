@@ -6,6 +6,7 @@ import { memberOf } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
 import { decidePermission } from '../../permission.js'
 import { supportsRuntime } from '../../runtime-port.js'
+import { attemptScopeOf, scopeIsValid } from '../../../../shared/attempt.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
 const ANSWERED_KEEP = 500
@@ -141,6 +142,7 @@ export const createLiveApprovals = ({
       label: external.label,
       summary: external.summary,
       ...(typeof external.command === 'string' && external.command !== '' ? { command: external.command } : {}),
+      scope: attemptScopeOf({ room, messages: store.readMessages?.(entry.roomId) ?? [] }),
       state: 'pending',
       at: Date.now(),
     }
@@ -280,6 +282,13 @@ export const createLiveApprovals = ({
     if (text === '') return { ok: false, reason: '先写下答案' }
     if (entry.answeredCards.has(requestId)) return { ok: false, reason: '这个问题已经回答过' }
     const room = store.readRoom(roomId)
+    const messages = store.readMessages?.(roomId) ?? []
+    const card = messages.find(message => (
+      message.kind === 'question' && message.meta?.card?.requestId === requestId
+    ))
+    if (card !== undefined && !scopeIsValid(card.meta.card.scope, { room, messages })) {
+      return { ok: false, reason: '这张问题已经过期；这一步已经结束或重开过了' }
+    }
     const target = entry.members.get(memberId)
     const sessionRef = target?.sessionRef ?? room?.chatRoom?.sessionRef
     try {
@@ -318,6 +327,11 @@ export const createLiveApprovals = ({
     const room = store.readRoom(roomId)
     const approval = pendingApprovals(room).find(item => item.id === approvalId)
     if (approval === undefined) return { ok: false, reason: '没有待确认的操作' }
+    if (!scopeIsValid(approval.scope, { room, messages: store.readMessages?.(roomId) ?? [] })) {
+      await expireApprovals(entry, roomId, '这一步已经变了')
+      resumeRoom(roomId, '待确认的操作已过期，房间已恢复。')
+      return { ok: false, reason: '这个操作已经过期；这一步已经结束或重开过了' }
+    }
     if (entry.heldCards.get(approval.requestId) !== approvalId) {
       const expired = setApprovalState(roomId, approvalId, 'expired')
       store.appendMessage(roomId, { kind: 'system', text: `这个操作已经失效：${approval.summary}` })

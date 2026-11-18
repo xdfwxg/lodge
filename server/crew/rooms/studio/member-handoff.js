@@ -1,4 +1,5 @@
 import { evidenceDigest, stageDigest } from '../../prompt-context.js'
+import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
 
 // 成员交接包：永久素材优先，transcript 只给引用，不重发整场对话。
 const DONE_LIMIT = 4
@@ -15,9 +16,10 @@ const doneOf = room => (
 const feedbackOf = messages => {
   const verdicts = messages.filter(message => message.kind === 'verdict').slice(-FEEDBACK_LIMIT)
   return verdicts.map(message => {
-    const mark = message.meta?.pass === true ? 'PASS' : 'REJECT'
+    const mark = verdictPassed(message) ? 'PASS' : 'REJECT'
     const stage = message.meta?.stage === undefined ? '' : `阶段 ${message.meta.stage + 1} · `
-    return `${stage}${mark}：${(message.text ?? '').replace(/\s+/g, ' ').slice(0, 240)}`
+    const text = judgmentOf(message)?.reason || message.text || ''
+    return `${stage}${mark}：${text.replace(/\s+/g, ' ').slice(0, 240)}`
   })
 }
 

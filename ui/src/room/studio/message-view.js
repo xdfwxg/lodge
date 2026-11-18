@@ -4,6 +4,10 @@ import { ActivityLine, ChatLine, Speaker } from '../../message-cards.js'
 import { QuestionCard } from '../question-card.js'
 import { displayToolName } from './transcript-model.js'
 import { splitVerdictText } from './verdict-text.js'
+import { cardStateOf } from '../../../../shared/attempt.js'
+import { judgmentOf } from '../../../../shared/judgment.js'
+
+const SEVERITY_LABEL = { blocker: '阻断', major: '重要', minor: '次要' }
 
 // 工作室就是聊天：成员说什么就是一条消息，细节（命令、输出、改动）折在消息下面。
 const fold = (label, text) => (
@@ -40,7 +44,14 @@ export const renderStudioMessage = ({
   if (message.kind === 'dispatch' || message.kind === 'handoff') return chat(message.text ?? '')
 
   if (message.kind === 'question') {
-    return h(QuestionCard, { key: message.id, message, member, onAnswer: onAnswerCard })
+    const messages = Array.isArray(room?.messages) ? room.messages : []
+    return h(QuestionCard, {
+      key: message.id,
+      message,
+      member,
+      onAnswer: onAnswerCard,
+      state: cardStateOf(room, message, messages),
+    })
   }
 
   // 证据和验收都是成员的话；命令、退出码、diff 折在下面。
@@ -60,16 +71,28 @@ export const renderStudioMessage = ({
   }
 
   if (message.kind === 'verdict') {
-    const verdict = splitVerdictText(message.text)
-    const passed = message.meta?.pass === true
+    const judgment = judgmentOf(message)
+    const source = judgment === null || judgment.source === 'legacy' ? message.text : (judgment.reason || message.text)
+    const verdict = splitVerdictText(source)
+    const passed = judgment !== null ? judgment.decision === 'pass' : message.meta?.pass === true
     const text = verdict.summary || (passed ? '符合这一步的要求。' : '这一步还不行，需要重做。')
+    const findings = judgment?.findings ?? []
     return h('div', { key: message.id, className: 'crew-msg crew-msg-chat' },
       h('div', { className: 'crew-msg-body' },
         h(Speaker, { member, ts: message.ts, time: false, station: false }),
         h('div', { className: 'crew-verdict-card', 'data-pass': passed ? 'true' : 'false' },
           h('span', { className: 'crew-verdict-tag' }, passed ? 'PASS' : 'REJECT'),
-          h('span', { className: 'crew-verdict-text' }, text)),
-        fold('理由', verdict.detail)))
+          h('span', { className: 'crew-verdict-text' }, text,
+            findings.length === 0
+              ? null
+              : h('span', { className: 'crew-verdict-findings' },
+                findings.slice(0, 3).map(finding => h('span', {
+                  key: `${finding.title}-${finding.severity}`,
+                  className: 'crew-verdict-finding',
+                }, `${SEVERITY_LABEL[finding.severity] ?? finding.severity} · ${finding.title}`))))),
+        fold('理由', verdict.detail || (judgment?.actionRequired
+          ? `要你做：${judgment.actionRequired}`
+          : ''))))
   }
 
   if (message.kind === 'activity_steps') return h(ActivityLine, { key: message.id, message })
