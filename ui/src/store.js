@@ -12,6 +12,15 @@ const EMPTY = {
   error: null,
 }
 
+// 重连时用服务端快照补齐房间状态，但保留本地已经收到、可能比快照更新的消息。
+export const mergeRoomSnapshot = (localRooms, freshRooms) => {
+  const byId = new Map((localRooms ?? []).map(room => [room.id, room]))
+  return (freshRooms ?? []).map(fresh => {
+    const local = byId.get(fresh.id)
+    return local === undefined ? fresh : { ...fresh, messages: local.messages }
+  })
+}
+
 export function createStore() {
   let state = EMPTY
   const failureText = fallback => (state.error === null || state.error === undefined ? fallback : humanErrorText(state.error, fallback))
@@ -81,12 +90,39 @@ export function createStore() {
     patch({ rooms })
   }
 
+  // 断线重连只补消息流，房间状态（阶段、交付）不会重放；重连后取一次快照。
+  const refreshRooms = async () => {
+    try {
+      const response = await fetch('/api/state')
+      if (!response.ok) return
+      const data = await response.json()
+      if (stopped) return
+      const rooms = mergeRoomSnapshot(state.rooms, data.rooms)
+      const activeId = state.activeId !== null && rooms.some(room => room.id === state.activeId)
+        ? state.activeId
+        : (rooms.find(room => !room.archivedAt)?.id ?? null)
+      patch({
+        rooms,
+        roles: data.roles ?? state.roles,
+        roomTypes: data.roomTypes ?? state.roomTypes,
+        engines: data.engines ?? state.engines,
+        features: data.features ?? state.features,
+        activeId,
+      })
+    } catch {
+      // 下一次重连会再试。
+    }
+  }
+
   const connect = () => {
     source?.close()
     const events = new EventSource(`/api/events?since=${lastSeq()}`)
     source = events
     events.addEventListener('open', () => {
-      if (!stopped) patch({ phase: 'live', error: null })
+      if (stopped) return
+      const reconnected = state.phase === 'reconnecting'
+      patch({ phase: 'live', error: null })
+      if (reconnected) void refreshRooms()
     })
     events.addEventListener('msg', event => {
       if (!stopped) acceptMessage(JSON.parse(event.data))
@@ -195,6 +231,7 @@ export function createStore() {
     steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
+    rewind: (stage, note) => post(`/api/rooms/${state.activeId}/rewind`, { stage, note }),
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     resumeChat: () => post(`/api/rooms/${state.activeId}/chat-resume`, {}),
     resumeRoom: () => post(`/api/rooms/${state.activeId}/resume`, {}),

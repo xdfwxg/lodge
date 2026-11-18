@@ -310,7 +310,7 @@ const server = http.createServer(async (req, res) => {
       return respond(res, service.evidence(roomId, messageId))
     }
 
-    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|chat-continue|chat-resume|resume|reject-plan|rework|read|hold|steer|cancel-queue|answer-card|acceptance|verify|approvals|subrooms|add-member|remove-member|swap-body|rename|shadow-review|archive|delete)$/)
+    const roomAction = path.match(/^\/api\/rooms\/([^/]+)\/(messages|accept|chat-continue|chat-resume|resume|reject-plan|rework|rewind|read|hold|steer|cancel-queue|answer-card|acceptance|verify|approvals|subrooms|add-member|remove-member|swap-body|rename|shadow-review|archive|delete)$/)
     if (roomAction !== null) {
       const [, roomId, action] = roomAction
       return respond(res, await service.roomRequest(roomId, action, {

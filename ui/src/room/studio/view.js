@@ -6,6 +6,7 @@ import { buildIdleDecision } from '../decision.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
+import { StudioAdjust } from './rewind-dialog.js'
 
 // 工作室的房间视图：一条聊天记录、一行状态、一个输入框；动作只在轮到你时出现。
 export const studioView = {
@@ -27,7 +28,8 @@ export const studioView = {
             className: 'crew-link',
             onClick: () => actions.resume(),
           }, paused.primary?.label ?? '继续'),
-        }))
+        }),
+      h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind }))
   },
   activity: () => null,
   transcript: ({ room, members, actions }) => h(StudioTranscript, {

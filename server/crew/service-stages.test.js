@@ -85,6 +85,82 @@ test('rework records the human objection and re-dispatches the active stage', as
   assert.equal(ctx.store.readAssignment('as-work').status, 'failed')
 })
 
+test('rewinding to an earlier step reopens it and resets everything after it', async () => {
+  const ctx = setup(room({
+    closure: 'verifying',
+    stageBases: { 0: 'base-0', 1: 'base-1', 2: 'base-2' },
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' },
+      { title: '补一条', kind: 'deliverable', state: 'active', acceptance: 'npm test' },
+      { title: '验收与结论', kind: 'decision', state: 'pending' },
+    ],
+  }))
+  ctx.store.writeAssignment({
+    id: 'as-old', roomId: 'room-1', stageIndex: 0, toMemberId: 'worker', reason: 'dispatch',
+    brief: {}, status: 'sent', context: {}, flags: {},
+  })
+  ctx.store.writeAssignment({
+    id: 'as-next', roomId: 'room-1', stageIndex: 1, toMemberId: 'worker', reason: 'dispatch',
+    brief: {}, status: 'sent', context: {}, flags: {},
+  })
+  const result = await ctx.stages.rewind(ctx.room(), { stage: 0, note: '目标理解错了，回到第一步' })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.room().stages.map(stage => stage.state), ['active', 'pending', 'pending'])
+  assert.equal(ctx.room().closure, 'executing')
+  assert.deepEqual(ctx.room().stageBases, { 0: 'base-0' })
+  assert.equal(ctx.store.readAssignment('as-old').status, 'failed')
+  assert.equal(ctx.store.readAssignment('as-next').status, 'cancelled')
+  const markers = ctx.messages.filter(message => message.kind === 'rework')
+  assert.deepEqual(markers.map(message => message.meta.stage), [0, 1, 2])
+  assert.equal(markers[0].text, '目标理解错了，回到第一步')
+  assert.equal(markers[0].meta.source, 'rewind')
+  assert.equal(markers[1].meta.source, 'rewind')
+  assert.equal(ctx.calls.length, 1)
+  assert.equal(ctx.calls[0].index, 0)
+  assert.equal(ctx.calls[0].note, '目标理解错了，回到第一步')
+})
+
+test('adding context to the current step reruns it in place', async () => {
+  const ctx = setup(room())
+  const result = await ctx.stages.rewind(ctx.room(), { stage: 0, note: '补一句：先看 README' })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().stages[0].state, 'active')
+  assert.equal(ctx.calls[0].index, 0)
+  assert.equal(ctx.calls[0].note, '补一句：先看 README')
+  const markers = ctx.messages.filter(message => message.kind === 'rework')
+  assert.equal(markers[0].text, '补一句：先看 README')
+  assert.equal(markers[0].meta.source, 'rewind')
+})
+
+test('rewind needs a note and refuses pending or non-work steps', () => {
+  const ctx = setup(room())
+  assert.equal(ctx.stages.rewind(ctx.room(), { stage: 0, note: '' }).ok, false)
+  const pending = room({
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' },
+      { title: '补一条', kind: 'deliverable', state: 'pending', acceptance: 'npm test' },
+    ],
+  })
+  assert.match(ctx.stages.rewind(pending, { stage: 1, note: 'x' }).error, /还没开始/)
+  const decision = room({ stages: [{ title: '定方向', kind: 'decision', state: 'passed' }] })
+  assert.match(ctx.stages.rewind(decision, { stage: 0, note: 'x' }).error, /交付或人工/)
+})
+
+test('rewinding a delivered room reopens it without losing the first step base', async () => {
+  const ctx = setup(room({
+    stageBases: { 0: 'base-0', 1: 'base-1' },
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' },
+      { title: '验收与结论', kind: 'decision', state: 'passed' },
+    ],
+  }))
+  const result = await ctx.stages.rewind(ctx.room(), { stage: 0, note: '再补一处' })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.room().stages.map(stage => stage.state), ['active', 'pending'])
+  assert.deepEqual(ctx.room().stageBases, { 0: 'base-0' })
+  assert.equal(ctx.room().state, 'active')
+})
+
 test('accepting the last work stage also confirms the system conclusion', () => {
   const ctx = setup(room({ live: false, roomType: 'studio', closure: 'verifying', verificationMode: 'hybrid', verifiers: ['verifier'] }))
   ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })

@@ -450,6 +450,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       return stages.rework(room, await readBody())
     }
 
+    if (action === 'rewind' && method === 'POST') {
+      return stages.rewind(room, await readBody())
+    }
+
     if (action === 'subrooms' && method === 'POST') {
       return subrooms.create(room, await readBody())
     }

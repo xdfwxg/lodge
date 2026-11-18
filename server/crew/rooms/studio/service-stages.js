@@ -14,6 +14,7 @@ import { verifierIds } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { verdictPassed } from '../../../../shared/judgment.js'
+import { isWorkStage } from './turn-utils.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
@@ -231,6 +232,73 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     return ok({ room: updated, message })
   }
 
+  // 退回指定步骤：目标步骤重新变成当前步骤，后面的步骤全部重来。
+  // 人工关口的“补一句再跑”也走这里——目标是当前步骤时，效果就是带上下文重跑一次。
+  const rewind = (room, body) => {
+    const index = Number(body?.stage)
+    const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 4000) : ''
+    const stage = room.stages?.[index]
+    if (stage === undefined) return fail('invalid', '没有这一步')
+    if (!isWorkStage(stage)) return fail('invalid', '只有交付或人工步骤能退回')
+    if (stage.state === 'pending') return fail('conflict', '这一步还没开始，不能退回')
+    if (room.state !== 'active') return fail('conflict', '先让房间继续，再退回这一步')
+    if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
+    if (room.live === true && typeof live.busyReview === 'function' && live.busyReview(room.id)) {
+      return fail('conflict', '验收员还在看，等结论出来再继续')
+    }
+    if (note === '') return fail('invalid', '写一句要补的上下文，或要改什么')
+    const updated = updateRoom(room.id, current => {
+      const target = current.stages?.[index]
+      if (target === undefined || target.state === 'pending') return null
+      for (let at = index; at < current.stages.length; at += 1) {
+        current.stages[at].state = at === index ? 'active' : 'pending'
+      }
+      // 后面的阶段重新开始时从当时的 HEAD 取起点；目标步骤自己的起点要保留。
+      for (const key of Object.keys(current.stageBases ?? {})) {
+        if (Number(key) > index) delete current.stageBases[key]
+      }
+      current.closure = 'executing'
+      current.mergeConflict = null
+      current.blocked = null
+      current.autoCheck = null
+      current.lastPlannerDecision = null
+      current.openQuestion = null
+      return { events: [{ type: 'stage.rewind', payload: { stage: index, note } }] }
+    })
+    if (updated === null) return fail('conflict', '这一步的状态变了，再试一次')
+    for (let at = index; at < updated.stages.length; at += 1) {
+      for (const assignment of activeDispatchAssignments(store, room.id, at)) {
+        transitionAssignment(store, assignment.id, at === index ? 'failed' : 'cancelled', {
+          resultText: at === index ? '人要求退回这一步' : '前面重做了，这一步重新来',
+        })
+      }
+    }
+    appendMessage(room.id, {
+      kind: 'rework',
+      authorId: 'you',
+      text: note,
+      meta: { stage: index, source: 'rewind', requestedAt: Date.now() },
+    })
+    for (let at = index + 1; at < updated.stages.length; at += 1) {
+      appendMessage(room.id, {
+        kind: 'rework',
+        authorId: 'system',
+        text: '前面重做了，这一步要重新来。',
+        meta: { stage: at, source: 'rewind' },
+      })
+    }
+    emit('room', updated)
+    expireCards(room.id, '这一步已经重做了')
+    if (room.live === true && typeof live.reworkStage === 'function') {
+      void live.reworkStage(updated, index, note).catch(error => {
+        systemNotice({ store, roomId: room.id, text: '退回没能开始；需要你处理。', error })
+      })
+    } else {
+      appendMessage(room.id, { kind: 'system', text: '已记录退回意见；这个房间现在没有连上，需要你继续或重新开始。' })
+    }
+    return ok({ room: updated })
+  }
+
   const setAcceptance = (room, index, command) => {
     let rejection = null
     let previous = ''
@@ -269,5 +337,5 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     return ok({ room, message })
   }
 
-  return { accept, rework, setAcceptance }
+  return { accept, rework, rewind, setAcceptance }
 }
