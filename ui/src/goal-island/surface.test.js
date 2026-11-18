@@ -93,7 +93,7 @@ test('the open panel lists every waiting item, including a subroom', () => {
       { kind: 'decision', stage: 0, label: '待确认', roomId: 'child-1', roomName: '写欢迎语' },
     ],
   })
-  assert.match(html, /在等你/)
+  assert.match(html, /需要你/)
   assert.match(html, /待签字/)
   assert.match(html, /写欢迎语/)
   assert.match(html, /去处理/)
@@ -103,7 +103,7 @@ test('a single waiting item keeps the old one-line warning', () => {
   const html = render('open', null, {
     attention: [{ kind: 'decision', stage: 0, label: '待确认' }],
   })
-  assert.doesNotMatch(html, /在等你/)
+  assert.doesNotMatch(html, /需要你/)
   assert.match(html, /bt-goal-warn/)
 })
 

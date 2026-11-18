@@ -206,12 +206,13 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     onRework: (stage, note) => void store.rework(stage, note),
     onApproval: (id, decision) => void store.decideApproval(id, decision),
   }
+  const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
   const viewCtx = { state, room, members, locked, actions, dock, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
 
   return h('main', { className: 'dsb-main crew-room' },
-    h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id },
+    h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id, 'data-room-done': finished ? 'true' : undefined },
       mode.header(viewCtx),
       mode.activity(viewCtx),
       h('div', {

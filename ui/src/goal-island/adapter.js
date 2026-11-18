@@ -3,7 +3,6 @@
 
 import { createElement as h } from 'react'
 import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
-import { IslandRail } from './rail.js'
 import { ChevronDownIcon } from './glyphs.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
@@ -71,7 +70,7 @@ const PILL_CSS = `
 @media (max-width:760px){.crew-goal-island{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
 `
 
-export function GoalIslandHeader({ room, railRooms = [], status = null, onOpenRoom }) {
+export function GoalIslandHeader({ room, status = null, onOpenRoom }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
   const goal = toIslandGoal(room)
@@ -103,17 +102,21 @@ export function GoalIslandHeader({ room, railRooms = [], status = null, onOpenRo
       goalActions.openSignal()
     },
   }
+  const finished = goal.stages.length > 0 && goal.stages.every(stage => stage.status === 'passed')
   return h('div', { className: 'crew-goal-island' },
-    h(GoalIsland, {
-      room: islandRoom,
-      goal,
-      view,
-      mode: activity.mode,
-      signal: activity.signal,
-      actions: goalActions,
-      pill: pill({ room, view, open, onToggle: goalActions.toggleGoal }),
-    }),
-    h(IslandRail, { rooms: railRooms, currentId: room.id, onSelect: onOpenRoom }),
+    finished
+      ? h('div', { className: 'crew-island-done' },
+        h('span', { className: 'crew-island-done-title' }, '全部做完'),
+        h('span', { className: 'crew-island-done-detail' }, `${goal.stages.length} 步`))
+      : h(GoalIsland, {
+        room: islandRoom,
+        goal,
+        view,
+        mode: activity.mode,
+        signal: activity.signal,
+        actions: goalActions,
+        pill: pill({ room, view, open, onToggle: goalActions.toggleGoal }),
+      }),
     status,
     h('style', null, `${GOAL_CSS}\n${PILL_CSS}`))
 }

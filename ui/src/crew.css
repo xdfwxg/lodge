@@ -761,6 +761,14 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .bt-ububble{max-width:100%;background:var(--bt-out-bubble);color:var(--bt-out-bubble-ink);border-radius:16px;padding:8px 12px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body);box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty}
 .bt-ububble .md_markdown{color:inherit}
 .crew-human{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:9px 0}
+.crew-island-done{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 14px;border-radius:999px;background:var(--bt-card);border:.5px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
+.crew-island-done-title{font-weight:600;color:var(--bt-ink)}
+.crew-island-done-detail{color:var(--bt-ink-3)}
+.crew-verdict-card{display:flex;align-items:baseline;gap:8px;padding:8px 10px;border-radius:8px;background:var(--bt-shade-1);color:var(--bt-ink);font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}
+.crew-verdict-tag{flex:none;font-size:var(--bt-text-helper);font-weight:600;letter-spacing:.02em}
+.crew-verdict-card[data-pass=true] .crew-verdict-tag{color:var(--bt-green)}
+.crew-verdict-card[data-pass=false] .crew-verdict-tag{color:var(--bt-danger-text)}
+.crew-verdict-text{min-width:0}
 .crew-human-avatar{flex:none;width:28px;height:28px;border-radius:8px;background:var(--bt-user);color:var(--bt-user-ink);display:inline-flex;align-items:center;justify-content:center;font-size:var(--bt-text-label);font-weight:600}
 
 .md_markdown{color:var(--bt-ink);font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body)}
@@ -846,7 +854,9 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 /* Decision-first room: one decision, audit on demand */
 .crew-room{display:flex;flex-direction:column;background:var(--bt-main)}
 .crew-room-main{flex:1 1 auto;width:100%;max-width:none}
-.crew-room-main[data-mode=studio] .crew-scroll{padding-top:154px}
+.crew-room-main[data-mode=studio] .crew-goal-island{position:relative;top:auto;left:auto;right:auto;padding:12px 32px 0}
+.crew-room-main[data-mode=studio] .crew-scroll{padding-top:16px}
+.crew-room-main[data-mode=studio][data-room-done=true] .crew-scroll{padding-top:16px}
 .crew-island-wrap{display:flex;justify-content:center;padding:18px 32px 8px;box-sizing:border-box}
 .crew-island{display:inline-flex;flex-direction:column;max-width:min(440px,calc(100% - 24px));border-radius:999px;background:var(--bt-card);border:1px solid var(--bt-line-2);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font-size:var(--bt-text-label);line-height:var(--bt-leading-label);box-sizing:border-box;overflow:hidden}
 .crew-island-row{display:flex;align-items:center;gap:8px;height:40px;padding:8px 16px 8px 8px;box-sizing:border-box;min-width:0}
@@ -981,25 +991,6 @@ details[open]>summary::before{transform:rotate(90deg)}
 .crew-msg-wrap .crew-msg-fold{margin-left:44px}
 
 /* 多个目标岛：当前房间之外的目标缩成一行小岛，点一下切过去。 */
-.bt-rail{display:flex;align-items:center;justify-content:flex-start;width:100%;max-width:100%;margin:0 auto 12px;padding:0;overflow-x:auto;scrollbar-width:none}
-.bt-rail-track{display:flex;align-items:center;gap:6px;margin:0 auto;padding:0 4px}
-.bt-rail::-webkit-scrollbar{display:none}
-.bt-rail-island{flex:none;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border:.5px solid var(--bt-line-2);border-radius:999px;background:color-mix(in srgb,var(--bt-card) 90%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:var(--bt-elev-1);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-helper);line-height:16px;cursor:pointer;white-space:nowrap;transition:background-color .12s var(--bt-ease),transform .12s var(--bt-ease)}
-.bt-rail-island:hover{background:var(--bt-card)}
-.bt-rail-island:active{transform:scale(.97)}
-.bt-rail-island[data-tone=waiting]{border-color:var(--bt-line-warning)}
-.bt-rail-name{max-width:140px;overflow:hidden;text-overflow:ellipsis;font-weight:500}
-.bt-rail-count{font-variant-numeric:tabular-nums;color:var(--bt-ink-2)}
-.bt-rail-segs{display:inline-flex;gap:2px}
-.bt-rail-segs i{width:9px;height:4px;border-radius:2px;background:var(--bt-shade-3)}
-.bt-rail-segs i[data-seg=done]{background:var(--bt-green)}
-.bt-rail-segs i[data-seg=current],.bt-rail-segs i[data-seg=checking]{background:var(--bt-accent)}
-.bt-rail-segs i[data-seg=checking]{opacity:.55}
-.bt-rail-segs i[data-seg=paused]{background:var(--bt-star)}
-.bt-rail-wait{font-weight:600;color:var(--bt-warning-text)}
-.crew-goal-island .bt-rail{width:100%;max-width:100%;padding:0 4px;box-sizing:border-box}
-.crew-island-rail-wrap{display:flex;justify-content:center;padding:6px 16px 0}
-.crew-island-rail-wrap .bt-rail{margin-bottom:0}
 .crew-conclusion-convert{margin:6px 0 0 44px;font-weight:500;font-size:var(--bt-text-helper)}
 .crew-mind-presets{display:flex;flex-wrap:wrap;gap:6px}
 .crew-mind-preset{height:30px;padding:0 12px;border:1px solid var(--bt-line-2);border-radius:999px;background:var(--bt-card);color:var(--bt-ink-2);font:inherit;font-size:var(--bt-text-label);cursor:pointer}

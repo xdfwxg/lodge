@@ -188,7 +188,7 @@ function GoalPanel({ goal, view, room, actions }) {
       }, h('span', { className: 'bt-goal-node' }, stageView.status === 'passed' ? h(CheckIcon) : stageView.n)))),
     listAttention
       ? h('div', { key: 'attention', className: 'bt-goal-att' },
-        h('div', { className: 'bt-goal-sub' }, '在等你'),
+        h('div', { className: 'bt-goal-sub' }, '需要你'),
         attention.map((item, index) => h('button', {
           key: `${item.kind ?? ''}:${item.roomId ?? ''}:${item.stage ?? '-'}:${index}`,
           type: 'button',

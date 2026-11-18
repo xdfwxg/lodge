@@ -42,8 +42,7 @@ export const renderSharedMessage = ({
             : h('button', { type: 'button', className: 'studio-presence-action', onClick: () => onCancelQueue(message.meta.queueId) }, '撤回'),
           onSteerQueue === null
             ? null
-            : h('button', { type: 'button', className: 'studio-presence-action', onClick: () => onSteerQueue(message.meta.queueId) }, '插话')),
-      h('span', { className: 'crew-human-avatar' }, '你'))
+            : h('button', { type: 'button', className: 'studio-presence-action', onClick: () => onSteerQueue(message.meta.queueId) }, '插话')))
   }
   return h(ChatLine, { key: message.id, message, member })
 }

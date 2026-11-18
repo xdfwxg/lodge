@@ -54,6 +54,8 @@ export function StudioTranscript({
         if (chats.has(chatKey(message))) return false
       }
       if (message.kind === 'chat' && verdicts.has(chatKey(message))) return false
+      // 验收员的话只留结论卡，不再重复一条长聊天。
+      if (message.kind === 'chat' && byId[message.authorId]?.roleKind === 'verifier') return false
       return true
     })
   }, [messages])

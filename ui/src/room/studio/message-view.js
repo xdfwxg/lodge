@@ -1,6 +1,6 @@
 import { createElement as h } from 'react'
 import { renderSharedMessage, resolveMember } from '../message-view.js'
-import { ActivityLine, ChatLine } from '../../message-cards.js'
+import { ActivityLine, ChatLine, Speaker } from '../../message-cards.js'
 import { QuestionCard } from '../question-card.js'
 import { displayToolName } from './transcript-model.js'
 import { splitVerdictText } from './verdict-text.js'
@@ -63,7 +63,13 @@ export const renderStudioMessage = ({
     const verdict = splitVerdictText(message.text)
     const passed = message.meta?.pass === true
     const text = verdict.summary || (passed ? '符合这一步的要求。' : '这一步还不行，需要重做。')
-    return chat(`${passed ? '我看过了，没问题：' : '我看过了，还得改：'}${text}`, fold('理由', verdict.detail))
+    return h('div', { key: message.id, className: 'crew-msg crew-msg-chat' },
+      h('div', { className: 'crew-msg-body' },
+        h(Speaker, { member, ts: message.ts, time: false, station: false }),
+        h('div', { className: 'crew-verdict-card', 'data-pass': passed ? 'true' : 'false' },
+          h('span', { className: 'crew-verdict-tag' }, passed ? 'PASS' : 'REJECT'),
+          h('span', { className: 'crew-verdict-text' }, text)),
+        fold('理由', verdict.detail)))
   }
 
   if (message.kind === 'activity_steps') return h(ActivityLine, { key: message.id, message })

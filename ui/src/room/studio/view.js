@@ -10,12 +10,14 @@ import { TypingLine } from '../typing-line.js'
 export const studioView = {
   id: 'studio',
   opensAtTop: ({ room }) => room.state === 'complete',
-  header: ({ state, room, members, actions }) => h(GoalIslandHeader, {
-    room,
-    railRooms: state.rooms,
-    status: h(CrewStatusLine, { room, members, onSwap: actions.swapBody, onAdd: actions.addMember }),
-    onOpenRoom: actions.selectRoom,
-  }),
+  header: ({ state, room, members, actions }) => {
+    const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
+    return h(GoalIslandHeader, {
+      room,
+      status: finished ? null : h(CrewStatusLine, { room, members, onSwap: actions.swapBody, onAdd: actions.addMember }),
+      onOpenRoom: actions.selectRoom,
+    })
+  },
   activity: () => null,
   transcript: ({ room, members, actions }) => h(StudioTranscript, {
     key: `transcript-${room.id}`,
@@ -42,9 +44,11 @@ export const studioView = {
     onReturn: () => {},
   }),
   presence: ({ room, members, actions }) => h(StudioPresence, { room, members, onHold: actions.hold }),
-  composerPlaceholder: ({ room }) => {
+  composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    return room.state === 'complete' || done ? '已完成 · 和规划师聊聊，或开一间新房。' : '交代下一步，或问进度…'
+    if (room.state === 'complete' || done) return '已完成 · 和规划师聊聊，或开一间新房。'
+    const lead = (members ?? []).find(member => member.role === 'lead' || member.roleKind === 'planner')
+    return `对${lead?.name ?? '规划师'}说…`
   },
   typing: ({ room, members }) => {
     if (room.state !== 'active') return null
