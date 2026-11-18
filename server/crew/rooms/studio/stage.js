@@ -143,11 +143,13 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       const assigneeNames = assignees.map(id => memberDisplayName(room, id)).join('、')
       const planPrompt = [
         `第 ${index + 1} 步「${stage.title}」要交给${assigneeNames}。`,
+        `房间目标（原文，不要改写）：${room.goal}`,
+        `验收标准：${stage.manual === true ? '人看结果，没有命令。' : acceptance}`,
         parallel
           ? '在群里用一两句说清各自做什么、怎么算完成；不要 @ 任何人，系统会把任务分别送进他们自己的工作副本。'
           : `在话里 @${assigneeNames}，让对方收到；用一两句说清做什么、怎么算完成。`,
+        '派发时保留目标里的硬要求：文件名、路径、内容、行数、格式和范围；不要改写成更宽松的说法。',
         '不要写自己的名字，不要分点或小标题。',
-        acceptance,
       ].filter(Boolean).join('\n')
       try {
         spoken = await askPlanner(planPrompt)

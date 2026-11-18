@@ -21,6 +21,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 工作室阶段、验收、签字、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
 | 判定契约（首行结论 + JSON 明细） | `shared/judgment.test.js`、`server/crew/live-turn-modules.test.js`、`ui/src/room/studio/message-view.test.js` | 无 |
 | 判定提交强制（先催一次，再交给人） | `shared/judgment.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
+| 验收按目标原文判断（不替换成更弱标准） | `server/crew/live-turn-modules.test.js` | 真实模型可选 |
 | 判定工具（MCP gate） | `shared/gate.test.js`、`server/crew/gate/mcp-server.test.js`、`server/crew/gate/tool.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/engine.test.js`、`server/crew/permission.test.js`、`server/crew/external-actions.test.js` | 真实基座可选 |
 | 卡片有效期（阶段 + 重做轮次 + assignment） | `shared/attempt.test.js`、`server/crew/assignments.test.js`、`server/crew/attention.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/question-card.test.js` | 无 |
 | 人工门动作集 | `shared/human-gate.test.js`、`ui/src/room/studio/stage-gate.test.js` | 无 |
