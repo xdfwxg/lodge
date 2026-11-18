@@ -7,14 +7,23 @@ import { CapabilityFields, bodySpecOf, bodySpecPayload } from './body-spec-field
 import { Segmented } from '../segmented.js'
 
 const ROLE_LABEL = { executor: '执行官', verifier: '验收员' }
+const CN = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九']
+
+// 名字跟着角色自动填：已有执行官时，下一个就叫执行官二号。
+const autoName = (role, members = []) => {
+  const base = ROLE_LABEL[role]
+  const count = members.filter(member => (member.roleKind ?? member.role) === role).length
+  if (count === 0) return base
+  return `${base}${CN[count + 1] ?? count + 1}号`
+}
 
 // 添加 Bot = 往房间花名册加一条带 body 的成员；不碰全局 Bot 列表。
-export function MemberAddDialog({ engines = [], busy = false, error = null, onCancel, onConfirm, onRefresh = null }) {
+export function MemberAddDialog({ engines = [], members = [], busy = false, error = null, onCancel, onConfirm, onRefresh = null }) {
   const readiness = engineReadiness(engines, { requireApproval: true })
   const available = readiness.installed
   const ready = readiness.ready[0]
   const [role, setRole] = useState('executor')
-  const [name, setName] = useState('')
+  const [name, setName] = useState(() => autoName('executor', members))
   const [tab, setTab] = useState('body')
   const [engineId, setEngineId] = useState(ready?.id ?? '')
   const [modelId, setModelId] = useState(ready?.models?.default ?? '')
@@ -42,16 +51,21 @@ export function MemberAddDialog({ engines = [], busy = false, error = null, onCa
     h('div', { className: 'crew-dialog-heading' },
       h('h2', null, '加一位成员')),
     h('div', { className: 'crew-add-who' },
-      h('label', { className: 'crew-field crew-body-swap-field' },
+      h('div', { className: 'crew-field crew-add-role' },
         h('b', null, '角色'),
-        h('select', {
-          className: 'crew-member-menu',
-          'aria-label': '新成员的角色',
+        h(Segmented, {
+          label: '角色',
           value: role,
+          onChange: next => {
+            setRole(next)
+            setName(autoName(next, members))
+          },
           disabled: busy,
-          onChange: event => setRole(event.target.value),
-        },
-        Object.entries(ROLE_LABEL).map(([value, label]) => h('option', { key: value, value }, label)))),
+          options: [
+            { value: 'executor', label: '执行官' },
+            { value: 'verifier', label: '验收员' },
+          ],
+        })),
       h('label', { className: 'crew-field crew-body-swap-field' },
         h('b', null, '名字'),
         h('input', {

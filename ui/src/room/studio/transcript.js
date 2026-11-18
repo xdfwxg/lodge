@@ -19,6 +19,7 @@ export function StudioTranscript({
   onCancelQueue = null,
   onSteerQueue = null,
   onContinue = null,
+  onDiscussChat = null,
   onReturn = null,
   onRework = null,
   hideKinds = [],
@@ -99,7 +100,19 @@ export function StudioTranscript({
     ? h(ShadowAdvice, { key: `advice-${activeIndex}`, room, stageIndex: activeIndex, label: '影子评审（仅供参考）' })
     : null
 
+  const finished = (room.stages ?? []).length > 0 &&
+    room.stages.every(stage => stage.state === 'passed')
   return h(Fragment, null,
-    h('div', { className: 'studio-timeline' }, ...items),
+    h('div', { className: 'studio-timeline' }, ...items,
+      finished
+        ? h('div', { key: 'room-closing', className: 'studio-room-closing' },
+          h('span', null, '目标完成'),
+          typeof onDiscussChat === 'function'
+            ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
+            : null,
+          typeof onContinue === 'function'
+            ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '开一间新房')
+            : null)
+        : null),
     advice)
 }

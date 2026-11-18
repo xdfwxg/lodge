@@ -1,8 +1,30 @@
 import { normalizeReceipt, receiptText } from '../../../../shared/receipt.js'
 
+// 顶层房间不会完成为 complete，回执就从房间本身拼：阶段、检查、改动，不搬过程。
+const deliveryOf = room => {
+  if (room?.delivery !== null && room?.delivery !== undefined) return room.delivery
+  const stages = Array.isArray(room?.stages) ? room.stages : []
+  if (stages.length === 0 || stages.some(stage => stage.state !== 'passed')) return null
+  const messages = Array.isArray(room?.messages) ? room.messages : []
+  const commands = messages
+    .filter(message => message.kind === 'evidence' && message.meta?.kind === 'command')
+    .map(message => ({ exit: message.meta?.exit ?? null }))
+  const files = new Set()
+  for (const message of messages) {
+    for (const file of message.meta?.files ?? []) files.add(file)
+  }
+  return {
+    name: room?.name ?? '这次做出来的',
+    stages,
+    commands,
+    changedFiles: [...files],
+    openQuestions: [],
+  }
+}
+
 // 工作室 → 聊天室只带回执：结果、完成度、检查与开放问题，不搬房间过程。
 export const returnToChatSeed = room => {
-  const delivery = room?.delivery
+  const delivery = deliveryOf(room)
   if (delivery === null || delivery === undefined) return null
   const commands = delivery.commands ?? []
   const stages = delivery.stages ?? []

@@ -167,17 +167,15 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const completes = next < 0 && typeof room.parentRoomId === 'string' && room.parentRoomId !== ''
     const finalRoom = completes ? completeRoom(room) ?? room : room
     if (completes) notifyParent(finalRoom)
-    // 往下走由规划师决定：房间只把“通过”和下一步的事实告诉它。
+    // 有下一步才叫醒规划师；最后一步通过就是句号，不再叫它补一句收尾。
+    const nextStage = next >= 0 ? room.stages[next] : null
     const lead = leadMemberOf(room)?.id
-    if (room.live === true && typeof lead === 'string' && lead !== '' && typeof live.sendToMember === 'function') {
-      const nextStage = next >= 0 ? room.stages[next] : null
-      const prompt = nextStage === null
-        ? `第 ${index + 1} 步「${gate.stage.title}」通过，计划里的工作步骤走完了。说一句收尾，或者接着安排下一步。`
-        : [
-          `第 ${index + 1} 步「${gate.stage.title}」验收通过了。下一步是第 ${next + 1} 步「${nextStage.title}」。`,
-          nextStage.acceptance ? `完成标准：${nextStage.acceptance}` : '',
-          '要继续，就在群里 @ 执行成员，把下一步说清楚；要收尾或改计划，就直说。',
-        ].filter(Boolean).join('\n')
+    if (nextStage !== null && room.live === true && typeof lead === 'string' && lead !== '' && typeof live.sendToMember === 'function') {
+      const prompt = [
+        `第 ${index + 1} 步「${gate.stage.title}」验收通过了。下一步是第 ${next + 1} 步「${nextStage.title}」。`,
+        nextStage.acceptance ? `完成标准：${nextStage.acceptance}` : '',
+        '要继续，就在群里 @ 执行成员，把下一步说清楚；要收尾或改计划，就直说。',
+      ].filter(Boolean).join('\n')
       void live.sendToMember(room.id, lead, `${prompt}\n${INTERNAL_PROMPT_MARKER}`, { intent: 'notice', from: '房间' })
         .catch(error => systemNotice({ store, roomId: room.id, text: '没能叫住规划师；下一步还没安排。', error }))
     }

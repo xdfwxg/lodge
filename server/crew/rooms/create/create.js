@@ -143,10 +143,29 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       await discard()
       return fail('invalid', `身体没准备好：${bodyIssueText(bodyIssues)}`)
     }
+    // 不会逐次确认外部动作的验收员只读参与：它看证据、给结论，命令由平台在副本里跑。
+    const readOnlyVerifierIds = new Set(
+      provisioned.members
+        .filter(member => (
+          (member.roleKind ?? member.role) === 'verifier' &&
+          provisioned.approvalGates?.[member.id] === false
+        ))
+        .map(member => member.id),
+    )
+    const members = provisioned.members.map(member => (
+      readOnlyVerifierIds.has(member.id)
+        ? {
+          ...member,
+          permissions: { read: true, exec: false, write: false },
+          toolSurface: ['read'],
+          writeScope: 'none',
+        }
+        : member
+    ))
     // 外部动作只有在驱动会停下来问人时才安全；不会问的执行成员不能开工。
     const blocked = roomType.readOnly === true
       ? []
-      : provisioned.members.filter(member => (
+      : members.filter(member => (
         member.permissions?.exec === true && provisioned.approvalGates?.[member.id] === false
       ))
     if (blocked.length > 0) {
@@ -167,7 +186,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       templateId,
       plan: resolvedPlan,
       independence: provisioned.independence,
-      members: provisioned.members,
+      members,
       chatRoom: provisioned.chatRoom,
       chatHost: provisioned.chatHost,
       shadowBot: provisioned.shadowBot ?? null,
@@ -194,6 +213,16 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         check: { mode: verify, acceptance: effectiveAcceptance },
       }),
     })
+    const readOnlyNames = members.filter(member => readOnlyVerifierIds.has(member.id)).map(member => member.name)
+    if (readOnlyNames.length > 0) {
+      room = {
+        ...room,
+        constraints: [
+          ...(room.constraints ?? []),
+          `${readOnlyNames.join('、')}不会逐次确认外部动作，只读参与验收；验收命令由平台执行。`,
+        ],
+      }
+    }
     store.writeRoom(room)
     stored = true
     if (parentRoom !== null) {

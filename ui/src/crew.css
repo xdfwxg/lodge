@@ -147,6 +147,7 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 @media (max-width:560px){.crew-type-choices{grid-template-columns:1fr}}
 .crew-member-add-dialog{max-width:440px}
 .crew-add-who{display:flex;flex-direction:column;gap:16px;padding:16px 24px 0}
+.crew-add-role{display:flex;flex-direction:column;gap:6px}
 .crew-member-add-dialog .crew-dialog-body{gap:16px;padding:16px 24px 24px}
 .crew-member-add-dialog .crew-field > b{font-size:var(--bt-text-label);line-height:var(--bt-leading-helper)}
 .crew-member-add-dialog .crew-body-swap-field .crew-member-menu{width:100%;max-width:none;box-sizing:border-box;height:32px;font-size:var(--bt-text-label)}
@@ -180,6 +181,7 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 .crew-decision-rec::before{content:'建议：';color:var(--bt-ink-3)}
 .studio-transcript-more{align-self:center;margin:2px auto 8px}
 .studio-timeline{display:flex;flex-direction:column;gap:12px;min-width:0}
+.studio-room-closing{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;padding:8px 0 4px;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
 .studio-result-first{margin-bottom:4px}
 .studio-worklog{margin-top:4px;border-top:1px solid var(--bt-line)}
 .studio-worklog>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 4px;cursor:pointer;font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink-2)}
@@ -597,6 +599,7 @@ button.crew-crew-member:hover::after,button.crew-crew-member:focus-visible::afte
 
 /* New room dialog */
 .crew-overlay{position:fixed;inset:0;z-index:60;display:grid;align-items:start;justify-items:center;padding:24px;background:rgb(0 0 0 / .32)}
+.crew-overlay.crew-overlay-center{align-items:center}
 .crew-dialog{position:relative;width:min(600px,100%);max-height:calc(100vh - 40px);overflow:auto;border:1px solid var(--bt-line-2);border-radius:var(--bt-radius-sheet);background:var(--bt-card);box-shadow:var(--bt-elev-3)}
 .crew-dialog-heading{padding:24px 24px 0}
 .crew-dialog-heading h2{margin:0;font-size:var(--bt-text-title);line-height:var(--bt-leading-title);font-weight:600;color:var(--bt-ink)}
@@ -715,12 +718,14 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-dialog-foot .crew-accept{margin-left:0;height:var(--bt-control-h-lg);padding:0 16px;font-size:var(--bt-text-label)}
 .crew-dialog-foot .crew-dialog-primary{flex:0 0 auto;min-width:84px;height:var(--bt-control-h-lg);padding:0 18px;font-size:var(--bt-text-label)}
 .crew-dialog-foot .crew-ghost{height:var(--bt-control-h-lg);padding:0 14px;font-size:var(--bt-text-label)}
-.crew-confirm{width:min(400px,100%)}
-.crew-confirm-body{padding-bottom:18px}
-.crew-confirm-warn{margin:8px 0 0;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:600;color:var(--bt-danger-text)}
-.crew-accept[data-danger=true]{background:var(--bt-card);border-color:var(--bt-line-2);color:var(--bt-danger-text);font-weight:600}
-.crew-accept[data-danger=true]:hover{background:var(--bt-danger-wash);border-color:var(--bt-line-danger)}
-.crew-accept[data-danger=true]:hover{filter:brightness(1.02)}
+.crew-confirm{width:min(360px,100%)}
+.crew-confirm .crew-dialog-heading h2{font-size:var(--bt-text-section);line-height:var(--bt-leading-label)}
+.crew-confirm .crew-dialog-heading p{margin:8px 0 0}
+.crew-confirm-body{padding-bottom:16px}
+.crew-confirm .crew-dialog-foot{border-top:0;padding:8px 24px 20px}
+.crew-confirm .crew-dialog-foot .crew-ghost,.crew-confirm .crew-dialog-foot .crew-accept{height:34px;min-width:72px;padding:0 16px;font-size:var(--bt-text-label)}
+.crew-accept[data-danger=true]{background:var(--bt-danger-text);border-color:var(--bt-danger-text);color:#fff;font-weight:600}
+.crew-accept[data-danger=true]:hover{filter:brightness(.96)}
 .crew-check{display:flex;align-items:center;gap:6px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-2)}
 /* 勾选一行加一句从属说明：说明缩到文字下面，整组用细边和上面的成员列表分开。 */
 .crew-check-block{display:flex;flex-direction:column;gap:3px;padding:10px 12px;border-radius:10px;border:.5px solid var(--bt-line-2);background:transparent}

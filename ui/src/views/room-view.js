@@ -297,6 +297,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     addOpen
       ? h(MemberAddDialog, {
         engines: state.engines ?? [],
+        members: room.members ?? [],
         busy: addBusy,
         error: addError,
         onRefresh: () => store.refresh(),
