@@ -375,7 +375,12 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     }
   }
 
-  const createMemberBot = async ({ name, soul, description, approval, mcp, roomTools = [], engine, model }) => {
+  const normalizeToolScope = toolScope => {
+    const deny = Array.isArray(toolScope?.deny) ? toolScope.deny : []
+    return { deny: [...new Set(['mcp:agents:*', ...deny])] }
+  }
+
+  const createMemberBot = async ({ name, soul, description, approval, mcp, roomTools = [], engine, model, toolScope = null }) => {
     const resolved = await resolveMemberEngine(engine, model)
     const selection = resolved.selection
     const servers = [...new Set([
@@ -389,7 +394,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       ...(servers.length > 0 ? { mcpServers: servers } : {}),
       // 基座会给每个 bot 自动挂内置 agents MCP；Lodge 的成员只用原生 read/exec/write，
       // 不把 coordinate_bots/session_search 这类团队工具带进房间。
-      toolScope: { deny: ['mcp:agents:*'] },
+      toolScope: normalizeToolScope(toolScope),
     }
     const created = await client.createBot({ name, modelSelection: selection, settings })
     const bot = created?.bot ?? created
@@ -409,7 +414,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
 
   // 原地换身体：基座支持在同一个 bot/thread 上换模型和设定，历史不用重开。
   // 语义参数留在业务侧，基座字段只在这个适配层出现。
-  const patchMemberBot = async (botId, { soul, description, approval, mcp = [], roomTools = [], modelSelection }) => {
+  const patchMemberBot = async (botId, { soul, description, approval, mcp = [], roomTools = [], modelSelection, toolScope = null }) => {
     const servers = [...new Set([
       ...(Array.isArray(mcp) ? mcp.map(grant => grant.server) : []),
       ...(Array.isArray(roomTools) ? roomTools : []),
@@ -419,7 +424,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
       ...(typeof description === 'string' && description !== '' ? { description } : {}),
       ...(approval === undefined ? {} : { approvalMode: approval }),
       mcpServers: servers,
-      toolScope: { deny: ['mcp:agents:*'] },
+      toolScope: normalizeToolScope(toolScope),
       modelSelection,
     })
     const bot = body?.bot ?? body

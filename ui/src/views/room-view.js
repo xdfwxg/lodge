@@ -3,6 +3,7 @@ import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { RoomModeSwitch } from '../room/mode-switch.js'
+import { RoomMemory } from '../room/memory.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
@@ -230,7 +231,9 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id, 'data-room-done': finished ? 'true' : undefined },
       mode.header(viewCtx),
-      h(RoomModeSwitch, { key: `mode-${room.id}`, room, onSwitch: actions.switchMode }),
+      h('div', { className: 'crew-room-tools' },
+        h(RoomModeSwitch, { key: `mode-${room.id}`, room, onSwitch: actions.switchMode }),
+        h(RoomMemory, { key: `memory-${room.id}`, room, onLoad: () => store.roomMemory() })),
       mode.activity(viewCtx),
       h('div', {
         ref: scroll,

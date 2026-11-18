@@ -202,6 +202,20 @@ export function createStore() {
     }
   }
 
+  const get = async path => {
+    try {
+      const response = await fetch(path)
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}))
+        throw new Error(detail.error ?? `HTTP ${response.status}`)
+      }
+      return await response.json()
+    } catch (error) {
+      patch({ error: String(error?.message ?? error) })
+      return null
+    }
+  }
+
   const activeRoom = () => state.rooms.find(room => room.id === state.activeId)
 
   return {
@@ -324,6 +338,10 @@ export function createStore() {
       return { ok: true, room: data.room }
     },
     activeRoom,
+    roomMemory: async () => {
+      const data = await get(`/api/rooms/${state.activeId}/memory`)
+      return Array.isArray(data?.entries) ? data.entries : null
+    },
     refresh: load,
   }
 }

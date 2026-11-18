@@ -1,12 +1,14 @@
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { runCommand } from './acceptance.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
 import { writeConclusion, writeDiagnostic, writeGoal } from './room-repo.js'
 import { writeMemberEnv } from './member-env.js'
+import { createRoomMemory } from './memory.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
 
 // 应用层只依赖这组端口；具体存储/工作区/运行时实现只在组合根装配。
-export const createCrewPorts = () => ({
+export const createCrewPorts = ({ memoryRoot } = {}) => ({
   roomFiles: {
     writeGoal,
     writeConclusion,
@@ -14,6 +16,7 @@ export const createCrewPorts = () => ({
     roomDir,
     roomRootOf,
   },
+  memory: createRoomMemory({ root: memoryRoot ?? join(process.cwd(), '.data', 'memory') }),
   workspace: {
     provider: workspaceProvider,
     byId: workspaceById,

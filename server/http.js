@@ -168,6 +168,12 @@ export const createHttpHandler = ({
       return json(res, 200, page)
     }
 
+    const memoryPath = path.match(/^\/api\/rooms\/([\w-]+)\/memory$/)
+    if (memoryPath !== null && req.method === 'GET') {
+      const [, roomId] = memoryPath
+      return respond(res, await service.memory({ roomId, limit: Number(url.searchParams.get('limit') ?? 20) }))
+    }
+
     const evidencePath = path.match(/^\/api\/rooms\/([\w-]+)\/evidence\/([\w-]+)$/)
     if (evidencePath !== null && req.method === 'GET') {
       const [, roomId, messageId] = evidencePath

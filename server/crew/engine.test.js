@@ -65,6 +65,19 @@ test('member prompts and semantic capability settings cross the engine port', as
   assert.equal(engine.capabilities().schedules, false)
 })
 
+test('a role tool scope is merged with the base agents deny', async () => {
+  const client = fakeClient()
+  const engine = createEngine({ client })
+  await engine.createMemberBot({
+    name: 'Worker',
+    soul: '你是执行官',
+    toolScope: { deny: ['mcp:lodge_gate:*'] },
+  })
+  assert.deepEqual(client.captured.bot.settings.toolScope, {
+    deny: ['mcp:agents:*', 'mcp:lodge_gate:*'],
+  })
+})
+
 test('a body patch keeps semantic fields on this side of the port', async () => {
   const client = fakeClient()
   const engine = createEngine({ client })

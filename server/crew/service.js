@@ -57,7 +57,25 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     files,
     workspace,
   })
-  const completeRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
+  const recordMemory = room => {
+    if (room === null || room === undefined || room.demo === true) return
+    if (!Array.isArray(room.stages) || room.stages.length === 0) return
+    if (!room.stages.every(stage => stage.state === 'passed')) return
+    try {
+      const result = ports.memory?.appendRoom?.({ room, messages: readMessages(room.id) })
+      if (result?.ok === false && result.reason !== 'demo' && result.reason !== 'no-workspace') {
+        console.warn(`[lodge] 房间记忆没有写入：${result.reason}`)
+      }
+    } catch (error) {
+      console.warn(`[lodge] 房间记忆没有写入：${error?.message ?? error}`)
+    }
+  }
+  const finishRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
+  const completeRoom = room => {
+    const done = finishRoom(room)
+    recordMemory(done)
+    return done
+  }
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles })
   const chat = createServiceChat({ store, live, emit })
   const modeSwitch = createModeSwitch({ store, engine, live, emit })
@@ -433,7 +451,9 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     }
 
     if (action === 'accept' && method === 'POST') {
-      return stages.accept(room, await readBody())
+      const result = stages.accept(room, await readBody())
+      if (result.ok === true) recordMemory(result.body?.room ?? readRoom(roomId))
+      return result
     }
 
     if (action === 'chat-continue' && method === 'POST') {
@@ -477,5 +497,11 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     createSampleRoom,
     roomRequest,
     switchMode: modeSwitch.switchMode,
+    // 房间记忆只读：只返回已交付房间的沉淀，不提供写入接口。
+    memory: ({ roomId, limit = 20 } = {}) => {
+      const room = readRoom(roomId)
+      if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+      return ok({ entries: ports.memory?.list?.({ room, limit }) ?? [], readOnly: true })
+    },
   }
 }

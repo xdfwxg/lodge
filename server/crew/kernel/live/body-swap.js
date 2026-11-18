@@ -7,6 +7,7 @@ import { normalizeBodySpec } from '../../body-spec.js'
 import { plainRuntimeError } from '../../base-error.js'
 import { independenceOf } from '../../independence.js'
 import { roomToolsFor } from '../../gate/tool.js'
+import { toolScopeFor } from '../../tool-scope.js'
 
 const labelOf = (instances, engineId, model) => {
   const instance = instances.find(item => item.id === engineId)
@@ -79,6 +80,7 @@ export const createBodySwap = ({ store, engine, emit }) => {
         approval: member.approval,
         mcp: spec.mcp,
         roomTools: roomToolsFor(member),
+        toolScope: toolScopeFor(member),
         modelSelection: selection,
       })
       await engine.setBotSkills(member.body.ref, spec.skills)

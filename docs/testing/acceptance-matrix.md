@@ -31,6 +31,9 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 重启续接规则（动过工具只续接，零产出只重开一次） | `server/crew/live-turn-modules.test.js` | 无 |
 | HTTP 成功覆盖（只认 2xx/3xx） | `server/http-coverage.test.js` | 无 |
 | HTTP 错误分类与附加字段 | `server/http-coverage.test.js` | 无 |
+| 成员工具面裁剪（隐藏协调与判定工具） | `server/crew/tool-scope.test.js`、`server/crew/engine.test.js` | 真实基座可选 |
+| 不可信内容清洗与字符预算 | `shared/untrusted-text.test.js` | 无 |
+| 房间记忆只读试点（按工作区沉淀已交付房间） | `server/crew/memory.test.js`、`server/crew/service-composition.test.js`、`server/http-coverage.test.js` | 真实交付可选 |
 | 判定工具（MCP gate） | `shared/gate.test.js`、`server/crew/gate/mcp-server.test.js`、`server/crew/gate/tool.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/engine.test.js`、`server/crew/permission.test.js`、`server/crew/external-actions.test.js` | 真实基座可选 |
 | 卡片有效期（阶段 + 重做轮次 + assignment） | `shared/attempt.test.js`、`server/crew/assignments.test.js`、`server/crew/attention.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/question-card.test.js` | 无 |
 | 人工门动作集 | `shared/human-gate.test.js`、`ui/src/room/studio/stage-gate.test.js` | 无 |

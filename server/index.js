@@ -140,7 +140,7 @@ const emit = (event, payload, id) => {
 const engine = assertRuntimePort(createEngine())
 
 let service = null
-const ports = createCrewPorts()
+const ports = createCrewPorts({ memoryRoot: join(dataDir, 'memory') })
 
 const live = createLiveRooms({
   store,

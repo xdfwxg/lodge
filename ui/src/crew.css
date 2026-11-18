@@ -835,8 +835,15 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 /* Attention: one needs-you signal per room, not unread counts. */
 .crew-unread-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bt-accent);margin-left:2px}
 
-.crew-room-mode-switch{display:flex;justify-content:flex-end;padding:0 16px}
-.crew-room-mode-switch .crew-link{font-size:var(--bt-text-helper)}
+.crew-room-tools{display:flex;justify-content:flex-end;align-items:center;gap:16px;padding:0 16px}
+.crew-room-mode-switch,.crew-room-memory{display:contents}
+.crew-room-tools .crew-link{font-size:var(--bt-text-helper)}
+.crew-memory-dialog{max-width:520px}
+.crew-memory-list{display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow:auto}
+.crew-memory-item{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--bt-line);border-radius:9px;background:var(--bt-shade-1)}
+.crew-memory-goal{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
+.crew-memory-conclusion{margin:0;font-size:var(--bt-text-helper);color:var(--bt-ink-2);line-height:1.6}
+.crew-memory-meta{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 /* Chat room: the scheduler stays invisible; only round progress and a typing hint surface. */
 .crew-typing-line{color:var(--bt-ink-3)}
 .crew-typing-line .crew-msg-body{display:flex;align-items:center;gap:6px;min-height:30px;font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}

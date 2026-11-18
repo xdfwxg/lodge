@@ -5,6 +5,7 @@ import { roleKindOf } from './roster.js'
 import { roleDefinitionOf } from '../../shared/role-definitions.js'
 import { leadMemberOf } from './room-members.js'
 import { roomToolsFor } from './gate/tool.js'
+import { toolScopeFor } from './tool-scope.js'
 import { LODGE_HOST_LABEL } from './member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
 import { fail, ok } from './result.js'
@@ -48,6 +49,7 @@ export const createModeSwitch = ({ store, engine, live, emit }) => {
       approval: member.approval,
       mcp,
       roomTools,
+      toolScope: toolScopeFor(member),
       modelSelection: {
         instanceId: member.body.engine,
         ...(typeof member.body.model === 'string' && member.body.model !== '' ? { model: member.body.model } : {}),

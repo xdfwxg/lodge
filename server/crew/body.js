@@ -1,5 +1,6 @@
 import { bodyIssueOf } from './body-check.js'
 import { ensureGateServer, roomToolsFor } from './gate/tool.js'
+import { toolScopeFor } from './tool-scope.js'
 
 // 身体工厂：只负责让一具基座身体上线、进入共享房间、退役。
 // 成员身份、权限、交接、房间状态都不在这里；建房、换身体、添加成员共用这一条路。
@@ -39,6 +40,7 @@ export const createBodyFactory = ({ engine }) => {
       approval: member.approval,
       mcp,
       roomTools,
+      toolScope: toolScopeFor(member),
       engine: config.engine,
       model: config.model,
     })

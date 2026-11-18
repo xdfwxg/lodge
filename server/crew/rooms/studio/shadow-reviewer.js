@@ -1,5 +1,6 @@
 import { createBaseThread } from '../base/thread.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
+import { fenceUntrusted } from '../../../../shared/untrusted-text.js'
 
 // 影子评审：房间里的一个隐藏成员，换一个角度读这一步。
 // 它不写 PASS/REJECT，不打分，不参与验收；意见只落进房间状态。
@@ -10,13 +11,6 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 const clip = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '')
 
-// 证据、命令输出和 diff 都可能带外部内容；围栏比正文长，并说明它不是指令。
-const fenced = (text, lang = '') => {
-  const value = String(text ?? '')
-  const longest = Math.max(0, ...(value.match(/`+/g) ?? []).map(run => run.length))
-  const fence = '`'.repeat(Math.max(3, longest + 1))
-  return `${fence}${lang}\n${value}\n${fence}`
-}
 
 const hidePrompt = (store, roomId, messageId) => {
   if (typeof messageId !== 'string' || messageId === '') return
@@ -46,10 +40,10 @@ export const shadowPrompt = ({ room, stage, evidence, manual = false }) => {
     evidence === undefined
       ? '这一步还没有证据。'
       : [
-        `证据：\n${fenced(clip(evidence.text, 4000))}`,
+        `证据：\n${fenceUntrusted(clip(evidence.text, 4000), { max: 4000 })}`,
         `命令：${clip(meta.command, 2000) || '无'}`,
         `退出码：${meta.exit === undefined || meta.exit === null ? '无' : meta.exit}`,
-        meta.diff === undefined ? '' : `改动：\n${fenced(clip(meta.diff, 8000), 'diff')}`,
+        meta.diff === undefined ? '' : `改动：\n${fenceUntrusted(clip(meta.diff, 8000), { lang: 'diff', max: 8000 })}`,
       ].filter(Boolean).join('\n'),
   ].filter(Boolean).join('\n')
 }
