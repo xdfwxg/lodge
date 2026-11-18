@@ -20,6 +20,15 @@ export const dedupeChatStreams = messages => {
 
 export const buildTimeline = messages => {
   messages = dedupeChatStreams(messages)
+  // 人的重做标记和 human-context 是同一条输入的两种记录；主时间线只留后者，旧记录没有配对时照常显示。
+  const humanContext = new Set(messages
+    .filter(message => message.kind === 'human-context')
+    .map(message => `${message.meta?.stage ?? ''}|${String(message.text ?? '').trim()}`))
+  const isProcess = message => isProcessMessage(message) || (
+    message.kind === 'rework' &&
+    message.authorId === 'you' &&
+    humanContext.has(`${message.meta?.stage ?? ''}|${String(message.text ?? '').trim()}`)
+  )
   const evidenceById = new Map()
   for (const message of messages) {
     if (message.kind === 'evidence') evidenceById.set(message.id, message)
@@ -42,9 +51,9 @@ export const buildTimeline = messages => {
     consumed.add(evidence.id)
     evidenceFor.set(message.id, evidence)
   }
-  const process = messages.filter(isProcessMessage)
+  const process = messages.filter(isProcess)
   const visible = messages.filter(message => (
-    !isProcessMessage(message) &&
+    !isProcess(message) &&
     !isEmptyChat(message) &&
     !(message.kind === 'evidence' && consumed.has(message.id))
   ))

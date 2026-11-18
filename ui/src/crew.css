@@ -844,6 +844,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-memory-goal{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
 .crew-memory-conclusion{margin:0;font-size:var(--bt-text-helper);color:var(--bt-ink-2);line-height:1.6}
 .crew-memory-meta{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
+.crew-human-label{font-size:var(--bt-text-helper);color:var(--bt-ink-3);margin-bottom:4px}
 /* Chat room: the scheduler stays invisible; only round progress and a typing hint surface. */
 .crew-typing-line{color:var(--bt-ink-3)}
 .crew-typing-line .crew-msg-body{display:flex;align-items:center;gap:6px;min-height:30px;font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}

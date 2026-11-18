@@ -21,6 +21,23 @@ test('process messages leave the main timeline but keep their order in one log',
   assert.equal(isProcessMessage(messages[3]), true)
 })
 
+test('a human rework marker yields to its human-context record', () => {
+  const messages = [
+    message('r1', 'rework', { authorId: 'you', text: '补一句上下文', meta: { stage: 1, source: 'rewind' } }),
+    message('h1', 'human-context', { authorId: 'you', text: '补一句上下文', meta: { stage: 1, source: 'rewind' } }),
+  ]
+  const timeline = buildTimeline(messages)
+  assert.deepEqual(timeline.visible.map(item => item.id), ['h1'])
+  assert.ok(timeline.process.some(item => item.id === 'r1'))
+})
+
+test('an old human rework without a context record stays visible', () => {
+  const messages = [
+    message('r1', 'rework', { authorId: 'you', text: '旧的重做意见', meta: { stage: 1, source: 'human' } }),
+  ]
+  assert.deepEqual(buildTimeline(messages).visible.map(item => item.id), ['r1'])
+})
+
 test('a verdict consumes its evidence and points the result card at it', () => {
   const messages = [
     message('e1', 'evidence', { seq: 2, meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0 } }),

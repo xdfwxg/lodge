@@ -40,6 +40,9 @@ export const renderSharedMessage = ({
       return h('div', { key: message.id, className: 'crew-system' }, '已撤回一条排队消息。')
     }
     return h('div', { key: message.id, className: 'crew-human' },
+      message.kind === 'human-context'
+        ? h('span', { className: 'crew-human-label' }, '补充上下文')
+        : null,
       h('div', { className: 'bt-ububble' }, h(Markdown, { text: message.text, variant: 'compact' })),
       message.meta?.queueId === undefined
         ? null
