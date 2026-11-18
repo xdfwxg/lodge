@@ -1,7 +1,7 @@
 // The island is Lodge's own shape: rooms, stages and verdicts in; surface data out.
 // This is the only place that translates room state for the island.
 
-import { createElement as h } from 'react'
+import { createElement as h, useState } from 'react'
 import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
@@ -66,6 +66,27 @@ const PILL_CSS = `
 @media (max-width:760px){.crew-goal-island{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
 `
 
+// 默认收成小胶囊，悬停或键盘聚焦时放大，露出目标原句。
+function DoneIsland({ goal }) {
+  const [peek, setPeek] = useState(false)
+  return h('div', {
+    className: 'crew-island-done-wrap',
+    'data-peek': peek ? 'true' : undefined,
+    tabIndex: 0,
+    'aria-label': `房间已交付，共 ${goal.stages.length} 步`,
+    onPointerEnter: event => { if (event.pointerType !== 'touch') setPeek(true) },
+    onPointerLeave: () => setPeek(false),
+    onFocus: event => { if (event.target.matches(':focus-visible')) setPeek(true) },
+    onBlur: event => { if (!event.currentTarget.contains(event.relatedTarget)) setPeek(false) },
+  },
+  h('div', { className: 'crew-island-done' },
+    h('span', { className: 'crew-island-done-dot', 'aria-hidden': true }),
+    h('span', { className: 'crew-island-done-copy' },
+      h('span', { className: 'crew-island-done-kicker' }, goal.objective || goal.title),
+      h('span', { className: 'crew-island-done-title' }, '已交付')),
+    h('span', { className: 'crew-island-done-detail' }, `${goal.stages.length} 步`)))
+}
+
 export function GoalIslandHeader({ room, status = null, onOpenRoom }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
@@ -101,10 +122,7 @@ export function GoalIslandHeader({ room, status = null, onOpenRoom }) {
   const finished = goal.stages.length > 0 && goal.stages.every(stage => stage.status === 'passed')
   return h('div', { className: 'crew-goal-island' },
     finished
-      ? h('div', { className: 'crew-island-done' },
-        h('span', { className: 'crew-island-done-dot', 'aria-hidden': true }),
-        h('span', { className: 'crew-island-done-title' }, '全部做完'),
-        h('span', { className: 'crew-island-done-detail' }, `${goal.stages.length} 步`))
+      ? h(DoneIsland, { goal })
       : h(GoalIsland, {
         room: islandRoom,
         goal,

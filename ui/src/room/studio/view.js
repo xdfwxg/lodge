@@ -41,7 +41,7 @@ export const studioView = {
   presence: ({ room, members, actions }) => h(StudioPresence, { room, members, onHold: actions.hold }),
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    if (room.state === 'complete' || done) return '已完成 · 和规划师聊聊，或开一间新房。'
+    if (room.state === 'complete' || done) return '已交付 · 还能和规划师聊聊。'
     const lead = (members ?? []).find(member => member.role === 'lead' || member.roleKind === 'planner')
     return `对${lead?.name ?? '规划师'}说…`
   },
