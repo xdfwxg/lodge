@@ -9,8 +9,8 @@ test('every member hides the base agents surface', () => {
 })
 
 test('only the executor hides the room gate tools', () => {
-  assert.ok(toolScopeFor({ roleKind: 'executor' }).deny.includes('mcp:lodge_gate:*'))
-  assert.ok(toolScopeFor({ roleKind: 'participant' }).deny.includes('mcp:lodge_gate:*'))
-  assert.equal(toolScopeFor({ roleKind: 'planner' }).deny.includes('mcp:lodge_gate:*'), false)
-  assert.equal(toolScopeFor({ roleKind: 'verifier' }).deny.includes('mcp:lodge_gate:*'), false)
+  assert.deepEqual(toolScopeFor({ roleKind: 'executor' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'participant' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'planner' }).deny, ['mcp:agents:*'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'verifier' }).deny, ['mcp:agents:*'])
 })
