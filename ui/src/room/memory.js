@@ -4,6 +4,12 @@ import { dateTimeOf } from '../view-format.js'
 
 const short = value => (typeof value === 'string' && value.length > 12 ? value.slice(0, 12) : value)
 
+const STATUS = {
+  draft: { label: '待审核', tone: 'waiting' },
+  approved: { label: '已发布', tone: 'done' },
+  rejected: { label: '已拒绝', tone: 'paused' },
+}
+
 const entryMeta = entry => [
   entry.completedAt === undefined || entry.completedAt === null ? '' : dateTimeOf(entry.completedAt),
   Array.isArray(entry.stages) && entry.stages.length > 0 ? `${entry.stages.length} 步` : '',
@@ -12,10 +18,11 @@ const entryMeta = entry => [
   entry.verdict === null || entry.verdict === undefined ? '' : (entry.verdict.pass === true ? '通过' : '退回'),
 ].filter(Boolean).join(' · ')
 
-export function RoomMemory({ room, onLoad }) {
+export function RoomMemory({ room, onLoad, onReview }) {
   const [open, setOpen] = useState(false)
   const [entries, setEntries] = useState(null)
   const [error, setError] = useState(null)
+  const [busyId, setBusyId] = useState(null)
   const overlay = useOverlay({
     label: '房间记忆',
     onClose: () => { setOpen(false); setError(null) },
@@ -33,6 +40,18 @@ export function RoomMemory({ room, onLoad }) {
     }
     setEntries(list)
   }
+  const review = async (entry, decision) => {
+    if (busyId !== null) return
+    setBusyId(entry.roomId)
+    const list = await onReview(entry.roomId, decision)
+    setBusyId(null)
+    if (list === null) {
+      setError('没能更新房间记忆')
+      return
+    }
+    setError(null)
+    setEntries(list)
+  }
   return h('div', { className: 'crew-room-memory' },
     h('button', { type: 'button', className: 'crew-link', onClick: openDialog }, '房间记忆'),
     open
@@ -46,7 +65,7 @@ export function RoomMemory({ room, onLoad }) {
         },
         h('div', { className: 'crew-dialog-heading' },
           h('h2', null, '房间记忆'),
-          h('p', null, '只读试点 · 只汇总这个工作区已交付的房间，不进入提示词或验收。')),
+          h('p', null, '审核通过后，新房间会把它作为只读参考；成员不能写入，也不参与验收。')),
         h('div', { className: 'crew-dialog-body' },
           error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error),
           entries === null && error === null
@@ -57,9 +76,31 @@ export function RoomMemory({ room, onLoad }) {
                 key: entry.roomId,
                 className: 'crew-memory-item',
               },
-              h('b', { className: 'crew-memory-goal' }, entry.goal),
+              h('div', { className: 'crew-memory-head' },
+                h('b', { className: 'crew-memory-goal' }, entry.goal),
+                h('span', {
+                  className: 'crew-memory-status',
+                  'data-tone': STATUS[entry.status]?.tone ?? 'waiting',
+                }, STATUS[entry.status]?.label ?? '待审核')),
               h('p', { className: 'crew-memory-conclusion' }, entry.conclusion),
-              h('span', { className: 'crew-memory-meta' }, entryMeta(entry)))))),
+              h('span', { className: 'crew-memory-meta' }, entryMeta(entry)),
+              h('div', { className: 'crew-memory-actions' },
+                entry.status === 'approved'
+                  ? null
+                  : h('button', {
+                    type: 'button',
+                    className: 'crew-link',
+                    disabled: busyId !== null,
+                    onClick: () => review(entry, 'approve'),
+                  }, '发布'),
+                entry.status === 'rejected'
+                  ? null
+                  : h('button', {
+                    type: 'button',
+                    className: 'crew-link',
+                    disabled: busyId !== null,
+                    onClick: () => review(entry, 'reject'),
+                  }, '不采用')))))),
         h('div', { className: 'crew-dialog-foot' },
           h('button', { type: 'button', className: 'crew-ghost', onClick: () => { setOpen(false); setError(null) } }, '关闭'))))
       : null)

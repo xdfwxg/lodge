@@ -516,11 +516,20 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     createSampleRoom,
     roomRequest,
     switchMode: modeSwitch.switchMode,
-    // 房间记忆只读：只返回已交付房间的沉淀，不提供写入接口。
+    // 房间记忆：人审核后发布，成员只读；不提供模型写入接口。
     memory: ({ roomId, limit = 20 } = {}) => {
       const room = readRoom(roomId)
       if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-      return ok({ entries: ports.memory?.list?.({ room, limit }) ?? [], readOnly: true })
+      return ok({ entries: ports.memory?.list?.({ room, limit }) ?? [], canReview: true })
+    },
+    memoryReview: ({ roomId, memoryId, decision } = {}) => {
+      const room = readRoom(roomId)
+      if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+      const result = ports.memory?.review?.({ room, memoryId, decision })
+      if (result?.ok !== true) {
+        return fail(result?.reason === 'not_found' ? 'not_found' : result?.reason === 'invalid' ? 'invalid' : 'conflict', '没能更新房间记忆')
+      }
+      return ok({ entries: result.entries, canReview: true })
     },
   }
 }

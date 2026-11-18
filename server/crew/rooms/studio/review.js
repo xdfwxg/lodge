@@ -5,7 +5,7 @@ import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
 import { DECISION_JSON_HINT, VERDICT_JSON_HINT, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../shared/gate.js'
-import { fenceUntrusted } from '../../../../shared/untrusted-text.js'
+import { fenceUntrusted, sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { workspaceOf } from './workspace.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
@@ -184,7 +184,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         const parallel = (dispatchOf(store, roomId, pending.stage)?.workers?.length ?? 0) > 1
         void sendToMember(lead, [
           `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
-          `判定：${reason === '' ? '未通过' : reason}`,
+          `判定：${reason === '' ? '未通过' : sanitizeUntrusted(reason, 300)}`,
           '判定必须先用工具提交，不要在回复里只写结论：',
           '1. 调用 lodge_gate_submit_decision（基座可能显示为 mcp__lodge_gate__submit_decision）。',
           '2. 如果工具列表里没有它，先调用 ToolSearch，查询 "lodge_gate_submit_decision"，再调用它。',

@@ -841,7 +841,12 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-memory-dialog{max-width:520px}
 .crew-memory-list{display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow:auto}
 .crew-memory-item{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--bt-line);border-radius:9px;background:var(--bt-shade-1)}
+.crew-memory-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .crew-memory-goal{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
+.crew-memory-status{font-size:var(--bt-text-helper);color:var(--bt-ink-3);white-space:nowrap}
+.crew-memory-status[data-tone=done]{color:var(--bt-green)}
+.crew-memory-status[data-tone=paused]{color:var(--bt-warning-text)}
+.crew-memory-actions{display:flex;gap:14px;margin-top:2px}
 .crew-memory-conclusion{margin:0;font-size:var(--bt-text-helper);color:var(--bt-ink-2);line-height:1.6}
 .crew-memory-meta{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .crew-human-label{font-size:var(--bt-text-helper);color:var(--bt-ink-3);margin-bottom:4px}

@@ -342,6 +342,10 @@ export function createStore() {
       const data = await get(`/api/rooms/${state.activeId}/memory`)
       return Array.isArray(data?.entries) ? data.entries : null
     },
+    reviewMemory: async (memoryId, decision) => {
+      const data = await post(`/api/rooms/${state.activeId}/memory/${memoryId}/review`, { decision })
+      return Array.isArray(data?.entries) ? data.entries : null
+    },
     refresh: load,
   }
 }

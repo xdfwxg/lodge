@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'n
 import { join, resolve } from 'node:path'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 
-// 房间记忆只读试点：只从已交付房间追加事实，不接收模型写入，也不进入提示词或验收。
+// 房间记忆：只从已交付房间追加事实，人工审核后才对新房间可见；不接收模型写入。
 const MAX_RECORD_BYTES = 4096
 const MAX_FILE_BYTES = 1024 * 1024
 const MAX_ENTRIES = 200
@@ -35,6 +35,7 @@ const recordOf = (room, messages) => {
   )))].slice(0, 12).map(file => clip(file, 100))
   return {
     version: 1,
+    kind: 'memory',
     roomId: room.id,
     roomName: clip(room.name, 120),
     goal: clip(room.goal, 500),
@@ -61,18 +62,37 @@ const recordOf = (room, messages) => {
   }
 }
 
-const readEntries = file => {
-  if (!existsSync(file)) return []
-  const entries = []
+const readState = file => {
+  const memories = new Map()
+  const reviews = new Map()
+  if (!existsSync(file)) return { memories, reviews }
   for (const line of readFileSync(file, 'utf8').split('\n')) {
     if (line.trim() === '') continue
     try {
       const value = JSON.parse(line)
-      if (value !== null && typeof value === 'object' && typeof value.roomId === 'string') entries.push(value)
+      if (value === null || typeof value !== 'object') continue
+      if (value.kind === 'review' && typeof value.memoryId === 'string') {
+        reviews.set(value.memoryId, { decision: value.decision, at: value.at ?? 0 })
+      } else if (typeof value.roomId === 'string') {
+        memories.set(value.roomId, value)
+      }
     } catch {}
   }
-  return entries
+  return { memories, reviews }
 }
+
+const statusOf = (memoryId, reviews) => {
+  const decision = reviews.get(memoryId)?.decision
+  if (decision === 'approve') return 'approved'
+  if (decision === 'reject') return 'rejected'
+  return 'draft'
+}
+
+const visibleEntry = (entry, reviews) => ({
+  ...entry,
+  status: statusOf(entry.roomId, reviews),
+  reviewedAt: reviews.get(entry.roomId)?.at ?? null,
+})
 
 export const createRoomMemory = ({ root }) => {
   const fileFor = room => {
@@ -80,13 +100,40 @@ export const createRoomMemory = ({ root }) => {
     return key === '' ? null : join(root, `${key}.jsonl`)
   }
 
+  const list = ({ room, limit = 20 }) => {
+    const file = fileFor(room)
+    if (file === null) return []
+    const size = Math.max(1, Math.min(MAX_ENTRIES, Number(limit) || 20))
+    const { memories, reviews } = readState(file)
+    return [...memories.values()].slice(-size).reverse().map(entry => visibleEntry(entry, reviews))
+  }
+
+  const shared = ({ room, sourceRepo = '', limit = 3 }) => {
+    const target = room ?? (sourceRepo === '' ? null : { sourceRepo })
+    const file = target === null ? null : fileFor(target)
+    if (file === null) return []
+    const { memories, reviews } = readState(file)
+    const size = Math.max(1, Math.min(10, Number(limit) || 3))
+    return [...memories.values()]
+      .filter(entry => statusOf(entry.roomId, reviews) === 'approved')
+      .slice(-size)
+      .reverse()
+      .map(entry => ({
+        roomId: entry.roomId,
+        goal: entry.goal,
+        conclusion: entry.conclusion,
+        files: Array.isArray(entry.files) ? entry.files : [],
+        completedAt: entry.completedAt,
+      }))
+  }
+
   const appendRoom = ({ room, messages = [] }) => {
     if (room === null || typeof room !== 'object' || room.demo === true) return { ok: false, reason: 'demo' }
     const file = fileFor(room)
     if (file === null) return { ok: false, reason: 'no-workspace' }
-    const entries = readEntries(file)
-    if (entries.some(entry => entry.roomId === room.id)) return { ok: true, duplicate: true }
-    if (entries.length >= MAX_ENTRIES) return { ok: false, reason: 'limit' }
+    const { memories } = readState(file)
+    if (memories.has(room.id)) return { ok: true, duplicate: true }
+    if (memories.size >= MAX_ENTRIES) return { ok: false, reason: 'limit' }
     const record = recordOf(room, messages)
     const line = `${JSON.stringify(record)}\n`
     const bytes = Buffer.byteLength(line)
@@ -101,12 +148,23 @@ export const createRoomMemory = ({ root }) => {
     }
   }
 
-  const list = ({ room, limit = 20 }) => {
+  const review = ({ room, memoryId, decision }) => {
+    if (decision !== 'approve' && decision !== 'reject') return { ok: false, reason: 'invalid' }
     const file = fileFor(room)
-    if (file === null) return []
-    const size = Math.max(1, Math.min(MAX_ENTRIES, Number(limit) || 20))
-    return readEntries(file).slice(-size).reverse()
+    if (file === null) return { ok: false, reason: 'no-workspace' }
+    const { memories } = readState(file)
+    if (typeof memoryId !== 'string' || !memories.has(memoryId)) return { ok: false, reason: 'not_found' }
+    const line = `${JSON.stringify({ kind: 'review', memoryId, decision, at: Date.now() })}\n`
+    const bytes = Buffer.byteLength(line)
+    if (existsSync(file) && statSync(file).size + bytes > MAX_FILE_BYTES) return { ok: false, reason: 'file-too-large' }
+    try {
+      mkdirSync(root, { recursive: true })
+      appendFileSync(file, line)
+      return { ok: true, entries: list({ room }) }
+    } catch (error) {
+      return { ok: false, reason: String(error?.message ?? error) }
+    }
   }
 
-  return { appendRoom, list }
+  return { appendRoom, list, shared, review }
 }

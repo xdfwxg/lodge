@@ -222,6 +222,11 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         check: { mode: verify, acceptance: effectiveAcceptance },
       }),
     })
+    let sharedMemory = []
+    try {
+      sharedMemory = ports.memory?.shared?.({ sourceRepo, limit: 3 }) ?? []
+    } catch {}
+    if (sharedMemory.length > 0) room = { ...room, sharedMemory }
     const readOnlyNames = members.filter(member => readOnlyVerifierIds.has(member.id)).map(member => member.name)
     if (readOnlyNames.length > 0) {
       room = {

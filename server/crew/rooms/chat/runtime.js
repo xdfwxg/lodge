@@ -1,5 +1,6 @@
 import { chatFacade } from './facade.js'
 import { createChatScheduler } from './scheduler.js'
+import { addTurnUsage } from '../../../../shared/usage.js'
 import { createChatTransport } from './transport.js'
 import { deliverToMember } from '../../surface-delivery.js'
 import { memberOf } from '../../room-members.js'
@@ -40,6 +41,18 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
     busyReview: () => false,
     isRunning: entry => entry.chatRun?.isRunning() === true,
     acceptsDelta: true,
+
+    // 聊天回合也花钱：只累计用量，不生成阶段诊断。
+    captureTurn: (entry, message) => {
+      const usage = message?.turn?.usage
+      if (usage === undefined || usage === null) return
+      store.updateRoom(entry.roomId, current => {
+        const next = addTurnUsage(current.usage, usage)
+        if (next === null) return null
+        current.usage = next
+        return { events: [] }
+      })
+    },
 
     // 聊天室只放行只读轻工具；写文件、跑命令和完整执行引擎都不挂在这里。
     permissionCard: async (entry, memberId, message, chat) => {

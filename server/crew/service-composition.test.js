@@ -33,6 +33,7 @@ test('the service facade keeps every route entry', () => {
     'createRoom',
     'roomRequest',
     'memory',
+    'memoryReview',
   ]) {
     assert.equal(typeof instance[name], 'function', `${name} is missing`)
   }

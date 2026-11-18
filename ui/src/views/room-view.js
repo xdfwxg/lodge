@@ -233,7 +233,12 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       mode.header(viewCtx),
       h('div', { className: 'crew-room-tools' },
         h(RoomModeSwitch, { key: `mode-${room.id}`, room, onSwitch: actions.switchMode }),
-        h(RoomMemory, { key: `memory-${room.id}`, room, onLoad: () => store.roomMemory() })),
+        h(RoomMemory, {
+          key: `memory-${room.id}`,
+          room,
+          onLoad: () => store.roomMemory(),
+          onReview: (memoryId, decision) => store.reviewMemory(memoryId, decision),
+        })),
       mode.activity(viewCtx),
       h('div', {
         ref: scroll,

@@ -14,6 +14,10 @@ const setup = () => {
     store: {
       readRoom: () => room,
       appendMessage: (roomId, message) => messages.push(message),
+      updateRoom: (_roomId, mutate) => {
+        const changed = mutate(room)
+        return changed === null ? null : room
+      },
     },
     engine: {
       answerCard: async input => { answered.push(input); return { ok: true } },
@@ -21,8 +25,18 @@ const setup = () => {
     emit: () => {},
     refreshRoom: async () => {},
   })
-  return { strategy, answered, messages }
+  return { strategy, answered, messages, room }
 }
+
+test('chat turns accumulate room usage without stage diagnostics', () => {
+  const { strategy, room } = setup()
+  strategy.captureTurn({ roomId: 'room-1' }, {
+    turn: { usage: { input: 10, output: 5, costUsd: 0.002 } },
+  })
+  assert.equal(room.usage.costStatus, 'reported')
+  assert.equal(room.usage.costMicroUsd, 2000)
+  assert.equal(room.usage.turns, 1)
+})
 
 test('chat allows read-only tools and denies write or exec', async () => {
   const { strategy, answered, messages } = setup()
