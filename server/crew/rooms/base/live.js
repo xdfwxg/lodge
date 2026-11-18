@@ -12,6 +12,7 @@ import { resolveRoomType } from '../../room-types/index.js'
 import { supportsRuntime } from '../../runtime-port.js'
 import { createChatRuntime } from '../chat/runtime.js'
 import { createStudioRuntime } from '../studio/runtime.js'
+import { createBodyFactory } from '../../body.js'
 
 // M3 实时房间：一个房间 = 三个独立的基座线程/工作区，产品时间线仍由 Lodge 持有。
 export const createLiveRooms = ({
@@ -206,6 +207,17 @@ export const createLiveRooms = ({
   }
 
   const bodySwap = createBodySwap({ store, engine, emit, attachMember, detachMember })
+
+  // 删房时把成员身体和隐藏 Bot 一起退役；工作区与用户文件不在这层处理。
+  const retireRoomBots = async room => {
+    const bodies = createBodyFactory({ engine })
+    for (const member of room.members ?? []) {
+      if (member?.body !== undefined) await bodies.retire(member.body)
+    }
+    for (const ref of [room.chatHost?.memberRef, room.shadowBot?.memberRef]) {
+      await bodies.retireHost(ref)
+    }
+  }
 
   const detach = roomId => {
     const entry = entries.get(roomId)
@@ -408,6 +420,7 @@ export const createLiveRooms = ({
     detachMember,
     swapBody: (room, body) => bodySwap.swap(room, body),
     detach,
+    retireRoomBots,
     send,
     sendToMember,
     requestReview,

@@ -2,6 +2,7 @@ import { Fragment, createElement as h, useMemo } from 'react'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { describeSteps, displayableStep } from './transcript-model.js'
 import { ShadowAdvice } from './advisor-advice.js'
+import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
 
 const orderOf = message => (
@@ -98,8 +99,11 @@ export function StudioTranscript({
   }
 
   const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
-  const advice = activeIndex >= 0
-    ? h(ShadowAdvice, { key: `advice-${activeIndex}`, room, stageIndex: activeIndex, label: '影子评审（仅供参考）' })
+  const adviceIndex = activeIndex >= 0
+    ? activeIndex
+    : Object.keys(room.advisorShadow ?? {}).map(Number).sort((a, b) => b - a)[0] ?? -1
+  const advice = adviceIndex >= 0
+    ? h(ShadowAdvice, { key: `advice-${adviceIndex}`, room, stageIndex: adviceIndex, label: '影子评审' })
     : null
 
   const finished = (room.stages ?? []).length > 0 &&
@@ -109,6 +113,11 @@ export function StudioTranscript({
       finished
         ? h('div', { key: 'room-closing', className: 'studio-room-closing' },
           h('span', null, '目标完成'),
+          h('button', {
+            type: 'button',
+            className: 'crew-link',
+            onClick: () => { downloadDeliveryRecord(room) },
+          }, '下载交付记录'),
           typeof onDiscussChat === 'function'
             ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
             : null,

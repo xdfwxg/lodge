@@ -21,7 +21,6 @@ export const recordShadowAdvice = async ({
   evidence,
   manual = false,
 }) => {
-  if (room?.shadowReview !== true) return null
   if (typeof shadow?.ask !== 'function') return null
   const result = await shadow.ask({ room, stage, evidence, manual })
   if (result?.available !== true) {

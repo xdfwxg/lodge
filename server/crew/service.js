@@ -250,6 +250,12 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       if (room.state === 'active') return fail('conflict', '正在进行的房间不能删除；先归档再删除')
       if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
       if (room.parentRoomId) closeSubroomAssignment(room, `子房间「${room.name}」已删除。`)
+      // 删房时把成员身体和隐藏 Bot 一起退役；工作区和用户文件留着。
+      try {
+        await live.retireRoomBots?.(room)
+      } catch (error) {
+        console.warn(`room bots retire failed: ${room.id} ${error?.message ?? error}`)
+      }
       await closeChildRooms(room)
       if (typeof room.parentRoomId === 'string' && room.parentRoomId !== '') {
         const parent = updateRoom(room.parentRoomId, current => {

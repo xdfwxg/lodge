@@ -106,6 +106,7 @@ export function GoalIslandHeader({ room, status = null, onOpenRoom }) {
   return h('div', { className: 'crew-goal-island' },
     finished
       ? h('div', { className: 'crew-island-done' },
+        h('span', { className: 'crew-island-done-dot', 'aria-hidden': true }),
         h('span', { className: 'crew-island-done-title' }, '全部做完'),
         h('span', { className: 'crew-island-done-detail' }, `${goal.stages.length} 步`))
       : h(GoalIsland, {

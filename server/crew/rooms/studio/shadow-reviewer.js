@@ -84,7 +84,6 @@ export const parseShadowAdvice = raw => {
 
 export const createShadowReviewer = ({ engine, store, roomId, sendToMember }) => {
   const ask = async ({ room, stage, evidence, manual = false }) => {
-    if (room?.shadowReview !== true) return { available: false, advice: [] }
     const ref = typeof room?.shadowBot?.memberRef === 'string' ? room.shadowBot.memberRef : ''
     if (ref === '') return { available: false, advice: [] }
     const thread = createBaseThread({ engine, store, roomId })

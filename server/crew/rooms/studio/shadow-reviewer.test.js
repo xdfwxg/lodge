@@ -84,15 +84,15 @@ test('the reviewer asks the hidden bot once and hides the prompt', async () => {
   assert.deepEqual(store.readRoom().hiddenBaseMessages, ['prompt-1'])
 })
 
-test('a room without the reviewer never calls the base', async () => {
+test('a room without a shadow body never calls the base', async () => {
   let calls = 0
   const reviewer = createShadowReviewer({
     engine: { history: async () => ({ messages: [] }), rooms: async () => [] },
-    store: fakeStore(room({ shadowReview: false })),
+    store: fakeStore(room({ shadowReview: false, shadowBot: null })),
     roomId: 'room-1',
     sendToMember: async () => { calls += 1; return { messageId: 'x' } },
   })
-  const result = await reviewer.ask({ room: room({ shadowReview: false }), stage: {}, evidence: undefined })
+  const result = await reviewer.ask({ room: room({ shadowReview: false, shadowBot: null }), stage: {}, evidence: undefined })
   assert.deepEqual(result, { available: false, advice: [] })
   assert.equal(calls, 0)
 })

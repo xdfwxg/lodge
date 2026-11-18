@@ -282,7 +282,7 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-closed-segs{display:flex;gap:4px;width:100%;padding:0 16px 9px;box-sizing:border-box;animation:bt-island-layer-in .34s var(--bt-ease) .04s backwards}
 .bt-goal-closed-segs i{flex:1 1 0;height:3px;border-radius:999px;background:var(--bt-line-2);transition:background-color .45s var(--bt-ease),box-shadow .45s var(--bt-ease)}
 .bt-goal-closed-segs i[data-seg=done]{background:var(--bt-green);box-shadow:0 0 10px color-mix(in srgb,var(--bt-green) 45%,transparent)}
-.bt-goal-closed-segs i[data-seg=current]{background:var(--bt-accent);box-shadow:0 0 10px color-mix(in srgb,var(--bt-accent) 35%,transparent)}
+.bt-goal-closed-segs i[data-seg=current]{background:linear-gradient(90deg,var(--bt-accent),color-mix(in srgb,var(--bt-accent) 55%,#fff));background-size:200% 100%;box-shadow:0 0 10px color-mix(in srgb,var(--bt-accent) 35%,transparent);animation:bt-seg-drift 3.2s linear infinite}
 .bt-goal-closed-segs i[data-seg=checking]{background:var(--bt-accent);opacity:.6}
 .bt-goal-closed-segs i[data-seg=paused]{background:var(--bt-star)}
 .bt-goal-signal{display:flex;align-items:center;min-width:0;border-radius:0 0 20px 20px;animation:bt-island-layer-in .26s var(--bt-ease) .03s backwards}
@@ -342,6 +342,7 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-cbtns{display:flex;justify-content:flex-end;gap:6px}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
 @keyframes bt-island-layer-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes bt-seg-drift{from{background-position:0% 0}to{background-position:200% 0}}
 @keyframes bt-live-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-@media (prefers-reduced-motion:reduce){.bt-island,.bt-goal-chev svg{transition:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-goal-closed-segs,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-goal-closed-segs i{transition:none}}
+@media (prefers-reduced-motion:reduce){.bt-island,.bt-goal-chev svg{transition:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-goal-closed-segs,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-goal-closed-segs i{transition:none;animation:none!important}}
 `

@@ -191,6 +191,6 @@ export function StudioSetupFields({
           checked: shadowReview === true,
           onChange: event => onShadowReview(event.target.checked),
         }),
-        '影子评审'),
-      h('p', { className: 'crew-field-hint' }, '由一个评审成员换一个角度再看一遍：找验收可能漏掉的东西，只供参考，不参与验收。')))
+        '每步都评'),
+      h('p', { className: 'crew-field-hint' }, '默认只在检查很弱、被退回或改动很大时，让影子评审说一句；打开后每一步都评。')))
 }

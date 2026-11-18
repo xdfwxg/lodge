@@ -864,12 +864,15 @@ test('shadow review records advice without injecting it into the Verifier prompt
   assert.equal(store.messages.some(message => message.kind === 'verdict'), false)
 })
 
-test('shadow review is not asked when the room did not enable it', async () => {
-  const room = makeRoom({ verifiers: ['verifier'] })
+test('shadow review stays quiet when the check is strong and nothing points at risk', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+  })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, output: '', diff: '', changedFiles: ['a.js'] },
   })
   let calls = 0
   const review = createReviewCoordinator({

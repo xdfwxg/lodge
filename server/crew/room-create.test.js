@@ -150,7 +150,7 @@ test('a custom room name is kept while the stage title follows the goal', async 
   assert.equal(room.goal, '加一个导出按钮')
   assert.equal(room.stages.some(stage => stage.title === '加一个导出按钮'), true)
   // 房间名就是基座成员名；id 才是稳定身份，不再生成 Lead/Worker 这类隐藏名。
-  assert.deepEqual(engine.seatNames.sort(), ['执行', '规划', '验收'].sort())
+  assert.deepEqual(engine.seatNames.filter(name => !name.startsWith('影子评审')).sort(), ['执行', '规划', '验收'].sort())
   assert.deepEqual(room.members.map(member => member.name).sort(), ['执行', '规划', '验收'].sort())
 })
 
@@ -590,7 +590,7 @@ test('studio creation puts the shadow reviewer in a hidden bot, not the gate', a
   assert.equal('advisor' in room.gate, false)
 })
 
-test('studio creation leaves no shadow bot when the option is off', async () => {
+test('studio creation always brings a hidden shadow reviewer', async () => {
   const store = createStore({ dataDir: temp('lodge-shadow-off-data-') })
   const result = await createRealRoom({
     store,
@@ -606,6 +606,6 @@ test('studio creation leaves no shadow bot when the option is off', async () => 
     ports: createCrewPorts(),
   })
   assert.equal(result.ok, true)
-  assert.equal('shadowBot' in result.body.room, false)
+  assert.equal(typeof result.body.room.shadowBot?.memberRef, 'string')
   assert.notEqual(result.body.room.shadowReview, true)
 })

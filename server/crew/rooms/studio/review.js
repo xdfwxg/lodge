@@ -12,6 +12,26 @@ import { memberDisplayName } from '../../member-labels.js'
 import { recordShadowAdvice } from './shadow-advisor.js'
 import { systemNotice } from '../../notices.js'
 
+
+// 影子评审按需出现：检查很弱、之前被退回、改动面大或碰到配置时，才请它看一眼。
+const WEAK_ACCEPTANCE = /^\s*(true|test\s+-[edf]\b)/i
+const CONFIG_FILE = /(^|\/)(package(-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|Dockerfile|\.env[^/]*|[^/]*\.config\.[cm]?[jt]s|tsconfig[^/]*\.json|[^/]*\.ya?ml)$/i
+export const shadowNeeded = ({ room, stage, evidence, manual, messages = [], stageIndex = null }) => {
+  if (room?.shadowReview === true) return true
+  if (manual === true) return true
+  const command = typeof stage?.acceptance === 'string' ? stage.acceptance.trim() : ''
+  if (command === '' || WEAK_ACCEPTANCE.test(command)) return true
+  const files = Array.isArray(evidence?.meta?.changedFiles) ? evidence.meta.changedFiles : []
+  if (files.length >= 5) return true
+  if (files.some(file => CONFIG_FILE.test(file))) return true
+  const rejected = (messages ?? []).some(message => (
+    message.kind === 'verdict' &&
+    (stageIndex === null || (message.meta?.stage ?? 0) === stageIndex) &&
+    message.meta?.pass !== true
+  ))
+  return rejected
+}
+
 const VERDICT_FORMAT = '第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）；从第二行起每行一条关键证据，最多 3 条；总字数控制在 200 字内。命令和退出码卡片已经显示，不要再复述。'
 
 // 证据、命令输出和 diff 都可能带外部内容；用比正文更长的围栏包住，并明确不是指令。
@@ -233,7 +253,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       verifiers: targets,
     })
     // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
-    shadowTask = room.shadowReview === true
+    shadowTask = shadowNeeded({ room, stage, evidence, manual, messages, stageIndex })
       ? recordShadowAdvice({
         store,
         roomId,
