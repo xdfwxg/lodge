@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { addTurnUsage } from '../../../../shared/usage.js'
+import { assessTurn } from '../../turn-assessment.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { reviewState } from './verifiers.js'
@@ -419,7 +420,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       if (typeof writeDiagnostic !== 'function' || room === null) return
       try {
         const diagnostic = {
-          version: 1,
+          version: 2,
           roomId,
           roomName: room.name,
           stage: stageIndex,
@@ -434,6 +435,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
           usage: turn?.usage ?? null,
           hookCoverage: turn?.hookCoverage ?? null,
           outcome,
+          assessment: assessTurn({ outcome, turn, extra }),
           ...extra,
         }
         void Promise.resolve(writeDiagnostic(room, turnId, diagnostic)).catch(() => {})

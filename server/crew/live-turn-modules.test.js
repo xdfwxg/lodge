@@ -380,6 +380,10 @@ test('a captured turn writes a diagnostic with its outcome and usage', () => {
   assert.equal(last.payload.stage, 0)
   assert.equal(last.payload.durationMs, 1200)
   assert.equal(last.payload.usage.input, 3)
+  assert.equal(last.payload.version, 2)
+  assert.ok(last.payload.assessment.evidence.includes('耗时 1.2s'))
+  assert.ok(last.payload.assessment.unknown.includes('回复为空'))
+  assert.ok(last.payload.assessment.next.includes('检查续接或重开记录；必要时交给人'))
 })
 
 test('a late turn from an older attempt is dropped before it touches evidence', () => {
