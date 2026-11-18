@@ -42,3 +42,9 @@ test('the front door asks for a goal and offers the sample', async () => {
   assert.match(body, /先看看一间做完的示例/)
   assert.match(body, /说清要的结果/)
 })
+
+test('a failed start says why it could not begin', async () => {
+  const { HomeView } = await load()
+  const body = text(HomeView({ onSubmit: () => {}, onSample: () => {}, error: '还没有能开工的模型' }))
+  assert.match(body, /还没有能开工的模型/)
+})

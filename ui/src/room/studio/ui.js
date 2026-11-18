@@ -19,9 +19,10 @@ export const studioUi = {
   goalIcon: TargetIcon,
   workspace: {
     show: () => true,
-    required: () => true,
+    // 不选文件夹也能开工：Lodge 会在工作区里准备一个，结果放在里面。
+    required: () => false,
     label: '工作文件夹',
-    hint: '工作室会在你选的文件夹里读写；先选这次要改的项目目录。',
+    hint: '不选也行：Lodge 会准备一个工作区，结果放在里面。',
   },
   missingVerifier: hasVerifier => !hasVerifier,
   readOnly: roomTypeMeta('studio').readOnly,

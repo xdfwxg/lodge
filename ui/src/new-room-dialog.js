@@ -531,7 +531,9 @@ function NewRoomDialog({
       h('span', {
         className: 'crew-path-value',
         'data-empty': repoPath === '' ? 'true' : undefined,
-      }, repoPath === '' ? '选择文件夹' : repoPath),
+      }, repoPath === ''
+        ? (roomKind.workspace.required(null) ? '选择文件夹' : '不选 · 用 Lodge 的工作区')
+        : repoPath),
       h('span', { className: 'crew-path-chevron', 'aria-hidden': 'true' }, h(ChevronDownIcon))),
       roomKind.workspace.hint === '' ? null : h('p', { className: 'crew-field-hint' }, roomKind.workspace.hint))
 

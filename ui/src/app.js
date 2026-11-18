@@ -94,8 +94,12 @@ export function App() {
     return () => store.disconnect()
   }, [store])
 
-  // 没有房间时停在门口：写下目标就能开始，示例只是一个入口。
-  const openFromHome = goal => openDialog({ goal })
+  // 没有房间时停在门口：写下目标就直接开工，团队和工作区由 Lodge 准备。
+  // 准备失败（例如没有可用模型）才退回建房对话框，让人调整。
+  const openFromHome = async goal => {
+    const result = await store.createRoom(goal, { verify: 'manual' })
+    if (result?.ok !== true) openDialog({ goal })
+  }
 
   // macOS 惯例：⌘N 新房间，⌘1..9 切房间；弹窗打开时不抢键。
   useEffect(() => {
@@ -149,6 +153,8 @@ export function App() {
       ? h(HomeView, {
         onSubmit: openFromHome,
         onSample: () => { void store.openSampleRoom() },
+        onAdjust: goal => openDialog({ goal }),
+        error: state.error,
       })
       : h(RoomView, {
         state,

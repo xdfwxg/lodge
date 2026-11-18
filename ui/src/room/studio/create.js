@@ -151,6 +151,7 @@ export function StudioPrimaryFields({
           className: 'crew-team-chip',
           'data-role': member.role,
         }, h(RoleIcon, { member }), member.name))),
+      h('p', { className: 'crew-field-hint' }, '一人规划、一人执行、一人检查；需要时再换人或加人。'),
       modelNote === '' ? null : h('p', { className: 'crew-field-hint', role: 'status' }, modelNote),
       h(EngineLogin, {
         readiness,
