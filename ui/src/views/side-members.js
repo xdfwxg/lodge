@@ -24,10 +24,16 @@ export function SideMembers({ room }) {
         .filter(value => value !== '').join(' · '),
       onClick: () => openBodyDialog(item.memberId),
     },
-    h('span', { className: 'crew-side-member-dot', 'aria-hidden': true }),
+    item.state === IDLE ? null : h('span', { className: 'crew-side-member-dot', 'aria-hidden': true }),
     h('span', { className: 'crew-side-member-name' }, item.name),
     item.state === IDLE ? null : h('span', { className: 'crew-side-member-state' }, item.label))),
     canAdd
-      ? h('button', { type: 'button', className: 'crew-side-member crew-side-member-add', onClick: openAddMemberDialog }, '＋ 添加成员')
+      ? h('button', {
+        type: 'button',
+        className: 'crew-side-member crew-side-member-add',
+        'aria-label': '添加成员',
+        title: '添加成员',
+        onClick: openAddMemberDialog,
+      }, '+')
       : null)
 }

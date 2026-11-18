@@ -247,7 +247,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
           onKeyDown: resizeWithKeyboard,
         }),
       h('div', { className: 'crew-side-brand' },
-        h('img', { className: 'crew-side-brand-logo', src: './logo.svg', alt: '', width: 22, height: 22 }), 'Lodge'),
+        h('img', { className: 'crew-side-brand-logo', src: '/logo.svg', alt: '', width: 22, height: 22 }), 'Lodge'),
       state.runtime?.ok === false
         ? h('div', {
           className: 'crew-error crew-side-error',

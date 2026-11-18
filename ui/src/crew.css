@@ -38,19 +38,18 @@ b,strong{font-weight:600}
 .crew-side-room-dot[data-tone=alert]{background:var(--bt-danger)}
 .crew-side-room-dot[data-tone=waiting]{background:var(--bt-star)}
 
-.crew-side-members{position:relative;display:flex;flex-direction:column;margin:1px 0 4px;padding:2px 8px 4px 35px}
-.crew-side-members::before{content:"";position:absolute;left:17px;top:0;bottom:12px;width:1px;background:var(--bt-line-2)}
-.crew-side-member{display:flex;align-items:center;gap:7px;min-width:0;height:26px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--bt-ink-2);font:inherit;font-size:var(--bt-text-helper);line-height:16px;text-align:left;cursor:pointer}
+.crew-side-members{display:flex;flex-wrap:wrap;align-items:center;gap:2px 7px;padding:1px 4px 5px 10px}
+.crew-side-member{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 2px;border:0;border-radius:4px;background:none;color:var(--bt-ink-3);font:inherit;font-size:var(--bt-text-helper);line-height:16px;text-align:left;cursor:pointer}
 .crew-side-member:hover{background:var(--bt-hover);color:var(--bt-ink)}
 .crew-side-member-dot{flex:none;width:5px;height:5px;border-radius:50%;background:var(--bt-line-2)}
 .crew-side-member[data-tone=active] .crew-side-member-dot{background:var(--bt-accent)}
 .crew-side-member[data-tone=waiting] .crew-side-member-dot{background:var(--bt-warning-text)}
 .crew-side-member[data-tone=danger] .crew-side-member-dot{background:var(--bt-danger-text)}
-.crew-side-member-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.crew-side-member-state{flex:none;margin-left:auto;color:var(--bt-ink-3)}
-.crew-side-member[data-tone=active] .crew-side-member-state{color:var(--bt-ink-2)}
+.crew-side-member-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink-2)}
+.crew-side-member-state{color:var(--bt-ink-2)}
 .crew-side-member[data-tone=danger] .crew-side-member-state{color:var(--bt-danger-text)}
-.crew-side-member-add{padding-left:20px;color:var(--bt-ink-3)}
+.crew-side-member-add{position:relative;justify-content:center;width:18px;height:22px;padding:0;border-radius:4px;color:var(--bt-ink-3);font-size:15px;line-height:1}
+.crew-side-member-add::before{content:"";position:absolute;inset:-4px}
 .crew-side-member-add:hover{color:var(--bt-ink)}
 body[data-side=rail] .crew-side-members{display:none}
 .crew-side-row{position:relative;display:flex;align-items:center;flex-wrap:wrap;min-width:0}
