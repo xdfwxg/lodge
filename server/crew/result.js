@@ -5,7 +5,12 @@
 export const ok = body => ({ ok: true, body })
 export const created = body => ({ ok: true, created: true, body })
 export const accepted = body => ({ ok: true, accepted: true, body })
-export const fail = (reason, error) => ({ ok: false, reason, error })
+export const fail = (reason, error, fields = null) => ({
+  ok: false,
+  reason,
+  error,
+  ...(fields === null || typeof fields !== 'object' ? {} : { fields }),
+})
 
 export class BusinessError extends Error {
   constructor(reason, message) {

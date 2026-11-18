@@ -661,6 +661,50 @@ test('a parallel stage delivers into each worktree even when the planner speaks'
   assert.equal(prompts[1].options.privateRoom, true)
 })
 
+test('retrying one branch revives the cancelled sibling on the same stage', async () => {
+  registerWorkspaceProvider('test-live-parallel-revive', {
+    capabilities: () => ({ candidate: false, merge: true, isolation: 'worktree' }),
+    head: () => 'base',
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-live-parallel-revive' },
+    repoPath: '/repo',
+    orchestration: 'parallel',
+    stageBases: { 0: 'base' },
+    workers: ['executor', 'executor-2'],
+    seatNames: { executor: 'Exec', 'executor-2': 'Exec2' },
+    seatSpecs: [
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'executor-2', name: '执行官 2', role: 'worker' },
+    ],
+  })
+  const store = fakeStore(room)
+  store.writeAssignment({
+    id: 'as-a', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: {}, status: 'failed', context: { parallel: true }, flags: {},
+  })
+  store.writeAssignment({
+    id: 'as-b', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor-2', reason: 'dispatch',
+    brief: {}, status: 'cancelled', context: { parallel: true }, flags: {},
+  })
+  const prompts = []
+  const sendToMember = async (memberId, prompt, options = {}) => {
+    prompts.push({ memberId, prompt, options })
+    return { messageId: `m-${memberId}` }
+  }
+  const starter = createStageStarter({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    handoff: createHandoff({ store, roomId: 'room-1', sendToMember, emit: () => {} }),
+    sendToMember,
+    integrate: async () => {},
+    enqueue: task => task(),
+  })
+  await starter.startStage(room, 0, { only: ['executor'], rework: true })
+  assert.deepEqual(prompts.map(item => item.memberId).sort(), ['executor', 'executor-2'])
+})
+
 test('acceptance runs in a disposable copy and records command evidence', async () => {
   registerWorkspaceProvider('test-live-accept', {
     capabilities: () => ({ acceptanceCopy: true, candidate: false }),
@@ -1389,6 +1433,59 @@ test('restart wakes an assignment that never reported', async () => {
   })
   await turns.resume()
   assert.ok(sent.some(item => item.memberId === 'executor'))
+})
+
+test('restart resumes a member that already acted instead of rerunning the task', async () => {
+  const room = makeRoom({ live: true, busy: false })
+  const store = fakeStore(room)
+  store.writeAssignment({
+    id: 'as-acted', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: { prompt: '从头做一遍' }, status: 'sent', sentAt: 100, context: {}, flags: {},
+  })
+  store.appendMessage('room-1', {
+    kind: 'activity', authorId: 'executor', ts: 200, text: 'Bash',
+  })
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt, options = {}) => {
+      sent.push({ memberId, prompt, options })
+      return { messageId: `m${sent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  await turns.resume()
+  assert.equal(sent.length, 1)
+  assert.match(sent[0].prompt, /继续刚才/)
+  assert.equal(sent[0].options.sendId, 'resume-as-acted')
+})
+
+test('a second zero-output restart stops instead of sending the task again', async () => {
+  const room = makeRoom({ live: true, busy: false })
+  const store = fakeStore(room)
+  store.writeAssignment({
+    id: 'as-quiet', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: { prompt: '从头做一遍' }, status: 'sent', sentAt: 100, context: {}, flags: { resumed: true },
+  })
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  await turns.resume()
+  assert.equal(sent.length, 0)
+  assert.equal(store.readAssignments('room-1').find(item => item.id === 'as-quiet').status, 'failed')
+  assert.ok(store.messages.some(message => /仍然没有产出/.test(message.text ?? '')))
 })
 
 

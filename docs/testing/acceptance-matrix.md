@@ -27,6 +27,10 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 人的输入落成证据 | `server/crew/service-stages.test.js`、`server/crew/live-approvals.test.js` | 无 |
 | 成本状态（已报告 / 部分未知 / 未知） | `shared/usage.test.js`、`server/crew/delivery.test.js`、`ui/src/room/studio/delivery-card.test.js` | 无 |
 | 执行诊断包 | `server/crew/room-repo.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
+| 并行分支复活（重试一个分支带回兄弟） | `server/crew/live-turn-modules.test.js` | 无 |
+| 重启续接规则（动过工具只续接，零产出只重开一次） | `server/crew/live-turn-modules.test.js` | 无 |
+| HTTP 成功覆盖（只认 2xx/3xx） | `server/http-coverage.test.js` | 无 |
+| HTTP 错误分类与附加字段 | `server/http-coverage.test.js` | 无 |
 | 判定工具（MCP gate） | `shared/gate.test.js`、`server/crew/gate/mcp-server.test.js`、`server/crew/gate/tool.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/engine.test.js`、`server/crew/permission.test.js`、`server/crew/external-actions.test.js` | 真实基座可选 |
 | 卡片有效期（阶段 + 重做轮次 + assignment） | `shared/attempt.test.js`、`server/crew/assignments.test.js`、`server/crew/attention.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/question-card.test.js` | 无 |
 | 人工门动作集 | `shared/human-gate.test.js`、`ui/src/room/studio/stage-gate.test.js` | 无 |

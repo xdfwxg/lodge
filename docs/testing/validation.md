@@ -62,6 +62,13 @@
 - 诊断包落盘在 `CrewWorktrees/e815cc00/executor/.crew/rooms/room-e815cc00/diagnostics/`；抽查的一条包含阶段、成员、回合时长、工具调用、用量和 `outcome=evidence`、证据 id、assignment id
 - 返工预算与晚到回合围栏没有在真实房间里强制制造，靠 `live-turn-modules.test.js` 覆盖
 
+## 2026-11-19 · 兄弟分支、续接、路由与错误分类
+
+- 兄弟分支：重试单个执行成员时，同一阶段被取消的兄弟分支会一起复活；单测覆盖
+- 续接规则：重启后先看这个成员有没有产生过工具活动；有就只发“继续并汇报”，没有才允许重开一次，第二次仍零产出就停下交给人；单测覆盖
+- HTTP 路由从 `server/index.js` 抽成 `server/http.js` 的工厂，新增 HTTP 层扫描：只有 2xx/3xx 才计入覆盖，4xx 只算“到达”；真实服务重启后 `/api/state`、`/api/health` 返回 200，未知接口返回 404
+- 错误分类补了 forbidden/unavailable/upstream（403/503/502），并支持附加字段；HTTP 扫描覆盖
+
 ## 仍需真实环境
 
 - 规划师通过 `submit_decision` 的“返工”路径（本次真跑的是“交给人”）

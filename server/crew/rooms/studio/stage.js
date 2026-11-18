@@ -91,7 +91,15 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     const workers = allWorkers
     const dispatchPlan = planDispatch({ room, stage, index, workers })
     let assignees = dispatchPlan.assignees
-    if (Array.isArray(only) && only.length > 0) assignees = assignees.filter(id => only.includes(id))
+    if (Array.isArray(only) && only.length > 0) {
+      // 重试一个分支时，同一阶段被取消的兄弟分支一起复活；否则这一步永远凑不齐。
+      const cancelled = new Set(
+        activeDispatchAssignments(store, roomId, index)
+          .filter(item => item.status === 'cancelled')
+          .map(item => item.toMemberId),
+      )
+      assignees = assignees.filter(id => only.includes(id) || cancelled.has(id))
+    }
     if (assignees.length === 0) throw new Error('编排策略没有可派发的执行成员')
     const parentAssignment = rework ? latestDispatchAssignment(store, roomId, index) : null
     const workspaceCaps = workspaceOf(room).capabilities()
