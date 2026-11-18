@@ -6,7 +6,11 @@ import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
 
-const activeIndex = room => room.stages.findIndex(stage => stage.state === 'active')
+// 房型能力决定岛要不要画步骤；聊天室没有阶段，即使切过一次工作室也不显示残留阶段。
+const stagesOf = room => room.modeCapabilities?.stages === false
+  ? []
+  : Array.isArray(room.stages) ? room.stages : []
+const activeIndex = room => stagesOf(room).findIndex(stage => stage.state === 'active')
 
 export const toIslandGoal = room => ({
   id: room.id,
@@ -16,7 +20,7 @@ export const toIslandGoal = room => ({
     : room.state === 'paused' ? 'paused' : room.state === 'stopped' ? 'stopped' : 'active',
   idle: room.idle === true || room.needsYou?.kind === 'idle',
   current: activeIndex(room),
-  stages: room.stages.map(stage => ({
+  stages: stagesOf(room).map(stage => ({
     title: stage.title,
     kind: stage.kind,
     status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
@@ -41,7 +45,9 @@ const pill = ({ room, view, open, onToggle }) => {
   h('span', { className: 'bt-pill-goal' },
     h('span', { className: 'bt-pill-ico' }, h(TargetIcon)),
     h('span', { className: 'bt-pill-title', title }, title),
-    view === null ? null : h('span', { className: 'bt-pill-count' }, `${view.number ?? 0}/${view.count}`)))
+    view === null || (view.count ?? 0) === 0
+      ? null
+      : h('span', { className: 'bt-pill-count' }, `${view.number ?? 0}/${view.count}`)))
 }
 
 const PILL_CSS = `
@@ -67,13 +73,13 @@ const PILL_CSS = `
 `
 
 // 默认收成小胶囊，悬停或键盘聚焦时放大，露出目标原句。
-function DoneIsland({ goal }) {
+function DoneIsland({ goal, label }) {
   const [peek, setPeek] = useState(false)
   return h('div', {
     className: 'crew-island-done-wrap',
     'data-peek': peek ? 'true' : undefined,
     tabIndex: 0,
-    'aria-label': `房间已交付，共 ${goal.stages.length} 步`,
+    'aria-label': `房间${label}，共 ${goal.stages.length} 步`,
     onPointerEnter: event => { if (event.pointerType !== 'touch') setPeek(true) },
     onPointerLeave: () => setPeek(false),
     onFocus: event => { if (event.target.matches(':focus-visible')) setPeek(true) },
@@ -83,14 +89,14 @@ function DoneIsland({ goal }) {
     h('span', { className: 'crew-island-done-dot', 'aria-hidden': true }),
     h('span', { className: 'crew-island-done-copy' },
       h('span', { className: 'crew-island-done-kicker' }, goal.objective || goal.title),
-      h('span', { className: 'crew-island-done-title' }, '已交付')),
+      h('span', { className: 'crew-island-done-title' }, label)),
     h('span', { className: 'crew-island-done-detail' }, `${goal.stages.length} 步`)))
 }
 
-export function GoalIslandHeader({ room, status = null, onOpenRoom }) {
+export function GoalIslandHeader({ room, goal: goalOverride = null, status = null, onOpenRoom }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
-  const goal = toIslandGoal(room)
+  const goal = goalOverride ?? toIslandGoal(room)
   const view = goalView(goal)
   const islandRoom = toIslandRoom(room)
   const goalActions = {
@@ -120,9 +126,10 @@ export function GoalIslandHeader({ room, status = null, onOpenRoom }) {
     },
   }
   const finished = goal.stages.length > 0 && goal.stages.every(stage => stage.status === 'passed')
+  const doneLabel = room.modeCapabilities?.stages === false ? '已确认' : '已交付'
   return h('div', { className: 'crew-goal-island' },
     finished
-      ? h(DoneIsland, { goal })
+      ? h(DoneIsland, { goal, label: doneLabel })
       : h(GoalIsland, {
         room: islandRoom,
         goal,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ChatIsland } from './island.js'
+import { GoalIslandHeader } from '../../goal-island/adapter.js'
 import { ReceiptIntake } from './receipt-intake.js'
 import { chatView } from './view.js'
 import { StatePanel } from '../../state-panel.js'
@@ -10,9 +10,10 @@ const actions = {
   approval: () => {},
   continueChat: () => {},
   startStudio: () => {},
+  selectRoom: () => {},
 }
 
-test('the chat header is the collapsed island', () => {
+test('the chat header is the same goal island as the studio', () => {
   const tree = chatView.header({
     room: {
       id: 'room-chat',
@@ -23,8 +24,27 @@ test('the chat header is the collapsed island', () => {
       messages: [],
     },
     members: [],
+    actions,
   })
-  assert.equal(tree.type, ChatIsland)
+  assert.equal(tree.type, GoalIslandHeader)
+})
+
+test('an accepted chat reads as confirmed, not delivered', () => {
+  const html = renderToStaticMarkup(chatView.header({
+    room: {
+      id: 'room-chat',
+      name: '圆桌',
+      goal: '讨论交付边界',
+      state: 'complete',
+      modeCapabilities: { stages: false },
+      chat: { phase: 'accepted' },
+      messages: [],
+    },
+    members: [],
+    actions,
+  }))
+  assert.match(html, /已确认/)
+  assert.doesNotMatch(html, /已交付/)
 })
 
 test('the chat header leaves the crew to the sidebar', () => {
@@ -39,7 +59,10 @@ test('the chat header leaves the crew to the sidebar', () => {
       busyMembers: ['worker'],
     },
     members: [{ id: 'worker', name: '甲', role: 'worker', body: { engine: 'pi', model: 'deepseek-flash' } }],
+    actions,
   }))
+  assert.match(html, /crew-goal-island/)
+  assert.match(html, /圆桌/)
   assert.doesNotMatch(html, /成员状态/)
   assert.doesNotMatch(html, /发言中/)
 })
