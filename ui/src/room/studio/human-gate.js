@@ -32,7 +32,7 @@ export function HumanGateCard({ room, onRework = null }) {
     setBusy(false)
     if (result !== null) setNote('')
   }
-  return h('div', { className: 'crew-human-gate', role: 'group', 'aria-label': '轮到你决定' },
+  return h('div', { className: 'crew-human-gate', role: 'group', 'aria-label': '轮到你决定', 'data-room-decision': '' },
     h('b', null, `第 ${gate.stage + 1} 步「${gate.title}」轮到你决定`),
     h('p', null, gate.actionRequired || gate.reason || '看看这一步哪里还不够，把要改的写在下面。'),
     h('textarea', {

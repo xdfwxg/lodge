@@ -38,7 +38,7 @@ test('a structured verdict shows its reason and findings', () => {
       },
     },
   })
-  assert.match(html, /REJECT/)
+  assert.match(html, /退回/)
   assert.match(html, /缺 beta/)
   assert.match(html, /阻断 · shared\.txt 只有 alpha/)
 })
@@ -52,6 +52,6 @@ test('a legacy verdict still renders from its text', () => {
     text: 'PASS 内容正确\n测试通过',
     meta: { pass: true, reason: 'PASS 内容正确\n测试通过', stage: 1, evidenceId: 'e1' },
   })
-  assert.match(html, /PASS/)
+  assert.match(html, /通过/)
   assert.match(html, /内容正确/)
 })

@@ -81,7 +81,7 @@ const studioNeedsYou = (room, messages = []) => {
       const outcome = manualReviewState({ room, messages, stageIndex: index })
       if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待重做' }
       if (outcome.state === 'pending') {
-        return { kind: 'review', stage: index, label: `验收员在看 · 已回 ${outcome.received}/${outcome.total}` }
+        return { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
       }
       if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
       return null
@@ -129,7 +129,7 @@ const studioNeedsYou = (room, messages = []) => {
     if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待重做' }
     if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
     if (outcome.state === 'pending') {
-      return { kind: 'review', stage: index, label: `验收员在看 · 已回 ${outcome.received}/${outcome.total}` }
+      return { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
     }
     return null
   }

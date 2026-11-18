@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { filterRooms, orderRooms, roomLabelOf } from './sidebar.js'
+import { filterRooms, groupRooms, orderRooms, roomLabelOf } from './sidebar.js'
 
 test('sidebar room labels carry name, status, unread and needs-you text', () => {
   assert.equal(roomLabelOf({ name: '简历', state: 'active', live: true }), '简历，正在做')
@@ -25,6 +25,19 @@ test('room search matches name, goal and status text', () => {
   assert.deepEqual(filterRooms(rooms, '待签字').map(room => room.id), ['c'])
   assert.deepEqual(filterRooms(rooms, '  ').map(room => room.id), ['a', 'b', 'c'])
   assert.deepEqual(filterRooms(rooms, '不存在'), [])
+})
+
+test('the list separates needs-you, working, delivered and archived', () => {
+  const groups = groupRooms([
+    { id: 'done', state: 'complete', messages: [{ ts: 1 }] },
+    { id: 'working', state: 'active', live: true, messages: [{ ts: 2 }] },
+    { id: 'pending', state: 'active', needsYou: { kind: 'decision' }, messages: [{ ts: 3 }] },
+    { id: 'archived', state: 'stopped', archivedAt: 4, messages: [{ ts: 4 }] },
+  ])
+  assert.deepEqual(groups.pending.map(room => room.id), ['pending'])
+  assert.deepEqual(groups.active.map(room => room.id), ['working'])
+  assert.deepEqual(groups.done.map(room => room.id), ['done'])
+  assert.deepEqual(groups.archived.map(room => room.id), ['archived'])
 })
 
 test('rooms are ordered by attention, recency and completion', () => {

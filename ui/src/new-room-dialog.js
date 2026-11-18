@@ -441,28 +441,31 @@ function NewRoomDialog({
             onChange: event => setAnswers(list => list.map((item, at) => at === index ? event.target.value : item)),
           }))))
       : h('p', { className: 'crew-field-hint' }, '没有要你定的。'),
-    teamView,
-    h('div', { className: 'crew-proposal-block' },
-      h('b', null, '怎么验收'),
-      verify === 'manual'
-        ? h('p', { className: 'crew-field-hint' }, '你自己看，满意就继续。')
-        : acceptance.trim() !== ''
-          ? h('div', { className: 'crew-acceptance' },
-            h('span', { className: 'crew-field-hint' }, '检查'),
-            h('code', { className: 'crew-acceptance-cmd' }, acceptance))
-          : plannedAcceptance
-            ? h('p', { className: 'crew-field-hint' }, '每一步都会跑一条检查。')
-            : h('input', {
-              className: 'crew-goal-input crew-acceptance-input',
-              type: 'text',
-              'aria-label': '要跑的检查',
-              value: acceptanceDraft,
-              placeholder: '例如：npm test',
-              onChange: event => setAcceptanceDraft(event.target.value),
-            })),
-    verify === 'manual' && hasVerifier
-      ? h('p', { className: 'crew-dialog-note' }, '可选：补一条检查。')
-      : null,
+    h('details', { className: 'crew-setup-more' },
+      h('summary', null, `队伍和检查 · ${rosterMembers.length} 人${verify === 'test' ? ' · 跑检查' : ' · 你确认'}`),
+      h('div', { className: 'crew-setup-more-body' },
+        teamView,
+        h('div', { className: 'crew-proposal-block' },
+        h('b', null, '怎么验收'),
+        verify === 'manual'
+          ? h('p', { className: 'crew-field-hint' }, '你自己看，满意就继续。')
+          : acceptance.trim() !== ''
+            ? h('div', { className: 'crew-acceptance' },
+              h('span', { className: 'crew-field-hint' }, '检查'),
+              h('code', { className: 'crew-acceptance-cmd' }, acceptance))
+            : plannedAcceptance
+              ? h('p', { className: 'crew-field-hint' }, '每一步都会跑一条检查。')
+              : h('input', {
+                className: 'crew-goal-input crew-acceptance-input',
+                type: 'text',
+                'aria-label': '要跑的检查',
+                value: acceptanceDraft,
+                placeholder: '例如：npm test',
+                onChange: event => setAcceptanceDraft(event.target.value),
+              })),
+        verify === 'manual' && hasVerifier
+          ? h('p', { className: 'crew-dialog-note' }, '可选：补一条检查。')
+          : null)),
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const setupProps = {

@@ -11,19 +11,29 @@ const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
 const byRecent = list => [...list].sort((a, b) => lastAtOf(b) - lastAtOf(a))
 
-// 一条列表：先放待处理的，再放最近、完成、归档。类型不是分区。
-export const orderRooms = rooms => {
+// 列表先回答“今天要做什么”：需要你、正在做，已交付和归档收在后面。
+export const groupRooms = rooms => {
   const pending = []
-  const recent = []
+  const active = []
   const done = []
   const archived = []
   for (const room of rooms) {
     if (room.archivedAt) archived.push(room)
     else if (room.needsYou) pending.push(room)
     else if (room.state === 'complete') done.push(room)
-    else recent.push(room)
+    else active.push(room)
   }
-  return [...byRecent(pending), ...byRecent(recent), ...byRecent(done), ...byRecent(archived)]
+  return {
+    pending: byRecent(pending),
+    active: byRecent(active),
+    done: byRecent(done),
+    archived: byRecent(archived),
+  }
+}
+
+export const orderRooms = rooms => {
+  const groups = groupRooms(rooms)
+  return [...groups.pending, ...groups.active, ...groups.done, ...groups.archived]
 }
 
 export const SEARCH_MIN_ROOMS = 7
@@ -43,6 +53,25 @@ const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
 
+// 分区承担了“这是什么状态”；折叠区默认收起，除非还没有别的事可看。
+function RoomSection({ title, rooms, renderRow, collapsible = false, defaultOpen = true }) {
+  const [choice, setChoice] = useState(null)
+  if (rooms.length === 0) return null
+  const label = collapsible ? `${title} ${rooms.length}` : title
+  if (!collapsible) {
+    return h('div', { className: 'crew-side-section' },
+      h('div', { className: 'crew-side-group-label' }, label),
+      rooms.map(renderRow))
+  }
+  return h('details', {
+    className: 'crew-side-section crew-side-section-fold',
+    open: choice ?? defaultOpen,
+    onToggle: event => setChoice(event.currentTarget.open),
+  },
+  h('summary', { className: 'crew-side-group-label' }, label),
+  rooms.map(renderRow))
+}
+
 function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
@@ -56,9 +85,9 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const collapsedRef = useRef(false)
   const liveCount = rooms.filter(room => !room.archivedAt).length
   const showSearch = liveCount >= SEARCH_MIN_ROOMS || searchOpen || query.trim() !== ''
-  const ordered = orderRooms(filterRooms(rooms, query))
-  const archivedRooms = ordered.filter(room => room.archivedAt)
-  const activeRooms = ordered.filter(room => !room.archivedAt)
+  const searching = query.trim() !== ''
+  const groups = groupRooms(filterRooms(rooms, query))
+  const hasWork = groups.pending.length + groups.active.length > 0
   const hasRail = rail || sideCollapsed
   const collapsed = hasRail && !open
   const expanded = !collapsed
@@ -160,6 +189,9 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
     onArchive: onArchive === undefined ? undefined : archived => onArchive(room.id, archived),
     onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
   })
+  const renderRoom = room => h(Fragment, { key: room.id },
+    roomRow(room),
+    activeId === room.id ? h(SideMembers, { room }) : null)
 
   // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。拖到一列图标时收成 rail。
   const SIDE_MIN = 200
@@ -296,19 +328,29 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
         : null,
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },
-          query.trim() !== '' && activeRooms.length === 0 && archivedRooms.length === 0
-            ? h('p', { className: 'crew-side-empty', role: 'status' }, '没有匹配的房间')
-            : null,
-          activeRooms.map(room => h(Fragment, { key: room.id },
-            roomRow(room),
-            activeId === room.id ? h(SideMembers, { room }) : null)),
-          archivedRooms.length === 0
-            ? null
-            : h('div', { key: 'archived-label', className: 'crew-side-group-label' }, '已归档'),
-          archivedRooms.map(roomRow))),
-      h('div', { className: 'crew-me' },
-        h('span', { className: 'crew-me-badge' }, '你'),
-        h('span', { className: 'crew-me-body' }, h('b', null, '你')))))
+          searching || hasRail
+            ? (groups.pending.length + groups.active.length + groups.done.length + groups.archived.length === 0
+              ? h('p', { className: 'crew-side-empty', role: 'status' }, searching ? '没有匹配的房间' : '还没有房间')
+              : [...groups.pending, ...groups.active, ...groups.done, ...groups.archived].map(renderRoom))
+            : h(Fragment, null,
+              h(RoomSection, { key: 'pending', title: '需要你', rooms: groups.pending, renderRow: renderRoom }),
+              h(RoomSection, { key: 'active', title: '正在做', rooms: groups.active, renderRow: renderRoom }),
+              h(RoomSection, {
+                key: 'done',
+                title: '已交付',
+                rooms: groups.done,
+                renderRow: renderRoom,
+                collapsible: true,
+                defaultOpen: !hasWork,
+              }),
+              h(RoomSection, {
+                key: 'archived',
+                title: '已归档',
+                rooms: groups.archived,
+                renderRow: renderRoom,
+                collapsible: true,
+                defaultOpen: false,
+              }))))))
 }
 
 const toneOf = room => {
@@ -533,6 +575,8 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
     h('div', {
       className: 'crew-side-row',
       'data-archived': archived ? 'true' : undefined,
+      'data-done': !archived && room.state === 'complete' ? 'true' : undefined,
+      'data-needs': room.needsYou === undefined || room.needsYou === null ? undefined : 'true',
       'data-menu': menuOpen ? 'true' : undefined,
     },
     renaming

@@ -1,8 +1,7 @@
 import { createElement as h } from 'react'
 import { renderSharedMessage, resolveMember } from '../message-view.js'
-import { ActivityLine, ChatLine, Speaker } from '../../message-cards.js'
+import { ChatLine, Speaker } from '../../message-cards.js'
 import { QuestionCard } from '../question-card.js'
-import { displayToolName } from './transcript-model.js'
 import { splitVerdictText } from './verdict-text.js'
 import { cardStateOf } from '../../../../shared/attempt.js'
 import { judgmentOf } from '../../../../shared/judgment.js'
@@ -81,7 +80,7 @@ export const renderStudioMessage = ({
       h('div', { className: 'crew-msg-body' },
         h(Speaker, { member, ts: message.ts, time: false, station: false }),
         h('div', { className: 'crew-verdict-card', 'data-pass': passed ? 'true' : 'false' },
-          h('span', { className: 'crew-verdict-tag' }, passed ? 'PASS' : 'REJECT'),
+          h('span', { className: 'crew-verdict-tag' }, passed ? '通过' : '退回'),
           h('span', { className: 'crew-verdict-text' }, text,
             findings.length === 0
               ? null
@@ -95,12 +94,8 @@ export const renderStudioMessage = ({
           : ''))))
   }
 
-  if (message.kind === 'activity_steps') return h(ActivityLine, { key: message.id, message })
-
-  if (message.kind === 'activity') {
-    const label = displayToolName(message.meta?.tool)
-    return h(ActivityLine, { key: message.id, message: label === '' ? message : { ...message, text: label } })
-  }
+  // 工厂日志不进房间：需要看过程时去交付详情或诊断里找。
+  if (message.kind === 'activity_steps' || message.kind === 'activity') return null
 
   if (message.kind === 'chat' && message.authorId !== 'you') {
     return h(ChatLine, { key: message.id, message, member })

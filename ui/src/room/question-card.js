@@ -19,7 +19,11 @@ export function QuestionCard({ message, member, onAnswer = null, state = 'open' 
   const head = open
     ? card.subtitle || '需要你回答'
     : state === 'answered' ? '已回答' : '这一步已经变了'
-  return h('div', { className: 'crew-msg crew-msg-chat', 'data-card-state': state },
+  return h('div', {
+    className: 'crew-msg crew-msg-chat',
+    'data-card-state': state,
+    'data-room-decision': open ? '' : undefined,
+  },
     h('div', { className: 'crew-msg-body' },
       h('div', { className: 'crew-inline-speaker' },
         member === null || member === undefined

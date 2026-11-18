@@ -1,7 +1,6 @@
 import { Fragment, createElement as h, useMemo } from 'react'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { humanNoteKeys, isDuplicateHumanRework } from '../human-note.js'
-import { describeSteps, displayableStep } from './transcript-model.js'
 import { ShadowAdvice } from './advisor-advice.js'
 import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
@@ -54,8 +53,8 @@ export function StudioTranscript({
       // 工作式聊天只留人和成员说的话；系统小字不占时间线。
       if (message.kind === 'system' || message.authorId === 'system') return false
       if (isDuplicateHumanRework(message, humanNotes)) return false
-      // 基座把运行提示混进 activity：没有工具名的行不是谁说的话，直接不显示。
-      if (message.kind === 'activity' && !displayableStep(message)) return false
+      // 过程日志不进主时间线；当前在做什么由岛和正在输入那一行说。
+      if (message.kind === 'activity') return false
       if (message.kind === 'evidence') {
         if (consumed.has(message.id)) return false
         if (chats.has(chatKey(message))) return false
@@ -71,29 +70,10 @@ export function StudioTranscript({
   for (let index = 0; index < renderable.length; index += 1) {
     const message = renderable[index]
     if (hidden.has(message.kind)) continue
-    let shown = message
-    // 同一个人的连续工具步骤合成一行，聊天里不铺终端日志。
-    if (message.kind === 'activity') {
-      const batch = [message]
-      while (
-        renderable[index + 1]?.kind === 'activity' &&
-        renderable[index + 1]?.authorId === message.authorId
-      ) {
-        index += 1
-        batch.push(renderable[index])
-      }
-      shown = {
-        ...message,
-        id: `steps-${message.id}`,
-        kind: 'activity_steps',
-        text: describeSteps(batch),
-        meta: { ...message.meta, ok: batch.every(item => item.meta?.ok !== false) },
-      }
-    }
     const content = renderStudioMessage({
       room,
       byId,
-      message: shown,
+      message,
       timeline,
       onAccept,
       onStageAccept,
@@ -109,7 +89,7 @@ export function StudioTranscript({
     ? activeIndex
     : Object.keys(room.advisorShadow ?? {}).map(Number).sort((a, b) => b - a)[0] ?? -1
   const advice = adviceIndex >= 0
-    ? h(ShadowAdvice, { key: `advice-${adviceIndex}`, room, stageIndex: adviceIndex, label: '影子评审' })
+    ? h(ShadowAdvice, { key: `advice-${adviceIndex}`, room, stageIndex: adviceIndex, label: '另一个视角' })
     : null
 
   const finished = (room.stages ?? []).length > 0 &&

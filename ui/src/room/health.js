@@ -51,11 +51,7 @@ export const healthOf = room => {
 export const healthLineOf = health => {
   if (health === null || health === undefined) return ''
   const needs = health.needsYou
-  if (needs !== null && needs !== undefined) {
-    const detail = typeof needs.detail === 'string' ? needs.detail.trim() : ''
-    const label = needs.label ?? '需要你处理'
-    return detail === '' ? `需要你：${label}` : `需要你：${label} · ${detail}`
-  }
+  if (needs !== null && needs !== undefined) return `需要你：${needs.label ?? '需要你处理'}`
   const step = `第 ${health.index + 1} 步「${health.title}」`
   if (health.diagnostic === null) return `${step} · 刚开始`
   const actor = (health.busyNames ?? []).length > 0 ? health.busyNames.join('、') : health.memberName
@@ -65,17 +61,22 @@ export const healthLineOf = health => {
 export function RoomHealth({ room, onForgetMemory = null }) {
   const health = healthOf(room)
   if (health === null) return null
-  if (health.diagnostic === null && health.needsYou === null && health.usage === '') return null
+  // 岛已经在说“需要你”；这里只在房间自己跑的时候讲进度，避免同一件事说三遍。
+  if (health.needsYou !== null) return null
+  if (health.diagnostic === null && health.usage === '') return null
   const assessment = health.diagnostic?.assessment ?? null
   const metrics = [
     health.usage,
-    health.reworks > 0 ? `返工 ${health.reworks} 次` : '',
+    health.reworks > 0 ? `重做 ${health.reworks} 次` : '',
     health.human > 0 ? `你介入 ${health.human} 次` : '',
     health.memoryCount > 0 ? `参考 ${health.memoryCount} 条记忆` : '',
   ].filter(Boolean).join(' · ')
   return h('details', { className: 'crew-health' },
     h('summary', null, healthLineOf(health)),
     h('div', { className: 'crew-health-body' },
+      typeof health.needsYou?.detail === 'string' && health.needsYou.detail !== ''
+        ? h('p', { className: 'crew-health-wait' }, health.needsYou.detail)
+        : null,
       metrics === '' ? null : h('p', { className: 'crew-health-metrics' }, metrics),
       assessment === null
         ? null

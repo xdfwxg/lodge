@@ -35,12 +35,12 @@ export const shadowAdviceForStage = (room, stageIndex) => {
   return adviceOf(entry)
 }
 
-export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '影子评审（仅供参考）' }) {
+export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '另一个视角' }) {
   const advice = stageIndex === null ? shadowAdviceFor(room, evidenceId) : shadowAdviceForStage(room, stageIndex)
   if (advice === null) return null
   const head = advice.summary === ''
-    ? `${label}`
-    : `影子评审：${advice.summary}（仅供参考）`
+    ? `${label}（仅供参考）`
+    : `${label}：${advice.summary}（仅供参考）`
   return h('details', { className: 'crew-fold crew-shadow-advice' },
     h('summary', null, head),
     advice.reasons.length > 0

@@ -4,7 +4,11 @@ import { cardActionsOf } from '../../shared/attempt.js'
 // 外部动作审批卡：只展示事实与两个决定，不把“模型说可以”当成批准。
 export function ApprovalCard({ approval, onDecide, state = 'pending' }) {
   const actions = cardActionsOf({ kind: 'approval', state })
-  return h('div', { className: 'crew-card crew-approval', 'data-card-state': state },
+  return h('div', {
+    className: 'crew-card crew-approval',
+    'data-card-state': state,
+    'data-room-decision': state === 'pending' ? '' : undefined,
+  },
     h('div', { className: 'crew-card-head' },
       h('span', null, '要你确认'),
       h('span', { className: 'crew-verdict', 'data-pending': '' }, approval.label)),

@@ -83,7 +83,7 @@ export function RoomModeSwitch({ room, onSwitch }) {
         },
         h('div', { className: 'crew-dialog-heading' },
           h('h2', null, label),
-          h('p', null, '成员、基座线程和聊天记录都会保留；只切换房间的工作方式。')),
+          h('p', null, '成员和聊天记录都会保留；只切换房间的工作方式。')),
         h('div', { className: 'crew-dialog-body' },
           needsPlanner
             ? memberSelect({ label: '规划师', value: plannerId, members, busy, onChange: setPlannerId })
@@ -93,7 +93,7 @@ export function RoomModeSwitch({ room, onSwitch }) {
             : null,
           h('p', { className: 'crew-dialog-note' }, target === 'studio'
             ? (needsPlanner || needsVerifier
-              ? '工作室需要规划师和验收员；在这里指定，成员线程都会保留。'
+              ? '工作室需要规划师和验收员；在这里指定，现有成员都会保留。'
               : '执行成员会在各自的工作副本里改文件，验收员只写结论。')
             : '聊天室会重新开始一轮讨论，工作室的阶段和交付记录保留。'),
           error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error)),

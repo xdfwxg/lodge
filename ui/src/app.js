@@ -2,6 +2,7 @@ import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
+import { HomeView } from './views/home.js'
 import { NewRoomDialog } from './new-room-dialog.js'
 
 export function App() {
@@ -93,16 +94,8 @@ export function App() {
     return () => store.disconnect()
   }, [store])
 
-  // 没有房间就没有首页：直接进那间示例房。
-  const autoOpened = useRef(false)
-  useEffect(() => {
-    if (autoOpened.current || state.phase === 'loading') return
-    autoOpened.current = true
-    if (visibleRooms.length !== 0) return
-    void store.openSampleRoom().then(result => {
-      if (result?.ok !== true) openDialog()
-    })
-  }, [state.phase, visibleRooms.length])
+  // 没有房间时停在门口：写下目标就能开始，示例只是一个入口。
+  const openFromHome = goal => openDialog({ goal })
 
   // macOS 惯例：⌘N 新房间，⌘1..9 切房间；弹窗打开时不抢键。
   useEffect(() => {
@@ -139,19 +132,24 @@ export function App() {
 
   const room = visibleRooms.find(item => item.id === state.activeId) ?? visibleRooms[0] ?? null
 
-  return h('div', { className: 'dsb-frame' },
+  const firstRun = state.rooms.length === 0
+  return h('div', { className: 'dsb-frame', 'data-solo': firstRun ? 'true' : undefined },
     connectionBanner,
-    h(Sidebar, {
-      state,
-      onSelect: id => store.select(id),
-      onNew: () => openDialog(),
-      onRename: (id, name) => store.renameRoom(id, name),
-      onArchive: (id, archived) => store.archiveRoom(id, archived),
-      onDelete: id => store.deleteRoom(id),
-    }),
+    firstRun
+      ? null
+      : h(Sidebar, {
+        state,
+        onSelect: id => store.select(id),
+        onNew: () => openDialog(),
+        onRename: (id, name) => store.renameRoom(id, name),
+        onArchive: (id, archived) => store.archiveRoom(id, archived),
+        onDelete: id => store.deleteRoom(id),
+      }),
     room === null
-      ? h('main', { className: 'dsb-main crew-room' },
-        h('div', { className: 'crew-room-main' }))
+      ? h(HomeView, {
+        onSubmit: openFromHome,
+        onSample: () => { void store.openSampleRoom() },
+      })
       : h(RoomView, {
         state,
         room,

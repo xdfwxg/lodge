@@ -66,7 +66,6 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
     stepTotal > 0 ? `${stepTotal} 步` : '',
     commands.length > 0 ? `${commands.length} 项检查` : '',
     fileCount > 0 ? `${fileCount} 个文件` : '',
-    cost,
   ].filter(Boolean).join(' · ')
   const signoff = delivery.independenceLabel ?? ''
   return h('div', { className: 'crew-msg-conclusion', 'data-outcome': 'delivery' },
@@ -123,14 +122,17 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
           onToggle: event => setDetailsOpen(event.currentTarget.open),
         },
           h('summary', null, '详情'),
-          delivery.completedAt || delivery.commit
+          delivery.completedAt || delivery.commit || cost !== ''
             ? h('div', { className: 'studio-delivery-detail-meta' },
               delivery.completedAt
                 ? h('div', { className: 'crew-kv' }, h('span', null, '完成时间'), h('span', null, dateTimeOf(delivery.completedAt)))
                 : null,
               delivery.commit
                 ? h('div', { className: 'crew-kv' }, h('span', null, '版本'), h('code', null, short(delivery.commit)))
-                : null)
+                : null,
+              cost === ''
+                ? null
+                : h('div', { className: 'crew-kv' }, h('span', null, '费用'), h('span', null, cost)))
             : null,
           delivery.artifacts?.length > 0
             ? h('div', { className: 'crew-delivery-artifacts' },
