@@ -91,6 +91,28 @@ test('private delivery goes to the member room without a group mention', async (
   })
 })
 
+test('a held member is not woken by an automated delivery', async () => {
+  const ctx = setup(room({
+    heldMembers: ['worker'],
+    members: [{
+      id: 'worker',
+      name: '执行官',
+      body: { kind: 'base', ref: 'member-1', name: 'Worker123' },
+    }],
+  }))
+  await assert.rejects(
+    deliverToMember({
+      engine: ctx.engine,
+      store: ctx.store,
+      roomId: 'room-1',
+      memberId: 'worker',
+      text: '开始这一步',
+    }),
+    /已叫停/,
+  )
+  assert.equal(ctx.calls.length, 0)
+})
+
 test('the envelope names the intent and authority', () => {
   assert.equal(envelopeOf({ from: '验收流程', intent: 'decision' }), '[来自 验收流程 · 退回决定 · 只写你的决定和理由]')
   assert.equal(envelopeOf({ from: '规划师', intent: 'review' }), '[来自 规划师 · 复核 · 只读 · 只写结论]')

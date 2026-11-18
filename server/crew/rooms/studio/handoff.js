@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { memberDisplayName } from '../../member-labels.js'
 import { createAssignment, transitionAssignment } from '../../assignments.js'
 
-const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework }) => (
+const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, nonce }) => (
   createHash('sha256')
     .update(JSON.stringify({
       roomId,
@@ -14,6 +14,7 @@ const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidenc
       evidenceId: evidence?.id ?? '',
       candidate: candidate ?? '',
       rework,
+      nonce,
     }))
     .digest('hex')
     .slice(0, 32)
@@ -41,6 +42,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     context = {},
     parentAssignmentId = null,
     privateRoom = false,
+    nonce = '',
   }) => {
     const current = store.readRoom(roomId) ?? room
     const body = String(prompt ?? '').replace(/^@\S+\s*/, '').trim()
@@ -56,7 +58,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         : rework
           ? `@${label} ${step}还得再改一下。`
           : `@${label} ${step}交给你了${check}。`
-    const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework })}`
+    const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, nonce })}`
     const existing = store.readAssignment(deliveryKey)
     // 已经交回或正在做的交接不再重复唤醒；同一次交接只发一次。
     if (existing !== null && ['working', 'reported', 'passed', 'rejected', 'cancelled'].includes(existing.status)) {

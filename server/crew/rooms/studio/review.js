@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { buildMemberHandoff } from './member-handoff.js'
 import { reject } from '../../result.js'
@@ -402,6 +403,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           evidence,
           verdict: outcome.verdicts?.at(-1) ?? null,
           parentAssignmentId: parent?.id ?? null,
+          // 重启后重新发起复核时，提示词可能已经变了；固定 sendId 会被基座当成另一条消息拒绝。
+          nonce: randomUUID(),
         })
       } catch (error) {
         clearTimeout(request.timer)
