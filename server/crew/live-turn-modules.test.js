@@ -153,6 +153,83 @@ test('a rejected stage routes the planner decision to the executor or the human'
   assert.equal(humanStore.messages.some(message => message.kind === 'system' && /规划师把/.test(message.text)), false)
 })
 
+test('a merge conflict is left for the human instead of being auto-reworked', () => {
+  const room = makeRoom({
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-plan', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+  })
+  room.mergeConflict = { stage: 0, files: ['shared.txt'] }
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+  })
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ reply: '返工\n把 shared.txt 改成 alpha', turnId: 't-lead-3', toolCalls: 0 }, 'bot-plan')
+  assert.equal(sent.length, 0)
+  assert.equal(room.mergeConflict.stage, 0)
+  assert.equal(room.lastPlannerDecision.kind, 'rework')
+})
+
+test('a parallel rework decided by the planner goes into the member private worktree', () => {
+  const room = makeRoom({
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'executor-2', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', 'executor-2': 'Exec2', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'executor-2', name: '执行官二号', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-plan', executor: 'bot-exec', 'executor-2': 'bot-exec2', verifier: 'bot-ver' },
+    workers: ['executor', 'executor-2'],
+  })
+  const store = fakeStore(room)
+  for (const id of ['executor', 'executor-2']) {
+    store.writeAssignment({
+      id: `as-${id}`, roomId: 'room-1', stageIndex: 0, toMemberId: id, reason: 'dispatch',
+      brief: {}, status: 'reported', context: { parallel: true }, flags: {},
+    })
+  }
+  store.appendMessage('room-1', {
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+  })
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt, options = {}) => {
+      sent.push({ memberId, prompt, options })
+      return { messageId: `m${sent.length}` }
+    },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ reply: '返工\n两人各写自己的文件', turnId: 't-lead-parallel', toolCalls: 0 }, 'bot-plan')
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].options.privateRoom, true)
+})
+
 test('turn state resets progress', () => {
   const room = makeRoom({ noProgress: 3 })
   const store = fakeStore(room)
@@ -271,8 +348,14 @@ test('parallel dispatch wakes every assignee and tracks pending seats', async ()
   assert.equal(room.stageDispatch, undefined)
 })
 
-test('a parallel assignment without a turn is woken directly', async () => {
+test('a parallel stage delivers into each worktree even when the planner speaks', async () => {
+  registerWorkspaceProvider('test-live-parallel-spoken', {
+    capabilities: () => ({ candidate: false, merge: true, isolation: 'worktree' }),
+    head: () => 'base',
+  })
   const room = makeRoom({
+    workspace: { provider: 'test-live-parallel-spoken' },
+    repoPath: '/repo',
     orchestration: 'parallel',
     workers: ['executor', 'executor-2'],
     seatNames: { executor: 'Exec', 'executor-2': 'Exec2' },
@@ -282,35 +365,33 @@ test('a parallel assignment without a turn is woken directly', async () => {
     ],
   })
   const store = fakeStore(room)
-  const sent = []
-  const sendToMember = async (memberId, prompt) => {
-    sent.push({ memberId, prompt })
+  const prompts = []
+  const sendToMember = async (memberId, prompt, options = {}) => {
+    prompts.push({ memberId, prompt, options })
     return { messageId: `m-${memberId}` }
   }
+  const plannerPrompts = []
   const handoff = createHandoff({ store, roomId: 'room-1', sendToMember, emit: () => {} })
-  await handoff.trigger({
-    room,
-    stage: room.stages[0],
-    index: 0,
-    from: 'lead',
-    to: 'executor-2',
-    reason: 'dispatch',
-    prompt: '写文件',
-    deliver: false,
-    visible: false,
+  const starter = createStageStarter({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    handoff,
+    sendToMember,
+    askPlanner: async prompt => {
+      plannerPrompts.push(prompt)
+      return '执行官写一个文件，执行官 2 写另一个文件。'
+    },
+    integrate: async () => {},
+    enqueue: task => task(),
   })
-  assert.equal(sent.length, 0)
-  await handoff.wake({
-    room,
-    stage: room.stages[0],
-    index: 0,
-    from: 'lead',
-    to: 'executor-2',
-    prompt: '写文件',
-    reason: 'dispatch',
-  })
-  assert.equal(sent.length, 1)
-  assert.equal(sent[0].memberId, 'executor-2')
+  await starter.startStage(room, 0)
+  assert.match(plannerPrompts[0], /不要 @ 任何人/)
+  assert.deepEqual(prompts.map(item => item.memberId), ['executor', 'executor-2'])
+  assert.match(prompts[0].prompt, /自己的 worktree/)
+  assert.match(prompts[1].prompt, /自己的 worktree/)
+  assert.equal(prompts[0].options.privateRoom, true)
+  assert.equal(prompts[1].options.privateRoom, true)
 })
 
 test('acceptance runs in a disposable copy and records command evidence', async () => {
@@ -1066,9 +1147,13 @@ test('an integration check failure leaves evidence and does not start review', a
 })
 
 test('a merge conflict stops integration with a concrete room conflict', async () => {
+  let merges = 0
   registerWorkspaceProvider('test-integration-conflict', {
     capabilities: () => ({ merge: true }),
-    integrate: () => ({ ok: false, files: ['src/app.js'] }),
+    integrate: () => {
+      merges += 1
+      return { ok: false, files: ['src/app.js'] }
+    },
     head: () => 'head-1',
     rangeChanges: async () => ({ diff: '', files: [], manifest: [] }),
     isolatedCopy: () => ({ root: '/tmp/lodge-copy', path: '/tmp/lodge-copy/ws' }),
@@ -1093,6 +1178,9 @@ test('a merge conflict stops integration with a concrete room conflict', async (
   await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
   assert.equal(store.current.mergeConflict.files[0], 'src/app.js')
   assert.equal(store.messages.some(message => message.kind === 'evidence'), false)
+  // 冲突挂着时，后续回合不能再自动试一次合并，把人的决定挤掉。
+  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't2' })
+  assert.equal(merges, 1)
 })
 
 

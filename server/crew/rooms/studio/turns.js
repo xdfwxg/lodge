@@ -120,6 +120,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
   const autoRework = async ({ stageIndex, command, exit, output }) => {
     const room = store.readRoom(roomId)
     if (room === null || room.state !== 'active') return
+    if (room.mergeConflict?.stage === stageIndex) return
     const stage = room.stages?.[stageIndex]
     if (stage === undefined || stage.state !== 'active' || stage.manual !== true) return
     if ((room.busyMembers ?? []).length > 0) return
@@ -238,6 +239,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       current.lastPlannerDecision = { stage: stageIndex, verdictId, kind: decision.kind, at: Date.now() }
       return { events: [] }
     })
+    // 合并冲突要人拍板；规划师自动返工会把冲突清掉，等于替人做了决定。
+    if (room.mergeConflict?.stage === stageIndex) return true
     const stage = room.stages?.[stageIndex]
     if (decision.kind !== 'rework') {
       // 交给人是这一步的当前收口：执行交接不再挂着，等人的决定。
@@ -256,8 +259,9 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const name = memberDisplayName(room, target)
     const parent = latestDispatchAssignment(store, roomId, stageIndex, target)
     if (parent !== null) transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，规划师安排重做' })
-    // 规划师已经在群里 @ 了执行成员；基座会叫醒对方。没写 @ 时，系统才把同一段话转过去。
-    const addressed = String(turn.reply ?? '').includes(`@${name}`)
+    // 并行阶段逐个送进各自的工作副本；群里再 @ 一次会让成员在同一个目录里重复干活。
+    const parallel = (dispatchOf(store, roomId, stageIndex)?.workers?.length ?? 0) > 1
+    const addressed = !parallel && String(turn.reply ?? '').includes(`@${name}`)
     const note = String(turn.reply ?? '').split('\n').slice(1).join('\n').trim() || decision.note
     void handoff.trigger({
       room,
@@ -269,7 +273,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
       message: note,
       visible: false,
-      deliver: !addressed,
+      deliver: parallel ? true : !addressed,
+      ...(parallel ? { privateRoom: true } : {}),
       acceptance: stage?.acceptance ?? '',
       rework: true,
       parentAssignmentId: parent?.id ?? null,

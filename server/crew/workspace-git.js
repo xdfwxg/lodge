@@ -53,8 +53,10 @@ const clip = text => (text.length > MAX_OUTPUT ? `${text.slice(0, MAX_OUTPUT)}\n
 
 // 机器上没有全局 git 身份时，commit/merge 会直接失败；房间自己的记录统一用固定身份。
 const GIT_IDENTITY = ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost']
+// 默认 core.quotepath=true 会把中文文件名输出成 "\346..."；交付清单要的是原样路径。
+const GIT_RAW_PATH = ['-c', 'core.quotepath=false']
 
-const git = (cwd, args) => execFileSync('git', args, {
+const git = (cwd, args) => execFileSync('git', [...GIT_RAW_PATH, ...args], {
   cwd,
   encoding: 'utf8',
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -62,7 +64,7 @@ const git = (cwd, args) => execFileSync('git', args, {
 
 const gitAsync = async (args, cwd) => {
   try {
-    const { stdout } = await exec('git', args, { cwd, timeout: 20_000, maxBuffer: MAX_BUFFER })
+    const { stdout } = await exec('git', [...GIT_RAW_PATH, ...args], { cwd, timeout: 20_000, maxBuffer: MAX_BUFFER })
     return stdout
   } catch (error) {
     return typeof error?.stdout === 'string' ? error.stdout : ''
@@ -204,6 +206,7 @@ export const prepareRoom = ({ source, short, members }) => {
       const path = join(base, 'integration')
       const branch = `crew/${short}/integration`
       git(source, ['worktree', 'add', '-b', branch, path, 'HEAD'])
+      ensureLocalExcludes(path, base)
       integration = { path, branch, kind: 'worktree' }
       environment.integration = syncLocalEnvironment(source, path)
       ports.integration = takePort()
@@ -382,6 +385,16 @@ export const integrate = ({ path, branch }) => {
 }
 
 // 复核前把 verifier 目录重置到 executor 的最新候选提交；之前复核写下的东西全部丢掉，本地环境再同步。
+// 并行成员在自己的 worktree 里工作；每次派发（含重做）先对齐到这一阶段的起点。
+export const resetMemberWorktree = ({ path, ref, source }) => {
+  if (typeof path !== 'string' || path === '' || typeof ref !== 'string' || ref === '') return false
+  git(path, ['reset', '--hard', '-q', ref])
+  // 不带 -x，并显式保留房间运行记录与本地环境；它们不是交付内容。
+  git(path, ['clean', '-fd', '-q', '-e', '.crew', '-e', '.lodge', '-e', 'node_modules', '-e', '.env', '-e', '.env.*'])
+  if (typeof source === 'string' && source !== '') syncLocalEnvironment(source, path, { copyEnv: false })
+  return true
+}
+
 export const refreshReviewCopy = ({ path, branch, source }) => {
   if (typeof path !== 'string' || path === '' || !isWithin(scratchRoot(), path)) return
   git(path, ['checkout', '--detach', '--force', branch])

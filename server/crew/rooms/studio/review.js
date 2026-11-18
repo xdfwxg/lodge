@@ -8,6 +8,7 @@ import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf } from '../../room-members.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
+import { dispatchOf } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { recordShadowAdvice } from './shadow-advisor.js'
 import { systemNotice } from '../../notices.js'
@@ -155,11 +156,14 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       if (typeof lead === 'string' && lead !== '') {
         const stageTitle = room.stages?.[pending.stage]?.title ?? ''
         const reason = String(turn.reply ?? '').trim().slice(0, 300)
+        const parallel = (dispatchOf(store, roomId, pending.stage)?.workers?.length ?? 0) > 1
         void sendToMember(lead, [
           `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
           `判定：${reason === '' ? '未通过' : reason}`,
           '第一行只写「返工」或「交给人」。返工时从第二行起写清改什么、怎么算完成；交给人时从第二行起写清要人拍板什么。',
-          '决定返工时，在话里 @ 执行成员，把要求直接说给他；第一行仍只写「返工」。',
+          parallel
+            ? '决定返工时不要 @ 任何人；系统会把要求直接送进执行成员自己的工作副本。第一行仍只写「返工」。'
+            : '决定返工时，在话里 @ 执行成员，把要求直接说给他；第一行仍只写「返工」。',
           '不要自己改文件，也不要自己验收。',
           INTERNAL_PROMPT_MARKER,
         ].join('\n'), {

@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  addMember, cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
-  refreshReviewCopy, removeIsolatedCopy, removeMember, restore, submit,
+  addMember, changes, cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
+  refreshReviewCopy, removeIsolatedCopy, removeMember, resetMemberWorktree, restore, submit,
 } from './workspace-git.js'
 import { rosterFromRoles, membersFor } from './roster.js'
 
@@ -32,6 +32,22 @@ test('acceptance runs in a disposable copy and cannot write the source repo', ()
     rmSync(sourceRepo, { recursive: true, force: true })
   }
   assert.equal(existsSync(copy.path), false)
+})
+
+test('file lists keep Chinese names readable instead of git-quoted escapes', async () => {
+  const sourceRepo = repo()
+  const name = 'unique-执行官.txt'
+  try {
+    writeFileSync(join(sourceRepo, name), 'done\n')
+    const working = await changes({ path: sourceRepo })
+    assert.ok(working.files.includes(name), `unexpected files: ${JSON.stringify(working.files)}`)
+    execFileSync('git', ['add', '.'], { cwd: sourceRepo })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'add chinese file'], { cwd: sourceRepo })
+    const ranged = await rangeChanges({ path: sourceRepo, base: `${head({ path: sourceRepo })}~1` })
+    assert.deepEqual(ranged.files, [name])
+  } finally {
+    rmSync(sourceRepo, { recursive: true, force: true })
+  }
 })
 
 test('a low disk watermark stops preparation before worktrees are left behind', () => {
@@ -76,6 +92,32 @@ test('verifier worktrees never receive tracked env secrets', () => {
     assert.equal(existsSync(join(verifier, '.env.example')), true)
     refreshReviewCopy({ path: verifier, branch: workspaces.branches.executor })
     assert.equal(existsSync(join(verifier, '.env')), false)
+  } finally {
+    cleanupRoom({ source: sourceRepo, workspaces })
+    if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previous
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
+test('a member worktree resets to the stage base before a rework', () => {
+  const sourceRepo = repo()
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-worktrees-'))
+  const previous = process.env.CREW_WORKTREE_ROOT
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  let workspaces = null
+  try {
+    workspaces = prepareRoom({ source: sourceRepo, short: 'reset12', members: membersFor('delivery-triad') })
+    const executor = workspaces.members.executor.path
+    const base = head({ path: sourceRepo })
+    writeFileSync(join(executor, 'draft.txt'), 'old\n')
+    assert.equal(typeof submit({ path: executor, turnId: 't1', name: 'Room' }), 'string')
+    writeFileSync(join(executor, 'leftover.txt'), 'junk\n')
+    assert.equal(resetMemberWorktree({ path: executor, ref: base, source: sourceRepo }), true)
+    assert.equal(head({ path: executor }), base)
+    assert.equal(existsSync(join(executor, 'draft.txt')), false)
+    assert.equal(existsSync(join(executor, 'leftover.txt')), false)
   } finally {
     cleanupRoom({ source: sourceRepo, workspaces })
     if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT

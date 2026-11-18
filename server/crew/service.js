@@ -261,13 +261,46 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     if (action === 'archive' && method === 'POST') {
       const body = await readBody()
       if (body.archived === false) {
+        let reattach = false
         const restored = updateRoom(room.id, current => {
           current.archivedAt = null
+          // 归档停下的活动房间，恢复后要能继续；拒绝目标的停止不是归档造成的，保持原样。
+          if (current.archivedLive === true) {
+            delete current.archivedLive
+            if (current.state === 'stopped' && current.pauseReason !== 'rejected') {
+              current.state = 'active'
+              current.pauseReason = null
+              current.idle = false
+            }
+            if (current.state === 'active' || current.state === 'paused') {
+              current.live = true
+              reattach = true
+            } else {
+              current.live = false
+            }
+          }
           return { events: [{ type: 'room.restored' }] }
         })
         if (restored === null) return fail('not_found', '没有这个房间')
         emit('room', restored)
-        return ok({ room: restored })
+        let attachError = null
+        if (reattach && live.isAttached?.(restored.id) !== true) {
+          try {
+            await live.attach?.(restored)
+            reattach = false
+          } catch (error) {
+            attachError = error
+            console.warn(`room restore attach failed: ${room.id} ${error?.message ?? error}`)
+          }
+        }
+        if (reattach) {
+          const failed = updateRoom(room.id, current => {
+            current.connectionError = `基座连接中断：${attachError?.message ?? '房间没能连上'}`
+            return { events: [{ type: 'room.connection', payload: { connected: false } }] }
+          })
+          if (failed !== null) emit('room', failed)
+        }
+        return ok({ room: readRoom(room.id) ?? restored })
       }
       const wasLive = room.live === true && live.isAttached?.(room.id) === true
       if (wasLive) {
@@ -277,11 +310,11 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       const archivedAt = Date.now()
       const updated = updateRoom(room.id, current => {
         current.archivedAt = archivedAt
+        current.archivedLive = current.live === true
         const stopped = current.state === 'active'
-        if (stopped) {
-          current.state = 'stopped'
-          current.live = false
-        }
+        if (stopped) current.state = 'stopped'
+        // 归档会把房间从基座摘下来；停在停止状态的房间也不该继续声称自己在线。
+        if (stopped || wasLive) current.live = false
         return { events: [{ type: 'room.archived', payload: { stopped } }] }
       })
       if (updated === null) return fail('not_found', '没有这个房间')

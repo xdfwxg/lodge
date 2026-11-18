@@ -9,9 +9,7 @@ import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 import { systemNotice } from '../../notices.js'
 
-const PARALLEL_WAKE_MS = 12_000
-
-export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT, wakeMs = PARALLEL_WAKE_MS }) => {
+export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
   const timeoutTimers = new Map()
 
@@ -72,12 +70,18 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
     // 验收要能判断“执行者自己 commit 了但工作树干净”的新交付；按阶段记下起始 HEAD。
-    const stageBase = typeof room.repoPath === 'string' && room.repoPath !== '' && typeof workspaceOf(room).head === 'function'
-      ? workspaceOf(room).head({ path: room.repoPath })
-      : null
-    if (typeof stageBase === 'string' && stageBase !== '') {
+    // 重做时沿用第一次记下的起点，不能被上一轮被退回的结果顶掉。
+    const storedBase = typeof room.stageBases?.[index] === 'string' ? room.stageBases[index] : ''
+    const stageBase = storedBase !== ''
+      ? storedBase
+      : (typeof room.repoPath === 'string' && room.repoPath !== '' && typeof workspaceOf(room).head === 'function'
+        ? workspaceOf(room).head({ path: room.repoPath })
+        : null)
+    if ((typeof stageBase === 'string' && stageBase !== '') || room.blocked?.stage === index) {
       store.updateRoom(roomId, current => {
-        current.stageBases = { ...(current.stageBases ?? {}), [index]: stageBase }
+        if (typeof stageBase === 'string' && stageBase !== '' && storedBase === '') {
+          current.stageBases = { ...(current.stageBases ?? {}), [index]: stageBase }
+        }
         if (current.blocked?.stage === index) current.blocked = null
         return { events: [] }
       })
@@ -139,7 +143,9 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       const assigneeNames = assignees.map(id => memberDisplayName(room, id)).join('、')
       const planPrompt = [
         `第 ${index + 1} 步「${stage.title}」要交给${assigneeNames}。`,
-        `在话里 @${assigneeNames}，让对方收到；用一两句说清做什么、怎么算完成。`,
+        parallel
+          ? '在群里用一两句说清各自做什么、怎么算完成；不要 @ 任何人，系统会把任务分别送进他们自己的工作副本。'
+          : `在话里 @${assigneeNames}，让对方收到；用一两句说清做什么、怎么算完成。`,
         '不要写自己的名字，不要分点或小标题。',
         acceptance,
       ].filter(Boolean).join('\n')
@@ -178,6 +184,31 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       return { events: [{ type: 'stage.dispatch', payload: { stage: index, workers: assignees, orchestration: dispatchPlan.strategy.id } }] }
     })
 
+    // 重做回到这一步的起点：房间的集成分支也退回去，上一轮被退回的合并不能留在交付里。
+    if (rework && typeof stageBase === 'string' && stageBase !== '' && workspaceCaps.isolation === 'worktree' &&
+      typeof room.repoPath === 'string' && room.repoPath !== '') {
+      try {
+        workspaceOf(room).resetMemberWorktree?.({ path: room.repoPath, ref: stageBase, source: room.sourceRepo })
+      } catch (error) {
+        systemNotice({ store, roomId, text: '房间的集成分支没能退回这一步的起点；需要你处理。', error })
+      }
+    }
+
+    // 每个成员从这一阶段的起点开始；重做时不能带着上一轮被退回的改动。
+    if (typeof stageBase === 'string' && stageBase !== '') {
+      for (const worker of assignees) {
+        const path = room.worktrees?.[worker]
+        if (typeof path !== 'string' || path === '') continue
+        try {
+          workspaceOf(room).resetMemberWorktree?.({ path, ref: stageBase, source: room.sourceRepo })
+        } catch (error) {
+          systemNotice({ store, roomId, text: `${memberDisplayName(room, worker)} 的工作副本没能对齐；需要你处理。`, error })
+        }
+      }
+    }
+
+    // 并行派发逐个送进成员自己的工作副本；群里的那句话只做分工说明，不能靠 @ 唤醒，
+    // 否则基座会让所有成员在同一个房间目录里干活，后写的直接覆盖先写的。
     const settled = await Promise.allSettled(assignees.map(worker => handoffTrigger({
       room,
       stage,
@@ -188,34 +219,16 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       prompt: promptFor(worker),
       message: spoken,
       visible: spoken === '',
-      deliver: spoken === '',
+      deliver: true,
       acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
       rework,
       parentAssignmentId: parentAssignment?.id ?? null,
       context: { base: stageBase, parallel: true },
+      privateRoom: true,
     })))
     const failed = settled
       .map((result, at) => (result.status === 'rejected' ? assignees[at] : null))
       .filter(Boolean)
-    // 规划师在群里说了话时，派发只记账、交给基座的 @ 叫醒；并行时 @ 可能只叫醒第一位。
-    // 给还没拿到回合的成员补一次直接投递，不重复创建交接。
-    if (spoken !== '') {
-      setTimeout(() => {
-        const current = store.readRoom(roomId)
-        if (current === null || current.stages?.[index]?.state !== 'active') return
-        for (const worker of assignees) {
-          void handoff?.wake?.({
-            room: current,
-            stage,
-            index,
-            from,
-            to: worker,
-            prompt: promptFor(worker),
-            reason: rework ? 'rework' : 'dispatch',
-          }).catch(() => {})
-        }
-      }, wakeMs)
-    }
     if (failed.length > 0) {
       store.appendEvent(roomId, 'stage.dispatch_failed', { stage: index, workers: failed })
       store.appendMessage(roomId, {

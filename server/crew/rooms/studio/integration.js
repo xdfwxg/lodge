@@ -48,6 +48,8 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     if (room === null) return
     const stage = room.stages[stageIndex]
     if (stage === undefined || !isWorkStage(stage) || stage.state !== 'active') return
+    // 冲突已经挂出来了：等人在重做里拍板，不能让后续回合把冲突自动重试掉。
+    if (room.mergeConflict?.stage === stageIndex) return
     const integration = room.repoPath
     if (typeof integration !== 'string' || integration === '') {
       systemNotice({ store, roomId, text: '改动没能合到一起；需要你处理。' })

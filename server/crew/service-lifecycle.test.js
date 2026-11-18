@@ -66,11 +66,12 @@ test('renaming a room updates its name and emits the room', async () => {
 })
 
 test('archiving an active room stops it without a running engine', async () => {
-  const ctx = setup(roomRecord())
+  const ctx = setup(roomRecord({ live: true }))
   const result = await ctx.service.roomRequest('r1', 'archive', post({}))
   assert.equal(result.ok, true)
   assert.equal(result.body.room.state, 'stopped')
   assert.equal(result.body.room.live, false)
+  assert.equal(result.body.room.archivedLive, true)
   assert.equal(typeof result.body.room.archivedAt, 'number')
 })
 
@@ -79,6 +80,45 @@ test('restoring a room clears the archive marker', async () => {
   const result = await ctx.service.roomRequest('r1', 'archive', post({ archived: false }))
   assert.equal(result.ok, true)
   assert.equal(result.body.room.archivedAt, null)
+})
+
+test('restoring a room archived while active brings it back and reattaches it', async () => {
+  const attached = []
+  const ctx = setup(roomRecord({
+    state: 'stopped',
+    live: false,
+    archivedAt: 1,
+    archivedLive: true,
+  }), {
+    attach: async room => {
+      attached.push(room.id)
+      return {}
+    },
+  })
+  const result = await ctx.service.roomRequest('r1', 'archive', post({ archived: false }))
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.state, 'active')
+  assert.equal(result.body.room.live, true)
+  assert.equal(result.body.room.archivedAt, null)
+  assert.deepEqual(attached, ['r1'])
+})
+
+test('restoring a rejected room keeps it stopped', async () => {
+  const attached = []
+  const ctx = setup(roomRecord({
+    state: 'stopped',
+    live: true,
+    pauseReason: 'rejected',
+    archivedAt: 1,
+    archivedLive: true,
+  }), {
+    attach: async room => { attached.push(room.id) },
+  })
+  const result = await ctx.service.roomRequest('r1', 'archive', post({ archived: false }))
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.state, 'stopped')
+  assert.equal(result.body.room.live, false)
+  assert.deepEqual(attached, [])
 })
 
 test('holding a member goes through the live runtime', async () => {

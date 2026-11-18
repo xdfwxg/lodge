@@ -36,6 +36,7 @@ export const deliverToBase = ({
   intent = 'handoff',
   from = '',
   envelope = null,
+  privateRoom = false,
 }) => {
   const current = store.readRoom(roomId) ?? room
   const address = memberId === 'host'
@@ -47,15 +48,28 @@ export const deliverToBase = ({
       : memberId === 'shadow' ? '影子评审' : memberDisplayName(current, memberId)
     return Promise.reject(new Error(`${name} 没有基座地址，消息没有送出`))
   }
-  const chatId = current?.chatRoom?.id ?? room?.chatRoom?.id
-  if (typeof chatId !== 'string' || chatId === '') {
-    return Promise.reject(new Error('这个房间还没有群聊，消息没有送出'))
-  }
   const addressed = toBaseMentions(current, String(text))
   const trimmed = addressed.trimStart()
   const withoutMention = trimmed.startsWith(address.mention)
     ? trimmed.slice(address.mention.length).trimStart()
     : trimmed
+  // 成员的私有房间就是它自己的工作副本：并行派发送到这里，成员才会在自己的目录里干活。
+  const privateId = privateRoom === true ? memberOf(current, memberId)?.body?.roomRef : null
+  if (privateRoom === true) {
+    if (typeof privateId !== 'string' || privateId === '') {
+      return Promise.reject(new Error(`${memberDisplayName(current, memberId)} 没有私有工作区，消息没有送出`))
+    }
+    const body = [
+      envelope ?? envelopeFor(current, from, intent),
+      withoutMention,
+    ].filter(line => line !== '').join('\n')
+    return engine.sendTurn({ roomId: privateId, text: body, sendId })
+      .then(sent => ({ ...sent, sendId }))
+  }
+  const chatId = current?.chatRoom?.id ?? room?.chatRoom?.id
+  if (typeof chatId !== 'string' || chatId === '') {
+    return Promise.reject(new Error('这个房间还没有群聊，消息没有送出'))
+  }
   const body = [
     address.mention,
     envelope ?? envelopeFor(current, from, intent),

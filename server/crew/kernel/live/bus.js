@@ -162,6 +162,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (chat === undefined) return
     const { messages } = await engine.history(chat.sessionRef)
     for (const message of messages) {
+      // 权限卡归实时订阅和审批桥；历史里的旧卡不能再落库，否则会留下一个永远等人的问题。
+      if (message.card?.requestType === 'permission') continue
       // 事件可能丢；同步历史时也要把流式消息收口，否则会多出一条最终消息。
       const streamed = finishStream(entry, room, message)
       const stored = streamed ? null : projectMessage(room, message)

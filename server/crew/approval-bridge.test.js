@@ -107,7 +107,7 @@ const setup = async (options = {}) => {
   }
 }
 
-test('a permission card from replayed history is taken down instead of keeping the room waiting', async () => {
+test('a permission card from replayed history is not put back into the room', async () => {
   const ctx = await setup()
   try {
     ctx.live.detach('room-1')
@@ -128,10 +128,39 @@ test('a permission card from replayed history is taken down instead of keeping t
     }])
     await ctx.live.attach(ctx.room())
     const messages = ctx.store.readMessages('room-1')
+    assert.equal(messages.some(message => message.kind === 'question'), false)
+    assert.equal(roomNeedsYou(ctx.room(), messages), null)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('a permission card already stored before a restart is marked answered', async () => {
+  const ctx = await setup()
+  try {
+    ctx.store.appendMessage('room-1', {
+      kind: 'question',
+      authorId: 'worker',
+      ts: 1,
+      text: '允许运行 echo？',
+      meta: {
+        card: {
+          requestType: 'permission',
+          requestId: 'req-stored',
+          tool: 'Bash',
+          action: 'exec',
+          subtitle: 'echo hi',
+          options: [],
+        },
+      },
+    })
+    ctx.live.detach('room-1')
+    await ctx.live.attach(ctx.room())
+    const messages = ctx.store.readMessages('room-1')
     assert.ok(messages.some(message => (
       message.kind === 'system' &&
       message.meta?.kind === 'card-answered' &&
-      message.meta?.requestId === 'req-old'
+      message.meta?.requestId === 'req-stored'
     )))
     assert.equal(roomNeedsYou(ctx.room(), messages), null)
   } finally {

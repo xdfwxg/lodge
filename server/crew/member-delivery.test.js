@@ -63,6 +63,34 @@ test('a room-facing name is already the address and is not prefixed twice', asyn
   assert.deepEqual(ctx.calls[0].mentions, ['member-1'])
 })
 
+test('private delivery goes to the member room without a group mention', async () => {
+  const ctx = setup(room({
+    members: [
+      {
+        id: 'worker',
+        name: '执行官',
+        body: { kind: 'base', ref: 'member-1', name: 'Worker123', roomRef: 'private-1' },
+      },
+      { id: 'lead', name: '规划师', body: { kind: 'base', ref: 'member-2', name: 'Planner123' } },
+    ],
+  }))
+  await deliverToMember({
+    engine: ctx.engine,
+    store: ctx.store,
+    roomId: 'room-1',
+    memberId: 'worker',
+    from: 'lead',
+    sendId: 'test-delivery-0003',
+    text: '开始这一步',
+    privateRoom: true,
+  })
+  assert.deepEqual(ctx.calls[0], {
+    roomId: 'private-1',
+    text: '[来自 规划师 · 阶段交接 · 按你的角色执行]\n开始这一步',
+    sendId: 'test-delivery-0003',
+  })
+})
+
 test('the envelope names the intent and authority', () => {
   assert.equal(envelopeOf({ from: '验收流程', intent: 'decision' }), '[来自 验收流程 · 退回决定 · 只写你的决定和理由]')
   assert.equal(envelopeOf({ from: '规划师', intent: 'review' }), '[来自 规划师 · 复核 · 只读 · 只写结论]')
