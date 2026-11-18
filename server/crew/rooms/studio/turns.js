@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { addTurnUsage } from '../../../../shared/usage.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { reviewState } from './verifiers.js'
@@ -20,8 +21,10 @@ import { detectCheckCommand } from '../../project-checks.js'
 import { systemNotice } from '../../notices.js'
 import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from './auto-rework.js'
 
+const MAX_STAGE_REWORKS = 3
+
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
   const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, shadow })
@@ -310,12 +313,32 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       timer.unref?.()
       return true
     }
-    const judgment = gateJudgment ?? normalizeJudgment({
+    const submitted = gateJudgment ?? normalizeJudgment({
       type: 'planner',
       text: turn.reply,
       stage: stageIndex,
       actorId: lead,
     })
+    // 返工预算按这一步实际发生过的重做次数算；用完就交给人，不再无限重跑。
+    const reworksUsed = messages.filter(message => (
+      message.kind === 'rework' && (message.meta?.stage ?? 0) === stageIndex
+    )).length
+    const judgment = submitted.rejectTo === 'worker' && reworksUsed >= MAX_STAGE_REWORKS
+      ? {
+        version: 1,
+        type: 'planner',
+        decision: 'human',
+        reason: `这一步已经返工 ${reworksUsed} 次，返工预算用完了。`,
+        findings: [],
+        actionRequired: '返工预算已经用完；请决定继续返工、改目标，还是由你接手。',
+        stage: stageIndex,
+        evidenceId: null,
+        actorId: lead ?? null,
+        rejectTo: 'human',
+        at: Date.now(),
+        source: 'policy',
+      }
+      : submitted
     store.updateRoom(roomId, current => {
       current.lastPlannerDecision = { stage: stageIndex, verdictId, kind: judgment.decision, judgment, at: Date.now() }
       return { events: [] }
@@ -375,6 +398,14 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
   const captureTurn = (turn, authorRef) => {
     const turnId = turn?.turnId
     if (typeof turnId !== 'string' || state.capturedTurns.has(turnId)) return
+    if (turn?.usage !== undefined && turn?.usage !== null) {
+      store.updateRoom(roomId, current => {
+        const usage = addTurnUsage(current.usage, turn.usage)
+        if (usage === null) return null
+        current.usage = usage
+        return { events: [] }
+      })
+    }
     const room = store.readRoom(roomId)
     const memberId = memberForRef(room, authorRef)
     const role = memberOf(room, memberId)?.role
@@ -384,12 +415,64 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       ? null
       : assignmentForTurn(store, roomId, stageIndex, memberId, turnId)
     const parallel = (dispatch?.workers?.length ?? 0) > 1
+    const writeTurnDiagnostic = (outcome, extra = {}) => {
+      if (typeof writeDiagnostic !== 'function' || room === null) return
+      try {
+        const diagnostic = {
+          version: 1,
+          roomId,
+          roomName: room.name,
+          stage: stageIndex,
+          stageTitle: room.stages?.[stageIndex]?.title ?? '',
+          memberId,
+          role,
+          turnId,
+          at: turn?.at ?? null,
+          durationMs: turn?.durationMs ?? null,
+          toolCalls: turn?.toolCalls ?? 0,
+          tools: Array.isArray(turn?.tools) ? turn.tools : [],
+          usage: turn?.usage ?? null,
+          hookCoverage: turn?.hookCoverage ?? null,
+          outcome,
+          ...extra,
+        }
+        void Promise.resolve(writeDiagnostic(room, turnId, diagnostic)).catch(() => {})
+      } catch {}
+    }
+    writeTurnDiagnostic('captured')
     const pendingForMember = role === 'worker' &&
       assignment !== null &&
       ['created', 'sent', 'working'].includes(assignment.status) &&
       assignment.context?.parallel === true
+    // 旧尝试的回合可能在新一次派发之后才回来；开始时间早于当前交接就丢弃，别污染新结果。
+    const startedAt = Number.isFinite(turn?.at) && Number.isFinite(turn?.durationMs)
+      ? turn.at - turn.durationMs
+      : null
+    if (
+      role === 'worker' &&
+      assignment !== null &&
+      startedAt !== null &&
+      Number.isFinite(assignment.sentAt) &&
+      startedAt < assignment.sentAt - 5000
+    ) {
+      state.capturedTurns.add(turnId)
+      writeTurnDiagnostic('stale', { startedAt, sentAt: assignment.sentAt })
+      store.appendEvent(roomId, 'turn.stale', {
+        turnId,
+        memberId,
+        stage: stageIndex,
+        startedAt,
+        sentAt: assignment.sentAt,
+      })
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `${memberDisplayName(room, memberId)} 的旧回合结果已忽略；这一步已经重开。`,
+      })
+      return
+    }
 
     if ((turn.toolCalls ?? 0) === 0 && (turn.reply ?? '') === '') {
+      writeTurnDiagnostic('empty')
       if (pendingForMember) {
         state.capturedTurns.add(turnId)
         if (assignment !== null) transitionAssignment(store, assignment.id, 'failed', { resultText: '没有产出' })
@@ -418,16 +501,19 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     state.turns.delete(turnId)
 
     if (review.consume({ turn, memberId, turnId, room, calls })) {
+      writeTurnDiagnostic('review')
       state.recordTurn(true)
       return
     }
 
     store.appendEvent(roomId, 'turn.completed', { turnId, memberId: memberId ?? 'unknown' })
     if (role === 'lead' && routePlannerDecision(room, stageIndex, turn, calls)) {
+      writeTurnDiagnostic('decision')
       state.recordTurn(false)
       return
     }
     if (role !== 'worker') {
+      writeTurnDiagnostic('ignored')
       state.recordTurn(false)
       return
     }
@@ -519,6 +605,11 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
           },
         })
         if (assignment !== null) transitionAssignment(store, assignment.id, 'reported', { turnId, evidenceIds: [stored.id], ...(candidate === null ? {} : { candidate }) })
+        writeTurnDiagnostic('evidence', {
+          evidenceIds: [stored.id],
+          assignmentId: assignment?.id ?? null,
+          candidate,
+        })
         store.appendEvent(roomId, 'turn.evidence', { stage, turnId, memberId })
         state.recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)
 
@@ -548,6 +639,10 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const storedEvidence = store.appendMessage(roomId, evidence)
     if (assignment !== null) {
       transitionAssignment(store, assignment.id, 'reported', { turnId, evidenceIds: [storedEvidence.id] })
+      writeTurnDiagnostic('evidence', {
+        evidenceIds: [storedEvidence.id],
+        assignmentId: assignment.id,
+      })
     }
     store.appendEvent(roomId, 'turn.evidence', { stage, turnId })
     state.recordTurn(artifacts.length > 0 || (turn.toolCalls ?? 0) > 0)

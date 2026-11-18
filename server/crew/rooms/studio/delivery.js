@@ -84,6 +84,7 @@ export const buildDelivery = (room, messages = []) => {
     completedAt: room.completedAt ?? (lastAt > 0 ? lastAt : null),
     commit: typeof room.completedCommit === 'string' && room.completedCommit !== '' ? room.completedCommit : null,
     independenceLabel: independenceLabel(room),
+    usage: room.usage ?? null,
     memberNames: memberLabelMap(room),
     workspace: {
       provider: room.workspace?.provider ?? 'git',

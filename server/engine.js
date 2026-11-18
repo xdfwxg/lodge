@@ -121,6 +121,7 @@ const normalizeMessage = (raw, responderName) => {
       kind: 'turn',
       turn: {
         turnId: digest.turnId,
+        at: digest.at ?? raw.at ?? common.at,
         durationMs: digest.durationMs,
         reply: digest.reply ?? '',
         toolCalls: digest.toolCalls,

@@ -1,12 +1,29 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { persistRoom } from './workspace-git.js'
+import { writeDiagnostic } from './room-repo.js'
 
 const git = (cwd, args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+
+test('a turn diagnostic lands under the room diagnostics folder', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'crew-diagnostic-'))
+  try {
+    const file = writeDiagnostic(
+      { id: 'r1', repoPath: repo },
+      'turn/1',
+      { outcome: 'evidence', toolCalls: 2 },
+    )
+    assert.match(file, /\.crew\/rooms\/r1\/diagnostics\/turn1\.json$/)
+    assert.equal(existsSync(file), true)
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { outcome: 'evidence', toolCalls: 2 })
+  } finally {
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
 
 test('the conclusion commit carries the room record even when .crew is ignored', () => {
   const repo = mkdtempSync(join(tmpdir(), 'crew-commit-'))

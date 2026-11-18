@@ -245,6 +245,43 @@ test('a planner turn without a submitted decision is nudged once, then handed to
   assert.match(room.lastPlannerDecision.judgment.actionRequired, /没有提交决定/)
 })
 
+test('an exhausted rework budget asks the human instead of reworking again', () => {
+  const room = makeRoom({
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-plan', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+  })
+  for (const at of [1, 2, 3]) {
+    store.appendMessage('room-1', {
+      kind: 'rework', authorId: 'system', text: `重做 ${at}`, meta: { stage: 0, source: 'planner' },
+    })
+  }
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ reply: '返工\n再改一次', turnId: 't-lead-budget', toolCalls: 0 }, 'bot-plan')
+  assert.equal(room.lastPlannerDecision.kind, 'human')
+  assert.equal(room.lastPlannerDecision.judgment.source, 'policy')
+  assert.match(room.lastPlannerDecision.judgment.actionRequired, /返工预算/)
+  assert.equal(store.messages.filter(message => message.kind === 'rework' && message.meta?.stage === 0).length, 3)
+})
+
 test('a verifier reply without a verdict is nudged, then expires the review', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
@@ -286,6 +323,98 @@ test('a verifier reply without a verdict is nudged, then expires the review', as
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.meta?.kind === 'review_timeout'))
   assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+})
+
+test('turn usage accumulates on the room and keeps unknown costs visible', () => {
+  const room = makeRoom({})
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({
+    turnId: 't-usage-1',
+    reply: '',
+    toolCalls: 0,
+    usage: { input: 10, output: 5, costUsd: 0.002 },
+  }, 'bot-exec')
+  assert.equal(room.usage.costStatus, 'reported')
+  assert.equal(room.usage.costMicroUsd, 2000)
+  turns.captureTurn({
+    turnId: 't-usage-2',
+    reply: '',
+    toolCalls: 0,
+    usage: { input: 1, output: 1, costUsd: null },
+  }, 'bot-exec')
+  assert.equal(room.usage.costStatus, 'partial')
+  assert.equal(room.usage.costMicroUsd, 2000)
+})
+
+test('a captured turn writes a diagnostic with its outcome and usage', () => {
+  const room = makeRoom({})
+  const store = fakeStore(room)
+  const diagnostics = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    writeDiagnostic: (_room, turnId, payload) => diagnostics.push({ turnId, payload }),
+  })
+  turns.captureTurn({
+    turnId: 't-diagnostic',
+    reply: '',
+    toolCalls: 0,
+    durationMs: 1200,
+    usage: { input: 3, output: 2, costUsd: 0.001 },
+  }, 'bot-exec')
+  const last = diagnostics.at(-1)
+  assert.equal(last.turnId, 't-diagnostic')
+  assert.equal(last.payload.outcome, 'empty')
+  assert.equal(last.payload.stage, 0)
+  assert.equal(last.payload.durationMs, 1200)
+  assert.equal(last.payload.usage.input, 3)
+})
+
+test('a late turn from an older attempt is dropped before it touches evidence', () => {
+  const room = makeRoom({})
+  const store = fakeStore(room)
+  store.writeAssignment({
+    id: 'as-late',
+    roomId: 'room-1',
+    stageIndex: 0,
+    toMemberId: 'executor',
+    reason: 'dispatch',
+    brief: {},
+    status: 'sent',
+    sentAt: 10_000,
+    context: {},
+    flags: {},
+  })
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({
+    reply: '旧回合的结果',
+    turnId: 't-old',
+    toolCalls: 1,
+    at: 12_000,
+    durationMs: 9_000,
+  }, 'bot-exec')
+  assert.ok(!store.messages.some(message => message.kind === 'evidence'))
+  assert.ok(store.messages.some(message => /旧回合结果已忽略/.test(message.text ?? '')))
+  assert.ok(store.events.some(event => event.type === 'turn.stale'))
 })
 
 test('a merge conflict is left for the human instead of being auto-reworked', () => {

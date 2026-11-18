@@ -56,6 +56,15 @@ export const appendEventLog = (room, event) => {
   }
 }
 
+// 每次执行一份可读诊断：回合、工具、用量、终止去向；只落本地 .crew，不参与交付。
+export const writeDiagnostic = (room, turnId, payload) => {
+  const dir = ensureDirInside(roomRootOf(room), join(roomDir(room), 'diagnostics'))
+  const name = String(turnId ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) || 'turn'
+  const file = join(dir, `${name}.json`)
+  writeDurable(file, `${JSON.stringify(payload, null, 2)}\n`)
+  return file
+}
+
 export const readEventLog = room => {
   const file = join(roomDir(room), 'events.jsonl')
   if (!existsSync(file)) return []

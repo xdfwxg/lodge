@@ -55,6 +55,13 @@
 - 修正后：同一房间重开第 2 步，规划师派发写成“内容逐字只有一行 hello，不要别的文字、不要多余空行”；执行官照做，验收员通过 gate 记录 PASS，理由是一行 hello 符合目标
 - 对照：把内容换回中文句子后，验收员回复“REJECT，hello.txt 内容不是单行 hello，未达房间目标”，没有再拿可读性代替目标；该回合因复核轮次已被重开过期，没有落成 verdict
 
+## 2026-11-19 · 人的输入、用量与诊断
+
+- `room-e815cc00` 重开第 2 步并补一句上下文后，房间多出一条 `human-context` 消息（`source=rewind`），同时保留原来的 `rework` 标记
+- 同一轮的执行回合被记进 `room.usage`：2 个回合、输入 49852 / 输出 627 tokens、费用 132956 微美元，状态 `reported`
+- 诊断包落盘在 `CrewWorktrees/e815cc00/executor/.crew/rooms/room-e815cc00/diagnostics/`；抽查的一条包含阶段、成员、回合时长、工具调用、用量和 `outcome=evidence`、证据 id、assignment id
+- 返工预算与晚到回合围栏没有在真实房间里强制制造，靠 `live-turn-modules.test.js` 覆盖
+
 ## 仍需真实环境
 
 - 规划师通过 `submit_decision` 的“返工”路径（本次真跑的是“交给人”）

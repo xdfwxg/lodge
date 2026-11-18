@@ -59,6 +59,9 @@ test('answered cards keep only the latest batch', async () => {
   assert.equal(ctx.entry.answeredCards.size, 500)
   assert.equal(ctx.entry.answeredCards.has('q0'), false)
   assert.equal(ctx.entry.answeredCards.has('q500'), true)
+  const context = [...ctx.messages].reverse().find(message => message.kind === 'human-context')
+  assert.equal(context.text, '继续')
+  assert.equal(context.meta.source, 'answer')
 })
 
 test('a room at the pending limit denies the next external action', async () => {

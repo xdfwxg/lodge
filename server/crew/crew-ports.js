@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { runCommand } from './acceptance.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
-import { writeConclusion, writeGoal } from './room-repo.js'
+import { writeConclusion, writeDiagnostic, writeGoal } from './room-repo.js'
 import { writeMemberEnv } from './member-env.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
 
@@ -10,6 +10,7 @@ export const createCrewPorts = () => ({
   roomFiles: {
     writeGoal,
     writeConclusion,
+    writeDiagnostic,
     roomDir,
     roomRootOf,
   },

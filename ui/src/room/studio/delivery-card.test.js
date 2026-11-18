@@ -88,6 +88,24 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.match(text(tree), /1 项检查/)
 })
 
+test('cost reads as a number, a lower bound, or unknown', async () => {
+  const { DeliveryCard } = await load()
+  const base = { name: '设置页保存', stages: [], commands: [], changedFiles: [] }
+  const reported = render(DeliveryCard({
+    delivery: { ...base, usage: { costMicroUsd: 4200, costStatus: 'reported' } },
+  }))
+  assert.match(text(reported), /\$0\.0042/)
+  const partial = render(DeliveryCard({
+    delivery: { ...base, usage: { costMicroUsd: 4000, costStatus: 'partial' } },
+  }))
+  assert.match(text(partial), /至少 \$0\.0040/)
+  const unknown = render(DeliveryCard({
+    delivery: { ...base, usage: { costMicroUsd: 0, costStatus: 'unknown' } },
+  }))
+  assert.match(text(unknown), /费用未知/)
+  assert.doesNotMatch(text(unknown), /\$0\.0000/)
+})
+
 test('an artifact and its relative changed path are counted once', async () => {
   const { DeliveryCard } = await load()
   const tree = render(DeliveryCard({

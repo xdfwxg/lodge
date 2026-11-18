@@ -210,7 +210,7 @@ export const validateJudgment = value => {
     actorId: typeof value.actorId === 'string' && value.actorId !== '' ? value.actorId : null,
     rejectTo: REJECT_TARGETS.has(value.rejectTo) ? value.rejectTo : rejectToFor(type, decision),
     at: typeof value.at === 'number' ? value.at : 0,
-    source: ['json', 'text', 'legacy', 'gate', 'missing'].includes(value.source) ? value.source : 'text',
+    source: ['json', 'text', 'legacy', 'gate', 'missing', 'policy'].includes(value.source) ? value.source : 'text',
   }
 }
 

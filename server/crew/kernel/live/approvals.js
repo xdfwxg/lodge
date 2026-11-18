@@ -7,6 +7,7 @@ import { systemNotice } from '../../notices.js'
 import { decidePermission } from '../../permission.js'
 import { supportsRuntime } from '../../runtime-port.js'
 import { attemptScopeOf, scopeIsValid } from '../../../../shared/attempt.js'
+import { appendHumanContext } from '../../human-context.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
 const ANSWERED_KEEP = 500
@@ -300,6 +301,13 @@ export const createLiveApprovals = ({
       if (result?.ok === false) throw new Error(result.error ?? '基座没有接受这个回答')
       rememberAnswer(entry, requestId)
       markRoomAnswer(store, roomId, requestId)
+      appendHumanContext({
+        store,
+        roomId,
+        stage: Number.isInteger(card?.meta?.card?.scope?.stage) ? card.meta.card.scope.stage : null,
+        text,
+        source: 'answer',
+      })
       store.appendMessage(roomId, {
         kind: 'system',
         text: `已回答${memberNameOf(room, memberId)}的问题。`,

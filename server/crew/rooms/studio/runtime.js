@@ -71,6 +71,7 @@ export const createStudioRuntime = ({
         askPlanner,
         commands: ports.commands,
         files: ports.files,
+        writeDiagnostic: ports.roomFiles?.writeDiagnostic,
         shadow,
         expireCards: () => {
           const task = approvals.expireApprovals(entry, room.id, '这一步已经重做了')

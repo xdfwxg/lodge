@@ -15,6 +15,7 @@ import { systemNotice } from '../../notices.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { verdictPassed } from '../../../../shared/judgment.js'
 import { isWorkStage } from './turn-utils.js'
+import { appendHumanContext } from '../../human-context.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
@@ -217,6 +218,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       text: note,
       meta: { stage: index, source: 'retry', memberId, requestedAt: Date.now() },
     })
+    appendHumanContext({ store, roomId: room.id, stage: index, text: note, source: 'retry' })
     if (room.live === true && typeof live.retryMember === 'function') {
       void live.retryMember(room, index, memberId, note).catch(error => {
         systemNotice({ store, roomId: room.id, text: '这一分支没能重试；需要你处理。', error })
@@ -245,6 +247,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       text: note === '' ? '结果不对，请重新对照目标后重做。' : note,
       meta: { stage: index, source: 'human', requestedAt: Date.now() },
     })
+    appendHumanContext({ store, roomId: room.id, stage: index, text: note, source: 'rework' })
     const updated = updateRoom(room.id, current => {
       const target = current.stages?.[index]
       if (target === undefined || target.state !== 'active') return null
@@ -313,6 +316,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       text: note,
       meta: { stage: index, source: 'rewind', requestedAt: Date.now() },
     })
+    appendHumanContext({ store, roomId: room.id, stage: index, text: note, source: 'rewind' })
     for (let at = index + 1; at < updated.stages.length; at += 1) {
       appendMessage(room.id, {
         kind: 'rework',

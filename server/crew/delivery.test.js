@@ -36,6 +36,17 @@ test('the delivery card keeps goal, commands, files, verdicts and commit', () =>
   assert.equal(delivery.evidenceCount, 1)
 })
 
+test('the delivery keeps the room usage and its unknown state', () => {
+  const reported = buildDelivery(room({
+    usage: { turns: 2, tokens: { input: 10, output: 5 }, costMicroUsd: 4200, costStatus: 'reported' },
+  }), messages)
+  assert.equal(reported.usage.costStatus, 'reported')
+  assert.equal(reported.usage.costMicroUsd, 4200)
+  const unknown = buildDelivery(room({ usage: { turns: 1, costMicroUsd: 0, costStatus: 'unknown' } }), messages)
+  assert.equal(unknown.usage.costStatus, 'unknown')
+  assert.equal(buildDelivery(room(), messages).usage, null)
+})
+
 test('a room event only carries a delivery card after completion', () => {
   assert.equal(presentRoom(room({ state: 'active' }), messages).delivery, null)
   assert.equal(presentRoom(room(), messages).delivery.goal, '保存后刷新仍生效')

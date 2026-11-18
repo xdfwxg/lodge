@@ -54,10 +54,19 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
   const changedFiles = delivery.changedFiles ?? []
   const otherChangedFiles = changedFiles.filter(file => !artifactPaths.has(file))
   const fileCount = new Set([...artifactPaths, ...changedFiles]).size
+  const usage = delivery.usage ?? null
+  const micro = usage?.costMicroUsd ?? 0
+  const money = micro >= 10_000 ? `$${(micro / 1_000_000).toFixed(2)}` : `$${(micro / 1_000_000).toFixed(4)}`
+  const cost = usage === null
+    ? ''
+    : usage.costStatus === 'unknown'
+      ? '费用未知'
+      : usage.costStatus === 'partial' ? `至少 ${money}` : money
   const metrics = [
     stepTotal > 0 ? `${stepTotal} 步` : '',
     commands.length > 0 ? `${commands.length} 项检查` : '',
     fileCount > 0 ? `${fileCount} 个文件` : '',
+    cost,
   ].filter(Boolean).join(' · ')
   const signoff = delivery.independenceLabel ?? ''
   return h('div', { className: 'crew-msg-conclusion', 'data-outcome': 'delivery' },
