@@ -6,6 +6,7 @@ import { ShadowAdvice } from './advisor-advice.js'
 import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
 import { HumanGateCard } from './human-gate.js'
+import { DeliveryCard } from './delivery-card.js'
 
 const orderOf = message => (
   (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
@@ -116,19 +117,22 @@ export function StudioTranscript({
   return h(Fragment, null,
     h('div', { className: 'studio-timeline' }, ...items,
       finished
-        ? h('div', { key: 'room-closing', className: 'studio-room-closing' },
-          h('span', null, '目标完成'),
-          h('button', {
-            type: 'button',
-            className: 'crew-link',
-            onClick: () => { downloadDeliveryRecord(room) },
-          }, '下载交付记录'),
-          typeof onDiscussChat === 'function'
-            ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
-            : null,
-          typeof onContinue === 'function'
-            ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '开一间新房')
-            : null)
+        ? h('div', { key: 'room-closing', className: 'studio-room-closing-wrap' },
+          delivery === null
+            ? h('div', { className: 'studio-room-closing' }, h('span', null, '目标完成'))
+            : h(DeliveryCard, { delivery }),
+          h('div', { className: 'studio-room-closing studio-room-actions' },
+            h('button', {
+              type: 'button',
+              className: 'crew-link',
+              onClick: () => { downloadDeliveryRecord(room) },
+            }, '下载交付记录'),
+            typeof onDiscussChat === 'function'
+              ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
+              : null,
+            typeof onContinue === 'function'
+              ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '开一间新房')
+              : null))
         : null),
     h(HumanGateCard, { key: `human-gate-${activeIndex}`, room, onRework }),
     advice)

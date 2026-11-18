@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { healthOf } from './health.js'
+import { healthLineOf, healthOf } from './health.js'
 
 const room = over => ({
   stages: [
@@ -39,6 +39,15 @@ test('the health card reads the active stage diagnostic and room usage', () => {
   assert.equal(health.human, 1)
   assert.equal(health.diagnostic.assessment.unknown[0], '费用未知')
   assert.equal(health.memoryCount, 0)
+})
+
+test('the first line asks what is needed, not how the factory is running', () => {
+  const needs = healthLineOf(healthOf(room()))
+  assert.equal(needs, '需要你：待确认 · 看一下结果')
+  assert.doesNotMatch(needs, /\$|回合|返工|证据/)
+
+  const running = healthLineOf(healthOf(room({ needsYou: null, busyMembers: ['executor'] })))
+  assert.equal(running, '第 2 步「实现」 · 执行官在做')
 })
 
 test('a room without an active stage has no health card', () => {

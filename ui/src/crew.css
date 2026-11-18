@@ -179,6 +179,7 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .studio-transcript-more{align-self:center;margin:2px auto 8px}
 .studio-timeline{display:flex;flex-direction:column;gap:12px;min-width:0}
 .studio-room-closing{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;padding:8px 0 4px;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
+.studio-room-closing-wrap{display:flex;flex-direction:column;gap:4px;padding-top:8px}
 .studio-result-first{margin-bottom:4px}
 .studio-worklog{margin-top:4px;border-top:1px solid var(--bt-line)}
 .studio-worklog>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 4px;cursor:pointer;font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink-2)}
@@ -856,8 +857,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-health>summary::-webkit-details-marker{display:none}
 .crew-health[open]>summary{color:var(--bt-ink-2)}
 .crew-health-body{margin-top:8px;padding:10px 12px;border:1px solid var(--bt-line);border-radius:9px;background:var(--bt-shade-1)}
-.crew-health-wait{margin:0 0 8px;font-size:var(--bt-text-helper);color:var(--bt-ink-2)}
-.crew-health-wait b{font-weight:600;color:var(--bt-ink)}
+.crew-health-metrics{margin:0 0 8px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .crew-health-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .crew-health-grid b{display:block;font-weight:600;color:var(--bt-ink-2);margin-bottom:4px}
 .crew-health-grid ul{margin:0;padding-left:16px;line-height:1.6}

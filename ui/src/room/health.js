@@ -29,11 +29,15 @@ export const healthOf = room => {
   const member = diagnostic === null
     ? null
     : (room.members ?? []).find(item => item.id === diagnostic.memberId) ?? null
+  const busyNames = (Array.isArray(room?.busyMembers) ? room.busyMembers : [])
+    .map(id => (room.members ?? []).find(item => item.id === id)?.name ?? id)
+    .filter(name => typeof name === 'string' && name !== '')
   return {
     index,
     title: stages[index].title ?? '',
     diagnostic,
     memberName: member?.name ?? diagnostic?.memberId ?? '',
+    busyNames,
     at: diagnostic?.at === undefined ? null : diagnostic.at,
     usage: usageText(room?.usage),
     reworks,
@@ -43,26 +47,36 @@ export const healthOf = room => {
   }
 }
 
+// 第一行只回答“现在需要你做什么”；费用、回合和返工收进展开后的详情。
+export const healthLineOf = health => {
+  if (health === null || health === undefined) return ''
+  const needs = health.needsYou
+  if (needs !== null && needs !== undefined) {
+    const detail = typeof needs.detail === 'string' ? needs.detail.trim() : ''
+    const label = needs.label ?? '需要你处理'
+    return detail === '' ? `需要你：${label}` : `需要你：${label} · ${detail}`
+  }
+  const step = `第 ${health.index + 1} 步「${health.title}」`
+  if (health.diagnostic === null) return `${step} · 刚开始`
+  const actor = (health.busyNames ?? []).length > 0 ? health.busyNames.join('、') : health.memberName
+  return actor === '' ? `${step} · 正在做` : `${step} · ${actor}在做`
+}
+
 export function RoomHealth({ room, onForgetMemory = null }) {
   const health = healthOf(room)
   if (health === null) return null
   if (health.diagnostic === null && health.needsYou === null && health.usage === '') return null
   const assessment = health.diagnostic?.assessment ?? null
-  const summary = [
-    `第 ${health.index + 1} 步「${health.title}」`,
-    health.memberName === '' ? '' : health.memberName,
-    health.diagnostic === null ? '还没有回合诊断' : `${assessment?.evidence?.length ?? 0} 条证据 · ${assessment?.unknown?.length ?? 0} 项未知`,
+  const metrics = [
     health.usage,
     health.reworks > 0 ? `返工 ${health.reworks} 次` : '',
     health.human > 0 ? `你介入 ${health.human} 次` : '',
     health.memoryCount > 0 ? `参考 ${health.memoryCount} 条记忆` : '',
   ].filter(Boolean).join(' · ')
   return h('details', { className: 'crew-health' },
-    h('summary', null, summary),
+    h('summary', null, healthLineOf(health)),
     h('div', { className: 'crew-health-body' },
-      health.needsYou === null ? null : h('p', { className: 'crew-health-wait' },
-        h('b', null, health.needsYou.label ?? '需要你处理'),
-        health.needsYou.detail === undefined || health.needsYou.detail === '' ? null : ` · ${health.needsYou.detail}`),
+      metrics === '' ? null : h('p', { className: 'crew-health-metrics' }, metrics),
       assessment === null
         ? null
         : h('div', { className: 'crew-health-grid' },
