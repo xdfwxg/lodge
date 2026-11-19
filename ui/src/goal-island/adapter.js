@@ -92,7 +92,7 @@ function DoneIsland({ goal, label }) {
       h('span', { className: 'crew-island-done-title' }, label))))
 }
 
-export function GoalIslandHeader({ room, goal: goalOverride = null, status = null, onOpenRoom }) {
+export function GoalIslandHeader({ room, goal: goalOverride = null, status = null, onOpenRoom, onSignalAction = null }) {
   const activity = useGoalSignal(room)
   const open = activity.mode === 'open'
   const goal = goalOverride ?? toIslandGoal(room)
@@ -107,10 +107,15 @@ export function GoalIslandHeader({ room, goal: goalOverride = null, status = nul
         : document.querySelector('[data-room-decision]')
       if (target instanceof HTMLElement) {
         target.scrollIntoView({ block: 'center' })
-        target.focus({ preventScroll: true })
+        const action = target.querySelector('button:not([disabled]), input:not([disabled]), textarea:not([disabled])')
+        ;(action instanceof HTMLElement ? action : target).focus({ preventScroll: true })
         return
       }
       activity.onOpen()
+    },
+    actSignal: action => {
+      if (typeof onSignalAction === 'function' && onSignalAction(activity.signal, action) !== false) return
+      goalActions.openSignal()
     },
     dismissSignal: activity.onDismiss,
     pauseSignal: activity.onPause,

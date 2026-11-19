@@ -1,6 +1,5 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
-import { StudioPresence } from './presence.js'
 import { StatePanel } from '../../state-panel.js'
 import { buildIdleDecision } from '../decision.js'
 import { StudioTranscript } from './transcript.js'
@@ -17,7 +16,16 @@ export const studioView = {
   header: ({ room, actions }) => {
     const paused = room.state === 'paused' ? buildIdleDecision(room) : null
     return h(Fragment, null,
-      h(GoalIslandHeader, { room, onOpenRoom: actions.selectRoom }),
+      h(GoalIslandHeader, {
+        room,
+        onOpenRoom: actions.selectRoom,
+        onSignalAction: (signal, action) => {
+          if (signal?.needs !== 'review-timeout' || !Number.isInteger(signal.stage)) return false
+          if (action === 'rework') actions.rework(signal.stage, '')
+          else actions.verify(signal.stage)
+          return true
+        },
+      }),
       paused === null
         ? null
         : h(StatePanel, {
@@ -71,7 +79,7 @@ export const studioView = {
     })(),
     onReturn: () => {},
   }),
-  presence: ({ room, members }) => h(StudioPresence, { room, members }),
+  presence: () => null,
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
     if (room.state === 'complete' || done) return '已交付 · 还能和规划师聊聊。'

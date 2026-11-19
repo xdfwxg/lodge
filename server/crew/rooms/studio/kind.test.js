@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { roomKinds } from '../kinds.js'
+import { studioKind } from './kind.js'
 
 const fallback = {
   worker: { requested: 'codex-cli', actual: 'claude', reason: 'missing' },
@@ -24,4 +25,23 @@ test('a fallback that keeps a different verifier vendor stays independent', () =
 test('a same-vendor fallback says the review is not independent', () => {
   const text = messageOf('none')
   assert.match(text, /不是独立复核/)
+})
+
+test('reworking a step clears its old review timeout', () => {
+  const room = {
+    state: 'active',
+    stages: [{ title: '实现', kind: 'deliverable', manual: true, state: 'active' }],
+    members: [{ id: 'verifier', name: '验收员', role: 'verifier' }],
+  }
+  const evidence = { id: 'e1', kind: 'evidence', seq: 1, ts: 1000, meta: { stage: 0, kind: 'manual' } }
+  const timeout = {
+    id: 't1',
+    kind: 'system',
+    seq: 2,
+    ts: 2000,
+    meta: { kind: 'review_timeout', stage: 0, verifiers: ['verifier'] },
+  }
+  assert.equal(studioKind.needsYou(room, [evidence, timeout]).kind, 'review-timeout')
+  const rework = { id: 'r1', kind: 'rework', seq: 3, ts: 3000, meta: { stage: 0 } }
+  assert.equal(studioKind.needsYou(room, [evidence, timeout, rework]), null)
 })

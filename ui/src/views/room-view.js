@@ -192,6 +192,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     rework: (stage, note) => store.rework(stage, note),
     resolveMerge: () => store.resolveMerge(),
     retry: (stage, note) => void store.retry(stage, note),
+    verify: stage => store.verify(stage),
     rewind: (stage, note) => store.rewind(stage, note),
     switchMode: (mode, roles) => store.switchMode(mode, roles),
     resumeChat: () => store.resumeChat(),

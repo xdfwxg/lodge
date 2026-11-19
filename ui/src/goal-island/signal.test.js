@@ -57,6 +57,14 @@ test('a stopped automatic check reads as one plain sentence', () => {
   assert.equal(event.title, '这一步没做成，需要你决定')
 })
 
+test('a review timeout puts the fix on the signal', () => {
+  const event = decisionOf(room({
+    needsYou: { kind: 'review-timeout', stage: 1, label: '验收员的复核没按时回来' },
+  }))
+  assert.equal(event.stage, 1)
+  assert.equal(event.needs, 'review-timeout')
+})
+
 test('ambient states do not become decisions', () => {
   assert.equal(decisionOf(room({ needsYou: { kind: 'review', stage: 1, label: '验收员在看' } })), null)
   assert.equal(decisionOf(room({ needsYou: { kind: 'idle', stage: 1, label: '可继续' } })), null)

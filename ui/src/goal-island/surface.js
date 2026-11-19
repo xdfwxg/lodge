@@ -135,6 +135,9 @@ function GoalClosed({ view, room, actions, compact = false, plan = false }) {
 // Decisions keep the line until they are handled; milestones expire.
 function GoalSignal({ signal, mode, actions }) {
   const inside = event => event.currentTarget.contains(event.relatedTarget)
+  const reviewTimeout = signal.needs === 'review-timeout'
+  const dot = h('span', { className: 'bt-goal-signal-dot', 'aria-hidden': true })
+  const text = h('span', { className: 'bt-goal-signal-text' }, signal.title)
   return h('div', {
     className: 'bt-goal-signal',
     'data-tone': signal.tone,
@@ -145,15 +148,32 @@ function GoalSignal({ signal, mode, actions }) {
     onFocus: event => { if (!inside(event)) actions.pauseSignal() },
     onBlur: event => { if (!inside(event)) actions.resumeSignal() },
   },
-  h('button', {
-    type: 'button',
-    className: 'bt-goal-signal-main',
-    title: signal.detail,
-    onClick: actions.openSignal,
-  },
-  h('span', { className: 'bt-goal-signal-dot', 'aria-hidden': true }),
-  h('span', { className: 'bt-goal-signal-text' }, signal.title),
-  h('span', { className: 'bt-goal-signal-go' }, signal.kind === 'decision' ? '去处理' : '查看')),
+  reviewTimeout
+    ? h('div', {
+      className: 'bt-goal-signal-main',
+      'data-static': 'true',
+      title: signal.detail,
+    }, dot, text)
+    : h('button', {
+      type: 'button',
+      className: 'bt-goal-signal-main',
+      title: signal.detail,
+      onClick: actions.actSignal,
+    }, dot, text, h('span', { className: 'bt-goal-signal-go' }, signal.kind === 'decision' ? '去处理' : '查看')),
+  reviewTimeout
+    ? h('div', { className: 'bt-goal-signal-actions' },
+      h('button', {
+        type: 'button',
+        className: 'bt-goal-signal-action',
+        'data-primary': 'true',
+        onClick: () => actions.actSignal('verify'),
+      }, '再叫一次复核'),
+      h('button', {
+        type: 'button',
+        className: 'bt-goal-signal-action',
+        onClick: () => actions.actSignal('rework'),
+      }, '退回重做'))
+    : null,
   mode === 'decision'
     ? h('button', {
       type: 'button',
@@ -354,9 +374,11 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-plan-next{flex:0 1 auto;display:flex;align-items:baseline;gap:8px;min-width:0;padding-left:10px}
 .bt-goal-plan-k{flex:none;font-size:11px;line-height:16px;color:var(--bt-ink-3)}
 .bt-goal-plan-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;line-height:17px;color:var(--bt-ink)}
-.bt-goal-signal{display:flex;align-items:center;min-width:0;padding:0 10px 8px 16px;animation:bt-island-layer-in .26s var(--bt-ease) .03s backwards}
+.bt-goal-signal{display:flex;align-items:center;gap:6px;min-width:0;padding:0 10px 8px 16px;animation:bt-island-layer-in .26s var(--bt-ease) .03s backwards}
 .bt-goal-signal-main{flex:1 1 auto;display:flex;align-items:center;gap:7px;min-width:0;height:24px;padding:0 5px;border:0;border-radius:7px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .bt-goal-signal-main:hover{background:var(--bt-hover)}
+.bt-goal-signal-main[data-static=true]{cursor:default}
+.bt-goal-signal-main[data-static=true]:hover{background:none}
 .bt-goal-signal-dot{flex:none;width:5px;height:5px;border-radius:50%;background:var(--bt-accent)}
 .bt-goal-signal[data-tone=waiting] .bt-goal-signal-dot{background:var(--bt-star)}
 .bt-goal-signal[data-tone=done] .bt-goal-signal-dot{background:var(--bt-green)}
@@ -366,6 +388,10 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-signal[data-tone=waiting] .bt-goal-signal-text{color:var(--bt-warning-text)}
 .bt-goal-signal-go{flex:none;font-size:12px;line-height:16px;color:var(--bt-ink-3)}
 .bt-goal-signal[data-tone=waiting] .bt-goal-signal-go{color:var(--bt-warning-text);font-weight:600}
+.bt-goal-signal-actions{flex:none;display:flex;align-items:center;gap:6px}
+.bt-goal-signal-action{height:24px;padding:0 8px;border:1px solid var(--bt-line-2);border-radius:7px;background:none;color:var(--bt-ink-2);font:inherit;font-size:11.5px;line-height:1;white-space:nowrap;cursor:pointer}
+.bt-goal-signal-action:hover{background:var(--bt-hover);color:var(--bt-ink)}
+.bt-goal-signal-action[data-primary=true]{border-color:transparent;background:var(--bt-accent);color:var(--bt-accent-ink);font-weight:600}
 .bt-goal-signal-close{flex:none;width:22px;height:22px;border:0;border-radius:6px;background:none;color:var(--bt-ink-3);font:inherit;font-size:15px;line-height:1;cursor:pointer}
 .bt-goal-signal-close:hover{background:var(--bt-hover);color:var(--bt-ink)}
 .bt-goal-meta{margin:8px 14px 0;padding:5px 9px;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:17px}

@@ -250,11 +250,12 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       return fail('conflict', '验收员还在看，等结论出来再继续')
     }
     if (stage.state !== 'active') return fail('conflict', '这一步现在不需要重做')
+    const auto = note === ''
     const message = appendMessage(room.id, {
       kind: 'rework',
       authorId: 'you',
-      text: note === '' ? '结果不对，请重新对照目标后重做。' : note,
-      meta: { stage: index, source: 'human', requestedAt: Date.now() },
+      text: auto ? '你让这一步重新做了一遍。' : note,
+      meta: { stage: index, source: 'human', requestedAt: Date.now(), ...(auto ? { auto: true } : {}) },
     })
     appendHumanContext({ store, roomId: room.id, stage: index, text: note, source: 'rework' })
     const updated = updateRoom(room.id, current => {

@@ -109,3 +109,24 @@ test('a room still at work keeps the transcript on screen', async () => {
   assert.equal(hasClass(tree, 'studio-timeline'), true)
   assert.doesNotMatch(text(tree), /看过程/)
 })
+
+test('a one-click rework reads as the room acting, not as words the user typed', async () => {
+  const { StudioTranscript } = await load()
+  const room = {
+    ...finishedRoom(),
+    state: 'active',
+    stages: [{ ...finishedRoom().stages[0], state: 'active' }],
+    messages: [{
+      id: 'm2',
+      kind: 'rework',
+      authorId: 'you',
+      text: '你让这一步重新做了一遍。',
+      ts: 2,
+      seq: 2,
+      meta: { stage: 0, auto: true },
+    }],
+  }
+  const tree = render(StudioTranscript({ room, members, delivery: null }))
+  assert.match(text(tree), /你让这一步重新做了一遍/)
+  assert.equal(hasClass(tree, 'bt-ububble'), false)
+})

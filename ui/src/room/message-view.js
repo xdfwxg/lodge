@@ -35,6 +35,9 @@ export const renderSharedMessage = ({
     return h('div', { key: message.id, className: 'crew-system' }, message.text)
   }
   if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })
+  if (message.kind === 'rework' && message.meta?.auto === true) {
+    return h('div', { key: message.id, className: 'crew-system' }, message.text)
+  }
   if (message.authorId === 'you') {
     if (message.meta?.cancelled === true) {
       return h('div', { key: message.id, className: 'crew-system' }, '已撤回一条排队消息。')

@@ -68,6 +68,7 @@ export const decisionOf = room => {
       : `decision:${needs.kind}:${index ?? '-'}`,
     kind: 'decision',
     needs: needs.kind,
+    stage: index,
     tone: DECISION_TONE[needs.kind] ?? 'waiting',
     title: more > 0 ? `${own} · 还有 ${more} 件` : own,
     // 说清缺什么、下一步怎么处理，不让人翻记录找原因。

@@ -57,7 +57,12 @@ const studioNeedsYou = (room, messages = []) => {
   const timeout = latestReviewTimeout(messages, index)
   if (timeout !== undefined) {
     const lastVerdict = latestForStage(messages, 'verdict', index, floor)
-    if ((timeout.ts ?? 0) > (room.reviewRetriedAt ?? 0) && (timeout.ts ?? 0) > (lastVerdict?.ts ?? 0)) {
+    const lastRework = latestForStage(messages, 'rework', index)
+    if (
+      (timeout.ts ?? 0) > (room.reviewRetriedAt ?? 0) &&
+      (timeout.ts ?? 0) > (lastVerdict?.ts ?? 0) &&
+      (timeout.ts ?? 0) > (lastRework?.ts ?? 0)
+    ) {
       const names = (Array.isArray(timeout.meta?.verifiers) ? timeout.meta.verifiers : [])
         .map(id => memberDisplayName(room, id)).join('、')
       return {

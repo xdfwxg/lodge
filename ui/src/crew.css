@@ -140,8 +140,6 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-activity-line{display:flex;align-items:center;gap:7px;padding:0 24px 8px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .crew-activity-line i{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-accent);animation:crew-typing 1.2s infinite}
 .crew-activity-elapsed{font-variant-numeric:tabular-nums;color:var(--bt-ink-3)}
-.studio-queue{display:flex;align-items:center;gap:7px;padding:0 24px 8px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
-.studio-queue[data-held=true]{opacity:.72}
 .crew-queue-actions{display:flex;align-items:center;gap:8px;margin-top:4px;color:var(--bt-ink-3);font-size:var(--bt-text-helper)}
 .crew-body-swap{max-width:440px}
 .crew-body-swap-identity{margin:6px 0 0!important;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}

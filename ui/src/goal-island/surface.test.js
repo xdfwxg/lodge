@@ -8,6 +8,7 @@ const actions = {
   toggleGoal: () => {},
   closeGoal: () => {},
   openSignal: () => {},
+  actSignal: () => {},
   dismissSignal: () => {},
   pauseSignal: () => {},
   resumeSignal: () => {},
@@ -78,6 +79,21 @@ test('a decision renders one signal line and a dismiss control', () => {
   assert.match(html, /第 1 步「目标对齐」有一处要你拍板/)
   assert.match(html, /aria-label="收起这条提醒"/)
   assert.doesNotMatch(html, /bt-pill/)
+})
+
+test('a review timeout puts the fix in the signal itself', () => {
+  const html = render('decision', {
+    key: 'decision:review-timeout:1',
+    kind: 'decision',
+    needs: 'review-timeout',
+    stage: 1,
+    tone: 'paused',
+    title: '第 2 步「查机票」复核没按时回来',
+    detail: '可以再叫一次复核，或退回重做。',
+  })
+  assert.match(html, /再叫一次复核/)
+  assert.match(html, /退回重做/)
+  assert.doesNotMatch(html, /去处理/)
 })
 
 test('the open panel is the goal, its steps and where the work stands', () => {

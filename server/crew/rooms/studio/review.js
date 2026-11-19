@@ -9,6 +9,7 @@ import { fenceUntrusted, sanitizeUntrusted } from '../../../../shared/untrusted-
 import { studioTransitionEvent, transitionStudio } from './state.js'
 import { workspaceOf } from './workspace.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
+import { reworkFloor } from '../../../../shared/attempt.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf } from '../../room-members.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
@@ -42,6 +43,25 @@ const VERDICT_FORMAT = `如果工具列表里有 submit_verdict，直接调用�
 // 证据、命令输出和 diff 都可能带外部内容；去隐藏字符、按字符预算截断，再用围栏包住。
 const untrusted = (text, lang = '', max = 4000) => fenceUntrusted(text, { lang, max })
 
+// 超时后晚到的判定只在这条复核仍然对应当前这一步、当前证据时才算数。
+export const lateReviewStillValid = ({ room, messages, pending }) => {
+  if (room === null || room.state !== 'active') return false
+  const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
+  if (active !== pending.stage) return false
+  const floor = reworkFloor(messages, pending.stage)
+  const latestEvidence = [...messages].reverse().find(message => (
+    message.kind === 'evidence' &&
+    (message.meta?.stage ?? 0) === pending.stage &&
+    (message.seq ?? 0) > floor
+  ))
+  if (latestEvidence?.id !== pending.evidenceId) return false
+  return !messages.some(message => (
+    (message.kind === 'rework' || message.kind === 'rewind') &&
+    (message.meta?.stage ?? 0) === pending.stage &&
+    (message.ts ?? 0) > (pending.requestedAt ?? 0)
+  ))
+}
+
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
@@ -49,7 +69,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
   let shadowTask = null
   const staleMembers = new Set()
 
-  const isBusy = () => round !== null && round.requests.size > 0
+  const isBusy = () => round !== null && [...round.requests.values()].some(request => request.expired !== true)
 
   const consume = ({ turn, memberId, turnId, room, calls = [] }) => {
     // 新证据已经让旧复核作废时，忽略旧提示词触发的那一回合，等新回合的结论。
@@ -59,6 +79,12 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     }
     const pending = round?.requests.get(memberId)
     if (pending === undefined) return false
+    const late = pending.expired === true
+    if (late && !lateReviewStillValid({
+      room: store.readRoom(roomId),
+      messages: store.readMessages(roomId),
+      pending,
+    })) return false
     const gate = gateSubmissionOf(calls, {
       type: 'verdict',
       stage: pending.stage,
@@ -110,9 +136,16 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         verifier: pending.verifier,
         turnId,
         simulated: false,
+        ...(late ? { late: true } : {}),
       },
     })
-    store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, independent: true, turnId })
+    if (late) {
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `${name} 的判定晚到了；这一步和证据没变，按这条处理。`,
+      })
+    }
+    store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, independent: true, turnId, late })
     const reviewAssignment = store.readAssignments(roomId, { stage: pending.stage, limit: 500 })
       .filter(item => item.reason === 'review' && item.toMemberId === pending.verifier)
       .at(-1)
@@ -130,12 +163,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const required = round.required ?? round.total
     const reachedQuorum = passed >= required
     const impossible = rejected > round.total - required
-    const settled = reachedQuorum || impossible || round.requests.size === 0
+    const waiting = [...round.requests.values()].filter(request => request.expired !== true)
+    const settled = reachedQuorum || impossible || waiting.length === 0
 
     if (!settled) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `${name} ${pass ? '通过' : '退回'}；还有 ${round.requests.size} 位验收员在看。`,
+        text: `${name} ${pass ? '通过' : '退回'}；还有 ${waiting.length} 位验收员在看。`,
       })
       return true
     }
@@ -245,6 +279,14 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         current.closure = moved.state
         return { events: [studioTransitionEvent(moved, 'submit_evidence', 'verifier', { manual }, manual ? '人工证据就绪' : '验收命令通过')] }
       })
+    }
+    if (round !== null && round.finished === true) {
+      for (const [memberId, pending] of round.requests) {
+        clearTimeout(pending.timer)
+        clearTimeout(pending.reminder)
+        staleMembers.add(memberId)
+      }
+      round = null
     }
     if (round !== null) {
       if (round.evidenceId === evidence.id) reject('conflict', '上一次复核还没有结束')
@@ -390,29 +432,27 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         command: manual ? '' : meta.command,
         exit: manual ? null : meta.exit,
         evidenceId: evidence.id,
+        requestedAt: Date.now(),
         timer: null,
         reminder: null,
       }
       nextRound.requests.set(verifier, request)
       const expire = text => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
-        round.requests.delete(verifier)
+        request.expired = true
         clearTimeout(request.reminder)
         clearTimeout(request.timer)
         store.appendEvent(roomId, 'review.timeout', { stage: stageIndex, verifier })
         store.appendMessage(roomId, { kind: 'system', text })
-        if (round.requests.size === 0) {
-          const passed = round.passed
-          const total = round.total
-          const timedOut = [...(round.timedOut ?? []), verifier]
-          round = null
+        round.timedOut = [...(round.timedOut ?? []), verifier]
+        const waiting = [...round.requests.values()].filter(item => item.expired !== true)
+        if (waiting.length === 0) {
+          round.finished = true
           store.appendMessage(roomId, {
             kind: 'system',
-            text: `本轮复核结束：${passed}/${total} 位验收员通过；其余未回报，不能签字。可以重新发起复核。`,
-            meta: { kind: 'review_timeout', stage: stageIndex, verifiers: timedOut },
+            text: `本轮复核结束：${round.passed}/${round.total} 位验收员通过；其余未回报，不能签字。可以重新发起复核。`,
+            meta: { kind: 'review_timeout', stage: stageIndex, verifiers: round.timedOut },
           })
-        } else {
-          round.timedOut = [...(round.timedOut ?? []), verifier]
         }
       }
       request.expire = expire
