@@ -140,6 +140,32 @@ test('holding a member goes through the live runtime', async () => {
   assert.deepEqual(result.body.room.heldMembers, ['worker'])
 })
 
+test('stopping a live room pauses it and cancels the running turn', async () => {
+  const calls = []
+  const ctx = setup(roomRecord({ live: true }), {
+    isAttached: () => true,
+    cancel: async ({ roomId }) => {
+      calls.push(roomId)
+      return { cancelled: true }
+    },
+  })
+  const result = await ctx.service.roomRequest('r1', 'stop', post({}))
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.state, 'paused')
+  assert.equal(result.body.room.pauseReason, 'user')
+  assert.equal(result.body.room.idle, false)
+  assert.equal(result.body.cancelled, true)
+  assert.deepEqual(calls, ['r1'])
+})
+
+test('a room that is not running cannot be stopped', async () => {
+  const ctx = setup(roomRecord({ state: 'complete', live: false }))
+  const result = await ctx.service.roomRequest('r1', 'stop', post({}))
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'conflict')
+  assert.equal(result.error, '房间没有在跑')
+})
+
 test('cancelling a queued message goes through the live runtime', async () => {
   const calls = []
   const ctx = setup(roomRecord({ live: true, chatRoom: { id: 'chat-1' } }), {

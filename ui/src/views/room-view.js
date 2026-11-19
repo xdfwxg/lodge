@@ -196,9 +196,9 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     switchMode: (mode, roles) => store.switchMode(mode, roles),
     resumeChat: () => store.resumeChat(),
     resume: () => store.resumeRoom(),
+    stopRoom: () => store.stopRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
     answerCard: (memberId, requestId, message) => void store.answerCard(memberId, requestId, message),
-    hold: (memberId, held) => void store.holdMember(memberId, held),
     cancelQueue: queueId => void store.cancelQueued(queueId),
     steerQueue: queueId => void store.steerQueued(queueId),
     continueChat: note => store.continueChat(note),
@@ -305,9 +305,18 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
         ),
         engines: state.engines ?? [],
         requiresGate: kind.readOnly !== true && (members.find(item => item.id === swapId)?.permissions?.exec === true),
+        held: (room.heldMembers ?? []).includes(swapId),
+        canHold: room.state === 'active' && room.live === true,
         busy: swapBusy,
         error: swapError,
         onRefresh: () => store.refresh(),
+        onHold: async held => {
+          setSwapBusy(true)
+          setSwapError(null)
+          const result = await store.holdMember(swapId, held)
+          setSwapBusy(false)
+          if (result?.ok !== true) setSwapError(result?.error ?? '没能改变运行状态')
+        },
         onCancel: () => {
           if (swapBusy) return
           setSwapId(null)

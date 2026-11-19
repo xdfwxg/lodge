@@ -262,6 +262,7 @@ export function createStore() {
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     resumeChat: () => post(`/api/rooms/${state.activeId}/chat-resume`, {}),
     resumeRoom: () => post(`/api/rooms/${state.activeId}/resume`, {}),
+    stopRoom: () => post(`/api/rooms/${state.activeId}/stop`, {}),
     answer: async (stage, text) => {
       if (text !== '') {
         const sent = await post(`/api/rooms/${state.activeId}/messages`, { text })

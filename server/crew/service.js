@@ -252,6 +252,29 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       return ok({ room: readRoom(room.id) ?? resumed })
     }
 
+    if (action === 'stop' && method === 'POST') {
+      if (room.state !== 'active') return fail('conflict', '房间没有在跑')
+      if (room.live !== true || live.isAttached?.(room.id) !== true) {
+        return fail('conflict', '房间现在没有连上，稍后再试')
+      }
+      const cancelled = await live.cancel?.({ roomId: room.id })
+      const updated = updateRoom(room.id, current => {
+        current.state = 'paused'
+        current.pauseReason = 'user'
+        current.idle = false
+        current.noProgress = 0
+        return { events: [{ type: 'room.paused', payload: { reason: 'user' } }] }
+      })
+      if (updated === null) return fail('not_found', '没有这个房间')
+      systemNotice({
+        store,
+        roomId: room.id,
+        text: '你停下了这一轮；已经产出的内容保留，需要时点继续。',
+      })
+      emit('room', readRoom(room.id) ?? updated)
+      return ok({ room: readRoom(room.id) ?? updated, cancelled: cancelled?.cancelled === true })
+    }
+
     if (action === 'acceptance' && method === 'POST') {
       const body = await readBody()
       return stages.setAcceptance(room, Number(body.stage), typeof body.command === 'string' ? body.command : '')

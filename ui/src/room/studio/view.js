@@ -7,6 +7,7 @@ import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
 import { StudioAdjust } from './rewind-dialog.js'
+import { StopRoom } from '../stop-room.js'
 import { studioTyping } from './typing.js'
 
 // 工作室的房间视图：一条聊天记录、一行状态、一个输入框；动作只在轮到你时出现。
@@ -31,7 +32,19 @@ export const studioView = {
           }, paused.primary?.label ?? '继续'),
         }))
   },
-  tools: ({ room, actions }) => h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind }),
+  tools: ({ room, members, actions }) => {
+    if (room.state !== 'active' || room.live !== true) return null
+    const stages = (room.stages ?? []).filter(stage => stage.state !== 'pending')
+    if (stages.length === 0) return null
+    return h(Fragment, null,
+      h(StopRoom, {
+        key: `stop-${room.id}`,
+        room,
+        members,
+        onStop: () => actions.stopRoom(),
+      }),
+      h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind }))
+  },
   activity: () => null,
   transcript: ({ room, members, actions }) => h(StudioTranscript, {
     key: `transcript-${room.id}`,
@@ -58,7 +71,7 @@ export const studioView = {
     })(),
     onReturn: () => {},
   }),
-  presence: ({ room, members, actions }) => h(StudioPresence, { room, members, onHold: actions.hold }),
+  presence: ({ room, members }) => h(StudioPresence, { room, members }),
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
     if (room.state === 'complete' || done) return '已交付 · 还能和规划师聊聊。'

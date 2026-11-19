@@ -22,7 +22,7 @@ const permissionOf = member => (
 )
 
 // 调整成员：只换模型或运行时；成员 id、证据、交接和历史都不动。
-export function BodySwapDialog({ member, engines = [], requiresGate = false, canRemove = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onRefresh = null }) {
+export function BodySwapDialog({ member, engines = [], requiresGate = false, canRemove = false, held = false, canHold = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onHold = null, onRefresh = null }) {
   const readiness = engineReadiness(engines, { requireApproval: requiresGate })
   const available = readiness.installed
   const [tab, setTab] = useState('body')
@@ -189,6 +189,19 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
           onChange: value => setSpec(value),
           disabled: busy,
         })),
+      canHold && onHold !== null
+        ? h('details', { className: 'crew-fold crew-body-swap-run' },
+          h('summary', null, '运行控制'),
+          h('p', { className: 'crew-field-hint' }, held
+            ? '这位成员已经停下；点继续后，房间会接着跑。'
+            : '只停下这位成员当前的回合；已经产出的内容保留。'),
+          h('button', {
+            type: 'button',
+            className: 'crew-ghost',
+            disabled: busy,
+            onClick: () => onHold(!held),
+          }, held ? '继续' : '停下这位成员'))
+        : null,
       confirming
         ? h('p', { className: 'crew-dialog-note', role: 'alert' }, `移出后，${member.name}不再在这间房。聊天记录还在。`)
         : null,
