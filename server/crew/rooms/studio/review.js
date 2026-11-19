@@ -39,6 +39,8 @@ export const shadowNeeded = ({ room, stage, evidence, manual, messages = [], sta
 }
 
 const VERDICT_FORMAT = `如果工具列表里有 submit_verdict，直接调用它提交判定；工具不可用时才按文本回复。第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）。${VERDICT_JSON_HINT}命令和退出码卡片已经显示，不要再复述。`
+const REVIEW_REMINDER_PROMPT = `复核还没有结论。请现在调用 submit_verdict 提交判定；没有这个工具就只回复一行 PASS 或 REJECT。不要继续调研。\n${INTERNAL_PROMPT_MARKER}`
+const VERDICT_RETRY_PROMPT = `你这一回合没有提交判定。现在只做一件事：调用 lodge_gate_submit_verdict 提交 PASS 或 REJECT；工具确实不可用时只回复一行 PASS 或 REJECT。不要继续调研，也不要改文件。\n${INTERNAL_PROMPT_MARKER}`
 
 // 证据、命令输出和 diff 都可能带外部内容；去隐藏字符、按字符预算截断，再用围栏包住。
 const untrusted = (text, lang = '', max = 4000) => fenceUntrusted(text, { lang, max })
@@ -97,7 +99,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       if (pending.nudged !== true) {
         pending.nudged = true
         clearTimeout(pending.reminder)
-        void sendToMember(memberId, '你这一回合没有提交判定。现在只做一件事：调用 lodge_gate_submit_verdict 提交 PASS 或 REJECT；工具确实不可用时只回复一行 PASS 或 REJECT。不要继续调研，也不要改文件。').catch(() => {})
+        void sendToMember(memberId, VERDICT_RETRY_PROMPT, { intent: 'review' }).catch(() => {})
         return true
       }
       pending.expire?.(`${name} 没有提交验收判定，这一轮仍未通过。`)
@@ -458,7 +460,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       request.expire = expire
       request.reminder = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
-        void sendToMember(verifier, '复核还没有结论。请现在调用 submit_verdict 提交判定；没有这个工具就只回复一行 PASS 或 REJECT。不要继续调研。').catch(() => {})
+        void sendToMember(verifier, REVIEW_REMINDER_PROMPT, { intent: 'review' }).catch(() => {})
       }, REVIEW_REMINDER).unref()
       request.timer = setTimeout(
         () => expire(`${verifierName} 复核超时，没有收到验收结论；这一轮仍未通过。`),
