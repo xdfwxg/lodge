@@ -9,6 +9,7 @@ import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 import { systemNotice } from '../../notices.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
+import { humanLabelOf } from '../../human-name.js'
 
 export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
@@ -161,7 +162,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         `第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」要交给${assigneeNames}。`,
         `房间目标（原文，不要改写）：${sanitizeUntrusted(room.goal, 2000)}`,
         `验收标准：${stage.manual === true ? '人看结果，没有命令。' : sanitizeUntrusted(acceptance, 500)}`,
-        rework && note !== '' ? `用户补充（原文，必须保留）：${sanitizeUntrusted(note, 2000)}` : '',
+        rework && note !== '' ? `${humanLabelOf(room)}补充（原文，必须保留）：${sanitizeUntrusted(note, 2000)}` : '',
         parallel
           ? '在群里用一两句说清各自做什么、怎么算完成；不要 @ 任何人，系统会把任务分别送进他们自己的工作副本。'
           : `在话里 @${assigneeNames}，让对方收到；用一两句说清做什么、怎么算完成。`,

@@ -170,3 +170,41 @@ export const applyTheme = () => {
   style.textContent = themeCss()
   document.head.append(style)
 }
+
+const THEME_KEY = 'lodge.theme'
+
+export const themePreference = () => {
+  try {
+    const value = globalThis.localStorage?.getItem(THEME_KEY) ?? ''
+    return value === 'dark' || value === 'light' ? value : null
+  } catch {
+    return null
+  }
+}
+
+export const paintTheme = () => {
+  const preference = themePreference()
+  const dark = preference === null
+    ? globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches === true
+    : preference === 'dark'
+  document.body.toggleAttribute('data-ds-dark-theme', dark)
+  return dark ? 'dark' : 'light'
+}
+
+export const setThemePreference = value => {
+  const next = value === 'dark' || value === 'light' ? value : null
+  try {
+    if (next === null) globalThis.localStorage?.removeItem(THEME_KEY)
+    else globalThis.localStorage?.setItem(THEME_KEY, next)
+  } catch {}
+  paintTheme()
+  return next
+}
+
+export const installTheme = () => {
+  paintTheme()
+  const media = globalThis.matchMedia?.('(prefers-color-scheme: dark)')
+  const onChange = () => { if (themePreference() === null) paintTheme() }
+  media?.addEventListener?.('change', onChange)
+  return () => media?.removeEventListener?.('change', onChange)
+}

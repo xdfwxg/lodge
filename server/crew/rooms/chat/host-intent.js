@@ -1,4 +1,5 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
+import { humanLabelOf } from '../../human-name.js'
 
 // 用户只对主持说话；主持判断是直接回答，还是从固定成员里请人讨论。
 // 轮数、成员数和发言次数都属于房间配置，不从这里改。
@@ -13,7 +14,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
     `你是 Lodge 主持，负责接住用户的话。固定成员：${roster || '无'}。`,
     `房间每轮固定 ${turnLimit} 次发言，主持不占发言位。`,
     stateLine,
-    `用户说：${text}`,
+    `${humanLabelOf(room)}说：${text}`,
     '判断规则：',
     '- 用户要“再走一轮、继续讨论、让大家说说、听听成员意见”，或问题需要多人观点时，用 round。',
     '- 用户只是在问你、要一句回答时，用 reply。',

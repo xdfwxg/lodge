@@ -42,10 +42,13 @@ export const renderSharedMessage = ({
     if (message.meta?.cancelled === true) {
       return h('div', { key: message.id, className: 'crew-system' }, '已撤回一条排队消息。')
     }
+    const humanName = typeof room?.humanName === 'string' ? room.humanName.trim() : ''
     return h('div', { key: message.id, className: 'crew-human' },
       message.kind === 'human-context'
         ? h('span', { className: 'crew-human-label' }, '补充上下文')
-        : null,
+        : humanName === '' || humanName === '你'
+          ? null
+          : h('span', { className: 'crew-human-name' }, humanName),
       h('div', { className: 'bt-ububble' }, h(Markdown, { text: message.text, variant: 'compact' })),
       message.meta?.queueId === undefined
         ? null

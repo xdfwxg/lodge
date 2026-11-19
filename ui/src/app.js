@@ -2,12 +2,16 @@ import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
 import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
-import { HomeView } from './views/home.js'
+import { LODGE_ROOM_ID } from '../../shared/lodge.js'
+import { ProfileDialog } from './profile-dialog.js'
+import { loadProfile, saveProfile } from './profile.js'
 import { NewRoomDialog } from './new-room-dialog.js'
 import { NewGoalDialog } from './new-goal-dialog.js'
 
 export function App() {
   const store = useMemo(createStore, [])
+  const [profile, setProfile] = useState(loadProfile)
+  const [profileOpen, setProfileOpen] = useState(false)
   const state = useStore(store)
   // 定时目标的 run 房是历史，不占侧栏和菜单；目标本身仍是同一行。
   // 但 run 停下来等人时仍要提醒，否则目标会在后台无声卡住。
@@ -136,6 +140,14 @@ export function App() {
     openDialog({ goal }, 'studio')
     return result
   }
+  const lodgeRoom = state.rooms.find(room => room.id === LODGE_ROOM_ID || room.lodge === true) ?? null
+  const openLodge = () => {
+    if (lodgeRoom !== null) {
+      store.select(lodgeRoom.id)
+      return
+    }
+    openGoal()
+  }
   const discussGoal = goal => openDialog(goal === '' ? null : { goal }, 'chat')
   const adjustGoal = goal => openDialog(goal === '' ? null : { goal }, 'studio')
 
@@ -146,7 +158,7 @@ export function App() {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
       if (event.key.toLowerCase() === 'n') {
         event.preventDefault()
-        openGoal()
+        openLodge()
         return
       }
       if (!/^[1-9]$/.test(event.key)) return
@@ -157,7 +169,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [dialog, goalOpen, sidebarRooms, store])
+  }, [dialog, goalOpen, lodgeRoom, sidebarRooms, store])
 
   const dialogNode = h(NewRoomDialog, {
     open: dialog,
@@ -193,28 +205,34 @@ export function App() {
       : h(Sidebar, {
         state: { ...state, rooms: sidebarRooms },
         onSelect: id => store.select(id),
-        onNew: openGoal,
+        onNew: openLodge,
+        lodgeRoom,
+        profile,
+        onProfile: () => setProfileOpen(true),
         onRename: (id, name) => store.renameRoom(id, name),
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),
       }),
     room === null
-      ? h(HomeView, {
-        onSubmit: startGoal,
-        onSample: kind => { void store.openSampleRoom(kind) },
-        onDiscuss: discussGoal,
-        onAdjust: adjustGoal,
-        error: state.error,
-      })
+      ? h('main', { className: 'dsb-main crew-home' },
+        h('div', { className: 'crew-home-inner' },
+          h('p', { className: 'crew-field-hint', role: 'status' }, 'Lodge 正在准备…')))
       : h(RoomView, {
         state,
         room,
         store,
+        onMoreOptions: openGoal,
         onStartStudio: seedValue => openDialog(seedValue),
         onStartChat: seedValue => openDialog(seedValue, 'chat'),
       }),
     liveRegion,
     needsRegion,
     dialogNode,
-    goalDialogNode)
+    goalDialogNode,
+    h(ProfileDialog, {
+      open: profileOpen,
+      profile,
+      onClose: () => setProfileOpen(false),
+      onSave: next => setProfile(saveProfile(next)),
+    }))
 }

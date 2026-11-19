@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { humanErrorText } from './error-text.js'
+import { loadProfile } from './profile.js'
 
 const EMPTY = {
   phase: 'loading',
@@ -26,6 +27,7 @@ export function createStore() {
   const failureText = fallback => (state.error === null || state.error === undefined ? fallback : humanErrorText(state.error, fallback))
   let source = null
   let stopped = false
+  let launched = false
   const seen = new Set()
   const listeners = new Set()
 
@@ -50,6 +52,11 @@ export function createStore() {
     }
   }
 
+  // 房间里用昵称指代用户；没起名字时不送，服务端仍用“用户”。
+  const humanField = () => {
+    const name = loadProfile().name
+    return name === '' || name === '你' ? {} : { humanName: name }
+  }
   const acceptMessage = message => {
     if (seen.has(message.id)) return
     seen.add(message.id)
@@ -145,6 +152,11 @@ export function createStore() {
     })
   }
 
+  const lastAtOf = room => (room.messages ?? [])
+    .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
+  const isUnfinished = room => room !== null && room !== undefined && room.lodge !== true
+    && (room.state === 'active' || room.state === 'paused')
+
   const load = async () => {
     try {
       const response = await fetch('/api/state')
@@ -162,9 +174,19 @@ export function createStore() {
       const visible = data.rooms.filter(room => !room.archivedAt)
       const known = visible.some(room => room.id === state.activeId)
       const remembered = rememberedRoom()
-      const activeId = known
-        ? state.activeId
-        : (visible.some(room => room.id === remembered) ? remembered : (visible[0]?.id ?? null))
+      const rememberedRecord = visible.find(room => room.id === remembered) ?? null
+      const lodgeRoom = visible.find(room => room.lodge === true) ?? null
+      const unfinished = visible
+        .filter(room => isUnfinished(room))
+        .sort((a, b) => lastAtOf(b) - lastAtOf(a))
+      // 第一次打开：有未完成的房就回房（先看上次那间），否则落在 Lodge。
+      const launchId = isUnfinished(rememberedRecord)
+        ? rememberedRecord.id
+        : (unfinished[0]?.id ?? lodgeRoom?.id ?? visible[0]?.id ?? null)
+      const activeId = launched
+        ? (known ? state.activeId : (rememberedRecord?.id ?? visible[0]?.id ?? null))
+        : launchId
+      launched = true
       emit({
         ...state,
         phase: 'ready',
@@ -235,10 +257,23 @@ export function createStore() {
       seen.clear()
     },
     select: activeId => (rememberRoom(activeId), patch({ activeId })),
-    send: (text, options = {}) => post(`/api/rooms/${state.activeId}/messages`, {
-      text,
-      ...(Array.isArray(options.mentions) && options.mentions.length > 0 ? { mentions: options.mentions } : {}),
-    }),
+    send: async (text, options = {}) => {
+      const active = state.rooms.find(room => room.id === state.activeId) ?? null
+      if (active?.lodge === true) {
+        const data = await post(`/api/rooms/${active.id}/lodge`, { text, ...humanField() })
+        if (data?.createdRoom?.id !== undefined && data.createdRoom.id !== null) {
+          await load()
+          rememberRoom(data.createdRoom.id)
+          patch({ activeId: data.createdRoom.id })
+        }
+        return data
+      }
+      return post(`/api/rooms/${state.activeId}/messages`, {
+        text,
+        ...humanField(),
+        ...(Array.isArray(options.mentions) && options.mentions.length > 0 ? { mentions: options.mentions } : {}),
+      })
+    },
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     holdMember: (memberId, held) => post(`/api/rooms/${state.activeId}/hold`, { memberId, held }),
     cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),
@@ -297,7 +332,7 @@ export function createStore() {
       return { ok: true, proposal: data.proposal }
     },
     createRoom: async (goal, answers = {}) => {
-      const data = await post('/api/rooms', { goal, ...answers })
+      const data = await post('/api/rooms', { goal, ...humanField(), ...answers })
       if (data?.room === undefined) return { ok: false, error: failureText('房间没能建起来') }
       await load()
       rememberRoom(data.room.id)

@@ -2,6 +2,7 @@
 // 漏加会让 route-sweep 直接失败，而不是等到用户点到一个“没有这个接口”。
 export const ROOM_ACTIONS = Object.freeze([
   'messages',
+  'lodge',
   'accept',
   'human-choice',
   'chat-continue',

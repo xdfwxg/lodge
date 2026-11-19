@@ -12,6 +12,7 @@ import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
 import { grantBrowserToAll, needsBrowser, stripBrowser } from '../../room-access.js'
 import { uniqueRoomShort } from './short-id.js'
+import { cleanHumanName } from '../../human-name.js'
 
 const deliveryTitleFor = (goalTitle, handoff) => {
   if (handoff === null || handoff === undefined) return goalTitle
@@ -229,6 +230,8 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         check: { mode: verify, acceptance: effectiveAcceptance },
       }),
     })
+    const humanName = cleanHumanName(body?.humanName)
+    if (humanName !== '') room = { ...room, humanName }
     let sharedMemory = []
     try {
       sharedMemory = ports.memory?.shared?.({ sourceRepo, limit: 3 }) ?? []

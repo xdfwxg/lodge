@@ -50,6 +50,7 @@ export const chatView = {
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,
       onStartStudio: actions.startStudio,
+      onOpenRoom: actions.selectRoom,
     }))
   },
   presence: () => null,

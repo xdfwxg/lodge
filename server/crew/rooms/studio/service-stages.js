@@ -16,6 +16,7 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { verdictPassed } from '../../../../shared/judgment.js'
 import { isWorkStage } from './turn-utils.js'
 import { appendHumanContext } from '../../human-context.js'
+import { humanLabelOf } from '../../human-name.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
@@ -384,7 +385,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       } else if (typeof lead === 'string' && lead !== '' && room.live === true && typeof live.sendToMember === 'function') {
         const prompt = [
           `第 ${index + 1} 步「${stage.title}」要重新确认。`,
-          `用户补充：${note}`,
+          `${humanLabelOf(room)}补充：${note}`,
           '请只重新说明这一步的结论或方案；不要改文件，不要验收。',
           INTERNAL_PROMPT_MARKER,
         ].join('\n')

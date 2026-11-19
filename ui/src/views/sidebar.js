@@ -7,6 +7,7 @@ import { initialOf } from '../marks.js'
 import { routineLineOf } from '../../../shared/routine.js'
 import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
+import { ProfileMark } from '../profile-mark.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
@@ -44,7 +45,7 @@ const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
 
-function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
+function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, lodgeRoom = null, profile = null, onProfile = null }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
   const [sideCollapsed, setSideCollapsed] = useState(false)
@@ -60,6 +61,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
   const ordered = orderRooms(filterRooms(rooms, query))
   const archivedRooms = ordered.filter(room => room.archivedAt)
   const activeRooms = ordered.filter(room => !room.archivedAt)
+  const regularRooms = lodgeRoom === null ? activeRooms : activeRooms.filter(room => room.id !== lodgeRoom.id)
   const hasRail = rail || sideCollapsed
   const collapsed = hasRail && !open
   const expanded = !collapsed
@@ -300,14 +302,38 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
         : null,
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },
-          query.trim() !== '' && activeRooms.length === 0 && archivedRooms.length === 0
+          lodgeRoom === null
+            ? null
+            : h(RoomRow, {
+              key: 'lodge',
+              room: lodgeRoom,
+              active: activeId === lodgeRoom.id,
+              onSelect: () => selectRoom(lodgeRoom.id),
+            }),
+          query.trim() !== '' && regularRooms.length === 0 && archivedRooms.length === 0
             ? h('p', { className: 'crew-side-empty', role: 'status' }, '没有匹配的房间')
             : null,
-          activeRooms.map(renderRoom),
+          regularRooms.map(renderRoom),
           archivedRooms.length === 0
             ? null
             : h('div', { key: 'archived-label', className: 'crew-side-group-label' }, '已归档'),
-          archivedRooms.map(room => roomRow(room))))))
+          archivedRooms.map(room => roomRow(room)))),
+      profile === null || onProfile === null
+        ? null
+        : h('button', {
+          type: 'button',
+          className: 'crew-side-me',
+          'aria-label': profile.name,
+          onClick: onProfile,
+        },
+        h('span', { className: 'crew-side-me-avatar', 'aria-hidden': 'true' },
+          h(ProfileMark, { profile })),
+        collapsed
+          ? null
+          : h('span', { className: 'crew-side-me-name' }, profile.name),
+        collapsed
+          ? null
+          : h('span', { className: 'crew-side-me-more', 'aria-hidden': 'true' }, '›'))))
 }
 
 const toneOf = room => {
@@ -450,10 +476,11 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
     items[next].focus()
   }
 
+  const lodge = room.lodge === true
   const label = roomLabelOf(room)
   const routineLine = room.archivedAt || room.needsYou ? '' : routineLineOf(room)
   const TypeIcon = roomTypeIcon(uiKindOfRoom(room).id)
-  const manage = onRename !== undefined || onArchive !== undefined || onDelete !== undefined
+  const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
   const canDelete = room.state !== 'active'
   const closeMenu = () => setMenuOpen(false)
   const toggleMenu = () => {
@@ -572,8 +599,8 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
         title: label,
         'aria-label': label,
       },
-      h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, initialOf(room.name, '·')),
-      h('span', { className: 'crew-side-room-type', 'aria-hidden': 'true' }, h(TypeIcon, { size: 15 })),
+      h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, lodge ? h('img', { src: '/logo.svg', alt: '', width: 18, height: 18 }) : initialOf(room.name, '·')),
+      h('span', { className: 'crew-side-room-type', 'aria-hidden': 'true' }, lodge ? null : h(TypeIcon, { size: 15 })),
       h('span', { className: 'crew-side-room-text' },
         h('span', { className: 'crew-side-room-name' }, room.name),
         routineLine === '' ? null : h('span', { className: 'crew-side-room-next' }, routineLine)),

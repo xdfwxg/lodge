@@ -26,6 +26,7 @@ function Timeline({
   onCancelQueue = null,
   onSteerQueue = null,
   onStartStudio = null,
+  onOpenRoom = null,
   hideKinds = [],
 }) {
   const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
@@ -65,7 +66,20 @@ function Timeline({
           member: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
           room,
         })
-        : renderSharedMessage({ room, byId, message, onAnswerCard, onCancelQueue, onSteerQueue })
+        : message.kind === 'chat' && typeof message.meta?.openRoomId === 'string'
+          ? h('div', { key: message.id, className: 'crew-msg-wrap' },
+            h(ChatLine, {
+              message,
+              member: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
+            }),
+            typeof onOpenRoom === 'function'
+              ? h('button', {
+                type: 'button',
+                className: 'crew-link crew-conclusion-convert',
+                onClick: () => onOpenRoom(message.meta.openRoomId),
+              }, message.meta.openRoomName === undefined ? '打开这间房' : `打开：${message.meta.openRoomName}`)
+              : null)
+          : renderSharedMessage({ room, byId, message, onAnswerCard, onCancelQueue, onSteerQueue })
     if (content === null) return null
     const mark = timeMarks.get(message.id)
     return mark === undefined

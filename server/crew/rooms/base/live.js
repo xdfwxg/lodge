@@ -137,7 +137,10 @@ export const createLiveRooms = ({
 
   const attachNow = async (room, { resume = true } = {}) => {
     const members = (room.members ?? []).filter(member => typeof member.body?.roomRef === 'string' && member.body.roomRef !== '')
-    if (members.length === 0) throw new Error('房间没有成员线程')
+    // Lodge 是一间只有主持人的聊天室：没有成员线程，但主持人自己就是基座房间。
+    const hostRef = room.chatHost?.memberRef
+    const hostOnlyChat = members.length === 0 && room.roomType === 'chat' && typeof hostRef === 'string' && hostRef !== ''
+    if (members.length === 0 && !hostOnlyChat) throw new Error('房间没有成员线程')
     const strategy = strategyFor(room)
     const entry = {
       roomId: room.id,

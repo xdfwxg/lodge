@@ -2,6 +2,7 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { stageGuidance } from '../../prompt-modes.js'
 import { buildMemberHandoff } from './member-handoff.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
+import { humanLabelOf } from '../../human-name.js'
 
 // 执行成员的阶段交接包：由代码装配，规划师只决定交给谁，不转述事实。
 export const studioWorkerPrompt = ({
@@ -20,7 +21,7 @@ export const studioWorkerPrompt = ({
   return [
     `阶段 ${index + 1}「${sanitizeUntrusted(stage.title, 120)}」已确认。${sanitizeUntrusted(acceptance, 500)}`,
     rework
-      ? `用户说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : sanitizeUntrusted(note, 2000)}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求重做。`
+      ? `${humanLabelOf(room)}说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : sanitizeUntrusted(note, 2000)}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求重做。`
       : '',
     ...stageGuidance({ readOnly }),
     buildMemberHandoff({ room, messages }),

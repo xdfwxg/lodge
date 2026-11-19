@@ -858,7 +858,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-chat-topic{display:inline-block;margin:0 2px;padding:2px 10px;border-radius:12px;background:var(--bt-topic-bg);color:var(--bt-accent-text);font-weight:600;box-shadow:var(--bt-topic-shadow)}
 .bt-ububble{max-width:100%;background:var(--bt-out-bubble);color:var(--bt-out-bubble-ink);border-radius:16px;padding:8px 12px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body);box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty}
 .bt-ububble .md_markdown{color:inherit}
-.crew-human{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:9px 0}
+.crew-human{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding:9px 0}
 .crew-island-done-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;outline:none}
 .crew-island-done-wrap:focus-visible{outline:2px solid var(--bt-accent);outline-offset:3px}
 .crew-island-done{display:inline-flex;align-items:center;justify-content:center;gap:8px;box-sizing:border-box;width:120px;height:32px;padding:0 14px;overflow:hidden;border-radius:999px;background:#141416;border:0;box-shadow:0 1px 2px rgba(0,0,0,.18),0 10px 24px -12px rgba(0,0,0,.35);color:rgba(255,255,255,.66);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);transition:width .42s var(--bt-ease),height .42s var(--bt-ease),border-radius .42s var(--bt-ease),padding .42s var(--bt-ease);animation:crew-done-in .34s var(--bt-ease) backwards}
@@ -1003,7 +1003,8 @@ body[data-ds-dark-theme] .crew-island-done-detail{color:rgba(255,238,204,.62)}
 .crew-merge-version-part pre{max-height:180px;overflow:auto;margin:0}
 .crew-memory-conclusion{margin:0;font-size:var(--bt-text-helper);color:var(--bt-ink-2);line-height:1.6}
 .crew-memory-meta{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
-.crew-human-label{font-size:var(--bt-text-helper);color:var(--bt-ink-3);margin-bottom:4px}
+.crew-human-label,.crew-human-name{flex-basis:100%;text-align:right;margin:0 2px -4px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
+.crew-human-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Chat room: the scheduler stays invisible; only round progress and a typing hint surface. */
 .crew-typing-line{color:var(--bt-ink-3)}
 .crew-typing-line .crew-msg-body{display:flex;align-items:center;gap:6px;min-height:30px;font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}
@@ -1052,6 +1053,9 @@ body[data-ds-dark-theme] .crew-island-done-detail{color:rgba(255,238,204,.62)}
 .crew-stage-dock-approval{padding-bottom:8px}
 .crew-stage-dock-row{padding:7px 10px;font-size:var(--bt-text-label)}
 .dsb-composer{padding:8px 16px 12px}
+.crew-lodge-more{display:flex;justify-content:center;padding:2px 16px 0}
+.crew-lodge-more .crew-link{font-size:var(--bt-text-helper);font-weight:500;color:var(--bt-ink-3);text-decoration:none}
+.crew-lodge-more .crew-link:hover{color:var(--bt-ink);text-decoration:underline}
 .crew-composer{max-width:760px;padding:7px 7px 7px 12px;border-radius:16px}
 
 /* 热区扩到 ≥28px：左侧是 verdict 文本标签（非交互），下方是行内留白。 */
@@ -1217,3 +1221,32 @@ details[open]>summary::before{transform:rotate(90deg)}
 .crew-capability-input::placeholder{color:var(--bt-ink-3)}
 .crew-capability-input:focus{box-shadow:0 1px 0 var(--bt-accent)}
 .crew-capability-input:disabled{opacity:.55;cursor:default}
+
+/* 侧栏底部的“你”：本地身份，不是登录。 */
+.crew-side-me{display:flex;align-items:center;gap:9px;margin-top:6px;padding:6px 8px;border:0;border-radius:9px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);cursor:pointer;text-align:left}
+.crew-side-me:hover{background:var(--bt-hover);color:var(--bt-ink)}
+.crew-side-me-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;overflow:hidden;background:var(--bt-shade-3);color:var(--bt-ink);font-size:11px;font-weight:600;box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)}
+.crew-side-me-avatar img{width:100%;height:100%;object-fit:cover}
+.crew-side-me-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:var(--bt-ink-2)}
+.crew-side-me:hover .crew-side-me-name{color:var(--bt-ink)}
+.crew-side-me-more{margin-left:auto;flex:none;font-size:14px;line-height:1;color:var(--bt-ink-4)}
+.crew-side-me:hover .crew-side-me-more{color:var(--bt-ink-3)}
+body[data-side=rail] .crew-side-me{justify-content:center;padding:6px 0}
+
+.crew-profile{width:min(360px,calc(100vw - 32px));padding:0}
+.crew-profile-body{padding:20px 20px 4px}
+.crew-profile-head{display:flex;align-items:center;gap:12px}
+.crew-profile-avatar{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;padding:0;border:0;border-radius:50%;overflow:hidden;background:var(--bt-shade-3);color:var(--bt-ink);font-size:20px;font-weight:600;cursor:pointer}
+.crew-profile-avatar img{width:100%;height:100%;object-fit:cover}
+.crew-profile-avatar > svg{width:24px;height:24px}
+.crew-profile-avatar-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.46);color:#fff;opacity:0;transition:opacity .15s}
+.crew-profile-avatar:hover .crew-profile-avatar-hint,.crew-profile-avatar:focus-visible .crew-profile-avatar-hint{opacity:1}
+.crew-profile-identity{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1 1 auto}
+.crew-profile-name{height:34px;padding:0 8px;border-color:transparent;background:transparent;font-size:16px;font-weight:600}
+.crew-profile-name:hover{border-color:var(--bt-line)}
+.crew-profile-name:focus{background:var(--bt-input-bg);border-color:var(--bt-accent)}
+.crew-profile-actions{display:flex;align-items:center;gap:12px}
+.crew-profile-actions .crew-link{font-size:var(--bt-text-helper)}
+.crew-profile-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:14px;border-top:1px solid var(--bt-line)}
+.crew-profile-label{font-size:var(--bt-text-label);color:var(--bt-ink-3)}
+.crew-profile-foot{border-top:0;padding:14px 20px 18px;background:transparent}

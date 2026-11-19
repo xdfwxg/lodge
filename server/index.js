@@ -6,6 +6,7 @@ import { createCrewPorts } from './crew/crew-ports.js'
 import { createLiveRooms } from './crew/rooms/base/live.js'
 import { createRoomScheduler } from './crew/rooms/scheduler.js'
 import { createRoutineRunner } from './crew/rooms/routine-runner.js'
+import { ensureLodgeRoom } from './crew/rooms/lodge.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
 import { createCrewService } from './crew/service.js'
@@ -231,5 +232,10 @@ server.listen(port, '127.0.0.1', () => {
   console.log(`Lodge server: http://127.0.0.1:${port}`)
   void (async () => {
     await live.start()
+    try {
+      await ensureLodgeRoom({ store, engine, live, workspace: ports.workspace, emit })
+    } catch (error) {
+      console.warn(`[lodge] Lodge 房间没有准备好：${error?.message ?? error}`)
+    }
   })()
 })

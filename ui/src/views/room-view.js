@@ -10,7 +10,7 @@ import { ArrowDownIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
 
-function RoomView({ state, room, store, onStartStudio, onStartChat }) {
+function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOptions = null }) {
   const [dockOpen, setDockOpen] = useState(false)
   const [atBottom, setAtBottom] = useState(true)
   const [swapId, setSwapId] = useState(null)
@@ -216,6 +216,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     selectRoom: id => store.select(id),
     startStudio: onStartStudio,
     startChat: onStartChat,
+    moreOptions: onMoreOptions === null ? null : () => onMoreOptions(),
     swapBody: memberId => {
       setSwapError(null)
       setSwapId(memberId)
@@ -273,6 +274,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
         }, h(ArrowDownIcon))
         : null,
       mode.dock?.(viewCtx) ?? null,
+      room.lodge === true && actions.moreOptions !== null
+        ? h('div', { className: 'crew-lodge-more' },
+          h('button', { type: 'button', className: 'crew-link', onClick: actions.moreOptions }, '更多选项'))
+        : null,
       room.state === 'complete' && finished
         ? null
         : h('div', { ref: composerRef, className: 'dsb-composer' },

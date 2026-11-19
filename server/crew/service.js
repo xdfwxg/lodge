@@ -35,6 +35,7 @@ import {
   scheduleLabelOf,
 } from '../../shared/routine.js'
 import { systemNotice } from './notices.js'
+import { cleanHumanName } from './human-name.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
@@ -258,9 +259,59 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     return ok({ room })
   }
 
+  // 用户改过名字后，下一次说话把房间里的称呼一起更新；提示词和历史都用这个名字。
+  const rememberHuman = (roomId, body) => {
+    const name = cleanHumanName(body?.humanName)
+    if (name === '' || name === readRoom(roomId)?.humanName) return
+    updateRoom(roomId, current => {
+      if (current.humanName === name) return null
+      current.humanName = name
+      return { events: [] }
+    })
+  }
+
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
-    const room = readRoom(roomId)
+    let room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+
+    // Lodge 是幕僚长的对话：一句话决定开工作室还是留下聊聊，不出现房型选择。
+    if (action === 'lodge' && method === 'POST') {
+      if (room.lodge !== true) return fail('invalid', '这不是 Lodge 对话')
+      if (room.state !== 'active') return fail('conflict', 'Lodge 现在没有在运行')
+      const body = await readBody()
+      const text = typeof body.text === 'string' ? body.text.trim().slice(0, 8000) : ''
+      if (text === '') return fail('invalid', '说一句想做什么')
+      rememberHuman(room.id, body)
+      room = readRoom(room.id) ?? room
+      const userMessage = appendMessage(room.id, { kind: 'chat', authorId: 'you', text })
+      const intent = await queries.classifyIntent({ goal: text })
+      const kind = intent?.ok === true ? intent.body?.room : 'studio'
+      if (kind === 'chat') {
+        if (room.live !== true || live.isAttached?.(room.id) !== true) {
+          return fail('conflict', 'Lodge 还没有连上模型服务')
+        }
+        const result = await chat.input(room, { note: text })
+        if (result?.ok !== true) return result
+        return ok({ room: readRoom(room.id) ?? room, message: userMessage })
+      }
+      const created = await createRoom({ goal: text, verify: 'manual', humanName: room.humanName })
+      if (created?.ok !== true) return created
+      const createdRoom = created.body?.room ?? null
+      appendMessage(room.id, {
+        kind: 'chat',
+        authorId: 'lodge',
+        text: `开好了：${createdRoom?.name ?? '一间工作室'}`,
+        ...(createdRoom === null ? {} : {
+          meta: {
+            openRoomId: createdRoom.id,
+            openRoomName: createdRoom.name,
+            createdRoomId: createdRoom.id,
+          },
+        }),
+      })
+      emit('room', readRoom(room.id) ?? room)
+      return ok({ room: readRoom(room.id) ?? room, createdRoom })
+    }
 
     if (action === 'approvals' && method === 'POST') {
       if (room.live !== true) return fail('conflict', '只有正在运行的房间有待确认的操作')
@@ -565,6 +616,8 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       const body = await readBody()
       const text = typeof body.text === 'string' ? body.text.trim() : ''
       if (text === '' || text.length > 8000) return fail('invalid', '消息不能为空，且不超过 8000 字')
+      rememberHuman(room.id, body)
+      room = readRoom(room.id) ?? room
       const mentions = Array.isArray(body.mentions)
         ? body.mentions.filter(id => typeof id === 'string' && id !== '').slice(0, 8)
         : []

@@ -41,14 +41,14 @@ export function GoalForm({
       },
     }),
     h('div', { className: 'crew-home-actions' },
-      onDiscuss === null
-        ? null
-        : h('button', {
+      onDiscuss !== null
+        ? h('button', {
           type: 'button',
           className: 'crew-accept crew-home-start crew-home-chat',
           disabled: busy,
           onClick: () => onDiscuss(goal.trim()),
-        }, '聊一聊'),
+        }, '聊一聊')
+        : null,
       h('button', { type: 'submit', className: 'crew-accept crew-home-start', disabled: !ready || busy }, busy ? '正在准备…' : startLabel)),
     error === null || error === undefined
       ? null

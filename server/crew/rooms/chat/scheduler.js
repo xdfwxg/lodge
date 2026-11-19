@@ -8,6 +8,7 @@ import { parseHandoffFromText } from '../../../../shared/handoff.js'
 import { ensureRoundWhenAsked, hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { systemNotice } from '../../notices.js'
 import { FLOOR_RULE, parseFloorSignal } from './floor-signal.js'
+import { humanLabelOf } from '../../human-name.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
@@ -25,7 +26,7 @@ const discussionLines = (store, roomId) => {
   const messages = store.readMessages(roomId)
     .filter(message => message.kind === 'chat' || message.kind === 'chat_rework')
   const nameOf = message => message.authorId === 'you'
-    ? '你'
+    ? humanLabelOf(room, '你')
     : message.authorId === 'system' ? '房间' : memberDisplayName(room, message.authorId)
   return recentAndOlder(messages, { nameOf })
 }
@@ -38,7 +39,7 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
   return [
     `聊天室话题：${room.goal}`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
-    note === '' ? '' : `用户这轮的要求：${note}`,
+    note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
     '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
     '被邀请可以接，也可以说「这次我不接，@更合适的人」把话交出去。',
     FLOOR_RULE,
@@ -70,7 +71,7 @@ const hostPrompt = ({ room, round, note, turnLimit }) => [
   `聊天室第 ${round} 轮讨论到此结束，请总结。`,
   `话题：${room.goal}`,
   `固定成员：${(room.members ?? []).map(member => `${member.id}（${member.name}）`).join('、') || '无'}；本轮上限 ${turnLimit} 次发言。`,
-  note === '' ? '' : `用户这轮的要求：${note}`,
+  note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
   '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。严格按下面五段输出，标题固定：',
   '## 主题',
   '一句话说清这轮在解决什么。',
