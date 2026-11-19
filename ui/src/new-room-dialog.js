@@ -13,6 +13,7 @@ import { DEFAULT_STUDIO_MEMBERS } from './room/studio/create.js'
 import { gateCardState, HandoffReview } from './room/studio/handoff-review.js'
 import { ReceiptReview } from './room/receipt-review.js'
 import { RoomTypeChoices } from './room/type-choices.js'
+import { WorkspaceMemory } from './room/workspace-memory.js'
 import { uiKindOfType } from './room/kinds.js'
 import { useOverlay } from './overlay.js'
 import { errorSuffix } from './error-text.js'
@@ -37,11 +38,15 @@ function NewRoomDialog({
   seed = null,
   onRefresh = null,
   startType = null,
+  onWorkspaceMemory = null,
+  onReviewWorkspaceMemory = null,
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
   const [shadowReview, setShadowReview] = useState(false)
+  const [browser, setBrowser] = useState(false)
+  const [roomAccess, setRoomAccess] = useState('ask')
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [goal, setGoal] = useState('')
   const [nameDraft, setNameDraft] = useState('')
@@ -328,6 +333,8 @@ function NewRoomDialog({
         verify,
         acceptance,
         shadowReview,
+        browser,
+        roomAccess,
         handoff,
         handoffReviewed,
         sourceRoomId: seed?.sourceRoomId,
@@ -361,6 +368,8 @@ function NewRoomDialog({
         verify: verifyMode,
         acceptance: verifyMode === 'test' ? acceptanceDraft.trim() : '',
         shadowReview,
+        browser,
+        roomAccess,
         handoff,
         handoffReviewed,
         sourceRoomId: seed?.sourceRoomId,
@@ -489,6 +498,10 @@ function NewRoomDialog({
     verifyMode,
     shadowReview,
     onShadowReview: setShadowReview,
+    browser,
+    onBrowser: setBrowser,
+    roomAccess,
+    onRoomAccess: setRoomAccess,
   }
 
   const goalField = h('div', { className: 'crew-field' },
@@ -553,6 +566,14 @@ function NewRoomDialog({
         onAcceptanceDraft: proposal === null ? setAcceptanceDraft : null,
       }),
     workspaceField,
+    repoPath.trim() === ''
+      ? null
+      : h(WorkspaceMemory, {
+        key: `memory-${repoPath.trim()}`,
+        path: repoPath.trim(),
+        onLoad: onWorkspaceMemory,
+        onReview: onReviewWorkspaceMemory,
+      }),
     roomKind.primaryFields(setupProps),
     recommending
       ? h('p', { className: 'crew-dialog-note' }, '正在出方案…')
@@ -599,7 +620,11 @@ function NewRoomDialog({
           }))
         : step === 0 ? setupBody : proposalBody,
       choosingType ? null : h('div', { className: 'crew-dialog-foot' },
-        gatePending === null ? null : h('span', { className: 'crew-dialog-foot-hint' }, gatePending),
+        studioMissingVerifier
+          ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '还差一位验收员；重新出方案后才能开工。')
+          : needRepo
+            ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '先选工作文件夹')
+            : gatePending === null ? null : h('span', { className: 'crew-dialog-foot-hint' }, gatePending),
         step > 0
           ? h('button', {
             type: 'button',
@@ -621,12 +646,19 @@ function NewRoomDialog({
           }, planFirst
             ? (recommending ? '正在出方案…' : '先出方案')
             : (busy ? '正在创建…' : roomKind.cta))
-          : h('button', {
-            type: 'button',
-            className: 'crew-accept crew-dialog-primary',
-            disabled: !canStartProposal,
-            onClick: () => void start(),
-          }, busy ? '正在创建…' : '开工')))
+          : studioMissingVerifier
+            ? h('button', {
+              type: 'button',
+              className: 'crew-accept crew-dialog-primary',
+              disabled: busy || recommending,
+              onClick: () => void recommend(),
+            }, recommending ? '正在出方案…' : '重新出方案')
+            : h('button', {
+              type: 'button',
+              className: 'crew-accept crew-dialog-primary',
+              disabled: !canStartProposal,
+              onClick: () => void start(),
+            }, busy ? '正在创建…' : '开工')))
   )
 }
 

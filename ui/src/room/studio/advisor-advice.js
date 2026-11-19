@@ -35,7 +35,7 @@ export const shadowAdviceForStage = (room, stageIndex) => {
   return adviceOf(entry)
 }
 
-export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '另一个视角' }) {
+export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '影子评审' }) {
   const advice = stageIndex === null ? shadowAdviceFor(room, evidenceId) : shadowAdviceForStage(room, stageIndex)
   if (advice === null) return null
   const head = advice.summary === ''

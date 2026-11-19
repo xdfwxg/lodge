@@ -53,6 +53,7 @@ export function StudioBeat({ message, member, open = false }) {
         : h('button', {
           type: 'button',
           className: 'studio-beat-more',
+          'aria-expanded': expanded ? 'true' : 'false',
           onClick: () => setExpanded(value => !value),
         }, expanded ? '收起' : `展开全文（${text.length} 字）`)))
 }

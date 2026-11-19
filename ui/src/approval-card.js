@@ -1,9 +1,11 @@
 import { createElement as h } from 'react'
 import { cardActionsOf } from '../../shared/attempt.js'
+import { isBrowserTool } from '../../shared/room-access.js'
 
-// 外部动作审批卡：只展示事实与两个决定，不把“模型说可以”当成批准。
-export function ApprovalCard({ approval, onDecide, state = 'pending' }) {
+// 外部动作审批卡：只展示事实与决定，不把“模型说可以”当成批准。
+export function ApprovalCard({ approval, onDecide, onAllowRoom = null, state = 'pending' }) {
   const actions = cardActionsOf({ kind: 'approval', state })
+  const browser = isBrowserTool(approval.tool)
   return h('div', {
     className: 'crew-card crew-approval',
     'data-card-state': state,
@@ -40,7 +42,14 @@ export function ApprovalCard({ approval, onDecide, state = 'pending' }) {
       actions.includes('deny')
         ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => onDecide('deny') }, '先别做')
         : null,
+      browser && onAllowRoom !== null && actions.includes('allow')
+        ? h('button', {
+          type: 'button',
+          className: 'crew-link',
+          onClick: () => onAllowRoom(),
+        }, '本房间都允许')
+        : null,
       actions.includes('allow')
-        ? h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, '可以做')
+        ? h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, browser ? '只这一次' : '可以做')
         : null))
 }

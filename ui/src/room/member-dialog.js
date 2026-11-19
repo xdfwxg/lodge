@@ -1,4 +1,4 @@
-// 侧栏是成员的唯一入口，房间视图负责打开对话框；这里只传一个请求。
+// 侧栏是成员的主入口；房间因成员出错停下时，也直接打开同一张卡。这里只传请求。
 const listeners = new Set()
 
 export const onMemberDialog = listener => {

@@ -244,6 +244,7 @@ export function createStore() {
     cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),
     steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
+    humanChoice: (stage, choice, note = '') => post(`/api/rooms/${state.activeId}/human-choice`, { stage, choice, note }),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
     resolveMerge: async () => {
       const data = await post(`/api/rooms/${state.activeId}/resolve-merge`, {})
@@ -273,6 +274,11 @@ export function createStore() {
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
+    setBrowserAccess: async access => {
+      const data = await post(`/api/rooms/${state.activeId}/set-browser-access`, { access })
+      if (data?.room !== undefined) acceptRoom(data.room)
+      return data
+    },
     answerCard: (memberId, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { memberId, requestId, message }),
     createSubroom: async goal => {
       const data = await post(`/api/rooms/${state.activeId}/subrooms`, { goal })
@@ -351,6 +357,15 @@ export function createStore() {
     },
     reviewMemory: async (memoryId, decision) => {
       const data = await post(`/api/rooms/${state.activeId}/memory/${memoryId}/review`, { decision })
+      return Array.isArray(data?.entries) ? data.entries : null
+    },
+    readArtifact: (roomId, path) => get(`/api/rooms/${roomId}/artifact?path=${encodeURIComponent(path)}`),
+    workspaceMemory: async path => {
+      const data = await get(`/api/workspace/memory?path=${encodeURIComponent(path)}`)
+      return Array.isArray(data?.entries) ? data.entries : null
+    },
+    reviewWorkspaceMemory: async (path, memoryId, decision) => {
+      const data = await post('/api/workspace/memory/review', { path, memoryId, decision })
       return Array.isArray(data?.entries) ? data.entries : null
     },
     forgetMemory: async () => {

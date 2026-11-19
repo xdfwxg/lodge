@@ -15,6 +15,7 @@ export function SideMembers({ room }) {
   const canAdd = kind.membersCanBeAdded === true && room.live === true && !finished &&
     (room.state === 'active' || room.state === 'paused')
   return h('div', { className: 'crew-side-members', role: 'group', 'aria-label': '房间成员' },
+    h('span', { className: 'crew-side-members-label' }, '成员'),
     statuses.map(item => h('button', {
       key: item.memberId,
       type: 'button',

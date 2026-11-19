@@ -3,7 +3,7 @@ const isId = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
 const PROMPT_LIMIT = 4000
 const LIST_LIMIT = 8
 
-const grantsOf = list => (Array.isArray(list) ? list : []).slice(0, LIST_LIMIT).map(item => (
+export const normalizeMcpGrants = list => (Array.isArray(list) ? list : []).slice(0, LIST_LIMIT).map(item => (
   typeof item === 'string'
     ? { server: item.trim(), scopes: ['read'], approval: 'ask' }
     : { server: item.server, scopes: ['read'], approval: 'ask' }
@@ -25,5 +25,5 @@ export const normalizeBodySpec = ({ input = {}, fallback = {} } = {}) => {
   if ((Array.isArray(mcpInput) ? mcpInput : []).some(item => !isId(typeof item === 'string' ? item : item?.server))) {
     return { error: 'MCP 服务只填服务名，不能放地址或凭证' }
   }
-  return { spec: { prompt, skills, mcp: grantsOf(mcpInput) } }
+  return { spec: { prompt, skills, mcp: normalizeMcpGrants(mcpInput) } }
 }

@@ -33,6 +33,15 @@ test('room creation accepts a five-field handoff and bounds it', () => {
   })
 })
 
+test('browser research and room access are separate request fields', () => {
+  assert.equal(normalizeRequest({ goal: '查机票', verify: 'manual' }).browser, false)
+  const browser = normalizeRequest({ goal: '查机票', verify: 'manual', browser: true })
+  assert.equal(browser.browser, true)
+  assert.equal(browser.roomAccess, 'ask')
+  assert.equal(normalizeRequest({ goal: '查机票', verify: 'manual', browser: true, roomAccess: 'allow' }).roomAccess, 'allow')
+  assert.equal(normalizeRequest({ goal: '查机票', verify: 'manual', roomAccess: 'everything' }).roomAccess, 'ask')
+})
+
 test('the handoff is part of the bulletin and the opening prompt', () => {
   const bulletin = roomBulletin('发布检查清单', 'manual', '', handoff)
   assert.match(bulletin, /交接单/)

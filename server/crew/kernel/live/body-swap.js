@@ -83,7 +83,10 @@ export const createBodySwap = ({ store, engine, emit }) => {
         toolScope: toolScopeFor(member),
         modelSelection: selection,
       })
-      await engine.setBotSkills(member.body.ref, spec.skills)
+      // 没有技能可改时不去碰基座的技能库；聊天室成员本来就不挂工具。
+      if (JSON.stringify(spec.skills) !== JSON.stringify(current.skills)) {
+        await engine.setBotSkills(member.body.ref, spec.skills)
+      }
       const updated = store.updateRoom(room.id, current => {
         const target = (current.members ?? []).find(item => item.id === memberId)
         if (target === undefined) return null

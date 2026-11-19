@@ -1,7 +1,6 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
-import { StatePanel } from '../../state-panel.js'
-import { buildIdleDecision } from '../decision.js'
+import { PausedPanel } from '../paused-panel.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
@@ -13,33 +12,22 @@ import { studioTyping } from './typing.js'
 export const studioView = {
   id: 'studio',
   opensAtTop: ({ room }) => room.state === 'complete',
-  header: ({ room, actions }) => {
-    const paused = room.state === 'paused' ? buildIdleDecision(room) : null
-    return h(Fragment, null,
-      h(GoalIslandHeader, {
-        room,
-        onOpenRoom: actions.selectRoom,
-        onSignalAction: (signal, action) => {
-          if (signal?.needs !== 'review-timeout' || !Number.isInteger(signal.stage)) return false
-          if (action === 'rework') actions.rework(signal.stage, '')
-          else actions.verify(signal.stage)
-          return true
-        },
-      }),
-      paused === null
-        ? null
-        : h(StatePanel, {
-          key: `paused-${room.id}`,
-          title: paused.title,
-          body: paused.detail,
-          tone: 'paused',
-          action: h('button', {
-            type: 'button',
-            className: 'crew-link',
-            onClick: () => actions.resume(),
-          }, paused.primary?.label ?? '继续'),
-        }))
-  },
+  header: ({ room, actions }) => h(Fragment, null,
+    h(GoalIslandHeader, {
+      room,
+      onOpenRoom: actions.selectRoom,
+      onSignalAction: (signal, action) => {
+        if (signal?.needs !== 'review-timeout' || !Number.isInteger(signal.stage)) return false
+        if (action === 'rework') actions.rework(signal.stage, '')
+        else actions.verify(signal.stage)
+        return true
+      },
+    }),
+    h(PausedPanel, {
+      room,
+      onResume: () => actions.resume(),
+      onFixMember: memberId => actions.swapBody(memberId),
+    })),
   tools: ({ room, members, actions }) => {
     if (room.state !== 'active' || room.live !== true) return null
     const stages = (room.stages ?? []).filter(stage => stage.state !== 'pending')
@@ -63,7 +51,11 @@ export const studioView = {
     onAccept: actions.accept,
     onStageAccept: actions.accept,
     onRework: actions.rework,
+    onChoose: actions.chooseHuman,
+    onReadArtifact: actions.readArtifact,
     onResolveMerge: actions.resolveMerge,
+    onApproval: actions.approval,
+    onAllowBrowserRoom: actions.allowBrowserRoom,
     onAnswerCard: actions.answerCard,
     onCancelQueue: actions.cancelQueue,
     onSteerQueue: actions.steerQueue,

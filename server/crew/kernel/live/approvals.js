@@ -7,6 +7,7 @@ import { systemNotice } from '../../notices.js'
 import { decidePermission } from '../../permission.js'
 import { supportsRuntime } from '../../runtime-port.js'
 import { attemptScopeOf, scopeIsValid } from '../../../../shared/attempt.js'
+import { canSkipApproval } from '../../room-access.js'
 import { appendHumanContext } from '../../human-context.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
@@ -241,7 +242,9 @@ export const createLiveApprovals = ({
     const allowed = decidePermission(member, card.action, { readOnly, direct: room?.workspace?.provider === 'direct' })
     const external = allowed ? externalAction(card) : null
     const cardSession = sessionRef ?? entry.members.get(memberId)?.sessionRef
-    if (external !== null) {
+    // 房间免确认只放行只读研究；其他外部动作照旧逐次确认。
+    const browserAllowed = allowed && canSkipApproval({ room, member, tool: card.tool })
+    if (external !== null && !browserAllowed) {
       await holdForApproval(entry, memberId, card, external, cardSession)
       return
     }

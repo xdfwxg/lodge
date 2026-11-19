@@ -34,6 +34,7 @@ test('the delivery card keeps goal, commands, files, verdicts and commit', () =>
   assert.equal(delivery.stages[1].verdicts[0].pass, true)
   assert.equal(delivery.commands.length, 1)
   assert.equal(delivery.evidenceCount, 1)
+  assert.equal(delivery.kind, 'text')
 })
 
 test('the delivery keeps the room usage and its unknown state', () => {
@@ -66,7 +67,20 @@ test('manual evidence is not a passed command and artifacts stay in the workspac
   assert.equal(delivery.commands.length, 0)
   assert.deepEqual(delivery.artifacts.map(artifact => artifact.path), ['/tmp/room/worker/logo/logo.svg'])
   assert.equal(delivery.artifacts[0].relativePath, 'logo/logo.svg')
+  assert.equal(delivery.artifacts[0].kind, 'image')
+  assert.equal(delivery.kind, 'image')
   assert.equal(delivery.workspacePath, '/tmp/room')
+})
+
+test('a delivery with different result shapes is mixed', () => {
+  const delivery = buildDelivery(room({ repoPath: '/tmp/room' }), [
+    { id: 'a1', kind: 'activity', ts: 11, meta: { stage: 1, artifacts: [
+      { path: '/tmp/room/report.md', bytes: 10 },
+      { path: '/tmp/room/shot.png', bytes: 20 },
+    ] } },
+  ])
+  assert.equal(delivery.kind, 'mixed')
+  assert.deepEqual(delivery.artifacts.map(artifact => artifact.kind), ['document', 'image'])
 })
 
 test('a demo delivery drops the sample prefix and carries artifact content', () => {
@@ -77,6 +91,8 @@ test('a demo delivery drops the sample prefix and carries artifact content', () 
   ])
   assert.equal(delivery.name, '发布前检查清单')
   assert.equal(delivery.sample, true)
+  assert.equal(delivery.artifacts[0].kind, 'document')
+  assert.equal(delivery.kind, 'document')
   assert.equal(delivery.artifacts[0].content, '- [ ] 检查')
 })
 

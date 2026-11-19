@@ -121,6 +121,16 @@ test('a delivered room refuses new members', async () => {
   assert.equal(calls.members.length, 0)
 })
 
+test('a chat room keeps the roster it was created with', async () => {
+  const { add, calls } = harness()
+  const room = roomOf()
+  room.roomType = 'chat'
+  const result = await add.add(room, { role: 'executor', name: '乙', engine: 'claude', model: 'sonnet' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /聊天室不能添加成员/)
+  assert.equal(calls.members.length, 0)
+})
+
 test('a second planner is refused: the room keeps one main bot', async () => {
   const { add, calls } = harness()
   const result = await add.add(roomOf(), { role: 'planner', name: '规划师二号' })

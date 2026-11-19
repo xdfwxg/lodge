@@ -16,6 +16,11 @@ export const advanceProgress = (room, { progressed, at = Date.now() }) => {
     room.lastProgressAt = at
     return { paused: false }
   }
+  const activeIndex = Array.isArray(room.stages) ? room.stages.findIndex(stage => stage.state === 'active') : -1
+  if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === activeIndex) {
+    room.noProgress = 0
+    return { paused: false }
+  }
   room.noProgress = Number(room.noProgress ?? 0) + 1
   if (room.noProgress >= NO_PROGRESS_LIMIT && room.state === 'active') {
     room.state = 'paused'

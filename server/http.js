@@ -168,6 +168,31 @@ export const createHttpHandler = ({
       return json(res, 200, page)
     }
 
+    if (path === '/api/workspace/memory' && req.method === 'GET') {
+      return respond(res, await service.workspaceMemory({
+        sourceRepo: url.searchParams.get('path') ?? '',
+        limit: Number(url.searchParams.get('limit') ?? 20),
+      }))
+    }
+
+    if (path === '/api/workspace/memory/review' && req.method === 'POST') {
+      const body = await readJson(req)
+      return respond(res, await service.workspaceMemoryReview({
+        sourceRepo: body.path,
+        memoryId: body.memoryId,
+        decision: body.decision,
+      }))
+    }
+
+    const artifactPath = path.match(/^\/api\/rooms\/([\w-]+)\/artifact$/)
+    if (artifactPath !== null && req.method === 'GET') {
+      const [, roomId] = artifactPath
+      return respond(res, await service.artifact({
+        roomId,
+        path: url.searchParams.get('path') ?? '',
+      }))
+    }
+
     const memoryPath = path.match(/^\/api\/rooms\/([\w-]+)\/memory$/)
     if (memoryPath !== null && req.method === 'GET') {
       const [, roomId] = memoryPath

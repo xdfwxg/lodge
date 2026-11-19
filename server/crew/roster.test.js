@@ -22,6 +22,11 @@ test('an executor without its own worktree fails closed', () => {
   assert.throws(() => validateRoster(bad), /executor/)
 })
 
+test('a custom worker keeps a browser grant from the room request', () => {
+  const roster = rosterFromRoles([{ role: 'worker', name: '研究员', mcp: ['chrome-devtools'] }])
+  assert.deepEqual(roster[0].mcp, [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }])
+})
+
 test('planner cannot hold external tools', () => {
   const bad = ROLES.map(member => member.id === 'planner'
     ? { ...member, mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }] }

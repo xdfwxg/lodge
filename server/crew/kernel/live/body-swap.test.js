@@ -109,6 +109,18 @@ test('swapping keeps the member and its history, and replaces the body', async (
   assert.equal(calls.events.some(event => event.type === 'member.body.swapped'), true)
 })
 
+test('a personality-only change leaves an empty skills library alone', async () => {
+  const { swap, calls } = harness()
+  const result = await swap.swap(roomOf(), {
+    memberId: 'worker',
+    engine: 'claude',
+    model: 'sonnet',
+    prompt: '发发发',
+  })
+  assert.equal(result.ok, true, result.error)
+  assert.equal(calls.skills.length, 0)
+})
+
 test('the body carries an editable soul, skills and tools', async () => {
   const { swap, calls, room } = harness()
   const result = await swap.swap(room, {

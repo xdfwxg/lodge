@@ -115,6 +115,10 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
 
   const accept = (room, body) => {
     const index = Number(body.stage)
+    const force = body?.force === true
+    const target = room.stages?.[index]
+    if (target === undefined) return fail('invalid', '没有这一步')
+    if (force && target.state !== 'active') return fail('conflict', '这一步现在不在待验收状态')
     let gate = null
     let next = -1
     let mergedFinal = -1
@@ -122,7 +126,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const messages = readMessages(room.id)
     const hasPassedVerdict = messages.some(message => message.kind === 'verdict' && verdictPassed(message))
     const updated = updateRoom(room.id, current => {
-      gate = gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
+      gate = force
+        ? { ok: true, stage: current.stages[index] }
+        : gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
       if (!gate.ok) return null
       const stage = current.stages[index]
       stage.state = 'passed'
@@ -138,7 +144,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       // 纯聊天：最后一步通过后房间不结束；但有验收员时，交付型步骤仍必须看到他回报通过。
       // 纯决策步骤由人确认就算通过，不该再等验收员。
       const needsVerdict = stage.kind !== 'decision' || stage.manual === true || stage.title === FINAL_TITLE
-      if (next < 0 && needsVerdict && roomModeOfRoom(current)?.supportsDelivery === true) {
+      if (next < 0 && needsVerdict && roomModeOfRoom(current)?.supportsDelivery === true && !force) {
         const hasVerifiers = verifierIds(current).length > 0 || (Array.isArray(current.verifiers) && current.verifiers.length > 0)
         if (hasVerifiers && hasPassedVerdict !== true) {
           transitionError = '验收员还没有回报通过，不能结束这一步'
@@ -174,11 +180,27 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const finalStage = mergedFinal >= 0 ? room.stages[mergedFinal] : null
     appendMessage(room.id, {
       kind: 'system',
-      text: finalStage === null
-        ? `第 ${index + 1} 步「${gate.stage.title}」${gate.stage.kind === 'deliverable' ? '通过了' : '确认了'}。`
-        : `第 ${index + 1} 步「${gate.stage.title}」通过了；第 ${mergedFinal + 1} 步「${finalStage.title}」也一起确认了。`,
-      meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you' },
+      text: force
+        ? `你选择接受当前结果：第 ${index + 1} 步「${gate.stage.title}」通过。`
+        : finalStage === null
+          ? `第 ${index + 1} 步「${gate.stage.title}」${gate.stage.kind === 'deliverable' ? '通过了' : '确认了'}。`
+          : `第 ${index + 1} 步「${gate.stage.title}」通过了；第 ${mergedFinal + 1} 步「${finalStage.title}」也一起确认了。`,
+      meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you', ...(force ? { override: true } : {}) },
     })
+    if (force) {
+      appendMessage(room.id, {
+        kind: 'verdict',
+        authorId: 'you',
+        text: '你选择接受当前结果。',
+        meta: {
+          pass: true,
+          human: true,
+          override: true,
+          reason: '你选择接受当前结果；验收员曾退回。',
+          stage: index,
+        },
+      })
+    }
     for (const assignment of activeDispatchAssignments(store, room.id, index)) {
       transitionAssignment(store, assignment.id, 'passed')
     }

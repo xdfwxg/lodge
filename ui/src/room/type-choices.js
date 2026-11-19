@@ -8,7 +8,7 @@ export const ROOM_TYPE_CHOICES = [
 
 export function RoomTypeChoices({ disabled = false, onPick }) {
   return h(Fragment, null,
-    h('p', { className: 'crew-type-note' }, '聊天室、工作室，随时切换。'),
+    h('p', { className: 'crew-type-note' }, '聊天室先聊清楚，工作室把事做完。'),
     h('div', { className: 'crew-type-choices' },
       ROOM_TYPE_CHOICES.map(entry => h('button', {
         key: entry.kind,

@@ -548,7 +548,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     store.appendEvent(roomId, 'turn.completed', { turnId, memberId: memberId ?? 'unknown' })
     if (role === 'lead' && routePlannerDecision(room, stageIndex, turn, calls)) {
       writeTurnDiagnostic('decision')
-      state.recordTurn(false)
+      // 规划师交给人或安排返工，本身就是进展；不能算作空转。
+      state.recordTurn(true)
       return
     }
     if (role !== 'worker') {

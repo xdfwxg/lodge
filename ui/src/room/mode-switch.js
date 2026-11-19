@@ -70,6 +70,7 @@ export function RoomModeSwitch({ room, onSwitch }) {
     h('button', {
       type: 'button',
       className: 'crew-link',
+      'data-menu-keep': '',
       onClick: openDialog,
     }, label),
     open

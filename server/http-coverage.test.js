@@ -22,6 +22,8 @@ const start = async ({ roomRequest = null } = {}) => {
     evidence: async () => ({ ok: true, body: { evidence: {} } }),
     memory: async () => ({ ok: true, body: { entries: [], canReview: true } }),
     memoryReview: async () => ({ ok: true, body: { entries: [], canReview: true } }),
+    workspaceMemory: async () => ({ ok: true, body: { entries: [], canReview: true } }),
+    workspaceMemoryReview: async () => ({ ok: true, body: { entries: [], canReview: true } }),
     forgetMemory: async () => ({ ok: true, body: { room: { id: 'room-1' } } }),
     roomRequest: roomRequest ?? (async (roomId, action) => {
       actions.push(action)
@@ -72,6 +74,12 @@ test('every successful HTTP route is counted only when it returns 2xx or 3xx', a
     assert.equal((await check('/api/rooms/room-1/assignments')).status, 200)
     assert.equal((await check('/api/rooms/room-1/evidence/m1')).status, 200)
     assert.equal((await check('/api/rooms/room-1/memory')).status, 200)
+    assert.equal((await check('/api/workspace/memory?path=%2Ftmp%2Fproject')).status, 200)
+    assert.equal((await check('/api/workspace/memory/review', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: '/tmp/project', memoryId: 'room-1', decision: 'approve' }),
+    })).status, 200)
     assert.equal((await check('/api/rooms/room-1/memory/room-1/review', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -92,7 +100,7 @@ test('every successful HTTP route is counted only when it returns 2xx or 3xx', a
       assert.equal(response.status, 200, `${action} returned ${response.status}`)
     }
     assert.deepEqual(ctx.actions.sort(), [...ROOM_ACTIONS].sort())
-    assert.equal(covered.length, 10 + ROOM_ACTIONS.length)
+    assert.equal(covered.length, 12 + ROOM_ACTIONS.length)
   } finally {
     await ctx.close()
   }

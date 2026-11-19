@@ -35,6 +35,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 成员工具面裁剪（隐藏协调与判定工具） | `server/crew/tool-scope.test.js`、`server/crew/engine.test.js` | 真实基座可选 |
 | 不可信内容清洗与字符预算 | `shared/untrusted-text.test.js` | 无 |
 | 房间记忆（审核后只读引用、删除、停用） | `server/crew/memory.test.js`、`server/crew/service-composition.test.js`、`server/crew/prompt-order.test.js`、`server/http-coverage.test.js` | 真实交付可选 |
+| 工作区记忆入口（建房时按文件夹出现） | `server/crew/memory.test.js`、`server/http-coverage.test.js` | 真实文件夹需 dogfood |
 | 房间记忆备份与恢复边界 | `server/crew/data-recovery.test.js` | 无 |
 | 房间健康卡（证据 / 未知 / 下一步、费用、返工） | `ui/src/room/health.test.js`、`server/crew/turn-assessment.test.js` | 无 |
 | 前门（写下目标开始） | `ui/src/views/home.test.js` | 无 |
@@ -53,10 +54,13 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 退回指定步骤、补上下文再跑 | `server/crew/service-stages.test.js`、`ui/src/room/studio/rewind-dialog.test.js` | 无 |
 | 并行执行、合并冲突、超时 | `server/crew/live-turn-modules.test.js`、`server/crew/workspace-git.test.js`、`server/crew/service-merge.test.js`、`server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/studio/auto-rework.test.js`、`ui/src/room/studio/merge-conflict.test.js` | 真实 git 冲突解决需 dogfood |
 | 子房间创建与结果回填 | `server/crew/room-subrooms.test.js`、`server/crew/service-subrooms.test.js`、`server/crew/service-subrooms-notify.test.js` | 无 |
-| 外部动作审批、叫停、排队 | `server/crew/approval-bridge.test.js`、`server/crew/live-approvals.test.js`、`server/crew/external-actions.test.js`、`server/crew/member-delivery.test.js` | 真实 git push 需 dogfood |
+| 外部动作审批、叫停、排队 | `server/crew/approval-bridge.test.js`、`server/crew/live-approvals.test.js`、`server/crew/external-actions.test.js`、`server/crew/member-delivery.test.js`、`ui/src/room/studio/transcript.test.js` | 真实 git push 需 dogfood |
+| 受控浏览器（chrome-devtools MCP） | `server/browser-mcp.test.js`、`server/crew/roster.test.js`、`server/crew/room-access.test.js`、`shared/room-access.test.js`、`server/crew/approval-bridge.test.js`、`server/crew/service-merge.test.js`、`ui/src/room/studio/create.test.js`、`ui/src/room/browser-permission.test.js` | 真实 Chrome |
+| 运行中的工具动效（折叠命令、时长、动效） | `ui/src/room/studio/working-line.test.js`、`ui/src/room/studio/transcript-model.test.js` | 无 |
 | 归档、恢复、删除、改名 | `server/crew/service-lifecycle.test.js`、`server/crew/workspace-git.test.js`、`server/crew/rooms/base/retire.test.js` | 无 |
 | 交付记录、结果优先的交付页 | `server/crew/delivery.test.js`、`ui/src/room/studio/delivery-record.test.js`、`ui/src/room/studio/delivery-card.test.js`、`ui/src/room/studio/transcript.test.js` | 无 |
 | 重启恢复、断线重连 | `server/crew/recovery.test.js`、`server/crew/live-sync.test.js`、`ui/src/store.test.js` | 无 |
+| 暂停与成员出错后的一步修复 | `server/crew/live-sync.test.js`、`server/crew/kernel/live/body-swap.test.js`、`ui/src/room/decision.test.js`、`ui/src/room/paused-panel.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | API 路由与动作清单 | `server/route-table.test.js`、`server/crew/route-sweep.test.js` | 无 |
 | 驱动边界、运行端口、分层 | `server/crew/engine.test.js`、`server/crew/runtime-port.test.js`、`server/crew/layer-boundaries.test.js`、`server/crew/boundary.test.js` | 真实基座可选 |
 | 基座旧房间回收（gc:base） | `server/base-gc.test.js`、`server/crew/base-error.test.js` | 真实基座可选 |

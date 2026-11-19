@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+
+const nodeRequire = createRequire(import.meta.url)
 
 const load = async () => {
   const bundle = await build({
@@ -17,12 +20,26 @@ const load = async () => {
     createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity) }),
     Fragment: 'fragment',
     useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
+    useMemo: factory => factory(),
+    useEffect: () => {},
+    useRef: () => ({ current: null }),
   }
+  const jsx = (type, props) => ({
+    type,
+    props: props ?? {},
+    children: [].concat(props?.children ?? []).flat(Infinity),
+  })
+  const jsxRuntime = { Fragment: 'fragment', jsx, jsxs: jsx, jsxDEV: jsx }
   const module = { exports: {} }
   runInNewContext(bundle.outputFiles[0].text, {
     module,
     exports: module.exports,
-    require: name => (name === 'react' ? react : (() => { throw new Error(`no platform module ${name}`) })()),
+    require: name => {
+      if (name === 'react') return react
+      if (name === 'react/jsx-runtime') return jsxRuntime
+      if (name.startsWith('node:')) return nodeRequire(name)
+      throw new Error(`no platform module ${name}`)
+    },
     Intl,
     Date,
   })
@@ -38,6 +55,15 @@ const text = node => {
   if (node === null || node === undefined || typeof node === 'boolean') return ''
   if (typeof node !== 'object') return String(node)
   return (node.children ?? []).map(text).join('')
+}
+const find = (node, match) => {
+  if (node === null || node === undefined || typeof node !== 'object') return null
+  if (match(node)) return node
+  for (const child of node.children ?? []) {
+    const found = find(child, match)
+    if (found !== null) return found
+  }
+  return null
 }
 
 test('the delivery sheet shows goal, commit, stage commands, verdicts and files', async () => {
@@ -87,7 +113,7 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.match(text(tree), /src\/a\.js/)
   assert.doesNotMatch(text(tree), /2 步/)
   assert.match(text(tree), /1 项检查/)
-  assert.match(text(tree), /打开结果文件夹/)
+  assert.match(text(tree), /在文件夹打开/)
 })
 
 test('a verified manual stage shows the verdict, not the waiting notice', async () => {
@@ -194,4 +220,45 @@ test('the delivery sheet offers a way to continue', async () => {
     onContinue: () => {},
   }))
   assert.match(text(tree), /继续做/)
+})
+
+test('a Markdown result is typeset, a plain result keeps its lines', async () => {
+  const { DeliveryPreview } = await load()
+  const document = render(DeliveryPreview({ kind: 'document', content: '# 报告', image: null, alt: 'report.md' }))
+  assert.notEqual(find(document, node => String(node.props?.className ?? '').includes('md_markdown')), null)
+  assert.equal(find(document, node => node.type === 'pre'), null)
+  const plain = render(DeliveryPreview({ kind: 'text', content: 'line one\nline two', image: null, alt: 'notes.txt' }))
+  assert.equal(text(find(plain, node => node.type === 'pre')), 'line one\nline two')
+})
+
+test('an image result shows the image itself', async () => {
+  const { DeliveryPreview } = await load()
+  const tree = render(DeliveryPreview({
+    kind: 'image',
+    content: '',
+    image: 'data:image/png;base64,AAAA',
+    alt: 'shot.png',
+  }))
+  const image = find(tree, node => node.type === 'img')
+  assert.equal(image.props.src, 'data:image/png;base64,AAAA')
+  assert.equal(image.props.alt, 'shot.png')
+})
+
+test('a readable result wins over a file that cannot be previewed', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '检查报告',
+      stages: [],
+      commands: [],
+      artifacts: [
+        { path: 'guide.pdf', kind: 'file' },
+        { path: 'report.md', kind: 'document', content: '# 结果正文' },
+      ],
+      changedFiles: [],
+    },
+  }))
+  const preview = find(tree, node => node.props?.className === 'studio-delivery-preview')
+  assert.notEqual(find(preview, node => String(node.props?.className ?? '').includes('md_markdown')), null)
+  assert.equal(find(tree, node => node.props?.className === 'studio-delivery-file'), null)
 })

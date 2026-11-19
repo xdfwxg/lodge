@@ -35,6 +35,7 @@
     "test:ui": "npm run build && playwright test"
   },
   "dependencies": {
+    "chrome-devtools-mcp": "1.13.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",

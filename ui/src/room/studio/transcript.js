@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useMemo, useState } from 'react'
+import { Fragment, createElement as h, useMemo } from 'react'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { humanNoteKeys, isDuplicateHumanRework } from '../human-note.js'
 import { ShadowAdvice } from './advisor-advice.js'
@@ -7,6 +7,9 @@ import { renderStudioMessage } from './message-view.js'
 import { HumanGateCard } from './human-gate.js'
 import { MergeConflictCard } from './merge-conflict.js'
 import { DeliveryCard } from './delivery-card.js'
+import { ApprovalCard } from '../../approval-card.js'
+import { WorkingLine } from './working-line.js'
+import { scopeIsValid } from '../../../../shared/attempt.js'
 
 const orderOf = message => (
   (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
@@ -26,11 +29,14 @@ export function StudioTranscript({
   onDiscussChat = null,
   onReturn = null,
   onRework = null,
+  onChoose = null,
+  onReadArtifact = null,
   onResolveMerge = null,
+  onApproval = null,
+  onAllowBrowserRoom = null,
   hideKinds = [],
   delivery = null,
 }) {
-  const [processOpen, setProcessOpen] = useState(false)
   const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
   const messages = useMemo(
     () => dedupeChatStreams(room.messages).slice().sort((a, b) => orderOf(a) - orderOf(b)),
@@ -92,50 +98,76 @@ export function StudioTranscript({
     ? activeIndex
     : Object.keys(room.advisorShadow ?? {}).map(Number).sort((a, b) => b - a)[0] ?? -1
   const advice = adviceIndex >= 0
-    ? h(ShadowAdvice, { key: `advice-${adviceIndex}`, room, stageIndex: adviceIndex, label: '另一个视角' })
+    ? h(ShadowAdvice, { key: `advice-${adviceIndex}`, room, stageIndex: adviceIndex, label: '影子评审' })
     : null
 
   const finished = (room.stages ?? []).length > 0 &&
     room.stages.every(stage => stage.state === 'passed')
+  const roomMessages = Array.isArray(room.messages) ? room.messages : []
+  const pendingApprovals = (room.approvals ?? []).filter(approval => (
+    approval.state === 'pending' && scopeIsValid(approval.scope, { room, messages: roomMessages })
+  ))
+  const latest = messages[messages.length - 1] ?? null
+  const working = !finished && room.state === 'active' && latest?.kind === 'activity' &&
+    typeof latest.ts === 'number' && Date.now() - latest.ts < 5 * 60_000
+    ? latest
+    : null
+  const approvalCards = pendingApprovals.slice(0, 1).map(approval => h(ApprovalCard, {
+    key: approval.id,
+    approval,
+    onDecide: decision => onApproval?.(approval.id, decision),
+    onAllowRoom: onAllowBrowserRoom === null ? null : () => onAllowBrowserRoom(approval.id),
+  }))
   const closingActions = h('div', { key: 'room-actions', className: 'studio-room-closing studio-room-actions' },
-    h('button', {
-      type: 'button',
-      className: 'crew-link',
-      onClick: () => { downloadDeliveryRecord(room) },
-    }, '下载交付记录'),
+    delivery === null
+      ? h('button', {
+        type: 'button',
+        className: 'crew-link',
+        onClick: () => { downloadDeliveryRecord(room) },
+      }, '下载交付记录')
+      : null,
     typeof onDiscussChat === 'function'
       ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
       : null,
     typeof onContinue === 'function'
       ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '开一间新房')
       : null)
-  // 做完了就只给结果；过程留在“看过程”里，需要时再出现。
+  // 做完了就只给结果；完整工作记录收起来，需要时再看。
   if (finished) {
     return h('div', { className: 'studio-result' },
       h('div', { key: 'room-closing', className: 'studio-room-closing-wrap' },
         delivery === null
           ? h('div', { className: 'studio-room-closing' }, h('span', null, '目标完成'))
-          : h(DeliveryCard, { delivery }),
+          : h(DeliveryCard, {
+            delivery,
+            onDownload: () => { downloadDeliveryRecord(room) },
+            onRead: onReadArtifact,
+          }),
         closingActions),
       items.length === 0 && advice === null
         ? null
-        : h(Fragment, null,
-          h('div', { key: 'process-lead', className: 'studio-process-lead' },
-            h('button', {
-              type: 'button',
-              className: 'crew-link',
-              'aria-expanded': processOpen || undefined,
-              onClick: () => setProcessOpen(open => !open),
-            }, processOpen ? '收起过程' : '看过程')),
-          processOpen
-            ? h(Fragment, null,
-              h('div', { className: 'studio-timeline studio-process-timeline' }, ...items),
-              advice)
-            : null))
+        : h('details', { key: 'process', className: 'studio-process' },
+          h('summary', { className: 'studio-process-lead' },
+            h('span', { className: 'studio-process-open' }, '工作记录'),
+            h('span', { className: 'studio-process-shut' }, '收起')),
+          h('div', { className: 'studio-timeline studio-process-timeline' }, ...items),
+          advice))
   }
   return h(Fragment, null,
-    h('div', { className: 'studio-timeline' }, ...items),
-    h(HumanGateCard, { key: `human-gate-${activeIndex}`, room, onRework }),
+    h('div', { className: 'studio-timeline' }, ...items,
+      working === null
+        ? null
+        : h(WorkingLine, {
+          key: `working-${working.id}`,
+          activity: working,
+          memberName: byId[working.authorId]?.name ?? '',
+        })),
+    ...approvalCards,
+    pendingApprovals.length > 1
+      ? h('div', { key: 'approval-queue', className: 'crew-system' },
+        `还有 ${pendingApprovals.length - 1} 个操作待确认，先处理眼前这个。`)
+      : null,
+    h(HumanGateCard, { key: `human-gate-${activeIndex}`, room, onChoose, onRework }),
     h(MergeConflictCard, { key: `merge-${activeIndex}`, room, onResolve: onResolveMerge }),
     advice)
 }

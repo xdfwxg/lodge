@@ -3,6 +3,7 @@
 export const ROOM_ACTIONS = Object.freeze([
   'messages',
   'accept',
+  'human-choice',
   'chat-continue',
   'chat-resume',
   'resume',
@@ -10,6 +11,7 @@ export const ROOM_ACTIONS = Object.freeze([
   'reject-plan',
   'rework',
   'resolve-merge',
+  'set-browser-access',
   'retry',
   'rewind',
   'switch-mode',

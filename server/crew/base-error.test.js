@@ -11,6 +11,10 @@ test('base errors become plain Chinese reasons', () => {
   assert.equal(plainRuntimeError(new Error('base 401 unauthorized')), '模型服务没有登录，先登录再试')
   assert.equal(plainRuntimeError(new Error('base 403 /api/bots')), '基座拒绝了这次操作')
   assert.equal(plainRuntimeError(new Error('base 404 /api/groups/x')), '基座里找不到对应的记录')
+  assert.match(
+    plainRuntimeError(new Error('base 404 /api/bots/x/skills-library: {"error":"skills library is not enabled"}')),
+    /还没有开技能库/,
+  )
   assert.equal(plainRuntimeError(new Error('base 409 /api/bots: {"error":"this workspace is limited to 100 bots"}')), '基座 Bot 已满（100 个）；先删除不用的旧房间再建新房')
   assert.equal(plainRuntimeError(new Error('fetch failed')), '基座没有响应，稍后再试')
 })

@@ -21,6 +21,23 @@ const statusOfPaused = room => {
   return { title: room.idle === true ? '已暂停，可以接着聊' : '已暂停', tone: 'paused' }
 }
 
+const MEMBER_FIX_LABEL = {
+  auth: '重新登录',
+  quota: '换个模型',
+  rate_limit: '换个模型',
+  engine: '检查模型服务',
+}
+
+export const pausedMemberFixOf = room => {
+  if (room?.state !== 'paused' || room?.pauseReason !== 'member_error') return null
+  const memberId = room?.memberError?.memberId
+  if (typeof memberId !== 'string' || memberId === '') return null
+  return {
+    memberId,
+    label: MEMBER_FIX_LABEL[room.memberError?.kind] ?? '处理这位成员',
+  }
+}
+
 export const buildIdleDecision = room => {
   if (room.state === 'stopped') {
     return { key: 'stopped', title: '房间已停止', detail: '', primary: null, secondary: null }

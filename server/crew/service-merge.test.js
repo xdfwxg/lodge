@@ -113,6 +113,32 @@ test('conflict markers left in the file are refused', async () => {
   assert.equal(ctx.room().mergeConflict.stage, 1)
 })
 
+test('the room permission can switch to public pages and back', async () => {
+  const ctx = setup(room({ mergeConflict: null }), { status: '', diff: '' })
+  const allowed = await ctx.service.roomRequest('room-merge', 'set-browser-access', {
+    method: 'POST',
+    readBody: async () => ({ access: 'allow' }),
+  })
+  assert.equal(allowed.ok, true, allowed.error)
+  assert.equal(ctx.room().roomAccess, 'allow')
+  const back = await ctx.service.roomRequest('room-merge', 'set-browser-access', {
+    method: 'POST',
+    readBody: async () => ({ access: 'ask' }),
+  })
+  assert.equal(back.ok, true, back.error)
+  assert.equal(ctx.room().roomAccess, 'ask')
+})
+
+test('an unknown room permission is rejected', async () => {
+  const ctx = setup(room({ mergeConflict: null }), { status: '', diff: '' })
+  const result = await ctx.service.roomRequest('room-merge', 'set-browser-access', {
+    method: 'POST',
+    readBody: async () => ({ access: 'everything' }),
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.error, '权限只能是常规或房间免确认')
+})
+
 test('a room without a conflict cannot be told to continue', async () => {
   const ctx = setup(room({ mergeConflict: null }), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'resolve-merge', { method: 'POST' })

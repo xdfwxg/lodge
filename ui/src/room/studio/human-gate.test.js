@@ -1,34 +1,56 @@
 import assert from 'node:assert/strict'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
-import { humanGateOf } from './human-gate.js'
+import { runInNewContext } from 'node:vm'
+import { build } from 'esbuild'
 
-const room = over => ({
+const load = async () => {
+  const bundle = await build({
+    entryPoints: [fileURLToPath(new URL('./human-gate.js', import.meta.url))],
+    bundle: true,
+    format: 'cjs',
+    platform: 'node',
+    write: false,
+    external: ['react'],
+  })
+  const react = {
+    createElement: () => null,
+    useState: initial => [initial, () => {}],
+  }
+  const module = { exports: {} }
+  runInNewContext(bundle.outputFiles[0].text, {
+    module,
+    exports: module.exports,
+    require: name => {
+      if (name === 'react') return react
+      throw new Error(`no platform module ${name}`)
+    },
+  })
+  return module.exports
+}
+
+const room = () => ({
   state: 'active',
-  stages: [
-    { title: '对齐', state: 'passed' },
-    { title: '实现', state: 'active' },
-  ],
-  messages: [{ id: 'v1', kind: 'verdict', meta: { stage: 1 } }],
+  stages: [{ title: '查机票', state: 'active' }],
   lastPlannerDecision: {
-    stage: 1,
-    verdictId: 'v1',
+    stage: 0,
     kind: 'human',
-    judgment: { reason: '缺少接口约定', actionRequired: '给我接口约定，或允许按现状重做' },
+    verdictId: 'v1',
+    judgment: {
+      reason: '没有能过验证的查询通道。',
+      actionRequired: '需要用户拍板二选一：A. 接受当前版本作为交付，文件里写清最低价未证实；B. 提供查询通道，再补齐报价。',
+    },
   },
-  ...over,
+  messages: [{ id: 'v1', kind: 'verdict', seq: 1, meta: { stage: 0, pass: false } }],
 })
 
-test('a current human handoff becomes an explicit gate card', () => {
+test('a human handoff turns A/B into one-tap choices', async () => {
+  const { humanGateOf } = await load()
   const gate = humanGateOf(room())
-  assert.equal(gate.stage, 1)
-  assert.equal(gate.title, '实现')
-  assert.equal(gate.actionRequired, '给我接口约定，或允许按现状重做')
-})
-
-test('a later verdict or a paused room leaves no gate card', () => {
-  assert.equal(humanGateOf(room({
-    messages: [{ id: 'v1', kind: 'verdict', meta: { stage: 1 } }, { id: 'v2', kind: 'verdict', meta: { stage: 1 } }],
-  })), null)
-  assert.equal(humanGateOf(room({ state: 'paused' })), null)
-  assert.equal(humanGateOf(room({ lastPlannerDecision: { stage: 1, verdictId: 'v1', kind: 'rework' } })), null)
+  assert.equal(gate.options.length, 2)
+  assert.equal(gate.options[0].id, 'A')
+  assert.equal(gate.options[0].action, 'accept')
+  assert.match(gate.options[0].title, /接受/)
+  assert.equal(gate.options[1].id, 'B')
+  assert.equal(gate.options[1].action, 'rework')
 })

@@ -132,6 +132,8 @@ export function App() {
     startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
     onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
+    onWorkspaceMemory: path => store.workspaceMemory(path),
+    onReviewWorkspaceMemory: (path, memoryId, decision) => store.reviewWorkspaceMemory(path, memoryId, decision),
   })
 
   const room = visibleRooms.find(item => item.id === state.activeId) ?? visibleRooms[0] ?? null

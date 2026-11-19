@@ -2,10 +2,8 @@ import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
-import { RoomModeSwitch } from '../room/mode-switch.js'
-import { RoomMemory } from '../room/memory.js'
+import { BrowserPermission } from '../room/browser-permission.js'
 import { RoomHealth } from '../room/health.js'
-import { RoomHelp } from '../room/help.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
@@ -71,8 +69,11 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     setAtBottom(!top)
     if (top) {
       const node = scroll.current
-      if (node) node.scrollTop = 0
-      lastTop.current = 0
+      if (node) {
+        node.scrollTop = 0
+        lastTop.current = 0
+        if (atEnd(node)) setAtBottom(true)
+      }
     } else {
       pinToBottom()
     }
@@ -101,20 +102,24 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
 
   useEffect(() => () => clearTimeout(holdTimer.current), [])
 
-  const holdOnSummary = event => {
-    const summary = event.target?.closest?.('summary')
-    if (summary === null || summary === undefined) return
-    // 展开详情是当前阅读位置的动作；贴底逻辑在这段时间里让路，位置由公共滚动守卫保住。
+  // 展开/收起是阅读动作，不是新消息：贴底逻辑在这段时间里让路，焦点和位置都留在原处。
+  const holdOnExpand = event => {
+    const target = event.target?.closest?.('summary, [aria-expanded], [data-hold-pin]')
+    if (target === null || target === undefined) return
     holdPin.current = true
     clearTimeout(holdTimer.current)
-    holdTimer.current = setTimeout(() => { holdPin.current = false }, 400)
+    holdTimer.current = setTimeout(() => { holdPin.current = false }, 600)
   }
 
   // 输入条高度会变；「回到最新」始终浮在它上方，而不是写死 124px。
   useEffect(() => {
     const composer = composerRef.current
     const root = mainRef.current
-    if (composer === null || root === null || typeof ResizeObserver !== 'function') return undefined
+    if (root === null) return undefined
+    if (composer === null || typeof ResizeObserver !== 'function') {
+      root.style.removeProperty('--crew-composer-h')
+      return undefined
+    }
     const sync = () => root.style.setProperty('--crew-composer-h', `${composer.offsetHeight}px`)
     sync()
     const observer = new ResizeObserver(sync)
@@ -123,7 +128,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       observer.disconnect()
       root.style.removeProperty('--crew-composer-h')
     }
-  }, [room.id])
+  }, [room.id, room.state])
 
   // 只有用户的向上手势才脱离跟随；内容增长/收缩带来的 scroll 事件不能改变跟随态。
   const trackScroll = event => {
@@ -190,15 +195,21 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     store,
     accept: stage => void store.accept(stage),
     rework: (stage, note) => store.rework(stage, note),
+    chooseHuman: (stage, choice, note) => store.humanChoice(stage, choice, note),
+    readArtifact: (roomId, path) => store.readArtifact(roomId, path),
     resolveMerge: () => store.resolveMerge(),
     retry: (stage, note) => void store.retry(stage, note),
     verify: stage => store.verify(stage),
     rewind: (stage, note) => store.rewind(stage, note),
-    switchMode: (mode, roles) => store.switchMode(mode, roles),
     resumeChat: () => store.resumeChat(),
     resume: () => store.resumeRoom(),
     stopRoom: () => store.stopRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
+    setBrowserAccess: access => void store.setBrowserAccess(access),
+    allowBrowserRoom: async id => {
+      await store.setBrowserAccess('allow')
+      await store.decideApproval(id, 'allow')
+    },
     answerCard: (memberId, requestId, message) => void store.answerCard(memberId, requestId, message),
     cancelQueue: queueId => void store.cancelQueued(queueId),
     steerQueue: queueId => void store.steerQueued(queueId),
@@ -231,36 +242,24 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const viewCtx = { state, room, members, locked, actions, dock, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
+  const tools = mode.tools?.(viewCtx) ?? null
 
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id, 'data-room-done': finished ? 'true' : undefined },
       mode.header(viewCtx),
       h('div', { className: 'crew-room-tools' },
-        h('details', { className: 'crew-room-more' },
-          h('summary', { 'aria-label': '房间设置', title: '房间设置' }, '⋯'),
-          h('div', {
-            className: 'crew-room-more-body',
-            onClick: event => {
-              if (event.target instanceof Element && event.target.closest('button') !== null) {
-                event.currentTarget.closest('details')?.removeAttribute('open')
-              }
-            },
-          },
-          mode.tools?.(viewCtx) ?? null,
-          h(RoomModeSwitch, { key: `mode-${room.id}`, room, onSwitch: actions.switchMode }),
-          h(RoomMemory, {
-            key: `memory-${room.id}`,
-            room,
-            onLoad: () => store.roomMemory(),
-            onReview: (memoryId, decision) => store.reviewMemory(memoryId, decision),
-          }),
-          h(RoomHelp, { key: `help-${room.id}`, autoOpen: room.demo === true })))),
+        tools,
+        h(BrowserPermission, {
+          key: `permission-${room.id}`,
+          room,
+          onChange: access => actions.setBrowserAccess(access),
+        })),
       h(RoomHealth, { key: `health-${room.id}`, room, onForgetMemory: () => store.forgetMemory() }),
       mode.activity(viewCtx),
       h('div', {
         ref: scroll,
         className: 'dsb-scroll crew-scroll',
-        onClickCapture: holdOnSummary,
+        onClickCapture: holdOnExpand,
         onScroll: trackScroll,
         onWheel,
         onTouchStart,
@@ -282,19 +281,21 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
         }, h(ArrowDownIcon))
         : null,
       mode.dock?.(viewCtx) ?? null,
-      h('div', { ref: composerRef, className: 'dsb-composer' },
-        h(Composer, {
-          members: mentionMembers,
-          draftKey: room.id,
-          onSent: followBottom,
-          placeholder: room.state === 'paused'
-            ? '已暂停 · 继续后才能派新活'
-            : room.state === 'stopped'
-              ? '已停止 · 不会再派新活'
-              : composerPlaceholder,
-          disabled: state.phase === 'loading' || locked,
-          onSend: (text, options) => store.send(text, options),
-        }))),
+      room.state === 'complete' && finished
+        ? null
+        : h('div', { ref: composerRef, className: 'dsb-composer' },
+          h(Composer, {
+            members: mentionMembers,
+            draftKey: room.id,
+            onSent: followBottom,
+            placeholder: room.state === 'paused'
+              ? '已暂停 · 继续后才能派新活'
+              : room.state === 'stopped'
+                ? '已停止 · 不会再派新活'
+                : composerPlaceholder,
+            disabled: state.phase === 'loading' || locked,
+            onSend: (text, options) => store.send(text, options),
+          }))),
     swapId === null
       ? null
       : h(BodySwapDialog, {

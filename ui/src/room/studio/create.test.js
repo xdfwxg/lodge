@@ -15,6 +15,14 @@ const base = {
   selectedModelOf: () => '',
 }
 
+test('browser capability and room access are carried separately', () => {
+  assert.equal('browser' in buildStudioRequest(base), false)
+  const ask = buildStudioRequest({ ...base, browser: true })
+  assert.equal(ask.browser, true)
+  assert.equal(ask.roomAccess, 'ask')
+  assert.equal(buildStudioRequest({ ...base, browser: true, roomAccess: 'allow' }).roomAccess, 'allow')
+})
+
 test('a direct studio request needs no plan or member override', () => {
   const request = buildStudioRequest(base)
   assert.equal(request.roomType, 'studio')

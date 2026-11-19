@@ -1,3 +1,4 @@
+import { resolve, sep } from 'node:path'
 import { roomModeOfRoom } from './rooms/kinds.js'
 import { leadMemberOf, memberOf } from './room-members.js'
 import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
@@ -15,7 +16,9 @@ import { createModeSwitch } from './mode-switch.js'
 import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
+import { artifactKindOf, imageMimeOf } from '../../shared/artifact.js'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
+import { parseRoomAccess } from '../../shared/room-access.js'
 import { systemNotice } from './notices.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
@@ -236,7 +239,14 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
 
     if (action === 'resume' && method === 'POST') {
       if (room.state !== 'paused') return fail('conflict', '房间没有暂停')
-      if (room.live !== true || live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
+      if (room.live !== true) return fail('conflict', '房间现在没有连上，稍后再试')
+      if (live.isAttached?.(room.id) !== true) {
+        try {
+          await live.attach?.(room)
+        } catch {
+          return fail('conflict', '房间现在没有连上，稍后再试')
+        }
+      }
       const resumed = updateRoom(room.id, current => {
         current.state = 'active'
         current.idle = false
@@ -542,6 +552,25 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       return created({ message })
     }
 
+    if (action === 'human-choice' && method === 'POST') {
+      if (room.state !== 'active') return fail('conflict', '房间没有在跑')
+      const body = await readBody()
+      const stage = Number(body.stage)
+      const choice = body.choice === 'accept' ? 'accept' : body.choice === 'rework' ? 'rework' : ''
+      if (choice === '') return fail('invalid', '选择只能是接受或重做')
+      const handoff = humanHandoffStageOf(room, readMessages(room.id))
+      if (handoff !== stage) return fail('conflict', '这一步没有等你决定')
+      if (choice === 'accept') {
+        const result = stages.accept(room, { stage, force: true })
+        if (result.ok === true) recordMemory(result.body?.room ?? readRoom(roomId))
+        return result
+      }
+      return stages.rework(room, {
+        stage,
+        note: typeof body.note === 'string' ? body.note : '',
+      })
+    }
+
     if (action === 'accept' && method === 'POST') {
       const result = stages.accept(room, await readBody())
       if (result.ok === true) recordMemory(result.body?.room ?? readRoom(roomId))
@@ -558,6 +587,25 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
 
     if (action === 'reject-plan' && method === 'POST') {
       return closure.rejectPlan(room, await readBody())
+    }
+
+    if (action === 'set-browser-access' && method === 'POST') {
+      const body = await readBody()
+      const access = parseRoomAccess(body.access)
+      if (access === null) return fail('invalid', '权限只能是常规或房间免确认')
+      const updated = updateRoom(room.id, current => {
+        current.roomAccess = access
+        return { events: [{ type: 'room.access', payload: { access } }] }
+      })
+      if (updated === null) return fail('not_found', '没有这个房间')
+      appendMessage(room.id, {
+        kind: 'system',
+        text: access === 'allow'
+          ? '房间权限改为房间免确认：只读研究不再逐次确认。'
+          : '房间权限改回常规：外部动作会逐次确认。',
+      })
+      emit('room', updated)
+      return ok({ room: updated })
     }
 
     if (action === 'resolve-merge' && method === 'POST') {
@@ -594,6 +642,53 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     roomRequest,
     switchMode: modeSwitch.switchMode,
     // 房间记忆：人审核后发布，成员只读；不提供模型写入接口。
+    artifact: ({ roomId, path } = {}) => {
+      const room = readRoom(roomId)
+      if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+      const target = typeof path === 'string' ? path.trim() : ''
+      if (target === '') return fail('invalid', '缺少文件路径')
+      const roots = [room.repoPath, room.sourceRepo, ...Object.values(room.worktrees ?? {})]
+        .filter(root => typeof root === 'string' && root !== '')
+        .map(root => resolve(root))
+      const resolved = resolve(target)
+      if (!roots.some(root => resolved === root || resolved.startsWith(`${root}${sep}`))) {
+        return fail('invalid', '这个文件不在房间工作区')
+      }
+      if (ports.files?.exists?.(resolved) !== true) return fail('not_found', '没有这个文件')
+      const buffer = ports.files.read(resolved)
+      const kind = artifactKindOf(resolved)
+      if (kind === 'image') {
+        const max = 6 * 1024 * 1024
+        if (buffer.length > max) return fail('invalid', '图片太大，先在文件夹打开')
+        return ok({
+          kind,
+          mime: imageMimeOf(resolved),
+          base64: buffer.toString('base64'),
+          bytes: buffer.length,
+        })
+      }
+      if (buffer.includes(0)) return fail('invalid', '这个文件不能直接显示')
+      const max = 256 * 1024
+      const text = buffer.subarray(0, max).toString('utf8')
+      return ok({ kind: 'text', text, bytes: buffer.length, truncated: buffer.length > max })
+    },
+    workspaceMemory: ({ sourceRepo, limit = 20 } = {}) => {
+      const path = typeof sourceRepo === 'string' ? sourceRepo.trim() : ''
+      if (path === '') return fail('invalid', '缺少工作文件夹')
+      return ok({
+        entries: ports.memory?.list?.({ room: { sourceRepo: path }, limit }) ?? [],
+        canReview: true,
+      })
+    },
+    workspaceMemoryReview: ({ sourceRepo, memoryId, decision } = {}) => {
+      const path = typeof sourceRepo === 'string' ? sourceRepo.trim() : ''
+      if (path === '') return fail('invalid', '缺少工作文件夹')
+      const result = ports.memory?.review?.({ room: { sourceRepo: path }, memoryId, decision })
+      if (result?.ok !== true) {
+        return fail(result?.reason === 'not_found' ? 'not_found' : result?.reason === 'invalid' ? 'invalid' : 'conflict', '没能更新房间记忆')
+      }
+      return ok({ entries: result.entries, canReview: true })
+    },
     memory: ({ roomId, limit = 20 } = {}) => {
       const room = readRoom(roomId)
       if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')

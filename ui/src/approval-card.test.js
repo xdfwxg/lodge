@@ -43,6 +43,26 @@ const buttons = node => {
   return found.concat((node.children ?? []).flatMap(buttons))
 }
 
+test('a browser approval offers one-time, whole-room, and deny', async () => {
+  const { ApprovalCard } = await load()
+  const calls = []
+  const tree = render(ApprovalCard({
+    approval: {
+      memberName: '研究员',
+      label: '访问公开网页',
+      tool: 'mcp__chrome-devtools__navigate_page',
+      summary: 'mcp__chrome-devtools__navigate_page',
+      gate: { decision: 'allow', reasons: [] },
+    },
+    onDecide: decision => calls.push(decision),
+    onAllowRoom: () => calls.push('room'),
+  }))
+  assert.deepEqual(buttons(tree).map(button => text(button)), ['先别做', '本房间都允许', '只这一次'])
+  buttons(tree)[1].props.onClick()
+  buttons(tree)[2].props.onClick()
+  assert.deepEqual(calls, ['room', 'allow'])
+})
+
 test('the approval card shows the seat and external command with only two decisions', async () => {
   const { ApprovalCard } = await load()
   const calls = []

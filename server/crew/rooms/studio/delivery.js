@@ -1,5 +1,7 @@
 import { independenceLabel } from '../../digest.js'
 import { memberLabelMap } from '../../member-labels.js'
+import { artifactKindOf } from '../../../../shared/artifact.js'
+import { deliveryKindOf } from '../../../../shared/delivery.js'
 import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
@@ -7,18 +9,31 @@ const unique = values => [...new Set(values.filter(value => typeof value === 'st
 const artifactList = (messages, roots = [], { withContent = false } = {}) => {
   const normalizedRoots = roots.filter(root => typeof root === 'string' && root !== '').map(root => root.replace(/\/$/, ''))
   const byPath = new Map()
+  const absolute = (message, path) => {
+    if (typeof path !== 'string' || path === '') return null
+    if (path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path)) return path
+    if (typeof message.meta?.repoPath === 'string' && message.meta.repoPath !== '') {
+      return `${message.meta.repoPath.replace(/\/$/, '')}/${path}`
+    }
+    return normalizedRoots.length === 0 ? path : null
+  }
   for (const message of messages) {
-    for (const artifact of message.meta?.artifacts ?? []) {
-      if (artifact === null || typeof artifact !== 'object' || typeof artifact.path !== 'string' || artifact.path === '') continue
-      if (normalizedRoots.length > 0 && !normalizedRoots.some(root => artifact.path === root || artifact.path.startsWith(`${root}/`))) continue
+    const listed = [
+      ...(message.meta?.artifacts ?? []),
+      ...(message.meta?.files ?? []).map(file => ({ path: file })),
+      ...(message.meta?.changedFiles ?? []).map(file => ({ path: file })),
+    ]
+    for (const artifact of listed) {
+      const path = absolute(message, artifact?.path)
+      if (path === null) continue
+      if (normalizedRoots.length > 0 && !normalizedRoots.some(root => path === root || path.startsWith(`${root}/`))) continue
       const root = normalizedRoots
-        .filter(item => artifact.path === item || artifact.path.startsWith(`${item}/`))
+        .filter(item => path === item || path.startsWith(`${item}/`))
         .sort((a, b) => b.length - a.length)[0]
-      byPath.set(artifact.path, {
-        path: artifact.path,
-        relativePath: root === undefined || artifact.path === root
-          ? artifact.path
-          : artifact.path.slice(root.length + 1),
+      byPath.set(path, {
+        path,
+        relativePath: root === undefined || path === root ? path : path.slice(root.length + 1),
+        kind: artifactKindOf(path),
         bytes: Number.isFinite(artifact.bytes) ? artifact.bytes : null,
         ...(withContent && typeof artifact.content === 'string' ? { content: artifact.content } : {}),
       })
@@ -51,7 +66,8 @@ export const buildDelivery = (room, messages = []) => {
         text: judgmentOf(message)?.reason || message.text || '',
         evidenceId: message.meta?.evidenceId ?? null,
       }))
-    const manual = stageMessages.find(message => message.kind === 'evidence' && message.meta?.kind === 'manual')
+    const manual = [...stageMessages].reverse()
+      .find(message => message.kind === 'evidence' && message.meta?.kind === 'manual')
     const manualFiles = Array.isArray(manual?.meta?.changedFiles)
       ? manual.meta.changedFiles
       : Array.isArray(manual?.meta?.files) ? manual.meta.files : []
@@ -105,5 +121,6 @@ export const buildDelivery = (room, messages = []) => {
       : [],
     evidenceCount: stages.reduce((total, stage) => total + stage.commands.length + (stage.manual === null ? 0 : 1), 0),
   }
+  delivery.kind = deliveryKindOf(delivery)
   return delivery
 }

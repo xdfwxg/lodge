@@ -16,6 +16,7 @@ import { compactAssignments } from './crew/assignment-history.js'
 import { migrateAssignments } from './crew/assignment-migration.js'
 import { createStore } from './crew/store.js'
 import { createBaseClient } from './base.js'
+import { ensureBrowserMcp } from './browser-mcp.js'
 import { clearLodgeBaseResources } from './base-gc.js'
 import { createEngine } from './engine.js'
 import { chooseDirectory } from './system-dialog.js'
@@ -147,7 +148,10 @@ const emit = (event, payload, id) => {
 const engine = assertRuntimePort(createEngine())
 
 let service = null
-const ports = createCrewPorts({ memoryRoot: join(dataDir, 'memory') })
+const ports = createCrewPorts({
+  memoryRoot: join(dataDir, 'memory'),
+  browserMcp: { ensure: () => ensureBrowserMcp(engine) },
+})
 
 const live = createLiveRooms({
   store,

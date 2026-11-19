@@ -82,6 +82,18 @@ test('presence lines name seats and describe queue position', () => {
   assert.deepEqual(lines.held, [])
 })
 
+test('recent activity wins over a stale waiting queue entry', () => {
+  const seats = [{ id: 'worker', name: '执行官' }, { id: 'lead', name: '规划师' }]
+  const now = 1_000_000
+  const lines = presenceLines({
+    busyMembers: [],
+    turnQueue: [{ memberId: 'worker', state: 'queued', position: 2, of: 2, waitingForMemberId: 'lead' }],
+    messages: [step('a1', 'worker', now - 5_000)],
+  }, seats, now)
+  assert.deepEqual(lines.working.map(item => item.memberId), ['worker'])
+  assert.deepEqual(lines.queued, [])
+})
+
 test('a held seat leaves the working and queue lines', () => {
   const seats = [{ id: 'worker', name: '执行官' }]
   const lines = presenceLines({

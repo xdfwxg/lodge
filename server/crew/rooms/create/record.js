@@ -1,5 +1,6 @@
 import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import { roomModeForType } from '../kinds.js'
+import { ROOM_ACCESS } from '../../../../shared/room-access.js'
 
 export const buildRoomRecord = ({
   short,
@@ -25,6 +26,7 @@ export const buildRoomRecord = ({
   roomType,
   orchestration,
   shadowReview = false,
+  roomAccess = 'ask',
   builtStages,
   align,
   verify,
@@ -75,6 +77,7 @@ export const buildRoomRecord = ({
   live: true,
   demo: false,
   state: 'active',
+  ...(roomAccess === ROOM_ACCESS.PUBLIC_WEB ? { roomAccess: ROOM_ACCESS.PUBLIC_WEB } : {}),
   parentRoomId,
   depth,
   childRoomIds: [],

@@ -47,6 +47,25 @@ test('an accepted chat reads as confirmed, not delivered', () => {
   assert.doesNotMatch(html, /已交付/)
 })
 
+test('a paused chat room shows the fix instead of hiding it in the sidebar', () => {
+  const html = renderToStaticMarkup(chatView.header({
+    room: {
+      id: 'room-chat',
+      name: '圆桌',
+      goal: '讨论交付边界',
+      state: 'paused',
+      pauseReason: 'member_error',
+      memberError: { memberId: 'worker', kind: 'auth' },
+      chat: { phase: 'discussing' },
+      messages: [],
+    },
+    members: [],
+    actions: { ...actions, resume: () => {}, swapBody: () => {} },
+  }))
+  assert.match(html, /重新登录/)
+  assert.match(html, /继续/)
+})
+
 test('the chat header leaves the crew to the sidebar', () => {
   const html = renderToStaticMarkup(chatView.header({
     room: {

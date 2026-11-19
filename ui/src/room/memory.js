@@ -53,7 +53,7 @@ export function RoomMemory({ room, onLoad, onReview }) {
     setEntries(list)
   }
   return h('div', { className: 'crew-room-memory' },
-    h('button', { type: 'button', className: 'crew-link', onClick: openDialog }, '房间记忆'),
+    h('button', { type: 'button', className: 'crew-link', 'data-menu-keep': '', onClick: openDialog }, '房间记忆'),
     open
       ? h('div', { className: 'crew-overlay', onClick: () => { setOpen(false); setError(null) }, ...overlay },
         h('div', {

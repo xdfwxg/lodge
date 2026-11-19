@@ -23,6 +23,7 @@ const setup = async (options = {}) => {
     repoPath: dir,
     sourceRepo: dir,
     workspace: { provider: options.provider ?? 'git', capabilities: {} },
+    ...(options.roomAccess === 'allow' ? { roomAccess: 'allow' } : {}),
     stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
     members: [{
       id: 'worker',
@@ -32,7 +33,7 @@ const setup = async (options = {}) => {
       permissions: options.permissions ?? { read: true, exec: true, write: true },
       toolSurface: ['read', 'exec', 'write'],
       skills: [],
-      mcp: [],
+      mcp: options.mcp ?? [],
       body: { kind: 'base', ref: 'bot-worker', name: '执行', roomRef: 'base-1', sessionRef: 'thread-1' },
     }],
     usage: { turns: 0, costMicroUsd: 0 },
@@ -106,6 +107,38 @@ const setup = async (options = {}) => {
     close: () => rmSync(dir, { recursive: true, force: true }),
   }
 }
+
+test('a room allowing public pages answers browser MCP cards without holding them', async () => {
+  const ctx = await setup({
+    roomAccess: 'allow',
+    mcp: [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }],
+  })
+  try {
+    const requestId = ctx.permission('打开航班页面', {
+      tool: 'mcp__chrome-devtools__navigate_page',
+      action: 'exec',
+    })
+    await tick()
+    assert.deepEqual(ctx.answers.at(-1), { sessionRef: 'thread-1', requestId, behavior: 'allow' })
+    assert.equal((ctx.room().approvals ?? []).length, 0)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('the same room still asks for non-browser external actions', async () => {
+  const ctx = await setup({
+    roomAccess: 'allow',
+    mcp: [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }],
+  })
+  try {
+    ctx.permission('git push', { tool: 'Bash', action: 'exec' })
+    await tick()
+    assert.equal((ctx.room().approvals ?? []).filter(item => item.state === 'pending').length, 1)
+  } finally {
+    ctx.close()
+  }
+})
 
 test('a permission card from replayed history is not put back into the room', async () => {
   const ctx = await setup()

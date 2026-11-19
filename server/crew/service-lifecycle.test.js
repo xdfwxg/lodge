@@ -166,6 +166,18 @@ test('a room that is not running cannot be stopped', async () => {
   assert.equal(result.error, '房间没有在跑')
 })
 
+test('resuming a paused room reattaches it when the runtime dropped', async () => {
+  const attached = []
+  const ctx = setup(roomRecord({ state: 'paused', live: true }), {
+    isAttached: () => false,
+    attach: async room => { attached.push(room.id) },
+  })
+  const result = await ctx.service.roomRequest('r1', 'resume', post({}))
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.state, 'active')
+  assert.deepEqual(attached, ['r1'])
+})
+
 test('cancelling a queued message goes through the live runtime', async () => {
   const calls = []
   const ctx = setup(roomRecord({ live: true, chatRoom: { id: 'chat-1' } }), {

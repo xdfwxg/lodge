@@ -43,6 +43,19 @@ test('an already paused room is not paused twice', () => {
   assert.equal(r.idle, false)
 })
 
+test('a pending human decision is not counted as no-progress', () => {
+  const r = {
+    ...room(),
+    stages: [{ title: '实现', state: 'active' }],
+    lastPlannerDecision: { stage: 0, kind: 'human' },
+  }
+  for (let i = 0; i < NO_PROGRESS_LIMIT + 2; i += 1) {
+    assert.equal(advanceProgress(r, { progressed: false }).paused, false)
+  }
+  assert.equal(r.state, 'active')
+  assert.equal(r.noProgress, 0)
+})
+
 test('a delivered room keeps chatting without the no-progress pause', () => {
   const r = { ...room(), stages: [{ title: '实现', state: 'passed' }] }
   for (let i = 0; i < NO_PROGRESS_LIMIT + 2; i += 1) {

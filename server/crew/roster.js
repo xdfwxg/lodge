@@ -1,6 +1,7 @@
 import { personalityById } from '../../shared/personalities.js'
 import { DEFAULT_STUDIO_ROSTER } from '../../shared/studio-roster.js'
 import { materializeRole } from '../../shared/role-definitions.js'
+import { normalizeMcpGrants } from './body-spec.js'
 
 // 成员是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
 const ROLE_NAME = Object.fromEntries(DEFAULT_STUDIO_ROSTER.map(member => [member.role, member.name]))
@@ -62,6 +63,7 @@ export const rosterFromRoles = entries => {
       : base.model
     const station = typeof entry.station === 'string' && entry.station.trim() !== '' ? entry.station.trim().slice(0, 80) : base.station
     const skills = Array.isArray(entry.skills) ? entry.skills.filter(isId).slice(0, 8) : base.skills
+    const mcp = entry.mcp === undefined ? base.mcp : normalizeMcpGrants(entry.mcp)
     const personality = personalityById(entry.personality) === null ? '' : entry.personality
     return cloneMember({
       ...base,
@@ -73,6 +75,7 @@ export const rosterFromRoles = entries => {
       model,
       station,
       skills,
+      mcp,
       prompt: customPrompt ? entry.prompt.trim().slice(0, 4_000) : base.prompt,
       customPrompt,
     })

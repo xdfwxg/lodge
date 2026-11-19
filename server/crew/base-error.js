@@ -10,6 +10,7 @@ export const plainRuntimeError = error => {
   if (/401|unauthorized|invalid api key|not logged in|run \/login/i.test(raw)) {
     return '模型服务没有登录，先登录再试'
   }
+  if (/skills library is not enabled/i.test(raw)) return '这个成员的身体还没有开技能库；先把技能留空，或换一具支持技能的身体'
   if (/423|locked/i.test(raw)) return '基座暂时被占用，稍后再试'
   if (/403|forbidden/i.test(raw)) return '基座拒绝了这次操作'
   if (/404|not found/i.test(raw)) return '基座里找不到对应的记录'

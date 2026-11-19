@@ -30,7 +30,7 @@ export function RoomHelp({ autoOpen = false }) {
   const close = () => setOpen(false)
   const overlay = useOverlay({ label: 'Lodge 怎么用', onClose: close, active: open })
   return h(Fragment, null,
-    h('button', { type: 'button', className: 'crew-link', onClick: () => setOpen(true) }, '怎么用'),
+    h('button', { type: 'button', className: 'crew-link', 'data-menu-keep': '', onClick: () => setOpen(true) }, '怎么用'),
     open
       ? h('div', { className: 'crew-overlay', onClick: close, ...overlay },
         h('div', {

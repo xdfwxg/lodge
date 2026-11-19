@@ -21,6 +21,7 @@ const room = overrides => ({
 test('idle members stay quiet under the room', () => {
   const html = renderToStaticMarkup(h(SideMembers, { room: room() }))
   assert.match(html, /aria-label="房间成员"/)
+  assert.match(html, /crew-side-members-label">成员/)
   assert.match(html, /规划师/)
   assert.match(html, /执行官/)
   assert.match(html, /验收员/)

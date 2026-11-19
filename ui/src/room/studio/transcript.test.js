@@ -21,6 +21,8 @@ const load = async () => {
     Fragment: 'fragment',
     useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
     useMemo: factory => factory(),
+    useRef: () => ({ current: null }),
+    useEffect: () => {},
   }
   const jsx = (type, props) => ({
     type,
@@ -93,9 +95,8 @@ test('a finished room shows the result, not the process', async () => {
   const room = finishedRoom()
   const tree = render(StudioTranscript({ room, members, delivery }))
   assert.match(text(tree), /设置页保存/)
-  assert.match(text(tree), /看过程/)
-  assert.equal(hasClass(tree, 'studio-timeline'), false)
-  assert.doesNotMatch(text(tree), /收起过程/)
+  assert.match(text(tree), /工作记录/)
+  assert.equal(hasClass(tree, 'studio-process'), true)
 })
 
 test('a room still at work keeps the transcript on screen', async () => {
@@ -107,7 +108,7 @@ test('a room still at work keeps the transcript on screen', async () => {
   }
   const tree = render(StudioTranscript({ room, members, delivery: null }))
   assert.equal(hasClass(tree, 'studio-timeline'), true)
-  assert.doesNotMatch(text(tree), /看过程/)
+  assert.doesNotMatch(text(tree), /工作记录/)
 })
 
 test('a one-click rework reads as the room acting, not as words the user typed', async () => {
@@ -129,4 +130,25 @@ test('a one-click rework reads as the room acting, not as words the user typed',
   const tree = render(StudioTranscript({ room, members, delivery: null }))
   assert.match(text(tree), /你让这一步重新做了一遍/)
   assert.equal(hasClass(tree, 'bt-ububble'), false)
+})
+
+test('a studio room shows the pending approval instead of only a badge', async () => {
+  const { StudioTranscript } = await load()
+  const room = {
+    ...finishedRoom(),
+    state: 'active',
+    stages: [{ ...finishedRoom().stages[0], state: 'active' }],
+    approvals: [{
+      id: 'a1',
+      state: 'pending',
+      label: '访问网络',
+      summary: 'WebSearch',
+      memberName: '研究员',
+      scope: { stage: 0, floor: -1, assignment: null },
+    }],
+  }
+  const tree = render(StudioTranscript({ room, members, delivery: null, onApproval: () => {} }))
+  assert.equal(hasClass(tree, 'crew-approval'), true)
+  assert.match(text(tree), /可以做/)
+  assert.match(text(tree), /访问网络/)
 })

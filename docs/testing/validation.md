@@ -120,7 +120,7 @@
 - 房间：进行中的房间第一屏是岛、一句话状态和对话，没有工具日志；交付后的房间最后一条是“结果”卡，费用从卡面收进“详情”
 - 建房：目标、文件夹、成员摘要和“更多选项”在同一屏；成员模型和验收细节收在折叠里
 - 判定卡标签从 PASS/REJECT 改成“通过/退回”，和界面其余中文保持一致
-- 侧栏底部的占位“你”已移除；影子评审在界面上改叫“另一个视角”
+- 侧栏底部的占位“你”已移除；影子评审在界面上仍叫“影子评审”
 - 隔离验证时用空数据目录启动了第二个实例，触发了基座孤儿清理（24 个群、27 个 bot）。当时只看公开状态里的成员，`ref` 已被投影剥掉，不能证明基座线程还在；重启后有旧 dogfood 房报“engine 里没有 planner 成员线程”。新房间不受影响，旧房间的基座线程无法恢复。这条操作已写进运行手册，避免再犯
 
 ## 2026-11-19 · 零准备全流程 dogfood
@@ -181,6 +181,60 @@
 - 人在 `/Users/wangxuguang/CrewWorktrees/e2764cee/integration` 里保留 `alpha` + `beta`，提交 `9fcffe5`，调用 `POST /api/rooms/room-e2764cee/resolve-merge` 继续
 - 验收员 PASS，理由写明“冲突已由人合并成一条提交”；房间完成，交付提交 `1fdd4f0`；从继续到 PASS 约 13 秒
 - 用量：11 个回合、约 $1.00；上一轮同类冲突场景 21 个回合、$2.01
-- 界面：交付页默认只有结果卡和岛，岛只写“已交付”；内部路径、费用、版本、模型自查折进“详情”，规划对话和阶段过程折进“看过程”；`ui/src/room/studio/transcript.test.js` 覆盖完成/进行中两种视图
+- 界面：交付页默认只有结果卡和岛，岛只写“已交付”；内部路径、费用、版本、模型自查折进“详情”，规划对话和阶段过程折进“工作记录”；`ui/src/room/studio/transcript.test.js` 覆盖完成/进行中两种视图
 - 自动覆盖：`server/crew/workspace-git.test.js` 增加 `keepConflict` 保留冲突现场；`server/crew/service-merge.test.js` 覆盖解决后继续、未解决/未提交/残留标记/无冲突四条拒绝路径；`ui/src/room/studio/merge-conflict.test.js` 覆盖解决卡；`ui/src/room/studio/transcript.test.js` 覆盖结果优先
 - Pi：CLI 装在 `~/.local/bin` 后重启基座，`/api/instances` 返回 available + authenticated；临时房间 `room-c0b11531` 的 Pi 成员实际回复后归档删除
+
+## 2026-11-19 · 只读研究试点（航班）
+
+- 目标：查 2026-12-20 上海到东京的三个直飞选项，带价格、时刻、退改规则和链接
+- 来源：Google Flights；往返 12/20–12/24，单程模式对同一路线返回“未返回结果”
+- 结果：四个直飞选项，往返含税价 09:35 ¥3,690、09:00 ¥3,739、13:05 ¥4,644、13:40 ¥5,076
+- 发现：09:00 选项在约 80 秒内从 ¥4,178 变成 ¥3,739；结果页不提供票价规则，只提示可能另付行李费；没有单航班深链
+- 证据：`https://www.google.com/travel/flights?hl=zh-CN&curr=CNY&q=flights%20from%20SHA%20to%20TYO%20on%202026-12-20`；截图在本地 `/tmp/lodge-research/flights-final.png`，未入库
+- 第二来源 Trip.com：同一日期往返共 85 个结果，最低 PVG→HND ¥2,835（春秋，21:10 起飞、次日 01:05 到），ANA PVG→HND ¥3,094，东航 PVG→NRT ¥3,152；链接 `https://www.trip.com/flights/shanghai-to-tokyo/tickets-sha-tyo/?ddate=2026-12-20&rdate=2026-12-24&triptype=rt&locale=en-US&curr=CNY`
+- 来源差异：Trip.com 的最低价来自浦东和红眼航班，不能和 Google 的虹桥白天直飞直接比；两个来源都没有在结果页给出退改规则，Trip.com 只显示行李
+- 结论：只读查价和时刻可行且快，从打开到三条结果约 1 分钟；两个来源的价格不能直接横比，必须先统一机场和时段；退改规则和可执行下单不能只靠搜索结果，需要出票页或航司规则；暂不把浏览器订票产品化
+
+## 2026-11-19 · 工作室研究 dogfood（曼谷→太原）
+
+- 目标：2026-11-25 曼谷（BKK/DMK）到太原（TYN）单程，三个候选，带起降、时长、经停、含税价、链接和查询时间；只查不下单
+- 聊天室 `room-96eaa993` 直接拒绝 WebSearch：“聊天室只放行只读工具”；按提示改建工作室 `room-f1c6fcdf`
+- 工作室里规划师派活后，研究员先后请求 WebSearch、WebFetch、curl、npm 安装和 headless Chrome 共 9 次审批；拒绝 `rm -rf /tmp/chromeprof2`，允许安装 puppeteer-core
+- 研究员自己写了 puppeteer 脚本抓 Google Flights，选择器 `li.pIav2d` 等待 45 秒超时，没有抓到结果；没有写出 `flight-options.md`，叫停后房间停在“没有可验收的交付改动”
+- 用量：2 个回合，输入 72293 / 输出 176 tokens，费用 56032 微美元（partial）
+- 界面 bug：岛和侧栏显示“有一个操作要你点头”，工作室时间线却没有审批卡；已让 `StudioTranscript` 渲染 `ApprovalCard`，浏览器验证能看到“可以做/先别做”，`ui/src/room/studio/transcript.test.js` 覆盖
+- 结论：产品目前跑不通这个场景。缺的不是模型，而是受控的浏览器工具、按任务一次的审批和结果规范；在此之前不要把浏览器订票当成已支持能力
+
+## 2026-11-19 · 受控浏览器（chrome-devtools MCP）
+
+- 目标：2026-11-25 曼谷到太原单程，三个候选，带起降、时长、经停、含税价和链接；只查不下单
+- `room-05640dfc`：执行成员 `研究员` 持有 `chrome-devtools` grant；基座 MCP 健康检查 `ok`，实际调用了 `list_pages`、`navigate_page`、`take_snapshot`、`new_page`、`select_page`
+- 输入类工具被关掉：一次 `click` 调用返回 `ok:false`，没有代替人点击
+- 结果写进 `flight-options.md`：海航 19h35 THB 4,615、南航 18h THB 5,420、深航 16h10 THB 7,460；另有 08:10 南航 8h35 THB 10,175
+- 用量：3 个回合，输入 773500 / 输出 7181 tokens，费用 401146 微美元；房间完成，交付提交 `1fb9d737`
+- 审批：每个 MCP 工具调用仍需点一次；这是下一步要收敛的房间级授权
+- 界面：工具运行时显示一行“执行官 正在运行命令 17s ›”，命令折叠，三点动效；有最近工具活动时不再同时显示“等待规划师”
+- 自动覆盖：`server/browser-mcp.test.js`、`server/crew/roster.test.js`、`ui/src/room/studio/working-line.test.js`、`ui/src/room/studio/transcript-model.test.js`
+
+## 2026-11-19 · 房间级浏览器权限
+
+- `room-1b2f4daf` 建房时选“房间免确认”；房间记录 `roomAccess:"allow"`，执行官自动获得 `chrome-devtools` 能力
+- 研究员用 `navigate_page`、`take_snapshot` 打开 `https://example.com`，把标题 `Example Domain` 写进 `title.txt`；没有产生任何审批卡
+- 用量：4 个回合，输入 443024 / 输出 1930 tokens，费用 268522 微美元；房间完成，交付提交 `4c119ba4`
+- 两种权限：每次确认（每个外部动作都问）、房间免确认（只放行浏览器、搜索和抓取这类只读研究；命令、文件和付款仍逐次确认）
+- 自动覆盖：`server/crew/approval-bridge.test.js` 验证浏览器工具自动放行、非浏览器动作仍挂卡；`ui/src/room/studio/create.test.js` 验证请求带上房间权限
+
+## 2026-11-19 · 房间权限可改
+
+- `room-1b2f4daf` 右上角只在全权时显示“免确认”状态，点开弹框说明“每次确认 / 房间免确认”两档
+- 从房间免确认切到每次确认后，`roomAccess` 变回 `ask`；保存后弹框关闭
+- 再切回房间免确认，房间记录和系统消息同步更新；`POST /api/rooms/:id/set-browser-access` 由 `server/crew/service-merge.test.js` 覆盖
+- UI：`ui/src/room/browser-permission.test.js` 覆盖“默认不显示、提高后显示两档”
+
+## 2026-11-19 · 工作区记忆入口
+
+- `GET /api/workspace/memory?path=/tmp/lodge-dogfood-project-3` 返回 1 条记忆，目标为并行冲突房的目标，说明按 `sourceRepo` 归档的预览接口可用
+- 建房选择工作文件夹后，只有这个文件夹已有记忆时才显示“这个文件夹有 N 条已交付记忆 · 查看”；点开可以发布、不采用或删除
+- 入口只在选文件夹之后出现；零准备房间没有共享工作区，不显示
+- 自动覆盖：`server/crew/memory.test.js` 覆盖工作区归档与发布/删除；`server/http-coverage.test.js` 覆盖 `GET /api/workspace/memory` 和 `POST /api/workspace/memory/review`

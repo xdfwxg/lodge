@@ -43,6 +43,7 @@ const clip = (text, limit = 240) => (text.length > limit ? `${text.slice(0, limi
 
 // 网络类工具即使没有 shell 命令，也属于外部动作；当前仍由权限桥决定是否走到这里。
 const TOOL_RULES = [
+  { kind: 'network', label: '访问公开网页', pattern: /^mcp__chrome[-_]devtools__/i },
   { kind: 'network', label: '访问网络', pattern: /web|fetch|search|browser/i },
   { kind: 'message', label: '对外发送', pattern: /slack|mail|message|email|telegram|discord|webhook/i },
   { kind: 'network', label: '外部工具', pattern: /mcp/i },

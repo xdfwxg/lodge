@@ -1,7 +1,9 @@
-import { createElement as h, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
+import { Markdown } from '../../message-cards.js'
 import { openPath as openTarget } from '../../system.js'
 import { dateTimeOf } from '../../view-format.js'
 import { errorSuffix } from '../../error-text.js'
+import { artifactKindOf } from '../../../../shared/artifact.js'
 
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
 const isAbsolutePath = value => value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
@@ -27,12 +29,26 @@ h('path', {
   strokeLinejoin: 'round',
 }))
 
+export function DeliveryPreview({ kind, content, image, alt }) {
+  if (image !== null) {
+    return h('div', { className: 'studio-delivery-preview studio-delivery-preview-image' },
+      h('img', { className: 'studio-delivery-image', src: image, alt }))
+  }
+  if (content === '') return null
+  return h('div', { className: 'studio-delivery-preview' },
+    kind === 'document'
+      ? h(Markdown, { text: content })
+      : h('pre', { className: 'crew-code studio-delivery-text' }, content))
+}
+
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
-export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
+export function DeliveryCard({ delivery, onContinue = null, onReturn = null, onDownload = null, onRead = null }) {
   const commands = delivery.commands ?? []
   const manualNotes = (delivery.stages ?? [])
     .map(stage => stage.manual?.text?.trim() ?? '')
     .filter(Boolean)
+  const waitingNote = /^(结果已经好了|并行结果已合并)/
+  const meaningfulNote = manualNotes.find(note => !waitingNote.test(note)) ?? ''
   const manualVerdict = (delivery.stages ?? [])
     .flatMap(stage => stage.verdicts ?? [])
     .filter(verdict => verdict.pass === true && typeof verdict.text === 'string' && verdict.text.trim() !== '')
@@ -53,6 +69,7 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
   const goalText = typeof delivery.goal === 'string' ? delivery.goal.replace(/\*\*/g, '').trim() : ''
   const goalFirst = goalText.split('\n').map(line => line.trim()).find(line => line !== '') ?? ''
   const nameText = typeof delivery.name === 'string' ? delivery.name.trim() : ''
+  const kindOf = artifact => artifact?.kind ?? artifactKindOf(artifact?.path)
   const artifactPaths = new Set((delivery.artifacts ?? []).map(artifact => artifact.relativePath ?? artifact.path))
   const changedFiles = delivery.changedFiles ?? []
   const otherChangedFiles = changedFiles.filter(file => !artifactPaths.has(file))
@@ -65,20 +82,44 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
     : usage.costStatus === 'unknown'
       ? '费用未知'
       : usage.costStatus === 'partial' ? `至少 ${money}` : money
-  const metrics = [
-    commands.length > 0 ? `${commands.length} 项检查` : '',
-    fileCount > 0 ? `${fileCount} 个文件` : '',
-  ].filter(Boolean).join(' · ')
+  const metrics = fileCount > 0 ? `${fileCount} 个文件` : ''
   const signoff = delivery.independenceLabel ?? ''
+  const artifacts = delivery.artifacts ?? []
+  const primaryArtifact = artifacts.find(artifact => kindOf(artifact) !== 'file') ?? artifacts[0] ?? null
+  const primaryKind = primaryArtifact === null ? null : kindOf(primaryArtifact)
+  const embeddedContent = typeof primaryArtifact?.content === 'string' ? primaryArtifact.content : ''
+  const [loaded, setLoaded] = useState(null)
+  useEffect(() => {
+    if (primaryArtifact === null || primaryKind === 'file' || embeddedContent !== '' || typeof onRead !== 'function') {
+      return undefined
+    }
+    let active = true
+    void Promise.resolve(onRead(delivery.roomId, primaryArtifact.path))
+      .then(result => {
+        if (active && (typeof result?.text === 'string' || typeof result?.base64 === 'string')) setLoaded(result)
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [delivery.roomId, primaryArtifact?.path, primaryKind, embeddedContent, onRead])
+  const primaryContent = primaryKind === 'document' || primaryKind === 'text'
+    ? (embeddedContent !== '' ? embeddedContent : (loaded?.text ?? ''))
+    : ''
+  const primaryImage = primaryKind === 'image' && typeof loaded?.base64 === 'string' && loaded.base64 !== ''
+    ? `data:${loaded.mime ?? 'application/octet-stream'};base64,${loaded.base64}`
+    : null
+  const hasPreview = primaryContent !== '' || primaryImage !== null
+  const primaryTarget = primaryArtifact === null
+    ? null
+    : isAbsolutePath(primaryArtifact.path)
+      ? primaryArtifact.path
+      : delivery.workspacePath ? joinPath(delivery.workspacePath, primaryArtifact.path) : null
+  const showProof = commands.length > 0 || manualVerdict !== null || !hasPreview
   return h('div', { className: 'crew-msg-conclusion', 'data-outcome': 'delivery' },
     h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true', 'aria-label': '结果' },
       h('div', { className: 'crew-card-body' },
         h('div', { className: 'studio-delivery-head' },
           h('span', { className: 'studio-delivery-kicker' }, '结果'),
-          delivery.sample === true ? h('span', { className: 'studio-delivery-sample' }, '示例') : null,
-          h('span', { className: 'studio-delivery-chip' },
-            h('span', { className: 'studio-delivery-check-icon', 'aria-hidden': 'true' }, '✓'),
-            '已完成')),
+          delivery.sample === true ? h('span', { className: 'studio-delivery-sample' }, '示例') : null),
         h('h3', { className: 'studio-delivery-name' }, nameText === '' ? '这次做出来的' : nameText),
         goalFirst === '' || goalFirst === nameText ? null : h('p', { className: 'studio-delivery-goal' }, goalFirst),
         goalText !== goalFirst
@@ -86,23 +127,50 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
             h('summary', null, '完整目标'),
             h('p', { className: 'crew-field-hint' }, goalText))
           : null,
-        h('div', { className: 'studio-delivery-proof', role: 'group', 'aria-label': '检查' },
-          commands.length > 0
-            ? h('p', {
-              className: 'studio-delivery-proof-summary',
-              'data-pass': commands.every(command => command.exit === 0),
-            }, commands.every(command => command.exit === 0) ? '检查通过' : '有检查没通过')
-            : manualVerdict !== null
-              ? h('p', { className: 'crew-field-hint' }, `验收：${manualVerdict.text}`)
-              : h('span', { className: 'crew-field-hint' }, manualNotes[0] ?? '人工验收')),
-        metrics === '' ? null : h('p', { className: 'crew-delivery-metrics' }, metrics),
+        showProof
+          ? h('div', { className: 'studio-delivery-proof', role: 'group', 'aria-label': '检查' },
+            commands.length > 0
+              ? h('p', {
+                className: 'studio-delivery-proof-summary',
+                'data-pass': commands.every(command => command.exit === 0),
+              }, commands.every(command => command.exit === 0)
+                ? `${commands.length} 项检查通过`
+                : '有检查没通过')
+              : manualVerdict !== null
+                ? h('p', { className: 'crew-field-hint' }, `验收：${manualVerdict.text}`)
+                : h('span', { className: 'crew-field-hint' }, meaningfulNote !== ''
+                  ? meaningfulNote
+                  : primaryArtifact !== null
+                    ? `结果在 ${primaryArtifact.relativePath ?? primaryArtifact.path}。`
+                    : manualNotes[0] ?? '人工验收'))
+          : null,
+        metrics === '' || hasPreview ? null : h('p', { className: 'crew-delivery-metrics' }, metrics),
+        hasPreview
+          ? h(DeliveryPreview, {
+            kind: primaryKind,
+            content: primaryContent,
+            image: primaryImage,
+            alt: primaryArtifact.relativePath ?? primaryArtifact.path,
+          })
+          : primaryArtifact !== null
+            ? h('div', { className: 'studio-delivery-file' },
+              h('span', { className: 'studio-delivery-file-icon' }, h(FileIcon)),
+              h('code', { title: primaryArtifact.relativePath ?? primaryArtifact.path }, primaryArtifact.relativePath ?? primaryArtifact.path),
+              primaryTarget === null
+                ? null
+                : h('button', {
+                  type: 'button',
+                  className: 'crew-link',
+                  onClick: () => void open(primaryTarget),
+                }, '打开'))
+            : null,
         delivery.workspacePath
           ? h('div', { className: 'studio-delivery-open' },
             h('button', {
               type: 'button',
-              className: 'crew-ghost',
+              className: 'crew-link',
               onClick: () => void open(delivery.workspacePath),
-            }, '打开结果文件夹'))
+            }, '在文件夹打开'))
           : null,
         openNotice === null ? null : h('p', { className: 'crew-field-hint', role: 'status' }, openNotice),
         openError === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, openError),
@@ -219,7 +287,11 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null }) {
                     onClick: () => void open(joinPath(delivery.workspacePath, file)),
                   }, '打开')
                   : null))))
-            : null)),
+            : null,
+          onDownload === null
+            ? null
+            : h('div', { className: 'crew-delivery-download' },
+              h('button', { type: 'button', className: 'crew-link', onClick: onDownload }, '下载交付记录')))),
       onReturn === null && onContinue === null
         ? null
         : h('div', { className: 'crew-card-foot' },
