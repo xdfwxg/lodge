@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  addMember, changes, cleanupRoom, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
+  addMember, changes, cleanupRoom, commitMessageOf, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
   refreshReviewCopy, removeIsolatedCopy, removeMember, resetMemberWorktree, restore, submit,
 } from './workspace-git.js'
 import { rosterFromRoles, membersFor } from './roster.js'
@@ -436,4 +436,14 @@ test('pruning never deletes outside the workspace root', () => {
     rmSync(worktreeRoot, { recursive: true, force: true })
     rmSync(outside, { recursive: true, force: true })
   }
+})
+
+test('the room commit names what changed instead of repeating the goal', () => {
+  const message = commitMessageOf({ room: { name: '写一个 slugify 工具' }, files: ['/tmp/room/slugify.js', '/tmp/room/slugify.test.js'] })
+  assert.equal(message, 'room: 更新 slugify.js、slugify.test.js')
+  assert.equal(commitMessageOf({ room: { name: '写一个 slugify 工具' }, files: [] }), 'room: 写一个 slugify 工具')
+  assert.equal(
+    commitMessageOf({ room: { name: '目标' }, files: ['a', 'b', 'c', 'd', 'e'] }),
+    'room: 更新 a、b、c、d 等 5 个文件',
+  )
 })

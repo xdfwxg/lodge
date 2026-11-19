@@ -150,6 +150,31 @@ test('turning a rhythm off leaves no timer behind', async () => {
   assert.match(ctx.messages.at(-1).text, /不再自动做/)
 })
 
+test('accepting a stage that already passed is not an error', async () => {
+  const ctx = setup(room({
+    mergeConflict: null,
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'test -f shared.txt' },
+      { title: '验收与结论', kind: 'decision', state: 'active' },
+    ],
+  }), { status: '', diff: '' })
+  const result = await ctx.service.roomRequest('room-merge', 'accept', {
+    method: 'POST',
+    readBody: async () => ({ stage: 0 }),
+  })
+  assert.equal(result.ok, true, result.error)
+})
+
+test('accepting a stage that is not waiting says so in plain words', async () => {
+  const ctx = setup(room({ mergeConflict: null }), { status: '', diff: '' })
+  const result = await ctx.service.roomRequest('room-merge', 'accept', {
+    method: 'POST',
+    readBody: async () => ({ stage: 1 }),
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /不在等你确认/)
+})
+
 test('an unfinished room cannot become a routine', async () => {
   const ctx = setup(room(), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'routine', {

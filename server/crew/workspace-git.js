@@ -552,6 +552,18 @@ export const changes = async ({ path }) => {
 }
 
 // 完成时的结论 commit：房间记录即使被 .gitignore 忽略也要跟着走；交付文件按正常忽略规则。
+// 提交信息描述这间房改了什么，不重复目标原句。
+export const commitMessageOf = ({ room, files = [] }) => {
+  const names = [...new Set(files
+    .filter(file => typeof file === 'string' && file !== '')
+    .map(file => file.split(/[\\/]/).pop())
+    .filter(name => typeof name === 'string' && name !== ''))]
+  if (names.length === 0) return `room: ${room?.name ?? 'update'}`
+  const shown = names.slice(0, 4)
+  const rest = names.length > shown.length ? ` 等 ${names.length} 个文件` : ''
+  return `room: 更新 ${shown.join('、')}${rest}`
+}
+
 export const persistRoom = ({ room, files = [] }) => {
   const repo = roomRootOf(room)
   const rel = relative(repo, roomDir(room))
@@ -578,7 +590,7 @@ export const persistRoom = ({ room, files = [] }) => {
     if (extra.length > 0) execFileSync('git', ['add', '-A', '--', ...extra], { cwd: repo, stdio: 'ignore' })
     const status = execFileSync('git', ['status', '--porcelain', '--', ...paths], { cwd: repo, encoding: 'utf8' })
     if (status.trim() === '') return true
-    execFileSync('git', [...GIT_IDENTITY, 'commit', '-q', '-m', `room: ${room.name}`, '--', ...paths], { cwd: repo, stdio: 'ignore' })
+    execFileSync('git', [...GIT_IDENTITY, 'commit', '-q', '-m', commitMessageOf({ room, files: extra }), '--', ...paths], { cwd: repo, stdio: 'ignore' })
     console.log(`room committed: ${room.id} ${paths.join(' ')}`)
     return true
   } catch (error) {
