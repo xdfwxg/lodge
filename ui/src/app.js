@@ -9,7 +9,20 @@ import { NewGoalDialog } from './new-goal-dialog.js'
 export function App() {
   const store = useMemo(createStore, [])
   const state = useStore(store)
-  const visibleRooms = state.rooms.filter(room => !room.archivedAt)
+  // 定时目标的 run 房是历史，不占侧栏和菜单；目标本身仍是同一行。
+  // 但 run 停下来等人时仍要提醒，否则目标会在后台无声卡住。
+  const attentionRooms = useMemo(() => {
+    const byId = new Map(state.rooms.map(room => [room.id, room]))
+    return state.rooms.filter(room => {
+      if (room.archivedAt) return false
+      if (room.routineRun !== true) return true
+      const goal = byId.get(room.routineGoalId)
+      return goal === undefined || goal === null ||
+        (goal.archivedAt !== undefined && goal.archivedAt !== null)
+    })
+  }, [state.rooms])
+  const visibleRooms = useMemo(() => attentionRooms.filter(room => room.routineRun !== true), [attentionRooms])
+  const sidebarRooms = useMemo(() => state.rooms.filter(room => room.routineRun !== true), [state.rooms])
   const [dialog, setDialog] = useState(false)
   const [goalOpen, setGoalOpen] = useState(false)
   const [seed, setSeed] = useState(null)
@@ -47,8 +60,10 @@ export function App() {
   const seenNeeds = useRef(null)
   useEffect(() => {
     const next = {}
-    for (const room of visibleRooms) {
-      if (room.needsYou) next[room.id] = room.needsYou.label ?? room.needsYou.kind ?? '待处理'
+    for (const room of attentionRooms) {
+      if (room.needsYou) {
+        next[room.id] = room.needsYou.reason ?? room.needsYou.label ?? room.needsYou.kind ?? '待处理'
+      }
     }
     const prev = seenNeeds.current
     seenNeeds.current = next
@@ -57,20 +72,30 @@ export function App() {
       window.lodge?.attention?.({ count })
       return
     }
-    const changed = visibleRooms.filter(room => room.needsYou && next[room.id] !== prev[room.id])
-    const appearing = visibleRooms.filter(room => room.needsYou && prev[room.id] === undefined)
+    const changed = attentionRooms.filter(room => room.needsYou && next[room.id] !== prev[room.id])
+    const appearing = attentionRooms.filter(room => room.needsYou && prev[room.id] === undefined)
     if (appearing.length > 0) {
       const room = appearing[0]
+      const result = room.needsYou?.kind === 'result'
+      const run = room.needsYou?.kind === 'routine-run'
       window.lodge?.attention?.({
         count,
-        notify: { roomId: room.id, title: 'Lodge 需要你', body: `${room.name}：${next[room.id]}` },
+        notify: {
+          roomId: room.id,
+          title: result ? 'Lodge' : 'Lodge 需要你',
+          body: result
+            ? `「${room.name}」的结果好了`
+            : run
+              ? `「${room.name}」${room.needsYou.label ?? '这次需要你'}：${room.needsYou.reason ?? '需要处理'}`
+              : `${room.name}：${next[room.id]}`,
+        },
       })
     } else if (count !== Object.keys(prev).length) {
       window.lodge?.attention?.({ count })
     }
     if (changed.length === 0) return
     setNeedsText(changed.map(room => `${room.name}：${next[room.id]}`).join('；'))
-  }, [state.rooms])
+  }, [attentionRooms])
 
   // 房间菜单只显示前 9 个；名字或顺序变了才重发，避免每条消息都重建菜单。
   const menuSignature = visibleRooms.slice(0, 9)
@@ -125,14 +150,14 @@ export function App() {
         return
       }
       if (!/^[1-9]$/.test(event.key)) return
-      const room = visibleRooms[Number(event.key) - 1]
+      const room = sidebarRooms.filter(item => !item.archivedAt)[Number(event.key) - 1]
       if (room === undefined) return
       event.preventDefault()
       store.select(room.id)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [dialog, goalOpen, visibleRooms, store])
+  }, [dialog, goalOpen, sidebarRooms, store])
 
   const dialogNode = h(NewRoomDialog, {
     open: dialog,
@@ -149,7 +174,9 @@ export function App() {
     onReviewWorkspaceMemory: (path, memoryId, decision) => store.reviewWorkspaceMemory(path, memoryId, decision),
   })
 
-  const room = visibleRooms.find(item => item.id === state.activeId) ?? visibleRooms[0] ?? null
+  const room = state.rooms.find(item => item.id === state.activeId)
+    ?? sidebarRooms.find(item => !item.archivedAt)
+    ?? null
   const goalDialogNode = h(NewGoalDialog, {
     open: goalOpen,
     onClose: closeGoal,
@@ -164,7 +191,7 @@ export function App() {
     firstRun
       ? null
       : h(Sidebar, {
-        state,
+        state: { ...state, rooms: sidebarRooms },
         onSelect: id => store.select(id),
         onNew: openGoal,
         onRename: (id, name) => store.renameRoom(id, name),

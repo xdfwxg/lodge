@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createMessageProjector } from './kernel/live/projection.js'
 import { createMemberSync } from './kernel/live/sync.js'
-import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
+import { normalizeTestRoom, withAssignments } from './testing/room.js'
 
 test('an engine-level member error pauses the room and marks its assignment failed', async () => {
-  let room = normalizeLegacyTestRoom({
+  let room = normalizeTestRoom({
     id: 'room-1',
     state: 'active',
     roomType: 'studio',
@@ -73,7 +73,7 @@ test('an engine-level member error pauses the room and marks its assignment fail
 })
 
 test('ordinary activity is not treated as an engine failure', async () => {
-  let room = normalizeLegacyTestRoom({
+  let room = normalizeTestRoom({
     id: 'room-1',
     state: 'active',
     roomType: 'studio',

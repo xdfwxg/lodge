@@ -97,7 +97,7 @@ const eventForMessage = (room, message) => {
     case 'chat_conclusion':
       return wrap(60, {
         key, kind: 'milestone', tone: 'done', at,
-        title: '本轮结论已出',
+        title: '这轮聊完了',
         detail: clean(message.text),
       })
     case 'stage_conclusion': {

@@ -23,7 +23,6 @@ const setup = async (options = {}) => {
     repoPath: dir,
     sourceRepo: dir,
     workspace: { provider: options.provider ?? 'git', capabilities: {} },
-    ...(options.roomAccess === 'allow' ? { roomAccess: 'allow' } : {}),
     stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
     members: [{
       id: 'worker',
@@ -108,9 +107,8 @@ const setup = async (options = {}) => {
   }
 }
 
-test('a room allowing public pages answers browser MCP cards without holding them', async () => {
+test('a browser MCP read is answered without holding it', async () => {
   const ctx = await setup({
-    roomAccess: 'allow',
     mcp: [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }],
   })
   try {
@@ -126,9 +124,8 @@ test('a room allowing public pages answers browser MCP cards without holding the
   }
 })
 
-test('the same room still asks for non-browser external actions', async () => {
+test('the same member still asks for non-browser external actions', async () => {
   const ctx = await setup({
-    roomAccess: 'allow',
     mcp: [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }],
   })
   try {

@@ -274,13 +274,8 @@ export function createStore() {
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
-    setBrowserAccess: async access => {
-      const data = await post(`/api/rooms/${state.activeId}/set-browser-access`, { access })
-      if (data?.room !== undefined) acceptRoom(data.room)
-      return data
-    },
-    setRoutine: async (roomId, enabled) => {
-      const data = await post(`/api/rooms/${roomId}/routine`, { enabled, trigger: 'on-open' })
+    setRoutine: async (roomId, patch = {}) => {
+      const data = await post(`/api/rooms/${roomId}/routine`, patch)
       if (data?.room !== undefined) acceptRoom(data.room)
       return data
     },

@@ -113,7 +113,7 @@ test('a plain chat room has no receipt to show', () => {
   assert.equal(strip.props.receipt, undefined)
 })
 
-test('an empty chat room explains that its conclusion becomes studio work', () => {
+test('an empty chat room invites a chat without demanding a conclusion', () => {
   const tree = chatView.transcript({
     room: { id: 'room-chat', state: 'active', messages: [], chat: {} },
     members: [],
@@ -121,7 +121,8 @@ test('an empty chat room explains that its conclusion becomes studio work', () =
   })
   const [intro] = tree.props.children.filter(Boolean)
   assert.equal(intro.type, StatePanel)
-  assert.match(intro.props.title, /先聊清楚/)
+  assert.match(intro.props.title, /随便聊聊/)
+  assert.match(intro.props.body, /想聊就聊/)
   assert.match(intro.props.body, /工作室/)
 })
 

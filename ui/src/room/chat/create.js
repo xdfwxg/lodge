@@ -116,5 +116,6 @@ export function ChatSetupFields({
           onClick: onAddMember,
         },
           h('span', { className: 'crew-member-add-plus', 'aria-hidden': 'true' }, '＋'),
-          '添加成员'))))
+          '添加成员'))),
+    h('p', { className: 'crew-field-hint' }, '每位成员都会用独立的只读浏览器查公开资料；不登录、不点击、不付款。'))
 }

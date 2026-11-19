@@ -135,10 +135,13 @@ test('the body carries an editable soul, skills and tools', async () => {
   const worker = room.members.find(item => item.id === 'worker')
   assert.equal(worker.body.spec.prompt, '只做复核，不解释。')
   assert.deepEqual(worker.body.spec.skills, ['review'])
-  assert.deepEqual(worker.body.spec.mcp, [{ server: 'github', scopes: ['read'], approval: 'ask' }])
+  assert.deepEqual(worker.body.spec.mcp, [
+    { server: 'github', scopes: ['read'], approval: 'ask' },
+    { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' },
+  ])
   assert.match(calls.patched[0].payload.soul, /只做复核，不解释/)
   assert.deepEqual(calls.skills[0].skills, ['review'])
-  assert.deepEqual(calls.patched[0].payload.mcp.map(grant => grant.server), ['github'])
+  assert.deepEqual(calls.patched[0].payload.mcp.map(grant => grant.server), ['github', 'chrome-devtools'])
 })
 
 test('bad skill or tool names are refused', async () => {

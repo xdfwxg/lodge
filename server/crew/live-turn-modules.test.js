@@ -9,9 +9,28 @@ import { createLiveTurns } from './rooms/studio/turns.js'
 import { createTurnState } from './rooms/studio/turn-state.js'
 import { deliverableStageIndex, parsePlannerDecision, parseVerdict } from './rooms/studio/turn-utils.js'
 import { registerWorkspaceProvider } from './workspace.js'
-import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
+import { normalizeTestRoom, withAssignments } from './testing/room.js'
 
-const makeRoom = overrides => normalizeLegacyTestRoom({
+const rejectMeta = stage => ({
+  pass: false,
+  stage,
+  judgment: {
+    version: 1,
+    type: 'verdict',
+    decision: 'reject',
+    reason: '',
+    findings: [],
+    actionRequired: '',
+    stage,
+    evidenceId: null,
+    actorId: 'verifier',
+    rejectTo: 'planner',
+    at: 0,
+    source: 'text',
+  },
+})
+
+const makeRoom = overrides => normalizeTestRoom({
   id: 'room-1',
   name: 'Room',
   goal: 'ship it',
@@ -92,7 +111,7 @@ test('a rejected stage routes the planner decision to the executor or the human'
     brief: {}, status: 'reported', context: {}, flags: {},
   })
   store.appendMessage('room-1', {
-    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: rejectMeta(0),
   })
   const sent = []
   const turns = createLiveTurns({
@@ -138,7 +157,7 @@ test('a rejected stage routes the planner decision to the executor or the human'
     brief: {}, status: 'reported', context: {}, flags: {},
   })
   humanStore.appendMessage('room-1', {
-    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: rejectMeta(0),
   })
   const humanSent = []
   const humanTurns = createLiveTurns({
@@ -174,7 +193,7 @@ test('a planner gate call decides without parsing the reply', () => {
   })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
-    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: rejectMeta(0),
   })
   const sent = []
   const turns = createLiveTurns({
@@ -219,7 +238,7 @@ test('a planner turn without a submitted decision is nudged once, then handed to
   })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
-    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: rejectMeta(0),
   })
   const sent = []
   const turns = createLiveTurns({
@@ -260,7 +279,7 @@ test('an exhausted rework budget asks the human instead of reworking again', () 
   })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
-    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: rejectMeta(0),
   })
   for (const at of [1, 2, 3]) {
     store.appendMessage('room-1', {
@@ -470,7 +489,7 @@ test('a merge conflict is left for the human instead of being auto-reworked', ()
   room.mergeConflict = { stage: 0, files: ['shared.txt'] }
   const store = fakeStore(room)
   store.appendMessage('room-1', {
-    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: rejectMeta(0),
   })
   const sent = []
   const turns = createLiveTurns({
@@ -519,7 +538,7 @@ test('a parallel rework decided by the planner goes into the member private work
     })
   }
   store.appendMessage('room-1', {
-    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: { pass: false, stage: 0 },
+    kind: 'verdict', authorId: 'verifier', text: 'REJECT', meta: rejectMeta(0),
   })
   const sent = []
   const turns = createLiveTurns({

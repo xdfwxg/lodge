@@ -44,8 +44,6 @@ function NewRoomDialog({
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
   const [shadowReview, setShadowReview] = useState(false)
-  const [browser, setBrowser] = useState(false)
-  const [roomAccess, setRoomAccess] = useState('ask')
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [goal, setGoal] = useState('')
   const [nameDraft, setNameDraft] = useState('')
@@ -321,8 +319,6 @@ function NewRoomDialog({
         verify,
         acceptance,
         shadowReview,
-        browser,
-        roomAccess,
         handoff,
         handoffReviewed,
         sourceRoomId: seed?.sourceRoomId,
@@ -356,8 +352,6 @@ function NewRoomDialog({
         verify: verifyMode,
         acceptance: verifyMode === 'test' ? acceptanceDraft.trim() : '',
         shadowReview,
-        browser,
-        roomAccess,
         handoff,
         handoffReviewed,
         sourceRoomId: seed?.sourceRoomId,
@@ -486,10 +480,6 @@ function NewRoomDialog({
     verifyMode,
     shadowReview,
     onShadowReview: setShadowReview,
-    browser,
-    onBrowser: setBrowser,
-    roomAccess,
-    onRoomAccess: setRoomAccess,
   }
 
   const goalField = h('div', { className: 'crew-field' },

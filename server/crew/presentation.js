@@ -18,7 +18,7 @@ const publicBody = body => {
 }
 
 // 外层只看到房间、成员和交付；基座房间、身体地址和隐藏消息留在适配层。
-export const presentRoom = (room, messages = [], assignments = [], { children = [] } = {}) => {
+export const presentRoom = (room, messages = [], assignments = [], { children = [], routineRun = null } = {}) => {
   const {
     chatRoom,
     chatHost,
@@ -40,7 +40,7 @@ export const presentRoom = (room, messages = [], assignments = [], { children = 
     ...(projection ?? {}),
     ...(projection === null ? {} : { assignments }),
   }
-  const attention = roomAttention(view, messages, children)
+  const attention = roomAttention(view, messages, children, routineRun)
   return {
     ...view,
     revision: room.version ?? 1,

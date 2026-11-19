@@ -39,6 +39,47 @@ test('active decision waits for the human', () => {
   assert.deepEqual(roomNeedsYou(room(), []), { kind: 'decision', stage: 0, label: '待确认' })
 })
 
+test('a routine run that needs you surfaces on the goal room', () => {
+  const run = room({
+    id: 'run-1',
+    state: 'paused',
+    pauseReason: 'member_error',
+    memberError: { memberId: 'worker', kind: 'auth' },
+  })
+  const goal = room({
+    id: 'goal',
+    state: 'complete',
+    routine: {
+      cadence: 'daily',
+      hour: 8,
+      minute: 0,
+      enabled: true,
+      lastRoomId: 'run-1',
+    },
+  })
+  const needs = roomNeedsYou(goal, [], { room: run, messages: [] })
+  assert.equal(needs.kind, 'routine-run')
+  assert.equal(needs.label, '这次需要你')
+  assert.equal(needs.reason, '执行官的登录失效了')
+  assert.equal(needs.runId, 'run-1')
+  assert.equal(needs.action, 'error')
+  const idle = room({ id: 'run-1', state: 'paused', idle: true })
+  assert.equal(roomNeedsYou(goal, [], { room: idle, messages: [] }), null)
+})
+
+test('a finished routine result surfaces until it is seen', () => {
+  const done = room({
+    state: 'complete',
+    routine: { cadence: 'daily', enabled: true, unseenResult: true },
+  })
+  assert.equal(roomNeedsYou(done, []).kind, 'result')
+  const seen = room({
+    state: 'complete',
+    routine: { cadence: 'daily', enabled: true, unseenResult: false },
+  })
+  assert.equal(roomNeedsYou(seen, []), null)
+})
+
 test('an open question outranks the stage type', () => {
   assert.equal(roomNeedsYou(room({ openQuestion: 'which path?' }), []).kind, 'question')
 })

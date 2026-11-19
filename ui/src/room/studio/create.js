@@ -1,6 +1,5 @@
 import { Fragment, createElement as h } from 'react'
 import { Segmented } from '../../segmented.js'
-import { ROOM_ACCESS_OPTIONS } from '../../../../shared/room-access.js'
 import { EngineLogin } from '../../engine-login.js'
 import { engineReadiness } from '../../../../shared/engine-readiness.js'
 import { DEFAULT_STUDIO_ROSTER } from '../../../../shared/studio-roster.js'
@@ -38,8 +37,6 @@ export const buildStudioRequest = ({
   verify,
   acceptance,
   shadowReview,
-  browser = false,
-  roomAccess = 'ask',
   handoff,
   handoffReviewed = false,
   sourceRoomId,
@@ -77,8 +74,6 @@ export const buildStudioRequest = ({
     acceptance,
     repoPath,
     ...(shadowReview ? { shadowReview: true } : {}),
-    ...(browser ? { browser: true } : {}),
-    ...(browser ? { roomAccess } : {}),
     ...(handoff === null || handoff === undefined ? {} : { handoff }),
     ...(handoffReviewed ? { handoffReviewed: true } : {}),
     ...(typeof sourceRoomId === 'string' && sourceRoomId !== '' ? { sourceRoomId } : {}),
@@ -173,10 +168,6 @@ export function StudioSetupFields({
   setChoices = () => {},
   engines = [],
   onInteraction,
-  browser = false,
-  onBrowser = () => {},
-  roomAccess = 'ask',
-  onRoomAccess = () => {},
   features = null,
 }) {
   return h(Fragment, null,
@@ -192,28 +183,5 @@ export function StudioSetupFields({
         requireApprovalGate: true,
         onInteraction,
       })),
-    h('div', { className: 'crew-check-block' },
-      h('label', { className: 'crew-check' },
-        h('input', {
-          type: 'checkbox',
-          checked: browser === true,
-          onChange: event => {
-            const next = event.target.checked
-            onBrowser(next)
-            if (!next) onRoomAccess('ask')
-          },
-        }),
-        '允许查公开网页'),
-      h('p', { className: 'crew-field-hint' }, '只在独立的只读浏览器里查资料；不登录、不点击、不付款。')),
-    browser === true
-      ? h('div', { className: 'crew-field' },
-        h('b', null, '查网页时'),
-        h(Segmented, {
-          label: '查网页时',
-          value: roomAccess,
-          options: ROOM_ACCESS_OPTIONS,
-          onChange: onRoomAccess,
-        }),
-        h('p', { className: 'crew-field-hint' }, '每次确认会逐次问你；房间免确认只放行只读研究，命令、文件和付款仍要确认。'))
-      : null)
+    h('p', { className: 'crew-field-hint' }, '每位成员都会用独立的只读浏览器查公开资料；不登录、不点击、不付款。'))
 }

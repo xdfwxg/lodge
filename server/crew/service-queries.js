@@ -24,6 +24,14 @@ export const createServiceQueries = ({
     return { ...message, meta }
   }
 
+  const routineRunOf = room => {
+    const runId = room?.routine?.lastRoomId
+    if (typeof runId !== 'string') return null
+    const runRoom = readRoom(runId)
+    if (runRoom === null) return null
+    return { room: runRoom, messages: readRecentMessages(runRoom.id) }
+  }
+
   const health = async () => ok({ runtime: await engine.health() })
 
   const state = async () => {
@@ -60,7 +68,10 @@ export const createServiceQueries = ({
           .filter(child => child !== null)
           .map(child => ({ room: child, messages: readRecentMessages(child.id) }))
         return {
-          ...presentRoom(room, messages, assignments, { children }),
+          ...presentRoom(room, messages, assignments, {
+            children,
+            routineRun: routineRunOf(room),
+          }),
           brief: briefOf(room),
           messages,
         }

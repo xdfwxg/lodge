@@ -6,7 +6,10 @@ const grantServer = grant => (
 export const bodyCapabilitiesOf = ({ engine = null, member = {}, features = null } = {}) => {
   const engineCapabilities = engine?.capabilities ?? {}
   const permissions = member?.permissions ?? {}
-  const grants = Array.isArray(member?.body?.spec?.mcp) ? member.body.spec.mcp : []
+  const grants = [
+    ...(Array.isArray(member?.body?.spec?.mcp) ? member.body.spec.mcp : []),
+    ...(Array.isArray(member?.mcp) ? member.mcp : []),
+  ]
   const tools = engineCapabilities.mcp !== false &&
     (permissions.exec === true || permissions.write === true || grants.length > 0)
   const skills = tools && (features === null || features === undefined || features.skillsLibrary !== false)

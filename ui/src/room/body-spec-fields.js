@@ -1,6 +1,14 @@
 import { createElement as h } from 'react'
+import { BROWSER_MCP_SERVER_NAME } from '../../../shared/browser-mcp.js'
 
 const listText = list => (Array.isArray(list) ? list : [])
+  .map(item => (typeof item === 'string' ? item : item?.server ?? ''))
+  .filter(Boolean)
+  .join(', ')
+
+// 只读浏览器是系统标配，不出现在可编辑的 MCP 列表里。
+const mcpText = list => (Array.isArray(list) ? list : [])
+  .filter(item => (typeof item === 'string' ? item : item?.server) !== BROWSER_MCP_SERVER_NAME)
   .map(item => (typeof item === 'string' ? item : item?.server ?? ''))
   .filter(Boolean)
   .join(', ')
@@ -10,7 +18,7 @@ export const bodySpecOf = (member = {}) => {
   return {
     prompt: typeof spec.prompt === 'string' ? spec.prompt : '',
     skillsText: listText(spec.skills),
-    mcpText: listText(spec.mcp),
+    mcpText: mcpText(spec.mcp),
   }
 }
 
@@ -45,7 +53,7 @@ export function CapabilityFields({ value, onChange, disabled = false, showSkills
         className: 'crew-capability-input',
         type: 'text',
         'aria-label': 'mcp',
-        placeholder: '浏览器、搜索',
+        placeholder: '搜索、知识库',
         value: value.mcpText ?? '',
         disabled,
         onChange: event => update({ mcpText: event.target.value }),

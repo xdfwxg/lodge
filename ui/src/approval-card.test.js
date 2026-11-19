@@ -43,7 +43,7 @@ const buttons = node => {
   return found.concat((node.children ?? []).flatMap(buttons))
 }
 
-test('a browser approval offers one-time, whole-room, and deny', async () => {
+test('an external approval offers allow once or deny, with no room-wide switch', async () => {
   const { ApprovalCard } = await load()
   const calls = []
   const tree = render(ApprovalCard({
@@ -55,12 +55,11 @@ test('a browser approval offers one-time, whole-room, and deny', async () => {
       gate: { decision: 'allow', reasons: [] },
     },
     onDecide: decision => calls.push(decision),
-    onAllowRoom: () => calls.push('room'),
   }))
-  assert.deepEqual(buttons(tree).map(button => text(button)), ['先别做', '这间房都允许', '只这一次'])
+  assert.deepEqual(buttons(tree).map(button => text(button)), ['先别做', '可以做'])
+  buttons(tree)[0].props.onClick()
   buttons(tree)[1].props.onClick()
-  buttons(tree)[2].props.onClick()
-  assert.deepEqual(calls, ['room', 'allow'])
+  assert.deepEqual(calls, ['deny', 'allow'])
 })
 
 test('the approval card shows the seat and external command with only two decisions', async () => {

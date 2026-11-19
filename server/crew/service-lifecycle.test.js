@@ -20,6 +20,8 @@ const setup = (room, liveOverrides = {}, portOverrides = {}) => {
   let current = room
   const emitted = []
   const removedPaths = []
+  const cancelledTimers = []
+  const messages = []
   let deleted = null
   const store = {
     readRoom: () => current,
@@ -39,8 +41,12 @@ const setup = (room, liveOverrides = {}, portOverrides = {}) => {
       current = null
       return true
     },
-    appendMessage: () => ({}),
+    appendMessage: (id, message) => {
+      messages.push(message)
+      return {}
+    },
     appendEvent: () => {},
+    cancelTimer: id => cancelledTimers.push(id),
   }
   const ports = { ...createCrewPorts(), ...portOverrides }
   ports.files = { ...ports.files, remove: path => removedPaths.push(path) }
@@ -52,7 +58,15 @@ const setup = (room, liveOverrides = {}, portOverrides = {}) => {
     roles: [],
     ports,
   })
-  return { service, emitted, removedPaths, deleted: () => deleted, room: () => current }
+  return {
+    service,
+    emitted,
+    removedPaths,
+    cancelledTimers,
+    messages,
+    deleted: () => deleted,
+    room: () => current,
+  }
 }
 
 const post = body => ({ method: 'POST', readBody: async () => body })
@@ -73,6 +87,27 @@ test('archiving an active room stops it without a running engine', async () => {
   assert.equal(result.body.room.live, false)
   assert.equal(result.body.room.archivedLive, true)
   assert.equal(typeof result.body.room.archivedAt, 'number')
+})
+
+test('archiving a routine stops its future runs but keeps the chosen time', async () => {
+  const ctx = setup(roomRecord({
+    state: 'complete',
+    routine: {
+      cadence: 'daily',
+      hour: 9,
+      minute: 30,
+      enabled: true,
+      nextRunAt: Date.now() + 60_000,
+    },
+  }))
+  const result = await ctx.service.roomRequest('r1', 'archive', post({}))
+  assert.equal(result.ok, true)
+  assert.equal(result.body.room.routine.enabled, false)
+  assert.equal(result.body.room.routine.hour, 9)
+  assert.equal(result.body.room.routine.minute, 30)
+  assert.equal(result.body.room.routine.nextRunAt, null)
+  assert.deepEqual(ctx.cancelledTimers, ['routine:r1'])
+  assert.match(ctx.messages.at(-1).text, /归档/)
 })
 
 test('restoring a room clears the archive marker', async () => {

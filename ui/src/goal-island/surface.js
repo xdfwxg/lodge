@@ -29,8 +29,9 @@ export function goalView(goal) {
     : goal.status === 'stopped' ? stages.filter(stage => stage.status === 'passed').length
       : current !== undefined ? at + 1
         : count
-  const barLabel =
-    goal.status === 'drafting' ? t('Aligning the goal with you')
+  const barLabel = goal.barLabel !== undefined
+    ? goal.barLabel
+    : goal.status === 'drafting' ? t('Aligning the goal with you')
       : goal.status === 'stopped' ? t('Stopped')
         : goal.status === 'complete' ? ''
           : goal.status === 'paused' ? (current ? t('Paused · {title}', { title: current.title }) : t('Paused'))
@@ -50,7 +51,7 @@ export function goalView(goal) {
         : 'upcoming',
   }))
   return {
-    status: goal.status, idle: goal.idle === true, title: goal.title ?? '',
+    status: goal.status, idle: goal.idle === true, kind: goal.kind ?? null, title: goal.title ?? '',
     number, count, segments, barLabel, stages: stageViews,
   }
 }
@@ -67,9 +68,25 @@ function GoalOutside({ island, close }) {
   return null
 }
 
+const ChatMark = () => h('svg', {
+  className: 'bt-goal-chat-mark',
+  viewBox: '0 0 20 20',
+  width: 18,
+  height: 18,
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.5,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': 'true',
+},
+h('path', { d: 'M6 4.5h8a2.8 2.8 0 0 1 2.8 2.8v4a2.8 2.8 0 0 1-2.8 2.8h-4l-3.4 2.4v-2.4H6A2.8 2.8 0 0 1 3.2 11.3v-4A2.8 2.8 0 0 1 6 4.5z' }),
+h('path', { d: 'M6.8 8.3h6.4M6.8 10.9h4.1' }))
+
 // Closed: the goal stays the kicker, the current step leads. The ring around
 // the mark is the stage track, so progress reads at a glance without a second row.
 function GoalClosed({ view, room, actions, compact = false, plan = false }) {
+  const chat = view?.kind === 'chat'
   const title = view?.title || room.name || '目标'
   const status = view?.barLabel || room.needsYou?.label
     || (view?.status === 'complete' ? '已完成 · 看结果' : '还没有目标')
@@ -98,18 +115,22 @@ function GoalClosed({ view, room, actions, compact = false, plan = false }) {
     h('span', {
       className: 'bt-goal-closed-ico',
       'data-tone': tone,
+      'data-chat': chat ? 'true' : undefined,
       'data-live': (room.busyMembers ?? []).length > 0 ? 'true' : undefined,
-      'data-track': total > 0 ? 'true' : undefined,
+      'data-track': !chat && total > 0 ? 'true' : undefined,
       'aria-hidden': true,
     },
-    h('svg', { className: 'bt-goal-ring', viewBox: '0 0 36 36' },
-      h('circle', { className: 'bt-ring-track', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2 }),
-      total === 0 ? null : h('circle', {
-        className: 'bt-ring-fill', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2.5,
-        strokeLinecap: 'round', transform: 'rotate(-90 18 18)',
-        strokeDasharray: `${circumference * (done / total)} ${circumference}`,
-      })),
-    h('span', { key: view?.number ?? 'none', className: 'bt-goal-ico-num' }, view?.number ?? '·'),
+    chat
+      ? h(ChatMark)
+      : h(Fragment, null,
+        h('svg', { className: 'bt-goal-ring', viewBox: '0 0 36 36' },
+          h('circle', { className: 'bt-ring-track', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2 }),
+          total === 0 ? null : h('circle', {
+            className: 'bt-ring-fill', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2.5,
+            strokeLinecap: 'round', transform: 'rotate(-90 18 18)',
+            strokeDasharray: `${circumference * (done / total)} ${circumference}`,
+          })),
+        h('span', { key: view?.number ?? 'none', className: 'bt-goal-ico-num' }, view?.number ?? '·')),
     h('i', { className: 'bt-goal-closed-pip' })),
     h('span', { className: 'bt-goal-closed-copy' },
       compact ? null : h('span', { className: 'bt-goal-closed-kicker' }, title),
@@ -306,7 +327,13 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
     open
       ? (view === null ? null : h(GoalPanel, { goal, view, room, actions }))
       : h(Fragment, null,
-        h(GoalClosed, { view, room, actions, compact, plan: !compact && (signal === null || signal === undefined) }),
+        h(GoalClosed, {
+          view,
+          room,
+          actions,
+          compact,
+          plan: !compact && goal.kind !== 'chat' && (signal === null || signal === undefined),
+        }),
         signal === null || signal === undefined
           ? null
           : h(GoalSignal, { signal, mode, actions }))))
@@ -315,17 +342,17 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
 export const GOAL_CSS = `
 /* One surface: the island is the room's only glass object. The capsule shape,
    the pod and the open panel all reshape on the same spring. */
-.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(400px,calc(100% - 120px));--bt-island-glass:color-mix(in srgb,var(--bt-card) 88%,transparent);--bt-island-glass-open:color-mix(in srgb,var(--bt-card) 97%,transparent);--bt-island-fill:var(--bt-island-glass);--bt-island-sheen:rgba(255,255,255,.72);--bt-island-edge:color-mix(in srgb,var(--bt-ink) 11%,transparent);--bt-island-depth:0 1px 1px rgba(20,20,20,.04),0 12px 28px -12px rgba(20,20,20,.22),0 30px 60px -30px rgba(20,20,20,.32);--bt-island-depth-open:0 2px 4px rgba(20,20,20,.06),0 28px 64px rgba(20,20,20,.2);background:radial-gradient(130% 180% at 14% -55%,var(--bt-island-sheen),transparent 58%),radial-gradient(90% 130% at 104% -18%,color-mix(in srgb,var(--bt-accent) 13%,transparent),transparent 62%),radial-gradient(120% 130% at 100% 130%,color-mix(in srgb,var(--bt-green) 7%,transparent),transparent 64%),var(--bt-island-fill);border:0;border-radius:999px;box-shadow:var(--bt-island-depth);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);color:var(--bt-ink);font-family:inherit;font-size:var(--bt-text-label);line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .3s var(--bt-ease),background-color .3s var(--bt-ease)}
+.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(400px,calc(100% - 120px));--bt-island-glass:rgba(12,12,14,.94);--bt-island-glass-open:rgba(12,12,14,.98);--bt-island-fill:var(--bt-island-glass);--bt-island-sheen:rgba(255,255,255,.1);--bt-island-edge:color-mix(in srgb,var(--bt-ink) 11%,transparent);--bt-island-depth:0 1px 1px rgba(20,20,20,.04),0 12px 28px -12px rgba(20,20,20,.22),0 30px 60px -30px rgba(20,20,20,.32);--bt-island-depth-open:0 2px 4px rgba(20,20,20,.06),0 28px 64px rgba(20,20,20,.2);background:radial-gradient(130% 180% at 14% -55%,var(--bt-island-sheen),transparent 58%),var(--bt-island-fill);border:0;border-radius:999px;box-shadow:var(--bt-island-depth);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);color:var(--bt-ink);font-family:inherit;font-size:var(--bt-text-label);line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .3s var(--bt-ease),background-color .3s var(--bt-ease)}
 /* The one deep object in a light room: black glass, a green progress ring,
    and a single warm note when something waits. */
-.bt-island{--bt-ink:#f5f5f7;--bt-ink-2:rgba(245,245,247,.72);--bt-ink-3:rgba(245,245,247,.46);--bt-ink-4:rgba(245,245,247,.32);--bt-line:rgba(255,255,255,.12);--bt-line-2:rgba(255,255,255,.18);--bt-main:#131316;--bt-card:#1a1a1e;--bt-hover:rgba(255,255,255,.07);--bt-active:rgba(255,255,255,.11);--bt-shade-2:rgba(255,255,255,.07);--bt-accent:#7fb2ff;--bt-accent-text:#c6dcff;--bt-accent-wash:rgba(99,148,255,.2);--bt-line-accent:rgba(127,178,255,.36);--bt-accent-ink:#0b111c;--bt-green:#3fd97a;--bt-star:#f6c453;--bt-warning-text:#f3c96d;--bt-warning-wash:rgba(246,196,83,.14);--bt-line-warning:rgba(246,196,83,.36);--bt-danger-text:#ff7c72;--bt-island-glass:rgba(20,20,24,.9);--bt-island-glass-open:rgba(20,20,24,.97);--bt-island-sheen:rgba(255,255,255,.15);--bt-island-edge:rgba(255,255,255,.14)}
+.bt-island{--bt-ink:#f5f5f7;--bt-ink-2:rgba(245,245,247,.72);--bt-ink-3:rgba(245,245,247,.46);--bt-ink-4:rgba(245,245,247,.32);--bt-line:rgba(255,255,255,.12);--bt-line-2:rgba(255,255,255,.18);--bt-main:#131316;--bt-card:#1a1a1e;--bt-hover:rgba(255,255,255,.07);--bt-active:rgba(255,255,255,.11);--bt-shade-2:rgba(255,255,255,.07);--bt-accent:#7fb2ff;--bt-accent-text:#c6dcff;--bt-accent-wash:rgba(99,148,255,.2);--bt-line-accent:rgba(127,178,255,.36);--bt-accent-ink:#0b111c;--bt-green:#3fd97a;--bt-star:#f6c453;--bt-warning-text:#f3c96d;--bt-warning-wash:rgba(246,196,83,.14);--bt-line-warning:rgba(246,196,83,.36);--bt-danger-text:#ff7c72;--bt-island-glass:rgba(12,12,14,.94);--bt-island-glass-open:rgba(12,12,14,.98);--bt-island-sheen:rgba(255,255,255,.1);--bt-island-edge:rgba(255,255,255,.14)}
 .bt-island[data-signal-tone=paused] .bt-goal-signal-go{color:#ffb3ad;font-weight:600}
 .bt-island[data-sweep]::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 22%,rgba(255,255,255,.16) 48%,transparent 74%);transform:translateX(-130%);animation:bt-island-sweep .9s var(--bt-ease) 1;pointer-events:none}
 @keyframes bt-island-sweep{from{transform:translateX(-130%)}to{transform:translateX(130%)}}
 .bt-island[data-sweep] .bt-goal-closed-ico{animation:bt-medal-pop .8s var(--bt-ease) 1}
 @keyframes bt-medal-pop{0%,100%{transform:scale(1)}38%{transform:scale(1.06)}}
 @keyframes bt-num-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
-body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt-card) 90%,rgba(255,255,255,.5));--bt-island-glass-open:color-mix(in srgb,var(--bt-card) 96%,rgba(255,255,255,.5));--bt-island-sheen:rgba(255,255,255,.14);--bt-island-edge:rgba(255,255,255,.2);--bt-island-depth:inset 0 0 0 1px rgba(255,255,255,.17),0 2px 4px rgba(0,0,0,.4),0 24px 56px rgba(0,0,0,.55);--bt-island-depth-open:inset 0 0 0 1px rgba(255,255,255,.2),0 4px 10px rgba(0,0,0,.4),0 32px 72px rgba(0,0,0,.6)}
+body[data-ds-dark-theme] .bt-island{--bt-island-glass:rgba(16,52,43,.92);--bt-island-glass-open:rgba(16,52,43,.97);--bt-island-fill:rgba(16,52,43,.92);--bt-island-sheen:rgba(255,214,140,.16);--bt-island-edge:rgba(226,190,105,.34);--bt-island-depth:inset 0 0 0 1px rgba(226,190,105,.34),0 2px 4px rgba(0,0,0,.45),0 24px 56px rgba(0,0,0,.6);--bt-island-depth-open:inset 0 0 0 1px rgba(226,190,105,.4),0 4px 10px rgba(0,0,0,.45),0 32px 72px rgba(0,0,0,.65);background:radial-gradient(130% 180% at 14% -55%,var(--bt-island-sheen),transparent 58%),radial-gradient(90% 130% at 104% -18%,rgba(226,190,105,.14),transparent 62%),radial-gradient(120% 130% at 100% 130%,rgba(60,170,120,.16),transparent 64%),var(--bt-island-fill)}
 .bt-island[data-mode=peek],.bt-island[data-mode=decision]{width:min(400px,calc(100% - 120px));border-radius:999px}
 .bt-island[data-mode=open]{width:min(560px,calc(100% - 48px));border-radius:30px;box-shadow:var(--bt-island-depth-open);--bt-island-fill:var(--bt-island-glass-open)}
 .bt-island[data-compact]{width:min(216px,calc(100% - 48px));border-radius:999px}
@@ -351,6 +378,10 @@ body[data-ds-dark-theme] .bt-island{--bt-island-glass:color-mix(in srgb,var(--bt
 .bt-goal-closed-main{display:flex;align-items:center;gap:10px;min-width:0;height:54px;padding:8px 12px 8px 9px;box-sizing:border-box}
 .bt-goal-closed-ico{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;color:var(--bt-accent-text);animation:bt-island-layer-in .26s var(--bt-ease) backwards}
 .bt-goal-closed-ico::before{content:"";position:absolute;inset:4px;border-radius:50%;background:radial-gradient(120% 120% at 32% 18%,rgba(255,255,255,.34),var(--bt-accent-wash) 76%);box-shadow:inset 0 0 0 .5px var(--bt-line-accent),0 1px 2px rgba(0,0,0,.4)}
+.bt-goal-closed-ico[data-chat=true]{width:30px;height:30px;color:var(--bt-ink-2)}
+.bt-goal-closed-ico[data-chat=true]::before{display:none}
+.bt-goal-chat-mark{display:block;width:18px;height:18px}
+body[data-ds-dark-theme] .bt-goal-closed-ico[data-chat=true]{color:#f6dda6}
 .bt-goal-ico-num{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;font-size:12.5px;line-height:18px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--bt-ink);animation:bt-num-in .34s var(--bt-ease) 1}
 .bt-goal-ring{position:absolute;inset:0;width:34px;height:34px;overflow:visible}
 .bt-ring-track{stroke:var(--bt-line-2)}

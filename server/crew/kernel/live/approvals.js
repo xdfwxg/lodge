@@ -252,8 +252,8 @@ export const createLiveApprovals = ({
     const allowed = decidePermission(member, card.action, { readOnly, direct: room?.workspace?.provider === 'direct' })
     const external = allowed ? externalAction(card) : null
     const cardSession = sessionRef ?? entry.members.get(memberId)?.sessionRef
-    // 房间免确认只放行只读研究；其他外部动作照旧逐次确认。
-    const browserAllowed = allowed && canSkipApproval({ room, member, tool: card.tool })
+    // 系统只放行只读研究；其他外部动作照旧逐次确认。
+    const browserAllowed = allowed && canSkipApproval({ member, tool: card.tool })
     if (external !== null && !browserAllowed) {
       await holdForApproval(entry, memberId, card, external, cardSession)
       return

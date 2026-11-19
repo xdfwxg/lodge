@@ -13,6 +13,12 @@ export const studioView = {
   id: 'studio',
   opensAtTop: ({ room }) => room.state === 'complete',
   header: ({ room, actions }) => h(Fragment, null,
+    room.routineGoalId ? h('div', { className: 'studio-run-back' },
+      h('button', {
+        type: 'button',
+        className: 'crew-link',
+        onClick: () => actions.selectRoom(room.routineGoalId),
+      }, '← 回到目标')) : null,
     h(GoalIslandHeader, {
       room,
       onOpenRoom: actions.selectRoom,
@@ -42,36 +48,46 @@ export const studioView = {
       h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind }))
   },
   activity: () => null,
-  transcript: ({ room, members, actions }) => h(StudioTranscript, {
-    key: `transcript-${room.id}`,
-    room,
-    members,
-    hideKinds: [],
-    delivery: room.delivery ?? null,
-    onAccept: actions.accept,
-    onStageAccept: actions.accept,
-    onRework: actions.rework,
-    onChoose: actions.chooseHuman,
-    onReadArtifact: actions.readArtifact,
-    onRoutine: enabled => actions.setRoutine(enabled),
-    onResolveMerge: actions.resolveMerge,
-    onApproval: actions.approval,
-    onAllowBrowserRoom: actions.allowBrowserRoom,
-    onAnswerCard: actions.answerCard,
-    onCancelQueue: actions.cancelQueue,
-    onSteerQueue: actions.steerQueue,
-    onContinue: () => actions.startStudio({
-      goal: `${room.goal}\n\n上一次结果「${room.name}」已经完成。现在在这个基础上继续：`,
-      conclusion: '',
-      sourceName: room.name,
-      repoPath: room.repoPath ?? '',
-    }),
-    onDiscussChat: (() => {
-      const seed = returnToChatSeed(room)
-      return seed === null ? null : () => actions.startChat(seed)
-    })(),
-    onReturn: () => {},
-  }),
+  transcript: ({ room, members, actions }) => {
+    const roomsById = new Map((actions.rooms ?? []).map(item => [item.id, item]))
+    const runs = (room.routine?.runIds ?? []).map(id => roomsById.get(id)).filter(Boolean)
+    const lastRun = roomsById.get(room.routine?.lastRoomId) ?? runs[runs.length - 1] ?? null
+    const latestRun = lastRun?.delivery !== null && lastRun?.delivery !== undefined
+      ? lastRun
+      : [...runs].reverse().find(run => run.delivery !== null && run.delivery !== undefined) ?? lastRun
+    return h(StudioTranscript, {
+      key: `transcript-${room.id}`,
+      room,
+      members,
+      hideKinds: [],
+      delivery: room.delivery ?? null,
+      latestRun,
+      runs,
+      onAccept: actions.accept,
+      onStageAccept: actions.accept,
+      onRework: actions.rework,
+      onChoose: actions.chooseHuman,
+      onReadArtifact: actions.readArtifact,
+      onRoutine: patch => actions.setRoutine(patch),
+      onOpenRun: id => actions.selectRoom(id),
+      onResolveMerge: actions.resolveMerge,
+      onApproval: actions.approval,
+      onAnswerCard: actions.answerCard,
+      onCancelQueue: actions.cancelQueue,
+      onSteerQueue: actions.steerQueue,
+      onContinue: () => actions.startStudio({
+        goal: `${room.goal}\n\n上一次结果「${room.name}」已经完成。现在在这个基础上继续：`,
+        conclusion: '',
+        sourceName: room.name,
+        repoPath: room.repoPath ?? '',
+      }),
+      onDiscussChat: (() => {
+        const seed = returnToChatSeed(room)
+        return seed === null ? null : () => actions.startChat(seed)
+      })(),
+      onReturn: () => {},
+    })
+  },
   presence: () => null,
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')

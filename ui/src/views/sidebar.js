@@ -4,6 +4,7 @@ import { useOverlay } from '../overlay.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roomTypeIcon } from '../room/type-icons.js'
 import { initialOf } from '../marks.js'
+import { routineLineOf } from '../../../shared/routine.js'
 import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
 
@@ -311,7 +312,8 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete }) {
 
 const toneOf = room => {
   if (room.needsYou?.kind === 'review') return 'review'
-  if (room.needsYou?.kind === 'signoff') return 'done'
+  if (room.needsYou?.kind === 'signoff' || room.needsYou?.kind === 'result') return 'done'
+  if (room.needsYou?.kind === 'routine-run') return 'waiting'
   if (room.needsYou?.kind === 'rework' || room.needsYou?.kind === 'merge' || room.needsYou?.kind === 'parallel') return 'alert'
   if (room.needsYou) return 'waiting'
   if (room.state === 'complete') return 'done'
@@ -319,6 +321,8 @@ const toneOf = room => {
 }
 
 const NEEDS_META = {
+  result: '今天做完了',
+  'routine-run': '需要你',
   signoff: '待签字',
   review: '验收员在看',
   decision: '待确认',
@@ -447,6 +451,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
   }
 
   const label = roomLabelOf(room)
+  const routineLine = room.archivedAt || room.needsYou ? '' : routineLineOf(room)
   const TypeIcon = roomTypeIcon(uiKindOfRoom(room).id)
   const manage = onRename !== undefined || onArchive !== undefined || onDelete !== undefined
   const canDelete = room.state !== 'active'
@@ -569,7 +574,9 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
       },
       h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, initialOf(room.name, '·')),
       h('span', { className: 'crew-side-room-type', 'aria-hidden': 'true' }, h(TypeIcon, { size: 15 })),
-      h('span', { className: 'crew-side-room-name' }, room.name),
+      h('span', { className: 'crew-side-room-text' },
+        h('span', { className: 'crew-side-room-name' }, room.name),
+        routineLine === '' ? null : h('span', { className: 'crew-side-room-next' }, routineLine)),
       room.chatUnread === true && !active
         ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))
         : null,

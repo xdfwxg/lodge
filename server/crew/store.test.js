@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DatabaseSync } from 'node:sqlite'
 import test from 'node:test'
 import { createStore } from './store.js'
 
@@ -51,18 +50,6 @@ test('room updates are versioned inside a transaction and write events', () => {
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
     rmSync(repo, { recursive: true, force: true })
-  }
-})
-
-test('a database from a newer Lodge is refused instead of being guessed at', () => {
-  const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-newer-'))
-  try {
-    const store = createStore({ dataDir })
-    store.db.exec('PRAGMA user_version = 99')
-    store.db.close()
-    assert.throws(() => createStore({ dataDir }), /比当前 Lodge 新/)
-  } finally {
-    rmSync(dataDir, { recursive: true, force: true })
   }
 })
 
@@ -145,29 +132,6 @@ test('a failed event mirror does not reverse the committed event', () => {
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
     rmSync(parent, { recursive: true, force: true })
-  }
-})
-
-test('an old room table without version migrates additively', () => {
-  const dataDir = mkdtempSync(join(tmpdir(), 'crew-old-store-'))
-  const db = new DatabaseSync(join(dataDir, 'crew.db'))
-  db.exec('CREATE TABLE room (id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
-  db.prepare('INSERT INTO room (id, payload) VALUES (?, ?)').run(
-    'old-room',
-    JSON.stringify({ id: 'old-room', name: 'Old', goal: 'g', state: 'active', stages: [], members: [] }),
-  )
-  db.close()
-  const store = createStore({ dataDir })
-  try {
-    assert.equal(store.readRoom('old-room').version, 1)
-    const next = store.updateRoom('old-room', room => {
-      room.state = 'paused'
-      return { events: [{ type: 'room.state', payload: { state: 'paused' } }] }
-    })
-    assert.equal(next.version, 2)
-    assert.equal(store.readEvents('old-room').length, 1)
-  } finally {
-    rmSync(dataDir, { recursive: true, force: true })
   }
 })
 

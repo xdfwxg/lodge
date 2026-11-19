@@ -1,12 +1,9 @@
-import { routineOf } from '../../../shared/routine.js'
-
-// 持久 timer → 每房 inbox → 单 worker。现在先接审批超时和“打开 Lodge 跑一次”；
-// 消息、复核和后续定时任务都走同一条路，进程重启后不会丢。
+// 持久 timer → 每房 inbox → 单 worker。审批超时和例行工作都走同一条路，
+// 进程重启后不会丢；例行工作到点时 App 开着就现在跑，关着就等下次打开。
 export const createRoomScheduler = ({ store, live, onRoutine = null, intervalMs = 1000, now = Date.now }) => {
   let timer = null
   let busy = false
   let started = false
-  const launchId = now()
 
   const handle = async event => {
     if (event.kind === 'approval') {
@@ -15,18 +12,6 @@ export const createRoomScheduler = ({ store, live, onRoutine = null, intervalMs 
     }
     if (event.kind === 'routine') {
       await onRoutine?.(event.payload?.sourceRoomId ?? event.roomId)
-    }
-  }
-
-  const enqueueOpenRoutines = () => {
-    for (const room of store.readRooms()) {
-      if (routineOf(room)?.enabled !== true) continue
-      store.enqueueInbox({
-        roomId: room.id,
-        kind: 'routine',
-        sourceId: `open:${launchId}:${room.id}`,
-        payload: { sourceRoomId: room.id },
-      })
     }
   }
 
@@ -41,7 +26,7 @@ export const createRoomScheduler = ({ store, live, onRoutine = null, intervalMs 
           roomId: due.roomId,
           kind: due.kind,
           payload: due.payload,
-          sourceId: `timer:${due.id}`,
+          sourceId: `timer:${due.id}:${due.dueAt}`,
         })
       }
       for (const room of store.readRooms()) {
@@ -64,7 +49,6 @@ export const createRoomScheduler = ({ store, live, onRoutine = null, intervalMs 
     start: () => {
       if (started) return
       started = true
-      enqueueOpenRoutines()
       timer = setInterval(() => { void tick() }, intervalMs)
       timer.unref?.()
     },

@@ -43,7 +43,7 @@ test('a structured verdict shows its reason and findings', () => {
   assert.match(html, /阻断 · shared\.txt 只有 alpha/)
 })
 
-test('a legacy verdict still renders from its text', () => {
+test('a verdict without a contract still renders from its text', () => {
   const html = render({
     id: 'v2',
     kind: 'verdict',

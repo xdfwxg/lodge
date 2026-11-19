@@ -1,6 +1,7 @@
 import { personalityById } from '../../shared/personalities.js'
 import { DEFAULT_STUDIO_ROSTER } from '../../shared/studio-roster.js'
 import { materializeRole } from '../../shared/role-definitions.js'
+import { isBrowserGrant } from '../../shared/room-access.js'
 import { normalizeMcpGrants } from './body-spec.js'
 
 // 成员是数据；当前产品默认固定为规划师、执行官、验收员三人，自定义编制是未开放扩展。
@@ -167,10 +168,12 @@ export const validateRoster = (members, { requireWorker = true } = {}) => {
     if (verifier.permissions?.read !== true || verifier.permissions?.exec !== true || verifier.permissions?.write === true) {
       throw new Error(`member contract: verifier ${verifier.id} must be read+exec with no write`)
     }
-    if (verifier.mcp.length > 0) throw new Error('member contract: external tools belong to a separate role, not verifier')
+    if (verifier.mcp.some(grant => !isBrowserGrant(grant))) {
+      throw new Error('member contract: external tools belong to a separate role, not verifier')
+    }
   }
   const lead = roleMembers(members).lead
-  if (lead.role === 'lead' && lead.mcp.length > 0) {
+  if (lead.role === 'lead' && lead.mcp.some(grant => !isBrowserGrant(grant))) {
     throw new Error('member contract: external tools belong to a separate role, not lead')
   }
   return members

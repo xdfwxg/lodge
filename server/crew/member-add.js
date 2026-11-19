@@ -9,6 +9,7 @@ import { independenceOf } from './independence.js'
 import { roomBulletin, roomModeOfRoom } from './rooms/kinds.js'
 import { resolveRoomType } from './room-types/index.js'
 import { membersFor } from './roster.js'
+import { grantBrowserToAll } from './room-access.js'
 
 const ROLE_ALIASES = { worker: 'worker', executor: 'worker', verifier: 'verifier' }
 const ROLE_LABEL = { worker: '执行官', verifier: '验收员' }
@@ -22,7 +23,7 @@ const uniqueId = (room, role) => {
 }
 
 // 添加 Bot 不是新增全局实体：往 room.members 追加一条带 body 的成员。
-export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }) => {
+export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, browserMcp = null }) => {
   const bodies = createBodyFactory({ engine })
   const add = async (room, body = {}) => {
     if (resolveRoomType(room.roomType)?.id !== 'studio') return fail('invalid', '聊天室不能添加成员')
@@ -38,6 +39,10 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
     if (name === '') return fail('invalid', '先给成员起个名字')
     if ((room.members ?? []).some(member => String(member.name ?? '').toLowerCase() === name.toLowerCase())) {
       return fail('invalid', '房间里已经有同名成员')
+    }
+    if (browserMcp !== null) {
+      const ready = await browserMcp.ensure?.()
+      if (ready !== true) return fail('conflict', '成员查网页需要独立的只读浏览器；先确认基座支持 MCP、本机 Chrome 可用')
     }
     const provider = workspace.provider(room)
     if (typeof provider.addMember !== 'function') return fail('conflict', '这个工作文件夹还不支持添加成员')
@@ -84,6 +89,9 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace }
       mcp: bodySpec.mcp,
       engineExplicit: true,
     }
+    const granted = grantBrowserToAll([spec])[0]
+    spec.mcp = granted.mcp
+    bodySpec.mcp = granted.mcp
     Object.assign(spec, mode.memberRole?.(spec) ?? {})
     const soul = mode.memberSoul?.(spec) ?? bodySpec.prompt
 

@@ -8,7 +8,7 @@ test('a member body spec becomes editable text fields', () => {
       spec: {
         prompt: '新纪律',
         skills: ['review', 'test'],
-        mcp: [{ server: 'github' }],
+        mcp: [{ server: 'chrome-devtools' }, { server: 'github' }],
       },
     },
   })

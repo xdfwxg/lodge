@@ -5,6 +5,8 @@ import { createCrewService } from './service.js'
 const room = (over = {}) => ({
   id: 'room-merge',
   kind: 'room',
+  roomType: 'studio',
+  verify: 'test',
   state: 'active',
   live: true,
   goal: '两位执行官同时改 shared.txt',
@@ -113,32 +115,6 @@ test('conflict markers left in the file are refused', async () => {
   assert.equal(ctx.room().mergeConflict.stage, 1)
 })
 
-test('the room permission can switch to public pages and back', async () => {
-  const ctx = setup(room({ mergeConflict: null }), { status: '', diff: '' })
-  const allowed = await ctx.service.roomRequest('room-merge', 'set-browser-access', {
-    method: 'POST',
-    readBody: async () => ({ access: 'allow' }),
-  })
-  assert.equal(allowed.ok, true, allowed.error)
-  assert.equal(ctx.room().roomAccess, 'allow')
-  const back = await ctx.service.roomRequest('room-merge', 'set-browser-access', {
-    method: 'POST',
-    readBody: async () => ({ access: 'ask' }),
-  })
-  assert.equal(back.ok, true, back.error)
-  assert.equal(ctx.room().roomAccess, 'ask')
-})
-
-test('an unknown room permission is rejected', async () => {
-  const ctx = setup(room({ mergeConflict: null }), { status: '', diff: '' })
-  const result = await ctx.service.roomRequest('room-merge', 'set-browser-access', {
-    method: 'POST',
-    readBody: async () => ({ access: 'everything' }),
-  })
-  assert.equal(result.ok, false)
-  assert.equal(result.error, '权限只能是常规或房间免确认')
-})
-
 test('a room without a conflict cannot be told to continue', async () => {
   const ctx = setup(room({ mergeConflict: null }), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'resolve-merge', { method: 'POST' })
@@ -147,24 +123,48 @@ test('a room without a conflict cannot be told to continue', async () => {
   assert.deepEqual(ctx.resolved, [])
 })
 
-test('a finished room can be turned into an on-open routine', async () => {
+test('a finished studio room can be given a daily rhythm', async () => {
   const ctx = setup(room({ state: 'complete', mergeConflict: null }), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'routine', {
     method: 'POST',
-    readBody: async () => ({ enabled: true, trigger: 'on-open' }),
+    readBody: async () => ({ enabled: true, cadence: 'daily', hour: 8, minute: 0 }),
   })
   assert.equal(result.ok, true, result.error)
   assert.equal(ctx.room().routine.enabled, true)
-  assert.equal(ctx.room().routine.trigger, 'on-open')
-  assert.match(ctx.messages.at(-1).text, /每次打开 Lodge/)
+  assert.equal(ctx.room().routine.cadence, 'daily')
+  assert.equal(ctx.room().routine.hour, 8)
+  assert.match(ctx.messages.at(-1).text, /每天早上 8:00/)
+  assert.match(ctx.messages.at(-1).text, /Lodge 没开时不会跑/)
+})
+
+test('turning a rhythm off leaves no timer behind', async () => {
+  const ctx = setup(room({ state: 'complete', mergeConflict: null, routine: { cadence: 'daily', hour: 8, enabled: true } }), { status: '', diff: '' })
+  const result = await ctx.service.roomRequest('room-merge', 'routine', {
+    method: 'POST',
+    readBody: async () => ({ enabled: false }),
+  })
+  assert.equal(result.ok, true, result.error)
+  assert.equal(ctx.room().routine.enabled, false)
+  assert.equal(ctx.room().routine.nextRunAt, null)
+  assert.match(ctx.messages.at(-1).text, /不再自动做/)
 })
 
 test('an unfinished room cannot become a routine', async () => {
   const ctx = setup(room(), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'routine', {
     method: 'POST',
-    readBody: async () => ({ enabled: true, trigger: 'on-open' }),
+    readBody: async () => ({ enabled: true, cadence: 'daily', hour: 8 }),
   })
   assert.equal(result.ok, false)
   assert.match(result.error, /做完后/)
+})
+
+test('a chat room never becomes a routine', async () => {
+  const ctx = setup(room({ roomType: 'chat', state: 'complete', mergeConflict: null }), { status: '', diff: '' })
+  const result = await ctx.service.roomRequest('room-merge', 'routine', {
+    method: 'POST',
+    readBody: async () => ({ enabled: true, cadence: 'daily', hour: 8 }),
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /工作室/)
 })

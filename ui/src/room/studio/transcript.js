@@ -7,6 +7,7 @@ import { renderStudioMessage } from './message-view.js'
 import { HumanGateCard } from './human-gate.js'
 import { MergeConflictCard } from './merge-conflict.js'
 import { DeliveryCard } from './delivery-card.js'
+import { RunNeedsCard } from './run-needs-card.js'
 import { ApprovalCard } from '../../approval-card.js'
 import { WorkingLine } from './working-line.js'
 import { scopeIsValid } from '../../../../shared/attempt.js'
@@ -32,9 +33,11 @@ export function StudioTranscript({
   onChoose = null,
   onReadArtifact = null,
   onRoutine = null,
+  onOpenRun = null,
+  latestRun = null,
+  runs = [],
   onResolveMerge = null,
   onApproval = null,
-  onAllowBrowserRoom = null,
   hideKinds = [],
   delivery = null,
 }) {
@@ -117,8 +120,8 @@ export function StudioTranscript({
     key: approval.id,
     approval,
     onDecide: decision => onApproval?.(approval.id, decision),
-    onAllowRoom: onAllowBrowserRoom === null ? null : () => onAllowBrowserRoom(approval.id),
   }))
+  const runNeeds = room.needsYou?.kind === 'routine-run' ? room.needsYou : null
   const closingActions = h('div', { key: 'room-actions', className: 'studio-room-closing studio-room-actions' },
     delivery === null
       ? h('button', {
@@ -136,6 +139,9 @@ export function StudioTranscript({
   // 做完了就只给结果；完整工作记录收起来，需要时再看。
   if (finished) {
     return h('div', { className: 'studio-result' },
+      runNeeds === null
+        ? null
+        : h(RunNeedsCard, { key: 'routine-run-needs', needs: runNeeds, onOpenRun }),
       h('div', { key: 'room-closing', className: 'studio-room-closing-wrap' },
         delivery === null
           ? h('div', { className: 'studio-room-closing' }, h('span', null, '目标完成'))
@@ -144,6 +150,9 @@ export function StudioTranscript({
             onDownload: () => { downloadDeliveryRecord(room) },
             onRead: onReadArtifact,
             onRoutine,
+            onOpenRun,
+            latestRun,
+            runs,
           }),
         closingActions),
       items.length === 0 && advice === null

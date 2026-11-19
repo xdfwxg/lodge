@@ -34,8 +34,8 @@ export const chatView = {
       ? null
       : h(StatePanel, {
         key: `intro-${room.id}`,
-        title: '先聊清楚',
-        body: '定下来，再交给工作室做。',
+        title: '随便聊聊',
+        body: '想聊就聊，聊到想做事时再转成工作室。',
       })
     return h(Fragment, null,
       intro,

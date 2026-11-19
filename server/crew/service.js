@@ -18,8 +18,15 @@ import { createMemberRemove } from './member-remove.js'
 import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
 import { artifactKindOf, imageMimeOf } from '../../shared/artifact.js'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
-import { parseRoomAccess } from '../../shared/room-access.js'
-import { parseRoutineTrigger } from '../../shared/routine.js'
+import {
+  catchUpRoutineAt,
+  parseCadence,
+  parseHour,
+  parseMinute,
+  routineOf,
+  routineTimerId,
+  scheduleLabelOf,
+} from '../../shared/routine.js'
 import { systemNotice } from './notices.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
@@ -148,6 +155,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     engine,
     emit,
     workspace,
+    browserMcp: ports.browserMcp ?? null,
     attachMember: (roomId, memberId) => live.attachMember?.(roomId, memberId),
   })
   const memberRemove = createMemberRemove({
@@ -196,6 +204,24 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       })
       if (updated !== null) emit('room', updated)
     }
+  }
+
+  // 归档或删除目标房时，正在跑的那一次也一起停；例行工作不能留在后台无声地跑。
+  const stopRoutineRun = async (room, reason) => {
+    const routine = routineOf(room)
+    if (routine?.lastRoomId === null || routine?.lastRoomId === undefined) return
+    const runRoom = store.readRoom(routine.lastRoomId)
+    if (runRoom === null || runRoom.state !== 'active') return
+    if (runRoom.live === true && live.isAttached?.(runRoom.id) === true) {
+      await live.cancel?.({ roomId: runRoom.id })
+      live.detach?.(runRoom.id)
+    }
+    const stopped = updateRoom(runRoom.id, current => {
+      current.state = 'stopped'
+      current.live = false
+      return { events: [{ type: 'room.stopped', payload: { reason } }] }
+    })
+    if (stopped !== null) emit('room', stopped)
   }
 
     const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, roles, body, ports, parentRoom: parent })
@@ -305,6 +331,16 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
 
     if (action === 'read' && method === 'POST') {
       if (room.live === true && typeof live.markChatRead === 'function') await live.markChatRead(room)
+      if (routineOf(room)?.unseenResult === true) {
+        const updated = updateRoom(room.id, current => {
+          current.routine = { ...(current.routine ?? {}), unseenResult: false }
+          return { events: [] }
+        })
+        if (updated !== null) {
+          emit('room', readRoom(room.id) ?? updated)
+          return ok({ room: readRoom(room.id) ?? updated })
+        }
+      }
       return ok({ room: readRoom(roomId) ?? room })
     }
 
@@ -422,6 +458,8 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         await live.cancel?.({ roomId: room.id })
         live.detach?.(room.id)
       }
+      const routine = routineOf(room)
+      await stopRoutineRun(room, 'routine-archived')
       const archivedAt = Date.now()
       const updated = updateRoom(room.id, current => {
         current.archivedAt = archivedAt
@@ -430,9 +468,31 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         if (stopped) current.state = 'stopped'
         // 归档会把房间从基座摘下来；停在停止状态的房间也不该继续声称自己在线。
         if (stopped || wasLive) current.live = false
-        return { events: [{ type: 'room.archived', payload: { stopped } }] }
+        if (routine?.enabled === true) {
+          current.routine = {
+            ...(current.routine ?? {}),
+            enabled: false,
+            paused: false,
+            nextRunAt: null,
+            skippedAt: null,
+            unseenResult: false,
+          }
+        }
+        return {
+          events: [
+            { type: 'room.archived', payload: { stopped } },
+            ...(routine?.enabled === true ? [{ type: 'room.routine.stopped', payload: { reason: 'archived' } }] : []),
+          ],
+        }
       })
       if (updated === null) return fail('not_found', '没有这个房间')
+      if (routine?.enabled === true) {
+        store.cancelTimer?.(routineTimerId(room.id))
+        appendMessage(room.id, {
+          kind: 'system',
+          text: '已归档，例行工作先停下；取消归档后可以再开。',
+        })
+      }
       emit('room', updated)
       if (updated.parentRoomId) closeSubroomAssignment(updated, `子房间「${updated.name}」已归档。`)
       return ok({ room: updated })
@@ -440,6 +500,8 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
 
     if (action === 'delete' && method === 'POST') {
       if (room.state === 'active') return fail('conflict', '正在进行的房间不能删除；先归档再删除')
+      if (routineOf(room)?.enabled === true) store.cancelTimer?.(routineTimerId(room.id))
+      await stopRoutineRun(room, 'room-deleted')
       if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
       if (room.parentRoomId) closeSubroomAssignment(room, `子房间「${room.name}」已删除。`)
       // 删房时把成员身体和隐藏 Bot 一起退役；工作区和用户文件留着。
@@ -590,46 +652,60 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       return closure.rejectPlan(room, await readBody())
     }
 
-    if (action === 'set-browser-access' && method === 'POST') {
-      const body = await readBody()
-      const access = parseRoomAccess(body.access)
-      if (access === null) return fail('invalid', '权限只能是常规或房间免确认')
-      const updated = updateRoom(room.id, current => {
-        current.roomAccess = access
-        return { events: [{ type: 'room.access', payload: { access } }] }
-      })
-      if (updated === null) return fail('not_found', '没有这个房间')
-      appendMessage(room.id, {
-        kind: 'system',
-        text: access === 'allow'
-          ? '房间权限改为房间免确认：只读研究不再逐次确认。'
-          : '房间权限改回常规：外部动作会逐次确认。',
-      })
-      emit('room', updated)
-      return ok({ room: updated })
-    }
-
     if (action === 'routine' && method === 'POST') {
-      if (room.state !== 'complete') return fail('conflict', '房间做完后再设为例行工作')
+      if (room.roomType !== 'studio') return fail('invalid', '只有工作室房间能设成每天再做一遍')
+      if (room.state !== 'complete') return fail('conflict', '房间做完后再设')
+      if (room.demo === true) return fail('invalid', '示例房间不能设成每天再做一遍')
+      if (room.archivedAt !== undefined && room.archivedAt !== null) return fail('conflict', '取消归档后再设')
       const body = await readBody()
-      const trigger = parseRoutineTrigger(body.trigger ?? 'on-open')
-      if (trigger === null) return fail('invalid', '只支持“每次打开 Lodge 再跑一次”')
+      const cadence = parseCadence(body.cadence)
+      const hour = parseHour(body.hour)
+      const minute = parseMinute(body.minute)
       const enabled = body.enabled === true
+      if (enabled) {
+        const taken = store.readRooms()
+          .filter(item => item.id !== room.id && routineOf(item)?.enabled === true)
+          .length
+        if (taken >= 20) return fail('conflict', '最多 20 个每天自动做的事，先关掉一个')
+      }
+      const schedule = { cadence, hour, minute }
+      const nextRunAt = enabled ? catchUpRoutineAt(schedule) : null
       const updated = updateRoom(room.id, current => {
         current.routine = {
           ...(current.routine ?? {}),
-          trigger,
+          cadence,
+          hour,
+          minute,
           enabled,
+          failures: 0,
+          paused: false,
+          lastError: null,
+          skippedAt: null,
+          unseenResult: false,
           updatedAt: Date.now(),
+          nextRunAt,
         }
         return {
-          events: [{ type: 'room.routine', payload: { trigger, enabled } }],
+          events: [{ type: 'room.routine', payload: { cadence, hour, minute, enabled } }],
         }
       })
       if (updated === null) return fail('not_found', '没有这个房间')
+      if (enabled) {
+        store.setTimer?.({
+          id: routineTimerId(room.id),
+          roomId: room.id,
+          kind: 'routine',
+          payload: { sourceRoomId: room.id },
+          dueAt: nextRunAt,
+        })
+      } else {
+        store.cancelTimer?.(routineTimerId(room.id))
+      }
       appendMessage(room.id, {
         kind: 'system',
-        text: enabled ? '每次打开 Lodge 会再跑一次。' : '已关掉打开 Lodge 时自动再跑。',
+        text: enabled
+          ? `以后${scheduleLabelOf(schedule)} 再做一遍。${room.verify === 'manual' ? '每次做完要你看一眼。' : ''}Lodge 没开时不会跑，下次打开补上。`
+          : '以后不再自动做。',
       })
       emit('room', updated)
       return ok({ room: updated })

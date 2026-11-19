@@ -102,6 +102,8 @@ export const buildDelivery = (room, messages = []) => {
     commit: typeof room.completedCommit === 'string' && room.completedCommit !== '' ? room.completedCommit : null,
     independenceLabel: independenceLabel(room),
     routine: routineOf(room),
+    routineManual: room.verify === 'manual',
+    archived: Boolean(room.archivedAt),
     usage: room.usage ?? null,
     memberNames: memberLabelMap(room),
     workspace: {

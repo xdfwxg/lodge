@@ -210,33 +210,17 @@ export const validateJudgment = value => {
     actorId: typeof value.actorId === 'string' && value.actorId !== '' ? value.actorId : null,
     rejectTo: REJECT_TARGETS.has(value.rejectTo) ? value.rejectTo : rejectToFor(type, decision),
     at: typeof value.at === 'number' ? value.at : 0,
-    source: ['json', 'text', 'legacy', 'gate', 'missing', 'policy'].includes(value.source) ? value.source : 'text',
+    source: ['json', 'text', 'gate', 'missing', 'policy'].includes(value.source) ? value.source : 'text',
   }
 }
 
-// 老消息没有契约：从派生的 pass/reason 合成一份只读契约，不写回存储。
-export const judgmentOf = message => {
-  const stored = validateJudgment(message?.meta?.judgment)
-  if (stored !== null) return stored
-  const pass = message?.meta?.pass
-  if (pass !== true && pass !== false) return null
-  return {
-    version: JUDGMENT_VERSION,
-    type: 'verdict',
-    decision: pass ? 'pass' : 'reject',
-    reason: clip(message?.meta?.reason ?? message?.text, LIMITS.reason),
-    findings: [],
-    actionRequired: '',
-    stage: Number.isInteger(message?.meta?.stage) ? message.meta.stage : null,
-    evidenceId: typeof message?.meta?.evidenceId === 'string' ? message.meta.evidenceId : null,
-    actorId: typeof message?.authorId === 'string' ? message.authorId : null,
-    rejectTo: pass ? null : 'planner',
-    at: typeof message?.ts === 'number' ? message.ts : 0,
-    source: 'legacy',
-  }
-}
+export const judgmentOf = message => validateJudgment(message?.meta?.judgment)
 
-export const verdictPassed = message => judgmentOf(message)?.decision === 'pass'
+// 判定契约是结论的来源；meta.pass 只是写入时留下的派生镜像，仍供旧的读取点使用。
+export const verdictPassed = message => {
+  const judgment = judgmentOf(message)
+  return judgment === null ? message?.meta?.pass === true : judgment.decision === 'pass'
+}
 
 export const plannerDecisionOf = room => validateJudgment(room?.lastPlannerDecision?.judgment)
 

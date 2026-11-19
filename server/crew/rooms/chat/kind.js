@@ -77,10 +77,11 @@ export const chatKind = {
   },
 
   needsYou: room => {
-    const chat = room.chat
-    if (!chat || chat.running === true || chat.phase === 'accepted') return null
-    if (chat.phase === 'awaiting_decision') return { kind: 'decision', stage: null, label: '待确认' }
-    return { kind: 'idle', stage: null, label: '可继续' }
+    // 聊天室没有“待处理的结论”。只有真的出错才打断用户；聊到一半或聊完都只是状态。
+    if (room.memberError !== undefined || room.pauseReason === 'member_error') {
+      return { kind: 'error', stage: null, label: '成员没回应' }
+    }
+    return null
   },
 
   stateOf: room => room.chat?.phase ?? 'discussing',

@@ -3,12 +3,12 @@ import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { createLiveTurns } from './rooms/studio/turns.js'
 import { BusinessError } from './result.js'
-import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
+import { normalizeTestRoom, withAssignments } from './testing/room.js'
 
 const ports = createCrewPorts()
 
 const store = messages => withAssignments({
-  readRoom: () => normalizeLegacyTestRoom({
+  readRoom: () => normalizeTestRoom({
     id: 'room-1',
     stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
     seatSpecs: [{ id: 'verifier', role: 'verifier', name: 'Verifier' }],
@@ -24,7 +24,7 @@ const store = messages => withAssignments({
 
 test('resume starts an active stage by waking the executor', async () => {
   const sent = []
-  const room = normalizeLegacyTestRoom({
+  const room = normalizeTestRoom({
     ...store([]).readRoom(),
     live: true,
     state: 'active',
@@ -63,7 +63,7 @@ test('resume starts an active stage by waking the executor', async () => {
 
 test('resume re-requests a review that was pending before restart', async () => {
   const sent = []
-  const room = normalizeLegacyTestRoom({
+  const room = normalizeTestRoom({
     ...store([]).readRoom(),
     live: true,
     state: 'active',
@@ -108,7 +108,7 @@ test('resume re-requests a review that was pending before restart', async () => 
 
 test('resume leaves a busy room alone', async () => {
   let sent = 0
-  const room = normalizeLegacyTestRoom({
+  const room = normalizeTestRoom({
     ...store([]).readRoom(),
     live: true,
     state: 'active',
@@ -171,7 +171,7 @@ test('a business rejection from review is a typed failure, not a system error', 
 
 test('resume wakes only the assignments that have not reported', async () => {
   const sent = []
-  const room = normalizeLegacyTestRoom({
+  const room = normalizeTestRoom({
     ...store([]).readRoom(),
     live: true,
     state: 'active',
@@ -238,7 +238,7 @@ test('resume wakes only the assignments that have not reported', async () => {
 
 test('resume does not dispatch a step the planner handed to the human', async () => {
   let sent = 0
-  const room = normalizeLegacyTestRoom({
+  const room = normalizeTestRoom({
     ...store([]).readRoom(),
     live: true,
     state: 'active',

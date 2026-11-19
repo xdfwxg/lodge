@@ -3,7 +3,7 @@ import test from 'node:test'
 import { CHAT_TURNS_PER_ROUND, turnLimitOf as chatTurnLimitOf } from './room-types/chat.js'
 import { createChatScheduler } from './rooms/chat/scheduler.js'
 import { createChatTransport } from './rooms/chat/transport.js'
-import { normalizeLegacyTestRoom } from './testing/room.js'
+import { normalizeTestRoom } from './testing/room.js'
 
 test('a chat round defaults to six speakers and accepts a room limit', () => {
   assert.equal(CHAT_TURNS_PER_ROUND, 6)
@@ -13,7 +13,7 @@ test('a chat round defaults to six speakers and accepts a room limit', () => {
 })
 
 const setup = ({ summaryText = '这是总结。', silent = false, busy = false } = {}) => {
-  let current = normalizeLegacyTestRoom({
+  let current = normalizeTestRoom({
     id: 'room-chat',
     kind: 'room',
     name: '聊天室',

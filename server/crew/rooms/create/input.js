@@ -4,7 +4,6 @@ import { resolveOrchestration } from '../../orchestration/index.js'
 import { resolveRoomType } from '../../room-types/index.js'
 import { handoffGoalText, normalizeHandoff } from '../../../../shared/handoff.js'
 import { normalizeReceipt } from '../../../../shared/receipt.js'
-import { parseRoomAccess } from '../../../../shared/room-access.js'
 import {
   DEFAULT_TEMPLATE_ID,
   roleMembers,
@@ -62,8 +61,6 @@ export const normalizeRequest = body => {
     return { error: '要交付的房间需要一条检查' }
   }
   const shadowReview = body.shadowReview === true
-  const browser = body.browser === true
-  const roomAccess = parseRoomAccess(body.roomAccess) ?? 'ask'
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '未知的编排策略' }
   const handoff = normalizeHandoff(body.handoff)
@@ -79,8 +76,6 @@ export const normalizeRequest = body => {
     acceptance,
     orchestration,
     shadowReview,
-    browser,
-    roomAccess,
     chatTurnLimit,
     handoff,
     handoffReviewed,

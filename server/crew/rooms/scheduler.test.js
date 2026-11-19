@@ -50,14 +50,26 @@ test('a failed handler is kept as failed instead of silently dropping it', async
   assert.deepEqual(calls.completed, [])
 })
 
-test('opening the app queues an on-open routine once', async () => {
+test('a due routine timer starts one run of its room', async () => {
+  const timers = [{
+    id: 'routine:r1',
+    roomId: 'r1',
+    kind: 'routine',
+    payload: { sourceRoomId: 'r1' },
+    dueAt: 1,
+  }]
   const inbox = []
   const calls = []
   const store = {
-    dueTimers: () => [],
-    completeTimer: () => ({ changes: 0 }),
+    dueTimers: () => timers.filter(item => item.status !== 'done'),
+    completeTimer: id => {
+      const item = timers.find(value => value.id === id)
+      if (item === undefined || item.status === 'done') return { changes: 0 }
+      item.status = 'done'
+      return { changes: 1 }
+    },
     enqueueInbox: event => inbox.push({ id: `e${inbox.length + 1}`, ...event }),
-    readRooms: () => [{ id: 'r1', routine: { trigger: 'on-open', enabled: true } }],
+    readRooms: () => [{ id: 'r1' }],
     claimInbox: () => {
       const event = inbox.find(item => item.status === undefined)
       if (event === undefined) return null
@@ -71,11 +83,9 @@ test('opening the app queues an on-open routine once', async () => {
     store,
     live: {},
     onRoutine: async id => calls.push(id),
-    now: () => 1,
+    now: () => 2,
     intervalMs: 60_000,
   })
-  scheduler.start()
   await scheduler.tick()
-  scheduler.stop()
   assert.deepEqual(calls, ['r1'])
 })

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHandoff } from './handoff.js'
-import { normalizeLegacyTestRoom, withAssignments } from '../../testing/room.js'
+import { normalizeTestRoom, withAssignments } from '../../testing/room.js'
 
-const room = (over = {}) => normalizeLegacyTestRoom({
+const room = (over = {}) => normalizeTestRoom({
   id: 'room-1',
   goal: '把 hello 改成 greet',
   seatNames: { worker: 'WorkerBase', verifier: 'VerifierBase' },

@@ -110,11 +110,10 @@ test('validation rejects unknown versions and decisions', () => {
   assert.equal(validateJudgment({ ...good, type: 'other' }), null)
 })
 
-test('legacy verdicts still read through the contract', () => {
+test('a verdict without a contract is not invented', () => {
   const legacy = { kind: 'verdict', authorId: 'v1', text: 'PASS 可以', ts: 9, meta: { pass: true, reason: '可以', stage: 0, evidenceId: 'e0' } }
   assert.equal(verdictPassed(legacy), true)
-  assert.equal(judgmentOf(legacy).source, 'legacy')
-  assert.equal(judgmentOf(legacy).stage, 0)
+  assert.equal(judgmentOf(legacy), null)
   assert.equal(judgmentOf({ kind: 'chat' }), null)
 })
 

@@ -4,6 +4,7 @@ import { resolveRoomType } from '../../room-types/index.js'
 import { engineBlockReason } from '../../../../shared/engine-readiness.js'
 import { bodyChangeBlocker } from '../../body-change.js'
 import { normalizeBodySpec } from '../../body-spec.js'
+import { grantBrowserToAll } from '../../room-access.js'
 import { plainRuntimeError } from '../../base-error.js'
 import { independenceOf } from '../../independence.js'
 import { roomToolsFor } from '../../gate/tool.js'
@@ -51,6 +52,7 @@ export const createBodySwap = ({ store, engine, emit }) => {
       fallback: current,
     })
     if (specError !== undefined) return fail('invalid', specError)
+    spec.mcp = grantBrowserToAll([{ mcp: spec.mcp }])[0].mcp
     const instance = instances.find(item => item.id === engineId)
     const requiresGate = resolveRoomType(room.roomType)?.readOnly !== true && member.permissions?.exec === true
     const issue = engineBlockReason(instance, { requireApproval: requiresGate })

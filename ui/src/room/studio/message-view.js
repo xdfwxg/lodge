@@ -71,7 +71,7 @@ export const renderStudioMessage = ({
 
   if (message.kind === 'verdict') {
     const judgment = judgmentOf(message)
-    const source = judgment === null || judgment.source === 'legacy' ? message.text : (judgment.reason || message.text)
+    const source = judgment === null ? message.text : (judgment.reason || message.text)
     const verdict = splitVerdictText(source)
     const passed = judgment !== null ? judgment.decision === 'pass' : message.meta?.pass === true
     const text = verdict.summary || (passed ? '符合这一步的要求。' : '这一步还不行，需要重做。')

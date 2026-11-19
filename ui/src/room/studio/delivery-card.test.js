@@ -207,7 +207,7 @@ test('a sample artifact opens its content in the card instead of the filesystem'
   assert.doesNotMatch(text(tree), /打开/)
 })
 
-test('a finished room can become a routine that runs when Lodge opens', async () => {
+test('a finished room offers one quiet way to do it again tomorrow', async () => {
   const { DeliveryCard } = await load()
   const tree = render(DeliveryCard({
     delivery: {
@@ -215,11 +215,128 @@ test('a finished room can become a routine that runs when Lodge opens', async ()
       stages: [],
       commands: [],
       changedFiles: [],
-      routine: { trigger: 'on-open', enabled: false },
+      routine: null,
     },
     onRoutine: () => {},
   }))
-  assert.match(text(tree), /每次打开 Lodge 再跑一次/)
+  assert.match(text(tree), /以后/)
+  assert.match(text(tree), /再做一遍/)
+  assert.match(text(tree), /Lodge 没开时不会跑/)
+  assert.doesNotMatch(text(tree), /cron/)
+})
+
+test('the time is chosen before starting and the last choice is kept', async () => {
+  const { DeliveryCard } = await load()
+  const calls = []
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '每日摘要',
+      stages: [],
+      commands: [],
+      changedFiles: [],
+      routine: { cadence: 'daily', hour: 9, minute: 30, enabled: false },
+    },
+    onRoutine: patch => calls.push(patch),
+  }))
+  const time = find(tree, node => node.type === 'input' && node.props?.type === 'time')
+  assert.equal(time.props.value, '09:30')
+  const start = find(tree, node => node.type === 'button' && text(node) === '开始')
+  start.props.onClick()
+  assert.equal(calls[0].enabled, true)
+  assert.equal(calls[0].cadence, 'daily')
+  assert.equal(calls[0].hour, 9)
+  assert.equal(calls[0].minute, 30)
+})
+
+test('an enabled rhythm shows the next run and today’s latest result', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '每日摘要',
+      stages: [],
+      commands: [],
+      artifacts: [{ path: '/tmp/goal/old.md', relativePath: 'old.md' }],
+      changedFiles: [],
+      routine: {
+        cadence: 'daily',
+        hour: 8,
+        minute: 0,
+        enabled: true,
+        nextRunAt: new Date(2026, 10, 20, 8, 0).getTime(),
+        lastFinishedAt: new Date(2026, 10, 19, 8, 12).getTime(),
+        runIds: ['room-run-1', 'room-run-2'],
+        lastRoomId: 'room-run-2',
+      },
+    },
+    latestRun: {
+      id: 'room-run-2',
+      delivery: {
+        name: '11月19日的摘要',
+        artifacts: [{ path: '/tmp/run/summary.md', relativePath: 'summary.md' }],
+      },
+    },
+    runs: [
+      { id: 'room-run-1', name: '11月18日 8:00' },
+      { id: 'room-run-2', name: '11月19日 8:00' },
+    ],
+    onRoutine: () => {},
+    onOpenRun: () => {},
+  }))
+  assert.match(text(tree), /最新一次/)
+  assert.match(text(tree), /每天早上 8:00/)
+  assert.match(text(tree), /summary\.md/)
+  assert.doesNotMatch(text(tree), /old\.md/)
+  assert.match(text(tree), /往次 2 次/)
+  assert.match(text(tree), /最初那次/)
+  assert.match(text(tree), /11月18日 8:00/)
+  assert.doesNotMatch(text(tree), /每次重做|接着上次做/)
+})
+
+test('a rhythm that stopped after three failures offers retry or stop', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '每日摘要',
+      stages: [],
+      commands: [],
+      changedFiles: [],
+      routine: { cadence: 'daily', hour: 8, minute: 0, enabled: false, paused: true, failures: 3 },
+    },
+    onRoutine: () => {},
+  }))
+  assert.match(text(tree), /连续 3 次没做成/)
+  assert.match(text(tree), /再试一次/)
+  assert.match(text(tree), /关掉/)
+})
+
+test('an archived room cannot restart its routine', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '每日摘要',
+      stages: [],
+      commands: [],
+      changedFiles: [],
+      archived: true,
+      routine: {
+        cadence: 'daily',
+        hour: 8,
+        minute: 0,
+        enabled: false,
+        lastRoomId: 'run-1',
+        runIds: ['run-1'],
+      },
+    },
+    latestRun: {
+      id: 'run-1',
+      delivery: { artifacts: [{ path: '/tmp/run/summary.md', relativePath: 'summary.md' }] },
+    },
+    runs: [{ id: 'run-1', name: '11月19日 8:00' }],
+    onRoutine: () => {},
+    onOpenRun: () => {},
+  }))
+  assert.match(text(tree), /已归档/)
+  assert.doesNotMatch(text(tree), /开始/)
 })
 
 test('the delivery sheet offers a way to continue', async () => {

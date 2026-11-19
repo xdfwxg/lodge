@@ -5,9 +5,9 @@ import { createLiveTurns } from './rooms/studio/turns.js'
 
 const ports = createCrewPorts()
 import { reviewState } from './rooms/studio/verifiers.js'
-import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
+import { normalizeTestRoom, withAssignments } from './testing/room.js'
 
-const room = (over = {}) => normalizeLegacyTestRoom({
+const room = (over = {}) => normalizeTestRoom({
   id: 'room-1',
   state: 'active',
   live: true,

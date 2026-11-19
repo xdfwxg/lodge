@@ -25,6 +25,31 @@ test('room presentation hides base fields and keeps the display host label', () 
   assert.deepEqual(presented.members[0].body, { kind: 'base', engine: 'pi', model: 'deepseek' })
 })
 
+test('a routine run that needs you is presented on the goal room', () => {
+  const members = [{ id: 'worker', name: '执行官', role: 'worker', roleKind: 'executor', permissions: {} }]
+  const goal = {
+    id: 'goal',
+    state: 'complete',
+    roomType: 'studio',
+    members,
+    stages: [],
+    routine: { cadence: 'daily', hour: 8, minute: 0, enabled: true, lastRoomId: 'run-1' },
+  }
+  const run = {
+    id: 'run-1',
+    state: 'paused',
+    roomType: 'studio',
+    members,
+    stages: [],
+    pauseReason: 'member_error',
+    memberError: { memberId: 'worker', kind: 'auth' },
+  }
+  const presented = presentRoom(goal, [], [], { routineRun: { room: run, messages: [] } })
+  assert.equal(presented.needsYou.kind, 'routine-run')
+  assert.equal(presented.needsYou.reason, '执行官的登录失效了')
+  assert.equal(presented.needsYou.runId, 'run-1')
+})
+
 test('a studio room never exposes a chat host', () => {
   const room = {
     id: 'room-studio',

@@ -3,7 +3,6 @@ import test from 'node:test'
 import { createAssignment, transitionAssignment } from './assignments.js'
 import { dispatchFrom, tasksFrom } from './assignment-projections.js'
 import { compactRoom, pageAssignments } from './assignment-history.js'
-import { migrateAssignments } from './assignment-migration.js'
 import { withAssignments } from './testing/room.js'
 
 const makeStore = (room, messages = []) => {
@@ -20,75 +19,6 @@ const makeStore = (room, messages = []) => {
   })
   return { store, messages, writes }
 }
-
-test('handoff messages become assignments and keep only the assignment reference', () => {
-  const room = { id: 'room-1', stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }] }
-  const messages = [{
-    id: 'm1',
-    kind: 'handoff',
-    ts: 100,
-    meta: {
-      stage: 0,
-      from: 'lead',
-      to: 'worker',
-      reason: 'dispatch',
-      status: 'sent',
-      deliveryId: 'h-1',
-      workTurn: { done: ['测试通过'], acceptance: 'npm test', evidence: { id: 'e1', text: 'ok' } },
-    },
-  }]
-  const { store, messages: stored } = makeStore(room, messages)
-  assert.equal(migrateAssignments(store), 1)
-  const [assignment] = store.readAssignments('room-1')
-  assert.equal(assignment.id, 'as-h-1')
-  assert.equal(assignment.toMemberId, 'worker')
-  assert.equal(assignment.status, 'sent')
-  assert.equal(assignment.brief.done[0], '测试通过')
-  assert.deepEqual(assignment.evidenceIds, ['e1'])
-  assert.deepEqual(stored[0].meta, { assignmentId: 'as-h-1', stage: 0, status: 'sent' })
-})
-
-test('stageDispatch and stage tasks become assignments and leave the room', () => {
-  const room = {
-    id: 'room-1',
-    leadMemberId: 'lead',
-    stages: [{
-      title: 'impl',
-      kind: 'deliverable',
-      state: 'active',
-      acceptance: 'npm test',
-      tasks: [{ owner: 'w1', status: 'done', evidenceRef: 'e1' }],
-    }],
-    stageDispatch: { stage: 0, workers: ['w1', 'w2'], pending: ['w2'], failed: [], base: 'base', startedAt: 50 },
-  }
-  const { store, writes } = makeStore(room)
-  assert.equal(migrateAssignments(store), 2)
-  const rows = store.readAssignments('room-1')
-  assert.deepEqual(rows.map(item => item.toMemberId).sort(), ['w1', 'w2'])
-  assert.equal(rows.find(item => item.toMemberId === 'w2').status, 'sent')
-  assert.equal(room.stageDispatch, undefined)
-  assert.equal(room.stages[0].tasks, undefined)
-  assert.equal(writes.length, 1)
-})
-
-test('migration is idempotent and does not duplicate a stage member', () => {
-  const room = {
-    id: 'room-1',
-    stages: [{
-      title: 'impl',
-      kind: 'deliverable',
-      state: 'active',
-      tasks: [{ owner: 'w1', status: 'working' }],
-    }],
-  }
-  const { store } = makeStore(room)
-  const first = migrateAssignments(store)
-  const afterFirst = store.readAssignments('room-1').length
-  const second = migrateAssignments(store)
-  assert.equal(first, 1)
-  assert.equal(second, 0)
-  assert.equal(store.readAssignments('room-1').length, afterFirst)
-})
 
 test('each new handoff to the same member is a new attempt', () => {
   const room = {

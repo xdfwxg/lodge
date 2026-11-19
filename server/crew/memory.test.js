@@ -27,7 +27,24 @@ const withStore = fn => {
 
 test('a completed room appends one read-only record per workspace', () => withStore((memory, root) => {
   const messages = [
-    { kind: 'verdict', text: 'PASS', meta: { pass: true, reason: '符合目标' } },
+    { kind: 'verdict', text: 'PASS', meta: {
+      pass: true,
+      reason: '符合目标',
+      judgment: {
+        version: 1,
+        type: 'verdict',
+        decision: 'pass',
+        reason: '符合目标',
+        findings: [],
+        actionRequired: '',
+        stage: 0,
+        evidenceId: null,
+        actorId: 'verifier',
+        rejectTo: null,
+        at: 0,
+        source: 'text',
+      },
+    } },
     { kind: 'conclusion', text: '已交付：补一版发布说明' },
     { kind: 'evidence', meta: { changedFiles: ['RELEASE.md', 'RELEASE.md', '.crew/x'] } },
   ]
@@ -48,7 +65,24 @@ test('a completed room appends one read-only record per workspace', () => withSt
 }))
 
 test('only approved entries are shared with new rooms', () => withStore(memory => {
-  memory.appendRoom({ room: room(), messages: [{ kind: 'verdict', text: 'PASS', meta: { pass: true, reason: '符合目标' } }] })
+  memory.appendRoom({ room: room(), messages: [{ kind: 'verdict', text: 'PASS', meta: {
+      pass: true,
+      reason: '符合目标',
+      judgment: {
+        version: 1,
+        type: 'verdict',
+        decision: 'pass',
+        reason: '符合目标',
+        findings: [],
+        actionRequired: '',
+        stage: 0,
+        evidenceId: null,
+        actorId: 'verifier',
+        rejectTo: null,
+        at: 0,
+        source: 'text',
+      },
+    } }] })
   assert.deepEqual(memory.shared({ room: room() }), [])
   const approved = memory.review({ room: room(), memoryId: 'room-1', decision: 'approve' })
   assert.equal(approved.ok, true)

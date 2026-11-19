@@ -27,11 +27,16 @@ test('a custom worker keeps a browser grant from the room request', () => {
   assert.deepEqual(roster[0].mcp, [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }])
 })
 
-test('planner cannot hold external tools', () => {
+test('planner cannot hold external tools other than the read-only browser', () => {
   const bad = ROLES.map(member => member.id === 'planner'
     ? { ...member, mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }] }
     : member)
   assert.throws(() => validateRoster(bad), /lead/)
+  const browser = { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }
+  const allowed = ROLES.map(member => (
+    member.role === 'lead' || member.role === 'verifier' ? { ...member, mcp: [browser] } : member
+  ))
+  assert.doesNotThrow(() => validateRoster(allowed))
 })
 
 test('mcp grants must name a server, not carry a URL or credential', () => {

@@ -38,13 +38,13 @@ test('the front door asks for a goal and offers the sample', async () => {
   const { HomeView } = await load()
   const tree = HomeView({ onSubmit: () => {}, onSample: () => {} })
   const body = text(tree)
-  assert.match(body, /今天想完成什么/)
-  assert.match(body, /开始/)
+  assert.match(body, /今天想做什么/)
+  assert.match(body, /做出来/)
   assert.match(body, /先看看一间做完的示例/)
   assert.match(body, /说清要的结果/)
 })
 
-test('the front door keeps chat and adjustment as secondary doors', async () => {
+test('the front door keeps chat and adjustment as paths from the same input', async () => {
   const { HomeView } = await load()
   const body = text(HomeView({
     onSubmit: () => {},
@@ -52,7 +52,7 @@ test('the front door keeps chat and adjustment as secondary doors', async () => 
     onDiscuss: () => {},
     onAdjust: () => {},
   }))
-  assert.match(body, /先聊清楚/)
+  assert.match(body, /聊一聊/)
   assert.match(body, /更多选项/)
 })
 

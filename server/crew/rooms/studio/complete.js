@@ -33,6 +33,23 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       return { events: [{ type: 'goal.archived', payload: { stages: current.stages.length } }] }
     })
     if (archived !== null) emit('room', archived)
+    if (typeof room.routineGoalId === 'string') {
+      const goal = readRoom(room.routineGoalId)
+      if (goal !== null) {
+        const withResult = updateRoom(goal.id, current => {
+          current.routine = {
+            ...(current.routine ?? {}),
+            lastFinishedAt: Date.now(),
+            failures: 0,
+            lastError: null,
+            skippedAt: null,
+            unseenResult: true,
+          }
+          return { events: [{ type: 'room.routine.finished', payload: { roomId: room.id } }] }
+        })
+        if (withResult !== null) emit('room', withResult)
+      }
+    }
     const roomWorkspace = workspace.provider(room)
     const capabilities = roomWorkspace.capabilities()
     const delivered = readMessages(room.id).flatMap(message => [

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createServiceStages } from './rooms/studio/service-stages.js'
-import { normalizeLegacyTestRoom, withAssignments } from './testing/room.js'
+import { normalizeTestRoom, withAssignments } from './testing/room.js'
 
 test('a completed child posts only its Verifier verdicts to the parent and wakes its Planner', async () => {
-  const parent = normalizeLegacyTestRoom({
+  const parent = normalizeTestRoom({
     id: 'parent',
     roomType: 'studio',
     state: 'active',
@@ -15,7 +15,7 @@ test('a completed child posts only its Verifier verdicts to the parent and wakes
     usage: { costMicroUsd: 0, budgetMicroUsd: 0 },
     stages: [],
   })
-  const child = normalizeLegacyTestRoom({
+  const child = normalizeTestRoom({
     id: 'child',
     roomType: 'studio',
     state: 'active',

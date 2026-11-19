@@ -11,7 +11,7 @@ export const ROOM_ACTIONS = Object.freeze([
   'reject-plan',
   'rework',
   'resolve-merge',
-  'set-browser-access',
+  'routine',
   'retry',
   'rewind',
   'switch-mode',

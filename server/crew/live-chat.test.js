@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRoomChat } from './kernel/live/bus.js'
 import { ROOM_CHAT_BULLETIN } from './room-chat.js'
-import { normalizeLegacyTestRoom } from './testing/room.js'
+import { normalizeTestRoom } from './testing/room.js'
 
-const baseRoom = () => normalizeLegacyTestRoom({
+const baseRoom = () => normalizeTestRoom({
   id: 'room-1',
   name: '样例房',
   goal: '把事做完',

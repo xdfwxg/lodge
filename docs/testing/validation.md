@@ -31,8 +31,8 @@
 
 ## 2026-11-18 · 聊天室灵动岛
 
-- 聊天室改用和工作室同一个目标岛：常驻胶囊、悬停/点击展开、目标原句、两步进度（讨论 / 结论）
-- 实际页面：`room-9893a8bc` 的岛显示“1/2 讨论”，展开后是目标原句和讨论/结论两步；工作室的岛（`room-47b3f3ac`）保持原样，已交付的示例房仍显示“已交付”
+- 聊天室和工作室共用同一个目标岛，但故事分开：聊天室只讲“正在聊 / 聊到这儿了 / 聊完了”，没有待处理的结论；工作室继续讲步骤和交付。
+- 实际页面：聊天室岛不再出现“2/2 结论”或“待处理 · 结论”；已确认的聊天室显示“已确认”，工作室的岛保持原样，已交付的示例房仍显示“已交付”
 - 已确认的聊天室用“已确认”，不借用工作室的“已交付”
 
 ## 2026-11-19 · submit_decision
@@ -225,12 +225,20 @@
 - 两种权限：每次确认（每个外部动作都问）、房间免确认（只放行浏览器、搜索和抓取这类只读研究；命令、文件和付款仍逐次确认）
 - 自动覆盖：`server/crew/approval-bridge.test.js` 验证浏览器工具自动放行、非浏览器动作仍挂卡；`ui/src/room/studio/create.test.js` 验证请求带上房间权限
 
-## 2026-11-19 · 房间权限可改
+## 2026-11-19 · 房间权限可改（已被同日「只读标配」取代）
 
 - `room-1b2f4daf` 右上角只在全权时显示“免确认”状态，点开弹框说明“每次确认 / 房间免确认”两档
 - 从房间免确认切到每次确认后，`roomAccess` 变回 `ask`；保存后弹框关闭
-- 再切回房间免确认，房间记录和系统消息同步更新；`POST /api/rooms/:id/set-browser-access` 由 `server/crew/service-merge.test.js` 覆盖
-- UI：`ui/src/room/browser-permission.test.js` 覆盖“默认不显示、提高后显示两档”
+- 再切回房间免确认，房间记录和系统消息同步更新；`POST /api/rooms/:id/set-browser-access` 由当时的 `server/crew/service-merge.test.js` 覆盖
+
+## 2026-11-19 · 浏览器成为每个成员的只读标配
+
+- 建房不再有「允许查公开网页」勾选，也没有房间权限；建房和加成员时自动给每个人挂 `chrome-devtools` 只读 grant。
+- 只读研究（浏览器、WebSearch、WebFetch）由系统直接放行；命令、写入、付款仍逐次确认；审批卡只留「允许 / 拒绝」。
+- 规划师和验收员只允许这一种只读浏览器 grant，其他外部工具仍由 roster 校验拒绝。
+- UI 的权限入口、`set-browser-access` 动作和房间级审批按钮已删除；`shared/room-access.js` 只保留工具判断和 grant 判断。
+- 自动覆盖：`server/crew/room-access.test.js`、`server/crew/roster.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/studio/create.test.js`、`ui/src/approval-card.test.js`
+- 本次没有在真实 Chrome 上重新建房跑端到端；1004 项测试、构建、文档与验收门禁通过。
 
 ## 2026-11-19 · 工作区记忆入口
 

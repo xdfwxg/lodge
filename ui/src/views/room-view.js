@@ -2,7 +2,6 @@ import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
-import { BrowserPermission } from '../room/browser-permission.js'
 import { RoomHealth } from '../room/health.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
@@ -80,8 +79,8 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   }, [room.id, room.state, mode])
 
   useEffect(() => {
-    if (room.chatUnread === true) void store.markRead()
-  }, [room.id, room.chatUnread, store])
+    if (room.chatUnread === true || room.routine?.unseenResult === true) void store.markRead()
+  }, [room.id, room.chatUnread, room.routine?.unseenResult, store])
 
   useLayoutEffect(() => {
     if (stick.current) pinToBottom()
@@ -193,6 +192,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
 
   const actions = {
     store,
+    rooms: state.rooms,
     accept: stage => void store.accept(stage),
     rework: (stage, note) => store.rework(stage, note),
     chooseHuman: (stage, choice, note) => store.humanChoice(stage, choice, note),
@@ -205,12 +205,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     resume: () => store.resumeRoom(),
     stopRoom: () => store.stopRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
-    setBrowserAccess: access => void store.setBrowserAccess(access),
-    setRoutine: enabled => void store.setRoutine(room.id, enabled),
-    allowBrowserRoom: async id => {
-      await store.setBrowserAccess('allow')
-      await store.decideApproval(id, 'allow')
-    },
+    setRoutine: patch => void store.setRoutine(room.id, patch),
     answerCard: (memberId, requestId, message) => void store.answerCard(memberId, requestId, message),
     cancelQueue: queueId => void store.cancelQueued(queueId),
     steerQueue: queueId => void store.steerQueued(queueId),
@@ -248,13 +243,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   return h('main', { className: 'dsb-main crew-room' },
     h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id, 'data-room-done': finished ? 'true' : undefined },
       mode.header(viewCtx),
-      h('div', { className: 'crew-room-tools' },
-        tools,
-        h(BrowserPermission, {
-          key: `permission-${room.id}`,
-          room,
-          onChange: access => actions.setBrowserAccess(access),
-        })),
+      h('div', { className: 'crew-room-tools' }, tools),
       h(RoomHealth, { key: `health-${room.id}`, room, onForgetMemory: () => store.forgetMemory() }),
       mode.activity(viewCtx),
       h('div', {
