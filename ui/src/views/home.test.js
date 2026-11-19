@@ -34,13 +34,20 @@ const text = node => {
   return (node.children ?? []).map(text).join('')
 }
 
-test('the front door asks for a goal and offers the sample', async () => {
+test('the front door holds chat and work as two equal paths', async () => {
   const { HomeView } = await load()
-  const tree = HomeView({ onSubmit: () => {}, onSample: () => {} })
+  const tree = HomeView({ onSubmit: () => {}, onSample: () => {}, onDiscuss: () => {} })
   const body = text(tree)
-  assert.match(body, /今天想做什么/)
+  assert.match(body, /想聊一聊，还是做出来/)
+  assert.match(body, /聊一聊/)
   assert.match(body, /做出来/)
-  assert.match(body, /先看看一间做完的示例/)
+})
+
+test('the front door offers one sample of each kind', async () => {
+  const { HomeView } = await load()
+  const body = text(HomeView({ onSubmit: () => {}, onSample: () => {} }))
+  assert.match(body, /看一间聊天室/)
+  assert.match(body, /看一间做完的工作室/)
 })
 
 test('the front door keeps chat and adjustment as paths from the same input', async () => {

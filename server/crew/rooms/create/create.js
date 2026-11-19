@@ -10,7 +10,7 @@ import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
 import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
-import { grantBrowserToAll, needsBrowser } from '../../room-access.js'
+import { grantBrowserToAll, needsBrowser, stripBrowser } from '../../room-access.js'
 import { uniqueRoomShort } from './short-id.js'
 
 const deliveryTitleFor = (goalTitle, handoff) => {
@@ -113,9 +113,10 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行成员')
   }
   roster = grantBrowserToAll(roster)
+  let browserReady = true
   if (needsBrowser(roster) && ports.browserMcp !== null && ports.browserMcp !== undefined) {
-    const ready = await ports.browserMcp.ensure?.()
-    if (ready !== true) return fail('conflict', '成员查网页需要独立的只读浏览器；先确认基座支持 MCP、本机 Chrome 可用')
+    browserReady = (await ports.browserMcp.ensure?.()) === true
+    if (!browserReady) roster = stripBrowser(roster)
   }
   let workspaces = null
 
@@ -265,6 +266,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       approvalGates: provisioned.approvalGates,
     })) {
       store.appendMessage(room.id, message)
+    }
+    if (!browserReady) {
+      store.appendMessage(room.id, { kind: 'system', text: '浏览器没准备好，这间房的成员这次不查网页。' })
     }
     await live.attach(room, { resume: false })
     room = await mode.start({

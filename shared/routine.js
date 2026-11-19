@@ -1,11 +1,14 @@
-export const ROUTINE_CADENCE = Object.freeze({
-  DAILY: 'daily',
-  WEEKLY: 'weekly',
-})
+export const ROUTINE_DAYS = Object.freeze([1, 2, 3, 4, 5, 6, 0])
+export const ALL_DAYS = Object.freeze([0, 1, 2, 3, 4, 5, 6])
 
-export const CADENCE_LABELS = Object.freeze({
-  [ROUTINE_CADENCE.DAILY]: '每天早上',
-  [ROUTINE_CADENCE.WEEKLY]: '每周一早上',
+export const DAY_LABELS = Object.freeze({
+  0: '周日',
+  1: '周一',
+  2: '周二',
+  3: '周三',
+  4: '周四',
+  5: '周五',
+  6: '周六',
 })
 
 const MIN_GAP_MS = 15 * 60 * 1000
@@ -13,9 +16,13 @@ const WEEKDAYS = '日一二三四五六'
 
 const timeOrNull = value => (Number.isFinite(value) ? value : null)
 
-export const parseCadence = value => (
-  value === ROUTINE_CADENCE.WEEKLY ? ROUTINE_CADENCE.WEEKLY : ROUTINE_CADENCE.DAILY
-)
+export const normalizeDays = value => {
+  const list = Array.isArray(value) ? value : ALL_DAYS
+  return [...new Set(list
+    .map(Number)
+    .filter(day => Number.isInteger(day) && day >= 0 && day <= 6))]
+    .sort((a, b) => a - b)
+}
 
 export const parseHour = value => {
   const hour = Number(value)
@@ -41,9 +48,11 @@ export const parseClock = value => {
 export const routineOf = room => {
   const routine = room?.routine
   if (routine === null || routine === undefined || typeof routine !== 'object') return null
-  if (routine.cadence !== ROUTINE_CADENCE.DAILY && routine.cadence !== ROUTINE_CADENCE.WEEKLY) return null
+  if (!Array.isArray(routine.days)) return null
+  const days = normalizeDays(routine.days)
+  if (days.length === 0) return null
   return {
-    cadence: routine.cadence,
+    days,
     hour: parseHour(routine.hour),
     minute: parseMinute(routine.minute),
     enabled: routine.enabled === true,
@@ -61,65 +70,70 @@ export const routineOf = room => {
   }
 }
 
-export const scheduleOf = routine => ({
-  cadence: parseCadence(routine?.cadence),
-  hour: parseHour(routine?.hour),
-  minute: parseMinute(routine?.minute),
-})
+export const scheduleOf = routine => {
+  const days = normalizeDays(routine?.days)
+  return {
+    days: days.length === 0 ? [...ALL_DAYS] : days,
+    hour: parseHour(routine?.hour),
+    minute: parseMinute(routine?.minute),
+  }
+}
+
+const orderedDays = days => ROUTINE_DAYS.filter(day => days.includes(day))
+const sameDays = (a, b) => a.length === b.length && a.every((day, index) => day === b[index])
+
+export const daysLabelOf = value => {
+  const days = normalizeDays(value)
+  if (days.length === 7) return '每天'
+  if (days.length === 6) {
+    const missing = ALL_DAYS.find(day => !days.includes(day))
+    return `除${DAY_LABELS[missing]}外每天`
+  }
+  const ordered = orderedDays(days)
+  if (sameDays(ordered, [1, 2, 3, 4, 5])) return '周一到周五'
+  if (sameDays(ordered, [6, 0])) return '周六、周日'
+  return ordered.map(day => DAY_LABELS[day]).join('、')
+}
 
 export const scheduleLabelOf = routine => {
   const schedule = scheduleOf(routine)
-  return `${CADENCE_LABELS[schedule.cadence]} ${clockOf(schedule.hour, schedule.minute)}`
+  return `${daysLabelOf(schedule.days)} ${clockOf(schedule.hour, schedule.minute)}`
 }
 
-const withGap = (at, now, cadence) => {
-  let next = at
-  const step = cadence === ROUTINE_CADENCE.WEEKLY ? 7 : 1
-  while (next - now < MIN_GAP_MS) {
-    const date = new Date(next)
-    date.setDate(date.getDate() + step)
-    next = date.getTime()
-  }
-  return next
+const slotAt = (date, hour, minute) => {
+  const slot = new Date(date)
+  slot.setHours(hour, minute, 0, 0)
+  return slot
 }
 
 export const nextRoutineSlotAt = (routine, now = Date.now()) => {
   const schedule = scheduleOf(routine)
-  const next = new Date(now)
-  next.setHours(schedule.hour, schedule.minute, 0, 0)
-  if (schedule.cadence === ROUTINE_CADENCE.WEEKLY) {
-    next.setDate(next.getDate() + ((1 - next.getDay() + 7) % 7))
-    if (next.getTime() <= now) next.setDate(next.getDate() + 7)
-  } else if (next.getTime() <= now) {
-    next.setDate(next.getDate() + 1)
+  const cursor = new Date(now)
+  for (let index = 0; index < 8; index += 1) {
+    const slot = slotAt(cursor, schedule.hour, schedule.minute)
+    if (slot.getTime() > now && schedule.days.includes(slot.getDay())) return slot.getTime()
+    cursor.setDate(cursor.getDate() + 1)
   }
-  return next.getTime()
+  return null
 }
 
-export const nextRoutineAt = (routine, now = Date.now()) => {
-  const schedule = scheduleOf(routine)
-  return withGap(nextRoutineSlotAt(routine, now), now, schedule.cadence)
-}
+export const nextRoutineAt = (routine, now = Date.now()) => (
+  nextRoutineSlotAt(routine, now + MIN_GAP_MS - 1)
+)
 
 // 刚设成例行工作时：今天这一班已经错过，就现在补一次；还没到点就等下一班。
 export const catchUpRoutineAt = (routine, now = Date.now()) => {
   const schedule = scheduleOf(routine)
-  const slot = new Date(now)
-  slot.setHours(schedule.hour, schedule.minute, 0, 0)
-  if (schedule.cadence === ROUTINE_CADENCE.WEEKLY) {
-    slot.setDate(slot.getDate() - ((slot.getDay() - 1 + 7) % 7))
-  }
-  return slot.getTime() <= now ? now : nextRoutineSlotAt(schedule, now)
+  const slot = slotAt(now, schedule.hour, schedule.minute)
+  if (schedule.days.includes(slot.getDay()) && slot.getTime() <= now) return now
+  return nextRoutineSlotAt(schedule, now)
 }
 
-// 迟到的那次只在今天这一班已经到点后才补；今天还没到点就等今天，
-// 避免昨天错过的一次和今天的一次在一小时内连着跑。
+// 迟到的那次只在今天这一班已经到点后才补；今天不排班就等下一次。
 export const routineDueNow = (routine, now = Date.now()) => {
   const schedule = scheduleOf(routine)
-  const slot = new Date(now)
-  slot.setHours(schedule.hour, schedule.minute, 0, 0)
-  if (schedule.cadence === ROUTINE_CADENCE.WEEKLY && slot.getDay() !== 1) return true
-  return slot.getTime() <= now
+  const slot = slotAt(now, schedule.hour, schedule.minute)
+  return schedule.days.includes(slot.getDay()) && slot.getTime() <= now
 }
 
 const startOfDay = value => {

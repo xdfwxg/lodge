@@ -1,13 +1,16 @@
-import { createElement as h, useEffect, useState } from 'react'
+import { Fragment, createElement as h, useEffect, useState } from 'react'
 import { Markdown } from '../../message-cards.js'
 import { openPath as openTarget } from '../../system.js'
 import { dateTimeOf } from '../../view-format.js'
 import { errorSuffix } from '../../error-text.js'
 import { artifactKindOf } from '../../../../shared/artifact.js'
 import {
-  CADENCE_LABELS,
+  ALL_DAYS,
+  DAY_LABELS,
+  ROUTINE_DAYS,
   clockOf,
   momentLabelOf,
+  normalizeDays,
   parseClock,
   routineNextLabel,
   scheduleLabelOf,
@@ -67,6 +70,9 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
         archived: goalDelivery.archived,
       }
   const commands = delivery.commands ?? []
+  const firstCommand = commands
+    .map(item => (typeof item?.command === 'string' ? item.command.trim() : ''))
+    .find(Boolean) ?? ''
   const manualNotes = (delivery.stages ?? [])
     .map(stage => stage.manual?.text?.trim() ?? '')
     .filter(Boolean)
@@ -110,28 +116,32 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
   const routine = delivery.routine ?? null
   const patchRoutine = patch => onRoutine?.({
     enabled: routine?.enabled === true,
-    cadence: routine?.cadence ?? 'daily',
+    days: routine?.days ?? [...ALL_DAYS],
     hour: routine?.hour ?? 8,
     minute: routine?.minute ?? 0,
     ...patch,
   })
   const [editing, setEditing] = useState(false)
-  const [draftCadence, setDraftCadence] = useState(routine?.cadence ?? 'daily')
+  const [draftDays, setDraftDays] = useState(routine?.days ?? [...ALL_DAYS])
   const [draftHour, setDraftHour] = useState(routine?.hour ?? 8)
   const [draftMinute, setDraftMinute] = useState(routine?.minute ?? 0)
+  const routineDays = routine?.days === undefined ? '' : routine.days.join(',')
   useEffect(() => {
     if (routine === null) return
-    setDraftCadence(routine.cadence)
+    setDraftDays(routine.days)
     setDraftHour(routine.hour)
     setDraftMinute(routine.minute)
-  }, [routine?.cadence, routine?.hour, routine?.minute])
-  const draftOf = () => ({ cadence: draftCadence, hour: draftHour, minute: draftMinute })
+  }, [routineDays, routine?.hour, routine?.minute])
+  const draftOf = () => ({ days: draftDays, hour: draftHour, minute: draftMinute })
+  const toggleDay = day => setDraftDays(days => (
+    days.includes(day) ? days.filter(item => item !== day) : normalizeDays([...days, day])
+  ))
   const startRoutine = () => {
     patchRoutine({ enabled: true, ...draftOf() })
     setEditing(false)
   }
   const cancelEdit = () => {
-    setDraftCadence(routine?.cadence ?? 'daily')
+    setDraftDays(routine?.days ?? [...ALL_DAYS])
     setDraftHour(routine?.hour ?? 8)
     setDraftMinute(routine?.minute ?? 0)
     setEditing(false)
@@ -206,11 +216,12 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
     if (routine !== null && routine.paused === true) {
       const again = () => patchRoutine({
         enabled: true,
-        cadence: routine.cadence,
+        days: routine.days,
         hour: routine.hour,
         minute: routine.minute,
       })
       return h('div', { className: 'crew-routine', 'data-paused': 'true' },
+        h('p', { className: 'crew-routine-title' }, '定时任务'),
         h('p', { className: 'crew-routine-lead' }, '连续 3 次没做成，已经停下。'),
         h('div', { className: 'crew-routine-actions' },
           h('button', { type: 'button', className: 'crew-link', onClick: again }, '再试一次'),
@@ -221,43 +232,84 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
           }, '关掉')),
         historyNode)
     }
-    const controls = action => h('div', { className: 'crew-routine-line' },
-      h('span', { className: 'crew-routine-prefix' }, '以后'),
-      h('select', {
-        className: 'crew-routine-cadence',
-        value: draftCadence,
-        'aria-label': '多久做一次',
-        onChange: event => setDraftCadence(event.target.value),
-      }, Object.entries(CADENCE_LABELS).map(([value, label]) => h('option', { key: value, value }, label))),
-      h('input', {
-        className: 'crew-routine-time',
-        type: 'time',
-        value: timeValue,
-        'aria-label': '几点做',
-        onChange: event => {
-          const clock = parseClock(event.target.value)
-          if (clock !== null) {
-            setDraftHour(clock.hour)
-            setDraftMinute(clock.minute)
-          }
-        },
-      }),
-      h('span', { className: 'crew-routine-suffix' }, '再做一遍'),
-      action)
+    const chips = () => h('span', { className: 'crew-routine-days', role: 'group', 'aria-label': '哪几天做' },
+      ROUTINE_DAYS.map(day => h('button', {
+        key: `day-${day}`,
+        type: 'button',
+        className: 'crew-routine-day',
+        'data-on': draftDays.includes(day) ? 'true' : undefined,
+        'aria-pressed': draftDays.includes(day),
+        'aria-label': DAY_LABELS[day],
+        title: DAY_LABELS[day],
+        onClick: () => toggleDay(day),
+      }, DAY_LABELS[day].slice(1))))
+    const timeInput = () => h('input', {
+      className: 'crew-routine-time',
+      type: 'time',
+      value: timeValue,
+      'aria-label': '几点做',
+      onChange: event => {
+        const clock = parseClock(event.target.value)
+        if (clock !== null) {
+          setDraftHour(clock.hour)
+          setDraftMinute(clock.minute)
+        }
+      },
+    })
+    const editor = action => h(Fragment, null,
+      h('div', { className: 'crew-routine-line' },
+        h('span', { className: 'crew-routine-prefix' }, '哪几天'),
+        chips()),
+      h('div', { className: 'crew-routine-line' },
+        h('span', { className: 'crew-routine-prefix' }, '几点'),
+        timeInput(),
+        action))
+    const draftLabel = scheduleLabelOf({ days: draftDays, hour: draftHour, minute: draftMinute })
+    const missHint = h('p', { className: 'crew-field-hint' }, 'Lodge 打开后，会自动补做上次错过的那次。')
     if (routine === null || routine.enabled !== true) {
+      if (!editing) {
+        return h('div', { className: 'crew-routine' },
+          h('p', { className: 'crew-routine-title' }, '加定时任务'),
+          h('div', { className: 'crew-routine-line' },
+            h('button', {
+              type: 'button',
+              className: 'crew-routine-schedule',
+              title: '改天数和时间',
+              'aria-label': `改天数和时间，现在是${draftLabel}`,
+              onClick: () => setEditing(true),
+            }, `以后 ${draftLabel} 再做一遍`),
+            h('button', {
+              type: 'button',
+              className: 'crew-routine-start',
+              disabled: draftDays.length === 0,
+              onClick: startRoutine,
+            }, '开始')),
+          missHint,
+          historyNode)
+      }
       return h('div', { className: 'crew-routine' },
-        controls(h('button', {
-          type: 'button',
-          className: 'crew-routine-start',
-          onClick: startRoutine,
-        }, '开始')),
-        h('p', { className: 'crew-field-hint' }, 'Lodge 没开时，下次打开补一次。'),
+        h('p', { className: 'crew-routine-title' }, '加定时任务'),
+        editor(h('span', { className: 'crew-routine-actions' },
+          h('button', {
+            type: 'button',
+            className: 'crew-routine-start',
+            disabled: draftDays.length === 0,
+            onClick: startRoutine,
+          }, '好'),
+          h('button', { type: 'button', className: 'crew-link', onClick: cancelEdit }, '取消'))),
+        missHint,
         historyNode)
     }
     if (editing) {
       return h('div', { className: 'crew-routine', 'data-on': 'true' },
-        controls(h('span', { className: 'crew-routine-actions' },
-          h('button', { type: 'button', className: 'crew-routine-start', onClick: startRoutine }, '好'),
+        h('p', { className: 'crew-routine-title' }, '定时任务'),
+        editor(h('span', { className: 'crew-routine-actions' },
+          h('button', {
+            type: 'button',
+            className: 'crew-routine-start',
+            disabled: draftDays.length === 0,
+            onClick: startRoutine,
+          }, '好'),
           h('button', { type: 'button', className: 'crew-link', onClick: cancelEdit }, '取消'))),
         delivery.routineManual === true
           ? h('p', { className: 'crew-field-hint' }, '每次跑完要你看一眼。')
@@ -265,6 +317,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
         historyNode)
     }
     return h('div', { className: 'crew-routine', 'data-on': 'true' },
+      h('p', { className: 'crew-routine-title' }, '定时任务'),
       h('div', { className: 'crew-routine-line' },
         h('button', {
           type: 'button',
@@ -358,6 +411,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
               onClick: () => void open(delivery.workspacePath),
             }, '在文件夹打开'))
           : null,
+        firstCommand === '' ? null : h('p', { className: 'crew-field-hint' }, `怎么跑：${firstCommand}`),
         openNotice === null ? null : h('p', { className: 'crew-field-hint', role: 'status' }, openNotice),
         openError === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, openError),
         routineNode,

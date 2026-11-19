@@ -9,7 +9,7 @@ import { independenceOf } from './independence.js'
 import { roomBulletin, roomModeOfRoom } from './rooms/kinds.js'
 import { resolveRoomType } from './room-types/index.js'
 import { membersFor } from './roster.js'
-import { grantBrowserToAll } from './room-access.js'
+import { grantBrowserToAll, stripBrowser } from './room-access.js'
 import { isBrowserGrant } from '../../shared/room-access.js'
 
 const ROLE_ALIASES = { worker: 'worker', executor: 'worker', verifier: 'verifier' }
@@ -41,10 +41,8 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
     if ((room.members ?? []).some(member => String(member.name ?? '').toLowerCase() === name.toLowerCase())) {
       return fail('invalid', '房间里已经有同名成员')
     }
-    if (browserMcp !== null) {
-      const ready = await browserMcp.ensure?.()
-      if (ready !== true) return fail('conflict', '成员查网页需要独立的只读浏览器；先确认基座支持 MCP、本机 Chrome 可用')
-    }
+    let browserReady = true
+    if (browserMcp !== null) browserReady = (await browserMcp.ensure?.()) === true
     const provider = workspace.provider(room)
     if (typeof provider.addMember !== 'function') return fail('conflict', '这个工作文件夹还不支持添加成员')
 
@@ -90,7 +88,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
       mcp: bodySpec.mcp,
       engineExplicit: true,
     }
-    const granted = grantBrowserToAll([spec])[0]
+    const granted = (browserReady ? grantBrowserToAll([spec]) : stripBrowser([spec]))[0]
     spec.mcp = granted.mcp
     bodySpec.mcp = granted.mcp
     if (role === 'verifier' && spec.mcp.some(grant => !isBrowserGrant(grant))) {
@@ -160,6 +158,9 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
         kind: 'system',
         text: `给房间加了一位${ROLE_LABEL[role]}：${name}（${instance.name ?? instance.id}${model === '' ? '' : ` · ${model}`}）。`,
       })
+      if (!browserReady) {
+        store.appendMessage(room.id, { kind: 'system', text: `${name}这次不查网页：浏览器没准备好。` })
+      }
       emit('room', store.readRoom(room.id) ?? updated)
       return ok({ room: updated, memberId: id })
     } catch (error) {

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { presentRoom } from './presentation.js'
-import { SAMPLE_ROOM_ID } from './rooms/sample.js'
+import { SAMPLE_CHAT_ROOM_ID, SAMPLE_ROOM_ID } from './rooms/sample.js'
 import { createCrewService } from './service.js'
 import { createStore } from './store.js'
 
@@ -43,6 +43,30 @@ test('the sample room is a finished studio that shows the whole handoff', () => 
     assert.ok(messages.some(message => message.kind === 'plan' && message.authorId === 'planner'))
     assert.ok(messages.some(message => message.kind === 'handoff' && message.authorId === 'executor'))
     assert.ok(messages.some(message => message.kind === 'verdict' && message.meta?.pass === true))
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})
+
+test('the chat sample is a finished conversation with one conclusion', () => {
+  const { dataDir, store, service } = setup()
+  try {
+    const result = service.createSampleRoom('chat')
+    assert.equal(result.ok, true)
+    assert.equal(result.body.room.id, SAMPLE_CHAT_ROOM_ID)
+
+    const room = store.readRoom(SAMPLE_CHAT_ROOM_ID)
+    const messages = store.readMessages(SAMPLE_CHAT_ROOM_ID)
+    assert.equal(room.roomType, 'chat')
+    assert.equal(room.demo, true)
+    assert.equal(room.state, 'active')
+    assert.equal(room.chat.phase, 'accepted')
+    assert.ok(messages.some(message => message.kind === 'chat' && message.meta?.opening === true))
+    const conclusion = messages.find(message => message.kind === 'chat_conclusion')
+    assert.equal(conclusion.authorId, 'lodge-sample')
+    assert.equal(room.chat.conclusionId, conclusion.id)
+    assert.equal(result.body.room.chat.conclusionId, conclusion.id)
+    assert.equal(presentRoom(room, messages).needsYou, null)
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
   }

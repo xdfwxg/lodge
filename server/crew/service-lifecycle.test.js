@@ -93,7 +93,7 @@ test('archiving a routine stops its future runs but keeps the chosen time', asyn
   const ctx = setup(roomRecord({
     state: 'complete',
     routine: {
-      cadence: 'daily',
+      days: [0, 1, 2, 3, 4, 5, 6],
       hour: 9,
       minute: 30,
       enabled: true,

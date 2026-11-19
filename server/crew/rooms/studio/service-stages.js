@@ -118,7 +118,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const force = body?.force === true
     const target = room.stages?.[index]
     if (target === undefined) return fail('invalid', '没有这一步')
-    if (force && target.state !== 'active') return fail('conflict', '这一步现在不在待验收状态')
+    // 卡片的注意力会有一瞬间的旧快照：这一步已经过了就当确认成功，别再报错。
+    if (target.state === 'passed') return ok({ room })
+    if (target.state !== 'active') return fail('conflict', '这一步已经不在等你确认了')
     let gate = null
     let next = -1
     let mergedFinal = -1

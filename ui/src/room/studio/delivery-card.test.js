@@ -114,6 +114,7 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.doesNotMatch(text(tree), /2 步/)
   assert.match(text(tree), /1 项检查/)
   assert.match(text(tree), /在文件夹打开/)
+  assert.match(text(tree), /怎么跑：npm test/)
 })
 
 test('a verified manual stage shows the verdict, not the waiting notice', async () => {
@@ -219,13 +220,14 @@ test('a finished room offers one quiet way to do it again tomorrow', async () =>
     },
     onRoutine: () => {},
   }))
+  assert.match(text(tree), /加定时任务/)
   assert.match(text(tree), /以后/)
   assert.match(text(tree), /再做一遍/)
-  assert.match(text(tree), /Lodge 没开时，下次打开补一次/)
+  assert.match(text(tree), /Lodge 打开后，会自动补做上次错过的那次/)
   assert.doesNotMatch(text(tree), /cron/)
 })
 
-test('the time is chosen before starting and the last choice is kept', async () => {
+test('the last days and time are kept and starting sends them', async () => {
   const { DeliveryCard } = await load()
   const calls = []
   const tree = render(DeliveryCard({
@@ -234,16 +236,15 @@ test('the time is chosen before starting and the last choice is kept', async () 
       stages: [],
       commands: [],
       changedFiles: [],
-      routine: { cadence: 'daily', hour: 9, minute: 30, enabled: false },
+      routine: { days: [1, 3, 5], hour: 9, minute: 30, enabled: false },
     },
     onRoutine: patch => calls.push(patch),
   }))
-  const time = find(tree, node => node.type === 'input' && node.props?.type === 'time')
-  assert.equal(time.props.value, '09:30')
+  assert.match(text(tree), /以后 周一、周三、周五 9:30 再做一遍/)
   const start = find(tree, node => node.type === 'button' && text(node) === '开始')
   start.props.onClick()
   assert.equal(calls[0].enabled, true)
-  assert.equal(calls[0].cadence, 'daily')
+  assert.deepEqual(calls[0].days, [1, 3, 5])
   assert.equal(calls[0].hour, 9)
   assert.equal(calls[0].minute, 30)
 })
@@ -258,7 +259,7 @@ test('an enabled rhythm shows the next run and today’s latest result', async (
       artifacts: [{ path: '/tmp/goal/old.md', relativePath: 'old.md' }],
       changedFiles: [],
       routine: {
-        cadence: 'daily',
+        days: [0, 1, 2, 3, 4, 5, 6],
         hour: 8,
         minute: 0,
         enabled: true,
@@ -283,7 +284,7 @@ test('an enabled rhythm shows the next run and today’s latest result', async (
     onOpenRun: () => {},
   }))
   assert.match(text(tree), /最新一次/)
-  assert.match(text(tree), /每天早上 8:00/)
+  assert.match(text(tree), /每天 8:00/)
   assert.match(text(tree), /summary\.md/)
   assert.doesNotMatch(text(tree), /old\.md/)
   assert.match(text(tree), /往次 2 次/)
@@ -300,7 +301,7 @@ test('a rhythm that stopped after three failures offers retry or stop', async ()
       stages: [],
       commands: [],
       changedFiles: [],
-      routine: { cadence: 'daily', hour: 8, minute: 0, enabled: false, paused: true, failures: 3 },
+      routine: { days: [0, 1, 2, 3, 4, 5, 6], hour: 8, minute: 0, enabled: false, paused: true, failures: 3 },
     },
     onRoutine: () => {},
   }))
@@ -319,7 +320,7 @@ test('an archived room cannot restart its routine', async () => {
       changedFiles: [],
       archived: true,
       routine: {
-        cadence: 'daily',
+        days: [0, 1, 2, 3, 4, 5, 6],
         hour: 8,
         minute: 0,
         enabled: false,

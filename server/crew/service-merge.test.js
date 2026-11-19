@@ -127,24 +127,25 @@ test('a finished studio room can be given a daily rhythm', async () => {
   const ctx = setup(room({ state: 'complete', mergeConflict: null }), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'routine', {
     method: 'POST',
-    readBody: async () => ({ enabled: true, cadence: 'daily', hour: 8, minute: 0 }),
+    readBody: async () => ({ enabled: true, days: [0, 1, 2, 3, 4, 5, 6], hour: 8, minute: 0 }),
   })
   assert.equal(result.ok, true, result.error)
   assert.equal(ctx.room().routine.enabled, true)
-  assert.equal(ctx.room().routine.cadence, 'daily')
+  assert.deepEqual(ctx.room().routine.days, [0, 1, 2, 3, 4, 5, 6])
   assert.equal(ctx.room().routine.hour, 8)
-  assert.match(ctx.messages.at(-1).text, /每天早上 8:00/)
-  assert.match(ctx.messages.at(-1).text, /Lodge 没开时不会跑/)
+  assert.match(ctx.messages.at(-1).text, /每天 8:00/)
+  assert.match(ctx.messages.at(-1).text, /Lodge 关着时不会跑/)
 })
 
 test('turning a rhythm off leaves no timer behind', async () => {
-  const ctx = setup(room({ state: 'complete', mergeConflict: null, routine: { cadence: 'daily', hour: 8, enabled: true } }), { status: '', diff: '' })
+  const ctx = setup(room({ state: 'complete', mergeConflict: null, routine: { days: [1, 3, 5], hour: 8, enabled: true } }), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'routine', {
     method: 'POST',
     readBody: async () => ({ enabled: false }),
   })
   assert.equal(result.ok, true, result.error)
   assert.equal(ctx.room().routine.enabled, false)
+  assert.deepEqual(ctx.room().routine.days, [1, 3, 5])
   assert.equal(ctx.room().routine.nextRunAt, null)
   assert.match(ctx.messages.at(-1).text, /不再自动做/)
 })
@@ -153,7 +154,7 @@ test('an unfinished room cannot become a routine', async () => {
   const ctx = setup(room(), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'routine', {
     method: 'POST',
-    readBody: async () => ({ enabled: true, cadence: 'daily', hour: 8 }),
+    readBody: async () => ({ enabled: true, days: [0, 1, 2, 3, 4, 5, 6], hour: 8 }),
   })
   assert.equal(result.ok, false)
   assert.match(result.error, /做完后/)
@@ -163,7 +164,7 @@ test('a chat room never becomes a routine', async () => {
   const ctx = setup(room({ roomType: 'chat', state: 'complete', mergeConflict: null }), { status: '', diff: '' })
   const result = await ctx.service.roomRequest('room-merge', 'routine', {
     method: 'POST',
-    readBody: async () => ({ enabled: true, cadence: 'daily', hour: 8 }),
+    readBody: async () => ({ enabled: true, days: [0, 1, 2, 3, 4, 5, 6], hour: 8 }),
   })
   assert.equal(result.ok, false)
   assert.match(result.error, /工作室/)

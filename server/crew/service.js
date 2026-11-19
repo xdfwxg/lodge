@@ -15,12 +15,19 @@ import { humanHandoffStageOf } from './human-handoff.js'
 import { createModeSwitch } from './mode-switch.js'
 import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
-import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sample.js'
+import {
+  SAMPLE_CHAT_ROOM_ID,
+  SAMPLE_ROOM_ID,
+  sampleChatRoomRecord,
+  sampleRoomRecord,
+  seedSampleChatMessages,
+  seedSampleMessages,
+} from './rooms/sample.js'
 import { artifactKindOf, imageMimeOf } from '../../shared/artifact.js'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 import {
   catchUpRoutineAt,
-  parseCadence,
+  normalizeDays,
   parseHour,
   parseMinute,
   routineOf,
@@ -227,8 +234,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, roles, body, ports, parentRoom: parent })
   const subrooms = createServiceSubrooms({ createRoom, store, emit })
 
-  const createSampleRoom = () => {
-    const existing = readRoom(SAMPLE_ROOM_ID)
+  const createSampleRoom = (kind = 'studio') => {
+    const chat = kind === 'chat'
+    const id = chat ? SAMPLE_CHAT_ROOM_ID : SAMPLE_ROOM_ID
+    const existing = readRoom(id)
     if (existing !== null) {
       if (existing.archivedAt) {
         const restored = updateRoom(existing.id, current => {
@@ -241,8 +250,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       return ok({ room: existing })
     }
     const now = Date.now()
-    const room = writeRoom(sampleRoomRecord({ now }))
-    seedSampleMessages({ store, room, now })
+    const created = writeRoom(chat ? sampleChatRoomRecord({ now }) : sampleRoomRecord({ now }))
+    if (chat) seedSampleChatMessages({ store, room: created })
+    else seedSampleMessages({ store, room: created, now })
+    const room = readRoom(id) ?? created
     emit('room', room)
     return ok({ room })
   }
@@ -653,12 +664,15 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     }
 
     if (action === 'routine' && method === 'POST') {
-      if (room.roomType !== 'studio') return fail('invalid', '只有工作室房间能设成每天再做一遍')
+      if (room.roomType !== 'studio') return fail('invalid', '只有工作室房间能设成定时再做一遍')
       if (room.state !== 'complete') return fail('conflict', '房间做完后再设')
-      if (room.demo === true) return fail('invalid', '示例房间不能设成每天再做一遍')
+      if (room.demo === true) return fail('invalid', '示例房间不能设成定时再做一遍')
       if (room.archivedAt !== undefined && room.archivedAt !== null) return fail('conflict', '取消归档后再设')
       const body = await readBody()
-      const cadence = parseCadence(body.cadence)
+      const days = Array.isArray(body.days)
+        ? normalizeDays(body.days)
+        : (routineOf(room)?.days ?? normalizeDays(undefined))
+      if (days.length === 0) return fail('invalid', '至少选一天')
       const hour = parseHour(body.hour)
       const minute = parseMinute(body.minute)
       const enabled = body.enabled === true
@@ -666,14 +680,14 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         const taken = store.readRooms()
           .filter(item => item.id !== room.id && routineOf(item)?.enabled === true)
           .length
-        if (taken >= 20) return fail('conflict', '最多 20 个每天自动做的事，先关掉一个')
+        if (taken >= 20) return fail('conflict', '最多 20 件按天自动做的事，先关掉一个')
       }
-      const schedule = { cadence, hour, minute }
+      const schedule = { days, hour, minute }
       const nextRunAt = enabled ? catchUpRoutineAt(schedule) : null
       const updated = updateRoom(room.id, current => {
         current.routine = {
           ...(current.routine ?? {}),
-          cadence,
+          days,
           hour,
           minute,
           enabled,
@@ -686,7 +700,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
           nextRunAt,
         }
         return {
-          events: [{ type: 'room.routine', payload: { cadence, hour, minute, enabled } }],
+          events: [{ type: 'room.routine', payload: { days, hour, minute, enabled } }],
         }
       })
       if (updated === null) return fail('not_found', '没有这个房间')
@@ -704,7 +718,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       appendMessage(room.id, {
         kind: 'system',
         text: enabled
-          ? `以后${scheduleLabelOf(schedule)} 再做一遍。${room.verify === 'manual' ? '每次做完要你看一眼。' : ''}Lodge 没开时不会跑，下次打开补上。`
+          ? `以后${scheduleLabelOf(schedule)} 再做一遍。${room.verify === 'manual' ? '每次做完要你看一眼。' : ''}Lodge 关着时不会跑，打开后会自动补做错过的那次。`
           : '以后不再自动做。',
       })
       emit('room', updated)

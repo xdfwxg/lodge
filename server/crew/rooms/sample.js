@@ -1,9 +1,10 @@
 export const SAMPLE_ROOM_ID = 'room-sample'
+export const SAMPLE_CHAT_ROOM_ID = 'room-sample-chat'
 
-const member = ({ id, name, role, roleKind, station, permissions }) => ({
+const member = ({ id, name, role, roleKind, station, permissions, title }) => ({
   id,
   name,
-  title: roleKind === 'planner' ? '规划' : roleKind === 'verifier' ? '复核' : '实现',
+  title: title ?? (roleKind === 'planner' ? '规划' : roleKind === 'verifier' ? '复核' : '实现'),
   role,
   roleKind,
   roleProfile: name,
@@ -19,6 +20,16 @@ const member = ({ id, name, role, roleKind, station, permissions }) => ({
     engine: 'demo',
     spec: { prompt: '', skills: [], mcp: [] },
   },
+})
+
+const participant = ({ id, name, title, station }) => member({
+  id,
+  name,
+  title,
+  role: 'participant',
+  roleKind: 'participant',
+  station,
+  permissions: { read: true, exec: false, write: false },
 })
 
 const STEPS = [
@@ -127,5 +138,111 @@ export const seedSampleMessages = ({ store, room } = {}) => {
     kind: 'chat',
     authorId: 'planner',
     text: '验收通过：动作替代了旁白，改动也控制在结尾一处。这间房的目标完成，收尾。',
+  })
+}
+
+export const sampleChatRoomRecord = ({ now = Date.now() } = {}) => ({
+  id: SAMPLE_CHAT_ROOM_ID,
+  kind: 'room',
+  name: '示例：把「大胖橘住在灵动岛上」聊成一个方向',
+  goal: '聊聊：大胖橘该住在灵动岛的哪里，怎么动才不打扰人',
+  templateId: 'custom',
+  roomType: 'chat',
+  engine: 'demo',
+  demo: true,
+  live: false,
+  state: 'active',
+  completedAt: null,
+  completedCommit: null,
+  leadMemberId: 'lodge-sample',
+  verifiers: [],
+  workers: [],
+  independence: 'human',
+  members: [
+    member({ id: 'lodge-sample', name: 'Lodge', title: '主持', role: 'lead', roleKind: 'participant', station: '开场 · 收敛', permissions: { read: true, exec: false, write: false } }),
+    participant({ id: 'he', name: '阿禾', title: '编辑', station: '听故事 · 找句子' }),
+    participant({ id: 'man', name: '小满', title: '设计', station: '看位置 · 管动效' }),
+    participant({ id: 'zhou', name: '老周', title: '工程', station: '算成本 · 提限制' }),
+  ],
+  plan: null,
+  stages: [],
+  constraints: [
+    '示例房间不接模型，内容都是样例',
+    '聊天室只讨论，不改文件、不调用工具',
+    '聊完可以一键转成工作室',
+  ],
+  chat: {
+    round: 1,
+    phase: 'accepted',
+    turnLimit: 4,
+    turns: 4,
+    conclusionId: null,
+    running: false,
+    speaker: '',
+    note: '',
+  },
+  chatRoom: null,
+  chatHost: { memberRef: 'lodge-sample', name: 'LodgeSampleHost', displayName: 'Lodge' },
+  workspace: {
+    provider: 'demo',
+    capabilities: { vcs: 'none', isolation: 'none', commit: false, diff: 'none' },
+  },
+  repoPath: null,
+  sourceRepo: null,
+  branch: null,
+  worktrees: {},
+  branches: {},
+  ports: {},
+  workspaceEnv: {},
+  capabilities: {},
+  parentRoomId: null,
+  depth: 0,
+  childRoomIds: [],
+  idle: false,
+  round: 0,
+  noProgress: 0,
+  turnQueue: [],
+  heldMembers: [],
+  heldMessages: {},
+})
+
+export const seedSampleChatMessages = ({ store, room } = {}) => {
+  const append = message => store.appendMessage(room.id, message)
+
+  append({
+    kind: 'chat',
+    authorId: 'lodge-sample',
+    text: '今天我们聊一个具体的问题：岛上那只大胖橘，住在灵动岛的什么位置，怎么动才不打扰人？',
+    meta: { opening: true, round: 1 },
+  })
+  append({
+    kind: 'chat',
+    authorId: 'man',
+    text: '我倾向让它待在上沿，像猫趴在窗台上。别绕整圈，绕到下面会挡住内容。',
+  })
+  append({
+    kind: 'chat',
+    authorId: 'zhou',
+    text: '上沿没问题，但别一直走。平常趴着，只有房间在干活时才走两步，动效预算也省。',
+  })
+  append({
+    kind: 'chat',
+    authorId: 'he',
+    text: '从讲故事看，“平时趴着、忙时巡线”本身就是叙事：安静的时候它陪着你，忙起来它替你看着。',
+  })
+  append({
+    kind: 'chat',
+    authorId: 'man',
+    text: '颜色也别跳。一只暖橘就够了，夜里再偏金一点；不用白天黑猫晚上金猫。',
+  })
+  const conclusion = append({
+    kind: 'chat_conclusion',
+    authorId: 'lodge-sample',
+    text: '收敛到一个方向：让一只大胖橘住在上沿，平时趴着，干活时沿边线走两步，不绕整圈、不挡内容；夜里偏金，白天保持暖橘。',
+    meta: { round: 1, turnLimit: 4, turns: 4, host: 'lodge-sample', fallback: false, at: Date.now() },
+  })
+  store.updateRoom?.(room.id, current => {
+    current.chat = { ...(current.chat ?? {}), conclusionId: conclusion.id }
+    return { events: [] }
   })
 }

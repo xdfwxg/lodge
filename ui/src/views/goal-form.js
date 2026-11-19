@@ -30,7 +30,7 @@ export function GoalForm({
       rows: 3,
       autoFocus,
       'aria-label': '今天想完成什么',
-      placeholder: '例如：给设置页加上保存提示，刷新后仍然生效。',
+      placeholder: '例如：聊聊《羽仙记》的结尾，或者把设置页的保存提示做出来。',
       value: goal,
       disabled: busy,
       onChange: event => setGoal(event.target.value),
@@ -41,15 +41,15 @@ export function GoalForm({
       },
     }),
     h('div', { className: 'crew-home-actions' },
-      h('button', { type: 'submit', className: 'crew-accept crew-home-start', disabled: !ready || busy }, busy ? '正在准备…' : startLabel),
       onDiscuss === null
         ? null
         : h('button', {
           type: 'button',
-          className: 'crew-ghost crew-home-chat',
+          className: 'crew-accept crew-home-start crew-home-chat',
           disabled: busy,
           onClick: () => onDiscuss(goal.trim()),
-        }, '聊一聊')),
+        }, '聊一聊'),
+      h('button', { type: 'submit', className: 'crew-accept crew-home-start', disabled: !ready || busy }, busy ? '正在准备…' : startLabel)),
     error === null || error === undefined
       ? null
       : h('p', { className: 'crew-home-error', role: 'alert' }, humanErrorText(error)),
@@ -59,5 +59,8 @@ export function GoalForm({
         : h('button', { type: 'button', className: 'crew-link', disabled: busy, onClick: () => onAdjust(goal.trim()) }, '更多选项'),
       onSample === null
         ? null
-        : h('button', { type: 'button', className: 'crew-link', disabled: busy, onClick: onSample }, '先看看一间做完的示例')))
+        : h('button', { type: 'button', className: 'crew-link', disabled: busy, onClick: () => onSample('chat') }, '看一间聊天室'),
+      onSample === null
+        ? null
+        : h('button', { type: 'button', className: 'crew-link', disabled: busy, onClick: () => onSample('studio') }, '看一间做完的工作室')))
 }

@@ -1,6 +1,7 @@
 import { BROWSER_MCP_SERVER_NAME } from '../../shared/browser-mcp.js'
 import {
   hasBrowserGrant,
+  isBrowserGrant,
   isBrowserTool,
   isReadOnlyResearchTool,
 } from '../../shared/room-access.js'
@@ -22,6 +23,12 @@ export const grantBrowserToAll = roster => (Array.isArray(roster) ? roster : [])
     }],
   }
 })
+
+// 浏览器没准备好时先拿掉这项能力，房间照常建；不拿一个用不了的按钮挡住建房。
+export const stripBrowser = roster => (Array.isArray(roster) ? roster : []).map(member => ({
+  ...member,
+  mcp: (Array.isArray(member?.mcp) ? member.mcp : []).filter(grant => !isBrowserGrant(grant)),
+}))
 
 // 系统只跳过只读研究；命令、写入、付款等外部动作仍逐次确认。
 export const canSkipApproval = ({ member, tool }) => {

@@ -9,8 +9,11 @@ test('the browser server runs isolated and refuses input and local files', () =>
   for (const flag of ['--headless', '--isolated', '--no-category-input', '--no-javascript-evaluation', '--no-file-navigations']) {
     assert.ok(config.args.includes(flag), `${flag} is missing`)
   }
-  assert.ok(config.args.some(arg => arg.startsWith('--blocked-url-pattern=http://127.0.0.1/')))
+  assert.ok(config.args.includes('--blocked-url-pattern=http://127.*'))
+  assert.ok(config.args.includes('--blocked-url-pattern=http://172.*'))
   assert.ok(!config.args.some(arg => arg.startsWith('--allowed-url-pattern=')))
+  // 基座拒绝超过 64 项的数组；参数再多就建不起房。
+  assert.ok(config.args.length <= 64, `browser server has ${config.args.length} args`)
 })
 
 test('ensuring the browser server registers it once', async () => {

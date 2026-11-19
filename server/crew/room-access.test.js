@@ -5,6 +5,7 @@ import {
   grantBrowserToAll,
   hasBrowserGrant,
   needsBrowser,
+  stripBrowser,
 } from './room-access.js'
 
 const grant = { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }
@@ -17,6 +18,13 @@ test('every member gets the same read-only browser grant, once', () => {
   assert.equal(needsBrowser(granted), true)
   const again = grantBrowserToAll(granted)
   assert.equal(again.every(item => item.mcp.length === 1), true)
+})
+
+test('when the browser is not ready the grant is taken back, the room still opens', () => {
+  const granted = grantBrowserToAll([member()])
+  const stripped = stripBrowser(granted)
+  assert.equal(stripped.every(item => item.mcp.length === 0), true)
+  assert.equal(needsBrowser(stripped), false)
 })
 
 test('read-only research is system-approved; commands and writes still ask', () => {

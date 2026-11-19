@@ -304,8 +304,8 @@ export function createStore() {
       patch({ activeId: data.room.id })
       return { ok: true, room: data.room, warning: data.warning ?? null }
     },
-    openSampleRoom: async () => {
-      const data = await post('/api/rooms/sample', {})
+    openSampleRoom: async (kind = 'studio') => {
+      const data = await post('/api/rooms/sample', { kind })
       if (data?.room === undefined) return { ok: false, error: failureText('示例房间没能打开') }
       await load()
       rememberRoom(data.room.id)

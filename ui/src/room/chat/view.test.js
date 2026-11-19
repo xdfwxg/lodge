@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createElement as h } from 'react'
 import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
@@ -84,6 +85,36 @@ test('the chat header leaves the crew to the sidebar', () => {
   assert.match(html, /圆桌/)
   assert.doesNotMatch(html, /成员状态/)
   assert.doesNotMatch(html, /发言中/)
+})
+
+test('the island carries one cat, busy while working and settled when done', () => {
+  const busy = renderToStaticMarkup(chatView.header({
+    room: {
+      id: 'room-chat',
+      name: '圆桌',
+      goal: '讨论交付边界',
+      state: 'active',
+      chat: { phase: 'discussing' },
+      messages: [],
+      busyMembers: ['worker'],
+    },
+    members: [],
+    actions,
+  }))
+  assert.match(busy, /class="bt-cat"[^>]*data-state="busy"/)
+  const done = renderToStaticMarkup(h(GoalIslandHeader, {
+    room: {
+      id: 'room-studio',
+      name: '做出来',
+      goal: '把结尾改好',
+      state: 'complete',
+      stages: [{ title: '改结尾', state: 'passed' }],
+      messages: [],
+    },
+    members: [],
+    onOpenRoom: () => {},
+  }))
+  assert.match(done, /class="bt-cat"[^>]*data-state="done"/)
 })
 
 test('a demo chat says it cannot continue instead of promising a reply', () => {

@@ -8,7 +8,7 @@ export function HomeView({ onSubmit, onSample, onDiscuss = null, onAdjust = null
       h('div', { className: 'crew-home-brand' },
         h('img', { src: '/logo.svg', alt: '', width: 26, height: 26 }),
         h('b', null, 'Lodge')),
-      h('h1', null, '今天想做什么？'),
+      h('h1', null, '想聊一聊，还是做出来？'),
       h(GoalForm, {
         onSubmit,
         onDiscuss,

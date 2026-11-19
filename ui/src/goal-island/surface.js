@@ -7,6 +7,7 @@ import { CheckIcon } from './glyphs.js'
 import { useEscape } from './dismiss.js'
 import { SPRING_SHAPE, spring, useMorph } from './motion.js'
 import { t } from './copy.js'
+import { IslandCat } from './cat.js'
 
 // -------------------------------------------------------------------------
 // The header island is the room's status screen. One surface wraps the
@@ -277,7 +278,7 @@ function GoalPanel({ goal, view, room, actions }) {
 
 // The surface that wraps the capsule: signal or panel hangs under it. Closed
 // is a 40px capsule; a signal makes it grow one row; open shows the panel.
-export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
+export function GoalIsland({ room, goal, view, mode, signal, actions, pill, catState = 'rest' }) {
   const island = useRef(null)
   const open = mode === 'open'
   // 收成小药囊；鼠标移上去或键盘聚焦时展开，有事件时一直展开。
@@ -336,7 +337,8 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill }) {
         }),
         signal === null || signal === undefined
           ? null
-          : h(GoalSignal, { signal, mode, actions }))))
+          : h(GoalSignal, { signal, mode, actions }))),
+  h(IslandCat, { state: catState }))
 }
 
 export const GOAL_CSS = `
@@ -360,7 +362,8 @@ body[data-ds-dark-theme] .bt-island{--bt-ink:#fff4dc;--bt-ink-2:rgba(255,243,214
 .bt-island[data-compact] .bt-goal-closed-main{height:44px;padding:5px 12px 5px 5px;gap:9px}
 .bt-island[data-compact] .bt-goal-closed-copy{gap:0}
 .bt-island[data-compact] .bt-goal-closed-title{font-size:13.5px;line-height:18px}
-.bt-island[data-morph]{overflow:hidden}
+.bt-island[data-morph] .bt-goal-pod{overflow:hidden;border-radius:0 0 30px 30px}
+.bt-island[data-morph] .bt-pill{overflow:hidden}
 .bt-island .bt-pill{width:100%;max-width:none;background:none;border:0;box-shadow:none;border-radius:30px 30px 0 0;animation:bt-island-layer-in .24s var(--bt-ease) backwards}
 .bt-island[data-mode=open] .bt-pill{border-radius:30px 30px 0 0}
 .bt-island .bt-pill:hover{background:var(--bt-hover)}

@@ -83,7 +83,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   }, [room.id, room.chatUnread, room.routine?.unseenResult, store])
 
   useLayoutEffect(() => {
-    if (stick.current) pinToBottom()
+    if (stick.current && !holdPin.current) pinToBottom()
   }, [lastId, room.id])
 
   // 流式文本、输入框增高、结果卡出现都会改变内容高度；回调在绘制前贴底。
@@ -101,13 +101,15 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
 
   useEffect(() => () => clearTimeout(holdTimer.current), [])
 
-  // 展开/收起是阅读动作，不是新消息：贴底逻辑在这段时间里让路，焦点和位置都留在原处。
+  // 展开/收起、定时开关都是用户在当前阅读位置的主动动作，不是新消息：
+  // 贴底逻辑在这段时间里让路，焦点和位置都留在原处。
   const holdOnExpand = event => {
-    const target = event.target?.closest?.('summary, [aria-expanded], [data-hold-pin]')
+    const target = event.target?.closest?.('summary, [aria-expanded], [data-hold-pin], .crew-routine')
     if (target === null || target === undefined) return
+    const routine = event.target?.closest?.('.crew-routine') !== null
     holdPin.current = true
     clearTimeout(holdTimer.current)
-    holdTimer.current = setTimeout(() => { holdPin.current = false }, 600)
+    holdTimer.current = setTimeout(() => { holdPin.current = false }, routine ? 1500 : 600)
   }
 
   // 输入条高度会变；「回到最新」始终浮在它上方，而不是写死 124px。

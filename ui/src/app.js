@@ -201,7 +201,7 @@ export function App() {
     room === null
       ? h(HomeView, {
         onSubmit: startGoal,
-        onSample: () => { void store.openSampleRoom() },
+        onSample: kind => { void store.openSampleRoom(kind) },
         onDiscuss: discussGoal,
         onAdjust: adjustGoal,
         error: state.error,

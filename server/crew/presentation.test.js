@@ -33,7 +33,7 @@ test('a routine run that needs you is presented on the goal room', () => {
     roomType: 'studio',
     members,
     stages: [],
-    routine: { cadence: 'daily', hour: 8, minute: 0, enabled: true, lastRoomId: 'run-1' },
+    routine: { days: [0, 1, 2, 3, 4, 5, 6], hour: 8, minute: 0, enabled: true, lastRoomId: 'run-1' },
   }
   const run = {
     id: 'run-1',

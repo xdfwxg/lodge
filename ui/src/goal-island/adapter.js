@@ -3,6 +3,7 @@
 
 import { createElement as h, useState } from 'react'
 import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
+import { IslandCat, CAT_CSS } from './cat.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
 
@@ -65,11 +66,11 @@ const PILL_CSS = `
 .bt-input:focus{border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash);outline:none}
 .bt-input:disabled{opacity:.55;cursor:not-allowed}
 .bt-input-area{height:auto;min-height:96px;padding:8px 10px;line-height:18px;resize:vertical}
-.crew-goal-island{position:absolute;top:12px;left:32px;right:32px;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;pointer-events:none}
+.crew-goal-island{position:absolute;top:0;left:0;right:0;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;padding:34px 32px 0;pointer-events:none}
 .crew-goal-island>*{pointer-events:auto}
 .crew-goal-island .bt-island{align-self:center}
 @keyframes bt-veil-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (max-width:760px){.crew-goal-island{top:10px;left:14px;right:14px;padding:0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}}
+@media (max-width:760px){.crew-goal-island{top:0;left:0;right:0;padding:30px 14px 0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}.bt-cat{width:44px;height:24px}}
 `
 
 // 默认收成小胶囊，悬停或键盘聚焦时放大，露出目标原句。
@@ -85,6 +86,7 @@ function DoneIsland({ goal, label }) {
     onFocus: event => { if (event.target.matches(':focus-visible')) setPeek(true) },
     onBlur: event => { if (!event.currentTarget.contains(event.relatedTarget)) setPeek(false) },
   },
+  h(IslandCat, { state: 'done' }),
   h('div', { className: 'crew-island-done' },
     h('span', { className: 'crew-island-done-dot', 'aria-hidden': true }),
     h('span', { className: 'crew-island-done-copy' },
@@ -131,6 +133,9 @@ export function GoalIslandHeader({ room, goal: goalOverride = null, status = nul
   }
   const finished = goal.stages.length > 0 && goal.stages.every(stage => stage.status === 'passed')
   const doneLabel = room.modeCapabilities?.stages === false ? '已确认' : '已交付'
+  const catState = room.state === 'complete' ? 'done'
+    : room.needsYou ? 'needs'
+      : room.state === 'active' && (room.busyMembers ?? []).length > 0 ? 'busy' : 'rest'
   return h('div', { className: 'crew-goal-island' },
     finished
       ? h(DoneIsland, { goal, label: doneLabel })
@@ -141,8 +146,9 @@ export function GoalIslandHeader({ room, goal: goalOverride = null, status = nul
         mode: activity.mode,
         signal: activity.signal,
         actions: goalActions,
+        catState,
         pill: pill({ room, view, open, onToggle: goalActions.toggleGoal }),
       }),
     status,
-    h('style', null, `${GOAL_CSS}\n${PILL_CSS}`))
+    h('style', null, `${GOAL_CSS}\n${PILL_CSS}\n${CAT_CSS}`))
 }

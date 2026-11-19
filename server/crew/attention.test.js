@@ -50,7 +50,7 @@ test('a routine run that needs you surfaces on the goal room', () => {
     id: 'goal',
     state: 'complete',
     routine: {
-      cadence: 'daily',
+      days: [0, 1, 2, 3, 4, 5, 6],
       hour: 8,
       minute: 0,
       enabled: true,
@@ -70,12 +70,12 @@ test('a routine run that needs you surfaces on the goal room', () => {
 test('a finished routine result surfaces until it is seen', () => {
   const done = room({
     state: 'complete',
-    routine: { cadence: 'daily', enabled: true, unseenResult: true },
+    routine: { days: [0, 1, 2, 3, 4, 5, 6], enabled: true, unseenResult: true },
   })
   assert.equal(roomNeedsYou(done, []).kind, 'result')
   const seen = room({
     state: 'complete',
-    routine: { cadence: 'daily', enabled: true, unseenResult: false },
+    routine: { days: [0, 1, 2, 3, 4, 5, 6], enabled: true, unseenResult: false },
   })
   assert.equal(roomNeedsYou(seen, []), null)
 })

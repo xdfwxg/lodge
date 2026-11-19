@@ -24,7 +24,7 @@ export const createRoutineRunner = ({ store, service, emit = () => {}, now = Dat
     const source = store.readRoom(sourceRoomId)
     const routine = routineOf(source)
     if (source === null || routine?.enabled !== true) return
-    const schedule = { cadence: routine.cadence, hour: routine.hour, minute: routine.minute }
+    const schedule = { days: routine.days, hour: routine.hour, minute: routine.minute }
     const at = now()
     if (!routineDueNow(routine, at)) {
       const nextRunAt = nextRoutineSlotAt(schedule, at)

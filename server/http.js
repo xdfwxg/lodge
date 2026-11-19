@@ -3,6 +3,7 @@ import { extname, join, normalize } from 'node:path'
 import { requestGuard } from './http-guard.js'
 import { matchRoomAction } from './route-table.js'
 import { pageAssignments } from './crew/assignment-history.js'
+import { presentRoom } from './crew/presentation.js'
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -46,6 +47,17 @@ export const respond = (res, result) => {
   }
   const status = result.created === true ? 201 : result.accepted === true ? 202 : 200
   return json(res, status, result.body)
+}
+
+// 动作接口也要返回和房间事件同一份投影；否则前端用原始房间覆盖后会丢掉交付卡。
+const withPresentedRoom = (store, result) => {
+  const room = result?.body?.room
+  if (result?.ok === false || room === null || typeof room !== 'object' || room.kind !== 'room' || typeof room.id !== 'string') {
+    return result
+  }
+  const messages = store.readRecentMessages?.(room.id) ?? store.readMessages?.(room.id) ?? []
+  const assignments = store.readAssignments?.(room.id, { limit: 500 }) ?? []
+  return { ...result, body: { ...result.body, room: presentRoom(room, messages, assignments) } }
 }
 
 export const readJson = (req, limit = 64 * 1024) => new Promise((resolveBody, reject) => {
@@ -152,7 +164,8 @@ export const createHttpHandler = ({
     }
 
     if (path === '/api/rooms/sample' && req.method === 'POST') {
-      return respond(res, await service.createSampleRoom())
+      const body = await readJson(req)
+      return respond(res, await service.createSampleRoom(body?.kind === 'chat' ? 'chat' : 'studio'))
     }
 
     const assignmentsPath = path.match(/^\/api\/rooms\/([\w-]+)\/assignments$/)
@@ -219,10 +232,11 @@ export const createHttpHandler = ({
 
     const roomAction = matchRoomAction(path)
     if (roomAction !== null) {
-      return respond(res, await service.roomRequest(roomAction.roomId, roomAction.action, {
+      const result = await service.roomRequest(roomAction.roomId, roomAction.action, {
         method: req.method,
         readBody: () => readJson(req),
-      }))
+      })
+      return respond(res, withPresentedRoom(store, result))
     }
 
     if (path.startsWith('/api/')) return json(res, 404, { error: '没有这个接口' })
