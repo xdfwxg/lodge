@@ -23,8 +23,7 @@ export function NewGoalDialog({ open, onClose, onSubmit, onDiscuss = null, onAdj
         onClick: onClose,
       }, '×')),
     h('div', { className: 'crew-dialog-heading' },
-      h('h2', null, '今天想做什么？'),
-      h('p', null, '说清要的结果，或者先聊一聊。')),
+      h('h2', null, '今天想做什么？')),
     h('div', { className: 'crew-dialog-body' },
       h(GoalForm, { onSubmit, onDiscuss, onAdjust }))))
 }

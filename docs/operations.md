@@ -195,6 +195,7 @@ Pi 是 BYOK。登录凭据写到 `~/.pi/agent/auth.json`；登录后重启 Lodge
 - 系统消息走 `server/crew/notices.js` 的 `systemNotice`：原始错误写进消息的 `meta.detail` 并打一条 `[lodge]` 日志，不拼进正文。
 - 界面上的错误走 `ui/src/error-text.js`：中文业务原因保留，英文和网络错误换成固定的人话（`humanErrorText` / `errorSuffix`）。
 - 不写实现旁白：“副本、并行、重启后、未启动”这类词不出现，改成“这一步没做成，需要你处理”这类动作句。
+- 小字不解释显而易见的事：控件、标签、按钮已经说清的，不再用一行提示重复。小字只保留真实错误、非显然后果和用户必须知道的限制。
 
 ## 房间记忆（审核后只读）
 

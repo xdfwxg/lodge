@@ -439,13 +439,13 @@ function NewRoomDialog({
         h('div', { className: 'crew-proposal-block' },
         h('b', null, '怎么验收'),
         verify === 'manual'
-          ? h('p', { className: 'crew-field-hint' }, '你自己看，满意就继续。')
+          ? null
           : acceptance.trim() !== ''
             ? h('div', { className: 'crew-acceptance' },
               h('span', { className: 'crew-field-hint' }, '检查'),
               h('code', { className: 'crew-acceptance-cmd' }, acceptance))
             : plannedAcceptance
-              ? h('p', { className: 'crew-field-hint' }, '每一步都会跑一条检查。')
+              ? null
               : h('input', {
                 className: 'crew-goal-input crew-acceptance-input',
                 type: 'text',
@@ -453,10 +453,7 @@ function NewRoomDialog({
                 value: acceptanceDraft,
                 placeholder: '例如：npm test',
                 onChange: event => setAcceptanceDraft(event.target.value),
-              })),
-        verify === 'manual' && hasVerifier
-          ? h('p', { className: 'crew-dialog-note' }, '可选：补一条检查。')
-          : null)),
+              })))),
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const setupProps = {
@@ -506,8 +503,7 @@ function NewRoomDialog({
       placeholder: roomNameFromGoal(goal) || '自动起名',
       value: nameDraft,
       onChange: event => setNameDraft(event.target.value),
-    }),
-    h('p', { className: 'crew-field-hint' }, '留空就按目标起名。'))
+    }))
 
   const workspaceField = roomKind.workspace.show(null) === false
     ? null
@@ -572,7 +568,7 @@ function NewRoomDialog({
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-heading' },
         h('h2', null, '新房间'),
-        h('p', null, handoff !== null ? '从聊天室带来。先看分歧，再开工。' : roomKind.dialogSubtitle)),
+        handoff === null ? null : h('p', null, '从聊天室带来。先看分歧，再开工。')),
       h('div', { className: 'crew-dialog-head' },
         h('button', {
           ref: closeRef,

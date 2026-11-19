@@ -15,14 +15,13 @@ export const studioUi = {
   cta: '开工',
   goalLabel: '要做什么？',
   goalPlaceholder: '例如：写一页新人能跑起来的启动说明。',
-  dialogSubtitle: '说清你想得到什么。',
   goalIcon: TargetIcon,
   workspace: {
     show: () => true,
     // 不选文件夹也能开工：Lodge 会在工作区里准备一个，结果放在里面。
     required: () => false,
     label: '工作文件夹',
-    hint: '不选也行：Lodge 会准备一个工作区，结果放在里面。',
+    hint: '',
   },
   missingVerifier: hasVerifier => !hasVerifier,
   readOnly: roomTypeMeta('studio').readOnly,

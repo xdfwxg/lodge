@@ -144,6 +144,19 @@ test('the body carries an editable soul, skills and tools', async () => {
   assert.deepEqual(calls.patched[0].payload.mcp.map(grant => grant.server), ['github', 'chrome-devtools'])
 })
 
+test('planner and verifier cannot add non-browser tools', async () => {
+  const { swap } = harness()
+  const result = await swap.swap(roomOf(), {
+    memberId: 'verifier',
+    engine: 'claude',
+    model: 'sonnet',
+    prompt: '你是验收员',
+    mcp: ['github'],
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /只读浏览器/)
+})
+
 test('bad skill or tool names are refused', async () => {
   const { swap, calls } = harness()
   assert.match((await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', skills: ['bad name'] })).error, /技能名/)

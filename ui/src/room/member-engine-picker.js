@@ -62,7 +62,7 @@ export function MemberEnginePicker({
         h('div', { className: 'crew-member-engine-controls' },
           h('select', {
             className: 'crew-member-menu',
-            'aria-label': `${member.name ?? member.role}的模型服务`,
+            'aria-label': `${member.name ?? member.role}的智能体`,
             value: choice.engine,
             onChange: event => {
               setChoices(replaceChoice(choices, index, { engine: event.target.value, model: '', personality: choice.personality || member.personality || '' }))
@@ -93,7 +93,7 @@ export function MemberEnginePicker({
             rows.map(item => h('option', { key: item.id, value: item.id }, item.label)))
             : null,
           engine !== undefined && rows.length === 0
-            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型服务还没有可用模型。')
+            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个智能体还没有可用模型。')
             : null,
           engine !== undefined && engine.authenticated !== false && needsGate === true && engine.capabilities?.approvalReview !== true
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')

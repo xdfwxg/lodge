@@ -41,7 +41,6 @@ test('the front door asks for a goal and offers the sample', async () => {
   assert.match(body, /今天想做什么/)
   assert.match(body, /做出来/)
   assert.match(body, /先看看一间做完的示例/)
-  assert.match(body, /说清要的结果/)
 })
 
 test('the front door keeps chat and adjustment as paths from the same input', async () => {

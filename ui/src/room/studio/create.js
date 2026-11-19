@@ -151,7 +151,6 @@ export function StudioPrimaryFields({
           className: 'crew-team-chip',
           'data-role': member.role,
         }, h(RoleIcon, { member }), member.name))),
-      h('p', { className: 'crew-field-hint' }, '一人规划、一人执行、一人检查；需要时再换人或加人。'),
       modelNote === '' ? null : h('p', { className: 'crew-field-hint', role: 'status' }, modelNote),
       h(EngineLogin, {
         readiness,
@@ -182,6 +181,5 @@ export function StudioSetupFields({
         allowSkills: features?.skillsLibrary === true,
         requireApprovalGate: true,
         onInteraction,
-      })),
-    h('p', { className: 'crew-field-hint' }, '每位成员都会用独立的只读浏览器查公开资料；不登录、不点击、不付款。'))
+      })))
 }

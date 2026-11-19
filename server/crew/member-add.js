@@ -10,6 +10,7 @@ import { roomBulletin, roomModeOfRoom } from './rooms/kinds.js'
 import { resolveRoomType } from './room-types/index.js'
 import { membersFor } from './roster.js'
 import { grantBrowserToAll } from './room-access.js'
+import { isBrowserGrant } from '../../shared/room-access.js'
 
 const ROLE_ALIASES = { worker: 'worker', executor: 'worker', verifier: 'verifier' }
 const ROLE_LABEL = { worker: '执行官', verifier: '验收员' }
@@ -92,6 +93,9 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
     const granted = grantBrowserToAll([spec])[0]
     spec.mcp = granted.mcp
     bodySpec.mcp = granted.mcp
+    if (role === 'verifier' && spec.mcp.some(grant => !isBrowserGrant(grant))) {
+      return fail('invalid', '验收员只能使用只读浏览器，不能挂其他外部工具。')
+    }
     Object.assign(spec, mode.memberRole?.(spec) ?? {})
     const soul = mode.memberSoul?.(spec) ?? bodySpec.prompt
 

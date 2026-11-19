@@ -9,7 +9,6 @@ export function GoalForm({
   onSample = null,
   error = null,
   startLabel = '做出来',
-  hint = '说清要的结果，或者先聊一聊；Lodge 两样都接。',
   autoFocus = true,
 }) {
   const [goal, setGoal] = useState('')
@@ -54,7 +53,6 @@ export function GoalForm({
     error === null || error === undefined
       ? null
       : h('p', { className: 'crew-home-error', role: 'alert' }, humanErrorText(error)),
-    h('p', { className: 'crew-home-hint' }, hint),
     h('div', { className: 'crew-home-links' },
       onAdjust === null
         ? null
