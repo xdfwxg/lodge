@@ -71,12 +71,9 @@ export function HandoffReview({
           })
           : verify === 'test'
             ? plannedAcceptance
-              ? h('p', { className: 'crew-field-hint' }, '每一步都会跑一条检查')
+              ? null
               : h('p', { className: 'crew-field-hint' }, acceptance === '' ? '还没填检查' : `跑一条检查：${acceptance}`)
-            : h('p', { className: 'crew-field-hint' }, '你来看结果，再决定下一步'),
-        verify === 'test' && editable
-          ? h('p', { className: 'crew-field-hint' }, '会在房间的工作文件夹里真的跑一遍，结果显示在结果里。')
-          : null),
+            : null),
       h('details', { className: 'crew-handoff-more' },
         h('summary', null, `完整交接单 · ${detailSummary}`),
         h('div', { className: 'crew-handoff-more-body' },

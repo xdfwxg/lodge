@@ -15,7 +15,7 @@ export const HELP_TOPICS = [
   ['房间', '一件事一间房。房间结束不用删，收进「已归档」就好。'],
   ['聊天室', '成员像同事一样聊，聊多久、什么时候停，都由你决定。'],
   ['工作室', '说清你要的结果，Lodge 把它拆成几步；成员按步骤做，验收员看结果。'],
-  ['换模式', '两种模式随时切换，成员跟着房间走，不用重新建。'],
+  ['两种房间', '聊天室先聊清楚，工作室把事做出来；开房时选一种，之后不切换。'],
   ['成员', '成员是接在本机模型上的机器人。在输入框里 @ 谁，就只有谁回答。'],
   ['进展', '房间里第一行那张卡写着第几步、谁在做、看到了什么证据，看不到进展就点开它。'],
 ]
@@ -38,8 +38,7 @@ export function RoomHelp({ autoOpen = false }) {
           onClick: event => event.stopPropagation(),
         },
         h('div', { className: 'crew-dialog-heading' },
-          h('h2', null, 'Lodge 怎么用'),
-          h('p', null, '这里是工作的地方，不是聊天工具。')),
+          h('h2', null, 'Lodge 怎么用')),
         h('div', { className: 'crew-dialog-body' },
           h('dl', { className: 'crew-help-list' }, HELP_TOPICS.map(([title, text]) => h(Fragment, { key: title },
             h('dt', null, title),

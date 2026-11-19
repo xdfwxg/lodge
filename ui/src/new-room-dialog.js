@@ -401,13 +401,12 @@ function NewRoomDialog({
     h('div', { className: 'crew-proposal-head', ref: proposalHeadRef, tabIndex: -1 },
       h('div', null,
         h('b', null, '方案'),
-        h('p', {
-          className: 'crew-dialog-sub crew-proposal-lede',
-          title: typeof proposal.why === 'string' ? proposal.why : '',
-        },
-          inlineCode(typeof proposal.why === 'string' && proposal.why !== ''
-            ? proposal.why
-            : `这件事由 ${proposal.members.length} 位成员一起完成。`)))),
+        typeof proposal.why === 'string' && proposal.why !== ''
+          ? h('p', {
+            className: 'crew-dialog-sub crew-proposal-lede',
+            title: proposal.why,
+          }, inlineCode(proposal.why))
+          : null)),
     h('div', { className: 'crew-proposal-block' },
       h('b', null, '结果'),
       h('ul', { className: 'crew-brief' },
@@ -431,7 +430,7 @@ function NewRoomDialog({
             value: answers[index] ?? question.recommendation ?? '',
             onChange: event => setAnswers(list => list.map((item, at) => at === index ? event.target.value : item)),
           }))))
-      : h('p', { className: 'crew-field-hint' }, '没有要你定的。'),
+      : null,
     h('details', { className: 'crew-setup-more' },
       h('summary', null, `队伍和检查 · ${rosterMembers.length} 人${verify === 'test' ? ' · 跑检查' : ' · 你确认'}`),
       h('div', { className: 'crew-setup-more-body' },
