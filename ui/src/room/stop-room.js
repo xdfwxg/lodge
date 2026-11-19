@@ -43,7 +43,7 @@ export function StopRoom({ room, members = [], onStop = null }) {
         },
         h('div', { className: 'crew-dialog-heading' },
           h('h2', null, '停下这一轮？'),
-          h('p', null, '正在跑的回合会停下，已经产出的内容保留。之后可以点继续。')),
+          h('p', null, '已产出的内容保留；之后可以点继续。')),
         note === '' ? null : h('p', { className: 'crew-dialog-note', role: 'alert' }, note),
         h('div', { className: 'crew-dialog-foot' },
           h('button', {

@@ -77,7 +77,7 @@ export function HandoffReview({
       h('details', { className: 'crew-handoff-more' },
         h('summary', null, `完整交接单 · ${detailSummary}`),
         h('div', { className: 'crew-handoff-more-body' },
-          h(IntakeSection, { label: '共识', items: handoff.consensus, empty: '没有记录共识' }),
-          h(IntakeSection, { label: '约束', items: handoff.constraints, empty: '没有额外约束' }),
-          h(IntakeSection, { label: '待办', items: handoff.todos, empty: '没有待办' })))))
+          h(IntakeSection, { label: '共识', items: handoff.consensus }),
+          h(IntakeSection, { label: '约束', items: handoff.constraints }),
+          h(IntakeSection, { label: '待办', items: handoff.todos })))))
 }

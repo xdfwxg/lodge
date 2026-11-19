@@ -36,7 +36,9 @@ export function ApprovalCard({ approval, onDecide, state = 'pending' }) {
             : null)
         : null),
     h('div', { className: 'crew-card-foot' },
-      h('span', { className: 'crew-req-note' }, actions.length === 0 ? '这张确认已经失效。' : '你决定之前，Lodge 不动手。'),
+      actions.length === 0
+        ? h('span', { className: 'crew-req-note' }, '这张确认已经失效。')
+        : null,
       actions.includes('deny')
         ? h('button', { type: 'button', className: 'crew-ghost', onClick: () => onDecide('deny') }, '先别做')
         : null,

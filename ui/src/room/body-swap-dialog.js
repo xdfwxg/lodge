@@ -181,7 +181,7 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
           className: 'crew-mind-raw',
           rows: 4,
           'aria-label': '性格',
-          placeholder: '写给这位成员的长期说明；留空就用角色默认。',
+          placeholder: '留空就用角色默认。',
           value: roleBound ? rolePrompt : (spec.prompt ?? ''),
           readOnly: roleBound || !customOpen,
           disabled: busy,
@@ -195,8 +195,8 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
         ? h('details', { className: 'crew-fold crew-body-swap-run' },
           h('summary', null, '运行控制'),
           h('p', { className: 'crew-field-hint' }, held
-            ? '这位成员已经停下；点继续后，房间会接着跑。'
-            : '只停下这位成员当前的回合；已经产出的内容保留。'),
+            ? '这位成员已经停下；点继续后接着跑。'
+            : '只停这一回合；已产出的内容保留。'),
           h('button', {
             type: 'button',
             className: 'crew-ghost',

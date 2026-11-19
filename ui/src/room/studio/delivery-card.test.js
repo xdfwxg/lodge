@@ -221,7 +221,7 @@ test('a finished room offers one quiet way to do it again tomorrow', async () =>
   }))
   assert.match(text(tree), /以后/)
   assert.match(text(tree), /再做一遍/)
-  assert.match(text(tree), /Lodge 没开时不会跑/)
+  assert.match(text(tree), /Lodge 没开时，下次打开补一次/)
   assert.doesNotMatch(text(tree), /cron/)
 })
 

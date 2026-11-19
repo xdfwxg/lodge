@@ -65,7 +65,7 @@ export function RoomMemory({ room, onLoad, onReview }) {
         },
         h('div', { className: 'crew-dialog-heading' },
           h('h2', null, '房间记忆'),
-          h('p', null, '审核通过后，新房间会把它作为只读参考；成员不能写入，也不参与验收。')),
+          h('p', null, '只读参考；成员不能改，也不参与验收。')),
         h('div', { className: 'crew-dialog-body' },
           error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error),
           entries === null && error === null

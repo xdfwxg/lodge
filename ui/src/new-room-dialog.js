@@ -384,9 +384,6 @@ function NewRoomDialog({
       allowSkills: features?.skillsLibrary === true,
       onInteraction: clearNote,
     }),
-    studioMissingVerifier
-      ? h('p', { className: 'crew-field-hint' }, '还差一位验收员。让 Lodge 重新出方案。')
-      : null,
     h(EngineLogin, {
       readiness: engineReadiness(engines, { requireApproval: true }),
       busyId: loginBusyId,
@@ -441,7 +438,6 @@ function NewRoomDialog({
           ? null
           : acceptance.trim() !== ''
             ? h('div', { className: 'crew-acceptance' },
-              h('span', { className: 'crew-field-hint' }, '检查'),
               h('code', { className: 'crew-acceptance-cmd' }, acceptance))
             : plannedAcceptance
               ? null
@@ -566,8 +562,7 @@ function NewRoomDialog({
   return h('div', { className: 'crew-overlay', ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-heading' },
-        h('h2', null, '新房间'),
-        handoff === null ? null : h('p', null, '从聊天室带来。先看分歧，再开工。')),
+        h('h2', null, '新房间')),
       h('div', { className: 'crew-dialog-head' },
         h('button', {
           ref: closeRef,

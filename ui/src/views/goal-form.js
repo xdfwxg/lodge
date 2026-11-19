@@ -30,7 +30,7 @@ export function GoalForm({
       rows: 3,
       autoFocus,
       'aria-label': '今天想完成什么',
-      placeholder: '说清要的结果，或者先说你想聊的方向。例如：给设置页加上保存提示，刷新后仍然生效。',
+      placeholder: '例如：给设置页加上保存提示，刷新后仍然生效。',
       value: goal,
       disabled: busy,
       onChange: event => setGoal(event.target.value),

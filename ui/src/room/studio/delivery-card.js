@@ -251,7 +251,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
           className: 'crew-routine-start',
           onClick: startRoutine,
         }, '开始')),
-        h('p', { className: 'crew-field-hint' }, 'Lodge 没开时不会跑，下次打开补一次。'),
+        h('p', { className: 'crew-field-hint' }, 'Lodge 没开时，下次打开补一次。'),
         historyNode)
     }
     if (editing) {
