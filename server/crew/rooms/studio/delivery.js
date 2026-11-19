@@ -3,6 +3,7 @@ import { memberLabelMap } from '../../member-labels.js'
 import { artifactKindOf } from '../../../../shared/artifact.js'
 import { deliveryKindOf } from '../../../../shared/delivery.js'
 import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
+import { routineOf } from '../../../../shared/routine.js'
 
 const unique = values => [...new Set(values.filter(value => typeof value === 'string' && value !== ''))]
 
@@ -100,6 +101,7 @@ export const buildDelivery = (room, messages = []) => {
     completedAt: room.completedAt ?? (lastAt > 0 ? lastAt : null),
     commit: typeof room.completedCommit === 'string' && room.completedCommit !== '' ? room.completedCommit : null,
     independenceLabel: independenceLabel(room),
+    routine: routineOf(room),
     usage: room.usage ?? null,
     memberNames: memberLabelMap(room),
     workspace: {

@@ -1,11 +1,13 @@
 import { createElement as h } from 'react'
 import { cardActionsOf } from '../../shared/attempt.js'
+import { APPROVAL_SCOPE, APPROVAL_SCOPE_OPTIONS } from '../../shared/approval-scope.js'
 import { isBrowserTool } from '../../shared/room-access.js'
 
 // 外部动作审批卡：只展示事实与决定，不把“模型说可以”当成批准。
 export function ApprovalCard({ approval, onDecide, onAllowRoom = null, state = 'pending' }) {
   const actions = cardActionsOf({ kind: 'approval', state })
   const browser = isBrowserTool(approval.tool)
+  const scopeLabel = value => APPROVAL_SCOPE_OPTIONS.find(option => option.value === value)?.label ?? value
   return h('div', {
     className: 'crew-card crew-approval',
     'data-card-state': state,
@@ -47,9 +49,9 @@ export function ApprovalCard({ approval, onDecide, onAllowRoom = null, state = '
           type: 'button',
           className: 'crew-link',
           onClick: () => onAllowRoom(),
-        }, '本房间都允许')
+        }, scopeLabel(APPROVAL_SCOPE.ROOM))
         : null,
       actions.includes('allow')
-        ? h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, browser ? '只这一次' : '可以做')
+        ? h('button', { type: 'button', className: 'crew-accept', onClick: () => onDecide('allow') }, browser ? scopeLabel(APPROVAL_SCOPE.ONCE) : '可以做')
         : null))
 }

@@ -4,6 +4,8 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createCrewPorts } from './crew/crew-ports.js'
 import { createLiveRooms } from './crew/rooms/base/live.js'
+import { createRoomScheduler } from './crew/rooms/scheduler.js'
+import { routineOf } from '../shared/routine.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
 import { createCrewService } from './crew/service.js'
@@ -135,12 +137,14 @@ const nudgeStudio = room => {
 }
 
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
+let progressWriter = null
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
     payload = presentRoom(payload, store.readRecentMessages(payload.id), store.readAssignments(payload.id, { limit: 500 }), {
       children: attentionChildrenOf(payload),
     })
     nudgeStudio(payload)
+    progressWriter?.(payload)
   }
   broadcast(event, payload, id)
 }
@@ -152,6 +156,13 @@ const ports = createCrewPorts({
   memoryRoot: join(dataDir, 'memory'),
   browserMcp: { ensure: () => ensureBrowserMcp(engine) },
 })
+progressWriter = room => {
+  try {
+    ports.roomFiles.writeProgress(room, store.readRecentMessages(room.id))
+  } catch (error) {
+    console.warn(`[lodge] 进度文件没有写入：${error?.message ?? error}`)
+  }
+}
 
 const live = createLiveRooms({
   store,
@@ -168,6 +179,37 @@ service = createCrewService({
   roles: ROLES,
   ports,
 })
+
+// 打开 Lodge 时，把启用“再跑一次”的完成房间复制成一间新的工作室；上一间还在跑就不重入。
+const runRoutine = async sourceRoomId => {
+  const source = store.readRoom(sourceRoomId)
+  if (source === null || routineOf(source)?.enabled !== true) return
+  const previous = source.routine?.lastRoomId === null || source.routine?.lastRoomId === undefined
+    ? null
+    : store.readRoom(source.routine.lastRoomId)
+  if (previous?.state === 'active') return
+  const result = await service.createRoom({
+    goal: source.goal,
+    name: `${source.name ?? '例行工作'} · 自动`,
+    roomType: 'studio',
+    verify: source.verify ?? 'manual',
+    acceptance: source.acceptance ?? '',
+    ...(typeof source.repoPath === 'string' && source.repoPath !== '' ? { repoPath: source.repoPath } : {}),
+  })
+  if (result?.ok !== true) return
+  store.updateRoom(source.id, current => {
+    current.routine = {
+      ...(current.routine ?? {}),
+      lastRunAt: Date.now(),
+      lastRoomId: result.room?.id ?? null,
+    }
+    return { events: [{ type: 'room.routine.ran', payload: { roomId: result.room?.id ?? null } }] }
+  })
+}
+
+// 持久 timer 到点后进房间 inbox，再由单 worker 处理；审批超时和“打开再跑”都从这里恢复。
+const scheduler = createRoomScheduler({ store, live, onRoutine: runRoutine })
+scheduler.start()
 
 const runWorkspaceGc = () => {
   try {

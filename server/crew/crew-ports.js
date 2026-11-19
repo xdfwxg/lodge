@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs
 import { join } from 'node:path'
 import { runCommand } from './acceptance.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
-import { writeConclusion, writeDiagnostic, writeGoal } from './room-repo.js'
+import { writeConclusion, writeDiagnostic, writeGoal, writeProgress } from './room-repo.js'
 import { writeMemberEnv } from './member-env.js'
 import { createRoomMemory } from './memory.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
@@ -12,6 +12,7 @@ export const createCrewPorts = ({ memoryRoot, browserMcp = null } = {}) => ({
   browserMcp,
   roomFiles: {
     writeGoal,
+    writeProgress,
     writeConclusion,
     writeDiagnostic,
     roomDir,

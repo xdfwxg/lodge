@@ -53,6 +53,7 @@ export const studioView = {
     onRework: actions.rework,
     onChoose: actions.chooseHuman,
     onReadArtifact: actions.readArtifact,
+    onRoutine: enabled => actions.setRoutine(enabled),
     onResolveMerge: actions.resolveMerge,
     onApproval: actions.approval,
     onAllowBrowserRoom: actions.allowBrowserRoom,

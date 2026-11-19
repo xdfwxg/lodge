@@ -209,7 +209,14 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         })
         store.appendEvent(roomId, 'stage.merge_conflict', { stage: stageIndex, worker, branch: branch ?? '', files: result.files })
         const updated = store.updateRoom(roomId, current => {
-          const conflict = { stage: stageIndex, worker, branch, files: result.files, path: integration }
+          const conflict = {
+            stage: stageIndex,
+            worker,
+            branch,
+            files: result.files,
+            versions: Array.isArray(result.versions) ? result.versions : [],
+            path: integration,
+          }
           current.mergeConflict = conflict
           if (current.blocked?.stage === stageIndex) current.blocked = null
           return { events: [] }

@@ -169,6 +169,7 @@ export const createLiveRooms = ({
       const liveRoom = await chat.ensure(room)
       chat.subscribe(entry, liveRoom)
       roomFiles.writeGoal(liveRoom)
+      roomFiles.writeProgress?.(liveRoom, store.readRecentMessages(room.id))
       await refreshRoom(entry, { force: true })
       if (approvals.resumeApprovalPauseIfSettled(room.id) !== null) await refreshRoom(entry, { force: true })
       if (resume) await strategy.resume(entry)
@@ -350,7 +351,11 @@ export const createLiveRooms = ({
     refresh: refreshRoom,
   })
 
-  const expireApprovals = (roomId, reason) => approvals.expireApprovals(entries.get(roomId), roomId, reason)
+  const expireApprovals = async (roomId, reason) => {
+    const expired = await approvals.expireApprovals(entries.get(roomId), roomId, reason)
+    approvals.resumeApprovalPauseIfSettled(roomId)
+    return expired
+  }
 
   const answerCard = (roomId, memberId, requestId, message) => approvals.answerCard({
     entry: entries.get(roomId),

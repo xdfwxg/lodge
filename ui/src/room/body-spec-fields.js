@@ -21,22 +21,24 @@ export const bodySpecPayload = spec => {
 }
 
 // 能力是 skills 和 mcp，放在一组里；它们不改性格。
-export function CapabilityFields({ value, onChange, disabled = false }) {
+export function CapabilityFields({ value, onChange, disabled = false, showSkills = true }) {
   const update = patch => onChange({ ...value, ...patch })
   return h('div', { className: 'crew-capability' },
     h('div', { className: 'crew-capability-head' },
       h('b', null, '能力')),
-    h('label', { className: 'crew-capability-row' },
-      h('span', { className: 'crew-capability-label' }, 'skills'),
-      h('input', {
-        className: 'crew-capability-input',
-        type: 'text',
-        'aria-label': 'skills',
-        placeholder: '代码审查、写测试',
-        value: value.skillsText ?? '',
-        disabled,
-        onChange: event => update({ skillsText: event.target.value }),
-      })),
+    showSkills
+      ? h('label', { className: 'crew-capability-row' },
+        h('span', { className: 'crew-capability-label' }, 'skills'),
+        h('input', {
+          className: 'crew-capability-input',
+          type: 'text',
+          'aria-label': 'skills',
+          placeholder: '代码审查、写测试',
+          value: value.skillsText ?? '',
+          disabled,
+          onChange: event => update({ skillsText: event.target.value }),
+        }))
+      : null,
     h('label', { className: 'crew-capability-row' },
       h('span', { className: 'crew-capability-label' }, 'mcp'),
       h('input', {

@@ -4,6 +4,7 @@ import { engineBlockLabel, engineBlockReason, engineReadiness } from '../../../s
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor, roleLabelOf } from './member-options.js'
 import { CapabilityFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { BODY_CAPABILITY_LABELS, bodyCapabilitiesOf } from '../../../shared/body-capabilities.js'
 import { Segmented } from '../segmented.js'
 
 const MIND_PRESETS = [
@@ -22,7 +23,7 @@ const permissionOf = member => (
 )
 
 // 调整成员：只换模型或运行时；成员 id、证据、交接和历史都不动。
-export function BodySwapDialog({ member, engines = [], requiresGate = false, canRemove = false, held = false, canHold = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onHold = null, onRefresh = null }) {
+export function BodySwapDialog({ member, engines = [], features = null, requiresGate = false, canRemove = false, held = false, canHold = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onHold = null, onRefresh = null }) {
   const readiness = engineReadiness(engines, { requireApproval: requiresGate })
   const available = readiness.installed
   const [tab, setTab] = useState('body')
@@ -40,6 +41,7 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
   const engine = available.find(item => item.id === engineId)
   const rows = modelRowsFor(engine)
   const model = modelId !== '' ? modelId : (engine?.models?.default ?? rows[0]?.id ?? '')
+  const capabilities = bodyCapabilitiesOf({ engine, member, features })
   const blockedReason = engineBlockReason(engine, { requireApproval: requiresGate })
   const blocked = blockedReason !== ''
   const specMissing = member.body?.spec === undefined || member.body?.spec === null
@@ -184,11 +186,20 @@ export function BodySwapDialog({ member, engines = [], requiresGate = false, can
             setSpec({ ...spec, prompt: event.target.value })
           },
         }),
-        h(CapabilityFields, {
-          value: spec,
-          onChange: value => setSpec(value),
-          disabled: busy,
-        })),
+        h('div', { className: 'crew-body-capabilities', role: 'group', 'aria-label': '这具身体能做什么' },
+          ['ask', 'tools', 'browser', 'skills'].map(key => h('span', {
+            key,
+            className: 'crew-body-capability',
+            'data-on': capabilities[key] ? 'true' : 'false',
+          }, BODY_CAPABILITY_LABELS[key]))),
+        capabilities.tools
+          ? h(CapabilityFields, {
+            value: spec,
+            onChange: value => setSpec(value),
+            disabled: busy,
+            showSkills: capabilities.skills,
+          })
+          : h('p', { className: 'crew-field-hint' }, '这具身体不挂工具；只保留性格。')),
       canHold && onHold !== null
         ? h('details', { className: 'crew-fold crew-body-swap-run' },
           h('summary', null, '运行控制'),

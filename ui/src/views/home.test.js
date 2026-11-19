@@ -30,6 +30,7 @@ const load = async () => {
 const text = node => {
   if (node === null || node === undefined || typeof node === 'boolean') return ''
   if (typeof node !== 'object') return String(node)
+  if (typeof node.type === 'function') return text(node.type(node.props))
   return (node.children ?? []).map(text).join('')
 }
 
@@ -41,6 +42,18 @@ test('the front door asks for a goal and offers the sample', async () => {
   assert.match(body, /开始/)
   assert.match(body, /先看看一间做完的示例/)
   assert.match(body, /说清要的结果/)
+})
+
+test('the front door keeps chat and adjustment as secondary doors', async () => {
+  const { HomeView } = await load()
+  const body = text(HomeView({
+    onSubmit: () => {},
+    onSample: () => {},
+    onDiscuss: () => {},
+    onAdjust: () => {},
+  }))
+  assert.match(body, /先聊清楚/)
+  assert.match(body, /更多选项/)
 })
 
 test('a failed start says why it could not begin', async () => {

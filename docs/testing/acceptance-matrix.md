@@ -61,6 +61,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 交付记录、结果优先的交付页 | `server/crew/delivery.test.js`、`ui/src/room/studio/delivery-record.test.js`、`ui/src/room/studio/delivery-card.test.js`、`ui/src/room/studio/transcript.test.js` | 无 |
 | 重启恢复、断线重连 | `server/crew/recovery.test.js`、`server/crew/live-sync.test.js`、`ui/src/store.test.js` | 无 |
 | 暂停与成员出错后的一步修复 | `server/crew/live-sync.test.js`、`server/crew/kernel/live/body-swap.test.js`、`ui/src/room/decision.test.js`、`ui/src/room/paused-panel.test.js`、`ui/src/room/chat/view.test.js` | 无 |
+| 打开 App 的例行工作 | `shared/routine.test.js`、`server/crew/rooms/scheduler.test.js`、`server/crew/service-merge.test.js`、`ui/src/room/studio/delivery-card.test.js` | 无 |
 | API 路由与动作清单 | `server/route-table.test.js`、`server/crew/route-sweep.test.js` | 无 |
 | 驱动边界、运行端口、分层 | `server/crew/engine.test.js`、`server/crew/runtime-port.test.js`、`server/crew/layer-boundaries.test.js`、`server/crew/boundary.test.js` | 真实基座可选 |
 | 基座旧房间回收（gc:base） | `server/base-gc.test.js`、`server/crew/base-error.test.js` | 真实基座可选 |

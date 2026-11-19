@@ -35,6 +35,29 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS room_event_room ON room_event(room_id, seq);
+    CREATE TABLE IF NOT EXISTS room_inbox (
+      seq INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT NOT NULL UNIQUE,
+      room_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      source_id TEXT,
+      payload TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      claimed_at INTEGER,
+      created_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS room_inbox_source ON room_inbox(room_id, source_id) WHERE source_id IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS room_inbox_pending ON room_inbox(room_id, status, seq);
+    CREATE TABLE IF NOT EXISTS room_timer (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      due_at INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS room_timer_due ON room_timer(status, due_at);
   `)
   const schemaVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version ?? 0)
   if (schemaVersion > SCHEMA_VERSION) throw new Error(`数据库版本 ${schemaVersion} 比当前 Lodge 新，请先升级 Lodge`)
@@ -243,6 +266,66 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     at: row.at,
   }))
 
+  // 房间收件箱：同一间房同一时刻只让一个 worker 领取；source_id 用来去重。
+  const enqueueInbox = ({ roomId, kind, payload = {}, sourceId = null }) => {
+    if (typeof roomId !== 'string' || roomId === '' || typeof kind !== 'string' || kind === '') return null
+    const id = randomUUID()
+    const now = Date.now()
+    const result = db.prepare(
+      'INSERT OR IGNORE INTO room_inbox (id, room_id, kind, source_id, payload, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    ).run(id, roomId, kind, sourceId, JSON.stringify(payload), 'pending', now)
+    return result.changes > 0 ? { id, roomId, kind, sourceId, payload, createdAt: now } : null
+  }
+  const claimInbox = roomId => {
+    const row = db.prepare(
+      "SELECT id, room_id, kind, source_id, payload, created_at FROM room_inbox WHERE room_id = ? AND status = 'pending' ORDER BY seq LIMIT 1",
+    ).get(roomId)
+    if (row === undefined) return null
+    const claimed = db.prepare(
+      "UPDATE room_inbox SET status = 'running', claimed_at = ? WHERE id = ? AND status = 'pending'",
+    ).run(Date.now(), row.id)
+    return claimed.changes > 0 ? {
+      id: row.id,
+      roomId: row.room_id,
+      kind: row.kind,
+      sourceId: row.source_id,
+      payload: JSON.parse(row.payload),
+      createdAt: row.created_at,
+    } : null
+  }
+  const completeInbox = id => db.prepare("UPDATE room_inbox SET status = 'done' WHERE id = ?").run(id)
+  const failInbox = id => db.prepare("UPDATE room_inbox SET status = 'failed' WHERE id = ?").run(id)
+  const readInbox = (roomId, { status = null } = {}) => {
+    const where = ['room_id = ?']
+    const params = [roomId]
+    if (status !== null) { where.push('status = ?'); params.push(status) }
+    return db.prepare(`SELECT id, room_id, kind, source_id, payload, status, created_at FROM room_inbox WHERE ${where.join(' AND ')} ORDER BY seq`)
+      .all(...params).map(row => ({ ...row, payload: JSON.parse(row.payload) }))
+  }
+
+  // 持久定时器：进程重启后仍能找到到点的事件。
+  const setTimer = ({ id = randomUUID(), roomId, kind, payload = {}, dueAt }) => {
+    if (typeof roomId !== 'string' || roomId === '' || typeof kind !== 'string' || kind === '') return null
+    const at = Number(dueAt)
+    if (!Number.isFinite(at)) return null
+    db.prepare(
+      'INSERT INTO room_timer (id, room_id, kind, payload, due_at, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET room_id = excluded.room_id, kind = excluded.kind, payload = excluded.payload, due_at = excluded.due_at, status = excluded.status',
+    ).run(id, roomId, kind, JSON.stringify(payload), at, 'pending', Date.now())
+    return { id, roomId, kind, payload, dueAt: at }
+  }
+  const dueTimers = (now = Date.now()) => db.prepare(
+    "SELECT id, room_id, kind, payload, due_at, created_at FROM room_timer WHERE status = 'pending' AND due_at <= ? ORDER BY due_at",
+  ).all(now).map(row => ({
+    id: row.id,
+    roomId: row.room_id,
+    kind: row.kind,
+    payload: JSON.parse(row.payload),
+    dueAt: row.due_at,
+    createdAt: row.created_at,
+  }))
+  const completeTimer = id => db.prepare("UPDATE room_timer SET status = 'done' WHERE id = ? AND status = 'pending'").run(id)
+  const cancelTimer = id => db.prepare("UPDATE room_timer SET status = 'cancelled' WHERE id = ? AND status = 'pending'").run(id)
+
   // transcript.jsonl 先写，SQLite 后写；库是真相，jsonl 是崩溃恢复日志与可读镜像。
   // 示例种子只进 SQLite，不写目标仓库，避免样例数据污染用户仓库。
   const persistMessage = (message, { transcript = true } = {}) => {
@@ -356,5 +439,14 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     appendEvent,
     deleteRoom,
     readEvents,
+    enqueueInbox,
+    claimInbox,
+    completeInbox,
+    failInbox,
+    readInbox,
+    setTimer,
+    dueTimers,
+    completeTimer,
+    cancelTimer,
   }
 }

@@ -279,6 +279,11 @@ export function createStore() {
       if (data?.room !== undefined) acceptRoom(data.room)
       return data
     },
+    setRoutine: async (roomId, enabled) => {
+      const data = await post(`/api/rooms/${roomId}/routine`, { enabled, trigger: 'on-open' })
+      if (data?.room !== undefined) acceptRoom(data.room)
+      return data
+    },
     answerCard: (memberId, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { memberId, requestId, message }),
     createSubroom: async goal => {
       const data = await post(`/api/rooms/${state.activeId}/subrooms`, { goal })

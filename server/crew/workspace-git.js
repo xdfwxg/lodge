@@ -367,6 +367,18 @@ export const removeIsolatedCopy = ({ source, copy }) => {
   } catch {}
 }
 
+// 冲突现场的三份内容：基准、房间当前、成员分支。只读给人看，不替人选边。
+const conflictVersions = ({ path, files }) => files.map(file => {
+  const stage = number => {
+    try {
+      return git(path, ['show', `:${number}:${file}`]).slice(0, 20_000)
+    } catch {
+      return ''
+    }
+  }
+  return { path: file, base: stage(1), ours: stage(2), theirs: stage(3) }
+})
+
 // 把执行分支合进房间集成分支；冲突时回滚合并并把冲突文件交给人，不自动选边。
 export const integrate = ({ path, branch, keepConflict = false }) => {
   try {
@@ -377,13 +389,14 @@ export const integrate = ({ path, branch, keepConflict = false }) => {
     try {
       files = git(path, ['diff', '--name-only', '--diff-filter=U']).split('\n').filter(Boolean)
     } catch {}
+    const versions = conflictVersions({ path, files })
     // 留给人处理时保留合并现场：冲突文件、MERGE_HEAD 都在，解决并提交后才能继续。
     if (!keepConflict) {
       try {
         git(path, ['merge', '--abort'])
       } catch {}
     }
-    return { ok: false, files, error: String(error?.stderr ?? error?.message ?? error).trim() }
+    return { ok: false, files, versions, error: String(error?.stderr ?? error?.message ?? error).trim() }
   }
 }
 

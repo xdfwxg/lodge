@@ -234,3 +234,28 @@ test('assignments page by cursor and prune only terminal rows', () => {
     rmSync(dataDir, { recursive: true, force: true })
   }
 })
+
+test('room inbox dedupes and timers survive a reopen', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-inbox-store-'))
+  let store = createStore({ dataDir })
+  try {
+    const first = store.enqueueInbox({ roomId: 'r1', kind: 'approval', sourceId: 'timer:1', payload: { approvalId: 'a1' } })
+    assert.notEqual(first, null)
+    assert.equal(store.enqueueInbox({ roomId: 'r1', kind: 'approval', sourceId: 'timer:1' }), null)
+    const claimed = store.claimInbox('r1')
+    assert.equal(claimed.id, first.id)
+    assert.equal(store.claimInbox('r1'), null)
+    store.completeInbox(claimed.id)
+
+    store.setTimer({ id: 'timer-1', roomId: 'r1', kind: 'approval', dueAt: Date.now() - 1, payload: { approvalId: 'a1' } })
+    assert.equal(store.dueTimers().length, 1)
+    store.db.close()
+    store = createStore({ dataDir })
+    assert.equal(store.dueTimers().length, 1)
+    assert.equal(store.completeTimer('timer-1').changes, 1)
+    assert.equal(store.dueTimers().length, 0)
+  } finally {
+    store.db.close()
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})

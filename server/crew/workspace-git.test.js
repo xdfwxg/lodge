@@ -407,6 +407,8 @@ test('parallel workers merge into an integration worktree and conflicts stay vis
     assert.deepEqual(conflict.files, ['same.txt'])
     const kept = integrate({ path: workspaces.integration.path, branch: workspaces.branches['worker-2'], keepConflict: true })
     assert.equal(kept.ok, false)
+    assert.match(kept.versions[0].ours, /front wins/)
+    assert.match(kept.versions[0].theirs, /back wins/)
     const status = execFileSync('git', ['status', '--porcelain'], { cwd: workspaces.integration.path, encoding: 'utf8' }).trim()
     assert.match(status, /^(UU|AA) same\.txt$/m)
   } finally {

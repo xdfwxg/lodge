@@ -206,6 +206,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     stopRoom: () => store.stopRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
     setBrowserAccess: access => void store.setBrowserAccess(access),
+    setRoutine: enabled => void store.setRoutine(room.id, enabled),
     allowBrowserRoom: async id => {
       await store.setBrowserAccess('allow')
       await store.decideApproval(id, 'allow')
@@ -306,6 +307,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
             ?? members.find(item => item.id === swapId)?.role,
         ),
         engines: state.engines ?? [],
+        features: state.features ?? null,
         requiresGate: kind.readOnly !== true && (members.find(item => item.id === swapId)?.permissions?.exec === true),
         held: (room.heldMembers ?? []).includes(swapId),
         canHold: room.state === 'active' && room.live === true,

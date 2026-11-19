@@ -4,15 +4,18 @@ import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
 import { HomeView } from './views/home.js'
 import { NewRoomDialog } from './new-room-dialog.js'
+import { NewGoalDialog } from './new-goal-dialog.js'
 
 export function App() {
   const store = useMemo(createStore, [])
   const state = useStore(store)
   const visibleRooms = state.rooms.filter(room => !room.archivedAt)
   const [dialog, setDialog] = useState(false)
+  const [goalOpen, setGoalOpen] = useState(false)
   const [seed, setSeed] = useState(null)
   const [startType, setStartType] = useState(null)
   const openDialog = (seedValue = null, roomType = null) => {
+    setGoalOpen(false)
     setSeed(seedValue)
     setStartType(roomType)
     setDialog(true)
@@ -22,6 +25,13 @@ export function App() {
     setSeed(null)
     setStartType(null)
   }
+  const openGoal = () => {
+    setDialog(false)
+    setSeed(null)
+    setStartType(null)
+    setGoalOpen(true)
+  }
+  const closeGoal = () => setGoalOpen(false)
 
   const liveText = state.phase === 'reconnecting'
     ? '连接中断，正在重连'
@@ -72,11 +82,7 @@ export function App() {
 
   useEffect(() => {
     const offCommand = window.lodge?.onCommand?.(name => {
-      if (name === 'new-room') {
-        setSeed(null)
-        setStartType(null)
-        setDialog(true)
-      }
+      if (name === 'new-room') openGoal()
       if (name === 'search') window.dispatchEvent(new Event('lodge:focus-search'))
     })
     const offOpenRoom = window.lodge?.onOpenRoom?.(id => {
@@ -94,21 +100,28 @@ export function App() {
     return () => store.disconnect()
   }, [store])
 
-  // 没有房间时停在门口：写下目标就直接开工，团队和工作区由 Lodge 准备。
-  // 准备失败（例如没有可用模型）才退回建房对话框，让人调整。
-  const openFromHome = async goal => {
+  // 写下目标就直接开工，团队和工作区由 Lodge 准备。准备失败（例如没有可用模型）
+  // 才退回完整建房对话框，让人调整；目标不会丢。
+  const startGoal = async goal => {
     const result = await store.createRoom(goal, { verify: 'manual' })
-    if (result?.ok !== true) openDialog({ goal })
+    if (result?.ok === true) {
+      setGoalOpen(false)
+      return result
+    }
+    openDialog({ goal }, 'studio')
+    return result
   }
+  const discussGoal = goal => openDialog(goal === '' ? null : { goal }, 'chat')
+  const adjustGoal = goal => openDialog(goal === '' ? null : { goal }, 'studio')
 
   // macOS 惯例：⌘N 新房间，⌘1..9 切房间；弹窗打开时不抢键。
   useEffect(() => {
     const onKeyDown = event => {
-      if (event.defaultPrevented || dialog) return
+      if (event.defaultPrevented || dialog || goalOpen) return
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
       if (event.key.toLowerCase() === 'n') {
         event.preventDefault()
-        openDialog()
+        openGoal()
         return
       }
       if (!/^[1-9]$/.test(event.key)) return
@@ -119,7 +132,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [dialog, visibleRooms, store])
+  }, [dialog, goalOpen, visibleRooms, store])
 
   const dialogNode = h(NewRoomDialog, {
     open: dialog,
@@ -137,6 +150,13 @@ export function App() {
   })
 
   const room = visibleRooms.find(item => item.id === state.activeId) ?? visibleRooms[0] ?? null
+  const goalDialogNode = h(NewGoalDialog, {
+    open: goalOpen,
+    onClose: closeGoal,
+    onSubmit: startGoal,
+    onDiscuss: discussGoal,
+    onAdjust: adjustGoal,
+  })
 
   const firstRun = state.rooms.length === 0
   return h('div', { className: 'dsb-frame', 'data-solo': firstRun ? 'true' : undefined },
@@ -146,16 +166,17 @@ export function App() {
       : h(Sidebar, {
         state,
         onSelect: id => store.select(id),
-        onNew: () => openDialog(),
+        onNew: openGoal,
         onRename: (id, name) => store.renameRoom(id, name),
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),
       }),
     room === null
       ? h(HomeView, {
-        onSubmit: openFromHome,
+        onSubmit: startGoal,
         onSample: () => { void store.openSampleRoom() },
-        onAdjust: goal => openDialog({ goal }),
+        onDiscuss: discussGoal,
+        onAdjust: adjustGoal,
         error: state.error,
       })
       : h(RoomView, {
@@ -167,5 +188,6 @@ export function App() {
       }),
     liveRegion,
     needsRegion,
-    dialogNode)
+    dialogNode,
+    goalDialogNode)
 }

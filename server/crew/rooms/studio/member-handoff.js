@@ -1,5 +1,6 @@
 import { evidenceDigest, stageDigest } from '../../prompt-context.js'
 import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
+import { progressOf } from '../../../../shared/progress.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 
 // 成员交接包：永久素材优先，transcript 只给引用，不重发整场对话。
@@ -39,6 +40,13 @@ export const buildMemberHandoff = ({ room, messages = [] } = {}) => {
     )))
   }
 
+  const progress = progressOf(room, messages)
+  lines.push(
+    '进度：',
+    `- 已完成：${progress.done.map(stage => stage.title).join('、') || '还没有'}`,
+    `- 还剩：${progress.remaining.map(stage => stage.title).join('、') || '全部完成'}`,
+    `- 下一步：${progress.next ?? '等你决定'}`,
+  )
   const stages = stageDigest(room, messages)
   if (stages.length > 0) lines.push('阶段进展：', ...stages.map(item => `- ${item}`))
   const feedback = feedbackOf(messages)

@@ -19,6 +19,7 @@ import { SAMPLE_ROOM_ID, sampleRoomRecord, seedSampleMessages } from './rooms/sa
 import { artifactKindOf, imageMimeOf } from '../../shared/artifact.js'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 import { parseRoomAccess } from '../../shared/room-access.js'
+import { parseRoutineTrigger } from '../../shared/routine.js'
 import { systemNotice } from './notices.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
@@ -603,6 +604,32 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         text: access === 'allow'
           ? '房间权限改为房间免确认：只读研究不再逐次确认。'
           : '房间权限改回常规：外部动作会逐次确认。',
+      })
+      emit('room', updated)
+      return ok({ room: updated })
+    }
+
+    if (action === 'routine' && method === 'POST') {
+      if (room.state !== 'complete') return fail('conflict', '房间做完后再设为例行工作')
+      const body = await readBody()
+      const trigger = parseRoutineTrigger(body.trigger ?? 'on-open')
+      if (trigger === null) return fail('invalid', '只支持“每次打开 Lodge 再跑一次”')
+      const enabled = body.enabled === true
+      const updated = updateRoom(room.id, current => {
+        current.routine = {
+          ...(current.routine ?? {}),
+          trigger,
+          enabled,
+          updatedAt: Date.now(),
+        }
+        return {
+          events: [{ type: 'room.routine', payload: { trigger, enabled } }],
+        }
+      })
+      if (updated === null) return fail('not_found', '没有这个房间')
+      appendMessage(room.id, {
+        kind: 'system',
+        text: enabled ? '每次打开 Lodge 会再跑一次。' : '已关掉打开 Lodge 时自动再跑。',
       })
       emit('room', updated)
       return ok({ room: updated })

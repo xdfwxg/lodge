@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
+import { progressOf } from '../../shared/progress.js'
 
 // 房间记忆：只从已交付房间追加事实，人工审核后才对新房间可见；不接收模型写入。
 const MAX_RECORD_BYTES = 4096
@@ -45,6 +46,14 @@ const recordOf = (room, messages) => {
       state: stage.state,
     })),
     files,
+    progress: (() => {
+      const progress = progressOf(room, ordered)
+      return {
+        done: progress.done.map(stage => clip(stage.title, 80)),
+        remaining: progress.remaining.map(stage => clip(stage.title, 80)),
+        next: progress.next === null ? null : clip(progress.next, 120),
+      }
+    })(),
     commit: typeof room.completedCommit === 'string' && room.completedCommit !== ''
       ? room.completedCommit
       : (typeof room.workspaceHead === 'string' && room.workspaceHead !== '' ? room.workspaceHead : null),

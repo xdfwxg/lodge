@@ -31,6 +31,7 @@ export function StudioTranscript({
   onRework = null,
   onChoose = null,
   onReadArtifact = null,
+  onRoutine = null,
   onResolveMerge = null,
   onApproval = null,
   onAllowBrowserRoom = null,
@@ -142,6 +143,7 @@ export function StudioTranscript({
             delivery,
             onDownload: () => { downloadDeliveryRecord(room) },
             onRead: onReadArtifact,
+            onRoutine,
           }),
         closingActions),
       items.length === 0 && advice === null

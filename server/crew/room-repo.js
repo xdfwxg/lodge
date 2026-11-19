@@ -1,6 +1,7 @@
 import { closeSync, existsSync, fsyncSync, openSync, readFileSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { independenceLabel } from './digest.js'
+import { progressMarkdownOf, progressOf } from '../../shared/progress.js'
 import { roomDir, roomRootOf } from './paths.js'
 import { ensureDirInside } from './workspace-paths.js'
 import { memberName, workerIds } from './room-members.js'
@@ -107,6 +108,14 @@ export const writeGoal = room => {
   ].join('\n'))
 }
 
+
+// 每个房间一份紧凑进度，供下一次 run 接续；完整过程仍在 transcript。
+export const writeProgress = (room, messages = []) => {
+  ensureDirInside(roomRootOf(room), roomDir(room))
+  const file = join(roomDir(room), 'progress.md')
+  writeDurable(file, progressMarkdownOf(progressOf(room, messages)))
+  return file
+}
 
 // 完成结论是运行时投影；decisions.md 归人，运行时不写。
 export const writeConclusion = room => {

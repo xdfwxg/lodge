@@ -12,7 +12,6 @@ import { defaultPersonalityId, modelRowsFor, memberChoicesFrom } from './room/me
 import { DEFAULT_STUDIO_MEMBERS } from './room/studio/create.js'
 import { gateCardState, HandoffReview } from './room/studio/handoff-review.js'
 import { ReceiptReview } from './room/receipt-review.js'
-import { RoomTypeChoices } from './room/type-choices.js'
 import { WorkspaceMemory } from './room/workspace-memory.js'
 import { uiKindOfType } from './room/kinds.js'
 import { useOverlay } from './overlay.js'
@@ -66,7 +65,6 @@ function NewRoomDialog({
   const [chatMembers, setChatMembers] = useState(null)
   const { busyId: loginBusyId, note: loginNote, login: loginEngineFor, reset: resetLogin, clearNote } = useEngineLogin(onRefresh)
   const [error, setError] = useState(null)
-  const [choosingType, setChoosingType] = useState(false)
   const goalId = useId()
   const nameId = useId()
   const closeRef = useRef(null)
@@ -106,18 +104,8 @@ function NewRoomDialog({
 
   useEffect(() => {
     if (!open) return
-    if (typeChoices.some(item => item.id === startType)) {
-      setRoomType(startType)
-      setChoosingType(false)
-      return
-    }
-    if (seed !== null) {
-      setRoomType('studio')
-      setChoosingType(false)
-      return
-    }
-    setChoosingType(true)
-  }, [open, startType, seed, typeChoices])
+    setRoomType(typeChoices.some(item => item.id === startType) ? startType : 'studio')
+  }, [open, startType, typeChoices])
 
   useEffect(() => {
     if (!open || seed === null) return
@@ -594,9 +582,7 @@ function NewRoomDialog({
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-heading' },
         h('h2', null, '新房间'),
-        choosingType
-          ? null
-          : h('p', null, handoff !== null ? '从聊天室带来。先看分歧，再开工。' : roomKind.dialogSubtitle)),
+        h('p', null, handoff !== null ? '从聊天室带来。先看分歧，再开工。' : roomKind.dialogSubtitle)),
       h('div', { className: 'crew-dialog-head' },
         h('button', {
           ref: closeRef,
@@ -606,20 +592,8 @@ function NewRoomDialog({
           title: '关闭',
           onClick: onClose,
         }, '×')),
-      choosingType
-        ? h('div', { className: 'crew-dialog-body' },
-          h(RoomTypeChoices, {
-            onPick: nextType => {
-              setRoomType(nextType)
-              setChoosingType(false)
-              setProposal(null)
-              setMemberChoices([])
-              setAnswers([])
-              setError(null)
-            },
-          }))
-        : step === 0 ? setupBody : proposalBody,
-      choosingType ? null : h('div', { className: 'crew-dialog-foot' },
+      step === 0 ? setupBody : proposalBody,
+      h('div', { className: 'crew-dialog-foot' },
         studioMissingVerifier
           ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '还差一位验收员；重新出方案后才能开工。')
           : needRepo

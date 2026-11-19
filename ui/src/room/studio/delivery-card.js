@@ -42,7 +42,7 @@ export function DeliveryPreview({ kind, content, image, alt }) {
 }
 
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
-export function DeliveryCard({ delivery, onContinue = null, onReturn = null, onDownload = null, onRead = null }) {
+export function DeliveryCard({ delivery, onContinue = null, onReturn = null, onDownload = null, onRead = null, onRoutine = null }) {
   const commands = delivery.commands ?? []
   const manualNotes = (delivery.stages ?? [])
     .map(stage => stage.manual?.text?.trim() ?? '')
@@ -180,6 +180,15 @@ export function DeliveryCard({ delivery, onContinue = null, onReturn = null, onD
           onToggle: event => setDetailsOpen(event.currentTarget.open),
         },
           h('summary', null, '详情'),
+          onRoutine === null
+            ? null
+            : h('label', { className: 'crew-routine-toggle' },
+              h('input', {
+                type: 'checkbox',
+                checked: delivery.routine?.enabled === true,
+                onChange: event => onRoutine(event.target.checked),
+              }),
+              h('span', null, '每次打开 Lodge 再跑一次')),
           delivery.completedAt || delivery.commit || cost !== '' || delivery.workspacePath || signoff !== ''
             ? h('div', { className: 'studio-delivery-detail-meta' },
               delivery.completedAt

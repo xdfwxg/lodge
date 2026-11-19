@@ -146,3 +146,25 @@ test('a room without a conflict cannot be told to continue', async () => {
   assert.equal(result.error, '这一步没有合并冲突')
   assert.deepEqual(ctx.resolved, [])
 })
+
+test('a finished room can be turned into an on-open routine', async () => {
+  const ctx = setup(room({ state: 'complete', mergeConflict: null }), { status: '', diff: '' })
+  const result = await ctx.service.roomRequest('room-merge', 'routine', {
+    method: 'POST',
+    readBody: async () => ({ enabled: true, trigger: 'on-open' }),
+  })
+  assert.equal(result.ok, true, result.error)
+  assert.equal(ctx.room().routine.enabled, true)
+  assert.equal(ctx.room().routine.trigger, 'on-open')
+  assert.match(ctx.messages.at(-1).text, /每次打开 Lodge/)
+})
+
+test('an unfinished room cannot become a routine', async () => {
+  const ctx = setup(room(), { status: '', diff: '' })
+  const result = await ctx.service.roomRequest('room-merge', 'routine', {
+    method: 'POST',
+    readBody: async () => ({ enabled: true, trigger: 'on-open' }),
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /做完后/)
+})

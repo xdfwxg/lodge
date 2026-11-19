@@ -207,6 +207,21 @@ test('a sample artifact opens its content in the card instead of the filesystem'
   assert.doesNotMatch(text(tree), /打开/)
 })
 
+test('a finished room can become a routine that runs when Lodge opens', async () => {
+  const { DeliveryCard } = await load()
+  const tree = render(DeliveryCard({
+    delivery: {
+      name: '每日摘要',
+      stages: [],
+      commands: [],
+      changedFiles: [],
+      routine: { trigger: 'on-open', enabled: false },
+    },
+    onRoutine: () => {},
+  }))
+  assert.match(text(tree), /每次打开 Lodge 再跑一次/)
+})
+
 test('the delivery sheet offers a way to continue', async () => {
   const { DeliveryCard } = await load()
   const tree = render(DeliveryCard({
