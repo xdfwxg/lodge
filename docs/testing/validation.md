@@ -182,5 +182,5 @@
 - 验收员 PASS，理由写明“冲突已由人合并成一条提交”；房间完成，交付提交 `1fdd4f0`；从继续到 PASS 约 13 秒
 - 用量：11 个回合、约 $1.00；上一轮同类冲突场景 21 个回合、$2.01
 - 界面：交付页默认只有结果卡和岛，岛只写“已交付”；内部路径、费用、版本、模型自查折进“详情”，规划对话和阶段过程折进“看过程”；`ui/src/room/studio/transcript.test.js` 覆盖完成/进行中两种视图
-- 自动覆盖：`server/crew/workspace-git.test.js` 增加 `keepConflict` 保留冲突现场；`ui/src/room/studio/merge-conflict.test.js` 覆盖解决卡；`ui/src/room/studio/transcript.test.js` 覆盖结果优先
+- 自动覆盖：`server/crew/workspace-git.test.js` 增加 `keepConflict` 保留冲突现场；`server/crew/service-merge.test.js` 覆盖解决后继续、未解决/未提交/残留标记/无冲突四条拒绝路径；`ui/src/room/studio/merge-conflict.test.js` 覆盖解决卡；`ui/src/room/studio/transcript.test.js` 覆盖结果优先
 - Pi：CLI 装在 `~/.local/bin` 后重启基座，`/api/instances` 返回 available + authenticated；临时房间 `room-c0b11531` 的 Pi 成员实际回复后归档删除
