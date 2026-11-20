@@ -36,6 +36,16 @@ import {
 } from '../../shared/routine.js'
 import { systemNotice } from './notices.js'
 import { cleanHumanName } from './human-name.js'
+import { isAttachmentName, normalizeAttachments, textOfFile } from './attachments.js'
+import {
+  ATTACHMENT_FILE_MAX_BYTES,
+  ATTACHMENT_IMAGE_MAX_BYTES,
+  attachmentNameOf,
+  formatAttachmentBytes,
+  isNativeImage,
+  isTextFile,
+  withAttachments,
+} from '../../shared/attachments.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
@@ -66,7 +76,7 @@ const completionFacts = (room, messages = []) => {
   ].filter(value => value !== '').join('\n')
 }
 
-export const createCrewService = ({ store, engine, live, emit, roles, ports }) => {
+export const createCrewService = ({ store, engine, live, emit, roles, ports, attachments = null }) => {
   const { readRoom, readMessages, writeRoom, appendMessage, updateRoom, deleteRoom } = store
   const { roomFiles, workspace, files } = ports
 
@@ -106,7 +116,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     recordMemory(done)
     return done
   }
-  const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles })
+  const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles, workspace: ports.workspace })
   // 规划师对齐回合结束后由实时层回调：对齐这一步没有界面动作，自动确认后继续。
   live.setConfirmStage?.((roomId, index) => {
     const room = store.readRoom(roomId)
@@ -280,23 +290,42 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
       if (room.state !== 'active') return fail('conflict', 'Lodge 现在没有在运行')
       const body = await readBody()
       const text = typeof body.text === 'string' ? body.text.trim().slice(0, 8000) : ''
-      if (text === '') return fail('invalid', '说一句想做什么')
+      const normalized = normalizeAttachments(body.attachments)
+      if (normalized.error !== undefined) return fail('invalid', normalized.error)
+      const attachments = normalized.attachments
+      if (text === '' && attachments.length === 0) return fail('invalid', '说一句想做什么')
       rememberHuman(room.id, body)
       room = readRoom(room.id) ?? room
-      const userMessage = appendMessage(room.id, { kind: 'chat', authorId: 'you', text })
-      const intent = await queries.classifyIntent({ goal: text })
-      const kind = intent?.ok === true ? intent.body?.room : 'studio'
-      if (kind === 'chat') {
-        if (room.live !== true || live.isAttached?.(room.id) !== true) {
-          return fail('conflict', 'Lodge 还没有连上模型服务')
-        }
-        const result = await chat.input(room, { note: text })
-        if (result?.ok !== true) return result
+      const userMessage = appendMessage(room.id, {
+        kind: 'chat',
+        authorId: 'you',
+        text,
+        ...(attachments.length === 0 ? {} : { meta: { attachments } }),
+      })
+      if (room.live !== true || live.isAttached?.(room.id) !== true) {
+        return fail('conflict', 'Lodge 还没有连上模型服务')
+      }
+      // 主持这一轮同时回答和判断：要做事或找人时会带回 open，不用再问一次前台。
+      const reply = await chat.input(room, { note: withAttachments(text, attachments) })
+      if (reply?.ok !== true) return reply
+      const decision = reply.body?.intent ?? null
+      if (decision?.action !== 'open') {
         return ok({ room: readRoom(room.id) ?? room, message: userMessage })
       }
-      const created = await createRoom({ goal: text, verify: 'manual', humanName: room.humanName })
+      // 附件跟着目标一起进新房：给模型的是带标记的目标，界面上仍只显示人写的那句话。
+      const goalText = text === '' ? (attachments[0]?.title ?? '看看这个附件') : text
+      const created = await createRoom({
+        goal: withAttachments(goalText, attachments),
+        name: goalText.slice(0, 24),
+        verify: 'manual',
+        humanName: room.humanName,
+        ...(decision.room === 'chat' ? { roomType: 'chat' } : {}),
+      })
       if (created?.ok !== true) return created
       const createdRoom = created.body?.room ?? null
+      if (decision.reply !== '') {
+        appendMessage(room.id, { kind: 'chat', authorId: 'lodge', text: decision.reply })
+      }
       appendMessage(room.id, {
         kind: 'chat',
         authorId: 'lodge',
@@ -615,12 +644,18 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     if (action === 'messages' && method === 'POST') {
       const body = await readBody()
       const text = typeof body.text === 'string' ? body.text.trim() : ''
-      if (text === '' || text.length > 8000) return fail('invalid', '消息不能为空，且不超过 8000 字')
+      const normalized = normalizeAttachments(body.attachments)
+      if (normalized.error !== undefined) return fail('invalid', normalized.error)
+      const attachments = normalized.attachments
+      if (text === '' && attachments.length === 0) return fail('invalid', '消息不能为空，且不超过 8000 字')
+      if (text.length > 8000) return fail('invalid', '消息不能为空，且不超过 8000 字')
       rememberHuman(room.id, body)
       room = readRoom(room.id) ?? room
       const mentions = Array.isArray(body.mentions)
         ? body.mentions.filter(id => typeof id === 'string' && id !== '').slice(0, 8)
         : []
+      const attachmentMeta = attachments.length === 0 ? {} : { attachments }
+      const promptText = withAttachments(text, attachments)
       if (room.live === true) {
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
@@ -628,7 +663,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         if (room.roomType === 'studio') {
           const handoff = humanHandoffStageOf(room, readMessages(room.id))
           if (handoff !== null) {
-            const result = await stages.rework(room, { stage: handoff, note: text })
+            const result = await stages.rework(room, { stage: handoff, note: promptText })
             if (result.ok !== true) return result
             return accepted({ room: result.body?.room ?? readRoom(room.id) })
           }
@@ -640,9 +675,9 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         if (room.roomType === 'studio' && allPassed && typeof live.sendToMember === 'function') {
           const lead = leadMemberOf(room)?.id
           if (typeof lead === 'string' && lead !== '') {
-            appendMessage(roomId, { kind: 'chat', authorId: 'you', text })
+            appendMessage(roomId, { kind: 'chat', authorId: 'you', text, ...(attachments.length === 0 ? {} : { meta: attachmentMeta }) })
             await live.sendToMember(roomId, lead, [
-              text,
+              promptText,
               completionFacts(room, readMessages(room.id)),
               '所有步骤都已经通过，这间房在收尾：不要再派活，也不要转给执行官或验收员。',
               '直接回答；要给新任务，建议人开一间新房。',
@@ -655,16 +690,16 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
         // 聊天室里用户是在对主持说话；主持判断直接回答还是请成员讨论。
         // @ 是结构化指令，仍然直接交给被 @ 的成员。
         if (room.roomType === 'chat' && !text.includes('@')) {
-          return chat.input(room, { note: text })
+          return chat.input(room, { note: promptText })
         }
         // 结论之后 @ 成员：开一轮有主持和上限的讨论，不让成员在结论外自由接力。
         if (room.roomType === 'chat' && room.chat?.phase === 'concluded' && room.chat?.running !== true) {
-          return chat.continue(room, { note: text })
+          return chat.continue(room, { note: promptText })
         }
-        await live.send(room.id, text, { mentions })
+        await live.send(room.id, promptText, { mentions })
         return accepted({ accepted: true })
       }
-      const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text })
+      const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text, ...(attachments.length === 0 ? {} : { meta: attachmentMeta }) })
       if (room.demo === true && room.roomType === 'chat') {
         appendMessage(roomId, { kind: 'system', text: '这是示例房间，不接模型；要动手就把结论转成工作室任务。' })
       }
@@ -811,6 +846,62 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports }) =
     createSampleRoom,
     roomRequest,
     switchMode: modeSwitch.switchMode,
+    // 附件进基座自己的库：图片成为原生视觉输入，文件按路径交给能读文件的人。
+    uploadAttachment: async ({ bytes, mime, name } = {}) => {
+      if (attachments === null) return fail('unavailable', '附件功能还没有接上')
+      if (!Buffer.isBuffer(bytes) || bytes.length === 0) return fail('invalid', '没有收到文件')
+      const type = String(mime ?? '').toLowerCase()
+      const image = isNativeImage(type)
+      const max = image ? ATTACHMENT_IMAGE_MAX_BYTES : ATTACHMENT_FILE_MAX_BYTES
+      if (bytes.length > max) return fail('invalid', `附件太大（最多 ${formatAttachmentBytes(max)}）`)
+      try {
+        if (image) {
+          const saved = await attachments.uploadImage(bytes, type)
+          const savedName = attachmentNameOf(saved?.path)
+          if (!isAttachmentName(savedName)) return fail('upstream', '基座没有存下这张图')
+          return ok({
+            attachment: {
+              kind: 'image',
+              name: savedName,
+              path: saved.path,
+              mime: saved.mime ?? type,
+              bytes: saved.bytes ?? bytes.length,
+              title: String(name ?? '').trim().slice(0, 120) || savedName,
+            },
+          })
+        }
+        const wanted = String(name ?? '').trim().slice(0, 120) || 'file'
+        const saved = await attachments.uploadFile(bytes, wanted, type || 'application/octet-stream')
+        // 基座把原始文件名放在 name 里，磁盘上是 uuid；路径必须用磁盘名，显示用原名。
+        const savedName = attachmentNameOf(saved?.path)
+        if (!isAttachmentName(savedName)) return fail('upstream', '基座没有存下这个文件')
+        const title = typeof saved?.name === 'string' && saved.name !== '' ? saved.name : wanted
+        const text = isTextFile(type) ? textOfFile(bytes) : ''
+        return ok({
+          attachment: {
+            kind: 'file',
+            name: savedName,
+            path: saved.path,
+            mime: saved.mime ?? type,
+            bytes: saved.bytes ?? bytes.length,
+            title,
+            ...(text === '' ? {} : { text }),
+          },
+        })
+      } catch (error) {
+        return fail('upstream', String(error?.message ?? error))
+      }
+    },
+    attachmentBytes: async ({ name } = {}) => {
+      if (attachments === null) return fail('unavailable', '附件功能还没有接上')
+      if (!isAttachmentName(name)) return fail('not_found', '没有这个附件')
+      try {
+        const file = await attachments.attachment(name)
+        return ok({ bytes: file.bytes, mime: file.mime })
+      } catch {
+        return fail('not_found', '没有这个附件')
+      }
+    },
     // 房间记忆：人审核后发布，成员只读；不提供模型写入接口。
     artifact: ({ roomId, path } = {}) => {
       const room = readRoom(roomId)

@@ -4,6 +4,7 @@ import { resolveOrchestration } from '../../orchestration/index.js'
 import { resolveRoomType } from '../../room-types/index.js'
 import { handoffGoalText, normalizeHandoff } from '../../../../shared/handoff.js'
 import { normalizeReceipt } from '../../../../shared/receipt.js'
+import { stripAttachmentTags } from '../../../../shared/attachments.js'
 import {
   DEFAULT_TEMPLATE_ID,
   roleMembers,
@@ -101,7 +102,7 @@ export const normalizePlan = ({ body }) => {
     if (Array.isArray(body.plan.stages)) {
       if (body.plan.stages.length > 3) return { error: '方案最多拆成 3 步' }
       for (const [index, item] of body.plan.stages.entries()) {
-        const title = typeof item?.title === 'string' ? item.title.trim().slice(0, 80) : ''
+        const title = typeof item?.title === 'string' ? stripAttachmentTags(item.title).trim().slice(0, 80) : ''
         const rawKind = item?.kind === 'decision' ? 'decision' : 'deliverable'
         const stageAcceptance = typeof item?.acceptance === 'string' ? item.acceptance.trim().slice(0, 500) : ''
         const manual = rawKind === 'deliverable' && /^manual$/i.test(stageAcceptance)

@@ -30,7 +30,10 @@ const hasBody = req => {
   return (Number.isFinite(length) && length > 0) || req.headers['transfer-encoding'] !== undefined
 }
 
-export const requestGuard = req => {
+// 附件上传要发原始字节；只有这一条路径例外，其余写请求仍然只收 JSON。
+const RAW_UPLOAD = '/api/attachments'
+
+export const requestGuard = (req, path = '') => {
   if (!loopbackHost(req.headers.host)) return '只接受本机请求'
   if (!WRITE_METHODS.has(req.method)) return null
   // 浏览器一定带 Origin；没有 Origin 的是本机 curl、脚本或测试。
@@ -39,6 +42,7 @@ export const requestGuard = req => {
   if (hasBody(req)) {
     const type = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
     // 跨站表单只能用 text/plain 等简单类型；要求 JSON 让浏览器先发预检，而预检不会被放行。
+    if (path === RAW_UPLOAD && req.method === 'POST') return null
     if (type !== 'application/json') return '请求体必须是 JSON'
   }
   return null

@@ -8,9 +8,38 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
     return body === '' ? null : JSON.parse(body)
   }
 
+  const raw = async (path, { timeout = 30_000, ...init } = {}) => {
+    const response = await fetch(new URL(path, baseUrl), { ...init, signal: AbortSignal.timeout(timeout) })
+    if (!response.ok) {
+      const body = await response.text()
+      throw new Error(`base ${response.status} ${path}: ${body.slice(0, 200)}`)
+    }
+    return {
+      bytes: Buffer.from(await response.arrayBuffer()),
+      mime: response.headers.get('content-type') ?? 'application/octet-stream',
+    }
+  }
+
   return {
     baseUrl,
     bootstrap: () => json('/api/bots?messages=0'),
+
+    // 基座自己的附件库：图片走原生视觉输入，文件按路径交给能读文件的人。
+    uploadImage: (bytes, mime) => json('/api/attachments', {
+      method: 'POST',
+      headers: { 'content-type': mime },
+      body: bytes,
+      timeout: 30_000,
+    }),
+
+    uploadFile: (bytes, name, mime) => json(`/api/files?name=${encodeURIComponent(name)}`, {
+      method: 'POST',
+      headers: { 'content-type': mime || 'application/octet-stream' },
+      body: bytes,
+      timeout: 60_000,
+    }),
+
+    attachment: name => raw(`/api/attachments/${encodeURIComponent(name)}`, { timeout: 15_000 }),
 
     config: () => json('/api/config'),
 

@@ -260,7 +260,11 @@ export function createStore() {
     send: async (text, options = {}) => {
       const active = state.rooms.find(room => room.id === state.activeId) ?? null
       if (active?.lodge === true) {
-        const data = await post(`/api/rooms/${active.id}/lodge`, { text, ...humanField() })
+        const data = await post(`/api/rooms/${active.id}/lodge`, {
+          text,
+          ...humanField(),
+          ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
+        })
         if (data?.createdRoom?.id !== undefined && data.createdRoom.id !== null) {
           await load()
           rememberRoom(data.createdRoom.id)
@@ -272,7 +276,25 @@ export function createStore() {
         text,
         ...humanField(),
         ...(Array.isArray(options.mentions) && options.mentions.length > 0 ? { mentions: options.mentions } : {}),
+        ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
       })
+    },
+    // 附件先上传，再随消息发送；图片在消息里显示缩略图，文本文件把正文带给模型。
+    uploadAttachment: async file => {
+      try {
+        const response = await fetch(`/api/attachments?name=${encodeURIComponent(file?.name ?? 'file')}`, {
+          method: 'POST',
+          headers: { 'content-type': file?.type || 'application/octet-stream' },
+          body: file,
+        })
+        const data = await response.json().catch(() => null)
+        if (!response.ok || data?.attachment === undefined) {
+          return { ok: false, error: data?.error ?? '这个文件没能传上去' }
+        }
+        return { ok: true, attachment: { ...data.attachment, title: data.attachment.title ?? file.name } }
+      } catch {
+        return { ok: false, error: '这个文件没能传上去' }
+      }
     },
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
     holdMember: (memberId, held) => post(`/api/rooms/${state.activeId}/hold`, { memberId, held }),

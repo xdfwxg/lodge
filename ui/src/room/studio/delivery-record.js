@@ -1,6 +1,7 @@
 // 交付记录：把房间里的目标、步骤、证据、结论压成一份能带走的 Markdown。
 // 只读房间记录，不重算业务判断；没有的记录就省略，不补想象。
 import { judgmentOf } from '../../../../shared/judgment.js'
+import { stripAttachmentTags } from '../../../../shared/attachments.js'
 
 const line = value => String(value ?? '').replace(/\s+/g, ' ').trim()
 const when = ts => {
@@ -51,7 +52,7 @@ export const deliveryRecord = room => {
   const blocks = [
     `# ${line(room.name) || '房间交付记录'}`,
     '',
-    `目标：${line(room.goal)}`,
+    `目标：${line(stripAttachmentTags(room.goal))}`,
     `状态：${allPassed ? '全部完成' : room.state === 'active' ? '进行中' : room.state ?? ''}`,
     completedAt === null ? '' : `完成时间：${when(completedAt)}`,
     '',

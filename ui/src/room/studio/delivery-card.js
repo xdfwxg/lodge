@@ -4,6 +4,7 @@ import { openPath as openTarget } from '../../system.js'
 import { dateTimeOf } from '../../view-format.js'
 import { errorSuffix } from '../../error-text.js'
 import { artifactKindOf } from '../../../../shared/artifact.js'
+import { stripAttachmentTags } from '../../../../shared/attachments.js'
 import {
   ALL_DAYS,
   DAY_LABELS,
@@ -52,6 +53,34 @@ export function DeliveryPreview({ kind, content, image, alt }) {
       : h('pre', { className: 'crew-code studio-delivery-text' }, content))
 }
 
+// 一套图的结果直接摆出来：小图横排，名字放悬停，尺寸交给上面那行验收结论。
+function ArtifactThumb({ roomId, artifact, onRead, onOpen }) {
+  const [src, setSrc] = useState(null)
+  useEffect(() => {
+    if (typeof onRead !== 'function') return undefined
+    let active = true
+    void Promise.resolve(onRead(roomId, artifact.path))
+      .then(result => {
+        if (active && typeof result?.base64 === 'string' && result.base64 !== '') {
+          setSrc(`data:${result.mime ?? 'image/png'};base64,${result.base64}`)
+        }
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [roomId, artifact.path, onRead])
+  const label = artifact.relativePath ?? artifact.path
+  return h('button', {
+    type: 'button',
+    className: 'studio-delivery-thumb',
+    title: label,
+    'aria-label': label,
+    onClick: () => onOpen?.(),
+  },
+  src === null
+    ? h('span', { className: 'studio-delivery-thumb-empty', 'aria-hidden': 'true' }, h(FileIcon))
+    : h('img', { src, alt: label, loading: 'lazy' }))
+}
+
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
 export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onReturn = null, onDownload = null, onRead = null, onRoutine = null, onOpenRun = null, latestRun = null, runs = [] }) {
   const latestDelivery = latestRun?.delivery ?? null
@@ -95,7 +124,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
       setOpenError(`没能打开${errorSuffix(error)}`)
     }
   }
-  const goalText = typeof delivery.goal === 'string' ? delivery.goal.replace(/\*\*/g, '').trim() : ''
+  const goalText = typeof delivery.goal === 'string' ? stripAttachmentTags(delivery.goal).replace(/\*\*/g, '').trim() : ''
   const goalFirst = goalText.split('\n').map(line => line.trim()).find(line => line !== '') ?? ''
   const nameText = typeof delivery.name === 'string' ? delivery.name.trim() : ''
   const kindOf = artifact => artifact?.kind ?? artifactKindOf(artifact?.path)
@@ -204,6 +233,15 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
     : isAbsolutePath(primaryArtifact.path)
       ? primaryArtifact.path
       : delivery.workspacePath ? joinPath(delivery.workspacePath, primaryArtifact.path) : null
+  const targetOf = artifact => (
+    artifact === null || artifact === undefined
+      ? null
+      : isAbsolutePath(artifact.path)
+        ? artifact.path
+        : delivery.workspacePath ? joinPath(delivery.workspacePath, artifact.path) : null
+  )
+  const imageArtifacts = artifacts.filter(artifact => kindOf(artifact) === 'image')
+  const gallery = imageArtifacts.length > 1 ? imageArtifacts.slice(0, 8) : []
   const showProof = commands.length > 0 || manualVerdict !== null || !hasPreview
   const routineNode = onRoutine === null || delivery.sample === true ? null : (() => {
     if (delivery.archived === true) {
@@ -384,14 +422,29 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
                     : manualNotes[0] ?? '人工验收'))
           : null,
         metrics === '' || hasPreview ? null : h('p', { className: 'crew-delivery-metrics' }, metrics),
-        hasPreview
-          ? h(DeliveryPreview, {
-            kind: primaryKind,
-            content: primaryContent,
-            image: primaryImage,
-            alt: primaryArtifact.relativePath ?? primaryArtifact.path,
-          })
-          : primaryArtifact !== null
+        gallery.length > 0
+          ? h('div', { className: 'studio-delivery-gallery', role: 'group', 'aria-label': '结果图片' },
+            gallery.map(artifact => h(ArtifactThumb, {
+              key: artifact.path,
+              roomId: delivery.roomId,
+              artifact,
+              onRead,
+              onOpen: () => {
+                const target = targetOf(artifact)
+                if (target !== null) void open(target)
+              },
+            })),
+            imageArtifacts.length > gallery.length
+              ? h('span', { className: 'crew-field-hint' }, `还有 ${imageArtifacts.length - gallery.length} 个，在文件夹里`)
+              : null)
+          : hasPreview
+            ? h(DeliveryPreview, {
+              kind: primaryKind,
+              content: primaryContent,
+              image: primaryImage,
+              alt: primaryArtifact.relativePath ?? primaryArtifact.path,
+            })
+            : primaryArtifact !== null
             ? h('div', { className: 'studio-delivery-file' },
               h('span', { className: 'studio-delivery-file-icon' }, h(FileIcon)),
               h('code', { title: primaryArtifact.relativePath ?? primaryArtifact.path }, primaryArtifact.relativePath ?? primaryArtifact.path),

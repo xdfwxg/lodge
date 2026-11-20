@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { askedForRound, ensureRoundWhenAsked, parseHostIntent } from './host-intent.js'
+import { askedForRound, ensureRoundWhenAsked, hostIntentPrompt, parseHostIntent } from './host-intent.js'
 
 test('a host reply stays a reply', () => {
   assert.deepEqual(
@@ -34,6 +34,21 @@ test('non-JSON host output still shows as text', () => {
     speakers: [],
     structured: false,
   })
+})
+
+test('Lodge decides to open a room in the same turn', () => {
+  assert.deepEqual(
+    parseHostIntent('{"action":"open","room":"chat","reply":"我开一间让大伙看看。"}', { allowOpen: true }),
+    { action: 'open', room: 'chat', reply: '我开一间让大伙看看。', speakers: [], structured: true },
+  )
+  assert.equal(parseHostIntent('{"action":"open","room":"panel"}', { allowOpen: true }).action, 'reply')
+  assert.equal(parseHostIntent('{"action":"open","room":"chat"}', { allowOpen: false }).action, 'reply')
+})
+
+test('the Lodge prompt asks for a room decision instead of a round', () => {
+  const prompt = hostIntentPrompt({ room: { lodge: true, members: [] }, text: '喊上大伙看看', turnLimit: 6 })
+  assert.match(prompt, /"action":"open"/)
+  assert.doesNotMatch(prompt, /"action":"round"/)
 })
 
 test('an explicit request for another round is recognised', () => {

@@ -109,6 +109,8 @@ export const createServiceChat = ({ store, live, emit }) => {
     } finally {
       setHostThinking(room, false)
     }
+    // Lodge 判断要开房：把判断交回给房间动作，由它建工作室或聊天室并留记录。
+    if (intent.action === 'open') return ok({ room, intent })
     if (intent.action === 'round') {
       const result = continueChat(room, { note: text, speakerIds: intent.speakers })
       if (result.ok !== true) return result

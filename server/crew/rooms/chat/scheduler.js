@@ -439,6 +439,7 @@ export const createChatScheduler = ({
       const reply = await waitForBot('host', before, { cancelled: false })
       return reply === null ? null : String(reply.text ?? reply.turn?.reply ?? '')
     }
+    const allowOpen = room.lodge === true && speakers.length === 0
     const prompt = hostIntentPrompt({
       room,
       text,
@@ -447,17 +448,22 @@ export const createChatScheduler = ({
     })
     const first = await ask(prompt)
     if (first === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }
-    const parsed = parseHostIntent(first, { speakers })
-    if (parsed.structured === true) return ensureRoundWhenAsked(parsed, text, room)
+    const parsed = parseHostIntent(first, { speakers, allowOpen })
+    if (parsed.structured === true) {
+      return parsed.action === 'open' ? parsed : ensureRoundWhenAsked(parsed, text, room)
+    }
     // 第一次没给 JSON 就再要一次，只补格式，不重新理解。
     const repaired = await ask([
       '上一次回复不是 JSON，没法执行。',
       '只回一个 JSON，不要解释：',
-      '{"action":"reply","reply":"..."} 或 {"action":"round","speakers":["成员 id"],"reply":"..."}',
+      allowOpen
+        ? '{"action":"reply","reply":"..."} 或 {"action":"open","room":"studio" 或 "chat","reply":"..."}'
+        : '{"action":"reply","reply":"..."} 或 {"action":"round","speakers":["成员 id"],"reply":"..."}',
     ].join('\n'))
     if (repaired === null) return parsed
-    const second = parseHostIntent(repaired, { speakers })
-    return ensureRoundWhenAsked(second.structured === true ? second : parsed, text, room)
+    const second = parseHostIntent(repaired, { speakers, allowOpen })
+    if (second.structured !== true) return parsed
+    return second.action === 'open' ? second : ensureRoundWhenAsked(second, text, room)
   }
 
   return { start, hostIntent, cancel, isRunning: () => runs.has(roomId) }

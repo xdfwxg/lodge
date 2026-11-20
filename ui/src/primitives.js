@@ -18,25 +18,11 @@ function CodeBlock({ children, labels }) {
     h('pre', { ref: block }, children))
 }
 
-const MENTION = /(@[A-Za-z0-9_\-一-龥]+)/g
-
-const mentionParts = (text, prefix) => {
-  if (!text.includes('@')) return [text]
-  return text.split(MENTION).map((part, index) => (
-    part.startsWith('@') && part.length > 1
-      ? h('span', { key: `${prefix}-${index}`, className: 'crew-mention' }, part)
-      : part
-  ))
-}
-
-const withMentions = children => (Array.isArray(children) ? children : [children]).flatMap((child, index) => (
-  typeof child === 'string' ? mentionParts(child, `mention-${index}`) : [child]
-))
-
+// @ 已经是发送时交给房间的结构化参数；气泡里按普通文字显示，不做成不能点的药丸。
 const elements = labels => ({
   pre: ({ children }) => h(CodeBlock, { labels }, children),
-  p: ({ children }) => h('p', null, withMentions(children)),
-  li: ({ children }) => h('li', null, withMentions(children)),
+  p: ({ children }) => h('p', null, children),
+  li: ({ children }) => h('li', null, children),
 })
 
 export function MarkdownText({ text, labels, variant }) {

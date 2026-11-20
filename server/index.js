@@ -189,6 +189,9 @@ const live = createLiveRooms({
   ports,
 })
 
+// 附件走基座自己的库；图片能被原生视觉模型看见，文件保留路径和文本正文。
+const baseForAttachments = createBaseClient()
+
 service = createCrewService({
   store,
   engine,
@@ -196,6 +199,7 @@ service = createCrewService({
   emit,
   roles: ROLES,
   ports,
+  attachments: baseForAttachments,
 })
 
 const runRoutine = createRoutineRunner({ store, service, emit })

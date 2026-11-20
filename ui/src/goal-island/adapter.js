@@ -6,6 +6,7 @@ import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
 import { IslandCat, CAT_CSS } from './cat.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
+import { stripAttachmentTags } from '../../../shared/attachments.js'
 
 // 房型能力决定岛要不要画步骤；聊天室没有阶段，即使切过一次工作室也不显示残留阶段。
 const stagesOf = room => room.modeCapabilities?.stages === false
@@ -26,7 +27,7 @@ export const toIslandGoal = room => ({
     kind: stage.kind,
     status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
   })),
-  objective: room.brief?.objective || room.goal,
+  objective: room.brief?.objective || stripAttachmentTags(room.goal),
 })
 
 const toIslandRoom = room => ({
@@ -36,7 +37,7 @@ const toIslandRoom = room => ({
 })
 
 const pill = ({ room, view, open, onToggle }) => {
-  const title = view?.title || room.name || room.goal
+  const title = view?.title || room.name || stripAttachmentTags(room.goal)
   return h('button', {
     type: 'button',
     className: 'bt-pill',

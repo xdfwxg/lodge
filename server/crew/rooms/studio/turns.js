@@ -193,10 +193,14 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       ? workspaceOf(room).head({ path: room.repoPath })
       : null
     const acceptedRef = candidate ?? head
-    const baseline = room.stageBases?.[stageIndex] ?? null
-    const files = acceptedRef !== null && baseline !== null && typeof workspaceOf(room).changedFilesSince === 'function'
-      ? workspaceOf(room).changedFilesSince({ path: room.repoPath, base: baseline })
-      : []
+    const baseline = room.stageBases?.[stageIndex] ?? room.startHead ?? null
+    const files = acceptedRef === null
+      ? []
+      : baseline !== null
+        ? workspaceOf(room).changedFilesSince?.({ path: room.repoPath, base: baseline }) ?? []
+        : candidate !== null
+          ? workspaceOf(room).filesInCommit?.({ path: room.repoPath, commit: candidate }) ?? []
+          : []
     // 人工阶段没有命令可判“无改动”：同一 HEAD 上的重复回合不重复生成验收证据，也不重复送审。
     const prior = [...store.readMessages(roomId)].reverse().find(message => (
       message.kind === 'evidence' &&

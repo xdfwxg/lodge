@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  addMember, changes, cleanupRoom, commitMessageOf, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
+  addMember, changedFilesSince, changes, cleanupRoom, commitMessageOf, filesInCommit, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
   refreshReviewCopy, removeIsolatedCopy, removeMember, resetMemberWorktree, restore, submit,
 } from './workspace-git.js'
 import { rosterFromRoles, membersFor } from './roster.js'
@@ -32,6 +32,21 @@ test('acceptance runs in a disposable copy and cannot write the source repo', ()
     rmSync(sourceRepo, { recursive: true, force: true })
   }
   assert.equal(existsSync(copy.path), false)
+})
+
+test('a candidate commit lists files written by shell commands', () => {
+  const sourceRepo = repo()
+  try {
+    const base = head({ path: sourceRepo })
+    writeFileSync(join(sourceRepo, 'icon-2x.png'), 'png\n')
+    execFileSync('git', ['add', '.'], { cwd: sourceRepo })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'export icons'], { cwd: sourceRepo })
+    const commit = head({ path: sourceRepo })
+    assert.deepEqual(filesInCommit({ path: sourceRepo, commit }), ['icon-2x.png'])
+    assert.deepEqual(changedFilesSince({ path: sourceRepo, base }), ['icon-2x.png'])
+  } finally {
+    rmSync(sourceRepo, { recursive: true, force: true })
+  }
 })
 
 test('file lists keep Chinese names readable instead of git-quoted escapes', async () => {

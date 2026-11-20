@@ -7,6 +7,7 @@ import { TypingLine } from '../typing-line.js'
 import { StudioAdjust } from './rewind-dialog.js'
 import { StopRoom } from '../stop-room.js'
 import { studioTyping } from './typing.js'
+import { stripAttachmentTags } from '../../../../shared/attachments.js'
 
 // 工作室的房间视图：一条聊天记录、一行状态、一个输入框；动作只在轮到你时出现。
 export const studioView = {
@@ -76,7 +77,7 @@ export const studioView = {
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,
       onContinue: () => actions.startStudio({
-        goal: `${room.goal}\n\n上一次结果「${room.name}」已经完成。现在在这个基础上继续：`,
+        goal: `${stripAttachmentTags(room.goal)}\n\n上一次结果「${room.name}」已经完成。现在在这个基础上继续：`,
         conclusion: '',
         sourceName: room.name,
         repoPath: room.repoPath ?? '',

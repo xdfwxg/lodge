@@ -1,6 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { requestGuard } from './http-guard.js'
+import {
+  ATTACHMENT_FILE_MAX_BYTES,
+  ATTACHMENT_IMAGE_MAX_BYTES,
+  isNativeImage,
+} from '../shared/attachments.js'
 import { matchRoomAction } from './route-table.js'
 import { pageAssignments } from './crew/assignment-history.js'
 import { presentRoom } from './crew/presentation.js'
@@ -80,6 +85,39 @@ export const readJson = (req, limit = 64 * 1024) => new Promise((resolveBody, re
   req.on('error', reject)
 })
 
+const readRaw = (req, limit) => new Promise((resolveBody, reject) => {
+  const declared = Number(req.headers['content-length'] ?? 0)
+  if (Number.isFinite(declared) && declared > limit) {
+    req.resume()
+    reject(new Error('附件太大'))
+    return
+  }
+  const chunks = []
+  let received = 0
+  let settled = false
+  req.on('data', chunk => {
+    if (settled) return
+    received += chunk.length
+    if (received > limit) {
+      settled = true
+      reject(new Error('附件太大'))
+      req.destroy()
+      return
+    }
+    chunks.push(chunk)
+  })
+  req.on('end', () => {
+    if (settled) return
+    settled = true
+    resolveBody(Buffer.concat(chunks))
+  })
+  req.on('error', error => {
+    if (settled) return
+    settled = true
+    reject(error)
+  })
+})
+
 const serveStatic = (root, req, res, pathname) => {
   const dist = join(root, 'ui', 'dist')
   if (!existsSync(dist)) {
@@ -113,7 +151,7 @@ export const createHttpHandler = ({
   const path = url.pathname
 
   try {
-    const blocked = requestGuard(req)
+    const blocked = requestGuard(req, path)
     if (blocked !== null) return json(res, 403, { error: blocked })
 
     if (path === '/api/state' && req.method === 'GET') {
@@ -197,6 +235,31 @@ export const createHttpHandler = ({
       }))
     }
 
+    if (path === '/api/attachments' && req.method === 'POST') {
+      const mime = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
+      const limit = isNativeImage(mime) ? ATTACHMENT_IMAGE_MAX_BYTES : ATTACHMENT_FILE_MAX_BYTES
+      const bytes = await readRaw(req, limit)
+      return respond(res, await service.uploadAttachment({
+        bytes,
+        mime,
+        name: url.searchParams.get('name') ?? '',
+      }))
+    }
+
+    const attachmentPath = path.match(/^\/api\/attachments\/([A-Za-z0-9._-]+)$/)
+    if (attachmentPath !== null && req.method === 'GET') {
+      const result = await service.attachmentBytes({ name: attachmentPath[1] })
+      if (result.ok !== true) return json(res, STATUS[result.reason] ?? 500, { error: result.error })
+      const { bytes, mime } = result.body
+      res.writeHead(200, {
+        'content-type': mime,
+        'content-length': bytes.length,
+        'cache-control': 'private, no-store',
+        'x-content-type-options': 'nosniff',
+      })
+      return res.end(bytes)
+    }
+
     const artifactPath = path.match(/^\/api\/rooms\/([\w-]+)\/artifact$/)
     if (artifactPath !== null && req.method === 'GET') {
       const [, roomId] = artifactPath
@@ -243,6 +306,8 @@ export const createHttpHandler = ({
     if (req.method !== 'GET') return json(res, 405, { error: '只接受 GET' })
     return serveStatic(root, req, res, path)
   } catch (error) {
-    return json(res, 500, { error: String(error?.message ?? error) })
+    const message = String(error?.message ?? error)
+    if (message === '附件太大') return json(res, 413, { error: '附件太大' })
+    return json(res, 500, { error: message })
   }
 }

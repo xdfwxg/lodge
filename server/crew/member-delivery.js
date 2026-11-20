@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { hostAddress, memberAddress, memberDisplayName, shadowAddress, toBaseMentions } from './member-labels.js'
 import { memberOf } from './room-members.js'
+import { humanNameOf } from './human-name.js'
 
 const INTENTS = Object.freeze({
   handoff: { label: '阶段交接', authority: '按你的角色执行' },
@@ -13,6 +14,8 @@ const INTENTS = Object.freeze({
 
 const fromLabel = (room, from) => {
   if (typeof from !== 'string' || from === '') return ''
+  // 人内部叫 you；给成员看的信封要用人的名字，成员才不会把 you 当成可点名的人。
+  if (from === 'you') return humanNameOf(room) || '用户'
   return memberOf(room, from) === null ? from : memberDisplayName(room, from)
 }
 

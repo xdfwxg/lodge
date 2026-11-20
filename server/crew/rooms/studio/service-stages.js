@@ -18,13 +18,32 @@ import { isWorkStage } from './turn-utils.js'
 import { appendHumanContext } from '../../human-context.js'
 import { humanLabelOf } from '../../human-name.js'
 
-export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles }) => {
+export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, workspace = null }) => {
   const { readMessages, readEvidence, updateRoom, appendMessage } = store
 
   // 阶段推进或重做后，旧尝试的确认卡不再等人；拒绝基座卡并把记录标成过期。
   const expireCards = (roomId, reason) => {
     const task = live?.expireApprovals?.(roomId, reason)
     if (task !== undefined && task !== null && typeof task.catch === 'function') task.catch(() => {})
+  }
+
+  // 阶段变成 active 的那一刻记下 HEAD：验收和交付不再依赖派发路径有没有调 startStage。
+  const rememberStageBase = (room, index) => {
+    if (workspace === null || typeof workspace.provider !== 'function') return room
+    if (typeof room.repoPath !== 'string' || room.repoPath === '') return room
+    try {
+      const base = workspace.provider(room).head?.({ path: room.repoPath })
+      if (typeof base !== 'string' || base === '') return room
+      if (room.stageBases?.[index] === base) return room
+      const saved = updateRoom(room.id, current => {
+        if (current.stageBases?.[index] === base) return null
+        current.stageBases = { ...(current.stageBases ?? {}), [index]: base }
+        return { events: [] }
+      })
+      return saved ?? room
+    } catch {
+      return room
+    }
   }
 
   const stageConclusion = (room, stage, index, next) => {
@@ -176,6 +195,8 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (transitionError !== null) return fail('conflict', transitionError)
     if (updated === null) return fail('not_found', '没有这个房间')
     room = updated
+    // 新阶段从这一刻的 HEAD 起算；不依赖派发路径有没有走到 startStage。
+    if (next >= 0) room = rememberStageBase(room, next)
     if (!room.demo) roomFiles.writeGoal(room)
     emit('room', room)
     expireCards(room.id, '这一步已经过了')

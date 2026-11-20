@@ -36,7 +36,7 @@ export const createAcceptanceRunner = ({
     const head = typeof workspaceOf(room).head === 'function'
       ? workspaceOf(room).head({ path: room.repoPath })
       : null
-    const baseline = room.stageBases?.[stageIndex] ?? null
+    const baseline = room.stageBases?.[stageIndex] ?? room.startHead ?? null
     const advanced = baseline !== null && typeof head === 'string' && head !== '' && head !== baseline
     if (!changed && advanced && typeof workspaceOf(room).rangeChanges === 'function') {
       // 执行者自己 commit 时工作树是干净的，证据要补上“阶段起点 → 当前 HEAD”的改动。

@@ -5,6 +5,7 @@ import { uiKindOfRoom } from '../room/kinds.js'
 import { roomTypeIcon } from '../room/type-icons.js'
 import { initialOf } from '../marks.js'
 import { routineLineOf } from '../../../shared/routine.js'
+import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
 import { ProfileMark } from '../profile-mark.js'
@@ -35,7 +36,7 @@ export const filterRooms = (rooms, query) => {
   if (needle === '') return rooms
   return rooms.filter(room => [
     room.name,
-    room.goal,
+    stripAttachmentTags(room.goal),
     roomLabelOf(room),
     room.needsYou?.label,
   ].some(value => typeof value === 'string' && value.toLowerCase().includes(needle)))

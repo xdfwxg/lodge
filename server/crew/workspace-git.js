@@ -516,6 +516,18 @@ export const rangeChanges = async ({ path, base }) => {
   return { diff: clip(diff), files }
 }
 
+// 阶段起点没记下来时的兜底：执行成员自己的候选提交里改了哪些文件。
+export const filesInCommit = ({ path, commit }) => {
+  if (typeof commit !== 'string' || commit === '') return []
+  try {
+    return git(path, ['show', '--name-only', '--pretty=format:', '--relative', commit, '--', ...diffScope])
+      .split('\n')
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
 // 人工结果凭证没有验收命令，仍需要阶段起点到当前 HEAD 的文件清单。
 export const changedFilesSince = ({ path, base }) => {
   if (typeof base !== 'string' || base === '') return []

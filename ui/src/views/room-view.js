@@ -12,6 +12,9 @@ import { onMemberDialog } from '../room/member-dialog.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOptions = null }) {
   const [dockOpen, setDockOpen] = useState(false)
+  const [dropped, setDropped] = useState(null)
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
   const [atBottom, setAtBottom] = useState(true)
   const [swapId, setSwapId] = useState(null)
   const [swapBusy, setSwapBusy] = useState(false)
@@ -243,7 +246,39 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
   const tools = mode.tools?.(viewCtx) ?? null
 
-  return h('main', { className: 'dsb-main crew-room' },
+  const hasFiles = event => Array.from(event.dataTransfer?.types ?? []).includes('Files')
+  const dragEnter = event => {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    dragDepth.current += 1
+    setDragging(true)
+  }
+  const dragOver = event => {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    if (event.dataTransfer !== null) event.dataTransfer.dropEffect = 'copy'
+  }
+  const dragLeave = event => {
+    if (!hasFiles(event)) return
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }
+  const drop = event => {
+    if (!hasFiles(event)) return
+    event.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    const files = [...(event.dataTransfer?.files ?? [])]
+    if (files.length > 0) setDropped({ id: Date.now(), files })
+  }
+
+  return h('main', {
+    className: 'dsb-main crew-room',
+    onDragEnter: dragEnter,
+    onDragOver: dragOver,
+    onDragLeave: dragLeave,
+    onDrop: drop,
+  },
     h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id, 'data-room-done': finished ? 'true' : undefined },
       mode.header(viewCtx),
       h('div', { className: 'crew-room-tools' }, tools),
@@ -291,7 +326,11 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
                 ? '已停止 · 不会再派新活'
                 : composerPlaceholder,
             disabled: state.phase === 'loading' || locked,
+            dropping: dragging,
+            incoming: dropped,
+            onIncomingDone: () => setDropped(null),
             onSend: (text, options) => store.send(text, options),
+            onUpload: file => store.uploadAttachment(file),
           }))),
     swapId === null
       ? null

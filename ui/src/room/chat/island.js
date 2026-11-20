@@ -1,3 +1,5 @@
+import { stripAttachmentTags } from '../../../../shared/attachments.js'
+
 // 聊天室不是“目标 + 结论”的任务。岛只讲一件事：现在在聊，还是聊到这儿了。
 const STATUS = { paused: 'paused', stopped: 'stopped' }
 
@@ -24,6 +26,6 @@ export const chatIslandGoal = room => {
     current: 0,
     // 只有用户认可后才算“已确认”；聊到这儿只是状态，不让岛以为任务完成了。
     stages: [{ title: '聊天', kind: 'decision', status: accepted ? 'passed' : 'active' }],
-    objective: room.brief?.objective || room.goal,
+    objective: room.brief?.objective || stripAttachmentTags(room.goal),
   }
 }

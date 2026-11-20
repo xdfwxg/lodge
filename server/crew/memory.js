@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'n
 import { join, resolve } from 'node:path'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 import { progressOf } from '../../shared/progress.js'
+import { stripAttachmentTags } from '../../shared/attachments.js'
 
 // 房间记忆：只从已交付房间追加事实，人工审核后才对新房间可见；不接收模型写入。
 const MAX_RECORD_BYTES = 4096
@@ -39,7 +40,7 @@ const recordOf = (room, messages) => {
     kind: 'memory',
     roomId: room.id,
     roomName: clip(room.name, 120),
-    goal: clip(room.goal, 500),
+    goal: clip(stripAttachmentTags(room.goal), 500),
     conclusion: clip(conclusionText, 1000),
     stages: (Array.isArray(room.stages) ? room.stages : []).slice(0, 10).map(stage => ({
       title: clip(stage.title, 80),

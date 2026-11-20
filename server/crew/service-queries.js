@@ -2,7 +2,6 @@ import { join } from 'node:path'
 import { briefOf } from './brief.js'
 import { presentRoom } from './presentation.js'
 import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
-import { classifyIntent as classifyIntentUseCase } from './intent.js'
 import { createRosterProbe } from './roster-probe.js'
 import { listRoomTypes } from './room-types/index.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
@@ -97,11 +96,5 @@ export const createServiceQueries = ({
     workspace,
   })
 
-  const classifyIntent = body => classifyIntentUseCase({
-    probe: createRosterProbe({ engine }),
-    body,
-    workspace,
-  })
-
-  return { health, state, messagesSince, evidence, recommendRoster, classifyIntent }
+  return { health, state, messagesSince, evidence, recommendRoster }
 }

@@ -232,6 +232,13 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     })
     const humanName = cleanHumanName(body?.humanName)
     if (humanName !== '') room = { ...room, humanName }
+    // 记住建房时的 HEAD：阶段起点万一没记下，验收和交付还有据可依。
+    try {
+      const startHead = typeof room.repoPath === 'string' && room.repoPath !== ''
+        ? provider.head?.({ path: room.repoPath })
+        : null
+      if (typeof startHead === 'string' && startHead !== '') room = { ...room, startHead }
+    } catch {}
     let sharedMemory = []
     try {
       sharedMemory = ports.memory?.shared?.({ sourceRepo, limit: 3 }) ?? []
