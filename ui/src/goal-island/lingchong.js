@@ -400,15 +400,13 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       const sniffLean = beat === 'sniff' ? 6 : 0
       const lookLean = beat === 'look' ? Math.sin(seconds * 2.2) * 4 : 0
       const bodyRot = (walking ? Math.sin(p) * 0.5 : 0) - 5 * sm + 2.5 * stretch + sniffLean + lookLean
-      if (body.current) {
-        body.current.style.transform = `translateY(${(-bob + 6 * sm + (beat === 'sniff' ? 2 : 0) + (sleeping ? -1.6 * Math.max(0, snore) : 0)).toFixed(2)}px) rotate(${bodyRot.toFixed(2)}deg) scaleX(${(1 + 0.03 * stretch).toFixed(3)}) scaleY(${breath.toFixed(4)})`
-      }
+      const bodyValue = `translateY(${(-bob + 6 * sm + (beat === 'sniff' ? 2 : 0) + (sleeping ? -1.6 * Math.max(0, snore) : 0)).toFixed(2)}px) rotate(${bodyRot.toFixed(2)}deg) scaleX(${(1 + 0.03 * stretch).toFixed(3)}) scaleY(${breath.toFixed(4)})`
+      if (body.current) body.current.style.transform = bodyValue
       tailPhase += dt * (walking ? 5.2 : happyT > 0 ? 7 : 1.25)
       const tailAmp = beat === 'wag' ? 18 : beat === 'sniff' ? 3 : happyT > 0 ? 14 : walking ? 10 : 6
-      if (tail.current) {
-        const tailRot = Math.sin(tailPhase) * tailAmp * (1 - sm) + (-22 + Math.sin(tailPhase * 0.5) * 2) * sm + 8 * stretch
-        tail.current.style.transform = `rotate(${tailRot.toFixed(2)}deg)`
-      }
+      const tailRot = Math.sin(tailPhase) * tailAmp * (1 - sm) + (-22 + Math.sin(tailPhase * 0.5) * 2) * sm + 8 * stretch
+      const tailValue = `rotate(${tailRot.toFixed(2)}deg)`
+      if (tail.current) tail.current.style.transform = tailValue
       if (flip.current) {
         // 线稿默认朝左；往右走才镜像，不然会倒着走。
         const dirSign = beat === 'look' ? (Math.sin(seconds * 2.2) > 0 ? -1 : 1) : direction > 0 ? -1 : 1
@@ -532,7 +530,10 @@ body[data-ds-dark-theme] .lingchong{filter:drop-shadow(0 1px 3px rgba(0,0,0,.42)
 .lingchong-ink-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 .lingchong-flip{position:absolute;inset:0;transform-origin:50% 50%}
 .lingchong-stage{position:absolute;left:0;top:0;width:385px;height:195px;transform-origin:0 0;transform:scale(var(--pet-scale)) translateY(30px);filter:var(--lingchong-ink-filter,none)}
-body[data-ds-dark-theme] .lingchong-stage{filter:var(--lingchong-ink-filter,none) grayscale(1) invert(1) contrast(1.3) brightness(1.1)}
+body[data-ds-dark-theme] .lingchong-stage{filter:none}
+body[data-ds-dark-theme] .lingchong-art{filter:sepia(1) saturate(5) hue-rotate(-25deg) brightness(.6)}
+body[data-ds-dark-theme] .lingchong-blink,
+body[data-ds-dark-theme] .lingchong-yawn{filter:sepia(1) saturate(5) hue-rotate(-25deg) brightness(.6)}
 .lingchong-art{position:absolute;inset:0;width:385px;height:195px;pointer-events:none;user-select:none}
 .art-tail{clip-path:inset(0 15px 55px 288px);transform-origin:285px 95px;z-index:1}
 .leg-ff{clip-path:inset(138px 242px 20px 100px);transform-origin:123px 138px;z-index:2}
