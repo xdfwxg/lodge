@@ -238,7 +238,7 @@ test('accepting a work stage writes a stage conclusion before the next stage sta
       { title: '验收与结论', kind: 'decision', state: 'pending' },
     ],
   }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, files: ['src/a.js'] } })
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, files: ['src/a.js', 'src/a.test.js'] } })
   ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, true)

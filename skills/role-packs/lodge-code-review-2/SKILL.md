@@ -41,7 +41,7 @@ Present the two reports side by side. Rank findings by severity **within each ax
 
 Then give one verdict:
 
-- **PASS** only when both axes support the stage's acceptance.
+- **PASS** only when both axes support the stage's acceptance. Name one risk outside the diff; write 「无」 if none.
 - **REJECT** with the smallest reason that decides it, plus the concrete gap.
 
 ## Rules

@@ -18,6 +18,14 @@ const handoffSection = handoff => {
   return text === '' ? '' : `\n交接单：\n${text}`
 }
 
+// 阶段检查必须是一条真能跑的命令；“看起来没问题”这类话不能当门。
+const RUNNABLE_CHECK = /(^|[\s;&|(])(?:npm|pnpm|yarn|bun|node|npx|deno|python3?|pytest|go|cargo|make|bash|sh|zsh|ruby|bundle|php|java|mvn|gradle|dotnet|swift|curl|git|grep|cat|diff|test|ls|find|jq|sed|awk|tsc|eslint|vitest|jest|playwright)(?:\s|$)/
+
+export const runnableCheck = value => (
+  typeof value === 'string' &&
+  (value.startsWith('./') || value.startsWith('/') || RUNNABLE_CHECK.test(value))
+)
+
 export const alignmentPrompt = (goal, verify, acceptance, handoff = null) => [
   `目标：${goal}${handoffSection(handoff)}`,
   verify === 'test' ? `验收命令：\`${acceptance}\`` : '验收方式：人确认，不跑命令',
@@ -130,6 +138,9 @@ export const normalizePlan = ({ body }) => {
         if (title === '') return { error: `第 ${index + 1} 步缺少名字` }
         if (kind === 'deliverable' && stageAcceptance === '') {
           return { error: `第 ${index + 1} 步缺少检查` }
+        }
+        if (kind === 'deliverable' && !runnableCheck(stageAcceptance)) {
+          return { error: `第 ${index + 1} 步的检查不是一条能跑的命令；写清楚跑什么，例如 npm test` }
         }
         plannedStages.push({
           title,

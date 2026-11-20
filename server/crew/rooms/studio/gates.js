@@ -1,8 +1,19 @@
 import { memberDisplayName } from '../../member-labels.js'
-import { verdictPassed } from '../../../../shared/judgment.js'
+import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
 import { latestAutoCheck, manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
+import { tddIssueOf } from './tdd.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
+
+// PASS 不能只说“没问题”；要给出 diff 之外最值得担心的一条风险，没有就写「无」。
+// 走文本兜底的判定没有结构化字段，不在这里拦。
+const missingOutsideDiff = message => {
+  const judgment = judgmentOf(message)
+  return judgment !== null &&
+    judgment.decision === 'pass' &&
+    judgment.source !== 'text' &&
+    judgment.outsideDiff === ''
+}
 
 export const gateFor = (room, index, messages, evidence) => {
   const ledger = Array.isArray(evidence)
@@ -18,6 +29,18 @@ export const gateFor = (room, index, messages, evidence) => {
   if (dependency !== undefined) return deny('conflict', `先完成阶段 ${dependency + 1}，再验收这一阶段`)
   if (room.openQuestion !== null && room.openQuestion !== undefined) {
     return deny('conflict', '还有问题没回答，回答后再继续')
+  }
+  const orderedMessages = Array.isArray(messages) ? messages : []
+  const verdictFloor = reworkFloor(orderedMessages, index)
+  const missingRisk = orderedMessages.find(message => (
+    message.kind === 'verdict' &&
+    (message.meta?.stage ?? 0) === index &&
+    (message.seq ?? 0) > verdictFloor &&
+    verdictPassed(message) &&
+    missingOutsideDiff(message)
+  ))
+  if (missingRisk !== undefined) {
+    return deny('conflict', '验收结论缺少 diff 之外的一条风险；没有就写「无」，再签。')
   }
   if (stage.manual === true) {
     // 只认本轮最新一条人工凭证；新的执行回合或重做会让旧凭证过期。
@@ -47,6 +70,12 @@ export const gateFor = (room, index, messages, evidence) => {
   if (acceptance === '') {
     return deny('conflict', '交付型阶段还没有检查方式，不能验收')
   }
+  const stageEvidence = ledger.filter(message => (
+    (message.meta?.stage ?? 0) === index &&
+    (message.seq ?? 0) > reworkFloor(messages, index)
+  ))
+  const tdd = room.demo === true ? '' : tddIssueOf(stage, stageEvidence.at(-1))
+  if (tdd !== '') return deny('conflict', tdd)
   const isCommandEvidence = message => (
     message.meta?.stage === index &&
     (room.demo === true || message.meta?.simulated !== true) &&

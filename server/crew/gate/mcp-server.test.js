@@ -42,10 +42,31 @@ test('a verdict can cite the platform visual check', () => {
     method: 'tools/call',
     params: {
       name: 'submit_verdict',
-      arguments: { decision: 'PASS', reason: '画面层次正常', visual: { seen: false, colors: 50, contrast: 255 } },
+      arguments: { decision: 'PASS', reason: '画面层次正常', outsideDiff: '无', visual: { seen: false, colors: 50, contrast: 255 } },
     },
   })
   assert.deepEqual(response.result.structuredContent.visual, { seen: false, colors: 50, contrast: 255 })
+})
+
+test('a PASS without an outside-diff risk is refused', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 33,
+    method: 'tools/call',
+    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: '都过了' } },
+  })
+  assert.equal(response.result.isError, true)
+  assert.match(response.result.content[0].text, /diff 之外/)
+})
+
+test('a PASS echoes the outside-diff risk', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 34,
+    method: 'tools/call',
+    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: '都过了', outsideDiff: '并发下没有锁' } },
+  })
+  assert.equal(response.result.structuredContent.outsideDiff, '并发下没有锁')
 })
 
 test('a malformed visual field is refused', () => {
@@ -53,7 +74,7 @@ test('a malformed visual field is refused', () => {
     jsonrpc: '2.0',
     id: 32,
     method: 'tools/call',
-    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: 'x', visual: { colors: 3 } } },
+    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: 'x', outsideDiff: '无', visual: { colors: 3 } } },
   })
   assert.equal(response.result.isError, true)
   assert.match(response.result.content[0].text, /seen/)

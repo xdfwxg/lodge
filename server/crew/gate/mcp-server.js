@@ -38,6 +38,7 @@ export const GATE_TOOLS = Object.freeze([
         decision: { type: 'string', enum: ['PASS', 'REJECT'] },
         reason: { type: 'string', maxLength: 2000 },
         findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 10 },
+        outsideDiff: { type: 'string', maxLength: 500 },
         actionRequired: { type: 'string', maxLength: 1000 },
         visual: VISUAL_SCHEMA,
       },
@@ -89,6 +90,10 @@ const callTool = (id, params) => {
   if (name === 'submit_verdict') {
     const decision = verdictDecision(args.decision)
     if (decision === null) return toolFailure(id, 'decision 只能是 PASS 或 REJECT。')
+    const outsideDiff = typeof args.outsideDiff === 'string' ? args.outsideDiff.trim() : ''
+    if (decision === 'PASS' && outsideDiff === '') {
+      return toolFailure(id, 'PASS 要写一条 diff 之外的风险；没有就写「无」。')
+    }
     const findings = Array.isArray(args.findings) ? args.findings.slice(0, 10) : []
     let visual
     if (args.visual !== undefined) {
@@ -107,6 +112,7 @@ const callTool = (id, params) => {
       decision,
       reason,
       findings,
+      outsideDiff,
       ...(visual === undefined ? {} : { visual }),
     })
   }

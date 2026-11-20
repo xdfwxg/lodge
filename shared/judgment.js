@@ -9,6 +9,7 @@ const LIMITS = Object.freeze({
   findings: 10,
   title: 200,
   evidence: 2000,
+  outsideDiff: 500,
 })
 
 const SEVERITIES = new Set(['blocker', 'major', 'minor'])
@@ -133,6 +134,7 @@ export const normalizeJudgment = ({ type, text, stage = null, evidenceId = null,
     reason,
     findings: type === 'verdict' ? normalizeFindings(json?.findings) : [],
     visual: type === 'verdict' ? normalizeVisual(json?.visual) : null,
+    outsideDiff: type === 'verdict' ? clip(json?.outsideDiff, LIMITS.outsideDiff) : '',
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     stage: Number.isInteger(stage) ? stage : null,
     evidenceId: typeof evidenceId === 'string' && evidenceId !== '' ? evidenceId : null,
@@ -191,6 +193,7 @@ export const judgmentFromGate = ({
     reason,
     findings: type === 'verdict' ? normalizeFindings(input.findings) : [],
     visual: type === 'verdict' ? normalizeVisual(input.visual) : null,
+    outsideDiff: type === 'verdict' ? clip(input.outsideDiff, LIMITS.outsideDiff) : '',
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     // rejectTo 是业务路由，模型不能把失败退回给别的角色。
     rejectTo: rejectToFor(type, decision),
@@ -217,6 +220,7 @@ export const validateJudgment = value => {
     reason: clip(value.reason, LIMITS.reason),
     findings: type === 'verdict' ? normalizeFindings(value.findings) : [],
     visual: type === 'verdict' ? normalizeVisual(value.visual) : null,
+    outsideDiff: type === 'verdict' ? clip(value.outsideDiff, LIMITS.outsideDiff) : '',
     actionRequired: clip(value.actionRequired, LIMITS.actionRequired),
     stage: Number.isInteger(value.stage) ? value.stage : null,
     evidenceId: typeof value.evidenceId === 'string' && value.evidenceId !== '' ? value.evidenceId : null,
@@ -252,6 +256,6 @@ export const gateResultOf = judgment => {
   }
 }
 
-export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据"}]}；最多 3 条 findings，没有就写空数组。'
+export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据"}],"outsideDiff":"diff 之外最值得担心的一条风险；没有就写「无」"}；最多 3 条 findings，没有就写空数组。'
 
 export const DECISION_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"怎么改 / 要人拍板什么","actionRequired":"要人做什么"}；“交给人”时 actionRequired 必填，缺失时用 reason 兜底。'

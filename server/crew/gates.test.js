@@ -165,6 +165,34 @@ test('one verifier REJECT blocks sign-off even if the other PASSed', () => {
   assert.match(gate.error, /验收一|验收二/)
 })
 
+test('a code change without a test change cannot pass a test-runner stage', () => {
+  const gate = gateFor(room({ members: [] }), 1, [evidence(1, 10, { changedFiles: ['src/a.js'] })])
+  assert.equal(gate.ok, false)
+  assert.match(gate.error, /没有测试改动/)
+  const passed = gateFor(room({ members: [] }), 1, [
+    evidence(1, 10, { changedFiles: ['src/a.js', 'src/a.test.js'] }),
+  ])
+  assert.equal(passed.ok, true)
+})
+
+test('a PASS without an outside-diff risk cannot be signed off', () => {
+  const judgment = {
+    version: 1,
+    type: 'verdict',
+    decision: 'pass',
+    reason: '都对',
+    findings: [],
+    outsideDiff: '',
+    stage: 1,
+    source: 'gate',
+  }
+  const missing = gateFor(room(), 1, [evidence(), verdict(1, 11, true, { evidenceId: 'e-10', judgment })])
+  assert.equal(missing.ok, false)
+  assert.match(missing.error, /diff 之外/)
+  const withRisk = verdict(1, 12, true, { evidenceId: 'e-10', judgment: { ...judgment, outsideDiff: '无' } })
+  assert.equal(gateFor(room(), 1, [evidence(), withRisk]).ok, true)
+})
+
 test('a manual stage waits for the product before sign-off', () => {
   const r = room({ members: [] })
   r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }
