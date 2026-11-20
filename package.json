@@ -33,7 +33,8 @@
     "gc:base": "node scripts/base-gc.mjs",
     "data:restore": "node scripts/data-restore.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
-    "test:ui": "npm run build && playwright test"
+    "test:ui": "npm run build && playwright test",
+    "retro:env": "node scripts/env-retro.mjs"
   },
   "dependencies": {
     "chrome-devtools-mcp": "1.13.0",

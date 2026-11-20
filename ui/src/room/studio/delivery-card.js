@@ -114,6 +114,16 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
   const [openError, setOpenError] = useState(null)
   const [openNotice, setOpenNotice] = useState(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [prCopied, setPrCopied] = useState(false)
+  const prDraft = delivery.prDraft ?? null
+  const copyPrDraft = async () => {
+    if (prDraft === null || typeof navigator === 'undefined' || navigator.clipboard === undefined) return
+    try {
+      await navigator.clipboard.writeText(prDraft.body)
+      setPrCopied(true)
+      setTimeout(() => setPrCopied(false), 2000)
+    } catch {}
+  }
   const open = async target => {
     try {
       setOpenError(null)
@@ -481,6 +491,14 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
         firstCommand === '' ? null : h('p', { className: 'crew-field-hint' }, `怎么跑：${firstCommand}`),
         openNotice === null ? null : h('p', { className: 'crew-field-hint', role: 'status' }, openNotice),
         openError === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, openError),
+        prDraft === null
+          ? null
+          : h('details', { className: 'crew-fold studio-pr-draft' },
+            h('summary', null, 'PR 文案'),
+            h('pre', { className: 'crew-code studio-pr-draft-body' }, prDraft.body),
+            h('div', { className: 'studio-pr-draft-actions' },
+              h('button', { type: 'button', className: 'crew-link', onClick: copyPrDraft }, prCopied ? '已复制' : '复制 PR 文案'),
+              h('span', { className: 'crew-field-hint' }, '不会自动 push；确认后再走外部动作。'))),
         routineNode,
         h('details', {
           className: 'crew-fold studio-delivery-details',

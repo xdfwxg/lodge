@@ -6,6 +6,7 @@ import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { stripAttachmentTags } from '../../shared/attachments.js'
 import { issuesOf } from '../../shared/room-issues.js'
 import { retroOf } from '../../shared/room-retro.js'
+import { prDraftOf } from '../../shared/pr-draft.js'
 
 // 房间能力是 opt-in 开关，不是房型分类；默认关闭，旧房间不受影响。
 const DEFAULT_ROOM_CAPABILITIES = Object.freeze({ dispatch: false })
@@ -50,6 +51,9 @@ export const presentRoom = (room, messages = [], assignments = [], { children = 
     ...(projection === null ? {} : { assignments }),
   }
   const attention = roomAttention(view, messages, children, routineRun)
+  const baseDelivery = presentation?.deliveryOf?.(view, messages) ?? null
+  const prDraft = baseDelivery === null ? null : prDraftOf(view, messages, baseDelivery)
+  const delivery = baseDelivery === null ? null : { ...baseDelivery, prDraft }
   return {
     ...view,
     revision: room.version ?? 1,
@@ -58,7 +62,8 @@ export const presentRoom = (room, messages = [], assignments = [], { children = 
     needsYou: attention[0] ?? null,
     modeCapabilities: capabilitiesFor(room.roomType),
     independenceLabel: independenceLabel(room),
-    delivery: presentation?.deliveryOf?.(view, messages) ?? null,
+    delivery,
+    prDraft,
     issues: issuesOf(view, messages),
     retro: retroOf(view, messages),
   }

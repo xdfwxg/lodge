@@ -83,6 +83,7 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 - 运行中的房间只在真有回合时，把输入框的发送键换成「停下」；确认后取消当前回合并暂停，已产出内容保留。成员级挂起收在成员行菜单里，叫「先别给 TA 派活」。
 
 ## 检查与证据
+- 交付卡可以展开「PR 文案」：只生成 Summary、Before/After 证据、Door 和 Blast Radius，不会自动 push；复制后由人决定是否创建 PR。
 
 - 产品从仓库认检查：`package.json` 的 `test`（按锁文件选 npm/pnpm/yarn）、`Cargo.toml`、`go.mod`、明确的 pytest、`Makefile` 的 `test`。
 - 在独立副本里跑，命令、退出码、输出、diff、改动文件留证据；认不出来就明说，不拿空命令为难人。
@@ -147,6 +148,7 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 推送 `v*` 标签时，`.github/workflows/release.yml` 构建 Mac arm64 zip 和 Windows/Linux 安装包，做包内容检查和启动 smoke；Mac zip 校验 ad-hoc 签名并生成 `SHA256SUMS.txt`。没有自动更新，发布后手动下载替换。
 
 ## 验证
+- 一次构建结束、尤其是走偏之后，运行 `npm run retro:env`：它按严重度列出这次改动的环境缺口（缺测试、缺文档、空白错误、改动面过大、未提交改动），不进入房间角色。
 
 `npm test`、`npm run build`、`npm run test:ui`（Playwright + axe，覆盖首屏、结果卡、目标面板、窄屏暗色）、`npm run prepare:runtimes`、`npm run package:mac:dir`、`npm run smoke:package`。端到端验证需要 Pi 已登录：新建工作室，执行引擎选 Pi，给一条可执行的验收命令，确认执行成员实际跑了命令并产生证据。
 
