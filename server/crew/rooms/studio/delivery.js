@@ -112,6 +112,25 @@ export const buildDelivery = (room, messages = []) => {
   })
   const commands = stages.flatMap(stage => stage.commands)
   const changedFiles = unique(stages.flatMap(stage => stage.changedFiles))
+  const visualMissing = messages.some(message => message.kind === 'verdict' && message.meta?.visualMissing === true)
+  // 渲染图需要一双能看的眼睛；声明和实际看到分开记，不把声明当成已验证。
+  const previews = Array.isArray(room.previews) ? room.previews : []
+  const verifiers = (room.members ?? []).filter(member => (
+    (member.roleKind ?? member.role) === 'verifier'
+  ))
+  const lastVisual = [...messages].reverse()
+    .map(message => message.kind === 'verdict' ? message.meta?.judgment?.visual : null)
+    .find(value => value !== null && value !== undefined) ?? null
+  const vision = previews.length === 0
+    ? null
+    : {
+      needed: true,
+      declared: verifiers.some(member => member.body?.capabilities?.images === true),
+      checked: lastVisual !== null,
+      seen: typeof lastVisual?.seen === 'boolean' ? lastVisual.seen : null,
+      numbers: lastVisual === null ? null : { colors: lastVisual.colors ?? null, contrast: lastVisual.contrast ?? null },
+      missing: visualMissing,
+    }
   const lastAt = messages.reduce((latest, message) => Math.max(latest, message.ts ?? 0), 0)
   const delivery = {
     roomId: room.id,
@@ -145,6 +164,8 @@ export const buildDelivery = (room, messages = []) => {
     stages,
     commands,
     changedFiles,
+    visualMissing,
+    vision,
     openQuestions: typeof room.openQuestion === 'string' && room.openQuestion.trim() !== ''
       ? [room.openQuestion.trim()]
       : [],

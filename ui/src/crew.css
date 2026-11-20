@@ -910,6 +910,7 @@ body[data-ds-dark-theme] .crew-island-done-detail{color:rgba(255,238,204,.62)}
 .md_markdown a{color:var(--bt-accent);text-decoration:none}
 .md_markdown a:hover{text-decoration:underline}
 .md_markdown blockquote{margin:8px 0;padding:2px 0 2px 10px;border-left:2px solid var(--bt-line-2);color:var(--bt-ink-2)}
+.crew-mention{display:inline-flex;align-items:center;padding:0 7px;margin:0 2px;border-radius:999px;background:var(--bt-accent);color:var(--bt-accent-ink);font-size:.9em;line-height:var(--bt-leading-helper);font-weight:600;vertical-align:1px;white-space:nowrap}
 .md_markdown code{font-family:var(--bt-font-mono);font-size:.9em;padding:1px 4px;border-radius:4px;background:var(--bt-shade-3)}
 .md_markdown pre{margin:10px 0;padding:9px 11px;border-radius:8px;background:var(--bt-shade-2);overflow-x:auto;line-height:var(--bt-leading-label)}
 .md_markdown pre code{padding:0;background:none;font-size:var(--bt-text-label)}

@@ -116,6 +116,19 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidenceId: pending.evidenceId,
       actorId: pending.verifier,
     })
+    // 平台给过渲染图，就必须引用像素检查；看不到可以写 seen:false，但不能装作没这回事。
+    const current = store.readRoom(roomId)
+    const expected = (current?.previews ?? [])
+      .find(item => item.stage === pending.stage && item.evidenceId === pending.evidenceId && item.audit)?.audit ?? null
+    const visual = judgment.visual ?? null
+    // 只要引用了平台检查的形状就算核对过；两次渲染的颜色数可能差一两个，不因此判成没看。
+    const visualOk = expected === null ||
+      (visual !== null &&
+        typeof visual.seen === 'boolean' &&
+        Number.isInteger(visual.colors) &&
+        Number.isInteger(visual.contrast))
+    // 不在这里追问：复核回合已经结束，重问会让复核挂住；缺了就如实标记，交给交付卡和系统消息说明。
+    const visualMissing = !visualOk
     const pass = judgment.decision === 'pass'
     const name = memberDisplayName(room, memberId)
     const spec = memberOf(room, pending.verifier)
@@ -139,6 +152,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         verifier: pending.verifier,
         turnId,
         simulated: false,
+        ...(visualMissing ? { visualMissing: true } : {}),
         ...(late ? { late: true } : {}),
       },
     })
@@ -146,6 +160,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       store.appendMessage(roomId, {
         kind: 'system',
         text: `${name} 的判定晚到了；这一步和证据没变，按这条处理。`,
+      })
+    }
+    if (visualMissing) {
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `${name} 这次只看文字证据，渲染图没有核对。`,
+        meta: { kind: 'visual', stage: pending.stage },
       })
     }
     store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, independent: true, turnId, late })
@@ -196,13 +217,15 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         text: policy === 'majority'
           ? `验收通过：${passed}/${total}（需要 ${required} 位），这一步做完了。`
           : '全部验收员通过，这一步做完了。',
+        meta: { kind: 'stage', stage: pending.stage },
       })
     } else {
       store.appendMessage(roomId, {
         kind: 'system',
         text: policy === 'majority'
-          ? `${name} 投了退回：${passed}/${total} 通过、${rejected} 退回（需要 ${required} 位通过）；这一轮仍未通过。`
-          : `${name} 退回；其余验收员不再等待，重做后再检查一次。`,
+          ? `${name} 投了退回，这一轮未通过；@规划师 接手返工。`
+          : `${name} 退回了这一步；@规划师 接手返工。`,
+        meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner' },
       })
       const current = store.readRoom(roomId)
       const moved = transitionStudio(current?.closure ?? 'verifying', 'verdict_reject')
@@ -330,6 +353,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         )),
         '先看截图里的视觉结果，再回代码核对尺寸与 token；截图明显不符合目标就 REJECT。',
         '如果你看不到这张图，就直说“看不到渲染图”，再按可核对的文本证据判定，不要假装看过。',
+        ...(shots.some(item => item.audit)
+          ? [`提交判定时必须带 visual：{"seen": true 或 false, "colors": ${shots.find(item => item.audit).audit.colors}, "contrast": ${shots.find(item => item.audit).audit.contrast}}。看不到图就写 seen:false，但数字必须引用上面的检查。`]
+          : []),
       ]
     const reviewGuidance = reviewGuidanceFor(room)
     const nextRound = {

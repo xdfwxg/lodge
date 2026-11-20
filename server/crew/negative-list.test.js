@@ -131,6 +131,29 @@ test('kernel modules read context state only through facades or kinds', () => {
 })
 
 
+test('member rules never branch on what the task is about', () => {
+  // 纪律来自角色、房型和能力，不来自任务关键词；否则每个新任务都要换一份提示词。
+  const files = [
+    'prompt-modes.js',
+    'rooms/chat/kind.js',
+    'rooms/chat/scheduler.js',
+    'rooms/studio/kind.js',
+    'rooms/studio/prompts.js',
+    'rooms/studio/review.js',
+    'rooms/create/input.js',
+    'roster-recommend.js',
+    'member-delivery.js',
+  ]
+  for (const file of files) {
+    const source = read(file)
+    assert.doesNotMatch(
+      source,
+      /\bgoal\s*\.\s*(?:includes|match|startsWith|endsWith)\s*\(/,
+      `${file} branches member rules on goal text`,
+    )
+  }
+})
+
 test('generic room creation knows no room engine handoff', () => {
   for (const file of sources('rooms/create')) {
     assert.doesNotMatch(

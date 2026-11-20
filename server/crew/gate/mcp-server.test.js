@@ -35,6 +35,30 @@ test('a verdict call echoes a structured result', () => {
   assert.equal(response.result.structuredContent.reason, '缺少日志')
 })
 
+test('a verdict can cite the platform visual check', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 31,
+    method: 'tools/call',
+    params: {
+      name: 'submit_verdict',
+      arguments: { decision: 'PASS', reason: '画面层次正常', visual: { seen: false, colors: 50, contrast: 255 } },
+    },
+  })
+  assert.deepEqual(response.result.structuredContent.visual, { seen: false, colors: 50, contrast: 255 })
+})
+
+test('a malformed visual field is refused', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 32,
+    method: 'tools/call',
+    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: 'x', visual: { colors: 3 } } },
+  })
+  assert.equal(response.result.isError, true)
+  assert.match(response.result.content[0].text, /seen/)
+})
+
 test('an invalid verdict is refused without breaking the connection', () => {
   const response = handleMessage({
     jsonrpc: '2.0',

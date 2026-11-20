@@ -1,5 +1,5 @@
 import { createElement as h } from 'react'
-import { renderSharedMessage, resolveMember } from '../message-view.js'
+import { mentionNamesOf, renderSharedMessage, resolveMember } from '../message-view.js'
 import { ChatLine, Speaker } from '../../message-cards.js'
 import { QuestionCard } from '../question-card.js'
 import { splitVerdictText } from './verdict-text.js'
@@ -29,11 +29,12 @@ export const renderStudioMessage = ({
   onSteerQueue = null,
 }) => {
   const member = resolveMember(room, byId, message)
+  const mentions = mentionNamesOf(room)
 
   if (message.kind === 'verdict' && message.meta?.human === true) return null
 
   const chat = (text, extra = null, key = message.id) => h('div', { key, className: 'crew-msg-wrap' },
-    h(ChatLine, { message: { ...message, text }, member }),
+    h(ChatLine, { message: { ...message, text }, member, mentions }),
     extra)
 
   // 规划师的排期是一条消息，步骤直接读得出来。
@@ -98,7 +99,7 @@ export const renderStudioMessage = ({
   if (message.kind === 'activity_steps' || message.kind === 'activity') return null
 
   if (message.kind === 'chat' && message.authorId !== 'you') {
-    return h(ChatLine, { key: message.id, message, member })
+    return h(ChatLine, { key: message.id, message, member, mentions })
   }
 
   return renderSharedMessage({ room, byId, message, onAnswerCard, onCancelQueue, onSteerQueue })

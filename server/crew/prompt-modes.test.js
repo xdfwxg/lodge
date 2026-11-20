@@ -11,9 +11,9 @@ test('work contracts carry stage discipline, not room identity', () => {
   assert.match(workContract('verifier').join('\n'), /只在自己的复核副本里读文件/)
   assert.match(workContract('verifier').join('\n'), /与阶段目标无关的新增文件/)
   assert.match(workContract('verifier').join('\n'), /退回时只写具体缺口，系统会把判定交给规划师/)
-  assert.match(workContract('lead').join('\n'), /用户确认前不要派活/)
+  assert.match(workContract('lead').join('\n'), /对齐由系统自动确认/)
   assert.match(workContract('lead').join('\n'), /已经有交接单或方案时，直接按步骤派发，不再重复对齐/)
-  assert.match(workContract('lead').join('\n'), /只问当前阶段新出现的分叉/)
+  assert.match(workContract('lead').join('\n'), /只在决策阶段用选项卡/)
   for (const role of ['lead', 'worker', 'verifier']) {
     assert.match(workContract(role).join('\n'), /每次 @ 都是交接/)
   }

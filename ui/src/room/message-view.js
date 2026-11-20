@@ -1,11 +1,29 @@
 import { createElement as h } from 'react'
 import { ActivityLine, ChatLine, Markdown } from '../message-cards.js'
+import { MentionText } from '../primitives.js'
 import { QuestionCard } from './question-card.js'
 import { hostLabelOf } from './host.js'
 import { cardStateOf } from '../../../shared/attempt.js'
 import { formatAttachmentBytes, splitAttachmentTags } from '../../../shared/attachments.js'
 
 // 共享层只处理两种房型都存在的消息；专属类型由各自的渲染器先接管。
+
+// 交接链上的系统消息要显示；其余系统小字不占时间线。
+// 只留让人安心、知道下一步的交接；技术性提醒留在交付卡里，不占时间线。
+const CHAIN_KINDS = new Set(['gate', 'handoff', 'stage'])
+export const isChainMessage = message => {
+  if (message?.kind !== 'system') return false
+  if (CHAIN_KINDS.has(message?.meta?.kind)) return true
+  // 需要人处理的错误要看得见；自动重试和后台噪音不显示。
+  return message?.meta?.kind === 'notice' && message.meta.show === true
+}
+
+// 只有真实成员才做药丸；@you 这类不是成员，保持普通文字。
+export const mentionNamesOf = room => [
+  ...(room?.members ?? []).flatMap(item => [item.name, item.body?.name]),
+  hostLabelOf(room),
+  '所有人',
+].filter(value => typeof value === 'string' && value !== '')
 
 export const resolveMember = (room, byId, message) => (
   byId[message.authorId]
@@ -22,6 +40,7 @@ export const renderSharedMessage = ({
   onSteerQueue = null,
 }) => {
   const member = resolveMember(room, byId, message)
+  const mentionNames = mentionNamesOf(room)
   if (message.kind === 'question') {
     const messages = Array.isArray(room?.messages) ? room.messages : []
     return h(QuestionCard, {
@@ -33,7 +52,8 @@ export const renderSharedMessage = ({
     })
   }
   if (message.kind === 'system' || message.kind === 'child_result') {
-    return h('div', { key: message.id, className: 'crew-system' }, message.text)
+    return h('div', { key: message.id, className: 'crew-system' },
+      h(MentionText, { text: message.text, mentions: mentionNames }))
   }
   if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })
   if (message.kind === 'rework' && message.meta?.auto === true) {
@@ -70,7 +90,7 @@ export const renderSharedMessage = ({
                 h('span', { className: 'crew-attachment-dot', 'aria-hidden': 'true' }),
                 h('span', { className: 'crew-attachment-name' }, item.title ?? item.name),
                 item.bytes === undefined ? null : h('span', { className: 'crew-attachment-size' }, formatAttachmentBytes(item.bytes))))),
-        parsed.text === '' ? null : h(Markdown, { text: parsed.text, variant: 'compact' })),
+        parsed.text === '' ? null : h(Markdown, { text: parsed.text, variant: 'compact', mentions: mentionNames })),
       message.meta?.queueId === undefined
         ? null
         : h('div', { className: 'crew-queue-actions' },
@@ -92,5 +112,5 @@ export const renderSharedMessage = ({
       }).trim(),
     }
     : message
-  return h(ChatLine, { key: message.id, message: shown, member })
+  return h(ChatLine, { key: message.id, message: shown, member, mentions: mentionNames })
 }

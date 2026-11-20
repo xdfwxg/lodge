@@ -1,7 +1,7 @@
 import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../../approval-card.js'
 import { ChatLine } from '../../message-cards.js'
-import { renderSharedMessage } from '../message-view.js'
+import { isChainMessage, renderSharedMessage } from '../message-view.js'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { hostLabelOf } from '../host.js'
 import { chatStudioSeed } from './seed.js'
@@ -91,8 +91,12 @@ function Timeline({
   const pendingApprovals = (room.approvals ?? []).filter(approval => (
     approval.state === 'pending' && scopeIsValid(approval.scope, { room, messages: roomMessages })
   ))
-  const hidden = new Set(['activity', 'system', ...hideKinds])
-  const meaningful = timeline.visible.filter(message => !hidden.has(message.kind))
+  const hidden = new Set(['activity', ...hideKinds])
+  const meaningful = timeline.visible.filter(message => {
+    if (hidden.has(message.kind)) return false
+    if (message.kind === 'system') return isChainMessage(message)
+    return true
+  })
   return [
     ...meaningful.map(renderMessage).flat().filter(Boolean),
     ...pendingApprovals

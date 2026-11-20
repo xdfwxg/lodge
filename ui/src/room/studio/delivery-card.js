@@ -424,6 +424,18 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
                     : manualNotes[0] ?? '人工验收'))
           : null,
         metrics === '' || hasPreview ? null : h('p', { className: 'crew-delivery-metrics' }, metrics),
+        (() => {
+          const vision = delivery.vision ?? null
+          if (vision === null) return null
+          const text = vision.missing === true
+            ? '这次验收只看文字证据，渲染图没有核对。'
+            : vision.declared !== true
+              ? '这间房没有能看图的验收员，渲染图只做了像素检查。'
+              : vision.checked === true && vision.seen === false
+                ? '验收员这次没有看到渲染图，结论来自像素检查。'
+                : ''
+          return text === '' ? null : h('p', { className: 'crew-field-hint' }, text)
+        })(),
         gallery.length > 0
           ? h('div', { className: 'studio-delivery-gallery', role: 'group', 'aria-label': '结果图片' },
             gallery.map(artifact => h(ArtifactThumb, {

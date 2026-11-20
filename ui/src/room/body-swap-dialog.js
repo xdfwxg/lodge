@@ -17,6 +17,17 @@ const MIND_PRESETS = [
 
 const labelOf = engine => `${engine.name ?? engine.id}${engine.models?.default ? ` · ${engine.models.default}` : ''}`
 
+const declarationOf = member => {
+  const caps = member.body?.capabilities
+  if (caps === undefined) return ''
+  const tools = []
+  if (caps.tools?.read === true) tools.push('读')
+  if (caps.tools?.write === true) tools.push('写')
+  if (caps.tools?.exec === true) tools.push('跑命令')
+  const vision = caps.images === true ? '声明能看图（以验收结论为准）' : '只看文字'
+  return `身体声明：${vision}${tools.length === 0 ? '' : ` · 工具：${tools.join(' / ')}`}`
+}
+
 // 调整成员：只换模型或运行时；成员 id、证据、交接和历史都不动。
 export function BodySwapDialog({ member, engines = [], features = null, requiresGate = false, canRemove = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onRefresh = null }) {
   const readiness = engineReadiness(engines, { requireApproval: requiresGate })
@@ -80,6 +91,9 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
     }),
     h('div', { className: 'crew-dialog-body' },
       tab === 'body' ? h(Fragment, null,
+      member.body?.capabilities === undefined
+        ? null
+        : h('p', { className: 'crew-field-hint' }, declarationOf(member)),
       h('label', { className: 'crew-field crew-body-swap-field' },
         h('b', null, '智能体'),
         h('select', {

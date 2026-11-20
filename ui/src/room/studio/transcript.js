@@ -4,6 +4,7 @@ import { humanNoteKeys, isDuplicateHumanRework } from '../human-note.js'
 import { ShadowAdvice } from './advisor-advice.js'
 import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
+import { isChainMessage } from '../message-view.js'
 import { HumanGateCard } from './human-gate.js'
 import { MergeConflictCard } from './merge-conflict.js'
 import { DeliveryCard } from './delivery-card.js'
@@ -63,8 +64,8 @@ export function StudioTranscript({
     // 人的重做标记和 human-context 是同一条输入；主时间线只留带“补充上下文”的那一条。
     const humanNotes = humanNoteKeys(messages)
     return messages.filter(message => {
-      // 工作式聊天只留人和成员说的话；系统小字不占时间线。
-      if (message.kind === 'system' || message.authorId === 'system') return false
+      // 工作式聊天只留人和成员说的话；交接链上的系统消息例外。
+      if (message.kind === 'system' || message.authorId === 'system') return isChainMessage(message)
       if (isDuplicateHumanRework(message, humanNotes)) return false
       // 过程日志不进主时间线；当前在做什么由岛和正在输入那一行说。
       if (message.kind === 'activity') return false

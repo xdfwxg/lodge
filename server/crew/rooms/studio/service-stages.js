@@ -402,7 +402,11 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (stage.kind === 'decision') {
       const lead = leadMemberOf(updated)?.id
       if (stage.manual === true) {
-        appendMessage(room.id, { kind: 'system', text: `第 ${index + 1} 步「${stage.title}」重新打开，请你重新确认。` })
+        appendMessage(room.id, {
+          kind: 'system',
+          text: `第 ${index + 1} 步「${stage.title}」重新打开，请你重新确认。`,
+          meta: { kind: 'stage', stage: index },
+        })
       } else if (typeof lead === 'string' && lead !== '' && room.live === true && typeof live.sendToMember === 'function') {
         const prompt = [
           `第 ${index + 1} 步「${stage.title}」要重新确认。`,
@@ -414,7 +418,11 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
           systemNotice({ store, roomId: room.id, text: '这一步没能重新开始；需要你处理。', error })
         })
       } else {
-        appendMessage(room.id, { kind: 'system', text: '这一步已经重新打开；需要你继续或重新开始。' })
+        appendMessage(room.id, {
+          kind: 'system',
+          text: '这一步已经重新打开；需要你继续或重新开始。',
+          meta: { kind: 'stage', stage: index },
+        })
       }
     } else if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {

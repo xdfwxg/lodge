@@ -88,6 +88,16 @@ const stripAnchor = text => String(text ?? '')
   .replace(/^[\s*#>]*(?:(?:结论|判定|验收结论|verdict)\s*[:：]?\s*)?(PASS|REJECT|REWORK|返工|交给人)[\s*]*[：:\-]?\s*/i, '')
   .trim()
 
+// 视觉核对：seen 必须说清看没看到图；数字只能引用平台给的像素检查结果。
+const normalizeVisual = value => {
+  if (value === null || typeof value !== 'object' || typeof value.seen !== 'boolean') return null
+  return {
+    seen: value.seen,
+    ...(Number.isInteger(value.colors) && value.colors >= 0 ? { colors: value.colors } : {}),
+    ...(Number.isInteger(value.contrast) && value.contrast >= 0 ? { contrast: value.contrast } : {}),
+  }
+}
+
 const normalizeFindings = value => {
   if (!Array.isArray(value)) return []
   const findings = []
@@ -122,6 +132,7 @@ export const normalizeJudgment = ({ type, text, stage = null, evidenceId = null,
     decision,
     reason,
     findings: type === 'verdict' ? normalizeFindings(json?.findings) : [],
+    visual: type === 'verdict' ? normalizeVisual(json?.visual) : null,
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     stage: Number.isInteger(stage) ? stage : null,
     evidenceId: typeof evidenceId === 'string' && evidenceId !== '' ? evidenceId : null,
@@ -179,6 +190,7 @@ export const judgmentFromGate = ({
     decision,
     reason,
     findings: type === 'verdict' ? normalizeFindings(input.findings) : [],
+    visual: type === 'verdict' ? normalizeVisual(input.visual) : null,
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     // rejectTo 是业务路由，模型不能把失败退回给别的角色。
     rejectTo: rejectToFor(type, decision),
@@ -204,6 +216,7 @@ export const validateJudgment = value => {
     decision,
     reason: clip(value.reason, LIMITS.reason),
     findings: type === 'verdict' ? normalizeFindings(value.findings) : [],
+    visual: type === 'verdict' ? normalizeVisual(value.visual) : null,
     actionRequired: clip(value.actionRequired, LIMITS.actionRequired),
     stage: Number.isInteger(value.stage) ? value.stage : null,
     evidenceId: typeof value.evidenceId === 'string' && value.evidenceId !== '' ? value.evidenceId : null,

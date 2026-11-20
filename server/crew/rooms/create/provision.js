@@ -5,6 +5,18 @@ import { roomBulletin, roomModeForType } from '../kinds.js'
 import { roleKindOf } from '../../roster.js'
 import { independenceOf } from '../../independence.js'
 
+// 验收员先要眼睛：有声明能看图的实例就先选它，其中再优先不同厂商；
+// 没有能看图的，才退回跨厂商独立复核。两者只能保一个时，先保有眼睛。
+export const pickVerifierEngine = (instances, workerKinds) => {
+  const available = (instances ?? []).filter(item => item?.available === true)
+  const vision = available.filter(item => item?.capabilities?.images === true)
+  const chosen = vision.find(item => !workerKinds.has(item.engine)) ??
+    vision[0] ??
+    available.find(item => !workerKinds.has(item.engine)) ??
+    null
+  return chosen?.id ?? null
+}
+
 export const createProvisioner = ({ engine }) => {
   const bodies = createBodyFactory({ engine })
   const created = []
@@ -29,8 +41,8 @@ export const createProvisioner = ({ engine }) => {
         const workerKinds = new Set(created
           .filter(({ member: item }) => kindOf(item) === 'executor')
           .map(({ body }) => engineKind(body.engine)))
-        const candidate = instances.find(item => item.available && !workerKinds.has(item.engine))
-        if (candidate !== undefined) requestedEngine = candidate.id
+        const candidateId = pickVerifierEngine(instances, workerKinds)
+        if (candidateId !== null) requestedEngine = candidateId
       }
       const incarnation = await bodies.incarnate({
         member,
@@ -51,7 +63,22 @@ export const createProvisioner = ({ engine }) => {
           cwd: workspaces.members[member.id].path,
         },
       })
-      created.push({ member, memberRef: incarnation.memberRef, body: incarnation.body })
+      // 身体声明它自己能做什么；这是声明，不是验证过的能力。
+      const instance = instances.find(item => item.id === incarnation.body.engine)
+      const body = instance === undefined
+        ? incarnation.body
+        : {
+          ...incarnation.body,
+          capabilities: {
+            images: instance.capabilities?.images === true,
+            tools: {
+              read: member.permissions?.read === true,
+              write: member.permissions?.write === true,
+              exec: member.permissions?.exec === true,
+            },
+          },
+        }
+      created.push({ member, memberRef: incarnation.memberRef, body })
     }
     // 身体体检：只读基座表示的可用性，建房前就把没装好或没登录的身体拦下来。
     const bodyIssues = created.map(({ member, body }) => ({
