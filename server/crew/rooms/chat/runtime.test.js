@@ -44,8 +44,14 @@ test('chat allows read-only tools and denies write or exec', async () => {
     card: { action: 'read', requestId: 'p1', tool: 'Read' },
   }, { sessionRef: 'thread-1' })
   await strategy.permissionCard({ roomId: 'room-1' }, 'worker', {
-    card: { action: 'write', requestId: 'p2', tool: 'Write' },
+    card: { action: 'exec', requestId: 'p2', tool: 'mcp__chrome-devtools__take_snapshot' },
   }, { sessionRef: 'thread-1' })
-  assert.deepEqual(answered.map(item => item.behavior), ['allow', 'deny'])
+  await strategy.permissionCard({ roomId: 'room-1' }, 'worker', {
+    card: { action: 'write', requestId: 'p3', tool: 'Write' },
+  }, { sessionRef: 'thread-1' })
+  await strategy.permissionCard({ roomId: 'room-1' }, 'worker', {
+    card: { action: 'exec', requestId: 'p4', tool: 'mcp__chrome-devtools__click' },
+  }, { sessionRef: 'thread-1' })
+  assert.deepEqual(answered.map(item => item.behavior), ['allow', 'allow', 'deny', 'deny'])
   assert.match(messages[0].text, /只放行只读工具/)
 })

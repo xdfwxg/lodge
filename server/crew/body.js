@@ -1,6 +1,7 @@
 import { bodyIssueOf } from './body-check.js'
 import { ensureGateServer, roomToolsFor } from './gate/tool.js'
 import { toolScopeFor } from './tool-scope.js'
+import { mergeRoleSkills } from '../../shared/role-toolbox.js'
 
 // 身体工厂：只负责让一具基座身体上线、进入共享房间、退役。
 // 成员身份、权限、交接、房间状态都不在这里；建房、换身体、添加成员共用这一条路。
@@ -17,7 +18,10 @@ export const createBodyFactory = ({ engine }) => {
 
   const incarnate = async ({ member, config, thread }) => {
     const spec = config.spec ?? {}
-    const skills = Array.isArray(spec.skills) ? spec.skills : []
+    const skills = mergeRoleSkills(
+      member.roleKind === 'participant' ? 'participant' : member.role,
+      Array.isArray(spec.skills) ? spec.skills : [],
+    )
     const mcp = Array.isArray(spec.mcp) ? spec.mcp : []
     const bodySpec = {
       prompt: typeof spec.prompt === 'string' ? spec.prompt : '',

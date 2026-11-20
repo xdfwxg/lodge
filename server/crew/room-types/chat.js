@@ -4,6 +4,7 @@ const meta = roomTypeMeta('chat')
 
 export const CHAT_TURNS_PER_ROUND = 6
 export const MAX_CHAT_TURNS_PER_ROUND = 20
+export const maxChatTurns = MAX_CHAT_TURNS_PER_ROUND
 
 export const turnLimitOf = room => {
   const value = Number(room?.chat?.turnLimit)
@@ -18,9 +19,9 @@ export const description = meta.description
 export const defaultVerify = meta.defaultVerify
 export const readOnly = meta.readOnly
 export const defaultMembers = [
-  { role: 'worker', name: '甲', personality: 'assertive' },
-  { role: 'worker', name: '乙', personality: 'cheerful' },
-  { role: 'worker', name: '丙', personality: 'gentle' },
+  { role: 'worker', name: '甲', personality: 'assertive', stance: 'proposer' },
+  { role: 'worker', name: '乙', personality: 'cheerful', stance: 'critic' },
+  { role: 'worker', name: '丙', personality: 'gentle', stance: 'synthesizer' },
 ]
 export const autoStart = 'chat'
 export const singleDirectory = true

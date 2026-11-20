@@ -7,6 +7,7 @@ import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { createStore } from './store.js'
+import { skillsForRole } from '../../shared/role-toolbox.js'
 
 const temp = prefix => mkdtempSync(join(tmpdir(), prefix))
 
@@ -73,14 +74,14 @@ const fakeLive = () => ({
   sendToMember: async () => ({ messageId: null }),
 })
 
-const run = (store, body, engine = fakeEngine(), workspace = null, parentRoom = null) => createRealRoom({
+const run = (store, body, engine = fakeEngine(), workspace = null, parentRoom = null, ports = null) => createRealRoom({
   store,
   engine,
   live: fakeLive(),
   emit: () => {},
   body,
   workspace,
-  ports: createCrewPorts(),
+  ports: ports ?? createCrewPorts(),
   parentRoom,
 })
 
@@ -167,11 +168,15 @@ test('declared member skills are assigned to the created base member', async () 
     ],
   }, engine)
   assert.equal(result.ok, true)
-  assert.deepEqual(engine.skillAssignments, [{
-    botId: 'member-执行',
-    skills: ['evidence-review'],
-  }])
-  assert.deepEqual(result.body.room.members.find(member => member.name === '执行').body.spec.skills, ['evidence-review'])
+  assert.deepEqual(engine.skillAssignments, [
+    { botId: 'member-规划', skills: skillsForRole('lead') },
+    { botId: 'member-执行', skills: [...skillsForRole('worker'), 'evidence-review'] },
+    { botId: 'member-验收', skills: skillsForRole('verifier') },
+  ])
+  assert.deepEqual(
+    result.body.room.members.find(member => member.name === '执行').body.spec.skills,
+    [...skillsForRole('worker'), 'evidence-review'],
+  )
 })
 
 test('member skills fail before creating anything when the base library is off', async () => {
@@ -189,6 +194,22 @@ test('member skills fail before creating anything when the base library is off',
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'conflict')
   assert.match(result.error, /技能库/)
+  assert.deepEqual(engine.seatNames, [])
+})
+
+test('role skills fail before creating anything when the packs are not ready', async () => {
+  const { store } = completedRoom(temp('lodge-role-pack-off-data-'))
+  const engine = fakeEngine()
+  const result = await run(store, {
+    goal: '角色技能包没准备好',
+    verify: 'manual',
+  }, engine, null, null, {
+    ...createCrewPorts(),
+    roleSkills: { ready: () => false },
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'conflict')
+  assert.match(result.error, /角色技能包/)
   assert.deepEqual(engine.seatNames, [])
 })
 
@@ -392,16 +413,21 @@ test('unknown room types fail closed', async () => {
 
 test('a chat room has a configurable turn limit and no trust ladder', async () => {
   const { store } = completedRoom(temp('lodge-chat-rules-data-'))
+  const engine = fakeEngine()
   const result = await run(store, {
     goal: '圆桌讨论一下交付边界',
     roomType: 'chat',
     chatTurnLimit: 4,
-  })
+  }, engine)
   assert.equal(result.ok, true)
   const room = result.body.room
   assert.equal(room.chat.turnLimit, 4)
   assert.equal('trust' in room, false)
   assert.equal('stages' in room, false)
+  assert.deepEqual(room.members.map(member => member.permissions), Array(3).fill({ read: true, exec: false, write: false }))
+  assert.deepEqual(room.members.map(member => member.body.spec.skills), [[], [], []])
+  assert.deepEqual(room.members.map(member => member.stance), ['proposer', 'critic', 'synthesizer'])
+  assert.deepEqual(engine.skillAssignments, [])
 })
 
 test('chat speakers can pin their own engine and model', async () => {

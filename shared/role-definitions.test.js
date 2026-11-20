@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { materializeRole, roleDefinitionOf } from './role-definitions.js'
+import { skillsForRole } from './role-toolbox.js'
 import { membersFor } from '../server/crew/roster.js'
 
 test('each role definition carries the full reusable role contract', () => {
@@ -12,6 +13,7 @@ test('each role definition carries the full reusable role contract', () => {
   assert.ok(planner.rules.includes('不写文件'))
   assert.ok(planner.artifacts.includes('plan'))
   assert.ok(planner.gates.includes('plan-review'))
+  assert.deepEqual(planner.skills, skillsForRole('lead'))
 })
 
 test('role instances copy the definition instead of sharing mutable arrays', () => {
@@ -19,7 +21,7 @@ test('role instances copy the definition instead of sharing mutable arrays', () 
   const second = materializeRole('worker')
   first.skills.push('changed')
   first.permissions.write = false
-  assert.deepEqual(second.skills, [])
+  assert.deepEqual(second.skills, skillsForRole('worker'))
   assert.equal(second.permissions.write, true)
   assert.equal(membersFor('delivery-triad')[1].role, 'worker')
 })

@@ -4,6 +4,7 @@ import { resolveRoomType } from '../../rooms/kinds.js'
 import { engineBlockReason } from '../../../../shared/engine-readiness.js'
 import { bodyChangeBlocker } from '../../body-change.js'
 import { normalizeBodySpec } from '../../body-spec.js'
+import { mergeRoleSkills } from '../../../../shared/role-toolbox.js'
 import { grantBrowserToAll } from '../../room-access.js'
 import { isBrowserGrant } from '../../../../shared/room-access.js'
 import { plainRuntimeError } from '../../base-error.js'
@@ -53,6 +54,10 @@ export const createBodySwap = ({ store, engine, emit }) => {
       fallback: current,
     })
     if (specError !== undefined) return fail('invalid', specError)
+    spec.skills = mergeRoleSkills(
+      member.roleKind === 'participant' ? 'participant' : member.role,
+      spec.skills,
+    )
     spec.mcp = grantBrowserToAll([{ mcp: spec.mcp }])[0].mcp
     if ((member.role === 'lead' || member.role === 'verifier') && spec.mcp.some(grant => !isBrowserGrant(grant))) {
       return fail('invalid', '规划师和验收员只能使用只读浏览器，不能挂其他外部工具。')

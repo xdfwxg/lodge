@@ -144,8 +144,8 @@ export const seedSampleMessages = ({ store, room } = {}) => {
 export const sampleChatRoomRecord = ({ now = Date.now() } = {}) => ({
   id: SAMPLE_CHAT_ROOM_ID,
   kind: 'room',
-  name: '示例：把「大胖橘住在灵动岛上」聊成一个方向',
-  goal: '聊聊：大胖橘该住在灵动岛的哪里，怎么动才不打扰人',
+  name: '示例：把「朏朏住在灵动岛上」聊成一个方向',
+  goal: '聊聊：朏朏该住在灵动岛的哪里，怎么动才不打扰人',
   templateId: 'custom',
   roomType: 'chat',
   engine: 'demo',
@@ -212,13 +212,13 @@ export const seedSampleChatMessages = ({ store, room } = {}) => {
   append({
     kind: 'chat',
     authorId: 'lodge-sample',
-    text: '今天我们聊一个具体的问题：岛上那只大胖橘，住在灵动岛的什么位置，怎么动才不打扰人？',
+    text: '今天我们聊一个具体的问题：岛上那只朏朏，住在灵动岛的什么位置，怎么动才不打扰人？',
     meta: { opening: true, round: 1 },
   })
   append({
     kind: 'chat',
     authorId: 'man',
-    text: '我倾向让它待在上沿，像猫趴在窗台上。别绕整圈，绕到下面会挡住内容。',
+    text: '我倾向让它待在上沿，像一只小狸趴在窗台上。别绕整圈，绕到下面会挡住内容。',
   })
   append({
     kind: 'chat',
@@ -233,12 +233,12 @@ export const seedSampleChatMessages = ({ store, room } = {}) => {
   append({
     kind: 'chat',
     authorId: 'man',
-    text: '颜色也别跳。一只暖橘就够了，夜里再偏金一点；不用白天黑猫晚上金猫。',
+    text: '颜色也别跳。白毛白尾、脖子一圈软鬃就够了；金色只留在眼睛和铃铛上。',
   })
   const conclusion = append({
     kind: 'chat_conclusion',
     authorId: 'lodge-sample',
-    text: '收敛到一个方向：让一只大胖橘住在上沿，平时趴着，干活时沿边线走两步，不绕整圈、不挡内容；夜里偏金，白天保持暖橘。',
+    text: '收敛到一个方向：让一只朏朏住在上沿，平时趴着，干活时沿边线走两步，不绕整圈、不挡内容；白毛白尾，金色只留在眼睛和铃铛上。',
     meta: { round: 1, turnLimit: 4, turns: 4, host: 'lodge-sample', fallback: false, at: Date.now() },
   })
   store.updateRoom?.(room.id, current => {

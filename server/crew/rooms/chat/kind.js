@@ -4,6 +4,8 @@ import { isChatSystemNoise } from '../../room-chat.js'
 import { systemNotice } from '../../notices.js'
 import { LODGE_HOST_LABEL } from '../../member-labels.js'
 import { personalityPrompt } from '../../../../shared/personalities.js'
+import { CHAT_HOST_VOICE, CHAT_VOICE } from '../../../../shared/chat-voice.js'
+import { stancePrompt } from '../../../../shared/chat-stances.js'
 import { chatProjection } from './projection.js'
 
 // 聊天室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
@@ -12,14 +14,23 @@ export const chatKind = {
   type,
   owns: typeId => typeId === 'chat',
 
+  memberPrompt: () => '',
+  demoMessage: '这是示例房间，不接模型；要动手就把结论转成工作室任务。',
+  messagePolicy: ({ room, text }) => {
+    if (!text.includes('@')) return { type: 'host' }
+    if (room.chat?.phase === 'concluded' && room.chat?.running !== true) return { type: 'continue' }
+    return null
+  },
+
   memberRole: member => ({
     roleKind: 'participant',
     roleProfile: member.name,
+    skills: [],
     ...(member.role === 'lead' ? { isHost: true } : {}),
   }),
 
-  // 聊天室成员只带讨论纪律，不继承工作室的执行 SOP。
-  memberSoul: member => `你是${member.name}，在一个聊天室里就像普通人一样说话：有自己的观点和语气，可以直接反驳别人。用中文，控制在 200 字以内；这里只聊天，不改文件、不调用工具。\n${personalityPrompt(member.personality)}`,
+  // 聊天室成员只带讨论纪律，不继承工作室的执行 SOP；可以读文件和只读公网。
+  memberSoul: member => `你是${member.name}，在一个聊天室里就像普通人一样说话：有自己的观点和语气，可以直接反驳别人。用中文，控制在 200 字以内；可以只读查看仓库和文件，也可以联网只读查资料，引用时写路径或链接；不写文件、不跑命令，登录、提交、发帖、下单这类外部动作先问人。\n${CHAT_VOICE}\n${stancePrompt(member.stance)}\n${personalityPrompt(member.personality)}`,
 
   validateRoster: null,
   resolvePlan: () => null,
@@ -27,8 +38,11 @@ export const chatKind = {
   evaluateGate: () => ({ decision: 'allow', issues: [], needsHumanReview: false, advice: [] }),
   supportsDelivery: false,
   supportsRoutine: false,
+  supportsMemberAdd: false,
+  allowsHostOnly: room => room?.lodge === true,
+  busyNow: room => room?.chat?.running === true,
   followup: null,
-  approvalReadOnly: () => false,
+  approvalReadOnly: () => true,
   appliesStageDependencies: false,
 
   leadMemberIdOf: () => null,
@@ -37,7 +51,7 @@ export const chatKind = {
     const limit = Number.isInteger(chatLimit) ? chatLimit : CHAT_TURNS_PER_ROUND
     return {
       constraints: [
-        '聊天室只读：成员只讨论，不执行工具、不改文件',
+        '聊天室只读：成员可以读文件、联网只读和讨论；不写文件、不跑命令，外部动作先问人',
         `系统随机唤醒成员，每轮 ${limit} 次；主持人最后总结`,
         `结论由你认可；不认可就继续讨论 ${limit} 次`,
       ],
@@ -60,7 +74,7 @@ export const chatKind = {
     // 主持人是 Lodge 自己：不占发言位置，只用来开场和总结。
     const created = await hostPort.createHost({
       name: `LodgeHost${short}`,
-      soul: '你是 Lodge 的主持人。你只负责开场、总结和收敛讨论，不替发言者下结论；不要调用工具。',
+      soul: `你是 Lodge 的主持人。你只负责开场、总结和收敛讨论，不替发言者下结论；不要调用工具。\n${CHAT_HOST_VOICE}`,
       approval: 'ask',
     })
     return {

@@ -27,10 +27,10 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .dsb-side>.bt-side{padding:0}
 .dsb-main{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bt-main)}
 .crew-room{background:var(--bt-chat-bg)}
-.crew-jump-latest{position:absolute;left:50%;bottom:calc(var(--crew-composer-h, 70px) + 12px);z-index:25;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:var(--bt-card);color:var(--bt-ink-2);box-shadow:var(--bt-elev-1);cursor:pointer;transform:translateX(-50%);transition:color .12s ease,background-color .12s ease,box-shadow .12s ease,transform .12s ease}
-.crew-jump-latest:hover{color:var(--bt-ink);background:var(--bt-card);box-shadow:var(--bt-elev-2)}
+.crew-jump-latest{position:absolute;left:50%;bottom:calc(var(--crew-composer-h, 70px) + 8px);z-index:25;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid var(--bt-line-2);border-radius:50%;background:var(--bt-card);color:var(--bt-ink-3);opacity:.78;cursor:pointer;transform:translateX(-50%);transition:color .12s ease,background-color .12s ease,opacity .12s ease,transform .12s ease}
+.crew-jump-latest:hover{color:var(--bt-ink);background:var(--bt-card);opacity:1}
 .crew-jump-latest:active{transform:translateX(-50%) scale(.94)}
-.crew-jump-latest svg{width:18px;height:18px}
+.crew-jump-latest svg{width:14px;height:14px}
 .dsb-scroll{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;overflow-anchor:none}
 .dsb-composer{flex:none;padding:8px 16px 14px}
 .crew-composer-wrap{position:relative;max-width:760px;margin:0 auto}
@@ -73,3 +73,14 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-side-resizer::after{content:'';position:absolute;top:0;bottom:0;left:3px;width:1px;background:transparent;transition:background-color .12s ease}
 .crew-side-resizer:hover::after,.crew-side-resizer:focus-visible::after{background:var(--bt-accent)}
 .crew-side-resizer:focus-visible{outline:none}
+
+/* 房间收尾的复盘与问题：只读、安静，不抢交付卡。 */
+.room-review{max-width:760px;margin:16px auto 0;padding:12px 14px;border:1px solid var(--bt-line-2);border-radius:14px;background:var(--bt-card);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:18px}
+.room-review-title{margin:0 0 8px;color:var(--bt-ink);font-size:var(--bt-text-label);font-weight:600}
+.room-review-list,.room-review-issues{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.room-review-list li{display:flex;flex-direction:column;gap:2px}
+.room-review-list b{color:var(--bt-ink);font-weight:600}
+.room-review-issues li{display:flex;justify-content:space-between;gap:12px}
+.room-review-issues em{flex:none;color:var(--bt-ink-3);font-style:normal}
+
+.crew-chat-grill{display:flex;justify-content:flex-end;max-width:760px;margin:6px auto 0}

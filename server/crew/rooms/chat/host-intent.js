@@ -14,9 +14,11 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
   const humanName = humanNameOf(room)
   const humanLine = humanName === '' ? '' : `用户称呼：${humanName}。`
   const lodge = room.lodge === true && roster === ''
+  const grillRule = '用户说“拷问我/grill me/来拷问我”时，用 reply 一次只问一个最关键的问题；不要开轮、不要开房、不要叫成员发言。用户回答后继续问下一个；用户说“够了/开始做”时，把已确认的点收成一段结论。'
   const rules = lodge
     ? [
       '判断规则：',
+      grillRule,
       '- 要交一个具体结果（文件、清单、链接、对比表、代码、查价、订票等）→ open studio。',
       '- 要找几个人一起看、一起讨论、听不同意见（大伙、大家、团队、多几个人、一起商量）→ open chat。',
       '- 只是聊聊、拿主意、还没想清楚 → reply。',
@@ -28,6 +30,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
     ]
     : [
       '判断规则：',
+      grillRule,
       '- 用户要“再走一轮、继续讨论、让大家说说、听听成员意见”，或问题需要多人观点时，用 round。',
       '- 用户只是在问你、要一句回答时，用 reply。',
       '- reply 只写回答本身，不要写“再走一轮”“我请人来说”这类流程话；要开轮就直接选 round。',

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createMemberAdd } from './member-add.js'
+import { skillsForRole } from '../../shared/role-toolbox.js'
 
 const member = (id, role, engine) => ({
   id,
@@ -108,7 +109,7 @@ test('adding an executor appends a member with a body and a station', async () =
   assert.match(calls.messages.at(-1).text, /加了一位执行官：执行官二号/)
   assert.match(calls.members[0].soul, /你是执行官二号/)
   assert.match(added.body.spec.prompt, /你是执行官二号/)
-  assert.deepEqual(added.body.spec.skills, [])
+  assert.deepEqual(added.body.spec.skills, skillsForRole('worker'))
 })
 
 test('a delivered room refuses new members', async () => {
@@ -127,7 +128,7 @@ test('a chat room keeps the roster it was created with', async () => {
   room.roomType = 'chat'
   const result = await add.add(room, { role: 'executor', name: '乙', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /聊天室不能添加成员/)
+  assert.match(result.error, /这间房不能添加成员/)
   assert.equal(calls.members.length, 0)
 })
 

@@ -1,4 +1,3 @@
-import { MAX_CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import { roomModeForType } from '../kinds.js'
 import { resolveOrchestration } from '../../orchestration/index.js'
 import { resolveRoomType } from '../kinds.js'
@@ -59,16 +58,17 @@ export const normalizeRequest = body => {
   if (goal === '' || goal.length > 2000) return { error: '目标不能为空，且不超过 2000 字' }
   const name = typeof body.name === 'string' ? body.name.trim() : ''
   if (name.length > 60) return { error: '房间名称不能超过 60 字' }
+  const roomType = resolveRoomType(body.roomType)
+  if (roomType === null) return { error: '未知的房间类型' }
   let chatTurnLimit = null
   if (body.chatTurnLimit !== undefined && body.chatTurnLimit !== null) {
     const value = Number(body.chatTurnLimit)
-    if (!Number.isInteger(value) || value < 1 || value > MAX_CHAT_TURNS_PER_ROUND) {
-      return { error: `聊天室轮次上限必须是 1–${MAX_CHAT_TURNS_PER_ROUND} 的整数` }
+    const max = roomType.maxChatTurns ?? 20
+    if (!Number.isInteger(value) || value < 1 || value > max) {
+      return { error: `聊天室轮次上限必须是 1–${max} 的整数` }
     }
     chatTurnLimit = value
   }
-  const roomType = resolveRoomType(body.roomType)
-  if (roomType === null) return { error: '未知的房间类型' }
   const normalized = roomType.normalize({
     body,
     verify: body.verify === 'manual' ? 'manual' : 'test',

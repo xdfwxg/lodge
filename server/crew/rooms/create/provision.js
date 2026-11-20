@@ -51,7 +51,7 @@ export const createProvisioner = ({ engine }) => {
           model: member.model,
           soul: mode.memberSoul?.(member) ?? member.prompt,
           spec: {
-            prompt: roomType === 'chat' ? '' : (member.prompt ?? ''),
+            prompt: mode.memberPrompt?.(member) ?? '',
             skills: member.skills ?? [],
             mcp: member.mcp ?? [],
           },
@@ -135,6 +135,7 @@ export const createProvisioner = ({ engine }) => {
         toolSurface: member.toolSurface,
         approval: member.approval,
         ...(member.personality === undefined || member.personality === '' ? {} : { personality: member.personality }),
+        ...(member.stance === undefined || member.stance === '' ? {} : { stance: member.stance }),
         body,
       }
     })

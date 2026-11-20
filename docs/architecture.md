@@ -81,6 +81,15 @@ service.js                   ← 路由分发与用例组合
 - 验收员只读 + exec，不能写；没有第二厂商时明确标「模型自查」。
 - 人签字后阶段收口；最后一步与「验收与结论」合并，不让人为同一个判断点两次。
 
+## 角色技能与房间投影
+
+- `shared/role-toolbox.js` 是三角色常驻技能的唯一清单：规划师 5 个、执行官 6 个、验收员 6 个；`lodge-verify-before-done` 共用。技能文件在 `skills/role-packs/`，由 `server/skill-packs.js` 在组合根通过基座技能库导入并审核；不改基座源码。
+- 成员技能仍走 `member.skills → body.spec.skills → engine.setBotSkills`。`body.js` 和 `body-swap.js` 合并角色技能：内置在前，自定义追加，最多 8 个；旧房间换身体时补上角色包。
+- 规划师按情况走三档：想法还模糊用 `lodge-grilling`；讨论够了用 `lodge-spec-driven` 固定成阶段和验收；跨多个会话或要并行用 `lodge-task-breakdown` 拆出依赖。`grill-with-docs`、`to-spec`、`to-tickets` 不装原版，避免多出 GLOSSARY/ADR、spec 文件或外部 ticket 三个真相源。
+- 聊天成员是 `participant`，不继承工程技能；只有只读文件、只读公网、`chat-voice` 和 `chat-stances`。外部动作仍由审批桥拦住。聊天室必须使用支持逐次确认的引擎；不会问人的模型在建房前就被拒绝，不能把只读写在提示词里假装实现。
+- 验收员用 `lodge-code-review-2`：先做 Spec 轴，再做 Standards 轴，两份报告并列，只在各自轴内排序；不引入 subagent，也不把两轴合并成一个分数。
+- `shared/room-issues.js` 和 `shared/room-retro.js` 是只读投影：工作室把阶段投成 issue，聊天把结论/待办投成 issue；复盘只引用真实返工、超时或用满轮次。它们不写房间状态，也不新增角色。
+
 ## 附件与视觉证据
 
 - 附件不落房间存储：上传是 `POST /api/attachments` 的薄代理，文件进基座附件库；消息只带 `meta.attachments` 和 `<attached-image>` / `<attached-file>` 标记。

@@ -19,6 +19,7 @@ test('a body exposes only what it can actually do', () => {
     features: { skillsLibrary: true },
   }), {
     ask: true,
+    read: true,
     tools: true,
     browser: true,
     skills: true,
@@ -26,13 +27,14 @@ test('a body exposes only what it can actually do', () => {
   })
 })
 
-test('a read-only member with no tools does not get a capability it cannot use', () => {
+test('a read-only member exposes reading but not tools', () => {
   assert.deepEqual(bodyCapabilitiesOf({
     engine: engine(),
     member: member({ permissions: { read: true, exec: false, write: false } }),
     features: { skillsLibrary: true },
   }), {
     ask: false,
+    read: true,
     tools: false,
     browser: false,
     skills: false,

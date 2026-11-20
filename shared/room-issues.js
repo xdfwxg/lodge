@@ -1,0 +1,78 @@
+const STAGE_STATE = Object.freeze({
+  active: 'in_progress',
+  pending: 'todo',
+  passed: 'done',
+  blocked: 'blocked',
+  failed: 'blocked',
+})
+
+const items = text => String(text ?? '')
+  .split('\n')
+  .map(line => line.trim())
+  .filter(line => line.startsWith('- '))
+  .map(line => line.slice(2).trim())
+  .filter(line => line !== '' && line !== '无')
+
+const conclusionOf = messages => [...messages]
+  .reverse()
+  .find(message => message.kind === 'chat_conclusion')
+
+const sectionOf = (text, heading) => {
+  const match = String(text ?? '').match(new RegExp(`##\\s*${heading}\\s*\\n([\\s\\S]*?)(?=\\n##\\s|$)`))
+  return match === null ? [] : items(match[1])
+}
+
+export const issuesOf = (room, messages = []) => {
+  if (room?.roomType === 'studio') {
+    return (room.stages ?? []).map((stage, index) => ({
+      id: `stage-${index}`,
+      kind: 'stage',
+      title: stage.title,
+      state: STAGE_STATE[stage.state] ?? 'todo',
+      stage: index,
+      acceptance: stage.acceptance ?? null,
+      ownerIds: Array.isArray(stage.assignees) ? stage.assignees : [],
+      blockers: stage.state === 'blocked' ? [stage.blockedReason ?? '这一步卡住了'] : [],
+    }))
+  }
+  if (room?.roomType !== 'chat') return []
+  const conclusion = conclusionOf(messages)
+  if (conclusion !== undefined) {
+    const todos = sectionOf(conclusion.text, '待办')
+    return [
+      {
+        id: 'chat-conclusion',
+        kind: 'decision',
+        title: '这轮结论',
+        state: 'done',
+        stage: null,
+        acceptance: null,
+        ownerIds: [],
+        blockers: [],
+      },
+      ...todos.map((title, index) => ({
+        id: `chat-todo-${index}`,
+        kind: 'todo',
+        title,
+        state: 'todo',
+        stage: null,
+        acceptance: null,
+        ownerIds: [],
+        blockers: [],
+      })),
+    ]
+  }
+  if (room?.chat?.phase === 'discussing') {
+    return [{
+      id: 'chat-discussion',
+      kind: 'discussion',
+      title: '还在讨论',
+      state: 'in_progress',
+      stage: null,
+      acceptance: null,
+      ownerIds: [],
+      blockers: [],
+    }]
+  }
+  return []
+}

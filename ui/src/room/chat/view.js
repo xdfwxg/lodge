@@ -6,6 +6,7 @@ import { Timeline } from './timeline.js'
 import { hostLabelOf } from '../host.js'
 import { StatePanel } from '../../state-panel.js'
 import { PausedPanel } from '../paused-panel.js'
+import { RoomReview } from '../room-review.js'
 import { TypingLine } from '../typing-line.js'
 
 
@@ -19,8 +20,16 @@ export const chatView = {
       goal: chatIslandGoal(room),
       onOpenRoom: actions.selectRoom,
     })
-    if (room.state !== 'paused') return island
-    return h(Fragment, null, island, h(PausedPanel, {
+    const grill = room.state === 'active' && room.live === true && typeof actions.send === 'function'
+      ? h('div', { className: 'crew-chat-grill' },
+        h('button', {
+          type: 'button',
+          className: 'crew-link',
+          onClick: () => actions.send('拷问我这个想法'),
+        }, '拷问我'))
+      : null
+    if (room.state !== 'paused') return grill === null ? island : h(Fragment, null, island, grill)
+    return h(Fragment, null, island, grill, h(PausedPanel, {
       room,
       onResume: () => actions.resume(),
       onFixMember: memberId => actions.swapBody(memberId),
@@ -52,7 +61,8 @@ export const chatView = {
       onSteerQueue: actions.steerQueue,
       onStartStudio: actions.startStudio,
       onOpenRoom: actions.selectRoom,
-    }))
+    }),
+    h(RoomReview, { key: `review-${room.id}`, room }))
   },
   presence: () => null,
   composerPlaceholder: ({ room }) => room.demo === true && room.live !== true

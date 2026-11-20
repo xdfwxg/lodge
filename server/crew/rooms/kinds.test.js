@@ -3,7 +3,7 @@ import test from 'node:test'
 import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
-  'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'supportsRoutine', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsSubrooms', 'supportsRoutine', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'messagePolicy', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record',
   'initialMessages', 'provisionExtra', 'start', 'followup',
@@ -30,7 +30,7 @@ test('every room mode implements the same substitutable contract', () => {
 test('member souls carry only their own mode discipline', () => {
   const chat = roomModeForType('chat').memberSoul({ name: '甲', role: 'worker' })
   assert.match(chat, /聊天室/)
-  assert.match(chat, /只聊天/)
+  assert.match(chat, /可以只读查看|联网只读/)
   assert.doesNotMatch(chat, /执行官|git commit|验收/)
   const studio = roomModeForType('studio').memberSoul({ name: '验收员', role: 'verifier', prompt: '你是验收员。' })
   assert.match(studio, /PASS 或 REJECT/)
@@ -45,6 +45,17 @@ test('member souls carry only their own mode discipline', () => {
   const leadSoul = roomModeForType('studio').memberSoul({ name: '幕僚长', role: 'lead', prompt: '你是幕僚长。' })
   assert.match(leadSoul, /不写文件、不跑验收/)
   assert.match(leadSoul, /不再重复对齐/)
+})
+
+test('message routing is a mode policy, not a room-type branch', () => {
+  const chat = roomModeForType('chat')
+  assert.deepEqual(chat.messagePolicy({ room: { chat: { phase: 'discussing' } }, text: '聊聊' }), { type: 'host' })
+  assert.deepEqual(chat.messagePolicy({ room: { chat: { phase: 'concluded' } }, text: '@甲 继续' }), { type: 'continue' })
+  assert.equal(chat.messagePolicy({ room: { chat: { phase: 'discussing' } }, text: '@甲 看这里' }), null)
+
+  const studio = roomModeForType('studio')
+  assert.deepEqual(studio.messagePolicy({ room: { stages: [{ state: 'passed' }] } }), { type: 'final-chat' })
+  assert.equal(studio.messagePolicy({ room: { stages: [{ state: 'active' }] } }), null)
 })
 
 test('narrow interfaces expose only their own responsibilities', () => {

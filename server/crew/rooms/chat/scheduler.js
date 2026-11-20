@@ -35,19 +35,19 @@ const memberOf = (room, memberId) => (room?.members ?? []).find(member => member
 
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
 const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
-  const personality = memberOf(room, memberId)?.personality
+  const speaker = memberOf(room, memberId)
   const hostName = humanNameOf(room)
   return [
     `聊天室话题：${room.goal}`,
     hostName === '' ? '' : `用户称呼：${hostName}。`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
-    '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',
+    '请给出你的观点、依据或质疑；不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。',
     '被邀请可以接，也可以说「这次我不接，@更合适的人」把话交出去。',
     FLOOR_RULE,
     '像普通人聊天一样说自己的看法，不用报告、分点或小标题。',
     '只讨论话题本身；不要评论讨论次数、样本数量或流程。',
-    `本轮表达：${personalityTurnCue(personality)}`,
+    `本轮表达：${personalityTurnCue(speaker?.personality)}`,
     '每次发言控制在 200 字以内；不要写总结。',
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')

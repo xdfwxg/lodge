@@ -75,6 +75,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     }
   }
   const wantsSkills = roster.some(member => (member.skills ?? []).length > 0)
+  if (wantsSkills && ports.roleSkills?.ready?.() === false) {
+    return fail('conflict', '角色技能包没有准备好；先检查基座技能库，或稍后重启 Lodge')
+  }
   if (wantsSkills && typeof engine.features === 'function') {
     const features = await engine.features()
     if (features?.skillsLibrary !== true) {
@@ -180,16 +183,18 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         : member
     ))
     // 外部动作只有在驱动会停下来问人时才安全；不会问的执行成员不能开工。
-    const blocked = roomType.readOnly === true
-      ? []
-      : members.filter(member => (
-        member.permissions?.exec === true && provisioned.approvalGates?.[member.id] === false
-      ))
+    // 聊天室虽然只读，但读文件和只读公网也要经过同一张确认卡。
+    const blocked = members.filter(member => (
+      provisioned.approvalGates?.[member.id] === false &&
+      (roomType.readOnly === true || member.permissions?.exec === true)
+    ))
     if (blocked.length > 0) {
       await discard()
       return fail(
         'invalid',
-        `${blocked.map(member => member.name).join('、')}用的模型不会逐次确认外部动作；换一个会先问你的模型，或把这件事放进聊天室讨论。`,
+        roomType.readOnly === true
+          ? `${blocked.map(member => member.name).join('、')}用的模型不会先问你；聊天室要读文件或联网，换一个会先问你的模型。`
+          : `${blocked.map(member => member.name).join('、')}用的模型不会逐次确认外部动作；换一个会先问你的模型，或把这件事放进聊天室讨论。`,
       )
     }
     const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, verify, acceptance, align: initialAlign })

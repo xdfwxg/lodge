@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createBodySwap } from './body-swap.js'
+import { skillsForRole } from '../../../../shared/role-toolbox.js'
 
 const member = (id, role, engine) => ({
   id,
@@ -109,9 +110,10 @@ test('swapping keeps the member and its history, and replaces the body', async (
   assert.equal(calls.events.some(event => event.type === 'member.body.swapped'), true)
 })
 
-test('a personality-only change leaves an empty skills library alone', async () => {
-  const { swap, calls } = harness()
-  const result = await swap.swap(roomOf(), {
+test('a personality-only change leaves the role toolbox alone', async () => {
+  const { swap, calls, room } = harness()
+  room.members.find(item => item.id === 'worker').body.spec.skills = skillsForRole('worker')
+  const result = await swap.swap(room, {
     memberId: 'worker',
     engine: 'claude',
     model: 'sonnet',
@@ -119,6 +121,17 @@ test('a personality-only change leaves an empty skills library alone', async () 
   })
   assert.equal(result.ok, true, result.error)
   assert.equal(calls.skills.length, 0)
+})
+
+test('an old body with no skills gains the role toolbox', async () => {
+  const { swap, calls, room } = harness()
+  const result = await swap.swap(room, {
+    memberId: 'worker',
+    engine: 'claude',
+    model: 'sonnet',
+  })
+  assert.equal(result.ok, true, result.error)
+  assert.deepEqual(calls.skills[0].skills, skillsForRole('worker'))
 })
 
 test('the body carries an editable soul, skills and tools', async () => {
@@ -134,13 +147,13 @@ test('the body carries an editable soul, skills and tools', async () => {
   assert.equal(result.ok, true, result.error)
   const worker = room.members.find(item => item.id === 'worker')
   assert.equal(worker.body.spec.prompt, '只做复核，不解释。')
-  assert.deepEqual(worker.body.spec.skills, ['review'])
+  assert.deepEqual(worker.body.spec.skills, [...skillsForRole('worker'), 'review'])
   assert.deepEqual(worker.body.spec.mcp, [
     { server: 'github', scopes: ['read'], approval: 'ask' },
     { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' },
   ])
   assert.match(calls.patched[0].payload.soul, /只做复核，不解释/)
-  assert.deepEqual(calls.skills[0].skills, ['review'])
+  assert.deepEqual(calls.skills[0].skills, [...skillsForRole('worker'), 'review'])
   assert.deepEqual(calls.patched[0].payload.mcp.map(grant => grant.server), ['github', 'chrome-devtools'])
 })
 
@@ -182,8 +195,7 @@ test('a logged-out model cannot become the new body', async () => {
 
 test('a busy chat room waits for the round to end', async () => {
   const { swap, calls } = harness()
-  const room = roomOf()
-  room.chat = { running: true }
+  const room = { ...roomOf(), roomType: 'chat', chat: { running: true } }
   const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
   assert.match(result.error, /等这一回合结束/)

@@ -1,4 +1,5 @@
 import { personalityById } from '../../shared/personalities.js'
+import { stanceOf } from '../../shared/chat-stances.js'
 import { DEFAULT_STUDIO_ROSTER } from '../../shared/studio-roster.js'
 import { materializeRole } from '../../shared/role-definitions.js'
 import { isBrowserGrant } from '../../shared/room-access.js'
@@ -66,11 +67,13 @@ export const rosterFromRoles = entries => {
     const skills = Array.isArray(entry.skills) ? entry.skills.filter(isId).slice(0, 8) : base.skills
     const mcp = entry.mcp === undefined ? base.mcp : normalizeMcpGrants(entry.mcp)
     const personality = personalityById(entry.personality) === null ? '' : entry.personality
+    const stance = stanceOf(entry.stance)
     return cloneMember({
       ...base,
       id,
       name,
       personality,
+      ...(stance === '' ? {} : { stance }),
       engine,
       engineExplicit,
       model,

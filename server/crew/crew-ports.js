@@ -9,9 +9,15 @@ import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.
 import { captureHtml } from './screenshot.js'
 
 // 应用层只依赖这组端口；具体存储/工作区/运行时实现只在组合根装配。
-export const createCrewPorts = ({ memoryRoot, browserMcp = null, attachments = null } = {}) => ({
+export const createCrewPorts = ({
+  memoryRoot,
+  browserMcp = null,
+  attachments = null,
+  roleSkills = { ready: () => true },
+} = {}) => ({
   browserMcp,
   attachments,
+  roleSkills,
   screenshots: { capture: captureHtml },
   roomFiles: {
     writeGoal,

@@ -51,6 +51,13 @@ test('the Lodge prompt asks for a room decision instead of a round', () => {
   assert.doesNotMatch(prompt, /"action":"round"/)
 })
 
+test('a grill request stays with the host, one question at a time', () => {
+  const prompt = hostIntentPrompt({ room: { members: [] }, text: '拷问我这个想法', turnLimit: 6 })
+  assert.match(prompt, /一次只问一个/)
+  assert.match(prompt, /不要开轮/)
+  assert.match(prompt, /\"action\":\"reply\"/)
+})
+
 test('the host prompt tells the model the user name instead of only using it as a label', () => {
   const prompt = hostIntentPrompt({
     room: { lodge: true, members: [], humanName: '千寻' },

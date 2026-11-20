@@ -7,7 +7,6 @@ import { plainRuntimeError } from './base-error.js'
 import { normalizeBodySpec } from './body-spec.js'
 import { independenceOf } from './independence.js'
 import { roomBulletin, roomModeOfRoom } from './rooms/kinds.js'
-import { resolveRoomType } from './rooms/kinds.js'
 import { membersFor } from './roster.js'
 import { grantBrowserToAll, stripBrowser } from './room-access.js'
 import { isBrowserGrant } from '../../shared/room-access.js'
@@ -27,7 +26,7 @@ const uniqueId = (room, role) => {
 export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, browserMcp = null }) => {
   const bodies = createBodyFactory({ engine })
   const add = async (room, body = {}) => {
-    if (resolveRoomType(room.roomType)?.id !== 'studio') return fail('invalid', '聊天室不能添加成员')
+    if (roomModeOfRoom(room)?.supportsMemberAdd !== true) return fail('invalid', '这间房不能添加成员')
     const stages = Array.isArray(room.stages) ? room.stages : []
     if (stages.length > 0 && stages.every(stage => stage.state === 'passed')) {
       return fail('conflict', '房间已经交付，不能再加成员；要改成员，开一间新房')

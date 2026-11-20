@@ -104,8 +104,7 @@ test('an unfinished handoff keeps the member in the room', async () => {
 
 test('a chat room cannot remove a member while someone is speaking', async () => {
   const { remove, calls } = harness()
-  const room = roomOf()
-  room.chat = { running: true }
+  const room = { ...roomOf(), roomType: 'chat', chat: { running: true } }
   const result = await remove.remove(room, { memberId: 'worker' })
   assert.equal(result.ok, false)
   assert.match(result.error, /等这一回合结束/)

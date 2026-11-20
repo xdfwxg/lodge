@@ -4,6 +4,8 @@ import { independenceLabel } from './digest.js'
 import { capabilitiesFor } from './rooms/kinds.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { stripAttachmentTags } from '../../shared/attachments.js'
+import { issuesOf } from '../../shared/room-issues.js'
+import { retroOf } from '../../shared/room-retro.js'
 
 // 房间能力是 opt-in 开关，不是房型分类；默认关闭，旧房间不受影响。
 const DEFAULT_ROOM_CAPABILITIES = Object.freeze({ dispatch: false })
@@ -57,5 +59,7 @@ export const presentRoom = (room, messages = [], assignments = [], { children = 
     modeCapabilities: capabilitiesFor(room.roomType),
     independenceLabel: independenceLabel(room),
     delivery: presentation?.deliveryOf?.(view, messages) ?? null,
+    issues: issuesOf(view, messages),
+    retro: retroOf(view, messages),
   }
 }

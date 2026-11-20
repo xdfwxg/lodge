@@ -15,6 +15,7 @@ export const bodyCapabilitiesOf = ({ engine = null, member = {}, features = null
   const skills = tools && (features === null || features === undefined || features.skillsLibrary !== false)
   return {
     ask: engineCapabilities.approvalReview === true,
+    read: permissions.read === true,
     tools,
     browser: tools && grants.some(grant => /browser|chrome/i.test(grantServer(grant))),
     skills,
@@ -24,6 +25,7 @@ export const bodyCapabilitiesOf = ({ engine = null, member = {}, features = null
 
 export const BODY_CAPABILITY_LABELS = Object.freeze({
   ask: '会先问',
+  read: '能读文件',
   tools: '能跑工具',
   browser: '能看浏览器',
   skills: '能挂技能',

@@ -728,26 +728,23 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       if (room.live === true) {
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
+        const mode = roomModeOfRoom(room)
+        const messages = readMessages(room.id)
+        const policy = mode?.messagePolicy?.({ room, text, messages }) ?? null
         // 规划师已经把这步交给人：人的这句话就是补充上下文，直接重跑这一步。
-        if (room.roomType === 'studio') {
-          const handoff = humanHandoffStageOf(room, readMessages(room.id))
-          if (handoff !== null) {
-            const result = await stages.rework(room, { stage: handoff, note: promptText })
-            if (result.ok !== true) return result
-            return accepted({ room: result.body?.room ?? readRoom(room.id) })
-          }
+        if (policy?.type === 'human-rework') {
+          const result = await stages.rework(room, { stage: policy.stage, note: promptText })
+          if (result.ok !== true) return result
+          return accepted({ room: result.body?.room ?? readRoom(room.id) })
         }
         // 所有步骤都通过以后，房间进入完成态：只和规划师说话，不再派活。
-        const allPassed = Array.isArray(room.stages) &&
-          room.stages.length > 0 &&
-          room.stages.every(stage => stage.state === 'passed')
-        if (room.roomType === 'studio' && allPassed && typeof live.sendToMember === 'function') {
+        if (policy?.type === 'final-chat' && typeof live.sendToMember === 'function') {
           const lead = leadMemberOf(room)?.id
           if (typeof lead === 'string' && lead !== '') {
             appendMessage(roomId, { kind: 'chat', authorId: 'you', text, ...(attachments.length === 0 ? {} : { meta: attachmentMeta }) })
             await live.sendToMember(roomId, lead, [
               promptText,
-              completionFacts(room, readMessages(room.id)),
+              completionFacts(room, messages),
               '所有步骤都已经通过，这间房在收尾：不要再派活，也不要转给执行官或验收员。',
               '直接回答；要给新任务，建议人开一间新房。',
               '以本次给出的事实清单为准；和它冲突的旧说法作废。房间里没有的记录，直接说不知道，不要补全；不要调用工具。',
@@ -758,19 +755,16 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         }
         // 聊天室里用户是在对主持说话；主持判断直接回答还是请成员讨论。
         // @ 是结构化指令，仍然直接交给被 @ 的成员。
-        if (room.roomType === 'chat' && !text.includes('@')) {
-          return chat.input(room, { note: promptText })
-        }
+        if (policy?.type === 'host') return chat.input(room, { note: promptText })
         // 结论之后 @ 成员：开一轮有主持和上限的讨论，不让成员在结论外自由接力。
-        if (room.roomType === 'chat' && room.chat?.phase === 'concluded' && room.chat?.running !== true) {
-          return chat.continue(room, { note: promptText })
-        }
+        if (policy?.type === 'continue') return chat.continue(room, { note: promptText })
         await live.send(room.id, promptText, { mentions })
         return accepted({ accepted: true })
       }
       const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text, ...(attachments.length === 0 ? {} : { meta: attachmentMeta }) })
-      if (room.demo === true && room.roomType === 'chat') {
-        appendMessage(roomId, { kind: 'system', text: '这是示例房间，不接模型；要动手就把结论转成工作室任务。' })
+      const demoMessage = roomModeOfRoom(room)?.demoMessage
+      if (room.demo === true && typeof demoMessage === 'string' && demoMessage !== '') {
+        appendMessage(roomId, { kind: 'system', text: demoMessage })
       }
       const active = room.stages.find(stage => stage.state === 'active')
       if (room.openQuestion !== null && active?.kind === 'decision') {

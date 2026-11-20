@@ -9,6 +9,7 @@ import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
 import { buildFollowupBody } from './followup.js'
+import { humanHandoffStageOf } from './human-handoff.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { dispatchFrom, tasksFrom } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
@@ -273,9 +274,21 @@ export const studioKind = {
     // 规划师工具协议随 soul 常驻；阶段推进不再专门唤醒规划师。
   ].filter(Boolean).join('\n'),
 
+  memberPrompt: member => member.prompt ?? '',
+  demoMessage: null,
+  messagePolicy: ({ room, messages = [] }) => {
+    const handoff = humanHandoffStageOf(room, messages)
+    if (handoff !== null) return { type: 'human-rework', stage: handoff }
+    const allPassed = Array.isArray(room.stages) && room.stages.length > 0 &&
+      room.stages.every(stage => stage.state === 'passed')
+    return allPassed ? { type: 'final-chat' } : null
+  },
   validateRoster: type.validateRoster,
   supportsSubrooms: true,
   supportsRoutine: true,
+  supportsMemberAdd: true,
+  allowsHostOnly: () => false,
+  busyNow: () => false,
   followup: buildFollowupBody,
   resolvePlan: (plan, roster) => resolveStageAssignees(plan, roster),
   requiresGate: true,

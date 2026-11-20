@@ -1,6 +1,7 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
 import { PausedPanel } from '../paused-panel.js'
+import { RoomReview } from '../room-review.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
@@ -56,9 +57,10 @@ export const studioView = {
     const latestRun = lastRun?.delivery !== null && lastRun?.delivery !== undefined
       ? lastRun
       : [...runs].reverse().find(run => run.delivery !== null && run.delivery !== undefined) ?? lastRun
-    return h(StudioTranscript, {
-      key: `transcript-${room.id}`,
-      room,
+    return h(Fragment, null,
+      h(StudioTranscript, {
+        key: `transcript-${room.id}`,
+        room,
       members,
       hideKinds: [],
       delivery: room.delivery ?? null,
@@ -82,7 +84,9 @@ export const studioView = {
         return seed === null ? null : () => actions.startChat(seed)
       })(),
       onReturn: () => {},
-    })
+      }),
+      h(RoomReview, { key: `review-${room.id}`, room }),
+    )
   },
   presence: () => null,
   canFollowup: ({ room }) => (

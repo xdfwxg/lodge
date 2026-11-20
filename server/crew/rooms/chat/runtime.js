@@ -5,6 +5,7 @@ import { createChatTransport } from './transport.js'
 import { deliverToMember } from '../../surface-delivery.js'
 import { memberOf } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
+import { isReadOnlyResearchTool } from '../../../../shared/room-access.js'
 
 // 聊天室上下文运行时：只有随机发言、主持总结和拍板，没有阶段、验收或交付回合。
 export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
@@ -58,7 +59,7 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
     permissionCard: async (entry, memberId, message, chat) => {
       const room = store.readRoom(entry.roomId)
       const spec = memberOf(room, memberId)
-      const allowed = message.card.action === 'read'
+      const allowed = message.card.action === 'read' || isReadOnlyResearchTool(message.card.tool)
       try {
         await engine.answerCard({
           sessionRef: chat.sessionRef,

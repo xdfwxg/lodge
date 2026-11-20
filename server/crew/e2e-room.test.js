@@ -23,6 +23,7 @@ const scriptedEngine = (store, { approvalReview = true, authenticated } = {}) =>
     capabilities: () => ({ provisioning: true, mentions: true, mcp: false }),
     instances: async () => [{ id: 'fake', engine: 'fake', available: true, ...(authenticated === undefined ? {} : { authenticated }), capabilities: { approvalReview } }],
     createMemberBot: async ({ name }) => ({ id: `member-${name}`, name, engine: 'fake', model: 'fake-model' }),
+    setBotSkills: async (botId, skills) => ({ assignedSkills: skills }),
     createRoom: async ({ name }) => ({ id: `chat-${name}`, sessionRef: `thread-${name}` }),
     deleteRoom: async () => {},
     deleteMemberBot: async () => {},

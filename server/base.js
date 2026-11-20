@@ -43,6 +43,31 @@ export function createBaseClient({ baseUrl = process.env.CREW_BASE_URL ?? DEFAUL
 
     config: () => json('/api/config'),
 
+    patchConfig: payload => json('/api/config', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+      timeout: 10_000,
+    }),
+
+    skillsLibrary: () => json('/api/skills-library'),
+
+    readLibrarySkill: name => json(`/api/skills-library/${encodeURIComponent(name)}`),
+
+    importLibrarySkill: text => json('/api/skills-library', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text }),
+      timeout: 15_000,
+    }),
+
+    approveLibrarySkill: name => json(`/api/skills-library/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ enabled: true }),
+      timeout: 10_000,
+    }),
+
     instances: () => json('/api/instances'),
 
     threadMessages: (threadId, limit = 1000) => json(`/api/threads/${threadId}/messages?limit=${limit}`),

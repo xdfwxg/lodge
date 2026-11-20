@@ -1,4 +1,5 @@
 import { DEFAULT_STUDIO_ROSTER } from './studio-roster.js'
+import { skillsForRole } from './role-toolbox.js'
 
 const names = Object.fromEntries(DEFAULT_STUDIO_ROSTER.map(member => [member.role, member.name]))
 
@@ -14,7 +15,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     permissions: Object.freeze({ read: true, exec: false, write: false }),
     writeScope: 'none',
     toolSurface: Object.freeze(['read']),
-    skills: Object.freeze([]),
+    skills: skillsForRole('lead'),
     mcp: Object.freeze([]),
     approval: 'ask',
     rules: Object.freeze(['不写文件', '不跑验收', '只做对齐、派发和收口']),
@@ -32,7 +33,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     permissions: Object.freeze({ read: true, exec: true, write: true }),
     writeScope: 'own_worktree',
     toolSurface: Object.freeze(['read', 'exec', 'write']),
-    skills: Object.freeze([]),
+    skills: skillsForRole('worker'),
     mcp: Object.freeze([]),
     approval: 'ask',
     rules: Object.freeze(['只改自己的工作副本', '完成后说明结果', '外部动作先问人']),
@@ -50,7 +51,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     permissions: Object.freeze({ read: true, exec: true, write: false }),
     writeScope: 'none',
     toolSurface: Object.freeze(['read', 'exec']),
-    skills: Object.freeze([]),
+    skills: skillsForRole('verifier'),
     mcp: Object.freeze([]),
     approval: 'ask',
     rules: Object.freeze(['只依据证据判断', '不替执行官解释', '只写结论']),

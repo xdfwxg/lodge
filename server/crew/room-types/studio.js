@@ -9,6 +9,7 @@ export const description = meta.description
 export const defaultVerify = meta.defaultVerify
 export const readOnly = meta.readOnly
 export const defaultMembers = null
+export const maxChatTurns = null
 export const autoStart = 'stage'
 export const singleDirectory = true
 export const requireWorker = true

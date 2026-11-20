@@ -1,4 +1,3 @@
-import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import { roomModeForType } from '../kinds.js'
 
 export const buildRoomRecord = ({
@@ -34,7 +33,7 @@ export const buildRoomRecord = ({
   depth = 0,
   gate = null,
 }) => {
-  const chatLimit = Number.isInteger(chatTurnLimit) ? chatTurnLimit : CHAT_TURNS_PER_ROUND
+  const chatLimit = Number.isInteger(chatTurnLimit) ? chatTurnLimit : undefined
   const mode = roomModeForType(roomType.id)
   const shape = mode.record({
     lead,

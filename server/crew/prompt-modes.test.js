@@ -14,6 +14,8 @@ test('work contracts carry stage discipline, not room identity', () => {
   assert.match(workContract('lead').join('\n'), /对齐由系统自动确认/)
   assert.match(workContract('lead').join('\n'), /已经有交接单或方案时，直接按步骤派发，不再重复对齐/)
   assert.match(workContract('lead').join('\n'), /只在决策阶段用选项卡/)
+  assert.match(workContract('lead').join('\n'), /目标还模糊就先问清/)
+  assert.match(workContract('lead').join('\n'), /不要为了走流程而多写一份文档或工单/)
   for (const role of ['lead', 'worker', 'verifier']) {
     assert.match(workContract(role).join('\n'), /每次 @ 都是交接/)
   }
