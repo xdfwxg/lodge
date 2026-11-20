@@ -7,7 +7,7 @@ import { CheckIcon } from './glyphs.js'
 import { useEscape } from './dismiss.js'
 import { SPRING_SHAPE, spring, useMorph } from './motion.js'
 import { t } from './copy.js'
-import { IslandCat } from './cat.js'
+import { Lingchong } from './lingchong.js'
 
 // -------------------------------------------------------------------------
 // The header island is the room's status screen. One surface wraps the
@@ -286,7 +286,7 @@ function GoalPanel({ goal, view, room, actions }) {
 
 // The surface that wraps the capsule: signal or panel hangs under it. Closed
 // is a 40px capsule; a signal makes it grow one row; open shows the panel.
-export function GoalIsland({ room, goal, view, mode, signal, actions, pill, catState = 'rest' }) {
+export function GoalIsland({ room, goal, view, mode, signal, actions, pill, lingchongState = 'rest' }) {
   const island = useRef(null)
   const open = mode === 'open'
   // 收成小药囊；鼠标移上去或键盘聚焦时展开，有事件时一直展开。
@@ -363,7 +363,12 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill, catS
         signal === null || signal === undefined
           ? null
           : h(GoalSignal, { signal, mode, actions }))),
-  mini ? null : h(IslandCat, { state: catState }))
+  h(Lingchong, {
+    state: lingchongState,
+    mode: room.kind,
+    progress: view && view.count > 1 ? Math.min(1, Math.max(0, (view.number - 1) / (view.count - 1))) : 0,
+    onActivate: room.kind === 'studio' ? () => actions.toggleGoal(room.id) : null,
+  }))
 }
 
 export const GOAL_CSS = `

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 test('new room dialog, sample chat and archive restore', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample', { data: { kind: 'chat' } })).ok()).toBe(true)
   await page.goto('/')
-  await expect(page.getByRole('button', { name: /^示例：把「大胖橘住在灵动岛上」聊成一个方向，正在做$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^示例：把「朏朏住在灵动岛上」聊成一个方向，正在做$/ })).toBeVisible()
 
   await page.getByRole('button', { name: '新建房间' }).click()
   await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
@@ -33,10 +33,10 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   expect((await request.post(`/api/rooms/${id}/archive`, { data: { archived: true } })).ok()).toBe(true)
   await page.reload()
   // 行内的“⋯”只在悬停或键盘聚焦时出现；先让行进入悬停态。
-  await page.getByRole('button', { name: /示例：把「大胖橘住在灵动岛上」.*已归档/ }).hover()
-  await page.getByRole('button', { name: /管理 示例：把「大胖橘住在灵动岛上」/ }).click()
+  await page.getByRole('button', { name: /示例：把「朏朏住在灵动岛上」.*已归档/ }).hover()
+  await page.getByRole('button', { name: /管理 示例：把「朏朏住在灵动岛上」/ }).click()
   await page.getByRole('menuitem', { name: '取消归档' }).click()
-  await expect(page.getByText(/示例：把「大胖橘住在灵动岛上」/).first()).toBeVisible()
+  await expect(page.getByText(/示例：把「朏朏住在灵动岛上」/).first()).toBeVisible()
 })
 
 test('a room keeps its unsent draft across a reload', async ({ page, request }) => {

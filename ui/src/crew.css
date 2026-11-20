@@ -785,6 +785,8 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
   .dsb-side{padding:6px 10px 8px}
 }
 .crew-scroll{padding:16px 20px 24px}
+/* 聊天室的岛浮在正文上；给灵宠和胶囊留出一条上沿，消息不从它身下穿过。 */
+.crew-room-main.crew-room-chat .crew-scroll{margin-top:124px}
 .crew-flow{max-width:760px;gap:4px}
 .crew-card-foot .crew-ghost{height:var(--bt-control-h-sm);padding:0 10px;background:transparent}
 .crew-card-foot .crew-ghost:hover{background:var(--bt-hover)}
@@ -820,7 +822,7 @@ body[data-ds-dark-theme] .crew-attachment-file{background:rgba(255,255,255,.08)}
 /* Decision-first room: one decision, audit on demand */
 .crew-room{position:relative;display:flex;flex-direction:column;background:var(--bt-main)}
 .crew-room-main{flex:1 1 auto;width:100%;max-width:none}
-.crew-room-main.crew-room-studio .crew-goal-island{position:relative;top:auto;left:auto;right:auto;padding:34px 32px 0}
+.crew-room-main.crew-room-studio .crew-goal-island{position:relative;top:auto;left:auto;right:auto;padding:64px 32px 0}
 .crew-room-main.crew-room-studio .crew-scroll{padding-top:16px}
 .crew-room-main.crew-room-studio[data-room-done=true] .crew-scroll{padding-top:16px}
 .crew-island-wrap{display:flex;justify-content:center;padding:18px 32px 8px;box-sizing:border-box}
@@ -840,7 +842,8 @@ body[data-ds-dark-theme] .crew-attachment-file{background:rgba(255,255,255,.08)}
 @media (max-width:760px){
   .crew-island-wrap{padding:12px 14px 6px}
   .crew-scroll{padding-left:18px;padding-right:18px}
-  .crew-room-main.crew-room-studio .crew-goal-island{padding:30px 14px 0}
+  .crew-room-main.crew-room-chat .crew-scroll{margin-top:108px}
+  .crew-room-main.crew-room-studio .crew-goal-island{padding:52px 14px 0}
   .crew-room-main.crew-room-studio .crew-scroll{padding-top:150px}
 }
 .crew-streaming::after{content:'▍';display:inline-block;margin-left:2px;color:var(--bt-ink-3);animation:crew-cursor 1s steps(2,start) infinite}

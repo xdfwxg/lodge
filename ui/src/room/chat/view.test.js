@@ -87,7 +87,7 @@ test('the chat header leaves the crew to the sidebar', () => {
   assert.doesNotMatch(html, /发言中/)
 })
 
-test('the island carries one cat, busy while working and settled when done', () => {
+test('the island carries one lingchong, busy while working and settled when done', () => {
   const busy = renderToStaticMarkup(chatView.header({
     room: {
       id: 'room-chat',
@@ -101,7 +101,24 @@ test('the island carries one cat, busy while working and settled when done', () 
     members: [],
     actions,
   }))
-  assert.match(busy, /class="bt-cat"[^>]*data-state="busy"/)
+  assert.match(busy, /class="lingchong"[^>]*data-state="busy"/)
+  assert.match(busy, /data-state="busy"[^>]*data-gait="run"/)
+  assert.match(busy, /lingchong-art/)
+  // 安静聊天收成小胶囊时，灵宠仍在小胶囊上陪着，不随胶囊消失。
+  const idle = renderToStaticMarkup(chatView.header({
+    room: {
+      id: 'room-chat',
+      name: '圆桌',
+      goal: '讨论交付边界',
+      state: 'active',
+      chat: { phase: 'discussing' },
+      messages: [],
+    },
+    members: [],
+    actions,
+  }))
+  assert.match(idle, /data-mini="true"/)
+  assert.match(idle, /class="lingchong"[^>]*data-state="rest"/)
   const done = renderToStaticMarkup(h(GoalIslandHeader, {
     room: {
       id: 'room-studio',
@@ -114,7 +131,7 @@ test('the island carries one cat, busy while working and settled when done', () 
     members: [],
     onOpenRoom: () => {},
   }))
-  assert.match(done, /class="bt-cat"[^>]*data-state="done"/)
+  assert.match(done, /class="lingchong"[^>]*data-state="done"/)
 })
 
 test('a demo chat says it cannot continue instead of promising a reply', () => {
