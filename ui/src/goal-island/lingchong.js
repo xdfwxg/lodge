@@ -1,9 +1,9 @@
 import { createElement as h, useEffect, useId, useRef } from 'react'
 const standingArt = new URL('../assets/lingchong-color.png', import.meta.url).href
 
-const WALK_SPEED = 34
-const CHASE_SPEED = 62
-const TROT_SPEED = 48
+const WALK_SPEED = 22
+const CHASE_SPEED = 52
+const TROT_SPEED = 30
 const HOME_PAD = 4
 const ART_W = 385
 const ART_H = 195
@@ -72,6 +72,17 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
     }
   }
 
+  const puff = () => {
+    const field = sparks.current
+    if (!field) return
+    const node = document.createElement('span')
+    node.className = 'lingchong-puff'
+    node.style.left = `${30 + Math.random() * 8}px`
+    node.style.top = `${12 + Math.random() * 4}px`
+    field.appendChild(node)
+    setTimeout(() => node.remove(), 1700)
+  }
+
   useEffect(() => {
     const el = lingchong.current
     const host = el?.parentElement
@@ -104,7 +115,10 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
     let cuddled = false
     let followUntil = -Infinity
     let wanderTarget = null
-    let nextWanderAt = 3 + Math.random() * 4
+    let wanderBeat = ''
+    let wanderBeatT = 0
+    let nextWanderAt = 2.5 + Math.random() * 3
+    let lastPuff = -Infinity
     let seconds = 0
 
     const place = (nextX, phase) => {
@@ -201,13 +215,15 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       // 聊天室安静十秒先趴下休息（睁眼），再久才睡着（闭眼、飘 z）；交付后直接睡。
       const resting = !done && kind === 'rest' && mode === 'chat' && !hovering && chase === null && !awake
       const sleeping = done ? !awake : resting && idleT > SLEEP_AFTER
+      const snore = sleeping ? Math.sin(seconds * 1.9) : 0
+      if (sleeping && snore > 0.94 && seconds - lastPuff > 1.4) { lastPuff = seconds; puff() }
       const postureTarget = done ? (awake ? 0 : 1) : (resting && idleT > 10 && wanderTarget === null ? 1 : 0)
       postureMix = Math.min(1, Math.max(0, postureMix + Math.sign(postureTarget - postureMix) * dt / 0.7))
       const sm = postureMix * postureMix * (3 - 2 * postureMix)
 
       // 安静时沿着整条岛上沿慢慢逛，十秒后才趴下。
       const canWander = kind === 'rest' && mode === 'chat' && !done && !following && chase === null && !sleeping && postureMix < 0.1
-      if (!canWander) wanderTarget = null
+      if (!canWander) { wanderTarget = null; wanderBeat = ''; wanderBeatT = 0 }
       else if (wanderTarget === null && seconds > nextWanderAt) {
         const min = HOME_PAD + petWidth / 2
         const max = Math.max(min, width - HOME_PAD - petWidth / 2)
@@ -291,7 +307,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
         const delta = target - x
         if (Math.abs(delta) > 0.8) {
           direction = delta > 0 ? 1 : -1
-          const speed = cuddle !== null ? 72 : chaseTarget === null ? WALK_SPEED : CHASE_SPEED
+          const speed = cuddle !== null ? 60 : chaseTarget === null ? WALK_SPEED : CHASE_SPEED
           const stepPx = Math.min(Math.abs(delta), speed * dt)
           x += direction * stepPx
           moved = stepPx
@@ -300,7 +316,15 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
           x = target
           if (wanderTarget !== null && cuddle === null && chaseTarget === null) {
             wanderTarget = null
-            nextWanderAt = seconds + (hovering ? 4 + Math.random() * 4 : 9 + Math.random() * 7)
+            nextWanderAt = seconds + 2.5 + Math.random() * 2.5
+            // 到站后歇一下，偶尔闻闻、看看、蹦一下或摇尾巴，再接着逛。
+            if (Math.random() < 0.55) {
+              const kinds = ['sniff', 'hop', 'look', 'wag']
+              wanderBeat = kinds[Math.floor(Math.random() * kinds.length)]
+              wanderBeatT = wanderBeat === 'hop' ? 0.6 : 1.2 + Math.random() * 0.6
+              if (wanderBeat === 'hop') { hopT = 0.5; hopH = 10; happyT = 0.6 }
+              if (wanderBeat === 'wag') happyT = 1.2
+            }
           }
         }
         // 走到人面前就贴一下：冒爱心、尾巴摇快；离开前只贴一次。
@@ -309,6 +333,10 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
           happyT = 1.2
           sprinkle('heart')
         }
+      }
+      if (wanderBeatT > 0) {
+        wanderBeatT = Math.max(0, wanderBeatT - dt)
+        if (wanderBeatT === 0) wanderBeat = ''
       }
       const walking = moved > 0.01 || kind === 'busy'
       if (walking) gait += (kind === 'busy' && moved < 0.01 ? dt * 1.6 : moved / scale / 90)
@@ -367,32 +395,38 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
         node.style.opacity = String(1 - sm)
       })
       const bob = (walking ? Math.abs(Math.sin(p * 2)) * 2.3 : 0) * (1 - stretch * 0.5)
-      const breath = (walking ? 1 : 1 + Math.sin(seconds * (sm > 0.5 ? 1 : 1.85)) * (sm > 0.5 ? 0.014 : 0.009)) + 0.02 * stretch
-      const bodyRot = (walking ? Math.sin(p) * 0.5 : 0) - 5 * sm + 2.5 * stretch
+      const breath = (walking ? 1 : sleeping ? 1 + snore * 0.04 : 1 + Math.sin(seconds * 1.85) * 0.009) + 0.02 * stretch
+      const beat = wanderBeatT > 0 ? wanderBeat : ''
+      const sniffLean = beat === 'sniff' ? 6 : 0
+      const lookLean = beat === 'look' ? Math.sin(seconds * 2.2) * 4 : 0
+      const bodyRot = (walking ? Math.sin(p) * 0.5 : 0) - 5 * sm + 2.5 * stretch + sniffLean + lookLean
       if (body.current) {
-        body.current.style.transform = `translateY(${(-bob + 6 * sm).toFixed(2)}px) rotate(${bodyRot.toFixed(2)}deg) scaleX(${(1 + 0.03 * stretch).toFixed(3)}) scaleY(${breath.toFixed(4)})`
+        body.current.style.transform = `translateY(${(-bob + 6 * sm + (beat === 'sniff' ? 2 : 0) + (sleeping ? -1.6 * Math.max(0, snore) : 0)).toFixed(2)}px) rotate(${bodyRot.toFixed(2)}deg) scaleX(${(1 + 0.03 * stretch).toFixed(3)}) scaleY(${breath.toFixed(4)})`
       }
       tailPhase += dt * (walking ? 5.2 : happyT > 0 ? 7 : 1.25)
-      const tailAmp = happyT > 0 ? 14 : walking ? 10 : 6
+      const tailAmp = beat === 'wag' ? 18 : beat === 'sniff' ? 3 : happyT > 0 ? 14 : walking ? 10 : 6
       if (tail.current) {
         const tailRot = Math.sin(tailPhase) * tailAmp * (1 - sm) + (-22 + Math.sin(tailPhase * 0.5) * 2) * sm + 8 * stretch
         tail.current.style.transform = `rotate(${tailRot.toFixed(2)}deg)`
       }
       if (flip.current) {
         // 线稿默认朝左；往右走才镜像，不然会倒着走。
-        const dirSign = direction > 0 ? -1 : 1
+        const dirSign = beat === 'look' ? (Math.sin(seconds * 2.2) > 0 ? -1 : 1) : direction > 0 ? -1 : 1
         flip.current.style.transform =
           // 趴下是压成一只更胖的猫：横向撑开，纵向只压一点，肚子贴着岛面。
           `scale(${(dirSign * (1 + 0.16 * sm)).toFixed(4)}, ${(1 - 0.14 * sm).toFixed(4)}) translateY(${(10.5 * sm * (petWidth / 112)).toFixed(2)}px)`
       }
 
-      if (yawn.current) yawn.current.classList.toggle('on', yawning)
+      if (yawn.current) yawn.current.classList.toggle('on', yawning || (sleeping && snore > 0.2))
       if (mouth.current) {
         if (yawning) {
           const k = 1 - yawnT / YAWN_DUR
           const open = Math.min(1, k * 4, (1 - k) * 3)
           const ease = open * open * (3 - 2 * open)
           mouth.current.style.transform = `translateY(${(2 * ease).toFixed(2)}px) scale(${(0.35 + 0.65 * ease).toFixed(3)}, ${(0.08 + 0.92 * ease).toFixed(3)})`
+        } else if (sleeping) {
+          const k = Math.max(0, snore)
+          mouth.current.style.transform = `translateY(1px) scale(${(0.4 + 0.5 * k).toFixed(3)}, ${(0.06 + 0.5 * k).toFixed(3)})`
         } else {
           mouth.current.style.transform = ''
         }
@@ -521,15 +555,17 @@ body[data-ds-dark-theme] .lingchong-stage{filter:var(--lingchong-ink-filter,none
 @keyframes lingchong-flap{from{transform:scaleX(.25)}to{transform:scaleX(1)}}
 .lingchong-zzz{position:absolute;left:0;top:0;z-index:10;pointer-events:none;opacity:0;transition:opacity .4s var(--bt-ease)}
 .lingchong-zzz.on{opacity:1}
-.lingchong-zzz span{position:absolute;font:600 11px/1 var(--bt-font);color:var(--bt-ink-3);opacity:0;animation:lingchong-zzz 2.4s ease-out infinite}
-.lingchong-zzz span:nth-child(1){left:44px;top:12px;font-size:10px;animation-delay:0s}
-.lingchong-zzz span:nth-child(2){left:54px;top:6px;font-size:12px;animation-delay:.9s}
-.lingchong-zzz span:nth-child(3){left:64px;top:0;font-size:14px;animation-delay:1.8s}
-@keyframes lingchong-zzz{0%{opacity:0;transform:translate(0,4px) scale(.7)}20%{opacity:.85}100%{opacity:0;transform:translate(11px,-20px) scale(1.1)}}
+.lingchong-zzz span{position:absolute;font:600 12px/1 var(--bt-font);color:var(--bt-ink-3);opacity:0;animation:lingchong-zzz 3.2s ease-out infinite}
+.lingchong-zzz span:nth-child(1){left:44px;top:14px;font-size:12px;animation-delay:0s}
+.lingchong-zzz span:nth-child(2){left:57px;top:6px;font-size:15px;animation-delay:1.1s}
+.lingchong-zzz span:nth-child(3){left:70px;top:-2px;font-size:18px;animation-delay:2.2s}
+@keyframes lingchong-zzz{0%{opacity:0;transform:translate(0,5px) scale(.6)}20%{opacity:.9}100%{opacity:0;transform:translate(15px,-28px) scale(1.2)}}
+.lingchong-puff{position:absolute;width:9px;height:9px;border-radius:50%;border:1px solid rgba(128,112,88,.32);opacity:0;pointer-events:none;animation:lingchong-puff 1.6s ease-out forwards}
+@keyframes lingchong-puff{0%{opacity:0;transform:translate(0,0) scale(.35)}20%{opacity:.8}100%{opacity:0;transform:translate(10px,-18px) scale(1.4)}}
 .spark-field{position:absolute;inset:0;pointer-events:none;z-index:8}
 .spark{position:absolute;color:var(--bt-star,#f6c453);font-size:13px;opacity:0;animation:lingchong-spark 1s ease-out forwards}
 .spark[data-kind=heart]{color:#e58a9a;font-size:12px}
 @keyframes lingchong-spark{0%{opacity:0;transform:translateY(3px) scale(.5)}25%{opacity:.95}100%{opacity:0;transform:translateY(-26px) scale(1.1)}}
 @media (max-width:760px){.lingchong{width:88px;height:45px;--pet-scale:.2286}}
-@media (prefers-reduced-motion:reduce){.spark{animation:none;opacity:0}.lingchong-butterfly .wing{animation:none}.lingchong-zzz span{animation:none;opacity:.6}}
+@media (prefers-reduced-motion:reduce){.spark{animation:none;opacity:0}.lingchong-butterfly .wing{animation:none}.lingchong-zzz span{animation:none;opacity:.6}.lingchong-puff{animation:none;opacity:0}}
 `
