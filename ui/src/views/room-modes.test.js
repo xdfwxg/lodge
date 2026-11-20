@@ -16,6 +16,7 @@ test('every UI room kind has a view implementing the same contract', () => {
   assert.deepEqual(Object.keys(uiModes).sort(), roomUiKinds.map(kind => kind.id).sort())
   for (const [id, mode] of Object.entries(uiModes)) {
     assert.equal(mode.id, id)
+    assert.equal(typeof mode.className, 'string', `${id} mode misses className`)
     for (const key of REQUIRED) {
       assert.equal(typeof mode[key], 'function', `${id} mode misses ${key}`)
     }

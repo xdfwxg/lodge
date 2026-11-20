@@ -17,7 +17,7 @@ export const studioTyping = (room, members = []) => {
   if (busy.length === 0) return null
   const people = busy.map(id => members.find(member => member.id === id) ?? { id })
   const actions = new Set(people.map(actionOf))
-  const action = actions.size === 1 ? [...actions][0] : '正在并行处理'
+  const action = actions.size === 1 ? [...actions][0] : '正在一起处理'
   const stages = Array.isArray(room.stages) ? room.stages : []
   const index = stages.findIndex(stage => stage.state === 'active')
   const stage = index >= 0 ? stages[index] : null

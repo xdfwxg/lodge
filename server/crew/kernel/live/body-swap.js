@@ -1,6 +1,6 @@
 import { fail, ok } from '../../result.js'
 import { roomModeOfRoom } from '../../rooms/kinds.js'
-import { resolveRoomType } from '../../room-types/index.js'
+import { resolveRoomType } from '../../rooms/kinds.js'
 import { engineBlockReason } from '../../../../shared/engine-readiness.js'
 import { bodyChangeBlocker } from '../../body-change.js'
 import { normalizeBodySpec } from '../../body-spec.js'

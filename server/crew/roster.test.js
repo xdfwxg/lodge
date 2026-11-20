@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { resolveMembers } from './rooms/create/input.js'
-import { resolveRoomType } from './room-types/index.js'
+import { resolveRoomType } from './rooms/kinds.js'
 import { roleMembers, rosterFromRoles, ROLES, membersFor, TEMPLATES, validateRoster } from './roster.js'
 
 test('the default roster satisfies the capability contract', () => {

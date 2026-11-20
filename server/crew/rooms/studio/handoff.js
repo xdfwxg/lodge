@@ -65,7 +65,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
           ? `@${label} ${step}还得再改一下。`
           : `@${label} ${step}交给你了${check}。`
     const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, nonce })}`
-    const existing = store.readAssignment(deliveryKey)
+    const existing = store.readAssignment(deliveryKey, roomId)
     // 已经交回或正在做的交接不再重复唤醒；同一次交接只发一次。
     if (existing !== null && ['working', 'reported', 'passed', 'rejected', 'cancelled'].includes(existing.status)) {
       return existing

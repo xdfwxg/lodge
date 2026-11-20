@@ -10,10 +10,8 @@ import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
-import { buildFollowupBody } from './rooms/studio/followup.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
-import { humanHandoffStageOf } from './human-handoff.js'
-import { createModeSwitch } from './mode-switch.js'
+import { humanHandoffStageOf } from './rooms/studio/human-handoff.js'
 import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
 import {
@@ -187,7 +185,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     return ok({ room: updated })
   }
   const chat = createServiceChat({ store, live, emit })
-  const modeSwitch = createModeSwitch({ store, engine, live, emit })
   const memberAdd = createMemberAdd({
     store,
     engine,
@@ -680,7 +677,9 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       const normalized = normalizeAttachments(body.attachments)
       if (normalized.error !== undefined) return fail('invalid', normalized.error)
       const attachments = normalized.attachments
-      const built = buildFollowupBody({
+      const builder = roomModeOfRoom(room)?.followup
+      if (typeof builder !== 'function') return fail('invalid', '这间房不能接着改')
+      const built = builder({
         room,
         messages: readMessages(room.id),
         text,
@@ -822,7 +821,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     }
 
     if (action === 'routine' && method === 'POST') {
-      if (room.roomType !== 'studio') return fail('invalid', '只有工作室房间能设成定时再做一遍')
+      if (roomModeOfRoom(room)?.supportsRoutine !== true) return fail('invalid', '这间房不能设成定时再做一遍')
       if (room.state !== 'complete') return fail('conflict', '房间做完后再设')
       if (room.demo === true) return fail('invalid', '示例房间不能设成定时再做一遍')
       if (room.archivedAt !== undefined && room.archivedAt !== null) return fail('conflict', '取消归档后再设')
@@ -899,10 +898,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       return stages.rewind(room, await readBody())
     }
 
-    if (action === 'switch-mode' && method === 'POST') {
-      return modeSwitch.switchMode(room, await readBody())
-    }
-
     if (action === 'subrooms' && method === 'POST') {
       return subrooms.create(room, await readBody())
     }
@@ -915,7 +910,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     createRoom,
     createSampleRoom,
     roomRequest,
-    switchMode: modeSwitch.switchMode,
     // 附件进基座自己的库：图片成为原生视觉输入，文件按路径交给能读文件的人。
     uploadAttachment: async ({ bytes, mime, name } = {}) => {
       if (attachments === null) return fail('unavailable', '附件功能还没有接上')

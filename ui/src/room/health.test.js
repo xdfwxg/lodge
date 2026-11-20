@@ -47,7 +47,8 @@ test('the first line asks what is needed, not how the factory is running', () =>
   assert.doesNotMatch(needs, /\$|回合|返工|证据/)
 
   const running = healthLineOf(healthOf(room({ needsYou: null, busyMembers: ['executor'] })))
-  assert.equal(running, '第 2 步「实现」 · 执行官在做')
+  assert.equal(running, '工作详情')
+  assert.doesNotMatch(running, /第 \d+ 步|执行官在做/)
 })
 
 test('a room without an active stage has no health card', () => {

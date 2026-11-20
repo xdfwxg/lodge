@@ -70,7 +70,10 @@ export const createAssignment = ({
   // 同一个 id 永远对应同一次交接：存在就返回原记录，不覆盖证据和结果。
   if (id !== null) {
     const existing = store.readAssignment(id)
-    if (existing !== null) return existing
+    if (existing !== null) {
+      if (existing.roomId !== roomId) throw new Error('交接 id 属于另一个房间')
+      return existing
+    }
   }
   assertTarget({ store, roomId, reason, toMemberId, toRoomId })
   const at = now()

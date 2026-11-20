@@ -1,5 +1,4 @@
 import { handoffGoalText } from '../../../shared/handoff.js'
-import { resolveRoomType } from '../room-types/index.js'
 import { chatKind } from './chat/kind.js'
 import { studioKind } from './studio/kind.js'
 
@@ -17,10 +16,10 @@ export const roomBulletin = (goal, verify, acceptance, handoff = null) => {
 
 // 两种窄接口：建房/能力只拿 mode，消息投影/注意力只拿 presentation。
 const MODE_KEYS = [
-  'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'supportsRoutine', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record',
-  'initialMessages', 'provisionExtra', 'start',
+  'initialMessages', 'provisionExtra', 'start', 'followup',
   'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
@@ -39,6 +38,25 @@ const views = new Map(roomKinds.map(kind => [kind, {
 }]))
 
 const kindForType = typeId => roomKinds.find(kind => kind.owns(typeId)) ?? null
+
+// 房型注册表只认本层策略；room-types 目录保留纯描述符，index 只是兼容门面。
+export const resolveRoomType = value => {
+  if (value === undefined || value === null || value === '') return studioKind.type
+  return roomKinds.find(kind => kind.owns(value))?.type ?? null
+}
+
+export const capabilitiesFor = typeId => resolveRoomType(typeId)?.capabilities ?? null
+
+export const listRoomTypes = () => roomKinds.map(kind => ({
+  id: kind.type.id,
+  name: kind.type.name,
+  description: kind.type.description,
+  defaultVerify: kind.type.defaultVerify,
+  defaultMembers: kind.type.defaultMembers,
+  readOnly: kind.type.readOnly === true,
+  autoStart: kind.type.autoStart,
+  singleDirectory: kind.type.singleDirectory === true,
+}))
 
 // 没写房型的内部记录按工作室处理；未知房型返回 null，由调用方拒绝。
 const kindOfRoom = room => {

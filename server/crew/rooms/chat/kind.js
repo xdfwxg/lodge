@@ -26,6 +26,8 @@ export const chatKind = {
   requiresGate: false,
   evaluateGate: () => ({ decision: 'allow', issues: [], needsHumanReview: false, advice: [] }),
   supportsDelivery: false,
+  supportsRoutine: false,
+  followup: null,
   approvalReadOnly: () => false,
   appliesStageDependencies: false,
 

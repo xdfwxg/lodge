@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ROOM_TYPE_MANIFEST } from '../../../shared/room-types.js'
-import { capabilitiesFor, listRoomTypes } from './index.js'
+import { capabilitiesFor, listRoomTypes } from '../rooms/kinds.js'
 
 test('registered room types match the shared product manifest', () => {
   const registered = listRoomTypes()

@@ -31,7 +31,7 @@ export const childResultText = (child, verdicts) => {
 
 export const parentAssignmentOf = (store, parent, child) => {
   if (typeof child?.parentAssignmentId === 'string' && child.parentAssignmentId !== '') {
-    return store.readAssignment(child.parentAssignmentId) ?? null
+    return store.readAssignment(child.parentAssignmentId, parent.id) ?? null
   }
   return store.readAssignments(parent.id, { limit: 5000 })
     .filter(item => item.reason === 'subroom' && item.context?.childRoomId === child.id)

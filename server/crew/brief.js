@@ -1,4 +1,4 @@
-import { resolveRoomType } from './room-types/index.js'
+import { resolveRoomType } from './rooms/kinds.js'
 
 const doneOf = line => {
   const text = String(line ?? '').trim()

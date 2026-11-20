@@ -19,7 +19,7 @@ ui/src/store.js              ← 唯一的 UI 传输适配层
 views + room/<kind>/view.js  ← 房型视图策略
 ──────── HTTP / SSE 边界 ────────
 server/index.js              ← 唯一组合根
-service.js                   ← 路由分发，不写规则
+service.js                   ← 路由分发与用例组合
 应用层：rooms/*、kernel/live/*
 领域层：room-types、gate、assignments、verifiers、orchestration、presentation
 端口：crew-ports、runtime-port、workspace-ports、surface-port
@@ -27,6 +27,32 @@ service.js                   ← 路由分发，不写规则
 ```
 
 依赖只向内：领域层不依赖应用层、端口或适配器；应用层只用注入的端口；适配器只在组合根装配；UI 不 import `server/crew`。
+
+## 房型是策略
+
+房间是唯一实体，运行模式是挂在房间上的策略，不是另一套房间模型。
+
+| 单元 | 职责 | 变化原因 |
+| --- | --- | --- |
+| `Room` 记录 | 目标、成员、状态、阶段、Assignment、证据、交付；唯一实体 | 房间协议 |
+| `room-types/*` | 名称、默认成员、能力矩阵、创建纯规则；不持有运行时 | 产品描述符 |
+| `rooms/<mode>/kind.js` | 成员 soul、记录、启动、投影、等待信号；同一模式的行为不可拆 | 模式行为 |
+| `rooms/kinds.js` | 唯一注册表；把策略裁成 `mode` / `presentation` / `lifecycle` 三组窄接口 | 组合与替换 |
+| `service.js` | 路由与业务编排；模式差异优先走注册表钩子，具体模式用例在组合点装配 | 用例流程 |
+| `ui/src/room/*` | 房间壳、房型视图、岛、共享展示；不 import `server/crew` | 呈现 |
+
+**接口与依赖**
+
+- 模式差异依赖 `roomModeForType`、`roomModeOfRoom`、`roomPresentationOfRoom`、`roomLifecycleOfRoom`；三组接口分别回答“怎么建/怎么跑”“只读投影什么”“哪些动作会改状态”。`followup`、`supportsRoutine` 这类差异走策略钩子；`service.js` 作为组合点装配具体模式用例。
+- 模式差异的依赖方向是 `service → 注册表 → kind`、`kind → shared/ports`；反向 import、UI import 服务端、聊天室和工作室互 import 都由测试拦住。
+- 新增模式 = 描述符 + kind + 视图 + 自己的动作入口；不改 `Room`、另一间房或共享房间协议。运行期不切换房型；底层角色仍是规划师/执行官/验收员三类。
+
+**为什么这么分**
+
+- **策略模式**：房型是运行策略，不是第二套房间模型；调度/圆桌/专项/接力共用同一份房间、成员和 Assignment 协议。
+- **接口隔离**：创建运行、只读投影和生命周期分开，调用方只拿需要的那组，避免房型接口膨胀。
+- **开闭与替换**：注册表和契约测试保证新模式可替换；关键生命周期已走钩子，剩余模式路由集中在用例入口，不再扩散到房间本体。
+- **不可拆分标尺**：一个模式的创建规则、运行行为、投影和等待信号必须同时变，所以收在同一个 `kind.js`；房间身份、消息和交接必须一起保持一致，所以留在房间本体。
 
 ## 数据与真相
 

@@ -63,8 +63,8 @@ export const withAssignments = store => {
       for (const item of stale) rows.splice(rows.indexOf(item), 1)
       return stale.length
     },
-    readAssignment(id) {
-      return rows.find(item => item.id === id) ?? null
+    readAssignment(id, roomId = null) {
+      return rows.find(item => item.id === id && (roomId === null || item.roomId === roomId)) ?? null
     },
     updateAssignment(id, mutate) {
       const assignment = rows.find(item => item.id === id)

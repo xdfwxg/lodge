@@ -2,7 +2,6 @@ import { Fragment, createElement as h, useEffect, useLayoutEffect, useRef, useSt
 import { createPortal } from 'react-dom'
 import { useOverlay } from '../overlay.js'
 import { uiKindOfRoom } from '../room/kinds.js'
-import { roomTypeIcon } from '../room/type-icons.js'
 import { initialOf } from '../marks.js'
 import { routineLineOf } from '../../../shared/routine.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
@@ -10,7 +9,7 @@ import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
 import { ProfileMark } from '../profile-mark.js'
 import { PlusIcon } from '../icons.js'
-import { clampSide, COLLAPSE_AT, RAIL_WIDTH, readSidebarLayout, SIDE_MAX, SIDE_MIN, writeSidebarCollapsed, writeSidebarWidth } from './sidebar-layout.js'
+import { clampSide, COLLAPSE_AT, RAIL_WIDTH, readSidebarLayout, SIDE_MAX, SIDE_MIN, writeSidebarCollapsed, writeSidebarWidth } from '../app/sidebar-layout.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
@@ -486,7 +485,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
   const lodge = room.lodge === true
   const label = roomLabelOf(room)
   const routineLine = room.archivedAt || room.needsYou ? '' : routineLineOf(room)
-  const TypeIcon = roomTypeIcon(uiKindOfRoom(room).id)
+  const TypeIcon = uiKindOfRoom(room).icon
   const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
   const canDelete = room.state !== 'active'
   const closeMenu = () => setMenuOpen(false)

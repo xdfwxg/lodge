@@ -9,6 +9,7 @@ export const chatUi = {
   owns: type => type === 'chat',
   label: roomTypeMeta('chat').name,
   defaultMembers: null,
+  icon: ChatIcon,
   teamMode: 'fixed',
   memberLabels: { lead: '主持中', member: '发言中' },
   membersCanBeAdded: false,

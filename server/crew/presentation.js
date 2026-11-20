@@ -1,7 +1,7 @@
 import { humanNameOf } from './human-name.js'
 import { roomAttention } from './attention.js'
 import { independenceLabel } from './digest.js'
-import { capabilitiesFor } from './room-types/index.js'
+import { capabilitiesFor } from './rooms/kinds.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { stripAttachmentTags } from '../../shared/attachments.js'
 
@@ -32,14 +32,16 @@ export const presentRoom = (room, messages = [], assignments = [], { children = 
     ...visibleRoom
   } = room
   // 附件标记只给模型看；界面和生成出来的标题都不该带着它。
+  const presentation = roomPresentationOfRoom(room)
+  const host = presentation?.hostOf?.(room) ?? null
   const visible = {
     ...visibleRoom,
     humanName: humanNameOf(room) || undefined,
     goal: stripAttachmentTags(room.goal),
     members: (room.members ?? []).map(member => ({ ...member, body: publicBody(member.body) })),
-    hostLabel: room.roomType === 'chat' && typeof chatHost?.displayName === 'string' ? chatHost.displayName : '',
+    hostLabel: typeof host?.displayName === 'string' ? host.displayName : '',
   }
-  const projection = roomPresentationOfRoom(room)?.projectWork?.(room, assignments) ?? null
+  const projection = presentation?.projectWork?.(room, assignments) ?? null
   const view = {
     ...visible,
     ...(projection ?? {}),
@@ -54,6 +56,6 @@ export const presentRoom = (room, messages = [], assignments = [], { children = 
     needsYou: attention[0] ?? null,
     modeCapabilities: capabilitiesFor(room.roomType),
     independenceLabel: independenceLabel(room),
-    delivery: roomPresentationOfRoom(view)?.deliveryOf?.(view, messages) ?? null,
+    delivery: presentation?.deliveryOf?.(view, messages) ?? null,
   }
 }

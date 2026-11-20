@@ -9,7 +9,7 @@ const DONE_LIMIT = 4
 const CONSTRAINT_LIMIT = 6
 const FEEDBACK_LIMIT = 1
 const MAX_CHARS = 1_800
-const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员', observer: '观察员' }
+const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收员' }
 
 const clip = (text, limit) => (text.length > limit ? `${text.slice(0, limit)}\n…（交接包已截断，完整内容读 transcript）` : text)
 

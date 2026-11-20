@@ -105,15 +105,37 @@ test('deleting a room removes its messages and events but keeps other rooms', ()
     store.writeRoom({ id: 'r2', name: 'R2', goal: 'g', repoPath: repo, state: 'complete', stages: [], members: [] })
     store.appendMessage('r1', { kind: 'system', text: 'hello' })
     store.appendEvent('r1', 'room.conclusion', {})
+    store.enqueueInbox({ roomId: 'r1', kind: 'run', payload: {} })
+    store.setTimer({ roomId: 'r1', kind: 'run', dueAt: Date.now() + 60_000 })
     store.appendMessage('r2', { kind: 'system', text: 'keep me' })
 
     assert.equal(store.deleteRoom('r1'), true)
     assert.equal(store.readRoom('r1'), null)
     assert.deepEqual(store.readMessages('r1'), [])
     assert.deepEqual(store.readEvents('r1'), [])
+    assert.deepEqual(store.readInbox('r1'), [])
+    assert.equal(store.dueTimers(Date.now() + 120_000).some(item => item.roomId === 'r1'), false)
     assert.equal(store.readRoom('r2').id, 'r2')
     assert.equal(store.readMessages('r2').length, 1)
   } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})
+
+test('a message id cannot move to another room', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-message-scope-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-message-scope-repo-'))
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R1', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    store.writeRoom({ id: 'r2', name: 'R2', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    const stored = store.appendMessage('r1', { kind: 'system', text: 'mine' })
+    assert.equal(store.upsertMessage({ ...stored, roomId: 'r2', text: 'not mine' }), null)
+    assert.equal(store.readMessages('r1')[0].text, 'mine')
+    assert.deepEqual(store.readMessages('r2'), [])
+  } finally {
+    store.db.close()
     rmSync(dataDir, { recursive: true, force: true })
     rmSync(repo, { recursive: true, force: true })
   }

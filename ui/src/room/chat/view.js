@@ -12,6 +12,7 @@ import { TypingLine } from '../typing-line.js'
 // 聊天室的房间视图：只认自己的决策、时间线与输入中状态，不碰工作室。
 export const chatView = {
   id: 'chat',
+  className: 'crew-room-chat',
   header: ({ room, actions }) => {
     const island = h(GoalIslandHeader, {
       room,

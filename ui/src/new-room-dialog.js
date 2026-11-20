@@ -141,7 +141,7 @@ function NewRoomDialog({
 
   const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
   const roomKind = uiKindOfType(roomType)
-  const isChat = roomKind.id === 'chat'
+  const isChat = roomKind.teamMode === 'fixed'
   const chatRoster = chatMembers ?? (activeType?.defaultMembers ?? [])
   const needRepo = roomKind.workspace.required(null) && repoPath.trim() === ''
   const proposalMembers = proposal?.members ?? []

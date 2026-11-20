@@ -52,10 +52,8 @@ export const healthLineOf = health => {
   if (health === null || health === undefined) return ''
   const needs = health.needsYou
   if (needs !== null && needs !== undefined) return `需要你：${needs.label ?? '需要你处理'}`
-  const step = `第 ${health.index + 1} 步「${health.title}」`
-  if (health.diagnostic === null) return `${step} · 刚开始`
-  const actor = (health.busyNames ?? []).length > 0 ? health.busyNames.join('、') : health.memberName
-  return actor === '' ? `${step} · 正在做` : `${step} · ${actor}在做`
+  // 岛已经在讲“第几步、谁在做”；这里只留一个可展开的工作详情入口。
+  return '工作详情'
 }
 
 export function RoomHealth({ room, onForgetMemory = null }) {

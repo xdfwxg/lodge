@@ -39,7 +39,7 @@ test('mixed busy members fall back to parallel work', () => {
     stages: [{ title: '实现', state: 'active' }],
   }), members)
   assert.equal(line.label, '执行官、验收员')
-  assert.equal(line.detail, '正在并行处理 · 第 1 步「实现」')
+  assert.equal(line.detail, '正在一起处理 · 第 1 步「实现」')
 })
 
 test('the same role keeps its action for several members', () => {

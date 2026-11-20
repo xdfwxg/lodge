@@ -25,7 +25,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 返工预算耗尽转人 | `server/crew/live-turn-modules.test.js` | 无 |
 | 晚到回合围栏（旧尝试不污染新结果） | `server/crew/live-turn-modules.test.js`、`server/crew/engine.test.js` | 无 |
 | 人的输入落成证据 | `server/crew/service-stages.test.js`、`server/crew/live-approvals.test.js` | 无 |
-| 交给人后的输入回路 | `server/crew/human-handoff.test.js`、`server/crew/live-turn-modules.test.js` | 真实模型可选 |
+| 交给人后的输入回路 | `server/crew/rooms/studio/human-handoff.test.js`、`server/crew/live-turn-modules.test.js` | 真实模型可选 |
 | 成本状态（已报告 / 部分未知 / 未知） | `shared/usage.test.js`、`server/crew/delivery.test.js`、`server/crew/rooms/chat/runtime.test.js`、`ui/src/room/studio/delivery-card.test.js` | 无 |
 | 执行诊断包 | `server/crew/room-repo.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/turn-assessment.test.js` | 无 |
 | 并行分支复活（重试一个分支带回兄弟） | `server/crew/live-turn-modules.test.js` | 无 |
@@ -40,7 +40,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 房间健康卡（证据 / 未知 / 下一步、费用、返工） | `ui/src/room/health.test.js`、`server/crew/turn-assessment.test.js` | 无 |
 | 新房间入口与房型选择 | `ui/src/new-room-dialog.test.js` | 无 |
 | 房间列表顺序（待办在前、归档在后） | `ui/src/views/sidebar.test.js` | 无 |
-| 人工门没有死路（交给人后可见输入动作） | `ui/src/room/studio/human-gate.test.js`、`server/crew/human-handoff.test.js` | 无 |
+| 人工门没有死路（交给人后可见输入动作） | `ui/src/room/studio/human-gate.test.js`、`server/crew/rooms/studio/human-handoff.test.js` | 无 |
 | 提示词与工具面的确定性顺序 | `server/crew/prompt-order.test.js`、`server/crew/tool-scope.test.js` | 无 |
 | 判定工具（MCP gate） | `shared/gate.test.js`、`server/crew/gate/mcp-server.test.js`、`server/crew/gate/tool.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/engine.test.js`、`server/crew/permission.test.js`、`server/crew/external-actions.test.js` | 真实基座可选 |
 | 卡片有效期（阶段 + 重做轮次 + assignment） | `shared/attempt.test.js`、`server/crew/assignments.test.js`、`server/crew/attention.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/question-card.test.js` | 无 |
@@ -48,7 +48,6 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 运行租约 / 并行分支重试 | `server/crew/assignments.test.js`、`server/crew/service-stages.test.js` | 无 |
 | 任意步骤退回（含 decision） | `server/crew/service-stages.test.js`、`ui/src/room/studio/rewind-dialog.test.js` | 无 |
 | 原生换身体（保留线程） | `server/crew/kernel/live/body-swap.test.js`、`server/crew/engine.test.js` | 真实基座可选 |
-| 聊天室↔工作室模式切换 | `server/crew/mode-switch.test.js` | 真实基座可选 |
 | 角色定义（定义 / 实例分层） | `shared/role-definitions.test.js`、`server/crew/roster.test.js` | 无 |
 | 退回指定步骤、补上下文再跑 | `server/crew/service-stages.test.js`、`ui/src/room/studio/rewind-dialog.test.js` | 无 |
 | 并行执行、合并冲突、超时 | `server/crew/live-turn-modules.test.js`、`server/crew/workspace-git.test.js`、`server/crew/service-merge.test.js`、`server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/studio/auto-rework.test.js`、`ui/src/room/studio/merge-conflict.test.js` | 真实 git 冲突解决需 dogfood |

@@ -351,7 +351,8 @@ export const isolatedCopy = ({ source, ref }) => {
   const path = join(root, 'repo')
   try {
     git(source, ['worktree', 'add', '--detach', path, ref || 'HEAD'])
-    return { root, path, ref: ref || 'HEAD', environment: syncLocalEnvironment(source, path) }
+    stripTrackedSecrets(path)
+    return { root, path, ref: ref || 'HEAD', environment: syncLocalEnvironment(source, path, { copyEnv: false }) }
   } catch (error) {
     rmSync(root, { recursive: true, force: true })
     throw error

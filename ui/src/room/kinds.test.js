@@ -4,7 +4,7 @@ import { ROOM_TYPE_MANIFEST } from '../../../shared/room-types.js'
 import { roomUiKinds, uiKindOfRoom, uiKindOfType } from './kinds.js'
 
 const KEYS = [
-  'id', 'owns', 'label', 'defaultMembers', 'teamMode', 'startMode', 'cta',
+  'id', 'owns', 'label', 'defaultMembers', 'icon', 'teamMode', 'startMode', 'cta',
   'goalLabel', 'goalIcon', 'workspace',
   'missingVerifier', 'readOnly', 'primaryFields', 'setupFields', 'buildRequest',
 ]
@@ -12,8 +12,18 @@ const KEYS = [
 test('both UI room kinds satisfy the same interface', () => {
   for (const kind of roomUiKinds) {
     for (const key of KEYS) assert.ok(key in kind, `${kind.id} misses ${key}`)
+    assert.equal(typeof kind.icon, 'function', `${kind.id} icon is not a component`)
+    assert.equal(kind.owns(kind.id), true)
     assert.equal(uiKindOfRoom({ roomType: kind.id }), kind)
     assert.equal(uiKindOfType(kind.id), kind)
+  }
+})
+
+test('room kinds own exactly one type', () => {
+  for (const kind of roomUiKinds) {
+    for (const other of roomUiKinds) {
+      if (other.id !== kind.id) assert.equal(kind.owns(other.id), false)
+    }
   }
 })
 

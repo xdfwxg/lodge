@@ -10,6 +10,7 @@ import { studioTyping } from './typing.js'
 // 工作室的房间视图：一条聊天记录、一行状态、一个输入框；动作只在轮到你时出现。
 export const studioView = {
   id: 'studio',
+  className: 'crew-room-studio',
   opensAtTop: ({ room }) => room.state === 'complete',
   header: ({ room, actions }) => h(Fragment, null,
     room.routineGoalId ? h('div', { className: 'studio-run-back' },

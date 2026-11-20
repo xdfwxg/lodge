@@ -24,5 +24,3 @@ export const StudioIcon = props => frame(props, [
   h('path', { key: 'mid', d: 'M4 10.2 10 13.1 16 10.2' }),
   h('path', { key: 'base', d: 'M4 14.1 10 17 16 14.1' }),
 ])
-
-export const roomTypeIcon = kind => (kind === 'chat' ? ChatIcon : StudioIcon)

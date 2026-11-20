@@ -45,7 +45,7 @@ test('studio modules do not read room.chat', () => {
 })
 
 test('chat and studio capability flags stay separated', async () => {
-  const { capabilitiesFor } = await import('./room-types/index.js')
+  const { capabilitiesFor } = await import('./rooms/kinds.js')
   assert.equal(capabilitiesFor('chat').stages, false)
   assert.equal(capabilitiesFor('chat').closure, false)
   assert.equal(capabilitiesFor('chat').piExecution, false)

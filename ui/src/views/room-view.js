@@ -286,7 +286,11 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
     onDragLeave: dragLeave,
     onDrop: drop,
   },
-    h('div', { ref: mainRef, className: 'crew-room-main', 'data-mode': mode.id, 'data-room-done': finished ? 'true' : undefined },
+    h('div', {
+      ref: mainRef,
+      className: `crew-room-main ${mode.className ?? ''}`.trim(),
+      'data-room-done': finished ? 'true' : undefined,
+    },
       mode.header(viewCtx),
       h('div', { className: 'crew-room-tools' }, tools),
       h(RoomHealth, { key: `health-${room.id}`, room, onForgetMemory: () => store.forgetMemory() }),

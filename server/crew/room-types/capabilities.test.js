@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { capabilitiesFor } from './index.js'
+import { capabilitiesFor } from '../rooms/kinds.js'
 
 test('chat and studio capabilities stay separated', () => {
   assert.equal(capabilitiesFor('chat').stages, false)

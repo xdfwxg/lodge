@@ -33,6 +33,20 @@ test('each new handoff to the same member is a new attempt', () => {
   assert.equal(second.attempt, 2)
 })
 
+test('an assignment id cannot be reused by another room', () => {
+  const { store } = makeStore({ id: 'room-1', members: [{ id: 'lead' }, { id: 'worker' }], stages: [] })
+  createAssignment({ store, roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker', id: 'as-shared' })
+  assert.throws(() => createAssignment({
+    store,
+    roomId: 'room-2',
+    stageIndex: 0,
+    fromMemberId: 'lead',
+    toMemberId: 'worker',
+    id: 'as-shared',
+  }), /另一个房间/)
+  assert.equal(store.readAssignment('as-shared', 'room-2'), null)
+})
+
 test('a sent branch carries a lease and releases it when it reports', () => {
   const room = {
     id: 'room-1',

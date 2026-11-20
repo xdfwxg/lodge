@@ -1,7 +1,7 @@
 import { MAX_CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
 import { roomModeForType } from '../kinds.js'
 import { resolveOrchestration } from '../../orchestration/index.js'
-import { resolveRoomType } from '../../room-types/index.js'
+import { resolveRoomType } from '../kinds.js'
 import { handoffGoalText, normalizeHandoff } from '../../../../shared/handoff.js'
 import { normalizeReceipt } from '../../../../shared/receipt.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'

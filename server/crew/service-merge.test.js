@@ -192,5 +192,5 @@ test('a chat room never becomes a routine', async () => {
     readBody: async () => ({ enabled: true, days: [0, 1, 2, 3, 4, 5, 6], hour: 8 }),
   })
   assert.equal(result.ok, false)
-  assert.match(result.error, /工作室/)
+  assert.match(result.error, /这间房/)
 })

@@ -5,6 +5,10 @@ export const resolveWorkspaceProvider = ({ body, workspace, requestedRepo, sourc
     if (explicitWorkspace !== '') {
       provider = workspacePort.byId(explicitWorkspace)
       if (provider === undefined) return { error: '这个工作文件夹类型还不支持' }
+      if (requestedRepo !== '') {
+        const probe = provider.probeSource({ source: sourceRepo })
+        if (!probe.ok) return { error: probe.error }
+      }
     } else if (requestedRepo === '') {
       provider = workspacePort.default
     } else {

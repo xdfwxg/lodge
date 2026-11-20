@@ -34,6 +34,23 @@ test('acceptance runs in a disposable copy and cannot write the source repo', ()
   assert.equal(existsSync(copy.path), false)
 })
 
+test('acceptance copies never receive tracked env secrets', () => {
+  const sourceRepo = repo()
+  writeFileSync(join(sourceRepo, '.env'), 'TOKEN=secret\n')
+  writeFileSync(join(sourceRepo, '.env.example'), 'TOKEN=\n')
+  execFileSync('git', ['add', '.env', '.env.example'], { cwd: sourceRepo })
+  execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'env'], { cwd: sourceRepo })
+  const copy = isolatedCopy({ source: sourceRepo, ref: head({ path: sourceRepo }) })
+  try {
+    assert.equal(existsSync(join(copy.path, '.env')), false)
+    assert.equal(existsSync(join(copy.path, '.env.example')), true)
+    assert.deepEqual(copy.environment.copied, [])
+  } finally {
+    removeIsolatedCopy({ source: sourceRepo, copy })
+    rmSync(sourceRepo, { recursive: true, force: true })
+  }
+})
+
 test('a candidate commit lists files written by shell commands', () => {
   const sourceRepo = repo()
   try {

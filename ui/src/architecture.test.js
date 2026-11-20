@@ -95,6 +95,20 @@ test('app.js stays a composition shell', () => {
   }
 })
 
+test('views do not keep local storage', () => {
+  for (const file of walk(join(root, 'views'))) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /\blocalStorage\b/, `${rel(file)} touches local storage`)
+  }
+})
+
+test('shared CSS does not branch on the room type', () => {
+  for (const file of ['app.css', 'crew.css']) {
+    const text = readFileSync(join(root, file), 'utf8')
+    assert.doesNotMatch(text, /\bdata-mode=(?:studio|chat)\b/, `${file} branches on a room type`)
+  }
+})
+
 test('shared presentation never imports a room mode', () => {
   const shared = [
     'message-cards.js',

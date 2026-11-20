@@ -3,10 +3,10 @@ import test from 'node:test'
 import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
-  'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'validateRoster', 'supportsSubrooms', 'supportsRoutine', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record',
-  'initialMessages', 'provisionExtra', 'start',
+  'initialMessages', 'provisionExtra', 'start', 'followup',
   'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [

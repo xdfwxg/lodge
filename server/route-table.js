@@ -16,7 +16,6 @@ export const ROOM_ACTIONS = Object.freeze([
   'routine',
   'retry',
   'rewind',
-  'switch-mode',
   'read',
   'hold',
   'steer',

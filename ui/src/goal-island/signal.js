@@ -39,7 +39,7 @@ const decisionText = (kind, label, fallback) => {
     case 'question': return '成员问了一个问题'
     case 'rework': return label === '' ? '有一步被退回了' : `${label}被验收退回了`
     case 'merge': return label === '' ? '合并没合上' : `${label}合并没合上`
-    case 'parallel': return withStage(label, fallback === undefined || fallback === '' ? '并行执行卡住了' : fallback)
+    case 'parallel': return withStage(label, fallback === undefined || fallback === '' ? '这一步卡住了' : fallback)
     case 'auto-check': return fallback ?? '这一步没做成'
     case 'review-timeout': return withStage(label, fallback === undefined || fallback === '' ? '复核没按时回来' : fallback)
     case 'setup': return label === '' ? '还没定怎么验收' : `${label}还没定怎么验收`

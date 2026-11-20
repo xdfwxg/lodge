@@ -54,7 +54,7 @@ test('a completed subroom settles its parent assignment once', () => {
     readRoom: id => (id === 'parent' ? parent : id === 'child' ? child : null),
     readMessages: id => (id === 'child' ? [verdict] : []),
   })
-  seed(store, { id: 'as-child', reason: 'subroom', toMemberId: null, status: 'sent' })
+  seed(store, { id: 'as-child', roomId: 'parent', reason: 'subroom', toMemberId: null, status: 'sent' })
   assert.equal(settleCompletedSubrooms(store, 'parent'), 1)
   const settled = store.readAssignment('as-child')
   assert.equal(settled.status, 'passed')

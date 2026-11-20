@@ -132,8 +132,10 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   const readMessagesSince = (since, { limit = 5000 } = {}) => db.prepare(
     'SELECT payload FROM (SELECT seq, payload FROM messages WHERE seq > ? ORDER BY seq DESC LIMIT ?) ORDER BY seq',
   ).all(since, Math.max(1, Math.min(10000, Number(limit) || 5000))).map(row => JSON.parse(row.payload))
-  const readAssignment = id => {
-    const row = db.prepare('SELECT payload FROM assignment WHERE id = ?').get(id)
+  const readAssignment = (id, roomId = null) => {
+    const row = roomId === null
+      ? db.prepare('SELECT payload FROM assignment WHERE id = ?').get(id)
+      : db.prepare('SELECT payload FROM assignment WHERE id = ? AND room_id = ?').get(id, roomId)
     return row === undefined ? null : JSON.parse(row.payload)
   }
   const readAssignments = (roomId, { stage = null, status = null, before = null, limit = 500 } = {}) => {
@@ -259,6 +261,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       db.prepare('DELETE FROM messages WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM assignment WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM room_event WHERE room_id = ?').run(id)
+      db.prepare('DELETE FROM room_inbox WHERE room_id = ?').run(id)
+      db.prepare('DELETE FROM room_timer WHERE room_id = ?').run(id)
       const result = db.prepare('DELETE FROM room WHERE id = ?').run(id)
       db.exec('COMMIT')
       return Number(result.changes) > 0
@@ -365,8 +369,9 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   }
 
   const upsertMessage = message => {
-    const row = db.prepare('SELECT seq FROM messages WHERE id = ?').get(message.id)
+    const row = db.prepare('SELECT seq, room_id FROM messages WHERE id = ?').get(message.id)
     if (row !== undefined) {
+      if (row.room_id !== message.roomId) return null
       const updated = { ...message, seq: row.seq }
       db.prepare('UPDATE messages SET payload = ? WHERE id = ?').run(JSON.stringify(updated), updated.id)
       // 流式消息只在收口时追加一次最终版本，让 transcript 可读；库仍是真相。
@@ -412,6 +417,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   // 崩溃恢复只补日志里有、库里没有的消息；已有消息永远以库为准。
   const recoverMessage = message => {
     if (typeof message?.id !== 'string' || message.id === '' || typeof message?.roomId !== 'string') return null
+    if (readRoom(message.roomId) === null) return null
     if (db.prepare('SELECT 1 FROM messages WHERE id = ?').get(message.id) !== undefined) return null
     const seqFree = Number.isInteger(message.seq) &&
       db.prepare('SELECT 1 FROM messages WHERE seq = ?').get(message.seq) === undefined

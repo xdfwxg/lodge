@@ -97,10 +97,10 @@ export const renderSharedMessage = ({
           h('span', null, '排队中'),
           onCancelQueue === null
             ? null
-            : h('button', { type: 'button', className: 'studio-presence-action', onClick: () => onCancelQueue(message.meta.queueId) }, '撤回'),
+            : h('button', { type: 'button', className: 'crew-presence-action', onClick: () => onCancelQueue(message.meta.queueId) }, '撤回'),
           onSteerQueue === null
             ? null
-            : h('button', { type: 'button', className: 'studio-presence-action', onClick: () => onSteerQueue(message.meta.queueId) }, '插话')))
+            : h('button', { type: 'button', className: 'crew-presence-action', onClick: () => onSteerQueue(message.meta.queueId) }, '插话')))
   }
   // 模型有时把用户写成 @you；显示成名字，没起名字时直接去掉这个称呼。
   const shown = /@you\b/i.test(String(message.text ?? ''))

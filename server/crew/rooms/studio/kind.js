@@ -8,6 +8,7 @@ import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
+import { buildFollowupBody } from './followup.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { dispatchFrom, tasksFrom } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
@@ -274,6 +275,8 @@ export const studioKind = {
 
   validateRoster: type.validateRoster,
   supportsSubrooms: true,
+  supportsRoutine: true,
+  followup: buildFollowupBody,
   resolvePlan: (plan, roster) => resolveStageAssignees(plan, roster),
   requiresGate: true,
   evaluateGate: reviewRoomGate,

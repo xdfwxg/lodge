@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { listRoomTypes, resolveRoomType } from './room-types/index.js'
+import { listRoomTypes, resolveRoomType } from './rooms/kinds.js'
 
 test('the room picker exposes only chat and studio', () => {
   assert.deepEqual(listRoomTypes().map(item => item.id), ['studio', 'chat'])

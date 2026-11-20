@@ -105,11 +105,10 @@ export const roleMembers = members => ({
   lead: members.find(member => member.role === 'lead') ?? members[0],
   workers: members.filter(member => member.role === 'worker'),
   verifiers: members.filter(member => member.role === 'verifier'),
-  observers: members.filter(member => member.role === 'observer'),
 })
 
 const validateCapabilities = member => {
-  if (!['lead', 'worker', 'verifier', 'observer'].includes(member.role)) {
+  if (!['lead', 'worker', 'verifier'].includes(member.role)) {
     throw new Error(`member contract: ${member.id} has an invalid role`)
   }
   if (member.model !== undefined && (typeof member.model !== 'string' || member.model.trim() === '' || member.model.length > 160)) {
