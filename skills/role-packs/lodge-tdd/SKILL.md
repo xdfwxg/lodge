@@ -29,5 +29,3 @@ A test is a promise about behavior. Write it before the implementation so you ca
 ## Boundary
 
 Work only in the assigned worktree. Do not commit, push, or open a PR. Run the checks the stage names; report the exact command and result.
-
-A stage checked by a test runner cannot pass without a test change. If the seam truly has no test, say so; the planner must mark that stage as a human check instead.

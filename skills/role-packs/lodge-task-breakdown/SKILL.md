@@ -15,7 +15,7 @@ A stage is not a activity. It is a promise: after this stage, a named result exi
 2. List the results that must exist for the finish line to be true.
 3. Group results into stages. Each stage must have:
    - a short title;
-   - one runnable acceptance command, or a clear human decision;
+   - one acceptance check or a clear human decision;
    - the owner role (planner, executor, verifier) or a named assignee;
    - the stages it depends on.
 4. Put the riskiest unknown earliest. Do not hide it behind setup work.
