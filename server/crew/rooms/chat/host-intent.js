@@ -1,5 +1,6 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { humanLabelOf, humanNameOf } from '../../human-name.js'
+import { LODGE_HOST_RULES } from '../../../../shared/lodge-host.js'
 
 // 用户只对主持说话；主持判断是直接回答，还是从固定成员里请人讨论。
 // 轮数、成员数和发言次数都属于房间配置，不从这里改。
@@ -14,10 +15,11 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
   const humanName = humanNameOf(room)
   const humanLine = humanName === '' ? '' : `用户称呼：${humanName}。`
   const lodge = room.lodge === true && roster === ''
-  const grillRule = '用户说“拷问我/grill me/来拷问我”时，用 reply 一次只问一个最关键的问题；不要开轮、不要开房、不要叫成员发言。用户回答后继续问下一个；用户说“够了/开始做”时，把已确认的点收成一段结论。'
+  const grillRule = '用户说“拷问我/grill me/来拷问我”，或说“帮我理理/拿不准/不知道从哪开始”时，用 reply 一次只问一个最关键的问题；不要开轮、不要开房、不要叫成员发言。用户回答后继续问下一个；用户说“够了/开始做”时，把已确认的点收成一段结论。'
   const rules = lodge
     ? [
       '判断规则：',
+      ...LODGE_HOST_RULES,
       grillRule,
       '- 要交一个具体结果（文件、清单、链接、对比表、代码、查价、订票等）→ open studio。',
       '- 要找几个人一起看、一起讨论、听不同意见（大伙、大家、团队、多几个人、一起商量）→ open chat。',

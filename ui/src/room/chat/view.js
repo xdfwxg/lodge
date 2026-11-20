@@ -19,17 +19,14 @@ export const chatView = {
       room,
       goal: chatIslandGoal(room),
       onOpenRoom: actions.selectRoom,
+      onSignalAction: signal => {
+        if (signal?.needs !== 'connection' && signal?.needs !== 'mcp') return false
+        if (typeof actions.resume === 'function') actions.resume()
+        return true
+      },
     })
-    const grill = room.state === 'active' && room.live === true && typeof actions.send === 'function'
-      ? h('div', { className: 'crew-chat-grill' },
-        h('button', {
-          type: 'button',
-          className: 'crew-link',
-          onClick: () => actions.send('拷问我这个想法'),
-        }, '拷问我'))
-      : null
-    if (room.state !== 'paused') return grill === null ? island : h(Fragment, null, island, grill)
-    return h(Fragment, null, island, grill, h(PausedPanel, {
+    if (room.state !== 'paused') return island
+    return h(Fragment, null, island, h(PausedPanel, {
       room,
       onResume: () => actions.resume(),
       onFixMember: memberId => actions.swapBody(memberId),

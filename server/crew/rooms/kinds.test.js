@@ -47,6 +47,12 @@ test('member souls carry only their own mode discipline', () => {
   assert.match(leadSoul, /不再重复对齐/)
 })
 
+test('only the Lodge chat allows a host without member threads', () => {
+  const chat = roomModeForType('chat')
+  assert.equal(chat.allowsHostOnly({ lodge: true }), true)
+  assert.equal(chat.allowsHostOnly({}), false)
+})
+
 test('message routing is a mode policy, not a room-type branch', () => {
   const chat = roomModeForType('chat')
   assert.deepEqual(chat.messagePolicy({ room: { chat: { phase: 'discussing' } }, text: '聊聊' }), { type: 'host' })

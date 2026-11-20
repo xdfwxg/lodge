@@ -385,7 +385,8 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     }
 
     if (action === 'resume' && method === 'POST') {
-      if (room.state !== 'paused') return fail('conflict', '房间没有暂停')
+      const disconnected = typeof room.connectionError === 'string' && room.connectionError !== ''
+      if (room.state !== 'paused' && !disconnected) return fail('conflict', '房间没有暂停')
       if (room.live !== true) return fail('conflict', '房间现在没有连上，稍后再试')
       if (live.isAttached?.(room.id) !== true) {
         try {
@@ -395,16 +396,26 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         }
       }
       const resumed = updateRoom(room.id, current => {
-        current.state = 'active'
-        current.idle = false
-        current.pauseReason = null
-        current.noProgress = 0
-        return { events: [{ type: 'room.resumed' }] }
+        const events = []
+        if (current.state === 'paused') {
+          current.state = 'active'
+          current.idle = false
+          current.pauseReason = null
+          current.noProgress = 0
+          events.push({ type: 'room.resumed' })
+        }
+        if (typeof current.connectionError === 'string' && current.connectionError !== '') {
+          delete current.connectionError
+          events.push({ type: 'room.connection', payload: { connected: true } })
+        }
+        return events.length === 0 ? null : { events }
       })
       if (resumed === null) return fail('not_found', '没有这个房间')
       emit('room', resumed)
-      try { await live.resume?.(room.id) } catch (error) {
-        console.warn(`room resume failed: ${room.id} ${error?.message ?? error}`)
+      if (room.state === 'paused') {
+        try { await live.resume?.(room.id) } catch (error) {
+          console.warn(`room resume failed: ${room.id} ${error?.message ?? error}`)
+        }
       }
       return ok({ room: readRoom(room.id) ?? resumed })
     }

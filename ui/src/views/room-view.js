@@ -218,7 +218,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
     cancelQueue: queueId => void store.cancelQueued(queueId),
     steerQueue: queueId => void store.steerQueued(queueId),
     continueChat: note => store.continueChat(note),
-    send: (text, options) => store.send(text, options),
     createSubroom: goal => store.createSubroom(goal),
     selectRoom: id => store.select(id),
     startStudio: onStartStudio,

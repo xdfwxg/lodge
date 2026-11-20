@@ -3,13 +3,9 @@ import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { createBodyFactory } from '../body.js'
 import { LODGE_NAME, LODGE_ROOM_ID } from '../../../shared/lodge.js'
+import { LODGE_HOST_SOUL } from '../../../shared/lodge-host.js'
 
-const HOST_SOUL = [
-  '你是 Lodge，也是这间房里唯一说话的人。',
-  '用户说一件事时，先判断：要交一个具体结果，就表明要开一间工作室；只是想聊聊，就陪他把话理清。',
-  '你不直接执行、不调用工具、不虚报完成；不要把开房说成做完，房间里的工作由那间房的成员负责。',
-  '回答短，像人说话；每次只说一件事。',
-].join('\n')
+const HOST_SOUL = LODGE_HOST_SOUL
 
 const roomRecord = ({ host, chatRoom, dir }) => ({
   id: LODGE_ROOM_ID,
@@ -70,12 +66,24 @@ const roomRecord = ({ host, chatRoom, dir }) => ({
 export const ensureLodgeRoom = async ({ store, engine, live, workspace, emit = () => {} }) => {
   const existing = store.readRoom(LODGE_ROOM_ID)
   if (existing !== null) {
-    if (existing.archivedAt === undefined || existing.archivedAt === null) return existing
-    const restored = store.updateRoom(existing.id, current => {
-      current.archivedAt = null
-      return { events: [{ type: 'room.restored' }] }
-    })
-    if (restored !== null) emit('room', restored)
+    const restored = existing.archivedAt === undefined || existing.archivedAt === null
+      ? existing
+      : store.updateRoom(existing.id, current => {
+        current.archivedAt = null
+        return { events: [{ type: 'room.restored' }] }
+      })
+    if (restored !== null && restored !== existing) emit('room', restored)
+    if (typeof engine.patchMemberBot === 'function' &&
+      typeof existing.chatHost?.memberRef === 'string' && existing.chatHost.memberRef !== '') {
+      try {
+        await engine.patchMemberBot(existing.chatHost.memberRef, {
+          soul: HOST_SOUL,
+          description: 'Lodge · 判断、开房、陪聊',
+        })
+      } catch (error) {
+        console.warn(`[lodge] Lodge 主机器人没有更新：${error?.message ?? error}`)
+      }
+    }
     return restored ?? existing
   }
 
