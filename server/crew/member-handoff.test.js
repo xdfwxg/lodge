@@ -28,6 +28,86 @@ test('a member handoff carries business material and references the transcript',
   assert.doesNotMatch(text, /# 约定/)
 })
 
+test('a next version starts with the previous version facts', () => {
+  const text = buildMemberHandoff({
+    room: {
+      ...room,
+      continuation: {
+        fromRoomId: 'room-1',
+        fromRoomName: '设置页保存',
+        version: 2,
+        goal: '给设置页加保存',
+        conclusion: '保存后刷新仍生效',
+        files: ['src/settings.js'],
+        check: 'npm test',
+        commit: 'abc123',
+      },
+    },
+    messages: [],
+  })
+  assert.match(text, /上一版《设置页保存》（第 1 版）/)
+  assert.match(text, /上一版结论：保存后刷新仍生效/)
+  assert.match(text, /当时改过：src\/settings\.js/)
+  assert.match(text, /上一版检查（可能不适用于这一版）：npm test/)
+  assert.match(text, /上一版提交：abc123/)
+})
+
+test('the handoff tells the member who the user is', () => {
+  const text = buildMemberHandoff({ room: { ...room, humanName: '千寻' }, messages: [] })
+  assert.match(text, /用户称呼：千寻/)
+})
+
+test('the handoff lists the room members and their roles', () => {
+  const text = buildMemberHandoff({
+    room: {
+      ...room,
+      members: [
+        { name: '小林', role: 'lead' },
+        { name: '阿青', role: 'worker' },
+        { name: '阿岚', role: 'verifier' },
+      ],
+    },
+    messages: [],
+  })
+  assert.match(text, /房间成员：小林（规划师）、阿青（执行官）、阿岚（验收员）/)
+})
+
+test('shared memory brings the last rejection reasons along', () => {
+  const text = buildMemberHandoff({
+    room: {
+      ...room,
+      sharedMemory: [{
+        goal: '给设置页加保存',
+        conclusion: '已交付',
+        files: ['src/settings.js'],
+        rejections: [{ stage: 1, reason: '保存后刷新会丢设置' }],
+      }],
+    },
+    messages: [],
+  })
+  assert.match(text, /工作区既有结论/)
+  assert.match(text, /当时改过：src\/settings\.js/)
+  assert.match(text, /上次被退回（阶段 2）：保存后刷新会丢设置/)
+})
+
+test('old memory is clipped before the current room facts', () => {
+  const text = buildMemberHandoff({
+    room: {
+      ...room,
+      sharedMemory: Array.from({ length: 3 }, (_, index) => ({
+        goal: `旧目标 ${index}`,
+        conclusion: '旧结论'.repeat(200),
+        files: ['src/old.js'],
+        rejections: [{ stage: 0, reason: '旧退回'.repeat(100) }],
+      })),
+    },
+    messages: [],
+  })
+  assert.match(text, /进度：/)
+  assert.match(text, /下一步：实现/)
+  assert.equal(text.indexOf('进度：') < text.indexOf('工作区既有结论'), true)
+})
+
 test('a member handoff stays bounded', () => {
   const text = buildMemberHandoff({
     room: { ...room, constraints: Array.from({ length: 200 }, (_, index) => `约束 ${index} ${'x'.repeat(400)}`) },

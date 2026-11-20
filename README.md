@@ -20,7 +20,7 @@
 
 根目录两份，`docs/` 三份，各有职责：
 
-- [Lodge.md](Lodge.md)：产品判断与设计思想——该不该做、房间哲学、验收与边界。
+- [Lodge.md](Lodge.md)：产品判断、原则总表与设计思想——该不该做、房间哲学、验收与边界。原则总表是唯一的原则索引，其他文档只写细则。
 - [docs/architecture.md](docs/architecture.md)：服务端分层、数据真相、交接与门禁——数据怎么流、边界在哪。
 - [docs/design.md](docs/design.md)：界面、交互和文案——字号颜色、组件、怎么写。
 - [docs/operations.md](docs/operations.md)：运行、基座、打包、运维与恢复——怎么启动、坏了怎么办。

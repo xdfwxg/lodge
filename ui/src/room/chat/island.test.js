@@ -4,14 +4,26 @@ import { chatIslandGoal } from './island.js'
 
 const goalOf = chat => chatIslandGoal({ id: 'room-chat', name: '圆桌', goal: '讨论交付边界', state: 'active', chat })
 
-test('a discussing chat says it is chatting, without a second task', () => {
+test('a chat with only the host opening has not started chatting', () => {
   const goal = goalOf({ phase: 'discussing' })
   assert.deepEqual(goal.stages.map(stage => stage.title), ['聊天'])
   assert.deepEqual(goal.stages.map(stage => stage.status), ['active'])
   assert.equal(goal.kind, 'chat')
   assert.equal(goal.current, 0)
-  assert.equal(goal.barLabel, '正在聊')
+  assert.equal(goal.barLabel, '还没开始聊')
   assert.equal(goal.idle, false)
+})
+
+test('a chat says it is chatting once someone speaks or a turn runs', () => {
+  assert.equal(goalOf({ phase: 'discussing', running: true }).barLabel, '正在聊')
+  assert.equal(chatIslandGoal({
+    id: 'room-chat',
+    name: '圆桌',
+    goal: '讨论交付边界',
+    state: 'active',
+    chat: { phase: 'discussing' },
+    messages: [{ kind: 'chat', authorId: 'you', text: '开始吧' }],
+  }).barLabel, '正在聊')
 })
 
 test('a concluded chat stops here instead of waiting for a conclusion', () => {

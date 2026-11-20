@@ -56,7 +56,7 @@ export const chatView = {
   presence: () => null,
   composerPlaceholder: ({ room }) => room.demo === true && room.live !== true
     ? '示例房间不接模型 · 已停在结论'
-    : `对 ${hostLabelOf(room) || 'Lodge 主持'}说…`,
+    : `对 ${hostLabelOf(room) || 'Lodge 主持'} 说…`,
   // 谁在发言由身体状态行说；这里只补主持人的“正在看”和“正在总结”。
   typing: ({ room, locked }) => {
     const chat = room.chat ?? {}

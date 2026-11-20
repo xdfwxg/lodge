@@ -1,5 +1,5 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { humanLabelOf } from '../../human-name.js'
+import { humanLabelOf, humanNameOf } from '../../human-name.js'
 
 // 用户只对主持说话；主持判断是直接回答，还是从固定成员里请人讨论。
 // 轮数、成员数和发言次数都属于房间配置，不从这里改。
@@ -11,6 +11,8 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
   const stateLine = phase === 'awaiting_decision' || phase === 'accepted'
     ? '房间已经有一份结论；用户再说话就是在继续这件事。'
     : ''
+  const humanName = humanNameOf(room)
+  const humanLine = humanName === '' ? '' : `用户称呼：${humanName}。`
   const lodge = room.lodge === true && roster === ''
   const rules = lodge
     ? [
@@ -38,6 +40,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
   return [
     `你是 Lodge 主持，负责接住用户的话。固定成员：${roster || '无'}。`,
     lodge ? '' : `房间每轮固定 ${turnLimit} 次发言，主持不占发言位。`,
+    humanLine,
     stateLine,
     `${humanLabelOf(room)}说：${text}`,
     ...rules,

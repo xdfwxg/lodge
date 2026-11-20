@@ -1,22 +1,12 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { useOverlay } from '../overlay.js'
-import { dateTimeOf } from '../view-format.js'
-
-const short = value => (typeof value === 'string' && value.length > 12 ? value.slice(0, 12) : value)
+import { memoryMetaOf, memoryNotesOf } from './memory-notes.js'
 
 const STATUS = {
   draft: { label: '待审核', tone: 'waiting' },
   approved: { label: '已发布', tone: 'done' },
   rejected: { label: '已拒绝', tone: 'paused' },
 }
-
-const entryMeta = entry => [
-  entry.completedAt === undefined || entry.completedAt === null ? '' : dateTimeOf(entry.completedAt),
-  Array.isArray(entry.stages) && entry.stages.length > 0 ? `${entry.stages.length} 步` : '',
-  Array.isArray(entry.files) && entry.files.length > 0 ? `${entry.files.length} 个文件` : '',
-  entry.commit === null || entry.commit === undefined ? '' : short(entry.commit),
-  entry.verdict === null || entry.verdict === undefined ? '' : (entry.verdict.pass === true ? '通过' : '退回'),
-].filter(Boolean).join(' · ')
 
 // 只在选了工作文件夹、且这个文件夹有记忆时出现；不占房间菜单。
 export function WorkspaceMemory({ path = '', onLoad = null, onReview = null }) {
@@ -86,7 +76,12 @@ export function WorkspaceMemory({ path = '', onLoad = null, onReview = null }) {
               'data-tone': STATUS[entry.status]?.tone ?? 'waiting',
             }, STATUS[entry.status]?.label ?? '待审核')),
           h('p', { className: 'crew-memory-conclusion' }, entry.conclusion),
-          h('span', { className: 'crew-memory-meta' }, entryMeta(entry)),
+          ...memoryNotesOf(entry).map((line, index) => h('p', {
+            key: `note-${index}`,
+            className: 'crew-memory-note',
+            'data-kind': line.kind,
+          }, line.text)),
+          h('span', { className: 'crew-memory-meta' }, memoryMetaOf(entry)),
           h('div', { className: 'crew-memory-actions' },
             entry.status === 'approved'
               ? null

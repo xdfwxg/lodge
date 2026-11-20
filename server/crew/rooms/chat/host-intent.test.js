@@ -51,6 +51,17 @@ test('the Lodge prompt asks for a room decision instead of a round', () => {
   assert.doesNotMatch(prompt, /"action":"round"/)
 })
 
+test('the host prompt tells the model the user name instead of only using it as a label', () => {
+  const prompt = hostIntentPrompt({
+    room: { lodge: true, members: [], humanName: '千寻' },
+    text: '我是谁',
+    turnLimit: 6,
+  })
+  assert.match(prompt, /用户称呼：千寻/)
+  assert.match(prompt, /千寻说：我是谁/)
+  assert.doesNotMatch(prompt, /不要再问/)
+})
+
 test('an explicit request for another round is recognised', () => {
   assert.equal(askedForRound('再走一轮：这轮把周六晚的取舍定下来。'), true)
   assert.equal(askedForRound('大家说说看'), true)

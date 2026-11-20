@@ -62,3 +62,19 @@ test('a running room shows one quiet stop entry', async () => {
   const tree = render(StopRoom({ room: room(), onStop: () => {} }))
   assert.equal(text(tree), '停下')
 })
+
+test('the composer variant is the send button, showing a stop square', async () => {
+  const { StopRoom } = await load()
+  const tree = render(StopRoom({ room: room(), onStop: () => {}, variant: 'composer' }))
+  const button = tree.children[0]
+  assert.equal(button.props.className, 'crew-send crew-stop-send')
+  assert.equal(button.props['aria-label'], '停下这一轮')
+  assert.equal(button.props['data-stop'], 'true')
+})
+
+test('a running chat round or a thinking host can be stopped from the composer', async () => {
+  const { roomRunning } = await load()
+  assert.equal(roomRunning({ state: 'active', live: true, chat: { running: true } }, []), true)
+  assert.equal(roomRunning({ state: 'active', live: true, chat: { running: false, hostThinking: true } }, []), true)
+  assert.equal(roomRunning({ state: 'active', live: true, chat: { running: false, hostThinking: false } }, []), false)
+})

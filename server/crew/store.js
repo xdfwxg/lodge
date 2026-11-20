@@ -13,6 +13,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS room (id TEXT PRIMARY KEY, payload TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1);
     CREATE TABLE IF NOT EXISTS messages (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, room_id TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS profile (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS assignment (
       id TEXT PRIMARY KEY,
       room_id TEXT NOT NULL,
@@ -72,6 +73,31 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     const room = JSON.parse(row.payload)
     room.version = row.version
     return room
+  }
+  // 当前用户是全局资料，不是每个房间各存一份称呼。
+  const readProfile = () => {
+    const row = db.prepare('SELECT payload FROM profile WHERE id = 1').get()
+    if (row === undefined) return { name: '', avatar: null, updatedAt: null }
+    try {
+      const value = JSON.parse(row.payload)
+      return {
+        name: typeof value?.name === 'string' ? value.name : '',
+        avatar: typeof value?.avatar === 'string' ? value.avatar : null,
+        updatedAt: Number.isFinite(value?.updatedAt) ? value.updatedAt : null,
+      }
+    } catch {
+      return { name: '', avatar: null, updatedAt: null }
+    }
+  }
+  const writeProfile = value => {
+    const profile = {
+      name: typeof value?.name === 'string' ? value.name : '',
+      avatar: typeof value?.avatar === 'string' ? value.avatar : null,
+      updatedAt: Number.isFinite(value?.updatedAt) ? value.updatedAt : Date.now(),
+    }
+    db.prepare('INSERT INTO profile (id, payload) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload')
+      .run(JSON.stringify(profile))
+    return profile
   }
   // 只用于建房与种子；已有房间的状态变更走 updateRoom，避免丢更新。
   const writeRoom = room => {
@@ -399,6 +425,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     db,
     fresh,
     readRoom,
+    readProfile,
+    writeProfile,
     backup,
     writeRoom,
     updateRoom,

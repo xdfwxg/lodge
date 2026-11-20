@@ -1,0 +1,14 @@
+{
+  "id": "verify-catch",
+  "goal": "把 src/slug.js 的 slugify 补完整：1) 空格变成 -；2) 全部小写；3) 去掉字母、数字、- 和中文以外的字符；4) 连续的 - 合并成一个；5) 首尾不留 -。检查：npm test",
+  "fixture": "verify-catch",
+  "acceptance": "npm test",
+  "check": "slug.mjs",
+  "memorySeed": {
+    "goal": "把 slugify 的五条规则补完整",
+    "conclusion": "验收要按目标原文逐条核对，自带测试只检查函数存在。",
+    "files": ["src/slug.js"],
+    "rejections": [{ "stage": 0, "reason": "上次测试全绿，但全角标点和全角空格没处理" }]
+  },
+  "note": "真实验收：仓库自带的测试只检查函数存在，验收员必须按目标原文判断；外部尺子跑五条规则。"
+}

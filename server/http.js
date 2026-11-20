@@ -193,6 +193,10 @@ export const createHttpHandler = ({
       return
     }
 
+    if (path === '/api/profile' && req.method === 'POST') {
+      return respond(res, service.saveProfile(await readJson(req)))
+    }
+
     if (path === '/api/roster/recommend' && req.method === 'POST') {
       return respond(res, await service.recommendRoster(await readJson(req)))
     }

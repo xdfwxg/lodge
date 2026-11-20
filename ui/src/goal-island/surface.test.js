@@ -46,10 +46,10 @@ const goal = {
   stages: view.stages.map(stage => ({ title: stage.title, status: stage.status, kind: stage.kind })),
 }
 
-const render = (mode, signal, roomOverride = {}) => renderToStaticMarkup(h(GoalIsland, {
+const render = (mode, signal, roomOverride = {}, viewOverride = {}) => renderToStaticMarkup(h(GoalIsland, {
   room: { ...room, ...roomOverride },
   goal,
-  view,
+  view: { ...view, ...viewOverride },
   mode,
   signal,
   actions,
@@ -62,6 +62,50 @@ test('the resting capsule is one small pill: the current step, no kicker', () =>
   assert.match(html, /class="bt-goal-closed-title">目标对齐</)
   assert.doesNotMatch(html, /bt-goal-closed-kicker/)
   assert.doesNotMatch(html, /1\/3/)
+})
+
+test('an untouched chat island is only the chat mark, not a label', () => {
+  const chatView = {
+    status: 'active',
+    idle: false,
+    kind: 'chat',
+    title: 'Lodge',
+    number: 0,
+    count: 1,
+    barLabel: '正在聊',
+    segments: ['current'],
+    stages: [{ n: 1, title: '聊天', status: 'active', kind: 'current' }],
+  }
+  const html = render('closed', null, {
+    lodge: true,
+    messages: [{ kind: 'chat', authorId: 'lodge', text: '你好' }],
+  }, chatView)
+  assert.match(html, /data-mini="true"/)
+  assert.doesNotMatch(html, /bt-goal-closed-copy/)
+  assert.match(html, /bt-goal-mini-dot/)
+  assert.match(html, /bt-goal-mini-title">空闲中/)
+  assert.match(html, /aria-label="Lodge · 空闲中"/)
+})
+
+test('a chat island expands while a turn is running', () => {
+  const chatView = {
+    status: 'active',
+    idle: false,
+    kind: 'chat',
+    title: 'Lodge',
+    number: 0,
+    count: 1,
+    barLabel: '正在聊',
+    segments: ['current'],
+    stages: [{ n: 1, title: '聊天', status: 'active', kind: 'current' }],
+  }
+  const html = render('closed', null, {
+    messages: [{ kind: 'chat', authorId: 'you', text: '在吗' }],
+    working: true,
+  }, chatView)
+  assert.doesNotMatch(html, /data-mini="true"/)
+  assert.match(html, /bt-goal-closed-title">正在聊/)
+  assert.match(html, /data-live="true"/)
 })
 
 test('a decision renders one signal line and a dismiss control', () => {

@@ -8,7 +8,7 @@ import { parseHandoffFromText } from '../../../../shared/handoff.js'
 import { ensureRoundWhenAsked, hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { systemNotice } from '../../notices.js'
 import { FLOOR_RULE, parseFloorSignal } from './floor-signal.js'
-import { humanLabelOf } from '../../human-name.js'
+import { humanLabelOf, humanNameOf } from '../../human-name.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
@@ -36,8 +36,10 @@ const memberOf = (room, memberId) => (room?.members ?? []).find(member => member
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
 const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
   const personality = memberOf(room, memberId)?.personality
+  const hostName = humanNameOf(room)
   return [
     `聊天室话题：${room.goal}`,
+    hostName === '' ? '' : `用户称呼：${hostName}。`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
     '请给出你的观点、依据或质疑；不要重复别人，不要调用工具。直接回复发言。',

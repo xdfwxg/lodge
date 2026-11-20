@@ -64,6 +64,52 @@ test('a completed room appends one read-only record per workspace', () => withSt
   assert.equal(readFileSync(file, 'utf8').trim().split('\n').length, 1)
 }))
 
+test('the record keeps the last two rejection reasons for the next room', () => withStore(memory => {
+  const reject = (stage, reason) => ({ kind: 'verdict', text: 'REJECT', meta: {
+    stage,
+    pass: false,
+    reason,
+    judgment: {
+      version: 1,
+      type: 'verdict',
+      decision: 'reject',
+      reason,
+      findings: [],
+      actionRequired: '',
+      stage,
+      evidenceId: null,
+      actorId: 'verifier',
+      rejectTo: null,
+      at: 0,
+      source: 'text',
+    },
+  } })
+  memory.appendRoom({ room: room(), messages: [
+    reject(0, '按钮没有加载态'),
+    reject(0, '导出图片是空的'),
+    reject(1, '文件名没带版本号'),
+  ] })
+  const [entry] = memory.list({ room: room() })
+  assert.deepEqual(entry.rejections, [
+    { stage: 0, reason: '导出图片是空的' },
+    { stage: 1, reason: '文件名没带版本号' },
+  ])
+}))
+
+test('a long Chinese record with rejections still fits', () => withStore(memory => {
+  const longGoal = '把设置页的保存流程补完整，'.repeat(35)
+  const longReason = '刷新后设置丢失，按钮状态也没有恢复。'.repeat(10)
+  const messages = [
+    { kind: 'verdict', text: 'REJECT', meta: { stage: 0, pass: false, reason: longReason } },
+    { kind: 'conclusion', text: '已交付' },
+  ]
+  const result = memory.appendRoom({ room: room({ goal: longGoal }), messages })
+  assert.equal(result.ok, true, result.reason)
+  const [entry] = memory.list({ room: room() })
+  assert.equal(entry.rejections.length, 1)
+  assert.equal(entry.rejections[0].reason.length <= 301, true)
+}))
+
 test('only approved entries are shared with new rooms', () => withStore(memory => {
   memory.appendRoom({ room: room(), messages: [{ kind: 'verdict', text: 'PASS', meta: {
       pass: true,
@@ -93,6 +139,16 @@ test('only approved entries are shared with new rooms', () => withStore(memory =
   const rejected = memory.review({ room: room(), memoryId: 'room-1', decision: 'reject' })
   assert.equal(rejected.entries[0].status, 'rejected')
   assert.deepEqual(memory.shared({ room: room() }), [])
+}))
+
+test('approved rejection reasons travel with shared memory', () => withStore(memory => {
+  memory.appendRoom({ room: room(), messages: [
+    { kind: 'verdict', text: 'REJECT', meta: { stage: 0, pass: false, reason: '图区圆角没改' } },
+    { kind: 'verdict', text: 'PASS', meta: { stage: 0, pass: true, reason: '改好了' } },
+  ] })
+  memory.review({ room: room(), memoryId: 'room-1', decision: 'approve' })
+  const [entry] = memory.shared({ sourceRepo: '/workspace/project' })
+  assert.deepEqual(entry.rejections, [{ stage: 0, reason: '图区圆角没改' }])
 }))
 
 test('a deleted entry leaves the list and is never shared', () => withStore(memory => {

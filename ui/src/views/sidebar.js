@@ -9,6 +9,7 @@ import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
 import { ProfileMark } from '../profile-mark.js'
+import { PlusIcon } from '../icons.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
@@ -253,8 +254,25 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
           onPointerDown: startResize,
           onKeyDown: resizeWithKeyboard,
         }),
-      h('div', { className: 'crew-side-brand' },
-        h('img', { className: 'crew-side-brand-logo', src: '/logo.svg', alt: '', width: 22, height: 22 }), 'Lodge'),
+      h('div', { className: 'crew-side-brand-row' },
+        h('button', {
+          type: 'button',
+          className: 'crew-side-brand',
+          'aria-label': 'Lodge，对话',
+          title: '回到 Lodge',
+          onClick: lodgeRoom === null ? undefined : () => selectRoom(lodgeRoom.id),
+        },
+        h('span', { className: 'crew-side-wordmark' }, 'Lodge'),
+        h('span', { className: 'crew-side-monogram', 'aria-hidden': 'true' }, 'L')),
+        rail
+          ? null
+          : h('button', {
+            type: 'button',
+            className: 'crew-new crew-new-icon',
+            'aria-label': '新建房间',
+            title: '新建房间',
+            onClick: onNew,
+          }, h(PlusIcon))),
       state.runtime?.ok === false
         ? h('div', {
           className: 'crew-error crew-side-error',
@@ -265,18 +283,24 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
         h('span', { className: 'crew-side-error-mark', 'aria-hidden': 'true' }, '!'),
         h('span', { className: 'crew-side-error-text' }, humanErrorText(state.runtime.error, 'Lodge 没连上，稍后自动重试')))
         : null,
-      h('div', { className: 'crew-side-tools' },
-        rail
-          ? h('button', {
+      rail
+        ? h('div', { className: 'crew-side-tools' },
+          h('button', {
+            type: 'button',
+            className: 'crew-new crew-new-icon',
+            'aria-label': '新建房间',
+            title: '新建房间',
+            onClick: onNew,
+          }, h(PlusIcon)),
+          h('button', {
             type: 'button',
             className: 'crew-side-toggle',
             'aria-label': expanded ? '收起侧栏' : '展开侧栏',
             'aria-expanded': expanded,
             'aria-controls': 'crew-side',
             onClick: toggleSide,
-          }, expanded ? '«' : '»')
-          : null,
-        h('button', { type: 'button', className: 'crew-new', 'aria-label': '新建房间', onClick: onNew }, '＋ 新建')),
+          }, expanded ? '«' : '»'))
+        : null,
       showSearch && !collapsed
         ? h('div', { className: 'crew-side-search' },
           h('input', {
@@ -303,14 +327,6 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
         : null,
       h('div', { className: 'bt-side' },
         h('div', { className: 'bt-list' },
-          lodgeRoom === null
-            ? null
-            : h(RoomRow, {
-              key: 'lodge',
-              room: lodgeRoom,
-              active: activeId === lodgeRoom.id,
-              onSelect: () => selectRoom(lodgeRoom.id),
-            }),
           query.trim() !== '' && regularRooms.length === 0 && archivedRooms.length === 0
             ? h('p', { className: 'crew-side-empty', role: 'status' }, '没有匹配的房间')
             : null,
@@ -603,7 +619,11 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
       h('span', { className: 'crew-side-room-badge', 'aria-hidden': 'true' }, lodge ? h('img', { src: '/logo.svg', alt: '', width: 18, height: 18 }) : initialOf(room.name, '·')),
       h('span', { className: 'crew-side-room-type', 'aria-hidden': 'true' }, lodge ? null : h(TypeIcon, { size: 15 })),
       h('span', { className: 'crew-side-room-text' },
-        h('span', { className: 'crew-side-room-name' }, room.name),
+        h('span', { className: 'crew-side-room-title' },
+          h('span', { className: 'crew-side-room-name' }, room.name),
+          Number.isInteger(room.generation) && room.generation > 1
+            ? h('span', { className: 'crew-side-room-version', title: `第 ${room.generation} 版` }, `v${room.generation}`)
+            : null),
         routineLine === '' ? null : h('span', { className: 'crew-side-room-next' }, routineLine)),
       room.chatUnread === true && !active
         ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))

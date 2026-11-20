@@ -3,6 +3,7 @@ import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { RoomHealth } from '../room/health.js'
+import { StopRoom, roomRunning } from '../room/stop-room.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
@@ -16,12 +17,15 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
   const [atBottom, setAtBottom] = useState(true)
+  const [followupHint, setFollowupHint] = useState(false)
+  const composerInput = useRef(null)
   const [swapId, setSwapId] = useState(null)
   const [swapBusy, setSwapBusy] = useState(false)
   const [swapError, setSwapError] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
   const [addBusy, setAddBusy] = useState(false)
   const [addError, setAddError] = useState(null)
+  useEffect(() => { setFollowupHint(false) }, [room.id])
   useEffect(() => onMemberDialog(request => {
     if (request.kind === 'add') {
       setAddError(null)
@@ -241,10 +245,25 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
     onApproval: (id, decision) => void store.decideApproval(id, decision),
   }
   const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
+  const canFollowup = mode.canFollowup?.({ room }) === true
+  actions.focusFollowup = () => {
+    setFollowupHint(true)
+    composerInput.current?.focus()
+  }
   const viewCtx = { state, room, members, locked, actions, dock, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
   const tools = mode.tools?.(viewCtx) ?? null
+  // 正在跑时，发送位就是这一间房唯一的刹车；聊天和工作室共用同一套停下语义。
+  const stopControl = roomRunning(room, members)
+    ? h(StopRoom, {
+      key: `stop-${room.id}`,
+      variant: 'composer',
+      room,
+      members,
+      onStop: () => store.stopRoom(),
+    })
+    : null
 
   const hasFiles = event => Array.from(event.dataTransfer?.types ?? []).includes('Files')
   const dragEnter = event => {
@@ -313,25 +332,34 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
         ? h('div', { className: 'crew-lodge-more' },
           h('button', { type: 'button', className: 'crew-link', onClick: actions.moreOptions }, '更多选项'))
         : null,
-      room.state === 'complete' && finished
-        ? null
-        : h('div', { ref: composerRef, className: 'dsb-composer' },
-          h(Composer, {
-            members: mentionMembers,
-            draftKey: room.id,
-            onSent: followBottom,
-            placeholder: room.state === 'paused'
-              ? '已暂停 · 继续后才能派新活'
-              : room.state === 'stopped'
-                ? '已停止 · 不会再派新活'
+      h('div', { ref: composerRef, className: 'dsb-composer' },
+        h(Composer, {
+          members: mentionMembers,
+          draftKey: room.id,
+          brand: room.lodge === true,
+          onSent: followBottom,
+          placeholder: room.state === 'paused'
+            ? '已暂停 · 继续后才能派新活'
+            : room.state === 'stopped'
+              ? '已停止 · 不会再派新活'
+              : followupHint && canFollowup
+                ? '写下要改什么，点「接着改」'
                 : composerPlaceholder,
-            disabled: state.phase === 'loading' || locked,
-            dropping: dragging,
-            incoming: dropped,
-            onIncomingDone: () => setDropped(null),
-            onSend: (text, options) => store.send(text, options),
-            onUpload: file => store.uploadAttachment(file),
-          }))),
+          disabled: state.phase === 'loading' || locked,
+          stopControl,
+          inputRef: composerInput,
+          onFollowup: canFollowup
+            ? (text, options) => {
+              setFollowupHint(false)
+              return store.followup(text, options)
+            }
+            : null,
+          dropping: dragging,
+          incoming: dropped,
+          onIncomingDone: () => setDropped(null),
+          onSend: (text, options) => store.send(text, options),
+          onUpload: file => store.uploadAttachment(file),
+        }))),
     swapId === null
       ? null
       : h(BodySwapDialog, {

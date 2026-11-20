@@ -12,49 +12,62 @@ const must = (label, condition) => {
   failures += 1
 }
 
-const lodge = read('Lodge.md')
-const architecture = read('架构升级.md')
-const style = read('设计语言.md')
-const feedback = read('README.md')
-const operations = read('docs/operations.md')
-
-must('Lodge.md states the room, member and body triad', lodge.includes('房间（Room）是本体') && lodge.includes('Bot 是这个人现在的身体'))
-must('Lodge.md states the assignment line', lodge.includes('一条 Assignment 一条记录'))
-must('Lodge.md keeps the document rule', lodge.includes('## 文档：少而准'))
-must('Lodge.md keeps the shadow review position', lodge.includes('## 影子评审：验收前的第二视角') && lodge.includes('不裁决、不阻塞'))
-must('operations keeps shadow review before acceptance', operations.includes('当前阶段验收前') && operations.includes('不接外部服务'))
-must('Lodge.md says the product owns the checks', lodge.includes('检查由产品保证') && lodge.includes('没有可自动运行的检查'))
-must('架构升级.md explains the layers', architecture.includes('## 分层'))
-must('架构升级.md explains assignments', architecture.includes('## Assignment'))
-must('架构升级.md keeps the upgrade log', architecture.includes('## 升级记录'))
-must('架构升级.md records explicit non-goals', architecture.includes('## 明确不做'))
-must('架构升级.md keeps license attribution', architecture.includes('## 许可与归属'))
-must('Lodge.md points to the design language', lodge.includes('(设计语言.md)'))
-must('Lodge.md keeps the three-doc rule', lodge.includes('只保留三份设计文档'))
-must('架构升级.md points to the design language', architecture.includes('设计语言.md'))
-must('设计语言.md keeps the type scale', style.includes('## 字号与字重') && style.includes('卡片内正文默认 13 / 20'))
-must('设计语言.md keeps motion and states', style.includes('## 动效') && style.includes('## 状态与反馈'))
-must('设计语言.md keeps the interaction rules', style.includes('方向键') && style.includes('头像标记为装饰'))
-must('设计语言.md keeps the group-chat reading rule', style.includes('像看群聊一样看懂谁在做什么'))
-must('Lodge.md keeps the studio reading rule', lodge.includes('像看群聊一样看懂谁在做什么') && lodge.includes('不切章节'))
-must('设计语言.md keeps the human error rule', style.includes('原始错误') && style.includes('不写实现旁白'))
-must('operations keeps the human error rule', operations.includes('systemNotice') && operations.includes('meta.detail') && operations.includes('humanErrorText'))
-must('README links the product story', feedback.includes('(Lodge.md)'))
-must('README links the architecture record', feedback.includes('(架构升级.md)'))
-must('README links the design language', feedback.includes('(设计语言.md)'))
-must('README links the operations manual', feedback.includes('[docs/operations.md](docs/operations.md)'))
-
-must('docs/operations.md stays available', existsSync(resolve(root, 'docs/operations.md')))
-for (const file of ['docs/macos-desktop.md', 'docs/runtimes.md']) {
-  must(`${file} stays merged`, !existsSync(resolve(root, file)))
+const docs = {
+  'README.md': read('README.md'),
+  'Lodge.md': read('Lodge.md'),
+  'docs/architecture.md': read('docs/architecture.md'),
+  'docs/design.md': read('docs/design.md'),
+  'docs/operations.md': read('docs/operations.md'),
 }
 
-// 设计文档只留三份；旧文档回流会让文档再次分叉。
-const designDocs = readdirSync(root)
-  .filter(name => name.endsWith('.md') && name !== 'README.md')
-  .sort()
-must('only three design docs live at the root', JSON.stringify(designDocs) === JSON.stringify(['Lodge.md', '架构升级.md', '设计语言.md'].sort()))
+// 结构：根目录两份，docs 三份；再分叉就是档案，不是承诺。
+const rootDocs = readdirSync(root).filter(name => name.endsWith('.md')).sort()
+must('root keeps only README.md and Lodge.md', JSON.stringify(rootDocs) === JSON.stringify(['Lodge.md', 'README.md']))
+const docsDir = readdirSync(resolve(root, 'docs')).filter(name => name.endsWith('.md')).sort()
+must('docs keeps architecture, design and operations', JSON.stringify(docsDir) === JSON.stringify(['architecture.md', 'design.md', 'operations.md']))
+
+for (const [file, text] of Object.entries(docs)) {
+  if (file === 'README.md') continue
+  must(`${file} says what it answers`, text.includes('本文回答'))
+}
+
+// README 是唯一入口：四份文档都能从入口点开。
+must('README links Lodge.md', docs['README.md'].includes('(Lodge.md)'))
+for (const file of ['architecture', 'design', 'operations']) {
+  must(`README links docs/${file}.md`, docs['README.md'].includes(`(docs/${file}.md)`))
+}
+
+// 文档互链必须落到真实文件。
+for (const [file, text] of Object.entries(docs)) {
+  const dir = dirname(resolve(root, file))
+  for (const match of text.matchAll(/\]\((?!https?:|#)([^)\s]+)\)/g)) {
+    const target = match[1].split('#')[0]
+    if (target === '') continue
+    must(`${file} link ${target} resolves`, existsSync(resolve(dir, target)))
+  }
+}
+
+// 每份文档保留自己的骨架；改版可以换句子，不能悄悄换职责。
+must('Lodge.md keeps the product north star', docs['Lodge.md'].includes('## 产品北极星'))
+must('Lodge.md keeps the principle ledger', docs['Lodge.md'].includes('## 原则总表'))
+must('Lodge.md keeps the anti-patterns', docs['Lodge.md'].includes('### 反模式'))
+must('Lodge.md keeps the honesty boundary', docs['Lodge.md'].includes('## 诚实边界'))
+must('Lodge.md keeps the improvement order', docs['Lodge.md'].includes('怎么让它更聪明'))
+must('architecture keeps assignment', docs['docs/architecture.md'].includes('## Assignment'))
+must('architecture keeps boundary tests', docs['docs/architecture.md'].includes('## 边界靠测试固定'))
+must('design keeps principles', docs['docs/design.md'].includes('## 原则'))
+must('design keeps the type scale', docs['docs/design.md'].includes('## 字号'))
+must('operations keeps room memory', docs['docs/operations.md'].includes('## 房间记忆'))
+must('operations keeps the eval ruler', docs['docs/operations.md'].includes('## 评测'))
+
+// 原则只有一处索引：领域文档指向总表，不各自另立一套。
+for (const file of ['docs/architecture.md', 'docs/design.md', 'docs/operations.md']) {
+  must(`${file} points at the principle ledger`, docs[file].includes('Lodge.md#原则总表'))
+}
+
 for (const file of [
+  '架构升级.md',
+  '设计语言.md',
   '理念升级.md',
   '设计思想.md',
   '架构.md',
@@ -63,15 +76,19 @@ for (const file of [
   '漫漫人生路.md',
   'token上下文.md',
   'docs/lodge-design.md',
-  'docs/architecture.md',
   'docs/architecture-layers.md',
   'docs/reuse-map.md',
   'docs/python-fastapi-feasibility.md',
+  'docs/macos-desktop.md',
+  'docs/runtimes.md',
 ]) {
-  must(`${file} stays deleted`, !existsSync(resolve(root, file)))
+  must(`${file} stays merged or deleted`, !existsSync(resolve(root, file)))
 }
 
-must('docs do not point at deleted design files', !/(?:理念升级|设计思想\.md|架构\.md|重构\.md|lodge-design|reuse-map)/.test(lodge + architecture + feedback))
+const stale = /(?:理念升级|设计语言\.md|架构升级\.md|设计思想\.md|lodge-design|reuse-map)/
+for (const [file, text] of Object.entries(docs)) {
+  must(`${file} does not point at retired docs`, !stale.test(text))
+}
 
 if (failures > 0) process.exit(1)
-console.log('docs: ok')
+console.log(`docs: ok (${Object.keys(docs).length} files)`)

@@ -58,6 +58,14 @@ test('a product question about page count is not a mechanism question', () => {
   assert.equal(report.failures.some(item => item.id === 'question-no-mechanism'), false)
 })
 
+test('a question about a fact already in the workspace fails the rubric', () => {
+  const report = evaluateProposal(result({
+    ...good,
+    questions: [{ text: '用哪个文件保存配置？', recommendation: 'config.json' }],
+  }), {})
+  assert.equal(report.failures.some(item => item.id === 'question-no-known-fact'), true)
+})
+
 test('a worker named 验收 and a why claiming a verifier fail', () => {
   const report = evaluateProposal(result({
     ...good,

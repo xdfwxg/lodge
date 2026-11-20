@@ -1,16 +1,24 @@
 import { createElement as h, useState } from 'react'
 import { useOverlay } from '../overlay.js'
+import { StopIcon } from '../icons.js'
 import { presenceLines } from './studio/transcript-model.js'
 
+export const roomRunning = (room, members = []) => {
+  if (room?.state !== 'active' || room?.live !== true) return false
+  const { working, queued } = presenceLines(room, members)
+  return working.length > 0 ||
+    queued.length > 0 ||
+    room.chat?.running === true ||
+    room.chat?.hostThinking === true
+}
+
 // 一间房只有一个紧急刹车；只在真的有回合在跑时出现，点之前说清后果。
-export function StopRoom({ room, members = [], onStop = null }) {
+export function StopRoom({ room, members = [], onStop = null, variant = 'link' }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const overlay = useOverlay({ label: '停下这一轮', onClose: () => setOpen(false), active: open })
-  const { working, queued } = presenceLines(room, members)
-  const running = working.length > 0 || queued.length > 0
-  if (onStop === null || room?.state !== 'active' || room?.live !== true || !running) return null
+  if (onStop === null || !roomRunning(room, members)) return null
   const stop = async () => {
     setBusy(true)
     setNote('')
@@ -25,13 +33,15 @@ export function StopRoom({ room, members = [], onStop = null }) {
   return h('div', { className: 'crew-stop-room' },
     h('button', {
       type: 'button',
-      className: 'crew-link',
+      className: variant === 'composer' ? 'crew-send crew-stop-send' : 'crew-link',
       'aria-label': '停下这一轮',
+      title: '停下这一轮',
+      'data-stop': variant === 'composer' ? 'true' : undefined,
       onClick: () => {
         setNote('')
         setOpen(true)
       },
-    }, '停下'),
+    }, variant === 'composer' ? h(StopIcon) : '停下'),
     open
       ? h('div', { className: 'crew-overlay', onClick: busy ? undefined : () => setOpen(false), ...overlay },
         h('div', {

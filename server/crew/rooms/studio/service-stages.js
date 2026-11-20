@@ -162,7 +162,10 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         current.stages[next].state = 'passed'
         next = -1
       }
-      if (next >= 0) current.stages[next].state = 'active'
+      if (next >= 0) {
+        current.stages[next].state = 'active'
+        current.stages[next].activatedAt = Date.now()
+      }
       // 纯聊天：最后一步通过后房间不结束；但有验收员时，交付型步骤仍必须看到他回报通过。
       // 纯决策步骤由人确认就算通过，不该再等验收员。
       const needsVerdict = stage.kind !== 'decision' || stage.manual === true || stage.title === FINAL_TITLE
@@ -361,6 +364,8 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       if (target === undefined || target.state === 'pending') return null
       for (let at = index; at < current.stages.length; at += 1) {
         current.stages[at].state = at === index ? 'active' : 'pending'
+        if (at === index) current.stages[at].activatedAt = Date.now()
+        else delete current.stages[at].activatedAt
       }
       // 后面的阶段重新开始时从当时的 HEAD 取起点；目标步骤自己的起点要保留。
       for (const key of Object.keys(current.stageBases ?? {})) {

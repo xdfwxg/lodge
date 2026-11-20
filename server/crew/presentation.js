@@ -1,3 +1,4 @@
+import { humanNameOf } from './human-name.js'
 import { roomAttention } from './attention.js'
 import { independenceLabel } from './digest.js'
 import { capabilitiesFor } from './room-types/index.js'
@@ -33,6 +34,7 @@ export const presentRoom = (room, messages = [], assignments = [], { children = 
   // 附件标记只给模型看；界面和生成出来的标题都不该带着它。
   const visible = {
     ...visibleRoom,
+    humanName: humanNameOf(room) || undefined,
     goal: stripAttachmentTags(room.goal),
     members: (room.members ?? []).map(member => ({ ...member, body: publicBody(member.body) })),
     hostLabel: room.roomType === 'chat' && typeof chatHost?.displayName === 'string' ? chatHost.displayName : '',

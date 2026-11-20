@@ -56,6 +56,11 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
     const next = stages.find(stage => stage.state === 'pending')
     if (next !== undefined) next.state = 'active'
   }
+  // 阶段开始时间用于丢弃“上一步还没结束时就在跑”的回合，避免把它们记成新一步的证据。
+  const activatedAt = Date.now()
+  for (const stage of stages) {
+    if (stage.state === 'active') stage.activatedAt = activatedAt
+  }
   stages[stages.length - 1].dependsOn = [stages.length - 2]
   return {
     stages,

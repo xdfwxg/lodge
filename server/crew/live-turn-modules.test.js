@@ -438,6 +438,35 @@ test('a captured turn writes a diagnostic with its outcome and usage', () => {
   assert.deepEqual(room.stageDiagnostics[0].assessment, last.payload.assessment)
 })
 
+test('a turn that started before the work stage began is not stage evidence', () => {
+  const room = makeRoom({
+    stages: [
+      { title: '目标对齐', kind: 'decision', spine: true, state: 'passed' },
+      { title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true', activatedAt: 20_000 },
+    ],
+  })
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  // 对齐阶段被 @ 醒的执行官在阶段确认后才结束；它说的是“等你确认”，不是第一步的产出。
+  turns.captureTurn({
+    reply: '口径没问题，等你确认阶段后我就开始。',
+    turnId: 't-align-echo',
+    toolCalls: 0,
+    at: 16_000,
+    durationMs: 9_000,
+  }, 'bot-exec')
+  assert.ok(!store.messages.some(message => message.kind === 'evidence'))
+  assert.ok(store.messages.some(message => /旧回合结果已忽略/.test(message.text ?? '')))
+  assert.ok(store.events.some(event => event.type === 'turn.stale' && event.payload.reason === 'stage-started'))
+})
+
 test('a late turn from an older attempt is dropped before it touches evidence', () => {
   const room = makeRoom({})
   const store = fakeStore(room)

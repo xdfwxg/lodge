@@ -6,7 +6,7 @@ import { progressOf } from '../../shared/progress.js'
 import { stripAttachmentTags } from '../../shared/attachments.js'
 
 // 房间记忆：只从已交付房间追加事实，人工审核后才对新房间可见；不接收模型写入。
-const MAX_RECORD_BYTES = 4096
+const MAX_RECORD_BYTES = 16 * 1024
 const MAX_FILE_BYTES = 1024 * 1024
 const MAX_ENTRIES = 200
 
@@ -35,6 +35,15 @@ const recordOf = (room, messages) => {
   const files = [...new Set(ordered.flatMap(message => (
     Array.isArray(message.meta?.changedFiles) ? message.meta.changedFiles : []
   )))].slice(0, 12).map(file => clip(file, 100))
+  // 上次为什么被退回，是下一个人最该知道的取舍；只留最近两条。
+  const rejections = ordered
+    .filter(message => message.kind === 'verdict' && !verdictPassed(message))
+    .slice(-2)
+    .map(message => ({
+      stage: Number.isInteger(message.meta?.stage) ? message.meta.stage : null,
+      reason: clip(judgmentOf(message)?.reason ?? message.meta?.reason ?? message.text, 300),
+    }))
+    .filter(item => item.reason !== '')
   return {
     version: 1,
     kind: 'memory',
@@ -47,6 +56,7 @@ const recordOf = (room, messages) => {
       state: stage.state,
     })),
     files,
+    rejections,
     progress: (() => {
       const progress = progressOf(room, ordered)
       return {
@@ -138,6 +148,7 @@ export const createRoomMemory = ({ root }) => {
         goal: entry.goal,
         conclusion: entry.conclusion,
         files: Array.isArray(entry.files) ? entry.files : [],
+        rejections: Array.isArray(entry.rejections) ? entry.rejections : [],
         completedAt: entry.completedAt,
       }))
   }

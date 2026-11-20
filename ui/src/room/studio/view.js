@@ -5,9 +5,7 @@ import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
 import { StudioAdjust } from './rewind-dialog.js'
-import { StopRoom } from '../stop-room.js'
 import { studioTyping } from './typing.js'
-import { stripAttachmentTags } from '../../../../shared/attachments.js'
 
 // 工作室的房间视图：一条聊天记录、一行状态、一个输入框；动作只在轮到你时出现。
 export const studioView = {
@@ -20,6 +18,14 @@ export const studioView = {
         className: 'crew-link',
         onClick: () => actions.selectRoom(room.routineGoalId),
       }, '← 回到目标')) : null,
+    room.sourceRoomId && room.sourceName
+      ? h('div', { className: 'studio-run-back' },
+        h('button', {
+          type: 'button',
+          className: 'crew-link',
+          onClick: () => actions.selectRoom(room.sourceRoomId),
+        }, `← 上一版《${room.sourceName}》`))
+      : null,
     h(GoalIslandHeader, {
       room,
       onOpenRoom: actions.selectRoom,
@@ -39,14 +45,7 @@ export const studioView = {
     if (room.state !== 'active' || room.live !== true) return null
     const stages = (room.stages ?? []).filter(stage => stage.state !== 'pending')
     if (stages.length === 0) return null
-    return h(Fragment, null,
-      h(StopRoom, {
-        key: `stop-${room.id}`,
-        room,
-        members,
-        onStop: () => actions.stopRoom(),
-      }),
-      h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind }))
+    return h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind })
   },
   activity: () => null,
   transcript: ({ room, members, actions }) => {
@@ -76,12 +75,7 @@ export const studioView = {
       onAnswerCard: actions.answerCard,
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,
-      onContinue: () => actions.startStudio({
-        goal: `${stripAttachmentTags(room.goal)}\n\n上一次结果「${room.name}」已经完成。现在在这个基础上继续：`,
-        conclusion: '',
-        sourceName: room.name,
-        repoPath: room.repoPath ?? '',
-      }),
+      onContinue: () => actions.focusFollowup(),
       onDiscussChat: (() => {
         const seed = returnToChatSeed(room)
         return seed === null ? null : () => actions.startChat(seed)
@@ -90,9 +84,14 @@ export const studioView = {
     })
   },
   presence: () => null,
+  canFollowup: ({ room }) => (
+    room.state === 'complete' &&
+    (room.stages ?? []).length > 0 &&
+    room.stages.every(stage => stage.state === 'passed')
+  ),
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    if (room.state === 'complete' || done) return '已交付 · 还能和规划师聊聊。'
+    if (room.state === 'complete' || done) return '问规划师；要改就写一句，点「接着改」'
     const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
     if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === active) {
       return '把缺的信息发给这一步…'

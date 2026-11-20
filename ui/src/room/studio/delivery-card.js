@@ -616,5 +616,5 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
               type: 'button',
               className: 'crew-accept crew-conclusion-next crew-quiet-primary',
               onClick: onContinue,
-            }, '继续做'))))
+            }, '接着改'))))
 }

@@ -352,7 +352,7 @@ test('the delivery sheet offers a way to continue', async () => {
     },
     onContinue: () => {},
   }))
-  assert.match(text(tree), /继续做/)
+  assert.match(text(tree), /接着改/)
 })
 
 test('a Markdown result is typeset, a plain result keeps its lines', async () => {

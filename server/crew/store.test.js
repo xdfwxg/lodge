@@ -53,6 +53,26 @@ test('room updates are versioned inside a transaction and write events', () => {
   }
 })
 
+test('the current user is one global profile that survives a reopen', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-profile-'))
+  try {
+    const first = createStore({ dataDir })
+    assert.deepEqual(first.readProfile(), { name: '', avatar: null, updatedAt: null })
+    first.writeProfile({ name: '千寻', avatar: 'data:image/jpeg;base64,abc' })
+    assert.equal(first.readProfile().name, '千寻')
+    first.db.close()
+
+    const second = createStore({ dataDir })
+    assert.equal(second.readProfile().name, '千寻')
+    assert.equal(second.readProfile().avatar, 'data:image/jpeg;base64,abc')
+    second.writeProfile({ name: '阿洛', avatar: null })
+    assert.equal(second.readProfile().name, '阿洛')
+    second.db.close()
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})
+
 test('activity steps and audit events keep only the recent window', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-retention-'))
   const repo = mkdtempSync(join(tmpdir(), 'crew-retention-repo-'))

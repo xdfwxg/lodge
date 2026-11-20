@@ -35,6 +35,25 @@ export const directPrompt = (goal, verify, acceptance, singleMember, handoff = n
     : '这个房间没有单独的队长：直接在当前工作区完成，不要等人对齐。',
 ].join('\n')
 
+const cleanText = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
+
+const normalizeContinuation = value => {
+  if (value === null || typeof value !== 'object') return null
+  const fromRoomId = cleanText(value.fromRoomId, 120)
+  if (fromRoomId === '') return null
+  return {
+    fromRoomId,
+    fromRoomName: cleanText(value.fromRoomName, 120),
+    version: Number.isInteger(value.version) && value.version >= 2 && value.version <= 99 ? value.version : 2,
+    goal: cleanText(value.goal, 1000),
+    conclusion: cleanText(value.conclusion, 1000),
+    files: Array.isArray(value.files) ? value.files.filter(item => typeof item === 'string' && item !== '').slice(0, 12) : [],
+    check: cleanText(value.check, 500) || null,
+    commit: cleanText(value.commit, 80) || null,
+    at: Number.isFinite(value.at) ? value.at : Date.now(),
+  }
+}
+
 export const normalizeRequest = body => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > 2000) return { error: '目标不能为空，且不超过 2000 字' }
@@ -85,6 +104,7 @@ export const normalizeRequest = body => {
     receipt,
     sourceRoomId,
     sourceName,
+    continuation: normalizeContinuation(body.continuation),
   }
 }
 

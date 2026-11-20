@@ -34,6 +34,10 @@ function Composer({
   onSend,
   onSent,
   onUpload,
+  onFollowup = null,
+  stopControl = null,
+  inputRef = null,
+  brand = false,
   dropping = false,
   incoming = null,
   onIncomingDone = null,
@@ -166,6 +170,21 @@ function Composer({
     setTimeout(() => onSent?.(), 400)
   }
 
+  const followup = () => {
+    const text = draft.trim()
+    if ((text === '' && attached.length === 0) || disabled || uploading || typeof onFollowup !== 'function') return
+    const files = attached
+    setDraft('')
+    writeDraft(draftKey, '')
+    pickedMentions.current = []
+    setMention(null)
+    setPicked(0)
+    setAttached([])
+    setNote('')
+    void onFollowup(text, files.length === 0 ? {} : { attachments: files })
+    onSent?.()
+  }
+
   const keyDown = event => {
     if (mention !== null && matches.length > 0) {
       if (event.key === 'ArrowDown') {
@@ -280,8 +299,11 @@ function Composer({
         onChange: event => void pickFiles(event),
       }),
       h('textarea', {
-        ref: input,
-        className: 'crew-input',
+        ref: node => {
+          input.current = node
+          if (inputRef !== null && inputRef !== undefined) inputRef.current = node
+        },
+        className: brand ? 'crew-input crew-input-brand' : 'crew-input',
         rows: 1,
         value: draft,
         placeholder,
@@ -297,14 +319,25 @@ function Composer({
         onPaste: paste,
         onBlur: () => setMention(null),
       }),
-      h('button', {
-        type: 'button',
-        className: 'crew-send',
-        'aria-label': '发送',
-        disabled: disabled || uploading || (draft.trim() === '' && attached.length === 0),
-        onClick: send,
-      },
-        h(ArrowUpIcon))))
+      onFollowup !== null && stopControl === null
+        ? h('button', {
+          type: 'button',
+          className: 'crew-composer-followup',
+          title: '用这句话开下一版；原班人马和工作区沿用',
+          disabled: disabled || uploading || (draft.trim() === '' && attached.length === 0),
+          onClick: followup,
+        }, '接着改')
+        : null,
+      stopControl === null
+        ? h('button', {
+          type: 'button',
+          className: 'crew-send',
+          'aria-label': '发送',
+          disabled: disabled || uploading || (draft.trim() === '' && attached.length === 0),
+          onClick: send,
+        },
+          h(ArrowUpIcon))
+        : stopControl))
 }
 
 export { Composer }

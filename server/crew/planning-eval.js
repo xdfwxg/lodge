@@ -1,4 +1,5 @@
 const MECHANISM = /(模型|引擎|worktree|并发|人数|几个\s*(位成员|人|agent|执行|验收)|agent|claude|codex|deepseek|gpt|队长|验收成员|执行成员|独立验收|并行执行)/i
+const KNOWN_FACT = /(?:哪个|哪一个|什么|在哪).{0,12}(?:文件|目录|文件夹|路径|仓库|项目|技术栈|框架|语言|测试|验收|命令|工作区)|(?:怎么|如何).{0,6}(?:跑|运行|测|验收)/
 const CONCRETE = /(`[^`]+`|\b(npm|node|pnpm|yarn|test|curl|git|grep|cat|sleep|test -f)\b|退出码|diff|文件|输出|文档|测试|README)/i
 const VAGUE = /^(完成|做好|优化|提升|实现|交付|搞定|处理)$/
 const VERIFIER_NAME = /(验收|复核|审查|verifier)/i
@@ -79,6 +80,7 @@ export const evaluateProposal = (result, testCase = {}) => {
   check('question-count', questions.length <= 3, `${questions.length} 个`)
   check('question-answers', questions.every(item => asText(item?.text) !== '' && asText(item?.recommendation) !== ''), '每个问题带推荐答案')
   check('question-no-mechanism', questions.every(item => !MECHANISM.test(asText(item?.text))), '不要问模型/人数/成员/并行机制')
+  check('question-no-known-fact', questions.every(item => !KNOWN_FACT.test(asText(item?.text))), '不要问目标、工作区或仓库里已有的事实')
   if (Number.isFinite(testCase.maxQuestions)) {
     check('case-max-questions', questions.length <= testCase.maxQuestions, `最多 ${testCase.maxQuestions} 个`)
   }

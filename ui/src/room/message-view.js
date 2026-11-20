@@ -10,7 +10,7 @@ import { formatAttachmentBytes, splitAttachmentTags } from '../../../shared/atta
 
 // 交接链上的系统消息要显示；其余系统小字不占时间线。
 // 只留让人安心、知道下一步的交接；技术性提醒留在交付卡里，不占时间线。
-const CHAIN_KINDS = new Set(['gate', 'handoff', 'stage'])
+const CHAIN_KINDS = new Set(['gate', 'handoff', 'stage', 'followup'])
 export const isChainMessage = message => {
   if (message?.kind !== 'system') return false
   if (CHAIN_KINDS.has(message?.meta?.kind)) return true

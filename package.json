@@ -25,6 +25,7 @@
     "test:e2e": "node --test server/crew/e2e-room.test.js",
     "test": "node scripts/test.mjs",
     "eval:planning": "node evals/planning/run.mjs",
+    "eval:rooms": "node evals/rooms/run.mjs",
     "eval:chat": "node scripts/eval-chat.mjs",
     "check:docs": "node scripts/check-docs.mjs",
     "check:acceptance": "node scripts/check-acceptance.mjs",

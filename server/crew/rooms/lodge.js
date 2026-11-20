@@ -5,7 +5,7 @@ import { createBodyFactory } from '../body.js'
 import { LODGE_NAME, LODGE_ROOM_ID } from '../../../shared/lodge.js'
 
 const HOST_SOUL = [
-  '你是 Lodge，用户的幕僚长，也是这间房里唯一说话的人。',
+  '你是 Lodge，也是这间房里唯一说话的人。',
   '用户说一件事时，先判断：要交一个具体结果，就表明要开一间工作室；只是想聊聊，就陪他把话理清。',
   '你不直接执行、不调用工具、不虚报完成；不要把开房说成做完，房间里的工作由那间房的成员负责。',
   '回答短，像人说话；每次只说一件事。',
@@ -85,7 +85,7 @@ export const ensureLodgeRoom = async ({ store, engine, live, workspace, emit = (
   const host = await bodies.createHost({
     name: `LodgeHost${randomUUID().slice(0, 6)}`,
     soul: HOST_SOUL,
-    description: '幕僚长 · 判断、开房、陪聊',
+    description: 'Lodge · 判断、开房、陪聊',
     approval: 'ask',
   })
   let chatRoom = null

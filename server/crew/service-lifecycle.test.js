@@ -79,6 +79,18 @@ test('renaming a room updates its name and emits the room', async () => {
   assert.equal(ctx.emitted.some(([event]) => event === 'room'), true)
 })
 
+test('saving a profile emits it for every open window', async () => {
+  const ctx = setup(roomRecord())
+  try {
+    const result = ctx.service.saveProfile({ name: '千寻', avatar: null })
+    assert.equal(result.ok, true)
+    const emitted = ctx.emitted.find(([event]) => event === 'profile')
+    assert.equal(emitted?.[1]?.name, '千寻')
+  } finally {
+    ctx.service.saveProfile({ name: '', avatar: null })
+  }
+})
+
 test('archiving an active room stops it without a running engine', async () => {
   const ctx = setup(roomRecord({ live: true }))
   const result = await ctx.service.roomRequest('r1', 'archive', post({}))

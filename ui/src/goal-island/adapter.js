@@ -32,8 +32,19 @@ export const toIslandGoal = room => ({
 
 const toIslandRoom = room => ({
   id: room.id,
+  lodge: room.lodge === true,
   needsYou: room.needsYou ?? null,
   attention: Array.isArray(room.attention) ? room.attention : [],
+  // 岛只拿裁剪后的房间；聊天有没有开始要在这里算好，别把整段消息带进去。
+  chatStarted: room.chat?.running === true ||
+    room.chat?.hostThinking === true ||
+    (Array.isArray(room.messages) ? room.messages : []).some(message => (
+      message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'
+    )),
+  // 真正有回合在跑时才“灵动”地展开；回合结束回到最小，不常驻一条状态。
+  working: (Array.isArray(room.busyMembers) ? room.busyMembers.length > 0 : false) ||
+    room.chat?.running === true ||
+    room.chat?.hostThinking === true,
 })
 
 const pill = ({ room, view, open, onToggle }) => {

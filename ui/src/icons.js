@@ -12,6 +12,25 @@ export const ArrowUpIcon = () => h('svg', {
   strokeLinejoin: 'round',
 }, h('path', { d: 'M10 15V5M5.5 9.5L10 5l4.5 4.5' }))
 
+export const PlusIcon = () => h('svg', {
+  width: 16,
+  height: 16,
+  viewBox: '0 0 20 20',
+  'aria-hidden': true,
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round',
+}, h('path', { d: 'M10 4.5v11M4.5 10h11' }))
+
+export const StopIcon = () => h('svg', {
+  width: 18,
+  height: 18,
+  viewBox: '0 0 20 20',
+  'aria-hidden': true,
+  fill: 'currentColor',
+}, h('rect', { x: 5.5, y: 5.5, width: 9, height: 9, rx: 2.4 }))
+
 export const ArrowDownIcon = () => h('svg', {
   width: 18,
   height: 18,

@@ -10,6 +10,7 @@ import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
+import { buildFollowupBody } from './rooms/studio/followup.js'
 import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
 import { humanHandoffStageOf } from './human-handoff.js'
 import { createModeSwitch } from './mode-switch.js'
@@ -35,7 +36,7 @@ import {
   scheduleLabelOf,
 } from '../../shared/routine.js'
 import { systemNotice } from './notices.js'
-import { cleanHumanName } from './human-name.js'
+import { cleanHumanName, setCurrentHumanName } from './human-name.js'
 import { isAttachmentName, normalizeAttachments, textOfFile } from './attachments.js'
 import {
   ATTACHMENT_FILE_MAX_BYTES,
@@ -79,6 +80,25 @@ const completionFacts = (room, messages = []) => {
 export const createCrewService = ({ store, engine, live, emit, roles, ports, attachments = null }) => {
   const { readRoom, readMessages, writeRoom, appendMessage, updateRoom, deleteRoom } = store
   const { roomFiles, workspace, files } = ports
+  const readStoredProfile = () => (
+    typeof store.readProfile === 'function'
+      ? store.readProfile()
+      : { name: '', avatar: null, updatedAt: null }
+  )
+  let profile = readStoredProfile()
+  // 迁移旧房间里的称呼：第一次启动时把已有的名字收进全局资料。
+  if (cleanHumanName(profile.name) === '') {
+    const rooms = typeof store.readRooms === 'function' ? store.readRooms() : []
+    const legacy = rooms
+      .map(room => cleanHumanName(room.humanName))
+      .find(name => name !== '') ?? ''
+    if (legacy !== '') {
+      profile = typeof store.writeProfile === 'function'
+        ? store.writeProfile({ ...profile, name: legacy })
+        : { ...profile, name: legacy }
+    }
+  }
+  setCurrentHumanName(profile.name)
 
   const queries = createServiceQueries({
     store,
@@ -270,21 +290,34 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
   }
 
   // 用户改过名字后，下一次说话把房间里的称呼一起更新；提示词和历史都用这个名字。
+  const saveHumanProfile = input => {
+    const raw = cleanHumanName(input?.name)
+    const name = raw === '你' ? '' : raw
+    const avatar = typeof input?.avatar === 'string' &&
+      input.avatar.startsWith('data:image/') &&
+      input.avatar.length <= 512 * 1024
+      ? input.avatar
+      : null
+    const next = { name, avatar, updatedAt: Date.now() }
+    profile = typeof store.writeProfile === 'function' ? store.writeProfile(next) : next
+    setCurrentHumanName(profile.name)
+    // 全局资料也是全局窗口的事实：改名后所有打开的窗口立即读到同一份。
+    emit('profile', profile)
+    return ok({ profile })
+  }
+
+  // 旧客户端消息里带的称呼只在全局还没名字时收下；资料接口是唯一写入口。
   const rememberHuman = (roomId, body) => {
     const name = cleanHumanName(body?.humanName)
-    if (name === '' || name === readRoom(roomId)?.humanName) return
-    updateRoom(roomId, current => {
-      if (current.humanName === name) return null
-      current.humanName = name
-      return { events: [] }
-    })
+    if (name === '' || profile.name !== '') return
+    saveHumanProfile({ name, avatar: profile.avatar })
   }
 
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
     let room = readRoom(roomId)
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
 
-    // Lodge 是幕僚长的对话：一句话决定开工作室还是留下聊聊，不出现房型选择。
+    // Lodge 的对话：一句话决定开工作室还是留下聊聊，不出现房型选择。
     if (action === 'lodge' && method === 'POST') {
       if (room.lodge !== true) return fail('invalid', '这不是 Lodge 对话')
       if (room.state !== 'active') return fail('conflict', 'Lodge 现在没有在运行')
@@ -318,7 +351,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         goal: withAttachments(goalText, attachments),
         name: goalText.slice(0, 24),
         verify: 'manual',
-        humanName: room.humanName,
         ...(decision.room === 'chat' ? { roomType: 'chat' } : {}),
       })
       if (created?.ok !== true) return created
@@ -639,6 +671,44 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
 
     if (room.state === 'paused' || room.state === 'stopped') {
       return fail('conflict', room.state === 'paused' ? '房间已暂停' : '房间已停止')
+    }
+
+    // 已交付的房间里说一句要改什么：不开完整表单，直接建下一版并保持两间房的来源链。
+    if (action === 'followup' && method === 'POST') {
+      const body = await readBody()
+      const text = typeof body.text === 'string' ? body.text.trim() : ''
+      const normalized = normalizeAttachments(body.attachments)
+      if (normalized.error !== undefined) return fail('invalid', normalized.error)
+      const attachments = normalized.attachments
+      const built = buildFollowupBody({
+        room,
+        messages: readMessages(room.id),
+        text,
+        attachments,
+      })
+      if (built.error !== undefined) return fail('invalid', built.error)
+      rememberHuman(room.id, body)
+      const result = await createRoom(built.body)
+      if (result?.ok !== true) return result
+      const createdRoom = result.body?.room ?? null
+      if (createdRoom === null) return fail('upstream', '下一版没有建起来')
+      appendMessage(room.id, {
+        kind: 'chat',
+        authorId: 'you',
+        text,
+        ...(attachments.length === 0 ? {} : { meta: { attachments } }),
+      })
+      appendMessage(room.id, {
+        kind: 'system',
+        text: `下一版开好了：${createdRoom.name}`,
+        meta: { kind: 'followup', openRoomId: createdRoom.id },
+      })
+      const linked = updateRoom(room.id, current => {
+        current.nextRoomId = createdRoom.id
+        return { events: [{ type: 'room.followup', payload: { roomId: createdRoom.id } }] }
+      })
+      if (linked !== null) emit('room', linked)
+      return created({ room: createdRoom })
     }
 
     if (action === 'messages' && method === 'POST') {
@@ -967,6 +1037,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       emit('room', updated)
       return ok({ room: updated })
     },
+    saveProfile: saveHumanProfile,
     memoryReview: ({ roomId, memoryId, decision } = {}) => {
       const room = readRoom(roomId)
       if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')

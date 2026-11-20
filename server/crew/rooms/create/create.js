@@ -12,7 +12,6 @@ import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
 import { grantBrowserToAll, needsBrowser, stripBrowser } from '../../room-access.js'
 import { uniqueRoomShort } from './short-id.js'
-import { cleanHumanName } from '../../human-name.js'
 
 const deliveryTitleFor = (goalTitle, handoff) => {
   if (handoff === null || handoff === undefined) return goalTitle
@@ -41,6 +40,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     receipt,
     sourceRoomId,
     sourceName,
+    continuation,
   } = request
   const mode = roomModeForType(roomType.id)
   const capabilities = engine.capabilities()
@@ -230,8 +230,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         check: { mode: verify, acceptance: effectiveAcceptance },
       }),
     })
-    const humanName = cleanHumanName(body?.humanName)
-    if (humanName !== '') room = { ...room, humanName }
+    // 来源与上一版是房间之间的事实，不依赖 handoff/receipt 是否顺带存在。
+    const sourceId = continuation?.fromRoomId ?? sourceRoomId
+    const sourceLabel = continuation?.fromRoomName ?? sourceName
+    if (typeof sourceId === 'string' && sourceId !== '') room = { ...room, sourceRoomId: sourceId }
+    if (typeof sourceLabel === 'string' && sourceLabel !== '') room = { ...room, sourceName: sourceLabel }
+    if (continuation !== null) room = { ...room, continuation, generation: continuation.version }
     // 记住建房时的 HEAD：阶段起点万一没记下，验收和交付还有据可依。
     try {
       const startHead = typeof room.repoPath === 'string' && room.repoPath !== ''

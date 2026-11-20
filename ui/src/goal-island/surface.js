@@ -86,7 +86,7 @@ h('path', { d: 'M6.8 8.3h6.4M6.8 10.9h4.1' }))
 
 // Closed: the goal stays the kicker, the current step leads. The ring around
 // the mark is the stage track, so progress reads at a glance without a second row.
-function GoalClosed({ view, room, actions, compact = false, plan = false }) {
+function GoalClosed({ view, room, actions, compact = false, plan = false, mini = false }) {
   const chat = view?.kind === 'chat'
   const title = view?.title || room.name || '目标'
   const status = view?.barLabel || room.needsYou?.label
@@ -104,38 +104,46 @@ function GoalClosed({ view, room, actions, compact = false, plan = false }) {
   const atLast = stages.length > 0 && currentIndex === stages.length - 1
   const radius = 15.5
   const circumference = 2 * Math.PI * radius
+  const miniLabel = room.lodge === true ? '空闲中' : title
+  const label = mini ? (room.lodge === true ? `${title} · 空闲中` : title) : `${title} · ${status}`
   return h('button', {
     type: 'button',
     className: 'bt-goal-closed',
     'data-compact': compact ? 'true' : undefined,
     'aria-expanded': false,
-    title: `${title} · ${status}`,
+    'aria-label': label,
+    title: label,
     onClick: () => actions.toggleGoal(room.id),
   },
   h('span', { className: 'bt-goal-closed-main' },
-    h('span', {
-      className: 'bt-goal-closed-ico',
-      'data-tone': tone,
-      'data-chat': chat ? 'true' : undefined,
-      'data-live': (room.busyMembers ?? []).length > 0 ? 'true' : undefined,
-      'data-track': !chat && total > 0 ? 'true' : undefined,
-      'aria-hidden': true,
-    },
-    chat
-      ? h(ChatMark)
+    mini
+      ? h(Fragment, null,
+        h('span', { className: 'bt-goal-mini-dot', 'aria-hidden': true }),
+        h('span', { className: 'bt-goal-mini-title' }, miniLabel))
       : h(Fragment, null,
-        h('svg', { className: 'bt-goal-ring', viewBox: '0 0 36 36' },
-          h('circle', { className: 'bt-ring-track', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2 }),
-          total === 0 ? null : h('circle', {
-            className: 'bt-ring-fill', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2.5,
-            strokeLinecap: 'round', transform: 'rotate(-90 18 18)',
-            strokeDasharray: `${circumference * (done / total)} ${circumference}`,
-          })),
-        h('span', { key: view?.number ?? 'none', className: 'bt-goal-ico-num' }, view?.number ?? '·')),
-    h('i', { className: 'bt-goal-closed-pip' })),
-    h('span', { className: 'bt-goal-closed-copy' },
-      compact ? null : h('span', { className: 'bt-goal-closed-kicker' }, title),
-      h('span', { className: 'bt-goal-closed-title' }, status)),
+        h('span', {
+          className: 'bt-goal-closed-ico',
+          'data-tone': tone,
+          'data-chat': chat ? 'true' : undefined,
+          'data-live': (room.busyMembers ?? []).length > 0 || room.working === true ? 'true' : undefined,
+          'data-track': !chat && total > 0 ? 'true' : undefined,
+          'aria-hidden': true,
+        },
+        chat
+          ? h(ChatMark)
+          : h(Fragment, null,
+            h('svg', { className: 'bt-goal-ring', viewBox: '0 0 36 36' },
+              h('circle', { className: 'bt-ring-track', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2 }),
+              total === 0 ? null : h('circle', {
+                className: 'bt-ring-fill', cx: 18, cy: 18, r: radius, fill: 'none', strokeWidth: 2.5,
+                strokeLinecap: 'round', transform: 'rotate(-90 18 18)',
+                strokeDasharray: `${circumference * (done / total)} ${circumference}`,
+              })),
+            h('span', { key: view?.number ?? 'none', className: 'bt-goal-ico-num' }, view?.number ?? '·')),
+        h('i', { className: 'bt-goal-closed-pip' })),
+        h('span', { className: 'bt-goal-closed-copy' },
+          compact ? null : h('span', { className: 'bt-goal-closed-kicker' }, title),
+          h('span', { className: 'bt-goal-closed-title' }, status))),
     plan && stages.length > 0
       ? h('span', { className: 'bt-goal-plan' },
         h('span', { className: 'bt-goal-plan-rail', 'aria-hidden': true },
@@ -284,6 +292,21 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill, catS
   // 收成小药囊；鼠标移上去或键盘聚焦时展开，有事件时一直展开。
   const [peeking, setPeeking] = useState(false)
   const compact = !open && (signal === null || signal === undefined) && !peeking
+  // 回合跑起来时展开；结束再停留一小会儿，然后回到最小。
+  const [flash, setFlash] = useState(false)
+  const wasWorking = useRef(room.working === true)
+  useEffect(() => {
+    if (room.working === true) {
+      wasWorking.current = true
+      setFlash(true)
+      return undefined
+    }
+    if (!wasWorking.current) return undefined
+    wasWorking.current = false
+    const timer = setTimeout(() => setFlash(false), 1100)
+    return () => clearTimeout(timer)
+  }, [room.working])
+  const mini = compact && view?.kind === 'chat' && room.working !== true && !flash
   // 阶段一变，岛面扫一次光；不循环，也不代替内容变化。
   const progressKey = `${view?.status ?? ''}:${(view?.segments ?? []).join('')}`
   const lastProgress = useRef(progressKey)
@@ -312,6 +335,7 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill, catS
     'data-idle': view?.idle || undefined,
     'data-mode': mode,
     'data-compact': compact ? 'true' : undefined,
+    'data-mini': mini ? 'true' : undefined,
     'data-waiting': room.needsYou ? 'true' : undefined,
     'data-signal-tone': signal?.tone,
     'data-signal': signal?.kind,
@@ -333,12 +357,13 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill, catS
           room,
           actions,
           compact,
+          mini,
           plan: !compact && goal.kind !== 'chat' && (signal === null || signal === undefined),
         }),
         signal === null || signal === undefined
           ? null
           : h(GoalSignal, { signal, mode, actions }))),
-  h(IslandCat, { state: catState }))
+  mini ? null : h(IslandCat, { state: catState }))
 }
 
 export const GOAL_CSS = `
@@ -360,6 +385,10 @@ body[data-ds-dark-theme] .bt-island{--bt-ink:#fff4dc;--bt-ink-2:rgba(255,243,214
 .bt-island[data-compact]{width:min(216px,calc(100% - 48px));border-radius:999px}
 .bt-island[data-compact] .bt-goal-closed{border-radius:999px}
 .bt-island[data-compact] .bt-goal-closed-main{height:44px;padding:5px 12px 5px 5px;gap:9px}
+.bt-island[data-mini]{width:min(120px,calc(100% - 48px))}
+.bt-island[data-mini] .bt-goal-closed-main{width:100%;height:32px;padding:0 14px;justify-content:center;gap:8px}
+.bt-goal-mini-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--bt-green);box-shadow:0 0 10px color-mix(in srgb,var(--bt-green) 55%,transparent)}
+.bt-goal-mini-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink)}
 .bt-island[data-compact] .bt-goal-closed-copy{gap:0}
 .bt-island[data-compact] .bt-goal-closed-title{font-size:13.5px;line-height:18px}
 .bt-island[data-morph] .bt-goal-pod{overflow:hidden;border-radius:0 0 30px 30px}

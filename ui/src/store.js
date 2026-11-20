@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react'
 import { humanErrorText } from './error-text.js'
-import { loadProfile } from './profile.js'
 
 const EMPTY = {
   phase: 'loading',
@@ -9,6 +8,7 @@ const EMPTY = {
   roomTypes: [],
   engines: [],
   runtime: null,
+  profile: null,
   activeId: null,
   error: null,
 }
@@ -52,11 +52,6 @@ export function createStore() {
     }
   }
 
-  // 房间里用昵称指代用户；没起名字时不送，服务端仍用“用户”。
-  const humanField = () => {
-    const name = loadProfile().name
-    return name === '' || name === '你' ? {} : { humanName: name }
-  }
   const acceptMessage = message => {
     if (seen.has(message.id)) return
     seen.add(message.id)
@@ -114,6 +109,7 @@ export function createStore() {
         roomTypes: data.roomTypes ?? state.roomTypes,
         engines: data.engines ?? state.engines,
         features: data.features ?? state.features,
+        profile: data.profile ?? state.profile,
         activeId,
       })
     } catch {
@@ -139,6 +135,9 @@ export function createStore() {
     })
     events.addEventListener('room', event => {
       if (!stopped) acceptRoom(JSON.parse(event.data))
+    })
+    events.addEventListener('profile', event => {
+      if (!stopped) patch({ profile: JSON.parse(event.data) })
     })
     events.addEventListener('room.deleted', event => {
       if (stopped) return
@@ -195,6 +194,7 @@ export function createStore() {
         roomTypes: data.roomTypes ?? [],
         engines: data.engines ?? [],
         features: data.features ?? null,
+        profile: data.profile ?? state.profile,
         runtime,
         activeId,
         error: null,
@@ -262,7 +262,6 @@ export function createStore() {
       if (active?.lodge === true) {
         const data = await post(`/api/rooms/${active.id}/lodge`, {
           text,
-          ...humanField(),
           ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
         })
         if (data?.createdRoom?.id !== undefined && data.createdRoom.id !== null) {
@@ -274,10 +273,29 @@ export function createStore() {
       }
       return post(`/api/rooms/${state.activeId}/messages`, {
         text,
-        ...humanField(),
         ...(Array.isArray(options.mentions) && options.mentions.length > 0 ? { mentions: options.mentions } : {}),
         ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
       })
+    },
+    // 当前用户资料是全局的：改名后所有房间和成员立即读到同一份。
+    saveProfile: async input => {
+      const data = await post('/api/profile', input)
+      if (data?.profile !== undefined) patch({ profile: data.profile })
+      await refreshRooms()
+      return data
+    },
+    // 已交付的工作室：不重回填表，直接把这句话变成下一版的目标。
+    followup: async (text, options = {}) => {
+      const data = await post(`/api/rooms/${state.activeId}/followup`, {
+        text,
+        ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
+      })
+      if (data?.room?.id !== undefined && data.room.id !== null) {
+        await load()
+        rememberRoom(data.room.id)
+        patch({ activeId: data.room.id })
+      }
+      return data
     },
     // 附件先上传，再随消息发送；图片在消息里显示缩略图，文本文件把正文带给模型。
     uploadAttachment: async file => {
@@ -354,7 +372,7 @@ export function createStore() {
       return { ok: true, proposal: data.proposal }
     },
     createRoom: async (goal, answers = {}) => {
-      const data = await post('/api/rooms', { goal, ...humanField(), ...answers })
+      const data = await post('/api/rooms', { goal, ...answers })
       if (data?.room === undefined) return { ok: false, error: failureText('房间没能建起来') }
       await load()
       rememberRoom(data.room.id)

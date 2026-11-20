@@ -500,6 +500,31 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const startedAt = Number.isFinite(turn?.at) && Number.isFinite(turn?.durationMs)
       ? turn.at - turn.durationMs
       : null
+    const stageActivatedAt = Number.isFinite(room?.stages?.[stageIndex]?.activatedAt)
+      ? room.stages[stageIndex].activatedAt
+      : null
+    if (
+      role === 'worker' &&
+      startedAt !== null &&
+      stageActivatedAt !== null &&
+      startedAt < stageActivatedAt - 5000
+    ) {
+      state.capturedTurns.add(turnId)
+      writeTurnDiagnostic('stale', { startedAt, activatedAt: stageActivatedAt, reason: 'stage-started' })
+      store.appendEvent(roomId, 'turn.stale', {
+        turnId,
+        memberId,
+        stage: stageIndex,
+        startedAt,
+        activatedAt: stageActivatedAt,
+        reason: 'stage-started',
+      })
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `${memberDisplayName(room, memberId)} 的旧回合结果已忽略；这一步刚开始。`,
+      })
+      return
+    }
     if (
       role === 'worker' &&
       assignment !== null &&

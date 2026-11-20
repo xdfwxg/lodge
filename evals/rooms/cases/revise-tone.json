@@ -1,0 +1,14 @@
+{
+  "id": "revise-tone",
+  "goal": "把 draft/report.html 里 .title 的字号从 14px 改成 28px，并给 .figure 加 8px 圆角。其他文字和样式不要动。检查：node tools/check.mjs",
+  "fixture": "revise-tone",
+  "acceptance": "node tools/check.mjs",
+  "check": "tone.mjs",
+  "memorySeed": {
+    "goal": "改稿只动指定的两处样式",
+    "conclusion": "标题 28px、图区圆角 8px，其他文字和颜色不动。",
+    "files": ["draft/report.html"],
+    "rejections": [{ "stage": 0, "reason": "上次顺手改了正文颜色" }]
+  },
+  "note": "真实改稿：除了两处目标，外部尺子还核对正文、图注没有被顺手改掉。"
+}

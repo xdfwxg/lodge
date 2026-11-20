@@ -14,8 +14,12 @@ b,strong{font-weight:600}
 .bt-row[aria-current=page]{background:var(--bt-active)}
 .bt-tag{flex:none;max-width:96px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:400;padding:1px 6px;border-radius:5px;background:var(--bt-tag-bg);color:var(--bt-tag-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.crew-side-brand{display:flex;align-items:center;gap:9px;width:100%;padding:10px 6px 14px;color:var(--bt-ink);font-size:var(--bt-text-body);font-weight:600;letter-spacing:var(--bt-tracking-title);text-align:left}
-.crew-side-brand-logo{display:block;width:22px;height:22px;flex:none}
+.crew-side-brand-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:10px 8px 8px 14px;box-sizing:border-box}
+.crew-side-brand{position:relative;display:inline-flex;align-items:center;padding:2px 0;border:0;background:none;color:var(--bt-ink);font:inherit;text-align:left;cursor:pointer;border-radius:6px}
+.crew-side-brand:focus-visible{outline:2px solid var(--bt-accent);outline-offset:3px}
+/* 品牌只用正规写法的 Lodge；字母自然连起来，多一分笔意。 */
+.crew-side-wordmark{font-family:var(--bt-script);font-size:24px;font-weight:600;line-height:1;letter-spacing:.02em;padding-right:2px;transform:translateY(-.5px)}
+.crew-side-monogram{display:none;font-family:var(--bt-script);font-size:28px;font-weight:600;line-height:1;transform:translateY(-1px)}
 .crew-side-brand small{font-size:var(--bt-text-helper);font-weight:500;color:var(--bt-ink-3)}
 
 .crew-side-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 8px 10px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
@@ -45,7 +49,9 @@ b,strong{font-weight:600}
 .crew-side-room-type svg{width:15px;height:15px}
 .bt-row[aria-current=page] .crew-side-room-type{color:var(--bt-ink-2)}
 .crew-side-room-text{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.crew-side-room-title{display:flex;align-items:baseline;gap:6px;min-width:0}
 .crew-side-room-name{min-width:0;font-size:var(--bt-text-label);line-height:var(--bt-leading-helper);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-side-room-version{flex:none;font-size:var(--bt-text-helper);color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
 .crew-side-room-next{min-width:0;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bt-row[aria-current=page] .crew-side-room-name{font-weight:500}
 .crew-side-room-meta{flex:none;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3);white-space:nowrap}
@@ -104,10 +110,12 @@ body[data-side=rail] .crew-side-members{display:none}
 .crew-side-rename-save:disabled,.crew-side-rename-cancel:disabled{opacity:.45;cursor:default}
 .crew-side-rename-cancel{border:1px solid var(--bt-line-2);background:transparent;color:var(--bt-ink-2)}
 .crew-side-rename-cancel:hover:not(:disabled){background:var(--bt-hover)}
-.crew-new{position:relative;display:inline-flex;align-items:center;min-height:28px;border:0;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:var(--bt-text-helper);font-weight:600;letter-spacing:0;cursor:pointer;padding:0 6px;border-radius:6px}
+.crew-new{position:relative;display:inline-flex;align-items:center;min-height:28px;border:0;background:transparent;color:var(--bt-ink);font:inherit;font-size:var(--bt-text-helper);font-weight:600;letter-spacing:0;cursor:pointer;padding:0 6px;border-radius:6px}
 /* 关键入口的热区扩到 ≥28px，视觉尺寸不变；四周是留白与非交互元素。 */
 .crew-new::before{content:"";position:absolute;inset:-6px}
 .crew-new:hover{color:var(--bt-ink);background:var(--bt-hover)}
+.crew-new-icon{width:32px;height:32px;padding:0;display:grid;place-items:center;border-radius:9px}
+.crew-new-icon svg{width:20px;height:20px}
 .crew-side-search{padding:0 8px 6px}
 .crew-side-search-input{width:100%;height:28px;box-sizing:border-box;padding:0 9px;border:1px solid var(--bt-line-2);border-radius:8px;background:var(--bt-card);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-helper)}
 .crew-side-search-input::placeholder{color:var(--bt-ink-3)}
@@ -120,8 +128,9 @@ body[data-side=rail] .crew-side-members{display:none}
 .crew-side-room-badge{display:none;flex:none;width:32px;height:32px;border-radius:8px;place-items:center;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:var(--bt-text-label);font-weight:600}
 
 /* Rail: same DOM, collapsed styling. Only while rail and closed. */
-body[data-side=rail] .crew-side-brand{justify-content:center;gap:0;padding:10px 0 12px;font-size:0}
-body[data-side=rail] .crew-side-brand-logo{width:24px;height:24px}
+body[data-side=rail] .crew-side-brand-row{justify-content:center;padding:10px 0 8px}
+body[data-side=rail] .crew-side-wordmark{display:none}
+body[data-side=rail] .crew-side-monogram{display:block}
 body[data-side=rail] .crew-side-tools{flex-direction:column;align-items:center;gap:6px;padding:0 0 8px}
 body[data-side=rail] .crew-side-group-label{display:none}
 body[data-side=rail] .bt-row.crew-side-room{min-height:40px;padding:4px 12px;justify-content:center;position:relative}
@@ -136,8 +145,7 @@ body[data-side=rail] .crew-side-more{display:none}
 body[data-side=rail] .crew-side-row .bt-row.crew-side-room{padding-right:12px}
 body[data-side=rail] .crew-side-room-dot{display:block;right:8px;bottom:6px;width:8px;height:8px}
 body[data-side=rail] .crew-unread-dot{right:8px;top:6px;width:6px;height:6px;margin-left:0}
-body[data-side=rail] .crew-new{width:28px;height:28px;padding:0;display:grid;place-items:center;font-size:0;border-radius:8px}
-body[data-side=rail] .crew-new::after{content:'＋';font-size:var(--bt-text-body);line-height:1}
+body[data-side=rail] .crew-new{width:32px;height:32px;padding:0;display:grid;place-items:center;border-radius:9px}
 body[data-side=rail] .crew-side-error{width:24px;height:24px;margin:0 auto 8px;padding:0;display:grid;place-items:center;border-radius:7px}
 body[data-side=rail] .crew-side-error-mark{display:block;font-size:var(--bt-text-label);font-weight:600;color:var(--bt-danger-text)}
 body[data-side=rail] .crew-side-error-text{display:none}
@@ -1012,9 +1020,12 @@ body[data-ds-dark-theme] .crew-island-done-detail{color:rgba(255,238,204,.62)}
 .crew-merge-version-part>span{font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .crew-merge-version-part pre{max-height:180px;overflow:auto;margin:0}
 .crew-memory-conclusion{margin:0;font-size:var(--bt-text-helper);color:var(--bt-ink-2);line-height:1.6}
+.crew-followup-link{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.crew-memory-note{margin:0;font-size:var(--bt-text-helper);color:var(--bt-ink-2);line-height:1.6;overflow-wrap:anywhere}
+.crew-memory-note[data-kind=reject]{padding-left:8px;border-left:2px solid var(--bt-line-2);color:var(--bt-ink)}
 .crew-memory-meta{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .crew-human-label,.crew-human-name{flex-basis:100%;text-align:right;margin:0 2px -4px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
-.crew-human-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crew-human-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink)}
 /* Chat room: the scheduler stays invisible; only round progress and a typing hint surface. */
 .crew-typing-line{color:var(--bt-ink-3)}
 .crew-typing-line .crew-msg-body{display:flex;align-items:center;gap:6px;min-height:30px;font-size:var(--bt-text-label);line-height:var(--bt-leading-label)}
@@ -1255,15 +1266,15 @@ details[open]>summary::before{transform:rotate(90deg)}
 .crew-capability-input:disabled{opacity:.55;cursor:default}
 
 /* 侧栏底部的“你”：本地身份，不是登录。 */
-.crew-side-me{display:flex;align-items:center;gap:9px;margin-top:6px;padding:6px 8px;border:0;border-radius:9px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);cursor:pointer;text-align:left}
+.crew-side-me{display:flex;align-items:center;gap:6px;margin-top:6px;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:14px;line-height:20px;cursor:pointer;text-align:left}
 .crew-side-me:hover{background:var(--bt-hover);color:var(--bt-ink)}
-.crew-side-me-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;overflow:hidden;background:var(--bt-shade-3);color:var(--bt-ink);font-size:11px;font-weight:600;box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)}
+.crew-side-me-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;overflow:hidden;background:var(--bt-shade-3);color:var(--bt-ink);font-size:12px;font-weight:600;box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)}
 .crew-side-me-avatar img{width:100%;height:100%;object-fit:cover}
-.crew-side-me-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:var(--bt-ink-2)}
+.crew-side-me-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:500;color:var(--bt-ink)}
 .crew-side-me:hover .crew-side-me-name{color:var(--bt-ink)}
-.crew-side-me-more{margin-left:auto;flex:none;font-size:14px;line-height:1;color:var(--bt-ink-4)}
+.crew-side-me-more{margin-left:auto;flex:none;font-size:16px;line-height:1;color:var(--bt-ink-4)}
 .crew-side-me:hover .crew-side-me-more{color:var(--bt-ink-3)}
-body[data-side=rail] .crew-side-me{justify-content:center;padding:6px 0}
+body[data-side=rail] .crew-side-me{justify-content:center;padding:8px 0}
 
 .crew-profile{width:min(360px,calc(100vw - 32px));padding:0}
 .crew-profile-body{padding:20px 20px 4px}

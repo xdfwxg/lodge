@@ -16,6 +16,7 @@ const result = spawnSync(process.execPath, [
   'server/*.test.js',
   'shared/**/*.test.js',
   'server/crew/**/*.test.js',
+  'evals/rooms/*.test.js',
   'ui/src/**/*.test.js',
   'electron/**/*.test.js',
 ], { stdio: 'inherit', env })

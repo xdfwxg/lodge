@@ -1,6 +1,6 @@
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0;background:var(--bt-main);color:var(--bt-ink);font-family:var(--bt-font);font-size:16px;-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--bt-main);color:var(--bt-ink);font-family:var(--bt-font);font-size:16px;-webkit-font-smoothing:antialiased;--bt-script:"Snell Roundhand","Savoye LET","Kaiti SC",Georgia,serif}
 :where(button,[role=button],input,textarea,select,summary,a,[tabindex]):focus-visible{
   outline:var(--bt-focus-ring-w,2px) solid var(--bt-focus-ring,#2F4AB5);
   outline-offset:var(--bt-focus-ring-offset,2px);
@@ -67,6 +67,13 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-send:disabled{opacity:.32;cursor:default}
 .crew-send:not(:disabled):active{transform:scale(.94)}
 .crew-send svg{width:18px;height:18px}
+.crew-input-brand::placeholder{font-family:"Snell Roundhand","Savoye LET","Kaiti SC",-apple-system,"SF Pro Text",system-ui,sans-serif;font-size:16px;line-height:22px;letter-spacing:.02em}
+.crew-composer-followup{flex:none;height:28px;padding:0 10px;border:1px solid var(--bt-line-2);border-radius:14px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:var(--bt-text-helper);font-weight:600;white-space:nowrap;cursor:pointer}
+.crew-composer-followup:hover:not(:disabled){color:var(--bt-ink);background:var(--bt-hover)}
+.crew-composer-followup:disabled{opacity:.32;cursor:default}
+.crew-stop-room{display:flex;flex:none}
+.crew-stop-send{background:var(--bt-card);color:var(--bt-ink);box-shadow:inset 0 0 0 1px var(--bt-line-2)}
+.crew-stop-send:hover{background:var(--bt-hover)}
 
 
 .crew-error{margin:16px auto;max-width:520px;padding:12px 14px;border:1px solid var(--bt-danger-soft);border-radius:12px;color:var(--bt-danger-text);font-size:var(--bt-text-label);line-height:18px}

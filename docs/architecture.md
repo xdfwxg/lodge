@@ -1,7 +1,7 @@
 # Lodge · 架构
 
 > 本文回答：服务端怎么分层、数据真相在哪、交接和门禁怎么走、边界靠什么固定。
-> 产品判断见 [Lodge.md](../Lodge.md)，界面规则见 [design.md](design.md)，运行与运维见 [operations.md](operations.md)。
+> 产品判断与**原则总表**见 [Lodge.md](../Lodge.md#原则总表)，界面规则见 [design.md](design.md)，运行与运维见 [operations.md](operations.md)。
 
 ## 形态
 
@@ -32,6 +32,8 @@ service.js                   ← 路由分发，不写规则
 
 - SQLite `room` 存房间、版本、成员、阶段、closure、子房关系；`messages` 存时间线，证据和结论都是消息；`room_event` 存运行时 trace；`assignment` 存房间内交接。
 - 房间目录 `transcript.jsonl` 先追加并 fsync，再写 SQLite；目标投影和证据文件可重建。
+- 当前用户是全局资料（`profile` 表一份），房间展示和 agent 上下文从它读，不再各存 `humanName`；改昵称后下一次快照即全局生效。
+- 交付后的改动另开下一版：房间记 `generation`、`sourceRoomId` 和 `continuation`（上一版目标、结论、文件、提交），旧版只读，版本链靠这三个字段连起来。
 - 没有全局成员表，也没有全局 Assignment 表；成员和交接跟着房间走。证据与 verdict 正文留在消息里，Assignment 只存引用。
 - 存储实现可替换，但业务真相必须落在支持约束与事务的持久存储。
 
@@ -68,7 +70,7 @@ service.js                   ← 路由分发，不写规则
 - `rooms/kinds.test.js`：两套房型实现同一组 mode / presentation / lifecycle 契约。
 - `architecture.test.js`（UI）：共享 UI 不比较 `roomType`；房型视图只通过 kind 注册。
 - `boundary.test.js`、`assignment.test.js`：领域边界与交接生命周期。
-- `evals/planning/`：规划质量对照，不追求单次最好成绩。
+- `evals/planning/`：规划质量对照；`evals/rooms/`：房间交付固定题，外部脚本核对产出，不追求单次最好成绩。
 
 ## 已知边界
 

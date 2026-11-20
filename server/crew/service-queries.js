@@ -52,6 +52,9 @@ export const createServiceQueries = ({
       roles,
       features,
       roomTypes: listRoomTypes(),
+      profile: typeof store.readProfile === 'function'
+        ? store.readProfile()
+        : { name: '', avatar: null, updatedAt: null },
       rooms: rooms.map(room => {
         const presentation = roomPresentationOfRoom(room)
         const ordered = readRecentMessages(room.id)

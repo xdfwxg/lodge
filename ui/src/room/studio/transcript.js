@@ -35,6 +35,7 @@ export function StudioTranscript({
   onReadArtifact = null,
   onRoutine = null,
   onOpenRun = null,
+  onOpenRoom = null,
   latestRun = null,
   runs = [],
   onResolveMerge = null,
@@ -94,6 +95,7 @@ export function StudioTranscript({
       onAnswerCard,
       onCancelQueue,
       onSteerQueue,
+      onOpenRoom,
     })
     if (content !== null && content !== undefined) items.push(content)
   }
@@ -135,7 +137,7 @@ export function StudioTranscript({
       ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
       : null,
     typeof onContinue === 'function'
-      ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '开一间新房')
+      ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '接着改')
       : null)
   // 做完了就只给结果；完整工作记录收起来，需要时再看。
   if (finished) {

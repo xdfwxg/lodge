@@ -13,6 +13,31 @@ export function App() {
   const [profile, setProfile] = useState(loadProfile)
   const [profileOpen, setProfileOpen] = useState(false)
   const state = useStore(store)
+  // 服务端的当前用户是全局真相；本地只做首屏和离线兜底。
+  useEffect(() => {
+    const next = state.profile
+    if (next === undefined || next === null) return
+    const name = typeof next.name === 'string' && next.name !== '' ? next.name : '你'
+    const avatar = next.avatar ?? null
+    setProfile(current => (
+      current.name === name && current.avatar === avatar ? current : { name, avatar }
+    ))
+  }, [state.profile?.name, state.profile?.avatar])
+  // 第一次把浏览器里的旧资料收进全局；之后服务端是唯一真相。
+  useEffect(() => {
+    const server = state.profile
+    if (server === undefined || server === null) return
+    const local = loadProfile()
+    const serverName = typeof server.name === 'string' ? server.name : ''
+    const serverAvatar = server.avatar ?? null
+    if (serverName === '' && local.name !== '你' && local.name !== '') {
+      void store.saveProfile({ name: local.name, avatar: local.avatar })
+      return
+    }
+    if (serverAvatar === null && local.avatar !== null) {
+      void store.saveProfile({ name: serverName || '你', avatar: local.avatar })
+    }
+  }, [state.profile?.name, state.profile?.avatar, store])
   // 定时目标的 run 房是历史，不占侧栏和菜单；目标本身仍是同一行。
   // 但 run 停下来等人时仍要提醒，否则目标会在后台无声卡住。
   const attentionRooms = useMemo(() => {
@@ -141,13 +166,6 @@ export function App() {
     return result
   }
   const lodgeRoom = state.rooms.find(room => room.id === LODGE_ROOM_ID || room.lodge === true) ?? null
-  const openLodge = () => {
-    if (lodgeRoom !== null) {
-      store.select(lodgeRoom.id)
-      return
-    }
-    openGoal()
-  }
   const discussGoal = goal => openDialog(goal === '' ? null : { goal }, 'chat')
   const adjustGoal = goal => openDialog(goal === '' ? null : { goal }, 'studio')
 
@@ -158,7 +176,7 @@ export function App() {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
       if (event.key.toLowerCase() === 'n') {
         event.preventDefault()
-        openLodge()
+        openDialog()
         return
       }
       if (!/^[1-9]$/.test(event.key)) return
@@ -205,7 +223,7 @@ export function App() {
       : h(Sidebar, {
         state: { ...state, rooms: sidebarRooms },
         onSelect: id => store.select(id),
-        onNew: openLodge,
+        onNew: () => openDialog(),
         lodgeRoom,
         profile,
         onProfile: () => setProfileOpen(true),
@@ -234,6 +252,9 @@ export function App() {
       open: profileOpen,
       profile,
       onClose: () => setProfileOpen(false),
-      onSave: next => setProfile(saveProfile(next)),
+      onSave: next => {
+        setProfile(saveProfile(next))
+        void store.saveProfile(next)
+      },
     }))
 }
