@@ -6,13 +6,13 @@ import {
   groupSteps,
   describeSteps,
   showsMember,
-  presenceLines,
   displayableStep,
   stepLabel,
   buildStageChapters,
   isStandbyChat,
   stageChapterSummary,
 } from './transcript-model.js'
+import { presenceLines } from '../presence.js'
 
 const step = (id, authorId, ts, ok = true, tool = 'Bash') => ({
   id, authorId, ts, seq: 1, kind: 'activity', text: tool, meta: { ok, tool },

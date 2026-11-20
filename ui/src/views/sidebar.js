@@ -10,6 +10,7 @@ import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
 import { ProfileMark } from '../profile-mark.js'
 import { PlusIcon } from '../icons.js'
+import { clampSide, COLLAPSE_AT, RAIL_WIDTH, readSidebarLayout, SIDE_MAX, SIDE_MIN, writeSidebarCollapsed, writeSidebarWidth } from './sidebar-layout.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
@@ -111,18 +112,12 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
   }, [])
 
   useEffect(() => {
-    let stored = ''
-    let storedCollapsed = ''
-    try {
-      stored = localStorage.getItem('lodge:side-width') ?? ''
-      storedCollapsed = localStorage.getItem('lodge:side-collapsed') ?? ''
-    } catch {}
-    const width = Number.parseFloat(stored)
-    if (Number.isFinite(width)) {
-      document.body.style.setProperty('--crew-side-w', `${clampSide(width)}px`)
-      setSideWidthPx(clampSide(width))
+    const stored = readSidebarLayout()
+    if (stored.width !== null) {
+      document.body.style.setProperty('--crew-side-w', `${stored.width}px`)
+      setSideWidthPx(stored.width)
     }
-    if (storedCollapsed === '1') {
+    if (stored.collapsed) {
       collapsedRef.current = true
       setSideCollapsed(true)
     }
@@ -169,17 +164,12 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
     roomRow(room),
     activeId === room.id ? h(SideMembers, { room, onHold: onHoldMember }) : null)
 
-  // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。拖到一列图标时收成 rail。
-  const SIDE_MIN = 200
-  const SIDE_MAX = 480
-  const RAIL_WIDTH = 56
-  const COLLAPSE_AT = 150
-  const clampSide = value => Math.min(SIDE_MAX, Math.max(SIDE_MIN, value))
+  // 拖右侧竖线改宽度；宽度由 sidebar-layout 持久化。拖到一列图标时收成 rail。
   const setCollapsed = value => {
     if (collapsedRef.current === value) return
     collapsedRef.current = value
     setSideCollapsed(value)
-    try { localStorage.setItem('lodge:side-collapsed', value ? '1' : '0') } catch {}
+    writeSidebarCollapsed(value)
   }
   const setSideWidth = width => {
     const raw = Math.round(width)
@@ -191,7 +181,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
     const value = clampSide(raw)
     document.body.style.setProperty('--crew-side-w', `${value}px`)
     setSideWidthPx(value)
-    try { localStorage.setItem('lodge:side-width', `${value}px`) } catch {}
+    writeSidebarWidth(value)
   }
   const startResize = event => {
     if (event.button !== 0 || sidebarRef.current === null) return

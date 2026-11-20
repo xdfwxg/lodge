@@ -18,6 +18,7 @@ test('UI transport stays in store and system adapters', () => {
     const text = readFileSync(file, 'utf8')
     assert.doesNotMatch(text, /\bfetch\s*\(/, `${rel(file)} bypasses the transport boundary`)
     assert.doesNotMatch(text, /globalThis\.lodge/, `${rel(file)} bypasses the system bridge`)
+    assert.doesNotMatch(text, /\bwindow\.lodge/, `${rel(file)} bypasses the system bridge`)
   }
 })
 
@@ -27,6 +28,21 @@ test('views receive the store instead of importing it', () => {
   for (const file of files) {
     assert.doesNotMatch(readFileSync(file, 'utf8'), /from\s+['"][^'"]*store\.js['"]/, `${rel(file)} imports the transport store`)
   }
+})
+
+test('shared room modules never import a room kind', () => {
+  const roomRoot = join(root, 'room')
+  for (const file of walk(roomRoot)) {
+    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+    if (relative(roomRoot, file).includes('/')) continue
+    const text = readFileSync(file, 'utf8')
+    assert.doesNotMatch(text, /from\s+['"][^'"]*room\/(chat|studio)\//, `${rel(file)} imports a room kind`)
+  }
+})
+
+test('the new-room dialog composes kinds instead of importing studio', () => {
+  const text = readFileSync(join(root, 'new-room-dialog.js'), 'utf8')
+  assert.doesNotMatch(text, /from\s+['"][^'"]*room\/studio\//, 'new-room-dialog.js imports studio UI')
 })
 
 test('chat and studio UI contexts never import each other', () => {

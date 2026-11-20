@@ -1,57 +1,23 @@
-import { createElement as h, useEffect, useMemo, useRef, useState } from 'react'
+import { createElement as h, useEffect, useMemo, useState } from 'react'
 import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
 import { LODGE_ROOM_ID } from '../../shared/lodge.js'
 import { ProfileDialog } from './profile-dialog.js'
-import { loadProfile, saveProfile } from './profile.js'
+import { saveProfile } from './profile.js'
+import { useProfileSync } from './app/use-profile-sync.js'
+import { useAttention } from './app/use-attention.js'
+import { onMenuCommand, onOpenRoom } from './system.js'
 import { NewRoomDialog } from './new-room-dialog.js'
 import { NewGoalDialog } from './new-goal-dialog.js'
 
 export function App() {
   const store = useMemo(createStore, [])
-  const [profile, setProfile] = useState(loadProfile)
-  const [profileOpen, setProfileOpen] = useState(false)
   const state = useStore(store)
-  // 服务端的当前用户是全局真相；本地只做首屏和离线兜底。
-  useEffect(() => {
-    const next = state.profile
-    if (next === undefined || next === null) return
-    const name = typeof next.name === 'string' && next.name !== '' ? next.name : '你'
-    const avatar = next.avatar ?? null
-    setProfile(current => (
-      current.name === name && current.avatar === avatar ? current : { name, avatar }
-    ))
-  }, [state.profile?.name, state.profile?.avatar])
-  // 第一次把浏览器里的旧资料收进全局；之后服务端是唯一真相。
-  useEffect(() => {
-    const server = state.profile
-    if (server === undefined || server === null) return
-    const local = loadProfile()
-    const serverName = typeof server.name === 'string' ? server.name : ''
-    const serverAvatar = server.avatar ?? null
-    if (serverName === '' && local.name !== '你' && local.name !== '') {
-      void store.saveProfile({ name: local.name, avatar: local.avatar })
-      return
-    }
-    if (serverAvatar === null && local.avatar !== null) {
-      void store.saveProfile({ name: serverName || '你', avatar: local.avatar })
-    }
-  }, [state.profile?.name, state.profile?.avatar, store])
+  const [profile, setProfile] = useProfileSync(store, state.profile)
+  const [profileOpen, setProfileOpen] = useState(false)
   // 定时目标的 run 房是历史，不占侧栏和菜单；目标本身仍是同一行。
-  // 但 run 停下来等人时仍要提醒，否则目标会在后台无声卡住。
-  const attentionRooms = useMemo(() => {
-    const byId = new Map(state.rooms.map(room => [room.id, room]))
-    return state.rooms.filter(room => {
-      if (room.archivedAt) return false
-      if (room.routineRun !== true) return true
-      const goal = byId.get(room.routineGoalId)
-      return goal === undefined || goal === null ||
-        (goal.archivedAt !== undefined && goal.archivedAt !== null)
-    })
-  }, [state.rooms])
-  const visibleRooms = useMemo(() => attentionRooms.filter(room => room.routineRun !== true), [attentionRooms])
-  const sidebarRooms = useMemo(() => state.rooms.filter(room => room.routineRun !== true), [state.rooms])
+  const { visibleRooms, sidebarRooms, needsText } = useAttention(state.rooms)
   const [dialog, setDialog] = useState(false)
   const [goalOpen, setGoalOpen] = useState(false)
   const [seed, setSeed] = useState(null)
@@ -83,70 +49,6 @@ export function App() {
     ? h('div', { className: 'crew-connection-banner', role: 'status' }, '连接中断，正在重连…')
     : null
 
-  // Announce a room's needs-you signal only when it appears or changes, so
-  // per-message store updates never flood the region.
-  const [needsText, setNeedsText] = useState('')
-  const seenNeeds = useRef(null)
-  useEffect(() => {
-    const next = {}
-    for (const room of attentionRooms) {
-      if (room.needsYou) {
-        next[room.id] = room.needsYou.reason ?? room.needsYou.label ?? room.needsYou.kind ?? '待处理'
-      }
-    }
-    const prev = seenNeeds.current
-    seenNeeds.current = next
-    const count = Object.keys(next).length
-    if (prev === null) {
-      window.lodge?.attention?.({ count })
-      return
-    }
-    const changed = attentionRooms.filter(room => room.needsYou && next[room.id] !== prev[room.id])
-    const appearing = attentionRooms.filter(room => room.needsYou && prev[room.id] === undefined)
-    if (appearing.length > 0) {
-      const room = appearing[0]
-      const result = room.needsYou?.kind === 'result'
-      const run = room.needsYou?.kind === 'routine-run'
-      window.lodge?.attention?.({
-        count,
-        notify: {
-          roomId: room.id,
-          title: result ? 'Lodge' : 'Lodge 需要你',
-          body: result
-            ? `「${room.name}」的结果好了`
-            : run
-              ? `「${room.name}」${room.needsYou.label ?? '这次需要你'}：${room.needsYou.reason ?? '需要处理'}`
-              : `${room.name}：${next[room.id]}`,
-        },
-      })
-    } else if (count !== Object.keys(prev).length) {
-      window.lodge?.attention?.({ count })
-    }
-    if (changed.length === 0) return
-    setNeedsText(changed.map(room => `${room.name}：${next[room.id]}`).join('；'))
-  }, [attentionRooms])
-
-  // 房间菜单只显示前 9 个；名字或顺序变了才重发，避免每条消息都重建菜单。
-  const menuSignature = visibleRooms.slice(0, 9)
-    .map(room => `${room.id}\u0000${room.name ?? ''}`)
-    .join('\n')
-  useEffect(() => {
-    window.lodge?.syncRooms?.(visibleRooms.slice(0, 9).map(room => ({ id: room.id, name: room.name ?? '' })))
-  }, [menuSignature])
-
-  useEffect(() => {
-    const offCommand = window.lodge?.onCommand?.(name => {
-      if (name === 'new-room') openGoal()
-      if (name === 'search') window.dispatchEvent(new Event('lodge:focus-search'))
-    })
-    const offOpenRoom = window.lodge?.onOpenRoom?.(id => {
-      if (typeof id === 'string') store.select(id)
-    })
-    return () => {
-      offCommand?.()
-      offOpenRoom?.()
-    }
-  }, [store])
   const needsRegion = h('div', { className: 'visually-hidden', role: 'status', 'aria-live': 'polite' }, needsText)
 
   useEffect(() => {

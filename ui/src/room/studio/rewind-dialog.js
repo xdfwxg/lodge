@@ -19,7 +19,7 @@ const stateLabel = stage => (
 )
 
 // 调整步骤：当前步骤是“补一句再跑”，已通过的步骤是“退回并重跑”。
-export function StageRewindDialog({ room, busy = false, error = null, onCancel, onConfirm }) {
+function StageRewindDialog({ room, busy = false, error = null, onCancel, onConfirm }) {
   const stages = adjustableStagesOf(room)
   const active = stages.find(stage => stage.state === 'active')
   const lastPassed = [...stages].reverse().find(stage => stage.state === 'passed')

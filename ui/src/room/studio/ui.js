@@ -1,13 +1,14 @@
 import { createElement as h } from 'react'
 import { roomTypeMeta } from '../../../../shared/room-types.js'
 import { TargetIcon } from '../../icons.js'
-import { buildStudioRequest, StudioPrimaryFields, StudioSetupFields } from './create.js'
+import { buildStudioRequest, DEFAULT_STUDIO_MEMBERS, StudioPrimaryFields, StudioSetupFields } from './create.js'
 
 // 工作室在界面壳里的全部差异：图标和建房字段。
 export const studioUi = {
   id: 'studio',
   owns: type => type === 'studio' || type === undefined || type === null || type === '',
   label: roomTypeMeta('studio').name,
+  defaultMembers: DEFAULT_STUDIO_MEMBERS,
   teamMode: 'proposal',
   memberLabels: {},
   membersCanBeAdded: true,

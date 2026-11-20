@@ -33,17 +33,6 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-jump-latest svg{width:18px;height:18px}
 .dsb-scroll{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;overflow-anchor:none}
 .dsb-composer{flex:none;padding:8px 16px 14px}
-
-.crew-stage-dock{flex:none;width:100%;max-width:792px;margin:0 auto;padding:0 16px 6px}
-.crew-stage-dock-row{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:1px solid var(--bt-line-2);border-radius:12px;background:var(--bt-card);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-label);line-height:18px;text-align:left;cursor:pointer;box-shadow:var(--bt-elev-1)}
-.crew-stage-dock-row:hover{border-color:var(--bt-accent)}
-.crew-stage-dock-kicker{flex:none;font-size:var(--bt-text-helper);color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
-.crew-stage-dock-title{min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.crew-stage-dock-chev{flex:none;margin-left:auto;display:inline-flex;color:var(--bt-ink-3);transition:transform .12s ease}
-.crew-stage-dock-chev[data-open=true]{transform:rotate(180deg)}
-.crew-stage-dock-chev svg{width:14px;height:14px}
-.crew-stage-dock-toggle{flex:none;font-size:var(--bt-text-helper);color:var(--bt-accent)}
-.crew-stage-dock-body{max-height:min(52vh,520px);overflow:auto;padding-top:8px}
 .crew-composer-wrap{position:relative;max-width:760px;margin:0 auto}
 .crew-composer{display:flex;align-items:flex-end;gap:8px;max-width:760px;margin:0 auto;padding:8px 8px 8px 16px;background:var(--bt-card);border:1px solid var(--bt-line-2);border-radius:16px;box-shadow:var(--bt-elev-1)}
 /* 焦点落在整个输入条上：内部 textarea 不再自画矩形环，避免在圆角 18 的容器里出现方角框 */

@@ -329,12 +329,6 @@ export function createStore() {
     },
     retry: (stage, note) => post(`/api/rooms/${state.activeId}/retry`, { stage, note }),
     rewind: (stage, note) => post(`/api/rooms/${state.activeId}/rewind`, { stage, note }),
-    switchMode: async (mode, roles = {}) => {
-      const data = await post(`/api/rooms/${state.activeId}/switch-mode`, { mode, ...roles })
-      if (data?.room === undefined) return { ok: false, error: failureText('没能切换房型') }
-      acceptRoom(data.room)
-      return { ok: true, room: data.room }
-    },
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     resumeChat: () => post(`/api/rooms/${state.activeId}/chat-resume`, {}),
     resumeRoom: () => post(`/api/rooms/${state.activeId}/resume`, {}),
@@ -426,14 +420,6 @@ export function createStore() {
       return { ok: true, room: data.room }
     },
     activeRoom,
-    roomMemory: async () => {
-      const data = await get(`/api/rooms/${state.activeId}/memory`)
-      return Array.isArray(data?.entries) ? data.entries : null
-    },
-    reviewMemory: async (memoryId, decision) => {
-      const data = await post(`/api/rooms/${state.activeId}/memory/${memoryId}/review`, { decision })
-      return Array.isArray(data?.entries) ? data.entries : null
-    },
     readArtifact: (roomId, path) => get(`/api/rooms/${roomId}/artifact?path=${encodeURIComponent(path)}`),
     workspaceMemory: async path => {
       const data = await get(`/api/workspace/memory?path=${encodeURIComponent(path)}`)

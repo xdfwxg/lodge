@@ -1,52 +1,42 @@
 import { expect, test } from '@playwright/test'
 
-test('onboarding, focused dialog, sample chat and archive restore', async ({ page, request }) => {
-  // 前面的用例可能留下了示例房；先归档，保证从“新房间”开始。
-  const existing = await (await request.get('/api/state')).json()
-  for (const room of existing.rooms.filter(item => !item.archivedAt)) {
-    await request.post(`/api/rooms/${room.id}/archive`, { data: { archived: true } })
-  }
+test('new room dialog, sample chat and archive restore', async ({ page, request }) => {
+  expect((await request.post('/api/rooms/sample', { data: { kind: 'chat' } })).ok()).toBe(true)
   await page.goto('/')
+  await expect(page.getByRole('button', { name: /^示例：把「大胖橘住在灵动岛上」聊成一个方向，正在做$/ })).toBeVisible()
+
+  await page.getByRole('button', { name: '新建房间' }).click()
   await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
   await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
   await page.getByLabel('要做什么？').fill('把启动说明补成新人能照着跑的一页')
   // 测试环境故意不接基座；没有可用模型时开工必须继续禁用，而不是等服务端拒绝。
   await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
-
-  await page.getByRole('button', { name: '开工作室' }).click()
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await expect(page.locator(':focus')).toHaveAttribute('aria-label', '关闭')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
-
-  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
-  await page.reload()
-  await expect(page.getByText(/示例：兰香如故中的羽仙记/).first()).toBeVisible()
 
   const composer = page.getByRole('combobox', { name: '房间消息' })
   await expect(composer).toHaveAttribute('placeholder', '示例房间不接模型 · 已停在结论')
   await composer.fill('继续讨论一轮')
   await composer.press('Enter')
-  await expect(page.getByText(/这是示例房间，不接模型/).last()).toBeVisible()
+  await expect(page.getByText('继续讨论一轮').last()).toBeVisible()
+  await expect(composer).toHaveValue('')
 
-  await page.getByRole('button', { name: '转成工作室任务' }).click()
+  await page.getByRole('button', { name: '转成工作室' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
   await expect(dialog.getByText('工作文件夹').first()).toBeVisible()
-  await expect(dialog.getByText('工作室会在你选的文件夹里读写；先选这次要改的项目目录。')).toBeVisible()
-  await expect(dialog.getByRole('button', { name: '先出方案', exact: true })).toBeDisabled()
   await page.keyboard.press('Escape')
 
   const state = await (await request.get('/api/state')).json()
-  const id = state.rooms.find(room => room.demo === true)?.id
+  const id = state.rooms.find(room => room.demo === true && room.roomType === 'chat')?.id
   expect(id).toBeTruthy()
   expect((await request.post(`/api/rooms/${id}/archive`, { data: { archived: true } })).ok()).toBe(true)
   await page.reload()
   // 行内的“⋯”只在悬停或键盘聚焦时出现；先让行进入悬停态。
-  await page.getByRole('button', { name: /示例：兰香如故中的羽仙记.*已归档/ }).hover()
-  await page.getByRole('button', { name: /管理 示例：兰香如故中的羽仙记/ }).click()
+  await page.getByRole('button', { name: /示例：把「大胖橘住在灵动岛上」.*已归档/ }).hover()
+  await page.getByRole('button', { name: /管理 示例：把「大胖橘住在灵动岛上」/ }).click()
   await page.getByRole('menuitem', { name: '取消归档' }).click()
-  await expect(page.getByText(/示例：兰香如故中的羽仙记/).first()).toBeVisible()
+  await expect(page.getByText(/示例：把「大胖橘住在灵动岛上」/).first()).toBeVisible()
 })
 
 test('a room keeps its unsent draft across a reload', async ({ page, request }) => {
@@ -66,9 +56,10 @@ test('a room keeps its unsent draft across a reload', async ({ page, request }) 
 test('opening a detail keeps the reading position', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已完成$/ }).click()
 
   const scroller = page.locator('.dsb-scroll')
-  const summary = page.locator('.crew-conclusion-history > summary')
+  const summary = page.locator('.studio-delivery-details > summary')
   await expect(summary).toBeVisible()
   const before = await summary.boundingBox()
   const scrollBefore = await scroller.evaluate(node => node.scrollTop)
@@ -79,13 +70,14 @@ test('opening a detail keeps the reading position', async ({ page, request }) =>
   expect(Math.abs(after.y - before.y)).toBeLessThan(1)
 })
 
-test('expanding the full conclusion keeps the reading position', async ({ page, request }) => {
+test('expanding the delivery details keeps the reading position', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已完成$/ }).click()
 
   const scroller = page.locator('.dsb-scroll')
-  await page.locator('.crew-conclusion-history > summary').click()
-  const summary = page.locator('.crew-conclusion-history .crew-handoff-more > summary')
+  await page.locator('.studio-delivery-details > summary').click()
+  const summary = page.locator('.studio-delivery-details .crew-fold > summary').first()
   await summary.evaluate(node => node.scrollIntoView({ block: 'center' }))
   await page.waitForTimeout(50)
   const before = await summary.boundingBox()
@@ -122,7 +114,8 @@ test('a narrow dark window still renders the room without horizontal overflow', 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.goto('/')
-  await expect(page.locator('.dsb-main').getByText(/羽仙记/).first()).toBeVisible()
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已完成$/ }).click()
+  await expect(page.locator('.studio-delivery-name')).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
 })

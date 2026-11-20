@@ -1,7 +1,7 @@
 import { createElement as h, useState } from 'react'
 import { useOverlay } from '../overlay.js'
 import { StopIcon } from '../icons.js'
-import { presenceLines } from './studio/transcript-model.js'
+import { presenceLines } from './presence.js'
 
 export const roomRunning = (room, members = []) => {
   if (room?.state !== 'active' || room?.live !== true) return false

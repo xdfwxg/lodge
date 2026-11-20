@@ -1,5 +1,4 @@
 import { Fragment, createElement as h } from 'react'
-import { Segmented } from '../../segmented.js'
 import { EngineLogin } from '../../engine-login.js'
 import { engineReadiness } from '../../../../shared/engine-readiness.js'
 import { DEFAULT_STUDIO_ROSTER } from '../../../../shared/studio-roster.js'
@@ -83,37 +82,6 @@ export const buildStudioRequest = ({
       : {}),
     ...(plan === null ? {} : { plan }),
   }
-}
-
-export function VerifyChoice({
-  verifyMode = 'manual',
-  onVerifyMode = () => {},
-  acceptanceDraft = '',
-  onAcceptanceDraft = () => {},
-  disabled = false,
-}) {
-  return h(Fragment, null,
-    h(Segmented, {
-      label: '怎么验收',
-      value: verifyMode,
-      onChange: onVerifyMode,
-      disabled,
-      options: [
-        { value: 'manual', label: '我自己看' },
-        { value: 'test', label: '跑一条检查' },
-      ],
-    }),
-    verifyMode === 'test'
-      ? h('input', {
-        className: 'crew-goal-input',
-        type: 'text',
-        'aria-label': '要跑的检查',
-        placeholder: '例如：npm test',
-        value: acceptanceDraft,
-        disabled,
-        onChange: event => onAcceptanceDraft(event.target.value),
-      })
-      : null)
 }
 
 export function StudioPrimaryFields({

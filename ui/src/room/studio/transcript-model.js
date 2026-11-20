@@ -1,4 +1,3 @@
-import { buildTimeline } from '../timeline-model.js'
 import { isDispatchHandoff } from './handoff.js'
 import { verdictPassed } from '../../../../shared/judgment.js'
 
@@ -9,8 +8,6 @@ export const dayKey = ts => {
   const date = new Date(ts)
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
-
-const orderOf = message => (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
 
 // 成员“我在等派发”是调度状态，不是房间里值得读的一句话。
 const STANDBY = /待命|暂不动手|未派发/
@@ -32,13 +29,6 @@ export const windowTranscript = (messages, { limit = 600 } = {}) => {
     if (message.kind === 'evidence' || message.kind === 'verdict') keep.add(message.id)
   }
   return list.filter(message => keep.has(message.id))
-}
-
-export const orderTranscript = messages => {
-  const timeline = buildTimeline(messages)
-  const steps = timeline.process.filter(message => message.kind === 'activity')
-  const items = [...timeline.visible, ...steps].sort((a, b) => orderOf(a) - orderOf(b))
-  return { timeline, items }
 }
 
 export const stageChapterSummary = (items, room, index = null) => {
@@ -229,40 +219,4 @@ export const showsMember = (items, index) => {
   if (previous.kind === 'steps') return previous.authorId !== item.authorId
   if (previous.authorId === undefined) return true
   return previous.authorId !== item.authorId || dayKey(previous.ts) !== dayKey(item.ts)
-}
-
-export const presenceLines = (room, members = [], now = Date.now()) => {
-  const nameOf = id => members.find(member => member.id === id)?.name ?? id
-  const queue = Array.isArray(room?.turnQueue) ? room.turnQueue : []
-  const heldMembers = new Set(Array.isArray(room?.heldMembers) ? room.heldMembers : [])
-  const held = [...heldMembers].map(memberId => ({
-    memberId,
-    name: nameOf(memberId),
-    count: room?.heldMessages?.[memberId] ?? 0,
-  }))
-  const busy = Array.isArray(room?.busyMembers) ? room.busyMembers : []
-  // 基座的 busy 标记有时比工具活动晚一拍；最近的工具活动也算“在做”，不能同时挂“等待别人”。
-  const recent = new Map()
-  for (const message of Array.isArray(room?.messages) ? room.messages : []) {
-    if (message?.kind !== 'activity' || typeof message.ts !== 'number') continue
-    if (now - message.ts > 2 * 60_000) continue
-    if (!recent.has(message.authorId) || recent.get(message.authorId) < message.ts) {
-      recent.set(message.authorId, message.ts)
-    }
-  }
-  const workingIds = new Set([...busy, ...recent.keys()])
-  const working = [...workingIds]
-    .filter(memberId => !heldMembers.has(memberId))
-    .map(memberId => ({ memberId, name: nameOf(memberId), since: busy.includes(memberId) ? room?.busySince ?? null : recent.get(memberId) }))
-  const seen = new Set(working.map(item => item.memberId))
-  const queued = queue
-    .filter(item => item.state === 'queued' && !seen.has(item.memberId) && !heldMembers.has(item.memberId))
-    .map(item => ({
-      memberId: item.memberId,
-      name: nameOf(item.memberId),
-      position: item.position ?? null,
-      of: item.of ?? null,
-      waitingFor: item.waitingForMemberId === undefined ? '' : nameOf(item.waitingForMemberId),
-    }))
-  return { working, queued, held }
 }

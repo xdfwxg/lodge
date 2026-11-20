@@ -1,6 +1,6 @@
 import { createElement as h, useId } from 'react'
-import { IntakeSection } from '../intake-section.js'
-import { VerifyChoice } from './create.js'
+import { IntakeSection } from './intake-section.js'
+import { VerifyChoice } from './verify-choice.js'
 
 export const gateCardState = ({
   needsReview,

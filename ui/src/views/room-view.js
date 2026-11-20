@@ -12,7 +12,6 @@ import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOptions = null }) {
-  const [dockOpen, setDockOpen] = useState(false)
   const [dropped, setDropped] = useState(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
@@ -233,24 +232,13 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
       setAddOpen(true)
     },
   }
-  // 阶段坞需要宿主动作；只有声明了 dock 的模式会渲染它。
-  const dock = {
-    open: dockOpen,
-    onOpenChange: setDockOpen,
-    onAccept: stage => void store.accept(stage),
-    onAnswer: (stage, text) => void store.answer(stage, text),
-    onSetAcceptance: (stage, command) => void store.setAcceptance(stage, command),
-    onVerify: stage => void store.verify(stage),
-    onRework: (stage, note) => void store.rework(stage, note),
-    onApproval: (id, decision) => void store.decideApproval(id, decision),
-  }
   const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
   const canFollowup = mode.canFollowup?.({ room }) === true
   actions.focusFollowup = () => {
     setFollowupHint(true)
     composerInput.current?.focus()
   }
-  const viewCtx = { state, room, members, locked, actions, dock, store }
+  const viewCtx = { state, room, members, locked, actions, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
   const tools = mode.tools?.(viewCtx) ?? null
@@ -327,7 +315,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
           onClick: followBottom,
         }, h(ArrowDownIcon))
         : null,
-      mode.dock?.(viewCtx) ?? null,
       room.lodge === true && actions.moreOptions !== null
         ? h('div', { className: 'crew-lodge-more' },
           h('button', { type: 'button', className: 'crew-link', onClick: actions.moreOptions }, '更多选项'))

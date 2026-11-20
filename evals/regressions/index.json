@@ -6,11 +6,6 @@
       "note": "工作 SOP 回流到成员 soul 后，会污染聊天和其他房型"
     },
     {
-      "id": "stage-gate-paused",
-      "test": "ui/src/room/studio/stage-gate.test.js",
-      "note": "暂停或等待复核时，阶段门不应常驻显示"
-    },
-    {
       "id": "unknown-skill-workspace-leak",
       "test": "server/crew/room-create.test.js",
       "note": "技能校验必须在准备工作区之前失败，避免留下半建 worktree"

@@ -1,5 +1,6 @@
 import { Fragment, createElement as h, useEffect, useId, useRef, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
+import { Segmented } from './segmented.js'
 import { ChevronDownIcon } from './goal-island/glyphs.js'
 import { chooseDirectory as pickProjectDirectory } from './system.js'
 import { EngineLogin, useEngineLogin } from './engine-login.js'
@@ -9,8 +10,7 @@ import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
 import { MemberEnginePicker } from './room/member-engine-picker.js'
 import { defaultPersonalityId, modelRowsFor, memberChoicesFrom } from './room/member-options.js'
-import { DEFAULT_STUDIO_MEMBERS } from './room/studio/create.js'
-import { gateCardState, HandoffReview } from './room/studio/handoff-review.js'
+import { gateCardState, HandoffReview } from './room/handoff-review.js'
 import { ReceiptReview } from './room/receipt-review.js'
 import { WorkspaceMemory } from './room/workspace-memory.js'
 import { uiKindOfType } from './room/kinds.js'
@@ -23,6 +23,15 @@ const FALLBACK_ROOM_TYPES = ROOM_TYPE_MANIFEST.map(({ id, name, description, def
   description,
   defaultVerify,
 }))
+
+// 从侧栏新建时给出两条并列的路；从聊天室带来的交接或已指定房型的入口，
+// 房型已经由上下文决定，不再让人切换。
+export const roomTypeOptionsFor = ({ roomTypes = [], startType = null, seed = null } = {}) => {
+  if (startType !== null && startType !== undefined) return []
+  if (seed !== null && seed !== undefined) return []
+  const choices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
+  return choices.length > 1 ? choices.map(item => ({ value: item.id, label: item.name })) : []
+}
 
 const CHAT_BASE_MEMBERS = 3
 
@@ -41,6 +50,8 @@ function NewRoomDialog({
   onReviewWorkspaceMemory = null,
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
+  const studioMembers = uiKindOfType('studio').defaultMembers
+  const typeOptions = roomTypeOptionsFor({ roomTypes, startType, seed })
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
   const [shadowReview, setShadowReview] = useState(false)
@@ -58,7 +69,7 @@ function NewRoomDialog({
   const [handoffReviewed, setHandoffReviewed] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [memberChoices, setMemberChoices] = useState(() => memberChoicesFrom(DEFAULT_STUDIO_MEMBERS))
+  const [memberChoices, setMemberChoices] = useState(() => memberChoicesFrom(studioMembers))
   const [chatMemberChoices, setChatMemberChoices] = useState([])
   const [chatMembers, setChatMembers] = useState(null)
   const { busyId: loginBusyId, note: loginNote, login: loginEngineFor, reset: resetLogin, clearNote } = useEngineLogin(onRefresh)
@@ -134,8 +145,8 @@ function NewRoomDialog({
   const chatRoster = chatMembers ?? (activeType?.defaultMembers ?? [])
   const needRepo = roomKind.workspace.required(null) && repoPath.trim() === ''
   const proposalMembers = proposal?.members ?? []
-  const rosterMembers = proposalMembers.length > 0 ? proposalMembers : DEFAULT_STUDIO_MEMBERS
-  const directMembers = isChat ? chatRoster : DEFAULT_STUDIO_MEMBERS
+  const rosterMembers = proposalMembers.length > 0 ? proposalMembers : studioMembers
+  const directMembers = isChat ? chatRoster : studioMembers
   const directChoices = isChat ? chatMemberChoices : memberChoices
   const setDirectChoices = isChat ? setChatMemberChoices : setMemberChoices
   const engineChoices = engines.filter(item => item.available)
@@ -224,8 +235,22 @@ function NewRoomDialog({
     }
   }
 
+  const chooseRoomType = next => {
+    if (next === roomType) return
+    setRoomType(next)
+    setStep(0)
+    setProposal(null)
+    setMemberChoices([])
+    setAnswers([])
+    setAcceptanceDraft('')
+    setVerifyMode('manual')
+    setShadowReview(false)
+    setAdvanced(false)
+    setError(null)
+  }
+
   const useProposal = next => {
-    const members = Array.isArray(next?.members) && next.members.length > 0 ? next.members : DEFAULT_STUDIO_MEMBERS
+    const members = Array.isArray(next?.members) && next.members.length > 0 ? next.members : studioMembers
     setProposal({ ...next, members })
     setMemberChoices(members.map(member => ({
       engine: typeof member.engine === 'string' ? member.engine : '',
@@ -357,7 +382,7 @@ function NewRoomDialog({
         sourceRoomId: seed?.sourceRoomId,
         sourceName: seed?.sourceName,
         proposal: null,
-        members: DEFAULT_STUDIO_MEMBERS,
+        members: studioMembers,
         memberChoices,
         hasMemberChoice,
         selectedModelOf,
@@ -572,6 +597,15 @@ function NewRoomDialog({
           title: '关闭',
           onClick: onClose,
         }, '×')),
+      typeOptions.length > 0
+        ? h(Segmented, {
+          label: '房间类型',
+          value: roomType,
+          onChange: chooseRoomType,
+          className: 'crew-dialog-seg',
+          options: typeOptions,
+        })
+        : null,
       step === 0 ? setupBody : proposalBody,
       h('div', { className: 'crew-dialog-foot' },
         studioMissingVerifier

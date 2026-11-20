@@ -7,26 +7,7 @@ import {
   formatAttachmentBytes,
 } from '../../shared/attachments.js'
 
-const mentionAt = (value, cursor) => {
-  const before = value.slice(0, cursor)
-  const match = before.match(/(^|\s)@([^\s@]*)$/)
-  if (match === null) return null
-  const start = before.lastIndexOf('@')
-  return { start, end: cursor, query: match[2] }
-}
-
-const draftKeyOf = key => `lodge:draft:${key}`
-const readDraft = key => {
-  if (key === '') return ''
-  try { return globalThis.localStorage?.getItem(draftKeyOf(key)) ?? '' } catch { return '' }
-}
-const writeDraft = (key, value) => {
-  if (key === '') return
-  try {
-    if (value === '') globalThis.localStorage?.removeItem(draftKeyOf(key))
-    else globalThis.localStorage?.setItem(draftKeyOf(key), value)
-  } catch {}
-}
+import { mentionAt, readDraft, writeDraft } from './composer/draft.js'
 
 function Composer({
   placeholder,

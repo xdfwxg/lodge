@@ -38,14 +38,13 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 工作区记忆入口（建房时按文件夹出现） | `server/crew/memory.test.js`、`server/http-coverage.test.js` | 真实文件夹需 dogfood |
 | 房间记忆备份与恢复边界 | `server/crew/data-recovery.test.js` | 无 |
 | 房间健康卡（证据 / 未知 / 下一步、费用、返工） | `ui/src/room/health.test.js`、`server/crew/turn-assessment.test.js` | 无 |
-| 前门（写下目标开始） | `ui/src/views/home.test.js` | 无 |
+| 新房间入口与房型选择 | `ui/src/new-room-dialog.test.js` | 无 |
 | 房间列表顺序（待办在前、归档在后） | `ui/src/views/sidebar.test.js` | 无 |
 | 人工门没有死路（交给人后可见输入动作） | `ui/src/room/studio/human-gate.test.js`、`server/crew/human-handoff.test.js` | 无 |
-| 首次使用与模式说明 | `ui/src/room/help.test.js` | 无 |
 | 提示词与工具面的确定性顺序 | `server/crew/prompt-order.test.js`、`server/crew/tool-scope.test.js` | 无 |
 | 判定工具（MCP gate） | `shared/gate.test.js`、`server/crew/gate/mcp-server.test.js`、`server/crew/gate/tool.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/engine.test.js`、`server/crew/permission.test.js`、`server/crew/external-actions.test.js` | 真实基座可选 |
 | 卡片有效期（阶段 + 重做轮次 + assignment） | `shared/attempt.test.js`、`server/crew/assignments.test.js`、`server/crew/attention.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/question-card.test.js` | 无 |
-| 人工门动作集 | `shared/human-gate.test.js`、`ui/src/room/studio/stage-gate.test.js` | 无 |
+| 人工门动作集 | `shared/human-gate.test.js` | 无 |
 | 运行租约 / 并行分支重试 | `server/crew/assignments.test.js`、`server/crew/service-stages.test.js` | 无 |
 | 任意步骤退回（含 decision） | `server/crew/service-stages.test.js`、`ui/src/room/studio/rewind-dialog.test.js` | 无 |
 | 原生换身体（保留线程） | `server/crew/kernel/live/body-swap.test.js`、`server/crew/engine.test.js` | 真实基座可选 |
@@ -66,7 +65,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 驱动边界、运行端口、分层 | `server/crew/engine.test.js`、`server/crew/runtime-port.test.js`、`server/crew/layer-boundaries.test.js`、`server/crew/boundary.test.js` | 真实基座可选 |
 | 基座旧房间回收（gc:base） | `server/base-gc.test.js`、`server/crew/base-error.test.js` | 真实基座可选 |
 | 成员身体与换模型 | `server/crew/body-change.test.js`、`server/crew/body-check.test.js`、`server/crew/body-spec.test.js` | 无 |
-| 界面阶段门与结论卡 | `ui/src/room/studio/stage-gate.test.js`、`ui/src/room/studio/message-view.test.js`、`ui/src/room/studio/transcript-model.test.js` | 无 |
+| 界面阶段门与结论卡 | `ui/src/room/studio/message-view.test.js`、`ui/src/room/studio/transcript-model.test.js` | 无 |
 
 ## 没在自动覆盖里的
 

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { StudioPrimaryFields, VerifyChoice } from './create.js'
+import { StudioPrimaryFields } from './create.js'
+import { VerifyChoice } from '../verify-choice.js'
 
 const render = props => renderToStaticMarkup(h(StudioPrimaryFields, props))
 
