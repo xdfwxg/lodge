@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { renderRetro, retroOf } from '../scripts/env-retro.mjs'
+import { renderRetro, retroOf } from './env-retro.mjs'
 
 test('a source change without tests is the first environment warning', () => {
   const items = retroOf({ changedFiles: ['server/crew/body.js'] })

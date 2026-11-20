@@ -84,7 +84,11 @@ export const studioView = {
       })(),
       onReturn: () => {},
       }),
-      h(RoomReview, { key: `review-${room.id}`, room }),
+      h(RoomReview, {
+        key: `review-${room.id}`,
+        room,
+        finished: room.state === 'complete',
+      }),
     )
   },
   presence: () => null,

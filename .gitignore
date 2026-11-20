@@ -1,6 +1,7 @@
 node_modules/
 .crew/
 .claude/
+.workbuddy/
 .data/
 .data.backup-*/
 ui/dist/

@@ -59,7 +59,11 @@ export const chatView = {
       onStartStudio: actions.startStudio,
       onOpenRoom: actions.selectRoom,
     }),
-    h(RoomReview, { key: `review-${room.id}`, room }))
+    h(RoomReview, {
+      key: `review-${room.id}`,
+      room,
+      finished: room.chat?.phase === 'concluded',
+    }))
   },
   presence: () => null,
   composerPlaceholder: ({ room }) => room.demo === true && room.live !== true

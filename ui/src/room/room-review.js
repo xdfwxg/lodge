@@ -7,8 +7,7 @@ const stateLabel = state => ({
   blocked: '卡住',
 }[state] ?? state)
 
-export const RoomReview = ({ room }) => {
-  const finished = room.state === 'complete' || room.chat?.phase === 'concluded'
+export const RoomReview = ({ room, finished }) => {
   if (!finished) return null
   const issues = (room.issues ?? []).filter(issue => issue.kind !== 'decision').slice(0, 5)
   const items = room.retro?.items ?? []
