@@ -29,12 +29,18 @@ test('idle members stay quiet under the room', () => {
   assert.match(html, /添加成员/)
 })
 
+test('a live member offers the hold menu, not a stop control', () => {
+  const html = renderToStaticMarkup(h(SideMembers, { room: room(), onHold: () => {} }))
+  assert.match(html, /更多操作/)
+  assert.doesNotMatch(html, /停下这位成员/)
+})
+
 test('only members with something happening say it', () => {
   const html = renderToStaticMarkup(h(SideMembers, {
     room: room({ busyMembers: ['worker'], heldMembers: ['lead'] }),
   }))
   assert.match(html, /处理中/)
-  assert.match(html, /已叫停/)
+  assert.match(html, /不派活/)
 })
 
 test('a finished room keeps the crew but not the add row', () => {

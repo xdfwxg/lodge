@@ -205,7 +205,9 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
   h('summary', null, `往次 ${historyEntries.length} 次`),
   h('div', { className: 'crew-routine-runs' }, historyEntries))
   const artifacts = delivery.artifacts ?? []
-  const primaryArtifact = artifacts.find(artifact => kindOf(artifact) !== 'file') ?? artifacts[0] ?? null
+  // 平台截的渲染图优先上桌：先看结果，再看文件和规格。
+  const primaryArtifact = artifacts.find(artifact => artifact.role === 'render') ??
+    artifacts.find(artifact => kindOf(artifact) !== 'file') ?? artifacts[0] ?? null
   const primaryKind = primaryArtifact === null ? null : kindOf(primaryArtifact)
   const embeddedContent = typeof primaryArtifact?.content === 'string' ? primaryArtifact.content : ''
   const [loaded, setLoaded] = useState(null)

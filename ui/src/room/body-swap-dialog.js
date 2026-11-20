@@ -18,7 +18,7 @@ const MIND_PRESETS = [
 const labelOf = engine => `${engine.name ?? engine.id}${engine.models?.default ? ` · ${engine.models.default}` : ''}`
 
 // 调整成员：只换模型或运行时；成员 id、证据、交接和历史都不动。
-export function BodySwapDialog({ member, engines = [], features = null, requiresGate = false, canRemove = false, held = false, canHold = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onHold = null, onRefresh = null }) {
+export function BodySwapDialog({ member, engines = [], features = null, requiresGate = false, canRemove = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onRefresh = null }) {
   const readiness = engineReadiness(engines, { requireApproval: requiresGate })
   const available = readiness.installed
   const [tab, setTab] = useState('body')
@@ -191,19 +191,6 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
             setSpec({ ...spec, prompt: event.target.value })
           },
         })),
-      canHold && onHold !== null
-        ? h('details', { className: 'crew-fold crew-body-swap-run' },
-          h('summary', null, '运行控制'),
-          h('p', { className: 'crew-field-hint' }, held
-            ? '这位成员已经停下；点继续后接着跑。'
-            : '只停这一回合；已产出的内容保留。'),
-          h('button', {
-            type: 'button',
-            className: 'crew-ghost',
-            disabled: busy,
-            onClick: () => onHold(!held),
-          }, held ? '继续' : '停下这位成员'))
-        : null,
       confirming
         ? h('p', { className: 'crew-dialog-note', role: 'alert' }, `移出后，${member.name}不再在这间房。聊天记录还在。`)
         : null,

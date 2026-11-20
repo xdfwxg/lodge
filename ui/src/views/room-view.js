@@ -344,18 +344,9 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
         engines: state.engines ?? [],
         features: state.features ?? null,
         requiresGate: kind.readOnly !== true && (members.find(item => item.id === swapId)?.permissions?.exec === true),
-        held: (room.heldMembers ?? []).includes(swapId),
-        canHold: room.state === 'active' && room.live === true,
         busy: swapBusy,
         error: swapError,
         onRefresh: () => store.refresh(),
-        onHold: async held => {
-          setSwapBusy(true)
-          setSwapError(null)
-          const result = await store.holdMember(swapId, held)
-          setSwapBusy(false)
-          if (result?.ok !== true) setSwapError(result?.error ?? '没能改变运行状态')
-        },
         onCancel: () => {
           if (swapBusy) return
           setSwapId(null)

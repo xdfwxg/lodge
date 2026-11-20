@@ -29,7 +29,7 @@ export const bodyStatuses = (room, members = [], { labels = {} } = {}) => {
       return { ...base, state: 'error', label: FAILURE_LABELS[room.memberError.kind] ?? FAILURE_LABELS.engine, tone: 'danger' }
     }
     if (offline) return { ...base, state: 'offline', label: '连接中断', tone: 'danger' }
-    if (held.has(member.id)) return { ...base, state: 'held', label: '已叫停', tone: 'muted' }
+    if (held.has(member.id)) return { ...base, state: 'held', label: '不派活', tone: 'muted' }
     if (working.has(member.id)) {
       return { ...base, state: 'working', label: workingLabel(member, room, labels), tone: 'active' }
     }

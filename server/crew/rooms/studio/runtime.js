@@ -72,6 +72,8 @@ export const createStudioRuntime = ({
         askPlanner,
         commands: ports.commands,
         files: ports.files,
+        screenshots: ports.screenshots ?? null,
+        attachments: ports.attachments ?? null,
         writeDiagnostic: ports.roomFiles?.writeDiagnostic,
         confirmStage,
         shadow,

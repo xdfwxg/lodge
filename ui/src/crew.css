@@ -76,6 +76,11 @@ b,strong{font-weight:600}
 .crew-side-member-add{position:relative;justify-content:center;width:18px;height:22px;padding:0;border-radius:4px;color:var(--bt-ink-3);font-size:15px;line-height:1}
 .crew-side-member-add::before{content:"";position:absolute;inset:-4px}
 .crew-side-member-add:hover{color:var(--bt-ink)}
+.crew-side-member-row{display:inline-flex;align-items:center;gap:2px}
+.crew-side-member-more{flex:none;width:18px;height:22px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:13px;line-height:1;cursor:pointer;opacity:0}
+.crew-side-member-row:hover .crew-side-member-more,.crew-side-member-more:focus-visible{opacity:1}
+.crew-side-member-more:hover{background:var(--bt-hover);color:var(--bt-ink)}
+.crew-member-menu{min-width:132px}
 body[data-side=rail] .crew-side-members{display:none}
 .crew-side-row{position:relative;display:flex;align-items:center;flex-wrap:wrap;min-width:0}
 .crew-side-row .bt-row.crew-side-room{flex:1 1 auto;min-width:0;padding-right:26px}

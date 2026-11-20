@@ -6,10 +6,13 @@ import { writeConclusion, writeDiagnostic, writeGoal, writeProgress } from './ro
 import { writeMemberEnv } from './member-env.js'
 import { createRoomMemory } from './memory.js'
 import { defaultWorkspace, workspaceById, workspaceProvider } from './workspace.js'
+import { captureHtml } from './screenshot.js'
 
 // 应用层只依赖这组端口；具体存储/工作区/运行时实现只在组合根装配。
-export const createCrewPorts = ({ memoryRoot, browserMcp = null } = {}) => ({
+export const createCrewPorts = ({ memoryRoot, browserMcp = null, attachments = null } = {}) => ({
   browserMcp,
+  attachments,
+  screenshots: { capture: captureHtml },
   roomFiles: {
     writeGoal,
     writeProgress,

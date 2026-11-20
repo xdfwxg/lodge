@@ -43,6 +43,28 @@ const artifactList = (messages, roots = [], { withContent = false } = {}) => {
   return [...byPath.values()]
 }
 
+// 平台截下的渲染图也是交付的一部分：让人一眼看到做出来的样子。
+const previewArtifacts = room => {
+  const roots = [room.repoPath, ...Object.values(room.worktrees ?? {})]
+    .filter(root => typeof root === 'string' && root !== '')
+    .map(root => root.replace(/\/$/, ''))
+  return (Array.isArray(room.previews) ? room.previews : []).flatMap(preview => {
+    const path = typeof preview?.local === 'string' ? preview.local : ''
+    if (path === '') return []
+    const root = roots
+      .filter(item => path === item || path.startsWith(`${item}/`))
+      .sort((a, b) => b.length - a.length)[0]
+    if (roots.length > 0 && root === undefined) return []
+    return [{
+      path,
+      relativePath: root === undefined || path === root ? path : path.slice(root.length + 1),
+      kind: 'image',
+      role: 'render',
+      bytes: Number.isFinite(preview.bytes) ? preview.bytes : null,
+    }]
+  })
+}
+
 // 完成态交付卡只读投影：目标、阶段、命令、改动文件、结论与 commit。
 export const buildDelivery = (room, messages = []) => {
   const stages = room.stages.map((stage, index) => {
@@ -112,11 +134,14 @@ export const buildDelivery = (room, messages = []) => {
     },
     workspacePath: room.repoPath ?? Object.values(room.worktrees ?? {})[0] ?? null,
     sourcePath: room.sourceRepo ?? null,
-    artifacts: artifactList(
-      messages,
-      [room.repoPath, ...Object.values(room.worktrees ?? {})],
-      { withContent: room.demo === true },
-    ),
+    artifacts: [
+      ...artifactList(
+        messages,
+        [room.repoPath, ...Object.values(room.worktrees ?? {})],
+        { withContent: room.demo === true },
+      ),
+      ...previewArtifacts(room),
+    ],
     stages,
     commands,
     changedFiles,

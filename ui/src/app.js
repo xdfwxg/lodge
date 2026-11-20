@@ -209,6 +209,7 @@ export function App() {
         lodgeRoom,
         profile,
         onProfile: () => setProfileOpen(true),
+        onHoldMember: (memberId, held) => store.holdMember(memberId, held),
         onRename: (id, name) => store.renameRoom(id, name),
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),

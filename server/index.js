@@ -170,9 +170,13 @@ const emit = (event, payload, id) => {
 const engine = assertRuntimePort(createEngine())
 
 let service = null
+// 附件走基座自己的库；图片能被原生视觉模型看见，文件保留路径和文本正文。
+const baseForAttachments = createBaseClient()
+
 const ports = createCrewPorts({
   memoryRoot: join(dataDir, 'memory'),
   browserMcp: { ensure: () => ensureBrowserMcp(engine) },
+  attachments: baseForAttachments,
 })
 progressWriter = room => {
   try {
@@ -188,9 +192,6 @@ const live = createLiveRooms({
   emit,
   ports,
 })
-
-// 附件走基座自己的库；图片能被原生视觉模型看见，文件保留路径和文本正文。
-const baseForAttachments = createBaseClient()
 
 service = createCrewService({
   store,

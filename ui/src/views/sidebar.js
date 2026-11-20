@@ -46,7 +46,7 @@ const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
 
-function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, lodgeRoom = null, profile = null, onProfile = null }) {
+function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHoldMember = null, lodgeRoom = null, profile = null, onProfile = null }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
   const [sideCollapsed, setSideCollapsed] = useState(false)
@@ -166,7 +166,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, lodgeR
   })
   const renderRoom = room => h(Fragment, { key: room.id },
     roomRow(room),
-    activeId === room.id ? h(SideMembers, { room }) : null)
+    activeId === room.id ? h(SideMembers, { room, onHold: onHoldMember }) : null)
 
   // 拖右侧竖线改宽度；宽度存在 localStorage，重启后保留。拖到一列图标时收成 rail。
   const SIDE_MIN = 200

@@ -25,10 +25,19 @@ import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from './auto-rework.js'
 const MAX_STAGE_REWORKS = 3
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null, screenshots = null, attachments = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
-  const review = createReviewCoordinator({ store, roomId, emit, sendToMember, handoff, shadow })
+  const review = createReviewCoordinator({
+    store,
+    roomId,
+    emit,
+    sendToMember,
+    handoff,
+    shadow,
+    previews: screenshots,
+    attachments,
+  })
   const autoLoops = new Map()
   const plannerNudges = new Set()
   const acceptance = createAcceptanceRunner({

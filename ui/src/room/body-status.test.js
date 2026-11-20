@@ -38,7 +38,7 @@ test('working, queued and held bodies win over idle', () => {
   assert.equal(status.worker.label, '处理中')
   assert.equal(status.worker.tone, 'active')
   assert.equal(status.verifier.label, '排队中')
-  assert.equal(status.lead.label, '已叫停')
+  assert.equal(status.lead.label, '不派活')
 })
 
 test('chat rooms can name speaking instead of processing', () => {
