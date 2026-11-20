@@ -1,5 +1,5 @@
 import { createElement as h, useEffect, useId, useRef } from 'react'
-const standingArt = new URL('../assets/lingchong-line.png', import.meta.url).href
+const standingArt = new URL('../assets/lingchong-color.png', import.meta.url).href
 
 const WALK_SPEED = 34
 const CHASE_SPEED = 62
@@ -20,11 +20,12 @@ const prefersReducedMotion = () => typeof window !== 'undefined'
 // 简笔线稿：圆头、短腿、白尾、颈鬣；聊天室陪伴，工作室守进度。
 export const lingchongPose = (state, mode = 'chat', progress = 0) => {
   const at = Math.min(1, Math.max(0, Number(progress) || 0))
-  const step = 0.3 + 0.4 * at
-  if (state === 'busy') return { phase: 'walk', spot: mode === 'studio' ? step : 0.3 }
+  // 岛面上沿整条都能走：留出半个身位后，从 15% 到 85%。
+  const step = 0.15 + 0.7 * at
+  if (state === 'busy') return { phase: 'walk', spot: mode === 'studio' ? step : 0.15 }
   if (state === 'needs') return { phase: 'sit', spot: mode === 'studio' ? step : 0.5 }
-  if (state === 'done') return { phase: 'nap', spot: 0.72 }
-  return { phase: 'lie', spot: mode === 'studio' ? step : 0.3 }
+  if (state === 'done') return { phase: 'nap', spot: 0.85 }
+  return { phase: 'lie', spot: mode === 'studio' ? step : 0.2 }
 }
 
 export function lingchongSpot(state, width, widthOfLingchong = 112, mode = 'chat', progress = 0) {
@@ -97,8 +98,13 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
     let nextChaseAt = 22 + Math.random() * 18
     let hovering = false
     let pointerClientX = null
+    let lastPointerClientX = null
+    let pointerMovedAt = -Infinity
     let hoverX = null
     let cuddled = false
+    let followUntil = -Infinity
+    let wanderTarget = null
+    let nextWanderAt = 3 + Math.random() * 4
     let seconds = 0
 
     const place = (nextX, phase) => {
@@ -126,13 +132,21 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
     const onEnter = event => {
       hovering = true
       pointerClientX = event.clientX
+      lastPointerClientX = event.clientX
+      followUntil = seconds + 3.5
       idleT = 0
       yawnT = 0
       wakeUntil = Math.max(wakeUntil, seconds + 1.5)
       endChase()
     }
     const onMove = event => {
-      if (hovering) pointerClientX = event.clientX
+      if (!hovering) return
+      // 岛展开/收起会在光标下重排，浏览器会补发同坐标的 move；只认真实移动。
+      if (lastPointerClientX === null || Math.abs(event.clientX - lastPointerClientX) > 2) {
+        followUntil = seconds + 3.5
+      }
+      lastPointerClientX = event.clientX
+      pointerClientX = event.clientX
     }
     const onLeave = () => {
       hovering = false
@@ -171,6 +185,8 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       hoverX = hovering && pointerClientX !== null
         ? pointerClientX - host.getBoundingClientRect().left
         : null
+      // 光标动一次跟 3.5 秒；停住后灵宠自己接着沿边逛，不会卡在指针附近来回抖。
+      const following = hovering && hoverX !== null && seconds < followUntil
       if (x === null) x = targetFor(kind, mode, progress)
 
       if (wakeRequest.current) {
@@ -183,16 +199,27 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       const done = kind === 'done'
       const awake = wakeUntil > seconds
       // 聊天室安静十秒先趴下休息（睁眼），再久才睡着（闭眼、飘 z）；交付后直接睡。
-      const resting = !done && kind === 'rest' && !hovering && chase === null && !awake
+      const resting = !done && kind === 'rest' && mode === 'chat' && !hovering && chase === null && !awake
       const sleeping = done ? !awake : resting && idleT > SLEEP_AFTER
-      const postureTarget = done ? (awake ? 0 : 1) : (resting && idleT > 10 ? 1 : 0)
+      const postureTarget = done ? (awake ? 0 : 1) : (resting && idleT > 10 && wanderTarget === null ? 1 : 0)
       postureMix = Math.min(1, Math.max(0, postureMix + Math.sign(postureTarget - postureMix) * dt / 0.7))
       const sm = postureMix * postureMix * (3 - 2 * postureMix)
+
+      // 安静时沿着整条岛上沿慢慢逛，十秒后才趴下。
+      const canWander = kind === 'rest' && mode === 'chat' && !done && !following && chase === null && !sleeping && postureMix < 0.1
+      if (!canWander) wanderTarget = null
+      else if (wanderTarget === null && seconds > nextWanderAt) {
+        const min = HOME_PAD + petWidth / 2
+        const max = Math.max(min, width - HOME_PAD - petWidth / 2)
+        wanderTarget = min + Math.random() * Math.max(0, max - min)
+        nextWanderAt = seconds + (hovering ? 4 + Math.random() * 4 : 9 + Math.random() * 7)
+      }
 
       // 追蝴蝶：只在聊天室安静时出现；没追上三次或玩够了就飞走。
       const canChase = kind === 'rest' && !done && !sleeping && !hovering && idleT > 6 && seconds > nextChaseAt
       if (chase === null && canChase) {
         yawnT = 0
+        wanderTarget = null
         chase = {
           t: 0,
           misses: 0,
@@ -259,8 +286,8 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       } else {
         const min = HOME_PAD + petWidth / 2
         const max = Math.max(min, width - HOME_PAD - petWidth / 2)
-        const cuddle = !done && hoverX !== null ? Math.min(max, Math.max(min, hoverX)) : null
-        const target = cuddle ?? chaseTarget ?? targetFor(kind, mode, progress)
+        const cuddle = !done && following && hoverX !== null ? Math.min(max, Math.max(min, hoverX)) : null
+        const target = cuddle ?? chaseTarget ?? wanderTarget ?? targetFor(kind, mode, progress)
         const delta = target - x
         if (Math.abs(delta) > 0.8) {
           direction = delta > 0 ? 1 : -1
@@ -271,6 +298,10 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
           phase = 'walk'
         } else {
           x = target
+          if (wanderTarget !== null && cuddle === null && chaseTarget === null) {
+            wanderTarget = null
+            nextWanderAt = seconds + (hovering ? 4 + Math.random() * 4 : 9 + Math.random() * 7)
+          }
         }
         // 走到人面前就贴一下：冒爱心、尾巴摇快；离开前只贴一次。
         if (cuddle !== null && Math.abs(target - x) < 6 && !cuddled) {
@@ -281,7 +312,8 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       }
       const walking = moved > 0.01 || kind === 'busy'
       if (walking) gait += (kind === 'busy' && moved < 0.01 ? dt * 1.6 : moved / scale / 90)
-      if (walking || chaseTarget !== null || hoverX !== null) idleT = 0
+      // 自己闲逛不算“有事发生”，安静计时继续走；人凑近、追蝴蝶和干活才清零。
+      if (kind === 'busy' || hoverX !== null || chaseTarget !== null) idleT = 0
       else idleT += dt
 
       // 待机久了打个哈欠；睡着、追蝴蝶、贴着人和赶路时不打。
@@ -350,7 +382,8 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
         // 线稿默认朝左；往右走才镜像，不然会倒着走。
         const dirSign = direction > 0 ? -1 : 1
         flip.current.style.transform =
-          `scale(${(dirSign * (1 + 0.05 * sm)).toFixed(4)}, ${(1 - 0.22 * sm).toFixed(4)}) translateY(${(13.5 * sm * (petWidth / 112)).toFixed(2)}px)`
+          // 趴下是压成一只更胖的猫：横向撑开，纵向只压一点，肚子贴着岛面。
+          `scale(${(dirSign * (1 + 0.16 * sm)).toFixed(4)}, ${(1 - 0.14 * sm).toFixed(4)}) translateY(${(10.5 * sm * (petWidth / 112)).toFixed(2)}px)`
       }
 
       if (yawn.current) yawn.current.classList.toggle('on', yawning)
@@ -465,7 +498,7 @@ body[data-ds-dark-theme] .lingchong{filter:drop-shadow(0 1px 3px rgba(0,0,0,.42)
 .lingchong-ink-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 .lingchong-flip{position:absolute;inset:0;transform-origin:50% 50%}
 .lingchong-stage{position:absolute;left:0;top:0;width:385px;height:195px;transform-origin:0 0;transform:scale(var(--pet-scale)) translateY(30px);filter:var(--lingchong-ink-filter,none)}
-body[data-ds-dark-theme] .lingchong-stage{filter:var(--lingchong-ink-filter,none) invert(1) hue-rotate(180deg) brightness(1.08)}
+body[data-ds-dark-theme] .lingchong-stage{filter:var(--lingchong-ink-filter,none) grayscale(1) invert(1) contrast(1.3) brightness(1.1)}
 .lingchong-art{position:absolute;inset:0;width:385px;height:195px;pointer-events:none;user-select:none}
 .art-tail{clip-path:inset(0 15px 55px 288px);transform-origin:285px 95px;z-index:1}
 .leg-ff{clip-path:inset(138px 242px 20px 100px);transform-origin:123px 138px;z-index:2}
