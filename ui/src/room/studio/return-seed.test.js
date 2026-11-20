@@ -5,6 +5,7 @@ import { returnToChatSeed } from './return-seed.js'
 test('a finished delivery returns to chat as a structured receipt', () => {
   const seed = returnToChatSeed({
     id: 'room-studio',
+    repoPath: '/Users/someone/CrewWorktrees/abc/executor',
     delivery: {
       name: '发布检查清单',
       goal: '让新人照着勾',
@@ -17,14 +18,17 @@ test('a finished delivery returns to chat as a structured receipt', () => {
   assert.equal(seed.goal, '评审这次做出来的：发布检查清单')
   assert.equal(seed.label, '这次做出来的')
   assert.equal(seed.sourceRoomId, 'room-studio')
+  assert.equal(seed.repoPath, '/Users/someone/CrewWorktrees/abc/executor')
   assert.deepEqual(seed.receipt, {
     result: '发布检查清单',
     completeness: '2/2 步完成，1 个文件',
     checks: ['2/2 项检查通过'],
+    paths: ['RELEASE_CHECKLIST.md'],
     openQuestions: ['是否需要自动回滚？'],
   })
   assert.match(seed.conclusion, /完成度：2\/2 步完成/)
   assert.match(seed.conclusion, /检查：2\/2 项检查通过/)
+  assert.match(seed.conclusion, /文件：RELEASE_CHECKLIST\.md/)
   assert.match(seed.conclusion, /待确认：是否需要自动回滚？/)
 })
 

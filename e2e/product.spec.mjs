@@ -1,11 +1,27 @@
 import { expect, test } from '@playwright/test'
 
+// 示例房第一次发消息后会停下；草稿检查要排在它之前，否则输入框已经禁用。
+test('a room keeps its unsent draft across a reload', async ({ page, request }) => {
+  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
+  await page.goto('/')
+
+  await page.getByRole('combobox', { name: '房间消息' }).fill('先写到一半')
+  await page.reload()
+  const composer = page.getByRole('combobox', { name: '房间消息' })
+  await expect(composer).toHaveValue('先写到一半')
+  // 清空后草稿不该留着，免得下次进来看见旧话。
+  await composer.fill('')
+  await page.reload()
+  await expect(page.getByRole('combobox', { name: '房间消息' })).toHaveValue('')
+})
+
 test('new room dialog, sample chat and archive restore', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample', { data: { kind: 'chat' } })).ok()).toBe(true)
   await page.goto('/')
   await expect(page.getByRole('button', { name: /^示例：把「朏朏住在灵动岛上」聊成一个方向，正在做$/ })).toBeVisible()
 
   await page.getByRole('button', { name: '新建房间' }).click()
+  await page.getByRole('menuitem', { name: '工作室' }).click()
   await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
   await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
   await page.getByLabel('要做什么？').fill('把启动说明补成新人能照着跑的一页')
@@ -37,20 +53,6 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   await page.getByRole('button', { name: /管理 示例：把「朏朏住在灵动岛上」/ }).click()
   await page.getByRole('menuitem', { name: '取消归档' }).click()
   await expect(page.getByText(/示例：把「朏朏住在灵动岛上」/).first()).toBeVisible()
-})
-
-test('a room keeps its unsent draft across a reload', async ({ page, request }) => {
-  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
-  await page.goto('/')
-
-  await page.getByRole('combobox', { name: '房间消息' }).fill('先写到一半')
-  await page.reload()
-  const composer = page.getByRole('combobox', { name: '房间消息' })
-  await expect(composer).toHaveValue('先写到一半')
-  // 清空后草稿不该留着，免得下次进来看见旧话。
-  await composer.fill('')
-  await page.reload()
-  await expect(page.getByRole('combobox', { name: '房间消息' })).toHaveValue('')
 })
 
 test('opening a detail keeps the reading position', async ({ page, request }) => {
@@ -93,7 +95,7 @@ test('expanding the delivery details keeps the reading position', async ({ page,
 test('expanding new-room options keeps the dialog anchored', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '新建房间' }).click()
-  await page.getByRole('button', { name: '工作室', exact: true }).click()
+  await page.getByRole('menuitem', { name: '工作室' }).click()
 
   const dialog = page.locator('.crew-dialog')
   const summary = page.locator('.crew-new-advanced > summary')

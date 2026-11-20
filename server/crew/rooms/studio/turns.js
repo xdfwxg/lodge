@@ -598,6 +598,23 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
 
     const stage = stageIndex
 
+    // 同一个回合可能同时从群聊和成员自己的线程各重放一次，turnId 不同但内容相同；
+    // 同一步同一位成员在两分钟内说过完全相同的话，只留第一条证据。
+    const replyText = String(turn.reply ?? '').trim()
+    const duplicated = replyText !== '' && memberId !== null && store.readMessages(roomId).some(message => (
+      message.kind === 'evidence' &&
+      message.authorId === memberId &&
+      (message.meta?.stage ?? 0) === stage &&
+      String(message.text ?? '').trim() === replyText &&
+      typeof message.ts === 'number' &&
+      Math.abs(Date.now() - message.ts) <= 120_000
+    ))
+    if (duplicated) {
+      state.capturedTurns.add(turnId)
+      writeTurnDiagnostic('duplicate')
+      return
+    }
+
     const artifacts = []
     for (const call of calls) {
       let input
@@ -629,6 +646,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     const evidence = {
       kind: 'evidence',
       authorId: memberId ?? 'worker',
+      ts: Date.now(),
       text: turn.reply || summary,
       meta: {
         kind: 'turn',

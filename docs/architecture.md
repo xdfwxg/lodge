@@ -90,12 +90,12 @@ service.js                   ← 路由分发与用例组合
 |---|---|---|
 | 规划师 | `lodge-grilling`、`lodge-task-breakdown`、`lodge-spec-driven`、`lodge-codebase-design`、`lodge-domain-modeling`、`lodge-api-design` | 6 个基座技能 |
 | 执行官 | `lodge-tdd`、`lodge-diagnose`、`lodge-incremental`、`lodge-simplify`、`lodge-verify-before-done`、`lodge-frontend-ui`、`lodge-api-design`、`lodge-observability` | 8 个基座技能 |
-| 验收员 | `lodge-code-review-2`、`lodge-verify-before-done`、`lodge-security`、`lodge-browser-evidence`、`lodge-accessibility`、`lodge-performance`、`lodge-observability` | 7 个基座技能 |
+| 验收员 | `lodge-two-axis-review`、`lodge-verify-before-done`、`lodge-security`、`lodge-browser-evidence`、`lodge-accessibility`、`lodge-performance`、`lodge-observability` | 7 个基座技能 |
 | 聊天室成员 | 不挂工程技能；只读文件、只读公网、`chat-voice`、`chat-stances` | 提示模块 |
 | Lodge 主机器人 | `listen / auto-grill / route / close`（`LODGE_HOST_RULES`） | 内置提示，不占基座技能 |
 | 房间层 | `room-issues`、`room-retro` | 只读投影，不是技能 |
 
-- 共 18 个唯一基座技能、21 个角色挂载；`lodge-verify-before-done` 由执行官和验收员共用。`lodge-code-review-2` 先做 Spec 轴再做 Standards 轴，两份报告并列，不跨轴重排；旧的一轴 `lodge-code-review` 已停用。
+- 共 18 个唯一基座技能、21 个角色挂载；`lodge-verify-before-done` 由执行官和验收员共用。`lodge-two-axis-review` 先做 Spec 轴再做 Standards 轴，两份报告并列，不跨轴重排；旧的一轴 `lodge-code-review` 已停用。
 - 聊天室没有 `grill-me`，也没有工程技能；主机器人自己判断何时追问，聊天成员只保留表达、席位和只读上下文。
 - 成员技能仍走 `member.skills → body.spec.skills → engine.setBotSkills`。`body.js` 和 `body-swap.js` 合并角色技能：内置在前，自定义追加，最多 8 个；旧房间换身体时补上角色包。成员详情里的技能列表和 MCP 列表是只读展示：技能从角色包读，MCP 从成员授权读，不在成员卡里改。
 - 技能的“调用”分三段：Lodge 只负责挂载（`engine.setBotSkills` → 基座 `PUT /api/bots/:id/skills-library`，名单存为 bot 的 `assignedSkills`）；基座每轮把技能索引写进系统提示（一行一条：名称、描述、`SKILL.md` 路径）；模型判断命中后用文件工具读全文。Lodge 不执行技能内容，`SKILL.md` 是方法说明，不是权限。
@@ -103,7 +103,7 @@ service.js                   ← 路由分发与用例组合
 - 模型是否真读某个 `SKILL.md` 由模型判断，机制上不强制；能强制的是验收门禁和角色规则。核对看启动日志 `role skill packs: 18 ready`，或 `GET /api/bots/<id>/skills-library` 的名单。
 - 规划师按情况走三档：想法还模糊用 `lodge-grilling`；讨论够了用 `lodge-spec-driven` 固定成阶段和验收；跨多个会话或要并行用 `lodge-task-breakdown` 拆出依赖。`grill-with-docs`、`to-spec`、`to-tickets` 不装原版，避免多出 GLOSSARY/ADR、spec 文件或外部 ticket 三个真相源。
 - 聊天成员是 `participant`，不继承工程技能；只有只读文件、只读公网、`chat-voice` 和 `chat-stances`。外部动作仍由审批桥拦住。聊天室必须使用支持逐次确认的引擎；不会问人的模型在建房前就被拒绝，不能把只读写在提示词里假装实现。
-- 验收员用 `lodge-code-review-2`：先做 Spec 轴，再做 Standards 轴，两份报告并列，只在各自轴内排序；不引入 subagent，也不把两轴合并成一个分数。
+- 验收员用 `lodge-two-axis-review`：先做 Spec 轴，再做 Standards 轴，两份报告并列，只在各自轴内排序；不引入 subagent，也不把两轴合并成一个分数。
 - `shared/room-issues.js` 和 `shared/room-retro.js` 是只读投影，不是技能：在每次组装房间视图（`presentRoom`）时直接算，模型看不到，也不花 token。工作室把阶段投成 issue，聊天把结论/待办投成 issue；复盘只引用真实返工、超时或用满轮次。它们不写房间状态，也不新增角色。
 
 ## 附件与视觉证据

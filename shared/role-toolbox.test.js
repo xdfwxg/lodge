@@ -29,6 +29,13 @@ test('merging keeps eight skills and drops invalid names', () => {
   assert.equal(result[0], ROLE_TOOLBOX.lead[0])
 })
 
+test('a renamed role skill does not linger as a custom skill', () => {
+  assert.deepEqual(mergeRoleSkills('verifier', ['lodge-code-review-2', 'custom-review']), [
+    ...ROLE_TOOLBOX.verifier,
+    'custom-review',
+  ])
+})
+
 test('participants do not inherit a studio toolbox', () => {
   assert.deepEqual(skillsForRole('participant'), [])
   assert.deepEqual(mergeRoleSkills('participant', ['only-custom']), [])

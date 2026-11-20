@@ -246,3 +246,14 @@
 - 建房选择工作文件夹后，只有这个文件夹已有记忆时才显示“这个文件夹有 N 条已交付记忆 · 查看”；点开可以发布、不采用或删除
 - 入口只在选文件夹之后出现；零准备房间没有共享工作区，不显示
 - 自动覆盖：`server/crew/memory.test.js` 覆盖工作区归档与发布/删除；`server/http-coverage.test.js` 覆盖 `GET /api/workspace/memory` 和 `POST /api/workspace/memory/review`
+
+## 2026-11-20 · 全量真实 dogfood
+
+- 房间评测 `eval:rooms`：真实模型、临时 fixture 仓库、外部尺子，`revise-tone` / `slice-sheet` / `verify-catch` 3/3 通过，0 次返工，p50 约 52s，费用约 $0.46；再加跑 `slice-sheet` 三次均通过
+- 规划评测 `eval:planning`：修掉 runner 仍按旧参数把 engine 当 probe 传的断链后，3/3 通过，why 一行 3/3，p50 约 6.3s
+- UI 端到端：修掉灵动岛 `z z z` 可见文本不在可访问名里、新建房间入口改成加号菜单后两条旧用例、以及草稿用例与示例房发消息的先后依赖；12/12 通过
+- 真实厂商：`claude` 实例实际请求发往 DeepSeek 的 anthropic 端点（`deepseek-v4-pro` / `deepseek-flash`），界面上的实例名不代表厂商；`pi` 同时可用
+- 发现并修：同一回合从群聊和成员线程各重放一次时会落下两条相同证据；证据按“同一步同一位成员两分钟内同文只留一条”去重，时间线只留更完整的聊天副本
+- 发现并修：工作室交付后的“聊一聊”只带回执文字，聊天成员读的是源仓库；回执新增 `paths`，聊天室改读工作室交付副本，才看得到成果
+- 仍未跑通：`eval:chat` 依赖 `room.seatBots`，公开状态已剥掉成员 ref，脚本报“房间没有席位 bot”；需要内部取数入口后再跑
+- 全程 1116 项单测、构建、文档与验收门禁通过

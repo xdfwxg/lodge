@@ -518,8 +518,8 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       h('path', { className: 'wing right', d: 'M12 10 C20 1, 23 5, 21 10 C23 15, 19 19, 12 10 Z' }),
       h('path', { className: 'body', d: 'M12 4 v13' }),
       h('path', { className: 'antennae', d: 'M12 5 C10 2.5, 8.5 1.6, 6.6 2.2 M12 5 C14 2.5, 15.5 1.6, 17.4 2.2' }))),
-  h('span', { ref: zzz, className: 'lingchong-zzz', 'aria-hidden': true },
-    h('span', null, 'z'), h('span', null, 'z'), h('span', null, 'z')),
+  h('span', { ref: zzz, className: 'lingchong-zzz' },
+    h('span', { 'aria-hidden': 'true' }), h('span', { 'aria-hidden': 'true' }), h('span', { 'aria-hidden': 'true' })),
   h('span', { ref: sparks, className: 'spark-field', 'aria-hidden': true }))
 }
 
@@ -557,6 +557,7 @@ body[data-ds-dark-theme] .lingchong-yawn{filter:sepia(1) saturate(5) hue-rotate(
 .lingchong-zzz{position:absolute;left:0;top:0;z-index:10;pointer-events:none;opacity:0;transition:opacity .4s var(--bt-ease)}
 .lingchong-zzz.on{opacity:1}
 .lingchong-zzz span{position:absolute;font:600 12px/1 var(--bt-font);color:var(--bt-ink-3);opacity:0;animation:lingchong-zzz 3.2s ease-out infinite}
+.lingchong-zzz span::before{content:'z'}
 .lingchong-zzz span:nth-child(1){left:44px;top:14px;font-size:12px;animation-delay:0s}
 .lingchong-zzz span:nth-child(2){left:57px;top:6px;font-size:15px;animation-delay:1.1s}
 .lingchong-zzz span:nth-child(3){left:70px;top:-2px;font-size:18px;animation-delay:2.2s}

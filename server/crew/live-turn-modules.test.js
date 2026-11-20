@@ -373,6 +373,26 @@ test('turn usage accumulates on the room and keeps unknown costs visible', () =>
   assert.equal(room.usage.costMicroUsd, 2000)
 })
 
+test('the same worker reply replayed under another turn id lands once', () => {
+  const room = makeRoom({})
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  const reply = '实现和测试都已补完，npm test 全部通过；原实现没被动过。'
+  turns.captureTurn({ turnId: 't-first', reply, toolCalls: 0 }, 'bot-exec')
+  turns.captureTurn({ turnId: 't-replay', reply, toolCalls: 0 }, 'bot-exec')
+  const evidence = store.messages.filter(message => (
+    message.kind === 'evidence' && message.authorId === 'executor'
+  ))
+  assert.equal(evidence.length, 1)
+})
+
 test('the planner align turn confirms the alignment stage without a human click', () => {
   const room = makeRoom({
     stages: [

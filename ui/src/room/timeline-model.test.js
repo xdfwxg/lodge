@@ -78,6 +78,18 @@ test('a stream placeholder yields to the final copy of the same speech', () => {
   assert.deepEqual(buildTimeline(messages).visible.map(item => item.id), ['b1', 'stream:r:worker-2'])
 })
 
+test('a truncated second copy of the same speech keeps only the complete one', () => {
+  const full = '三步切好了：源图正好 900×300，按宽度均分直接得到三张 300×300；@验收员 请复核第二阶段。'
+  const messages = [
+    message('c1', 'chat', { authorId: 'executor', ts: 10, text: full }),
+    message('c2', 'chat', { authorId: 'executor', ts: 11, text: full.slice(0, 40) }),
+    message('c3', 'chat', { authorId: 'executor', ts: 12, text: '验收员那边还没回。' }),
+  ]
+  const timeline = buildTimeline(messages)
+  assert.deepEqual(timeline.visible.map(item => item.id), ['c1', 'c3'])
+  assert.equal(timeline.visible[0].text, full)
+})
+
 test('consecutive user messages stay at the end of the timeline', () => {
   const messages = [
     message('b1', 'chat', { authorId: 'planner', text: '收到' }),

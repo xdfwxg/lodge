@@ -40,6 +40,7 @@ export const returnToChatSeed = room => {
     checks: commands.length > 0
       ? [`${passed}/${commands.length} 项检查通过${simulated ? '（含模拟）' : ''}`]
       : ['人工验收通过'],
+    paths: delivery.changedFiles ?? [],
     openQuestions: delivery.openQuestions ?? [],
   })
   return {
@@ -48,6 +49,8 @@ export const returnToChatSeed = room => {
     label: '这次做出来的',
     sourceName: delivery.name,
     sourceRoomId: room.id,
+    // 成果在工作副本里；聊天室读这份副本，才不是只看见源仓库的 README。
+    ...(typeof room.repoPath === 'string' && room.repoPath !== '' ? { repoPath: room.repoPath } : {}),
     receipt,
   }
 }

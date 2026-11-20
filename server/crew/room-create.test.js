@@ -573,6 +573,7 @@ test('a studio receipt becomes the chat room receipt and transfer record', async
     result: '发布检查',
     completeness: '2/2 阶段完成',
     checks: ['npm test 通过'],
+    paths: [],
     openQuestions: ['是否需要自动回滚？'],
   }
   const result = await run(store, {

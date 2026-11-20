@@ -1,5 +1,5 @@
 ---
-name: lodge-code-review-2
+name: lodge-two-axis-review
 description: Use when reviewing a stage's result. Do two sequential passes, Spec then Standards, keep the reports separate, and give one evidence-based verdict.
 license: MIT
 tags: lodge-builtin, verify

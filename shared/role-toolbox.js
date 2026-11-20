@@ -18,7 +18,7 @@ export const ROLE_TOOLBOX = Object.freeze({
     'lodge-observability',
   ]),
   verifier: Object.freeze([
-    'lodge-code-review-2',
+    'lodge-two-axis-review',
     'lodge-verify-before-done',
     'lodge-security',
     'lodge-browser-evidence',
@@ -34,6 +34,9 @@ export const TOOLBOX_SKILLS = Object.freeze([
 
 const isSkillName = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
 
+// 已改名的角色技能从旧成员身上清掉，避免换身体后两个名字并排出现。
+const RETIRED_SKILLS = new Set(['lodge-code-review-2'])
+
 export const skillsForRole = role => ROLE_TOOLBOX[role] ?? []
 
 export const mergeRoleSkills = (role, requested = []) => {
@@ -41,7 +44,7 @@ export const mergeRoleSkills = (role, requested = []) => {
   const merged = []
   const seen = new Set()
   for (const name of [...skillsForRole(role), ...(Array.isArray(requested) ? requested : [])]) {
-    if (!isSkillName(name) || seen.has(name)) continue
+    if (!isSkillName(name) || RETIRED_SKILLS.has(name) || seen.has(name)) continue
     seen.add(name)
     merged.push(name)
   }

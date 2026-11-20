@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { createCrewPorts } from '../../server/crew/crew-ports.js'
 import { evaluateProposal, promptFormatOf } from '../../server/crew/planning-eval.js'
 import { recommendRoster } from '../../server/crew/roster-recommend.js'
+import { createRosterProbe } from '../../server/crew/roster-probe.js'
 import { createEngine } from '../../server/engine.js'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
@@ -53,7 +54,11 @@ for (const testCase of cases) {
       git(repo, ['-c', 'user.name=Crew Eval', '-c', 'user.email=crew@localhost', 'commit', '-q', '-m', 'fixture'])
       let result
       try {
-        result = await recommendRoster({ engine, body: { goal: testCase.goal, repoPath: repo }, workspace: ports.workspace })
+        result = await recommendRoster({
+          probe: createRosterProbe({ engine }),
+          body: { goal: testCase.goal, repoPath: repo },
+          workspace: ports.workspace,
+        })
       } catch (error) {
         result = { ok: false, error: String(error?.message ?? error) }
       }

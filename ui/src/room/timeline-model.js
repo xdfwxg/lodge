@@ -20,8 +20,42 @@ export const dedupeChatStreams = messages => {
   ))
 }
 
+const speechText = text => String(text ?? '').replace(/\s+/g, ' ').trim()
+
+// 同一位成员的话可能从群聊和成员线程各来一份，其中一份会被截断；两分钟内留更完整的那份。
+const sameSpeech = (a, b) => {
+  if (a === b) return true
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a]
+  return short.length >= 40 && long.startsWith(short)
+}
+
+export const dedupeChatCopies = messages => {
+  const kept = []
+  for (const message of messages) {
+    if (message.kind !== 'chat' || message.authorId === 'you') {
+      kept.push(message)
+      continue
+    }
+    const text = speechText(message.text)
+    const at = typeof message.ts === 'number' ? message.ts : 0
+    const twinIndex = kept.findIndex(item => (
+      item.kind === 'chat' &&
+      item.authorId === message.authorId &&
+      typeof item.ts === 'number' &&
+      Math.abs(item.ts - at) <= 120_000 &&
+      sameSpeech(speechText(item.text), text)
+    ))
+    if (twinIndex < 0) {
+      kept.push(message)
+      continue
+    }
+    if (text.length > speechText(kept[twinIndex].text).length) kept[twinIndex] = message
+  }
+  return kept
+}
+
 export const buildTimeline = messages => {
-  messages = dedupeChatStreams(messages)
+  messages = dedupeChatCopies(dedupeChatStreams(messages))
   // 人的重做标记和 human-context 是同一条输入的两种记录；主时间线只留后者。
   const humanNotes = humanNoteKeys(messages)
   const isProcess = message => isProcessMessage(message) || isDuplicateHumanRework(message, humanNotes)

@@ -7,15 +7,18 @@ test('a receipt keeps result, completeness, checks and open questions', () => {
     result: '发布前检查清单',
     completeness: '3/3 阶段完成',
     checks: ['npm test 通过'],
+    paths: ['assets/slice-01.png'],
     openQuestions: ['是否需要自动回滚？'],
   })
   assert.deepEqual(receipt, {
     result: '发布前检查清单',
     completeness: '3/3 阶段完成',
     checks: ['npm test 通过'],
+    paths: ['assets/slice-01.png'],
     openQuestions: ['是否需要自动回滚？'],
   })
   assert.match(receiptText(receipt), /完成度：3\/3 阶段完成/)
+  assert.match(receiptText(receipt), /文件：assets\/slice-01\.png/)
   assert.match(receiptText(receipt), /待确认：是否需要自动回滚？/)
 })
 
