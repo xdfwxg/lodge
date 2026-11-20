@@ -11,8 +11,9 @@ These are Lodge adaptations of MIT-licensed engineering skills.
 - Addy Osmani, `addyosmani/agent-skills`, MIT:
   https://github.com/addyosmani/agent-skills
   Used as the source for task breakdown, spec-driven planning, incremental
-  implementation, simplification, frontend UI, code review, security,
-  accessibility, browser evidence, and performance.
+  implementation, simplification, frontend UI, API and interface design,
+  observability, code review, security, accessibility, browser evidence,
+  and performance.
 - Jesse Vincent / `obra/superpowers`, MIT:
   https://github.com/obra/superpowers
   Used as the source for verification before completion.

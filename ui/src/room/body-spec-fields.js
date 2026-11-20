@@ -28,6 +28,27 @@ export const bodySpecPayload = spec => {
   return { prompt: spec.prompt ?? '', skills, mcp }
 }
 
+// 角色成员的能力只读：技能是角色包，MCP 是成员授权，都不在这里改。
+export function CapabilityReadOnly({ skills = [], mcp = [], note = '' }) {
+  const servers = (Array.isArray(mcp) ? mcp : [])
+    .map(item => (typeof item === 'string' ? item : item?.server ?? ''))
+    .filter(name => name !== '' && name !== BROWSER_MCP_SERVER_NAME)
+  return h('div', { className: 'crew-capability crew-capability-readonly' },
+    h('div', { className: 'crew-capability-head' },
+      h('b', null, '能力'),
+      note === '' ? null : h('span', { className: 'crew-capability-note' }, note)),
+    h('div', { className: 'crew-capability-row' },
+      h('span', { className: 'crew-capability-label' }, '技能'),
+      h('span', { className: 'crew-capability-chips' },
+        (Array.isArray(skills) ? skills : []).map(name => h('code', { key: name }, name)))),
+    h('div', { className: 'crew-capability-row' },
+      h('span', { className: 'crew-capability-label' }, 'MCP'),
+      h('span', { className: 'crew-capability-chips' },
+        servers.length === 0
+          ? h('span', { className: 'crew-capability-empty' }, '无额外 MCP')
+          : servers.map(name => h('code', { key: name }, name)))))
+}
+
 // 能力是 skills 和 mcp，放在一组里；它们不改性格。
 export function CapabilityFields({ value, onChange, disabled = false, showSkills = true }) {
   const update = patch => onChange({ ...value, ...patch })

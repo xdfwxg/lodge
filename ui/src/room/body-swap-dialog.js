@@ -3,9 +3,10 @@ import { EngineLogin, useEngineLogin } from '../engine-login.js'
 import { engineBlockLabel, engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor, roleLabelOf } from './member-options.js'
-import { CapabilityFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { CapabilityFields, CapabilityReadOnly, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
 import { bodyCapabilitiesOf } from '../../../shared/body-capabilities.js'
 import { roleDefinitionOf } from '../../../shared/role-definitions.js'
+import { skillsForRole } from '../../../shared/role-toolbox.js'
 import { Segmented } from '../segmented.js'
 
 const MIND_PRESETS = [
@@ -62,7 +63,8 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
     && model === (member.body?.model ?? '')
     && !mindChanged
     && !capabilityChanged
-  const roleBound = roleLabelOf(member) !== '成员'
+  const roleBound = roleLabelOf(member) !== '成员' || member.roleKind === 'participant'
+  const roleSkills = member.roleKind === 'participant' ? [] : skillsForRole(member.role)
   // 角色成员的提示词不是用户写的人格，而是角色定义；只读展示，保存时仍交给角色默认。
   const rolePrompt = roleBound
     ? (bodySpecOf(member).prompt.trim() || roleDefinitionOf(member.role)?.prompt || '')
@@ -128,7 +130,7 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
           },
           rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
         : null,
-      specMissing && !specFilled && tab === 'body'
+      specMissing && !specFilled && !roleBound && tab === 'body'
         ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先补上行为说明、技能或 MCP。')
         : null,
       available.length === 0
@@ -148,14 +150,20 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
         onLogin: login,
         onRefresh,
       }),
-      capabilities.tools
-        ? h(CapabilityFields, {
-          value: spec,
-          onChange: value => setSpec(value),
-          disabled: busy,
-          showSkills: capabilities.skills,
+      roleBound
+        ? h(CapabilityReadOnly, {
+          skills: [...new Set([...roleSkills, ...originalSpec.skills])],
+          mcp: originalSpec.mcp,
+          note: '角色自带；只读',
         })
-        : null) : h(Fragment, null,
+        : capabilities.tools
+          ? h(CapabilityFields, {
+            value: spec,
+            onChange: value => setSpec(value),
+            disabled: busy,
+            showSkills: capabilities.skills,
+          })
+          : null) : h(Fragment, null,
         roleBound
           ? h('div', { className: 'crew-mind-presets', role: 'group', 'aria-label': '性格' },
             h('button', {

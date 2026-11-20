@@ -3,7 +3,8 @@ import { EngineLogin, useEngineLogin } from '../engine-login.js'
 import { engineBlockLabel, engineBlockReason, engineReadiness } from '../../../shared/engine-readiness.js'
 import { useOverlay } from '../overlay.js'
 import { modelRowsFor } from './member-options.js'
-import { CapabilityFields, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { CapabilityReadOnly, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { skillsForRole } from '../../../shared/role-toolbox.js'
 import { Segmented } from '../segmented.js'
 
 const ROLE_LABEL = { executor: '执行官', verifier: '验收员' }
@@ -23,6 +24,7 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
   const available = readiness.installed
   const ready = readiness.ready[0]
   const [role, setRole] = useState('executor')
+  const roleSkills = skillsForRole(role === 'executor' ? 'worker' : 'verifier')
   const [name, setName] = useState(() => autoName('executor', members))
   const [tab, setTab] = useState('body')
   const [engineId, setEngineId] = useState(ready?.id ?? '')
@@ -147,6 +149,11 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
           disabled: busy,
           onLogin: login,
           onRefresh,
+        }),
+        h(CapabilityReadOnly, {
+          skills: roleSkills,
+          mcp: [],
+          note: '加入后按角色自动挂上；只读',
         })) : h(Fragment, null,
         h('textarea', {
           className: 'crew-mind-raw',
@@ -156,8 +163,7 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
           value: spec.prompt ?? '',
           disabled: busy,
           onChange: event => setSpec({ ...spec, prompt: event.target.value }),
-        }),
-        h(CapabilityFields, { value: spec, onChange: setSpec, disabled: busy })),
+        })),
       error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error)),
     h('div', { className: 'crew-dialog-foot' },
       h('button', { type: 'button', className: 'crew-ghost', disabled: busy, onClick: onCancel }, '取消'),

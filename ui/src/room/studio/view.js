@@ -78,7 +78,6 @@ export const studioView = {
       onAnswerCard: actions.answerCard,
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,
-      onContinue: () => actions.focusFollowup(),
       onDiscussChat: (() => {
         const seed = returnToChatSeed(room)
         return seed === null ? null : () => actions.startChat(seed)

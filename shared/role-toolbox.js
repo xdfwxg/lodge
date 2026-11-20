@@ -5,6 +5,7 @@ export const ROLE_TOOLBOX = Object.freeze({
     'lodge-spec-driven',
     'lodge-codebase-design',
     'lodge-domain-modeling',
+    'lodge-api-design',
   ]),
   worker: Object.freeze([
     'lodge-tdd',
@@ -13,6 +14,8 @@ export const ROLE_TOOLBOX = Object.freeze({
     'lodge-simplify',
     'lodge-verify-before-done',
     'lodge-frontend-ui',
+    'lodge-api-design',
+    'lodge-observability',
   ]),
   verifier: Object.freeze([
     'lodge-code-review-2',
@@ -21,6 +24,7 @@ export const ROLE_TOOLBOX = Object.freeze({
     'lodge-browser-evidence',
     'lodge-accessibility',
     'lodge-performance',
+    'lodge-observability',
   ]),
 })
 

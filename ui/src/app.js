@@ -9,7 +9,6 @@ import { useProfileSync } from './app/use-profile-sync.js'
 import { useAttention } from './app/use-attention.js'
 import { onMenuCommand, onOpenRoom } from './system.js'
 import { NewRoomDialog } from './new-room-dialog.js'
-import { NewGoalDialog } from './new-goal-dialog.js'
 
 export function App() {
   const store = useMemo(createStore, [])
@@ -19,11 +18,9 @@ export function App() {
   // 定时目标的 run 房是历史，不占侧栏和菜单；目标本身仍是同一行。
   const { visibleRooms, sidebarRooms, needsText } = useAttention(state.rooms)
   const [dialog, setDialog] = useState(false)
-  const [goalOpen, setGoalOpen] = useState(false)
   const [seed, setSeed] = useState(null)
   const [startType, setStartType] = useState(null)
   const openDialog = (seedValue = null, roomType = null) => {
-    setGoalOpen(false)
     setSeed(seedValue)
     setStartType(roomType)
     setDialog(true)
@@ -33,13 +30,6 @@ export function App() {
     setSeed(null)
     setStartType(null)
   }
-  const openGoal = () => {
-    setDialog(false)
-    setSeed(null)
-    setStartType(null)
-    setGoalOpen(true)
-  }
-  const closeGoal = () => setGoalOpen(false)
 
   const liveText = state.phase === 'reconnecting'
     ? '连接中断，正在重连'
@@ -56,25 +46,12 @@ export function App() {
     return () => store.disconnect()
   }, [store])
 
-  // 写下目标就直接开工，团队和工作区由 Lodge 准备。准备失败（例如没有可用模型）
-  // 才退回完整建房对话框，让人调整；目标不会丢。
-  const startGoal = async goal => {
-    const result = await store.createRoom(goal, { verify: 'manual' })
-    if (result?.ok === true) {
-      setGoalOpen(false)
-      return result
-    }
-    openDialog({ goal }, 'studio')
-    return result
-  }
   const lodgeRoom = state.rooms.find(room => room.id === LODGE_ROOM_ID || room.lodge === true) ?? null
-  const discussGoal = goal => openDialog(goal === '' ? null : { goal }, 'chat')
-  const adjustGoal = goal => openDialog(goal === '' ? null : { goal }, 'studio')
 
   // macOS 惯例：⌘N 新房间，⌘1..9 切房间；弹窗打开时不抢键。
   useEffect(() => {
     const onKeyDown = event => {
-      if (event.defaultPrevented || dialog || goalOpen) return
+      if (event.defaultPrevented || dialog) return
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return
       if (event.key.toLowerCase() === 'n') {
         event.preventDefault()
@@ -89,7 +66,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [dialog, goalOpen, lodgeRoom, sidebarRooms, store])
+  }, [dialog, lodgeRoom, sidebarRooms, store])
 
   const dialogNode = h(NewRoomDialog, {
     open: dialog,
@@ -109,13 +86,6 @@ export function App() {
   const room = state.rooms.find(item => item.id === state.activeId)
     ?? sidebarRooms.find(item => !item.archivedAt)
     ?? null
-  const goalDialogNode = h(NewGoalDialog, {
-    open: goalOpen,
-    onClose: closeGoal,
-    onSubmit: startGoal,
-    onDiscuss: discussGoal,
-    onAdjust: adjustGoal,
-  })
 
   const firstRun = state.rooms.length === 0
   return h('div', { className: 'dsb-frame', 'data-solo': firstRun ? 'true' : undefined },
@@ -125,7 +95,7 @@ export function App() {
       : h(Sidebar, {
         state: { ...state, rooms: sidebarRooms },
         onSelect: id => store.select(id),
-        onNew: () => openDialog(),
+        onNew: type => openDialog(null, type ?? null),
         lodgeRoom,
         profile,
         onProfile: () => setProfileOpen(true),
@@ -142,14 +112,12 @@ export function App() {
         state,
         room,
         store,
-        onMoreOptions: openGoal,
         onStartStudio: seedValue => openDialog(seedValue),
         onStartChat: seedValue => openDialog(seedValue, 'chat'),
       }),
     liveRegion,
     needsRegion,
     dialogNode,
-    goalDialogNode,
     h(ProfileDialog, {
       open: profileOpen,
       profile,

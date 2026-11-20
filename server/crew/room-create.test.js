@@ -163,19 +163,19 @@ test('declared member skills are assigned to the created base member', async () 
     verify: 'manual',
     members: [
       { role: 'lead', name: '规划' },
-      { role: 'worker', name: '执行', skills: ['evidence-review'] },
-      { role: 'verifier', name: '验收' },
+      { role: 'worker', name: '执行' },
+      { role: 'verifier', name: '验收', skills: ['evidence-review'] },
     ],
   }, engine)
   assert.equal(result.ok, true)
   assert.deepEqual(engine.skillAssignments, [
     { botId: 'member-规划', skills: skillsForRole('lead') },
-    { botId: 'member-执行', skills: [...skillsForRole('worker'), 'evidence-review'] },
-    { botId: 'member-验收', skills: skillsForRole('verifier') },
+    { botId: 'member-执行', skills: skillsForRole('worker') },
+    { botId: 'member-验收', skills: [...skillsForRole('verifier'), 'evidence-review'] },
   ])
   assert.deepEqual(
-    result.body.room.members.find(member => member.name === '执行').body.spec.skills,
-    [...skillsForRole('worker'), 'evidence-review'],
+    result.body.room.members.find(member => member.name === '验收').body.spec.skills,
+    [...skillsForRole('verifier'), 'evidence-review'],
   )
 })
 
@@ -187,8 +187,8 @@ test('member skills fail before creating anything when the base library is off',
     verify: 'manual',
     members: [
       { role: 'lead', name: '规划' },
-      { role: 'worker', name: '执行', skills: ['evidence-review'] },
-      { role: 'verifier', name: '验收' },
+      { role: 'worker', name: '执行' },
+      { role: 'verifier', name: '验收', skills: ['evidence-review'] },
     ],
   }, engine)
   assert.equal(result.ok, false)

@@ -11,12 +11,11 @@ import { ArrowDownIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
 
-function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOptions = null }) {
+function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [dropped, setDropped] = useState(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
   const [atBottom, setAtBottom] = useState(true)
-  const [followupHint, setFollowupHint] = useState(false)
   const composerInput = useRef(null)
   const [swapId, setSwapId] = useState(null)
   const [swapBusy, setSwapBusy] = useState(false)
@@ -24,7 +23,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
   const [addOpen, setAddOpen] = useState(false)
   const [addBusy, setAddBusy] = useState(false)
   const [addError, setAddError] = useState(null)
-  useEffect(() => { setFollowupHint(false) }, [room.id])
   useEffect(() => onMemberDialog(request => {
     if (request.kind === 'add') {
       setAddError(null)
@@ -222,7 +220,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
     selectRoom: id => store.select(id),
     startStudio: onStartStudio,
     startChat: onStartChat,
-    moreOptions: onMoreOptions === null ? null : () => onMoreOptions(),
     swapBody: memberId => {
       setSwapError(null)
       setSwapId(memberId)
@@ -234,10 +231,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
   }
   const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
   const canFollowup = mode.canFollowup?.({ room }) === true
-  actions.focusFollowup = () => {
-    setFollowupHint(true)
-    composerInput.current?.focus()
-  }
   const viewCtx = { state, room, members, locked, actions, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
@@ -319,10 +312,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
           onClick: followBottom,
         }, h(ArrowDownIcon))
         : null,
-      room.lodge === true && actions.moreOptions !== null
-        ? h('div', { className: 'crew-lodge-more' },
-          h('button', { type: 'button', className: 'crew-link', onClick: actions.moreOptions }, '更多选项'))
-        : null,
       h('div', { ref: composerRef, className: 'dsb-composer' },
         h(Composer, {
           members: mentionMembers,
@@ -333,17 +322,12 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onMoreOption
             ? '已暂停 · 继续后才能派新活'
             : room.state === 'stopped'
               ? '已停止 · 不会再派新活'
-              : followupHint && canFollowup
-                ? '写下要改什么，点「接着改」'
-                : composerPlaceholder,
+              : composerPlaceholder,
           disabled: state.phase === 'loading' || locked,
           stopControl,
           inputRef: composerInput,
           onFollowup: canFollowup
-            ? (text, options) => {
-              setFollowupHint(false)
-              return store.followup(text, options)
-            }
+            ? (text, options) => store.followup(text, options)
             : null,
           dropping: dragging,
           incoming: dropped,

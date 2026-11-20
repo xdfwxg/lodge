@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
+import { createElement as h } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { bodySpecOf, bodySpecPayload, CapabilityReadOnly } from './body-spec-fields.js'
 
 test('a member body spec becomes editable text fields', () => {
   const spec = bodySpecOf({
@@ -33,4 +35,14 @@ test('text fields become a normalized payload', () => {
     skills: [],
     mcp: [],
   })
+})
+
+test('role capabilities render as read-only lists, not inputs', () => {
+  const html = renderToStaticMarkup(h(CapabilityReadOnly, {
+    skills: ['lodge-tdd', 'lodge-diagnose'],
+    mcp: [{ server: 'chrome-devtools' }, { server: 'github' }],
+  }))
+  assert.match(html, /lodge-tdd/)
+  assert.match(html, /github/)
+  assert.doesNotMatch(html, /<input/)
 })

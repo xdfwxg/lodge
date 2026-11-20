@@ -3,33 +3,30 @@ import test from 'node:test'
 import { ROLE_TOOLBOX, TOOLBOX_SKILLS, mergeRoleSkills, skillsForRole } from './role-toolbox.js'
 
 test('each role has a small, distinct toolbox', () => {
-  assert.equal(skillsForRole('lead').length, 5)
-  assert.equal(skillsForRole('worker').length, 6)
-  assert.equal(skillsForRole('verifier').length, 6)
-  assert.equal(TOOLBOX_SKILLS.length, 16)
+  assert.equal(skillsForRole('lead').length, 6)
+  assert.equal(skillsForRole('worker').length, 8)
+  assert.equal(skillsForRole('verifier').length, 7)
+  assert.equal(TOOLBOX_SKILLS.length, 18)
   for (const name of TOOLBOX_SKILLS) {
     assert.match(name, /^lodge-[a-z0-9-]+$/)
   }
   assert.equal(new Set(TOOLBOX_SKILLS).size, TOOLBOX_SKILLS.length)
 })
 
-test('role skills are always present and custom skills are additive', () => {
-  assert.deepEqual(mergeRoleSkills('worker', ['evidence-review']), [
-    ...ROLE_TOOLBOX.worker,
+test('role skills are always present and custom skills use the remaining slots', () => {
+  assert.deepEqual(mergeRoleSkills('lead', ['evidence-review']), [
+    ...ROLE_TOOLBOX.lead,
     'evidence-review',
   ])
-  assert.deepEqual(mergeRoleSkills('lead', ['lodge-grilling', 'custom']), [
-    ...ROLE_TOOLBOX.lead,
-    'custom',
-  ])
+  assert.deepEqual(mergeRoleSkills('worker', ['evidence-review']), ROLE_TOOLBOX.worker)
 })
 
 test('merging keeps eight skills and drops invalid names', () => {
-  const result = mergeRoleSkills('worker', ['ok', 'bad name', 'ok', ...Array.from({ length: 8 }, (_, index) => `extra-${index}`)])
+  const result = mergeRoleSkills('lead', ['ok', 'bad name', 'ok', ...Array.from({ length: 8 }, (_, index) => `extra-${index}`)])
   assert.equal(result.length, 8)
   assert.equal(result.includes('bad name'), false)
   assert.equal(result.filter(name => name === 'ok').length, 1)
-  assert.equal(result[0], ROLE_TOOLBOX.worker[0])
+  assert.equal(result[0], ROLE_TOOLBOX.lead[0])
 })
 
 test('participants do not inherit a studio toolbox', () => {

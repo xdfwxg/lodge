@@ -9,6 +9,7 @@ import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
 import { ProfileMark } from '../profile-mark.js'
 import { PlusIcon } from '../icons.js'
+import { ChatIcon, StudioIcon } from '../room/type-icons.js'
 import { clampSide, COLLAPSE_AT, RAIL_WIDTH, readSidebarLayout, SIDE_MAX, SIDE_MIN, writeSidebarCollapsed, writeSidebarWidth } from '../app/sidebar-layout.js'
 
 const lastAtOf = room => (room.messages ?? [])
@@ -55,8 +56,10 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
   const [sideWidth, setSideWidthPx] = useState(248)
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [newOpen, setNewOpen] = useState(false)
   const sidebarRef = useRef(null)
   const searchRef = useRef(null)
+  const newRef = useRef(null)
   const collapsedRef = useRef(false)
   const liveCount = rooms.filter(room => !room.archivedAt).length
   const showSearch = liveCount >= SEARCH_MIN_ROOMS || searchOpen || query.trim() !== ''
@@ -88,6 +91,23 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
   useEffect(() => {
     if (searchOpen && searchRef.current !== null) searchRef.current.focus()
   }, [searchOpen])
+
+  useEffect(() => {
+    if (!newOpen) return undefined
+    const onPointerDown = event => {
+      if (newRef.current?.contains(event.target) === true) return
+      setNewOpen(false)
+    }
+    const onKeyDown = event => {
+      if (event.key === 'Escape') setNewOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [newOpen])
 
   useEffect(() => {
     const focusSearch = () => {
@@ -220,6 +240,30 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
     onSelect(id)
   }
 
+  const chooseNew = type => {
+    setNewOpen(false)
+    onNew(type)
+  }
+  const newButton = () => h('div', { ref: newRef, className: 'crew-new-wrap' },
+    h('button', {
+      type: 'button',
+      className: 'crew-new crew-new-icon',
+      'aria-label': '新建房间',
+      title: '新建房间',
+      'aria-haspopup': 'menu',
+      'aria-expanded': newOpen,
+      onClick: () => setNewOpen(value => !value),
+    }, h(PlusIcon)),
+    newOpen
+      ? h('div', { className: 'crew-new-menu', role: 'menu', 'aria-label': '新建房间' },
+        h('button', { type: 'button', role: 'menuitem', className: 'crew-new-menu-item', onClick: () => chooseNew('chat') },
+          h('span', { className: 'crew-new-menu-icon', 'aria-hidden': 'true' }, h(ChatIcon, { size: 16 })),
+          h('span', { className: 'crew-new-menu-title' }, '聊天室')),
+        h('button', { type: 'button', role: 'menuitem', className: 'crew-new-menu-item', onClick: () => chooseNew('studio') },
+          h('span', { className: 'crew-new-menu-icon', 'aria-hidden': 'true' }, h(StudioIcon, { size: 16 })),
+          h('span', { className: 'crew-new-menu-title' }, '工作室')))
+      : null)
+
   return h(Fragment, null,
     hasRail
       ? h('div', {
@@ -255,13 +299,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
         h('span', { className: 'crew-side-monogram', 'aria-hidden': 'true' }, 'L')),
         rail
           ? null
-          : h('button', {
-            type: 'button',
-            className: 'crew-new crew-new-icon',
-            'aria-label': '新建房间',
-            title: '新建房间',
-            onClick: onNew,
-          }, h(PlusIcon))),
+          : newButton()),
       state.runtime?.ok === false
         ? h('div', {
           className: 'crew-error crew-side-error',
@@ -274,13 +312,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
         : null,
       rail
         ? h('div', { className: 'crew-side-tools' },
-          h('button', {
-            type: 'button',
-            className: 'crew-new crew-new-icon',
-            'aria-label': '新建房间',
-            title: '新建房间',
-            onClick: onNew,
-          }, h(PlusIcon)),
+          newButton(),
           h('button', {
             type: 'button',
             className: 'crew-side-toggle',

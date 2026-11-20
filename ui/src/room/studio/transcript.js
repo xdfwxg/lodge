@@ -27,7 +27,6 @@ export function StudioTranscript({
   onAnswerCard = null,
   onCancelQueue = null,
   onSteerQueue = null,
-  onContinue = null,
   onDiscussChat = null,
   onReturn = null,
   onRework = null,
@@ -135,9 +134,6 @@ export function StudioTranscript({
       : null,
     typeof onDiscussChat === 'function'
       ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
-      : null,
-    typeof onContinue === 'function'
-      ? h('button', { type: 'button', className: 'crew-link', onClick: onContinue }, '接着改')
       : null)
   // 做完了就只给结果；完整工作记录收起来，需要时再看。
   if (finished) {
