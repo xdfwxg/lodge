@@ -268,7 +268,17 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         ],
       }
     }
-    const firstRound = buildRoundFromRoom({ room, ordinal: 1, status: 'active' })
+    let projectId = null
+    if (project !== null && typeof project.northStar === 'string' && project.northStar !== '') {
+      const createdProject = store.writeProject({
+        id: `project-${short}`,
+        name: project.northStar.slice(0, 60),
+        northStar: project.northStar,
+        status: 'active',
+      })
+      projectId = createdProject.id
+    }
+    const firstRound = buildRoundFromRoom({ room, projectId, ordinal: 1, status: 'active' })
     const studio = studioFromRoom(room, firstRound)
     store.writeRoom(studio)
     store.writeWorkRound(firstRound)

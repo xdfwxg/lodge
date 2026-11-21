@@ -123,7 +123,8 @@ export function App() {
     projectId !== null
       ? h(ProjectView, {
         rooms: state.rooms,
-        rootId: projectId,
+        projects: state.projects ?? [],
+        projectId,
         onClose: () => setProjectId(null),
         onOpenRoom: id => {
           setProjectId(null)

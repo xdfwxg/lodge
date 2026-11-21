@@ -89,11 +89,14 @@ export const studioFromRoom = (room, round) => {
     state: 'active',
     activeRoundId: round.id,
     lastRoundId: room.lastRoundId ?? null,
+    defaultProjectId: round.projectId ?? room.defaultProjectId ?? null,
     idle: false,
   }
   for (const field of ROUND_FIELDS) delete studio[field]
   delete studio.pastGoals
   delete studio.nextRoomId
+  delete studio.project
+  delete studio.phase
   delete studio.workRound
   delete studio.workRoundId
   return studio

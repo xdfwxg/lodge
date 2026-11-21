@@ -16,7 +16,30 @@ export const createServiceQueries = ({
   files,
   workspace,
 }) => {
-  const { readRoom, readRooms, readRecentMessages, readMessagesSince, readAssignments } = store
+  const {
+    readRoom,
+    readRooms,
+    readRecentMessages,
+    readMessagesSince,
+    readAssignments,
+    readProjects,
+    readWorkRounds,
+    readWorkRoundsByProject,
+  } = store
+
+  const roundSummary = round => ({
+    id: round.id,
+    roomId: round.roomId,
+    projectId: round.projectId ?? null,
+    ordinal: round.ordinal,
+    status: round.status,
+    name: round.name,
+    goal: round.goal,
+    startedAt: round.startedAt ?? null,
+    completedAt: round.completedAt ?? null,
+    completedCommit: round.completedCommit ?? null,
+    usage: round.usage ?? null,
+  })
 
   const publicMessage = message => {
     if (message.meta === undefined) return message
@@ -77,8 +100,13 @@ export const createServiceQueries = ({
           }),
           brief: briefOf(room),
           messages,
+          rounds: readWorkRounds(room.id).map(roundSummary),
         }
       }),
+      projects: readProjects().map(project => ({
+        ...project,
+        rounds: readWorkRoundsByProject(project.id).map(roundSummary),
+      })),
       engines,
     }
   }

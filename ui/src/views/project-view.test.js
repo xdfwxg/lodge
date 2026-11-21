@@ -1,39 +1,69 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { phaseStatusOf, projectTrailOf } from './project-view.js'
+import { createElement as h } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ProjectView, roundStatusOf } from './project-view.js'
 
-const rooms = [
-  { id: 'p1', name: '第一阶段', goal: '先做一个能跑的原型', state: 'complete', nextRoomId: 'p2' },
-  { id: 'p2', name: '第二阶段', goal: '补上真实数据', state: 'complete', sourceRoomId: 'p1', nextRoomId: 'p3' },
-  { id: 'p3', name: '第三阶段', goal: '放到真实房间', state: 'active', sourceRoomId: 'p2' },
-]
+const projects = [{
+  id: 'project-1',
+  name: '长期项目',
+  northStar: '把长期目标做成可交付项目',
+  rounds: [
+    { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'completed', goal: '先做一个能跑的原型' },
+    { id: 'round-2', roomId: 'room-2', ordinal: 2, status: 'active', goal: '补上真实数据' },
+  ],
+}]
 
-test('a project trail follows the room chain from any phase', () => {
-  for (const start of ['p1', 'p2', 'p3']) {
-    const trail = projectTrailOf(rooms, start)
-    assert.equal(trail.root.id, 'p1')
-    assert.deepEqual(trail.phases.map(phase => phase.id), ['p1', 'p2', 'p3'])
-    assert.equal(trail.current.id, 'p3')
-  }
+test('round status reads like a person, not a round enum', () => {
+  assert.equal(roundStatusOf({ status: 'completed' }), '已交付')
+  assert.equal(roundStatusOf({ status: 'active' }), '进行中')
+  assert.equal(roundStatusOf({ status: 'planning' }), '待决定')
+  assert.equal(roundStatusOf({ status: 'rejected' }), '已退回')
+  assert.equal(roundStatusOf({ status: 'superseded' }), '已作废')
+  assert.equal(roundStatusOf({ status: 'stopped' }), '已停止')
+  assert.equal(roundStatusOf({}), '待开始')
 })
 
-test('a broken or cyclic chain stops instead of looping', () => {
-  const cyclic = [
-    rooms[0],
-    rooms[1],
-    { ...rooms[2], nextRoomId: 'p4' },
-    { id: 'p4', name: '第四阶段', goal: '循环', state: 'complete', sourceRoomId: 'p3', nextRoomId: 'p1' },
-  ]
-  const trail = projectTrailOf(cyclic, 'p1')
-  assert.deepEqual(trail.phases.map(phase => phase.id), ['p1', 'p2', 'p3', 'p4'])
-  assert.equal(projectTrailOf(rooms, 'missing'), null)
-  assert.deepEqual(projectTrailOf([rooms[0], { ...rooms[1], nextRoomId: 'missing' }], 'p2').phases.map(phase => phase.id), ['p1', 'p2'])
+test('a project page lists rounds, not a room chain', () => {
+  const html = renderToStaticMarkup(h(ProjectView, {
+    projects,
+    rooms: [],
+    projectId: 'project-1',
+    onClose: () => {},
+    onOpenRoom: () => {},
+  }))
+  assert.match(html, /长期项目/)
+  assert.match(html, /把长期目标做成可交付项目/)
+  assert.match(html, /2 轮/)
+  assert.match(html, /先做一个能跑的原型/)
+  assert.match(html, /补上真实数据/)
+  assert.match(html, /进行中/)
+  assert.doesNotMatch(html, /项目轨迹/)
 })
 
-test('phase status reads like a person, not a room state enum', () => {
-  assert.equal(phaseStatusOf({ state: 'complete' }), '已交付')
-  assert.equal(phaseStatusOf({ state: 'active' }), '进行中')
-  assert.equal(phaseStatusOf({ state: 'paused' }), '已暂停')
-  assert.equal(phaseStatusOf({ state: 'stopped' }), '已停止')
-  assert.equal(phaseStatusOf({ state: 'pending' }), '待开始')
+test('a delivered latest round offers the next round in the same project', () => {
+  const html = renderToStaticMarkup(h(ProjectView, {
+    projects: [{
+      ...projects[0],
+      rounds: [{ ...projects[0].rounds[0] }],
+    }],
+    rooms: [{ id: 'room-1', defaultProjectId: 'project-1' }],
+    projectId: 'project-1',
+    onClose: () => {},
+    onOpenRoom: () => {},
+    onFollowup: async () => ({ room: { id: 'room-1' } }),
+  }))
+  assert.match(html, /下一轮要做什么/)
+  assert.match(html, /开下一轮/)
+})
+
+test('a missing project is an honest empty state', () => {
+  const html = renderToStaticMarkup(h(ProjectView, {
+    projects: [],
+    rooms: [],
+    projectId: 'missing',
+    onClose: () => {},
+    onOpenRoom: () => {},
+  }))
+  assert.match(html, /项目还没连起来/)
 })

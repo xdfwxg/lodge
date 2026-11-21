@@ -4,6 +4,7 @@ import { humanErrorText } from './error-text.js'
 const EMPTY = {
   phase: 'loading',
   rooms: [],
+  projects: [],
   roles: [],
   roomTypes: [],
   engines: [],
@@ -105,6 +106,7 @@ export function createStore() {
         : (rooms.find(room => !room.archivedAt)?.id ?? null)
       patch({
         rooms,
+        projects: data.projects ?? state.projects,
         roles: data.roles ?? state.roles,
         roomTypes: data.roomTypes ?? state.roomTypes,
         engines: data.engines ?? state.engines,
@@ -190,6 +192,7 @@ export function createStore() {
         ...state,
         phase: 'ready',
         rooms: data.rooms,
+        projects: data.projects ?? [],
         roles: data.roles,
         roomTypes: data.roomTypes ?? [],
         engines: data.engines ?? [],
@@ -284,11 +287,12 @@ export function createStore() {
       await refreshRooms()
       return data
     },
-    // 已交付的工作室：不重回填表，直接把这句话变成下一版的目标。
+    // 已交付的工作室：不重回填表，直接把这句话变成下一轮的目标。
     followup: async (text, options = {}) => {
       const roomId = options.roomId ?? state.activeId
       const data = await post(`/api/rooms/${roomId}/followup`, {
         text,
+        ...(typeof options.projectId === 'string' && options.projectId !== '' ? { projectId: options.projectId } : {}),
         ...(options.verify === 'test' ? {
           verify: 'test',
           acceptance: typeof options.acceptance === 'string' ? options.acceptance : '',

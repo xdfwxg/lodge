@@ -15,81 +15,114 @@ const members = [
   member('verifier', '验收员', 'verifier', 'verifier'),
 ]
 
-const phase = ({ id, name, goal, state, sourceRoomId, nextRoomId }) => ({
-  id,
+const completedRound = {
+  id: 'round-1',
+  roomId: 'room-1',
+  projectId: 'project-1',
+  ordinal: 1,
+  status: 'completed',
+  name: '先做一个原型',
+  goal: '先做一个原型',
+  startedAt: Date.now() - 60_000,
+  completedAt: Date.now() - 30_000,
+  completedCommit: 'abc12345',
+}
+
+const studio = over => ({
+  id: 'room-1',
   kind: 'room',
   roomType: 'studio',
-  name,
-  goal,
-  state,
+  name: '长期工作间',
+  goal: '先做一个原型',
+  state: 'idle',
   live: true,
   demo: false,
+  defaultProjectId: 'project-1',
+  workRound: completedRound,
   members,
   messages: [],
-  stages: [{ title: '实现', kind: 'deliverable', state: state === 'complete' ? 'passed' : 'active', acceptance: 'npm test' }],
-  sourceRoomId,
-  nextRoomId,
+  stages: [{ title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' }],
   modeCapabilities: { stages: true },
   capabilities: {},
   independenceLabel: '独立复核',
-  delivery: state === 'complete' ? { changedFiles: ['src/phase.js'] } : null,
+  delivery: { changedFiles: ['src/a.js'] },
+  ...over,
 })
 
-test('a three-phase project reads as one trail and opens a phase', async ({ page, request }) => {
+const project = over => ({
+  id: 'project-1',
+  name: '长期项目',
+  northStar: '把长期目标做成可交付项目',
+  rounds: [completedRound],
+  ...over,
+})
+
+test('a project lists its rounds and opens the studio that owns them', async ({ page, request }) => {
   const base = await (await request.get('/api/state')).json()
-  const rooms = [
-    { ...phase({ id: 'phase-1', name: '长期项目', goal: '把长期目标拆成三个可交付阶段', state: 'complete', nextRoomId: 'phase-2' }), project: { northStar: '把长期目标做成可交付项目' }, phase: { name: '阶段一', index: 1 } },
-    { ...phase({ id: 'phase-2', name: '第二阶段', goal: '补上真实数据', state: 'complete', sourceRoomId: 'phase-1', nextRoomId: 'phase-3' }), phase: { name: '阶段二', index: 2 } },
-    { ...phase({ id: 'phase-3', name: '第三阶段', goal: '放到真实房间', state: 'active', sourceRoomId: 'phase-2' }), phase: { name: '阶段三', index: 3 } },
-  ]
-  await page.route('**/api/state', route => route.fulfill({ json: { ...base, rooms } }))
+  const state = {
+    ...base,
+    rooms: [studio()],
+    projects: [project()],
+  }
+  await page.route('**/api/state', route => route.fulfill({ json: state }))
   await page.goto('/')
 
-  await expect(page.getByRole('button', { name: '项目轨迹' })).toBeVisible()
-  await page.getByRole('button', { name: '项目轨迹' }).click()
+  await page.getByRole('button', { name: /长期工作间/ }).first().click()
+  await page.getByRole('button', { name: '项目' }).click()
   await expect(page.getByRole('heading', { name: '长期项目' })).toBeVisible()
-  await expect(page.locator('.crew-project-phase')).toHaveCount(3)
-  await expect(page.getByText('3 个阶段 · 当前第 3 阶段')).toBeVisible()
-  await expect(page.getByText('把长期目标做成可交付项目')).toBeVisible()
-  await expect(page.getByText('阶段三').first()).toBeVisible()
+  await expect(page.getByText('1 轮 · 已交付')).toBeVisible()
+  await expect(page.getByText('先做一个原型').first()).toBeVisible()
 
-  await page.getByRole('button', { name: '打开当前阶段' }).click()
-  await expect(page.getByRole('button', { name: '项目轨迹' })).toBeVisible()
+  await page.getByRole('button', { name: '打开这一轮的工作室' }).click()
+  await expect(page.getByRole('button', { name: '项目' })).toBeVisible()
 })
 
-test('a delivered project opens the next phase from the trail', async ({ page, request }) => {
+test('a completed project starts the next round in the same studio', async ({ page, request }) => {
   const base = await (await request.get('/api/state')).json()
-  let rooms = [
-    { ...phase({ id: 'phase-1', name: '长期项目', goal: '把长期目标拆成三个可交付阶段', state: 'complete', nextRoomId: 'phase-2' }), project: { northStar: '把长期目标做成可交付项目' }, phase: { name: '阶段一', index: 1 } },
-    { ...phase({ id: 'phase-2', name: '第二阶段', goal: '补上真实数据', state: 'complete', sourceRoomId: 'phase-1', nextRoomId: 'phase-3' }), phase: { name: '阶段二', index: 2 } },
-    { ...phase({ id: 'phase-3', name: '第三阶段', goal: '放到真实房间', state: 'complete', sourceRoomId: 'phase-2' }), phase: { name: '阶段三', index: 3 } },
-  ]
-  const next = {
-    ...phase({
-      id: 'phase-4',
-      name: '第四阶段',
-      goal: '接上真实用户',
-      state: 'active',
-      sourceRoomId: 'phase-3',
-    }),
-    phase: { name: '接上真实用户', index: 4 },
+  let state = {
+    ...base,
+    rooms: [studio()],
+    projects: [project()],
   }
-  await page.route('**/api/state', route => route.fulfill({ json: { ...base, rooms } }))
-  await page.route('**/api/rooms/phase-3/followup', async route => {
+  const nextRound = {
+    ...completedRound,
+    id: 'round-2',
+    ordinal: 2,
+    status: 'active',
+    name: '修登录超时',
+    goal: '修登录超时',
+    completedAt: null,
+    completedCommit: null,
+  }
+  const activeRoom = studio({
+    state: 'active',
+    goal: '修登录超时',
+    workRound: nextRound,
+    stages: [{ title: '修登录超时', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    delivery: null,
+  })
+  await page.route('**/api/state', route => route.fulfill({ json: state }))
+  await page.route('**/api/rooms/room-1/followup', async route => {
     const body = route.request().postDataJSON()
-    expect(body.text).toBe('接上真实用户')
+    expect(body.text).toBe('修登录超时')
+    expect(body.projectId).toBe('project-1')
     expect(body.verify).toBe('test')
     expect(body.acceptance).toBe('npm test')
-    rooms = rooms.map(room => room.id === 'phase-3' ? { ...room, nextRoomId: 'phase-4' } : room).concat(next)
-    await route.fulfill({ json: { room: next } })
+    state = {
+      ...state,
+      rooms: [activeRoom],
+      projects: [project({ rounds: [completedRound, nextRound] })],
+    }
+    await route.fulfill({ json: { room: activeRoom } })
   })
   await page.goto('/')
 
-  await page.getByRole('button', { name: '项目轨迹' }).click()
-  await expect(page.getByLabel('下一阶段要做什么？')).toBeVisible()
-  await page.getByLabel('下一阶段要做什么？').fill('接上真实用户')
+  await page.getByRole('button', { name: /长期工作间/ }).first().click()
+  await page.getByRole('button', { name: '项目' }).click()
+  await page.getByLabel('下一轮要做什么？').fill('修登录超时')
   await page.getByLabel('验收命令（可不填）').fill('npm test')
-  await page.getByRole('button', { name: '开下一阶段' }).click()
-  await expect(page.getByText('4 个阶段 · 当前第 4 阶段')).toBeVisible()
-  await expect(page.getByRole('button', { name: '打开当前阶段' })).toBeVisible()
+  await page.getByRole('button', { name: '开下一轮' }).click()
+
+  await expect(page.getByText('2 轮 · 进行中')).toBeVisible()
+  await expect(page.getByText('修登录超时').first()).toBeVisible()
 })
