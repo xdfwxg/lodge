@@ -18,6 +18,7 @@ const docs = {
   'docs/architecture.md': read('docs/architecture.md'),
   'docs/design.md': read('docs/design.md'),
   'docs/agent-design.md': read('docs/agent-design.md'),
+  'docs/project-room.md': read('docs/project-room.md'),
   'docs/operations.md': read('docs/operations.md'),
 }
 
@@ -28,7 +29,7 @@ must(
   JSON.stringify(rootDocs) === JSON.stringify(['CLAUDE.md', 'Lodge.md', 'README.md', '乔布斯.md']),
 )
 const docsDir = readdirSync(resolve(root, 'docs')).filter(name => name.endsWith('.md')).sort()
-must('docs keeps architecture, design, agent design and operations', JSON.stringify(docsDir) === JSON.stringify(['agent-design.md', 'architecture.md', 'design.md', 'operations.md']))
+must('docs keeps architecture, design, agent design, project room and operations', JSON.stringify(docsDir) === JSON.stringify(['agent-design.md', 'architecture.md', 'design.md', 'operations.md', 'project-room.md']))
 
 for (const [file, text] of Object.entries(docs)) {
   if (file === 'README.md') continue
@@ -37,7 +38,7 @@ for (const [file, text] of Object.entries(docs)) {
 
 // README 是唯一入口：四份文档都能从入口点开。
 must('README links Lodge.md', docs['README.md'].includes('(Lodge.md)'))
-for (const file of ['architecture', 'design', 'agent-design', 'operations']) {
+for (const file of ['architecture', 'design', 'agent-design', 'project-room', 'operations']) {
   must(`README links docs/${file}.md`, docs['README.md'].includes(`(docs/${file}.md)`))
 }
 

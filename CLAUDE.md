@@ -36,5 +36,6 @@
 
 - 架构与角色技能：`docs/architecture.md`
 - Agent 设计门禁：`docs/agent-design.md`
+- 长期项目设计：`docs/project-room.md`
 - 验收矩阵：`docs/testing/acceptance-matrix.md`
 - 真实运行记录：`docs/testing/validation.md`
