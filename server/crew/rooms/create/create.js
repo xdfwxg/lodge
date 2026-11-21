@@ -6,7 +6,7 @@ import { buildRoomRecord, initialRoomMessages } from './record.js'
 import { createProvisioner } from './provision.js'
 import { bodyIssueText } from '../../body-check.js'
 import { plainRuntimeError } from '../../base-error.js'
-import { PROJECT_STATUS, ROUND_STATUS } from '../../../../shared/states.js'
+import { ROUND_STATUS } from '../../../../shared/states.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
 import { gateRecordOf } from '../../gate/index.js'
@@ -266,7 +266,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         id: `project-${short}`,
         name: project.northStar.slice(0, 60),
         northStar: project.northStar,
-        status: PROJECT_STATUS.active,
       })
       projectId = createdProject.id
     }
