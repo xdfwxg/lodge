@@ -1,9 +1,10 @@
 // The island is Lodge's own shape: rooms, stages and verdicts in; surface data out.
 // This is the only place that translates room state for the island.
 
-import { createElement as h, useState } from 'react'
+import { createElement as h } from 'react'
 import { GoalIsland, GOAL_CSS, goalView } from './surface.js'
 import { Lingchong, LINGCHONG_CSS } from './lingchong.js'
+import { useHoverPeek } from './use-hover-peek.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
@@ -88,16 +89,16 @@ const PILL_CSS = `
 
 // 默认收成小胶囊，悬停或键盘聚焦时放大，露出目标原句。
 function DoneIsland({ goal, label, lingchongMode = 'studio' }) {
-  const [peek, setPeek] = useState(false)
+  const { peeking: peek, onPointerEnter, onPointerLeave, onFocus, onBlur } = useHoverPeek()
   return h('div', {
     className: 'crew-island-done-wrap',
     'data-peek': peek ? 'true' : undefined,
     tabIndex: 0,
     'aria-label': `房间${label}`,
-    onPointerEnter: event => { if (event.pointerType !== 'touch') setPeek(true) },
-    onPointerLeave: () => setPeek(false),
-    onFocus: event => { if (event.target.matches(':focus-visible')) setPeek(true) },
-    onBlur: event => { if (!event.currentTarget.contains(event.relatedTarget)) setPeek(false) },
+    onPointerEnter,
+    onPointerLeave,
+    onFocus,
+    onBlur,
   },
   h(Lingchong, { state: 'done', mode: lingchongMode }),
   h('div', { className: 'crew-island-done' },

@@ -1,5 +1,7 @@
 import { createElement as h, useEffect, useId, useRef } from 'react'
-const standingArt = new URL('../assets/lingchong-color.png', import.meta.url).href
+const standingArt = new URL('../assets/lingchong-line-warm.png', import.meta.url).href
+const colorArt = new URL('../assets/lingchong-color.png', import.meta.url).href
+const lodgeMark = new URL('../assets/lingchong-lodge-mark.png', import.meta.url).href
 
 const WALK_SPEED = 22
 const CHASE_SPEED = 52
@@ -46,6 +48,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
   const stage = useRef(null)
   const tail = useRef(null)
   const body = useRef(null)
+  const forehead = useRef(null)
   const legs = useRef([{ current: null }, { current: null }, { current: null }, { current: null }])
   const blink = useRef(null)
   const yawn = useRef(null)
@@ -413,6 +416,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
         flip.current.style.transform =
           // 趴下是压成一只更胖的猫：横向撑开，纵向只压一点，肚子贴着岛面。
           `scale(${(dirSign * (1 + 0.16 * sm)).toFixed(4)}, ${(1 - 0.14 * sm).toFixed(4)}) translateY(${(10.5 * sm * (petWidth / 112)).toFixed(2)}px)`
+        if (forehead.current) forehead.current.style.transform = dirSign < 0 ? 'scaleX(-1)' : ''
       }
 
       if (yawn.current) yawn.current.classList.toggle('on', yawning || (sleeping && snore > 0.2))
@@ -496,7 +500,9 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
         alt: '',
         draggable: 'false',
       })),
-      h('img', { ref: body, className: 'lingchong-art art-body', src: standingArt, alt: '', draggable: 'false' }),
+      h('span', { ref: body, className: 'lingchong-body' },
+        h('img', { className: 'lingchong-art art-body', src: standingArt, alt: '', draggable: 'false' }),
+        h('img', { ref: forehead, className: 'lingchong-lodge', src: lodgeMark, alt: '', draggable: 'false' })),
       h('svg', { ref: blink, className: 'lingchong-blink', viewBox: `0 0 ${ART_W} ${ART_H}`, 'aria-hidden': true },
         h('rect', { x: 101, y: 41, width: 36, height: 24, rx: 10, fill: '#f8f3ea' }),
         h('rect', { x: 137, y: 41, width: 36, height: 24, rx: 10, fill: '#f8f3ea' }),
@@ -530,17 +536,18 @@ body[data-ds-dark-theme] .lingchong{filter:drop-shadow(0 1px 3px rgba(0,0,0,.42)
 .lingchong-ink-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 .lingchong-flip{position:absolute;inset:0;transform-origin:50% 50%}
 .lingchong-stage{position:absolute;left:0;top:0;width:385px;height:195px;transform-origin:0 0;transform:scale(var(--pet-scale)) translateY(30px);filter:var(--lingchong-ink-filter,none)}
-body[data-ds-dark-theme] .lingchong-stage{filter:none}
-body[data-ds-dark-theme] .lingchong-art{filter:sepia(1) saturate(5) hue-rotate(-25deg) brightness(.6)}
-body[data-ds-dark-theme] .lingchong-blink,
-body[data-ds-dark-theme] .lingchong-yawn{filter:sepia(1) saturate(5) hue-rotate(-25deg) brightness(.6)}
+body[data-ds-dark-theme] .lingchong-stage{filter:contrast(1.03) brightness(.96) saturate(.9)}
+/* 暗色底上纯白反相会变成发虚的剪影；换奶白配色，脸和身体还看得清。 */
+body[data-ds-dark-theme] .lingchong-art{content:url("${colorArt}")}
 .lingchong-art{position:absolute;inset:0;width:385px;height:195px;pointer-events:none;user-select:none}
 .art-tail{clip-path:inset(0 15px 55px 288px);transform-origin:285px 95px;z-index:1}
 .leg-ff{clip-path:inset(138px 242px 20px 100px);transform-origin:123px 138px;z-index:2}
 .leg-fn{clip-path:inset(138px 199px 20px 143px);transform-origin:161px 138px;z-index:2}
 .leg-bf{clip-path:inset(138px 133px 20px 192px);transform-origin:224px 138px;z-index:2}
 .leg-bn{clip-path:inset(138px 89px 20px 252px);transform-origin:272px 138px;z-index:2}
-.art-body{clip-path:inset(0 93px 55px 60px);transform-origin:195px 140px;z-index:3}
+.lingchong-body{position:absolute;inset:0;z-index:3;transform-origin:195px 140px;pointer-events:none}
+.art-body{clip-path:inset(0 93px 55px 60px);z-index:1}
+.lingchong-lodge{position:absolute;left:110px;top:15px;width:54px;height:19px;z-index:2;pointer-events:none;user-select:none;transform-origin:27px 9.5px}
 .lingchong-blink{position:absolute;inset:0;width:385px;height:195px;opacity:0;z-index:4;pointer-events:none}
 .lingchong-blink.on{opacity:1}
 .lingchong-yawn{position:absolute;inset:0;width:385px;height:195px;opacity:0;z-index:5;pointer-events:none}
@@ -556,13 +563,13 @@ body[data-ds-dark-theme] .lingchong-yawn{filter:sepia(1) saturate(5) hue-rotate(
 @keyframes lingchong-flap{from{transform:scaleX(.25)}to{transform:scaleX(1)}}
 .lingchong-zzz{position:absolute;left:0;top:0;z-index:10;pointer-events:none;opacity:0;transition:opacity .4s var(--bt-ease)}
 .lingchong-zzz.on{opacity:1}
-.lingchong-zzz span{position:absolute;font:600 12px/1 var(--bt-font);color:var(--bt-ink-3);opacity:0;animation:lingchong-zzz 3.2s ease-out infinite}
+.lingchong-zzz span{position:absolute;font:700 18px/1 var(--bt-font);color:var(--bt-star,#f6c453);text-shadow:0 0 6px rgba(246,196,83,.45);opacity:0;animation:lingchong-zzz 3.2s ease-out infinite}
 .lingchong-zzz span::before{content:'z'}
-.lingchong-zzz span:nth-child(1){left:44px;top:14px;font-size:12px;animation-delay:0s}
-.lingchong-zzz span:nth-child(2){left:57px;top:6px;font-size:15px;animation-delay:1.1s}
-.lingchong-zzz span:nth-child(3){left:70px;top:-2px;font-size:18px;animation-delay:2.2s}
+.lingchong-zzz span:nth-child(1){left:40px;top:10px;font-size:18px;animation-delay:0s}
+.lingchong-zzz span:nth-child(2){left:55px;top:1px;font-size:22px;animation-delay:1.1s}
+.lingchong-zzz span:nth-child(3){left:70px;top:-8px;font-size:26px;animation-delay:2.2s}
 @keyframes lingchong-zzz{0%{opacity:0;transform:translate(0,5px) scale(.6)}20%{opacity:.9}100%{opacity:0;transform:translate(15px,-28px) scale(1.2)}}
-.lingchong-puff{position:absolute;width:9px;height:9px;border-radius:50%;border:1px solid rgba(128,112,88,.32);opacity:0;pointer-events:none;animation:lingchong-puff 1.6s ease-out forwards}
+.lingchong-puff{position:absolute;width:9px;height:9px;border-radius:50%;border:1px solid rgba(246,196,83,.65);background:rgba(246,196,83,.1);box-shadow:0 0 6px rgba(246,196,83,.3);opacity:0;pointer-events:none;animation:lingchong-puff 1.6s ease-out forwards}
 @keyframes lingchong-puff{0%{opacity:0;transform:translate(0,0) scale(.35)}20%{opacity:.8}100%{opacity:0;transform:translate(10px,-18px) scale(1.4)}}
 .spark-field{position:absolute;inset:0;pointer-events:none;z-index:8}
 .spark{position:absolute;color:var(--bt-star,#f6c453);font-size:13px;opacity:0;animation:lingchong-spark 1s ease-out forwards}

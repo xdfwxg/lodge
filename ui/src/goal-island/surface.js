@@ -8,6 +8,7 @@ import { useEscape } from './dismiss.js'
 import { SPRING_SHAPE, spring, useMorph } from './motion.js'
 import { t } from './copy.js'
 import { Lingchong } from './lingchong.js'
+import { useHoverPeek } from './use-hover-peek.js'
 
 // -------------------------------------------------------------------------
 // The header island is the room's status screen. One surface wraps the
@@ -289,8 +290,8 @@ function GoalPanel({ goal, view, room, actions }) {
 export function GoalIsland({ room, goal, view, mode, signal, actions, pill, lingchongState = 'rest' }) {
   const island = useRef(null)
   const open = mode === 'open'
-  // 收成小药囊；鼠标移上去或键盘聚焦时展开，有事件时一直展开。
-  const [peeking, setPeeking] = useState(false)
+  // 收成小药囊；鼠标停一下或键盘聚焦时展开，有事件时一直展开。
+  const { peeking, onPointerEnter, onPointerLeave, onFocus, onBlur } = useHoverPeek()
   const compact = !open && (signal === null || signal === undefined) && !peeking
   // 回合跑起来时展开；结束再停留一小会儿，然后回到最小。
   const [flash, setFlash] = useState(false)
@@ -341,10 +342,10 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill, ling
     'data-signal': signal?.kind,
     'data-signal-key': signal?.key,
     'data-sweep': sweeping ? 'true' : undefined,
-    onPointerEnter: event => { if (event.pointerType !== 'touch') setPeeking(true) },
-    onPointerLeave: () => setPeeking(false),
-    onFocus: event => { if (event.target.matches(':focus-visible')) setPeeking(true) },
-    onBlur: event => { if (!event.currentTarget.contains(event.relatedTarget)) setPeeking(false) },
+    onPointerEnter,
+    onPointerLeave,
+    onFocus,
+    onBlur,
   },
   open ? h(GoalOutside, { island, close: actions.closeGoal }) : null,
   open ? pill : null,
