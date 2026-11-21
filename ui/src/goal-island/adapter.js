@@ -15,16 +15,21 @@ const stagesOf = room => room.modeCapabilities?.stages === false
   : Array.isArray(room.stages) ? room.stages : []
 const activeIndex = room => stagesOf(room).findIndex(stage => stage.state === 'active')
 
+// 旧轮可能存过被截断的附件标记（没有结尾的 />），显示时连半截一起拿掉。
+const cleanTitle = value => stripAttachmentTags(value)
+  .replace(/<attached-(?:image|file)[\s\S]*$/i, '')
+  .trim()
+
 export const toIslandGoal = room => ({
   id: room.id,
-  title: room.name,
+  title: cleanTitle(room.name),
   status: room.state === 'complete'
     ? 'complete'
     : room.state === 'paused' ? 'paused' : room.state === 'stopped' ? 'stopped' : 'active',
   idle: room.idle === true || room.needsYou?.kind === 'idle',
   current: activeIndex(room),
   stages: stagesOf(room).map(stage => ({
-    title: stage.title,
+    title: cleanTitle(stage.title),
     kind: stage.kind,
     status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
   })),

@@ -85,15 +85,14 @@ export function StudioAdjust({ room, onRewind }) {
   if (room.state !== 'active' || room.live !== true || stages.length === 0) return null
   const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
   return h(Fragment, null,
-    h('div', { className: 'crew-room-adjust' },
-      h('button', {
-        type: 'button',
-        className: 'crew-link',
-        onClick: () => {
-          setError(null)
-          setOpen(true)
-        },
-      }, finished ? '调整某一步' : '调整步骤')),
+    h('button', {
+      type: 'button',
+      className: 'crew-link',
+      onClick: () => {
+        setError(null)
+        setOpen(true)
+      },
+    }, finished ? '调整某一步' : '调整步骤'),
     open
       ? h(StageRewindDialog, {
         room,

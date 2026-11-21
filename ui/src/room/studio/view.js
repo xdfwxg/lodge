@@ -12,51 +12,57 @@ export const studioView = {
   id: 'studio',
   className: 'crew-room-studio',
   opensAtTop: ({ room }) => room.state === 'complete',
-  header: ({ room, actions }) => h(Fragment, null,
-    room.sourceRoomId && room.sourceName
-      ? h('div', { className: 'studio-run-back' },
-        h('button', {
+  header: ({ room, actions }) => {
+    const projectId = room.workRound?.projectId ?? room.defaultProjectId
+    const rounds = room.rounds ?? []
+    const nav = [
+      room.sourceRoomId && room.sourceName
+        ? h('button', {
+          key: 'source',
           type: 'button',
           className: 'crew-link',
           onClick: () => actions.selectRoom(room.sourceRoomId),
-        }, `← 上一版《${room.sourceName}》`))
-      : null,
-    (room.workRound?.projectId ?? room.defaultProjectId) && typeof actions.openProject === 'function'
-      ? h('div', { className: 'studio-run-back' },
-        h('button', {
+        }, `← ${room.sourceName}`)
+        : null,
+      projectId && typeof actions.openProject === 'function'
+        ? h('button', {
+          key: 'project',
           type: 'button',
           className: 'crew-link',
-          onClick: () => actions.openProject(room.workRound?.projectId ?? room.defaultProjectId),
-        }, '项目'))
-      : null,
-    (room.rounds ?? []).length > 0 && typeof actions.openRounds === 'function'
-      ? h('div', { className: 'studio-run-back' },
-        h('button', {
+          onClick: () => actions.openProject(projectId),
+        }, '项目')
+        : null,
+      rounds.length > 0 && typeof actions.openRounds === 'function'
+        ? h('button', {
+          key: 'rounds',
           type: 'button',
           className: 'crew-link',
           onClick: () => actions.openRounds(),
-        }, '轮次'))
-      : null,
-    h(GoalIslandHeader, {
-      room,
-      onOpenRoom: actions.selectRoom,
-      onSignalAction: (signal, action) => {
-        if (signal?.needs !== 'review-timeout' || !Number.isInteger(signal.stage)) return false
-        if (action === 'rework') actions.rework(signal.stage, '')
-        else actions.verify(signal.stage)
-        return true
-      },
-    }),
-    h(PausedPanel, {
-      room,
-      onResume: () => actions.resume(),
-      onFixMember: memberId => actions.swapBody(memberId),
-    })),
-  tools: ({ room, members, actions }) => {
-    if (room.state !== 'active' || room.live !== true) return null
-    const stages = (room.stages ?? []).filter(stage => stage.state !== 'pending')
-    if (stages.length === 0) return null
-    return h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind })
+        }, '轮次')
+        : null,
+    ].filter(Boolean)
+    return h(Fragment, null,
+      h('div', { className: 'studio-topbar' },
+        h('div', { className: 'studio-topbar-nav' },
+          nav.flatMap((node, index) => (index === 0
+            ? [node]
+            : [h('span', { key: `dot-${index}`, className: 'studio-topbar-dot', 'aria-hidden': 'true' }, '·'), node]))),
+        h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind })),
+      h(GoalIslandHeader, {
+        room,
+        onOpenRoom: actions.selectRoom,
+        onSignalAction: (signal, action) => {
+          if (signal?.needs !== 'review-timeout' || !Number.isInteger(signal.stage)) return false
+          if (action === 'rework') actions.rework(signal.stage, '')
+          else actions.verify(signal.stage)
+          return true
+        },
+      }),
+      h(PausedPanel, {
+        room,
+        onResume: () => actions.resume(),
+        onFixMember: memberId => actions.swapBody(memberId),
+      }))
   },
   activity: () => null,
   transcript: ({ room, members, actions }) => {

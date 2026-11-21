@@ -1,5 +1,6 @@
 import { roleKindOf } from '../roster.js'
 import { roomTypeMeta } from '../../../shared/room-types.js'
+import { stripAttachmentTags } from '../../../shared/attachments.js'
 
 const meta = roomTypeMeta('studio')
 
@@ -29,7 +30,7 @@ export const briefDone = (room, plan) => {
 
 export const buildStages = ({ title, plan, verify, acceptance, align }) => {
   const delivery = {
-    title,
+    title: stripAttachmentTags(title).trim() || '这一轮',
     kind: verify === 'test' ? 'deliverable' : 'decision',
     ...(verify === 'test' ? { acceptance } : { manual: true }),
   }

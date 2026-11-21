@@ -233,7 +233,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
   const viewCtx = { state, room, members, locked, actions, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
-  const tools = mode.tools?.(viewCtx) ?? null
   // 正在跑时，发送位就是这次回复的刹车；聊天和工作室共用同一套停下语义。
   const stopControl = turnRunning(room)
     ? h(StopReply, {
@@ -282,7 +281,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
       'data-room-done': finished ? 'true' : undefined,
     },
       mode.header(viewCtx),
-      h('div', { className: 'crew-room-tools' }, tools),
       h(RoomHealth, { key: `health-${room.id}`, room, onForgetMemory: () => store.forgetMemory() }),
       mode.activity(viewCtx),
       h('div', {

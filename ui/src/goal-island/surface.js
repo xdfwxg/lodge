@@ -103,6 +103,10 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
   const nextStage = currentIndex >= 0 ? stages[currentIndex + 1] : stages[0]
   const nextTitle = nextStage?.title ?? ''
   const atLast = stages.length > 0 && currentIndex === stages.length - 1
+  const nextLine = plan
+    ? nextTitle !== '' ? `下一步 · ${nextTitle}` : atLast ? '最后一步' : ''
+    : ''
+  const kicker = nextLine !== '' ? nextLine : title === status ? '' : title
   const radius = 15.5
   const circumference = 2 * Math.PI * radius
   const miniLabel = room.lodge === true ? '空闲中' : title
@@ -143,23 +147,8 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
             h('span', { key: view?.number ?? 'none', className: 'bt-goal-ico-num' }, view?.number ?? '·')),
         h('i', { className: 'bt-goal-closed-pip' })),
         h('span', { className: 'bt-goal-closed-copy' },
-          compact ? null : h('span', { className: 'bt-goal-closed-kicker' }, title),
-          h('span', { className: 'bt-goal-closed-title' }, status))),
-    plan && stages.length > 0
-      ? h('span', { className: 'bt-goal-plan' },
-        h('span', { className: 'bt-goal-plan-rail', 'aria-hidden': true },
-          stages.map((stageView, index) => h('i', {
-            key: stageView.n,
-            className: 'bt-goal-plan-node',
-            'data-state': stageView.status === 'passed' ? 'done'
-              : index === currentIndex ? 'current' : 'todo',
-          }, stageView.status === 'passed' ? h(CheckIcon) : h('span', { className: 'bt-goal-plan-n' }, stageView.n)))),
-        nextTitle === '' && !atLast
-          ? null
-          : h('span', { className: 'bt-goal-plan-next' },
-            nextTitle === '' ? null : h('span', { className: 'bt-goal-plan-k' }, '下一步'),
-            h('span', { className: 'bt-goal-plan-t' }, nextTitle === '' ? '最后一步' : nextTitle)))
-      : null))
+          compact || kicker === '' ? null : h('span', { className: 'bt-goal-closed-kicker' }, kicker),
+          h('span', { className: 'bt-goal-closed-title' }, status)))))
 }
 
 // A single line under the capsule: one thing happened, one way to look at it.
@@ -431,18 +420,6 @@ body[data-ds-dark-theme] .bt-goal-closed-ico[data-chat=true]{color:#f6dda6}
 .bt-goal-closed-kicker{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:500;letter-spacing:.01em;color:var(--bt-ink-3)}
 .bt-goal-closed-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:19px;font-weight:600;color:var(--bt-ink)}
 
-.bt-goal-plan{flex:none;display:flex;align-items:center;gap:10px;min-width:0;margin-left:auto;padding:0;animation:bt-island-layer-in .3s var(--bt-ease) .02s backwards}
-.bt-goal-plan-rail{display:flex;align-items:center;flex:none}
-.bt-goal-plan-node{position:relative;box-sizing:border-box;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--bt-line-2);color:var(--bt-ink-3);font-size:10px;line-height:1;font-style:normal;font-variant-numeric:tabular-nums;transition:background-color .45s var(--bt-ease),border-color .45s var(--bt-ease),box-shadow .45s var(--bt-ease)}
-.bt-goal-plan-node>svg{flex:none;width:10px;height:10px}
-.bt-goal-plan-node + .bt-goal-plan-node{margin-left:12px}
-.bt-goal-plan-node + .bt-goal-plan-node::before{content:"";position:absolute;right:100%;top:50%;width:12px;height:1px;background:var(--bt-line-2);transform:translateY(-50%)}
-.bt-goal-plan-node[data-state=done]{background:var(--bt-green);border-color:var(--bt-green);color:#0c2416}
-.bt-goal-plan-node[data-state=current]{border-color:var(--bt-green);color:var(--bt-ink);box-shadow:0 0 0 2px rgba(63,217,122,.16),0 0 7px rgba(63,217,122,.45)}
-.bt-goal-plan-node[data-state=todo]{opacity:.55}
-.bt-goal-plan-next{flex:0 1 auto;display:flex;align-items:baseline;gap:8px;min-width:0;padding-left:10px}
-.bt-goal-plan-k{flex:none;font-size:11px;line-height:16px;color:var(--bt-ink-3)}
-.bt-goal-plan-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;line-height:17px;color:var(--bt-ink)}
 .bt-goal-signal{display:flex;align-items:center;gap:6px;min-width:0;padding:0 10px 8px 16px;animation:bt-island-layer-in .26s var(--bt-ease) .03s backwards}
 .bt-goal-signal-main{flex:1 1 auto;display:flex;align-items:center;gap:7px;min-width:0;height:24px;padding:0 5px;border:0;border-radius:7px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .bt-goal-signal-main:hover{background:var(--bt-hover)}
@@ -509,5 +486,5 @@ body[data-ds-dark-theme] .bt-goal-closed-ico[data-chat=true]{color:#f6dda6}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
 @keyframes bt-island-layer-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
 @keyframes bt-live-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-@media (prefers-reduced-motion:reduce){.bt-island{transition:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-plan,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-ring-fill{transition:none!important}.bt-island[data-sweep]::after{display:none!important}.bt-island[data-sweep] .bt-goal-closed-ico{animation:none!important}.bt-goal-ico-num{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.bt-island{transition:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-ring-fill{transition:none!important}.bt-island[data-sweep]::after{display:none!important}.bt-island[data-sweep] .bt-goal-closed-ico{animation:none!important}.bt-goal-ico-num{animation:none!important}}
 `

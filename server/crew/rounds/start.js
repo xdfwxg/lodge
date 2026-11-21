@@ -1,3 +1,4 @@
+import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { fail, ok } from '../result.js'
 import { normalizePlan, startInitialStage, studioConstraints } from '../rooms/studio/facade.js'
 import { buildStages } from '../room-types/studio.js'
@@ -26,7 +27,8 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles }) =
   const worker = workerOf(room)
   if (lead === null || worker === null) return fail('invalid', '工作室缺少规划师或执行官')
 
-  const title = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
+  const cleanGoal = stripAttachmentTags(goal).trim() || '这一轮'
+  const title = cleanGoal.length > 24 ? `${cleanGoal.slice(0, 24)}…` : cleanGoal
   const built = buildStages({ title, plan: planned.plan, verify, acceptance, align: false })
   const gate = gateRecordOf({
     review: { decision: 'pass', issues: [] },

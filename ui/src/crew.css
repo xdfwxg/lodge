@@ -170,7 +170,12 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .studio-room-actions .crew-link{color:var(--bt-ink-2);font-weight:500;text-decoration:none}
 .studio-room-actions .crew-link:hover{color:var(--bt-ink);text-decoration:underline}
 .studio-room-actions .crew-link{font-size:var(--bt-text-label)}
-.studio-run-back{padding:2px 0 6px}
+.studio-topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;width:min(760px,100%);margin:0 auto;padding:14px 16px 0;box-sizing:border-box}
+.studio-topbar-nav{display:flex;align-items:center;gap:8px;min-width:0}
+.studio-topbar .crew-link{color:var(--bt-ink-3);font-size:var(--bt-text-helper);font-weight:500;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.studio-topbar .crew-link:hover{color:var(--bt-ink);text-decoration:underline;text-underline-offset:2px}
+.studio-topbar-dot{flex:none;color:var(--bt-ink-4);font-size:11px}
+@media (max-width:760px){.studio-topbar{padding:12px 14px 0}}
 .crew-routine-needs{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--bt-line-2);border-radius:10px;background:var(--bt-card)}
 .crew-routine-needs-title{margin:0;font-size:var(--bt-text-label);font-weight:600;line-height:var(--bt-leading-label);color:var(--bt-ink)}
 .crew-routine-needs-reason{margin:0;color:var(--bt-ink-2)}
@@ -468,7 +473,6 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-dialog-close{flex:none;margin-top:0;width:30px;height:30px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:24px;line-height:1;cursor:pointer}
 .crew-dialog-close:hover{background:var(--bt-hover);color:var(--bt-ink)}
 .crew-dialog-body{display:flex;flex-direction:column;gap:24px;padding:24px}
-.crew-room-adjust{display:flex;justify-content:center;padding:2px 32px 10px}
 .crew-rewind .crew-dialog-body{gap:14px;padding:18px 24px 24px}
 .crew-rewind-steps{display:grid;gap:6px}
 .crew-rewind-step{display:flex;align-items:center;gap:10px;width:100%;padding:9px 11px;border:1px solid var(--bt-line-2);border-radius:10px;background:var(--bt-card);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-label);line-height:18px;text-align:left;cursor:pointer}
@@ -686,8 +690,6 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 /* Attention: one needs-you signal per room, not unread counts. */
 .crew-unread-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bt-accent);margin-left:2px}
 
-.crew-room-tools{position:relative;display:flex;justify-content:flex-end;align-items:center;gap:16px;padding:0 16px}
-.crew-room-tools .crew-link{font-size:var(--bt-text-helper)}
 .crew-memory-dialog{max-width:520px}
 .crew-memory-list{display:flex;flex-direction:column;gap:10px;max-height:50vh;overflow:auto}
 .crew-memory-item{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--bt-line);border-radius:9px;background:var(--bt-shade-1)}

@@ -18,6 +18,19 @@ const orderOf = message => (
   (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
 )
 
+const isVisibleNotice = message => (
+  message?.kind === 'system' && message.meta?.kind === 'notice' && message.meta.show === true
+)
+
+// 同一条状态提示重复出现时，只留最后一次；前面的已经被后一次取代。
+export const dedupeSystemNotices = messages => {
+  const latest = new Map()
+  for (const message of messages) {
+    if (isVisibleNotice(message)) latest.set(message.text, message.id)
+  }
+  return messages.filter(message => !isVisibleNotice(message) || latest.get(message.text) === message.id)
+}
+
 // 工作室时间线就是一条聊天记录：规划师排期、交接、执行、验收、退回都在同一条线上，
 // 不切章节、不截窗口、不隐藏阶段结论；细节挂在各自的消息里，需要时再展开。
 export function StudioTranscript({
@@ -45,7 +58,9 @@ export function StudioTranscript({
 }) {
   const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
   const messages = useMemo(
-    () => dedupeChatStreams(room.messages).slice().sort((a, b) => orderOf(a) - orderOf(b)),
+    () => dedupeSystemNotices(
+      dedupeChatStreams(room.messages).slice().sort((a, b) => orderOf(a) - orderOf(b)),
+    ),
     [room.messages],
   )
   const timeline = useMemo(() => buildTimeline(messages), [messages])

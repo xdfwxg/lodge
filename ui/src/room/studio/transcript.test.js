@@ -90,6 +90,26 @@ const delivery = {
   changedFiles: [],
 }
 
+test('the same visible status notice is kept only once, at its latest position', async () => {
+  const { dedupeSystemNotices } = await load()
+  const notice = (id, text) => ({
+    id,
+    kind: 'system',
+    text,
+    meta: { kind: 'notice', show: true },
+  })
+  const messages = [
+    notice('n1', '规划师没有开口，这一步还没开始。'),
+    { id: 'chat', kind: 'chat', text: '继续' },
+    notice('n2', '规划师没有开口，这一步还没开始。'),
+    notice('n3', '这一步需要你补一句上下文。'),
+  ]
+  assert.deepEqual(
+    dedupeSystemNotices(messages).map(message => message.id),
+    ['chat', 'n2', 'n3'],
+  )
+})
+
 test('a finished room shows the result, not the process', async () => {
   const { StudioTranscript } = await load()
   const room = finishedRoom()
