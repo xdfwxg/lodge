@@ -55,3 +55,33 @@ test('a three-phase project reads as one trail and opens a phase', async ({ page
   await page.getByRole('button', { name: '打开当前阶段' }).click()
   await expect(page.getByRole('button', { name: '项目轨迹' })).toBeVisible()
 })
+
+test('a delivered project opens the next phase from the trail', async ({ page, request }) => {
+  const base = await (await request.get('/api/state')).json()
+  let rooms = [
+    phase({ id: 'phase-1', name: '长期项目', goal: '把长期目标拆成三个可交付阶段', state: 'complete', nextRoomId: 'phase-2' }),
+    phase({ id: 'phase-2', name: '第二阶段', goal: '补上真实数据', state: 'complete', sourceRoomId: 'phase-1', nextRoomId: 'phase-3' }),
+    phase({ id: 'phase-3', name: '第三阶段', goal: '放到真实房间', state: 'complete', sourceRoomId: 'phase-2' }),
+  ]
+  const next = phase({
+    id: 'phase-4',
+    name: '第四阶段',
+    goal: '接上真实用户',
+    state: 'active',
+    sourceRoomId: 'phase-3',
+  })
+  await page.route('**/api/state', route => route.fulfill({ json: { ...base, rooms } }))
+  await page.route('**/api/rooms/phase-3/followup', async route => {
+    expect(route.request().postDataJSON().text).toBe('接上真实用户')
+    rooms = rooms.map(room => room.id === 'phase-3' ? { ...room, nextRoomId: 'phase-4' } : room).concat(next)
+    await route.fulfill({ json: { room: next } })
+  })
+  await page.goto('/')
+
+  await page.getByRole('button', { name: '项目轨迹' }).click()
+  await expect(page.getByLabel('下一阶段要做什么？')).toBeVisible()
+  await page.getByLabel('下一阶段要做什么？').fill('接上真实用户')
+  await page.getByRole('button', { name: '开下一阶段' }).click()
+  await expect(page.getByText('4 个阶段 · 当前第 4 阶段')).toBeVisible()
+  await expect(page.getByRole('button', { name: '打开当前阶段' })).toBeVisible()
+})

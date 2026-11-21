@@ -31,7 +31,9 @@ function Composer({
   const [attached, setAttached] = useState([])
   const [uploading, setUploading] = useState(false)
   const [note, setNote] = useState('')
+  const [followupOpen, setFollowupOpen] = useState(false)
   const input = useRef(null)
+  const splitRef = useRef(null)
   const fileInput = useRef(null)
   const pickedMentions = useRef([])
   const listId = useId()
@@ -43,7 +45,25 @@ function Composer({
     pickedMentions.current = []
     setAttached([])
     setNote('')
+    setFollowupOpen(false)
   }, [draftKey])
+
+  useEffect(() => {
+    if (!followupOpen) return undefined
+    const onPointerDown = event => {
+      if (splitRef.current?.contains(event.target) === true) return
+      setFollowupOpen(false)
+    }
+    const onKeyDown = event => {
+      if (event.key === 'Escape') setFollowupOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [followupOpen])
 
   const query = mention === null ? '' : mention.query.toLowerCase()
   const matches = mention === null
@@ -135,6 +155,7 @@ function Composer({
   const send = () => {
     const text = draft.trim()
     if ((text === '' && attached.length === 0) || disabled || uploading) return
+    setFollowupOpen(false)
     const mentions = pickedMentions.current
       .filter(item => text.includes(item.token))
       .map(item => item.id)
@@ -154,6 +175,7 @@ function Composer({
   const followup = () => {
     const text = draft.trim()
     if ((text === '' && attached.length === 0) || disabled || uploading || typeof onFollowup !== 'function') return
+    setFollowupOpen(false)
     const files = attached
     setDraft('')
     writeDraft(draftKey, '')
@@ -196,6 +218,7 @@ function Composer({
   }
 
   const activeOption = matches[picked] ?? matches[0]
+  const hasDraft = draft.trim() !== '' || attached.length > 0
 
   return h('div', { className: 'crew-composer-wrap' },
     mention !== null && matches.length > 0
@@ -300,25 +323,63 @@ function Composer({
         onPaste: paste,
         onBlur: () => setMention(null),
       }),
-      onFollowup !== null && stopControl === null
-        ? h('button', {
-          type: 'button',
-          className: 'crew-composer-followup',
-          title: '用这句话开下一版；原班人马和工作区沿用',
-          disabled: disabled || uploading || (draft.trim() === '' && attached.length === 0),
-          onClick: followup,
-        }, '接着改')
-        : null,
-      stopControl === null
-        ? h('button', {
-          type: 'button',
-          className: 'crew-send',
-          'aria-label': '发送',
-          disabled: disabled || uploading || (draft.trim() === '' && attached.length === 0),
-          onClick: send,
-        },
-          h(ArrowUpIcon))
-        : stopControl))
+      stopControl !== null
+        ? stopControl
+        : onFollowup === null
+          ? h('button', {
+            type: 'button',
+            className: 'crew-send',
+            'aria-label': '发送',
+            disabled: disabled || uploading || !hasDraft,
+            onClick: send,
+          },
+            h(ArrowUpIcon))
+          : h('div', {
+            ref: splitRef,
+            className: 'crew-send-split',
+            'data-empty': !hasDraft ? 'true' : undefined,
+            'data-disabled': disabled || uploading ? 'true' : undefined,
+          },
+            h('button', {
+              type: 'button',
+              className: 'crew-send',
+              'aria-label': '发送',
+              disabled: disabled || uploading || !hasDraft,
+              onClick: send,
+            }, h(ArrowUpIcon)),
+            h('button', {
+              type: 'button',
+              className: 'crew-send-more',
+              'aria-label': '更多提交方式',
+              title: '用这句话开下一版',
+              'aria-haspopup': 'menu',
+              'aria-expanded': followupOpen,
+              disabled: disabled || uploading || !hasDraft,
+              onClick: () => setFollowupOpen(value => !value),
+            }, h('svg', {
+              width: 10,
+              height: 10,
+              viewBox: '0 0 20 20',
+              'aria-hidden': 'true',
+              fill: 'none',
+              stroke: 'currentColor',
+              strokeWidth: 2,
+              strokeLinecap: 'round',
+              strokeLinejoin: 'round',
+            }, h('path', { d: 'M5 7.5L10 12.5L15 7.5' }))),
+            followupOpen
+              ? h('div', { className: 'crew-send-menu', role: 'menu', 'aria-label': '提交方式' },
+                h('button', {
+                  type: 'button',
+                  role: 'menuitem',
+                  className: 'crew-send-menu-item',
+                  disabled: disabled || uploading || !hasDraft,
+                  onClick: followup,
+                },
+                h('b', null, '接着改，开下一版'),
+                h('span', null, hasDraft ? '原班人马和工作区沿用' : '先写一句要改什么')))
+              : null)
+    ))
 }
 
 export { Composer }

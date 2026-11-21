@@ -1,4 +1,4 @@
-import { createElement as h } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { dateTimeOf } from '../view-format.js'
 
@@ -66,8 +66,37 @@ h('span', { className: 'crew-project-phase-copy' },
   goalOf(phase) === '' ? null : h('span', null, goalOf(phase))),
 h('span', { className: 'crew-project-phase-state' }, phaseStatusOf(phase))))
 
-export function ProjectView({ rooms, rootId, onClose, onOpenRoom }) {
+export function ProjectView({ rooms, rootId, onClose, onOpenRoom, onFollowup = null }) {
   const trail = projectTrailOf(rooms, rootId)
+  const currentId = trail?.current?.id ?? null
+  const [nextGoal, setNextGoal] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+
+  useEffect(() => {
+    setNextGoal('')
+    setNote(null)
+  }, [currentId])
+
+  const nextPhase = async () => {
+    const text = nextGoal.trim()
+    if (text === '' || busy || typeof onFollowup !== 'function' || trail === null) return
+    setBusy(true)
+    setNote(null)
+    try {
+      const result = await onFollowup(trail.current.id, text)
+      if (result?.room?.id === undefined || result.room.id === null) {
+        setNote('下一阶段没能开起来，再试一次。')
+        return
+      }
+      setNextGoal('')
+    } catch {
+      setNote('下一阶段没能开起来，再试一次。')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (trail === null) {
     return h('main', { className: 'dsb-main crew-project' },
       h('div', { className: 'crew-project-inner' },
@@ -102,6 +131,31 @@ export function ProjectView({ rooms, rootId, onClose, onOpenRoom }) {
           onClick: () => onOpenRoom(current.id),
         }, currentComplete ? '打开最后一间工作室' : '打开当前阶段')),
       currentComplete
-        ? h('p', { className: 'crew-field-hint' }, '下一阶段在当前工作室里点「接着改」开。')
+        ? onFollowup === null
+          ? h('p', { className: 'crew-field-hint' }, '下一阶段在当前工作室里点发送旁的 ⌄，或结果卡里的「接着改」开。')
+          : h('div', { className: 'crew-project-next' },
+            h('label', { className: 'crew-project-next-label', htmlFor: 'crew-project-next-goal' }, '下一阶段要做什么？'),
+            h('div', { className: 'crew-project-next-row' },
+              h('input', {
+                id: 'crew-project-next-goal',
+                className: 'crew-goal-input',
+                value: nextGoal,
+                placeholder: '例如：把真实数据接进来',
+                disabled: busy,
+                onChange: event => setNextGoal(event.target.value),
+                onKeyDown: event => {
+                  if (event.key !== 'Enter' || event.shiftKey) return
+                  event.preventDefault()
+                  void nextPhase()
+                },
+              }),
+              h('button', {
+                type: 'button',
+                className: 'crew-accept',
+                disabled: busy || nextGoal.trim() === '',
+                onClick: () => void nextPhase(),
+              }, busy ? '正在开…' : '开下一阶段')),
+            note === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, note),
+            h('p', { className: 'crew-field-hint' }, '原班人马和工作区沿用；旧版保留。'))
         : null))
 }

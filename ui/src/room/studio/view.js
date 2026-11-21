@@ -101,7 +101,7 @@ export const studioView = {
   ),
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    if (room.state === 'complete' || done) return '问规划师；要改就写一句，点「接着改」'
+    if (room.state === 'complete' || done) return '问规划师；要开下一版，点发送旁的 ⌄'
     const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
     if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === active) {
       return '把缺的信息发给这一步…'

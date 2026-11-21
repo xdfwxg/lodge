@@ -129,6 +129,7 @@ export function App() {
           setProjectId(null)
           store.select(id)
         },
+        onFollowup: (roomId, text) => store.followup(text, { roomId }),
       })
       : room === null
       ? h('main', { className: 'dsb-main crew-home' },

@@ -124,3 +124,14 @@ test('a narrow dark window still renders the room without horizontal overflow', 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)
 })
+
+test('a delivered room keeps one send control with a next-version menu', async ({ page, request }) => {
+  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
+  await page.goto('/')
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
+
+  await page.getByRole('combobox', { name: '房间消息' }).fill('再改一版')
+  await page.getByRole('button', { name: '更多提交方式' }).click()
+  await expect(page.getByRole('menuitem', { name: /接着改，开下一版/ })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: /原班人马和工作区沿用/ })).toBeVisible()
+})

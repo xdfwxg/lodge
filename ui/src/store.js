@@ -286,7 +286,8 @@ export function createStore() {
     },
     // 已交付的工作室：不重回填表，直接把这句话变成下一版的目标。
     followup: async (text, options = {}) => {
-      const data = await post(`/api/rooms/${state.activeId}/followup`, {
+      const roomId = options.roomId ?? state.activeId
+      const data = await post(`/api/rooms/${roomId}/followup`, {
         text,
         ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
       })
