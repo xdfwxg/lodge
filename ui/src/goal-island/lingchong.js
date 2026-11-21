@@ -504,10 +504,10 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
         h('img', { className: 'lingchong-art art-body', src: standingArt, alt: '', draggable: 'false' }),
         h('img', { ref: forehead, className: 'lingchong-lodge', src: lodgeMark, alt: '', draggable: 'false' }),
         h('svg', { ref: blink, className: 'lingchong-blink', viewBox: `0 0 ${ART_W} ${ART_H}`, 'aria-hidden': true },
-          h('rect', { x: 101, y: 41, width: 36, height: 24, rx: 10, fill: '#f8f3ea' }),
-          h('rect', { x: 137, y: 41, width: 36, height: 24, rx: 10, fill: '#f8f3ea' }),
+          h('path', { d: 'M100 49 Q117 38 134 49 Q117 58 100 49 Z', fill: '#f8f3ea' }),
+          h('path', { d: 'M141 49 Q158 38 175 49 Q158 58 141 49 Z', fill: '#f8f3ea' }),
           h('path', {
-            d: 'M107 55 q7 4 15 -1 M143 54 q7 -4 15 1',
+            d: 'M104 49 Q117 57 130 49 M145 49 Q158 57 171 49',
             fill: 'none',
             stroke: '#39332b',
             strokeWidth: 2.1,
