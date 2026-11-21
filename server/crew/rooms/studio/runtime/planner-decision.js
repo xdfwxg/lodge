@@ -10,11 +10,10 @@ import {
 } from '../../../assignments.js'
 import { leadMemberOf, workerIds } from '../../../room-members.js'
 import { systemNotice } from '../../../notices.js'
-
-const MAX_STAGE_REWORKS = 3
+import { MAX_STAGE_REWORKS } from '../relay.js'
 
 export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, plannerNudges, schedule, expireCards = null }) => {
-  // 退回后规划师的第一行是决定；系统按它转交，不依赖模型是否写出可唤醒的 @。
+  // 退回后规划师的第一行是决定；转交由系统投递，模型写不写 @ 都不影响下一棒。
   const routePlannerDecision = (room, stageIndex, turn, calls = []) => {
     const messages = store.readMessages(roomId)
     const latestVerdict = [...messages].reverse()
@@ -157,9 +156,15 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
       meta: { stage: stageIndex, source: 'planner', note, verdictId, judgment },
     })
     if (typeof expireCards === 'function') expireCards()
+    if (parallel) {
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `@${targets.map(target => memberDisplayName(room, target)).join('、@')} 验收退回，按上面的意见重做第 ${stageIndex + 1} 步。`,
+        meta: { kind: 'handoff', stage: stageIndex, to: targets },
+      })
+    }
     for (const target of targets) {
       const name = memberDisplayName(room, target)
-      const addressed = !parallel && String(turn.reply ?? '').includes(`@${name}`)
       void handoff.trigger({
         room,
         stage,
@@ -168,9 +173,10 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
         to: target,
         reason: 'rework',
         prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
-        message: note,
-        visible: false,
-        deliver: parallel ? true : !addressed,
+        // @ 由系统写，退回理由已经在验收卡里。
+        message: parallel ? '' : `@${name} 验收退回，按上面的意见重做。`,
+        visible: !parallel,
+        deliver: true,
         ...(parallel ? { privateRoom: true } : {}),
         acceptance: stage?.acceptance ?? '',
         rework: true,

@@ -183,17 +183,11 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     // 子房间另外把结果回填给父房间。
     const completes = next < 0
     const finalRoom = completes ? completeRoom(room) ?? room : room
-    // 有下一步才叫醒规划师；最后一步通过就是句号，不再叫它补一句收尾。
-    const nextStage = next >= 0 ? room.stages[next] : null
-    const lead = leadMemberOf(room)?.id
-    if (nextStage !== null && room.live === true && typeof lead === 'string' && lead !== '' && typeof live.sendToMember === 'function') {
-      const prompt = [
-        `第 ${index + 1} 步「${gate.stage.title}」验收通过了。下一步是第 ${next + 1} 步「${nextStage.title}」。`,
-        nextStage.acceptance ? `完成标准：${nextStage.acceptance}` : '',
-        '要继续，就在群里 @ 执行成员，把下一步说清楚；要收尾或改计划，就直说。',
-      ].filter(Boolean).join('\n')
-      void live.sendToMember(room.id, lead, `${prompt}\n${INTERNAL_PROMPT_MARKER}`, { intent: 'notice', from: '房间' })
-        .catch(error => systemNotice({ store, roomId: room.id, text: '没能叫住规划师；下一步还没安排。', error }))
+    // 下一步由系统直接派发；规划师不需要在群里 @ 人。最后一步通过就是句号。
+    if (next >= 0 && room.live === true && typeof live?.startStage === 'function') {
+      void Promise.resolve(live.startStage(room, next)).catch(error => {
+        systemNotice({ store, roomId: room.id, text: '这一步过了，但下一步没能开始；待处理。', error })
+      })
     }
     return ok({ room: finalRoom })
   }

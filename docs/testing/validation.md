@@ -389,3 +389,13 @@ npm run eval:planning:nightly
 - 环境：Lodge 8787 + 基座 8799；本机 `claude` CLI 走 `https://api.deepseek.com/anthropic`，模型 `deepseek-v4-pro`；评测引擎记录为 `claude` 和 `pi`。
 - 房间评测：`npm run eval:rooms` 3/3 PASS，0 返工，p50 42,912ms、max 42,928ms，合计 $0.5331（unknown 0）。revise-tone 42,928ms / $0.2188；slice-sheet 42,842ms / $0.1643；verify-catch 42,912ms / $0.1500。三题都 delivered、verdict pass、独立检查 ok。
 - 规划评测：`npm run eval:planning` 3/3 PASS，100 分，p50 7,280ms、max 9,327ms，3 个决策问题，验收命令均为 `npm test`。
+
+## 2026-11-21 · 工作室接力回到共享房间
+
+- 新增 `server/crew/rooms/studio/relay.js`：默认接力由代码决定，验收退回直接回执行官，通过回规划师；只有重做预算用完、合并冲突或没有执行成员时才回到规划师/人。
+- 验收员退回不再叫醒规划师转达，而是由系统在共享房间发 `@执行官` 并新建重做交接；验收通过发 `@规划师` 收尾。
+- 工作室文档补上“接力：谁把话交给谁”：一个共享房间、模型提供内容、代码决定下一棒；私有 worktree 只是执行目录，不做 @ 寻址。
+- 接力投递不再依赖模型写 `@`：初次派发、并行派发、复核请求、退回重做都由系统投递并各发一条群聊投影；并行仍走成员执行上下文，但群聊只有一套。
+- 提示词同步收紧：三个角色都不写 `@`；执行官只报结果，验收员只给判定，规划师只在例外时提交决定。
+- 中间步骤验收通过后由系统直接收口并派发下一步；只有最后一步停在人的确认，由人收下这一轮交付。
+- 单测覆盖 relay 规则、退回交执行官、通过交规划师；`npm test` 1117 通过，`npm run check:done` 全绿。

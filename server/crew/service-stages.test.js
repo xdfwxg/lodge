@@ -49,6 +49,7 @@ const setup = initial => {
       reworkStage: async (target, index, note) => { calls.push({ target, index, note }) },
       isAttached: () => true,
       resume: async (id, options) => { calls.push({ resume: id, options }) },
+      startStage: async (value, index) => { calls.push({ startStage: index }) },
     },
     emit: () => {},
     completeRoom: value => value,
@@ -255,4 +256,19 @@ test('accepting a work stage writes a stage conclusion before the next stage sta
   assert.equal(ctx.room().stages[1].state, 'active')
 })
 
-
+test('accepting an intermediate stage starts the next one by itself', async () => {
+  const ctx = setup(room({
+    roomType: 'studio',
+    verificationMode: 'hybrid',
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
+      { title: '回归', kind: 'deliverable', state: 'pending', acceptance: 'npm run e2e', tasks: [] },
+      { title: '验收与结论', kind: 'decision', state: 'pending' },
+    ],
+  }))
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, files: ['src/a.js', 'src/a.test.js'] } })
+  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
+  assert.equal(result.ok, true)
+  await Promise.resolve()
+  assert.deepEqual(ctx.calls.filter(call => call.startStage !== undefined), [{ startStage: 1 }])
+})

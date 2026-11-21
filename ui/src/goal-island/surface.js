@@ -93,7 +93,7 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
   const chat = view?.kind === 'chat'
   const title = view?.title || room.name || '目标'
   const status = view?.barLabel || room.needsYou?.label
-    || (view?.status === 'complete' ? (chat ? '已确认 · 看结果' : '已交付 · 看结果') : '还没有目标')
+    || (view?.status === 'complete' ? '已交付 · 看结果' : '还没有目标')
   const tone = view?.tone ?? (view?.status === 'complete' ? 'done'
     : view?.status === 'stopped' ? 'stopped'
       : view?.status === 'paused' || room.needsYou ? 'waiting'
@@ -160,6 +160,7 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
 function GoalSignal({ signal, mode, actions }) {
   const inside = event => event.currentTarget.contains(event.relatedTarget)
   const reviewTimeout = signal.needs === 'review-timeout'
+  const blocked = signal.needs === 'blocked'
   const dot = h('span', { className: 'bt-goal-signal-dot', 'aria-hidden': true })
   const text = h('span', { className: 'bt-goal-signal-text' }, signal.title)
   return h('div', {
@@ -182,8 +183,8 @@ function GoalSignal({ signal, mode, actions }) {
       type: 'button',
       className: 'bt-goal-signal-main',
       title: signal.detail,
-      onClick: actions.actSignal,
-    }, dot, text, h('span', { className: 'bt-goal-signal-go' }, signal.kind === 'decision' ? '去处理' : '查看')),
+      onClick: () => actions.actSignal(blocked ? 'retry' : undefined),
+    }, dot, text, h('span', { className: 'bt-goal-signal-go' }, blocked ? '让规划师重做' : signal.kind === 'decision' ? '去处理' : '查看')),
   reviewTimeout
     ? h('div', { className: 'bt-goal-signal-actions' },
       h('button', {

@@ -89,10 +89,11 @@ export const createAcceptanceRunner = ({
     }
     // 本轮实际被验收的提交：有候选就是候选，否则是执行者自己 commit 的房间 HEAD。
     const acceptedRef = candidate ?? head
+    // 单执行成员用 clone 工作区，候选提交只存在于房间仓库；从房间仓库做隔离副本。
+    const copySource = typeof room.repoPath === 'string' && room.repoPath !== '' ? room.repoPath : room.sourceRepo
     let copy
     try {
-      // 不能用源仓库的 HEAD；执行者自己 commit 时房间 HEAD 才是交付。
-      copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: acceptedRef ?? 'HEAD' })
+      copy = workspaceOf(room).isolatedCopy({ source: copySource, ref: acceptedRef ?? 'HEAD' })
     } catch (error) {
       systemNotice({ store, roomId, text: '这一步没法准备检查；结果由你确认。', error })
       return
@@ -107,7 +108,7 @@ export const createAcceptanceRunner = ({
         sandbox: true,
       })
     } finally {
-      workspaceOf(room).removeIsolatedCopy({ source: room.sourceRepo, copy })
+      workspaceOf(room).removeIsolatedCopy({ source: copySource, copy })
     }
     store.appendMessage(roomId, {
       kind: 'evidence',

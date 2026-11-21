@@ -2,7 +2,7 @@
 // 只读房间记录，不重算业务判断；没有的记录就省略，不补想象。
 import { judgmentOf } from '../../../../shared/judgment.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'
-import { roundDelivered } from '../../../../shared/room-status.js'
+import { idleDelivered } from '../../../../shared/room-status.js'
 
 const line = value => String(value ?? '').replace(/\s+/g, ' ').trim()
 const when = ts => {
@@ -48,7 +48,7 @@ const fileRows = room => {
 
 export const deliveryRecord = room => {
   if (room === null || room === undefined) return ''
-  const delivered = roundDelivered(room)
+  const delivered = idleDelivered(room)
   const completedAt = room.completedAt ?? room.archivedAt ?? null
   const blocks = [
     `# ${line(room.name) || '房间交付记录'}`,

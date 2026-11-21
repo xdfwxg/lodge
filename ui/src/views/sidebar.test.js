@@ -9,7 +9,7 @@ test('sidebar room labels carry name, status, unread and needs-you text', () => 
     '简历，验收员在看，有新消息',
   )
   assert.equal(roomLabelOf({ name: '周报', state: 'idle', workRound: { id: 'round-1', status: 'completed' } }), '周报，已交付')
-  assert.equal(roomLabelOf({ name: '聊天', state: 'idle', chat: { phase: 'accepted' }, modeCapabilities: { stages: false } }), '聊天，已确认')
+  assert.equal(roomLabelOf({ name: '聊天', state: 'active', chat: { phase: 'concluded' }, modeCapabilities: { stages: false } }), '聊天，聊到这儿了')
   assert.equal(roomLabelOf({ name: '空房', state: 'paused' }), '空房，已暂停')
   assert.equal(roomLabelOf({ name: '旧房', state: 'idle', archivedAt: 1 }), '旧房，已归档')
 })
@@ -46,4 +46,19 @@ test('rooms are ordered by attention, recency and completion', () => {
   assert.deepEqual(orderRooms(rooms).map(room => room.id), [
     'pending', 'recent-new', 'recent-old', 'done', 'archived',
   ])
+})
+
+test('an active next round is not grouped or labelled as delivered', () => {
+  const next = {
+    id: 'next',
+    name: '下一轮',
+    state: 'active',
+    activeRoundId: 'round-2',
+    workRound: { id: 'round-2', status: 'active' },
+    rounds: [{ id: 'round-1', status: 'completed' }],
+    messages: [{ ts: 6 }],
+  }
+  const done = { id: 'done', name: '已交付', state: 'idle', workRound: { id: 'round-1', status: 'completed' }, messages: [{ ts: 1 }] }
+  assert.equal(roomLabelOf(next), '下一轮，进行中')
+  assert.deepEqual(orderRooms([done, next]).map(room => room.id), ['next', 'done'])
 })

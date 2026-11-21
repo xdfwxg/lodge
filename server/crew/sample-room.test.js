@@ -61,7 +61,7 @@ test('the chat sample is a finished conversation with one conclusion', () => {
     assert.equal(room.roomType, 'chat')
     assert.equal(room.demo, true)
     assert.equal(room.state, 'active')
-    assert.equal(room.chat.phase, 'accepted')
+    assert.equal(room.chat.phase, 'concluded')
     assert.ok(messages.some(message => message.kind === 'chat' && message.meta?.opening === true))
     const conclusion = messages.find(message => message.kind === 'chat_conclusion')
     assert.equal(conclusion.authorId, 'lodge-sample')

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { deliveredRoundOf, roomStatusOf, roundDelivered, roundOpen, roundStatusOf } from './room-status.js'
+import { deliveredRoundOf, idleDelivered, roomStatusOf, roundDelivered, roundOpen, roundStatusOf } from './room-status.js'
 
 test('room lifecycle never reports a delivered round as a room state', () => {
   assert.equal(roomStatusOf({ state: 'idle' }), 'idle')
@@ -34,4 +34,18 @@ test('round summaries can answer delivery for an idle studio', () => {
   assert.equal(deliveredRoundOf(room)?.id, 'round-1')
   assert.equal(roundStatusOf({ status: 'active' }), 'active')
   assert.equal(roundOpen({ status: 'planning' }), true)
+})
+
+test('idleDelivered is the current state, not the last delivered round', () => {
+  const activeNext = {
+    state: 'active',
+    activeRoundId: 'round-2',
+    workRound: { id: 'round-2', status: 'active' },
+    rounds: [{ id: 'round-1', status: 'completed' }],
+  }
+  assert.equal(roundDelivered(activeNext), true)
+  assert.equal(idleDelivered(activeNext), false)
+  assert.equal(idleDelivered({ state: 'idle', workRound: { id: 'round-1', status: 'completed' } }), true)
+  assert.equal(idleDelivered({ state: 'idle', rounds: [{ id: 'round-1', status: 'completed' }, { id: 'round-2', status: 'stopped' }] }), false)
+  assert.equal(idleDelivered({ state: 'active', activeRoundId: 'round-2' }), false)
 })

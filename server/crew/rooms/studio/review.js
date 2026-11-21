@@ -12,11 +12,13 @@ import { ensurePreviews } from './previews.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
 import { reworkFloor } from '../../../../shared/attempt.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
-import { leadMemberOf, memberOf } from '../../room-members.js'
-import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
+import { leadMemberOf, memberOf, workerIds } from '../../room-members.js'
+import { activeDispatchAssignments, latestDispatchAssignment, transitionAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { recordShadowAdvice } from './shadow-advisor.js'
+import { relayAfterVerdict } from './relay.js'
+import { FINAL_TITLE } from './stage-plan.js'
 import { systemNotice } from '../../notices.js'
 
 
@@ -39,7 +41,12 @@ export const shadowNeeded = ({ room, stage, evidence, manual, messages = [], sta
   return rejected
 }
 
-const VERDICT_FORMAT = `如果工具列表里有 submit_verdict，直接调用它提交判定；工具不可用时才按文本回复。第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）。${VERDICT_JSON_HINT}题面没写到的边界，挑一两个最能打穿规则的输入复核（例如 Unicode 标点、空串、连续符号）；发现问题直接 REJECT 并给证据。命令和退出码卡片已经显示，不要再复述。`
+// 中间步骤验收通过就继续；最后一步仍由人收下这一轮的交付。
+const hasLaterWorkStage = (room, index) => (Array.isArray(room?.stages) ? room.stages : [])
+  .slice(index + 1)
+  .some(stage => stage.title !== FINAL_TITLE)
+
+const VERDICT_FORMAT =`如果工具列表里有 submit_verdict，直接调用它提交判定；工具不可用时才按文本回复。第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）。${VERDICT_JSON_HINT}题面没写到的边界，挑一两个最能打穿规则的输入复核（例如 Unicode 标点、空串、连续符号）；发现问题直接 REJECT 并给证据。命令和退出码卡片已经显示，不要再复述。`
 const REVIEW_REMINDER_PROMPT = `复核还没有结论。请现在调用 submit_verdict 提交判定；没有这个工具就只回复一行 PASS 或 REJECT。不要继续调研。\n${INTERNAL_PROMPT_MARKER}`
 const VERDICT_RETRY_PROMPT = `你这一回合没有提交判定。现在只做一件事：调用 lodge_gate_submit_verdict 提交 PASS 或 REJECT；工具确实不可用时只回复一行 PASS 或 REJECT。不要继续调研，也不要改文件。\n${INTERNAL_PROMPT_MARKER}`
 
@@ -66,7 +73,7 @@ export const lateReviewStillValid = ({ room, messages, pending }) => {
 }
 
 
-export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null }) => {
+export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null, advanceStage = null }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
   let round = null
   let shadowTask = null
@@ -212,52 +219,150 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const policy = round.policy
     round = null
     if (reachedQuorum) {
+      store.appendEvent(roomId, 'review.passed', { stage: pending.stage, verifier: pending.verifier, passed, total })
+      const current = store.readRoom(roomId) ?? room
+      if (hasLaterWorkStage(current, pending.stage) && typeof advanceStage === 'function') {
+        // 中间步骤不再等人点确认：验收通过就由系统收口并开始下一步。
+        void Promise.resolve(advanceStage(roomId, pending.stage)).then(result => {
+          if (result?.ok === false) {
+            store.appendMessage(roomId, {
+              kind: 'system',
+              text: `这一步验收通过了，但没能自动进入下一步：${result.error ?? '待处理'}。`,
+            })
+          }
+        }).catch(error => {
+          systemNotice({ store, roomId, text: '这一步验收通过了，但没能自动进入下一步；待处理。', error })
+        })
+        return true
+      }
       store.appendMessage(roomId, {
         kind: 'system',
         text: policy === 'majority'
-          ? `验收通过：${passed}/${total}（需要 ${required} 位），这一步做完了。`
-          : '全部验收员通过，这一步做完了。',
-        meta: { kind: 'stage', stage: pending.stage },
-      })
-    } else {
-      store.appendMessage(roomId, {
-        kind: 'system',
-        text: policy === 'majority'
-          ? `${name} 投了退回，这一轮未通过；@规划师 接手重做。`
-          : `${name} 退回了这一步；@规划师 接手重做。`,
+          ? `验收通过：${passed}/${total}（需要 ${required} 位）；@规划师 收尾。`
+          : '全部验收员通过；@规划师 收尾。',
         meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner' },
       })
-      // A reject is a handoff, not a silent status change. Wake the planner so
-      // it decides whether the executor reworks or the human takes over.
       const lead = leadMemberOf(room)?.id
       if (typeof lead === 'string' && lead !== '') {
         const stageTitle = room.stages?.[pending.stage]?.title ?? ''
-        const reason = String(gate === null ? (turn.reply ?? '') : judgment.reason).trim().slice(0, 300)
-        const parallel = (dispatchOf(store, roomId, pending.stage)?.workers?.length ?? 0) > 1
         void sendToMember(lead, [
-          `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
-          `判定：${reason === '' ? '未通过' : sanitizeUntrusted(reason, 300)}`,
-          '判定必须先用工具提交，不要在回复里只写结论：',
-          '1. 调用 lodge_gate_submit_decision（基座可能显示为 mcp__lodge_gate__submit_decision）。',
-          '2. 如果工具列表里没有它，先调用 ToolSearch，查询 "lodge_gate_submit_decision"，再调用它。',
-          '3. 只有工具确实不可用时，才按下面的文本格式回复；此时第一行只写「返工」或「交给人」。',
-          '返工时写清改什么、怎么算完成；交给人时写清要人拍板什么。',
-          '交给人时，在 actionRequired 里用 A. / B. 列出 2–3 个具体选择，每项一句话；用户会直接点。',
-          DECISION_JSON_HINT,
-          parallel
-            ? '决定返工时不要 @ 任何人；系统会把要求直接送进执行成员自己的工作副本。第一行仍只写「返工」。'
-            : '决定返工时，在话里 @ 执行成员，把要求直接说给他；第一行仍只写「返工」。',
-          '不要自己改文件，也不要自己验收。',
+          `第 ${pending.stage + 1} 步「${stageTitle}」验收通过。`,
+          '请在群里用两三句话总结这一步的结果和下一步；不要改文件，也不要再派活。',
           INTERNAL_PROMPT_MARKER,
         ].join('\n'), {
-          intent: 'decision',
+          intent: 'summary',
           from: '验收流程',
-          sendId: `r-${String(pending.evidenceId ?? pending.verifier).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`,
+          sendId: `s-${String(pending.evidenceId ?? pending.verifier).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`,
         }).catch(error => {
-          systemNotice({ store, roomId, text: '没能叫醒规划师；稍后会自动再试。', error })
+          systemNotice({ store, roomId, text: '没能叫规划师收尾；这一步仍等你确认。', error })
         })
       }
+    } else {
+      const stage = room.stages?.[pending.stage]
+      const stageTitle = stage?.title ?? ''
+      const reason = String(gate === null ? (turn.reply ?? '') : judgment.reason).trim().slice(0, 300)
+      const targets = (Array.isArray(stage?.assignees) ? stage.assignees : [])
+        .filter(id => workerIds(room).includes(id))
+      const workers = targets.length > 0 ? targets : workerIds(room)
+      const reworksUsed = store.readMessages(roomId).filter(message => (
+        message.kind === 'rework' && (message.meta?.stage ?? 0) === pending.stage
+      )).length
+      const relay = relayAfterVerdict({
+        pass: false,
+        reworksUsed,
+        mergeConflict: room.mergeConflict?.stage === pending.stage,
+        targets: workers,
+      })
+      if (relay.kind === 'rework') {
+        // 验收员直接交回执行官；规划师不转达退回，只在最后收尾。
+        store.appendEvent(roomId, 'review.rework_routed', {
+          stage: pending.stage,
+          verifier: pending.verifier,
+          targets: relay.targets,
+          reworksUsed,
+        })
+        const parallel = relay.targets.length > 1
+        const note = reason === '' ? '按验收意见重做这一步。' : reason
+        const targetNames = relay.targets.map(target => memberDisplayName(room, target))
+        if (parallel) {
+          // 并行重做的 @ 也只发一条，分发本身私下进各自副本。
+          store.appendMessage(roomId, {
+            kind: 'system',
+            text: `@${targetNames.join('、@')} 验收退回，按上面的意见重做第 ${pending.stage + 1} 步。`,
+            meta: { kind: 'handoff', stage: pending.stage, to: relay.targets },
+          })
+        }
+        // 返工账本要留下这一笔：预算计数和后续复核的 floor 都只认 rework。
+        store.appendMessage(roomId, {
+          kind: 'rework',
+          authorId: 'system',
+          text: '验收退回，执行官重做。',
+          meta: {
+            stage: pending.stage,
+            source: 'verifier',
+            note,
+            verdictId: verdictMessage.id,
+          },
+        })
+        for (const target of relay.targets) {
+          const parent = latestDispatchAssignment(store, roomId, pending.stage, target)
+          if (parent !== null) {
+            transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，执行官重做' })
+          }
+          void handoffTrigger({
+            room,
+            stage,
+            index: pending.stage,
+            from: pending.verifier,
+            to: target,
+            reason: 'rework',
+            prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
+            // @ 由系统写；退回理由已经在验收卡里，不再重复一整条。
+            message: parallel ? '' : `@${memberDisplayName(room, target)} 验收退回，按上面的意见重做。`,
+            visible: !parallel,
+            deliver: true,
+            ...(parallel ? { privateRoom: true } : {}),
+            acceptance: stage?.acceptance ?? '',
+            rework: true,
+            parentAssignmentId: parent?.id ?? null,
+          }).catch(error => {
+            systemNotice({ store, roomId, text: `重做没能交给${memberDisplayName(room, target)}；待处理。`, error })
+          })
+        }
+      } else {
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: `验收退回了第 ${pending.stage + 1} 步；@规划师 接手决定重做还是交给人。`,
+          meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner' },
+        })
+        const lead = leadMemberOf(room)?.id
+        if (typeof lead === 'string' && lead !== '') {
+          // 只有重做预算用完、合并冲突或没有可执行成员时才回到规划师/人。
+          const parallel = workers.length > 1
+          void sendToMember(lead, [
+            `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
+            `判定：${reason === '' ? '未通过' : sanitizeUntrusted(reason, 300)}`,
+            '判定必须先用工具提交，不要在回复里只写结论：',
+            '1. 调用 lodge_gate_submit_decision（基座可能显示为 mcp__lodge_gate__submit_decision）。',
+            '2. 如果工具列表里没有它，先调用 ToolSearch，查询 "lodge_gate_submit_decision"，再调用它。',
+            '3. 只有工具确实不可用时，才按下面的文本格式回复；此时第一行只写「返工」或「交给人」。',
+            '返工时写清改什么、怎么算完成；交给人时写清要人拍板什么。',
+            '交给人时，在 actionRequired 里用 A. / B. 列出 2–3 个具体选择，每项一句话；用户会直接点。',
+            DECISION_JSON_HINT,
+            '决定返工时不要 @ 任何人；系统会把要求直接送进该重做的执行成员手里。第一行仍只写「返工」。',
+            '不要自己改文件，也不要自己验收。',
+            INTERNAL_PROMPT_MARKER,
+          ].join('\n'), {
+            intent: 'decision',
+            from: '验收流程',
+            sendId: `r-${String(pending.evidenceId ?? pending.verifier).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`,
+          }).catch(error => {
+            systemNotice({ store, roomId, text: '没能叫醒规划师；稍后会自动再试。', error })
+          })
+        }
+      }
     }
+
     return true
   }
 
@@ -359,6 +464,12 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidenceId: evidence.id,
       verifiers: targets,
     })
+    // 复核请求也是系统发的 @：进来复核是下一棒，不由执行成员或模型自己点名。
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: `@${targets.map(verifier => memberDisplayName(room, verifier)).join('、@')} 第 ${stageIndex + 1} 步「${sanitizeUntrusted(stage.title, 120)}」结果好了，请复核。`,
+      meta: { kind: 'handoff', stage: stageIndex, to: targets, reason: 'review' },
+    })
     // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
     shadowTask = shadowNeeded({ room, stage, evidence, manual, messages, stageIndex })
       ? recordShadowAdvice({
@@ -422,7 +533,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             '只评审交付结果；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能确认，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
-            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时只写具体缺口；系统会把判定交给规划师，不用自己 @ 人。PASS 时也不用 @ 人。',
+            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时只写具体缺口；系统会把判定交给执行成员重做，PASS 则交给规划师收尾。你自己不用 @ 人。',
             VERDICT_FORMAT,
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,
@@ -453,7 +564,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             '只评审交付改动；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
             ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能确认，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
-            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时只写具体缺口；系统会把判定交给规划师，不用自己 @ 人。PASS 时也不用 @ 人。',
+            '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时只写具体缺口；系统会把判定交给执行成员重做，PASS 则交给规划师收尾。你自己不用 @ 人。',
             VERDICT_FORMAT,
             '判定不清就写 REJECT。',
             INTERNAL_PROMPT_MARKER,

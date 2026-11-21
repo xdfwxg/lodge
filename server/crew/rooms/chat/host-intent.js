@@ -9,7 +9,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
   const roster = (room.members ?? [])
     .map(member => `${member.id}（${member.name}）`)
     .join('、')
-  const stateLine = phase === 'awaiting_decision' || phase === 'accepted'
+  const stateLine = phase === 'concluded'
     ? '房间已经有一份结论；用户再说话就是在继续这件事。'
     : ''
   const humanName = humanNameOf(room)

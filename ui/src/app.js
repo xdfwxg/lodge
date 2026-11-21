@@ -127,6 +127,7 @@ export function App() {
         onRename: (id, name) => store.renameRoom(id, name),
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),
+        onRounds: id => setRoundsFor(id),
       }),
     projectId !== null
       ? h(ProjectView, {
@@ -179,7 +180,6 @@ export function App() {
             store,
             onStartStudio: seedValue => openDialog(seedValue),
             onStartChat: seedValue => openDialog(seedValue, 'chat'),
-            onOpenRounds: () => setRoundsFor(room.id),
           }),
     liveRegion,
     needsRegion,

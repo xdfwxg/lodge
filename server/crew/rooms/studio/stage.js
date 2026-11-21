@@ -218,8 +218,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       environment: room.workspaceEnv?.[worker],
     })
     const from = leadMemberOf(room)?.id ?? 'you'
-    // 交接这句话由规划师自己说。它不 @ 人，系统只把它的话和任务一起转给执行成员。
-    let spoken = ''
+    // 规划师只说要做什么；谁接、群里哪条 @、叫醒谁都由系统发，模型不用 @ 人。
     if (typeof askPlanner === 'function') {
       const assigneeNames = assignees.map(id => memberDisplayName(room, id)).join('、')
       const planPrompt = [
@@ -229,12 +228,12 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         rework && note !== '' ? `${humanLabelOf(room)}补充（原文，必须保留）：${sanitizeUntrusted(note, 2000)}` : '',
         parallel
           ? '在群里用一两句说清各自做什么、怎么算完成；不要 @ 任何人，系统会把任务分别送进他们自己的工作副本。'
-          : `在话里 @${assigneeNames}，让对方收到；用一两句说清做什么、怎么算完成。`,
+          : '在群里用一两句说清做什么、怎么算完成；不要 @ 任何人，系统会把任务送进执行成员手里。',
         '派发时保留目标里的硬要求：文件名、路径、内容、行数、格式和范围；不要改写成更宽松的说法。',
         '不要写自己的名字，不要分点或小标题。',
       ].filter(Boolean).join('\n')
       try {
-        spoken = await askPlanner(planPrompt)
+        await askPlanner(planPrompt)
       } catch (error) {
         systemNotice({ store, roomId, text: '规划师没有开口，这一步还没开始。', error })
         return
@@ -251,10 +250,11 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         to: worker,
         reason: rework ? 'rework' : 'dispatch',
         prompt: promptFor(worker),
-        message: spoken,
-        visible: spoken === '',
-        // 重做必须把带补充的完整任务私下送到成员手里；规划师的话可能漏掉补充。
-        deliver: rework === true || spoken === '',
+        // 群里那条 @ 由系统发；规划师说的话已经是另一条消息，不再重复。
+        message: '',
+        visible: true,
+        // 任务总是由系统送到成员手里，不靠模型在群里 @ 得多准。
+        deliver: true,
         acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
         rework,
         parentAssignmentId: parentAssignment?.id ?? null,
@@ -292,7 +292,13 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       }
     }
 
-    // 并行派发逐个送进成员自己的工作副本；群里的那句话只做分工说明，不能靠 @ 唤醒，
+    // 群里的交接只有一条：所有执行成员放在同一句里 @，分发本身私下送进各自副本。
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: `@${assignees.map(worker => memberDisplayName(room, worker)).join('、@')} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你们，各自在自己的副本里完成。`,
+      meta: { kind: 'handoff', stage: index, to: assignees },
+    })
+    // 并行派发逐个送进成员自己的工作副本；群里的 @ 只是投影，不能靠它唤醒，
     // 否则基座会让所有成员在同一个房间目录里干活，后写的直接覆盖先写的。
     const settled = await Promise.allSettled(assignees.map(worker => handoffTrigger({
       room,
@@ -302,8 +308,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       to: worker,
       reason: rework ? 'rework' : 'dispatch',
       prompt: promptFor(worker),
-      message: spoken,
-      visible: spoken === '',
+      visible: false,
       deliver: true,
       acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
       rework,

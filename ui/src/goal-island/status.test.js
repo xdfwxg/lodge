@@ -40,7 +40,31 @@ test('a chat derives the same state keys with its own words', () => {
   assert.equal(islandStatusOf(chat(), 'chat').barLabel, '还没开始聊')
   assert.equal(islandStatusOf(chat({ chat: { phase: 'discussing', running: true } }), 'chat').barLabel, '正在聊')
   assert.equal(islandStatusOf(chat({ chat: { phase: 'summarizing' } }), 'chat').barLabel, '正在收一下')
-  assert.equal(islandStatusOf(chat({ chat: { phase: 'awaiting_decision' } }), 'chat').barLabel, '聊到这儿了')
-  assert.equal(islandStatusOf(chat({ chat: { phase: 'accepted' } }), 'chat').barLabel, '聊完了')
+  assert.equal(islandStatusOf(chat({ chat: { phase: 'concluded' } }), 'chat').barLabel, '聊到这儿了')
   assert.equal(islandStatusOf(chat({ state: 'paused' }), 'chat').barLabel, '已暂停，随时接着聊')
+})
+
+test('an idle studio is only done when the latest round completed', () => {
+  assert.equal(islandStatusOf(studio({
+    state: 'idle',
+    activeRoundId: null,
+    workRound: { id: 'round-2', status: 'stopped' },
+    rounds: [{ id: 'round-1', status: 'completed' }, { id: 'round-2', status: 'stopped' }],
+  })).key, 'idle')
+  assert.equal(islandStatusOf(studio({
+    state: 'active',
+    activeRoundId: 'round-2',
+    workRound: { id: 'round-2', status: 'active' },
+    rounds: [{ id: 'round-1', status: 'completed' }],
+  })).key, 'idle')
+  assert.equal(islandStatusOf(studio({
+    state: 'idle',
+    activeRoundId: null,
+    workRound: { id: 'round-1', status: 'completed' },
+  })).key, 'done')
+})
+
+test('a working room and an idle room with a pending need are not idle', () => {
+  assert.equal(islandStatusOf(studio({ working: true })).key, 'running')
+  assert.equal(islandStatusOf(studio({ state: 'idle', activeRoundId: null, needsYou: { kind: 'signoff', stage: 0 } })).key, 'waiting')
 })

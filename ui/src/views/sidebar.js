@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useOverlay } from '../overlay.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { initialOf } from '../marks.js'
-import { roundDelivered } from '../../../shared/room-status.js'
+import { idleDelivered } from '../../../shared/room-status.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
@@ -14,7 +14,7 @@ import { clampSide, COLLAPSE_AT, RAIL_WIDTH, readSidebarLayout, SIDE_MAX, SIDE_M
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
 const byRecent = list => [...list].sort((a, b) => lastAtOf(b) - lastAtOf(a))
-const deliveredOf = room => roundDelivered(room) || room.chat?.phase === 'accepted'
+const deliveredOf = room => room.modeCapabilities?.stages === false ? false : idleDelivered(room)
 
 const pad = value => String(value).padStart(2, '0')
 const stampOf = ts => {
@@ -62,7 +62,7 @@ const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
 
-function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHoldMember = null, lodgeRoom = null, profile = null, onProfile = null }) {
+function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRounds = null, onHoldMember = null, lodgeRoom = null, profile = null, onProfile = null }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
   const [sideCollapsed, setSideCollapsed] = useState(false)
@@ -174,6 +174,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
     onRename: onRename === undefined ? undefined : name => onRename(room.id, name),
     onArchive: onArchive === undefined ? undefined : archived => onArchive(room.id, archived),
     onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
+    onRounds: onRounds === undefined || onRounds === null ? null : () => onRounds(room.id),
     onHold: onHoldMember,
   })
   const renderRoom = room => h(Fragment, { key: room.id },
@@ -358,6 +359,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
 }
 
 const toneOf = room => {
+  if (room?.modeCapabilities?.stages === false && room?.chat?.phase === 'concluded') return 'waiting'
   if (room.needsYou?.kind === 'review') return 'review'
   if (room.needsYou?.kind === 'signoff' || room.needsYou?.kind === 'result') return 'done'
   if (room.needsYou?.kind === 'rework' || room.needsYou?.kind === 'merge' || room.needsYou?.kind === 'parallel') return 'alert'
@@ -390,7 +392,8 @@ const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.ne
 
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
-  if (deliveredOf(room)) return room?.modeCapabilities?.stages === false ? '已确认' : '已交付'
+  if (deliveredOf(room)) return '已交付'
+  if (room?.modeCapabilities?.stages === false && room?.chat?.phase === 'concluded') return '聊到这儿了'
   if (room?.state === 'idle') return '空闲中'
   if (room?.state === 'stopped') return '已停止'
   if (room?.state === 'paused') return '已暂停'
@@ -437,7 +440,7 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
         }, busy ? '正在处理…' : deleting ? '删除' : '归档'))))
 }
 
-function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete, onHold = null }) {
+function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete, onRounds = null, onHold = null }) {
   const archived = Boolean(room.archivedAt)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuAt, setMenuAt] = useState(null)
@@ -702,6 +705,14 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
             className: 'crew-side-menu-item',
             onClick: openMembers,
           }, '成员')
+          : null,
+        onRounds !== null && ((Array.isArray(room.rounds) && room.rounds.length > 0) || Boolean(room.workRound?.projectId ?? room.defaultProjectId))
+          ? h('button', {
+            type: 'button',
+            role: 'menuitem',
+            className: 'crew-side-menu-item',
+            onClick: () => { closeMenu(); onRounds() },
+          }, '历史')
           : null,
         onArchive === undefined ? null : h('button', {
           type: 'button',

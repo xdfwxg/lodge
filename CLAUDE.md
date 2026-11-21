@@ -55,6 +55,6 @@
 
 - 架构与角色技能：`docs/architecture.md`
 - Agent 设计门禁：`docs/agent-design.md`
-- 长期项目设计：`docs/project-room.md`
+- 长期项目设计：`Lodge.md`「工作室怎么读」与 `docs/architecture.md` 的轮次部分
 - 验收矩阵：`docs/testing/acceptance-matrix.md`
 - 真实运行记录：`docs/testing/validation.md`

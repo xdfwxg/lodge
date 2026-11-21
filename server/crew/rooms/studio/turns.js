@@ -23,6 +23,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     shadow,
     previews: screenshots,
     attachments,
+    // 中间步骤验收通过就自动收口；最后一步仍走人的确认。
+    advanceStage: confirmStage,
   })
   const autoLoops = new Map()
   const plannerNudges = new Set()

@@ -479,3 +479,24 @@ test('the room commit names what changed instead of repeating the goal', () => {
     'room: 更新 a、b、c、d 等 5 个文件',
   )
 })
+
+test('a single-worker clone can isolate its own candidate commit', () => {
+  const sourceRepo = repo()
+  const clone = mkdtempSync(join(tmpdir(), 'crew-worktree-clone-'))
+  try {
+    execFileSync('git', ['clone', '-q', sourceRepo, clone])
+    writeFileSync(join(clone, 'candidate.txt'), 'from clone\n')
+    execFileSync('git', ['add', 'candidate.txt'], { cwd: clone })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'candidate'], { cwd: clone })
+    const candidate = head({ path: clone })
+    const copy = isolatedCopy({ source: clone, ref: candidate })
+    try {
+      assert.equal(readFileSync(join(copy.path, 'candidate.txt'), 'utf8'), 'from clone\n')
+    } finally {
+      removeIsolatedCopy({ source: clone, copy })
+    }
+  } finally {
+    rmSync(clone, { recursive: true, force: true })
+    rmSync(sourceRepo, { recursive: true, force: true })
+  }
+})

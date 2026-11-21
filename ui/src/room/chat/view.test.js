@@ -30,24 +30,6 @@ test('the chat header is the same goal island as the studio', () => {
   assert.equal(tree.type, GoalIslandHeader)
 })
 
-test('an accepted chat reads as confirmed, not delivered', () => {
-  const html = renderToStaticMarkup(chatView.header({
-    room: {
-      id: 'room-chat',
-      name: '圆桌',
-      goal: '讨论交付边界',
-      state: 'idle',
-      modeCapabilities: { stages: false },
-      chat: { phase: 'accepted' },
-      messages: [],
-    },
-    members: [],
-    actions,
-  }))
-  assert.match(html, /已确认/)
-  assert.doesNotMatch(html, /已交付/)
-})
-
 test('a paused chat room shows the fix instead of hiding it in the sidebar', () => {
   const html = renderToStaticMarkup(chatView.header({
     room: {

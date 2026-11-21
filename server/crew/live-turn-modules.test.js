@@ -323,6 +323,10 @@ test('a verifier reply without a verdict is nudged, then expires the review', as
     updateTasks: () => {},
   })
   await review.request(0)
+  const projection = store.messages.find(message => (
+    message.meta?.kind === 'handoff' && message.meta?.reason === 'review'
+  ))
+  assert.match(projection.text, /@验收员 第 1 步「impl」结果好了，请复核/)
   assert.equal(review.consume({
     turn: { reply: '我看了证据，还需要再看看' },
     memberId: 'verifier',
@@ -654,7 +658,7 @@ test('the integrator settles the last worker and turns queue failures into room 
   assert.equal(store.messages.at(-1).meta?.detail, 'boom')
 })
 
-test('a single worker stage sends the prompt and hides the base message', async () => {
+test('a single worker stage sends the prompt and posts the handoff projection', async () => {
   registerWorkspaceProvider('test-live-stage', {
     capabilities: () => ({ candidate: false, isolation: 'worktree' }),
     head: () => '',
@@ -670,6 +674,10 @@ test('a single worker stage sends the prompt and hides the base message', async 
       prompts.push({ memberId, prompt })
       return { messageId: 'm1' }
     },
+    handoff: createHandoff({ store, roomId: 'room-1', sendToMember: async (memberId, prompt) => {
+      prompts.push({ memberId, prompt })
+      return { messageId: 'm1' }
+    }, emit: () => {} }),
     updateTasks: () => {},
     integrate: async () => {},
     enqueue: task => task(),
@@ -679,6 +687,9 @@ test('a single worker stage sends the prompt and hides the base message', async 
   assert.equal(prompts[0].memberId, room.workers[0])
   assert.match(prompts[0].prompt, /验收命令：`true`/)
   assert.match(prompts[0].prompt, /阶段 1/)
+  const handoff = store.messages.find(message => message.kind === 'handoff')
+  assert.match(handoff.text, /@执行官 第 1 步「impl」交给你了/)
+  assert.equal(store.readAssignments('room-1')[0].status, 'sent')
 })
 
 test('parallel dispatch wakes every assignee and tracks pending seats', async () => {
@@ -774,7 +785,7 @@ test('a parallel stage delivers into each worktree even when the planner speaks'
   assert.equal(prompts[1].options.privateRoom, true)
 })
 
-test('a rework note reaches the worker even when the planner speaks', async () => {
+test('a rework note reaches the worker even when the planner speaks without @', async () => {
   registerWorkspaceProvider('test-live-rework-note', {
     capabilities: () => ({ candidate: false, merge: true, isolation: 'worktree' }),
     head: () => 'base',
@@ -802,7 +813,7 @@ test('a rework note reaches the worker even when the planner speaks', async () =
     sendToMember,
     askPlanner: async prompt => {
       plannerPrompts.push(prompt)
-      return '@Exec 按用户的补充重做。'
+      return '按用户的补充重做。'
     },
     integrate: async () => {},
     enqueue: task => task(),
@@ -985,7 +996,7 @@ test('review request and verdict consumption update the round without crossing t
   assert.equal(review.consume({ turn: { reply: 'PASS' }, memberId: 'verifier', turnId: 't1', room }), true)
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
-  assert.ok(store.messages.some(message => message.text === '全部验收员通过，这一步做完了。'))
+  assert.ok(store.messages.some(message => /全部验收员通过/.test(message.text ?? '')))
 })
 
 test('a gate tool call supplies the verdict without parsing the reply', async () => {
@@ -1417,7 +1428,7 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   assert.equal(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true), true)
 })
 
-test('a verifier reject keeps the stage open and wakes the planner', async () => {
+test('a verifier reject keeps the stage open and hands it back to the executor', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
     leadSeat: 'planner',
@@ -1448,15 +1459,89 @@ test('a verifier reject keeps the stage open and wakes the planner', async () =>
   await review.request(0)
   assert.equal(review.consume({ turn: { reply: 'REJECT\n证据不足' }, memberId: 'verifier', turnId: 't1', room }), true)
   assert.equal(room.stages[0].state, 'active')
-  const planner = sent.find(item => item.memberId === 'planner')
-  assert.ok(planner)
-  assert.match(planner.prompt, /验收员退回了第 1 步/)
-  assert.match(planner.prompt, /证据不足/)
-  assert.match(planner.prompt, /第一行只写「返工」或「交给人」/)
-  assert.match(planner.prompt, /在话里 @ 执行成员/)
-  assert.match(planner.prompt, /lodge-internal/)
+  const executor = sent.find(item => item.memberId === 'executor')
+  assert.ok(executor)
+  assert.match(executor.prompt, /证据不足/)
+  assert.match(executor.prompt, /lodge-internal/)
+  assert.equal(sent.some(item => item.memberId === 'planner'), false)
+  assert.ok(store.messages.some(message => message.kind === 'rework' && message.meta?.stage === 0))
 })
 
+
+test('a verifier pass hands the summary to the planner', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', role: 'lead' },
+      { id: 'executor', role: 'worker' },
+      { id: 'verifier', role: 'verifier' },
+    ],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  assert.equal(review.consume({ turn: { reply: 'PASS\n达标' }, memberId: 'verifier', turnId: 't1', room }), true)
+  const planner = sent.find(item => item.memberId === 'planner')
+  assert.ok(planner)
+  assert.match(planner.prompt, /验收通过/)
+  assert.match(planner.prompt, /总结/)
+  assert.equal(sent.some(item => item.memberId === 'executor'), false)
+})
+
+test('an intermediate stage advances by itself instead of asking the planner to hand off', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    stages: [
+      { title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' },
+      { title: 'next', kind: 'deliverable', state: 'pending', acceptance: 'true' },
+      { title: '验收与结论', kind: 'deliverable', state: 'pending' },
+    ],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const advanced = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt, options = {}) => {
+      sent.push({ memberId, prompt, options })
+      return { messageId: `m${sent.length}` }
+    },
+    advanceStage: async (_roomId, index) => {
+      advanced.push(index)
+      return { ok: true }
+    },
+  })
+  await review.request(0)
+  assert.equal(review.consume({ turn: { reply: 'PASS\n达标' }, memberId: 'verifier', turnId: 't1', room }), true)
+  await Promise.resolve()
+  await Promise.resolve()
+  assert.deepEqual(advanced, [0])
+  assert.equal(sent.some(item => item.memberId === 'planner'), false)
+  assert.equal(sent.some(item => item.options?.intent === 'summary'), false)
+})
 
 test('shadow review records advice without injecting it into the Verifier prompt', async () => {
   const room = makeRoom({ verifiers: ['verifier'], shadowReview: true, shadowBot: { memberRef: 'bot-shadow', name: 'ShadowReview1' } })

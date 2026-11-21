@@ -54,11 +54,12 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     for (const item of activeDispatchAssignments(store, roomId, stageIndex)) {
       updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), integrated: true } })
     }
+    const hasVerifier = verifierIds(room).length > 0
     if (stage.manual === true) {
       store.appendMessage(roomId, {
         kind: 'evidence',
         authorId: 'system',
-        text: '并行结果已合并，可以验收了。',
+        text: hasVerifier ? '并行结果已合并。' : '并行结果已合并，可以验收了。',
         meta: {
           kind: 'manual',
           vcs: vcsOf(room),
@@ -72,11 +73,11 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
           capturedAt: new Date().toISOString(),
         },
       })
-      systemNotice({ store, roomId, text: '改动已经合到一起 · 可以验收了' })
+      if (!hasVerifier) systemNotice({ store, roomId, text: '改动已经合到一起 · 可以验收了' })
       store.appendEvent(roomId, 'room.integration', { stage: stageIndex, head, workers, merged, manual: true })
       clearBlocked(stageIndex)
       markProgress()
-      if (verifierIds(room).length > 0) {
+      if (hasVerifier) {
         try {
           await requestReview(stageIndex)
         } catch (error) {
@@ -154,12 +155,12 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     store.appendMessage(roomId, {
       kind: 'system',
       text: result.exit === 0
-        ? '检查通过 · 等验收员看'
+        ? (hasVerifier ? '检查通过' : '检查通过 · 可以验收了')
         : '检查没通过 · 重做后才能复核',
     })
     if (result.exit !== 0) return
     markProgress()
-    if (verifierIds(room).length > 0) {
+    if (hasVerifier) {
       try {
         await requestReview(stageIndex)
       } catch (error) {

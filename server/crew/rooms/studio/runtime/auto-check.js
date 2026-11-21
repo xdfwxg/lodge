@@ -170,7 +170,8 @@ export const createAutoCheck = ({
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: hasVerifier ? '结果已经好了，等验收员复核。' : '结果已经好了，可以验收了。',
+      // 有验收员时，复核请求会由系统单独发一条 @；这里只说结果。
+      text: hasVerifier ? '结果已经好了。' : '结果已经好了，可以验收了。',
       meta: {
         kind: 'manual',
         stage: stageIndex,
@@ -184,7 +185,7 @@ export const createAutoCheck = ({
         capturedAt: new Date().toISOString(),
       },
     })
-    store.appendMessage(roomId, { kind: 'system', text: hasVerifier ? '结果已经好了 · 等验收员复核' : '结果已经好了 · 可以验收了' })
+    if (!hasVerifier) store.appendMessage(roomId, { kind: 'system', text: '结果已经好了 · 可以验收了' })
     state.markProgress()
     if (hasVerifier) {
       void review.request(stageIndex).catch(error => {

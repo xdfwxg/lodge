@@ -27,17 +27,12 @@ test('a chat says it is chatting once someone speaks or a turn runs', () => {
 })
 
 test('a concluded chat stops here instead of waiting for a conclusion', () => {
-  const goal = goalOf({ phase: 'awaiting_decision' })
+  const goal = goalOf({ phase: 'concluded' })
   assert.equal(goal.barLabel, '聊到这儿了')
   assert.equal(goal.stages[0].status, 'active')
   assert.equal(goal.idle, false)
 })
 
-test('an accepted chat reads as finished, not as delivered', () => {
-  const goal = goalOf({ phase: 'accepted' })
-  assert.equal(goal.barLabel, '聊完了')
-  assert.equal(goal.status, 'complete')
-})
 
 test('the goal keeps the room name and the original topic', () => {
   const goal = goalOf({ phase: 'discussing' })

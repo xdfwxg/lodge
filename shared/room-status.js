@@ -20,3 +20,11 @@ export const deliveredRoundOf = room => {
 }
 
 export const roundDelivered = room => deliveredRoundOf(room) !== null
+
+// “现在就是已交付”：房间已经空下来，且最近一轮完成。
+// 新一轮在跑时，上一轮的完成只是历史，不是当前状态。
+export const idleDelivered = room => {
+  if (roomStatusOf(room) !== 'idle') return false
+  const status = roundStatusOf(room) ?? (Array.isArray(room?.rounds) && room.rounds.length > 0 ? room.rounds.at(-1)?.status : null)
+  return status === ROUND_STATUS.completed
+}

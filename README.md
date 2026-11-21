@@ -26,7 +26,6 @@
 - [docs/architecture.md](docs/architecture.md)：服务端分层、数据真相、交接与门禁——数据怎么流、边界在哪。
 - [docs/design.md](docs/design.md)：界面、交互和文案——字号颜色、组件、怎么写。
 - [docs/agent-design.md](docs/agent-design.md)：Agent、工具、权限、上下文和失败的设计门禁。
-- [docs/project-room.md](docs/project-room.md)：长期工作室、轮次和项目分组：一轮完成，工作室不结束。
 - [docs/operations.md](docs/operations.md)：运行、基座、打包、运维与恢复——怎么启动、坏了怎么办。
 
 ## 快速开始

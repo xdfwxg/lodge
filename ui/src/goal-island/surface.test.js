@@ -191,3 +191,18 @@ test('a milestone renders a polite announcement and no dismiss control', () => {
   assert.match(html, /第 2 步「写欢迎语」通过/)
   assert.doesNotMatch(html, /收起这条提醒/)
 })
+
+test('a blocked signal offers a concrete rework action, not a dead end', () => {
+  const signal = {
+    key: 'decision:blocked:0',
+    kind: 'decision',
+    needs: 'blocked',
+    stage: 0,
+    tone: 'paused',
+    title: '第 1 步检查没通过',
+    detail: '让规划师安排重做，或退回重做这一步。',
+  }
+  const html = render('decision', signal)
+  assert.match(html, /让规划师重做/)
+  assert.doesNotMatch(html, /bt-goal-signal-go">去处理/)
+})

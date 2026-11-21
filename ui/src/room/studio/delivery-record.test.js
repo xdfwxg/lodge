@@ -36,3 +36,17 @@ test('an unfinished room still reads honestly', () => {
   assert.match(text, /没有运行检查/)
   assert.match(text, /没有验收结论/)
 })
+
+test('an active next round is not recorded as delivered because of the previous one', () => {
+  const text = deliveryRecord({
+    name: '下一轮',
+    goal: '继续做',
+    state: 'active',
+    activeRoundId: 'round-2',
+    workRound: { id: 'round-2', status: 'active' },
+    rounds: [{ id: 'round-1', status: 'completed' }],
+    stages: [{ title: '继续', state: 'active' }],
+  })
+  assert.match(text, /状态：进行中/)
+  assert.doesNotMatch(text, /状态：已交付/)
+})

@@ -39,7 +39,8 @@
     "retro:env": "node scripts/env-retro.mjs",
     "eval:rooms:nightly": "node evals/rooms/run.mjs --runs 3 --out evals/rooms/results/nightly",
     "eval:planning:nightly": "node evals/planning/run.mjs --runs 3 --out evals/planning/results/nightly",
-    "eval:long-task": "node evals/long-task/run.mjs"
+    "eval:long-task": "node evals/long-task/run.mjs",
+    "eval:compare": "node evals/compare/run.mjs"
   },
   "dependencies": {
     "chrome-devtools-mcp": "1.13.0",

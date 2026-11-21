@@ -1,4 +1,4 @@
-import { deliveredRoundOf, roomStatusOf } from '../../../shared/room-status.js'
+import { idleDelivered, roomStatusOf } from '../../../shared/room-status.js'
 
 // 岛屿状态机：状态键共享，工作室和聊天室各自读自己的词表。
 export const ISLAND_STATUS = Object.freeze({
@@ -17,11 +17,11 @@ export const ISLAND_STATUS = Object.freeze({
     idle: Object.freeze({ barLabel: '还没开始聊', stageLabel: '还没开始聊', tone: 'active' }),
     paused: Object.freeze({ barLabel: '已暂停，随时接着聊', stageLabel: '已暂停，随时接着聊', tone: 'waiting' }),
     stopped: Object.freeze({ barLabel: '已停止', stageLabel: '已停止', tone: 'stopped' }),
-    done: Object.freeze({ barLabel: '聊完了', stageLabel: '聊完了', tone: 'done' }),
   }),
 })
 
 export const islandWorking = room => (
+  room?.working === true ||
   (Array.isArray(room?.busyMembers) ? room.busyMembers.length > 0 : false) ||
   room?.chat?.running === true ||
   room?.chat?.hostThinking === true
@@ -35,16 +35,16 @@ const studioState = room => {
     if (islandWorking(room)) return 'running'
     return room?.needsYou ? 'waiting' : 'idle'
   }
-  return deliveredRoundOf(room) ? 'done' : 'idle'
+  if (room?.needsYou) return 'waiting'
+  return idleDelivered(room) ? 'done' : 'idle'
 }
 
 const chatState = room => {
   if (room?.state === 'paused') return 'paused'
   if (room?.state === 'stopped') return 'stopped'
   const chat = room?.chat ?? {}
-  if (chat.phase === 'accepted') return 'done'
   if (chat.phase === 'summarizing') return 'summarizing'
-  if (chat.phase === 'concluded' || chat.phase === 'awaiting_decision') return 'waiting'
+  if (chat.phase === 'concluded') return 'waiting'
   if (chat.running === true || chat.hostThinking === true) return 'running'
   const started = (Array.isArray(room?.messages) ? room.messages : []).some(message => (
     message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'

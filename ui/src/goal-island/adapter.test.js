@@ -71,3 +71,20 @@ test('a completed room still reports all stages passed', () => {
   assert.equal(goal.status, 'complete')
   assert.equal(goal.stages.every(stage => stage.status === 'passed'), true)
 })
+
+test('a new active round is not delivered while the previous one completed', () => {
+  const next = room({
+    state: 'active',
+    activeRoundId: 'round-2',
+    workRound: { id: 'round-2', status: 'active' },
+    rounds: [{ id: 'round-1', status: 'completed' }],
+    stages: [
+      { title: '目标对齐', kind: 'decision', state: 'passed' },
+      { title: '第二件事', kind: 'deliverable', state: 'active', acceptance: 'npm test' },
+      { title: '验收与结论', kind: 'decision', state: 'pending' },
+    ],
+  })
+  const goal = toIslandGoal(next)
+  assert.equal(goal.status, 'active')
+  assert.notEqual(goal.barLabel, '已交付')
+})

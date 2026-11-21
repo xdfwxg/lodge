@@ -8,7 +8,7 @@ import { useHoverPeek } from './use-hover-peek.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
 import { islandStatusOf, islandWorking } from './status.js'
-import { roundDelivered } from '../../../shared/room-status.js'
+
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 
 // 房型能力决定岛要不要画步骤；聊天室没有阶段，即使切过一次工作室也不显示残留阶段。
@@ -22,11 +22,13 @@ const cleanTitle = value => stripAttachmentTags(value)
   .replace(/<attached-(?:image|file)[\s\S]*$/i, '')
   .trim()
 
+// 岛的当前状态只从状态图读；完成过一轮不等于现在已交付。
+const kindOfRoom = room => room.modeCapabilities?.stages === false ? 'chat' : 'studio'
+const deliveredNow = room => islandStatusOf(room, kindOfRoom(room)).key === 'done'
+
 export const toIslandGoal = room => {
-  const islandStatus = islandStatusOf(room)
-  const done = room.modeCapabilities?.stages === false
-    ? room.chat?.phase === 'accepted'
-    : roundDelivered(room)
+  const islandStatus = islandStatusOf(room, kindOfRoom(room))
+  const done = deliveredNow(room)
   return {
     id: room.id,
     title: cleanTitle(room.name),
@@ -159,18 +161,12 @@ export function GoalIslandHeader({ room, goal: goalOverride = null, status = nul
       goalActions.openSignal()
     },
   }
-  const finished = room.modeCapabilities?.stages === false
-    ? room.chat?.phase === 'accepted'
-    : roundDelivered(room)
-  const doneLabel = room.modeCapabilities?.stages === false ? '已确认' : '已交付'
+  const statusKey = islandStatusOf(room, kindOfRoom(room)).key
+  const finished = statusKey === 'done'
+  const doneLabel = '已交付'
   const lingchongState = finished ? 'done'
-    : room.needsYou ? 'needs'
-      : room.state === 'active' && (
-        room.working === true ||
-        room.chat?.running === true ||
-        room.chat?.hostThinking === true ||
-        (room.busyMembers ?? []).length > 0
-      ) ? 'busy' : 'rest'
+    : statusKey === 'waiting' ? 'needs'
+      : statusKey === 'running' ? 'busy' : 'rest'
   return h('div', { className: 'crew-goal-island' },
     finished
       ? h(DoneIsland, { goal, label: doneLabel, lingchongMode: islandRoom.kind })

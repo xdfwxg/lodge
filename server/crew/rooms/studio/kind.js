@@ -186,7 +186,7 @@ export const studioConstraints = ({
   verifiers,
   independence,
 }) => [
-  '同时 @ 多位成员时，用空格分开每个 @，不要用顿号连写',
+  '交接由系统投递：写清下一步做什么、怎么算完成，不用 @ 人',
   plan?.stages?.length > 0
     ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
     : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',
@@ -280,7 +280,7 @@ export const studioKind = {
   // 静态纪律只注入一次，后续阶段提示不再重复。
   memberSoul: member => [
     member.prompt,
-    '当前是工作室：所有成员在同一个房间目录执行；只有被 @ 的成员才会响应。',
+    '当前是工作室：需要谁回应由系统安排，系统会用 @ 把任务送到该做的人手里；你不用 @ 安排下一棒。',
     '你是三类成员之一：规划师、执行官、验收员；不要自创角色，也不要承担其他成员的职责。',
     '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
     '群消息像给同事发消息一样说人话；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',

@@ -40,7 +40,7 @@ test('every room status uses the shared status vocabulary', () => {
   const rooms = [
     { name: '房', state: 'active' },
     { name: '房', state: 'idle', workRound: { status: 'completed' } },
-    { name: '房', state: 'idle', chat: { phase: 'accepted' }, modeCapabilities: { stages: false } },
+    { name: '房', state: 'idle', chat: { phase: 'concluded' }, modeCapabilities: { stages: false } },
     { name: '房', state: 'paused' },
     { name: '房', state: 'stopped' },
     { name: '房', state: 'idle', archivedAt: 1 },

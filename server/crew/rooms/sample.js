@@ -214,7 +214,7 @@ export const sampleChatRoomRecord = ({ now = Date.now() } = {}) => ({
   ],
   chat: {
     round: 1,
-    phase: 'accepted',
+    phase: 'concluded',
     turnLimit: 4,
     turns: 4,
     conclusionId: null,
