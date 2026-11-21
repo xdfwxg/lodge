@@ -181,7 +181,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         } catch (error) {
           // 基座通道正在跑回合时会拒绝改规则；规则通常已经生效，不把它当成房间错误。
           if (!/409|working or waiting/.test(String(error?.message ?? error))) {
-            systemNotice({ store, roomId: room.id, text: '房间的群聊没能准备好；需要你处理。', error })
+            systemNotice({ store, roomId: room.id, text: '房间的群聊没能准备好；待处理。', error })
           }
         }
       }
@@ -211,7 +211,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       })
       return updated ?? store.readRoom(room.id) ?? room
     } catch (error) {
-      systemNotice({ store, roomId: room.id, text: '房间的群聊没能准备好；需要你处理。', error })
+      systemNotice({ store, roomId: room.id, text: '房间的群聊没能准备好；待处理。', error })
       return room
     }
   }
@@ -231,7 +231,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       onState: state => {
         if (!state.connected) return
         void sync(entry).catch(error => {
-          systemNotice({ store, roomId: room.id, text: '聊天记录没能对上；需要你处理。', error })
+          systemNotice({ store, roomId: room.id, text: '聊天记录没能对上；待处理。', error })
         })
       },
       onEvent: event => {

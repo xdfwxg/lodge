@@ -114,7 +114,7 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   assert.doesNotMatch(text(tree), /2 步/)
   assert.match(text(tree), /1 项检查/)
   assert.match(text(tree), /在文件夹打开/)
-  assert.match(text(tree), /怎么跑：npm test/)
+  assert.match(text(tree), /检查命令：npm test/)
 })
 
 test('a verified manual stage shows the verdict, not the waiting notice', async () => {
@@ -241,7 +241,7 @@ test('the last days and time are kept and starting sends them', async () => {
     onRoutine: patch => calls.push(patch),
   }))
   assert.match(text(tree), /以后 周一、周三、周五 9:30 再做一遍/)
-  const start = find(tree, node => node.type === 'button' && text(node) === '开始')
+  const start = find(tree, node => node.type === 'button' && text(node) === '开启定时')
   start.props.onClick()
   assert.equal(calls[0].enabled, true)
   assert.deepEqual(calls[0].days, [1, 3, 5])

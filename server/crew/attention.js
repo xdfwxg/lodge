@@ -19,8 +19,8 @@ const routineRunNeeds = (room, routineRun) => {
   return {
     kind: 'routine-run',
     stage: needs.stage ?? null,
-    label: when === '' ? '这次需要你' : `${when} 那次需要你`,
-    reason: needs.label || '需要你确认',
+    label: when === '' ? '待处理' : `${when} 那次待处理`,
+    reason: needs.label || '待确认',
     detail: needs.detail ?? '',
     runId: run.id,
     runState: run.state,

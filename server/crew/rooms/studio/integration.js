@@ -12,7 +12,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
   // 合并、集成验收都串行执行，避免多个回合同时动集成 worktree。
   const enqueue = task => {
     chain = chain.then(task).catch(error => {
-      systemNotice({ store, roomId, text: '合改动时出了点问题；需要你处理。', error })
+      systemNotice({ store, roomId, text: '合改动时出了点问题；待处理。', error })
     })
     return chain
   }
@@ -48,7 +48,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
   const acceptHead = async ({ room, stage, stageIndex, head, workers, base, merged = [], turnId = '' }) => {
     const integration = room.repoPath
     if (typeof head !== 'string' || head === '') {
-      systemNotice({ store, roomId, text: '合并结果没有留下提交；需要你处理。' })
+      systemNotice({ store, roomId, text: '合并结果没有留下提交；待处理。' })
       return
     }
     for (const item of activeDispatchAssignments(store, roomId, stageIndex)) {
@@ -80,7 +80,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         try {
           await requestReview(stageIndex)
         } catch (error) {
-          systemNotice({ store, roomId, text: '结果已经合到一起，但没能叫验收员来看；需要你处理。', error })
+          systemNotice({ store, roomId, text: '结果已经合到一起，但没能叫验收员来看；待处理。', error })
         }
       }
       return
@@ -179,7 +179,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     if (room.mergeConflict?.stage === stageIndex) return
     const integration = room.repoPath
     if (typeof integration !== 'string' || integration === '') {
-      systemNotice({ store, roomId, text: '改动没能合到一起；需要你处理。' })
+      systemNotice({ store, roomId, text: '改动没能合到一起；待处理。' })
       return
     }
     if (workspaceOf(room).capabilities().merge !== true) {
@@ -234,7 +234,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         ? workspaceOf(room).submit({ path: integration, turnId, name: room.name })
         : null
     } catch (error) {
-      systemNotice({ store, roomId, text: '合改动时没能留下结果；需要你处理。', error })
+      systemNotice({ store, roomId, text: '合改动时没能留下结果；待处理。', error })
       return
     }
     const head = candidate ?? workspaceOf(room).head({ path: integration })

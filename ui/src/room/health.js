@@ -51,9 +51,9 @@ export const healthOf = room => {
 export const healthLineOf = health => {
   if (health === null || health === undefined) return ''
   const needs = health.needsYou
-  if (needs !== null && needs !== undefined) return `需要你：${needs.label ?? '需要你处理'}`
+  if (needs !== null && needs !== undefined) return `待处理：${needs.label ?? '待处理'}`
   // 岛已经在讲“第几步、谁在做”；这里只留一个可展开的工作详情入口。
-  return '工作详情'
+  return '过程与费用'
 }
 
 export function RoomHealth({ room, onForgetMemory = null }) {

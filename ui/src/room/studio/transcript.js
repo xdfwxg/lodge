@@ -143,7 +143,7 @@ export function StudioTranscript({
         : h(RunNeedsCard, { key: 'routine-run-needs', needs: runNeeds, onOpenRun }),
       h('div', { key: 'room-closing', className: 'studio-room-closing-wrap' },
         delivery === null
-          ? h('div', { className: 'studio-room-closing' }, h('span', null, '目标完成'))
+          ? h('div', { className: 'studio-room-closing' }, h('span', null, '已交付'))
           : h(DeliveryCard, {
             delivery,
             onDownload: () => { downloadDeliveryRecord(room) },

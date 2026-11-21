@@ -506,7 +506,7 @@ test('studio creation waits for human review when the handoff has disagreements'
   const rejected = await run(store, body)
   assert.equal(rejected.ok, false)
   assert.equal(rejected.reason, 'invalid')
-  assert.match(rejected.error, /需要你确认/)
+  assert.match(rejected.error, /待确认/)
 
   const accepted = await run(store, { ...body, handoffReviewed: true })
   assert.equal(accepted.ok, true)

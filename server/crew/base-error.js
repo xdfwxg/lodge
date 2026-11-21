@@ -10,7 +10,7 @@ export const plainRuntimeError = error => {
   if (/401|unauthorized|invalid api key|not logged in|run \/login/i.test(raw)) {
     return '模型服务没有登录，先登录再试'
   }
-  if (/skills library is not enabled/i.test(raw)) return '这个成员还没有开技能；先把技能留空，或换一个支持技能的成员'
+  if (/skills library is not enabled/i.test(raw)) return '这个成员还没有开技能；先把技能留空，或换一个能用技能的成员'
   if (/423|locked/i.test(raw)) return 'Lodge 服务暂时被占用，稍后再试'
   if (/403|forbidden/i.test(raw)) return 'Lodge 服务没有接受这次操作，稍后再试'
   if (/404|not found/i.test(raw)) return 'Lodge 服务里找不到对应的记录'

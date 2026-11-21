@@ -17,7 +17,7 @@ export function QuestionCard({ message, member, onAnswer = null, state = 'open' 
     setText('')
   }
   const head = open
-    ? card.subtitle || '需要你回答'
+    ? card.subtitle || '待回答'
     : state === 'answered' ? '已回答' : '这一步已经变了'
   return h('div', {
     className: 'crew-msg crew-msg-chat',

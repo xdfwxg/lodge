@@ -412,7 +412,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           workspaceOf(room).refreshReviewCopy({ path: room.worktrees[verifier], branch: reviewRef, source: room.sourceRepo, from: room.repoPath })
         } catch (error) {
           failures.push(`${verifierName}: 复核副本不可用（${error?.message ?? error}）`)
-          systemNotice({ store, roomId, text: `${verifierName} 的复核没法开始；需要你处理。`, error })
+          systemNotice({ store, roomId, text: `${verifierName} 的复核没法开始；待处理。`, error })
           continue
         }
       }
@@ -551,14 +551,14 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         failures.push(`${verifierName}: ${error?.message ?? error}`)
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `没能把复核请求发给${verifierName}；需要你处理。`,
+          text: `没能把复核请求发给${verifierName}；待处理。`,
         })
       }
     }
     if (nextRound.requests.size === 0) {
       round = null
       if (failures.length > 0) console.warn(`[lodge] 复核请求没有发出：${failures.join('；')}`)
-      reject('conflict', '复核请求没能发出去；需要你处理。')
+      reject('conflict', '复核请求没能发出去；待处理。')
     }
     return { requested: true, stage: stageIndex, verifiers: [...nextRound.requests.keys()] }
   }

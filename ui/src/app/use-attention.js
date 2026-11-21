@@ -45,11 +45,11 @@ export const useAttention = rooms => {
         count,
         notify: {
           roomId: room.id,
-          title: result ? 'Lodge' : 'Lodge 需要你',
+          title: result ? 'Lodge' : 'Lodge · 待处理',
           body: result
             ? `「${room.name}」的结果好了`
             : run
-              ? `「${room.name}」${room.needsYou.label ?? '这次需要你'}：${room.needsYou.reason ?? '需要处理'}`
+              ? `「${room.name}」${room.needsYou.label ?? '待处理'}：${room.needsYou.reason ?? '待处理'}`
               : `${room.name}：${next[room.id]}`,
         },
       })

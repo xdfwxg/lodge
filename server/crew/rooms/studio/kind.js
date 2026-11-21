@@ -53,7 +53,7 @@ const studioNeedsYou = (room, messages = []) => {
       stage: index,
       label: auto.status === 'limit-reached'
         ? '这一步还没做成，可以再试一次'
-        : '这一步没做成，需要你决定',
+        : '这一步没做成，待你决定',
     }
   }
   const timeout = latestReviewTimeout(messages, index)

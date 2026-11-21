@@ -7,10 +7,10 @@ export const nameOf = (room, memberId) => memberNameOf(room, memberId) || '成�
 const statusOfPaused = room => {
   if (room.pauseReason === 'member_error') {
     const reason = room.needsYou?.label ?? `${nameOf(room, room.memberError?.memberId)}没能回应`
-    return { title: `${reason}，需要处理`, tone: 'paused' }
+    return { title: `${reason}，没做成`, tone: 'paused' }
   }
-  if (room.pauseReason === 'mcp') return { title: '连接中断，需要处理', tone: 'paused' }
-  if (room.pauseReason === 'approval') return { title: '确认超时，需要处理', tone: 'paused' }
+  if (room.pauseReason === 'mcp') return { title: '连接中断', tone: 'paused' }
+  if (room.pauseReason === 'approval') return { title: '确认超时', tone: 'paused' }
   return { title: room.idle === true ? '已暂停，可以接着聊' : '已暂停', tone: 'paused' }
 }
 

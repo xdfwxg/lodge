@@ -43,11 +43,11 @@ test('the health card reads the active stage diagnostic and room usage', () => {
 
 test('the first line asks what is needed, not how the factory is running', () => {
   const needs = healthLineOf(healthOf(room()))
-  assert.equal(needs, '需要你：待确认')
+  assert.equal(needs, '待处理：待确认')
   assert.doesNotMatch(needs, /\$|轮|重做|证据/)
 
   const running = healthLineOf(healthOf(room({ needsYou: null, busyMembers: ['executor'] })))
-  assert.equal(running, '工作详情')
+  assert.equal(running, '过程与费用')
   assert.doesNotMatch(running, /第 \d+ 步|执行官在做/)
 })
 

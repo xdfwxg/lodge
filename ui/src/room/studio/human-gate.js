@@ -53,7 +53,7 @@ export function HumanGateCard({ room, onChoose = null, onRework = null }) {
       : await onChoose(gate.stage, action, text)
     setBusy(false)
     if (result === null) {
-      setError('没能继续；稍后再试')
+      setError('没能继续，再试一次')
       return
     }
     setNote('')
@@ -61,7 +61,7 @@ export function HumanGateCard({ room, onChoose = null, onRework = null }) {
   return h('div', { className: 'crew-human-gate', role: 'group', 'aria-label': '轮到你决定', 'data-room-decision': '' },
     h('div', { className: 'crew-human-gate-head' },
       h('span', { className: 'crew-human-gate-dot', 'aria-hidden': 'true' }),
-      h('span', { className: 'crew-human-gate-kicker' }, '需要你决定'),
+      h('span', { className: 'crew-human-gate-kicker' }, '待你决定'),
       h('span', { className: 'crew-human-gate-step' }, `第 ${gate.stage + 1} 步`)),
     h('b', { className: 'crew-human-gate-title' }, gate.title),
     h('p', { className: 'crew-human-gate-lead' }, gate.options.length > 0

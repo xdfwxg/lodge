@@ -25,8 +25,8 @@ test('background advice that affects nothing stays out of the timeline', () => {
 
 test('a failure that needs the user is visible and keeps the raw detail out of the line', () => {
   const fake = capture()
-  systemNotice({ store: fake.store, roomId: 'r', text: '重做没能开始；需要你处理。', error: new Error('boom') })
+  systemNotice({ store: fake.store, roomId: 'r', text: '重做没能开始；待处理。', error: new Error('boom') })
   assert.equal(fake.read().meta.show, true)
-  assert.equal(fake.read().text, '重做没能开始；需要你处理。')
+  assert.equal(fake.read().text, '重做没能开始；待处理。')
   assert.equal(fake.read().meta.detail, 'boom')
 })

@@ -408,7 +408,7 @@ export const createChatScheduler = ({
       void refresh()
       return { started: true, round, turns: completed, fallback }
     } catch (error) {
-      systemNotice({ store, roomId, text: '聊天室调度出了点问题；需要你处理。', error })
+      systemNotice({ store, roomId, text: '聊天室调度出了点问题；待处理。', error })
       return { started: true, error: String(error?.message ?? error) }
     } finally {
       runs.delete(roomId)

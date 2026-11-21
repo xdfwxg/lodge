@@ -15,7 +15,7 @@ export const adjustableStagesOf = room => (room?.stages ?? [])
 export const rewindActionLabel = state => (state === 'active' ? '补一句再跑' : '退回并重跑')
 
 const stateLabel = stage => (
-  stage.state === 'passed' ? '已通过' : stage.state === 'active' ? '进行中' : '未开始'
+  stage.state === 'passed' ? '已完成' : stage.state === 'active' ? '进行中' : '未开始'
 )
 
 // 调整步骤：当前步骤是“补一句再跑”，已通过的步骤是“退回并重跑”。

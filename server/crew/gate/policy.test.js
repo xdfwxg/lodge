@@ -28,7 +28,7 @@ test('unreviewed disagreements keep the room from starting', () => {
   assert.equal(review.needsHumanReview, true)
   assert.deepEqual(review.issues, [{
     code: 'handoff-disagreements-unreviewed',
-    text: '交接单还有未解决的分歧，需要你确认后再开工',
+    text: '交接单还有未解决的分歧，待确认后再开工',
   }])
   assert.equal(reviewRoomGate({
     handoff: handoff({ disagreements: ['是否自动回滚'] }),

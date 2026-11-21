@@ -48,7 +48,7 @@ const decisionText = (kind, label, fallback) => {
     case 'mcp': return '连接断了'
     case 'connection': return fallback === undefined || fallback === '' ? '连接断了' : fallback
     case 'blocked': return withStage(label, fallback === undefined || fallback === '' ? '执行超时' : fallback)
-    default: return fallback ?? '需要你处理'
+    default: return fallback ?? '待处理'
   }
 }
 

@@ -89,12 +89,12 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
 
   const stopAutoRework = ({ stageIndex, reason, status, attempts }) => {
     const text = reason === 'same-failure'
-      ? '这一步没做成：同一处失败反复出现，重做也没绕开。需要你决定下一步。'
+      ? '这一步没做成：同一处失败反复出现，重做也没绕开。待你决定下一步。'
       : reason === 'time'
         ? '这一步还没做成：自动检查到时间上限就先停了。可以再试一次，或自己处理。'
         : reason === 'budget'
           ? '这一步先停下了：房间额度用完了。结果和失败输出都还在房间里。'
-          : '这一步没做成：自动检查试了几次都没通过。需要你决定下一步。'
+          : '这一步没做成：自动检查试了几次都没通过。待你决定下一步。'
     store.appendMessage(roomId, { kind: 'system', text, meta: { autoCheckStop: status } })
     store.appendEvent(roomId, 'auto_rework.stopped', { stage: stageIndex, reason, status, attempts })
     setAutoCheck(stageIndex, { status, reason, attempts })
@@ -163,7 +163,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     try {
       await stageStarter.startStage(room, stageIndex, { note, rework: true })
     } catch (error) {
-      systemNotice({ store, roomId, text: '这一步没能自动重做；需要你处理。', error })
+      systemNotice({ store, roomId, text: '这一步没能自动重做；待处理。', error })
     }
   }
 
@@ -178,7 +178,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
         noCheckNoted.add(stageIndex)
         store.appendMessage(roomId, {
           kind: 'system',
-          text: `第 ${stageIndex + 1} 步没有可自动运行的检查；需要你看过结果后确认。`,
+          text: `第 ${stageIndex + 1} 步没有可自动运行的检查；请看过结果后确认。`,
           meta: { autoCheckStop: 'needs-input' },
         })
         setAutoCheck(stageIndex, { status: 'needs-input', reason: 'no-check', attempts: 0 })
@@ -243,7 +243,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     state.markProgress()
     if (hasVerifier) {
       void review.request(stageIndex).catch(error => {
-        systemNotice({ store, roomId, text: '结果已经好了，但没能叫验收员来看；需要你处理。', error })
+        systemNotice({ store, roomId, text: '结果已经好了，但没能叫验收员来看；待处理。', error })
       })
     }
   }
@@ -411,7 +411,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
         rework: true,
         parentAssignmentId: parents.get(target)?.id ?? null,
       }).catch(error => {
-        systemNotice({ store, roomId, text: `重做没能交给${name}；需要你处理。`, error })
+        systemNotice({ store, roomId, text: `重做没能交给${name}；待处理。`, error })
       })
     }
     return true
@@ -561,7 +561,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
         if (done !== null) {
           const remaining = done.workers.filter(worker => !done.failed.includes(worker))
           if (remaining.length === 0) {
-            systemNotice({ store, roomId, text: '这一步没有产出；需要你处理。' })
+            systemNotice({ store, roomId, text: '这一步没有产出；待处理。' })
             for (const item of activeDispatch(store, roomId, done.stageIndex)) {
               updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), stalled: true } })
             }
@@ -713,7 +713,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
         if (done !== null) {
           const remaining = done.workers.filter(worker => !done.failed.includes(worker))
           if (remaining.length === 0) {
-            systemNotice({ store, roomId, text: '这一步没有可合并的结果；需要你处理。' })
+            systemNotice({ store, roomId, text: '这一步没有可合并的结果；待处理。' })
           } else {
             await integrator.integrate({ ...done, workers: remaining, turnId })
           }
@@ -791,7 +791,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
       try {
         await review.request(stageIndex)
       } catch (error) {
-        systemNotice({ store, roomId, text: '这一步上次没做完，已经停了；需要你处理。', error })
+        systemNotice({ store, roomId, text: '这一步上次没做完，已经停了；待处理。', error })
       }
       return
     }
@@ -833,7 +833,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
                 },
               )
             } catch (error) {
-              systemNotice({ store, roomId, text: '上次没做完的这一步没能续接；需要你处理。', error })
+              systemNotice({ store, roomId, text: '上次没做完的这一步没能续接；待处理。', error })
             }
             continue
           }
@@ -842,14 +842,14 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
             try {
               await stageStarter.startStage(room, stageIndex, { only: [item.toMemberId], rework: item.reason === 'rework' })
             } catch (error) {
-              systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；需要你处理。', error })
+              systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；待处理。', error })
             }
             continue
           }
           if (item.flags?.resumed === true) {
             // 零产出重启过一次还是没有产出：停下来交给人，不再无限重发。
             transitionAssignment(store, item.id, 'failed', { resultText: '零产出重启后仍没有结果' })
-            systemNotice({ store, roomId, text: '这一步重启后仍然没有产出；需要你处理。' })
+            systemNotice({ store, roomId, text: '这一步重启后仍然没有产出；待处理。' })
             continue
           }
           updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), resumed: true } })
@@ -866,7 +866,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
             })
             if (cleared !== null) emit?.('room', cleared)
           } catch (error) {
-            systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；需要你处理。', error })
+            systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；待处理。', error })
           }
         }
         return
@@ -880,7 +880,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
         for (const item of activeDispatch(store, roomId, stageIndex)) {
           updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), stalled: true } })
         }
-        systemNotice({ store, roomId, text: '上次没做完的这一步仍然没有产出；需要你处理。' })
+        systemNotice({ store, roomId, text: '上次没做完的这一步仍然没有产出；待处理。' })
         emit?.('room', store.readRoom(roomId))
         return
       }
@@ -920,7 +920,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     try {
       await resumeOnce(options)
     } catch (error) {
-      systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；需要你处理。', error })
+      systemNotice({ store, roomId, text: '上次没做完的这一步没能继续；待处理。', error })
     }
   }
 

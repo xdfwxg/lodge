@@ -3,12 +3,13 @@ import test from 'node:test'
 import { filterRooms, orderRooms, roomLabelOf } from './sidebar.js'
 
 test('sidebar room labels carry name, status, unread and needs-you text', () => {
-  assert.equal(roomLabelOf({ name: '简历', state: 'active', live: true }), '简历，正在做')
+  assert.equal(roomLabelOf({ name: '简历', state: 'active', live: true }), '简历，进行中')
   assert.equal(
     roomLabelOf({ name: '简历', state: 'active', needsYou: { kind: 'review', label: '验收员在看' }, chatUnread: true }),
     '简历，验收员在看，有新消息',
   )
-  assert.equal(roomLabelOf({ name: '周报', state: 'complete' }), '周报，已完成')
+  assert.equal(roomLabelOf({ name: '周报', state: 'complete' }), '周报，已交付')
+  assert.equal(roomLabelOf({ name: '聊天', state: 'complete', modeCapabilities: { stages: false } }), '聊天，已确认')
   assert.equal(roomLabelOf({ name: '空房', state: 'paused' }), '空房，已暂停')
   assert.equal(roomLabelOf({ name: '旧房', state: 'complete', archivedAt: 1 }), '旧房，已归档')
 })

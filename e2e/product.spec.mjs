@@ -18,7 +18,7 @@ test('a room keeps its unsent draft across a reload', async ({ page, request }) 
 test('new room dialog, sample chat and archive restore', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample', { data: { kind: 'chat' } })).ok()).toBe(true)
   await page.goto('/')
-  await expect(page.getByRole('button', { name: /^示例：把「朏朏住在灵动岛上」聊成一个方向，正在做$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^示例：把「朏朏住在灵动岛上」聊成一个方向，进行中$/ })).toBeVisible()
 
   await page.getByRole('button', { name: '新建房间' }).click()
   await page.getByRole('menuitem', { name: '工作室' }).click()
@@ -58,7 +58,7 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
 test('opening a detail keeps the reading position', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
-  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已完成$/ }).click()
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
 
   const scroller = page.locator('.dsb-scroll')
   const summary = page.locator('.studio-delivery-details > summary')
@@ -75,7 +75,7 @@ test('opening a detail keeps the reading position', async ({ page, request }) =>
 test('expanding the delivery details keeps the reading position', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
-  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已完成$/ }).click()
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
 
   const scroller = page.locator('.dsb-scroll')
   await page.locator('.studio-delivery-details > summary').click()
@@ -116,7 +116,7 @@ test('a narrow dark window still renders the room without horizontal overflow', 
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.goto('/')
-  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已完成$/ }).click()
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
   await expect(page.locator('.studio-delivery-name')).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   expect(overflow).toBeLessThanOrEqual(1)

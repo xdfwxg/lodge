@@ -179,7 +179,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       try {
         await live.resolveMerged(room.id, conflict.stage)
       } catch (error) {
-        systemNotice({ store, roomId: room.id, text: '冲突处理完了，但验收没有接上；需要你处理。', error })
+        systemNotice({ store, roomId: room.id, text: '冲突处理完了，但验收没有接上；待处理。', error })
       }
     }
     return ok({ room: updated })

@@ -55,7 +55,7 @@ export const createMessageProjector = ({ store }) => {
     }
     if (message.kind === 'question') {
       if (message.card?.requestId === undefined) {
-        return { ...common, kind: 'system', text: `需要你处理：${text}` }
+        return { ...common, kind: 'system', text: `待处理：${text}` }
       }
       // 卡片只属于产生它的阶段和重做轮次；阶段推进或重做后自然失效。
       const scope = attemptScopeOf({

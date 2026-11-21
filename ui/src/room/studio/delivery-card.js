@@ -333,7 +333,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
               className: 'crew-routine-start',
               disabled: draftDays.length === 0,
               onClick: startRoutine,
-            }, '开始')),
+            }, '开启定时')),
           missHint,
           historyNode)
       }
@@ -345,7 +345,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
             className: 'crew-routine-start',
             disabled: draftDays.length === 0,
             onClick: startRoutine,
-          }, '好'),
+          }, '保存'),
           h('button', { type: 'button', className: 'crew-link', onClick: cancelEdit }, '取消'))),
         missHint,
         historyNode)
@@ -359,7 +359,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
             className: 'crew-routine-start',
             disabled: draftDays.length === 0,
             onClick: startRoutine,
-          }, '好'),
+          }, '保存'),
           h('button', { type: 'button', className: 'crew-link', onClick: cancelEdit }, '取消'))),
         delivery.routineManual === true
           ? h('p', { className: 'crew-field-hint' }, '每次跑完要你看一眼。')
@@ -488,7 +488,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
               onClick: () => void open(delivery.workspacePath),
             }, '在文件夹打开'))
           : null,
-        firstCommand === '' ? null : h('p', { className: 'crew-field-hint' }, `怎么跑：${firstCommand}`),
+        firstCommand === '' ? null : h('p', { className: 'crew-field-hint' }, `检查命令：${firstCommand}`),
         openNotice === null ? null : h('p', { className: 'crew-field-hint', role: 'status' }, openNotice),
         openError === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, openError),
         prDraft === null
@@ -575,7 +575,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
               h('div', { className: 'crew-delivery-stage-head' },
                 h('span', { className: 'crew-delivery-stage-index' }, stage.index + 1),
                 h('b', null, stage.title),
-                h('span', { className: 'crew-delivery-stage-kind' }, stage.kind === 'deliverable' ? '已交付' : '已确认')),
+                h('span', { className: 'crew-delivery-stage-kind' }, '已完成')),
               h('div', { className: 'crew-delivery-stage-body' },
                 ...stage.commands.map(command => h('div', { key: command.id, className: 'crew-delivery-fact crew-delivery-fact-command-row' },
                   h('span', null, '检查'),

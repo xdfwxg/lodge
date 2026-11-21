@@ -264,7 +264,7 @@ function NewRoomDialog({
   const recommend = async () => {
     if (goal.trim() === '' || recommending) return
     if (typeof onRecommend !== 'function') {
-      setError('暂时没能给出方案')
+      setError('Lodge 这次没能给出方案，再试一次')
       return
     }
     setRecommending(true)
@@ -272,12 +272,12 @@ function NewRoomDialog({
     try {
       const result = await onRecommend(goal.trim(), repoPath.trim(), handoff)
       if (result?.ok !== true) {
-        setError(result?.error ?? 'Lodge 没有给出方案；请重试')
+        setError(result?.error ?? 'Lodge 这次没能给出方案，再试一次')
         return
       }
       useProposal(result.proposal)
     } catch (caught) {
-      setError(`Lodge 没能给出方案${errorSuffix(caught)}`)
+      setError(`Lodge 这次没能给出方案${errorSuffix(caught)}`)
     } finally {
       setRecommending(false)
     }
@@ -442,7 +442,7 @@ function NewRoomDialog({
       : null,
     (proposal.questions ?? []).length > 0
       ? h('div', { className: 'crew-proposal-block' },
-        h('b', null, '需要你定'),
+        h('b', null, '待确认'),
         proposal.questions.map((question, index) => h('div', { key: `q-${index}`, className: 'crew-proposal-question' },
           h('span', null, inlineCode(`${index + 1}. ${question.text}`)),
           h('textarea', {

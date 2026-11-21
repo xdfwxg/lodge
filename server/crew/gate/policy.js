@@ -8,7 +8,7 @@ const RULES = [
   },
   {
     code: 'handoff-disagreements-unreviewed',
-    text: '交接单还有未解决的分歧，需要你确认后再开工',
+    text: '交接单还有未解决的分歧，待确认后再开工',
     fails: (handoff, { humanReviewed }) => (
       Array.isArray(handoff.disagreements) &&
       handoff.disagreements.length > 0 &&

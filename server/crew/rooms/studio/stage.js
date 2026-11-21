@@ -35,7 +35,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       kind: 'system',
       text: completed.length > 0
         ? `执行超时：${waiting} 已停下；已完成的部分继续合并。`
-        : `执行超时：${waiting} 已停下；这一步需要你退回重做。`,
+        : `执行超时：${waiting} 已停下；这一步请退回重做。`,
     })
     const updated = store.updateRoom(roomId, current => {
       current.blocked = {
@@ -211,7 +211,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       try {
         workspaceOf(room).resetMemberWorktree?.({ path: room.repoPath, ref: stageBase, source: room.sourceRepo })
       } catch (error) {
-        systemNotice({ store, roomId, text: '房间的集成分支没能退回这一步的起点；需要你处理。', error })
+        systemNotice({ store, roomId, text: '房间的集成分支没能退回这一步的起点；待处理。', error })
       }
     }
 
@@ -223,7 +223,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         try {
           workspaceOf(room).resetMemberWorktree?.({ path, ref: stageBase, source: room.sourceRepo })
         } catch (error) {
-          systemNotice({ store, roomId, text: `${memberDisplayName(room, worker)} 的工作副本没能对齐；需要你处理。`, error })
+          systemNotice({ store, roomId, text: `${memberDisplayName(room, worker)} 的工作副本没能对齐；待处理。`, error })
         }
       }
     }
@@ -260,7 +260,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       if (dispatch !== null && dispatch.pending.length === 0) {
         const remaining = dispatch.workers.filter(id => !failed.includes(id))
         if (remaining.length === 0) {
-          store.appendMessage(roomId, { kind: 'system', text: '这一步没有成员能开工；需要你处理。' })
+          store.appendMessage(roomId, { kind: 'system', text: '这一步没有成员能开工；待处理。' })
         } else {
           void enqueue(() => integrate({ stageIndex: index, workers: remaining, base: dispatch.base, failed, turnId: '' }))
         }

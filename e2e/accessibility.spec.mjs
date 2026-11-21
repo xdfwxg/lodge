@@ -23,7 +23,7 @@ test('the first screen has no WCAG A/AA violations', async ({ page }) => {
 test('the sample delivery has no WCAG A/AA violations', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
-  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已完成$/ }).click()
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
   await expect(page.locator('.studio-delivery-name')).toBeVisible()
   await expectClean(page)
 

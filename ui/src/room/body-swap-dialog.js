@@ -25,8 +25,8 @@ const declarationOf = member => {
   if (caps.tools?.read === true) tools.push('读')
   if (caps.tools?.write === true) tools.push('写')
   if (caps.tools?.exec === true) tools.push('跑命令')
-  const vision = caps.images === true ? '声明能看图（以验收结论为准）' : '只看文字'
-  return `能力声明：${vision}${tools.length === 0 ? '' : ` · 工具：${tools.join(' / ')}`}`
+  const vision = caps.images === true ? '能看图（以验收结论为准）' : '只看文字'
+  return `${vision}${tools.length === 0 ? '' : ` · 工具：${tools.join(' / ')}`}`
 }
 
 // 调整成员：只换模型或运行时；成员 id、证据、交接和历史都不动。

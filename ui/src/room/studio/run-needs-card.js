@@ -20,7 +20,7 @@ const ACTION_LABELS = {
 export function RunNeedsCard({ needs, onOpenRun = null }) {
   if (needs === null || needs === undefined) return null
   return h('div', { className: 'crew-routine-needs', role: 'status' },
-    h('p', { className: 'crew-routine-needs-title' }, needs.label ?? '这次需要你'),
+    h('p', { className: 'crew-routine-needs-title' }, needs.label ?? '待处理'),
     needs.reason ? h('p', { className: 'crew-routine-needs-reason' }, needs.reason) : null,
     needs.detail ? h('p', { className: 'crew-field-hint' }, needs.detail) : null,
     needs.runId && onOpenRun

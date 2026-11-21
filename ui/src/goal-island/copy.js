@@ -3,7 +3,7 @@
 const ZH = {
   'Aligning the goal with you': '正在和你对齐目标',
   'All {count} stages passed': '全部 {count} 步已完成',
-  'All stages done': '全部做完了',
+  'All stages done': '全部完成了',
   'Back to current stage': '回到现在这一步',
   Cancel: '取消',
   Continue: '继续推进',
@@ -35,7 +35,7 @@ const ZH = {
   'Stop current work too': '连当前工作一起停',
   'Stop the goal?': '确定停止目标？',
   Stopped: '已停止',
-  'Waiting for you': '待你处理',
+  'Waiting for you': '待处理',
   'Waiting for you · {title}': '待处理 · {title}',
   'What should this group achieve?': '这个房间要达成什么？',
   'a Bot': '一位成员',

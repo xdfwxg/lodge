@@ -385,19 +385,19 @@ const toneOf = room => {
 }
 
 const NEEDS_META = {
-  result: '今天做完了',
-  'routine-run': '需要你',
+  result: '看结果',
+  'routine-run': '待处理',
   signoff: '待签字',
   review: '验收员在看',
   decision: '待确认',
   question: '待回答',
-  setup: '待补检查',
+  setup: '补检查',
   rework: '待重做',
   merge: '待处理冲突',
   parallel: '待处理',
   approval: '待确认',
-  idle: '可继续',
-  error: '需要处理',
+  idle: '可以继续',
+  error: '没做成',
   mcp: '连接中断',
   connection: '连接中断',
   blocked: '待处理',
@@ -409,10 +409,10 @@ const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.ne
 
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
-  if (room?.state === 'complete') return '已完成'
+  if (room?.state === 'complete') return room?.modeCapabilities?.stages === false ? '已确认' : '已交付'
   if (room?.state === 'stopped') return '已停止'
   if (room?.state === 'paused') return '已暂停'
-  if (room?.state === 'active') return '正在做'
+  if (room?.state === 'active') return '进行中'
   return ''
 }
 
@@ -649,7 +649,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
       room.chatUnread === true && !active
         ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))
         : null,
-      metaOf(room) === '' ? null : h('span', { className: 'crew-side-room-meta', 'data-tone': toneOf(room) }, metaOf(room)),
+      active || metaOf(room) === '' ? null : h('span', { className: 'crew-side-room-meta', 'data-tone': toneOf(room) }, metaOf(room)),
       h('span', { className: 'crew-side-room-dot', 'data-tone': toneOf(room), title: room.needsYou?.label ?? '' })),
     manage && !renaming
       ? h('button', {

@@ -73,7 +73,7 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
           })
         }
       } catch (error) {
-        systemNotice({ store, roomId: entry.roomId, text: '有一步确认没能处理；需要你处理。', error })
+        systemNotice({ store, roomId: entry.roomId, text: '有一步确认没能处理；待处理。', error })
       }
     },
 

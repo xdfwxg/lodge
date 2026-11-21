@@ -59,7 +59,7 @@ test('a routine run that needs you surfaces on the goal room', () => {
   })
   const needs = roomNeedsYou(goal, [], { room: run, messages: [] })
   assert.equal(needs.kind, 'routine-run')
-  assert.equal(needs.label, '这次需要你')
+  assert.equal(needs.label, '待处理')
   assert.equal(needs.reason, '执行官的登录失效了')
   assert.equal(needs.runId, 'run-1')
   assert.equal(needs.action, 'error')
@@ -262,7 +262,7 @@ test('a stopped automatic check says what the person should do now', () => {
   assert.deepEqual(roomNeedsYou(r, []), {
     kind: 'auto-check',
     stage: 0,
-    label: '这一步没做成，需要你决定',
+    label: '这一步没做成，待你决定',
   })
   r.autoCheck = { ...r.autoCheck, status: 'limit-reached', reason: 'time' }
   assert.equal(roomNeedsYou(r, []).label, '这一步还没做成，可以再试一次')

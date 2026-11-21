@@ -293,10 +293,10 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     appendHumanContext({ store, roomId: room.id, stage: index, text: note, source: 'retry' })
     if (room.live === true && typeof live.retryMember === 'function') {
       void live.retryMember(room, index, memberId, note).catch(error => {
-        systemNotice({ store, roomId: room.id, text: '这一分支没能重试；需要你处理。', error })
+        systemNotice({ store, roomId: room.id, text: '这一分支没能重试；待处理。', error })
       })
     } else {
-      appendMessage(room.id, { kind: 'system', text: '已记录重试意见；这个房间现在没有连上，需要你继续或重新开始。' })
+      appendMessage(room.id, { kind: 'system', text: '已记录重试意见；这个房间现在没有连上，请继续或重新开始。' })
     }
     return ok({ room, message })
   }
@@ -336,10 +336,10 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     expireCards(room.id, '这一步已经重做了')
     if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {
-        systemNotice({ store, roomId: room.id, text: '重做没能开始；需要你处理。', error })
+        systemNotice({ store, roomId: room.id, text: '重做没能开始；待处理。', error })
       })
     } else {
-      appendMessage(room.id, { kind: 'system', text: '已记录重做意见；这个房间现在没有连上，需要你继续或重新开始。' })
+      appendMessage(room.id, { kind: 'system', text: '已记录重做意见；这个房间现在没有连上，请继续或重新开始。' })
     }
     return ok({ room: updated, message })
   }
@@ -420,21 +420,21 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
           INTERNAL_PROMPT_MARKER,
         ].join('\n')
         void live.sendToMember(updated.id, lead, prompt, { intent: 'notice', from: 'you' }).catch(error => {
-          systemNotice({ store, roomId: room.id, text: '这一步没能重新开始；需要你处理。', error })
+          systemNotice({ store, roomId: room.id, text: '这一步没能重新开始；待处理。', error })
         })
       } else {
         appendMessage(room.id, {
           kind: 'system',
-          text: '这一步已经重新打开；需要你继续或重新开始。',
+          text: '这一步已经重新打开；请继续或重新开始。',
           meta: { kind: 'stage', stage: index },
         })
       }
     } else if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {
-        systemNotice({ store, roomId: room.id, text: '退回没能开始；需要你处理。', error })
+        systemNotice({ store, roomId: room.id, text: '退回没能开始；待处理。', error })
       })
     } else {
-      appendMessage(room.id, { kind: 'system', text: '已记录退回意见；这个房间现在没有连上，需要你继续或重新开始。' })
+      appendMessage(room.id, { kind: 'system', text: '已记录退回意见；这个房间现在没有连上，请继续或重新开始。' })
     }
     return ok({ room: updated })
   }
@@ -471,7 +471,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     })
     if (changed && trimmed !== '' && room.live === true && room.stages[index]?.state === 'active' && typeof live.isAttached === 'function' && live.isAttached(room.id) === true && typeof live.resume === 'function') {
       void live.resume(room.id, { forceAcceptance: true }).catch(error => {
-        systemNotice({ store, roomId: room.id, text: '检查已经更新，但这次没跑成；需要你处理。', error })
+        systemNotice({ store, roomId: room.id, text: '检查已经更新，但这次没跑成；待处理。', error })
       })
     }
     return ok({ room, message })

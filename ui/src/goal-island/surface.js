@@ -90,7 +90,7 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
   const chat = view?.kind === 'chat'
   const title = view?.title || room.name || '目标'
   const status = view?.barLabel || room.needsYou?.label
-    || (view?.status === 'complete' ? '已完成 · 看结果' : '还没有目标')
+    || (view?.status === 'complete' ? (chat ? '已确认 · 看结果' : '已交付 · 看结果') : '还没有目标')
   const tone = view?.status === 'complete' ? 'done'
     : view?.status === 'stopped' ? 'stopped'
       : view?.status === 'paused' || view?.idle === true || room.needsYou ? 'waiting'
@@ -250,7 +250,7 @@ function GoalPanel({ goal, view, room, actions }) {
   const stage = selected >= 0 ? view.stages[selected] : undefined
   const stateLabel = stage === undefined ? ''
     : stage.status === 'passed' ? '已完成'
-      : stage.status === 'active' ? '正在做' : '还没到'
+      : stage.status === 'active' ? '进行中' : '还没到'
   return h('div', { className: 'bt-goal-panel', role: 'region', 'aria-label': view.title },
     h('div', { className: 'bt-goal-body' },
     goal.objective ? h('div', { className: 'bt-goal-goal' }, goal.objective) : null,
@@ -266,7 +266,7 @@ function GoalPanel({ goal, view, room, actions }) {
       }, h('span', { className: 'bt-goal-node' }, stageView.status === 'passed' ? h(CheckIcon) : stageView.n)))),
     listAttention
       ? h('div', { key: 'attention', className: 'bt-goal-att' },
-        h('div', { className: 'bt-goal-sub' }, '需要你'),
+        h('div', { className: 'bt-goal-sub' }, '待处理'),
         attention.map((item, index) => h('button', {
           key: `${item.kind ?? ''}:${item.roomId ?? ''}:${item.stage ?? '-'}:${index}`,
           type: 'button',

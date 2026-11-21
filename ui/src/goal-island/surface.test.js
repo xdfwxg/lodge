@@ -144,7 +144,7 @@ test('the open panel is the goal, its steps and where the work stands', () => {
   const html = render('open', null, { attention: [], needsYou: null })
   assert.match(html, /做一个欢迎语/)
   assert.match(html, /目标对齐/)
-  assert.match(html, /正在做/)
+  assert.match(html, /进行中/)
   assert.doesNotMatch(html, /详情/)
   assert.doesNotMatch(html, /检查/)
 })
@@ -156,7 +156,7 @@ test('the open panel lists every waiting item, including a subroom', () => {
       { kind: 'decision', stage: 0, label: '待确认', roomId: 'child-1', roomName: '写欢迎语' },
     ],
   })
-  assert.match(html, /需要你/)
+  assert.match(html, /待处理/)
   assert.match(html, /待签字/)
   assert.match(html, /写欢迎语/)
   assert.match(html, /去处理/)
@@ -166,7 +166,7 @@ test('a single waiting item keeps the old one-line warning', () => {
   const html = render('open', null, {
     attention: [{ kind: 'decision', stage: 0, label: '待确认' }],
   })
-  assert.doesNotMatch(html, /需要你/)
+  assert.doesNotMatch(html, /待处理/)
   assert.match(html, /bt-goal-warn/)
 })
 

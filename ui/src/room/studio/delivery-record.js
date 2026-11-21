@@ -13,7 +13,7 @@ const when = ts => {
 const nameOf = (members, id) => (members ?? []).find(member => member.id === id)?.name ?? id ?? '成员'
 
 const stageRows = room => (room.stages ?? []).map((stage, index) => {
-  const status = stage.state === 'passed' ? '通过' : stage.state === 'active' ? '进行中' : '未开始'
+  const status = stage.state === 'passed' ? '已完成' : stage.state === 'active' ? '进行中' : '未开始'
   const acceptance = typeof stage.acceptance === 'string' && stage.acceptance !== ''
     ? ` · 检查：\`${stage.acceptance}\``
     : ''
@@ -53,7 +53,7 @@ export const deliveryRecord = room => {
     `# ${line(room.name) || '房间交付记录'}`,
     '',
     `目标：${line(stripAttachmentTags(room.goal))}`,
-    `状态：${allPassed ? '全部完成' : room.state === 'active' ? '进行中' : room.state ?? ''}`,
+    `状态：${allPassed ? '已交付' : room.state === 'active' ? '进行中' : room.state ?? ''}`,
     completedAt === null ? '' : `完成时间：${when(completedAt)}`,
     '',
     '## 步骤',
