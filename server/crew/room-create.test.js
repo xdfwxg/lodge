@@ -393,7 +393,7 @@ test('a chat room has a configurable turn limit and no trust ladder', async () =
   assert.deepEqual(engine.skillAssignments, [])
 })
 
-test('studio closes member reply mentions while chat keeps them', async () => {
+test('studio and chat both close member reply mentions', async () => {
   const calls = []
   const engine = fakeEngine()
   const createRoom = engine.createRoom
@@ -419,7 +419,7 @@ test('studio closes member reply mentions while chat keeps them', async () => {
   assert.equal(chat.ok, true)
   const mainRoom = goal => calls.find(call => call.goal === goal && call.responder !== undefined)
   assert.equal(mainRoom('studio goal')?.followMentions, false)
-  assert.equal(mainRoom('chat goal')?.followMentions, true)
+  assert.equal(mainRoom('chat goal')?.followMentions, false)
 })
 
 test('chat speakers can pin their own engine and model', async () => {

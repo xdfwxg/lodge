@@ -12,7 +12,9 @@ test('a chat round defaults to six speakers and accepts a room limit', () => {
   assert.equal(chatTurnLimitOf({ chat: { turnLimit: 99 } }), 6)
 })
 
-const setup = ({ summaryText = '这是总结。', silent = false, busy = false } = {}) => {
+const setup = ({ summaryText = '这是总结。', silent = false, busy = false, replyText = '这是发言。', extraMember = false } = {}) => {
+  const members = extraMember ? ['a', 'b', 'c'] : ['a', 'b']
+  const seatNames = extraMember ? { a: 'A', b: 'B', c: 'C' } : { a: 'A', b: 'B' }
   let current = normalizeTestRoom({
     id: 'room-chat',
     kind: 'room',
@@ -29,12 +31,13 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false }
       speaker: '',
       note: '',
     },
-    members: ['a', 'b'],
-    seatBots: { a: 'A', b: 'B' },
-    seatNames: { a: 'A', b: 'B' },
+    members,
+    seatBots: seatNames,
+    seatNames,
     seatSpecs: [
       { id: 'a', name: '甲', personality: 'assertive' },
       { id: 'b', name: '乙', personality: 'cheerful' },
+      ...(extraMember ? [{ id: 'c', name: '丙', personality: 'calm' }] : []),
     ],
     chatHost: { memberRef: 'H', name: 'LodgeHost', displayName: 'Lodge 主持' },
     chatRoom: { id: 'chat', sessionRef: 'thread' },
@@ -60,35 +63,23 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false }
     history: async () => ({ messages: [...history] }),
     rooms: async () => [{ id: 'chat', working: busy }],
     sendTurn: async ({ text }) => {
-      const ref = text.includes('LodgeHost') ? 'H' : ['A', 'B'].find(item => text.includes(`@${item}`))
-      const pick = text.includes('下一位从这些成员里选')
-      const order = text.includes('按顺序列出这轮要发言的成员')
+      const ref = text.includes('LodgeHost') ? 'H' : ['A', 'B', 'C'].find(item => text.includes(`@${item}`))
       const summary = text.includes('请总结')
       const id = `u${history.length + 1}`
       history.push({ id, role: 'user', kind: 'text', text, authorRef: null, at: Date.now() })
-      const names = current.members.map(member => member.name)
-
-      const limit = Number(text.match(/不超过 (\d+) 次/)?.[1] ?? 6)
-      const reply = summary
-        ? summaryText
-        : order
-          ? Array.from({ length: limit }, (_, index) => names[index % names.length] ?? '甲').join('、')
-          : pick
-            ? (text.match(/选：([^。]+)。/)?.[1]?.split('、')[0] ?? '甲')
-            : '这是发言。'
-      if (!silent || pick || order) {
+      if (!silent) {
         history.push({
           id: `a${history.length + 1}`,
           role: 'agent',
           kind: 'text',
-          text: reply,
+          text: summary ? summaryText : replyText,
           authorRef: ref,
           at: Date.now(),
         })
       }
-      if (!summary && !pick && !order) {
+      if (!summary && !silent) {
         const authorId = Object.entries(current.seatBots).find(([, value]) => value === ref)?.[0]
-        store.appendMessage(current.id, { kind: 'chat', authorId, text: '这是发言。' })
+        store.appendMessage(current.id, { kind: 'chat', authorId, text: replyText })
       }
       return { accepted: true, messageId: id }
     },
@@ -216,6 +207,73 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   const conclusions = ctx.messages.filter(message => message.kind === 'chat_conclusion')
   assert.equal(conclusions.length, 2)
   assert.equal(conclusions.at(-1).meta.round, 2)
+})
+
+test('a resumed round keeps the fair order from the messages already spoken', async () => {
+  const ctx = setup({ extraMember: true })
+  ctx.store.appendMessage('room-chat', {
+    kind: 'chat',
+    authorId: 'lodge',
+    text: '【讨论状态提示】',
+    meta: { opening: true, round: 1 },
+  })
+  ctx.store.appendMessage('room-chat', { kind: 'chat', authorId: 'a', text: '先说一句。' })
+  ctx.store.appendMessage('room-chat', { kind: 'chat', authorId: 'a', text: '再补一句。' })
+  ctx.store.updateRoom('room-chat', state => {
+    state.chat = { ...state.chat, running: true, turns: 2, round: 1 }
+    return { events: [] }
+  })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  await scheduler.start(ctx.room(), { resume: true })
+  const spoken = ctx.messages
+    .filter(message => message.kind === 'chat' && ['a', 'b', 'c'].includes(message.authorId))
+    .map(message => message.authorId)
+  assert.deepEqual(spoken.slice(2, 4), ['b', 'c'])
+})
+
+test('a member @ does not change the scheduled next speaker', async () => {
+  const ctx = setup({ replyText: '@C 你来。', extraMember: true })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  await scheduler.start(ctx.room())
+  const spoken = ctx.messages
+    .filter(message => message.kind === 'chat' && message.authorId !== 'lodge')
+    .map(message => message.authorId)
+  assert.deepEqual(spoken.slice(0, 2), ['a', 'b'])
+  assert.equal(ctx.history.some(message => /lodge-floor|让给/.test(message.text)), false)
+})
+
+test('a round gives every member a turn before repeating', async () => {
+  const ctx = setup({ extraMember: true })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  await scheduler.start(ctx.room())
+  const spoken = ctx.messages
+    .filter(message => message.kind === 'chat' && message.authorId !== 'lodge')
+    .map(message => message.authorId)
+  assert.deepEqual(spoken.slice(0, 3).sort(), ['a', 'b', 'c'])
 })
 
 test('the host conclusion keeps all five handoff fields', async () => {

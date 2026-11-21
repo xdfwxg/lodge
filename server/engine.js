@@ -462,7 +462,8 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { ok: true }
   }
 
-  const createRoom = async ({ name, goal, bulletin, members, cwd, leadId, autoRoute = false, responder, followMentions = true }) => {
+  // 两种房型都由系统点名；成员回复里的 @ 不决定下一棒。
+  const createRoom = async ({ name, goal, bulletin, members, cwd, leadId, autoRoute = false, responder, followMentions = false }) => {
     const created = await client.createGroup({ name, memberIds: members })
     const group = created?.group ?? created
     if (typeof group?.id !== 'string' || typeof group?.threadId !== 'string') throw new Error('基座没有返回群')

@@ -16,7 +16,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 能力 | 自动用例 | 需要 |
 | --- | --- | --- |
 | 建房、成员组合、roster 推荐 | `server/crew/room-create.test.js`、`server/crew/roster.test.js`、`server/crew/member-add.test.js`、`server/crew/member-remove.test.js` | 无 |
-| 聊天室主持、@、轮次、结论 | `server/crew/live-chat.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/service-chat.test.js`、`server/crew/live-turns.test.js` | 真实模型仅整房 dogfood |
+| 聊天室主持、随机顺序、轮次、结论 | `server/crew/live-chat.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/service-chat.test.js`、`server/crew/live-turns.test.js` | 真实模型仅整房 dogfood |
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | 工作室阶段、验收、签字、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
 | 长期工作室、轮次隔离、旧轮只读、项目分组 | `server/crew/store-rounds.test.js`、`ui/src/views/project-view.test.js`、`e2e/project.spec.mjs` | 无 |
@@ -33,7 +33,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 角色技能按角色取长、总量有体积预算，合并掉的旧技能不再挂载 | `shared/role-toolbox.test.js`、`server/skill-packs.test.js` | 真实房间读技能效果 |
 | 状态目录完整，轮次事件可只读重放 | `shared/states.test.js`、`server/crew/rounds/replay.test.js` | 真实房间跑一次 `replay:round` |
 | 自动交付默认关；打开后最后一步验收通过自动收口 | `server/crew/live-turn-modules.test.js`、`ui/src/room/studio/create.test.js` | 真实房间打开开关跑一轮 |
-| 工作室内成员回复里的 @ 不唤醒下一棒；聊天室保留 @ 接话 | `server/crew/engine.test.js`、`server/crew/room-create.test.js` | 基座 `server/room-roots.e2e.test.ts` 覆盖真实路由 |
+| 成员回复里的 @ 不唤醒下一棒；聊天室随机顺序、每人先说到一次 | `server/crew/engine.test.js`、`server/crew/room-create.test.js`、`server/crew/live-chat-room.test.js` | 基座 `server/room-roots.e2e.test.ts` 覆盖真实路由 |
 | 重置前归档工作区，数据库与工作区成对恢复 | `server/crew/data-recovery.test.js` | 无 |
 | 跨轮长期任务：重启、停止、归档、预算、人工门 | `server/crew/long-task-recovery.test.js`、`evals/long-task/run.mjs` | 确定性场景，不调模型 |
 | 房间写与轮次写分开，终态轮拒绝写入 | `server/crew/store-rounds.test.js`、`server/crew/store.test.js` | 无 |

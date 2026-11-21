@@ -203,7 +203,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         cwd: room.repoPath,
         leadId: hostOf(room)?.memberRef ?? leadMemberOf(room)?.body?.ref ?? members[0],
         responder: { kind: 'mentions' },
-        followMentions: room.roomType === 'chat',
+        followMentions: false,
       })
       const updated = store.updateRoom(room.id, current => {
         if (current.chatRoom !== undefined) return null
