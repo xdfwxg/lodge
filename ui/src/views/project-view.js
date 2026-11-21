@@ -1,5 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { dateTimeOf } from '../view-format.js'
+import { DecisionCard, DecisionOption } from '../room/decision-card.js'
 import { RoundList, orderedRounds, roundNameOf, roundStatusOf } from './round-list.js'
 
 export function ProjectView({ projects = [], rooms = [], projectId, onClose, onOpenRoom, onStartRound = null, onRecommend = null }) {
@@ -84,6 +85,46 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
     }
   }
 
+  const questionCards = proposal === null
+    ? []
+    : (proposal.questions ?? []).slice(0, 2).map((question, index) => h(DecisionCard, {
+      key: `question-${index}`,
+      kicker: '开工前决定',
+      title: question.text,
+      lead: '选一个方向，再开始这一轮。',
+    },
+    (question.options ?? []).length === 0
+      ? h('div', { className: 'crew-decision-input' },
+        h('input', {
+          className: 'crew-goal-input',
+          value: answers[index] ?? '',
+          'aria-label': question.text,
+          disabled: busy,
+          onChange: event => {
+            const next = [...answers]
+            next[index] = event.target.value
+            setAnswers(next)
+          },
+        }))
+      : h('div', {
+        className: 'crew-decision-options',
+        role: 'radiogroup',
+        'aria-label': question.text,
+      },
+      question.options.map(option => h(DecisionOption, {
+        key: option.label,
+        title: option.label,
+        detail: option.cost ?? '',
+        badge: option.label === question.recommendation ? '推荐' : '',
+        selected: answers[index] === option.label,
+        disabled: busy,
+        onSelect: () => {
+          const next = [...answers]
+          next[index] = option.label
+          setAnswers(next)
+        },
+      })))))
+
   if (project === null) {
     return h('main', { className: 'dsb-main crew-project' },
       h('div', { className: 'crew-project-inner' },
@@ -155,39 +196,8 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
               (proposal.stages ?? []).length === 0
                 ? null
                 : h('ol', null, proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
-                  `${stage.title}${stage.kind === 'decision' ? '（确认）' : ''}`))),
-              (proposal.questions ?? []).slice(0, 2).map((question, index) => h('div', {
-                key: `question-${index}`,
-                className: 'crew-proposal-question',
-              },
-              h('b', null, question.text),
-              (question.options ?? []).length === 0
-                ? h('input', {
-                  className: 'crew-goal-input',
-                  value: answers[index] ?? '',
-                  'aria-label': question.text,
-                  disabled: busy,
-                  onChange: event => {
-                    const next = [...answers]
-                    next[index] = event.target.value
-                    setAnswers(next)
-                  },
-                })
-                : h('div', { className: 'crew-question-options' },
-                  question.options.map(option => h('button', {
-                    key: option.label,
-                    type: 'button',
-                    className: 'crew-choice',
-                    'data-on': answers[index] === option.label ? 'true' : undefined,
-                    onClick: () => {
-                      const next = [...answers]
-                      next[index] = option.label
-                      setAnswers(next)
-                    },
-                  },
-                  h('span', null, option.label),
-                  option.cost === '' ? null : h('small', { className: 'crew-field-hint' }, option.cost),
-                  option.label === question.recommendation ? h('small', { className: 'crew-field-hint' }, '推荐') : null)))))),
+                  `${stage.title}${stage.kind === 'decision' ? '（确认）' : ''}`)))),
+          questionCards,
           h('label', { className: 'crew-project-next-label', htmlFor: 'crew-project-next-acceptance' }, '验收命令（可不填）'),
           h('input', {
             id: 'crew-project-next-acceptance',

@@ -444,13 +444,14 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
   const [menuAt, setMenuAt] = useState(null)
   const [renaming, setRenaming] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
+  const [membersAt, setMembersAt] = useState(null)
   const [draft, setDraft] = useState(room.name)
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const moreRef = useRef(null)
   const menuRef = useRef(null)
-  const memberOverlay = useOverlay({ label: '房间成员', onClose: () => setMembersOpen(false), active: membersOpen })
+  const membersRef = useRef(null)
 
   useEffect(() => { setDraft(room.name) }, [room.name])
 
@@ -484,6 +485,31 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
     const first = menuRef.current.querySelector('[role=menuitem]:not([disabled])')
     first?.focus()
   }, [menuOpen])
+
+  useEffect(() => {
+    if (!membersOpen) return undefined
+    const onPointer = event => {
+      if (membersRef.current?.contains(event.target) === true) return
+      if (moreRef.current?.contains(event.target) === true) return
+      setMembersOpen(false)
+    }
+    const onKey = event => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      setMembersOpen(false)
+      moreRef.current?.focus()
+    }
+    const close = () => setMembersOpen(false)
+    document.addEventListener('pointerdown', onPointer)
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('pointerdown', onPointer)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [membersOpen])
 
   const menuKeyDown = event => {
     const items = [...(menuRef.current?.querySelectorAll('[role=menuitem]:not([disabled])') ?? [])]
@@ -586,6 +612,19 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
     closeMenu()
     setConfirm('delete')
   }
+  const openMembers = () => {
+    closeMenu()
+    const rect = moreRef.current?.getBoundingClientRect()
+    if (rect === undefined || rect === null) return
+    const width = 248
+    const height = Math.min(320, 56 + (room.members?.length ?? 0) * 30)
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))
+    const top = rect.bottom + 4 + height > window.innerHeight - 8
+      ? Math.max(8, rect.top - height - 4)
+      : rect.bottom + 4
+    setMembersAt({ top, left })
+    setMembersOpen(true)
+  }
   return h(Fragment, null,
     h('div', {
       className: 'crew-side-row',
@@ -665,10 +704,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
             type: 'button',
             role: 'menuitem',
             className: 'crew-side-menu-item',
-            onClick: () => {
-              closeMenu()
-              setMembersOpen(true)
-            },
+            onClick: openMembers,
           }, '成员')
           : null,
         onArchive === undefined ? null : h('button', {
@@ -688,29 +724,14 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         }, '删除…')), document.body)
       : null,
     note === '' ? null : h('p', { className: 'crew-side-row-note', role: 'alert' }, note)),
-    membersOpen
+    membersOpen && membersAt !== null
       ? createPortal(h('div', {
-        className: 'crew-overlay crew-overlay-center',
-        onClick: () => setMembersOpen(false),
-        ...memberOverlay,
-      },
-      h('div', {
-        className: 'crew-dialog crew-member-dialog',
+        ref: membersRef,
+        className: 'crew-member-pop',
+        style: { top: `${membersAt.top}px`, left: `${membersAt.left}px` },
         role: 'dialog',
-        'aria-modal': 'true',
         'aria-label': '房间成员',
-        onClick: event => event.stopPropagation(),
-      },
-      h('div', { className: 'crew-dialog-heading' }, h('h2', null, '成员')),
-      h('div', { className: 'crew-dialog-body crew-member-dialog-body' },
-        h(SideMembers, { room, onHold })),
-      h('div', { className: 'crew-dialog-foot' },
-        h('button', {
-          type: 'button',
-          className: 'crew-ghost',
-          autoFocus: true,
-          onClick: () => setMembersOpen(false),
-        }, '关闭')))), document.body)
+      }, h(SideMembers, { room, onHold })), document.body)
       : null,
     confirm === null ? null : h(RoomConfirm, {
       kind: confirm,
