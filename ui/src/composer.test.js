@@ -12,7 +12,7 @@ const base = {
 }
 
 test('a follow-up room renders one send control with a secondary menu', () => {
-  const html = renderToStaticMarkup(h(Composer, { ...base, onFollowup: () => {} }))
+  const html = renderToStaticMarkup(h(Composer, { ...base, onStartRound: () => {} }))
   assert.match(html, /crew-send-split/)
   assert.match(html, /aria-label="更多提交方式"/)
   assert.match(html, /data-empty="true"/)
@@ -28,7 +28,7 @@ test('a normal room keeps a single send button', () => {
 
 test('the stop control replaces the send control while a turn is running', () => {
   const stop = h('span', { className: 'fake-stop' }, 'stop')
-  const html = renderToStaticMarkup(h(Composer, { ...base, onFollowup: () => {}, stopControl: stop }))
+  const html = renderToStaticMarkup(h(Composer, { ...base, onStartRound: () => {}, stopControl: stop }))
   assert.match(html, /fake-stop/)
   assert.doesNotMatch(html, /crew-send-split/)
 })

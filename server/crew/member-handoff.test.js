@@ -28,30 +28,6 @@ test('a member handoff carries business material and references the transcript',
   assert.doesNotMatch(text, /# 约定/)
 })
 
-test('a next version starts with the previous version facts', () => {
-  const text = buildMemberHandoff({
-    room: {
-      ...room,
-      continuation: {
-        fromRoomId: 'room-1',
-        fromRoomName: '设置页保存',
-        version: 2,
-        goal: '给设置页加保存',
-        conclusion: '保存后刷新仍生效',
-        files: ['src/settings.js'],
-        check: 'npm test',
-        commit: 'abc123',
-      },
-    },
-    messages: [],
-  })
-  assert.match(text, /上一版《设置页保存》（第 1 版）/)
-  assert.match(text, /上一版结论：保存后刷新仍生效/)
-  assert.match(text, /当时改过：src\/settings\.js/)
-  assert.match(text, /上一版检查（可能不适用于这一版）：npm test/)
-  assert.match(text, /上一版提交：abc123/)
-})
-
 test('the handoff tells the member who the user is', () => {
   const text = buildMemberHandoff({ room: { ...room, humanName: '千寻' }, messages: [] })
   assert.match(text, /用户称呼：千寻/)

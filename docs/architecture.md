@@ -43,7 +43,7 @@ service.js                   ← 路由分发与用例组合
 
 **接口与依赖**
 
-- 模式差异依赖 `roomModeForType`、`roomModeOfRoom`、`roomPresentationOfRoom`、`roomLifecycleOfRoom`；三组接口分别回答“怎么建/怎么跑”“只读投影什么”“哪些动作会改状态”。`followup`、`supportsRoutine` 这类差异走策略钩子；`service.js` 作为组合点装配具体模式用例。
+- 模式差异依赖 `roomModeForType`、`roomModeOfRoom`、`roomPresentationOfRoom`、`roomLifecycleOfRoom`；三组接口分别回答“怎么建/怎么跑”“只读投影什么”“哪些动作会改状态”。轮次启动、成员能力这类差异走策略钩子；`service.js` 作为组合点装配具体模式用例。
 - 模式差异的依赖方向是 `service → 注册表 → kind`、`kind → shared/ports`；反向 import、UI import 服务端、聊天室和工作室互 import 都由测试拦住。
 - 新增模式 = 描述符 + kind + 视图 + 自己的动作入口；不改 `Room`、另一间房或共享房间协议。运行期不切换房型；底层角色仍是规划师/执行官/验收员三类。
 
@@ -56,10 +56,11 @@ service.js                   ← 路由分发与用例组合
 
 ## 数据与真相
 
-- SQLite `room` 存房间、版本、成员、阶段、closure、子房关系；`messages` 存时间线，证据和结论都是消息；`room_event` 存运行时 trace；`assignment` 存房间内交接。
-- 房间目录 `transcript.jsonl` 先追加并 fsync，再写 SQLite；目标投影和证据文件可重建。
+- SQLite `room` 存长期工作室、成员、工作区和 `idle/active/paused/stopped`；`work_round` 存一轮的目标、计划、阶段、门、决策、费用和交付；`project` 存轮次分组和北极星。
+- `messages` 存时间线并带 `work_round_id`；证据和结论都是消息；`room_event` 存运行时 trace；`assignment` 存房间内交接并带 `work_round_id`。旧轮和新轮在存储上就分开。
+- 房间目录 `transcript.jsonl` 先追加并 fsync，再写 SQLite；轮次级目标、结论和证据文件可重建。
 - 当前用户是全局资料（`profile` 表一份），房间展示和 agent 上下文从它读，不再各存 `humanName`；改昵称后下一次快照即全局生效。
-- 交付后的改动另开下一版：房间记 `generation`、`sourceRoomId` 和 `continuation`（上一版目标、结论、文件、提交），旧版只读，版本链靠这三个字段连起来。
+- 一轮完成只结束这一轮：工作室回到空闲；下一轮在同一工作室开，旧轮保留为可回看的轮次，不再新建房间或维护 `nextRoomId` 版本链。
 - 没有全局成员表，也没有全局 Assignment 表；成员和交接跟着房间走。证据与 verdict 正文留在消息里，Assignment 只存引用。
 - 存储实现可替换，但业务真相必须落在支持约束与事务的持久存储。
 

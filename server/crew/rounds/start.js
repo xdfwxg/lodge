@@ -64,7 +64,6 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles }) =
     origin: {
       sourceRoomId: typeof body?.sourceRoomId === 'string' ? body.sourceRoomId : room.sourceRoomId ?? null,
       sourceName: typeof body?.sourceName === 'string' ? body.sourceName : room.sourceName ?? null,
-      continuation: body?.continuation ?? null,
     },
   })
 

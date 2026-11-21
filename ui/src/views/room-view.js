@@ -211,12 +211,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
     resume: () => store.resumeRoom(),
     stopRoom: () => store.stopRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
-    setRoutine: patch => void store.setRoutine(room.id, patch),
     answerCard: (memberId, requestId, message) => void store.answerCard(memberId, requestId, message),
     cancelQueue: queueId => void store.cancelQueued(queueId),
     steerQueue: queueId => void store.steerQueued(queueId),
     continueChat: note => store.continueChat(note),
-    createSubroom: goal => store.createSubroom(goal),
     selectRoom: id => store.select(id),
     openProject: id => onOpenProject?.(id),
     startStudio: onStartStudio,
@@ -231,7 +229,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
     },
   }
   const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-  const canFollowup = mode.canFollowup?.({ room }) === true
+  const canStartRound = mode.canStartRound?.({ room }) === true
   const viewCtx = { state, room, members, locked, actions, store }
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
@@ -327,8 +325,8 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
           disabled: state.phase === 'loading' || locked,
           stopControl,
           inputRef: composerInput,
-          onFollowup: canFollowup
-            ? (text, options) => store.followup(text, options)
+          onStartRound: canStartRound
+            ? (text, options) => store.startRound(text, options)
             : null,
           dropping: dragging,
           incoming: dropped,

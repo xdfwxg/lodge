@@ -26,7 +26,6 @@ export const buildRoundFromRoom = ({
   origin: {
     sourceRoomId: room.sourceRoomId ?? null,
     sourceName: room.sourceName ?? null,
-    continuation: room.continuation ?? null,
   },
   previousRoundId: room.lastRoundId ?? null,
   startedAt: Date.now(),
@@ -78,7 +77,7 @@ export const buildRound = ({
   completedAt: null,
   completedCommit: null,
   completion: null,
-  origin: origin ?? { sourceRoomId: room.sourceRoomId ?? null, sourceName: room.sourceName ?? null, continuation: null },
+  origin: origin ?? { sourceRoomId: room.sourceRoomId ?? null, sourceName: room.sourceName ?? null },
   previousRoundId: room.lastRoundId ?? null,
   startedAt: Date.now(),
 })
@@ -94,7 +93,6 @@ export const studioFromRoom = (room, round) => {
   }
   for (const field of ROUND_FIELDS) delete studio[field]
   delete studio.pastGoals
-  delete studio.nextRoomId
   delete studio.project
   delete studio.phase
   delete studio.workRound

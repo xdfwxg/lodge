@@ -130,7 +130,7 @@ export function App() {
           setProjectId(null)
           store.select(id)
         },
-        onFollowup: (roomId, text, options = {}) => store.followup(text, { roomId, ...options }),
+        onStartRound: (roomId, text, options = {}) => store.startRound(text, { roomId, ...options }),
         onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
       })
       : room === null

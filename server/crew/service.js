@@ -11,7 +11,6 @@ import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
-import { createServiceSubrooms } from './rooms/studio/service-subrooms.js'
 import { humanHandoffStageOf } from './rooms/studio/human-handoff.js'
 import { createMemberAdd } from './member-add.js'
 import { createMemberRemove } from './member-remove.js'
@@ -261,7 +260,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
   }
 
     const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, roles, body, ports, parentRoom: parent })
-  const subrooms = createServiceSubrooms({ createRoom, store, emit })
 
   const createSampleRoom = (kind = 'studio') => {
     const chat = kind === 'chat'
@@ -683,23 +681,13 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     }
 
     // 已交付的房间里说一句要改什么：在同一个工作间开下一轮，不新建房间。
-    if (action === 'followup' && method === 'POST') {
+    if (action === 'rounds' && method === 'POST') {
       const body = await readBody()
       const text = typeof body.text === 'string' ? body.text.trim() : ''
       const normalized = normalizeAttachments(body.attachments)
       if (normalized.error !== undefined) return fail('invalid', normalized.error)
       const attachments = normalized.attachments
-      const builder = roomModeOfRoom(room)?.followup
-      if (typeof builder !== 'function') return fail('invalid', '这间房不能接着改')
-      const built = builder({
-        room,
-        messages: readMessages(room.id),
-        text,
-        attachments,
-        verify: body.verify,
-        acceptance: body.acceptance,
-      })
-      if (built.error !== undefined) return fail('invalid', built.error)
+      if (text === '' && attachments.length === 0) return fail('invalid', '说一句这一轮要做什么')
       rememberHuman(room.id, body)
       const result = await startRound({
         store,
@@ -707,9 +695,13 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         emit,
         room,
         body: {
-          ...built.body,
+          goal: withAttachments(text, attachments),
           ...(typeof body.projectId === 'string' ? { projectId: body.projectId } : {}),
           ...(body.plan !== null && typeof body.plan === 'object' ? { plan: body.plan } : {}),
+          ...(body.verify === 'test' ? {
+            verify: 'test',
+            acceptance: typeof body.acceptance === 'string' ? body.acceptance : '',
+          } : {}),
         },
         roomFiles,
       })
@@ -829,68 +821,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       return closure.rejectPlan(room, await readBody())
     }
 
-    if (action === 'routine' && method === 'POST') {
-      if (roomModeOfRoom(room)?.supportsRoutine !== true) return fail('invalid', '这间房不能设成定时再做一遍')
-      if (room.state !== 'complete') return fail('conflict', '房间做完后再设')
-      if (room.demo === true) return fail('invalid', '示例房间不能设成定时再做一遍')
-      if (room.archivedAt !== undefined && room.archivedAt !== null) return fail('conflict', '取消归档后再设')
-      const body = await readBody()
-      const days = Array.isArray(body.days)
-        ? normalizeDays(body.days)
-        : (routineOf(room)?.days ?? normalizeDays(undefined))
-      if (days.length === 0) return fail('invalid', '至少选一天')
-      const hour = parseHour(body.hour)
-      const minute = parseMinute(body.minute)
-      const enabled = body.enabled === true
-      if (enabled) {
-        const taken = store.readRooms()
-          .filter(item => item.id !== room.id && routineOf(item)?.enabled === true)
-          .length
-        if (taken >= 20) return fail('conflict', '最多 20 件按天自动做的事，先关掉一个')
-      }
-      const schedule = { days, hour, minute }
-      const nextRunAt = enabled ? catchUpRoutineAt(schedule) : null
-      const updated = updateRoom(room.id, current => {
-        current.routine = {
-          ...(current.routine ?? {}),
-          days,
-          hour,
-          minute,
-          enabled,
-          failures: 0,
-          paused: false,
-          lastError: null,
-          skippedAt: null,
-          unseenResult: false,
-          updatedAt: Date.now(),
-          nextRunAt,
-        }
-        return {
-          events: [{ type: 'room.routine', payload: { days, hour, minute, enabled } }],
-        }
-      })
-      if (updated === null) return fail('not_found', '没有这个房间')
-      if (enabled) {
-        store.setTimer?.({
-          id: routineTimerId(room.id),
-          roomId: room.id,
-          kind: 'routine',
-          payload: { sourceRoomId: room.id },
-          dueAt: nextRunAt,
-        })
-      } else {
-        store.cancelTimer?.(routineTimerId(room.id))
-      }
-      appendMessage(room.id, {
-        kind: 'system',
-        text: enabled
-          ? `以后${scheduleLabelOf(schedule)} 再做一遍。${room.verify === 'manual' ? '每次做完要你看一眼。' : ''}Lodge 关着时不会跑，打开后会自动补做错过的那次。`
-          : '以后不再自动做。',
-      })
-      emit('room', updated)
-      return ok({ room: updated })
-    }
-
     if (action === 'resolve-merge' && method === 'POST') {
       return resolveMerge(room)
     }
@@ -905,10 +835,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
 
     if (action === 'rewind' && method === 'POST') {
       return stages.rewind(room, await readBody())
-    }
-
-    if (action === 'subrooms' && method === 'POST') {
-      return subrooms.create(room, await readBody())
     }
 
     return fail('method', '方法不对')

@@ -8,7 +8,6 @@ import { buildDelivery } from './rooms/studio/delivery.js'
 import { createChatScheduler } from './rooms/chat/scheduler.js'
 import { createChatTransport } from './rooms/chat/transport.js'
 import { createRealRoom } from './rooms/create/create.js'
-import { buildFollowupBody } from './rooms/studio/followup.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
 import { startRound } from './rounds/start.js'
 import { studioTransitionEvent, transitionStudio } from './rooms/studio/state.js'
@@ -187,12 +186,7 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     assert.equal(delivery.evidenceCount, 2)
 
     const firstRound = store.readRoom(room.id).workRound
-    const next = buildFollowupBody({
-      room: store.readRoom(room.id),
-      messages: store.readMessages(room.id),
-      text: '再补一行说明',
-      verify: 'manual',
-    })
+    const next = { body: { goal: '再补一行说明', verify: 'manual' } }
     const started = await startRound({
       store,
       live,

@@ -41,18 +41,6 @@ export const buildMemberHandoff = ({ room, messages = [] } = {}) => {
     ...(roster.length === 0 ? [] : [`房间成员：${roster.join('、')}`]),
     `房间目标：${sanitizeUntrusted(room.goal, 2000)}`,
   ]
-  const prior = room.continuation
-  if (prior !== null && typeof prior === 'object' && typeof prior.fromRoomName === 'string') {
-    const files = Array.isArray(prior.files) ? prior.files.slice(0, 6) : []
-    lines.push(
-      `上一版《${sanitizeUntrusted(prior.fromRoomName, 80)}》（第 ${Number.isInteger(prior.version) ? prior.version - 1 : 1} 版）：`,
-      `- 上一版目标：${sanitizeUntrusted(prior.goal ?? '', 200)}`,
-      `- 上一版结论：${sanitizeUntrusted(prior.conclusion ?? '', 400)}`,
-      ...(files.length === 0 ? [] : [`- 当时改过：${files.map(file => sanitizeUntrusted(file, 80)).join('、')}`]),
-      ...(typeof prior.check === 'string' && prior.check !== '' ? [`- 上一版检查（可能不适用于这一版）：${sanitizeUntrusted(prior.check, 240)}`] : []),
-      ...(typeof prior.commit === 'string' && prior.commit !== '' ? [`- 上一版提交：${sanitizeUntrusted(prior.commit, 80)}`] : []),
-    )
-  }
   const done = doneOf(room).slice(0, DONE_LIMIT)
   if (done.length > 0) lines.push('done：', ...done.map(item => `- ${item}`))
   if ((room.constraints ?? []).length > 0) {

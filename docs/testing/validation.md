@@ -280,3 +280,12 @@
 - 发现并修：工作室交付后的“聊一聊”只带回执文字，聊天成员读的是源仓库；回执新增 `paths`，聊天室改读工作室交付副本，才看得到成果
 - 仍未跑通：`eval:chat` 依赖 `room.seatBots`，公开状态已剥掉成员 ref，脚本报“房间没有席位 bot”；需要内部取数入口后再跑
 - 全程 1116 项单测、构建、文档与验收门禁通过
+
+## 2026-11-21 · 长期工作室两轮与旧链清理
+
+- 模型换成「工作室长期存在、轮次独立」：`room.state` 只保留 `idle/active/paused/stopped`，一轮完成回到 `idle`；`work_round` 保存目标、计划、阶段、门、决策和完成信息；消息与 assignment 带 `work_round_id`。
+- 项目改为轮次分组，不再使用 `nextRoomId` 房间链；项目页按轮次列出，开下一轮留在同一工作室。
+- 旧 `followup` 路由和新房间 builder 删除，改为 `POST /api/rooms/:id/rounds`；`phase`、`continuation`、`generation`、`nextRoomId` 和旧项目字段不再写入。routines/subrooms 入口停用，旧数据直接清掉，没有迁移或兼容 shim。
+- 真实 8787 接口验收：`room-c92d87d2` 在同一工作室完成两轮（`round-1d91f155`、`round-b001cf8f`），两轮都 `completed`，工作室最终 `idle`，项目 `project-c92d87d2` 下 2 轮。验收用 `force accept` 走通轮次状态，不是模型真实交付。
+- `npm run check:done` 通过：单测 1140、UI 端到端 16、构建、文档、验收 83 项、回归 2 项。
+- 未跑：`eval:rooms` 的真实模型两轮交付；旧轮只读详情页；routines/subrooms 后续以轮次重建。

@@ -51,7 +51,7 @@ test('a delivered latest round offers the next round in the same project', () =>
     projectId: 'project-1',
     onClose: () => {},
     onOpenRoom: () => {},
-    onFollowup: async () => ({ room: { id: 'room-1' } }),
+    onStartRound: async () => ({ room: { id: 'room-1' } }),
     onRecommend: async () => ({ ok: true, proposal: { done: [], stages: [], questions: [] } }),
   }))
   assert.match(html, /下一轮要做什么/)

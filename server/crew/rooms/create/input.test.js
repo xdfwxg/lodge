@@ -17,21 +17,11 @@ test('decision stages and manual sign-off need no command', () => {
   assert.equal(normalizePlan({ body: body([{ title: '导出', kind: 'deliverable', acceptance: 'manual' }]) }).error, undefined)
 })
 
-test('studio roots carry a project north star and phase label', () => {
+test('studio roots carry a project north star without a phase chain', () => {
   const root = normalizeRequest({ goal: '做一个长期问候库', roomType: 'studio', verify: 'manual' })
   assert.deepEqual(root.project, { northStar: '做一个长期问候库' })
-  assert.deepEqual(root.phase, { name: '阶段 1', index: null })
-
-  const next = normalizeRequest({
-    goal: '补上命令行',
-    roomType: 'studio',
-    verify: 'manual',
-    sourceRoomId: 'room-1',
-    project: { northStar: '做一个长期问候库' },
-    phase: { name: '补上命令行', index: 2 },
-  })
-  assert.deepEqual(next.project, { northStar: '做一个长期问候库' })
-  assert.deepEqual(next.phase, { name: '补上命令行', index: 2 })
+  assert.equal(root.phase, undefined)
+  assert.equal(root.continuation, undefined)
 })
 
 test('runnableCheck reads the first word as the command', () => {

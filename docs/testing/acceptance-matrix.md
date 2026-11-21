@@ -51,7 +51,6 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 角色定义（定义 / 实例分层） | `shared/role-definitions.test.js`、`server/crew/roster.test.js` | 无 |
 | 退回指定步骤、补上下文再跑 | `server/crew/service-stages.test.js`、`ui/src/room/studio/rewind-dialog.test.js` | 无 |
 | 并行执行、合并冲突、超时 | `server/crew/live-turn-modules.test.js`、`server/crew/workspace-git.test.js`、`server/crew/service-merge.test.js`、`server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/studio/auto-rework.test.js`、`ui/src/room/studio/merge-conflict.test.js` | 真实 git 冲突解决需 dogfood |
-| 子房间创建与结果回填 | `server/crew/room-subrooms.test.js`、`server/crew/service-subrooms.test.js`、`server/crew/service-subrooms-notify.test.js` | 无 |
 | 外部动作审批、叫停、排队 | `server/crew/approval-bridge.test.js`、`server/crew/live-approvals.test.js`、`server/crew/external-actions.test.js`、`server/crew/member-delivery.test.js`、`ui/src/room/studio/transcript.test.js` | 真实 git push 需 dogfood |
 | 受控浏览器（chrome-devtools MCP） | `server/browser-mcp.test.js`、`server/crew/roster.test.js`、`server/crew/room-access.test.js`、`shared/room-access.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/studio/create.test.js`、`ui/src/approval-card.test.js` | 真实 Chrome |
 | 运行中的工具动效（折叠命令、时长、动效） | `ui/src/room/studio/working-line.test.js`、`ui/src/room/studio/transcript-model.test.js` | 无 |
@@ -59,7 +58,6 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 交付记录、结果优先的交付页 | `server/crew/delivery.test.js`、`ui/src/room/studio/delivery-record.test.js`、`ui/src/room/studio/delivery-card.test.js`、`ui/src/room/studio/transcript.test.js` | 无 |
 | 重启恢复、断线重连 | `server/crew/recovery.test.js`、`server/crew/live-sync.test.js`、`ui/src/store.test.js` | 无 |
 | 暂停与成员出错后的一步修复 | `server/crew/live-sync.test.js`、`server/crew/kernel/live/body-swap.test.js`、`ui/src/room/decision.test.js`、`ui/src/room/paused-panel.test.js`、`ui/src/room/chat/view.test.js` | 无 |
-| 打开 App 的例行工作 | `shared/routine.test.js`、`server/crew/rooms/scheduler.test.js`、`server/crew/service-merge.test.js`、`ui/src/room/studio/delivery-card.test.js` | 无 |
 | API 路由与动作清单 | `server/route-table.test.js`、`server/crew/route-sweep.test.js` | 无 |
 | 驱动边界、运行端口、分层 | `server/crew/engine.test.js`、`server/crew/runtime-port.test.js`、`server/crew/layer-boundaries.test.js`、`server/crew/boundary.test.js` | 真实基座可选 |
 | 基座旧房间回收（gc:base） | `server/base-gc.test.js`、`server/crew/base-error.test.js` | 真实基座可选 |

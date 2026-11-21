@@ -2,7 +2,7 @@
 // 漏加会让 route-sweep 直接失败，而不是等到用户点到一个“没有这个接口”。
 export const ROOM_ACTIONS = Object.freeze([
   'messages',
-  'followup',
+  'rounds',
   'lodge',
   'accept',
   'human-choice',
@@ -13,7 +13,6 @@ export const ROOM_ACTIONS = Object.freeze([
   'reject-plan',
   'rework',
   'resolve-merge',
-  'routine',
   'retry',
   'rewind',
   'read',
@@ -24,7 +23,6 @@ export const ROOM_ACTIONS = Object.freeze([
   'acceptance',
   'verify',
   'approvals',
-  'subrooms',
   'add-member',
   'remove-member',
   'swap-body',

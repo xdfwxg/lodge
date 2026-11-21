@@ -34,16 +34,6 @@ export const renderStudioMessage = ({
 
   if (message.kind === 'verdict' && message.meta?.human === true) return null
 
-  if (message.kind === 'system' && typeof message.meta?.openRoomId === 'string') {
-    return h('div', { key: message.id, className: 'crew-system crew-followup-link' },
-      h('span', null, message.text),
-      h('button', {
-        type: 'button',
-        className: 'crew-link',
-        onClick: () => onOpenRoom?.(message.meta.openRoomId),
-      }, '打开'))
-  }
-
   const chat = (text, extra = null, key = message.id) => h('div', { key, className: 'crew-msg-wrap' },
     h(ChatLine, { message: { ...message, text }, member, mentions }),
     extra)

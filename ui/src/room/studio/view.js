@@ -13,12 +13,6 @@ export const studioView = {
   className: 'crew-room-studio',
   opensAtTop: ({ room }) => room.state === 'complete',
   header: ({ room, actions }) => h(Fragment, null,
-    room.routineGoalId ? h('div', { className: 'studio-run-back' },
-      h('button', {
-        type: 'button',
-        className: 'crew-link',
-        onClick: () => actions.selectRoom(room.routineGoalId),
-      }, '← 回到目标')) : null,
     room.sourceRoomId && room.sourceName
       ? h('div', { className: 'studio-run-back' },
         h('button', {
@@ -78,7 +72,7 @@ export const studioView = {
       onRework: actions.rework,
       onChoose: actions.chooseHuman,
       onReadArtifact: actions.readArtifact,
-      onRoutine: patch => actions.setRoutine(patch),
+      onRoutine: null,
       onOpenRun: id => actions.selectRoom(id),
       onResolveMerge: actions.resolveMerge,
       onApproval: actions.approval,
@@ -94,7 +88,7 @@ export const studioView = {
     )
   },
   presence: () => null,
-  canFollowup: ({ room }) => (
+  canStartRound: ({ room }) => (
     (room.state === 'idle' || room.state === 'complete' || room.workRound?.status === 'completed') &&
     (room.stages ?? []).length > 0 &&
     room.stages.every(stage => stage.state === 'passed')

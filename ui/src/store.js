@@ -288,9 +288,9 @@ export function createStore() {
       return data
     },
     // 已交付的工作室：不重回填表，直接把这句话变成下一轮的目标。
-    followup: async (text, options = {}) => {
+    startRound: async (text, options = {}) => {
       const roomId = options.roomId ?? state.activeId
-      const data = await post(`/api/rooms/${roomId}/followup`, {
+      const data = await post(`/api/rooms/${roomId}/rounds`, {
         text,
         ...(typeof options.projectId === 'string' && options.projectId !== '' ? { projectId: options.projectId } : {}),
         ...(options.verify === 'test' ? {
@@ -353,18 +353,7 @@ export function createStore() {
     setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
-    setRoutine: async (roomId, patch = {}) => {
-      const data = await post(`/api/rooms/${roomId}/routine`, patch)
-      if (data?.room !== undefined) acceptRoom(data.room)
-      return data
-    },
     answerCard: (memberId, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { memberId, requestId, message }),
-    createSubroom: async goal => {
-      const data = await post(`/api/rooms/${state.activeId}/subrooms`, { goal })
-      if (data?.room === undefined) return { ok: false, error: failureText('子房间没能建起来') }
-      await load()
-      return { ok: true, room: data.room }
-    },
 
     recommendRoster: async (goal, repoPath, handoff) => {
       const data = await post('/api/roster/recommend', {

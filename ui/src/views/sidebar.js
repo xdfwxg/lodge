@@ -624,10 +624,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
       h('span', { className: 'crew-side-room-type', 'aria-hidden': 'true' }, lodge ? null : h(TypeIcon, { size: 15 })),
       h('span', { className: 'crew-side-room-text' },
         h('span', { className: 'crew-side-room-title' },
-          h('span', { className: 'crew-side-room-name' }, room.name),
-          Number.isInteger(room.generation) && room.generation > 1
-            ? h('span', { className: 'crew-side-room-version', title: `第 ${room.generation} 版` }, `v${room.generation}`)
-            : null),
+          h('span', { className: 'crew-side-room-name' }, room.name)),
         subLine === '' ? null : h('span', { className: 'crew-side-room-next' }, subLine)),
       room.chatUnread === true && !active
         ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))

@@ -102,7 +102,7 @@ test('a completed project starts the next round in the same studio', async ({ pa
     delivery: null,
   })
   await page.route('**/api/state', route => route.fulfill({ json: state }))
-  await page.route('**/api/rooms/room-1/followup', async route => {
+  await page.route('**/api/rooms/room-1/rounds', async route => {
     const body = route.request().postDataJSON()
     expect(body.text).toBe('修登录超时')
     expect(body.projectId).toBe('project-1')
@@ -165,7 +165,7 @@ test('a project asks one clear decision before opening a round', async ({ page, 
     expect(body.goal).toBe('修登录超时')
     await route.fulfill({ json: { proposal } })
   })
-  await page.route('**/api/rooms/room-1/followup', async route => {
+  await page.route('**/api/rooms/room-1/rounds', async route => {
     const body = route.request().postDataJSON()
     expect(body.plan.questions).toBeUndefined()
     expect(body.plan.answers[0].question).toBe('先修哪一层？')

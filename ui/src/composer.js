@@ -15,7 +15,7 @@ function Composer({
   onSend,
   onSent,
   onUpload,
-  onFollowup = null,
+  onStartRound = null,
   stopControl = null,
   inputRef = null,
   brand = false,
@@ -31,7 +31,7 @@ function Composer({
   const [attached, setAttached] = useState([])
   const [uploading, setUploading] = useState(false)
   const [note, setNote] = useState('')
-  const [followupOpen, setFollowupOpen] = useState(false)
+  const [roundMenuOpen, setFollowupOpen] = useState(false)
   const input = useRef(null)
   const splitRef = useRef(null)
   const fileInput = useRef(null)
@@ -49,7 +49,7 @@ function Composer({
   }, [draftKey])
 
   useEffect(() => {
-    if (!followupOpen) return undefined
+    if (!roundMenuOpen) return undefined
     const onPointerDown = event => {
       if (splitRef.current?.contains(event.target) === true) return
       setFollowupOpen(false)
@@ -63,7 +63,7 @@ function Composer({
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [followupOpen])
+  }, [roundMenuOpen])
 
   const query = mention === null ? '' : mention.query.toLowerCase()
   const matches = mention === null
@@ -172,9 +172,9 @@ function Composer({
     setTimeout(() => onSent?.(), 400)
   }
 
-  const followup = () => {
+  const startRound = () => {
     const text = draft.trim()
-    if ((text === '' && attached.length === 0) || disabled || uploading || typeof onFollowup !== 'function') return
+    if ((text === '' && attached.length === 0) || disabled || uploading || typeof onStartRound !== 'function') return
     setFollowupOpen(false)
     const files = attached
     setDraft('')
@@ -184,7 +184,7 @@ function Composer({
     setPicked(0)
     setAttached([])
     setNote('')
-    void onFollowup(text, files.length === 0 ? {} : { attachments: files })
+    void onStartRound(text, files.length === 0 ? {} : { attachments: files })
     onSent?.()
   }
 
@@ -325,7 +325,7 @@ function Composer({
       }),
       stopControl !== null
         ? stopControl
-        : onFollowup === null
+        : onStartRound === null
           ? h('button', {
             type: 'button',
             className: 'crew-send',
@@ -353,7 +353,7 @@ function Composer({
               'aria-label': '更多提交方式',
               title: '用这句话开新一轮',
               'aria-haspopup': 'menu',
-              'aria-expanded': followupOpen,
+              'aria-expanded': roundMenuOpen,
               disabled: disabled || uploading || !hasDraft,
               onClick: () => setFollowupOpen(value => !value),
             }, h('svg', {
@@ -367,14 +367,14 @@ function Composer({
               strokeLinecap: 'round',
               strokeLinejoin: 'round',
             }, h('path', { d: 'M5 7.5L10 12.5L15 7.5' }))),
-            followupOpen
+            roundMenuOpen
               ? h('div', { className: 'crew-send-menu', role: 'menu', 'aria-label': '提交方式' },
                 h('button', {
                   type: 'button',
                   role: 'menuitem',
                   className: 'crew-send-menu-item',
                   disabled: disabled || uploading || !hasDraft,
-                  onClick: followup,
+                  onClick: startRound,
                 },
                 h('b', null, '开新一轮'),
                 h('span', null, hasDraft ? '同一工作室，成员和工作区沿用' : '先写一句这一轮要做什么')))

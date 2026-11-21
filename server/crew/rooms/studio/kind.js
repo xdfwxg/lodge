@@ -8,7 +8,6 @@ import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
-import { buildFollowupBody } from './followup.js'
 import { humanHandoffStageOf } from './human-handoff.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { dispatchFrom, tasksFrom } from '../../assignment-projections.js'
@@ -300,12 +299,11 @@ export const studioKind = {
     return allPassed ? { type: 'final-chat' } : null
   },
   validateRoster: type.validateRoster,
-  supportsSubrooms: true,
-  supportsRoutine: true,
+  supportsSubrooms: false,
+  supportsRoutine: false,
   supportsMemberAdd: true,
   allowsHostOnly: () => false,
   busyNow: () => false,
-  followup: buildFollowupBody,
   resolvePlan: (plan, roster) => resolveStageAssignees(plan, roster),
   requiresGate: true,
   evaluateGate: reviewRoomGate,

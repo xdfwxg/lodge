@@ -6,7 +6,7 @@ const MODE_KEYS = [
   'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsSubrooms', 'supportsRoutine', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'messagePolicy', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record',
-  'initialMessages', 'provisionExtra', 'start', 'followup',
+  'initialMessages', 'provisionExtra', 'start',
   'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [

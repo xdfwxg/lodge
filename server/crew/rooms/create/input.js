@@ -50,32 +50,6 @@ const normalizeProject = value => {
   return northStar === '' ? null : { northStar }
 }
 
-const normalizePhase = (value, fallbackName = '') => {
-  const name = cleanText(value?.name, 60) || cleanText(fallbackName, 60)
-  if (name === '') return null
-  return {
-    name,
-    index: Number.isInteger(value?.index) && value.index > 0 ? value.index : null,
-  }
-}
-
-const normalizeContinuation = value => {
-  if (value === null || typeof value !== 'object') return null
-  const fromRoomId = cleanText(value.fromRoomId, 120)
-  if (fromRoomId === '') return null
-  return {
-    fromRoomId,
-    fromRoomName: cleanText(value.fromRoomName, 120),
-    version: Number.isInteger(value.version) && value.version >= 2 && value.version <= 99 ? value.version : 2,
-    goal: cleanText(value.goal, 1000),
-    conclusion: cleanText(value.conclusion, 1000),
-    files: Array.isArray(value.files) ? value.files.filter(item => typeof item === 'string' && item !== '').slice(0, 12) : [],
-    check: cleanText(value.check, 500) || null,
-    commit: cleanText(value.commit, 80) || null,
-    at: Number.isFinite(value.at) ? value.at : Date.now(),
-  }
-}
-
 export const normalizeRequest = body => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > 2000) return { error: '目标不能为空，且不超过 2000 字' }
@@ -114,19 +88,12 @@ export const normalizeRequest = body => {
   const sourceRoomId = typeof body.sourceRoomId === 'string' ? body.sourceRoomId.trim().slice(0, 120) : ''
   const sourceName = typeof body.sourceName === 'string' ? body.sourceName.trim().slice(0, 120) : ''
   const isStudio = roomType.id === 'studio'
-  const isPhase = isStudio && (sourceRoomId !== '' || normalizeContinuation(body.continuation) !== null)
-  const project = isStudio
-    ? normalizeProject(body.project) ?? (isPhase ? null : { northStar: goal })
-    : null
-  const phase = isStudio
-    ? normalizePhase(body.phase, isPhase ? '下一阶段' : '阶段 1')
-    : null
+  const project = isStudio ? normalizeProject(body.project) ?? { northStar: goal } : null
   return {
     goal,
     name,
     roomType,
     project,
-    phase,
     verify,
     acceptance,
     orchestration,
@@ -137,7 +104,6 @@ export const normalizeRequest = body => {
     receipt,
     sourceRoomId,
     sourceName,
-    continuation: normalizeContinuation(body.continuation),
   }
 }
 

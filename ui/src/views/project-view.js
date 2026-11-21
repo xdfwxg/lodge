@@ -40,7 +40,7 @@ h('span', { className: 'crew-project-phase-copy' },
   goalOf(round) === '' ? null : h('span', null, goalOf(round))),
 h('span', { className: 'crew-project-phase-state' }, roundStatusOf(round))))
 
-export function ProjectView({ projects = [], rooms = [], projectId, onClose, onOpenRoom, onFollowup = null, onRecommend = null }) {
+export function ProjectView({ projects = [], rooms = [], projectId, onClose, onOpenRoom, onStartRound = null, onRecommend = null }) {
   const project = (projects ?? []).find(item => item.id === projectId) ?? null
   const rounds = orderedRounds(project?.rounds ?? [])
   const latest = rounds[rounds.length - 1] ?? null
@@ -88,7 +88,7 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
   const nextRound = async () => {
     const text = nextGoal.trim()
     const acceptance = nextAcceptance.trim()
-    if (text === '' || busy || typeof onFollowup !== 'function' || latest === null) return
+    if (text === '' || busy || typeof onStartRound !== 'function' || latest === null) return
     const plan = proposal === null ? null : {
       done: proposal.done,
       ...(typeof proposal.prose === 'string' && proposal.prose.trim() !== '' ? { prose: proposal.prose.trim() } : {}),
@@ -102,7 +102,7 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
     setBusy(true)
     setNote(null)
     try {
-      const result = await onFollowup(latest.roomId, text, {
+      const result = await onStartRound(latest.roomId, text, {
         projectId,
         ...(plan === null ? {} : { plan }),
         ...(acceptance === '' ? {} : { verify: 'test', acceptance }),
@@ -129,7 +129,7 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
         h('h1', { className: 'crew-project-title' }, '项目还没连起来')))
   }
 
-  const canStart = latest !== null && latest.status === 'completed' && onFollowup !== null
+  const canStart = latest !== null && latest.status === 'completed' && onStartRound !== null
   return h('main', { className: 'dsb-main crew-project' },
     h('div', { className: 'crew-project-inner' },
       h('button', { type: 'button', className: 'crew-link crew-project-back', onClick: onClose }, '← 回到房间'),
