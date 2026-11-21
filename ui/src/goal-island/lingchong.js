@@ -515,9 +515,9 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
           })),
         h('svg', { ref: yawn, className: 'lingchong-yawn', viewBox: `0 0 ${ART_W} ${ART_H}`, 'aria-hidden': true },
           h('g', { ref: mouth, className: 'lingchong-yawn-mouth' },
-            h('path', { d: 'M126 55 q11 -5 22 0 q-1 19 -11 19 q-10 0 -11 -19z', fill: '#3e362d', stroke: '#332c22', strokeWidth: 1.3 }),
-            h('path', { d: 'M130 68 q7 -9 14 0 q-7 6 -14 0z', fill: '#d98a86' }),
-            h('path', { d: 'M127 55 q10 2 20 0', fill: 'none', stroke: '#f8f3ea', strokeWidth: 1.4 })))))),
+            h('path', { d: 'M130 55 q11 -5 22 0 q-1 19 -11 19 q-10 0 -11 -19z', fill: '#3e362d', stroke: '#332c22', strokeWidth: 1.3 }),
+            h('path', { d: 'M134 68 q7 -9 14 0 q-7 6 -14 0z', fill: '#d98a86' }),
+            h('path', { d: 'M131 55 q10 2 20 0', fill: 'none', stroke: '#f8f3ea', strokeWidth: 1.4 })))))),
   h('span', { ref: butterfly, className: 'lingchong-butterfly', 'aria-hidden': true },
     h('svg', { viewBox: '0 0 24 20' },
       h('path', { className: 'wing left', d: 'M12 10 C4 1, 1 5, 3 10 C1 15, 5 19, 12 10 Z' }),
@@ -547,12 +547,12 @@ body[data-ds-dark-theme] .lingchong-art{content:url("${colorArt}")}
 .leg-bn{clip-path:inset(138px 89px 20px 252px);transform-origin:272px 138px;z-index:2}
 .lingchong-body{position:absolute;inset:0;z-index:3;transform-origin:195px 140px;pointer-events:none}
 .art-body{clip-path:inset(0 93px 55px 60px);z-index:1}
-.lingchong-lodge{position:absolute;left:110px;top:15px;width:54px;height:19px;z-index:2;pointer-events:none;user-select:none;transform-origin:27px 9.5px}
+.lingchong-lodge{position:absolute;left:111px;top:16px;width:50px;height:18px;z-index:2;pointer-events:none;user-select:none;transform-origin:25px 9px}
 .lingchong-blink{position:absolute;inset:0;width:385px;height:195px;opacity:0;z-index:4;pointer-events:none}
 .lingchong-blink.on{opacity:1}
 .lingchong-yawn{position:absolute;inset:0;width:385px;height:195px;opacity:0;z-index:5;pointer-events:none}
 .lingchong-yawn.on{opacity:1}
-.lingchong-yawn-mouth{transform-origin:137px 60px}
+.lingchong-yawn-mouth{transform-origin:141px 60px}
 .lingchong-butterfly{position:absolute;left:0;top:0;width:22px;height:18px;z-index:9;pointer-events:none;opacity:0;transition:opacity .3s var(--bt-ease);will-change:transform}
 .lingchong-butterfly.on{opacity:1}
 .lingchong-butterfly svg{width:100%;height:100%;overflow:visible}
