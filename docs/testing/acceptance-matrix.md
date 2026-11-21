@@ -22,7 +22,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 长期工作室、轮次隔离、旧轮只读、项目分组 | `server/crew/store-rounds.test.js`、`ui/src/views/project-view.test.js`、`e2e/project.spec.mjs` | 无 |
 | 轮次开始、完成、停止、退回、失败、作废 | `server/crew/kernel/round.test.js`、`server/crew/rounds/lifecycle.test.js`、`server/crew/store-rounds.test.js` | 无 |
 | 房间状态与轮次状态分开说 | `shared/room-status.test.js`、`ui/src/goal-island/status.test.js`、`ui/src/views/sidebar.test.js` | 无 |
-| 持久队列、租约回收、重试退避 | `server/crew/rooms/scheduler.test.js`、`server/crew/store-rounds.test.js` | 无 |
+| 持久队列、租约回收、重试退避、每房单活且房间间并发 | `server/crew/rooms/scheduler.test.js`、`server/crew/store-rounds.test.js` | 无 |
 | 阶段截止进持久队列，重启仍会到点 | `server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/scheduler.test.js` | 无 |
 | 聊天室一轮占持久工作项，重启从已发言次数续跑 | `server/crew/live-chat-room.test.js`、`server/crew/rooms/chat/runtime.test.js` | 真实模型仅整房 dogfood |
 | 聊天重启补账：回复已到但 turns 未落库，不重说 | `server/crew/live-chat-room.test.js` | 无 |

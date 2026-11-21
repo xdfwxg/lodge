@@ -64,3 +64,39 @@ test('a failed handler is retried instead of being dropped', async () => {
   assert.deepEqual(calls.failed, ['w1'])
   assert.deepEqual(calls.completed, [])
 })
+
+test('one slow room does not block another room', async () => {
+  let release
+  const gate = new Promise(resolve => { release = resolve })
+  const events = {
+    r1: { id: 'w1', roomId: 'r1', kind: 'approval', payload: {} },
+    r2: { id: 'w2', roomId: 'r2', kind: 'approval', payload: {} },
+  }
+  const claimed = new Set()
+  const completed = []
+  const scheduler = createRoomScheduler({
+    store: {
+      readRooms: () => [{ id: 'r1' }, { id: 'r2' }],
+      claimWork: roomId => {
+        if (claimed.has(roomId)) return null
+        claimed.add(roomId)
+        return events[roomId]
+      },
+      completeWork: id => completed.push(id),
+      failWork: () => {},
+    },
+    live: {
+      handleWork: async item => {
+        if (item.roomId === 'r1') await gate
+        return true
+      },
+    },
+    now: () => 2,
+  })
+  const tick = scheduler.tick()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(completed, ['w2'])
+  release()
+  await tick
+  assert.deepEqual(completed.sort(), ['w1', 'w2'])
+})
