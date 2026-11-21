@@ -4,19 +4,37 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { appendEventLog, appendTranscript, writeEvidence } from './room-repo.js'
 
+export const SCHEMA_VERSION = 2
+
 export const createStore = ({ dataDir, emit = () => {} }) => {
   mkdirSync(dataDir, { recursive: true })
   const fresh = !existsSync(join(dataDir, 'crew.db'))
   const db = new DatabaseSync(join(dataDir, 'crew.db'))
+  if (!fresh) {
+    const row = db.prepare('PRAGMA user_version').get()
+    const version = Number(row?.user_version ?? 0)
+    if (version !== SCHEMA_VERSION) {
+      db.close()
+      throw new Error(`数据库版本 ${version} 与当前模型 ${SCHEMA_VERSION} 不一致；运行 npm run data:reset 重建本地数据`)
+    }
+  }
   db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS room (id TEXT PRIMARY KEY, payload TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1);
-    CREATE TABLE IF NOT EXISTS messages (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, room_id TEXT NOT NULL, payload TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS messages (
+      seq INTEGER PRIMARY KEY,
+      id TEXT NOT NULL UNIQUE,
+      room_id TEXT NOT NULL,
+      work_round_id TEXT,
+      payload TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS messages_room_round ON messages(room_id, work_round_id, seq);
     CREATE TABLE IF NOT EXISTS profile (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS assignment (
       id TEXT PRIMARY KEY,
       room_id TEXT NOT NULL,
+      work_round_id TEXT,
       stage INTEGER NOT NULL,
       status TEXT NOT NULL,
       created_at INTEGER NOT NULL,
@@ -24,7 +42,28 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       payload TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS assignment_room ON assignment(room_id, created_at);
-    CREATE INDEX IF NOT EXISTS assignment_room_stage ON assignment(room_id, stage, created_at);
+    CREATE INDEX IF NOT EXISTS assignment_round_stage ON assignment(room_id, work_round_id, stage, created_at);
+    CREATE TABLE IF NOT EXISTS project (
+      id TEXT PRIMARY KEY,
+      payload TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS project_updated ON project(updated_at);
+    CREATE TABLE IF NOT EXISTS work_round (
+      id TEXT PRIMARY KEY,
+      room_id TEXT NOT NULL,
+      project_id TEXT,
+      ordinal INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS work_round_room ON work_round(room_id, ordinal);
+    CREATE INDEX IF NOT EXISTS work_round_project ON work_round(project_id, updated_at);
     CREATE TABLE IF NOT EXISTS room_event (
       seq INTEGER PRIMARY KEY AUTOINCREMENT,
       id TEXT NOT NULL UNIQUE,
@@ -57,6 +96,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS room_timer_due ON room_timer(status, due_at);
+    PRAGMA user_version = ${SCHEMA_VERSION};
   `)
   const integrity = db.prepare('PRAGMA integrity_check').get()?.integrity_check
   if (integrity !== 'ok') throw new Error(`数据库损坏：${integrity ?? '未知错误'}`)
@@ -110,14 +150,126 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   }
   const readRooms = () => db.prepare("SELECT payload, version FROM room WHERE id <> 'dispatch' ORDER BY rowid").all()
     .map(row => ({ ...JSON.parse(row.payload), version: row.version }))
-  const readMessages = roomId => db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId).map(row => JSON.parse(row.payload))
+
+  const writeProject = project => {
+    const now = Date.now()
+    const stored = {
+      ...project,
+      createdAt: project.createdAt ?? now,
+      updatedAt: project.updatedAt ?? now,
+      version: Number(project.version ?? 1),
+    }
+    db.prepare(
+      'INSERT INTO project (id, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at',
+    ).run(stored.id, JSON.stringify(stored), stored.version, stored.createdAt, stored.updatedAt)
+    return stored
+  }
+  const readProject = id => {
+    const row = db.prepare('SELECT payload, version FROM project WHERE id = ?').get(id)
+    if (row === undefined) return null
+    return { ...JSON.parse(row.payload), version: row.version }
+  }
+  const readProjects = () => db.prepare('SELECT payload, version FROM project ORDER BY updated_at DESC').all()
+    .map(row => ({ ...JSON.parse(row.payload), version: row.version }))
+  const updateProject = (id, mutate) => {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      const row = db.prepare('SELECT payload, version FROM project WHERE id = ?').get(id)
+      if (row === undefined) { db.exec('ROLLBACK'); return null }
+      const project = JSON.parse(row.payload)
+      const change = mutate(project)
+      if (change === null || change === undefined || change === false) { db.exec('ROLLBACK'); return null }
+      const version = Number(row.version) + 1
+      project.version = version
+      project.updatedAt = Date.now()
+      db.prepare('UPDATE project SET payload = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?')
+        .run(JSON.stringify(project), version, project.updatedAt, id, row.version)
+      db.exec('COMMIT')
+      return project
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  const nextWorkRoundOrdinal = roomId => Number(
+    db.prepare('SELECT COALESCE(MAX(ordinal), 0) + 1 AS next FROM work_round WHERE room_id = ?').get(roomId)?.next ?? 1,
+  )
+  const writeWorkRound = round => {
+    const now = Date.now()
+    const stored = {
+      ...round,
+      ordinal: Number.isInteger(round.ordinal) ? round.ordinal : nextWorkRoundOrdinal(round.roomId),
+      status: typeof round.status === 'string' ? round.status : 'planning',
+      createdAt: round.createdAt ?? now,
+      updatedAt: round.updatedAt ?? now,
+      version: Number(round.version ?? 1),
+    }
+    db.prepare(
+      'INSERT INTO work_round (id, room_id, project_id, ordinal, status, payload, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id, ordinal = excluded.ordinal, status = excluded.status, payload = excluded.payload, version = excluded.version, updated_at = excluded.updated_at',
+    ).run(
+      stored.id, stored.roomId, stored.projectId ?? null, stored.ordinal, stored.status,
+      JSON.stringify(stored), stored.version, stored.createdAt, stored.updatedAt,
+    )
+    return stored
+  }
+  const readWorkRound = (id, roomId = null) => {
+    const row = roomId === null
+      ? db.prepare('SELECT payload, version FROM work_round WHERE id = ?').get(id)
+      : db.prepare('SELECT payload, version FROM work_round WHERE id = ? AND room_id = ?').get(id, roomId)
+    if (row === undefined) return null
+    return { ...JSON.parse(row.payload), version: row.version }
+  }
+  const readWorkRounds = roomId => db.prepare(
+    'SELECT payload, version FROM work_round WHERE room_id = ? ORDER BY ordinal',
+  ).all(roomId).map(row => ({ ...JSON.parse(row.payload), version: row.version }))
+  const readWorkRoundsByProject = projectId => db.prepare(
+    'SELECT payload, version FROM work_round WHERE project_id = ? ORDER BY updated_at DESC',
+  ).all(projectId).map(row => ({ ...JSON.parse(row.payload), version: row.version }))
+  const updateWorkRound = (id, mutate) => {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      const row = db.prepare('SELECT payload, version FROM work_round WHERE id = ?').get(id)
+      if (row === undefined) { db.exec('ROLLBACK'); return null }
+      const round = JSON.parse(row.payload)
+      const change = mutate(round)
+      if (change === null || change === undefined || change === false) { db.exec('ROLLBACK'); return null }
+      const version = Number(row.version) + 1
+      round.version = version
+      round.updatedAt = Date.now()
+      db.prepare(
+        'UPDATE work_round SET project_id = ?, ordinal = ?, status = ?, payload = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?',
+      ).run(
+        round.projectId ?? null, round.ordinal ?? 1, round.status ?? 'planning',
+        JSON.stringify(round), version, round.updatedAt, id, row.version,
+      )
+      db.exec('COMMIT')
+      return round
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+  }
+  const deleteWorkRoundsForRoom = roomId => Number(
+    db.prepare('DELETE FROM work_round WHERE room_id = ?').run(roomId).changes,
+  )
+  const readMessages = (roomId, { workRoundId = null } = {}) => {
+    const rows = workRoundId === null
+      ? db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId)
+      : db.prepare('SELECT payload FROM messages WHERE room_id = ? AND work_round_id = ? ORDER BY seq').all(roomId, workRoundId)
+    return rows.map(row => JSON.parse(row.payload))
+  }
   // 展示层只取最近一段；内部迁移和证据仍用 readMessages 读全量。
-  const readRecentMessages = (roomId, limit = 5000) => db.prepare(
-    'SELECT payload FROM (SELECT seq, payload FROM messages WHERE room_id = ? ORDER BY seq DESC LIMIT ?) ORDER BY seq',
-  ).all(roomId, Math.max(1, Math.min(10000, Number(limit) || 5000))).map(row => JSON.parse(row.payload))
+  const readRecentMessages = (roomId, limit = 5000, { workRoundId = null } = {}) => {
+    const size = Math.max(1, Math.min(10000, Number(limit) || 5000))
+    const rows = workRoundId === null
+      ? db.prepare('SELECT payload FROM (SELECT seq, payload FROM messages WHERE room_id = ? ORDER BY seq DESC LIMIT ?) ORDER BY seq').all(roomId, size)
+      : db.prepare('SELECT payload FROM (SELECT seq, payload FROM messages WHERE room_id = ? AND work_round_id = ? ORDER BY seq DESC LIMIT ?) ORDER BY seq').all(roomId, workRoundId, size)
+    return rows.map(row => JSON.parse(row.payload))
+  }
   const maxMessageSeq = roomId => db.prepare('SELECT COALESCE(MAX(seq), 0) AS seq FROM messages WHERE room_id = ?').get(roomId)?.seq ?? 0
   // 证据就是消息流里的命令/人工结果；不再维护单独的账本表与摘要。
-  const readEvidence = roomId => readMessages(roomId)
+  const readEvidence = (roomId, { workRoundId = null } = {}) => readMessages(roomId, { workRoundId })
     .filter(message => message.kind === 'evidence' && (message.meta?.kind === 'command' || message.meta?.kind === 'manual'))
     .map(message => ({
       id: message.id,
@@ -138,9 +290,10 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       : db.prepare('SELECT payload FROM assignment WHERE id = ? AND room_id = ?').get(id, roomId)
     return row === undefined ? null : JSON.parse(row.payload)
   }
-  const readAssignments = (roomId, { stage = null, status = null, before = null, limit = 500 } = {}) => {
+  const readAssignments = (roomId, { workRoundId = null, stage = null, status = null, before = null, limit = 500 } = {}) => {
     const where = ['room_id = ?']
     const params = [roomId]
+    if (typeof workRoundId === 'string' && workRoundId !== '') { where.push('work_round_id = ?'); params.push(workRoundId) }
     if (Number.isInteger(stage)) { where.push('stage = ?'); params.push(stage) }
     if (typeof status === 'string' && status !== '') { where.push('status = ?'); params.push(status) }
     if (typeof before === 'string' && before !== '') {
@@ -168,8 +321,11 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       updatedAt: assignment.updatedAt ?? now,
     }
     db.prepare(
-      'INSERT INTO assignment (id, room_id, stage, status, created_at, updated_at, payload) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET stage = excluded.stage, status = excluded.status, updated_at = excluded.updated_at, payload = excluded.payload',
-    ).run(stored.id, stored.roomId, stored.stageIndex ?? 0, stored.status ?? 'created', stored.createdAt, stored.updatedAt, JSON.stringify(stored))
+      'INSERT INTO assignment (id, room_id, work_round_id, stage, status, created_at, updated_at, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET work_round_id = excluded.work_round_id, stage = excluded.stage, status = excluded.status, updated_at = excluded.updated_at, payload = excluded.payload',
+    ).run(
+      stored.id, stored.roomId, stored.workRoundId ?? null, stored.stageIndex ?? 0,
+      stored.status ?? 'created', stored.createdAt, stored.updatedAt, JSON.stringify(stored),
+    )
     return stored
   }
   const updateAssignment = (id, mutate) => {
@@ -181,8 +337,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       const change = mutate(assignment)
       if (change === null || change === undefined || change === false) { db.exec('ROLLBACK'); return null }
       const stored = { ...assignment, ...(change === true ? {} : change), updatedAt: Date.now() }
-      db.prepare('UPDATE assignment SET stage = ?, status = ?, updated_at = ?, payload = ? WHERE id = ?')
-        .run(stored.stageIndex ?? 0, stored.status ?? 'created', stored.updatedAt, JSON.stringify(stored), id)
+      db.prepare('UPDATE assignment SET work_round_id = ?, stage = ?, status = ?, updated_at = ?, payload = ? WHERE id = ?')
+        .run(stored.workRoundId ?? null, stored.stageIndex ?? 0, stored.status ?? 'created', stored.updatedAt, JSON.stringify(stored), id)
       db.exec('COMMIT')
       return stored
     } catch (error) {
@@ -260,6 +416,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     try {
       db.prepare('DELETE FROM messages WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM assignment WHERE room_id = ?').run(id)
+      db.prepare('DELETE FROM work_round WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM room_event WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM room_inbox WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM room_timer WHERE room_id = ?').run(id)
@@ -344,6 +501,13 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
 
   // transcript.jsonl 先写，SQLite 后写；库是真相，jsonl 是崩溃恢复日志与可读镜像。
   // 示例种子只进 SQLite，不写目标仓库，避免样例数据污染用户仓库。
+  const workRoundIdOf = message => (
+    typeof message?.workRoundId === 'string' && message.workRoundId !== ''
+      ? message.workRoundId
+      : typeof message?.meta?.workRoundId === 'string' && message.meta.workRoundId !== ''
+        ? message.meta.workRoundId
+        : null
+  )
   const persistMessage = (message, { transcript = true } = {}) => {
     const room = readRoom(message.roomId)
     if (message.kind === 'evidence' && transcript) {
@@ -353,8 +517,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       appendTranscript(room ?? message.roomId, message)
       if (message.kind === 'evidence') writeEvidence(room ?? message.roomId, message)
     }
-    db.prepare('INSERT INTO messages (seq, id, room_id, payload) VALUES (?, ?, ?, ?)')
-      .run(message.seq, message.id, message.roomId, JSON.stringify(message))
+    db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
+      .run(message.seq, message.id, message.roomId, workRoundIdOf(message), JSON.stringify(message))
     return message
   }
 
@@ -373,7 +537,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     if (row !== undefined) {
       if (row.room_id !== message.roomId) return null
       const updated = { ...message, seq: row.seq }
-      db.prepare('UPDATE messages SET payload = ? WHERE id = ?').run(JSON.stringify(updated), updated.id)
+      db.prepare('UPDATE messages SET work_round_id = ?, payload = ? WHERE id = ?')
+        .run(workRoundIdOf(updated), JSON.stringify(updated), updated.id)
       // 流式消息只在收口时追加一次最终版本，让 transcript 可读；库仍是真相。
       if (message.meta?.final === true) {
         try { appendTranscript(readRoom(message.roomId) ?? message.roomId, updated) } catch {}
@@ -422,8 +587,8 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     const seqFree = Number.isInteger(message.seq) &&
       db.prepare('SELECT 1 FROM messages WHERE seq = ?').get(message.seq) === undefined
     const stored = { ...message, seq: seqFree ? message.seq : nextSeq() }
-    db.prepare('INSERT INTO messages (seq, id, room_id, payload) VALUES (?, ?, ?, ?)')
-      .run(stored.seq, stored.id, stored.roomId, JSON.stringify(stored))
+    db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
+      .run(stored.seq, stored.id, stored.roomId, workRoundIdOf(stored), JSON.stringify(stored))
     return stored
   }
 
@@ -437,6 +602,17 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     writeRoom,
     updateRoom,
     readRooms,
+    writeProject,
+    readProject,
+    readProjects,
+    updateProject,
+    nextWorkRoundOrdinal,
+    writeWorkRound,
+    readWorkRound,
+    readWorkRounds,
+    readWorkRoundsByProject,
+    updateWorkRound,
+    deleteWorkRoundsForRoom,
     readAssignment,
     readAssignments,
     writeAssignment,

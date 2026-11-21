@@ -33,6 +33,7 @@
     "check:done": "npm test && npm run test:ui && npm run check:docs && npm run check:acceptance && npm run check:regressions",
     "gc:base": "node scripts/base-gc.mjs",
     "data:restore": "node scripts/data-restore.mjs",
+    "data:reset": "node scripts/data-reset.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
     "test:ui": "npm run build && playwright test",
     "retro:env": "node scripts/env-retro.mjs"

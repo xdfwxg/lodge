@@ -1,0 +1,46 @@
+import { existsSync, rmSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { resolve } from 'node:path'
+import { acquireDataLock } from '../server/crew/lock.js'
+import { databaseFile, memoryDir, snapshotDatabase } from '../server/crew/data-recovery.js'
+import { workspaceRoot } from '../server/crew/paths.js'
+import { scratchRoot } from '../server/crew/workspace-git.js'
+
+const args = process.argv.slice(2)
+const option = name => {
+  const at = args.indexOf(name)
+  return at >= 0 ? args[at + 1] : undefined
+}
+const dataDir = resolve(option('--data-dir') ?? '.data')
+const withWorkspaces = args.includes('--workspaces')
+const withBackup = !args.includes('--no-backup')
+
+const remove = path => {
+  if (!existsSync(path)) return false
+  rmSync(path, { recursive: true, force: true })
+  return true
+}
+
+let release
+try {
+  release = acquireDataLock(dataDir)
+  if (withBackup && existsSync(databaseFile(dataDir))) {
+    const backup = snapshotDatabase({ dataDir, reason: 'pre-reset', keep: 10 })
+    if (backup !== null) console.log(`backup: ${backup}`)
+  }
+  for (const suffix of ['', '-wal', '-shm']) remove(`${databaseFile(dataDir)}${suffix}`)
+  remove(memoryDir(dataDir))
+  console.log(`data reset: ${dataDir}`)
+
+  if (withWorkspaces) {
+    for (const root of [workspaceRoot(), scratchRoot()]) {
+      if (root === '/' || root === homedir()) continue
+      if (remove(root)) console.log(`workspaces reset: ${root}`)
+    }
+  }
+} catch (error) {
+  console.error(`reset failed: ${error?.message ?? error}`)
+  process.exitCode = 1
+} finally {
+  release?.()
+}
