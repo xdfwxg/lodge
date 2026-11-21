@@ -33,6 +33,8 @@ export const pauseForMemberFailure = (store, entry, message) => {
   }
 }
 
+// 成员私聊线程里的说话不是房间发言：同一句回答也会从群聊来一遍，投影进来就是两条一样的气泡。
+// 私聊只取回合（成为证据），文字、活动和卡片仍以群聊为准。
 export const createMemberSync = ({ store, engine, projector }) => {
   const syncMember = async (entry, memberId) => {
     if (entry.syncing.has(memberId)) return
@@ -47,7 +49,7 @@ export const createMemberSync = ({ store, engine, projector }) => {
         entry.turns.trackTool(message)
         if (message.kind === 'turn') {
           entry.turns.captureTurn(message.turn, message.authorRef)
-        } else {
+        } else if (message.kind !== 'text') {
           const stored = projector.toStored(entry.roomId, message)
           if (stored !== null) store.upsertMessage(stored)
           pauseForMemberFailure(store, entry, message)
@@ -85,7 +87,7 @@ export const createMemberSync = ({ store, engine, projector }) => {
         if (message.kind === 'turn') {
           entry.turns.captureTurn(message.turn, message.authorRef)
           refresh(entry, { force: true })
-        } else {
+        } else if (message.kind !== 'text') {
           const stored = projector.toStored(entry.roomId, message)
           if (stored !== null) store.upsertMessage(stored)
           pauseForMemberFailure(store, entry, message)

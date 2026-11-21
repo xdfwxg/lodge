@@ -8,19 +8,17 @@ test('every member hides the base agents surface', () => {
   }
 })
 
-test('no member can message other local Claude sessions or open subagents', () => {
+test('tool scope never narrows native tools: claudeAgent cannot run with that selection', () => {
   for (const roleKind of ['planner', 'executor', 'verifier', 'participant']) {
-    const deny = toolScopeFor({ roleKind }).deny
-    for (const tool of ['native:SendMessage', 'native:ListAgents', 'native:Agent', 'native:TaskStop']) {
-      assert.ok(deny.includes(tool), `${roleKind} ${tool}`)
+    for (const selector of toolScopeFor({ roleKind }).deny) {
+      assert.equal(selector.startsWith('native:'), false, `${roleKind} ${selector}`)
     }
   }
 })
 
 test('only the executor hides the room gate tools', () => {
-  const native = ['native:SendMessage', 'native:ListAgents', 'native:Agent', 'native:TaskStop']
-  assert.deepEqual(toolScopeFor({ roleKind: 'executor' }).deny, ['mcp:agents:*', ...native, 'mcp:lodge_gate:*'])
-  assert.deepEqual(toolScopeFor({ roleKind: 'participant' }).deny, ['mcp:agents:*', ...native, 'mcp:lodge_gate:*'])
-  assert.deepEqual(toolScopeFor({ roleKind: 'planner' }).deny, ['mcp:agents:*', ...native])
-  assert.deepEqual(toolScopeFor({ roleKind: 'verifier' }).deny, ['mcp:agents:*', ...native])
+  assert.deepEqual(toolScopeFor({ roleKind: 'executor' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'participant' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'planner' }).deny, ['mcp:agents:*'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'verifier' }).deny, ['mcp:agents:*'])
 })

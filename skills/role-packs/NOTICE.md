@@ -27,6 +27,8 @@ model:
 - planner skills are read-only;
 - executor skills work only in the assigned worktree and forbid commit/push;
 - verifier skills are read-only and end in evidence-based PASS/REJECT;
-- skill names are prefixed with `lodge-` to avoid colliding with user skills.
+- skill names are prefixed with `lodge-` to avoid colliding with user skills;
+- the verifier's two-axis review pack is `lodge-two-axis-review`; it replaces
+  the earlier one-axis `lodge-code-review` pack.
 
 The upstream projects remain under their own copyright and MIT license.

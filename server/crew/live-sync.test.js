@@ -113,3 +113,45 @@ test('ordinary activity is not treated as an engine failure', async () => {
   await sync.syncMember(entry, 'worker')
   assert.equal(room.state, 'active')
 })
+
+test('a private thread reply is not projected twice into the room', async () => {
+  const room = normalizeTestRoom({
+    id: 'room-1',
+    state: 'active',
+    roomType: 'studio',
+    seatBots: { worker: 'bot-w' },
+    seatNames: { worker: '执行者' },
+    seatSpecs: [{ id: 'worker', role: 'worker', name: '执行者' }],
+    hiddenBaseMessages: [],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+  })
+  const messages = []
+  const captured = []
+  const store = withAssignments({
+    readRoom: () => room,
+    readMessages: () => messages,
+    upsertMessage: message => messages.push(message),
+    appendMessage: (_id, message) => messages.push(message),
+  })
+  const sync = createMemberSync({
+    store,
+    engine: {
+      history: async () => ({
+        messages: [
+          { id: 't1', kind: 'text', role: 'agent', authorRef: 'bot-w', text: '同一条回答' },
+          { id: 'u1', kind: 'turn', authorRef: 'bot-w', turn: { turnId: 'turn-1', reply: '同一条回答' } },
+        ],
+      }),
+    },
+    projector: { toStored: () => { throw new Error('private text must not be projected') } },
+  })
+  const entry = {
+    roomId: 'room-1',
+    members: new Map([['worker', { sessionRef: 's' }]]),
+    syncing: new Set(),
+    turns: { trackTool: () => {}, captureTurn: turn => captured.push(turn) },
+  }
+  await sync.syncMember(entry, 'worker')
+  assert.deepEqual(messages, [])
+  assert.deepEqual(captured.map(turn => turn.turnId), ['turn-1'])
+})
