@@ -16,7 +16,7 @@ const speakerOf = room => roomPresentationOfRoom(room)?.speakerOf?.(room) ?? ''
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
 // sendId 是基座的幂等键：发送响应和最终落库 ID 不同也能对上同一条话。
-export const echoHumanMessage = ({ store, roomId, text, messageId, sendId, queueId }) => {
+export const echoHumanMessage = ({ store, roomId, text, messageId, sendId, queueId, meta = {} }) => {
   const echo = {
     roomId,
     ts: Date.now(),
@@ -25,6 +25,7 @@ export const echoHumanMessage = ({ store, roomId, text, messageId, sendId, queue
     text,
     meta: {
       echo: true,
+      ...meta,
       ...(typeof sendId === 'string' && sendId !== '' ? { sendId } : {}),
       ...(typeof queueId === 'string' && queueId !== '' ? { queueId } : {}),
     },
@@ -271,7 +272,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     })
   }
 
-  const send = async (room, text, { displayText = text, mentions = [] } = {}) => {
+  const send = async (room, text, { displayText = text, mentions = [], meta = {} } = {}) => {
     const chat = room.chatRoom
     if (chat === undefined) throw new Error('房间聊天室还没准备好；重连房间后再试')
     // 基座原生支持 @everyone；产品文案 @所有人 只在这里映射，不自己展开成员。
@@ -293,6 +294,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       messageId: sent?.messageId,
       sendId,
       queueId: sent?.queueId,
+      meta,
     })
     return sent
   }

@@ -8,6 +8,7 @@ import { CHAT_HOST_VOICE, CHAT_VOICE } from '../../../../shared/chat-voice.js'
 import { stancePrompt } from '../../../../shared/chat-stances.js'
 import { chatProjection } from './projection.js'
 import { CHAT_PHASE } from '../../../../shared/states.js'
+import { MENTION_ALL } from '../../../../shared/mentions.js'
 
 // 聊天室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
 export const chatKind = {
@@ -18,7 +19,13 @@ export const chatKind = {
   memberPrompt: () => '',
   demoMessage: '这是示例房间，不接模型；要动手就把结论转成工作室任务。',
   messagePolicy: ({ room, mentions = [] }) => {
-    // 只认输入框成员选择器传来的 id；手打 @ 和 @所有人 都回到主持。
+    // 只认输入框成员选择器传来的 id；手打 @ 不算点名。
+    if (mentions.includes(MENTION_ALL)) {
+      // 结论后叫所有人 = 开新一轮；正在讨论时没有第二轮可开，交给主持说明。
+      return room.chat?.phase === CHAT_PHASE.concluded && room.chat?.running !== true
+        ? { type: 'round' }
+        : { type: 'host' }
+    }
     const named = mentions.some(id => (room.members ?? []).some(member => member.id === id))
     return named ? null : { type: 'host' }
   },

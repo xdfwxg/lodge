@@ -290,7 +290,7 @@ export const createLiveRooms = ({
     return entry.strategy.sendToMember(entry, room, memberId, text, options)
   }
 
-  const send = async (roomId, text, { mentions = [] } = {}) => {
+  const send = async (roomId, text, { mentions = [], meta = {} } = {}) => {
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('房间还没有连上')
     if (entry.strategy.busyReview(entry)) throw new Error('验收员还在看，等结论出来再继续')
@@ -302,7 +302,7 @@ export const createLiveRooms = ({
       ? memberDisplayName(room, leadMemberOf(room)?.id ?? '')
       : ''
     // 自动唤醒的 @ 只发给基座，不写进房间记录；人看到的仍是自己说的话。
-    return chat.send(room, lead === '' ? text : `@${lead} ${text}`, { displayText: text, mentions })
+    return chat.send(room, lead === '' ? text : `@${lead} ${text}`, { displayText: text, mentions, meta })
   }
 
   const requestReview = async (roomId, stage) => {

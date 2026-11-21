@@ -30,6 +30,19 @@ test('a sendId gives the echo a stable id before the base answers', () => {
   assert.equal(store.calls[0].message.meta.echo, true)
 })
 
+test('an echo keeps the direct mention label', () => {
+  const store = fakeStore()
+  echoHumanMessage({
+    store,
+    roomId: 'room-1',
+    text: '@甲 看这里',
+    messageId: 'm-1',
+    meta: { direct: ['甲'] },
+  })
+  assert.deepEqual(store.calls[0].message.meta.direct, ['甲'])
+  assert.equal(store.calls[0].message.meta.echo, true)
+})
+
 test('a message without a base id still appears in the room', () => {
   const store = fakeStore()
   echoHumanMessage({ store, roomId: 'room-1', text: '稍等', messageId: null })

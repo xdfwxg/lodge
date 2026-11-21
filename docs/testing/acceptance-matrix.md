@@ -34,6 +34,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 状态目录完整，轮次事件可只读重放 | `shared/states.test.js`、`server/crew/rounds/replay.test.js` | 真实房间跑一次 `replay:round` |
 | 自动交付默认关；打开后最后一步验收通过自动收口 | `server/crew/live-turn-modules.test.js`、`ui/src/room/studio/create.test.js` | 真实房间打开开关跑一轮 |
 | 成员回复里的 @ 不唤醒下一棒；聊天室随机顺序、每人先说到一次 | `server/crew/engine.test.js`、`server/crew/room-create.test.js`、`server/crew/live-chat-room.test.js` | 基座 `server/room-roots.e2e.test.ts` 覆盖真实路由 |
+| 用户点名路由（结构化成员 id；`@所有人` 结论后开一轮；直接问标记） | `server/crew/rooms/kinds.test.js`、`server/crew/live-echo.test.js`、`ui/src/room/message-view.test.js` | 无 |
 | 重置前归档工作区，数据库与工作区成对恢复 | `server/crew/data-recovery.test.js` | 无 |
 | 跨轮长期任务：重启、停止、归档、预算、人工门 | `server/crew/long-task-recovery.test.js`、`evals/long-task/run.mjs` | 确定性场景，不调模型 |
 | 房间写与轮次写分开，终态轮拒绝写入 | `server/crew/store-rounds.test.js`、`server/crew/store.test.js` | 无 |

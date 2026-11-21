@@ -67,10 +67,16 @@ export const renderSharedMessage = ({
     const parsed = splitAttachmentTags(message.text)
     const listed = Array.isArray(message.meta?.attachments) ? message.meta.attachments : []
     const attachments = listed.length > 0 ? listed : parsed.attachments
+    const direct = Array.isArray(message.meta?.direct)
+      ? message.meta.direct.filter(name => typeof name === 'string' && name !== '')
+      : []
     return h('div', { key: message.id, className: 'crew-human' },
+      direct.length === 0
+        ? null
+        : h('span', { className: 'crew-human-label' }, `直接问 ${direct.join('、')}`),
       message.kind === 'human-context'
         ? h('span', { className: 'crew-human-label' }, '补充上下文')
-        : humanName === '' || humanName === '你'
+        : direct.length > 0 || humanName === '' || humanName === '你'
           ? null
           : h('span', { className: 'crew-human-name' }, humanName),
       h('div', { className: 'bt-ububble' },

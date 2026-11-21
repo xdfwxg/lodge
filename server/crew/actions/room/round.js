@@ -81,7 +81,22 @@ export const createRoundActions = deps => {
         }
         // 不带 @：用户在跟主持说话；带 @：直接交给被点名的成员。
         if (policy?.type === 'host') return chat.input(room, { note: promptText })
-        await live.send(room.id, promptText, { mentions })
+        // 结论后叫所有人：开一轮受轮次和配额限制的讨论。
+        if (policy?.type === 'round') {
+          return chat.continue(room, {
+            note: promptText,
+            speakerIds: (room.members ?? []).map(member => member.id),
+          })
+        }
+        const direct = mode?.id === 'chat'
+          ? mentions
+            .map(id => (room.members ?? []).find(member => member.id === id)?.name)
+            .filter(name => typeof name === 'string' && name !== '')
+          : []
+        await live.send(room.id, promptText, {
+          mentions,
+          ...(direct.length === 0 ? {} : { meta: { direct } }),
+        })
         return accepted({ accepted: true })
       }
       const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text, ...(attachments.length === 0 ? {} : { meta: attachmentMeta }) })

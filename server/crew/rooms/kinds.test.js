@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom } from './kinds.js'
+import { MENTION_ALL } from '../../../shared/mentions.js'
 
 const MODE_KEYS = [
   'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'messagePolicy', 'demoMessage', 'resolvePlan',
@@ -62,6 +63,8 @@ test('message routing is a mode policy, not a room-type branch', () => {
   assert.deepEqual(chat.messagePolicy({ room: concluded, text: '继续', mentions: [] }), { type: 'host' })
   assert.deepEqual(chat.messagePolicy({ room, text: '@甲 看这里', mentions: [] }), { type: 'host' })
   assert.deepEqual(chat.messagePolicy({ room, text: '@所有人 看这里', mentions: [] }), { type: 'host' })
+  assert.deepEqual(chat.messagePolicy({ room: concluded, text: '@所有人 继续', mentions: [MENTION_ALL] }), { type: 'round' })
+  assert.deepEqual(chat.messagePolicy({ room, text: '@所有人 继续', mentions: [MENTION_ALL] }), { type: 'host' })
   assert.equal(chat.messagePolicy({ room, text: '@甲 看这里', mentions: ['a'] }), null)
   assert.equal(chat.messagePolicy({ room: concluded, text: '@甲 继续', mentions: ['a'] }), null)
 

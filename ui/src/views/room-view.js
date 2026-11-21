@@ -10,6 +10,7 @@ import { uiModeOfRoom } from './room-modes.js'
 import { ArrowDownIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
+import { MENTION_ALL } from '../../../shared/mentions.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [dropped, setDropped] = useState(null)
@@ -191,7 +192,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       roleLabel: roleLabelOf(member),
     }))
     return list.length > 1
-      ? [...list, { id: 'all', name: '所有人', mention: '所有人', roleLabel: '每位成员' }]
+      ? [...list, { id: MENTION_ALL, name: '所有人', mention: '所有人', roleLabel: '每位成员' }]
       : list
   }, [room.members])
 
