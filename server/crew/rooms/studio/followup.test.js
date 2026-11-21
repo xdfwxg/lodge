@@ -39,6 +39,8 @@ test('a delivered room turns one sentence into a linked next version', () => {
   assert.equal(built.body.name, '设置页保存 · 第 2 版')
   assert.equal(built.body.verify, 'manual')
   assert.equal(built.body.acceptance, undefined)
+  assert.deepEqual(built.body.project, { northStar: '给设置页加保存' })
+  assert.deepEqual(built.body.phase, { name: '把保存按钮改成圆角', index: 2 })
   assert.equal(built.body.repoPath, '/work/room-1/executor')
   assert.deepEqual(built.body.members.map(item => [item.role, item.name, item.engine]), [
     ['lead', '规划师', 'claude'],
@@ -61,6 +63,19 @@ test('a delivered room turns one sentence into a linked next version', () => {
 test('an unfinished room reworks in place instead of opening a version', () => {
   const result = buildFollowupBody({ room: room({ state: 'active', stages: [{ state: 'active' }] }), text: '改一下' })
   assert.match(result.error, /还没交付/)
+})
+
+test('the next phase can carry its own command contract', () => {
+  const built = buildFollowupBody({
+    room: room({ project: { northStar: '把设置页做成可发布的版本' }, phase: { name: '保存', index: 3 } }),
+    text: '阶段 4：补上导出',
+    verify: 'test',
+    acceptance: 'node --test test/export.test.js',
+  })
+  assert.deepEqual(built.body.project, { northStar: '把设置页做成可发布的版本' })
+  assert.deepEqual(built.body.phase, { name: '补上导出', index: 4 })
+  assert.equal(built.body.verify, 'test')
+  assert.equal(built.body.acceptance, 'node --test test/export.test.js')
 })
 
 test('a room without a check carries manual acceptance', () => {

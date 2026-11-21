@@ -44,6 +44,21 @@ export const directPrompt = (goal, verify, acceptance, singleMember, handoff = n
 
 const cleanText = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 
+const normalizeProject = value => {
+  if (value === null || typeof value !== 'object') return null
+  const northStar = cleanText(value.northStar, 1000)
+  return northStar === '' ? null : { northStar }
+}
+
+const normalizePhase = (value, fallbackName = '') => {
+  const name = cleanText(value?.name, 60) || cleanText(fallbackName, 60)
+  if (name === '') return null
+  return {
+    name,
+    index: Number.isInteger(value?.index) && value.index > 0 ? value.index : null,
+  }
+}
+
 const normalizeContinuation = value => {
   if (value === null || typeof value !== 'object') return null
   const fromRoomId = cleanText(value.fromRoomId, 120)
@@ -98,10 +113,20 @@ export const normalizeRequest = body => {
   const receipt = normalizeReceipt(body.receipt)
   const sourceRoomId = typeof body.sourceRoomId === 'string' ? body.sourceRoomId.trim().slice(0, 120) : ''
   const sourceName = typeof body.sourceName === 'string' ? body.sourceName.trim().slice(0, 120) : ''
+  const isStudio = roomType.id === 'studio'
+  const isPhase = isStudio && (sourceRoomId !== '' || normalizeContinuation(body.continuation) !== null)
+  const project = isStudio
+    ? normalizeProject(body.project) ?? (isPhase ? null : { northStar: goal })
+    : null
+  const phase = isStudio
+    ? normalizePhase(body.phase, isPhase ? '下一阶段' : '阶段 1')
+    : null
   return {
     goal,
     name,
     roomType,
+    project,
+    phase,
     verify,
     acceptance,
     orchestration,

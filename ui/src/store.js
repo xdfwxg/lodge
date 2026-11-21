@@ -289,6 +289,10 @@ export function createStore() {
       const roomId = options.roomId ?? state.activeId
       const data = await post(`/api/rooms/${roomId}/followup`, {
         text,
+        ...(options.verify === 'test' ? {
+          verify: 'test',
+          acceptance: typeof options.acceptance === 'string' ? options.acceptance : '',
+        } : {}),
         ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
       })
       if (data?.room?.id !== undefined && data.room.id !== null) {

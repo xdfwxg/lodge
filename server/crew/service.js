@@ -695,6 +695,8 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         messages: readMessages(room.id),
         text,
         attachments,
+        verify: body.verify,
+        acceptance: body.acceptance,
       })
       if (built.error !== undefined) return fail('invalid', built.error)
       rememberHuman(room.id, body)

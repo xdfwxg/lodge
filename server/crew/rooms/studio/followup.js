@@ -14,12 +14,17 @@ const nameOf = (room, version) => {
   return `${base} · 第 ${version} 版`.slice(0, 60)
 }
 
+const phaseNameOf = text => {
+  const first = String(text ?? '').split('\n').map(line => line.trim()).find(Boolean) ?? ''
+  return first.replace(/^阶段\s*\d+\s*[:：]\s*/, '').trim().slice(0, 60) || '下一阶段'
+}
+
 const changedFilesOf = messages => [...new Set((messages ?? []).flatMap(message => (
   Array.isArray(message.meta?.changedFiles) ? message.meta.changedFiles : []
 )))].slice(0, 12)
 
 // 已交付的房间不改原地：把「要改什么」变成下一版的目标，原班人马、同一工作区和检查条件沿用。
-export const buildFollowupBody = ({ room, messages = [], text = '', attachments = [] } = {}) => {
+export const buildFollowupBody = ({ room, messages = [], text = '', attachments = [], verify = 'manual', acceptance = '' } = {}) => {
   if (room === null || room?.roomType !== 'studio') return { error: '只有工作室能接着改' }
   const stages = Array.isArray(room.stages) ? room.stages : []
   const delivered = room.state === 'complete' || (stages.length > 0 && stages.every(stage => stage.state === 'passed'))
@@ -40,13 +45,19 @@ export const buildFollowupBody = ({ room, messages = [], text = '', attachments 
     : judgmentOf(lastVerdict)?.reason || lastVerdict.meta?.reason || lastVerdict.text) || lastConclusion?.text || ''
   const files = changedFilesOf(messages)
   const goalText = words === '' ? (attachments[0]?.title ?? '看看这个附件') : words
+  const phaseIndex = Number.isInteger(room.phase?.index)
+    ? room.phase.index + 1
+    : (Number.isInteger(room.generation) ? room.generation + 1 : 2)
 
   return {
     body: {
       goal: withAttachments(goalText, attachments),
       name: nameOf(room, version),
       roomType: 'studio',
-      verify: 'manual',
+      project: room.project ?? { northStar: stripAttachmentTags(room.goal ?? '') },
+      phase: { name: phaseNameOf(goalText), index: phaseIndex },
+      verify: verify === 'test' ? 'test' : 'manual',
+      ...(verify === 'test' ? { acceptance: String(acceptance ?? '').trim() } : {}),
       repoPath: room.repoPath ?? room.sourceRepo ?? '',
       members: (room.members ?? []).map(member => ({
         role: roleOf(member),

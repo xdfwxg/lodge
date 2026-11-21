@@ -51,12 +51,15 @@
 
 ## 数据
 
-项目房仍是 `room`，增加一组只读/协调字段，不新增执行引擎：
+项目仍是 `room`，只加两层字段，不新增表，也不新增执行引擎：
 
-- `project: { northStar, phases[], currentPhase, decisions[], risks[], budget }`
-- `phase`: `{ id, goal, state, childRoomId, acceptance, deliverable, cost, startedAt, acceptedAt }`
-- `state`: `planned / active / accepted / blocked / cancelled`
-- 子工作室通过现有 `childRoomId`、assignment、delivery 和 evidence 关联；项目房不复制证据正文。
+- 根房：`project: { northStar }`
+- 每间阶段房：`phase: { name, index }`
+- 阶段合同不复制：`goal / verify / acceptance` 继续用房间自己的字段
+- 阶段状态、证据、交付继续由房间自己回答；项目页只读，不另存一份
+
+项目身份是根房 id，阶段顺序是现有的 `sourceRoomId` / `nextRoomId` 链。
+路线图、预算、决策/风险看板还没有落地；第一版只记录北极星、阶段名和阶段合同。
 
 阶段只允许一个 `active`。并行阶段不进第一版，避免把长期问题变成调度器。
 

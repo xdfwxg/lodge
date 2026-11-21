@@ -48,6 +48,7 @@ const toneOf = room => (
 )
 
 const goalOf = room => stripAttachmentTags(room?.goal ?? '').trim()
+const phaseNameOf = (room, index) => room?.phase?.name ?? room?.name ?? `第 ${index + 1} 阶段`
 
 const phaseRow = (phase, index, currentId, onOpenRoom) => h('li', {
   key: phase.id,
@@ -62,7 +63,7 @@ h('button', {
 },
 h('span', { className: 'crew-project-phase-index', 'aria-hidden': 'true' }, String(index + 1)),
 h('span', { className: 'crew-project-phase-copy' },
-  h('b', null, phase.name ?? `第 ${index + 1} 阶段`),
+  h('b', null, phaseNameOf(phase, index)),
   goalOf(phase) === '' ? null : h('span', null, goalOf(phase))),
 h('span', { className: 'crew-project-phase-state' }, phaseStatusOf(phase))))
 
@@ -70,26 +71,32 @@ export function ProjectView({ rooms, rootId, onClose, onOpenRoom, onFollowup = n
   const trail = projectTrailOf(rooms, rootId)
   const currentId = trail?.current?.id ?? null
   const [nextGoal, setNextGoal] = useState('')
+  const [nextAcceptance, setNextAcceptance] = useState('')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState(null)
 
   useEffect(() => {
     setNextGoal('')
+    setNextAcceptance('')
     setNote(null)
   }, [currentId])
 
   const nextPhase = async () => {
     const text = nextGoal.trim()
+    const acceptance = nextAcceptance.trim()
     if (text === '' || busy || typeof onFollowup !== 'function' || trail === null) return
     setBusy(true)
     setNote(null)
     try {
-      const result = await onFollowup(trail.current.id, text)
+      const result = await onFollowup(trail.current.id, text, acceptance === ''
+        ? {}
+        : { verify: 'test', acceptance })
       if (result?.room?.id === undefined || result.room.id === null) {
         setNote('下一阶段没能开起来，再试一次。')
         return
       }
       setNextGoal('')
+      setNextAcceptance('')
     } catch {
       setNote('下一阶段没能开起来，再试一次。')
     } finally {
@@ -112,13 +119,13 @@ export function ProjectView({ rooms, rootId, onClose, onOpenRoom, onFollowup = n
       h('button', { type: 'button', className: 'crew-link crew-project-back', onClick: onClose }, '← 回到房间'),
       h('p', { className: 'crew-project-kicker' }, '项目轨迹'),
       h('h1', { className: 'crew-project-title' }, root.name ?? '项目'),
-      h('p', { className: 'crew-project-north' }, goalOf(root) || '还没有写北极星。'),
+      h('p', { className: 'crew-project-north' }, root.project?.northStar || goalOf(root) || '还没有写北极星。'),
       h('p', { className: 'crew-project-count' }, `${phases.length} 个阶段 · 当前第 ${currentIndex + 1} 阶段`),
       h('ol', { className: 'crew-project-phases', 'aria-label': '阶段' },
         phases.map((phase, index) => phaseRow(phase, index, current.id, onOpenRoom))),
       h('section', { className: 'crew-project-current', 'aria-label': '当前阶段' },
         h('span', { className: 'crew-project-current-label' }, currentComplete ? '最后一间已交付' : '现在在这一间'),
-        h('b', null, current.name ?? `第 ${currentIndex + 1} 阶段`),
+        h('b', null, phaseNameOf(current, currentIndex)),
         current.delivery?.changedFiles?.length > 0
           ? h('span', { className: 'crew-field-hint' }, `${current.delivery.changedFiles.length} 个文件的结果`)
           : null,
@@ -155,6 +162,15 @@ export function ProjectView({ rooms, rootId, onClose, onOpenRoom, onFollowup = n
                 disabled: busy || nextGoal.trim() === '',
                 onClick: () => void nextPhase(),
               }, busy ? '正在开…' : '开下一阶段')),
+            h('label', { className: 'crew-project-next-label', htmlFor: 'crew-project-next-acceptance' }, '验收命令（可不填）'),
+            h('input', {
+              id: 'crew-project-next-acceptance',
+              className: 'crew-goal-input',
+              value: nextAcceptance,
+              placeholder: '例如：npm test；不填就由验收员看结果',
+              disabled: busy,
+              onChange: event => setNextAcceptance(event.target.value),
+            }),
             note === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, note),
             h('p', { className: 'crew-field-hint' }, '原班人马和工作区沿用；旧版保留。'))
         : null))
