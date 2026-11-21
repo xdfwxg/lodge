@@ -913,11 +913,11 @@ details[open]>summary::before{transform:rotate(90deg)}
 .crew-capability-input:disabled{opacity:.55;cursor:default}
 
 /* 侧栏底部的“你”：本地身份，不是登录。 */
-.crew-side-me{display:flex;align-items:center;gap:6px;margin-top:6px;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:14px;line-height:20px;cursor:pointer;text-align:left}
+.crew-side-me{display:flex;align-items:center;gap:7px;margin-top:6px;margin-bottom:3px;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:15px;line-height:20px;cursor:pointer;text-align:left}
 .crew-side-me:hover{background:var(--bt-hover);color:var(--bt-ink)}
-.crew-side-me-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;overflow:hidden;background:var(--bt-shade-3);color:var(--bt-ink);font-size:12px;font-weight:600;box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)}
+.crew-side-me-avatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bt-shade-3);color:var(--bt-ink);font-size:12px;font-weight:600;box-shadow:inset 0 0 0 1px rgba(0,0,0,.07)}
 .crew-side-me-avatar img{width:100%;height:100%;object-fit:cover}
-.crew-side-me-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:500;color:var(--bt-ink)}
+.crew-side-me-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:500;color:var(--bt-ink)}
 .crew-side-me:hover .crew-side-me-name{color:var(--bt-ink)}
 .crew-side-me-more{margin-left:auto;flex:none;font-size:16px;line-height:1;color:var(--bt-ink-4)}
 .crew-side-me:hover .crew-side-me-more{color:var(--bt-ink-3)}

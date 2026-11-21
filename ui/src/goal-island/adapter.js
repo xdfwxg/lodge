@@ -94,11 +94,11 @@ const PILL_CSS = `
 .bt-input:focus{border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash);outline:none}
 .bt-input:disabled{opacity:.55;cursor:not-allowed}
 .bt-input-area{height:auto;min-height:96px;padding:8px 10px;line-height:18px;resize:vertical}
-.crew-goal-island{position:absolute;top:0;left:0;right:0;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;padding:64px 32px 0;pointer-events:none}
+.crew-goal-island{position:absolute;top:0;left:0;right:0;z-index:20;display:flex;flex-direction:column;align-items:center;gap:8px;padding:36px 32px 0;pointer-events:none}
 .crew-goal-island>*{pointer-events:auto}
 .crew-goal-island .bt-island{align-self:center}
 @keyframes bt-veil-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (max-width:760px){.crew-goal-island{top:0;left:0;right:0;padding:50px 14px 0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}.lingchong{width:88px;height:45px}}
+@media (max-width:760px){.crew-goal-island{top:0;left:0;right:0;padding:22px 14px 0}.bt-island{width:min(380px,calc(100% - 8px))}.bt-island[data-mode=peek],.bt-island[data-mode=decision],.bt-island[data-mode=open]{width:calc(100% - 8px)}.lingchong{width:88px;height:45px}}
 `
 
 // 默认收成小胶囊，悬停或键盘聚焦时放大，露出目标原句。
