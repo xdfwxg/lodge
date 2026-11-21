@@ -11,7 +11,7 @@ import { ArrowDownIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
 
-function RoomView({ state, room, store, onStartStudio, onStartChat }) {
+function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProject = null }) {
   const [dropped, setDropped] = useState(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
@@ -218,6 +218,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     continueChat: note => store.continueChat(note),
     createSubroom: goal => store.createSubroom(goal),
     selectRoom: id => store.select(id),
+    openProject: id => onOpenProject?.(id),
     startStudio: onStartStudio,
     startChat: onStartChat,
     swapBody: memberId => {

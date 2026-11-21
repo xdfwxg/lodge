@@ -27,6 +27,14 @@ export const studioView = {
           onClick: () => actions.selectRoom(room.sourceRoomId),
         }, `← 上一版《${room.sourceName}》`))
       : null,
+    (room.sourceRoomId || room.nextRoomId) && typeof actions.openProject === 'function'
+      ? h('div', { className: 'studio-run-back' },
+        h('button', {
+          type: 'button',
+          className: 'crew-link',
+          onClick: () => actions.openProject(room.id),
+        }, '项目轨迹'))
+      : null,
     h(GoalIslandHeader, {
       room,
       onOpenRoom: actions.selectRoom,

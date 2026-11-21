@@ -2,6 +2,7 @@ import { createElement as h, useEffect, useMemo, useState } from 'react'
 import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
+import { ProjectView } from './views/project-view.js'
 import { LODGE_ROOM_ID } from '../../shared/lodge.js'
 import { ProfileDialog } from './profile-dialog.js'
 import { saveProfile } from './profile.js'
@@ -22,7 +23,9 @@ export function App() {
   const [dialog, setDialog] = useState(false)
   const [seed, setSeed] = useState(null)
   const [startType, setStartType] = useState(null)
+  const [projectId, setProjectId] = useState(null)
   const openDialog = (seedValue = null, roomType = null) => {
+    setProjectId(null)
     setSeed(seedValue)
     setStartType(roomType)
     setDialog(true)
@@ -64,6 +67,7 @@ export function App() {
       const room = sidebarRooms.filter(item => !item.archivedAt)[Number(event.key) - 1]
       if (room === undefined) return
       event.preventDefault()
+      setProjectId(null)
       store.select(room.id)
     }
     window.addEventListener('keydown', onKeyDown)
@@ -103,7 +107,10 @@ export function App() {
       ? null
       : h(Sidebar, {
         state: { ...state, rooms: sidebarRooms },
-        onSelect: id => store.select(id),
+        onSelect: id => {
+          setProjectId(null)
+          store.select(id)
+        },
         onNew: () => openDialog(),
         lodgeRoom,
         profile,
@@ -113,7 +120,17 @@ export function App() {
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),
       }),
-    room === null
+    projectId !== null
+      ? h(ProjectView, {
+        rooms: state.rooms,
+        rootId: projectId,
+        onClose: () => setProjectId(null),
+        onOpenRoom: id => {
+          setProjectId(null)
+          store.select(id)
+        },
+      })
+      : room === null
       ? h('main', { className: 'dsb-main crew-home' },
         h('div', { className: 'crew-home-inner' },
           h(StatePanel, {
@@ -128,6 +145,7 @@ export function App() {
         store,
         onStartStudio: seedValue => openDialog(seedValue),
         onStartChat: seedValue => openDialog(seedValue, 'chat'),
+        onOpenProject: id => setProjectId(id),
       }),
     liveRegion,
     needsRegion,
