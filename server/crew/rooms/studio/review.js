@@ -245,15 +245,26 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       })
       const lead = leadMemberOf(room)?.id
       if (typeof lead === 'string' && lead !== '') {
-        const stageTitle = room.stages?.[pending.stage]?.title ?? ''
-        void sendToMember(lead, [
-          `第 ${pending.stage + 1} 步「${stageTitle}」验收通过。`,
-          '请在群里用两三句话总结这一步的结果和下一步；不要改文件，也不要再派活。',
-          INTERNAL_PROMPT_MARKER,
-        ].join('\n'), {
-          intent: 'summary',
-          from: '验收流程',
-          sendId: `s-${String(pending.evidenceId ?? pending.verifier).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`,
+        const stage = room.stages?.[pending.stage]
+        const stageTitle = stage?.title ?? ''
+        // 收尾也是一次成员之间的交接：验收员把结果交给规划师。
+        void handoffTrigger({
+          room,
+          stage,
+          index: pending.stage,
+          from: pending.verifier,
+          to: lead,
+          reason: 'summary',
+          prompt: [
+            `第 ${pending.stage + 1} 步「${stageTitle}」验收通过。`,
+            '请在群里用两三句话总结这一步的结果和下一步；不要改文件，也不要再派活。',
+            INTERNAL_PROMPT_MARKER,
+          ].join('\n'),
+          visible: false,
+          deliver: true,
+          acceptance: stage?.acceptance ?? '',
+          parentAssignmentId: reviewAssignment?.id ?? null,
+          nonce: String(pending.evidenceId ?? pending.verifier),
         }).catch(error => {
           systemNotice({ store, roomId, text: '没能叫规划师收尾；这一步仍等你确认。', error })
         })
@@ -339,24 +350,32 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         const lead = leadMemberOf(room)?.id
         if (typeof lead === 'string' && lead !== '') {
           // 只有重做预算用完、合并冲突或没有可执行成员时才回到规划师/人。
-          const parallel = workers.length > 1
-          void sendToMember(lead, [
-            `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
-            `判定：${reason === '' ? '未通过' : sanitizeUntrusted(reason, 300)}`,
-            '判定必须先用工具提交，不要在回复里只写结论：',
-            '1. 调用 lodge_gate_submit_decision（基座可能显示为 mcp__lodge_gate__submit_decision）。',
-            '2. 如果工具列表里没有它，先调用 ToolSearch，查询 "lodge_gate_submit_decision"，再调用它。',
-            '3. 只有工具确实不可用时，才按下面的文本格式回复；此时第一行只写「返工」或「交给人」。',
-            '返工时写清改什么、怎么算完成；交给人时写清要人拍板什么。',
-            '交给人时，在 actionRequired 里用 A. / B. 列出 2–3 个具体选择，每项一句话；用户会直接点。',
-            DECISION_JSON_HINT,
-            '决定返工时不要 @ 任何人；系统会把要求直接送进该重做的执行成员手里。第一行仍只写「返工」。',
-            '不要自己改文件，也不要自己验收。',
-            INTERNAL_PROMPT_MARKER,
-          ].join('\n'), {
-            intent: 'decision',
-            from: '验收流程',
-            sendId: `r-${String(pending.evidenceId ?? pending.verifier).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32)}`,
+          void handoffTrigger({
+            room,
+            stage,
+            index: pending.stage,
+            from: pending.verifier,
+            to: lead,
+            reason: 'decision',
+            prompt: [
+              `验收员退回了第 ${pending.stage + 1} 步「${stageTitle}」。`,
+              `判定：${reason === '' ? '未通过' : sanitizeUntrusted(reason, 300)}`,
+              '判定必须先用工具提交，不要在回复里只写结论：',
+              '1. 调用 lodge_gate_submit_decision（基座可能显示为 mcp__lodge_gate__submit_decision）。',
+              '2. 如果工具列表里没有它，先调用 ToolSearch，查询 "lodge_gate_submit_decision"，再调用它。',
+              '3. 只有工具确实不可用时，才按下面的文本格式回复；此时第一行只写「返工」或「交给人」。',
+              '返工时写清改什么、怎么算完成；交给人时写清要人拍板什么。',
+              '交给人时，在 actionRequired 里用 A. / B. 列出 2–3 个具体选择，每项一句话；用户会直接点。',
+              DECISION_JSON_HINT,
+              '决定返工时不要 @ 任何人；系统会把要求直接送进该重做的执行成员手里。第一行仍只写「返工」。',
+              '不要自己改文件，也不要自己验收。',
+              INTERNAL_PROMPT_MARKER,
+            ].join('\n'),
+            visible: false,
+            deliver: true,
+            acceptance: stage?.acceptance ?? '',
+            parentAssignmentId: reviewAssignment?.id ?? null,
+            nonce: String(pending.evidenceId ?? pending.verifier),
           }).catch(error => {
             systemNotice({ store, roomId, text: '没能叫醒规划师；稍后会自动再试。', error })
           })
@@ -458,6 +477,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     round = nextRound
     store.updateRound(roomId, current => {
       current.reviewRetriedAt = Date.now()
+      // 本轮复核的验收员在发起时固定；之后加成员只影响下一轮，不回头改这一轮的结论。
+      if (Array.isArray(current.stages) && current.stages[stageIndex] !== undefined) {
+        current.stages[stageIndex].reviewers = [...targets]
+      }
       return { events: [] }
     })
     store.appendEvent(roomId, 'review.requested', {

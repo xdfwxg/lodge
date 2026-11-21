@@ -2,7 +2,14 @@
 import { verifierIds } from '../../room-members.js'
 import { reworkFloor } from '../../../../shared/attempt.js'
 import { verdictPassed } from '../../../../shared/judgment.js'
+import { REVIEW_STATE } from '../../../../shared/states.js'
 export { reworkFloor, verifierIds }
+
+// 本轮复核的验收员在发起复核时固定；加成员不回头改已经发起的这一轮。
+const reviewersOf = (room, stageIndex) => {
+  const stored = room?.stages?.[stageIndex]?.reviewers
+  return Array.isArray(stored) && stored.length > 0 ? stored : verifierIds(room)
+}
 
 const verdictOutcome = ({ ids, verdicts }) => {
   const total = ids.length
@@ -11,14 +18,14 @@ const verdictOutcome = ({ ids, verdicts }) => {
   const rejects = verdicts.filter(message => !verdictPassed(message))
   const missing = ids.filter(id => !verdicts.some(message => message.authorId === id))
   const state = total === 0
-    ? 'none'
+    ? REVIEW_STATE.none
     : passes >= required
-      ? 'pass'
+      ? REVIEW_STATE.pass
       : rejects.length > total - required
-        ? 'reject'
+        ? REVIEW_STATE.reject
         : missing.length === 0
-          ? 'reject'
-          : 'pending'
+          ? REVIEW_STATE.reject
+          : REVIEW_STATE.pending
   return { state, total, required, received: verdicts.length, missing, verdicts, rejects }
 }
 
@@ -97,7 +104,7 @@ export const manualEvidenceFor = (room, evidence, messages, stageIndex) => {
 
 // 人工验收不是绕过 Verifier：结果证据也要经过独立 Verifier，再交给人确认。
 export const manualReviewState = ({ room, evidence, messages, stageIndex }) => {
-  const ids = verifierIds(room)
+  const ids = reviewersOf(room, stageIndex)
   const found = manualEvidenceFor(room, evidence, messages, stageIndex)
   if (found === undefined) {
     return { state: ids.length === 0 ? 'none' : 'pending', evidence: null, total: ids.length, received: 0, missing: ids, verdicts: [], rejects: [] }
@@ -115,7 +122,7 @@ export const manualReviewState = ({ room, evidence, messages, stageIndex }) => {
 }
 
 export const reviewState = ({ room, evidence, messages, stageIndex }) => {
-  const ids = verifierIds(room)
+  const ids = reviewersOf(room, stageIndex)
   const found = commandEvidenceFor(room, evidence, messages, stageIndex)
   if (found === undefined) {
     return { state: 'none', evidence: null, total: ids.length, received: 0, missing: ids, verdicts: [], rejects: [] }

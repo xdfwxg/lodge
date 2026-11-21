@@ -262,6 +262,7 @@ test('a planner turn without a submitted decision is nudged once, then handed to
   assert.equal(room.lastPlannerDecision.kind, 'human')
   assert.equal(room.lastPlannerDecision.judgment.source, 'missing')
   assert.match(room.lastPlannerDecision.judgment.actionRequired, /没有提交决定/)
+  assert.ok(store.events.some(event => event.type === 'handoff.human'))
 })
 
 test('an exhausted rework budget asks the human instead of reworking again', () => {
@@ -299,6 +300,7 @@ test('an exhausted rework budget asks the human instead of reworking again', () 
   assert.equal(room.lastPlannerDecision.judgment.source, 'policy')
   assert.match(room.lastPlannerDecision.judgment.actionRequired, /重做次数/)
   assert.equal(store.messages.filter(message => message.kind === 'rework' && message.meta?.stage === 0).length, 3)
+  assert.ok(store.events.some(event => event.type === 'handoff.human'))
 })
 
 test('a verifier reply without a verdict is nudged, then expires the review', async () => {
@@ -1486,23 +1488,30 @@ test('a verifier pass hands the summary to the planner', async () => {
     meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
   })
   const sent = []
+  const sendToMember = async (memberId, prompt) => {
+    sent.push({ memberId, prompt })
+    return { messageId: `m${sent.length}` }
+  }
   const review = createReviewCoordinator({
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToMember: async (memberId, prompt) => {
-      sent.push({ memberId, prompt })
-      return { messageId: `m${sent.length}` }
-    },
+    sendToMember,
+    handoff: createHandoff({ store, roomId: 'room-1', sendToMember, emit: () => {} }),
     updateTasks: () => {},
   })
   await review.request(0)
   assert.equal(review.consume({ turn: { reply: 'PASS\n达标' }, memberId: 'verifier', turnId: 't1', room }), true)
+  await new Promise(resolve => setImmediate(resolve))
   const planner = sent.find(item => item.memberId === 'planner')
   assert.ok(planner)
   assert.match(planner.prompt, /验收通过/)
   assert.match(planner.prompt, /总结/)
   assert.equal(sent.some(item => item.memberId === 'executor'), false)
+  const summary = store.readAssignments('room-1').find(item => item.reason === 'summary')
+  assert.ok(summary, 'pass leaves a summary handoff to the planner')
+  assert.equal(summary.toMemberId, 'planner')
+  assert.equal(summary.status, 'sent')
 })
 
 test('an intermediate stage advances by itself instead of asking the planner to hand off', async () => {

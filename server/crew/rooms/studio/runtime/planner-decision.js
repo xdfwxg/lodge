@@ -65,6 +65,12 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
       for (const item of activeDispatch(store, roomId, stageIndex)) {
         transitionAssignment(store, item.id, 'rejected', { resultText: '规划师没有提交决定，已交给人' })
       }
+      store.appendEvent(roomId, 'handoff.human', {
+        stage: stageIndex,
+        from: lead ?? null,
+        reason: 'planner-missing',
+        actionRequired: missing.actionRequired,
+      })
       store.appendMessage(roomId, { kind: 'system', text: '规划师没有提交决定，已把这一步交给你处理。' })
     }
     // 没有工具提交、首行也不是「返工/交给人」：先催它只提交决定，再收口给人，不猜。
@@ -132,6 +138,12 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
           resultText: judgment.reason === '' ? '规划师把这一步交给人' : `交给人：${judgment.reason}`,
         })
       }
+      store.appendEvent(roomId, 'handoff.human', {
+        stage: stageIndex,
+        from: leadMemberOf(room)?.id ?? null,
+        reason: judgment.reason,
+        actionRequired: judgment.actionRequired,
+      })
       return true
     }
     // 并行阶段的重做要送进每一位执行成员的工作副本；只叫一个人会把另一条分支留在旧结果上。
@@ -139,6 +151,12 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
       .filter(id => workerIds(room).includes(id))
     const targets = assignees.length > 0 ? assignees : workerIds(room)
     if (targets.length === 0) {
+      store.appendEvent(roomId, 'handoff.human', {
+        stage: stageIndex,
+        from: leadMemberOf(room)?.id ?? null,
+        reason: 'no-executor',
+        actionRequired: '这一步没有执行成员；请补人或由你接手。',
+      })
       store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把重做交出去。' })
       return true
     }
