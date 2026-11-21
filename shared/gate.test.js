@@ -8,6 +8,7 @@ const verdict = overrides => ({
   input: JSON.stringify({
     decision: 'PASS',
     reason: '文件内容和检查都对',
+    outsideDiff: '无',
     ...overrides,
   }),
 })
@@ -75,10 +76,18 @@ test('a verdict submission is not reused as a planner decision', () => {
 test('the base activity label with a single underscore is recognized', () => {
   const judgment = gateSubmissionOf([{
     name: 'lodge_gate_submit_verdict',
-    input: JSON.stringify({ decision: 'PASS', reason: 'base label' }),
+    input: JSON.stringify({ decision: 'PASS', reason: 'base label', outsideDiff: '无' }),
   }], { type: 'verdict' })
   assert.equal(judgment.source, 'gate')
   assert.equal(judgment.decision, 'pass')
+})
+
+test('a PASS gate submission without an outside risk is not accepted', () => {
+  assert.equal(gateSubmissionOf([verdict({ outsideDiff: '' })], { type: 'verdict' }), null)
+  assert.equal(gateSubmissionOf([{
+    name: 'mcp__lodge_gate__submit_verdict',
+    input: JSON.stringify({ decision: 'PASS', reason: '缺风险' }),
+  }], { type: 'verdict' }), null)
 })
 
 test('another MCP server cannot submit a room judgment', () => {

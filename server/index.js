@@ -140,7 +140,15 @@ const nudgeStudio = room => {
     service?.roomRequest(room.id, 'accept', {
       method: 'POST',
       readBody: async () => ({ stage: need.stage }),
-    }).catch(error => console.warn(`[lodge] 自动确认阶段失败：${error?.message ?? error}`))
+    }).catch(error => {
+      console.warn(`[lodge] 自动确认阶段失败：${error?.message ?? error}`)
+      try {
+        store.appendMessage(room.id, {
+          kind: 'system',
+          text: `这一步还没能自动确认：${String(error?.message ?? error).slice(0, 200)}`,
+        })
+      } catch {}
+    })
   }, 400)
 }
 

@@ -185,6 +185,9 @@ export const judgmentFromGate = ({
   if (decision === undefined) return null
   const reason = clip(input.reason ?? input.message, LIMITS.reason)
   if (reason === '') return null
+  const outsideDiff = type === 'verdict' ? clip(input.outsideDiff, LIMITS.outsideDiff) : ''
+  // 和 gate MCP 的入口校验保持一致：PASS 不能绕过“diff 之外的一条风险”。
+  if (type === 'verdict' && decision === 'pass' && outsideDiff === '') return null
   const actionRequired = clip(input.actionRequired, LIMITS.actionRequired)
   return validateJudgment({
     version: JUDGMENT_VERSION,
@@ -193,7 +196,7 @@ export const judgmentFromGate = ({
     reason,
     findings: type === 'verdict' ? normalizeFindings(input.findings) : [],
     visual: type === 'verdict' ? normalizeVisual(input.visual) : null,
-    outsideDiff: type === 'verdict' ? clip(input.outsideDiff, LIMITS.outsideDiff) : '',
+    outsideDiff,
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     // rejectTo 是业务路由，模型不能把失败退回给别的角色。
     rejectTo: rejectToFor(type, decision),

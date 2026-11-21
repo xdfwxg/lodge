@@ -2,6 +2,18 @@
 
 这份文件只记自动测试覆盖不到、实际跑过的路径。自动能力仍以 [acceptance-matrix.md](acceptance-matrix.md) 为准。
 
+## 2026-11-21 · 真实三阶段项目
+
+- 仓库：`/tmp/lodge-long-project-20261121`，一个真实 git 仓库；项目根房 `room-b1980650`，三段分别是 `room-b1980650` → `room-6f0bc53c` → `room-5558b85f`。
+- 目标：先做 hello()，再做 farewell()，最后做 `bin/greet.js` 命令行；每段都是一间真实工作室。
+- 结果：三段全部 `complete`；项目轨迹页显示 3 个阶段、当前第 3 阶段，三段都是「已交付」。
+- 证据：最终工作副本 `/Users/wangxuguang/CrewWorktrees/5558b85f/worker` 的 `npm test` 6/6 通过；`node bin/greet.js 千寻` 输出 `Hello, 千寻!` 和 `Goodbye, 千寻!`；最终提交 `d4fc5b5`。
+- 用量：阶段 1 4 回合、178,102/1,353 tokens、$0.1147（partial）；阶段 2 5 回合、275,641/2,287、$0.1357（unknown）；阶段 3 6 回合、289,270/3,380、$0.1379（unknown）。已回报合计 $0.3882。
+- 厂商：规划师和执行官记录为 `claude` / `claude-sonnet-5`；验收员记录为 `pi` / `deepseek/deepseek-flash`。本机 `claude` CLI 仍走 DeepSeek 端点，界面标签不等于真实厂商。
+- 现场 bug：阶段 3 验收员 PASS 时调用了 gate 但漏了 `outsideDiff`；MCP 工具会拒绝，但内部 `gateSubmissionOf` 仍把调用当成有效 PASS，房间卡在 `signoff`，岛上只显示“去处理”但没有可操作卡片。为完成本次真实项目，按人工确认 `force` 收了阶段 3。
+- 修正：`judgmentFromGate` 现在和 MCP 入口一样要求 PASS 带 `outsideDiff`；无效 gate 调用回落到文本判定，并补了 `shared/gate.test.js` 回归。
+- 本次项目保留在 Lodge 里供查看，未清理；`/tmp` 仓库和 CrewWorktrees 也保留。
+
 ## 2026-11-21 · 全量 dogfood（技能收敛后）
 
 - 环境：Lodge `http://127.0.0.1:8787`，基座 `http://127.0.0.1:8799`。本机 `claude` CLI 走 DeepSeek anthropic 端点，模型 `deepseek-v4-pro`；评测报告记录为 `auto`，没有把 engine/model 写死。
