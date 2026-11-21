@@ -98,8 +98,6 @@ export const chatKind = {
     return null
   },
 
-  stateOf: room => room.chat?.phase ?? 'discussing',
-
   filterMessages: messages => chatProjection.filterMessages(messages, isChatSystemNoise),
   hideActivity: chatProjection.hideActivity,
   acceptsDelta: chatProjection.acceptsDelta,

@@ -348,16 +348,6 @@ export const studioKind = {
 
   needsYou: studioNeedsYou,
 
-  // 阶段本身就是状态：不另存一个闭包状态机，只从 stages 读当前处在哪一段。
-  stateOf: room => {
-    const stages = Array.isArray(room?.stages) ? room.stages : []
-    if (stages.length === 0) return 'open'
-    if (stages.every(stage => stage.state === 'passed')) return 'done'
-    const active = stages.find(stage => stage.state === 'active')
-    if (active === undefined) return 'planned'
-    return active.kind === 'decision' ? 'open' : 'executing'
-  },
-
   filterMessages: messages => messages,
   hideActivity: false,
   acceptsDelta: false,

@@ -1,4 +1,4 @@
-import { idleDelivered, roomStatusOf } from '../../../shared/room-status.js'
+import { chatStatusOf, idleDelivered, roomStatusOf } from '../../../shared/room-status.js'
 
 // 岛屿状态机：状态键共享，工作室和聊天室各自读自己的词表。
 export const ISLAND_STATUS = Object.freeze({
@@ -23,8 +23,7 @@ export const ISLAND_STATUS = Object.freeze({
 export const islandWorking = room => (
   room?.working === true ||
   (Array.isArray(room?.busyMembers) ? room.busyMembers.length > 0 : false) ||
-  room?.chat?.running === true ||
-  room?.chat?.hostThinking === true
+  ['running', 'summarizing', 'thinking'].includes(chatStatusOf(room))
 )
 
 const studioState = room => {
@@ -40,16 +39,13 @@ const studioState = room => {
 }
 
 const chatState = room => {
-  if (room?.state === 'paused') return 'paused'
-  if (room?.state === 'stopped') return 'stopped'
-  const chat = room?.chat ?? {}
-  if (chat.phase === 'summarizing') return 'summarizing'
-  if (chat.phase === 'concluded') return 'waiting'
-  if (chat.running === true || chat.hostThinking === true) return 'running'
-  const started = (Array.isArray(room?.messages) ? room.messages : []).some(message => (
-    message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'
-  ))
-  return started ? 'running' : 'idle'
+  const status = chatStatusOf(room)
+  if (status === 'paused') return 'paused'
+  if (status === 'stopped') return 'stopped'
+  if (status === 'summarizing') return 'summarizing'
+  if (status === 'concluded') return 'waiting'
+  if (status === 'running' || status === 'thinking' || status === 'discussing') return 'running'
+  return 'idle'
 }
 
 export const islandStatusOf = (room, kind = 'studio') => {

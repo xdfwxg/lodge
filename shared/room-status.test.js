@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { deliveredRoundOf, idleDelivered, roomStatusOf, roundDelivered, roundOpen, roundStatusOf } from './room-status.js'
+import { chatStatusOf, idleDelivered, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf } from './room-status.js'
 
 test('room lifecycle never reports a delivered round as a room state', () => {
   assert.equal(roomStatusOf({ state: 'idle' }), 'idle')
@@ -18,12 +18,10 @@ test('a completed round is a round fact, not a room state', () => {
   }
   assert.equal(roomStatusOf(room), 'idle')
   assert.equal(roundStatusOf(room), 'completed')
-  assert.equal(roundDelivered(room), true)
-  assert.equal(deliveredRoundOf(room)?.id, 'round-1')
   assert.equal(roundOpen(room), false)
 })
 
-test('round summaries can answer delivery for an idle studio', () => {
+test('round summaries answer round facts', () => {
   const room = {
     state: 'idle',
     rounds: [
@@ -31,9 +29,9 @@ test('round summaries can answer delivery for an idle studio', () => {
       { id: 'round-2', status: 'stopped' },
     ],
   }
-  assert.equal(deliveredRoundOf(room)?.id, 'round-1')
   assert.equal(roundStatusOf({ status: 'active' }), 'active')
   assert.equal(roundOpen({ status: 'planning' }), true)
+  assert.equal(idleDelivered(room), false)
 })
 
 test('idleDelivered is the current state, not the last delivered round', () => {
@@ -43,9 +41,35 @@ test('idleDelivered is the current state, not the last delivered round', () => {
     workRound: { id: 'round-2', status: 'active' },
     rounds: [{ id: 'round-1', status: 'completed' }],
   }
-  assert.equal(roundDelivered(activeNext), true)
   assert.equal(idleDelivered(activeNext), false)
   assert.equal(idleDelivered({ state: 'idle', workRound: { id: 'round-1', status: 'completed' } }), true)
   assert.equal(idleDelivered({ state: 'idle', rounds: [{ id: 'round-1', status: 'completed' }, { id: 'round-2', status: 'stopped' }] }), false)
   assert.equal(idleDelivered({ state: 'active', activeRoundId: 'round-2' }), false)
+})
+
+test('stage status folds the stage and the room-level blockers into one word', () => {
+  const stages = [{ state: 'active' }, { state: 'pending' }, { state: 'passed' }]
+  assert.equal(stageStatusOf({ stages }, 0), 'active')
+  assert.equal(stageStatusOf({ stages }, 1), 'pending')
+  assert.equal(stageStatusOf({ stages }, 2), 'passed')
+  assert.equal(stageStatusOf({ stages }, 9), null)
+  assert.equal(stageStatusOf({ stages, mergeConflict: { stage: 0 } }, 0), 'blocked')
+  assert.equal(stageStatusOf({ stages, blocked: { stage: 0 } }, 0), 'blocked')
+  assert.equal(stageStatusOf({ stages, openQuestion: '要 A 还是 B？' }, 0), 'waiting')
+  assert.equal(stageStatusOf({ stages, autoCheck: { stage: 0, status: 'limit-reached' } }, 0), 'waiting')
+  assert.equal(stageStatusOf({ stages, lastPlannerDecision: { stage: 0, kind: 'human' } }, 0), 'waiting')
+  assert.equal(stageStatusOf({ stages, lastPlannerDecision: { stage: 0, kind: 'rework' } }, 0), 'active')
+})
+
+test('chat status folds phase, running flags and the first message into one word', () => {
+  const said = [{ kind: 'chat', authorId: 'member' }]
+  assert.equal(chatStatusOf({ state: 'paused', chat: { phase: 'discussing' } }), 'paused')
+  assert.equal(chatStatusOf({ state: 'stopped', chat: { phase: 'discussing' } }), 'stopped')
+  assert.equal(chatStatusOf({ chat: { phase: 'summarizing', running: true } }), 'summarizing')
+  assert.equal(chatStatusOf({ chat: { phase: 'concluded' } }), 'concluded')
+  assert.equal(chatStatusOf({ chat: { phase: 'discussing', hostThinking: true } }), 'thinking')
+  assert.equal(chatStatusOf({ chat: { phase: 'discussing', running: true } }), 'running')
+  assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: said }), 'discussing')
+  assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: [] }), 'idle')
+  assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: [{ kind: 'chat', authorId: 'lodge' }] }), 'idle')
 })

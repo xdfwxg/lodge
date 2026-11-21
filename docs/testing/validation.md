@@ -309,7 +309,7 @@
 - 持久队列：`room_inbox` 和 `room_timer` 合并为一张 `work_item`，带 attempts / max_attempts / available_at / lease_until / dedupe_key / last_error；到点、领取、完成、退避和死信同表。启动时 `reconcileRounds` 修房间/轮次指针，`reclaimWork` 回收租约。
 - 存储按职责拆开：`store/work.js`、`store/rounds.js`、`store/timeline.js`、`store/assignments.js`、`store/projects.js`；`store.js` 只做打开、组合和房间视图。HTTP 动作移到 `actions/room-actions.js`，`service.js` 只做组合根。
 - 轮次预算：`budgetMicroUsd` 进入 round；派发前按已知成本硬拦，超限暂停房间并写事件。完成摘要写进 round.completion，下一轮以一条系统消息带入步骤和决定。
-- 状态契约：`roomStatusOf` 只返回 `idle/active/paused/stopped/archived`；`roundStatusOf` 管轮次；`roundDelivered` 管上一轮是否已交付。工作室和聊天室不再用 `complete` 表示房间；侧栏、岛、项目页、交付记录统一读这套。
+- 状态契约：`roomStatusOf` 只返回 `idle/active/paused/stopped/archived`；`roundStatusOf` 管轮次；`idleDelivered` 表示当前是否已交付。工作室和聊天室不再用 `complete` 表示房间；侧栏、岛、项目页、交付记录统一读这套。
 - 旧代码删除：`rooms/routine-runner.js`、`rooms/studio/subrooms.js`、`shared/routine.js`、run-needs 卡、routine 测试与样式、`state='complete'` 分支、closure 的签字状态、子房创建路径和父子字段。`followup`、`nextRoomId`、`pastGoals`、`phase`、`generation` 已无生产引用。
 - 示例房改成 `idle + completed work_round`；首屏仍显示上一轮交付，但房间可以继续开下一轮。
 
@@ -344,7 +344,7 @@ npm run data:reset -- --workspaces
 
 ## 2026-11-21 · 去掉闭包机、显式轮次写入、聊天续跑、动作分族
 
-- `closure` 状态机整台删除：工作室不再存 `open/planned/executing/verifying/rejected`；当前阶段和轮次状态是唯一事实，`stateOf` 从 `stages` 推导。复核只检查房间是否还在跑，不再维护第二套生命周期。
+- `closure` 状态机整台删除：工作室不再存 `open/planned/executing/verifying/rejected`；当前阶段和轮次状态是唯一事实。复核只检查房间是否还在跑，不再维护第二套生命周期。
 - 存储写入分成两条显式路径：`updateRoom` 只写房间字段，写轮次字段直接报错；`updateRound` 才读写当前轮视图。工作室、聊天和房间动作各自走对的入口，终态轮仍拒绝写入。
 - 聊天室补上持久时钟：讨论进行时占一条 `chat.round` 工作项，已发言次数落在 `chat.turns`；重启后从下一次发言续跑，不再整轮从头开始。调度器通过 `live.handleWork` 把到期项交给房型，聊天室和工作室共用同一条队列。
 - `actions/room-actions.js` 从 518 行收到 37 行，只做分派；`lodge`、运行中动作、房间本体、轮次动作分到 `actions/room/` 四个文件。
@@ -406,3 +406,9 @@ npm run eval:planning:nightly
 - 用新名字导入，避开基座“同名不同文”的冲突；合并掉的 16 个名字进 `RETIRED_SKILLS`，旧成员换身体或自定义时不再挂载。
 - 每回合技能索引从约 320/406/379 tok 降到 99/152/151 tok；全部读完约 953/1,312/1,356 tok。
 - 新增体积门禁：单个技能 ≤2400 字节、7 个合计 ≤16KB、每个角色最多 4 个技能。
+
+## 2026-11-21 · 状态读侧收敛
+
+- 删除未使用的 `roundDelivered` / `deliveredRoundOf`，当前交付只认 `idleDelivered`。
+- 删除 kind 契约里的 `stateOf`（没有调用方），界面不再保留第二套阶段状态。
+- 新增 `stageStatusOf` 和 `chatStatusOf`：阶段的阻塞、待回答、待拍板，聊天的正在看、正在总结，都收成一个词；岛、停止键、输入提示和 issue 投影统一读它们。

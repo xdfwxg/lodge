@@ -1,9 +1,11 @@
-const STAGE_STATE = Object.freeze({
+import { stageStatusOf } from './room-status.js'
+
+const ISSUE_STATE = Object.freeze({
   active: 'in_progress',
   pending: 'todo',
   passed: 'done',
   blocked: 'blocked',
-  failed: 'blocked',
+  waiting: 'blocked',
 })
 
 const items = text => String(text ?? '')
@@ -24,16 +26,21 @@ const sectionOf = (text, heading) => {
 
 export const issuesOf = (room, messages = []) => {
   if (room?.roomType === 'studio') {
-    return (room.stages ?? []).map((stage, index) => ({
-      id: `stage-${index}`,
-      kind: 'stage',
-      title: stage.title,
-      state: STAGE_STATE[stage.state] ?? 'todo',
-      stage: index,
-      acceptance: stage.acceptance ?? null,
-      ownerIds: Array.isArray(stage.assignees) ? stage.assignees : [],
-      blockers: stage.state === 'blocked' ? [stage.blockedReason ?? '这一步卡住了'] : [],
-    }))
+    return (room.stages ?? []).map((stage, index) => {
+      const status = stageStatusOf(room, index)
+      return {
+        id: `stage-${index}`,
+        kind: 'stage',
+        title: stage.title,
+        state: ISSUE_STATE[status] ?? 'todo',
+        stage: index,
+        acceptance: stage.acceptance ?? null,
+        ownerIds: Array.isArray(stage.assignees) ? stage.assignees : [],
+        blockers: status === 'blocked'
+          ? [room.mergeConflict?.stage === index ? '合并冲突等你处理' : '这一步卡住了，等你处理']
+          : status === 'waiting' ? ['等你处理'] : [],
+      }
+    })
   }
   if (room?.roomType !== 'chat') return []
   const conclusion = conclusionOf(messages)

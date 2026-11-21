@@ -22,7 +22,7 @@ const MODE_KEYS = [
   'initialMessages', 'provisionExtra', 'start',   'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
-  'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou', 'stateOf',
+  'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou',
   'refresh', 'projectWork', 'deliveryOf',
   'hostOf', 'speakerOf',
 ]

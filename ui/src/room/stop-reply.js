@@ -1,5 +1,6 @@
 import { createElement as h, useState } from 'react'
 import { StopIcon } from '../icons.js'
+import { chatStatusOf } from '../../../shared/room-status.js'
 
 // 只认真正在跑的回合：近两分钟的工具活动只是展示用的在场信号，回合结束后不能继续留着停止键。
 export const turnRunning = room => {
@@ -7,9 +8,7 @@ export const turnRunning = room => {
   const busy = Array.isArray(room.busyMembers) && room.busyMembers.length > 0
   const queued = (Array.isArray(room.turnQueue) ? room.turnQueue : [])
     .some(item => item?.state === 'queued')
-  return busy || queued ||
-    room.chat?.running === true ||
-    room.chat?.hostThinking === true
+  return busy || queued || ['running', 'summarizing', 'thinking'].includes(chatStatusOf(room))
 }
 
 // 输入条上的刹车：只停下这次回复，不改变房间状态，也不加确认步骤。

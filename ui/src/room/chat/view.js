@@ -8,6 +8,7 @@ import { StatePanel } from '../../state-panel.js'
 import { PausedPanel } from '../paused-panel.js'
 import { RoomReview } from '../room-review.js'
 import { TypingLine } from '../typing-line.js'
+import { chatStatusOf } from '../../../../shared/room-status.js'
 
 
 // 聊天室的房间视图：只认自己的决策、时间线与输入中状态，不碰工作室。
@@ -72,11 +73,11 @@ export const chatView = {
     : `对 ${hostLabelOf(room) || 'Lodge 主持'} 说…`,
   // 谁在发言由身体状态行说；这里只补主持人的“正在看”和“正在总结”。
   typing: ({ room, locked }) => {
-    const chat = room.chat ?? {}
-    if (chat.hostThinking === true) {
+    const status = chatStatusOf(room)
+    if (status === 'thinking') {
       return h(TypingLine, { label: `${hostLabelOf(room)} 正在看` })
     }
-    return !locked && chat.phase === 'summarizing'
+    return !locked && status === 'summarizing'
       ? h(TypingLine, { label: `${hostLabelOf(room)} 正在总结` })
       : null
   },
