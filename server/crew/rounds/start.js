@@ -52,7 +52,15 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles }) =
       verifiers: verifiersOf(room),
       independence: room.independence,
     }),
-    decisions: Array.isArray(body?.decisions) ? body.decisions : [],
+    decisions: Array.isArray(body?.decisions)
+      ? body.decisions
+      : Array.isArray(body?.plan?.answers)
+        ? body.plan.answers.map(answer => ({
+          question: answer.question,
+          chosen: answer.answer,
+          at: Date.now(),
+        }))
+        : [],
     origin: {
       sourceRoomId: typeof body?.sourceRoomId === 'string' ? body.sourceRoomId : room.sourceRoomId ?? null,
       sourceName: typeof body?.sourceName === 'string' ? body.sourceName : room.sourceName ?? null,

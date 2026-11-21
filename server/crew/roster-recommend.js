@@ -30,7 +30,8 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '- 名字由角色决定：规划师、执行官、验收员；members 里不用另起名字，reason 说明各成员负责什么。',
   '- why 只写一句话、不超过 45 字：默认写三人如何分工；parallel 时说明两块工作如何并行。不要复述目标，也不要加总结句。',
   '- 验收优先用仓库里真实可跑的命令；只写一条短命令（如 `npm test`、`test -f hello.txt`），不要内联多行脚本；命令太长或不可靠就设为 manual。命令要能检验目标本身，不要只检查文件是否存在。',
-  '- 只问真正要人拍板、且无法从目标、工作文件夹、交接单或仓库事实中得到答案的问题；不要问“哪个文件/目录、什么技术栈、怎么跑测试”这类已给出的事实；最多 3 个，每个带推荐答案；没有就空数组。',
+  '- 只问真正要人拍板、且无法从目标、工作文件夹、交接单或仓库事实中得到答案的问题；不要问“哪个文件/目录、什么技术栈、怎么跑测试”这类已给出的事实；最多 3 个；没有就空数组。',
+  '- 每个问题给 2–4 个选项，每个选项写一句代价；推荐选项只能有一个。选项是给人选的方向，不是开放式填空题。',
   '- done 写 1–6 条可核对的完成条件，不要写口号。',
   '- stages 由你按任务自己拆：简单任务 1 步就够，复杂的拆到 5 步；不要为了好看硬拆。每个交付阶段必须有一条可执行验收命令，决策阶段写 kind=decision。',
   '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline。parallel 必须有两个执行成员，只用于可并行的阶段；critique 不增加成员，用于关键交付，让验收成员主动找反例。',
@@ -42,7 +43,7 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '{',
   '  "done": ["可核对的完成条件"],',
   '  "questions": [',
-  '    {"text": "真正要人拍板的问题", "recommendation": "推荐答案"}',
+  '    {"text": "真正要人拍板的问题", "options": [{"label": "选项 A", "cost": "快，但不彻底"}, {"label": "选项 B", "cost": "慢，但更稳"}], "recommendation": "选项 A"}',
   '  ],',
   '  "members": [',
   '    {"role": "lead", "reason": "对齐目标与阶段"},',
@@ -175,6 +176,15 @@ export const parseProposal = reply => {
     ? data.questions
       .map(item => ({
         text: typeof item?.text === 'string' ? item.text.trim().slice(0, 300) : '',
+        options: Array.isArray(item?.options)
+          ? item.options
+            .map(option => ({
+              label: typeof option?.label === 'string' ? option.label.trim().slice(0, 160) : '',
+              cost: typeof option?.cost === 'string' ? option.cost.trim().slice(0, 240) : '',
+            }))
+            .filter(option => option.label !== '')
+            .slice(0, 4)
+          : [],
         recommendation: typeof item?.recommendation === 'string' ? item.recommendation.trim().slice(0, 300) : '',
       }))
       .filter(item => item.text !== '')

@@ -126,3 +126,73 @@ test('a completed project starts the next round in the same studio', async ({ pa
   await expect(page.getByText('2 轮 · 进行中')).toBeVisible()
   await expect(page.getByText('修登录超时').first()).toBeVisible()
 })
+
+test('a project asks one clear decision before opening a round', async ({ page, request }) => {
+  const base = await (await request.get('/api/state')).json()
+  let state = {
+    ...base,
+    rooms: [studio({ repoPath: '/tmp/room-1' })],
+    projects: [project()],
+  }
+  const proposal = {
+    done: ['登录超时不再出现'],
+    stages: [{ title: '修登录超时', kind: 'deliverable', acceptance: 'npm test' }],
+    verify: 'test',
+    acceptance: 'npm test',
+    questions: [{
+      text: '先修哪一层？',
+      options: [
+        { label: '只加重试', cost: '快，但不解决根因' },
+        { label: '同时改服务端超时', cost: '慢，但更彻底' },
+      ],
+      recommendation: '同时改服务端超时',
+    }],
+    members: [{ role: 'lead' }, { role: 'worker' }, { role: 'verifier' }],
+  }
+  const nextRound = {
+    ...completedRound,
+    id: 'round-2',
+    ordinal: 2,
+    status: 'active',
+    name: '修登录超时',
+    goal: '修登录超时',
+    completedAt: null,
+    completedCommit: null,
+  }
+  await page.route('**/api/state', route => route.fulfill({ json: state }))
+  await page.route('**/api/roster/recommend', async route => {
+    const body = route.request().postDataJSON()
+    expect(body.goal).toBe('修登录超时')
+    await route.fulfill({ json: { proposal } })
+  })
+  await page.route('**/api/rooms/room-1/followup', async route => {
+    const body = route.request().postDataJSON()
+    expect(body.plan.questions).toBeUndefined()
+    expect(body.plan.answers[0].question).toBe('先修哪一层？')
+    expect(body.plan.answers[0].answer).toBe('同时改服务端超时')
+    expect(body.plan.stages[0].title).toBe('修登录超时')
+    state = {
+      ...state,
+      rooms: [studio({
+        state: 'active',
+        goal: '修登录超时',
+        workRound: nextRound,
+        stages: [{ title: '修登录超时', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+        delivery: null,
+      })],
+      projects: [project({ rounds: [completedRound, nextRound] })],
+    }
+    await route.fulfill({ json: { room: state.rooms[0] } })
+  })
+  await page.goto('/')
+
+  await page.getByRole('button', { name: /长期工作间/ }).first().click()
+  await page.getByRole('button', { name: '项目' }).click()
+  await page.getByLabel('下一轮要做什么？').fill('修登录超时')
+  await page.getByRole('button', { name: '先出方案' }).click()
+  await expect(page.getByText('先修哪一层？')).toBeVisible()
+  await page.getByRole('button', { name: /同时改服务端超时/ }).click()
+  await page.getByRole('button', { name: '开始这一轮' }).click()
+
+  await expect(page.getByText('2 轮 · 进行中')).toBeVisible()
+})

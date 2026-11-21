@@ -298,6 +298,7 @@ export function createStore() {
           acceptance: typeof options.acceptance === 'string' ? options.acceptance : '',
         } : {}),
         ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
+        ...(options.plan !== null && typeof options.plan === 'object' ? { plan: options.plan } : {}),
       })
       if (data?.room?.id !== undefined && data.room.id !== null) {
         await load()

@@ -131,6 +131,7 @@ export function App() {
           store.select(id)
         },
         onFollowup: (roomId, text, options = {}) => store.followup(text, { roomId, ...options }),
+        onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
       })
       : room === null
       ? h('main', { className: 'dsb-main crew-home' },

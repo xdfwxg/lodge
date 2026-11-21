@@ -47,14 +47,16 @@ test('a delivered latest round offers the next round in the same project', () =>
       ...projects[0],
       rounds: [{ ...projects[0].rounds[0] }],
     }],
-    rooms: [{ id: 'room-1', defaultProjectId: 'project-1' }],
+    rooms: [{ id: 'room-1', defaultProjectId: 'project-1', repoPath: '/tmp/room-1' }],
     projectId: 'project-1',
     onClose: () => {},
     onOpenRoom: () => {},
     onFollowup: async () => ({ room: { id: 'room-1' } }),
+    onRecommend: async () => ({ ok: true, proposal: { done: [], stages: [], questions: [] } }),
   }))
   assert.match(html, /下一轮要做什么/)
   assert.match(html, /开下一轮/)
+  assert.match(html, /先出方案/)
 })
 
 test('a missing project is an honest empty state', () => {

@@ -40,37 +40,81 @@ h('span', { className: 'crew-project-phase-copy' },
   goalOf(round) === '' ? null : h('span', null, goalOf(round))),
 h('span', { className: 'crew-project-phase-state' }, roundStatusOf(round))))
 
-export function ProjectView({ projects = [], rooms = [], projectId, onClose, onOpenRoom, onFollowup = null }) {
+export function ProjectView({ projects = [], rooms = [], projectId, onClose, onOpenRoom, onFollowup = null, onRecommend = null }) {
   const project = (projects ?? []).find(item => item.id === projectId) ?? null
   const rounds = orderedRounds(project?.rounds ?? [])
   const latest = rounds[rounds.length - 1] ?? null
   const [nextGoal, setNextGoal] = useState('')
   const [nextAcceptance, setNextAcceptance] = useState('')
+  const [proposal, setProposal] = useState(null)
+  const [answers, setAnswers] = useState([])
   const [busy, setBusy] = useState(false)
+  const [proposing, setProposing] = useState(false)
   const [note, setNote] = useState(null)
 
   useEffect(() => {
     setNextGoal('')
     setNextAcceptance('')
+    setProposal(null)
+    setAnswers([])
     setNote(null)
   }, [projectId, latest?.id])
+
+  const propose = async () => {
+    const text = nextGoal.trim()
+    const room = rooms.find(item => item.id === latest?.roomId) ?? null
+    if (text === '' || proposing || latest === null || room === null || typeof onRecommend !== 'function') return
+    setProposing(true)
+    setNote(null)
+    try {
+      const result = await onRecommend(text, room.repoPath ?? '', null)
+      if (result?.ok !== true || result.proposal === undefined) {
+        setNote(result?.error ?? '没能给出方案，再试一次。')
+        return
+      }
+      const nextProposal = result.proposal
+      setProposal(nextProposal)
+      setAnswers((nextProposal.questions ?? []).slice(0, 2).map(question => question.recommendation ?? ''))
+      if (typeof nextProposal.acceptance === 'string' && nextProposal.acceptance !== '') {
+        setNextAcceptance(nextProposal.acceptance)
+      }
+    } catch {
+      setNote('没能给出方案，再试一次。')
+    } finally {
+      setProposing(false)
+    }
+  }
 
   const nextRound = async () => {
     const text = nextGoal.trim()
     const acceptance = nextAcceptance.trim()
     if (text === '' || busy || typeof onFollowup !== 'function' || latest === null) return
+    const plan = proposal === null ? null : {
+      done: proposal.done,
+      ...(typeof proposal.prose === 'string' && proposal.prose.trim() !== '' ? { prose: proposal.prose.trim() } : {}),
+      ...(typeof proposal.why === 'string' && proposal.why.trim() !== '' ? { why: proposal.why.trim() } : {}),
+      ...(Array.isArray(proposal.stages) && proposal.stages.length > 0 ? { stages: proposal.stages } : {}),
+      answers: (proposal.questions ?? []).slice(0, 2).map((question, index) => ({
+        question: question.text,
+        answer: answers[index] ?? question.recommendation ?? '',
+      })),
+    }
     setBusy(true)
     setNote(null)
     try {
-      const result = await onFollowup(latest.roomId, text, acceptance === ''
-        ? { projectId }
-        : { projectId, verify: 'test', acceptance })
+      const result = await onFollowup(latest.roomId, text, {
+        projectId,
+        ...(plan === null ? {} : { plan }),
+        ...(acceptance === '' ? {} : { verify: 'test', acceptance }),
+      })
       if (result?.room?.id === undefined || result.room.id === null) {
         setNote('下一轮没能开起来，再试一次。')
         return
       }
       setNextGoal('')
       setNextAcceptance('')
+      setProposal(null)
+      setAnswers([])
     } catch {
       setNote('下一轮没能开起来，再试一次。')
     } finally {
@@ -133,7 +177,56 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
               className: 'crew-accept',
               disabled: busy || nextGoal.trim() === '',
               onClick: () => void nextRound(),
-            }, busy ? '正在开…' : '开下一轮')),
+            }, busy ? '正在开…' : (proposal === null ? '开下一轮' : '开始这一轮')),
+            onRecommend === null
+              ? null
+              : h('button', {
+                type: 'button',
+                className: 'crew-ghost',
+                disabled: busy || proposing || nextGoal.trim() === '',
+                onClick: () => void propose(),
+              }, proposing ? '正在出方案…' : '先出方案')),
+          proposal === null
+            ? null
+            : h('div', { className: 'crew-proposal-block', 'aria-label': '开工前决策' },
+              h('b', null, '先定这几件事'),
+              h('ul', null, (proposal.done ?? []).map((text, index) => h('li', { key: `done-${index}` }, text))),
+              (proposal.stages ?? []).length === 0
+                ? null
+                : h('ol', null, proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
+                  `${stage.title}${stage.kind === 'decision' ? '（确认）' : ''}`))),
+              (proposal.questions ?? []).slice(0, 2).map((question, index) => h('div', {
+                key: `question-${index}`,
+                className: 'crew-proposal-question',
+              },
+              h('b', null, question.text),
+              (question.options ?? []).length === 0
+                ? h('input', {
+                  className: 'crew-goal-input',
+                  value: answers[index] ?? '',
+                  'aria-label': question.text,
+                  disabled: busy,
+                  onChange: event => {
+                    const next = [...answers]
+                    next[index] = event.target.value
+                    setAnswers(next)
+                  },
+                })
+                : h('div', { className: 'crew-question-options' },
+                  question.options.map(option => h('button', {
+                    key: option.label,
+                    type: 'button',
+                    className: 'crew-choice',
+                    'data-on': answers[index] === option.label ? 'true' : undefined,
+                    onClick: () => {
+                      const next = [...answers]
+                      next[index] = option.label
+                      setAnswers(next)
+                    },
+                  },
+                  h('span', null, option.label),
+                  option.cost === '' ? null : h('small', { className: 'crew-field-hint' }, option.cost),
+                  option.label === question.recommendation ? h('small', { className: 'crew-field-hint' }, '推荐') : null)))))),
           h('label', { className: 'crew-project-next-label', htmlFor: 'crew-project-next-acceptance' }, '验收命令（可不填）'),
           h('input', {
             id: 'crew-project-next-acceptance',

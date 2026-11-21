@@ -709,6 +709,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         body: {
           ...built.body,
           ...(typeof body.projectId === 'string' ? { projectId: body.projectId } : {}),
+          ...(body.plan !== null && typeof body.plan === 'object' ? { plan: body.plan } : {}),
         },
         roomFiles,
       })

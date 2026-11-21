@@ -110,6 +110,30 @@ test('questions are capped at three and keep their recommendation', () => {
   assert.match(proposal.note, /超过 3 个/)
 })
 
+test('decision questions keep their options, costs and recommendation', () => {
+  const proposal = parseProposal(reply({
+    questions: [{
+      text: '先修哪一层？',
+      options: [
+        { label: '只加重试', cost: '快，但不解决根因' },
+        { label: '同时改服务端超时', cost: '慢，但更彻底' },
+        { label: '先复现', cost: '最稳，但这一轮可能只产出诊断' },
+      ],
+      recommendation: '同时改服务端超时',
+    }],
+    members: [{ role: 'worker', name: '执行' }],
+    verify: 'manual',
+  }))
+  assert.equal(proposal.questions[0].text, '先修哪一层？')
+  assert.deepEqual(proposal.questions[0].options.map(option => option.label), [
+    '只加重试',
+    '同时改服务端超时',
+    '先复现',
+  ])
+  assert.equal(proposal.questions[0].options[0].cost, '快，但不解决根因')
+  assert.equal(proposal.questions[0].recommendation, '同时改服务端超时')
+})
+
 test('a test proposal without a command falls back to human confirmation', () => {
   const proposal = parseProposal(reply({
     members: [{ role: 'worker', name: '执行' }],
