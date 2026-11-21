@@ -3,7 +3,7 @@ import { addTurnUsage } from '../../../../shared/usage.js'
 import { assessTurn } from '../../turn-assessment.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { reviewState } from './verifiers.js'
+import { manualReviewState, reviewState } from './verifiers.js'
 import { createAcceptanceRunner } from './acceptance-runner.js'
 import { createStageIntegrator } from './integration.js'
 import { createReviewCoordinator } from './review.js'
@@ -895,7 +895,23 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     }
 
     if (stage.manual === true) {
-      if (latestManual !== undefined && (latestManual.seq ?? 0) > latestTurnSeq) return
+      if (latestManual !== undefined && (latestManual.seq ?? 0) > latestTurnSeq) {
+        // 人工证据已经落下，但重启会丢掉内存里的复核轮；没有 verdict 就重新发起。
+        const outcome = manualReviewState({
+          room,
+          evidence: store.readEvidence?.(roomId),
+          messages,
+          stageIndex,
+        })
+        if (outcome.state === 'pending') {
+          try {
+            await review.request(stageIndex)
+          } catch (error) {
+            systemNotice({ store, roomId, text: '这一步上次没做完，已经停了；待处理。', error })
+          }
+        }
+        return
+      }
       if (latestTurn === undefined) {
         await stageStarter.startStage(room, stageIndex)
         return

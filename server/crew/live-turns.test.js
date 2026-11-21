@@ -106,6 +106,50 @@ test('resume re-requests a review that was pending before restart', async () => 
   assert.deepEqual(sent, ['verifier'])
 })
 
+test('resume re-requests a manual review that was pending before restart', async () => {
+  const sent = []
+  const room = normalizeTestRoom({
+    ...store([]).readRoom(),
+    live: true,
+    state: 'active',
+    busy: false,
+    workers: ['worker'],
+    verifiers: ['verifier'],
+    seatNames: { worker: 'Worker', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'worker', role: 'worker', name: 'Worker' },
+      { id: 'verifier', role: 'verifier', name: 'Verifier' },
+    ],
+    stages: [{ title: 'artifact', kind: 'deliverable', manual: true, state: 'active' }],
+  })
+  const evidence = {
+    id: 'e-manual',
+    kind: 'evidence',
+    seq: 1,
+    meta: { stage: 0, kind: 'manual' },
+  }
+  const turns = createLiveTurns({
+    store: {
+      ...store([evidence]),
+      readRoom: () => room,
+      readMessages: () => [evidence],
+      readRooms: () => [room],
+      updateRoom: () => null,
+    },
+    engine: {},
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async member => {
+      sent.push(member)
+      return { messageId: null }
+    },
+    commands: ports.commands,
+    files: ports.files,
+  })
+  await turns.resume()
+  assert.deepEqual(sent, ['verifier'])
+})
+
 test('resume leaves a busy room alone', async () => {
   let sent = 0
   const room = normalizeTestRoom({
