@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import {
   ASSIGNMENT_STATUS,
   ASSIGNMENT_TERMINAL,
@@ -49,6 +52,19 @@ test('chat transitions only reference known phases', () => {
   for (const [from, row] of Object.entries(CHAT_TRANSITIONS)) {
     assert.ok(values(CHAT_PHASE).includes(from), from)
     for (const to of Object.values(row)) assert.ok(values(CHAT_PHASE).includes(to), to)
+  }
+})
+
+test('room, stage and chat states are not written as literals outside the catalog', () => {
+  const root = resolve(fileURLToPath(new URL('./', import.meta.url)), '..')
+  const pattern = /\b(state|phase)\s*(?:===|!==|=|:)\s*'(idle|active|paused|stopped|passed|pending|discussing|summarizing|concluded)'/g
+  for (const dir of ['server', 'shared']) {
+    for (const file of readdirSync(join(root, dir), { recursive: true })) {
+      if (!file.endsWith('.js') || file.endsWith('.test.js')) continue
+      const text = readFileSync(join(root, dir, file), 'utf8')
+      const hits = [...text.matchAll(pattern)].map(match => match[0])
+      assert.deepEqual(hits, [], `${dir}/${file}: ${hits.join(', ')}`)
+    }
   }
 })
 

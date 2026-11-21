@@ -15,6 +15,7 @@ import { verdictPassed } from '../../../../shared/judgment.js'
 import { isWorkStage } from './turn-utils.js'
 import { appendHumanContext } from '../../human-context.js'
 import { humanLabelOf } from '../../human-name.js'
+import { ASSIGNMENT_STATUS, ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, workspace = null }) => {
   const { readMessages, readEvidence, updateRound, appendMessage } = store
@@ -86,8 +87,8 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const target = room.stages?.[index]
     if (target === undefined) return fail('invalid', '没有这一步')
     // 卡片的注意力会有一瞬间的旧快照：这一步已经过了就当确认成功，别再报错。
-    if (target.state === 'passed') return ok({ room })
-    if (target.state !== 'active') return fail('conflict', '这一步已经不在等你确认了')
+    if (target.state === STAGE_STATE.passed) return ok({ room })
+    if (target.state !== STAGE_STATE.active) return fail('conflict', '这一步已经不在等你确认了')
     let gate = null
     let next = -1
     let mergedFinal = -1
@@ -100,17 +101,17 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         : gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
       if (!gate.ok) return null
       const stage = current.stages[index]
-      stage.state = 'passed'
-      next = current.stages.findIndex(item => item.state === 'pending')
+      stage.state = STAGE_STATE.passed
+      next = current.stages.findIndex(item => item.state === STAGE_STATE.pending)
       // 最后一道「验收与结论」是系统收尾阶段：签掉最后一个工作阶段时一起确认，
       // 不再让用户为同一个判断点两次。
       if (next >= 0 && next === current.stages.length - 1 && current.stages[next].title === FINAL_TITLE) {
         mergedFinal = next
-        current.stages[next].state = 'passed'
+        current.stages[next].state = STAGE_STATE.passed
         next = -1
       }
       if (next >= 0) {
-        current.stages[next].state = 'active'
+        current.stages[next].state = STAGE_STATE.active
         current.stages[next].activatedAt = Date.now()
       }
       // 纯聊天：最后一步通过后房间不结束；但有验收员时，交付型步骤仍必须看到他回报通过。
@@ -176,7 +177,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       })
     }
     for (const assignment of activeDispatchAssignments(store, room.id, index)) {
-      transitionAssignment(store, assignment.id, 'passed')
+      transitionAssignment(store, assignment.id, ASSIGNMENT_STATUS.passed)
     }
     compactRoom(store, room.id)
     // 工作室的顶层房间也要收尾：最后一步通过就生成交付记录、写记忆；
@@ -204,8 +205,8 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const stage = room.stages?.[index]
     if (stage === undefined) return fail('invalid', '没有这一步')
     if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这一步不能重试')
-    if (stage.state !== 'active') return fail('conflict', '这一步现在不需要重试')
-    if (room.state !== 'active') return fail('conflict', '先让房间继续，再重试这一分支')
+    if (stage.state !== STAGE_STATE.active) return fail('conflict', '这一步现在不需要重试')
+    if (room.state !== ROOM_STATE.active) return fail('conflict', '先让房间继续，再重试这一分支')
     if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
     if (activeDispatchAssignments(store, room.id, index).every(item => item.toMemberId !== memberId)) {
       return fail('invalid', '这个成员没有这一步的分支')
@@ -233,12 +234,12 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const stage = room.stages?.[index]
     if (stage === undefined) return fail('invalid', '没有这一步')
     if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这一步不能重做')
-    if (room.state !== 'active') return fail('conflict', '先让房间继续，再重做这一步')
+    if (room.state !== ROOM_STATE.active) return fail('conflict', '先让房间继续，再重做这一步')
     if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
     if (room.live === true && typeof live.busyReview === 'function' && live.busyReview(room.id)) {
       return fail('conflict', '验收员还在看，等结论出来再继续')
     }
-    if (stage.state !== 'active') return fail('conflict', '这一步现在不需要重做')
+    if (stage.state !== STAGE_STATE.active) return fail('conflict', '这一步现在不需要重做')
     const auto = note === ''
     const message = appendMessage(room.id, {
       kind: 'rework',
@@ -249,7 +250,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     appendHumanContext({ store, roomId: room.id, stage: index, text: note, source: 'rework' })
     const updated = updateRound(room.id, current => {
       const target = current.stages?.[index]
-      if (target === undefined || target.state !== 'active') return null
+      if (target === undefined || target.state !== STAGE_STATE.active) return null
       // 人的补充已经进入这次重跑；旧的“交给人”收口不能再拦住下一次输入。
       current.lastPlannerDecision = null
       return { events: [{ type: 'stage.rework', payload: { stage: index, note } }] }
@@ -278,8 +279,8 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const stage = room.stages?.[index]
     if (stage === undefined) return fail('invalid', '没有这一步')
     if (!isWorkStage(stage) && stage.kind !== 'decision') return fail('invalid', '只有步骤能退回')
-    if (stage.state === 'pending') return fail('conflict', '这一步还没开始，不能退回')
-    if (room.state !== 'active') return fail('conflict', '先让房间继续，再退回这一步')
+    if (stage.state === STAGE_STATE.pending) return fail('conflict', '这一步还没开始，不能退回')
+    if (room.state !== ROOM_STATE.active) return fail('conflict', '先让房间继续，再退回这一步')
     if (allowBusy !== true && (room.busyMembers ?? []).length > 0) {
       return fail('conflict', '房间还有回合在跑；先等这一回合结束')
     }
@@ -289,9 +290,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (note === '') return fail('invalid', '写一句要补的上下文，或要改什么')
     const updated = updateRound(room.id, current => {
       const target = current.stages?.[index]
-      if (target === undefined || target.state === 'pending') return null
+      if (target === undefined || target.state === STAGE_STATE.pending) return null
       for (let at = index; at < current.stages.length; at += 1) {
-        current.stages[at].state = at === index ? 'active' : 'pending'
+        current.stages[at].state = at === index ? STAGE_STATE.active : STAGE_STATE.pending
         if (at === index) current.stages[at].activatedAt = Date.now()
         else delete current.stages[at].activatedAt
       }
@@ -396,7 +397,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         ? `阶段 ${index + 1} 的验收命令已清空`
         : `阶段 ${index + 1} 的验收命令：\`${trimmed}\``,
     })
-    if (changed && trimmed !== '' && room.live === true && room.stages[index]?.state === 'active' && typeof live.isAttached === 'function' && live.isAttached(room.id) === true && typeof live.resume === 'function') {
+    if (changed && trimmed !== '' && room.live === true && room.stages[index]?.state === STAGE_STATE.active && typeof live.isAttached === 'function' && live.isAttached(room.id) === true && typeof live.resume === 'function') {
       void live.resume(room.id, { forceAcceptance: true }).catch(error => {
         systemNotice({ store, roomId: room.id, text: '检查已经更新，但这次没跑成；待处理。', error })
       })

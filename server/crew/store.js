@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { appendEventLog } from './room-repo.js'
 import { ROUND_FIELDS } from '../../shared/work-round.js'
+import { ROUND_STATUS } from '../../shared/states.js'
 import { createWorkStore } from './store/work.js'
 import { createRoundLifecycleStore, createRoundStore } from './store/rounds.js'
 import { createProjectStore } from './store/projects.js'
@@ -199,7 +200,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     const updated = db.prepare(
       'UPDATE work_round SET project_id = ?, ordinal = ?, status = ?, payload = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?',
     ).run(
-      round.projectId ?? null, round.ordinal ?? 1, round.status ?? 'planning',
+      round.projectId ?? null, round.ordinal ?? 1, round.status ?? ROUND_STATUS.planning,
       JSON.stringify(round), version, round.updatedAt, roundId, row.version,
     )
     return Number(updated.changes) > 0 ? round : null

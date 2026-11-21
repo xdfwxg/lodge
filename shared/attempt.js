@@ -1,3 +1,5 @@
+import { APPROVAL_STATE, STAGE_STATE } from './states.js'
+
 // 人工卡的有效期：一张卡只属于产生它的阶段和重做轮次。
 // 对齐 LoopForge cards.go 的 run/node/attempt 绑定（MIT）；Lodge 的 attempt = stage + rework floor。
 export const reworkFloor = (messages, stageIndex) => (
@@ -24,7 +26,7 @@ const assignmentOf = task => {
 
 export const attemptScopeOf = ({ room, messages = [], memberId = null }) => {
   const stages = Array.isArray(room?.stages) ? room.stages : []
-  const stage = stages.findIndex(item => item?.state === 'active')
+  const stage = stages.findIndex(item => item?.state === STAGE_STATE.active)
   if (stage < 0) return { stage: null, floor: -1, assignment: null }
   return {
     stage,
@@ -69,6 +71,6 @@ export const cardStateOf = (room, message, messages = []) => {
 // 卡片只暴露当前可用动作；界面不再各自判断。
 export const cardActionsOf = ({ kind, state }) => {
   if (kind === 'question' && state === 'open') return ['answer']
-  if (kind === 'approval' && state === 'pending') return ['allow', 'deny']
+  if (kind === 'approval' && state === APPROVAL_STATE.pending) return ['allow', 'deny']
   return []
 }

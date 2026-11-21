@@ -1,4 +1,5 @@
 import { roomModeForType } from '../kinds.js'
+import { ROOM_STATE } from '../../../../shared/states.js'
 
 export const buildRoomRecord = ({
   short,
@@ -71,7 +72,7 @@ export const buildRoomRecord = ({
   workspace: { provider: provider.id, capabilities: workspaceCaps },
   live: true,
   demo: false,
-  state: 'active',
+  state: ROOM_STATE.active,
   idle: false,
   turnCount: 0,
   noProgress: 0,

@@ -3,6 +3,7 @@ import { verifierIds } from '../../../room-members.js'
 import { detectCheckCommand } from '../../../project-checks.js'
 import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from '../auto-rework.js'
 import { workspaceOf } from '../workspace.js'
+import { AUTO_CHECK_REASON, AUTO_CHECK_STATUS, ROOM_STATE, STAGE_STATE } from '../../../../../shared/states.js'
 
 export const createAutoCheck = ({
   store,
@@ -33,11 +34,11 @@ export const createAutoCheck = ({
   }
 
   const stopAutoRework = ({ stageIndex, reason, status, attempts }) => {
-    const text = reason === 'same-failure'
+    const text = reason === AUTO_CHECK_REASON['same-failure']
       ? '这一步没做成：同一处失败反复出现，重做也没绕开。待你决定下一步。'
-      : reason === 'time'
+      : reason === AUTO_CHECK_REASON.time
         ? '这一步还没做成：自动检查到时间上限就先停了。可以再试一次，或自己处理。'
-        : reason === 'budget'
+        : reason === AUTO_CHECK_REASON.budget
           ? '这一步先停下了：房间额度用完了。结果和失败输出都还在房间里。'
           : '这一步没做成：自动检查试了几次都没通过。待你决定下一步。'
     store.appendMessage(roomId, { kind: 'system', text, meta: { autoCheckStop: status } })
@@ -80,10 +81,10 @@ export const createAutoCheck = ({
 
   const autoRework = async ({ stageIndex, command, exit, output }) => {
     const room = store.readRoom(roomId)
-    if (room === null || room.state !== 'active') return
+    if (room === null || room.state !== ROOM_STATE.active) return
     if (room.mergeConflict?.stage === stageIndex) return
     const stage = room.stages?.[stageIndex]
-    if (stage === undefined || stage.state !== 'active' || stage.manual !== true) return
+    if (stage === undefined || stage.state !== STAGE_STATE.active || stage.manual !== true) return
     if ((room.busyMembers ?? []).length > 0) return
     const decision = nextAutoRework({ state: autoLoops.get(stageIndex), command, exit, output, room })
     autoLoops.set(stageIndex, decision.state)
@@ -124,9 +125,9 @@ export const createAutoCheck = ({
         store.appendMessage(roomId, {
           kind: 'system',
           text: `第 ${stageIndex + 1} 步没有可自动运行的检查；请看过结果后确认。`,
-          meta: { autoCheckStop: 'needs-input' },
+          meta: { autoCheckStop: AUTO_CHECK_STATUS['needs-input'] },
         })
-        setAutoCheck(stageIndex, { status: 'needs-input', reason: 'no-check', attempts: 0 })
+        setAutoCheck(stageIndex, { status: AUTO_CHECK_STATUS['needs-input'], reason: AUTO_CHECK_REASON['no-check'], attempts: 0 })
       }
       return
     }

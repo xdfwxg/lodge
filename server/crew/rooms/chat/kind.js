@@ -7,6 +7,7 @@ import { personalityPrompt } from '../../../../shared/personalities.js'
 import { CHAT_HOST_VOICE, CHAT_VOICE } from '../../../../shared/chat-voice.js'
 import { stancePrompt } from '../../../../shared/chat-stances.js'
 import { chatProjection } from './projection.js'
+import { CHAT_PHASE } from '../../../../shared/states.js'
 
 // 聊天室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
 export const chatKind = {
@@ -18,7 +19,7 @@ export const chatKind = {
   demoMessage: '这是示例房间，不接模型；要动手就把结论转成工作室任务。',
   messagePolicy: ({ room, text }) => {
     if (!text.includes('@')) return { type: 'host' }
-    if (room.chat?.phase === 'concluded' && room.chat?.running !== true) return { type: 'continue' }
+    if (room.chat?.phase === CHAT_PHASE.concluded && room.chat?.running !== true) return { type: 'continue' }
     return null
   },
 
@@ -55,7 +56,7 @@ export const chatKind = {
       ],
       chat: {
         round: 1,
-        phase: 'discussing',
+        phase: CHAT_PHASE.discussing,
         turnLimit: limit,
         turns: 0,
         conclusionId: null,

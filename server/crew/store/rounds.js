@@ -1,3 +1,5 @@
+import { ROOM_STATE, ROUND_STATUS, TERMINAL_ROUND_STATUSES, WORK_ITEM_STATUS } from '../../../shared/states.js'
+
 // work_round 的持久读写：一轮的目标、阶段、决策、费用和终态。
 export const createRoundStore = ({ db }) => {
   const nextWorkRoundOrdinal = roomId => Number(
@@ -9,7 +11,7 @@ export const createRoundStore = ({ db }) => {
     const stored = {
       ...round,
       ordinal: Number.isInteger(round.ordinal) ? round.ordinal : nextWorkRoundOrdinal(round.roomId),
-      status: typeof round.status === 'string' ? round.status : 'planning',
+      status: typeof round.status === 'string' ? round.status : ROUND_STATUS.planning,
       createdAt: round.createdAt ?? now,
       updatedAt: round.updatedAt ?? now,
       version: Number(round.version ?? 1),
@@ -85,14 +87,14 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
     db.exec('BEGIN IMMEDIATE')
     try {
       const open = db.prepare(
-        "SELECT id FROM work_round WHERE room_id = ? AND status IN ('planning', 'active') LIMIT 1",
+        `SELECT id FROM work_round WHERE room_id = ? AND status IN ('${ROUND_STATUS.planning}', '${ROUND_STATUS.active}') LIMIT 1`,
       ).get(roomId)
       if (open !== undefined) { db.exec('ROLLBACK'); return null }
       const roomRow = db.prepare('SELECT payload, version FROM room WHERE id = ?').get(roomId)
       if (roomRow === undefined) { db.exec('ROLLBACK'); return null }
       const stored = writeWorkRound(round)
       const room = JSON.parse(roomRow.payload)
-      room.state = 'active'
+      room.state = ROOM_STATE.active
       room.activeRoundId = stored.id
       room.idle = false
       room.noProgress = 0
@@ -147,7 +149,7 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       const roundRow = db.prepare('SELECT payload, version FROM work_round WHERE id = ? AND room_id = ?').get(roundId, roomId)
       if (roundRow === undefined) { db.exec('ROLLBACK'); return null }
       const round = JSON.parse(roundRow.payload)
-      if (['completed', 'rejected', 'failed', 'superseded', 'stopped'].includes(round.status)) {
+      if (TERMINAL_ROUND_STATUSES.has(round.status)) {
         db.exec('ROLLBACK')
         return { round, room: readRoom(roomId) }
       }
@@ -160,7 +162,7 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       )
       // 轮次结束，属于这一轮的待办一起作废；房间级的卡（如审批）不受影响。
       db.prepare(
-        "UPDATE work_item SET status = 'cancelled', lease_until = NULL, updated_at = ? WHERE room_id = ? AND round_id = ? AND status IN ('pending', 'leased')",
+        `UPDATE work_item SET status = '${WORK_ITEM_STATUS.cancelled}', lease_until = NULL, updated_at = ? WHERE room_id = ? AND round_id = ? AND status IN ('${WORK_ITEM_STATUS.pending}', '${WORK_ITEM_STATUS.leased}')`,
       ).run(Date.now(), roomId, roundId)
       const roomRow = db.prepare('SELECT payload, version FROM room WHERE id = ?').get(roomId)
       if (roomRow === undefined) { db.exec('ROLLBACK'); return null }
@@ -168,9 +170,9 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       room.activeRoundId = null
       room.lastRoundId = roundId
       room.idle = true
-      if (room.archivedAt !== undefined && room.archivedAt !== null) room.state = 'stopped'
-      else if (room.state !== 'stopped') room.state = 'idle'
-      if (room.state === 'idle') room.pauseReason = null
+      if (room.archivedAt !== undefined && room.archivedAt !== null) room.state = ROOM_STATE.stopped
+      else if (room.state !== ROOM_STATE.stopped) room.state = ROOM_STATE.idle
+      if (room.state === ROOM_STATE.idle) room.pauseReason = null
       Object.assign(room, roomPatch)
       room.version = Number(roomRow.version) + 1
       db.prepare('UPDATE room SET payload = ?, version = ? WHERE id = ? AND version = ?')

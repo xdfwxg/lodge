@@ -225,6 +225,16 @@ export const ISSUE_STATE = Object.freeze({
   blocked: 'blocked',
 })
 
+export const HANDOFF_STATUS = Object.freeze({
+  sending: 'sending',
+  sent: 'sent',
+  failed: 'failed',
+})
+
+export const PROJECT_STATUS = Object.freeze({
+  active: 'active',
+})
+
 // 可枚举的总目录：测试和排查都从这里看，不再靠搜字符串。
 export const STATE_GROUPS = Object.freeze({
   roomState: ROOM_STATE,
@@ -248,4 +258,6 @@ export const STATE_GROUPS = Object.freeze({
   blockedReason: BLOCKED_REASON,
   plannerDecisionKind: PLANNER_DECISION_KIND,
   issueState: ISSUE_STATE,
+  handoffStatus: HANDOFF_STATUS,
+  projectStatus: PROJECT_STATUS,
 })

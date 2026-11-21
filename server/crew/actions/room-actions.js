@@ -3,6 +3,7 @@ import { createLodgeActions } from './room/lodge.js'
 import { createRunActions } from './room/run.js'
 import { createAdminActions } from './room/admin.js'
 import { createRoundActions } from './room/round.js'
+import { ROOM_STATE } from '../../../shared/states.js'
 
 // 一轮工作被暂停/停止拦住；房间自身的动作和运行中动作不受这条门禁影响。
 const ROUND_ACTIONS = new Set([
@@ -27,8 +28,8 @@ export const createRoomActions = (ctx) => {
     if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
     const handler = actions[action]
     if (handler === undefined || method !== 'POST') return fail('method', '方法不对')
-    if (ROUND_ACTIONS.has(action) && (room.state === 'paused' || room.state === 'stopped')) {
-      return fail('conflict', room.state === 'paused' ? '房间已暂停' : '房间已停止')
+    if (ROUND_ACTIONS.has(action) && (room.state === ROOM_STATE.paused || room.state === ROOM_STATE.stopped)) {
+      return fail('conflict', room.state === ROOM_STATE.paused ? '房间已暂停' : '房间已停止')
     }
     return handler({ roomId, room, readBody })
   }

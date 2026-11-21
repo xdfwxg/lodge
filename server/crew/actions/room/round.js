@@ -2,6 +2,7 @@ import { roomModeOfRoom } from '../../rooms/kinds.js'
 import { accepted, created, fail } from '../../result.js'
 import { withAttachments } from '../../../../shared/attachments.js'
 import { normalizeAttachments } from '../../attachments.js'
+import { ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
 
 // 一轮工作的动作：开新一轮、发消息、人拍板、结束和退回。
 export const createRoundActions = deps => {
@@ -91,7 +92,7 @@ export const createRoundActions = deps => {
       if (room.demo === true && typeof demoMessage === 'string' && demoMessage !== '') {
         appendMessage(roomId, { kind: 'system', text: demoMessage })
       }
-      const active = room.stages.find(stage => stage.state === 'active')
+      const active = room.stages.find(stage => stage.state === STAGE_STATE.active)
       if (room.openQuestion !== null && active?.kind === 'decision') {
         const updated = updateRound(roomId, current => {
           current.openQuestion = null
@@ -103,7 +104,7 @@ export const createRoundActions = deps => {
     },
 
     'human-choice': async ({ roomId, room, readBody }) => {
-      if (room.state !== 'active') return fail('conflict', '房间没有在跑')
+      if (room.state !== ROOM_STATE.active) return fail('conflict', '房间没有在跑')
       const body = await readBody()
       const stage = Number(body.stage)
       const choice = body.choice === 'accept' ? 'accept' : body.choice === 'rework' ? 'rework' : ''

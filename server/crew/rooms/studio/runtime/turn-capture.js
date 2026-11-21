@@ -3,6 +3,7 @@ import { addTurnUsage } from '../../../../../shared/usage.js'
 import { assessTurn } from '../../../turn-assessment.js'
 import { memberDisplayName } from '../../../member-labels.js'
 import { verdictPassed } from '../../../../../shared/judgment.js'
+import { STAGE_STATE } from '../../../../../shared/states.js'
 import { rewindRequestOf } from '../../../../../shared/gate.js'
 import {
   activeDispatchAssignments as activeDispatch,
@@ -49,7 +50,7 @@ export const createTurnCapture = ({
     const role = memberOf(room, memberId)?.role
     // 规划师把目标对齐说清楚、又没有留下问题时，对齐这一步自动通过；
     // 这一步没有界面动作，等人只会让零准备开工停在第一屏。
-    const alignIndex = room === null ? -1 : room.stages.findIndex(stage => stage.state === 'active')
+    const alignIndex = room === null ? -1 : room.stages.findIndex(stage => stage.state === STAGE_STATE.active)
     const alignStage = alignIndex >= 0 ? room.stages[alignIndex] : null
     if (
       alignStage?.kind === 'decision' &&
@@ -369,7 +370,7 @@ export const createTurnCapture = ({
         if (pendingForMember) return
         if (dispatch !== null && dispatch !== undefined && dispatch.stage !== stage) return
         const active = current.stages[stage]
-        if (active === undefined || !isWorkStage(active) || active.state !== 'active') return
+        if (active === undefined || !isWorkStage(active) || active.state !== STAGE_STATE.active) return
         if (review.isBusy()) return
         const latest = [...store.readMessages(roomId)].reverse()
           .find(message => message.kind === 'verdict' && message.meta?.stage === stage)
@@ -395,11 +396,11 @@ export const createTurnCapture = ({
       const target = room.stages[stage]
       const command = typeof target?.acceptance === 'string' ? target.acceptance.trim() : ''
       const key = `${stage}:${turnId}`
-      if (target?.manual === true && target.state === 'active' && !state.acceptanceRuns.has(key)) {
+      if (target?.manual === true && target.state === STAGE_STATE.active && !state.acceptanceRuns.has(key)) {
         state.acceptanceRuns.add(key)
         markManualReady(room, stage, turnId, worked)
         if (worked === true) autoCheck(room, stage, turnId)
-      } else if (command !== '' && target?.kind === 'deliverable' && target.state === 'active' && worked && !state.acceptanceRuns.has(key)) {
+      } else if (command !== '' && target?.kind === 'deliverable' && target.state === STAGE_STATE.active && worked && !state.acceptanceRuns.has(key)) {
         state.acceptanceRuns.add(key)
         void acceptance.run(stage, command, turnId)
       }

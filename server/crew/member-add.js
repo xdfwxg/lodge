@@ -4,6 +4,7 @@ import { systemNotice } from './notices.js'
 import { createBodyFactory } from './body.js'
 import { bodyChangeBlocker } from './body-change.js'
 import { plainRuntimeError } from './base-error.js'
+import { STAGE_STATE } from '../../shared/states.js'
 import { normalizeBodySpec } from './body-spec.js'
 import { independenceOf } from './independence.js'
 import { roomBulletin, roomModeOfRoom } from './rooms/kinds.js'
@@ -28,7 +29,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
   const add = async (room, body = {}) => {
     if (roomModeOfRoom(room)?.supportsMemberAdd !== true) return fail('invalid', '这间房不能添加成员')
     const stages = Array.isArray(room.stages) ? room.stages : []
-    if (stages.length > 0 && stages.every(stage => stage.state === 'passed')) {
+    if (stages.length > 0 && stages.every(stage => stage.state === STAGE_STATE.passed)) {
       return fail('conflict', '房间已经交付，不能再加成员；要改成员，开一间新房')
     }
     const blocked = bodyChangeBlocker(room, '加成员')

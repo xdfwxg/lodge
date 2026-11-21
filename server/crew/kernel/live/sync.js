@@ -1,6 +1,7 @@
 import { memberForRef, memberNameOf } from './projection.js'
 import { roomLifecycleOfRoom } from '../../rooms/kinds.js'
 import { failureCopy, isMemberFailureText, memberFailureKind } from '../../member-failure.js'
+import { PAUSE_REASON, ROOM_STATE } from '../../../../shared/states.js'
 
 const memberFailureOf = message => {
   if (message?.kind !== 'activity' || message.ok !== false) return null
@@ -17,9 +18,9 @@ export const pauseForMemberFailure = (store, entry, message) => {
   const memberId = memberForRef(room, message.authorRef) ?? 'executor'
   const kind = memberFailureKind(text)
   const updated = store.updateRoom(entry.roomId, current => {
-    if (current.state !== 'active') return null
-    current.state = 'paused'
-    current.pauseReason = 'member_error'
+    if (current.state !== ROOM_STATE.active) return null
+    current.state = ROOM_STATE.paused
+    current.pauseReason = PAUSE_REASON.member_error
     current.idle = false
     current.memberError = { memberId, kind, at: Date.now(), detail: text.slice(0, 500) }
     return { events: [{ type: 'room.member_error', payload: { memberId, kind, detail: text.slice(0, 500) } }] }

@@ -1,14 +1,16 @@
+import { STAGE_STATE } from './states.js'
+
 const stageLine = (stage, index) => `${index + 1}. ${stage.title} · ${stage.state}`
 
 export const progressOf = (room, messages = []) => {
   const stages = (room?.stages ?? []).map((stage, index) => ({
     index,
     title: typeof stage.title === 'string' ? stage.title : `第 ${index + 1} 步`,
-    state: stage.state ?? 'pending',
+    state: stage.state ?? STAGE_STATE.pending,
   }))
-  const done = stages.filter(stage => stage.state === 'passed')
-  const remaining = stages.filter(stage => stage.state !== 'passed')
-  const active = stages.find(stage => stage.state === 'active') ?? null
+  const done = stages.filter(stage => stage.state === STAGE_STATE.passed)
+  const remaining = stages.filter(stage => stage.state !== STAGE_STATE.passed)
+  const active = stages.find(stage => stage.state === STAGE_STATE.active) ?? null
   const latest = [...messages].reverse().find(message => (
     message.kind === 'evidence' || message.kind === 'verdict'
   )) ?? null

@@ -1,5 +1,7 @@
 // 自动检查没通过后的重做循环：只在有证据说“还不行”时继续，而且有上限。
 // 同一个失败原地打转、次数、时间或额度触顶，就停手交给用户。
+import { AUTO_CHECK_REASON, AUTO_CHECK_STATUS } from '../../../../shared/states.js'
+
 export const MAX_AUTO_REWORKS = 3
 export const AUTO_REWORK_WINDOW_MS = 15 * 60_000
 
@@ -14,8 +16,8 @@ export const failureSignature = output => String(output ?? '')
 
 // 停下来时告诉人下一步：blocked 要人处理，limit-reached 可以再来一轮。
 export const stopStatusOf = reason => (
-  reason === 'time' ? 'limit-reached'
-    : reason === 'same-failure' || reason === 'attempts' || reason === 'budget' ? 'blocked'
+  reason === AUTO_CHECK_REASON.time ? AUTO_CHECK_STATUS['limit-reached']
+    : reason === AUTO_CHECK_REASON['same-failure'] || reason === AUTO_CHECK_REASON.attempts || reason === AUTO_CHECK_REASON.budget ? AUTO_CHECK_STATUS.blocked
       : ''
 )
 
@@ -46,13 +48,13 @@ export const nextAutoRework = ({ state, command, exit, output, room, now = Date.
   const budget = Number(room?.usage?.budgetMicroUsd ?? 0)
   const cost = Number(room?.usage?.costMicroUsd ?? 0)
   const reason = repeated
-    ? 'same-failure'
+    ? AUTO_CHECK_REASON['same-failure']
     : attempts > MAX_AUTO_REWORKS
-      ? 'attempts'
+      ? AUTO_CHECK_REASON.attempts
       : now - firstAt > AUTO_REWORK_WINDOW_MS
-        ? 'time'
+        ? AUTO_CHECK_REASON.time
         : budget > 0 && cost >= budget
-          ? 'budget'
+          ? AUTO_CHECK_REASON.budget
           : ''
   return {
     retry: reason === '',

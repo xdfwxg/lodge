@@ -1,5 +1,5 @@
 import { stageStatusOf } from './room-status.js'
-import { ISSUE_STATE } from './states.js'
+import { CHAT_PHASE, ISSUE_STATE, STAGE_STATUS } from './states.js'
 
 const ISSUE_STATE_OF = Object.freeze({
   active: ISSUE_STATE.in_progress,
@@ -37,9 +37,9 @@ export const issuesOf = (room, messages = []) => {
         stage: index,
         acceptance: stage.acceptance ?? null,
         ownerIds: Array.isArray(stage.assignees) ? stage.assignees : [],
-        blockers: status === 'blocked'
+        blockers: status === STAGE_STATUS.blocked
           ? [room.mergeConflict?.stage === index ? '合并冲突等你处理' : '这一步卡住了，等你处理']
-          : status === 'waiting' ? ['等你处理'] : [],
+          : status === STAGE_STATUS.waiting ? ['等你处理'] : [],
       }
     })
   }
@@ -70,7 +70,7 @@ export const issuesOf = (room, messages = []) => {
       })),
     ]
   }
-  if (room?.chat?.phase === 'discussing') {
+  if (room?.chat?.phase === CHAT_PHASE.discussing) {
     return [{
       id: 'chat-discussion',
       kind: 'discussion',

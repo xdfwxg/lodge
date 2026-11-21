@@ -1,3 +1,5 @@
+import { PLANNER_DECISION_KIND, ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
+
 export const NO_PROGRESS_LIMIT = 6
 
 // 空转守卫：只数“有没有产出”，不数消息条数。六轮没有产出就暂停并等人。
@@ -6,7 +8,7 @@ export const advanceProgress = (room, { progressed, at = Date.now() }) => {
   // 已交付的房间只剩聊天，没有阶段可推进；空转守卫不该把它暂停。
   const delivered = Array.isArray(room.stages) &&
     room.stages.length > 0 &&
-    room.stages.every(stage => stage.state === 'passed')
+    room.stages.every(stage => stage.state === STAGE_STATE.passed)
   if (delivered) {
     room.noProgress = 0
     return { paused: false }
@@ -16,14 +18,14 @@ export const advanceProgress = (room, { progressed, at = Date.now() }) => {
     room.lastProgressAt = at
     return { paused: false }
   }
-  const activeIndex = Array.isArray(room.stages) ? room.stages.findIndex(stage => stage.state === 'active') : -1
-  if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === activeIndex) {
+  const activeIndex = Array.isArray(room.stages) ? room.stages.findIndex(stage => stage.state === STAGE_STATE.active) : -1
+  if (room.lastPlannerDecision?.kind === PLANNER_DECISION_KIND.human && room.lastPlannerDecision?.stage === activeIndex) {
     room.noProgress = 0
     return { paused: false }
   }
   room.noProgress = Number(room.noProgress ?? 0) + 1
-  if (room.noProgress >= NO_PROGRESS_LIMIT && room.state === 'active') {
-    room.state = 'paused'
+  if (room.noProgress >= NO_PROGRESS_LIMIT && room.state === ROOM_STATE.active) {
+    room.state = ROOM_STATE.paused
     room.idle = true
     room.openQuestion = null
     return { paused: true }

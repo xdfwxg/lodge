@@ -6,6 +6,7 @@ import { createCrewPorts } from './crew/crew-ports.js'
 import { createLiveRooms } from './crew/rooms/base/live.js'
 import { createRoomScheduler } from './crew/rooms/scheduler.js'
 import { ensureLodgeRoom } from './crew/rooms/lodge.js'
+import { ROOM_STATE } from '../shared/states.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
 import { roundSummaryOf } from './crew/rounds/record.js'
@@ -114,7 +115,7 @@ setInterval(() => snapshotNow('periodic'), 6 * 60 * 60 * 1000).unref()
 // 工作室不再等人签字：阶段一通过就自动往下走，房间像聊天一样继续。
 const autoAcceptPending = new Set()
 const nudgeStudio = room => {
-  if (service === null || room?.roomType !== 'studio' || room.state !== 'active' || room.demo === true) return
+  if (service === null || room?.roomType !== 'studio' || room.state !== ROOM_STATE.active || room.demo === true) return
   const need = room.needsYou
   if (need === null || need === undefined || !Number.isInteger(need.stage)) return
   // 只自动收尾工作阶段；开工的决策阶段沿用建房/规划流程，避免抢跑。

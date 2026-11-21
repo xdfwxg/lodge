@@ -1,4 +1,4 @@
-import { OPEN_ROUND_STATUSES, ROUND_STATUS } from '../../../shared/states.js'
+import { OPEN_ROUND_STATUSES, ROOM_STATE, ROUND_STATUS } from '../../../shared/states.js'
 
 // 启动时把房间和轮次的指针修回一致；不改写已终态轮次的内容。
 export const reconcileRounds = ({ store, emit = () => {} }) => {
@@ -14,8 +14,8 @@ export const reconcileRounds = ({ store, emit = () => {} }) => {
       const updated = store.updateRoom(room.id, current => {
         current.activeRoundId = null
         current.lastRoundId = active.id
-        current.state = current.archivedAt ? 'stopped' : 'idle'
-        current.idle = current.state === 'idle'
+        current.state = current.archivedAt ? ROOM_STATE.stopped : ROOM_STATE.idle
+        current.idle = current.state === ROOM_STATE.idle
         return { events: [{ type: 'round.reconciled', payload: { roundId: active.id, to: current.state } }] }
       })
       if (updated !== null) { emit('room', updated); changed += 1 }
@@ -24,12 +24,12 @@ export const reconcileRounds = ({ store, emit = () => {} }) => {
 
     if (active === null && open.length > 0) {
       const keep = open[0]
-      if (room.archivedAt || room.state === 'stopped') {
+      if (room.archivedAt || room.state === ROOM_STATE.stopped) {
         const finished = store.finishWorkRound({
           roomId: room.id,
           roundId: keep.id,
           status: ROUND_STATUS.stopped,
-          roomPatch: { state: 'stopped', idle: false },
+          roomPatch: { state: ROOM_STATE.stopped, idle: false },
           eventType: 'round.stopped',
           idempotencyKey: `round-recover-stop:${keep.id}`,
         })
@@ -42,9 +42,9 @@ export const reconcileRounds = ({ store, emit = () => {} }) => {
       }
       const updated = store.updateRoom(room.id, current => {
         current.activeRoundId = keep.id
-        current.state = 'active'
+        current.state = ROOM_STATE.active
         current.idle = false
-        return { events: [{ type: 'round.reconciled', payload: { roundId: keep.id, to: 'active' } }] }
+        return { events: [{ type: 'round.reconciled', payload: { roundId: keep.id, to: ROOM_STATE.active } }] }
       })
       if (updated !== null) { emit('room', updated); changed += 1 }
     }

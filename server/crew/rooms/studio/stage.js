@@ -1,4 +1,5 @@
 import { leadMemberOf, workerIds } from '../../room-members.js'
+import { ASSIGNMENT_STATUS, ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
 import { activeDispatchAssignments, latestDispatchAssignment, transitionAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 import { activeStageReadOnly, PARALLEL_TIMEOUT } from './turn-utils.js'
@@ -63,7 +64,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     const dispatch = dispatchOf(store, roomId, stageIndex)
     if (dispatch === null || dispatch.pending.length === 0) return false
     const room = store.readRoom(roomId)
-    if (room === null || room.stages?.[stageIndex]?.state !== 'active') return false
+    if (room === null || room.stages?.[stageIndex]?.state !== STAGE_STATE.active) return false
     for (const assignment of activeDispatchAssignments(store, roomId, stageIndex)) {
       if (!dispatch.pending.includes(assignment.toMemberId)) continue
       transitionAssignment(store, assignment.id, 'failed', {
@@ -79,7 +80,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     const assignment = store.readAssignment(assignmentId)
     if (assignment === null || !['sent', 'working'].includes(assignment.status)) return false
     const room = store.readRoom(roomId)
-    if (room === null || room.state !== 'active' || room.stages?.[assignment.stageIndex]?.state !== 'active') return false
+    if (room === null || room.state !== ROOM_STATE.active || room.stages?.[assignment.stageIndex]?.state !== STAGE_STATE.active) return false
     const before = dispatchOf(store, roomId, assignment.stageIndex)
     if (before === null || !before.pending.includes(assignment.toMemberId)) return false
     transitionAssignment(store, assignment.id, 'failed', {
@@ -136,7 +137,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       store.appendMessage(roomId, { kind: 'system', text: '这一轮的额度用完了；先停下，等你决定要不要继续。' })
       store.appendEvent(roomId, 'round.budget_exceeded', { stage: index })
       const paused = store.updateRound(roomId, current => {
-        current.state = 'paused'
+        current.state = ROOM_STATE.paused
         current.pauseReason = 'budget'
         current.idle = false
         return { events: [{ type: 'room.paused', payload: { reason: 'budget' } }] }
@@ -177,7 +178,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       // 重试一个分支时，同一阶段被取消的兄弟分支一起复活；否则这一步永远凑不齐。
       const cancelled = new Set(
         activeDispatchAssignments(store, roomId, index)
-          .filter(item => item.status === 'cancelled')
+          .filter(item => item.status === ASSIGNMENT_STATUS.cancelled)
           .map(item => item.toMemberId),
       )
       assignees = assignees.filter(id => only.includes(id) || cancelled.has(id))

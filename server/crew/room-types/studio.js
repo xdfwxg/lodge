@@ -1,6 +1,7 @@
 import { roleKindOf } from '../roster.js'
 import { roomTypeMeta } from '../../../shared/room-types.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
+import { STAGE_STATE } from '../../../shared/states.js'
 
 const meta = roomTypeMeta('studio')
 
@@ -24,7 +25,7 @@ export const briefDone = (room, plan) => {
   if (plan?.done?.length > 0) return plan.done.map(text => `- [ ] ${text}`)
   const stages = Array.isArray(room.stages) ? room.stages : []
   return stages.map((stage, index) => (
-    `- [${stage.state === 'passed' ? 'x' : ' '}] 阶段 ${index + 1}：${stage.title}${stage.kind === 'deliverable' ? '（要交结果）' : '（待确认）'}`
+    `- [${stage.state === STAGE_STATE.passed ? 'x' : ' '}] 阶段 ${index + 1}：${stage.title}${stage.kind === 'deliverable' ? '（要交结果）' : '（待确认）'}`
   ))
 }
 
@@ -48,20 +49,20 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
       ...(Array.isArray(stage.assignees) && stage.assignees.length > 0 ? { assignees: stage.assignees } : {}),
       state: index === firstActive ? 'active' : index < firstActive ? 'passed' : 'pending',
     }))
-    : [{ ...delivery, state: align && plan === null ? 'pending' : 'active' }]
+    : [{ ...delivery, state: align && plan === null ? STAGE_STATE.pending : STAGE_STATE.active }]
   const stages = [
-    ...(align ? [{ title: '目标对齐', kind: 'decision', spine: true, state: plan !== null ? 'passed' : 'active' }] : []),
+    ...(align ? [{ title: '目标对齐', kind: 'decision', spine: true, state: plan !== null ? STAGE_STATE.passed : STAGE_STATE.active }] : []),
     ...work,
-    { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
+    { title: '验收与结论', kind: 'decision', spine: true, state: STAGE_STATE.pending },
   ]
-  if (!stages.some(stage => stage.state === 'active')) {
-    const next = stages.find(stage => stage.state === 'pending')
-    if (next !== undefined) next.state = 'active'
+  if (!stages.some(stage => stage.state === STAGE_STATE.active)) {
+    const next = stages.find(stage => stage.state === STAGE_STATE.pending)
+    if (next !== undefined) next.state = STAGE_STATE.active
   }
   // 阶段开始时间用于丢弃“上一步还没结束时就在跑”的回合，避免把它们记成新一步的证据。
   const activatedAt = Date.now()
   for (const stage of stages) {
-    if (stage.state === 'active') stage.activatedAt = activatedAt
+    if (stage.state === STAGE_STATE.active) stage.activatedAt = activatedAt
   }
   stages[stages.length - 1].dependsOn = [stages.length - 2]
   return {

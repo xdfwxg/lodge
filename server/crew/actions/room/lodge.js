@@ -1,6 +1,7 @@
 import { fail, ok } from '../../result.js'
 import { withAttachments } from '../../../../shared/attachments.js'
 import { normalizeAttachments } from '../../attachments.js'
+import { ROOM_STATE } from '../../../../shared/states.js'
 
 // Lodge 的对话：一句话决定开工作室还是留下聊聊，不出现房型选择。
 export const createLodgeActions = deps => {
@@ -10,7 +11,7 @@ export const createLodgeActions = deps => {
     lodge: async ({ room: input, readBody }) => {
       let room = input
       if (room.lodge !== true) return fail('invalid', '这不是 Lodge 对话')
-      if (room.state !== 'active') return fail('conflict', 'Lodge 现在没有在运行')
+      if (room.state !== ROOM_STATE.active) return fail('conflict', 'Lodge 现在没有在运行')
       const body = await readBody()
       const text = typeof body.text === 'string' ? body.text.trim().slice(0, 8000) : ''
       const normalized = normalizeAttachments(body.attachments)

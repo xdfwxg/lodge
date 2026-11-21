@@ -13,6 +13,7 @@ import { humanHandoffStageOf } from './human-handoff.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { dispatchFrom, tasksFrom } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
+import { AUTO_CHECK_STATUS, PLANNER_DECISION_KIND, REVIEW_STATE, ROUND_STATUS, STAGE_STATE } from '../../../../shared/states.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
@@ -36,7 +37,7 @@ const recentlyActive = (room, messages) => {
 }
 
 const studioNeedsYou = (room, messages = []) => {
-  const index = (Array.isArray(room.stages) ? room.stages : []).findIndex(stage => stage.state === 'active')
+  const index = (Array.isArray(room.stages) ? room.stages : []).findIndex(stage => stage.state === STAGE_STATE.active)
   if (index < 0) return null
   const stage = room.stages[index]
   const floor = reworkFloor(messages, index)
@@ -47,7 +48,7 @@ const studioNeedsYou = (room, messages = []) => {
   if ((room.busyMembers ?? []).length > 0) return null
   // 规划师把这一步交给人以后，下一步是人拍板，不再显示“待重做”。
   const handoff = room.lastPlannerDecision
-  if (handoff?.stage === index && handoff?.kind === 'human') {
+  if (handoff?.stage === index && handoff?.kind === PLANNER_DECISION_KIND.human) {
     const latestVerdict = latestForStage(messages, 'verdict', index, floor)
     if (latestVerdict !== undefined && (latestVerdict.id ?? latestVerdict.seq) === handoff.verdictId) {
       const judgment = handoff.judgment ?? {}
@@ -60,11 +61,11 @@ const studioNeedsYou = (room, messages = []) => {
     }
   }
   const auto = room.autoCheck
-  if (auto?.stage === index && (auto.status === 'blocked' || auto.status === 'limit-reached')) {
+  if (auto?.stage === index && (auto.status === AUTO_CHECK_STATUS.blocked || auto.status === AUTO_CHECK_STATUS['limit-reached'])) {
     return {
       kind: 'auto-check',
       stage: index,
-      label: auto.status === 'limit-reached'
+      label: auto.status === AUTO_CHECK_STATUS['limit-reached']
         ? '这一步还没做成，可以再试一次'
         : '这一步没做成，待你决定',
     }
@@ -101,7 +102,7 @@ const studioNeedsYou = (room, messages = []) => {
       const outcome = manualReviewState({ room, messages, stageIndex: index })
       const active = recentlyActive(room, messages)
       if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
-      if (outcome.state === 'pending') {
+      if (outcome.state === REVIEW_STATE.pending) {
         return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
       }
       if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
@@ -150,7 +151,7 @@ const studioNeedsYou = (room, messages = []) => {
     const active = recentlyActive(room, messages)
     if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
     if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
-    if (outcome.state === 'pending') {
+    if (outcome.state === REVIEW_STATE.pending) {
       return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
     }
     return null
@@ -357,7 +358,7 @@ export const studioKind = {
 
   // 交付卡是工作室投影；共享层只拿结果，不碰阶段与证据结构。
   deliveryOf: (room, messages) => (
-    room.workRound?.status === 'completed' &&
+    room.workRound?.status === ROUND_STATUS.completed &&
     Array.isArray(room.stages)
       ? buildDelivery(room, messages)
       : null
@@ -371,7 +372,7 @@ export const studioKind = {
     .join(' / ') || '人确认',
 
   markMemberFailure: (store, room, memberId) => {
-    const stageIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
+    const stageIndex = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
     if (stageIndex < 0) return
     for (const assignment of activeDispatchAssignments(store, room.id, stageIndex)) {
       if (assignment.toMemberId !== memberId) continue

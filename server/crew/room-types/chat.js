@@ -1,4 +1,5 @@
 import { roomTypeMeta } from '../../../shared/room-types.js'
+import { STAGE_STATE } from '../../../shared/states.js'
 
 const meta = roomTypeMeta('chat')
 
@@ -36,8 +37,8 @@ export const briefDone = () => ['- [ ] 围绕话题完成讨论，并由你确�
 
 export const buildStages = () => ({
   stages: [
-    { title: '聊天讨论', kind: 'decision', state: 'active', readOnly: true },
-    { title: '结论', kind: 'decision', state: 'pending', dependsOn: [0], readOnly: true },
+    { title: '聊天讨论', kind: 'decision', state: STAGE_STATE.active, readOnly: true },
+    { title: '结论', kind: 'decision', state: STAGE_STATE.pending, dependsOn: [0], readOnly: true },
   ],
   messages: ['聊天室：先聊，到发言上限后主持人收结论，最后由你定。'],
 })

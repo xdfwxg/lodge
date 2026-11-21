@@ -419,3 +419,6 @@ npm run eval:planning:nightly
 - 交接每次状态变化补一条 `assignment.<status>` 事件；`round.started` 带阶段快照，供只读重放。
 - 新增 `npm run replay:round -- --room <id> [--round <id>]`：从事件重建阶段和交接状态并与当前状态对比，只报告差异，不改写。
 - 单测 1134 全过；`replay:round` 在本地 Lodge 房（没有轮次）正常返回“没有 round.started”的提示。
+- 本地房间数据已按新规则清空并重建：数据库快照 `crew-1795280954665-pre-reset.db`，工作区归档 `workspaces-1795280954665`；重启后只剩新建的 Lodge 房，没有旧轮次。
+- 服务端和共享层的房间、阶段、聊天、交接、审批、工作项、记忆状态字面量已全部换成 `shared/states.js` 常量；新增静态检查，裸状态字符串再次出现会让单测失败。
+- 数据重置后只剩新建的 Lodge 房（`rooms [room-lodge]`），重启无报错。

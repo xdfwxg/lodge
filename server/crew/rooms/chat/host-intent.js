@@ -1,5 +1,6 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { humanLabelOf, humanNameOf } from '../../human-name.js'
+import { CHAT_PHASE } from '../../../../shared/states.js'
 
 // 用户只对主持说话；主持判断是直接回答，还是从固定成员里请人讨论。
 // 轮数、成员数和发言次数都属于房间配置，不从这里改。
@@ -8,7 +9,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
   const roster = (room.members ?? [])
     .map(member => `${member.id}（${member.name}）`)
     .join('、')
-  const stateLine = phase === 'concluded'
+  const stateLine = phase === CHAT_PHASE.concluded
     ? '房间已经有一份结论；用户再说话就是在继续这件事。'
     : ''
   const humanName = humanNameOf(room)

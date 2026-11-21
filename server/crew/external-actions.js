@@ -1,4 +1,5 @@
 import { isGateToolName } from '../../shared/gate.js'
+import { APPROVAL_STATE } from '../../shared/states.js'
 
 // 外部动作分类：只认命令语义，不猜模型意图。命中就停下等人，不按成员权限自动放行。
 const RULES = [
@@ -69,5 +70,5 @@ export const externalAction = card => {
 }
 
 export const pendingApprovals = room => (
-  Array.isArray(room?.approvals) ? room.approvals.filter(item => item?.state === 'pending') : []
+  Array.isArray(room?.approvals) ? room.approvals.filter(item => item?.state === APPROVAL_STATE.pending) : []
 )

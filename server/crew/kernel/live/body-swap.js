@@ -1,4 +1,5 @@
 import { fail, ok } from '../../result.js'
+import { APPROVAL_STATE, PAUSE_REASON, ROOM_STATE } from '../../../../shared/states.js'
 import { roomModeOfRoom } from '../../rooms/kinds.js'
 import { resolveRoomType } from '../../rooms/kinds.js'
 import { engineBlockReason } from '../../../../shared/engine-readiness.js'
@@ -26,7 +27,7 @@ export const createBodySwap = ({ store, engine, emit }) => {
     }
     const blocked = bodyChangeBlocker(room, '调整成员')
     if (blocked !== null) return fail('conflict', blocked)
-    if ((room.approvals ?? []).some(item => item.state === 'pending' && item.memberId === memberId)) {
+    if ((room.approvals ?? []).some(item => item.state === APPROVAL_STATE.pending && item.memberId === memberId)) {
       return fail('conflict', '先处理掉待确认的操作，再调整。')
     }
     const engineId = typeof body.engine === 'string' ? body.engine.trim() : ''
@@ -108,8 +109,8 @@ export const createBodySwap = ({ store, engine, emit }) => {
           spec,
         }
         current.independence = independenceOf({ members: current.members, instances })
-        if (current.pauseReason === 'member_error' && current.memberError?.memberId === memberId) {
-          current.state = 'active'
+        if (current.pauseReason === PAUSE_REASON.member_error && current.memberError?.memberId === memberId) {
+          current.state = ROOM_STATE.active
           current.pauseReason = null
           current.idle = false
           delete current.memberError

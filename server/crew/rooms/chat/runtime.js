@@ -6,6 +6,7 @@ import { deliverToMember } from '../../surface-delivery.js'
 import { memberOf } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
 import { isReadOnlyResearchTool } from '../../../../shared/room-access.js'
+import { ROOM_STATE } from '../../../../shared/states.js'
 
 // 聊天室上下文运行时：只有随机发言、主持总结和拍板，没有阶段、验收或交付回合。
 export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
@@ -88,14 +89,14 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
         })
         if (updated !== null) emit('room', updated)
       }
-      if (room.state === 'active' && chatFacade.runningOf(room)) void entry.chatRun.start(room, { resume: true })
+      if (room.state === ROOM_STATE.active && chatFacade.runningOf(room)) void entry.chatRun.start(room, { resume: true })
     },
 
     // 聊天室也走持久队列：到点的这一轮交给运行时续跑，进程重启不丢。
     handleWork: async (entry, event) => {
       if (event.kind !== 'chat.round') return false
       const room = store.readRoom(entry.roomId)
-      if (room === null || room.chat?.running !== true || room.state !== 'active') return true
+      if (room === null || room.chat?.running !== true || room.state !== ROOM_STATE.active) return true
       if (entry.chatRun?.isRunning() === true) return true
       await entry.chatRun.start(room, { resume: true })
       return true

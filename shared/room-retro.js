@@ -1,3 +1,5 @@
+import { AUTO_CHECK_STATUS } from './states.js'
+
 const count = (messages, kind) => messages.filter(message => message.kind === kind).length
 
 const latestText = (messages, kind) => [...messages]
@@ -25,7 +27,7 @@ export const retroOf = (room, messages = []) => {
         suggestion: '给复核留更明确的证据入口，或把阶段拆小。',
       })
     }
-    if (room?.autoCheck?.status === 'blocked' || room?.autoCheck?.status === 'limit-reached') {
+    if (room?.autoCheck?.status === AUTO_CHECK_STATUS.blocked || room?.autoCheck?.status === AUTO_CHECK_STATUS['limit-reached']) {
       items.push({
         kind: 'check',
         text: '自动检查没有通过',

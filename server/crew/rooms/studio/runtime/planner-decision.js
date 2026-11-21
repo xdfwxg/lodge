@@ -11,6 +11,7 @@ import {
 import { leadMemberOf, workerIds } from '../../../room-members.js'
 import { systemNotice } from '../../../notices.js'
 import { MAX_STAGE_REWORKS } from '../relay.js'
+import { PLANNER_DECISION_KIND } from '../../../../../shared/states.js'
 
 export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, plannerNudges, schedule, expireCards = null }) => {
   // 退回后规划师的第一行是决定；转交由系统投递，模型写不写 @ 都不影响下一棒。
@@ -55,7 +56,7 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
         roomState.lastPlannerDecision = {
           stage: stageIndex,
           verdictId,
-          kind: 'human',
+          kind: PLANNER_DECISION_KIND.human,
           judgment: missing,
           at: Date.now(),
         }

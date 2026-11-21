@@ -2,6 +2,7 @@ import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { fail, ok } from '../result.js'
 import { normalizePlan, startInitialStage, studioConstraints } from '../rooms/studio/facade.js'
 import { buildStages } from '../room-types/studio.js'
+import { ROOM_STATE, ROUND_STATUS } from '../../../shared/states.js'
 import { gateRecordOf } from '../gate/index.js'
 import { buildRound, composeRoundView } from './record.js'
 
@@ -11,7 +12,7 @@ const verifiersOf = room => (room.members ?? []).filter(member => member.role ==
 
 export const startRound = async ({ store, live, emit, room, body, roomFiles }) => {
   if (room === null || room.roomType !== 'studio') return fail('invalid', '只有工作室能开一轮')
-  if (room.state === 'paused' || room.state === 'stopped') return fail('conflict', '先让工作室继续，再开新一轮')
+  if (room.state === ROOM_STATE.paused || room.state === ROOM_STATE.stopped) return fail('conflict', '先让工作室继续，再开新一轮')
   if (typeof room.activeRoundId === 'string' && room.activeRoundId !== '') {
     return fail('conflict', '这一轮还没结束；先停下或作废这一轮')
   }
@@ -79,7 +80,7 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles }) =
   const previous = typeof room.lastRoundId === 'string' && room.lastRoundId !== ''
     ? store.readWorkRound(room.lastRoundId, room.id)
     : null
-  if (previous?.status === 'completed' && previous.completion !== null && previous.completion !== undefined) {
+  if (previous?.status === ROUND_STATUS.completed && previous.completion !== null && previous.completion !== undefined) {
     const done = (previous.completion.stages ?? []).map(stage => stage.title).filter(Boolean).join('、')
     const decisions = (previous.completion.decisions ?? []).filter(Boolean).join('、')
     store.appendMessage(room.id, {

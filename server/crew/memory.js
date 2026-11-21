@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 import { progressOf } from '../../shared/progress.js'
 import { stripAttachmentTags } from '../../shared/attachments.js'
+import { MEMORY_STATUS } from '../../shared/states.js'
 
 // 房间记忆：只从已交付房间追加事实，人工审核后才对新房间可见；不接收模型写入。
 const MAX_RECORD_BYTES = 16 * 1024
@@ -103,10 +104,10 @@ const readState = file => {
 
 const statusOf = (memoryId, reviews) => {
   const decision = reviews.get(memoryId)?.decision
-  if (decision === 'approve') return 'approved'
-  if (decision === 'reject') return 'rejected'
-  if (decision === 'delete') return 'deleted'
-  return 'draft'
+  if (decision === 'approve') return MEMORY_STATUS.approved
+  if (decision === 'reject') return MEMORY_STATUS.rejected
+  if (decision === 'delete') return MEMORY_STATUS.deleted
+  return MEMORY_STATUS.draft
 }
 
 const visibleEntry = (entry, reviews) => ({
@@ -127,7 +128,7 @@ export const createRoomMemory = ({ root }) => {
     const size = Math.max(1, Math.min(MAX_ENTRIES, Number(limit) || 20))
     const { memories, reviews } = readState(file)
     return [...memories.values()]
-      .filter(entry => statusOf(entry.roomId, reviews) !== 'deleted')
+      .filter(entry => statusOf(entry.roomId, reviews) !== MEMORY_STATUS.deleted)
       .slice(-size)
       .reverse()
       .map(entry => visibleEntry(entry, reviews))
@@ -140,7 +141,7 @@ export const createRoomMemory = ({ root }) => {
     const { memories, reviews } = readState(file)
     const size = Math.max(1, Math.min(10, Number(limit) || 3))
     return [...memories.values()]
-      .filter(entry => statusOf(entry.roomId, reviews) === 'approved')
+      .filter(entry => statusOf(entry.roomId, reviews) === MEMORY_STATUS.approved)
       .slice(-size)
       .reverse()
       .map(entry => ({

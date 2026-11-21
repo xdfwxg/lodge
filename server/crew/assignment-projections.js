@@ -1,4 +1,5 @@
 import { isWorkAssignment } from './assignments.js'
+import { ASSIGNMENT_STATUS } from '../../shared/states.js'
 
 // 派发状态和阶段任务都是 Assignment 的投影，不写回房间。
 export const dispatchFrom = (assignments, stageIndex) => {
@@ -12,7 +13,7 @@ export const dispatchFrom = (assignments, stageIndex) => {
     .filter(item => ['created', 'sent', 'working'].includes(item.status))
     .map(item => item.toMemberId)
   const failed = items
-    .filter(item => item.status === 'failed')
+    .filter(item => item.status === ASSIGNMENT_STATUS.failed)
     .map(item => item.toMemberId)
   const first = items[0]
   return {
@@ -33,8 +34,8 @@ export const dispatchOf = (store, roomId, stageIndex) => (
 )
 
 const taskStatusOf = assignment => {
-  if (assignment.status === 'failed' || assignment.status === 'cancelled') return 'failed'
-  if (assignment.status === 'reported' || assignment.status === 'passed' || assignment.status === 'rejected') return 'reported'
+  if (assignment.status === ASSIGNMENT_STATUS.failed || assignment.status === ASSIGNMENT_STATUS.cancelled) return 'failed'
+  if (assignment.status === ASSIGNMENT_STATUS.reported || assignment.status === ASSIGNMENT_STATUS.passed || assignment.status === ASSIGNMENT_STATUS.rejected) return 'reported'
   return 'working'
 }
 

@@ -2,6 +2,7 @@ import { fail, ok } from './result.js'
 import { createBodyFactory } from './body.js'
 import { bodyChangeBlocker } from './body-change.js'
 import { independenceOf } from './independence.js'
+import { APPROVAL_STATE } from '../../shared/states.js'
 
 const without = (map, id) => Object.fromEntries(Object.entries(map ?? {}).filter(([key]) => key !== id))
 const ACTIVE_ASSIGNMENT = new Set(['sent', 'working', 'reported'])
@@ -15,7 +16,7 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
     if (member === undefined) return fail('invalid', '没有这个成员')
     const blocked = bodyChangeBlocker(room, '移除成员')
     if (blocked !== null) return fail('conflict', blocked)
-    if ((room.approvals ?? []).some(item => item.state === 'pending' && item.memberId === memberId)) {
+    if ((room.approvals ?? []).some(item => item.state === APPROVAL_STATE.pending && item.memberId === memberId)) {
       return fail('conflict', '先处理掉待确认的操作，再移除。')
     }
     const kind = member.roleKind ?? member.role

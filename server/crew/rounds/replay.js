@@ -1,11 +1,13 @@
 // 只读重放：从 room_event 重建一轮的阶段和交接状态，用来和当前状态对账。
 // 事件不是写路径的真相；这里不改任何状态，发现差异只报告。
+import { ASSIGNMENT_STATUS, ROUND_STATUS, STAGE_STATE } from '../../../shared/states.js'
+
 const TERMINAL_ROUND_EVENTS = Object.freeze({
-  'round.completed': 'completed',
-  'round.rejected': 'rejected',
-  'round.failed': 'failed',
-  'round.stopped': 'stopped',
-  'round.superseded': 'superseded',
+  'round.completed': ROUND_STATUS.completed,
+  'round.rejected': ROUND_STATUS.rejected,
+  'round.failed': ROUND_STATUS.failed,
+  'round.stopped': ROUND_STATUS.stopped,
+  'round.superseded': ROUND_STATUS.superseded,
 })
 
 const stageOf = (stages, index) => (
@@ -44,10 +46,10 @@ export const replayRound = (events = [], roundId = '') => {
     index,
     title: stage.title ?? `第 ${index + 1} 步`,
     kind: stage.kind ?? '',
-    state: 'pending',
+    state: STAGE_STATE.pending,
     assignments: [],
   }))
-  let roundStatus = 'active'
+  let roundStatus = ROUND_STATUS.active
   const assignmentById = new Map()
 
   for (let at = startAt + 1; at < list.length; at += 1) {
@@ -62,25 +64,25 @@ export const replayRound = (events = [], roundId = '') => {
     }
     if (event?.type === 'stage.dispatch' || event?.type === 'stage.rework') {
       const stage = stageOf(stages, payload.stage)
-      if (stage !== null) stage.state = 'active'
+      if (stage !== null) stage.state = STAGE_STATE.active
       continue
     }
     if (event?.type === 'stage.passed') {
       const stage = stageOf(stages, payload.stage)
-      if (stage !== null) stage.state = 'passed'
+      if (stage !== null) stage.state = STAGE_STATE.passed
       continue
     }
     if (event?.type === 'stage.rewind') {
       const index = payload.stage
       if (Number.isInteger(index)) {
         for (let i = index; i < stages.length; i += 1) {
-          stages[i].state = i === index ? 'active' : 'pending'
+          stages[i].state = i === index ? STAGE_STATE.active : STAGE_STATE.pending
         }
       }
       continue
     }
     if (event?.type === 'assignment.created') {
-      const item = assignmentOf(payload, 'created')
+      const item = assignmentOf(payload, ASSIGNMENT_STATUS.created)
       if (typeof item.id !== 'string' || item.id === '') continue
       assignmentById.set(item.id, item)
       const stage = stageOf(stages, item.stage)

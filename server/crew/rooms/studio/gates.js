@@ -2,6 +2,7 @@ import { memberDisplayName } from '../../member-labels.js'
 import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
 import { latestAutoCheck, manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { tddIssueOf } from './tdd.js'
+import { REVIEW_STATE, STAGE_STATE } from '../../../../shared/states.js'
 
 const deny = (reason, error) => ({ ok: false, reason, error })
 
@@ -23,9 +24,9 @@ export const gateFor = (room, index, messages, evidence) => {
     ))
   const stage = Number.isInteger(index) ? room.stages[index] : undefined
   if (stage === undefined) return deny('invalid', '没有这个阶段')
-  if (stage.state !== 'active') return deny('conflict', '这个阶段不在待验收状态')
+  if (stage.state !== STAGE_STATE.active) return deny('conflict', '这个阶段不在待验收状态')
   const dependency = (Array.isArray(stage.dependsOn) ? stage.dependsOn : [])
-    .find(item => room.stages[item]?.state !== 'passed')
+    .find(item => room.stages[item]?.state !== STAGE_STATE.passed)
   if (dependency !== undefined) return deny('conflict', `先完成阶段 ${dependency + 1}，再验收这一阶段`)
   if (room.openQuestion !== null && room.openQuestion !== undefined) {
     return deny('conflict', '还有问题没回答，回答后再继续')
@@ -57,7 +58,7 @@ export const gateFor = (room, index, messages, evidence) => {
         const names = outcome.rejects.map(message => memberDisplayName(room, message.authorId)).join('、')
         return deny('conflict', `${names} 退回了，先重做再再交一次`)
       }
-      if (outcome.state === 'pending') {
+      if (outcome.state === REVIEW_STATE.pending) {
         const names = outcome.missing.map(id => memberDisplayName(room, id)).join('、')
         return deny('conflict', `还有验收员没有回报（${names}），不能确认`)
       }
@@ -96,7 +97,7 @@ export const gateFor = (room, index, messages, evidence) => {
       const exit = outcome.evidence?.meta?.exit
       return deny('conflict', '最新检查没有通过，不能确认')
     }
-    if (outcome.state === 'pending') {
+    if (outcome.state === REVIEW_STATE.pending) {
       const names = outcome.missing.map(id => memberDisplayName(room, id)).join('、')
       return deny('conflict', `还有验收员没有回报（${names}），不能确认`)
     }

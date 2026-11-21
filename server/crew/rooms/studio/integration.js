@@ -3,6 +3,7 @@ import { isWorkStage } from './turn-utils.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { systemNotice } from '../../notices.js'
+import { STAGE_STATE } from '../../../../shared/states.js'
 import { activeDispatchAssignments, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 
@@ -175,7 +176,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     const room = store.readRoom(roomId)
     if (room === null) return
     const stage = room.stages[stageIndex]
-    if (stage === undefined || !isWorkStage(stage) || stage.state !== 'active') return
+    if (stage === undefined || !isWorkStage(stage) || stage.state !== STAGE_STATE.active) return
     // 冲突已经挂出来了：等人在重做里拍板，不能让后续回合把冲突自动重试掉。
     if (room.mergeConflict?.stage === stageIndex) return
     const integration = room.repoPath
@@ -246,7 +247,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
   const resolveStage = async stageIndex => {
     const room = store.readRoom(roomId)
     const stage = room?.stages?.[stageIndex]
-    if (room === null || stage === undefined || stage.state !== 'active') return
+    if (room === null || stage === undefined || stage.state !== STAGE_STATE.active) return
     const integration = room.repoPath
     const head = typeof workspaceOf(room).head === 'function'
       ? workspaceOf(room).head({ path: integration })

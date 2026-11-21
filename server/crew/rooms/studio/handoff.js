@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { memberDisplayName } from '../../member-labels.js'
 import { createAssignment, transitionAssignment } from '../../assignments.js'
 import { armAssignmentLease } from './assignment-lease.js'
+import { ASSIGNMENT_STATUS, HANDOFF_STATUS } from '../../../../shared/states.js'
 
 const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, nonce }) => (
   createHash('sha256')
@@ -72,7 +73,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       return existing
     }
     // 失败是一次可重试的送达，不是同一条记录回退：新建一条，指向失败的那条。
-    const retry = existing !== null && existing.status === 'failed'
+    const retry = existing !== null && existing.status === ASSIGNMENT_STATUS.failed
     const created = existing === null || retry
     const assignment = created
       ? createAssignment({
@@ -100,7 +101,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         },
         evidenceIds: evidence?.id === undefined ? [] : [evidence.id],
         parentAssignmentId: retry ? existing.id : parentAssignmentId,
-        status: 'created',
+        status: ASSIGNMENT_STATUS.created,
       })
       : existing
     const sendId = assignment.id
@@ -108,7 +109,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       kind: 'handoff',
       authorId: from,
       text: summary,
-      meta: { assignmentId: assignment.id, stage: index, status: 'sending' },
+      meta: { assignmentId: assignment.id, stage: index, status: HANDOFF_STATUS.sending },
     })
     if (created) {
       store.appendEvent(roomId, 'assignment.created', {
@@ -154,7 +155,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       if (stored !== null) {
         store.upsertMessage?.({
           ...stored,
-          meta: { ...stored.meta, status: 'sent', sentAt: Date.now() },
+          meta: { ...stored.meta, status: HANDOFF_STATUS.sent, sentAt: Date.now() },
         })
       }
       armAssignmentLease({
@@ -174,7 +175,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       if (stored !== null) {
         store.upsertMessage?.({
           ...stored,
-          meta: { ...stored.meta, status: 'failed', error: String(error?.message ?? error) },
+          meta: { ...stored.meta, status: HANDOFF_STATUS.failed, error: String(error?.message ?? error) },
         })
       }
       throw error

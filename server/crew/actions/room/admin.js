@@ -1,4 +1,5 @@
 import { fail, ok } from '../../result.js'
+import { ROOM_STATE } from '../../../../shared/states.js'
 
 // 房间本体的动作：改名、归档、删除、成员与身体。
 export const createAdminActions = deps => {
@@ -28,8 +29,8 @@ export const createAdminActions = deps => {
         const restored = updateRoom(room.id, current => {
           current.archivedAt = null
           current.live = false
-          if (current.state === 'stopped') {
-            current.state = 'idle'
+          if (current.state === ROOM_STATE.stopped) {
+            current.state = ROOM_STATE.idle
             current.idle = true
           }
           return { events: [{ type: 'room.restored' }] }
@@ -52,8 +53,8 @@ export const createAdminActions = deps => {
       const updated = updateRoom(room.id, current => {
         current.archivedAt = archivedAt
         current.live = false
-        if (hadRound || current.state === 'active') {
-          current.state = 'stopped'
+        if (hadRound || current.state === ROOM_STATE.active) {
+          current.state = ROOM_STATE.stopped
           current.idle = false
         }
         return { events: [{ type: 'room.archived', payload: { stopped: hadRound } }] }
@@ -64,7 +65,7 @@ export const createAdminActions = deps => {
     },
 
     delete: async ({ room }) => {
-      if (room.state === 'active' || room.activeRoundId) return fail('conflict', '正在进行的房间不能删除；先归档再删除')
+      if (room.state === ROOM_STATE.active || room.activeRoundId) return fail('conflict', '正在进行的房间不能删除；先归档再删除')
       if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
       // 删房时把成员身体和隐藏 Bot 一起退役；工作区和用户文件留着。
       try {

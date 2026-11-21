@@ -4,6 +4,7 @@ import { deliverToMember } from '../../surface-delivery.js'
 import { leadMemberOf } from '../../room-members.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { systemNotice } from '../../notices.js'
+import { STAGE_STATE } from '../../../../shared/states.js'
 
 // 工作室上下文运行时：阶段派发、执行、验收、重做和确认都走群聊 @，没有讨论轮次。
 export const createStudioRuntime = ({
@@ -116,7 +117,7 @@ export const createStudioRuntime = ({
     },
 
     resumeIfRunning: async (entry, room) => {
-      const index = (room?.stages ?? []).findIndex(stage => stage.state === 'active')
+      const index = (room?.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
       if (index >= 0) entry.turns.watchStageTimeout(index)
     },
 

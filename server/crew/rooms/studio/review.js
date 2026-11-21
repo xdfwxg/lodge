@@ -18,6 +18,7 @@ import { dispatchOf } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { recordShadowAdvice } from './shadow-advisor.js'
 import { relayAfterVerdict } from './relay.js'
+import { REVIEW_STATE, ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
 import { FINAL_TITLE } from './stage-plan.js'
 import { systemNotice } from '../../notices.js'
 
@@ -55,8 +56,8 @@ const untrusted = (text, lang = '', max = 4000) => fenceUntrusted(text, { lang, 
 
 // 超时后晚到的判定只在这条复核仍然对应当前这一步、当前证据时才算数。
 export const lateReviewStillValid = ({ room, messages, pending }) => {
-  if (room === null || room.state !== 'active') return false
-  const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
+  if (room === null || room.state !== ROOM_STATE.active) return false
+  const active = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
   if (active !== pending.stage) return false
   const floor = reworkFloor(messages, pending.stage)
   const latestEvidence = [...messages].reverse().find(message => (
@@ -372,7 +373,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     if (stage === undefined || (stage.kind !== 'deliverable' && stage.manual !== true)) {
       reject('invalid', '这个阶段不是交付型')
     }
-    if (stage.state !== 'active') reject('conflict', '这个阶段不在待验收状态')
+    if (stage.state !== STAGE_STATE.active) reject('conflict', '这个阶段不在待验收状态')
     if (roomStatusOf(room) !== 'active') {
       reject('conflict', '这一轮已经结束，不能再发起复核')
     }
@@ -414,7 +415,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       })
       round = null
     }
-    const targets = outcome.state === 'pending' ? outcome.missing : ids
+    const targets = outcome.state === REVIEW_STATE.pending ? outcome.missing : ids
     if (targets.length === 0) reject('conflict', '所有验收成员都已回报')
 
     const meta = evidence.meta

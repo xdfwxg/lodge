@@ -9,6 +9,7 @@ import { dispatchOf } from '../../../assignment-projections.js'
 import { leadMemberOf, workerIds } from '../../../room-members.js'
 import { workspaceOf } from '../workspace.js'
 import { systemNotice } from '../../../notices.js'
+import { PLANNER_DECISION_KIND, REVIEW_STATE, ROOM_STATE, STAGE_STATE } from '../../../../../shared/states.js'
 
 export const createResume = ({
   store,
@@ -24,14 +25,14 @@ export const createResume = ({
   const resumeOnce = async ({ forceAcceptance = false } = {}) => {
     const room = store.readRoom(roomId)
     if (room === null) return
-    if (room.live !== true || room.state !== 'active') return
+    if (room.live !== true || room.state !== ROOM_STATE.active) return
     if ((room.busyMembers ?? []).length > 0 || workerIds(room).length === 0) return
-    const stageIndex = room.stages.findIndex(stage => stage.state === 'active')
+    const stageIndex = room.stages.findIndex(stage => stage.state === STAGE_STATE.active)
     if (stageIndex < 0) return
     const stage = room.stages[stageIndex]
     if (!isWorkStage(stage) && stage.manual !== true) return
     // 规划师已经把它交给人：重启不替人继续派活。
-    if (!forceAcceptance && room.lastPlannerDecision?.stage === stageIndex && room.lastPlannerDecision?.kind === 'human') return
+    if (!forceAcceptance && room.lastPlannerDecision?.stage === stageIndex && room.lastPlannerDecision?.kind === PLANNER_DECISION_KIND.human) return
 
     const messages = store.readMessages(roomId)
     const evidence = messages.filter(message => (
@@ -48,7 +49,7 @@ export const createResume = ({
     if (!forceAcceptance && latestCommand !== undefined && (latestCommand.seq ?? 0) > latestTurnSeq) {
       if (latestCommand.meta?.exit !== 0) return
       const outcome = reviewState({ room, evidence: store.readEvidence?.(roomId), messages, stageIndex })
-      if (outcome.state !== 'pending') return
+      if (outcome.state !== REVIEW_STATE.pending) return
       try {
         await review.request(stageIndex)
       } catch (error) {
@@ -164,7 +165,7 @@ export const createResume = ({
           messages,
           stageIndex,
         })
-        if (outcome.state === 'pending') {
+        if (outcome.state === REVIEW_STATE.pending) {
           try {
             await review.request(stageIndex)
           } catch (error) {

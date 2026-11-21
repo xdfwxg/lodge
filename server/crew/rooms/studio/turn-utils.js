@@ -1,15 +1,16 @@
 import { normalizeJudgment } from '../../../../shared/judgment.js'
+import { STAGE_STATE } from '../../../../shared/states.js'
 
 export const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
 
 export const activeStageReadOnly = room => (
-  room?.stages?.find(stage => stage.state === 'active')?.readOnly === true
+  room?.stages?.find(stage => stage.state === STAGE_STATE.active)?.readOnly === true
 )
 
 export const deliverableStageIndex = room => {
-  const active = room.stages.findIndex(stage => stage.state === 'active' && isWorkStage(stage))
+  const active = room.stages.findIndex(stage => stage.state === STAGE_STATE.active && isWorkStage(stage))
   if (active >= 0) return active
-  const pending = room.stages.findIndex(stage => stage.state === 'pending' && isWorkStage(stage))
+  const pending = room.stages.findIndex(stage => stage.state === STAGE_STATE.pending && isWorkStage(stage))
   if (pending >= 0) return pending
   const first = room.stages.findIndex(stage => isWorkStage(stage))
   return first >= 0 ? first : 0

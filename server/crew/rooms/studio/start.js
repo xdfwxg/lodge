@@ -1,6 +1,7 @@
 import { buildMemberHandoff } from './member-handoff.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { alignmentPrompt, directPrompt } from '../create/input.js'
+import { STAGE_STATE } from '../../../../shared/states.js'
 
 // 工作室建房后的第一次派发：先对齐，或直接交给主成员/执行成员。
 export const startInitialStage = async ({
@@ -20,7 +21,7 @@ export const startInitialStage = async ({
 }) => {
   // 建房记录里的阶段状态可能还是旧的；以落库后的房间为准再决定从哪一步开始。
   room = store.readRoom(room.id) ?? room
-  const activeStage = room.stages.findIndex(stage => stage.state === 'active')
+  const activeStage = room.stages.findIndex(stage => stage.state === STAGE_STATE.active)
   if (plan !== null) {
     if (activeStage >= 0) await live.startStage(room, activeStage)
   } else if (!align && workers.length > 1) {

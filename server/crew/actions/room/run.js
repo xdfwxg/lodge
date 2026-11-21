@@ -1,6 +1,7 @@
 import { memberOf } from '../../room-members.js'
 import { accepted, BusinessError, fail, ok } from '../../result.js'
 import { cancelOpenAssignments } from '../../assignments.js'
+import { ROOM_STATE } from '../../../../shared/states.js'
 
 // 运行中的动作：确认、恢复、停下当前回合、复核、排队和叫停成员。
 export const createRunActions = deps => {
@@ -22,7 +23,7 @@ export const createRunActions = deps => {
 
     resume: async ({ room, readBody }) => {
       const disconnected = typeof room.connectionError === 'string' && room.connectionError !== ''
-      if (room.state !== 'paused' && !disconnected) return fail('conflict', '房间没有暂停')
+      if (room.state !== ROOM_STATE.paused && !disconnected) return fail('conflict', '房间没有暂停')
       if (room.live !== true) return fail('conflict', '房间现在没有连上，稍后再试')
       if (live.isAttached?.(room.id) !== true) {
         try {
@@ -33,8 +34,8 @@ export const createRunActions = deps => {
       }
       const resumed = deps.updateRoom(room.id, current => {
         const events = []
-        if (current.state === 'paused') {
-          current.state = 'active'
+        if (current.state === ROOM_STATE.paused) {
+          current.state = ROOM_STATE.active
           current.idle = false
           current.pauseReason = null
           current.noProgress = 0
@@ -48,7 +49,7 @@ export const createRunActions = deps => {
       })
       if (resumed === null) return fail('not_found', '没有这个房间')
       emit('room', resumed)
-      if (room.state === 'paused') {
+      if (room.state === ROOM_STATE.paused) {
         try { await live.resume?.(room.id) } catch (error) {
           console.warn(`room resume failed: ${room.id} ${error?.message ?? error}`)
         }
@@ -58,7 +59,7 @@ export const createRunActions = deps => {
 
     // 输入条上的方块只停下这次回复，不把房间变成暂停态；停完可以直接说下一步。
     interrupt: async ({ room }) => {
-      if (room.state !== 'active') return fail('conflict', '房间没有在跑')
+      if (room.state !== ROOM_STATE.active) return fail('conflict', '房间没有在跑')
       if (room.live !== true || live.isAttached?.(room.id) !== true) {
         return fail('conflict', '房间现在没有连上，稍后再试')
       }

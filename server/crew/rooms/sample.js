@@ -1,3 +1,5 @@
+import { CHAT_PHASE, HANDOFF_STATUS, ROOM_STATE, ROUND_STATUS, STAGE_STATE } from '../../../shared/states.js'
+
 export const SAMPLE_ROOM_ID = 'room-sample'
 export const SAMPLE_CHAT_ROOM_ID = 'room-sample-chat'
 export const SAMPLE_ROUND_ID = 'round-sample-1'
@@ -34,9 +36,9 @@ const participant = ({ id, name, title, station }) => member({
 })
 
 const STEPS = [
-  { title: '目标对齐', kind: 'decision', state: 'passed' },
-  { title: '写一段试写', kind: 'deliverable', state: 'passed', acceptance: 'manual', manual: true },
-  { title: '验收与结论', kind: 'decision', state: 'passed', dependsOn: [1] },
+  { title: '目标对齐', kind: 'decision', state: STAGE_STATE.passed },
+  { title: '写一段试写', kind: 'deliverable', state: STAGE_STATE.passed, acceptance: 'manual', manual: true },
+  { title: '验收与结论', kind: 'decision', state: STAGE_STATE.passed, dependsOn: [1] },
 ]
 
 export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
@@ -49,7 +51,7 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   engine: 'demo',
   demo: true,
   live: false,
-  state: 'idle',
+  state: ROOM_STATE.idle,
   activeRoundId: null,
   lastRoundId: SAMPLE_ROUND_ID,
   idle: true,
@@ -103,7 +105,7 @@ export const sampleStudioRound = ({ room, now = Date.now() } = {}) => ({
   roomId: room.id,
   projectId: null,
   ordinal: 1,
-  status: 'completed',
+  status: ROUND_STATUS.completed,
   name: room.name,
   goal: room.goal,
   plan: room.plan,
@@ -151,7 +153,7 @@ export const seedSampleMessages = ({ store, room } = {}) => {
     kind: 'handoff',
     authorId: 'planner',
     text: '@执行官 第 2 步「写一段试写」交给你：把结尾改成动作，让读者自己看见她留下；写完把段落发出来。',
-    meta: { stage: 1, status: 'sent' },
+    meta: { stage: 1, status: HANDOFF_STATUS.sent },
   })
   append({
     kind: 'chat',
@@ -162,7 +164,7 @@ export const seedSampleMessages = ({ store, room } = {}) => {
     kind: 'handoff',
     authorId: 'executor',
     text: '@验收员 第 2 步做完了，帮我对照原文看一下。',
-    meta: { stage: 1, status: 'sent' },
+    meta: { stage: 1, status: HANDOFF_STATUS.sent },
   })
   append({
     kind: 'verdict',
@@ -192,7 +194,7 @@ export const sampleChatRoomRecord = ({ now = Date.now() } = {}) => ({
   engine: 'demo',
   demo: true,
   live: false,
-  state: 'active',
+  state: ROOM_STATE.active,
   completedAt: null,
   completedCommit: null,
   leadMemberId: 'lodge-sample',
@@ -214,7 +216,7 @@ export const sampleChatRoomRecord = ({ now = Date.now() } = {}) => ({
   ],
   chat: {
     round: 1,
-    phase: 'concluded',
+    phase: CHAT_PHASE.concluded,
     turnLimit: 4,
     turns: 4,
     conclusionId: null,

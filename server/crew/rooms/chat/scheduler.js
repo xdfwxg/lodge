@@ -9,6 +9,7 @@ import { ensureRoundWhenAsked, hostIntentPrompt, parseHostIntent } from './host-
 import { systemNotice } from '../../notices.js'
 import { FLOOR_RULE, parseFloorSignal } from './floor-signal.js'
 import { humanLabelOf, humanNameOf } from '../../human-name.js'
+import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
 
 const DEFAULT_WAIT_MS = 120_000
 const POLL_MS = 750
@@ -196,7 +197,7 @@ export const createChatScheduler = ({
       current.chat = {
         ...(current.chat ?? {}),
         round,
-        phase: 'discussing',
+        phase: CHAT_PHASE.discussing,
         turns: resumedFrom,
         conclusionId: null,
         running: true,
@@ -261,7 +262,7 @@ export const createChatScheduler = ({
         let coldUsed = false
         for (let turn = resumedFrom + 1; turn <= turnLimit; turn += 1) {
           const current = store.readRoom(roomId)
-          if (run.cancelled || current === null || current.state !== 'active') break
+          if (run.cancelled || current === null || current.state !== ROOM_STATE.active) break
           room = current
           if (turn === 1 && !resume) {
             const text = `【${room.goal}】`
@@ -320,7 +321,7 @@ export const createChatScheduler = ({
           patch(state => {
             state.chat = {
               ...state.chat,
-              phase: 'discussing',
+              phase: CHAT_PHASE.discussing,
               // turns 只记“已经说完”的次数；正在说的这一位由 speaker 表示。
               turns: completed,
               speaker: memberId,
@@ -348,7 +349,7 @@ export const createChatScheduler = ({
           patch(state => {
             state.chat = {
               ...state.chat,
-              phase: 'discussing',
+              phase: CHAT_PHASE.discussing,
               turns: completed,
               speaker: '',
               running: true,
@@ -401,7 +402,7 @@ export const createChatScheduler = ({
 
       if (run.cancelled) return { started: true, cancelled: true, round }
       const beforeSummary = store.readRoom(roomId)
-      if (beforeSummary === null || beforeSummary.state !== 'active') {
+      if (beforeSummary === null || beforeSummary.state !== ROOM_STATE.active) {
         return { started: true, cancelled: true, round }
       }
 

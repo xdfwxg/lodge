@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { createBodyFactory } from '../body.js'
 import { LODGE_NAME, LODGE_ROOM_ID } from '../../../shared/lodge.js'
 import { LODGE_HOST_SOUL } from '../../../shared/lodge-host.js'
+import { CHAT_PHASE, ROOM_STATE } from '../../../shared/states.js'
 
 const HOST_SOUL = LODGE_HOST_SOUL
 
@@ -16,7 +17,7 @@ const roomRecord = ({ host, chatRoom, dir }) => ({
   roomType: 'chat',
   live: true,
   demo: false,
-  state: 'active',
+  state: ROOM_STATE.active,
   lodge: true,
   leadMemberId: null,
   members: [],
@@ -24,7 +25,7 @@ const roomRecord = ({ host, chatRoom, dir }) => ({
   chatHost: { memberRef: host.id, name: host.name, displayName: LODGE_NAME },
   chat: {
     round: 1,
-    phase: 'discussing',
+    phase: CHAT_PHASE.discussing,
     turnLimit: 6,
     turns: 0,
     conclusionId: null,

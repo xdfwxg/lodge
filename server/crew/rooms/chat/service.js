@@ -1,6 +1,7 @@
 import { fail, ok } from '../../result.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
 import { systemNotice } from '../../notices.js'
+import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
 
 // 聊天室只有 room.chat；结论之后继续聊，不经过工作室的 stages/gates，也不需要确认。
 export const createServiceChat = ({ store, live, emit }) => {
@@ -8,12 +9,12 @@ export const createServiceChat = ({ store, live, emit }) => {
 
   const continueChat = (room, body = {}) => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
-    if (room.state !== 'active') return fail('conflict', '房间已经停了')
+    if (room.state !== ROOM_STATE.active) return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
       return fail('conflict', '聊天室还没有连上模型服务')
     }
     const chat = room.chat
-    if (chat === undefined || chat.running === true || chat.phase !== 'concluded') {
+    if (chat === undefined || chat.running === true || chat.phase !== CHAT_PHASE.concluded) {
       return fail('conflict', '现在还没有结论可以接着聊')
     }
     const event = 'continue_discuss'
@@ -56,13 +57,13 @@ export const createServiceChat = ({ store, live, emit }) => {
 
   const restart = (room, body = {}) => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
-    if (room.state !== 'active') return fail('conflict', '房间已经停了')
+    if (room.state !== ROOM_STATE.active) return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
       return fail('conflict', '聊天室还没有连上模型服务')
     }
     const chat = room.chat
     if (chat === undefined || chat.running === true) return fail('conflict', '聊天讨论已经在进行')
-    if (chat.phase !== 'discussing') return fail('conflict', '现在没有可恢复的讨论')
+    if (chat.phase !== CHAT_PHASE.discussing) return fail('conflict', '现在没有可恢复的讨论')
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : ''
     const updated = updateRoom(room.id, current => {
       if (current.chat?.running === true) return null

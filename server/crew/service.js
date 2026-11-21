@@ -1,4 +1,5 @@
 import { resolve, sep } from 'node:path'
+import { ROOM_STATE, STAGE_STATE } from '../../shared/states.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
@@ -79,7 +80,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
   const recordMemory = room => {
     if (room === null || room === undefined || room.demo === true) return
     if (!Array.isArray(room.stages) || room.stages.length === 0) return
-    if (!room.stages.every(stage => stage.state === 'passed')) return
+    if (!room.stages.every(stage => stage.state === STAGE_STATE.passed)) return
     try {
       const result = ports.memory?.appendRoom?.({ room: memoryRoom(room), messages: readMessages(room.id) })
       if (result?.ok === false && result.reason !== 'demo' && result.reason !== 'no-workspace') {
@@ -200,7 +201,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     const round = sampleStudioRound({ room: sample, now })
     const created = writeRoom({
       ...sample,
-      state: 'active',
+      state: ROOM_STATE.active,
       activeRoundId: round.id,
       lastRoundId: null,
       idle: false,
@@ -208,7 +209,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     store.writeWorkRound(round)
     seedSampleMessages({ store, room: created, now })
     const finalized = updateRoom(id, current => {
-      current.state = 'idle'
+      current.state = ROOM_STATE.idle
       current.activeRoundId = null
       current.lastRoundId = round.id
       current.idle = true

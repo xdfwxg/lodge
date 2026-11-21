@@ -1,12 +1,13 @@
 import { join } from 'node:path'
 import { persistenceKind } from '../../service-policy.js'
+import { ROUND_STATUS } from '../../../../shared/states.js'
 
 export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
   const { readMessages, readAssignments, appendMessage, appendEvent } = store
 
   const completeRoom = room => {
     const round = room.workRound ?? null
-    if (round?.status === 'completed') return room
+    if (round?.status === ROUND_STATUS.completed) return room
     appendMessage(room.id, {
       kind: 'conclusion',
       authorId: 'planner',
@@ -77,7 +78,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     const finished = store.finishWorkRound?.({
       roomId: room.id,
       roundId: round.id,
-      status: 'completed',
+      status: ROUND_STATUS.completed,
       patch: { completedAt, completedCommit: commitHash, completion },
       eventType: 'round.completed',
       eventPayload: { stages: room.stages.length },

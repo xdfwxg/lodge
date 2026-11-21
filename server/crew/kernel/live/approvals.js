@@ -9,6 +9,7 @@ import { supportsRuntime } from '../../runtime-port.js'
 import { attemptScopeOf, scopeIsValid } from '../../../../shared/attempt.js'
 import { canSkipApproval } from '../../room-access.js'
 import { appendHumanContext } from '../../human-context.js'
+import { APPROVAL_STATE, PAUSE_REASON, ROOM_STATE } from '../../../../shared/states.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
 const ANSWERED_KEEP = 500
@@ -39,7 +40,7 @@ export const createLiveApprovals = ({
   readOnlyFor = () => false,
 }) => {
   const setApprovalState = (roomId, approvalId, state, extra = {}) => store.updateRoom(roomId, current => {
-    const approval = current.approvals?.find(item => item?.id === approvalId && item.state === 'pending')
+    const approval = current.approvals?.find(item => item?.id === approvalId && item.state === APPROVAL_STATE.pending)
     if (approval === undefined) return null
     approval.state = state
     approval.decidedAt = Date.now()
@@ -69,11 +70,11 @@ export const createLiveApprovals = ({
   // 确认超时只暂停房间，不替人做决定；基座仍在等这张卡，所以处理后可以原地恢复。
   const resumeRoom = (roomId, text) => {
     const updated = store.updateRoom(roomId, current => {
-      if (current.state !== 'paused' || current.pauseReason !== 'approval') return null
-      current.state = 'active'
+      if (current.state !== ROOM_STATE.paused || current.pauseReason !== PAUSE_REASON.approval) return null
+      current.state = ROOM_STATE.active
       current.pauseReason = null
       current.idle = false
-      return { events: [{ type: 'room.state', payload: { state: 'active', action: 'approval' } }] }
+      return { events: [{ type: 'room.state', payload: { state: ROOM_STATE.active, action: PAUSE_REASON.approval } }] }
     })
     if (updated === null) return null
     store.appendMessage(roomId, { kind: 'system', text })
@@ -88,8 +89,8 @@ export const createLiveApprovals = ({
       const current = store.readRoom(entry.roomId)
       if (current === null) return
       if (!pendingApprovals(current).some(item => item.id === approval.id)) return
-      if (current.state !== 'active') {
-        if (current.state === 'paused' && current.pauseReason === 'approval') {
+      if (current.state !== ROOM_STATE.active) {
+        if (current.state === ROOM_STATE.paused && current.pauseReason === PAUSE_REASON.approval) {
           const timer = setTimeout(tick, Math.min(30_000, approvalTimeoutMs))
           timer.unref?.()
           entry.approvalTimers.set(approval.id, timer)
@@ -97,9 +98,9 @@ export const createLiveApprovals = ({
         return
       }
       const paused = store.updateRoom(entry.roomId, room => {
-        if (room.state !== 'active') return null
-        room.state = 'paused'
-        room.pauseReason = 'approval'
+        if (room.state !== ROOM_STATE.active) return null
+        room.state = ROOM_STATE.paused
+        room.pauseReason = PAUSE_REASON.approval
         room.idle = false
         return {
           events: [{
@@ -159,7 +160,7 @@ export const createLiveApprovals = ({
         messages: store.readMessages?.(entry.roomId) ?? [],
         memberId,
       }),
-      state: 'pending',
+      state: APPROVAL_STATE.pending,
       at: Date.now(),
     }
     approval.gate = reviewExternalAction({ approval, room })
@@ -167,8 +168,8 @@ export const createLiveApprovals = ({
       const existing = current.approvals ?? []
       // pending 不能被历史截断：截掉的卡在基座还在等，但人已经看不到。
       current.approvals = [
-        ...existing.filter(item => item?.state === 'pending'),
-        ...existing.filter(item => item?.state !== 'pending').slice(-20),
+        ...existing.filter(item => item?.state === APPROVAL_STATE.pending),
+        ...existing.filter(item => item?.state !== APPROVAL_STATE.pending).slice(-20),
         approval,
       ]
       return {
@@ -219,8 +220,8 @@ export const createLiveApprovals = ({
     const updated = store.updateRoom(roomId, current => {
       const now = Date.now()
       for (const approval of current.approvals ?? []) {
-        if (approval?.state !== 'pending' || !ids.has(approval.id)) continue
-        approval.state = 'expired'
+        if (approval?.state !== APPROVAL_STATE.pending || !ids.has(approval.id)) continue
+        approval.state = APPROVAL_STATE.expired
         approval.decidedAt = now
       }
       return {
@@ -358,7 +359,7 @@ export const createLiveApprovals = ({
       return { ok: false, reason: '这个操作已经过期；这一步已经结束或重开过了' }
     }
     if (entry.heldCards.get(approval.requestId) !== approvalId) {
-      const expired = setApprovalState(roomId, approvalId, 'expired')
+      const expired = setApprovalState(roomId, approvalId, APPROVAL_STATE.expired)
       store.appendMessage(roomId, { kind: 'system', text: `这个操作已经失效：${approval.summary}` })
       if (expired !== null) emit('room', expired)
       resumeRoom(roomId, '这个操作已经失效，房间已恢复。')
@@ -368,7 +369,7 @@ export const createLiveApprovals = ({
     if (target === undefined) {
       clearTimer(entry, approvalId)
       entry.heldCards.delete(approval.requestId)
-      const expired = setApprovalState(roomId, approvalId, 'expired')
+      const expired = setApprovalState(roomId, approvalId, APPROVAL_STATE.expired)
       store.appendMessage(roomId, {
         kind: 'system',
         text: `这个操作失效了：${approval.summary}（${approval.memberName} 已不在房间）`,
@@ -387,7 +388,7 @@ export const createLiveApprovals = ({
       if (result?.ok === false) throw new Error(result.error ?? '房间没接受这次确认')
     } catch (error) {
       entry.heldCards.delete(approval.requestId)
-      const expired = setApprovalState(roomId, approvalId, 'expired')
+      const expired = setApprovalState(roomId, approvalId, APPROVAL_STATE.expired)
       store.appendMessage(roomId, {
         kind: 'system',
         text: `这个操作已经失效：${approval.summary}。请重新发起。`,
@@ -398,7 +399,7 @@ export const createLiveApprovals = ({
     }
     entry.heldCards.delete(approval.requestId)
     rememberAnswer(entry, approval.requestId)
-    const state = decision === 'allow' ? 'allowed' : 'denied'
+    const state = decision === 'allow' ? APPROVAL_STATE.allowed : APPROVAL_STATE.denied
     const updated = setApprovalState(roomId, approvalId, state)
     store.appendMessage(roomId, {
       kind: 'system',
@@ -426,7 +427,7 @@ export const createLiveApprovals = ({
 
   const resumeApprovalPauseIfSettled = roomId => {
     const room = store.readRoom(roomId)
-    if (room?.state !== 'paused' || room.pauseReason !== 'approval') return null
+    if (room?.state !== ROOM_STATE.paused || room.pauseReason !== PAUSE_REASON.approval) return null
     if (pendingApprovals(room).length > 0) return null
     return resumeRoom(roomId, '外部操作确认在重启后失效，房间已恢复。')
   }

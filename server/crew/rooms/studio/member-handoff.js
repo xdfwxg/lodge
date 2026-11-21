@@ -3,6 +3,7 @@ import { humanNameOf } from '../../human-name.js'
 import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
 import { progressOf } from '../../../../shared/progress.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
+import { STAGE_STATE } from '../../../../shared/states.js'
 
 // 成员交接包：永久素材优先，transcript 只给引用，不重发整场对话。
 const DONE_LIMIT = 4
@@ -19,7 +20,7 @@ const rosterOf = room => (room.members ?? [])
   .map(member => `${sanitizeUntrusted(member.name.trim(), 40)}（${ROLE_LABEL[member.role] ?? '成员'}）`)
 
 const doneOf = room => (
-  room.plan?.done ?? room.stages.map(stage => `${stage.title}（${stage.state === 'passed' ? '已过' : '未过'}）`)
+  room.plan?.done ?? room.stages.map(stage => `${stage.title}（${stage.state === STAGE_STATE.passed ? '已过' : '未过'}）`)
 )
 
 const feedbackOf = messages => {

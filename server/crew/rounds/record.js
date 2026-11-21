@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { ROUND_FIELDS } from '../../../shared/work-round.js'
+import { ROOM_STATE, ROUND_STATUS } from '../../../shared/states.js'
 
 export const newRoundId = () => `round-${randomUUID().slice(0, 8)}`
 
@@ -29,7 +30,7 @@ export const buildRoundFromRoom = ({
   id = newRoundId(),
   projectId = null,
   ordinal = 1,
-  status = 'active',
+  status = ROUND_STATUS.active,
 }) => ({
   id,
   roomId: room.id,
@@ -52,7 +53,7 @@ export const buildRound = ({
   name,
   projectId = null,
   ordinal = 1,
-  status = 'active',
+  status = ROUND_STATUS.active,
   plan = null,
   stages,
   gate = null,
@@ -100,7 +101,7 @@ export const buildRound = ({
 export const studioFromRoom = (room, round) => {
   const studio = {
     ...room,
-    state: 'active',
+    state: ROOM_STATE.active,
     activeRoundId: round.id,
     lastRoundId: room.lastRoundId ?? null,
     defaultProjectId: round.projectId ?? room.defaultProjectId ?? null,

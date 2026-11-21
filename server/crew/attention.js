@@ -3,11 +3,12 @@ import { pendingApprovals } from './external-actions.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { memberDisplayName } from './member-labels.js'
 import { answeredCardIds, scopeIsValid } from '../../shared/attempt.js'
+import { ROOM_STATE } from '../../shared/states.js'
 
 // 注意力路由：只在房间真的卡在人这里时返回一个信号；不是未读数。
 // 通用状态在 kernel 判断，房型内部的“下一步该谁做”交给上下文 kind。
 export const roomNeedsYou = (room, messages = []) => {
-  const approvals = room.state === 'active'
+  const approvals = room.state === ROOM_STATE.active
     ? pendingApprovals(room).filter(item => scopeIsValid(item.scope, { room, messages }))
     : []
   if (approvals.length > 0) {
@@ -15,7 +16,7 @@ export const roomNeedsYou = (room, messages = []) => {
   }
   // 基座的问答卡也在等人：最后一张没回答、且仍属于当前这一步的卡，才算数。
   const answered = answeredCardIds(room, messages)
-  const card = room.state === 'active'
+  const card = room.state === ROOM_STATE.active
     ? [...messages].reverse().find(message => (
       message.kind === 'question' &&
       typeof message.meta?.card?.requestId === 'string' &&
@@ -29,10 +30,10 @@ export const roomNeedsYou = (room, messages = []) => {
       ? { kind: 'approval', stage: null, label: '有一个操作要你点头', detail: '允许或拒绝后，这一步继续。' }
       : { kind: 'question', stage: null, label: '待回答', detail: '有成员在等你的回答。' }
   }
-  if (room.state === 'active' && room.live === true && typeof room.connectionError === 'string' && room.connectionError !== '') {
+  if (room.state === ROOM_STATE.active && room.live === true && typeof room.connectionError === 'string' && room.connectionError !== '') {
     return { kind: 'connection', stage: null, label: '连接断了', detail: '模型服务掉线了；连上后点继续。' }
   }
-  if (room.state === 'active' && room.blocked?.reason !== undefined) {
+  if (room.state === ROOM_STATE.active && room.blocked?.reason !== undefined) {
     const workers = Array.isArray(room.blocked.workers) ? room.blocked.workers : []
     const names = workers.map(id => memberDisplayName(room, id)).join('、')
     return {
@@ -56,7 +57,7 @@ export const roomNeedsYou = (room, messages = []) => {
             : '退回重做，或叫停后重新派活。',
     }
   }
-  if (room.state === 'paused') {
+  if (room.state === ROOM_STATE.paused) {
     if (room.pauseReason === 'mcp') return { kind: 'mcp', stage: null, label: '连接中断' }
     if (room.pauseReason === 'approval') return { kind: 'approval', stage: null, label: '确认超时' }
     if (room.pauseReason === 'member_error') {
@@ -71,7 +72,7 @@ export const roomNeedsYou = (room, messages = []) => {
     }
     return room.idle === true ? { kind: 'idle', stage: null, label: '可以接着聊' } : null
   }
-  if (room.state !== 'active') return null
+  if (room.state !== ROOM_STATE.active) return null
   return roomPresentationOfRoom(room)?.needsYou?.(room, messages) ?? null
 }
 

@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { ROOM_STATE } from '../../shared/states.js'
 
 const ttlDays = () => {
   const value = Number(process.env.CREW_WORKTREE_TTL_DAYS ?? 7)
@@ -39,7 +40,7 @@ export const collectWorkspaceGarbage = ({
   }
 
   for (const room of store.readRooms()) {
-    if (!room.archivedAt && room.state !== 'stopped') continue
+    if (!room.archivedAt && room.state !== ROOM_STATE.stopped) continue
     let members
     try {
       members = workspace.provider(room).pruneMembers(room)
