@@ -34,7 +34,7 @@ test('the health card reads the active stage diagnostic and room usage', () => {
   assert.equal(health.index, 1)
   assert.equal(health.title, '实现')
   assert.equal(health.memberName, '执行官')
-  assert.equal(health.usage, '2 回合 · $0.0042')
+  assert.equal(health.usage, '2 轮 · $0.0042')
   assert.equal(health.reworks, 1)
   assert.equal(health.human, 1)
   assert.equal(health.diagnostic.assessment.unknown[0], '费用未知')
@@ -44,7 +44,7 @@ test('the health card reads the active stage diagnostic and room usage', () => {
 test('the first line asks what is needed, not how the factory is running', () => {
   const needs = healthLineOf(healthOf(room()))
   assert.equal(needs, '需要你：待确认')
-  assert.doesNotMatch(needs, /\$|回合|返工|证据/)
+  assert.doesNotMatch(needs, /\$|轮|重做|证据/)
 
   const running = healthLineOf(healthOf(room({ needsYou: null, busyMembers: ['executor'] })))
   assert.equal(running, '工作详情')
@@ -57,5 +57,5 @@ test('a room without an active stage has no health card', () => {
 
 test('an unknown cost reads as unknown, not zero', () => {
   const health = healthOf(room({ usage: { turns: 1, costMicroUsd: 0, costStatus: 'unknown' } }))
-  assert.equal(health.usage, '1 回合 · 费用未知')
+  assert.equal(health.usage, '1 轮 · 费用未知')
 })

@@ -250,7 +250,7 @@ test('a busy base skips the round instead of queueing every speaker', async () =
   })
   await scheduler.start(ctx.room())
   assert.equal(ctx.history.filter(message => message.role === 'user' && !message.text.includes('请总结')).length, 0)
-  assert.ok(ctx.messages.some(message => /基座一直忙/.test(message.text ?? '')))
+  assert.ok(ctx.messages.some(message => /Lodge 服务一直忙/.test(message.text ?? '')))
 })
 
 test('three silent speakers end the round early', async () => {

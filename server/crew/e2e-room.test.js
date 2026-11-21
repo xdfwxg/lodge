@@ -283,7 +283,7 @@ test('a body that is not logged in never starts the room', async () => {
       ports,
     })
     assert.equal(result.ok, false)
-    assert.match(result.error, /身体没准备好/)
+    assert.match(result.error, /成员还没准备好/)
     assert.match(result.error, /登录失效/)
     assert.deepEqual(store.readRooms(), [])
   } finally {

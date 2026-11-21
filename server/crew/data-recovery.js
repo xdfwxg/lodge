@@ -11,7 +11,7 @@ const check = file => {
   try {
     db = new DatabaseSync(file, { readOnly: true })
     const value = db.prepare('PRAGMA integrity_check').get()?.integrity_check
-    return value === 'ok' ? null : `完整性检查失败：${value ?? '未知'}`
+    return value === 'ok' ? null : `数据检查没通过：${value ?? '未知'}`
   } catch (error) {
     return `无法打开：${error?.message ?? error}`
   } finally {

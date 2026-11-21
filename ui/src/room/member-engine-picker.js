@@ -62,7 +62,7 @@ export function MemberEnginePicker({
         h('div', { className: 'crew-member-engine-controls' },
           h('select', {
             className: 'crew-member-menu',
-            'aria-label': `${member.name ?? member.role}的智能体`,
+            'aria-label': `${member.name ?? member.role}的 AI 服务`,
             value: choice.engine,
             onChange: event => {
               setChoices(replaceChoice(choices, index, { engine: event.target.value, model: '', personality: choice.personality || member.personality || '' }))
@@ -93,14 +93,14 @@ export function MemberEnginePicker({
             rows.map(item => h('option', { key: item.id, value: item.id }, item.label)))
             : null,
           engine !== undefined && rows.length === 0
-            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个智能体还没有可用模型。')
+            ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个 AI 服务还没有可用模型。')
             : null,
           engine !== undefined && engine.authenticated !== false && needsGate === true && engine.capabilities?.approvalReview !== true
             ? h('p', { className: 'crew-field-hint crew-member-hint' }, '这个模型不会先问你，不能用来执行。换一个会先问你的模型。')
             : null),
         allowCapabilities
           ? h('details', { className: 'crew-member-capabilities' },
-            h('summary', null, allowSkills ? '技能 / MCP 工具' : 'MCP 工具'),
+            h('summary', null, allowSkills ? '技能 / 工具连接' : '工具连接'),
             allowSkills
               ? h('input', {
                 className: 'crew-goal-input',
@@ -116,8 +116,8 @@ export function MemberEnginePicker({
             h('input', {
               className: 'crew-goal-input',
               value: choice.mcpText ?? '',
-              placeholder: 'MCP 服务名，用逗号分隔',
-              'aria-label': `${member.name ?? member.role}的 MCP 服务`,
+              placeholder: '工具连接名，用逗号分隔',
+              'aria-label': `${member.name ?? member.role}的工具连接`,
               onChange: event => {
                 setChoices(replaceChoice(choices, index, { ...choice, mcpText: event.target.value }))
                 onInteraction()

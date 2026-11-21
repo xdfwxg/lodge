@@ -146,7 +146,7 @@ test('delivery fails closed when the member has no base address', async () => {
       memberId: 'worker',
       text: '开始',
     }),
-    /没有基座地址/,
+    /还没有连上 Lodge 服务/,
   )
   assert.equal(ctx.calls.length, 0)
 })

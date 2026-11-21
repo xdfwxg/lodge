@@ -438,11 +438,11 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
           const vision = delivery.vision ?? null
           if (vision === null) return null
           const text = vision.missing === true
-            ? '这次验收只看文字证据，渲染图没有核对。'
+            ? '这次验收只看了文字，效果图没有核对。'
             : vision.declared !== true
-              ? '这间房没有能看图的验收员，渲染图只做了像素检查。'
+              ? '这间房没有能看图的验收员，效果图只做了截图比对。'
               : vision.checked === true && vision.seen === false
-                ? '验收员这次没有看到渲染图，结论来自像素检查。'
+                ? '验收员这次没有看到效果图，结论来自截图比对。'
                 : ''
           return text === '' ? null : h('p', { className: 'crew-field-hint' }, text)
         })(),
@@ -494,11 +494,11 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
         prDraft === null
           ? null
           : h('details', { className: 'crew-fold studio-pr-draft' },
-            h('summary', null, 'PR 文案'),
+            h('summary', null, '交付说明'),
             h('pre', { className: 'crew-code studio-pr-draft-body' }, prDraft.body),
             h('div', { className: 'studio-pr-draft-actions' },
-              h('button', { type: 'button', className: 'crew-link', onClick: copyPrDraft }, prCopied ? '已复制' : '复制 PR 文案'),
-              h('span', { className: 'crew-field-hint' }, '不会自动 push；确认后再走外部动作。'))),
+              h('button', { type: 'button', className: 'crew-link', onClick: copyPrDraft }, prCopied ? '已复制' : '复制交付说明'),
+              h('span', { className: 'crew-field-hint' }, '不会自动发到远端；确认后再走外部动作。'))),
         routineNode,
         h('details', {
           className: 'crew-fold studio-delivery-details',

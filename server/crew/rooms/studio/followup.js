@@ -23,7 +23,7 @@ export const buildFollowupBody = ({ room, messages = [], text = '', attachments 
   if (room === null || room?.roomType !== 'studio') return { error: '只有工作室能接着改' }
   const stages = Array.isArray(room.stages) ? room.stages : []
   const delivered = room.state === 'complete' || (stages.length > 0 && stages.every(stage => stage.state === 'passed'))
-  if (!delivered) return { error: '这一步还没交付，先在房间里返工或重开' }
+  if (!delivered) return { error: '这一步还没交付，先在房间里重做或重开' }
   const words = typeof text === 'string' ? text.trim().slice(0, 2000) : ''
   if (words === '' && attachments.length === 0) return { error: '说一句要改什么' }
 

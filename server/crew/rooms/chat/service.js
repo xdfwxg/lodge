@@ -47,7 +47,7 @@ export const createServiceChat = ({ store, live, emit }) => {
         if (current.chat?.running !== true) return null
         const rolled = transitionChat(current.chat.phase ?? 'discussing', 'abort')
         current.chat = { ...current.chat, running: false, speaker: '', ...(rolled.ok ? { phase: rolled.state } : {}) }
-        return { events: rolled.ok ? [chatTransitionEvent(rolled, 'abort', 'system', '继续讨论启动失败')] : [] }
+        return { events: rolled.ok ? [chatTransitionEvent(rolled, 'abort', 'system', '这次没能继续讨论，再试一次')] : [] }
       })
       if (reset !== null) emit('room', reset)
     })

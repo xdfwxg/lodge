@@ -13,7 +13,7 @@ const usageText = usage => {
   const cost = usage.costStatus === 'unknown'
     ? '费用未知'
     : usage.costStatus === 'partial' ? `至少 ${money(usage.costMicroUsd)}` : money(usage.costMicroUsd)
-  return `${turns} 回合 · ${cost}`
+  return `${turns} 轮 · ${cost}`
 }
 
 export const healthOf = room => {

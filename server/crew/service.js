@@ -577,7 +577,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         }
         if (reattach) {
           const failed = updateRoom(room.id, current => {
-            current.connectionError = `基座连接中断：${attachError?.message ?? '房间没能连上'}`
+            current.connectionError = `Lodge 服务连接中断：${attachError?.message ?? '房间没能连上'}`
             return { events: [{ type: 'room.connection', payload: { connected: false } }] }
           })
           if (failed !== null) emit('room', failed)
@@ -673,7 +673,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     }
 
     if (action === 'swap-body' && method === 'POST') {
-      if (room.live !== true || typeof live.swapBody !== 'function') return fail('conflict', '当前房间没有可换的身体')
+      if (room.live !== true || typeof live.swapBody !== 'function') return fail('conflict', '当前房间不能调整成员')
       return live.swapBody(room, await readBody())
     }
 
@@ -927,7 +927,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         if (image) {
           const saved = await attachments.uploadImage(bytes, type)
           const savedName = attachmentNameOf(saved?.path)
-          if (!isAttachmentName(savedName)) return fail('upstream', '基座没有存下这张图')
+          if (!isAttachmentName(savedName)) return fail('upstream', 'Lodge 服务没有存下这张图')
           return ok({
             attachment: {
               kind: 'image',
@@ -943,7 +943,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
         const saved = await attachments.uploadFile(bytes, wanted, type || 'application/octet-stream')
         // 基座把原始文件名放在 name 里，磁盘上是 uuid；路径必须用磁盘名，显示用原名。
         const savedName = attachmentNameOf(saved?.path)
-        if (!isAttachmentName(savedName)) return fail('upstream', '基座没有存下这个文件')
+        if (!isAttachmentName(savedName)) return fail('upstream', 'Lodge 服务没有存下这个文件')
         const title = typeof saved?.name === 'string' && saved.name !== '' ? saved.name : wanted
         const text = isTextFile(type) ? textOfFile(bytes) : ''
         return ok({

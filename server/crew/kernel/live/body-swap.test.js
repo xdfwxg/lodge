@@ -106,7 +106,7 @@ test('swapping keeps the member and its history, and replaces the body', async (
   assert.equal(calls.created.length, 0)
   assert.equal(calls.patched[0].id, 'bot-worker')
   assert.match(calls.patched[0].payload.soul, /你是worker/)
-  assert.match(calls.messages.at(-1).text, /换好了身体/)
+  assert.match(calls.messages.at(-1).text, /调整好了/)
   assert.equal(calls.events.some(event => event.type === 'member.body.swapped'), true)
 })
 
@@ -173,7 +173,7 @@ test('planner and verifier cannot add non-browser tools', async () => {
 test('bad skill or tool names are refused', async () => {
   const { swap, calls } = harness()
   assert.match((await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', skills: ['bad name'] })).error, /技能名/)
-  assert.match((await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', mcp: ['https://x'] })).error, /服务名/)
+  assert.match((await swap.swap(roomOf(), { memberId: 'worker', engine: 'claude', mcp: ['https://x'] })).error, /工具连接/)
   assert.equal(calls.created.length, 0)
 })
 
@@ -198,7 +198,7 @@ test('a busy chat room waits for the round to end', async () => {
   const room = { ...roomOf(), roomType: 'chat', chat: { running: true } }
   const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /等这一回合结束/)
+  assert.match(result.error, /等手上这次做完/)
   assert.equal(calls.created.length, 0)
 })
 
@@ -216,7 +216,7 @@ test('a busy room keeps its body until the turn ends', async () => {
   room.busyMembers = ['worker']
   const result = await swap.swap(room, { memberId: 'worker', engine: 'claude', model: 'sonnet' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /等这一回合结束/)
+  assert.match(result.error, /等手上这次做完/)
   assert.equal(calls.created.length, 0)
 })
 

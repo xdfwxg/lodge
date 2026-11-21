@@ -107,7 +107,7 @@ test('a chat room cannot remove a member while someone is speaking', async () =>
   const room = { ...roomOf(), roomType: 'chat', chat: { running: true } }
   const result = await remove.remove(room, { memberId: 'worker' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /等这一回合结束/)
+  assert.match(result.error, /等手上这次做完/)
   assert.equal(calls.retired.length, 0)
 })
 
@@ -117,6 +117,6 @@ test('a busy room waits before removing anyone', async () => {
   room.busyMembers = ['worker']
   const result = await remove.remove(room, { memberId: 'worker' })
   assert.equal(result.ok, false)
-  assert.match(result.error, /等这一回合结束/)
+  assert.match(result.error, /等手上这次做完/)
   assert.equal(calls.retired.length, 0)
 })

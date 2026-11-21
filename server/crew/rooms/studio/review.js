@@ -165,7 +165,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     if (visualMissing) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `${name} 这次只看文字证据，渲染图没有核对。`,
+        text: `${name} 这次只看文字，效果图没有核对。`,
         meta: { kind: 'visual', stage: pending.stage },
       })
     }
@@ -223,8 +223,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       store.appendMessage(roomId, {
         kind: 'system',
         text: policy === 'majority'
-          ? `${name} 投了退回，这一轮未通过；@规划师 接手返工。`
-          : `${name} 退回了这一步；@规划师 接手返工。`,
+          ? `${name} 投了退回，这一轮未通过；@规划师 接手重做。`
+          : `${name} 退回了这一步；@规划师 接手重做。`,
         meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner' },
       })
       const current = store.readRoom(roomId)

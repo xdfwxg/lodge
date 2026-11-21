@@ -224,7 +224,7 @@ export const parseProposal = reply => {
   }
   const orchestrationId = orchestration?.id ?? defaultOrchestrationId
   const notes = [
-    requestedOrchestration !== '' && orchestration === null ? `未知编排策略「${requestedOrchestration}」，按流水线执行` : '',
+    requestedOrchestration !== '' && orchestration === null ? `不认识的分配方式「${requestedOrchestration}」，按默认顺序执行` : '',
     orchestrationId === 'parallel' && workers.length < 2 ? '并行需要至少两个执行成员；当前按单成员执行' : '',
     data.verify === 'test' && rawAcceptance === '' ? '方案没有给出可执行命令，验收改为你确认' : '',
     tooManyQuestions ? '规划师给了超过 3 个问题，只保留前 3 个' : '',

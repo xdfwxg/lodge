@@ -91,7 +91,7 @@ export function SideMembers({ room, onHold = null }) {
         role: 'menuitem',
         className: 'crew-side-menu-item',
         onClick: () => choose(() => openBodyDialog(menu.memberId)),
-      }, '换身体或性格'),
+      }, '调整成员'),
       h('button', {
         type: 'button',
         role: 'menuitem',

@@ -72,7 +72,7 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
     } catch (error) {
       store.appendMessage(room.id, {
         kind: 'system',
-        text: `${member.name}已经移出房间，但基座成员列表没同步成功；下次操作会自动纠正。`,
+        text: `${member.name}已经移出房间；服务里的成员列表稍后会自动对齐。`,
       })
     }
     await bodies.retire(member.body)

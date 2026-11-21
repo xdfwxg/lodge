@@ -76,12 +76,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   }
   const wantsSkills = roster.some(member => (member.skills ?? []).length > 0)
   if (wantsSkills && ports.roleSkills?.ready?.() === false) {
-    return fail('conflict', '角色技能包没有准备好；先检查基座技能库，或稍后重启 Lodge')
+    return fail('conflict', '角色技能还没有准备好；先检查 Lodge 服务的技能库，或稍后重启 Lodge')
   }
   if (wantsSkills && typeof engine.features === 'function') {
     const features = await engine.features()
     if (features?.skillsLibrary !== true) {
-      return fail('conflict', '基座的技能库还没打开；先在基座设置里打开技能库，或去掉成员技能')
+      return fail('conflict', 'Lodge 服务的技能库还没打开；先打开技能库，或去掉成员技能')
     }
   }
 
@@ -161,7 +161,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     const bodyIssues = (provisioned.bodyIssues ?? []).filter(item => item.issue !== '')
     if (bodyIssues.length > 0) {
       await discard()
-      return fail('invalid', `身体没准备好：${bodyIssueText(bodyIssues)}`)
+      return fail('invalid', `成员还没准备好：${bodyIssueText(bodyIssues)}`)
     }
     // 不会逐次确认外部动作的验收员只读参与：它看证据、给结论，命令由平台在副本里跑。
     const readOnlyVerifierIds = new Set(

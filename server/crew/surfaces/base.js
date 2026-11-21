@@ -23,7 +23,7 @@ export const createBaseSurface = ({ engine }) => {
       const chatId = chatIdOf(room)
       const memberRef = memberOf(room, memberId)?.body?.ref
       if (chatId === null || typeof memberRef !== 'string' || memberRef === '') {
-        throw new Error('这个成员没有基座地址')
+        throw new Error('这个成员还没有连上 Lodge 服务')
       }
       await engine.setRoomHold(chatId, memberRef, held)
       return { ok: true, memberId, held }

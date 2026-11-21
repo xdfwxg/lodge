@@ -209,7 +209,7 @@ test('role skills fail before creating anything when the packs are not ready', a
   })
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'conflict')
-  assert.match(result.error, /角色技能包/)
+  assert.match(result.error, /角色技能/)
   assert.deepEqual(engine.seatNames, [])
 })
 

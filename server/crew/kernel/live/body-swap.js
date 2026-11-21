@@ -41,7 +41,7 @@ export const createBodySwap = ({ store, engine, emit }) => {
     const hasSpec = member.body?.spec !== undefined && member.body?.spec !== null
     const providedSpec = body.prompt !== undefined || body.skills !== undefined || body.mcp !== undefined
     if (!hasSpec && !providedSpec) {
-      return fail('invalid', '先补上行为说明、技能和 MCP，再保存。')
+      return fail('invalid', '先补上行为说明、技能和工具连接，再保存。')
     }
     const currentSpec = member.body?.spec ?? {}
     const current = {
@@ -125,10 +125,10 @@ export const createBodySwap = ({ store, engine, emit }) => {
           }],
         }
       })
-      if (updated === null) throw new Error('房间状态已变化，身体没有写入')
+      if (updated === null) throw new Error('房间状态已经变化，成员设置没有写入')
       store.appendMessage(room.id, {
         kind: 'system',
-        text: `${member.name}换好了身体：${labelOf(instances, oldBody.engine, oldBody.model)} → ${labelOf(instances, instance.id, model)}。历史不变，接着做。`,
+        text: `${member.name}调整好了：${labelOf(instances, oldBody.engine, oldBody.model)} → ${labelOf(instances, instance.id, model)}。历史不变，接着做。`,
       })
       emit('room', store.readRoom(room.id) ?? updated)
       return ok({ room: updated, memberId })

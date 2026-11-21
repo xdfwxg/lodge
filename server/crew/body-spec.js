@@ -23,7 +23,7 @@ export const normalizeBodySpec = ({ input = {}, fallback = {} } = {}) => {
   }
   const mcpInput = input.mcp === undefined ? fallback.mcp : input.mcp
   if ((Array.isArray(mcpInput) ? mcpInput : []).some(item => !isId(typeof item === 'string' ? item : item?.server))) {
-    return { error: 'MCP 服务只填服务名，不能放地址或凭证' }
+    return { error: '工具连接只填名字，不能放地址或凭证' }
   }
   return { spec: { prompt, skills, mcp: normalizeMcpGrants(mcpInput) } }
 }

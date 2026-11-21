@@ -81,23 +81,23 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
           onChange: event => setName(event.target.value),
         }))),
     h(Segmented, {
-      label: '换身体或性格',
+      label: '调整成员',
       value: tab,
       onChange: setTab,
       disabled: busy,
       className: 'crew-dialog-seg',
       options: [
-        { value: 'body', label: '身体' },
+        { value: 'body', label: '模型与能力' },
         { value: 'mind', label: '性格' },
       ],
     }),
     h('div', { className: 'crew-dialog-body' },
       tab === 'body' ? h(Fragment, null,
         h('label', { className: 'crew-field crew-body-swap-field' },
-          h('b', null, '智能体'),
+          h('b', null, 'AI 服务'),
           h('select', {
             className: 'crew-member-menu',
-            'aria-label': '新成员的智能体',
+            'aria-label': '新成员的 AI 服务',
             value: engineId,
             disabled: busy,
             onChange: event => {
@@ -106,7 +106,7 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
               clearNote()
             },
           },
-          h('option', { value: '' }, '选一个智能体'),
+          h('option', { value: '' }, '选一个 AI 服务'),
           available.map(item => {
             const reason = engineBlockReason(item, { requireApproval: true })
             return h('option', {
@@ -128,7 +128,7 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
             rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
           : null,
         available.length === 0
-          ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个智能体。')
+          ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个 AI 服务。')
           : engineId === '' && readiness.ready.length === 0 && readiness.noModels.length > 0 &&
             readiness.loginTargets.length + readiness.manualLogin.length === 0
             ? h('p', { className: 'crew-field-hint', role: 'alert' },
@@ -138,10 +138,10 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
             : h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
               ? '执行成员要用会先问你的模型。'
               : blockedReason === '登录失效'
-                ? '这个智能体还没登录。'
+                ? '这个 AI 服务还没登录。'
                 : blockedReason === '没有配置模型'
-                  ? '这个智能体还没有可用模型。'
-                  : '换一个可用的智能体。'),
+                  ? '这个 AI 服务还没有可用模型。'
+                  : '换一个可用的 AI 服务。'),
         h(EngineLogin, {
           readiness,
           busyId: loginBusyId,

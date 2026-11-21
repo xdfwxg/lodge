@@ -20,7 +20,7 @@ export const planDispatch = ({ room, stage, index, workers }) => {
   const assignees = plan.assignees.filter(worker => workers.includes(worker))
   const parallel = plan.parallel === true
   if (!parallel && assignees.length > 1) {
-    throw new Error(`编排策略 ${strategy.id} 返回了非并行多成员派发`)
+    throw new Error(`这次分配没法同时派给多人，先按顺序做`)
   }
   return {
     strategy,

@@ -42,10 +42,10 @@ export function CapabilityReadOnly({ skills = [], mcp = [], note = '' }) {
       h('span', { className: 'crew-capability-chips' },
         (Array.isArray(skills) ? skills : []).map(name => h('code', { key: name }, name)))),
     h('div', { className: 'crew-capability-row' },
-      h('span', { className: 'crew-capability-label' }, 'MCP'),
+      h('span', { className: 'crew-capability-label' }, '工具连接'),
       h('span', { className: 'crew-capability-chips' },
         servers.length === 0
-          ? h('span', { className: 'crew-capability-empty' }, '无额外 MCP')
+          ? h('span', { className: 'crew-capability-empty' }, '没有额外工具连接')
           : servers.map(name => h('code', { key: name }, name)))))
 }
 

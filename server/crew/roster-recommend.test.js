@@ -61,7 +61,7 @@ test('an unknown orchestration falls back to pipeline with a visible note', () =
     why: '单人',
   }))
   assert.equal(proposal.orchestration, 'pipeline')
-  assert.match(proposal.note, /未知编排策略/)
+  assert.match(proposal.note, /不认识的分配方式/)
 })
 
 test('a team proposal keeps canonical names and reasons and derives permissions later', () => {

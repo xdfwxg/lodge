@@ -297,7 +297,7 @@ test('an exhausted rework budget asks the human instead of reworking again', () 
   turns.captureTurn({ reply: '返工\n再改一次', turnId: 't-lead-budget', toolCalls: 0 }, 'bot-plan')
   assert.equal(room.lastPlannerDecision.kind, 'human')
   assert.equal(room.lastPlannerDecision.judgment.source, 'policy')
-  assert.match(room.lastPlannerDecision.judgment.actionRequired, /返工预算/)
+  assert.match(room.lastPlannerDecision.judgment.actionRequired, /重做次数/)
   assert.equal(store.messages.filter(message => message.kind === 'rework' && message.meta?.stage === 0).length, 3)
 })
 

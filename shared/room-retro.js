@@ -13,7 +13,7 @@ export const retroOf = (room, messages = []) => {
       const reason = latestText(messages, 'rework')
       items.push({
         kind: 'rework',
-        text: `返工 ${reworks} 次${reason === '' ? '' : `：${reason}`}`,
+        text: `重做 ${reworks} 次${reason === '' ? '' : `：${reason}`}`,
         suggestion: '把这一步的验收写成一条能跑的检查，减少来回解释。',
       })
     }

@@ -11,9 +11,9 @@ const room = overrides => ({
 })
 
 test('body changes wait for a busy or speaking room', () => {
-  assert.match(bodyChangeBlocker(room({ busyMembers: ['worker'] }), '换身体'), /等这一回合结束/)
-  assert.match(bodyChangeBlocker(room({ roomType: 'chat', chat: { running: true } }), '移除成员'), /等这一回合结束/)
-  assert.match(bodyChangeBlocker(room({ turnQueue: [{ state: 'queued' }] }), '加成员'), /等这一回合结束/)
+  assert.match(bodyChangeBlocker(room({ busyMembers: ['worker'] }), '换身体'), /等手上这次做完/)
+  assert.match(bodyChangeBlocker(room({ roomType: 'chat', chat: { running: true } }), '移除成员'), /等手上这次做完/)
+  assert.match(bodyChangeBlocker(room({ turnQueue: [{ state: 'queued' }] }), '加成员'), /等手上这次做完/)
   assert.equal(bodyChangeBlocker(room({}), '换身体'), null)
 })
 

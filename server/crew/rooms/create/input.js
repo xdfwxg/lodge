@@ -92,7 +92,7 @@ export const normalizeRequest = body => {
   }
   const shadowReview = body.shadowReview === true
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
-  if (orchestration === null) return { error: '未知的编排策略' }
+  if (orchestration === null) return { error: '不认识的分配方式' }
   const handoff = normalizeHandoff(body.handoff)
   const handoffReviewed = body.handoffReviewed === true
   const receipt = normalizeReceipt(body.receipt)

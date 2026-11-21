@@ -17,7 +17,7 @@ test('reworks quote the latest reason', () => {
     { kind: 'rework', text: '少了一个边界' },
   ])
   assert.equal(retro.items[0].kind, 'rework')
-  assert.match(retro.items[0].text, /返工 2 次：少了一个边界/)
+  assert.match(retro.items[0].text, /重做 2 次：少了一个边界/)
   assert.match(retro.items[0].suggestion, /验收/)
 })
 

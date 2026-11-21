@@ -205,7 +205,7 @@ export const createLiveApprovals = ({
             requestId: approval.requestId,
             behavior: 'deny',
           })
-          if (result?.ok === false) throw new Error(result.error ?? '基座没有接受拒绝')
+          if (result?.ok === false) throw new Error(result.error ?? 'Lodge 服务没有接受这次拒绝')
         } catch {
           // 基座还没收到拒绝就把本地卡留着；重连时还有机会再送一次。
           continue
@@ -311,7 +311,7 @@ export const createLiveApprovals = ({
     const sessionRef = target?.sessionRef ?? room?.chatRoom?.sessionRef
     try {
       const result = await engine.answerCard({ sessionRef, requestId, behavior: 'answer', message: text })
-      if (result?.ok === false) throw new Error(result.error ?? '基座没有接受这个回答')
+      if (result?.ok === false) throw new Error(result.error ?? 'Lodge 服务没有接受这个回答')
       rememberAnswer(entry, requestId)
       markRoomAnswer(store, roomId, requestId)
       appendHumanContext({

@@ -109,7 +109,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       )
       assignees = assignees.filter(id => only.includes(id) || cancelled.has(id))
     }
-    if (assignees.length === 0) throw new Error('编排策略没有可派发的执行成员')
+    if (assignees.length === 0) throw new Error('这次分配没有可执行的成员')
     const parentAssignment = rework ? latestDispatchAssignment(store, roomId, index) : null
     const workspaceCaps = workspaceOf(room).capabilities()
     if (assignees.length > 1 && workspaceCaps.merge !== true) {

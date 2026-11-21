@@ -188,7 +188,7 @@ export const createChatScheduler = ({
     try {
       if (speakers.length > 0) {
         const idle = await waitIdle(run, idleMs)
-        if (!idle) store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
+        if (!idle) store.appendMessage(roomId, { kind: 'system', text: 'Lodge 服务一直忙，这一轮先不再叫人发言。' })
         if (idle) {
         let misses = 0
         const orderBefore = await transport.messageIds()
@@ -327,7 +327,7 @@ export const createChatScheduler = ({
             pendingBefore = before
           }
           if (!(await waitIdle(run, idleMs))) {
-            store.appendMessage(roomId, { kind: 'system', text: '基座一直忙，本轮不再继续派发言。' })
+            store.appendMessage(roomId, { kind: 'system', text: 'Lodge 服务一直忙，这一轮先不再叫人发言。' })
             break
           }
        }

@@ -105,7 +105,7 @@ export const createLiveRooms = ({
   })
 
   const markDisconnected = (roomId, error) => {
-    const text = `基座连接中断：${error?.message ?? error}`
+    const text = `Lodge 服务连接中断：${error?.message ?? error}`
     const updated = store.updateRoom(roomId, current => {
       if (current.live !== true) return null
       if (current.connectionError === text) return null
@@ -412,7 +412,7 @@ export const createLiveRooms = ({
     const memberRef = member?.body?.ref
     const chatId = room.chatRoom?.id
     if (typeof memberRef !== 'string' || memberRef === '' || typeof chatId !== 'string' || chatId === '') {
-      throw new Error('这个成员没有基座地址')
+      throw new Error('这个成员还没有连上 Lodge 服务')
     }
     await surfaces.of(room, memberId).hold({ room, memberId, held })
     await refreshRoom(entry, { force: true })

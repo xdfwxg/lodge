@@ -20,5 +20,5 @@ test('body spec trims prompt and accepts bare MCP names as read-only grants', ()
 
 test('body spec rejects unsafe skill names and MCP grants', () => {
   assert.match(normalizeBodySpec({ input: { skills: ['rm -rf'] } }).error, /技能名/)
-  assert.match(normalizeBodySpec({ input: { mcp: ['https://example.com'] } }).error, /MCP 服务只填服务名/)
+  assert.match(normalizeBodySpec({ input: { mcp: ['https://example.com'] } }).error, /工具连接只填名字/)
 })

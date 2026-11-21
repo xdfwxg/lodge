@@ -101,7 +101,7 @@ test('a retried handoff keeps one delivery id', async () => {
 
 test('a transport failure marks the handoff failed without changing the stage', async () => {
   const ctx = setup(room(), async () => {
-    throw new Error('执行官 没有基座地址，消息没有送出')
+    throw new Error('执行官 还没有连上 Lodge 服务，消息没有送出')
   })
   await assert.rejects(
     () => ctx.handoff.trigger({
@@ -114,7 +114,7 @@ test('a transport failure marks the handoff failed without changing the stage', 
       prompt: '阶段开始',
       acceptance: 'npm test',
     }),
-    /没有基座地址/,
+    /还没有连上 Lodge 服务/,
   )
   assert.equal(ctx.store.readAssignments('room-1')[0].status, 'failed')
   assert.equal(ctx.room().stages[0].state, 'active')

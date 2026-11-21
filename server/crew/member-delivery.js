@@ -49,7 +49,7 @@ export const deliverToBase = ({
     const name = memberId === 'host'
       ? '主持人'
       : memberId === 'shadow' ? '影子评审' : memberDisplayName(current, memberId)
-    return Promise.reject(new Error(`${name} 没有基座地址，消息没有送出`))
+    return Promise.reject(new Error(`${name} 还没有连上 Lodge 服务，消息没有送出`))
   }
   // 叫停是人的决定：系统的自动派发不能靠一次 @ 把成员重新叫起来。
   if (Array.isArray(current.heldMembers) && current.heldMembers.includes(memberId)) {
