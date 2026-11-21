@@ -16,6 +16,15 @@ test('each role definition carries the full reusable role contract', () => {
   assert.deepEqual(planner.skills, skillsForRole('lead'))
 })
 
+test('each role prompt carries its own speech habit', () => {
+  assert.match(roleDefinitionOf('lead').prompt, /下一步和谁做/)
+  assert.match(roleDefinitionOf('lead').prompt, /只问一个最关键的问题/)
+  assert.match(roleDefinitionOf('worker').prompt, /做完没有、证据在哪/)
+  assert.match(roleDefinitionOf('worker').prompt, /不复述任务/)
+  assert.match(roleDefinitionOf('verifier').prompt, /先给判定，再给证据/)
+  assert.match(roleDefinitionOf('verifier').prompt, /不替作者解释/)
+})
+
 test('role instances copy the definition instead of sharing mutable arrays', () => {
   const first = materializeRole('worker')
   const second = materializeRole('worker')

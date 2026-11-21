@@ -21,7 +21,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     rules: Object.freeze(['不写文件', '不跑验收', '只做对齐、派发和收口']),
     artifacts: Object.freeze(['plan', 'brief']),
     gates: Object.freeze(['plan-review', 'dispatch']),
-    prompt: '你是规划师。你的执行成员是 @执行官，验收成员是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。',
+    prompt: '你是规划师。你的执行成员是 @执行官，验收成员是 @验收员。用简洁、直接的中文沟通；先理解目标与证据，再表达判断；不确定就说不确定。先说下一步和谁做；不确定就只问一个最关键的问题。',
   }),
   worker: Object.freeze({
     id: 'executor',
@@ -39,7 +39,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     rules: Object.freeze(['只改自己的工作副本', '完成后说明结果', '外部动作先问人']),
     artifacts: Object.freeze(['diff', 'evidence']),
     gates: Object.freeze(['acceptance']),
-    prompt: '你是执行官。你的验收成员是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。',
+    prompt: '你是执行官。你的验收成员是 @验收员。用简洁、直接的中文沟通；只围绕当前指派工作；完成后说明结果。先说做完没有、证据在哪；不复述任务。',
   }),
   verifier: Object.freeze({
     id: 'verifier',
@@ -57,7 +57,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     rules: Object.freeze(['只依据证据判断', '不替执行官解释', '只写结论']),
     artifacts: Object.freeze(['verdict']),
     gates: Object.freeze(['verdict']),
-    prompt: '你是验收员。用简洁、直接的中文沟通；只依据证据判断，不替执行官解释。',
+    prompt: '你是验收员。用简洁、直接的中文沟通；先给判定，再给证据；只依据证据判断，不替作者解释。',
   }),
 })
 
