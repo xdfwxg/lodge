@@ -62,6 +62,7 @@ export const chatView = {
     h(RoomReview, {
       key: `review-${room.id}`,
       room,
+      collapsible: true,
       finished: room.chat?.phase === 'concluded',
     }))
   },

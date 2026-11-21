@@ -17,14 +17,18 @@ const docs = {
   'Lodge.md': read('Lodge.md'),
   'docs/architecture.md': read('docs/architecture.md'),
   'docs/design.md': read('docs/design.md'),
+  'docs/agent-design.md': read('docs/agent-design.md'),
   'docs/operations.md': read('docs/operations.md'),
 }
 
-// 结构：根目录两份，docs 三份；再分叉就是档案，不是承诺。
+// 结构：根目录只放入口、产品契约、agent 契约和取舍标准；docs 三份。
 const rootDocs = readdirSync(root).filter(name => name.endsWith('.md')).sort()
-must('root keeps only README.md and Lodge.md', JSON.stringify(rootDocs) === JSON.stringify(['Lodge.md', 'README.md']))
+must(
+  'root keeps README, Lodge, CLAUDE and Jobs standards',
+  JSON.stringify(rootDocs) === JSON.stringify(['CLAUDE.md', 'Lodge.md', 'README.md', '乔布斯.md']),
+)
 const docsDir = readdirSync(resolve(root, 'docs')).filter(name => name.endsWith('.md')).sort()
-must('docs keeps architecture, design and operations', JSON.stringify(docsDir) === JSON.stringify(['architecture.md', 'design.md', 'operations.md']))
+must('docs keeps architecture, design, agent design and operations', JSON.stringify(docsDir) === JSON.stringify(['agent-design.md', 'architecture.md', 'design.md', 'operations.md']))
 
 for (const [file, text] of Object.entries(docs)) {
   if (file === 'README.md') continue
@@ -33,7 +37,7 @@ for (const [file, text] of Object.entries(docs)) {
 
 // README 是唯一入口：四份文档都能从入口点开。
 must('README links Lodge.md', docs['README.md'].includes('(Lodge.md)'))
-for (const file of ['architecture', 'design', 'operations']) {
+for (const file of ['architecture', 'design', 'agent-design', 'operations']) {
   must(`README links docs/${file}.md`, docs['README.md'].includes(`(docs/${file}.md)`))
 }
 

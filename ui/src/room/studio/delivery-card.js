@@ -392,6 +392,18 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
         : h('p', { className: 'crew-field-hint' }, '上一次还没结束，这次先没跑。'),
       historyNode)
   })()
+  const prDraftNode = prDraft === null ? null : h('div', { className: 'studio-delivery-more-block' },
+    h('p', { className: 'crew-routine-title' }, '交付说明'),
+    h('pre', { className: 'crew-code studio-pr-draft-body' }, prDraft.body),
+    h('div', { className: 'studio-pr-draft-actions' },
+      h('button', { type: 'button', className: 'crew-link', onClick: copyPrDraft }, prCopied ? '已复制' : '复制交付说明'),
+      h('span', { className: 'crew-field-hint' }, '不会自动发到远端；确认后再走外部动作。')))
+  const moreNode = prDraftNode === null && routineNode === null
+    ? null
+    : h('details', { className: 'crew-fold studio-delivery-more' },
+      h('summary', null, '更多'),
+      prDraftNode,
+      routineNode)
   return h('div', { className: 'crew-msg-conclusion', 'data-outcome': 'delivery' },
     h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true', 'aria-label': '结果' },
       h('div', { className: 'crew-card-body' },
@@ -491,15 +503,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
         firstCommand === '' ? null : h('p', { className: 'crew-field-hint' }, `检查命令：${firstCommand}`),
         openNotice === null ? null : h('p', { className: 'crew-field-hint', role: 'status' }, openNotice),
         openError === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, openError),
-        prDraft === null
-          ? null
-          : h('details', { className: 'crew-fold studio-pr-draft' },
-            h('summary', null, '交付说明'),
-            h('pre', { className: 'crew-code studio-pr-draft-body' }, prDraft.body),
-            h('div', { className: 'studio-pr-draft-actions' },
-              h('button', { type: 'button', className: 'crew-link', onClick: copyPrDraft }, prCopied ? '已复制' : '复制交付说明'),
-              h('span', { className: 'crew-field-hint' }, '不会自动发到远端；确认后再走外部动作。'))),
-        routineNode,
+        moreNode,
         h('details', {
           className: 'crew-fold studio-delivery-details',
           open: detailsOpen || undefined,

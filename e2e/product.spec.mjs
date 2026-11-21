@@ -21,8 +21,12 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   await expect(page.getByRole('button', { name: /^示例：把「朏朏住在灵动岛上」聊成一个方向，进行中$/ })).toBeVisible()
 
   await page.getByRole('button', { name: '新建房间' }).click()
-  await page.getByRole('menuitem', { name: '工作室' }).click()
   await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '先聊聊' })).toBeVisible()
+  await page.getByRole('button', { name: '先聊聊' }).click()
+  await expect(page.getByLabel('想聊什么？')).toBeVisible()
+  await page.getByRole('button', { name: '交给工作室' }).click()
+  await expect(page.getByLabel('要做什么？')).toBeVisible()
   await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
   await page.getByLabel('要做什么？').fill('把启动说明补成新人能照着跑的一页')
   // 测试环境故意不接基座；没有可用模型时开工必须继续禁用，而不是等服务端拒绝。
@@ -95,7 +99,6 @@ test('expanding the delivery details keeps the reading position', async ({ page,
 test('expanding new-room options keeps the dialog anchored', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '新建房间' }).click()
-  await page.getByRole('menuitem', { name: '工作室' }).click()
 
   const dialog = page.locator('.crew-dialog')
   const summary = page.locator('.crew-new-advanced > summary')

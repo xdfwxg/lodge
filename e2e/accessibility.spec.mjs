@@ -17,6 +17,9 @@ const expectClean = async page => {
 test('the first screen has no WCAG A/AA violations', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('.dsb-main')).toBeVisible()
+  // 基座不可达时，第一屏要说明原因并给出重试，而不是无限停在“正在准备”。
+  await expect(page.getByText('Lodge 还没准备好')).toBeVisible()
+  await expect(page.getByRole('button', { name: '重试' })).toBeVisible()
   await expectClean(page)
 })
 

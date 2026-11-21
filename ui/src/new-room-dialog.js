@@ -1,6 +1,5 @@
 import { Fragment, createElement as h, useEffect, useId, useRef, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
-import { Segmented } from './segmented.js'
 import { ChevronDownIcon } from './goal-island/glyphs.js'
 import { chooseDirectory as pickProjectDirectory } from './system.js'
 import { EngineLogin, useEngineLogin } from './engine-login.js'
@@ -24,14 +23,10 @@ const FALLBACK_ROOM_TYPES = ROOM_TYPE_MANIFEST.map(({ id, name, description, def
   defaultVerify,
 }))
 
-// 从侧栏新建时给出两条并列的路；从聊天室带来的交接或已指定房型的入口，
-// 房型已经由上下文决定，不再让人切换。
-export const roomTypeOptionsFor = ({ roomTypes = [], startType = null, seed = null } = {}) => {
-  if (startType !== null && startType !== undefined) return []
-  if (seed !== null && seed !== undefined) return []
-  const choices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
-  return choices.length > 1 ? choices.map(item => ({ value: item.id, label: item.name })) : []
-}
+// 前门只问要做什么；聊天室是次要入口。交接或显式房型已经由上下文决定，不再让人改。
+export const canSwitchRoomType = ({ startType = null, seed = null } = {}) => (
+  (startType === null || startType === undefined) && (seed === null || seed === undefined)
+)
 
 const CHAT_BASE_MEMBERS = 3
 
@@ -51,7 +46,6 @@ function NewRoomDialog({
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const studioMembers = uiKindOfType('studio').defaultMembers
-  const typeOptions = roomTypeOptionsFor({ roomTypes, startType, seed })
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
   const [shadowReview, setShadowReview] = useState(false)
@@ -142,6 +136,7 @@ function NewRoomDialog({
   const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
   const roomKind = uiKindOfType(roomType)
   const isChat = roomKind.teamMode === 'fixed'
+  const canSwitchType = canSwitchRoomType({ startType, seed }) && typeChoices.length > 1
   const chatRoster = chatMembers ?? (activeType?.defaultMembers ?? [])
   const needRepo = roomKind.workspace.required(null) && repoPath.trim() === ''
   const proposalMembers = proposal?.members ?? []
@@ -584,6 +579,23 @@ function NewRoomDialog({
         roomKind.setupFields(setupProps)))),
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
+  const footHint = studioMissingVerifier
+    ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '还差一位验收员；重新出方案后才能开工。')
+    : needRepo
+      ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '先选工作文件夹')
+      : gatePending === null ? null : h('span', { className: 'crew-dialog-foot-hint' }, gatePending)
+  const footLead = canSwitchType || footHint !== null
+    ? h('div', { className: 'crew-dialog-foot-lead' },
+      canSwitchType && step === 0
+        ? h('button', {
+          type: 'button',
+          className: 'crew-link',
+          onClick: () => chooseRoomType(isChat ? 'studio' : 'chat'),
+        }, isChat ? '交给工作室' : '先聊聊')
+        : null,
+      footHint)
+    : null
+
   return h('div', { className: 'crew-overlay', ...overlayProps },
     h('div', { className: 'crew-dialog', onClick: event => event.stopPropagation() },
       h('div', { className: 'crew-dialog-heading' },
@@ -597,22 +609,9 @@ function NewRoomDialog({
           title: '关闭',
           onClick: onClose,
         }, '×')),
-      typeOptions.length > 0
-        ? h(Segmented, {
-          label: '房间类型',
-          value: roomType,
-          onChange: chooseRoomType,
-          className: 'crew-dialog-seg',
-          options: typeOptions,
-        })
-        : null,
       step === 0 ? setupBody : proposalBody,
       h('div', { className: 'crew-dialog-foot' },
-        studioMissingVerifier
-          ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '还差一位验收员；重新出方案后才能开工。')
-          : needRepo
-            ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '先选工作文件夹')
-            : gatePending === null ? null : h('span', { className: 'crew-dialog-foot-hint' }, gatePending),
+        footLead,
         step > 0
           ? h('button', {
             type: 'button',

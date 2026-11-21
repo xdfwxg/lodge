@@ -74,15 +74,18 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-side-resizer:hover::after,.crew-side-resizer:focus-visible::after{background:var(--bt-accent)}
 .crew-side-resizer:focus-visible{outline:none}
 
-/* 房间收尾的复盘与问题：只读、安静，不抢交付卡。 */
+/* 房间收尾的复盘只记真实摩擦；默认折起来，不抢结果。 */
 .room-review{max-width:760px;margin:16px auto 0;padding:12px 14px;border:1px solid var(--bt-line-2);border-radius:14px;background:var(--bt-card);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:18px}
 .room-review-title{margin:0 0 8px;color:var(--bt-ink);font-size:var(--bt-text-label);font-weight:600}
-.room-review-list,.room-review-issues{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+details.room-review>summary{list-style:none;cursor:pointer}
+details.room-review>summary::-webkit-details-marker{display:none}
+details.room-review:not([open])>summary{margin-bottom:0}
+.room-review-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
 .room-review-list li{display:flex;flex-direction:column;gap:2px}
 .room-review-list b{color:var(--bt-ink);font-weight:600}
-.room-review-issues li{display:flex;justify-content:space-between;gap:12px}
-.room-review-issues em{flex:none;color:var(--bt-ink-3);font-style:normal}
 
 
+.studio-delivery-more-block{padding:10px 0}
+.studio-delivery-more-block + .studio-delivery-more-block{border-top:1px solid var(--bt-line)}
 .studio-pr-draft-body{max-height:360px;overflow:auto;white-space:pre-wrap;margin:8px 0}
 .studio-pr-draft-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}

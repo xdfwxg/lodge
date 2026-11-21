@@ -9,6 +9,8 @@ import { useProfileSync } from './app/use-profile-sync.js'
 import { useAttention } from './app/use-attention.js'
 import { onMenuCommand, onOpenRoom } from './system.js'
 import { NewRoomDialog } from './new-room-dialog.js'
+import { StatePanel } from './state-panel.js'
+import { startupNoticeOf } from './app/startup.js'
 
 export function App() {
   const store = useMemo(createStore, [])
@@ -88,6 +90,13 @@ export function App() {
     ?? null
 
   const firstRun = state.rooms.length === 0
+  const startup = startupNoticeOf(state)
+  const retry = h('div', { className: 'crew-state-actions' },
+    h('button', {
+      type: 'button',
+      className: 'crew-accept',
+      onClick: () => void store.refresh(),
+    }, '重试'))
   return h('div', { className: 'dsb-frame', 'data-solo': firstRun ? 'true' : undefined },
     connectionBanner,
     firstRun
@@ -95,7 +104,7 @@ export function App() {
       : h(Sidebar, {
         state: { ...state, rooms: sidebarRooms },
         onSelect: id => store.select(id),
-        onNew: type => openDialog(null, type ?? null),
+        onNew: () => openDialog(),
         lodgeRoom,
         profile,
         onProfile: () => setProfileOpen(true),
@@ -107,7 +116,12 @@ export function App() {
     room === null
       ? h('main', { className: 'dsb-main crew-home' },
         h('div', { className: 'crew-home-inner' },
-          h('p', { className: 'crew-field-hint', role: 'status' }, 'Lodge 正在准备…')))
+          h(StatePanel, {
+            title: startup?.title ?? 'Lodge 正在准备…',
+            body: startup?.body ?? null,
+            tone: startup?.tone ?? 'neutral',
+            action: startup?.retry ? retry : null,
+          })))
       : h(RoomView, {
         state,
         room,

@@ -9,12 +9,25 @@ import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
 import { ProfileMark } from '../profile-mark.js'
 import { PlusIcon } from '../icons.js'
-import { ChatIcon, StudioIcon } from '../room/type-icons.js'
 import { clampSide, COLLAPSE_AT, RAIL_WIDTH, readSidebarLayout, SIDE_MAX, SIDE_MIN, writeSidebarCollapsed, writeSidebarWidth } from '../app/sidebar-layout.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
 const byRecent = list => [...list].sort((a, b) => lastAtOf(b) - lastAtOf(a))
+
+const pad = value => String(value).padStart(2, '0')
+const stampOf = ts => {
+  if (!Number.isFinite(ts) || ts <= 0) return ''
+  const date = new Date(ts)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${date.getMonth() + 1}/${date.getDate()} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+// 名字来自目标，相似目标会撞名；只在撞名时补一行时间，平时不打扰。
+export const roomStampOf = (rooms, room) => {
+  const sameName = (rooms ?? []).filter(item => !item.archivedAt && item.name === room?.name)
+  return sameName.length > 1 ? stampOf(lastAtOf(room)) : ''
+}
 
 // 一条列表：先放待处理的，再放最近、完成、归档。类型不是分区。
 export const orderRooms = rooms => {
@@ -56,10 +69,8 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
   const [sideWidth, setSideWidthPx] = useState(248)
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
-  const [newOpen, setNewOpen] = useState(false)
   const sidebarRef = useRef(null)
   const searchRef = useRef(null)
-  const newRef = useRef(null)
   const collapsedRef = useRef(false)
   const liveCount = rooms.filter(room => !room.archivedAt).length
   const showSearch = liveCount >= SEARCH_MIN_ROOMS || searchOpen || query.trim() !== ''
@@ -91,23 +102,6 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
   useEffect(() => {
     if (searchOpen && searchRef.current !== null) searchRef.current.focus()
   }, [searchOpen])
-
-  useEffect(() => {
-    if (!newOpen) return undefined
-    const onPointerDown = event => {
-      if (newRef.current?.contains(event.target) === true) return
-      setNewOpen(false)
-    }
-    const onKeyDown = event => {
-      if (event.key === 'Escape') setNewOpen(false)
-    }
-    window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('keydown', onKeyDown)
-    return () => {
-      window.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [newOpen])
 
   useEffect(() => {
     const focusSearch = () => {
@@ -173,6 +167,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
   const roomRow = room => h(RoomRow, {
     key: room.id,
     room,
+    stamp: roomStampOf(rooms, room),
     active: activeId === room.id,
     onSelect: () => selectRoom(room.id),
     onRename: onRename === undefined ? undefined : name => onRename(room.id, name),
@@ -240,29 +235,13 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
     onSelect(id)
   }
 
-  const chooseNew = type => {
-    setNewOpen(false)
-    onNew(type)
-  }
-  const newButton = () => h('div', { ref: newRef, className: 'crew-new-wrap' },
-    h('button', {
-      type: 'button',
-      className: 'crew-new crew-new-icon',
-      'aria-label': '新建房间',
-      title: '新建房间',
-      'aria-haspopup': 'menu',
-      'aria-expanded': newOpen,
-      onClick: () => setNewOpen(value => !value),
-    }, h(PlusIcon)),
-    newOpen
-      ? h('div', { className: 'crew-new-menu', role: 'menu', 'aria-label': '新建房间' },
-        h('button', { type: 'button', role: 'menuitem', className: 'crew-new-menu-item', onClick: () => chooseNew('chat') },
-          h('span', { className: 'crew-new-menu-icon', 'aria-hidden': 'true' }, h(ChatIcon, { size: 16 })),
-          h('span', { className: 'crew-new-menu-title' }, '聊天室')),
-        h('button', { type: 'button', role: 'menuitem', className: 'crew-new-menu-item', onClick: () => chooseNew('studio') },
-          h('span', { className: 'crew-new-menu-icon', 'aria-hidden': 'true' }, h(StudioIcon, { size: 16 })),
-          h('span', { className: 'crew-new-menu-title' }, '工作室')))
-      : null)
+  const newButton = () => h('button', {
+    type: 'button',
+    className: 'crew-new crew-new-icon',
+    'aria-label': '新建房间',
+    title: '新建房间',
+    onClick: () => onNew(),
+  }, h(PlusIcon))
 
   return h(Fragment, null,
     hasRail
@@ -455,7 +434,7 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
         }, busy ? '正在处理…' : deleting ? '删除' : '归档'))))
 }
 
-function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
+function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete }) {
   const archived = Boolean(room.archivedAt)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuAt, setMenuAt] = useState(null)
@@ -515,8 +494,11 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
   }
 
   const lodge = room.lodge === true
-  const label = roomLabelOf(room)
+  const label = stamp === '' ? roomLabelOf(room) : `${roomLabelOf(room)}，${stamp}`
   const routineLine = room.archivedAt || room.needsYou ? '' : routineLineOf(room)
+  const subLine = routineLine === ''
+    ? stamp
+    : stamp === '' ? routineLine : `${routineLine} · ${stamp}`
   const TypeIcon = uiKindOfRoom(room).icon
   const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
   const canDelete = room.state !== 'active'
@@ -645,7 +627,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
           Number.isInteger(room.generation) && room.generation > 1
             ? h('span', { className: 'crew-side-room-version', title: `第 ${room.generation} 版` }, `v${room.generation}`)
             : null),
-        routineLine === '' ? null : h('span', { className: 'crew-side-room-next' }, routineLine)),
+        subLine === '' ? null : h('span', { className: 'crew-side-room-next' }, subLine)),
       room.chatUnread === true && !active
         ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))
         : null,
@@ -656,7 +638,7 @@ function RoomRow({ room, active, onSelect, onRename, onArchive, onDelete }) {
         ref: moreRef,
         type: 'button',
         className: 'crew-side-more',
-        'aria-label': `管理 ${room.name}`,
+        'aria-label': stamp === '' ? `管理 ${room.name}` : `管理 ${room.name}，${stamp}`,
         'aria-haspopup': 'menu',
         'aria-expanded': menuOpen,
         onClick: toggleMenu,

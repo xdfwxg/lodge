@@ -30,6 +30,7 @@
     "check:docs": "node scripts/check-docs.mjs",
     "check:acceptance": "node scripts/check-acceptance.mjs",
     "check:regressions": "node scripts/check-regressions.mjs",
+    "check:done": "npm test && npm run test:ui && npm run check:docs && npm run check:acceptance && npm run check:regressions",
     "gc:base": "node scripts/base-gc.mjs",
     "data:restore": "node scripts/data-restore.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",

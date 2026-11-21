@@ -220,11 +220,13 @@ test('a finished room offers one quiet way to do it again tomorrow', async () =>
     },
     onRoutine: () => {},
   }))
-  assert.match(text(tree), /加定时任务/)
-  assert.match(text(tree), /以后/)
-  assert.match(text(tree), /再做一遍/)
-  assert.match(text(tree), /Lodge 打开后，会自动补做上次错过的那次/)
-  assert.doesNotMatch(text(tree), /cron/)
+  const more = find(tree, node => node.type === 'details' && text(node).startsWith('更多'))
+  assert.notEqual(more, null)
+  assert.match(text(more), /加定时任务/)
+  assert.match(text(more), /以后/)
+  assert.match(text(more), /再做一遍/)
+  assert.match(text(more), /Lodge 打开后，会自动补做上次错过的那次/)
+  assert.doesNotMatch(text(more), /cron/)
 })
 
 test('the last days and time are kept and starting sends them', async () => {

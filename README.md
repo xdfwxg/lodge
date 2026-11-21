@@ -18,11 +18,14 @@
 
 ## 文档
 
-根目录两份，`docs/` 三份，各有职责：
+入口、产品判断、协作契约和细则各归一处：
 
+- [CLAUDE.md](CLAUDE.md)：给 agent 的协作契约——边界、常用命令和判断。
 - [Lodge.md](Lodge.md)：产品判断、原则总表与设计思想——该不该做、房间哲学、验收与边界。原则总表是唯一的原则索引，其他文档只写细则。
+- [乔布斯.md](乔布斯.md)：取舍标准和产品灵感——先体验、再技术；先删、再加。
 - [docs/architecture.md](docs/architecture.md)：服务端分层、数据真相、交接与门禁——数据怎么流、边界在哪。
 - [docs/design.md](docs/design.md)：界面、交互和文案——字号颜色、组件、怎么写。
+- [docs/agent-design.md](docs/agent-design.md)：Agent、工具、权限、上下文和失败的设计门禁。
 - [docs/operations.md](docs/operations.md)：运行、基座、打包、运维与恢复——怎么启动、坏了怎么办。
 
 ## 快速开始

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { filterRooms, orderRooms, roomLabelOf } from './sidebar.js'
+import { filterRooms, orderRooms, roomLabelOf, roomStampOf } from './sidebar.js'
 
 test('sidebar room labels carry name, status, unread and needs-you text', () => {
   assert.equal(roomLabelOf({ name: '简历', state: 'active', live: true }), '简历，进行中')
@@ -26,6 +26,13 @@ test('room search matches name, goal and status text', () => {
   assert.deepEqual(filterRooms(rooms, '待签字').map(room => room.id), ['c'])
   assert.deepEqual(filterRooms(rooms, '  ').map(room => room.id), ['a', 'b', 'c'])
   assert.deepEqual(filterRooms(rooms, '不存在'), [])
+})
+
+test('only duplicate room names get a time stamp', () => {
+  const room = { id: 'a', name: '评测', messages: [{ ts: new Date(2026, 10, 20, 9, 5).getTime() }] }
+  assert.equal(roomStampOf([room, { id: 'b', name: '周报' }], room), '')
+  assert.equal(roomStampOf([room, { id: 'b', name: '评测' }], room), '11/20 09:05')
+  assert.equal(roomStampOf([room, { id: 'b', name: '评测', archivedAt: 1 }], room), '')
 })
 
 test('rooms are ordered by attention, recency and completion', () => {

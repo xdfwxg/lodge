@@ -242,14 +242,25 @@ const server = http.createServer(createHttpHandler({
 }))
 
 const port = Number(process.env.CREW_PORT ?? 8787)
+
+const ensureLodge = async attempt => {
+  try {
+    await ensureLodgeRoom({ store, engine, live, workspace: ports.workspace, emit })
+  } catch (error) {
+    console.warn(`[lodge] Lodge 房间没有准备好：${error?.message ?? error}`)
+    const delay = Math.min(2000 * 2 ** Math.min(attempt, 5), 60_000)
+    setTimeout(() => { void ensureLodge(attempt + 1) }, delay).unref()
+  }
+}
+
 server.listen(port, '127.0.0.1', () => {
   console.log(`Lodge server: http://127.0.0.1:${port}`)
   void (async () => {
-    await live.start()
     try {
-      await ensureLodgeRoom({ store, engine, live, workspace: ports.workspace, emit })
+      await live.start()
     } catch (error) {
-      console.warn(`[lodge] Lodge 房间没有准备好：${error?.message ?? error}`)
+      console.warn(`[lodge] 房间连接没有启动：${error?.message ?? error}`)
     }
+    await ensureLodge(0)
   })()
 })

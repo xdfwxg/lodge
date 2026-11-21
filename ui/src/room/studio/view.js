@@ -1,7 +1,6 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
 import { PausedPanel } from '../paused-panel.js'
-import { RoomReview } from '../room-review.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
@@ -83,11 +82,6 @@ export const studioView = {
         return seed === null ? null : () => actions.startChat(seed)
       })(),
       onReturn: () => {},
-      }),
-      h(RoomReview, {
-        key: `review-${room.id}`,
-        room,
-        finished: room.state === 'complete',
       }),
     )
   },

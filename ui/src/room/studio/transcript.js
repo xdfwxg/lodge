@@ -11,6 +11,7 @@ import { DeliveryCard } from './delivery-card.js'
 import { RunNeedsCard } from './run-needs-card.js'
 import { ApprovalCard } from '../../approval-card.js'
 import { WorkingLine } from './working-line.js'
+import { RoomReview } from '../room-review.js'
 import { scopeIsValid } from '../../../../shared/attempt.js'
 
 const orderOf = message => (
@@ -161,6 +162,7 @@ export function StudioTranscript({
             h('span', { className: 'studio-process-open' }, '工作记录'),
             h('span', { className: 'studio-process-shut' }, '收起')),
           h('div', { className: 'studio-timeline studio-process-timeline' }, ...items),
+          h(RoomReview, { room, finished: true }),
           advice))
   }
   return h(Fragment, null,

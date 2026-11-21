@@ -1,15 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { roomTypeOptionsFor } from './new-room-dialog.js'
+import { canSwitchRoomType } from './new-room-dialog.js'
 
-test('the sidebar new-room entry offers studio and chat side by side', () => {
-  assert.deepEqual(roomTypeOptionsFor({}), [
-    { value: 'studio', label: '工作室' },
-    { value: 'chat', label: '聊天室' },
-  ])
-})
-
-test('a handoff or an explicit start type keeps the room type fixed', () => {
-  assert.deepEqual(roomTypeOptionsFor({ startType: 'chat' }), [])
-  assert.deepEqual(roomTypeOptionsFor({ seed: { goal: '接着聊' } }), [])
+test('a new room starts as a studio; chat is a secondary switch', () => {
+  assert.equal(canSwitchRoomType({}), true)
+  assert.equal(canSwitchRoomType({ startType: 'studio' }), false)
+  assert.equal(canSwitchRoomType({ startType: 'chat' }), false)
+  assert.equal(canSwitchRoomType({ seed: { goal: '接着聊' } }), false)
 })
