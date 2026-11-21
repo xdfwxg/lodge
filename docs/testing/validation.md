@@ -2,6 +2,17 @@
 
 这份文件只记自动测试覆盖不到、实际跑过的路径。自动能力仍以 [acceptance-matrix.md](acceptance-matrix.md) 为准。
 
+## 2026-11-21 · 全量 dogfood（技能收敛后）
+
+- 环境：Lodge `http://127.0.0.1:8787`，基座 `http://127.0.0.1:8799`。本机 `claude` CLI 走 DeepSeek anthropic 端点，模型 `deepseek-v4-pro`；评测报告记录为 `auto`，没有把 engine/model 写死。
+- 自动：`npm test` 1133 通过；`npm run test:ui` 12 通过；`check:docs`、`check:acceptance`、`check:regressions` 全部通过。
+- 房间评测：`npm run eval:rooms -- --validate` 三个题的独立尺子都 ok；`verify-catch` 的自带验收原样就绿，是弱检查。`npm run eval:rooms` 3/3 PASS，0 返工，p50 36,995ms，max 264,546ms，合计 $0.4626（partial，未知 0 次）。逐题：revise-tone 27,898ms / $0.1363；slice-sheet 264,546ms / $0.1644；verify-catch 36,995ms / $0.1619。三次都 delivered、verdict pass、独立检查 ok。
+- 规划评测：`npm run eval:planning` 3/3 PASS，100 分，p50 6,376ms，2 个决策问题，验收命令均为 `npm test`。
+- `npm run eval:chat` 仍然跑不通：脚本读 `room.seatBots`，公开状态已剥掉成员 ref，停在“房间没有席位 bot”，没有进入模型回合。
+- 评测房已清理：三条运行的 `cleanupErrors` 都为空。
+- 现场 bug：`verify-catch` 执行回合开始后，侧栏仍显示“验收员在看”。根因是 `busyMembers` 采样的 working 标记晚于工具活动；旧证据触发了 review 投影。修正为把当前 running 队列和最近 2 分钟的工具活动视为“这一回合还在跑”，只压掉基于旧证据的 review/rework，不压人的交接、阻塞和超时。新增 `attention.test.js` 回归。
+- 仍未强制制造：真实合并冲突留给人、退回指定步骤、自动重做预算耗尽、规划师 `submit_decision` 返工路径；这些继续由单测覆盖。
+
 ## 2026-11-18 · MCP gate
 
 - 房间：`room-47b3f3ac`「MCP gate 验收 2」

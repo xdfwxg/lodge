@@ -22,6 +22,19 @@ const latestForStage = (messages, kind, stage, after = -1) => [...messages]
     (message.seq ?? 0) > after
   ))
 
+// 基座的 working 标记有时比工具活动晚一拍；最近的工具活动也算这一回合还在跑。
+// 只用来压掉基于旧证据的“验收员在看/待重做”，不压人的交接、阻塞和超时。
+const RECENT_ACTIVITY_MS = 2 * 60_000
+const recentlyActive = (room, messages) => {
+  if ((room.turnQueue ?? []).some(item => item?.state === 'running')) return true
+  const now = Date.now()
+  return messages.some(message => (
+    message.kind === 'activity' &&
+    Number.isFinite(message.ts) &&
+    now - message.ts < RECENT_ACTIVITY_MS
+  ))
+}
+
 const studioNeedsYou = (room, messages = []) => {
   const index = (Array.isArray(room.stages) ? room.stages : []).findIndex(stage => stage.state === 'active')
   if (index < 0) return null
@@ -81,14 +94,15 @@ const studioNeedsYou = (room, messages = []) => {
     const manual = manualEvidenceFor(room, undefined, messages, index)
     const auto = latestAutoCheck(messages, index, floor)
     if (auto !== undefined && auto.meta?.exit !== 0 && (manual === undefined || (auto.seq ?? 0) > (manual.seq ?? 0))) {
-      return { kind: 'rework', stage: index, label: '自动检查没通过，先重做' }
+      return recentlyActive(room, messages) ? null : { kind: 'rework', stage: index, label: '自动检查没通过，先重做' }
     }
     if (manual?.meta?.kind !== 'manual') return null
     if (verifierIds(room).length > 0) {
       const outcome = manualReviewState({ room, messages, stageIndex: index })
-      if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待重做' }
+      const active = recentlyActive(room, messages)
+      if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
       if (outcome.state === 'pending') {
-        return { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
+        return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
       }
       if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
       return null
@@ -129,21 +143,23 @@ const studioNeedsYou = (room, messages = []) => {
   }
   const commandEvidence = commandEvidenceFor(room, undefined, messages, index)
   if (commandEvidence !== undefined && commandEvidence.meta?.exit !== 0) {
-    return { kind: 'rework', stage: index, label: '待重做' }
+    return recentlyActive(room, messages) ? null : { kind: 'rework', stage: index, label: '待重做' }
   }
   if (verifierIds(room).length > 1) {
     const outcome = reviewState({ room, messages, stageIndex: index })
-    if (outcome.state === 'reject') return { kind: 'rework', stage: index, label: '待重做' }
+    const active = recentlyActive(room, messages)
+    if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
     if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
     if (outcome.state === 'pending') {
-      return { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
+      return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
     }
     return null
   }
   const verdict = latestForStage(messages, 'verdict', index, floor)
   if (verdict !== undefined && verdictPassed(verdict)) return { kind: 'signoff', stage: index, label: '' }
-  if (verdict !== undefined) return { kind: 'rework', stage: index, label: '待重做' }
+  if (verdict !== undefined) return recentlyActive(room, messages) ? null : { kind: 'rework', stage: index, label: '待重做' }
   if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
+    if (recentlyActive(room, messages)) return null
     return verifierIds(room).length > 0
       ? { kind: 'review', stage: index, label: '验收员在看' }
       : { kind: 'signoff', stage: index, label: '' }

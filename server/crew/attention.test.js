@@ -196,6 +196,36 @@ test('command evidence without a verdict waits for review', () => {
   assert.equal(roomNeedsYou(atDeliverable(), [evidence()]).kind, 'review')
 })
 
+test('recent executor activity hides a stale review status', () => {
+  const activity = { kind: 'activity', authorId: 'worker', ts: Date.now() }
+  assert.equal(roomNeedsYou(atDeliverable(), [evidence(), activity]), null)
+  assert.equal(
+    roomNeedsYou({ ...atDeliverable(), turnQueue: [{ memberId: 'worker', state: 'running' }] }, [evidence()]),
+    null,
+  )
+  const old = { ...activity, ts: Date.now() - 3 * 60_000 }
+  assert.equal(roomNeedsYou(atDeliverable(), [evidence(), old]).kind, 'review')
+})
+
+test('recent activity does not hide a planner handoff', () => {
+  const r = atDeliverable()
+  r.stages[1] = { title: 'docs', kind: 'deliverable', state: 'active', manual: true }
+  const manual = { id: 'e-12', kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
+  const reject = { id: 'v-13', kind: 'verdict', authorId: 'verifier', seq: 13, meta: { stage: 1, pass: false } }
+  const activity = { kind: 'activity', authorId: 'verifier', ts: Date.now() }
+  const needs = roomNeedsYou({
+    ...r,
+    lastPlannerDecision: {
+      stage: 1,
+      verdictId: 'v-13',
+      kind: 'human',
+      judgment: { reason: '缺真实版本号', actionRequired: '请给出版本号和发布日期' },
+    },
+  }, [manual, reject, activity])
+  assert.equal(needs.kind, 'decision')
+  assert.match(needs.detail, /版本号/)
+})
+
 test('a manual stage stays quiet until the product is ready', () => {
   const r = atDeliverable()
   r.stages[1] = { title: 'docs', kind: 'decision', state: 'active', manual: true }
