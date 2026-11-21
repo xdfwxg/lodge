@@ -12,7 +12,6 @@ const normalizeRoom = (group, responderName) => ({
   sessionRef: group.threadId,
   goal: group.tasks?.[0]?.title ?? group.bulletin ?? group.name ?? '',
   working: group.working === true,
-  followMentions: group.followMentions !== false,
   busyRef: typeof group.busyBotId === 'string' ? group.busyBotId : null,
   queue: Array.isArray(group.queue)
     ? group.queue.map(item => ({
@@ -463,12 +462,6 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { ok: true }
   }
 
-  // 成员回复里的 @ 不叫下一棒：Lodge 的接力归房间，基座只送达系统发出的投递。
-  const setRoomFollowMentions = async (roomId, followMentions) => {
-    await client.patchGroup(roomId, { followMentions: followMentions === true })
-    return { ok: true }
-  }
-
   const createRoom = async ({ name, goal, bulletin, members, cwd, leadId, autoRoute = false, responder, followMentions = true }) => {
     const created = await client.createGroup({ name, memberIds: members })
     const group = created?.group ?? created
@@ -561,7 +554,6 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     createRoom,
     updateRoomMembers,
     setRoomMentions,
-    setRoomFollowMentions,
     setRoomHold,
     markRoomRead,
     deleteMemberBot,

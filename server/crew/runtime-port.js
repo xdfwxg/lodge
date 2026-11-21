@@ -11,8 +11,8 @@
 //   { connected: boolean, error: string | null }
 //
 // 规范化 Room：
-//   { id, name, sessionRef, goal, working, followMentions, busyRef, queue, holds,
-//     heldMessages, tasks, unread, cwd }
+//   { id, name, sessionRef, goal, working, busyRef, queue, holds, heldMessages,
+//     tasks, unread, cwd }
 
 export const RUNTIME_EVENT = Object.freeze({
   delta: 'delta',
@@ -24,7 +24,7 @@ export const RUNTIME_METHOD_GROUPS = Object.freeze({
   turns: Object.freeze(['sendTurn', 'steerRoomQueue', 'cancelRoomQueue', 'cancelTurn', 'history', 'subscribe']),
   rooms: Object.freeze([
     'rooms', 'createRoom', 'deleteRoom', 'updateRoomMembers',
-    'setRoomMentions', 'setRoomFollowMentions', 'setRoomHold', 'markRoomRead',
+    'setRoomMentions', 'setRoomHold', 'markRoomRead',
   ]),
   members: Object.freeze(['createMemberBot', 'patchMemberBot', 'setBotSkills', 'deleteMemberBot', 'instances']),
   cards: Object.freeze(['answerCard']),

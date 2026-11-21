@@ -25,10 +25,6 @@ const fakeClient = () => {
     setupGroup: async (id, payload) => {
       captured.setup = { id, payload }
     },
-    patchGroup: async (id, payload) => {
-      captured.patch = { id, payload }
-      return { group: { id } }
-    },
     patchGroupTask: async (id, threadId, payload) => {
       captured.task = { id, threadId, payload }
     },
@@ -274,13 +270,6 @@ test('room creation maps semantic members and lead to the runtime group', async 
   assert.deepEqual(client.captured.setup.payload.defaultResponder, { kind: 'member', botId: 'planner' })
   assert.equal(client.captured.setup.payload.followMentions, false)
   assert.equal(client.captured.task.payload.title, 'ship it')
-})
-
-test('an existing room can close member reply mentions', async () => {
-  const client = fakeClient()
-  const engine = createEngine({ client })
-  assert.deepEqual(await engine.setRoomFollowMentions('group-1', false), { ok: true })
-  assert.deepEqual(client.captured.patch, { id: 'group-1', payload: { followMentions: false } })
 })
 
 test('cancelTurn interrupts the busy bot in the room', async () => {

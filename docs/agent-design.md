@@ -44,7 +44,7 @@
 | 工具面按角色裁剪 | `server/crew/tool-scope.js` | `tool-scope.test.js` |
 | 只读阶段不能写/执行；验收员在只读副本里不能写 | `permission.js`、`kernel/live/approvals.js` | `permission.test.js`、`approval-bridge.test.js` |
 | 外部动作先问人 | `external-actions.js`、`kernel/live/action-gate.js` | `external-actions.test.js`、`approval-bridge.test.js` |
-| 交接棒由系统递，模型不决定下一棒 | `rooms/studio/relay.js`；`@` 只在 `kernel/live/bus.js` 的 `send` 里生成；工作室建房时基座 `followMentions: false`，成员回复里的 @ 不唤醒下一棒；聊天室保留 @ 接话 | `relay.test.js`、`live-turn-modules.test.js`、`engine.test.js`、`live-refresh.test.js`、`room-create.test.js` |
+| 交接棒由系统递，模型不决定下一棒 | `rooms/studio/relay.js`；`@` 只在 `kernel/live/bus.js` 的 `send` 里生成；工作室建房时基座 `followMentions: false`，成员回复里的 @ 不唤醒下一棒；聊天室保留 @ 接话 | `relay.test.js`、`live-turn-modules.test.js`、`engine.test.js`、`room-create.test.js` |
 | 非法状态跃迁写不进去 | `shared/states.js` + `assignments.js` + `kernel/round.js` | `states.test.js`、`assignments.test.js` |
 | 阶段最多 3 步、检查必须能跑、成员增删有约束 | `rooms/create/input.js`、`member-add.js`、`member-remove.js` | `room-create.test.js`、`member-add.test.js`、`member-remove.test.js` |
 | 验收要有证据、测试改动和 quorum | `rooms/studio/gates.js`、`tdd.js`、`verifiers.js` | `gates.test.js`、`tdd.test.js`、`verifiers.test.js` |

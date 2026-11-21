@@ -432,7 +432,7 @@ npm run eval:planning:nightly
 
 ## 2026-11-22 · 工作室 @ 跟随开关
 
-- 基座新增房间字段 `followMentions`（默认 true）：工作室建房写 false，聊天室保持 true，成员私聊房间写 false；旧工作室在第一次刷新时补 false。
-- 基座三份 TypeScript 检查通过；`server/room-roots.e2e.test.ts` 16/16，包含建房、PATCH 已有房间和成员回复 @ 不再唤醒三种路径。
-- Lodge 单测 1144 全过；UI 端到端 18/18；`check:done` 全过；长任务评测 5/5。
-- 旧工作室的刷新补丁只有单测覆盖，尚未在真实房间重启后观察；聊天室保留成员互相 @ 接话，由 `room-create.test.js` 和 `live-refresh.test.js` 固定。
+- 基座新增房间字段 `followMentions`（默认 true）：工作室建房写 false，聊天室保持 true，成员私聊房间写 false。只对新房间生效，不做旧房迁移；旧数据按项目规则清掉。
+- 基座三份 TypeScript 检查通过；`server/room-roots.e2e.test.ts` 16/16，覆盖建房、成员回复 @ 不再唤醒两种路径。
+- Lodge 单测 1141 全过；UI 端到端 18/18；`check:done` 全过；长任务评测 5/5。
+- 聊天室保留成员互相 @ 接话，由 `room-create.test.js` 固定；旧工作室刷新迁移已移除。
