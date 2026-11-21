@@ -833,7 +833,7 @@ body[data-ds-dark-theme] .crew-attachment-file{background:rgba(255,255,255,.08)}
 /* Decision-first room: one decision, audit on demand */
 .crew-room{position:relative;display:flex;flex-direction:column;background:var(--bt-main)}
 .crew-room-main{flex:1 1 auto;width:100%;max-width:none}
-.crew-room-main.crew-room-studio .crew-goal-island{position:relative;top:auto;left:auto;right:auto;padding:22px 32px 0}
+.crew-room-main.crew-room-studio .crew-goal-island{position:relative;top:auto;left:auto;right:auto;padding:6px 32px 0}
 .crew-room-main.crew-room-studio .crew-scroll{padding-top:16px}
 .crew-room-main.crew-room-studio[data-room-done=true] .crew-scroll{padding-top:16px}
 .crew-island-wrap{display:flex;justify-content:center;padding:18px 32px 8px;box-sizing:border-box}

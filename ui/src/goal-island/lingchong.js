@@ -30,7 +30,7 @@ export const lingchongPose = (state, mode = 'chat', progress = 0) => {
   return { phase: 'lie', spot: mode === 'studio' ? step : 0.2 }
 }
 
-export function lingchongSpot(state, width, widthOfLingchong = 96, mode = 'chat', progress = 0) {
+export function lingchongSpot(state, width, widthOfLingchong = 64, mode = 'chat', progress = 0) {
   const { spot } = lingchongPose(state, mode, progress)
   const half = widthOfLingchong / 2
   const min = HOME_PAD + half
@@ -40,7 +40,7 @@ export function lingchongSpot(state, width, widthOfLingchong = 96, mode = 'chat'
 
 export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActivate = null }) {
   const lingchong = useRef(null)
-  // 线稿缩到 96px 后笔画会被平均成半透明；用 alpha 斜率把线条压回实心墨色。
+  // 线稿缩到 64px 后笔画会被平均成半透明；用 alpha 斜率把线条压回实心墨色。
   const inkId = `lingchong-ink-${useId().replace(/:/g, '')}`
   const current = useRef({ state, mode, progress })
   current.current = { state, mode, progress }
@@ -127,8 +127,8 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
     const place = (nextX, phase) => {
       const width = host.clientWidth
       if (width <= 0) return nextX
-      const petWidth = el.offsetWidth || 96
-      const petHeight = el.offsetHeight || 57
+      const petWidth = el.offsetWidth || 64
+      const petHeight = el.offsetHeight || 33
       const min = HOME_PAD + petWidth / 2
       const max = Math.max(min, width - HOME_PAD - petWidth / 2)
       const at = Math.min(max, Math.max(min, nextX))
@@ -138,7 +138,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       return at
     }
 
-    const targetFor = (kind, mode, progress) => lingchongSpot(kind, host.clientWidth, el.offsetWidth || 96, mode, progress)
+    const targetFor = (kind, mode, progress) => lingchongSpot(kind, host.clientWidth, el.offsetWidth || 64, mode, progress)
 
     const endChase = () => {
       if (chase === null) return
@@ -196,7 +196,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
         raf = requestAnimationFrame(step)
         return
       }
-      const petWidth = el.offsetWidth || 96
+      const petWidth = el.offsetWidth || 64
       const scale = petWidth / ART_W
       // 岛展开会改变自身左沿；每帧按光标重算，宠物才不会走到旧位置。
       hoverX = hovering && pointerClientX !== null
@@ -415,7 +415,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
         const dirSign = beat === 'look' ? (Math.sin(seconds * 2.2) > 0 ? -1 : 1) : direction > 0 ? -1 : 1
         flip.current.style.transform =
           // 趴下是压成一只更胖的猫：横向撑开，纵向只压一点，肚子贴着岛面。
-          `scale(${(dirSign * (1 + 0.16 * sm)).toFixed(4)}, ${(1 - 0.14 * sm).toFixed(4)}) translateY(${(10.5 * sm * (petWidth / 96)).toFixed(2)}px)`
+          `scale(${(dirSign * (1 + 0.16 * sm)).toFixed(4)}, ${(1 - 0.14 * sm).toFixed(4)}) translateY(${(10.5 * sm * (petWidth / 64)).toFixed(2)}px)`
         if (forehead.current) forehead.current.style.transform = dirSign < 0 ? 'scaleX(-1)' : ''
       }
 
@@ -530,7 +530,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
 }
 
 export const LINGCHONG_CSS = `
-.lingchong{position:absolute;top:0;left:0;z-index:7;width:96px;height:49px;--pet-scale:.2494;pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;opacity:0;transform-origin:50% 100%;filter:drop-shadow(0 1px 2px rgba(60,40,0,.16))}
+.lingchong{position:absolute;top:0;left:0;z-index:7;width:64px;height:33px;--pet-scale:.1662;pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;opacity:0;transform-origin:50% 100%;filter:drop-shadow(0 1px 2px rgba(60,40,0,.16))}
 .lingchong:focus-visible{outline:2px solid var(--bt-accent);outline-offset:3px;border-radius:50%}
 body[data-ds-dark-theme] .lingchong{filter:drop-shadow(0 1px 3px rgba(0,0,0,.42))}
 .lingchong-ink-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
@@ -575,6 +575,6 @@ body[data-ds-dark-theme] .lingchong-art{content:url("${colorArt}")}
 .spark{position:absolute;color:var(--bt-star,#f6c453);font-size:13px;opacity:0;animation:lingchong-spark 1s ease-out forwards}
 .spark[data-kind=heart]{color:#e58a9a;font-size:12px}
 @keyframes lingchong-spark{0%{opacity:0;transform:translateY(3px) scale(.5)}25%{opacity:.95}100%{opacity:0;transform:translateY(-26px) scale(1.1)}}
-@media (max-width:760px){.lingchong{width:88px;height:45px;--pet-scale:.2286}}
+@media (max-width:760px){.lingchong{width:60px;height:31px;--pet-scale:.1558}}
 @media (prefers-reduced-motion:reduce){.spark{animation:none;opacity:0}.lingchong-butterfly .wing{animation:none}.lingchong-zzz span{animation:none;opacity:.6}.lingchong-puff{animation:none;opacity:0}}
 `
