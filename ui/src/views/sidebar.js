@@ -173,10 +173,13 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
     onRename: onRename === undefined ? undefined : name => onRename(room.id, name),
     onArchive: onArchive === undefined ? undefined : archived => onArchive(room.id, archived),
     onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
+    onHold: onHoldMember,
   })
   const renderRoom = room => h(Fragment, { key: room.id },
     roomRow(room),
-    activeId === room.id ? h(SideMembers, { room, onHold: onHoldMember }) : null)
+    activeId === room.id && uiKindOfRoom(room).membersInSidebar === true
+      ? h(SideMembers, { room, onHold: onHoldMember })
+      : null)
 
   // 拖右侧竖线改宽度；宽度由 sidebar-layout 持久化。拖到一列图标时收成 rail。
   const setCollapsed = value => {
@@ -435,17 +438,19 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
         }, busy ? '正在处理…' : deleting ? '删除' : '归档'))))
 }
 
-function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete }) {
+function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete, onHold = null }) {
   const archived = Boolean(room.archivedAt)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuAt, setMenuAt] = useState(null)
   const [renaming, setRenaming] = useState(false)
+  const [membersOpen, setMembersOpen] = useState(false)
   const [draft, setDraft] = useState(room.name)
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
   const moreRef = useRef(null)
   const menuRef = useRef(null)
+  const memberOverlay = useOverlay({ label: '房间成员', onClose: () => setMembersOpen(false), active: membersOpen })
 
   useEffect(() => { setDraft(room.name) }, [room.name])
 
@@ -502,6 +507,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
     : stamp === '' ? routineLine : `${routineLine} · ${stamp}`
   const TypeIcon = uiKindOfRoom(room).icon
   const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
+  const hasMemberPanel = !archived && uiKindOfRoom(room).membersInSidebar === false
   const canDelete = room.state !== 'active'
   const closeMenu = () => setMenuOpen(false)
   const toggleMenu = () => {
@@ -512,7 +518,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
     const rect = moreRef.current?.getBoundingClientRect()
     if (rect === undefined || rect === null) return
     const width = 144
-    const height = 112
+    const height = 148
     const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))
     const top = rect.bottom + height > window.innerHeight - 8
       ? Math.max(8, rect.top - height - 4)
@@ -654,6 +660,17 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         onRename === undefined ? null : h('button', {
           type: 'button', role: 'menuitem', className: 'crew-side-menu-item', onClick: startRename,
         }, '重命名'),
+        hasMemberPanel
+          ? h('button', {
+            type: 'button',
+            role: 'menuitem',
+            className: 'crew-side-menu-item',
+            onClick: () => {
+              closeMenu()
+              setMembersOpen(true)
+            },
+          }, '成员')
+          : null,
         onArchive === undefined ? null : h('button', {
           type: 'button',
           role: 'menuitem',
@@ -671,6 +688,30 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         }, '删除…')), document.body)
       : null,
     note === '' ? null : h('p', { className: 'crew-side-row-note', role: 'alert' }, note)),
+    membersOpen
+      ? createPortal(h('div', {
+        className: 'crew-overlay crew-overlay-center',
+        onClick: () => setMembersOpen(false),
+        ...memberOverlay,
+      },
+      h('div', {
+        className: 'crew-dialog crew-member-dialog',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': '房间成员',
+        onClick: event => event.stopPropagation(),
+      },
+      h('div', { className: 'crew-dialog-heading' }, h('h2', null, '成员')),
+      h('div', { className: 'crew-dialog-body crew-member-dialog-body' },
+        h(SideMembers, { room, onHold })),
+      h('div', { className: 'crew-dialog-foot' },
+        h('button', {
+          type: 'button',
+          className: 'crew-ghost',
+          autoFocus: true,
+          onClick: () => setMembersOpen(false),
+        }, '关闭')))), document.body)
+      : null,
     confirm === null ? null : h(RoomConfirm, {
       kind: confirm,
       room,

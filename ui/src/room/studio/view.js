@@ -4,7 +4,6 @@ import { PausedPanel } from '../paused-panel.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
 import { TypingLine } from '../typing-line.js'
-import { StudioAdjust } from './rewind-dialog.js'
 import { studioTyping } from './typing.js'
 
 // 工作室的房间视图：一条聊天记录、一行状态、一个输入框；动作只在轮到你时出现。
@@ -15,6 +14,7 @@ export const studioView = {
   header: ({ room, actions }) => {
     const projectId = room.workRound?.projectId ?? room.defaultProjectId
     const rounds = room.rounds ?? []
+    const hasHistory = rounds.length > 0 || Boolean(projectId)
     const nav = [
       room.sourceRoomId && room.sourceName
         ? h('button', {
@@ -24,21 +24,13 @@ export const studioView = {
           onClick: () => actions.selectRoom(room.sourceRoomId),
         }, `← ${room.sourceName}`)
         : null,
-      projectId && typeof actions.openProject === 'function'
+      hasHistory && typeof actions.openRounds === 'function'
         ? h('button', {
-          key: 'project',
-          type: 'button',
-          className: 'crew-link',
-          onClick: () => actions.openProject(projectId),
-        }, '项目')
-        : null,
-      rounds.length > 0 && typeof actions.openRounds === 'function'
-        ? h('button', {
-          key: 'rounds',
+          key: 'history',
           type: 'button',
           className: 'crew-link',
           onClick: () => actions.openRounds(),
-        }, '轮次')
+        }, '历史')
         : null,
     ].filter(Boolean)
     return h(Fragment, null,
@@ -46,8 +38,7 @@ export const studioView = {
         h('div', { className: 'studio-topbar-nav' },
           nav.flatMap((node, index) => (index === 0
             ? [node]
-            : [h('span', { key: `dot-${index}`, className: 'studio-topbar-dot', 'aria-hidden': 'true' }, '·'), node]))),
-        h(StudioAdjust, { key: `adjust-${room.id}`, room, onRewind: actions.rewind })),
+            : [h('span', { key: `dot-${index}`, className: 'studio-topbar-dot', 'aria-hidden': 'true' }, '·'), node])))),
       h(GoalIslandHeader, {
         room,
         onOpenRoom: actions.selectRoom,
@@ -109,7 +100,7 @@ export const studioView = {
   ),
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    if (room.state === 'idle' || room.state === 'complete' || done) return '说说下一轮要做什么；要开新一轮，点发送旁的 ⌄'
+    if (room.state === 'idle' || room.state === 'complete' || done) return '说说下一轮要做什么…'
     const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
     if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === active) {
       return '把缺的信息发给这一步…'

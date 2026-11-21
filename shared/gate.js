@@ -8,6 +8,8 @@ export const GATE_TOOL_NAMES = Object.freeze({
   submit_decision: 'planner',
 })
 
+const REWIND_TOOL = 'rewind_stage'
+
 const qualifiedNames = tool => [
   `${GATE_SERVER_NAME}_${tool}`,
   `${GATE_SERVER_NAME}__${tool}`,
@@ -28,7 +30,7 @@ const toolKind = name => {
 // 只认 lodge_gate 自己的工具，不认别的 MCP。
 export const isGateToolName = name => {
   const text = String(name ?? '')
-  return Object.keys(GATE_TOOL_NAMES).some(tool => (
+  return [...Object.keys(GATE_TOOL_NAMES), REWIND_TOOL].some(tool => (
     qualifiedNames(tool).some(form => text.includes(form))
   ))
 }
@@ -65,6 +67,21 @@ export const gateSubmissionOf = (calls, {
       at,
     })
     if (judgment !== null) return judgment
+  }
+  return null
+}
+
+// 规划师在对话里要求退回某一步：tool 的 stage 从 1 开始，内部步骤从 0 开始。
+export const rewindRequestOf = calls => {
+  if (!Array.isArray(calls)) return null
+  for (const call of [...calls].reverse()) {
+    const name = String(call?.name ?? '')
+    if (!qualifiedNames(REWIND_TOOL).some(form => name.includes(form))) continue
+    const input = parseInput(call?.input)
+    const stage = Number(input?.stage)
+    const note = typeof input?.note === 'string' ? input.note.trim() : ''
+    if (!Number.isInteger(stage) || stage < 1 || note === '') continue
+    return { stage: stage - 1, note }
   }
   return null
 }

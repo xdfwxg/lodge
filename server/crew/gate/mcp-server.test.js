@@ -14,9 +14,9 @@ test('the gate server speaks the minimal MCP handshake', () => {
   assert.deepEqual(response.result.capabilities, { tools: { listChanged: false } })
 })
 
-test('the gate server lists only the two judgment tools', () => {
+test('the gate server lists the judgment tools and the planner rewind tool', () => {
   const response = handleMessage({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
-  assert.deepEqual(response.result.tools.map(tool => tool.name), ['submit_verdict', 'submit_decision'])
+  assert.deepEqual(response.result.tools.map(tool => tool.name), ['submit_verdict', 'submit_decision', 'rewind_stage'])
   assert.equal(GATE_TOOLS[0].inputSchema.required.includes('reason'), true)
 })
 
@@ -99,6 +99,17 @@ test('a planner decision accepts the Chinese anchor', () => {
     params: { name: 'submit_decision', arguments: { decision: '交给人', reason: '权限只能你定' } },
   })
   assert.equal(response.result.structuredContent.decision, 'human')
+})
+
+test('a planner can ask to rewind a stage by number', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 51,
+    method: 'tools/call',
+    params: { name: 'rewind_stage', arguments: { stage: 2, note: '用户说第二步方向错了' } },
+  })
+  assert.equal(response.result.structuredContent.stage, 2)
+  assert.equal(response.result.structuredContent.note, '用户说第二步方向错了')
 })
 
 test('notifications are silent and unknown methods get an error', () => {

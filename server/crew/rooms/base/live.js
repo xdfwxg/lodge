@@ -60,6 +60,7 @@ export const createLiveRooms = ({
   let retryScheduled = false
   // 服务层在建房时注入：规划师对齐回合结束后自动确认对齐，不再等人点一个没有界面的确认。
   let confirmStage = null
+  let rewindStage = null
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit })
   const approvals = createLiveApprovals({
@@ -81,6 +82,7 @@ export const createLiveRooms = ({
       approvals,
       refreshRoom,
       confirmStage: (roomId, index) => confirmStage?.(roomId, index),
+      rewindStage: (roomId, request) => rewindStage?.(roomId, request),
     }),
   ]
   const strategyFor = room => {
@@ -461,6 +463,7 @@ export const createLiveRooms = ({
       return entry === undefined ? null : entry.strategy.resolveMerged?.(entry, stageIndex)
     },
     setConfirmStage: handler => { confirmStage = handler },
+    setRewindStage: handler => { rewindStage = handler },
     decideApproval,
     expireApprovals,
     answerCard,

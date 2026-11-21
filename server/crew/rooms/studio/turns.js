@@ -12,7 +12,7 @@ import { createStageStarter } from './stage.js'
 import { createTurnState } from './turn-state.js'
 import { deliverableStageIndex, isWorkStage, memberForRef } from './turn-utils.js'
 import { judgmentAnchorOf, judgmentOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
-import { gateSubmissionOf } from '../../../../shared/gate.js'
+import { gateSubmissionOf, rewindRequestOf } from '../../../../shared/gate.js'
 import { activeDispatchAssignments as activeDispatch, assignmentForTurn, latestDispatchAssignment, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 import { leadMemberOf, memberOf, verifierIds, workerIds } from '../../room-members.js'
@@ -25,7 +25,7 @@ import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from './auto-rework.js'
 const MAX_STAGE_REWORKS = 3
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null, screenshots = null, attachments = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null, rewindStage = null, screenshots = null, attachments = null }) => {
   const state = createTurnState({ store, roomId, emit })
   const handoff = createHandoff({ store, roomId, sendToMember, emit })
   const review = createReviewCoordinator({
@@ -576,6 +576,20 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     state.capturedTurns.add(turnId)
     const calls = state.turns.get(turnId) ?? []
     state.turns.delete(turnId)
+
+    if (role === 'lead') {
+      const request = rewindRequestOf(calls)
+      if (request !== null && typeof rewindStage === 'function') {
+        const result = rewindStage(roomId, request)
+        if (result?.ok === true) {
+          store.appendEvent(roomId, 'planner.rewind', { stage: request.stage, note: request.note })
+          emit?.('room', store.readRoom(roomId) ?? room)
+          state.recordTurn(true)
+          return
+        }
+        systemNotice({ store, roomId, text: `退回没成功：${result?.error ?? '再试一次'}` })
+      }
+    }
 
     if (review.consume({ turn, memberId, turnId, room, calls })) {
       writeTurnDiagnostic('review')

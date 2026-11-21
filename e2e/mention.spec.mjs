@@ -15,8 +15,9 @@ test('the mention menu stays a compact people picker', async ({ page, request })
 })
 
 test('a picked member travels as an id with the message', async ({ page, request }) => {
-  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
+  expect((await request.post('/api/rooms/sample', { data: { kind: 'chat' } })).ok()).toBe(true)
   await page.goto('/')
+  await page.getByRole('button', { name: /示例：把「朏朏住在灵动岛上」/ }).first().click()
 
   const composer = page.getByRole('combobox', { name: '房间消息' })
   await composer.fill('@')

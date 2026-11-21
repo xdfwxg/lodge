@@ -55,6 +55,8 @@ export function goalView(goal) {
   return {
     status: goal.status, idle: goal.idle === true, kind: goal.kind ?? null, title: goal.title ?? '',
     number, count, segments, barLabel, stages: stageViews,
+    tone: goal.tone ?? null,
+    stageLabel: goal.stageLabel ?? '进行中',
   }
 }
 
@@ -92,10 +94,10 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
   const title = view?.title || room.name || '目标'
   const status = view?.barLabel || room.needsYou?.label
     || (view?.status === 'complete' ? (chat ? '已确认 · 看结果' : '已交付 · 看结果') : '还没有目标')
-  const tone = view?.status === 'complete' ? 'done'
+  const tone = view?.tone ?? (view?.status === 'complete' ? 'done'
     : view?.status === 'stopped' ? 'stopped'
       : view?.status === 'paused' || room.needsYou ? 'waiting'
-        : view?.status === 'drafting' ? 'drafting' : 'active'
+        : view?.status === 'drafting' ? 'drafting' : 'active')
   const total = view?.count ?? 0
   const done = (view?.segments ?? []).filter(seg => seg === 'done').length
   const currentIndex = (view?.number ?? 0) - 1
@@ -242,7 +244,7 @@ function GoalPanel({ goal, view, room, actions }) {
   const stage = selected >= 0 ? view.stages[selected] : undefined
   const stateLabel = stage === undefined ? ''
     : stage.status === 'passed' ? '已完成'
-      : stage.status === 'active' ? '进行中' : '还没到'
+      : stage.status === 'active' ? (view.stageLabel ?? '进行中') : '还没到'
   return h('div', { className: 'bt-goal-panel', role: 'region', 'aria-label': view.title },
     h('div', { className: 'bt-goal-body' },
     goal.objective ? h('div', { className: 'bt-goal-goal' }, goal.objective) : null,

@@ -60,6 +60,19 @@ export const GATE_TOOLS = Object.freeze([
       additionalProperties: false,
     },
   },
+  {
+    name: 'rewind_stage',
+    description: '把工作退回到指定步骤，后面的步骤全部重来。只有用户明确要求退回或重做前面某一步时，规划师才调用；不要让用户去找按钮。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        stage: { type: 'integer', minimum: 1, maximum: 20 },
+        note: { type: 'string', maxLength: 4000 },
+      },
+      required: ['stage', 'note'],
+      additionalProperties: false,
+    },
+  },
 ])
 
 const reply = (id, result) => ({ jsonrpc: '2.0', id, result })
@@ -85,7 +98,7 @@ const plannerDecision = value => {
 const callTool = (id, params) => {
   const name = typeof params?.name === 'string' ? params.name : ''
   const args = params?.arguments ?? params?.input ?? {}
-  const reason = String(args.reason ?? '').trim()
+  const reason = String(args.reason ?? args.note ?? '').trim()
   if (reason === '') return toolFailure(id, '缺少 reason：请用一句话说明判定依据。')
   if (name === 'submit_verdict') {
     const decision = verdictDecision(args.decision)
@@ -124,6 +137,15 @@ const callTool = (id, params) => {
       decision,
       reason,
       actionRequired: typeof args.actionRequired === 'string' ? args.actionRequired : '',
+    })
+  }
+  if (name === 'rewind_stage') {
+    const stage = Number(args.stage)
+    if (!Number.isInteger(stage) || stage < 1) return toolFailure(id, 'stage 必须是从 1 开始的步骤号。')
+    return toolOk(id, `已收到退回请求：第 ${stage} 步`, {
+      ok: true,
+      stage,
+      note: reason,
     })
   }
   return toolFailure(id, `未知工具：${name}`)

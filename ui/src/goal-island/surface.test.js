@@ -149,7 +149,7 @@ test('a review timeout puts the fix in the signal itself', () => {
 })
 
 test('the open panel is the goal, its steps and where the work stands', () => {
-  const html = render('open', null, { attention: [], needsYou: null })
+  const html = render('open', null, { attention: [], needsYou: null, working: true })
   assert.match(html, /做一个欢迎语/)
   assert.match(html, /目标对齐/)
   assert.match(html, /进行中/)

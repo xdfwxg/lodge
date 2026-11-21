@@ -73,6 +73,14 @@ b,strong{font-weight:600}
 .crew-side-member-more{flex:none;width:18px;height:22px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:13px;line-height:1;cursor:pointer;opacity:0}
 .crew-side-member-row:hover .crew-side-member-more,.crew-side-member-more:focus-visible{opacity:1}
 .crew-side-member-more:hover{background:var(--bt-hover);color:var(--bt-ink)}
+.crew-member-dialog{max-width:360px}
+.crew-member-dialog-body{padding:4px 20px 8px}
+.crew-member-dialog .crew-side-members{flex-direction:column;align-items:stretch;gap:4px;padding:0}
+.crew-member-dialog .crew-side-members-label{display:none}
+.crew-member-dialog .crew-side-member-row{width:100%}
+.crew-member-dialog .crew-side-member{flex:1 1 auto;height:32px;font-size:var(--bt-text-label)}
+.crew-member-dialog .crew-side-member-more{opacity:1}
+.crew-member-dialog .crew-side-member-add{justify-content:flex-start;width:auto;height:32px;padding:0 4px}
 .crew-member-menu{min-width:132px}
 body[data-side=rail] .crew-side-members{display:none}
 .crew-side-row{position:relative;display:flex;align-items:center;flex-wrap:wrap;min-width:0}

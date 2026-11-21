@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { gateSubmissionOf, isGateToolName } from './gate.js'
+import { gateSubmissionOf, isGateToolName, rewindRequestOf } from './gate.js'
 import { judgmentFromGate } from './judgment.js'
 
 const verdict = overrides => ({
@@ -104,6 +104,24 @@ test('only the lodge_gate tool names are recognized by the permission bridge', (
   assert.equal(isGateToolName('Allow lodge_gate:submit_verdict?'), true)
   assert.equal(isGateToolName('mcp__other__submit_verdict'), false)
   assert.equal(isGateToolName('submit_verdict'), false)
+})
+
+test('a planner rewind request is 1-based and needs a note', () => {
+  assert.deepEqual(
+    rewindRequestOf([{
+      name: 'mcp__lodge_gate__rewind_stage',
+      input: JSON.stringify({ stage: 2, note: '方向错了' }),
+    }]),
+    { stage: 1, note: '方向错了' },
+  )
+  assert.equal(rewindRequestOf([{
+    name: 'mcp__lodge_gate__rewind_stage',
+    input: JSON.stringify({ stage: 0, note: '方向错了' }),
+  }]), null)
+  assert.equal(rewindRequestOf([{
+    name: 'mcp__lodge_gate__rewind_stage',
+    input: JSON.stringify({ stage: 1, note: ' ' }),
+  }]), null)
 })
 
 test('gate judgments need a recognized decision and a reason', () => {

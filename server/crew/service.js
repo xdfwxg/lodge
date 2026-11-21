@@ -141,6 +141,12 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     if (room === null) return null
     return stages.accept(room, { stage: index })
   })
+  // 规划师在回合里调用退回工具时，允许越过“房间还有回合在跑”的界面门禁。
+  live.setRewindStage?.((roomId, request) => {
+    const room = store.readRoom(roomId)
+    if (room === null) return null
+    return stages.rewind(room, request, { allowBusy: true })
+  })
   // 合并冲突留给人：打开冲突目录、解决并提交，再由这里清掉冲突继续验收。
   const resolveMerge = async room => {
     const conflict = room?.mergeConflict

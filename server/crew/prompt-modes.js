@@ -14,6 +14,7 @@ const WORK_CONTRACT = {
     '阶段确认前不要派活；对齐由系统自动确认，确认后只点名当前执行成员，不重复派活。',
     '阶段交付后不要再次 @执行 做确认或道谢；被 @ 的成员会重新加载并产生新回合。',
     '不要自己唤醒验收员；交付后由系统发起验收。',
+    '用户明确说要退回或重做前面某一步时，调用 lodge_gate_rewind_stage（基座可能显示为 mcp__lodge_gate__rewind_stage；stage 从 1 开始，note 写清原因）；工具列表没有就先 ToolSearch "lodge_gate_rewind_stage"。不要只口头答应，也不要自己改文件。',
     '只根据房间状态与证据说话；不确定就如实说。',
     HUMAN_RULE,
     MENTION_RULE,

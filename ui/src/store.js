@@ -347,7 +347,6 @@ export function createStore() {
       return { ok: true }
     },
     retry: (stage, note) => post(`/api/rooms/${state.activeId}/retry`, { stage, note }),
-    rewind: (stage, note) => post(`/api/rooms/${state.activeId}/rewind`, { stage, note }),
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     resumeChat: () => post(`/api/rooms/${state.activeId}/chat-resume`, {}),
     resumeRoom: () => post(`/api/rooms/${state.activeId}/resume`, {}),

@@ -125,13 +125,13 @@ test('a narrow dark window still renders the room without horizontal overflow', 
   expect(overflow).toBeLessThanOrEqual(1)
 })
 
-test('a delivered room keeps one send control with a next-version menu', async ({ page, request }) => {
+test('a delivered room has one send action and no extra round menu', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
   await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
 
   await page.getByRole('combobox', { name: '房间消息' }).fill('再改一版')
-  await page.getByRole('button', { name: '更多提交方式' }).click()
-  await expect(page.getByRole('menuitem', { name: /开新一轮/ })).toBeVisible()
-  await expect(page.getByRole('menuitem', { name: /同一工作室，成员和工作区沿用/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: '发送' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '更多提交方式' })).toHaveCount(0)
+  await expect(page.getByRole('menuitem')).toHaveCount(0)
 })

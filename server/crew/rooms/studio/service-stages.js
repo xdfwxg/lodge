@@ -346,7 +346,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
 
   // 退回指定步骤：目标步骤重新变成当前步骤，后面的步骤全部重来。
   // 人工关口的“补一句再跑”也走这里——目标是当前步骤时，效果就是带上下文重跑一次。
-  const rewind = (room, body) => {
+  const rewind = (room, body, { allowBusy = false } = {}) => {
     const index = Number(body?.stage)
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 4000) : ''
     const stage = room.stages?.[index]
@@ -354,7 +354,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (!isWorkStage(stage) && stage.kind !== 'decision') return fail('invalid', '只有步骤能退回')
     if (stage.state === 'pending') return fail('conflict', '这一步还没开始，不能退回')
     if (room.state !== 'active') return fail('conflict', '先让房间继续，再退回这一步')
-    if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
+    if (allowBusy !== true && (room.busyMembers ?? []).length > 0) {
+      return fail('conflict', '房间还有回合在跑；先等这一回合结束')
+    }
     if (room.live === true && typeof live.busyReview === 'function' && live.busyReview(room.id)) {
       return fail('conflict', '验收员还在看，等结论出来再继续')
     }

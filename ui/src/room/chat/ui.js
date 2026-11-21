@@ -13,6 +13,7 @@ export const chatUi = {
   teamMode: 'fixed',
   memberLabels: { lead: '主持中', member: '发言中' },
   membersCanBeAdded: false,
+  membersInSidebar: true,
   startMode: 'direct',
   cta: '开始讨论',
   goalLabel: '想聊什么？',

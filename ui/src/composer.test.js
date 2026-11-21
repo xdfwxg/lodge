@@ -31,23 +31,13 @@ test('an empty composer keeps the row quiet: no send control at all', () => {
   assert.doesNotMatch(html, /crew-send/)
 })
 
-test('typed text shows one return arrow, and a studio offers the round menu beside it', () => {
+test('typed text shows exactly one return arrow', () => {
   const html = withDraft('修登录超时', () => renderToStaticMarkup(h(Composer, {
     ...base,
     draftKey: 'room-1',
-    onStartRound: () => {},
   })))
   assert.match(html, /class="crew-send"/)
-  assert.match(html, /aria-label="更多提交方式"/)
-  assert.doesNotMatch(html, /data-empty/)
-})
-
-test('a normal room keeps one send arrow with no round menu', () => {
-  const html = withDraft('继续说', () => renderToStaticMarkup(h(Composer, {
-    ...base,
-    draftKey: 'room-2',
-  })))
-  assert.match(html, /class="crew-send"/)
+  assert.doesNotMatch(html, /更多提交方式/)
   assert.doesNotMatch(html, /crew-send-split/)
 })
 
@@ -56,9 +46,8 @@ test('the stop control replaces the send control while a turn is running', () =>
   const html = withDraft('修登录超时', () => renderToStaticMarkup(h(Composer, {
     ...base,
     draftKey: 'room-3',
-    onStartRound: () => {},
     stopControl: stop,
   })))
   assert.match(html, /fake-stop/)
-  assert.doesNotMatch(html, /crew-send-split/)
+  assert.doesNotMatch(html, /crew-send/)
 })

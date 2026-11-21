@@ -90,6 +90,16 @@ test('rework records the human objection and re-dispatches the active stage', as
   assert.equal(ctx.room().lastPlannerDecision ?? null, null)
 })
 
+test('a planner tool can rewind while its own turn is busy', () => {
+  const ctx = setup(room({ busyMembers: ['planner'] }))
+  const blocked = ctx.stages.rewind(ctx.room(), { stage: 0, note: '补一句：先看 README' })
+  assert.equal(blocked.ok, false)
+  assert.equal(blocked.reason, 'conflict')
+  const allowed = ctx.stages.rewind(ctx.room(), { stage: 0, note: '补一句：先看 README' }, { allowBusy: true })
+  assert.equal(allowed.ok, true)
+  assert.equal(ctx.room().stages[0].state, 'active')
+})
+
 test('rewinding to an earlier step reopens it and resets everything after it', async () => {
   const ctx = setup(room({
     closure: 'verifying',

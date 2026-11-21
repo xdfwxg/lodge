@@ -47,10 +47,10 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 卡片有效期（阶段 + 重做轮次 + assignment） | `shared/attempt.test.js`、`server/crew/assignments.test.js`、`server/crew/attention.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/question-card.test.js` | 无 |
 | 人工门动作集 | `shared/human-gate.test.js` | 无 |
 | 运行租约 / 并行分支重试 | `server/crew/assignments.test.js`、`server/crew/service-stages.test.js` | 无 |
-| 任意步骤退回（含 decision） | `server/crew/service-stages.test.js`、`ui/src/room/studio/rewind-dialog.test.js` | 无 |
+| 任意步骤退回（含 decision） | `server/crew/service-stages.test.js`、`shared/gate.test.js`、`server/crew/gate/mcp-server.test.js` | 真实模型需 dogfood |
 | 原生换身体（保留线程） | `server/crew/kernel/live/body-swap.test.js`、`server/crew/engine.test.js` | 真实基座可选 |
 | 角色定义（定义 / 实例分层） | `shared/role-definitions.test.js`、`server/crew/roster.test.js` | 无 |
-| 退回指定步骤、补上下文再跑 | `server/crew/service-stages.test.js`、`ui/src/room/studio/rewind-dialog.test.js` | 无 |
+| 退回指定步骤、补上下文再跑 | `server/crew/service-stages.test.js`、`shared/gate.test.js` | 真实模型需 dogfood |
 | 并行执行、合并冲突、超时 | `server/crew/live-turn-modules.test.js`、`server/crew/workspace-git.test.js`、`server/crew/service-merge.test.js`、`server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/studio/auto-rework.test.js`、`ui/src/room/studio/merge-conflict.test.js` | 真实 git 冲突解决需 dogfood |
 | 外部动作审批、叫停、排队 | `server/crew/approval-bridge.test.js`、`server/crew/live-approvals.test.js`、`server/crew/external-actions.test.js`、`server/crew/member-delivery.test.js`、`ui/src/room/studio/transcript.test.js` | 真实 git push 需 dogfood |
 | 受控浏览器（chrome-devtools MCP） | `server/browser-mcp.test.js`、`server/crew/roster.test.js`、`server/crew/room-access.test.js`、`shared/room-access.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/studio/create.test.js`、`ui/src/approval-card.test.js` | 真实 Chrome |

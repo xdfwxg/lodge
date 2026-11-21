@@ -57,6 +57,11 @@ const project = over => ({
   ...over,
 })
 
+const openProject = async page => {
+  await page.getByRole('button', { name: '历史' }).click()
+  await page.getByRole('button', { name: '项目' }).click()
+}
+
 test('a project lists its rounds and opens the studio that owns them', async ({ page, request }) => {
   const base = await (await request.get('/api/state')).json()
   const state = {
@@ -68,13 +73,13 @@ test('a project lists its rounds and opens the studio that owns them', async ({ 
   await page.goto('/')
 
   await page.getByRole('button', { name: /长期工作间/ }).first().click()
-  await page.getByRole('button', { name: '项目' }).click()
+  await openProject(page)
   await expect(page.getByRole('heading', { name: '长期项目' })).toBeVisible()
   await expect(page.getByText('1 轮 · 已交付')).toBeVisible()
   await expect(page.getByText('先做一个原型').first()).toBeVisible()
 
   await page.getByRole('button', { name: '打开这一轮的工作室' }).click()
-  await expect(page.getByRole('button', { name: '项目' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '历史' })).toBeVisible()
 })
 
 test('an old round opens as a read-only record, not the current round', async ({ page, request }) => {
@@ -123,7 +128,7 @@ test('an old round opens as a read-only record, not the current round', async ({
   await page.goto('/')
 
   await page.getByRole('button', { name: /长期工作间/ }).first().click()
-  await page.getByRole('button', { name: '项目' }).click()
+  await openProject(page)
   await page.getByRole('button', { name: /先做一个原型/ }).click()
 
   await expect(page.getByText('旧轮只能查看；要接着做，回到工作室开新一轮。')).toBeVisible()
@@ -132,7 +137,7 @@ test('an old round opens as a read-only record, not the current round', async ({
   await expect(page.getByRole('button', { name: '项目' })).toHaveCount(0)
 
   await page.getByRole('button', { name: '← 回到工作室' }).click()
-  await expect(page.getByRole('button', { name: '项目' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '历史' })).toBeVisible()
 })
 
 test('a studio without a project can still open its old rounds', async ({ page, request }) => {
@@ -168,7 +173,7 @@ test('a studio without a project can still open its old rounds', async ({ page, 
   await page.goto('/')
 
   await page.getByRole('button', { name: /长期工作间/ }).first().click()
-  await page.getByRole('button', { name: '轮次' }).click()
+  await page.getByRole('button', { name: '历史' }).click()
   await expect(page.getByText('2 轮')).toBeVisible()
   await page.getByRole('button', { name: /先做一个原型/ }).click()
   await expect(page.getByText('旧轮只能查看；要接着做，回到工作室开新一轮。')).toBeVisible()
@@ -215,7 +220,7 @@ test('a completed project starts the next round in the same studio', async ({ pa
   await page.goto('/')
 
   await page.getByRole('button', { name: /长期工作间/ }).first().click()
-  await page.getByRole('button', { name: '项目' }).click()
+  await openProject(page)
   await page.getByLabel('下一轮要做什么？').fill('修登录超时')
   await page.getByLabel('验收命令（可不填）').fill('npm test')
   await page.getByRole('button', { name: '开下一轮' }).click()
@@ -284,7 +289,7 @@ test('a project asks one clear decision before opening a round', async ({ page, 
   await page.goto('/')
 
   await page.getByRole('button', { name: /长期工作间/ }).first().click()
-  await page.getByRole('button', { name: '项目' }).click()
+  await openProject(page)
   await page.getByLabel('下一轮要做什么？').fill('修登录超时')
   await page.getByRole('button', { name: '先出方案' }).click()
   await expect(page.getByText('先修哪一层？')).toBeVisible()

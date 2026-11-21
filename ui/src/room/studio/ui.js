@@ -14,6 +14,7 @@ export const studioUi = {
   teamMode: 'proposal',
   memberLabels: {},
   membersCanBeAdded: true,
+  membersInSidebar: false,
   startMode: 'direct',
   cta: '开工',
   goalLabel: '要做什么？',

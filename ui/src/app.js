@@ -161,6 +161,10 @@ export function App() {
             store.select(roomId)
             setHistory(roundId === null ? null : { roomId, roundId })
           },
+          onOpenProject: id => {
+            setRoundsFor(null)
+            setProjectId(id)
+          },
         })
         : history !== null && history.roomId === room.id
           ? h(RoundView, {
@@ -175,7 +179,6 @@ export function App() {
             store,
             onStartStudio: seedValue => openDialog(seedValue),
             onStartChat: seedValue => openDialog(seedValue, 'chat'),
-            onOpenProject: id => setProjectId(id),
             onOpenRounds: () => setRoundsFor(room.id),
           }),
     liveRegion,

@@ -11,7 +11,7 @@ import { ArrowDownIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
 
-function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProject = null, onOpenRounds = null }) {
+function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenRounds = null }) {
   const [dropped, setDropped] = useState(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
@@ -206,7 +206,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
     resolveMerge: () => store.resolveMerge(),
     retry: (stage, note) => void store.retry(stage, note),
     verify: stage => store.verify(stage),
-    rewind: (stage, note) => store.rewind(stage, note),
     resumeChat: () => store.resumeChat(),
     resume: () => store.resumeRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
@@ -215,7 +214,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
     steerQueue: queueId => void store.steerQueued(queueId),
     continueChat: note => store.continueChat(note),
     selectRoom: id => store.select(id),
-    openProject: id => onOpenProject?.(id),
     openRounds: () => onOpenRounds?.(),
     startStudio: onStartStudio,
     startChat: onStartChat,
@@ -321,13 +319,12 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
           disabled: state.phase === 'loading' || locked,
           stopControl,
           inputRef: composerInput,
-          onStartRound: canStartRound
-            ? (text, options) => store.startRound(text, options)
-            : null,
           dropping: dragging,
           incoming: dropped,
           onIncomingDone: () => setDropped(null),
-          onSend: (text, options) => store.send(text, options),
+          onSend: (text, options) => (canStartRound
+            ? store.startRound(text, options)
+            : store.send(text, options)),
           onUpload: file => store.uploadAttachment(file),
         }))),
     swapId === null

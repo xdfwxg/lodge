@@ -7,6 +7,7 @@ import { Lingchong, LINGCHONG_CSS } from './lingchong.js'
 import { useHoverPeek } from './use-hover-peek.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
+import { islandStatusOf, islandWorking } from './status.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 
 // 房型能力决定岛要不要画步骤；聊天室没有阶段，即使切过一次工作室也不显示残留阶段。
@@ -20,22 +21,8 @@ const cleanTitle = value => stripAttachmentTags(value)
   .replace(/<attached-(?:image|file)[\s\S]*$/i, '')
   .trim()
 
-const islandWorking = room => (
-  (Array.isArray(room?.busyMembers) ? room.busyMembers.length > 0 : false) ||
-  room?.chat?.running === true ||
-  room?.chat?.hostThinking === true
-)
-
 export const toIslandGoal = room => {
-  const working = islandWorking(room)
-  const needsYou = room.needsYou ?? null
-  // 有回合在跑时显示当前步骤；其余时候只留一个原子状态，停了就是空闲中。
-  const barLabel = room.state === 'paused' ? '已暂停'
-    : room.state === 'stopped' ? '已停止'
-      : room.state === 'idle' ? '空闲中'
-        : room.state === 'active'
-          ? working ? undefined : needsYou ? '等你决定' : '空闲中'
-          : undefined
+  const islandStatus = islandStatusOf(room)
   return {
     id: room.id,
     title: cleanTitle(room.name),
@@ -49,8 +36,10 @@ export const toIslandGoal = room => {
       kind: stage.kind,
       status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
     })),
-    objective: room.brief?.objective || stripAttachmentTags(room.goal),
-    barLabel,
+    objective: cleanTitle(room.brief?.objective || room.goal),
+    barLabel: islandStatus.barLabel ?? undefined,
+    tone: islandStatus.tone,
+    stageLabel: islandStatus.stageLabel,
   }
 }
 
@@ -67,9 +56,7 @@ const toIslandRoom = room => ({
       message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'
     )),
   // 真正有回合在跑时才“灵动”地展开；回合结束回到最小，不常驻一条状态。
-  working: (Array.isArray(room.busyMembers) ? room.busyMembers.length > 0 : false) ||
-    room.chat?.running === true ||
-    room.chat?.hostThinking === true,
+  working: islandWorking(room),
 })
 
 const pill = ({ room, view, open, onToggle }) => {
