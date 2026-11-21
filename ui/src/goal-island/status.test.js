@@ -20,7 +20,7 @@ test('studio and chat share state keys but keep separate words', () => {
   assert.deepEqual(Object.keys(ISLAND_STATUS), ['studio', 'chat'])
   assert.deepEqual(
     Object.keys(ISLAND_STATUS.studio),
-    ['running', 'waiting', 'idle', 'paused', 'stopped', 'done'],
+    ['running', 'waiting', 'idle', 'paused', 'stopped', 'archived', 'done'],
   )
   assert.equal(ISLAND_STATUS.studio.idle.barLabel, '空闲中')
   assert.equal(ISLAND_STATUS.chat.idle.barLabel, '还没开始聊')
@@ -33,6 +33,8 @@ test('a studio shows the current step only while a turn is running', () => {
   assert.equal(islandStatusOf(studio({ needsYou: { kind: 'decision' } })).barLabel, '等你决定')
   assert.equal(islandStatusOf(studio({ state: 'paused' })).barLabel, '已暂停')
   assert.equal(islandStatusOf(studio({ state: 'stopped' })).barLabel, '已停止')
+  assert.equal(islandStatusOf(studio({ archivedAt: 1 })).barLabel, '已归档')
+  assert.equal(islandStatusOf(studio({ archivedAt: 1, busyMembers: ['worker'] })).key, 'archived')
 })
 
 test('a chat derives the same state keys with its own words', () => {
@@ -42,6 +44,8 @@ test('a chat derives the same state keys with its own words', () => {
   assert.equal(islandStatusOf(chat({ chat: { phase: 'summarizing' } }), 'chat').barLabel, '正在收一下')
   assert.equal(islandStatusOf(chat({ chat: { phase: 'concluded' } }), 'chat').barLabel, '聊到这儿了')
   assert.equal(islandStatusOf(chat({ state: 'paused' }), 'chat').barLabel, '已暂停，随时接着聊')
+  assert.equal(islandStatusOf(chat({ archivedAt: 1, chat: { phase: 'discussing', running: true } }), 'chat').key, 'archived')
+  assert.equal(islandStatusOf(chat({ archivedAt: 1 }), 'chat').barLabel, '已归档')
 })
 
 test('an idle studio is only done when the latest round completed', () => {

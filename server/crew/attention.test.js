@@ -96,6 +96,15 @@ test('a member engine error asks the human to intervene with a concrete reason',
   }, []).label, '验收员的登录失效了')
 })
 
+test('a budget pause names the round budget', () => {
+  assert.deepEqual(roomNeedsYou({ state: 'paused', pauseReason: 'budget' }, []), {
+    kind: 'budget',
+    stage: null,
+    label: '这一轮的额度用完了',
+    detail: '充值或调高预算后，点“继续”。',
+  })
+})
+
 test('a deliverable without an acceptance command asks for setup', () => {
   const r = atDeliverable()
   r.stages[1].acceptance = ''

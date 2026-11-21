@@ -8,6 +8,7 @@ export const ISLAND_STATUS = Object.freeze({
     idle: Object.freeze({ barLabel: '空闲中', stageLabel: '空闲中', tone: 'active' }),
     paused: Object.freeze({ barLabel: '已暂停', stageLabel: '已暂停', tone: 'waiting' }),
     stopped: Object.freeze({ barLabel: '已停止', stageLabel: '已停止', tone: 'stopped' }),
+    archived: Object.freeze({ barLabel: '已归档', stageLabel: '已归档', tone: 'stopped' }),
     done: Object.freeze({ barLabel: null, stageLabel: '', tone: 'done' }),
   }),
   chat: Object.freeze({
@@ -17,6 +18,7 @@ export const ISLAND_STATUS = Object.freeze({
     idle: Object.freeze({ barLabel: '还没开始聊', stageLabel: '还没开始聊', tone: 'active' }),
     paused: Object.freeze({ barLabel: '已暂停，随时接着聊', stageLabel: '已暂停，随时接着聊', tone: 'waiting' }),
     stopped: Object.freeze({ barLabel: '已停止', stageLabel: '已停止', tone: 'stopped' }),
+    archived: Object.freeze({ barLabel: '已归档', stageLabel: '已归档', tone: 'stopped' }),
   }),
 })
 
@@ -28,7 +30,8 @@ export const islandWorking = room => (
 
 const studioState = room => {
   const status = roomStatusOf(room)
-  if (status === 'archived' || status === 'stopped') return 'stopped'
+  if (status === 'archived') return 'archived'
+  if (status === 'stopped') return 'stopped'
   if (status === 'paused') return 'paused'
   if (status === 'active') {
     if (islandWorking(room)) return 'running'
@@ -40,6 +43,7 @@ const studioState = room => {
 
 const chatState = room => {
   const status = chatStatusOf(room)
+  if (status === 'archived') return 'archived'
   if (status === 'paused') return 'paused'
   if (status === 'stopped') return 'stopped'
   if (status === 'summarizing') return 'summarizing'

@@ -11,6 +11,7 @@ const statusOfPaused = room => {
   }
   if (room.pauseReason === 'mcp') return { title: '连接中断', tone: 'paused' }
   if (room.pauseReason === 'approval') return { title: '确认超时', tone: 'paused' }
+  if (room.pauseReason === 'budget') return { title: '这一轮的额度用完了', tone: 'paused' }
   return { title: room.idle === true ? '已暂停，可以接着聊' : '已暂停', tone: 'paused' }
 }
 

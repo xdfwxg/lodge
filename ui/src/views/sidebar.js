@@ -381,6 +381,7 @@ const NEEDS_META = {
   approval: '待确认',
   idle: '可以继续',
   error: '没做成',
+  budget: '额度用完',
   mcp: '连接中断',
   connection: '连接中断',
   blocked: '待处理',

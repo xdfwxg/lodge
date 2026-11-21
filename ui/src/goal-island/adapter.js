@@ -34,7 +34,8 @@ export const toIslandGoal = room => {
     title: cleanTitle(room.name),
     status: done
       ? 'complete'
-      : room.state === 'paused' ? 'paused' : room.state === 'stopped' ? 'stopped' : 'active',
+      : islandStatus.key === 'paused' ? 'paused'
+        : islandStatus.key === 'stopped' || islandStatus.key === 'archived' ? 'stopped' : 'active',
     idle: room.idle === true || room.needsYou?.kind === 'idle',
     current: activeIndex(room),
     stages: stagesOf(room).map(stage => ({

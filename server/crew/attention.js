@@ -3,7 +3,7 @@ import { pendingApprovals } from './external-actions.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { memberDisplayName } from './member-labels.js'
 import { answeredCardIds, scopeIsValid } from '../../shared/attempt.js'
-import { ROOM_STATE } from '../../shared/states.js'
+import { PAUSE_REASON, ROOM_STATE } from '../../shared/states.js'
 
 // 注意力路由：只在房间真的卡在人这里时返回一个信号；不是未读数。
 // 通用状态在 kernel 判断，房型内部的“下一步该谁做”交给上下文 kind。
@@ -58,9 +58,17 @@ export const roomNeedsYou = (room, messages = []) => {
     }
   }
   if (room.state === ROOM_STATE.paused) {
-    if (room.pauseReason === 'mcp') return { kind: 'mcp', stage: null, label: '连接中断' }
-    if (room.pauseReason === 'approval') return { kind: 'approval', stage: null, label: '确认超时' }
-    if (room.pauseReason === 'member_error') {
+    if (room.pauseReason === PAUSE_REASON.mcp) return { kind: 'mcp', stage: null, label: '连接中断' }
+    if (room.pauseReason === PAUSE_REASON.approval) return { kind: 'approval', stage: null, label: '确认超时' }
+    if (room.pauseReason === PAUSE_REASON.budget) {
+      return {
+        kind: 'budget',
+        stage: null,
+        label: '这一轮的额度用完了',
+        detail: '充值或调高预算后，点“继续”。',
+      }
+    }
+    if (room.pauseReason === PAUSE_REASON.member_error) {
       const memberId = room.memberError?.memberId
       const name = memberId === undefined ? '成员' : memberDisplayName(room, memberId)
       return {

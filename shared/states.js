@@ -125,6 +125,7 @@ export const CHAT_STATUS = Object.freeze({
   thinking: 'thinking',
   paused: 'paused',
   stopped: 'stopped',
+  archived: 'archived',
 })
 
 export const CHAT_TRANSITIONS = Object.freeze({
@@ -185,6 +186,7 @@ export const ATTENTION_KIND = Object.freeze({
   rework: 'rework',
   review: 'review',
   signoff: 'signoff',
+  budget: 'budget',
 })
 
 export const PAUSE_REASON = Object.freeze({

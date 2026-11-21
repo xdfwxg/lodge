@@ -37,6 +37,7 @@ export const stageStatusOf = (room, index) => {
 
 // 聊天室“现在在做什么”：先把房间暂停/停止、讨论、总结、收尾合成一个词。
 export const chatStatusOf = (room, messages = room?.messages) => {
+  if (room?.archivedAt) return CHAT_STATUS.archived
   if (room?.state === ROOM_STATE.paused) return CHAT_STATUS.paused
   if (room?.state === ROOM_STATE.stopped) return CHAT_STATUS.stopped
   const chat = room?.chat ?? {}
