@@ -56,10 +56,14 @@ test('only the Lodge chat allows a host without member threads', () => {
 
 test('message routing is a mode policy, not a room-type branch', () => {
   const chat = roomModeForType('chat')
-  assert.deepEqual(chat.messagePolicy({ room: { chat: { phase: 'discussing' } }, text: '聊聊' }), { type: 'host' })
-  assert.deepEqual(chat.messagePolicy({ room: { chat: { phase: 'concluded' } }, text: '继续' }), { type: 'host' })
-  assert.equal(chat.messagePolicy({ room: { chat: { phase: 'discussing' } }, text: '@甲 看这里' }), null)
-  assert.equal(chat.messagePolicy({ room: { chat: { phase: 'concluded' } }, text: '@甲 继续' }), null)
+  const room = { chat: { phase: 'discussing' }, members: [{ id: 'a', name: '甲' }] }
+  const concluded = { chat: { phase: 'concluded', running: false }, members: [{ id: 'a', name: '甲' }] }
+  assert.deepEqual(chat.messagePolicy({ room, text: '聊聊', mentions: [] }), { type: 'host' })
+  assert.deepEqual(chat.messagePolicy({ room: concluded, text: '继续', mentions: [] }), { type: 'host' })
+  assert.deepEqual(chat.messagePolicy({ room, text: '@甲 看这里', mentions: [] }), { type: 'host' })
+  assert.deepEqual(chat.messagePolicy({ room, text: '@所有人 看这里', mentions: [] }), { type: 'host' })
+  assert.equal(chat.messagePolicy({ room, text: '@甲 看这里', mentions: ['a'] }), null)
+  assert.equal(chat.messagePolicy({ room: concluded, text: '@甲 继续', mentions: ['a'] }), null)
 
   const studio = roomModeForType('studio')
   assert.equal(studio.messagePolicy({ room: { stages: [{ state: 'passed' }] } }), null)

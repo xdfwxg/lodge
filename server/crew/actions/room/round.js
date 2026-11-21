@@ -72,7 +72,7 @@ export const createRoundActions = deps => {
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
         const mode = roomModeOfRoom(room)
         const messages = readMessages(room.id)
-        const policy = mode?.messagePolicy?.({ room, text, messages }) ?? null
+        const policy = mode?.messagePolicy?.({ room, text, messages, mentions }) ?? null
         // 规划师已经把这步交给人：人的这句话就是补充上下文，直接重跑这一步。
         if (policy?.type === 'human-rework') {
           const result = await stages.rework(room, { stage: policy.stage, note: promptText })
