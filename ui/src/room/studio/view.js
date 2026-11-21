@@ -29,6 +29,14 @@ export const studioView = {
           onClick: () => actions.openProject(room.workRound?.projectId ?? room.defaultProjectId),
         }, '项目'))
       : null,
+    (room.rounds ?? []).length > 0 && typeof actions.openRounds === 'function'
+      ? h('div', { className: 'studio-run-back' },
+        h('button', {
+          type: 'button',
+          className: 'crew-link',
+          onClick: () => actions.openRounds(),
+        }, '轮次'))
+      : null,
     h(GoalIslandHeader, {
       room,
       onOpenRoom: actions.selectRoom,

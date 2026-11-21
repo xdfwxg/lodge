@@ -3,7 +3,7 @@ import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { RoomHealth } from '../room/health.js'
-import { StopRoom, roomRunning } from '../room/stop-room.js'
+import { StopReply, turnRunning } from '../room/stop-reply.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
 import { uiModeOfRoom } from './room-modes.js'
@@ -11,7 +11,7 @@ import { ArrowDownIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
 
-function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProject = null }) {
+function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProject = null, onOpenRounds = null }) {
   const [dropped, setDropped] = useState(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
@@ -209,7 +209,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
     rewind: (stage, note) => store.rewind(stage, note),
     resumeChat: () => store.resumeChat(),
     resume: () => store.resumeRoom(),
-    stopRoom: () => store.stopRoom(),
     approval: (id, decisionValue) => void store.decideApproval(id, decisionValue),
     answerCard: (memberId, requestId, message) => void store.answerCard(memberId, requestId, message),
     cancelQueue: queueId => void store.cancelQueued(queueId),
@@ -217,6 +216,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
     continueChat: note => store.continueChat(note),
     selectRoom: id => store.select(id),
     openProject: id => onOpenProject?.(id),
+    openRounds: () => onOpenRounds?.(),
     startStudio: onStartStudio,
     startChat: onStartChat,
     swapBody: memberId => {
@@ -234,14 +234,12 @@ function RoomView({ state, room, store, onStartStudio, onStartChat, onOpenProjec
   const typing = mode.typing?.(viewCtx) ?? null
   const composerPlaceholder = mode.composerPlaceholder?.(viewCtx) ?? '对房间说话…'
   const tools = mode.tools?.(viewCtx) ?? null
-  // 正在跑时，发送位就是这一间房唯一的刹车；聊天和工作室共用同一套停下语义。
-  const stopControl = roomRunning(room, members)
-    ? h(StopRoom, {
+  // 正在跑时，发送位就是这次回复的刹车；聊天和工作室共用同一套停下语义。
+  const stopControl = turnRunning(room)
+    ? h(StopReply, {
       key: `stop-${room.id}`,
-      variant: 'composer',
       room,
-      members,
-      onStop: () => store.stopRoom(),
+      onInterrupt: () => store.interruptRoom(),
     })
     : null
 

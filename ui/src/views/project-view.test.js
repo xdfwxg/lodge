@@ -2,7 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ProjectView, roundStatusOf } from './project-view.js'
+import { ProjectView } from './project-view.js'
+import { roundStatusOf } from './round-list.js'
 
 const projects = [{
   id: 'project-1',

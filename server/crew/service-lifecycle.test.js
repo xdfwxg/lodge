@@ -16,7 +16,7 @@ const roomRecord = (overrides = {}) => ({
   ...overrides,
 })
 
-const setup = (room, liveOverrides = {}, portOverrides = {}) => {
+const setup = (room, liveOverrides = {}, portOverrides = {}, storeOverrides = {}) => {
   let current = room
   const emitted = []
   const removedPaths = []
@@ -47,6 +47,8 @@ const setup = (room, liveOverrides = {}, portOverrides = {}) => {
     },
     appendEvent: () => {},
     cancelTimer: id => cancelledTimers.push(id),
+    readAssignments: () => [],
+    ...storeOverrides,
   }
   const ports = { ...createCrewPorts(), ...portOverrides }
   ports.files = { ...ports.files, remove: path => removedPaths.push(path) }
@@ -187,27 +189,40 @@ test('holding a member goes through the live runtime', async () => {
   assert.deepEqual(result.body.room.heldMembers, ['worker'])
 })
 
-test('stopping a live room pauses it and cancels the running turn', async () => {
+test('interrupting a reply keeps the room active and cancels open work', async () => {
   const calls = []
-  const ctx = setup(roomRecord({ live: true }), {
+  const cancelled = []
+  const ctx = setup(roomRecord({ live: true, roomType: 'studio' }), {
     isAttached: () => true,
     cancel: async ({ roomId }) => {
       calls.push(roomId)
       return { cancelled: true }
     },
+  }, {}, {
+    readAssignments: () => [
+      { id: 'a1', status: 'sent' },
+      { id: 'a2', status: 'passed' },
+    ],
+    updateAssignment: (id, mutate) => {
+      const assignment = { id, status: 'sent' }
+      if (mutate(assignment) === false) return null
+      cancelled.push({ id, status: assignment.status })
+      return assignment
+    },
   })
-  const result = await ctx.service.roomRequest('r1', 'stop', post({}))
+  const result = await ctx.service.roomRequest('r1', 'interrupt', post({}))
   assert.equal(result.ok, true)
-  assert.equal(result.body.room.state, 'paused')
-  assert.equal(result.body.room.pauseReason, 'user')
-  assert.equal(result.body.room.idle, false)
+  assert.equal(result.body.room.state, 'active')
+  assert.equal(result.body.room.pauseReason, undefined)
   assert.equal(result.body.cancelled, true)
+  assert.equal(result.body.assignments, 1)
   assert.deepEqual(calls, ['r1'])
+  assert.deepEqual(cancelled, [{ id: 'a1', status: 'cancelled' }])
 })
 
-test('a room that is not running cannot be stopped', async () => {
+test('a room that is not running cannot interrupt a reply', async () => {
   const ctx = setup(roomRecord({ state: 'complete', live: false }))
-  const result = await ctx.service.roomRequest('r1', 'stop', post({}))
+  const result = await ctx.service.roomRequest('r1', 'interrupt', post({}))
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'conflict')
   assert.equal(result.error, '房间没有在跑')

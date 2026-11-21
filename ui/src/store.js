@@ -86,7 +86,14 @@ export function createStore() {
   const acceptRoom = room => {
     const known = state.rooms.some(item => item.id === room.id)
     const rooms = known
-      ? state.rooms.map(item => (item.id === room.id ? { ...room, brief: room.brief ?? item.brief, messages: item.messages } : item))
+      ? state.rooms.map(item => (item.id === room.id
+        ? {
+          ...room,
+          brief: room.brief ?? item.brief,
+          rounds: room.rounds ?? item.rounds,
+          messages: item.messages,
+        }
+        : item))
       : [...state.rooms, { ...room, messages: [] }]
     const order = new Map(state.rooms.map((item, index) => [item.id, index]))
     rooms.sort((a, b) => (order.get(a.id) ?? 999) - (order.get(b.id) ?? 999))
@@ -307,6 +314,8 @@ export function createStore() {
       }
       return data
     },
+    // 旧轮只读：按轮取回它自己的消息，不碰当前轮。
+    loadRound: (roomId, roundId) => get(`/api/rooms/${roomId}/rounds/${roundId}`),
     // 附件先上传，再随消息发送；图片在消息里显示缩略图，文本文件把正文带给模型。
     uploadAttachment: async file => {
       try {
@@ -342,7 +351,7 @@ export function createStore() {
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     resumeChat: () => post(`/api/rooms/${state.activeId}/chat-resume`, {}),
     resumeRoom: () => post(`/api/rooms/${state.activeId}/resume`, {}),
-    stopRoom: () => post(`/api/rooms/${state.activeId}/stop`, {}),
+    interruptRoom: () => post(`/api/rooms/${state.activeId}/interrupt`, {}),
     answer: async (stage, text) => {
       if (text !== '') {
         const sent = await post(`/api/rooms/${state.activeId}/messages`, { text })

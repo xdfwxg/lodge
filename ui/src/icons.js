@@ -1,16 +1,16 @@
 import { createElement as h } from 'react'
 
-export const ArrowUpIcon = () => h('svg', {
+export const ReturnIcon = () => h('svg', {
   width: 18,
   height: 18,
   viewBox: '0 0 20 20',
   'aria-hidden': true,
   fill: 'none',
   stroke: 'currentColor',
-  strokeWidth: 1.8,
+  strokeWidth: 1.4,
   strokeLinecap: 'round',
   strokeLinejoin: 'round',
-}, h('path', { d: 'M10 15V5M5.5 9.5L10 5l4.5 4.5' }))
+}, h('path', { d: 'M16 5.5v4.5a3 3 0 0 1-3 3H4.5' }), h('path', { d: 'M8 9l-3.5 4 3.5 4' }))
 
 export const PlusIcon = () => h('svg', {
   width: 16,
@@ -29,7 +29,7 @@ export const StopIcon = () => h('svg', {
   viewBox: '0 0 20 20',
   'aria-hidden': true,
   fill: 'currentColor',
-}, h('rect', { x: 5.5, y: 5.5, width: 9, height: 9, rx: 2.4 }))
+}, h('rect', { x: 4, y: 4, width: 12, height: 12, rx: 2.5 }))
 
 export const ArrowDownIcon = () => h('svg', {
   width: 18,

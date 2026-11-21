@@ -297,6 +297,12 @@ export const createHttpHandler = ({
       return respond(res, await service.evidence(roomId, messageId))
     }
 
+    const roundDetailPath = path.match(/^\/api\/rooms\/([\w-]+)\/rounds\/([\w-]+)$/)
+    if (roundDetailPath !== null && req.method === 'GET') {
+      const [, roomId, roundId] = roundDetailPath
+      return respond(res, await service.roundDetail(roomId, roundId))
+    }
+
     const roomAction = matchRoomAction(path)
     if (roomAction !== null) {
       const result = await service.roomRequest(roomAction.roomId, roomAction.action, {

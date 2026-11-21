@@ -288,4 +288,13 @@
 - 旧 `followup` 路由和新房间 builder 删除，改为 `POST /api/rooms/:id/rounds`；`phase`、`continuation`、`generation`、`nextRoomId` 和旧项目字段不再写入。routines/subrooms 入口停用，旧数据直接清掉，没有迁移或兼容 shim。
 - 真实 8787 接口验收：`room-c92d87d2` 在同一工作室完成两轮（`round-1d91f155`、`round-b001cf8f`），两轮都 `completed`，工作室最终 `idle`，项目 `project-c92d87d2` 下 2 轮。验收用 `force accept` 走通轮次状态，不是模型真实交付。
 - `npm run check:done` 通过：单测 1140、UI 端到端 16、构建、文档、验收 83 项、回归 2 项。
-- 未跑：`eval:rooms` 的真实模型两轮交付；旧轮只读详情页；routines/subrooms 后续以轮次重建。
+- 当时未跑：`eval:rooms` 的真实模型两轮交付；旧轮只读详情页（已在下一节补上）；routines/subrooms 后续以轮次重建。
+
+## 2026-11-21 · 旧轮只读与输入条三态
+
+- 项目页和工作室「轮次」都能打开已结束的一轮；`GET /api/rooms/:id/rounds/:roundId` 返回该轮房间视图和消息，按 `work_round_id` 隔离。真实数据 `round-1d91f155` / `round-b001cf8f` 分别 4 / 5 条消息，不串轮，交付可重算，未知轮次返回 404。
+- 输入条按 Claude Code 收敛：空输入不显示发送，有文字出现返回箭头，回合在跑时变黑色方块；方块在回合结束、等人时自动消失，只认真实 busy / queue / chat 运行，不靠最近两分钟活动。
+- 方块调用 `POST /api/rooms/:id/interrupt`：只取消当前回合和未终态交接，房间保持 `active`，不写 `pauseReason`；房间级 `/stop`、暂停提示和不可达的确认弹窗删除。
+- 自动覆盖：`server/crew/service-lifecycle.test.js`、`server/crew/store-rounds.test.js`、`ui/src/composer.test.js`、`ui/src/room/stop-reply.test.js`、`e2e/project.spec.mjs`。
+- `npm run check:done`：单测 1142、UI 端到端 18、文档 7、验收 85、回归 2。
+- 未跑：用新停止键真实中断一个模型回合；当前验证是接口状态和等待态 UI。

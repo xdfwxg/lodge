@@ -9,6 +9,7 @@ import { createRoutineRunner } from './crew/rooms/routine-runner.js'
 import { ensureLodgeRoom } from './crew/rooms/lodge.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
+import { roundSummaryOf } from './crew/rounds/record.js'
 import { createCrewService } from './crew/service.js'
 import { openPath } from './system-open.js'
 import { createHttpHandler } from './http.js'
@@ -154,9 +155,12 @@ const nudgeStudio = room => {
 
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 let progressWriter = null
-const present = room => presentRoom(room, store.readRecentMessages(room.id), store.readAssignments(room.id, { limit: 500 }), {
-  children: attentionChildrenOf(room),
-  routineRun: routineRunOf(room),
+const present = room => ({
+  ...presentRoom(room, store.readRecentMessages(room.id), store.readAssignments(room.id, { limit: 500 }), {
+    children: attentionChildrenOf(room),
+    routineRun: routineRunOf(room),
+  }),
+  rounds: store.readWorkRounds(room.id).map(roundSummaryOf),
 })
 
 const emit = (event, payload, id) => {

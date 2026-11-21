@@ -9,7 +9,7 @@ export const ROOM_ACTIONS = Object.freeze([
   'chat-continue',
   'chat-resume',
   'resume',
-  'stop',
+  'interrupt',
   'reject-plan',
   'rework',
   'resolve-merge',

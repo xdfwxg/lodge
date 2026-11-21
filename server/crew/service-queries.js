@@ -5,6 +5,7 @@ import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js
 import { createRosterProbe } from './roster-probe.js'
 import { listRoomTypes } from './rooms/kinds.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
+import { composeRoundView, roundSummaryOf } from './rounds/record.js'
 import { toDisplayText } from './member-labels.js'
 import { fail, ok } from './result.js'
 
@@ -23,23 +24,10 @@ export const createServiceQueries = ({
     readMessagesSince,
     readAssignments,
     readProjects,
+    readWorkRound,
     readWorkRounds,
     readWorkRoundsByProject,
   } = store
-
-  const roundSummary = round => ({
-    id: round.id,
-    roomId: round.roomId,
-    projectId: round.projectId ?? null,
-    ordinal: round.ordinal,
-    status: round.status,
-    name: round.name,
-    goal: round.goal,
-    startedAt: round.startedAt ?? null,
-    completedAt: round.completedAt ?? null,
-    completedCommit: round.completedCommit ?? null,
-    usage: round.usage ?? null,
-  })
 
   const publicMessage = message => {
     if (message.meta === undefined) return message
@@ -100,15 +88,38 @@ export const createServiceQueries = ({
           }),
           brief: briefOf(room),
           messages,
-          rounds: readWorkRounds(room.id).map(roundSummary),
+          rounds: readWorkRounds(room.id).map(roundSummaryOf),
         }
       }),
       projects: readProjects().map(project => ({
         ...project,
-        rounds: readWorkRoundsByProject(project.id).map(roundSummary),
+        rounds: readWorkRoundsByProject(project.id).map(roundSummaryOf),
       })),
       engines,
     }
+  }
+
+  // 旧轮是历史，只读：按轮取消息，永不混进当前轮。
+  const roundDetail = (roomId, roundId) => {
+    const room = readRoom(roomId)
+    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
+    const round = readWorkRound(roundId, roomId)
+    if (round === null) return fail('not_found', '没有这一轮')
+    const ordered = readRecentMessages(room.id, 5000, { workRoundId: round.id })
+      .slice()
+      .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
+    const messages = ordered
+      .map(publicMessage)
+      .map(message => (
+        typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
+      ))
+    const view = composeRoundView(room, round)
+    const assignments = readAssignments(room.id, { workRoundId: round.id, limit: 500 })
+    return ok({
+      round,
+      room: presentRoom(view, messages, assignments),
+      messages,
+    })
   }
 
   const messagesSince = since => readMessagesSince(since).map(publicMessage)
@@ -127,5 +138,5 @@ export const createServiceQueries = ({
     workspace,
   })
 
-  return { health, state, messagesSince, evidence, recommendRoster }
+  return { health, state, roundDetail, messagesSince, evidence, recommendRoster }
 }

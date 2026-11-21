@@ -1,44 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { dateTimeOf } from '../view-format.js'
-
-export const roundStatusOf = round => {
-  if (round?.status === 'completed') return '已交付'
-  if (round?.status === 'active') return '进行中'
-  if (round?.status === 'planning') return '待决定'
-  if (round?.status === 'rejected') return '已退回'
-  if (round?.status === 'superseded') return '已作废'
-  if (round?.status === 'stopped') return '已停止'
-  return '待开始'
-}
-
-const toneOf = round => (
-  round?.status === 'completed' ? 'done'
-    : ['rejected', 'superseded', 'stopped'].includes(round?.status) ? 'quiet'
-      : 'active'
-)
-
-const goalOf = round => stripAttachmentTags(round?.goal ?? '').trim()
-const roundNameOf = (round, index) => round?.name || round?.goal || `第 ${index + 1} 轮`
-const orderedRounds = rounds => [...(rounds ?? [])].sort((a, b) => (
-  (a.ordinal ?? 0) - (b.ordinal ?? 0) || (a.startedAt ?? 0) - (b.startedAt ?? 0)
-))
-
-const roundRow = (round, index, onOpenRoom) => h('li', {
-  key: round.id,
-  className: 'crew-project-phase',
-  'data-state': toneOf(round),
-},
-h('button', {
-  type: 'button',
-  className: 'crew-project-phase-button',
-  onClick: () => onOpenRoom(round.roomId),
-},
-h('span', { className: 'crew-project-phase-index', 'aria-hidden': 'true' }, String(round.ordinal ?? index + 1)),
-h('span', { className: 'crew-project-phase-copy' },
-  h('b', null, roundNameOf(round, index)),
-  goalOf(round) === '' ? null : h('span', null, goalOf(round))),
-h('span', { className: 'crew-project-phase-state' }, roundStatusOf(round))))
+import { RoundList, orderedRounds, roundNameOf, roundStatusOf } from './round-list.js'
 
 export function ProjectView({ projects = [], rooms = [], projectId, onClose, onOpenRoom, onStartRound = null, onRecommend = null }) {
   const project = (projects ?? []).find(item => item.id === projectId) ?? null
@@ -137,8 +99,7 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
       h('h1', { className: 'crew-project-title' }, project.name ?? '未命名项目'),
       h('p', { className: 'crew-project-north' }, project.northStar || '还没有写北极星。'),
       h('p', { className: 'crew-project-count' }, `${rounds.length} 轮 · ${latest === null ? '还没有开始' : roundStatusOf(latest)}`),
-      h('ol', { className: 'crew-project-phases', 'aria-label': '轮次' },
-        rounds.map((round, index) => roundRow(round, index, onOpenRoom))),
+      h(RoundList, { rounds, onOpenRound: onOpenRoom }),
       latest === null
         ? h('p', { className: 'crew-field-hint' }, '这个项目还没有轮次。')
         : h('section', { className: 'crew-project-current', 'aria-label': '最近一轮' },

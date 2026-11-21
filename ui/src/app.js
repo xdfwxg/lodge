@@ -3,6 +3,8 @@ import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
 import { ProjectView } from './views/project-view.js'
+import { RoundView } from './views/round-view.js'
+import { RoomRoundsView } from './views/rounds-view.js'
 import { LODGE_ROOM_ID } from '../../shared/lodge.js'
 import { ProfileDialog } from './profile-dialog.js'
 import { saveProfile } from './profile.js'
@@ -24,6 +26,8 @@ export function App() {
   const [seed, setSeed] = useState(null)
   const [startType, setStartType] = useState(null)
   const [projectId, setProjectId] = useState(null)
+  const [history, setHistory] = useState(null)
+  const [roundsFor, setRoundsFor] = useState(null)
   const openDialog = (seedValue = null, roomType = null) => {
     setProjectId(null)
     setSeed(seedValue)
@@ -68,6 +72,8 @@ export function App() {
       if (room === undefined) return
       event.preventDefault()
       setProjectId(null)
+      setHistory(null)
+      setRoundsFor(null)
       store.select(room.id)
     }
     window.addEventListener('keydown', onKeyDown)
@@ -109,6 +115,8 @@ export function App() {
         state: { ...state, rooms: sidebarRooms },
         onSelect: id => {
           setProjectId(null)
+          setHistory(null)
+          setRoundsFor(null)
           store.select(id)
         },
         onNew: () => openDialog(),
@@ -126,9 +134,11 @@ export function App() {
         projects: state.projects ?? [],
         projectId,
         onClose: () => setProjectId(null),
-        onOpenRoom: id => {
+        onOpenRoom: (id, roundId = null) => {
           setProjectId(null)
+          setRoundsFor(null)
           store.select(id)
+          setHistory(roundId === null ? null : { roomId: id, roundId })
         },
         onStartRound: (roomId, text, options = {}) => store.startRound(text, { roomId, ...options }),
         onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
@@ -142,14 +152,32 @@ export function App() {
             tone: startup?.tone ?? 'neutral',
             action: startup?.retry ? retry : null,
           })))
-      : h(RoomView, {
-        state,
-        room,
-        store,
-        onStartStudio: seedValue => openDialog(seedValue),
-        onStartChat: seedValue => openDialog(seedValue, 'chat'),
-        onOpenProject: id => setProjectId(id),
-      }),
+      : roundsFor === room.id
+        ? h(RoomRoundsView, {
+          room,
+          onClose: () => setRoundsFor(null),
+          onOpenRound: (roomId, roundId) => {
+            setRoundsFor(null)
+            store.select(roomId)
+            setHistory(roundId === null ? null : { roomId, roundId })
+          },
+        })
+        : history !== null && history.roomId === room.id
+          ? h(RoundView, {
+            room,
+            roundId: history.roundId,
+            store,
+            onBack: () => setHistory(null),
+          })
+          : h(RoomView, {
+            state,
+            room,
+            store,
+            onStartStudio: seedValue => openDialog(seedValue),
+            onStartChat: seedValue => openDialog(seedValue, 'chat'),
+            onOpenProject: id => setProjectId(id),
+            onOpenRounds: () => setRoundsFor(room.id),
+          }),
     liveRegion,
     needsRegion,
     dialogNode,

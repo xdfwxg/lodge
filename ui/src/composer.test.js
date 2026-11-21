@@ -11,24 +11,54 @@ const base = {
   onSent: () => {},
 }
 
-test('a follow-up room renders one send control with a secondary menu', () => {
-  const html = renderToStaticMarkup(h(Composer, { ...base, onStartRound: () => {} }))
-  assert.match(html, /crew-send-split/)
-  assert.match(html, /aria-label="更多提交方式"/)
-  assert.match(html, /data-empty="true"/)
-  assert.doesNotMatch(html, /crew-composer-followup/)
-  assert.doesNotMatch(html, /role="menuitem"/)
+const withDraft = (text, run) => {
+  const original = globalThis.localStorage
+  globalThis.localStorage = {
+    getItem: () => text,
+    setItem: () => {},
+    removeItem: () => {},
+  }
+  try {
+    return run()
+  } finally {
+    globalThis.localStorage = original
+  }
+}
+
+test('an empty composer keeps the row quiet: no send control at all', () => {
+  const html = renderToStaticMarkup(h(Composer, base))
+  assert.doesNotMatch(html, /aria-label="发送"/)
+  assert.doesNotMatch(html, /crew-send/)
 })
 
-test('a normal room keeps a single send button', () => {
-  const html = renderToStaticMarkup(h(Composer, base))
+test('typed text shows one return arrow, and a studio offers the round menu beside it', () => {
+  const html = withDraft('修登录超时', () => renderToStaticMarkup(h(Composer, {
+    ...base,
+    draftKey: 'room-1',
+    onStartRound: () => {},
+  })))
+  assert.match(html, /class="crew-send"/)
+  assert.match(html, /aria-label="更多提交方式"/)
+  assert.doesNotMatch(html, /data-empty/)
+})
+
+test('a normal room keeps one send arrow with no round menu', () => {
+  const html = withDraft('继续说', () => renderToStaticMarkup(h(Composer, {
+    ...base,
+    draftKey: 'room-2',
+  })))
   assert.match(html, /class="crew-send"/)
   assert.doesNotMatch(html, /crew-send-split/)
 })
 
 test('the stop control replaces the send control while a turn is running', () => {
   const stop = h('span', { className: 'fake-stop' }, 'stop')
-  const html = renderToStaticMarkup(h(Composer, { ...base, onStartRound: () => {}, stopControl: stop }))
+  const html = withDraft('修登录超时', () => renderToStaticMarkup(h(Composer, {
+    ...base,
+    draftKey: 'room-3',
+    onStartRound: () => {},
+    stopControl: stop,
+  })))
   assert.match(html, /fake-stop/)
   assert.doesNotMatch(html, /crew-send-split/)
 })

@@ -154,7 +154,6 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-member-add-dialog .crew-body-swap-field .crew-member-menu{width:100%;max-width:none;box-sizing:border-box;height:32px;font-size:var(--bt-text-label)}
 .crew-member-add-dialog .crew-goal-input{width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;background:var(--bt-shade-1);font-size:var(--bt-text-label);line-height:1.6}
 .crew-body-swap-remove{margin-right:auto}
-.crew-stop-dialog{max-width:380px}
 .crew-body-swap-field{display:flex;flex-direction:column;gap:6px}
 .crew-body-swap-field .crew-member-menu{width:100%}
 .crew-member-capabilities{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;margin-top:4px}
@@ -795,7 +794,7 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 .crew-conclusion .crew-card-foot .crew-ghost{height:32px;padding:0 16px;font-size:var(--bt-text-label)}
 .dsb-composer{padding:8px 16px 12px}
 .crew-composer{max-width:760px;padding:7px 7px 7px 12px;border-radius:16px}
-.crew-attach{flex:none;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--bt-ink-3);cursor:pointer}
+.crew-attach{flex:none;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--bt-ink);cursor:pointer}
 .crew-attach:hover:not(:disabled){background:var(--bt-hover);color:var(--bt-ink)}
 .crew-attach:disabled{opacity:.4;cursor:default}
 .crew-attachments{display:flex;flex-wrap:wrap;align-items:center;gap:6px;max-width:760px;padding:0 4px 6px}

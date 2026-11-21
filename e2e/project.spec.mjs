@@ -77,6 +77,103 @@ test('a project lists its rounds and opens the studio that owns them', async ({ 
   await expect(page.getByRole('button', { name: '项目' })).toBeVisible()
 })
 
+test('an old round opens as a read-only record, not the current round', async ({ page, request }) => {
+  const base = await (await request.get('/api/state')).json()
+  const currentRound = {
+    ...completedRound,
+    id: 'round-2',
+    ordinal: 2,
+    status: 'active',
+    name: '修登录超时',
+    goal: '修登录超时',
+    completedAt: null,
+    completedCommit: null,
+  }
+  const oldMessage = {
+    id: 'message-old',
+    roomId: 'room-1',
+    kind: 'chat',
+    authorId: 'planner',
+    text: '第一轮做完了，原型能跑。',
+    ts: Date.now() - 45_000,
+    seq: 1,
+  }
+  const state = {
+    ...base,
+    rooms: [studio({
+      state: 'active',
+      goal: '修登录超时',
+      workRound: currentRound,
+      stages: [{ title: '修登录超时', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+      delivery: null,
+    })],
+    projects: [project({ rounds: [completedRound, currentRound] })],
+  }
+  const historyRoom = studio({
+    state: 'idle',
+    goal: '先做一个原型',
+    workRound: completedRound,
+    messages: [oldMessage],
+    delivery: { changedFiles: ['src/a.js'] },
+  })
+  await page.route('**/api/state', route => route.fulfill({ json: state }))
+  await page.route('**/api/rooms/room-1/rounds/round-1', route => route.fulfill({
+    json: { round: completedRound, room: historyRoom, messages: [oldMessage] },
+  }))
+  await page.goto('/')
+
+  await page.getByRole('button', { name: /长期工作间/ }).first().click()
+  await page.getByRole('button', { name: '项目' }).click()
+  await page.getByRole('button', { name: /先做一个原型/ }).click()
+
+  await expect(page.getByText('旧轮只能查看；要接着做，回到工作室开新一轮。')).toBeVisible()
+  await page.getByText('工作记录').click()
+  await expect(page.getByText('第一轮做完了，原型能跑。')).toBeVisible()
+  await expect(page.getByRole('button', { name: '项目' })).toHaveCount(0)
+
+  await page.getByRole('button', { name: '← 回到工作室' }).click()
+  await expect(page.getByRole('button', { name: '项目' })).toBeVisible()
+})
+
+test('a studio without a project can still open its old rounds', async ({ page, request }) => {
+  const base = await (await request.get('/api/state')).json()
+  const currentRound = {
+    ...completedRound,
+    id: 'round-2',
+    ordinal: 2,
+    status: 'active',
+    name: '修登录超时',
+    goal: '修登录超时',
+    completedAt: null,
+    completedCommit: null,
+  }
+  const state = {
+    ...base,
+    rooms: [studio({
+      state: 'active',
+      goal: '修登录超时',
+      workRound: currentRound,
+      rounds: [completedRound, currentRound],
+      defaultProjectId: null,
+      stages: [{ title: '修登录超时', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+      delivery: null,
+    })],
+    projects: [],
+  }
+  const historyRoom = studio({ state: 'idle', goal: '先做一个原型', workRound: completedRound, messages: [] })
+  await page.route('**/api/state', route => route.fulfill({ json: state }))
+  await page.route('**/api/rooms/room-1/rounds/round-1', route => route.fulfill({
+    json: { round: completedRound, room: historyRoom, messages: [] },
+  }))
+  await page.goto('/')
+
+  await page.getByRole('button', { name: /长期工作间/ }).first().click()
+  await page.getByRole('button', { name: '轮次' }).click()
+  await expect(page.getByText('2 轮')).toBeVisible()
+  await page.getByRole('button', { name: /先做一个原型/ }).click()
+  await expect(page.getByText('旧轮只能查看；要接着做，回到工作室开新一轮。')).toBeVisible()
+})
+
 test('a completed project starts the next round in the same studio', async ({ page, request }) => {
   const base = await (await request.get('/api/state')).json()
   let state = {

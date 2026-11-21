@@ -152,3 +152,15 @@ export const transitionAssignment = (store, id, status, patch = {}) => {
     return true
   })
 }
+
+// 用户停下回复时，未终态的交接一起取消；否则下一步会一直等一个不会回来的结果。
+export const cancelOpenAssignments = (store, roomId, { reason = '' } = {}) => {
+  let cancelled = 0
+  for (const assignment of store.readAssignments(roomId, { limit: 5000 })) {
+    if (ASSIGNMENT_TERMINAL.includes(assignment.status)) continue
+    if (transitionAssignment(store, assignment.id, 'cancelled', { resultText: reason }) !== null) {
+      cancelled += 1
+    }
+  }
+  return cancelled
+}

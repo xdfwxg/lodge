@@ -1,5 +1,5 @@
 import { createElement as h, useEffect, useId, useRef, useState } from 'react'
-import { ArrowUpIcon } from './icons.js'
+import { ReturnIcon } from './icons.js'
 import { BotMark } from './marks.js'
 import {
   ATTACHMENT_MAX_COUNT,
@@ -286,11 +286,11 @@ function Composer({
       },
       h('svg', {
         viewBox: '0 0 24 24',
-        width: 18,
-        height: 18,
+        width: 20,
+        height: 20,
         fill: 'none',
         stroke: 'currentColor',
-        strokeWidth: 1.8,
+        strokeWidth: 1.6,
         strokeLinecap: 'round',
         'aria-hidden': 'true',
       },
@@ -325,60 +325,59 @@ function Composer({
       }),
       stopControl !== null
         ? stopControl
-        : onStartRound === null
-          ? h('button', {
-            type: 'button',
-            className: 'crew-send',
-            'aria-label': '发送',
-            disabled: disabled || uploading || !hasDraft,
-            onClick: send,
-          },
-            h(ArrowUpIcon))
-          : h('div', {
-            ref: splitRef,
-            className: 'crew-send-split',
-            'data-empty': !hasDraft ? 'true' : undefined,
-            'data-disabled': disabled || uploading ? 'true' : undefined,
-          },
-            h('button', {
+        : !hasDraft
+          ? null
+          : onStartRound === null
+            ? h('button', {
               type: 'button',
               className: 'crew-send',
               'aria-label': '发送',
-              disabled: disabled || uploading || !hasDraft,
+              title: '发送',
+              disabled: disabled || uploading,
               onClick: send,
-            }, h(ArrowUpIcon)),
-            h('button', {
-              type: 'button',
-              className: 'crew-send-more',
-              'aria-label': '更多提交方式',
-              title: '用这句话开新一轮',
-              'aria-haspopup': 'menu',
-              'aria-expanded': roundMenuOpen,
-              disabled: disabled || uploading || !hasDraft,
-              onClick: () => setFollowupOpen(value => !value),
-            }, h('svg', {
-              width: 10,
-              height: 10,
-              viewBox: '0 0 20 20',
-              'aria-hidden': 'true',
-              fill: 'none',
-              stroke: 'currentColor',
-              strokeWidth: 2,
-              strokeLinecap: 'round',
-              strokeLinejoin: 'round',
-            }, h('path', { d: 'M5 7.5L10 12.5L15 7.5' }))),
-            roundMenuOpen
-              ? h('div', { className: 'crew-send-menu', role: 'menu', 'aria-label': '提交方式' },
-                h('button', {
-                  type: 'button',
-                  role: 'menuitem',
-                  className: 'crew-send-menu-item',
-                  disabled: disabled || uploading || !hasDraft,
-                  onClick: startRound,
-                },
-                h('b', null, '开新一轮'),
-                h('span', null, hasDraft ? '同一工作室，成员和工作区沿用' : '先写一句这一轮要做什么')))
-              : null)
+            },
+              h(ReturnIcon))
+            : h('div', { ref: splitRef, className: 'crew-send-split' },
+              h('button', {
+                type: 'button',
+                className: 'crew-send',
+                'aria-label': '发送',
+                title: '发送',
+                disabled: disabled || uploading,
+                onClick: send,
+              }, h(ReturnIcon)),
+              h('button', {
+                type: 'button',
+                className: 'crew-send-more',
+                'aria-label': '更多提交方式',
+                title: '用这句话开新一轮',
+                'aria-haspopup': 'menu',
+                'aria-expanded': roundMenuOpen,
+                disabled: disabled || uploading,
+                onClick: () => setFollowupOpen(value => !value),
+              }, h('svg', {
+                width: 10,
+                height: 10,
+                viewBox: '0 0 20 20',
+                'aria-hidden': 'true',
+                fill: 'none',
+                stroke: 'currentColor',
+                strokeWidth: 2,
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+              }, h('path', { d: 'M5 7.5L10 12.5L15 7.5' }))),
+              roundMenuOpen
+                ? h('div', { className: 'crew-send-menu', role: 'menu', 'aria-label': '提交方式' },
+                  h('button', {
+                    type: 'button',
+                    role: 'menuitem',
+                    className: 'crew-send-menu-item',
+                    disabled: disabled || uploading,
+                    onClick: startRound,
+                  },
+                  h('b', null, '开新一轮'),
+                  h('span', null, '同一工作室，成员和工作区沿用')))
+                : null)
     ))
 }
 
