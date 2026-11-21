@@ -383,3 +383,9 @@ npm run eval:planning:nightly
 - `check:done` 增加 `npm run eval:long-task`；它不调用模型，运行前不需要 Lodge 或基座。
 - 工作室过时概念清理：删除无人引用的 `work-turn.js`；把「签字」统一成「确认」，同步设计文档、提示词、门禁错误和测试；架构/项目文档去掉 `nextRoomId`、`closure`、routines/subrooms 的历史比较，只留当前事实。
 - 验证：`npm test` 1107 通过；`npm run check:done` 全绿。
+
+## 2026-11-21 · 内核重启后真实复跑
+
+- 环境：Lodge 8787 + 基座 8799；本机 `claude` CLI 走 `https://api.deepseek.com/anthropic`，模型 `deepseek-v4-pro`；评测引擎记录为 `claude` 和 `pi`。
+- 房间评测：`npm run eval:rooms` 3/3 PASS，0 返工，p50 42,912ms、max 42,928ms，合计 $0.5331（unknown 0）。revise-tone 42,928ms / $0.2188；slice-sheet 42,842ms / $0.1643；verify-catch 42,912ms / $0.1500。三题都 delivered、verdict pass、独立检查 ok。
+- 规划评测：`npm run eval:planning` 3/3 PASS，100 分，p50 7,280ms、max 9,327ms，3 个决策问题，验收命令均为 `npm test`。
