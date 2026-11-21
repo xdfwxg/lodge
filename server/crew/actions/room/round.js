@@ -79,11 +79,8 @@ export const createRoundActions = deps => {
           if (result.ok !== true) return result
           return accepted({ room: result.body?.room ?? readRoom(room.id) })
         }
-        // 聊天室里用户是在对主持说话；主持判断直接回答还是请成员讨论。
-        // @ 是结构化指令，仍然直接交给被 @ 的成员。
+        // 不带 @：用户在跟主持说话；带 @：直接交给被点名的成员。
         if (policy?.type === 'host') return chat.input(room, { note: promptText })
-        // 结论之后 @ 成员：开一轮有主持和上限的讨论，不让成员在结论外自由接力。
-        if (policy?.type === 'continue') return chat.continue(room, { note: promptText })
         await live.send(room.id, promptText, { mentions })
         return accepted({ accepted: true })
       }

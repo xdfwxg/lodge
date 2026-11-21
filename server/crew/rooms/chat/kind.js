@@ -17,9 +17,9 @@ export const chatKind = {
 
   memberPrompt: () => '',
   demoMessage: '这是示例房间，不接模型；要动手就把结论转成工作室任务。',
-  messagePolicy: ({ room, text }) => {
+  messagePolicy: ({ text }) => {
+    // 不带 @：用户在跟主持说话；带 @：点名交给那位成员，结论后也一样。
     if (!text.includes('@')) return { type: 'host' }
-    if (room.chat?.phase === CHAT_PHASE.concluded && room.chat?.running !== true) return { type: 'continue' }
     return null
   },
 

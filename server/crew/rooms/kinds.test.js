@@ -57,8 +57,9 @@ test('only the Lodge chat allows a host without member threads', () => {
 test('message routing is a mode policy, not a room-type branch', () => {
   const chat = roomModeForType('chat')
   assert.deepEqual(chat.messagePolicy({ room: { chat: { phase: 'discussing' } }, text: '聊聊' }), { type: 'host' })
-  assert.deepEqual(chat.messagePolicy({ room: { chat: { phase: 'concluded' } }, text: '@甲 继续' }), { type: 'continue' })
+  assert.deepEqual(chat.messagePolicy({ room: { chat: { phase: 'concluded' } }, text: '继续' }), { type: 'host' })
   assert.equal(chat.messagePolicy({ room: { chat: { phase: 'discussing' } }, text: '@甲 看这里' }), null)
+  assert.equal(chat.messagePolicy({ room: { chat: { phase: 'concluded' } }, text: '@甲 继续' }), null)
 
   const studio = roomModeForType('studio')
   assert.equal(studio.messagePolicy({ room: { stages: [{ state: 'passed' }] } }), null)
