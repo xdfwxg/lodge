@@ -13,8 +13,8 @@ test('five personalities each carry a label, an instruction, and a turn cue', ()
 
 test('the prompt states the boundary and the chosen personality', () => {
   const text = personalityPrompt('rigorous')
-  assert.match(text, /每个角色固定下面其中一种性格/)
-  assert.match(text, /严谨审慎/)
+  assert.match(text, /你的性格：严谨审慎/)
+  assert.doesNotMatch(text, /每个角色固定下面其中一种性格/)
   assert.match(personalityPrompt('unknown'), /中立持衡/)
 })
 

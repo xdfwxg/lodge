@@ -39,10 +39,10 @@ test('text fields become a normalized payload', () => {
 
 test('role capabilities render as read-only lists, not inputs', () => {
   const html = renderToStaticMarkup(h(CapabilityReadOnly, {
-    skills: ['lodge-tdd', 'lodge-diagnose'],
+    skills: ['lodge-build', 'lodge-diagnose'],
     mcp: [{ server: 'chrome-devtools' }, { server: 'github' }],
   }))
-  assert.match(html, /lodge-tdd/)
+  assert.match(html, /lodge-build/)
   assert.match(html, /github/)
   assert.doesNotMatch(html, /<input/)
 })

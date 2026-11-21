@@ -211,9 +211,10 @@ Gate 是工作室的检查点，不是角色，只回答两次：这份交接能
 - 身体只对外提供五件事：送达、叫停、暂停、状态、能力。业务只说「交给哪个成员」。
 - 身体只走一条路：造身、体检、进共享房间、退役；建房、换身体、加成员、移除成员都复用。
 - 可配置的是身体：模型服务、模型、行为说明、技能、MCP；权限、角色、成员 id 属于成员。
-- 每个角色默认带一小组常驻技能：规划师负责问清、拆解和设计，执行官负责 TDD、诊断和收尾，验收员负责审查、安全和证据；聊天成员不挂工程技能，只挂只读文件、只读公网和表达纪律。基座每轮只给一份技能索引，模型需要时再读全文，不每轮灌满上下文。完整清单在 [docs/architecture.md 的「角色技能与房间投影」](docs/architecture.md#角色技能与房间投影)。
-- 规划师不接原版 `grill-with-docs`、`to-spec`、`to-tickets`：想法模糊就 `lodge-grilling` 问清，讨论够了就 `lodge-spec-driven` 固定成阶段和验收，跨会话或并行就 `lodge-task-breakdown` 拆依赖；GLOSSARY/ADR、spec 文件、外部 ticket 都不是房间之外的第三份真相。
-- 验收员的两轴审查是顺序的：先 Spec 轴，再 Standards 轴，两份报告并列，不跨轴重排；没有 subagent，也不合成一个分数。
+- 每个角色只带一小组自写技能，按角色取长：规划师 `lodge-plan`、`lodge-design`；执行官 `lodge-build`、`lodge-diagnose`、`lodge-ui`；验收员 `lodge-review`、`lodge-ui`、`lodge-security`。每个技能只管一件事，同类方法已经合并；同一套方法不写成两个技能让模型去挑。聊天成员不挂工程技能，只挂只读文件、只读公网和表达纪律。
+- 技能是 Lodge 自己写的综合版，不照搬上游原文：保留 MIT 归属，删掉 issue tracker、subagent、自动 PR 这类宿主耦合。基座每轮只给一份索引，模型需要时再读全文；单个技能不超过 2400 字节、全部不超过 16KB，宁可删词，不把上下文灌满。完整清单在 [docs/architecture.md 的「角色技能与房间投影」](docs/architecture.md#角色技能与房间投影)。
+- 规划师不接原版 `grill-with-docs`、`to-spec`、`to-tickets`：`lodge-plan` 负责问清、写小规格和拆阶段，`lodge-design` 负责术语、边界和契约；GLOSSARY/ADR、spec 文件、外部 ticket 都不是房间之外的第三份真相。
+- `lodge-review` 的两轴审查是顺序的：先 Spec 轴，再 Standards 轴，两份报告并列，不跨轴重排；没有 subagent，也不合成一个分数；PASS 要带一条 diff 之外的风险，没有就写「无」。
 - 每位 AI 成员默认带只读公网浏览；换身体不换人，成员 id、证据、交接和历史都不动。
 - 聊天室成员换性格用几个可读预设，自定义从空白开始；工作室成员只有「默认」。入口在侧栏成员行。
 - 添加成员只对未完成的工作室开放；需要补人时，动作出现在房间里，不只留在侧栏「＋」。

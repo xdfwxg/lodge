@@ -49,9 +49,10 @@ test('the Lodge prompt asks for a room decision instead of a round', () => {
   const prompt = hostIntentPrompt({ room: { lodge: true, members: [] }, text: '喊上大伙看看', turnLimit: 6 })
   assert.match(prompt, /"action":"open"/)
   assert.doesNotMatch(prompt, /"action":"round"/)
-  assert.match(prompt, /听清楚/)
-  assert.match(prompt, /分流/)
-  assert.match(prompt, /收束/)
+  assert.match(prompt, /open studio/)
+  assert.match(prompt, /open chat/)
+  // 身份和判断规则在主持人的 soul 里，判断提示不重复。
+  assert.doesNotMatch(prompt, /听清楚|自动追问|分流|收束/)
 })
 
 test('a grill request stays with the host, one question at a time', () => {

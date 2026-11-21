@@ -1,7 +1,5 @@
 // 聊天室成员性格：标签给界面，instruction 直接拼进 system prompt。
-// 每个角色固定一种性格，发言风格和立场严格遵循，不要越界。
-export const PERSONALITY_PREFACE = '每个角色固定下面其中一种性格，发言风格、立场严格遵循性格定义，不要越界。'
-
+// 每个成员固定一种性格，发言风格和立场严格遵循，不要越界。
 export const PERSONALITIES = [
   {
     id: 'assertive',
@@ -41,7 +39,7 @@ export const personalityById = id => PERSONALITIES.find(item => item.id === id) 
 
 export const personalityPrompt = id => {
   const personality = personalityById(id) ?? personalityById('balanced')
-  return `${PERSONALITY_PREFACE}\n你的性格：${personality.label}。${personality.instruction}`
+  return `你的性格：${personality.label}。${personality.instruction}`
 }
 
 export const personalityLabel = id => personalityById(id)?.label ?? ''

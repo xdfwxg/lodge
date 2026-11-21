@@ -12,8 +12,8 @@ test('chat stances give each speaker one job', () => {
   assert.equal(Object.keys(CHAT_STANCES).length, 3)
 })
 
-test('chat voice keeps judgement first and citations grounded', () => {
+test('chat voice keeps judgement first and does not repeat the soul rules', () => {
   assert.match(CHAT_VOICE, /先给判断/)
-  assert.match(CHAT_VOICE, /联网只读/)
-  assert.match(CHAT_VOICE, /200 字/)
+  assert.match(CHAT_VOICE, /不重复别人说过的话/)
+  assert.doesNotMatch(CHAT_VOICE, /联网只读|200 字/)
 })

@@ -55,6 +55,19 @@ test('every role skill has valid, matching frontmatter', () => {
   }
 })
 
+test('role skills stay small enough to read in one turn', () => {
+  let total = 0
+  for (const name of TOOLBOX_SKILLS) {
+    const text = readFileSync(join(root, 'skills', 'role-packs', name, 'SKILL.md'), 'utf8')
+    const description = /^description:\s*(.+)$/m.exec(text)?.[1] ?? ''
+    const bytes = Buffer.byteLength(text)
+    assert.ok(bytes <= 2400, `${name} is ${bytes} bytes; keep it under 2400`)
+    assert.ok(description.length <= 220, `${name} description is too long`)
+    total += bytes
+  }
+  assert.ok(total <= 16 * 1024, `role skills total ${total} bytes; keep them under 16KB`)
+})
+
 test('installs and approves every role skill once', async () => {
   const client = fakeClient()
   const first = await ensureRoleSkillPacks({ client, root, log: quiet })

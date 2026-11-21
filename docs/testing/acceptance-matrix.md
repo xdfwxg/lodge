@@ -30,6 +30,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 工作室默认接力：退回直接回执行官，通过回规划师 | `server/crew/rooms/studio/relay.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
 | 接力投递不依赖模型写 @：派发、复核、退回都由系统投递并发群聊投影 | `server/crew/live-turn-modules.test.js`、`server/crew/prompt-modes.test.js` | 真实房间复查 |
 | 中间步骤验收通过自动过并开始下一步，最后一步仍由人确认 | `server/crew/live-turn-modules.test.js`、`server/crew/service-stages.test.js` | 无 |
+| 角色技能按角色取长、总量有体积预算，合并掉的旧技能不再挂载 | `shared/role-toolbox.test.js`、`server/skill-packs.test.js` | 真实房间读技能效果 |
 | 重置前归档工作区，数据库与工作区成对恢复 | `server/crew/data-recovery.test.js` | 无 |
 | 跨轮长期任务：重启、停止、归档、预算、人工门 | `server/crew/long-task-recovery.test.js`、`evals/long-task/run.mjs` | 确定性场景，不调模型 |
 | 房间写与轮次写分开，终态轮拒绝写入 | `server/crew/store-rounds.test.js`、`server/crew/store.test.js` | 无 |

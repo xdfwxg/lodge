@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createShadowReviewer, parseShadowAdvice, shadowPrompt } from './shadow-reviewer.js'
+import { SHADOW_SOUL, createShadowReviewer, parseShadowAdvice, shadowPrompt } from './shadow-reviewer.js'
 
 const room = over => ({
   id: 'room-1',
@@ -25,17 +25,23 @@ const fakeStore = initial => {
   }
 }
 
-test('the prompt asks for a different angle and never a verdict', () => {
+test('the soul carries the role and boundary', () => {
+  assert.match(SHADOW_SOUL, /影子评审/)
+  assert.match(SHADOW_SOUL, /不写 PASS 或 REJECT/)
+  assert.match(SHADOW_SOUL, /不调用工具/)
+})
+
+test('the call prompt only carries this task and its output shape', () => {
   const prompt = shadowPrompt({
     room: { goal: '导出报告' },
     stage: { title: '导出', acceptance: 'npm test' },
     evidence: { id: 'e1', text: '导出完成', meta: { command: 'npm test', exit: 0, diff: '+a' } },
   })
-  assert.match(prompt, /不写 PASS 或 REJECT/)
-  assert.match(prompt, /有没有漏/)
+  assert.match(prompt, /只找漏/)
   assert.match(prompt, /npm test/)
   assert.match(prompt, /反例/)
   assert.match(prompt, /lodge-internal/)
+  assert.doesNotMatch(prompt, /影子评审|不写 PASS 或 REJECT|不调用工具/)
 })
 
 test('advice parsing keeps the four fields and tolerates fences', () => {
@@ -80,7 +86,7 @@ test('the reviewer asks the hidden bot once and hides the prompt', async () => {
   assert.deepEqual(result.advice[0], { source: 'shadow', summary: '缺边界', reasons: ['没测空文件'] })
   assert.equal(sent.length, 1)
   assert.equal(sent[0].memberId, 'shadow')
-  assert.match(sent[0].text, /影子评审/)
+  assert.match(sent[0].text, /只找漏/)
   assert.deepEqual(store.readRoom().hiddenBaseMessages, ['prompt-1'])
 })
 

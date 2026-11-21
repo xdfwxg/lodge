@@ -90,7 +90,7 @@ for (const file of [
   must(`${file} stays merged or deleted`, !existsSync(resolve(root, file)))
 }
 
-const stale = /(?:理念升级|设计语言\.md|架构升级\.md|设计思想\.md|lodge-design|reuse-map)/
+const stale = /(?:理念升级|设计语言\.md|架构升级\.md|设计思想\.md|docs\/lodge-design|lodge-design\.md|reuse-map)/
 for (const [file, text] of Object.entries(docs)) {
   must(`${file} does not point at retired docs`, !stale.test(text))
 }

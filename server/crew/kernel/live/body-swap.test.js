@@ -146,14 +146,15 @@ test('the body carries an editable soul, skills and tools', async () => {
   })
   assert.equal(result.ok, true, result.error)
   const worker = room.members.find(item => item.id === 'worker')
+  const expected = [...skillsForRole('worker'), 'review']
   assert.equal(worker.body.spec.prompt, '只做复核，不解释。')
-  assert.deepEqual(worker.body.spec.skills, skillsForRole('worker'))
+  assert.deepEqual(worker.body.spec.skills, expected)
   assert.deepEqual(worker.body.spec.mcp, [
     { server: 'github', scopes: ['read'], approval: 'ask' },
     { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' },
   ])
   assert.match(calls.patched[0].payload.soul, /只做复核，不解释/)
-  assert.deepEqual(calls.skills[0].skills, skillsForRole('worker'))
+  assert.deepEqual(calls.skills[0].skills, expected)
   assert.deepEqual(calls.patched[0].payload.mcp.map(grant => grant.server), ['github', 'chrome-devtools'])
 })
 

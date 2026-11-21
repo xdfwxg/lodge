@@ -8,6 +8,7 @@ import { startInitialStage } from './start.js'
 import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
+import { SHADOW_SOUL } from './shadow-reviewer.js'
 import { humanHandoffStageOf } from './human-handoff.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { dispatchFrom, tasksFrom } from '../../assignment-projections.js'
@@ -333,7 +334,7 @@ export const studioKind = {
     // 影子评审是房间里的隐藏成员：不占席位、没有工具，只在需要时给一份对照意见。
     const created = await hostPort.createHost({
       name: `影子评审${short}`,
-      soul: '你是 Lodge 的影子评审。你只在一份证据交上来时给一份对照意见：验收员判是否达标，你换一个角度找漏掉的东西。不写 PASS 或 REJECT，不打分，不参与验收，不调用工具。',
+      soul: SHADOW_SOUL,
       approval: 'ask',
     })
     return {

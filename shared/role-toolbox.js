@@ -1,30 +1,17 @@
 export const ROLE_TOOLBOX = Object.freeze({
   lead: Object.freeze([
-    'lodge-grilling',
-    'lodge-task-breakdown',
-    'lodge-spec-driven',
-    'lodge-codebase-design',
-    'lodge-domain-modeling',
-    'lodge-api-design',
+    'lodge-plan',
+    'lodge-design',
   ]),
   worker: Object.freeze([
-    'lodge-tdd',
+    'lodge-build',
     'lodge-diagnose',
-    'lodge-incremental',
-    'lodge-simplify',
-    'lodge-verify-before-done',
-    'lodge-frontend-ui',
-    'lodge-api-design',
-    'lodge-observability',
+    'lodge-ui',
   ]),
   verifier: Object.freeze([
-    'lodge-two-axis-review',
-    'lodge-verify-before-done',
+    'lodge-review',
+    'lodge-ui',
     'lodge-security',
-    'lodge-browser-evidence',
-    'lodge-accessibility',
-    'lodge-performance',
-    'lodge-observability',
   ]),
 })
 
@@ -34,8 +21,26 @@ export const TOOLBOX_SKILLS = Object.freeze([
 
 const isSkillName = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
 
-// 已改名的角色技能从旧成员身上清掉，避免换身体后两个名字并排出现。
-const RETIRED_SKILLS = new Set(['lodge-code-review-2'])
+// 合并进新技能或已停用的旧名字：换身体或旧成员自定义时都清掉，不再挂载。
+const RETIRED_SKILLS = new Set([
+  'lodge-code-review-2',
+  'lodge-grilling',
+  'lodge-task-breakdown',
+  'lodge-spec-driven',
+  'lodge-codebase-design',
+  'lodge-domain-modeling',
+  'lodge-api-design',
+  'lodge-tdd',
+  'lodge-incremental',
+  'lodge-simplify',
+  'lodge-verify-before-done',
+  'lodge-two-axis-review',
+  'lodge-browser-evidence',
+  'lodge-accessibility',
+  'lodge-frontend-ui',
+  'lodge-performance',
+  'lodge-observability',
+])
 
 export const skillsForRole = role => ROLE_TOOLBOX[role] ?? []
 
