@@ -102,7 +102,17 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
         .run(JSON.stringify(room), room.version, roomId, roomRow.version)
       const event = insertEvent(roomId, {
         type: 'round.started',
-        payload: { roundId: stored.id, ordinal: stored.ordinal },
+        payload: {
+          roundId: stored.id,
+          ordinal: stored.ordinal,
+          stages: (Array.isArray(stored.stages) ? stored.stages : []).map(stage => ({
+            title: stage.title,
+            kind: stage.kind,
+            acceptance: stage.acceptance ?? '',
+            manual: stage.manual === true,
+            assignees: Array.isArray(stage.assignees) ? stage.assignees : [],
+          })),
+        },
       })
       db.exec('COMMIT')
       mirrorEvent(roomId, event)

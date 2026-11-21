@@ -1,12 +1,12 @@
-import { OPEN_ROUND_STATUSES, ROUND_STATUS } from './work-round.js'
+import { AUTO_CHECK_STATUS, CHAT_STATUS, OPEN_ROUND_STATUSES, PLANNER_DECISION_KIND, ROOM_STATE, ROOM_STATUS, ROUND_STATUS, STAGE_STATUS } from './states.js'
 
 // 房间状态和轮次状态是两层事实；界面不再用一个 complete 同时表示两者。
 export const roomStatusOf = room => {
-  if (room?.archivedAt) return 'archived'
-  if (room?.state === 'paused') return 'paused'
-  if (room?.state === 'stopped') return 'stopped'
-  if (room?.state === 'active' || (typeof room?.activeRoundId === 'string' && room.activeRoundId !== '')) return 'active'
-  return 'idle'
+  if (room?.archivedAt) return ROOM_STATUS.archived
+  if (room?.state === ROOM_STATE.paused) return ROOM_STATUS.paused
+  if (room?.state === ROOM_STATE.stopped) return ROOM_STATUS.stopped
+  if (room?.state === ROOM_STATE.active || (typeof room?.activeRoundId === 'string' && room.activeRoundId !== '')) return ROOM_STATUS.active
+  return ROOM_STATUS.idle
 }
 
 export const roundStatusOf = value => value?.workRound?.status ?? value?.status ?? null
@@ -25,27 +25,27 @@ export const idleDelivered = room => {
 export const stageStatusOf = (room, index) => {
   const stage = room?.stages?.[index]
   if (stage === undefined) return null
-  if (stage.state === 'passed') return 'passed'
-  if (stage.state === 'pending') return 'pending'
-  if (room?.mergeConflict?.stage === index) return 'blocked'
-  if (room?.blocked?.stage === index) return 'blocked'
-  if (typeof room?.openQuestion === 'string' && room.openQuestion.trim() !== '') return 'waiting'
-  if (room?.autoCheck?.stage === index && ['blocked', 'limit-reached'].includes(room.autoCheck.status)) return 'waiting'
-  if (room?.lastPlannerDecision?.stage === index && room.lastPlannerDecision.kind === 'human') return 'waiting'
-  return 'active'
+  if (stage.state === STAGE_STATUS.passed) return STAGE_STATUS.passed
+  if (stage.state === STAGE_STATUS.pending) return STAGE_STATUS.pending
+  if (room?.mergeConflict?.stage === index) return STAGE_STATUS.blocked
+  if (room?.blocked?.stage === index) return STAGE_STATUS.blocked
+  if (typeof room?.openQuestion === 'string' && room.openQuestion.trim() !== '') return STAGE_STATUS.waiting
+  if (room?.autoCheck?.stage === index && [AUTO_CHECK_STATUS.blocked, AUTO_CHECK_STATUS['limit-reached']].includes(room.autoCheck.status)) return STAGE_STATUS.waiting
+  if (room?.lastPlannerDecision?.stage === index && room.lastPlannerDecision.kind === PLANNER_DECISION_KIND.human) return STAGE_STATUS.waiting
+  return STAGE_STATUS.active
 }
 
 // 聊天室“现在在做什么”：先把房间暂停/停止、讨论、总结、收尾合成一个词。
 export const chatStatusOf = (room, messages = room?.messages) => {
-  if (room?.state === 'paused') return 'paused'
-  if (room?.state === 'stopped') return 'stopped'
+  if (room?.state === ROOM_STATE.paused) return CHAT_STATUS.paused
+  if (room?.state === ROOM_STATE.stopped) return CHAT_STATUS.stopped
   const chat = room?.chat ?? {}
-  if (chat.phase === 'summarizing') return 'summarizing'
-  if (chat.phase === 'concluded') return 'concluded'
-  if (chat.hostThinking === true) return 'thinking'
-  if (chat.running === true) return 'running'
+  if (chat.phase === CHAT_STATUS.summarizing) return CHAT_STATUS.summarizing
+  if (chat.phase === CHAT_STATUS.concluded) return CHAT_STATUS.concluded
+  if (chat.hostThinking === true) return CHAT_STATUS.thinking
+  if (chat.running === true) return CHAT_STATUS.running
   const started = (Array.isArray(messages) ? messages : []).some(message => (
     message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'
   ))
-  return started ? 'discussing' : 'idle'
+  return started ? CHAT_STATUS.discussing : CHAT_STATUS.idle
 }

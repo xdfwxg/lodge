@@ -412,3 +412,10 @@ npm run eval:planning:nightly
 - 删除未使用的 `roundDelivered` / `deliveredRoundOf`，当前交付只认 `idleDelivered`。
 - 删除 kind 契约里的 `stateOf`（没有调用方），界面不再保留第二套阶段状态。
 - 新增 `stageStatusOf` 和 `chatStatusOf`：阶段的阻塞、待回答、待拍板，聊天的正在看、正在总结，都收成一个词；岛、停止键、输入提示和 issue 投影统一读它们。
+
+## 2026-11-22 · 状态目录、事件覆盖与只读重放
+
+- `shared/states.js` 收拢房间、轮次、阶段、交接、聊天、work item、审批、复盘记忆和注意力状态与转移表；`kernel/round.js`、`assignments.js`、`chat/state.js` 改读这份清单。
+- 交接每次状态变化补一条 `assignment.<status>` 事件；`round.started` 带阶段快照，供只读重放。
+- 新增 `npm run replay:round -- --room <id> [--round <id>]`：从事件重建阶段和交接状态并与当前状态对比，只报告差异，不改写。
+- 单测 1134 全过；`replay:round` 在本地 Lodge 房（没有轮次）正常返回“没有 round.started”的提示。

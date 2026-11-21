@@ -1,4 +1,4 @@
-import { OPEN_ROUND_STATUSES, ROUND_STATUS } from '../../../shared/work-round.js'
+import { OPEN_ROUND_STATUSES, ROUND_STATUS } from '../../../shared/states.js'
 
 // 启动时把房间和轮次的指针修回一致；不改写已终态轮次的内容。
 export const reconcileRounds = ({ store, emit = () => {} }) => {

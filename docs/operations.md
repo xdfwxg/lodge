@@ -92,6 +92,7 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 - 停下状态分 `blocked / limit-reached / needs-input`，界面只说一句人话，细节留在记录里。
 - 暂停的房间显示「继续」；成员出错（登录失效、额度用完、没回应）时先给「重新登录」或「换个模型」，修好自动恢复。
 - 每回合写诊断到 `.crew/rooms/<房间>/diagnostics/<turnId>.json`，含阶段、成员、时长、工具、用量和终止去向。
+- 排查一轮：`npm run replay:round -- --room <房间 id> [--round <轮次 id>]` 只读重放事件，列出阶段和交接的 event/current 差异；不改房间状态。
 - 结果正文走 `GET /api/rooms/:id/artifact?path=...`，只允许房间工作区；文本最多 256KB，图片最多 6MB，其他二进制回退到打开文件/文件夹。
 
 ## 例行工作

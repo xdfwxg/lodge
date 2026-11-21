@@ -128,14 +128,6 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         sentAt: Date.now(),
         lease: leaseOf(),
       })
-      store.appendEvent(roomId, 'assignment.sent', {
-        assignmentId: assignment.id,
-        stage: index,
-        from,
-        to,
-        reason,
-        messageId: stored?.id,
-      })
       armAssignmentLease({
         store,
         roomId,
@@ -165,14 +157,6 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
           meta: { ...stored.meta, status: 'sent', sentAt: Date.now() },
         })
       }
-      store.appendEvent(roomId, 'assignment.sent', {
-        assignmentId: assignment.id,
-        stage: index,
-        from,
-        to,
-        reason,
-        messageId: stored?.id,
-      })
       armAssignmentLease({
         store,
         roomId,
@@ -193,15 +177,6 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
           meta: { ...stored.meta, status: 'failed', error: String(error?.message ?? error) },
         })
       }
-      store.appendEvent(roomId, 'assignment.failed', {
-        assignmentId: assignment.id,
-        stage: index,
-        from,
-        to,
-        reason,
-        messageId: stored?.id,
-        error: String(error?.message ?? error),
-      })
       throw error
     }
   }

@@ -1,21 +1,15 @@
 import { createStateMachine } from '../../room-state.js'
+import { CHAT_EVENT, CHAT_PHASE, CHAT_TRANSITIONS } from '../../../../shared/states.js'
 
-export const CHAT_STATES = ['discussing', 'summarizing', 'concluded']
-export const CHAT_EVENTS = ['summarize', 'conclude', 'continue_discuss', 'abort']
+export const CHAT_STATES = Object.freeze(Object.values(CHAT_PHASE))
+export const CHAT_EVENTS = Object.freeze(Object.values(CHAT_EVENT))
 
-const chatTable = {
-  discussing: {
-    summarize: { to: 'summarizing', guard: () => true },
-    abort: { to: 'discussing', guard: () => true },
-  },
-  summarizing: {
-    conclude: { to: 'concluded', guard: () => true },
-    abort: { to: 'discussing', guard: () => true },
-  },
-  concluded: {
-    continue_discuss: { to: 'discussing', guard: () => true },
-  },
-}
+const chatTable = Object.fromEntries(
+  Object.entries(CHAT_TRANSITIONS).map(([from, row]) => [
+    from,
+    Object.fromEntries(Object.entries(row).map(([event, to]) => [event, { to, guard: () => true }])),
+  ]),
+)
 
 const machine = createStateMachine(chatTable)
 

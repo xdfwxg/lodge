@@ -1,11 +1,12 @@
 import { stageStatusOf } from './room-status.js'
+import { ISSUE_STATE } from './states.js'
 
-const ISSUE_STATE = Object.freeze({
-  active: 'in_progress',
-  pending: 'todo',
-  passed: 'done',
-  blocked: 'blocked',
-  waiting: 'blocked',
+const ISSUE_STATE_OF = Object.freeze({
+  active: ISSUE_STATE.in_progress,
+  pending: ISSUE_STATE.todo,
+  passed: ISSUE_STATE.done,
+  blocked: ISSUE_STATE.blocked,
+  waiting: ISSUE_STATE.blocked,
 })
 
 const items = text => String(text ?? '')
@@ -32,7 +33,7 @@ export const issuesOf = (room, messages = []) => {
         id: `stage-${index}`,
         kind: 'stage',
         title: stage.title,
-        state: ISSUE_STATE[status] ?? 'todo',
+        state: ISSUE_STATE_OF[status] ?? ISSUE_STATE.todo,
         stage: index,
         acceptance: stage.acceptance ?? null,
         ownerIds: Array.isArray(stage.assignees) ? stage.assignees : [],

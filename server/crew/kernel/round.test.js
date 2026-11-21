@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { ROUND_STATUS } from '../../../shared/work-round.js'
+import { ROUND_STATUS } from '../../../shared/states.js'
 import { terminalRoundStatus, transitionRound } from './round.js'
 
 test('a round moves from planning to active and only ends once', () => {

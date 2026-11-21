@@ -103,6 +103,19 @@ test('assignment status only moves along the declared transitions', () => {
   assert.equal(transitionAssignment(store, 'missing', 'sent'), null)
 })
 
+test('every assignment transition leaves one audit event', () => {
+  const { store } = makeStore({ id: 'room-1', stages: [] })
+  seed(store)
+  const events = []
+  store.appendEvent = (roomId, type, payload) => events.push({ roomId, type, payload })
+  transitionAssignment(store, 'as-1', 'reported')
+  transitionAssignment(store, 'as-1', 'passed')
+  assert.deepEqual(events.map(item => item.type), ['assignment.reported', 'assignment.passed'])
+  assert.deepEqual(events.map(item => item.payload.from), ['sent', 'reported'])
+  assert.equal(events[0].payload.memberId, 'worker')
+  assert.equal(events[1].payload.to, 'passed')
+})
+
 test('assignment history pages from newest to oldest with a cursor', () => {
   const { store } = makeStore({ id: 'room-1', stages: [] })
   for (let at = 1; at <= 5; at += 1) seed(store, { id: `as-${at}`, createdAt: at })

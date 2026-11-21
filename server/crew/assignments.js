@@ -1,25 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { ASSIGNMENT_STATUS, ASSIGNMENT_STATUSES, ASSIGNMENT_TERMINAL, ASSIGNMENT_TRANSITIONS } from '../../shared/states.js'
 
 // Assignment 是房间内的一次交接：谁把什么交给谁，交付证据是什么。
 // Member 是长期身份；Assignment 只引用 memberId 或子房 id，不复制成员属性。
 const WORK_REASONS = Object.freeze(['dispatch', 'rework', 'retry'])
-const ASSIGNMENT_STATUSES = Object.freeze([
-  'created', 'sent', 'working', 'reported', 'reviewing', 'passed', 'rejected', 'failed', 'cancelled',
-])
-const ASSIGNMENT_TERMINAL = Object.freeze(['passed', 'rejected', 'failed', 'cancelled'])
-
-// 交接只有一条状态链：创建 → 送达 → 交付 → 收口。终态不再被改回去。
-const ASSIGNMENT_TRANSITIONS = Object.freeze({
-  created: ['sent', 'failed', 'cancelled'],
-  sent: ['working', 'reported', 'passed', 'rejected', 'failed', 'cancelled'],
-  working: ['reported', 'passed', 'rejected', 'failed', 'cancelled'],
-  reported: ['reviewing', 'passed', 'rejected', 'failed', 'cancelled'],
-  reviewing: ['passed', 'rejected', 'failed', 'cancelled'],
-  passed: [],
-  rejected: ['failed'],
-  failed: [],
-  cancelled: [],
-})
 
 const canTransition = (from, to) => (
   from === to || (ASSIGNMENT_TRANSITIONS[from] ?? []).includes(to)
@@ -57,7 +41,7 @@ export const createAssignment = ({
   brief = {},
   parentAssignmentId = null,
   context = {},
-  status = 'created',
+  status = ASSIGNMENT_STATUS.created,
   evidenceIds = [],
   id = null,
   attempt = null,
@@ -114,7 +98,7 @@ export const assignmentForTurn = (store, roomId, stageIndex, memberId, turnId) =
     .filter(item => item.toMemberId === memberId)
     .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
   return list.find(item => turnId !== undefined && item.turnId === turnId)
-    ?? list.find(item => ['sent', 'working', 'reported'].includes(item.status))
+    ?? list.find(item => [ASSIGNMENT_STATUS.sent, ASSIGNMENT_STATUS.working, ASSIGNMENT_STATUS.reported].includes(item.status))
     ?? list[0]
     ?? null
 }
@@ -129,31 +113,51 @@ export const latestDispatchAssignment = (store, roomId, stageIndex, memberId = n
 
 export const updateAssignment = (store, id, patch) => store.updateAssignment(id, assignment => {
   Object.assign(assignment, patch)
-  if (patch.status === 'sent' && assignment.sentAt === null) assignment.sentAt = now()
-  if (patch.status === 'reported' || ASSIGNMENT_TERMINAL.includes(patch.status)) assignment.lease = null
-  if (ASSIGNMENT_TERMINAL.includes(patch.status) && assignment.finishedAt === null) assignment.finishedAt = now()
+  if (patch.status === ASSIGNMENT_STATUS.sent && assignment.sentAt === null) assignment.sentAt = now()
+  if (patch.status === ASSIGNMENT_STATUS.reported || ASSIGNMENT_TERMINAL.has(patch.status)) assignment.lease = null
+  if (ASSIGNMENT_TERMINAL.has(patch.status) && assignment.finishedAt === null) assignment.finishedAt = now()
   return true
 })
 
 // 状态只从这里改：校验和写入在同一个事务里，非法跃迁返回 null。
+// 状态落库后补一条审计事件；事件写失败不回滚业务状态。
 export const transitionAssignment = (store, id, status, patch = {}) => {
-  if (!ASSIGNMENT_STATUSES.includes(status)) return null
-  return store.updateAssignment(id, assignment => {
+  if (!ASSIGNMENT_STATUSES.has(status)) return null
+  const from = typeof store.readAssignment === 'function' ? (store.readAssignment(id)?.status ?? null) : null
+  const updated = store.updateAssignment(id, assignment => {
     if (!canTransition(assignment.status, status)) return false
     Object.assign(assignment, patch, { status })
-    if (status === 'sent' && assignment.sentAt === null) assignment.sentAt = now()
-    if (status === 'reported' || ASSIGNMENT_TERMINAL.includes(status)) assignment.lease = null
-    if (ASSIGNMENT_TERMINAL.includes(status) && assignment.finishedAt === null) assignment.finishedAt = now()
+    if (status === ASSIGNMENT_STATUS.sent && assignment.sentAt === null) assignment.sentAt = now()
+    if (status === ASSIGNMENT_STATUS.reported || ASSIGNMENT_TERMINAL.has(status)) assignment.lease = null
+    if (ASSIGNMENT_TERMINAL.has(status) && assignment.finishedAt === null) assignment.finishedAt = now()
     return true
   })
+  if (updated !== null && typeof store.appendEvent === 'function') {
+    try {
+      store.appendEvent(updated.roomId, `assignment.${status}`, {
+        assignmentId: id,
+        roundId: updated.workRoundId ?? null,
+        stage: updated.stageIndex ?? 0,
+        from,
+        to: status,
+        ...(updated.toMemberId === undefined ? {} : { memberId: updated.toMemberId }),
+        ...(updated.reason === undefined ? {} : { reason: updated.reason }),
+        ...(updated.turnId === undefined ? {} : { turnId: updated.turnId }),
+        ...(updated.messageId === undefined ? {} : { messageId: updated.messageId }),
+      })
+    } catch (error) {
+      console.warn(`[lodge] assignment event failed: ${error?.message ?? error}`)
+    }
+  }
+  return updated
 }
 
 // 用户停下回复时，未终态的交接一起取消；否则下一步会一直等一个不会回来的结果。
 export const cancelOpenAssignments = (store, roomId, { reason = '' } = {}) => {
   let cancelled = 0
   for (const assignment of store.readAssignments(roomId, { limit: 5000 })) {
-    if (ASSIGNMENT_TERMINAL.includes(assignment.status)) continue
-    if (transitionAssignment(store, assignment.id, 'cancelled', { resultText: reason }) !== null) {
+    if (ASSIGNMENT_TERMINAL.has(assignment.status)) continue
+    if (transitionAssignment(store, assignment.id, ASSIGNMENT_STATUS.cancelled, { resultText: reason }) !== null) {
       cancelled += 1
     }
   }

@@ -27,26 +27,6 @@ export const ROUND_FIELDS = Object.freeze([
   'supersedeReason',
 ])
 
-export const ROUND_STATUS = Object.freeze({
-  planning: 'planning',
-  active: 'active',
-  completed: 'completed',
-  rejected: 'rejected',
-  failed: 'failed',
-  superseded: 'superseded',
-  stopped: 'stopped',
-})
-
-export const OPEN_ROUND_STATUSES = new Set([ROUND_STATUS.planning, ROUND_STATUS.active])
-
-export const TERMINAL_ROUND_STATUSES = new Set([
-  ROUND_STATUS.completed,
-  ROUND_STATUS.rejected,
-  ROUND_STATUS.failed,
-  ROUND_STATUS.superseded,
-  ROUND_STATUS.stopped,
-])
-
 export const MAX_ROUND_QUESTIONS = 2
 export const MIN_ROUND_OPTIONS = 2
 export const MAX_ROUND_OPTIONS = 4
