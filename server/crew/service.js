@@ -101,10 +101,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
   }
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles, workspace: ports.workspace })
   // 规划师对齐回合结束后由实时层回调：对齐这一步没有界面动作，自动确认后继续。
-  live.setConfirmStage?.((roomId, index) => {
+  live.setConfirmStage?.((roomId, index, options = {}) => {
     const room = store.readRoom(roomId)
     if (room === null) return null
-    return stages.accept(room, { stage: index })
+    return stages.accept(room, { stage: index, ...options })
   })
   // 规划师在回合里调用退回工具时，允许越过“房间还有回合在跑”的界面门禁。
   live.setRewindStage?.((roomId, request) => {

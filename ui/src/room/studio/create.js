@@ -36,6 +36,7 @@ export const buildStudioRequest = ({
   verify,
   acceptance,
   shadowReview,
+  autoDeliver,
   handoff,
   handoffReviewed = false,
   sourceRoomId,
@@ -73,6 +74,7 @@ export const buildStudioRequest = ({
     acceptance,
     repoPath,
     ...(shadowReview ? { shadowReview: true } : {}),
+    ...(autoDeliver ? { autoDeliver: true } : {}),
     ...(handoff === null || handoff === undefined ? {} : { handoff }),
     ...(handoffReviewed ? { handoffReviewed: true } : {}),
     ...(typeof sourceRoomId === 'string' && sourceRoomId !== '' ? { sourceRoomId } : {}),
@@ -136,6 +138,8 @@ export function StudioSetupFields({
   engines = [],
   onInteraction,
   features = null,
+  autoDeliver = false,
+  onAutoDeliver = () => {},
 }) {
   return h(Fragment, null,
     h('div', { className: 'crew-field' },
@@ -149,5 +153,14 @@ export function StudioSetupFields({
         allowSkills: features?.skillsLibrary === true,
         requireApprovalGate: true,
         onInteraction,
-      })))
+      })),
+    h('div', { className: 'crew-field' },
+      h('label', { className: 'crew-check' },
+        h('input', {
+          type: 'checkbox',
+          checked: autoDeliver === true,
+          onChange: event => onAutoDeliver(event.target.checked),
+        }),
+        h('span', null, '验收通过后自动交付')),
+      h('p', { className: 'crew-field-hint' }, '人只抽查；默认关。')))
 }

@@ -21,6 +21,15 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
         const busyMembers = memberBases.filter(item => item.base.working === true).map(item => item.memberId)
         const chatBase = room.chatRoom === undefined ? undefined : bases.find(item => item.id === room.chatRoom.id)
         entry.baseRoom = chatBase ?? entry.baseRoom
+        // 旧工作室也补一次：成员回复里的 @ 不该绕过房间接力。聊天室仍靠成员互相 @ 接话。
+        if (room.roomType !== 'chat' && chatBase !== undefined && chatBase.followMentions !== false && entry.followMentionsClosed !== true &&
+          typeof engine.setRoomFollowMentions === 'function') {
+          entry.followMentionsClosed = true
+          void engine.setRoomFollowMentions(chatBase.id, false).catch(error => {
+            entry.followMentionsClosed = false
+            console.warn(`room followMentions close failed: ${entry.roomId} ${error?.message ?? error}`)
+          })
+        }
         if (entry.refreshSeq !== sequence) return
         const updated = store.updateRoom(entry.roomId, current => {
           const toMember = ref => (typeof ref === 'string' ? memberForRef(current, ref) ?? ref : ref)

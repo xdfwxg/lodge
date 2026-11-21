@@ -84,6 +84,8 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
   const accept = (room, body) => {
     const index = Number(body.stage)
     const force = body?.force === true
+    const by = body?.by === 'system' ? 'system' : 'you'
+    const auto = body?.auto === true
     const target = room.stages?.[index]
     if (target === undefined) return fail('invalid', '没有这一步')
     // 卡片的注意力会有一瞬间的旧快照：这一步已经过了就当确认成功，别再报错。
@@ -125,7 +127,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         }
       }
       return {
-        events: [{ type: 'stage.passed', payload: { stage: index, kind: stage.kind, by: 'you' } }],
+        events: [{ type: 'stage.passed', payload: { stage: index, kind: stage.kind, by } }],
       }
     })
     if (gate !== null && gate.ok === false) return fail(gate.reason, gate.error)
@@ -146,7 +148,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
         : finalStage === null
           ? `第 ${index + 1} 步「${gate.stage.title}」${gate.stage.kind === 'deliverable' ? '通过了' : '确认了'}。`
           : `第 ${index + 1} 步「${gate.stage.title}」通过了；第 ${mergedFinal + 1} 步「${finalStage.title}」也一起确认了。`,
-      meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by: 'you', ...(force ? { override: true } : {}) },
+      meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by, ...(force ? { override: true } : {}) },
     })
     if (force) {
       appendMessage(room.id, {
@@ -184,6 +186,13 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     // 子房间另外把结果回填给父房间。
     const completes = next < 0
     const finalRoom = completes ? completeRoom(room) ?? room : room
+    if (auto && completes) {
+      appendMessage(room.id, {
+        kind: 'system',
+        text: '验收通过，已自动交付；你可以打开结果抽查。',
+        meta: { kind: 'gate', stage: index, by, auto: true },
+      })
+    }
     // 下一步由系统直接派发；规划师不需要在群里 @ 人。最后一步通过就是句号。
     if (next >= 0 && room.live === true && typeof live?.startStage === 'function') {
       void Promise.resolve(live.startStage(room, next)).catch(error => {

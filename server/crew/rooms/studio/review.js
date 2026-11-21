@@ -222,17 +222,27 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     if (reachedQuorum) {
       store.appendEvent(roomId, 'review.passed', { stage: pending.stage, verifier: pending.verifier, passed, total })
       const current = store.readRoom(roomId) ?? room
-      if (hasLaterWorkStage(current, pending.stage) && typeof advanceStage === 'function') {
-        // 中间步骤不再等人点确认：验收通过就由系统收口并开始下一步。
-        void Promise.resolve(advanceStage(roomId, pending.stage)).then(result => {
+      const later = hasLaterWorkStage(current, pending.stage)
+      // 自动交付只认工具提交的结构化判定；文本兜底没有保证 outsideDiff，仍交给人收。
+      const autoDeliver = !later && current.autoDeliver === true && gate !== null && typeof advanceStage === 'function'
+      if ((later || autoDeliver) && typeof advanceStage === 'function') {
+        // 中间步骤自动过；房间开了自动交付时，最后一步也不等人点确认。
+        void Promise.resolve(advanceStage(roomId, pending.stage, { by: 'system', auto: autoDeliver })).then(result => {
           if (result?.ok === false) {
             store.appendMessage(roomId, {
               kind: 'system',
-              text: `这一步验收通过了，但没能自动进入下一步：${result.error ?? '待处理'}。`,
+              text: autoDeliver
+                ? `这一步验收通过了，但没能自动交付：${result.error ?? '待处理'}。`
+                : `这一步验收通过了，但没能自动进入下一步：${result.error ?? '待处理'}。`,
             })
           }
         }).catch(error => {
-          systemNotice({ store, roomId, text: '这一步验收通过了，但没能自动进入下一步；待处理。', error })
+          systemNotice({
+            store,
+            roomId,
+            text: autoDeliver ? '这一步验收通过了，但没能自动交付；待处理。' : '这一步验收通过了，但没能自动进入下一步；待处理。',
+            error,
+          })
         })
         return true
       }

@@ -63,6 +63,7 @@ export const createBodyFactory = ({ engine }) => {
         members: [memberRef.id],
         cwd: thread.cwd,
         leadId: memberRef.id,
+        followMentions: false,
       })
         return {
         memberRef,

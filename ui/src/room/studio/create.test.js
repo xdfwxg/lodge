@@ -91,3 +91,8 @@ test('shadow review is requested only when enabled', () => {
   assert.equal('shadowReview' in buildStudioRequest(base), false)
   assert.equal(buildStudioRequest({ ...base, shadowReview: true }).shadowReview, true)
 })
+
+test('auto delivery is requested only when enabled', () => {
+  assert.equal('autoDeliver' in buildStudioRequest(base), false)
+  assert.equal(buildStudioRequest({ ...base, autoDeliver: true }).autoDeliver, true)
+})

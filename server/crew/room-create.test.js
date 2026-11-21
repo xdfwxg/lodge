@@ -393,6 +393,35 @@ test('a chat room has a configurable turn limit and no trust ladder', async () =
   assert.deepEqual(engine.skillAssignments, [])
 })
 
+test('studio closes member reply mentions while chat keeps them', async () => {
+  const calls = []
+  const engine = fakeEngine()
+  const createRoom = engine.createRoom
+  engine.createRoom = async args => {
+    calls.push(args)
+    return createRoom(args)
+  }
+  const studio = await run(completedRoom(temp('lodge-studio-mentions-')).store, {
+    goal: 'studio goal',
+    roomType: 'studio',
+    verify: 'manual',
+    members: [
+      { role: 'lead', name: '规划' },
+      { role: 'worker', name: '执行' },
+      { role: 'verifier', name: '验收' },
+    ],
+  }, engine)
+  const chat = await run(completedRoom(temp('lodge-chat-mentions-')).store, {
+    goal: 'chat goal',
+    roomType: 'chat',
+  }, engine)
+  assert.equal(studio.ok, true)
+  assert.equal(chat.ok, true)
+  const mainRoom = goal => calls.find(call => call.goal === goal && call.responder !== undefined)
+  assert.equal(mainRoom('studio goal')?.followMentions, false)
+  assert.equal(mainRoom('chat goal')?.followMentions, true)
+})
+
 test('chat speakers can pin their own engine and model', async () => {
   const { store } = completedRoom(temp('lodge-chat-member-model-'))
   const result = await run(store, {

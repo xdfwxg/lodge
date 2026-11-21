@@ -19,6 +19,7 @@
 - 不引 CrewAI/LangGraph/AutoGen 这类编排框架；房间、阶段、证据是唯一真相。
 - 不自动 commit / push / 开 PR；外部动作先问人。提交前由本地 hook 跑 `npm run check:done`，没过就拦下。
 - 旧数据直接清掉，不留兼容 shim。
+- 真 bug 先补回归测试或门禁；没有测试缝先修架构，不先改提示词。
 - 用户能看到的文案走 `shared/product-copy.js` 和文案门禁；内部词、第二人称状态不进主界面。
 
 ## 产品判断

@@ -115,6 +115,7 @@ test('the adapter exposes normalized rooms, history, turns and events', async ()
     sessionRef: 't1',
     goal: '目标',
     working: true,
+    followMentions: true,
     busyRef: 'b1',
     queue: [{ memberRef: 'b1', state: 'queued', position: 1, of: 2, waitingForRef: 'b2' }],
     holds: {},

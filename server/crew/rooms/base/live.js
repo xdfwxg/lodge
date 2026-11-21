@@ -81,7 +81,7 @@ export const createLiveRooms = ({
       ports,
       approvals,
       refreshRoom,
-      confirmStage: (roomId, index) => confirmStage?.(roomId, index),
+      confirmStage: (roomId, index, options) => confirmStage?.(roomId, index, options),
       rewindStage: (roomId, request) => rewindStage?.(roomId, request),
     }),
   ]

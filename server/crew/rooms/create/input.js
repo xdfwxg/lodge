@@ -79,7 +79,9 @@ export const normalizeRequest = body => {
   if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
     return { error: '要交付的房间需要一条检查' }
   }
+  const isStudio = roomType.id === 'studio'
   const shadowReview = body.shadowReview === true
+  const autoDeliver = isStudio && body.autoDeliver === true
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '不认识的分配方式' }
   const handoff = normalizeHandoff(body.handoff)
@@ -87,7 +89,6 @@ export const normalizeRequest = body => {
   const receipt = normalizeReceipt(body.receipt)
   const sourceRoomId = typeof body.sourceRoomId === 'string' ? body.sourceRoomId.trim().slice(0, 120) : ''
   const sourceName = typeof body.sourceName === 'string' ? body.sourceName.trim().slice(0, 120) : ''
-  const isStudio = roomType.id === 'studio'
   const project = isStudio ? normalizeProject(body.project) ?? { northStar: goal } : null
   return {
     goal,
@@ -98,6 +99,7 @@ export const normalizeRequest = body => {
     acceptance,
     orchestration,
     shadowReview,
+    autoDeliver,
     chatTurnLimit,
     handoff,
     handoffReviewed,

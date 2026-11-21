@@ -49,6 +49,7 @@ function NewRoomDialog({
   const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
   const [shadowReview, setShadowReview] = useState(false)
+  const [autoDeliver, setAutoDeliver] = useState(false)
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [goal, setGoal] = useState('')
   const [nameDraft, setNameDraft] = useState('')
@@ -95,6 +96,7 @@ function NewRoomDialog({
     setMemberChoices([])
     setRecommending(false)
     setShadowReview(false)
+    setAutoDeliver(false)
     setChatTurnLimit(6)
     resetLogin()
     setChatMembers(null)
@@ -240,6 +242,7 @@ function NewRoomDialog({
     setAcceptanceDraft('')
     setVerifyMode('manual')
     setShadowReview(false)
+    setAutoDeliver(false)
     setAdvanced(false)
     setError(null)
   }
@@ -286,6 +289,7 @@ function NewRoomDialog({
     setMemberChoices([])
     setAnswers([])
     setShadowReview(false)
+    setAutoDeliver(false)
     setRoomType('studio')
     setChatTurnLimit(6)
     setChatMembers(null)
@@ -339,6 +343,7 @@ function NewRoomDialog({
         verify,
         acceptance,
         shadowReview,
+        autoDeliver,
         handoff,
         handoffReviewed,
         sourceRoomId: seed?.sourceRoomId,
@@ -372,6 +377,7 @@ function NewRoomDialog({
         verify: verifyMode,
         acceptance: verifyMode === 'test' ? acceptanceDraft.trim() : '',
         shadowReview,
+        autoDeliver,
         handoff,
         handoffReviewed,
         sourceRoomId: seed?.sourceRoomId,
@@ -492,6 +498,8 @@ function NewRoomDialog({
     verifyMode,
     shadowReview,
     onShadowReview: setShadowReview,
+    autoDeliver,
+    onAutoDeliver: setAutoDeliver,
   }
 
   const goalField = h('div', { className: 'crew-field' },

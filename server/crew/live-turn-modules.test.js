@@ -1514,6 +1514,90 @@ test('a verifier pass hands the summary to the planner', async () => {
   assert.equal(summary.status, 'sent')
 })
 
+test('auto delivery closes the round when the verifier passes', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    autoDeliver: true,
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', role: 'lead' },
+      { id: 'executor', role: 'worker' },
+      { id: 'verifier', role: 'verifier' },
+    ],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const advanced = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    advanceStage: async (_roomId, index, options) => {
+      advanced.push({ index, options })
+      return { ok: true }
+    },
+  })
+  await review.request(0)
+  const calls = [{
+    name: 'mcp__lodge_gate__submit_verdict',
+    input: JSON.stringify({ decision: 'PASS', reason: '达标', outsideDiff: '无' }),
+  }]
+  assert.equal(review.consume({ turn: { reply: '已提交' }, memberId: 'verifier', turnId: 't1', room, calls }), true)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(advanced, [{ index: 0, options: { by: 'system', auto: true } }])
+  assert.equal(sent.some(item => item.memberId === 'planner'), false)
+})
+
+test('auto delivery falls back to the planner when the verdict came from text', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    autoDeliver: true,
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', role: 'lead' },
+      { id: 'executor', role: 'worker' },
+      { id: 'verifier', role: 'verifier' },
+    ],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const advanced = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    advanceStage: async (_roomId, index, options) => {
+      advanced.push({ index, options })
+      return { ok: true }
+    },
+  })
+  await review.request(0)
+  assert.equal(review.consume({ turn: { reply: 'PASS\n达标' }, memberId: 'verifier', turnId: 't1', room }), true)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(advanced.length, 0)
+  assert.ok(sent.some(item => item.memberId === 'planner'), 'text fallback still goes to the planner')
+})
+
 test('an intermediate stage advances by itself instead of asking the planner to hand off', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],

@@ -104,6 +104,8 @@ export const createProvisioner = ({ engine }) => {
       cwd: workspaces.roomPath ?? workspaces.members[leadMember.member.id].path,
       leadId: extra?.leadId ?? leadMember.memberRef.id,
       responder: { kind: 'mentions' },
+      // 聊天室靠成员互相 @ 接话；工作室的下一棒只归系统接力。
+      followMentions: roomType === 'chat',
     })
     createdRooms.push(chatRoom)
     const chatHost = extra?.chatHost ?? null
