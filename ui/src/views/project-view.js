@@ -85,45 +85,51 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
     }
   }
 
-  const questionCards = proposal === null
-    ? []
-    : (proposal.questions ?? []).slice(0, 2).map((question, index) => h(DecisionCard, {
-      key: `question-${index}`,
-      kicker: '开工前决定',
-      title: question.text,
-      lead: '选一个方向，再开始这一轮。',
-    },
-    (question.options ?? []).length === 0
-      ? h('div', { className: 'crew-decision-input' },
-        h('input', {
-          className: 'crew-goal-input',
-          value: answers[index] ?? '',
-          'aria-label': question.text,
-          disabled: busy,
-          onChange: event => {
-            const next = [...answers]
-            next[index] = event.target.value
-            setAnswers(next)
-          },
-        }))
-      : h('div', {
-        className: 'crew-decision-options',
-        role: 'radiogroup',
+  const questions = proposal === null ? [] : (proposal.questions ?? []).slice(0, 2)
+  const questionCards = questions.map((question, index) => h(DecisionCard, {
+    key: `question-${index}`,
+    kicker: '开工前决定',
+    title: question.text,
+    footer: index === questions.length - 1
+      ? h('button', {
+        type: 'button',
+        className: 'crew-accept',
+        disabled: busy || nextGoal.trim() === '',
+        onClick: () => void nextRound(),
+      }, busy ? '正在开…' : '开始这一轮')
+      : null,
+  },
+  (question.options ?? []).length === 0
+    ? h('div', { className: 'crew-decision-input' },
+      h('input', {
+        className: 'crew-goal-input',
+        value: answers[index] ?? '',
         'aria-label': question.text,
-      },
-      question.options.map(option => h(DecisionOption, {
-        key: option.label,
-        title: option.label,
-        detail: option.cost ?? '',
-        badge: option.label === question.recommendation ? '推荐' : '',
-        selected: answers[index] === option.label,
         disabled: busy,
-        onSelect: () => {
+        onChange: event => {
           const next = [...answers]
-          next[index] = option.label
+          next[index] = event.target.value
           setAnswers(next)
         },
-      })))))
+      }))
+    : h('div', {
+      className: 'crew-decision-options',
+      role: 'radiogroup',
+      'aria-label': question.text,
+    },
+    question.options.map(option => h(DecisionOption, {
+      key: option.label,
+      title: option.label,
+      detail: option.cost ?? '',
+      badge: option.label === question.recommendation ? '推荐' : '',
+      selected: answers[index] === option.label,
+      disabled: busy,
+      onSelect: () => {
+        const next = [...answers]
+        next[index] = option.label
+        setAnswers(next)
+      },
+    })))))
 
   if (project === null) {
     return h('main', { className: 'dsb-main crew-project' },
@@ -174,12 +180,14 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
                 void nextRound()
               },
             }),
-            h('button', {
-              type: 'button',
-              className: 'crew-accept',
-              disabled: busy || nextGoal.trim() === '',
-              onClick: () => void nextRound(),
-            }, busy ? '正在开…' : (proposal === null ? '开下一轮' : '开始这一轮')),
+            questions.length > 0
+              ? null
+              : h('button', {
+                type: 'button',
+                className: 'crew-accept',
+                disabled: busy || nextGoal.trim() === '',
+                onClick: () => void nextRound(),
+              }, busy ? '正在开…' : (proposal === null ? '开下一轮' : '开始这一轮')),
             onRecommend === null
               ? null
               : h('button', {
@@ -197,7 +205,6 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
                 ? null
                 : h('ol', null, proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
                   `${stage.title}${stage.kind === 'decision' ? '（确认）' : ''}`)))),
-          questionCards,
           h('label', { className: 'crew-project-next-label', htmlFor: 'crew-project-next-acceptance' }, '验收命令（可不填）'),
           h('input', {
             id: 'crew-project-next-acceptance',
@@ -207,6 +214,7 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
             disabled: busy,
             onChange: event => setNextAcceptance(event.target.value),
           }),
+          questionCards,
           note === null ? null : h('p', { className: 'crew-field-hint', role: 'alert' }, note),
           h('p', { className: 'crew-field-hint' }, '工作室、成员和工作区沿用；旧轮次保留。'))
         : null))

@@ -75,7 +75,7 @@ export function HumanGateCard({ room, onChoose = null, onRework = null }) {
       kicker: `待你决定 · 第 ${gate.stage + 1} 步`,
       title: gate.title,
       lead: gate.options.length > 0
-        ? '选一个方向，或者写下你自己的。'
+        ? ''
         : gate.actionRequired || '看看这一步哪里还不够，把要改的写在下面。',
       roomDecision: true,
       label: '轮到你决定',
