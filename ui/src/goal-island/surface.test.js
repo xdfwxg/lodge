@@ -56,12 +56,20 @@ const render = (mode, signal, roomOverride = {}, viewOverride = {}) => renderToS
   pill: h('button', { className: 'bt-pill' }, '打开'),
 }))
 
-test('the resting capsule is one small pill: the current step, no kicker', () => {
+test('an inactive room shrinks to the initial mini pill with its status', () => {
   const html = render('closed')
   assert.match(html, /data-compact="true"/)
-  assert.match(html, /class="bt-goal-closed-title">目标对齐</)
+  assert.match(html, /data-mini="true"/)
+  assert.match(html, /class="bt-goal-mini-title">目标对齐</)
   assert.doesNotMatch(html, /bt-goal-closed-kicker/)
   assert.doesNotMatch(html, /1\/3/)
+})
+
+test('an inactive studio mini shows one idle status, not the old step', () => {
+  const html = render('closed', null, { needsYou: null }, { barLabel: '空闲中' })
+  assert.match(html, /data-mini="true"/)
+  assert.match(html, /class="bt-goal-mini-title">空闲中</)
+  assert.doesNotMatch(html, /bt-goal-mini-title">目标对齐</)
 })
 
 test('an untouched chat island is only the chat mark, not a label', () => {

@@ -94,7 +94,7 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
     || (view?.status === 'complete' ? (chat ? '已确认 · 看结果' : '已交付 · 看结果') : '还没有目标')
   const tone = view?.status === 'complete' ? 'done'
     : view?.status === 'stopped' ? 'stopped'
-      : view?.status === 'paused' || view?.idle === true || room.needsYou ? 'waiting'
+      : view?.status === 'paused' || room.needsYou ? 'waiting'
         : view?.status === 'drafting' ? 'drafting' : 'active'
   const total = view?.count ?? 0
   const done = (view?.segments ?? []).filter(seg => seg === 'done').length
@@ -109,8 +109,10 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
   const kicker = nextLine !== '' ? nextLine : title === status ? '' : title
   const radius = 15.5
   const circumference = 2 * Math.PI * radius
-  const miniLabel = room.lodge === true ? '空闲中' : title
-  const label = mini ? (room.lodge === true ? `${title} · 空闲中` : title) : `${title} · ${status}`
+  const miniLabel = room.lodge === true ? '空闲中' : chat ? title : (view?.barLabel || title)
+  const label = mini
+    ? (miniLabel === title ? title : `${title} · ${miniLabel}`)
+    : `${title} · ${status}`
   return h('button', {
     type: 'button',
     className: 'bt-goal-closed',
@@ -123,7 +125,7 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
   h('span', { className: 'bt-goal-closed-main' },
     mini
       ? h(Fragment, null,
-        h('span', { className: 'bt-goal-mini-dot', 'aria-hidden': true }),
+        h('span', { className: 'bt-goal-mini-dot', 'data-tone': tone, 'aria-hidden': true }),
         h('span', { className: 'bt-goal-mini-title' }, miniLabel))
       : h(Fragment, null,
         h('span', {
@@ -296,7 +298,7 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill, ling
     const timer = setTimeout(() => setFlash(false), 1100)
     return () => clearTimeout(timer)
   }, [room.working])
-  const mini = compact && view?.kind === 'chat' && room.working !== true && !flash
+  const mini = compact && room.working !== true && !flash
   // 阶段一变，岛面扫一次光；不循环，也不代替内容变化。
   const progressKey = `${view?.status ?? ''}:${(view?.segments ?? []).join('')}`
   const lastProgress = useRef(progressKey)
@@ -383,6 +385,8 @@ body[data-ds-dark-theme] .bt-island{--bt-ink:#fff4dc;--bt-ink-2:rgba(255,243,214
 .bt-island[data-mini]{width:min(120px,calc(100% - 48px))}
 .bt-island[data-mini] .bt-goal-closed-main{width:100%;height:32px;padding:0 14px;justify-content:center;gap:8px}
 .bt-goal-mini-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--bt-green);box-shadow:0 0 10px color-mix(in srgb,var(--bt-green) 55%,transparent)}
+.bt-goal-mini-dot[data-tone=waiting]{background:var(--bt-star);box-shadow:0 0 10px color-mix(in srgb,var(--bt-star) 55%,transparent)}
+.bt-goal-mini-dot[data-tone=stopped]{background:var(--bt-ink-3);box-shadow:none}
 .bt-goal-mini-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink)}
 .bt-island[data-compact] .bt-goal-closed-copy{gap:0}
 .bt-island[data-compact] .bt-goal-closed-title{font-size:13.5px;line-height:18px}

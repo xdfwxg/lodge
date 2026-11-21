@@ -47,6 +47,19 @@ test('the island carries no check mechanics or side detail', () => {
   assert.equal(goal.summary, undefined)
 })
 
+test('the island shows the current step only while a turn is running', () => {
+  assert.equal(toIslandGoal(room({ busyMembers: ['worker'], round: 1 })).barLabel, undefined)
+  assert.equal(toIslandGoal(room({ busyMembers: [], round: 1 })).barLabel, '空闲中')
+  assert.equal(toIslandGoal(room({ busyMembers: [], round: 1, needsYou: { kind: 'decision' } })).barLabel, '等你决定')
+  assert.equal(toIslandGoal(room({ busyMembers: [], round: 1, state: 'paused' })).barLabel, '已暂停')
+  assert.equal(toIslandGoal(room({ busyMembers: [], round: 1, state: 'stopped' })).barLabel, '已停止')
+  assert.equal(toIslandGoal(room({ busyMembers: [], round: 1, state: 'idle' })).barLabel, '空闲中')
+})
+
+test('a room that has not run a turn is simply idle', () => {
+  assert.equal(toIslandGoal(room({ round: 0, busyMembers: [] })).barLabel, '空闲中')
+})
+
 test('a completed room still reports all stages passed', () => {
   const complete = room({ state: 'complete', stages: room().stages.map(stage => ({ ...stage, state: 'passed' })) })
   const goal = toIslandGoal(complete)

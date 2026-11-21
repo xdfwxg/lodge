@@ -20,21 +20,39 @@ const cleanTitle = value => stripAttachmentTags(value)
   .replace(/<attached-(?:image|file)[\s\S]*$/i, '')
   .trim()
 
-export const toIslandGoal = room => ({
-  id: room.id,
-  title: cleanTitle(room.name),
-  status: room.state === 'complete'
-    ? 'complete'
-    : room.state === 'paused' ? 'paused' : room.state === 'stopped' ? 'stopped' : 'active',
-  idle: room.idle === true || room.needsYou?.kind === 'idle',
-  current: activeIndex(room),
-  stages: stagesOf(room).map(stage => ({
-    title: cleanTitle(stage.title),
-    kind: stage.kind,
-    status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
-  })),
-  objective: room.brief?.objective || stripAttachmentTags(room.goal),
-})
+const islandWorking = room => (
+  (Array.isArray(room?.busyMembers) ? room.busyMembers.length > 0 : false) ||
+  room?.chat?.running === true ||
+  room?.chat?.hostThinking === true
+)
+
+export const toIslandGoal = room => {
+  const working = islandWorking(room)
+  const needsYou = room.needsYou ?? null
+  // 有回合在跑时显示当前步骤；其余时候只留一个原子状态，停了就是空闲中。
+  const barLabel = room.state === 'paused' ? '已暂停'
+    : room.state === 'stopped' ? '已停止'
+      : room.state === 'idle' ? '空闲中'
+        : room.state === 'active'
+          ? working ? undefined : needsYou ? '等你决定' : '空闲中'
+          : undefined
+  return {
+    id: room.id,
+    title: cleanTitle(room.name),
+    status: room.state === 'complete'
+      ? 'complete'
+      : room.state === 'paused' ? 'paused' : room.state === 'stopped' ? 'stopped' : 'active',
+    idle: room.idle === true || room.needsYou?.kind === 'idle',
+    current: activeIndex(room),
+    stages: stagesOf(room).map(stage => ({
+      title: cleanTitle(stage.title),
+      kind: stage.kind,
+      status: stage.state === 'passed' ? 'passed' : stage.state === 'active' ? 'active' : 'pending',
+    })),
+    objective: room.brief?.objective || stripAttachmentTags(room.goal),
+    barLabel,
+  }
+}
 
 const toIslandRoom = room => ({
   id: room.id,
