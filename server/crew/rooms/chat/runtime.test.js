@@ -38,6 +38,23 @@ test('chat turns accumulate room usage without stage diagnostics', () => {
   assert.equal(room.usage.turns, 1)
 })
 
+test('a due chat work item resumes the round', async () => {
+  const { strategy, room } = setup()
+  room.state = 'active'
+  room.chat = { running: true, round: 1 }
+  const starts = []
+  const entry = {
+    roomId: 'room-1',
+    chatRun: { isRunning: () => false, start: async (_room, options) => { starts.push(options) } },
+  }
+  assert.equal(await strategy.handleWork(entry, { kind: 'chat.round' }), true)
+  assert.deepEqual(starts, [{ resume: true }])
+
+  room.chat = { ...room.chat, running: false }
+  assert.equal(await strategy.handleWork(entry, { kind: 'chat.round' }), true)
+  assert.equal(starts.length, 1)
+})
+
 test('chat allows read-only tools and denies write or exec', async () => {
   const { strategy, answered, messages } = setup()
   await strategy.permissionCard({ roomId: 'room-1' }, 'worker', {

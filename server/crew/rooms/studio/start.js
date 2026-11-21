@@ -38,7 +38,7 @@ export const startInitialStage = async ({
       { intent: align ? 'align' : 'handoff', from: 'Lodge' },
     )
     if (sent.messageId !== null) {
-      const updated = store.updateRoom(room.id, current => {
+      const updated = store.updateRound(room.id, current => {
         current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)
         return { events: [] }
       })

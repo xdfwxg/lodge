@@ -31,7 +31,7 @@ test('an html deliverable is captured once and remembered on the room', async ()
           return { path: '/tmp/attachments/00000000-0000-4000-8000-000000000000.png', mime: 'image/png', bytes: bytes.length }
         },
       },
-      updateRoom: (id, mutate) => {
+      updateRound: (id, mutate) => {
         mutate(room)
         return room
       },
@@ -47,7 +47,7 @@ test('an html deliverable is captured once and remembered on the room', async ()
       evidence,
       capture: async () => null,
       attachments: { uploadImage: async () => null },
-      updateRoom: () => room,
+      updateRound: () => room,
     })
     assert.equal(again.length, 1)
   } finally {

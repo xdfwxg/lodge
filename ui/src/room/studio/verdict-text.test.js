@@ -8,7 +8,7 @@ test('a verdict keeps one summary line and folds the rest', () => {
     detail: '没有新增文件。',
   })
   assert.deepEqual(splitVerdictText('REJECT'), { summary: '', detail: '' })
-  assert.deepEqual(splitVerdictText('人工签字通过。'), { summary: '人工签字通过。', detail: '' })
+  assert.deepEqual(splitVerdictText('人工确认通过。'), { summary: '人工确认通过。', detail: '' })
   assert.deepEqual(splitVerdictText(''), { summary: '', detail: '' })
   assert.deepEqual(splitVerdictText('PASS\n1. 命令退出码 0\n2. 文件齐全'), {
     summary: '',

@@ -1,5 +1,5 @@
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
-import { join, resolve, sep } from 'node:path'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { basename, join, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
 export const databaseFile = dataDir => join(dataDir, 'crew.db')
@@ -104,6 +104,86 @@ export const snapshotMemory = ({ dataDir, reason = 'manual', keep = 10, now = Da
   cpSync(source, target, { recursive: true })
   pruneMemoryBackups(dataDir, keep)
   return target
+}
+
+// 工作区是 Lodge 自己的工作副本；重置前先整份归档，恢复时和数据库成对拿回。
+export const listWorkspaceArchives = dataDir => {
+  const dir = backupsDir(dataDir)
+  if (!existsSync(dir)) return []
+  return readdirSync(dir)
+    .filter(name => name.startsWith('workspaces-'))
+    .map(name => {
+      const folder = join(dir, name)
+      const manifest = join(folder, 'manifest.json')
+      if (!existsSync(manifest)) return null
+      try {
+        const info = JSON.parse(readFileSync(manifest, 'utf8'))
+        return { name, folder, createdAt: Number(info.createdAt) || 0, entries: Array.isArray(info.entries) ? info.entries : [] }
+      } catch {
+        return null
+      }
+    })
+    .filter(item => item !== null)
+    .sort((a, b) => b.createdAt - a.createdAt || b.name.localeCompare(a.name))
+}
+
+export const latestWorkspaceArchive = dataDir => listWorkspaceArchives(dataDir)[0] ?? null
+
+export const pruneWorkspaceArchives = (dataDir, keep = 10) => {
+  const size = Math.max(1, Number(keep) || 10)
+  const old = listWorkspaceArchives(dataDir).slice(size)
+  for (const item of old) {
+    try { rmSync(item.folder, { recursive: true, force: true }) } catch {}
+  }
+  return old.length
+}
+
+export const archiveWorkspaces = ({ dataDir, roots, now = Date.now(), keep = 10 }) => {
+  const existing = (roots ?? []).filter(item => (
+    typeof item?.kind === 'string' && typeof item?.path === 'string' && item.path !== '' && existsSync(item.path)
+  ))
+  if (existing.length === 0) return null
+  const folder = join(backupsDir(dataDir), `workspaces-${now}`)
+  mkdirSync(folder, { recursive: true })
+  const entries = []
+  for (const item of existing) {
+    cpSync(item.path, join(folder, item.kind), { recursive: true })
+    entries.push({ kind: item.kind, name: basename(item.path) })
+  }
+  writeFileSync(join(folder, 'manifest.json'), JSON.stringify({ version: 1, createdAt: now, entries }, null, 2))
+  pruneWorkspaceArchives(dataDir, keep)
+  return folder
+}
+
+export const resolveWorkspaceArchive = (dataDir, value) => {
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const raw = value.trim()
+  if (raw.includes('/') || raw.includes(sep)) return resolve(raw)
+  return join(backupsDir(dataDir), raw)
+}
+
+export const restoreWorkspaceArchive = ({ dataDir, archive, roots, force = false, now = Date.now() }) => {
+  const folder = resolveWorkspaceArchive(dataDir, archive)
+  if (folder === null || !existsSync(join(folder, 'manifest.json'))) throw new Error(`工作区归档不存在：${folder}`)
+  const manifest = JSON.parse(readFileSync(join(folder, 'manifest.json'), 'utf8'))
+  const targets = new Map((roots ?? []).map(item => [item.kind, item.path]))
+  const plans = (manifest.entries ?? []).map(entry => {
+    const target = targets.get(entry.kind)
+    if (typeof target !== 'string' || target === '') throw new Error(`不知道 ${entry.kind} 恢复到哪`)
+    return { source: join(folder, entry.kind), target }
+  })
+  const occupied = plans.filter(item => existsSync(item.target))
+  if (occupied.length > 0 && force !== true) {
+    throw new Error(`工作区已经存在：${occupied.map(item => item.target).join('、')}；加 --force 覆盖`)
+  }
+  // 恢复前的安全副本不能顺手把正在恢复的旧归档裁掉。
+  const safety = archiveWorkspaces({ dataDir, roots: roots ?? [], now, keep: 1000 })
+  for (const item of plans) {
+    if (existsSync(item.target)) rmSync(item.target, { recursive: true, force: true })
+    mkdirSync(join(item.target, '..'), { recursive: true })
+    cpSync(item.source, item.target, { recursive: true })
+  }
+  return { restored: folder, safety, roots: plans.map(item => item.target) }
 }
 
 export const resolveBackup = (dataDir, value) => {

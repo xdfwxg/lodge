@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useOverlay } from '../overlay.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { initialOf } from '../marks.js'
-import { routineLineOf } from '../../../shared/routine.js'
+import { roundDelivered } from '../../../shared/room-status.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
@@ -14,6 +14,7 @@ import { clampSide, COLLAPSE_AT, RAIL_WIDTH, readSidebarLayout, SIDE_MAX, SIDE_M
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
 const byRecent = list => [...list].sort((a, b) => lastAtOf(b) - lastAtOf(a))
+const deliveredOf = room => roundDelivered(room) || room.chat?.phase === 'accepted'
 
 const pad = value => String(value).padStart(2, '0')
 const stampOf = ts => {
@@ -38,7 +39,7 @@ export const orderRooms = rooms => {
   for (const room of rooms) {
     if (room.archivedAt) archived.push(room)
     else if (room.needsYou) pending.push(room)
-    else if (room.state === 'complete') done.push(room)
+    else if (deliveredOf(room)) done.push(room)
     else recent.push(room)
   }
   return [...byRecent(pending), ...byRecent(recent), ...byRecent(done), ...byRecent(archived)]
@@ -359,17 +360,15 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onHold
 const toneOf = room => {
   if (room.needsYou?.kind === 'review') return 'review'
   if (room.needsYou?.kind === 'signoff' || room.needsYou?.kind === 'result') return 'done'
-  if (room.needsYou?.kind === 'routine-run') return 'waiting'
   if (room.needsYou?.kind === 'rework' || room.needsYou?.kind === 'merge' || room.needsYou?.kind === 'parallel') return 'alert'
   if (room.needsYou) return 'waiting'
-  if (room.state === 'complete') return 'done'
+  if (deliveredOf(room)) return 'done'
   return room.live === true ? 'active' : 'idle'
 }
 
 const NEEDS_META = {
   result: '看结果',
-  'routine-run': '待处理',
-  signoff: '待签字',
+  signoff: '待确认',
   review: '验收员在看',
   decision: '待确认',
   question: '待回答',
@@ -391,7 +390,7 @@ const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.ne
 
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
-  if (room?.state === 'complete') return room?.modeCapabilities?.stages === false ? '已确认' : '已交付'
+  if (deliveredOf(room)) return room?.modeCapabilities?.stages === false ? '已确认' : '已交付'
   if (room?.state === 'idle') return '空闲中'
   if (room?.state === 'stopped') return '已停止'
   if (room?.state === 'paused') return '已暂停'
@@ -527,14 +526,11 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
 
   const lodge = room.lodge === true
   const label = stamp === '' ? roomLabelOf(room) : `${roomLabelOf(room)}，${stamp}`
-  const routineLine = room.archivedAt || room.needsYou ? '' : routineLineOf(room)
-  const subLine = routineLine === ''
-    ? stamp
-    : stamp === '' ? routineLine : `${routineLine} · ${stamp}`
+  const subLine = stamp
   const TypeIcon = uiKindOfRoom(room).icon
   const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
   const hasMemberPanel = !archived && uiKindOfRoom(room).membersInSidebar === false
-  const canDelete = room.state !== 'active'
+  const canDelete = room.state !== 'active' && !room.activeRoundId
   const closeMenu = () => setMenuOpen(false)
   const toggleMenu = () => {
     if (menuOpen) {
@@ -629,7 +625,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
     h('div', {
       className: 'crew-side-row',
       'data-archived': archived ? 'true' : undefined,
-      'data-done': !archived && room.state === 'complete' ? 'true' : undefined,
+      'data-done': !archived && deliveredOf(room) ? 'true' : undefined,
       'data-needs': room.needsYou === undefined || room.needsYou === null ? undefined : 'true',
       'data-menu': menuOpen ? 'true' : undefined,
     },

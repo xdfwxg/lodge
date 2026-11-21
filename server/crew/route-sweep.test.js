@@ -28,6 +28,13 @@ const setup = () => {
     readEvidence: () => [],
     readAssignments: () => [],
     writeRoom: () => {},
+    updateRound: (id, mutate) => {
+      const next = structuredClone(current)
+      const change = mutate(next)
+      if (change === null || change === undefined || change === false) return null
+      current = next
+      return next
+    },
     updateRoom: (id, mutate) => {
       const next = structuredClone(current)
       const change = mutate(next)

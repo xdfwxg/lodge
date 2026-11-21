@@ -13,7 +13,7 @@ export const gateRecordOf = ({ review, humanReviewed = false, check = null }) =>
       },
     }),
   at: Date.now(),
-  // 只有确实需要人确认的分歧才留签字时间；没有分歧时不写空字段。
+  // 只有确实需要人确认的分歧才留确认时间；没有分歧时不写空字段。
   ...(review.needsHumanReview
     ? { humanReviewed: humanReviewed === true, reviewedAt: humanReviewed === true ? Date.now() : null }
     : {}),

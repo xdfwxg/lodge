@@ -3,7 +3,7 @@ import test from 'node:test'
 import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
-  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsSubrooms', 'supportsRoutine', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'messagePolicy', 'demoMessage', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'messagePolicy', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record',
   'initialMessages', 'provisionExtra', 'start',
@@ -60,7 +60,7 @@ test('message routing is a mode policy, not a room-type branch', () => {
   assert.equal(chat.messagePolicy({ room: { chat: { phase: 'discussing' } }, text: '@甲 看这里' }), null)
 
   const studio = roomModeForType('studio')
-  assert.deepEqual(studio.messagePolicy({ room: { stages: [{ state: 'passed' }] } }), { type: 'final-chat' })
+  assert.equal(studio.messagePolicy({ room: { stages: [{ state: 'passed' }] } }), null)
   assert.equal(studio.messagePolicy({ room: { stages: [{ state: 'active' }] } }), null)
 })
 

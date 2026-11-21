@@ -1,3 +1,5 @@
+import { deliveredRoundOf, roomStatusOf } from '../../../shared/room-status.js'
+
 // 岛屿状态机：状态键共享，工作室和聊天室各自读自己的词表。
 export const ISLAND_STATUS = Object.freeze({
   studio: Object.freeze({
@@ -26,19 +28,21 @@ export const islandWorking = room => (
 )
 
 const studioState = room => {
-  if (room?.state === 'complete') return 'done'
-  if (room?.state === 'paused') return 'paused'
-  if (room?.state === 'stopped') return 'stopped'
-  if (room?.state !== 'active') return 'idle'
-  if (islandWorking(room)) return 'running'
-  return room?.needsYou ? 'waiting' : 'idle'
+  const status = roomStatusOf(room)
+  if (status === 'archived' || status === 'stopped') return 'stopped'
+  if (status === 'paused') return 'paused'
+  if (status === 'active') {
+    if (islandWorking(room)) return 'running'
+    return room?.needsYou ? 'waiting' : 'idle'
+  }
+  return deliveredRoundOf(room) ? 'done' : 'idle'
 }
 
 const chatState = room => {
   if (room?.state === 'paused') return 'paused'
   if (room?.state === 'stopped') return 'stopped'
   const chat = room?.chat ?? {}
-  if (room?.state === 'complete' || chat.phase === 'accepted') return 'done'
+  if (chat.phase === 'accepted') return 'done'
   if (chat.phase === 'summarizing') return 'summarizing'
   if (chat.phase === 'concluded' || chat.phase === 'awaiting_decision') return 'waiting'
   if (chat.running === true || chat.hostThinking === true) return 'running'

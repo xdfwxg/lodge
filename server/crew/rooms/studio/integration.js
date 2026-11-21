@@ -35,7 +35,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
   }
 
   const clearBlocked = stageIndex => {
-    const updated = store.updateRoom(roomId, current => {
+    const updated = store.updateRound(roomId, current => {
       if (current.blocked?.stage !== stageIndex) return null
       current.blocked = null
       return { events: [] }
@@ -208,7 +208,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
           text: `${name} 的 ${label} 和房间里的文件冲突（${files}）；冲突留在房间工作目录里，解决并提交后点继续。`,
         })
         store.appendEvent(roomId, 'stage.merge_conflict', { stage: stageIndex, worker, branch: branch ?? '', files: result.files })
-        const updated = store.updateRoom(roomId, current => {
+        const updated = store.updateRound(roomId, current => {
           const conflict = {
             stage: stageIndex,
             worker,

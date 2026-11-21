@@ -28,7 +28,7 @@ export const createTurnState = ({ store, roomId, emit }) => {
       paused = result.paused
       return {
         events: [
-          { type: 'room.turn', payload: { round: current.round, noProgress: current.noProgress, progressed } },
+          { type: 'room.turn', payload: { turnCount: current.turnCount, noProgress: current.noProgress, progressed } },
           ...(paused ? [{ type: 'room.idle', payload: { reason: 'no-progress' } }] : []),
         ],
       }

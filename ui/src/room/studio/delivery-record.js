@@ -2,6 +2,7 @@
 // 只读房间记录，不重算业务判断；没有的记录就省略，不补想象。
 import { judgmentOf } from '../../../../shared/judgment.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'
+import { roundDelivered } from '../../../../shared/room-status.js'
 
 const line = value => String(value ?? '').replace(/\s+/g, ' ').trim()
 const when = ts => {
@@ -47,13 +48,13 @@ const fileRows = room => {
 
 export const deliveryRecord = room => {
   if (room === null || room === undefined) return ''
-  const allPassed = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
+  const delivered = roundDelivered(room)
   const completedAt = room.completedAt ?? room.archivedAt ?? null
   const blocks = [
     `# ${line(room.name) || '房间交付记录'}`,
     '',
     `目标：${line(stripAttachmentTags(room.goal))}`,
-    `状态：${allPassed ? '已交付' : room.state === 'active' ? '进行中' : room.state ?? ''}`,
+    `状态：${delivered ? '已交付' : room.archivedAt ? '已归档' : room.state === 'active' ? '进行中' : room.state === 'paused' ? '已暂停' : room.state === 'stopped' ? '已停止' : '空闲中'}`,
     completedAt === null ? '' : `完成时间：${when(completedAt)}`,
     '',
     '## 步骤',

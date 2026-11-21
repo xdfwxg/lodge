@@ -1417,10 +1417,9 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   assert.equal(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true), true)
 })
 
-test('a verifier reject returns the studio closure to executing and wakes the planner', async () => {
+test('a verifier reject keeps the stage open and wakes the planner', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
-    closure: 'verifying',
     leadSeat: 'planner',
     members: ['planner', 'executor', 'verifier'],
     seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
@@ -1448,7 +1447,7 @@ test('a verifier reject returns the studio closure to executing and wakes the pl
   })
   await review.request(0)
   assert.equal(review.consume({ turn: { reply: 'REJECT\n证据不足' }, memberId: 'verifier', turnId: 't1', room }), true)
-  assert.equal(room.closure, 'executing')
+  assert.equal(room.stages[0].state, 'active')
   const planner = sent.find(item => item.memberId === 'planner')
   assert.ok(planner)
   assert.match(planner.prompt, /验收员退回了第 1 步/)

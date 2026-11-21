@@ -30,13 +30,16 @@
     "check:docs": "node scripts/check-docs.mjs",
     "check:acceptance": "node scripts/check-acceptance.mjs",
     "check:regressions": "node scripts/check-regressions.mjs",
-    "check:done": "npm test && npm run test:ui && npm run check:docs && npm run check:acceptance && npm run check:regressions",
+    "check:done": "npm test && npm run test:ui && npm run check:docs && npm run check:acceptance && npm run check:regressions && npm run eval:long-task",
     "gc:base": "node scripts/base-gc.mjs",
     "data:restore": "node scripts/data-restore.mjs",
     "data:reset": "node scripts/data-reset.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
     "test:ui": "npm run build && playwright test",
-    "retro:env": "node scripts/env-retro.mjs"
+    "retro:env": "node scripts/env-retro.mjs",
+    "eval:rooms:nightly": "node evals/rooms/run.mjs --runs 3 --out evals/rooms/results/nightly",
+    "eval:planning:nightly": "node evals/planning/run.mjs --runs 3 --out evals/planning/results/nightly",
+    "eval:long-task": "node evals/long-task/run.mjs"
   },
   "dependencies": {
     "chrome-devtools-mcp": "1.13.0",

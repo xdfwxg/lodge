@@ -16,7 +16,7 @@ export const roomBulletin = (goal, verify, acceptance, handoff = null) => {
 
 // 两种窄接口：建房/能力只拿 mode，消息投影/注意力只拿 presentation。
 const MODE_KEYS = [
-  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsSubrooms', 'supportsRoutine', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'messagePolicy', 'demoMessage', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'messagePolicy', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record',
   'initialMessages', 'provisionExtra', 'start',   'bulletinAcceptance', 'approvalReadOnly',

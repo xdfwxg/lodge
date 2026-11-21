@@ -1,21 +1,10 @@
-import { Fragment, createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useState } from 'react'
 import { Markdown } from '../../message-cards.js'
 import { openPath as openTarget } from '../../system.js'
 import { dateTimeOf } from '../../view-format.js'
 import { errorSuffix } from '../../error-text.js'
 import { artifactKindOf } from '../../../../shared/artifact.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'
-import {
-  ALL_DAYS,
-  DAY_LABELS,
-  ROUTINE_DAYS,
-  clockOf,
-  momentLabelOf,
-  normalizeDays,
-  parseClock,
-  routineNextLabel,
-  scheduleLabelOf,
-} from '../../../../shared/routine.js'
 
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
 const isAbsolutePath = value => value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
@@ -82,22 +71,8 @@ function ArtifactThumb({ roomId, artifact, onRead, onOpen }) {
 }
 
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
-export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onReturn = null, onDownload = null, onRead = null, onRoutine = null, onOpenRun = null, latestRun = null, runs = [] }) {
-  const latestDelivery = latestRun?.delivery ?? null
-  const hasLatest = latestDelivery !== null
-  const [showOriginal, setShowOriginal] = useState(false)
-  const showingOriginal = hasLatest && showOriginal
-  const delivery = showingOriginal || !hasLatest
-    ? goalDelivery
-    : {
-        ...latestDelivery,
-        name: goalDelivery.name,
-        goal: goalDelivery.goal,
-        routine: goalDelivery.routine,
-        routineManual: goalDelivery.routineManual,
-        sample: goalDelivery.sample,
-        archived: goalDelivery.archived,
-      }
+export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onReturn = null, onDownload = null, onRead = null }) {
+  const delivery = goalDelivery
   const commands = delivery.commands ?? []
   const firstCommand = commands
     .map(item => (typeof item?.command === 'string' ? item.command.trim() : ''))
@@ -152,68 +127,6 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
       : usage.costStatus === 'partial' ? `至少 ${money}` : money
   const metrics = fileCount > 0 ? `${fileCount} 个文件` : ''
   const signoff = delivery.independenceLabel ?? ''
-  const routine = delivery.routine ?? null
-  const patchRoutine = patch => onRoutine?.({
-    enabled: routine?.enabled === true,
-    days: routine?.days ?? [...ALL_DAYS],
-    hour: routine?.hour ?? 8,
-    minute: routine?.minute ?? 0,
-    ...patch,
-  })
-  const [editing, setEditing] = useState(false)
-  const [draftDays, setDraftDays] = useState(routine?.days ?? [...ALL_DAYS])
-  const [draftHour, setDraftHour] = useState(routine?.hour ?? 8)
-  const [draftMinute, setDraftMinute] = useState(routine?.minute ?? 0)
-  const routineDays = routine?.days === undefined ? '' : routine.days.join(',')
-  useEffect(() => {
-    if (routine === null) return
-    setDraftDays(routine.days)
-    setDraftHour(routine.hour)
-    setDraftMinute(routine.minute)
-  }, [routineDays, routine?.hour, routine?.minute])
-  const draftOf = () => ({ days: draftDays, hour: draftHour, minute: draftMinute })
-  const toggleDay = day => setDraftDays(days => (
-    days.includes(day) ? days.filter(item => item !== day) : normalizeDays([...days, day])
-  ))
-  const startRoutine = () => {
-    patchRoutine({ enabled: true, ...draftOf() })
-    setEditing(false)
-  }
-  const cancelEdit = () => {
-    setDraftDays(routine?.days ?? [...ALL_DAYS])
-    setDraftHour(routine?.hour ?? 8)
-    setDraftMinute(routine?.minute ?? 0)
-    setEditing(false)
-  }
-  const scheduled = routine === null ? '' : scheduleLabelOf(routine)
-  const timeValue = clockOf(draftHour, draftMinute).padStart(5, '0')
-  const pastRuns = routine === null
-    ? []
-    : runs.filter(run => run.id !== latestRun?.id)
-  const historyEntries = []
-  if (hasLatest) {
-    historyEntries.push(h('button', {
-      key: showingOriginal ? 'latest-result' : 'original-result',
-      type: 'button',
-      className: 'crew-link',
-      onClick: () => setShowOriginal(!showingOriginal),
-    }, showingOriginal ? '最新一次' : '最初那次'))
-  }
-  if (onOpenRun !== null) {
-    for (const run of [...pastRuns].reverse()) {
-      historyEntries.push(h('button', {
-        key: run.id,
-        type: 'button',
-        className: 'crew-link',
-        onClick: () => onOpenRun(run.id),
-      }, run.name ?? run.id))
-    }
-  }
-  const historyNode = historyEntries.length === 0 ? null : h('details', {
-    className: 'crew-fold crew-routine-history',
-  },
-  h('summary', null, `往次 ${historyEntries.length} 次`),
-  h('div', { className: 'crew-routine-runs' }, historyEntries))
   const artifacts = delivery.artifacts ?? []
   // 平台截的渲染图优先上桌：先看结果，再看文件和规格。
   const primaryArtifact = artifacts.find(artifact => artifact.role === 'render') ??
@@ -255,170 +168,24 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
   const imageArtifacts = artifacts.filter(artifact => kindOf(artifact) === 'image')
   const gallery = imageArtifacts.length > 1 ? imageArtifacts.slice(0, 8) : []
   const showProof = commands.length > 0 || manualVerdict !== null || !hasPreview
-  const routineNode = onRoutine === null || delivery.sample === true ? null : (() => {
-    if (delivery.archived === true) {
-      return routine === null
-        ? null
-        : h('div', { className: 'crew-routine' },
-          h('p', { className: 'crew-field-hint' }, '已归档。取消归档后可以再开。'),
-          historyNode)
-    }
-    if (routine !== null && routine.paused === true) {
-      const again = () => patchRoutine({
-        enabled: true,
-        days: routine.days,
-        hour: routine.hour,
-        minute: routine.minute,
-      })
-      return h('div', { className: 'crew-routine', 'data-paused': 'true' },
-        h('p', { className: 'crew-routine-title' }, '定时任务'),
-        h('p', { className: 'crew-routine-lead' }, '连续 3 次没做成，已经停下。'),
-        h('div', { className: 'crew-routine-actions' },
-          h('button', { type: 'button', className: 'crew-link', onClick: again }, '再试一次'),
-          h('button', {
-            type: 'button',
-            className: 'crew-link',
-            onClick: () => patchRoutine({ enabled: false }),
-          }, '关掉')),
-        historyNode)
-    }
-    const chips = () => h('span', { className: 'crew-routine-days', role: 'group', 'aria-label': '哪几天做' },
-      ROUTINE_DAYS.map(day => h('button', {
-        key: `day-${day}`,
-        type: 'button',
-        className: 'crew-routine-day',
-        'data-on': draftDays.includes(day) ? 'true' : undefined,
-        'aria-pressed': draftDays.includes(day),
-        'aria-label': DAY_LABELS[day],
-        title: DAY_LABELS[day],
-        onClick: () => toggleDay(day),
-      }, DAY_LABELS[day].slice(1))))
-    const timeInput = () => h('input', {
-      className: 'crew-routine-time',
-      type: 'time',
-      value: timeValue,
-      'aria-label': '几点做',
-      onChange: event => {
-        const clock = parseClock(event.target.value)
-        if (clock !== null) {
-          setDraftHour(clock.hour)
-          setDraftMinute(clock.minute)
-        }
-      },
-    })
-    const editor = action => h(Fragment, null,
-      h('div', { className: 'crew-routine-line' },
-        h('span', { className: 'crew-routine-prefix' }, '哪几天'),
-        chips()),
-      h('div', { className: 'crew-routine-line' },
-        h('span', { className: 'crew-routine-prefix' }, '几点'),
-        timeInput(),
-        action))
-    const draftLabel = scheduleLabelOf({ days: draftDays, hour: draftHour, minute: draftMinute })
-    const missHint = h('p', { className: 'crew-field-hint' }, 'Lodge 打开后，会自动补做上次错过的那次。')
-    if (routine === null || routine.enabled !== true) {
-      if (!editing) {
-        return h('div', { className: 'crew-routine' },
-          h('p', { className: 'crew-routine-title' }, '加定时任务'),
-          h('div', { className: 'crew-routine-line' },
-            h('button', {
-              type: 'button',
-              className: 'crew-routine-schedule',
-              title: '改天数和时间',
-              'aria-label': `改天数和时间，现在是${draftLabel}`,
-              onClick: () => setEditing(true),
-            }, `以后 ${draftLabel} 再做一遍`),
-            h('button', {
-              type: 'button',
-              className: 'crew-routine-start',
-              disabled: draftDays.length === 0,
-              onClick: startRoutine,
-            }, '开启定时')),
-          missHint,
-          historyNode)
-      }
-      return h('div', { className: 'crew-routine' },
-        h('p', { className: 'crew-routine-title' }, '加定时任务'),
-        editor(h('span', { className: 'crew-routine-actions' },
-          h('button', {
-            type: 'button',
-            className: 'crew-routine-start',
-            disabled: draftDays.length === 0,
-            onClick: startRoutine,
-          }, '保存'),
-          h('button', { type: 'button', className: 'crew-link', onClick: cancelEdit }, '取消'))),
-        missHint,
-        historyNode)
-    }
-    if (editing) {
-      return h('div', { className: 'crew-routine', 'data-on': 'true' },
-        h('p', { className: 'crew-routine-title' }, '定时任务'),
-        editor(h('span', { className: 'crew-routine-actions' },
-          h('button', {
-            type: 'button',
-            className: 'crew-routine-start',
-            disabled: draftDays.length === 0,
-            onClick: startRoutine,
-          }, '保存'),
-          h('button', { type: 'button', className: 'crew-link', onClick: cancelEdit }, '取消'))),
-        delivery.routineManual === true
-          ? h('p', { className: 'crew-field-hint' }, '每次跑完要你看一眼。')
-          : null,
-        historyNode)
-    }
-    return h('div', { className: 'crew-routine', 'data-on': 'true' },
-      h('p', { className: 'crew-routine-title' }, '定时任务'),
-      h('div', { className: 'crew-routine-line' },
-        h('button', {
-          type: 'button',
-          className: 'crew-routine-schedule',
-          title: '改时间',
-          'aria-label': `改时间，现在是${scheduled}`,
-          onClick: () => setEditing(true),
-        }, scheduled),
-        routine.nextRunAt === null
-          ? null
-          : h('span', { className: 'crew-routine-next' }, `· 下次 ${routineNextLabel(routine.nextRunAt)}`),
-        h('button', {
-          type: 'button',
-          className: 'crew-link',
-          onClick: () => patchRoutine({ enabled: false }),
-        }, '关掉')),
-      delivery.routineManual === true
-        ? h('p', { className: 'crew-field-hint' }, '每次跑完要你看一眼。')
-        : null,
-      routine.skippedAt === null
-        ? null
-        : h('p', { className: 'crew-field-hint' }, '上一次还没结束，这次先没跑。'),
-      historyNode)
-  })()
   const prDraftNode = prDraft === null ? null : h('div', { className: 'studio-delivery-more-block' },
-    h('p', { className: 'crew-routine-title' }, '交付说明'),
+    h('p', { className: 'studio-delivery-more-title' }, '交付说明'),
     h('pre', { className: 'crew-code studio-pr-draft-body' }, prDraft.body),
     h('div', { className: 'studio-pr-draft-actions' },
       h('button', { type: 'button', className: 'crew-link', onClick: copyPrDraft }, prCopied ? '已复制' : '复制交付说明'),
       h('span', { className: 'crew-field-hint' }, '不会自动发到远端；确认后再走外部动作。')))
-  const moreNode = prDraftNode === null && routineNode === null
+  const moreNode = prDraftNode === null
     ? null
     : h('details', { className: 'crew-fold studio-delivery-more' },
       h('summary', null, '更多'),
-      prDraftNode,
-      routineNode)
+      prDraftNode)
   return h('div', { className: 'crew-msg-conclusion', 'data-outcome': 'delivery' },
     h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true', 'aria-label': '结果' },
       h('div', { className: 'crew-card-body' },
         h('div', { className: 'studio-delivery-head' },
-          h('span', { className: 'studio-delivery-kicker' },
-            hasLatest ? (showingOriginal ? '最初那次' : '最新一次') : '结果'),
+          h('span', { className: 'studio-delivery-kicker' }, '结果'),
           Number.isFinite(delivery.completedAt)
-            ? h('span', { className: 'studio-delivery-at' }, momentLabelOf(delivery.completedAt))
-            : null,
-          showingOriginal
-            ? h('button', {
-              type: 'button',
-              className: 'crew-link',
-              onClick: () => setShowOriginal(false),
-            }, '回到最新')
+            ? h('span', { className: 'studio-delivery-at' }, dateTimeOf(delivery.completedAt))
             : null,
           delivery.sample === true ? h('span', { className: 'studio-delivery-sample' }, '示例') : null),
         h('h3', { className: 'studio-delivery-name' }, nameText === '' ? '这次做出来的' : nameText),

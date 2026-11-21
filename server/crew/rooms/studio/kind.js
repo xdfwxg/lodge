@@ -191,7 +191,7 @@ export const studioConstraints = ({
     ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
     : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',
   ...(verifiers.length === 0
-    ? ['这个房间没有独立验收成员，由你凭证据签字']
+    ? ['这个房间没有独立验收成员，由你凭证据确认']
     : [independence === 'vendor'
       ? '执行与验收已绑定不同厂商；验收成员在独立副本里复核'
       : '当前只有同一家模型可用：复核和执行来自同一家，独立复核会打折']),
@@ -294,13 +294,9 @@ export const studioKind = {
   messagePolicy: ({ room, messages = [] }) => {
     const handoff = humanHandoffStageOf(room, messages)
     if (handoff !== null) return { type: 'human-rework', stage: handoff }
-    const allPassed = Array.isArray(room.stages) && room.stages.length > 0 &&
-      room.stages.every(stage => stage.state === 'passed')
-    return allPassed ? { type: 'final-chat' } : null
+    return null
   },
   validateRoster: type.validateRoster,
-  supportsSubrooms: false,
-  supportsRoutine: false,
   supportsMemberAdd: true,
   allowsHostOnly: () => false,
   busyNow: () => false,
@@ -325,12 +321,9 @@ export const studioKind = {
     builtStages,
   }) => ({
     constraints: studioConstraints({ plan, verify, acceptance, verifiers, independence }),
-    closure: {
-      closure: plan === null ? 'open' : 'planned',
-      verificationMode: 'hybrid',
-      shadowReview: shadowReview === true,
-      ...(gate === null ? {} : { gate }),
-    },
+    verificationMode: 'hybrid',
+    shadowReview: shadowReview === true,
+    ...(gate === null ? {} : { gate }),
     stages: builtStages.stages,
   }),
 
@@ -354,7 +347,15 @@ export const studioKind = {
 
   needsYou: studioNeedsYou,
 
-  stateOf: room => (room.closure === 'signed' ? 'signed' : room.closure ?? 'open'),
+  // 阶段本身就是状态：不另存一个闭包状态机，只从 stages 读当前处在哪一段。
+  stateOf: room => {
+    const stages = Array.isArray(room?.stages) ? room.stages : []
+    if (stages.length === 0) return 'open'
+    if (stages.every(stage => stage.state === 'passed')) return 'done'
+    const active = stages.find(stage => stage.state === 'active')
+    if (active === undefined) return 'planned'
+    return active.kind === 'decision' ? 'open' : 'executing'
+  },
 
   filterMessages: messages => messages,
   hideActivity: false,
@@ -365,8 +366,8 @@ export const studioKind = {
 
   // 交付卡是工作室投影；共享层只拿结果，不碰阶段与证据结构。
   deliveryOf: (room, messages) => (
-    (room.workRound?.status === 'completed' || room.state === 'complete') &&
-    (room.closure !== undefined || Array.isArray(room.stages))
+    room.workRound?.status === 'completed' &&
+    Array.isArray(room.stages)
       ? buildDelivery(room, messages)
       : null
   ),

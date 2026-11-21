@@ -67,7 +67,7 @@ export const createAcceptanceRunner = ({
         if (lastSystem?.text !== note) store.appendMessage(roomId, { kind: 'system', text: note })
         // 返工后没有任何新改动：不能再静默停下，房间要等人处理。
         if (floor >= 0) {
-          const updated = store.updateRoom(roomId, current => {
+          const updated = store.updateRound(roomId, current => {
             if (current.blocked?.stage === stageIndex && current.blocked?.reason === 'no-progress') return null
             current.blocked = { stage: stageIndex, reason: 'no-progress', workers: [], at: Date.now() }
             return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'no-progress' } }] }
@@ -170,7 +170,7 @@ export const createAcceptanceRunner = ({
     })
     if (result.exit !== 0) {
       // 检查没通过不能静默停下：把房间标成等人处理，岛和侧栏都能看见。
-      const updated = store.updateRoom(roomId, current => {
+      const updated = store.updateRound(roomId, current => {
         if (current.blocked?.stage === stageIndex && current.blocked?.reason === 'check-failed') return null
         current.blocked = { stage: stageIndex, reason: 'check-failed', command, at: Date.now() }
         return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'check-failed' } }] }

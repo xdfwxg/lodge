@@ -20,6 +20,18 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | 工作室阶段、验收、签字、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
 | 长期工作室、轮次隔离、旧轮只读、项目分组 | `server/crew/store-rounds.test.js`、`ui/src/views/project-view.test.js`、`e2e/project.spec.mjs` | 无 |
+| 轮次开始、完成、停止、退回、失败、作废 | `server/crew/kernel/round.test.js`、`server/crew/rounds/lifecycle.test.js`、`server/crew/store-rounds.test.js` | 无 |
+| 房间状态与轮次状态分开说 | `shared/room-status.test.js`、`ui/src/goal-island/status.test.js`、`ui/src/views/sidebar.test.js` | 无 |
+| 持久队列、租约回收、重试退避 | `server/crew/rooms/scheduler.test.js`、`server/crew/store-rounds.test.js` | 无 |
+| 阶段截止进持久队列，重启仍会到点 | `server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/scheduler.test.js` | 无 |
+| 聊天室一轮占持久工作项，重启从已发言次数续跑 | `server/crew/live-chat-room.test.js`、`server/crew/rooms/chat/runtime.test.js` | 真实模型仅整房 dogfood |
+| 聊天重启补账：回复已到但 turns 未落库，不重说 | `server/crew/live-chat-room.test.js` | 无 |
+| 交接级租约只停一个成员，阶段截止仍是兜底 | `server/crew/rooms/studio/stage-timeout.test.js` | 无 |
+| 重置前归档工作区，数据库与工作区成对恢复 | `server/crew/data-recovery.test.js` | 无 |
+| 跨轮长期任务：重启、停止、归档、预算、人工门 | `server/crew/long-task-recovery.test.js`、`evals/long-task/run.mjs` | 确定性场景，不调模型 |
+| 房间写与轮次写分开，终态轮拒绝写入 | `server/crew/store-rounds.test.js`、`server/crew/store.test.js` | 无 |
+| HTTP 动作按族分派，暂停门禁只拦轮次动作 | `server/crew/route-sweep.test.js`、`server/http-coverage.test.js` | 无 |
+| 轮次预算在派发前拦住 | `shared/usage.test.js`、`server/crew/rooms/studio/auto-rework.test.js` | 无 |
 | 判定契约（首行结论 + JSON 明细） | `shared/judgment.test.js`、`server/crew/live-turn-modules.test.js`、`ui/src/room/studio/message-view.test.js` | 无 |
 | 判定提交强制（先催一次，再交给人） | `shared/judgment.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
 | 验收按目标原文判断（不替换成更弱标准） | `server/crew/live-turn-modules.test.js` | 真实模型可选 |
@@ -54,7 +66,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 并行执行、合并冲突、超时 | `server/crew/live-turn-modules.test.js`、`server/crew/workspace-git.test.js`、`server/crew/service-merge.test.js`、`server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/studio/auto-rework.test.js`、`ui/src/room/studio/merge-conflict.test.js` | 真实 git 冲突解决需 dogfood |
 | 外部动作审批、叫停、排队 | `server/crew/approval-bridge.test.js`、`server/crew/live-approvals.test.js`、`server/crew/external-actions.test.js`、`server/crew/member-delivery.test.js`、`ui/src/room/studio/transcript.test.js` | 真实 git push 需 dogfood |
 | 受控浏览器（chrome-devtools MCP） | `server/browser-mcp.test.js`、`server/crew/roster.test.js`、`server/crew/room-access.test.js`、`shared/room-access.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/studio/create.test.js`、`ui/src/approval-card.test.js` | 真实 Chrome |
-| 运行中的工具动效（折叠命令、时长、动效） | `ui/src/room/studio/working-line.test.js`、`ui/src/room/studio/transcript-model.test.js` | 无 |
+| 运行中的工具动效（折叠命令、时长、动效） | `ui/src/room/studio/working-line.test.js` | 无 |
 | 归档、恢复、删除、改名 | `server/crew/service-lifecycle.test.js`、`server/crew/workspace-git.test.js`、`server/crew/rooms/base/retire.test.js` | 无 |
 | 交付记录、结果优先的交付页 | `server/crew/delivery.test.js`、`ui/src/room/studio/delivery-record.test.js`、`ui/src/room/studio/delivery-card.test.js`、`ui/src/room/studio/transcript.test.js` | 无 |
 | 重启恢复、断线重连 | `server/crew/recovery.test.js`、`server/crew/live-sync.test.js`、`ui/src/store.test.js` | 无 |
@@ -63,7 +75,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 驱动边界、运行端口、分层 | `server/crew/engine.test.js`、`server/crew/runtime-port.test.js`、`server/crew/layer-boundaries.test.js`、`server/crew/boundary.test.js` | 真实基座可选 |
 | 基座旧房间回收（gc:base） | `server/base-gc.test.js`、`server/crew/base-error.test.js` | 真实基座可选 |
 | 成员身体与换模型 | `server/crew/body-change.test.js`、`server/crew/body-check.test.js`、`server/crew/body-spec.test.js` | 无 |
-| 界面阶段门与结论卡 | `ui/src/room/studio/message-view.test.js`、`ui/src/room/studio/transcript-model.test.js` | 无 |
+| 界面阶段门与结论卡 | `ui/src/room/studio/message-view.test.js` | 无 |
 
 ## 没在自动覆盖里的
 

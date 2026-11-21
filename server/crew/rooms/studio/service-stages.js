@@ -6,9 +6,7 @@ import { fail, ok } from '../../result.js'
 import { acceptanceChangeError } from '../../service-policy.js'
 import { FINAL_TITLE } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
-import { childResultText, childVerdictsOf, settleSubroomAssignment } from './subrooms.js'
 import { roomModeOfRoom } from '../kinds.js'
-import { studioTransitionEvent, transitionStudio } from './state.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { verifierIds } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
@@ -19,7 +17,7 @@ import { appendHumanContext } from '../../human-context.js'
 import { humanLabelOf } from '../../human-name.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, workspace = null }) => {
-  const { readMessages, readEvidence, updateRoom, appendMessage } = store
+  const { readMessages, readEvidence, updateRound, appendMessage } = store
 
   // 阶段推进或重做后，旧尝试的确认卡不再等人；拒绝基座卡并把记录标成过期。
   const expireCards = (roomId, reason) => {
@@ -35,7 +33,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       const base = workspace.provider(room).head?.({ path: room.repoPath })
       if (typeof base !== 'string' || base === '') return room
       if (room.stageBases?.[index] === base) return room
-      const saved = updateRoom(room.id, current => {
+      const saved = updateRound(room.id, current => {
         if (current.stageBases?.[index] === base) return null
         current.stageBases = { ...(current.stageBases ?? {}), [index]: base }
         return { events: [] }
@@ -82,57 +80,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     }
   }
 
-  const notifyParent = child => {
-    if (typeof child?.parentRoomId !== 'string' || child.parentRoomId === '') return
-    const parent = store.readRoom(child.parentRoomId)
-    if (parent === null) return
-    const childMessages = readMessages(child.id)
-    const verdicts = childVerdictsOf(childMessages)
-    const text = childResultText(child, verdicts)
-    settleSubroomAssignment({
-      store,
-      parent,
-      child,
-      resultText: text,
-      verdictMessages: childMessages.filter(message => message.kind === 'verdict' && (message.meta?.roleKind ?? 'verifier') === 'verifier'),
-    })
-    appendMessage(parent.id, {
-      kind: 'child_result',
-      authorId: 'system',
-      text,
-      meta: {
-        childRoomId: child.id,
-        childName: child.name,
-        depth: child.depth ?? 1,
-        verdicts,
-      },
-    })
-    const linked = updateRoom(parent.id, current => {
-      current.childResults = [...(current.childResults ?? []), { roomId: child.id, name: child.name, at: Date.now() }].slice(-10)
-      return { events: [{ type: 'room.child_result', payload: { childRoomId: child.id } }] }
-    })
-    if (linked !== null) emit('room', linked)
-    if (typeof live.isAttached === 'function' && live.isAttached(parent.id) === true) {
-      const lead = leadMemberOf(parent)?.id
-      if (typeof lead === 'string' && lead !== '') {
-        void live.sendToMember(parent.id, lead, `${text}\n请只依据这些 verdict 决定下一步。`, {
-          intent: 'notice',
-          from: '子房间',
-        }).then(sent => {
-          // 这条是系统转给规划师的内部通知，不是用户说的话；基座会把它当群消息回放，必须藏掉。
-          if (typeof sent?.messageId !== 'string') return
-          const updated = updateRoom(parent.id, current => {
-            current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)
-            return { events: [] }
-          })
-          if (updated !== null) emit('room', updated)
-        }).catch(error => {
-          systemNotice({ store, roomId: parent.id, text: '子房间的结果没能叫醒规划师；稍后会自动再试。', error })
-        })
-      }
-    }
-  }
-
   const accept = (room, body) => {
     const index = Number(body.stage)
     const force = body?.force === true
@@ -147,7 +94,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     let transitionError = null
     const messages = readMessages(room.id)
     const hasPassedVerdict = messages.some(message => message.kind === 'verdict' && verdictPassed(message))
-    const updated = updateRoom(room.id, current => {
+    const updated = updateRound(room.id, current => {
       gate = force
         ? { ok: true, stage: current.stages[index] }
         : gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
@@ -176,22 +123,8 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
           return null
         }
       }
-      const closureEvents = []
-      if (next >= 0 && roomModeOfRoom(current)?.supportsDelivery === true) {
-        const event = next === current.stages.length - 1 ? 'await_sign' : 'stage_advanced'
-        const moved = transitionStudio(current.closure ?? 'open', event, {})
-        if (!moved.ok) {
-          transitionError = moved.error
-          return null
-        }
-        current.closure = moved.state
-        closureEvents.push(studioTransitionEvent(moved, event, 'you', {}, next === current.stages.length - 1 ? '等待人工签字' : '阶段通过'))
-      }
       return {
-        events: [
-          { type: 'stage.passed', payload: { stage: index, kind: stage.kind, by: 'you' } },
-          ...closureEvents,
-        ],
+        events: [{ type: 'stage.passed', payload: { stage: index, kind: stage.kind, by: 'you' } }],
       }
     })
     if (gate !== null && gate.ok === false) return fail(gate.reason, gate.error)
@@ -250,7 +183,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     // 子房间另外把结果回填给父房间。
     const completes = next < 0
     const finalRoom = completes ? completeRoom(room) ?? room : room
-    if (completes && typeof room.parentRoomId === 'string' && room.parentRoomId !== '') notifyParent(finalRoom)
     // 有下一步才叫醒规划师；最后一步通过就是句号，不再叫它补一句收尾。
     const nextStage = next >= 0 ? room.stages[next] : null
     const lead = leadMemberOf(room)?.id
@@ -321,7 +253,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       meta: { stage: index, source: 'human', requestedAt: Date.now(), ...(auto ? { auto: true } : {}) },
     })
     appendHumanContext({ store, roomId: room.id, stage: index, text: note, source: 'rework' })
-    const updated = updateRoom(room.id, current => {
+    const updated = updateRound(room.id, current => {
       const target = current.stages?.[index]
       if (target === undefined || target.state !== 'active') return null
       // 人的补充已经进入这次重跑；旧的“交给人”收口不能再拦住下一次输入。
@@ -361,7 +293,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       return fail('conflict', '验收员还在看，等结论出来再继续')
     }
     if (note === '') return fail('invalid', '写一句要补的上下文，或要改什么')
-    const updated = updateRoom(room.id, current => {
+    const updated = updateRound(room.id, current => {
       const target = current.stages?.[index]
       if (target === undefined || target.state === 'pending') return null
       for (let at = index; at < current.stages.length; at += 1) {
@@ -373,7 +305,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       for (const key of Object.keys(current.stageBases ?? {})) {
         if (Number(key) > index) delete current.stageBases[key]
       }
-      current.closure = stage.kind === 'decision' ? 'open' : 'executing'
       current.mergeConflict = null
       current.blocked = null
       current.autoCheck = null
@@ -445,7 +376,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     let rejection = null
     let previous = ''
     let changed = false
-    const updated = updateRoom(room.id, current => {
+    const updated = updateRound(room.id, current => {
       const stage = current.stages[index]
       const invalid = acceptanceChangeError(stage, command)
       if (invalid !== null) {

@@ -18,7 +18,7 @@ test('a room keeps its unsent draft across a reload', async ({ page, request }) 
 test('new room dialog, sample chat and archive restore', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample', { data: { kind: 'chat' } })).ok()).toBe(true)
   await page.goto('/')
-  await expect(page.getByRole('button', { name: /^示例：把「朏朏住在灵动岛上」聊成一个方向，进行中$/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^示例：把「朏朏住在灵动岛上」聊成一个方向，已确认$/ })).toBeVisible()
 
   await page.getByRole('button', { name: '新建房间' }).click()
   await expect(page.getByRole('heading', { name: '新房间' })).toBeVisible()

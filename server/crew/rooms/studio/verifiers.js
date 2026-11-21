@@ -95,7 +95,7 @@ export const manualEvidenceFor = (room, evidence, messages, stageIndex) => {
   ))
 }
 
-// 人工验收不是绕过 Verifier：结果证据也要经过独立 Verifier，再交给人签字。
+// 人工验收不是绕过 Verifier：结果证据也要经过独立 Verifier，再交给人确认。
 export const manualReviewState = ({ room, evidence, messages, stageIndex }) => {
   const ids = verifierIds(room)
   const found = manualEvidenceFor(room, evidence, messages, stageIndex)

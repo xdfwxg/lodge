@@ -29,12 +29,7 @@ export const isWorkAssignment = assignment => WORK_REASONS.includes(assignment?.
 
 const now = () => Date.now()
 
-const assertTarget = ({ store, roomId, reason, toMemberId, toRoomId }) => {
-  if (reason === 'subroom') {
-    if (typeof toRoomId !== 'string' || toRoomId === '') throw new Error('子房交接需要一个子房')
-    if (toMemberId !== null && toMemberId !== undefined) throw new Error('子房交接不指向单个成员')
-    return
-  }
+const assertTarget = ({ store, roomId, toMemberId, toRoomId }) => {
   if (typeof toMemberId !== 'string' || toMemberId === '') throw new Error('交接需要一个接收成员')
   if (typeof toRoomId === 'string' && toRoomId !== '') throw new Error('成员交接不能指向房间')
   const room = store.readRoom?.(roomId) ?? null

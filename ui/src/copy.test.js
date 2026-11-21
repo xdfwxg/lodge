@@ -39,12 +39,12 @@ test('the copy gate catches the words it is meant to stop', () => {
 test('every room status uses the shared status vocabulary', () => {
   const rooms = [
     { name: '房', state: 'active' },
-    { name: '房', state: 'complete' },
-    { name: '房', state: 'complete', modeCapabilities: { stages: false } },
+    { name: '房', state: 'idle', workRound: { status: 'completed' } },
+    { name: '房', state: 'idle', chat: { phase: 'accepted' }, modeCapabilities: { stages: false } },
     { name: '房', state: 'paused' },
     { name: '房', state: 'stopped' },
-    { name: '房', state: 'complete', archivedAt: 1 },
-    ...['result', 'routine-run', 'signoff', 'review', 'decision', 'question', 'setup', 'rework', 'merge', 'parallel', 'approval', 'idle', 'error', 'mcp', 'connection', 'blocked', 'unknown-kind']
+    { name: '房', state: 'idle', archivedAt: 1 },
+    ...['result', 'signoff', 'review', 'decision', 'question', 'setup', 'rework', 'merge', 'parallel', 'approval', 'idle', 'error', 'mcp', 'connection', 'blocked', 'unknown-kind']
       .map(kind => ({ name: '房', state: 'active', needsYou: { kind } })),
   ]
   for (const room of rooms) {

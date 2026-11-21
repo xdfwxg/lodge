@@ -14,10 +14,10 @@ const sources = folder => walk(join(dir, folder))
   .filter(path => path.endsWith('.js') && !path.endsWith('.test.js'))
   .map(path => ({ name: relative(dir, path), text: readFileSync(path, 'utf8') }))
 
-test('chat modules do not read studio closure, stages, evidence or verdict state', () => {
+test('chat modules do not read studio stages, evidence or verdict state', () => {
   for (const file of ['rooms/chat/runtime.js', 'rooms/chat/scheduler.js', 'rooms/chat/service.js', 'room-types/chat.js']) {
     const source = read(file)
-    assert.doesNotMatch(source, /\broom\??\.(stages|closure|evidence|verdict|trust)\b/, `${file} reads studio state`)
+    assert.doesNotMatch(source, /\broom\??\.(stages|evidence|verdict|trust)\b/, `${file} reads studio state`)
   }
 })
 
@@ -32,7 +32,6 @@ test('studio modules do not read room.chat', () => {
     'rooms/studio/gates.js',
     'rooms/studio/complete.js',
     'rooms/studio/service-stages.js',
-    'rooms/studio/service-closure.js',
     'rooms/studio/verifiers.js',
     'rooms/studio/stage-plan.js',
     'rooms/studio/progress.js',
@@ -47,9 +46,7 @@ test('studio modules do not read room.chat', () => {
 test('chat and studio capability flags stay separated', async () => {
   const { capabilitiesFor } = await import('./rooms/kinds.js')
   assert.equal(capabilitiesFor('chat').stages, false)
-  assert.equal(capabilitiesFor('chat').closure, false)
   assert.equal(capabilitiesFor('chat').piExecution, false)
-  assert.equal(capabilitiesFor('studio').closure, true)
   assert.equal(capabilitiesFor('studio').verdict, true)
 })
 
@@ -120,7 +117,7 @@ test('kernel modules read context state only through facades or kinds', () => {
     ]
   for (const file of kernel) {
     const text = read(file)
-    for (const field of ['chat', 'chatHost', 'stages', 'closure']) {
+    for (const field of ['chat', 'chatHost', 'stages']) {
       assert.doesNotMatch(
         text,
         new RegExp(`(?<!['"])\\b(?:room|parentRoom|current)\\??\\.${field}\\b`),
@@ -163,7 +160,7 @@ test('generic room creation knows no room engine handoff', () => {
     )
     assert.doesNotMatch(
       file.text,
-      /\b(?:parentRoom|room|current)\??\.(?:stages|closure)\b/,
+      /\b(?:parentRoom|room|current)\??\.stages\b/,
       `${file.name} reads a room engine's stage state`,
     )
   }

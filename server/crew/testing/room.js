@@ -36,6 +36,10 @@ export const normalizeTestRoom = room => {
 // 测试用 Assignment 内存表；产品代码用 SQLite assignment 表。
 export const withAssignments = store => {
   const rows = []
+  // 测试用的内存 store 只有一个读改写入口；补上 updateRound，和真实 store 的两条写路径对齐。
+  if (typeof store.updateRound !== 'function' && typeof store.updateRoom === 'function') {
+    store.updateRound = store.updateRoom
+  }
   return Object.assign(store, {
     writeAssignment(assignment) {
       const now = Date.now()

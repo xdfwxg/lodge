@@ -9,7 +9,7 @@ export const htmlFilesOf = files => (Array.isArray(files) ? files : [])
 
 // 给验收员一张真的渲染图：把本阶段的 HTML 交付截下来，上传成基座附件。
 // 同一个证据只截一次；没有 Chrome 或上传失败就安静跳过。
-export const ensurePreviews = async ({ room, stageIndex, evidence, capture, attachments, updateRoom }) => {
+export const ensurePreviews = async ({ room, stageIndex, evidence, capture, attachments, updateRound }) => {
   const stage = Number(stageIndex)
   const existing = (room.previews ?? []).filter(item => item.stage === stage && item.evidenceId === evidence.id)
   if (existing.length > 0) return existing
@@ -61,7 +61,7 @@ export const ensurePreviews = async ({ room, stageIndex, evidence, capture, atta
     }
   }
   if (previews.length === 0) return []
-  const saved = updateRoom(room.id, current => {
+  const saved = updateRound(room.id, current => {
     current.previews = [...(current.previews ?? []).filter(item => item.stage !== stage), ...previews]
     return { events: [] }
   })

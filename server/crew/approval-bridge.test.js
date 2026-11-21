@@ -476,7 +476,7 @@ test('a pending approval from an earlier stage expires instead of being decided'
     ctx.permission('git push origin main')
     await tick()
     const approval = ctx.room().approvals.find(item => item.state === 'pending')
-    ctx.store.updateRoom('room-1', current => {
+    ctx.store.updateRound('room-1', current => {
       current.stages[0].state = 'passed'
       current.stages.push({ title: '下一步', kind: 'deliverable', state: 'active', acceptance: 'npm test' })
       return { events: [] }

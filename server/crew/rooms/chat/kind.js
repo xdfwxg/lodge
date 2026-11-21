@@ -37,11 +37,9 @@ export const chatKind = {
   requiresGate: false,
   evaluateGate: () => ({ decision: 'allow', issues: [], needsHumanReview: false, advice: [] }),
   supportsDelivery: false,
-  supportsRoutine: false,
   supportsMemberAdd: false,
   allowsHostOnly: room => room?.lodge === true,
   busyNow: room => room?.chat?.running === true,
-  followup: null,
   approvalReadOnly: () => true,
   appliesStageDependencies: false,
 

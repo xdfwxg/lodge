@@ -39,7 +39,7 @@ export const collectWorkspaceGarbage = ({
   }
 
   for (const room of store.readRooms()) {
-    if (room.state !== 'complete' && room.state !== 'stopped') continue
+    if (!room.archivedAt && room.state !== 'stopped') continue
     let members
     try {
       members = workspace.provider(room).pruneMembers(room)

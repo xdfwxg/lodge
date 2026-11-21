@@ -88,7 +88,17 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
         })
         if (updated !== null) emit('room', updated)
       }
-      if (room.state === 'active' && chatFacade.runningOf(room)) void entry.chatRun.start(room)
+      if (room.state === 'active' && chatFacade.runningOf(room)) void entry.chatRun.start(room, { resume: true })
+    },
+
+    // 聊天室也走持久队列：到点的这一轮交给运行时续跑，进程重启不丢。
+    handleWork: async (entry, event) => {
+      if (event.kind !== 'chat.round') return false
+      const room = store.readRoom(entry.roomId)
+      if (room === null || room.chat?.running !== true || room.state !== 'active') return true
+      if (entry.chatRun?.isRunning() === true) return true
+      await entry.chatRun.start(room, { resume: true })
+      return true
     },
 
     start(entry, room, options = {}) {

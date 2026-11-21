@@ -5,7 +5,7 @@ import { leadMemberOf } from '../../room-members.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { systemNotice } from '../../notices.js'
 
-// 工作室上下文运行时：阶段派发、执行、验收、重做和签字都走群聊 @，没有讨论轮次。
+// 工作室上下文运行时：阶段派发、执行、验收、重做和确认都走群聊 @，没有讨论轮次。
 export const createStudioRuntime = ({
   store,
   engine,
@@ -88,7 +88,7 @@ export const createStudioRuntime = ({
       entry.turns.seed(store.readMessages(room.id))
     },
 
-    detach: () => {},
+    detach: entry => { entry.turns?.dispose?.() },
 
     captureTurn: (entry, message) => {
       const lead = leadMemberOf(store.readRoom(entry.roomId) ?? {})
@@ -128,6 +128,16 @@ export const createStudioRuntime = ({
     requestReview: async (entry, stage) => entry.turns.requestReview(stage),
     resolveMerged: async (entry, stage) => entry.turns.resolveMerged(stage),
     startStage: async (entry, room, index, options = {}) => entry.turns.startStage(room, index, options),
+    expireStage: (entry, index) => entry.turns.expireStage(index),
+    handleWork: (entry, event) => {
+      if (event.kind !== 'assignment.lease') return false
+      const room = store.readRoom(entry.roomId)
+      if (room === null) return true
+      if (event.roundId !== null && room.workRound?.id !== event.roundId) return true
+      // 迟到的租约项是正常空操作，不让调度器当成失败重试。
+      entry.turns.expireAssignment?.(event.payload?.assignmentId)
+      return true
+    },
     sendToMember: (entry, room, memberId, text, options = {}) => sendMember(room.id, room, memberId, text, options),
   }
 }

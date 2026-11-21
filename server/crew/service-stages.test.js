@@ -102,7 +102,6 @@ test('a planner tool can rewind while its own turn is busy', () => {
 
 test('rewinding to an earlier step reopens it and resets everything after it', async () => {
   const ctx = setup(room({
-    closure: 'verifying',
     stageBases: { 0: 'base-0', 1: 'base-1', 2: 'base-2' },
     stages: [
       { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' },
@@ -121,7 +120,6 @@ test('rewinding to an earlier step reopens it and resets everything after it', a
   const result = await ctx.stages.rewind(ctx.room(), { stage: 0, note: '目标理解错了，回到第一步' })
   assert.equal(result.ok, true)
   assert.deepEqual(ctx.room().stages.map(stage => stage.state), ['active', 'pending', 'pending'])
-  assert.equal(ctx.room().closure, 'executing')
   assert.deepEqual(ctx.room().stageBases, { 0: 'base-0' })
   assert.equal(ctx.store.readAssignment('as-old').status, 'failed')
   assert.equal(ctx.store.readAssignment('as-next').status, 'cancelled')
@@ -161,7 +159,6 @@ test('rewind needs a note, refuses pending steps, and can reopen a decision node
   const reopened = ctx.stages.rewind(decision, { stage: 0, note: '重新对一下方向' })
   assert.equal(reopened.ok, true)
   assert.equal(reopened.body.room.stages[0].state, 'active')
-  assert.equal(reopened.body.room.closure, 'open')
 })
 
 test('rewinding a delivered room reopens it without losing the first step base', async () => {
@@ -180,7 +177,7 @@ test('rewinding a delivered room reopens it without losing the first step base',
 })
 
 test('accepting the last work stage also confirms the system conclusion', () => {
-  const ctx = setup(room({ live: false, roomType: 'studio', closure: 'verifying', verificationMode: 'hybrid', verifiers: ['verifier'] }))
+  const ctx = setup(room({ live: false, roomType: 'studio', verificationMode: 'hybrid', verifiers: ['verifier'] }))
   ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
   ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   ctx.store.writeAssignment({
@@ -207,7 +204,6 @@ test('a person can confirm a plain decision stage without a verdict', () => {
   const ctx = setup(room({
     live: false,
     roomType: 'studio',
-    closure: 'planned',
     verificationMode: 'manual',
     verifiers: ['verifier'],
     stages: [
@@ -224,7 +220,6 @@ test('a studio cannot sign without a Verifier PASS', () => {
   const ctx = setup(room({
     live: false,
     roomType: 'studio',
-    closure: 'verifying',
     verificationMode: 'hybrid',
     verifiers: ['verifier'],
     stages: [{ title: '验收与结论', kind: 'decision', state: 'active' }],
@@ -232,14 +227,13 @@ test('a studio cannot sign without a Verifier PASS', () => {
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, false)
   assert.match(result.error, /验收员/)
-  assert.equal(ctx.room().closure, 'verifying')
+  assert.equal(ctx.room().stages[0].state, 'active')
 })
 
 test('accepting a work stage writes a stage conclusion before the next stage starts', () => {
   const ctx = setup(room({
     live: false,
     roomType: 'studio',
-    closure: 'verifying',
     verificationMode: 'hybrid',
     verifiers: ['verifier'],
     stages: [

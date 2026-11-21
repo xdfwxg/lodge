@@ -2,10 +2,11 @@ import { join } from 'node:path'
 import { persistenceKind } from '../../service-policy.js'
 
 export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
-  const { readRoom, readMessages, updateRoom, updateWorkRound, appendMessage, appendEvent } = store
+  const { readMessages, readAssignments, appendMessage, appendEvent } = store
 
   const completeRoom = room => {
     const round = room.workRound ?? null
+    if (round?.status === 'completed') return room
     appendMessage(room.id, {
       kind: 'conclusion',
       authorId: 'planner',
@@ -24,51 +25,17 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       return room
     }
     roomFiles.writeConclusion(room)
-    if (round !== null) {
-      const completed = updateWorkRound(round.id, current => {
-        current.status = 'completed'
-        current.completedAt = current.completedAt ?? Date.now()
-        current.completion = {
-          goal: current.goal,
-          stages: current.stages.map(stage => ({ title: stage.title, kind: stage.kind, state: stage.state })),
-          completedAt: current.completedAt,
-        }
-        return true
-      })
-      if (completed !== null) emit('round', completed)
-      const archived = updateRoom(room.id, current => {
-        current.state = 'idle'
-        current.activeRoundId = null
-        current.lastRoundId = round.id
-        current.idle = true
-        return { events: [{ type: 'round.completed', payload: { roundId: round.id, stages: current.stages?.length ?? 0 } }] }
-      })
-      if (archived !== null) emit('room', archived)
-    } else {
-      // 旧房间的兼容路径只在测试 fixture 里出现；新房间都带 workRound。
-      const archived = updateRoom(room.id, current => {
-        current.state = 'complete'
-        return { events: [{ type: 'goal.archived', payload: { stages: current.stages?.length ?? 0 } }] }
-      })
-      if (archived !== null) emit('room', archived)
+    if (round === null) {
+      appendMessage(room.id, { kind: 'system', text: '这一轮没有轮次记录，先停下了。' })
+      return room
     }
-    if (typeof room.routineGoalId === 'string') {
-      const goal = readRoom(room.routineGoalId)
-      if (goal !== null) {
-        const withResult = updateRoom(goal.id, current => {
-          current.routine = {
-            ...(current.routine ?? {}),
-            lastFinishedAt: Date.now(),
-            failures: 0,
-            lastError: null,
-            skippedAt: null,
-            unseenResult: true,
-          }
-          return { events: [{ type: 'room.routine.finished', payload: { roomId: room.id } }] }
-        })
-        if (withResult !== null) emit('room', withResult)
-      }
+    const open = readAssignments(room.id, { limit: 500 })
+      .filter(assignment => !['passed', 'rejected', 'failed', 'cancelled'].includes(assignment.status))
+    if (open.length > 0) {
+      appendMessage(room.id, { kind: 'system', text: '还有交接没有收口，这一轮先不能结束。' })
+      return room
     }
+
     const roomWorkspace = workspace.provider(room)
     const capabilities = roomWorkspace.capabilities()
     const delivered = readMessages(room.id).flatMap(message => [
@@ -77,33 +44,52 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     ])
     // 长期工作室不在轮次结束时清理成员工作区；下一轮还要用同一套目录。
     const persistence = persistenceKind(capabilities)
+    let commitHash = null
     if (persistence !== 'commit') {
       appendEvent(room.id, 'room.commit', {
         status: persistence === 'archive' ? 'archive' : 'unavailable',
         vcs: capabilities.vcs ?? 'none',
       })
-      return store.readRoom(room.id) ?? room
-    }
-    const committed = roomWorkspace.persistRoom({ room, files: delivered })
-    appendEvent(room.id, 'room.commit', { status: committed ? 'done' : 'failed', vcs: capabilities.vcs })
-    if (!committed) {
-      appendMessage(room.id, { kind: 'system', text: capabilities.vcs === 'git' ? '版本没能保存，详情在服务端日志' : '交付记录没能归档，详见服务端日志' })
-    }
-    let commitHash = null
-    if (committed && capabilities.commit === true) {
-      try {
-        commitHash = roomWorkspace.head({ path: roomFiles.roomRootOf(room) })
-      } catch {
-        commitHash = null
+    } else {
+      const committed = roomWorkspace.persistRoom({ room, files: delivered })
+      appendEvent(room.id, 'room.commit', { status: committed ? 'done' : 'failed', vcs: capabilities.vcs })
+      if (!committed) {
+        appendMessage(room.id, { kind: 'system', text: capabilities.vcs === 'git' ? '版本没能保存，详情在服务端日志' : '交付记录没能归档，详见服务端日志' })
+      }
+      if (committed && capabilities.commit === true) {
+        try {
+          commitHash = roomWorkspace.head({ path: roomFiles.roomRootOf(room) })
+        } catch {
+          commitHash = null
+        }
       }
     }
-    const finalized = updateRoom(room.id, current => {
-      current.completedAt = current.completedAt ?? Date.now()
-      if (commitHash !== null) current.completedCommit = commitHash
-      return { events: [] }
-    })
-    if (finalized !== null) emit('room', finalized)
-    return finalized ?? store.readRoom(room.id) ?? room
+
+    const completedAt = Date.now()
+    const completion = {
+      goal: round.goal,
+      stages: (round.stages ?? []).map(stage => ({ title: stage.title, kind: stage.kind, state: stage.state })),
+      decisions: (round.decisions ?? []).map(item => item.chosen ?? item.answer ?? '').filter(Boolean),
+      constraints: (round.constraints ?? []).slice(0, 6),
+      completedAt,
+      completedCommit: commitHash,
+    }
+    const finished = store.finishWorkRound?.({
+      roomId: room.id,
+      roundId: round.id,
+      status: 'completed',
+      patch: { completedAt, completedCommit: commitHash, completion },
+      eventType: 'round.completed',
+      eventPayload: { stages: room.stages.length },
+      idempotencyKey: `round-complete:${round.id}`,
+    }) ?? null
+    if (finished === null) {
+      appendMessage(room.id, { kind: 'system', text: '这一轮没能收口，还停在原来这一步；待处理。' })
+      return room
+    }
+    if (finished.round !== null && finished.round !== undefined) emit('round', finished.round)
+    if (finished.room !== null && finished.room !== undefined) emit('room', finished.room)
+    return finished.room ?? store.readRoom(room.id) ?? room
   }
 
   return { completeRoom }

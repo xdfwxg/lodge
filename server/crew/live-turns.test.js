@@ -198,8 +198,10 @@ test('turns already captured before restart are not captured again', () => {
 })
 
 test('a business rejection from review is a typed failure, not a system error', async () => {
+  const base = store([])
+  const room = { ...base.readRoom(), state: 'active', activeRoundId: 'round-1' }
   const turns = createLiveTurns({
-    store: store([]),
+    store: { ...base, readRoom: () => room },
     engine: {},
     roomId: 'room-1',
     emit: () => {},

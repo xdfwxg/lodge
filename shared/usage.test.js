@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { addTurnUsage } from './usage.js'
+import { addTurnUsage, usageBudgetExceeded } from './usage.js'
 
 test('reported costs add up', () => {
   const first = addTurnUsage(undefined, { input: 10, output: 5, costUsd: 0.002 })
@@ -30,4 +30,11 @@ test('mixing known and unknown costs is a lower bound, not a total', () => {
 test('an invalid usage record is ignored', () => {
   assert.equal(addTurnUsage(undefined, null), null)
   assert.equal(addTurnUsage(undefined, 'nope'), null)
+})
+
+test('a known cost stops dispatch only when it reaches the round budget', () => {
+  assert.equal(usageBudgetExceeded({ budgetMicroUsd: 1000, usage: { costMicroUsd: 999, costStatus: 'reported' } }), false)
+  assert.equal(usageBudgetExceeded({ budgetMicroUsd: 1000, usage: { costMicroUsd: 1000, costStatus: 'reported' } }), true)
+  assert.equal(usageBudgetExceeded({ budgetMicroUsd: 1000, usage: { costMicroUsd: 2000, costStatus: 'unknown' } }), false)
+  assert.equal(usageBudgetExceeded({ budgetMicroUsd: null, usage: { costMicroUsd: 2000 } }), false)
 })

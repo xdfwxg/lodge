@@ -3,21 +3,9 @@ import { requestAttention, syncRoomMenu } from '../system.js'
 
 // 房间列表的两份投影：真正需要人处理的，以及侧栏/菜单里可见的。
 export const useAttention = rooms => {
-  const attentionRooms = useMemo(() => {
-    const byId = new Map(rooms.map(room => [room.id, room]))
-    return rooms.filter(room => {
-      if (room.archivedAt) return false
-      if (room.routineRun !== true) return true
-      const goal = byId.get(room.routineGoalId)
-      return goal === undefined || goal === null ||
-        (goal.archivedAt !== undefined && goal.archivedAt !== null)
-    })
-  }, [rooms])
-  const visibleRooms = useMemo(
-    () => attentionRooms.filter(room => room.routineRun !== true),
-    [attentionRooms],
-  )
-  const sidebarRooms = useMemo(() => rooms.filter(room => room.routineRun !== true), [rooms])
+  const attentionRooms = useMemo(() => rooms.filter(room => !room.archivedAt), [rooms])
+  const visibleRooms = attentionRooms
+  const sidebarRooms = rooms
 
   const [needsText, setNeedsText] = useState('')
   const seenNeeds = useRef(null)
@@ -40,17 +28,12 @@ export const useAttention = rooms => {
     if (appearing.length > 0) {
       const room = appearing[0]
       const result = room.needsYou?.kind === 'result'
-      const run = room.needsYou?.kind === 'routine-run'
       requestAttention({
         count,
         notify: {
           roomId: room.id,
           title: result ? 'Lodge' : 'Lodge · 待处理',
-          body: result
-            ? `「${room.name}」的结果好了`
-            : run
-              ? `「${room.name}」${room.needsYou.label ?? '待处理'}：${room.needsYou.reason ?? '待处理'}`
-              : `${room.name}：${next[room.id]}`,
+          body: result ? `「${room.name}」的结果好了` : `${room.name}：${next[room.id]}`,
         },
       })
     } else if (count !== Object.keys(prev).length) {

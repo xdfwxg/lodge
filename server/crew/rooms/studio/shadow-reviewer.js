@@ -14,7 +14,7 @@ const clip = (value, max) => (typeof value === 'string' ? value.slice(0, max) : 
 
 const hidePrompt = (store, roomId, messageId) => {
   if (typeof messageId !== 'string' || messageId === '') return
-  store.updateRoom(roomId, current => {
+  store.updateRound(roomId, current => {
     current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), messageId].slice(-80)
     return { events: [] }
   })

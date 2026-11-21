@@ -46,7 +46,7 @@ export const gateFor = (room, index, messages, evidence) => {
     // 只认本轮最新一条人工凭证；新的执行回合或重做会让旧凭证过期。
     const latestEvidence = manualEvidenceFor(room, ledger, messages, index)
     if (latestEvidence === undefined) return deny('conflict', '执行还没有产出，不能验收')
-    // 产品自己跑的检查没通过时，这一步不交给人签字；先重做。
+    // 产品自己跑的检查没通过时，这一步不交给人确认；先重做。
     const auto = latestAutoCheck(messages, index, reworkFloor(messages, index))
     if (auto !== undefined && auto.meta?.exit !== 0 && (auto.seq ?? 0) > (latestEvidence.seq ?? 0)) {
       return deny('conflict', '自动检查没通过，先重做')
@@ -59,9 +59,9 @@ export const gateFor = (room, index, messages, evidence) => {
       }
       if (outcome.state === 'pending') {
         const names = outcome.missing.map(id => memberDisplayName(room, id)).join('、')
-        return deny('conflict', `还有验收员没有回报（${names}），不能签字`)
+        return deny('conflict', `还有验收员没有回报（${names}），不能确认`)
       }
-      if (outcome.state !== 'pass') return deny('conflict', '本轮结果还没有验收通过，不能签字')
+      if (outcome.state !== 'pass') return deny('conflict', '本轮结果还没有验收通过，不能确认')
     }
     return { ok: true, stage }
   }
@@ -94,14 +94,14 @@ export const gateFor = (room, index, messages, evidence) => {
     }
     if (outcome.state === 'failed') {
       const exit = outcome.evidence?.meta?.exit
-      return deny('conflict', '最新检查没有通过，不能签字')
+      return deny('conflict', '最新检查没有通过，不能确认')
     }
     if (outcome.state === 'pending') {
       const names = outcome.missing.map(id => memberDisplayName(room, id)).join('、')
-      return deny('conflict', `还有验收员没有回报（${names}），不能签字`)
+      return deny('conflict', `还有验收员没有回报（${names}），不能确认`)
     }
     if (outcome.state !== 'pass') {
-      return deny('conflict', '本轮验收还没有全部通过，不能签字')
+      return deny('conflict', '本轮验收还没有全部通过，不能确认')
     }
     return { ok: true, stage }
   }
@@ -125,12 +125,12 @@ export const gateFor = (room, index, messages, evidence) => {
       return deny('conflict', '还没有本阶段的证据（检查记录或人工结果），不能验收')
     }
     if (!isCommandEvidence(phaseEvidence.at(-1))) {
-      return deny('conflict', '还没有检查通过的记录，不能签字')
+      return deny('conflict', '还没有检查通过的记录，不能确认')
     }
-    // 只有显式声明了“没有验收成员”的扩展编制才允许直接由人签字；未知成员表仍按有 verifier 处理。
+    // 只有显式声明了“没有验收成员”的扩展编制才允许直接由人确认；未知成员表仍按有 verifier 处理。
     const hasVerifier = verifierIds(room).length > 0
     if (room.demo === true || hasVerifier) {
-      return deny('conflict', room.demo === true ? '本阶段还没有验收通过，不能验收' : '还没有验收通过，不能签字')
+      return deny('conflict', room.demo === true ? '本阶段还没有验收通过，不能验收' : '还没有验收通过，不能确认')
     }
     return { ok: true, stage }
   }
@@ -151,7 +151,7 @@ export const gateFor = (room, index, messages, evidence) => {
     : undefined
   const covered = referenced !== undefined && (referenced.seq ?? 0) > evidenceFloor ? referenced : phaseEvidence.at(-1)
   if (!isCommandEvidence(covered)) {
-    return deny('conflict', '复核没有对应的检查记录，不能签字')
+    return deny('conflict', '复核没有对应的检查记录，不能确认')
   }
   return { ok: true, stage }
 }

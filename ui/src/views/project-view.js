@@ -138,7 +138,9 @@ export function ProjectView({ projects = [], rooms = [], projectId, onClose, onO
         h('h1', { className: 'crew-project-title' }, '项目还没连起来')))
   }
 
-  const canStart = latest !== null && latest.status === 'completed' && onStartRound !== null
+  const canStart = latest !== null &&
+    !['planning', 'active'].includes(latest.status) &&
+    onStartRound !== null
   return h('main', { className: 'dsb-main crew-project' },
     h('div', { className: 'crew-project-inner' },
       h('button', { type: 'button', className: 'crew-link crew-project-back', onClick: onClose }, '← 回到房间'),

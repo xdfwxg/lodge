@@ -35,14 +35,6 @@ export const createServiceQueries = ({
     return { ...message, meta }
   }
 
-  const routineRunOf = room => {
-    const runId = room?.routine?.lastRoomId
-    if (typeof runId !== 'string') return null
-    const runRoom = readRoom(runId)
-    if (runRoom === null) return null
-    return { room: runRoom, messages: readRecentMessages(runRoom.id) }
-  }
-
   const health = async () => ok({ runtime: await engine.health() })
 
   const state = async () => {
@@ -77,15 +69,8 @@ export const createServiceQueries = ({
             typeof message.text === 'string' ? { ...message, text: toDisplayText(room, message.text) } : message
           ))
         const assignments = readAssignments(room.id, { limit: 500 })
-        const children = (room.childRoomIds ?? [])
-          .map(childId => readRoom(childId))
-          .filter(child => child !== null)
-          .map(child => ({ room: child, messages: readRecentMessages(child.id) }))
         return {
-          ...presentRoom(room, messages, assignments, {
-            children,
-            routineRun: routineRunOf(room),
-          }),
+          ...presentRoom(room, messages, assignments),
           brief: briefOf(room),
           messages,
           rounds: readWorkRounds(room.id).map(roundSummaryOf),

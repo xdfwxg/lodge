@@ -421,6 +421,28 @@ export const createLiveRooms = ({
     return store.readRoom(roomId) ?? room
   }
 
+  // 持久队列到期后按 kind 交给房型；调度器不认识房型，也不认识新的活。
+  const handleWork = async event => {
+    if (event.kind === 'approval') {
+      await expireApprovals(event.roomId, '确认超时')
+      return true
+    }
+    if (event.kind === 'stage.deadline') {
+      const entry = entries.get(event.roomId)
+      if (entry === undefined) return true
+      const room = store.readRoom(event.roomId)
+      if (room === null) return true
+      if (event.roundId !== null && room.workRound?.id !== event.roundId) return true
+      entry.strategy.expireStage?.(entry, event.payload?.stage)
+      return true
+    }
+    const entry = entries.get(event.roomId)
+    // 房间还没连上时，租约和聊天轮次都不算失败；attach 会接着续跑。
+    if (entry === undefined) return event.kind === 'assignment.lease' || event.kind === 'chat.round'
+    const handled = await entry.strategy?.handleWork?.(entry, event)
+    return handled === true
+  }
+
   const cancel = async ({ roomId }) => {
     if (!supportsRuntime(engine, 'cancel')) return { cancelled: false, reason: '当前版本还不支持取消回合' }
     const entry = entries.get(roomId)
@@ -464,6 +486,7 @@ export const createLiveRooms = ({
     },
     setConfirmStage: handler => { confirmStage = handler },
     setRewindStage: handler => { rewindStage = handler },
+    handleWork,
     decideApproval,
     expireApprovals,
     answerCard,

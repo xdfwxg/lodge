@@ -39,47 +39,6 @@ test('active decision waits for the human', () => {
   assert.deepEqual(roomNeedsYou(room(), []), { kind: 'decision', stage: 0, label: '待确认' })
 })
 
-test('a routine run that needs you surfaces on the goal room', () => {
-  const run = room({
-    id: 'run-1',
-    state: 'paused',
-    pauseReason: 'member_error',
-    memberError: { memberId: 'worker', kind: 'auth' },
-  })
-  const goal = room({
-    id: 'goal',
-    state: 'complete',
-    routine: {
-      days: [0, 1, 2, 3, 4, 5, 6],
-      hour: 8,
-      minute: 0,
-      enabled: true,
-      lastRoomId: 'run-1',
-    },
-  })
-  const needs = roomNeedsYou(goal, [], { room: run, messages: [] })
-  assert.equal(needs.kind, 'routine-run')
-  assert.equal(needs.label, '待处理')
-  assert.equal(needs.reason, '执行官的登录失效了')
-  assert.equal(needs.runId, 'run-1')
-  assert.equal(needs.action, 'error')
-  const idle = room({ id: 'run-1', state: 'paused', idle: true })
-  assert.equal(roomNeedsYou(goal, [], { room: idle, messages: [] }), null)
-})
-
-test('a finished routine result surfaces until it is seen', () => {
-  const done = room({
-    state: 'complete',
-    routine: { days: [0, 1, 2, 3, 4, 5, 6], enabled: true, unseenResult: true },
-  })
-  assert.equal(roomNeedsYou(done, []).kind, 'result')
-  const seen = room({
-    state: 'complete',
-    routine: { days: [0, 1, 2, 3, 4, 5, 6], enabled: true, unseenResult: false },
-  })
-  assert.equal(roomNeedsYou(seen, []), null)
-})
-
 test('an open question outranks the stage type', () => {
   assert.equal(roomNeedsYou(room({ openQuestion: 'which path?' }), []).kind, 'question')
 })
@@ -312,25 +271,11 @@ test('a failed automatic check asks for rework, not sign-off', () => {
   })
 })
 
-test('the inbox holds this room and the subrooms waiting on you', () => {
+test('the inbox holds only this room', () => {
   const parent = room()
-  const child = room({ id: 'child-1', name: '写欢迎语' })
-  const delivered = room({ id: 'child-2', name: '已经交付', state: 'complete' })
-  const items = roomAttention(parent, [], [
-    { room: child, messages: [] },
-    { room: delivered, messages: [] },
-  ])
-  assert.equal(items.length, 2)
+  const items = roomAttention(parent, [])
+  assert.equal(items.length, 1)
   assert.deepEqual(items[0], { kind: 'decision', stage: 0, label: '待确认' })
-  assert.equal(items[1].roomId, 'child-1')
-  assert.equal(items[1].roomName, '写欢迎语')
-  assert.equal(items[1].label, '待确认')
-})
-
-test('an idle room with quiet subrooms has an empty inbox', () => {
-  const parent = room({ state: 'complete' })
-  const child = room({ id: 'child-1', name: '写欢迎语', state: 'paused', idle: false })
-  assert.deepEqual(roomAttention(parent, [], [{ room: child, messages: [] }]), [])
 })
 
 test('a question card from an earlier stage no longer asks', () => {

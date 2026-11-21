@@ -1,42 +1,44 @@
-// 持久 timer → 每房 inbox → 单 worker。审批超时和例行工作都走同一条路，
-// 进程重启后不会丢；例行工作到点时 App 开着就现在跑，关着就等下次打开。
-export const createRoomScheduler = ({ store, live, onRoutine = null, intervalMs = 1000, now = Date.now }) => {
+// 持久 timer → 每房 inbox → 单 worker。审批超时走这条路，进程重启后不会丢。
+export const createRoomScheduler = ({ store, live, intervalMs = 1000, now = Date.now }) => {
   let timer = null
   let busy = false
   let started = false
 
+  // 调度器只负责到点和租约；具体做什么由房型的工作处理器决定。
   const handle = async event => {
-    if (event.kind === 'approval') {
-      await live.expireApprovals?.(event.roomId, '确认超时')
-      return
-    }
-    if (event.kind === 'routine') {
-      await onRoutine?.(event.payload?.sourceRoomId ?? event.roomId)
-    }
+    const handled = await live.handleWork?.(event)
+    if (handled !== true) throw new Error(`没有房型处理这个后台动作：${event.kind}`)
   }
 
   const tick = async () => {
     if (busy) return
     busy = true
     try {
-      for (const due of store.dueTimers(now())) {
-        const claimed = store.completeTimer(due.id)
-        if (claimed.changes !== 1) continue
-        store.enqueueInbox({
-          roomId: due.roomId,
-          kind: due.kind,
-          payload: due.payload,
-          sourceId: `timer:${due.id}:${due.dueAt}`,
-        })
+      const reclaimed = store.reclaimWork?.({ now: now() })
+      for (const item of reclaimed?.dead ?? []) {
+        try {
+          store.appendMessage?.(item.room_id, {
+            kind: 'system',
+            text: '有一个后台动作重试多次没成功；待处理。',
+          })
+        } catch {}
       }
       for (const room of store.readRooms()) {
-        const event = store.claimInbox(room.id)
+        const event = store.claimWork(room.id, { now: now() })
         if (event === null) continue
         try {
           await handle(event)
-          store.completeInbox(event.id)
-        } catch {
-          store.failInbox(event.id)
+          store.completeWork(event.id)
+        } catch (error) {
+          const failed = store.failWork(event.id, error?.message ?? error)
+          if (failed?.dead === true) {
+            try {
+              store.appendMessage?.(event.roomId, {
+                kind: 'system',
+                text: '有一个后台动作重试多次没成功；待处理。',
+              })
+            } catch {}
+          }
         }
       }
     } finally {

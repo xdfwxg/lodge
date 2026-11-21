@@ -1,4 +1,3 @@
-import { studioTransitionEvent, transitionStudio } from './state.js'
 import { leadMemberOf, workerIds } from '../../room-members.js'
 import { activeDispatchAssignments, latestDispatchAssignment, transitionAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
@@ -10,19 +9,61 @@ import { studioWorkerPrompt } from './prompts.js'
 import { systemNotice } from '../../notices.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { humanLabelOf } from '../../human-name.js'
+import { usageBudgetExceeded } from '../../../../shared/usage.js'
 
 export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
   const timeoutTimers = new Map()
 
+  const deadlineIdOf = stageIndex => {
+    const room = store.readRoom(roomId)
+    return `stage-deadline:${roomId}:${room?.workRound?.id ?? 'none'}:${stageIndex}`
+  }
+
+  // 阶段级收口：成员级租约和阶段截止共用这一段，避免两套“停下以后怎么办”。
+  const settleTimedOutStage = (stageIndex, dispatch, { source = 'stage' } = {}) => {
+    store.cancelWork?.(deadlineIdOf(stageIndex))
+    const room = store.readRoom(roomId)
+    if (room === null) return false
+    const pending = dispatch?.pending ?? []
+    const completed = (dispatch?.workers ?? []).filter(worker => !pending.includes(worker))
+    const waiting = pending.map(worker => memberDisplayName(room, worker)).join('、')
+    store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: stageIndex, workers: pending, source })
+    store.appendMessage(roomId, {
+      kind: 'system',
+      text: completed.length > 0
+        ? `执行超时：${waiting} 已停下；已完成的部分继续合并。`
+        : `执行超时：${waiting} 已停下；这一步请退回重做。`,
+    })
+    const updated = store.updateRound(roomId, current => {
+      current.blocked = {
+        stage: stageIndex,
+        reason: 'timeout',
+        source,
+        workers: pending,
+        at: Date.now(),
+      }
+      return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'timeout', source, workers: pending } }] }
+    })
+    if (updated !== null) emit?.('room', updated)
+    if (completed.length > 0) {
+      void enqueue(() => integrate({
+        stageIndex,
+        workers: completed,
+        base: dispatch?.base,
+        failed: pending,
+        turnId: '',
+      }))
+    }
+    return true
+  }
+
   const timeoutStage = stageIndex => {
     timeoutTimers.delete(stageIndex)
     const dispatch = dispatchOf(store, roomId, stageIndex)
-    if (dispatch === null || dispatch.pending.length === 0) return
+    if (dispatch === null || dispatch.pending.length === 0) return false
     const room = store.readRoom(roomId)
-    if (room === null || room.stages?.[stageIndex]?.state !== 'active') return
-    const completed = dispatch.workers.filter(worker => !dispatch.pending.includes(worker))
-    const waiting = dispatch.pending.map(worker => memberDisplayName(room, worker)).join('、')
+    if (room === null || room.stages?.[stageIndex]?.state !== 'active') return false
     for (const assignment of activeDispatchAssignments(store, roomId, stageIndex)) {
       if (!dispatch.pending.includes(assignment.toMemberId)) continue
       transitionAssignment(store, assignment.id, 'failed', {
@@ -30,32 +71,37 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         flags: { ...(assignment.flags ?? {}), timedOut: true },
       })
     }
-    store.appendEvent(roomId, 'stage.dispatch_timeout', { stage: stageIndex, workers: dispatch.pending })
+    return settleTimedOutStage(stageIndex, dispatch, { source: 'stage' })
+  }
+
+  // 单个成员到期：只停这一位；还有别人在跑就继续等，最后一位停下才收口。
+  const expireAssignment = assignmentId => {
+    const assignment = store.readAssignment(assignmentId)
+    if (assignment === null || !['sent', 'working'].includes(assignment.status)) return false
+    const room = store.readRoom(roomId)
+    if (room === null || room.state !== 'active' || room.stages?.[assignment.stageIndex]?.state !== 'active') return false
+    const before = dispatchOf(store, roomId, assignment.stageIndex)
+    if (before === null || !before.pending.includes(assignment.toMemberId)) return false
+    transitionAssignment(store, assignment.id, 'failed', {
+      resultText: '长时间没有进展，已停止。',
+      flags: { ...(assignment.flags ?? {}), timedOut: true, leaseExpired: true },
+    })
+    store.appendEvent(roomId, 'assignment.timed_out', {
+      stage: assignment.stageIndex,
+      assignmentId: assignment.id,
+      memberId: assignment.toMemberId,
+    })
     store.appendMessage(roomId, {
       kind: 'system',
-      text: completed.length > 0
-        ? `执行超时：${waiting} 已停下；已完成的部分继续合并。`
-        : `执行超时：${waiting} 已停下；这一步请退回重做。`,
+      text: `${memberDisplayName(room, assignment.toMemberId)} 长时间没有进展，已停下。`,
     })
-    const updated = store.updateRoom(roomId, current => {
-      current.blocked = {
-        stage: stageIndex,
-        reason: 'timeout',
-        workers: dispatch.pending,
-        at: Date.now(),
-      }
-      return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'timeout', workers: dispatch.pending } }] }
-    })
-    if (updated !== null) emit?.('room', updated)
-    if (completed.length > 0) {
-      void enqueue(() => integrate({
-        stageIndex,
-        workers: completed,
-        base: dispatch.base,
-        failed: dispatch.pending,
-        turnId: '',
-      }))
+    const after = dispatchOf(store, roomId, assignment.stageIndex)
+    if (after !== null && after.pending.length > 0) {
+      watchStageTimeout(assignment.stageIndex)
+      return true
     }
+    // 用失败前的投影收口：completed 只算已交回的成员，已停下的不混进合并。
+    return settleTimedOutStage(assignment.stageIndex, before, { source: 'lease' })
   }
 
   const watchStageTimeout = stageIndex => {
@@ -66,11 +112,38 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     const timer = setTimeout(() => timeoutStage(stageIndex), timeoutMs)
     timer.unref?.()
     timeoutTimers.set(stageIndex, timer)
+    // 内存计时器只负责准时；落一条截止时间，进程重启后仍由持久队列接上。
+    store.enqueueWork?.({
+      id: deadlineIdOf(stageIndex),
+      roomId,
+      roundId: store.readRoom(roomId)?.workRound?.id ?? null,
+      kind: 'stage.deadline',
+      payload: { stage: stageIndex },
+      availableAt: Date.now() + timeoutMs,
+    })
     return true
+  }
+
+  const dispose = () => {
+    for (const stageIndex of timeoutTimers.keys()) store.cancelWork?.(deadlineIdOf(stageIndex))
+    for (const timer of timeoutTimers.values()) clearTimeout(timer)
+    timeoutTimers.clear()
   }
   const startStage = async (room, index, { note = '', rework = false, only = null } = {}) => {
     const stage = room.stages[index]
     if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
+    if (usageBudgetExceeded(room)) {
+      store.appendMessage(roomId, { kind: 'system', text: '这一轮的额度用完了；先停下，等你决定要不要继续。' })
+      store.appendEvent(roomId, 'round.budget_exceeded', { stage: index })
+      const paused = store.updateRound(roomId, current => {
+        current.state = 'paused'
+        current.pauseReason = 'budget'
+        current.idle = false
+        return { events: [{ type: 'room.paused', payload: { reason: 'budget' } }] }
+      })
+      if (paused !== null) emit?.('room', paused)
+      return
+    }
     // 验收要能判断“执行者自己 commit 了但工作树干净”的新交付；按阶段记下起始 HEAD。
     // 重做时沿用第一次记下的起点，不能被上一轮被退回的结果顶掉。
     const storedBase = typeof room.stageBases?.[index] === 'string' ? room.stageBases[index] : ''
@@ -84,7 +157,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       room.blocked?.stage === index ||
       room.mergeConflict?.stage === index
     ) {
-      store.updateRoom(roomId, current => {
+      store.updateRound(roomId, current => {
         if (typeof stageBase === 'string' && stageBase !== '' && storedBase === '') {
           current.stageBases = { ...(current.stageBases ?? {}), [index]: stageBase }
         }
@@ -120,15 +193,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       assignees = assignees.slice(0, 1)
     }
     const parallel = assignees.length > 1
-    {
-      const updated = store.updateRoom(roomId, current => {
-        const moved = transitionStudio(current.closure ?? 'open', 'start_execute', { hasPlan: current.plan !== null && current.plan !== undefined })
-        if (!moved.ok) return null
-        current.closure = moved.state
-        return { events: [studioTransitionEvent(moved, 'start_execute', 'planner', {}, '阶段开始')] }
-      })
-      if (updated !== null) emit?.('room', updated)
-    }
     if (dispatchPlan.note !== '') store.appendMessage(roomId, { kind: 'system', text: dispatchPlan.note })
     const acceptance = stage.manual === true
       ? '验收方式：人看结果，不跑命令。'
@@ -200,7 +264,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     }
 
     const startedAt = Date.now()
-    store.updateRoom(roomId, current => {
+    store.updateRound(roomId, current => {
       current.mergeConflict = null
       return { events: [{ type: 'stage.dispatch', payload: { stage: index, workers: assignees, orchestration: dispatchPlan.strategy.id } }] }
     })
@@ -270,5 +334,5 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     watchStageTimeout(index)
   }
 
-  return { startStage, watchStageTimeout }
+  return { startStage, watchStageTimeout, timeoutStage, expireAssignment, dispose }
 }

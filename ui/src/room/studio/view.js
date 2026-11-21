@@ -1,5 +1,6 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
+import { roundDelivered, roomStatusOf } from '../../../../shared/room-status.js'
 import { PausedPanel } from '../paused-panel.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
@@ -10,7 +11,7 @@ import { studioTyping } from './typing.js'
 export const studioView = {
   id: 'studio',
   className: 'crew-room-studio',
-  opensAtTop: ({ room }) => room.state === 'complete',
+  opensAtTop: ({ room }) => roundDelivered(room),
   header: ({ room, actions }) => {
     const projectId = room.workRound?.projectId ?? room.defaultProjectId
     const rounds = room.rounds ?? []
@@ -57,12 +58,6 @@ export const studioView = {
   },
   activity: () => null,
   transcript: ({ room, members, actions }) => {
-    const roomsById = new Map((actions.rooms ?? []).map(item => [item.id, item]))
-    const runs = (room.routine?.runIds ?? []).map(id => roomsById.get(id)).filter(Boolean)
-    const lastRun = roomsById.get(room.routine?.lastRoomId) ?? runs[runs.length - 1] ?? null
-    const latestRun = lastRun?.delivery !== null && lastRun?.delivery !== undefined
-      ? lastRun
-      : [...runs].reverse().find(run => run.delivery !== null && run.delivery !== undefined) ?? lastRun
     return h(Fragment, null,
       h(StudioTranscript, {
         key: `transcript-${room.id}`,
@@ -70,15 +65,11 @@ export const studioView = {
       members,
       hideKinds: [],
       delivery: room.delivery ?? null,
-      latestRun,
-      runs,
       onAccept: actions.accept,
       onStageAccept: actions.accept,
       onRework: actions.rework,
       onChoose: actions.chooseHuman,
       onReadArtifact: actions.readArtifact,
-      onRoutine: null,
-      onOpenRun: id => actions.selectRoom(id),
       onResolveMerge: actions.resolveMerge,
       onApproval: actions.approval,
       onAnswerCard: actions.answerCard,
@@ -93,14 +84,9 @@ export const studioView = {
     )
   },
   presence: () => null,
-  canStartRound: ({ room }) => (
-    (room.state === 'idle' || room.state === 'complete' || room.workRound?.status === 'completed') &&
-    (room.stages ?? []).length > 0 &&
-    room.stages.every(stage => stage.state === 'passed')
-  ),
+  canStartRound: ({ room }) => roomStatusOf(room) === 'idle',
   composerPlaceholder: ({ room, members }) => {
-    const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    if (room.state === 'idle' || room.state === 'complete' || done) return '说说下一轮要做什么…'
+    if (roomStatusOf(room) === 'idle' || roundDelivered(room)) return '说说下一轮要做什么…'
     const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
     if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === active) {
       return '把缺的信息发给这一步…'

@@ -61,7 +61,12 @@ test('a room that has not run a turn is simply idle', () => {
 })
 
 test('a completed room still reports all stages passed', () => {
-  const complete = room({ state: 'complete', stages: room().stages.map(stage => ({ ...stage, state: 'passed' })) })
+  const complete = room({
+    state: 'idle',
+    activeRoundId: null,
+    workRound: { id: 'round-1', status: 'completed' },
+    stages: room().stages.map(stage => ({ ...stage, state: 'passed' })),
+  })
   const goal = toIslandGoal(complete)
   assert.equal(goal.status, 'complete')
   assert.equal(goal.stages.every(stage => stage.status === 'passed'), true)

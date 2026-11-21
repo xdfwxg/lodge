@@ -44,7 +44,6 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles }) =
     plan: planned.plan,
     stages: built.stages,
     gate,
-    closure: planned.plan === null ? 'open' : 'planned',
     shadowReview: body?.shadowReview === true,
     orchestration: room.orchestration ?? null,
     constraints: studioConstraints({
@@ -63,25 +62,32 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles }) =
           at: Date.now(),
         }))
         : [],
+    budgetMicroUsd: Number(body?.budgetMicroUsd),
     origin: {
       sourceRoomId: typeof body?.sourceRoomId === 'string' ? body.sourceRoomId : room.sourceRoomId ?? null,
       sourceName: typeof body?.sourceName === 'string' ? body.sourceName : room.sourceName ?? null,
     },
   })
 
-  store.writeWorkRound(round)
-  const updated = store.updateRoom(room.id, current => {
-    current.state = 'active'
-    current.activeRoundId = round.id
-    current.idle = false
-    current.noProgress = 0
-    current.pauseReason = null
-    return { events: [{ type: 'round.started', payload: { roundId: round.id, ordinal: round.ordinal } }] }
-  })
-  if (updated === null) return fail('not_found', '工作室不存在')
+  const opened = store.startWorkRound?.({ roomId: room.id, round }) ?? null
+  if (opened === null) return fail('conflict', '这一轮还没结束；先停下或作废这一轮')
+  const updated = opened.room
+  const activeRound = opened.round ?? round
 
-  const view = composeRoundView(updated, round)
-  store.appendMessage(room.id, { kind: 'system', text: `第 ${round.ordinal} 轮开始：${goal}` })
+  const view = composeRoundView(updated, activeRound)
+  store.appendMessage(room.id, { kind: 'system', text: `第 ${activeRound.ordinal} 轮开始：${goal}` })
+  const previous = typeof room.lastRoundId === 'string' && room.lastRoundId !== ''
+    ? store.readWorkRound(room.lastRoundId, room.id)
+    : null
+  if (previous?.status === 'completed' && previous.completion !== null && previous.completion !== undefined) {
+    const done = (previous.completion.stages ?? []).map(stage => stage.title).filter(Boolean).join('、')
+    const decisions = (previous.completion.decisions ?? []).filter(Boolean).join('、')
+    store.appendMessage(room.id, {
+      kind: 'system',
+      text: `上一轮已交付：${done === '' ? previous.goal : done}${decisions === '' ? '' : `；先定过：${decisions}`}`,
+      meta: { roundSummary: previous.id },
+    })
+  }
   for (const message of built.messages ?? []) {
     store.appendMessage(room.id, { kind: 'system', text: message })
   }
@@ -114,5 +120,5 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles }) =
     acceptance,
     emit,
   })
-  return ok({ room: store.readRoom(room.id) ?? started, round })
+  return ok({ room: store.readRoom(room.id) ?? updated, round: activeRound })
 }

@@ -20,6 +20,7 @@ test('round status reads like a person, not a round enum', () => {
   assert.equal(roundStatusOf({ status: 'active' }), '进行中')
   assert.equal(roundStatusOf({ status: 'planning' }), '待决定')
   assert.equal(roundStatusOf({ status: 'rejected' }), '已退回')
+  assert.equal(roundStatusOf({ status: 'failed' }), '没做成')
   assert.equal(roundStatusOf({ status: 'superseded' }), '已作废')
   assert.equal(roundStatusOf({ status: 'stopped' }), '已停止')
   assert.equal(roundStatusOf({}), '待开始')

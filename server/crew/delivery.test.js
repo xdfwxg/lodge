@@ -7,7 +7,9 @@ const room = (over = {}) => ({
   id: 'room-1',
   name: '设置页保存',
   goal: '保存后刷新仍生效',
-  state: 'complete',
+  state: 'idle',
+  activeRoundId: null,
+  workRound: { id: 'round-1', status: 'completed' },
   completedAt: 100,
   completedCommit: 'abcdef123456',
   independence: 'degraded',
@@ -49,7 +51,7 @@ test('the delivery keeps the room usage and its unknown state', () => {
 })
 
 test('a room event only carries a delivery card after completion', () => {
-  assert.equal(presentRoom(room({ state: 'active' }), messages).delivery, null)
+  assert.equal(presentRoom(room({ state: 'active', workRound: null }), messages).delivery, null)
   assert.equal(presentRoom(room(), messages).delivery.goal, '保存后刷新仍生效')
 })
 

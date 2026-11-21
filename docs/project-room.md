@@ -41,20 +41,21 @@
 ## 数据
 
 - `room`：长期字段、成员、工作区、`state`（`idle/active/paused/stopped`）、`activeRoundId`、`lastRoundId`、`defaultProjectId`。
-- `work_round`：`goal`、`plan`、`stages`、`gate`、`decisions`、`constraints`、`usage`、`delivery`、时间戳、提交；`status` 为 `planning/active/completed/rejected/superseded/stopped`。
+- `work_round`：`goal`、`plan`、`stages`、`gate`、`decisions`、`constraints`、`usage`、`budgetMicroUsd`、`delivery`、时间戳、提交；`status` 为 `planning/active/completed/rejected/failed/superseded/stopped`。
 - `project`：名字、北极星、状态。
-- `messages.work_round_id`、`assignment.work_round_id`：轮次隔离的硬边界；证据和 verdict 正文仍在消息里。
+- `messages.work_round_id`、`assignment.work_round_id`：轮次隔离的硬边界；`NULL` 是房间级消息；证据和 verdict 正文仍在消息里。
 - 旧轮通过 `GET /api/rooms/:id/rounds/:roundId` 按轮取回房间视图和消息；只读，不写任何状态。
 - 房间目录按轮次保存 `rounds/<roundId>/GOAL.md`、`CONCLUSION.md` 和证据；房间级 `transcript.jsonl` 是恢复镜像。
-- 旧数据直接清掉，不做迁移、不留兼容字段。
+- `work_item` 一张表管定时、审批、重试和恢复，带租约、退避、去重和死信；启动时回收过期租约并修轮次指针。
+- `SCHEMA_VERSION=4`；旧数据直接清掉，不做迁移、不留兼容字段。
 
 ## 不做什么
 
 - 不新增第四种房间引擎或第四种底层角色。
 - 不把「目标完成」写成「房间结束」。
 - 不把「停止回复」做成房间级暂停；停的是当前回答，房间继续可用。
-- 不把项目做成 `nextRoomId` 房间链；项目是轮次分组。
-- 不把 routines/subrooms 塞进第一版；它们不是手动开轮的路径。
+- 项目只是轮次分组，不执行、不验收、不保存证据副本。
+- 不引入第二套创建路径；新能力按轮次重建，不另开房间链。
 - 不引外部 issue tracker 当主库；项目页只读轮次事实。
 - 不自动 commit / push / 开 PR。
 

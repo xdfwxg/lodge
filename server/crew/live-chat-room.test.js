@@ -102,6 +102,71 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false }
 
 const transportFor = ctx => createChatTransport({ engine: ctx.engine, store: ctx.store, roomId: 'room-chat' })
 
+test('a resumed chat round continues from the turns already spoken', async () => {
+  const ctx = setup()
+  ctx.room().chat = { ...ctx.room().chat, running: true, phase: 'discussing', round: 1, turns: 2 }
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    waitMs: 100,
+    pollMs: 1,
+  })
+  const result = await scheduler.start(ctx.room(), { resume: true })
+  assert.equal(result.started, true)
+  assert.equal(result.turns, 6)
+  assert.equal(ctx.messages.some(message => message.meta?.opening === true), false)
+  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 4)
+})
+
+test('a resumed chat round counts a reply that arrived before the crash', async () => {
+  const ctx = setup()
+  ctx.room().chat = {
+    ...ctx.room().chat,
+    running: true,
+    turns: 0,
+    pending: { turn: 1, memberId: 'a', beforeIds: [], sentAt: Date.now() - 1_000 },
+  }
+  ctx.history.push({ id: 'a-pending', role: 'agent', kind: 'text', text: '先到的回复。', authorRef: 'A', at: Date.now() })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    waitMs: 100,
+    pollMs: 1,
+  })
+  const result = await scheduler.start(ctx.room(), { resume: true })
+  assert.equal(result.turns, 6)
+  assert.equal(ctx.room().chat.pending, null)
+  assert.equal(ctx.history.some(message => message.role === 'user' && /第 1\/6 次发言/.test(message.text)), false)
+  assert.equal(ctx.history.filter(message => message.role === 'user' && /聊天室话题/.test(message.text)).length, 5)
+})
+
+test('a pending chat turn with no reply is skipped, not sent twice', async () => {
+  const ctx = setup()
+  ctx.room().chat = {
+    ...ctx.room().chat,
+    running: true,
+    turns: 0,
+    pending: { turn: 1, memberId: 'a', beforeIds: [], sentAt: Date.now() - 1_000 },
+  }
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    waitMs: 100,
+    pollMs: 1,
+  })
+  const result = await scheduler.start(ctx.room(), { resume: true })
+  assert.equal(result.started, true)
+  assert.equal(ctx.history.some(message => message.role === 'user' && /第 1\/6 次发言/.test(message.text)), false)
+  assert.equal(ctx.messages.some(message => /没有在限定时间内回应/.test(message.text ?? '')), true)
+  assert.equal(ctx.history.filter(message => message.role === 'user' && /聊天室话题/.test(message.text)).length, 5)
+})
+
 test('a chat round runs six speakers, then the host summarizes', async () => {
   const ctx = setup()
   const scheduler = createChatScheduler({

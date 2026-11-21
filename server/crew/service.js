@@ -1,15 +1,12 @@
 import { resolve, sep } from 'node:path'
-import { roomModeOfRoom } from './rooms/kinds.js'
-import { leadMemberOf, memberOf } from './room-members.js'
-import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
-import { cancelOpenAssignments, transitionAssignment } from './assignments.js'
 import { createRealRoom } from './rooms/create/create.js'
-import { accepted, BusinessError, created, fail, ok } from './result.js'
+import { created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
 import { startRound } from './rounds/start.js'
+import { failRound, rejectRound, stopRound, supersedeRound } from './rounds/lifecycle.js'
+import { createRoomActions } from './actions/room-actions.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
-import { createServiceClosure } from './rooms/studio/service-closure.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { humanHandoffStageOf } from './rooms/studio/human-handoff.js'
 import { createMemberAdd } from './member-add.js'
@@ -19,23 +16,14 @@ import {
   SAMPLE_ROOM_ID,
   sampleChatRoomRecord,
   sampleRoomRecord,
+  sampleStudioRound,
   seedSampleChatMessages,
   seedSampleMessages,
 } from './rooms/sample.js'
 import { artifactKindOf, imageMimeOf } from '../../shared/artifact.js'
-import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
-import {
-  catchUpRoutineAt,
-  normalizeDays,
-  parseHour,
-  parseMinute,
-  routineOf,
-  routineTimerId,
-  scheduleLabelOf,
-} from '../../shared/routine.js'
 import { systemNotice } from './notices.js'
 import { cleanHumanName, setCurrentHumanName } from './human-name.js'
-import { isAttachmentName, normalizeAttachments, textOfFile } from './attachments.js'
+import { isAttachmentName, textOfFile } from './attachments.js'
 import {
   ATTACHMENT_FILE_MAX_BYTES,
   ATTACHMENT_IMAGE_MAX_BYTES,
@@ -43,40 +31,13 @@ import {
   formatAttachmentBytes,
   isNativeImage,
   isTextFile,
-  withAttachments,
 } from '../../shared/attachments.js'
 
 export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
-const completionFacts = (room, messages = []) => {
-  const stages = (room.stages ?? []).map((stage, index) => (
-    `${index + 1}. ${stage.title}：${stage.state === 'passed' ? '通过' : stage.state}`
-  )).join('\n')
-  const verdicts = messages.filter(message => message.kind === 'verdict')
-  const last = verdicts.at(-1)
-  const name = last === undefined
-    ? ''
-    : (room.members ?? []).find(member => member.id === last.authorId)?.name ?? '验收员'
-  const verdict = last === undefined
-    ? '没有验收结论'
-    : `${name} ${verdictPassed(last) ? 'PASS' : 'REJECT'}：${(judgmentOf(last)?.reason || String(last.text ?? '').split('\n')[0]).slice(0, 160)}`
-  const files = new Set()
-  for (const message of messages) {
-    for (const file of message.meta?.changedFiles ?? []) files.add(file)
-  }
-  return [
-    '房间事实（只依据这些回答，不要补充或推测）：',
-    `目标：${room.goal}`,
-    `阶段：\n${stages}`,
-    `最后一次验收：${verdict}`,
-    files.size === 0 ? '' : `改动文件：${[...files].join('、')}`,
-    typeof room.branch === 'string' && room.branch !== '' ? `交付分支：${room.branch}` : '',
-  ].filter(value => value !== '').join('\n')
-}
-
 export const createCrewService = ({ store, engine, live, emit, roles, ports, attachments = null }) => {
-  const { readRoom, readMessages, writeRoom, appendMessage, updateRoom, deleteRoom } = store
+  const { readRoom, readMessages, writeRoom, appendMessage, updateRoom, updateRound, deleteRoom } = store
   const { roomFiles, workspace, files } = ports
   const readStoredProfile = () => (
     typeof store.readProfile === 'function'
@@ -131,6 +92,9 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
   const finishRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const completeRoom = room => {
     const done = finishRoom(room)
+    if (done !== null && done !== undefined && (done.activeRoundId === null || done.activeRoundId === undefined)) {
+      try { live.detach?.(done.id) } catch {}
+    }
     recordMemory(done)
     return done
   }
@@ -167,7 +131,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     if (/^(UU|AA|DD|AU|UA|DU|UD) /m.test(status)) return fail('conflict', '还有没解决的冲突文件')
     if (status !== '') return fail('conflict', '解决结果还没有提交；先提交再继续')
     if (diff.includes('<<<<<<<')) return fail('conflict', '文件里还留着冲突标记')
-    const updated = updateRoom(room.id, current => {
+    const updated = updateRound(room.id, current => {
       current.mergeConflict = null
       current.mergeResolved = { stage: conflict.stage, at: Date.now() }
       return { events: [{ type: 'room.merge_resolved', payload: { stage: conflict.stage } }] }
@@ -206,66 +170,8 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     workspace,
     detachMember: (roomId, memberId) => live.detachMember?.(roomId, memberId),
   })
-  const closure = createServiceClosure({ store, emit })
 
-  // 子房间归档或删除时，父房里等它的那条交接不能一直停在 sent。
-  const closeSubroomAssignment = (child, text) => {
-    const parentId = child?.parentRoomId
-    if (typeof parentId !== 'string' || parentId === '') return
-    const assignments = store.readAssignments(parentId, { limit: 5000 })
-    let changed = false
-    for (const assignment of assignments) {
-      if (assignment.reason !== 'subroom' || assignment.context?.childRoomId !== child.id) continue
-      if (['passed', 'rejected', 'failed', 'cancelled'].includes(assignment.status)) continue
-      if (transitionAssignment(store, assignment.id, 'cancelled', { resultText: String(text).slice(0, 4000) }) !== null) changed = true
-    }
-    if (!changed) return
-    const parent = store.readRoom(parentId)
-    if (parent !== null) emit('room', parent)
-  }
-
-  // 父房删除时，仍在进行的子房不能留下悬空的父子关系。
-  const closeChildRooms = async room => {
-    for (const childId of room.childRoomIds ?? []) {
-      const child = store.readRoom(childId)
-      if (child === null) continue
-      if (child.live === true && live.isAttached?.(child.id) === true) {
-        await live.cancel?.({ roomId: child.id })
-        live.detach?.(child.id)
-      }
-      const updated = updateRoom(child.id, current => {
-        current.archivedAt = current.archivedAt ?? Date.now()
-        if (current.state === 'active') {
-          current.state = 'stopped'
-          current.live = false
-        }
-        current.parentRoomId = null
-        current.parentAssignmentId = null
-        return { events: [{ type: 'room.parent_removed', payload: { id: room.id } }] }
-      })
-      if (updated !== null) emit('room', updated)
-    }
-  }
-
-  // 归档或删除目标房时，正在跑的那一次也一起停；例行工作不能留在后台无声地跑。
-  const stopRoutineRun = async (room, reason) => {
-    const routine = routineOf(room)
-    if (routine?.lastRoomId === null || routine?.lastRoomId === undefined) return
-    const runRoom = store.readRoom(routine.lastRoomId)
-    if (runRoom === null || runRoom.state !== 'active') return
-    if (runRoom.live === true && live.isAttached?.(runRoom.id) === true) {
-      await live.cancel?.({ roomId: runRoom.id })
-      live.detach?.(runRoom.id)
-    }
-    const stopped = updateRoom(runRoom.id, current => {
-      current.state = 'stopped'
-      current.live = false
-      return { events: [{ type: 'room.stopped', payload: { reason } }] }
-    })
-    if (stopped !== null) emit('room', stopped)
-  }
-
-    const createRoom = (body, parent = null) => createRealRoom({ store, engine, live, emit, roles, body, ports, parentRoom: parent })
+  const createRoom = body => createRealRoom({ store, engine, live, emit, roles, body, ports })
 
   const createSampleRoom = (kind = 'studio') => {
     const chat = kind === 'chat'
@@ -283,10 +189,32 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       return ok({ room: existing })
     }
     const now = Date.now()
-    const created = writeRoom(chat ? sampleChatRoomRecord({ now }) : sampleRoomRecord({ now }))
-    if (chat) seedSampleChatMessages({ store, room: created })
-    else seedSampleMessages({ store, room: created, now })
-    const room = readRoom(id) ?? created
+    if (chat) {
+      const created = writeRoom(sampleChatRoomRecord({ now }))
+      seedSampleChatMessages({ store, room: created })
+      const room = readRoom(id) ?? created
+      emit('room', room)
+      return ok({ room })
+    }
+    const sample = sampleRoomRecord({ now })
+    const round = sampleStudioRound({ room: sample, now })
+    const created = writeRoom({
+      ...sample,
+      state: 'active',
+      activeRoundId: round.id,
+      lastRoundId: null,
+      idle: false,
+    })
+    store.writeWorkRound(round)
+    seedSampleMessages({ store, room: created, now })
+    const finalized = updateRoom(id, current => {
+      current.state = 'idle'
+      current.activeRoundId = null
+      current.lastRoundId = round.id
+      current.idle = true
+      return { events: [] }
+    })
+    const room = readRoom(id) ?? finalized ?? created
     emit('room', room)
     return ok({ room })
   }
@@ -315,532 +243,29 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     saveHumanProfile({ name, avatar: profile.avatar })
   }
 
-  const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {
-    let room = readRoom(roomId)
-    if (room === null || room.kind !== 'room') return fail('not_found', '没有这个房间')
-
-    // Lodge 的对话：一句话决定开工作室还是留下聊聊，不出现房型选择。
-    if (action === 'lodge' && method === 'POST') {
-      if (room.lodge !== true) return fail('invalid', '这不是 Lodge 对话')
-      if (room.state !== 'active') return fail('conflict', 'Lodge 现在没有在运行')
-      const body = await readBody()
-      const text = typeof body.text === 'string' ? body.text.trim().slice(0, 8000) : ''
-      const normalized = normalizeAttachments(body.attachments)
-      if (normalized.error !== undefined) return fail('invalid', normalized.error)
-      const attachments = normalized.attachments
-      if (text === '' && attachments.length === 0) return fail('invalid', '说一句想做什么')
-      rememberHuman(room.id, body)
-      room = readRoom(room.id) ?? room
-      const userMessage = appendMessage(room.id, {
-        kind: 'chat',
-        authorId: 'you',
-        text,
-        ...(attachments.length === 0 ? {} : { meta: { attachments } }),
-      })
-      if (room.live !== true || live.isAttached?.(room.id) !== true) {
-        return fail('conflict', 'Lodge 还没有连上模型服务')
-      }
-      // 主持这一轮同时回答和判断：要做事或找人时会带回 open，不用再问一次前台。
-      const reply = await chat.input(room, { note: withAttachments(text, attachments) })
-      if (reply?.ok !== true) return reply
-      const decision = reply.body?.intent ?? null
-      if (decision?.action !== 'open') {
-        return ok({ room: readRoom(room.id) ?? room, message: userMessage })
-      }
-      // 附件跟着目标一起进新房：给模型的是带标记的目标，界面上仍只显示人写的那句话。
-      const goalText = text === '' ? (attachments[0]?.title ?? '看看这个附件') : text
-      const created = await createRoom({
-        goal: withAttachments(goalText, attachments),
-        name: goalText.slice(0, 24),
-        verify: 'manual',
-        ...(decision.room === 'chat' ? { roomType: 'chat' } : {}),
-      })
-      if (created?.ok !== true) return created
-      const createdRoom = created.body?.room ?? null
-      if (decision.reply !== '') {
-        appendMessage(room.id, { kind: 'chat', authorId: 'lodge', text: decision.reply })
-      }
-      appendMessage(room.id, {
-        kind: 'chat',
-        authorId: 'lodge',
-        text: `开好了：${createdRoom?.name ?? '一间工作室'}`,
-        ...(createdRoom === null ? {} : {
-          meta: {
-            openRoomId: createdRoom.id,
-            openRoomName: createdRoom.name,
-            createdRoomId: createdRoom.id,
-          },
-        }),
-      })
-      emit('room', readRoom(room.id) ?? room)
-      return ok({ room: readRoom(room.id) ?? room, createdRoom })
-    }
-
-    if (action === 'approvals' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '只有正在运行的房间有待确认的操作')
-      if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
-      const body = await readBody()
-      const approvalId = typeof body.id === 'string' ? body.id : ''
-      const decision = body.decision === 'allow' ? 'allow' : body.decision === 'deny' ? 'deny' : ''
-      if (approvalId === '') return fail('invalid', '缺少要确认的操作')
-      if (decision === '') return fail('invalid', '这个操作只能选“可以做”或“先别做”')
-      const result = await live.decideApproval(room.id, approvalId, decision)
-      if (result.ok !== true) return fail('conflict', result.reason)
-      return ok({ room: result.room })
-    }
-
-    if (action === 'resume' && method === 'POST') {
-      const disconnected = typeof room.connectionError === 'string' && room.connectionError !== ''
-      if (room.state !== 'paused' && !disconnected) return fail('conflict', '房间没有暂停')
-      if (room.live !== true) return fail('conflict', '房间现在没有连上，稍后再试')
-      if (live.isAttached?.(room.id) !== true) {
-        try {
-          await live.attach?.(room)
-        } catch {
-          return fail('conflict', '房间现在没有连上，稍后再试')
-        }
-      }
-      const resumed = updateRoom(room.id, current => {
-        const events = []
-        if (current.state === 'paused') {
-          current.state = 'active'
-          current.idle = false
-          current.pauseReason = null
-          current.noProgress = 0
-          events.push({ type: 'room.resumed' })
-        }
-        if (typeof current.connectionError === 'string' && current.connectionError !== '') {
-          delete current.connectionError
-          events.push({ type: 'room.connection', payload: { connected: true } })
-        }
-        return events.length === 0 ? null : { events }
-      })
-      if (resumed === null) return fail('not_found', '没有这个房间')
-      emit('room', resumed)
-      if (room.state === 'paused') {
-        try { await live.resume?.(room.id) } catch (error) {
-          console.warn(`room resume failed: ${room.id} ${error?.message ?? error}`)
-        }
-      }
-      return ok({ room: readRoom(room.id) ?? resumed })
-    }
-
-    // 输入条上的方块只停下这次回复，不把房间变成暂停态；停完可以直接说下一步。
-    if (action === 'interrupt' && method === 'POST') {
-      if (room.state !== 'active') return fail('conflict', '房间没有在跑')
-      if (room.live !== true || live.isAttached?.(room.id) !== true) {
-        return fail('conflict', '房间现在没有连上，稍后再试')
-      }
-      const cancelled = await live.cancel?.({ roomId: room.id })
-      const cancelledAssignments = room.roomType === 'studio'
-        ? cancelOpenAssignments(store, room.id, { reason: '用户停下了这次回复' })
-        : 0
-      const updated = readRoom(room.id) ?? room
-      emit('room', updated)
-      return ok({
-        room: updated,
-        cancelled: cancelled?.cancelled === true,
-        assignments: cancelledAssignments,
-      })
-    }
-
-    if (action === 'acceptance' && method === 'POST') {
-      const body = await readBody()
-      return stages.setAcceptance(room, Number(body.stage), typeof body.command === 'string' ? body.command : '')
-    }
-
-    if (action === 'verify' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '只有正在运行的房间能真的检查；示例房间用示例数据')
-      if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
-      const body = await readBody()
-      try {
-        return accepted(await live.requestReview(room.id, Number(body.stage)))
-      } catch (error) {
-        if (error instanceof BusinessError) return fail(error.reason, error.message)
-        throw error
-      }
-    }
-
-    if (action === 'read' && method === 'POST') {
-      if (room.live === true && typeof live.markChatRead === 'function') await live.markChatRead(room)
-      if (routineOf(room)?.unseenResult === true) {
-        const updated = updateRoom(room.id, current => {
-          current.routine = { ...(current.routine ?? {}), unseenResult: false }
-          return { events: [] }
-        })
-        if (updated !== null) {
-          emit('room', readRoom(room.id) ?? updated)
-          return ok({ room: readRoom(room.id) ?? updated })
-        }
-      }
-      return ok({ room: readRoom(roomId) ?? room })
-    }
-
-    if (action === 'answer-card' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '只有正在运行的房间能回答问题')
-      if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
-      const body = await readBody()
-      const memberId = typeof body.memberId === 'string' ? body.memberId : ''
-      const requestId = typeof body.requestId === 'string' ? body.requestId : ''
-      const message = typeof body.message === 'string' ? body.message : ''
-      const result = await live.answerCard(room.id, memberId, requestId, message)
-      if (result.ok !== true) return fail('conflict', result.reason)
-      return ok({ room: result.room })
-    }
-
-    if (action === 'cancel-queue' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '只有正在运行的房间能撤回排队消息')
-      const body = await readBody()
-      const queueId = typeof body.queueId === 'string' ? body.queueId : ''
-      if (queueId === '') return fail('invalid', '缺少排队消息')
-      try {
-        const result = await live.cancelQueued(room.id, queueId)
-        return result.cancelled === true ? ok(result) : fail('conflict', result.reason)
-      } catch (error) {
-        return fail('conflict', String(error?.message ?? error))
-      }
-    }
-
-    if (action === 'steer' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '只有正在运行的房间能插话')
-      if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
-      const body = await readBody()
-      const queueId = typeof body.queueId === 'string' ? body.queueId : ''
-      if (queueId === '') return fail('invalid', '缺少排队消息')
-      try {
-        return ok(await live.steerQueued(room.id, queueId))
-      } catch (error) {
-        return fail('conflict', String(error?.message ?? error))
-      }
-    }
-
-    if (action === 'hold' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '只有正在运行的房间能叫停成员')
-      if (live.isAttached?.(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
-      const body = await readBody()
-      const memberId = typeof body.memberId === 'string' ? body.memberId : ''
-      if (memberOf(room, memberId) === null) return fail('invalid', '没有这个成员')
-      try {
-        const updated = await live.holdMember(room.id, memberId, body.held === true)
-        return ok({ room: updated ?? readRoom(room.id) ?? room })
-      } catch (error) {
-        return fail('conflict', String(error?.message ?? error))
-      }
-    }
-
-    if (action === 'rename' && method === 'POST') {
-      const body = await readBody()
-      const name = typeof body.name === 'string' ? body.name.trim() : ''
-      if (name === '' || Array.from(name).length > 60) return fail('invalid', '房间名不能为空，且不超过 60 字')
-      const updated = updateRoom(room.id, current => {
-        current.name = name
-        return { events: [{ type: 'room.renamed', payload: { name } }] }
-      })
-      if (updated === null) return fail('not_found', '没有这个房间')
-      emit('room', updated)
-      return ok({ room: updated })
-    }
-
-    if (action === 'archive' && method === 'POST') {
-      const body = await readBody()
-      if (body.archived === false) {
-        let reattach = false
-        const restored = updateRoom(room.id, current => {
-          current.archivedAt = null
-          // 归档停下的活动房间，恢复后要能继续；拒绝目标的停止不是归档造成的，保持原样。
-          if (current.archivedLive === true) {
-            delete current.archivedLive
-            if (current.state === 'stopped' && current.pauseReason !== 'rejected') {
-              current.state = 'active'
-              current.pauseReason = null
-              current.idle = false
-            }
-            if (current.state === 'active' || current.state === 'paused') {
-              current.live = true
-              reattach = true
-            } else {
-              current.live = false
-            }
-          }
-          return { events: [{ type: 'room.restored' }] }
-        })
-        if (restored === null) return fail('not_found', '没有这个房间')
-        emit('room', restored)
-        let attachError = null
-        if (reattach && live.isAttached?.(restored.id) !== true) {
-          try {
-            await live.attach?.(restored)
-            reattach = false
-          } catch (error) {
-            attachError = error
-            console.warn(`room restore attach failed: ${room.id} ${error?.message ?? error}`)
-          }
-        }
-        if (reattach) {
-          const failed = updateRoom(room.id, current => {
-            current.connectionError = `Lodge 服务连接中断：${attachError?.message ?? '房间没能连上'}`
-            return { events: [{ type: 'room.connection', payload: { connected: false } }] }
-          })
-          if (failed !== null) emit('room', failed)
-        }
-        return ok({ room: readRoom(room.id) ?? restored })
-      }
-      const wasLive = room.live === true && live.isAttached?.(room.id) === true
-      if (wasLive) {
-        await live.cancel?.({ roomId: room.id })
-        live.detach?.(room.id)
-      }
-      const routine = routineOf(room)
-      await stopRoutineRun(room, 'routine-archived')
-      const archivedAt = Date.now()
-      const updated = updateRoom(room.id, current => {
-        current.archivedAt = archivedAt
-        current.archivedLive = current.live === true
-        const stopped = current.state === 'active'
-        if (stopped) current.state = 'stopped'
-        // 归档会把房间从基座摘下来；停在停止状态的房间也不该继续声称自己在线。
-        if (stopped || wasLive) current.live = false
-        if (routine?.enabled === true) {
-          current.routine = {
-            ...(current.routine ?? {}),
-            enabled: false,
-            paused: false,
-            nextRunAt: null,
-            skippedAt: null,
-            unseenResult: false,
-          }
-        }
-        return {
-          events: [
-            { type: 'room.archived', payload: { stopped } },
-            ...(routine?.enabled === true ? [{ type: 'room.routine.stopped', payload: { reason: 'archived' } }] : []),
-          ],
-        }
-      })
-      if (updated === null) return fail('not_found', '没有这个房间')
-      if (routine?.enabled === true) {
-        store.cancelTimer?.(routineTimerId(room.id))
-        appendMessage(room.id, {
-          kind: 'system',
-          text: '已归档，例行工作先停下；取消归档后可以再开。',
-        })
-      }
-      emit('room', updated)
-      if (updated.parentRoomId) closeSubroomAssignment(updated, `子房间「${updated.name}」已归档。`)
-      return ok({ room: updated })
-    }
-
-    if (action === 'delete' && method === 'POST') {
-      if (room.state === 'active') return fail('conflict', '正在进行的房间不能删除；先归档再删除')
-      if (routineOf(room)?.enabled === true) store.cancelTimer?.(routineTimerId(room.id))
-      await stopRoutineRun(room, 'room-deleted')
-      if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
-      if (room.parentRoomId) closeSubroomAssignment(room, `子房间「${room.name}」已删除。`)
-      // 删房时把成员身体和隐藏 Bot 一起退役；工作区和用户文件留着。
-      try {
-        await live.retireRoomBots?.(room)
-      } catch (error) {
-        console.warn(`room bots retire failed: ${room.id} ${error?.message ?? error}`)
-      }
-      await closeChildRooms(room)
-      if (typeof room.parentRoomId === 'string' && room.parentRoomId !== '') {
-        const parent = updateRoom(room.parentRoomId, current => {
-          current.childRoomIds = (current.childRoomIds ?? []).filter(id => id !== room.id)
-          return { events: [{ type: 'room.child_removed', payload: { id: room.id } }] }
-        })
-        if (parent !== null) emit('room', parent)
-      }
-      const removed = typeof deleteRoom === 'function' ? deleteRoom(room.id) : false
-      if (removed !== true) return fail('not_found', '没有这个房间')
-      // 只删房间自己的 .crew/rooms/<id> 过程档案；交付工作区和用户仓库不碰。
-      const roomRoot = roomFiles.roomDir?.(room)
-      if (typeof roomRoot === 'string' && roomRoot !== '') {
-        try { files.remove(roomRoot) } catch (error) {
-          console.warn(`room files remove failed: ${room.id} ${error?.message ?? error}`)
-        }
-      }
-      emit('room.deleted', { id: room.id, name: room.name })
-      return ok({ id: room.id })
-    }
-
-    // 添加成员与换身体允许在暂停时进行（例如模型登录失效后补人），放在暂停门禁之前。
-    if (action === 'add-member' && method === 'POST') {
-      if (room.live !== true) return fail('conflict', '房间没有连上，不能加成员')
-      return memberAdd.add(room, await readBody())
-    }
-
-    if (action === 'remove-member' && method === 'POST') {
-      return memberRemove.remove(room, await readBody())
-    }
-
-    if (action === 'swap-body' && method === 'POST') {
-      if (room.live !== true || typeof live.swapBody !== 'function') return fail('conflict', '当前房间不能调整成员')
-      return live.swapBody(room, await readBody())
-    }
-
-    if (room.state === 'paused' || room.state === 'stopped') {
-      return fail('conflict', room.state === 'paused' ? '房间已暂停' : '房间已停止')
-    }
-
-    // 已交付的房间里说一句要改什么：在同一个工作间开下一轮，不新建房间。
-    if (action === 'rounds' && method === 'POST') {
-      const body = await readBody()
-      const text = typeof body.text === 'string' ? body.text.trim() : ''
-      const normalized = normalizeAttachments(body.attachments)
-      if (normalized.error !== undefined) return fail('invalid', normalized.error)
-      const attachments = normalized.attachments
-      if (text === '' && attachments.length === 0) return fail('invalid', '说一句这一轮要做什么')
-      rememberHuman(room.id, body)
-      const result = await startRound({
-        store,
-        live,
-        emit,
-        room,
-        body: {
-          goal: withAttachments(text, attachments),
-          ...(typeof body.projectId === 'string' ? { projectId: body.projectId } : {}),
-          ...(body.plan !== null && typeof body.plan === 'object' ? { plan: body.plan } : {}),
-          ...(body.verify === 'test' ? {
-            verify: 'test',
-            acceptance: typeof body.acceptance === 'string' ? body.acceptance : '',
-          } : {}),
-        },
-        roomFiles,
-      })
-      if (result?.ok !== true) return result
-      appendMessage(room.id, {
-        kind: 'chat',
-        authorId: 'you',
-        text,
-        ...(attachments.length === 0 ? {} : { meta: { attachments } }),
-      })
-      const updated = result.body?.room ?? store.readRoom(room.id) ?? room
-      emit('room', updated)
-      return accepted({ room: updated })
-    }
-
-    if (action === 'messages' && method === 'POST') {
-      const body = await readBody()
-      const text = typeof body.text === 'string' ? body.text.trim() : ''
-      const normalized = normalizeAttachments(body.attachments)
-      if (normalized.error !== undefined) return fail('invalid', normalized.error)
-      const attachments = normalized.attachments
-      if (text === '' && attachments.length === 0) return fail('invalid', '消息不能为空，且不超过 8000 字')
-      if (text.length > 8000) return fail('invalid', '消息不能为空，且不超过 8000 字')
-      rememberHuman(room.id, body)
-      room = readRoom(room.id) ?? room
-      const mentions = Array.isArray(body.mentions)
-        ? body.mentions.filter(id => typeof id === 'string' && id !== '').slice(0, 8)
-        : []
-      const attachmentMeta = attachments.length === 0 ? {} : { attachments }
-      const promptText = withAttachments(text, attachments)
-      if (room.live === true) {
-        if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
-        if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
-        const mode = roomModeOfRoom(room)
-        const messages = readMessages(room.id)
-        const policy = mode?.messagePolicy?.({ room, text, messages }) ?? null
-        // 规划师已经把这步交给人：人的这句话就是补充上下文，直接重跑这一步。
-        if (policy?.type === 'human-rework') {
-          const result = await stages.rework(room, { stage: policy.stage, note: promptText })
-          if (result.ok !== true) return result
-          return accepted({ room: result.body?.room ?? readRoom(room.id) })
-        }
-        // 所有步骤都通过以后，房间进入完成态：只和规划师说话，不再派活。
-        if (policy?.type === 'final-chat' && typeof live.sendToMember === 'function') {
-          const lead = leadMemberOf(room)?.id
-          if (typeof lead === 'string' && lead !== '') {
-            appendMessage(roomId, { kind: 'chat', authorId: 'you', text, ...(attachments.length === 0 ? {} : { meta: attachmentMeta }) })
-            await live.sendToMember(roomId, lead, [
-              promptText,
-              completionFacts(room, messages),
-              '所有步骤都已经通过，这间房在收尾：不要再派活，也不要转给执行官或验收员。',
-              '直接回答；要给新任务，建议人开一间新房。',
-              '以本次给出的事实清单为准；和它冲突的旧说法作废。房间里没有的记录，直接说不知道，不要补全；不要调用工具。',
-              INTERNAL_PROMPT_MARKER,
-            ].join('\n'), { intent: 'chat', from: 'you' })
-            return accepted({ accepted: true })
-          }
-        }
-        // 聊天室里用户是在对主持说话；主持判断直接回答还是请成员讨论。
-        // @ 是结构化指令，仍然直接交给被 @ 的成员。
-        if (policy?.type === 'host') return chat.input(room, { note: promptText })
-        // 结论之后 @ 成员：开一轮有主持和上限的讨论，不让成员在结论外自由接力。
-        if (policy?.type === 'continue') return chat.continue(room, { note: promptText })
-        await live.send(room.id, promptText, { mentions })
-        return accepted({ accepted: true })
-      }
-      const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text, ...(attachments.length === 0 ? {} : { meta: attachmentMeta }) })
-      const demoMessage = roomModeOfRoom(room)?.demoMessage
-      if (room.demo === true && typeof demoMessage === 'string' && demoMessage !== '') {
-        appendMessage(roomId, { kind: 'system', text: demoMessage })
-      }
-      const active = room.stages.find(stage => stage.state === 'active')
-      if (room.openQuestion !== null && active?.kind === 'decision') {
-        const updated = updateRoom(roomId, current => {
-          current.openQuestion = null
-          return { events: [] }
-        })
-        if (updated !== null) emit('room', updated)
-      }
-      return created({ message })
-    }
-
-    if (action === 'human-choice' && method === 'POST') {
-      if (room.state !== 'active') return fail('conflict', '房间没有在跑')
-      const body = await readBody()
-      const stage = Number(body.stage)
-      const choice = body.choice === 'accept' ? 'accept' : body.choice === 'rework' ? 'rework' : ''
-      if (choice === '') return fail('invalid', '选择只能是接受或重做')
-      const handoff = humanHandoffStageOf(room, readMessages(room.id))
-      if (handoff !== stage) return fail('conflict', '这一步没有等你决定')
-      if (choice === 'accept') {
-        const result = stages.accept(room, { stage, force: true })
-        if (result.ok === true) recordMemory(result.body?.room ?? readRoom(roomId))
-        return result
-      }
-      return stages.rework(room, {
-        stage,
-        note: typeof body.note === 'string' ? body.note : '',
-      })
-    }
-
-    if (action === 'accept' && method === 'POST') {
-      const result = stages.accept(room, await readBody())
-      if (result.ok === true) recordMemory(result.body?.room ?? readRoom(roomId))
-      return result
-    }
-
-    if (action === 'chat-continue' && method === 'POST') {
-      return chat.continue(room, await readBody())
-    }
-
-    if (action === 'chat-resume' && method === 'POST') {
-      return chat.restart(room, await readBody())
-    }
-
-    if (action === 'reject-plan' && method === 'POST') {
-      return closure.rejectPlan(room, await readBody())
-    }
-
-    if (action === 'resolve-merge' && method === 'POST') {
-      return resolveMerge(room)
-    }
-
-    if (action === 'rework' && method === 'POST') {
-      return stages.rework(room, await readBody())
-    }
-
-    if (action === 'retry' && method === 'POST') {
-      return stages.retry(room, await readBody())
-    }
-
-    if (action === 'rewind' && method === 'POST') {
-      return stages.rewind(room, await readBody())
-    }
-
-    return fail('method', '方法不对')
-  }
+  const { roomRequest } = createRoomActions({
+    store,
+    live,
+    emit,
+    attachments,
+    roomFiles,
+    files,
+    workspace,
+    startRound,
+    stopRound,
+    failRound,
+    rejectRound,
+    supersedeRound,
+    humanHandoffStageOf,
+    memberAdd,
+    memberRemove,
+    stages,
+    chat,
+    recordMemory,
+    createRoom,
+    resolveMerge,
+    rememberHuman,
+  })
 
   return {
     ...queries,

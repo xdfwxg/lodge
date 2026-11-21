@@ -24,7 +24,7 @@ const deliveryTitleFor = (goalTitle, handoff) => {
 }
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个成员一个基座线程与工作区。
-export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports, parentRoom = null }) => {
+export const createRealRoom = async ({ store, engine, live, emit, body, workspace = null, ports }) => {
   const request = normalizeRequest(body)
   if (request.error !== undefined) return fail('invalid', request.error)
   const {
@@ -228,8 +228,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       verify,
       acceptance,
       chatTurnLimit,
-        parentRoomId: parentRoom?.id ?? null,
-      depth: parentRoom === null ? 0 : (parentRoom.depth ?? 0) + 1,
       gate: gateRecordOf({
         review: gate,
         humanReviewed: handoffReviewed,
@@ -277,13 +275,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     store.writeWorkRound(firstRound)
     room = composeRoundView(studio, firstRound)
     stored = true
-    if (parentRoom !== null) {
-      const linked = store.updateRoom(parentRoom.id, current => {
-        current.childRoomIds = [...new Set([...(current.childRoomIds ?? []), room.id])]
-        return { events: [{ type: 'room.subroom.created', payload: { childRoomId: room.id } }] }
-      })
-      if (linked !== null) emit('room', linked)
-    }
     store.appendEvent(room.id, 'room.created', { live: true, templateId, members: room.members, sourceRepo, branch: room.branch })
     ports.roomFiles.writeGoal(room)
     for (const message of initialRoomMessages({

@@ -6,6 +6,7 @@ export const roundStatusOf = round => {
   if (round?.status === 'active') return '进行中'
   if (round?.status === 'planning') return '待决定'
   if (round?.status === 'rejected') return '已退回'
+  if (round?.status === 'failed') return '没做成'
   if (round?.status === 'superseded') return '已作废'
   if (round?.status === 'stopped') return '已停止'
   return '待开始'
@@ -15,7 +16,7 @@ export const roundNameOf = (round, index) => round?.name || round?.goal || `第 
 
 const toneOf = round => (
   round?.status === 'completed' ? 'done'
-    : ['rejected', 'superseded', 'stopped'].includes(round?.status) ? 'quiet'
+    : ['rejected', 'failed', 'superseded', 'stopped'].includes(round?.status) ? 'quiet'
       : 'active'
 )
 

@@ -160,12 +160,12 @@ test('the open panel is the goal, its steps and where the work stands', () => {
 test('the open panel lists every waiting item, including a subroom', () => {
   const html = render('open', null, {
     attention: [
-      { kind: 'signoff', stage: 0, label: '待签字' },
+      { kind: 'signoff', stage: 0, label: '待确认' },
       { kind: 'decision', stage: 0, label: '待确认', roomId: 'child-1', roomName: '写欢迎语' },
     ],
   })
   assert.match(html, /待处理/)
-  assert.match(html, /待签字/)
+  assert.match(html, /待确认/)
   assert.match(html, /写欢迎语/)
   assert.match(html, /去处理/)
 })

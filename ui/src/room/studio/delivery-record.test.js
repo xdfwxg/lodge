@@ -6,7 +6,8 @@ test('the delivery record carries goal, checks, verdicts and files', () => {
   const room = {
     name: '导出交付',
     goal: '在根目录写 hello.txt',
-    state: 'active',
+    state: 'idle',
+    workRound: { id: 'round-1', status: 'completed' },
     branch: 'crew/x/worker',
     stages: [
       { title: '目标对齐', state: 'passed' },

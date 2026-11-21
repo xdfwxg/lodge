@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { memberDisplayName } from '../../member-labels.js'
 import { createAssignment, transitionAssignment } from '../../assignments.js'
+import { armAssignmentLease } from './assignment-lease.js'
 
 const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, nonce }) => (
   createHash('sha256')
@@ -135,6 +136,14 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         reason,
         messageId: stored?.id,
       })
+      armAssignmentLease({
+        store,
+        roomId,
+        assignmentId: assignment.id,
+        stage: index,
+        memberId: to,
+        roundId: store.readRoom(roomId)?.workRound?.id ?? null,
+      })
       return sent ?? assignment
     }
     try {
@@ -163,6 +172,14 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         to,
         reason,
         messageId: stored?.id,
+      })
+      armAssignmentLease({
+        store,
+        roomId,
+        assignmentId: assignment.id,
+        stage: index,
+        memberId: to,
+        roundId: store.readRoom(roomId)?.workRound?.id ?? null,
       })
       return sent ?? assignment
     } catch (error) {

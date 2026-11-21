@@ -41,6 +41,12 @@ const setup = (initial, changes) => {
       current = next
       return current
     },
+    updateRound: (id, mutate) => {
+      const next = structuredClone(current)
+      if (mutate(next) === null) return null
+      current = next
+      return current
+    },
     appendMessage: (id, message) => {
       const stored = { id: `m-${messages.length + 1}`, seq: messages.length + 1, ...message }
       messages.push(stored)

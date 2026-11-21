@@ -17,8 +17,9 @@ test('body changes wait for a busy or speaking room', () => {
   assert.equal(bodyChangeBlocker(room({}), '换身体'), null)
 })
 
-test('ended, offline or approval-paused rooms refuse body changes', () => {
-  assert.match(bodyChangeBlocker(room({ state: 'complete' }), '换身体'), /已经结束/)
+test('archived, stopped, offline or approval-paused rooms refuse body changes', () => {
+  assert.match(bodyChangeBlocker(room({ archivedAt: 1 }), '换身体'), /已归档/)
+  assert.match(bodyChangeBlocker(room({ state: 'stopped' }), '换身体'), /已停止/)
   assert.match(bodyChangeBlocker(room({ connectionError: 'x' }), '移除成员'), /连接中断/)
   assert.match(bodyChangeBlocker(room({ pauseReason: 'approval' }), '加成员'), /待确认/)
 })

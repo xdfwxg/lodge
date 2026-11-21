@@ -4,9 +4,8 @@ import { capabilitiesFor } from '../rooms/kinds.js'
 
 test('chat and studio capabilities stay separated', () => {
   assert.equal(capabilitiesFor('chat').stages, false)
-  assert.equal(capabilitiesFor('chat').closure, false)
   assert.equal(capabilitiesFor('chat').piExecution, false)
-  assert.equal(capabilitiesFor('studio').closure, true)
+  assert.equal(capabilitiesFor('studio').stages, true)
   assert.equal(capabilitiesFor('studio').verdict, true)
   assert.equal(capabilitiesFor('mystery'), null)
   assert.equal(Object.isFrozen(capabilitiesFor('chat')), true)

@@ -5,8 +5,9 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { createStore } from './store.js'
 import {
-  databaseFile, latestBackup, listBackups, listMemoryBackups, memoryDir, restoreBackup,
-  snapshotDatabase, snapshotMemory, verifyDatabase,
+  archiveWorkspaces, databaseFile, latestBackup, latestWorkspaceArchive, listBackups, listMemoryBackups,
+  listWorkspaceArchives, memoryDir, restoreBackup, restoreWorkspaceArchive, snapshotDatabase,
+  snapshotMemory, verifyDatabase,
 } from './data-recovery.js'
 
 test('a database snapshot verifies and can restore the previous room state', () => {
@@ -57,6 +58,47 @@ test('room memory gets its own snapshot and keeps only the newest ten', () => {
     assert.equal(existsSync(join(dataDir, 'backups', 'memory-2-periodic')), false)
   } finally {
     rmSync(dataDir, { recursive: true, force: true })
+  }
+})
+
+test('workspaces are archived before reset and restored together', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'lodge-workspace-archive-'))
+  const parent = mkdtempSync(join(tmpdir(), 'lodge-workspace-roots-'))
+  const source = join(parent, 'CrewWorkspaces')
+  const target = join(parent, 'restored')
+  try {
+    mkdirSync(join(source, 'room-1'), { recursive: true })
+    writeFileSync(join(source, 'room-1', 'note.txt'), 'keep me')
+    const folder = archiveWorkspaces({
+      dataDir,
+      now: 123,
+      roots: [{ kind: 'workspaces', path: source }],
+    })
+    assert.equal(typeof folder, 'string')
+    assert.equal(latestWorkspaceArchive(dataDir).name, 'workspaces-123')
+    assert.deepEqual(listWorkspaceArchives(dataDir)[0].entries, [{ kind: 'workspaces', name: 'CrewWorkspaces' }])
+
+    const result = restoreWorkspaceArchive({
+      dataDir,
+      archive: 'workspaces-123',
+      now: 456,
+      roots: [{ kind: 'workspaces', path: target }],
+    })
+    assert.equal(readFileSync(join(target, 'room-1', 'note.txt'), 'utf8'), 'keep me')
+    assert.equal(result.safety, null)
+
+    assert.throws(
+      () => restoreWorkspaceArchive({ dataDir, archive: 'workspaces-123', roots: [{ kind: 'workspaces', path: target }] }),
+      /工作区已经存在/,
+    )
+    const forced = restoreWorkspaceArchive({
+      dataDir, archive: 'workspaces-123', roots: [{ kind: 'workspaces', path: target }], force: true,
+    })
+    assert.equal(typeof forced.safety, 'string')
+    assert.equal(readFileSync(join(target, 'room-1', 'note.txt'), 'utf8'), 'keep me')
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(parent, { recursive: true, force: true })
   }
 })
 

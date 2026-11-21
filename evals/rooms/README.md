@@ -45,6 +45,19 @@ npm run eval:rooms -- --baseline results/before.json
 
 单次最好成绩不算结论。改提示词、换模型、换工具面前后各跑同一组 case，看通过率、返工次数和成本是否稳定。
 
+## 夜间门禁
+
+一次通过只说明跑得通，不说明稳定。稳定性用重复跑看：
+
+```bash
+npm run eval:rooms:nightly      # 3 次/题，结果写 results/nightly
+npm run eval:planning:nightly   # 3 次/规划题
+```
+
+- 夜间门禁放在专用机器上，要求 Lodge 和基座都在运行；不要塞进每次提交的 `check:done`。
+- 报告看通过率、p50/p95、返工次数和成本，不只看单次最好成绩。
+- 发版前用 `npm run eval:rooms -- --runs 5`，把失败分类和未知成本一起写进验证记录。
+
 ## 边界
 
 - 调用真实模型，不进入 `npm test`，也不适合无人值守的 CI。

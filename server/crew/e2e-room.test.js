@@ -10,7 +10,6 @@ import { createChatTransport } from './rooms/chat/transport.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
 import { startRound } from './rounds/start.js'
-import { studioTransitionEvent, transitionStudio } from './rooms/studio/state.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createStore } from './store.js'
 
@@ -78,20 +77,8 @@ const fakeLive = () => ({
   cancel: async () => ({ cancelled: false }),
 })
 
-const moveStudio = (store, roomId) => (event, context = {}, actor = 'system', reason = '') => {
-  const current = store.readRoom(roomId)
-  const moved = transitionStudio(current.closure, event, context)
-  assert.equal(moved.ok, true, moved.error)
-  const updated = store.updateRoom(roomId, room => {
-    room.closure = moved.state
-    return { events: [studioTransitionEvent(moved, event, actor, context, reason)] }
-  })
-  assert.notEqual(updated, null)
-  return moved.state
-}
-
-// 确定性场景：不启动真实 CLI，只驱动业务路径、账本、门禁和状态机。
-test('deterministic room scenario reaches signed and accepted', async () => {
+// 确定性场景：不启动真实 CLI，只驱动业务路径、账本、门禁和阶段状态。
+test('deterministic room scenario completes the round and accepts it', async () => {
   const previous = process.env.CREW_WORKSPACE_ROOT
   const root = temp('lodge-e2e-workspace-')
   process.env.CREW_WORKSPACE_ROOT = root
@@ -124,10 +111,7 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     })
     assert.equal(studio.ok, true)
     const room = studio.body.room
-    assert.equal(room.closure, 'planned')
-
-    const move = moveStudio(store, room.id)
-    move('start_execute', {}, 'planner', '计划确认')
+    assert.equal(room.stages[1].state, 'active')
 
     const firstText = '验收命令 test -f E2E.md 已执行，退出码 0。'
     const firstEvidence = store.appendMessage(room.id, {
@@ -136,14 +120,12 @@ test('deterministic room scenario reaches signed and accepted', async () => {
       text: firstText,
       meta: { kind: 'command', stage: 1, command: 'test -f E2E.md', exit: 0, diff: 'D', files: ['E2E.md'] },
     })
-    move('submit_evidence', { exitCode: 0 }, 'executor', '提交第一轮证据')
     store.appendMessage(room.id, {
       kind: 'verdict',
       authorId: 'verifier',
       text: 'REJECT\n没有覆盖返工后的断言。',
       meta: { pass: false, stage: 1, evidenceId: firstEvidence.id, roleKind: 'verifier', mode: 'agent', reason: '缺少断言' },
     })
-    move('verdict_reject', {}, 'verifier', 'Verifier 打回')
 
     const completeRoom = createRoomCompleter({ store, emit: () => {}, roomFiles: ports.roomFiles, workspace: ports.workspace }).completeRoom
     const stages = createServiceStages({
@@ -162,7 +144,6 @@ test('deterministic room scenario reaches signed and accepted', async () => {
       text: '返工后重跑 test -f E2E.md，退出码 0。',
       meta: { kind: 'command', stage: 1, command: 'test -f E2E.md', exit: 0, diff: 'D', files: ['E2E.md'] },
     })
-    move('submit_evidence', { exitCode: 0 }, 'executor', '返工后重新提交')
     store.appendMessage(room.id, {
       kind: 'verdict',
       authorId: 'verifier',
@@ -178,7 +159,7 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     const first = stages.accept(store.readRoom(room.id), { stage: 1 })
     assert.equal(first.ok, true)
     // 最后一个工作阶段通过就收尾：这一轮完成，工作室回到空闲；交付卡跟着这一轮。
-    assert.equal(store.readRoom(room.id).closure, 'verifying')
+    assert.equal(store.readRoom(room.id).stages[1].state, 'passed')
     assert.equal(store.readRoom(room.id).state, 'idle')
     assert.equal(store.readRoom(room.id).workRound?.status, 'completed')
 
@@ -203,15 +184,10 @@ test('deterministic room scenario reaches signed and accepted', async () => {
     assert.equal(store.readWorkRounds(room.id).length, 2)
     assert.equal(store.readMessages(room.id).some(message => message.kind === 'verdict'), false)
 
-    const closureSequence = store.readEvents(room.id)
-      .filter(event => event.type === 'closure.transition')
-      .map(event => event.payload.event)
-    assert.deepEqual(closureSequence, [
-      'start_execute',
-      'submit_evidence',
-      'verdict_reject',
-      'submit_evidence',
-    ])
+    const passedStages = store.readEvents(room.id)
+      .filter(event => event.type === 'stage.passed')
+      .map(event => event.payload.stage)
+    assert.deepEqual(passedStages, [1])
 
     const chatRoom = await createRealRoom({
       store,

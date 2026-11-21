@@ -46,7 +46,7 @@ const setup = (room, liveOverrides = {}, portOverrides = {}, storeOverrides = {}
       return {}
     },
     appendEvent: () => {},
-    cancelTimer: id => cancelledTimers.push(id),
+    cancelWork: id => cancelledTimers.push(id),
     readAssignments: () => [],
     ...storeOverrides,
   }
@@ -99,39 +99,17 @@ test('archiving an active room stops it without a running engine', async () => {
   assert.equal(result.ok, true)
   assert.equal(result.body.room.state, 'stopped')
   assert.equal(result.body.room.live, false)
-  assert.equal(result.body.room.archivedLive, true)
   assert.equal(typeof result.body.room.archivedAt, 'number')
 })
 
-test('archiving a routine stops its future runs but keeps the chosen time', async () => {
-  const ctx = setup(roomRecord({
-    state: 'complete',
-    routine: {
-      days: [0, 1, 2, 3, 4, 5, 6],
-      hour: 9,
-      minute: 30,
-      enabled: true,
-      nextRunAt: Date.now() + 60_000,
-    },
-  }))
-  const result = await ctx.service.roomRequest('r1', 'archive', post({}))
-  assert.equal(result.ok, true)
-  assert.equal(result.body.room.routine.enabled, false)
-  assert.equal(result.body.room.routine.hour, 9)
-  assert.equal(result.body.room.routine.minute, 30)
-  assert.equal(result.body.room.routine.nextRunAt, null)
-  assert.deepEqual(ctx.cancelledTimers, ['routine:r1'])
-  assert.match(ctx.messages.at(-1).text, /归档/)
-})
-
 test('restoring a room clears the archive marker', async () => {
-  const ctx = setup(roomRecord({ archivedAt: 1, state: 'complete' }))
+  const ctx = setup(roomRecord({ archivedAt: 1, state: 'idle' }))
   const result = await ctx.service.roomRequest('r1', 'archive', post({ archived: false }))
   assert.equal(result.ok, true)
   assert.equal(result.body.room.archivedAt, null)
 })
 
-test('restoring a room archived while active brings it back and reattaches it', async () => {
+test('restoring an archived room returns it to idle, never reopens the round', async () => {
   const attached = []
   const ctx = setup(roomRecord({
     state: 'stopped',
@@ -146,27 +124,9 @@ test('restoring a room archived while active brings it back and reattaches it', 
   })
   const result = await ctx.service.roomRequest('r1', 'archive', post({ archived: false }))
   assert.equal(result.ok, true)
-  assert.equal(result.body.room.state, 'active')
-  assert.equal(result.body.room.live, true)
-  assert.equal(result.body.room.archivedAt, null)
-  assert.deepEqual(attached, ['r1'])
-})
-
-test('restoring a rejected room keeps it stopped', async () => {
-  const attached = []
-  const ctx = setup(roomRecord({
-    state: 'stopped',
-    live: true,
-    pauseReason: 'rejected',
-    archivedAt: 1,
-    archivedLive: true,
-  }), {
-    attach: async room => { attached.push(room.id) },
-  })
-  const result = await ctx.service.roomRequest('r1', 'archive', post({ archived: false }))
-  assert.equal(result.ok, true)
-  assert.equal(result.body.room.state, 'stopped')
+  assert.equal(result.body.room.state, 'idle')
   assert.equal(result.body.room.live, false)
+  assert.equal(result.body.room.archivedAt, null)
   assert.deepEqual(attached, [])
 })
 
@@ -221,7 +181,7 @@ test('interrupting a reply keeps the room active and cancels open work', async (
 })
 
 test('a room that is not running cannot interrupt a reply', async () => {
-  const ctx = setup(roomRecord({ state: 'complete', live: false }))
+  const ctx = setup(roomRecord({ state: 'idle', live: false }))
   const result = await ctx.service.roomRequest('r1', 'interrupt', post({}))
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'conflict')
@@ -277,7 +237,7 @@ test('an active room cannot be deleted', async () => {
 })
 
 test('deleting a finished room removes it and emits room.deleted', async () => {
-  const ctx = setup(roomRecord({ state: 'complete' }))
+  const ctx = setup(roomRecord({ state: 'idle' }))
   const result = await ctx.service.roomRequest('r1', 'delete', post({}))
   assert.equal(result.ok, true)
   assert.equal(result.body.id, 'r1')

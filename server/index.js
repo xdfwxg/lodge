@@ -5,11 +5,11 @@ import { fileURLToPath } from 'node:url'
 import { createCrewPorts } from './crew/crew-ports.js'
 import { createLiveRooms } from './crew/rooms/base/live.js'
 import { createRoomScheduler } from './crew/rooms/scheduler.js'
-import { createRoutineRunner } from './crew/rooms/routine-runner.js'
 import { ensureLodgeRoom } from './crew/rooms/lodge.js'
 import { acquireDataLock } from './crew/lock.js'
 import { presentRoom } from './crew/presentation.js'
 import { roundSummaryOf } from './crew/rounds/record.js'
+import { reconcileRounds } from './crew/rounds/recovery.js'
 import { createCrewService } from './crew/service.js'
 import { openPath } from './system-open.js'
 import { createHttpHandler } from './http.js'
@@ -111,20 +111,6 @@ if (store.fresh === true && store.readRooms().length === 0) {
 }
 setInterval(() => snapshotNow('periodic'), 6 * 60 * 60 * 1000).unref()
 
-// 子房等人的事也要出现在父房的收件箱里，所以投影前先读一眼子房。
-const attentionChildrenOf = room => (room.childRoomIds ?? [])
-  .map(childId => store.readRoom(childId))
-  .filter(child => child !== null)
-  .map(child => ({ room: child, messages: store.readRecentMessages(child.id) }))
-
-const routineRunOf = room => {
-  const runId = room?.routine?.lastRoomId
-  if (typeof runId !== 'string') return null
-  const runRoom = store.readRoom(runId)
-  if (runRoom === null) return null
-  return { room: runRoom, messages: store.readRecentMessages(runRoom.id) }
-}
-
 // 工作室不再等人签字：阶段一通过就自动往下走，房间像聊天一样继续。
 const autoAcceptPending = new Set()
 const nudgeStudio = room => {
@@ -156,25 +142,16 @@ const nudgeStudio = room => {
 // 房间事件和 /api/state 用同一份投影；UI 只消费 needsYou/独立性文案。
 let progressWriter = null
 const present = room => ({
-  ...presentRoom(room, store.readRecentMessages(room.id), store.readAssignments(room.id, { limit: 500 }), {
-    children: attentionChildrenOf(room),
-    routineRun: routineRunOf(room),
-  }),
+  ...presentRoom(room, store.readRecentMessages(room.id), store.readAssignments(room.id, { limit: 500 })),
   rounds: store.readWorkRounds(room.id).map(roundSummaryOf),
 })
 
 const emit = (event, payload, id) => {
   if (event === 'room' && payload !== null && typeof payload?.id === 'string') {
-    const runRoom = payload.routineGoalId !== undefined && payload.routineGoalId !== null
     payload = present(payload)
     nudgeStudio(payload)
     progressWriter?.(payload)
     broadcast(event, payload, id)
-    // run 停下来等人时，提醒要落在目标房；run 自己有变化就同步一次目标房。
-    if (runRoom) {
-      const goal = store.readRoom(payload.routineGoalId)
-      if (goal !== null) broadcast('room', present(goal), id)
-    }
     return
   }
   broadcast(event, payload, id)
@@ -183,6 +160,8 @@ const emit = (event, payload, id) => {
 const engine = assertRuntimePort(createEngine())
 
 let service = null
+reconcileRounds({ store, emit })
+store.reclaimWork?.()
 // 附件走基座自己的库；图片能被原生视觉模型看见，文件保留路径和文本正文。
 const baseForAttachments = createBaseClient()
 let roleSkillPacksReady = true
@@ -224,10 +203,8 @@ service = createCrewService({
   attachments: baseForAttachments,
 })
 
-const runRoutine = createRoutineRunner({ store, service, emit })
-
-// 持久 timer 到点后进房间 inbox，再由单 worker 处理；审批超时和例行工作都从这里恢复。
-const scheduler = createRoomScheduler({ store, live, onRoutine: runRoutine })
+// 持久 timer 到点后进房间 inbox，再由单 worker 处理；审批超时也从这里恢复。
+const scheduler = createRoomScheduler({ store, live })
 scheduler.start()
 
 const runWorkspaceGc = () => {

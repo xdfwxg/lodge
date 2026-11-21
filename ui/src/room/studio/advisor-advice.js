@@ -1,6 +1,6 @@
 import { createElement as h } from 'react'
 
-// 影子评审只保留一份对照意见，供人签字前按需查看；没有分数，也不参与验收判定。
+// 影子评审只保留一份对照意见，供人确认前按需查看；没有分数，也不参与验收判定。
 const adviceOf = entry => {
   const first = Array.isArray(entry?.advice) ? entry.advice[0] : null
   if (first === null || typeof first !== 'object') return null

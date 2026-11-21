@@ -55,12 +55,73 @@ test('a timed-out stage fails the open assignment and blocks for the human', asy
       timeoutMs: 20,
     })
     assert.equal(starter.watchStageTimeout(0), true)
+    const queued = ctx.store.readWork('room-1').find(item => item.kind === 'stage.deadline')
+    assert.equal(queued.status, 'pending')
+    assert.equal(queued.payload.stage, 0)
     await new Promise(resolve => setTimeout(resolve, 80))
+    assert.equal(ctx.store.readWork('room-1').find(item => item.kind === 'stage.deadline').status, 'cancelled')
     assert.equal(ctx.store.readAssignment(assignment.id).status, 'failed')
     const room = ctx.store.readRoom('room-1')
     assert.equal(room.blocked.reason, 'timeout')
     assert.equal(room.blocked.stage, 0)
     assert.ok(ctx.store.readMessages('room-1').some(message => /执行超时/.test(message.text ?? '')))
+  } finally {
+    ctx.store.db.close()
+    rmSync(ctx.dataDir, { recursive: true, force: true })
+    rmSync(ctx.repo, { recursive: true, force: true })
+  }
+})
+
+test('an expired assignment stops only that member and keeps the stage waiting', () => {
+  const ctx = setup()
+  try {
+    const first = dispatch(ctx.store, 'worker')
+    const second = dispatch(ctx.store, 'worker-2')
+    const starter = createStageStarter({
+      store: ctx.store,
+      roomId: 'room-1',
+      emit: () => {},
+      integrate: async () => {},
+      enqueue: task => task(),
+    })
+    assert.equal(starter.watchStageTimeout(0), true)
+    assert.equal(starter.expireAssignment(first.id), true)
+    assert.equal(ctx.store.readAssignment(first.id).status, 'failed')
+    assert.equal(ctx.store.readAssignment(second.id).status, 'sent')
+    assert.equal(ctx.store.readRoom('room-1').blocked, undefined)
+    assert.equal(ctx.store.readWork('room-1').find(item => item.kind === 'stage.deadline').status, 'pending')
+
+    assert.equal(starter.expireAssignment(second.id), true)
+    const room = ctx.store.readRoom('room-1')
+    assert.equal(room.blocked.reason, 'timeout')
+    assert.equal(room.blocked.source, 'lease')
+    assert.equal(ctx.store.readWork('room-1').find(item => item.kind === 'stage.deadline').status, 'cancelled')
+    assert.ok(ctx.store.readMessages('room-1').some(message => /长时间没有进展/.test(message.text ?? '')))
+  } finally {
+    ctx.store.db.close()
+    rmSync(ctx.dataDir, { recursive: true, force: true })
+    rmSync(ctx.repo, { recursive: true, force: true })
+  }
+})
+
+test('an expired assignment still integrates the members that did report', async () => {
+  const ctx = setup()
+  try {
+    const reported = dispatch(ctx.store, 'worker')
+    transitionAssignment(ctx.store, reported.id, 'reported')
+    const stalled = dispatch(ctx.store, 'worker-2')
+    const integrated = []
+    const starter = createStageStarter({
+      store: ctx.store,
+      roomId: 'room-1',
+      emit: () => {},
+      integrate: async options => integrated.push(options),
+      enqueue: task => task(),
+    })
+    assert.equal(starter.expireAssignment(stalled.id), true)
+    assert.equal(integrated.length, 1)
+    assert.deepEqual(integrated[0].workers, ['worker'])
+    assert.deepEqual(integrated[0].failed, ['worker-2'])
   } finally {
     ctx.store.db.close()
     rmSync(ctx.dataDir, { recursive: true, force: true })

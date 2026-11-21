@@ -60,6 +60,10 @@ test('work rounds are ordinal, project-scoped and versioned', () => {
     })
     assert.equal(first.ordinal, 1)
     assert.equal(first.status, 'planning')
+    store.updateWorkRound('round-1', current => {
+      current.status = 'completed'
+      return true
+    })
     const second = store.writeWorkRound({
       id: 'round-2', roomId: 'room-1', projectId: 'project-2', goal: '加导出',
     })
@@ -68,21 +72,150 @@ test('work rounds are ordinal, project-scoped and versioned', () => {
     assert.deepEqual(store.readWorkRounds('room-1').map(item => item.id), ['round-1', 'round-2'])
     assert.deepEqual(store.readWorkRoundsByProject('project-1').map(item => item.id), ['round-1'])
 
-    const updated = store.updateWorkRound('round-1', current => {
+    const updated = store.updateWorkRound('round-2', current => {
       current.status = 'completed'
       return true
     })
     assert.equal(updated.status, 'completed')
     assert.equal(updated.version, 2)
-    assert.equal(store.readWorkRound('round-1', 'room-1').status, 'completed')
-    assert.equal(store.readWorkRound('round-1', 'other-room'), null)
+    assert.equal(store.readWorkRound('round-2', 'room-1').status, 'completed')
+    assert.equal(store.readWorkRound('round-2', 'other-room'), null)
   } finally {
     store.db.close()
     rmSync(dir, { recursive: true, force: true })
   }
 })
 
-test('a studio reads the active round as a view and writes its fields back to the round', () => {
+test('a round starts and finishes atomically, with one open round per room', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({
+      id: 'room-1', name: '工作室', roomType: 'studio', state: 'idle',
+      activeRoundId: null, lastRoundId: null, members: [],
+    })
+    const started = store.startWorkRound({
+      roomId: 'room-1',
+      round: { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'active', goal: '修登录超时', stages: [] },
+    })
+    assert.equal(started.room.state, 'active')
+    assert.equal(started.room.activeRoundId, 'round-1')
+    assert.equal(store.startWorkRound({
+      roomId: 'room-1',
+      round: { id: 'round-2', roomId: 'room-1', ordinal: 2, status: 'active', goal: '加导出', stages: [] },
+    }), null)
+
+    const finished = store.finishWorkRound({
+      roomId: 'room-1',
+      roundId: 'round-1',
+      status: 'completed',
+      eventType: 'round.completed',
+      idempotencyKey: 'round-complete:round-1',
+    })
+    assert.equal(finished.room.state, 'idle')
+    assert.equal(finished.room.activeRoundId, null)
+    assert.equal(finished.room.lastRoundId, 'round-1')
+    assert.equal(finished.round.status, 'completed')
+
+    const duplicate = store.finishWorkRound({
+      roomId: 'room-1',
+      roundId: 'round-1',
+      status: 'completed',
+      eventType: 'round.completed',
+      idempotencyKey: 'round-complete:round-1',
+    })
+    assert.equal(duplicate.duplicate, true)
+
+    store.appendMessage('room-1', { kind: 'chat', authorId: 'you', text: '空闲时说的话' })
+    assert.equal(store.readMessages('room-1').some(message => message.text === '空闲时说的话'), true)
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('finishing a round cancels its work and leaves room-level work alone', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({
+      id: 'room-1', name: '工作室', roomType: 'studio', state: 'active', activeRoundId: 'round-1',
+    })
+    store.startWorkRound({
+      roomId: 'room-1',
+      round: { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'active', goal: '修登录超时', stages: [] },
+    })
+    store.enqueueWork({ roomId: 'room-1', roundId: 'round-1', kind: 'round-work', payload: {} })
+    store.enqueueWork({ roomId: 'room-1', kind: 'approval', dedupeKey: 'room-card', payload: {} })
+
+    store.finishWorkRound({ roomId: 'room-1', roundId: 'round-1', status: 'completed' })
+
+    const items = store.readWork('room-1')
+    assert.equal(items.find(item => item.round_id === 'round-1').status, 'cancelled')
+    assert.equal(items.find(item => item.round_id === null).status, 'pending')
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('reclaiming an expired lease reports work that ran out of attempts', () => {
+  const { dir, store } = temp()
+  try {
+    store.enqueueWork({ id: 'dead-1', roomId: 'room-1', kind: 'approval', availableAt: 0, maxAttempts: 1 })
+    const claimed = store.claimWork('room-1', { now: 1_000, leaseMs: 10 })
+    assert.equal(claimed.id, 'dead-1')
+    const reclaimed = store.reclaimWork({ now: 2_000 })
+    assert.deepEqual(reclaimed.dead.map(item => item.id), ['dead-1'])
+    assert.equal(store.readWork('room-1')[0].status, 'failed')
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('replayed events keep the idempotency key guard', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({ id: 'room-1', name: '工作室', state: 'active', activeRoundId: 'round-1' })
+    store.startWorkRound({
+      roomId: 'room-1',
+      round: { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'active', goal: '修登录超时', stages: [] },
+    })
+    store.finishWorkRound({
+      roomId: 'room-1', roundId: 'round-1', status: 'completed',
+      eventType: 'round.completed', idempotencyKey: 'round-complete:round-1',
+    })
+    assert.equal(store.recoverEvent({
+      id: 'replayed-event', roomId: 'room-1', type: 'round.completed',
+      payload: {}, idempotencyKey: 'round-complete:round-1',
+    }), null)
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('expired work leases are reclaimed and failures back off', () => {
+  const { dir, store } = temp()
+  try {
+    const queued = store.enqueueWork({ roomId: 'room-1', kind: 'approval', dedupeKey: 'source-1', availableAt: 0 })
+    const first = store.claimWork('room-1', { now: 1_000, leaseMs: 10 })
+    assert.equal(first.id, queued.id)
+    assert.equal(store.reclaimWork({ now: 2_000 }).changes, 1)
+    assert.equal(store.readWork('room-1')[0].status, 'pending')
+    const second = store.claimWork('room-1', { now: 3_000, leaseMs: 10 })
+    assert.equal(second.id, queued.id)
+    store.failWork(queued.id, 'temporary failure')
+    const pending = store.readWork('room-1')[0]
+    assert.equal(pending.status, 'pending')
+    assert.equal(pending.attempts, 2)
+    assert.match(pending.last_error, /temporary failure/)
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('updateRound reads the active round as a view and writes its fields back to the round', () => {
   const { dir, store } = temp()
   try {
     store.writeRoom({
@@ -99,7 +232,7 @@ test('a studio reads the active round as a view and writes its fields back to th
     assert.equal(view.workRound.id, 'round-1')
     assert.equal(view.stages[0].state, 'active')
 
-    const updated = store.updateRoom('room-1', current => {
+    const updated = store.updateRound('room-1', current => {
       current.stages[0].state = 'passed'
       return { events: [] }
     })
@@ -128,6 +261,11 @@ test('a completed round stays readable after the studio goes idle', () => {
     assert.equal(view.state, 'idle')
     assert.equal(view.goal, '修登录超时')
     assert.equal(view.workRound.status, 'completed')
+    assert.throws(
+      () => store.updateRound('room-1', current => { current.goal = '改旧轮' ; return { events: [] } }),
+      /已结束的轮次/,
+    )
+    assert.equal(store.readWorkRound('round-1', 'room-1').goal, '修登录超时')
   } finally {
     store.db.close()
     rmSync(dir, { recursive: true, force: true })

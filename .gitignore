@@ -13,5 +13,6 @@ build/base/
 
 evals/planning/results/
 evals/rooms/results/
+evals/long-task/results/
 test-results/
 playwright-report/

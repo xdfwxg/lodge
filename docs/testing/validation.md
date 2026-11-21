@@ -298,3 +298,88 @@
 - 自动覆盖：`server/crew/service-lifecycle.test.js`、`server/crew/store-rounds.test.js`、`ui/src/composer.test.js`、`ui/src/room/stop-reply.test.js`、`e2e/project.spec.mjs`。
 - `npm run check:done`：单测 1142、UI 端到端 18、文档 7、验收 85、回归 2。
 - 未跑：用新停止键真实中断一个模型回合；当前验证是接口状态和等待态 UI。
+
+## 2026-11-21 · 内核重写：轮次收口、持久队列与状态统一
+
+- 内核按「新规则、旧管道」重写：新增 `shared/room-status.js`、`server/crew/kernel/round.js`、`server/crew/rounds/lifecycle.js`；房间、轮次、消息和队列仍用现有 SQLite 表，schema 升到 v3。
+- 轮次状态补齐：`planning/active/completed/rejected/failed/superseded/stopped`。开始、完成、停止、退回、失败、作废统一清 `activeRoundId`、写 `lastRoundId`、房间回 `idle`；`stop-round`、`fail-round`、`supersede-round` 路由可直接调用。
+- `startWorkRound` / `finishWorkRound` 把轮次、房间指针和事件放进同一事务；完成失败不会只写一半。重复完成用 `idempotency_key` 返回原结果。
+- 空闲消息不再消失：`work_round_id=NULL` 是房间级消息，当前视图会带上；旧轮详情仍只读该轮。消息和 assignment 的轮次隔离测试保留。
+- 运行时释放：`studio/runtime.detach` 调 `turns.dispose`，清 stage timeout、自动重做等待和 planner nudge；完成、停止、归档、删除、开下一轮都会释放。
+- 持久队列：`room_inbox` 和 `room_timer` 合并为一张 `work_item`，带 attempts / max_attempts / available_at / lease_until / dedupe_key / last_error；到点、领取、完成、退避和死信同表。启动时 `reconcileRounds` 修房间/轮次指针，`reclaimWork` 回收租约。
+- 存储按职责拆开：`store/work.js`、`store/rounds.js`、`store/timeline.js`、`store/assignments.js`、`store/projects.js`；`store.js` 只做打开、组合和房间视图。HTTP 动作移到 `actions/room-actions.js`，`service.js` 只做组合根。
+- 轮次预算：`budgetMicroUsd` 进入 round；派发前按已知成本硬拦，超限暂停房间并写事件。完成摘要写进 round.completion，下一轮以一条系统消息带入步骤和决定。
+- 状态契约：`roomStatusOf` 只返回 `idle/active/paused/stopped/archived`；`roundStatusOf` 管轮次；`roundDelivered` 管上一轮是否已交付。工作室和聊天室不再用 `complete` 表示房间；侧栏、岛、项目页、交付记录统一读这套。
+- 旧代码删除：`rooms/routine-runner.js`、`rooms/studio/subrooms.js`、`shared/routine.js`、run-needs 卡、routine 测试与样式、`state='complete'` 分支、closure 的签字状态、子房创建路径和父子字段。`followup`、`nextRoomId`、`pastGoals`、`phase`、`generation` 已无生产引用。
+- 示例房改成 `idle + completed work_round`；首屏仍显示上一轮交付，但房间可以继续开下一轮。
+
+验证：
+
+- `npm test`：1098 项通过。
+- `npm run test:ui`：18 条端到端通过（构建后的真实 UI）。
+- `npm run check:docs`：7 个文档通过。
+- `npm run check:acceptance`：88 个关联测试通过。
+- `npm run check:regressions`：2 个回归通过。
+- 自评：grep 检查 `server/crew`、`ui/src`、`shared` 中无生产 `state='complete'` 房间分支；无 routines/subrooms 引用；新增状态、事务、租约、恢复测试覆盖主要不变量。
+
+未跑：
+
+- 真实模型两轮 `npm run eval:rooms` / `eval:planning`。当前验证是单测、构建和 UI 端到端，不是模型真实交付。
+- 真实 `.data` 还没有重置。schema v4 启动时会拒绝旧库；需要用户在确认后运行：
+
+```bash
+npm run data:reset -- --workspaces
+```
+
+脚本会先快照 `.data/backups`，再清 Lodge 数据和工作区，不动用户仓库。
+
+## 2026-11-21 · 执行运行时拆分与单队列收口
+
+- `rooms/studio/turns.js` 从 986 行收到 125 行，只做装配；`auto-check`、`planner-decision`、`turn-capture`、`resume` 移到 `rooms/studio/runtime/`，仍是模式内部模块，共享层没有反向依赖。
+- 队列只留一条入口：`enqueueWork` 同时承担首次投递和按 id 重设到点时间；`setTimer` / `cancelTimer` 删除，审批超时改走同一 API。轮次结束在同一事务里作废 `round_id` 匹配的待办和租约。
+- 死信不再沉默：`reclaimWork` 返回耗尽重试的项，调度器为每项写一条系统消息；未知 `kind` 直接失败进重试/死信，不再当作已完成吞掉。
+- 事件恢复保留 `idempotency_key`，从 transcript 回放不会再绕过重复保护。
+- 队列成为唯一的时钟：阶段超时除了内存计时器，还落一条 `stage.deadline` 持久项；进程重启后调度器仍会到点。调度器不再硬编码审批，到期项交给 `live.handleWork`，房型按 `kind` 处理；新增长期动作不需要改调度器。
+- `npm test` 1102、`test:ui` 18、文档 7、验收 88、回归 2，`npm run check:done` 通过。
+
+## 2026-11-21 · 去掉闭包机、显式轮次写入、聊天续跑、动作分族
+
+- `closure` 状态机整台删除：工作室不再存 `open/planned/executing/verifying/rejected`；当前阶段和轮次状态是唯一事实，`stateOf` 从 `stages` 推导。复核只检查房间是否还在跑，不再维护第二套生命周期。
+- 存储写入分成两条显式路径：`updateRoom` 只写房间字段，写轮次字段直接报错；`updateRound` 才读写当前轮视图。工作室、聊天和房间动作各自走对的入口，终态轮仍拒绝写入。
+- 聊天室补上持久时钟：讨论进行时占一条 `chat.round` 工作项，已发言次数落在 `chat.turns`；重启后从下一次发言续跑，不再整轮从头开始。调度器通过 `live.handleWork` 把到期项交给房型，聊天室和工作室共用同一条队列。
+- `actions/room-actions.js` 从 518 行收到 37 行，只做分派；`lodge`、运行中动作、房间本体、轮次动作分到 `actions/room/` 四个文件。
+- `npm test` 1099、`test:ui` 18、文档 7、验收 89、回归 2；`npm run check:done` 通过。
+
+## 2026-11-21 · 真实评测：v4 空库、三题房间与规划
+
+- 数据重置：停掉旧 8787 后运行 `npm run data:reset -- --workspaces`；重置前快照 `.data/backups/crew-1795268735990-pre-reset.db`，清掉 `.data`、`CrewWorkspaces`、`CrewWorktrees`，未动用户仓库。新库 `user_version=4`。
+- 真实厂商：本机 `claude` CLI 走 `https://api.deepseek.com/anthropic`，模型 `deepseek-v4-pro`；评测引擎记录为 `claude` 和 `pi`。界面上的厂商名不等于实际厂商。
+- 房间评测：`npm run eval:rooms -- --validate` 三把独立尺子 ok；`npm run eval:rooms` 3/3 PASS，0 返工，p50 57,849ms、max 69,990ms，合计 $0.5560（unknown 0）。逐题：revise-tone 24,657ms / $0.1252；slice-sheet 69,990ms / $0.2260；verify-catch 57,849ms / $0.2047。三题都 delivered、verdict pass、独立检查 ok。
+- 规划评测：`npm run eval:planning` 3/3 PASS，100 分，p50 8,304ms、max 10,299ms，4 个决策问题，验收命令均为 `npm test`。
+- 聊天评测：修掉 `eval:chat` 读已剥离 `seatBots` 的问题；本地脚本改为只读 `.data/crew.db` 取成员身体引用，不给公开状态加泄漏口。探针房 `room-dfa2cd85` PASS，执行者 20 字内回答且未使用工具；探针房已归档并删除。
+- 这次真实跑使用新内核：轮次收口、单队列、阶段持久截止、聊天续跑和显式 `updateRound` 都在实际房间里走过，不是只跑单测。
+
+## 2026-11-21 · 长期任务硬化：聊天补账、交接租约、重置归档
+
+- 聊天发送前落 `chat.pending = {turn, memberId, beforeIds, sentAt}`；回复到达后和 `turns` 在同一个 patch 清掉。重启时用 `findReply` 找已有回复，找到就补账、不重发；找不到只记一次未回应，不重说，避免重复。@ 接力的下一位也落同样的标记。
+- assignment 租约走同一条 `work_item`：`assignment.lease` 在 `sent` 后入队，每次捕获回合续租，`reported`/失败时取消。租约 8 分钟，短于阶段截止 15 分钟；一个成员到期只停这一位，还有别人在跑就继续等，最后一位停下才收口并合并已交回的部分。
+- `stage.timeoutStage` 的收口抽成 `settleTimedOutStage`，阶段截止和成员租约共用；阶段截止保留为整步兜底。
+- `data:reset -- --workspaces` 先归档 `CrewWorkspaces`/`CrewWorktrees` 到 `.data/backups/workspaces-<ts>/`，归档失败就中止；`data:restore --all` 或 `--workspaces <name>` 成对恢复，目标已存在默认拒绝，`--force` 才覆盖。
+- 真实评测分层：新增 `eval:rooms:nightly` 和 `eval:planning:nightly`（各 3 次），不进入 `check:done`；文档写清提交、夜间、发版三档。
+- 验证：`npm test` 1105 通过；工作区归档/恢复用临时根测试；未跑夜间真实评测。
+
+```bash
+npm run data:reset -- --workspaces   # 默认归档工作区
+npm run data:restore -- --all        # 数据库 + 最新工作区
+npm run eval:rooms:nightly
+npm run eval:planning:nightly
+```
+
+## 2026-11-21 · 跨轮长期任务评测回路
+
+- 新增 `evals/long-task/`：5 个场景（同室两轮、停止后开新轮、归档后恢复、预算触顶、人工退回），每个场景起两个独立进程，中间真实退出再重开，第二个进程先 `reconcileRounds` 再 `reclaimWork`。
+- 结果：5/5 通过，8 轮、4 轮完成，返工 1、人工介入 1，成本 $0.0050（每交付 $0.0013），p50 145ms。结果写 `evals/long-task/results/latest.md`，不提交。
+- 新增两条回归：停止后本轮工作在队列里全部取消、房间级审批不动；重启后第二轮仍在、旧轮消息隔离且只读。
+- `check:done` 增加 `npm run eval:long-task`；它不调用模型，运行前不需要 Lodge 或基座。
+- 工作室过时概念清理：删除无人引用的 `work-turn.js`；把「签字」统一成「确认」，同步设计文档、提示词、门禁错误和测试；架构/项目文档去掉 `nextRoomId`、`closure`、routines/subrooms 的历史比较，只留当前事实。
+- 验证：`npm test` 1107 通过；`npm run check:done` 全绿。

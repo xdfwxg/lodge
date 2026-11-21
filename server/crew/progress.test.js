@@ -2,16 +2,16 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './rooms/studio/progress.js'
 
-const room = () => ({ state: 'active', round: 0, noProgress: 0, idle: false })
+const room = () => ({ state: 'active', turnCount: 0, noProgress: 0, idle: false })
 
 test('a turn increments the round and a productive turn resets the counter', () => {
   const r = room()
   advanceProgress(r, { progressed: false })
   advanceProgress(r, { progressed: false })
-  assert.equal(r.round, 2)
+  assert.equal(r.turnCount, 2)
   assert.equal(r.noProgress, 2)
   advanceProgress(r, { progressed: true })
-  assert.equal(r.round, 3)
+  assert.equal(r.turnCount, 3)
   assert.equal(r.noProgress, 0)
 })
 

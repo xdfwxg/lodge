@@ -39,5 +39,7 @@ export const tail = (text, limit) => {
 }
 
 export const PARALLEL_TIMEOUT = 15 * 60_000
+// 单个成员先到期，阶段截止仍留作整步兜底；两者不能反过来。
+export const ASSIGNMENT_LEASE = 8 * 60_000
 export const REVIEW_TIMEOUT = 10 * 60_000
 export const REVIEW_REMINDER = 2 * 60_000

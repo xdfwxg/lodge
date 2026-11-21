@@ -10,7 +10,6 @@ export const STATUS_LABELS = Object.freeze([
   '已归档',
   '待确认',
   '待回答',
-  '待签字',
   '待重做',
   '待处理冲突',
   '验收员在看',

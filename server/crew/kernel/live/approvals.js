@@ -53,7 +53,7 @@ export const createLiveApprovals = ({
   })
 
   const clearTimer = (entry, approvalId) => {
-    store.cancelTimer?.(approvalId)
+    store.cancelWork?.(approvalId)
     const timer = entry?.approvalTimers?.get(approvalId)
     if (timer === undefined) return
     clearTimeout(timer)
@@ -61,7 +61,7 @@ export const createLiveApprovals = ({
   }
 
   const clearTimers = entry => {
-    for (const approvalId of entry?.approvalTimers?.keys() ?? []) store.cancelTimer?.(approvalId)
+    for (const approvalId of entry?.approvalTimers?.keys() ?? []) store.cancelWork?.(approvalId)
     for (const timer of entry?.approvalTimers?.values() ?? []) clearTimeout(timer)
     entry?.approvalTimers?.clear()
   }
@@ -119,11 +119,11 @@ export const createLiveApprovals = ({
     timer.unref?.()
     entry.approvalTimers.set(approval.id, timer)
     // 进程重启后靠这份持久 timer 找回；正常路径仍由上面的内存计时器先处理。
-    store.setTimer?.({
+    store.enqueueWork?.({
       id: approval.id,
       roomId: entry.roomId,
       kind: 'approval',
-      dueAt: Date.now() + approvalTimeoutMs,
+      availableAt: Date.now() + approvalTimeoutMs,
       payload: { approvalId: approval.id },
     })
   }

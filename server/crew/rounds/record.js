@@ -56,12 +56,12 @@ export const buildRound = ({
   plan = null,
   stages,
   gate = null,
-  closure = 'open',
   verificationMode = 'hybrid',
   shadowReview = false,
   orchestration = null,
   constraints = [],
   decisions = [],
+  budgetMicroUsd = null,
   origin = null,
 }) => ({
   id: newRoundId(),
@@ -74,13 +74,13 @@ export const buildRound = ({
   plan,
   stages,
   gate,
-  closure,
   verificationMode,
   shadowReview,
   orchestration,
   constraints,
   decisions,
   usage: undefined,
+  budgetMicroUsd: Number.isFinite(budgetMicroUsd) && budgetMicroUsd > 0 ? budgetMicroUsd : null,
   openQuestion: null,
   lastPlannerDecision: null,
   autoCheck: null,
@@ -107,9 +107,6 @@ export const studioFromRoom = (room, round) => {
     idle: false,
   }
   for (const field of ROUND_FIELDS) delete studio[field]
-  delete studio.pastGoals
-  delete studio.project
-  delete studio.phase
   delete studio.workRound
   delete studio.workRoundId
   return studio

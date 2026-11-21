@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { PEEK_MS, initialIslandState, peekRemaining, reduceIsland } from './island-machine.js'
 
-const decision = { key: 'decision:signoff:1', kind: 'decision', title: '等你签字' }
+const decision = { key: 'decision:signoff:1', kind: 'decision', title: '等你确认' }
 const milestone = { key: 'msg:2', kind: 'milestone', title: '第 2 步通过' }
 
 const start = { ...initialIslandState }

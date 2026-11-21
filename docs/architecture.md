@@ -9,6 +9,16 @@
 - 基座是独立的 `crew-chat-base`，固定 OpenMausBot OSS 版本，HTTP 接入，默认 8799。基座不在本仓库改。
 - 数据在 SQLite 单文件 + 房间目录的 transcript 与证据里。
 
+## 设计理念
+
+- **房间长期存在，轮次才是工作单位。** 完成只结束这一轮；房间回到空闲，工作区和成员留下。
+- **规则和管道分开。** `kernel/` 只写状态和转换；`store/` 只写事务和仓库；`actions/` 只写 HTTP 动作；`rooms/*` 只写房型执行。规则不依赖 SQL、端口或具体引擎。
+- **一个持久队列。** 定时、审批、重试和启动回收都进 `work_item`；先落库再执行，租约、退避、去重和死信同表。
+- **一层一个状态。** 房间说 `idle/active/paused/stopped/archived`；轮次说 `planning/active/completed/rejected/failed/superseded/stopped`；界面不再用一个 `complete` 同时表示两者。
+- **事务边界就是业务边界。** 轮次开始、完成、停止、退回、失败、作废都在一个事务里改轮次、房间指针和事件；不允许“阶段全过但房间卡住”。
+- **已验证的能力不重写。** gates、验收、workspace、engine 是执行能力，不是这次要换的管道；内核只负责把它们组织成可恢复的长期工作。
+- **为长期任务赢，不靠模型或提示词。** 差异化在连续性、证据、恢复和人的介入点；模型只做理解与计划，完成、权限、证据和金额的判定留在代码。
+
 ## 分层
 
 ```text
@@ -56,22 +66,39 @@ service.js                   ← 路由分发与用例组合
 
 ## 数据与真相
 
-- SQLite `room` 存长期工作室、成员、工作区和 `idle/active/paused/stopped`；`work_round` 存一轮的目标、计划、阶段、门、决策、费用和交付；`project` 存轮次分组和北极星。
-- `messages` 存时间线并带 `work_round_id`；证据和结论都是消息；`room_event` 存运行时 trace；`assignment` 存房间内交接并带 `work_round_id`。旧轮和新轮在存储上就分开。
+- SQLite `room` 存长期工作室、成员、工作区和 `idle/active/paused/stopped`；`work_round` 存一轮的目标、计划、阶段、门、决策、费用、预算和交付；`project` 存轮次分组和北极星。
+- `messages` 存时间线并带 `work_round_id`；`work_round_id=NULL` 是房间级消息，当前视图会带上它，旧轮详情只读该轮。证据和结论都是消息。
+- `room_event` 存结构化轮次/运行时事件，带 `idempotency_key`；`assignment` 存房间内交接并带 `work_round_id`。旧轮和新轮在存储上就分开。
+- `work_item` 是唯一的持久队列和唯一的时钟：定时、审批、阶段截止、重试和恢复都走它，带 `attempts/max_attempts/available_at/lease_until/dedupe_key/last_error`。`enqueueWork` 是唯一入口，同一个 id 再投一次表示重设到点时间；轮次结束时同事务作废属于该轮的待办，领取过期后按退避重试，耗尽即死信并通知人。
+- 调度器不认识房型：到期项交给 `live.handleWork`，房型按 `kind` 处理自己的活（`approval`、`stage.deadline`、`chat.round`）。新增一种长期动作只需注册一个处理器，不改调度器和存储。阶段超时同时有内存计时器保证准时和持久截止项保证重启后仍会到点；房型换轮或阶段已结束，迟到项是安全的空操作。
+- 聊天室也有持久时钟：一轮讨论进行时占一条 `chat.round` 工作项，`chat.turns` 落了已发言次数；进程重启后从下一次发言续跑，不把整轮从第一句重来。发送前先落 `chat.pending`（第几回合、谁、之前的消息 id）；重启时用它在基座历史里找已经到达的回复，找到就补账，找不到只记一次未回应，不重发。
+- 交接租约也走同一条队列：assignment 进入 `sent` 时落 `assignment.lease`（8 分钟），每次捕获回合续租，`reported` 或失败时取消。一个成员到期只停这一位；还有别人在跑就继续等，最后一位停下才收口。阶段截止（15 分钟）保留为整步兜底。
+- 存储拆成 `store/` 仓库：`work.js`、`rounds.js`、`timeline.js`、`assignments.js`、`projects.js`；`store.js` 只做打开、组合和房间视图。房间写入和轮次写入是两条显式路径：`updateRoom` 只写房间自己的字段，`updateRound` 才读写当前轮次；终态轮拒绝写入。HTTP 动作按动作族放在 `actions/room/{lodge,run,admin,round}.js`，`room-actions.js` 只做分派，`service.js` 只做组合根。
+- `SCHEMA_VERSION=4`；旧库版本不匹配直接拒绝，运行 `npm run data:reset` 重建。旧数据不迁移，不留兼容字段。
 - 房间目录 `transcript.jsonl` 先追加并 fsync，再写 SQLite；轮次级目标、结论和证据文件可重建。
 - 当前用户是全局资料（`profile` 表一份），房间展示和 agent 上下文从它读，不再各存 `humanName`；改昵称后下一次快照即全局生效。
-- 一轮完成只结束这一轮：工作室回到空闲；下一轮在同一工作室开，旧轮保留为可回看的轮次，不再新建房间或维护 `nextRoomId` 版本链。
+- 一轮完成只结束这一轮：工作室回到空闲；下一轮在同一工作室开，旧轮保留为可回看的轮次。
 - 没有全局成员表，也没有全局 Assignment 表；成员和交接跟着房间走。证据与 verdict 正文留在消息里，Assignment 只存引用。
 - 存储实现可替换，但业务真相必须落在支持约束与事务的持久存储。
+
+## 轮次生命周期
+
+- 状态：`planning | active | completed | rejected | failed | superseded | stopped`。终态不再回退。
+- 同一房间最多一个 open round（数据库部分唯一索引）；`room.activeRoundId` 为空或指向 open round。
+- 开始、完成、停止、退回、失败、作废都走同一条事务：更新轮次、清 `activeRoundId`、设 `lastRoundId`、房间回 `idle`，再写事件。
+- 完成要求所有阶段 passed 且没有未终态交接；失败只结束这一轮，不把房间变成终态。
+- 房间暂停不改变轮次状态；恢复继续同一轮。归档先停止 open round，再设 `archivedAt`；恢复回到 idle，不重新打开终态轮。
+- 运行时按 room+round 生命周期创建和释放；停止、完成、归档、删除都会清掉 stage timeout、自动重做和待确认卡。`rooms/studio/turns.js` 只做装配，自动检查、规划师决定、回合采集和重启续跑分别在 `rooms/studio/runtime/` 的四个模块里。
+- 状态读模型：`roomStatusOf` 只返回 `idle/active/paused/stopped/archived`；`roundStatusOf` 管轮次；`roundDelivered` 只说明上一轮是否已交付。当前阶段和轮次状态就是唯一事实，`stateOf` 只从 `stages` 读。
 
 ## Assignment
 
 发起人、接收人、阶段、原因、brief、状态、结果、证据引用、裁决引用、父交接、时间戳。
 
-- 接收人是成员或子房，二选一；同 id 对应同一次交接，重复创建返回原记录，不覆盖证据。
+- 接收人是房间成员；同 id 对应同一次交接，重复创建返回原记录，不覆盖证据。
 - 状态链：`created → sent → reported → passed`，另分 `failed / rejected`；只通过一个 transition 入口改，校验和写入同一事务；终态不回退。送达失败是重试，新建一条指向失败那条，不重开旧记录。
 - 派发状态和阶段任务从 Assignment 现算，不写回房间；交接卡按 id 找记录，按引用取证据。
-- 返工指向被退回的那条；复核指向被复核的执行；子房交付是房间级 Assignment，父房重启补收口。
+- 返工指向被退回的那条；复核指向被复核的执行。
 - 历史分页 `GET /api/rooms/:id/assignments`；每房保留最近 2000 条终态交接，未收口的不清理。
 
 ## 执行与验收
@@ -82,7 +109,7 @@ service.js                   ← 路由分发与用例组合
 - 多个执行官并行时各在自己的 worktree 里做，结束后集成；冲突停下交给人。
 - 验收员只读 + exec，不能写；没有第二厂商时明确标「模型自查」。
 - 三条方法硬约束：交付阶段的检查必须是一条能跑的命令；命令验收的阶段，改代码就必须带测试改动；验收 PASS 必须写一条 diff 之外的风险（没有写「无」）。前两条在建房和签收时拦，第三条在判定工具入口拦，不靠提示词自觉。
-- 人签字后阶段收口；最后一步与「验收与结论」合并，不让人为同一个判断点两次。
+- 人确认后阶段收口；最后一步与「验收与结论」合并，不让人为同一个判断点两次。
 
 ## 角色技能与房间投影
 

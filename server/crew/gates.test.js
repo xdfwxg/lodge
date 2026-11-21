@@ -217,7 +217,7 @@ test('a failed automatic check keeps a manual stage from being signed off', () =
   const gate = gateFor(r, 1, [manual, failedCheck])
   assert.equal(gate.ok, false)
   assert.match(gate.error, /自动检查没通过/)
-  // 重做后又跑通了，就放行让人签字。
+  // 重做后又跑通了，就放行让人确认。
   const passedCheck = { ...failedCheck, id: 'c-2', seq: 13, meta: { ...failedCheck.meta, exit: 0 } }
   const fresh = { ...manual, id: 'm-2', seq: 14 }
   assert.equal(gateFor(r, 1, [manual, failedCheck, passedCheck, fresh]).ok, true)

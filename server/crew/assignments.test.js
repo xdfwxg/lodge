@@ -162,17 +162,4 @@ test('assignment targets are explicit and stay inside the room', () => {
     () => createAssignment({ store, roomId: 'room-1', stageIndex: 0, toMemberId: 'ghost' }),
     /不在房间/,
   )
-  assert.throws(
-    () => createAssignment({ store, roomId: 'room-1', stageIndex: 0, toMemberId: null, reason: 'subroom' }),
-    /需要一个子房/,
-  )
-  const child = createAssignment({
-    store,
-    roomId: 'room-1',
-    stageIndex: 0,
-    toMemberId: null,
-    toRoomId: 'child',
-    reason: 'subroom',
-  })
-  assert.equal(child.toRoomId, 'child')
 })

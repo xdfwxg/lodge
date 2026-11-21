@@ -2,5 +2,5 @@
 export const independenceLabel = room => (
   room.independence === 'vendor'
     ? '独立复核'
-    : room.independence === 'human' ? '你签字验收' : '模型自查'
+    : room.independence === 'human' ? '你来确认' : '模型自查'
 )

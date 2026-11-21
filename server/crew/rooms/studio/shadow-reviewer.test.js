@@ -16,7 +16,7 @@ const fakeStore = initial => {
   return {
     readRoom: () => current,
     readMessages: () => [],
-    updateRoom: (id, mutate) => {
+    updateRound: (id, mutate) => {
       const next = structuredClone(current)
       if (mutate(next) === null) return null
       current = next

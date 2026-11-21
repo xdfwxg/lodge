@@ -141,6 +141,8 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 - SQLite（`crew.db`）是房间、消息、交接和审计的唯一真相；`transcript.jsonl` 是逐条 fsync 的恢复日志和可读镜像，启动时只补「日志已写、库没写」的消息。
 - 启动前和每 6 小时留 `backups/crew-<时间>-<原因>.db`，保留 10 份；工具步骤保留最近 2000 条，审计事件 5000 条；启动检查 `integrity_check`，坏库拒绝启动。
 - 恢复：先退出 Lodge，再 `npm run data:restore -- --list` / `--latest` / `--backup <file>`；桌面版加 `--data-dir "$HOME/Library/Application Support/lodge/data"`。恢复前会自动留 `pre-restore` 快照。
+- 重置工作区：`npm run data:reset -- --workspaces` 会先把 `CrewWorkspaces` / `CrewWorktrees` 归档到 `.data/backups/workspaces-<ts>/`，再删除；归档失败就中止，不删原目录。`--no-archive` 才直接删。
+- 成对恢复：`npm run data:restore -- --all` 恢复最新数据库和最新工作区归档；也可以 `--workspaces <name>` 单独恢复。目标目录已存在时默认拒绝，`--force` 才覆盖。
 - 停止窗口不删数据；退出 app 会停 Lodge 和它启动的基座。不要在共享基座上用空数据目录启动第二个 Lodge：空库首次启动会清掉基座里所有 Lodge 孤儿资源。
 
 ## 发布

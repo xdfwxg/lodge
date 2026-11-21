@@ -8,7 +8,6 @@ import { isChainMessage } from '../message-view.js'
 import { HumanGateCard } from './human-gate.js'
 import { MergeConflictCard } from './merge-conflict.js'
 import { DeliveryCard } from './delivery-card.js'
-import { RunNeedsCard } from './run-needs-card.js'
 import { ApprovalCard } from '../../approval-card.js'
 import { WorkingLine } from './working-line.js'
 import { RoomReview } from '../room-review.js'
@@ -46,11 +45,7 @@ export function StudioTranscript({
   onRework = null,
   onChoose = null,
   onReadArtifact = null,
-  onRoutine = null,
-  onOpenRun = null,
   onOpenRoom = null,
-  latestRun = null,
-  runs = [],
   onResolveMerge = null,
   onApproval = null,
   hideKinds = [],
@@ -139,7 +134,6 @@ export function StudioTranscript({
     approval,
     onDecide: decision => onApproval?.(approval.id, decision),
   }))
-  const runNeeds = room.needsYou?.kind === 'routine-run' ? room.needsYou : null
   const closingActions = h('div', { key: 'room-actions', className: 'studio-room-closing studio-room-actions' },
     delivery === null
       ? h('button', {
@@ -154,9 +148,6 @@ export function StudioTranscript({
   // 做完了就只给结果；完整工作记录收起来，需要时再看。
   if (finished) {
     return h('div', { className: 'studio-result' },
-      runNeeds === null
-        ? null
-        : h(RunNeedsCard, { key: 'routine-run-needs', needs: runNeeds, onOpenRun }),
       h('div', { key: 'room-closing', className: 'studio-room-closing-wrap' },
         delivery === null
           ? h('div', { className: 'studio-room-closing' }, h('span', null, '已交付'))
@@ -164,10 +155,6 @@ export function StudioTranscript({
             delivery,
             onDownload: () => { downloadDeliveryRecord(room) },
             onRead: onReadArtifact,
-            onRoutine,
-            onOpenRun,
-            latestRun,
-            runs,
           }),
         closingActions),
       items.length === 0 && advice === null

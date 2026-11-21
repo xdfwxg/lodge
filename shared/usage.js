@@ -15,6 +15,13 @@ export const emptyUsage = () => ({
   costStatus: 'reported',
 })
 
+export const usageBudgetExceeded = room => {
+  const budget = Number(room?.budgetMicroUsd)
+  if (!Number.isFinite(budget) || budget <= 0) return false
+  if (room?.usage?.costStatus === 'unknown') return false
+  return (Number(room?.usage?.costMicroUsd) || 0) >= budget
+}
+
 export const addTurnUsage = (current, usage) => {
   if (usage === null || typeof usage !== 'object') return null
   const prior = current ?? null

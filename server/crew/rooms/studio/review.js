@@ -6,7 +6,7 @@ import { REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
 import { DECISION_JSON_HINT, VERDICT_JSON_HINT, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../shared/gate.js'
 import { fenceUntrusted, sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
-import { studioTransitionEvent, transitionStudio } from './state.js'
+import { roomStatusOf } from '../../../../shared/room-status.js'
 import { workspaceOf } from './workspace.js'
 import { ensurePreviews } from './previews.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
@@ -227,14 +227,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           : `${name} 退回了这一步；@规划师 接手重做。`,
         meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner' },
       })
-      const current = store.readRoom(roomId)
-      const moved = transitionStudio(current?.closure ?? 'verifying', 'verdict_reject')
-      if (moved.ok) {
-        store.updateRoom(roomId, roomState => {
-          roomState.closure = moved.state
-          return { events: [studioTransitionEvent(moved, 'verdict_reject', pending.verifier, {}, 'Verifier 打回')] }
-        })
-      }
       // A reject is a handoff, not a silent status change. Wake the planner so
       // it decides whether the executor reworks or the human takes over.
       const lead = leadMemberOf(room)?.id
@@ -276,8 +268,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       reject('invalid', '这个阶段不是交付型')
     }
     if (stage.state !== 'active') reject('conflict', '这个阶段不在待验收状态')
-    if (room.closure === 'rejected' || room.closure === 'signed') {
-      reject('conflict', `房间已${room.closure === 'rejected' ? '拒绝' : '签字'}，不能发起复核`)
+    if (roomStatusOf(room) !== 'active') {
+      reject('conflict', '这一轮已经结束，不能再发起复核')
     }
     const messages = store.readMessages(roomId)
     const blind = room.orchestration === 'critique'
@@ -294,18 +286,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const evidence = outcome.evidence
     if (evidence === undefined || evidence === null) {
       reject('conflict', manual ? '还没有本阶段的结果证据' : '还没有本阶段的验收命令证据')
-    }
-    if (room.closure === 'executing') {
-      const moved = transitionStudio(room.closure, 'submit_evidence', {
-        manual,
-        exitCode: evidence.meta?.exit,
-      })
-      if (!moved.ok) reject('conflict', moved.error)
-      store.updateRoom(roomId, current => {
-        if (current.closure !== 'executing') return null
-        current.closure = moved.state
-        return { events: [studioTransitionEvent(moved, 'submit_evidence', 'verifier', { manual }, manual ? '人工证据就绪' : '验收命令通过')] }
-      })
     }
     if (round !== null && round.finished === true) {
       for (const [memberId, pending] of round.requests) {
@@ -340,7 +320,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidence,
       capture: previews?.capture,
       attachments,
-      updateRoom: store.updateRoom,
+      updateRound: store.updateRound,
     })
     const shotLines = shots.length === 0
       ? []
@@ -370,7 +350,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       requests: new Map(),
     }
     round = nextRound
-    store.updateRoom(roomId, current => {
+    store.updateRound(roomId, current => {
       current.reviewRetriedAt = Date.now()
       return { events: [] }
     })
@@ -440,7 +420,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             '请自己打开结果核对；这是人工验收阶段，没有验收命令。',
             '验收命令和证据只是底线：把结果和房间目标对照，明显不符合目标就写 REJECT，不要因为命令通过就放行。',
             '只评审交付结果；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
-            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
+            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能确认，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时只写具体缺口；系统会把判定交给规划师，不用自己 @ 人。PASS 时也不用 @ 人。',
             VERDICT_FORMAT,
@@ -471,7 +451,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             '请自己打开改动过的文件核对；必要时自己重跑验收命令，不要把上面的输出当成唯一依据。',
             '验收命令只是底线：把结果和房间目标对照，明显不符合目标就写 REJECT，不要因为命令通过就放行。',
             '只评审交付改动；`.crew/` 下是房间运行中的状态记录，不属于交付内容，忽略它。',
-            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能签字，任一 REJECT 都会退回。`] : []),
+            ...(ids.length > 1 ? [`本阶段共有 ${ids.length} 个验收成员；全部 PASS 才能确认，任一 REJECT 都会退回。`] : []),
             ...(reviewGuidance === '' ? [] : [reviewGuidance]),
             '第一行必须是 PASS 或 REJECT，单独一行；不要写「验收通过」代替 PASS。REJECT 时只写具体缺口；系统会把判定交给规划师，不用自己 @ 人。PASS 时也不用 @ 人。',
             VERDICT_FORMAT,
@@ -503,7 +483,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           round.finished = true
           store.appendMessage(roomId, {
             kind: 'system',
-            text: `本轮复核结束：${round.passed}/${round.total} 位验收员通过；其余未回报，不能签字。可以重新发起复核。`,
+            text: `本轮复核结束：${round.passed}/${round.total} 位验收员通过；其余未回报，不能确认。可以重新发起复核。`,
             meta: { kind: 'review_timeout', stage: stageIndex, verifiers: round.timedOut },
           })
         }

@@ -17,7 +17,6 @@ const applicationFiles = [
   'service.js',
   'service-queries.js',
   'rooms/studio/service-stages.js',
-  'rooms/studio/service-closure.js',
   'rooms/base/live.js',
   'rooms/kinds.js',
   'rooms/chat/runtime.js',
