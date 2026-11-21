@@ -8,7 +8,9 @@ import { buildDelivery } from './rooms/studio/delivery.js'
 import { createChatScheduler } from './rooms/chat/scheduler.js'
 import { createChatTransport } from './rooms/chat/transport.js'
 import { createRealRoom } from './rooms/create/create.js'
+import { buildFollowupBody } from './rooms/studio/followup.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
+import { startRound } from './rounds/start.js'
 import { studioTransitionEvent, transitionStudio } from './rooms/studio/state.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { createStore } from './store.js'
@@ -176,12 +178,36 @@ test('deterministic room scenario reaches signed and accepted', async () => {
 
     const first = stages.accept(store.readRoom(room.id), { stage: 1 })
     assert.equal(first.ok, true)
-    // 最后一个工作阶段通过就收尾：房间进入已交付，交付卡才有内容。
+    // 最后一个工作阶段通过就收尾：这一轮完成，工作室回到空闲；交付卡跟着这一轮。
     assert.equal(store.readRoom(room.id).closure, 'verifying')
-    assert.equal(store.readRoom(room.id).state, 'complete')
+    assert.equal(store.readRoom(room.id).state, 'idle')
+    assert.equal(store.readRoom(room.id).workRound?.status, 'completed')
 
     const delivery = buildDelivery(store.readRoom(room.id), store.readMessages(room.id))
     assert.equal(delivery.evidenceCount, 2)
+
+    const firstRound = store.readRoom(room.id).workRound
+    const next = buildFollowupBody({
+      room: store.readRoom(room.id),
+      messages: store.readMessages(room.id),
+      text: '再补一行说明',
+      verify: 'manual',
+    })
+    const started = await startRound({
+      store,
+      live,
+      emit: () => {},
+      room: store.readRoom(room.id),
+      body: next.body,
+      roomFiles: ports.roomFiles,
+    })
+    assert.equal(started.ok, true, started.error)
+    const second = store.readRoom(room.id)
+    assert.equal(second.state, 'active')
+    assert.equal(second.workRound.status, 'active')
+    assert.notEqual(second.workRound.id, firstRound.id)
+    assert.equal(store.readWorkRounds(room.id).length, 2)
+    assert.equal(store.readMessages(room.id).some(message => message.kind === 'verdict'), false)
 
     const closureSequence = store.readEvents(room.id)
       .filter(event => event.type === 'closure.transition')

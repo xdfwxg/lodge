@@ -95,13 +95,13 @@ export const studioView = {
   },
   presence: () => null,
   canFollowup: ({ room }) => (
-    room.state === 'complete' &&
+    (room.state === 'idle' || room.state === 'complete' || room.workRound?.status === 'completed') &&
     (room.stages ?? []).length > 0 &&
     room.stages.every(stage => stage.state === 'passed')
   ),
   composerPlaceholder: ({ room, members }) => {
     const done = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
-    if (room.state === 'complete' || done) return '问规划师；要开下一版，点发送旁的 ⌄'
+    if (room.state === 'idle' || room.state === 'complete' || done) return '说说下一轮要做什么；要开新一轮，点发送旁的 ⌄'
     const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
     if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === active) {
       return '把缺的信息发给这一步…'

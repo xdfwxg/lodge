@@ -82,6 +82,78 @@ test('work rounds are ordinal, project-scoped and versioned', () => {
   }
 })
 
+test('a studio reads the active round as a view and writes its fields back to the round', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({
+      id: 'room-1', name: '工作室', state: 'active', activeRoundId: 'round-1',
+      members: [], roomType: 'studio',
+    })
+    store.writeWorkRound({
+      id: 'round-1', roomId: 'room-1', goal: '修登录超时',
+      stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
+    })
+
+    const view = store.readRoom('room-1')
+    assert.equal(view.goal, '修登录超时')
+    assert.equal(view.workRound.id, 'round-1')
+    assert.equal(view.stages[0].state, 'active')
+
+    const updated = store.updateRoom('room-1', current => {
+      current.stages[0].state = 'passed'
+      return { events: [] }
+    })
+    assert.equal(updated.stages[0].state, 'passed')
+    assert.equal(store.readWorkRound('round-1').stages[0].state, 'passed')
+
+    const raw = JSON.parse(store.db.prepare('SELECT payload FROM room WHERE id = ?').get('room-1').payload)
+    assert.equal(raw.stages, undefined)
+    assert.equal(raw.goal, undefined)
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a completed round stays readable after the studio goes idle', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({
+      id: 'room-1', name: '工作室', state: 'idle', lastRoundId: 'round-1',
+    })
+    store.writeWorkRound({
+      id: 'round-1', roomId: 'room-1', goal: '修登录超时', status: 'completed',
+    })
+    const view = store.readRoom('room-1')
+    assert.equal(view.state, 'idle')
+    assert.equal(view.goal, '修登录超时')
+    assert.equal(view.workRound.status, 'completed')
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('messages and assignments default to the active round', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({
+      id: 'room-1', demo: true, name: '工作室', state: 'active', activeRoundId: 'round-1',
+    })
+    store.appendMessage('room-1', { kind: 'system', text: '这一轮' })
+    store.appendMessage('room-1', { kind: 'system', text: '旧轮', workRoundId: 'round-0' })
+    assert.deepEqual(store.readMessages('room-1').map(item => item.text), ['这一轮'])
+    assert.deepEqual(store.readMessages('room-1', { workRoundId: null }).map(item => item.text), ['这一轮', '旧轮'])
+    assert.equal(store.readMessages('room-1')[0].workRoundId, 'round-1')
+
+    store.writeAssignment({ id: 'assignment-1', roomId: 'room-1', stageIndex: 0, status: 'created' })
+    assert.equal(store.readAssignment('assignment-1').workRoundId, 'round-1')
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('messages and assignments can be read inside one work round only', () => {
   const { dir, store } = temp()
   try {

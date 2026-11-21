@@ -2,9 +2,10 @@ import { join } from 'node:path'
 import { persistenceKind } from '../../service-policy.js'
 
 export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
-  const { readRoom, readMessages, updateRoom, appendMessage, appendEvent } = store
+  const { readRoom, readMessages, updateRoom, updateWorkRound, appendMessage, appendEvent } = store
 
   const completeRoom = room => {
+    const round = room.workRound ?? null
     appendMessage(room.id, {
       kind: 'conclusion',
       authorId: 'planner',
@@ -23,16 +24,34 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       return room
     }
     roomFiles.writeConclusion(room)
-    const archived = updateRoom(room.id, current => {
-      current.state = 'complete'
-      current.pastGoals = [...(current.pastGoals ?? []), {
-        goal: current.goal,
-        stages: current.stages.map(stage => ({ title: stage.title, kind: stage.kind, state: stage.state })),
-        completedAt: Date.now(),
-      }].slice(-5)
-      return { events: [{ type: 'goal.archived', payload: { stages: current.stages.length } }] }
-    })
-    if (archived !== null) emit('room', archived)
+    if (round !== null) {
+      const completed = updateWorkRound(round.id, current => {
+        current.status = 'completed'
+        current.completedAt = current.completedAt ?? Date.now()
+        current.completion = {
+          goal: current.goal,
+          stages: current.stages.map(stage => ({ title: stage.title, kind: stage.kind, state: stage.state })),
+          completedAt: current.completedAt,
+        }
+        return true
+      })
+      if (completed !== null) emit('round', completed)
+      const archived = updateRoom(room.id, current => {
+        current.state = 'idle'
+        current.activeRoundId = null
+        current.lastRoundId = round.id
+        current.idle = true
+        return { events: [{ type: 'round.completed', payload: { roundId: round.id, stages: current.stages?.length ?? 0 } }] }
+      })
+      if (archived !== null) emit('room', archived)
+    } else {
+      // 旧房间的兼容路径只在测试 fixture 里出现；新房间都带 workRound。
+      const archived = updateRoom(room.id, current => {
+        current.state = 'complete'
+        return { events: [{ type: 'goal.archived', payload: { stages: current.stages?.length ?? 0 } }] }
+      })
+      if (archived !== null) emit('room', archived)
+    }
     if (typeof room.routineGoalId === 'string') {
       const goal = readRoom(room.routineGoalId)
       if (goal !== null) {
@@ -56,20 +75,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       ...(message.meta?.artifacts ?? []).map(artifact => artifact.path).filter(Boolean),
       ...(message.meta?.changedFiles ?? []).map(file => join(roomFiles.roomRootOf(room), file)),
     ])
-    // 交付目录保留；只清掉非交付成员工作区。git 房间的候选分支仍在源仓库，可人工重建查看。
-    try {
-      const pruned = roomWorkspace.pruneMembers(room)
-      const fresh = pruned.filter(member => !(room.prunedMembers ?? []).includes(member))
-      if (fresh.length > 0) {
-        const updated = updateRoom(room.id, current => {
-          current.prunedMembers = pruned
-          return { events: [{ type: 'room.prune', payload: { members: fresh } }] }
-        })
-        if (updated !== null) emit('room', updated)
-      }
-    } catch (error) {
-      console.warn(`[lodge] 临时文件没能清理：${error?.message ?? error}`)
-    }
+    // 长期工作室不在轮次结束时清理成员工作区；下一轮还要用同一套目录。
     const persistence = persistenceKind(capabilities)
     if (persistence !== 'commit') {
       appendEvent(room.id, 'room.commit', {

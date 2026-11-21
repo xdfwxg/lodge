@@ -12,6 +12,7 @@ import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
 import { grantBrowserToAll, needsBrowser, stripBrowser } from '../../room-access.js'
 import { uniqueRoomShort } from './short-id.js'
+import { buildRoundFromRoom, composeRoundView, studioFromRoom } from '../../rounds/record.js'
 
 const deliveryTitleFor = (goalTitle, handoff) => {
   if (handoff === null || handoff === undefined) return goalTitle
@@ -267,7 +268,11 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         ],
       }
     }
-    store.writeRoom(room)
+    const firstRound = buildRoundFromRoom({ room, ordinal: 1, status: 'active' })
+    const studio = studioFromRoom(room, firstRound)
+    store.writeRoom(studio)
+    store.writeWorkRound(firstRound)
+    room = composeRoundView(studio, firstRound)
     stored = true
     if (parentRoom !== null) {
       const linked = store.updateRoom(parentRoom.id, current => {

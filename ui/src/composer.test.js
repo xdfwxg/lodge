@@ -17,7 +17,7 @@ test('a follow-up room renders one send control with a secondary menu', () => {
   assert.match(html, /aria-label="更多提交方式"/)
   assert.match(html, /data-empty="true"/)
   assert.doesNotMatch(html, /crew-composer-followup/)
-  assert.doesNotMatch(html, /接着改，开下一版/)
+  assert.doesNotMatch(html, /role="menuitem"/)
 })
 
 test('a normal room keeps a single send button', () => {

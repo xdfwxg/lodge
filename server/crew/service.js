@@ -6,6 +6,7 @@ import { transitionAssignment } from './assignments.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { accepted, BusinessError, created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
+import { startRound } from './rounds/start.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceClosure } from './rooms/studio/service-closure.js'
@@ -681,7 +682,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       return fail('conflict', room.state === 'paused' ? '房间已暂停' : '房间已停止')
     }
 
-    // 已交付的房间里说一句要改什么：不开完整表单，直接建下一版并保持两间房的来源链。
+    // 已交付的房间里说一句要改什么：在同一个工作间开下一轮，不新建房间。
     if (action === 'followup' && method === 'POST') {
       const body = await readBody()
       const text = typeof body.text === 'string' ? body.text.trim() : ''
@@ -700,27 +701,27 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       })
       if (built.error !== undefined) return fail('invalid', built.error)
       rememberHuman(room.id, body)
-      const result = await createRoom(built.body)
+      const result = await startRound({
+        store,
+        live,
+        emit,
+        room,
+        body: {
+          ...built.body,
+          ...(typeof body.projectId === 'string' ? { projectId: body.projectId } : {}),
+        },
+        roomFiles,
+      })
       if (result?.ok !== true) return result
-      const createdRoom = result.body?.room ?? null
-      if (createdRoom === null) return fail('upstream', '下一版没有建起来')
       appendMessage(room.id, {
         kind: 'chat',
         authorId: 'you',
         text,
         ...(attachments.length === 0 ? {} : { meta: { attachments } }),
       })
-      appendMessage(room.id, {
-        kind: 'system',
-        text: `下一版开好了：${createdRoom.name}`,
-        meta: { kind: 'followup', openRoomId: createdRoom.id },
-      })
-      const linked = updateRoom(room.id, current => {
-        current.nextRoomId = createdRoom.id
-        return { events: [{ type: 'room.followup', payload: { roomId: createdRoom.id } }] }
-      })
-      if (linked !== null) emit('room', linked)
-      return created({ room: createdRoom })
+      const updated = result.body?.room ?? store.readRoom(room.id) ?? room
+      emit('room', updated)
+      return accepted({ room: updated })
     }
 
     if (action === 'messages' && method === 'POST') {

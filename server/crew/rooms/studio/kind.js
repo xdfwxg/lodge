@@ -180,7 +180,7 @@ const resolveStageAssignees = (plan, roster) => {
 }
 
 
-const studioConstraints = ({
+export const studioConstraints = ({
   plan,
   verify,
   acceptance,
@@ -367,7 +367,8 @@ export const studioKind = {
 
   // 交付卡是工作室投影；共享层只拿结果，不碰阶段与证据结构。
   deliveryOf: (room, messages) => (
-    room.state === 'complete' && (room.closure !== undefined || Array.isArray(room.stages))
+    (room.workRound?.status === 'completed' || room.state === 'complete') &&
+    (room.closure !== undefined || Array.isArray(room.stages))
       ? buildDelivery(room, messages)
       : null
   ),

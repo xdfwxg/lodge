@@ -132,6 +132,6 @@ test('a delivered room keeps one send control with a next-version menu', async (
 
   await page.getByRole('combobox', { name: '房间消息' }).fill('再改一版')
   await page.getByRole('button', { name: '更多提交方式' }).click()
-  await expect(page.getByRole('menuitem', { name: /接着改，开下一版/ })).toBeVisible()
-  await expect(page.getByRole('menuitem', { name: /原班人马和工作区沿用/ })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: /开新一轮/ })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: /同一工作室，成员和工作区沿用/ })).toBeVisible()
 })

@@ -389,6 +389,7 @@ const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.ne
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
   if (room?.state === 'complete') return room?.modeCapabilities?.stages === false ? '已确认' : '已交付'
+  if (room?.state === 'idle') return '空闲'
   if (room?.state === 'stopped') return '已停止'
   if (room?.state === 'paused') return '已暂停'
   if (room?.state === 'active') return '进行中'

@@ -351,7 +351,7 @@ function Composer({
               type: 'button',
               className: 'crew-send-more',
               'aria-label': '更多提交方式',
-              title: '用这句话开下一版',
+              title: '用这句话开新一轮',
               'aria-haspopup': 'menu',
               'aria-expanded': followupOpen,
               disabled: disabled || uploading || !hasDraft,
@@ -376,8 +376,8 @@ function Composer({
                   disabled: disabled || uploading || !hasDraft,
                   onClick: followup,
                 },
-                h('b', null, '接着改，开下一版'),
-                h('span', null, hasDraft ? '原班人马和工作区沿用' : '先写一句要改什么')))
+                h('b', null, '开新一轮'),
+                h('span', null, hasDraft ? '同一工作室，成员和工作区沿用' : '先写一句这一轮要做什么')))
               : null)
     ))
 }

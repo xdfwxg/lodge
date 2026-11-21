@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { appendEventLog, appendTranscript, writeEvidence } from './room-repo.js'
+import { ROUND_FIELDS, workRoundIdOf } from '../../shared/work-round.js'
 
 export const SCHEMA_VERSION = 2
 
@@ -112,7 +113,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     if (row === undefined) return null
     const room = JSON.parse(row.payload)
     room.version = row.version
-    return room
+    return composeRoomView(room)
   }
   // 当前用户是全局资料，不是每个房间各存一份称呼。
   const readProfile = () => {
@@ -149,7 +150,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     return room
   }
   const readRooms = () => db.prepare("SELECT payload, version FROM room WHERE id <> 'dispatch' ORDER BY rowid").all()
-    .map(row => ({ ...JSON.parse(row.payload), version: row.version }))
+    .map(row => composeRoomView({ ...JSON.parse(row.payload), version: row.version }))
 
   const writeProject = project => {
     const now = Date.now()
@@ -253,18 +254,61 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   const deleteWorkRoundsForRoom = roomId => Number(
     db.prepare('DELETE FROM work_round WHERE room_id = ?').run(roomId).changes,
   )
-  const readMessages = (roomId, { workRoundId = null } = {}) => {
-    const rows = workRoundId === null
+
+  // 房间是长期容器；当前轮次是读取时组合出来的视图，不复制进 room payload。
+  function composeRoomView(room) {
+    const roundId = room.activeRoundId ?? room.lastRoundId
+    if (typeof roundId !== 'string' || roundId === '') return room
+    const workRound = readWorkRound(roundId, room.id)
+    if (workRound === null) return room
+    const view = { ...room }
+    for (const field of ROUND_FIELDS) {
+      if (workRound[field] !== undefined) view[field] = workRound[field]
+    }
+    view.workRound = workRound
+    view.workRoundId = workRound.id
+    return view
+  }
+
+  // updateRoom 是视图级写入：轮次字段落到 work_round，房间字段留在 room。
+  function applyRoundPatch(roundId, patch) {
+    const row = db.prepare('SELECT payload, version FROM work_round WHERE id = ?').get(roundId)
+    if (row === undefined) return null
+    const round = JSON.parse(row.payload)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value !== undefined) round[key] = value
+    }
+    const version = Number(row.version) + 1
+    round.version = version
+    round.updatedAt = Date.now()
+    const updated = db.prepare(
+      'UPDATE work_round SET project_id = ?, ordinal = ?, status = ?, payload = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?',
+    ).run(
+      round.projectId ?? null, round.ordinal ?? 1, round.status ?? 'planning',
+      JSON.stringify(round), version, round.updatedAt, roundId, row.version,
+    )
+    return Number(updated.changes) > 0 ? round : null
+  }
+
+  const roundIdForRead = roomId => {
+    const room = readRoom(roomId)
+    if (room === null) return null
+    return room.activeRoundId ?? room.lastRoundId ?? null
+  }
+  const readMessages = (roomId, { workRoundId } = {}) => {
+    const scoped = workRoundId === undefined ? roundIdForRead(roomId) : workRoundId
+    const rows = scoped === null
       ? db.prepare('SELECT payload FROM messages WHERE room_id = ? ORDER BY seq').all(roomId)
-      : db.prepare('SELECT payload FROM messages WHERE room_id = ? AND work_round_id = ? ORDER BY seq').all(roomId, workRoundId)
+      : db.prepare('SELECT payload FROM messages WHERE room_id = ? AND work_round_id = ? ORDER BY seq').all(roomId, scoped)
     return rows.map(row => JSON.parse(row.payload))
   }
   // 展示层只取最近一段；内部迁移和证据仍用 readMessages 读全量。
-  const readRecentMessages = (roomId, limit = 5000, { workRoundId = null } = {}) => {
+  const readRecentMessages = (roomId, limit = 5000, { workRoundId } = {}) => {
     const size = Math.max(1, Math.min(10000, Number(limit) || 5000))
-    const rows = workRoundId === null
+    const scoped = workRoundId === undefined ? roundIdForRead(roomId) : workRoundId
+    const rows = scoped === null
       ? db.prepare('SELECT payload FROM (SELECT seq, payload FROM messages WHERE room_id = ? ORDER BY seq DESC LIMIT ?) ORDER BY seq').all(roomId, size)
-      : db.prepare('SELECT payload FROM (SELECT seq, payload FROM messages WHERE room_id = ? AND work_round_id = ? ORDER BY seq DESC LIMIT ?) ORDER BY seq').all(roomId, workRoundId, size)
+      : db.prepare('SELECT payload FROM (SELECT seq, payload FROM messages WHERE room_id = ? AND work_round_id = ? ORDER BY seq DESC LIMIT ?) ORDER BY seq').all(roomId, scoped, size)
     return rows.map(row => JSON.parse(row.payload))
   }
   const maxMessageSeq = roomId => db.prepare('SELECT COALESCE(MAX(seq), 0) AS seq FROM messages WHERE room_id = ?').get(roomId)?.seq ?? 0
@@ -290,10 +334,11 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       : db.prepare('SELECT payload FROM assignment WHERE id = ? AND room_id = ?').get(id, roomId)
     return row === undefined ? null : JSON.parse(row.payload)
   }
-  const readAssignments = (roomId, { workRoundId = null, stage = null, status = null, before = null, limit = 500 } = {}) => {
+  const readAssignments = (roomId, { workRoundId, stage = null, status = null, before = null, limit = 500 } = {}) => {
     const where = ['room_id = ?']
     const params = [roomId]
-    if (typeof workRoundId === 'string' && workRoundId !== '') { where.push('work_round_id = ?'); params.push(workRoundId) }
+    const scoped = workRoundId === undefined ? roundIdForRead(roomId) : workRoundId
+    if (typeof scoped === 'string' && scoped !== '') { where.push('work_round_id = ?'); params.push(scoped) }
     if (Number.isInteger(stage)) { where.push('stage = ?'); params.push(stage) }
     if (typeof status === 'string' && status !== '') { where.push('status = ?'); params.push(status) }
     if (typeof before === 'string' && before !== '') {
@@ -315,8 +360,11 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   }
   const writeAssignment = assignment => {
     const now = Date.now()
+    const room = readRoom(assignment.roomId)
+    const workRoundId = assignment.workRoundId ?? room?.activeRoundId ?? null
     const stored = {
       ...assignment,
+      ...(workRoundId === null ? {} : { workRoundId }),
       createdAt: assignment.createdAt ?? now,
       updatedAt: assignment.updatedAt ?? now,
     }
@@ -375,6 +423,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   }
 
   // 读-改-写放在同一个 IMMEDIATE 事务里；mutate 返回 null 表示放弃本次修改。
+  // mutate 拿到的是组合视图：轮次字段写回 work_round，房间字段写回 room。
   const updateRoom = (id, mutate) => {
     db.exec('BEGIN IMMEDIATE')
     try {
@@ -383,21 +432,45 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
         db.exec('ROLLBACK')
         return null
       }
-      const room = JSON.parse(row.payload)
-      const change = mutate(room)
+      const raw = JSON.parse(row.payload)
+      raw.version = row.version
+      const view = composeRoomView(raw)
+      const before = structuredClone(view)
+      const change = mutate(view)
       if (change === null || change === undefined || change === false) {
         db.exec('ROLLBACK')
         return null
       }
+
+      if (view.workRound !== undefined) {
+        const roundPatch = {}
+        for (const field of ROUND_FIELDS) {
+          if (JSON.stringify(view[field]) !== JSON.stringify(before[field])) roundPatch[field] = view[field]
+        }
+        if (Object.keys(roundPatch).length > 0) {
+          const updatedRound = applyRoundPatch(view.workRound.id, roundPatch)
+          if (updatedRound === null) {
+            db.exec('ROLLBACK')
+            return null
+          }
+        }
+      }
+
+      const storedRoom = { ...view }
+      if (view.workRound !== undefined) {
+        for (const field of ROUND_FIELDS) delete storedRoom[field]
+        delete storedRoom.workRound
+        delete storedRoom.workRoundId
+      }
       const version = Number(row.version) + 1
-      room.version = version
+      storedRoom.version = version
       db.prepare('UPDATE room SET payload = ?, version = ? WHERE id = ? AND version = ?')
-        .run(JSON.stringify(room), version, id, row.version)
+        .run(JSON.stringify(storedRoom), version, id, row.version)
       const events = []
       for (const event of change.events ?? []) events.push(insertEvent(id, event))
       db.exec('COMMIT')
       for (const event of events) mirrorEvent(id, event)
-      return room
+      return composeRoomView(storedRoom)
     } catch (error) {
       db.exec('ROLLBACK')
       throw error
@@ -501,13 +574,6 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
 
   // transcript.jsonl 先写，SQLite 后写；库是真相，jsonl 是崩溃恢复日志与可读镜像。
   // 示例种子只进 SQLite，不写目标仓库，避免样例数据污染用户仓库。
-  const workRoundIdOf = message => (
-    typeof message?.workRoundId === 'string' && message.workRoundId !== ''
-      ? message.workRoundId
-      : typeof message?.meta?.workRoundId === 'string' && message.meta.workRoundId !== ''
-        ? message.meta.workRoundId
-        : null
-  )
   const persistMessage = (message, { transcript = true } = {}) => {
     const room = readRoom(message.roomId)
     if (message.kind === 'evidence' && transcript) {
@@ -524,8 +590,16 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
 
   const appendMessage = (roomId, message) => {
     const room = readRoom(roomId)
+    const workRoundId = message.workRoundId ?? room?.activeRoundId ?? null
     const stored = persistMessage(
-      { ...message, id: randomUUID(), roomId, seq: nextSeq(), ts: Date.now() },
+      {
+        ...message,
+        ...(workRoundId === null ? {} : { workRoundId }),
+        id: randomUUID(),
+        roomId,
+        seq: nextSeq(),
+        ts: Date.now(),
+      },
       { transcript: room?.demo !== true },
     )
     emit('msg', stored, stored.seq)
