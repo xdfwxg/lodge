@@ -81,6 +81,24 @@ service.js                   ← 路由分发与用例组合
 - 没有全局成员表，也没有全局 Assignment 表；成员和交接跟着房间走。证据与 verdict 正文留在消息里，Assignment 只存引用。
 - 存储实现可替换，但业务真相必须落在支持约束与事务的持久存储。
 
+## 状态图
+
+```text
+房间  idle / active / paused / stopped / archived
+  └─ 轮次  planning → active → completed / rejected / failed / superseded / stopped
+       ├─ 工作室  阶段 pending → active → passed
+       │            └─ 交接 created → sent → working → reported → reviewing → passed / rejected / failed / cancelled
+       └─ 聊天室  discussing → summarizing → concluded → discussing
+```
+
+- 三层是事实：房间、轮次、房型状态。`stageStatusOf` 的 `blocked/waiting` 和注意力里的“等你处理”是派生，不是第四层。
+- 轮次终态不回退；退回是重新打开阶段或新建交接，不改终态记录。
+- 工作室的验收通过/退回、交接的下一棒由 `relay.js` 决定；聊天的阶段转换由 `rooms/chat/state.js` 的表决定。
+- 读模型只在 `shared/room-status.js` 和各房型自己的状态模块；界面不拼状态。岛的状态映射见 [design.md 的「灵动岛」](design.md#灵动岛)。
+- 共享状态不是一个大对象：`shared/states.js` 定义值，`shared/room-status.js` 用一组纯函数回答“房间在哪、轮次在哪、现在是否已交付、这一步/聊天在干什么”。消费者按问题取，不拿一份包含所有字段的快照；`presentRoom` 只组合投影，不复制状态。
+- 这样做的代价是消费者可能组合错（比如把历史交付当成当前交付）；用状态目录、单一读模型和测试约束，而不是靠一个万能对象兜住。
+- 加成员只影响之后的派发和复核；当前阶段的 assignees 和在跑的复核轮次固定，规划师唯一且不能移除。
+
 ## 轮次生命周期
 
 - 状态：`planning | active | completed | rejected | failed | superseded | stopped`。终态不再回退。
