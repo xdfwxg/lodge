@@ -667,3 +667,13 @@ npm run eval:planning:nightly
 - 收口事务真实复验（2026-11-22，真实模型，room-c7a64c99「工作室 真实 02」）：重启后开第 3 轮，11,796ms 交付；结论恰好 1 条且带本轮 `roundId`，轮次 completed，房间回到 idle。
 - 最终门禁：`npm test` 1244 全过；UI 端到端 21/21；`check:done` 全过；`knip` 0；`dependency-cruiser` 655 模块 / 2124 依赖 0 违规；acceptance 115 条；long-task 5/5。
 - 未跑：`eval:planning` 本轮未重跑；没有再做 10 间 × 2 轮的矩阵，只跑了 3 题评测和一间第三轮真实交付。
+
+## 2026-11-22 · 发布信心四项
+
+- 提交钩子：新增仓库内 `.githooks/pre-commit`，`prepare` 在 `npm install` 后执行 `scripts/setup-hooks.mjs` 把 `core.hooksPath` 指到 `.githooks`；本机已确认 `core.hooksPath=.githooks`，并用 `git hook run pre-commit` 实跑一次完整门禁，全绿。
+- 真实基座夜间冒烟：`scripts/install-nightly-smoke.mjs` 写入 `~/Library/LaunchAgents/com.lodge.smoke.plist`，每天 09:17 跑 `scripts/smoke-real.mjs --notify`；失败走 macOS 通知，日志在 `~/Library/Logs/Lodge/smoke.log`。本机已安装并 `launchctl kickstart` 实跑一次，四项全绿：Lodge 11 间可读、基座 0.1.161、模型路由 DeepSeek `deepseek-v4-pro`。
+- 视觉基线：`e2e/visual.spec.mjs` 录了三张 Mac 基线（桌面结果卡、390px 深色结果卡、新房间对话框），日期字段用遮罩；连续复跑 3/3 通过。Linux CI 没有同款字体与渲染，测试显式跳过，不拿噪声当门槛。
+- 性能与并发预算：`e2e/budget.spec.mjs` 实测首屏 139ms、300 条消息 349ms、20 个并发 `/api/state` 30ms，阈值统一 5000ms；长列表同时断言无横向溢出。并发工作项仍由 `scheduler.test.js` 的「一房一活、房与房并发」覆盖。
+- 验收门禁行为化：`check:acceptance` 现在实际执行矩阵链接的 113 条 Node 单测，2 条 Playwright spec 由 `test:ui` 执行；不再只检查文件存在。
+- 最终门禁：`npm test` 1244、UI 端到端 27/27、`check:done` 全过、`knip` 0、`dependency-cruiser` 659 模块 / 2136 依赖 0 违规、验收 115 条、long-task 5/5。
+- 仍未做：视觉基线只在 Mac 本地生效，Linux CI 跳过；夜间冒烟依赖本机 Lodge 与基座在运行，服务没起时会如实报失败，不会自动拉起服务。

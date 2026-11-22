@@ -1,5 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -46,4 +48,27 @@ if (notLinkedToGate.length > 0) console.error(`FAIL files not picked up by npm t
 if (tests.length === 0 || missing.length > 0 || empty.length > 0 || notRunnable.length > 0 || notLinkedToGate.length > 0) {
   process.exit(1)
 }
-console.log(`acceptance: ${gateFiles.size} linked tests, each with a test() and a gate that runs it`)
+
+// Node 单测在这里真跑一遍；Playwright spec 由 test:ui 跑。
+const nodeTests = [...gateFiles].filter(file => !file.endsWith('.spec.mjs'))
+const workRoot = mkdtempSync(join(tmpdir(), 'lodge-acceptance-'))
+const run = spawnSync(process.execPath, ['--test', ...nodeTests], {
+  cwd: root,
+  encoding: 'utf8',
+  timeout: 300_000,
+  env: {
+    ...process.env,
+    CREW_WORKTREE_ROOT: join(workRoot, 'worktrees'),
+    CREW_WORKSPACE_ROOT: join(workRoot, 'workspaces'),
+  },
+})
+rmSync(workRoot, { recursive: true, force: true })
+
+if (run.status !== 0) {
+  const tail = `${run.stdout ?? ''}\n${run.stderr ?? ''}`.trim().split('\n').slice(-60).join('\n')
+  console.error(`FAIL linked behaviour tests:\n${tail}`)
+  process.exit(1)
+}
+
+const specs = gateFiles.size - nodeTests.length
+console.log(`acceptance: ${gateFiles.size} linked tests; ${nodeTests.length} ran here and passed, ${specs} run in test:ui`)

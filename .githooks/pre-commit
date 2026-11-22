@@ -1,0 +1,8 @@
+#!/bin/sh
+# 提交前跑完整门禁；没过就拦下。
+# 钩子会继承 Git 的仓库环境（GIT_INDEX_FILE 等），里面的测试要操作临时仓库，
+# 不清掉会把临时 worktree 指回当前仓库的 index。
+set -e
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
+unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+npm run check:done

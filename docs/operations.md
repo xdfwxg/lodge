@@ -157,7 +157,9 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 
 `npm test`、`npm run build`、`npm run test:ui`（Playwright + axe，覆盖首屏、结果卡、目标面板、窄屏暗色）、`npm run prepare:runtimes`、`npm run package:mac:dir`、`npm run smoke:package`。端到端验证需要 Pi 已登录：新建工作室，执行引擎选 Pi，给一条可执行的验收命令，确认执行成员实际跑了命令并产生证据。
 
-真实环境先跑只读冒烟 `npm run smoke:real`：检查 Lodge 8787、基座 8799 和本机模型路由，不建房间、不调模型；任一不健康就非零退出。
+真实环境先跑只读冒烟 `npm run smoke:real`：检查 Lodge 8787、基座 8799 和本机模型路由，不建房间、不调模型；任一不健康就非零退出。macOS 可装每日定时：`npm run nightly:smoke:install -- 09:17`，失败弹系统通知，日志在 `~/Library/Logs/Lodge/smoke.log`；`npm run nightly:smoke:uninstall` 移除。
+
+提交钩子在仓库的 `.githooks/pre-commit`，`npm install` 后由 `prepare` 自动接上，也可手动 `npm run setup:hooks`；它跑完整的 `npm run check:done`。`check:acceptance` 不只看矩阵里的文件是否存在，会实际执行矩阵链接的 Node 单测；视觉基线在 `e2e/visual.spec.mjs`（Mac 录基线，Linux 跳过），首屏、长列表和并发读取预算在 `e2e/budget.spec.mjs`。
 
 ## 评测
 

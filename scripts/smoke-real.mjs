@@ -1,5 +1,6 @@
 // 真实环境冒烟：只读检查 Lodge、基座和本机模型路由，不建房间、不调模型。
 // 用法：npm run smoke:real（可设 LODGE_URL、CREW_BASE_URL）。
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -50,4 +51,8 @@ const route = modelRoute()
 check('模型路由', true, `${route.base} · ${route.model}`)
 
 for (const item of checks) console.log(`${item.ok ? '✔' : '✘'} ${item.name}：${item.detail}`)
-if (checks.some(item => !item.ok)) process.exit(1)
+const failed = checks.some(item => !item.ok)
+if (failed && process.argv.includes('--notify')) {
+  spawnSync('osascript', ['-e', `display notification "Lodge 或基座没有响应，详情见 ~/Library/Logs/Lodge/smoke.log" with title "Lodge 真实冒烟失败"`])
+}
+if (failed) process.exit(1)
