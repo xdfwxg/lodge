@@ -390,6 +390,11 @@ test('a chat room has a configurable turn limit and no trust ladder', async () =
   assert.deepEqual(room.members.map(member => member.permissions), Array(3).fill({ read: true, exec: false, write: false }))
   assert.deepEqual(room.members.map(member => member.body.spec.skills), [[], [], []])
   assert.deepEqual(room.members.map(member => member.stance), ['proposer', 'critic', 'synthesizer'])
+  assert.deepEqual(room.members.map(member => member.voice), [
+    '先问代价，再问能不能落地。',
+    '先找边界，再问会不会坏。',
+    '先看取舍，再问怎么收口。',
+  ])
   assert.deepEqual(engine.skillAssignments, [])
 })
 

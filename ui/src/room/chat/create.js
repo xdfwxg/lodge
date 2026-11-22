@@ -4,6 +4,7 @@ import { engineReadiness } from '../../../../shared/engine-readiness.js'
 import { MemberEnginePicker } from '../member-engine-picker.js'
 
 import { defaultPersonalityId, normalizeMembers, PERSONALITIES } from '../member-options.js'
+import { defaultStanceId } from '../../../../shared/chat-stances.js'
 
 export const buildChatRequest = ({
   goal,
@@ -20,9 +21,13 @@ export const buildChatRequest = ({
   const members = normalizeMembers(defaultMembers).map((member, index) => {
     const choice = choices[index] ?? { engine: '', model: '' }
     const model = choice.model !== '' ? choice.model : selectedModelOf(choice)
+    const voice = String(choice.voice ?? member.voice ?? '').trim().slice(0, 30)
     return {
       ...member,
+      ...(voice === '' ? {} : { voice }),
       personality: choice.personality || member.personality || defaultPersonalityId(index),
+      // 立场是房间调度用的固定分工；自定义成员也要有，否则排序和标签会缺一位。
+      stance: member.stance || defaultStanceId(index),
       ...(choice.engine === '' ? {} : { engine: choice.engine }),
       ...(choice.engine === '' || model === '' ? {} : { model }),
     }
@@ -103,6 +108,7 @@ export function ChatSetupFields({
           setChoices,
           engines,
           personalities: PERSONALITIES,
+          allowVoice: true,
           onRemove: onRemoveMember,
           canRemove: canRemoveMember !== null,
           canRemoveMember,

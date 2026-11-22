@@ -41,7 +41,8 @@
     "eval:planning:nightly": "node evals/planning/run.mjs --runs 3 --out evals/planning/results/nightly",
     "eval:long-task": "node evals/long-task/run.mjs",
     "eval:compare": "node evals/compare/run.mjs",
-    "replay:round": "node scripts/replay-round.mjs"
+    "replay:round": "node scripts/replay-round.mjs",
+    "replay:chat": "node scripts/replay-chat.mjs"
   },
   "dependencies": {
     "chrome-devtools-mcp": "1.13.0",

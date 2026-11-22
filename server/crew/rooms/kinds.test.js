@@ -66,9 +66,9 @@ test('message routing is a mode policy, not a room-type branch', () => {
   assert.deepEqual(chat.messagePolicy({ room: concluded, text: '@所有人 继续', mentions: [MENTION_ALL] }), { type: 'round' })
   assert.deepEqual(chat.messagePolicy({ room, text: '@所有人 继续', mentions: [MENTION_ALL] }), { type: 'round-busy' })
   const busy = { chat: { phase: 'discussing', running: true }, members: [{ id: 'a', name: '甲' }] }
-  assert.equal(chat.messagePolicy({ room, text: '@甲 看这里', mentions: ['a'] }), null)
   assert.equal(chat.messagePolicy({ room: concluded, text: '@甲 继续', mentions: ['a'] }), null)
   assert.deepEqual(chat.messagePolicy({ room: busy, text: '@甲 看这里', mentions: ['a'] }), { type: 'direct-busy' })
+  assert.deepEqual(chat.messagePolicy({ room, text: '@甲 看这里', mentions: ['a'] }), { type: 'direct-busy' })
 
   const studio = roomModeForType('studio')
   assert.equal(studio.messagePolicy({ room: { stages: [{ state: 'passed' }] } }), null)

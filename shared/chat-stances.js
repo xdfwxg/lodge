@@ -4,8 +4,20 @@ export const CHAT_STANCES = Object.freeze({
   synthesizer: '这轮把分歧收成一个可决定的选项；不新开话题。',
 })
 
+export const CHAT_STANCE_LABELS = Object.freeze({
+  proposer: '提议',
+  critic: '质疑',
+  synthesizer: '收束',
+})
+
+export const CHAT_STANCE_IDS = Object.freeze(Object.keys(CHAT_STANCES))
+
+export const defaultStanceId = index => CHAT_STANCE_IDS[index % CHAT_STANCE_IDS.length]
+
 export const stanceOf = value => (
   typeof value === 'string' && Object.hasOwn(CHAT_STANCES, value) ? value : ''
 )
 
 export const stancePrompt = value => CHAT_STANCES[stanceOf(value)] ?? ''
+
+export const stanceLabelOf = value => CHAT_STANCE_LABELS[stanceOf(value)] ?? ''

@@ -46,3 +46,16 @@ test('rooms without exec work still allow the same model', () => {
   const html = render({ approvalReview: false, requireApprovalGate: false })
   assert.doesNotMatch(html, /不能用来执行/)
 })
+
+test('chat members get one optional speaking-habit line', () => {
+  const html = renderToStaticMarkup(h(MemberEnginePicker, {
+    members: [{ role: 'worker', name: '甲', voice: '先问代价。' }],
+    choices: [{ engine: '', model: '', voice: '先问代价，再问能不能落地。' }],
+    setChoices: () => {},
+    allowVoice: true,
+  }))
+  assert.match(html, /crew-member-voice/)
+  assert.match(html, /value="先问代价，再问能不能落地。"/)
+  assert.match(html, /说话习惯/)
+  assert.match(html, /maxLength="30"/)
+})

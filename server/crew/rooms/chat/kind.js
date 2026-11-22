@@ -8,6 +8,7 @@ import { CHAT_HOST_VOICE, CHAT_VOICE } from '../../../../shared/chat-voice.js'
 import { stancePrompt } from '../../../../shared/chat-stances.js'
 import { chatProjection } from './projection.js'
 import { CHAT_PHASE } from '../../../../shared/states.js'
+import { chatModeOf } from '../../../../shared/room-status.js'
 import { MENTION_ALL } from '../../../../shared/mentions.js'
 
 // 聊天室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
@@ -20,14 +21,13 @@ export const chatKind = {
   demoMessage: '这是示例房间，不接模型；要动手就把结论转成工作室任务。',
   messagePolicy: ({ room, mentions = [] }) => {
     // 只认输入框成员选择器传来的 id；手打 @ 不算点名。
+    const mode = chatModeOf(room)
     if (mentions.includes(MENTION_ALL)) {
-      // 叫所有人永远是开一轮；正在讨论时明确说等这一轮结束，不偷偷交给主持。
-      return room.chat?.phase === CHAT_PHASE.concluded && room.chat?.running !== true
-        ? { type: 'round' }
-        : { type: 'round-busy' }
+      // 叫所有人永远是开一轮；已经在轮次里就明确说等这一轮结束。
+      return mode === 'open' ? { type: 'round' } : { type: 'round-busy' }
     }
     const named = mentions.some(id => (room.members ?? []).some(member => member.id === id))
-    if (named && room.chat?.running === true) return { type: 'direct-busy' }
+    if (named && mode === 'round') return { type: 'direct-busy' }
     return named ? null : { type: 'host' }
   },
 
@@ -39,7 +39,16 @@ export const chatKind = {
   }),
 
   // 聊天室成员只带讨论纪律，不继承工作室的执行 SOP；可以读文件和只读公网。
-  memberSoul: member => `你是${member.name}，在一个聊天室里就像普通人一样说话：有自己的观点和语气，可以直接反驳别人。用中文，控制在 200 字以内；可以只读查看仓库和文件，也可以联网只读查资料，引用时写路径或链接；不写文件、不跑命令，登录、提交、发帖、下单这类外部动作先问人。\n${CHAT_VOICE}\n${stancePrompt(member.stance)}\n${personalityPrompt(member.personality)}`,
+  memberSoul: member => {
+    const voice = typeof member.voice === 'string' ? member.voice.trim() : ''
+    return [
+      `你是${member.name}，在一个聊天室里就像普通人一样说话：有自己的观点和语气，可以直接反驳别人。用中文，控制在 200 字以内；可以只读查看仓库和文件，也可以联网只读查资料，引用时写路径或链接；不写文件、不跑命令，登录、提交、发帖、下单这类外部动作先问人。`,
+      voice === '' ? '' : `你的说话习惯：${voice}`,
+      CHAT_VOICE,
+      stancePrompt(member.stance),
+      personalityPrompt(member.personality),
+    ].filter(Boolean).join('\n')
+  },
 
   validateRoster: null,
   resolvePlan: () => null,

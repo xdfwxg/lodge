@@ -1,4 +1,4 @@
-import { AUTO_CHECK_STATUS, CHAT_STATUS, OPEN_ROUND_STATUSES, PLANNER_DECISION_KIND, ROOM_STATE, ROOM_STATUS, ROUND_STATUS, STAGE_STATUS } from './states.js'
+import { AUTO_CHECK_STATUS, CHAT_PHASE, CHAT_STATUS, OPEN_ROUND_STATUSES, PLANNER_DECISION_KIND, ROOM_STATE, ROOM_STATUS, ROUND_STATUS, STAGE_STATUS } from './states.js'
 
 // 房间状态和轮次状态是两层事实；界面不再用一个 complete 同时表示两者。
 export const roomStatusOf = room => {
@@ -34,6 +34,13 @@ export const stageStatusOf = (room, index) => {
   if (room?.lastPlannerDecision?.stage === index && room.lastPlannerDecision.kind === PLANNER_DECISION_KIND.human) return STAGE_STATUS.waiting
   return STAGE_STATUS.active
 }
+
+// 聊天室只有两种交互模式：开放聊天，或一个临时讨论轮。
+export const chatModeOf = room => (
+  room?.chat?.phase === CHAT_PHASE.discussing || room?.chat?.phase === CHAT_PHASE.summarizing
+    ? 'round'
+    : 'open'
+)
 
 // 聊天室“现在在做什么”：先把房间暂停/停止、讨论、总结、收尾合成一个词。
 export const chatStatusOf = (room, messages = room?.messages) => {

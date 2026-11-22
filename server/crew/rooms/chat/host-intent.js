@@ -50,7 +50,12 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
 
 
 // 用户已经把“要再讨论”说出口时，主持不该只复述一句。
-export const askedForRound = text => /再走一轮|再来一轮|继续讨论|再聊一轮|大家说说|让大家说|开一轮|讨论一轮/.test(String(text ?? ''))
+// 先去掉“先不继续讨论/不要再走一轮”这类否定短语，避免把拒绝听成请求。
+const ROUND_REQUEST = /再走一轮|再来一轮|继续讨论|再聊一轮|大家说说|让大家说|开一轮|讨论一轮/
+// 否定只覆盖到分句末尾：跨过逗号会把后半句的请求一起吃掉。
+const ROUND_NEGATION = /(?:不(?!是)|别|不要|不用|不必|无需|没必要|先不|别再|先别)[^。！？!?；;，,、\n]{0,12}(?:再走一轮|再来一轮|继续讨论|再聊一轮|大家说说|让大家说|开一轮|讨论一轮)/g
+
+export const askedForRound = text => ROUND_REQUEST.test(String(text ?? '').replace(ROUND_NEGATION, ''))
 
 // 主持只能回答；只有用户明确要求时才补一轮，模型自己选的 round 不算。
 export const finalizeHostIntent = (intent, text, room) => {

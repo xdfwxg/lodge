@@ -236,6 +236,7 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-team-chip .crew-role-icon{margin-right:5px}
 .crew-speaker-station{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .crew-speaker-persona{font-size:var(--bt-text-helper);color:var(--bt-ink-3);font-weight:400}
+.crew-speaker-stance{flex:none;padding:0 6px;border-radius:999px;background:var(--bt-tag-bg);color:var(--bt-ink-3);font-size:var(--bt-text-helper);font-weight:500;line-height:18px}
 .crew-speaker-time{margin-left:auto;font-size:var(--bt-text-helper);color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
 .crew-msg .bt-bubble{max-width:100%}
 
@@ -522,6 +523,9 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-member-with-persona .crew-member-engine-head,
 .crew-member-with-model .crew-member-engine-head{display:inline-flex;align-items:center;justify-content:center;justify-self:start;width:auto;height:24px;padding:0 9px;border-radius:999px;background:var(--bt-tag-bg);color:var(--bt-ink-2);font-size:var(--bt-text-helper);font-weight:600;white-space:nowrap}
 .crew-member-with-persona .crew-member-remove{justify-self:end;margin-left:0}
+.crew-member-voice{display:flex;align-items:center;gap:8px;padding:0 0 8px 46px}
+.crew-member-voice>span{flex:none;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
+.crew-member-voice-input{flex:1;min-width:0;height:28px;padding:0 9px;font-size:var(--bt-text-helper);border-radius:8px}
 .crew-member-hint{flex-basis:100%;margin:0}
 .crew-member-remove{position:relative;flex:none;margin-left:auto;width:24px;height:24px;display:grid;place-items:center;padding:0;border:0;border-radius:6px;background:transparent;color:var(--bt-ink-3);font:inherit;font-size:var(--bt-text-body);line-height:1;cursor:pointer}
 .crew-member-remove::before{content:'';position:absolute;inset:-2px}

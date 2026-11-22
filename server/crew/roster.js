@@ -68,11 +68,14 @@ export const rosterFromRoles = entries => {
     const mcp = entry.mcp === undefined ? base.mcp : normalizeMcpGrants(entry.mcp)
     const personality = personalityById(entry.personality) === null ? '' : entry.personality
     const stance = stanceOf(entry.stance)
+    // 说话习惯是一句人话，不是履历；只进提示词，不改变工具面。
+    const voice = typeof entry.voice === 'string' ? entry.voice.trim().slice(0, 30) : ''
     return cloneMember({
       ...base,
       id,
       name,
       personality,
+      ...(voice === '' ? {} : { voice }),
       ...(stance === '' ? {} : { stance }),
       engine,
       engineExplicit,

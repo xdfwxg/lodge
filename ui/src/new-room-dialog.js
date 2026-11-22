@@ -9,6 +9,7 @@ import { seedGoalText } from './room/seed-text.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
 import { MemberEnginePicker } from './room/member-engine-picker.js'
 import { defaultPersonalityId, modelRowsFor, memberChoicesFrom } from './room/member-options.js'
+import { defaultStanceId } from '../../shared/chat-stances.js'
 import { gateCardState, HandoffReview } from './room/handoff-review.js'
 import { ReceiptReview } from './room/receipt-review.js'
 import { WorkspaceMemory } from './room/workspace-memory.js'
@@ -201,7 +202,12 @@ function NewRoomDialog({
       const names = Array.from('甲乙丙丁戊己庚辛壬癸')
       const used = new Set(base.map(member => member.name))
       const name = names.find(item => !used.has(item)) ?? `成员 ${base.length + 1}`
-      return [...base, { role: 'worker', name, personality: defaultPersonalityId(base.length) }]
+      return [...base, {
+        role: 'worker',
+        name,
+        personality: defaultPersonalityId(base.length),
+        stance: defaultStanceId(base.length),
+      }]
     })
   }
 

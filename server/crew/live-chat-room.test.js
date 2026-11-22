@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { CHAT_TURNS_PER_ROUND, turnLimitOf as chatTurnLimitOf } from './room-types/chat.js'
-import { createChatScheduler } from './rooms/chat/scheduler.js'
+import { createChatScheduler, pickChatSpeaker } from './rooms/chat/scheduler.js'
 import { createChatTransport } from './rooms/chat/transport.js'
 import { normalizeTestRoom } from './testing/room.js'
 
@@ -261,6 +261,22 @@ test('an explicit request for a list keeps the structured summary', async () => 
   const summary = ctx.history.find(message => message.role === 'user' && /请总结/.test(message.text))
   assert.ok(summary)
   assert.match(summary.text, /## 主题/)
+})
+
+test('stances pick a complementary next speaker before random', () => {
+  const stances = { a: 'proposer', b: 'critic', c: 'synthesizer' }
+  const counts = new Map([['a', 1], ['b', 1], ['c', 1]])
+  const pick = last => pickChatSpeaker({
+    speakers: ['a', 'b', 'c'],
+    counts,
+    perMember: 6,
+    last,
+    stanceOf: id => stances[id],
+    random: () => 0,
+  })
+  assert.equal(pick('a'), 'b')
+  assert.equal(pick('b'), 'c')
+  assert.equal(pick('c'), 'a')
 })
 
 test('a resumed round keeps the fair order from the messages already spoken', async () => {

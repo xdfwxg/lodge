@@ -6,6 +6,7 @@ import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
 import { parseHandoffFromText } from '../../../../shared/handoff.js'
 import { finalizeHostIntent, hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { chatBriefOf } from './brief.js'
 import { systemNotice } from '../../notices.js'
 import { humanLabelOf, humanNameOf } from '../../human-name.js'
 import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
@@ -21,14 +22,33 @@ const truncate = (text, limit) => {
   return value.length <= limit ? value : `${value.slice(0, limit)}…`
 }
 
-export const pickChatSpeaker = ({ speakers, counts, perMember, last, random = Math.random }) => {
+const STANCE_NEXT = Object.freeze({
+  proposer: 'critic',
+  critic: 'synthesizer',
+  synthesizer: 'proposer',
+})
+
+export const pickChatSpeaker = ({
+  speakers,
+  counts,
+  perMember,
+  last,
+  stanceOf = () => '',
+  random = Math.random,
+}) => {
   if (speakers.length === 0) return null
   const eligible = speakers.filter(memberId => (counts.get(memberId) ?? 0) < perMember)
   const pool = eligible.length === 0 ? speakers : eligible
   const unspoken = pool.filter(memberId => (counts.get(memberId) ?? 0) === 0)
   const candidates = unspoken.length > 0 ? unspoken : pool.filter(memberId => memberId !== last)
   const final = candidates.length > 0 ? candidates : pool
-  return final[Math.min(final.length - 1, Math.floor(random() * final.length))] ?? null
+  // 先保证每人开口，再让 proposer → critic → synthesizer 互补；没有合适立场才随机。
+  const preferred = STANCE_NEXT[stanceOf(last)] ?? ''
+  const complementary = preferred === ''
+    ? []
+    : final.filter(memberId => stanceOf(memberId) === preferred)
+  const choice = complementary.length > 0 ? complementary : final
+  return choice[Math.min(choice.length - 1, Math.floor(random() * choice.length))] ?? null
 }
 
 // 续跑时从本轮开场后的发言补回计数，保证重启不会打破“每人先说到一次”的顺序。
@@ -44,12 +64,14 @@ const chatCountsForRound = (messages, round, speakers) => {
   }
   const counts = new Map()
   let last = null
+  let lastText = ''
   for (const message of list.slice(start + 1)) {
     if (message?.kind !== 'chat' || !speakers.includes(message.authorId)) continue
     counts.set(message.authorId, (counts.get(message.authorId) ?? 0) + 1)
     last = message.authorId
+    lastText = String(message.text ?? '')
   }
-  return { counts, last }
+  return { counts, last, lastText }
 }
 
 const discussionLines = (store, roomId) => {
@@ -65,7 +87,7 @@ const discussionLines = (store, roomId) => {
 const memberOf = (room, memberId) => (room?.members ?? []).find(member => member.id === memberId) ?? null
 
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
-const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
+export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, brief = '', previous = null }) => {
   const speaker = memberOf(room, memberId)
   const hostName = humanNameOf(room)
   return [
@@ -73,7 +95,9 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
     hostName === '' ? '' : `用户称呼：${hostName}。`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
-    '请给出你的观点、依据或质疑；不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。',
+    brief === '' ? '' : `上一轮结论：${brief}`,
+    previous === null ? '' : `上一位：${previous.name}说“${truncate(previous.text, 200)}”`,
+    '接着上面说：同意就补一个理由，不同意就指出哪一点，有疑问就只问一个具体问题。不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。',
     '按顺序轮流说；不用 @ 别人，也不用把话交给别人。',
     '像普通人聊天一样说自己的看法，不用报告、分点或小标题。',
     '只讨论话题本身；不要评论讨论次数、样本数量或流程。',
@@ -205,6 +229,11 @@ export const createChatScheduler = ({
     const resumedFrom = resume ? Math.min(turnLimit, Math.max(0, Number(room.chat?.turns) || 0)) : 0
     const seeded = resume ? chatCountsForRound(store.readMessages(roomId), round, speakers) : null
     if (seeded !== null) for (const [memberId, count] of seeded.counts) counts.set(memberId, count)
+    // 上一轮的结论是这一轮共同知道的东西；刚开场还没有上一位。
+    const brief = chatBriefOf(store.readMessages(roomId), { round })
+    let previous = seeded !== null && typeof seeded.last === 'string' && seeded.last !== ''
+      ? { name: memberDisplayName(room, seeded.last), text: seeded.lastText }
+      : null
     let completed = resumedFrom
     // 发送前落盘的 pending 标记：回复已到但 turns 没来得及写时，重启用它补账。
     const markerOf = value => (
@@ -262,7 +291,14 @@ export const createChatScheduler = ({
             before = new Set(resumeMarker.beforeIds)
             resumeMarker = null
           } else {
-            memberId = pickChatSpeaker({ speakers, counts, perMember, last, random })
+            memberId = pickChatSpeaker({
+              speakers,
+              counts,
+              perMember,
+              last,
+              stanceOf: id => memberOf(room, id)?.stance ?? '',
+              random,
+            })
             if (memberId === null) break
             before = await transport.messageIds()
             // 先落 pending，再发；进程死在等待回复中间也能靠它补账。
@@ -285,6 +321,8 @@ export const createChatScheduler = ({
               turn,
               turnLimit,
               note,
+              brief,
+              previous,
             }))
             hidePrompt(sent?.messageId)
           }
@@ -317,6 +355,7 @@ export const createChatScheduler = ({
             continue
           }
           misses = 0
+          previous = { name: memberDisplayName(room, memberId), text: String(reply.text ?? '') }
           completed = turn
           patch(state => {
             state.chat = {

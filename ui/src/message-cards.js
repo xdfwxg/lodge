@@ -2,6 +2,7 @@ import { createElement as h } from 'react'
 import { MarkdownText } from './primitives.js'
 import { MD, timeOf } from './view-format.js'
 import { personalityLabel } from '../../shared/personalities.js'
+import { stanceLabelOf } from '../../shared/chat-stances.js'
 import { RoleIcon } from './room/role-icon.js'
 
 // 两种房型共用的消息呈现：说话人、正文、活动行。房型专属卡片各自留在 room/<mode>/。
@@ -11,9 +12,11 @@ function Markdown({ text, variant, mentions = null }) {
 }
 
 function Speaker({ member, ts, time = true, station = true, persona = '' }) {
+  const stance = stanceLabelOf(member?.stance)
   return h('div', { className: 'crew-speaker' },
     member === undefined || member === null ? null : h(RoleIcon, { member }),
     h('span', { className: 'crew-speaker-name' }, member?.name ?? '—'),
+    stance === '' ? null : h('span', { className: 'crew-speaker-stance' }, stance),
     persona === '' ? null : h('span', { className: 'crew-speaker-persona' }, `（${persona}）`),
     station ? h('span', { className: 'crew-speaker-station' }, member?.title ?? '') : null,
     time ? h('span', { className: 'crew-speaker-time' }, timeOf(ts)) : null)

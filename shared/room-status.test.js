@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { chatStatusOf, idleDelivered, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf } from './room-status.js'
+import { chatModeOf, chatStatusOf, idleDelivered, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf } from './room-status.js'
 
 test('room lifecycle never reports a delivered round as a room state', () => {
   assert.equal(roomStatusOf({ state: 'idle' }), 'idle')
@@ -59,6 +59,13 @@ test('stage status folds the stage and the room-level blockers into one word', (
   assert.equal(stageStatusOf({ stages, autoCheck: { stage: 0, status: 'limit-reached' } }, 0), 'waiting')
   assert.equal(stageStatusOf({ stages, lastPlannerDecision: { stage: 0, kind: 'human' } }, 0), 'waiting')
   assert.equal(stageStatusOf({ stages, lastPlannerDecision: { stage: 0, kind: 'rework' } }, 0), 'active')
+})
+
+test('chat mode is derived from the round phase, not stored twice', () => {
+  assert.equal(chatModeOf({}), 'open')
+  assert.equal(chatModeOf({ chat: { phase: 'concluded' } }), 'open')
+  assert.equal(chatModeOf({ chat: { phase: 'discussing' } }), 'round')
+  assert.equal(chatModeOf({ chat: { phase: 'summarizing' } }), 'round')
 })
 
 test('chat status folds phase, running flags and the first message into one word', () => {

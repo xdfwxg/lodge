@@ -16,7 +16,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 能力 | 自动用例 | 需要 |
 | --- | --- | --- |
 | 建房、成员组合、roster 推荐 | `server/crew/room-create.test.js`、`server/crew/roster.test.js`、`server/crew/member-add.test.js`、`server/crew/member-remove.test.js` | 无 |
-| 聊天室主持、随机顺序、轮次、自然总结/按需结构 | `server/crew/live-chat.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/service-chat.test.js`、`server/crew/live-turns.test.js` | 真实模型仅整房 dogfood |
+| 聊天室主持、公平顺序、轮次、自然总结/按需结构 | `server/crew/live-chat.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/service-chat.test.js`、`server/crew/live-turns.test.js`、`shared/room-status.test.js` | 真实模型仅整房 dogfood |
 | 聊天结论直接进工作室：正文和下一步都进交接 | `server/crew/live-chat-room.test.js`、`shared/handoff.test.js`、`ui/src/room/chat/seed.test.js` | 真实模型可选 |
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | 工作室阶段、验收、签字、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
@@ -33,8 +33,11 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 中间步骤验收通过自动过并开始下一步，最后一步仍由人确认 | `server/crew/live-turn-modules.test.js`、`server/crew/service-stages.test.js` | 无 |
 | 角色技能按角色取长、总量有体积预算，合并掉的旧技能不再挂载 | `shared/role-toolbox.test.js`、`server/skill-packs.test.js` | 真实房间读技能效果 |
 | 状态目录完整，轮次事件可只读重放 | `shared/states.test.js`、`server/crew/rounds/replay.test.js` | 真实房间跑一次 `replay:round` |
+| 聊天轮次可只读重放：谁说了什么、结论从哪来、缺口只报不补 | `server/crew/rounds/replay-chat.test.js` | 真实聊天室跑一次 `replay:chat` |
+| 聊天上下文分层：上一轮结论共享、上一位原话进本轮、成员只带说话习惯 | `server/crew/rooms/chat/brief.test.js`、`server/crew/rooms/chat/speaker-prompt.test.js`、`server/crew/rooms/chat/kind.test.js`、`server/crew/room-create.test.js` | 真实聊天室读一轮发言 |
+| 发言行显示两字立场；建房可填说话习惯；不改工具面 | `ui/src/room/chat/create.test.js`、`ui/src/room/message-view.test.js`、`ui/src/room/member-engine-picker.test.js`、`e2e/product.spec.mjs` | 真实聊天室读一轮发言 |
 | 自动交付默认关；打开后最后一步验收通过自动收口 | `server/crew/live-turn-modules.test.js`、`ui/src/room/studio/create.test.js` | 真实房间打开开关跑一轮 |
-| 成员回复里的 @ 不唤醒下一棒；聊天室随机顺序、每人先说到一次 | `server/crew/engine.test.js`、`server/crew/room-create.test.js`、`server/crew/live-chat-room.test.js` | 基座 `server/room-roots.e2e.test.ts` 覆盖真实路由 |
+| 成员回复里的 @ 不唤醒下一棒；聊天室公平顺序、每人先说到一次 | `server/crew/engine.test.js`、`server/crew/room-create.test.js`、`server/crew/live-chat-room.test.js` | 基座 `server/room-roots.e2e.test.ts` 覆盖真实路由 |
 | 用户点名路由（结构化成员 id；`@所有人` 开一轮；直接问标记；主持不自行开轮；轮次中直接点名被拒） | `server/crew/rooms/kinds.test.js`、`server/crew/rooms/chat/host-intent.test.js`、`server/crew/live-echo.test.js`、`ui/src/room/message-view.test.js` | 无 |
 | 聊天开轮前检查预算 | `server/crew/service-chat.test.js` | 无 |
 | 中期事件按房型处理：聊天主持/直接、工作室排队/叫停、晚到回合 | `server/crew/rooms/kinds.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/live-sync.test.js` | 真实房间可选 |

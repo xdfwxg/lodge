@@ -25,6 +25,8 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   await expect(page.getByRole('button', { name: '先聊聊' })).toBeVisible()
   await page.getByRole('button', { name: '先聊聊' }).click()
   await expect(page.getByLabel('想聊什么？')).toBeVisible()
+  await page.getByText('更多选项').click()
+  await expect(page.getByLabel('甲的说话习惯')).toHaveValue('先问代价，再问能不能落地。')
   await page.getByRole('button', { name: '交给工作室' }).click()
   await expect(page.getByLabel('要做什么？')).toBeVisible()
   await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
@@ -33,6 +35,10 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  // 聊天发言行直接显示立场，不靠名字猜谁在提议、谁在质疑。
+  await expect(page.locator('.crew-speaker-stance', { hasText: '提议' }).first()).toBeVisible()
+  await expect(page.locator('.crew-speaker-stance', { hasText: '质疑' }).first()).toBeVisible()
 
   const composer = page.getByRole('combobox', { name: '房间消息' })
   await expect(composer).toHaveAttribute('placeholder', '示例房间不接模型 · 已停在结论')

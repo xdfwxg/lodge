@@ -4,7 +4,7 @@ export const SAMPLE_ROOM_ID = 'room-sample'
 export const SAMPLE_CHAT_ROOM_ID = 'room-sample-chat'
 export const SAMPLE_ROUND_ID = 'round-sample-1'
 
-const member = ({ id, name, role, roleKind, station, permissions, title }) => ({
+const member = ({ id, name, role, roleKind, station, permissions, title, voice, personality, stance }) => ({
   id,
   name,
   title: title ?? (roleKind === 'planner' ? '规划' : roleKind === 'verifier' ? '复核' : '实现'),
@@ -12,6 +12,9 @@ const member = ({ id, name, role, roleKind, station, permissions, title }) => ({
   roleKind,
   roleProfile: name,
   station,
+  ...(voice === undefined ? {} : { voice }),
+  ...(personality === undefined ? {} : { personality }),
+  ...(stance === undefined ? {} : { stance }),
   permissions,
   writeScope: roleKind === 'executor' ? 'repo' : 'none',
   toolSurface: roleKind === 'verifier' ? ['read'] : ['read', 'write', 'exec'],
@@ -25,13 +28,16 @@ const member = ({ id, name, role, roleKind, station, permissions, title }) => ({
   },
 })
 
-const participant = ({ id, name, title, station }) => member({
+const participant = ({ id, name, title, station, voice, personality, stance }) => member({
   id,
   name,
   title,
   role: 'participant',
   roleKind: 'participant',
   station,
+  voice,
+  personality,
+  stance,
   permissions: { read: true, exec: false, write: false },
 })
 
@@ -203,9 +209,9 @@ export const sampleChatRoomRecord = ({ now = Date.now() } = {}) => ({
   independence: 'human',
   members: [
     member({ id: 'lodge-sample', name: 'Lodge', title: '主持', role: 'lead', roleKind: 'participant', station: '开场 · 收敛', permissions: { read: true, exec: false, write: false } }),
-    participant({ id: 'he', name: '阿禾', title: '编辑', station: '听故事 · 找句子' }),
-    participant({ id: 'man', name: '小满', title: '设计', station: '看位置 · 管动效' }),
-    participant({ id: 'zhou', name: '老周', title: '工程', station: '算成本 · 提限制' }),
+    participant({ id: 'he', name: '阿禾', title: '编辑', station: '听故事 · 找句子', voice: '先看故事讲不讲得通。', personality: 'gentle', stance: 'synthesizer' }),
+    participant({ id: 'man', name: '小满', title: '设计', station: '看位置 · 管动效', voice: '先看位置，再看会不会挡内容。', personality: 'cheerful', stance: 'proposer' }),
+    participant({ id: 'zhou', name: '老周', title: '工程', station: '算成本 · 提限制', voice: '先算成本，再问会不会坏。', personality: 'rigorous', stance: 'critic' }),
   ],
   plan: null,
   stages: [],

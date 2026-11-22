@@ -18,6 +18,7 @@ export function MemberEnginePicker({
   personalities = [],
   allowCapabilities = false,
   allowSkills = false,
+  allowVoice = false,
   requireApprovalGate = false,
   onRemove = null,
   canRemove = false,
@@ -44,7 +45,8 @@ export function MemberEnginePicker({
       const rows = modelRowsFor(engine)
       const model = choice.model !== '' ? choice.model : (engine?.models?.default || rows[0]?.id || '')
       const personalityId = choice.personality || member.personality || personalities[index % Math.max(1, personalities.length)]?.id || ''
-      return h('div', { key: `${member.role}-${index}`, className: `crew-member-engine ${withPersona ? 'crew-member-with-persona' : 'crew-member-with-model'}` },
+      return h(Fragment, { key: `${member.role}-${index}` },
+        h('div', { className: `crew-member-engine ${withPersona ? 'crew-member-with-persona' : 'crew-member-with-model'}` },
         h('div', { className: 'crew-member-engine-head' },
           h('span', null, member.name === undefined || member.name === '' ? ROLE_LABEL[member.role] ?? member.role : member.name)),
         personalities.length === 0
@@ -132,6 +134,22 @@ export function MemberEnginePicker({
             title: '移除成员',
             onClick: () => onRemove(member, index),
           }, '×')
+          : null),
+        allowVoice
+          ? h('label', { className: 'crew-member-voice' },
+            h('span', null, '说话习惯'),
+            h('input', {
+              className: 'crew-goal-input crew-member-voice-input',
+              type: 'text',
+              maxLength: 30,
+              value: choice.voice ?? member.voice ?? '',
+              placeholder: '一句话：他平时怎么说话、先问什么（可留空）',
+              'aria-label': `${member.name ?? member.role}的说话习惯`,
+              onChange: event => {
+                setChoices(replaceChoice(choices, index, { ...choice, voice: event.target.value }))
+                onInteraction()
+              },
+            }))
           : null)
   }))
 }

@@ -80,6 +80,20 @@ test('an explicit request for another round is recognised', () => {
   assert.equal(askedForRound(''), false)
 })
 
+test('a negated round request is not a request', () => {
+  for (const text of [
+    '先不继续讨论了',
+    '不要再走一轮',
+    '不用大家说说',
+    '没必要开一轮',
+    '先别讨论一轮',
+    '我不觉得需要继续讨论',
+  ]) {
+    assert.equal(askedForRound(text), false, text)
+  }
+  assert.equal(askedForRound('先不继续讨论了，但大家说说'), true)
+})
+
 test('the host cannot open a round unless the user asked for one', () => {
   const room = { members: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }] }
   const reply = { action: 'reply', reply: '再来一轮，就一个点。', speakers: [], structured: true }

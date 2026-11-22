@@ -136,6 +136,7 @@ export const createProvisioner = ({ engine }) => {
         writeScope: member.writeScope,
         toolSurface: member.toolSurface,
         approval: member.approval,
+        ...(member.voice === undefined || member.voice === '' ? {} : { voice: member.voice }),
         ...(member.personality === undefined || member.personality === '' ? {} : { personality: member.personality }),
         ...(member.stance === undefined || member.stance === '' ? {} : { stance: member.stance }),
         body,
