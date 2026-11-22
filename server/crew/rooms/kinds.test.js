@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom } from './kinds.js'
-import { MENTION_ALL } from '../../../shared/mentions.js'
 
 const MODE_KEYS = [
-  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'messagePolicy', 'demoMessage', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record',
   'initialMessages', 'provisionExtra', 'start',
@@ -55,24 +54,10 @@ test('only the Lodge chat allows a host without member threads', () => {
   assert.equal(chat.allowsHostOnly({}), false)
 })
 
-test('message routing is a mode policy, not a room-type branch', () => {
-  const chat = roomModeForType('chat')
-  const room = { chat: { phase: 'discussing' }, members: [{ id: 'a', name: '甲' }] }
-  const concluded = { chat: { phase: 'concluded', running: false }, members: [{ id: 'a', name: '甲' }] }
-  assert.deepEqual(chat.messagePolicy({ room, text: '聊聊', mentions: [] }), { type: 'host' })
-  assert.deepEqual(chat.messagePolicy({ room: concluded, text: '继续', mentions: [] }), { type: 'host' })
-  assert.deepEqual(chat.messagePolicy({ room, text: '@甲 看这里', mentions: [] }), { type: 'host' })
-  assert.deepEqual(chat.messagePolicy({ room, text: '@所有人 看这里', mentions: [] }), { type: 'host' })
-  assert.deepEqual(chat.messagePolicy({ room: concluded, text: '@所有人 继续', mentions: [MENTION_ALL] }), { type: 'round' })
-  assert.deepEqual(chat.messagePolicy({ room, text: '@所有人 继续', mentions: [MENTION_ALL] }), { type: 'round-busy' })
-  const busy = { chat: { phase: 'discussing', running: true }, members: [{ id: 'a', name: '甲' }] }
-  assert.equal(chat.messagePolicy({ room: concluded, text: '@甲 继续', mentions: ['a'] }), null)
-  assert.deepEqual(chat.messagePolicy({ room: busy, text: '@甲 看这里', mentions: ['a'] }), { type: 'direct-busy' })
-  assert.deepEqual(chat.messagePolicy({ room, text: '@甲 看这里', mentions: ['a'] }), { type: 'direct-busy' })
-
-  const studio = roomModeForType('studio')
-  assert.equal(studio.messagePolicy({ room: { stages: [{ state: 'passed' }] } }), null)
-  assert.equal(studio.messagePolicy({ room: { stages: [{ state: 'active' }] } }), null)
+test('message routing lives in each room service, not the narrow mode contract', () => {
+  for (const kind of roomKinds) {
+    assert.equal('messagePolicy' in roomModeForType(kind.id), false, `${kind.id} still exposes routing in the mode contract`)
+  }
 })
 
 test('narrow interfaces expose only their own responsibilities', () => {

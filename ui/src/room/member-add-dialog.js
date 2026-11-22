@@ -153,6 +153,7 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
         h(CapabilityReadOnly, {
           skills: roleSkills,
           mcp: [],
+          systemBrowser: true,
           note: '加入后按角色自动挂上；只读',
         })) : h(Fragment, null,
         h('textarea', {

@@ -8,7 +8,8 @@ import { StatePanel } from '../../state-panel.js'
 import { PausedPanel } from '../paused-panel.js'
 import { RoomReview } from '../room-review.js'
 import { TypingLine } from '../typing-line.js'
-import { chatStatusOf } from '../../../../shared/room-status.js'
+import { chatStartedOf, chatStatusOf } from '../../../../shared/room-status.js'
+import { CHAT_STATUS } from '../../../../shared/states.js'
 
 
 // 聊天室的房间视图：只认自己的决策、时间线与输入中状态，不碰工作室。
@@ -38,7 +39,7 @@ export const chatView = {
     const hasConversation = (room.messages ?? []).some(message => (
       message.kind === 'chat' || message.kind === 'chat_conclusion'
     ))
-    const intro = hasConversation || room.chat?.running === true || room.state !== 'active'
+    const intro = hasConversation || chatStartedOf(room) || room.state !== 'active'
       ? null
       : h(StatePanel, {
         key: `intro-${room.id}`,
@@ -64,7 +65,7 @@ export const chatView = {
       key: `review-${room.id}`,
       room,
       collapsible: true,
-      finished: room.chat?.phase === 'concluded',
+      finished: chatStatusOf(room) === CHAT_STATUS.concluded,
     }))
   },
   presence: () => null,

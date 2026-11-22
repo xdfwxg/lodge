@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { speakerPrompt } from './scheduler.js'
+import { speakerPrompt } from './prompts.js'
 
 const room = {
   goal: '朏朏住哪',

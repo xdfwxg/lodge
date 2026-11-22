@@ -8,8 +8,8 @@ import { ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
 export const createRoundActions = deps => {
   const {
     store, live, emit, roomFiles, startRound, stopRound, failRound, rejectRound,
-    supersedeRound, humanHandoffStageOf, stages, chat, recordMemory, resolveMerge,
-    rememberHuman, readRoom, readMessages, appendMessage, updateRound,
+    supersedeRound, humanHandoffStageOf, stages, chat, messageHandlers = {},
+    recordMemory, resolveMerge, rememberHuman, readRoom, readMessages, appendMessage, updateRound,
   } = deps
 
   return {
@@ -71,38 +71,13 @@ export const createRoundActions = deps => {
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
         const mode = roomModeOfRoom(room)
-        const messages = readMessages(room.id)
-        const policy = mode?.messagePolicy?.({ room, text, messages, mentions }) ?? null
-        // 规划师已经把这步交给人：人的这句话就是补充上下文，直接重跑这一步。
-        if (policy?.type === 'human-rework') {
-          const result = await stages.rework(room, { stage: policy.stage, note: promptText })
-          if (result.ok !== true) return result
-          return accepted({ room: result.body?.room ?? readRoom(room.id) })
+        // 房型自己认领消息：聊天室处理叫所有人、点名和交给主持，工作室处理交给人后的重做。
+        const handler = messageHandlers?.[mode?.id]
+        if (typeof handler === 'function') {
+          const handled = await handler(room, { text: promptText, mentions })
+          if (handled !== null && handled !== undefined) return handled
         }
-        // 不带 @：用户在跟主持说话；带 @：直接交给被点名的成员。
-        if (policy?.type === 'host') return chat.input(room, { note: promptText })
-        if (policy?.type === 'round-busy') {
-          return fail('conflict', '这一轮还在讨论，等结论出来再叫所有人。')
-        }
-        if (policy?.type === 'direct-busy') {
-          return fail('conflict', '这一轮还在讨论，等结束再点名；着急就先叫停。')
-        }
-        // 结论后叫所有人：开一轮受轮次和配额限制的讨论。
-        if (policy?.type === 'round') {
-          return chat.continue(room, {
-            note: promptText,
-            speakerIds: (room.members ?? []).map(member => member.id),
-          })
-        }
-        const direct = mode?.id === 'chat'
-          ? mentions
-            .map(id => (room.members ?? []).find(member => member.id === id)?.name)
-            .filter(name => typeof name === 'string' && name !== '')
-          : []
-        await live.send(room.id, promptText, {
-          mentions,
-          ...(direct.length === 0 ? {} : { meta: { direct } }),
-        })
+        await live.send(room.id, promptText, { mentions })
         return accepted({ accepted: true })
       }
       const message = appendMessage(roomId, { kind: 'chat', authorId: 'you', text, ...(attachments.length === 0 ? {} : { meta: attachmentMeta }) })

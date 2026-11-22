@@ -42,6 +42,16 @@ export const chatModeOf = room => (
     : 'open'
 )
 
+// 聊天有没有真正开始：运行标志、总结/收尾阶段，或已经有人说了一句。
+export const chatStartedOf = (room, messages = room?.messages) => {
+  const chat = room?.chat ?? {}
+  if (chat.running === true || chat.hostThinking === true) return true
+  if (chat.phase === CHAT_PHASE.summarizing || chat.phase === CHAT_PHASE.concluded) return true
+  return (Array.isArray(messages) ? messages : []).some(message => (
+    message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'
+  ))
+}
+
 // 聊天室“现在在做什么”：先把房间暂停/停止、讨论、总结、收尾合成一个词。
 export const chatStatusOf = (room, messages = room?.messages) => {
   if (room?.archivedAt) return CHAT_STATUS.archived
@@ -52,8 +62,5 @@ export const chatStatusOf = (room, messages = room?.messages) => {
   if (chat.phase === CHAT_STATUS.concluded) return CHAT_STATUS.concluded
   if (chat.hostThinking === true) return CHAT_STATUS.thinking
   if (chat.running === true) return CHAT_STATUS.running
-  const started = (Array.isArray(messages) ? messages : []).some(message => (
-    message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'
-  ))
-  return started ? CHAT_STATUS.discussing : CHAT_STATUS.idle
+  return chatStartedOf(room, messages) ? CHAT_STATUS.discussing : CHAT_STATUS.idle
 }

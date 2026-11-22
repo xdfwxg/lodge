@@ -951,4 +951,5 @@ body[data-side=rail] .crew-side-me{justify-content:center;padding:8px 0}
 .crew-capability-note{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .crew-capability-chips{display:flex;flex-wrap:wrap;gap:4px;padding-top:1px}
 .crew-capability-chips code{padding:1px 6px;border-radius:5px;background:var(--bt-shade-3);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:18px}
+.crew-capability-chips code.crew-capability-system{background:var(--bt-accent-wash);color:var(--bt-ink-2);font-weight:500}
 .crew-capability-empty{font-size:var(--bt-text-helper);color:var(--bt-ink-3);line-height:18px}

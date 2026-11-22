@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { chatModeOf, chatStatusOf, idleDelivered, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf } from './room-status.js'
+import { chatModeOf, chatStartedOf, chatStatusOf, idleDelivered, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf } from './room-status.js'
 
 test('room lifecycle never reports a delivered round as a room state', () => {
   assert.equal(roomStatusOf({ state: 'idle' }), 'idle')
@@ -79,4 +79,14 @@ test('chat status folds phase, running flags and the first message into one word
   assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: said }), 'discussing')
   assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: [] }), 'idle')
   assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: [{ kind: 'chat', authorId: 'lodge' }] }), 'idle')
+})
+
+test('chat started is one fact shared by the room view and the island', () => {
+  assert.equal(chatStartedOf({ chat: { running: true } }), true)
+  assert.equal(chatStartedOf({ chat: { hostThinking: true } }), true)
+  assert.equal(chatStartedOf({ chat: { phase: 'summarizing' } }), true)
+  assert.equal(chatStartedOf({ chat: { phase: 'concluded' } }), true)
+  assert.equal(chatStartedOf({ chat: {}, messages: [{ kind: 'chat', authorId: 'member' }] }), true)
+  assert.equal(chatStartedOf({ chat: {}, messages: [{ kind: 'chat', authorId: 'lodge' }] }), false)
+  assert.equal(chatStartedOf({ chat: {}, messages: [] }), false)
 })

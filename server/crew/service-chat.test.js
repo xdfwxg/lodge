@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createServiceChat } from './rooms/chat/service.js'
+import { MENTION_ALL } from '../../shared/mentions.js'
 
 const setup = () => {
   let current = {
@@ -22,6 +23,7 @@ const setup = () => {
   }
   const messages = []
   const calls = []
+  const sent = []
   let intent = { action: 'reply', reply: '我在。', speakers: [] }
   let readIntent = async () => intent
   const store = {
@@ -50,6 +52,9 @@ const setup = () => {
           ...(Array.isArray(options.speakerIds) ? { speakers: options.speakerIds } : {}),
         })
       },
+      send: async (roomId, text, options = {}) => {
+        sent.push({ roomId, text, ...options })
+      },
     },
     emit: () => {},
   })
@@ -58,6 +63,7 @@ const setup = () => {
     room: () => current,
     messages,
     calls,
+    sent,
     setIntent: next => { intent = next },
     setHostIntent: next => { readIntent = next },
   }
@@ -141,4 +147,55 @@ test('restart refuses when the room has already concluded', () => {
   const result = ctx.chat.restart(ctx.room(), {})
   assert.equal(result.ok, false)
   assert.match(result.error, /没有可恢复/)
+})
+
+test('a message without a mention goes to the host', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲' }]
+  ctx.setIntent({ action: 'reply', reply: '我在。', speakers: [] })
+  const result = await ctx.chat.handleMessage(ctx.room(), { text: '你怎么看？', mentions: [] })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.room().chat.phase, 'concluded')
+  assert.equal(ctx.messages.at(-1).text, '我在。')
+  assert.deepEqual(ctx.sent, [])
+})
+
+test('@everyone opens a round when the room is open', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲' }, { id: 'b', name: '乙' }]
+  const result = await ctx.chat.handleMessage(ctx.room(), { text: '大家聊聊', mentions: [MENTION_ALL] })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '大家聊聊', speakers: ['a', 'b'] }])
+})
+
+test('@everyone waits while a round is already running', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲' }]
+  ctx.room().chat = { ...ctx.room().chat, phase: 'discussing' }
+  const result = await ctx.chat.handleMessage(ctx.room(), { text: '大家聊聊', mentions: [MENTION_ALL] })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /等结论/)
+})
+
+test('a named member gets the message directly in open chat', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲' }]
+  const result = await ctx.chat.handleMessage(ctx.room(), { text: '甲，你看呢', mentions: ['a'] })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.sent, [{
+    roomId: 'room-chat',
+    text: '甲，你看呢',
+    mentions: ['a'],
+    meta: { direct: ['甲'] },
+  }])
+})
+
+test('a named member waits while a round is running', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲' }]
+  ctx.room().chat = { ...ctx.room().chat, phase: 'discussing' }
+  const result = await ctx.chat.handleMessage(ctx.room(), { text: '甲，你看呢', mentions: ['a'] })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /等结束再点名/)
+  assert.deepEqual(ctx.sent, [])
 })

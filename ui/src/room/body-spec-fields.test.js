@@ -46,3 +46,30 @@ test('role capabilities render as read-only lists, not inputs', () => {
   assert.match(html, /github/)
   assert.doesNotMatch(html, /<input/)
 })
+
+test('the built-in read-only browser is shown as a system capability', () => {
+  const html = renderToStaticMarkup(h(CapabilityReadOnly, {
+    skills: [],
+    mcp: [{ server: 'chrome-devtools' }],
+  }))
+  assert.match(html, /只读浏览器（系统）/)
+  assert.doesNotMatch(html, /chrome-devtools/)
+  assert.doesNotMatch(html, /没有额外工具连接/)
+  assert.doesNotMatch(html, /<input/)
+})
+
+test('the add-member form shows the browser that will be granted', () => {
+  const html = renderToStaticMarkup(h(CapabilityReadOnly, {
+    skills: ['lodge-build'],
+    mcp: [],
+    systemBrowser: true,
+  }))
+  assert.match(html, /只读浏览器（系统）/)
+  assert.doesNotMatch(html, /没有额外工具连接/)
+})
+
+test('without any tool connection the empty state stays honest', () => {
+  const html = renderToStaticMarkup(h(CapabilityReadOnly, { skills: [], mcp: [] }))
+  assert.match(html, /没有额外工具连接/)
+  assert.doesNotMatch(html, /只读浏览器/)
+})

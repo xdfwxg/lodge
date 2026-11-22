@@ -38,9 +38,9 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 发言行显示两字立场；建房可填说话习惯；不改工具面 | `ui/src/room/chat/create.test.js`、`ui/src/room/message-view.test.js`、`ui/src/room/member-engine-picker.test.js`、`e2e/product.spec.mjs` | 真实聊天室读一轮发言 |
 | 自动交付默认关；打开后最后一步验收通过自动收口 | `server/crew/live-turn-modules.test.js`、`ui/src/room/studio/create.test.js` | 真实房间打开开关跑一轮 |
 | 成员回复里的 @ 不唤醒下一棒；聊天室公平顺序、每人先说到一次 | `server/crew/engine.test.js`、`server/crew/room-create.test.js`、`server/crew/live-chat-room.test.js` | 基座 `server/room-roots.e2e.test.ts` 覆盖真实路由 |
-| 用户点名路由（结构化成员 id；`@所有人` 开一轮；直接问标记；主持不自行开轮；轮次中直接点名被拒） | `server/crew/rooms/kinds.test.js`、`server/crew/rooms/chat/host-intent.test.js`、`server/crew/live-echo.test.js`、`ui/src/room/message-view.test.js` | 无 |
+| 用户点名路由（结构化成员 id；`@所有人` 开一轮；直接问标记；主持不自行开轮；轮次中直接点名被拒） | `server/crew/service-chat.test.js`、`server/crew/rooms/chat/host-intent.test.js`、`server/crew/live-echo.test.js`、`ui/src/room/message-view.test.js` | 无 |
 | 聊天开轮前检查预算 | `server/crew/service-chat.test.js` | 无 |
-| 中期事件按房型处理：聊天主持/直接、工作室排队/叫停、晚到回合 | `server/crew/rooms/kinds.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/live-sync.test.js` | 真实房间可选 |
+| 中期事件按房型处理：聊天主持/直接、工作室排队/叫停、交给人后重做 | `server/crew/service-chat.test.js`、`server/crew/rooms/studio/message.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/live-sync.test.js` | 真实房间可选 |
 | 秘密不进日志、提示词、证据和记忆；验收员看不到 `.env` | `shared/secrets.test.js`、`shared/untrusted-text.test.js`、`server/crew/memory.test.js`、`server/crew/workspace-plain.test.js`、`server/crew/workspace-git.test.js`、`server/crew/workspace-direct.test.js`、`server/crew/negative-list.test.js` | 无 |
 | 通知只给真正等人处理的事，同房有冷却 | `shared/quiet.test.js`、`ui/src/app/use-attention.js` | 无 |
 | 重置前归档工作区，数据库与工作区成对恢复 | `server/crew/data-recovery.test.js` | 无 |

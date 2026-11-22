@@ -2,6 +2,8 @@ import { fail, ok } from '../../result.js'
 import { chatTransitionEvent, transitionChat } from './state.js'
 import { systemNotice } from '../../notices.js'
 import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
+import { chatModeOf } from '../../../../shared/room-status.js'
+import { MENTION_ALL } from '../../../../shared/mentions.js'
 
 // 聊天室只有 room.chat；结论之后继续聊，不经过工作室的 stages/gates，也不需要确认。
 const chatBudgetExceeded = room => {
@@ -135,5 +137,29 @@ export const createServiceChat = ({ store, live, emit }) => {
     return ok({ room, message })
   }
 
-  return { continue: continueChat, input, restart }
+  // 用户消息先由聊天室自己认领：叫所有人、点名、还是交给主持。
+  // 通用房间动作只负责把 live 房间的消息送到这里，不再认识聊天策略。
+  const handleMessage = async (room, { text = '', mentions = [] } = {}) => {
+    const mode = chatModeOf(room)
+    if (mentions.includes(MENTION_ALL)) {
+      return mode === 'open'
+        ? continueChat(room, { note: text, speakerIds: (room.members ?? []).map(member => member.id) })
+        : fail('conflict', '这一轮还在讨论，等结论出来再叫所有人。')
+    }
+    const named = mentions.filter(id => (room.members ?? []).some(member => member.id === id))
+    if (named.length > 0) {
+      if (mode === 'round') return fail('conflict', '这一轮还在讨论，等结束再点名；着急就先叫停。')
+      const names = named
+        .map(id => (room.members ?? []).find(member => member.id === id)?.name)
+        .filter(name => typeof name === 'string' && name !== '')
+      await live.send(room.id, text, {
+        mentions: named,
+        ...(names.length === 0 ? {} : { meta: { direct: names } }),
+      })
+      return ok({ accepted: true })
+    }
+    return input(room, { note: text })
+  }
+
+  return { continue: continueChat, handleMessage, input, restart }
 }

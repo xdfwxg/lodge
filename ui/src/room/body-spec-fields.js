@@ -29,10 +29,15 @@ export const bodySpecPayload = spec => {
 }
 
 // 角色成员的能力只读：技能是角色包，MCP 是成员授权，都不在这里改。
-export function CapabilityReadOnly({ skills = [], mcp = [], note = '' }) {
-  const servers = (Array.isArray(mcp) ? mcp : [])
+// 内置只读浏览器不可编辑，但仍然要让人看见它确实在身上。
+export function CapabilityReadOnly({ skills = [], mcp = [], note = '', systemBrowser = false }) {
+  const list = Array.isArray(mcp) ? mcp : []
+  const servers = list
     .map(item => (typeof item === 'string' ? item : item?.server ?? ''))
     .filter(name => name !== '' && name !== BROWSER_MCP_SERVER_NAME)
+  const browser = systemBrowser || list.some(item => (
+    (typeof item === 'string' ? item : item?.server) === BROWSER_MCP_SERVER_NAME
+  ))
   return h('div', { className: 'crew-capability crew-capability-readonly' },
     h('div', { className: 'crew-capability-head' },
       h('b', null, '能力'),
@@ -44,9 +49,13 @@ export function CapabilityReadOnly({ skills = [], mcp = [], note = '' }) {
     h('div', { className: 'crew-capability-row' },
       h('span', { className: 'crew-capability-label' }, '工具连接'),
       h('span', { className: 'crew-capability-chips' },
-        servers.length === 0
+        browser
+          ? h('code', { key: 'browser', className: 'crew-capability-system' }, '只读浏览器（系统）')
+          : null,
+        ...servers.map(name => h('code', { key: name }, name)),
+        !browser && servers.length === 0
           ? h('span', { className: 'crew-capability-empty' }, '没有额外工具连接')
-          : servers.map(name => h('code', { key: name }, name)))))
+          : null)))
 }
 
 // 能力是 skills 和 mcp，放在一组里；它们不改性格。

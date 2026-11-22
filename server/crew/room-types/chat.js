@@ -1,5 +1,5 @@
 import { roomTypeMeta } from '../../../shared/room-types.js'
-import { STAGE_STATE } from '../../../shared/states.js'
+import { CHAT_PHASE, STAGE_STATE } from '../../../shared/states.js'
 
 const meta = roomTypeMeta('chat')
 
@@ -13,6 +13,18 @@ export const turnLimitOf = room => {
     ? value
     : CHAT_TURNS_PER_ROUND
 }
+
+// 新建聊天室和 Lodge 的初始对话状态只写一次，避免两处字段漂移。
+export const initialChatState = ({ turnLimit = CHAT_TURNS_PER_ROUND } = {}) => ({
+  round: 1,
+  phase: CHAT_PHASE.discussing,
+  turnLimit: Number.isInteger(turnLimit) ? turnLimit : CHAT_TURNS_PER_ROUND,
+  turns: 0,
+  conclusionId: null,
+  running: false,
+  speaker: '',
+  note: '',
+})
 
 export const id = 'chat'
 export const name = meta.name

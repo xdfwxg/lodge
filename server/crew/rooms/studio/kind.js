@@ -9,7 +9,6 @@ import { activeStageReadOnly } from './turn-utils.js'
 import { reviewRoomGate } from '../../gate/index.js'
 import { buildDelivery } from './delivery.js'
 import { SHADOW_SOUL } from './shadow-reviewer.js'
-import { humanHandoffStageOf } from './human-handoff.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { dispatchFrom, tasksFrom } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
@@ -293,11 +292,6 @@ export const studioKind = {
 
   memberPrompt: member => member.prompt ?? '',
   demoMessage: null,
-  messagePolicy: ({ room, messages = [] }) => {
-    const handoff = humanHandoffStageOf(room, messages)
-    if (handoff !== null) return { type: 'human-rework', stage: handoff }
-    return null
-  },
   validateRoster: type.validateRoster,
   supportsMemberAdd: true,
   allowsHostOnly: () => false,

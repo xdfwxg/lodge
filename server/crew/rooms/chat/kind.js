@@ -1,4 +1,4 @@
-import { CHAT_TURNS_PER_ROUND } from '../../room-types/chat.js'
+import { CHAT_TURNS_PER_ROUND, initialChatState } from '../../room-types/chat.js'
 import * as type from '../../room-types/chat.js'
 import { isChatSystemNoise } from '../../room-chat.js'
 import { systemNotice } from '../../notices.js'
@@ -7,9 +7,6 @@ import { personalityPrompt } from '../../../../shared/personalities.js'
 import { CHAT_HOST_VOICE, CHAT_VOICE } from '../../../../shared/chat-voice.js'
 import { stancePrompt } from '../../../../shared/chat-stances.js'
 import { chatProjection } from './projection.js'
-import { CHAT_PHASE } from '../../../../shared/states.js'
-import { chatModeOf } from '../../../../shared/room-status.js'
-import { MENTION_ALL } from '../../../../shared/mentions.js'
 
 // 聊天室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
 export const chatKind = {
@@ -19,17 +16,6 @@ export const chatKind = {
 
   memberPrompt: () => '',
   demoMessage: '这是示例房间，不接模型；要动手就把结论转成工作室任务。',
-  messagePolicy: ({ room, mentions = [] }) => {
-    // 只认输入框成员选择器传来的 id；手打 @ 不算点名。
-    const mode = chatModeOf(room)
-    if (mentions.includes(MENTION_ALL)) {
-      // 叫所有人永远是开一轮；已经在轮次里就明确说等这一轮结束。
-      return mode === 'open' ? { type: 'round' } : { type: 'round-busy' }
-    }
-    const named = mentions.some(id => (room.members ?? []).some(member => member.id === id))
-    if (named && mode === 'round') return { type: 'direct-busy' }
-    return named ? null : { type: 'host' }
-  },
 
   memberRole: member => ({
     roleKind: 'participant',
@@ -68,19 +54,10 @@ export const chatKind = {
     return {
       constraints: [
         '聊天室只读：成员可以读文件、联网只读和讨论；不写文件、不跑命令，外部动作先问人',
-        `系统随机唤醒成员，每轮 ${limit} 次；主持人最后总结`,
+        `系统按未发言和立场顺序唤醒成员，每轮 ${limit} 次；主持人最后总结`,
         `结论由你认可；不认可就继续讨论 ${limit} 次`,
       ],
-      chat: {
-        round: 1,
-        phase: CHAT_PHASE.discussing,
-        turnLimit: limit,
-        turns: 0,
-        conclusionId: null,
-        running: false,
-        speaker: '',
-        note: '',
-      },
+      chat: initialChatState({ turnLimit: limit }),
     }
   },
 

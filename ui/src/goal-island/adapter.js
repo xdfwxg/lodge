@@ -10,6 +10,7 @@ import { useGoalSignal } from './use-goal-signal.js'
 import { islandStatusOf, islandWorking } from './status.js'
 
 import { stripAttachmentTags } from '../../../shared/attachments.js'
+import { chatStartedOf } from '../../../shared/room-status.js'
 
 // 房型能力决定岛要不要画步骤；聊天室没有阶段，即使切过一次工作室也不显示残留阶段。
 const stagesOf = room => room.modeCapabilities?.stages === false
@@ -56,12 +57,8 @@ const toIslandRoom = room => ({
   lodge: room.lodge === true,
   needsYou: room.needsYou ?? null,
   attention: Array.isArray(room.attention) ? room.attention : [],
-  // 岛只拿裁剪后的房间；聊天有没有开始要在这里算好，别把整段消息带进去。
-  chatStarted: room.chat?.running === true ||
-    room.chat?.hostThinking === true ||
-    (Array.isArray(room.messages) ? room.messages : []).some(message => (
-      message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'
-    )),
+  // 岛只拿裁剪后的房间；聊天有没有开始由共享读模型算，别在这里另拼一套。
+  chatStarted: chatStartedOf(room),
   // 真正有回合在跑时才“灵动”地展开；回合结束回到最小，不常驻一条状态。
   working: islandWorking(room),
 })
