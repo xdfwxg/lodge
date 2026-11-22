@@ -4,12 +4,11 @@ import { CHAT_PHASE, STAGE_STATE } from '../../../shared/states.js'
 const meta = roomTypeMeta('chat')
 
 export const CHAT_TURNS_PER_ROUND = 6
-export const MAX_CHAT_TURNS_PER_ROUND = 20
-export const maxChatTurns = MAX_CHAT_TURNS_PER_ROUND
+export const maxChatTurns = 20
 
 export const turnLimitOf = room => {
   const value = Number(room?.chat?.turnLimit)
-  return Number.isInteger(value) && value >= 1 && value <= MAX_CHAT_TURNS_PER_ROUND
+  return Number.isInteger(value) && value >= 1 && value <= maxChatTurns
     ? value
     : CHAT_TURNS_PER_ROUND
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { lateReviewStillValid } from './review.js'
+import { lateReviewStillValid } from './review-policy.js'
 
 const room = (overrides = {}) => ({
   state: 'active',

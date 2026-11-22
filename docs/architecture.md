@@ -46,7 +46,8 @@ service.js                   ← 路由分发与用例组合
 | --- | --- | --- |
 | `Room` 记录 | 目标、成员、状态、阶段、Assignment、证据、交付；唯一实体 | 房间协议 |
 | `room-types/*` | 名称、默认成员、能力矩阵、创建纯规则；不持有运行时 | 产品描述符 |
-| `rooms/<mode>/kind.js` | 成员 soul、记录、启动、投影、等待信号；同一模式的行为不可拆 | 模式行为 |
+| `rooms/<mode>/kind.js` | 只装配模式策略；成员、需要你、记录、投影各自成模块 | 模式组合 |
+| 模式内模块 | 聊天：`service` 认领消息、`scheduler` 编排、`prompts` 写提示、`brief` 取上一轮结论、`issues` 做投影；工作室：`needs` 判等待、`record` 写约束和开场、`issues` 做阶段/复盘投影、`review` 协调复核、`review-prompts` / `review-policy` 只管复核文案与判定规则、`runtime/diagnostics` 只写回合诊断；各自可独立测试 | 单一职责 |
 | `rooms/kinds.js` | 唯一注册表；把策略裁成 `mode` / `presentation` / `lifecycle` 三组窄接口 | 组合与替换 |
 | `service.js` | 路由与业务编排；模式差异优先走注册表钩子，具体模式用例在组合点装配 | 用例流程 |
 | `ui/src/room/*` | 房间壳、房型视图、岛、共享展示；不 import `server/crew` | 呈现 |
@@ -62,7 +63,7 @@ service.js                   ← 路由分发与用例组合
 - **策略模式**：房型是运行策略，不是第二套房间模型；调度/圆桌/专项/接力共用同一份房间、成员和 Assignment 协议。
 - **接口隔离**：创建运行、只读投影和生命周期分开，调用方只拿需要的那组，避免房型接口膨胀。
 - **开闭与替换**：注册表和契约测试保证新模式可替换；关键生命周期已走钩子，剩余模式路由集中在用例入口，不再扩散到房间本体。
-- **不可拆分标尺**：一个模式的创建规则、运行行为、投影和等待信号必须同时变，所以收在同一个 `kind.js`；房间身份、消息和交接必须一起保持一致，所以留在房间本体。
+- **不可拆分标尺**：一个模式的创建记录、等待信号和只读投影能独立测试、独立变化，所以各自成模块；`kind.js` 只负责把它们装配成同一份策略。房间身份、消息和交接必须一起保持一致，所以留在房间本体。
 
 ## 数据与真相
 
@@ -207,7 +208,7 @@ service.js                   ← 路由分发与用例组合
 | 验收员 | `lodge-review`、`lodge-ui`、`lodge-security` | 3 个基座技能 |
 | 聊天室成员 | 不挂工程技能；只读文件、只读公网、`chat-voice`、`chat-stances` | 提示模块 |
 | Lodge 主机器人 | `listen / auto-grill / route / close`（`LODGE_HOST_RULES`） | 内置提示，不占基座技能 |
-| 房间层 | `room-issues`、`room-retro` | 只读投影，不是技能 |
+| 房间层 | 各房型的 `issues.js` / `retro.js` | 只读投影，经 presentation 钩子 |
 
 - 共 7 个唯一基座技能、8 个角色挂载；`lodge-ui` 由执行官和验收员共用。合并前的 18 个技能已停用，名字留在 `RETIRED_SKILLS` 里，旧成员换身体或自定义时会被清掉，不再挂载。
 - 聊天室没有 `grill-me`，也没有工程技能；主机器人自己判断何时追问，聊天成员只保留表达、席位和只读上下文。
@@ -218,7 +219,7 @@ service.js                   ← 路由分发与用例组合
 - 规划师只有两个技能：`lodge-plan` 管问清、写小规格和拆阶段；`lodge-design` 管术语、边界和契约。`grill-with-docs`、`to-spec`、`to-tickets` 不装原版，避免多出 GLOSSARY/ADR、spec 文件或外部 ticket 三个真相源。
 - 聊天成员是 `participant`，不继承工程技能；只有只读文件、只读公网、`chat-voice` 和 `chat-stances`。外部动作仍由审批桥拦住。聊天室必须使用支持逐次确认的引擎；不会问人的模型在建房前就被拒绝，不能把只读写在提示词里假装实现。
 - 验收员用 `lodge-review`：先自己跑验收命令，再做 Spec 轴和 Standards 轴，两份报告并列，只在各自轴内排序；不引入 subagent，也不把两轴合并成一个分数。
-- `shared/room-issues.js` 和 `shared/room-retro.js` 是只读投影，不是技能：在每次组装房间视图（`presentRoom`）时直接算，模型看不到，也不花 token。工作室把阶段投成 issue，聊天把结论/待办投成 issue；复盘只引用真实返工、超时或用满轮次。它们不写房间状态，也不新增角色。
+- 各房型的 `issues.js` / `retro.js` 是只读投影，不是技能：在每次组装房间视图（`presentRoom`）时通过 presentation 钩子计算，模型看不到，也不花 token。工作室把阶段投成 issue，聊天把结论/待办投成 issue；复盘只引用真实返工、超时或用满轮次。它们不写房间状态，也不新增角色。
 
 ## 附件与视觉证据
 
@@ -233,6 +234,7 @@ service.js                   ← 路由分发与用例组合
 - `layer-boundaries.test.js`：应用层不 import 具体适配器；业务不解析基座地址；提示词不发送消息。
 - `negative-list.test.js`：聊天室不读工作室状态；工作室不读 `room.chat`；共享内核只通过房型契约；提示词不按任务内容分支。
 - `rooms/kinds.test.js`：两套房型实现同一组 mode / presentation / lifecycle 契约。
+- `npm run check:unused`（knip）：死文件、死导出、未使用依赖；入口和动态端口在 `knip.jsonc` 里显式列出。
 - `architecture.test.js`（UI）：共享 UI 不比较 `roomType`；房型视图只通过 kind 注册。
 - `boundary.test.js`、`assignment.test.js`：领域边界与交接生命周期。
 - `evals/planning/`：规划质量对照；`evals/rooms/`：房间交付固定题，外部脚本核对产出，不追求单次最好成绩。

@@ -483,3 +483,40 @@ npm run eval:planning:nightly
 - 删除没有调用方的导出：`ROUND_EVENTS`、`memberIdList`、`replayChatTransition`、`ROLE_IDS`、`BODY_CAPABILITY_LABELS`、`HANDOFF_FIELDS`、`GATE_DECISIONS`、`isLodgeRoom`、`mergeStateLabel`、`emptyUsage`、`work-round` 的 3 个未用上限常量；删除整份未使用的 `ui/src/room/presence.js`。
 - 保留 `terminalRoundStatus`：它还有轮次生命周期测试在保护，不是垃圾。
 - Lodge 单测 1193 全过；UI 端到端 18/18；`check:done` 全过（文档、验收、回归门禁和长任务 5/5）。
+
+## 2026-11-22 · 全局收敛与旧称呼清理
+
+- 用户称呼只认全局资料：删除启动时从旧房间 `humanName` 迁移的代码、`rememberHuman` 兼容入口，以及 `humanNameOf(room)` 的旧房间回退；`humanNameOf()` / `humanLabelOf()` 不再接收房间。
+- 删除文件内无引用的 `MAX_PROJECT_BYTES`、未使用的 `dispatchOf` 和 `onMenuCommand` import；更新 `room-types` 里已经不存在“兼容门面”的注释。
+- 房型投影从共享层收回各房型：`shared/room-issues.js` / `room-retro.js` 删除，改为 `rooms/chat/issues.js`、`rooms/studio/issues.js`，经 presentation 的 `issuesOf` / `retroOf` 钩子组装；共享层不再按 `roomType` 分支。
+- 全局扫描确认没有无引用导出、无引用 import、无引用的顶层本地函数。
+- Lodge 单测 1191 全过；UI 端到端 18/18；`check:done` 全过（文档、验收、回归门禁和长任务 5/5）。
+
+## 2026-11-22 · 工作室策略按不可拆分整体拆分
+
+- `studio/kind.js` 从 386 行降到 147 行，只负责装配策略；等待信号移到 `studio/needs.js`，约束和开场消息移到 `studio/record.js`，阶段/复盘投影已在 `studio/issues.js`。
+- 拆分标尺：等待信号、创建记录、只读投影能独立测试、独立变化，不属于同一个不可拆分整体；房间实体、成员、阶段和 Assignment 协议没有动。
+- 对外的 `studioKind` 形状、`rooms/kinds.js` 的三组窄接口、`service → 注册表 → kind` 依赖方向都不变；`studioConstraints` 仍经 facade 暴露。
+- 单测仍为 1191 全过；UI 端到端 18/18；`check:done` 全过（文档、验收、回归门禁和长任务 5/5）。
+
+## 2026-11-22 · 复核模块按职责拆分
+
+- `studio/review.js` 只保留复核协调：请求、等待、判定入库、重试和交接。
+- 复核文案移到 `studio/review-prompts.js`（判定格式、超时提醒、重试提示、外部证据围栏），复审判定规则移到 `studio/review-policy.js`（何时请影子评审、晚到判定是否仍有效、是否还有后续工作阶段）。
+- 拆分标尺：提示文案随产品措辞变化，判定规则随复核策略变化，协调器随回合生命周期变化；三者能独立测试、独立变化，不是同一个不可拆分整体。
+- 对外 `createReviewCoordinator` 和 `lateReviewStillValid` 的调用方式不变；`review-late.test.js` 改从 policy 模块导入。
+- Lodge 单测 1191 全过；UI 端到端 18/18；`check:done` 全过。
+
+## 2026-11-22 · 回合诊断从采集中拆出
+
+- `runtime/turn-capture.js` 只决定这一回合的结果（证据、复核、决策、忽略、重复）；诊断字段、评估、落盘和阶段摘要移到 `runtime/diagnostics.js`。
+- 拆分标尺：诊断 schema 和评估规则随观测需求变化，采集流程随回合类型变化；两者能独立测试、独立变化。
+- `turn-capture` 的调用顺序和对外 `createTurnCapture` 不变；新增 3 条诊断测试，覆盖写入、无 writer、writer 抛错。
+- Lodge 单测 1194 全过；UI 端到端 18/18；`check:done` 全过（文档、验收、回归门禁和长任务 5/5）。
+
+## 2026-11-22 · 上 knip 死代码门禁
+
+- 安装 `knip@6`，新增 `knip.jsonc`：列出 Electron、脚本、评测入口、fixtures 和 e2e；`ignoreExportsUsedInFile` 过滤“导出但只在本文件用”；`workspace-direct/plain` 的动态 provider 方法单独忽略；`pi` 和 `where.exe` 作为外部命令忽略。
+- 新增 `npm run check:unused`，并接进 `npm run check:done`。
+- 根据报告删除：`GATE_SERVER_NAME` 的重复 re-export、`min`、`onMenuCommand`、`view-format` 的 4 个未用投影函数；把重复的 `MAX_CHAT_TURNS_PER_ROUND|maxChatTurns` 收成一个 `maxChatTurns`。
+- `npx knip --no-progress` 当前 0 发现；Lodge 单测 1194 全过；UI 端到端 18/18；`check:done` 全过。

@@ -4,8 +4,6 @@ import { independenceLabel } from './digest.js'
 import { capabilitiesFor } from './rooms/kinds.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { stripAttachmentTags } from '../../shared/attachments.js'
-import { issuesOf } from '../../shared/room-issues.js'
-import { retroOf } from '../../shared/room-retro.js'
 import { prDraftOf } from '../../shared/pr-draft.js'
 
 // 房间能力是 opt-in 开关，不是房型分类；默认关闭，旧房间不受影响。
@@ -39,7 +37,7 @@ export const presentRoom = (room, messages = [], assignments = []) => {
   const host = presentation?.hostOf?.(room) ?? null
   const visible = {
     ...visibleRoom,
-    humanName: humanNameOf(room) || undefined,
+    humanName: humanNameOf() || undefined,
     goal: stripAttachmentTags(room.goal),
     members: (room.members ?? []).map(member => ({ ...member, body: publicBody(member.body) })),
     hostLabel: typeof host?.displayName === 'string' ? host.displayName : '',
@@ -64,7 +62,7 @@ export const presentRoom = (room, messages = [], assignments = []) => {
     independenceLabel: independenceLabel(room),
     delivery,
     prDraft,
-    issues: issuesOf(view, messages),
-    retro: retroOf(view, messages),
+    issues: presentation?.issuesOf?.(view, messages) ?? [],
+    retro: presentation?.retroOf?.(view, messages) ?? null,
   }
 }

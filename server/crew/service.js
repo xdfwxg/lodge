@@ -48,18 +48,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       : { name: '', avatar: null, updatedAt: null }
   )
   let profile = readStoredProfile()
-  // 迁移旧房间里的称呼：第一次启动时把已有的名字收进全局资料。
-  if (cleanHumanName(profile.name) === '') {
-    const rooms = typeof store.readRooms === 'function' ? store.readRooms() : []
-    const legacy = rooms
-      .map(room => cleanHumanName(room.humanName))
-      .find(name => name !== '') ?? ''
-    if (legacy !== '') {
-      profile = typeof store.writeProfile === 'function'
-        ? store.writeProfile({ ...profile, name: legacy })
-        : { ...profile, name: legacy }
-    }
-  }
   setCurrentHumanName(profile.name)
 
   const queries = createServiceQueries({
@@ -238,13 +226,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     return ok({ profile })
   }
 
-  // 旧客户端消息里带的称呼只在全局还没名字时收下；资料接口是唯一写入口。
-  const rememberHuman = (roomId, body) => {
-    const name = cleanHumanName(body?.humanName)
-    if (name === '' || profile.name !== '') return
-    saveHumanProfile({ name, avatar: profile.avatar })
-  }
-
   const { roomRequest } = createRoomActions({
     store,
     live,
@@ -266,7 +247,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     recordMemory,
     createRoom,
     resolveMerge,
-    rememberHuman,
   })
 
   return {

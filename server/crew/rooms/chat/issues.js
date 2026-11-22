@@ -1,13 +1,4 @@
-import { stageStatusOf } from './room-status.js'
-import { CHAT_PHASE, ISSUE_STATE, STAGE_STATUS } from './states.js'
-
-const ISSUE_STATE_OF = Object.freeze({
-  active: ISSUE_STATE.in_progress,
-  pending: ISSUE_STATE.todo,
-  passed: ISSUE_STATE.done,
-  blocked: ISSUE_STATE.blocked,
-  waiting: ISSUE_STATE.blocked,
-})
+import { CHAT_PHASE, ISSUE_STATE } from '../../../../shared/states.js'
 
 const items = text => String(text ?? '')
   .split('\n')
@@ -25,25 +16,7 @@ const sectionOf = (text, heading) => {
   return match === null ? [] : items(match[1])
 }
 
-export const issuesOf = (room, messages = []) => {
-  if (room?.roomType === 'studio') {
-    return (room.stages ?? []).map((stage, index) => {
-      const status = stageStatusOf(room, index)
-      return {
-        id: `stage-${index}`,
-        kind: 'stage',
-        title: stage.title,
-        state: ISSUE_STATE_OF[status] ?? ISSUE_STATE.todo,
-        stage: index,
-        acceptance: stage.acceptance ?? null,
-        ownerIds: Array.isArray(stage.assignees) ? stage.assignees : [],
-        blockers: status === STAGE_STATUS.blocked
-          ? [room.mergeConflict?.stage === index ? '合并冲突等你处理' : '这一步卡住了，等你处理']
-          : status === STAGE_STATUS.waiting ? ['等你处理'] : [],
-      }
-    })
-  }
-  if (room?.roomType !== 'chat') return []
+export const chatIssuesOf = (room, messages = []) => {
   const conclusion = conclusionOf(messages)
   if (conclusion !== undefined) {
     const todos = sectionOf(conclusion.text, '待办')
@@ -52,7 +25,7 @@ export const issuesOf = (room, messages = []) => {
         id: 'chat-conclusion',
         kind: 'decision',
         title: '这轮结论',
-        state: 'done',
+        state: ISSUE_STATE.done,
         stage: null,
         acceptance: null,
         ownerIds: [],
@@ -62,7 +35,7 @@ export const issuesOf = (room, messages = []) => {
         id: `chat-todo-${index}`,
         kind: 'todo',
         title,
-        state: 'todo',
+        state: ISSUE_STATE.todo,
         stage: null,
         acceptance: null,
         ownerIds: [],
@@ -75,7 +48,7 @@ export const issuesOf = (room, messages = []) => {
       id: 'chat-discussion',
       kind: 'discussion',
       title: '还在讨论',
-      state: 'in_progress',
+      state: ISSUE_STATE.in_progress,
       stage: null,
       acceptance: null,
       ownerIds: [],
@@ -83,4 +56,29 @@ export const issuesOf = (room, messages = []) => {
     }]
   }
   return []
+}
+
+export const chatRetroOf = room => {
+  const items = []
+  const rounds = room?.chat?.round ?? 1
+  if (rounds > 1) {
+    items.push({
+      kind: 'rounds',
+      text: `讨论用了 ${rounds} 轮才收敛`,
+      suggestion: '下一轮开场先写清判断标准，让分歧更早暴露。',
+    })
+  }
+  if (room?.chat?.turns >= room?.chat?.turnLimit) {
+    items.push({
+      kind: 'turns',
+      text: '讨论用满了发言上限',
+      suggestion: '把话题缩成一个可决定的选项，再开新一轮。',
+    })
+  }
+  const trimmed = items.slice(0, 3)
+  return {
+    mode: 'chat',
+    items: trimmed,
+    summary: trimmed.length === 0 ? '这次没有明显摩擦' : trimmed.map(item => item.text).join('；'),
+  }
 }

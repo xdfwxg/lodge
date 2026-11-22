@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "electron/preload.cjs",
+    "scripts/**/*.mjs",
+    "evals/**/run.mjs",
+    "evals/**/worker.mjs",
+    "evals/**/make-fixtures.mjs",
+    "evals/**/checks/**/*.mjs",
+    "evals/**/tools/**/*.mjs",
+    "evals/**/fixtures/**/*.{js,mjs}",
+    "e2e/**/*.spec.mjs"
+  ],
+  "project": [
+    "server/**/*.js",
+    "shared/**/*.js",
+    "ui/src/**/*.js",
+    "scripts/**/*.mjs",
+    "evals/**/*.mjs",
+    "e2e/**/*.mjs",
+    "electron/**/*.{js,mjs,cjs}"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "ignoreBinaries": [
+    "pi",
+    "where.exe"
+  ],
+  // workspace provider 的方法通过运行时接口取用，静态分析看不到调用方。
+  "ignoreIssues": {
+    "server/crew/workspace-direct.js": ["exports"],
+    "server/crew/workspace-plain.js": ["exports"]
+  }
+}

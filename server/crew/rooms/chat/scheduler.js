@@ -74,7 +74,7 @@ const discussionLines = (store, roomId) => {
   const messages = store.readMessages(roomId)
     .filter(message => message.kind === 'chat' || message.kind === 'chat_rework')
   const nameOf = message => message.authorId === 'you'
-    ? humanLabelOf(room, '你')
+    ? humanLabelOf('你')
     : message.authorId === 'system' ? '房间' : memberDisplayName(room, message.authorId)
   return recentAndOlder(messages, { nameOf })
 }

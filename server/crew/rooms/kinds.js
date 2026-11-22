@@ -24,7 +24,7 @@ const MODE_KEYS = [
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou',
   'refresh', 'projectWork', 'deliveryOf',
-  'hostOf', 'speakerOf',
+  'hostOf', 'speakerOf', 'issuesOf', 'retroOf',
 ]
 // 生命周期钩子会改房间状态，和只读投影分开；presentation 不拿 store。
 const LIFECYCLE_KEYS = ['markMemberFailure']
@@ -38,7 +38,7 @@ const views = new Map(roomKinds.map(kind => [kind, {
 
 const kindForType = typeId => roomKinds.find(kind => kind.owns(typeId)) ?? null
 
-// 房型注册表只认本层策略；room-types 目录保留纯描述符，index 只是兼容门面。
+// 房型注册表只认本层策略；room-types 目录只放纯描述符。
 export const resolveRoomType = value => {
   if (value === undefined || value === null || value === '') return studioKind.type
   return roomKinds.find(kind => kind.owns(value))?.type ?? null

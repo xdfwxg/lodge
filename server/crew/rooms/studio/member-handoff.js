@@ -35,7 +35,7 @@ const feedbackOf = messages => {
 
 export const buildMemberHandoff = ({ room, messages = [] } = {}) => {
   if (room === null || room === undefined) return ''
-  const hostName = humanNameOf(room)
+  const hostName = humanNameOf()
   const roster = rosterOf(room)
   const lines = [
     ...(hostName === '' ? [] : [`用户称呼：${sanitizeUntrusted(hostName, 40)}`]),

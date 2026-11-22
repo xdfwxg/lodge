@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildMemberHandoff } from './rooms/studio/member-handoff.js'
+import { setCurrentHumanName } from './human-name.js'
 
 const room = {
   id: 'room-h1',
@@ -29,8 +30,10 @@ test('a member handoff carries business material and references the transcript',
 })
 
 test('the handoff tells the member who the user is', () => {
-  const text = buildMemberHandoff({ room: { ...room, humanName: '千寻' }, messages: [] })
+  setCurrentHumanName('千寻')
+  const text = buildMemberHandoff({ room, messages: [] })
   assert.match(text, /用户称呼：千寻/)
+  setCurrentHumanName('')
 })
 
 test('the handoff lists the room members and their roles', () => {

@@ -12,7 +12,7 @@ const MODE_KEYS = [
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou',
   'refresh', 'projectWork', 'deliveryOf',
-  'hostOf', 'speakerOf',
+  'hostOf', 'speakerOf', 'issuesOf', 'retroOf',
 ]
 const LIFECYCLE_KEYS = ['markMemberFailure']
 

@@ -2,8 +2,6 @@ import * as log from '../log.js'
 import { fileURLToPath } from 'node:url'
 import { GATE_SERVER_NAME } from '../../../shared/gate.js'
 
-export { GATE_SERVER_NAME } from '../../../shared/gate.js'
-
 const SERVER_FILE = fileURLToPath(new URL('./mcp-server.js', import.meta.url))
 let ready = null
 

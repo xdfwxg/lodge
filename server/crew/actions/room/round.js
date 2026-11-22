@@ -9,7 +9,7 @@ export const createRoundActions = deps => {
   const {
     store, live, emit, roomFiles, startRound, stopRound, failRound, rejectRound,
     supersedeRound, humanHandoffStageOf, stages, chat, messageHandlers = {},
-    recordMemory, resolveMerge, rememberHuman, readRoom, readMessages, appendMessage, updateRound,
+    recordMemory, resolveMerge, readRoom, readMessages, appendMessage, updateRound,
   } = deps
 
   return {
@@ -22,7 +22,6 @@ export const createRoundActions = deps => {
       if (normalized.error !== undefined) return fail('invalid', normalized.error)
       const attachments = normalized.attachments
       if (text === '' && attachments.length === 0) return fail('invalid', '说一句这一轮要做什么')
-      rememberHuman(room.id, body)
       const result = await startRound({
         store,
         live,
@@ -60,7 +59,6 @@ export const createRoundActions = deps => {
       const attachments = normalized.attachments
       if (text === '' && attachments.length === 0) return fail('invalid', '消息不能为空，且不超过 8000 字')
       if (text.length > 8000) return fail('invalid', '消息不能为空，且不超过 8000 字')
-      rememberHuman(room.id, body)
       room = readRoom(room.id) ?? room
       const mentions = Array.isArray(body.mentions)
         ? body.mentions.filter(id => typeof id === 'string' && id !== '').slice(0, 8)

@@ -4,75 +4,23 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { buildMemberHandoff } from './member-handoff.js'
 import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
-import { DECISION_JSON_HINT, VERDICT_JSON_HINT, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
+import { DECISION_JSON_HINT, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../shared/gate.js'
-import { fenceUntrusted, sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
+import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { roomStatusOf } from '../../../../shared/room-status.js'
 import { workspaceOf } from './workspace.js'
 import { ensurePreviews } from './previews.js'
 import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
-import { reworkFloor } from '../../../../shared/attempt.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf, workerIds } from '../../room-members.js'
 import { activeDispatchAssignments, latestDispatchAssignment, transitionAssignment } from '../../assignments.js'
-import { dispatchOf } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { recordShadowAdvice } from './shadow-advisor.js'
 import { relayAfterVerdict } from './relay.js'
-import { REVIEW_STATE, ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
-import { FINAL_TITLE } from './stage-plan.js'
+import { REVIEW_STATE, STAGE_STATE } from '../../../../shared/states.js'
+import { hasLaterWorkStage, lateReviewStillValid, shadowNeeded } from './review-policy.js'
+import { REVIEW_REMINDER_PROMPT, VERDICT_FORMAT, VERDICT_RETRY_PROMPT, untrusted } from './review-prompts.js'
 import { systemNotice } from '../../notices.js'
-
-
-// 影子评审按需出现：检查很弱、之前被退回、改动面大或碰到配置时，才请它看一眼。
-const WEAK_ACCEPTANCE = /^\s*(true|test\s+-[edf]\b)/i
-const CONFIG_FILE = /(^|\/)(package(-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|Dockerfile|\.env[^/]*|[^/]*\.config\.[cm]?[jt]s|tsconfig[^/]*\.json|[^/]*\.ya?ml)$/i
-export const shadowNeeded = ({ room, stage, evidence, manual, messages = [], stageIndex = null }) => {
-  if (room?.shadowReview === true) return true
-  if (manual === true) return true
-  const command = typeof stage?.acceptance === 'string' ? stage.acceptance.trim() : ''
-  if (command === '' || WEAK_ACCEPTANCE.test(command)) return true
-  const files = Array.isArray(evidence?.meta?.changedFiles) ? evidence.meta.changedFiles : []
-  if (files.length >= 5) return true
-  if (files.some(file => CONFIG_FILE.test(file))) return true
-  const rejected = (messages ?? []).some(message => (
-    message.kind === 'verdict' &&
-    (stageIndex === null || (message.meta?.stage ?? 0) === stageIndex) &&
-    !verdictPassed(message)
-  ))
-  return rejected
-}
-
-// 中间步骤验收通过就继续；最后一步仍由人收下这一轮的交付。
-const hasLaterWorkStage = (room, index) => (Array.isArray(room?.stages) ? room.stages : [])
-  .slice(index + 1)
-  .some(stage => stage.title !== FINAL_TITLE)
-
-const VERDICT_FORMAT =`如果工具列表里有 submit_verdict，直接调用它提交判定；工具不可用时才按文本回复。第一行写 PASS 或 REJECT，紧接着一句结论（不超过 50 字，说清结果是否达标）。${VERDICT_JSON_HINT}题面没写到的边界，挑一两个最能打穿规则的输入复核（例如 Unicode 标点、空串、连续符号）；发现问题直接 REJECT 并给证据。命令和退出码卡片已经显示，不要再复述。`
-const REVIEW_REMINDER_PROMPT = `复核还没有结论。请现在调用 submit_verdict 提交判定；没有这个工具就只回复一行 PASS 或 REJECT。不要继续调研。\n${INTERNAL_PROMPT_MARKER}`
-const VERDICT_RETRY_PROMPT = `你这一回合没有提交判定。现在只做一件事：调用 lodge_gate_submit_verdict 提交 PASS 或 REJECT；工具确实不可用时只回复一行 PASS 或 REJECT。不要继续调研，也不要改文件。\n${INTERNAL_PROMPT_MARKER}`
-
-// 证据、命令输出和 diff 都可能带外部内容；去隐藏字符、按字符预算截断，再用围栏包住。
-const untrusted = (text, lang = '', max = 4000) => fenceUntrusted(text, { lang, max })
-
-// 超时后晚到的判定只在这条复核仍然对应当前这一步、当前证据时才算数。
-export const lateReviewStillValid = ({ room, messages, pending }) => {
-  if (room === null || room.state !== ROOM_STATE.active) return false
-  const active = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
-  if (active !== pending.stage) return false
-  const floor = reworkFloor(messages, pending.stage)
-  const latestEvidence = [...messages].reverse().find(message => (
-    message.kind === 'evidence' &&
-    (message.meta?.stage ?? 0) === pending.stage &&
-    (message.seq ?? 0) > floor
-  ))
-  if (latestEvidence?.id !== pending.evidenceId) return false
-  return !messages.some(message => (
-    (message.kind === 'rework' || message.kind === 'rewind') &&
-    (message.meta?.stage ?? 0) === pending.stage &&
-    (message.ts ?? 0) > (pending.requestedAt ?? 0)
-  ))
-}
 
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null, advanceStage = null }) => {

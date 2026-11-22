@@ -12,7 +12,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
   const stateLine = phase === CHAT_PHASE.concluded
     ? '房间已经有一份结论；用户再说话就是在继续这件事。'
     : ''
-  const humanName = humanNameOf(room)
+  const humanName = humanNameOf()
   const humanLine = humanName === '' ? '' : `用户称呼：${humanName}。`
   const lodge = room.lodge === true && roster === ''
   const grillRule = '用户说“拷问我/grill me/来拷问我”，或说“帮我理理/拿不准/不知道从哪开始”时，用 reply 一次只问一个最关键的问题；不要开轮、不要开房、不要叫成员发言。用户回答后继续问下一个；用户说“够了/开始做”时，把已确认的点收成一段结论。'
@@ -42,7 +42,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
     lodge ? '' : `房间每轮固定 ${turnLimit} 次发言，主持不占发言位。`,
     humanLine,
     stateLine,
-    `${humanLabelOf(room)}说：${text}`,
+    `${humanLabelOf()}说：${text}`,
     ...rules,
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')

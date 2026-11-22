@@ -7,6 +7,7 @@ import { personalityPrompt } from '../../../../shared/personalities.js'
 import { CHAT_HOST_VOICE, CHAT_VOICE } from '../../../../shared/chat-voice.js'
 import { stancePrompt } from '../../../../shared/chat-stances.js'
 import { chatProjection } from './projection.js'
+import { chatIssuesOf, chatRetroOf } from './issues.js'
 
 // 聊天室的创建、投影和运行时都收在这里；共享层只调用钩子，不判断房型。
 export const chatKind = {
@@ -106,5 +107,7 @@ export const chatKind = {
   deliveryOf: () => null,
   hostOf: room => room.chatHost ?? null,
   speakerOf: room => room.chat?.speaker ?? '',
+  issuesOf: chatIssuesOf,
+  retroOf: chatRetroOf,
   bulletinAcceptance: () => '人确认',
 }

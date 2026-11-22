@@ -197,10 +197,6 @@ export const resolveMembers = (body, roomType) => {
   return { templateId, roster, workers, verifiers, worker, lead, align: explicitLead !== undefined }
 }
 
-const MAX_PROJECT_BYTES = 20_000
-
-
-
 export const effectiveAcceptanceOf = (acceptance, plan) => acceptance || (plan?.stages ?? [])
   .map(stage => stage.acceptance)
   .filter(Boolean)

@@ -5,7 +5,7 @@ import { ROOM_STATE } from '../../../../shared/states.js'
 
 // Lodge 的对话：一句话决定开工作室还是留下聊聊，不出现房型选择。
 export const createLodgeActions = deps => {
-  const { chat, createRoom, rememberHuman, readRoom, appendMessage, emit } = deps
+  const { chat, createRoom, readRoom, appendMessage, emit } = deps
 
   return {
     lodge: async ({ room: input, readBody }) => {
@@ -18,7 +18,6 @@ export const createLodgeActions = deps => {
       if (normalized.error !== undefined) return fail('invalid', normalized.error)
       const attachments = normalized.attachments
       if (text === '' && attachments.length === 0) return fail('invalid', '说一句想做什么')
-      rememberHuman(room.id, body)
       room = readRoom(room.id) ?? room
       const userMessage = appendMessage(room.id, {
         kind: 'chat',

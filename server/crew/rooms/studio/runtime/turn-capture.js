@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { addTurnUsage } from '../../../../../shared/usage.js'
-import { assessTurn } from '../../../turn-assessment.js'
 import { memberDisplayName } from '../../../member-labels.js'
+import { createTurnDiagnostics } from './diagnostics.js'
 import { verdictPassed } from '../../../../../shared/judgment.js'
 import { STAGE_STATE } from '../../../../../shared/states.js'
 import { rewindRequestOf } from '../../../../../shared/gate.js'
@@ -82,45 +82,9 @@ export const createTurnCapture = ({
       })
     }
     const parallel = (dispatch?.workers?.length ?? 0) > 1
-    const writeTurnDiagnostic = (outcome, extra = {}) => {
-      if (typeof writeDiagnostic !== 'function' || room === null) return
-      try {
-        const diagnostic = {
-          version: 2,
-          roomId,
-          roomName: room.name,
-          stage: stageIndex,
-          stageTitle: room.stages?.[stageIndex]?.title ?? '',
-          memberId,
-          role,
-          turnId,
-          at: turn?.at ?? null,
-          durationMs: turn?.durationMs ?? null,
-          toolCalls: turn?.toolCalls ?? 0,
-          tools: Array.isArray(turn?.tools) ? turn.tools : [],
-          usage: turn?.usage ?? null,
-          hookCoverage: turn?.hookCoverage ?? null,
-          outcome,
-          assessment: assessTurn({ outcome, turn, extra }),
-          ...extra,
-        }
-        void Promise.resolve(writeDiagnostic(room, turnId, diagnostic)).catch(() => {})
-        store.updateRound(roomId, current => {
-          current.stageDiagnostics = {
-            ...(current.stageDiagnostics ?? {}),
-            [stageIndex]: {
-              at: diagnostic.at ?? Date.now(),
-              memberId,
-              outcome,
-              turnId,
-              assessment: diagnostic.assessment,
-            },
-          }
-          return { events: [] }
-        })
-      } catch {}
-    }
-    writeTurnDiagnostic('captured')
+    const writeTurnDiagnostic = createTurnDiagnostics({ store, roomId, writeDiagnostic })
+    const writeTurn = (outcome, extra = {}) => writeTurnDiagnostic({ room, stageIndex, memberId, role, turn, outcome, extra })
+    writeTurn('captured')
     const pendingForMember = role === 'worker' &&
       assignment !== null &&
       ['created', 'sent', 'working'].includes(assignment.status) &&
@@ -139,7 +103,7 @@ export const createTurnCapture = ({
       startedAt < stageActivatedAt - 5000
     ) {
       state.capturedTurns.add(turnId)
-      writeTurnDiagnostic('stale', { startedAt, activatedAt: stageActivatedAt, reason: 'stage-started' })
+      writeTurn('stale', { startedAt, activatedAt: stageActivatedAt, reason: 'stage-started' })
       store.appendEvent(roomId, 'turn.stale', {
         turnId,
         memberId,
@@ -162,7 +126,7 @@ export const createTurnCapture = ({
       startedAt < assignment.sentAt - 5000
     ) {
       state.capturedTurns.add(turnId)
-      writeTurnDiagnostic('stale', { startedAt, sentAt: assignment.sentAt })
+      writeTurn('stale', { startedAt, sentAt: assignment.sentAt })
       store.appendEvent(roomId, 'turn.stale', {
         turnId,
         memberId,
@@ -178,7 +142,7 @@ export const createTurnCapture = ({
     }
 
     if ((turn.toolCalls ?? 0) === 0 && (turn.reply ?? '') === '') {
-      writeTurnDiagnostic('empty')
+      writeTurn('empty')
       if (pendingForMember) {
         state.capturedTurns.add(turnId)
         if (assignment !== null) {
@@ -224,20 +188,20 @@ export const createTurnCapture = ({
     }
 
     if (review.consume({ turn, memberId, turnId, room, calls })) {
-      writeTurnDiagnostic('review')
+      writeTurn('review')
       state.recordTurn(true)
       return
     }
 
     store.appendEvent(roomId, 'turn.completed', { turnId, memberId: memberId ?? 'unknown' })
     if (role === 'lead' && routePlannerDecision(room, stageIndex, turn, calls)) {
-      writeTurnDiagnostic('decision')
+      writeTurn('decision')
       // 规划师交给人或安排返工，本身就是进展；不能算作空转。
       state.recordTurn(true)
       return
     }
     if (role !== 'worker') {
-      writeTurnDiagnostic('ignored')
+      writeTurn('ignored')
       state.recordTurn(false)
       return
     }
@@ -257,7 +221,7 @@ export const createTurnCapture = ({
     ))
     if (duplicated) {
       state.capturedTurns.add(turnId)
-      writeTurnDiagnostic('duplicate')
+      writeTurn('duplicate')
       return
     }
 
@@ -350,7 +314,7 @@ export const createTurnCapture = ({
           transitionAssignment(store, assignment.id, 'reported', { turnId, evidenceIds: [stored.id], ...(candidate === null ? {} : { candidate }) })
           cancelAssignmentLease({ store, roomId, assignmentId: assignment.id })
         }
-        writeTurnDiagnostic('evidence', {
+        writeTurn('evidence', {
           evidenceIds: [stored.id],
           assignmentId: assignment?.id ?? null,
           candidate,
@@ -385,7 +349,7 @@ export const createTurnCapture = ({
     if (assignment !== null) {
       transitionAssignment(store, assignment.id, 'reported', { turnId, evidenceIds: [storedEvidence.id] })
       cancelAssignmentLease({ store, roomId, assignmentId: assignment.id })
-      writeTurnDiagnostic('evidence', {
+      writeTurn('evidence', {
         evidenceIds: [storedEvidence.id],
         assignmentId: assignment.id,
       })

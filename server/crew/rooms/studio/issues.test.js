@@ -1,17 +1,30 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { retroOf } from './room-retro.js'
+import { studioIssuesOf, studioRetroOf } from './issues.js'
 
-const studio = (patch = {}) => ({ roomType: 'studio', ...patch })
+test('studio stages become issues without a second state', () => {
+  const issues = studioIssuesOf({
+    stages: [
+      { title: '实现', state: 'passed', acceptance: 'npm test' },
+      { title: '复核', state: 'active' },
+      { title: '交付', state: 'pending' },
+    ],
+  })
+  assert.deepEqual(issues.map(issue => [issue.id, issue.state]), [
+    ['stage-0', 'done'],
+    ['stage-1', 'in_progress'],
+    ['stage-2', 'todo'],
+  ])
+})
 
 test('a clean studio has no friction', () => {
-  const retro = retroOf(studio(), [])
+  const retro = studioRetroOf({}, [])
   assert.deepEqual(retro.items, [])
   assert.equal(retro.summary, '这次没有明显摩擦')
 })
 
 test('reworks quote the latest reason', () => {
-  const retro = retroOf(studio(), [
+  const retro = studioRetroOf({}, [
     { kind: 'rework', text: '测试没过' },
     { kind: 'message', text: '继续' },
     { kind: 'rework', text: '少了一个边界' },
@@ -22,25 +35,14 @@ test('reworks quote the latest reason', () => {
 })
 
 test('timeouts and a failed auto check are separate items', () => {
-  const retro = retroOf(studio({ autoCheck: { status: 'blocked' } }), [{ kind: 'review_timeout' }])
+  const retro = studioRetroOf({ autoCheck: { status: 'blocked' } }, [{ kind: 'review_timeout' }])
   assert.deepEqual(retro.items.map(item => item.kind), ['timeout', 'check'])
 })
 
 test('studio retro keeps at most three items', () => {
-  const retro = retroOf(studio({ autoCheck: { status: 'limit-reached' } }), [
+  const retro = studioRetroOf({ autoCheck: { status: 'limit-reached' } }, [
     { kind: 'rework', text: 'a' },
     { kind: 'review_timeout' },
   ])
   assert.equal(retro.items.length, 3)
-})
-
-test('chat retro only mentions rounds and the turn limit', () => {
-  const retro = retroOf({ roomType: 'chat', chat: { round: 3, turns: 6, turnLimit: 6 } }, [])
-  assert.deepEqual(retro.items.map(item => item.kind), ['rounds', 'turns'])
-  assert.equal(retro.mode, 'chat')
-})
-
-test('a single chat round with spare turns has no friction', () => {
-  const retro = retroOf({ roomType: 'chat', chat: { round: 1, turns: 2, turnLimit: 6 } }, [])
-  assert.deepEqual(retro.items, [])
 })

@@ -11,12 +11,12 @@ const truncate = (text, limit) => {
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
 export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, brief = '', previous = null }) => {
   const speaker = memberOf(room, memberId)
-  const hostName = humanNameOf(room)
+  const hostName = humanNameOf()
   return [
     `聊天室话题：${room.goal}`,
     hostName === '' ? '' : `用户称呼：${hostName}。`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
-    note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
+    note === '' ? '' : `${humanLabelOf()}这轮的要求：${note}`,
     brief === '' ? '' : `上一轮结论：${brief}`,
     previous === null ? '' : `上一位：${previous.name}说“${truncate(previous.text, 200)}”`,
     '接着上面说：同意就补一个理由，不同意就指出哪一点，有疑问就只问一个具体问题。不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。',
@@ -34,7 +34,7 @@ export const hostPrompt = ({ room, round, note, turnLimit, structured = false })
     `聊天室第 ${round} 轮讨论到此结束，请总结。`,
     `话题：${room.goal}`,
     `固定成员：${(room.members ?? []).map(member => `${member.id}（${member.name}）`).join('、') || '无'}；本轮上限 ${turnLimit} 次发言。`,
-    note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
+    note === '' ? '' : `${humanLabelOf()}这轮的要求：${note}`,
     '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。',
   ]
   if (!structured) {

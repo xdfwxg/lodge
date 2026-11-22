@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { askedForRound, finalizeHostIntent, hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { setCurrentHumanName } from '../../human-name.js'
 
 test('a host reply stays a reply', () => {
   assert.deepEqual(
@@ -63,14 +64,16 @@ test('a grill request stays with the host, one question at a time', () => {
 })
 
 test('the host prompt tells the model the user name instead of only using it as a label', () => {
+  setCurrentHumanName('千寻')
   const prompt = hostIntentPrompt({
-    room: { lodge: true, members: [], humanName: '千寻' },
+    room: { lodge: true, members: [] },
     text: '我是谁',
     turnLimit: 6,
   })
   assert.match(prompt, /用户称呼：千寻/)
   assert.match(prompt, /千寻说：我是谁/)
   assert.doesNotMatch(prompt, /不要再问/)
+  setCurrentHumanName('')
 })
 
 test('an explicit request for another round is recognised', () => {

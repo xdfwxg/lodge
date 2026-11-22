@@ -186,5 +186,3 @@ export const validateRoster = (members, { requireWorker = true } = {}) => {
 
 export const ROLES = membersFor(DEFAULT_TEMPLATE_ID)
 validateRoster(ROLES)
-
-export const min = n => n * 60_000

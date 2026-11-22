@@ -15,7 +15,7 @@ const INTENTS = Object.freeze({
 const fromLabel = (room, from) => {
   if (typeof from !== 'string' || from === '') return ''
   // 人内部叫 you；给成员看的信封要用人的名字，成员才不会把 you 当成可点名的人。
-  if (from === 'you') return humanNameOf(room) || '用户'
+  if (from === 'you') return humanNameOf() || '用户'
   return memberOf(room, from) === null ? from : memberDisplayName(room, from)
 }
 

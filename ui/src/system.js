@@ -36,5 +36,4 @@ export const openPath = async target => {
 // 桌面桥的窄口：界面只通过这里发通知、同步菜单和订阅系统命令。
 export const requestAttention = payload => globalThis.lodge?.attention?.(payload)
 export const syncRoomMenu = rooms => globalThis.lodge?.syncRooms?.(rooms)
-export const onMenuCommand = handler => globalThis.lodge?.onCommand?.(handler) ?? null
 export const onOpenRoom = handler => globalThis.lodge?.onOpenRoom?.(handler) ?? null

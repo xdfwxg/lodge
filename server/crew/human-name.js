@@ -1,21 +1,17 @@
 // 用户给自己起的名字：聊天记录和提示里用它指代用户，代替“用户”和“你”。
-// UI 把名字随消息一起送上来；这里只做清洗，不判断名字好不好。
+// 名字是全局资料，不是房间字段；UI 通过资料接口改名，房间只读当前值。
 const LIMIT = 20
 
 export const cleanHumanName = value => (
   typeof value === 'string' ? value.trim().slice(0, LIMIT) : ''
 )
 
-// 当前用户是整个产品的资料，不是房间自己的字段。
-// 服务启动时把全局资料设进来；没设过时才回退到旧房间里的临时副本。
-let current = { name: '', loaded: false }
+let current = ''
 
-export const setCurrentHumanName = (value, { loaded = true } = {}) => {
-  current = { name: cleanHumanName(value), loaded }
+export const setCurrentHumanName = value => {
+  current = cleanHumanName(value)
 }
 
-export const humanNameOf = room => (
-  current.loaded ? current.name : cleanHumanName(room?.humanName)
-)
+export const humanNameOf = () => current
 
-export const humanLabelOf = (room, fallback = '用户') => humanNameOf(room) || fallback
+export const humanLabelOf = (fallback = '用户') => current || fallback
