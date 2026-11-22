@@ -49,11 +49,11 @@ test('the handoff is part of the bulletin and the opening prompt', () => {
   const aligned = alignmentPrompt('发布检查清单', 'manual', '', handoff)
   assert.match(aligned, /交接单/)
   assert.match(aligned, /分歧：是否自动回滚/)
-  // 对齐回合只回三行计划，不铺内部阶段。
-  assert.match(aligned, /\*\*做什么：\*\*/)
+  // 对齐回合只写两三句自然计划，不铺内部阶段，也不套模板标签。
+  assert.match(aligned, /第一句写下一步和 @ 谁/)
   assert.doesNotMatch(aligned, /\*\*口径：\*\*/)
-  assert.match(aligned, /\*\*怎么验收：\*\*/)
-  assert.match(aligned, /\*\*做完是什么样：\*\*/)
+  assert.match(aligned, /接着说怎么算过/)
+  assert.match(aligned, /最后说做完后用户能看到什么/)
   assert.doesNotMatch(aligned, /不超过 12 行/)
   assert.doesNotMatch(aligned, /不要用行内代码包中文标签/)
   assert.match(aligned, /系统会把计划交给执行官/)
@@ -77,10 +77,10 @@ test('an empty handoff is not stored', () => {
   assert.equal(result.handoff, null)
 })
 
-test('the alignment prompt asks for three lines, not internal stages', () => {
+test('the alignment prompt asks for a natural plan, not internal stages', () => {
   const prompt = alignmentPrompt('发布检查清单', 'manual', '')
-  assert.match(prompt, /\*\*做什么：\*\*/)
-  assert.match(prompt, /\*\*怎么验收：\*\*/)
-  assert.match(prompt, /\*\*做完是什么样：\*\*/)
+  assert.match(prompt, /用两三句自然中文说清这次怎么干/)
+  assert.match(prompt, /不要标题、分点、标签或步骤编号/)
+  assert.match(prompt, /第一句写下一步和 @ 谁/)
   assert.doesNotMatch(prompt, /目标对齐/)
 })
