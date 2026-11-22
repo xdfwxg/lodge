@@ -5,6 +5,7 @@ import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 import { progressOf } from '../../shared/progress.js'
 import { stripAttachmentTags } from '../../shared/attachments.js'
 import { MEMORY_STATUS } from '../../shared/states.js'
+import { redactSecrets } from '../../shared/secrets.js'
 
 // 房间记忆：只从已交付房间追加事实，人工审核后才对新房间可见；不接收模型写入。
 const MAX_RECORD_BYTES = 16 * 1024
@@ -12,9 +13,11 @@ const MAX_FILE_BYTES = 1024 * 1024
 const MAX_ENTRIES = 200
 
 const clip = (value, max) => {
-  const text = String(value ?? '').trim()
+  const text = redactSecrets(value).trim()
   return text.length > max ? `${text.slice(0, max)}…` : text
 }
+
+const SECRET_FILE = /(^|\/)\.env(\.|$)|\.pem$|\.key$/i
 
 const workspaceOf = room => {
   const path = typeof room?.sourceRepo === 'string' && room.sourceRepo !== '' ? room.sourceRepo : room?.repoPath
@@ -35,7 +38,7 @@ const recordOf = (room, messages) => {
     : judgmentOf(lastVerdict)?.reason || lastVerdict.text || conclusion?.text || room.name
   const files = [...new Set(ordered.flatMap(message => (
     Array.isArray(message.meta?.changedFiles) ? message.meta.changedFiles : []
-  )))].slice(0, 12).map(file => clip(file, 100))
+  )))].filter(file => !SECRET_FILE.test(file)).slice(0, 12).map(file => clip(file, 100))
   // 上次为什么被退回，是下一个人最该知道的取舍；只留最近两条。
   const rejections = ordered
     .filter(message => message.kind === 'verdict' && !verdictPassed(message))

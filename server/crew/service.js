@@ -1,3 +1,4 @@
+import * as log from './log.js'
 import { resolve, sep } from 'node:path'
 import { ROOM_STATE, STAGE_STATE } from '../../shared/states.js'
 import { createRealRoom } from './rooms/create/create.js'
@@ -84,10 +85,10 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     try {
       const result = ports.memory?.appendRoom?.({ room: memoryRoom(room), messages: readMessages(room.id) })
       if (result?.ok === false && result.reason !== 'demo' && result.reason !== 'no-workspace') {
-        console.warn(`[lodge] 房间记忆没有写入：${result.reason}`)
+        log.warn(`[lodge] 房间记忆没有写入：${result.reason}`)
       }
     } catch (error) {
-      console.warn(`[lodge] 房间记忆没有写入：${error?.message ?? error}`)
+      log.warn(`[lodge] 房间记忆没有写入：${error?.message ?? error}`)
     }
   }
   const finishRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom

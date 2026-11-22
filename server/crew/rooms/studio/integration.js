@@ -4,6 +4,7 @@ import { vcsOf, workspaceOf } from './workspace.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { systemNotice } from '../../notices.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
+import { redactSecrets } from '../../../../shared/secrets.js'
 import { activeDispatchAssignments, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 
@@ -121,10 +122,10 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         kind: 'command',
         vcs: vcsOf(room),
         stage: stageIndex,
-        command,
+        command: redactSecrets(command),
         exit: result.exit,
-        output: result.output,
-        diff: range.diff,
+        output: redactSecrets(result.output),
+        diff: redactSecrets(range.diff),
         status: range.files.map(file => `M ${file}`).join('\n'),
         files: range.files,
         manifest: range.manifest ?? [],

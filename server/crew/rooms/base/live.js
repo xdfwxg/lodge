@@ -1,3 +1,4 @@
+import * as log from '../../log.js'
 import { createBodySwap } from '../../kernel/live/body-swap.js'
 import { createLiveApprovals } from '../../kernel/live/approvals.js'
 import { createMessageProjector } from '../../kernel/live/projection.js'
@@ -183,7 +184,7 @@ export const createLiveRooms = ({
       const current = store.readRoom(room.id) ?? room
       await strategy.resumeIfRunning(entry, current)
       emit('room', current)
-      console.log(`live room attached: ${current.name} ${room.id}`)
+      log.info(`live room attached: ${current.name} ${room.id}`)
       return entry
     } catch (error) {
       // 半途失败不能留下一个“已连接”的空 entry，否则后续 attach 会直接复用它。
@@ -264,7 +265,7 @@ export const createLiveRooms = ({
         } catch (error) {
           failed = true
           markDisconnected(room.id, error)
-          console.warn(`live room not attached: ${room.id} ${error?.message ?? error}`)
+          log.warn(`live room not attached: ${room.id} ${error?.message ?? error}`)
         }
       }
     } catch (error) {
@@ -275,7 +276,7 @@ export const createLiveRooms = ({
       for (const room of store.readRooms()) {
         if (room.live === true) markDisconnected(room.id, error)
       }
-      console.warn(`live rooms not started: ${error?.message ?? error}`)
+      log.warn(`live rooms not started: ${error?.message ?? error}`)
       scheduleRetry()
       return
     }

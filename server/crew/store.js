@@ -1,3 +1,4 @@
+import * as log from './log.js'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -226,7 +227,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       if (room === null || room.demo === true || typeof room.repoPath !== 'string' || room.repoPath === '') return
       appendEventLog(room, { id: row.id, roomId, type: row.type, payload: JSON.parse(row.payload), at: row.at })
     } catch (error) {
-      console.warn(`room event mirror failed: ${roomId} ${error?.message ?? error}`)
+      log.warn(`room event mirror failed: ${roomId} ${error?.message ?? error}`)
     }
   }
 

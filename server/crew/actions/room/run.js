@@ -1,3 +1,4 @@
+import * as log from '../../log.js'
 import { memberOf } from '../../room-members.js'
 import { accepted, BusinessError, fail, ok } from '../../result.js'
 import { cancelOpenAssignments } from '../../assignments.js'
@@ -51,7 +52,7 @@ export const createRunActions = deps => {
       emit('room', resumed)
       if (room.state === ROOM_STATE.paused) {
         try { await live.resume?.(room.id) } catch (error) {
-          console.warn(`room resume failed: ${room.id} ${error?.message ?? error}`)
+          log.warn(`room resume failed: ${room.id} ${error?.message ?? error}`)
         }
       }
       return ok({ room: readRoom(room.id) ?? resumed })

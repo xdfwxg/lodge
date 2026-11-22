@@ -1,3 +1,4 @@
+import * as log from '../../log.js'
 import { randomUUID } from 'node:crypto'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { buildMemberHandoff } from './member-handoff.js'
@@ -682,7 +683,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     }
     if (nextRound.requests.size === 0) {
       round = null
-      if (failures.length > 0) console.warn(`[lodge] 复核请求没有发出：${failures.join('；')}`)
+      if (failures.length > 0) log.warn(`[lodge] 复核请求没有发出：${failures.join('；')}`)
       reject('conflict', '复核请求没能发出去；待处理。')
     }
     return { requested: true, stage: stageIndex, verifiers: [...nextRound.requests.keys()] }

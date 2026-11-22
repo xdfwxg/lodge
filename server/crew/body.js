@@ -1,3 +1,4 @@
+import * as log from './log.js'
 import { bodyIssueOf } from './body-check.js'
 import { ensureGateServer, roomToolsFor } from './gate/tool.js'
 import { toolScopeFor } from './tool-scope.js'
@@ -33,7 +34,7 @@ export const createBodyFactory = ({ engine }) => {
       try {
         await ensureGateServer(engine)
       } catch (error) {
-        console.warn(`[lodge] 判定工具没能注册，先用文本判定：${error?.message ?? error}`)
+        log.warn(`[lodge] 判定工具没能注册，先用文本判定：${error?.message ?? error}`)
         roomTools = []
       }
     }

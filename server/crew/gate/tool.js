@@ -1,3 +1,4 @@
+import * as log from '../log.js'
 import { fileURLToPath } from 'node:url'
 import { GATE_SERVER_NAME } from '../../../shared/gate.js'
 
@@ -29,7 +30,7 @@ export const ensureGateServer = async engine => {
           await engine.mcp.patch(GATE_SERVER_NAME, { enabled: true })
         }
       } catch (error) {
-        console.warn(`[lodge] 判定工具没能更新：${error?.message ?? error}`)
+        log.warn(`[lodge] 判定工具没能更新：${error?.message ?? error}`)
       }
       return true
     }

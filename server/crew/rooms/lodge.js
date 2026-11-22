@@ -1,3 +1,4 @@
+import * as log from '../log.js'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -79,7 +80,7 @@ export const ensureLodgeRoom = async ({ store, engine, live, workspace, emit = (
           description: 'Lodge · 判断、开房、陪聊',
         })
       } catch (error) {
-        console.warn(`[lodge] Lodge 主机器人没有更新：${error?.message ?? error}`)
+        log.warn(`[lodge] Lodge 主机器人没有更新：${error?.message ?? error}`)
       }
     }
     return restored ?? existing
@@ -115,7 +116,7 @@ export const ensureLodgeRoom = async ({ store, engine, live, workspace, emit = (
     try {
       await live.attach(room, { resume: false })
     } catch (error) {
-      console.warn(`[lodge] Lodge 房间没有连上：${error?.message ?? error}`)
+      log.warn(`[lodge] Lodge 房间没有连上：${error?.message ?? error}`)
     }
     emit('room', store.readRoom(room.id) ?? room)
     return store.readRoom(room.id) ?? room

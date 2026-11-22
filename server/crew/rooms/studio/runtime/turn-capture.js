@@ -17,6 +17,7 @@ import { deliverableStageIndex, isWorkStage, memberForRef } from '../turn-utils.
 import { vcsOf, workspaceOf } from '../workspace.js'
 import { systemNotice } from '../../../notices.js'
 import { armAssignmentLease, cancelAssignmentLease } from '../assignment-lease.js'
+import { redactSecrets } from '../../../../../shared/secrets.js'
 
 export const createTurnCapture = ({
   store,
@@ -292,7 +293,7 @@ export const createTurnCapture = ({
       kind: 'evidence',
       authorId: memberId ?? 'worker',
       ts: Date.now(),
-      text: turn.reply || summary,
+      text: redactSecrets(turn.reply || summary),
       meta: {
         kind: 'turn',
         vcs: vcsOf(room),
@@ -302,11 +303,11 @@ export const createTurnCapture = ({
         durationMs: turn.durationMs,
         files: artifacts.map(item => item.path.split('/').at(-1)),
         artifacts,
-        output: JSON.stringify({
+        output: redactSecrets(JSON.stringify({
           tools: turn.tools ?? [],
           toolCalls: turn.toolCalls,
           hookCoverage: turn.hookCoverage,
-        }, null, 2),
+        }, null, 2)),
         capturedAt: new Date().toISOString(),
       },
     }
@@ -339,7 +340,7 @@ export const createTurnCapture = ({
             repoPath: worktree ?? '',
             branch: current.branches?.[memberId] ?? '',
             head,
-            diff: range.diff,
+            diff: redactSecrets(range.diff),
             manifest: range.manifest ?? [],
             changedFiles: range.files,
             candidate,

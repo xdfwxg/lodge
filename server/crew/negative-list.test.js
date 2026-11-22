@@ -151,6 +151,13 @@ test('member rules never branch on what the task is about', () => {
   }
 })
 
+test('server logs only go through the redacting logger', () => {
+  for (const file of sources('.')) {
+    if (file.name === 'log.js') continue
+    assert.doesNotMatch(file.text, /\bconsole\.(warn|error|log)\s*\(/, `${file.name} logs directly`)
+  }
+})
+
 test('generic room creation knows no room engine handoff', () => {
   for (const file of sources('rooms/create')) {
     assert.doesNotMatch(

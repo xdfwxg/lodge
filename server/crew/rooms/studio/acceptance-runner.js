@@ -1,5 +1,6 @@
 import { verifierIds, workerIds } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
+import { redactSecrets } from '../../../../shared/secrets.js'
 import { reworkFloor } from './verifiers.js'
 import { vcsOf, workspaceOf } from './workspace.js'
 
@@ -120,10 +121,10 @@ export const createAcceptanceRunner = ({
         ...(reason === '' ? {} : { detected: reason }),
         vcs: vcsOf(room),
         stage: stageIndex,
-        command,
+        command: redactSecrets(command),
         exit: result.exit,
-        output: result.output,
-        diff: diff.diff,
+        output: redactSecrets(result.output),
+        diff: redactSecrets(diff.diff),
         status: diff.status,
         files: diff.files,
         manifest: diff.manifest ?? [],

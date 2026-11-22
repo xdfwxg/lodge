@@ -1,6 +1,9 @@
+import * as log from './log.js'
+import { redactSecrets } from '../../shared/secrets.js'
+
 // 服务错误对用户只说中文原因：接口路径、状态码和原始英文留在日志里。
 export const plainRuntimeError = error => {
-  const raw = String(error?.message ?? error ?? '')
+  const raw = redactSecrets(error?.message ?? error ?? '')
   if (/this channel is working|waiting on you|finish that turn first/i.test(raw)) {
     return '房间正在做事，等这一轮结束再试'
   }
@@ -21,6 +24,6 @@ export const plainRuntimeError = error => {
     return 'Lodge 服务没有响应，稍后再试'
   }
   if (/[\u4e00-\u9fff]/.test(raw)) return raw
-  console.warn(`[lodge] 服务错误：${raw}`)
+  log.warn(`[lodge] 服务错误：${raw}`)
   return 'Lodge 服务出了点问题，稍后再试'
 }

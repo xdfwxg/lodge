@@ -1,3 +1,4 @@
+import * as log from '../../log.js'
 import { memberForRef } from './projection.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 import { memberActivityOf } from './member-activity.js'
@@ -50,7 +51,7 @@ export const createRoomRefresher = ({ store, engine, emit }) => {
         emit('room', updated)
       } catch (error) {
         if (entry.refreshSeq === sequence) {
-          console.warn(`room refresh failed: ${entry.roomId} ${error?.message ?? error}`)
+          log.warn(`room refresh failed: ${entry.roomId} ${error?.message ?? error}`)
         }
       }
     })()

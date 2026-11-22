@@ -1,3 +1,4 @@
+import * as log from '../../log.js'
 import { memberForRef, memberNameOf } from './projection.js'
 import { roomLifecycleOfRoom } from '../../rooms/kinds.js'
 import { failureCopy, isMemberFailureText, memberFailureKind } from '../../member-failure.js'
@@ -70,7 +71,7 @@ export const createMemberSync = ({ store, engine, projector }) => {
       onState: state => {
         if (state.connected) {
           void syncMember(entry, memberId).catch(error => {
-            console.warn(`member resync failed: ${entry.roomId} ${memberId} ${error?.message ?? error}`)
+            log.warn(`member resync failed: ${entry.roomId} ${memberId} ${error?.message ?? error}`)
           })
         }
       },

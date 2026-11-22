@@ -64,6 +64,18 @@ test('a completed room appends one read-only record per workspace', () => withSt
   assert.equal(readFileSync(file, 'utf8').trim().split('\n').length, 1)
 }))
 
+test('memory keeps pointers, not secrets or env files', () => withStore((memory, root) => {
+  memory.appendRoom({ room: room(), messages: [
+    { kind: 'conclusion', text: '已交付，token=super-secret-value' },
+    { kind: 'evidence', meta: { changedFiles: ['.env', '.env.local', 'src/a.js'] } },
+  ] })
+  const [entry] = memory.list({ room: room() })
+  assert.deepEqual(entry.files, ['src/a.js'])
+  assert.doesNotMatch(JSON.stringify(entry), /super-secret-value/)
+  const file = join(root, `${memoryKeyFor(room())}.jsonl`)
+  assert.doesNotMatch(readFileSync(file, 'utf8'), /super-secret-value/)
+}))
+
 test('the record keeps the last two rejection reasons for the next room', () => withStore(memory => {
   const reject = (stage, reason) => ({ kind: 'verdict', text: 'REJECT', meta: {
     stage,

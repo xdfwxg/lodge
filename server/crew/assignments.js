@@ -1,3 +1,4 @@
+import * as log from './log.js'
 import { randomUUID } from 'node:crypto'
 import { ASSIGNMENT_STATUS, ASSIGNMENT_STATUSES, ASSIGNMENT_TERMINAL, ASSIGNMENT_TRANSITIONS } from '../../shared/states.js'
 
@@ -146,7 +147,7 @@ export const transitionAssignment = (store, id, status, patch = {}) => {
         ...(updated.messageId === undefined ? {} : { messageId: updated.messageId }),
       })
     } catch (error) {
-      console.warn(`[lodge] assignment event failed: ${error?.message ?? error}`)
+      log.warn(`[lodge] assignment event failed: ${error?.message ?? error}`)
     }
   }
   return updated

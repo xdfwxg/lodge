@@ -1,3 +1,4 @@
+import * as log from './log.js'
 import { execFile, execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -581,7 +582,7 @@ export const persistRoom = ({ room, files = [] }) => {
   const repo = roomRootOf(room)
   const rel = relative(repo, roomDir(room))
   if (rel === '' || rel.startsWith('..')) {
-    console.error(`room commit skipped: ${room.id} 不在目标仓库 ${repo} 内`)
+    log.error(`room commit skipped: ${room.id} 不在目标仓库 ${repo} 内`)
     return false
   }
   const canon = path => {
@@ -604,10 +605,10 @@ export const persistRoom = ({ room, files = [] }) => {
     const status = execFileSync('git', ['status', '--porcelain', '--', ...paths], { cwd: repo, encoding: 'utf8' })
     if (status.trim() === '') return true
     execFileSync('git', [...GIT_IDENTITY, 'commit', '-q', '-m', commitMessageOf({ room, files: extra }), '--', ...paths], { cwd: repo, stdio: 'ignore' })
-    console.log(`room committed: ${room.id} ${paths.join(' ')}`)
+    log.info(`room committed: ${room.id} ${paths.join(' ')}`)
     return true
   } catch (error) {
-    console.error(`room commit failed: ${room.id} ${paths.join(' ')}`, error.stderr?.toString() ?? error.message)
+    log.error(`room commit failed: ${room.id} ${paths.join(' ')}`, error.stderr?.toString() ?? error.message)
     return false
   }
 }

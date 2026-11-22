@@ -51,6 +51,21 @@ test('plain workspaces copy content without git or local-only files', () => {
   rmSync(source, { recursive: true, force: true })
 })
 
+test('plain verifier copies never receive env secrets', () => {
+  const source = sourceDir()
+  withRoot(() => {
+    const workspaces = prepareRoom({
+      source,
+      short: 'plain-env',
+      members: [{ id: 'worker', role: 'worker' }, { id: 'verifier', role: 'verifier' }],
+    })
+    assert.equal(existsSync(join(workspaces.members.worker.path, '.env')), true)
+    assert.equal(existsSync(join(workspaces.members.verifier.path, '.env')), false)
+    cleanupRoom({ source, workspaces })
+  })
+  rmSync(source, { recursive: true, force: true })
+})
+
 test('plain evidence is a file manifest, not a diff', async () => {
   const source = sourceDir()
   const previous = process.env.CREW_COPY_ROOT

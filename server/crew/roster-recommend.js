@@ -1,3 +1,4 @@
+import * as log from './log.js'
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { defaultOrchestrationId, resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
@@ -300,7 +301,7 @@ export const recommendRoster = async ({ probe, body, workspace }) => {
     try {
       proposal = parseProposal(reply)
     } catch (error) {
-      console.warn('roster recommendation unparsed:', String(reply).slice(0, 500))
+      log.warn('roster recommendation unparsed:', String(reply).slice(0, 500))
       return fail('invalid', error?.message ?? String(error))
     }
     return ok({ proposal })

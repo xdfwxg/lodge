@@ -1,3 +1,4 @@
+import * as log from '../../log.js'
 import { fail, ok } from '../../result.js'
 import { ROOM_STATE } from '../../../../shared/states.js'
 
@@ -71,7 +72,7 @@ export const createAdminActions = deps => {
       try {
         await live.retireRoomBots?.(room)
       } catch (error) {
-        console.warn(`room bots retire failed: ${room.id} ${error?.message ?? error}`)
+        log.warn(`room bots retire failed: ${room.id} ${error?.message ?? error}`)
       }
       const removed = typeof deleteRoom === 'function' ? deleteRoom(room.id) : false
       if (removed !== true) return fail('not_found', '没有这个房间')
@@ -79,7 +80,7 @@ export const createAdminActions = deps => {
       const roomRoot = roomFiles.roomDir?.(room)
       if (typeof roomRoot === 'string' && roomRoot !== '') {
         try { files.remove(roomRoot) } catch (error) {
-          console.warn(`room files remove failed: ${room.id} ${error?.message ?? error}`)
+          log.warn(`room files remove failed: ${room.id} ${error?.message ?? error}`)
         }
       }
       emit('room.deleted', { id: room.id, name: room.name })
