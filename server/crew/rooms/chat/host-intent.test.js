@@ -39,9 +39,17 @@ test('non-JSON host output still shows as text', () => {
 
 test('Lodge decides to open a room in the same turn', () => {
   assert.deepEqual(
-    parseHostIntent('{"action":"open","room":"chat","reply":"我开一间让大伙看看。"}', { allowOpen: true }),
-    { action: 'open', room: 'chat', reply: '我开一间让大伙看看。', speakers: [], structured: true },
+    parseHostIntent('{"action":"open","room":"chat","goal":"一起评价短篇《开锁》","reply":"我开一间让大伙看看。"}', { allowOpen: true }),
+    {
+      action: 'open',
+      room: 'chat',
+      goal: '一起评价短篇《开锁》',
+      reply: '我开一间让大伙看看。',
+      speakers: [],
+      structured: true,
+    },
   )
+  assert.equal(parseHostIntent('{"action":"open","room":"chat"}', { allowOpen: true }).goal, '')
   assert.equal(parseHostIntent('{"action":"open","room":"panel"}', { allowOpen: true }).action, 'reply')
   assert.equal(parseHostIntent('{"action":"open","room":"chat"}', { allowOpen: false }).action, 'reply')
 })
@@ -49,6 +57,8 @@ test('Lodge decides to open a room in the same turn', () => {
 test('the Lodge prompt asks for a room decision instead of a round', () => {
   const prompt = hostIntentPrompt({ room: { lodge: true, members: [] }, text: '喊上大伙看看', turnLimit: 6 })
   assert.match(prompt, /"action":"open"/)
+  assert.match(prompt, /"goal":"要完成的事"/)
+  assert.match(prompt, /不要把“找人一起评/)
   assert.doesNotMatch(prompt, /"action":"round"/)
   assert.match(prompt, /open studio/)
   assert.match(prompt, /open chat/)

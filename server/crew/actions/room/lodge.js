@@ -36,7 +36,8 @@ export const createLodgeActions = deps => {
         return ok({ room: readRoom(room.id) ?? room, message: userMessage })
       }
       // 附件跟着目标一起进新房：给模型的是带标记的目标，界面上仍只显示人写的那句话。
-      const goalText = text === '' ? (attachments[0]?.title ?? '看看这个附件') : text
+      // 目标优先用主持从上下文里整理出的 goal；最后一句常常只是“找人一起评”这类动作。
+      const goalText = decision.goal || (text === '' ? (attachments[0]?.title ?? '看看这个附件') : text)
       const created = await createRoom({
         goal: withAttachments(goalText, attachments),
         name: goalText.slice(0, 24),

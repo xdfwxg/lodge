@@ -1742,6 +1742,33 @@ test('shadow review says once when the reviewer could not answer', async () => {
   assert.equal(store.readRoom().advisorShadow, undefined)
 })
 
+test('the first activity cancels the member clock before evidence arrives', () => {
+  const room = makeRoom({})
+  const store = fakeStore(room)
+  const cancelled = []
+  store.cancelWork = id => cancelled.push(id)
+  store.writeAssignment({
+    id: 'as-live', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: {}, status: 'sent', context: {}, flags: {},
+  })
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.trackTool({
+    kind: 'activity',
+    authorRef: 'bot-exec',
+    turnId: 't-long',
+    ts: Date.now(),
+    tool: { id: 'call-1' },
+  })
+  assert.ok(cancelled.includes('assignment-lease:room-1:as-live'))
+})
+
 test('a worker turn cancels the member clock before its 8-minute expiry', () => {
   mock.timers.enable({ apis: ['Date'], now: 0 })
   try {

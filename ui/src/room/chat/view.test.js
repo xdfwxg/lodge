@@ -117,6 +117,23 @@ test('the island carries one lingchong, busy while working and settled when done
   assert.match(done, /class="lingchong"[^>]*data-state="done"/)
 })
 
+test('the chat transcript leaves the room review out', () => {
+  const html = renderToStaticMarkup(chatView.transcript({
+    room: {
+      id: 'room-chat',
+      name: '圆桌',
+      goal: '讨论交付边界',
+      state: 'active',
+      chat: { phase: 'discussing', running: false },
+      messages: [],
+    },
+    members: [],
+    actions,
+  }))
+  assert.doesNotMatch(html, /房间复盘/)
+  assert.doesNotMatch(html, /room-review/)
+})
+
 test('a demo chat says it cannot continue instead of promising a reply', () => {
   assert.equal(
     chatView.composerPlaceholder({ room: { state: 'complete', demo: true, live: false } }),

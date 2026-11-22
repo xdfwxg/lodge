@@ -24,10 +24,12 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
       '- 要找几个人一起看、一起讨论、听不同意见（大伙、大家、团队、多几个人、一起商量）→ open chat。',
       '- 只是聊聊、拿主意、还没想清楚 → reply。',
       '- 消息里带 <attached-image> 或 <attached-file> 标记时，附件会跟着目标一起进新房；该做事就照样 open。',
-      '要开房时，reply 用一句人话告诉对方开什么；不需要就先空着，平台会补一句“开好了”。',
+      '要开房时，同时给 goal：用用户要完成的事写一句可开工的目标，保留对话里的对象和上下文；不要把“找人一起评/开始吧”这类动作短语当成目标。',
+      '例如用户说“找人一起评”，goal 应写“一起评价短篇《开锁》哪里好、哪里要改”，不是“找人一起评”。',
+      'reply 用一句人话告诉对方开什么；不需要就先空着，平台会补一句“开好了”。',
       '只输出 JSON，不要 Markdown，不要解释：',
       '{"action":"reply","reply":"直接对用户说的话"}',
-      '或 {"action":"open","room":"studio" 或 "chat","reply":"可选的一句"}',
+      '或 {"action":"open","room":"studio" 或 "chat","goal":"要完成的事","reply":"可选的一句"}',
     ]
     : [
       '判断规则：',
@@ -95,6 +97,7 @@ export const parseHostIntent = (raw, { speakers = [], allowOpen = false } = {}) 
     return {
       action: 'open',
       room: value.room,
+      goal: typeof value?.goal === 'string' ? value.goal.trim().slice(0, 2_000) : '',
       reply: typeof value?.reply === 'string' ? value.reply.trim() : '',
       speakers: [],
       structured: true,
