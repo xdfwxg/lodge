@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { alignmentPrompt, directPrompt, normalizeRequest } from './rooms/create/input.js'
+import { normalizeRequest } from './rooms/create/input.js'
+import { alignmentPrompt, directPrompt } from './rooms/create/prompts.js'
 import { roomBulletin } from './rooms/kinds.js'
 
 const handoff = {

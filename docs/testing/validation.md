@@ -520,3 +520,10 @@ npm run eval:planning:nightly
 - 新增 `npm run check:unused`，并接进 `npm run check:done`。
 - 根据报告删除：`GATE_SERVER_NAME` 的重复 re-export、`min`、`onMenuCommand`、`view-format` 的 4 个未用投影函数；把重复的 `MAX_CHAT_TURNS_PER_ROUND|maxChatTurns` 收成一个 `maxChatTurns`。
 - `npx knip --no-progress` 当前 0 发现；Lodge 单测 1194 全过；UI 端到端 18/18；`check:done` 全过。
+
+## 2026-11-22 · dependency-cruiser 依赖图门禁
+
+- 安装 `dependency-cruiser@18`，新增 `.dependency-cruiser.cjs`：禁止循环依赖、未解析导入、UI↔server 互引、shared 外引、内核直连具体房型、聊天室↔工作室互引、应用层直连存储/引擎/工作区适配器；测试文件不参与架构规则。
+- 首轮抓到真实循环：`create/input.js → kinds.js → studio/kind.js → studio/start.js → create/input.js`。把 `alignmentPrompt` / `directPrompt` 移到 `rooms/create/prompts.js`，`start.js` 改依赖提示模块，`input.js` 保留 `normalizePlan` 和 `runnableCheck`；循环消失。
+- `rooms/create/input.test.js` 和 `handoff-create.test.js` 的提示导入同步更新。
+- 新增 `npm run check:deps`，接进 `npm run check:done`；当前 0 违规（639 模块 / 2067 依赖），单测 1194 全过，UI 端到端 18/18，`check:done` 全过。

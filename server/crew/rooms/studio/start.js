@@ -1,6 +1,6 @@
 import { buildMemberHandoff } from './member-handoff.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { alignmentPrompt, directPrompt } from '../create/input.js'
+import { alignmentPrompt, directPrompt } from '../create/prompts.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
 
 // 工作室建房后的第一次派发：先对齐，或直接交给主成员/执行成员。

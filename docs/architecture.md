@@ -235,6 +235,7 @@ service.js                   ← 路由分发与用例组合
 - `negative-list.test.js`：聊天室不读工作室状态；工作室不读 `room.chat`；共享内核只通过房型契约；提示词不按任务内容分支。
 - `rooms/kinds.test.js`：两套房型实现同一组 mode / presentation / lifecycle 契约。
 - `npm run check:unused`（knip）：死文件、死导出、未使用依赖；入口和动态端口在 `knip.jsonc` 里显式列出。
+- `npm run check:deps`（dependency-cruiser）：循环依赖、未解析导入、跨层 import、房型互引；规则在 `.dependency-cruiser.cjs`，测试文件不参与架构规则。
 - `architecture.test.js`（UI）：共享 UI 不比较 `roomType`；房型视图只通过 kind 注册。
 - `boundary.test.js`、`assignment.test.js`：领域边界与交接生命周期。
 - `evals/planning/`：规划质量对照；`evals/rooms/`：房间交付固定题，外部脚本核对产出，不追求单次最好成绩。

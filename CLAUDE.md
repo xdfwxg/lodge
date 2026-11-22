@@ -10,7 +10,7 @@
 - 构建：`npm run build`
 - 真实评测：`npm run eval:rooms`、`npm run eval:planning`（需要 Lodge 8787 和基座 8799）
 - 完成前验证：`npm run check:done`（单测、UI 端到端、构建和门禁）
-- 门禁：`npm run check:unused`（knip）、`npm run check:docs`、`npm run check:acceptance`、`npm run check:regressions`
+- 门禁：`npm run check:unused`（knip）、`npm run check:deps`（dependency-cruiser）、`npm run check:docs`、`npm run check:acceptance`、`npm run check:regressions`
 
 ## 边界
 
