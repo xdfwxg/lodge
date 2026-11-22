@@ -27,6 +27,7 @@ export const chatKind = {
         : { type: 'round-busy' }
     }
     const named = mentions.some(id => (room.members ?? []).some(member => member.id === id))
+    if (named && room.chat?.running === true) return { type: 'direct-busy' }
     return named ? null : { type: 'host' }
   },
 

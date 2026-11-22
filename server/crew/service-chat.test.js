@@ -76,6 +76,15 @@ test('a concluded chat starts another round without asking for confirmation', as
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '还缺反方观点' }])
 })
 
+test('a chat round is refused when the room budget is used up', () => {
+  const ctx = setup()
+  ctx.room().usage = { costMicroUsd: 500, budgetMicroUsd: 500, costStatus: 'reported' }
+  const result = ctx.chat.continue(ctx.room(), { note: '再来一轮' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /额度用完了/)
+  assert.deepEqual(ctx.calls, [])
+})
+
 test('a host reply answers without reopening the room', async () => {
   const ctx = setup()
   ctx.setIntent({ action: 'reply', reply: '我在，先说你的判断。', speakers: [] })

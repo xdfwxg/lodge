@@ -4,6 +4,13 @@ import { systemNotice } from '../../notices.js'
 import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
 
 // 聊天室只有 room.chat；结论之后继续聊，不经过工作室的 stages/gates，也不需要确认。
+const chatBudgetExceeded = room => {
+  const budget = Number(room?.usage?.budgetMicroUsd ?? room?.budgetMicroUsd ?? 0)
+  if (!Number.isFinite(budget) || budget <= 0) return false
+  if (room?.usage?.costStatus === 'unknown') return false
+  return (Number(room?.usage?.costMicroUsd) || 0) >= budget
+}
+
 export const createServiceChat = ({ store, live, emit }) => {
   const { appendMessage, readMessages, updateRoom } = store
 
@@ -12,6 +19,9 @@ export const createServiceChat = ({ store, live, emit }) => {
     if (room.state !== ROOM_STATE.active) return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
       return fail('conflict', '聊天室还没有连上模型服务')
+    }
+    if (chatBudgetExceeded(room)) {
+      return fail('conflict', '这一轮的额度用完了；先停下，等你决定要不要继续。')
     }
     const chat = room.chat
     if (chat === undefined || chat.running === true || chat.phase !== CHAT_PHASE.concluded) {
@@ -60,6 +70,9 @@ export const createServiceChat = ({ store, live, emit }) => {
     if (room.state !== ROOM_STATE.active) return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
       return fail('conflict', '聊天室还没有连上模型服务')
+    }
+    if (chatBudgetExceeded(room)) {
+      return fail('conflict', '这一轮的额度用完了；先停下，等你决定要不要继续。')
     }
     const chat = room.chat
     if (chat === undefined || chat.running === true) return fail('conflict', '聊天讨论已经在进行')

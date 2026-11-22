@@ -84,6 +84,9 @@ export const createRoundActions = deps => {
         if (policy?.type === 'round-busy') {
           return fail('conflict', '这一轮还在讨论，等结论出来再叫所有人。')
         }
+        if (policy?.type === 'direct-busy') {
+          return fail('conflict', '这一轮还在讨论，等结束再点名；着急就先叫停。')
+        }
         // 结论后叫所有人：开一轮受轮次和配额限制的讨论。
         if (policy?.type === 'round') {
           return chat.continue(room, {
