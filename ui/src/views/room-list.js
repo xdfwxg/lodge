@@ -50,6 +50,9 @@ export const filterRooms = (rooms, query) => {
 }
 
 export const toneOf = room => {
+  if (room.archivedAt) return 'idle'
+  if (room.state === 'paused') return 'waiting'
+  if (room.state === 'stopped') return 'idle'
   if (chatStatusOf(room) === CHAT_STATUS.concluded) return 'waiting'
   if (room.needsYou?.kind === 'review') return 'review'
   if (room.needsYou?.kind === 'signoff' || room.needsYou?.kind === 'result') return 'done'
@@ -84,8 +87,17 @@ export const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[
 
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
+  if (room?.modeCapabilities?.stages === false) {
+    const status = chatStatusOf(room)
+    if (status === CHAT_STATUS.concluded) return '聊到这儿了'
+    if (status === CHAT_STATUS.summarizing) return '正在收一下'
+    if ([CHAT_STATUS.running, CHAT_STATUS.thinking, CHAT_STATUS.discussing].includes(status)) return '正在聊'
+    if (status === CHAT_STATUS.paused) return '已暂停'
+    if (status === CHAT_STATUS.stopped) return '已停止'
+    if (status === CHAT_STATUS.archived) return '已归档'
+    return '还没开始聊'
+  }
   if (deliveredOf(room)) return '已交付'
-  if (chatStatusOf(room) === CHAT_STATUS.concluded) return '聊到这儿了'
   if (room?.state === 'idle') return '空闲中'
   if (room?.state === 'stopped') return '已停止'
   if (room?.state === 'paused') return '已暂停'

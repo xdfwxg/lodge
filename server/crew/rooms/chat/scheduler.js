@@ -6,6 +6,7 @@ import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { parseHandoffFromText } from '../../../../shared/handoff.js'
 import { finalizeHostIntent, hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { chatBriefOf } from './brief.js'
+import { linkedRoomBriefs } from './linked.js'
 import { digestText, hostPrompt, speakerPrompt, wantsStructuredSummary } from './prompts.js'
 import { systemNotice } from '../../notices.js'
 import { humanLabelOf } from '../../human-name.js'
@@ -453,6 +454,7 @@ export const createChatScheduler = ({
       text,
       turnLimit: chatTurnLimitOf(room),
       phase: room.chat?.phase ?? '',
+      linkedRooms: linkedRoomBriefs({ store, room }),
     })
     const first = await ask(prompt)
     if (first === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }

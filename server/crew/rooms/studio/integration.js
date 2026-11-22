@@ -75,7 +75,6 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
           capturedAt: new Date().toISOString(),
         },
       })
-      if (!hasVerifier) systemNotice({ store, roomId, text: '改动已经合到一起 · 可以验收了' })
       store.appendEvent(roomId, 'room.integration', { stage: stageIndex, head, workers, merged, manual: true })
       clearBlocked(stageIndex)
       markProgress()
@@ -154,13 +153,10 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       sandbox: result.sandbox,
     })
     clearBlocked(stageIndex)
-    store.appendMessage(roomId, {
-      kind: 'system',
-      text: result.exit === 0
-        ? (hasVerifier ? '检查通过' : '检查通过 · 可以验收了')
-        : '检查没通过 · 重做后才能复核',
-    })
-    if (result.exit !== 0) return
+    if (result.exit !== 0) {
+      store.appendMessage(roomId, { kind: 'system', text: '检查没通过 · 重做后才能复核' })
+      return
+    }
     markProgress()
     if (hasVerifier) {
       try {
@@ -168,8 +164,6 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       } catch (error) {
         systemNotice({ store, roomId, text: '检查做完了，但没能叫验收员来看；结果还在房间里。', error })
       }
-    } else {
-      systemNotice({ store, roomId, text: '检查通过 · 这一步做完了' })
     }
   }
 

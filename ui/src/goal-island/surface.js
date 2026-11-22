@@ -111,7 +111,7 @@ function GoalClosed({ view, room, actions, compact = false, plan = false, mini =
   const kicker = nextLine !== '' ? nextLine : title === status ? '' : title
   const radius = 15.5
   const circumference = 2 * Math.PI * radius
-  const miniLabel = room.lodge === true ? '空闲中' : chat ? title : (view?.barLabel || title)
+  const miniLabel = room.lodge === true ? '空闲中' : (view?.barLabel || title)
   const label = mini
     ? (miniLabel === title ? title : `${title} · ${miniLabel}`)
     : `${title} · ${status}`

@@ -140,17 +140,12 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     emit('room', room)
     expireCards(room.id, '这一步已经过了')
     if (next >= 0) appendMessage(room.id, stageConclusion(room, room.stages[index], index, next))
-    const finalStage = mergedFinal >= 0 ? room.stages[mergedFinal] : null
-    appendMessage(room.id, {
-      kind: 'system',
-      text: force
-        ? `你选择接受当前结果：第 ${index + 1} 步「${gate.stage.title}」通过。`
-        : finalStage === null
-          ? `第 ${index + 1} 步「${gate.stage.title}」${gate.stage.kind === 'deliverable' ? '通过了' : '确认了'}。`
-          : `第 ${index + 1} 步「${gate.stage.title}」通过了；第 ${mergedFinal + 1} 步「${finalStage.title}」也一起确认了。`,
-      meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by, ...(force ? { override: true } : {}) },
-    })
     if (force) {
+      appendMessage(room.id, {
+        kind: 'system',
+        text: `你选择接受当前结果：第 ${index + 1} 步「${gate.stage.title}」通过。`,
+        meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by, override: true },
+      })
       appendMessage(room.id, {
         kind: 'verdict',
         authorId: 'you',

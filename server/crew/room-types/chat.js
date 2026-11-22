@@ -1,4 +1,5 @@
 import { roomTypeMeta } from '../../../shared/room-types.js'
+import { DEFAULT_CHAT_MEMBERS } from '../../../shared/chat-defaults.js'
 import { CHAT_PHASE, STAGE_STATE } from '../../../shared/states.js'
 
 const meta = roomTypeMeta('chat')
@@ -30,11 +31,7 @@ export const name = meta.name
 export const description = meta.description
 export const defaultVerify = meta.defaultVerify
 export const readOnly = meta.readOnly
-export const defaultMembers = [
-  { role: 'worker', name: '甲', personality: 'assertive', stance: 'proposer', voice: '先问代价，再问能不能落地。' },
-  { role: 'worker', name: '乙', personality: 'cheerful', stance: 'critic', voice: '先找边界，再问会不会坏。' },
-  { role: 'worker', name: '丙', personality: 'gentle', stance: 'synthesizer', voice: '先看取舍，再问怎么收口。' },
-]
+export const defaultMembers = DEFAULT_CHAT_MEMBERS
 export const autoStart = 'chat'
 export const singleDirectory = true
 export const requireWorker = false

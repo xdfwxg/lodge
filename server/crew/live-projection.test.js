@@ -64,9 +64,44 @@ test('stale stream placeholders give way to the final message', () => {
   const messages = [
     { id: 'stream:room-1:worker', authorId: 'worker', ts: 5, kind: 'chat', text: '甲' },
     { id: 'b1', authorId: 'worker', ts: 5, kind: 'chat', text: '甲' },
-    { id: 'stream:room-1:worker-2', authorId: 'worker-2', ts: 6, kind: 'chat', text: '乙' },
+    { id: 'stream:room-1:worker-2', authorId: 'worker-2', ts: 6, kind: 'chat', text: '乙', meta: { final: true } },
   ]
   assert.deepEqual(dropStaleStreams(messages).map(message => message.id), ['b1', 'stream:room-1:worker-2'])
+})
+
+test('two identical final streams in the same moment keep only the first', () => {
+  const messages = [
+    { id: 'stream:room-1:worker:a', authorId: 'worker', ts: 5, kind: 'chat', text: '甲', meta: { final: true } },
+    { id: 'stream:room-1:worker:b', authorId: 'worker', ts: 105, kind: 'chat', text: '甲', meta: { final: true } },
+    { id: 'stream:room-1:worker:c', authorId: 'worker', ts: 20_000, kind: 'chat', text: '甲', meta: { final: true } },
+  ]
+  assert.deepEqual(dropStaleStreams(messages).map(message => message.id), [
+    'stream:room-1:worker:a',
+    'stream:room-1:worker:c',
+  ])
+})
+
+test('a shorter final stream gives way to the complete copy', () => {
+  const messages = [
+    { id: 'stream:room-1:worker:a', authorId: 'worker', ts: 5, kind: 'chat', text: '前半句', meta: { final: true } },
+    { id: 'stream:room-1:worker:b', authorId: 'worker', ts: 70, kind: 'chat', text: '前半句，后半句', meta: { final: true } },
+  ]
+  assert.deepEqual(dropStaleStreams(messages).map(message => message.id), ['stream:room-1:worker:b'])
+})
+
+test('line breaks do not hide a duplicate stream', () => {
+  const messages = [
+    { id: 'stream:room-1:worker:a', authorId: 'worker', ts: 5, kind: 'chat', text: '前半句。\n\n后半句。', meta: { final: true } },
+    { id: 'stream:room-1:worker:b', authorId: 'worker', ts: 70, kind: 'chat', text: '前半句。 后半句。', meta: { final: true } },
+  ]
+  assert.deepEqual(dropStaleStreams(messages).map(message => message.id), ['stream:room-1:worker:a'])
+})
+
+test('a stale final stream is never shown', () => {
+  const messages = [
+    { id: 'stream:room-1:worker:a', authorId: 'worker', ts: 5, kind: 'chat', text: '甲', meta: { final: true, stale: true } },
+  ]
+  assert.deepEqual(dropStaleStreams(messages), [])
 })
 
 test('bare base names in prose become member names', () => {

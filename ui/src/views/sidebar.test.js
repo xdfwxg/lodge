@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { filterRooms, orderRooms, roomLabelOf, roomStampOf } from './room-list.js'
+import { filterRooms, orderRooms, roomLabelOf, roomStampOf, toneOf } from './room-list.js'
 
 test('sidebar room labels carry name, status, unread and needs-you text', () => {
   assert.equal(roomLabelOf({ name: '简历', state: 'active', live: true }), '简历，进行中')
@@ -14,6 +14,19 @@ test('sidebar room labels carry name, status, unread and needs-you text', () => 
   assert.equal(roomLabelOf({ name: '旧房', state: 'idle', archivedAt: 1 }), '旧房，已归档')
 })
 
+
+test('chat sidebar labels use the same words as the island', () => {
+  const chat = over => ({ name: '聊天', state: 'active', modeCapabilities: { stages: false }, messages: [], ...over })
+  assert.equal(roomLabelOf(chat({ chat: { phase: 'discussing' } })), '聊天，还没开始聊')
+  assert.equal(roomLabelOf(chat({ chat: { phase: 'discussing', running: true } })), '聊天，正在聊')
+  assert.equal(roomLabelOf(chat({ chat: { phase: 'summarizing' } })), '聊天，正在收一下')
+  assert.equal(roomLabelOf(chat({ chat: { phase: 'concluded' } })), '聊天，聊到这儿了')
+  assert.equal(roomLabelOf(chat({ state: 'paused', chat: { phase: 'discussing' } })), '聊天，已暂停')
+  assert.equal(roomLabelOf(chat({ state: 'stopped', chat: { phase: 'discussing' } })), '聊天，已停止')
+  assert.equal(toneOf(chat({ state: 'paused', chat: { phase: 'discussing' } })), 'waiting')
+  assert.equal(toneOf(chat({ state: 'stopped', chat: { phase: 'discussing' } })), 'idle')
+  assert.equal(toneOf(chat({ chat: { phase: 'concluded' } })), 'waiting')
+})
 
 test('room search matches name, goal and status text', () => {
   const rooms = [

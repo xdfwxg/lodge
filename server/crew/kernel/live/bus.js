@@ -104,7 +104,6 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (typeof memberId !== 'string' || memberId === '') return false
     const streams = streamOf(entry)
     const state = streams.get(memberId)
-    if (state === undefined) return false
     const raw = message.kind === 'turn' ? message.turn?.reply : message.text
     if (typeof raw !== 'string' || raw.trim() === '') {
       streams.delete(memberId)
@@ -112,6 +111,36 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     }
     // 流式回合的最终文本也要过一遍显示名映射，否则基座成员名会留在气泡里。
     const text = toDisplayText(current, raw)
+    // 基座在 text 之后还会补一条同内容的 digest/turn；同一成员同一句只留一条。
+    const plain = value => String(value ?? '').replace(/\s+/g, ' ').trim()
+    const at = message.at ?? Date.now()
+    const duplicate = message.kind === 'turn'
+      ? store.readMessages(room.id).find(item => (
+        item.kind === 'chat' &&
+        item.authorId === memberId &&
+        item.meta?.final === true &&
+        item.id !== state?.id &&
+        Math.abs((item.ts ?? 0) - at) <= 5_000 &&
+        (plain(item.text) === plain(text) ||
+          plain(item.text).startsWith(plain(text)) ||
+          plain(text).startsWith(plain(item.text)))
+      ))
+      : undefined
+    if (duplicate !== undefined) {
+      const existing = state === undefined
+        ? undefined
+        : store.readMessages(room.id).find(item => item.id === state.id)
+      if (existing !== undefined) {
+        store.upsertMessage({
+          ...existing,
+          meta: { ...(existing.meta ?? {}), stale: true, final: true, baseId: message.id },
+        })
+      }
+      streams.delete(memberId)
+      rememberFinal(entry, message.id)
+      return true
+    }
+    if (state === undefined) return false
     const existing = store.readMessages(room.id).find(item => item.id === state.id)
     store.upsertMessage({
       ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: memberId }),

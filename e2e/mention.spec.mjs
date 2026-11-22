@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test'
 test('the mention menu stays a compact people picker', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
+  // 另一个 spec 可能留下更新的聊天室；先把工作室选中再验成员菜单。
+  await page.locator('.crew-side-room[title^="示例：把《羽仙记》的结尾改得更看得见"]').click()
 
   await page.getByRole('combobox', { name: '房间消息' }).fill('@')
   const menu = page.locator('.crew-mentions')

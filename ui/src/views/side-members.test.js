@@ -51,10 +51,12 @@ test('a finished room keeps the crew but not the add row', () => {
   assert.doesNotMatch(html, /添加成员/)
 })
 
-test('a chat room names speaking and offers no add row', () => {
+test('a chat room names speaking and offers no add or hold', () => {
   const html = renderToStaticMarkup(h(SideMembers, {
     room: room({ roomType: 'chat', busyMembers: ['worker'] }),
+    onHold: () => {},
   }))
   assert.match(html, /发言中/)
   assert.doesNotMatch(html, /添加成员/)
+  assert.doesNotMatch(html, /更多操作/)
 })

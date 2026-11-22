@@ -120,3 +120,31 @@ export const CloseIcon = () => h('svg', {
   strokeWidth: 1.4,
   strokeLinecap: 'round',
 }, h('path', { d: 'M5 5l10 10M15 5L5 15' }))
+
+export const MoreIcon = () => h('svg', {
+  width: 16,
+  height: 16,
+  viewBox: '0 0 20 20',
+  'aria-hidden': true,
+  fill: 'currentColor',
+}, [
+  h('circle', { key: 'a', cx: 4.5, cy: 10, r: 1.1 }),
+  h('circle', { key: 'b', cx: 10, cy: 10, r: 1.1 }),
+  h('circle', { key: 'c', cx: 15.5, cy: 10, r: 1.1 }),
+])
+
+export const InfoIcon = () => h('svg', {
+  width: 16,
+  height: 16,
+  viewBox: '0 0 20 20',
+  'aria-hidden': true,
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.4,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+}, [
+  h('circle', { key: 'ring', cx: 10, cy: 10, r: 6.8 }),
+  h('path', { key: 'dot', d: 'M10 9v4.5' }),
+  h('path', { key: 'cap', d: 'M10 6.4v.1' }),
+])

@@ -154,7 +154,6 @@ export const createAcceptanceRunner = ({
     })
     if (auto === true) {
       if (result.exit === 0) {
-        store.appendMessage(roomId, { kind: 'system', text: '自动检查通过 · 结果供你确认' })
         markProgress()
         onAutoPass?.({ stageIndex, command })
       } else {
@@ -163,14 +162,8 @@ export const createAcceptanceRunner = ({
       }
       return
     }
-    systemNotice({
-      store,
-      roomId,
-      text: result.exit === 0
-        ? '检查通过 · 等验收员看结果'
-        : '检查没通过 · 需要重做这一步',
-    })
     if (result.exit !== 0) {
+      systemNotice({ store, roomId, text: '检查没通过 · 需要重做这一步' })
       // 检查没通过不能静默停下：把房间标成等人处理，岛和侧栏都能看见。
       const updated = store.updateRound(roomId, current => {
         if (current.blocked?.stage === stageIndex && current.blocked?.reason === 'check-failed') return null
@@ -187,8 +180,6 @@ export const createAcceptanceRunner = ({
       } catch (error) {
         systemNotice({ store, roomId, text: '检查做完了，但没能叫验收员来看；结果还在房间里。', error })
       }
-    } else {
-      store.appendMessage(roomId, { kind: 'system', text: '检查通过 · 这一步做完了' })
     }
   }
 

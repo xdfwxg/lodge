@@ -1,5 +1,6 @@
 import { createElement as h } from 'react'
 import { roomTypeMeta } from '../../../../shared/room-types.js'
+import { DEFAULT_CHAT_MEMBERS } from '../../../../shared/chat-defaults.js'
 import { ChatIcon } from '../type-icons.js'
 import { buildChatRequest, ChatPrimaryFields, ChatSetupFields } from './create.js'
 
@@ -8,12 +9,13 @@ export const chatUi = {
   id: 'chat',
   owns: type => type === 'chat',
   label: roomTypeMeta('chat').name,
-  defaultMembers: null,
+  defaultMembers: DEFAULT_CHAT_MEMBERS,
   icon: ChatIcon,
   teamMode: 'fixed',
   memberLabels: { lead: '主持中', member: '发言中' },
   membersCanBeAdded: false,
-  membersInSidebar: true,
+  membersInSidebar: false,
+  hasHistory: false,
   startMode: 'direct',
   cta: '开始讨论',
   goalLabel: '想聊什么？',

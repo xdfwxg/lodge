@@ -17,7 +17,6 @@ export const createAutoCheck = ({
   expireCards = null,
   autoLoops,
   autoChecks,
-  noCheckNoted,
 }) => {
   // 自动检查没通过就退回重做，带着失败输出和影子评审的另一个角度；
   // 原地打转、次数、时间或额度触顶就停手，交给人决定。
@@ -119,18 +118,8 @@ export const createAutoCheck = ({
     if (autoChecks.has(key)) return
     autoChecks.add(key)
     const detected = detectCheckCommand(files, room.repoPath)
-    if (detected === null) {
-      if (!noCheckNoted.has(stageIndex)) {
-        noCheckNoted.add(stageIndex)
-        store.appendMessage(roomId, {
-          kind: 'system',
-          text: `第 ${stageIndex + 1} 步没有可自动运行的检查；请看过结果后确认。`,
-          meta: { autoCheckStop: AUTO_CHECK_STATUS['needs-input'] },
-        })
-        setAutoCheck(stageIndex, { status: AUTO_CHECK_STATUS['needs-input'], reason: AUTO_CHECK_REASON['no-check'], attempts: 0 })
-      }
-      return
-    }
+    // 认不出检查就停在这里，由人看结果；不再往时间线写一条同义的小字。
+    if (detected === null) return
     void acceptance.run(stageIndex, detected.command, turnId, { auto: true, reason: detected.reason })
   }
 
@@ -186,7 +175,6 @@ export const createAutoCheck = ({
         capturedAt: new Date().toISOString(),
       },
     })
-    if (!hasVerifier) store.appendMessage(roomId, { kind: 'system', text: '结果已经好了 · 可以验收了' })
     state.markProgress()
     if (hasVerifier) {
       void review.request(stageIndex).catch(error => {

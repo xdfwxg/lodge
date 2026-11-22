@@ -145,27 +145,22 @@ export function StudioTranscript({
     typeof onDiscussChat === 'function'
       ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
       : null)
-  // 做完了就只给结果；完整工作记录收起来，需要时再看。
+  // 结果就是这一轮时间线的最后一条；检查完可以直接在下面开下一轮。
   if (finished) {
-    return h('div', { className: 'studio-result' },
-      h('div', { key: 'room-closing', className: 'studio-room-closing-wrap' },
-        delivery === null
-          ? h('div', { className: 'studio-room-closing' }, h('span', null, '已交付'))
-          : h(DeliveryCard, {
-            delivery,
-            onDownload: () => { downloadDeliveryRecord(room) },
-            onRead: onReadArtifact,
-          }),
-        closingActions),
-      items.length === 0 && advice === null
-        ? null
-        : h('details', { key: 'process', className: 'studio-process' },
-          h('summary', { className: 'studio-process-lead' },
-            h('span', { className: 'studio-process-open' }, '工作记录'),
-            h('span', { className: 'studio-process-shut' }, '收起')),
-          h('div', { className: 'studio-timeline studio-process-timeline' }, ...items),
-          h(RoomReview, { room, finished: true }),
-          advice))
+    return h('div', { className: 'studio-timeline studio-result-timeline' },
+      ...items,
+      h(RoomReview, { key: 'room-review', room, finished: true }),
+      advice,
+      h('div', { key: 'room-closing', className: 'studio-result' },
+        h('div', { className: 'studio-room-closing-wrap' },
+          delivery === null
+            ? h('div', { className: 'studio-room-closing' }, h('span', null, '已交付'))
+            : h(DeliveryCard, {
+              delivery,
+              onDownload: () => { downloadDeliveryRecord(room) },
+              onRead: onReadArtifact,
+            }),
+          closingActions)))
   }
   return h(Fragment, null,
     h('div', { className: 'studio-timeline' }, ...items,

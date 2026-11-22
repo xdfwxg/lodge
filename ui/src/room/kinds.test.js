@@ -6,7 +6,7 @@ import { roomUiKinds, uiKindOfRoom, uiKindOfType } from './kinds.js'
 const KEYS = [
   'id', 'owns', 'label', 'defaultMembers', 'icon', 'teamMode', 'startMode', 'cta',
   'goalLabel', 'goalIcon', 'workspace',
-  'missingVerifier', 'readOnly', 'membersInSidebar', 'primaryFields', 'setupFields', 'buildRequest',
+  'missingVerifier', 'readOnly', 'membersInSidebar', 'hasHistory', 'primaryFields', 'setupFields', 'buildRequest',
 ]
 
 test('both UI room kinds satisfy the same interface', () => {
@@ -29,6 +29,12 @@ test('room kinds own exactly one type', () => {
 
 test('an omitted room type falls back to the studio kind', () => {
   assert.equal(uiKindOfRoom({}).id, 'studio')
+})
+
+test('history and member management follow each room kind', () => {
+  assert.equal(uiKindOfType('studio').hasHistory, true)
+  assert.equal(uiKindOfType('chat').hasHistory, false)
+  assert.equal(uiKindOfType('chat').membersCanBeAdded, false)
 })
 
 test('UI labels come from the shared room-type manifest', () => {

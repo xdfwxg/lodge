@@ -65,6 +65,16 @@ test('an inactive room shrinks to the initial mini pill with its status', () => 
   assert.doesNotMatch(html, /1\/3/)
 })
 
+test('a concluded chat mini says the round is over', () => {
+  const html = render('closed', null, { name: '找人一起评' }, {
+    kind: 'chat',
+    title: '找人一起评',
+    barLabel: '聊到这儿了',
+  })
+  assert.match(html, /bt-goal-mini-title">聊到这儿了/)
+  assert.match(html, /找人一起评 · 聊到这儿了/)
+})
+
 test('an inactive studio mini shows one idle status, not the old step', () => {
   const html = render('closed', null, { needsYou: null }, { barLabel: '空闲中' })
   assert.match(html, /data-mini="true"/)

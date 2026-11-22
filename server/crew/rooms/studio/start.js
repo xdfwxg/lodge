@@ -1,6 +1,8 @@
 import { buildMemberHandoff } from './member-handoff.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { alignmentPrompt, directPrompt } from '../create/prompts.js'
+import { memberDisplayName } from '../../member-labels.js'
+import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
 
 // 工作室建房后的第一次派发：先对齐，或直接交给主成员/执行成员。
@@ -38,6 +40,16 @@ export const startInitialStage = async ({
       `${opening}\n\n${context}\n${INTERNAL_PROMPT_MARKER}`,
       { intent: align ? 'align' : 'handoff', from: 'Lodge' },
     )
+    // 直接派发也要有群里的一条 @：模型被要求不 @，系统的投影不能省。
+    const stageIndex = activeStage >= 0 ? activeStage : 0
+    const stageTitle = sanitizeUntrusted(room.stages?.[stageIndex]?.title ?? room.goal, 120)
+    store.appendMessage(room.id, {
+      kind: 'system',
+      text: align
+        ? `@${memberDisplayName(room, targetMember.id)} 先对齐目标，再拆下一步。`
+        : `@${memberDisplayName(room, targetMember.id)} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
+      meta: { kind: 'handoff', stage: stageIndex, to: [targetMember.id] },
+    })
     if (sent.messageId !== null) {
       const updated = store.updateRound(room.id, current => {
         current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)

@@ -3,6 +3,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { join, resolve } from 'node:path'
 import { ROOM_CHAT_BULLETIN } from '../server/crew/room-chat.js'
+import { pickChatRoom } from './eval-chat-room.mjs'
 
 const baseUrl = process.env.CREW_BASE_URL ?? 'http://127.0.0.1:8799'
 const stateUrl = process.env.LODGE_STATE_URL ?? 'http://127.0.0.1:8787/api/state'
@@ -29,14 +30,12 @@ try {
 }
 const roomState = await json(stateUrl)
 const publicRooms = roomState.rooms ?? []
-const room = roomArg === undefined
-  ? rooms.find(item => item.live === true) ?? rooms[0]
-  : rooms.find(item => item.id === roomArg)
-if (room === undefined) throw new Error('没有可用于评测的房间；先建一个实时房间')
+const picked = pickChatRoom(rooms, roomArg)
+if (picked.error !== undefined) throw new Error(picked.error)
+const room = picked.room
 const visible = publicRooms.find(item => item.id === room.id)
 if (visible === undefined) throw new Error(`房间 ${room.id} 不在 Lodge 状态里`)
 const members = (room.members ?? []).map(member => member.body?.ref).filter(ref => typeof ref === 'string' && ref !== '')
-if (members.length === 0) throw new Error('房间没有席位 bot')
 const lead = (room.members ?? []).find(member => member.role === 'lead' || member.roleKind === 'planner')
 const executor = (room.members ?? []).find(member => member.roleKind === 'executor' || member.role === 'worker')?.name
 if (typeof executor !== 'string' || executor === '') throw new Error('房间没有执行者 handle')

@@ -156,7 +156,21 @@ export function GoalIslandHeader({ room, goal: goalOverride = null, status = nul
         onOpenRoom(item.roomId)
         return
       }
-      goalActions.openSignal()
+      const target = typeof document === 'undefined' ? null : document.querySelector('[data-room-decision]')
+      if (target instanceof HTMLElement) {
+        target.scrollIntoView({ block: 'center' })
+        target.querySelector('button:not([disabled]), input:not([disabled]), textarea:not([disabled])')
+          ?.focus({ preventScroll: true })
+        return
+      }
+      const result = typeof document === 'undefined' ? null : document.querySelector(
+        '.crew-msg-conclusion, .crew-verdict-card, .crew-delivery-stage, .studio-delivery',
+      )
+      if (result instanceof HTMLElement) {
+        result.scrollIntoView({ block: 'center' })
+        return
+      }
+      activity.onClose()
     },
   }
   const statusKey = islandStatusOf(room, kindOfRoom(room)).key
@@ -164,7 +178,7 @@ export function GoalIslandHeader({ room, goal: goalOverride = null, status = nul
   const doneLabel = '已交付'
   const lingchongState = finished ? 'done'
     : statusKey === 'waiting' ? 'needs'
-      : statusKey === 'running' ? 'busy' : 'rest'
+      : statusKey === 'running' && islandWorking(room) ? 'busy' : 'rest'
   return h('div', { className: 'crew-goal-island' },
     finished
       ? h(DoneIsland, { goal, label: doneLabel, lingchongMode: islandRoom.kind })

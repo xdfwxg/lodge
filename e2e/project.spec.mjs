@@ -143,7 +143,6 @@ test('an old round opens as a read-only record, not the current round', async ({
   await page.getByRole('button', { name: /先做一个原型/ }).click()
 
   await expect(page.getByText('旧轮只能查看；要接着做，回到工作室开新一轮。')).toBeVisible()
-  await page.getByText('工作记录').click()
   await expect(page.getByText('第一轮做完了，原型能跑。')).toBeVisible()
   await expect(page.getByRole('button', { name: '项目' })).toHaveCount(0)
 

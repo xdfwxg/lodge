@@ -15,6 +15,7 @@ export const studioUi = {
   memberLabels: {},
   membersCanBeAdded: true,
   membersInSidebar: false,
+  hasHistory: true,
   startMode: 'direct',
   cta: '开工',
   goalLabel: '要做什么？',

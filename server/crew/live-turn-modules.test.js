@@ -900,7 +900,8 @@ test('acceptance runs in a disposable copy and records command evidence', async 
   assert.equal(evidence.meta.diff, 'D')
   assert.ok(store.events.some(event => event.type === 'acceptance.run'))
   assert.equal(progressed, 1)
-  assert.match(store.messages.at(-1).text, /这一步做完了/)
+  // 证据已经说明检查通过；不再追加一条同义的系统回执。
+  assert.equal(store.messages.some(message => /这一步做完了/.test(message.text ?? '')), false)
 })
 
 test('a failed acceptance surfaces a blocked room instead of going quiet', async () => {
@@ -1331,10 +1332,11 @@ test('a manual stage runs the check the repository itself declares', async () =>
   assert.ok(evidence)
   assert.equal(evidence.meta.command, 'npm test')
   assert.match(evidence.meta.detected, /test 脚本/)
-  assert.ok(store.messages.some(message => /自动检查通过/.test(message.text ?? '')))
+  // 自动检查的结果已经在证据里，不再补一条同义的系统小字。
+  assert.equal(store.messages.some(message => message.kind === 'system' && /自动检查通过/.test(message.text ?? '')), false)
 })
 
-test('a manual stage says when there is no check to run', async () => {
+test('a manual stage records its result without a check notice', async () => {
   registerWorkspaceProvider('test-manual-nocheck', {
     capabilities: () => ({ candidate: true }),
     head: () => 'nocheck-head',
@@ -1363,8 +1365,9 @@ test('a manual stage says when there is no check to run', async () => {
   })
   turns.captureTurn({ turnId: 't-nocheck', reply: '改完了', toolCalls: 1, tools: [{ id: 'write' }] }, 'bot-worker')
   await new Promise(resolve => setTimeout(resolve, 100))
-  assert.ok(store.messages.some(message => /没有可自动运行的检查/.test(message.text ?? '')))
+  assert.equal(store.messages.some(message => /没有可自动运行的检查/.test(message.text ?? '')), false)
   assert.equal(store.messages.some(message => message.meta?.kind === 'command'), false)
+  assert.ok(store.messages.some(message => message.kind === 'evidence' && message.meta?.kind === 'manual'))
 })
 
 test('a repeated manual turn on the same HEAD does not duplicate manual evidence', async () => {

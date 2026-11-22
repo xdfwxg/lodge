@@ -26,15 +26,17 @@ test('studio and chat share state keys but keep separate words', () => {
   assert.equal(ISLAND_STATUS.chat.idle.barLabel, '还没开始聊')
 })
 
-test('a studio shows the current step only while a turn is running', () => {
+test('a studio with a live round is working, not idle', () => {
   assert.equal(islandStatusOf(studio({ busyMembers: ['worker'] })).key, 'running')
   assert.equal(islandStatusOf(studio({ busyMembers: ['worker'] })).barLabel, null)
-  assert.equal(islandStatusOf(studio()).barLabel, '空闲中')
+  assert.equal(islandStatusOf(studio()).key, 'running')
+  assert.equal(islandStatusOf(studio()).stageLabel, '进行中')
   assert.equal(islandStatusOf(studio({ needsYou: { kind: 'decision' } })).barLabel, '等你决定')
   assert.equal(islandStatusOf(studio({ state: 'paused' })).barLabel, '已暂停')
   assert.equal(islandStatusOf(studio({ state: 'stopped' })).barLabel, '已停止')
   assert.equal(islandStatusOf(studio({ archivedAt: 1 })).barLabel, '已归档')
   assert.equal(islandStatusOf(studio({ archivedAt: 1, busyMembers: ['worker'] })).key, 'archived')
+  assert.equal(islandStatusOf(studio({ state: 'idle', activeRoundId: null })).barLabel, '空闲中')
 })
 
 test('a chat derives the same state keys with its own words', () => {
@@ -60,7 +62,7 @@ test('an idle studio is only done when the latest round completed', () => {
     activeRoundId: 'round-2',
     workRound: { id: 'round-2', status: 'active' },
     rounds: [{ id: 'round-1', status: 'completed' }],
-  })).key, 'idle')
+  })).key, 'running')
   assert.equal(islandStatusOf(studio({
     state: 'idle',
     activeRoundId: null,

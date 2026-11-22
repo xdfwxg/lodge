@@ -37,6 +37,11 @@ test('opening a room keeps the model goal instead of the last action phrase', as
   assert.equal(result.ok, true)
   assert.equal(ctx.created().goal, '一起评价短篇《开锁》哪里好、哪里要改')
   assert.equal(ctx.created().roomType, 'chat')
+  assert.equal(ctx.created().sourceRoomId, 'lodge')
+  assert.deepEqual(ctx.appended.at(-1).meta, {
+    openRoomId: 'new-room',
+    openRoomName: ctx.created().name,
+  })
   assert.match(ctx.appended.at(-1).text, /开好了/)
 })
 

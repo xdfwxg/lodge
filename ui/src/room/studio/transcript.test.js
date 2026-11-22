@@ -110,13 +110,14 @@ test('the same visible status notice is kept only once, at its latest position',
   )
 })
 
-test('a finished room shows the result, not the process', async () => {
+test('a finished room keeps the work record open and ends with the result', async () => {
   const { StudioTranscript } = await load()
   const room = finishedRoom()
   const tree = render(StudioTranscript({ room, members, delivery }))
   assert.match(text(tree), /设置页保存/)
-  assert.match(text(tree), /工作记录/)
-  assert.equal(hasClass(tree, 'studio-process'), true)
+  assert.equal(hasClass(tree, 'studio-timeline'), true)
+  assert.equal(hasClass(tree, 'studio-process'), false)
+  assert.equal(hasClass(tree, 'studio-result'), true)
 })
 
 test('a room still at work keeps the transcript on screen', async () => {

@@ -76,7 +76,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     enqueue: integrator.enqueue,
   })
   const autoChecks = new Set()
-  const noCheckNoted = new Set()
   auto = createAutoCheck({
     store,
     roomId,
@@ -89,7 +88,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     expireCards,
     autoLoops,
     autoChecks,
-    noCheckNoted,
   })
   const { autoCheck, markManualReady } = auto
   const pendingTimers = new Set()
@@ -125,7 +123,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     autoLoops.clear()
     plannerNudges.clear()
     autoChecks.clear()
-    noCheckNoted.clear()
   }
 
   return {

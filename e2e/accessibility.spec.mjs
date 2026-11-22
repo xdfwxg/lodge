@@ -30,7 +30,8 @@ test('the sample delivery has no WCAG A/AA violations', async ({ page, request }
   await expect(page.locator('.studio-delivery-name')).toBeVisible()
   await expectClean(page)
 
-  await page.locator('.studio-delivery-details > summary').click()
+  await page.locator('.crew-delivery-foot').hover()
+  await page.locator('.crew-delivery-foot').getByRole('button', { name: '详情' }).click()
   // 面板有进入动画；等透明度稳定后再量对比度。
   await page.waitForTimeout(500)
   await expectClean(page)

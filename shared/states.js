@@ -199,7 +199,6 @@ export const PAUSE_REASON = Object.freeze({
 export const AUTO_CHECK_STATUS = Object.freeze({
   blocked: 'blocked',
   'limit-reached': 'limit-reached',
-  'needs-input': 'needs-input',
 })
 
 export const AUTO_CHECK_REASON = Object.freeze({
@@ -207,7 +206,6 @@ export const AUTO_CHECK_REASON = Object.freeze({
   attempts: 'attempts',
   time: 'time',
   budget: 'budget',
-  'no-check': 'no-check',
 })
 
 export const BLOCKED_REASON = Object.freeze({

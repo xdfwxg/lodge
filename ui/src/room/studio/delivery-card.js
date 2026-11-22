@@ -7,6 +7,7 @@ import { artifactKindOf } from '../../../../shared/artifact.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'
 import { IconAction } from '../../primitives.js'
 import { ChatIcon } from '../type-icons.js'
+import { InfoIcon, MoreIcon } from '../../icons.js'
 
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
 const isAbsolutePath = value => value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
@@ -38,10 +39,15 @@ export function DeliveryPreview({ kind, content, image, alt }) {
       h('img', { className: 'studio-delivery-image', src: image, alt }))
   }
   if (content === '') return null
-  return h('div', { className: 'studio-delivery-preview' },
-    kind === 'document'
-      ? h(Markdown, { text: content })
-      : h('pre', { className: 'crew-code studio-delivery-text' }, content))
+  return h('div', {
+    className: 'studio-delivery-preview',
+    role: 'region',
+    tabIndex: 0,
+    'aria-label': '交付结果预览',
+  },
+  kind === 'document'
+    ? h(Markdown, { text: content })
+    : h('pre', { className: 'crew-code studio-delivery-text' }, content))
 }
 
 // 一套图的结果直接摆出来：小图横排，名字放悬停，尺寸交给上面那行验收结论。
@@ -73,7 +79,7 @@ function ArtifactThumb({ roomId, artifact, onRead, onOpen }) {
 }
 
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
-export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onReturn = null, onDownload = null, onRead = null }) {
+export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDownload = null, onRead = null }) {
   const delivery = goalDelivery
   const commands = delivery.commands ?? []
   const firstCommand = commands
@@ -90,6 +96,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
     .slice(-1)[0] ?? null
   const [openError, setOpenError] = useState(null)
   const [openNotice, setOpenNotice] = useState(null)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [prCopied, setPrCopied] = useState(false)
   const prDraft = delivery.prDraft ?? null
@@ -178,9 +185,21 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
       h('span', { className: 'crew-field-hint' }, '不会自动发到远端；确认后再走外部动作。')))
   const moreNode = prDraftNode === null
     ? null
-    : h('details', { className: 'crew-fold studio-delivery-more' },
-      h('summary', null, '更多'),
-      prDraftNode)
+    : h('details', {
+      className: 'crew-fold studio-delivery-more',
+      open: moreOpen || undefined,
+      onToggle: event => setMoreOpen(event.currentTarget.open),
+    },
+    h('summary', { className: 'visually-hidden' }, '交付说明'),
+    prDraftNode)
+  const footerIcon = (Icon, label, open, toggle) => h('button', {
+    type: 'button',
+    className: 'crew-icon-action',
+    'aria-label': label,
+    title: label,
+    'aria-expanded': open ? 'true' : 'false',
+    onClick: toggle,
+  }, h(Icon))
   return h('div', { className: 'crew-msg-conclusion', 'data-outcome': 'delivery' },
     h('div', { className: 'crew-card crew-conclusion', 'data-settled': 'true', 'aria-label': '结果' },
       h('div', { className: 'crew-card-body' },
@@ -278,7 +297,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
           open: detailsOpen || undefined,
           onToggle: event => setDetailsOpen(event.currentTarget.open),
         },
-          h('summary', null, '详情'),
+          h('summary', { className: 'visually-hidden' }, '详情'),
           delivery.completedAt || delivery.commit || cost !== '' || delivery.workspacePath || signoff !== ''
             ? h('div', { className: 'studio-delivery-detail-meta' },
               delivery.completedAt
@@ -393,18 +412,14 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
             ? null
             : h('div', { className: 'crew-delivery-download' },
               h('button', { type: 'button', className: 'crew-link', onClick: onDownload }, '下载交付记录')))),
-      onReturn === null && onContinue === null
-        ? null
-        : h('div', { className: 'crew-card-foot' },
+      h('div', { className: 'crew-card-foot crew-delivery-foot' },
+        h('div', { className: 'crew-hover-actions crew-delivery-actions' },
           onReturn === null
             ? null
-            : h('div', { className: 'crew-hover-actions crew-card-hover-actions' },
-              h(IconAction, { icon: ChatIcon, label: '回聊天室', onClick: onReturn })),
-          onContinue === null
+            : h(IconAction, { icon: ChatIcon, label: '回聊天室', onClick: onReturn }),
+          moreNode === null
             ? null
-            : h('button', {
-              type: 'button',
-              className: 'crew-accept crew-conclusion-next crew-quiet-primary',
-              onClick: onContinue,
-            }, '接着改'))))
+            : footerIcon(MoreIcon, '交付说明', moreOpen, () => setMoreOpen(value => !value)),
+          footerIcon(InfoIcon, '详情', detailsOpen, () => setDetailsOpen(value => !value)))))
+  )
 }

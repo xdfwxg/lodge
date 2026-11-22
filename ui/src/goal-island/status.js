@@ -33,10 +33,8 @@ const studioState = room => {
   if (status === 'archived') return 'archived'
   if (status === 'stopped') return 'stopped'
   if (status === 'paused') return 'paused'
-  if (status === 'active') {
-    if (islandWorking(room)) return 'running'
-    return room?.needsYou ? 'waiting' : 'idle'
-  }
+  // 只要这一轮还在跑，就不是“空闲中”；没有当前回合时让岛显示当前阶段。
+  if (status === 'active') return room?.needsYou ? 'waiting' : 'running'
   if (room?.needsYou) return 'waiting'
   return idleDelivered(room) ? 'done' : 'idle'
 }

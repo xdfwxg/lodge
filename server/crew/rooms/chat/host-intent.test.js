@@ -54,6 +54,18 @@ test('Lodge decides to open a room in the same turn', () => {
   assert.equal(parseHostIntent('{"action":"open","room":"chat"}', { allowOpen: false }).action, 'reply')
 })
 
+test('the Lodge prompt carries linked room status and conclusions', () => {
+  const prompt = hostIntentPrompt({
+    room: { lodge: true, members: [] },
+    text: '然后呢',
+    turnLimit: 6,
+    linkedRooms: [{ name: '评价故事', status: '已有结论', conclusion: '开头好，结尾太急。' }],
+  })
+  assert.match(prompt, /从这里开出去的房/)
+  assert.match(prompt, /评价故事：已有结论；最后结论：开头好，结尾太急。/)
+  assert.match(prompt, /直接接着结论说/)
+})
+
 test('the Lodge prompt asks for a room decision instead of a round', () => {
   const prompt = hostIntentPrompt({ room: { lodge: true, members: [] }, text: '喊上大伙看看', turnLimit: 6 })
   assert.match(prompt, /"action":"open"/)

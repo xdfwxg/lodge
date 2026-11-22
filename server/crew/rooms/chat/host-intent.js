@@ -5,7 +5,7 @@ import { CHAT_PHASE } from '../../../../shared/states.js'
 // 用户只对主持说话；主持默认只回答。开轮只由 @所有人 或用户明确要求触发。
 // 轮数、成员数和发言次数都属于房间配置，不从这里改。
 // Lodge 自己是一间没有成员的对话：它判断不了就回复，要做事或找人就走 open。
-export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
+export const hostIntentPrompt = ({ room, text, turnLimit, phase = '', linkedRooms = [] }) => {
   const roster = (room.members ?? [])
     .map(member => `${member.id}（${member.name}）`)
     .join('、')
@@ -15,6 +15,9 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
   const humanName = humanNameOf()
   const humanLine = humanName === '' ? '' : `用户称呼：${humanName}。`
   const lodge = room.lodge === true && roster === ''
+  const linked = (Array.isArray(linkedRooms) ? linkedRooms : [])
+    .slice(0, 3)
+    .map(item => `- ${item.name}：${item.conclusion === '' ? item.status : `${item.status}；最后结论：${item.conclusion}`}`)
   const grillRule = '用户说“拷问我/grill me/来拷问我”，或说“帮我理理/拿不准/不知道从哪开始”时，用 reply 一次只问一个最关键的问题；不要开轮、不要开房、不要叫成员发言。用户回答后继续问下一个；用户说“够了/开始做”时，把已确认的点收成一段结论。'
   const rules = lodge
     ? [
@@ -26,6 +29,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
       '- 消息里带 <attached-image> 或 <attached-file> 标记时，附件会跟着目标一起进新房；该做事就照样 open。',
       '要开房时，同时给 goal：用用户要完成的事写一句可开工的目标，保留对话里的对象和上下文；不要把“找人一起评/开始吧”这类动作短语当成目标。',
       '例如用户说“找人一起评”，goal 应写“一起评价短篇《开锁》哪里好、哪里要改”，不是“找人一起评”。',
+      '如果从这里开出去的房已经有结论，直接接着结论说，不要让用户再等或把内容贴过来。',
       'reply 用一句人话告诉对方开什么；不需要就先空着，平台会补一句“开好了”。',
       '只输出 JSON，不要 Markdown，不要解释：',
       '{"action":"reply","reply":"直接对用户说的话"}',
@@ -46,6 +50,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
     lodge ? '' : `房间每轮固定 ${turnLimit} 次发言，主持不占发言位。`,
     humanLine,
     stateLine,
+    linked.length === 0 ? '' : `从这里开出去的房：\n${linked.join('\n')}`,
     `${humanLabelOf()}说：${text}`,
     ...rules,
     INTERNAL_PROMPT_MARKER,

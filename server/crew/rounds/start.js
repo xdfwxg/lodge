@@ -2,7 +2,7 @@ import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { fail, ok } from '../result.js'
 import { normalizePlan, startInitialStage, studioConstraints } from '../rooms/studio/facade.js'
 import { buildStages } from '../room-types/studio.js'
-import { ROOM_STATE, ROUND_STATUS } from '../../../shared/states.js'
+import { ROOM_STATE } from '../../../shared/states.js'
 import { gateRecordOf } from '../gate/index.js'
 import { buildRound, composeRoundView } from './record.js'
 
@@ -76,19 +76,6 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles }) =
   const activeRound = opened.round ?? round
 
   const view = composeRoundView(updated, activeRound)
-  store.appendMessage(room.id, { kind: 'system', text: `第 ${activeRound.ordinal} 轮开始：${goal}` })
-  const previous = typeof room.lastRoundId === 'string' && room.lastRoundId !== ''
-    ? store.readWorkRound(room.lastRoundId, room.id)
-    : null
-  if (previous?.status === ROUND_STATUS.completed && previous.completion !== null && previous.completion !== undefined) {
-    const done = (previous.completion.stages ?? []).map(stage => stage.title).filter(Boolean).join('、')
-    const decisions = (previous.completion.decisions ?? []).filter(Boolean).join('、')
-    store.appendMessage(room.id, {
-      kind: 'system',
-      text: `上一轮已交付：${done === '' ? previous.goal : done}${decisions === '' ? '' : `；先定过：${decisions}`}`,
-      meta: { roundSummary: previous.id },
-    })
-  }
   for (const message of built.messages ?? []) {
     store.appendMessage(room.id, { kind: 'system', text: message })
   }

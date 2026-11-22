@@ -3,7 +3,12 @@ import test from 'node:test'
 import { isChainMessage } from './message-view.js'
 
 test('only handoff-chain system messages reach the timeline', () => {
+  // gate 现在只在人覆盖或自动交付时写入，是要让人知道的结果。
   assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'gate' } }), true)
+  assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'gate', override: true } }), true)
+  assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'gate', auto: true } }), true)
+  // 需要人处理的失败提示保留。
+  assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'notice', show: true }, text: '检查没通过 · 需要重做这一步' }), true)
   assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'handoff' } }), true)
   assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'stage' } }), true)
   // 需要人处理的错误要看得见；自动重试的提示不占时间线。

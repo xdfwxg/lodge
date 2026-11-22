@@ -39,8 +39,14 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   // 聊天发言行直接显示立场，不靠名字猜谁在提议、谁在质疑。
   await expect(page.locator('.crew-speaker-stance', { hasText: '提议' }).first()).toBeVisible()
   await expect(page.locator('.crew-speaker-stance', { hasText: '质疑' }).first()).toBeVisible()
-  await page.locator('.crew-conclusion-wrap').hover()
-  await expect(page.getByRole('button', { name: '复制结论' }).first()).toBeVisible()
+  const conclusion = page.locator('.crew-conclusion-wrap').first()
+  await conclusion.hover()
+  const copy = page.getByRole('button', { name: '复制结论' }).first()
+  await expect(copy).toBeVisible()
+  // 动作贴着结论卡右侧，不在正文下方居中展开。
+  const copyBox = await copy.boundingBox()
+  const conclusionBox = await conclusion.boundingBox()
+  expect(copyBox.x + copyBox.width).toBeGreaterThan(conclusionBox.x + conclusionBox.width - 40)
 
   const composer = page.getByRole('combobox', { name: '房间消息' })
   await expect(composer).toHaveAttribute('placeholder', '示例房间不接模型 · 已停在结论')
@@ -74,15 +80,13 @@ test('opening a detail keeps the reading position', async ({ page, request }) =>
   await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
 
   const scroller = page.locator('.dsb-scroll')
-  const summary = page.locator('.studio-delivery-details > summary')
-  await expect(summary).toBeVisible()
-  const before = await summary.boundingBox()
+  await page.locator('.crew-delivery-foot').hover()
+  const detail = page.locator('.crew-delivery-foot').getByRole('button', { name: '详情' })
+  await expect(detail).toBeVisible()
   const scrollBefore = await scroller.evaluate(node => node.scrollTop)
-  await summary.click()
-  const after = await summary.boundingBox()
+  await detail.click()
   const scrollAfter = await scroller.evaluate(node => node.scrollTop)
   expect(scrollAfter).toBe(scrollBefore)
-  expect(Math.abs(after.y - before.y)).toBeLessThan(1)
 })
 
 test('expanding the delivery details keeps the reading position', async ({ page, request }) => {
@@ -91,7 +95,8 @@ test('expanding the delivery details keeps the reading position', async ({ page,
   await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
 
   const scroller = page.locator('.dsb-scroll')
-  await page.locator('.studio-delivery-details > summary').click()
+  await page.locator('.crew-delivery-foot').hover()
+  await page.locator('.crew-delivery-foot').getByRole('button', { name: '详情' }).click()
   const summary = page.locator('.studio-delivery-details .crew-fold > summary').first()
   await summary.evaluate(node => node.scrollIntoView({ block: 'center' }))
   await page.waitForTimeout(50)

@@ -1,6 +1,6 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
-import { idleDelivered, roomStatusOf } from '../../../../shared/room-status.js'
+import { roomStatusOf } from '../../../../shared/room-status.js'
 import { PausedPanel } from '../paused-panel.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
@@ -11,7 +11,6 @@ import { studioTyping } from './typing.js'
 export const studioView = {
   id: 'studio',
   className: 'crew-room-studio',
-  opensAtTop: ({ room }) => idleDelivered(room),
   header: ({ room, actions }) => {
     const nav = [
       room.sourceRoomId && room.sourceName

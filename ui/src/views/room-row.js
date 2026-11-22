@@ -120,9 +120,10 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
   const lodge = room.lodge === true
   const label = stamp === '' ? roomLabelOf(room) : `${roomLabelOf(room)}，${stamp}`
   const subLine = stamp
-  const TypeIcon = uiKindOfRoom(room).icon
+  const kind = uiKindOfRoom(room)
+  const TypeIcon = kind.icon
   const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
-  const hasMemberPanel = !archived && uiKindOfRoom(room).membersInSidebar === false
+  const hasMemberPanel = !archived && kind.membersInSidebar === false
   const canDelete = room.state !== 'active' && !room.activeRoundId
   const closeMenu = () => setMenuOpen(false)
   const toggleMenu = () => {
@@ -296,7 +297,8 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
             onClick: openMembers,
           }, '成员')
           : null,
-        onRounds !== null && ((Array.isArray(room.rounds) && room.rounds.length > 0) || Boolean(room.workRound?.projectId ?? room.defaultProjectId))
+        kind.hasHistory === true && onRounds !== null &&
+          ((Array.isArray(room.rounds) && room.rounds.length > 0) || Boolean(room.workRound?.projectId ?? room.defaultProjectId))
           ? h('button', {
             type: 'button',
             role: 'menuitem',
@@ -328,7 +330,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         style: { top: `${membersAt.top}px`, left: `${membersAt.left}px` },
         role: 'dialog',
         'aria-label': '房间成员',
-      }, h(SideMembers, { room, onHold })), document.body)
+      }, h(SideMembers, { room, onHold, onClose: () => setMembersOpen(false) })), document.body)
       : null,
     confirm === null ? null : h(RoomConfirm, {
       kind: confirm,

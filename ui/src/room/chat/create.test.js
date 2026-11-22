@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildChatRequest } from './create.js'
+import { chatUi } from './ui.js'
 
 const base = {
   goal: '评审这次交付',
@@ -11,6 +12,10 @@ const base = {
   choices: [],
   selectedModelOf: () => '',
 }
+
+test('a new chat shows the default crew the server will use', () => {
+  assert.deepEqual(chatUi.defaultMembers.map(member => member.name), ['甲', '乙', '丙'])
+})
 
 test('a receipt and its source room travel with the chat request', () => {
   const receipt = {

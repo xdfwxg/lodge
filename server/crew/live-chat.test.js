@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRoomChat } from './kernel/live/bus.js'
 import { ROOM_CHAT_BULLETIN } from './room-chat.js'
+import { dropStaleStreams } from './rooms/chat/projection.js'
 import { normalizeTestRoom } from './testing/room.js'
 
 const baseRoom = () => normalizeTestRoom({
@@ -219,6 +220,88 @@ test('syncing base history keeps a streamed final reply once', async () => {
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(ctx.messages.length, 1)
   assert.equal(ctx.messages[0].meta.baseId, 'm1')
+})
+
+test('a digest after a streamed reply does not repeat the same words', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '你好', turnId: 't1' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm1', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '你好', at: Date.now() },
+  })
+  assert.equal(ctx.messages.length, 1)
+  ctx.subscribed[0].onEvent({
+    message: {
+      id: 'd1',
+      kind: 'turn',
+      role: 'agent',
+      authorRef: 'b-executor',
+      text: '你好',
+      turn: { reply: '你好', turnId: 't1' },
+      at: Date.now(),
+    },
+  })
+  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages[0].text, '你好')
+})
+
+test('a truncated digest after a streamed reply is not a second message', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '你好，世界', turnId: 't1' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm1', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '你好，世界', at: Date.now() },
+  })
+  ctx.subscribed[0].onEvent({
+    message: {
+      id: 'd1',
+      kind: 'turn',
+      role: 'agent',
+      authorRef: 'b-executor',
+      text: '你好',
+      turn: { reply: '你好', turnId: 't1' },
+      at: Date.now(),
+    },
+  })
+  assert.equal(ctx.messages.length, 1)
+})
+
+test('a late duplicate stream is hidden behind the final words', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '你好', turnId: 't1' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm1', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '你好', at: Date.now() },
+  })
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '你好', turnId: 't2' })
+  assert.equal(ctx.messages.length, 2)
+  ctx.subscribed[0].onEvent({
+    message: {
+      id: 'd1',
+      kind: 'turn',
+      role: 'agent',
+      authorRef: 'b-executor',
+      text: '你好',
+      turn: { reply: '你好', turnId: 't2' },
+      at: Date.now(),
+    },
+  })
+  assert.equal(dropStaleStreams(ctx.messages).length, 1)
 })
 
 test('permission cards are handed to the room strategy', () => {

@@ -42,6 +42,8 @@ export const createLodgeActions = deps => {
         goal: withAttachments(goalText, attachments),
         name: goalText.slice(0, 24),
         verify: 'manual',
+        sourceRoomId: room.id,
+        sourceName: room.name ?? '',
         ...(decision.room === 'chat' ? { roomType: 'chat' } : {}),
       })
       if (created?.ok !== true) return created
@@ -57,7 +59,6 @@ export const createLodgeActions = deps => {
           meta: {
             openRoomId: createdRoom.id,
             openRoomName: createdRoom.name,
-            createdRoomId: createdRoom.id,
           },
         }),
       })

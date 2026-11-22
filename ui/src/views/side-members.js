@@ -7,9 +7,9 @@ import { stagesCompletedOf } from '../../../shared/room-status.js'
 
 const IDLE = 'idle'
 
-// 房间下面的成员子目录：待命只留名字和点，有动静才写状态。
+// 房间菜单里的成员面板：待命只留名字和点，有动静才写状态。
 // 停止仍然是房间那一个按钮；这里只在成员菜单里放「先别给 TA 派活」这个持久开关。
-export function SideMembers({ room, onHold = null }) {
+export function SideMembers({ room, onHold = null, onClose = null }) {
   const members = Array.isArray(room?.members) ? room.members : []
   const [menu, setMenu] = useState(null)
   const moreRef = useRef(null)
@@ -34,7 +34,9 @@ export function SideMembers({ room, onHold = null }) {
   const finished = stagesCompletedOf(room)
   const canAdd = kind.membersCanBeAdded === true && room.live === true && !finished &&
     (room.state === 'active' || room.state === 'paused')
-  const canHold = room.state === 'active' && room.live === true && typeof onHold === 'function'
+  // 派活是工作室的动作；聊天室成员固定，不提供“先别给 TA 派活”。
+  const canHold = kind.membersCanBeAdded === true &&
+    room.state === 'active' && room.live === true && typeof onHold === 'function'
   const held = new Set(Array.isArray(room.heldMembers) ? room.heldMembers : [])
   const openMenu = (item, event) => {
     event.preventDefault()
@@ -55,7 +57,11 @@ export function SideMembers({ room, onHold = null }) {
         'data-tone': item.tone,
         title: [item.name, item.state === IDLE ? '' : item.label, item.engine, item.model]
           .filter(value => value !== '').join(' · '),
-        onClick: () => openBodyDialog(item.memberId),
+        onClick: () => {
+          // 成员卡可能开在房间菜单的浮层里；先收起浮层，别和调整窗口叠在一起。
+          onClose?.()
+          openBodyDialog(item.memberId)
+        },
       },
       item.state === IDLE ? null : h('span', { className: 'crew-side-member-dot', 'aria-hidden': true }),
       h('span', { className: 'crew-side-member-name' }, item.name),
@@ -91,7 +97,10 @@ export function SideMembers({ room, onHold = null }) {
         type: 'button',
         role: 'menuitem',
         className: 'crew-side-menu-item',
-        onClick: () => choose(() => openBodyDialog(menu.memberId)),
+        onClick: () => choose(() => {
+          onClose?.()
+          openBodyDialog(menu.memberId)
+        }),
       }, '调整成员'),
       h('button', {
         type: 'button',

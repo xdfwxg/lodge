@@ -208,26 +208,15 @@ test('a sample artifact opens its content in the card instead of the filesystem'
   assert.doesNotMatch(text(tree), /打开/)
 })
 
-test('the delivery sheet offers a way to continue', async () => {
-  const { DeliveryCard } = await load()
-  const tree = render(DeliveryCard({
-    delivery: {
-      name: '设置页保存',
-      goal: '保存后刷新仍生效',
-      stages: [],
-      commands: [],
-      changedFiles: [],
-    },
-    onContinue: () => {},
-  }))
-  assert.match(text(tree), /接着改/)
-})
-
 test('a Markdown result is typeset, a plain result keeps its lines', async () => {
   const { DeliveryPreview } = await load()
   const document = render(DeliveryPreview({ kind: 'document', content: '# 报告', image: null, alt: 'report.md' }))
   assert.notEqual(find(document, node => String(node.props?.className ?? '').includes('md_markdown')), null)
   assert.equal(find(document, node => node.type === 'pre'), null)
+  const preview = find(document, node => node.props?.className === 'studio-delivery-preview')
+  assert.equal(preview.props.tabIndex, 0)
+  assert.equal(preview.props.role, 'region')
+  assert.match(preview.props['aria-label'], /交付结果预览/)
   const plain = render(DeliveryPreview({ kind: 'text', content: 'line one\nline two', image: null, alt: 'notes.txt' }))
   assert.equal(text(find(plain, node => node.type === 'pre')), 'line one\nline two')
 })
