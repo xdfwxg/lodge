@@ -5,6 +5,8 @@ import { dateTimeOf } from '../../view-format.js'
 import { errorSuffix } from '../../error-text.js'
 import { artifactKindOf } from '../../../../shared/artifact.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'
+import { IconAction } from '../../primitives.js'
+import { ChatIcon } from '../type-icons.js'
 
 const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
 const isAbsolutePath = value => value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
@@ -324,7 +326,7 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
                   : delivery.workspacePath
                     ? joinPath(delivery.workspacePath, artifact.path)
                     : null
-                return h('li', { key: artifact.path },
+                return h('li', { key: artifact.path, className: 'crew-hover-row' },
                   h('span', { className: 'studio-delivery-file-icon' }, h(FileIcon)),
                   h('code', { title: artifact.path }, artifact.path.split('/').pop() || artifact.path),
                   content !== null
@@ -333,12 +335,13 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
                       h('pre', { className: 'crew-code' }, content))
                     : target === null
                       ? null
-                      : h('button', {
-                        type: 'button',
-                        className: 'crew-ghost',
-                        'aria-label': `打开 ${artifact.path}`,
-                        onClick: () => void open(target),
-                      }, '打开'))
+                      : h('div', { className: 'crew-hover-actions' },
+                        h('button', {
+                          type: 'button',
+                          className: 'crew-ghost',
+                          'aria-label': `打开 ${artifact.path}`,
+                          onClick: () => void open(target),
+                        }, '打开')))
               })))
             : null,
           h('div', { className: 'crew-delivery-stages' },
@@ -374,15 +377,16 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
           otherChangedFiles.length > 0
             ? h('details', { className: 'crew-fold crew-delivery-files' },
               h('summary', null, `${artifactPaths.size > 0 ? '其他改动' : '改动文件'} · ${otherChangedFiles.length}`),
-              h('ul', null, otherChangedFiles.map(file => h('li', { key: file },
+              h('ul', null, otherChangedFiles.map(file => h('li', { key: file, className: 'crew-hover-row' },
                 h('code', null, file),
                 delivery.workspacePath
-                  ? h('button', {
-                    type: 'button',
-                    className: 'crew-ghost',
-                    'aria-label': `打开 ${file}`,
-                    onClick: () => void open(joinPath(delivery.workspacePath, file)),
-                  }, '打开')
+                  ? h('div', { className: 'crew-hover-actions' },
+                    h('button', {
+                      type: 'button',
+                      className: 'crew-ghost',
+                      'aria-label': `打开 ${file}`,
+                      onClick: () => void open(joinPath(delivery.workspacePath, file)),
+                    }, '打开'))
                   : null))))
             : null,
           onDownload === null
@@ -394,11 +398,8 @@ export function DeliveryCard({ delivery: goalDelivery, onContinue = null, onRetu
         : h('div', { className: 'crew-card-foot' },
           onReturn === null
             ? null
-            : h('button', {
-              type: 'button',
-              className: 'crew-ghost',
-              onClick: onReturn,
-            }, '回聊天室'),
+            : h('div', { className: 'crew-hover-actions crew-card-hover-actions' },
+              h(IconAction, { icon: ChatIcon, label: '回聊天室', onClick: onReturn })),
           onContinue === null
             ? null
             : h('button', {

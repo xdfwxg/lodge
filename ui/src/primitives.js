@@ -40,6 +40,37 @@ const elements = (labels, names) => ({
   li: ({ children }) => h('li', null, withMentions(children, names)),
 })
 
+// 复制一段已经定稿的文字；结论卡用它，避免用户手动选中长段。
+export function CopyButton({ text = '', label = '复制', copiedLabel = '已复制', className = 'crew-link', icon = null }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    if (typeof navigator === 'undefined' || navigator.clipboard === undefined) return
+    void navigator.clipboard.writeText(String(text ?? '')).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }).catch(() => {})
+  }
+  const title = copied ? copiedLabel : label
+  return h('button', {
+    type: 'button',
+    className,
+    'aria-label': title,
+    title,
+    onClick: copy,
+  }, icon === null ? title : h(icon))
+}
+
+// 悬停/聚焦才出现的图标动作；文字标签留在 title 和 aria-label，不靠图标猜。
+export function IconAction({ icon, label, onClick, className = 'crew-icon-action' }) {
+  return h('button', {
+    type: 'button',
+    className,
+    'aria-label': label,
+    title: label,
+    onClick,
+  }, h(icon))
+}
+
 // 系统消息不走 Markdown，但仍要和成员交接一样，把真实的 @ 画成药丸。
 export function MentionText({ text, mentions = null }) {
   const names = Array.isArray(mentions) && mentions.length > 0 ? new Set(mentions) : null

@@ -97,3 +97,26 @@ export const PersonIcon = () => h('svg', roleBase, [
   h('circle', { key: 'head', cx: 10, cy: 7.4, r: 2.7 }),
   h('path', { key: 'body', d: 'M4.8 16c.6-3 2.7-4.8 5.2-4.8s4.6 1.8 5.2 4.8' }),
 ])
+
+export const CopyIcon = () => h('svg', {
+  width: 16,
+  height: 16,
+  viewBox: '0 0 20 20',
+  'aria-hidden': true,
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.4,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+}, h('rect', { x: 7, y: 7, width: 9, height: 10, rx: 2 }), h('path', { d: 'M13 7V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1' }))
+
+export const CloseIcon = () => h('svg', {
+  width: 16,
+  height: 16,
+  viewBox: '0 0 20 20',
+  'aria-hidden': true,
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.4,
+  strokeLinecap: 'round',
+}, h('path', { d: 'M5 5l10 10M15 5L5 15' }))

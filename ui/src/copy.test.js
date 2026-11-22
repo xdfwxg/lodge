@@ -6,7 +6,7 @@ import { STATUS_LABELS, copyIssueOf, copyStringsInSource } from '../../shared/pr
 import { t } from './goal-island/copy.js'
 import { buildIdleDecision } from './room/decision.js'
 import { healthLineOf } from './room/health.js'
-import { roomLabelOf } from './views/sidebar.js'
+import { roomLabelOf } from './views/room-list.js'
 
 const walk = directory => {
   const files = []

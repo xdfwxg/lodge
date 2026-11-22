@@ -33,3 +33,19 @@ test('a member without a stance shows no label', () => {
   const html = render({ id: 'm3', kind: 'chat', authorId: 'b', text: '我同意。' }, byId)
   assert.doesNotMatch(html, /crew-speaker-stance/)
 })
+
+test('a handoff line stays in the conversation column', () => {
+  const html = render({
+    id: 'm4',
+    kind: 'system',
+    text: '@验收员 请复核。',
+    meta: { kind: 'handoff' },
+  })
+  assert.match(html, /data-chain="handoff"/)
+  assert.match(html, /crew-system/)
+})
+
+test('a plain system notice keeps the centered treatment', () => {
+  const html = render({ id: 'm5', kind: 'system', text: '第 2 步确认了。' })
+  assert.doesNotMatch(html, /data-chain="handoff"/)
+})

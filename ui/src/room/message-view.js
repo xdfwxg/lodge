@@ -1,6 +1,7 @@
 import { createElement as h } from 'react'
 import { ActivityLine, ChatLine, Markdown } from '../message-cards.js'
-import { MentionText } from '../primitives.js'
+import { IconAction, MentionText } from '../primitives.js'
+import { CloseIcon, ReturnIcon } from '../icons.js'
 import { QuestionCard } from './question-card.js'
 import { hostLabelOf } from './host.js'
 import { cardStateOf } from '../../../shared/attempt.js'
@@ -52,8 +53,12 @@ export const renderSharedMessage = ({
     })
   }
   if (message.kind === 'system' || message.kind === 'child_result') {
-    return h('div', { key: message.id, className: 'crew-system' },
-      h(MentionText, { text: message.text, mentions: mentionNames }))
+    return h('div', {
+      key: message.id,
+      className: 'crew-system',
+      'data-chain': message.meta?.kind === 'handoff' ? 'handoff' : undefined,
+    },
+    h(MentionText, { text: message.text, mentions: mentionNames }))
   }
   if (message.kind === 'activity') return h(ActivityLine, { key: message.id, message })
   if (message.kind === 'rework' && message.meta?.auto === true) {
@@ -101,12 +106,13 @@ export const renderSharedMessage = ({
         ? null
         : h('div', { className: 'crew-queue-actions' },
           h('span', null, '排队中'),
-          onCancelQueue === null
-            ? null
-            : h('button', { type: 'button', className: 'crew-presence-action', onClick: () => onCancelQueue(message.meta.queueId) }, '撤回'),
-          onSteerQueue === null
-            ? null
-            : h('button', { type: 'button', className: 'crew-presence-action', onClick: () => onSteerQueue(message.meta.queueId) }, '插话')))
+          h('div', { className: 'crew-hover-actions' },
+            onCancelQueue === null
+              ? null
+              : h(IconAction, { icon: CloseIcon, label: '撤回', onClick: () => onCancelQueue(message.meta.queueId) }),
+            onSteerQueue === null
+              ? null
+              : h(IconAction, { icon: ReturnIcon, label: '插话', onClick: () => onSteerQueue(message.meta.queueId) }))))
   }
   // 模型有时把用户写成 @you；显示成名字，没起名字时直接去掉这个称呼。
   const shown = /@you\b/i.test(String(message.text ?? ''))

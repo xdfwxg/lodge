@@ -39,6 +39,8 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   // 聊天发言行直接显示立场，不靠名字猜谁在提议、谁在质疑。
   await expect(page.locator('.crew-speaker-stance', { hasText: '提议' }).first()).toBeVisible()
   await expect(page.locator('.crew-speaker-stance', { hasText: '质疑' }).first()).toBeVisible()
+  await page.locator('.crew-conclusion-wrap').hover()
+  await expect(page.getByRole('button', { name: '复制结论' }).first()).toBeVisible()
 
   const composer = page.getByRole('combobox', { name: '房间消息' })
   await expect(composer).toHaveAttribute('placeholder', '示例房间不接模型 · 已停在结论')
@@ -47,6 +49,7 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   await expect(page.getByText('继续讨论一轮').last()).toBeVisible()
   await expect(composer).toHaveValue('')
 
+  await page.locator('.crew-conclusion-wrap').hover()
   await page.getByRole('button', { name: '转成工作室' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()

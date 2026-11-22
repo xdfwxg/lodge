@@ -1,6 +1,9 @@
 import { createElement as h, useMemo } from 'react'
 import { ApprovalCard } from '../../approval-card.js'
 import { ChatLine } from '../../message-cards.js'
+import { CopyButton, IconAction } from '../../primitives.js'
+import { CopyIcon } from '../../icons.js'
+import { StudioIcon } from '../type-icons.js'
 import { isChainMessage, renderSharedMessage } from '../message-view.js'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { hostLabelOf } from '../host.js'
@@ -43,22 +46,30 @@ function Timeline({
 
   const renderMessage = message => {
     const content = message.kind === 'chat_conclusion'
-      ? h('div', { key: message.id, className: 'crew-msg-wrap' },
+      ? h('div', { key: message.id, className: 'crew-msg-wrap crew-conclusion-wrap' },
         h(ChatLine, {
           message,
           member: byId[message.authorId] ?? { id: 'lodge', name: hostLabelOf(room), title: '' },
         }),
-        typeof onStartStudio === 'function'
-          ? h('button', {
-            type: 'button',
-            className: 'crew-link crew-conclusion-convert',
-            onClick: () => onStartStudio(chatStudioSeed({
-              room,
-              conclusion: message.text,
-              handoff: message.meta?.handoff,
-            })),
-          }, '转成工作室')
-          : null)
+        h('div', { className: 'crew-hover-actions crew-conclusion-actions' },
+          h(CopyButton, {
+            text: message.text,
+            label: '复制结论',
+            copiedLabel: '已复制',
+            className: 'crew-icon-action',
+            icon: CopyIcon,
+          }),
+          typeof onStartStudio === 'function'
+            ? h(IconAction, {
+              icon: StudioIcon,
+              label: '转成工作室',
+              onClick: () => onStartStudio(chatStudioSeed({
+                room,
+                conclusion: message.text,
+                handoff: message.meta?.handoff,
+              })),
+            })
+            : null))
       : message.kind === 'chat' && message.meta?.opening === true
         ? h(ChatOpeningCard, {
           key: message.id,

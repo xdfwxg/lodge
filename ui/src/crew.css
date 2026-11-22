@@ -215,8 +215,6 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-handoff-more-body{display:flex;flex-direction:column;gap:8px;padding-top:8px}
 .crew-gate-check{display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px solid var(--bt-line)}
 .crew-gate-check>b{font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:600;color:var(--bt-ink-3)}
-.studio-result{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:3px 2px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
-
 .crew-msg{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;padding:12px 0}
 .crew-msg-avatar{padding-top:1px}
 .crew-msg.crew-msg-chat{grid-template-columns:minmax(0,1fr)}
@@ -243,6 +241,7 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-human .bt-ububble{max-width:min(560px,86%)}
 
 .crew-system{align-self:center;margin:12px 0;padding:0;background:transparent;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);text-align:center}
+.crew-system[data-chain=handoff]{align-self:stretch;margin:6px 0 6px 44px;text-align:left}
 .crew-time{align-self:center;margin:16px 0 2px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
 .crew-activity{display:flex;align-items:center;gap:6px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .crew-activity-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-green)}
@@ -814,7 +813,7 @@ body[data-ds-dark-theme] .crew-attachment-file{background:rgba(255,255,255,.08)}
 /* Decision-first room: one decision, audit on demand */
 .crew-room{position:relative;display:flex;flex-direction:column;background:var(--bt-main)}
 .crew-room-main{flex:1 1 auto;width:100%;max-width:none}
-.crew-room-main.crew-room-studio .crew-goal-island{position:relative;top:auto;left:auto;right:auto;padding:6px 32px 0}
+.crew-room-main.crew-room-studio .crew-goal-island{position:relative;top:auto;left:auto;right:auto;padding:18px 32px 0}
 .crew-room-main.crew-room-studio .crew-scroll{padding-top:16px}
 .crew-room-main.crew-room-studio[data-room-done=true] .crew-scroll{padding-top:16px}
 .crew-island-wrap{display:flex;justify-content:center;padding:18px 32px 8px;box-sizing:border-box}
@@ -896,6 +895,22 @@ details[open]>summary::before{transform:rotate(90deg)}
 
 /* 多个目标岛：当前房间之外的目标缩成一行小岛，点一下切过去。 */
 .crew-conclusion-convert{margin:6px 0 0 44px;font-weight:500;font-size:var(--bt-text-helper)}
+.crew-conclusion-actions{margin:6px 0 0 44px}
+.crew-hover-actions{display:flex;align-items:center;gap:4px;opacity:0;pointer-events:none;transition:opacity .12s ease}
+.crew-msg-wrap:hover .crew-hover-actions,
+.crew-msg-wrap:focus-within .crew-hover-actions,
+.crew-msg:hover .crew-hover-actions,
+.crew-msg:focus-within .crew-hover-actions,
+.crew-conclusion-wrap:hover .crew-hover-actions,
+.crew-conclusion-wrap:focus-within .crew-hover-actions,
+.crew-hover-row:hover .crew-hover-actions,
+.crew-hover-row:focus-within .crew-hover-actions,
+.crew-card-foot:hover .crew-hover-actions,
+.crew-card-foot:focus-within .crew-hover-actions{opacity:1;pointer-events:auto}
+.crew-icon-action{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--bt-ink-3);cursor:pointer}
+.crew-icon-action:hover{background:var(--bt-hover);color:var(--bt-ink)}
+.crew-icon-action:focus-visible{outline:2px solid var(--bt-accent);outline-offset:1px}
+@media (hover:none){.crew-hover-actions{opacity:1;pointer-events:auto}}
 .crew-mind-presets{display:flex;flex-wrap:wrap;gap:6px}
 .crew-mind-preset{height:30px;padding:0 12px;border:1px solid var(--bt-line-2);border-radius:999px;background:var(--bt-card);color:var(--bt-ink-2);font:inherit;font-size:var(--bt-text-label);cursor:pointer}
 .crew-mind-preset:hover{background:var(--bt-hover);color:var(--bt-ink)}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { filterRooms, orderRooms, roomLabelOf, roomStampOf } from './sidebar.js'
+import { filterRooms, orderRooms, roomLabelOf, roomStampOf } from './room-list.js'
 
 test('sidebar room labels carry name, status, unread and needs-you text', () => {
   assert.equal(roomLabelOf({ name: '简历', state: 'active', live: true }), '简历，进行中')
