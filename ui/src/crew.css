@@ -761,8 +761,9 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
   .dsb-side{padding:6px 10px 8px}
 }
 .crew-scroll{padding:16px 20px 24px}
-/* 聊天室的岛浮在正文上；给灵宠和胶囊留出一条上沿，消息不从它身下穿过。 */
-.crew-room-main.crew-room-chat .crew-scroll{margin-top:124px}
+/* 聊天室的岛就是正文上沿；消息从岛下面开始，不从它身下穿过。 */
+.crew-room-main.crew-room-chat .crew-goal-island{position:relative;top:auto;left:auto;right:auto}
+.crew-room-main.crew-room-chat .crew-scroll{margin-top:0}
 .crew-flow{max-width:760px;gap:4px}
 .crew-card-foot .crew-ghost{height:var(--bt-control-h-sm);padding:0 10px;background:transparent}
 .crew-card-foot .crew-ghost:hover{background:var(--bt-hover)}
@@ -816,7 +817,7 @@ body[data-ds-dark-theme] .crew-attachment-file{background:rgba(255,255,255,.08)}
 @media (max-width:760px){
   .crew-island-wrap{padding:12px 14px 6px}
   .crew-scroll{padding-left:18px;padding-right:18px}
-  .crew-room-main.crew-room-chat .crew-scroll{margin-top:108px}
+  .crew-room-main.crew-room-chat .crew-scroll{margin-top:0}
   .crew-room-main.crew-room-studio .crew-goal-island{padding:30px 14px 0}
   .crew-room-main.crew-room-studio .crew-scroll{padding-top:16px}
 }
