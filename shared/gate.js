@@ -1,4 +1,5 @@
 import { judgmentFromGate } from './judgment.js'
+import { normalizeAskDecision } from './decision.js'
 
 // 房间内置工具只用这一个 MCP 服务；规划和验收拿它提交判定，不拿外部工具。
 export const GATE_SERVER_NAME = 'lodge_gate'
@@ -6,6 +7,8 @@ export const GATE_SERVER_NAME = 'lodge_gate'
 export const GATE_TOOL_NAMES = Object.freeze({
   submit_verdict: 'verdict',
   submit_decision: 'planner',
+  ask_decision: 'ask',
+  ask_question: 'question',
 })
 
 const REWIND_TOOL = 'rewind_stage'
@@ -67,6 +70,36 @@ export const gateSubmissionOf = (calls, {
       at,
     })
     if (judgment !== null) return judgment
+  }
+  return null
+}
+
+// 规划师提交一张决策卡：只认本轮最后一次合法 ask；结构由共享契约校验。
+export const askDecisionOf = (calls, { id = null, roomId = null, roundId = null, stage = null, at = Date.now() } = {}) => {
+  if (!Array.isArray(calls)) return null
+  for (const call of [...calls].reverse()) {
+    if (toolKind(call?.name) !== 'ask') continue
+    const result = normalizeAskDecision({
+      id,
+      roomId,
+      roundId,
+      stage,
+      input: parseInput(call?.input),
+      at,
+    })
+    if (result.error === undefined) return result.decision
+  }
+  return null
+}
+
+// 规划师缺事实时只问一个核心问题；问题由房间暂停等人回答，不混进决策卡。
+export const askQuestionOf = (calls, { at = Date.now() } = {}) => {
+  if (!Array.isArray(calls)) return null
+  for (const call of [...calls].reverse()) {
+    if (toolKind(call?.name) !== 'question') continue
+    const text = String(parseInput(call?.input)?.question ?? '').trim().slice(0, 500)
+    if (text === '') continue
+    return { text, at }
   }
   return null
 }

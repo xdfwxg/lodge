@@ -47,5 +47,5 @@ test('lead and verifier members are not allowed to create external writes', () =
 test('the gate declares an independent basis', () => {
   const result = reviewExternalAction({ approval: approval('worker', 'curl https://example.com'), room: room() })
   assert.equal(result.context, 'independent')
-  assert.match(result.basis, /不读执行成员对话/)
+  assert.match(result.basis, /不读执行官对话/)
 })

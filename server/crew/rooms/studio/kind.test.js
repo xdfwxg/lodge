@@ -45,3 +45,23 @@ test('reworking a step clears its old review timeout', () => {
   const rework = { id: 'r1', kind: 'rework', seq: 3, ts: 3000, meta: { stage: 0 } }
   assert.equal(studioKind.needsYou(room, [evidence, timeout, rework]), null)
 })
+
+test('the alignment round keeps only the planner in the base room chat', () => {
+  const members = [
+    { id: 'planner', name: '规划师', role: 'lead' },
+    { id: 'executor', name: '执行官', role: 'worker' },
+    { id: 'verifier', name: '验收员', role: 'verifier' },
+  ]
+  assert.deepEqual(
+    studioKind.chatMembersOf({ stages: [{ title: '目标对齐', state: 'pending' }], members }),
+    ['planner'],
+  )
+  assert.deepEqual(
+    studioKind.chatMembersOf({ stages: [{ title: '目标对齐', state: 'active' }], members }),
+    ['planner'],
+  )
+  assert.deepEqual(
+    studioKind.chatMembersOf({ stages: [{ title: '实现', state: 'active' }], members }),
+    ['planner', 'executor', 'verifier'],
+  )
+})

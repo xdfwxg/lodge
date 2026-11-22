@@ -77,7 +77,7 @@ test('a pass with no action does not leave an empty reason fold', () => {
   assert.doesNotMatch(html, /理由/)
 })
 
-test('a system handoff is spoken by the member who sent it', () => {
+test('a system handoff stays a system routing line', () => {
   const room = {
     id: 'room-1',
     messages: [],
@@ -101,35 +101,8 @@ test('a system handoff is spoken by the member who sent it', () => {
     onAccept: () => {},
     onStageAccept: () => {},
   }))
-  assert.match(html, /crew-msg-chat/)
-  assert.match(html, /规划师/)
-  assert.doesNotMatch(html, /crew-system/)
-})
-
-test('an older handoff without a sender falls back to the lead', () => {
-  const room = {
-    id: 'room-1',
-    messages: [],
-    members: [
-      { id: 'planner', name: '规划师', roleKind: 'planner' },
-      { id: 'executor', name: '执行官', roleKind: 'executor' },
-    ],
-  }
-  const byId = Object.fromEntries(room.members.map(member => [member.id, member]))
-  const html = renderToStaticMarkup(renderStudioMessage({
-    room,
-    byId,
-    message: {
-      id: 'h2',
-      kind: 'system',
-      ts: 1,
-      text: '@执行官 第 1 步「改标题」交给你。',
-      meta: { kind: 'handoff', stage: 0, to: ['executor'] },
-    },
-    timeline: {},
-    onAccept: () => {},
-    onStageAccept: () => {},
-  }))
-  assert.match(html, /规划师/)
-  assert.doesNotMatch(html, /crew-system/)
+  assert.match(html, /crew-process-line/)
+  assert.match(html, /系统/)
+  assert.match(html, /@执行官/)
+  assert.doesNotMatch(html, /规划师/)
 })

@@ -85,7 +85,7 @@ export const prepareRoom = ({ source, short, members }) => {
 }
 
 export const addMember = ({ room, member }) => {
-  if (member.role === 'worker') throw new Error('普通目录原地修改只能有一个执行成员')
+  if (member.role === 'worker') throw new Error('普通目录原地修改只能有一个执行官')
   const source = room?.sourceRepo
   const used = Math.max(0, ...Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value)))
   if (member.role === 'verifier') {

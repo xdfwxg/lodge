@@ -45,9 +45,9 @@ export const evaluateProposal = (result, testCase = {}) => {
   const leads = members.filter(member => member?.role === 'lead')
   const verifiers = members.filter(member => member?.role === 'verifier')
   check('workers', workers.length >= 1, `${workers.length} 个执行`)
-  check('member-limits', leads.length <= 1, `队长 ${leads.length}，验收 ${verifiers.length}`)
+  check('member-limits', leads.length <= 1, `规划师 ${leads.length}，验收员 ${verifiers.length}`)
   check('member-count', members.length >= 1 && members.length <= 8, `${members.length} 位成员`)
-  check('member-role-name', !members.some(member => member?.role !== 'verifier' && VERIFIER_NAME.test(asText(member?.name))), '非验收成员不要命名为验收/复核')
+  check('member-role-name', !members.some(member => member?.role !== 'verifier' && VERIFIER_NAME.test(asText(member?.name))), '非验收员不要命名为验收/复核')
   const why = asText(proposal.why)
   if (WANTS_VERIFIER.test(why) && !NO_VERIFIER.test(why) && verifiers.length === 0) {
     check('why-verifier', false, 'why 提到加验收，但成员里没有 verifier')
@@ -64,7 +64,7 @@ export const evaluateProposal = (result, testCase = {}) => {
     check('case-require-test', proposal.verify === 'test' && asText(proposal.acceptance) !== '', '需要可执行验收命令')
   }
   if (verifiers.length > 0) {
-    check('verifier-acceptance', proposal.verify === 'test' && asText(proposal.acceptance) !== '', '有验收成员就需要命令')
+    check('verifier-acceptance', proposal.verify === 'test' && asText(proposal.acceptance) !== '', '有验收员就需要命令')
   }
   if (testCase.acceptancePattern !== undefined) {
     let matched = true

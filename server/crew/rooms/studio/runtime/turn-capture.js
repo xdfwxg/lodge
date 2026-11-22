@@ -4,7 +4,7 @@ import { memberDisplayName } from '../../../member-labels.js'
 import { createTurnDiagnostics } from './diagnostics.js'
 import { verdictPassed } from '../../../../../shared/judgment.js'
 import { ASSIGNMENT_TERMINAL, STAGE_STATE } from '../../../../../shared/states.js'
-import { rewindRequestOf } from '../../../../../shared/gate.js'
+import { askDecisionOf, askQuestionOf, rewindRequestOf } from '../../../../../shared/gate.js'
 import {
   activeDispatchAssignments as activeDispatch,
   assignmentForTurn,
@@ -16,6 +16,7 @@ import { leadMemberOf, memberOf } from '../../../room-members.js'
 import { deliverableStageIndex, isWorkStage, memberForRef } from '../turn-utils.js'
 import { vcsOf, workspaceOf } from '../workspace.js'
 import { systemNotice } from '../../../notices.js'
+import { hasLaterWorkStage } from '../review-policy.js'
 import { cancelAssignmentLease } from '../assignment-lease.js'
 import { redactSecrets } from '../../../../../shared/secrets.js'
 
@@ -34,6 +35,7 @@ export const createTurnCapture = ({
   confirmStage = null,
   rewindStage = null,
   writeDiagnostic = null,
+  setMembers = null,
 }) => {
   const captureTurn = (turn, authorRef) => {
     const turnId = turn?.turnId
@@ -49,6 +51,48 @@ export const createTurnCapture = ({
     const room = store.readRoom(roomId)
     const memberId = memberForRef(room, authorRef)
     const role = memberOf(room, memberId)?.role
+    const calls = state.turns.get(turnId) ?? []
+    // 规划师遇到真正的分叉：存一张决策卡，暂停派活，等用户选。
+    if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
+      const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
+      const ask = askDecisionOf(calls, {
+        id: `decision-${turnId}`,
+        roomId,
+        roundId: room.activeRoundId ?? null,
+        stage: activeIndex >= 0 ? activeIndex : null,
+        at: Number.isFinite(turn?.at) ? turn.at : Date.now(),
+      })
+      if (ask !== null) {
+        state.capturedTurns.add(turnId)
+        if (room.pendingDecision?.status !== 'open') {
+          // 等用户拍板时基座群聊里只留规划师；被移出的人连 @ 都收不到。
+          // 对齐开局已经只留规划师，不再重复改名单，免得撞上基座正在跑回合。
+          const first = room.stages?.[0]
+          const alreadyAlone = first?.title === '目标对齐' && first.state !== STAGE_STATE.passed
+          if (!alreadyAlone && typeof setMembers === 'function') void setMembers(roomId, [memberId])
+          const updated = store.updateRound(roomId, current => {
+            current.pendingDecision = ask
+            return { events: [{ type: 'decision.asked', payload: { id: ask.id, stage: ask.stage, question: ask.question } }] }
+          })
+          if (updated !== null) emit?.('room', updated)
+        }
+        return
+      }
+      // 只是缺事实：记一个问题，暂停派活，等用户在下面回答。
+      const question = askQuestionOf(calls, { at: Number.isFinite(turn?.at) ? turn.at : Date.now() })
+      if (question !== null) {
+        state.capturedTurns.add(turnId)
+        const open = typeof room.openQuestion === 'string' && room.openQuestion.trim() !== ''
+        if (!open && room.pendingDecision?.status !== 'open') {
+          const updated = store.updateRound(roomId, current => {
+            current.openQuestion = question.text
+            return { events: [{ type: 'question.asked', payload: { text: question.text } }] }
+          })
+          if (updated !== null) emit?.('room', updated)
+        }
+        return
+      }
+    }
     // 规划师把目标对齐说清楚、又没有留下问题时，对齐这一步自动通过；
     // 这一步没有界面动作，等人只会让零准备开工停在第一屏。
     const alignIndex = room === null ? -1 : room.stages.findIndex(stage => stage.state === STAGE_STATE.active)
@@ -67,6 +111,20 @@ export const createTurnCapture = ({
     }
     const stageIndex = room === null ? 0 : deliverableStageIndex(room)
     const dispatch = room === null ? null : dispatchOf(store, roomId, stageIndex)
+    // 验收已通过、规划师也收过尾：系统收口，不再等人点一次确认。
+    const signoffVerdict = [...store.readMessages(roomId)].reverse()
+      .find(message => message.kind === 'verdict' && (message.meta?.stage ?? 0) === stageIndex)
+    if (
+      memberId !== null &&
+      memberId === leadMemberOf(room)?.id &&
+      room?.stages?.[stageIndex]?.state === STAGE_STATE.active &&
+      signoffVerdict !== undefined &&
+      verdictPassed(signoffVerdict) &&
+      !hasLaterWorkStage(room, stageIndex) &&
+      typeof confirmStage === 'function'
+    ) {
+      void Promise.resolve(confirmStage(roomId, stageIndex, { by: 'system' })).catch(() => {})
+    }
     // 旧尝试的回合可能在新一次派发之后才回来；开始时间早于当前交接就丢弃，别污染新结果。
     const startedAt = Number.isFinite(turn?.at) && Number.isFinite(turn?.durationMs)
       ? turn.at - turn.durationMs
@@ -177,7 +235,6 @@ export const createTurnCapture = ({
       return
     }
     state.capturedTurns.add(turnId)
-    const calls = state.turns.get(turnId) ?? []
     state.turns.delete(turnId)
 
     if (role === 'lead') {

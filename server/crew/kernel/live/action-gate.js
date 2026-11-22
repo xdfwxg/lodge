@@ -1,6 +1,6 @@
 import { memberOf } from '../../room-members.js'
 
-// 独立守门检查：只看动作、成员角色与房间约束，不看执行成员的对话。
+// 独立守门检查：只看动作、成员角色与房间约束，不看执行官的对话。
 // 它给建议，不替人做最终决定；审批权仍在人手里。
 const DENY_PATTERNS = [
   { pattern: /(?:^|[;&|]\s*)(?:sudo|doas|su|runas)\s|\bStart-Process\b[^\n]*-Verb\s+RunAs\b/i, reason: '提权命令' },
@@ -63,7 +63,7 @@ export const reviewExternalAction = ({ approval, room }) => {
     risk,
     reasons: [...new Set(reasons)],
     context: 'independent',
-    basis: '命令语义 + 成员角色 + 房间约束，不读执行成员对话',
+    basis: '命令语义 + 成员角色 + 房间约束，不读执行官对话',
     at: Date.now(),
   }
 }

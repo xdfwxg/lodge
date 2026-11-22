@@ -8,6 +8,7 @@ import { useHoverPeek } from './use-hover-peek.js'
 import { TargetIcon } from '../icons.js'
 import { useGoalSignal } from './use-goal-signal.js'
 import { islandStatusOf, islandWorking } from './status.js'
+import { needsAction } from '../needs.js'
 
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { chatStartedOf } from '../../../shared/room-status.js'
@@ -55,8 +56,10 @@ const toIslandRoom = room => ({
   id: room.id,
   kind: room.modeCapabilities?.stages === false ? 'chat' : 'studio',
   lodge: room.lodge === true,
-  needsYou: room.needsYou ?? null,
-  attention: Array.isArray(room.attention) ? room.attention : [],
+  needsYou: needsAction(room),
+  attention: Array.isArray(room.attention)
+    ? room.attention.filter(item => item?.actionable !== false)
+    : [],
   // 岛只拿裁剪后的房间；聊天有没有开始由共享读模型算，别在这里另拼一套。
   chatStarted: chatStartedOf(room),
   // 真正有回合在跑时才“灵动”地展开；回合结束回到最小，不常驻一条状态。
@@ -132,6 +135,15 @@ export function GoalIslandHeader({ room, goal: goalOverride = null, status = nul
     toggleGoal: () => (open ? activity.onClose() : activity.onOpen()),
     closeGoal: activity.onClose,
     openSignal: () => {
+      // 规划师只问一个问题时没有卡片，落点是房间输入框：直接在下面回答。
+      const composer = typeof document === 'undefined' || activity.signal?.kind !== 'question'
+        ? null
+        : document.querySelector('[aria-label="房间消息"]')
+      if (composer instanceof HTMLElement) {
+        composer.scrollIntoView({ block: 'center' })
+        composer.focus({ preventScroll: true })
+        return
+      }
       const target = typeof document === 'undefined'
         ? null
         : document.querySelector('[data-room-decision]')

@@ -14,18 +14,33 @@ export const createStudioRuntime = ({
   ports,
   approvals,
   refreshRoom,
+  setMembers = null,
   confirmStage = null,
   rewindStage = null,
 }) => {
-  const sendMember = (roomId, room, memberId, text, options = {}) => deliverToMember({
-    engine,
-    store,
-    roomId,
-    room,
-    memberId,
-    text,
-    ...options,
-  })
+  const sendMember = async (roomId, room, memberId, text, options = {}) => {
+    // 等卡期间只有规划师在基座群聊里；第一次派活给其他成员时再把全员放回来。
+    const current = store.readRoom(roomId) ?? room
+    const target = (current.members ?? []).find(member => member.id === memberId)
+    const ids = (current.members ?? []).map(member => member.id)
+    if (
+      typeof setMembers === 'function' &&
+      target?.role !== 'lead' &&
+      current.pendingDecision?.status !== 'open' &&
+      ids.length > 0
+    ) {
+      await setMembers(roomId, ids)
+    }
+    return deliverToMember({
+      engine,
+      store,
+      roomId,
+      room,
+      memberId,
+      text,
+      ...options,
+    })
+  }
 
   return {
     owns: typeId => typeId === 'studio',
@@ -80,6 +95,7 @@ export const createStudioRuntime = ({
         confirmStage,
         rewindStage,
         shadow,
+        setMembers,
         expireCards: () => {
           const task = approvals.expireApprovals(entry, room.id, '这一步已经重做了')
           if (task !== undefined && task !== null && typeof task.catch === 'function') task.catch(() => {})

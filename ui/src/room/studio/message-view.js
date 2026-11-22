@@ -9,18 +9,6 @@ import { homeRelative } from '../../home-path.js'
 
 const SEVERITY_LABEL = { blocker: '阻断', major: '重要', minor: '次要' }
 
-// 系统发起的交接也要有说话的人：新消息带 from，旧消息按收件人/文字认回谁在交接。
-const handoffSenderIdOf = (room, message) => {
-  if (typeof message.meta?.from === 'string' && message.meta.from !== '') return message.meta.from
-  if (typeof message.authorId === 'string' && message.authorId !== '' && message.authorId !== 'system') return message.authorId
-  const members = Array.isArray(room?.members) ? room.members : []
-  const byRole = role => members.find(member => member.roleKind === role)?.id
-  const text = String(message.text ?? '')
-  if (/验收退回|验收员通过|验收通过/.test(text)) return byRole('verifier') ?? byRole('executor') ?? 'lodge'
-  if (/请复核/.test(text)) return byRole('executor') ?? byRole('verifier') ?? 'lodge'
-  return byRole('planner') ?? byRole('executor') ?? 'lodge'
-}
-
 // 工作室就是聊天：成员说什么就是一条消息，细节（命令、输出、改动）折在消息下面。
 const fold = (label, text) => (
   typeof text !== 'string' || text.trim() === ''
@@ -35,7 +23,6 @@ export const renderStudioMessage = ({
   byId,
   message,
   timeline,
-  onAccept,
   onStageAccept,
   onAnswerCard = null,
   onCancelQueue = null,
@@ -54,15 +41,11 @@ export const renderStudioMessage = ({
   // 规划师的排期是一条消息，步骤直接读得出来。
   if (message.kind === 'plan') return chat(message.text)
 
-  // 系统交接也是成员说的一句话；不要落回居中的系统小字。
+  // 系统只负责路由，不装作某个成员说话；这条会折进“过程”，展开仍能读到。
   if (message.kind === 'system' && message.meta?.kind === 'handoff') {
-    const senderId = handoffSenderIdOf(room, message)
-    return h('div', { key: message.id, className: 'crew-msg-wrap' },
-      h(ChatLine, {
-        message: { ...message, authorId: senderId },
-        member: resolveMember(room, byId, { ...message, authorId: senderId }),
-        mentions,
-      }))
+    return h('div', { key: message.id, className: 'crew-process-line' },
+      h('span', { className: 'crew-process-tag' }, '系统'),
+      message.text ?? '')
   }
 
   // 交接在群里就是一句 @：谁交给谁，下一步做什么。

@@ -17,12 +17,14 @@ test('each role definition carries the full reusable role contract', () => {
 })
 
 test('each role prompt carries its own speech habit', () => {
-  assert.match(roleDefinitionOf('lead').prompt, /下一步和谁做/)
-  assert.match(roleDefinitionOf('lead').prompt, /只问一个最关键的问题/)
-  assert.match(roleDefinitionOf('worker').prompt, /做完没有、证据在哪/)
-  assert.match(roleDefinitionOf('worker').prompt, /不复述任务/)
-  assert.match(roleDefinitionOf('verifier').prompt, /先给判定，再给证据/)
-  assert.match(roleDefinitionOf('verifier').prompt, /不替作者解释/)
+  assert.match(roleDefinitionOf('lead').prompt, /下一步和对接人/)
+  assert.match(roleDefinitionOf('lead').prompt, /只问一个核心问题/)
+  assert.match(roleDefinitionOf('lead').prompt, /lodge_gate_ask_question/)
+  assert.match(roleDefinitionOf('lead').prompt, /不编造证据/)
+  assert.match(roleDefinitionOf('worker').prompt, /完成状态 \+ 证据/)
+  assert.match(roleDefinitionOf('worker').prompt, /不自评“合格”/)
+  assert.match(roleDefinitionOf('verifier').prompt, /第一行只写 通过 或 不通过/)
+  assert.match(roleDefinitionOf('verifier').prompt, /不为产出解释/)
 })
 
 test('role instances copy the definition instead of sharing mutable arrays', () => {

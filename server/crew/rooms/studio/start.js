@@ -5,7 +5,7 @@ import { memberDisplayName } from '../../member-labels.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
 
-// 工作室建房后的第一次派发：先对齐，或直接交给主成员/执行成员。
+// 工作室建房后的第一次派发：先对齐，或直接交给主成员/执行官。
 export const startInitialStage = async ({
   store,
   live,

@@ -25,7 +25,7 @@ test('the delivery record carries goal, checks, verdicts and files', () => {
   assert.match(text, /状态：已交付/)
   assert.match(text, /写 hello\.txt — 已完成 · 检查：`npm test`/)
   assert.match(text, /`npm test` → 退出码 0/)
-  assert.match(text, /PASS · 验收员 · PASS 内容正确/)
+  assert.match(text, /通过 · 验收员 · 内容正确/)
   assert.match(text, /hello\.txt/)
   assert.match(text, /分支：crew\/x\/worker/)
 })

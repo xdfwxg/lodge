@@ -1,15 +1,37 @@
 import { randomUUID } from 'node:crypto'
+import * as log from '../../log.js'
 import { matchEcho, memberForRef } from './projection.js'
-import { leadMemberOf } from '../../room-members.js'
+import { leadMemberOf, memberOf } from '../../room-members.js'
 import { pauseForMemberFailure } from './sync.js'
 import { ROOM_CHAT_BULLETIN, roomChatName } from '../../room-chat.js'
-import { roomPresentationOfRoom } from '../../rooms/kinds.js'
+import { roomModeOfRoom, roomPresentationOfRoom } from '../../rooms/kinds.js'
 import { supportsRuntime } from '../../runtime-port.js'
 import { toBaseMentions, toDisplayMentions, toDisplayText, toIdMentions, unknownMentionsOf } from '../../member-labels.js'
 import { systemNotice } from '../../notices.js'
 
 // 隐藏主持与当前发言人由房型的 presentation 提供；总线不认识任何具体房型。
 const FINAL_IDS_KEEP = 500
+
+// 一条迟到消息属于哪个轮次，看它这一回合是什么时候开始的，而不是什么时候到达。
+export const turnStartOf = message => {
+  // 基座在 from.since 上记了这段回合开始的时间；它比消息到达时间更能说明属于哪一轮。
+  const since = Number(message?.from?.since)
+  if (Number.isFinite(since)) return since
+  const at = Number.isFinite(message?.at) ? message.at : null
+  const duration = Number(message?.turn?.durationMs ?? message?.durationMs)
+  if (at === null) return null
+  return Number.isFinite(duration) && duration >= 0 ? at - duration : at
+}
+
+export const roundAtOf = (room, at) => {
+  if (!Number.isFinite(at)) return undefined
+  const rounds = (Array.isArray(room?.rounds) ? room.rounds : [])
+    .filter(round => Number.isFinite(round?.startedAt))
+    .sort((a, b) => a.startedAt - b.startedAt)
+  let chosen
+  for (const round of rounds) if (at >= round.startedAt) chosen = round
+  return chosen?.id
+}
 
 const hostOf = room => roomPresentationOfRoom(room)?.hostOf?.(room) ?? null
 const speakerOf = room => roomPresentationOfRoom(room)?.speakerOf?.(room) ?? ''
@@ -142,11 +164,13 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     }
     if (state === undefined) return false
     const existing = store.readMessages(room.id).find(item => item.id === state.id)
+    const workRoundId = roundAtOf(current, turnStartOf(message))
     store.upsertMessage({
       ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: memberId }),
       text,
       ts: message.at ?? Date.now(),
       meta: { ...(existing?.meta ?? {}), streaming: false, final: true, baseId: message.id },
+      ...(workRoundId === undefined ? {} : { workRoundId }),
     })
     streams.delete(memberId)
     rememberFinal(entry, message.id)
@@ -183,7 +207,10 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         return null
       }
     }
-    return projector.toStored(room.id, message)
+    const stored = projector.toStored(room.id, message)
+    if (stored === null || stored.workRoundId !== undefined) return stored
+    const workRoundId = roundAtOf(room, turnStartOf(message))
+    return workRoundId === undefined ? stored : { ...stored, workRoundId }
   }
 
   const sync = async entry => {
@@ -219,8 +246,13 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     }
     if (!supportsRuntime(engine, 'provisioning') || typeof engine.createRoom !== 'function') return room
     const host = hostOf(room)
+    // 房型决定开局谁在基座群聊里；工作室对齐时只留规划师，避免 @ 把还没轮到的人叫醒。
+    const mode = roomModeOfRoom(room)
+    const participantIds = typeof mode?.chatMembersOf === 'function'
+      ? mode.chatMembersOf(room)
+      : (room.members ?? []).map(member => member.id)
     const members = [
-      ...(room.members ?? []).map(member => member.body?.ref).filter(ref => typeof ref === 'string' && ref !== ''),
+      ...participantIds.map(id => memberOf(room, id)?.body?.ref).filter(ref => typeof ref === 'string' && ref !== ''),
       ...(host === null ? [] : [host.memberRef]),
     ]
     if (members.length === 0) return room
@@ -332,8 +364,12 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     const chat = room.chatRoom
     if (chat === undefined || typeof engine.updateRoomMembers !== 'function') return
     const host = hostOf(room)
+    const mode = roomModeOfRoom(room)
+    const ids = typeof mode?.chatMembersOf === 'function'
+      ? mode.chatMembersOf(room)
+      : (room.members ?? []).map(member => member.id)
     const members = [
-      ...(room.members ?? []).map(member => member.body?.ref).filter(ref => typeof ref === 'string' && ref !== ''),
+      ...ids.map(id => memberOf(room, id)?.body?.ref).filter(ref => typeof ref === 'string' && ref !== ''),
       ...(host === null ? [] : [host.memberRef]),
     ]
     if (members.length === 0) return
@@ -351,10 +387,48 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (updated !== null) emit('room', updated)
   }
 
+  // “谁现在在基座群聊里”是系统层的在场名单：等用户拍板时只留规划师，
+  // 被移出的人连 @ 都收不到；成员名单仍由房间状态维护，界面不受影响。
+  const setMembersNow = async (roomId, ids) => {
+    const room = store.readRoom(roomId)
+    if (room === null || room.chatRoom === undefined) return []
+    const refs = []
+    const host = hostOf(room)
+    if (typeof host?.memberRef === 'string' && host.memberRef !== '') refs.push(host.memberRef)
+    for (const memberId of ids ?? []) {
+      const ref = memberOf(room, memberId)?.body?.ref
+      if (typeof ref === 'string' && ref !== '' && !refs.includes(ref)) refs.push(ref)
+    }
+    if (refs.length === 0) return []
+    const wait = ms => new Promise(resolve => { const timer = setTimeout(resolve, ms); timer.unref?.() })
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      try {
+        await engine.updateRoomMembers(room.chatRoom.id, refs)
+        return [...(ids ?? [])]
+      } catch (error) {
+        const transient = /409|working|waiting|busy/i.test(String(error?.message ?? error))
+        if (!transient || attempt === 7) {
+          log.warn(`[lodge] 房间成员没能同步：${String(error?.message ?? error)}`)
+          break
+        }
+        await wait(400 + attempt * 200)
+      }
+    }
+    return []
+  }
+  // 同一间房的在场名单按顺序改，避免“先放回、后移出”的旧请求覆盖新状态。
+  const memberQueues = new Map()
+  const setMembers = (roomId, ids) => {
+    const prior = memberQueues.get(roomId) ?? Promise.resolve()
+    const task = prior.then(() => setMembersNow(roomId, ids))
+    memberQueues.set(roomId, task.then(() => {}, () => {}))
+    return task
+  }
+
   const detach = entry => {
     entry.chat?.unsubscribe?.()
     delete entry.chat
   }
 
-  return { ensure, subscribe, send, detach, syncMembers, markRead }
+  return { ensure, subscribe, send, detach, syncMembers, markRead, setMembers }
 }

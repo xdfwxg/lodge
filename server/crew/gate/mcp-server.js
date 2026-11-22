@@ -2,6 +2,7 @@
 import { realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline'
+import { normalizeAskDecision } from '../../../shared/decision.js'
 
 // 房间内置的判定工具：只接结构化字段，不碰文件、网络或外部服务。
 // Lodge 从回合活动里读取工具入参，因此这里只负责校验并回执。
@@ -31,7 +32,7 @@ const VISUAL_SCHEMA = {
 export const GATE_TOOLS = Object.freeze([
   {
     name: 'submit_verdict',
-    description: '提交这一步的验收判定。调用后不用再把 JSON 写进回复。',
+    description: '提交这一步的验收判定：PASS 表示通过，REJECT 表示不通过。调用后不用再把 JSON 写进回复。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -61,6 +62,47 @@ export const GATE_TOOLS = Object.freeze([
     },
   },
   {
+    name: 'ask_decision',
+    description: '遇到会改变结果、且你无法从目标推断用户偏好的关键分叉时，用它给用户一张决策卡：2–3 条具体路径，每条写清选完会发生什么，再推荐一条。不要用聊天提问代替这张卡；不影响结果的细节自己写死继续。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: { type: 'string', maxLength: 500 },
+        options: {
+          type: 'array',
+          minItems: 2,
+          maxItems: 3,
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', maxLength: 40 },
+              title: { type: 'string', maxLength: 80 },
+              effect: { type: 'string', maxLength: 240 },
+            },
+            required: ['id', 'title', 'effect'],
+            additionalProperties: false,
+          },
+        },
+        recommended: { type: 'string', maxLength: 40 },
+        reason: { type: 'string', maxLength: 2000 },
+      },
+      required: ['question', 'options', 'recommended', 'reason'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'ask_question',
+    description: '缺少无法从目标、证据或仓库推断出的事实时，只问用户一个核心问题。它会让房间暂停等回答；不要用它代替决策卡，也不要在聊天里只问一句。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: { type: 'string', maxLength: 500 },
+      },
+      required: ['question'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'rewind_stage',
     description: '把工作退回到指定步骤，后面的步骤全部重来。只有用户明确要求退回或重做前面某一步时，规划师才调用；不要让用户去找按钮。',
     inputSchema: {
@@ -85,7 +127,9 @@ const toolOk = (id, text, structuredContent) => reply(id, {
 
 const verdictDecision = value => {
   const raw = String(value ?? '').trim().toUpperCase()
-  return raw === 'PASS' || raw === 'REJECT' ? raw : null
+  if (raw === 'PASS' || raw === '通过') return 'PASS'
+  if (raw === 'REJECT' || raw === '不通过') return 'REJECT'
+  return null
 }
 
 const plannerDecision = value => {
@@ -98,11 +142,16 @@ const plannerDecision = value => {
 const callTool = (id, params) => {
   const name = typeof params?.name === 'string' ? params.name : ''
   const args = params?.arguments ?? params?.input ?? {}
+  if (name === 'ask_question') {
+    const question = String(args.question ?? '').trim().slice(0, 500)
+    if (question === '') return toolFailure(id, '缺少 question：请只写一个核心问题。')
+    return toolOk(id, `已把问题发给用户：${question}`, { ok: true, kind: 'question', question })
+  }
   const reason = String(args.reason ?? args.note ?? '').trim()
   if (reason === '') return toolFailure(id, '缺少 reason：请用一句话说明判定依据。')
   if (name === 'submit_verdict') {
     const decision = verdictDecision(args.decision)
-    if (decision === null) return toolFailure(id, 'decision 只能是 PASS 或 REJECT。')
+    if (decision === null) return toolFailure(id, 'decision 只能是 PASS / REJECT（通过 / 不通过）。')
     const outsideDiff = typeof args.outsideDiff === 'string' ? args.outsideDiff.trim() : ''
     if (decision === 'PASS' && outsideDiff === '') {
       return toolFailure(id, 'PASS 要写一条 diff 之外的风险；没有就写「无」。')
@@ -138,6 +187,11 @@ const callTool = (id, params) => {
       reason,
       actionRequired: typeof args.actionRequired === 'string' ? args.actionRequired : '',
     })
+  }
+  if (name === 'ask_decision') {
+    const result = normalizeAskDecision({ input: args })
+    if (result.error !== undefined) return toolFailure(id, result.error)
+    return toolOk(id, '决策卡已提交，等用户选择。', { ok: true, decision: result.decision })
   }
   if (name === 'rewind_stage') {
     const stage = Number(args.stage)

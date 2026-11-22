@@ -170,7 +170,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       })
     }
     const allWorkers = workerIds(room)
-    if (allWorkers.length === 0) throw new Error('房间没有执行成员')
+    if (allWorkers.length === 0) throw new Error('房间没有执行官')
     const workers = allWorkers
     const dispatchPlan = planDispatch({ room, stage, index, workers })
     let assignees = dispatchPlan.assignees
@@ -189,7 +189,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     if (assignees.length > 1 && workspaceCaps.merge !== true) {
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `这个安排方式要求 ${assignees.length} 位执行成员同时开工；这个文件夹不能合并改动，先交给 ${memberDisplayName(room, assignees[0])}。`,
+        text: `这个安排方式要求 ${assignees.length} 位执行官同时开工；这个文件夹不能合并改动，先交给 ${memberDisplayName(room, assignees[0])}。`,
       })
       assignees = assignees.slice(0, 1)
     }
@@ -219,8 +219,8 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       environment: room.workspaceEnv?.[worker],
     })
     const from = leadMemberOf(room)?.id ?? 'you'
-    // 规划师只说要做什么；谁接、群里哪条 @、叫醒谁都由系统发，模型不用 @ 人。
-    if (typeof askPlanner === 'function') {
+    // 正常派活不再叫规划师重复说话：计划已经说了做什么。只有重做需要规划师补一句决定。
+    if (typeof askPlanner === 'function' && rework) {
       const assigneeNames = assignees.map(id => memberDisplayName(room, id)).join('、')
       const planPrompt = [
         `第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」要交给${assigneeNames}。`,
@@ -229,7 +229,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         rework && note !== '' ? `${humanLabelOf()}补充（原文，必须保留）：${sanitizeUntrusted(note, 2000)}` : '',
         parallel
           ? '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，不要 @ 任何人，系统会把完整任务分别送进他们自己的工作副本。'
-          : '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，不要 @ 任何人，系统会把完整任务送进执行成员手里。',
+          : '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，不要 @ 任何人，系统会把完整任务送进执行官手里。',
         '派发时保留目标里的硬要求：文件名、路径、内容、行数、格式和范围；不要改写成更宽松的说法。',
         '不要写自己的名字，不要分点、小标题或第二段。',
       ].filter(Boolean).join('\n')
@@ -293,7 +293,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       }
     }
 
-    // 群里的交接只有一条：所有执行成员放在同一句里 @，分发本身私下送进各自副本。
+    // 群里的交接只有一条：所有执行官放在同一句里 @，分发本身私下送进各自副本。
     store.appendMessage(roomId, {
       kind: 'system',
       authorId: from,

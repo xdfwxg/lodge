@@ -4,7 +4,7 @@ import { fenceUntrusted } from '../../../../shared/untrusted-text.js'
 
 // 影子评审：房间里的一个隐藏成员，换一个角度读这一步。
 // 它不写 PASS/REJECT，不打分，不参与验收；意见只落进房间状态。
-export const SHADOW_SOUL = '你是 Lodge 的影子评审：只给一份对照意见。验收员判是否达标，你换一个角度找漏。不写 PASS 或 REJECT，不打分，不参与验收，不调用工具。'
+export const SHADOW_SOUL = '你是 Lodge 的影子评审：只给一份对照意见。验收员判是否达标，你换一个角度找漏。不写 通过 或 不通过，不打分，不参与验收，不调用工具。'
 
 const WAIT_MS = 120_000
 const POLL_MS = 750

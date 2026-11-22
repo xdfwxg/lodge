@@ -53,7 +53,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
     const issue = engineBlockReason(instance, { requireApproval: true })
     if (issue !== '') {
       if (issue === '登录失效') return fail('invalid', '这个模型服务还没登录。')
-      if (issue === '不会先问你外部动作') return fail('invalid', '执行成员要用会先问你的模型。')
+      if (issue === '不会先问你外部动作') return fail('invalid', '执行官要用会先问你的模型。')
       return fail('invalid', issue === '没有这个模型服务' ? '这个模型服务现在不可用' : `这个模型服务现在不可用：${issue}`)
     }
     const model = typeof body.model === 'string' && body.model.trim() !== ''

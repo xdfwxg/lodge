@@ -1,9 +1,10 @@
 // What the island should say next, derived from the room alone.
 // No React, no room-type branching: decisions come from needsYou, milestones
 // from messages and stage transitions. The island shows at most one signal.
+import { needsAction } from '../needs.js'
 
 const DECISION_KINDS = new Set([
-  'decision', 'signoff', 'question', 'rework', 'merge', 'parallel',
+  'decision', 'confirm', 'question', 'rework', 'merge', 'parallel',
   'review-timeout', 'setup', 'approval', 'error', 'mcp', 'auto-check',
   'blocked', 'connection',
 ])
@@ -34,7 +35,7 @@ const withStage = (label, text) => (
 
 const decisionText = (kind, label, fallback) => {
   switch (kind) {
-    case 'signoff': return label === '' ? '这一步通过了' : `${label}通过了`
+    case 'confirm': return label === '' ? '这一步等你确认' : `${label}等你确认`
     case 'decision': return label === '' ? '有一处要你拍板' : `${label}有一处要你拍板`
     case 'question': return '成员问了一个问题'
     case 'rework': return label === '' ? '有一步被退回了' : `${label}被验收退回了`
@@ -53,13 +54,17 @@ const decisionText = (kind, label, fallback) => {
 }
 
 export const decisionOf = room => {
-  const needs = room?.needsYou
-  if (needs === null || needs === undefined || !DECISION_KINDS.has(needs.kind)) return null
+  const needs = needsAction(room)
+  if (needs === null || !DECISION_KINDS.has(needs.kind)) return null
   const index = Number.isInteger(needs.stage) ? needs.stage : null
   const label = stageLabel(room, index)
   const fromChild = typeof needs.roomId === 'string' && needs.roomId !== room.id
   const childName = typeof needs.roomName === 'string' && needs.roomName !== '' ? needs.roomName : '子房间'
-  const own = fromChild ? `${childName}：${needs.label ?? '待处理'}` : decisionText(needs.kind, label, needs.label)
+  const own = fromChild
+    ? `${childName}：${needs.label ?? '待处理'}`
+    : needs.decisionId !== undefined && typeof needs.label === 'string' && needs.label !== ''
+      ? needs.label
+      : decisionText(needs.kind, label, needs.label)
   const more = Array.isArray(room?.attention) ? room.attention.length - 1 : 0
   const missing = typeof needs.detail === 'string' && needs.detail !== '' ? needs.detail : ''
   return {

@@ -36,7 +36,13 @@ const evidence = (seq = 10) => ({ kind: 'evidence', seq, meta: { stage: 1, kind:
 const verdict = (pass, seq = 11) => ({ kind: 'verdict', seq, meta: { stage: 1, pass } })
 
 test('active decision waits for the human', () => {
-  assert.deepEqual(roomNeedsYou(room(), []), { kind: 'decision', stage: 0, label: '待确认' })
+  assert.deepEqual(roomNeedsYou(room(), []), { kind: 'confirm', stage: 0, label: '待确认' })
+})
+
+test('an active spine decision is progress, not a human decision', () => {
+  const r = room()
+  r.stages = [{ title: '目标对齐', kind: 'decision', spine: true, state: 'active', acceptance: undefined }]
+  assert.equal(roomNeedsYou(r, []), null)
 })
 
 test('an open question outranks the stage type', () => {
@@ -117,7 +123,7 @@ test('multiple verifiers report progress and require all PASS', () => {
   const e = { id: 'e-10', kind: 'evidence', seq: 10, meta: { stage: 1, kind: 'command', command: 'npm test', exit: 0 } }
   const first = { id: 'v-1', kind: 'verdict', authorId: 'v1', seq: 11, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
   const second = { id: 'v-2', kind: 'verdict', authorId: 'v2', seq: 12, meta: { stage: 1, pass: true, evidenceId: 'e-10' } }
-  assert.deepEqual(roomNeedsYou(r, [e, first]), { kind: 'review', stage: 1, label: '验收员在看', detail: '验收员还在核对结果。' })
+  assert.deepEqual(roomNeedsYou(r, [e, first]), { kind: 'review', stage: 1, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false })
   assert.equal(roomNeedsYou(r, [e, first, second]).kind, 'signoff')
   const reject = { ...second, meta: { ...second.meta, pass: false } }
   assert.equal(roomNeedsYou(r, [e, first, reject]).kind, 'rework')
@@ -200,9 +206,9 @@ test('a manual stage stays quiet until the product is ready', () => {
   assert.equal(roomNeedsYou(r, []), null)
   assert.equal(roomNeedsYou(r, [evidence()]), null)
   const manual = { kind: 'evidence', seq: 12, meta: { stage: 1, kind: 'manual' } }
-  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'review', stage: 1, label: '验收员在看', detail: '验收员还在核对结果。' })
+  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'review', stage: 1, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false })
   r.members = r.members.filter(member => member.roleKind !== 'verifier')
-  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'decision', stage: 1, label: '待确认' })
+  assert.deepEqual(roomNeedsYou(r, [manual]), { kind: 'confirm', stage: 1, label: '待确认' })
 })
 
 test('a timed-out parallel assignment asks the human', () => {
@@ -236,7 +242,7 @@ test('a room-level merge conflict outlives the dispatch record', () => {
 test('a room with no verifier waits for sign-off after evidence', () => {
   const r = atDeliverable()
   r.members = r.members.filter(member => member.roleKind !== 'verifier')
-  assert.equal(roomNeedsYou(r, [evidence()]).kind, 'signoff')
+  assert.equal(roomNeedsYou(r, [evidence()]).kind, 'confirm')
 })
 
 test('complete, paused and stopped rooms are quiet', () => {
@@ -284,7 +290,7 @@ test('the inbox holds only this room', () => {
   const parent = room()
   const items = roomAttention(parent, [])
   assert.equal(items.length, 1)
-  assert.deepEqual(items[0], { kind: 'decision', stage: 0, label: '待确认' })
+  assert.deepEqual(items[0], { kind: 'confirm', stage: 0, label: '待确认' })
 })
 
 test('a question card from an earlier stage no longer asks', () => {
@@ -316,5 +322,17 @@ test('an approval from an earlier stage no longer asks', () => {
 test('a question card already answered on the room no longer asks', () => {
   const card = { kind: 'question', seq: 1, meta: { card: { requestId: 'req-1', requestType: 'permission' } } }
   assert.equal(roomNeedsYou(room(), [card]).kind, 'approval')
-  assert.equal(roomNeedsYou(room({ cardAnswers: ['req-1'] }), [card]).kind, 'decision')
+  assert.equal(roomNeedsYou(room({ cardAnswers: ['req-1'] }), [card]).kind, 'confirm')
+})
+
+test('an open decision card asks the user with the planner question', () => {
+  const r = room()
+  r.pendingDecision = {
+    id: 'd1', status: 'open', stage: 0, question: '走哪条路？',
+    options: [{ id: 'a', title: 'A', effect: 'A' }, { id: 'b', title: 'B', effect: 'B' }],
+    recommended: 'a',
+  }
+  assert.deepEqual(roomNeedsYou(r, []), {
+    kind: 'decision', stage: 0, label: '走哪条路？', detail: '选一条路继续。', decisionId: 'd1',
+  })
 })

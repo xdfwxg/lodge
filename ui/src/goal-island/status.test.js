@@ -72,5 +72,6 @@ test('an idle studio is only done when the latest round completed', () => {
 
 test('a working room and an idle room with a pending need are not idle', () => {
   assert.equal(islandStatusOf(studio({ working: true })).key, 'running')
-  assert.equal(islandStatusOf(studio({ state: 'idle', activeRoundId: null, needsYou: { kind: 'signoff', stage: 0 } })).key, 'waiting')
+  assert.equal(islandStatusOf(studio({ state: 'idle', activeRoundId: null, needsYou: { kind: 'confirm', stage: 0 } })).key, 'waiting')
+  assert.equal(islandStatusOf(studio({ state: 'idle', activeRoundId: null, needsYou: { kind: 'signoff', stage: 0, actionable: false } })).key, 'idle')
 })

@@ -14,10 +14,19 @@ const ROLE_LABEL = { lead: '规划师', worker: '执行官', verifier: '验收�
 
 const clip = (text, limit) => (text.length > limit ? `${text.slice(0, limit)}\n…（交接包已截断，完整内容读 transcript）` : text)
 
+const ROLE_CAPABILITY = {
+  lead: '只读，负责计划、派活、决策和收尾',
+  worker: '可读写、可执行，负责实现、测试和交付',
+  verifier: '只读，负责复核、挑问题和给结论',
+}
+
 const rosterOf = room => (room.members ?? [])
   .filter(member => member !== null && typeof member === 'object' && typeof member.name === 'string' && member.name.trim() !== '')
   .slice(0, 8)
-  .map(member => `${sanitizeUntrusted(member.name.trim(), 40)}（${ROLE_LABEL[member.role] ?? '成员'}）`)
+  .map(member => {
+    const role = ROLE_LABEL[member.role] ?? ROLE_LABEL[member.roleKind] ?? '成员'
+    return `${sanitizeUntrusted(member.name.trim(), 40)}（${role}：${ROLE_CAPABILITY[member.roleKind ?? member.role] ?? '成员'}）`
+  })
 
 const doneOf = room => (
   room.plan?.done ?? room.stages.map(stage => `${stage.title}（${stage.state === STAGE_STATE.passed ? '已过' : '未过'}）`)
@@ -26,9 +35,10 @@ const doneOf = room => (
 const feedbackOf = messages => {
   const verdicts = messages.filter(message => message.kind === 'verdict').slice(-FEEDBACK_LIMIT)
   return verdicts.map(message => {
-    const mark = verdictPassed(message) ? 'PASS' : 'REJECT'
+    const mark = verdictPassed(message) ? '通过' : '不通过'
     const stage = message.meta?.stage === undefined ? '' : `阶段 ${message.meta.stage + 1} · `
-    const text = judgmentOf(message)?.reason || message.text || ''
+    const text = String(judgmentOf(message)?.reason || message.text || '')
+      .replace(/^\s*(?:(?:PASS|REJECT)\b|不通过|通过)[：:\s-]*/i, '')
     return `${stage}${mark}：${sanitizeUntrusted(text.replace(/\s+/g, ' '), 240)}`
   })
 }

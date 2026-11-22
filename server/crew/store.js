@@ -12,7 +12,7 @@ import { createProjectStore } from './store/projects.js'
 import { createAssignmentStore } from './store/assignments.js'
 import { createTimelineStore } from './store/timeline.js'
 
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
 
 // 版本迁移只做向前的一步；没有迁移路径的旧版本仍要求重置，避免猜数据。
 const LEGACY_ROUND_FIELDS = ['mergeResolved', 'advisorShadow', 'previews', 'reviewRetriedAt', 'stageDiagnostics']
@@ -30,6 +30,25 @@ const MIGRATIONS = {
         : LEGACY_ROUND_FIELDS
       for (const field of fields) delete room[field]
       update.run(JSON.stringify(room), row.id)
+    }
+  },
+  // 旧版用“当前轮”给到达的消息归轮，迟到的上一轮消息会落进下一轮；按消息时间重新归一次。
+  6: db => {
+    const update = db.prepare('UPDATE messages SET work_round_id = ? WHERE id = ?')
+    for (const roomRow of db.prepare('SELECT id, payload FROM room').all()) {
+      const room = JSON.parse(roomRow.payload)
+      if (room.roomType !== 'studio') continue
+      const rounds = db.prepare('SELECT id, payload FROM work_round WHERE room_id = ? ORDER BY ordinal').all(room.id)
+        .map(row => ({ id: row.id, startedAt: JSON.parse(row.payload).startedAt }))
+        .filter(round => Number.isFinite(round.startedAt))
+      if (rounds.length === 0) continue
+      for (const messageRow of db.prepare('SELECT id, payload FROM messages WHERE room_id = ?').all(room.id)) {
+        const message = JSON.parse(messageRow.payload)
+        if (!Number.isFinite(message.ts)) continue
+        let chosen
+        for (const round of rounds) if (message.ts >= round.startedAt) chosen = round.id
+        if (chosen !== undefined) update.run(chosen, messageRow.id)
+      }
     }
   },
 }

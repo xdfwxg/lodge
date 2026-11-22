@@ -103,7 +103,7 @@ export const probeSource = ({ source }) => {
     execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: source, stdio: 'ignore' })
     return { ok: true }
   } catch {
-    return { ok: false, error: '工作文件夹不是 git 仓库；先 git init，或留空让队长在临时仓库里判断' }
+    return { ok: false, error: '工作文件夹不是 git 仓库；先 git init，或留空让规划师在临时仓库里判断' }
   }
 }
 
@@ -201,7 +201,7 @@ export const prepareRoom = ({ source, short, members }) => {
       byMember[member.id] = { path, kind: 'clone' }
     }
     const workers = members.filter(member => member.role === 'worker')
-    // 多执行成员时，房间的交付目录是集成 worktree；各执行分支合并到这里，源仓库主分支不动。
+    // 多执行官时，房间的交付目录是集成 worktree；各执行分支合并到这里，源仓库主分支不动。
     let integration = null
     if (workers.length > 1) {
       const path = join(base, 'integration')
@@ -319,7 +319,7 @@ export const pruneRewindBranches = ({ path, ttlMs = 7 * 24 * 60 * 60 * 1000, now
   return removed
 }
 
-// 回到某个阶段起点：先给当前 HEAD 和执行成员留备份分支，再重置；
+// 回到某个阶段起点：先给当前 HEAD 和执行官留备份分支，再重置；
 // 有未提交的已跟踪改动就拒绝，避免把人的工作当临时结果丢掉。
 export const restore = ({ room, base }) => {
   const repoPath = room?.repoPath
@@ -518,7 +518,7 @@ export const rangeChanges = async ({ path, base }) => {
   return { diff: clip(diff), files }
 }
 
-// 阶段起点没记下来时的兜底：执行成员自己的候选提交里改了哪些文件。
+// 阶段起点没记下来时的兜底：执行官自己的候选提交里改了哪些文件。
 export const filesInCommit = ({ path, commit }) => {
   if (typeof commit !== 'string' || commit === '') return []
   try {

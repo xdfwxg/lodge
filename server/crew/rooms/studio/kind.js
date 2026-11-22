@@ -40,8 +40,9 @@ export const studioKind = {
   // 静态纪律只注入一次，后续阶段提示不再重复。
   memberSoul: member => [
     member.prompt,
-    '当前是工作室：需要谁回应由系统安排，系统会用 @ 把任务送到该做的人手里；你不用 @ 安排下一棒。',
-    '你是三类成员之一：规划师、执行官、验收员；不要自创角色，也不要承担其他成员的职责。',
+    '当前是工作室：你和其他成员在同一个房间，知道彼此的存在和能力；像在群里说话一样，需要谁接下一棒就直接 @ 他。系统负责把完整任务送到、记账和兜底。',
+    '不要自创角色，也不要承担其他成员的职责。',
+    '没轮到你时不用应答；等系统派活或别人明确 @ 你，再说话。',
     '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
     '群消息像给同事发消息一样说人话；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
     '**加粗**只给会影响决定的信息：结论、下一步、完成标准、文件名或路径、风险、需要人做的事；次要说明不加粗，也不要用行内代码包中文标签。',
@@ -64,6 +65,14 @@ export const studioKind = {
   appliesStageDependencies: true,
 
   leadMemberIdOf: lead => lead.id,
+
+  // 对齐回合基座群聊里只留规划师；作答或开始派活后再把全员放回。
+  chatMembersOf: room => {
+    const first = room.stages?.[0]
+    const lead = (room.members ?? []).find(member => member.role === 'lead')
+    if (lead !== undefined && first?.title === '目标对齐' && first.state !== STAGE_STATE.passed) return [lead.id]
+    return (room.members ?? []).map(member => member.id)
+  },
 
   record: ({
     lead,

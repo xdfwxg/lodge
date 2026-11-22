@@ -48,5 +48,5 @@ export const buildStages = () => ({
     { title: '聊天讨论', kind: 'decision', state: STAGE_STATE.active, readOnly: true },
     { title: '结论', kind: 'decision', state: STAGE_STATE.pending, dependsOn: [0], readOnly: true },
   ],
-  messages: ['聊天室：先聊，到发言上限后主持人收结论，最后由你定。'],
+  messages: ['聊天室：先聊，到发言上限后系统收结论，最后由你定。'],
 })

@@ -49,14 +49,14 @@ test('the handoff is part of the bulletin and the opening prompt', () => {
   const aligned = alignmentPrompt('发布检查清单', 'manual', '', handoff)
   assert.match(aligned, /交接单/)
   assert.match(aligned, /分歧：是否自动回滚/)
-  // 对齐回合按技能里的 Specify 结构回复，不能是一整段。
-  assert.match(aligned, /\*\*完成标准：\*\*/)
-  assert.match(aligned, /\*\*口径：\*\*/)
-  assert.match(aligned, /\*\*阶段：\*\*/)
-  assert.match(aligned, /\*\*待确认：\*\*/)
-  assert.match(aligned, /不超过 12 行/)
-  assert.match(aligned, /不要用行内代码包中文标签/)
-  assert.match(aligned, /只写对齐，不要派活/)
+  // 对齐回合只回三行计划，不铺内部阶段。
+  assert.match(aligned, /\*\*做什么：\*\*/)
+  assert.doesNotMatch(aligned, /\*\*口径：\*\*/)
+  assert.match(aligned, /\*\*怎么验收：\*\*/)
+  assert.match(aligned, /\*\*做完是什么样：\*\*/)
+  assert.doesNotMatch(aligned, /不超过 12 行/)
+  assert.doesNotMatch(aligned, /不要用行内代码包中文标签/)
+  assert.match(aligned, /系统会把计划交给执行官/)
 
   const direct = directPrompt('发布检查清单', 'manual', '', true, handoff)
   assert.match(direct, /交接单/)
@@ -75,4 +75,12 @@ test('an empty handoff is not stored', () => {
     handoff: { topic: '', consensus: [], disagreements: [], constraints: [], todos: [] },
   })
   assert.equal(result.handoff, null)
+})
+
+test('the alignment prompt asks for three lines, not internal stages', () => {
+  const prompt = alignmentPrompt('发布检查清单', 'manual', '')
+  assert.match(prompt, /\*\*做什么：\*\*/)
+  assert.match(prompt, /\*\*怎么验收：\*\*/)
+  assert.match(prompt, /\*\*做完是什么样：\*\*/)
+  assert.doesNotMatch(prompt, /目标对齐/)
 })

@@ -407,7 +407,7 @@ export const createChatScheduler = ({
           speaker: '',
           pending: null,
         }
-        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }, chatTransitionEvent(concluded, 'conclude', hostAuthor, '主持人总结完成')] }
+        return { events: [{ type: 'chat.conclusion', payload: { round, fallback } }, chatTransitionEvent(concluded, 'conclude', hostAuthor, '系统总结完成')] }
       })
       if (updated !== null) emit('room', store.readRoom(roomId) ?? updated)
       void refresh()

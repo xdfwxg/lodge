@@ -4,5 +4,7 @@ export const toolScopeFor = member => {
   const kind = member?.roleKind ?? member?.role
   const deny = ['mcp:agents:*']
   if (kind === 'executor' || kind === 'participant') deny.push('mcp:lodge_gate:*')
+  // 工作室要用户拍板时走 lodge_gate_ask_decision；基座的通用提问卡不在这里用。
+  if (kind === 'planner' || kind === 'executor' || kind === 'verifier') deny.push('mcp:ogb:ask_user')
   return { deny }
 }

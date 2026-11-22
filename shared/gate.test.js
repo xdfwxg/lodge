@@ -129,3 +129,33 @@ test('gate judgments need a recognized decision and a reason', () => {
   assert.equal(judgmentFromGate({ type: 'verdict', input: { decision: 'PASS', reason: '   ' } }), null)
   assert.equal(judgmentFromGate({ type: 'verdict', input: null }), null)
 })
+
+import { askDecisionOf, askQuestionOf } from './gate.js'
+
+test('a planner ask_decision becomes a structured card', () => {
+  const ask = askDecisionOf([{
+    name: 'ask_decision',
+    input: {
+      question: '走哪条路？',
+      reason: '会影响结果',
+      options: [
+        { id: 'keep-local', title: '保留本地', effect: '不覆盖刚改的内容' },
+        { id: 'take-remote', title: '用远端', effect: '当前页回到远端版本' },
+      ],
+      recommended: 'keep-local',
+    },
+  }], { id: 'decision-1', roomId: 'room-1', roundId: 'round-1', stage: 0 })
+  assert.equal(ask.id, 'decision-1')
+  assert.equal(ask.question, '走哪条路？')
+  assert.equal(ask.options.length, 2)
+  assert.equal(ask.recommended, 'keep-local')
+})
+
+test('a planner ask_question becomes one paused question', () => {
+  const question = askQuestionOf([{
+    name: 'mcp__lodge_gate__ask_question',
+    input: { question: '上次说的版式是哪一版？' },
+  }], { at: 10 })
+  assert.deepEqual(question, { text: '上次说的版式是哪一版？', at: 10 })
+  assert.equal(askQuestionOf([{ name: 'ask_question', input: { question: '  ' } }]), null)
+})

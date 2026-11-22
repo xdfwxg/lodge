@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { filterRooms, orderRooms, roomLabelOf, roomStampOf, toneOf } from './room-list.js'
+import { filterRooms, metaOf, orderRooms, roomLabelOf, roomStampOf, toneOf } from './room-list.js'
 
 test('sidebar room labels carry name, status, unread and needs-you text', () => {
   assert.equal(roomLabelOf({ name: '简历', state: 'active', live: true }), '简历，进行中')
@@ -74,4 +74,16 @@ test('an active next round is not grouped or labelled as delivered', () => {
   const done = { id: 'done', name: '已交付', state: 'idle', workRound: { id: 'round-1', status: 'completed' }, messages: [{ ts: 1 }] }
   assert.equal(roomLabelOf(next), '下一轮，进行中')
   assert.deepEqual(orderRooms([done, next]).map(room => room.id), ['next', 'done'])
+})
+
+test('verifier progress and a passed step are not pending work', () => {
+  const review = { id: 'review', name: '复核中', state: 'active', live: true, needsYou: { kind: 'review', label: '验收员在看', actionable: false }, messages: [{ ts: 2 }] }
+  const signoff = { id: 'signoff', name: '通过中', state: 'active', live: true, needsYou: { kind: 'signoff', label: '', actionable: false }, messages: [{ ts: 3 }] }
+  const confirm = { id: 'confirm', name: '等你确认', state: 'active', needsYou: { kind: 'confirm', label: '待确认' }, messages: [{ ts: 4 }] }
+  assert.deepEqual(orderRooms([review, signoff, confirm]).map(room => room.id), ['confirm', 'signoff', 'review'])
+  assert.equal(metaOf(review), '')
+  assert.equal(metaOf(signoff), '')
+  assert.equal(metaOf(confirm), '待确认')
+  assert.equal(roomLabelOf(review), '复核中，进行中')
+  assert.equal(roomLabelOf(confirm), '等你确认，待确认')
 })

@@ -136,7 +136,7 @@ export function MemberAddDialog({ engines = [], members = [], busy = false, erro
             : engineId === '' || !blocked
               ? null
             : h('p', { className: 'crew-field-hint', role: 'alert' }, blockedReason === '不会先问你外部动作'
-              ? '执行成员要用会先问你的模型。'
+              ? '执行官要用会先问你的模型。'
               : blockedReason === '登录失效'
                 ? '这个 AI 服务还没登录。'
                 : blockedReason === '没有配置模型'

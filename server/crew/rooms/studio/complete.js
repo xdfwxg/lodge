@@ -32,7 +32,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     ))
     const conclusion = {
       kind: 'conclusion',
-      authorId: 'planner',
+      authorId: 'system',
       text: `已交付：${room.goal}`,
       meta: {
         stages: room.stages.length,

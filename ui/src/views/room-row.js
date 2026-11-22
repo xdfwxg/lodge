@@ -5,6 +5,7 @@ import { uiKindOfRoom } from '../room/kinds.js'
 import { initialOf } from '../marks.js'
 import { SideMembers } from './side-members.js'
 import { deliveredOf, metaOf, roomLabelOf, toneOf } from './room-list.js'
+import { hasNeedsAction, needsAction } from '../needs.js'
 
 function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
   const deleting = kind === 'delete'
@@ -220,7 +221,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
       className: 'crew-side-row',
       'data-archived': archived ? 'true' : undefined,
       'data-done': !archived && deliveredOf(room) ? 'true' : undefined,
-      'data-needs': room.needsYou === undefined || room.needsYou === null ? undefined : 'true',
+      'data-needs': hasNeedsAction(room) ? 'true' : undefined,
       'data-menu': menuOpen ? 'true' : undefined,
     },
     renaming
@@ -271,7 +272,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         ? h('span', { className: 'crew-unread-dot', title: '聊天有新消息' }, h('span', { className: 'visually-hidden' }, '聊天有新消息'))
         : null,
       active || metaOf(room) === '' ? null : h('span', { className: 'crew-side-room-meta', 'data-tone': toneOf(room) }, metaOf(room)),
-      h('span', { className: 'crew-side-room-dot', 'data-tone': toneOf(room), title: room.needsYou?.label ?? '' })),
+      h('span', { className: 'crew-side-room-dot', 'data-tone': toneOf(room), title: needsAction(room)?.label ?? '' })),
     manage && !renaming
       ? h('button', {
         ref: moreRef,

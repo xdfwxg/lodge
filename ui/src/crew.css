@@ -174,6 +174,11 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 
 /* 工作室时间线：阶段章节、工作拍、接力棒；颜色和字级沿用 Lodge token。 */
 .studio-timeline{display:flex;flex-direction:column;gap:12px;min-width:0}
+.crew-process-line{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin:4px 0;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);color:var(--bt-ink-3)}
+.crew-process-tag{flex:none;padding:0 5px;border-radius:4px;background:var(--bt-shade-2);color:var(--bt-ink-4);font-size:var(--bt-text-helper);line-height:18px}
+.crew-round-process{margin:0}
+.crew-round-process>summary{font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
+@media (max-width:760px){.crew-round-plan{padding:9px 10px}}
 .studio-room-closing{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;padding:8px 0 4px;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
 .studio-room-actions .crew-link{color:var(--bt-ink-2);font-weight:500;text-decoration:none}
 .studio-room-actions .crew-link:hover{color:var(--bt-ink);text-decoration:underline}

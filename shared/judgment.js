@@ -84,7 +84,7 @@ const stripJudgmentJson = text => String(text ?? '')
   .trim()
 
 const stripAnchor = text => String(text ?? '')
-  .replace(/^[\s*#>]*(?:(?:结论|判定|验收结论|verdict)\s*[:：]?\s*)?(PASS|REJECT|REWORK|返工|交给人)[\s*]*[：:\-]?\s*/i, '')
+  .replace(/^[\s*#>]*(?:(?:结论|判定|验收结论|verdict)\s*[:：]?\s*)?(?:(?:PASS|REJECT|REWORK)\b|不通过|通过(?=[\s*：:\-]|$)|返工|交给人)[\s*]*[：:\-]?\s*/i, '')
   .trim()
 
 // 视觉核对：seen 必须说清看没看到图；数字只能引用平台给的像素检查结果。

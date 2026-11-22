@@ -16,7 +16,7 @@ test('the gate server speaks the minimal MCP handshake', () => {
 
 test('the gate server lists the judgment tools and the planner rewind tool', () => {
   const response = handleMessage({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
-  assert.deepEqual(response.result.tools.map(tool => tool.name), ['submit_verdict', 'submit_decision', 'rewind_stage'])
+  assert.deepEqual(response.result.tools.map(tool => tool.name), ['submit_verdict', 'submit_decision', 'ask_decision', 'ask_question', 'rewind_stage'])
   assert.equal(GATE_TOOLS[0].inputSchema.required.includes('reason'), true)
 })
 
@@ -88,7 +88,18 @@ test('an invalid verdict is refused without breaking the connection', () => {
     params: { name: 'submit_verdict', arguments: { decision: 'MAYBE', reason: 'x' } },
   })
   assert.equal(response.result.isError, true)
-  assert.match(response.result.content[0].text, /PASS 或 REJECT/)
+  assert.match(response.result.content[0].text, /PASS \/ REJECT/)
+})
+
+test('a Chinese verdict maps to the tool decision', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 41,
+    method: 'tools/call',
+    params: { name: 'submit_verdict', arguments: { decision: '不通过', reason: '缺测试' } },
+  })
+  assert.equal(response.result.isError, undefined)
+  assert.equal(response.result.structuredContent.decision, 'REJECT')
 })
 
 test('a planner decision accepts the Chinese anchor', () => {
@@ -116,4 +127,44 @@ test('notifications are silent and unknown methods get an error', () => {
   assert.equal(handleMessage({ jsonrpc: '2.0', method: 'notifications/initialized' }), null)
   const response = handleMessage({ jsonrpc: '2.0', id: 6, method: 'nope' })
   assert.equal(response.error.code, -32601)
+})
+
+test('ask_decision returns a structured card and rejects a bad recommendation', () => {
+  const valid = handleMessage({
+    jsonrpc: '2.0', id: 20, method: 'tools/call',
+    params: { name: 'ask_decision', arguments: {
+      question: '走哪条路？', reason: '会影响结果',
+      options: [
+        { id: 'keep-local', title: '保留本地', effect: '不覆盖刚改的内容' },
+        { id: 'take-remote', title: '用远端', effect: '当前页回到远端版本' },
+      ],
+      recommended: 'keep-local',
+    } },
+  })
+  assert.equal(valid.result.structuredContent.decision.options.length, 2)
+  assert.equal(valid.result.structuredContent.decision.recommended, 'keep-local')
+  const bad = handleMessage({
+    jsonrpc: '2.0', id: 21, method: 'tools/call',
+    params: { name: 'ask_decision', arguments: {
+      question: '走哪条路？', reason: '会影响结果',
+      options: [{ id: 'a', title: 'A', effect: 'A 的结果' }, { id: 'b', title: 'B', effect: 'B 的结果' }],
+      recommended: 'missing',
+    } },
+  })
+  assert.equal(bad.result.isError, true)
+})
+
+test('ask_question carries exactly one question and refuses an empty one', () => {
+  const valid = handleMessage({
+    jsonrpc: '2.0', id: 22, method: 'tools/call',
+    params: { name: 'ask_question', arguments: { question: '上次说的版式是哪一版？' } },
+  })
+  assert.equal(valid.result.isError, undefined)
+  assert.equal(valid.result.structuredContent.kind, 'question')
+  assert.equal(valid.result.structuredContent.question, '上次说的版式是哪一版？')
+  const bad = handleMessage({
+    jsonrpc: '2.0', id: 23, method: 'tools/call',
+    params: { name: 'ask_question', arguments: { question: '  ' } },
+  })
+  assert.equal(bad.result.isError, true)
 })

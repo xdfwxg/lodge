@@ -146,7 +146,7 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
       })
       return true
     }
-    // 并行阶段的重做要送进每一位执行成员的工作副本；只叫一个人会把另一条分支留在旧结果上。
+    // 并行阶段的重做要送进每一位执行官的工作副本；只叫一个人会把另一条分支留在旧结果上。
     const assignees = (Array.isArray(stage?.assignees) ? stage.assignees : [])
       .filter(id => workerIds(room).includes(id))
     const targets = assignees.length > 0 ? assignees : workerIds(room)
@@ -155,9 +155,9 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
         stage: stageIndex,
         from: leadMemberOf(room)?.id ?? null,
         reason: 'no-executor',
-        actionRequired: '这一步没有执行成员；请补人或由你接手。',
+        actionRequired: '这一步没有执行官；请补人或由你接手。',
       })
-      store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行成员，规划师没法把重做交出去。' })
+      store.appendMessage(roomId, { kind: 'system', text: '这一步没有执行官，规划师没法把重做交出去。' })
       return true
     }
     const parents = new Map()

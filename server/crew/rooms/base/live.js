@@ -82,6 +82,7 @@ export const createLiveRooms = ({
       ports,
       approvals,
       refreshRoom,
+      setMembers: (roomId, ids) => chat.setMembers(roomId, ids),
       confirmStage: (roomId, index, options) => confirmStage?.(roomId, index, options),
       rewindStage: (roomId, request) => rewindStage?.(roomId, request),
     }),
@@ -492,6 +493,7 @@ export const createLiveRooms = ({
     expireApprovals,
     answerCard,
     holdMember,
+    setMembers: (roomId, ids) => chat.setMembers(roomId, ids),
     cancelQueued,
     steerQueued,
     busyReview: roomId => {

@@ -1,4 +1,5 @@
 import { chatStatusOf, idleDelivered, roomStatusOf } from '../../../shared/room-status.js'
+import { needsAction } from '../needs.js'
 
 // 岛屿状态机：状态键共享，工作室和聊天室各自读自己的词表。
 export const ISLAND_STATUS = Object.freeze({
@@ -30,12 +31,13 @@ export const islandWorking = room => (
 
 const studioState = room => {
   const status = roomStatusOf(room)
+  const waiting = needsAction(room) !== null
   if (status === 'archived') return 'archived'
   if (status === 'stopped') return 'stopped'
   if (status === 'paused') return 'paused'
   // 只要这一轮还在跑，就不是“空闲中”；没有当前回合时让岛显示当前阶段。
-  if (status === 'active') return room?.needsYou ? 'waiting' : 'running'
-  if (room?.needsYou) return 'waiting'
+  if (status === 'active') return waiting ? 'waiting' : 'running'
+  if (waiting) return 'waiting'
   return idleDelivered(room) ? 'done' : 'idle'
 }
 

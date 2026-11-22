@@ -75,14 +75,16 @@ test('the product default is the fixed three-member squad', () => {
   assert.doesNotThrow(() => validateRoster(roster))
 })
 
-test('default member souls carry identity, not stage SOP', () => {
+test('default member prompts carry the latest three-role contract, not stage SOP', () => {
   const roster = membersFor()
   const lead = roster.find(member => member.role === 'lead')
   const worker = roster.find(member => member.role === 'worker')
   const verifier = roster.find(member => member.role === 'verifier')
+  assert.match(lead.prompt, /你是规划师，对接 @执行官、@验收员/)
+  assert.match(worker.prompt, /你是执行官，交付给 @验收员/)
+  assert.match(verifier.prompt, /你是验收员，只核验/)
   assert.doesNotMatch(lead.prompt, /阶段已确认|不要重复派活/)
   assert.doesNotMatch(worker.prompt, /git commit|不要问问题|不要 @验收/)
-  assert.doesNotMatch(verifier.prompt, /PASS 或 REJECT|只读复核/)
 })
 
 test('a studio room with no explicit members resolves to the fixed triad', () => {

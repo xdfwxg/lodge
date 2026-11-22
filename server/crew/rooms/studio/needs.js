@@ -3,6 +3,7 @@ import { dispatchFrom } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { commandEvidenceFor, latestAutoCheck, latestReviewTimeout, manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
 import { AUTO_CHECK_STATUS, PLANNER_DECISION_KIND, REVIEW_STATE, STAGE_STATE } from '../../../../shared/states.js'
+import { DECISION_STATUS } from '../../../../shared/decision.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
   .reverse()
@@ -31,8 +32,17 @@ export const studioNeedsYou = (room, messages = []) => {
   const stage = room.stages[index]
   const floor = reworkFloor(messages, index)
 
+  if (room.pendingDecision?.status === DECISION_STATUS.open) {
+    return {
+      kind: 'decision',
+      stage: Number.isInteger(room.pendingDecision.stage) ? room.pendingDecision.stage : index,
+      label: room.pendingDecision.question,
+      detail: '选一条路继续。',
+      decisionId: room.pendingDecision.id,
+    }
+  }
   if (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') {
-    return { kind: 'question', stage: index, label: '待回答' }
+    return { kind: 'question', stage: index, label: room.openQuestion.trim(), detail: '在下面回复后继续。' }
   }
   if ((room.busyMembers ?? []).length > 0) return null
   // 规划师把这一步交给人以后，下一步是人拍板，不再显示“待重做”。
@@ -92,14 +102,16 @@ export const studioNeedsYou = (room, messages = []) => {
       const active = recentlyActive(room, messages)
       if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
       if (outcome.state === REVIEW_STATE.pending) {
-        return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
+        return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false }
       }
-      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
+      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '', actionable: false }
       return null
     }
-    return { kind: 'decision', stage: index, label: '待确认' }
+    return { kind: 'confirm', stage: index, label: '待确认' }
   }
-  if (stage.kind === 'decision') return { kind: 'decision', stage: index, label: '待确认' }
+  // 目标对齐和验收与结论是脊柱阶段，系统会自己推进；它们 active 时不是人要做决定。
+  if (stage.spine === true) return null
+  if (stage.kind === 'decision') return { kind: 'confirm', stage: index, label: '待确认' }
 
   if (typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') {
     return {
@@ -139,20 +151,20 @@ export const studioNeedsYou = (room, messages = []) => {
     const outcome = reviewState({ room, messages, stageIndex: index })
     const active = recentlyActive(room, messages)
     if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
-    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '' }
+    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '', actionable: false }
     if (outcome.state === REVIEW_STATE.pending) {
-      return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。' }
+      return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false }
     }
     return null
   }
   const verdict = latestForStage(messages, 'verdict', index, floor)
-  if (verdict !== undefined && verdictPassed(verdict)) return { kind: 'signoff', stage: index, label: '' }
+  if (verdict !== undefined && verdictPassed(verdict)) return { kind: 'signoff', stage: index, label: '', actionable: false }
   if (verdict !== undefined) return recentlyActive(room, messages) ? null : { kind: 'rework', stage: index, label: '待重做' }
   if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
     if (recentlyActive(room, messages)) return null
     return verifierIds(room).length > 0
-      ? { kind: 'review', stage: index, label: '验收员在看' }
-      : { kind: 'signoff', stage: index, label: '' }
+      ? { kind: 'review', stage: index, label: '验收员在看', actionable: false }
+      : { kind: 'confirm', stage: index, label: '待确认' }
   }
   return null
 }

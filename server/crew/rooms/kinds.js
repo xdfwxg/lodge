@@ -18,7 +18,7 @@ export const roomBulletin = (goal, verify, acceptance, handoff = null) => {
 const MODE_KEYS = [
   'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
-  'leadMemberIdOf', 'record',
+  'leadMemberIdOf', 'record', 'chatMembersOf',
   'initialMessages', 'provisionExtra', 'start',   'bulletinAcceptance', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [

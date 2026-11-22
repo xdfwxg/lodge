@@ -66,4 +66,4 @@ export const wantsStructuredSummary = note => /分点|分条|逐条|列成|列�
 
 export const digestText = lines => lines.length === 0
   ? '讨论没有产生可总结的内容。'
-  : `主持人未能在限定时间内总结。以下是本轮讨论记录：\n\n${lines.join('\n')}`
+  : `系统没能在限定时间内收结论。以下是本轮讨论记录：\n\n${lines.join('\n')}`

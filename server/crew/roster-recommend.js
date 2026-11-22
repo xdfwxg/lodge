@@ -31,8 +31,8 @@ const recommendationPrompt = (goal, repoPath, handoff = null) => [
   '- 验收优先用仓库里真实可跑的一条短命令（如 `npm test`、`test -f hello.txt`）；不要内联多行脚本；太长或不可靠就设 manual。命令要检验目标本身，不要只查文件是否存在。',
   '- questions 只问真正要人拍板、且无法从目标、工作文件夹、交接单或仓库事实得到答案的问题；最多 3 个，没有就空数组。不要问文件、目录、技术栈、怎么跑测试这类已给出的事实。每题 2–4 个选项，每个写一句代价，推荐只能有一个。',
   '- done 写 1–6 条可核对的完成条件，不写口号。',
-  '- stages 自己拆：简单 1 步，复杂最多 5 步；每个交付阶段一条可执行验收命令；决策阶段写 kind=decision。assignees 只写执行成员（通常是「执行官」），parallel 阶段写两个；不要写验收员，验收由系统派发。',
-  '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline；parallel 必须有两个执行成员；critique 不加成员。',
+  '- stages 自己拆：简单 1 步，复杂最多 5 步；每个交付阶段一条可执行验收命令；决策阶段写 kind=decision。assignees 只写执行官（通常是「执行官」），parallel 阶段写两个；不要写验收员，验收由系统派发。',
+  '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline；parallel 必须有两个执行官；critique 不加成员。',
   '- 方案就是对齐与确认。不要生成只重复“确认/对齐”的 decision 阶段；只有执行中真正需要人拍板的分叉才写 decision。',
   '- JSON 代码块必须完整闭合。',
   '说两句人话讲计划（分几步、谁做、怎么算完成），然后只输出一个 JSON 代码块；JSON 之外只许这段计划，不要寒暄或小标题。',
@@ -227,12 +227,12 @@ export const parseProposal = reply => {
     : []
   const manual = data.verify === 'manual' || (rawAcceptance === '' && stages.every(stage => stage.kind === 'decision'))
   if (manual && verifiers.length > 0 && stages.every(stage => stage.kind === 'decision')) {
-    throw new Error('有验收成员时，得有一条能跑的检查；去掉验收成员，或补一条检查')
+    throw new Error('有验收员时，得有一条能跑的检查；去掉验收员，或补一条检查')
   }
   const orchestrationId = orchestration?.id ?? defaultOrchestrationId
   const notes = [
     requestedOrchestration !== '' && orchestration === null ? `不认识的分配方式「${requestedOrchestration}」，按默认顺序执行` : '',
-    orchestrationId === 'parallel' && workers.length < 2 ? '并行需要至少两个执行成员；当前按单成员执行' : '',
+    orchestrationId === 'parallel' && workers.length < 2 ? '并行需要至少两个执行官；当前按单成员执行' : '',
     data.verify === 'test' && rawAcceptance === '' ? '方案没有给出可执行命令，验收改为你确认' : '',
     tooManyQuestions ? '规划师给了超过 3 个问题，只保留前 3 个' : '',
     tooManyDone ? '规划师给了超过 6 条 done，只保留前 6 条' : '',

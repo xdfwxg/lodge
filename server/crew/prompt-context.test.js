@@ -49,5 +49,5 @@ test('historical stages keep only state and the latest verdict', () => {
     { kind: 'verdict', meta: { stage: 0, pass: false } },
     { kind: 'verdict', meta: { stage: 0, pass: true } },
   ]
-  assert.deepEqual(stageDigest(room, messages), ['1. 对齐 · passed · PASS', '2. 实现 · active'])
+  assert.deepEqual(stageDigest(room, messages), ['1. 对齐 · passed · 通过', '2. 实现 · active'])
 })

@@ -55,7 +55,7 @@ export const chatKind = {
     return {
       constraints: [
         '聊天室只读：成员可以读文件、联网只读和讨论；不写文件、不跑命令，外部动作先问人',
-        `系统按未发言和立场顺序唤醒成员，每轮 ${limit} 次；主持人最后总结`,
+        `系统按未发言和立场顺序唤醒成员，每轮 ${limit} 次；系统最后收结论`,
         `结论由你认可；不认可就继续讨论 ${limit} 次`,
       ],
       chat: initialChatState({ turnLimit: limit }),

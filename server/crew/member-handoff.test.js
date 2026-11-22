@@ -23,8 +23,8 @@ test('a member handoff carries business material and references the transcript',
   assert.match(text, /房间目标：给设置页加保存/)
   assert.match(text, /设置项列全/)
   assert.match(text, /不改上游/)
-  assert.match(text, /PASS：保存后刷新仍生效/)
-  assert.doesNotMatch(text, /REJECT：少一个设置项/)
+  assert.match(text, /通过：保存后刷新仍生效/)
+  assert.doesNotMatch(text, /少一个设置项/)
   assert.match(text, /\.crew\/rooms\/room-h1\/transcript\.jsonl（2 条）/)
   assert.doesNotMatch(text, /# 约定/)
 })
@@ -48,7 +48,9 @@ test('the handoff lists the room members and their roles', () => {
     },
     messages: [],
   })
-  assert.match(text, /房间成员：小林（规划师）、阿青（执行官）、阿岚（验收员）/)
+  assert.ok(text.includes('小林（规划师：只读，负责计划、派活、决策和收尾）'))
+  assert.ok(text.includes('阿青（执行官：可读写、可执行，负责实现、测试和交付）'))
+  assert.ok(text.includes('阿岚（验收员：只读，负责复核、挑问题和给结论）'))
 })
 
 test('shared memory brings the last rejection reasons along', () => {

@@ -117,7 +117,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     }))
   }
   if (roomType.readOnly !== true && workers.length > 1 && workspaceCaps.merge !== true) {
-    return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行成员')
+    return fail('conflict', '当前工作区不支持并行合并；先只保留一个执行官')
   }
   roster = grantBrowserToAll(roster)
   let browserReady = true
@@ -185,7 +185,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
         }
         : member
     ))
-    // 外部动作只有在驱动会停下来问人时才安全；不会问的执行成员不能开工。
+    // 外部动作只有在驱动会停下来问人时才安全；不会问的执行官不能开工。
     // 聊天室虽然只读，但读文件和只读公网也要经过同一张确认卡。
     const blocked = members.filter(member => (
       provisioned.approvalGates?.[member.id] === false &&

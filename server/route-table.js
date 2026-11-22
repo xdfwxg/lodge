@@ -6,6 +6,7 @@ export const ROOM_ACTIONS = Object.freeze([
   'lodge',
   'accept',
   'human-choice',
+  'decision',
   'chat-continue',
   'chat-resume',
   'resume',

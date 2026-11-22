@@ -21,7 +21,7 @@ export const ROOM_TYPE_MANIFEST = Object.freeze([
   Object.freeze({
     id: 'chat',
     name: '聊天室',
-    description: '围绕一个话题讨论，随机唤醒发言，主持人总结后停在结论，想继续可以接着聊',
+    description: '围绕一个话题讨论，随机唤醒发言，聊到上限后系统收结论，想继续可以接着聊',
     defaultVerify: 'manual',
     readOnly: true,
     capabilities: Object.freeze({

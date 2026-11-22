@@ -8,10 +8,20 @@ const boldPlain = text => text
 const inline = code => (FILE.test(code) ? `**${code}**` : `\`${code}\``)
 
 // 成员已经自己用 ** 强调时保持原样；没有时只补最影响判断的词，避免整段都粗。
+const mergeAdjacentBold = text => {
+  let value = text
+  for (let pass = 0; pass < 5 && value.includes('****'); pass += 1) {
+    const next = value.replace(/\*\*([^*\n]+)\*\*\*\*([^*\n]+)\*\*/g, '**$1$2**')
+    if (next === value) break
+    value = next
+  }
+  return value
+}
+
 export const emphasizeImportant = text => {
   const value = String(text ?? '')
   if (value === '' || value.includes('**')) return value
-  return value
+  return mergeAdjacentBold(value
     .split(/(```[\s\S]*?```)/g)
     .map(part => {
       if (part.startsWith('```')) return part
@@ -26,5 +36,5 @@ export const emphasizeImportant = text => {
         })
         .join('')
     })
-    .join('')
+    .join(''))
 }

@@ -175,7 +175,7 @@ export const seedSampleMessages = ({ store, room } = {}) => {
   append({
     kind: 'verdict',
     authorId: 'verifier',
-    text: 'PASS 结尾改成了动作，读者能自己看见她留下；改动只在结尾一处，没有重写整篇。',
+    text: '通过：结尾改成了动作，读者能自己看见她留下；改动只在结尾一处，没有重写整篇。',
     meta: {
       pass: true,
       stage: 1,

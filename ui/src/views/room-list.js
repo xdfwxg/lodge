@@ -1,6 +1,7 @@
 import { chatStatusOf, idleDelivered } from '../../../shared/room-status.js'
 import { CHAT_STATUS } from '../../../shared/states.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
+import { hasNeedsAction, needsAction } from '../needs.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
@@ -29,7 +30,7 @@ export const orderRooms = rooms => {
   const archived = []
   for (const room of rooms) {
     if (room.archivedAt) archived.push(room)
-    else if (room.needsYou) pending.push(room)
+    else if (hasNeedsAction(room)) pending.push(room)
     else if (deliveredOf(room)) done.push(room)
     else recent.push(room)
   }
@@ -57,7 +58,7 @@ export const toneOf = room => {
   if (room.needsYou?.kind === 'review') return 'review'
   if (room.needsYou?.kind === 'signoff' || room.needsYou?.kind === 'result') return 'done'
   if (room.needsYou?.kind === 'rework' || room.needsYou?.kind === 'merge' || room.needsYou?.kind === 'parallel') return 'alert'
-  if (room.needsYou) return 'waiting'
+  if (hasNeedsAction(room)) return 'waiting'
   if (deliveredOf(room)) return 'done'
   return room.live === true ? 'active' : 'idle'
 }
@@ -67,6 +68,7 @@ const NEEDS_META = {
   signoff: '待确认',
   review: '验收员在看',
   decision: '待确认',
+  confirm: '待确认',
   question: '待回答',
   setup: '补检查',
   rework: '待重做',
@@ -83,7 +85,10 @@ const NEEDS_META = {
 
 // The row only shows a status word when the room needs you. Complete and live
 // rooms stay quiet; the dot carries their state and the accessible label says it.
-export const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.needsYou.kind] ?? '待处理' : ''
+export const metaOf = room => {
+  const needs = needsAction(room)
+  return room.archivedAt || needs === null ? '' : NEEDS_META[needs.kind] ?? '待处理'
+}
 
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
@@ -116,6 +121,7 @@ export const roomLabelOf = room => {
     if (state !== '') parts.push(state)
   }
   if (room?.chatUnread === true) parts.push('有新消息')
-  if (room?.needsYou?.label && room.needsYou.label !== meta) parts.push(room.needsYou.label)
+  const needs = needsAction(room)
+  if (needs?.label && needs.label !== meta) parts.push(needs.label)
   return parts.join('，')
 }

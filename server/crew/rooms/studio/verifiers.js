@@ -1,4 +1,4 @@
-// 多验收成员只看“当前这轮验收命令证据”上的结论；旧轮的 PASS/REJECT 不参与本轮判定。
+// 多验收员只看“当前这轮验收命令证据”上的结论；旧轮的 PASS/REJECT 不参与本轮判定。
 import { verifierIds } from '../../room-members.js'
 import { reworkFloor } from '../../../../shared/attempt.js'
 import { verdictPassed } from '../../../../shared/judgment.js'

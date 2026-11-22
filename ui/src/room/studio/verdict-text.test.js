@@ -29,3 +29,9 @@ test('a conclusion written on the PASS line is not swallowed', () => {
     detail: '',
   })
 })
+
+test('the Chinese verdict line is stripped without eating a normal sentence', () => {
+  assert.deepEqual(splitVerdictText('通过\n文件齐全。'), { summary: '文件齐全。', detail: '' })
+  assert.deepEqual(splitVerdictText('不通过：缺一条测试。'), { summary: '缺一条测试。', detail: '' })
+  assert.deepEqual(splitVerdictText('通过率 98%，符合要求。'), { summary: '通过率 98%，符合要求。', detail: '' })
+})

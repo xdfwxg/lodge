@@ -19,20 +19,20 @@ const room = over => ({
 const message = (id, kind, meta = {}, text = '') => ({ id, kind, meta, text, seq: Number(id) || 0 })
 
 test('a human decision becomes a sticky signal that opens the panel', () => {
-  const event = decisionOf(room({ needsYou: { kind: 'signoff', stage: 1, label: '待确认' } }))
-  assert.equal(event.key, 'decision:signoff:1')
+  const event = decisionOf(room({ needsYou: { kind: 'confirm', stage: 1, label: '待确认' } }))
+  assert.equal(event.key, 'decision:confirm:1')
   assert.equal(event.kind, 'decision')
   assert.equal(event.tone, 'waiting')
-  assert.equal(event.title, '第 2 步「写欢迎语」通过了')
+  assert.equal(event.title, '第 2 步「写欢迎语」等你确认')
   assert.equal(event.action, 'open')
   assert.match(event.detail, /待确认/)
 })
 
 test('more waiting items put a count on the same signal line', () => {
   const event = decisionOf(room({
-    needsYou: { kind: 'signoff', stage: 1, label: '待确认' },
+    needsYou: { kind: 'confirm', stage: 1, label: '待确认' },
     attention: [
-      { kind: 'signoff', stage: 1, label: '待确认' },
+      { kind: 'confirm', stage: 1, label: '待确认' },
       { kind: 'decision', roomId: 'child-1', roomName: '写欢迎语', stage: 0, label: '待确认' },
     ],
   }))
@@ -66,7 +66,8 @@ test('a review timeout puts the fix on the signal', () => {
 })
 
 test('ambient states do not become decisions', () => {
-  assert.equal(decisionOf(room({ needsYou: { kind: 'review', stage: 1, label: '验收员在看' } })), null)
+  assert.equal(decisionOf(room({ needsYou: { kind: 'review', stage: 1, label: '验收员在看', actionable: false } })), null)
+  assert.equal(decisionOf(room({ needsYou: { kind: 'signoff', stage: 1, label: '', actionable: false } })), null)
   assert.equal(decisionOf(room({ needsYou: { kind: 'idle', stage: 1, label: '可继续' } })), null)
 })
 

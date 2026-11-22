@@ -338,6 +338,11 @@ export function createStore() {
     cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),
     steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
+    answerDecision: async (decisionId, optionId) => {
+      const data = await post(`/api/rooms/${state.activeId}/decision`, { decisionId, optionId })
+      if (data?.room !== undefined) acceptRoom(data.room)
+      return data
+    },
     humanChoice: (stage, choice, note = '') => post(`/api/rooms/${state.activeId}/human-choice`, { stage, choice, note }),
     rework: (stage, note) => post(`/api/rooms/${state.activeId}/rework`, { stage, note }),
     resolveMerge: async () => {

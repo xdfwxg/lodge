@@ -17,8 +17,8 @@ test('tool scope never narrows native tools: claudeAgent cannot run with that se
 })
 
 test('only the executor hides the room gate tools', () => {
-  assert.deepEqual(toolScopeFor({ roleKind: 'executor' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'executor' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*', 'mcp:ogb:ask_user'])
   assert.deepEqual(toolScopeFor({ roleKind: 'participant' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*'])
-  assert.deepEqual(toolScopeFor({ roleKind: 'planner' }).deny, ['mcp:agents:*'])
-  assert.deepEqual(toolScopeFor({ roleKind: 'verifier' }).deny, ['mcp:agents:*'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'planner' }).deny, ['mcp:agents:*', 'mcp:ogb:ask_user'])
+  assert.deepEqual(toolScopeFor({ roleKind: 'verifier' }).deny, ['mcp:agents:*', 'mcp:ogb:ask_user'])
 })

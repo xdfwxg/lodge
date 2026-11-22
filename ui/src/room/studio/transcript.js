@@ -6,6 +6,8 @@ import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
 import { isChainMessage } from '../message-view.js'
 import { HumanGateCard } from './human-gate.js'
+import { StageConfirmCard } from './stage-confirm.js'
+import { PendingDecisionCard } from './pending-decision.js'
 import { MergeConflictCard } from './merge-conflict.js'
 import { DeliveryCard } from './delivery-card.js'
 import { ApprovalCard } from '../../approval-card.js'
@@ -22,6 +24,14 @@ const isVisibleNotice = message => (
   message?.kind === 'system' && message.meta?.kind === 'notice' && message.meta.show === true
 )
 
+// 系统交接和阶段回执是过程，不是主时间线；规划师自己的计划留在主线上。
+const isProcessMessage = message => (
+  message?.kind === 'handoff' ||
+  message?.kind === 'dispatch' ||
+  message?.kind === 'stage_conclusion' ||
+  (message?.kind === 'system' && (message.meta?.kind === 'handoff' || message.meta?.kind === 'stage'))
+)
+
 // 同一条状态提示重复出现时，只留最后一次；前面的已经被后一次取代。
 export const dedupeSystemNotices = messages => {
   const latest = new Map()
@@ -36,8 +46,8 @@ export const dedupeSystemNotices = messages => {
 export function StudioTranscript({
   room,
   members,
-  onAccept,
   onStageAccept,
+  onDecision = null,
   onAnswerCard = null,
   onCancelQueue = null,
   onSteerQueue = null,
@@ -65,15 +75,29 @@ export function StudioTranscript({
   // 同一个人把同一句话既写进聊天又从证据里回来时，只留聊天那一句。
   const renderable = useMemo(() => {
     const normalize = text => String(text ?? '')
-      .replace(/^\s*(PASS|REJECT)\b[\s:：\-/]*/i, '')
+      .replace(/^\s*(?:(?:PASS|REJECT)\b|不通过|通过)(?=[\s:：\-/]|$)[\s:：\-/]*/i, '')
+      .replace(/[`*_~]/g, '')
       .replace(/\s+/g, ' ')
       .trim()
     const chatKey = message => `${message.authorId}|${normalize(message.text)}`
     const chats = new Set(messages.filter(message => message.kind === 'chat').map(chatKey))
+    const chatTexts = messages.filter(message => message.kind === 'chat').map(message => normalize(message.text))
     const verdicts = new Set(messages.filter(message => message.kind === 'verdict').map(chatKey))
     const consumed = new Set(messages
       .filter(message => message.kind === 'verdict' && typeof message.meta?.evidenceId === 'string')
       .map(message => message.meta.evidenceId))
+    // 一回合里成员可能先说过程、再说结果；每个证据只留它前面最后一句，过程话不刷屏。
+    const keepChats = new Set()
+    const evidenceAuthors = new Set(messages.filter(message => message.kind === 'evidence' && message.authorId).map(message => message.authorId))
+    for (const message of messages) {
+      if (message.kind !== 'evidence' || !message.authorId) continue
+      const chat = [...messages].reverse().find(item => (
+        item.kind === 'chat' &&
+        item.authorId === message.authorId &&
+        (item.ts ?? 0) <= (message.ts ?? 0)
+      ))
+      if (chat !== undefined) keepChats.add(chat.id)
+    }
     // 人的重做标记和 human-context 是同一条输入；主时间线只留带“补充上下文”的那一条。
     const humanNotes = humanNoteKeys(messages)
     // 结论之后再回来的总结属于上一轮，不再横在已交付和结果卡之间。
@@ -89,9 +113,13 @@ export function StudioTranscript({
       if (isDuplicateHumanRework(message, humanNotes)) return false
       // 过程日志不进主时间线；当前在做什么由岛和正在输入那一行说。
       if (message.kind === 'activity') return false
+      if (message.kind === 'chat' && evidenceAuthors.has(message.authorId) && !keepChats.has(message.id)) return false
       if (message.kind === 'evidence') {
         if (consumed.has(message.id)) return false
+        const plain = normalize(message.text)
         if (chats.has(chatKey(message))) return false
+        // 证据文本可能被截断；只要它是某条成员结果的前缀，就不再重复。
+        if (plain.length >= 40 && chatTexts.some(text => text.startsWith(plain))) return false
       }
       if (message.kind === 'chat' && verdicts.has(chatKey(message))) return false
       // 验收员的话只留结论卡，不再重复一条长聊天。
@@ -100,22 +128,23 @@ export function StudioTranscript({
     })
   }, [messages, byId, finished])
 
+  const send = message => renderStudioMessage({
+    room,
+    byId,
+    message,
+    timeline,
+    onStageAccept,
+    onAnswerCard,
+    onCancelQueue,
+    onSteerQueue,
+    onOpenRoom,
+  })
+  // 系统交接和阶段回执留在后台账本，不进房间；房间里只有三个角色和结果卡。
   const items = []
-  for (let index = 0; index < renderable.length; index += 1) {
-    const message = renderable[index]
+  for (const message of renderable) {
+    if (isProcessMessage(message)) continue
     if (hidden.has(message.kind)) continue
-    const content = renderStudioMessage({
-      room,
-      byId,
-      message,
-      timeline,
-      onAccept,
-      onStageAccept,
-      onAnswerCard,
-      onCancelQueue,
-      onSteerQueue,
-      onOpenRoom,
-    })
+    const content = send(message)
     if (content !== null && content !== undefined) items.push(content)
   }
 
@@ -180,7 +209,9 @@ export function StudioTranscript({
       ? h('div', { key: 'approval-queue', className: 'crew-system' },
         `还有 ${pendingApprovals.length - 1} 个操作待确认，先处理眼前这个。`)
       : null,
+    h(PendingDecisionCard, { key: 'pending-decision', room, onAnswer: onDecision }),
     h(HumanGateCard, { key: `human-gate-${activeIndex}`, room, onChoose, onRework }),
+    h(StageConfirmCard, { key: `stage-confirm-${activeIndex}`, room, onAccept: onStageAccept }),
     h(MergeConflictCard, { key: `merge-${activeIndex}`, room, onResolve: onResolveMerge }),
     advice)
 }

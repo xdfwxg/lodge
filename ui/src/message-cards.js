@@ -43,9 +43,17 @@ function ChatTopicText({ text, topic = false, mentions = null }) {
     : h('span', null, parts.before, h('strong', { className: 'crew-chat-topic' }, parts.topic), parts.after)
 }
 
+// 规划师的三行计划用换行分开；Markdown 默认把单换行并成一段。
+const planBreaks = value => (
+  /^\*\*(?:做什么|完成标准)[：:]\*\*/m.test(value)
+    ? value.replace(/\n(?=\*\*[^*\n]+[：:]\*\*)/g, '\n\n')
+    : value
+)
+
 function ChatLine({ message, member, mentions = null }) {
   const streaming = message.meta?.streaming === true
-  const text = homeRelative(streaming ? String(message.text ?? '') : emphasizeImportant(message.text))
+  const raw = streaming ? String(message.text ?? '') : emphasizeImportant(message.text)
+  const text = homeRelative(planBreaks(raw))
   return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { member, ts: message.ts, time: false, station: false, persona: personalityLabel(member?.personality) }),

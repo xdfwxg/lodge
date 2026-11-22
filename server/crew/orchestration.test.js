@@ -29,7 +29,7 @@ test('parallel dispatches every worker and degrades honestly with one member', (
   })
   const single = strategy.planStage({ stage: {}, workers: ['executor'] })
   assert.equal(single.parallel, false)
-  assert.match(single.note, /至少两个执行成员/)
+  assert.match(single.note, /至少两个执行官/)
 })
 
 test('parallel respects a smaller proposed set', () => {

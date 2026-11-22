@@ -1,7 +1,7 @@
 // 验收结论的第一行是结论句，其余是理由；两段都在卡片里直接展示。
 export const splitVerdictText = text => {
   // 模型常把 PASS/REJECT 和结论写在同一行，只剥标记，不丢整行。
-  const cleaned = String(text ?? '').replace(/^\s*(PASS|REJECT)\b[：:\s-]*/i, '').trim()
+  const cleaned = String(text ?? '').replace(/^\s*(?:(?:PASS|REJECT)\b|不通过|通过)(?=[：:\s-]|$)[：:\s-]*/i, '').trim()
   const lines = cleaned.split('\n').map(line => line.trim()).filter(Boolean)
   if (lines.length === 0) return { summary: '', detail: '' }
   // 模型只给列表时没有结论句可取：全部收进明细，卡片顶部已有 PASS/命令/退出码。

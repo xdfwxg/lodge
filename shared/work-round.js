@@ -11,6 +11,7 @@ export const ROUND_FIELDS = Object.freeze([
   'budgetMicroUsd',
   'openQuestion',
   'lastPlannerDecision',
+  'pendingDecision',
   'autoCheck',
   'blocked',
   'mergeConflict',

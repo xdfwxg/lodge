@@ -200,3 +200,18 @@ test('a studio room shows the pending approval instead of only a badge', async (
   assert.match(text(tree), /可以做/)
   assert.match(text(tree), /访问网络/)
 })
+
+test('system handoffs stay out of the room timeline', async () => {
+  const { StudioTranscript } = await load()
+  const room = {
+    ...finishedRoom(),
+    messages: [
+      { kind: 'chat', id: 'u1', authorId: 'you', text: '把结尾改得更看得见', ts: 1, seq: 1 },
+      { kind: 'handoff', id: 'h1', authorId: 'lead', text: '@执行官 第 1 步交给你', ts: 2, seq: 2, meta: { stage: 0 } },
+      { kind: 'chat', id: 'c1', authorId: 'lead', text: '结尾改好了', ts: 3, seq: 3 },
+      { kind: 'system', id: 'h2', authorId: 'system', text: '@验收员 请复核', ts: 4, seq: 4, meta: { kind: 'handoff', stage: 0 } },
+    ],
+  }
+  const tree = render(StudioTranscript({ room, members, delivery }))
+  assert.doesNotMatch(text(tree), /第 1 步交给你/)
+})

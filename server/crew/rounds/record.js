@@ -19,11 +19,24 @@ export const roundSummaryOf = round => ({
   usage: round.usage ?? null,
 })
 
+const TITLE_PAIRS = [['「', '」'], ['《', '》'], ['（', '）'], ['【', '】'], ['(', ')'], ['[', ']']]
+
+const cutTitle = text => {
+  let cut = text.slice(0, 24)
+  for (const [open, close] of TITLE_PAIRS) {
+    const opens = cut.split(open).length - 1
+    const closes = cut.split(close).length - 1
+    if (opens > closes) cut = cut.slice(0, cut.lastIndexOf(open))
+  }
+  cut = cut.replace(/[\s，,；;：:、]+$/, '')
+  return cut === '' ? text.slice(0, 24) : cut
+}
+
 // 目标进列表、历史或房间名时的统一短标题；截断规则只在这里。
 export const shortTitleOf = (goal, { ellipsis = true } = {}) => {
   const text = typeof goal === 'string' ? goal.trim() : ''
   if (text === '') return ''
-  return text.length > 24 ? `${text.slice(0, 24)}${ellipsis ? '…' : ''}` : text
+  return text.length > 24 ? `${cutTitle(text)}${ellipsis ? '…' : ''}` : text
 }
 
 const titleOf = goal => shortTitleOf(goal) || null
@@ -53,6 +66,7 @@ export const buildRoundFromRoom = ({
   previews: [],
   reviewRetriedAt: null,
   stageDiagnostics: {},
+  pendingDecision: null,
   origin: {
     sourceRoomId: room.sourceRoomId ?? null,
     sourceName: room.sourceName ?? null,
@@ -98,6 +112,7 @@ export const buildRound = ({
   budgetMicroUsd: Number.isFinite(budgetMicroUsd) && budgetMicroUsd > 0 ? budgetMicroUsd : null,
   openQuestion: null,
   lastPlannerDecision: null,
+  pendingDecision: null,
   autoCheck: null,
   blocked: null,
   mergeConflict: null,

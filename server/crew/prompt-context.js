@@ -38,7 +38,7 @@ export const stageDigest = (room, messages, { budget = 300 } = {}) => {
   const verdicts = (Array.isArray(messages) ? messages : []).filter(message => message.kind === 'verdict')
   const lines = (room?.stages ?? []).map((stage, index) => {
     const last = verdicts.filter(message => (message.meta?.stage ?? 0) === index).at(-1)
-    const result = last === undefined ? '' : ` · ${verdictPassed(last) ? 'PASS' : 'REJECT'}`
+    const result = last === undefined ? '' : ` · ${verdictPassed(last) ? '通过' : '不通过'}`
     return `${index + 1}. ${sanitizeUntrusted(stage.title, 120)} · ${stage.state}${result}`
   })
   let remaining = budget

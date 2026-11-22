@@ -147,7 +147,7 @@ export const createAutoCheck = ({
           ? workspaceOf(room).filesInCommit?.({ path: room.repoPath, commit: candidate }) ?? []
           : []
     // 人工阶段没有命令可判“无改动”：同一 HEAD 上的重复回合不重复生成验收证据，也不重复送审。
-    // 但验收退回后的重做必须重新送审，即使执行成员没有产生新的提交。
+    // 但验收退回后的重做必须重新送审，即使执行官没有产生新的提交。
     const messages = store.readMessages(roomId)
     const floor = reworkFloor(messages, stageIndex)
     const prior = [...messages].reverse().find(message => (

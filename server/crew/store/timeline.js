@@ -70,11 +70,22 @@ export const createTimelineStore = ({
     return message
   }
 
+  // 一条消息先按自己的时间找轮次；迟到消息不能因为新轮已经开始就落进新轮。
+  const roundAt = (roomId, at) => {
+    if (!Number.isFinite(at)) return undefined
+    let chosen
+    for (const row of db.prepare('SELECT id, payload FROM work_round WHERE room_id = ? ORDER BY ordinal').all(roomId)) {
+      const round = JSON.parse(row.payload)
+      if (Number.isFinite(round.startedAt) && at >= round.startedAt) chosen = row.id
+    }
+    return chosen
+  }
+
   // 工作室的消息属于某一轮，当前没有活动轮时归到上一轮；聊天室保持房间级连续时间线。
   const roundForMessage = (room, message) => {
     if (message.workRoundId !== undefined) return message.workRoundId
     if (room?.roomType !== 'studio') return null
-    return room.activeRoundId ?? room.lastRoundId ?? null
+    return roundAt(room.id, message.ts) ?? room.activeRoundId ?? room.lastRoundId ?? null
   }
 
   const appendMessage = (roomId, message) => {

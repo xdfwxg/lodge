@@ -5,14 +5,14 @@ export const studioConstraints = ({
   verifiers,
   independence,
 }) => [
-  '交接由系统投递：写清下一步做什么、怎么算完成，不用 @ 人',
+  '交接由系统投递：写清下一步做什么、怎么算完成；在群里 @ 下一位，让房间看得到',
   plan?.stages?.length > 0
     ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
     : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',
   ...(verifiers.length === 0
-    ? ['这个房间没有独立验收成员，由你凭证据确认']
+    ? ['这个房间没有独立验收员，由你凭证据确认']
     : [independence === 'vendor'
-      ? '执行与验收已绑定不同厂商；验收成员在独立副本里复核'
+      ? '执行与验收已绑定不同厂商；验收员在独立副本里复核'
       : '当前只有同一家模型可用：复核和执行来自同一家，独立复核会打折']),
 ]
 

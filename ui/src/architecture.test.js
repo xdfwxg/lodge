@@ -45,6 +45,24 @@ test('the new-room dialog composes kinds instead of importing studio', () => {
   assert.doesNotMatch(text, /from\s+['"][^'"]*room\/studio\//, 'new-room-dialog.js imports studio UI')
 })
 
+test('room modes read only actions RoomView exposes', () => {
+  const used = new Set()
+  for (const file of walk(join(root, 'room')).filter(path => path.endsWith('.js') && !path.endsWith('.test.js'))) {
+    for (const match of readFileSync(file, 'utf8').matchAll(/actions\.([A-Za-z]\w*)/g)) {
+      // actions.size 是普通集合属性，不是界面动作。
+      if (match[1] !== 'size') used.add(match[1])
+    }
+  }
+  const view = readFileSync(join(root, 'views/room-view.js'), 'utf8')
+  const start = view.indexOf('const actions = {')
+  const end = view.indexOf('const finished =', start)
+  assert.ok(start >= 0 && end > start, 'room-view actions block not found')
+  const exposed = new Set([...view.slice(start, end).matchAll(/^\s{4}([A-Za-z]\w*):/gm)].map(match => match[1]))
+  for (const name of used) {
+    assert.ok(exposed.has(name), `actions.${name} is read by a room mode but RoomView does not provide it`)
+  }
+})
+
 test('chat and studio UI contexts never import each other', () => {
   for (const file of walk(join(root, 'room/chat'))) {
     if (!file.endsWith('.js') || file.endsWith('.test.js')) continue

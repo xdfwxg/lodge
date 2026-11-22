@@ -109,3 +109,9 @@ test('short titles share one truncation rule', () => {
   assert.equal(shortTitleOf('a'.repeat(25), { ellipsis: false }), 'a'.repeat(24))
   assert.equal(shortTitleOf(''), '')
 })
+
+test('a truncated title never leaves an unmatched quote', () => {
+  const title = shortTitleOf('在 welcome.md 末尾再加一句「第 1 间第 1 轮完成」，前面的内容不要动')
+  assert.equal(title, '在 welcome.md 末尾再加一句…')
+  assert.equal(title.includes('「'), false)
+})

@@ -223,6 +223,194 @@ test('a planner gate call decides without parsing the reply', () => {
   assert.equal(sent.length, 0)
 })
 
+test('asking a decision pauses every member except the planner', () => {
+  const room = makeRoom({
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: '' },
+      { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
+    ],
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-planner', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+  })
+  const store = fakeStore(room)
+  const attended = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    setMembers: async (_roomId, ids) => {
+      attended.push(ids)
+      return ids
+    },
+  })
+  turns.trackTool({
+    kind: 'activity',
+    turnId: 't-ask',
+    tool: {
+      id: 'call-ask',
+      name: 'mcp__lodge_gate__ask_decision',
+      input: JSON.stringify({
+        question: '走哪条路？',
+        options: [
+          { id: 'a', title: 'A', effect: '走 A 会得到什么' },
+          { id: 'b', title: 'B', effect: '走 B 会得到什么' },
+        ],
+        recommended: 'a',
+      }),
+    },
+  })
+  turns.captureTurn({ turnId: 't-ask', reply: '等你选', toolCalls: 1 }, 'bot-planner')
+  assert.deepEqual(attended, [['planner']])
+  assert.equal(store.current.pendingDecision.status, 'open')
+})
+
+test('a planner question pauses the room without a decision card', () => {
+  const room = makeRoom({
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: '' },
+      { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
+    ],
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-planner', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+    pendingDecision: null,
+  })
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.trackTool({
+    kind: 'activity',
+    turnId: 't-question',
+    tool: {
+      id: 'call-question',
+      name: 'mcp__lodge_gate__ask_question',
+      input: JSON.stringify({ question: '上次说的版式是哪一版？' }),
+    },
+  })
+  turns.captureTurn({ turnId: 't-question', reply: '问一句', toolCalls: 1 }, 'bot-planner')
+  assert.equal(store.current.openQuestion, '上次说的版式是哪一版？')
+  assert.equal(store.current.pendingDecision, null)
+})
+
+test('reconnecting after the card is answered does not reopen the room chat', () => {
+  const room = makeRoom({
+    pendingDecision: {
+      id: 'd-old',
+      status: 'answered',
+      question: '走哪条路？',
+      options: [{ id: 'a', title: 'A', effect: 'A' }, { id: 'b', title: 'B', effect: 'B' }],
+      recommended: 'a',
+    },
+  })
+  const store = fakeStore(room)
+  const attended = []
+  createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    setMembers: async (_roomId, ids) => {
+      attended.push(ids)
+      return ids
+    },
+  })
+  assert.deepEqual(attended, [])
+})
+
+test('reconnecting while the card is open leaves only the planner in the room chat', () => {
+  const room = makeRoom({
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-planner', executor: 'bot-exec', verifier: 'bot-ver' },
+    pendingDecision: {
+      id: 'd-open',
+      status: 'open',
+      question: '走哪条路？',
+      options: [{ id: 'a', title: 'A', effect: 'A' }, { id: 'b', title: 'B', effect: 'B' }],
+      recommended: 'a',
+    },
+  })
+  const store = fakeStore(room)
+  const attended = []
+  createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    setMembers: async (_roomId, ids) => {
+      attended.push(ids)
+      return ids
+    },
+  })
+  assert.deepEqual(attended, [['planner']])
+})
+
+test('a planner summary after a passed verdict closes the last step without another click', () => {
+  const room = makeRoom({
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-planner', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+    stages: [
+      { title: '写一句说明', kind: 'deliverable', manual: true, state: 'active', acceptance: '' },
+      { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
+    ],
+  })
+  const store = fakeStore(room)
+  store.messages.push({ id: 'v-pass', kind: 'verdict', meta: { pass: true, stage: 0 } })
+  const closed = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    confirmStage: async (_roomId, stage, options) => { closed.push([stage, options]); return { ok: true } },
+  })
+  turns.captureTurn({ turnId: 't-summary', reply: '这一步做完了，验收也过了。', toolCalls: 0 }, 'bot-planner')
+  assert.deepEqual(closed, [[0, { by: 'system' }]])
+})
+
 test('a planner turn without a submitted decision is nudged once, then handed to the human', () => {
   const room = makeRoom({
     leadSeat: 'planner',
@@ -738,7 +926,7 @@ test('parallel dispatch wakes every assignee and tracks pending seats', async ()
   assert.equal(room.stageDispatch, undefined)
 })
 
-test('a parallel stage delivers into each worktree even when the planner speaks', async () => {
+test('a parallel stage delivers into each worktree without waking the planner', async () => {
   registerWorkspaceProvider('test-live-parallel-spoken', {
     capabilities: () => ({ candidate: false, merge: true, isolation: 'worktree' }),
     head: () => 'base',
@@ -776,10 +964,7 @@ test('a parallel stage delivers into each worktree even when the planner speaks'
     enqueue: task => task(),
   })
   await starter.startStage(room, 0)
-  assert.match(plannerPrompts[0], /不要 @ 任何人/)
-  assert.match(plannerPrompts[0], /房间目标（原文/)
-  assert.match(plannerPrompts[0], /验收标准/)
-  assert.match(plannerPrompts[0], /硬要求/)
+  assert.equal(plannerPrompts.length, 0)
   assert.deepEqual(prompts.map(item => item.memberId), ['executor', 'executor-2'])
   assert.match(prompts[0].prompt, /自己的 worktree/)
   assert.match(prompts[1].prompt, /自己的 worktree/)

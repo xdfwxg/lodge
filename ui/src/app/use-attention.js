@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { requestAttention, syncRoomMenu } from '../system.js'
 import { shouldNotify } from '../../../shared/quiet.js'
+import { needsAction } from '../needs.js'
 
 // 房间列表的两份投影：真正需要人处理的，以及侧栏/菜单里可见的。
 export const useAttention = rooms => {
@@ -14,9 +15,8 @@ export const useAttention = rooms => {
   useEffect(() => {
     const next = {}
     for (const room of attentionRooms) {
-      if (room.needsYou) {
-        next[room.id] = room.needsYou.reason ?? room.needsYou.label ?? room.needsYou.kind ?? '待处理'
-      }
+      const needs = needsAction(room)
+      if (needs !== null) next[room.id] = needs.reason ?? needs.label ?? needs.kind ?? '待处理'
     }
     const prev = seenNeeds.current
     seenNeeds.current = next
@@ -25,18 +25,19 @@ export const useAttention = rooms => {
       requestAttention({ count })
       return
     }
-    const changed = attentionRooms.filter(room => room.needsYou && next[room.id] !== prev[room.id])
-    const appearing = attentionRooms.filter(room => room.needsYou && prev[room.id] === undefined)
+    const changed = attentionRooms.filter(room => needsAction(room) !== null && next[room.id] !== prev[room.id])
+    const appearing = attentionRooms.filter(room => needsAction(room) !== null && prev[room.id] === undefined)
     if (appearing.length > 0) {
       const now = Date.now()
       const room = appearing.find(item => shouldNotify({
-        attention: item.needsYou,
+        attention: needsAction(item),
         lastAt: lastNotified.current.get(item.id) ?? 0,
         now,
       }))
       if (room !== undefined) {
         lastNotified.current.set(room.id, now)
-        const result = room.needsYou?.kind === 'result'
+        const needs = needsAction(room)
+        const result = needs?.kind === 'result'
         requestAttention({
           count,
           notify: {

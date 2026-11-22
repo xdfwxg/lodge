@@ -1,5 +1,6 @@
 import { createElement as h } from 'react'
 import { dateTimeOf } from '../view-format.js'
+import { needsAction } from '../needs.js'
 
 const money = micro => {
   const usd = (Number(micro) || 0) / 1_000_000
@@ -43,7 +44,7 @@ export const healthOf = room => {
     reworks,
     human,
     memoryCount: Array.isArray(room?.sharedMemory) ? room.sharedMemory.length : 0,
-    needsYou: room?.needsYou ?? null,
+    needsYou: needsAction(room),
   }
 }
 

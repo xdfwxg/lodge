@@ -8,7 +8,7 @@ import { ROOM_STATE } from '../../../shared/states.js'
 
 // 一轮工作被暂停/停止拦住；房间自身的动作和运行中动作不受这条门禁影响。
 const ROUND_ACTIONS = new Set([
-  'rounds', 'messages', 'human-choice', 'accept', 'chat-continue', 'chat-resume',
+  'rounds', 'messages', 'human-choice', 'decision', 'accept', 'chat-continue', 'chat-resume',
   'reject-plan', 'stop-round', 'fail-round', 'supersede-round', 'resolve-merge',
   'rework', 'retry', 'rewind',
 ])

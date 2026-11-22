@@ -52,7 +52,7 @@ export const ensureGateServer = async engine => {
   return ready
 }
 
-// 只有规划和验收需要提交判定；执行成员不加载这个工具。
+// 只有规划和验收需要提交判定；执行官不加载这个工具。
 export const roomToolsFor = member => (
   member?.role === 'lead' || member?.role === 'verifier' ? [GATE_SERVER_NAME] : []
 )

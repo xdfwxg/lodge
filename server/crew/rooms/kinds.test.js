@@ -5,7 +5,7 @@ import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom
 const MODE_KEYS = [
   'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
-  'leadMemberIdOf', 'record',
+  'leadMemberIdOf', 'record', 'chatMembersOf',
   'initialMessages', 'provisionExtra', 'start',
   'bulletinAcceptance', 'approvalReadOnly',
 ]
@@ -27,25 +27,37 @@ test('every room mode implements the same substitutable contract', () => {
   }
 })
 
+test('the studio mode exposes who is in the base room chat', () => {
+  const mode = roomModeForType('studio')
+  assert.equal(typeof mode.chatMembersOf, 'function')
+  assert.deepEqual(
+    mode.chatMembersOf({
+      stages: [{ title: '目标对齐', state: 'pending' }],
+      members: [{ id: 'planner', role: 'lead' }, { id: 'executor', role: 'worker' }],
+    }),
+    ['planner'],
+  )
+})
+
 test('member souls carry only their own mode discipline', () => {
   const chat = roomModeForType('chat').memberSoul({ name: '甲', role: 'worker' })
   assert.match(chat, /聊天室/)
   assert.match(chat, /可以只读查看|联网只读/)
   assert.doesNotMatch(chat, /执行官|git commit|验收/)
   const studio = roomModeForType('studio').memberSoul({ name: '验收员', role: 'verifier', prompt: '你是验收员。' })
-  assert.match(studio, /PASS 或 REJECT/)
-  assert.match(studio, /需要谁回应由系统安排/)
-  assert.match(studio, /不用 @ 安排下一棒/)
+  assert.match(studio, /复核副本/)
+  assert.match(studio, /diff 之外/)
+  assert.match(studio, /知道彼此的存在和能力/)
+  assert.match(studio, /需要谁接下一棒就直接 @ 他/)
   assert.match(studio, /不要自创角色/)
-  assert.match(studio, /不重新规划/)
   assert.doesNotMatch(studio, /聊天室/)
   const worker = roomModeForType('studio').memberSoul({ name: '乙', role: 'worker', prompt: '你是乙。' })
-  assert.match(worker, /不改目标/)
-  assert.match(worker, /像对同事说话/)
+  assert.match(worker, /只改实现所需的文件/)
+  assert.match(worker, /像给同事发消息/)
   assert.doesNotMatch(worker, /PASS 或 REJECT/)
   const leadSoul = roomModeForType('studio').memberSoul({ name: '幕僚长', role: 'lead', prompt: '你是幕僚长。' })
-  assert.match(leadSoul, /不写文件、不跑验收/)
-  assert.match(leadSoul, /不再重复对齐/)
+  assert.match(leadSoul, /不写文件、不验收|不重复派活/)
+  assert.match(leadSoul, /不重复派活/)
 })
 
 test('only the Lodge chat allows a host without member threads', () => {

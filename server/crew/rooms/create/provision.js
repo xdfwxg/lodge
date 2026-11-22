@@ -23,7 +23,7 @@ export const createProvisioner = ({ engine }) => {
   const createdRooms = []
   let cleanupExtra = null
 
-  const provision = async ({ roster, short, title, goal, handoff = null, verify, acceptance, workspaces, roomType = 'studio', shadowReview = false }) => {
+  const provision = async ({ roster, short, title, goal, handoff = null, verify, acceptance, workspaces, roomType = 'studio', shadowReview = false, align = false }) => {
     const mode = roomModeForType(roomType)
     const instances = await bodies.instances()
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
@@ -33,7 +33,7 @@ export const createProvisioner = ({ engine }) => {
       return instance === undefined ? undefined : engineReady(instance, { requireApproval: true })
     }
     const kindOf = member => member.roleKind ?? roleKindOf(member.role)
-    // 工人先建，验收成员才有事实可依；没有显式引擎时优先选不同厂商。
+    // 工人先建，验收员才有事实可依；没有显式引擎时优先选不同厂商。
     const ordered = [...roster].sort((a, b) => (kindOf(a) === 'verifier' ? 1 : 0) - (kindOf(b) === 'verifier' ? 1 : 0))
     for (const member of ordered) {
       let requestedEngine = member.engine
@@ -92,10 +92,10 @@ export const createProvisioner = ({ engine }) => {
     const extra = await mode.provisionExtra({ host: bodies, short, workspaces, leadMember, shadowReview }) ?? null
     cleanupExtra = extra?.cleanup ?? null
     const extraMembers = extra?.members ?? []
-    const chatMembers = [
-      ...created.map(({ memberRef }) => memberRef.id),
-      ...extraMembers,
-    ]
+    // 先对齐的工作室只让规划师进基座群聊：对齐回合不会被 @ 叫起别人；派活前再放回全员。
+    const chatMembers = align === true
+      ? [leadMember.memberRef.id]
+      : [...created.map(({ memberRef }) => memberRef.id), ...extraMembers]
     const chatRoom = await engine.createRoom({
       name: roomChatName(title),
       goal,

@@ -4,7 +4,7 @@ import { buildMemberHandoff } from './member-handoff.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { humanLabelOf } from '../../human-name.js'
 
-// 执行成员的阶段交接包：由代码装配，规划师只决定交给谁，不转述事实。
+// 执行官的阶段交接包：由代码装配，规划师只决定交给谁，不转述事实。
 export const studioWorkerPrompt = ({
   room,
   messages,
@@ -27,8 +27,8 @@ export const studioWorkerPrompt = ({
     buildMemberHandoff({ room, messages }),
     workspace.parallel === true
       ? workspace.isolation === 'worktree'
-        ? '你在自己的 worktree 里与其他执行成员并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
-        : '你在自己的隔离副本里与其他执行成员并行工作；只改自己的副本，系统会按文件合并到房间目录。'
+        ? '你在自己的 worktree 里与其他执行官并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'
+        : '你在自己的隔离副本里与其他执行官并行工作；只改自己的副本，系统会按文件合并到房间目录。'
       : '在当前工作文件夹完成。',
     port === undefined ? '' : `如需起本地服务，用 PORT=${port}。`,
     environment?.linked?.includes('node_modules')

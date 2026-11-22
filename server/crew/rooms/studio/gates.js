@@ -128,7 +128,7 @@ export const gateFor = (room, index, messages, evidence) => {
     if (!isCommandEvidence(phaseEvidence.at(-1))) {
       return deny('conflict', '还没有检查通过的记录，不能确认')
     }
-    // 只有显式声明了“没有验收成员”的扩展编制才允许直接由人确认；未知成员表仍按有 verifier 处理。
+    // 只有显式声明了“没有验收员”的扩展编制才允许直接由人确认；未知成员表仍按有 verifier 处理。
     const hasVerifier = verifierIds(room).length > 0
     if (room.demo === true || hasVerifier) {
       return deny('conflict', room.demo === true ? '本阶段还没有验收通过，不能验收' : '还没有验收通过，不能确认')

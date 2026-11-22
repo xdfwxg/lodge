@@ -27,7 +27,7 @@ const fakeStore = initial => {
 
 test('the soul carries the role and boundary', () => {
   assert.match(SHADOW_SOUL, /影子评审/)
-  assert.match(SHADOW_SOUL, /不写 PASS 或 REJECT/)
+  assert.match(SHADOW_SOUL, /不写 通过 或 不通过/)
   assert.match(SHADOW_SOUL, /不调用工具/)
 })
 
@@ -41,7 +41,7 @@ test('the call prompt only carries this task and its output shape', () => {
   assert.match(prompt, /npm test/)
   assert.match(prompt, /反例/)
   assert.match(prompt, /lodge-internal/)
-  assert.doesNotMatch(prompt, /影子评审|不写 PASS 或 REJECT|不调用工具/)
+  assert.doesNotMatch(prompt, /影子评审|不写 通过 或 不通过|不调用工具/)
 })
 
 test('advice parsing keeps the four fields and tolerates fences', () => {

@@ -90,7 +90,7 @@ export const createAcceptanceRunner = ({
     }
     // 本轮实际被验收的提交：有候选就是候选，否则是执行者自己 commit 的房间 HEAD。
     const acceptedRef = candidate ?? head
-    // 单执行成员用 clone 工作区，候选提交只存在于房间仓库；从房间仓库做隔离副本。
+    // 单执行官用 clone 工作区，候选提交只存在于房间仓库；从房间仓库做隔离副本。
     const copySource = typeof room.repoPath === 'string' && room.repoPath !== '' ? room.repoPath : room.sourceRepo
     let copy
     try {
