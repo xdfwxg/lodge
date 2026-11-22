@@ -218,8 +218,10 @@ export const createChatScheduler = ({
           }
           let memberId = null
           let before = null
+          let resumed = false
           if (resumeMarker !== null) {
             // 重启时这一位已经发过话：只等已有回复，不再重发。
+            resumed = true
             memberId = resumeMarker.memberId
             before = new Set(resumeMarker.beforeIds)
             resumeMarker = null
@@ -278,7 +280,11 @@ export const createChatScheduler = ({
             misses += 1
             patch(state => {
               state.chat = { ...state.chat, pending: null }
-              return { events: [] }
+              return {
+                events: resumed
+                  ? [{ type: 'chat.turn_missed', payload: { turn, memberId, found: false } }]
+                  : [],
+              }
             })
             store.appendMessage(roomId, {
               kind: 'system',
@@ -299,7 +305,11 @@ export const createChatScheduler = ({
               running: true,
               pending: null,
             }
-            return { events: [] }
+            return {
+              events: resumed
+                ? [{ type: 'chat.turn_recovered', payload: { turn, memberId, found: true } }]
+                : [],
+            }
           })
           if (!(await waitIdle(run, idleMs))) {
             store.appendMessage(roomId, { kind: 'system', text: 'Lodge 服务一直忙，这一轮先不再叫人发言。' })
@@ -447,19 +457,19 @@ export const createChatScheduler = ({
     const first = await ask(prompt)
     if (first === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }
     const parsed = parseHostIntent(first, { speakers, allowOpen })
-    if (parsed.structured === true) return finalizeHostIntent(parsed, text, room)
+    if (parsed.structured === true) return finalizeHostIntent(parsed, text)
     // 第一次没给 JSON 就再要一次，只补格式，不重新理解。
     const repaired = await ask([
       '上一次回复不是 JSON，没法执行。',
       '只回一个 JSON，不要解释：',
       allowOpen
         ? '{"action":"reply","reply":"..."} 或 {"action":"open","room":"studio" 或 "chat","reply":"..."}'
-        : '{"action":"reply","reply":"..."}',
+        : '{"action":"reply","reply":"..."} 或 {"action":"round","speakers":["成员id"],"reply":"..."}',
     ].join('\n'))
     if (repaired === null) return parsed
     const second = parseHostIntent(repaired, { speakers, allowOpen })
     if (second.structured !== true) return parsed
-    return finalizeHostIntent(second, text, room)
+    return finalizeHostIntent(second, text)
   }
 
   return { start, hostIntent, cancel, isRunning: () => runs.has(roomId) }

@@ -6,6 +6,7 @@ import { createRealRoom } from './rooms/create/create.js'
 import { created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
 import { startRound } from './rounds/start.js'
+import { reconcileCompletions } from './rounds/recovery.js'
 import { failRound, rejectRound, stopRound, supersedeRound } from './rounds/lifecycle.js'
 import { createRoomActions } from './actions/room-actions.js'
 import { createServiceQueries } from './service-queries.js'
@@ -254,6 +255,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     createRoom,
     createSampleRoom,
     roomRequest,
+    reconcileCompletion: () => reconcileCompletions({ store, completeRoom }),
     // 附件进基座自己的库：图片成为原生视觉输入，文件按路径交给能读文件的人。
     uploadAttachment: async ({ bytes, mime, name } = {}) => {
       if (attachments === null) return fail('unavailable', '附件功能还没有接上')

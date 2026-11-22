@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createAssignment, transitionAssignment } from './assignments.js'
+import { assignmentForTurn, createAssignment, transitionAssignment } from './assignments.js'
 import { dispatchFrom, tasksFrom } from './assignment-projections.js'
 import { compactRoom, pageAssignments } from './assignment-history.js'
 import { withAssignments } from './testing/room.js'
@@ -61,6 +61,27 @@ test('a sent branch carries a lease and releases it when it reports', () => {
   assert.equal(store.readAssignment(assignment.id).lease.token, 'lease-1')
   transitionAssignment(store, assignment.id, 'reported')
   assert.equal(store.readAssignment(assignment.id).lease, null)
+})
+
+test('a late turn stays with the assignment that was active when it started', () => {
+  const room = {
+    id: 'room-1',
+    members: [{ id: 'lead' }, { id: 'worker' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }],
+  }
+  const { store } = makeStore(room)
+  store.writeAssignment({
+    id: 'as-old', roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker',
+    reason: 'dispatch', status: 'reported', turnId: 't-old', sentAt: 100, finishedAt: 200,
+    createdAt: 1, context: {}, flags: {},
+  })
+  store.writeAssignment({
+    id: 'as-new', roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker',
+    reason: 'rework', status: 'sent', sentAt: 300, createdAt: 2, context: {}, flags: {},
+  })
+  assert.equal(assignmentForTurn(store, 'room-1', 0, 'worker', 't-late', 150).id, 'as-old')
+  assert.equal(assignmentForTurn(store, 'room-1', 0, 'worker', 't-first', 350).id, 'as-new')
+  assert.equal(assignmentForTurn(store, 'room-1', 0, 'worker', 't-unknown', null).id, 'as-new')
 })
 
 test('dispatch and tasks project from assignments without the room', () => {

@@ -62,7 +62,7 @@ export const hostPrompt = ({ room, round, note, turnLimit, structured = false })
   ].filter(Boolean).join('\n')
 }
 
-export const wantsStructuredSummary = note => /分点|列成|清单|表格|待办|五段|结构化/.test(String(note ?? ''))
+export const wantsStructuredSummary = note => /分点|分条|逐条|列成|列出|罗列|清单|列表|表格|待办|五段|结构化|大纲|提纲|\b(?:bullet|list|table|checklist)\b/i.test(String(note ?? ''))
 
 export const digestText = lines => lines.length === 0
   ? '讨论没有产生可总结的内容。'

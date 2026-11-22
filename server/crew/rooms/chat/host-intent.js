@@ -32,10 +32,12 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
     : [
       '判断规则：',
       grillRule,
-      '- 你只回答，不自己开轮。即使问题需要多人观点，也只写 reply；开轮由用户 @所有人 或明确说“再走一轮/大家说说”触发。',
+      '- 只有用户明确要求再讨论（如“再走一轮”“大家说说”“让大家讨论”），才输出 round，并在 speakers 里列出 1–3 个固定成员 id；其他情况一律 reply。',
+      '- 不要因为问题本身需要多人观点就开轮；拿不准就 reply。',
       '- reply 只写回答本身，不要写“再走一轮”“我请人来说”这类流程话。',
       '只输出 JSON，不要 Markdown，不要解释：',
       '{"action":"reply","reply":"直接对用户说的话"}',
+      '或 {"action":"round","speakers":["成员id"],"reply":"可选的一句"}',
     ]
   return [
     `你是 Lodge 主持，负责接住用户的话。固定成员：${roster || '无'}。`,
@@ -49,27 +51,30 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
 }
 
 
-// 用户已经把“要再讨论”说出口时，主持不该只复述一句。
-// 先去掉“先不继续讨论/不要再走一轮”这类否定短语，避免把拒绝听成请求。
-const ROUND_REQUEST = /再走一轮|再来一轮|继续讨论|再聊一轮|大家说说|让大家说|开一轮|讨论一轮/
+// 开轮与否由主持模型判断；正则只拦“整句都在拒绝”的情况。
 // 否定只覆盖到分句末尾：跨过逗号会把后半句的请求一起吃掉。
-const ROUND_NEGATION = /(?:不(?!是)|别|不要|不用|不必|无需|没必要|先不|别再|先别)[^。！？!?；;，,、\n]{0,12}(?:再走一轮|再来一轮|继续讨论|再聊一轮|大家说说|让大家说|开一轮|讨论一轮)/g
+// “不用等太久再走一轮”这类是请求，不是拒绝，所以“不用/不必/无需”只认紧贴轮次短语的写法。
+const ROUND_PHRASE = '(?:走一轮|来一轮|聊一轮|继续讨论|再讨论|开一轮|讨论一轮|大家说说|让大家说|多说一轮|讨论)'
+const DIRECT_REFUSAL = new RegExp(`(?:不用|不必|无需|没必要|不需要)(?:再|急着|忙着)?${ROUND_PHRASE}`)
+const REFUSAL = new RegExp(`(?:不(?!是|过|但|只|用|必|需|反对|否认|拒绝|介意)|(?<![特个])别|不要|先不|先别)[^。！？!?；;，,、\\n就]{0,12}${ROUND_PHRASE}`)
+const CONTRAST_AFTER = /(?:但|不过|可是|然而)/
 
-export const askedForRound = text => ROUND_REQUEST.test(String(text ?? '').replace(ROUND_NEGATION, ''))
+export const roundVetoed = text => {
+  const value = String(text ?? '')
+  const match = DIRECT_REFUSAL.exec(value) ?? REFUSAL.exec(value)
+  if (match === null) return false
+  return !CONTRAST_AFTER.test(value.slice(match.index + match[0].length))
+}
 
-// 主持只能回答；只有用户明确要求时才补一轮，模型自己选的 round 不算。
-export const finalizeHostIntent = (intent, text, room) => {
-  if (intent.action === 'open') return intent
-  if (!askedForRound(text)) {
-    return intent.action === 'round'
-      ? { ...intent, action: 'reply', speakers: [] }
-      : intent
-  }
-  if (intent.action === 'round') return intent
-  const speakers = (room.members ?? []).map(member => member.id).slice(0, 3)
-  return speakers.length === 0
-    ? intent
-    : { action: 'round', speakers, reply: intent.reply, structured: true }
+// 模型说 round 就 round；只有用户明确拒绝、且后面没有转折时改回 reply。
+// round 的 reply 是可选的；否决后没有话可说时补一句，避免把空消息写进房间。
+const VETOED_REPLY = '好，那这次先不开了。'
+
+export const finalizeHostIntent = (intent, text) => {
+  if (intent.action !== 'round') return intent
+  return roundVetoed(text)
+    ? { ...intent, action: 'reply', speakers: [], reply: intent.reply || VETOED_REPLY }
+    : intent
 }
 
 const clean = raw => String(raw ?? '')

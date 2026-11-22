@@ -1,4 +1,5 @@
 import { OPEN_ROUND_STATUSES, ROOM_STATE, ROUND_STATUS } from '../../../shared/states.js'
+import { stagesCompletedOf } from '../../../shared/room-status.js'
 
 // 启动时把房间和轮次的指针修回一致；不改写已终态轮次的内容。
 export const reconcileRounds = ({ store, emit = () => {} }) => {
@@ -50,4 +51,18 @@ export const reconcileRounds = ({ store, emit = () => {} }) => {
     }
   }
   return changed
+}
+
+// 已经走完所有阶段、只剩收尾交接的轮次，在启动时补一次交付；
+// 这修的是旧版本里被 summary 交接卡住、但结果其实已经好了的房间。
+export const reconcileCompletions = ({ store, completeRoom }) => {
+  let completed = 0
+  for (const room of store.readRooms()) {
+    if (room.state !== ROOM_STATE.active) continue
+    if (room.workRound?.status !== ROUND_STATUS.active) continue
+    if (!stagesCompletedOf(room)) continue
+    const done = completeRoom(room)
+    if (done?.workRound?.status === ROUND_STATUS.completed) completed += 1
+  }
+  return completed
 }

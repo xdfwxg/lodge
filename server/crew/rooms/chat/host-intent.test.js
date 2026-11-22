@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { askedForRound, finalizeHostIntent, hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { finalizeHostIntent, hostIntentPrompt, parseHostIntent, roundVetoed } from './host-intent.js'
 import { setCurrentHumanName } from '../../human-name.js'
 
 test('a host reply stays a reply', () => {
@@ -76,14 +76,7 @@ test('the host prompt tells the model the user name instead of only using it as 
   setCurrentHumanName('')
 })
 
-test('an explicit request for another round is recognised', () => {
-  assert.equal(askedForRound('再走一轮：这轮把周六晚的取舍定下来。'), true)
-  assert.equal(askedForRound('大家说说看'), true)
-  assert.equal(askedForRound('你怎么看？'), false)
-  assert.equal(askedForRound(''), false)
-})
-
-test('a negated round request is not a request', () => {
+test('only an explicit refusal vetoes the host round', () => {
   for (const text of [
     '先不继续讨论了',
     '不要再走一轮',
@@ -91,34 +84,59 @@ test('a negated round request is not a request', () => {
     '没必要开一轮',
     '先别讨论一轮',
     '我不觉得需要继续讨论',
+    '不要多说一轮',
+    '别再讨论了',
   ]) {
-    assert.equal(askedForRound(text), false, text)
+    assert.equal(roundVetoed(text), true, text)
   }
-  assert.equal(askedForRound('先不继续讨论了，但大家说说'), true)
+  for (const text of [
+    '先不继续讨论了，但大家说说',
+    '我不反对大家说说',
+    '不用等太久就直接再走一轮',
+    '不过大家说说',
+    '特别大家说说',
+    '你怎么看？',
+    '',
+  ]) {
+    assert.equal(roundVetoed(text), false, text)
+  }
 })
 
-test('the host cannot open a round unless the user asked for one', () => {
-  const room = { members: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }] }
-  const reply = { action: 'reply', reply: '再来一轮，就一个点。', speakers: [], structured: true }
+test('the host model decides a round; only an explicit refusal downgrades it', () => {
   const modelRound = { action: 'round', reply: '我请人来说。', speakers: ['a', 'b'], structured: true }
-  assert.deepEqual(finalizeHostIntent(reply, '再来一轮，就一个点：今晚定不定。', room), {
-    action: 'round',
-    reply: '再来一轮，就一个点。',
-    speakers: ['a', 'b', 'c'],
+  const modelReply = { action: 'reply', reply: '我先说说。', speakers: [], structured: true }
+  assert.equal(finalizeHostIntent(modelRound, '咱们继续把这事聊透').action, 'round')
+  assert.equal(finalizeHostIntent(modelRound, '你怎么看？').action, 'round')
+  assert.equal(finalizeHostIntent(modelRound, '不要再走一轮').action, 'reply')
+  assert.equal(finalizeHostIntent(modelReply, '再来一轮').action, 'reply')
+})
+
+test('a vetoed round without a reply still says something', () => {
+  const empty = finalizeHostIntent(
+    { action: 'round', reply: '', speakers: ['a'], structured: true },
+    '不要再走一轮',
+  )
+  assert.deepEqual(empty, {
+    action: 'reply',
+    reply: '好，那这次先不开了。',
+    speakers: [],
     structured: true,
   })
-  assert.equal(finalizeHostIntent(reply, '你怎么看？', room).action, 'reply')
-  assert.equal(finalizeHostIntent(modelRound, '你怎么看？', room).action, 'reply')
-  assert.equal(finalizeHostIntent(modelRound, '再来一轮', room).action, 'round')
+  const kept = finalizeHostIntent(
+    { action: 'round', reply: '那就不开。', speakers: ['a'], structured: true },
+    '不要再走一轮',
+  )
+  assert.equal(kept.reply, '那就不开。')
 })
 
-test('the host prompt asks only for a reply', () => {
+test('the host prompt lets the model choose a round only on an explicit request', () => {
   const prompt = hostIntentPrompt({
     room: { members: [{ id: 'a', name: '甲' }] },
     text: '大家说说',
     turnLimit: 6,
   })
-  assert.doesNotMatch(prompt, /"action":"round"/)
-  assert.match(prompt, /不自己开轮/)
+  assert.match(prompt, /"action":"round"/)
+  assert.match(prompt, /明确要求再讨论/)
+  assert.match(prompt, /拿不准就 reply/)
   assert.match(prompt, /"action":"reply"/)
 })

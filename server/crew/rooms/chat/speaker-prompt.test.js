@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { speakerPrompt } from './prompts.js'
+import { speakerPrompt, wantsStructuredSummary } from './prompts.js'
 
 const room = {
   goal: '朏朏住哪',
@@ -28,6 +28,14 @@ test('the first turn does not invent a brief or a previous speaker', () => {
   assert.doesNotMatch(prompt, /上一轮结论/)
   assert.doesNotMatch(prompt, /上一位/)
   assert.match(prompt, /第 1 轮，第 1\/6 次发言/)
+})
+
+test('an ordinary request for a list keeps the structured summary', () => {
+  for (const note of ['分条说', '逐条列一下', '列成清单', '用表格', '给我一个清单', 'bullet points']) {
+    assert.equal(wantsStructuredSummary(note), true, note)
+  }
+  assert.equal(wantsStructuredSummary('简单说说'), false)
+  assert.equal(wantsStructuredSummary(''), false)
 })
 
 test('a very long previous turn is clipped', () => {

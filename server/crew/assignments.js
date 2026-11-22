@@ -94,14 +94,25 @@ export const activeDispatchAssignments = (store, roomId, stageIndex) => (
   assignmentsForStage(store, roomId, stageIndex).filter(isWorkAssignment)
 )
 
-export const assignmentForTurn = (store, roomId, stageIndex, memberId, turnId) => {
+export const assignmentForTurn = (store, roomId, stageIndex, memberId, turnId, startedAt = null) => {
   const list = activeDispatchAssignments(store, roomId, stageIndex)
     .filter(item => item.toMemberId === memberId)
     .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
-  return list.find(item => turnId !== undefined && item.turnId === turnId)
-    ?? list.find(item => [ASSIGNMENT_STATUS.sent, ASSIGNMENT_STATUS.working, ASSIGNMENT_STATUS.reported].includes(item.status))
-    ?? list[0]
-    ?? null
+  const matched = list.find(item => turnId !== undefined && item.turnId === turnId)
+  if (matched !== undefined) return matched
+  // 迟到回合按“开始时哪次交接在场”归因；拿不到开始时间才退回唯一一条未收口交接。
+  if (Number.isFinite(startedAt)) {
+    const active = list
+      .filter(item => Number.isFinite(item.sentAt) && item.sentAt <= startedAt)
+      .filter(item => !Number.isFinite(item.finishedAt) || startedAt <= item.finishedAt)
+      .sort((a, b) => (b.sentAt ?? 0) - (a.sentAt ?? 0))
+    if (active.length > 0) return active[0]
+  }
+  const open = list.filter(item => (
+    [ASSIGNMENT_STATUS.sent, ASSIGNMENT_STATUS.working].includes(item.status) &&
+    (item.turnId === undefined || item.turnId === null)
+  ))
+  return open.length === 1 ? open[0] : null
 }
 
 export const latestDispatchAssignment = (store, roomId, stageIndex, memberId = null) => (

@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { persistenceKind } from '../../service-policy.js'
-import { ROUND_STATUS } from '../../../../shared/states.js'
+import { transitionAssignment } from '../../assignments.js'
+import { ASSIGNMENT_STATUS, ROUND_STATUS } from '../../../../shared/states.js'
 
 export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
   const { readMessages, readAssignments, appendMessage, appendEvent } = store
@@ -8,19 +9,29 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
   const completeRoom = room => {
     const round = room.workRound ?? null
     if (round?.status === ROUND_STATUS.completed) return room
-    appendMessage(room.id, {
-      kind: 'conclusion',
-      authorId: 'planner',
-      text: `已交付：${room.goal}`,
-      meta: {
+    // 收口可能被重试（启动补账、同一阶段再次确认）；同一轮的结论只写一次。
+    const startedAt = Number.isFinite(round?.stages?.[0]?.activatedAt) ? round.stages[0].activatedAt : null
+    const alreadyConcluded = readMessages(room.id).some(message => (
+      message.kind === 'conclusion' &&
+      (message.meta?.roundId === round?.id ||
+        (startedAt !== null && typeof message.ts === 'number' && message.ts >= startedAt))
+    ))
+    if (!alreadyConcluded) {
+      appendMessage(room.id, {
+        kind: 'conclusion',
+        authorId: 'planner',
+        text: `已交付：${room.goal}`,
+        meta: {
+          stages: room.stages.length,
+          commands: room.stages.map(item => item.acceptance).filter(Boolean),
+          ...(round?.id === undefined ? {} : { roundId: round.id }),
+        },
+      })
+      appendEvent(room.id, 'room.conclusion', {
         stages: room.stages.length,
         commands: room.stages.map(item => item.acceptance).filter(Boolean),
-      },
-    })
-    appendEvent(room.id, 'room.conclusion', {
-      stages: room.stages.length,
-      commands: room.stages.map(item => item.acceptance).filter(Boolean),
-    })
+      })
+    }
     if (room.demo === true) {
       appendMessage(room.id, { kind: 'system', text: '示例房间 · 不写结论文件，也不生成版本记录' })
       return room
@@ -32,7 +43,11 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
     }
     const open = readAssignments(room.id, { limit: 500 })
       .filter(assignment => !['passed', 'rejected', 'failed', 'cancelled'].includes(assignment.status))
-    if (open.length > 0) {
+    // 收尾交接只是请规划师说两句，不是交付的一部分；验收通过后它不该把整轮卡住。
+    for (const summary of open.filter(assignment => assignment.reason === 'summary')) {
+      transitionAssignment(store, summary.id, ASSIGNMENT_STATUS.passed)
+    }
+    if (open.some(assignment => assignment.reason !== 'summary')) {
       appendMessage(room.id, { kind: 'system', text: '还有交接没有收口，这一轮先不能结束。' })
       return room
     }

@@ -204,6 +204,14 @@ service = createCrewService({
   attachments: baseForAttachments,
 })
 
+// 旧版本里被收尾交接卡住、但所有阶段其实都已通过的房间，启动时补一次交付。
+try {
+  const completed = service.reconcileCompletion()
+  if (completed > 0) console.log(`[lodge] 收到结果后补交付：${completed} 轮`)
+} catch (error) {
+  console.warn(`[lodge] 启动补交付失败：${error?.message ?? error}`)
+}
+
 // 持久 timer 到点后进房间 inbox，再由单 worker 处理；审批超时也从这里恢复。
 const scheduler = createRoomScheduler({ store, live })
 scheduler.start()

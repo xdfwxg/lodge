@@ -44,13 +44,16 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false, 
   })
   const messages = []
   const history = []
+  const events = []
   const store = {
     readRoom: () => current,
     readMessages: () => messages,
     updateRoom: (id, mutate) => {
       const next = structuredClone(current)
-      if (mutate(next) === null) return null
+      const result = mutate(next)
+      if (result === null) return null
       current = next
+      if (Array.isArray(result?.events)) events.push(...result.events)
       return current
     },
     appendMessage: (id, message) => {
@@ -88,7 +91,7 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false, 
     const name = member === 'host' ? current.chatHost.name : current.seatNames[member]
     return engine.sendTurn({ roomId: current.chatRoom.id, text: `@${name} ${text}` })
   }
-  return { store, engine, sendToMember, room: () => current, messages, history }
+  return { store, engine, sendToMember, room: () => current, messages, history, events }
 }
 
 const transportFor = ctx => createChatTransport({ engine: ctx.engine, store: ctx.store, roomId: 'room-chat' })
@@ -133,6 +136,12 @@ test('a resumed chat round counts a reply that arrived before the crash', async 
   assert.equal(ctx.room().chat.pending, null)
   assert.equal(ctx.history.some(message => message.role === 'user' && /第 1\/6 次发言/.test(message.text)), false)
   assert.equal(ctx.history.filter(message => message.role === 'user' && /聊天室话题/.test(message.text)).length, 5)
+  assert.ok(ctx.events.some(event => (
+    event.type === 'chat.turn_recovered' &&
+    event.payload.turn === 1 &&
+    event.payload.memberId === 'a' &&
+    event.payload.found === true
+  )))
 })
 
 test('a pending chat turn with no reply is skipped, not sent twice', async () => {
@@ -156,6 +165,49 @@ test('a pending chat turn with no reply is skipped, not sent twice', async () =>
   assert.equal(ctx.history.some(message => message.role === 'user' && /第 1\/6 次发言/.test(message.text)), false)
   assert.equal(ctx.messages.some(message => /没有在限定时间内回应/.test(message.text ?? '')), true)
   assert.equal(ctx.history.filter(message => message.role === 'user' && /聊天室话题/.test(message.text)).length, 5)
+  assert.ok(ctx.events.some(event => (
+    event.type === 'chat.turn_missed' &&
+    event.payload.turn === 1 &&
+    event.payload.memberId === 'a' &&
+    event.payload.found === false
+  )))
+})
+
+test('a malformed host answer can still recover a round', async () => {
+  const ctx = setup()
+  const replies = [
+    '我先想想。',
+    '{"action":"round","speakers":["a"],"reply":"那就聊一轮。"}',
+  ]
+  const prompts = []
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: async (member, text) => {
+      prompts.push(text)
+      const id = `u${ctx.history.length + 1}`
+      ctx.history.push({ id, role: 'user', kind: 'text', text, authorRef: null, at: Date.now() })
+      const reply = replies.shift()
+      if (reply !== undefined) {
+        ctx.history.push({
+          id: `a${ctx.history.length + 1}`,
+          role: 'agent',
+          kind: 'text',
+          text: reply,
+          authorRef: 'H',
+          at: Date.now(),
+        })
+      }
+      return { messageId: id }
+    },
+    roomId: 'room-chat',
+    waitMs: 100,
+    pollMs: 1,
+  })
+  const intent = await scheduler.hostIntent(ctx.room(), '大家说说')
+  assert.equal(intent.action, 'round')
+  assert.deepEqual(intent.speakers, ['a'])
+  assert.match(prompts[1], /"action":"round"/)
 })
 
 test('a chat round runs six speakers, then the host summarizes', async () => {

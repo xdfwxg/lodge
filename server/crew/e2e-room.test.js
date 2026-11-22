@@ -156,7 +156,15 @@ test('deterministic room scenario completes the round and accepts it', async () 
     assert.equal(evidence[0].id, firstEvidence.id)
     assert.equal(evidence[1].id, secondEvidence.id)
 
+    // 验收通过后系统会给规划师留一条“收尾”交接；它只是请人说两句，不能把交付卡住。
+    const lead = store.readRoom(room.id).members.find(member => member.role === 'lead' || member.roleKind === 'planner')
+    store.writeAssignment({
+      id: 'as-summary', roomId: room.id, stageIndex: 1, fromMemberId: 'verifier', toMemberId: lead.id,
+      reason: 'summary', status: 'sent', createdAt: Date.now(), sentAt: Date.now(), context: {}, flags: {},
+    })
+
     const first = stages.accept(store.readRoom(room.id), { stage: 1 })
+    assert.equal(store.readAssignment('as-summary').status, 'passed')
     assert.equal(first.ok, true)
     // 最后一个工作阶段通过就收尾：这一轮完成，工作室回到空闲；交付卡跟着这一轮。
     assert.equal(store.readRoom(room.id).stages[1].state, 'passed')

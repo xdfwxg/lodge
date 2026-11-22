@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { mock } from 'node:test'
 import { createAcceptanceRunner } from './rooms/studio/acceptance-runner.js'
 import { createHandoff } from './rooms/studio/handoff.js'
 import { createStageIntegrator } from './rooms/studio/integration.js'
@@ -1740,6 +1740,84 @@ test('shadow review says once when the reviewer could not answer', async () => {
   await review.shadowSettled()
   assert.ok(store.messages.some(message => message.meta?.advisorFailed === true))
   assert.equal(store.readRoom().advisorShadow, undefined)
+})
+
+test('a worker turn cancels the member clock before its 8-minute expiry', () => {
+  mock.timers.enable({ apis: ['Date'], now: 0 })
+  try {
+    const room = makeRoom({})
+    const store = fakeStore(room)
+    const enqueued = []
+    const cancelled = []
+    store.enqueueWork = item => {
+      enqueued.push(item)
+      return item
+    }
+    store.cancelWork = id => cancelled.push(id)
+    store.writeAssignment({
+      id: 'as-live', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+      brief: {}, status: 'sent', context: {}, flags: {},
+    })
+    const turns = createLiveTurns({
+      store,
+      roomId: 'room-1',
+      emit: () => {},
+      sendToMember: async () => ({ messageId: null }),
+      commands: { run: async () => ({}) },
+      files: { exists: () => false, read: () => Buffer.from('') },
+    })
+    // 模拟交接时落下的 8 分钟租约；7 分钟时成员交回证据，租约还没到期。
+    store.enqueueWork({ id: 'assignment-lease:room-1:as-live', roomId: 'room-1', kind: 'assignment.lease', availableAt: 8 * 60_000 })
+    enqueued.length = 0
+    mock.timers.tick(7 * 60_000)
+    turns.captureTurn({ turnId: 't-live', reply: '实现完成，测试通过。', toolCalls: 0 }, 'bot-exec')
+    assert.equal(enqueued.filter(item => item.kind === 'assignment.lease').length, 0)
+    assert.ok(cancelled.includes('assignment-lease:room-1:as-live'))
+  } finally {
+    mock.timers.reset()
+  }
+})
+
+test('a worker turn without an assignment leaves an unattributed diagnostic', () => {
+  const room = makeRoom({})
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ turnId: 't-stray', reply: '随手说一句', toolCalls: 0 }, 'bot-exec')
+  assert.ok(store.events.some(event => (
+    event.type === 'turn.unattributed' &&
+    event.payload.turnId === 't-stray' &&
+    event.payload.memberId === 'executor'
+  )))
+})
+
+test('a turn that lands on a closed assignment leaves a late-terminal diagnostic', () => {
+  const room = makeRoom({})
+  const store = fakeStore(room)
+  store.writeAssignment({
+    id: 'as-done', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: {}, status: 'passed', turnId: 't-old', context: {}, flags: {},
+  })
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ turnId: 't-old', reply: '旧回合结果', toolCalls: 0 }, 'bot-exec')
+  assert.ok(store.events.some(event => (
+    event.type === 'turn.late_terminal' &&
+    event.payload.turnId === 't-old' &&
+    event.payload.assignmentId === 'as-done'
+  )))
 })
 
 test('restart wakes an assignment that never reported', async () => {

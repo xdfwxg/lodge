@@ -73,7 +73,7 @@ service.js                   ← 路由分发与用例组合
 - `work_item` 是唯一的持久队列和唯一的时钟：定时、审批、阶段截止、重试和恢复都走它，带 `attempts/max_attempts/available_at/lease_until/dedupe_key/last_error`。`enqueueWork` 是唯一入口，同一个 id 再投一次表示重设到点时间；轮次结束时同事务作废属于该轮的待办，领取过期后按退避重试，耗尽即死信并通知人。
 - 调度器不认识房型：到期项交给 `live.handleWork`，房型按 `kind` 处理自己的活（`approval`、`stage.deadline`、`chat.round`）。新增一种长期动作只需注册一个处理器，不改调度器和存储。阶段超时同时有内存计时器保证准时和持久截止项保证重启后仍会到点；房型换轮或阶段已结束，迟到项是安全的空操作。
 - 聊天室也有持久时钟：一轮讨论进行时占一条 `chat.round` 工作项，`chat.turns` 落了已发言次数；进程重启后从下一次发言续跑，不把整轮从第一句重来。发送前先落 `chat.pending`（第几回合、谁、之前的消息 id）；重启时用它在基座历史里找已经到达的回复，找到就补账，找不到只记一次未回应，不重发。
-- 交接租约也走同一条队列：assignment 进入 `sent` 时落 `assignment.lease`（8 分钟），每次捕获回合续租，`reported` 或失败时取消。一个成员到期只停这一位；还有别人在跑就继续等，最后一位停下才收口。阶段截止（15 分钟）保留为整步兜底。
+- 交接租约也走同一条队列：assignment 进入 `sent` 时落 `assignment.lease`（8 分钟）；成员交回第一个非空回合后就取消这条计时，后面的长回合交给阶段截止兜底。一个成员一直没有任何产出才在租约到期时只停这一位；还有别人在跑就继续等，最后一位停下才收口。阶段截止（15 分钟）保留为整步兜底。
 - 存储拆成 `store/` 仓库：`work.js`、`rounds.js`、`timeline.js`、`assignments.js`、`projects.js`；`store.js` 只做打开、组合和房间视图。房间写入和轮次写入是两条显式路径：`updateRoom` 只写房间自己的字段，`updateRound` 才读写当前轮次；终态轮拒绝写入。HTTP 动作按动作族放在 `actions/room/{lodge,run,admin,round}.js`，`room-actions.js` 只做分派，`service.js` 只做组合根。
 - `SCHEMA_VERSION=4`；旧库版本不匹配直接拒绝，运行 `npm run data:reset` 重建。旧数据不迁移，不留兼容字段。
 - 房间目录 `transcript.jsonl` 先追加并 fsync，再写 SQLite；轮次级目标、结论和证据文件可重建。
@@ -115,7 +115,7 @@ service.js                   ← 路由分发与用例组合
 - 状态读模型：`roomStatusOf` 只返回 `idle/active/paused/stopped/archived`；`roundStatusOf` 管轮次；`idleDelivered` 表示当前是否已交付；`stagesCompletedOf` 表示所有阶段是否已经走过；`stageStatusOf` 把阶段状态和阻塞、待回答、待拍板收成一个词；`chatStatusOf` / `chatStartedOf` 把聊天阶段、运行标志和首条发言收成一个词。界面和记忆写入都只读这些函数，不自己拼状态。
 - 状态目录：`shared/states.js` 是唯一清单，收拢房间、轮次、阶段、交接、聊天、work item、审批、复盘记忆、注意力和交接消息等状态与转移表；服务端和共享层的状态读写都从这里取常量，`shared/states.test.js` 还会扫源码，防止裸状态字符串回潮。
 - 事件覆盖：轮次开始/终态、阶段派发/通过/重做/退回、交接的每次状态变化、聊天的每次阶段变化都写 `room_event`；`round.started` 带阶段快照。事件只做审计和重放，不回写业务状态。
-- 只读重放：`npm run replay:round -- --room <id> [--round <id>]` 从事件重建阶段和交接状态，和当前数据库对比；只报告差异，不改状态。实现见 `server/crew/rounds/replay.js`。聊天室用 `npm run replay:chat -- --room <id> [--round <n>]` 把 `chat.round_started / speaker / summary_started / conclusion / continued` 和消息串起来，回答这一轮谁说了什么、结论从哪来；实现见 `server/crew/rounds/replay-chat.js`。
+- 只读重放：`npm run replay:round -- --room <id> [--round <id>]` 从事件重建阶段和交接状态，和当前数据库对比；只报告差异，不改状态。实现见 `server/crew/rounds/replay.js`。聊天室用 `npm run replay:chat -- --room <id> [--round <n>]` 把 `chat.round_started / speaker / summary_started / conclusion / continued` 和消息串起来，回答这一轮谁说了什么、结论从哪来；重启补账事件只进事件流，不参与重放；实现见 `server/crew/rounds/replay-chat.js`。
 
 ## Assignment
 
@@ -134,7 +134,7 @@ service.js                   ← 路由分发与用例组合
 ## 状态与事件
 
 - **真相是状态表，不是事件流。** 房间、轮次、阶段、交接、聊天阶段、work item、审批都是显式状态；`room_event` 是追加日志，用于审计、幂等和重放，不用来重建全部状态。这不是完整的事件溯源。
-- **事件覆盖**：房间创建、暂停/恢复/归档/成员错误，轮次开始与终态，阶段派发/通过/重做/退回，交接的每次状态变化（含复核、收尾、例外决定），交给人，复核请求/判定/超时，验收命令，自动重做停止，聊天阶段变化和总结。
+- **事件覆盖**：房间创建、暂停/恢复/归档/成员错误，轮次开始与终态，阶段派发/通过/重做/退回，交接的每次状态变化（含复核、收尾、例外决定），交给人，复核请求/判定/超时，验收命令，自动重做停止，聊天阶段变化、总结和重启补账（`chat.turn_recovered` / `chat.turn_missed`）。
 - **没有做的事**：没有 command/projection 两套写路径，没有事件版本与 upcaster，没有事件级快照；事件保留上限 5000 条，旧事件会被裁剪；交接事件在状态提交之后写，写失败只警告、不回滚业务状态。
 - **重放范围**：`npm run replay:round` 只重建工作室一轮的阶段状态和交接状态，不重建消息正文、verdict 内容或证据文件；`npm run replay:chat` 只把聊天轮次事件和已落库的消息对成时间窗，回答谁说了什么、结论从哪来，不判断结论对不对，也不重跑模型。`round.started` 带阶段快照；没有快照的旧轮次只能重放交接并给出 warning。两种重放都只读，不改写状态；缺失的结论或发言只报 warning，不补造。
 - **项目状态**：project 只是轮次分组和北极星，没有独立生命周期；它不参与门禁、不执行、不验收。页面上说的“进行中/已交付”是最近一轮的轮次状态，不是 project 状态。project 记录里没有 status 字段。
@@ -168,9 +168,9 @@ service.js                   ← 路由分发与用例组合
 ## 聊天室
 
 - 共享房间 + 隐藏主持；成员没有独立 worktree，也没有阶段、证据和验收裁决。聊天室只读文件和只读公网，不执行交付。只读浏览器由 `grantBrowserToAll` 在建房时挂到 `body.spec.mcp`；成员卡只把它标成不可编辑的“只读浏览器（系统）”，不混进可编辑的 MCP 列表。
-- 输入只认结构化 `mentions`：不带 `@` 交给主持回答，主持不自行开轮；点名具体成员时直接交给那个人，并在用户消息上标 `direct`；轮次运行中直接点名会被拒绝，等这一轮结束或先叫停。`@所有人` 是开一轮受配额限制的讨论，正在讨论时明确说等这一轮结束。明确说“再走一轮/大家说说”也会开一轮。手打 `@名字` 不算点名。
+- 输入只认结构化 `mentions`：不带 `@` 交给主持；主持自己判断回答还是开轮，只有用户明确要求再讨论时才开，明确拒绝会被 `roundVetoed` 否决。点名具体成员时直接交给那个人，并在用户消息上标 `direct`；轮次运行中直接点名会被拒绝，等这一轮结束或先叫停。`@所有人` 是开一轮受配额限制的讨论，正在讨论时明确说等这一轮结束。手打 `@名字` 不算点名。
 - 聊天室只有两种模式：`open` 和 `round`，由 `chat.phase` 派生 `chatModeOf`，不另存一份 mode。轮次运行中的直接点名被拒绝，轮次结束自然回到开放。
-- 发言顺序由 `rooms/chat/scheduler.js` 逐位选择：先给本轮没说过的人，之后按 `proposer → critic → synthesizer` 互补，最后才随机；`chatTurnLimitOf` 默认 6、最多 20，按成员数均分。主持默认写 2–4 句自然总结：正文进 `consensus`，明确的“下一步”行进 `todos`，可直接作为工作室交接；用户明确要清单/分点/待办时才用五段结构。
+- 发言顺序由 `rooms/chat/scheduler.js` 逐位选择：先给本轮没说过的人，之后按 `proposer → critic → synthesizer` 互补，最后才随机；`chatTurnLimitOf` 默认 6、最多 20，按成员数均分。主持默认写 2–4 句自然总结：正文进 `consensus`，明确的“下一步”行进 `todos`，可直接作为工作室交接；用户明确要分点/分条/清单/列表/待办/表格时才用五段结构。
 - 聊天室开轮前检查房间预算；用量到顶时拒绝继续并提示等决定，不在长聊里无声烧钱。用户消息的认领在 `rooms/chat/service.js` 的 `handleMessage`：叫所有人、点名、交给主持和等待文案都归聊天室；`actions/room/round.js` 只按房型 id 分派，不认识聊天策略。
 - 发言提示和总结提示在 `rooms/chat/prompts.js`，调度器只编排和落状态；初始 `chat` 状态由 `room-types/chat.js` 的 `initialChatState` 一处生成，Lodge 复用。界面读 `chatStatusOf` / `chatStartedOf`，不直接拼 `room.chat`。
 - 成员之间不靠 `@` 接力；两种房间建房都写 `followMentions: false`。隐藏的让位/举手信号已经删除，成员回复里的 `@` 不唤醒人。
@@ -185,7 +185,7 @@ service.js                   ← 路由分发与用例组合
 
 | 场景 | 处理 |
 | --- | --- |
-| 聊天室：不带 `@` | 交给主持回答；主持不自行开轮，明确说“再走一轮/大家说说”才开 |
+| 聊天室：不带 `@` | 交给主持；主持判断回答还是开轮，只有用户明确要求再讨论才开，明确拒绝会被否决 |
 | 聊天室：点名成员 | 直接交给被点名的人，不占当前轮次；用户消息标 `direct` |
 | 聊天室：`@所有人` | 开一轮受配额限制的讨论；正在讨论时明确说等这一轮结束 |
 | 聊天室：成员回复 `@` | 不唤醒下一棒；顺序由房间调度 |

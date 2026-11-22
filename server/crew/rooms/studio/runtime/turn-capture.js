@@ -3,7 +3,7 @@ import { addTurnUsage } from '../../../../../shared/usage.js'
 import { memberDisplayName } from '../../../member-labels.js'
 import { createTurnDiagnostics } from './diagnostics.js'
 import { verdictPassed } from '../../../../../shared/judgment.js'
-import { STAGE_STATE } from '../../../../../shared/states.js'
+import { ASSIGNMENT_TERMINAL, STAGE_STATE } from '../../../../../shared/states.js'
 import { rewindRequestOf } from '../../../../../shared/gate.js'
 import {
   activeDispatchAssignments as activeDispatch,
@@ -16,7 +16,7 @@ import { leadMemberOf, memberOf } from '../../../room-members.js'
 import { deliverableStageIndex, isWorkStage, memberForRef } from '../turn-utils.js'
 import { vcsOf, workspaceOf } from '../workspace.js'
 import { systemNotice } from '../../../notices.js'
-import { armAssignmentLease, cancelAssignmentLease } from '../assignment-lease.js'
+import { cancelAssignmentLease } from '../assignment-lease.js'
 import { redactSecrets } from '../../../../../shared/secrets.js'
 
 export const createTurnCapture = ({
@@ -67,18 +67,29 @@ export const createTurnCapture = ({
     }
     const stageIndex = room === null ? 0 : deliverableStageIndex(room)
     const dispatch = room === null ? null : dispatchOf(store, roomId, stageIndex)
+    // 旧尝试的回合可能在新一次派发之后才回来；开始时间早于当前交接就丢弃，别污染新结果。
+    const startedAt = Number.isFinite(turn?.at) && Number.isFinite(turn?.durationMs)
+      ? turn.at - turn.durationMs
+      : null
     const assignment = memberId === null || room === null
       ? null
-      : assignmentForTurn(store, roomId, stageIndex, memberId, turnId)
-    // 每个完成的回合都算一次进展：续租，不让一个还在做活的成员被误停。
-    if (assignment !== null && ['sent', 'working'].includes(assignment.status)) {
-      armAssignmentLease({
-        store,
-        roomId,
+      : assignmentForTurn(store, roomId, stageIndex, memberId, turnId, startedAt)
+    // 归因失败和迟到回合都只留诊断，不改变实际归属。
+    if (role === 'worker' && assignment === null) {
+      store.appendEvent(roomId, 'turn.unattributed', {
+        turnId,
+        memberId,
+        stage: stageIndex,
+        startedAt,
+      })
+    }
+    if (assignment !== null && ASSIGNMENT_TERMINAL.has(assignment.status)) {
+      store.appendEvent(roomId, 'turn.late_terminal', {
+        turnId,
+        memberId,
+        stage: stageIndex,
         assignmentId: assignment.id,
-        stage: assignment.stageIndex,
-        memberId: assignment.toMemberId,
-        roundId: room?.workRound?.id ?? null,
+        status: assignment.status,
       })
     }
     const parallel = (dispatch?.workers?.length ?? 0) > 1
@@ -89,10 +100,6 @@ export const createTurnCapture = ({
       assignment !== null &&
       ['created', 'sent', 'working'].includes(assignment.status) &&
       assignment.context?.parallel === true
-    // 旧尝试的回合可能在新一次派发之后才回来；开始时间早于当前交接就丢弃，别污染新结果。
-    const startedAt = Number.isFinite(turn?.at) && Number.isFinite(turn?.durationMs)
-      ? turn.at - turn.durationMs
-      : null
     const stageActivatedAt = Number.isFinite(room?.stages?.[stageIndex]?.activatedAt)
       ? room.stages[stageIndex].activatedAt
       : null
@@ -223,6 +230,11 @@ export const createTurnCapture = ({
       state.capturedTurns.add(turnId)
       writeTurn('duplicate')
       return
+    }
+
+    // 成员交回第一个新的证据回合就算有进展：停掉成员自己的计时，后面的长回合交给阶段截止兜底。
+    if (assignment !== null && ['sent', 'working'].includes(assignment.status)) {
+      cancelAssignmentLease({ store, roomId, assignmentId: assignment.id })
     }
 
     const artifacts = []
