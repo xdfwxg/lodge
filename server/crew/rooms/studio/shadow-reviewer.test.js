@@ -51,6 +51,24 @@ test('advice parsing keeps the four fields and tolerates fences', () => {
   )
   assert.deepEqual(parseShadowAdvice('没有漏。'), { source: 'shadow', summary: '没有漏。' })
   assert.equal(parseShadowAdvice(''), null)
+  // 模型把结构化意见再包进 summary 时，拆开而不是把整段 JSON 显示成一句话。
+  assert.deepEqual(
+    parseShadowAdvice(JSON.stringify({
+      summary: JSON.stringify({
+        summary: '内容达标，口径没锁死',
+        reasons: ['字数口径没写清'],
+        risks: ['换个人复核会翻案'],
+        missingEvidence: ['缺原文字节'],
+      }),
+    })),
+    {
+      source: 'shadow',
+      summary: '内容达标，口径没锁死',
+      reasons: ['字数口径没写清'],
+      risks: ['换个人复核会翻案'],
+      missingEvidence: ['缺原文字节'],
+    },
+  )
 })
 
 test('the reviewer asks the hidden bot once and hides the prompt', async () => {

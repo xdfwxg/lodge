@@ -50,6 +50,20 @@ export const shadowPrompt = ({ room, stage, evidence, manual = false }) => {
 
 const strings = value => (Array.isArray(value) ? value.filter(item => typeof item === 'string').map(item => item.slice(0, 200)).slice(0, 3) : [])
 
+const adviceOfBody = body => {
+  const summary = typeof body?.summary === 'string' ? body.summary.slice(0, 1000) : ''
+  const advice = {
+    source: 'shadow',
+    ...(summary === '' ? {} : { summary }),
+    ...(strings(body?.reasons).length === 0 ? {} : { reasons: strings(body.reasons) }),
+    ...(strings(body?.risks).length === 0 ? {} : { risks: strings(body.risks) }),
+    ...(strings(body?.missingEvidence).length === 0 ? {} : { missingEvidence: strings(body.missingEvidence) }),
+  }
+  return advice.summary === undefined && advice.reasons === undefined && advice.risks === undefined && advice.missingEvidence === undefined
+    ? null
+    : advice
+}
+
 export const parseShadowAdvice = raw => {
   const text = String(raw ?? '').trim()
   if (text === '') return null
@@ -57,18 +71,13 @@ export const parseShadowAdvice = raw => {
   const end = text.lastIndexOf('}')
   if (start >= 0 && end > start) {
     try {
-      const body = JSON.parse(text.slice(start, end + 1))
-      const summary = typeof body?.summary === 'string' ? body.summary.slice(0, 1000) : ''
-      const advice = {
-        source: 'shadow',
-        ...(summary === '' ? {} : { summary }),
-        ...(strings(body?.reasons).length === 0 ? {} : { reasons: strings(body.reasons) }),
-        ...(strings(body?.risks).length === 0 ? {} : { risks: strings(body.risks) }),
-        ...(strings(body?.missingEvidence).length === 0 ? {} : { missingEvidence: strings(body.missingEvidence) }),
+      const advice = adviceOfBody(JSON.parse(text.slice(start, end + 1)))
+      // 有些模型会把整份 JSON 再塞进 summary 字段；拆开，别把 JSON 当一句话贴到群里。
+      if (advice?.summary !== undefined && advice.summary.trim().startsWith('{')) {
+        const nested = parseShadowAdvice(advice.summary)
+        if (nested !== null && nested.summary !== advice.summary) return nested
       }
-      return advice.summary === undefined && advice.reasons === undefined && advice.risks === undefined && advice.missingEvidence === undefined
-        ? null
-        : advice
+      return advice
     } catch {
       // 不是合法 JSON 就退回一句话，仍然只作参考。
     }

@@ -55,3 +55,81 @@ test('a verdict without a contract still renders from its text', () => {
   assert.match(html, /通过/)
   assert.match(html, /内容正确/)
 })
+
+test('a pass with no action does not leave an empty reason fold', () => {
+  const html = render({
+    id: 'v3',
+    kind: 'verdict',
+    authorId: 'v1',
+    ts: 1,
+    text: 'todo.md 三行待办，每行一条，符合目标。',
+    meta: {
+      pass: true,
+      judgment: {
+        decision: 'pass',
+        reason: 'todo.md 三行待办，每行一条，符合目标。',
+        findings: [],
+        actionRequired: '无',
+      },
+    },
+  })
+  assert.match(html, /符合目标/)
+  assert.doesNotMatch(html, /理由/)
+})
+
+test('a system handoff is spoken by the member who sent it', () => {
+  const room = {
+    id: 'room-1',
+    messages: [],
+    members: [
+      { id: 'planner', name: '规划师', roleKind: 'planner' },
+      { id: 'executor', name: '执行官', roleKind: 'executor' },
+    ],
+  }
+  const byId = Object.fromEntries(room.members.map(member => [member.id, member]))
+  const html = renderToStaticMarkup(renderStudioMessage({
+    room,
+    byId,
+    message: {
+      id: 'h1',
+      kind: 'system',
+      ts: 1,
+      text: '@执行官 第 1 步「改标题」交给你。',
+      meta: { kind: 'handoff', stage: 0, from: 'planner', to: ['executor'] },
+    },
+    timeline: {},
+    onAccept: () => {},
+    onStageAccept: () => {},
+  }))
+  assert.match(html, /crew-msg-chat/)
+  assert.match(html, /规划师/)
+  assert.doesNotMatch(html, /crew-system/)
+})
+
+test('an older handoff without a sender falls back to the lead', () => {
+  const room = {
+    id: 'room-1',
+    messages: [],
+    members: [
+      { id: 'planner', name: '规划师', roleKind: 'planner' },
+      { id: 'executor', name: '执行官', roleKind: 'executor' },
+    ],
+  }
+  const byId = Object.fromEntries(room.members.map(member => [member.id, member]))
+  const html = renderToStaticMarkup(renderStudioMessage({
+    room,
+    byId,
+    message: {
+      id: 'h2',
+      kind: 'system',
+      ts: 1,
+      text: '@执行官 第 1 步「改标题」交给你。',
+      meta: { kind: 'handoff', stage: 0, to: ['executor'] },
+    },
+    timeline: {},
+    onAccept: () => {},
+    onStageAccept: () => {},
+  }))
+  assert.match(html, /规划师/)
+  assert.doesNotMatch(html, /crew-system/)
+})

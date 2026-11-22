@@ -228,10 +228,10 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         `验收标准：${stage.manual === true ? '人看结果，没有命令。' : sanitizeUntrusted(acceptance, 500)}`,
         rework && note !== '' ? `${humanLabelOf()}补充（原文，必须保留）：${sanitizeUntrusted(note, 2000)}` : '',
         parallel
-          ? '在群里用一两句说清各自做什么、怎么算完成；不要 @ 任何人，系统会把任务分别送进他们自己的工作副本。'
-          : '在群里用一两句说清做什么、怎么算完成；不要 @ 任何人，系统会把任务送进执行成员手里。',
+          ? '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，不要 @ 任何人，系统会把完整任务分别送进他们自己的工作副本。'
+          : '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，不要 @ 任何人，系统会把完整任务送进执行成员手里。',
         '派发时保留目标里的硬要求：文件名、路径、内容、行数、格式和范围；不要改写成更宽松的说法。',
-        '不要写自己的名字，不要分点或小标题。',
+        '不要写自己的名字，不要分点、小标题或第二段。',
       ].filter(Boolean).join('\n')
       try {
         await askPlanner(planPrompt)
@@ -296,8 +296,9 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     // 群里的交接只有一条：所有执行成员放在同一句里 @，分发本身私下送进各自副本。
     store.appendMessage(roomId, {
       kind: 'system',
+      authorId: from,
       text: `@${assignees.map(worker => memberDisplayName(room, worker)).join('、@')} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你们，各自在自己的副本里完成。`,
-      meta: { kind: 'handoff', stage: index, to: assignees },
+      meta: { kind: 'handoff', stage: index, from, to: assignees },
     })
     // 并行派发逐个送进成员自己的工作副本；群里的 @ 只是投影，不能靠它唤醒，
     // 否则基座会让所有成员在同一个房间目录里干活，后写的直接覆盖先写的。

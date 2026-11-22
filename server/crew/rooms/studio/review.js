@@ -197,6 +197,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       }
       store.appendMessage(roomId, {
         kind: 'system',
+        authorId: pending.verifier,
         text: policy === 'majority'
           ? `验收通过：${passed}/${total}（需要 ${required} 位）；@规划师 收尾。`
           : '全部验收员通过；@规划师 收尾。',
@@ -259,8 +260,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           // 并行重做的 @ 也只发一条，分发本身私下进各自副本。
           store.appendMessage(roomId, {
             kind: 'system',
+            authorId: pending.verifier,
             text: `@${targetNames.join('、@')} 验收退回，按上面的意见重做第 ${pending.stage + 1} 步。`,
-            meta: { kind: 'handoff', stage: pending.stage, to: relay.targets },
+            meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: relay.targets },
           })
         }
         // 返工账本要留下这一笔：预算计数和后续复核的 floor 都只认 rework。
@@ -303,6 +305,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       } else {
         store.appendMessage(roomId, {
           kind: 'system',
+          authorId: pending.verifier,
           text: `验收退回了第 ${pending.stage + 1} 步；@规划师 接手决定重做还是交给人。`,
           meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner' },
         })
@@ -448,10 +451,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       verifiers: targets,
     })
     // 复核请求也是系统发的 @：进来复核是下一棒，不由执行成员或模型自己点名。
+    const senderId = (Array.isArray(stage?.assignees) ? stage.assignees : [])
+      .find(id => workerIds(room).includes(id)) ?? workerIds(room)[0] ?? 'lodge'
     store.appendMessage(roomId, {
       kind: 'system',
+      authorId: senderId,
       text: `@${targets.map(verifier => memberDisplayName(room, verifier)).join('、@')} 第 ${stageIndex + 1} 步「${sanitizeUntrusted(stage.title, 120)}」结果好了，请复核。`,
-      meta: { kind: 'handoff', stage: stageIndex, to: targets, reason: 'review' },
+      meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: targets, reason: 'review' },
     })
     // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
     shadowTask = shadowNeeded({ room, stage, evidence, manual, messages, stageIndex })

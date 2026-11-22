@@ -46,5 +46,7 @@ test('a direct studio dispatch projects the @ handoff into the room', async () =
   assert.equal(sent[0].memberId, 'executor')
   const handoff = messages.find(message => message.meta?.kind === 'handoff')
   assert.equal(handoff.text, '@执行官 第 1 步「改标题」交给你。')
+  assert.equal(handoff.authorId, 'planner')
+  assert.equal(handoff.meta.from, 'planner')
   assert.deepEqual(handoff.meta.to, ['executor'])
 })

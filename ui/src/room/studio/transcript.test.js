@@ -120,6 +120,20 @@ test('a finished room keeps the work record open and ends with the result', asyn
   assert.equal(hasClass(tree, 'studio-result'), true)
 })
 
+test('a finished round shows its own shadow advice, not the previous stage key', async () => {
+  const { StudioTranscript } = await load()
+  const room = {
+    ...finishedRoom(),
+    advisorShadow: {
+      0: { evidenceId: 'e0', advice: [{ summary: '本轮意见' }] },
+      1: { evidenceId: 'e1', advice: [{ summary: '上一轮意见' }] },
+    },
+  }
+  const tree = render(StudioTranscript({ room, members, delivery }))
+  assert.match(text(tree), /本轮意见/)
+  assert.doesNotMatch(text(tree), /上一轮意见/)
+})
+
 test('a room still at work keeps the transcript on screen', async () => {
   const { StudioTranscript } = await load()
   const room = {

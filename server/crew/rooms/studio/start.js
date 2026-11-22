@@ -41,14 +41,17 @@ export const startInitialStage = async ({
       { intent: align ? 'align' : 'handoff', from: 'Lodge' },
     )
     // 直接派发也要有群里的一条 @：模型被要求不 @，系统的投影不能省。
+    // 这条 @ 是领队说的话，按成员消息渲染，不做居中小字。
     const stageIndex = activeStage >= 0 ? activeStage : 0
     const stageTitle = sanitizeUntrusted(room.stages?.[stageIndex]?.title ?? room.goal, 120)
+    const senderId = align ? 'lodge' : (lead?.id ?? 'lodge')
     store.appendMessage(room.id, {
       kind: 'system',
+      authorId: senderId,
       text: align
         ? `@${memberDisplayName(room, targetMember.id)} 先对齐目标，再拆下一步。`
         : `@${memberDisplayName(room, targetMember.id)} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
-      meta: { kind: 'handoff', stage: stageIndex, to: [targetMember.id] },
+      meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: [targetMember.id] },
     })
     if (sent.messageId !== null) {
       const updated = store.updateRound(room.id, current => {

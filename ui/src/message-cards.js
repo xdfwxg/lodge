@@ -4,6 +4,7 @@ import { MD, timeOf } from './view-format.js'
 import { personalityLabel } from '../../shared/personalities.js'
 import { stanceLabelOf } from '../../shared/chat-stances.js'
 import { RoleIcon } from './room/role-icon.js'
+import { emphasizeImportant } from './emphasis.js'
 
 // 两种房型共用的消息呈现：说话人、正文、活动行。房型专属卡片各自留在 room/<mode>/。
 
@@ -43,12 +44,13 @@ function ChatTopicText({ text, topic = false, mentions = null }) {
 
 function ChatLine({ message, member, mentions = null }) {
   const streaming = message.meta?.streaming === true
+  const text = streaming ? String(message.text ?? '') : emphasizeImportant(message.text)
   return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { member, ts: message.ts, time: false, station: false, persona: personalityLabel(member?.personality) }),
       h('div', {
         className: streaming ? 'bt-bubble crew-streaming' : 'bt-bubble',
-      }, h(ChatTopicText, { text: String(message.text ?? ''), topic: message.meta?.opening === true, mentions }))))
+      }, h(ChatTopicText, { text, topic: message.meta?.opening === true, mentions }))))
 }
 
 export { Markdown, Speaker, ActivityLine, ChatLine, ChatTopicText }

@@ -37,14 +37,16 @@ export const createRoundActions = deps => {
           } : {}),
         },
         roomFiles,
+        onStarted: startedRoom => {
+          appendMessage(startedRoom.id, {
+            kind: 'chat',
+            authorId: 'you',
+            text,
+            ...(attachments.length === 0 ? {} : { meta: { attachments } }),
+          })
+        },
       })
       if (result?.ok !== true) return result
-      appendMessage(room.id, {
-        kind: 'chat',
-        authorId: 'you',
-        text,
-        ...(attachments.length === 0 ? {} : { meta: { attachments } }),
-      })
       const updated = result.body?.room ?? store.readRoom(room.id) ?? room
       emit('room', updated)
       return accepted({ room: updated })

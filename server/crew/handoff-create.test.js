@@ -49,6 +49,14 @@ test('the handoff is part of the bulletin and the opening prompt', () => {
   const aligned = alignmentPrompt('发布检查清单', 'manual', '', handoff)
   assert.match(aligned, /交接单/)
   assert.match(aligned, /分歧：是否自动回滚/)
+  // 对齐回合按技能里的 Specify 结构回复，不能是一整段。
+  assert.match(aligned, /\*\*完成标准：\*\*/)
+  assert.match(aligned, /\*\*口径：\*\*/)
+  assert.match(aligned, /\*\*阶段：\*\*/)
+  assert.match(aligned, /\*\*待确认：\*\*/)
+  assert.match(aligned, /不超过 12 行/)
+  assert.match(aligned, /不要用行内代码包中文标签/)
+  assert.match(aligned, /只写对齐，不要派活/)
 
   const direct = directPrompt('发布检查清单', 'manual', '', true, handoff)
   assert.match(direct, /交接单/)

@@ -12,6 +12,8 @@ test('a chat member carries its speaking habit into the soul', () => {
   assert.match(soul, /你的说话习惯：先问代价，再问能不能落地。/)
   assert.match(soul, /专门找漏洞/)
   assert.match(soul, /严谨审慎/)
+  assert.match(soul, /\*\*加粗\*\*只给会影响讨论走向的信息/)
+  assert.match(soul, /不要用行内代码包中文标签/)
 })
 
 test('a member without a speaking habit gets no empty line', () => {

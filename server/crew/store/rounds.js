@@ -99,6 +99,10 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       room.idle = false
       room.noProgress = 0
       room.pauseReason = null
+      // 这些字段按阶段/证据挂在前一轮，新轮从零开始；不带上旧轮的影子意见和预览。
+      room.advisorShadow = {}
+      room.previews = []
+      room.reviewRetriedAt = null
       room.version = Number(roomRow.version) + 1
       db.prepare('UPDATE room SET payload = ?, version = ? WHERE id = ? AND version = ?')
         .run(JSON.stringify(room), room.version, roomId, roomRow.version)

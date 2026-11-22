@@ -3,6 +3,7 @@ import { verifierIds } from '../../../room-members.js'
 import { detectCheckCommand } from '../../../project-checks.js'
 import { MAX_AUTO_REWORKS, checkLedger, nextAutoRework } from '../auto-rework.js'
 import { workspaceOf } from '../workspace.js'
+import { reworkFloor } from '../../../../../shared/attempt.js'
 import { AUTO_CHECK_REASON, AUTO_CHECK_STATUS, ROOM_STATE, STAGE_STATE } from '../../../../../shared/states.js'
 
 export const createAutoCheck = ({
@@ -146,13 +147,17 @@ export const createAutoCheck = ({
           ? workspaceOf(room).filesInCommit?.({ path: room.repoPath, commit: candidate }) ?? []
           : []
     // 人工阶段没有命令可判“无改动”：同一 HEAD 上的重复回合不重复生成验收证据，也不重复送审。
-    const prior = [...store.readMessages(roomId)].reverse().find(message => (
+    // 但验收退回后的重做必须重新送审，即使执行成员没有产生新的提交。
+    const messages = store.readMessages(roomId)
+    const floor = reworkFloor(messages, stageIndex)
+    const prior = [...messages].reverse().find(message => (
       message.kind === 'evidence' &&
       message.meta?.kind === 'manual' &&
       (message.meta?.stage ?? 0) === stageIndex
     ))
-    const covered = prior?.meta?.candidate ?? prior?.meta?.head ?? null
-    if (prior !== undefined) {
+    const afterRework = prior !== undefined && (prior.seq ?? 0) > floor
+    const covered = afterRework ? (prior?.meta?.candidate ?? prior?.meta?.head ?? null) : null
+    if (afterRework) {
       if (covered !== null && acceptedRef !== null && covered === acceptedRef) return
       if (!worked && covered === null) return
     }

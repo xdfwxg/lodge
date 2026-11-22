@@ -58,3 +58,26 @@ test('a rejected or failed round is terminal and clears the room pointer', async
     }
   }
 })
+
+test('a new round starts without the previous round advice or previews', async () => {
+  const ctx = setup()
+  try {
+    await stopRound({ store: ctx.store, live, emit, room: ctx.store.readRoom('room-1'), reason: '换一轮' })
+    ctx.store.updateRoom('room-1', current => {
+      current.advisorShadow = { 0: { evidenceId: 'old-evidence', advice: [{ summary: '旧意见' }] } }
+      current.previews = [{ stage: 0, evidenceId: 'old-evidence', path: 'old.png' }]
+      current.reviewRetriedAt = 123
+      return { events: [] }
+    })
+    ctx.store.startWorkRound({
+      roomId: 'room-1',
+      round: { id: 'round-2', roomId: 'room-1', ordinal: 2, status: 'active', goal: '下一轮', stages: [] },
+    })
+    const room = ctx.store.readRoom('room-1')
+    assert.deepEqual(room.advisorShadow, {})
+    assert.deepEqual(room.previews, [])
+    assert.equal(room.reviewRetriedAt, null)
+  } finally {
+    teardown(ctx)
+  }
+})

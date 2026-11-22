@@ -178,8 +178,9 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
     if (parallel) {
       store.appendMessage(roomId, {
         kind: 'system',
+        authorId: leadMemberOf(room)?.id ?? 'lodge',
         text: `@${targets.map(target => memberDisplayName(room, target)).join('、@')} 验收退回，按上面的意见重做第 ${stageIndex + 1} 步。`,
-        meta: { kind: 'handoff', stage: stageIndex, to: targets },
+        meta: { kind: 'handoff', stage: stageIndex, from: leadMemberOf(room)?.id ?? 'lodge', to: targets },
       })
     }
     for (const target of targets) {

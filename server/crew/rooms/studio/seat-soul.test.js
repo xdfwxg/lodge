@@ -14,4 +14,7 @@ test('studio souls ask members to talk like people, not fill in logs', () => {
   assert.match(worker, /不要先发/)
   const verifier = soulOf({ role: 'verifier', name: '验收员' })
   assert.match(verifier, /一句结论/)
+  assert.match(lead, /\*\*加粗\*\*只给会影响决定的信息/)
+  assert.match(worker, /\*\*加粗\*\*只给会影响决定的信息/)
+  assert.match(verifier, /\*\*加粗\*\*只给会影响决定的信息/)
 })

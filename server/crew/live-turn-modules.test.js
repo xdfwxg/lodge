@@ -1402,6 +1402,36 @@ test('a repeated manual turn on the same HEAD does not duplicate manual evidence
   assert.deepEqual(evidence.meta.changedFiles, ['NOTES.md'])
 })
 
+test('a rework on the same HEAD still records a new manual result', async () => {
+  registerWorkspaceProvider('test-manual-rework-same-head', {
+    capabilities: () => ({ candidate: true }),
+    head: () => 'manual-head-1',
+    changedFilesSince: () => ['NOTES.md'],
+    submit: () => null,
+  })
+  const room = makeRoom({
+    repoPath: '/repo',
+    sourceRepo: '/repo',
+    stageBases: { 0: 'manual-base' },
+    workspace: { provider: 'test-manual-rework-same-head' },
+    stages: [{ title: 'artifact', kind: 'decision', manual: true, state: 'active' }],
+    verifiers: [],
+  })
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({ exit: 0 }) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ turnId: 't-manual-1', reply: '产物已就绪', toolCalls: 2, tools: [] }, 'bot-exec')
+  store.appendMessage('room-1', { kind: 'rework', meta: { stage: 0 }, seq: 10 })
+  turns.captureTurn({ turnId: 't-manual-2', reply: '按意见改好了', toolCalls: 2, tools: [] }, 'bot-exec')
+  assert.equal(store.messages.filter(message => message.meta?.kind === 'manual').length, 2)
+})
+
 test('new evidence restarts an in-flight review and ignores the stale verdict', async () => {
   const room = makeRoom({ verifiers: ['verifier'] })
   const store = fakeStore(room)

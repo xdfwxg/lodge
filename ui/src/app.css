@@ -1,6 +1,6 @@
 *{box-sizing:border-box}
 html,body,#root{height:100%}
-body{margin:0;background:var(--bt-main);color:var(--bt-ink);font-family:var(--bt-font);font-size:16px;-webkit-font-smoothing:antialiased;--bt-script:"Snell Roundhand","Savoye LET","Kaiti SC",Georgia,serif}
+body{margin:0;background:var(--bt-main);color:var(--bt-ink);font-family:var(--bt-font);font-size:14px;-webkit-font-smoothing:antialiased;--bt-script:"Snell Roundhand","Savoye LET","Kaiti SC",Georgia,serif}
 :where(button,[role=button],input,textarea,select,summary,a,[tabindex]):focus-visible{
   outline:var(--bt-focus-ring-w,2px) solid var(--bt-focus-ring,#2F4AB5);
   outline-offset:var(--bt-focus-ring-offset,2px);
@@ -49,7 +49,7 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-mention-option-name{min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .crew-mention-role{flex:none;font-size:var(--bt-text-helper);line-height:18px;color:var(--bt-ink-3);white-space:nowrap}
 .crew-mention-return{margin-left:auto;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:18px}
-.crew-input{flex:1;field-sizing:content;min-height:24px;max-height:160px;resize:none;border:0;background:none;color:var(--bt-ink);font:inherit;font-size:16px;line-height:22px;padding:1px 0}
+.crew-input{flex:1;field-sizing:content;min-height:24px;max-height:160px;resize:none;border:0;background:none;color:var(--bt-ink);font:inherit;font-size:14px;line-height:22px;padding:1px 0}
 .crew-input::placeholder{color:var(--bt-ink-3)}
 .crew-input:disabled{cursor:not-allowed;opacity:.55}
 .crew-send{flex:none;width:30px;height:30px;padding:0;border:0;border-radius:8px;background:transparent;color:var(--bt-ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .12s ease,background-color .12s ease,transform .12s ease}
@@ -57,7 +57,7 @@ body[data-side=open] .crew-side-scrim{opacity:1;pointer-events:auto}
 .crew-send:not(:disabled):hover{background:var(--bt-hover)}
 .crew-send:not(:disabled):active{transform:scale(.94)}
 .crew-send svg{width:20px;height:20px}
-.crew-input-brand::placeholder{font-family:"Snell Roundhand","Savoye LET","Kaiti SC",-apple-system,"SF Pro Text",system-ui,sans-serif;font-size:16px;line-height:22px;letter-spacing:.02em}
+.crew-input-brand::placeholder{font-family:"Snell Roundhand","Savoye LET","Kaiti SC",-apple-system,"SF Pro Text",system-ui,sans-serif;font-size:14px;line-height:22px;letter-spacing:.02em}
 
 
 .crew-error{margin:16px auto;max-width:520px;padding:12px 14px;border:1px solid var(--bt-danger-soft);border-radius:12px;color:var(--bt-danger-text);font-size:var(--bt-text-label);line-height:18px}

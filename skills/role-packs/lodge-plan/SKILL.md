@@ -31,6 +31,8 @@ Write the smallest contract the executor and verifier can both use:
 
 Prefer observable behavior over implementation detail. Do not invent product facts, and do not copy the conversation into the spec.
 
+When the room asks you to align before stages, reply in chat, at most 12 lines: **完成标准：** one sentence; **口径：** up to 3 `- ` bullets; **阶段：** one line per stage (who, proof); **待确认：** blockers only. Bold the labels; no paragraphs, goal repetition, user questions, or @.
+
 ## 3. Cut stages
 
 Each stage needs a short title, one acceptance check or a clear human decision, the owner, and its dependencies.

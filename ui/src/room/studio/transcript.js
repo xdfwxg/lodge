@@ -112,9 +112,11 @@ export function StudioTranscript({
   }
 
   const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
-  const adviceIndex = activeIndex >= 0
-    ? activeIndex
-    : Object.keys(room.advisorShadow ?? {}).map(Number).sort((a, b) => b - a)[0] ?? -1
+  // 已交付时看这一轮最后的工作步骤；不能拿 advisorShadow 的最后一个 key，旧轮可能还留着。
+  const workIndex = (room.stages ?? []).reduce((last, stage, index) => (
+    stage.kind === 'deliverable' || stage.manual === true ? index : last
+  ), -1)
+  const adviceIndex = activeIndex >= 0 ? activeIndex : workIndex
   const advice = adviceIndex >= 0
     ? h(ShadowAdvice, { key: `advice-${adviceIndex}`, room, stageIndex: adviceIndex, label: '影子评审' })
     : null

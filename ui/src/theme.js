@@ -1,7 +1,7 @@
 // Lodge 自己的主题令牌：只有界面实际用到的那一层，不依赖 vendored UI。
 const BASE = {
-  '--bt-text-body': '16px',
-  '--bt-leading-body': '24px',
+  '--bt-text-body': '14px',
+  '--bt-leading-body': '22px',
   '--bt-tracking-body': '0',
   '--bt-text-label': '13px',
   '--bt-text-helper': '12px',
@@ -25,8 +25,8 @@ const BASE = {
   '--bt-font': 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "PingFang TC", "Hiragino Sans", "Apple SD Gothic Neo", "Microsoft YaHei", sans-serif',
   '--bt-leading-label': '20px',
   '--bt-leading-helper': '18px',
-  '--bt-text-section': '16px',
-  '--bt-leading-section': '24px',
+  '--bt-text-section': '14px',
+  '--bt-leading-section': '22px',
   '--bt-text-title': '20px',
   '--bt-leading-title': '26px',
   '--bt-text-hero': '26px',

@@ -183,6 +183,11 @@ test('deterministic room scenario completes the round and accepts it', async () 
       room: store.readRoom(room.id),
       body: next.body,
       roomFiles: ports.roomFiles,
+      onStarted: startedRoom => store.appendMessage(startedRoom.id, {
+        kind: 'chat',
+        authorId: 'you',
+        text: '再补一行说明',
+      }),
     })
     assert.equal(started.ok, true, started.error)
     const second = store.readRoom(room.id)
@@ -191,6 +196,12 @@ test('deterministic room scenario completes the round and accepts it', async () 
     assert.notEqual(second.workRound.id, firstRound.id)
     assert.equal(store.readWorkRounds(room.id).length, 2)
     assert.equal(store.readMessages(room.id).some(message => message.kind === 'verdict'), false)
+    const secondMessages = store.readMessages(room.id)
+    const requestAt = secondMessages.findIndex(message => message.authorId === 'you' && message.text === '再补一行说明')
+    const handoffAt = secondMessages.findIndex(message => message.meta?.kind === 'handoff')
+    assert.ok(requestAt >= 0)
+    assert.ok(handoffAt >= 0)
+    assert.ok(requestAt < handoffAt, 'the human request should precede the handoff')
 
     const passedStages = store.readEvents(room.id)
       .filter(event => event.type === 'stage.passed')
