@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { askedForRound, ensureRoundWhenAsked, hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { askedForRound, finalizeHostIntent, hostIntentPrompt, parseHostIntent } from './host-intent.js'
 
 test('a host reply stays a reply', () => {
   assert.deepEqual(
@@ -80,15 +80,28 @@ test('an explicit request for another round is recognised', () => {
   assert.equal(askedForRound(''), false)
 })
 
-test('an explicit round request turns a plain reply into a round', () => {
+test('the host cannot open a round unless the user asked for one', () => {
   const room = { members: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }] }
   const reply = { action: 'reply', reply: '再来一轮，就一个点。', speakers: [], structured: true }
-  assert.deepEqual(ensureRoundWhenAsked(reply, '再来一轮，就一个点：今晚定不定。', room), {
+  const modelRound = { action: 'round', reply: '我请人来说。', speakers: ['a', 'b'], structured: true }
+  assert.deepEqual(finalizeHostIntent(reply, '再来一轮，就一个点：今晚定不定。', room), {
     action: 'round',
     reply: '再来一轮，就一个点。',
     speakers: ['a', 'b', 'c'],
     structured: true,
   })
-  assert.equal(ensureRoundWhenAsked(reply, '你怎么看？', room).action, 'reply')
-  assert.equal(ensureRoundWhenAsked({ ...reply, action: 'round' }, '再来一轮', room).action, 'round')
+  assert.equal(finalizeHostIntent(reply, '你怎么看？', room).action, 'reply')
+  assert.equal(finalizeHostIntent(modelRound, '你怎么看？', room).action, 'reply')
+  assert.equal(finalizeHostIntent(modelRound, '再来一轮', room).action, 'round')
+})
+
+test('the host prompt asks only for a reply', () => {
+  const prompt = hostIntentPrompt({
+    room: { members: [{ id: 'a', name: '甲' }] },
+    text: '大家说说',
+    turnLimit: 6,
+  })
+  assert.doesNotMatch(prompt, /"action":"round"/)
+  assert.match(prompt, /不自己开轮/)
+  assert.match(prompt, /"action":"reply"/)
 })

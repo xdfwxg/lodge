@@ -5,7 +5,7 @@ import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
 import { parseHandoffFromText } from '../../../../shared/handoff.js'
-import { ensureRoundWhenAsked, hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { finalizeHostIntent, hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { systemNotice } from '../../notices.js'
 import { humanLabelOf, humanNameOf } from '../../human-name.js'
 import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
@@ -442,21 +442,19 @@ export const createChatScheduler = ({
     const first = await ask(prompt)
     if (first === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }
     const parsed = parseHostIntent(first, { speakers, allowOpen })
-    if (parsed.structured === true) {
-      return parsed.action === 'open' ? parsed : ensureRoundWhenAsked(parsed, text, room)
-    }
+    if (parsed.structured === true) return finalizeHostIntent(parsed, text, room)
     // 第一次没给 JSON 就再要一次，只补格式，不重新理解。
     const repaired = await ask([
       '上一次回复不是 JSON，没法执行。',
       '只回一个 JSON，不要解释：',
       allowOpen
         ? '{"action":"reply","reply":"..."} 或 {"action":"open","room":"studio" 或 "chat","reply":"..."}'
-        : '{"action":"reply","reply":"..."} 或 {"action":"round","speakers":["成员 id"],"reply":"..."}',
+        : '{"action":"reply","reply":"..."}',
     ].join('\n'))
     if (repaired === null) return parsed
     const second = parseHostIntent(repaired, { speakers, allowOpen })
     if (second.structured !== true) return parsed
-    return second.action === 'open' ? second : ensureRoundWhenAsked(second, text, room)
+    return finalizeHostIntent(second, text, room)
   }
 
   return { start, hostIntent, cancel, isRunning: () => runs.has(roomId) }

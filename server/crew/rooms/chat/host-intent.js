@@ -2,7 +2,7 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { humanLabelOf, humanNameOf } from '../../human-name.js'
 import { CHAT_PHASE } from '../../../../shared/states.js'
 
-// 用户只对主持说话；主持判断是直接回答，还是从固定成员里请人讨论。
+// 用户只对主持说话；主持默认只回答。开轮只由 @所有人 或用户明确要求触发。
 // 轮数、成员数和发言次数都属于房间配置，不从这里改。
 // Lodge 自己是一间没有成员的对话：它判断不了就回复，要做事或找人就走 open。
 export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
@@ -32,14 +32,10 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
     : [
       '判断规则：',
       grillRule,
-      '- 用户要“再走一轮、继续讨论、让大家说说、听听成员意见”，或问题需要多人观点时，用 round。',
-      '- 用户只是在问你、要一句回答时，用 reply。',
-      '- reply 只写回答本身，不要写“再走一轮”“我请人来说”这类流程话；要开轮就直接选 round。',
-      '- 从固定成员里选 1–3 位，不要编造成员。',
-      '例如用户说“再走一轮：这轮把 A 和 B 定下来”，就选 {"action":"round",...}，不要只复述这两个议题。',
+      '- 你只回答，不自己开轮。即使问题需要多人观点，也只写 reply；开轮由用户 @所有人 或明确说“再走一轮/大家说说”触发。',
+      '- reply 只写回答本身，不要写“再走一轮”“我请人来说”这类流程话。',
       '只输出 JSON，不要 Markdown，不要解释：',
       '{"action":"reply","reply":"直接对用户说的话"}',
-      '或 {"action":"round","speakers":["固定成员 id"],"reply":"可选的一句"}',
     ]
   return [
     `你是 Lodge 主持，负责接住用户的话。固定成员：${roster || '无'}。`,
@@ -56,10 +52,15 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '' }) => {
 // 用户已经把“要再讨论”说出口时，主持不该只复述一句。
 export const askedForRound = text => /再走一轮|再来一轮|继续讨论|再聊一轮|大家说说|让大家说|开一轮|讨论一轮/.test(String(text ?? ''))
 
-// 模型偶尔把“再走一轮”复述成一句回答；用户已经把话说清时，补开一轮，不改轮次和成员。
-export const ensureRoundWhenAsked = (intent, text, room) => {
+// 主持只能回答；只有用户明确要求时才补一轮，模型自己选的 round 不算。
+export const finalizeHostIntent = (intent, text, room) => {
+  if (intent.action === 'open') return intent
+  if (!askedForRound(text)) {
+    return intent.action === 'round'
+      ? { ...intent, action: 'reply', speakers: [] }
+      : intent
+  }
   if (intent.action === 'round') return intent
-  if (!askedForRound(text)) return intent
   const speakers = (room.members ?? []).map(member => member.id).slice(0, 3)
   return speakers.length === 0
     ? intent

@@ -21,10 +21,10 @@ export const chatKind = {
   messagePolicy: ({ room, mentions = [] }) => {
     // 只认输入框成员选择器传来的 id；手打 @ 不算点名。
     if (mentions.includes(MENTION_ALL)) {
-      // 结论后叫所有人 = 开新一轮；正在讨论时没有第二轮可开，交给主持说明。
+      // 叫所有人永远是开一轮；正在讨论时明确说等这一轮结束，不偷偷交给主持。
       return room.chat?.phase === CHAT_PHASE.concluded && room.chat?.running !== true
         ? { type: 'round' }
-        : { type: 'host' }
+        : { type: 'round-busy' }
     }
     const named = mentions.some(id => (room.members ?? []).some(member => member.id === id))
     return named ? null : { type: 'host' }
