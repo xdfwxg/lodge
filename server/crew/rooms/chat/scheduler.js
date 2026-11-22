@@ -83,25 +83,40 @@ const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note }) => {
   ].filter(Boolean).join('\n')
 }
 
-const hostPrompt = ({ room, round, note, turnLimit }) => [
-  `聊天室第 ${round} 轮讨论到此结束，请总结。`,
-  `话题：${room.goal}`,
-  `固定成员：${(room.members ?? []).map(member => `${member.id}（${member.name}）`).join('、') || '无'}；本轮上限 ${turnLimit} 次发言。`,
-  note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
-  '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。严格按下面五段输出，标题固定：',
-  '## 主题',
-  '一句话说清这轮在解决什么。',
-  '## 共识',
-  '- 已达成的结论，最多 5 条',
-  '## 分歧',
-  '- 未解决的分歧，最多 5 条；没有写「无」',
-  '## 约束',
-  '- 前提、限制、风险，最多 5 条；没有写「无」',
-  '## 待办',
-  '- 下一步要做什么，最多 5 条；没有写「无」',
-  '每段不超过 100 字，总长不超过 800 字。',
-  INTERNAL_PROMPT_MARKER,
-].filter(Boolean).join('\n')
+const hostPrompt = ({ room, round, note, turnLimit, structured = false }) => {
+  const common = [
+    `聊天室第 ${round} 轮讨论到此结束，请总结。`,
+    `话题：${room.goal}`,
+    `固定成员：${(room.members ?? []).map(member => `${member.id}（${member.name}）`).join('、') || '无'}；本轮上限 ${turnLimit} 次发言。`,
+    note === '' ? '' : `${humanLabelOf(room)}这轮的要求：${note}`,
+    '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。',
+  ]
+  if (!structured) {
+    return [...common,
+      '写 2–4 句自然中文：这轮落在哪、还有哪条真分歧或风险、下一步如果要做什么。',
+      '如果明确有下一步，最后单独一行写「下一步：一句话」；没有就不写。',
+      '不要标题、不要分点、不要五段模板；总长不超过 300 字。',
+      INTERNAL_PROMPT_MARKER,
+    ].filter(Boolean).join('\n')
+  }
+  return [...common,
+    '用户明确要清单/分点/待办；严格按下面五段输出，标题固定：',
+    '## 主题',
+    '一句话说清这轮在解决什么。',
+    '## 共识',
+    '- 已达成的结论，最多 5 条',
+    '## 分歧',
+    '- 未解决的分歧，最多 5 条；没有写「无」',
+    '## 约束',
+    '- 前提、限制、风险，最多 5 条；没有写「无」',
+    '## 待办',
+    '- 下一步要做什么，最多 5 条；没有写「无」',
+    '每段不超过 100 字，总长不超过 800 字。',
+    INTERNAL_PROMPT_MARKER,
+  ].filter(Boolean).join('\n')
+}
+
+export const wantsStructuredSummary = note => /分点|列成|清单|表格|待办|五段|结构化/.test(String(note ?? ''))
 
 const digestText = lines => lines.length === 0
   ? '讨论没有产生可总结的内容。'
@@ -347,13 +362,26 @@ export const createChatScheduler = ({
         return { events: [{ type: 'chat.summary_started', payload: { round } }, chatTransitionEvent(summarizing, 'summarize', hostAuthor, '达到发言上限')] }
       })
       let before = await transport.messageIds()
-      let sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note, turnLimit }))
+      const structuredSummary = wantsStructuredSummary(note)
+      let sent = await sendToMember('host', hostPrompt({
+        room: store.readRoom(roomId) ?? room,
+        round,
+        note,
+        turnLimit,
+        structured: structuredSummary,
+      }))
       hidePrompt(sent?.messageId)
       let reply = await waitForBot('host', before, run)
       if (reply === null && !run.cancelled) {
         await waitIdle(run, Math.min(30_000, idleMs))
         before = await transport.messageIds()
-        sent = await sendToMember('host', hostPrompt({ room: store.readRoom(roomId) ?? room, round, note, turnLimit }))
+        sent = await sendToMember('host', hostPrompt({
+        room: store.readRoom(roomId) ?? room,
+        round,
+        note,
+        turnLimit,
+        structured: structuredSummary,
+      }))
         hidePrompt(sent?.messageId)
         reply = await waitForBot('host', before, run)
       }
@@ -365,6 +393,11 @@ export const createChatScheduler = ({
         : digestText(lines)
       const conclusionText = text === '' ? digestText(lines) : text
       const handoff = parseHandoffFromText(conclusionText, store.readRoom(roomId)?.goal ?? room.goal)
+      // 自然总结只有「下一步」会被解析成 todo；正文仍要作为共识进工作室。
+      if (!structuredSummary && handoff !== null && handoff.consensus.length === 0) {
+        const body = conclusionText.replace(/\n?下一步[：:][\s\S]*$/, '').trim()
+        if (body !== '') handoff.consensus = [body.slice(0, 300)]
+      }
       const conclusion = store.appendMessage(roomId, {
         kind: 'chat_conclusion',
         authorId: hostAuthor,

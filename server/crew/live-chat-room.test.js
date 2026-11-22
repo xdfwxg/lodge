@@ -209,6 +209,60 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(conclusions.at(-1).meta.round, 2)
 })
 
+test('the default chat summary is natural prose, not a five-section report', async () => {
+  const ctx = setup()
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  await scheduler.start(ctx.room())
+  const summary = ctx.history.find(message => message.role === 'user' && /请总结/.test(message.text))
+  assert.ok(summary)
+  assert.doesNotMatch(summary.text, /## 主题/)
+  assert.match(summary.text, /2–4 句/)
+})
+
+test('a natural summary still becomes a studio handoff', async () => {
+  const ctx = setup({ summaryText: '这轮定下了导出方案。\n下一步：补一个导出按钮。' })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  await scheduler.start(ctx.room())
+  const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
+  assert.ok(conclusion)
+  assert.equal(conclusion.meta.handoff.topic, '讨论状态提示')
+  assert.deepEqual(conclusion.meta.handoff.consensus, ['这轮定下了导出方案。'])
+  assert.deepEqual(conclusion.meta.handoff.todos, ['补一个导出按钮。'])
+})
+
+test('an explicit request for a list keeps the structured summary', async () => {
+  const ctx = setup()
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    random: () => 0,
+    waitMs: 100,
+    pollMs: 1,
+  })
+  await scheduler.start(ctx.room(), { note: '分点列出待办' })
+  const summary = ctx.history.find(message => message.role === 'user' && /请总结/.test(message.text))
+  assert.ok(summary)
+  assert.match(summary.text, /## 主题/)
+})
+
 test('a resumed round keeps the fair order from the messages already spoken', async () => {
   const ctx = setup({ extraMember: true })
   ctx.store.appendMessage('room-chat', {
