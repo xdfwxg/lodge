@@ -3,23 +3,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { E2E_SPEC_PATTERN, NODE_TEST_PATTERNS } from './test-globs.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const matrix = readFileSync(resolve(root, 'docs/testing/acceptance-matrix.md'), 'utf8')
 const tests = [...new Set([...matrix.matchAll(/`([^`]+\.(?:test|spec)\.(?:js|mjs))`/g)].map(match => match[1]))]
 
-// 和 package.json / playwright.config.mjs 的入口保持一致：矩阵里的用例必须真的会被某个门禁跑到。
-const TEST_ENTRIES = [
-  /^server\/[^/]+\.test\.js$/,
-  /^shared\/(?:.+\/)?[^/]+\.test\.js$/,
-  /^scripts\/[^/]+\.test\.mjs$/,
-  /^server\/crew\/(?:.+\/)?[^/]+\.test\.js$/,
-  /^evals\/rooms\/[^/]+\.test\.js$/,
-  /^ui\/src\/(?:.+\/)?[^/]+\.test\.js$/,
-  /^electron\/(?:.+\/)?[^/]+\.test\.js$/,
-]
-const E2E_ENTRY = /^e2e\/[^/]+\.spec\.mjs$/
-const isRunnable = file => TEST_ENTRIES.some(pattern => pattern.test(file)) || E2E_ENTRY.test(file)
+// 和 npm test / playwright.config.mjs 的入口保持一致：矩阵里的用例必须真的会被某个门禁跑到。
+const isRunnable = file => NODE_TEST_PATTERNS.some(pattern => pattern.test(file)) || E2E_SPEC_PATTERN.test(file)
 
 const missing = []
 const empty = []

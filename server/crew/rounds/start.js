@@ -4,7 +4,7 @@ import { normalizePlan, startInitialStage, studioConstraints } from '../rooms/st
 import { buildStages } from '../room-types/studio.js'
 import { ROOM_STATE } from '../../../shared/states.js'
 import { gateRecordOf } from '../gate/index.js'
-import { buildRound, composeRoundView } from './record.js'
+import { buildRound, composeRoundView, shortTitleOf } from './record.js'
 
 const isWorker = member => member.role === 'worker' || member.roleKind === 'executor'
 const workerOf = room => (room.members ?? []).find(isWorker) ?? null
@@ -29,7 +29,7 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles, sta
   if (lead === null || worker === null) return fail('invalid', '工作室缺少规划师或执行官')
 
   const cleanGoal = stripAttachmentTags(goal).trim() || '这一轮'
-  const title = cleanGoal.length > 24 ? `${cleanGoal.slice(0, 24)}…` : cleanGoal
+  const title = shortTitleOf(cleanGoal)
   const built = buildStages({ title, plan: planned.plan, verify, acceptance, align: false })
   const gate = gateRecordOf({
     review: { decision: 'pass', issues: [] },

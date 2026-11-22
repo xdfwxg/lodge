@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { createStore } from '../store.js'
 import { failRound, rejectRound, stopRound } from './lifecycle.js'
-import { buildRound, buildRoundFromRoom } from './record.js'
+import { buildRound, buildRoundFromRoom, shortTitleOf } from './record.js'
 
 const setup = () => {
   const dir = mkdtempSync(join(tmpdir(), 'lodge-lifecycle-'))
@@ -100,4 +100,12 @@ test('the first round is named by its goal, not the room name', () => {
     ordinal: 1,
   })
   assert.equal(round.name, '保存后刷新仍生效')
+})
+
+test('short titles share one truncation rule', () => {
+  assert.equal(shortTitleOf(' 修登录超时 '), '修登录超时')
+  assert.equal(shortTitleOf('a'.repeat(24)), 'a'.repeat(24))
+  assert.equal(shortTitleOf('a'.repeat(25)), `${'a'.repeat(24)}…`)
+  assert.equal(shortTitleOf('a'.repeat(25), { ellipsis: false }), 'a'.repeat(24))
+  assert.equal(shortTitleOf(''), '')
 })

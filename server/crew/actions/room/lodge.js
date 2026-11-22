@@ -2,6 +2,7 @@ import { fail, ok } from '../../result.js'
 import { withAttachments } from '../../../../shared/attachments.js'
 import { normalizeAttachments } from '../../attachments.js'
 import { ROOM_STATE } from '../../../../shared/states.js'
+import { shortTitleOf } from '../../rounds/record.js'
 
 // Lodge 的对话：一句话决定开工作室还是留下聊聊，不出现房型选择。
 export const createLodgeActions = deps => {
@@ -40,7 +41,7 @@ export const createLodgeActions = deps => {
       const goalText = decision.goal || (text === '' ? (attachments[0]?.title ?? '看看这个附件') : text)
       const created = await createRoom({
         goal: withAttachments(goalText, attachments),
-        name: goalText.slice(0, 24),
+        name: shortTitleOf(goalText, { ellipsis: false }),
         verify: 'manual',
         sourceRoomId: room.id,
         sourceName: room.name ?? '',

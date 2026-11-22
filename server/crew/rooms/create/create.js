@@ -13,7 +13,7 @@ import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
 import { grantBrowserToAll, needsBrowser, stripBrowser } from '../../room-access.js'
 import { uniqueRoomShort } from './short-id.js'
-import { buildRoundFromRoom, composeRoundView, studioFromRoom } from '../../rounds/record.js'
+import { buildRoundFromRoom, composeRoundView, shortTitleOf, studioFromRoom } from '../../rounds/record.js'
 
 const deliveryTitleFor = (goalTitle, handoff) => {
   if (handoff === null || handoff === undefined) return goalTitle
@@ -143,7 +143,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   }
   try {
     workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
-    const goalTitle = goal.length > 24 ? `${goal.slice(0, 24)}…` : goal
+    const goalTitle = shortTitleOf(goal)
     const deliveryTitle = deliveryTitleFor(goalTitle, handoff)
     const title = name === '' ? goalTitle : name
     const provisioned = await provisioner.provision({

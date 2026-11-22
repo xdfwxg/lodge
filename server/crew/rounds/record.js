@@ -19,11 +19,14 @@ export const roundSummaryOf = round => ({
   usage: round.usage ?? null,
 })
 
-const titleOf = goal => {
+// 目标进列表、历史或房间名时的统一短标题；截断规则只在这里。
+export const shortTitleOf = (goal, { ellipsis = true } = {}) => {
   const text = typeof goal === 'string' ? goal.trim() : ''
-  if (text === '') return null
-  return text.length > 24 ? `${text.slice(0, 24)}…` : text
+  if (text === '') return ''
+  return text.length > 24 ? `${text.slice(0, 24)}${ellipsis ? '…' : ''}` : text
 }
+
+const titleOf = goal => shortTitleOf(goal) || null
 
 const roundFieldsOf = room => Object.fromEntries(
   ROUND_FIELDS
