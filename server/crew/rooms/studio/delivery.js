@@ -135,7 +135,7 @@ export const buildDelivery = (room, messages = []) => {
     roomId: room.id,
     name: room.demo === true
       ? String(room.name ?? '').replace(/^示例[：:]\s*/, '')
-      : room.name,
+      : (String(room.goal ?? '').trim() || room.name),
     goal: room.goal,
     sample: room.demo === true,
     completedAt: room.completedAt ?? (lastAt > 0 ? lastAt : null),

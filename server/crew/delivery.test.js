@@ -30,6 +30,7 @@ const messages = [
 test('the delivery card keeps goal, commands, files, verdicts and commit', () => {
   const delivery = buildDelivery(room(), messages)
   assert.equal(delivery.goal, '保存后刷新仍生效')
+  assert.equal(delivery.name, '保存后刷新仍生效')
   assert.equal(delivery.commit, 'abcdef123456')
   assert.equal(delivery.stages[1].commands[0].command, 'npm test')
   assert.deepEqual(delivery.changedFiles, ['src/a.js'])

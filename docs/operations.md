@@ -157,6 +157,8 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 
 `npm test`、`npm run build`、`npm run test:ui`（Playwright + axe，覆盖首屏、结果卡、目标面板、窄屏暗色）、`npm run prepare:runtimes`、`npm run package:mac:dir`、`npm run smoke:package`。端到端验证需要 Pi 已登录：新建工作室，执行引擎选 Pi，给一条可执行的验收命令，确认执行成员实际跑了命令并产生证据。
 
+真实环境先跑只读冒烟 `npm run smoke:real`：检查 Lodge 8787、基座 8799 和本机模型路由，不建房间、不调模型；任一不健康就非零退出。
+
 ## 评测
 
 - `npm run eval:planning` 评开工卡；`npm run eval:rooms` 评交付：真实建房、真实成员、真实验收，再由题库外的独立脚本核对产出。两者都调用真实模型，不进入 `npm test`。

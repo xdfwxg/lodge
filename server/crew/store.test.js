@@ -3,7 +3,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { createStore } from './store.js'
+import { DatabaseSync } from 'node:sqlite'
+import { SCHEMA_VERSION, createStore } from './store.js'
 
 test('a store opened without a database reports a fresh start', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-store-fresh-'))
@@ -264,6 +265,43 @@ test('work items dedupe and timers survive a reopen', () => {
     assert.equal(store.claimWork('r1'), null)
   } finally {
     store.db.close()
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})
+
+test('a version 4 database migrates forward, keeping rooms and cleaning round fields', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-migrate-'))
+  const file = join(dataDir, 'crew.db')
+  try {
+    const first = createStore({ dataDir })
+    first.writeRoom({
+      id: 'r1', name: '旧房', roomType: 'studio', goal: 'g', state: 'done', stages: [], members: [],
+      activeRoundId: null, lastRoundId: 'round-1',
+      advisorShadow: { summary: '旧影子' }, previews: [{ path: 'a.png' }],
+      reviewRetriedAt: 1, stageDiagnostics: { 0: '旧诊断' }, mergeResolved: { stage: 0 },
+    })
+    first.writeRoom({ id: 'chat-1', name: '聊天房', roomType: 'chat', goal: '聊点什么', stages: [], members: [] })
+    first.db.close()
+
+    const old = new DatabaseSync(file)
+    old.exec('DROP INDEX IF EXISTS messages_room_seq')
+    old.exec('PRAGMA user_version = 4')
+    old.close()
+
+    const migrated = createStore({ dataDir })
+    assert.equal(Number(migrated.db.prepare('PRAGMA user_version').get().user_version), SCHEMA_VERSION)
+    assert.equal(migrated.readRoom('r1').name, '旧房')
+    const indexes = migrated.db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'messages_room_seq'").all()
+    assert.equal(indexes.length, 1)
+    const studioPayload = JSON.parse(migrated.db.prepare("SELECT payload FROM room WHERE id = 'r1'").get().payload)
+    for (const field of ['advisorShadow', 'previews', 'reviewRetriedAt', 'stageDiagnostics', 'mergeResolved', 'goal']) {
+      assert.equal(studioPayload[field], undefined, `${field} should leave the room payload`)
+    }
+    const chatPayload = JSON.parse(migrated.db.prepare("SELECT payload FROM room WHERE id = 'chat-1'").get().payload)
+    assert.equal(chatPayload.goal, '聊点什么')
+    assert.equal(chatPayload.advisorShadow, undefined)
+    migrated.db.close()
+  } finally {
     rmSync(dataDir, { recursive: true, force: true })
   }
 })

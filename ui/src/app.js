@@ -127,7 +127,12 @@ export function App() {
         onRename: (id, name) => store.renameRoom(id, name),
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),
-        onRounds: id => setRoundsFor(id),
+        onRounds: id => {
+          setProjectId(null)
+          setHistory(null)
+          setRoundsFor(id)
+          store.select(id)
+        },
       }),
     projectId !== null
       ? h(ProjectView, {

@@ -5,6 +5,7 @@ import { QuestionCard } from '../question-card.js'
 import { splitVerdictText } from './verdict-text.js'
 import { cardStateOf } from '../../../../shared/attempt.js'
 import { judgmentOf } from '../../../../shared/judgment.js'
+import { homeRelative } from '../../home-path.js'
 
 const SEVERITY_LABEL = { blocker: '阻断', major: '重要', minor: '次要' }
 
@@ -88,7 +89,7 @@ export const renderStudioMessage = ({
     ].filter(Boolean).join('\n')
     if (message.authorId === 'system') {
       return h('div', { key: message.id, className: 'crew-msg-wrap' },
-        h('div', { className: 'crew-system' }, message.text ?? ''),
+        h('div', { className: 'crew-system' }, homeRelative(message.text ?? '')),
         fold('检查明细', detail))
     }
     return chat(message.text ?? '', fold('检查明细', detail))

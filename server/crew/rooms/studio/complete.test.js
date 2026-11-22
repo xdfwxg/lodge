@@ -36,9 +36,13 @@ const setup = () => {
       Object.assign(assignment, change === true ? {} : change)
       return assignment
     },
-    finishWorkRound: ({ status, patch = {} }) => {
+    finishWorkRound: ({ status, patch = {}, message = null }) => {
       room = { ...room, ...patch, workRound: { ...room.workRound, status } }
-      return { round: room.workRound, room }
+      const stored = message === null
+        ? null
+        : { id: `m${messages.length + 1}`, ...message, workRoundId: room.workRound.id }
+      if (stored !== null) messages.push(stored)
+      return { round: room.workRound, room, message: stored }
     },
   }
   const completeRoom = createRoomCompleter({

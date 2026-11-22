@@ -110,11 +110,13 @@ test('a round starts and finishes atomically, with one open round per room', () 
       status: 'completed',
       eventType: 'round.completed',
       idempotencyKey: 'round-complete:round-1',
+      message: { kind: 'conclusion', authorId: 'planner', text: '已交付：修登录超时', meta: { roundId: 'round-1' } },
     })
     assert.equal(finished.room.state, 'idle')
     assert.equal(finished.room.activeRoundId, null)
     assert.equal(finished.room.lastRoundId, 'round-1')
     assert.equal(finished.round.status, 'completed')
+    assert.equal(finished.message.workRoundId, 'round-1')
 
     const duplicate = store.finishWorkRound({
       roomId: 'room-1',
@@ -122,8 +124,10 @@ test('a round starts and finishes atomically, with one open round per room', () 
       status: 'completed',
       eventType: 'round.completed',
       idempotencyKey: 'round-complete:round-1',
+      message: { kind: 'conclusion', authorId: 'planner', text: '已交付：修登录超时', meta: { roundId: 'round-1' } },
     })
     assert.equal(duplicate.duplicate, true)
+    assert.equal(store.readMessages('room-1').filter(message => message.kind === 'conclusion').length, 1)
 
     store.appendMessage('room-1', { kind: 'chat', authorId: 'you', text: '空闲时说的话' })
     assert.equal(store.readMessages('room-1').some(message => message.text === '空闲时说的话'), true)
@@ -276,7 +280,7 @@ test('messages and assignments default to the active round', () => {
   const { dir, store } = temp()
   try {
     store.writeRoom({
-      id: 'room-1', demo: true, name: '工作室', state: 'active', activeRoundId: 'round-1',
+      id: 'room-1', demo: true, name: '工作室', roomType: 'studio', state: 'active', activeRoundId: 'round-1',
     })
     store.appendMessage('room-1', { kind: 'system', text: '这一轮' })
     store.appendMessage('room-1', { kind: 'system', text: '旧轮', workRoundId: 'round-0' })
@@ -286,6 +290,27 @@ test('messages and assignments default to the active round', () => {
 
     store.writeAssignment({ id: 'assignment-1', roomId: 'room-1', stageIndex: 0, status: 'created' })
     assert.equal(store.readAssignment('assignment-1').workRoundId, 'round-1')
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a studio message after completion belongs to the last round, not the room', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({
+      id: 'room-1', demo: true, name: '工作室', roomType: 'studio', state: 'idle', lastRoundId: 'round-1',
+    })
+    store.appendMessage('room-1', { kind: 'chat', text: '迟到的总结' })
+    assert.equal(store.readMessages('room-1')[0].workRoundId, 'round-1')
+
+    // 聊天室是连续时间线，不按轮次切走。
+    store.writeRoom({
+      id: 'room-2', demo: true, name: '聊天室', roomType: 'chat', state: 'active', activeRoundId: 'round-9',
+    })
+    store.appendMessage('room-2', { kind: 'chat', text: '聊天' })
+    assert.equal(store.readMessages('room-2')[0].workRoundId, undefined)
   } finally {
     store.db.close()
     rmSync(dir, { recursive: true, force: true })

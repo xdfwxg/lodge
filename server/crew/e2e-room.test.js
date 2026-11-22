@@ -183,11 +183,11 @@ test('deterministic room scenario completes the round and accepts it', async () 
       room: store.readRoom(room.id),
       body: next.body,
       roomFiles: ports.roomFiles,
-      onStarted: startedRoom => store.appendMessage(startedRoom.id, {
+      startMessage: {
         kind: 'chat',
         authorId: 'you',
         text: '再补一行说明',
-      }),
+      },
     })
     assert.equal(started.ok, true, started.error)
     const second = store.readRoom(room.id)

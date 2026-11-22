@@ -1,6 +1,6 @@
-// 基座群聊的只读窗口：谁说了什么、房间有没有在忙。
-// 聊天主持和影子评审都从这里取话，不再各写一套轮询。
-export const createBaseThread = ({ engine, store, roomId }) => {
+// 群聊线程端口：谁说了什么、房间有没有在忙。
+// 房型只依赖这个窄接口，不关心下面接的是哪个基座。
+export const createThreadPort = ({ engine, store, roomId }) => {
   const room = () => store.readRoom(roomId)
   const sessionRefOf = () => room()?.chatRoom?.sessionRef
   const messagesOf = async () => {

@@ -189,6 +189,27 @@ test('a studio without a project can still open its old rounds', async ({ page, 
   await expect(page.getByText('旧轮只能查看；要接着做，回到工作室开新一轮。')).toBeVisible()
 })
 
+test('history opens for a room that is not the currently selected one', async ({ page, request }) => {
+  const base = await (await request.get('/api/state')).json()
+  const state = {
+    ...base,
+    rooms: [
+      studio({ id: 'room-1', name: '长期工作间', rounds: [completedRound] }),
+      studio({ id: 'room-2', name: '第二间工作间', rounds: [completedRound] }),
+    ],
+    projects: [],
+  }
+  await page.route('**/api/state', route => route.fulfill({ json: state }))
+  await page.goto('/')
+  await page.getByRole('button', { name: /^长期工作间/ }).first().click()
+  const row = page.locator('.crew-side-row', { hasText: '第二间工作间' }).first()
+  await row.hover()
+  await row.getByRole('button', { name: /^管理 / }).click()
+  await page.getByRole('menuitem', { name: '历史' }).click()
+  await expect(page.getByText('1 轮')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '历史' })).toBeVisible()
+})
+
 test('a completed project starts the next round in the same studio', async ({ page, request }) => {
   const base = await (await request.get('/api/state')).json()
   let state = {

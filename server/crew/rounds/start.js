@@ -10,7 +10,7 @@ const isWorker = member => member.role === 'worker' || member.roleKind === 'exec
 const workerOf = room => (room.members ?? []).find(isWorker) ?? null
 const verifiersOf = room => (room.members ?? []).filter(member => member.role === 'verifier' || member.roleKind === 'verifier')
 
-export const startRound = async ({ store, live, emit, room, body, roomFiles, onStarted = null }) => {
+export const startRound = async ({ store, live, emit, room, body, roomFiles, startMessage = null }) => {
   if (room === null || room.roomType !== 'studio') return fail('invalid', '只有工作室能开一轮')
   if (room.state === ROOM_STATE.paused || room.state === ROOM_STATE.stopped) return fail('conflict', '先让工作室继续，再开新一轮')
   if (typeof room.activeRoundId === 'string' && room.activeRoundId !== '') {
@@ -70,14 +70,12 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles, onS
     },
   })
 
-  const opened = store.startWorkRound?.({ roomId: room.id, round }) ?? null
+  const opened = store.startWorkRound?.({ roomId: room.id, round, message: startMessage }) ?? null
   if (opened === null) return fail('conflict', '这一轮还没结束；先停下或作废这一轮')
   const updated = opened.room
   const activeRound = opened.round ?? round
 
   const view = composeRoundView(updated, activeRound)
-  // 人的那句话先落进新轮，系统再派活；否则时间线会先出现 @执行官，后出现用户的请求。
-  onStarted?.(view)
   for (const message of built.messages ?? []) {
     store.appendMessage(room.id, { kind: 'system', text: message })
   }

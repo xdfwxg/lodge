@@ -650,3 +650,20 @@ npm run eval:planning:nightly
 - 14px 统一（2026-11-22）：正文、聊天、验收结论、用户气泡和输入框统一 14px / 22px；名字行 13px / 600，辅助信息 12px；加粗仍是 600 字重，字号不变。聊天室和工作室桌面/手机实测一致，无溢出。单测 1238、UI 20/20、`check:done` 全过。
 - 工作室 10 间 × 2 轮（2026-11-22，真实模型，本机 claude 走 DeepSeek `deepseek-v4-pro`）：10 间新工作室各跑两轮，20/20 交付，0 失败；轮次耗时 min 12.8s / p50 16.1s / p95 27.8s / max 27.8s，平均 17.2s，费用至少 $1.17。每轮页面检查 20 次：系统小字 0、横向溢出 0、结果卡都在末尾、气泡/验收/输入框 14px、加粗最少 12 处、axe 0 违规。唯一 JSON 标记出现在第 02 间第 1 轮，复查该页已无 JSON；唯一「理由」标记是影子评审正文里的理由，不是空理由行。10 间房 `工作室 真实 01–10` 保留在侧栏，旧测试房已删除。
 - 最终门禁：`npm test` 1229 全过；UI 端到端 20/20；`check:done` 全过；`knip` 0；`dependency-cruiser` 648 模块 / 2099 依赖 0 违规；long-task 5/5。
+
+## 2026-11-22 · 四层审计修复与真实复验
+
+- 数据边界：轮次字段收进 `shared/work-round.js` 的 `ROUND_FIELDS`（补上 `mergeResolved` / `advisorShadow` / `previews` / `reviewRetriedAt` / `stageDiagnostics`）；`updateRoom` 改轮次字段直接抛错，`updateRound` 才写 `work_round`。新增轮次字段重置断言。
+- 消息归属：工作室消息写入时归当前轮，轮次结束后到达的消息归最后一轮；聊天室消息保持房间级。真实房 `room-5a11edad` 三轮共 69 条消息，数据库里 42 / 17 / 10 条分别落在三个 `work_round_id`，没有房间级工作消息。
+- 开轮与收口原子性：轮次和用户消息在同一个 SQLite 事务里落库（`startWorkRound({ round, message })`）；结论消息和轮次完成也在同一个事务里落库（`finishWorkRound({ message })`），不再留下“有结论、轮次未结束”的半状态。两处都有回归测试。
+- 旧轮次字段清理：真实库迁移前有 8 间房的 payload 还带 `advisorShadow` / `previews` / `stageDiagnostics` / `reviewRetriedAt` / `mergeResolved`；`SCHEMA_VERSION=6` 的 5 → 6 迁移在事务里清掉工作室房间的轮次字段，聊天室只清这五个，迁移后残留 0、11 间房仍可读、目标与阶段视图完整。
+- 适配器边界：`rooms/base/thread.js` 移到 `server/crew/ports/threads.js`，房型只依赖 `createThreadPort`；dependency-cruiser 新增 `rooms-not-to-base-adapters`，现为 655 模块 / 2124 依赖 0 违规。
+- 数据库迁移：`SCHEMA_VERSION=6`，4 → 5 在事务内补 `messages(room_id, seq)` 索引，5 → 6 清旧房间轮次字段，数据都保留；没有迁移路径的旧版本仍要求 `npm run data:reset`。真实库从 4 升到 6 后 11 间房全部可读；新增临时目录迁移测试，覆盖索引、工作室清理和聊天室保留目标。
+- 界面三处：成员回复里的绝对家目录显示为 `~`（不改 `/tmp`、URL 等其它路径）；历史首轮标题改用目标，不再用房间名；侧栏每行只保留一个 Tab 停靠点，管理菜单用右键菜单键或 Shift+F10 打开。
+- 现场 bug：侧栏对非当前房间点「历史」时只设置了历史目标、没有选中房间，页面不动。修复为同时选中；新增端到端「history opens for a room that is not the currently selected one」。
+- 门禁：CI 增加 `check:unused`、`check:deps`、`check:acceptance`、`eval:long-task`；`check:acceptance` 从“文件存在”加严为“文件里有 `test(`，且会被 `npm test` 或 Playwright 的入口跑到”；新增 `npm run smoke:real`，只读检查 Lodge 8787、基座 8799 和本机模型路由。
+- 真实评测：`npm run eval:rooms` 3/3 PASS，0 返工，p50 27,897ms；revise-tone 18,816ms、slice-sheet 30,895ms、verify-catch 27,897ms，全部 delivered + verdict pass + 独立尺子通过。真实厂商仍是本机 `claude` 走的 DeepSeek `deepseek-v4-pro`。
+- 第二轮路径：在保留的 `工作室 真实 01`（room-5a11edad）开第三轮，10,949ms 交付；页面无 `/Users/`、输入框和发言 14px、加粗 14px/600、无横向溢出、控制台 0 错误；历史显示 3 轮，第一轮名仍是旧数据里的房间名，后两轮是目标截断。
+- 收口事务真实复验（2026-11-22，真实模型，room-c7a64c99「工作室 真实 02」）：重启后开第 3 轮，11,796ms 交付；结论恰好 1 条且带本轮 `roundId`，轮次 completed，房间回到 idle。
+- 最终门禁：`npm test` 1244 全过；UI 端到端 21/21；`check:done` 全过；`knip` 0；`dependency-cruiser` 655 模块 / 2124 依赖 0 违规；acceptance 115 条；long-task 5/5。
+- 未跑：`eval:planning` 本轮未重跑；没有再做 10 间 × 2 轮的矩阵，只跑了 3 题评测和一间第三轮真实交付。

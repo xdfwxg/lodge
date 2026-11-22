@@ -82,8 +82,8 @@ export const createRoundStore = ({ db }) => {
 }
 
 // 一轮开始/结束的事务：轮次、房间指针、事件一起提交。
-export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWorkRound, insertEvent, mirrorEvent }) => {
-  const startWorkRound = ({ roomId, round }) => {
+export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWorkRound, insertEvent, mirrorEvent, persistMessage = null }) => {
+  const startWorkRound = ({ roomId, round, message = null }) => {
     db.exec('BEGIN IMMEDIATE')
     try {
       const open = db.prepare(
@@ -99,13 +99,19 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       room.idle = false
       room.noProgress = 0
       room.pauseReason = null
-      // 这些字段按阶段/证据挂在前一轮，新轮从零开始；不带上旧轮的影子意见和预览。
-      room.advisorShadow = {}
-      room.previews = []
-      room.reviewRetriedAt = null
+      // 这些字段已经属于轮次；旧版房间 payload 里如果还留着，清掉。
+      delete room.advisorShadow
+      delete room.previews
+      delete room.reviewRetriedAt
+      delete room.stageDiagnostics
+      delete room.mergeResolved
       room.version = Number(roomRow.version) + 1
       db.prepare('UPDATE room SET payload = ?, version = ? WHERE id = ? AND version = ?')
         .run(JSON.stringify(room), room.version, roomId, roomRow.version)
+      // 开轮和用户那句话同一个事务：要么都在，要么都不在。
+      const storedMessage = message === null || persistMessage === null
+        ? null
+        : persistMessage({ ...message, roomId, workRoundId: stored.id })
       const event = insertEvent(roomId, {
         type: 'round.started',
         payload: {
@@ -122,7 +128,7 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       })
       db.exec('COMMIT')
       mirrorEvent(roomId, event)
-      return { round: stored, room: readRoom(roomId) }
+      return { round: stored, room: readRoom(roomId), message: storedMessage }
     } catch (error) {
       db.exec('ROLLBACK')
       throw error
@@ -138,6 +144,7 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
     eventType = '',
     eventPayload = {},
     idempotencyKey = null,
+    message = null,
   }) => {
     db.exec('BEGIN IMMEDIATE')
     try {
@@ -188,9 +195,13 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
           payload: { ...eventPayload, roundId, status },
           idempotencyKey,
         })
+      // 结论和轮次完成同一个事务：不会留下“有结论、轮次还没结束”的半状态。
+      const storedMessage = message === null || persistMessage === null
+        ? null
+        : persistMessage({ ...message, roomId, workRoundId: roundId })
       db.exec('COMMIT')
       if (event !== null) mirrorEvent(roomId, event)
-      return { round: readWorkRound(roundId, roomId), room: readRoom(roomId) }
+      return { round: readWorkRound(roundId, roomId), room: readRoom(roomId), message: storedMessage }
     } catch (error) {
       db.exec('ROLLBACK')
       throw error

@@ -70,9 +70,16 @@ export const createTimelineStore = ({
     return message
   }
 
+  // 工作室的消息属于某一轮，当前没有活动轮时归到上一轮；聊天室保持房间级连续时间线。
+  const roundForMessage = (room, message) => {
+    if (message.workRoundId !== undefined) return message.workRoundId
+    if (room?.roomType !== 'studio') return null
+    return room.activeRoundId ?? room.lastRoundId ?? null
+  }
+
   const appendMessage = (roomId, message) => {
     const room = readRoom(roomId)
-    const workRoundId = message.workRoundId ?? room?.activeRoundId ?? null
+    const workRoundId = roundForMessage(room, message)
     const stored = persistMessage(
       {
         ...message,
@@ -89,10 +96,18 @@ export const createTimelineStore = ({
   }
 
   const upsertMessage = message => {
-    const row = db.prepare('SELECT seq, room_id FROM messages WHERE id = ?').get(message.id)
+    const row = db.prepare('SELECT seq, room_id, work_round_id FROM messages WHERE id = ?').get(message.id)
     if (row !== undefined) {
       if (row.room_id !== message.roomId) return null
-      const updated = { ...message, seq: row.seq }
+      // 更新一条已经落库的消息时保留它原来的轮次；迟到的补丁不能把它挪到新轮。
+      const workRoundId = message.workRoundId !== undefined
+        ? message.workRoundId
+        : (row.work_round_id ?? roundForMessage(readRoom(message.roomId), message))
+      const updated = {
+        ...message,
+        ...(workRoundId === null ? {} : { workRoundId }),
+        seq: row.seq,
+      }
       db.prepare('UPDATE messages SET work_round_id = ?, payload = ? WHERE id = ?')
         .run(workRoundIdOf(updated), JSON.stringify(updated), updated.id)
       if (message.meta?.final === true) {
@@ -101,7 +116,13 @@ export const createTimelineStore = ({
       emit('msg.patch', updated, updated.seq)
       return updated
     }
-    const stored = persistMessage({ ...message, seq: nextSeq() })
+    const room = readRoom(message.roomId)
+    const workRoundId = roundForMessage(room, message)
+    const stored = persistMessage({
+      ...message,
+      ...(workRoundId === null ? {} : { workRoundId }),
+      seq: nextSeq(),
+    })
     emit('msg', stored, stored.seq)
     return stored
   }

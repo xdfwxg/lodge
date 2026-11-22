@@ -30,23 +30,24 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       (message.meta?.roundId === round.id ||
         (startedAt !== null && typeof message.ts === 'number' && message.ts >= startedAt))
     ))
-    if (!alreadyConcluded) {
-      appendMessage(room.id, {
-        kind: 'conclusion',
-        authorId: 'planner',
-        text: `已交付：${room.goal}`,
-        meta: {
-          stages: room.stages.length,
-          commands: room.stages.map(item => item.acceptance).filter(Boolean),
-          roundId: round.id,
-        },
-      })
-      appendEvent(room.id, 'room.conclusion', {
+    const conclusion = {
+      kind: 'conclusion',
+      authorId: 'planner',
+      text: `已交付：${room.goal}`,
+      meta: {
         stages: room.stages.length,
         commands: room.stages.map(item => item.acceptance).filter(Boolean),
-      })
+        roundId: round.id,
+      },
     }
     if (room.demo === true) {
+      if (!alreadyConcluded) {
+        appendMessage(room.id, conclusion)
+        appendEvent(room.id, 'room.conclusion', {
+          stages: room.stages.length,
+          commands: room.stages.map(item => item.acceptance).filter(Boolean),
+        })
+      }
       appendMessage(room.id, { kind: 'system', text: '示例房间 · 不写结论文件，也不生成版本记录' })
       return room
     }
@@ -98,6 +99,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       eventType: 'round.completed',
       eventPayload: { stages: room.stages.length },
       idempotencyKey: `round-complete:${round.id}`,
+      message: alreadyConcluded ? null : conclusion,
     }) ?? null
     if (finished === null) {
       appendMessage(room.id, { kind: 'system', text: '这一轮没能收口，还停在原来这一步；待处理。' })

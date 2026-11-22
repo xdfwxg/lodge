@@ -61,6 +61,7 @@ export function StudioTranscript({
   )
   const timeline = useMemo(() => buildTimeline(messages), [messages])
   const hidden = useMemo(() => new Set(hideKinds), [hideKinds])
+  const finished = stagesCompletedOf(room)
   // 同一个人把同一句话既写进聊天又从证据里回来时，只留聊天那一句。
   const renderable = useMemo(() => {
     const normalize = text => String(text ?? '')
@@ -75,7 +76,14 @@ export function StudioTranscript({
       .map(message => message.meta.evidenceId))
     // 人的重做标记和 human-context 是同一条输入；主时间线只留带“补充上下文”的那一条。
     const humanNotes = humanNoteKeys(messages)
-    return messages.filter(message => {
+    // 结论之后再回来的总结属于上一轮，不再横在已交付和结果卡之间。
+    const conclusionIndex = finished
+      ? messages.reduce((last, message, index) => (message.kind === 'conclusion' ? index : last), -1)
+      : -1
+    return messages.filter((message, index) => {
+      if (conclusionIndex >= 0 && index > conclusionIndex) return false
+      // 结论就是下面那张结果卡；不再用一条同目标的气泡说第二遍。
+      if (finished && message.kind === 'conclusion') return false
       // 工作式聊天只留人和成员说的话；交接链上的系统消息例外。
       if (message.kind === 'system' || message.authorId === 'system') return isChainMessage(message)
       if (isDuplicateHumanRework(message, humanNotes)) return false
@@ -90,7 +98,7 @@ export function StudioTranscript({
       if (message.kind === 'chat' && byId[message.authorId]?.roleKind === 'verifier') return false
       return true
     })
-  }, [messages])
+  }, [messages, byId, finished])
 
   const items = []
   for (let index = 0; index < renderable.length; index += 1) {
@@ -112,16 +120,11 @@ export function StudioTranscript({
   }
 
   const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
-  // 已交付时看这一轮最后的工作步骤；不能拿 advisorShadow 的最后一个 key，旧轮可能还留着。
-  const workIndex = (room.stages ?? []).reduce((last, stage, index) => (
-    stage.kind === 'deliverable' || stage.manual === true ? index : last
-  ), -1)
-  const adviceIndex = activeIndex >= 0 ? activeIndex : workIndex
-  const advice = adviceIndex >= 0
-    ? h(ShadowAdvice, { key: `advice-${adviceIndex}`, room, stageIndex: adviceIndex, label: '影子评审' })
+  // 影子评审是执行中的旁注；已经交付时结果卡才是主视线，不再把建议横在结果前。
+  const advice = activeIndex >= 0
+    ? h(ShadowAdvice, { key: `advice-${activeIndex}`, room, stageIndex: activeIndex, label: '影子评审' })
     : null
 
-  const finished = stagesCompletedOf(room)
   const roomMessages = Array.isArray(room.messages) ? room.messages : []
   const pendingApprovals = (room.approvals ?? []).filter(approval => (
     approval.state === 'pending' && scopeIsValid(approval.scope, { room, messages: roomMessages })
@@ -152,7 +155,6 @@ export function StudioTranscript({
     return h('div', { className: 'studio-timeline studio-result-timeline' },
       ...items,
       h(RoomReview, { key: 'room-review', room, finished: true }),
-      advice,
       h('div', { key: 'room-closing', className: 'studio-result' },
         h('div', { className: 'studio-room-closing-wrap' },
           delivery === null

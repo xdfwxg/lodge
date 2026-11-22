@@ -44,6 +44,13 @@ module.exports = {
       to: { path: '^server/crew/rooms/(chat|studio)/' },
     },
     {
+      name: 'rooms-not-to-base-adapters',
+      severity: 'error',
+      comment: '房型只依赖 ports/threads，不直接 import rooms/base 的适配器。',
+      from: { path: '^server/crew/rooms/(chat|studio)/', pathNot: '\\.test\\.js$' },
+      to: { path: '^server/crew/rooms/base/' },
+    },
+    {
       name: 'chat-not-to-studio',
       severity: 'error',
       comment: '聊天室和工作室是两套引擎，不互相 import。',

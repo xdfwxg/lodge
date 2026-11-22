@@ -37,6 +37,7 @@
     "data:restore": "node scripts/data-restore.mjs",
     "data:reset": "node scripts/data-reset.mjs",
     "smoke:package": "node scripts/smoke-package.mjs",
+    "smoke:real": "node scripts/smoke-real.mjs",
     "test:ui": "npm run build && playwright test",
     "retro:env": "node scripts/env-retro.mjs",
     "eval:rooms:nightly": "node evals/rooms/run.mjs --runs 3 --out evals/rooms/results/nightly",

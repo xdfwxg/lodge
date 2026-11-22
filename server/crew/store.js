@@ -12,7 +12,27 @@ import { createProjectStore } from './store/projects.js'
 import { createAssignmentStore } from './store/assignments.js'
 import { createTimelineStore } from './store/timeline.js'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 6
+
+// 版本迁移只做向前的一步；没有迁移路径的旧版本仍要求重置，避免猜数据。
+const LEGACY_ROUND_FIELDS = ['mergeResolved', 'advisorShadow', 'previews', 'reviewRetriedAt', 'stageDiagnostics']
+
+const MIGRATIONS = {
+  4: db => db.exec('CREATE INDEX IF NOT EXISTS messages_room_seq ON messages(room_id, seq)'),
+  // 旧版把轮次字段写在房间 payload 里；工作室房间的轮次字段全部删掉，
+  // 聊天室的轮次概念不同，只清这五个确实属于工作室轮次的字段。
+  5: db => {
+    const update = db.prepare('UPDATE room SET payload = ? WHERE id = ?')
+    for (const row of db.prepare('SELECT id, payload FROM room').all()) {
+      const room = JSON.parse(row.payload)
+      const fields = room.roomType === 'studio' && (room.activeRoundId ?? room.lastRoundId ?? null) !== null
+        ? ROUND_FIELDS
+        : LEGACY_ROUND_FIELDS
+      for (const field of fields) delete room[field]
+      update.run(JSON.stringify(room), row.id)
+    }
+  },
+}
 
 const SCHEMA_SQL = `
   PRAGMA journal_mode = WAL;
@@ -26,6 +46,7 @@ const SCHEMA_SQL = `
     payload TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS messages_room_round ON messages(room_id, work_round_id, seq);
+  CREATE INDEX IF NOT EXISTS messages_room_seq ON messages(room_id, seq);
   CREATE TABLE IF NOT EXISTS profile (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS assignment (
     id TEXT PRIMARY KEY,
@@ -102,9 +123,25 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
   if (!fresh) {
     const row = db.prepare('PRAGMA user_version').get()
     const version = Number(row?.user_version ?? 0)
-    if (version !== SCHEMA_VERSION) {
+    if (version > SCHEMA_VERSION) {
       db.close()
-      throw new Error(`数据库版本 ${version} 与当前模型 ${SCHEMA_VERSION} 不一致；运行 npm run data:reset 重建本地数据`)
+      throw new Error(`数据库版本 ${version} 高于当前模型 ${SCHEMA_VERSION}；请升级应用`)
+    }
+    if (version < SCHEMA_VERSION) {
+      if (version < 4) {
+        db.close()
+        throw new Error(`数据库版本 ${version} 没有迁移路径；运行 npm run data:reset 重建本地数据`)
+      }
+      db.exec('BEGIN IMMEDIATE')
+      try {
+        for (let at = version; at < SCHEMA_VERSION; at += 1) MIGRATIONS[at]?.(db)
+        db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
+        db.exec('COMMIT')
+      } catch (error) {
+        db.exec('ROLLBACK')
+        db.close()
+        throw error
+      }
     }
   }
   db.exec(SCHEMA_SQL)
@@ -239,6 +276,13 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     readWorkRound: rounds.readWorkRound,
     insertEvent,
     mirrorEvent,
+    persistMessage: message => {
+      const room = readRoom(message.roomId)
+      return timeline.persistMessage(
+        { ...message, id: randomUUID(), seq: timeline.nextSeq(), ts: Date.now() },
+        { transcript: room?.demo !== true },
+      )
+    },
   })
   const assignments = createAssignmentStore({ db, readRoom, roundIdForRead })
 

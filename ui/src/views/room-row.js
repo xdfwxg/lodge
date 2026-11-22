@@ -252,6 +252,12 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         className: 'bt-row crew-side-room',
         'aria-current': active ? 'page' : undefined,
         onClick: onSelect,
+        onKeyDown: event => {
+          if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return
+          if (manage !== true || menuOpen === true) return
+          event.preventDefault()
+          toggleMenu()
+        },
         title: label,
         'aria-label': label,
       },
@@ -271,6 +277,8 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         ref: moreRef,
         type: 'button',
         className: 'crew-side-more',
+        // 行本身已是键盘停靠点；管理菜单用右键菜单键或 Shift+F10 打开，不再多一个 Tab。
+        tabIndex: -1,
         'aria-label': stamp === '' ? `管理 ${room.name}` : `管理 ${room.name}，${stamp}`,
         'aria-haspopup': 'menu',
         'aria-expanded': menuOpen,

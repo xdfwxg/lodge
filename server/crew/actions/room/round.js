@@ -37,13 +37,11 @@ export const createRoundActions = deps => {
           } : {}),
         },
         roomFiles,
-        onStarted: startedRoom => {
-          appendMessage(startedRoom.id, {
-            kind: 'chat',
-            authorId: 'you',
-            text,
-            ...(attachments.length === 0 ? {} : { meta: { attachments } }),
-          })
+        startMessage: {
+          kind: 'chat',
+          authorId: 'you',
+          text,
+          ...(attachments.length === 0 ? {} : { meta: { attachments } }),
         },
       })
       if (result?.ok !== true) return result

@@ -20,4 +20,8 @@ jobs:
       - run: npm run test:ui
       - run: npm run build
       - run: npm run check:docs
+      - run: npm run check:unused
+      - run: npm run check:deps
+      - run: npm run check:acceptance
       - run: npm run check:regressions
+      - run: npm run eval:long-task

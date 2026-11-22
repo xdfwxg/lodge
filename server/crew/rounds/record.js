@@ -19,6 +19,12 @@ export const roundSummaryOf = round => ({
   usage: round.usage ?? null,
 })
 
+const titleOf = goal => {
+  const text = typeof goal === 'string' ? goal.trim() : ''
+  if (text === '') return null
+  return text.length > 24 ? `${text.slice(0, 24)}…` : text
+}
+
 const roundFieldsOf = room => Object.fromEntries(
   ROUND_FIELDS
     .filter(field => room[field] !== undefined)
@@ -37,8 +43,13 @@ export const buildRoundFromRoom = ({
   projectId,
   ordinal,
   status,
-  name: room.name,
+  name: titleOf(room.goal) ?? room.name,
   ...roundFieldsOf(room),
+  mergeResolved: null,
+  advisorShadow: {},
+  previews: [],
+  reviewRetriedAt: null,
+  stageDiagnostics: {},
   origin: {
     sourceRoomId: room.sourceRoomId ?? null,
     sourceName: room.sourceName ?? null,
@@ -87,6 +98,11 @@ export const buildRound = ({
   autoCheck: null,
   blocked: null,
   mergeConflict: null,
+  mergeResolved: null,
+  advisorShadow: {},
+  previews: [],
+  reviewRetriedAt: null,
+  stageDiagnostics: {},
   stageBases: {},
   startHead: room.workspaceHead ?? room.startHead ?? null,
   workspaceHead: null,

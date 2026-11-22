@@ -32,7 +32,7 @@ server/index.js              ← 唯一组合根
 service.js                   ← 路由分发与用例组合
 应用层：rooms/*、kernel/live/*
 领域层：room-types、gate、assignments、verifiers、orchestration、presentation
-端口：crew-ports、runtime-port、workspace-ports、surface-port
+端口：crew-ports、runtime-port、workspace-ports、surface-port、threads
 适配器：store、engine、workspace、surfaces/base
 ```
 
@@ -55,7 +55,7 @@ service.js                   ← 路由分发与用例组合
 **接口与依赖**
 
 - 模式差异依赖 `roomModeForType`、`roomModeOfRoom`、`roomPresentationOfRoom`、`roomLifecycleOfRoom`；三组接口分别回答“怎么建/怎么跑”“只读投影什么”“哪些动作会改状态”。轮次启动、成员能力这类差异走策略钩子；`service.js` 作为组合点装配具体模式用例。
-- 模式差异的依赖方向是 `service → 注册表 → kind`、`kind → shared/ports`；反向 import、UI import 服务端、聊天室和工作室互 import 都由测试拦住。
+- 模式差异的依赖方向是 `service → 注册表 → kind`、`kind → shared/ports`；反向 import、UI import 服务端、聊天室和工作室互 import 都由测试拦住。基座群聊线程只经 `ports/threads` 暴露，房型不直接 import `rooms/base` 的适配器。
 - 新增模式 = 描述符 + kind + 视图 + 自己的动作入口；不改 `Room`、另一间房或共享房间协议。运行期不切换房型；底层角色仍是规划师/执行官/验收员三类。
 
 **为什么这么分**
@@ -68,14 +68,14 @@ service.js                   ← 路由分发与用例组合
 ## 数据与真相
 
 - SQLite `room` 存长期工作室、成员、工作区和 `idle/active/paused/stopped`；`work_round` 存一轮的目标、计划、阶段、门、决策、费用、预算和交付；`project` 存轮次分组和北极星。
-- `messages` 存时间线并带 `work_round_id`；`work_round_id=NULL` 是房间级消息，当前视图会带上它，旧轮详情只读该轮。证据和结论都是消息。
+- `messages` 存时间线并带 `work_round_id`；`work_round_id=NULL` 是房间级消息，当前视图会带上它，旧轮详情只读该轮。工作室消息写入时归到当前轮，轮次结束后到达的消息归最后一轮；聊天室保持房间级连续。证据和结论都是消息。
 - `room_event` 存结构化轮次/运行时事件，带 `idempotency_key`；`assignment` 存房间内交接并带 `work_round_id`。旧轮和新轮在存储上就分开。
 - `work_item` 是唯一的持久队列和唯一的时钟：定时、审批、阶段截止、重试和恢复都走它，带 `attempts/max_attempts/available_at/lease_until/dedupe_key/last_error`。`enqueueWork` 是唯一入口，同一个 id 再投一次表示重设到点时间；轮次结束时同事务作废属于该轮的待办，领取过期后按退避重试，耗尽即死信并通知人。
 - 调度器不认识房型：到期项交给 `live.handleWork`，房型按 `kind` 处理自己的活（`approval`、`stage.deadline`、`chat.round`）。新增一种长期动作只需注册一个处理器，不改调度器和存储。阶段超时同时有内存计时器保证准时和持久截止项保证重启后仍会到点；房型换轮或阶段已结束，迟到项是安全的空操作。
 - 聊天室也有持久时钟：一轮讨论进行时占一条 `chat.round` 工作项，`chat.turns` 落了已发言次数；进程重启后从下一次发言续跑，不把整轮从第一句重来。发送前先落 `chat.pending`（第几回合、谁、之前的消息 id）；重启时用它在基座历史里找已经到达的回复，找到就补账，找不到只记一次未回应，不重发。
 - 交接租约也走同一条队列：assignment 进入 `sent` 时落 `assignment.lease`（8 分钟）；成员出现第一个活动（工具调用）或交回第一个非空回合后就取消这条计时，后面的长回合交给阶段截止兜底。一个成员一直没有任何活动才在租约到期时只停这一位；还有别人在跑就继续等，最后一位停下才收口。阶段截止（15 分钟）保留为整步兜底。
-- 存储拆成 `store/` 仓库：`work.js`、`rounds.js`、`timeline.js`、`assignments.js`、`projects.js`；`store.js` 只做打开、组合和房间视图。房间写入和轮次写入是两条显式路径：`updateRoom` 只写房间自己的字段，`updateRound` 才读写当前轮次；终态轮拒绝写入。HTTP 动作按动作族放在 `actions/room/{lodge,run,admin,round}.js`，`room-actions.js` 只做分派，`service.js` 只做组合根。
-- `SCHEMA_VERSION=4`；旧库版本不匹配直接拒绝，运行 `npm run data:reset` 重建。旧数据不迁移，不留兼容字段。
+- 存储拆成 `store/` 仓库：`work.js`、`rounds.js`、`timeline.js`、`assignments.js`、`projects.js`；`store.js` 只做打开、组合和房间视图。房间写入和轮次写入是两条显式路径：`updateRoom` 只写房间自己的字段，`updateRound` 才读写当前轮次；终态轮拒绝写入。轮次字段清单在 `shared/work-round.js`，两边共用。开新一轮时轮次和用户消息在同一个事务里落库，收口时结论消息和轮次完成也在同一个事务里落库；启动失败可以安全恢复。HTTP 动作按动作族放在 `actions/room/{lodge,run,admin,round}.js`，`room-actions.js` 只做分派，`service.js` 只做组合根。
+- `SCHEMA_VERSION=6`；4 → 5 补 `messages(room_id, seq)` 索引，5 → 6 清掉旧房间 payload 里残留的轮次字段（工作室全清，聊天室只清五个工作室轮次字段）；都在事务里前进并保留数据。没有迁移路径的旧版本直接拒绝，运行 `npm run data:reset` 重建；旧数据不留兼容字段。
 - 房间目录 `transcript.jsonl` 先追加并 fsync，再写 SQLite；轮次级目标、结论和证据文件可重建。
 - 当前用户是全局资料（`profile` 表一份），房间展示和 agent 上下文从它读，不再各存 `humanName`；改昵称后下一次快照即全局生效。
 - 一轮完成只结束这一轮：工作室回到空闲；下一轮在同一工作室开，旧轮保留为可回看的轮次。

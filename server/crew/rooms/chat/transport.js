@@ -1,10 +1,10 @@
 import { hostAddress } from '../../member-labels.js'
 import { memberOf } from '../../room-members.js'
-import { createBaseThread } from '../base/thread.js'
+import { createThreadPort } from '../../ports/threads.js'
 
-// 聊天调度只认这个端口：历史、回复和空闲判断都留在适配层。
+// 聊天调度只认这个端口：历史、回复和空闲判断都留在端口里。
 export const createChatTransport = ({ engine, store, roomId }) => {
-  const thread = createBaseThread({ engine, store, roomId })
+  const thread = createThreadPort({ engine, store, roomId })
   const refOf = memberId => {
     const room = store.readRoom(roomId)
     return memberId === 'host'

@@ -120,7 +120,7 @@ test('a finished room keeps the work record open and ends with the result', asyn
   assert.equal(hasClass(tree, 'studio-result'), true)
 })
 
-test('a finished round shows its own shadow advice, not the previous stage key', async () => {
+test('a finished round keeps shadow advice off the result path', async () => {
   const { StudioTranscript } = await load()
   const room = {
     ...finishedRoom(),
@@ -130,8 +130,21 @@ test('a finished round shows its own shadow advice, not the previous stage key',
     },
   }
   const tree = render(StudioTranscript({ room, members, delivery }))
-  assert.match(text(tree), /本轮意见/)
-  assert.doesNotMatch(text(tree), /上一轮意见/)
+  assert.doesNotMatch(text(tree), /本轮意见|上一轮意见/)
+})
+
+test('a summary and a duplicate conclusion stay out of the result path', async () => {
+  const { StudioTranscript } = await load()
+  const room = {
+    ...finishedRoom(),
+    messages: [
+      { id: 'c1', kind: 'conclusion', authorId: 'lead', text: '已交付：设置页保存', ts: 1, seq: 1 },
+      { id: 'late', kind: 'chat', authorId: 'lead', text: '这一步通过了，下一步由你确认', ts: 2, seq: 2 },
+    ],
+  }
+  const tree = render(StudioTranscript({ room, members, delivery }))
+  assert.doesNotMatch(text(tree), /下一步由你确认/)
+  assert.doesNotMatch(text(tree), /已交付：设置页保存/)
 })
 
 test('a room still at work keeps the transcript on screen', async () => {

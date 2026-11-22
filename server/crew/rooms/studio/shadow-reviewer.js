@@ -1,4 +1,4 @@
-import { createBaseThread } from '../base/thread.js'
+import { createThreadPort } from '../../ports/threads.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { fenceUntrusted } from '../../../../shared/untrusted-text.js'
 
@@ -89,7 +89,7 @@ export const createShadowReviewer = ({ engine, store, roomId, sendToMember }) =>
   const ask = async ({ room, stage, evidence, manual = false }) => {
     const ref = typeof room?.shadowBot?.memberRef === 'string' ? room.shadowBot.memberRef : ''
     if (ref === '') return { available: false, advice: [] }
-    const thread = createBaseThread({ engine, store, roomId })
+    const thread = createThreadPort({ engine, store, roomId })
     if (thread.ready() !== true) return { available: false, advice: [] }
     const before = await thread.messageIds()
     const sent = await sendToMember('shadow', shadowPrompt({ room, stage, evidence, manual }), { intent: 'notice' })
