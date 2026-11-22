@@ -42,6 +42,12 @@ export const chatModeOf = room => (
     : 'open'
 )
 
+// 工作室的一轮是否已经走完所有阶段；聊天室也有只读阶段，所以只按阶段事实判断。
+export const stagesCompletedOf = room => {
+  const stages = Array.isArray(room?.stages) ? room.stages : []
+  return stages.length > 0 && stages.every(stage => stage.state === STAGE_STATUS.passed)
+}
+
 // 聊天有没有真正开始：运行标志、总结/收尾阶段，或已经有人说了一句。
 export const chatStartedOf = (room, messages = room?.messages) => {
   const chat = room?.chat ?? {}

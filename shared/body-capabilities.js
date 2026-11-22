@@ -22,12 +22,3 @@ export const bodyCapabilitiesOf = ({ engine = null, member = {}, features = null
     schedules: engineCapabilities.schedules === true,
   }
 }
-
-export const BODY_CAPABILITY_LABELS = Object.freeze({
-  ask: '会先问',
-  read: '能读文件',
-  tools: '能跑工具',
-  browser: '能看浏览器',
-  skills: '能挂技能',
-  schedules: '能定时',
-})

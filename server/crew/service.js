@@ -1,6 +1,7 @@
 import * as log from './log.js'
 import { resolve, sep } from 'node:path'
-import { ROOM_STATE, STAGE_STATE } from '../../shared/states.js'
+import { ROOM_STATE } from '../../shared/states.js'
+import { stagesCompletedOf } from '../../shared/room-status.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
@@ -80,8 +81,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
   }
   const recordMemory = room => {
     if (room === null || room === undefined || room.demo === true) return
-    if (!Array.isArray(room.stages) || room.stages.length === 0) return
-    if (!room.stages.every(stage => stage.state === STAGE_STATE.passed)) return
+    if (!stagesCompletedOf(room)) return
     try {
       const result = ports.memory?.appendRoom?.({ room: memoryRoom(room), messages: readMessages(room.id) })
       if (result?.ok === false && result.reason !== 'demo' && result.reason !== 'no-workspace') {

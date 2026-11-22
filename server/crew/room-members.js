@@ -25,8 +25,6 @@ export const workerIds = room => workerMembers(room).map(member => member.id)
 
 export const verifierIds = room => verifierMembers(room).map(member => member.id)
 
-export const memberIdList = room => (room?.members ?? []).map(member => member.id)
-
 export const memberLabelMap = room => Object.fromEntries(
   (room?.members ?? []).map(member => [member.id, member.name]),
 )

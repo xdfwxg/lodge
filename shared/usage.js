@@ -7,14 +7,6 @@ const microOf = value => (
     : null
 )
 
-export const emptyUsage = () => ({
-  version: USAGE_VERSION,
-  turns: 0,
-  tokens: { input: 0, output: 0 },
-  costMicroUsd: 0,
-  costStatus: 'reported',
-})
-
 export const usageBudgetExceeded = room => {
   const budget = Number(room?.budgetMicroUsd)
   if (!Number.isFinite(budget) || budget <= 0) return false

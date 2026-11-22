@@ -27,10 +27,6 @@ export const ROUND_FIELDS = Object.freeze([
   'supersedeReason',
 ])
 
-export const MAX_ROUND_QUESTIONS = 2
-export const MIN_ROUND_OPTIONS = 2
-export const MAX_ROUND_OPTIONS = 4
-
 export const workRoundIdOf = value => (
   typeof value?.workRoundId === 'string' && value.workRoundId !== ''
     ? value.workRoundId

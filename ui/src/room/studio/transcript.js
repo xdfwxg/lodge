@@ -12,6 +12,7 @@ import { ApprovalCard } from '../../approval-card.js'
 import { WorkingLine } from './working-line.js'
 import { RoomReview } from '../room-review.js'
 import { scopeIsValid } from '../../../../shared/attempt.js'
+import { stagesCompletedOf } from '../../../../shared/room-status.js'
 
 const orderOf = message => (
   (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
@@ -118,8 +119,7 @@ export function StudioTranscript({
     ? h(ShadowAdvice, { key: `advice-${adviceIndex}`, room, stageIndex: adviceIndex, label: '影子评审' })
     : null
 
-  const finished = (room.stages ?? []).length > 0 &&
-    room.stages.every(stage => stage.state === 'passed')
+  const finished = stagesCompletedOf(room)
   const roomMessages = Array.isArray(room.messages) ? room.messages : []
   const pendingApprovals = (room.approvals ?? []).filter(approval => (
     approval.state === 'pending' && scopeIsValid(approval.scope, { room, messages: roomMessages })

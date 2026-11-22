@@ -17,8 +17,6 @@ const VERDICT_DECISIONS = new Set(['pass', 'reject'])
 const PLANNER_DECISIONS = new Set(['rework', 'human'])
 const REJECT_TARGETS = new Set(['planner', 'worker', 'human'])
 
-export const GATE_DECISIONS = Object.freeze(['pass', 'rework', 'fail', 'human'])
-
 const rejectToFor = (type, decision) => {
   if (type === 'planner') return decision === 'human' ? 'human' : 'worker'
   return decision === 'pass' ? null : 'planner'

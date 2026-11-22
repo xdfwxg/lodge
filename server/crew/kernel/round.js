@@ -1,6 +1,4 @@
-import { ROUND_EVENT, ROUND_TRANSITIONS, TERMINAL_ROUND_STATUSES } from '../../../shared/states.js'
-
-export const ROUND_EVENTS = Object.freeze(Object.values(ROUND_EVENT))
+import { ROUND_TRANSITIONS, TERMINAL_ROUND_STATUSES } from '../../../shared/states.js'
 
 export const terminalRoundStatus = status => TERMINAL_ROUND_STATUSES.has(status)
 

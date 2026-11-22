@@ -5,12 +5,6 @@ export const MERGE_STATE = Object.freeze({
   RESOLVED: 'resolved',
 })
 
-export const mergeStateLabel = state => ({
-  [MERGE_STATE.MERGING]: '合并中',
-  [MERGE_STATE.CONFLICT]: '冲突待处理',
-  [MERGE_STATE.RESOLVED]: '已解决',
-}[state] ?? '')
-
 export const mergeStateOf = (room, stage = null) => {
   const matches = value => value !== null && value !== undefined &&
     (stage === null || value.stage === stage)

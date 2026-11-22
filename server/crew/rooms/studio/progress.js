@@ -1,4 +1,5 @@
 import { PLANNER_DECISION_KIND, ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
+import { stagesCompletedOf } from '../../../../shared/room-status.js'
 
 export const NO_PROGRESS_LIMIT = 6
 
@@ -6,9 +7,7 @@ export const NO_PROGRESS_LIMIT = 6
 export const advanceProgress = (room, { progressed, at = Date.now() }) => {
   room.turnCount = Number(room.turnCount ?? 0) + 1
   // 已交付的房间只剩聊天，没有阶段可推进；空转守卫不该把它暂停。
-  const delivered = Array.isArray(room.stages) &&
-    room.stages.length > 0 &&
-    room.stages.every(stage => stage.state === STAGE_STATE.passed)
+  const delivered = stagesCompletedOf(room)
   if (delivered) {
     room.noProgress = 0
     return { paused: false }

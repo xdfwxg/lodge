@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { useOverlay } from '../overlay.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { initialOf } from '../marks.js'
-import { idleDelivered } from '../../../shared/room-status.js'
+import { chatStatusOf, idleDelivered } from '../../../shared/room-status.js'
+import { CHAT_STATUS } from '../../../shared/states.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { humanErrorText } from '../error-text.js'
 import { SideMembers } from './side-members.js'
@@ -359,7 +360,7 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRoun
 }
 
 const toneOf = room => {
-  if (room?.modeCapabilities?.stages === false && room?.chat?.phase === 'concluded') return 'waiting'
+  if (chatStatusOf(room) === CHAT_STATUS.concluded) return 'waiting'
   if (room.needsYou?.kind === 'review') return 'review'
   if (room.needsYou?.kind === 'signoff' || room.needsYou?.kind === 'result') return 'done'
   if (room.needsYou?.kind === 'rework' || room.needsYou?.kind === 'merge' || room.needsYou?.kind === 'parallel') return 'alert'
@@ -394,7 +395,7 @@ const metaOf = room => room.archivedAt ? '' : room.needsYou ? NEEDS_META[room.ne
 const stateLabelOf = room => {
   if (room?.archivedAt) return '已归档'
   if (deliveredOf(room)) return '已交付'
-  if (room?.modeCapabilities?.stages === false && room?.chat?.phase === 'concluded') return '聊到这儿了'
+  if (chatStatusOf(room) === CHAT_STATUS.concluded) return '聊到这儿了'
   if (room?.state === 'idle') return '空闲中'
   if (room?.state === 'stopped') return '已停止'
   if (room?.state === 'paused') return '已暂停'

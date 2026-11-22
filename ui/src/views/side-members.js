@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { bodyStatuses } from '../room/body-status.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { openAddMemberDialog, openBodyDialog } from '../room/member-dialog.js'
+import { stagesCompletedOf } from '../../../shared/room-status.js'
 
 const IDLE = 'idle'
 
@@ -30,7 +31,7 @@ export function SideMembers({ room, onHold = null }) {
   if (members.length === 0) return null
   const kind = uiKindOfRoom(room)
   const statuses = bodyStatuses(room, members, { labels: kind.memberLabels })
-  const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
+  const finished = stagesCompletedOf(room)
   const canAdd = kind.membersCanBeAdded === true && room.live === true && !finished &&
     (room.state === 'active' || room.state === 'paused')
   const canHold = room.state === 'active' && room.live === true && typeof onHold === 'function'

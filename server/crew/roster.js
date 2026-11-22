@@ -185,7 +185,6 @@ export const validateRoster = (members, { requireWorker = true } = {}) => {
 }
 
 export const ROLES = membersFor(DEFAULT_TEMPLATE_ID)
-export const ROLE_IDS = ROLES.map(member => member.id)
 validateRoster(ROLES)
 
 export const min = n => n * 60_000

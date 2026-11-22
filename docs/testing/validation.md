@@ -475,3 +475,11 @@ npm run eval:planning:nightly
 - 界面不再直接读 `room.chat` 拼状态：房间视图、岛适配器和状态读模型统一用 `chatStartedOf` / `chatStatusOf`；删掉岛里未使用的局部变量。
 - 旧的“系统随机唤醒成员”房内说明改成“按未发言和立场顺序”；`messagePolicy` 从房型窄契约移除。
 - Lodge 单测 1192 全过；UI 端到端 18/18；`check:done` 全过（文档、验收、回归门禁和长任务 5/5）。
+
+## 2026-11-22 · 工作室收敛与死代码清理
+
+- “所有阶段已过”从 6 处复制收成共享 `stagesCompletedOf`：房间壳、成员面板、工作室时间线、空转守卫、加成员和记忆写入都读同一份。
+- 侧栏不再直接读 `room.chat.phase`：聊天结论状态统一走 `chatStatusOf`。
+- 删除没有调用方的导出：`ROUND_EVENTS`、`memberIdList`、`replayChatTransition`、`ROLE_IDS`、`BODY_CAPABILITY_LABELS`、`HANDOFF_FIELDS`、`GATE_DECISIONS`、`isLodgeRoom`、`mergeStateLabel`、`emptyUsage`、`work-round` 的 3 个未用上限常量；删除整份未使用的 `ui/src/room/presence.js`。
+- 保留 `terminalRoundStatus`：它还有轮次生命周期测试在保护，不是垃圾。
+- Lodge 单测 1193 全过；UI 端到端 18/18；`check:done` 全过（文档、验收、回归门禁和长任务 5/5）。

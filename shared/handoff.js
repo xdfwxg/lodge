@@ -1,5 +1,4 @@
 // 聊天室 → 工作室的唯一交接契约：只传这五样，不搬原始聊天记录。
-export const HANDOFF_FIELDS = ['topic', 'consensus', 'disagreements', 'constraints', 'todos']
 
 const LIST_LIMIT = 6
 const ITEM_LIMIT = 300

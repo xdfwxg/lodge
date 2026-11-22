@@ -111,7 +111,7 @@ service.js                   ← 路由分发与用例组合
 - 完成要求所有阶段 passed 且没有未终态交接；失败只结束这一轮，不把房间变成终态。
 - 房间暂停不改变轮次状态；恢复继续同一轮。归档先停止 open round，再设 `archivedAt`；恢复回到 idle，不重新打开终态轮。
 - 运行时按 room+round 生命周期创建和释放；停止、完成、归档、删除都会清掉 stage timeout、自动重做和待确认卡。`rooms/studio/turns.js` 只做装配，自动检查、规划师决定、回合采集和重启续跑分别在 `rooms/studio/runtime/` 的四个模块里。
-- 状态读模型：`roomStatusOf` 只返回 `idle/active/paused/stopped/archived`；`roundStatusOf` 管轮次；`idleDelivered` 表示当前是否已交付；`stageStatusOf` 把阶段状态和阻塞、待回答、待拍板收成一个词；`chatStatusOf` 把聊天阶段、运行标志和首条发言收成一个词。界面只读这些函数，不自己拼状态。
+- 状态读模型：`roomStatusOf` 只返回 `idle/active/paused/stopped/archived`；`roundStatusOf` 管轮次；`idleDelivered` 表示当前是否已交付；`stagesCompletedOf` 表示所有阶段是否已经走过；`stageStatusOf` 把阶段状态和阻塞、待回答、待拍板收成一个词；`chatStatusOf` / `chatStartedOf` 把聊天阶段、运行标志和首条发言收成一个词。界面和记忆写入都只读这些函数，不自己拼状态。
 - 状态目录：`shared/states.js` 是唯一清单，收拢房间、轮次、阶段、交接、聊天、work item、审批、复盘记忆、注意力和交接消息等状态与转移表；服务端和共享层的状态读写都从这里取常量，`shared/states.test.js` 还会扫源码，防止裸状态字符串回潮。
 - 事件覆盖：轮次开始/终态、阶段派发/通过/重做/退回、交接的每次状态变化、聊天的每次阶段变化都写 `room_event`；`round.started` 带阶段快照。事件只做审计和重放，不回写业务状态。
 - 只读重放：`npm run replay:round -- --room <id> [--round <id>]` 从事件重建阶段和交接状态，和当前数据库对比；只报告差异，不改状态。实现见 `server/crew/rounds/replay.js`。聊天室用 `npm run replay:chat -- --room <id> [--round <n>]` 把 `chat.round_started / speaker / summary_started / conclusion / continued` 和消息串起来，回答这一轮谁说了什么、结论从哪来；实现见 `server/crew/rounds/replay-chat.js`。

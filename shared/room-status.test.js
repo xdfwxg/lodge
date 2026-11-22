@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { chatModeOf, chatStartedOf, chatStatusOf, idleDelivered, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf } from './room-status.js'
+import { chatModeOf, chatStartedOf, chatStatusOf, idleDelivered, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf, stagesCompletedOf } from './room-status.js'
 
 test('room lifecycle never reports a delivered round as a room state', () => {
   assert.equal(roomStatusOf({ state: 'idle' }), 'idle')
@@ -89,4 +89,11 @@ test('chat started is one fact shared by the room view and the island', () => {
   assert.equal(chatStartedOf({ chat: {}, messages: [{ kind: 'chat', authorId: 'member' }] }), true)
   assert.equal(chatStartedOf({ chat: {}, messages: [{ kind: 'chat', authorId: 'lodge' }] }), false)
   assert.equal(chatStartedOf({ chat: {}, messages: [] }), false)
+})
+
+test('all stages passed is one fact shared by the room shell, studio transcript and memory', () => {
+  assert.equal(stagesCompletedOf({ stages: [{ state: 'passed' }, { state: 'passed' }] }), true)
+  assert.equal(stagesCompletedOf({ stages: [{ state: 'passed' }, { state: 'active' }] }), false)
+  assert.equal(stagesCompletedOf({ stages: [] }), false)
+  assert.equal(stagesCompletedOf({}), false)
 })

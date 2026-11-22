@@ -11,6 +11,7 @@ import { ArrowDownIcon } from '../icons.js'
 import { humanErrorText } from '../error-text.js'
 import { onMemberDialog } from '../room/member-dialog.js'
 import { MENTION_ALL } from '../../../shared/mentions.js'
+import { stagesCompletedOf } from '../../../shared/room-status.js'
 
 function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [dropped, setDropped] = useState(null)
@@ -225,7 +226,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       setAddOpen(true)
     },
   }
-  const finished = (room.stages ?? []).length > 0 && room.stages.every(stage => stage.state === 'passed')
+  const finished = stagesCompletedOf(room)
   const canStartRound = mode.canStartRound?.({ room }) === true
   const viewCtx = { state, room, members, locked, actions, store }
   const typing = mode.typing?.(viewCtx) ?? null
