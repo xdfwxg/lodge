@@ -361,8 +361,12 @@ export function createStore() {
     cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),
     steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
     accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
-    answerDecision: async (decisionId, optionId) => {
-      const data = await post(`/api/rooms/${state.activeId}/decision`, { decisionId, optionId })
+    answerDecision: async (decisionId, optionId, text = '') => {
+      const data = await post(`/api/rooms/${state.activeId}/decision`, {
+        decisionId,
+        optionId,
+        ...(typeof text === 'string' && text.trim() !== '' ? { text } : {}),
+      })
       if (data?.room !== undefined) acceptRoom(data.room)
       return data
     },

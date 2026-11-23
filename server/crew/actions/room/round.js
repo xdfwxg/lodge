@@ -5,6 +5,7 @@ import { normalizeAttachments } from '../../attachments.js'
 import { ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
 import { answerDecision } from '../../../../shared/decision.js'
 import { leadMemberOf } from '../../room-members.js'
+import { systemNotice } from '../../notices.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 
 // 一轮工作的动作：开新一轮、发消息、人拍板、结束和退回。
@@ -144,7 +145,12 @@ export const createRoundActions = deps => {
       if (typeof body.decisionId === 'string' && body.decisionId !== '' && body.decisionId !== pending.id) {
         return fail('conflict', '这张决策卡已经过期；刷新后再选')
       }
-      const result = answerDecision(pending, typeof body.optionId === 'string' ? body.optionId : '')
+      const result = answerDecision(
+        pending,
+        typeof body.optionId === 'string' ? body.optionId : '',
+        Date.now(),
+        typeof body.text === 'string' ? body.text : '',
+      )
       if (result.error !== undefined) return fail('invalid', result.error)
       const answered = result.decision
       const updated = store.updateRound(room.id, current => {
@@ -160,22 +166,31 @@ export const createRoundActions = deps => {
       // 基座群聊仍只留规划师；等规划师排完、第一次派活时再把成员放回来。
       emit('room', store.readRoom(room.id) ?? updated)
       const chosen = answered.options?.find(option => option.id === answered.answer?.optionId)
+      const written = answered.answer?.optionId === 'other' ? answered.answer?.text ?? '' : ''
       appendMessage(room.id, {
         kind: 'chat',
         authorId: 'you',
         text: answered.status === 'cancelled'
           ? '先不做这一步。'
-          : `选：${chosen?.title ?? answered.answer?.optionId}`,
+          : written !== '' ? written : `选：${chosen?.title ?? answered.answer?.optionId}`,
       })
-      if (answered.status === 'cancelled') return ok({ room: updated })
+      if (answered.status === 'cancelled') {
+        // 取消不是终点：给房间一个安静的落点，用户才知道接下来能说什么。
+        systemNotice({ store, roomId: room.id, text: '这一步先不做；房间先停在这里，想换个方向直接说。' })
+        return ok({ room: updated })
+      }
       const lead = leadMemberOf(room)?.id ?? null
       if (lead === null) return fail('conflict', '房间里没有规划师，先加一位')
-      const prompt = [
-        `用户对「${pending.question}」选了：${chosen?.title ?? answered.answer?.optionId}`,
-        `会发生：${chosen?.effect ?? answered.answer?.effect ?? ''}`,
-        '按这个方向继续；不要重复问同一个问题，也不要把选项再列一遍。',
-        INTERNAL_PROMPT_MARKER,
-      ].join('\n')
+      const prompt = (written !== ''
+        ? [
+          `用户对「${pending.question}」没有选卡上的路，自己写的是：${written}`,
+          '按用户写的这个方向继续；不要重复问同一个问题，也不要把选项再列一遍。',
+        ]
+        : [
+          `用户对「${pending.question}」选了：${chosen?.title ?? answered.answer?.optionId}`,
+          `会发生：${chosen?.effect ?? answered.answer?.effect ?? ''}`,
+          '按这个方向继续；不要重复问同一个问题，也不要把选项再列一遍。',
+        ]).concat([INTERNAL_PROMPT_MARKER]).join('\n')
       try {
         await live.sendToMember(room.id, lead, prompt, { intent: 'decision', from: 'you' })
       } catch {

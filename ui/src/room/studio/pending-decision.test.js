@@ -31,6 +31,10 @@ const load = async () => {
 }
 
 const room = () => ({
+  members: [
+    { id: 'planner', name: '规划师', role: 'lead' },
+    { id: 'executor', name: '执行官', role: 'worker' },
+  ],
   pendingDecision: {
     id: 'd1',
     status: 'open',
@@ -50,12 +54,31 @@ test('the pending decision is one card with options and a recommended path', asy
   const tree = PendingDecisionCard({ room: room(), onAnswer: (id, optionId) => { calls.push([id, optionId]); return { ok: true } } })
   assert.equal(tree.type.name, 'DecisionCard')
   assert.equal(tree.props.title, '走哪条路？')
-  assert.match(tree.props.kicker, /规划师想请你定/)
+  assert.match(tree.props.kicker, /想请你定/)
+  // 提问的人是规划师本人，卡头显示头像和名字。
+  assert.equal(tree.props.speaker?.name, '规划师')
   const options = tree.children.find(child => child?.props?.className === 'crew-decision-options')
-  assert.equal(options.children.length, 2)
+  // 卡上的路之外总有一行「其他」，选中后输入框就长在这一行里。
+  assert.equal(options.children.length, 3)
   assert.equal(options.children[0].props.badge, '推荐')
-  await tree.props.footer.children[0].props.onClick()
+  const other = options.children[2]
+  assert.match(other.props.className, /crew-decision-other/)
+  assert.equal(other.props['aria-checked'], false)
+  assert.equal(other.children[1].children[0].children[0], '其他')
+  const accept = tree.props.footer.children.find(child => /crew-accept/.test(child.props.className))
+  await accept.props.onClick()
   assert.deepEqual(calls, [['d1', 'keep-local']])
+})
+
+test('the card drops the restatement and the button says when it will send the recommendation', async () => {
+  const { PendingDecisionCard } = await load()
+  const tree = PendingDecisionCard({ room: room(), onAnswer: () => ({ ok: true }) })
+  // 选项和推荐标签已经说明白了，不再用一句话复述。
+  assert.equal(tree.props.lead ?? '', '')
+  const [cancel, accept] = tree.props.footer.children
+  assert.equal(cancel.children[0], '先不做这一步')
+  assert.equal(cancel.props.className, 'crew-ghost')
+  assert.equal(accept.children[0], '按推荐继续')
 })
 
 test('no open decision renders no card', async () => {

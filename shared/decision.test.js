@@ -27,3 +27,12 @@ test('the user picks an option, the recommendation, or cancels', () => {
   assert.equal(answerDecision(open, 'cancel').decision.status, 'cancelled')
   assert.equal(answerDecision(open, 'missing').error, '这个选项不在决策卡里。')
 })
+
+test('the user can write their own direction instead of picking one', () => {
+  const open = normalizeAskDecision({ id: 'd1', input }).decision
+  assert.equal(answerDecision(open, 'other', Date.now(), '   ').error, '先写一句你想怎么做。')
+  const answered = answerDecision(open, 'other', Date.now(), ' 先做拼音，中文保留兜底 ').decision
+  assert.equal(answered.status, 'answered')
+  assert.equal(answered.answer.optionId, 'other')
+  assert.equal(answered.answer.text, '先做拼音，中文保留兜底')
+})

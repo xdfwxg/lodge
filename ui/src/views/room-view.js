@@ -203,7 +203,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     accept: stage => void store.accept(stage),
     rework: (stage, note) => store.rework(stage, note),
     chooseHuman: (stage, choice, note) => store.humanChoice(stage, choice, note),
-    answerDecision: (decisionId, optionId) => store.answerDecision(decisionId, optionId),
+    answerDecision: (decisionId, optionId, text) => store.answerDecision(decisionId, optionId, text),
     readArtifact: (roomId, path) => store.readArtifact(roomId, path),
     resolveMerge: () => store.resolveMerge(),
     retry: (stage, note) => void store.retry(stage, note),

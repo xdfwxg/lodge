@@ -53,9 +53,21 @@ export const normalizeAskDecision = ({
   }
 }
 
-export const answerDecision = (decision, optionId, at = Date.now()) => {
+export const answerDecision = (decision, optionId, at = Date.now(), note = '') => {
   if (decision === null || decision === undefined || decision.status !== DECISION_STATUS.open) {
     return { error: '这张决策卡已经不在等你了。' }
+  }
+  // 卡上的路都不合适时，用户自己写一句；这句就是他要的方向。
+  if (optionId === 'other') {
+    const written = text(note, 2000)
+    if (written === '') return { error: '先写一句你想怎么做。' }
+    return {
+      decision: {
+        ...decision,
+        status: DECISION_STATUS.answered,
+        answer: { optionId: 'other', text: written, effect: written, at },
+      },
+    }
   }
   if (optionId === 'cancel') {
     return {

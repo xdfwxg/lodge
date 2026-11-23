@@ -80,6 +80,27 @@ test('cancelling closes the card without waking the planner', async () => {
   assert.equal(ctx.round().pendingDecision.status, 'cancelled')
   assert.equal(ctx.sent.length, 0)
   assert.match(ctx.messages[0].text, /先不做/)
+  // 取消后留一句看得见的状态，用户知道房间停在哪、下一步能说什么。
+  assert.match(ctx.messages[1].text, /先停在这里/)
+  assert.equal(ctx.messages[1].meta.show, true)
+})
+
+test('a direction the user writes themselves goes to the planner as it is', async () => {
+  const ctx = setup()
+  const text = '两条都不选，先用拼音，中文保留兜底'
+  const result = await ctx.actions.decision({ room: ctx.room(), readBody: async () => ({ decisionId: 'd1', optionId: 'other', text }) })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.round().pendingDecision.status, 'answered')
+  assert.equal(ctx.round().pendingDecision.answer.optionId, 'other')
+  assert.equal(ctx.messages[0].text, text)
+  assert.match(ctx.sent[0][2], /没有选卡上的路，自己写的是：两条都不选/)
+})
+
+test('an empty written direction is rejected', async () => {
+  const ctx = setup()
+  const result = await ctx.actions.decision({ room: ctx.room(), readBody: async () => ({ decisionId: 'd1', optionId: 'other', text: '   ' }) })
+  assert.equal(result.ok, false)
+  assert.equal(ctx.round().pendingDecision.status, 'open')
 })
 
 test('an old decision id or a closed card cannot be answered twice', async () => {
