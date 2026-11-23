@@ -18,9 +18,14 @@ const normalizeRole = role => {
   return ROLE_ALIASES.get(raw) ?? ROLE_ALIASES.get(raw.toLowerCase()) ?? null
 }
 
-// 编队是语义判断，归规划师：先看目标与仓库事实，再决定需要几个成员。
-const recommendationPrompt = (goal, repoPath, handoff = null) => [
-  '只做这次编队判断：不写代码、不改文件、不建群。',
+// 编队是一次性的语义判断：编队建议员给出建议，真正的规划在工作室里由规划师做。
+// 身份只写在 soul；每轮提示只带这次的目标、事实和输出形状。
+export const SCOUT_SOUL = [
+  '你是 Lodge 的编队建议员：只做一次编队判断，给出成员、步骤和验收；不写代码、不改文件、不执行工具。',
+  '只依据目标、工作文件夹和仓库事实判断；拿不准的写进 questions，不要猜。',
+].join('\n')
+
+export const recommendationPrompt = (goal, repoPath, handoff = null) => [
   `目标：${goal}`,
   `工作文件夹（只读副本）：${repoPath}`,
   handoff === null ? '' : `已经确认的交接单：\n${handoffGoalText(handoff)}`,
@@ -287,7 +292,7 @@ export const recommendRoster = async ({ probe, body, workspace }) => {
     workspaces = provider.prepareRoom({ source: sourceRepo, short, members: [scout] })
     await probe.start({
       name: `编队评估${short}`,
-      soul: '你是规划师。只做编队判断：先用两句人话说计划，再给一段 JSON 建步骤；不执行工具。',
+      soul: SCOUT_SOUL,
       description: scout.station,
       approval: scout.approval,
       mcp: scout.mcp,

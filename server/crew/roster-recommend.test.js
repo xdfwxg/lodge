@@ -1,9 +1,21 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parseProposal, recommendRoster } from './roster-recommend.js'
+import { SCOUT_SOUL, parseProposal, recommendRoster, recommendationPrompt } from './roster-recommend.js'
 import { createRosterProbe } from './roster-probe.js'
 
 const reply = body => `这是队长的方案：\n\n\`\`\`json\n${JSON.stringify({ done: ['完成条件'], ...body })}\n\`\`\`\n`
+
+test('the scout names its own job; the turn prompt carries only facts and the shape', () => {
+  assert.match(SCOUT_SOUL, /编队建议员/)
+  assert.doesNotMatch(SCOUT_SOUL, /你是规划师/)
+  assert.match(SCOUT_SOUL, /不写代码、不改文件、不执行工具/)
+  const prompt = recommendationPrompt('做一个欢迎语', '/tmp/repo')
+  assert.match(prompt, /目标：做一个欢迎语/)
+  assert.match(prompt, /"members"/)
+  // 身份在主提示里；每轮不再自称，也不再重复边界。
+  assert.doesNotMatch(prompt, /你是/)
+  assert.doesNotMatch(prompt, /不写代码|不改文件|不建群/)
+})
 
 test('raw newlines and trailing commas inside the reply still parse', () => {
   const text = '```json\n{"done": ["第一行\n第二行",],"members": [{"role":"lead","name":"规划师"},{"role":"worker","name":"执行官"},{"role":"verifier","name":"验收员"}],"verify":"test","acceptance":"npm test"}\n```'
