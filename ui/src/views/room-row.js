@@ -125,7 +125,8 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
   const TypeIcon = kind.icon
   const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
   const hasMemberPanel = !archived && kind.membersInSidebar === false
-  const canDelete = room.state !== 'active' && !room.activeRoundId
+  // 归档过的房随时能删；没归档的，等它停下来再删。
+  const canDelete = archived || (room.state !== 'active' && !room.activeRoundId)
   const closeMenu = () => setMenuOpen(false)
   const toggleMenu = () => {
     if (menuOpen) {
