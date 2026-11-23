@@ -4,7 +4,7 @@ import { alignmentPrompt, directPrompt } from '../create/prompts.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { alreadyMentioned } from './relay-words.js'
-import { historyBriefOf } from './history.js'
+import { historyBriefOf } from './history-brief.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
 
 // 工作室建房后的第一次派发：先对齐，或直接交给主成员/执行官。
@@ -67,9 +67,7 @@ export const startInitialStage = async ({
       store.appendMessage(room.id, {
         kind: 'system',
         authorId: senderId,
-        text: align
-          ? `@${memberDisplayName(room, targetMember.id)} 先对齐目标，再拆下一步。`
-          : `@${memberDisplayName(room, targetMember.id)} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
+        text: `@${memberDisplayName(room, targetMember.id)} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
         meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: [targetMember.id], authorKind: 'system' },
       })
     }

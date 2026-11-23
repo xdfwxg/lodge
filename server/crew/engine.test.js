@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { actionForTool, createEngine } from '../engine.js'
+import { actionForTool } from '../../shared/tool-action.js'
+import { createEngine } from '../engine.js'
 
 const fakeClient = () => {
   const captured = { bot: null, group: null, setup: null, task: null }

@@ -80,3 +80,20 @@ test('only existing tests count; added tests stay free', () => {
   assert.deepEqual(existingTestChangesOf({ files: ['test/a.test.js', 'test/new.test.js', 'src/b.js'] }), ['test/a.test.js', 'test/new.test.js'])
   assert.deepEqual(existingTestChangesOf({ files: ['src/b.js'] }), [])
 })
+
+test('git-quoted test paths are decoded instead of skipped', () => {
+  // git 默认把中文路径写成八进制转义；这类既有测试也必须进清单。
+  const quoted = String.raw`\346\265\213\350\257\225.test.js`
+  const diff = [
+    `diff --git "a/${quoted}" "b/${quoted}"`,
+    'index 111..222 100644',
+    `--- "a/${quoted}"`,
+    `+++ "b/${quoted}"`,
+  ].join('\n')
+  assert.deepEqual(existingTestChangesOf({ files: [], diff }), ['测试.test.js'])
+  const added = [
+    `diff --git "a/${quoted}" "b/${quoted}"`,
+    'new file mode 100644',
+  ].join('\n')
+  assert.deepEqual(existingTestChangesOf({ files: [], diff: added }), [])
+})

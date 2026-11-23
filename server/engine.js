@@ -51,7 +51,6 @@ const normalizeActivity = (label, responderName) => (
 )
 
 // 语义动作的映射在 shared/tool-action.js；适配器只负责协议转换。
-export { actionForTool }
 
 const normalizeMessage = (raw, responderName) => {
   if (raw === null || typeof raw !== 'object') return null

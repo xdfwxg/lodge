@@ -69,7 +69,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         pending.protectedNudged = true
         clearTimeout(pending.reminder)
         void sendToMember(memberId, [
-          `这次改动包含受保护文件：${protectedFiles.join('、')}。`,
+          `这次改动包含受保护文件：${protectedFiles.map(file => sanitizeUntrusted(file, 200)).join('、')}。`,
           'PASS 必须在 submit_verdict 的 protectedFiles 里逐条列出并确认这些文件；不认可就判不通过，或交给人。',
           INTERNAL_PROMPT_MARKER,
         ].join('\n'), { intent: 'review' }).catch(() => {})
@@ -547,7 +547,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       ])].slice(0, LIMITS.protectedFiles)
       const protectedLine = protectedFiles.length === 0
         ? []
-        : [`受保护文件：${protectedFiles.join('、')}。PASS 必须在 submit_verdict 的 protectedFiles 里逐条确认这些文件；否则判定无效。改既有测试或删检查默认视为改了判分标准，除非本步目标就是改测试。`]
+        : [`受保护文件：${protectedFiles.map(file => sanitizeUntrusted(file, 200)).join('、')}。PASS 必须在 submit_verdict 的 protectedFiles 里逐条确认这些文件；否则判定无效。改既有测试或删检查默认视为改了判分标准，除非本步目标就是改测试。`]
       const prompt = manual
         ? [
             `你现在是验收员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,

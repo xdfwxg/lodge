@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { historyBriefOf } from './history.js'
+import { historyBriefOf } from './history-brief.js'
 
 const room = {
   id: 'room-1',
@@ -12,6 +12,7 @@ test('room history is clipped, attributed and marked read-only', () => {
     searchMessages: () => [
       { id: 'm1', authorId: 'worker', ts: Date.UTC(2026, 6, 12, 6, 3), text: '上次选拼音是因为跨平台，不用再问一遍。' },
       { id: 'm2', authorId: 'you', ts: Date.UTC(2026, 6, 12, 6, 5), text: '方案' + '很长'.repeat(200) },
+      { id: 'm3', authorId: 'worker', ts: Date.UTC(2026, 6, 12, 6, 6), text: '上次\u200b选拼音' },
     ],
   }
   const brief = historyBriefOf({ store, room, query: '为什么选拼音', before: 2 })
@@ -19,7 +20,8 @@ test('room history is clipped, attributed and marked read-only', () => {
   assert.match(brief, /甲：上次选拼音/)
   assert.match(brief, /你：/)
   assert.match(brief, /…/)
-  assert.equal(brief.split('\n').length, 3)
+  assert.doesNotMatch(brief, /\u200b/)
+  assert.equal(brief.split('\n').length, 4)
 })
 
 test('no hits or no index means no block', () => {

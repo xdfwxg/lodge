@@ -27,7 +27,48 @@ export const isTestPath = value => {
 }
 
 // 从 diff 里取“既有测试”的改动；没有 diff（人工验收）时保守地把测试文件都算上。
-const TEST_DIFF_LINE = /^diff --git a\/(.+?) b\/(.+)$/
+const HEADER = 'diff --git '
+
+// git 会把空格以外的特殊路径写成 C 风格转义（中文、引号），先还原再判断。
+const unquoteGitPath = token => {
+  if (!token.startsWith('"')) return token
+  const body = token.slice(1, token.endsWith('"') ? -1 : undefined)
+  const bytes = []
+  for (let at = 0; at < body.length; at += 1) {
+    const ch = body[at]
+    if (ch !== '\\') {
+      bytes.push(...Buffer.from(ch, 'utf8'))
+      continue
+    }
+    const next = body[at + 1]
+    if (next !== undefined && /[0-7]/.test(next)) {
+      bytes.push(parseInt(body.slice(at + 1, at + 4), 8))
+      at += 3
+      continue
+    }
+    const escape = { n: '\n', t: '\t', r: '\r', b: '\b', f: '\f', v: '\v', a: '\x07', '"': '"', '\\': '\\' }[next] ?? next ?? ''
+    bytes.push(...Buffer.from(escape, 'utf8'))
+    at += 1
+  }
+  return Buffer.from(bytes).toString('utf8')
+}
+
+const headerPaths = line => {
+  const rest = line.slice(HEADER.length)
+  if (!rest.startsWith('"')) {
+    const match = rest.match(/^a\/(.+?) b\/(.+)$/)
+    return match === null ? null : [match[1], match[2]]
+  }
+  let end = 1
+  while (end < rest.length) {
+    if (rest[end] === '\\') { end += 2; continue }
+    if (rest[end] === '"') break
+    end += 1
+  }
+  const before = unquoteGitPath(rest.slice(0, end + 1)).replace(/^a\//, '')
+  const after = unquoteGitPath(rest.slice(end + 2)).replace(/^b\//, '')
+  return [before, after]
+}
 
 export const existingTestChangesOf = ({ files = [], diff = '' } = {}) => {
   const text = typeof diff === 'string' ? diff : ''
@@ -41,10 +82,10 @@ export const existingTestChangesOf = ({ files = [], diff = '' } = {}) => {
     if (current !== null && !added && isTestPath(current)) changed.add(current)
   }
   for (const line of text.split('\n')) {
-    const match = line.match(TEST_DIFF_LINE)
-    if (match !== null) {
+    if (line.startsWith(HEADER)) {
       flush()
-      current = normalizePath(match[2])
+      const paths = headerPaths(line)
+      current = paths === null ? null : normalizePath(paths[1])
       added = false
       continue
     }
