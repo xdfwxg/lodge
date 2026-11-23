@@ -129,9 +129,6 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
           },
           rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
         : null,
-      specMissing && !specFilled && !roleBound && tab === 'body'
-        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先补上行为说明、技能或工具连接。')
-        : null,
       available.length === 0
         ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个 AI 服务。')
         : engine !== undefined && blocked && blockedReason !== '登录失效'
