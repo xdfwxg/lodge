@@ -115,6 +115,18 @@ export const GATE_TOOLS = Object.freeze([
       additionalProperties: false,
     },
   },
+  {
+    name: 'stop_round',
+    description: '用户说停、不想继续，或你判断这一轮不值得再往下做时，用它停住这一轮；停完只回一句已停，不派活、不 @ 任何人。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        reason: { type: 'string', maxLength: 2000 },
+      },
+      required: ['reason'],
+      additionalProperties: false,
+    },
+  },
 ])
 
 const reply = (id, result) => ({ jsonrpc: '2.0', id, result })
@@ -201,6 +213,11 @@ const callTool = (id, params) => {
       stage,
       note: reason,
     })
+  }
+  if (name === 'stop_round') {
+    const why = String(args.reason ?? '').trim()
+    if (why === '') return toolFailure(id, '写一句为什么停。')
+    return toolOk(id, '已收到停止请求。', { ok: true, reason: why })
   }
   return toolFailure(id, `未知工具：${name}`)
 }

@@ -14,7 +14,7 @@ import { createResume } from './runtime/resume.js'
 import { systemNotice } from '../../notices.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null, rewindStage = null, screenshots = null, attachments = null, setMembers = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null, rewindStage = null, stopRound = null, screenshots = null, attachments = null, setMembers = null }) => {
   const state = createTurnState({ store, roomId, emit })
   // 接上房间时如果卡还开着，基座群聊只留规划师；其余成员等第一次派活再放回。
   const syncDecisionMembers = () => {
@@ -111,7 +111,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
 
   const routePlannerDecision = createPlannerRouting({ store, roomId, sendToMember, handoff, plannerNudges, schedule, expireCards })
 
-  const captureTurn = createTurnCapture({ store, roomId, emit, files, state, integrator, review, acceptance, routePlannerDecision, autoCheck, markManualReady, confirmStage, rewindStage, writeDiagnostic, setMembers })
+  const captureTurn = createTurnCapture({ store, roomId, emit, files, state, integrator, review, acceptance, routePlannerDecision, autoCheck, markManualReady, confirmStage, rewindStage, stopRound, writeDiagnostic, setMembers })
 
   // 服务重启后以已落盘的消息为准续跑：缺回合就重新派发，缺验收就重跑命令，待复核就重发请求，待集成就先合并。
   const resumeOnce = createResume({ store, roomId, emit, sendToMember, integrator, review, acceptance, stageStarter, markManualReady })

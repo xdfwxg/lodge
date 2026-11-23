@@ -12,6 +12,7 @@ export const GATE_TOOL_NAMES = Object.freeze({
 })
 
 const REWIND_TOOL = 'rewind_stage'
+const STOP_TOOL = 'stop_round'
 
 const qualifiedNames = tool => [
   `${GATE_SERVER_NAME}_${tool}`,
@@ -33,7 +34,7 @@ const toolKind = name => {
 // 只认 lodge_gate 自己的工具，不认别的 MCP。
 export const isGateToolName = name => {
   const text = String(name ?? '')
-  return [...Object.keys(GATE_TOOL_NAMES), REWIND_TOOL].some(tool => (
+  return [...Object.keys(GATE_TOOL_NAMES), REWIND_TOOL, STOP_TOOL].some(tool => (
     qualifiedNames(tool).some(form => text.includes(form))
   ))
 }
@@ -105,6 +106,20 @@ export const askQuestionOf = (calls, { at = Date.now() } = {}) => {
 }
 
 // 规划师在对话里要求退回某一步：tool 的 stage 从 1 开始，内部步骤从 0 开始。
+// 用户说停、或规划师判断不值得继续：停这一轮，不再派活；这句理由进账本。
+export const stopRequestOf = calls => {
+  if (!Array.isArray(calls)) return null
+  for (const call of [...calls].reverse()) {
+    const name = String(call?.name ?? '')
+    if (!qualifiedNames(STOP_TOOL).some(form => name.includes(form))) continue
+    const input = parseInput(call?.input)
+    const reason = typeof input?.reason === 'string' ? input.reason.trim().slice(0, 2000) : ''
+    if (reason === '') continue
+    return { reason }
+  }
+  return null
+}
+
 export const rewindRequestOf = calls => {
   if (!Array.isArray(calls)) return null
   for (const call of [...calls].reverse()) {

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { gateSubmissionOf, isGateToolName, rewindRequestOf } from './gate.js'
+import { gateSubmissionOf, isGateToolName, rewindRequestOf, stopRequestOf } from './gate.js'
 import { judgmentFromGate } from './judgment.js'
 
 const verdict = overrides => ({
@@ -158,4 +158,13 @@ test('a planner ask_question becomes one paused question', () => {
   }], { at: 10 })
   assert.deepEqual(question, { text: '上次说的版式是哪一版？', at: 10 })
   assert.equal(askQuestionOf([{ name: 'ask_question', input: { question: '  ' } }]), null)
+})
+
+test('a planner stop request carries one reason', () => {
+  assert.deepEqual(
+    stopRequestOf([{ name: 'mcp__lodge_gate__stop_round', input: JSON.stringify({ reason: '用户说停下' }) }]),
+    { reason: '用户说停下' },
+  )
+  assert.equal(stopRequestOf([{ name: 'mcp__lodge_gate__stop_round', input: { reason: '  ' } }]), null)
+  assert.equal(stopRequestOf([{ name: 'mcp__lodge_gate__submit_verdict', input: { reason: 'x' } }]), null)
 })

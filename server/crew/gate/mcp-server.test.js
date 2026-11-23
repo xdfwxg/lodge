@@ -16,7 +16,7 @@ test('the gate server speaks the minimal MCP handshake', () => {
 
 test('the gate server lists the judgment tools and the planner rewind tool', () => {
   const response = handleMessage({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
-  assert.deepEqual(response.result.tools.map(tool => tool.name), ['submit_verdict', 'submit_decision', 'ask_decision', 'ask_question', 'rewind_stage'])
+  assert.deepEqual(response.result.tools.map(tool => tool.name), ['submit_verdict', 'submit_decision', 'ask_decision', 'ask_question', 'rewind_stage', 'stop_round'])
   assert.equal(GATE_TOOLS[0].inputSchema.required.includes('reason'), true)
 })
 
@@ -121,6 +121,24 @@ test('a planner can ask to rewind a stage by number', () => {
   })
   assert.equal(response.result.structuredContent.stage, 2)
   assert.equal(response.result.structuredContent.note, '用户说第二步方向错了')
+})
+
+test('a planner can stop the round with a reason', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 52,
+    method: 'tools/call',
+    params: { name: 'stop_round', arguments: { reason: '用户说停下' } },
+  })
+  assert.equal(response.result.structuredContent.ok, true)
+  assert.equal(response.result.structuredContent.reason, '用户说停下')
+  const empty = handleMessage({
+    jsonrpc: '2.0',
+    id: 53,
+    method: 'tools/call',
+    params: { name: 'stop_round', arguments: { reason: '  ' } },
+  })
+  assert.equal(empty.result.isError, true)
 })
 
 test('notifications are silent and unknown methods get an error', () => {

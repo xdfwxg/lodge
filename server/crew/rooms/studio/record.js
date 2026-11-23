@@ -5,7 +5,7 @@ export const studioConstraints = ({
   verifiers,
   independence,
 }) => [
-  '交接由系统投递：写清下一步做什么、怎么算完成；在群里 @ 下一位，让房间看得到',
+  '交接由系统投递：写清下一步做什么、怎么算完成；最后一行必须 @ 下一位，让房间看得到',
   plan?.stages?.length > 0
     ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
     : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',

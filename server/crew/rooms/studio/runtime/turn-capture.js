@@ -4,7 +4,7 @@ import { memberDisplayName } from '../../../member-labels.js'
 import { createTurnDiagnostics } from './diagnostics.js'
 import { verdictPassed } from '../../../../../shared/judgment.js'
 import { ASSIGNMENT_TERMINAL, STAGE_STATE } from '../../../../../shared/states.js'
-import { askDecisionOf, askQuestionOf, rewindRequestOf } from '../../../../../shared/gate.js'
+import { askDecisionOf, askQuestionOf, rewindRequestOf, stopRequestOf } from '../../../../../shared/gate.js'
 import {
   activeDispatchAssignments as activeDispatch,
   assignmentForTurn,
@@ -34,6 +34,7 @@ export const createTurnCapture = ({
   markManualReady,
   confirmStage = null,
   rewindStage = null,
+  stopRound = null,
   writeDiagnostic = null,
   setMembers = null,
 }) => {
@@ -238,6 +239,22 @@ export const createTurnCapture = ({
     state.turns.delete(turnId)
 
     if (role === 'lead') {
+      // 用户说停时，规划师用工具把这一轮真的停住；只是说一句「停」不会在这里生效。
+      const stop = stopRequestOf(calls)
+      if (stop !== null && typeof stopRound === 'function') {
+        void Promise.resolve(stopRound(roomId, stop))
+          .then(result => {
+            if (result?.ok === true) {
+              store.appendEvent(roomId, 'planner.stop', { reason: stop.reason })
+              emit?.('room', store.readRoom(roomId) ?? room)
+              return
+            }
+            systemNotice({ store, roomId, text: `停止没成功：${result?.error ?? '再试一次'}` })
+          })
+          .catch(() => systemNotice({ store, roomId, text: '停止没成功，再试一次。' }))
+        state.recordTurn(true)
+        return
+      }
       const request = rewindRequestOf(calls)
       if (request !== null && typeof rewindStage === 'function') {
         const result = rewindStage(roomId, request)

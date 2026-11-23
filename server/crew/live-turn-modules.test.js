@@ -316,6 +316,52 @@ test('a planner question pauses the room without a decision card', () => {
   assert.equal(store.current.pendingDecision, null)
 })
 
+test('a planner stop request really stops the round', async () => {
+  const room = makeRoom({
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: '' },
+      { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
+    ],
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-planner', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+    pendingDecision: null,
+  })
+  const store = fakeStore(room)
+  const stopped = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    stopRound: (roomId, request) => {
+      stopped.push([roomId, request])
+      return Promise.resolve({ ok: true })
+    },
+  })
+  turns.trackTool({
+    kind: 'activity',
+    turnId: 't-stop',
+    tool: {
+      id: 'call-stop',
+      name: 'mcp__lodge_gate__stop_round',
+      input: JSON.stringify({ reason: '用户说停下' }),
+    },
+  })
+  turns.captureTurn({ turnId: 't-stop', reply: '已停。', toolCalls: 1 }, 'bot-planner')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(stopped, [['room-1', { reason: '用户说停下' }]])
+})
+
 test('reconnecting after the card is answered does not reopen the room chat', () => {
   const room = makeRoom({
     pendingDecision: {

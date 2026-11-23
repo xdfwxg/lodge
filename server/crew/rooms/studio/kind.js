@@ -41,15 +41,14 @@ export const studioKind = {
   memberSoul: member => {
     const prompt = member.prompt ?? ''
     // 默认提示已经写了工具协议时不再重复；自定义提示仍由系统规则兜底。
+    const gateTools = ['lodge_gate_ask_decision', 'lodge_gate_ask_question', 'lodge_gate_stop_round']
     const rules = workContract(member.role).filter(line => {
-      const tool = line.includes('lodge_gate_ask_decision')
-        ? 'lodge_gate_ask_decision'
-        : line.includes('lodge_gate_ask_question') ? 'lodge_gate_ask_question' : null
-      return tool === null || !prompt.includes(tool)
+      const tool = gateTools.find(name => line.includes(name))
+      return tool === undefined || !prompt.includes(tool)
     })
     return [
       prompt,
-      '当前是工作室：你和其他成员在同一个房间，知道彼此的存在和能力；像在群里说话一样，需要谁接下一棒就直接 @ 他。系统负责把完整任务送到、记账和兜底。',
+      '当前是工作室：你和其他成员在同一个房间，知道彼此的存在和能力。系统负责把完整任务送到、记账和兜底。',
       '不要自创角色，也不要承担其他成员的职责。',
       '没轮到你时不用应答；等系统派活或别人明确 @ 你，再说话。',
       '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',

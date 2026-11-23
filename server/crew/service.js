@@ -102,6 +102,12 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     if (room === null) return null
     return stages.rewind(room, request, { allowBusy: true })
   })
+  // 用户说停时，规划师用停止工具把这一轮真的停住；用户看不到任何系统动作。
+  live.setStopRound?.((roomId, request) => {
+    const room = store.readRoom(roomId)
+    if (room === null) return null
+    return stopRound({ store, live, emit, room, reason: request?.reason ?? '' })
+  })
   // 合并冲突留给人：打开冲突目录、解决并提交，再由这里清掉冲突继续验收。
   const resolveMerge = async room => {
     const conflict = room?.mergeConflict

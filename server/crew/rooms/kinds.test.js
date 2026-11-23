@@ -48,7 +48,8 @@ test('member souls carry only their own mode discipline', () => {
   assert.match(studio, /复核副本/)
   assert.match(studio, /diff 之外/)
   assert.match(studio, /知道彼此的存在和能力/)
-  assert.match(studio, /需要谁接下一棒就直接 @ 他/)
+  // 接力那句只写一次：在成员的工作契约里，房间里看得到。
+  assert.match(studio, /最后一行必须 @ 下一位/)
   assert.match(studio, /不要自创角色/)
   assert.doesNotMatch(studio, /聊天室/)
   const worker = roomModeForType('studio').memberSoul({ name: '乙', role: 'worker', prompt: '你是乙。' })
@@ -88,8 +89,9 @@ test('a prompt that already names the gate tools is not repeated by the system r
   const soul = roomModeForType('studio').memberSoul({
     name: '规划师',
     role: 'lead',
-    prompt: '用 lodge_gate_ask_decision 出卡，用 lodge_gate_ask_question 提问。',
+    prompt: '用 lodge_gate_ask_decision 出卡，用 lodge_gate_ask_question 提问，用 lodge_gate_stop_round 停下。',
   })
   assert.equal((soul.match(/lodge_gate_ask_decision/g) ?? []).length, 1)
   assert.equal((soul.match(/lodge_gate_ask_question/g) ?? []).length, 1)
+  assert.equal((soul.match(/lodge_gate_stop_round/g) ?? []).length, 1)
 })
