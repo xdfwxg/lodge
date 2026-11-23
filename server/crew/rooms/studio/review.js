@@ -201,7 +201,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         text: policy === 'majority'
           ? `验收通过：${passed}/${total}（需要 ${required} 位）；@规划师 收尾。`
           : '全部验收员通过；@规划师 收尾。',
-        meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner' },
+        meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner', authorKind: 'system' },
       })
       const lead = leadMemberOf(room)?.id
       if (typeof lead === 'string' && lead !== '') {
@@ -262,7 +262,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             kind: 'system',
             authorId: pending.verifier,
             text: `@${targetNames.join('、@')} 验收退回，按上面的意见重做第 ${pending.stage + 1} 步。`,
-            meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: relay.targets },
+            meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: relay.targets, authorKind: 'system' },
           })
         }
         // 返工账本要留下这一笔：预算计数和后续复核的 floor 都只认 rework。
@@ -307,7 +307,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           kind: 'system',
           authorId: pending.verifier,
           text: `验收退回了第 ${pending.stage + 1} 步；@规划师 接手决定重做还是交给人。`,
-          meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner' },
+          meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner', authorKind: 'system' },
         })
         const lead = leadMemberOf(room)?.id
         if (typeof lead === 'string' && lead !== '') {
@@ -457,7 +457,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       kind: 'system',
       authorId: senderId,
       text: `@${targets.map(verifier => memberDisplayName(room, verifier)).join('、@')} 第 ${stageIndex + 1} 步「${sanitizeUntrusted(stage.title, 120)}」结果好了，请复核。`,
-      meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: targets, reason: 'review' },
+      meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: targets, reason: 'review', authorKind: 'system' },
     })
     // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
     shadowTask = shadowNeeded({ room, stage, evidence, manual, messages, stageIndex })
@@ -583,7 +583,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           round.finished = true
           store.appendMessage(roomId, {
             kind: 'system',
-            text: `本轮复核结束：${round.passed}/${round.total} 位验收员通过；其余未回报，不能确认。可以重新发起复核。`,
+            text: `这次复核到时间了：${round.passed}/${round.total} 位验收员通过；其余未回报，不能确认。可以重新发起复核。`,
             meta: { kind: 'review_timeout', stage: stageIndex, verifiers: round.timedOut },
           })
         }

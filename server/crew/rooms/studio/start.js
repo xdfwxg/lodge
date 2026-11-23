@@ -51,7 +51,7 @@ export const startInitialStage = async ({
       text: align
         ? `@${memberDisplayName(room, targetMember.id)} 先对齐目标，再拆下一步。`
         : `@${memberDisplayName(room, targetMember.id)} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
-      meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: [targetMember.id] },
+      meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: [targetMember.id], authorKind: 'system' },
     })
     if (sent.messageId !== null) {
       const updated = store.updateRound(room.id, current => {

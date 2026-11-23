@@ -298,7 +298,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       kind: 'system',
       authorId: from,
       text: `@${assignees.map(worker => memberDisplayName(room, worker)).join('、@')} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你们，各自在自己的副本里完成。`,
-      meta: { kind: 'handoff', stage: index, from, to: assignees },
+      meta: { kind: 'handoff', stage: index, from, to: assignees, authorKind: 'system' },
     })
     // 并行派发逐个送进成员自己的工作副本；群里的 @ 只是投影，不能靠它唤醒，
     // 否则基座会让所有成员在同一个房间目录里干活，后写的直接覆盖先写的。

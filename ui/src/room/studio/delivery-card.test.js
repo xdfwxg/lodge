@@ -66,7 +66,7 @@ const find = (node, match) => {
   return null
 }
 
-test('the delivery sheet shows goal, commit, stage commands, verdicts and files', async () => {
+test('the delivery sheet shows goal, stages, commands, verdicts and files', async () => {
   const { DeliveryCard } = await load()
   const tree = render(DeliveryCard({
     delivery: {
@@ -106,7 +106,8 @@ test('the delivery sheet shows goal, commit, stage commands, verdicts and files'
   }))
   assert.match(text(tree), /结果/)
   assert.match(text(tree), /保存后刷新仍生效/)
-  assert.match(text(tree), /abcdef123456/)
+  // 版本号是内核记账，留在可下载的交付记录里，不进结果卡详情。
+  assert.doesNotMatch(text(tree), /abcdef123456/)
   assert.match(text(tree), /npm test · 退出码 0/)
   assert.match(text(tree), /复核一/)
   assert.match(text(tree), /复核二/)

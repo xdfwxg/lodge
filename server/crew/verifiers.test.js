@@ -157,6 +157,7 @@ test('the review request goes to every verifier and all PASS ends the round', as
   assert.equal(turns.busyReview(), false)
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 2)
   assert.match(messages.at(-1).text, /全部验收员通过/)
+  assert.equal(messages.at(-1).meta.authorKind, 'system')
 })
 
 test('a rejection cancels the remaining verifier round', async () => {

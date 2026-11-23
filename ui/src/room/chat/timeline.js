@@ -105,7 +105,7 @@ function Timeline({
   const hidden = new Set(['activity', ...hideKinds])
   const meaningful = timeline.visible.filter(message => {
     if (hidden.has(message.kind)) return false
-    if (message.kind === 'system') return isChainMessage(message)
+    if (message.kind === 'system' || message.meta?.authorKind === 'system') return isChainMessage(message)
     return true
   })
   return [

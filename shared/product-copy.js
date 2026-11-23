@@ -27,6 +27,8 @@ const LATIN_TERMS = ['MCP', 'worktree', 'diff', 'commit', 'verdict', 'gate', 'ru
 
 // 状态位不是第二人称通知。
 const BANNED_PATTERNS = [/需要你/, /该你了/, /请处理/]
+// 角色用系统腔替房间宣布状态；房间怎么结束不归角色说。
+const SYSTEM_TALK = [/本轮(?:[^。！？\n]{0,6})?结束/]
 
 const latinWord = term => new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`)
 
@@ -34,6 +36,9 @@ export const copyIssueOf = value => {
   const text = String(value ?? '')
   for (const pattern of BANNED_PATTERNS) {
     if (pattern.test(text)) return `第二人称状态：${pattern.source}`
+  }
+  for (const pattern of SYSTEM_TALK) {
+    if (pattern.test(text)) return `系统腔：${pattern.source}`
   }
   for (const term of CJK_TERMS) {
     if (text.includes(term)) return `内部词：${term}`

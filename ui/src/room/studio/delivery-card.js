@@ -9,7 +9,6 @@ import { IconAction } from '../../primitives.js'
 import { ChatIcon } from '../type-icons.js'
 import { InfoIcon, MoreIcon } from '../../icons.js'
 
-const short = hash => (typeof hash === 'string' && hash.length > 12 ? hash.slice(0, 12) : hash)
 const isAbsolutePath = value => value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value)
 const joinPath = (base, file) => isAbsolutePath(file) ? file : `${base.replace(/\/$/, '')}/${file}`
 
@@ -302,9 +301,6 @@ export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDownlo
             ? h('div', { className: 'studio-delivery-detail-meta' },
               delivery.completedAt
                 ? h('div', { className: 'crew-kv' }, h('span', null, '完成时间'), h('span', null, dateTimeOf(delivery.completedAt)))
-                : null,
-              delivery.commit
-                ? h('div', { className: 'crew-kv' }, h('span', null, '版本'), h('code', null, short(delivery.commit)))
                 : null,
               cost === ''
                 ? null

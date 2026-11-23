@@ -109,7 +109,7 @@ export function StudioTranscript({
       // 结论就是下面那张结果卡；不再用一条同目标的气泡说第二遍。
       if (finished && message.kind === 'conclusion') return false
       // 工作式聊天只留人和成员说的话；交接链上的系统消息例外。
-      if (message.kind === 'system' || message.authorId === 'system') return isChainMessage(message)
+      if (message.kind === 'system' || message.authorId === 'system' || message.meta?.authorKind === 'system') return isChainMessage(message)
       if (isDuplicateHumanRework(message, humanNotes)) return false
       // 过程日志不进主时间线；当前在做什么由岛和正在输入那一行说。
       if (message.kind === 'activity') return false

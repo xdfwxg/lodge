@@ -14,7 +14,8 @@ import { formatAttachmentBytes, splitAttachmentTags } from '../../../shared/atta
 const CHAIN_KINDS = new Set(['gate', 'handoff', 'stage'])
 
 export const isChainMessage = message => {
-  if (message?.kind !== 'system') return false
+  // 交接是系统发的，落库时会带 authorKind；新入口按这个标记判，不靠猜。
+  if (message?.kind !== 'system' && message?.meta?.authorKind !== 'system') return false
   if (CHAIN_KINDS.has(message?.meta?.kind)) return true
   // 需要人处理的错误要看得见；自动重试和后台噪音不显示。
   return message?.meta?.kind === 'notice' && message.meta.show === true

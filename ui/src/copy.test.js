@@ -33,6 +33,8 @@ test('user-visible UI copy avoids internal words and second-person status', () =
 test('the copy gate catches the words it is meant to stop', () => {
   assert.match(copyIssueOf('需要你'), /第二人称/)
   assert.match(copyIssueOf('这个基座'), /内部词/)
+  // 角色不该用系统腔替房间宣布结束。
+  assert.match(copyIssueOf('本轮到此结束'), /系统腔/)
   assert.equal(copyIssueOf('待处理'), null)
 })
 
