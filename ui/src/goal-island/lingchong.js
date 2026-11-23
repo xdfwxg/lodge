@@ -503,6 +503,19 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       h('span', { ref: body, className: 'lingchong-body' },
         h('img', { className: 'lingchong-art art-body', src: standingArt, alt: '', draggable: 'false' }),
         h('img', { ref: forehead, className: 'lingchong-lodge', src: lodgeMark, alt: '', draggable: 'false' }),
+        // 表情也是状态：等你时睁大眼睛，干活时眯起眼；闭眼只留给眨眼和睡着。
+        h('svg', { className: 'lingchong-face lingchong-face-alert', viewBox: `0 0 ${ART_W} ${ART_H}`, 'aria-hidden': true },
+          h('path', { d: 'M100 49 Q117 38 134 49 Q117 58 100 49 Z', fill: '#f8f3ea' }),
+          h('path', { d: 'M141 49 Q158 38 175 49 Q158 58 141 49 Z', fill: '#f8f3ea' }),
+          h('circle', { cx: 117, cy: 47, r: 5.6, fill: '#39332b' }),
+          h('circle', { cx: 158, cy: 47, r: 5.6, fill: '#39332b' }),
+          h('circle', { cx: 118.6, cy: 45.2, r: 1.6, fill: '#f8f3ea' }),
+          h('circle', { cx: 159.6, cy: 45.2, r: 1.6, fill: '#f8f3ea' })),
+        h('svg', { className: 'lingchong-face lingchong-face-focus', viewBox: `0 0 ${ART_W} ${ART_H}`, 'aria-hidden': true },
+          h('path', { d: 'M100 49 Q117 38 134 49 Q117 58 100 49 Z', fill: '#f8f3ea' }),
+          h('path', { d: 'M141 49 Q158 38 175 49 Q158 58 141 49 Z', fill: '#f8f3ea' }),
+          h('ellipse', { cx: 117, cy: 50, rx: 6, ry: 2.6, fill: '#39332b' }),
+          h('ellipse', { cx: 158, cy: 50, rx: 6, ry: 2.6, fill: '#39332b' })),
         h('svg', { ref: blink, className: 'lingchong-blink', viewBox: `0 0 ${ART_W} ${ART_H}`, 'aria-hidden': true },
           h('path', { d: 'M100 49 Q117 38 134 49 Q117 58 100 49 Z', fill: '#f8f3ea' }),
           h('path', { d: 'M141 49 Q158 38 175 49 Q158 58 141 49 Z', fill: '#f8f3ea' }),
@@ -524,6 +537,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       h('path', { className: 'wing right', d: 'M12 10 C20 1, 23 5, 21 10 C23 15, 19 19, 12 10 Z' }),
       h('path', { className: 'body', d: 'M12 4 v13' }),
       h('path', { className: 'antennae', d: 'M12 5 C10 2.5, 8.5 1.6, 6.6 2.2 M12 5 C14 2.5, 15.5 1.6, 17.4 2.2' }))),
+  h('span', { className: 'lingchong-question', 'aria-hidden': 'true' }, '?'),
   h('span', { ref: zzz, className: 'lingchong-zzz' },
     h('span', { 'aria-hidden': 'true' }), h('span', { 'aria-hidden': 'true' }), h('span', { 'aria-hidden': 'true' })),
   h('span', { ref: sparks, className: 'spark-field', 'aria-hidden': true }))
@@ -550,6 +564,13 @@ body[data-ds-dark-theme] .lingchong-art{content:url("${colorArt}")}
 .lingchong-lodge{position:absolute;left:111px;top:16px;width:50px;height:18px;z-index:2;pointer-events:none;user-select:none;transform-origin:25px 9px}
 .lingchong-blink{position:absolute;inset:0;width:385px;height:195px;opacity:0;z-index:4;pointer-events:none}
 .lingchong-blink.on{opacity:1}
+/* 表情层：睁眼=等你，眯眼=在忙；眨眼和睡着时由上面那层闭眼盖住。 */
+.lingchong-face{position:absolute;inset:0;width:385px;height:195px;opacity:0;z-index:3;pointer-events:none;transition:opacity .28s var(--bt-ease)}
+.lingchong[data-state=needs] .lingchong-face-alert{opacity:1}
+.lingchong[data-state=busy] .lingchong-face-focus{opacity:1}
+.lingchong-question{position:absolute;left:32px;top:-7px;z-index:6;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--bt-star,#f6c453);color:#3e362d;font:700 11px/1 var(--bt-font);opacity:0;pointer-events:none;box-shadow:0 1px 2px rgba(120,80,0,.18)}
+.lingchong[data-state=needs] .lingchong-question{opacity:1;animation:lingchong-question 2.4s ease-in-out infinite}
+@keyframes lingchong-question{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
 .lingchong-yawn{position:absolute;inset:0;width:385px;height:195px;opacity:0;z-index:5;pointer-events:none}
 .lingchong-yawn.on{opacity:1}
 .lingchong-yawn-mouth{transform-origin:141px 60px}
@@ -576,5 +597,5 @@ body[data-ds-dark-theme] .lingchong-art{content:url("${colorArt}")}
 .spark[data-kind=heart]{color:#e58a9a;font-size:12px}
 @keyframes lingchong-spark{0%{opacity:0;transform:translateY(3px) scale(.5)}25%{opacity:.95}100%{opacity:0;transform:translateY(-26px) scale(1.1)}}
 @media (max-width:760px){.lingchong{width:60px;height:31px;--pet-scale:.1558}}
-@media (prefers-reduced-motion:reduce){.spark{animation:none;opacity:0}.lingchong-butterfly .wing{animation:none}.lingchong-zzz span{animation:none;opacity:.6}.lingchong-puff{animation:none;opacity:0}}
+@media (prefers-reduced-motion:reduce){.spark{animation:none;opacity:0}.lingchong-question{animation:none!important}.lingchong-butterfly .wing{animation:none}.lingchong-zzz span{animation:none;opacity:.6}.lingchong-puff{animation:none;opacity:0}}
 `

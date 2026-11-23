@@ -87,6 +87,7 @@ export const renderStudioMessage = ({
     const text = verdict.summary || (passed ? '符合这一步的要求。' : '这一步还不行，需要重做。')
     const findings = judgment?.findings ?? []
     const action = String(judgment?.actionRequired ?? '').trim()
+    const protectedFiles = Array.isArray(judgment?.protectedFiles) ? judgment.protectedFiles : []
     const needsAction = action !== '' && !/^(无|none|n\/a|null)$/i.test(action)
     return h('div', { key: message.id, className: 'crew-msg crew-msg-chat' },
       h('div', { className: 'crew-msg-body' },
@@ -100,7 +101,10 @@ export const renderStudioMessage = ({
                 findings.slice(0, 3).map(finding => h('span', {
                   key: `${finding.title}-${finding.severity}`,
                   className: 'crew-verdict-finding',
-                }, `${SEVERITY_LABEL[finding.severity] ?? finding.severity} · ${finding.title}`))))),
+                }, `${SEVERITY_LABEL[finding.severity] ?? finding.severity} · ${finding.title}`))),
+            protectedFiles.length === 0
+              ? null
+              : h('span', { className: 'crew-verdict-protected' }, `受保护文件已确认：${protectedFiles.join('、')}`))),
         fold('理由', verdict.detail || (needsAction ? `要你做：${action}` : ''))))
   }
 

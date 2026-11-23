@@ -3,6 +3,8 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { alignmentPrompt, directPrompt } from '../create/prompts.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
+import { alreadyMentioned } from './relay-words.js'
+import { historyBriefOf } from './history.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
 
 // 工作室建房后的第一次派发：先对齐，或直接交给主成员/执行官。
@@ -33,11 +35,20 @@ export const startInitialStage = async ({
     const opening = align
       ? alignmentPrompt(goal, verify, acceptance, room.handoff)
       : directPrompt(goal, verify, acceptance, roster.length === 1, room.handoff)
+    // 规划师开口前先看一眼这间房里的旧决策和旧结论；只读、同房间、按本轮话检索。
+    const history = align
+      ? historyBriefOf({
+        store,
+        room,
+        query: goal,
+        before: room.workRound?.startedAt ?? Date.now(),
+      })
+      : ''
     const context = buildMemberHandoff({ room, messages: store.readMessages(room.id), memberId: targetMember.id })
     const sent = await live.sendToMember(
       room.id,
       targetMember.id,
-      `${opening}\n\n${context}\n${INTERNAL_PROMPT_MARKER}`,
+      `${opening}${history === '' ? '' : `\n\n${history}`}\n\n${context}\n${INTERNAL_PROMPT_MARKER}`,
       { intent: align ? 'align' : 'handoff', from: 'Lodge' },
     )
     // 直接派发也要有群里的一条 @：模型被要求不 @，系统的投影不能省。
@@ -45,14 +56,23 @@ export const startInitialStage = async ({
     const stageIndex = activeStage >= 0 ? activeStage : 0
     const stageTitle = sanitizeUntrusted(room.stages?.[stageIndex]?.title ?? room.goal, 120)
     const senderId = align ? 'lodge' : (lead?.id ?? 'lodge')
-    store.appendMessage(room.id, {
-      kind: 'system',
-      authorId: senderId,
-      text: align
-        ? `@${memberDisplayName(room, targetMember.id)} 先对齐目标，再拆下一步。`
-        : `@${memberDisplayName(room, targetMember.id)} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
-      meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: [targetMember.id], authorKind: 'system' },
-    })
+    // 对齐回合由规划师自己 @ 下一位（系统把计划交给执行官），不再补第二条；
+    // 直接派发没有规划师发言，才由系统投影这句交接。
+    if (!align && !alreadyMentioned({
+      room,
+      messages: store.readMessages(room.id),
+      from: senderId,
+      targets: [targetMember.id],
+    })) {
+      store.appendMessage(room.id, {
+        kind: 'system',
+        authorId: senderId,
+        text: align
+          ? `@${memberDisplayName(room, targetMember.id)} 先对齐目标，再拆下一步。`
+          : `@${memberDisplayName(room, targetMember.id)} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
+        meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: [targetMember.id], authorKind: 'system' },
+      })
+    }
     if (sent.messageId !== null) {
       const updated = store.updateRound(room.id, current => {
         current.hiddenBaseMessages = [...(current.hiddenBaseMessages ?? []), sent.messageId].slice(-50)

@@ -10,6 +10,7 @@ const LIMITS = Object.freeze({
   title: 200,
   evidence: 2000,
   outsideDiff: 500,
+  protectedFiles: 20,
 })
 
 const SEVERITIES = new Set(['blocker', 'major', 'minor'])
@@ -21,6 +22,15 @@ const rejectToFor = (type, decision) => {
   if (type === 'planner') return decision === 'human' ? 'human' : 'worker'
   return decision === 'pass' ? null : 'planner'
 }
+
+const normalizePath = value => String(value ?? '').trim().replaceAll('\\', '/').replace(/^\.\//, '')
+
+const normalizeProtectedFiles = value => (
+  [...new Set((Array.isArray(value) ? value : [])
+    .filter(item => typeof item === 'string' && item.trim() !== '')
+    .map(item => normalizePath(clip(item, 200)))
+    .filter(item => item !== ''))].slice(0, LIMITS.protectedFiles)
+)
 
 const clip = (value, max) => {
   const text = String(value ?? '').trim()
@@ -133,6 +143,7 @@ export const normalizeJudgment = ({ type, text, stage = null, evidenceId = null,
     findings: type === 'verdict' ? normalizeFindings(json?.findings) : [],
     visual: type === 'verdict' ? normalizeVisual(json?.visual) : null,
     outsideDiff: type === 'verdict' ? clip(json?.outsideDiff, LIMITS.outsideDiff) : '',
+    protectedFiles: type === 'verdict' ? normalizeProtectedFiles(json?.protectedFiles) : [],
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     stage: Number.isInteger(stage) ? stage : null,
     evidenceId: typeof evidenceId === 'string' && evidenceId !== '' ? evidenceId : null,
@@ -195,6 +206,7 @@ export const judgmentFromGate = ({
     findings: type === 'verdict' ? normalizeFindings(input.findings) : [],
     visual: type === 'verdict' ? normalizeVisual(input.visual) : null,
     outsideDiff,
+    protectedFiles: type === 'verdict' ? normalizeProtectedFiles(input.protectedFiles) : [],
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     // rejectTo 是业务路由，模型不能把失败退回给别的角色。
     rejectTo: rejectToFor(type, decision),
@@ -222,6 +234,7 @@ export const validateJudgment = value => {
     findings: type === 'verdict' ? normalizeFindings(value.findings) : [],
     visual: type === 'verdict' ? normalizeVisual(value.visual) : null,
     outsideDiff: type === 'verdict' ? clip(value.outsideDiff, LIMITS.outsideDiff) : '',
+    protectedFiles: type === 'verdict' ? normalizeProtectedFiles(value.protectedFiles) : [],
     actionRequired: clip(value.actionRequired, LIMITS.actionRequired),
     stage: Number.isInteger(value.stage) ? value.stage : null,
     evidenceId: typeof value.evidenceId === 'string' && value.evidenceId !== '' ? value.evidenceId : null,

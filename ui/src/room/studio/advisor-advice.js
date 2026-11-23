@@ -35,22 +35,26 @@ export const shadowAdviceForStage = (room, stageIndex) => {
   return adviceOf(entry)
 }
 
+const blockOf = (label, items) => (
+  items.length === 0
+    ? null
+    : h('div', { className: 'crew-shadow-block' },
+      h('span', { className: 'crew-shadow-label' }, label),
+      h('ul', null, items.map((item, index) => h('li', { key: `${label}-${index}` }, item))))
+)
+
 export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '影子评审' }) {
   const advice = stageIndex === null ? shadowAdviceFor(room, evidenceId) : shadowAdviceForStage(room, stageIndex)
   if (advice === null) return null
-  const head = advice.summary === ''
-    ? `${label}（仅供参考）`
-    : `${label}：${advice.summary}（仅供参考）`
-  return h('details', { className: 'crew-fold crew-shadow-advice' },
-    h('summary', null, head),
-    advice.reasons.length > 0
-      ? h('p', { className: 'crew-field-hint' }, `理由：${advice.reasons.join('；')}`)
-      : null,
-    advice.risks.length > 0
-      ? h('p', { className: 'crew-field-hint' }, `风险：${advice.risks.join('；')}`)
-      : null,
-    advice.missingEvidence.length > 0
-      ? h('p', { className: 'crew-field-hint' }, `缺失结果：${advice.missingEvidence.join('；')}`)
-      : null,
-    advice.model === '' ? null : h('p', { className: 'crew-field-hint' }, `来源：${advice.model}`))
+  return h('details', { className: 'crew-fold crew-shadow-advice crew-shadow-card' },
+    h('summary', null,
+      h('span', { className: 'crew-shadow-icon', 'aria-hidden': 'true' }, '!'),
+      h('span', { className: 'crew-shadow-title' }, label),
+      h('span', { className: 'crew-shadow-summary' }, advice.summary === '' ? '没有补充意见' : advice.summary),
+      h('span', { className: 'crew-shadow-tag' }, '仅供参考')),
+    h('div', { className: 'crew-shadow-body' },
+      blockOf('理由', advice.reasons),
+      blockOf('风险', advice.risks),
+      blockOf('缺失结果', advice.missingEvidence),
+      advice.model === '' ? null : h('span', { className: 'crew-shadow-model' }, `来源：${advice.model}`)))
 }

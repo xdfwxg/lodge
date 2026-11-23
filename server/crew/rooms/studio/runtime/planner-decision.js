@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { memberDisplayName } from '../../../member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from '../../../internal-prompts.js'
+import { alreadyMentioned } from '../relay-words.js'
 import { judgmentAnchorOf, judgmentOf, normalizeJudgment } from '../../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../../shared/gate.js'
 import {
@@ -168,6 +169,9 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
     }
     const parallel = targets.length > 1
     const note = judgment.reason
+    const leadId = leadMemberOf(room)?.id ?? 'lodge'
+    // 规划师刚才那句已经 @ 了执行官就不再补一条；没 @ 才由系统投影。
+    const relayed = alreadyMentioned({ room, messages: store.readMessages(roomId), from: leadId, targets })
     store.appendMessage(roomId, {
       kind: 'rework',
       authorId: 'system',
@@ -175,12 +179,12 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
       meta: { stage: stageIndex, source: 'planner', note, verdictId, judgment },
     })
     if (typeof expireCards === 'function') expireCards()
-    if (parallel) {
+    if (parallel && !relayed) {
       store.appendMessage(roomId, {
         kind: 'system',
-        authorId: leadMemberOf(room)?.id ?? 'lodge',
+        authorId: leadId,
         text: `@${targets.map(target => memberDisplayName(room, target)).join('、@')} 验收退回，按上面的意见重做第 ${stageIndex + 1} 步。`,
-        meta: { kind: 'handoff', stage: stageIndex, from: leadMemberOf(room)?.id ?? 'lodge', to: targets, authorKind: 'system' },
+        meta: { kind: 'handoff', stage: stageIndex, from: leadId, to: targets, authorKind: 'system' },
       })
     }
     for (const target of targets) {
@@ -194,8 +198,8 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
         reason: 'rework',
         prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
         // @ 由系统写，退回理由已经在验收卡里。
-        message: parallel ? '' : `@${name} 验收退回，按上面的意见重做。`,
-        visible: !parallel,
+        message: parallel || relayed ? '' : `@${name} 验收退回，按上面的意见重做。`,
+        visible: !parallel && !relayed,
         deliver: true,
         ...(parallel ? { privateRoom: true } : {}),
         acceptance: stage?.acceptance ?? '',

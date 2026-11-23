@@ -117,6 +117,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
   }
 
   const finishStream = (entry, room, message) => {
+    // 用户/系统发进来的话不是成员的发言，不能拿来收口成员的流。
+    if (message.role === 'user') return false
     if (message.kind !== 'text' && message.kind !== 'turn') return false
     // 一次回答的过场不结算：等正文到齐再收口，否则过场会顶掉正在流的正文。
     if (message.kind === 'text' && message.turnFinal === false) return false

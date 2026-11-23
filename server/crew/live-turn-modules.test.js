@@ -701,6 +701,100 @@ test('a verifier with the gate tool cannot pass on text alone', async () => {
   assert.ok(!store.messages.some(message => message.kind === 'verdict'))
 })
 
+test('a deliverable review is blind to the executor narrative by default', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', { kind: 'chat', authorId: 'executor', text: '我把实现改好了，测试也过了。' })
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: 'ok', diff: 'diff --git a/a b/a' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => { sent.push({ memberId, prompt }); return { messageId: 'm1' } },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  assert.match(sent.at(-1).prompt, /对抗复核/)
+  assert.doesNotMatch(sent.at(-1).prompt, /证据摘要|进度：/)
+})
+
+test('a decision stage may show the conversation', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    stages: [{ title: '确认口径', kind: 'decision', manual: true, state: 'active' }],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', { kind: 'chat', authorId: 'executor', text: '口径我按你的原话写了。' })
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'manual', output: '人确认', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => { sent.push({ memberId, prompt }); return { messageId: 'm1' } },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  assert.doesNotMatch(sent.at(-1).prompt, /对抗复核/)
+  assert.match(sent.at(-1).prompt, /进度：/)
+})
+
+test('a verdict cannot pass protected files without naming them', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    authorId: 'executor',
+    meta: {
+      stage: 0,
+      kind: 'command',
+      command: 'true',
+      exit: 0,
+      output: '',
+      diff: '',
+      changedFiles: ['package.json'],
+    },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  const call = input => ({ name: 'mcp__lodge_gate__submit_verdict', input: JSON.stringify(input) })
+  assert.equal(review.consume({
+    turn: { reply: '' },
+    memberId: 'verifier',
+    turnId: 't1',
+    room,
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无' })],
+  }), true)
+  assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+  assert.match(sent.at(-1).prompt, /受保护文件/)
+  assert.equal(review.consume({
+    turn: { reply: '' },
+    memberId: 'verifier',
+    turnId: 't2',
+    room,
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', protectedFiles: ['package.json'] })],
+  }), true)
+  const verdict = store.messages.find(message => message.kind === 'verdict')
+  assert.equal(verdict?.meta?.pass, true)
+})
+
 test('turn usage accumulates on the room and keeps unknown costs visible', () => {
   const room = makeRoom({})
   const store = fakeStore(room)

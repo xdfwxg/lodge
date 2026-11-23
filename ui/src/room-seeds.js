@@ -1,9 +1,9 @@
 // 房间之间的交接种子：聊天→工作室、工作室→聊天、以及新房间对话框的目标文本。
-// 这是业务组合，不是界面细节；放在共享层，界面只负责预填。
-import { normalizeHandoff } from './handoff.js'
-import { stripAttachmentTags } from './attachments.js'
-import { normalizeReceipt, receiptText } from './receipt.js'
-import { STAGE_STATE } from './states.js'
+// 这是界面之间的组合，只服务于预填；房间真相仍在服务端。
+import { normalizeHandoff } from '../../shared/handoff.js'
+import { stripAttachmentTags } from '../../shared/attachments.js'
+import { normalizeReceipt, receiptText } from '../../shared/receipt.js'
+import { STAGE_STATE } from '../../shared/states.js'
 
 // 聊天结论只作为小屋的交接单；不复制聊天状态、证据或阶段。
 export const chatStudioSeed = ({ room, conclusion, handoff }) => {

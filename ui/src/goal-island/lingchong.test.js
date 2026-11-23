@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { lingchongPose, lingchongSpot } from './lingchong.js'
+import { createElement as h } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { LINGCHONG_CSS, Lingchong, lingchongPose, lingchongSpot } from './lingchong.js'
 
 test('chat keeps the companion at home until it needs you', () => {
   assert.equal(lingchongPose('rest', 'chat').phase, 'lie')
@@ -23,4 +25,16 @@ test('the lingchong stays inside the island edge', () => {
   assert.equal(lingchongSpot('done', 400, 84, 'studio'), 340)
   assert.equal(lingchongSpot('rest', 110, 84, 'studio', 0), 46)
   assert.equal(lingchongSpot('done', 110, 84, 'studio'), 64)
+})
+
+test('the face follows the island state, not just the body pose', () => {
+  const needs = renderToStaticMarkup(h(Lingchong, { state: 'needs' }))
+  assert.match(needs, /data-state="needs"/)
+  assert.match(needs, /lingchong-face-alert/)
+  assert.match(needs, /lingchong-question/)
+  const busy = renderToStaticMarkup(h(Lingchong, { state: 'busy' }))
+  assert.match(busy, /lingchong-face-focus/)
+  assert.match(LINGCHONG_CSS, /\[data-state=needs\] \.lingchong-face-alert/)
+  assert.match(LINGCHONG_CSS, /\[data-state=busy\] \.lingchong-face-focus/)
+  assert.match(LINGCHONG_CSS, /prefers-reduced-motion[\s\S]*lingchong-question/)
 })

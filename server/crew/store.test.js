@@ -322,3 +322,28 @@ test('a version 4 database migrates forward, keeping rooms and cleaning round fi
     rmSync(dataDir, { recursive: true, force: true })
   }
 })
+
+test('room history search finds words, stays in its room and skips tool noise', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-search-'))
+  const repo = mkdtempSync(join(tmpdir(), 'crew-search-repo-'))
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R1', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    store.writeRoom({ id: 'r2', name: 'R2', goal: 'g', repoPath: repo, state: 'active', stages: [], members: [] })
+    store.appendMessage('r1', { kind: 'conclusion', authorId: 'you', text: '上次为什么选拼音方案：跨平台，不用换输入法。' })
+    store.appendMessage('r1', { kind: 'activity', authorId: 'worker', text: 'Bash', meta: { action: 'exec' } })
+    store.appendMessage('r2', { kind: 'chat', authorId: 'you', text: '拼音方案在另一个房间。' })
+    const hits = store.searchMessages('r1', '为什么 拼音')
+    assert.equal(hits.length, 1)
+    assert.match(hits[0].text, /为什么选拼音/)
+    assert.equal(store.searchMessages('r1', 'Bash').length, 0)
+    const short = store.searchMessages('r2', '拼音')
+    assert.equal(short.length, 1)
+    assert.match(short[0].text, /另一个房间/)
+    assert.equal(store.searchMessages('r1', '拼音', { before: 1 }).length, 0)
+  } finally {
+    store.db.close()
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(repo, { recursive: true, force: true })
+  }
+})

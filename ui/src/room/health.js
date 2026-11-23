@@ -1,5 +1,5 @@
 import { createElement as h } from 'react'
-import { dateTimeOf } from '../view-format.js'
+import { dateTimeOf, timeOf } from '../view-format.js'
 import { needsAction } from '../needs.js'
 
 const money = micro => {
@@ -33,6 +33,22 @@ export const healthOf = room => {
   const busyNames = (Array.isArray(room?.busyMembers) ? room.busyMembers : [])
     .map(id => (room.members ?? []).find(item => item.id === id)?.name ?? id)
     .filter(name => typeof name === 'string' && name !== '')
+  // 这一步真的调用了哪些工具：一行一次，和“过程与费用”放在一起，不占主时间线。
+  const membersById = new Map((room.members ?? []).map(item => [item.id, item]))
+  // 只收有动作分类的工具调用；基座的 recent-work brief 不是工具。
+  const activities = messages.filter(message => (
+    message.kind === 'activity' &&
+    message.authorId !== 'system' &&
+    ['read', 'write', 'exec', 'gate'].includes(String(message?.meta?.action ?? ''))
+  ))
+  const tools = activities.slice(-12).map(message => ({
+    id: message.id,
+    kind: String(message.meta?.action ?? ''),
+    name: String(message.text ?? '').trim() || '工具',
+    member: membersById.get(message.authorId)?.name ?? '',
+    ok: message.meta?.ok !== false,
+    ts: message.ts,
+  }))
   return {
     index,
     title: stages[index].title ?? '',
@@ -44,6 +60,8 @@ export const healthOf = room => {
     reworks,
     human,
     memoryCount: Array.isArray(room?.sharedMemory) ? room.sharedMemory.length : 0,
+    toolCount: activities.length,
+    tools,
     needsYou: needsAction(room),
   }
 }
@@ -57,12 +75,14 @@ export const healthLineOf = health => {
   return '过程与费用'
 }
 
+const TOOL_KIND_LABEL = { read: '读', write: '写', exec: '跑', gate: '判' }
+
 export function RoomHealth({ room, onForgetMemory = null }) {
   const health = healthOf(room)
   if (health === null) return null
   // 岛已经在说“需要你”；这里只在房间自己跑的时候讲进度，避免同一件事说三遍。
   if (health.needsYou !== null) return null
-  if (health.diagnostic === null && health.usage === '') return null
+  if (health.diagnostic === null && health.usage === '' && health.tools.length === 0) return null
   const assessment = health.diagnostic?.assessment ?? null
   const metrics = [
     health.usage,
@@ -77,6 +97,20 @@ export function RoomHealth({ room, onForgetMemory = null }) {
         ? h('p', { className: 'crew-health-wait' }, health.needsYou.detail)
         : null,
       metrics === '' ? null : h('p', { className: 'crew-health-metrics' }, metrics),
+      health.tools.length === 0 ? null : h('div', { className: 'crew-tool-list' },
+        h('div', { className: 'crew-tool-head' },
+          h('span', null, '这一步的工具'),
+          h('span', { className: 'crew-tool-count' }, health.toolCount > health.tools.length ? `最近 ${health.tools.length} / 共 ${health.toolCount} 次` : `${health.toolCount} 次`)),
+        h('ul', null, health.tools.map(tool => h('li', {
+          key: tool.id,
+          className: 'crew-tool-row',
+          'data-ok': tool.ok ? 'true' : 'false',
+        },
+        h('span', { className: 'crew-tool-kind', 'data-kind': tool.kind || 'other', 'aria-hidden': 'true' }, TOOL_KIND_LABEL[tool.kind] ?? '·'),
+        h('code', { className: 'crew-tool-name' }, tool.name),
+        tool.member === '' ? null : h('span', { className: 'crew-tool-member' }, tool.member),
+        h('span', { className: 'crew-tool-time' }, timeOf(tool.ts)),
+        h('span', { className: 'crew-tool-state', 'data-ok': tool.ok ? 'true' : 'false' }, tool.ok ? '' : '失败'))))),
       assessment === null
         ? null
         : h('div', { className: 'crew-health-grid' },

@@ -11,8 +11,9 @@ import { createRoundLifecycleStore, createRoundStore } from './store/rounds.js'
 import { createProjectStore } from './store/projects.js'
 import { createAssignmentStore } from './store/assignments.js'
 import { createTimelineStore } from './store/timeline.js'
+import { clipText } from './message-search.js'
 
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 
 // 版本迁移只做向前的一步；没有迁移路径的旧版本仍要求重置，避免猜数据。
 const LEGACY_ROUND_FIELDS = ['mergeResolved', 'advisorShadow', 'previews', 'reviewRetriedAt', 'stageDiagnostics']
@@ -30,6 +31,17 @@ const MIGRATIONS = {
         : LEGACY_ROUND_FIELDS
       for (const field of fields) delete room[field]
       update.run(JSON.stringify(room), row.id)
+    }
+  },
+  // 7 → 8：给房间历史建 FTS5 索引；中文按三字滑窗检索，问答和证据都能被找到。
+  7: db => {
+    db.exec(MESSAGE_FTS_SQL)
+    const insert = db.prepare('INSERT INTO message_fts (text, room_id, message_id, author_id, ts) VALUES (?, ?, ?, ?, ?)')
+    for (const row of db.prepare('SELECT id, room_id, payload FROM messages').all()) {
+      let message = null
+      try { message = JSON.parse(row.payload) } catch { continue }
+      if (message?.kind === 'activity' || typeof message?.text !== 'string' || message.text.trim() === '') continue
+      insert.run(clipText(message.text), row.room_id, row.id, String(message.authorId ?? ''), Number(message.ts) || Date.now())
     }
   },
   // 旧版用“当前轮”给到达的消息归轮，迟到的上一轮消息会落进下一轮；按消息时间重新归一次。
@@ -52,6 +64,18 @@ const MIGRATIONS = {
     }
   },
 }
+
+// 房间历史的全文索引：三字滑窗对中文有效，英文按词也能命中。
+const MESSAGE_FTS_SQL = `
+  CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
+    text,
+    room_id UNINDEXED,
+    message_id UNINDEXED,
+    author_id UNINDEXED,
+    ts UNINDEXED,
+    tokenize='trigram'
+  );
+`
 
 const SCHEMA_SQL = `
   PRAGMA journal_mode = WAL;
@@ -132,6 +156,7 @@ const SCHEMA_SQL = `
   CREATE UNIQUE INDEX IF NOT EXISTS work_item_dedupe ON work_item(room_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
   CREATE INDEX IF NOT EXISTS work_item_due ON work_item(status, available_at);
   CREATE INDEX IF NOT EXISTS work_item_room ON work_item(room_id, status, available_at);
+  ${MESSAGE_FTS_SQL}
   PRAGMA user_version = ${SCHEMA_VERSION};
 `
 
@@ -402,6 +427,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     db.exec('BEGIN IMMEDIATE')
     try {
       db.prepare('DELETE FROM messages WHERE room_id = ?').run(id)
+      db.prepare('DELETE FROM message_fts WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM assignment WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM work_round WHERE room_id = ?').run(id)
       db.prepare('DELETE FROM room_event WHERE room_id = ?').run(id)

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import * as log from '../log.js'
 import { appendTranscript, writeEvidence } from '../room-repo.js'
 import { workRoundIdOf } from '../../../shared/work-round.js'
+import { clipText, searchTerms } from '../message-search.js'
 
 // 时间线是消息、证据和事件的唯一读法；work_round_id=NULL 是房间级消息。
 export const createTimelineStore = ({
@@ -13,6 +14,41 @@ export const createTimelineStore = ({
   mirrorEvent,
 }) => {
   const nextSeq = () => Number(db.prepare('SELECT COALESCE(MAX(seq), 0) + 1 AS next FROM messages').get().next)
+
+  // 房间历史索引：只收人看得到的文字，工具活动不入库。
+  const indexable = message => (
+    message?.kind !== 'activity' &&
+    typeof message?.text === 'string' &&
+    message.text.trim() !== ''
+  )
+  const indexMessage = message => {
+    if (!indexable(message)) return
+    db.prepare('INSERT INTO message_fts (text, room_id, message_id, author_id, ts) VALUES (?, ?, ?, ?, ?)')
+      .run(clipText(message.text), message.roomId, message.id, String(message.authorId ?? ''), Number(message.ts) || Date.now())
+  }
+  const unindexMessage = id => db.prepare('DELETE FROM message_fts WHERE message_id = ?').run(id)
+
+  // 只读检索：按房间限定，返回最近的片段；不做跨房间召回。
+  const searchMessages = (roomId, query, { limit = 8, before = null } = {}) => {
+    const terms = searchTerms(query)
+    if (terms.length === 0) return []
+    const cap = Math.max(1, Math.min(20, Number(limit) || 8))
+    const long = terms.filter(term => [...term].length >= 3)
+    const short = terms.filter(term => [...term].length < 3)
+    if (long.length === 0) {
+      const where = short.map(() => 'text LIKE ?').join(' OR ')
+      const args = [roomId, ...short.map(term => `%${term}%`)]
+      const beforeSql = before === null ? '' : ' AND ts < ?'
+      if (before !== null) args.push(before)
+      args.push(cap)
+      return db.prepare(`SELECT message_id AS id, author_id AS authorId, ts, text FROM message_fts WHERE room_id = ? AND (${where})${beforeSql} ORDER BY ts DESC LIMIT ?`).all(...args)
+    }
+    const args = [long.map(term => `"${term.replaceAll('"', '')}"`).join(' OR '), roomId]
+    const beforeSql = before === null ? '' : ' AND ts < ?'
+    if (before !== null) args.push(before)
+    args.push(cap)
+    return db.prepare(`SELECT message_id AS id, author_id AS authorId, ts, text FROM message_fts WHERE message_fts MATCH ? AND room_id = ?${beforeSql} ORDER BY rank LIMIT ?`).all(...args)
+  }
 
   const readMessages = (roomId, { workRoundId, roomLevel = workRoundId === undefined } = {}) => {
     const scoped = workRoundId === undefined ? roundIdForRead(roomId) : workRoundId
@@ -73,6 +109,7 @@ export const createTimelineStore = ({
     }
     db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
       .run(message.seq, message.id, message.roomId, workRoundIdOf(message), JSON.stringify(message))
+    indexMessage(message)
     return message
   }
 
@@ -127,6 +164,8 @@ export const createTimelineStore = ({
       }
       db.prepare('UPDATE messages SET work_round_id = ?, payload = ? WHERE id = ?')
         .run(workRoundIdOf(updated), JSON.stringify(updated), updated.id)
+      unindexMessage(updated.id)
+      indexMessage(updated)
       if (message.meta?.final === true) {
         try { appendTranscript(readRoom(message.roomId) ?? message.roomId, updated) } catch {}
       }
@@ -211,6 +250,7 @@ export const createTimelineStore = ({
     persistMessage,
     appendMessage,
     upsertMessage,
+    searchMessages,
     appendEvent,
     readEvents,
     recoverEvent,

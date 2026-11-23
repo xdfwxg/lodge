@@ -271,7 +271,6 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-handoff-review .crew-card-body,
 .crew-handoff-review .crew-card-body .md_markdown,
 .crew-handoff-review .crew-handoff-section ul,
-.crew-approval .crew-card-body,
 .crew-question-card .crew-card-body,
 .crew-question-card .crew-card-body .md_markdown,
 .crew-handoff-review .crew-handoff-topic,
@@ -383,15 +382,26 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-delivery-fact b{font-weight:600}
 .crew-delivery-fact b[data-pass=true]{color:var(--bt-success-text)}
 .crew-delivery-fact b[data-pass=false]{color:var(--bt-danger-text)}
-.crew-approval{border-color:var(--bt-line-warning);box-shadow:0 0 0 1px var(--bt-warning-wash)}
-.crew-approval .crew-card-head{background:var(--bt-warning-wash)}
+/* 审批卡：成员在等一句答复，不是系统告警。安静的一张纸，只有一个主决定。 */
+.crew-approval{border-color:var(--bt-line-2);border-radius:16px;box-shadow:none}
+.crew-approval-head{display:flex;align-items:center;gap:8px;padding:14px 18px 0;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);color:var(--bt-ink)}
+.crew-approval-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--bt-line-warning);box-shadow:0 0 0 3px var(--bt-warning-wash)}
+.crew-approval-dot[data-decision=allow]{background:var(--bt-success-text);box-shadow:0 0 0 3px var(--bt-success-soft)}
+.crew-approval-dot[data-decision=deny]{background:var(--bt-danger-text);box-shadow:0 0 0 3px var(--bt-danger-soft)}
+.crew-approval-say{min-width:0;overflow-wrap:anywhere}
+.crew-approval-say b{font-weight:600}
+.crew-approval-flag{flex:none;margin-left:auto;padding:2px 8px;border-radius:999px;background:var(--bt-warning-soft);color:var(--bt-warning-text);font-size:var(--bt-text-helper);font-weight:600;letter-spacing:var(--bt-tracking-meta)}
+.crew-approval-body{display:flex;flex-direction:column;gap:8px;padding:10px 18px 0}
+.crew-approval-command{margin:0;padding:10px 12px;border-radius:10px;background:var(--bt-shade-2);font-family:var(--bt-font-mono);font-size:var(--bt-text-label);line-height:var(--bt-leading-label);white-space:pre-wrap;word-break:break-word}
 .crew-approval .crew-code{width:100%;box-sizing:border-box}
-.crew-approval-gate{padding:7px 9px;border-radius:8px;background:var(--bt-warning-wash);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
-.crew-approval-gate b{color:var(--bt-warning-text)}
-.crew-approval-gate[data-decision=deny]{background:var(--bt-danger-wash)}
-.crew-approval-gate[data-decision=deny] b{color:var(--bt-danger-text)}
-.crew-approval-gate[data-decision=allow]{background:var(--bt-success-wash)}
-.crew-approval-gate[data-decision=allow] b{color:var(--bt-success-text)}
+.crew-approval-gate{display:flex;align-items:center;gap:6px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-2)}
+.crew-approval-gate::before{content:'';flex:none;width:5px;height:5px;border-radius:50%;background:var(--bt-line-warning)}
+.crew-approval-gate[data-decision=allow]::before{background:var(--bt-success-text)}
+.crew-approval-gate[data-decision=deny]::before{background:var(--bt-danger-text)}
+.crew-approval-gate[data-decision=deny]{color:var(--bt-danger-text)}
+.crew-approval-reasons{color:var(--bt-ink-3)}
+.crew-approval-foot{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:14px 18px}
+.crew-approval-note{margin-right:auto;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .crew-fold>summary{cursor:pointer;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);color:var(--bt-ink-3);user-select:none}
 .crew-fold[open]>summary{margin-bottom:6px}
 .crew-card-foot{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 16px;background:var(--bt-shade-1);font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
@@ -635,6 +645,7 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 .crew-verdict-card[data-pass=true] .crew-verdict-tag{color:var(--bt-success-text)}
 .crew-verdict-card[data-pass=false] .crew-verdict-tag{color:var(--bt-danger-text)}
 .crew-verdict-text{min-width:0}
+.crew-verdict-protected{display:block;margin-top:6px;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
 .crew-verdict-findings{display:grid;gap:2px;margin-top:4px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .crew-verdict-finding{display:block}
 
@@ -700,6 +711,21 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 .crew-health-grid b{display:block;font-weight:600;color:var(--bt-ink-2);margin-bottom:4px}
 .crew-health-grid ul{margin:0;padding-left:16px;line-height:1.6}
 .crew-health-time{margin:8px 0 0;color:var(--bt-ink-4);font-size:var(--bt-text-helper)}
+/* 工具调用：一行一次，借用 AffectUI 单行工具卡的结构。 */
+.crew-tool-list{margin:0 0 10px;border:1px solid var(--bt-line);border-radius:10px;background:var(--bt-bubble);overflow:hidden}
+.crew-tool-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bt-line);color:var(--bt-ink-3);font-size:var(--bt-text-helper)}
+.crew-tool-count{color:var(--bt-ink-4);font-variant-numeric:tabular-nums}
+.crew-tool-list ul{margin:0;padding:2px 0;list-style:none}
+.crew-tool-row{display:flex;align-items:center;gap:8px;min-height:28px;padding:4px 12px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
+.crew-tool-row+.crew-tool-row{border-top:1px solid var(--bt-line)}
+.crew-tool-kind{flex:none;display:grid;place-items:center;width:18px;height:18px;border-radius:5px;background:var(--bt-shade-2);color:var(--bt-ink-3);font-size:11px;font-weight:600}
+.crew-tool-kind[data-kind=write]{background:var(--bt-warning-wash);color:var(--bt-warning-text)}
+.crew-tool-kind[data-kind=gate]{background:var(--bt-success-wash);color:var(--bt-success-text)}
+.crew-tool-name{flex:0 1 auto;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink);font-family:var(--bt-font-mono);font-size:12px}
+.crew-tool-member{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink-3)}
+.crew-tool-time{flex:none;color:var(--bt-ink-4);font-variant-numeric:tabular-nums}
+.crew-tool-state{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-success)}
+.crew-tool-state[data-ok=false]{width:auto;height:auto;border-radius:0;background:none;color:var(--bt-danger-text);font-weight:600}
 @media (max-width:760px){.crew-health-grid{grid-template-columns:1fr}}
 .crew-decision{display:flex;flex-direction:column;border:1px solid var(--bt-line-2);border-radius:16px;background:var(--bt-card);overflow:hidden}
 .crew-decision[data-room-decision]{border-color:var(--bt-line-accent)}
@@ -857,7 +883,20 @@ body[data-ds-dark-theme] .crew-attachment-file{background:rgba(255,255,255,.08)}
 .crew-goal-input:focus{border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash);outline:none}
 .crew-goal-input:disabled{opacity:.55;cursor:not-allowed}
 input.crew-goal-input{box-sizing:border-box;height:var(--bt-control-h);padding:0 10px}
-.crew-shadow-advice summary{cursor:pointer;color:var(--bt-muted);font-size:var(--bt-text-helper)}
+/* 影子评审的风险卡：一行标题 + 三组短列表，进来可读，不抢主时间线。 */
+.crew-shadow-card{border:1px solid var(--bt-line);border-radius:12px;background:var(--bt-bubble);overflow:hidden}
+.crew-shadow-card>summary{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;list-style:none;color:var(--bt-ink);font-size:var(--bt-text-body);line-height:var(--bt-leading-body)}
+.crew-shadow-card>summary::-webkit-details-marker{display:none}
+.crew-shadow-card[open]>summary{border-bottom:1px solid var(--bt-line)}
+.crew-shadow-icon{flex:none;display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--bt-warning-wash);color:var(--bt-warning-text);font-size:11px;font-weight:700}
+.crew-shadow-title{flex:none;font-weight:600}
+.crew-shadow-summary{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink-2)}
+.crew-shadow-tag{flex:none;padding:1px 8px;border-radius:999px;background:var(--bt-shade-2);color:var(--bt-ink-3);font-size:var(--bt-text-helper);font-weight:500}
+.crew-shadow-body{display:grid;gap:10px;padding:12px 14px 14px}
+.crew-shadow-block{display:grid;gap:4px}
+.crew-shadow-label{color:var(--bt-ink-4);font-size:11px;line-height:16px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.crew-shadow-block ul{margin:0;padding-left:16px;color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
+.crew-shadow-model{color:var(--bt-ink-4);font-size:var(--bt-text-helper)}
 
 
 /* HIG pass: one control rhythm, one state surface, one room vocabulary. */

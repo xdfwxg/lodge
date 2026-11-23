@@ -51,7 +51,9 @@
     "eval:long-task": "node evals/long-task/run.mjs",
     "eval:compare": "node evals/compare/run.mjs",
     "replay:round": "node scripts/replay-round.mjs",
-    "replay:chat": "node scripts/replay-chat.mjs"
+    "replay:chat": "node scripts/replay-chat.mjs",
+    "eval:verifier-probe": "node evals/verifier-probe/run.mjs",
+    "eval:verifier-probe:nightly": "node evals/verifier-probe/run.mjs --runs 3 --out evals/verifier-probe/results/nightly"
   },
   "dependencies": {
     "chrome-devtools-mcp": "1.13.0",

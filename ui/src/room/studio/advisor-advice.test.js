@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { shadowAdviceFor, shadowAdviceForStage } from './advisor-advice.js'
+import { createElement as h } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ShadowAdvice, shadowAdviceFor, shadowAdviceForStage } from './advisor-advice.js'
 
 const room = {
   messages: [
@@ -24,4 +26,14 @@ test('shadow advice is read by evidence and keeps no score', () => {
   assert.equal(shadowAdviceFor(room, 'e2'), null)
   assert.equal(shadowAdviceForStage(room, 0).summary, '补一条回滚测试')
   assert.equal(shadowAdviceForStage(room, 1), null)
+})
+
+test('the risk card renders summary, three row groups and the read-only tag', () => {
+  const html = renderToStaticMarkup(h(ShadowAdvice, { room, stageIndex: 0 }))
+  assert.match(html, /crew-shadow-card/)
+  assert.match(html, /补一条回滚测试/)
+  assert.match(html, /理由/)
+  assert.match(html, /风险/)
+  assert.match(html, /缺失结果/)
+  assert.match(html, /仅供参考/)
 })

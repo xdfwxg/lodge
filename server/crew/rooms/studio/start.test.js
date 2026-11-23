@@ -50,3 +50,81 @@ test('a direct studio dispatch projects the @ handoff into the room', async () =
   assert.equal(handoff.meta.from, 'planner')
   assert.deepEqual(handoff.meta.to, ['executor'])
 })
+
+test('a planner who already named the executor gets no second handoff line', async () => {
+  const room = {
+    id: 'room-2',
+    goal: '改标题',
+    state: 'active',
+    stages: [{ title: '改标题', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    members: [
+      { id: 'planner', name: '规划师', role: 'lead', roleKind: 'planner', body: { kind: 'base', name: '规划师' } },
+      { id: 'executor', name: '执行官', role: 'worker', roleKind: 'executor', body: { kind: 'base', name: '执行官' } },
+    ],
+    plan: null,
+    constraints: [],
+  }
+  const messages = [{ kind: 'chat', authorId: 'planner', text: '计划写好了\n@执行官 这版你来做' }]
+  const store = {
+    readRoom: () => room,
+    readMessages: () => messages,
+    appendMessage: (_roomId, message) => { messages.push(message); return message },
+    updateRound: () => room,
+  }
+  const live = { sendToMember: async () => ({ messageId: null }) }
+  await startInitialStage({
+    store,
+    live,
+    room,
+    plan: null,
+    align: false,
+    workers: [room.members[1]],
+    lead: room.members[0],
+    worker: room.members[1],
+    roster: room.members,
+    goal: room.goal,
+    verify: 'test',
+    acceptance: 'npm test',
+  })
+  assert.equal(messages.some(message => message.meta?.kind === 'handoff'), false)
+})
+
+test('the alignment turn is @-ed by the planner, not by the system', async () => {
+  const room = {
+    id: 'room-3',
+    goal: '改标题',
+    state: 'active',
+    stages: [{ title: '目标对齐', kind: 'decision', state: 'active' }],
+    members: [
+      { id: 'planner', name: '规划师', role: 'lead', roleKind: 'planner', body: { kind: 'base', name: '规划师' } },
+      { id: 'executor', name: '执行官', role: 'worker', roleKind: 'executor', body: { kind: 'base', name: '执行官' } },
+    ],
+    plan: null,
+    constraints: [],
+  }
+  const messages = []
+  const store = {
+    readRoom: () => room,
+    readMessages: () => messages,
+    appendMessage: (_roomId, message) => { messages.push(message); return message },
+    updateRound: () => room,
+  }
+  const sent = []
+  const live = { sendToMember: async (roomId, memberId, prompt) => { sent.push({ roomId, memberId, prompt }); return { messageId: null } } }
+  await startInitialStage({
+    store,
+    live,
+    room,
+    plan: null,
+    align: true,
+    workers: [room.members[1]],
+    lead: room.members[0],
+    worker: room.members[1],
+    roster: room.members,
+    goal: room.goal,
+    verify: 'test',
+    acceptance: 'npm test',
+  })
+  assert.equal(sent[0].memberId, 'planner')
+  assert.equal(messages.some(message => message.meta?.kind === 'handoff'), false)
+})

@@ -40,6 +40,12 @@ export const GATE_TOOLS = Object.freeze([
         reason: { type: 'string', maxLength: 2000 },
         findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 10 },
         outsideDiff: { type: 'string', maxLength: 500 },
+        protectedFiles: {
+          type: 'array',
+          maxItems: 20,
+          items: { type: 'string', maxLength: 200 },
+          description: '这次改动里包含的受保护文件（锁文件、包清单、CI/配置、.env）；PASS 时必须逐条列出并确认，否则判定无效。',
+        },
         actionRequired: { type: 'string', maxLength: 1000 },
         visual: VISUAL_SCHEMA,
       },
@@ -180,6 +186,12 @@ const callTool = (id, params) => {
       return toolFailure(id, 'PASS 要写一条 diff 之外的风险；没有就写「无」。')
     }
     const findings = Array.isArray(args.findings) ? args.findings.slice(0, 10) : []
+    const protectedFiles = Array.isArray(args.protectedFiles)
+      ? args.protectedFiles
+        .filter(item => typeof item === 'string' && item.trim() !== '')
+        .map(item => item.trim().replaceAll('\\', '/').replace(/^\.\//, ''))
+        .slice(0, 20)
+      : []
     let visual
     if (args.visual !== undefined) {
       const raw = args.visual
@@ -198,6 +210,7 @@ const callTool = (id, params) => {
       reason,
       findings,
       outsideDiff,
+      protectedFiles,
       ...(visual === undefined ? {} : { visual }),
     })
   }

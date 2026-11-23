@@ -7,6 +7,7 @@ export const memberForRef = (room, ref) => {
 }
 
 import { memberDisplayName, toDisplayText } from '../../member-labels.js'
+import { actionForTool } from '../../../../shared/tool-action.js'
 import { isInternalPrompt } from '../../internal-prompts.js'
 import { roomPresentationOfRoom } from '../../rooms/kinds.js'
 import { attemptScopeOf } from '../../../../shared/attempt.js'
@@ -51,7 +52,15 @@ export const createMessageProjector = ({ store }) => {
       const rawTool = typeof message.tool?.name === 'string' ? message.tool.name.trim() : ''
       // 基座偶尔把「XX 的 recent-work brief」这类说明塞进 tool.name；只保留工具标识。
       const tool = /^[\w.:/-]+$/.test(rawTool) ? rawTool : ''
-      return { ...common, kind: 'activity', authorId: memberId ?? 'executor', text, meta: { ok: message.ok, ...(tool === '' ? {} : { tool }) } }
+      // 动作分类是业务事实，界面和审批都不再各自按名字猜。
+      const action = actionForTool(rawTool)
+      return {
+        ...common,
+        kind: 'activity',
+        authorId: memberId ?? 'executor',
+        text,
+        meta: { ok: message.ok, ...(tool === '' ? {} : { tool }), ...(action === null ? {} : { action }) },
+      }
     }
     if (message.kind === 'question') {
       if (message.card?.requestId === undefined) {

@@ -200,6 +200,23 @@ test('a streamed final reply maps base names to member names', () => {
   assert.equal(ctx.messages.at(-1).meta.final, true)
 })
 
+test('a user prompt never finalizes a member stream', () => {
+  const ctx = setup(undefined, { toStored: () => null })
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '正文', turnId: 't1' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'p1', kind: 'text', role: 'user', text: '@执行官 聊天室话题：… [[lodge-internal]]', at: 2 },
+  })
+  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages[0].text, '正文')
+  assert.equal(ctx.messages[0].meta.streaming, true)
+})
+
 test('a turn opening line never finalizes the streaming reply', () => {
   const projector = {
     toStored: (roomId, message) => ({
