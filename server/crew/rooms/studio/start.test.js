@@ -128,3 +128,52 @@ test('the alignment turn is @-ed by the planner, not by the system', async () =>
   assert.equal(sent[0].memberId, 'planner')
   assert.equal(messages.some(message => message.meta?.kind === 'handoff'), false)
 })
+
+test('an align turn records which history it was given', async () => {
+  const room = {
+    id: 'room-3',
+    goal: '改标题',
+    state: 'active',
+    stages: [{ title: '改标题', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    members: [
+      { id: 'planner', name: '规划师', role: 'lead', roleKind: 'planner', body: { kind: 'base', name: '规划师' } },
+      { id: 'executor', name: '执行官', role: 'worker', roleKind: 'executor', body: { kind: 'base', name: '执行官' } },
+    ],
+    plan: null,
+    constraints: [],
+    workRound: { startedAt: 999 },
+  }
+  const messages = []
+  const events = []
+  const store = {
+    readRoom: () => room,
+    readMessages: () => messages,
+    appendMessage: (_roomId, message) => { messages.push(message); return message },
+    appendEvent: (roomId, type, payload) => { events.push({ roomId, type, payload }) },
+    updateRound: () => room,
+    searchMessages: () => [{ id: 'old-1', authorId: 'you', ts: 1, text: '上次为什么选拼音：跨平台。' }],
+  }
+  const sent = []
+  const live = {
+    sendToMember: async (roomId, memberId, prompt) => {
+      sent.push({ roomId, memberId, prompt })
+      return { messageId: null }
+    },
+  }
+  await startInitialStage({
+    store,
+    live,
+    room,
+    plan: null,
+    align: true,
+    workers: [room.members[1]],
+    lead: room.members[0],
+    worker: room.members[1],
+    roster: room.members,
+    goal: room.goal,
+    verify: 'test',
+    acceptance: 'npm test',
+  })
+  assert.match(sent[0].prompt, /相关历史（本房间，只读/)
+  assert.deepEqual(events.find(event => event.type === 'history.brief')?.payload, { stage: 0, messageIds: ['old-1'] })
+})

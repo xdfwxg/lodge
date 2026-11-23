@@ -1,5 +1,5 @@
-// 验收探针：在验收副本里放一个「弱检查能过、但目标没做到」的已知缺陷，
-// 看验收员会不会拒。需要 Lodge + 基座在跑；会调用真实模型，不进 check:done。
+// 验收探针：缺陷副本看验收员会不会拒，合格对照看验收员会不会误拒。
+// 需要 Lodge + 基座在跑；会调用真实模型，不进 check:done。
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,6 +35,7 @@ const json = async (url, options = {}) => {
 const allCases = [
   {
     id: 'missing-section',
+    kind: 'defect',
     goal: 'README 必须有三节：安装、使用、限制；缺一节就不算完成。',
     acceptance: 'npm test',
     defectFile: 'README.md',
@@ -48,6 +49,7 @@ const allCases = [
   },
   {
     id: 'wrong-edge',
+    kind: 'defect',
     goal: 'answer() 无论输入什么都返回 42，包括负数。',
     acceptance: 'npm test',
     defectFile: 'src/answer.js',
@@ -57,6 +59,21 @@ const allCases = [
       'package.json': JSON.stringify({ name: 'probe', private: true, type: 'module', scripts: { test: 'node --test' } }, null, 2),
       'src/answer.js': 'export const answer = n => (n < 0 ? -1 : 42)\n',
       'test/answer.test.js': "import assert from 'node:assert/strict'\nimport test from 'node:test'\nimport { answer } from '../src/answer.js'\n\ntest('answer is a number', () => {\n  assert.equal(typeof answer(1), 'number')\n})\n",
+    },
+  },
+  {
+    id: 'clean-readme',
+    kind: 'clean',
+    goal: 'README 必须有三节：安装、使用、限制。',
+    acceptance: 'npm test',
+    defectFile: 'README.md',
+    note: '把 README 现有段落整理成更清楚的短段落；三节都保留，不要删内容。',
+    // 对照组：夹具本来满足目标；这里命中的是“目标被破坏”，不是预埋缺陷。
+    hasDefect: text => !(text.includes('## 安装') && text.includes('## 使用') && text.includes('## 限制')),
+    files: {
+      'package.json': JSON.stringify({ name: 'probe', private: true, type: 'module', scripts: { test: 'node --test' } }, null, 2),
+      'README.md': '# 探针\n\n## 安装\n\n跑 npm install。\n\n## 使用\n\n跑 npm test。\n\n## 限制\n\n只在本机跑。\n',
+      'test/readme.test.js': "import assert from 'node:assert/strict'\nimport { readFileSync } from 'node:fs'\nimport test from 'node:test'\n\ntest('readme exists', () => {\n  assert.ok(readFileSync(new URL('../README.md', import.meta.url), 'utf8').length > 0)\n})\n",
     },
   },
 ].filter(testCase => only === '' || testCase.id === only)
@@ -130,8 +147,9 @@ if (validateOnly) {
       const weak = acceptancePasses(repo)
       const defective = readFileSync(join(repo, testCase.defectFile), 'utf8')
       const present = testCase.hasDefect(defective)
-      console.log(`${testCase.id}: 弱验收${weak ? ' ok（原样就过）' : ' FAIL'} · 缺陷${present ? ' ok（原样存在）' : ' FAIL'}`)
-      if (!weak || !present) failed = true
+      const expected = testCase.kind !== 'clean'
+      console.log(`${testCase.id}: 弱验收${weak ? ' ok（原样就过）' : ' FAIL'} · 预埋缺陷${present === expected ? ` ok（${expected ? '存在' : '不存在'}）` : ' FAIL'}`)
+      if (!weak || present !== expected) failed = true
     } finally {
       rmSync(repo, { recursive: true, force: true })
     }
@@ -192,9 +210,16 @@ for (const testCase of cases) {
       ))
       const last = verdicts.at(-1) ?? null
       const rejected = last !== null && !verdictPassed(last)
-      const outcome = present
-        ? (last === null ? 'no-verdict' : rejected ? 'caught' : 'false-pass')
-        : 'invalid'
+      const rejects = verdicts.filter(verdict => !verdictPassed(verdict)).length
+      const clean = testCase.kind === 'clean'
+      // 对照组只要退回过一次就算误拒：后面重试通过，也不能把之前的误判抹掉。
+      const outcome = clean
+        ? (present
+          ? 'invalid'
+          : last === null ? 'no-verdict' : rejects > 0 ? 'false-reject' : 'correct-pass')
+        : (present
+          ? (last === null ? 'no-verdict' : rejected ? 'caught' : 'false-pass')
+          : 'invalid')
       row = {
         caseId: testCase.id,
         run,
@@ -204,7 +229,11 @@ for (const testCase of cases) {
         defectPresent: present,
         verdict: last === null ? null : (verdictPassed(last) ? 'pass' : 'reject'),
         verdictReason: last === null ? null : (judgmentOf(last)?.reason ?? last.text ?? null),
+        rejects,
         outcome,
+        tokens: room.usage?.tokens ?? null,
+        costMicroUsd: Number.isFinite(room.usage?.costMicroUsd) ? room.usage.costMicroUsd : null,
+        costStatus: room.usage?.costStatus ?? 'unknown',
         elapsedMs: Date.now() - startedAt,
       }
     } catch (error) {
@@ -218,27 +247,46 @@ for (const testCase of cases) {
   }
 }
 
-const judged = results.filter(row => ['caught', 'false-pass'].includes(row.outcome))
-const caught = judged.filter(row => row.outcome === 'caught').length
-const falsePass = judged.filter(row => row.outcome === 'false-pass').length
+const defectRows = results.filter(row => ['caught', 'false-pass'].includes(row.outcome))
+const cleanRows = results.filter(row => ['correct-pass', 'false-reject'].includes(row.outcome))
+const caught = defectRows.filter(row => row.outcome === 'caught').length
+const falsePass = defectRows.filter(row => row.outcome === 'false-pass').length
+const correctPass = cleanRows.filter(row => row.outcome === 'correct-pass').length
+const falseReject = cleanRows.filter(row => row.outcome === 'false-reject').length
 const invalid = results.filter(row => row.outcome === 'invalid').length
 const errors = results.filter(row => row.outcome === 'error').length
-const rate = total => (judged.length === 0 ? null : `${Math.round((total / judged.length) * 100)}%`)
+const rate = (total, base) => (base === 0 ? null : `${Math.round((total / base) * 100)}%`)
+const percentile = (values, at) => {
+  const sorted = values.filter(value => Number.isFinite(value)).sort((left, right) => left - right)
+  if (sorted.length === 0) return null
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil((at / 100) * sorted.length) - 1))]
+}
+const reported = results.filter(row => row.costStatus !== 'unknown' && Number.isFinite(row.costMicroUsd))
+const costMicroUsd = reported.reduce((sum, row) => sum + (row.costMicroUsd ?? 0), 0)
+const costLabel = reported.length === 0
+  ? '未报告'
+  : `$${(costMicroUsd / 1_000_000).toFixed(4)}（${reported.length}/${results.length} 间报告）`
+const tokensIn = results.reduce((sum, row) => sum + (row.tokens?.input ?? 0), 0)
+const tokensOut = results.reduce((sum, row) => sum + (row.tokens?.output ?? 0), 0)
+const p50 = percentile(results.map(row => row.elapsedMs), 50)
+const p95 = percentile(results.map(row => row.elapsedMs), 95)
 const stamp = new Date().toISOString()
 const md = [
   `# 验收探针 · ${stamp}`,
   '',
-  `- 模型：claude (claude-sonnet-5) · Lodge ${lodge}`,
-  `- 有效样本：${judged.length} · 抓出：${caught}（${rate(caught) ?? '—'}） · 误放：${falsePass}（${rate(falsePass) ?? '—'}）`,
-  `- 无效（执行官把缺陷改掉了）：${invalid} · 出错：${errors}`,
+  `- 请求模型：claude (claude-sonnet-5) · Lodge ${lodge}`,
+  `- 缺陷样本：${defectRows.length} · 抓出：${caught}（${rate(caught, defectRows.length) ?? '—'}） · 误放：${falsePass}（${rate(falsePass, defectRows.length) ?? '—'}）`,
+  `- 对照样本：${cleanRows.length} · 正确放行：${correctPass}（${rate(correctPass, cleanRows.length) ?? '—'}） · 误拒：${falseReject}（${rate(falseReject, cleanRows.length) ?? '—'}）`,
+  `- 无效样本（交付物状态不符合预期）：${invalid} · 出错：${errors}`,
+  `- 成本：${costLabel} · tokens 入/出：${tokensIn}/${tokensOut} · 耗时 p50 ${p50 ?? '—'}ms / p95 ${p95 ?? '—'}ms`,
   '',
-  '| 用例 | 轮次 | 缺陷仍在 | 判定 | 结果 | 房间 | 耗时 |',
-  '| --- | --- | --- | --- | --- | --- | --- |',
-  ...results.map(row => `| ${row.caseId} | ${row.run} | ${row.defectPresent === true ? '是' : row.defectPresent === false ? '否' : '—'} | ${row.verdict ?? '—'} | ${row.outcome}${row.error ? `：${row.error}` : ''} | ${row.roomId ?? '—'} | ${row.elapsedMs}ms |`),
+  '| 用例 | 轮次 | 缺陷仍在 | 判定 | 结果 | 成本 | 房间 | 耗时 |',
+  '| --- | --- | --- | --- | --- | --- | --- | --- |',
+  ...results.map(row => `| ${row.caseId} | ${row.run} | ${row.defectPresent === true ? '是' : row.defectPresent === false ? '否' : '—'} | ${row.verdict ?? '—'} | ${row.outcome}${row.error ? `：${row.error}` : ''} | ${row.costStatus === 'unknown' || !Number.isFinite(row.costMicroUsd) ? '—' : `$${(row.costMicroUsd / 1_000_000).toFixed(4)}`} | ${row.roomId ?? '—'} | ${row.elapsedMs}ms |`),
   '',
-  '> 误放 = 缺陷仍在、验收员却判通过。探针只说明这几种已知缺陷的抓出情况，不代表全部验收能力。',
+  '> 误放 = 缺陷仍在、验收员却判通过；误拒 = 交付本来正确、验收员却判退回。只报抓出率会奖励“什么都拒”的验收员，所以两条线一起看。',
 ].join('\n')
 writeFileSync(join(outDir, 'latest.md'), `${md}\n`)
 writeFileSync(join(outDir, `probe-${Date.now()}.json`), `${JSON.stringify({ stamp, lodge, results }, null, 2)}\n`)
 console.log(`\n${md}`)
-process.exitCode = falsePass > 0 ? 1 : 0
+process.exitCode = falsePass > 0 || falseReject > 0 ? 1 : 0

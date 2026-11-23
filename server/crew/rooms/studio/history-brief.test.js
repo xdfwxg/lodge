@@ -16,15 +16,16 @@ test('room history is clipped, attributed and marked read-only', () => {
     ],
   }
   const brief = historyBriefOf({ store, room, query: '为什么选拼音', before: 2 })
-  assert.match(brief, /相关历史（本房间，只读/)
-  assert.match(brief, /甲：上次选拼音/)
-  assert.match(brief, /你：/)
-  assert.match(brief, /…/)
-  assert.doesNotMatch(brief, /\u200b/)
-  assert.equal(brief.split('\n').length, 4)
+  assert.match(brief.text, /相关历史（本房间，只读/)
+  assert.match(brief.text, /甲：上次选拼音/)
+  assert.match(brief.text, /你：/)
+  assert.match(brief.text, /…/)
+  assert.doesNotMatch(brief.text, /\u200b/)
+  assert.equal(brief.text.split('\n').length, 4)
+  assert.deepEqual(brief.messageIds, ['m1', 'm2', 'm3'])
 })
 
 test('no hits or no index means no block', () => {
-  assert.equal(historyBriefOf({ store: { searchMessages: () => [] }, room, query: 'x' }), '')
-  assert.equal(historyBriefOf({ store: {}, room, query: 'x' }), '')
+  assert.deepEqual(historyBriefOf({ store: { searchMessages: () => [] }, room, query: 'x' }), { text: '', messageIds: [] })
+  assert.deepEqual(historyBriefOf({ store: {}, room, query: 'x' }), { text: '', messageIds: [] })
 })

@@ -33,7 +33,7 @@
     "check:deps": "depcruise . --config .dependency-cruiser.cjs --output-type err",
     "check:acceptance": "node scripts/check-acceptance.mjs",
     "check:regressions": "node scripts/check-regressions.mjs",
-    "check:done": "npm test && npm run check:unused && npm run check:deps && npm run test:ui && npm run check:docs && npm run check:acceptance && npm run check:regressions && npm run eval:long-task",
+    "check:done": "npm test && npm run check:unused && npm run check:deps && npm run test:ui && npm run check:docs && npm run check:acceptance && npm run check:regressions && npm run eval:long-task && npm run eval:history-bench",
     "setup:hooks": "node scripts/setup-hooks.mjs",
     "gc:base": "node scripts/base-gc.mjs",
     "data:restore": "node scripts/data-restore.mjs",
@@ -53,6 +53,7 @@
     "replay:round": "node scripts/replay-round.mjs",
     "replay:chat": "node scripts/replay-chat.mjs",
     "eval:verifier-probe": "node evals/verifier-probe/run.mjs",
+    "eval:history-bench": "node evals/history-bench/run.mjs",
     "eval:verifier-probe:nightly": "node evals/verifier-probe/run.mjs --runs 3 --out evals/verifier-probe/results/nightly"
   },
   "dependencies": {

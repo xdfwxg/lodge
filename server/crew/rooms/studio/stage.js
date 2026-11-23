@@ -8,7 +8,7 @@ import { memberDisplayName } from '../../member-labels.js'
 import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 import { systemNotice } from '../../notices.js'
-import { alreadyMentioned } from './relay-words.js'
+import { missingMentionsOf } from './relay-words.js'
 import { historyBriefOf } from './history-brief.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { humanLabelOf } from '../../human-name.js'
@@ -224,17 +224,21 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     // 正常派活不再叫规划师重复说话：计划已经说了做什么。只有重做需要规划师补一句决定。
     if (typeof askPlanner === 'function' && rework) {
       const assigneeNames = assignees.map(id => memberDisplayName(room, id)).join('、')
+      const history = historyBriefOf({ store, room, query: stage?.title ?? room.goal, before: Date.now() })
+      if (history.messageIds.length > 0) {
+        store.appendEvent(roomId, 'history.brief', { stage: index, messageIds: history.messageIds })
+      }
       const planPrompt = [
         `第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」要交给${assigneeNames}。`,
         `房间目标（原文，不要改写）：${sanitizeUntrusted(room.goal, 2000)}`,
         `验收标准：${stage.manual === true ? '人看结果，没有命令。' : sanitizeUntrusted(acceptance, 500)}`,
         rework && note !== '' ? `${humanLabelOf()}补充（原文，必须保留）：${sanitizeUntrusted(note, 2000)}` : '',
         parallel
-          ? '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，最后一行 @ 每位执行官 加一句动作；系统会把完整任务分别送进他们自己的工作副本。'
+          ? '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，最后一行 @ 每位执行官 加一句动作；系统会把完整任务分别送进他们各自的工作副本。'
           : '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，最后一行 @执行官 加一句动作；系统会把完整任务送进执行官手里。',
         '派发时保留目标里的硬要求：文件名、路径、内容、行数、格式和范围；不要改写成更宽松的说法。',
         '不要写自己的名字，不要分点、小标题或第二段。',
-        historyBriefOf({ store, room, query: stage?.title ?? room.goal, before: Date.now() }),
+        history.text,
       ].filter(Boolean).join('\n')
       try {
         await askPlanner(planPrompt)
@@ -247,7 +251,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     if (!parallel) {
       const worker = assignees[0]
       // 规划师刚才那句话已经 @ 了执行官就不再补一条；没 @ 才由系统投影。
-      const relayed = alreadyMentioned({ room, messages: store.readMessages(roomId), from, targets: [worker] })
+      const missing = missingMentionsOf({ room, messages: store.readMessages(roomId), from, targets: [worker] })
       await handoffTrigger({
         room,
         stage,
@@ -257,7 +261,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         reason: rework ? 'rework' : 'dispatch',
         prompt: promptFor(worker),
         message: '',
-        visible: !relayed,
+        visible: missing.length > 0,
         // 任务总是由系统送到成员手里，不靠模型在群里 @ 得多准。
         deliver: true,
         acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
@@ -298,12 +302,13 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     }
 
     // 群里的交接只有一条：所有执行官放在同一句里 @，分发本身私下送进各自副本。
-    if (!alreadyMentioned({ room, messages: store.readMessages(roomId), from, targets: assignees })) {
+    const missing = missingMentionsOf({ room, messages: store.readMessages(roomId), from, targets: assignees })
+    if (missing.length > 0) {
       store.appendMessage(roomId, {
         kind: 'system',
         authorId: from,
-        text: `@${assignees.map(worker => memberDisplayName(room, worker)).join('、@')} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你们，各自在自己的副本里完成。`,
-        meta: { kind: 'handoff', stage: index, from, to: assignees, authorKind: 'system' },
+        text: `@${missing.map(worker => memberDisplayName(room, worker)).join('、@')} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你们，各自在自己的副本里完成。`,
+        meta: { kind: 'handoff', stage: index, from, to: missing, authorKind: 'system' },
       })
     }
     // 并行派发逐个送进成员自己的工作副本；群里的 @ 只是投影，不能靠它唤醒，
