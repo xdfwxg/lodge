@@ -1,7 +1,6 @@
 import { createElement as h } from 'react'
 import { MarkdownText } from './primitives.js'
 import { MD, timeOf } from './view-format.js'
-import { personalityLabel } from '../../shared/personalities.js'
 import { stanceLabelOf } from '../../shared/chat-stances.js'
 import { RoleIcon } from './room/role-icon.js'
 import { emphasizeImportant } from './emphasis.js'
@@ -13,13 +12,12 @@ function Markdown({ text, variant, mentions = null }) {
   return h(MarkdownText, { text, labels: MD, variant, mentions })
 }
 
-function Speaker({ member, ts, time = true, station = true, persona = '' }) {
+function Speaker({ member, ts, time = true, station = true }) {
   const stance = stanceLabelOf(member?.stance)
   return h('div', { className: 'crew-speaker' },
     member === undefined || member === null ? null : h(RoleIcon, { member }),
     h('span', { className: 'crew-speaker-name' }, member?.name ?? '—'),
     stance === '' ? null : h('span', { className: 'crew-speaker-stance' }, stance),
-    persona === '' ? null : h('span', { className: 'crew-speaker-persona' }, `（${persona}）`),
     station ? h('span', { className: 'crew-speaker-station' }, member?.title ?? '') : null,
     time ? h('span', { className: 'crew-speaker-time' }, timeOf(ts)) : null)
 }
@@ -68,7 +66,7 @@ function ChatLine({ message, member, mentions = null, humanName = '' }) {
   const text = homeRelative(planBreaks(humanMentionText(raw, humanName)))
   return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
-      h(Speaker, { member, ts: message.ts, time: false, station: false, persona: personalityLabel(member?.personality) }),
+      h(Speaker, { member, ts: message.ts, time: false, station: false }),
       h('div', {
         className: streaming ? 'bt-bubble crew-streaming' : 'bt-bubble',
       }, h(ChatTopicText, { text, topic: message.meta?.opening === true, mentions }))))

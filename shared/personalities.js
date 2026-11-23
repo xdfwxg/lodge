@@ -42,8 +42,6 @@ export const personalityPrompt = id => {
   return `你的性格：${personality.label}。${personality.instruction}`
 }
 
-export const personalityLabel = id => personalityById(id)?.label ?? ''
-
 export const personalityTurnCue = id => {
   const personality = personalityById(id) ?? personalityById('balanced')
   return `【${personality.label}】${personality.turnCue}`

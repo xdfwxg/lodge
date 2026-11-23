@@ -5,7 +5,6 @@ import { useOverlay } from '../overlay.js'
 import { modelRowsFor, roleLabelOf } from './member-options.js'
 import { CapabilityFields, CapabilityReadOnly, bodySpecOf, bodySpecPayload } from './body-spec-fields.js'
 import { bodyCapabilitiesOf } from '../../../shared/body-capabilities.js'
-import { roleDefinitionOf } from '../../../shared/role-definitions.js'
 import { mergeRoleSkills } from '../../../shared/role-toolbox.js'
 import { Segmented } from '../segmented.js'
 
@@ -64,10 +63,8 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
     && !mindChanged
     && !capabilityChanged
   const roleBound = roleLabelOf(member) !== '成员' || member.roleKind === 'participant'
-  // 角色成员的提示词不是用户写的人格，而是角色定义；只读展示，保存时仍交给角色默认。
-  const rolePrompt = roleBound
-    ? (bodySpecOf(member).prompt.trim() || roleDefinitionOf(member.role)?.prompt || '')
-    : ''
+  // 角色提示词不外漏：角色成员这一栏只留占位说明，保存仍交给角色默认。
+  const rolePrompt = ''
   const overlay = useOverlay({ label: '调整成员', onClose: busy ? () => {} : onCancel, active: true })
   return h('div', { className: 'crew-overlay', onClick: busy ? undefined : onCancel, ...overlay },
     h('div', {
@@ -200,7 +197,7 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
           className: 'crew-mind-raw',
           rows: 4,
           'aria-label': '性格',
-          placeholder: '留空就用角色默认。',
+          placeholder: member.roleKind === 'participant' ? '留空就按房间默认的聊法。' : '留空就用角色默认。',
           value: roleBound ? rolePrompt : (spec.prompt ?? ''),
           readOnly: roleBound || !customOpen,
           disabled: busy,

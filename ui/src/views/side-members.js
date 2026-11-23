@@ -60,7 +60,7 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
         onClick: () => {
           // 成员卡可能开在房间菜单的浮层里；先收起浮层，别和调整窗口叠在一起。
           onClose?.()
-          openBodyDialog(item.memberId)
+          openBodyDialog(item.memberId, room.id)
         },
       },
       item.state === IDLE ? null : h('span', { className: 'crew-side-member-dot', 'aria-hidden': true }),
@@ -99,7 +99,7 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
         className: 'crew-side-menu-item',
         onClick: () => choose(() => {
           onClose?.()
-          openBodyDialog(menu.memberId)
+          openBodyDialog(menu.memberId, room.id)
         }),
       }, '调整成员'),
       h('button', {

@@ -25,15 +25,31 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [addOpen, setAddOpen] = useState(false)
   const [addBusy, setAddBusy] = useState(false)
   const [addError, setAddError] = useState(null)
+  const roomRef = useRef(room)
+  roomRef.current = room
+  // 侧栏成员面板可能属于另一间房：先切过去，等当前房间对上了再打开成员卡。
+  const pendingSwap = useRef(null)
   useEffect(() => onMemberDialog(request => {
     if (request.kind === 'add') {
       setAddError(null)
       setAddOpen(true)
       return
     }
+    if (typeof request.roomId === 'string' && request.roomId !== '' && request.roomId !== roomRef.current.id) {
+      pendingSwap.current = request
+      store.select(request.roomId)
+      return
+    }
     setSwapError(null)
     setSwapId(request.memberId)
   }), [])
+  useEffect(() => {
+    const pending = pendingSwap.current
+    if (pending === null || pending.roomId !== room.id) return
+    pendingSwap.current = null
+    setSwapError(null)
+    setSwapId(pending.memberId)
+  }, [room.id])
   const scroll = useRef(null)
   const holdPin = useRef(false)
   const holdTimer = useRef(null)
