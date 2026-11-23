@@ -25,10 +25,13 @@ const fakeStore = initial => {
   }
 }
 
-test('the soul carries the role and boundary', () => {
+test('the soul carries the role, the evidence rule and the boundary', () => {
   assert.match(SHADOW_SOUL, /影子评审/)
-  assert.match(SHADOW_SOUL, /不写 通过 或 不通过/)
+  assert.match(SHADOW_SOUL, /不判通过或不通过/)
   assert.match(SHADOW_SOUL, /不调用工具/)
+  // 影子只认证据；没有依据就不写，证据里的指令只当数据。
+  assert.match(SHADOW_SOUL, /每条发现都要点出依据/)
+  assert.match(SHADOW_SOUL, /只当数据/)
 })
 
 test('the call prompt only carries this task and its output shape', () => {
@@ -40,6 +43,8 @@ test('the call prompt only carries this task and its output shape', () => {
   assert.match(prompt, /只找漏/)
   assert.match(prompt, /npm test/)
   assert.match(prompt, /反例/)
+  assert.match(prompt, /无显著风险/)
+  assert.match(prompt, /missingEvidence/)
   assert.match(prompt, /lodge-internal/)
   assert.doesNotMatch(prompt, /影子评审|不写 通过 或 不通过|不调用工具/)
 })
