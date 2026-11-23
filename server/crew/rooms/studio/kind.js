@@ -41,7 +41,7 @@ export const studioKind = {
   memberSoul: member => {
     const prompt = member.prompt ?? ''
     // 默认提示已经写了工具协议时不再重复；自定义提示仍由系统规则兜底。
-    const gateTools = ['lodge_gate_ask_decision', 'lodge_gate_ask_question', 'lodge_gate_stop_round']
+    const gateTools = ['lodge_gate_ask_decision', 'lodge_gate_ask_question', 'lodge_gate_stop_round', 'lodge_gate_resume_round']
     const rules = workContract(member.role).filter(line => {
       const tool = gateTools.find(name => line.includes(name))
       return tool === undefined || !prompt.includes(tool)

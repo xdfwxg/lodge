@@ -63,6 +63,20 @@ export const stopRound = ({ store, live, emit, room, reason = '' }) => settle({
   idempotencyKey: `round-stop:${room?.workRound?.id ?? room?.id}`,
 })
 
+// 停下的一轮接回来：只恢复这一轮和目标，不新建、不改目标；阶段与证据原样保留。
+export const resumeRound = ({ store, live, emit, room }) => {
+  const round = room?.workRound ?? null
+  if (round === null) return fail('conflict', '这一轮还没有开始')
+  if (round.status !== 'stopped') return fail('conflict', '这一轮没有停下')
+  const moved = transitionRound(round.status, 'resume')
+  if (!moved.ok) return fail('conflict', moved.error)
+  const reopened = store.reopenWorkRound?.({ roomId: room.id, roundId: round.id }) ?? null
+  if (reopened === null) return fail('conflict', '这一轮状态已经变化，重试')
+  if (reopened.round !== null && reopened.round !== undefined) emit?.('round', reopened.round)
+  if (reopened.room !== null && reopened.room !== undefined) emit?.('room', reopened.room)
+  return ok({ room: reopened.room, round: reopened.round })
+}
+
 export const rejectRound = ({ store, live, emit, room, reason = '' }) => settle({
   store,
   live,

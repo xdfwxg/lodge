@@ -49,10 +49,18 @@ const setup = () => {
     appendMessage: (_id, message) => { messages.push(message); return message },
     appendEvent: () => {},
   }
+  const resumed = []
   const actions = createRoundActions({
     store,
     live: {
       sendToMember: async (...args) => { sent.push(args); return { messageId: 'm1' } },
+      send: async (...args) => { sent.push(args); return { messageId: 'm2' } },
+      isAttached: () => true,
+      attach: async () => {},
+    },
+    resumeRound: ({ room: target }) => {
+      resumed.push(target.id)
+      return { ok: true, body: { room: target } }
     },
     emit: () => {},
     appendMessage: store.appendMessage,
@@ -60,7 +68,7 @@ const setup = () => {
     readRoom: store.readRoom,
     readMessages: store.readMessages,
   })
-  return { actions, store, room: () => room, round: () => round, messages, sent }
+  return { actions, store, room: () => room, round: () => round, messages, sent, resumed }
 }
 
 test('picking a path records the answer and sends it to the planner', async () => {
@@ -110,4 +118,22 @@ test('an old decision id or a closed card cannot be answered twice', async () =>
   await ctx.actions.decision({ room: ctx.room(), readBody: async () => ({ decisionId: 'd1', optionId: 'keep-local' }) })
   const again = await ctx.actions.decision({ room: ctx.room(), readBody: async () => ({ decisionId: 'd1', optionId: 'take-remote' }) })
   assert.equal(again.ok, false)
+})
+
+test('a message in a stopped room continues that round instead of starting a new one', async () => {
+  const ctx = setup()
+  const current = ctx.room()
+  current.workRound.status = 'stopped'
+  current.state = 'idle'
+  current.live = true
+  current.stages = [{ title: '实现', state: 'active' }]
+  const goalBefore = current.goal
+  const result = await ctx.actions.messages({ roomId: 'room-1', room: current, readBody: async () => ({ text: '继续' }) })
+  assert.equal(result.ok, true)
+  // 机器先把这一轮接回来，再把这句话交给规划师；目标没有被覆盖。
+  assert.deepEqual(ctx.resumed, ['room-1'])
+  assert.equal(ctx.room().goal, goalBefore)
+  assert.equal(ctx.sent.length, 1)
+  assert.equal(ctx.sent[0][1], '继续')
+  assert.deepEqual(ctx.sent[0][2]?.mentions, ['planner'])
 })

@@ -208,5 +208,45 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
     }
   }
 
-  return { startWorkRound, finishWorkRound }
+  // 停下的一轮接回来：轮次、房间指针和事件一起提交；目标、阶段和证据都不动。
+  const reopenWorkRound = ({ roomId, roundId }) => {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      const roundRow = db.prepare('SELECT payload, version FROM work_round WHERE id = ? AND room_id = ?').get(roundId, roomId)
+      if (roundRow === undefined) { db.exec('ROLLBACK'); return null }
+      const round = JSON.parse(roundRow.payload)
+      if (round.status !== ROUND_STATUS.stopped) {
+        db.exec('ROLLBACK')
+        return { round: readWorkRound(roundId, roomId), room: readRoom(roomId) }
+      }
+      round.status = ROUND_STATUS.active
+      delete round.stopReason
+      round.updatedAt = Date.now()
+      round.version = Number(roundRow.version) + 1
+      db.prepare(
+        'UPDATE work_round SET status = ?, payload = ?, version = ?, updated_at = ? WHERE id = ? AND version = ?',
+      ).run(round.status, JSON.stringify(round), round.version, round.updatedAt, roundId, roundRow.version)
+      const roomRow = db.prepare('SELECT payload, version FROM room WHERE id = ?').get(roomId)
+      if (roomRow === undefined) { db.exec('ROLLBACK'); return null }
+      const stored = JSON.parse(roomRow.payload)
+      stored.activeRoundId = roundId
+      stored.lastRoundId = roundId
+      stored.state = ROOM_STATE.active
+      stored.idle = false
+      stored.noProgress = 0
+      stored.pauseReason = null
+      stored.version = Number(roomRow.version) + 1
+      db.prepare('UPDATE room SET payload = ?, version = ? WHERE id = ? AND version = ?')
+        .run(JSON.stringify(stored), stored.version, roomId, roomRow.version)
+      const event = insertEvent(roomId, { type: 'round.resumed', payload: { roundId } })
+      db.exec('COMMIT')
+      mirrorEvent(roomId, event)
+      return { round: readWorkRound(roundId, roomId), room: readRoom(roomId) }
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  return { startWorkRound, finishWorkRound, reopenWorkRound }
 }

@@ -127,6 +127,15 @@ export const GATE_TOOLS = Object.freeze([
       additionalProperties: false,
     },
   },
+  {
+    name: 'resume_round',
+    description: '房间的这一轮已经停下、而用户的意思是接着做时，用它把同一轮接回来继续；只接回停下的这一轮，不改目标，也不开新一轮。',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false,
+    },
+  },
 ])
 
 const reply = (id, result) => ({ jsonrpc: '2.0', id, result })
@@ -159,6 +168,8 @@ const callTool = (id, params) => {
     if (question === '') return toolFailure(id, '缺少 question：请只写一个核心问题。')
     return toolOk(id, `已把问题发给用户：${question}`, { ok: true, kind: 'question', question })
   }
+  // 继续不需要理由：用户说一句「接着做」就够了。
+  if (name === 'resume_round') return toolOk(id, '已收到继续请求。', { ok: true })
   const reason = String(args.reason ?? args.note ?? '').trim()
   if (reason === '') return toolFailure(id, '缺少 reason：请用一句话说明判定依据。')
   if (name === 'submit_verdict') {

@@ -31,3 +31,11 @@ test('a studio connection signal retries the room instead of opening the panel',
   assert.equal(resumed, 1)
   assert.equal(island.props.onSignalAction({ needs: 'decision' }, {}), false)
 })
+
+test('a stopped round continues instead of becoming a new goal', () => {
+  const stopped = { workRound: { status: 'stopped' }, state: 'idle', stages: [] }
+  assert.equal(studioView.canStartRound({ room: stopped }), false)
+  assert.match(studioView.composerPlaceholder({ room: stopped, members: [] }), /接着这一轮/)
+  const delivered = { workRound: { status: 'completed' }, state: 'idle', stages: [] }
+  assert.equal(studioView.canStartRound({ room: delivered }), true)
+})

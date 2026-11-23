@@ -3,8 +3,8 @@ import { addTurnUsage } from '../../../../../shared/usage.js'
 import { memberDisplayName } from '../../../member-labels.js'
 import { createTurnDiagnostics } from './diagnostics.js'
 import { verdictPassed } from '../../../../../shared/judgment.js'
-import { ASSIGNMENT_TERMINAL, STAGE_STATE } from '../../../../../shared/states.js'
-import { askDecisionOf, askQuestionOf, rewindRequestOf, stopRequestOf } from '../../../../../shared/gate.js'
+import { ASSIGNMENT_TERMINAL, OPEN_ROUND_STATUSES, STAGE_STATE } from '../../../../../shared/states.js'
+import { askDecisionOf, askQuestionOf, resumeRequestOf, rewindRequestOf, stopRequestOf } from '../../../../../shared/gate.js'
 import {
   activeDispatchAssignments as activeDispatch,
   assignmentForTurn,
@@ -35,6 +35,7 @@ export const createTurnCapture = ({
   confirmStage = null,
   rewindStage = null,
   stopRound = null,
+  resumeRound = null,
   writeDiagnostic = null,
   setMembers = null,
 }) => {
@@ -53,6 +54,56 @@ export const createTurnCapture = ({
     const memberId = memberForRef(room, authorRef)
     const role = memberOf(room, memberId)?.role
     const calls = state.turns.get(turnId) ?? []
+    const leadTurn = role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id
+    // 控制动作先于一切：停下、接回、退回的回合不再走自动确认和派活。
+    if (leadTurn) {
+      // 用户的意思是接着做：把停下的一轮接回来；之后的继续由服务层再叫醒一次。
+      const resume = resumeRequestOf(calls)
+      if (resume !== null && typeof resumeRound === 'function') {
+        const result = resumeRound(roomId, resume)
+        if (result?.ok === true) {
+          store.appendEvent(roomId, 'planner.resume', { roundId: result.body?.round?.id ?? null })
+          emit?.('room', store.readRoom(roomId) ?? room)
+          state.recordTurn(true)
+          return
+        }
+        systemNotice({ store, roomId, text: `继续没成功：${result?.error ?? '再试一次'}` })
+      }
+      // 用户说停时，用它把这一轮真的停住；只是说一句「停」不会在这里生效。
+      const stop = stopRequestOf(calls)
+      if (stop !== null && typeof stopRound === 'function') {
+        void Promise.resolve(stopRound(roomId, stop))
+          .then(result => {
+            if (result?.ok === true) {
+              store.appendEvent(roomId, 'planner.stop', { reason: stop.reason })
+              emit?.('room', store.readRoom(roomId) ?? room)
+              return
+            }
+            systemNotice({ store, roomId, text: `停止没成功：${result?.error ?? '再试一次'}` })
+          })
+          .catch(() => systemNotice({ store, roomId, text: '停止没成功，再试一次。' }))
+        state.recordTurn(true)
+        return
+      }
+      const request = rewindRequestOf(calls)
+      if (request !== null && typeof rewindStage === 'function') {
+        const result = rewindStage(roomId, request)
+        if (result?.ok === true) {
+          store.appendEvent(roomId, 'planner.rewind', { stage: request.stage, note: request.note })
+          emit?.('room', store.readRoom(roomId) ?? room)
+          state.recordTurn(true)
+          return
+        }
+        systemNotice({ store, roomId, text: `退回没成功：${result?.error ?? '再试一次'}` })
+      }
+    }
+    // 轮次已经不在跑（停下或终态）：迟到的成员回合只记下来，不写证据、不推进。
+    if (!OPEN_ROUND_STATUSES.has(room?.workRound?.status ?? 'active')) {
+      state.capturedTurns.add(turnId)
+      state.turns.delete(turnId)
+      state.recordTurn(false)
+      return
+    }
     // 规划师遇到真正的分叉：存一张决策卡，暂停派活，等用户选。
     if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
       const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
@@ -104,6 +155,8 @@ export const createTurnCapture = ({
       alignStage?.title === '目标对齐' &&
       memberId !== null &&
       memberId === leadMemberOf(room)?.id &&
+      // 停下的一轮不再自动确认阶段；只有开着的轮次才往前走。
+      OPEN_ROUND_STATUSES.has(room?.workRound?.status ?? 'active') &&
       String(turn?.reply ?? '').trim() !== '' &&
       (room.openQuestion === null || room.openQuestion === undefined || room.openQuestion === '') &&
       typeof confirmStage === 'function'
@@ -237,36 +290,6 @@ export const createTurnCapture = ({
     }
     state.capturedTurns.add(turnId)
     state.turns.delete(turnId)
-
-    if (role === 'lead') {
-      // 用户说停时，规划师用工具把这一轮真的停住；只是说一句「停」不会在这里生效。
-      const stop = stopRequestOf(calls)
-      if (stop !== null && typeof stopRound === 'function') {
-        void Promise.resolve(stopRound(roomId, stop))
-          .then(result => {
-            if (result?.ok === true) {
-              store.appendEvent(roomId, 'planner.stop', { reason: stop.reason })
-              emit?.('room', store.readRoom(roomId) ?? room)
-              return
-            }
-            systemNotice({ store, roomId, text: `停止没成功：${result?.error ?? '再试一次'}` })
-          })
-          .catch(() => systemNotice({ store, roomId, text: '停止没成功，再试一次。' }))
-        state.recordTurn(true)
-        return
-      }
-      const request = rewindRequestOf(calls)
-      if (request !== null && typeof rewindStage === 'function') {
-        const result = rewindStage(roomId, request)
-        if (result?.ok === true) {
-          store.appendEvent(roomId, 'planner.rewind', { stage: request.stage, note: request.note })
-          emit?.('room', store.readRoom(roomId) ?? room)
-          state.recordTurn(true)
-          return
-        }
-        systemNotice({ store, roomId, text: `退回没成功：${result?.error ?? '再试一次'}` })
-      }
-    }
 
     if (review.consume({ turn, memberId, turnId, room, calls })) {
       writeTurn('review')

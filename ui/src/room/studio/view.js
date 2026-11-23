@@ -1,6 +1,7 @@
 import { Fragment, createElement as h } from 'react'
 import { GoalIslandHeader } from '../../goal-island/adapter.js'
-import { roomStatusOf } from '../../../../shared/room-status.js'
+import { roomStatusOf, roundStatusOf } from '../../../../shared/room-status.js'
+import { ROUND_STATUS } from '../../../../shared/states.js'
 import { PausedPanel } from '../paused-panel.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from './return-seed.js'
@@ -81,8 +82,10 @@ export const studioView = {
     )
   },
   presence: () => null,
-  canStartRound: ({ room }) => roomStatusOf(room) === 'idle',
+  // 只有交付过的一轮，输入框才是下一轮的目标；停下的一轮，下一句是接着这一轮说。
+  canStartRound: ({ room }) => roomStatusOf(room) === 'idle' && roundStatusOf(room) === ROUND_STATUS.completed,
   composerPlaceholder: ({ room, members }) => {
+    if (roundStatusOf(room) === ROUND_STATUS.stopped) return '接着这一轮说点什么…'
     if (roomStatusOf(room) === 'idle') return '说说下一轮要做什么…'
     const active = (room.stages ?? []).findIndex(stage => stage.state === 'active')
     if (room.lastPlannerDecision?.kind === 'human' && room.lastPlannerDecision?.stage === active) {

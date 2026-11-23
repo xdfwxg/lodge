@@ -18,6 +18,7 @@ export const createStudioRuntime = ({
   confirmStage = null,
   rewindStage = null,
   stopRound = null,
+  resumeRound = null,
 }) => {
   const sendMember = async (roomId, room, memberId, text, options = {}) => {
     // 等卡期间只有规划师在基座群聊里；第一次派活给其他成员时再把全员放回来。
@@ -96,6 +97,7 @@ export const createStudioRuntime = ({
         confirmStage,
         rewindStage,
         stopRound,
+        resumeRound,
         shadow,
         setMembers,
         expireCards: () => {

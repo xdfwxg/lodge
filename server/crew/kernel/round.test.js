@@ -27,3 +27,11 @@ test('a terminal round cannot move again', () => {
   assert.equal(transitionRound(ROUND_STATUS.stopped, 'activate').ok, false)
   assert.equal(transitionRound('missing', 'complete').ok, false)
 })
+
+test('a stopped round can be resumed, but no other terminal round can', () => {
+  const resumed = transitionRound(ROUND_STATUS.stopped, 'resume')
+  assert.equal(resumed.ok, true)
+  assert.equal(resumed.state, ROUND_STATUS.active)
+  assert.equal(transitionRound(ROUND_STATUS.completed, 'resume').ok, false)
+  assert.equal(transitionRound(ROUND_STATUS.rejected, 'resume').ok, false)
+})

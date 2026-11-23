@@ -362,6 +362,47 @@ test('a planner stop request really stops the round', async () => {
   assert.deepEqual(stopped, [['room-1', { reason: '用户说停下' }]])
 })
 
+test('a planner resume request reopens the stopped round', async () => {
+  const room = makeRoom({
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', acceptance: '' },
+      { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
+    ],
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { planner: 'bot-planner', executor: 'bot-exec', verifier: 'bot-ver' },
+    workers: ['executor'],
+    pendingDecision: null,
+  })
+  const store = fakeStore(room)
+  const resumed = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    resumeRound: roomId => {
+      resumed.push(roomId)
+      return { ok: true, body: { round: { id: 'round-1' } } }
+    },
+  })
+  turns.trackTool({
+    kind: 'activity',
+    turnId: 't-resume',
+    tool: { id: 'call-resume', name: 'mcp__lodge_gate__resume_round', input: '{}' },
+  })
+  turns.captureTurn({ turnId: 't-resume', reply: '好，接着做。', toolCalls: 1 }, 'bot-planner')
+  assert.deepEqual(resumed, ['room-1'])
+})
+
 test('reconnecting after the card is answered does not reopen the room chat', () => {
   const room = makeRoom({
     pendingDecision: {
@@ -563,6 +604,8 @@ test('a verifier reply without a verdict is nudged, then expires the review', as
     message.meta?.kind === 'handoff' && message.meta?.reason === 'review'
   ))
   assert.match(projection.text, /@验收员 第 1 步「impl」结果好了，请复核/)
+  // 系统发的交接带着身份标记：它写着执行官的名字，但说话的是系统。
+  assert.equal(projection.meta.authorKind, 'system')
   assert.equal(review.consume({
     turn: { reply: '我看了证据，还需要再看看' },
     memberId: 'verifier',

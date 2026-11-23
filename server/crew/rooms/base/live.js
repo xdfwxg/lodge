@@ -63,6 +63,7 @@ export const createLiveRooms = ({
   let confirmStage = null
   let rewindStage = null
   let stopRound = null
+  let resumeRound = null
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit })
   const approvals = createLiveApprovals({
@@ -87,6 +88,7 @@ export const createLiveRooms = ({
       confirmStage: (roomId, index, options) => confirmStage?.(roomId, index, options),
       rewindStage: (roomId, request) => rewindStage?.(roomId, request),
       stopRound: (roomId, request) => stopRound?.(roomId, request),
+      resumeRound: roomId => resumeRound?.(roomId),
     }),
   ]
   const strategyFor = room => {
@@ -491,6 +493,7 @@ export const createLiveRooms = ({
     setConfirmStage: handler => { confirmStage = handler },
     setRewindStage: handler => { rewindStage = handler },
     setStopRound: handler => { stopRound = handler },
+    setResumeRound: handler => { resumeRound = handler },
     handleWork,
     decideApproval,
     expireApprovals,

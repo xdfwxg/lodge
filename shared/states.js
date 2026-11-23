@@ -29,6 +29,7 @@ export const ROUND_EVENT = Object.freeze({
   fail: 'fail',
   supersede: 'supersede',
   stop: 'stop',
+  resume: 'resume',
 })
 
 export const OPEN_ROUND_STATUSES = new Set([ROUND_STATUS.planning, ROUND_STATUS.active])
@@ -57,7 +58,8 @@ export const ROUND_TRANSITIONS = Object.freeze({
   [ROUND_STATUS.rejected]: Object.freeze({}),
   [ROUND_STATUS.failed]: Object.freeze({}),
   [ROUND_STATUS.superseded]: Object.freeze({}),
-  [ROUND_STATUS.stopped]: Object.freeze({}),
+  // 停下的一轮可以接回来：只有“继续”，不能直接完成或退回。
+  [ROUND_STATUS.stopped]: Object.freeze({ [ROUND_EVENT.resume]: ROUND_STATUS.active }),
 })
 
 export const STAGE_STATE = Object.freeze({

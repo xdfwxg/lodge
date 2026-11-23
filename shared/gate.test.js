@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { gateSubmissionOf, isGateToolName, rewindRequestOf, stopRequestOf } from './gate.js'
+import { gateSubmissionOf, isGateToolName, rewindRequestOf, resumeRequestOf, stopRequestOf } from './gate.js'
 import { judgmentFromGate } from './judgment.js'
 
 const verdict = overrides => ({
@@ -167,4 +167,9 @@ test('a planner stop request carries one reason', () => {
   )
   assert.equal(stopRequestOf([{ name: 'mcp__lodge_gate__stop_round', input: { reason: '  ' } }]), null)
   assert.equal(stopRequestOf([{ name: 'mcp__lodge_gate__submit_verdict', input: { reason: 'x' } }]), null)
+})
+
+test('a planner resume request is recognised by tool name', () => {
+  assert.notEqual(resumeRequestOf([{ name: 'mcp__lodge_gate__resume_round', input: '{}' }]), null)
+  assert.equal(resumeRequestOf([{ name: 'mcp__lodge_gate__stop_round', input: '{}' }]), null)
 })

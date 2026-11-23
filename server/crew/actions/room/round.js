@@ -2,7 +2,7 @@ import { roomModeOfRoom } from '../../rooms/kinds.js'
 import { accepted, created, fail, ok } from '../../result.js'
 import { withAttachments } from '../../../../shared/attachments.js'
 import { normalizeAttachments } from '../../attachments.js'
-import { ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
+import { ROOM_STATE, ROUND_STATUS, STAGE_STATE } from '../../../../shared/states.js'
 import { answerDecision } from '../../../../shared/decision.js'
 import { leadMemberOf } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
@@ -11,7 +11,7 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 // 一轮工作的动作：开新一轮、发消息、人拍板、结束和退回。
 export const createRoundActions = deps => {
   const {
-    store, live, emit, roomFiles, startRound, stopRound, failRound, rejectRound,
+    store, live, emit, roomFiles, startRound, stopRound, resumeRound, failRound, rejectRound,
     supersedeRound, humanHandoffStageOf, stages, chat, messageHandlers = {},
     recordMemory, resolveMerge, readRoom, readMessages, appendMessage, updateRound,
   } = deps
@@ -70,6 +70,23 @@ export const createRoundActions = deps => {
       const attachmentMeta = attachments.length === 0 ? {} : { attachments }
       const promptText = withAttachments(text, attachments)
       if (room.live === true) {
+        // 停下的一轮：用户开口就是接着做——机器先把同一轮接回来，目标不动，再把话交给规划师。
+        if (room.workRound?.status === ROUND_STATUS.stopped) {
+          if (typeof resumeRound !== 'function') return fail('conflict', '这一轮还没法接回来')
+          const resumed = resumeRound({ store, live, emit, room })
+          if (resumed?.ok !== true) return fail('conflict', resumed?.error ?? '这一轮没能接回来，再试一次')
+          const current = readRoom(roomId) ?? room
+          if (live.isAttached?.(room.id) !== true) {
+            try {
+              await live.attach?.(current)
+            } catch {
+              return fail('conflict', '房间现在没有连上，稍后再试')
+            }
+          }
+          const lead = leadMemberOf(current)?.id ?? null
+          await live.send(room.id, promptText, { mentions: lead === null ? [] : [lead] })
+          return accepted({ accepted: true })
+        }
         if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')
         if (live.busyReview(room.id)) return fail('conflict', '验收员还在看，等结论出来再继续')
         const mode = roomModeOfRoom(room)

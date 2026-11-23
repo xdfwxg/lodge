@@ -1,13 +1,13 @@
 import * as log from './log.js'
 import { resolve, sep } from 'node:path'
-import { ROOM_STATE } from '../../shared/states.js'
+import { ROOM_STATE, STAGE_STATE } from '../../shared/states.js'
 import { stagesCompletedOf } from '../../shared/room-status.js'
 import { createRealRoom } from './rooms/create/create.js'
 import { created, fail, ok } from './result.js'
 import { createRoomCompleter } from './rooms/studio/complete.js'
 import { startRound } from './rounds/start.js'
 import { reconcileCompletions } from './rounds/recovery.js'
-import { failRound, rejectRound, stopRound, supersedeRound } from './rounds/lifecycle.js'
+import { failRound, rejectRound, resumeRound, stopRound, supersedeRound } from './rounds/lifecycle.js'
 import { createRoomActions } from './actions/room-actions.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
@@ -26,6 +26,7 @@ import {
 } from './rooms/sample.js'
 import { artifactKindOf, imageMimeOf } from '../../shared/artifact.js'
 import { systemNotice } from './notices.js'
+import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
 import { cleanHumanName, setCurrentHumanName } from './human-name.js'
 import { isAttachmentName, textOfFile } from './attachments.js'
 import {
@@ -107,6 +108,29 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     const room = store.readRoom(roomId)
     if (room === null) return null
     return stopRound({ store, live, emit, room, reason: request?.reason ?? '' })
+  })
+  // 用户的意思是接着做时，规划师把同一轮接回来；接回后叫醒它继续，目标不改。
+  live.setResumeRound?.((roomId) => {
+    const room = store.readRoom(roomId)
+    if (room === null) return null
+    const result = resumeRound({ store, live, emit, room })
+    if (result.ok !== true) return result
+    const resumed = result.body?.room ?? store.readRoom(roomId) ?? room
+    const lead = (resumed.members ?? []).find(member => member.role === 'lead' || member.roleKind === 'planner')?.id
+    const stages = Array.isArray(resumed.stages) ? resumed.stages : []
+    const index = stages.findIndex(stage => stage.state === STAGE_STATE.active)
+    if (typeof lead === 'string' && lead !== '') {
+      void live.sendToMember(roomId, lead, [
+        '这一轮已经接回来，接着做，不要重复已经说过的计划。',
+        `目标：${resumed.goal ?? ''}`,
+        index >= 0 ? `从第 ${index + 1} 步「${stages[index].title}」继续。` : '',
+        '说清下一步和交给谁。',
+        INTERNAL_PROMPT_MARKER,
+      ].filter(Boolean).join('\n'), { intent: 'resume' }).catch(error => {
+        log.warn(`resume wake failed: ${roomId} ${error?.message ?? error}`)
+      })
+    }
+    return result
   })
   // 合并冲突留给人：打开冲突目录、解决并提交，再由这里清掉冲突继续验收。
   const resolveMerge = async room => {
@@ -243,6 +267,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     workspace,
     startRound,
     stopRound,
+    resumeRound,
     failRound,
     rejectRound,
     supersedeRound,
