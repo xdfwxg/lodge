@@ -3,7 +3,7 @@
 // 服务端与 UI 只读这份结构，不再各自解析自然语言。
 export const JUDGMENT_VERSION = 1
 
-const LIMITS = Object.freeze({
+export const LIMITS = Object.freeze({
   reason: 2000,
   actionRequired: 1000,
   findings: 10,

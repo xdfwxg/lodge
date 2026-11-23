@@ -5,10 +5,10 @@ import { buildMemberHandoff } from './member-handoff.js'
 import { alreadyMentioned } from './relay-words.js'
 import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
-import { DECISION_JSON_HINT, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
+import { DECISION_JSON_HINT, LIMITS, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { GATE_SERVER_NAME, gateSubmissionOf } from '../../../../shared/gate.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
-import { protectedFilesOf } from '../../protected-files.js'
+import { existingTestChangesOf, protectedFilesOf } from '../../protected-files.js'
 import { roomStatusOf } from '../../../../shared/room-status.js'
 import { workspaceOf } from './workspace.js'
 import { ensurePreviews } from './previews.js'
@@ -540,10 +540,14 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         ...(done.length === 0 ? [] : ['完成条件：', ...done.map(item => `- ${sanitizeUntrusted(item, 300)}`)]),
         ...(constraints.length === 0 ? [] : ['约束：', ...constraints.map(item => `- ${sanitizeUntrusted(item, 300)}`)]),
       ].join('\n')
-      const protectedFiles = protectedFilesOf(meta.changedFiles)
+      // 既有测试的改动也在这里：改断言/删检查，等于改判分标准。
+      const protectedFiles = [...new Set([
+        ...protectedFilesOf(meta.changedFiles),
+        ...existingTestChangesOf({ files: meta.changedFiles, diff: meta.diff }),
+      ])].slice(0, LIMITS.protectedFiles)
       const protectedLine = protectedFiles.length === 0
         ? []
-        : [`受保护文件：${protectedFiles.join('、')}。PASS 必须在 submit_verdict 的 protectedFiles 里逐条确认这些文件；否则判定无效。`]
+        : [`受保护文件：${protectedFiles.join('、')}。PASS 必须在 submit_verdict 的 protectedFiles 里逐条确认这些文件；否则判定无效。改既有测试或删检查默认视为改了判分标准，除非本步目标就是改测试。`]
       const prompt = manual
         ? [
             `你现在是验收员${ids.length > 1 ? `（${targets.indexOf(verifier) + 1}/${targets.length} 个本轮请求）` : ''}。`,

@@ -14,7 +14,45 @@ const PROTECTED = [
   /(^|\/)scripts\/[^/]+$/i,
 ]
 
+// 既有测试也是判分标准：改断言、删检查等同于改判卷的尺子。
+// 新增测试不在内——补测试是正常 TDD，削弱既有检查才是要人确认的动作。
+const TEST_FILE = /(^|\/)(?:[^/]+\.(?:test|spec)\.[cm]?[jt]sx?|[^/]+_test\.(?:go|py|rb)|test_[^/]+\.py)$/i
+const TEST_DIR = /(^|\/)(?:__tests__|tests?)\//i
+
 export const normalizePath = value => String(value ?? '').trim().replaceAll('\\', '/').replace(/^\.\//, '')
+
+export const isTestPath = value => {
+  const path = normalizePath(value)
+  return path !== '' && (TEST_DIR.test(path) || TEST_FILE.test(path))
+}
+
+// 从 diff 里取“既有测试”的改动；没有 diff（人工验收）时保守地把测试文件都算上。
+const TEST_DIFF_LINE = /^diff --git a\/(.+?) b\/(.+)$/
+
+export const existingTestChangesOf = ({ files = [], diff = '' } = {}) => {
+  const text = typeof diff === 'string' ? diff : ''
+  if (text === '') {
+    return [...new Set((Array.isArray(files) ? files : []).map(normalizePath).filter(isTestPath))]
+  }
+  const changed = new Set()
+  let current = null
+  let added = false
+  const flush = () => {
+    if (current !== null && !added && isTestPath(current)) changed.add(current)
+  }
+  for (const line of text.split('\n')) {
+    const match = line.match(TEST_DIFF_LINE)
+    if (match !== null) {
+      flush()
+      current = normalizePath(match[2])
+      added = false
+      continue
+    }
+    if (current !== null && line.startsWith('new file mode ')) added = true
+  }
+  flush()
+  return [...changed]
+}
 
 export const isProtectedPath = value => {
   const path = normalizePath(value)

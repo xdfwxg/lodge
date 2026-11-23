@@ -795,6 +795,69 @@ test('a verdict cannot pass protected files without naming them', async () => {
   assert.equal(verdict?.meta?.pass, true)
 })
 
+test('a changed existing test must be acknowledged, an added test does not', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
+  const store = fakeStore(room)
+  const diff = [
+    'diff --git a/test/initials.test.js b/test/initials.test.js',
+    'index 111..222 100644',
+    '--- a/test/initials.test.js',
+    '+++ b/test/initials.test.js',
+    '@@ -1 +1 @@',
+    '-expect(initials("a b")).toBe("AB")',
+    '+expect(initials("a b")).not.toBe("")',
+    'diff --git a/test/new.test.js b/test/new.test.js',
+    'new file mode 100644',
+    '--- /dev/null',
+    '+++ b/test/new.test.js',
+    '+expect(true).toBe(true)',
+  ].join('\n')
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    authorId: 'executor',
+    meta: {
+      stage: 0,
+      kind: 'command',
+      command: 'true',
+      exit: 0,
+      output: '',
+      diff,
+      changedFiles: ['test/initials.test.js', 'test/new.test.js'],
+    },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  const call = input => ({ name: 'mcp__lodge_gate__submit_verdict', input: JSON.stringify(input) })
+  // 只确认新增测试不够：既有断言被改写，必须逐条确认。
+  assert.equal(review.consume({
+    turn: { reply: '' },
+    memberId: 'verifier',
+    turnId: 't1',
+    room,
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', protectedFiles: ['test/new.test.js'] })],
+  }), true)
+  assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+  assert.match(sent.at(-1).prompt, /test\/initials\.test\.js/)
+  assert.equal(review.consume({
+    turn: { reply: '' },
+    memberId: 'verifier',
+    turnId: 't2',
+    room,
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', protectedFiles: ['test/initials.test.js'] })],
+  }), true)
+  assert.equal(store.messages.find(message => message.kind === 'verdict')?.meta?.pass, true)
+})
+
 test('turn usage accumulates on the room and keeps unknown costs visible', () => {
   const room = makeRoom({})
   const store = fakeStore(room)
