@@ -32,7 +32,9 @@ export const createBodyFactory = ({ engine }) => {
     let roomTools = roomToolsFor(member)
     if (roomTools.length > 0) {
       try {
-        await ensureGateServer(engine)
+        // 返回 false 表示 runtime 没有 MCP 能力：工具没挂上，判定只能走文本降级。
+        const registered = await ensureGateServer(engine)
+        if (registered !== true) roomTools = []
       } catch (error) {
         log.warn(`[lodge] 判定工具没能注册，先用文本判定：${error?.message ?? error}`)
         roomTools = []
@@ -78,6 +80,8 @@ export const createBodyFactory = ({ engine }) => {
           engine: memberRef.engine,
           ...(memberRef.model === undefined ? {} : { model: memberRef.model }),
           spec: bodySpec,
+          // 判定工具是否真的挂上，决定复核时能不能只认工具提交；注册失败时这里为空。
+          ...(roomTools.length === 0 ? {} : { roomTools: [...roomTools] }),
         },
       }
     } catch (error) {

@@ -118,6 +118,29 @@ test('a custom room name is kept while the stage title follows the goal', async 
   assert.deepEqual(room.members.map(member => member.name).sort(), ['执行', '规划', '验收'].sort())
 })
 
+test('a handoff with a long topic names the stage after the task, not the paperwork', async () => {
+  const { store } = completedRoom(temp('lodge-handoff-title-data-'))
+  const topic = '用户列表要显示姓名缩写：中文和英文各定一条规则，最多两个字符；再定重名时怎么办。'
+  const result = await run(store, {
+    goal: topic,
+    name: '姓名缩写',
+    verify: 'test',
+    acceptance: 'npm test',
+    handoff: {
+      topic,
+      consensus: ['中文取声母', '英文取首字母'],
+      disagreements: [],
+      constraints: [],
+      todos: [],
+    },
+    members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
+  }, fakeEngine())
+  assert.equal(result.ok, true)
+  const stage = result.body.room.stages.find(item => item.kind === 'deliverable')
+  assert.match(stage.title, /^用户列表要显示姓名缩写/)
+  assert.doesNotMatch(stage.title, /完成交接单/)
+})
+
 test('declared member skills are assigned to the created base member', async () => {
   const { store } = completedRoom(temp('lodge-skill-data-'))
   const engine = fakeEngine()

@@ -7,7 +7,7 @@ import { StudioIcon } from '../type-icons.js'
 import { isChainMessage, renderSharedMessage } from '../message-view.js'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { hostLabelOf } from '../host.js'
-import { chatStudioSeed } from './seed.js'
+import { chatStudioSeed } from '../../../../shared/room-seeds.js'
 import { ChatOpeningCard } from './opening-card.js'
 import { scopeIsValid } from '../../../../shared/attempt.js'
 

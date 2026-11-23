@@ -343,14 +343,17 @@ test('member texts carry their turn identity across the engine port', async () =
   const client = {
     threadMessages: async () => ({
       messages: [
-        { id: 'm1', at: 1, kind: 'text', role: 'bot', text: '我先看下。', turnId: 'turn-1', from: { botId: 'bot-1' } },
-        { id: 'm2', at: 2, kind: 'text', role: 'bot', text: '结论是…', turnId: 'turn-1', turnTerminal: true, from: { botId: 'bot-1' } },
+        // runtime 只给 turnId、不标收尾：当作完整发言，不当成过场。
+        { id: 'm0', at: 1, kind: 'text', role: 'bot', text: '只有回合。', turnId: 'turn-0', from: { botId: 'bot-1' } },
+        { id: 'm1', at: 2, kind: 'text', role: 'bot', text: '我先看下。', turnId: 'turn-1', turnTerminal: false, from: { botId: 'bot-1' } },
+        { id: 'm2', at: 3, kind: 'text', role: 'bot', text: '结论是…', turnId: 'turn-1', turnTerminal: true, from: { botId: 'bot-1' } },
       ],
     }),
   }
   const engine = createEngine({ client })
   const { messages } = await engine.history('thread-1')
   assert.deepEqual(messages.map(({ kind, text, turnId, turnFinal }) => ({ kind, text, turnId, turnFinal })), [
+    { kind: 'text', text: '只有回合。', turnId: 'turn-0', turnFinal: undefined },
     { kind: 'text', text: '我先看下。', turnId: 'turn-1', turnFinal: false },
     { kind: 'text', text: '结论是…', turnId: 'turn-1', turnFinal: true },
   ])

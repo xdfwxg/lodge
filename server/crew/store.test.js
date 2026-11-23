@@ -177,6 +177,23 @@ test('a failed event mirror does not reverse the committed event', () => {
   }
 })
 
+test('a failed message mirror does not lose the message', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-mirror-msg-'))
+  const parent = mkdtempSync(join(tmpdir(), 'crew-mirror-msg-parent-'))
+  const notADir = join(parent, 'not-a-repo-dir')
+  writeFileSync(notADir, 'file')
+  const store = createStore({ dataDir })
+  try {
+    store.writeRoom({ id: 'r1', name: 'R', goal: 'g', repoPath: notADir, state: 'active', stages: [], members: [] })
+    const stored = store.appendMessage('r1', { kind: 'chat', authorId: 'you', text: '还在' })
+    assert.equal(stored.text, '还在')
+    assert.deepEqual(store.readMessages('r1').map(message => message.text), ['还在'])
+  } finally {
+    rmSync(dataDir, { recursive: true, force: true })
+    rmSync(parent, { recursive: true, force: true })
+  }
+})
+
 test('command and manual evidence are read from the message stream, turn reports are not', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-ledger-store-'))
   const repo = mkdtempSync(join(tmpdir(), 'crew-ledger-repo-'))

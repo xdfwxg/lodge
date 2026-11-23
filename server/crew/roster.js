@@ -188,18 +188,22 @@ export const validateRoster = (members, { requireWorker = true } = {}) => {
     if (worker.permissions?.read !== true || worker.permissions?.write !== true || worker.writeScope !== 'own_worktree') {
       throw new Error(`member contract: worker ${worker.id} may write only its own worktree`)
     }
+    // 有写/执行权的成员不能再拿通用外部工具：一次提示注入不能同时拿到写权限和网络出口。
+    if (worker.mcp.some(grant => !isBrowserGrant(grant))) {
+      throw new Error('外部工具只能给只读角色；有写权限的成员不能挂外部工具')
+    }
   }
   for (const verifier of verifiers) {
     if (verifier.permissions?.read !== true || verifier.permissions?.exec !== true || verifier.permissions?.write === true) {
       throw new Error(`member contract: verifier ${verifier.id} must be read+exec with no write`)
     }
     if (verifier.mcp.some(grant => !isBrowserGrant(grant))) {
-      throw new Error('member contract: external tools belong to a separate role, not verifier')
+      throw new Error('外部工具只能给只读角色；验收员不能挂外部工具')
     }
   }
   const lead = roleMembers(members).lead
   if (lead.role === 'lead' && lead.mcp.some(grant => !isBrowserGrant(grant))) {
-    throw new Error('member contract: external tools belong to a separate role, not lead')
+    throw new Error('外部工具只能给只读角色；规划师不能挂外部工具')
   }
   return members
 }

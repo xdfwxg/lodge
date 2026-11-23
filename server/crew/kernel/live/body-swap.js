@@ -60,8 +60,9 @@ export const createBodySwap = ({ store, engine, emit }) => {
       spec.skills,
     )
     spec.mcp = grantBrowserToAll([{ mcp: spec.mcp }])[0].mcp
-    if ((member.role === 'lead' || member.role === 'verifier') && spec.mcp.some(grant => !isBrowserGrant(grant))) {
-      return fail('invalid', '规划师和验收员只能使用只读浏览器，不能挂其他外部工具。')
+    const writes = member.permissions?.write === true || member.permissions?.exec === true
+    if ((member.role === 'lead' || member.role === 'verifier' || writes) && spec.mcp.some(grant => !isBrowserGrant(grant))) {
+      return fail('invalid', '有写或执行权的成员只能用只读浏览器，不能挂其他外部工具。')
     }
     const instance = instances.find(item => item.id === engineId)
     const requiresGate = resolveRoomType(room.roomType)?.readOnly !== true && member.permissions?.exec === true
@@ -107,6 +108,7 @@ export const createBodySwap = ({ store, engine, emit }) => {
           engine: instance.id,
           ...(model === '' ? {} : { model }),
           spec,
+          ...(roomToolsFor(member).length === 0 ? {} : { roomTools: [...roomToolsFor(member)] }),
         }
         current.independence = independenceOf({ members: current.members, instances })
         if (current.pauseReason === PAUSE_REASON.member_error && current.memberError?.memberId === memberId) {

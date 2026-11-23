@@ -78,7 +78,10 @@ export const createMessageProjector = ({ store }) => {
     }
     // 回合身份留在消息上：同一个成员的一次回答若被拆成几条，房间只留最后一条。
     const turnMeta = typeof message.turnId === 'string' && message.turnId !== ''
-      ? { turnId: message.turnId, turnFinal: message.turnFinal === true }
+      ? {
+        turnId: message.turnId,
+        ...(typeof message.turnFinal === 'boolean' ? { turnFinal: message.turnFinal } : {}),
+      }
       : null
     return {
       ...common,

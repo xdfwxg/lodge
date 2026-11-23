@@ -20,8 +20,9 @@ const deliveryTitleFor = (goalTitle, handoff) => {
   const topic = String(handoff.topic ?? '').trim()
   const target = /[写存落交放](?:入|进|到)\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/.exec(topic)
   if (target !== null) return `写入 ${target[1]}`
-  if (topic === '') return '完成交接单'
-  return topic.length <= 24 ? `完成${topic}` : '完成交接单'
+  // 步骤名就是这一步要做的事；交接单再长也要说清是哪件事，不能缩成“完成交接单”。
+  if (topic === '') return goalTitle
+  return topic.length <= 24 ? topic : `${topic.slice(0, 24)}…`
 }
 
 // 模板驱动建房：模板只是起点；roster 可以按需组合角色，每个成员一个基座线程与工作区。

@@ -69,6 +69,11 @@ test('a member text keeps its turn identity so the room can keep only the ending
     id: 'm2', kind: 'text', role: 'agent', authorRef: 'bot-1', text: '结论是…', turnId: 'turn-1', turnFinal: true,
   })
   assert.deepEqual(final.meta, { turnId: 'turn-1', turnFinal: true })
+  // runtime 没标收尾：只留回合身份，不把这条当成过场。
+  const unmarked = projector.toStored('room-1', {
+    id: 'm3', kind: 'text', role: 'agent', authorRef: 'bot-1', text: '一句完整发言。', turnId: 'turn-2',
+  })
+  assert.deepEqual(unmarked.meta, { turnId: 'turn-2' })
 })
 
 test('one answer split into a preamble and a body shows only the body', () => {
@@ -85,6 +90,14 @@ test('a turn that only got its first line keeps that line', () => {
     { id: 'm1', authorId: 'worker-2', ts: 100, kind: 'chat', text: '我先看下。', meta: { turnId: 'turn-1' } },
   ]
   assert.deepEqual(dropTurnPreambles(messages).map(message => message.id), ['m1'])
+})
+
+test('messages without a turn id are never folded together', () => {
+  const messages = [
+    { id: 'a', authorId: 'worker', ts: 5, kind: 'chat', text: '甲', meta: { final: true, turnId: '' } },
+    { id: 'b', authorId: 'worker', ts: 9, kind: 'chat', text: '乙', meta: { final: true, turnId: '' } },
+  ]
+  assert.deepEqual(dropTurnPreambles(messages).map(message => message.id), ['a', 'b'])
 })
 
 test('two members saying the same words in different turns both stay', () => {

@@ -12,7 +12,7 @@ test('studio souls ask members to talk like people, not fill in logs', () => {
   assert.match(lead, /最后一行必须 @ 下一位/)
   const worker = soulOf({ role: 'worker', name: '执行官' })
   assert.match(worker, /像给同事发消息/)
-  assert.match(worker, /不分点/)
+  assert.match(worker, /有多点时用短列表或加粗小标题/)
   assert.match(worker, /不要先发/)
   const verifier = soulOf({ role: 'verifier', name: '验收员' })
   assert.match(verifier, /diff 之外/)

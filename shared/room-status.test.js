@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { chatModeOf, chatStartedOf, chatStatusOf, idleDelivered, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf, stagesCompletedOf } from './room-status.js'
+import { chatModeOf, chatStartedOf, chatStatusOf, idleDelivered, roomDeletableNow, roomStatusOf, roundOpen, roundStatusOf, stageStatusOf, stagesCompletedOf } from './room-status.js'
 
 test('room lifecycle never reports a delivered round as a room state', () => {
   assert.equal(roomStatusOf({ state: 'idle' }), 'idle')
@@ -96,4 +96,16 @@ test('all stages passed is one fact shared by the room shell, studio transcript 
   assert.equal(stagesCompletedOf({ stages: [{ state: 'passed' }, { state: 'active' }] }), false)
   assert.equal(stagesCompletedOf({ stages: [] }), false)
   assert.equal(stagesCompletedOf({}), false)
+})
+
+test('only a room that is actually running refuses direct deletion', () => {
+  // 聊天室：聊完了就能删，轮次还开着不算在跑。
+  assert.equal(roomDeletableNow({ roomType: 'chat', state: 'active', activeRoundId: 'r1', chat: { phase: 'concluded', running: false } }), true)
+  assert.equal(roomDeletableNow({ roomType: 'chat', state: 'active', chat: { phase: 'discussing', running: true } }), false)
+  // 工作室：这一轮开着就不能删；交付完或停住就能删。
+  assert.equal(roomDeletableNow({ roomType: 'studio', state: 'active', workRound: { status: 'active' } }), false)
+  assert.equal(roomDeletableNow({ roomType: 'studio', state: 'complete', workRound: { status: 'completed' } }), true)
+  assert.equal(roomDeletableNow({ roomType: 'studio', state: 'stopped', workRound: { status: 'stopped' } }), true)
+  // 归档过的房随时能删。
+  assert.equal(roomDeletableNow({ archivedAt: 1, roomType: 'studio', workRound: { status: 'active' } }), true)
 })

@@ -604,6 +604,14 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 /* Base primitives: bubbles, markdown, marks. Written for Lodge, no vendored CSS. */
 .bt-bubble{max-width:100%;background:var(--bt-bubble);color:var(--bt-ink);border:1px solid var(--bt-line);box-shadow:none;border-radius:16px;padding:16px 24px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body);box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty}
 .bt-bubble .md_markdown{color:inherit}
+/* 气泡里的标题跟标签字号走：结构清楚，但不抢房间标题。 */
+.bt-bubble .md_markdown h1,
+.bt-bubble .md_markdown h2,
+.bt-bubble .md_markdown h3,
+.bt-bubble .md_markdown h4{font-size:var(--bt-text-label);line-height:var(--bt-leading-label);margin:10px 0 4px}
+.bt-bubble .md_markdown>:first-child{margin-top:0}
+.bt-bubble .md_markdown ul,
+.bt-bubble .md_markdown ol{margin:4px 0 0}
 .crew-chat-topic{display:inline-block;margin:0 2px;padding:2px 10px;border-radius:12px;background:var(--bt-topic-bg);color:var(--bt-accent-text);font-weight:600;box-shadow:var(--bt-topic-shadow)}
 .bt-ububble{max-width:100%;background:var(--bt-out-bubble);color:var(--bt-out-bubble-ink);border-radius:16px;padding:8px 12px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body);box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty}
 .bt-ububble .md_markdown{color:inherit}
@@ -623,7 +631,7 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 @keyframes crew-done-in{from{opacity:0;transform:translateY(3px) scale(.98)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.crew-island-done{animation:none;transition:none}}
 .crew-verdict-card{display:flex;align-items:baseline;gap:8px;padding:10px 12px;border-radius:8px;background:var(--bt-shade-1);color:var(--bt-ink);font-size:var(--bt-text-body);line-height:var(--bt-leading-body)}
-.crew-verdict-tag{flex:none;font-size:var(--bt-text-helper);font-weight:600;letter-spacing:.02em}
+.crew-verdict-tag{flex:none;font-size:var(--bt-text-body);font-weight:600;letter-spacing:.02em}
 .crew-verdict-card[data-pass=true] .crew-verdict-tag{color:var(--bt-success-text)}
 .crew-verdict-card[data-pass=false] .crew-verdict-tag{color:var(--bt-danger-text)}
 .crew-verdict-text{min-width:0}

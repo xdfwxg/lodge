@@ -27,7 +27,9 @@ test('the first turn does not invent a brief or a previous speaker', () => {
   const prompt = speakerPrompt({ room, memberId: 'a', round: 1, turn: 1, turnLimit: 6 })
   assert.doesNotMatch(prompt, /上一轮结论/)
   assert.doesNotMatch(prompt, /上一位：/)
+  assert.doesNotMatch(prompt, /接着说/)
   assert.match(prompt, /这是本轮第一句：直接说自己的判断/)
+  assert.match(prompt, /先说结论，再补一个理由/)
   assert.match(prompt, /第 1 轮，第 1\/6 次发言/)
 })
 

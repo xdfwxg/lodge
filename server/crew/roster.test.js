@@ -27,11 +27,18 @@ test('a custom worker keeps a browser grant from the room request', () => {
   assert.deepEqual(roster[0].mcp, [{ server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }])
 })
 
+test('an executor cannot hold non-browser external tools', () => {
+  const bad = ROLES.map(member => member.id === 'executor'
+    ? { ...member, mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }] }
+    : member)
+  assert.throws(() => validateRoster(bad), /有写权限的成员不能挂外部工具/)
+})
+
 test('planner cannot hold external tools other than the read-only browser', () => {
   const bad = ROLES.map(member => member.id === 'planner'
     ? { ...member, mcp: [{ server: 'github', scopes: ['read'], approval: 'ask' }] }
     : member)
-  assert.throws(() => validateRoster(bad), /lead/)
+  assert.throws(() => validateRoster(bad), /规划师不能挂外部工具/)
   const browser = { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' }
   const allowed = ROLES.map(member => (
     member.role === 'lead' || member.role === 'verifier' ? { ...member, mcp: [browser] } : member

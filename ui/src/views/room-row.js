@@ -6,6 +6,7 @@ import { initialOf } from '../marks.js'
 import { SideMembers } from './side-members.js'
 import { deliveredOf, metaOf, roomLabelOf, toneOf } from './room-list.js'
 import { hasNeedsAction, needsAction } from '../needs.js'
+import { roomDeletableNow } from '../../../shared/room-status.js'
 
 function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
   const deleting = kind === 'delete'
@@ -125,8 +126,8 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
   const TypeIcon = kind.icon
   const manage = !lodge && (onRename !== undefined || onArchive !== undefined || onDelete !== undefined)
   const hasMemberPanel = !archived && kind.membersInSidebar === false
-  // 归档过的房随时能删；没归档的，等它停下来再删。
-  const canDelete = archived || (room.state !== 'active' && !room.activeRoundId)
+  // 只有正在跑的房要等停下再删；聊完了、交付了都能直接删。
+  const canDelete = roomDeletableNow(room)
   const closeMenu = () => setMenuOpen(false)
   const toggleMenu = () => {
     if (menuOpen) {
@@ -328,7 +329,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
           role: 'menuitem',
           className: 'crew-side-menu-item crew-side-menu-danger',
           disabled: busy || !canDelete,
-          title: canDelete ? undefined : '先归档再删除',
+          title: canDelete ? undefined : '房间正在跑；停下后再删',
           onClick: requestDelete,
         }, '删除…')), document.body)
       : null,

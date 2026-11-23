@@ -13,6 +13,16 @@ export const roundStatusOf = value => value?.workRound?.status ?? value?.status 
 
 export const roundOpen = value => OPEN_ROUND_STATUSES.has(roundStatusOf(value))
 
+// 只有正在跑的房不能直接删：聊天室看讨论是否在跑，工作室看这一轮是否还开着。
+// 聊完了、交付了、停住了都能直接删；归档只是收起来，不是删除的前提。
+export const roomDeletableNow = room => {
+  if (room?.archivedAt) return true
+  if (room?.roomType === 'chat' || room?.chat !== undefined) {
+    return room?.chat?.running !== true && room?.chat?.hostThinking !== true
+  }
+  return !roundOpen(room)
+}
+
 // “现在就是已交付”：房间已经空下来，且最近一轮完成。
 // 新一轮在跑时，上一轮的完成只是历史，不是当前状态。
 export const idleDelivered = room => {

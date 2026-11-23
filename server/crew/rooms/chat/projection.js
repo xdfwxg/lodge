@@ -47,15 +47,22 @@ export const dropTurnPreambles = messages => {
     const b = prior.message.ts ?? 0
     return a > b || (a === b && index > prior.index)
   }
+  const turnOf = message => (
+    message.kind === 'chat' && typeof message.meta?.turnId === 'string' && message.meta.turnId !== ''
+      ? message.meta.turnId
+      : null
+  )
   messages.forEach((message, index) => {
-    if (message.kind !== 'chat' || typeof message.meta?.turnId !== 'string') return
-    const key = `${message.authorId}|${message.meta.turnId}`
+    const turnId = turnOf(message)
+    if (turnId === null) return
+    const key = `${message.authorId}|${turnId}`
     const prior = endings.get(key)
     if (prior === undefined || laterThan(message, index, prior)) endings.set(key, { message, index })
   })
   return messages.filter(message => {
-    if (message.kind !== 'chat' || typeof message.meta?.turnId !== 'string') return true
-    return endings.get(`${message.authorId}|${message.meta.turnId}`)?.message.id === message.id
+    const turnId = turnOf(message)
+    if (turnId === null) return true
+    return endings.get(`${message.authorId}|${turnId}`)?.message.id === message.id
   })
 }
 

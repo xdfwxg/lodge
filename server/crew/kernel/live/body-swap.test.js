@@ -134,7 +134,7 @@ test('an old body with no skills gains the role toolbox', async () => {
   assert.deepEqual(calls.skills[0].skills, skillsForRole('worker'))
 })
 
-test('the body carries an editable soul, skills and tools', async () => {
+test('the body carries an editable soul and skills', async () => {
   const { swap, calls, room } = harness()
   const result = await swap.swap(room, {
     memberId: 'worker',
@@ -142,7 +142,6 @@ test('the body carries an editable soul, skills and tools', async () => {
     model: 'sonnet',
     prompt: '只做复核，不解释。',
     skills: ['review'],
-    mcp: ['github'],
   })
   assert.equal(result.ok, true, result.error)
   const worker = room.members.find(item => item.id === 'worker')
@@ -150,12 +149,22 @@ test('the body carries an editable soul, skills and tools', async () => {
   assert.equal(worker.body.spec.prompt, '只做复核，不解释。')
   assert.deepEqual(worker.body.spec.skills, expected)
   assert.deepEqual(worker.body.spec.mcp, [
-    { server: 'github', scopes: ['read'], approval: 'ask' },
     { server: 'chrome-devtools', scopes: ['read'], approval: 'ask' },
   ])
   assert.match(calls.patched[0].payload.soul, /只做复核，不解释/)
   assert.deepEqual(calls.skills[0].skills, expected)
-  assert.deepEqual(calls.patched[0].payload.mcp.map(grant => grant.server), ['github', 'chrome-devtools'])
+  assert.deepEqual(calls.patched[0].payload.mcp.map(grant => grant.server), ['chrome-devtools'])
+})
+
+test('an executor cannot add non-browser tools', async () => {
+  const { swap } = harness()
+  const result = await swap.swap(roomOf(), {
+    memberId: 'worker',
+    engine: 'claude',
+    mcp: ['github'],
+  })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /只读浏览器/)
 })
 
 test('planner and verifier cannot add non-browser tools', async () => {

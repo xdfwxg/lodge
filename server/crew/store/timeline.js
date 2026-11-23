@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import * as log from '../log.js'
 import { appendTranscript, writeEvidence } from '../room-repo.js'
 import { workRoundIdOf } from '../../../shared/work-round.js'
 
@@ -62,8 +63,13 @@ export const createTimelineStore = ({
       message.meta = { ...message.meta, evidenceRef: `evidence/${message.id}.json` }
     }
     if (transcript) {
-      appendTranscript(room ?? message.roomId, message)
-      if (message.kind === 'evidence') writeEvidence(room ?? message.roomId, message)
+      // transcript 与证据是恢复日志和可读镜像，不是业务真相；写不进去只记一笔，消息仍要落库。
+      try {
+        appendTranscript(room ?? message.roomId, message)
+        if (message.kind === 'evidence') writeEvidence(room ?? message.roomId, message)
+      } catch (error) {
+        log.warn(`message mirror failed: ${message.roomId} ${error?.message ?? error}`)
+      }
     }
     db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
       .run(message.seq, message.id, message.roomId, workRoundIdOf(message), JSON.stringify(message))

@@ -75,8 +75,28 @@ test('an archived room can be deleted even with a leftover round pointer', async
   assert.deepEqual(ctx.deleted, ['room-1'])
 })
 
-test('a running room still cannot be deleted before archiving', async () => {
-  const ctx = setup({ state: 'active', activeRoundId: 'round-1' })
+test('a studio with an open round still cannot be deleted before stopping', async () => {
+  const ctx = setup({ state: 'active', activeRoundId: 'round-1', workRound: { status: 'active' } })
+  const result = await ctx.actions.delete({ room: ctx.room() })
+  assert.equal(result.ok, false)
+  assert.deepEqual(ctx.deleted, [])
+})
+
+test('a concluded chat room is deleted directly, without archiving first', async () => {
+  const ctx = setup({
+    roomType: 'chat',
+    state: 'active',
+    activeRoundId: 'round-1',
+    workRound: { status: 'active' },
+    chat: { phase: 'concluded', running: false, hostThinking: false },
+  })
+  const result = await ctx.actions.delete({ room: ctx.room() })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.deleted, ['room-1'])
+})
+
+test('a chat round that is still running cannot be deleted', async () => {
+  const ctx = setup({ roomType: 'chat', state: 'active', chat: { phase: 'discussing', running: true } })
   const result = await ctx.actions.delete({ room: ctx.room() })
   assert.equal(result.ok, false)
   assert.deepEqual(ctx.deleted, [])

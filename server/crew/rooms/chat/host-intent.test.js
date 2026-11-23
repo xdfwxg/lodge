@@ -131,6 +131,19 @@ test('only an explicit refusal vetoes the host round', () => {
   }
 })
 
+test('a refusal is an admission fact in the prompt, not a post-hoc guess', () => {
+  const vetoed = hostIntentPrompt({
+    room: { members: [] },
+    text: '先不继续讨论了',
+    turnLimit: 6,
+    roundAllowed: false,
+  })
+  assert.match(vetoed, /明确拒绝开轮/)
+  assert.match(vetoed, /只许 reply/)
+  const normal = hostIntentPrompt({ room: { members: [] }, text: '继续', turnLimit: 6 })
+  assert.doesNotMatch(normal, /明确拒绝开轮/)
+})
+
 test('the host model decides a round; only an explicit refusal downgrades it', () => {
   const modelRound = { action: 'round', reply: '我请人来说。', speakers: ['a', 'b'], structured: true }
   const modelReply = { action: 'reply', reply: '我先说说。', speakers: [], structured: true }

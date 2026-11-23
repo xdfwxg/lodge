@@ -5,7 +5,7 @@ import { CHAT_PHASE } from '../../../../shared/states.js'
 // 用户只对主持说话；主持默认只回答。开轮只由 @所有人 或用户明确要求触发。
 // 轮数、成员数和发言次数都属于房间配置，不从这里改。
 // Lodge 自己是一间没有成员的对话：它判断不了就回复，要做事或找人就走 open。
-export const hostIntentPrompt = ({ room, text, turnLimit, phase = '', linkedRooms = [] }) => {
+export const hostIntentPrompt = ({ room, text, turnLimit, phase = '', linkedRooms = [], roundAllowed = true }) => {
   const roster = (room.members ?? [])
     .map(member => `${member.id}（${member.name}）`)
     .join('、')
@@ -38,6 +38,7 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '', linkedRoom
     : [
       '判断规则：',
       grillRule,
+      roundAllowed ? '' : '这句话是在明确拒绝开轮：只许 reply，不许 round。',
       '- 只有用户明确要求再讨论（如“再走一轮”“大家说说”“让大家讨论”），才输出 round，并在 speakers 里列出 1–3 个固定成员 id；其他情况一律 reply。',
       '- 不要因为问题本身需要多人观点就开轮；拿不准就 reply。',
       '- reply 只写回答本身，不要写“再走一轮”“我请人来说”这类流程话。',
@@ -74,7 +75,7 @@ export const roundVetoed = text => {
   return !CONTRAST_AFTER.test(value.slice(match.index + match[0].length))
 }
 
-// 模型说 round 就 round；只有用户明确拒绝、且后面没有转折时改回 reply。
+// 准入先判“这句话是不是明确拒绝开轮”；是就把这个事实写进提示，模型仍说 round 时按准入改回 reply。
 // round 的 reply 是可选的；否决后没有话可说时补一句，避免把空消息写进房间。
 const VETOED_REPLY = '好，那这次先不开了。'
 

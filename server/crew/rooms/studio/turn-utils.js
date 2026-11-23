@@ -24,11 +24,6 @@ export const memberForRef = (room, ref) => {
   return null
 }
 
-// 旧调用方仍可拿到布尔/kind；解析本身已经归 shared/judgment.js 的契约。
-export const parseVerdict = reply => (
-  normalizeJudgment({ type: 'verdict', text: reply }).decision === 'pass'
-)
-
 export const parsePlannerDecision = reply => {
   const judgment = normalizeJudgment({ type: 'planner', text: reply })
   return { kind: judgment.decision, note: judgment.reason }

@@ -4,7 +4,7 @@ import { memberOf } from '../../room-members.js'
 import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { parseHandoffFromText } from '../../../../shared/handoff.js'
-import { finalizeHostIntent, hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { finalizeHostIntent, hostIntentPrompt, parseHostIntent, roundVetoed } from './host-intent.js'
 import { chatBriefOf } from './brief.js'
 import { linkedRoomBriefs } from './linked.js'
 import { digestText, hostPrompt, speakerPrompt, wantsStructuredSummary } from './prompts.js'
@@ -455,6 +455,8 @@ export const createChatScheduler = ({
       turnLimit: chatTurnLimitOf(room),
       phase: room.chat?.phase ?? '',
       linkedRooms: linkedRoomBriefs({ store, room }),
+      // 准入：这句话是不是明确拒绝开轮，先算成事实交给模型。
+      roundAllowed: !roundVetoed(text),
     })
     const first = await ask(prompt)
     if (first === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }

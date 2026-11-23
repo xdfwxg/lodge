@@ -5,7 +5,7 @@ import { buildMemberHandoff } from './member-handoff.js'
 import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT, tail } from './turn-utils.js'
 import { DECISION_JSON_HINT, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
-import { gateSubmissionOf } from '../../../../shared/gate.js'
+import { GATE_SERVER_NAME, gateSubmissionOf } from '../../../../shared/gate.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { roomStatusOf } from '../../../../shared/room-status.js'
 import { workspaceOf } from './workspace.js'
@@ -25,6 +25,11 @@ import { systemNotice } from '../../notices.js'
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null, advanceStage = null }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
+  // 判定工具真的挂在这位验收员身上时，只认工具提交；注册失败才退回首行锚点。
+  const gateAvailableFor = (room, memberId) => {
+    const member = (room?.members ?? []).find(item => item.id === memberId)
+    return Array.isArray(member?.body?.roomTools) && member.body.roomTools.includes(GATE_SERVER_NAME)
+  }
   let round = null
   let shadowTask = null
   const staleMembers = new Set()
@@ -51,8 +56,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidenceId: pending.evidenceId,
       actorId: pending.verifier,
     })
-    // 没有工具提交，首行也不是 PASS/REJECT：先催一次，再按“没有判定”收口，不猜结论。
-    if (gate === null && judgmentAnchorOf('verdict', turn.reply) === null) {
+    // 工具挂上了却没用：先催一次，再按“没有判定”收口，不拿文本猜结论。
+    // 工具有注册失败（没挂上）时，才允许首行锚点作为降级；两样都没有同样不猜。
+    const gateAvailable = gateAvailableFor(room, pending.verifier)
+    if (gate === null && (gateAvailable || judgmentAnchorOf('verdict', turn.reply) === null)) {
       const name = memberDisplayName(room, memberId)
       if (pending.nudged !== true) {
         pending.nudged = true
@@ -450,15 +457,21 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidenceId: evidence.id,
       verifiers: targets,
     })
-    // 复核请求也是系统发的 @：进来复核是下一棒，不由执行官或模型自己点名。
+    // 执行官自己最后一句已经 @ 了验收员就不再补一条；同一棒不 @ 两次。
     const senderId = (Array.isArray(stage?.assignees) ? stage.assignees : [])
       .find(id => workerIds(room).includes(id)) ?? workerIds(room)[0] ?? 'lodge'
-    store.appendMessage(roomId, {
-      kind: 'system',
-      authorId: senderId,
-      text: `@${targets.map(verifier => memberDisplayName(room, verifier)).join('、@')} 第 ${stageIndex + 1} 步「${sanitizeUntrusted(stage.title, 120)}」结果好了，请复核。`,
-      meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: targets, reason: 'review', authorKind: 'system' },
-    })
+    const lastWord = [...messages].reverse()
+      .find(message => message.kind === 'chat' && message.authorId === senderId)
+    const alreadyNamed = targets.length > 0 && typeof lastWord?.text === 'string' &&
+      targets.every(target => lastWord.text.includes(`@${memberDisplayName(room, target)}`))
+    if (!alreadyNamed) {
+      store.appendMessage(roomId, {
+        kind: 'system',
+        authorId: senderId,
+        text: `@${targets.map(verifier => memberDisplayName(room, verifier)).join('、@')} 第 ${stageIndex + 1} 步「${sanitizeUntrusted(stage.title, 120)}」结果好了，请复核。`,
+        meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: targets, reason: 'review', authorKind: 'system' },
+      })
+    }
     // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
     shadowTask = shadowNeeded({ room, stage, evidence, manual, messages, stageIndex })
       ? recordShadowAdvice({

@@ -1,6 +1,7 @@
 import * as log from '../../log.js'
 import { fail, ok } from '../../result.js'
 import { OPEN_ROUND_STATUSES, ROOM_STATE } from '../../../../shared/states.js'
+import { roomDeletableNow } from '../../../../shared/room-status.js'
 
 // 房间本体的动作：改名、归档、删除、成员与身体。
 export const createAdminActions = deps => {
@@ -70,10 +71,8 @@ export const createAdminActions = deps => {
     },
 
     delete: async ({ room }) => {
-      // 归档过的房间可以直接删：归档时已经把这一轮停掉，残留的 activeRoundId 不该再挡住删除。
-      if (!room.archivedAt && (room.state === ROOM_STATE.active || room.activeRoundId)) {
-        return fail('conflict', '正在进行的房间不能删除；先归档再删除')
-      }
+      // 只有正在跑的房要先停下再删；聊完了、交付了、停住了都能直接删，归档不是删除的前提。
+      if (!roomDeletableNow(room)) return fail('conflict', '房间正在跑；先停下再删除')
       if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
       // 删房时把成员身体和隐藏 Bot 一起退役；工作区和用户文件留着。
       try {

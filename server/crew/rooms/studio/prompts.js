@@ -35,7 +35,7 @@ export const studioWorkerPrompt = ({
       ? 'node_modules 已软链为只读依赖，不要修改它。'
       : '',
     workspace.candidate === true ? '系统会提交候选。' : '不要改房间记录。',
-    '回复时像对同事说话：一两句讲清做了什么、结果怎样；不分点、不写小标题、不复述目标。',
+    '回复时像对同事说话：先说做了什么、结果怎样；有多条结果或问题时用短列表，单条一两句说完，不复述目标。',
     '做完直接汇报结果，不要写过程；交接那句 @ 按你的角色规则写在最后一行，复核和投递由系统安排。',
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')

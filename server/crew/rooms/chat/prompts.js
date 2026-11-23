@@ -8,6 +8,8 @@ const truncate = (text, limit) => {
   return value.length <= limit ? value : `${value.slice(0, limit)}…`
 }
 
+const TURN_RULES = '不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。'
+
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
 export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, brief = '', previous = null }) => {
   const speaker = memberOf(room, memberId)
@@ -21,9 +23,11 @@ export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, br
     previous === null
       ? '这是本轮第一句：直接说自己的判断，不用回答谁。'
       : `上一位：${previous.name}说“${truncate(previous.text, 200)}”`,
-    '接着说：同意就补一个理由，不同意就指出哪一点，有疑问就只问一个具体问题。不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。',
+    previous === null
+      ? `先说结论，再补一个理由；有疑问就只问一个具体问题。${TURN_RULES}`
+      : `接着说：同意就补一个理由，不同意就指出哪一点，有疑问就只问一个具体问题。${TURN_RULES}`,
     '按顺序轮流说；不用 @ 别人，也不用把话交给别人。',
-    '像普通人聊天一样说自己的看法，不用报告、分点或小标题。',
+    '像普通人聊天一样说自己的看法。先说结论；有多点、步骤或对照时，用短列表或加粗小标题把层次说清，`路径`和命令放进行内代码；一句话说清的就别拆，也不要写报告标题或工作日志。',
     '只讨论话题本身；不要评论讨论次数、样本数量或流程。',
     `本轮表达：${personalityTurnCue(speaker?.personality)}`,
     '每次发言控制在 200 字以内；不要写总结。',
@@ -41,9 +45,9 @@ export const hostPrompt = ({ room, round, note, turnLimit, structured = false })
   ]
   if (!structured) {
     return [...common,
-      '写 2–4 句自然中文：这轮落在哪、还有哪条真分歧或风险、下一步如果要做什么。',
+      '写清三件事：这轮落在哪、还有哪条真分歧或风险、下一步如果要做什么。',
       '如果明确有下一步，最后单独一行写「下一步：一句话」；没有就不写。',
-      '不要标题、不要分点、不要五段模板；总长不超过 300 字。',
+      '结构跟着内容走：一个结论就用 2–4 句话说完；有多条共识、分歧或待办时，用加粗小标题或短列表分开。不要五段模板，总长不超过 300 字。',
       INTERNAL_PROMPT_MARKER,
     ].filter(Boolean).join('\n')
   }

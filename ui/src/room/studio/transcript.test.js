@@ -62,6 +62,12 @@ const hasClass = (node, name) => {
   return (node.children ?? []).some(child => hasClass(child, name))
 }
 
+const countClass = (node, name) => {
+  if (node === null || node === undefined || typeof node !== 'object') return 0
+  const own = typeof node.props?.className === 'string' && node.props.className.split(/\s+/).includes(name) ? 1 : 0
+  return own + (node.children ?? []).reduce((sum, child) => sum + countClass(child, name), 0)
+}
+
 const members = [{ id: 'lead', name: '规划师', role: 'lead', roleKind: 'planner' }]
 
 const finishedRoom = () => ({
@@ -201,17 +207,26 @@ test('a studio room shows the pending approval instead of only a badge', async (
   assert.match(text(tree), /访问网络/)
 })
 
-test('system handoffs stay out of the room timeline', async () => {
+test('handoffs stay in the room as the sender speaking', async () => {
   const { StudioTranscript } = await load()
   const room = {
     ...finishedRoom(),
+    state: 'active',
+    stages: [{ ...finishedRoom().stages[0], state: 'active' }],
     messages: [
-      { kind: 'chat', id: 'u1', authorId: 'you', text: '把结尾改得更看得见', ts: 1, seq: 1 },
-      { kind: 'handoff', id: 'h1', authorId: 'lead', text: '@执行官 第 1 步交给你', ts: 2, seq: 2, meta: { stage: 0 } },
-      { kind: 'chat', id: 'c1', authorId: 'lead', text: '结尾改好了', ts: 3, seq: 3 },
-      { kind: 'system', id: 'h2', authorId: 'system', text: '@验收员 请复核', ts: 4, seq: 4, meta: { kind: 'handoff', stage: 0 } },
+      { kind: 'system', id: 'h1', authorId: 'lead', text: '@执行官 第 1 步「姓名缩写」交给你。', ts: 1, seq: 1, meta: { kind: 'handoff', stage: 0, from: 'lead', to: ['worker'], authorKind: 'system' } },
+      { kind: 'handoff', id: 'h2', authorId: 'verifier', text: '@执行官 验收退回，按上面的意见重做。', ts: 2, seq: 2, meta: { stage: 0, status: 'sent' } },
     ],
   }
-  const tree = render(StudioTranscript({ room, members, delivery }))
-  assert.doesNotMatch(text(tree), /第 1 步交给你/)
+  const roster = [
+    { id: 'lead', name: '规划师', role: 'lead', roleKind: 'planner' },
+    { id: 'worker', name: '执行官', role: 'worker', roleKind: 'executor' },
+    { id: 'verifier', name: '验收员', role: 'verifier', roleKind: 'verifier' },
+  ]
+  const tree = render(StudioTranscript({ room, members: roster, delivery: null }))
+  // 规划师派活、验收员退回，各按说话的人出现一条；不再折成“系统”过程行。
+  assert.equal(hasClass(tree, 'crew-process-line'), false)
+  assert.equal(countClass(tree, 'crew-msg-wrap'), 2)
+  assert.match(text(tree), /规划师/)
+  assert.match(text(tree), /验收员/)
 })

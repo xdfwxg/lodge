@@ -200,6 +200,48 @@ test('a streamed final reply maps base names to member names', () => {
   assert.equal(ctx.messages.at(-1).meta.final, true)
 })
 
+test('a turn opening line never finalizes the streaming reply', () => {
+  const projector = {
+    toStored: (roomId, message) => ({
+      id: message.id,
+      roomId,
+      kind: 'chat',
+      authorId: 'executor',
+      text: message.text,
+      ...(typeof message.turnId === 'string'
+        ? {
+          meta: {
+            turnId: message.turnId,
+            ...(typeof message.turnFinal === 'boolean' ? { turnFinal: message.turnFinal } : {}),
+          },
+        }
+        : {}),
+    }),
+  }
+  const ctx = setup(undefined, projector)
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '正文', turnId: 't1' })
+  // 过场先到：不该把正在流的正文结算成自己。
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm0', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '我先看下。', turnId: 't1', turnFinal: false, at: 2 },
+  })
+  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages[0].text, '正文')
+  assert.equal(ctx.messages[0].meta.streaming, true)
+  // 正文到齐才收口。
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm1', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '正文', turnId: 't1', turnFinal: true, at: 3 },
+  })
+  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages[0].text, '正文')
+  assert.equal(ctx.messages[0].meta.streaming, false)
+})
+
 test('a member that speaks twice keeps both turns', () => {
   const ctx = setup()
   const base = ctx.room()

@@ -77,7 +77,7 @@ test('a pass with no action does not leave an empty reason fold', () => {
   assert.doesNotMatch(html, /理由/)
 })
 
-test('a system handoff stays a system routing line', () => {
+test('a system handoff is spoken by its sender, not by the system', () => {
   const room = {
     id: 'room-1',
     messages: [],
@@ -93,6 +93,7 @@ test('a system handoff stays a system routing line', () => {
     message: {
       id: 'h1',
       kind: 'system',
+      authorId: 'planner',
       ts: 1,
       text: '@执行官 第 1 步「改标题」交给你。',
       meta: { kind: 'handoff', stage: 0, from: 'planner', to: ['executor'] },
@@ -101,8 +102,8 @@ test('a system handoff stays a system routing line', () => {
     onAccept: () => {},
     onStageAccept: () => {},
   }))
-  assert.match(html, /crew-process-line/)
-  assert.match(html, /系统/)
+  assert.match(html, /crew-msg-chat/)
+  assert.match(html, /规划师/)
   assert.match(html, /@执行官/)
-  assert.doesNotMatch(html, /规划师/)
+  assert.doesNotMatch(html, /crew-process-line/)
 })

@@ -4,7 +4,7 @@ import { roomStatusOf, roundStatusOf } from '../../../../shared/room-status.js'
 import { ROUND_STATUS } from '../../../../shared/states.js'
 import { PausedPanel } from '../paused-panel.js'
 import { StudioTranscript } from './transcript.js'
-import { returnToChatSeed } from './return-seed.js'
+import { returnToChatSeed } from '../../../../shared/room-seeds.js'
 import { TypingLine } from '../typing-line.js'
 import { studioTyping } from './typing.js'
 

@@ -140,7 +140,11 @@ const normalizeMessage = (raw, responderName) => {
     role: 'agent',
     text,
     ...(typeof raw.turnId === 'string' && raw.turnId !== ''
-      ? { turnId: raw.turnId, turnFinal: raw.turnTerminal === true }
+      ? {
+        turnId: raw.turnId,
+        // 只有 runtime 明确标了收尾才算收尾；不标就按一条完整发言处理，不当成过场。
+        ...(typeof raw.turnTerminal === 'boolean' ? { turnFinal: raw.turnTerminal } : {}),
+      }
       : {}),
   }
 }

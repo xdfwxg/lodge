@@ -7,9 +7,13 @@ import { createReviewCoordinator } from './rooms/studio/review.js'
 import { createStageStarter } from './rooms/studio/stage.js'
 import { createLiveTurns } from './rooms/studio/turns.js'
 import { createTurnState } from './rooms/studio/turn-state.js'
-import { deliverableStageIndex, parsePlannerDecision, parseVerdict } from './rooms/studio/turn-utils.js'
+import { deliverableStageIndex, parsePlannerDecision } from './rooms/studio/turn-utils.js'
+import { normalizeJudgment } from '../../shared/judgment.js'
 import { registerWorkspaceProvider } from './workspace.js'
 import { normalizeTestRoom, withAssignments } from './testing/room.js'
+
+// 判定文本的契约在 shared/judgment.js；这里只验证首行锚点的语义。
+const parseVerdict = reply => normalizeJudgment({ type: 'verdict', text: reply }).decision === 'pass'
 
 const rejectMeta = stage => ({
   pass: false,
@@ -578,6 +582,37 @@ test('an exhausted rework budget asks the human instead of reworking again', () 
   assert.ok(store.events.some(event => event.type === 'handoff.human'))
 })
 
+test('a review request is not @-ed twice when the executor already named the verifier', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  // 执行官最后一句已经按规矩 @ 了验收员。
+  store.appendMessage('room-1', {
+    kind: 'chat',
+    authorId: 'executor',
+    text: '改完了，@验收员 麻烦看一下这版。',
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  assert.deepEqual(sent.map(item => item.memberId), ['verifier'])
+  assert.equal(store.messages.filter(message => (
+    message.meta?.kind === 'handoff' && message.meta?.reason === 'review'
+  )).length, 0)
+})
+
 test('a verifier reply without a verdict is nudged, then expires the review', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
@@ -624,6 +659,45 @@ test('a verifier reply without a verdict is nudged, then expires the review', as
   }), true)
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.meta?.kind === 'review_timeout'))
+  assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+})
+
+test('a verifier with the gate tool cannot pass on text alone', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
+  room.members.find(member => member.id === 'verifier').body.roomTools = ['lodge_gate']
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  // 首行像“通过”，但没有调用工具提交：只催一次，不把文本当结论。
+  assert.equal(review.consume({
+    turn: { reply: '通过，没问题。' },
+    memberId: 'verifier',
+    turnId: 't1',
+    room,
+  }), true)
+  assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+  assert.match(sent.at(-1).prompt, /submit_verdict/)
+  assert.equal(review.consume({
+    turn: { reply: '通过。' },
+    memberId: 'verifier',
+    turnId: 't2',
+    room,
+  }), true)
+  assert.equal(review.isBusy(), false)
   assert.ok(!store.messages.some(message => message.kind === 'verdict'))
 })
 

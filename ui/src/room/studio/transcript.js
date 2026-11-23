@@ -24,12 +24,11 @@ const isVisibleNotice = message => (
   message?.kind === 'system' && message.meta?.kind === 'notice' && message.meta.show === true
 )
 
-// 系统交接和阶段回执是过程，不是主时间线；规划师自己的计划留在主线上。
+// 只有阶段回执留在后台账本；交接是谁交给谁，属于主时间线，不能藏。
 const isProcessMessage = message => (
-  message?.kind === 'handoff' ||
   message?.kind === 'dispatch' ||
   message?.kind === 'stage_conclusion' ||
-  (message?.kind === 'system' && (message.meta?.kind === 'handoff' || message.meta?.kind === 'stage'))
+  (message?.kind === 'system' && message.meta?.kind === 'stage')
 )
 
 // 同一条状态提示重复出现时，只留最后一次；前面的已经被后一次取代。

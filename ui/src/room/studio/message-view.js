@@ -46,12 +46,8 @@ export const renderStudioMessage = ({
   // 规划师的排期是一条消息，步骤直接读得出来。
   if (message.kind === 'plan') return chat(message.text)
 
-  // 系统只负责路由，不装作某个成员说话；这条会折进“过程”，展开仍能读到。
-  if (message.kind === 'system' && message.meta?.kind === 'handoff') {
-    return h('div', { key: message.id, className: 'crew-process-line' },
-      h('span', { className: 'crew-process-tag' }, '系统'),
-      message.text ?? '')
-  }
+  // 交接是说话的人发出的：规划师派活、验收员退回，都按成员消息出现，不藏成“系统”。
+  if (message.kind === 'system' && message.meta?.kind === 'handoff') return chat(message.text ?? '')
 
   // 交接在群里就是一句 @：谁交给谁，下一步做什么。
   if (message.kind === 'dispatch' || message.kind === 'handoff') return chat(message.text ?? '')

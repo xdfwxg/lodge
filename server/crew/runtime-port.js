@@ -5,7 +5,8 @@
 //
 // 规范化事件：
 //   { type: 'delta',   sessionRef, turnId, delta, at }
-//   { type: 'message', message }                  // message 已归一化为 kind/text/meta
+//   { type: 'message', message }                  // message 已归一化为 kind/text/meta；
+//                                                 // 成员文本可带 turnId 与布尔 turnFinal（一次回答的最后一条）
 //   { type: 'room',    room }                     // room 已归一化为 Room 形状
 // 连接状态：
 //   { connected: boolean, error: string | null }

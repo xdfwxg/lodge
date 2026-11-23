@@ -31,7 +31,7 @@ export const createServiceQueries = ({
 
   const publicMessage = message => {
     if (message.meta === undefined) return message
-    const { baseId, turnId, sendId, echo, ...meta } = message.meta
+    const { baseId, turnId, turnFinal, sendId, echo, ...meta } = message.meta
     return { ...message, meta }
   }
 

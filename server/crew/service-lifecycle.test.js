@@ -228,8 +228,8 @@ test('steering a queued message returns the engine outcome', async () => {
   assert.equal(result.body.outcome, 'steered')
 })
 
-test('an active room cannot be deleted', async () => {
-  const ctx = setup(roomRecord())
+test('a studio with an open round cannot be deleted', async () => {
+  const ctx = setup(roomRecord({ activeRoundId: 'round-1', workRound: { status: 'active' } }))
   const result = await ctx.service.roomRequest('r1', 'delete', post({}))
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'conflict')

@@ -118,6 +118,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
 
   const finishStream = (entry, room, message) => {
     if (message.kind !== 'text' && message.kind !== 'turn') return false
+    // 一次回答的过场不结算：等正文到齐再收口，否则过场会顶掉正在流的正文。
+    if (message.kind === 'text' && message.turnFinal === false) return false
     const finalIds = finalIdsOf(entry)
     if (finalIds.has(message.id)) return true
     const current = store.readRoom(room.id) ?? room
