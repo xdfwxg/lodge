@@ -115,15 +115,11 @@ export const renderSharedMessage = ({
               ? null
               : h(IconAction, { icon: ReturnIcon, label: '插话', onClick: () => onSteerQueue(message.meta.queueId) }))))
   }
-  // 模型有时把用户写成 @you；显示成名字，没起名字时直接去掉这个称呼。
-  const shown = /@you\b/i.test(String(message.text ?? ''))
-    ? {
-      ...message,
-      text: String(message.text).replace(/(^|\s)@you\b/gi, (whole, before) => {
-        const name = typeof room?.humanName === 'string' ? room.humanName.trim() : ''
-        return name === '' ? before : `${before}${name}`
-      }).trim(),
-    }
-    : message
-  return h(ChatLine, { key: message.id, message: shown, member, mentions: mentionNames })
+  return h(ChatLine, {
+    key: message.id,
+    message,
+    member,
+    mentions: mentionNames,
+    humanName: typeof room?.humanName === 'string' ? room.humanName : '',
+  })
 }

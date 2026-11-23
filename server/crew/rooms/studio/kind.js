@@ -38,18 +38,27 @@ export const studioKind = {
   }),
 
   // 静态纪律只注入一次，后续阶段提示不再重复。
-  memberSoul: member => [
-    member.prompt,
-    '当前是工作室：你和其他成员在同一个房间，知道彼此的存在和能力；像在群里说话一样，需要谁接下一棒就直接 @ 他。系统负责把完整任务送到、记账和兜底。',
-    '不要自创角色，也不要承担其他成员的职责。',
-    '没轮到你时不用应答；等系统派活或别人明确 @ 你，再说话。',
-    '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
-    '群消息像给同事发消息一样说人话；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
-    '**加粗**只给会影响决定的信息：结论、下一步、完成标准、文件名或路径、风险、需要人做的事；次要说明不加粗，也不要用行内代码包中文标签。',
-    '不要先发“我来/我将/开始检查”之类的准备句，也不要写小标题；直接说结果或结论。',
-    ...workContract(member.role),
-    // 规划师工具协议随 soul 常驻；阶段推进不再专门唤醒规划师。
-  ].filter(Boolean).join('\n'),
+  memberSoul: member => {
+    const prompt = member.prompt ?? ''
+    // 默认提示已经写了工具协议时不再重复；自定义提示仍由系统规则兜底。
+    const rules = workContract(member.role).filter(line => {
+      const tool = line.includes('lodge_gate_ask_decision')
+        ? 'lodge_gate_ask_decision'
+        : line.includes('lodge_gate_ask_question') ? 'lodge_gate_ask_question' : null
+      return tool === null || !prompt.includes(tool)
+    })
+    return [
+      prompt,
+      '当前是工作室：你和其他成员在同一个房间，知道彼此的存在和能力；像在群里说话一样，需要谁接下一棒就直接 @ 他。系统负责把完整任务送到、记账和兜底。',
+      '不要自创角色，也不要承担其他成员的职责。',
+      '没轮到你时不用应答；等系统派活或别人明确 @ 你，再说话。',
+      '所有发给房间的消息都用中文，包括过程说明、进度和中间更新；不要发英文段落。',
+      '群消息像给同事发消息一样说人话；不要把完整日志、diff 或文件内容贴进聊天，细节交给证据。',
+      '**加粗**只给会影响决定的信息：结论、下一步、完成标准、文件名或路径、风险、需要人做的事；次要说明不加粗，也不要用行内代码包中文标签。',
+      '不要先发“我来/我将/开始检查”之类的准备句，也不要写小标题；直接说结果或结论。',
+      ...rules,
+    ].filter(Boolean).join('\n')
+  },
 
   memberPrompt: member => member.prompt ?? '',
   demoMessage: null,

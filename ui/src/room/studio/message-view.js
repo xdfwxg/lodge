@@ -35,7 +35,12 @@ export const renderStudioMessage = ({
   if (message.kind === 'verdict' && message.meta?.human === true) return null
 
   const chat = (text, extra = null, key = message.id) => h('div', { key, className: 'crew-msg-wrap' },
-    h(ChatLine, { message: { ...message, text }, member, mentions }),
+    h(ChatLine, {
+      message: { ...message, text },
+      member,
+      mentions,
+      humanName: typeof room?.humanName === 'string' ? room.humanName : '',
+    }),
     extra)
 
   // 规划师的排期是一条消息，步骤直接读得出来。
@@ -107,7 +112,13 @@ export const renderStudioMessage = ({
   if (message.kind === 'activity_steps' || message.kind === 'activity') return null
 
   if (message.kind === 'chat' && message.authorId !== 'you') {
-    return h(ChatLine, { key: message.id, message, member, mentions })
+    return h(ChatLine, {
+      key: message.id,
+      message,
+      member,
+      mentions,
+      humanName: typeof room?.humanName === 'string' ? room.humanName : '',
+    })
   }
 
   return renderSharedMessage({ room, byId, message, onAnswerCard, onCancelQueue, onSteerQueue })

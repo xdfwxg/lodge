@@ -31,6 +31,18 @@ function ActivityLine({ message }) {
     h('span', { className: 'crew-activity-time' }, timeOf(message.ts)))
 }
 
+// 模型有时把用户写成内部 id @you，还可能后面跟了名字。显示层统一收口：
+// 有名字就只留名字，没名字就删掉这个称呼；中文标点前面的 @you 也要认出来。
+export const humanMentionText = (text, name = '') => {
+  const value = String(text ?? '')
+  if (!/@you\b/i.test(value)) return value
+  const plain = String(name ?? '').trim()
+  const escaped = plain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = new RegExp(`(^|[\\s，。；：、！？,.;:!?])@you\\b(?:\\s*${escaped})?`, 'gi')
+  const replaced = value.replace(pattern, (_whole, before) => (plain === '' ? before : `${before}${plain}`))
+  return replaced.trim()
+}
+
 const splitTopic = text => {
   const match = text.match(/^(.*?)【([^】]*)】(.*)$/s)
   return match === null ? null : { before: match[1], topic: match[2], after: match[3] }
@@ -50,10 +62,10 @@ const planBreaks = value => (
     : value
 )
 
-function ChatLine({ message, member, mentions = null }) {
+function ChatLine({ message, member, mentions = null, humanName = '' }) {
   const streaming = message.meta?.streaming === true
   const raw = streaming ? String(message.text ?? '') : emphasizeImportant(message.text)
-  const text = homeRelative(planBreaks(raw))
+  const text = homeRelative(planBreaks(humanMentionText(raw, humanName)))
   return h('div', { className: 'crew-msg crew-msg-chat' },
     h('div', { className: 'crew-msg-body' },
       h(Speaker, { member, ts: message.ts, time: false, station: false, persona: personalityLabel(member?.personality) }),

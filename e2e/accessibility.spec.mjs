@@ -5,7 +5,19 @@ const audit = page => new AxeBuilder({ page })
   .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
   .analyze()
 
+// 灵动岛和面板都有入场动画；动画没结束就量对比度，会量到半透明的中间态，
+// 报出并不存在的对比度问题。等两帧让动画起身，再等所有有限动画结束。
+const settle = page => page.evaluate(async () => {
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  await Promise.all(
+    document.getAnimations()
+      .filter(animation => Number.isFinite(animation.effect?.getComputedTiming().endTime))
+      .map(animation => animation.finished.catch(() => {})),
+  )
+})
+
 const expectClean = async page => {
+  await settle(page)
   const results = await audit(page)
   expect(results.violations.map(item => ({
     id: item.id,
@@ -32,8 +44,8 @@ test('the sample delivery has no WCAG A/AA violations', async ({ page, request }
 
   await page.locator('.crew-delivery-foot').hover()
   await page.locator('.crew-delivery-foot').getByRole('button', { name: '详情' }).click()
-  // 面板有进入动画；等透明度稳定后再量对比度。
-  await page.waitForTimeout(500)
+  // 面板展开后先等内容进 DOM，再量对比度。
+  await expect(page.locator('.studio-delivery-details[open] .studio-delivery-detail-meta')).toBeVisible()
   await expectClean(page)
 })
 

@@ -83,3 +83,13 @@ test('narrow interfaces expose only their own responsibilities', () => {
   assert.equal('record' in presentation, false)
   assert.equal('markMemberFailure' in presentation, false)
 })
+
+test('a prompt that already names the gate tools is not repeated by the system rules', () => {
+  const soul = roomModeForType('studio').memberSoul({
+    name: '规划师',
+    role: 'lead',
+    prompt: '用 lodge_gate_ask_decision 出卡，用 lodge_gate_ask_question 提问。',
+  })
+  assert.equal((soul.match(/lodge_gate_ask_decision/g) ?? []).length, 1)
+  assert.equal((soul.match(/lodge_gate_ask_question/g) ?? []).length, 1)
+})

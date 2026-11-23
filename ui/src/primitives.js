@@ -77,6 +77,23 @@ export function MentionText({ text, mentions = null }) {
   return h('span', null, ...withMentions(String(text ?? ''), names))
 }
 
+const BOLD = /\*\*([^*\n]+)\*\*/g
+
+// CommonMark 不认“字**“引号”**字”这种紧贴标点的加粗；在边界补一个零宽空格，
+// 让中文标点也能正常显示成加粗，而不是把 ** 原样露出来。
+export const repairBoldEdges = text => String(text ?? '')
+  .split(/(```[\s\S]*?```|`[^`\n]+`)/g)
+  .map(part => (
+    part.startsWith('`')
+      ? part
+      : part.replace(BOLD, (whole, inner) => {
+        const start = /^[“”‘’《》「」『』（）()【】[\]{}<>—…,.，。；：、！？!?:;]/u.test(inner) ? '​' : ''
+        const end = /[“”‘’《》「」『』（）()【】[\]{}<>—…,.，。；：、！？!?:;]$/u.test(inner) ? '​' : ''
+        return start === '' && end === '' ? whole : `**${start}${inner}${end}**`
+      })
+  ))
+  .join('')
+
 export function MarkdownText({ text, labels, variant, mentions = null }) {
   const names = Array.isArray(mentions) && mentions.length > 0 ? new Set(mentions) : null
   const signature = names === null ? '' : [...names].join('\u0000')
@@ -85,5 +102,5 @@ export function MarkdownText({ text, labels, variant, mentions = null }) {
     [labels?.code?.copyLabel, labels?.code?.copiedLabel, signature],
   )
   return h('div', { className: variant === 'compact' ? 'md_markdown md-compact' : 'md_markdown' },
-    h(Markdown, { remarkPlugins: plugins, components }, text ?? ''))
+    h(Markdown, { remarkPlugins: plugins, components }, repairBoldEdges(text)))
 }
