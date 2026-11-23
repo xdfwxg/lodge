@@ -719,6 +719,8 @@ test('a deliverable review is blind to the executor narrative by default', async
   })
   await review.request(0)
   assert.match(sent.at(-1).prompt, /对抗复核/)
+  assert.match(sent.at(-1).prompt, /先看证据是否成立/)
+  assert.match(sent.at(-1).prompt, /目标之外的重构/)
   assert.doesNotMatch(sent.at(-1).prompt, /证据摘要|进度：/)
 })
 
@@ -743,6 +745,8 @@ test('a decision stage may show the conversation', async () => {
   })
   await review.request(0)
   assert.doesNotMatch(sent.at(-1).prompt, /对抗复核/)
+  assert.match(sent.at(-1).prompt, /先看结果证据是否成立/)
+  assert.match(sent.at(-1).prompt, /目标之外的重构/)
   assert.match(sent.at(-1).prompt, /进度：/)
 })
 

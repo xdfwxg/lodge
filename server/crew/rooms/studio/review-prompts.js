@@ -77,8 +77,12 @@ export const verifierPromptOf = ({
     ...(mergeNote === '' ? [] : [mergeNote]),
     `当前阶段：第 ${stageIndex + 1} 步「${stage.title}」`,
     blind ? blindBrief : buildMemberHandoff({ room, messages }),
+    manual
+      ? '先看结果证据是否成立：证据缺失或对不上目标就直接判不通过，不要先逐行挑代码毛病。'
+      : '先看证据是否成立：验收命令、退出码和改动范围先与目标对照；证据对不上就直接判不通过，不要先逐行挑代码毛病。',
     '先逐条核对目标里的硬要求（文件名、路径、内容、行数、格式、范围）；执行官或规划师在对话里改写的标准不算标准。',
     '任何一条不满足就判不通过，并在 reason 里写出不满足的那一条；不要用更弱的标准替代目标原文（目标要求内容为 hello，就不能用“文件能打开”代替）。',
+    '只按本步目标和验收标准判；目标之外的重构、美化或新功能不作为退回理由，也不要写进本次判定。',
     `工作文件夹：${room.worktrees?.[verifier] ?? room.repoPath ?? '(未设置)'}`,
     ...(verifierPort === undefined ? [] : [`如需起本地服务，用 PORT=${verifierPort}。`]),
     ...shotLines,

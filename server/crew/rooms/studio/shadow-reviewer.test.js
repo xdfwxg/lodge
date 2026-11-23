@@ -41,6 +41,8 @@ test('the call prompt only carries this task and its output shape', () => {
     evidence: { id: 'e1', text: '导出完成', meta: { command: 'npm test', exit: 0, diff: '+a' } },
   })
   assert.match(prompt, /只找漏/)
+  assert.match(prompt, /安全、权限、依赖、隐私和数据风险/)
+  assert.match(prompt, /不要重复验收员的逐行功能评审/)
   assert.match(prompt, /npm test/)
   assert.match(prompt, /反例/)
   assert.match(prompt, /无显著风险/)

@@ -30,6 +30,7 @@ export const shadowPrompt = ({ room, stage, evidence, manual = false }) => {
   const meta = evidence?.meta ?? {}
   return [
     '这次只找漏。假设这一步马上交付，按这个格式回一段 JSON，不要解释：',
+    '优先扫安全、权限、依赖、隐私和数据风险；不要重复验收员的逐行功能评审，也不要要求目标之外的功能。',
     '{"summary":"一句话结论；没有风险就写 无显著风险","reasons":[],"risks":[],"missingEvidence":[]}',
     '- reasons：最可能出错的地方；',
     '- risks：验收条件可能漏掉的场景，或一个具体的反例；',
