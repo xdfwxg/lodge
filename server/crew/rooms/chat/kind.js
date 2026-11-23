@@ -4,7 +4,7 @@ import { isChatSystemNoise } from '../../room-chat.js'
 import { systemNotice } from '../../notices.js'
 import { LODGE_HOST_LABEL } from '../../member-labels.js'
 import { personalityPrompt } from '../../../../shared/personalities.js'
-import { CHAT_HOST_VOICE, CHAT_VOICE } from '../../../../shared/chat-voice.js'
+import { CHAT_HOST_SOUL, CHAT_VOICE } from '../../../../shared/chat-voice.js'
 import { stancePrompt } from '../../../../shared/chat-stances.js'
 import { chatProjection } from './projection.js'
 import { chatIssuesOf, chatRetroOf } from './issues.js'
@@ -68,7 +68,7 @@ export const chatKind = {
     // 主持人是 Lodge 自己：不占发言位置，只用来开场和总结。
     const created = await hostPort.createHost({
       name: `LodgeHost${short}`,
-      soul: `你是 Lodge 的主持人。你只负责开场、总结和收敛讨论，不替发言者下结论；不要调用工具。\n${CHAT_HOST_VOICE}`,
+      soul: CHAT_HOST_SOUL,
       approval: 'ask',
     })
     return {

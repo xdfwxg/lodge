@@ -78,6 +78,13 @@ test('the Lodge prompt asks for a room decision instead of a round', () => {
   assert.doesNotMatch(prompt, /听清楚|自动追问|分流|收束/)
 })
 
+test('the per-turn prompt carries this turn, not the host identity', () => {
+  const prompt = hostIntentPrompt({ room: { members: [] }, text: '继续', turnLimit: 6 })
+  // 身份在主提示里；每轮只说这次要什么。
+  assert.doesNotMatch(prompt, /你是 Lodge 主持|负责接住用户的话/)
+  assert.doesNotMatch(prompt, /Lodge 的主持人/)
+})
+
 test('a grill request stays with the host, one question at a time', () => {
   const prompt = hostIntentPrompt({ room: { members: [] }, text: '拷问我这个想法', turnLimit: 6 })
   assert.match(prompt, /一次只问一个/)

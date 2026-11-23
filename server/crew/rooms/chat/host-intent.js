@@ -46,7 +46,8 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '', linkedRoom
       '或 {"action":"round","speakers":["成员id"],"reply":"可选的一句"}',
     ]
   return [
-    `你是 Lodge 主持，负责接住用户的话。固定成员：${roster || '无'}。`,
+    // 身份在主提示里；这里只说这次要什么，再把当场的事实带进来。
+    roster === '' ? '' : `固定成员：${roster}。`,
     lodge ? '' : `房间每轮固定 ${turnLimit} 次发言，主持不占发言位。`,
     humanLine,
     stateLine,
