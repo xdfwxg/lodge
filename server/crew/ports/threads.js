@@ -18,12 +18,18 @@ export const createThreadPort = ({ engine, store, roomId }) => {
       try {
         const messages = await messagesOf()
         if (messages === null) return null
-        const hit = messages.find(message => (
-          !before.has(message.id) &&
-          message.authorRef === ref &&
-          (message.kind === 'text' || (message.kind === 'turn' && message.turn?.reply))
-        ))
-        return hit === undefined ? null : { text: hit.turn?.reply ?? hit.text ?? '' }
+        const fresh = messages.filter(message => !before.has(message.id) && message.authorRef === ref)
+        // 基座会把一次回答拆成过场和正文；回执只认这一次回答的最后一条，不把过场当成他的观点。
+        const turn = fresh.findLast?.(message => message.kind === 'turn' && message.turn?.reply)
+        if (turn !== undefined) return { text: turn.turn.reply }
+        const texts = fresh.filter(message => message.kind === 'text')
+        const marked = texts.filter(message => typeof message.turnFinal === 'boolean')
+        if (marked.length > 0) {
+          const done = marked.filter(message => message.turnFinal === true)
+          return done.length === 0 ? null : { text: done[done.length - 1].text ?? '' }
+        }
+        // 基座不标回合时只能按到达顺序取最后一条。
+        return texts.length === 0 ? null : { text: texts[texts.length - 1].text ?? '' }
       } catch {
         return null
       }

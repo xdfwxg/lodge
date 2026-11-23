@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createMessageProjector, matchEcho } from './kernel/live/projection.js'
-import { dropStaleStreams } from './rooms/chat/projection.js'
+import { dropStaleStreams, dropTurnPreambles } from './rooms/chat/projection.js'
 
 const projector = createMessageProjector({
   store: { readRoom: () => ({ members: [{ id: 'executor', name: '执行官', body: { kind: 'base', ref: 'bot-1', name: '执行官' } }], hiddenBaseMessages: [] }) },
@@ -58,6 +58,41 @@ test('member messages keep their member author', () => {
   const stored = projector.toStored('room-1', { id: 'm1', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '在' })
   assert.equal(stored.kind, 'chat')
   assert.equal(stored.authorId, 'executor')
+})
+
+test('a member text keeps its turn identity so the room can keep only the ending', () => {
+  const stored = projector.toStored('room-1', {
+    id: 'm1', kind: 'text', role: 'agent', authorRef: 'bot-1', text: '我先看下。', turnId: 'turn-1', turnFinal: false,
+  })
+  assert.deepEqual(stored.meta, { turnId: 'turn-1', turnFinal: false })
+  const final = projector.toStored('room-1', {
+    id: 'm2', kind: 'text', role: 'agent', authorRef: 'bot-1', text: '结论是…', turnId: 'turn-1', turnFinal: true,
+  })
+  assert.deepEqual(final.meta, { turnId: 'turn-1', turnFinal: true })
+})
+
+test('one answer split into a preamble and a body shows only the body', () => {
+  const messages = [
+    { id: 'm1', authorId: 'worker-2', ts: 100, kind: 'chat', text: '我先看下实际代码和测试，再判断。', meta: { turnId: 'turn-1' } },
+    { id: 'm2', authorId: 'worker-2', ts: 104, kind: 'chat', text: '接住上一位——测试写得挺齐全。', meta: { turnId: 'turn-1', turnFinal: true } },
+    { id: 'm3', authorId: 'worker', ts: 110, kind: 'chat', text: '我同意。', meta: { turnId: 'turn-2' } },
+  ]
+  assert.deepEqual(dropTurnPreambles(messages).map(message => message.id), ['m2', 'm3'])
+})
+
+test('a turn that only got its first line keeps that line', () => {
+  const messages = [
+    { id: 'm1', authorId: 'worker-2', ts: 100, kind: 'chat', text: '我先看下。', meta: { turnId: 'turn-1' } },
+  ]
+  assert.deepEqual(dropTurnPreambles(messages).map(message => message.id), ['m1'])
+})
+
+test('two members saying the same words in different turns both stay', () => {
+  const messages = [
+    { id: 'm1', authorId: 'worker', ts: 100, kind: 'chat', text: '同意。', meta: { turnId: 'turn-1' } },
+    { id: 'm2', authorId: 'worker-2', ts: 101, kind: 'chat', text: '同意。', meta: { turnId: 'turn-2' } },
+  ]
+  assert.deepEqual(dropTurnPreambles(messages).map(message => message.id), ['m1', 'm2'])
 })
 
 test('stale stream placeholders give way to the final message', () => {

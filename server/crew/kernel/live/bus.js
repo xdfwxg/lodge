@@ -208,7 +208,10 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       }
     }
     const stored = projector.toStored(room.id, message)
-    if (stored === null || stored.workRoundId !== undefined) return stored
+    if (stored === null) return stored
+    // 一次回答的过场不是发言：房间只留回合收尾的正文，免得同一个人连说两句。
+    if (stored.kind === 'chat' && stored.meta?.turnFinal === false) return null
+    if (stored.workRoundId !== undefined) return stored
     const workRoundId = roundAtOf(room, turnStartOf(message))
     return workRoundId === undefined ? stored : { ...stored, workRoundId }
   }

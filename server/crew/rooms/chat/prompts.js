@@ -18,8 +18,10 @@ export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, br
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `${humanLabelOf()}这轮的要求：${note}`,
     brief === '' ? '' : `上一轮结论：${brief}`,
-    previous === null ? '' : `上一位：${previous.name}说“${truncate(previous.text, 200)}”`,
-    '接着上面说：同意就补一个理由，不同意就指出哪一点，有疑问就只问一个具体问题。不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。',
+    previous === null
+      ? '这是本轮第一句：直接说自己的判断，不用回答谁。'
+      : `上一位：${previous.name}说“${truncate(previous.text, 200)}”`,
+    '接着说：同意就补一个理由，不同意就指出哪一点，有疑问就只问一个具体问题。不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。',
     '按顺序轮流说；不用 @ 别人，也不用把话交给别人。',
     '像普通人聊天一样说自己的看法，不用报告、分点或小标题。',
     '只讨论话题本身；不要评论讨论次数、样本数量或流程。',

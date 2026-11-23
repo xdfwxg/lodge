@@ -19,14 +19,15 @@ test('a turn carries the last conclusion and the speaker before it', () => {
   })
   assert.match(prompt, /上一轮结论：共识：住上沿；分歧：要不要一直走/)
   assert.match(prompt, /上一位：老周说“上沿没问题，但别一直走。”/)
-  assert.match(prompt, /接着上面说：同意就补一个理由/)
+  assert.match(prompt, /接着说：同意就补一个理由/)
   assert.doesNotMatch(prompt, /请给出你的观点、依据或质疑/)
 })
 
 test('the first turn does not invent a brief or a previous speaker', () => {
   const prompt = speakerPrompt({ room, memberId: 'a', round: 1, turn: 1, turnLimit: 6 })
   assert.doesNotMatch(prompt, /上一轮结论/)
-  assert.doesNotMatch(prompt, /上一位/)
+  assert.doesNotMatch(prompt, /上一位：/)
+  assert.match(prompt, /这是本轮第一句：直接说自己的判断/)
   assert.match(prompt, /第 1 轮，第 1\/6 次发言/)
 })
 

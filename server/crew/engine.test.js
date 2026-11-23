@@ -339,6 +339,23 @@ test('question cards keep the base choices as options', async () => {
   assert.equal(messages[0].card.tool, 'ask_user')
 })
 
+test('member texts carry their turn identity across the engine port', async () => {
+  const client = {
+    threadMessages: async () => ({
+      messages: [
+        { id: 'm1', at: 1, kind: 'text', role: 'bot', text: '我先看下。', turnId: 'turn-1', from: { botId: 'bot-1' } },
+        { id: 'm2', at: 2, kind: 'text', role: 'bot', text: '结论是…', turnId: 'turn-1', turnTerminal: true, from: { botId: 'bot-1' } },
+      ],
+    }),
+  }
+  const engine = createEngine({ client })
+  const { messages } = await engine.history('thread-1')
+  assert.deepEqual(messages.map(({ kind, text, turnId, turnFinal }) => ({ kind, text, turnId, turnFinal })), [
+    { kind: 'text', text: '我先看下。', turnId: 'turn-1', turnFinal: false },
+    { kind: 'text', text: '结论是…', turnId: 'turn-1', turnFinal: true },
+  ])
+})
+
 test('answerCard forwards the decision to the runtime thread', async () => {
   let captured = null
   const client = {

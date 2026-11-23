@@ -35,9 +35,33 @@ export const dropStaleStreams = messages => {
   })
 }
 
+// 基座会把一次回答拆成几条 text：先一句过场（“我先看下…”），再给正文。
+// 房间里一次回答只留最后一条，否则同一个人连说两句，还会把“上一位”挤到看不见的地方。
+export const dropTurnPreambles = messages => {
+  const endings = new Map()
+  const laterThan = (message, index, prior) => {
+    const finalA = message.meta?.turnFinal === true || message.meta?.final === true
+    const finalB = prior.message.meta?.turnFinal === true || prior.message.meta?.final === true
+    if (finalA !== finalB) return finalA
+    const a = message.ts ?? 0
+    const b = prior.message.ts ?? 0
+    return a > b || (a === b && index > prior.index)
+  }
+  messages.forEach((message, index) => {
+    if (message.kind !== 'chat' || typeof message.meta?.turnId !== 'string') return
+    const key = `${message.authorId}|${message.meta.turnId}`
+    const prior = endings.get(key)
+    if (prior === undefined || laterThan(message, index, prior)) endings.set(key, { message, index })
+  })
+  return messages.filter(message => {
+    if (message.kind !== 'chat' || typeof message.meta?.turnId !== 'string') return true
+    return endings.get(`${message.authorId}|${message.meta.turnId}`)?.message.id === message.id
+  })
+}
+
 export const chatProjection = {
   hideActivity: true,
   acceptsDelta: true,
-  filterMessages: (messages, noise) => dropStaleStreams(messages
-    .filter(message => !noise(message))),
+  filterMessages: (messages, noise) => dropTurnPreambles(dropStaleStreams(messages
+    .filter(message => !noise(message)))),
 }

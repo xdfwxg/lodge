@@ -20,7 +20,7 @@ const baseRoom = () => normalizeTestRoom({
   ],
 })
 
-const setup = (capabilities = { streaming: true, mentions: true, provisioning: true, approvals: true }) => {
+const setup = (capabilities = { streaming: true, mentions: true, provisioning: true, approvals: true }, projector = null) => {
   let room = baseRoom()
   const messages = []
   const subscribed = []
@@ -65,7 +65,7 @@ const setup = (capabilities = { streaming: true, mentions: true, provisioning: t
   const chat = createRoomChat({
     store,
     engine,
-    projector: { toStored: (roomId, message) => ({ ...message, id: 'stored-1', roomId }) },
+    projector: projector ?? { toStored: (roomId, message) => ({ ...message, id: 'stored-1', roomId }) },
     refresh: async () => {},
     onPermission: (entry, member, message) => permissions.push({ member, message }),
   })
@@ -106,6 +106,23 @@ test('chat events project into the room without touching stage turns', () => {
   assert.equal(ctx.subscribed.length, 1)
   ctx.subscribed[0].onEvent({ message: { id: 'm1', kind: 'text', role: 'bot', text: '在' } })
   assert.equal(ctx.messages.at(-1).id, 'stored-1')
+})
+
+test('a turn preamble stays out of the room until the body arrives', () => {
+  const projector = {
+    toStored: (roomId, message) => ({
+      id: message.id, roomId, kind: 'chat', authorId: 'worker-2', text: message.text,
+      ...(message.meta === undefined ? {} : { meta: message.meta }),
+    }),
+  }
+  const ctx = setup(undefined, projector)
+  const room = { ...ctx.room(), chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ message: { id: 'm0', kind: 'chat', text: '我先看下。', meta: { turnId: 't1', turnFinal: false } } })
+  assert.deepEqual(ctx.messages, [])
+  ctx.subscribed[0].onEvent({ message: { id: 'm1', kind: 'chat', text: '正文。', meta: { turnId: 't1', turnFinal: true } } })
+  assert.deepEqual(ctx.messages.map(message => message.id), ['m1'])
 })
 
 test('a queued send reconciles its echo instead of showing the message twice', () => {

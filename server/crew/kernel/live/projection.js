@@ -76,7 +76,17 @@ export const createMessageProjector = ({ store }) => {
     if (['notice', 'lookup', 'resumed', 'cut', 'stopped', 'done'].includes(message.kind)) {
       return text === '' ? null : { ...common, kind: 'system', text }
     }
-    return { ...common, kind: 'chat', authorId: memberId ?? 'executor', text }
+    // 回合身份留在消息上：同一个成员的一次回答若被拆成几条，房间只留最后一条。
+    const turnMeta = typeof message.turnId === 'string' && message.turnId !== ''
+      ? { turnId: message.turnId, turnFinal: message.turnFinal === true }
+      : null
+    return {
+      ...common,
+      kind: 'chat',
+      authorId: memberId ?? 'executor',
+      text,
+      ...(turnMeta === null ? {} : { meta: turnMeta }),
+    }
   }
 
   return { toStored }

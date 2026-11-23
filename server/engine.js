@@ -132,7 +132,17 @@ const normalizeMessage = (raw, responderName) => {
     }
   }
   const text = typeof raw.text === 'string' ? raw.text.trim() : ''
-  return text === '' ? null : { ...common, kind: 'text', role: 'agent', text }
+  if (text === '') return null
+  // 一次回答可能拆成几条 text：先一句过场，再给正文。带回回合身份，房间才能只留最后一条。
+  return {
+    ...common,
+    kind: 'text',
+    role: 'agent',
+    text,
+    ...(typeof raw.turnId === 'string' && raw.turnId !== ''
+      ? { turnId: raw.turnId, turnFinal: raw.turnTerminal === true }
+      : {}),
+  }
 }
 
 export const createEngine = ({ client = createBaseClient() } = {}) => {
