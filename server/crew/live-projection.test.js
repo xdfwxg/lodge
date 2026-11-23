@@ -166,3 +166,20 @@ test('bare base names in prose become member names', () => {
   })
   assert.equal(stored.text, '甲 同意，另一个人不同意。')
 })
+
+test('tool activity keeps what it is doing for the room status', () => {
+  const stored = projector.toStored('room-1', {
+    id: 'a1',
+    kind: 'activity',
+    role: 'bot',
+    authorRef: 'bot-1',
+    text: 'Bash',
+    tool: { name: 'Bash', step: { activity: 'command', target: 'pip', detail: 'python3 -m pip install opencv-python-headless' } },
+    ok: true,
+    at: Date.now(),
+  })
+  assert.equal(stored.kind, 'activity')
+  assert.equal(stored.meta.action, 'exec')
+  assert.equal(stored.meta.target, 'pip')
+  assert.match(stored.meta.detail, /opencv/)
+})

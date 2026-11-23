@@ -74,3 +74,34 @@ test('the typing line renders the detail after the name', () => {
   assert.match(html, /第 2 步/)
   assert.match(html, /crew-typing-dots/)
 })
+
+test('a running handoff shows what the executor is doing and for how long', () => {
+  const now = Date.now()
+  const line = studioTyping(room({
+    assignments: [{ status: 'working', toMemberId: 'worker', updatedAt: now - 65_000 }],
+    messages: [{ kind: 'activity', authorId: 'worker', ts: now - 65_000, text: 'Bash', meta: { action: 'exec', target: 'pip install opencv' } }],
+    stages: [{ title: '高清化', state: 'active' }],
+  }), members)
+  assert.equal(line.label, '执行官')
+  assert.match(line.detail, /正在执行/)
+  assert.match(line.detail, /运行命令 pip install opencv/)
+  assert.match(line.detail, /第 1 步「高清化」/)
+  assert.match(line.detail, /1:0[0-9]/)
+})
+
+test('a just-sent user message says the planner is handling it', () => {
+  const line = studioTyping(room({
+    messages: [{ kind: 'chat', authorId: 'you', ts: Date.now() - 4_000, text: '用 Pillow' }],
+    stages: [{ title: '高清化', state: 'active' }],
+  }), members)
+  assert.equal(line.label, '规划师')
+  assert.match(line.detail, /正在处理 · 第 1 步「高清化」/)
+})
+
+test('waiting for the user never shows a fake typing line', () => {
+  assert.equal(studioTyping(room({
+    needsYou: { kind: 'approval' },
+    assignments: [{ status: 'working', toMemberId: 'worker' }],
+    messages: [{ kind: 'activity', authorId: 'worker', ts: Date.now() }],
+  }), members), null)
+})

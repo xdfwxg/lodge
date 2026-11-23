@@ -390,3 +390,21 @@ test('cancelTurn reports when the room is not running', async () => {
   assert.equal(result.cancelled, false)
   assert.match(result.reason, /没有正在跑的回合/)
 })
+
+test('an activity carries the tool step for the room status', async () => {
+  const client = {
+    threadMessages: async () => ({
+      messages: [{
+        id: 'a1',
+        at: 1,
+        kind: 'activity',
+        tool: { name: 'Bash', ok: true, step: { activity: 'command', target: 'pip', detail: 'pip install opencv' }, spoken: 'running a command' },
+      }],
+    }),
+  }
+  const engine = createEngine({ client })
+  const { messages } = await engine.history('thread-1')
+  assert.equal(messages[0].kind, 'activity')
+  assert.equal(messages[0].tool.step.target, 'pip')
+  assert.equal(messages[0].tool.spoken, 'running a command')
+})

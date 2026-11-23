@@ -50,38 +50,44 @@ test('an external approval offers allow once or deny, with no room-wide switch',
     approval: {
       memberName: '研究员',
       label: '访问公开网页',
-      tool: 'mcp__chrome-devtools__navigate_page',
+      kind: 'network',
+      target: 'example.com',
       summary: 'mcp__chrome-devtools__navigate_page',
       gate: { decision: 'allow', reasons: [] },
     },
     onDecide: decision => calls.push(decision),
   }))
+  assert.match(text(tree), /研究员想访问公开网页/)
+  assert.match(text(tree), /example.com/)
+  assert.match(text(tree), /会访问外部服务/)
+  assert.doesNotMatch(text(tree), /要你确认/)
   assert.deepEqual(buttons(tree).map(button => text(button)), ['先别做', '可以做'])
   buttons(tree)[0].props.onClick()
   buttons(tree)[1].props.onClick()
   assert.deepEqual(calls, ['deny', 'allow'])
 })
 
-test('the approval card shows the seat and external command with only two decisions', async () => {
+test('the approval card leads with the target, hides the command, and keeps one doubt', async () => {
   const { ApprovalCard } = await load()
   const calls = []
   const tree = render(ApprovalCard({
     approval: {
-      memberName: '执行',
+      memberName: '执行官',
       label: '推送到远端',
+      kind: 'push',
+      target: 'main',
       summary: 'git push origin main',
       command: 'git push origin main --force',
       gate: { decision: 'review', reasons: ['发布或推送远端'] },
     },
     onDecide: decision => calls.push(decision),
   }))
-  assert.match(text(tree), /要你确认/)
-  assert.match(text(tree), /执行/)
-  assert.match(text(tree), /git push origin main/)
-  assert.match(text(tree), /完整命令/)
+  assert.match(text(tree), /执行官想推送到远端/)
+  assert.match(text(tree), /main/)
+  assert.match(text(tree), /会改远端仓库/)
+  assert.match(text(tree), /我没把握/)
+  assert.match(text(tree), /看命令/)
   assert.match(text(tree), /--force/)
-  assert.match(text(tree), /拿不准/)
-  assert.match(text(tree), /发布或推送远端/)
   assert.deepEqual(buttons(tree).map(button => text(button)), ['先别做', '可以做'])
   buttons(tree)[0].props.onClick()
   buttons(tree)[1].props.onClick()

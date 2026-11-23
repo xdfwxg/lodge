@@ -88,7 +88,14 @@ test('a finished turn hides the stop square even when activity is still recent',
   const record = room({
     busyMembers: [],
     turnQueue: [],
+    assignments: [{ status: 'reported', toMemberId: 'executor' }],
     messages: [{ kind: 'activity', authorId: 'executor', ts: Date.now() }],
   })
   assert.equal(turnRunning(record), false)
+})
+
+test('an open handoff keeps the stop square even when the base reports nobody working', async () => {
+  const { turnRunning } = await load()
+  assert.equal(turnRunning(room({ busyMembers: [], assignments: [{ status: 'working', toMemberId: 'executor' }] })), true)
+  assert.equal(turnRunning(room({ busyMembers: [], assignments: [{ status: 'sent', toMemberId: 'executor' }] })), true)
 })

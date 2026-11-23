@@ -57,6 +57,7 @@ const setup = () => {
       send: async (...args) => { sent.push(args); return { messageId: 'm2' } },
       isAttached: () => true,
       attach: async () => {},
+      busyReview: () => false,
     },
     resumeRound: ({ room: target }) => {
       resumed.push(target.id)
@@ -134,6 +135,29 @@ test('a message in a stopped room continues that round instead of starting a new
   assert.deepEqual(ctx.resumed, ['room-1'])
   assert.equal(ctx.room().goal, goalBefore)
   assert.equal(ctx.sent.length, 1)
-  assert.equal(ctx.sent[0][1], '继续')
-  assert.deepEqual(ctx.sent[0][2]?.mentions, ['planner'])
+  // 工作室的群不靠 @ 唤醒；接回来的这一轮直接把话送给规划师。
+  assert.equal(ctx.sent[0][1], 'planner')
+  assert.equal(ctx.sent[0][2], '继续')
+})
+
+test('a studio message goes straight to the planner instead of a muted group mention', async () => {
+  const ctx = setup()
+  Object.assign(ctx.room(), { roomType: 'studio', live: true })
+  const result = await ctx.actions.messages({ roomId: 'room-1', room: ctx.room(), readBody: async () => ({ text: '用 Pillow' }) })
+  assert.equal(result.ok, true)
+  assert.equal(ctx.sent.length, 1)
+  assert.equal(ctx.sent[0][1], 'planner')
+  assert.match(ctx.sent[0][2], /用 Pillow/)
+})
+
+test('a stopped studio round is resumed and the user message goes to the planner', async () => {
+  const ctx = setup()
+  Object.assign(ctx.room(), { roomType: 'studio', live: true })
+  ctx.room().workRound.status = 'stopped'
+  const result = await ctx.actions.messages({ roomId: 'room-1', room: ctx.room(), readBody: async () => ({ text: '用 Pillow' }) })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.resumed, ['room-1'])
+  assert.equal(ctx.sent.length, 1)
+  assert.equal(ctx.sent[0][1], 'planner')
+  assert.match(ctx.sent[0][2], /用 Pillow/)
 })

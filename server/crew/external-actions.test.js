@@ -73,3 +73,18 @@ test('the full command survives truncation for approval review', async () => {
   })
   assert.equal(review.decision, 'review')
 })
+
+test('an approval names the thing being changed, not the whole command', () => {
+  const target = command => externalAction(card(command))?.target
+  assert.equal(target('python3 -m pip install --quiet --user opencv-python-headless 2>&1 | tail -3; python3 -c " import cv2"'), 'opencv-python-headless')
+  assert.equal(target('npm install left-pad'), 'left-pad')
+  assert.equal(target('pip install -e .'), '当前项目')
+  assert.equal(target('git push origin main'), 'main')
+  assert.equal(target('rm -rf build'), 'build')
+  assert.equal(target('curl https://example.com/x'), 'example.com')
+  assert.equal(target('ssh host uptime'), 'host')
+  assert.equal(target('git fetch origin'), '远端')
+  assert.equal(target('sudo rm -rf /tmp/x'), '系统命令')
+  assert.equal(target('gh pr comment 1 --body ok'), '房间外')
+  assert.equal(externalAction({ tool: 'WebFetch', subtitle: 'https://docs.example.com/a' })?.target, 'docs.example.com')
+})

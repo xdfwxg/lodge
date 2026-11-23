@@ -73,7 +73,13 @@ const normalizeMessage = (raw, responderName) => {
       text: normalizeActivity(String(tool.label ?? tool.name ?? '工具调用'), responderName),
       ok: tool.ok !== false,
       turnId: raw.turnId,
-      tool: { id: tool.itemId, name: tool.name, input: tool.input },
+      tool: {
+        id: tool.itemId,
+        name: tool.name,
+        input: tool.input,
+        ...(tool.step === undefined || tool.step === null ? {} : { step: tool.step }),
+        ...(typeof tool.spoken === 'string' ? { spoken: tool.spoken } : {}),
+      },
     }
   }
   if (raw.kind === 'options' || raw.kind === 'question') {

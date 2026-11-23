@@ -54,12 +54,23 @@ export const createMessageProjector = ({ store }) => {
       const tool = /^[\w.:/-]+$/.test(rawTool) ? rawTool : ''
       // 动作分类是业务事实，界面和审批都不再各自按名字猜。
       const action = actionForTool(rawTool)
+      // 工具在做什么（命令、文件）只留短摘要，让界面能说“在干啥”；完整输出仍走证据。
+      const step = message.tool?.step ?? {}
+      const hint = value => (typeof value === 'string' && value.trim() !== '' ? value.trim().slice(0, 200) : '')
+      const target = hint(step.target)
+      const detail = hint(step.detail)
       return {
         ...common,
         kind: 'activity',
         authorId: memberId ?? 'executor',
         text,
-        meta: { ok: message.ok, ...(tool === '' ? {} : { tool }), ...(action === null ? {} : { action }) },
+        meta: {
+          ok: message.ok,
+          ...(tool === '' ? {} : { tool }),
+          ...(action === null ? {} : { action }),
+          ...(target === '' ? {} : { target }),
+          ...(detail === '' ? {} : { detail }),
+        },
       }
     }
     if (message.kind === 'question') {

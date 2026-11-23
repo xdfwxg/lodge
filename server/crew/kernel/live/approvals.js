@@ -153,6 +153,7 @@ export const createLiveApprovals = ({
       tool: typeof card.tool === 'string' ? card.tool : '',
       kind: external.kind,
       label: external.label,
+      ...(typeof external.target === 'string' && external.target !== '' ? { target: external.target } : {}),
       summary: external.summary,
       ...(typeof external.command === 'string' && external.command !== '' ? { command: external.command } : {}),
       scope: attemptScopeOf({
@@ -183,7 +184,7 @@ export const createLiveApprovals = ({
     entry.heldCards.set(card.requestId, approval.id)
     store.appendMessage(entry.roomId, {
       kind: 'system',
-      text: `有个操作要你确认：${approval.memberName} · ${approval.label} · ${approval.summary}`,
+      text: `有个操作要你确认：${approval.memberName} · ${approval.label} · ${approval.target || approval.summary}`,
       meta: { kind: 'approval', approvalId: approval.id },
     })
     emit('room', updated)
@@ -360,7 +361,7 @@ export const createLiveApprovals = ({
     }
     if (entry.heldCards.get(approval.requestId) !== approvalId) {
       const expired = setApprovalState(roomId, approvalId, APPROVAL_STATE.expired)
-      store.appendMessage(roomId, { kind: 'system', text: `这个操作已经失效：${approval.summary}` })
+      store.appendMessage(roomId, { kind: 'system', text: `这个操作已经失效：${approval.target || approval.summary}` })
       if (expired !== null) emit('room', expired)
       resumeRoom(roomId, '这个操作已经失效，房间已恢复。')
       return { ok: false, reason: '这个操作已经失效，房间没在等这次确认' }
@@ -372,7 +373,7 @@ export const createLiveApprovals = ({
       const expired = setApprovalState(roomId, approvalId, APPROVAL_STATE.expired)
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `这个操作失效了：${approval.summary}（${approval.memberName} 已不在房间）`,
+        text: `这个操作失效了：${approval.target || approval.summary}（${approval.memberName} 已不在房间）`,
       })
       if (expired !== null) emit('room', expired)
       resumeRoom(roomId, '要确认的成员已经不在房间，房间已恢复。')
@@ -391,7 +392,7 @@ export const createLiveApprovals = ({
       const expired = setApprovalState(roomId, approvalId, APPROVAL_STATE.expired)
       store.appendMessage(roomId, {
         kind: 'system',
-        text: `这个操作已经失效：${approval.summary}。请重新发起。`,
+        text: `这个操作已经失效：${approval.target || approval.summary}。请重新发起。`,
       })
       if (expired !== null) emit('room', expired)
       resumeRoom(roomId, '这个操作已经失效，房间已恢复；可以继续，或重新发起。')
@@ -403,7 +404,7 @@ export const createLiveApprovals = ({
     const updated = setApprovalState(roomId, approvalId, state)
     store.appendMessage(roomId, {
       kind: 'system',
-      text: `这个操作你已选${decision === 'allow' ? '可以做' : '先别做'}：${approval.memberName} · ${approval.summary}`,
+      text: `这个操作你已选${decision === 'allow' ? '可以做' : '先别做'}：${approval.memberName} · ${approval.target || approval.summary}`,
     })
     if (updated !== null) emit('room', updated)
     resumeRoom(roomId, '外部操作已确认，房间继续。')

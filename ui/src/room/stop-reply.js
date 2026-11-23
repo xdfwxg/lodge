@@ -8,7 +8,10 @@ export const turnRunning = room => {
   const busy = Array.isArray(room.busyMembers) && room.busyMembers.length > 0
   const queued = (Array.isArray(room.turnQueue) ? room.turnQueue : [])
     .some(item => item?.state === 'queued')
-  return busy || queued || ['running', 'summarizing', 'thinking'].includes(chatStatusOf(room))
+  // 基座在工具执行期间可能不报 working；未结束的交接同样说明这一轮还在跑。
+  const open = (Array.isArray(room.assignments) ? room.assignments : [])
+    .some(item => item?.status === 'sent' || item?.status === 'working')
+  return busy || queued || open || ['running', 'summarizing', 'thinking'].includes(chatStatusOf(room))
 }
 
 // 输入条上的刹车：只停下这次回复，不改变房间状态，也不加确认步骤。

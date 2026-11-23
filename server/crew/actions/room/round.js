@@ -84,6 +84,11 @@ export const createRoundActions = deps => {
             }
           }
           const lead = leadMemberOf(current)?.id ?? null
+          // 工作室的群不靠 @ 唤醒（followMentions 关着）；用户开口就直接送给规划师。
+          if (roomModeOfRoom(current)?.id === 'studio' && lead !== null) {
+            await live.sendToMember(room.id, lead, promptText, { intent: 'message', from: 'you' })
+            return accepted({ accepted: true })
+          }
           await live.send(room.id, promptText, { mentions: lead === null ? [] : [lead] })
           return accepted({ accepted: true })
         }
@@ -107,6 +112,12 @@ export const createRoundActions = deps => {
         }
         const lead = wasQuestion ? leadMemberOf(room)?.id ?? null : null
         const targets = lead === null ? mentions : [...new Set([...mentions, lead])]
+        // 工作室的群不靠 @ 唤醒；没有交给人时，用户的话直接交给规划师。
+        const studioLead = roomModeOfRoom(room)?.id === 'studio' ? (leadMemberOf(room)?.id ?? null) : null
+        if (studioLead !== null) {
+          await live.sendToMember(room.id, studioLead, promptText, { intent: 'message', from: 'you' })
+          return accepted({ accepted: true })
+        }
         await live.send(room.id, promptText, { mentions: targets })
         return accepted({ accepted: true })
       }
