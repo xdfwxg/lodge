@@ -31,7 +31,7 @@ export const roomNeedsYou = (room, messages = []) => {
       : { kind: 'question', stage: null, label: '待回答', detail: '有成员在等你的回答。' }
   }
   if (room.state === ROOM_STATE.active && room.live === true && typeof room.connectionError === 'string' && room.connectionError !== '') {
-    return { kind: 'connection', stage: null, label: '连接断了', detail: '模型服务掉线了；连上后点继续。' }
+    return { kind: 'connection', stage: null, label: '连接断了', detail: '模型服务掉线了；Lodge 会自动重连，也可以点重试。' }
   }
   if (room.state === ROOM_STATE.active && room.blocked?.reason !== undefined) {
     const workers = Array.isArray(room.blocked.workers) ? room.blocked.workers : []

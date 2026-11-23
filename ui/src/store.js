@@ -27,6 +27,7 @@ export function createStore() {
   let state = EMPTY
   const failureText = fallback => (state.error === null || state.error === undefined ? fallback : humanErrorText(state.error, fallback))
   let source = null
+  let runtimeTimer = null
   let stopped = false
   let launched = false
   const seen = new Set()
@@ -165,18 +166,35 @@ export function createStore() {
   const isUnfinished = room => room !== null && room !== undefined && room.lodge !== true
     && (room.state === 'active' || room.state === 'paused')
 
+  // /api/health 回答的是模型服务连上没有；Lodge 自己没响应时状态在请求这一层就断了。
+  const readRuntime = async () => {
+    try {
+      const health = await fetch('/api/health')
+      if (!health.ok) return { ok: false, error: `HTTP ${health.status}` }
+      return (await health.json()).runtime ?? null
+    } catch {
+      return { ok: false, error: 'Lodge 服务没有响应' }
+    }
+  }
+  const runtimeChanged = (before, after) => (before?.ok ?? null) !== (after?.ok ?? null)
+    || String(before?.error ?? '') !== String(after?.error ?? '')
+
+  // 模型服务断了会自己连回来；横幅不能只在打开页面时查一次，否则连上了还挂着旧话。
+  const watchRuntime = () => {
+    if (runtimeTimer !== null) return
+    runtimeTimer = setInterval(async () => {
+      if (stopped) return
+      const runtime = await readRuntime()
+      if (!stopped && runtimeChanged(state.runtime, runtime)) patch({ runtime })
+    }, 20_000)
+  }
+
   const load = async () => {
     try {
       const response = await fetch('/api/state')
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const data = await response.json()
-      let runtime = null
-      try {
-        const health = await fetch('/api/health')
-        if (health.ok) runtime = (await health.json()).runtime ?? null
-      } catch {
-        runtime = { ok: false, error: 'Lodge 服务没有响应' }
-      }
+      const runtime = await readRuntime()
       for (const room of data.rooms) for (const message of room.messages) seen.add(message.id)
       if (stopped) return
       const visible = data.rooms.filter(room => !room.archivedAt)
@@ -210,6 +228,7 @@ export function createStore() {
         error: null,
       })
       connect()
+      watchRuntime()
     } catch (error) {
       if (!stopped) patch({ phase: 'error', error: String(error?.message ?? error) })
     }
@@ -264,6 +283,10 @@ export function createStore() {
       stopped = true
       source?.close()
       source = null
+      if (runtimeTimer !== null) {
+        clearInterval(runtimeTimer)
+        runtimeTimer = null
+      }
       seen.clear()
     },
     select: activeId => (rememberRoom(activeId), patch({ activeId })),

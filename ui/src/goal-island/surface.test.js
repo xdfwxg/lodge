@@ -202,6 +202,22 @@ test('a milestone renders a polite announcement and no dismiss control', () => {
   assert.doesNotMatch(html, /收起这条提醒/)
 })
 
+test('a connection signal offers a retry, not a place to go', () => {
+  const signal = {
+    key: 'decision:connection:-',
+    kind: 'decision',
+    needs: 'connection',
+    stage: null,
+    tone: 'waiting',
+    title: '连接断了',
+    detail: '模型服务掉线了；Lodge 会自动重连，也可以点重试。',
+  }
+  const html = render('decision', signal)
+  assert.match(html, /bt-goal-signal-go">重试/)
+  assert.doesNotMatch(html, /去处理/)
+  assert.match(html, /连接断了/)
+})
+
 test('a blocked signal offers a concrete rework action, not a dead end', () => {
   const signal = {
     key: 'decision:blocked:0',

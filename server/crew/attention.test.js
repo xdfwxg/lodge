@@ -57,7 +57,7 @@ test('a lost base connection and a timed-out stage both ask the human', () => {
     kind: 'connection',
     stage: null,
     label: '连接断了',
-    detail: '模型服务掉线了；连上后点继续。',
+    detail: '模型服务掉线了；Lodge 会自动重连，也可以点重试。',
   })
   const blocked = atDeliverable()
   blocked.blocked = { stage: 1, reason: 'timeout' }

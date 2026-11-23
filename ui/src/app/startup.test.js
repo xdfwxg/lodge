@@ -2,17 +2,25 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { startupNoticeOf } from './startup.js'
 
-test('a failed first start says what happened and offers a retry', () => {
+test('a failed first start names the model service, not Lodge, and offers a retry', () => {
   assert.deepEqual(startupNoticeOf({
     phase: 'ready',
     rooms: [],
     runtime: { ok: false, error: 'fetch failed' },
   }), {
     title: 'Lodge 还没准备好',
-    body: 'Lodge 没连上，稍后再试一次。',
+    body: '模型服务没连上，稍后自动重试。',
     tone: 'error',
     retry: true,
   })
+})
+
+test('a Chinese reason from the model service is shown as it is', () => {
+  assert.equal(startupNoticeOf({
+    phase: 'ready',
+    rooms: [],
+    runtime: { ok: false, error: '模型服务正在重启' },
+  }).body, '模型服务正在重启')
 })
 
 test('a waiting first room stays quiet until it arrives', () => {

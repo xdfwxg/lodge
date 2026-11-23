@@ -238,11 +238,11 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRoun
         ? h('div', {
           className: 'crew-error crew-side-error',
           role: 'alert',
-          title: humanErrorText(state.runtime.error, 'Lodge 没连上，稍后自动重试'),
-          'aria-label': humanErrorText(state.runtime.error, 'Lodge 没连上，稍后自动重试'),
+          title: humanErrorText(state.runtime.error, '模型服务没连上，稍后自动重试'),
+          'aria-label': humanErrorText(state.runtime.error, '模型服务没连上，稍后自动重试'),
         },
         h('span', { className: 'crew-side-error-mark', 'aria-hidden': 'true' }, '!'),
-        h('span', { className: 'crew-side-error-text' }, humanErrorText(state.runtime.error, 'Lodge 没连上，稍后自动重试')))
+        h('span', { className: 'crew-side-error-text' }, humanErrorText(state.runtime.error, '模型服务没连上，稍后自动重试')))
         : null,
       rail
         ? h('div', { className: 'crew-side-tools' },

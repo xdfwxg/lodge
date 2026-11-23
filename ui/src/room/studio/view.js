@@ -32,6 +32,11 @@ export const studioView = {
         room,
         onOpenRoom: actions.selectRoom,
         onSignalAction: (signal, action) => {
+          // 连不上模型服务时，按钮就是“重试”：立刻再连一次，不等下一轮自动重连。
+          if (signal?.needs === 'connection' && typeof actions.resume === 'function') {
+            actions.resume()
+            return true
+          }
           if (signal?.needs === 'blocked' && Number.isInteger(signal.stage)) {
             actions.retry(signal.stage, '')
             return true

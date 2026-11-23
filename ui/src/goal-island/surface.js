@@ -184,7 +184,9 @@ function GoalSignal({ signal, mode, actions }) {
       className: 'bt-goal-signal-main',
       title: signal.detail,
       onClick: () => actions.actSignal(blocked ? 'retry' : undefined),
-    }, dot, text, h('span', { className: 'bt-goal-signal-go' }, blocked ? '让规划师重做' : signal.kind === 'decision' ? '去处理' : '查看')),
+    }, dot, text, h('span', { className: 'bt-goal-signal-go' }, signal.needs === 'connection'
+      ? '重试'
+      : blocked ? '让规划师重做' : signal.kind === 'decision' ? '去处理' : '查看')),
   reviewTimeout
     ? h('div', { className: 'bt-goal-signal-actions' },
       h('button', {

@@ -12,9 +12,11 @@ export const startupNoticeOf = ({ phase, rooms, runtime, error } = {}) => {
   if (runtime?.ok === true) {
     return { title: 'Lodge 正在准备…', body: '第一间房马上就好。', tone: 'neutral', retry: true }
   }
+  // runtime 检查的是模型服务；Lodge 自己没响应时，状态在请求这一层就已经断了。
+  const runtimeText = humanErrorText(runtime?.error, '模型服务没连上，稍后自动重试。')
   return {
     title: 'Lodge 还没准备好',
-    body: humanErrorText(error ?? runtime?.error, 'Lodge 没连上，稍后再试一次。'),
+    body: humanErrorText(error, runtimeText),
     tone: 'error',
     retry: true,
   }
