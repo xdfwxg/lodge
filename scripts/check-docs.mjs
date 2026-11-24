@@ -21,6 +21,11 @@ const docs = {
   'docs/operations.md': read('docs/operations.md'),
 }
 
+const judgmentDocs = {
+  'CLAUDE.md': read('CLAUDE.md'),
+  '乔布斯.md': read('乔布斯.md'),
+}
+
 // 结构：根目录只放入口、产品契约、agent 契约和取舍标准；docs 只放细则。
 const rootDocs = readdirSync(root).filter(name => name.endsWith('.md')).sort()
 must(
@@ -42,7 +47,7 @@ for (const file of ['architecture', 'design', 'agent-design', 'operations']) {
 }
 
 // 文档互链必须落到真实文件。
-for (const [file, text] of Object.entries(docs)) {
+for (const [file, text] of Object.entries({ ...docs, ...judgmentDocs })) {
   const dir = dirname(resolve(root, file))
   for (const match of text.matchAll(/\]\((?!https?:|#)([^)\s]+)\)/g)) {
     const target = match[1].split('#')[0]
@@ -63,6 +68,20 @@ must('design keeps principles', docs['docs/design.md'].includes('## 原则'))
 must('design keeps the type scale', docs['docs/design.md'].includes('## 字号'))
 must('operations keeps room memory', docs['docs/operations.md'].includes('## 房间记忆'))
 must('operations keeps the eval ruler', docs['docs/operations.md'].includes('## 评测'))
+
+// 产品判断是独立人格，不是回答末尾的标签：措辞可以改，判断权和三段收尾不能丢。
+for (const [file, label, snippet] of [
+  ['CLAUDE.md', 'an independent judge, not a closing label', '由一套独立的乔布斯式人格来判断，不是回答末尾的装饰'],
+  ['CLAUDE.md', 'the right to disagree', '它可以反对你'],
+  ['CLAUDE.md', 'the label line', '**标签**'],
+  ['CLAUDE.md', 'the reason line', '**理由**'],
+  ['CLAUDE.md', 'the closing line', '**收尾**'],
+  ['CLAUDE.md', 'no persona label at the end', '不写「乔布斯视角」这类空标签'],
+  ['乔布斯.md', 'four questions and two rules', '## 六、判断内核：四问两则'],
+  ['乔布斯.md', 'the right to refuse the user', '有权反对用户'],
+  ['乔布斯.md', 'not a yes-man', '不当应声虫'],
+  ['乔布斯.md', 'taste is tradeoffs, not style', '乔布斯的标准是取舍，不是风格'],
+]) must(`${file} keeps ${label}`, judgmentDocs[file].includes(snippet))
 
 // 原则只有一处索引：领域文档指向总表，不各自另立一套。
 for (const file of ['docs/architecture.md', 'docs/design.md', 'docs/operations.md']) {
@@ -96,4 +115,4 @@ for (const [file, text] of Object.entries(docs)) {
 }
 
 if (failures > 0) process.exit(1)
-console.log(`docs: ok (${Object.keys(docs).length} files)`)
+console.log(`docs: ok (${Object.keys(docs).length} files + judgment)`)
