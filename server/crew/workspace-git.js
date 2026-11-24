@@ -97,6 +97,28 @@ export const scratchRoot = () => (
     : resolve(process.env.CREW_WORKTREE_ROOT)
 )
 
+// 工作副本对账：记录每棵树当前的 HEAD 和未提交状态，越界时可以按底线退回。
+export const snapshotWorktrees = room => {
+  const entries = new Map()
+  for (const [memberId, path] of Object.entries(room?.worktrees ?? {})) {
+    if (typeof path !== 'string' || path === '' || !existsSync(path)) continue
+    try {
+      entries.set(memberId, {
+        memberId,
+        path,
+        head: git(path, ['rev-parse', 'HEAD']).trim(),
+        status: git(path, ['status', '--porcelain']).trim(),
+      })
+    } catch {}
+  }
+  return entries
+}
+
+export const restoreWorktree = (path, head) => {
+  git(path, ['reset', '--hard', head])
+  git(path, ['clean', '-fd'])
+}
+
 export const probeSource = ({ source }) => {
   if (!gitAvailable) return { ok: false, error: '本机 git 不可用；先安装 git' }
   try {

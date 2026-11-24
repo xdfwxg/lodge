@@ -13,6 +13,7 @@ import { historyBriefOf } from './history-brief.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { humanLabelOf } from '../../human-name.js'
 import { usageBudgetExceeded } from '../../../../shared/usage.js'
+import { beginWriteGuard } from '../../workspace-guard.js'
 
 export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
@@ -147,6 +148,8 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       if (paused !== null) emit?.('room', paused)
       return
     }
+    // 开工前给每棵树拍一张底：这一阶段里别人的树不该被当前说话的人改动。
+    beginWriteGuard(room)
     // 验收要能判断“执行者自己 commit 了但工作树干净”的新交付；按阶段记下起始 HEAD。
     // 重做时沿用第一次记下的起点，不能被上一轮被退回的结果顶掉。
     const storedBase = typeof room.stageBases?.[index] === 'string' ? room.stageBases[index] : ''

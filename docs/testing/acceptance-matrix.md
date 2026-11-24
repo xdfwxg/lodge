@@ -21,6 +21,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | 工作室阶段、验收、签字、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
 | 退回必须挂到一条会失败的检查；只挑小毛病不阻塞 | `shared/gate.test.js`、`shared/judgment.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
+| 成员回合后对账：写到别人工作树的改动被退回 | `server/crew/workspace-guard.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
 | 长期工作室、轮次隔离、旧轮只读、项目分组 | `server/crew/store-rounds.test.js`、`ui/src/views/project-view.test.js`、`e2e/project.spec.mjs` | 无 |
 | 轮次开始、完成、停止、退回、失败、作废 | `server/crew/kernel/round.test.js`、`server/crew/rounds/lifecycle.test.js`、`server/crew/store-rounds.test.js` | 无 |
 | 房间状态与轮次状态分开说 | `shared/room-status.test.js`、`ui/src/goal-island/status.test.js`、`ui/src/views/sidebar.test.js` | 无 |
@@ -114,6 +115,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 - 常驻承诺的真实一期：到点或手动跑真实模型还没 dogfood；自动用例只覆盖调度、状态和界面。
 - 常驻承诺的邮件投递：真实 SMTP 发送需配置后 dogfood；自动用例只覆盖配置解析、正文和重试收据。
 - 常驻承诺的对比与后台：前后期对比、无变化自动停、发现重复后提议、后台常驻未做，不做假覆盖。
+- 成员 shell 的 OS 级写边界：macOS 没有 bot box；当前只在回合后对账并退回房间内的越界写入，家目录和房间外的路径仍拦不住。
 
 真实跑过的路径和未触发项记在 [validation.md](validation.md)。
 

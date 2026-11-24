@@ -19,6 +19,7 @@ import { systemNotice } from '../../../notices.js'
 import { hasLaterWorkStage } from '../review-policy.js'
 import { cancelAssignmentLease } from '../assignment-lease.js'
 import { redactSecrets } from '../../../../../shared/secrets.js'
+import { guardTurn } from '../../../workspace-guard.js'
 
 export const createTurnCapture = ({
   store,
@@ -54,6 +55,15 @@ export const createTurnCapture = ({
     }
     const room = store.readRoom(roomId)
     const memberId = memberForRef(room, authorRef)
+    // 成员的 shell 不做 OS 沙箱（基座只给验收命令）；这里在回合后对账，越界写到别人工作树的改动退回。
+    if (memberId !== null) {
+      for (const violation of guardTurn(room, memberId)) {
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: `${memberDisplayName(room, memberId)} 改到了 ${memberDisplayName(room, violation.memberId)} 的工作副本；${violation.reverted ? '越界改动已经退回' : '没有自动退回，请人看一下'}。`,
+        })
+      }
+    }
     const role = memberOf(room, memberId)?.role
     const calls = state.turns.get(turnId) ?? []
     const leadTurn = role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id
