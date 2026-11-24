@@ -50,6 +50,11 @@ export const createTimelineStore = ({
     return db.prepare(`SELECT message_id AS id, author_id AS authorId, ts, text FROM message_fts WHERE message_fts MATCH ? AND room_id = ?${beforeSql} ORDER BY rank LIMIT ?`).all(...args)
   }
 
+  const readMessage = (roomId, id) => {
+    const row = db.prepare('SELECT payload FROM messages WHERE id = ? AND room_id = ?').get(id, roomId)
+    return row === undefined ? null : JSON.parse(row.payload)
+  }
+
   const readMessages = (roomId, { workRoundId, roomLevel = workRoundId === undefined } = {}) => {
     const scoped = workRoundId === undefined ? roundIdForRead(roomId) : workRoundId
     const rows = scoped === null
@@ -242,6 +247,7 @@ export const createTimelineStore = ({
 
   return {
     nextSeq,
+    readMessage,
     readMessages,
     readRecentMessages,
     maxMessageSeq,

@@ -20,7 +20,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 聊天结论直接进工作室：正文和下一步都进交接简报 | `server/crew/live-chat-room.test.js`、`shared/handoff-brief.test.js`、`ui/src/room-seeds.test.js` | 真实模型可选 |
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | 工作室阶段、验收、签字、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
-| 投递失败重试沿用同一拍，不新建 Assignment | `server/crew/rooms/studio/handoff.test.js`、`shared/states.test.js` | 无 |
+| 投递失败重试沿用同一拍，不新建 Assignment | `server/crew/rooms/studio/handoff.test.js`、`server/crew/assignments.test.js`、`shared/states.test.js` | 无 |
 | 退回必须挂到一条会失败的检查；只挑小毛病不阻塞 | `shared/gate.test.js`、`shared/judgment.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
 | 成员回合后对账：写到别人工作树的改动被退回 | `server/crew/workspace-guard.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
 | 长期工作室、轮次隔离、旧轮只读、项目分组 | `server/crew/store-rounds.test.js`、`ui/src/views/project-view.test.js`、`e2e/project.spec.mjs` | 无 |

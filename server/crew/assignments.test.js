@@ -33,6 +33,24 @@ test('each new handoff to the same member is a new attempt', () => {
   assert.equal(second.attempt, 2)
 })
 
+test('only a delivery failure can reopen failed as sent', () => {
+  const room = {
+    id: 'room-1',
+    members: [{ id: 'lead' }, { id: 'worker' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }],
+  }
+  const { store } = makeStore(room)
+  const worked = createAssignment({ store, roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker' })
+  transitionAssignment(store, worked.id, 'sent')
+  transitionAssignment(store, worked.id, 'working')
+  transitionAssignment(store, worked.id, 'failed', { resultText: '没有产出' })
+  assert.equal(transitionAssignment(store, worked.id, 'sent'), null)
+
+  const undelivered = createAssignment({ store, roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker', reason: 'rework' })
+  transitionAssignment(store, undelivered.id, 'failed', { deliveryFailed: true, resultText: '送不到' })
+  assert.equal(transitionAssignment(store, undelivered.id, 'sent')?.status, 'sent')
+})
+
 test('an assignment id cannot be reused by another room', () => {
   const { store } = makeStore({ id: 'room-1', members: [{ id: 'lead' }, { id: 'worker' }], stages: [] })
   createAssignment({ store, roomId: 'room-1', stageIndex: 0, fromMemberId: 'lead', toMemberId: 'worker', id: 'as-shared' })

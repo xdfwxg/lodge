@@ -59,7 +59,13 @@ const fakeStore = room => {
   return withAssignments({
     readRoom: () => current,
     readRooms: () => [current],
+    readMessage: (roomId, id) => messages.find(item => item.id === id) ?? null,
     readMessages: () => messages,
+    upsertMessage: message => {
+      const index = messages.findIndex(item => item.id === message.id)
+      if (index >= 0) messages[index] = message
+      return message
+    },
     updateRoom: (_roomId, mutate) => {
       const result = mutate(current)
       return result === null ? null : current

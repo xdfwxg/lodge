@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createHandoff } from './handoff.js'
+import { transitionAssignment } from '../../assignments.js'
 import { normalizeTestRoom, withAssignments } from '../../testing/room.js'
 
 const room = (over = {}) => normalizeTestRoom({
@@ -24,6 +25,7 @@ const setup = (initial = room(), deliver = null) => {
   let seq = 0
   const store = withAssignments({
     readRoom: () => current,
+    readMessage: (roomId, id) => messages.find(item => item.id === id) ?? null,
     readMessages: () => messages,
     appendMessage: (roomId, message) => {
       const stored = { ...message, id: `m-${++seq}`, roomId, seq, ts: 1 }
@@ -81,7 +83,7 @@ test('a handoff writes a work-turn card, wakes the member and moves its cursor',
   assert.deepEqual(ctx.events.map(event => event.type), ['assignment.created', 'assignment.sent'])
 })
 
-test('a retried handoff keeps one delivery id', async () => {
+test('a sent handoff is not woken again', async () => {
   const ctx = setup()
   const params = {
     room: ctx.room(),
@@ -95,8 +97,8 @@ test('a retried handoff keeps one delivery id', async () => {
   }
   await ctx.handoff.trigger(params)
   await ctx.handoff.trigger(params)
-  assert.equal(ctx.sent.length, 2)
-  assert.equal(ctx.sent[0].options.sendId, ctx.sent[1].options.sendId)
+  assert.equal(ctx.sent.length, 1)
+  assert.equal(ctx.store.readAssignments('room-1').length, 1)
 })
 
 test('a transport failure marks the handoff failed without changing the stage', async () => {
@@ -141,19 +143,47 @@ test('a retry after a transport failure reopens the same assignment', async () =
   await assert.rejects(() => ctx.handoff.trigger(params), /暂时送不到/)
   const failed = ctx.store.readAssignments('room-1')[0]
   assert.equal(failed.status, 'failed')
-  const sent = await ctx.handoff.trigger(params)
+  const sent = await ctx.handoff.trigger({ ...params, prompt: '重试时的新提示' })
   const rows = ctx.store.readAssignments('room-1')
   assert.equal(rows.length, 1)
   assert.equal(sent.id, failed.id)
+  assert.equal(sent.parentAssignmentId, null)
   assert.equal(sent.status, 'sent')
   assert.equal(sent.resultText, '')
+  assert.equal(sent.deliveryFailed, false)
   assert.equal(ctx.store.readAssignment(failed.id).finishedAt, null)
+  assert.equal(ctx.store.readAssignment(failed.id).brief.prompt, '重试时的新提示')
   assert.deepEqual(ctx.events.map(event => event.type), [
     'assignment.created', 'assignment.failed', 'assignment.sent',
   ])
-  const messages = ctx.store.readMessages()
-  assert.equal(messages.filter(message => message.kind === 'handoff').length, 1)
-  assert.equal(messages.find(message => message.kind === 'handoff').meta.status, 'sent')
+  const messages = ctx.store.readMessages().filter(message => message.kind === 'handoff')
+  assert.equal(messages.length, 1)
+  assert.equal(messages[0].id, failed.messageId)
+  assert.equal(messages[0].meta.status, 'sent')
+  assert.equal(messages[0].meta.error, null)
+})
+
+test('a work failure re-dispatches as a new beat, not a delivery retry', async () => {
+  const ctx = setup()
+  const params = {
+    room: ctx.room(),
+    stage: ctx.room().stages[0],
+    index: 0,
+    from: 'lead',
+    to: 'worker',
+    reason: 'dispatch',
+    prompt: '阶段 1「实现」已确认。',
+    acceptance: 'npm test',
+  }
+  const first = await ctx.handoff.trigger(params)
+  transitionAssignment(ctx.store, first.id, 'working')
+  transitionAssignment(ctx.store, first.id, 'failed', { resultText: '没有产出' })
+  const second = await ctx.handoff.trigger(params)
+  const rows = ctx.store.readAssignments('room-1')
+  assert.equal(rows.length, 2)
+  assert.notEqual(second.id, first.id)
+  assert.equal(second.parentAssignmentId, first.id)
+  assert.equal(second.deliveryFailed, false)
 })
 
 test('a delivered assignment is not woken twice', async () => {

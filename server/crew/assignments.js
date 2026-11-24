@@ -138,6 +138,8 @@ export const transitionAssignment = (store, id, status, patch = {}) => {
   const from = typeof store.readAssignment === 'function' ? (store.readAssignment(id)?.status ?? null) : null
   const updated = store.updateAssignment(id, assignment => {
     if (!canTransition(assignment.status, status)) return false
+    // failed → sent 只属于“送达失败”的那一拍；工作失败不能借这个口子回到进行中。
+    if (assignment.status === ASSIGNMENT_STATUS.failed && status === ASSIGNMENT_STATUS.sent && assignment.deliveryFailed !== true) return false
     Object.assign(assignment, patch, { status })
     if (status === ASSIGNMENT_STATUS.sent && assignment.sentAt === null) assignment.sentAt = now()
     if (status === ASSIGNMENT_STATUS.reported || ASSIGNMENT_TERMINAL.has(status)) assignment.lease = null

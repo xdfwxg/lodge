@@ -162,7 +162,7 @@ service.js                   ← 路由分发与用例组合
 发起人、接收人、阶段、原因、brief、状态、结果、证据引用、裁决引用、父交接、时间戳。
 
 - 接收人是房间成员；同 id 对应同一次交接，重复创建返回原记录，不覆盖证据。
-- 状态链：`created → sent → reported → passed`，另分 `failed / rejected`；只通过一个 transition 入口改，校验和写入同一事务；终态不回退，唯一例外是送达失败：同一拍重新投递成功后回到 `sent`，不新建记录，重试前清掉 `finishedAt` 和上次错误。
+- 状态链：`created → sent → reported → passed`，另分 `failed / rejected`；只通过一个 transition 入口改，校验和写入同一事务；终态不回退，唯一例外是送达失败（记录上 `deliveryFailed` 为 true）：同一拍重新投递成功后回到 `sent`，不新建记录，重试前清掉 `finishedAt`、上次错误，并用这次传入的 brief/context 更新账本；工作失败不能走这条路。
 - 交接原因：`dispatch / rework / retry` 是工作交接；`review` 是执行官交给验收员复核；`summary` 是验收通过后交给规划师收尾；`decision` 是退回后交给规划师做例外决定。
 - 人不是房间成员：交给人的交接写 `handoff.human` 事件，不硬塞成 Assignment；交接事件里带 `reason` 和 `actionRequired`。
 - 复核轮次在发起时把验收员固定到 `stages[i].reviewers`；之后加验收员只影响下一轮，不回头要求新成员对上一轮的证据补判定。
