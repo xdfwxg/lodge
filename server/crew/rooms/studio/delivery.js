@@ -64,19 +64,17 @@ const previewArtifacts = room => {
   })
 }
 
-// 完成态交付卡只读投影：目标、阶段、命令、改动文件、结论与 commit。
+// 完成态交付卡只读投影：目标、阶段、结果证据、改动文件、结论与 commit。
 export const buildDelivery = (room, messages = []) => {
   const stages = room.stages.map((stage, index) => {
     const stageMessages = messages.filter(message => (message.meta?.stage ?? 0) === index)
-    const commands = stageMessages
-      .filter(message => message.kind === 'evidence' && message.meta?.kind === 'command')
-      .filter(message => !/^manual$/i.test(String(message.meta?.command ?? '').trim()))
+    const results = stageMessages
+      .filter(message => message.kind === 'evidence' && message.meta?.kind === 'result')
       .map(message => ({
         id: message.id,
-        command: message.meta?.command ?? '',
-        exit: message.meta?.exit ?? null,
         evidenceId: message.id,
         changedFiles: Array.isArray(message.meta?.changedFiles) ? message.meta.changedFiles : [],
+        resultText: typeof message.meta?.resultText === 'string' ? message.meta.resultText : '',
         simulated: message.meta?.simulated === true,
       }))
     const verdicts = stageMessages
@@ -88,28 +86,17 @@ export const buildDelivery = (room, messages = []) => {
         text: judgmentOf(message)?.reason || message.text || '',
         evidenceId: message.meta?.evidenceId ?? null,
       }))
-    const manual = [...stageMessages].reverse()
-      .find(message => message.kind === 'evidence' && message.meta?.kind === 'manual')
-    const manualFiles = Array.isArray(manual?.meta?.changedFiles)
-      ? manual.meta.changedFiles
-      : Array.isArray(manual?.meta?.files) ? manual.meta.files : []
     return {
       index,
       title: stage.title,
       kind: stage.kind,
       state: stage.state,
-      acceptance: stage.acceptance ?? null,
-      commands,
-      manual: manual === undefined ? null : {
-        id: manual.id,
-        text: manual.text ?? '',
-        changedFiles: manualFiles,
-      },
+      deliverable: stage.deliverable ?? null,
+      results,
       verdicts,
-      changedFiles: unique([...commands.flatMap(command => command.changedFiles), ...manualFiles]),
+      changedFiles: unique(results.flatMap(result => result.changedFiles)),
     }
   })
-  const commands = stages.flatMap(stage => stage.commands)
   const changedFiles = unique(stages.flatMap(stage => stage.changedFiles))
   const visualMissing = messages.some(message => message.kind === 'verdict' && message.meta?.visualMissing === true)
   // 渲染图需要一双能看的眼睛；声明和实际看到分开记，不把声明当成已验证。
@@ -171,14 +158,13 @@ export const buildDelivery = (room, messages = []) => {
       ...previewArtifacts(room),
     ],
     stages,
-    commands,
     changedFiles,
     visualMissing,
     vision,
     openQuestions: typeof room.openQuestion === 'string' && room.openQuestion.trim() !== ''
       ? [room.openQuestion.trim()]
       : [],
-    evidenceCount: stages.reduce((total, stage) => total + stage.commands.length + (stage.manual === null ? 0 : 1), 0),
+    evidenceCount: stages.reduce((total, stage) => total + stage.results.length, 0),
   }
   delivery.kind = deliveryKindOf(delivery)
   return delivery

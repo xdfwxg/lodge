@@ -60,7 +60,7 @@ export const promptSamples = () => [
   },
   {
     name: 'studio-alignment',
-    text: alignmentPrompt('把发布检查做出来', 'test', 'npm test', null, [
+    text: alignmentPrompt('把发布检查做出来', null, [
       { id: 'claude', available: true, models: { default: 'claude-sonnet-5' } },
       { id: 'pi', available: true, models: { default: 'pi-3' } },
     ]),
@@ -71,10 +71,9 @@ export const promptSamples = () => [
       room: studioRoom,
       messages: [],
       memberId: 'executor-1',
-      stage: { title: '写清单' },
-      workPackage: { title: '发布清单', files: ['RELEASE.md'], check: 'test -f RELEASE.md' },
+      stage: { title: '写清单', deliverable: '一份发布检查清单' },
+      workPackage: { title: '发布清单', files: ['RELEASE.md'] },
       index: 0,
-      acceptance: 'test -f RELEASE.md',
       workspace: {},
       port: 3001,
       environment: { linked: ['node_modules'] },

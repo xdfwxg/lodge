@@ -27,7 +27,6 @@ export const chatIssuesOf = (room, messages = []) => {
         title: '这轮结论',
         state: ISSUE_STATE.done,
         stage: null,
-        acceptance: null,
         ownerIds: [],
         blockers: [],
       },
@@ -37,7 +36,6 @@ export const chatIssuesOf = (room, messages = []) => {
         title,
         state: ISSUE_STATE.todo,
         stage: null,
-        acceptance: null,
         ownerIds: [],
         blockers: [],
       })),
@@ -50,7 +48,6 @@ export const chatIssuesOf = (room, messages = []) => {
       title: '还在讨论',
       state: ISSUE_STATE.in_progress,
       stage: null,
-      acceptance: null,
       ownerIds: [],
       blockers: [],
     }]

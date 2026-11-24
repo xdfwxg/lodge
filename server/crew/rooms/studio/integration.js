@@ -8,7 +8,7 @@ import { redactSecrets } from '../../../../shared/secrets.js'
 import { activeDispatchAssignments, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
 
-export const createStageIntegrator = ({ store, roomId, emit, markProgress, requestReview, run }) => {
+export const createStageIntegrator = ({ store, roomId, emit, markProgress, requestReview }) => {
   let chain = Promise.resolve()
 
   // 合并、集成验收都串行执行，避免多个回合同时动集成 worktree。
@@ -45,9 +45,9 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     if (updated !== null) emit?.('room', updated)
   }
 
-  // 合并结果已经在一个提交上：人工验收就走人工证据，命令验收在独立副本里跑检查，
-  // 两种情况都要把验收员叫醒，不能停在“可以验收了”。
-  const acceptHead = async ({ room, stage, stageIndex, head, workers, base, merged = [], turnId = '' }) => {
+  // 并行结果已经合到一个提交上：把 diff 和文件清单固定成结果证据，再交给验收员。
+  // 验收员自己在副本里验证，不需要平台预先跑一条命令。
+  const acceptHead = async ({ room, stageIndex, head, workers, base, merged = [], turnId = '' }) => {
     const integration = room.repoPath
     if (typeof head !== 'string' || head === '') {
       systemNotice({ store, roomId, text: '合并结果没有留下提交；待处理。' })
@@ -56,85 +56,25 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     for (const item of activeDispatchAssignments(store, roomId, stageIndex)) {
       updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), integrated: true } })
     }
-    const hasVerifier = verifierIds(room).length > 0
-    if (stage.manual === true) {
-      store.appendMessage(roomId, {
-        kind: 'evidence',
-        authorId: 'system',
-        text: hasVerifier ? '并行结果已合并。' : '并行结果已合并，可以验收了。',
-        meta: {
-          kind: 'manual',
-          vcs: vcsOf(room),
-          stage: stageIndex,
-          workers,
-          merges: merged,
-          head,
-          repoPath: integration,
-          turnId,
-          simulated: false,
-          capturedAt: new Date().toISOString(),
-        },
-      })
-      store.appendEvent(roomId, 'room.integration', { stage: stageIndex, head, workers, merged, manual: true })
-      clearBlocked(stageIndex)
-      markProgress()
-      if (hasVerifier) {
-        try {
-          await requestReview(stageIndex)
-        } catch (error) {
-          systemNotice({ store, roomId, text: '结果已经合到一起，但没能叫验收员来看；待处理。', error })
-        }
-      }
-      return
-    }
-    const range = await workspaceOf(room).rangeChanges({ path: integration, base })
-    const command = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
-    if (command === '') {
-      systemNotice({ store, roomId, text: `第 ${stageIndex + 1} 步没有检查方式；结果由你确认。` })
-      return
-    }
-    let copy
+    let range = { diff: '', files: [] }
     try {
-      copy = workspaceOf(room).isolatedCopy({ source: room.sourceRepo, ref: head })
-    } catch (error) {
-      systemNotice({ store, roomId, text: '集成检查没跑成；结果由你确认。', error })
-      return
-    }
-    const port = room.ports?.integration
-    let result
-    try {
-      result = await run({
-        command,
-        cwd: copy.path,
-        env: port === undefined ? undefined : { PORT: String(port) },
-        sandbox: true,
-      })
-    } finally {
-      workspaceOf(room).removeIsolatedCopy({ source: room.sourceRepo, copy })
-    }
+      range = await workspaceOf(room).rangeChanges({ path: integration, base })
+    } catch {}
     const names = workers.map(worker => memberDisplayName(room, worker)).join('、')
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
-      text: `检查${result.exit === 0 ? '通过' : '没通过'}；这次检查在独立副本里执行。并行执行：${names}。`,
+      text: `并行结果已合并：${names}。`,
       meta: {
-        kind: 'command',
+        kind: 'result',
         vcs: vcsOf(room),
         stage: stageIndex,
-        command: redactSecrets(command),
-        exit: result.exit,
-        output: redactSecrets(result.output),
         diff: redactSecrets(range.diff),
         status: range.files.map(file => `M ${file}`).join('\n'),
         files: range.files,
         manifest: range.manifest ?? [],
         changedFiles: range.files,
-        note: result.timedOut ? '命令超时' : '',
-        durationMs: result.durationMs,
         repoPath: integration,
-        commandCwd: copy.path,
-        isolated: true,
-        sandbox: result.sandbox,
         turnId,
         workers,
         merges: merged,
@@ -144,26 +84,13 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       },
     })
     store.appendEvent(roomId, 'room.integration', { stage: stageIndex, head, workers, merged })
-    store.appendEvent(roomId, 'acceptance.run', {
-      stage: stageIndex,
-      command,
-      exit: result.exit,
-      durationMs: result.durationMs,
-      isolated: true,
-      sandbox: result.sandbox,
-    })
     clearBlocked(stageIndex)
-    if (result.exit !== 0) {
-      store.appendMessage(roomId, { kind: 'system', text: '检查没通过 · 重做后才能复核' })
-      return
-    }
     markProgress()
-    if (hasVerifier) {
-      try {
-        await requestReview(stageIndex)
-      } catch (error) {
-        systemNotice({ store, roomId, text: '检查做完了，但没能叫验收员来看；结果还在房间里。', error })
-      }
+    if (verifierIds(room).length === 0) return
+    try {
+      await requestReview(stageIndex)
+    } catch (error) {
+      systemNotice({ store, roomId, text: '结果已经合到一起，但没能叫验收员来看；待处理。', error })
     }
   }
 

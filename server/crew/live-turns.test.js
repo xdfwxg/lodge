@@ -10,7 +10,7 @@ const ports = createCrewPorts()
 const store = messages => withAssignments({
   readRoom: () => normalizeTestRoom({
     id: 'room-1',
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
     seatSpecs: [{ id: 'verifier', role: 'verifier', name: 'Verifier' }],
     seatNames: { verifier: 'Verifier' },
     seatRooms: {},
@@ -37,7 +37,7 @@ test('resume starts an active stage by waking the executor', async () => {
       { id: 'planner', role: 'lead', name: 'Planner' },
       { id: 'worker', role: 'worker', name: 'Worker' },
     ],
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
   })
   const turns = createLiveTurns({
     store: {
@@ -52,13 +52,12 @@ test('resume starts an active stage by waking the executor', async () => {
       sent.push([member, text])
       return { messageId: null }
     },
-    commands: ports.commands,
     files: ports.files,
   })
   await turns.resume()
   assert.equal(sent.length, 1)
   assert.equal(sent[0][0], 'worker')
-  assert.match(sent[0][1], /阶段 1「impl」已确认/)
+  assert.match(sent[0][1], /这一步要交付：ship it/)
 })
 
 test('resume re-requests a review that was pending before restart', async () => {
@@ -75,14 +74,14 @@ test('resume re-requests a review that was pending before restart', async () => 
       { id: 'worker', role: 'worker', name: 'Worker' },
       { id: 'verifier', role: 'verifier', name: 'Verifier' },
     ],
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
     usage: { costMicroUsd: 0, budgetMicroUsd: 5_000_000 },
   })
   const evidence = {
     id: 'e1',
     kind: 'evidence',
     seq: 1,
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0 },
+    meta: { stage: 0, kind: 'result' },
   }
   const turns = createLiveTurns({
     store: {
@@ -99,7 +98,6 @@ test('resume re-requests a review that was pending before restart', async () => 
       sent.push(member)
       return { messageId: null }
     },
-    commands: ports.commands,
     files: ports.files,
   })
   await turns.resume()
@@ -120,13 +118,13 @@ test('resume re-requests a manual review that was pending before restart', async
       { id: 'worker', role: 'worker', name: 'Worker' },
       { id: 'verifier', role: 'verifier', name: 'Verifier' },
     ],
-    stages: [{ title: 'artifact', kind: 'deliverable', manual: true, state: 'active' }],
+    stages: [{ title: 'artifact', kind: 'deliverable', state: 'active', deliverable: '一份结果' }],
   })
   const evidence = {
     id: 'e-manual',
     kind: 'evidence',
     seq: 1,
-    meta: { stage: 0, kind: 'manual' },
+    meta: { stage: 0, kind: 'result' },
   }
   const turns = createLiveTurns({
     store: {
@@ -143,7 +141,6 @@ test('resume re-requests a manual review that was pending before restart', async
       sent.push(member)
       return { messageId: null }
     },
-    commands: ports.commands,
     files: ports.files,
   })
   await turns.resume()
@@ -160,7 +157,7 @@ test('resume leaves a busy room alone', async () => {
     workers: ['worker'],
     seatNames: { worker: 'Worker' },
     seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
   })
   const turns = createLiveTurns({
     store: { ...store([]), readRoom: () => room, updateRoom: () => null },
@@ -171,7 +168,6 @@ test('resume leaves a busy room alone', async () => {
       sent += 1
       return { messageId: null }
     },
-    commands: ports.commands,
     files: ports.files,
   })
   await turns.resume()
@@ -189,7 +185,6 @@ test('turns already captured before restart are not captured again', () => {
     roomId: 'room-1',
     emit: () => {},
     sendToMember: async () => ({ messageId: null }),
-    commands: ports.commands,
     files: ports.files,
   })
   turns.seed([{ kind: 'evidence', meta: { turnId: 'turn-1' } }])
@@ -206,7 +201,6 @@ test('a business rejection from review is a typed failure, not a system error', 
     roomId: 'room-1',
     emit: () => {},
     sendToMember: async () => ({ messageId: null }),
-    commands: ports.commands,
     files: ports.files,
   })
   await assert.rejects(
@@ -232,7 +226,7 @@ test('resume wakes only the assignments that have not reported', async () => {
       { id: 'w2', role: 'worker', name: 'W2' },
     ],
     orchestration: 'parallel',
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
   })
   const evidence = {
     id: 'e1',
@@ -274,12 +268,11 @@ test('resume wakes only the assignments that have not reported', async () => {
       sent.push([member, text])
       return { messageId: null }
     },
-    commands: ports.commands,
     files: ports.files,
   })
   await turns.resume()
   assert.deepEqual(sent.map(item => item[0]), ['w2'])
-  assert.match(sent[0][1], /阶段 1「impl」已确认/)
+  assert.match(sent[0][1], /这一步要交付：ship it/)
 })
 
 test('resume does not dispatch a step the planner handed to the human', async () => {
@@ -292,7 +285,7 @@ test('resume does not dispatch a step the planner handed to the human', async ()
     workers: ['worker'],
     seatNames: { worker: 'Worker' },
     seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
     lastPlannerDecision: { stage: 0, kind: 'human', verdictId: 'v1' },
   })
   const turns = createLiveTurns({
@@ -304,7 +297,6 @@ test('resume does not dispatch a step the planner handed to the human', async ()
       sent += 1
       return { messageId: null }
     },
-    commands: ports.commands,
     files: ports.files,
   })
   await turns.resume()

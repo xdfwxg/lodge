@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { deliveryRecord } from './delivery-record.js'
 
-test('the delivery record carries goal, checks, verdicts and files', () => {
+test('the delivery record carries goal, results, verdicts and files', () => {
   const room = {
     name: '导出交付',
     goal: '在根目录写 hello.txt',
@@ -11,11 +11,11 @@ test('the delivery record carries goal, checks, verdicts and files', () => {
     branch: 'crew/x/worker',
     stages: [
       { title: '目标对齐', state: 'passed' },
-      { title: '写 hello.txt', state: 'passed', acceptance: 'npm test' },
+      { title: '写 hello.txt', state: 'passed', deliverable: '根目录的 hello.txt' },
     ],
     members: [{ id: 'verifier', name: '验收员' }],
     messages: [
-      { kind: 'evidence', meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0, changedFiles: ['hello.txt'] } },
+      { kind: 'evidence', meta: { kind: 'result', stage: 1, resultText: '写好了', changedFiles: ['hello.txt'] } },
       { kind: 'verdict', authorId: 'verifier', text: 'PASS 内容正确', meta: { stage: 1, pass: true } },
     ],
   }
@@ -23,8 +23,9 @@ test('the delivery record carries goal, checks, verdicts and files', () => {
   assert.match(text, /# 导出交付/)
   assert.match(text, /目标：在根目录写 hello\.txt/)
   assert.match(text, /状态：已交付/)
-  assert.match(text, /写 hello\.txt — 已完成 · 检查：`npm test`/)
-  assert.match(text, /`npm test` → 退出码 0/)
+  assert.match(text, /写 hello\.txt — 已完成 · 交付：根目录的 hello\.txt/)
+  assert.match(text, /## 结果/)
+  assert.match(text, /`hello\.txt` · 写好了/)
   assert.match(text, /通过 · 验收员 · 内容正确/)
   assert.match(text, /hello\.txt/)
   assert.match(text, /分支：crew\/x\/worker/)
@@ -33,7 +34,7 @@ test('the delivery record carries goal, checks, verdicts and files', () => {
 test('an unfinished room still reads honestly', () => {
   const text = deliveryRecord({ name: '半成品', goal: '写点东西', state: 'active', stages: [{ title: '写', state: 'active' }] })
   assert.match(text, /状态：进行中/)
-  assert.match(text, /没有运行检查/)
+  assert.match(text, /没有结果证据/)
   assert.match(text, /没有验收结论/)
 })
 

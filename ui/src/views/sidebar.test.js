@@ -32,11 +32,11 @@ test('room search matches name, goal and status text', () => {
   const rooms = [
     { id: 'a', name: '发布检查', goal: '把清单做成可勾选的一页', state: 'active', live: true },
     { id: 'b', name: '周会讨论', goal: '把周会压到二十分钟', state: 'idle', workRound: { id: 'round-1', status: 'completed' } },
-    { id: 'c', name: '简历', state: 'active', needsYou: { kind: 'signoff', label: '待确认' } },
+    { id: 'c', name: '简历', state: 'active', needsYou: { kind: 'signoff', label: '验收通过' } },
   ]
   assert.deepEqual(filterRooms(rooms, '发布').map(room => room.id), ['a'])
   assert.deepEqual(filterRooms(rooms, '周会').map(room => room.id), ['b'])
-  assert.deepEqual(filterRooms(rooms, '待确认').map(room => room.id), ['c'])
+  assert.deepEqual(filterRooms(rooms, '验收通过').map(room => room.id), ['c'])
   assert.deepEqual(filterRooms(rooms, '  ').map(room => room.id), ['a', 'b', 'c'])
   assert.deepEqual(filterRooms(rooms, '不存在'), [])
 })
@@ -79,11 +79,11 @@ test('an active next round is not grouped or labelled as delivered', () => {
 test('verifier progress and a passed step are not pending work', () => {
   const review = { id: 'review', name: '复核中', state: 'active', live: true, needsYou: { kind: 'review', label: '验收员在看', actionable: false }, messages: [{ ts: 2 }] }
   const signoff = { id: 'signoff', name: '通过中', state: 'active', live: true, needsYou: { kind: 'signoff', label: '', actionable: false }, messages: [{ ts: 3 }] }
-  const confirm = { id: 'confirm', name: '等你确认', state: 'active', needsYou: { kind: 'confirm', label: '待确认' }, messages: [{ ts: 4 }] }
-  assert.deepEqual(orderRooms([review, signoff, confirm]).map(room => room.id), ['confirm', 'signoff', 'review'])
+  const approval = { id: 'approval', name: '等你确认', state: 'active', needsYou: { kind: 'approval', label: '待确认' }, messages: [{ ts: 4 }] }
+  assert.deepEqual(orderRooms([review, signoff, approval]).map(room => room.id), ['approval', 'signoff', 'review'])
   assert.equal(metaOf(review), '')
   assert.equal(metaOf(signoff), '')
-  assert.equal(metaOf(confirm), '待确认')
+  assert.equal(metaOf(approval), '待确认')
   assert.equal(roomLabelOf(review), '复核中，进行中')
-  assert.equal(roomLabelOf(confirm), '等你确认，待确认')
+  assert.equal(roomLabelOf(approval), '等你确认，待确认')
 })

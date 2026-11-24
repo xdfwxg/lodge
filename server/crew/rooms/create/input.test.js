@@ -1,20 +1,23 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { normalizePlan, normalizeRequest, runnableCheck } from './input.js'
+import { normalizePlan, normalizeRequest } from './input.js'
 
 const body = stages => ({ plan: { done: ['结果能核对'], stages } })
 
-test('a deliverable stage needs a runnable command, not a sentence', () => {
-  const prose = normalizePlan({ body: body([{ title: '实现', kind: 'deliverable', acceptance: '看起来没问题' }]) })
-  assert.match(prose.error, /能跑的命令/)
-  assert.equal(normalizePlan({ body: body([{ title: '实现', kind: 'deliverable', acceptance: 'npm test' }]) }).error, undefined)
-  assert.equal(normalizePlan({ body: body([{ title: '实现', kind: 'deliverable', acceptance: './scripts/check.sh' }]) }).error, undefined)
-  assert.equal(normalizePlan({ body: body([{ title: '实现', kind: 'deliverable', acceptance: 'test -f out/a.png' }]) }).error, undefined)
+test('every stage names what it delivers, not how to verify it', () => {
+  const missing = normalizePlan({ body: body([{ title: '实现' }]) })
+  assert.match(missing.error, /缺少交付物/)
+  const planned = normalizePlan({ body: body([{ title: '实现', deliverable: '导出按钮能用' }]) })
+  assert.equal(planned.error, undefined)
+  assert.equal(planned.plan.stages[0].deliverable, '导出按钮能用')
+  assert.equal('acceptance' in planned.plan.stages[0], false)
 })
 
-test('decision stages and manual sign-off need no command', () => {
-  assert.equal(normalizePlan({ body: body([{ title: '确认方向', kind: 'decision' }]) }).error, undefined)
-  assert.equal(normalizePlan({ body: body([{ title: '导出', kind: 'deliverable', acceptance: 'manual' }]) }).error, undefined)
+test('stage packages keep files but no planner-written check', () => {
+  const planned = normalizePlan({
+    body: body([{ title: '实现', deliverable: '导出按钮能用', packages: [{ title: '导出', files: ['src/a.js'], check: 'npm test' }] }]),
+  })
+  assert.deepEqual(planned.plan.stages[0].packages, [{ title: '导出', files: ['src/a.js'] }])
 })
 
 test('studio roots carry a project north star without a phase chain', () => {
@@ -22,13 +25,4 @@ test('studio roots carry a project north star without a phase chain', () => {
   assert.deepEqual(root.project, { northStar: '做一个长期问候库' })
   assert.equal(root.phase, undefined)
   assert.equal(root.continuation, undefined)
-})
-
-test('runnableCheck reads the first word as the command', () => {
-  assert.equal(runnableCheck('node --test'), true)
-  assert.equal(runnableCheck('cd ui && npm run build'), true)
-  assert.equal(runnableCheck('/usr/bin/env bash check.sh'), true)
-  assert.equal(runnableCheck('done'), false)
-  assert.equal(runnableCheck('检查一下页面'), false)
-  assert.equal(runnableCheck(''), false)
 })

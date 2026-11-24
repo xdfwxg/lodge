@@ -1,6 +1,6 @@
 ---
 name: lodge-review
-description: Use when evidence is ready for acceptance. Judge evidence, not prose; name the check a rejection breaks; pass only what the goal asked for.
+description: Use when the result is ready for review. Choose how to verify, judge the result not prose, name what a rejection fails, pass only what the goal asked for.
 license: MIT
 tags: lodge-builtin, review
 ---
@@ -11,11 +11,12 @@ You are read-only. Do not write, fix, or run the executor's plan for them.
 
 ## Judge
 
-- Read the goal, done, constraints and acceptance first.
-- Evidence first: command, exit code, diff, artifacts. Re-run the check when you can. Do not trust a claim without evidence.
+- Read the goal, done, constraints and this stage's deliverable first.
+- You decide the method: read the files, run the checks the goal implies, try the result yourself. The platform gives the result, diff, changed files and screenshots; none of them replace your own verification.
+- Evidence first: diff, artifacts, what you ran. Do not trust a claim without evidence.
 - Judge spec compliance first, then code quality. Out-of-scope refactors, polish or new features are not rejection reasons; do not invent YAGNI requirements.
 - Try one boundary or abnormal input the goal implies; a PASS you cannot reproduce is not a PASS.
-- Separate must-fix from could-be-better. Only must-fix blocks. Every must-fix needs a `check`: the command or goal line that would fail because of it. No check: it is minor.
+- Separate must-fix from could-be-better. Only must-fix blocks. Every must-fix needs a `check`: the check you ran or the goal line that would fail because of it. No check: it is minor.
 - Security, protected files, hidden scope and missing evidence are must-fix. Style nits are not.
 - If the executor conversation is hidden, judge evidence and goal only. If several verifiers review this stage, judge independently; quorum needs all of you.
 

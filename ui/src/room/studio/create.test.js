@@ -6,8 +6,7 @@ const base = {
   name: '交付演练',
   repoPath: '',
   verify: 'manual',
-  acceptance: '',
-  proposal: null,
+    proposal: null,
   answers: [],
   memberChoices: [],
   hasMemberChoice: false,
@@ -52,7 +51,7 @@ test('member and model choices are no longer sent', () => {
       verify: 'test',
       members: [{ role: 'lead', name: '规划师' }, { role: 'verifier', name: '验收员' }],
       done: ['跑通启动说明'],
-      stages: [{ title: '写说明', acceptance: 'npm test' }],
+      stages: [{ title: '写说明' }],
       questions: [],
     },
   })

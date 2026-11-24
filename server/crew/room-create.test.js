@@ -29,7 +29,7 @@ const completedRoom = dataDir => {
     name: '上一轮交付',
     goal: '加一个导出按钮',
     state: 'complete',
-    stages: [{ title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' }],
+    stages: [{ title: '实现', kind: 'deliverable', state: 'passed' }],
     constraints: [],
     seatSpecs: [],
     workers: ['executor'],
@@ -138,7 +138,6 @@ test('a handoff brief with a long topic names the stage after the task, not the 
     goal: topic,
     name: '姓名缩写',
     verify: 'test',
-    acceptance: 'npm test',
     handoffBrief: {
       topic,
       consensus: ['中文取声母', '英文取首字母'],
@@ -287,7 +286,6 @@ test('a plan with more than three questions is rejected, not silently trimmed', 
   const result = await run(store, {
     goal: '验证开工卡问题上限',
     verify: 'test',
-    acceptance: 'true',
     repoPath: gitRepo(),
     members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     plan: {
@@ -309,7 +307,6 @@ test('a confirmed plan starts at delivery but keeps the final acceptance stage',
   const result = await run(store, {
     goal: '三段式房间',
     verify: 'test',
-    acceptance: 'npm test',
     repoPath: gitRepo(),
     members: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
     plan: { done: ['验收命令通过'], answers: [{ question: '范围？', answer: '只改一处' }] },
@@ -323,25 +320,6 @@ test('a confirmed plan starts at delivery but keeps the final acceptance stage',
   assert.equal(room.stages[2].title, '验收与结论')
 })
 
-test('a plan stage with manual acceptance becomes a decision stage', async () => {
-  const { store } = completedRoom(temp('lodge-manual-stage-data-'))
-  const result = await run(store, {
-    goal: '人工验收阶段',
-    verify: 'test',
-    acceptance: 'npm test',
-    repoPath: gitRepo(),
-    members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-    plan: {
-      done: ['导出文件'],
-      stages: [{ title: '导出', kind: 'deliverable', acceptance: 'manual' }],
-    },
-  })
-  assert.equal(result.ok, true)
-  const room = result.body.room
-  assert.equal(room.stages[0].kind, 'decision')
-  assert.equal(room.stages[0].acceptance, undefined)
-})
-
 test('a plan can declare multiple work stages between alignment and acceptance', async () => {
   const { store } = completedRoom(temp('lodge-plan-stages-data-'))
   const result = await run(store, {
@@ -352,8 +330,8 @@ test('a plan can declare multiple work stages between alignment and acceptance',
     plan: {
       done: ['两段都通过'],
       stages: [
-        { title: '实现', kind: 'deliverable', acceptance: 'npm test' },
-        { title: '回归', kind: 'deliverable', acceptance: 'npm run e2e' },
+        { title: '实现', deliverable: '功能可用' },
+        { title: '回归', deliverable: '回归通过' },
       ],
     },
   })
@@ -361,29 +339,7 @@ test('a plan can declare multiple work stages between alignment and acceptance',
   const room = result.body.room
   assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '实现', '回归', '验收与结论'])
   assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'active', 'pending', 'pending'])
-  assert.equal(room.stages[2].acceptance, 'npm run e2e')
-})
-
-test('an opening decision stage is kept, not guessed by its title', async () => {
-  const { store } = completedRoom(temp('lodge-opening-gate-data-'))
-  const result = await run(store, {
-    goal: '不要跳过真正的确认',
-    verify: 'test',
-    repoPath: gitRepo(),
-    members: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
-    plan: {
-      done: ['实现并通过测试'],
-      answers: [{ question: '改哪个文件？', answer: 'logo.png' }],
-      stages: [
-        { title: '确认源文件与改动方向', kind: 'decision' },
-        { title: '实现', kind: 'deliverable', acceptance: 'npm test' },
-      ],
-    },
-  })
-  assert.equal(result.ok, true)
-  const room = result.body.room
-  assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '确认源文件与改动方向', '实现', '验收与结论'])
-  assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'active', 'pending', 'pending'])
+  assert.equal(room.stages[2].deliverable, '回归通过')
 })
 
 test('legacy room types fail closed', async () => {
@@ -545,7 +501,6 @@ test('studio creation waits for human review when the handoff has disagreements'
   assert.equal(accepted.ok, true)
   assert.equal(accepted.body.room.gate.humanReviewed, true)
   assert.ok(accepted.body.room.gate.reviewedAt > 0)
-  assert.deepEqual(accepted.body.room.gate.verification, { mode: 'manual' })
   assert.equal(accepted.body.room.handoffBrief.disagreements[0], '是否自动回滚')
   assert.equal(accepted.body.room.transfer.kind, 'handoff')
   assert.equal(accepted.body.room.transfer.fromRoomId, 'room-chat-source')

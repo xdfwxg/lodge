@@ -23,7 +23,7 @@ export const createProvisioner = ({ engine }) => {
   const createdRooms = []
   let cleanupExtra = null
 
-  const provision = async ({ roster, short, title, goal, handoffBrief = null, verify, acceptance, workspaces, roomType = 'studio', shadowReview = false, align = false }) => {
+  const provision = async ({ roster, short, title, goal, handoffBrief = null, workspaces, roomType = 'studio', shadowReview = false, align = false }) => {
     const mode = roomModeForType(roomType)
     const instances = await bodies.instances()
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
@@ -59,7 +59,7 @@ export const createProvisioner = ({ engine }) => {
         thread: {
           name: `${title} · ${member.name}`,
           goal,
-          bulletin: roomBulletin(goal, verify, acceptance, handoffBrief),
+          bulletin: roomBulletin(goal, handoffBrief),
           cwd: workspaces.members[member.id].path,
         },
       })

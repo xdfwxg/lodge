@@ -13,7 +13,7 @@ const roomRecord = () => ({
   goal: 'g',
   state: 'active',
   live: false,
-  stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+  stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
   members: [],
   childRoomIds: [],
 })

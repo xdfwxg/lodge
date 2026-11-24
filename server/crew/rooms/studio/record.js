@@ -1,18 +1,10 @@
-export const studioConstraints = ({
-  plan,
-  verify,
-  acceptance,
-  verifiers,
-  independence,
-}) => [
-  '交接由系统投递：写清下一步做什么、怎么算完成、交给谁（写名字，不带 @）',
-  plan?.stages?.length > 0
-    ? `阶段验收：${plan.stages.filter(stage => stage.acceptance).map(stage => `${stage.title} → ${stage.acceptance}`).join('；') || '人确认'}`
-    : verify === 'test' ? `验收命令：${acceptance}` : '验收方式：人确认，不跑命令',
+export const studioConstraints = ({ plan, verifiers, independence }) => [
+  '交接由系统投递：写清下一步做什么、交给谁（写名字，不带 @）',
+  '验收由验收员按房间目标决定方法和证据，不依赖规划师预先写好的检查',
   ...(verifiers.length === 0
     ? ['这个房间没有独立验收员，由你凭证据确认']
     : [independence === 'vendor'
-      ? '执行与验收已绑定不同厂商；验收员在独立副本里复核'
+      ? '执行与验收已绑定不同厂商；验收员在独立副本里自行验证'
       : '当前只有同一家模型可用：复核和执行来自同一家，独立复核会打折']),
 ]
 

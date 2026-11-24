@@ -4,13 +4,12 @@
 import { needsAction } from '../needs.js'
 
 const DECISION_KINDS = new Set([
-  'decision', 'confirm', 'question', 'rework', 'merge', 'parallel',
-  'review-timeout', 'setup', 'approval', 'error', 'mcp', 'auto-check',
+  'decision', 'question', 'rework', 'merge', 'parallel',
+  'review-timeout', 'approval', 'error', 'mcp',
   'blocked', 'connection', 'budget',
 ])
 
 const DECISION_TONE = {
-  'auto-check': 'paused',
   budget: 'paused',
   rework: 'paused',
   merge: 'paused',
@@ -36,15 +35,12 @@ const withStage = (label, text) => (
 
 const decisionText = (kind, label, fallback) => {
   switch (kind) {
-    case 'confirm': return label === '' ? '这一步等你确认' : `${label}等你确认`
     case 'decision': return label === '' ? '有一处要你拍板' : `${label}有一处要你拍板`
     case 'question': return '成员问了一个问题'
     case 'rework': return label === '' ? '有一步被退回了' : `${label}被验收退回了`
     case 'merge': return label === '' ? '合并没合上' : `${label}合并没合上`
     case 'parallel': return withStage(label, fallback === undefined || fallback === '' ? '这一步卡住了' : fallback)
-    case 'auto-check': return fallback ?? '这一步没做成'
     case 'review-timeout': return withStage(label, fallback === undefined || fallback === '' ? '复核没按时回来' : fallback)
-    case 'setup': return label === '' ? '还没定怎么验收' : `${label}还没定怎么验收`
     case 'approval': return '有一个操作要你点头'
     case 'error': return fallback === undefined || fallback === '' ? '有成员出错了' : fallback
     case 'mcp': return '连接断了'
@@ -133,14 +129,6 @@ const eventForMessage = (room, message) => {
         key, kind: 'milestone', tone: pass ? 'done' : 'paused', at,
         title: `${stageLabel(room, index) || '这一步'}${pass ? '通过' : '退回'}`,
         detail: clean(message.text),
-      })
-    }
-    case 'evidence': {
-      if (message.meta?.kind !== 'command' || message.meta?.exit !== 0) return null
-      return wrap(20, {
-        key, kind: 'milestone', tone: 'done', at,
-        title: '检查通过',
-        detail: clean(message.meta?.command) || '这一步的检查已经通过',
       })
     }
     default:

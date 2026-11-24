@@ -94,7 +94,7 @@ export const createTimelineStore = ({
     roomId,
     workRoundId === undefined ? {} : { workRoundId },
   )
-    .filter(message => message.kind === 'evidence' && (message.meta?.kind === 'command' || message.meta?.kind === 'manual'))
+    .filter(message => message.kind === 'evidence' && message.meta?.kind === 'result')
     .map(message => ({
       id: message.id,
       roomId: message.roomId,

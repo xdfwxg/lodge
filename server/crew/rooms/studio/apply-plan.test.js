@@ -71,7 +71,7 @@ const proposal = (over = {}) => ({
   proposal: {
     plan: {
       done: ['能跑'],
-      stages: [{ title: '实现', acceptance: 'npm test', packages: [{ title: '导出', files: ['src/export.js'], check: 'npm test' }] }],
+      stages: [{ title: '实现', deliverable: '导出按钮能用', packages: [{ title: '导出', files: ['src/export.js'] }] }],
     },
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
@@ -90,6 +90,25 @@ test('a valid plan opens the crew and starts the first work stage', async () => 
   assert.equal(ctx.room.stages[1].state, 'active')
   assert.deepEqual(ctx.started, [1])
   assert.match(ctx.messages.at(-1).text, /队伍已经开好/)
+  assert.deepEqual(ctx.sent, [])
+})
+
+test('a writing stage is applied with its deliverable, not a check', async () => {
+  const ctx = setup()
+  await ctx.applier('room-1', proposal({
+    plan: {
+      done: ['设定自洽'],
+      stages: [{
+        title: '世界与骨架',
+        deliverable: '设定、境界和六卷大纲',
+        packages: [{ title: '设定与大纲', files: ['OUTLINE.md'] }],
+      }],
+    },
+  }))
+  assert.equal(ctx.room.workRound.plan.stages.length, 1)
+  assert.equal(ctx.room.workRound.plan.stages[0].deliverable, '设定、境界和六卷大纲')
+  assert.equal(ctx.room.stages[1].state, 'active')
+  assert.deepEqual(ctx.started, [1])
   assert.deepEqual(ctx.sent, [])
 })
 
@@ -129,7 +148,6 @@ test('two independent packages need two executors', async () => {
       done: ['能跑'],
       stages: [{
         title: '实现',
-        acceptance: 'npm test',
         packages: [{ title: '甲', files: ['a.js'] }, { title: '乙', files: ['b.js'] }],
       }],
     },
@@ -170,7 +188,6 @@ test('a parallel plan writes orchestration through the round instead of the room
       done: ['两块都完成'],
       stages: [{
         title: '实现',
-        acceptance: 'npm test',
         packages: [
           { title: '导出', files: ['src/export.js'], check: 'npm test' },
           { title: '导入', files: ['src/import.js'], check: 'npm test' },

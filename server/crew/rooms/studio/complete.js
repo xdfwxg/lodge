@@ -36,7 +36,6 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       text: `已交付：${room.goal}`,
       meta: {
         stages: room.stages.length,
-        commands: room.stages.map(item => item.acceptance).filter(Boolean),
         roundId: round.id,
       },
     }
@@ -45,7 +44,6 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
         appendMessage(room.id, conclusion)
         appendEvent(room.id, 'room.conclusion', {
           stages: room.stages.length,
-          commands: room.stages.map(item => item.acceptance).filter(Boolean),
         })
       }
       appendMessage(room.id, { kind: 'system', text: '示例房间 · 不写结论文件，也不生成版本记录' })

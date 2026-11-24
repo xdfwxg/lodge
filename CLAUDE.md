@@ -16,6 +16,7 @@
 
 - 业务逻辑只写 `server/crew/`；驱动差异放 `server/base.js`；共享契约在 `shared/`；界面在 `ui/src/`。
 - 只有两套房间引擎：聊天室（规则）和工作室（Planner/Executor/Verifier）。不新增第四种底层角色，不把完整执行引擎挂进聊天室。
+- 验收契约：规划师只拆解，执行官每步执行，验收员每步自验，人只事后否决。规划师只写交付物，不写验收命令；完成 = 验收通过，不需要人在中间确认。
 - 不引 CrewAI/LangGraph/AutoGen 这类编排框架；房间、阶段、证据是唯一真相。
 - 不自动 commit / push / 开 PR；外部动作先问人。提交前由本地 hook 跑 `npm run check:done`，没过就拦下。
 - 旧数据直接清掉，不留兼容 shim。

@@ -102,7 +102,7 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
         thread: {
           name: `${room.name} · ${name}`,
           goal: room.goal,
-          bulletin: roomBulletin(room.goal, room.verify ?? 'manual', room.acceptance ?? '', room.handoffBrief ?? null),
+          bulletin: roomBulletin(room.goal, room.handoffBrief ?? null),
           cwd: memberWorkspace.path,
         },
       })

@@ -321,6 +321,6 @@ export const gateResultOf = judgment => {
   }
 }
 
-export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据","check":"哪条验收命令或目标行会因它失败"}],"outsideDiff":"diff 之外最值得担心的一条风险；没有就写「无」"}；最多 3 条 findings，没有就写空数组。不通过至少要有一条带 check 的 blocker/major；只有 minor 的问题请判通过。'
+export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据","check":"你实际跑的哪条检查或目标哪一行会因它失败"}],"outsideDiff":"diff 之外最值得担心的一条风险；没有就写「无」"}；最多 3 条 findings，没有就写空数组。不通过至少要有一条带 check 的 blocker/major；只有 minor 的问题请判通过。'
 
 export const DECISION_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"怎么改 / 要人拍板什么","actionRequired":"要人做什么"}；“交给人”时 actionRequired 必填，缺失时用 reason 兜底。'

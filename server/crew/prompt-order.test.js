@@ -12,7 +12,7 @@ const room = {
   plan: { done: ['结果可核对', '证据齐全'] },
   stages: [
     { title: '对齐', kind: 'decision', state: 'passed' },
-    { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' },
+    { title: '实现', kind: 'deliverable', state: 'active', deliverable: '顺序固定住' },
     { title: '验收与结论', kind: 'decision', state: 'pending' },
   ],
   members: [
@@ -23,9 +23,9 @@ const room = {
 }
 
 const messages = [
-  { id: 'e1', kind: 'evidence', seq: 1, meta: { stage: 1, kind: 'command', command: 'npm test', exit: 0, changedFiles: ['a.js'] } },
+  { id: 'e1', kind: 'evidence', seq: 1, meta: { stage: 1, kind: 'result', changedFiles: ['a.js'] } },
   { id: 'v1', kind: 'verdict', seq: 2, authorId: 'verifier', text: 'REJECT', meta: { stage: 1, pass: false } },
-  { id: 'e2', kind: 'evidence', seq: 3, meta: { stage: 1, kind: 'command', command: 'npm run check', exit: 0, changedFiles: ['b.js'] } },
+  { id: 'e2', kind: 'evidence', seq: 3, meta: { stage: 1, kind: 'result', changedFiles: ['b.js'] } },
   { id: 'v2', kind: 'verdict', seq: 4, authorId: 'verifier', text: 'PASS', meta: { stage: 1, pass: true } },
 ]
 
@@ -47,8 +47,8 @@ test('stage and evidence digests follow the stored stage and message order', () 
     ['1. 对齐', '2. 实现', '3. 验收与结论'],
   )
   assert.deepEqual(evidenceDigest(messages), [
-    '阶段 2 · npm test · exit 0 · a.js',
-    '阶段 2 · npm run check · exit 0 · b.js',
+    '阶段 2 · 结果 · a.js',
+    '阶段 2 · 结果 · b.js',
   ])
 })
 
@@ -70,12 +70,11 @@ test('the worker prompt is byte-identical across repeated builds', () => {
     messages: clone(messages),
     stage: clone(room.stages[1]),
     index: 1,
-    acceptance: '验收命令：`npm test`。',
     workspace: { candidate: true, parallel: false, isolation: 'worktree' },
   }
   const first = studioWorkerPrompt(clone(input))
   const second = studioWorkerPrompt(clone(input))
   assert.equal(first, second)
-  assert.match(first, /阶段 2「实现」已确认/)
+  assert.match(first, /这一步要交付：顺序固定住/)
   assert.match(first, /房间目标：把顺序固定住/)
 })

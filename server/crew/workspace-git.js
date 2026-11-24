@@ -1,7 +1,7 @@
 import * as log from './log.js'
 import { execFile, execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
-import { homedir, tmpdir } from 'node:os'
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { basename, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { roomDir, roomRootOf } from './paths.js'
@@ -57,15 +57,21 @@ const GIT_IDENTITY = ['-c', 'user.name=Lodge', '-c', 'user.email=lodge@localhost
 // 默认 core.quotepath=true 会把中文文件名输出成 "\346..."；交付清单要的是原样路径。
 const GIT_RAW_PATH = ['-c', 'core.quotepath=false']
 
+// 没有工作区路径时宁可直接失败，也不能把进程目录当成房间仓库。
+const requirePath = cwd => {
+  if (typeof cwd !== 'string' || cwd === '') throw new Error('缺少工作区路径')
+  return cwd
+}
+
 const git = (cwd, args) => execFileSync('git', [...GIT_RAW_PATH, ...args], {
-  cwd,
+  cwd: requirePath(cwd),
   encoding: 'utf8',
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 
 const gitAsync = async (args, cwd) => {
   try {
-    const { stdout } = await exec('git', [...GIT_RAW_PATH, ...args], { cwd, timeout: 20_000, maxBuffer: MAX_BUFFER })
+    const { stdout } = await exec('git', [...GIT_RAW_PATH, ...args], { cwd: requirePath(cwd), timeout: 20_000, maxBuffer: MAX_BUFFER })
     return stdout
   } catch (error) {
     return typeof error?.stdout === 'string' ? error.stdout : ''
@@ -88,7 +94,6 @@ export const capabilities = () => ({
   candidate: true,
   merge: true,
   commit: gitAvailable,
-  acceptanceCopy: true,
 })
 
 export const scratchRoot = () => (
@@ -370,29 +375,6 @@ export const restore = ({ room, base }) => {
   return { base, backups }
 }
 
-// 验收命令在一次性 detached worktree 里跑；测试产生的文件不写回交付 worktree。
-export const isolatedCopy = ({ source, ref }) => {
-  const root = mkdtempSync(join(tmpdir(), 'lodge-accept-'))
-  const path = join(root, 'repo')
-  try {
-    git(source, ['worktree', 'add', '--detach', path, ref || 'HEAD'])
-    stripTrackedSecrets(path)
-    return { root, path, ref: ref || 'HEAD', environment: syncLocalEnvironment(source, path, { copyEnv: false }) }
-  } catch (error) {
-    rmSync(root, { recursive: true, force: true })
-    throw error
-  }
-}
-
-export const removeIsolatedCopy = ({ source, copy }) => {
-  try {
-    git(source, ['worktree', 'remove', '--force', copy.path])
-  } catch {}
-  try {
-    rmSync(copy.root, { recursive: true, force: true })
-  } catch {}
-}
-
 // 冲突现场的三份内容：基准、房间当前、成员分支。只读给人看，不替人选边。
 const conflictVersions = ({ path, files }) => files.map(file => {
   const stage = number => {
@@ -554,7 +536,7 @@ export const filesInCommit = ({ path, commit }) => {
   }
 }
 
-// 人工结果凭证没有验收命令，仍需要阶段起点到当前 HEAD 的文件清单。
+// 结果凭证不绑定命令，仍需要阶段起点到当前 HEAD 的文件清单。
 export const changedFilesSince = ({ path, base }) => {
   if (typeof base !== 'string' || base === '') return []
   try {

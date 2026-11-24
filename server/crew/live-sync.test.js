@@ -17,7 +17,6 @@ test('an engine-level member error pauses the room and marks its assignment fail
       title: 'impl',
       kind: 'deliverable',
       state: 'active',
-      acceptance: 'true',
     }],
   })
   const messages = []
@@ -81,7 +80,7 @@ test('ordinary activity is not treated as an engine failure', async () => {
     seatNames: { worker: '执行者' },
     seatSpecs: [{ id: 'worker', role: 'worker', name: '执行者' }],
     hiddenBaseMessages: [],
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }],
   })
   const store = withAssignments({
     readRoom: () => room,
@@ -123,7 +122,7 @@ test('a private thread reply is not projected twice into the room', async () => 
     seatNames: { worker: '执行者' },
     seatSpecs: [{ id: 'worker', role: 'worker', name: '执行者' }],
     hiddenBaseMessages: [],
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: 'impl', kind: 'deliverable', state: 'active' }],
   })
   const messages = []
   const captured = []

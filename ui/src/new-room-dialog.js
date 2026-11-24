@@ -136,7 +136,7 @@ function NewRoomDialog({
       reviewed: handoffBriefReviewed,
     })
   const gatePending = handoffGate?.pendingText ?? null
-  // 成员、模型和检查都由规划师组队时决定；建房只要求目标、文件夹和可用模型。
+  // 成员、模型和验收方法都由规划师和验收员决定；建房只要求目标、文件夹和可用模型。
   const canStartStudio = !busy && goal.trim() !== '' && !needRepo && readiness.canStart &&
     (handoffGate === null ? true : handoffGate.ready) && !noAskingEngine
   const startDisabled = busy || goal.trim() === '' || needRepo || !readiness.canStart || (!isChat && !canStartStudio)

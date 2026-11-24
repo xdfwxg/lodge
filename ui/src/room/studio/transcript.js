@@ -6,7 +6,6 @@ import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
 import { isChainMessage } from '../message-view.js'
 import { HumanGateCard } from './human-gate.js'
-import { StageConfirmCard } from './stage-confirm.js'
 import { PendingDecisionCard } from './pending-decision.js'
 import { MergeConflictCard } from './merge-conflict.js'
 import { DeliveryCard } from './delivery-card.js'
@@ -44,7 +43,6 @@ export const dedupeSystemNotices = messages => {
 export function StudioTranscript({
   room,
   members,
-  onStageAccept,
   onDecision = null,
   onAnswerCard = null,
   onCancelQueue = null,
@@ -131,7 +129,6 @@ export function StudioTranscript({
     byId,
     message,
     timeline,
-    onStageAccept,
     onAnswerCard,
     onCancelQueue,
     onSteerQueue,
@@ -190,7 +187,7 @@ export function StudioTranscript({
         onClick: () => { downloadDeliveryRecord(room) },
       }, '下载交付记录'))
     : null
-  // 结果就是这一轮时间线的最后一条；检查完可以直接在下面开下一轮。
+  // 结果就是这一轮时间线的最后一条；看完结果可以直接在下面开下一轮。
   if (finished) {
     return h('div', { className: 'studio-timeline studio-result-timeline' },
       ...items,
@@ -217,7 +214,6 @@ export function StudioTranscript({
       : null,
     h(PendingDecisionCard, { key: 'pending-decision', room, onAnswer: onDecision }),
     h(HumanGateCard, { key: `human-gate-${activeIndex}`, room, onChoose, onRework }),
-    h(StageConfirmCard, { key: `stage-confirm-${activeIndex}`, room, onAccept: onStageAccept }),
     h(MergeConflictCard, { key: `merge-${activeIndex}`, room, onResolve: onResolveMerge }),
     advice)
 }

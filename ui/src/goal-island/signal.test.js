@@ -19,20 +19,20 @@ const room = over => ({
 const message = (id, kind, meta = {}, text = '') => ({ id, kind, meta, text, seq: Number(id) || 0 })
 
 test('a human decision becomes a sticky signal that opens the panel', () => {
-  const event = decisionOf(room({ needsYou: { kind: 'confirm', stage: 1, label: '待确认' } }))
-  assert.equal(event.key, 'decision:confirm:1')
+  const event = decisionOf(room({ needsYou: { kind: 'decision', stage: 1, label: '先做哪一版' } }))
+  assert.equal(event.key, 'decision:decision:1')
   assert.equal(event.kind, 'decision')
   assert.equal(event.tone, 'waiting')
-  assert.equal(event.title, '第 2 步「写欢迎语」等你确认')
+  assert.equal(event.title, '第 2 步「写欢迎语」有一处要你拍板')
   assert.equal(event.action, 'open')
-  assert.match(event.detail, /待确认/)
+  assert.match(event.detail, /写欢迎语/)
 })
 
 test('more waiting items put a count on the same signal line', () => {
   const event = decisionOf(room({
-    needsYou: { kind: 'confirm', stage: 1, label: '待确认' },
+    needsYou: { kind: 'decision', stage: 1, label: '先做哪一版' },
     attention: [
-      { kind: 'confirm', stage: 1, label: '待确认' },
+      { kind: 'decision', stage: 1, label: '先做哪一版' },
       { kind: 'decision', roomId: 'child-1', roomName: '写欢迎语', stage: 0, label: '待确认' },
     ],
   }))
@@ -48,13 +48,13 @@ test('a subroom decision says whose it is', () => {
   assert.doesNotMatch(event.title, /还有/)
 })
 
-test('a stopped automatic check reads as one plain sentence', () => {
+test('a rejected step reads as one plain sentence', () => {
   const event = decisionOf(room({
-    needsYou: { kind: 'auto-check', stage: 1, label: '这一步没做成，需要你决定' },
+    needsYou: { kind: 'rework', stage: 1, label: '' },
   }))
   assert.equal(event.kind, 'decision')
   assert.equal(event.tone, 'paused')
-  assert.equal(event.title, '这一步没做成，需要你决定')
+  assert.equal(event.title, '第 2 步「写欢迎语」被验收退回了')
 })
 
 test('a review timeout puts the fix on the signal', () => {
@@ -147,25 +147,25 @@ test('reconnect and streaming patches do not replay events', () => {
   assert.equal(milestoneOf(previous, patched, seen).event, null)
 })
 
-test('a child result and a successful check each have their own signal', () => {
+test('a child result and a verdict each have their own signal', () => {
   const previous = room()
   const child = room({
     messages: [message('1', 'child_result', { childName: '发布检查' }, '子房间交回三条结论')],
   })
   assert.equal(milestoneOf(previous, child, baselineSeen(previous)).event.title, '子房间「发布检查」交回结果')
 
-  const checked = room({
-    messages: [message('2', 'evidence', { kind: 'command', exit: 0, command: 'npm test' })],
+  const reviewed = room({
+    messages: [message('2', 'verdict', { pass: true, stage: 1 }, '通过：结果对上了目标')],
   })
-  const { event } = milestoneOf(previous, checked, baselineSeen(previous))
-  assert.equal(event.title, '检查通过')
-  assert.equal(event.detail, 'npm test')
+  const { event } = milestoneOf(previous, reviewed, baselineSeen(previous))
+  assert.equal(event.title, '第 2 步「写欢迎语」通过')
+  assert.equal(event.detail, '通过：结果对上了目标')
 })
 
-test('a failed command waits for the rework decision instead of peeking twice', () => {
+test('result evidence waits for the verdict instead of peeking twice', () => {
   const previous = room()
   const next = room({
-    messages: [message('1', 'evidence', { kind: 'command', exit: 1, command: 'npm test' })],
+    messages: [message('1', 'evidence', { kind: 'result', stage: 1 }, '结果已交回')],
   })
   assert.equal(milestoneOf(previous, next, baselineSeen(previous)).event, null)
 })

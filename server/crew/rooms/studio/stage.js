@@ -147,7 +147,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
   }
   const startStage = async (room, index, { note = '', rework = false, only = null } = {}) => {
     const stage = room.stages[index]
-    if (stage?.kind !== 'deliverable' && stage?.manual !== true) return
+    if (stage?.kind !== 'deliverable') return
     if (usageBudgetExceeded(room)) {
       store.appendMessage(roomId, { kind: 'system', text: '这一轮的额度用完了；先停下，等你决定要不要继续。' })
       store.appendEvent(roomId, 'round.budget_exceeded', { stage: index })
@@ -223,11 +223,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       return packages.length === 1 ? packages[0] : packages
     }
     if (dispatchPlan.note !== '') store.appendMessage(roomId, { kind: 'system', text: dispatchPlan.note })
-    const acceptance = stage.manual === true
-      ? '验收方式：人看结果，不跑命令。'
-      : typeof stage.acceptance === 'string' && stage.acceptance !== ''
-        ? `验收命令：\`${stage.acceptance}\`。`
-        : '验收命令：未设置。'
     const readOnly = activeStageReadOnly(room) || stage.readOnly === true
     const promptFor = worker => studioWorkerPrompt({
       room,
@@ -238,7 +233,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       index,
       rework,
       note,
-      acceptance,
       readOnly,
       workspace: {
         candidate: workspaceCaps.candidate === true,
@@ -259,11 +253,11 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       const planPrompt = [
         `第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」要交给${assigneeNames}。`,
         `房间目标（原文，不要改写）：${sanitizeUntrusted(room.goal, 2000)}`,
-        `验收标准：${stage.manual === true ? '人看结果，没有命令。' : sanitizeUntrusted(acceptance, 500)}`,
+        `这一步的交付物：${sanitizeUntrusted(stage.deliverable ?? room.goal ?? '', 500)}`,
         rework && note !== '' ? `${humanLabelOf()}补充（原文，必须保留）：${sanitizeUntrusted(note, 2000)}` : '',
         parallel
-          ? '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准；说清交给每位执行官（写名字，不带 @）和一句动作；系统会把完整任务分别送进他们各自的工作副本。'
-          : '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准；说清交给执行官（写名字，不带 @）和一句动作；系统会把完整任务送进执行官手里。',
+          ? '在群里只用一句话说清这步怎么做；不要复述对齐内容或交付物；说清交给每位执行官（写名字，不带 @）和一句动作；系统会把完整任务分别送进他们各自的工作副本。'
+          : '在群里只用一句话说清这步怎么做；不要复述对齐内容或交付物；说清交给执行官（写名字，不带 @）和一句动作；系统会把完整任务送进执行官手里。',
         '派发时保留目标里的硬要求：文件名、路径、内容、行数、格式和范围；不要改写成更宽松的说法。',
         '不要写自己的名字，不要分点、小标题或第二段。',
         history.text,
@@ -286,7 +280,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         to: worker,
         reason: rework ? 'rework' : 'dispatch',
         prompt: promptFor(worker),
-        acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
         rework,
         parentAssignmentId: parentAssignment?.id ?? null,
         nonce: reworkBeat,
@@ -347,7 +340,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       to: worker,
       reason: rework ? 'rework' : 'dispatch',
       prompt: promptFor(worker),
-      acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
       rework,
       parentAssignmentId: parentAssignment?.id ?? null,
       nonce: reworkBeat,

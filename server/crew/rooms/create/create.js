@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 import { created, fail } from '../../result.js'
-import { effectiveAcceptanceOf, normalizePlan, normalizeRequest, resolveMembers } from './input.js'
+import { normalizePlan, normalizeRequest, resolveMembers } from './input.js'
 import { buildRoomRecord, initialRoomMessages } from './record.js'
 import { createProvisioner } from './provision.js'
 import { bodyIssueText } from '../../body-check.js'
@@ -34,8 +34,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     name,
     roomType,
     project,
-    verify,
-    acceptance,
     orchestration,
     shadowReview,
     autoDeliver,
@@ -54,7 +52,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
 
   const { plan, error: planError } = normalizePlan({ body })
   if (planError !== undefined) return fail('invalid', planError)
-  const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
   const gate = mode.evaluateGate({ handoffBrief, humanReviewed: handoffBriefReviewed })
   if (gate.decision === 'reject') {
     const issues = gate.issues.map(issue => issue.text).join('；')
@@ -68,7 +65,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const initialAlign = align && (handoffBrief === null || handoffBrief === undefined)
   if (typeof mode.validateRoster === 'function') {
     try {
-      mode.validateRoster(roster, { verify, bootstrap })
+      mode.validateRoster(roster, { bootstrap })
     } catch (error) {
       return fail('invalid', `成员组合不可用：${error?.message ?? error}`)
     }
@@ -158,8 +155,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       title,
       goal,
       handoffBrief,
-      verify,
-      acceptance: effectiveAcceptance,
       align: initialAlign,
       workspaces,
       verifiers,
@@ -172,25 +167,8 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       await discard()
       return fail('invalid', `成员还没准备好：${bodyIssueText(bodyIssues)}`)
     }
-    // 不会逐次确认外部动作的验收员只读参与：它看证据、给结论，命令由平台在副本里跑。
-    const readOnlyVerifierIds = new Set(
-      provisioned.members
-        .filter(member => (
-          (member.roleKind ?? member.role) === 'verifier' &&
-          provisioned.approvalGates?.[member.id] === false
-        ))
-        .map(member => member.id),
-    )
-    const members = provisioned.members.map(member => (
-      readOnlyVerifierIds.has(member.id)
-        ? {
-          ...member,
-          permissions: { read: true, exec: false, write: false },
-          toolSurface: ['read'],
-          writeScope: 'none',
-        }
-        : member
-    ))
+    // 验收员要自己在副本里跑检查，不能降级成只读：不会确认外部动作的模型不能当验收员。
+    const members = provisioned.members
     // 外部动作只有在驱动会停下来问人时才安全；不会问的执行官不能开工。
     // 聊天室虽然只读，但读文件和只读公网也要经过同一张确认卡。
     const blocked = members.filter(member => (
@@ -206,7 +184,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
           : `${blocked.map(member => member.name).join('、')}用的模型不会逐次确认外部动作；换一个会先问你的模型，或把这件事放进聊天室讨论。`,
       )
     }
-    const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, verify, acceptance, align: initialAlign, bootstrap })
+    const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, align: initialAlign, bootstrap })
     room = buildRoomRecord({
       short,
       title,
@@ -234,13 +212,10 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       autoDeliver,
       builtStages,
       align: initialAlign,
-      verify,
-      acceptance,
       chatTurnLimit,
       gate: gateRecordOf({
         review: gate,
         humanReviewed: handoffBriefReviewed,
-        check: { mode: verify, acceptance: effectiveAcceptance },
       }),
     })
     // 来源是聊天/回执/子房交接的事实；项目关系走 project 表，不再挂在房间上。
@@ -258,16 +233,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       sharedMemory = ports.memory?.shared?.({ sourceRepo, limit: 3 }) ?? []
     } catch {}
     if (sharedMemory.length > 0) room = { ...room, sharedMemory }
-    const readOnlyNames = members.filter(member => readOnlyVerifierIds.has(member.id)).map(member => member.name)
-    if (readOnlyNames.length > 0) {
-      room = {
-        ...room,
-        constraints: [
-          ...(room.constraints ?? []),
-          `${readOnlyNames.join('、')}不会逐次确认外部动作，只读参与验收；验收命令由平台执行。`,
-        ],
-      }
-    }
     let projectId = null
     if (project !== null && typeof project.northStar === 'string' && project.northStar !== '') {
       const createdProject = store.writeProject({
@@ -315,8 +280,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       worker,
       roster,
       goal,
-      verify,
-      acceptance: effectiveAcceptance,
       emit,
     })
     room = store.readRoom(room.id) ?? room

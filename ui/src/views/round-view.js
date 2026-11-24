@@ -63,7 +63,6 @@ export function RoundView({ room, roundId, store, onBack }) {
           members: room.members ?? [],
           delivery: historyRoom.delivery ?? null,
           onAccept: null,
-          onStageAccept: null,
           onRework: null,
           onChoose: null,
           onReadArtifact: null,

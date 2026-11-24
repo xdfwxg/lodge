@@ -21,7 +21,6 @@ const roomOf = () => ({
   state: 'active',
   live: true,
   verify: 'test',
-  acceptance: 'test -f a',
   chatRoom: { id: 'shared' },
   chatHost: null,
   sourceRepo: '/tmp/src',

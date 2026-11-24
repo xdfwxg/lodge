@@ -170,7 +170,7 @@ test('the open panel is the goal, its steps and where the work stands', () => {
 test('the open panel lists every waiting item, including a subroom', () => {
   const html = render('open', null, {
     attention: [
-      { kind: 'signoff', stage: 0, label: '待确认' },
+      { kind: 'decision', stage: 0, label: '待确认' },
       { kind: 'decision', stage: 0, label: '待确认', roomId: 'child-1', roomName: '写欢迎语' },
     ],
   })

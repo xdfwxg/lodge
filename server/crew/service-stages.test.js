@@ -16,7 +16,7 @@ const room = (over = {}) => normalizeTestRoom({
   seatNames: { worker: '执行者' },
   usage: { costMicroUsd: 0, budgetMicroUsd: 0 },
   stages: [
-    { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
+    { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'ship it', tasks: [] },
     { title: '验收与结论', kind: 'decision', state: 'pending' },
   ],
   seatSpecs: [{ id: 'worker', name: '执行者', role: 'worker' }],
@@ -58,18 +58,6 @@ const setup = initial => {
   return { store, stages, room: () => current, messages, calls }
 }
 
-test('changing the acceptance command reruns it, but an unchanged save does not', () => {
-  const ctx = setup(room())
-  const changed = ctx.stages.setAcceptance(ctx.room(), 0, 'npm run check')
-  assert.equal(changed.ok, true)
-  const resumes = ctx.calls.filter(call => call.resume !== undefined)
-  assert.equal(resumes.length, 1)
-  assert.equal(resumes[0].options.forceAcceptance, true)
-  const unchanged = ctx.stages.setAcceptance(ctx.room(), 0, 'npm run check')
-  assert.equal(unchanged.ok, true)
-  assert.equal(ctx.calls.filter(call => call.resume !== undefined).length, 1)
-})
-
 test('rework records the human objection and re-dispatches the active stage', async () => {
   const ctx = setup(room())
   ctx.store.writeAssignment({
@@ -105,8 +93,8 @@ test('rewinding to an earlier step reopens it and resets everything after it', a
   const ctx = setup(room({
     stageBases: { 0: 'base-0', 1: 'base-1', 2: 'base-2' },
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' },
-      { title: '补一条', kind: 'deliverable', state: 'active', acceptance: 'npm test' },
+      { title: '实现', kind: 'deliverable', state: 'passed', deliverable: 'ship it' },
+      { title: '补一条', kind: 'deliverable', state: 'active', deliverable: 'ship it' },
       { title: '验收与结论', kind: 'decision', state: 'pending' },
     ],
   }))
@@ -151,8 +139,8 @@ test('rewind needs a note, refuses pending steps, and can reopen a decision node
   assert.equal(ctx.stages.rewind(ctx.room(), { stage: 0, note: '' }).ok, false)
   const pending = room({
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' },
-      { title: '补一条', kind: 'deliverable', state: 'pending', acceptance: 'npm test' },
+      { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'ship it' },
+      { title: '补一条', kind: 'deliverable', state: 'pending', deliverable: 'ship it' },
     ],
   })
   assert.match(ctx.stages.rewind(pending, { stage: 1, note: 'x' }).error, /还没开始/)
@@ -166,7 +154,7 @@ test('rewinding a delivered room reopens it without losing the first step base',
   const ctx = setup(room({
     stageBases: { 0: 'base-0', 1: 'base-1' },
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' },
+      { title: '实现', kind: 'deliverable', state: 'passed', deliverable: 'ship it' },
       { title: '验收与结论', kind: 'decision', state: 'passed' },
     ],
   }))
@@ -178,8 +166,8 @@ test('rewinding a delivered room reopens it without losing the first step base',
 })
 
 test('accepting the last work stage also confirms the system conclusion', () => {
-  const ctx = setup(room({ live: false, roomType: 'studio', verificationMode: 'hybrid', verifiers: ['verifier'] }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0 } })
+  const ctx = setup(room({ live: false, roomType: 'studio', verifiers: ['verifier'] }))
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result' } })
   ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   ctx.store.writeAssignment({
     id: 'as-work', roomId: 'room-1', stageIndex: 0, toMemberId: 'worker', reason: 'dispatch',
@@ -200,33 +188,16 @@ test('accepting the last work stage also confirms the system conclusion', () => 
 
 
 
-test('a person can confirm a plain decision stage without a verdict', () => {
-  const ctx = setup(room({
-    live: false,
-    roomType: 'studio',
-    verificationMode: 'manual',
-    verifiers: ['verifier'],
-    stages: [
-      { title: '定方向', kind: 'decision', state: 'active' },
-      { title: '验收与结论', kind: 'decision', state: 'pending' },
-    ],
-  }))
-  const result = ctx.stages.accept(ctx.room(), { stage: 0 })
-  assert.equal(result.ok, true, result.error)
-  assert.equal(ctx.room().stages[0].state, 'passed')
-})
-
 test('a studio cannot sign without a Verifier PASS', () => {
   const ctx = setup(room({
     live: false,
     roomType: 'studio',
-    verificationMode: 'hybrid',
-    verifiers: ['verifier'],
-    stages: [{ title: '验收与结论', kind: 'decision', state: 'active' }],
+        verifiers: ['verifier'],
+    stages: [{ title: '实现', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
   }))
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, false)
-  assert.match(result.error, /验收员/)
+  assert.match(result.error, /交回结果|验收通过|回报/)
   assert.equal(ctx.room().stages[0].state, 'active')
 })
 
@@ -234,13 +205,12 @@ test('a force flag cannot sign without a Verifier PASS', () => {
   const ctx = setup(room({
     live: false,
     roomType: 'studio',
-    verificationMode: 'hybrid',
-    verifiers: ['verifier'],
+        verifiers: ['verifier'],
     stages: [{ title: '验收与结论', kind: 'decision', state: 'active' }],
   }))
   const result = ctx.stages.accept(ctx.room(), { stage: 0, force: true })
   assert.equal(result.ok, false)
-  assert.match(result.error, /验收员/)
+  assert.match(result.error, /交回结果|验收通过|回报/)
   assert.equal(ctx.room().stages[0].state, 'active')
 })
 
@@ -248,15 +218,14 @@ test('accepting a work stage writes a stage conclusion before the next stage sta
   const ctx = setup(room({
     live: false,
     roomType: 'studio',
-    verificationMode: 'hybrid',
-    verifiers: ['verifier'],
+        verifiers: ['verifier'],
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
-      { title: '回归', kind: 'deliverable', state: 'pending', acceptance: 'npm run e2e', tasks: [] },
+      { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'ship it', tasks: [] },
+      { title: '回归', kind: 'deliverable', state: 'pending', deliverable: 'regression pass', tasks: [] },
       { title: '验收与结论', kind: 'decision', state: 'pending' },
     ],
   }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, files: ['src/a.js', 'src/a.test.js'] } })
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result', files: ['src/a.js', 'src/a.test.js'] } })
   ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, true)
@@ -264,7 +233,6 @@ test('accepting a work stage writes a stage conclusion before the next stage sta
   assert.ok(conclusion)
   assert.equal(conclusion.meta.stage, 0)
   assert.equal(conclusion.meta.next, '回归')
-  assert.equal(conclusion.meta.command, 'npm test')
   assert.deepEqual(conclusion.meta.verdicts, [{ name: 'verifier', pass: true }])
   assert.equal(ctx.room().stages[1].state, 'active')
 })
@@ -272,14 +240,14 @@ test('accepting a work stage writes a stage conclusion before the next stage sta
 test('accepting an intermediate stage starts the next one by itself', async () => {
   const ctx = setup(room({
     roomType: 'studio',
-    verificationMode: 'hybrid',
-    stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test', tasks: [] },
-      { title: '回归', kind: 'deliverable', state: 'pending', acceptance: 'npm run e2e', tasks: [] },
+        stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'ship it', tasks: [] },
+      { title: '回归', kind: 'deliverable', state: 'pending', deliverable: 'regression pass', tasks: [] },
       { title: '验收与结论', kind: 'decision', state: 'pending' },
     ],
   }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, files: ['src/a.js', 'src/a.test.js'] } })
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result', files: ['src/a.js', 'src/a.test.js'] } })
+  ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, true)
   await Promise.resolve()

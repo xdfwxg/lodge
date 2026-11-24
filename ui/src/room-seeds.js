@@ -19,15 +19,16 @@ export const chatStudioSeed = ({ room, conclusion, handoffBrief, conclusionId = 
   }
 }
 
-// 顶层房间不会完成为 complete，回执就从房间本身拼：阶段、检查、改动，不搬过程。
+// 顶层房间不会完成为 complete，回执就从房间本身拼：阶段、验收、改动，不搬过程。
 const deliveryOf = room => {
   if (room?.delivery !== null && room?.delivery !== undefined) return room.delivery
   const stages = Array.isArray(room?.stages) ? room.stages : []
   if (stages.length === 0 || stages.some(stage => stage.state !== STAGE_STATE.passed)) return null
   const messages = Array.isArray(room?.messages) ? room.messages : []
-  const commands = messages
-    .filter(message => message.kind === 'evidence' && message.meta?.kind === 'command')
-    .map(message => ({ exit: message.meta?.exit ?? null }))
+  const results = messages.filter(message => message.kind === 'evidence' && message.meta?.kind === 'result')
+  const verdicts = messages
+    .filter(message => message.kind === 'verdict')
+    .map(message => ({ pass: message.meta?.pass === true }))
   const files = new Set()
   for (const message of messages) {
     for (const file of message.meta?.files ?? []) files.add(file)
@@ -35,30 +36,30 @@ const deliveryOf = room => {
   return {
     name: room?.name ?? '这次做出来的',
     stages,
-    commands,
+    results,
+    verdicts,
     changedFiles: [...files],
     openQuestions: [],
   }
 }
 
-// 工作室 → 聊天室只带回执：结果、完成度、检查与开放问题，不搬房间过程。
+// 工作室 → 聊天室只带回执：结果、完成度、验收与开放问题，不搬房间过程。
 export const returnToChatSeed = room => {
   const delivery = deliveryOf(room)
   if (delivery === null || delivery === undefined) return null
-  const commands = delivery.commands ?? []
+  const verdicts = (delivery.stages ?? []).flatMap(stage => stage.verdicts ?? delivery.verdicts ?? [])
+  const passed = verdicts.filter(verdict => verdict.pass === true).length
   const stages = delivery.stages ?? []
   const done = stages.filter(stage => stage.state === STAGE_STATE.passed).length
-  const passed = commands.filter(command => command.exit === 0).length
   const changed = delivery.changedFiles?.length ?? 0
-  const simulated = commands.some(command => command.simulated === true)
   const receipt = normalizeReceipt({
     result: delivery.name,
     completeness: stages.length > 0
       ? `${done}/${stages.length} 步完成${changed > 0 ? `，${changed} 个文件` : ''}`
       : changed > 0 ? `${changed} 个文件` : '已交付',
-    checks: commands.length > 0
-      ? [`${passed}/${commands.length} 项检查通过${simulated ? '（含模拟）' : ''}`]
-      : ['人工验收通过'],
+    checks: verdicts.length > 0
+      ? [`${passed}/${verdicts.length} 项验收通过`]
+      : ['结果已交付'],
     paths: delivery.changedFiles ?? [],
     openQuestions: delivery.openQuestions ?? [],
   })

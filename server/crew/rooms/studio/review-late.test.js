@@ -13,7 +13,7 @@ const evidence = (id = 'e1', seq = 10) => ({
   kind: 'evidence',
   seq,
   ts: 1000,
-  meta: { stage: 0, kind: 'manual' },
+  meta: { stage: 0, kind: 'result' },
 })
 
 const pending = { stage: 0, evidenceId: 'e1', requestedAt: 1500 }

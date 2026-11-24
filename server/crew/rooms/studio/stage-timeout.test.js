@@ -22,7 +22,7 @@ const setup = () => {
     repoPath: repo,
     sourceRepo: repo,
     leadMemberId: 'lead',
-    stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
     members: [
       { id: 'lead', name: '规划师', role: 'lead', roleKind: 'planner' },
       { id: 'worker', name: '执行官', role: 'worker', roleKind: 'executor' },

@@ -33,7 +33,7 @@ const start = (store, ordinal) => {
       ordinal,
       status: 'active',
       goal: `第 ${ordinal} 轮`,
-      stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+      stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
     },
   })
   assert.notEqual(started, null)

@@ -11,7 +11,7 @@ import { existingTestChangesOf, protectedFilesOf } from '../../protected-files.j
 import { roomStatusOf } from '../../../../shared/room-status.js'
 import { workspaceOf } from './workspace.js'
 import { ensurePreviews } from './previews.js'
-import { manualReviewState, reviewState, verifierIds } from './verifiers.js'
+import { reviewState, verifierIds } from './verifiers.js'
 import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf, workerIds } from '../../room-members.js'
 import { activeDispatchAssignments, latestDispatchAssignment, transitionAssignment } from '../../assignments.js'
@@ -142,8 +142,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         verifierProfile: spec?.roleProfile ?? name,
         mode: 'bot',
         stage: pending.stage,
-        command: pending.command,
-        exit: pending.exit,
         evidenceId: pending.evidenceId,
         review: true,
         independent,
@@ -270,7 +268,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             '请在群里用两三句话总结这一步的结果和下一步；不要改文件，也不要再派活。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n'),
-          acceptance: stage?.acceptance ?? '',
           parentAssignmentId: reviewAssignment?.id ?? null,
           nonce: String(pending.evidenceId ?? pending.verifier),
         }).catch(error => {
@@ -329,8 +326,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             reason: 'rework',
             prompt: `${sanitizeUntrusted(note, 2000)}\n${INTERNAL_PROMPT_MARKER}`,
             ...(parallel ? { privateRoom: true } : {}),
-            acceptance: stage?.acceptance ?? '',
-            rework: true,
+              rework: true,
             parentAssignmentId: parent?.id ?? null,
             nonce: reworkNote?.id ?? verdictMessage.id,
           }).then(() => target).catch(error => {
@@ -381,8 +377,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
               '不要自己改文件，也不要自己验收。',
               INTERNAL_PROMPT_MARKER,
             ].join('\n'),
-            acceptance: stage?.acceptance ?? '',
-            parentAssignmentId: reviewAssignment?.id ?? null,
+              parentAssignmentId: reviewAssignment?.id ?? null,
             nonce: String(pending.evidenceId ?? pending.verifier),
           }).then(() => {
             // 先叫醒规划师，再在群里投影这一棒。
@@ -412,7 +407,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
   const request = async stageIndex => {
     const room = store.readRoom(roomId)
     const stage = room?.stages?.[stageIndex]
-    if (stage === undefined || (stage.kind !== 'deliverable' && stage.manual !== true)) {
+    if (stage === undefined || stage.kind !== 'deliverable') {
       reject('invalid', '这个阶段不是交付型')
     }
     if (stage.state !== STAGE_STATE.active) reject('conflict', '这个阶段不在待验收状态')
@@ -422,19 +417,15 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const messages = store.readMessages(roomId)
     // 默认盲评：验收员只看目标、验收、diff 和证据，不看执行官怎么讲；决策类阶段才放开过程话。
     const blind = room.orchestration === 'critique' || stage?.kind !== 'decision'
-    const manual = stage.manual === true
     const ledger = store.readEvidence?.(roomId)
-    const outcome = manual
-      ? manualReviewState({ room, evidence: ledger, messages, stageIndex })
-      : reviewState({ room, evidence: ledger, messages, stageIndex })
+    const outcome = reviewState({ room, evidence: ledger, messages, stageIndex })
     if (outcome.state === 'pass') reject('conflict', '本阶段验收员已经全部通过')
     if (outcome.state === 'reject') reject('conflict', '验收退回了；先重做再检查一次')
-    if (outcome.state === 'failed') reject('conflict', '最新检查没有通过；先重做再检查一次')
     const ids = verifierIds(room)
     if (ids.length === 0) reject('conflict', '房间没有验收员')
     const evidence = outcome.evidence
     if (evidence === undefined || evidence === null) {
-      reject('conflict', manual ? '还没有本阶段的结果证据' : '还没有本阶段的验收命令证据')
+      reject('conflict', '还没有本阶段的结果证据')
     }
     if (round !== null && round.finished === true) {
       for (const [memberId, pending] of round.requests) {
@@ -475,8 +466,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const nextRound = {
       stage: stageIndex,
       evidenceId: evidence.id,
-      command: manual ? '' : meta.command,
-      exit: manual ? null : meta.exit,
       total: ids.length,
       required: ids.length,
       passed: outcome.verdicts.filter(verdictPassed).length,
@@ -505,7 +494,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       (Array.isArray(stage?.assignees) ? stage.assignees : []).find(id => workerIds(room).includes(id)) ||
       workerIds(room)[0] || 'lodge'
     // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
-    shadowTask = shadowNeeded({ room, stage, evidence, manual, messages, stageIndex })
+    shadowTask = shadowNeeded({ room, stage, evidence, messages, stageIndex })
       ? recordShadowAdvice({
         store,
         roomId,
@@ -515,7 +504,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         index: stageIndex,
         stage,
         evidence,
-        manual,
       }).catch(error => {
         systemNotice({ store, roomId, text: '影子评审这次没取到；验收不受影响。', error })
         return null
@@ -561,7 +549,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         verifier,
         targets,
         ids,
-        manual,
         blind,
         evidence,
         meta,
@@ -575,8 +562,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       const request = {
         stage: stageIndex,
         verifier,
-        command: manual ? '' : meta.command,
-        exit: manual ? null : meta.exit,
         evidenceId: evidence.id,
         protectedFiles,
         requestedAt: Date.now(),
@@ -635,8 +620,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           to: verifier,
           reason: 'review',
           prompt,
-          acceptance: stage.acceptance ?? '',
-          evidence,
+              evidence,
           verdict: outcome.verdicts?.at(-1) ?? null,
           parentAssignmentId: parent?.id ?? null,
           // 重启后重新发起复核时，提示词可能已经变了；固定 sendId 会被基座当成另一条消息拒绝。

@@ -1,4 +1,3 @@
-import { createAcceptanceRunner } from './acceptance-runner.js'
 import { createStageIntegrator } from './integration.js'
 import { createReviewCoordinator } from './review.js'
 import { createHandoff } from './handoff.js'
@@ -7,14 +6,14 @@ import { createTurnState } from './turn-state.js'
 import { activeDispatchAssignments } from '../../assignments.js'
 import { cancelAssignmentLease } from './assignment-lease.js'
 import { deliverableStageIndex, memberForRef } from './turn-utils.js'
-import { createAutoCheck } from './runtime/auto-check.js'
+import { createResultMarker } from './runtime/result.js'
 import { createPlannerRouting } from './runtime/planner-decision.js'
 import { createTurnCapture } from './runtime/turn-capture.js'
 import { createResume } from './runtime/resume.js'
 import { systemNotice } from '../../notices.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, commands, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null, applyPlan = null, adjustModel = null, rewindStage = null, stopRound = null, resumeRound = null, screenshots = null, attachments = null, setMembers = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null, applyPlan = null, adjustModel = null, rewindStage = null, stopRound = null, resumeRound = null, screenshots = null, attachments = null, setMembers = null }) => {
   const state = createTurnState({ store, roomId, emit })
   // 接上房间时如果卡还开着，基座群聊只留规划师；其余成员等第一次派活再放回。
   const syncDecisionMembers = () => {
@@ -50,22 +49,13 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     // 中间步骤验收通过就自动收口；最后一步仍走人的确认。
     advanceStage: confirmStage,
   })
-  const autoLoops = new Map()
   const plannerNudges = new Set()
   const planNudges = new Set()
-  let auto = null
-  const acceptance = createAcceptanceRunner({
+  const result = createResultMarker({
     store,
     roomId,
-    emit,
+    review,
     markProgress: state.markProgress,
-    requestReview: review.request,
-    run: commands.run,
-    onAutoPass: ({ stageIndex }) => {
-      autoLoops.delete(stageIndex)
-      auto?.setAutoCheck(stageIndex, null)
-    },
-    onAutoFail: info => auto?.autoRework(info),
   })
   const integrator = createStageIntegrator({
     store,
@@ -73,7 +63,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     emit,
     markProgress: state.markProgress,
     requestReview: review.request,
-    run: commands.run,
   })
   const stageStarter = createStageStarter({
     store,
@@ -84,21 +73,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     integrate: integrator.integrate,
     enqueue: integrator.enqueue,
   })
-  const autoChecks = new Set()
-  auto = createAutoCheck({
-    store,
-    roomId,
-    emit,
-    files,
-    acceptance,
-    review,
-    stageStarter,
-    state,
-    expireCards,
-    autoLoops,
-    autoChecks,
-  })
-  const { autoCheck, markManualReady } = auto
   const pendingTimers = new Set()
   const schedule = (fn, ms) => {
     const timer = setTimeout(() => {
@@ -112,10 +86,10 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
 
   const routePlannerDecision = createPlannerRouting({ store, roomId, sendToMember, handoff, plannerNudges, schedule, expireCards })
 
-  const captureTurn = createTurnCapture({ store, roomId, emit, files, state, integrator, review, acceptance, routePlannerDecision, autoCheck, markManualReady, confirmStage, applyPlan, adjustModel, rewindStage, stopRound, resumeRound, writeDiagnostic, setMembers, sendToMember, planNudges })
+  const captureTurn = createTurnCapture({ store, roomId, emit, files, state, integrator, review, routePlannerDecision, markResultReady: result.markResultReady, confirmStage, applyPlan, adjustModel, rewindStage, stopRound, resumeRound, writeDiagnostic, setMembers, sendToMember, planNudges })
 
-  // 服务重启后以已落盘的消息为准续跑：缺回合就重新派发，缺验收就重跑命令，待复核就重发请求，待集成就先合并。
-  const resumeOnce = createResume({ store, roomId, emit, sendToMember, integrator, review, acceptance, stageStarter, markManualReady })
+  // 服务重启后以已落盘的消息为准续跑：缺回合就重新派发，待复核就重发请求，待集成就先合并。
+  const resumeOnce = createResume({ store, roomId, emit, sendToMember, integrator, review, stageStarter, markResultReady: result.markResultReady })
 
   const resume = async options => {
     try {
@@ -129,10 +103,8 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     stageStarter.dispose?.()
     for (const timer of pendingTimers) clearTimeout(timer)
     pendingTimers.clear()
-    autoLoops.clear()
     plannerNudges.clear()
     planNudges.clear()
-    autoChecks.clear()
   }
 
   return {

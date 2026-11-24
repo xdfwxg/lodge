@@ -1,6 +1,5 @@
 import { existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { runCommand } from './acceptance.js'
 import { roomDir, roomRootOf, workspaceRoot } from './paths.js'
 import { writeConclusion, writeDiagnostic, writeGoal, writeProgress } from './room-repo.js'
 import { writeMemberEnv } from './member-env.js'
@@ -36,9 +35,6 @@ export const createCrewPorts = ({
     writeMemberEnv,
     exists: path => existsSync(path),
     remove: path => rmSync(path, { recursive: true, force: true }),
-  },
-  commands: {
-    run: runCommand,
   },
   files: {
     exists: path => existsSync(path),

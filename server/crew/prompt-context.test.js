@@ -26,15 +26,15 @@ test('the context budget is a hard ceiling', () => {
   assert.ok(lines.length > 0)
 })
 
-test('the evidence digest keeps command facts inside its budget', () => {
+test('the evidence digest keeps result facts inside its budget', () => {
   const messages = Array.from({ length: 20 }, (_, index) => ({
     id: `e${index}`,
     kind: 'evidence',
-    meta: { stage: 1, kind: 'command', command: `npm test ${index}`, exit: 0, changedFiles: ['src/a.js'] },
+    meta: { stage: 1, kind: 'result', changedFiles: ['src/a.js'] },
   }))
   const lines = evidenceDigest(messages)
   assert.ok(lines.length > 0)
-  assert.match(lines.at(-1), /阶段 2 · npm test 19 · exit 0 · src\/a\.js/)
+  assert.match(lines.at(-1), /阶段 2 · 结果 · src\/a\.js/)
   assert.ok(lines.reduce((sum, line) => sum + line.length, 0) <= CONTEXT_BUDGET.evidence)
 })
 

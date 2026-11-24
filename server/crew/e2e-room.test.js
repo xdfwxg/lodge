@@ -99,7 +99,7 @@ test('deterministic room scenario completes the round and accepts it', async () 
         verify: 'test',
         plan: {
           done: ['E2E.md 存在'],
-          stages: [{ title: '写 E2E.md', kind: 'deliverable', acceptance: 'test -f E2E.md' }],
+          stages: [{ title: '写 E2E.md', kind: 'deliverable', deliverable: 'E2E.md 存在' }],
         },
         seats: [
           { role: 'lead', name: '规划' },
@@ -113,12 +113,12 @@ test('deterministic room scenario completes the round and accepts it', async () 
     const room = studio.body.room
     assert.equal(room.stages[1].state, 'active')
 
-    const firstText = '验收命令 test -f E2E.md 已执行，退出码 0。'
+    const firstText = 'E2E.md 已交回。'
     const firstEvidence = store.appendMessage(room.id, {
       kind: 'evidence',
       authorId: 'system',
       text: firstText,
-      meta: { kind: 'command', stage: 1, command: 'test -f E2E.md', exit: 0, diff: 'D', files: ['E2E.md'] },
+      meta: { kind: 'result', stage: 1, diff: 'D', files: ['E2E.md'], changedFiles: ['E2E.md'] },
     })
     store.appendMessage(room.id, {
       kind: 'verdict',
@@ -141,8 +141,8 @@ test('deterministic room scenario completes the round and accepts it', async () 
     const secondEvidence = store.appendMessage(room.id, {
       kind: 'evidence',
       authorId: 'system',
-      text: '返工后重跑 test -f E2E.md，退出码 0。',
-      meta: { kind: 'command', stage: 1, command: 'test -f E2E.md', exit: 0, diff: 'D', files: ['E2E.md'] },
+      text: '返工后的 E2E.md 已交回。',
+      meta: { kind: 'result', stage: 1, diff: 'D', files: ['E2E.md'], changedFiles: ['E2E.md'] },
     })
     store.appendMessage(room.id, {
       kind: 'verdict',
@@ -292,7 +292,7 @@ test('a body that is not logged in never starts the room', async () => {
         verify: 'test',
         plan: {
           done: ['文件存在'],
-          stages: [{ title: '写文件', kind: 'deliverable', acceptance: 'test -f A.md' }],
+          stages: [{ title: '写文件', kind: 'deliverable', deliverable: 'A.md 存在' }],
         },
       },
       ports,
@@ -329,7 +329,7 @@ test('a delivery room refuses exec members whose model cannot ask', async () => 
         verify: 'test',
         plan: {
           done: ['文件存在'],
-          stages: [{ title: '写文件', kind: 'deliverable', acceptance: 'test -f A.md' }],
+          stages: [{ title: '写文件', kind: 'deliverable', deliverable: 'A.md 存在' }],
         },
       },
       ports,

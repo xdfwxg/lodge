@@ -43,7 +43,7 @@ const participant = ({ id, name, title, station, voice, personality, stance }) =
 
 const STEPS = [
   { title: '目标对齐', kind: 'decision', state: STAGE_STATE.passed },
-  { title: '写一段试写', kind: 'deliverable', state: STAGE_STATE.passed, acceptance: 'manual', manual: true },
+  { title: '写一段试写', kind: 'deliverable', state: STAGE_STATE.passed, deliverable: '一段试写正文' },
   { title: '验收与结论', kind: 'decision', state: STAGE_STATE.passed, dependsOn: [1] },
 ]
 
@@ -61,7 +61,6 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   activeRoundId: null,
   lastRoundId: SAMPLE_ROUND_ID,
   idle: true,
-  verificationMode: 'manual',
   orchestration: 'pipeline',
   completedAt: now - 3 * 60_000,
   completedCommit: null,
@@ -77,7 +76,7 @@ export const sampleRoomRecord = ({ now = Date.now() } = {}) => ({
   plan: {
     done: ['有一段可对照的试写', '改动只发生在结尾一处'],
     prose: '我分两步：先把结尾改成动作，再让验收员对照原文看一遍。只改一处，不重写整篇。',
-    stages: [{ title: '写一段试写', kind: 'deliverable', acceptance: 'manual', manual: true }],
+    stages: [{ title: '写一段试写', kind: 'deliverable', deliverable: '一段试写正文' }],
   },
   stages: STEPS,
   constraints: [
@@ -117,7 +116,6 @@ export const sampleStudioRound = ({ room, now = Date.now() } = {}) => ({
   plan: room.plan,
   stages: room.stages,
   gate: null,
-  verificationMode: 'manual',
   shadowReview: false,
   orchestration: room.orchestration ?? null,
   constraints: room.constraints ?? [],
@@ -125,7 +123,6 @@ export const sampleStudioRound = ({ room, now = Date.now() } = {}) => ({
   usage: room.usage,
   openQuestion: null,
   lastPlannerDecision: null,
-  autoCheck: null,
   blocked: null,
   mergeConflict: null,
   stageBases: {},

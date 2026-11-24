@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  addMember, changedFilesSince, changes, cleanupRoom, commitMessageOf, filesInCommit, head, integrate, isolatedCopy, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
-  refreshReviewCopy, removeIsolatedCopy, removeMember, resetMemberWorktree, restore, submit,
+  addMember, changedFilesSince, changes, cleanupRoom, commitMessageOf, filesInCommit, head, integrate, prepareRoom, pruneRewindBranches, pruneMembers, rangeChanges,
+  refreshReviewCopy, removeMember, resetMemberWorktree, restore, submit,
 } from './workspace-git.js'
 import { rosterFromRoles, membersFor } from './roster.js'
 
@@ -18,38 +18,6 @@ const repo = () => {
   execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'init'], { cwd: dir })
   return dir
 }
-
-test('acceptance runs in a disposable copy and cannot write the source repo', () => {
-  const sourceRepo = repo()
-  const copy = isolatedCopy({ source: sourceRepo, ref: head({ path: sourceRepo }) })
-  try {
-    assert.equal(existsSync(copy.path), true)
-    assert.equal(readFileSync(join(copy.path, 'README.md'), 'utf8'), '# test\n')
-    writeFileSync(join(copy.path, 'side-effect.txt'), 'discard\n')
-    assert.equal(existsSync(join(sourceRepo, 'side-effect.txt')), false)
-  } finally {
-    removeIsolatedCopy({ source: sourceRepo, copy })
-    rmSync(sourceRepo, { recursive: true, force: true })
-  }
-  assert.equal(existsSync(copy.path), false)
-})
-
-test('acceptance copies never receive tracked env secrets', () => {
-  const sourceRepo = repo()
-  writeFileSync(join(sourceRepo, '.env'), 'TOKEN=secret\n')
-  writeFileSync(join(sourceRepo, '.env.example'), 'TOKEN=\n')
-  execFileSync('git', ['add', '.env', '.env.example'], { cwd: sourceRepo })
-  execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'env'], { cwd: sourceRepo })
-  const copy = isolatedCopy({ source: sourceRepo, ref: head({ path: sourceRepo }) })
-  try {
-    assert.equal(existsSync(join(copy.path, '.env')), false)
-    assert.equal(existsSync(join(copy.path, '.env.example')), true)
-    assert.deepEqual(copy.environment.copied, [])
-  } finally {
-    removeIsolatedCopy({ source: sourceRepo, copy })
-    rmSync(sourceRepo, { recursive: true, force: true })
-  }
-})
 
 test('a candidate commit lists files written by shell commands', () => {
   const sourceRepo = repo()
@@ -481,27 +449,6 @@ test('the room commit names what changed instead of repeating the goal', () => {
     commitMessageOf({ room: { name: '目标' }, files: ['a', 'b', 'c', 'd', 'e'] }),
     'room: 更新 a、b、c、d 等 5 个文件',
   )
-})
-
-test('a single-worker clone can isolate its own candidate commit', () => {
-  const sourceRepo = repo()
-  const clone = mkdtempSync(join(tmpdir(), 'crew-worktree-clone-'))
-  try {
-    execFileSync('git', ['clone', '-q', sourceRepo, clone])
-    writeFileSync(join(clone, 'candidate.txt'), 'from clone\n')
-    execFileSync('git', ['add', 'candidate.txt'], { cwd: clone })
-    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'candidate'], { cwd: clone })
-    const candidate = head({ path: clone })
-    const copy = isolatedCopy({ source: clone, ref: candidate })
-    try {
-      assert.equal(readFileSync(join(copy.path, 'candidate.txt'), 'utf8'), 'from clone\n')
-    } finally {
-      removeIsolatedCopy({ source: clone, copy })
-    }
-  } finally {
-    rmSync(clone, { recursive: true, force: true })
-    rmSync(sourceRepo, { recursive: true, force: true })
-  }
 })
 
 test('renames, binaries, CRLF and large files keep their file list', async () => {

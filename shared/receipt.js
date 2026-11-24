@@ -1,4 +1,4 @@
-// 工作室 → 聊天室的回执契约：只带结果、完成度、检查、改动文件与开放问题。
+// 工作室 → 聊天室的回执契约：只带结果、完成度、验收、改动文件与开放问题。
 const LIST_LIMIT = 6
 const ITEM_LIMIT = 300
 const PATH_LIMIT = 160
@@ -30,7 +30,7 @@ export const receiptText = receipt => {
   const lines = []
   if (normalized.result !== '') lines.push(`结果：${normalized.result}`)
   if (normalized.completeness !== '') lines.push(`完成度：${normalized.completeness}`)
-  if (normalized.checks.length > 0) lines.push(`检查：${normalized.checks.join('；')}`)
+  if (normalized.checks.length > 0) lines.push(`验收：${normalized.checks.join('；')}`)
   if (normalized.paths.length > 0) lines.push(`文件：${normalized.paths.join('、')}`)
   if (normalized.openQuestions.length > 0) lines.push(`待确认：${normalized.openQuestions.join('；')}`)
   return lines.join('\n')

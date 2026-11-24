@@ -77,11 +77,6 @@ export const createRunActions = deps => {
       })
     },
 
-    acceptance: async ({ room, readBody }) => {
-      const body = await readBody()
-      return stages.setAcceptance(room, Number(body.stage), typeof body.command === 'string' ? body.command : '')
-    },
-
     verify: async ({ room, readBody }) => {
       if (room.live !== true) return fail('conflict', '只有正在运行的房间能真的检查；示例房间用示例数据')
       if (live.isAttached(room.id) !== true) return fail('conflict', '房间现在没有连上，稍后再试')

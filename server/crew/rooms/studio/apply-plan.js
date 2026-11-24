@@ -1,7 +1,6 @@
 import { STAGE_STATE } from '../../../../shared/states.js'
 import { executorsNeeded } from '../../../../shared/crew-proposal.js'
 import { buildStages } from '../../room-types/studio.js'
-import { runnableCheck } from '../create/input.js'
 import { workspaceOf } from './workspace.js'
 import { systemNotice } from '../../notices.js'
 import { leadMemberOf } from '../../room-members.js'
@@ -26,12 +25,16 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
       return { events: [{ type: 'plan.rejected', payload: { count, message } }] }
     })
     const lead = leadMemberOf(current)
+    const clean = String(message).replace(/[。．.]+$/u, '')
     if (count < rejectionLimit && lead !== null && typeof sendToMember === 'function') {
-      const detail = message.endsWith('。') ? message : `${message}。`
-      void sendToMember(roomId, lead.id, `队伍或方案还不合规：${detail}改一版，再用 submit_plan 提交。`).catch(() => {})
+      void sendToMember(roomId, lead.id, `队伍或方案还不合规：${clean}。改一版，再用 submit_plan 提交。`).catch(() => {})
       return
     }
-    systemNotice({ store, roomId, text: `组队没有通过：${message}。这一轮先停在这里，等你看。` })
+    systemNotice({
+      store,
+      roomId,
+      text: `组队没有通过：${clean}。这一轮先停在这里，等你看；你可以直接告诉规划师怎么改，它会再提交一版。`,
+    })
   }
 
   if (result?.proposal === undefined) {
@@ -78,12 +81,6 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
   if (needed > 1 && workspaceOf(room).capabilities().merge !== true) {
     await reject('这个工作文件夹不能合并改动；把工作包并成一位执行官能做的一步。')
     return
-  }
-  for (const stage of proposal.plan.stages) {
-    if (stage.manual !== true && !runnableCheck(stage.acceptance ?? '')) {
-      await reject(`「${stage.title}」的检查不是一条能跑的命令。`)
-      return
-    }
   }
 
   const added = []
@@ -143,8 +140,8 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
       return { events: [] }
     })
   }
-  // 规划师是在自己的只读副本里写方案的，可能把那个绝对路径带进检查命令；
-  // 执行官在自己的 worktree 里跑，平台把旧路径换成仓库根目录的相对写法。
+  // 规划师是在自己的只读副本里写方案的，可能把那个绝对路径带进交付物或文件清单；
+  // 执行官在自己的 worktree 里工作，平台把旧路径换成仓库根目录的相对写法。
   const stalePath = typeof current.repoPath === 'string' ? current.repoPath.replace(/\/+$/, '') : ''
   const cleanPath = value => {
     if (typeof value !== 'string' || stalePath === '') return value
@@ -154,15 +151,12 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
     ...proposal.plan,
     stages: proposal.plan.stages.map(stage => ({
       title: stage.title,
-      kind: stage.manual === true ? 'decision' : 'deliverable',
-      ...(stage.manual === true ? { manual: true } : {}),
-      ...(stage.acceptance === undefined ? {} : { acceptance: cleanPath(stage.acceptance) }),
+      deliverable: cleanPath(stage.deliverable ?? ''),
       ...(Array.isArray(stage.packages)
         ? {
           packages: stage.packages.map(item => ({
-            ...item,
+            title: item.title,
             files: (item.files ?? []).map(cleanPath),
-            ...(item.check === undefined ? {} : { check: cleanPath(item.check) }),
           })),
         }
         : {}),
@@ -171,8 +165,6 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
   const built = buildStages({
     title: String(current.goal ?? '').trim() || current.name,
     plan: planForStages,
-    verify: 'manual',
-    acceptance: '',
     align: true,
   })
   // 对齐这一步由方案本身收口；第一步工作阶段直接开跑。

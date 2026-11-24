@@ -3,7 +3,7 @@
 > 本文回答：改 Agent、工具、权限、上下文、状态、失败、观测或评测前，先检查什么。
 > 通用判断见 [思想.md](../思想.md)；这里只留能改变设计的判断卡。
 
-> 边界现状：目标是写边界可证明——房间里只能写自己的工作树。今天验收命令走 OS 沙箱（macOS `sandbox-exec` / Linux `bwrap`）；成员自己的 shell 是 worktree 加审批，回合结束后对账并退回越界写入，还不是文件系统拒绝；家目录和房间外的路径没有 OS 级拦截。全域沙箱只留给高风险任务。
+> 边界现状：目标是写边界可证明——房间里只能写自己的工作树。成员的 shell 走 worktree 加审批，回合结束后对账并退回越界写入，还不是文件系统拒绝；验收员拿到只读副本，平台不再为验收起 OS 沙箱；家目录和房间外的路径没有 OS 级拦截。
 
 ## 分工落在哪
 
@@ -12,8 +12,8 @@
 | 语义交给模型 | 规划师提交方案与队伍、执行官拆实现、验收员做语义复核；提示词只写纪律 | 风格、篇幅这类仍是软约束 |
 | 判定交给业务 | `gates.js`、`review.js`、完成态、预算、受保护文件、退回规则 | 验收员的 PASS/REJECT 仍是语义输入，业务只决定它算不算数 |
 | 约束交给代码 | 工具面、权限、审批闸、状态机、worktree、验收沙箱；回合后对账，越界写入别人的工作树会被退回 | 家目录和房间外的绝对路径没有 OS 级拦截；Linux 的 bot box 可用，macOS 还没有 |
-| 证据交给验收 | 验收命令、证据卡、验收员、门禁 | 人工和视觉验收靠对照，不总能重跑 |
-| 人只管不可逆和不可验证 | 外部动作审批、人工验收、交给人 | 人还要定产品方向，这属于不可验证那一类 |
+| 证据交给验收 | 平台收集的结果证据、验收员自验、门禁 | 验收员怎么验由它自己定，平台只能要求它写清实际验了什么 |
+| 人只管不可逆和不可验证 | 外部动作审批、交付后的否决、交给人 | 人还要定产品方向，这属于不可验证那一类 |
 | 下一步归系统 | 接力规则 `relay.js` 决定下一棒，模型不写 @ | 无 |
 
 ## 共同的和分开的
@@ -41,7 +41,7 @@
 - **流转**：规划师管内容（拆解、阶段、工作包、队伍、重做或停下），系统管流转（下一棒、叫醒、租约、预算、门禁、写边界、验收票数）；派活权不交给模型。
 - **归属**：语义判断归模型，通用机制归框架，业务规则归业务。不要把语义判断写成关键词匹配。
 - **权限**：工具面就是权限面。新工具要写拒绝原因和系统错误边界；外部内容不能直接变成指令。
-- **验收**：PASS 看证据，REJECT 必须指出一条会因它失败的检查（命令或目标行）；只有 minor 的问题不阻塞。证据是必要条件，不是充分条件；范围复核和人工收口仍是补充防线。
+- **验收**：规划师只写交付物，验收员自己定怎么验；PASS 看结果证据，REJECT 必须指出一条会因它失败的检查（它自己跑的或目标行）；只有 minor 的问题不阻塞。证据是必要条件，不是充分条件；人只在交付后否决，不在中间点头。
 - **上下文**：每轮新增什么、预算多少、什么时候裁剪；业务真相不能放进会话内存。
 - **协议**：状态机记录，门禁拒绝；薄在不管模型怎么想，不在不做判定。
 - **状态与失败**：业务真相在房间和存储；失败要分可重试、不可重试、已受理未完成。
@@ -69,8 +69,8 @@
 | 外部动作先问人 | `external-actions.js`、`kernel/live/action-gate.js` | `external-actions.test.js`、`approval-bridge.test.js` |
 | 交接棒由系统递，模型不决定下一棒 | 工作室由 `rooms/studio/relay.js` 决定，聊天室按公平顺序（每人先说一次，再立场互补，最后随机）；`@` 只在 `kernel/live/bus.js` 的 `send` 里生成；两种房间建房时基座 `followMentions: false` | `relay.test.js`、`live-turn-modules.test.js`、`live-chat-room.test.js`、`engine.test.js`、`room-create.test.js` |
 | 非法状态跃迁写不进去 | `shared/states.js` + `assignments.js` + `kernel/round.js` | `states.test.js`、`assignments.test.js` |
-| 阶段最多 3 步、检查必须能跑、成员增删有约束 | `rooms/create/input.js`、`member-add.js`、`member-remove.js` | `room-create.test.js`、`member-add.test.js`、`member-remove.test.js` |
-| 验收要有证据、测试改动和 quorum | `rooms/studio/gates.js`、`tdd.js`、`verifiers.js` | `gates.test.js`、`tdd.test.js`、`verifiers.test.js` |
+| 阶段最多 3 步、每一步要有交付物、成员增删有约束 | `rooms/create/input.js`、`member-add.js`、`member-remove.js` | `room-create.test.js`、`member-add.test.js`、`member-remove.test.js` |
+| 验收要有结果证据和 quorum | `rooms/studio/gates.js`、`verifiers.js`、`runtime/result.js` | `gates.test.js`、`verifiers.test.js` |
 | 退回必须挂到一条会失败的检查；没有 check 的 blocker/major 降为 minor | `shared/judgment.js`、`gate/mcp-server.js`、`review-prompts.js` | `judgment.test.js`、`mcp-server.test.js` |
 | PASS 要带 diff 外风险；自动交付只认结构化判定 | `gate/mcp-server.js`、`rooms/studio/review.js` | `mcp-server.test.js`、`live-turn-modules.test.js` |
 | 判定缺失先催一次，再交给人 | `rooms/studio/review.js` | `live-turn-modules.test.js` |
@@ -83,7 +83,7 @@
 这些不假装是硬约束；只能在事后用 diff、消息或评测检查，不能事前拒绝：
 
 - 角色纪律里的风格、篇幅、汇报方式、不要额外建文件、不要问问题。
-- “先写一个会失败的测试”：代码只检查命令验收阶段有没有测试文件改动，不能证明测试先红过（`tdd.js`）。
+- 验收员怎么验：平台只保证结果证据存在，不能证明它真的读了文件或跑了检查；`review-prompts.js` 要求它写清实际验了什么，判定仍可能走过场。
 - `git commit`：本地提交不拦；`push`、发布、安装、删除、提权、联网等外部动作会拦（`external-actions.js`）。
 - 原生工具不能按名字收窄（`tool-scope.js` 注释）：平台限制，写 `native:SendMessage` 会让回合起不来。
 - 验收员走文本兜底时没有结构化 check：只有判定工具没挂上才会走；这时只能按首行和理由判断，不能要求 check。

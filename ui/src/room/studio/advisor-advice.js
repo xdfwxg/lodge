@@ -28,7 +28,7 @@ export const shadowAdviceForStage = (room, stageIndex) => {
     const evidence = [...(room?.messages ?? [])].reverse().find(item => (
       item.kind === 'evidence' &&
       (item.meta?.stage ?? 0) === stageIndex &&
-      (item.meta?.kind === 'manual' || item.meta?.kind === 'command')
+      (item.meta?.kind === 'result')
     ))
     if (evidence === undefined || entry.evidenceId !== evidence.id) return null
   }

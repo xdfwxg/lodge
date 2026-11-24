@@ -7,7 +7,7 @@ const MODE_KEYS = [
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record', 'chatMembersOf',
   'initialMessages', 'provisionExtra', 'start',
-  'bulletinAcceptance', 'approvalReadOnly',
+  'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou',

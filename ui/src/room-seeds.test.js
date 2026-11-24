@@ -45,7 +45,7 @@ test('a receipt seed carries the four receipt fields into the goal', () => {
   })
   assert.match(text, /评审这次做出来的：发布检查/)
   assert.match(text, /完成度：2\/2 步完成/)
-  assert.match(text, /检查：npm test 通过/)
+  assert.match(text, /验收：npm test 通过/)
 })
 
 test('the seeded goal is clipped before it reaches room creation', () => {
@@ -60,8 +60,10 @@ test('a finished delivery returns to chat as a structured receipt', () => {
     delivery: {
       name: '发布检查清单',
       goal: '让新人照着勾',
-      stages: [{ state: 'passed' }, { state: 'passed' }],
-      commands: [{ command: 'npm test', exit: 0 }, { command: 'npm run lint', exit: 0 }],
+      stages: [{
+        state: 'passed',
+        verdicts: [{ pass: true }, { pass: true }],
+      }, { state: 'passed' }],
       changedFiles: ['RELEASE_CHECKLIST.md'],
       openQuestions: ['是否需要自动回滚？'],
     },
@@ -73,23 +75,23 @@ test('a finished delivery returns to chat as a structured receipt', () => {
   assert.deepEqual(seed.receipt, {
     result: '发布检查清单',
     completeness: '2/2 步完成，1 个文件',
-    checks: ['2/2 项检查通过'],
+    checks: ['2/2 项验收通过'],
     paths: ['RELEASE_CHECKLIST.md'],
     openQuestions: ['是否需要自动回滚？'],
   })
   assert.match(seed.conclusion, /完成度：2\/2 步完成/)
-  assert.match(seed.conclusion, /检查：2\/2 项检查通过/)
+  assert.match(seed.conclusion, /验收：2\/2 项验收通过/)
   assert.match(seed.conclusion, /文件：RELEASE_CHECKLIST\.md/)
   assert.match(seed.conclusion, /待确认：是否需要自动回滚？/)
 })
 
-test('a manual delivery still brings a receipt', () => {
+test('a delivery without verdicts still brings a receipt', () => {
   const seed = returnToChatSeed({
     id: 'room-manual',
-    delivery: { name: '人工验收的交付', stages: [{ state: 'passed' }], commands: [], changedFiles: [] },
+    delivery: { name: '这次做出来的', stages: [{ state: 'passed' }], changedFiles: [] },
   })
   assert.equal(seed.receipt.completeness, '1/1 步完成')
-  assert.deepEqual(seed.receipt.checks, ['人工验收通过'])
+  assert.deepEqual(seed.receipt.checks, ['结果已交付'])
   assert.deepEqual(seed.receipt.openQuestions, [])
 })
 

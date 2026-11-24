@@ -91,7 +91,6 @@ export const createStudioRuntime = ({
         emit,
         sendToMember: (memberId, text, options = {}) => sendMember(room.id, room, memberId, text, options),
         askPlanner,
-        commands: ports.commands,
         files: ports.files,
         screenshots: ports.screenshots ?? null,
         attachments: ports.attachments ?? null,

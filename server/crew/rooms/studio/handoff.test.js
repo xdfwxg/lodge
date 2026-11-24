@@ -12,7 +12,7 @@ const room = (over = {}) => normalizeTestRoom({
     { id: 'worker', name: '执行官' },
     { id: 'verifier', name: '验收员' },
   ],
-  stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+  stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
   plan: { done: ['测试通过'] },
   constraints: ['不改测试'],
   ...over,
@@ -66,7 +66,6 @@ test('a handoff writes an assignment, wakes the member and writes no room messag
     to: 'worker',
     reason: 'dispatch',
     prompt: '阶段 1「实现」已确认。验收命令：npm test。',
-    acceptance: 'npm test',
   })
   assert.equal(sent.status, 'sent')
   assert.equal(sent.reason, 'dispatch')
@@ -92,7 +91,6 @@ test('a sent handoff is not woken again', async () => {
     to: 'worker',
     reason: 'dispatch',
     prompt: '阶段 1「实现」已确认。',
-    acceptance: 'npm test',
   }
   await ctx.handoff.trigger(params)
   await ctx.handoff.trigger(params)
@@ -113,7 +111,6 @@ test('a transport failure marks the handoff failed without changing the stage', 
       to: 'worker',
       reason: 'dispatch',
       prompt: '阶段开始',
-      acceptance: 'npm test',
     }),
     /还没有连上 Lodge 服务/,
   )
@@ -137,7 +134,6 @@ test('a retry after a transport failure reopens the same assignment', async () =
     to: 'worker',
     reason: 'dispatch',
     prompt: '阶段 1「实现」已确认。',
-    acceptance: 'npm test',
   }
   await assert.rejects(() => ctx.handoff.trigger(params), /暂时送不到/)
   const failed = ctx.store.readAssignments('room-1')[0]
@@ -168,7 +164,6 @@ test('a work failure re-dispatches as a new beat, not a delivery retry', async (
     to: 'worker',
     reason: 'dispatch',
     prompt: '阶段 1「实现」已确认。',
-    acceptance: 'npm test',
   }
   const first = await ctx.handoff.trigger(params)
   transitionAssignment(ctx.store, first.id, 'working')
@@ -191,7 +186,6 @@ test('a delivered assignment is not woken twice', async () => {
     to: 'worker',
     reason: 'dispatch',
     prompt: '阶段 1「实现」已确认。',
-    acceptance: 'npm test',
   }
   const first = await ctx.handoff.trigger(params)
   ctx.store.updateAssignment(first.id, assignment => {
@@ -214,7 +208,6 @@ test('a second rework beat reaches the executor even after the first one reporte
     to: 'worker',
     reason: 'rework',
     prompt: '按验收意见重做。',
-    acceptance: 'npm test',
     rework: true,
     nonce: 'rework-1',
   }
@@ -239,7 +232,6 @@ test('replaying the same rework beat stays idempotent', async () => {
     to: 'worker',
     reason: 'rework',
     prompt: '按验收意见重做。',
-    acceptance: 'npm test',
     rework: true,
     nonce: 'rework-1',
   }

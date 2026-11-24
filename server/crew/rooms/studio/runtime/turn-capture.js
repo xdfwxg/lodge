@@ -31,10 +31,8 @@ export const createTurnCapture = ({
   state,
   integrator,
   review,
-  acceptance,
   routePlannerDecision,
-  autoCheck,
-  markManualReady,
+  markResultReady,
   confirmStage = null,
   rewindStage = null,
   stopRound = null,
@@ -61,7 +59,7 @@ export const createTurnCapture = ({
       })
     }
     const memberId = memberForRef(room, authorRef)
-    // 成员的 shell 不做 OS 沙箱（基座只给验收命令）；这里在回合后对账，越界写到别人工作树的改动退回。
+    // 成员的 shell 不做 OS 沙箱；这里在回合后对账，越界写到别人工作树的改动退回。
     if (memberId !== null) {
       for (const violation of guardTurn(room, memberId)) {
         store.appendMessage(roomId, {
@@ -557,15 +555,10 @@ export const createTurnCapture = ({
 
     if (room !== null) {
       const target = room.stages[stage]
-      const command = typeof target?.acceptance === 'string' ? target.acceptance.trim() : ''
       const key = `${stage}:${turnId}`
-      if (target?.manual === true && target.state === STAGE_STATE.active && !state.acceptanceRuns.has(key)) {
-        state.acceptanceRuns.add(key)
-        markManualReady(room, stage, turnId, worked)
-        if (worked === true) autoCheck(room, stage, turnId)
-      } else if (command !== '' && target?.kind === 'deliverable' && target.state === STAGE_STATE.active && worked && !state.acceptanceRuns.has(key)) {
-        state.acceptanceRuns.add(key)
-        void acceptance.run(stage, command, turnId)
+      if (target?.kind === 'deliverable' && target.state === STAGE_STATE.active && !state.resultRuns.has(key)) {
+        state.resultRuns.add(key)
+        void markResultReady(room, stage, turnId, worked, turn?.reply ?? '')
       }
     }
   }

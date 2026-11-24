@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
 import test, { mock } from 'node:test'
-import { createAcceptanceRunner } from './rooms/studio/acceptance-runner.js'
 import { createHandoff } from './rooms/studio/handoff.js'
 import { createStageIntegrator } from './rooms/studio/integration.js'
 import { createReviewCoordinator } from './rooms/studio/review.js'
@@ -39,7 +38,7 @@ const makeRoom = overrides => normalizeTestRoom({
   name: 'Room',
   goal: 'ship it',
   state: 'active',
-  stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+  stages: [{ title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
   seatNames: { executor: 'Exec', verifier: 'Verifier' },
   seatSpecs: [
     { id: 'executor', name: '执行官', role: 'worker' },
@@ -260,7 +259,7 @@ test('a lead plan call hands the proposal to the platform without an @', async (
       id: 'call-plan',
       name: 'mcp__lodge_gate__submit_plan',
       input: JSON.stringify({
-        plan: { done: ['能跑'], stages: [{ title: '实现', acceptance: 'npm test' }] },
+        plan: { done: ['能跑'], stages: [{ title: '实现', deliverable: 'tests pass' }] },
         crew: { executors: [{ engine: 'claude', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
       }),
     },
@@ -337,7 +336,7 @@ test('a lead model change goes to the platform as three fields', async () => {
 test('asking a decision pauses every member except the planner', () => {
   const room = makeRoom({
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: '' },
+      { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'a result' },
       { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
     ],
     leadSeat: 'planner',
@@ -389,7 +388,7 @@ test('asking a decision pauses every member except the planner', () => {
 test('a planner question pauses the room without a decision card', () => {
   const room = makeRoom({
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: '' },
+      { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'a result' },
       { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
     ],
     leadSeat: 'planner',
@@ -430,7 +429,7 @@ test('a planner question pauses the room without a decision card', () => {
 test('a planner stop request really stops the round', async () => {
   const room = makeRoom({
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: '' },
+      { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'a result' },
       { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
     ],
     leadSeat: 'planner',
@@ -477,7 +476,7 @@ test('a planner stop request really stops the round', async () => {
 test('a planner resume request reopens the stopped round', async () => {
   const room = makeRoom({
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'active', acceptance: '' },
+      { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'a result' },
       { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
     ],
     leadSeat: 'planner',
@@ -591,7 +590,7 @@ test('a planner summary after a passed verdict closes the last step without anot
     seatBots: { planner: 'bot-planner', executor: 'bot-exec', verifier: 'bot-ver' },
     workers: ['executor'],
     stages: [
-      { title: '写一句说明', kind: 'deliverable', manual: true, state: 'active', acceptance: '' },
+      { title: '写一句说明', kind: 'deliverable', state: 'active', deliverable: 'a result' },
       { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
     ],
   })
@@ -696,7 +695,7 @@ test('a review request always gets one system handoff, even if the executor wrot
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   // 执行官最后一句已经按规矩 @ 了验收员。
   store.appendMessage('room-1', {
@@ -730,7 +729,7 @@ test('a verifier reply without a verdict is nudged, then expires the review', as
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const review = createReviewCoordinator({
@@ -777,7 +776,7 @@ test('a verifier with the gate tool cannot pass on text alone', async () => {
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const review = createReviewCoordinator({
@@ -816,7 +815,7 @@ test('a deliverable review is blind to the executor narrative by default', async
   store.appendMessage('room-1', { kind: 'chat', authorId: 'executor', text: '我把实现改好了，测试也过了。' })
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: 'ok', diff: 'diff --git a/a b/a' },
+    meta: { stage: 0, kind: 'result', resultText: 'ok', diff: 'diff --git a/a b/a' },
   })
   const sent = []
   const review = createReviewCoordinator({
@@ -828,35 +827,9 @@ test('a deliverable review is blind to the executor narrative by default', async
   })
   await review.request(0)
   assert.match(sent.at(-1).prompt, /对抗复核/)
-  assert.match(sent.at(-1).prompt, /先看证据是否成立/)
+  assert.match(sent.at(-1).prompt, /先核对结果是否成立/)
   assert.match(sent.at(-1).prompt, /目标之外的重构/)
   assert.doesNotMatch(sent.at(-1).prompt, /证据摘要|进度：/)
-})
-
-test('a decision stage may show the conversation', async () => {
-  const room = makeRoom({
-    verifiers: ['verifier'],
-    stages: [{ title: '确认口径', kind: 'decision', manual: true, state: 'active' }],
-  })
-  const store = fakeStore(room)
-  store.appendMessage('room-1', { kind: 'chat', authorId: 'executor', text: '口径我按你的原话写了。' })
-  store.appendMessage('room-1', {
-    kind: 'evidence',
-    meta: { stage: 0, kind: 'manual', output: '人确认', diff: '' },
-  })
-  const sent = []
-  const review = createReviewCoordinator({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async (memberId, prompt) => { sent.push({ memberId, prompt }); return { messageId: 'm1' } },
-    updateTasks: () => {},
-  })
-  await review.request(0)
-  assert.doesNotMatch(sent.at(-1).prompt, /对抗复核/)
-  assert.match(sent.at(-1).prompt, /先看结果证据是否成立/)
-  assert.match(sent.at(-1).prompt, /目标之外的重构/)
-  assert.match(sent.at(-1).prompt, /进度：/)
 })
 
 test('a verdict cannot pass protected files without naming them', async () => {
@@ -867,10 +840,7 @@ test('a verdict cannot pass protected files without naming them', async () => {
     authorId: 'executor',
     meta: {
       stage: 0,
-      kind: 'command',
-      command: 'true',
-      exit: 0,
-      output: '',
+      kind: 'result',
       diff: '',
       changedFiles: ['package.json'],
     },
@@ -930,10 +900,7 @@ test('a changed existing test must be acknowledged, an added test does not', asy
     authorId: 'executor',
     meta: {
       stage: 0,
-      kind: 'command',
-      command: 'true',
-      exit: 0,
-      output: '',
+      kind: 'result',
       diff,
       changedFiles: ['test/initials.test.js', 'test/new.test.js'],
     },
@@ -1020,6 +987,33 @@ test('the same worker reply replayed under another turn id lands once', () => {
   assert.equal(evidence.length, 1)
 })
 
+test('a room without a workspace path never runs workspace commands in the process directory', async () => {
+  let workspaceCalls = 0
+  registerWorkspaceProvider('test-no-repo-path', {
+    capabilities: () => ({ candidate: true, vcs: 'git', merge: true }),
+    submit: () => { workspaceCalls += 1; return 'candidate' },
+    head: () => { workspaceCalls += 1; return 'head' },
+    changes: async () => { workspaceCalls += 1; return { files: [], diff: '', status: '' } },
+  })
+  const room = makeRoom({ workspace: { provider: 'test-no-repo-path' }, repoPath: null })
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ turnId: 't-no-repo', reply: '做完了', toolCalls: 1 }, 'bot-exec')
+  await new Promise(resolve => setTimeout(resolve, 50))
+  assert.equal(workspaceCalls, 0)
+  const evidence = store.messages.filter(message => message.kind === 'evidence' && message.meta?.kind === 'result')
+  assert.equal(evidence.length, 1)
+  assert.deepEqual(evidence[0].meta.files, [])
+  assert.equal(evidence[0].meta.candidate, null)
+})
+
 test('a solo planner turn does not close the alignment before the crew exists', () => {
   const room = makeRoom({
     stages: [
@@ -1090,7 +1084,7 @@ test('a turn that started before the work stage began is not stage evidence', ()
   const room = makeRoom({
     stages: [
       { title: '目标对齐', kind: 'decision', spine: true, state: 'passed' },
-      { title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true', activatedAt: 20_000 },
+      { title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it', activatedAt: 20_000 },
     ],
   })
   const store = fakeStore(room)
@@ -1223,7 +1217,7 @@ test('a parallel rework decided by the planner goes into the member private work
       title: 'impl',
       kind: 'deliverable',
       state: 'active',
-      acceptance: 'true',
+      deliverable: 'ship it',
       assignees: ['executor', 'executor-2'],
     }],
   })
@@ -1338,7 +1332,7 @@ test('a single worker stage sends the prompt and posts the handoff projection', 
   await starter.startStage(room, 0)
   assert.equal(prompts.length, 1)
   assert.equal(prompts[0].memberId, room.workers[0])
-  assert.match(prompts[0].prompt, /验收命令：`true`/)
+  assert.match(prompts[0].prompt, /这一步要交付：ship it/)
   assert.match(prompts[0].prompt, /阶段 1/)
   const handoff = store.messages.find(message => message.meta?.kind === 'handoff')
   assert.match(handoff.text, /@执行官 第 1 步「impl」交给你/)
@@ -1519,104 +1513,6 @@ test('retrying one branch revives the cancelled sibling on the same stage', asyn
   assert.deepEqual(prompts.map(item => item.memberId).sort(), ['executor', 'executor-2'])
 })
 
-test('acceptance runs in a disposable copy and records command evidence', async () => {
-  registerWorkspaceProvider('test-live-accept', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: false }),
-    changes: () => ({ diff: 'D', status: 'M', files: ['a.js'], manifest: [] }),
-    isolatedCopy: () => ({ path: '/tmp/copy' }),
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    workspace: { provider: 'test-live-accept' },
-    seatSpecs: [{ id: 'executor', name: '执行官', role: 'worker' }],
-    verifiers: [],
-  })
-  const store = fakeStore(room)
-  let progressed = 0
-  const runner = createAcceptanceRunner({
-    store,
-    roomId: 'room-1',
-    markProgress: () => { progressed += 1 },
-    requestReview: async () => {},
-    run: async () => ({ exit: 0, output: 'ok', durationMs: 12, sandbox: { mode: 'off' } }),
-  })
-  await runner.run(0, 'true', 't1')
-  const evidence = store.messages.find(message => message.kind === 'evidence')
-  assert.equal(evidence.meta.exit, 0)
-  assert.equal(evidence.meta.diff, 'D')
-  assert.ok(store.events.some(event => event.type === 'acceptance.run'))
-  assert.equal(progressed, 1)
-  // 证据已经说明检查通过；不再追加一条同义的系统回执。
-  assert.equal(store.messages.some(message => /这一步做完了/.test(message.text ?? '')), false)
-})
-
-test('a failed acceptance surfaces a blocked room instead of going quiet', async () => {
-  registerWorkspaceProvider('test-live-failcheck', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: false }),
-    changes: () => ({ diff: 'D', status: 'M', files: ['a.js'], manifest: [] }),
-    isolatedCopy: () => ({ path: '/tmp/copy' }),
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    workspace: { provider: 'test-live-failcheck' },
-    verifiers: [],
-  })
-  const store = fakeStore(room)
-  const emitted = []
-  const runner = createAcceptanceRunner({
-    store,
-    roomId: 'room-1',
-    emit: (_event, updated) => emitted.push(updated),
-    markProgress: () => {},
-    requestReview: async () => {},
-    run: async () => ({ exit: 1, output: 'boom', durationMs: 5 }),
-  })
-  await runner.run(0, 'false', 't3')
-  assert.equal(store.current.blocked?.reason, 'check-failed')
-  assert.equal(store.current.blocked?.command, 'false')
-  assert.ok(emitted.some(updated => updated?.blocked?.reason === 'check-failed'))
-})
-
-test('a rework turn with no new changes surfaces a blocked room instead of stalling', async () => {
-  registerWorkspaceProvider('test-live-nochange', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
-    changes: () => ({ diff: '', status: '', files: [], manifest: [] }),
-    head: () => 'c1',
-    submit: () => { throw new Error('submit should not run when there is no change') },
-    isolatedCopy: () => { throw new Error('no copy should be made') },
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    workspace: { provider: 'test-live-nochange' },
-    stageBases: { 0: 'base' },
-    verifiers: [],
-  })
-  const store = fakeStore(room)
-  store.appendMessage('room-1', { kind: 'rework', seq: 1, meta: { stage: 0 } })
-  store.appendMessage('room-1', {
-    kind: 'evidence', seq: 2, meta: { stage: 0, kind: 'command', command: 'true', exit: 0, head: 'c1' },
-  })
-  const emitted = []
-  const runner = createAcceptanceRunner({
-    store,
-    roomId: 'room-1',
-    emit: (_event, updated) => emitted.push(updated),
-    markProgress: () => {},
-    requestReview: async () => {},
-    run: async () => ({ exit: 0, output: '', durationMs: 1 }),
-  })
-  await runner.run(0, 'true', 't2')
-  assert.equal(store.current.blocked?.reason, 'no-progress')
-  assert.equal(store.current.blocked?.stage, 0)
-  assert.ok(emitted.some(updated => updated?.blocked?.reason === 'no-progress'))
-})
-
 test('review request and verdict consumption update the round without crossing turns', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
@@ -1625,7 +1521,7 @@ test('review request and verdict consumption update the round without crossing t
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const review = createReviewCoordinator({
@@ -1658,7 +1554,7 @@ test('a gate tool call supplies the verdict without parsing the reply', async ()
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const review = createReviewCoordinator({
     store,
@@ -1696,7 +1592,7 @@ test('critique review is blind to the execution conversation', async () => {
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const review = createReviewCoordinator({
@@ -1710,374 +1606,8 @@ test('critique review is blind to the execution conversation', async () => {
     updateTasks: () => {},
   })
   await review.request(0)
-  assert.match(sent[0].prompt, /对抗复核：只依据本轮证据/)
+  assert.match(sent[0].prompt, /对抗复核：只依据本轮结果/)
   assert.doesNotMatch(sent[0].prompt, /阶段进展/)
-})
-
-test('manual evidence also goes through the Verifier before human signoff', async () => {
-  const room = makeRoom({
-    verifiers: ['verifier'],
-    stages: [{ title: 'artifact', kind: 'decision', manual: true, state: 'active' }],
-  })
-  const store = fakeStore(room)
-  store.appendMessage('room-1', {
-    kind: 'evidence',
-    text: '产物已就绪',
-    meta: { stage: 0, kind: 'manual', repoPath: '/tmp/room' },
-  })
-  const sent = []
-  const review = createReviewCoordinator({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async (memberId, prompt) => {
-      sent.push({ memberId, prompt })
-      return { messageId: 'm2' }
-    },
-    updateTasks: () => {},
-  })
-  await review.request(0)
-  assert.equal(sent[0].memberId, 'verifier')
-  assert.match(sent[0].prompt, /结果证据/)
-  assert.doesNotMatch(sent[0].prompt, /验收命令：/)
-  assert.equal(review.consume({ turn: { reply: 'PASS\nok' }, memberId: 'verifier', turnId: 't1', room }), true)
-  assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
-})
-
-test('acceptance skips a later turn that produced no delivery changes', async () => {
-  registerWorkspaceProvider('test-live-nochange', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
-    changes: async () => ({ diff: '', status: '', files: [], manifest: [] }),
-    submit: () => { throw new Error('submit must not run without changes') },
-    isolatedCopy: () => ({ path: '/tmp/copy' }),
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({ repoPath: '/repo', sourceRepo: '/repo', workspace: { provider: 'test-live-nochange' } })
-  const store = fakeStore(room)
-  store.appendMessage('room-1', {
-    kind: 'evidence',
-    meta: { kind: 'command', stage: 0, command: 'true', exit: 0 },
-  })
-  let runs = 0
-  const runner = createAcceptanceRunner({
-    store,
-    roomId: 'room-1',
-    markProgress: () => {},
-    requestReview: async () => { throw new Error('review must not run') },
-    run: async () => { runs += 1; return { exit: 0 } },
-  })
-  await runner.run(0, 'true', 't-chatter')
-  assert.equal(runs, 0)
-  assert.match(store.messages.at(-1).text, /这次没有新的改动，沿用上次的检查结果/)
-  assert.equal(store.messages.filter(message => message.meta?.kind === 'command').length, 1)
-})
-
-test('a rework reruns acceptance even when the amended candidate has no working-tree diff', async () => {
-  registerWorkspaceProvider('test-live-after-rework', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
-    changes: async () => ({ diff: '', status: '', files: [], manifest: [] }),
-    submit: () => null,
-    isolatedCopy: () => ({ path: '/tmp/copy' }),
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({ repoPath: '/repo', sourceRepo: '/repo', workspace: { provider: 'test-live-after-rework' } })
-  const store = fakeStore(room)
-  store.appendMessage('room-1', {
-    kind: 'evidence',
-    seq: 1,
-    meta: { kind: 'command', stage: 0, command: 'true', exit: 0 },
-  })
-  store.appendMessage('room-1', { kind: 'rework', seq: 2, text: 'remove local env', meta: { stage: 0 } })
-  let runs = 0
-  const runner = createAcceptanceRunner({
-    store,
-    roomId: 'room-1',
-    markProgress: () => {},
-    requestReview: async () => { throw new Error('review must not run') },
-    run: async () => {
-      runs += 1
-      return { exit: 0 }
-    },
-  })
-  await runner.run(0, 'true', 't-rework')
-  assert.equal(runs, 1)
-  const commands = store.messages.filter(message => message.meta?.kind === 'command')
-  assert.equal(commands.length, 2)
-  assert.equal(commands.at(-1).meta.candidate, null)
-  assert.doesNotMatch(store.messages.at(-2).text, /没有可验收的交付改动/)
-})
-
-test('a self-committed stage still runs acceptance when HEAD moved past the stage baseline', async () => {
-  const copies = []
-  registerWorkspaceProvider('test-live-self-commit', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
-    changes: async () => ({ diff: '', status: '', files: [], manifest: [] }),
-    head: () => 'commit-after-baseline',
-    rangeChanges: async () => ({ diff: 'diff --git a/src/initials.js', files: ['src/initials.js'] }),
-    submit: () => null,
-    isolatedCopy: input => {
-      copies.push(input)
-      return { path: '/tmp/copy' }
-    },
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    stageBases: { 0: 'stage-baseline' },
-    workspace: { provider: 'test-live-self-commit' },
-  })
-  const store = fakeStore(room)
-  let runs = 0
-  const runner = createAcceptanceRunner({
-    store,
-    roomId: 'room-1',
-    markProgress: () => {},
-    requestReview: async () => { throw new Error('review must not run') },
-    run: async () => {
-      runs += 1
-      return { exit: 0 }
-    },
-  })
-  await runner.run(0, 'true', 't-self-commit')
-  assert.equal(runs, 1)
-  assert.equal(copies[0].ref, 'commit-after-baseline')
-  const evidence = store.messages.find(message => message.meta?.kind === 'command')
-  assert.equal(evidence.meta.head, 'commit-after-baseline')
-  assert.deepEqual(evidence.meta.files, ['src/initials.js'])
-  assert.match(evidence.meta.diff, /src\/initials\.js/)
-})
-
-test('acceptance records the candidate commit, not the pre-submit HEAD, as covered', async () => {
-  const copies = []
-  registerWorkspaceProvider('test-live-candidate-head', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
-    changes: async () => ({ diff: 'diff', status: ' M src/a.js', files: ['src/a.js'], manifest: [] }),
-    head: () => 'base-head',
-    submit: () => 'candidate-1',
-    isolatedCopy: input => {
-      copies.push(input)
-      return { path: '/tmp/copy' }
-    },
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    stageBases: { 0: 'base-head' },
-    workspace: { provider: 'test-live-candidate-head' },
-  })
-  const store = fakeStore(room)
-  const runner = createAcceptanceRunner({
-    store,
-    roomId: 'room-1',
-    markProgress: () => {},
-    requestReview: async () => { throw new Error('review must not run') },
-    run: async () => ({ exit: 0 }),
-  })
-  await runner.run(0, 'true', 't-candidate')
-  const evidence = store.messages.find(message => message.meta?.kind === 'command')
-  assert.equal(evidence.meta.candidate, 'candidate-1')
-  assert.equal(evidence.meta.head, 'candidate-1')
-  assert.equal(copies[0].ref, 'candidate-1')
-})
-
-test('a worker chatter turn does not start another acceptance round', async () => {
-  const room = makeRoom({
-    workers: ['worker'],
-    seatBots: { worker: 'bot-worker' },
-    seatNames: { worker: 'Worker' },
-    seatSpecs: [{ id: 'worker', role: 'worker', name: 'Worker' }],
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' }],
-  })
-  const store = fakeStore(room)
-  let runs = 0
-  const turns = createLiveTurns({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async () => ({ messageId: null }),
-    commands: { run: async () => { runs += 1; return { exit: 0 } } },
-    files: { exists: () => false, read: () => Buffer.from('') },
-  })
-  turns.captureTurn({ turnId: 't-chatter', reply: '收到，没有待办。', toolCalls: 0, tools: [] }, 'bot-worker')
-  await new Promise(resolve => setTimeout(resolve, 20))
-  assert.equal(runs, 0)
-  assert.equal(store.messages.some(message => message.meta?.kind === 'command'), false)
-})
-
-test('a failed auto check sends the step back instead of asking for sign-off', async () => {
-  registerWorkspaceProvider('test-auto-fail', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
-    changes: async () => ({ diff: 'diff', status: ' M a.js', files: ['a.js'], manifest: [] }),
-    head: () => 'auto-fail-head',
-    submit: () => 'auto-fail-candidate',
-    isolatedCopy: () => ({ path: '/tmp/auto-fail-copy' }),
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    stageBases: { 0: 'auto-fail-base' },
-    workspace: { provider: 'test-auto-fail' },
-  })
-  const store = fakeStore(room)
-  let asked = 0
-  let failed = null
-  const runner = createAcceptanceRunner({
-    store,
-    roomId: 'room-1',
-    markProgress: () => {},
-    requestReview: async () => { asked += 1 },
-    run: async () => ({ exit: 1, output: 'boom' }),
-    onAutoFail: info => { failed = info },
-  })
-  await runner.run(0, 'npm test', 't-fail', { auto: true, reason: 'package.json 里有 test 脚本' })
-  assert.equal(asked, 0)
-  assert.deepEqual(failed, { stageIndex: 0, command: 'npm test', exit: 1, output: 'boom' })
-  const evidence = store.messages.find(message => message.meta?.auto === true)
-  assert.equal(evidence.meta.exit, 1)
-  assert.equal(store.messages.some(message => /退回重做/.test(message.text ?? '')), false)
-})
-
-test('a manual stage runs the check the repository itself declares', async () => {
-  registerWorkspaceProvider('test-manual-autocheck', {
-    capabilities: () => ({ acceptanceCopy: true, candidate: true }),
-    changes: async () => ({ diff: 'diff', status: ' M a.js', files: ['a.js'], manifest: [] }),
-    head: () => 'auto-head',
-    submit: () => 'auto-candidate',
-    isolatedCopy: () => ({ path: '/tmp/auto-copy' }),
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    stageBases: { 0: 'auto-base' },
-    workspace: { provider: 'test-manual-autocheck' },
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', manual: true }],
-    workers: ['worker'],
-    verifiers: [],
-    seatBots: { worker: 'bot-worker' },
-    seatSpecs: [{ id: 'worker', name: 'Worker', role: 'worker' }],
-  })
-  const store = fakeStore(room)
-  let ran = ''
-  const turns = createLiveTurns({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async () => ({ messageId: null }),
-    commands: { run: async ({ command }) => { ran = command; return { exit: 0, output: 'ok' } } },
-    files: {
-      exists: path => path.endsWith('package.json'),
-      read: path => path.endsWith('package.json') ? Buffer.from('{"scripts":{"test":"vitest run"}}') : Buffer.from(''),
-    },
-  })
-  turns.captureTurn({ turnId: 't-auto', reply: '改完了', toolCalls: 1, tools: [{ id: 'write' }] }, 'bot-worker')
-  await new Promise(resolve => setTimeout(resolve, 300))
-  assert.equal(ran, 'npm test')
-  const evidence = store.messages.find(message => message.meta?.kind === 'command' && message.meta?.auto === true)
-  assert.ok(evidence)
-  assert.equal(evidence.meta.command, 'npm test')
-  assert.match(evidence.meta.detected, /test 脚本/)
-  // 自动检查的结果已经在证据里，不再补一条同义的系统小字。
-  assert.equal(store.messages.some(message => message.kind === 'system' && /自动检查通过/.test(message.text ?? '')), false)
-})
-
-test('a manual stage records its result without a check notice', async () => {
-  registerWorkspaceProvider('test-manual-nocheck', {
-    capabilities: () => ({ candidate: true }),
-    head: () => 'nocheck-head',
-    submit: () => 'nocheck-candidate',
-    changes: async () => ({ diff: 'diff', status: ' M a.js', files: ['a.js'], manifest: [] }),
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    stageBases: { 0: 'nocheck-base' },
-    workspace: { provider: 'test-manual-nocheck' },
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', manual: true }],
-    workers: ['worker'],
-    verifiers: [],
-    seatBots: { worker: 'bot-worker' },
-    seatSpecs: [{ id: 'worker', name: 'Worker', role: 'worker' }],
-  })
-  const store = fakeStore(room)
-  const turns = createLiveTurns({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async () => ({ messageId: null }),
-    commands: { run: async () => ({ exit: 0 }) },
-    files: { exists: () => false, read: () => Buffer.from('') },
-  })
-  turns.captureTurn({ turnId: 't-nocheck', reply: '改完了', toolCalls: 1, tools: [{ id: 'write' }] }, 'bot-worker')
-  await new Promise(resolve => setTimeout(resolve, 100))
-  assert.equal(store.messages.some(message => /没有可自动运行的检查/.test(message.text ?? '')), false)
-  assert.equal(store.messages.some(message => message.meta?.kind === 'command'), false)
-  assert.ok(store.messages.some(message => message.kind === 'evidence' && message.meta?.kind === 'manual'))
-})
-
-test('a repeated manual turn on the same HEAD does not duplicate manual evidence', async () => {
-  registerWorkspaceProvider('test-manual-dedupe', {
-    capabilities: () => ({ candidate: true }),
-    head: () => 'manual-head-1',
-    changedFilesSince: () => ['NOTES.md'],
-    submit: () => null,
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    stageBases: { 0: 'manual-base' },
-    workspace: { provider: 'test-manual-dedupe' },
-    stages: [{ title: 'artifact', kind: 'decision', manual: true, state: 'active' }],
-    verifiers: [],
-  })
-  const store = fakeStore(room)
-  const turns = createLiveTurns({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async () => ({ messageId: null }),
-    commands: { run: async () => ({ exit: 0 }) },
-    files: { exists: () => false, read: () => Buffer.from('') },
-  })
-  turns.captureTurn({ turnId: 't-manual-1', reply: '产物已就绪', toolCalls: 2, tools: [] }, 'bot-exec')
-  turns.captureTurn({ turnId: 't-manual-2', reply: '再次确认', toolCalls: 2, tools: [] }, 'bot-exec')
-  assert.equal(store.messages.filter(message => message.meta?.kind === 'manual').length, 1)
-  const evidence = store.messages.find(message => message.meta?.kind === 'manual')
-  assert.equal(evidence.meta.head, 'manual-head-1')
-  assert.deepEqual(evidence.meta.changedFiles, ['NOTES.md'])
-})
-
-test('a rework on the same HEAD still records a new manual result', async () => {
-  registerWorkspaceProvider('test-manual-rework-same-head', {
-    capabilities: () => ({ candidate: true }),
-    head: () => 'manual-head-1',
-    changedFilesSince: () => ['NOTES.md'],
-    submit: () => null,
-  })
-  const room = makeRoom({
-    repoPath: '/repo',
-    sourceRepo: '/repo',
-    stageBases: { 0: 'manual-base' },
-    workspace: { provider: 'test-manual-rework-same-head' },
-    stages: [{ title: 'artifact', kind: 'decision', manual: true, state: 'active' }],
-    verifiers: [],
-  })
-  const store = fakeStore(room)
-  const turns = createLiveTurns({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async () => ({ messageId: null }),
-    commands: { run: async () => ({ exit: 0 }) },
-    files: { exists: () => false, read: () => Buffer.from('') },
-  })
-  turns.captureTurn({ turnId: 't-manual-1', reply: '产物已就绪', toolCalls: 2, tools: [] }, 'bot-exec')
-  store.appendMessage('room-1', { kind: 'rework', meta: { stage: 0 }, seq: 10 })
-  turns.captureTurn({ turnId: 't-manual-2', reply: '按意见改好了', toolCalls: 2, tools: [] }, 'bot-exec')
-  assert.equal(store.messages.filter(message => message.meta?.kind === 'manual').length, 2)
 })
 
 test('new evidence restarts an in-flight review and ignores the stale verdict', async () => {
@@ -2085,7 +1615,7 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: 'old' },
+    meta: { stage: 0, kind: 'result', diff: 'old' },
   })
   const sent = []
   const review = createReviewCoordinator({
@@ -2101,7 +1631,7 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   await review.request(0)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: 'new' },
+    meta: { stage: 0, kind: 'result', diff: 'new' },
   })
   await review.request(0)
   assert.equal(sent.length, 2)
@@ -2126,7 +1656,7 @@ test('a verifier reject keeps the stage open and hands it back to the executor',
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const review = createReviewCoordinator({
@@ -2166,7 +1696,7 @@ test('a verifier pass hands the summary to the planner', async () => {
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const sendToMember = async (memberId, prompt) => {
@@ -2211,7 +1741,7 @@ test('auto delivery closes the round when the verifier passes', async () => {
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const advanced = []
@@ -2256,7 +1786,7 @@ test('a promise round delivers without the room-wide auto-deliver switch', async
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const advanced = []
@@ -2299,7 +1829,7 @@ test('auto delivery falls back to the planner when the verdict came from text', 
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const advanced = []
@@ -2327,15 +1857,15 @@ test('an intermediate stage advances by itself instead of asking the planner to 
   const room = makeRoom({
     verifiers: ['verifier'],
     stages: [
-      { title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'true' },
-      { title: 'next', kind: 'deliverable', state: 'pending', acceptance: 'true' },
+      { title: 'impl', kind: 'deliverable', state: 'active', deliverable: 'ship it' },
+      { title: 'next', kind: 'deliverable', state: 'pending', deliverable: 'ship it' },
       { title: '验收与结论', kind: 'deliverable', state: 'pending' },
     ],
   })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   const advanced = []
@@ -2366,7 +1896,7 @@ test('shadow review records advice without injecting it into the Verifier prompt
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const sent = []
   let calls = 0
@@ -2402,7 +1932,7 @@ test('a shadow opinion still lands after its stage has passed', async () => {
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   let release = null
   const review = createReviewCoordinator({
@@ -2423,36 +1953,12 @@ test('a shadow opinion still lands after its stage has passed', async () => {
   assert.ok(store.readRoom().advisorShadow?.[0])
 })
 
-test('shadow review stays quiet when the check is strong and nothing points at risk', async () => {
-  const room = makeRoom({
-    verifiers: ['verifier'],
-    stages: [{ title: 'impl', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
-  })
-  const store = fakeStore(room)
-  store.appendMessage('room-1', {
-    kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, output: '', diff: '', changedFiles: ['a.js'] },
-  })
-  let calls = 0
-  const review = createReviewCoordinator({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    sendToMember: async () => ({ messageId: 'm2' }),
-    shadow: { ask: async () => { calls += 1; return { available: true, advice: [] } } },
-  })
-  await review.request(0)
-  await review.shadowSettled()
-  assert.equal(calls, 0)
-  assert.equal(store.readRoom().advisorShadow, undefined)
-})
-
 test('shadow review says once when the reviewer could not answer', async () => {
   const room = makeRoom({ verifiers: ['verifier'], shadowReview: true })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
     kind: 'evidence',
-    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const review = createReviewCoordinator({
     store,
@@ -2649,71 +2155,6 @@ test('a second zero-output restart stops instead of sending the task again', asy
 })
 
 
-test('integration commits the merged tree before the acceptance copy', async () => {
-  let copiedRef = ''
-  registerWorkspaceProvider('test-integration-candidate', {
-    capabilities: () => ({ merge: true, candidate: true }),
-    integrate: () => ({ ok: true, files: [] }),
-    submit: () => 'cand-1',
-    head: () => 'head-1',
-    rangeChanges: async () => ({ diff: '', files: ['a.js'], manifest: [] }),
-    isolatedCopy: ({ ref }) => { copiedRef = ref; return { path: '/tmp/copy' } },
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    workspace: { provider: 'test-integration-candidate' },
-    repoPath: '/repo',
-    sourceRepo: '/src',
-    branches: { executor: 'crew/room/executor' },
-    worktrees: { executor: '/wt/executor' },
-  })
-  const store = fakeStore(room)
-  const integrator = createStageIntegrator({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    markProgress: () => {},
-    requestReview: async () => {},
-    run: async () => ({ exit: 0, output: '', durationMs: 1 }),
-  })
-  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
-  assert.equal(copiedRef, 'cand-1')
-  assert.ok(store.messages.some(message => message.kind === 'evidence' && message.meta?.exit === 0))
-})
-
-test('an integration check failure leaves evidence and does not start review', async () => {
-  registerWorkspaceProvider('test-integration-check', {
-    capabilities: () => ({ merge: true }),
-    integrate: () => ({ ok: true, files: [] }),
-    head: () => 'head-1',
-    rangeChanges: async () => ({ diff: '', files: ['hello.txt'], manifest: [] }),
-    isolatedCopy: () => ({ root: '/tmp/lodge-copy', path: '/tmp/lodge-copy/ws' }),
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    workspace: { provider: 'test-integration-check' },
-    repoPath: '/repo',
-    sourceRepo: '/src',
-    branches: { executor: 'crew/room/executor' },
-    worktrees: { executor: '/wt/executor' },
-  })
-  const store = fakeStore(room)
-  let reviewed = 0
-  const integrator = createStageIntegrator({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    markProgress: () => {},
-    requestReview: async () => { reviewed += 1 },
-    run: async () => ({ exit: 1, output: 'failed', durationMs: 5, sandbox: true }),
-  })
-  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
-  const evidence = store.messages.find(message => message.kind === 'evidence')
-  assert.equal(evidence.meta.exit, 1)
-  assert.equal(reviewed, 0)
-  assert.ok(store.messages.some(message => /检查没通过/.test(message.text ?? '')))
-})
-
 test('a merge conflict stops integration with a concrete room conflict', async () => {
   let merges = 0
   registerWorkspaceProvider('test-integration-conflict', {
@@ -2724,8 +2165,6 @@ test('a merge conflict stops integration with a concrete room conflict', async (
     },
     head: () => 'head-1',
     rangeChanges: async () => ({ diff: '', files: [], manifest: [] }),
-    isolatedCopy: () => ({ root: '/tmp/lodge-copy', path: '/tmp/lodge-copy/ws' }),
-    removeIsolatedCopy: () => {},
   })
   const room = makeRoom({
     workspace: { provider: 'test-integration-conflict' },
@@ -2749,35 +2188,4 @@ test('a merge conflict stops integration with a concrete room conflict', async (
   // 冲突挂着时，后续回合不能再自动试一次合并，把人的决定挤掉。
   await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't2' })
   assert.equal(merges, 1)
-})
-
-
-test('an unavailable isolated copy stops integration without inventing evidence', async () => {
-  registerWorkspaceProvider('test-integration-copy-fail', {
-    capabilities: () => ({ merge: true }),
-    integrate: () => ({ ok: true, files: [] }),
-    head: () => 'head-1',
-    rangeChanges: async () => ({ diff: '', files: [], manifest: [] }),
-    isolatedCopy: () => { throw new Error('no copy') },
-    removeIsolatedCopy: () => {},
-  })
-  const room = makeRoom({
-    workspace: { provider: 'test-integration-copy-fail' },
-    repoPath: '/repo',
-    sourceRepo: '/src',
-    branches: { executor: 'crew/room/executor' },
-    worktrees: { executor: '/wt/executor' },
-  })
-  const store = fakeStore(room)
-  const integrator = createStageIntegrator({
-    store,
-    roomId: 'room-1',
-    emit: () => {},
-    markProgress: () => {},
-    requestReview: async () => {},
-    run: async () => ({ exit: 0 }),
-  })
-  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
-  assert.equal(store.messages.some(message => message.kind === 'evidence'), false)
-  assert.ok(store.messages.some(message => /集成检查没跑成/.test(message.text ?? '')))
 })

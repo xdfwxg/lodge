@@ -3,7 +3,7 @@ import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
 export const createTurnState = ({ store, roomId, emit }) => {
   const turns = new Map()
   const capturedTurns = new Set()
-  const acceptanceRuns = new Set()
+  const resultRuns = new Set()
 
   const seed = messages => {
     for (const message of messages) {
@@ -52,7 +52,7 @@ export const createTurnState = ({ store, roomId, emit }) => {
   return {
     turns,
     capturedTurns,
-    acceptanceRuns,
+    resultRuns,
     seed,
     trackTool,
     recordTurn,

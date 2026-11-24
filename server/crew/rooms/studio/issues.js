@@ -1,5 +1,5 @@
 import { stageStatusOf } from '../../../../shared/room-status.js'
-import { AUTO_CHECK_STATUS, ISSUE_STATE, STAGE_STATUS } from '../../../../shared/states.js'
+import { ISSUE_STATE, STAGE_STATUS } from '../../../../shared/states.js'
 
 const ISSUE_STATE_OF = Object.freeze({
   active: ISSUE_STATE.in_progress,
@@ -17,7 +17,7 @@ export const studioIssuesOf = room => (room.stages ?? []).map((stage, index) => 
     title: stage.title,
     state: ISSUE_STATE_OF[status] ?? ISSUE_STATE.todo,
     stage: index,
-    acceptance: stage.acceptance ?? null,
+    deliverable: stage.deliverable ?? '',
     ownerIds: Array.isArray(stage.assignees) ? stage.assignees : [],
     blockers: status === STAGE_STATUS.blocked
       ? [room.mergeConflict?.stage === index ? '合并冲突等你处理' : '这一步卡住了，等你处理']
@@ -40,7 +40,7 @@ export const studioRetroOf = (room, messages = []) => {
     items.push({
       kind: 'rework',
       text: `重做 ${reworks} 次${reason === '' ? '' : `：${reason}`}`,
-      suggestion: '把这一步的验收写成一条能跑的检查，减少来回解释。',
+      suggestion: '把交付物和目标说得更具体，或让验收员更早看到证据。',
     })
   }
   const timeouts = count(messages, 'review_timeout')
@@ -49,13 +49,6 @@ export const studioRetroOf = (room, messages = []) => {
       kind: 'timeout',
       text: `复核超时 ${timeouts} 次`,
       suggestion: '给复核留更明确的证据入口，或把阶段拆小。',
-    })
-  }
-  if (room?.autoCheck?.status === AUTO_CHECK_STATUS.blocked || room?.autoCheck?.status === AUTO_CHECK_STATUS['limit-reached']) {
-    items.push({
-      kind: 'check',
-      text: '自动检查没有通过',
-      suggestion: '在派活前先确认这条检查能在工作副本里跑起来。',
     })
   }
   const trimmed = items.slice(0, 3)

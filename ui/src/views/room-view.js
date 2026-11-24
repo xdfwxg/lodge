@@ -211,7 +211,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const actions = {
     store,
     rooms: state.rooms,
-    accept: stage => void store.accept(stage),
     rework: (stage, note) => store.rework(stage, note),
     chooseHuman: (stage, choice, note) => store.humanChoice(stage, choice, note),
     answerDecision: (decisionId, optionId, text) => store.answerDecision(decisionId, optionId, text),

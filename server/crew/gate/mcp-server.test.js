@@ -149,7 +149,7 @@ test('a plan needs a stage, an executor and a verifier', () => {
   const ok = handleMessage({
     jsonrpc: '2.0', id: 500, method: 'tools/call',
     params: { name: 'submit_plan', arguments: {
-      plan: { done: ['能跑'], stages: [{ title: '实现', acceptance: 'npm test' }] },
+      plan: { done: ['能跑'], stages: [{ title: '实现' }] },
       crew: { executors: [{ engine: 'claude-cli', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
     } },
   })

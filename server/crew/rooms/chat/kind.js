@@ -109,5 +109,4 @@ export const chatKind = {
   speakerOf: room => room.chat?.speaker ?? '',
   issuesOf: chatIssuesOf,
   retroOf: chatRetroOf,
-  bulletinAcceptance: () => '人确认',
 }

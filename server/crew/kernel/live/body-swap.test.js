@@ -30,7 +30,6 @@ const roomOf = () => ({
   state: 'paused',
   live: true,
   verify: 'test',
-  acceptance: 'test -f a',
   chatRoom: { id: 'shared' },
   chatHost: { memberRef: 'host' },
   repoPath: '/tmp/room',

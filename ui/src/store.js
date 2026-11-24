@@ -348,10 +348,6 @@ export function createStore() {
       const data = await post(`/api/rooms/${roomId}/rounds`, {
         text,
         ...(typeof options.projectId === 'string' && options.projectId !== '' ? { projectId: options.projectId } : {}),
-        ...(options.verify === 'test' ? {
-          verify: 'test',
-          acceptance: typeof options.acceptance === 'string' ? options.acceptance : '',
-        } : {}),
         ...(Array.isArray(options.attachments) && options.attachments.length > 0 ? { attachments: options.attachments } : {}),
         ...(options.plan !== null && typeof options.plan === 'object' ? { plan: options.plan } : {}),
       })
@@ -385,7 +381,6 @@ export function createStore() {
     holdMember: (memberId, held) => post(`/api/rooms/${state.activeId}/hold`, { memberId, held }),
     cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),
     steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
-    accept: stage => post(`/api/rooms/${state.activeId}/accept`, { stage }),
     answerDecision: async (decisionId, optionId, text = '') => {
       const data = await post(`/api/rooms/${state.activeId}/decision`, {
         decisionId,
@@ -409,14 +404,6 @@ export function createStore() {
     reviewChatConclusion: conclusionId => post(`/api/rooms/${state.activeId}/chat-review`, { conclusionId }),
     resumeRoom: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     interruptRoom: () => post(`/api/rooms/${state.activeId}/interrupt`, {}),
-    answer: async (stage, text) => {
-      if (text !== '') {
-        const sent = await post(`/api/rooms/${state.activeId}/messages`, { text })
-        if (sent === null) return null
-      }
-      return post(`/api/rooms/${state.activeId}/accept`, { stage })
-    },
-    setAcceptance: (stage, command) => post(`/api/rooms/${state.activeId}/acceptance`, { stage, command }),
     verify: stage => post(`/api/rooms/${state.activeId}/verify`, { stage }),
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
     answerCard: (memberId, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { memberId, requestId, message }),

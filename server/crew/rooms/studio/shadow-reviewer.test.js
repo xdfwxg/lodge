@@ -37,13 +37,13 @@ test('the soul carries the role, the evidence rule and the boundary', () => {
 test('the call prompt only carries this task and its output shape', () => {
   const prompt = shadowPrompt({
     room: { goal: '导出报告' },
-    stage: { title: '导出', acceptance: 'npm test' },
-    evidence: { id: 'e1', text: '导出完成', meta: { command: 'npm test', exit: 0, diff: '+a' } },
+    stage: { title: '导出', deliverable: '一份导出报告' },
+    evidence: { id: 'e1', text: '导出完成', meta: { kind: 'result', resultText: '导出完成', diff: '+a' } },
   })
   assert.match(prompt, /只找漏/)
   assert.match(prompt, /安全、权限、依赖、隐私和数据风险/)
   assert.match(prompt, /不要重复验收员的逐行功能评审/)
-  assert.match(prompt, /npm test/)
+  assert.match(prompt, /一份导出报告/)
   assert.match(prompt, /反例/)
   assert.match(prompt, /无显著风险/)
   assert.match(prompt, /missingEvidence/)
@@ -104,7 +104,7 @@ test('the reviewer asks the hidden bot once and hides the prompt', async () => {
   })
   const result = await reviewer.ask({
     room: room(),
-    stage: { title: '导出', acceptance: 'npm test' },
+    stage: { title: '导出' },
     evidence: { id: 'e1', text: 'ok', meta: { command: 'npm test', exit: 0 } },
   })
   assert.equal(result.available, true)

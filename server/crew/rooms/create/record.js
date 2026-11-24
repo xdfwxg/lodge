@@ -28,8 +28,6 @@ export const buildRoomRecord = ({
   autoDeliver = false,
   builtStages,
   align,
-  verify,
-  acceptance,
   chatTurnLimit = null,
   gate = null,
 }) => {
@@ -38,8 +36,6 @@ export const buildRoomRecord = ({
   const shape = mode.record({
     lead,
     plan,
-    verify,
-    acceptance,
     verifiers,
     independence,
     shadowReview,
@@ -81,7 +77,6 @@ export const buildRoomRecord = ({
   version: 1,
   constraints: shape.constraints,
   roomType: roomType.id,
-  ...(shape.verificationMode === undefined ? {} : { verificationMode: shape.verificationMode }),
   ...(shape.shadowReview === undefined ? {} : { shadowReview: shape.shadowReview }),
   ...(autoDeliver ? { autoDeliver: true } : {}),
   ...(shape.gate === undefined ? {} : { gate: shape.gate }),

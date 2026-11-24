@@ -85,16 +85,13 @@ export const studioKind = {
   record: ({
     lead,
     plan,
-    verify,
-    acceptance,
     verifiers,
     independence,
     shadowReview,
     gate,
     builtStages,
   }) => ({
-    constraints: studioConstraints({ plan, verify, acceptance, verifiers, independence }),
-    verificationMode: 'hybrid',
+    constraints: studioConstraints({ plan, verifiers, independence }),
     shadowReview: shadowReview === true,
     ...(gate === null ? {} : { gate }),
     stages: builtStages.stages,
@@ -138,11 +135,6 @@ export const studioKind = {
   speakerOf: () => '',
   issuesOf: studioIssuesOf,
   retroOf: studioRetroOf,
-
-  bulletinAcceptance: room => (room.stages ?? [])
-    .map(stage => stage.acceptance)
-    .filter(Boolean)
-    .join(' / ') || '人确认',
 
   markMemberFailure: (store, room, memberId) => {
     const stageIndex = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)

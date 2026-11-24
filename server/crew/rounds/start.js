@@ -17,9 +17,6 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles, sta
   }
   const goal = typeof body?.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > 2000) return fail('invalid', '目标不能为空，且不超过 2000 字')
-  const verify = body?.verify === 'test' ? 'test' : 'manual'
-  const acceptance = typeof body?.acceptance === 'string' ? body.acceptance.trim() : ''
-  if (verify === 'test' && acceptance === '') return fail('invalid', '要交付的这一轮需要一条检查')
   const planned = normalizePlan({ body: { ...body, roomType: 'studio' } })
   if (planned.error !== undefined) return fail('invalid', planned.error)
 
@@ -29,7 +26,7 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles, sta
 
   const cleanGoal = stripAttachmentTags(goal).trim() || '这一轮'
   const title = shortTitleOf(cleanGoal)
-  const built = buildStages({ title, plan: planned.plan, verify, acceptance, align: false })
+  const built = buildStages({ title, plan: planned.plan, align: false })
   const round = buildRound({
     room,
     goal,
@@ -44,8 +41,6 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles, sta
     orchestration: room.orchestration ?? null,
     constraints: studioConstraints({
       plan: planned.plan,
-      verify,
-      acceptance,
       verifiers: verifiersOf(room),
       independence: room.independence,
     }),
@@ -99,8 +94,6 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles, sta
     worker,
     roster: room.members ?? [],
     goal,
-    verify,
-    acceptance,
     emit,
   })
   return ok({ room: store.readRoom(room.id) ?? updated, round: activeRound })

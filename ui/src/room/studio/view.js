@@ -74,7 +74,6 @@ export const studioView = {
       members,
       hideKinds: [],
       delivery: room.delivery ?? null,
-      onStageAccept: actions.accept,
       onDecision: actions.answerDecision,
       onRework: actions.rework,
       onChoose: actions.chooseHuman,

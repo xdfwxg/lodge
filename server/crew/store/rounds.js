@@ -119,8 +119,7 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
           stages: (Array.isArray(stored.stages) ? stored.stages : []).map(stage => ({
             title: stage.title,
             kind: stage.kind,
-            acceptance: stage.acceptance ?? '',
-            manual: stage.manual === true,
+            deliverable: stage.deliverable ?? '',
             assignees: Array.isArray(stage.assignees) ? stage.assignees : [],
           })),
         },

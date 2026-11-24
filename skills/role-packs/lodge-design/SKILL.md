@@ -14,7 +14,7 @@ A shared word is a compressed decision; an interface is a promise. Make both sma
 - Collect the words that decide behavior: entities, states, events, roles, boundaries.
 - Define each in one sentence a new teammate can use.
 - Split or rename overloaded words; test each one at an edge case.
-- Use the same words in stages, acceptance, code, and messages.
+- Use the same words in stages, deliverables, code, and messages.
 
 ## Boundaries
 
@@ -46,4 +46,4 @@ For the boundary being changed, write down:
 
 ## Boundary
 
-Planning is read-only. Do not write files or run acceptance; describe the contract and the seam.
+Planning is read-only. Do not write files or judge the result; describe the contract and the seam.

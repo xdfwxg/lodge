@@ -57,12 +57,11 @@ export const evidenceDigest = (messages, { budget = CONTEXT_BUDGET.evidence } = 
     .map(message => {
       const meta = message.meta ?? {}
       const stage = Number.isInteger(meta.stage) ? `阶段 ${meta.stage + 1} · ` : ''
-      const command = typeof meta.command === 'string' && meta.command !== '' ? sanitizeUntrusted(meta.command, 160) : '人工结果'
-      const exit = meta.exit === null || meta.exit === undefined ? '' : ` · exit ${meta.exit}`
+      const label = '结果'
       const files = Array.isArray(meta.changedFiles) && meta.changedFiles.length > 0
         ? ` · ${meta.changedFiles.slice(0, 4).map(file => sanitizeUntrusted(file, 120)).join('、')}`
         : ''
-      return `${stage}${command}${exit}${files}`
+      return `${stage}${label}${files}`
     })
   let remaining = budget
   const kept = []

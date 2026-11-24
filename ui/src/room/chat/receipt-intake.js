@@ -11,6 +11,6 @@ export function ReceiptIntake({ receipt }) {
         ? null
         : h('p', { className: 'crew-field-hint' }, receipt.completeness),
       h(IntakeSection, { label: '文件', items: receipt.paths ?? [] }),
-      h(IntakeSection, { label: '检查', items: receipt.checks }),
+      h(IntakeSection, { label: '验收', items: receipt.checks }),
       h(IntakeSection, { label: '开放问题', items: receipt.openQuestions, warning: true })))
 }

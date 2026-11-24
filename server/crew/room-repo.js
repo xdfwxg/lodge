@@ -90,7 +90,7 @@ export const writeGoal = room => {
   ensureDirInside(roomRootOf(room), roomDir(room))
   const rootStages = Array.isArray(room.stages) ? room.stages : []
   const stages = rootStages.map((stage, index) => (
-    `- [${stage.state}] ${index + 1}. ${stage.title} · ${stage.kind}${stage.acceptance ? ` · 验收：${stage.acceptance}` : ''}${Array.isArray(stage.dependsOn) && stage.dependsOn.length > 0 ? ` · 依赖：阶段 ${stage.dependsOn.map(item => item + 1).join('、')}` : ''}`
+    `- [${stage.state}] ${index + 1}. ${stage.title} · ${stage.kind}${stage.deliverable ? ` · 交付：${stage.deliverable}` : ''}${Array.isArray(stage.dependsOn) && stage.dependsOn.length > 0 ? ` · 依赖：阶段 ${stage.dependsOn.map(item => item + 1).join('、')}` : ''}`
   ))
   writeDurable(join(roomDir(room), 'GOAL.md'), [
     '# 目标投影（运行时生成，不是编辑对象）',

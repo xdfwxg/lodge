@@ -26,7 +26,7 @@ const hidePrompt = (store, roomId, messageId) => {
   })
 }
 
-export const shadowPrompt = ({ room, stage, evidence, manual = false }) => {
+export const shadowPrompt = ({ room, stage, evidence }) => {
   const meta = evidence?.meta ?? {}
   return [
     '这次只找漏。假设这一步马上交付，按这个格式回一段 JSON，不要解释：',
@@ -41,14 +41,11 @@ export const shadowPrompt = ({ room, stage, evidence, manual = false }) => {
     '',
     `目标：${clip(room?.goal, 2000)}`,
     `这一步：${clip(stage?.title, 500)}`,
-    `验收：${clip(stage?.acceptance, 2000)}`,
-    manual ? '这一步由人确认，没有验收命令。' : '',
+    `交付物：${clip(stage?.deliverable, 2000)}`,
     evidence === undefined
       ? '这一步还没有证据。'
       : [
         `证据：\n${fenceUntrusted(clip(evidence.text, 4000), { max: 4000 })}`,
-        `命令：${clip(meta.command, 2000) || '无'}`,
-        `退出码：${meta.exit === undefined || meta.exit === null ? '无' : meta.exit}`,
         meta.diff === undefined ? '' : `改动：\n${fenceUntrusted(clip(meta.diff, 8000), { lang: 'diff', max: 8000 })}`,
       ].filter(Boolean).join('\n'),
   ].filter(Boolean).join('\n')
@@ -92,13 +89,13 @@ export const parseShadowAdvice = raw => {
 }
 
 export const createShadowReviewer = ({ engine, store, roomId, sendToMember }) => {
-  const ask = async ({ room, stage, evidence, manual = false }) => {
+  const ask = async ({ room, stage, evidence }) => {
     const ref = typeof room?.shadowBot?.memberRef === 'string' ? room.shadowBot.memberRef : ''
     if (ref === '') return { available: false, advice: [] }
     const thread = createThreadPort({ engine, store, roomId })
     if (thread.ready() !== true) return { available: false, advice: [] }
     const before = await thread.messageIds()
-    const sent = await sendToMember('shadow', shadowPrompt({ room, stage, evidence, manual }), { intent: 'notice' })
+    const sent = await sendToMember('shadow', shadowPrompt({ room, stage, evidence }), { intent: 'notice' })
     hidePrompt(store, roomId, sent?.messageId)
     const deadline = Date.now() + WAIT_MS
     while (Date.now() < deadline) {

@@ -15,7 +15,7 @@ const room = over => ({
   ],
   stages: [
     { title: '目标对齐', kind: 'decision', state: 'passed' },
-    { title: '创建文件', kind: 'deliverable', state: 'active', acceptance: 'test -f hello.txt' },
+    { title: '创建文件', kind: 'deliverable', state: 'active' },
     { title: '验收与结论', kind: 'decision', state: 'pending' },
   ],
   messages: [],
@@ -85,7 +85,7 @@ test('a new active round is not delivered while the previous one completed', () 
     rounds: [{ id: 'round-1', status: 'completed' }],
     stages: [
       { title: '目标对齐', kind: 'decision', state: 'passed' },
-      { title: '第二件事', kind: 'deliverable', state: 'active', acceptance: 'npm test' },
+      { title: '第二件事', kind: 'deliverable', state: 'active' },
       { title: '验收与结论', kind: 'decision', state: 'pending' },
     ],
   })

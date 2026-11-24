@@ -13,14 +13,6 @@ import {
   validateRoster,
 } from '../../roster.js'
 
-// 阶段检查必须是一条真能跑的命令；“看起来没问题”这类话不能当门。
-const RUNNABLE_CHECK = /(^|[\s;&|(])(?:npm|pnpm|yarn|bun|node|npx|deno|python3?|pytest|go|cargo|make|bash|sh|zsh|ruby|bundle|php|java|mvn|gradle|dotnet|swift|curl|git|grep|cat|diff|test|ls|find|jq|sed|awk|tsc|eslint|vitest|jest|playwright)(?:\s|$)/
-
-export const runnableCheck = value => (
-  typeof value === 'string' &&
-  (value.startsWith('./') || value.startsWith('/') || RUNNABLE_CHECK.test(value))
-)
-
 const cleanText = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 
 const normalizeProject = value => {
@@ -50,20 +42,6 @@ export const normalizeRequest = body => {
     }
     chatTurnLimit = value
   }
-  const normalized = roomType.normalize({
-    body,
-    verify: body.verify === 'manual' ? 'manual' : 'test',
-    acceptance: typeof body.acceptance === 'string' ? body.acceptance.trim() : '',
-  })
-  // 启动态还没有交付阶段；检查由规划师在 submit_plan 里给。
-  const verify = bootstrap ? 'manual' : normalized.verify
-  const acceptance = bootstrap ? '' : (typeof normalized.acceptance === 'string' ? normalized.acceptance.trim() : '')
-  const plannedAcceptance = Array.isArray(body.plan?.stages)
-    ? body.plan.stages.some(stage => typeof stage?.acceptance === 'string' && stage.acceptance.trim() !== '')
-    : false
-  if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
-    return { error: '要交付的房间需要一条检查' }
-  }
   const shadowReview = body.shadowReview === true
   const autoDeliver = isStudio && body.autoDeliver === true
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
@@ -79,8 +57,6 @@ export const normalizeRequest = body => {
     name,
     roomType,
     project,
-    verify,
-    acceptance,
     orchestration,
     shadowReview,
     autoDeliver,
@@ -109,23 +85,29 @@ export const normalizePlan = ({ body }) => {
       if (body.plan.stages.length > 3) return { error: '方案最多拆成 3 步' }
       for (const [index, item] of body.plan.stages.entries()) {
         const title = typeof item?.title === 'string' ? stripAttachmentTags(item.title).trim().slice(0, 80) : ''
-        const rawKind = item?.kind === 'decision' ? 'decision' : 'deliverable'
-        const stageAcceptance = typeof item?.acceptance === 'string' ? item.acceptance.trim().slice(0, 500) : ''
-        const manual = rawKind === 'deliverable' && /^manual$/i.test(stageAcceptance)
-        const kind = manual ? 'decision' : rawKind
+        const deliverable = typeof item?.deliverable === 'string'
+          ? stripAttachmentTags(item.deliverable).trim().slice(0, 500)
+          : ''
         if (title === '') return { error: `第 ${index + 1} 步缺少名字` }
-        if (kind === 'deliverable' && stageAcceptance === '') {
-          return { error: `第 ${index + 1} 步缺少检查` }
-        }
-        if (kind === 'deliverable' && !runnableCheck(stageAcceptance)) {
-          return { error: `第 ${index + 1} 步的检查不是一条能跑的命令；写清楚跑什么，例如 npm test` }
-        }
+        if (deliverable === '') return { error: `第 ${index + 1} 步缺少交付物：写清做完会得到什么` }
         plannedStages.push({
           title,
-          kind,
-          ...(manual ? { manual: true } : {}),
-          ...(kind === 'deliverable' ? { acceptance: stageAcceptance } : {}),
+          deliverable,
           ...(Array.isArray(item?.assignees) ? { assignees: item.assignees } : {}),
+          ...(Array.isArray(item?.packages)
+            ? {
+              packages: item.packages
+                .filter(pkg => typeof pkg?.title === 'string' && pkg.title.trim() !== '')
+                .slice(0, 4)
+                .map(pkg => ({
+                  title: pkg.title.trim().slice(0, 80),
+                  files: (Array.isArray(pkg.files) ? pkg.files : [])
+                    .filter(file => typeof file === 'string' && file.trim() !== '')
+                    .slice(0, 12)
+                    .map(file => file.trim().slice(0, 200)),
+                })),
+            }
+            : {}),
         })
       }
     }
@@ -183,8 +165,3 @@ export const resolveMembers = (body, roomType, { bootstrap = false } = {}) => {
   const lead = explicitLead ?? worker
   return { templateId, roster, workers, verifiers, worker, lead, align: explicitLead !== undefined, bootstrap }
 }
-
-export const effectiveAcceptanceOf = (acceptance, plan) => acceptance || (plan?.stages ?? [])
-  .map(stage => stage.acceptance)
-  .filter(Boolean)
-  .join('；')

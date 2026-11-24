@@ -8,7 +8,7 @@ const setup = trust => {
     state: 'active',
     trust,
     members: [{ id: 'worker', role: 'worker', roleKind: 'executor', name: '执行', permissions: { read: true, exec: true, write: true }, toolSurface: [], skills: [], mcp: [], body: { kind: 'base', ref: 'bot-worker', name: '执行' } }],
-    stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'true' }],
+    stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
     approvals: [],
   }
   const answered = []

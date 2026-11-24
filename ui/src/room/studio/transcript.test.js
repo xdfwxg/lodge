@@ -81,8 +81,7 @@ const finishedRoom = () => ({
     title: '实现',
     kind: 'deliverable',
     state: 'passed',
-    acceptance: 'npm test',
-    commands: [],
+        commands: [],
     verdicts: [],
     changedFiles: [],
   }],
@@ -236,7 +235,7 @@ test('tool calls sit in the timeline as one folded row per run', async () => {
     goal: '把事做完',
     state: 'active',
     assignments: [{ id: 'a1', status: 'working', toMemberId: 'worker' }],
-    stages: [{ index: 0, title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    stages: [{ index: 0, title: '实现', kind: 'deliverable', state: 'active' }],
     messages: [
       { id: 'c1', kind: 'chat', authorId: 'worker', text: '我先看看。', ts: Date.now() - 10_000, seq: 1 },
       { id: 't1', kind: 'activity', authorId: 'worker', text: 'Read', ts: Date.now() - 9_000, seq: 2, meta: { ok: true, action: 'read', target: 'README.md' } },
@@ -262,7 +261,7 @@ test('a longer run folds into commands, files and a diff summary', async () => {
     goal: '把事做完',
     state: 'active',
     assignments: [{ id: 'a1', status: 'working', toMemberId: 'worker' }],
-    stages: [{ index: 0, title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    stages: [{ index: 0, title: '实现', kind: 'deliverable', state: 'active' }],
     messages: [
       { id: 't1', kind: 'activity', authorId: 'worker', text: 'Bash', ts: Date.now() - 9_000, seq: 1, meta: { ok: true, action: 'exec', detail: 'npm test' } },
       { id: 't2', kind: 'activity', authorId: 'worker', text: 'Bash', ts: Date.now() - 8_000, seq: 2, meta: { ok: true, action: 'exec', detail: 'npm run build' } },

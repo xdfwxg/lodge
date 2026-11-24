@@ -12,7 +12,7 @@ const room = (over = {}) => normalizeTestRoom({
   state: 'active',
   live: true,
   demo: false,
-  stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+  stages: [{ title: '实现', kind: 'deliverable', state: 'active', deliverable: 'ship it' }],
   verifiers: ['v1', 'v2'],
   seatNames: { lead: '规划师', worker: '执行官', v1: '验收一', v2: '验收二' },
   seatSpecs: [
@@ -31,7 +31,7 @@ const evidence = (over = {}) => ({
   id: over.id ?? 'e-1',
   kind: 'evidence',
   seq: over.seq ?? 10,
-  meta: { stage: 0, kind: 'command', command: 'npm test', exit: 0, ...over },
+  meta: { stage: 0, kind: 'result', ...over },
 })
 
 const verdict = (authorId, pass, seq, over = {}) => ({
@@ -92,19 +92,19 @@ test('verdicts from an older acceptance round do not count', () => {
   assert.deepEqual(outcome.missing, ['v1', 'v2'])
 })
 
-test('a newer failed command invalidates earlier PASSes', () => {
-  const failed = evidence({ id: 'e-2', seq: 13, exit: 1 })
+test('a newer result invalidates PASSes that pointed at the older one', () => {
+  const newer = evidence({ id: 'e-2', seq: 13 })
   const outcome = reviewState({
     room: room(),
     messages: [
       evidence(),
       verdict('v1', true, 11),
       verdict('v2', true, 12),
-      failed,
+      newer,
     ],
     stageIndex: 0,
   })
-  assert.equal(outcome.state, 'failed')
+  assert.equal(outcome.state, 'pending')
   assert.equal(outcome.evidence.id, 'e-2')
 })
 
@@ -141,7 +141,6 @@ test('the review request goes to every verifier and all PASS ends the round', as
       sent.push({ member, prompt })
       return { messageId: null }
     },
-    commands: ports.commands,
     files: ports.files,
   })
   await turns.requestReview(0)
@@ -187,7 +186,6 @@ test('a rejection cancels the remaining verifier round', async () => {
     roomId: 'room-1',
     emit: () => {},
     sendToMember: async () => ({ messageId: null }),
-    commands: ports.commands,
     files: ports.files,
   })
   await turns.requestReview(0)
@@ -200,10 +198,10 @@ test('a rejection cancels the remaining verifier round', async () => {
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
 })
 
-test('review reads credentials from the ledger, not from evidence messages', () => {
+test('review reads result evidence from the ledger, not from the message list', () => {
   const messages = [evidence(), verdict('v1', true, 11), verdict('v2', true, 12)]
-  const withoutLedger = reviewState({ room: room(), evidence: [], messages, stageIndex: 0 })
-  assert.equal(withoutLedger.state, 'none')
+  const withoutLedger = reviewState({ room: room(), messages, stageIndex: 0 })
+  assert.equal(withoutLedger.state, 'pass')
   const withLedger = reviewState({ room: room(), evidence: [evidence()], messages, stageIndex: 0 })
   assert.equal(withLedger.state, 'pass')
   assert.equal(withLedger.evidence.id, 'e-1')

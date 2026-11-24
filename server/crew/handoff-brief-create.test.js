@@ -44,13 +44,13 @@ test('browser research is system-wide, not a room request field', () => {
 })
 
 test('the handoffBrief is part of the bulletin and the opening prompt', () => {
-  const bulletin = roomBulletin('发布检查清单', 'manual', '', handoffBrief)
+  const bulletin = roomBulletin('发布检查清单', handoffBrief)
   assert.match(bulletin, /交接简报/)
   assert.match(bulletin, /共识：三组检查/)
   assert.match(bulletin, /未定：回滚验证还没跑/)
   assert.match(bulletin, /待办：写初稿/)
 
-  const aligned = alignmentPrompt('发布检查清单', 'manual', '', handoffBrief)
+  const aligned = alignmentPrompt('发布检查清单', handoffBrief)
   assert.match(aligned, /交接简报/)
   assert.match(aligned, /分歧：是否自动回滚/)
   // 对齐回合提交方案和队伍，不再手写一份计划再 @ 下一位。
@@ -61,13 +61,13 @@ test('the handoffBrief is part of the bulletin and the opening prompt', () => {
   assert.match(aligned, /平台会校验/)
   assert.doesNotMatch(aligned, /系统会把计划交给执行官/)
 
-  const direct = directPrompt('发布检查清单', 'manual', '', true, handoffBrief)
+  const direct = directPrompt('发布检查清单', true, handoffBrief)
   assert.match(direct, /交接简报/)
   assert.match(direct, /约束：单文件/)
 })
 
 test('without a handoffBrief the opening prompt stays short', () => {
-  assert.doesNotMatch(roomBulletin('发布检查清单', 'manual', ''), /交接简报/)
+  assert.doesNotMatch(roomBulletin('发布检查清单'), /交接简报/)
 })
 
 test('an empty handoffBrief is not stored', () => {
@@ -83,7 +83,7 @@ test('an empty handoffBrief is not stored', () => {
 test('the alignment prompt asks the planner to submit a plan and crew', () => {
   const prompt = alignmentPrompt('发布检查清单', 'manual', '')
   assert.match(prompt, /lodge_gate_submit_plan/)
-  assert.match(prompt, /阶段、工作包/)
+  assert.match(prompt, /交付物/)
   assert.match(prompt, /用户不选成员|不要 @ 任何人/)
   assert.match(prompt, /平台会校验、开通成员并开始第一步/)
   assert.doesNotMatch(prompt, /下一步做什么、交给谁/)

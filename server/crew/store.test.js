@@ -193,7 +193,7 @@ test('a failed message mirror does not lose the message', () => {
   }
 })
 
-test('command and manual evidence are read from the message stream, turn reports are not', () => {
+test('result evidence is read from the message stream, turn reports are not', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-ledger-store-'))
   const repo = mkdtempSync(join(tmpdir(), 'crew-ledger-repo-'))
   const store = createStore({ dataDir })
@@ -202,14 +202,14 @@ test('command and manual evidence are read from the message stream, turn reports
     const command = store.appendMessage('r1', {
       kind: 'evidence',
       authorId: 'system',
-      text: 'command ok',
-      meta: { kind: 'command', stage: 1, command: 'npm test', exit: 0, diff: 'D', files: ['a.js'] },
+      text: 'result ok',
+      meta: { kind: 'result', stage: 1, diff: 'D', files: ['a.js'] },
     })
     const manual = store.appendMessage('r1', {
       kind: 'evidence',
       authorId: 'worker',
       text: 'artifact ready',
-      meta: { kind: 'manual', stage: 1, repoPath: repo },
+      meta: { kind: 'result', stage: 1, repoPath: repo },
     })
     store.appendMessage('r1', {
       kind: 'evidence',

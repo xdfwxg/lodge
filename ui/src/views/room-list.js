@@ -66,12 +66,10 @@ export const toneOf = room => {
 
 const NEEDS_META = {
   result: '看结果',
-  signoff: '待确认',
+  signoff: '验收通过',
   review: '验收员在看',
-  decision: '待确认',
-  confirm: '待确认',
+  decision: '待拍板',
   question: '待回答',
-  setup: '补检查',
   rework: '待重做',
   merge: '待处理冲突',
   parallel: '待处理',

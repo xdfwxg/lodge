@@ -6,9 +6,7 @@ import { chooseFreePort } from './workspace-ports.js'
 import {
   changes as manifestChanges,
   head as manifestHead,
-  isolatedCopy,
   probeSource,
-  removeIsolatedCopy,
   scratchRoot as copyRoot,
 } from './workspace-plain.js'
 
@@ -22,10 +20,9 @@ export const capabilities = () => ({
   candidate: false,
   merge: false,
   commit: false,
-  acceptanceCopy: true,
 })
 
-export { probeSource, isolatedCopy, removeIsolatedCopy }
+export { probeSource }
 
 const portBase = () => {
   const value = Number(process.env.CREW_WORKTREE_PORT_BASE ?? 4100)

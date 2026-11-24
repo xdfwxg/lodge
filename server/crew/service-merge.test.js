@@ -18,7 +18,7 @@ const room = (over = {}) => ({
     branch: 'crew/merge/worker',
   },
   stages: [
-    { title: '实现', kind: 'deliverable', state: 'active', acceptance: 'test -f shared.txt' },
+    { title: '实现', kind: 'deliverable', state: 'active' },
     { title: '验收与结论', kind: 'decision', state: 'pending' },
   ],
   ...over,
@@ -133,7 +133,7 @@ test('accepting a stage that already passed is not an error', async () => {
   const ctx = setup(room({
     mergeConflict: null,
     stages: [
-      { title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'test -f shared.txt' },
+      { title: '实现', kind: 'deliverable', state: 'passed' },
       { title: '验收与结论', kind: 'decision', state: 'active' },
     ],
   }), { status: '', diff: '' })

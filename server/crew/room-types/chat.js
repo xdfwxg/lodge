@@ -39,7 +39,7 @@ export const requireWorker = false
 // 能力矩阵来自 shared/room-types.js 的产品级房型清单。
 export const capabilities = meta.capabilities
 
-export const normalize = () => ({ verify: 'manual', acceptance: '' })
+export const normalize = () => ({})
 
 export const briefDone = () => ['- [ ] 围绕话题完成讨论，并由你确认结论']
 

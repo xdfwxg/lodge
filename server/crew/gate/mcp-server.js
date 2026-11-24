@@ -12,7 +12,7 @@ const FINDING_SCHEMA = {
     title: { type: 'string', maxLength: 200 },
     severity: { type: 'string', enum: ['blocker', 'major', 'minor'] },
     evidence: { type: 'string', maxLength: 2000 },
-    check: { type: 'string', maxLength: 300, description: '坑在哪条验收命令或目标行上；不通过时 blocker/major 必填。' },
+    check: { type: 'string', maxLength: 300, description: '你实际跑的哪条检查或目标哪一行会因它失败；不通过时 blocker/major 必填。' },
   },
   required: ['title'],
   additionalProperties: false,
@@ -33,7 +33,7 @@ const VISUAL_SCHEMA = {
 export const GATE_TOOLS = Object.freeze([
   {
     name: 'submit_verdict',
-    description: '提交这一步的验收判定：PASS 表示通过，REJECT 表示不通过。不通过至少要有一条带 check 的 blocker/major（哪条验收命令或目标行会因它失败）；只有 minor 的问题请判通过。调用后不用再把 JSON 写进回复。',
+    description: '提交这一步的验收判定：PASS 表示通过，REJECT 表示不通过。验收方法由你按目标决定；不通过至少要有一条带 check 的 blocker/major（你实际跑的哪条检查或目标哪一行会因它失败）；只有 minor 的问题请判通过。调用后不用再把 JSON 写进回复。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -85,7 +85,7 @@ export const GATE_TOOLS = Object.freeze([
   },
   {
     name: 'submit_plan',
-    description: '提交这一轮的方案和队伍：阶段、工作包、执行官与验收员（含 engine/model）。调用后不用再把 JSON 写进回复；平台会校验并开通成员。',
+    description: '提交这一轮的方案和队伍：每个阶段写清交付物、工作包、执行官与验收员（含 engine/model）。不写验收命令；验收方法由验收员按目标决定。调用后不用再把 JSON 写进回复；平台会校验并开通成员。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -104,8 +104,7 @@ export const GATE_TOOLS = Object.freeze([
                 type: 'object',
                 properties: {
                   title: { type: 'string', maxLength: 80 },
-                  acceptance: { type: 'string', maxLength: 500 },
-                  manual: { type: 'boolean' },
+                  deliverable: { type: 'string', maxLength: 500 },
                   packages: {
                     type: 'array',
                     maxItems: 4,
@@ -114,14 +113,13 @@ export const GATE_TOOLS = Object.freeze([
                       properties: {
                         title: { type: 'string', maxLength: 80 },
                         files: { type: 'array', maxItems: 12, items: { type: 'string', maxLength: 200 } },
-                        check: { type: 'string', maxLength: 500 },
                       },
                       required: ['title'],
                       additionalProperties: false,
                     },
                   },
                 },
-                required: ['title'],
+                required: ['title', 'deliverable'],
                 additionalProperties: false,
               },
             },
@@ -334,7 +332,7 @@ const callTool = (id, params) => {
       item.check.trim() !== ''
     ))
     if (decision === 'REJECT' && blocking.length === 0) {
-      return toolFailure(id, '不通过至少要有一条带 check 的 blocker/major：check 写哪条验收命令或目标行会因它失败。只有 minor 的问题请判通过。')
+      return toolFailure(id, '不通过至少要有一条带 check 的 blocker/major：check 写你实际跑的哪条检查或目标哪一行会因它失败。只有 minor 的问题请判通过。')
     }
     if (decision === 'PASS' && blocking.length > 0) {
       return toolFailure(id, '判通过不能同时带 blocker/major；要么改成不通过，要么先把问题降级并写清理由。')

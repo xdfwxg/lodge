@@ -1,20 +1,14 @@
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { compactRoom } from '../../assignment-history.js'
-import { leadMemberOf } from '../../room-members.js'
 import { gateFor } from './gates.js'
 import { fail, ok } from '../../result.js'
-import { acceptanceChangeError } from '../../service-policy.js'
 import { FINAL_TITLE } from './stage-plan.js'
 import { reworkFloor } from './verifiers.js'
-import { roomModeOfRoom } from '../kinds.js'
 import { memberDisplayName } from '../../member-labels.js'
-import { verifierIds } from '../../room-members.js'
 import { systemNotice } from '../../notices.js'
-import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { verdictPassed } from '../../../../shared/judgment.js'
 import { isWorkStage } from './turn-utils.js'
 import { appendHumanContext } from '../../human-context.js'
-import { humanLabelOf } from '../../human-name.js'
 import { ASSIGNMENT_STATUS, ROOM_STATE, STAGE_STATE } from '../../../../shared/states.js'
 
 export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles, workspace = null }) => {
@@ -51,7 +45,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const evidence = [...messages].reverse().find(message => (
       message.kind === 'evidence' &&
       (message.seq ?? 0) > floor &&
-      message.meta?.kind === 'command' &&
+      message.meta?.kind === 'result' &&
       (message.meta?.stage ?? 0) === index
     ))
     const verdicts = messages
@@ -72,8 +66,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       meta: {
         stage: index,
         title: stage.title,
-        command: typeof evidence?.meta?.command === 'string' ? evidence.meta.command : '',
-        exit: evidence?.meta?.exit ?? null,
         files: Array.isArray(evidence?.meta?.files) ? evidence.meta.files : [],
         verdicts,
         next: next >= 0 ? room.stages[next]?.title ?? null : null,
@@ -95,7 +87,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     let mergedFinal = -1
     let transitionError = null
     const messages = readMessages(room.id)
-    const hasPassedVerdict = messages.some(message => message.kind === 'verdict' && verdictPassed(message))
     const updated = updateRound(room.id, current => {
       gate = gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
       if (!gate.ok) return null
@@ -112,20 +103,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       if (next >= 0) {
         current.stages[next].state = STAGE_STATE.active
         current.stages[next].activatedAt = Date.now()
-      }
-      // 纯聊天：最后一步通过后房间不结束；但有验收员时，交付型步骤仍必须看到他回报通过。
-      // 纯决策步骤由人确认就算通过，不该再等验收员。
-      const needsVerdict = stage.kind !== 'decision' || stage.manual === true || stage.title === FINAL_TITLE
-      if (next < 0 && needsVerdict && roomModeOfRoom(current)?.supportsDelivery === true) {
-        const hasVerifiers = verifierIds(current).length > 0 || (Array.isArray(current.verifiers) && current.verifiers.length > 0)
-        if (!hasVerifiers) {
-          transitionError = '这一步还没有验收员，不能结束'
-          return null
-        }
-        if (hasPassedVerdict !== true) {
-          transitionError = '验收员还没有回报通过，不能结束这一步'
-          return null
-        }
       }
       return {
         events: [
@@ -181,7 +158,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const index = Number(body?.stage)
     const stage = room.stages?.[index]
     if (stage === undefined) return fail('invalid', '没有这一步')
-    if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这一步不能重试')
+    if (stage.kind !== 'deliverable') return fail('invalid', '这一步不能重试')
     if (stage.state !== STAGE_STATE.active) return fail('conflict', '这一步现在不需要重试')
     if (room.state !== ROOM_STATE.active) return fail('conflict', '先让房间继续，再重试这一分支')
     if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
@@ -210,7 +187,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 2000) : ''
     const stage = room.stages?.[index]
     if (stage === undefined) return fail('invalid', '没有这一步')
-    if (stage.kind !== 'deliverable' && stage.manual !== true) return fail('invalid', '这一步不能重做')
+    if (stage.kind !== 'deliverable') return fail('invalid', '这一步不能重做')
     if (room.state !== ROOM_STATE.active) return fail('conflict', '先让房间继续，再重做这一步')
     if ((room.busyMembers ?? []).length > 0) return fail('conflict', '房间还有回合在跑；先等这一回合结束')
     if (room.live === true && typeof live.busyReview === 'function' && live.busyReview(room.id)) {
@@ -279,7 +256,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       }
       current.mergeConflict = null
       current.blocked = null
-      current.autoCheck = null
       current.lastPlannerDecision = null
       current.openQuestion = null
       return { events: [{ type: 'stage.rewind', payload: { stage: index, note } }] }
@@ -309,32 +285,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     }
     emit('room', updated)
     expireCards(room.id, '这一步已经重做了')
-    if (stage.kind === 'decision') {
-      const lead = leadMemberOf(updated)?.id
-      if (stage.manual === true) {
-        appendMessage(room.id, {
-          kind: 'system',
-          text: `第 ${index + 1} 步「${stage.title}」重新打开，请你重新确认。`,
-          meta: { kind: 'stage', stage: index },
-        })
-      } else if (typeof lead === 'string' && lead !== '' && room.live === true && typeof live.sendToMember === 'function') {
-        const prompt = [
-          `第 ${index + 1} 步「${stage.title}」要重新确认。`,
-          `${humanLabelOf()}补充：${note}`,
-          '请只重新说明这一步的结论或方案；不要改文件，不要验收。',
-          INTERNAL_PROMPT_MARKER,
-        ].join('\n')
-        void live.sendToMember(updated.id, lead, prompt, { intent: 'notice', from: 'you' }).catch(error => {
-          systemNotice({ store, roomId: room.id, text: '这一步没能重新开始；待处理。', error })
-        })
-      } else {
-        appendMessage(room.id, {
-          kind: 'system',
-          text: '这一步已经重新打开；请继续或重新开始。',
-          meta: { kind: 'stage', stage: index },
-        })
-      }
-    } else if (room.live === true && typeof live.reworkStage === 'function') {
+    if (room.live === true && typeof live.reworkStage === 'function') {
       void live.reworkStage(updated, index, note).catch(error => {
         systemNotice({ store, roomId: room.id, text: '退回没能开始；待处理。', error })
       })
@@ -344,43 +295,5 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     return ok({ room: updated })
   }
 
-  const setAcceptance = (room, index, command) => {
-    let rejection = null
-    let previous = ''
-    let changed = false
-    const updated = updateRound(room.id, current => {
-      const stage = current.stages[index]
-      const invalid = acceptanceChangeError(stage, command)
-      if (invalid !== null) {
-        rejection = invalid
-        return null
-      }
-      previous = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
-      const trimmed = command.trim()
-      changed = trimmed !== previous
-      if (trimmed === '') delete stage.acceptance
-      else stage.acceptance = trimmed
-      return { events: [{ type: 'stage.acceptance', payload: { stage: index, command: stage.acceptance ?? '' } }] }
-    })
-    if (rejection !== null) return fail(rejection[0], rejection[1])
-    if (updated === null) return fail('not_found', '没有这个房间')
-    room = updated
-    if (!room.demo) roomFiles.writeGoal(room)
-    emit('room', room)
-    const trimmed = command.trim()
-    const message = appendMessage(room.id, {
-      kind: 'system',
-      text: trimmed === ''
-        ? `阶段 ${index + 1} 的验收命令已清空`
-        : `阶段 ${index + 1} 的验收命令：\`${trimmed}\``,
-    })
-    if (changed && trimmed !== '' && room.live === true && room.stages[index]?.state === STAGE_STATE.active && typeof live.isAttached === 'function' && live.isAttached(room.id) === true && typeof live.resume === 'function') {
-      void live.resume(room.id, { forceAcceptance: true }).catch(error => {
-        systemNotice({ store, roomId: room.id, text: '检查已经更新，但这次没跑成；待处理。', error })
-      })
-    }
-    return ok({ room, message })
-  }
-
-  return { accept, rework, retry, rewind, setAcceptance }
+  return { accept, rework, retry, rewind }
 }

@@ -35,10 +35,6 @@ export const createRoundActions = deps => {
           goal: withAttachments(text, attachments),
           ...(typeof body.projectId === 'string' ? { projectId: body.projectId } : {}),
           ...(body.plan !== null && typeof body.plan === 'object' ? { plan: body.plan } : {}),
-          ...(body.verify === 'test' ? {
-            verify: 'test',
-            acceptance: typeof body.acceptance === 'string' ? body.acceptance : '',
-          } : {}),
         },
         roomFiles,
         startMessage: {
@@ -124,6 +120,15 @@ export const createRoundActions = deps => {
         // 工作室的群不靠 @ 唤醒；没有交给人时，用户的话直接交给规划师。
         const studioLead = roomModeOfRoom(room)?.id === 'studio' ? (leadMemberOf(room)?.id ?? null) : null
         if (studioLead !== null) {
+          // 人直接对规划师说话，等于重新给一次组队机会；否则两次失败后房间会永远停在对齐。
+          if (room.workRound?.plan === null || room.workRound?.plan === undefined) {
+            const reset = updateRound(roomId, current => {
+              if (!Number(current.planRejections ?? 0)) return null
+              current.planRejections = 0
+              return { events: [] }
+            })
+            if (reset !== null) emit('room', reset)
+          }
           await live.sendToMember(room.id, studioLead, promptText, { intent: 'message', from: 'you' })
           return accepted({ accepted: true })
         }

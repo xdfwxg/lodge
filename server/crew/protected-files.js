@@ -26,7 +26,7 @@ export const isTestPath = value => {
   return path !== '' && (TEST_DIR.test(path) || TEST_FILE.test(path))
 }
 
-// 从 diff 里取“既有测试”的改动；没有 diff（人工验收）时保守地把测试文件都算上。
+// 从 diff 里取“既有测试”的改动；没有 diff（工作区不是 git）时保守地把测试文件都算上。
 const HEADER = 'diff --git '
 
 // git 会把空格以外的特殊路径写成 C 风格转义（中文、引号），先还原再判断。

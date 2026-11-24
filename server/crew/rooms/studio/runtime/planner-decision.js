@@ -189,7 +189,6 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
         reason: 'rework',
         prompt: `${sanitizeUntrusted(note, 2000)}\n${INTERNAL_PROMPT_MARKER}`,
         ...(parallel ? { privateRoom: true } : {}),
-        acceptance: stage?.acceptance ?? '',
         rework: true,
         parentAssignmentId: parents.get(target)?.id ?? null,
         nonce: reworkNote?.id ?? String(verdictId),

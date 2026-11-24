@@ -1,4 +1,4 @@
-import { manualReviewState, reviewState, reworkFloor } from '../verifiers.js'
+import { reviewState, reworkFloor } from '../verifiers.js'
 import { isWorkStage } from '../turn-utils.js'
 import {
   activeDispatchAssignments as activeDispatch,
@@ -18,11 +18,10 @@ export const createResume = ({
   sendToMember,
   integrator,
   review,
-  acceptance,
   stageStarter,
-  markManualReady,
+  markResultReady,
 }) => {
-  const resumeOnce = async ({ forceAcceptance = false } = {}) => {
+  const resumeOnce = async () => {
     const room = store.readRoom(roomId)
     if (room === null) return
     if (room.live !== true || room.state !== ROOM_STATE.active) return
@@ -30,12 +29,12 @@ export const createResume = ({
     const stageIndex = room.stages.findIndex(stage => stage.state === STAGE_STATE.active)
     if (stageIndex < 0) return
     const stage = room.stages[stageIndex]
-    if (!isWorkStage(stage) && stage.manual !== true) return
+    if (!isWorkStage(stage)) return
     // 规划师已经把它交给人：重启不替人继续派活。
-    if (!forceAcceptance && room.lastPlannerDecision?.stage === stageIndex && room.lastPlannerDecision?.kind === PLANNER_DECISION_KIND.human) return
+    if (room.lastPlannerDecision?.stage === stageIndex && room.lastPlannerDecision?.kind === PLANNER_DECISION_KIND.human) return
 
     const messages = store.readMessages(roomId)
-    // 重做之后只认这一拍的证据；上一拍的命令/回合不能把重做直接判成完成。
+    // 重做之后只认这一拍的结果；上一拍的回合不能把重做直接判成完成。
     const floor = reworkFloor(messages, stageIndex)
     const evidence = messages.filter(message => (
       message.kind === 'evidence' &&
@@ -44,25 +43,10 @@ export const createResume = ({
       (message.seq ?? 0) > floor
     ))
     const latestTurn = [...evidence].reverse().find(message => message.meta?.kind === 'turn')
-    const latestCommand = [...evidence].reverse().find(message => message.meta?.kind === 'command')
-    const latestManual = [...evidence].reverse().find(message => message.meta?.kind === 'manual')
-    const latestTurnSeq = latestTurn?.seq ?? -1
+    const latestResult = [...evidence].reverse().find(message => message.meta?.kind === 'result')
     const dispatch = dispatchOf(store, roomId, stageIndex)
 
-    if (!forceAcceptance && latestCommand !== undefined && (latestCommand.seq ?? 0) > latestTurnSeq) {
-      if (latestCommand.meta?.exit !== 0) return
-      const outcome = reviewState({ room, evidence: store.readEvidence?.(roomId), messages, stageIndex })
-      if (outcome.state !== REVIEW_STATE.pending) return
-      try {
-        await review.request(stageIndex)
-      } catch (error) {
-        systemNotice({ store, roomId, text: '这一步上次没做完，已经停了；待处理。', error })
-      }
-      return
-    }
-
     if (dispatch?.stage === stageIndex) {
-      if (stage.manual === true && latestManual !== undefined && (latestManual.seq ?? 0) > latestTurnSeq) return
       if (dispatch.stalled === true) return
       if (dispatch.timedOut === true) {
         for (const item of activeDispatch(store, roomId, stageIndex)) {
@@ -159,42 +143,28 @@ export const createResume = ({
       return
     }
 
-    if (stage.manual === true) {
-      if (latestManual !== undefined && (latestManual.seq ?? 0) > latestTurnSeq) {
-        // 人工证据已经落下，但重启会丢掉内存里的复核轮；没有 verdict 就重新发起。
-        const outcome = manualReviewState({
-          room,
-          evidence: store.readEvidence?.(roomId),
-          messages,
-          stageIndex,
-        })
-        if (outcome.state === REVIEW_STATE.pending) {
-          try {
-            await review.request(stageIndex)
-          } catch (error) {
-            systemNotice({ store, roomId, text: '这一步上次没做完，已经停了；待处理。', error })
-          }
+    if (latestResult !== undefined) {
+      // 结果已经落下，但重启会丢掉内存里的复核轮；没有结论就重新发起。
+      const outcome = reviewState({ room, evidence: store.readEvidence?.(roomId), messages, stageIndex })
+      if (outcome.state === REVIEW_STATE.pending) {
+        try {
+          await review.request(stageIndex)
+        } catch (error) {
+          systemNotice({ store, roomId, text: '这一步上次没做完，已经停了；待处理。', error })
         }
-        return
       }
-      if (latestTurn === undefined) {
-        await stageStarter.startStage(room, stageIndex)
-        return
-      }
-      if (typeof latestTurn.meta?.turnId === 'string') markManualReady(room, stageIndex, latestTurn.meta.turnId)
       return
     }
 
-    if (latestTurn === undefined) {
-      if (dispatch?.stage === stageIndex && (dispatch.stalled === true || dispatch.timedOut === true)) return
-      await stageStarter.startStage(room, stageIndex)
+    if (latestTurn !== undefined) {
+      if (typeof latestTurn.meta?.turnId === 'string') {
+        await markResultReady(room, stageIndex, latestTurn.meta.turnId, true, latestTurn.text ?? '')
+      }
       return
     }
 
-    const command = typeof stage.acceptance === 'string' ? stage.acceptance.trim() : ''
-    if (command !== '' && typeof latestTurn.meta?.turnId === 'string') {
-      await acceptance.run(stageIndex, command, latestTurn.meta.turnId)
-    }
+    if (dispatch?.stage === stageIndex && (dispatch.stalled === true || dispatch.timedOut === true)) return
+    await stageStarter.startStage(room, stageIndex)
   }
 
   return resumeOnce

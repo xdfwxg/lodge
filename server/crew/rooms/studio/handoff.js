@@ -4,7 +4,7 @@ import { armAssignmentLease } from './assignment-lease.js'
 import { ASSIGNMENT_STATUS } from '../../../../shared/states.js'
 
 // 一拍交接的身份：同一拍重投仍幂等，新一拍（新一轮重做、换了父任务）必须生成新 Assignment。
-const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, parentAssignmentId, nonce }) => (
+const assignmentDigest = ({ roomId, index, from, to, reason, evidence, candidate, rework, parentAssignmentId, nonce }) => (
   createHash('sha256')
     .update(JSON.stringify({
       roomId,
@@ -12,7 +12,6 @@ const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidenc
       from,
       to,
       reason,
-      acceptance,
       evidenceId: evidence?.id ?? '',
       candidate: candidate ?? '',
       rework,
@@ -40,7 +39,6 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     to,
     reason,
     prompt,
-    acceptance,
     evidence = null,
     verdict = null,
     candidate = null,
@@ -52,7 +50,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
   }) => {
     const current = store.readRoom(roomId) ?? room
     const body = String(prompt ?? '').trim()
-    const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, parentAssignmentId, nonce })}`
+    const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, evidence, candidate, rework, parentAssignmentId, nonce })}`
     const existing = store.readAssignment(deliveryKey, roomId)
     // 已经交回或正在做的交接不再重复唤醒；同一次交接只发一次。
     if (existing !== null && ['sent', 'working', 'reported', 'passed', 'rejected', 'cancelled'].includes(existing.status)) {
@@ -69,7 +67,6 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       goal: current.goal ?? '',
       done: Array.isArray(current.plan?.done) ? current.plan.done.slice(0, 6) : [],
       constraints: Array.isArray(current.constraints) ? current.constraints.slice(0, 6) : [],
-      acceptance: acceptance ?? stage?.acceptance ?? '',
       prompt: body,
     }
     const nextContext = {

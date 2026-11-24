@@ -23,7 +23,6 @@ export const renderStudioMessage = ({
   byId,
   message,
   timeline,
-  onStageAccept,
   onAnswerCard = null,
   onCancelQueue = null,
   onSteerQueue = null,
@@ -59,20 +58,16 @@ export const renderStudioMessage = ({
     })
   }
 
-  // 证据和验收都是成员的话；命令、退出码、diff 折在下面。
+  // 证据和验收都是成员的话；改动折在下面。
   if (message.kind === 'evidence') {
     const meta = message.meta ?? {}
-    const detail = [
-      typeof meta.command === 'string' && meta.command !== '' ? `$ ${meta.command}` : '',
-      meta.exit === undefined || meta.exit === null ? '' : `退出码 ${meta.exit}`,
-      typeof meta.diff === 'string' ? meta.diff : '',
-    ].filter(Boolean).join('\n')
+    const detail = typeof meta.diff === 'string' ? meta.diff : ''
     if (message.authorId === 'system') {
       return h('div', { key: message.id, className: 'crew-msg-wrap' },
         h('div', { className: 'crew-system' }, homeRelative(message.text ?? '')),
-        fold('检查明细', detail))
+        fold('改动明细', detail))
     }
-    return chat(message.text ?? '', fold('检查明细', detail))
+    return chat(message.text ?? '', fold('改动明细', detail))
   }
 
   if (message.kind === 'verdict') {

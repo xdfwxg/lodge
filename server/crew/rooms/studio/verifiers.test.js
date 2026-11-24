@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { latestReviewTimeout, manualEvidenceFor, reviewState } from './verifiers.js'
+import { latestReviewTimeout, resultEvidenceFor, reviewState } from './verifiers.js'
 
 const timeout = (ts, stage = 0) => ({
   kind: 'system',
@@ -17,16 +17,16 @@ test('the latest review timeout is found per stage', () => {
   assert.equal(latestReviewTimeout([], 0), undefined)
 })
 
-test('manual evidence is found even when the evidence table is behind the messages', () => {
-  const room = { demo: false, stages: [{ state: 'active', kind: 'decision', manual: true }] }
+test('result evidence is found even when the evidence table is behind the messages', () => {
+  const room = { demo: false, stages: [{ state: 'active', kind: 'deliverable' }] }
   const messages = [{
     kind: 'evidence',
     authorId: 'system',
     id: 'm1',
     seq: 1,
-    meta: { stage: 0, kind: 'manual' },
+    meta: { stage: 0, kind: 'result' },
   }]
-  assert.equal(manualEvidenceFor(room, [], messages, 0)?.id, 'm1')
+  assert.equal(resultEvidenceFor(room, [], messages, 0)?.id, 'm1')
 })
 
 test('a review round keeps the verifiers it started with when a member is added', () => {
@@ -35,18 +35,18 @@ test('a review round keeps the verifiers it started with when a member is added'
     { id: 'v2', role: 'verifier', roleKind: 'verifier' },
   ]
   const messages = [
-    { kind: 'evidence', id: 'e1', seq: 1, meta: { stage: 0, kind: 'command', command: 'true', exit: 0 } },
+    { kind: 'evidence', id: 'e1', seq: 1, meta: { stage: 0, kind: 'result' } },
     { kind: 'verdict', authorId: 'v1', seq: 2, meta: { stage: 0, pass: true, evidenceId: 'e1' } },
   ]
   const pinned = reviewState({
-    room: { members, stages: [{ state: 'active', kind: 'deliverable', acceptance: 'true', reviewers: ['v1'] }] },
+    room: { members, stages: [{ state: 'active', kind: 'deliverable', reviewers: ['v1'] }] },
     messages,
     stageIndex: 0,
   })
   assert.equal(pinned.state, 'pass')
   assert.deepEqual(pinned.missing, [])
   const unpinned = reviewState({
-    room: { members, stages: [{ state: 'active', kind: 'deliverable', acceptance: 'true' }] },
+    room: { members, stages: [{ state: 'active', kind: 'deliverable' }] },
     messages,
     stageIndex: 0,
   })

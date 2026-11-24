@@ -8,7 +8,7 @@ test('a direct studio dispatch projects the @ handoff into the room', async () =
     roomType: 'studio',
     goal: '改标题',
     state: 'active',
-    stages: [{ title: '改标题', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    stages: [{ title: '改标题', kind: 'deliverable', state: 'active' }],
     members: [
       { id: 'planner', name: '规划师', role: 'lead', roleKind: 'planner', body: { kind: 'base', name: '规划师' } },
       { id: 'executor', name: '执行官', role: 'worker', roleKind: 'executor', body: { kind: 'base', name: '执行官' } },
@@ -42,7 +42,6 @@ test('a direct studio dispatch projects the @ handoff into the room', async () =
     roster: room.members,
     goal: room.goal,
     verify: 'test',
-    acceptance: 'npm test',
   })
   assert.equal(sent[0].memberId, 'executor')
   const handoff = messages.find(message => message.meta?.kind === 'handoff')
@@ -58,7 +57,7 @@ test('a model-written @ does not replace the system handoff line', async () => {
     roomType: 'studio',
     goal: '改标题',
     state: 'active',
-    stages: [{ title: '改标题', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    stages: [{ title: '改标题', kind: 'deliverable', state: 'active' }],
     members: [
       { id: 'planner', name: '规划师', role: 'lead', roleKind: 'planner', body: { kind: 'base', name: '规划师' } },
       { id: 'executor', name: '执行官', role: 'worker', roleKind: 'executor', body: { kind: 'base', name: '执行官' } },
@@ -86,7 +85,6 @@ test('a model-written @ does not replace the system handoff line', async () => {
     roster: room.members,
     goal: room.goal,
     verify: 'test',
-    acceptance: 'npm test',
   })
   const handoff = messages.find(message => message.meta?.kind === 'handoff')
   assert.equal(handoff.text, '@执行官 第 1 步「改标题」交给你。')
@@ -128,7 +126,6 @@ test('the alignment turn has no next baton and no handoff projection', async () 
     roster: room.members,
     goal: room.goal,
     verify: 'test',
-    acceptance: 'npm test',
   })
   assert.equal(sent[0].memberId, 'planner')
   assert.equal(messages.some(message => message.meta?.kind === 'handoff'), false)
@@ -140,7 +137,7 @@ test('an align turn records which history it was given', async () => {
     roomType: 'studio',
     goal: '改标题',
     state: 'active',
-    stages: [{ title: '改标题', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    stages: [{ title: '改标题', kind: 'deliverable', state: 'active' }],
     members: [
       { id: 'planner', name: '规划师', role: 'lead', roleKind: 'planner', body: { kind: 'base', name: '规划师' } },
       { id: 'executor', name: '执行官', role: 'worker', roleKind: 'executor', body: { kind: 'base', name: '执行官' } },
@@ -178,7 +175,6 @@ test('an align turn records which history it was given', async () => {
     roster: room.members,
     goal: room.goal,
     verify: 'test',
-    acceptance: 'npm test',
   })
   assert.match(sent[0].prompt, /相关历史（本房间，只读/)
   assert.deepEqual(events.find(event => event.type === 'history.brief')?.payload, { stage: 0, messageIds: ['old-1'] })

@@ -15,17 +15,18 @@ const nameOf = (members, id) => (members ?? []).find(member => member.id === id)
 
 const stageRows = room => (room.stages ?? []).map((stage, index) => {
   const status = stage.state === 'passed' ? '已完成' : stage.state === 'active' ? '进行中' : '未开始'
-  const acceptance = typeof stage.acceptance === 'string' && stage.acceptance !== ''
-    ? ` · 检查：\`${stage.acceptance}\``
+  const deliverable = typeof stage.deliverable === 'string' && stage.deliverable !== ''
+    ? ` · 交付：${line(stage.deliverable)}`
     : ''
-  return `${index + 1}. ${line(stage.title)} — ${status}${acceptance}`
+  return `${index + 1}. ${line(stage.title)} — ${status}${deliverable}`
 })
 
-const evidenceRows = room => (room.messages ?? [])
-  .filter(message => message.kind === 'evidence' && message.meta?.kind === 'command')
+const resultRows = room => (room.messages ?? [])
+  .filter(message => message.kind === 'evidence' && message.meta?.kind === 'result')
   .map(message => {
-    const exit = message.meta?.exit
-    return `- 第 ${(message.meta?.stage ?? 0) + 1} 步：\`${line(message.meta?.command)}\` → 退出码 ${exit === undefined || exit === null ? '无' : exit}`
+    const files = Array.isArray(message.meta?.changedFiles) ? message.meta.changedFiles : []
+    const text = line(message.meta?.resultText).slice(0, 200)
+    return `- 第 ${(message.meta?.stage ?? 0) + 1} 步：${files.length === 0 ? '有结果' : files.map(file => `\`${line(file)}\``).join('、')}${text === '' ? '' : ` · ${text}`}`
   })
 
 const verdictRows = room => (room.messages ?? [])
@@ -62,8 +63,8 @@ export const deliveryRecord = room => {
     '## 步骤',
     ...stageRows(room),
     '',
-    '## 检查',
-    ...(evidenceRows(room).length > 0 ? evidenceRows(room) : ['- 没有运行检查']),
+    '## 结果',
+    ...(resultRows(room).length > 0 ? resultRows(room) : ['- 没有结果证据']),
     '',
     '## 验收',
     ...(verdictRows(room).length > 0 ? verdictRows(room) : ['- 没有验收结论']),

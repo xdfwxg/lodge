@@ -5,7 +5,7 @@ import { executorsNeeded, independentPackagesOf, normalizeCrewProposal } from '.
 const proposal = over => ({
   plan: {
     done: ['能跑'],
-    stages: [{ title: '实现', acceptance: 'npm test', packages: [{ title: 'a', files: ['src/a.js'], check: 'npm test' }] }],
+    stages: [{ title: '实现', deliverable: '导出按钮能用', packages: [{ title: 'a', files: ['src/a.js'] }] }],
   },
   crew: { executors: [{ engine: 'claude', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
   ...over,
@@ -23,9 +23,12 @@ test('a plan and crew normalize into bounded fields', () => {
   assert.deepEqual(result.proposal.assumptions, ['根目录可写'])
   assert.deepEqual(result.proposal.notDoing, ['不做移动端'])
   assert.deepEqual(result.proposal.plan.stages[0].packages[0].files, ['src/a.js'])
+  assert.equal(result.proposal.plan.stages[0].deliverable, '导出按钮能用')
+  assert.equal('acceptance' in result.proposal.plan.stages[0], false)
 })
 
-test('a proposal without a stage, executor or verifier fails closed', () => {
+test('a proposal without a stage, deliverable, executor or verifier fails closed', () => {
+  assert.match(normalizeCrewProposal({ plan: { done: ['x'], stages: [{ title: '实现' }] }, crew: proposal().crew }).error, /阶段/)
   assert.match(normalizeCrewProposal({ plan: { done: ['x'], stages: [] }, crew: proposal().crew }).error, /阶段/)
   assert.match(normalizeCrewProposal({ plan: proposal().plan, crew: { executors: [], verifiers: [{ engine: 'pi', model: 'y' }] } }).error, /执行官/)
   assert.match(normalizeCrewProposal({ plan: proposal().plan, crew: { executors: [{ engine: 'claude', model: 'x' }] } }).error, /验收员/)

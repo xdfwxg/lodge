@@ -3,7 +3,6 @@ export const ROUND_FIELDS = Object.freeze([
   'plan',
   'stages',
   'gate',
-  'verificationMode',
   'shadowReview',
   'orchestration',
   'constraints',

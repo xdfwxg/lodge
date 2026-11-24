@@ -1,5 +1,5 @@
-阶段 1「写清单」已确认。test -f RELEASE.md
-你的工作包：发布清单；只改 RELEASE.md；自测：test -f RELEASE.md。
+阶段 1「写清单」。这一步要交付：一份发布检查清单
+你的工作包：发布清单；只改 RELEASE.md。
 房间目标：把发布检查做出来
 done：
 - 有发布检查清单

@@ -66,7 +66,7 @@ const find = (node, match) => {
   return null
 }
 
-test('the delivery sheet shows goal, stages, commands, verdicts and files', async () => {
+test('the delivery sheet shows goal, stages, verdicts and files', async () => {
   const { DeliveryCard } = await load()
   const tree = render(DeliveryCard({
     delivery: {
@@ -84,8 +84,7 @@ test('the delivery sheet shows goal, stages, commands, verdicts and files', asyn
           title: '对齐',
           kind: 'decision',
           state: 'passed',
-          acceptance: null,
-          commands: [],
+          results: [],
           verdicts: [],
           changedFiles: [],
         },
@@ -94,13 +93,12 @@ test('the delivery sheet shows goal, stages, commands, verdicts and files', asyn
           title: '实现',
           kind: 'deliverable',
           state: 'passed',
-          acceptance: 'npm test',
-          commands: [{ id: 'e1', command: 'npm test', exit: 0, changedFiles: ['src/a.js'] }],
+          deliverable: '保存后刷新仍生效',
+          results: [{ id: 'e1', changedFiles: ['src/a.js'] }],
           verdicts: [{ id: 'v1', authorId: 'v1', pass: true }, { id: 'v2', authorId: 'v2', pass: true }],
           changedFiles: ['src/a.js'],
         },
       ],
-      commands: [{ id: 'e1', command: 'npm test', exit: 0 }],
       changedFiles: ['src/a.js'],
     },
   }))
@@ -108,17 +106,15 @@ test('the delivery sheet shows goal, stages, commands, verdicts and files', asyn
   assert.match(text(tree), /保存后刷新仍生效/)
   // 版本号是内核记账，留在可下载的交付记录里，不进结果卡详情。
   assert.doesNotMatch(text(tree), /abcdef123456/)
-  assert.match(text(tree), /npm test · 退出码 0/)
   assert.match(text(tree), /复核一/)
   assert.match(text(tree), /复核二/)
   assert.match(text(tree), /src\/a\.js/)
   assert.doesNotMatch(text(tree), /2 步/)
-  assert.match(text(tree), /1 项检查/)
+  assert.match(text(tree), /2 位验收通过/)
   assert.match(text(tree), /在文件夹打开/)
-  assert.match(text(tree), /检查命令：npm test/)
 })
 
-test('a verified manual stage shows the verdict, not the waiting notice', async () => {
+test('a verified result shows the verdict, not a waiting notice', async () => {
   const { DeliveryCard } = await load()
   const tree = render(DeliveryCard({
     delivery: {
@@ -127,14 +123,13 @@ test('a verified manual stage shows the verdict, not the waiting notice', async 
       stages: [{
         index: 1,
         title: '写文件',
-        kind: 'decision',
-        manual: { text: '结果已经好了，等验收员复核。' },
-        commands: [],
+        kind: 'deliverable',
+        deliverable: 'hello.txt',
+        results: [{ id: 'e1', changedFiles: ['hello.txt'] }],
         verdicts: [{ id: 'v1', authorId: 'v1', pass: true, text: 'hello.txt 内容正确' }],
-        changedFiles: [],
+        changedFiles: ['hello.txt'],
       }],
-      commands: [],
-      changedFiles: [],
+      changedFiles: ['hello.txt'],
     },
   }))
   assert.match(text(tree), /验收：hello\.txt 内容正确/)
@@ -166,7 +161,6 @@ test('an artifact and its relative changed path are counted once', async () => {
       name: '设置页保存',
       workspacePath: '/tmp/room',
       stages: [],
-      commands: [],
       artifacts: [{ path: '/tmp/room/src/a.js', relativePath: 'src/a.js' }],
       changedFiles: ['src/a.js'],
     },
@@ -176,23 +170,6 @@ test('an artifact and its relative changed path are counted once', async () => {
   assert.doesNotMatch(text(tree), /改动文件/)
 })
 
-test('a failed check reads as failed and a simulated check says so', async () => {
-  const { DeliveryCard } = await load()
-  const tree = render(DeliveryCard({
-    delivery: {
-      name: '设置页保存',
-      stages: [],
-      commands: [
-        { id: 'e1', command: 'npm test', exit: 1 },
-        { id: 'e2', command: 'npm run lint', exit: 0, simulated: true },
-      ],
-      changedFiles: [],
-    },
-  }))
-  assert.match(text(tree), /没通过/)
-  assert.match(text(tree), /示例运行/)
-})
-
 test('a sample artifact opens its content in the card instead of the filesystem', async () => {
   const { DeliveryCard } = await load()
   const tree = render(DeliveryCard({
@@ -200,7 +177,6 @@ test('a sample artifact opens its content in the card instead of the filesystem'
       name: '发布前检查清单',
       sample: true,
       stages: [],
-      commands: [],
       artifacts: [{ path: 'RELEASE_CHECKLIST.md', content: '- [ ] 检查' }],
     },
   }))
@@ -241,7 +217,6 @@ test('a readable result wins over a file that cannot be previewed', async () => 
     delivery: {
       name: '检查报告',
       stages: [],
-      commands: [],
       artifacts: [
         { path: 'guide.pdf', kind: 'file' },
         { path: 'report.md', kind: 'document', content: '# 结果正文' },

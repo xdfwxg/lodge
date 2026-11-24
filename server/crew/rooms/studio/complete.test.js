@@ -10,7 +10,7 @@ const setup = () => {
     id: 'room-1',
     goal: '交付一个结果',
     demo: false,
-    stages: [{ title: '实现', kind: 'deliverable', state: 'passed', acceptance: 'npm test' }],
+    stages: [{ title: '实现', kind: 'deliverable', state: 'passed' }],
     workRound: {
       id: 'round-1',
       goal: '交付一个结果',

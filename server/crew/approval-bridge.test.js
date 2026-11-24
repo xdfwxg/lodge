@@ -24,7 +24,7 @@ const setup = async (options = {}) => {
     repoPath: dir,
     sourceRepo: dir,
     workspace: { provider: options.provider ?? 'git', capabilities: {} },
-    stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
     members: [{
       id: 'worker',
       name: '执行',
@@ -479,7 +479,7 @@ test('a pending approval from an earlier stage expires instead of being decided'
     const approval = ctx.room().approvals.find(item => item.state === 'pending')
     ctx.store.updateRound('room-1', current => {
       current.stages[0].state = 'passed'
-      current.stages.push({ title: '下一步', kind: 'deliverable', state: 'active', acceptance: 'npm test' })
+      current.stages.push({ title: '下一步', kind: 'deliverable', state: 'active' })
       return { events: [] }
     })
     const result = await ctx.live.decideApproval('room-1', approval.id, 'allow')

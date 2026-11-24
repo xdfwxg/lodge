@@ -30,10 +30,10 @@ test('a same-vendor fallback says the review is not independent', () => {
 test('reworking a step clears its old review timeout', () => {
   const room = {
     state: 'active',
-    stages: [{ title: '实现', kind: 'deliverable', manual: true, state: 'active' }],
+    stages: [{ title: '实现', kind: 'deliverable', state: 'active' }],
     members: [{ id: 'verifier', name: '验收员', role: 'verifier' }],
   }
-  const evidence = { id: 'e1', kind: 'evidence', seq: 1, ts: 1000, meta: { stage: 0, kind: 'manual' } }
+  const evidence = { id: 'e1', kind: 'evidence', seq: 1, ts: 1000, meta: { stage: 0, kind: 'result' } }
   const timeout = {
     id: 't1',
     kind: 'system',

@@ -35,8 +35,6 @@ export const buildChatRequest = ({
   return {
     name,
     roomType: 'chat',
-    verify: 'manual',
-    acceptance: '',
     chatTurnLimit,
     repoPath,
     ...(receipt === null || receipt === undefined ? {} : { receipt }),

@@ -5,23 +5,17 @@ const list = (value, max, each) => (Array.isArray(value) ? value.map(each).filte
 
 const stageOf = (raw, index) => {
   const title = text(raw?.title, 80)
-  if (title === '') return null
-  const acceptance = text(raw?.acceptance, 500)
-  const manual = raw?.manual === true
+  const deliverable = text(raw?.deliverable, 500)
+  if (title === '' || deliverable === '') return null
   const packages = list(raw?.packages, 3, item => {
     const packageTitle = text(item?.title, 80)
     if (packageTitle === '') return null
     const files = list(item?.files, 12, file => text(file, 200)).filter(file => file !== '')
-    return {
-      title: packageTitle,
-      files,
-      ...(text(item?.check, 500) === '' ? {} : { check: text(item?.check, 500) }),
-    }
+    return { title: packageTitle, files }
   })
   return {
     title,
-    ...(manual ? { manual: true } : {}),
-    ...(acceptance === '' ? {} : { acceptance }),
+    deliverable,
     ...(packages.length === 0 ? {} : { packages }),
     index,
   }

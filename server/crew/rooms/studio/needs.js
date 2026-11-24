@@ -1,8 +1,7 @@
-import { verdictPassed } from '../../../../shared/judgment.js'
 import { dispatchFrom } from '../../assignment-projections.js'
 import { memberDisplayName } from '../../member-labels.js'
-import { commandEvidenceFor, latestAutoCheck, latestReviewTimeout, manualEvidenceFor, manualReviewState, reviewState, reworkFloor, verifierIds } from './verifiers.js'
-import { AUTO_CHECK_STATUS, PLANNER_DECISION_KIND, REVIEW_STATE, STAGE_STATE } from '../../../../shared/states.js'
+import { latestReviewTimeout, reviewState, reworkFloor, verifierIds } from './verifiers.js'
+import { PLANNER_DECISION_KIND, REVIEW_STATE, STAGE_STATE } from '../../../../shared/states.js'
 import { DECISION_STATUS } from '../../../../shared/decision.js'
 
 const latestForStage = (messages, kind, stage, after = -1) => [...messages]
@@ -59,16 +58,8 @@ export const studioNeedsYou = (room, messages = []) => {
       }
     }
   }
-  const auto = room.autoCheck
-  if (auto?.stage === index && (auto.status === AUTO_CHECK_STATUS.blocked || auto.status === AUTO_CHECK_STATUS['limit-reached'])) {
-    return {
-      kind: 'auto-check',
-      stage: index,
-      label: auto.status === AUTO_CHECK_STATUS['limit-reached']
-        ? '这一步还没做成，可以再试一次'
-        : '这一步没做成，待你决定',
-    }
-  }
+  // 目标对齐和验收与结论是脊柱阶段，系统会自己推进；它们 active 时不是人要做决定。
+  if (stage.spine === true) return null
   const timeout = latestReviewTimeout(messages, index)
   if (timeout !== undefined) {
     const lastVerdict = latestForStage(messages, 'verdict', index, floor)
@@ -88,37 +79,6 @@ export const studioNeedsYou = (room, messages = []) => {
           ? '只有一家厂商，复核其实是自查；再装一个 Agent 才算独立复核。'
           : '可以再叫一次复核，或退回重做。',
       }
-    }
-  }
-  if (stage.manual === true) {
-    const manual = manualEvidenceFor(room, undefined, messages, index)
-    const auto = latestAutoCheck(messages, index, floor)
-    if (auto !== undefined && auto.meta?.exit !== 0 && (manual === undefined || (auto.seq ?? 0) > (manual.seq ?? 0))) {
-      return recentlyActive(room, messages) ? null : { kind: 'rework', stage: index, label: '自动检查没通过，先重做' }
-    }
-    if (manual?.meta?.kind !== 'manual') return null
-    if (verifierIds(room).length > 0) {
-      const outcome = manualReviewState({ room, messages, stageIndex: index })
-      const active = recentlyActive(room, messages)
-      if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
-      if (outcome.state === REVIEW_STATE.pending) {
-        return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false }
-      }
-      if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '', actionable: false }
-      return null
-    }
-    return { kind: 'confirm', stage: index, label: '待确认' }
-  }
-  // 目标对齐和验收与结论是脊柱阶段，系统会自己推进；它们 active 时不是人要做决定。
-  if (stage.spine === true) return null
-  if (stage.kind === 'decision') return { kind: 'confirm', stage: index, label: '待确认' }
-
-  if (typeof stage.acceptance !== 'string' || stage.acceptance.trim() === '') {
-    return {
-      kind: 'setup',
-      stage: index,
-      label: '待补检查',
-      detail: '给这一步补一条能跑的检查，或改成你看结果。',
     }
   }
   const dispatch = dispatchFrom(room.assignments ?? [], index)
@@ -143,28 +103,13 @@ export const studioNeedsYou = (room, messages = []) => {
       detail: '退回重做，或只留一位执行官继续。',
     }
   }
-  const commandEvidence = commandEvidenceFor(room, undefined, messages, index)
-  if (commandEvidence !== undefined && commandEvidence.meta?.exit !== 0) {
-    return recentlyActive(room, messages) ? null : { kind: 'rework', stage: index, label: '待重做' }
-  }
-  if (verifierIds(room).length > 1) {
-    const outcome = reviewState({ room, messages, stageIndex: index })
-    const active = recentlyActive(room, messages)
-    if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
-    if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '', actionable: false }
-    if (outcome.state === REVIEW_STATE.pending) {
-      return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false }
-    }
-    return null
-  }
-  const verdict = latestForStage(messages, 'verdict', index, floor)
-  if (verdict !== undefined && verdictPassed(verdict)) return { kind: 'signoff', stage: index, label: '', actionable: false }
-  if (verdict !== undefined) return recentlyActive(room, messages) ? null : { kind: 'rework', stage: index, label: '待重做' }
-  if (latestForStage(messages, 'evidence', index, floor) !== undefined) {
-    if (recentlyActive(room, messages)) return null
-    return verifierIds(room).length > 0
-      ? { kind: 'review', stage: index, label: '验收员在看', actionable: false }
-      : { kind: 'confirm', stage: index, label: '待确认' }
+  if (verifierIds(room).length === 0) return null
+  const outcome = reviewState({ room, messages, stageIndex: index })
+  const active = recentlyActive(room, messages)
+  if (outcome.state === 'reject') return active ? null : { kind: 'rework', stage: index, label: '待重做' }
+  if (outcome.state === 'pass') return { kind: 'signoff', stage: index, label: '', actionable: false }
+  if (outcome.state === REVIEW_STATE.pending) {
+    return active ? null : { kind: 'review', stage: index, label: '验收员在看', detail: '验收员还在核对结果。', actionable: false }
   }
   return null
 }

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  changes, cleanupRoom, head, integrate, isolatedCopy, persistRoom, prepareRoom, pruneMembers, removeIsolatedCopy,
+  changes, cleanupRoom, head, integrate, persistRoom, prepareRoom, pruneMembers,
 } from './workspace-plain.js'
 
 const temp = prefix => mkdtempSync(join(tmpdir(), prefix))
@@ -108,21 +108,6 @@ test('plain integration copies files and reports same-path conflicts', () => {
     assert.equal(conflict.ok, false)
     assert.deepEqual(conflict.files, ['src/a.txt'])
     assert.equal(readFileSync(join(integration, 'src', 'a.txt'), 'utf8'), 'from-first\n')
-    cleanupRoom({ source, workspaces })
-  })
-  rmSync(source, { recursive: true, force: true })
-})
-
-test('plain acceptance copies are disposable and do not need a commit', () => {
-  const source = sourceDir()
-  withRoot(() => {
-    const workspaces = prepareRoom({ source, short: 'plain4', members: [{ id: 'executor', role: 'worker' }] })
-    const copy = isolatedCopy({ source: workspaces.roomPath })
-    writeFileSync(join(copy.path, 'side-effect.txt'), 'discard\n')
-    assert.equal(existsSync(join(workspaces.roomPath, 'side-effect.txt')), false)
-    removeIsolatedCopy({ copy })
-    assert.equal(existsSync(copy.path), false)
-    assert.equal(persistRoom({ room: {}, files: [] }), true)
     cleanupRoom({ source, workspaces })
   })
   rmSync(source, { recursive: true, force: true })

@@ -1,4 +1,4 @@
-// 多验收员只看“当前这轮验收命令证据”上的结论；旧轮的 PASS/REJECT 不参与本轮判定。
+// 验收员只看“当前这轮结果证据”上的结论；旧轮的 PASS/REJECT 不参与本轮判定。
 import { verifierIds } from '../../room-members.js'
 import { reworkFloor } from '../../../../shared/attempt.js'
 import { verdictPassed } from '../../../../shared/judgment.js'
@@ -29,8 +29,8 @@ const verdictOutcome = ({ ids, verdicts }) => {
   return { state, total, required, received: verdicts.length, missing, verdicts, rejects }
 }
 
-// 只有真的动过工具或产出文件的回合，才会让之前的凭证过期；
-// 成员后来补的一句说明不应该把已经验收的结果作废。
+// 只有真的动过工具或产出文件的回合，才会让之前的证据过期；
+// 成员后来补的一句说明不应该把已经验过的结果作废。
 const turnDidWork = message => {
   const meta = message.meta ?? {}
   let toolCalls = Number(meta.toolCalls ?? 0)
@@ -61,14 +61,14 @@ const evidenceFloor = (messages, stageIndex) => Math.max(reworkFloor(messages, s
 
 const ledgerOf = (evidence, messages) => {
   const fromMessages = messages.filter(message => (
-    message.kind === 'evidence' && (message.meta?.kind === 'command' || message.meta?.kind === 'manual')
+    message.kind === 'evidence' && message.meta?.kind === 'result'
   ))
   // 没有独立 ledger 时沿用消息账本（测试和旧调用都走这里）。
   if (!Array.isArray(evidence)) return fromMessages
-  // 有 ledger 时以 ledger 为准；只补系统刚写入、ledger 还没带上的手工凭证。
+  // 有 ledger 时以 ledger 为准；只补系统刚写入、ledger 还没带上的结果凭证。
   const fromSystem = messages.filter(message => (
     message.kind === 'evidence' &&
-    message.meta?.kind === 'manual' &&
+    message.meta?.kind === 'result' &&
     message.authorId === 'system'
   ))
   const byId = new Map()
@@ -79,70 +79,22 @@ const ledgerOf = (evidence, messages) => {
   return [...byId.values()]
 }
 
-// 产品自己跑的那条检查（不是验收命令）；最近一条失败时，这一步还没资格交给人。
-export const latestAutoCheck = (messages, stageIndex, floor = -1) => [...messages]
-  .reverse()
-  .find(message => (
-    message.kind === 'evidence' &&
-    message.meta?.auto === true &&
-    (message.meta?.stage ?? 0) === stageIndex &&
-    (message.seq ?? 0) > floor
-  ))
-
-// 只看最新一条验收命令证据；失败的那一条会让此前所有 PASS 作废。
-export const commandEvidenceFor = (room, evidence, messages, stageIndex) => {
-  const stage = room?.stages?.[stageIndex]
-  const acceptance = typeof stage?.acceptance === 'string' ? stage.acceptance.trim() : ''
-  if (stage?.kind !== 'deliverable' || acceptance === '') return undefined
-  const floor = evidenceFloor(messages, stageIndex)
-  return [...ledgerOf(evidence, messages)].reverse().find(item => (
-    (item.seq ?? 0) > floor &&
-    (item.meta?.stage ?? 0) === stageIndex &&
-    (item.meta?.kind === 'command' || (room.demo === true && item.meta?.simulated === true)) &&
-    typeof item.meta?.command === 'string' &&
-    item.meta.command.trim() === acceptance
-  ))
-}
-
-export const manualEvidenceFor = (room, evidence, messages, stageIndex) => {
-  const stage = room?.stages?.[stageIndex]
-  if (stage?.manual !== true) return undefined
+// 只看最新一条结果证据：执行官交回一次，就对应一次复核。
+export const resultEvidenceFor = (room, evidence, messages, stageIndex) => {
   const floor = evidenceFloor(messages, stageIndex)
   return [...ledgerOf(evidence, messages)].reverse().find(item => (
     (item.meta?.stage ?? 0) === stageIndex &&
     (item.seq ?? 0) > floor &&
-    item.meta?.kind === 'manual' &&
+    item.meta?.kind === 'result' &&
     (room.demo === true || item.meta?.simulated !== true)
   ))
 }
 
-// 人工验收不是绕过 Verifier：结果证据也要经过独立 Verifier，再交给人确认。
-export const manualReviewState = ({ room, evidence, messages, stageIndex }) => {
-  const ids = reviewersOf(room, stageIndex)
-  const found = manualEvidenceFor(room, evidence, messages, stageIndex)
-  if (found === undefined) {
-    return { state: ids.length === 0 ? 'none' : 'pending', evidence: null, total: ids.length, received: 0, missing: ids, verdicts: [], rejects: [] }
-  }
-  const latest = new Map()
-  for (const message of messages) {
-    if (message.kind !== 'verdict' || (message.meta?.stage ?? 0) !== stageIndex) continue
-    if ((message.seq ?? 0) <= (found.seq ?? -1)) continue
-    if (message.meta?.evidenceId !== found.id) continue
-    latest.set(message.authorId, message)
-  }
-  const verdicts = ids.map(id => latest.get(id)).filter(message => message !== undefined)
-  const outcome = verdictOutcome({ ids, verdicts,  })
-  return { ...outcome, evidence: found }
-}
-
 export const reviewState = ({ room, evidence, messages, stageIndex }) => {
   const ids = reviewersOf(room, stageIndex)
-  const found = commandEvidenceFor(room, evidence, messages, stageIndex)
+  const found = resultEvidenceFor(room, evidence, messages, stageIndex)
   if (found === undefined) {
     return { state: 'none', evidence: null, total: ids.length, received: 0, missing: ids, verdicts: [], rejects: [] }
-  }
-  if (found.meta?.exit !== 0) {
-    return { state: 'failed', evidence: found, total: ids.length, received: 0, missing: ids, verdicts: [], rejects: [] }
   }
   const floor = reworkFloor(messages, stageIndex)
   const latest = new Map()
@@ -153,10 +105,9 @@ export const reviewState = ({ room, evidence, messages, stageIndex }) => {
     latest.set(message.authorId, message)
   }
   const verdicts = ids.map(id => latest.get(id)).filter(message => message !== undefined)
-  const outcome = verdictOutcome({ ids, verdicts,  })
+  const outcome = verdictOutcome({ ids, verdicts })
   return { ...outcome, evidence: found }
 }
-
 
 // 复核超时是持久事实：最新一条超时标记晚于本阶段最后一次 verdict，才算当前仍超时。
 export const latestReviewTimeout = (messages, stageIndex) => [...messages]

@@ -1,7 +1,7 @@
 import { normalizeJudgment } from '../../../../shared/judgment.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
 
-export const isWorkStage = stage => stage.kind === 'deliverable' || stage.manual === true
+export const isWorkStage = stage => stage.kind === 'deliverable'
 
 export const activeStageReadOnly = room => (
   room?.stages?.find(stage => stage.state === STAGE_STATE.active)?.readOnly === true

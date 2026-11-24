@@ -53,7 +53,6 @@ import {
   isTextFile,
 } from '../../shared/attachments.js'
 
-export { acceptanceChangeError, persistenceKind } from './service-policy.js'
 
 // 业务层：只见 store / live / 事件出口，不碰 HTTP，也不碰基座字段。
 export const createCrewService = ({ store, engine, live, emit, roles, ports, attachments = null }) => {
