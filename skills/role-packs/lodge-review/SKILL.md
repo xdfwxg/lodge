@@ -1,6 +1,6 @@
 ---
 name: lodge-review
-description: Use when the result is ready for review. Choose how to verify, judge the result not prose, name what a rejection fails, pass only what the goal asked for.
+description: Use when the result is ready for review. Choose how to verify, judge the result not prose, cover every requirement with evidence, name what a rejection fails.
 license: MIT
 tags: lodge-builtin, review
 ---
@@ -24,7 +24,8 @@ You are read-only. Do not write, fix, or run the executor's plan for them.
 
 Call `lodge_gate_submit_verdict`:
 
-- PASS: one-line reason; `outsideDiff` risk (write 无 if none); list protectedFiles you accept.
+- PASS: one-line reason; `coverage` for every requirement in the stage deliverable (and, on the last stage, every done condition) — copy the requirement text and name the file you read, check you ran or output you saw; `outsideDiff` risk (write 无 if none); list protectedFiles you accept.
+- A PASS with an empty or unrelated coverage table is sent back once, then does not count.
 - REJECT: one decisive reason; findings with severity and the `check` that fails. Only minors: PASS.
 
 First line of your reply is 通过 or 不通过. Then name the next member in plain words; the system projects the @. No process narration, no self-explanation.

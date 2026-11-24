@@ -150,11 +150,11 @@ test('the review request goes to every verifier and all PASS ends the round', as
   assert.equal(reviews[0].parentAssignmentId, 'as-work')
   assert.equal(turns.busyReview(), true)
 
-  turns.captureTurn({ turnId: 't1', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v1')
+  turns.captureTurn({ turnId: 't1', reply: 'PASS ok\n```json\n{"reason":"ok","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}\n```', toolCalls: 1 }, 'bot-v1')
   assert.equal(turns.busyReview(), true)
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
 
-  turns.captureTurn({ turnId: 't2', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v2')
+  turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}\n```', toolCalls: 1 }, 'bot-v2')
   assert.equal(turns.busyReview(), false)
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 2)
   assert.match(messages.at(-1).text, /全部验收员通过/)
@@ -194,7 +194,7 @@ test('a rejection cancels the remaining verifier round', async () => {
   // 投影在投递成功之后才出现，等这一拍落完。
   await new Promise(resolve => setImmediate(resolve))
   assert.match(messages.at(-1).text, /@执行官 验收退回，按上面的意见重做第 1 步/)
-  turns.captureTurn({ turnId: 't2', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v2')
+  turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}\n```', toolCalls: 1 }, 'bot-v2')
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
 })
 

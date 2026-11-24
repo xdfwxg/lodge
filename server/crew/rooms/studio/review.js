@@ -5,6 +5,7 @@ import { appendHandoffProjection } from './projection.js'
 import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT } from './turn-utils.js'
 import { DECISION_JSON_HINT, LIMITS, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
+import { coverageGapsOf, coverageRequirementsOf } from './coverage.js'
 import { GATE_SERVER_NAME, gateSubmissionOf } from '../../../../shared/gate.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { existingTestChangesOf, protectedFilesOf } from '../../protected-files.js'
@@ -108,9 +109,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       pending.expire?.(`${name} 没有提交验收判定，这一轮仍未通过。`)
       return true
     }
-    round.requests.delete(memberId)
-    clearTimeout(pending.timer)
-    clearTimeout(pending.reminder)
     const judgment = gate ?? normalizeJudgment({
       type: 'verdict',
       text: turn.reply,
@@ -118,6 +116,33 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidenceId: pending.evidenceId,
       actorId: pending.verifier,
     })
+    // PASS 的覆盖表还要对得上这一阶段真正要交的东西：本步交付物，最后一步连整轮目标一起核。
+    // 工具不可用时的文本兜底同样要过这一关，避免换个入口绕过覆盖。
+    const gaps = judgment.decision === 'pass'
+      ? coverageGapsOf({
+        coverage: judgment.coverage,
+        requirements: coverageRequirementsOf({ room, stageIndex: pending.stage }),
+      })
+      : []
+    if (gaps.length > 0) {
+      const name = memberDisplayName(room, memberId)
+      if (pending.coverageNudged !== true) {
+        pending.coverageNudged = true
+        clearTimeout(pending.reminder)
+        void sendToMember(memberId, [
+          'PASS 的覆盖表还差这些要求：',
+          ...gaps.map(item => `- ${sanitizeUntrusted(item, 300)}`),
+          '请重新调用 submit_verdict：coverage 的 item 原样抄这些要求，evidence 写你实际读过的文件、跑过的检查或看到的结果。',
+          INTERNAL_PROMPT_MARKER,
+        ].join('\n'), { intent: 'review' }).catch(() => {})
+        return true
+      }
+      pending.expire?.(`${name} 的判定没有逐条覆盖这一步的要求，这一轮仍未通过。`)
+      return true
+    }
+    round.requests.delete(memberId)
+    clearTimeout(pending.timer)
+    clearTimeout(pending.reminder)
     // 平台给过渲染图，就必须引用像素检查；看不到可以写 seen:false，但不能装作没这回事。
     const current = store.readRoom(roomId)
     const expected = (current?.previews ?? [])
@@ -127,6 +152,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     // 不在这里追问：复核回合已经结束，重问会让复核挂住；缺了就如实标记，交给交付卡和系统消息说明。
     const visualMissing = !visualOk
     const pass = judgment.decision === 'pass'
+    // 工具不可用时的文本兜底没有结构覆盖表；照样收，但把降级写进记录。
+    const coverageMissing = pass && (Array.isArray(judgment.coverage) ? judgment.coverage.length : 0) === 0
     const independent = room?.independence === 'vendor'
     const name = memberDisplayName(room, memberId)
     const spec = memberOf(room, pending.verifier)
@@ -149,6 +176,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         turnId,
         simulated: false,
         ...(visualMissing ? { visualMissing: true } : {}),
+        ...(coverageMissing ? { coverageMissing: true } : {}),
         ...(late ? { late: true } : {}),
       },
     })
@@ -163,6 +191,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         kind: 'system',
         text: `${name} 这次只看文字，效果图没有核对。`,
         meta: { kind: 'visual', stage: pending.stage },
+      })
+    }
+    if (coverageMissing) {
+      store.appendMessage(roomId, {
+        kind: 'system',
+        text: `${name} 这次通过没有提交覆盖表；只能按文字判定。`,
+        meta: { kind: 'coverage', stage: pending.stage },
       })
     }
     store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, independent, turnId, late })

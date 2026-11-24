@@ -34,10 +34,14 @@ const verdictRows = room => (room.messages ?? [])
   .map(message => {
     const stage = `第 ${(message.meta?.stage ?? 0) + 1} 步`
     const pass = message.meta?.pass === true ? '通过' : '不通过'
-    const text = line(judgmentOf(message)?.reason || String(message.text ?? '').split('\n')[0])
+    const judgment = judgmentOf(message)
+    const text = line(judgment?.reason || String(message.text ?? '').split('\n')[0])
       .replace(/^\s*(?:(?:PASS|REJECT)\b|不通过|通过)[：:\s-]*/i, '')
       .slice(0, 200)
-    return `- ${stage}：${pass} · ${nameOf(room.members, message.authorId)}${text === '' ? '' : ` · ${text}`}`
+    const covered = Array.isArray(judgment?.coverage) && judgment.coverage.length > 0
+      ? ` · 覆盖 ${judgment.coverage.length} 条`
+      : message.meta?.coverageMissing === true ? ' · 未提交覆盖表' : ''
+    return `- ${stage}：${pass} · ${nameOf(room.members, message.authorId)}${text === '' ? '' : ` · ${text}`}${covered}`
   })
 
 const fileRows = room => {

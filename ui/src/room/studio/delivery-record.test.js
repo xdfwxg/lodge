@@ -31,6 +31,55 @@ test('the delivery record carries goal, results, verdicts and files', () => {
   assert.match(text, /分支：crew\/x\/worker/)
 })
 
+test('the record shows how many requirements a PASS covered', () => {
+  const text = deliveryRecord({
+    name: '导出交付',
+    goal: '在根目录写 hello.txt',
+    state: 'idle',
+    workRound: { id: 'round-1', status: 'completed' },
+    stages: [{ title: '实现', state: 'passed', deliverable: 'hello.txt' }],
+    members: [{ id: 'verifier', name: '验收员' }],
+    messages: [{
+      kind: 'verdict',
+      authorId: 'verifier',
+      text: 'PASS 内容正确',
+      meta: {
+        stage: 0,
+        pass: true,
+        judgment: {
+          version: 1,
+          type: 'verdict',
+          decision: 'pass',
+          reason: '内容正确',
+          coverage: [
+            { item: 'hello.txt', evidence: '读了 hello.txt' },
+            { item: '内容是 hello', evidence: '看到内容为 hello' },
+          ],
+        },
+      },
+    }],
+  })
+  assert.match(text, /通过 · 验收员 · 内容正确 · 覆盖 2 条/)
+})
+
+test('a text-fallback PASS without coverage is marked in the record', () => {
+  const text = deliveryRecord({
+    name: '导出交付',
+    goal: '在根目录写 hello.txt',
+    state: 'idle',
+    workRound: { id: 'round-1', status: 'completed' },
+    stages: [{ title: '实现', state: 'passed', deliverable: 'hello.txt' }],
+    members: [{ id: 'verifier', name: '验收员' }],
+    messages: [{
+      kind: 'verdict',
+      authorId: 'verifier',
+      text: '通过',
+      meta: { stage: 0, pass: true, coverageMissing: true },
+    }],
+  })
+  assert.match(text, /未提交覆盖表/)
+})
+
 test('an unfinished room still reads honestly', () => {
   const text = deliveryRecord({ name: '半成品', goal: '写点东西', state: 'active', stages: [{ title: '写', state: 'active' }] })
   assert.match(text, /状态：进行中/)

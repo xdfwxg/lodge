@@ -9,6 +9,7 @@ const verdict = overrides => ({
     decision: 'PASS',
     reason: '文件内容和检查都对',
     outsideDiff: '无',
+    coverage: [{ item: '文件内容正确', evidence: '读了文件并运行检查' }],
     ...overrides,
   }),
 })
@@ -96,7 +97,12 @@ test('a verdict submission is not reused as a planner decision', () => {
 test('the base activity label with a single underscore is recognized', () => {
   const judgment = gateSubmissionOf([{
     name: 'lodge_gate_submit_verdict',
-    input: JSON.stringify({ decision: 'PASS', reason: 'base label', outsideDiff: '无' }),
+    input: JSON.stringify({
+      decision: 'PASS',
+      reason: 'base label',
+      outsideDiff: '无',
+      coverage: [{ item: 'base label', evidence: '读了文件' }],
+    }),
   }], { type: 'verdict' })
   assert.equal(judgment.source, 'gate')
   assert.equal(judgment.decision, 'pass')

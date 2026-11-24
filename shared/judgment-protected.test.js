@@ -9,6 +9,7 @@ test('a gate verdict keeps the protected files it acknowledged', () => {
       decision: 'PASS',
       reason: '改好了',
       outsideDiff: '无',
+      coverage: [{ item: '改好了', evidence: '读了 package.json' }],
       protectedFiles: ['./package.json', 'package.json', '.env'],
     },
   })

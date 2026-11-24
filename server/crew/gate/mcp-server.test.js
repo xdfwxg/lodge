@@ -64,7 +64,7 @@ test('a verdict can cite the platform visual check', () => {
     method: 'tools/call',
     params: {
       name: 'submit_verdict',
-      arguments: { decision: 'PASS', reason: '画面层次正常', outsideDiff: '无', visual: { seen: false } },
+      arguments: { decision: 'PASS', reason: '画面层次正常', outsideDiff: '无', visual: { seen: false }, coverage: [{ item: '画面层次正常', evidence: '看了平台截图和像素检查' }] },
     },
   })
   assert.deepEqual(response.result.structuredContent.visual, { seen: false })
@@ -77,7 +77,7 @@ test('a verdict cannot attach numbers while claiming it did not see', () => {
     method: 'tools/call',
     params: {
       name: 'submit_verdict',
-      arguments: { decision: 'PASS', reason: '画面层次正常', outsideDiff: '无', visual: { seen: false, colors: 50, contrast: 255 } },
+      arguments: { decision: 'PASS', reason: '画面层次正常', outsideDiff: '无', visual: { seen: false, colors: 50, contrast: 255 }, coverage: [{ item: '画面层次正常', evidence: '看了平台截图和像素检查' }] },
     },
   })
   assert.equal(response.result.isError, true)
@@ -95,12 +95,33 @@ test('a PASS without an outside-diff risk is refused', () => {
   assert.match(response.result.content[0].text, /diff 之外/)
 })
 
+test('a PASS without a coverage table is refused', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 35,
+    method: 'tools/call',
+    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: '都过了', outsideDiff: '无' } },
+  })
+  assert.equal(response.result.isError, true)
+  assert.match(response.result.content[0].text, /coverage/)
+  const incomplete = handleMessage({
+    jsonrpc: '2.0',
+    id: 36,
+    method: 'tools/call',
+    params: {
+      name: 'submit_verdict',
+      arguments: { decision: 'PASS', reason: '都过了', outsideDiff: '无', coverage: [{ item: '目标可以跑' }] },
+    },
+  })
+  assert.equal(incomplete.result.isError, true)
+})
+
 test('a PASS echoes the outside-diff risk', () => {
   const response = handleMessage({
     jsonrpc: '2.0',
     id: 34,
     method: 'tools/call',
-    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: '都过了', outsideDiff: '并发下没有锁' } },
+    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: '都过了', outsideDiff: '并发下没有锁', coverage: [{ item: '目标可以跑', evidence: '运行了 npm test' }] } },
   })
   assert.equal(response.result.structuredContent.outsideDiff, '并发下没有锁')
 })
@@ -110,7 +131,7 @@ test('a malformed visual field is refused', () => {
     jsonrpc: '2.0',
     id: 32,
     method: 'tools/call',
-    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: 'x', outsideDiff: '无', visual: { colors: 3 } } },
+    params: { name: 'submit_verdict', arguments: { decision: 'PASS', reason: 'x', outsideDiff: '无', visual: { colors: 3 }, coverage: [{ item: 'x', evidence: '读了文件' }] } },
   })
   assert.equal(response.result.isError, true)
   assert.match(response.result.content[0].text, /seen/)

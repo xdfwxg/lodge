@@ -18,6 +18,17 @@ const FINDING_SCHEMA = {
   additionalProperties: false,
 }
 
+// 通过时必须逐条写清这条要求对应哪份亲手核对的证据；空覆盖表不算通过。
+const COVERAGE_SCHEMA = {
+  type: 'object',
+  properties: {
+    item: { type: 'string', maxLength: 300, description: '目标、done 或本步交付物里的要求原文。' },
+    evidence: { type: 'string', maxLength: 500, description: '你实际读了哪个文件、跑了哪条检查、看到什么。' },
+  },
+  required: ['item', 'evidence'],
+  additionalProperties: false,
+}
+
 // 平台给了渲染图时，验收员必须引用像素检查的数字；看不到图就如实写 seen:false。
 const VISUAL_SCHEMA = {
   type: 'object',
@@ -33,7 +44,7 @@ const VISUAL_SCHEMA = {
 export const GATE_TOOLS = Object.freeze([
   {
     name: 'submit_verdict',
-    description: '提交这一步的验收判定：PASS 表示通过，REJECT 表示不通过。验收方法由你按目标决定；不通过至少要有一条带 check 的 blocker/major（你实际跑的哪条检查或目标哪一行会因它失败）；只有 minor 的问题请判通过。调用后不用再把 JSON 写进回复。',
+    description: '提交这一步的验收判定：PASS 表示通过，REJECT 表示不通过。验收方法由你按目标决定。PASS 必须带 coverage，逐条写清目标或交付物里的要求和你实际核对的证据；不通过至少要有一条带 check 的 blocker/major（你实际跑的哪条检查或目标哪一行会因它失败）；只有 minor 的问题请判通过。调用后不用再把 JSON 写进回复。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -41,6 +52,12 @@ export const GATE_TOOLS = Object.freeze([
         reason: { type: 'string', maxLength: 2000 },
         findings: { type: 'array', items: FINDING_SCHEMA, maxItems: 10 },
         outsideDiff: { type: 'string', maxLength: 500 },
+        coverage: {
+          type: 'array',
+          maxItems: 12,
+          items: COVERAGE_SCHEMA,
+          description: 'PASS 必填：逐条列出目标/交付物里的要求，以及你实际核对过的文件、检查或输出。',
+        },
         protectedFiles: {
           type: 'array',
           maxItems: 20,
@@ -322,6 +339,20 @@ const callTool = (id, params) => {
     const outsideDiff = typeof args.outsideDiff === 'string' ? args.outsideDiff.trim() : ''
     if (decision === 'PASS' && outsideDiff === '') {
       return toolFailure(id, 'PASS 要写一条 diff 之外的风险；没有就写「无」。')
+    }
+    if (decision === 'PASS') {
+      const raw = Array.isArray(args.coverage) ? args.coverage : []
+      const valid = raw.filter(item => (
+        item !== null &&
+        typeof item === 'object' &&
+        typeof item.item === 'string' &&
+        item.item.trim() !== '' &&
+        typeof item.evidence === 'string' &&
+        item.evidence.trim() !== ''
+      ))
+      if (raw.length === 0 || valid.length !== raw.length) {
+        return toolFailure(id, 'PASS 必须带 coverage：逐条写清目标或交付物里的要求原文（item）和你实际读过的文件、跑过的检查或看到的结果（evidence）。')
+      }
     }
     const findings = Array.isArray(args.findings) ? args.findings.slice(0, 10) : []
     const blocking = findings.filter(item => (

@@ -41,7 +41,7 @@
 - **流转**：规划师管内容（拆解、阶段、工作包、队伍、重做或停下），系统管流转（下一棒、叫醒、租约、预算、门禁、写边界、验收票数）；派活权不交给模型。
 - **归属**：语义判断归模型，通用机制归框架，业务规则归业务。不要把语义判断写成关键词匹配。
 - **权限**：工具面就是权限面。新工具要写拒绝原因和系统错误边界；外部内容不能直接变成指令。
-- **验收**：规划师只写交付物，验收员自己定怎么验；PASS 看结果证据，REJECT 必须指出一条会因它失败的检查（它自己跑的或目标行）；只有 minor 的问题不阻塞。证据是必要条件，不是充分条件；人只在交付后否决，不在中间点头。
+- **验收**：规划师只写交付物，验收员自己定怎么验；PASS 看结果证据并逐条覆盖本步交付物，REJECT 必须指出一条会因它失败的检查（它自己跑的或目标行）；只有 minor 的问题不阻塞。证据是必要条件，不是充分条件；人只在交付后否决，不在中间点头。
 - **上下文**：每轮新增什么、预算多少、什么时候裁剪；业务真相不能放进会话内存。
 - **协议**：状态机记录，门禁拒绝；薄在不管模型怎么想，不在不做判定。
 - **状态与失败**：业务真相在房间和存储；失败要分可重试、不可重试、已受理未完成。
@@ -70,7 +70,7 @@
 | 交接棒由系统递，模型不决定下一棒 | 工作室由 `rooms/studio/relay.js` 决定，聊天室按公平顺序（每人先说一次，再立场互补，最后随机）；`@` 只在 `kernel/live/bus.js` 的 `send` 里生成；两种房间建房时基座 `followMentions: false` | `relay.test.js`、`live-turn-modules.test.js`、`live-chat-room.test.js`、`engine.test.js`、`room-create.test.js` |
 | 非法状态跃迁写不进去 | `shared/states.js` + `assignments.js` + `kernel/round.js` | `states.test.js`、`assignments.test.js` |
 | 阶段最多 3 步、每一步要有交付物、成员增删有约束 | `rooms/create/input.js`、`member-add.js`、`member-remove.js` | `room-create.test.js`、`member-add.test.js`、`member-remove.test.js` |
-| 验收要有结果证据和 quorum | `rooms/studio/gates.js`、`verifiers.js`、`runtime/result.js` | `gates.test.js`、`verifiers.test.js` |
+| 验收要有结果证据、覆盖表和 quorum | `rooms/studio/gates.js`、`verifiers.js`、`coverage.js`、`runtime/result.js` | `gates.test.js`、`verifiers.test.js`、`coverage.test.js` |
 | 退回必须挂到一条会失败的检查；没有 check 的 blocker/major 降为 minor | `shared/judgment.js`、`gate/mcp-server.js`、`review-prompts.js` | `judgment.test.js`、`mcp-server.test.js` |
 | PASS 要带 diff 外风险；自动交付只认结构化判定 | `gate/mcp-server.js`、`rooms/studio/review.js` | `mcp-server.test.js`、`live-turn-modules.test.js` |
 | 判定缺失先催一次，再交给人 | `rooms/studio/review.js` | `live-turn-modules.test.js` |
