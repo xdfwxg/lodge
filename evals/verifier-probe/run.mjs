@@ -2,10 +2,11 @@
 // 需要 Lodge + 基座在跑；会调用真实模型，不进 check:done。
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
+import { mergeVerifierPools, poolFromProbeResults } from '../../shared/verifier-pool.js'
 
 const root = dirname(fileURLToPath(import.meta.url))
 const args = process.argv.slice(2)
@@ -21,6 +22,16 @@ const outDir = resolve(option('--out', join(root, 'results')))
 const keep = flag('--keep')
 const only = option('--case', '')
 const validateOnly = flag('--validate')
+const verifierEngine = option('--verifier-engine', process.env.LODGE_PROBE_VERIFIER_ENGINE ?? 'claude')
+const verifierModel = option('--verifier-model', process.env.LODGE_PROBE_VERIFIER_MODEL ?? 'claude-sonnet-5')
+const workerEngine = option('--worker-engine', process.env.LODGE_PROBE_WORKER_ENGINE ?? 'claude')
+const workerModel = option('--worker-model', process.env.LODGE_PROBE_WORKER_MODEL ?? 'claude-sonnet-5')
+const poolAt = args.indexOf('--write-pool')
+const poolFile = poolAt < 0
+  ? ''
+  : args[poolAt + 1] !== undefined && !args[poolAt + 1].startsWith('--')
+    ? args[poolAt + 1]
+    : join(homedir(), '.lodge', 'verifier-pool.json')
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 const json = async (url, options = {}) => {
@@ -37,7 +48,6 @@ const allCases = [
     id: 'missing-section',
     kind: 'defect',
     goal: 'README 必须有三节：安装、使用、限制；缺一节就不算完成。',
-    acceptance: 'npm test',
     defectFile: 'README.md',
     note: '把 README 现有段落整理成更清楚的短段落；不要新增或删除小节。',
     hasDefect: text => text.includes('## 安装') && text.includes('## 使用') && !text.includes('## 限制'),
@@ -51,7 +61,6 @@ const allCases = [
     id: 'wrong-edge',
     kind: 'defect',
     goal: 'answer() 无论输入什么都返回 42，包括负数。',
-    acceptance: 'npm test',
     defectFile: 'src/answer.js',
     note: '把 answer 改写成一行箭头函数，行为保持不变；不要改测试。',
     hasDefect: text => text.includes('n < 0 ? -1 : 42'),
@@ -65,7 +74,6 @@ const allCases = [
     id: 'clean-readme',
     kind: 'clean',
     goal: 'README 必须有三节：安装、使用、限制。',
-    acceptance: 'npm test',
     defectFile: 'README.md',
     note: '把 README 现有段落整理成更清楚的短段落；三节都保留，不要删内容。',
     // 对照组：夹具本来满足目标；这里命中的是“目标被破坏”，不是预埋缺陷。
@@ -191,8 +199,6 @@ for (const testCase of cases) {
           name: `探针 · ${testCase.id} · ${run}`,
           roomType: 'studio',
           repoPath: repo,
-          verify: 'test',
-          acceptance: testCase.acceptance,
           handoff: {
             topic: testCase.goal,
             consensus: [testCase.note],
@@ -202,8 +208,8 @@ for (const testCase of cases) {
           },
           members: [
             { role: 'lead', name: '规划师', engine: 'claude', model: 'claude-sonnet-5' },
-            { role: 'worker', name: '执行官', engine: 'claude', model: 'claude-sonnet-5' },
-            { role: 'verifier', name: '验收员', engine: 'claude', model: 'claude-sonnet-5' },
+            { role: 'worker', name: '执行官', engine: workerEngine, model: workerModel },
+            { role: 'verifier', name: '验收员', engine: verifierEngine, model: verifierModel },
           ],
         }),
       })
@@ -231,7 +237,12 @@ for (const testCase of cases) {
           : 'invalid')
       row = {
         caseId: testCase.id,
+        kind: testCase.kind,
         run,
+        verifierEngine,
+        verifierModel,
+        workerEngine,
+        workerModel,
         roomId: room.id,
         state: room?.state ?? null,
         timedOut: waited.timedOut,
@@ -280,14 +291,19 @@ const tokensOut = results.reduce((sum, row) => sum + (row.tokens?.output ?? 0), 
 const p50 = percentile(results.map(row => row.elapsedMs), 50)
 const p95 = percentile(results.map(row => row.elapsedMs), 95)
 const stamp = new Date().toISOString()
+const pool = poolFromProbeResults(results, { updatedAt: stamp })
+const poolLines = Object.entries(pool.models).map(([key, item]) => (
+  `- ${key}：${item.status} · 缺陷 ${item.defectSamples} · 抓出 ${item.caught} · 误放 ${item.falsePass}（${rate(item.falsePass, item.defectSamples) ?? '—'}） · 对照 ${item.cleanSamples} · 误拒 ${item.falseReject}`
+))
 const md = [
   `# 验收探针 · ${stamp}`,
   '',
-  `- 请求模型：claude (claude-sonnet-5) · Lodge ${lodge}`,
+  `- 验收模型：${verifierEngine} (${verifierModel}) · 执行模型：${workerEngine} (${workerModel}) · Lodge ${lodge}`,
   `- 缺陷样本：${defectRows.length} · 抓出：${caught}（${rate(caught, defectRows.length) ?? '—'}） · 误放：${falsePass}（${rate(falsePass, defectRows.length) ?? '—'}）`,
   `- 对照样本：${cleanRows.length} · 正确放行：${correctPass}（${rate(correctPass, cleanRows.length) ?? '—'}） · 误拒：${falseReject}（${rate(falseReject, cleanRows.length) ?? '—'}）`,
   `- 无效样本（交付物状态不符合预期）：${invalid} · 出错：${errors}`,
   `- 成本：${costLabel} · tokens 入/出：${tokensIn}/${tokensOut} · 耗时 p50 ${p50 ?? '—'}ms / p95 ${p95 ?? '—'}ms`,
+  ...(poolLines.length === 0 ? [] : ['', '## 模型池', ...poolLines]),
   '',
   '| 用例 | 轮次 | 缺陷仍在 | 判定 | 结果 | 成本 | 房间 | 耗时 |',
   '| --- | --- | --- | --- | --- | --- | --- | --- |',
@@ -297,5 +313,15 @@ const md = [
 ].join('\n')
 writeFileSync(join(outDir, 'latest.md'), `${md}\n`)
 writeFileSync(join(outDir, `probe-${Date.now()}.json`), `${JSON.stringify({ stamp, lodge, results }, null, 2)}\n`)
+const poolText = `${JSON.stringify(pool, null, 2)}\n`
+writeFileSync(join(outDir, 'pool.json'), poolText)
+if (poolFile !== '') {
+  const target = resolve(poolFile)
+  mkdirSync(dirname(target), { recursive: true })
+  let existing = null
+  try { existing = JSON.parse(readFileSync(target, 'utf8')) } catch {}
+  writeFileSync(target, `${JSON.stringify(mergeVerifierPools(existing, pool), null, 2)}\n`)
+  console.log(`验收员池已写入 ${target}`)
+}
 console.log(`\n${md}`)
 process.exitCode = falsePass > 0 || falseReject > 0 ? 1 : 0

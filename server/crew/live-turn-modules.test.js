@@ -33,6 +33,8 @@ const rejectMeta = stage => ({
   },
 })
 
+const proofCall = { name: 'Bash', step: { target: 'npm test' } }
+
 const makeRoom = overrides => normalizeTestRoom({
   id: 'room-1',
   name: 'Room',
@@ -863,7 +865,7 @@ test('a verdict cannot pass protected files without naming them', async () => {
     memberId: 'verifier',
     turnId: 't1',
     room,
-    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }] })],
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }] }), proofCall],
   }), true)
   assert.ok(!store.messages.some(message => message.kind === 'verdict'))
   assert.match(sent.at(-1).prompt, /受保护文件/)
@@ -872,7 +874,7 @@ test('a verdict cannot pass protected files without naming them', async () => {
     memberId: 'verifier',
     turnId: 't2',
     room,
-    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['package.json'] })],
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['package.json'] }), proofCall],
   }), true)
   const verdict = store.messages.find(message => message.kind === 'verdict')
   assert.equal(verdict?.meta?.pass, true)
@@ -909,7 +911,7 @@ test('a PASS must cover the stage deliverable before it counts', async () => {
     memberId: 'verifier',
     turnId: 't1',
     room,
-    calls: [call([{ item: '别的要求', evidence: '读了 README.md' }])],
+    calls: [call([{ item: '别的要求', evidence: '读了 README.md' }]), proofCall],
   }), true)
   assert.ok(!store.messages.some(message => message.kind === 'verdict'))
   assert.match(sent.at(-1).prompt, /ship it/)
@@ -918,12 +920,60 @@ test('a PASS must cover the stage deliverable before it counts', async () => {
     memberId: 'verifier',
     turnId: 't2',
     room,
-    calls: [call([{ item: '别的要求', evidence: '读了 README.md' }])],
+    calls: [call([{ item: '别的要求', evidence: '读了 README.md' }]), proofCall],
   }), true)
   assert.ok(!store.messages.some(message => message.kind === 'verdict'))
   assert.ok(store.messages.some(message => (
     message.kind === 'system' && /没有逐条覆盖/.test(message.text ?? '')
   )))
+})
+
+test('a PASS without reading a file or running a check is sent back once', async () => {
+  const room = makeRoom({ verifiers: ['verifier'] })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    authorId: 'executor',
+    meta: { stage: 0, kind: 'result', diff: '', changedFiles: ['README.md'] },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    updateTasks: () => {},
+  })
+  await review.request(0)
+  const call = {
+    name: 'mcp__lodge_gate__submit_verdict',
+    input: JSON.stringify({
+      decision: 'PASS',
+      reason: '好了',
+      outsideDiff: '无',
+      coverage: [{ item: 'ship it', evidence: '读了改动文件' }],
+    }),
+  }
+  assert.equal(review.consume({
+    turn: { reply: '' },
+    memberId: 'verifier',
+    turnId: 't1',
+    room,
+    calls: [call],
+  }), true)
+  assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+  assert.match(sent.at(-1).prompt, /亲手验过/)
+  assert.equal(review.consume({
+    turn: { reply: '' },
+    memberId: 'verifier',
+    turnId: 't2',
+    room,
+    calls: [call, { name: 'Read', step: { target: 'README.md' } }],
+  }), true)
+  assert.equal(store.messages.find(message => message.kind === 'verdict')?.meta?.pass, true)
 })
 
 test('a changed existing test must be acknowledged, an added test does not', async () => {
@@ -972,7 +1022,7 @@ test('a changed existing test must be acknowledged, an added test does not', asy
     memberId: 'verifier',
     turnId: 't1',
     room,
-    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['test/new.test.js'] })],
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['test/new.test.js'] }), proofCall],
   }), true)
   assert.ok(!store.messages.some(message => message.kind === 'verdict'))
   assert.match(sent.at(-1).prompt, /test\/initials\.test\.js/)
@@ -981,7 +1031,7 @@ test('a changed existing test must be acknowledged, an added test does not', asy
     memberId: 'verifier',
     turnId: 't2',
     room,
-    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['test/initials.test.js'] })],
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['test/initials.test.js'] }), proofCall],
   }), true)
   assert.equal(store.messages.find(message => message.kind === 'verdict')?.meta?.pass, true)
 })
@@ -1594,7 +1644,7 @@ test('review request and verdict consumption update the round without crossing t
     '{"reason":"符合目标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}',
     '```',
   ].join('\n')
-  assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room }), true)
+  assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room, calls: [proofCall] }), true)
   assert.equal(review.isBusy(), false)
   assert.ok(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true))
   assert.ok(store.messages.some(message => /全部验收员通过/.test(message.text ?? '')))
@@ -1697,7 +1747,7 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
     '{"reason":"新结果符合","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了新改动"}]}',
     '```',
   ].join('\n')
-  assert.equal(review.consume({ turn: { reply: pass }, memberId: 'verifier', turnId: 't-new', room }), true)
+  assert.equal(review.consume({ turn: { reply: pass }, memberId: 'verifier', turnId: 't-new', room, calls: [proofCall] }), true)
   assert.equal(store.messages.some(message => message.kind === 'verdict' && message.meta.pass === true), true)
 })
 
@@ -1778,7 +1828,7 @@ test('a verifier pass hands the summary to the planner', async () => {
     '{"reason":"达标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}',
     '```',
   ].join('\n')
-  assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room }), true)
+  assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room, calls: [proofCall] }), true)
   await new Promise(resolve => setImmediate(resolve))
   const planner = sent.find(item => item.memberId === 'planner')
   assert.ok(planner)
@@ -1828,7 +1878,7 @@ test('auto delivery closes the round when the verifier passes', async () => {
   const calls = [{
     name: 'mcp__lodge_gate__submit_verdict',
     input: JSON.stringify({ decision: 'PASS', reason: '达标', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }] }),
-  }]
+  }, proofCall]
   assert.equal(review.consume({ turn: { reply: '已提交' }, memberId: 'verifier', turnId: 't1', room, calls }), true)
   await new Promise(resolve => setImmediate(resolve))
   assert.deepEqual(advanced, [{ index: 0, options: { by: 'system', auto: true } }])
@@ -1873,7 +1923,7 @@ test('a promise round delivers without the room-wide auto-deliver switch', async
   const calls = [{
     name: 'mcp__lodge_gate__submit_verdict',
     input: JSON.stringify({ decision: 'PASS', reason: '达标', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }] }),
-  }]
+  }, proofCall]
   assert.equal(review.consume({ turn: { reply: '已提交' }, memberId: 'verifier', turnId: 't1', room, calls }), true)
   await new Promise(resolve => setImmediate(resolve))
   assert.deepEqual(advanced, [{ index: 0, options: { by: 'system', auto: true } }])
@@ -1919,7 +1969,7 @@ test('auto delivery falls back to the planner when the verdict came from text', 
     '{"reason":"达标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}',
     '```',
   ].join('\n')
-  assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room }), true)
+  assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room, calls: [proofCall] }), true)
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(advanced.length, 0)
   assert.ok(sent.some(item => item.memberId === 'planner'), 'text fallback still goes to the planner')
@@ -1961,7 +2011,7 @@ test('an intermediate stage advances by itself instead of asking the planner to 
     '{"reason":"达标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}',
     '```',
   ].join('\n')
-  assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room }), true)
+  assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room, calls: [proofCall] }), true)
   await Promise.resolve()
   await Promise.resolve()
   assert.deepEqual(advanced, [0])

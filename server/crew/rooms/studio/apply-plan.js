@@ -5,12 +5,15 @@ import { workspaceOf } from './workspace.js'
 import { systemNotice } from '../../notices.js'
 import { leadMemberOf } from '../../room-members.js'
 import { memberDisplayName } from '../../member-labels.js'
+import { isProtectedPath } from '../../protected-files.js'
+import { verifierPoolIssue } from '../../../../shared/verifier-pool.js'
+import { readVerifierPool } from '../../verifier-pool.js'
 
 const rejectionLimit = 2
 
 // 规划师提交的方案与队伍：先校验策略，再开通成员，最后把阶段接上并派第一步。
 // 任何一步失败都不半建：已经开出来的成员撤掉，对齐继续等下一版。
-export const createPlanApplier = ({ store, engine, live, emit, memberAdd, memberRemove, sendToMember = null }) => {
+export const createPlanApplier = ({ store, engine, live, emit, memberAdd, memberRemove, sendToMember = null, verifierPool = undefined }) => {
   const applying = new Set()
   const apply = async (roomId, result) => {
   const room = store.readRoom(roomId)
@@ -57,6 +60,13 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
     const problem = problemOf(member)
     if (problem !== '') { await reject(problem); return }
   }
+  const pool = verifierPool === undefined ? readVerifierPool() : verifierPool
+  const poolWarnings = []
+  for (const verifier of proposal.crew.verifiers) {
+    const issue = verifierPoolIssue({ pool, engine: verifier.engine, model: verifier.model })
+    if (issue.error !== undefined) { await reject(issue.error); return }
+    if (issue.warning !== undefined) poolWarnings.push(issue.warning)
+  }
   const vendorOf = member => byId.get(member.engine)?.engine ?? member.engine
   const vendors = new Set(instances
     .filter(item => item.available !== false && typeof item.models?.default === 'string' && item.models.default !== '')
@@ -68,8 +78,8 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
     return
   }
   if (!crossVendor) {
-    // 只装了一家模型：不挡开工，但要如实说清这一轮是模型自查。
-    store.appendMessage(roomId, { kind: 'system', text: '这台电脑只装了一家模型；这一轮的验收是模型自查。' })
+    // 只装了一家模型：不挡开工，但要如实说清这一轮是模型自查，不算独立复核。
+    store.appendMessage(roomId, { kind: 'system', text: '这台电脑只装了一家模型；这一轮的验收是模型自查，不算独立复核。' })
   }
   const needed = executorsNeeded(proposal.plan.stages)
   if (proposal.crew.executors.length !== needed) {
@@ -81,6 +91,26 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
   if (needed > 1 && workspaceOf(room).capabilities().merge !== true) {
     await reject('这个工作文件夹不能合并改动；把工作包并成一位执行官能做的一步。')
     return
+  }
+  const highRisk = proposal.plan.stages.some(stage => (
+    (Array.isArray(stage.packages) ? stage.packages.length : 0) >= 2 ||
+    (Array.isArray(stage.packages) ? stage.packages : []).some(item => (
+      (Array.isArray(item.files) ? item.files : []).some(isProtectedPath)
+    ))
+  ))
+  if (highRisk && vendors.size >= 2) {
+    if (proposal.crew.verifiers.length < 2) {
+      await reject('这一步会并行改动或改到受保护文件；高风险默认开两位验收员。')
+      return
+    }
+    const verifierVendors = new Set(proposal.crew.verifiers.map(vendorOf))
+    if (verifierVendors.size < 2) {
+      await reject('高风险这一步的两位验收员要来自不同厂商；换一位验收员。')
+      return
+    }
+  }
+  if (highRisk && vendors.size < 2) {
+    store.appendMessage(roomId, { kind: 'system', text: '这一步属于高风险，但这台电脑只有一家模型；只能做模型自查，不算独立复核。' })
   }
 
   const added = []
@@ -185,6 +215,9 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
   })
   const crewText = crew.map(item => `${item.role} ${memberDisplayName(store.readRoom(roomId), item.memberId)}（${item.model}）`).join('、')
   store.appendMessage(roomId, { kind: 'system', text: `队伍已经开好：${crewText}。` })
+  for (const warning of poolWarnings) {
+    store.appendMessage(roomId, { kind: 'system', text: warning })
+  }
   emit?.('room', store.readRoom(roomId))
   if (workIndex >= 0) {
     try {

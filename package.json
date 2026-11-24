@@ -58,7 +58,7 @@
     "replay:chat": "node scripts/replay-chat.mjs",
     "eval:verifier-probe": "node evals/verifier-probe/run.mjs",
     "eval:history-bench": "node evals/history-bench/run.mjs",
-    "eval:verifier-probe:nightly": "node evals/verifier-probe/run.mjs --runs 3 --out evals/verifier-probe/results/nightly",
+    "eval:verifier-probe:nightly": "node evals/verifier-probe/run.mjs --runs 5 --out evals/verifier-probe/results/nightly --write-pool",
     "smtp:test": "node scripts/smtp-test.mjs",
     "check:skills": "node scripts/check-skills.mjs"
   },

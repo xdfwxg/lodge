@@ -6,6 +6,7 @@ import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT } from './turn-utils.js'
 import { DECISION_JSON_HINT, LIMITS, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
 import { coverageGapsOf, coverageRequirementsOf } from './coverage.js'
+import { verificationProofOf } from './verification-proof.js'
 import { GATE_SERVER_NAME, gateSubmissionOf } from '../../../../shared/gate.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { existingTestChangesOf, protectedFilesOf } from '../../protected-files.js'
@@ -138,6 +139,24 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         return true
       }
       pending.expire?.(`${name} 的判定没有逐条覆盖这一步的要求，这一轮仍未通过。`)
+      return true
+    }
+    // PASS 还要有亲手验过的痕迹：跑过一条检查，或读过这次改动里的文件。
+    const proof = verificationProofOf(calls, { changedFiles: pending.changedFiles })
+    if (judgment.decision === 'pass' && !proof.ok) {
+      const name = memberDisplayName(room, memberId)
+      if (pending.proofNudged !== true) {
+        pending.proofNudged = true
+        clearTimeout(pending.reminder)
+        void sendToMember(memberId, [
+          'PASS 之前要先亲手验过：至少读一个这次改动的文件，或跑一条检查。',
+          ...(proof.files.length === 0 ? [] : [`这次改动的文件：${proof.files.slice(0, 20).join('、')}。`]),
+          '请在你的复核副本里读文件或跑检查，再提交一次。',
+          INTERNAL_PROMPT_MARKER,
+        ].join('\n'), { intent: 'review' }).catch(() => {})
+        return true
+      }
+      pending.expire?.(`${name} 的判定没有亲手验过结果，这一轮仍未通过。`)
       return true
     }
     round.requests.delete(memberId)
@@ -598,6 +617,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         stage: stageIndex,
         verifier,
         evidenceId: evidence.id,
+        changedFiles: Array.isArray(meta.changedFiles) ? meta.changedFiles : (Array.isArray(meta.files) ? meta.files : []),
         protectedFiles,
         requestedAt: Date.now(),
         timer: null,

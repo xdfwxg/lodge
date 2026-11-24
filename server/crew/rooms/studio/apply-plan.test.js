@@ -5,7 +5,7 @@ import { createPlanApplier } from './apply-plan.js'
 const setup = (instances = [
   { id: 'claude', engine: 'claude', name: 'Claude', models: { default: 'x', options: ['x', 'x2'] } },
   { id: 'pi', engine: 'pi', name: 'Pi', models: { default: 'y', options: ['y'] } },
-]) => {
+], options = {}) => {
   const room = {
     id: 'room-1',
     roomType: 'studio',
@@ -62,6 +62,7 @@ const setup = (instances = [
     emit: () => {},
     memberAdd,
     memberRemove,
+    verifierPool: options.verifierPool ?? null,
     sendToMember: async (roomId, memberId, text) => { sent.push({ roomId, memberId, text }) },
   })
   return { room, store, messages, started, sent, applier }
@@ -182,15 +183,19 @@ test('the same plan is not applied twice', async () => {
 })
 
 test('a parallel plan writes orchestration through the round instead of the room', async () => {
-  const ctx = setup()
+  const ctx = setup([
+    { id: 'claude', engine: 'claude', name: 'Claude', models: { default: 'x', options: ['x', 'x2'] } },
+    { id: 'pi', engine: 'pi', name: 'Pi', models: { default: 'y', options: ['y'] } },
+    { id: 'kimi', engine: 'kimi', name: 'Kimi', models: { default: 'z', options: ['z'] } },
+  ])
   await ctx.applier('room-1', proposal({
     plan: {
       done: ['两块都完成'],
       stages: [{
         title: '实现',
         packages: [
-          { title: '导出', files: ['src/export.js'], check: 'npm test' },
-          { title: '导入', files: ['src/import.js'], check: 'npm test' },
+          { title: '导出', files: ['src/export.js'] },
+          { title: '导入', files: ['src/import.js'] },
         ],
       }],
     },
@@ -199,11 +204,77 @@ test('a parallel plan writes orchestration through the round instead of the room
         { engine: 'claude', model: 'x', name: '执行官甲' },
         { engine: 'claude', model: 'x2', name: '执行官乙' },
       ],
-      verifiers: [{ engine: 'pi', model: 'y', name: '验收员' }],
+      verifiers: [
+        { engine: 'pi', model: 'y', name: '验收员甲' },
+        { engine: 'kimi', model: 'z', name: '验收员乙' },
+      ],
     },
   }))
   assert.equal(ctx.room.workRound.orchestration, 'parallel')
   assert.deepEqual(ctx.started, [1])
+})
+
+test('a high-risk stage needs two verifiers from different vendors', async () => {
+  const single = setup()
+  await single.applier('room-1', proposal({
+    plan: {
+      done: ['依赖更新'],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', packages: [{ title: '升级', files: ['package.json'] }] }],
+    },
+  }))
+  assert.deepEqual(single.started, [])
+  assert.match(single.sent.at(-1).text, /高风险默认开两位验收员/)
+
+  const sameVendor = setup([
+    { id: 'claude', engine: 'claude', name: 'Claude', models: { default: 'x', options: ['x', 'x2'] } },
+    { id: 'pi', engine: 'pi', name: 'Pi', models: { default: 'y', options: ['y'] } },
+  ])
+  await sameVendor.applier('room-1', proposal({
+    plan: {
+      done: ['依赖更新'],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', packages: [{ title: '升级', files: ['package.json'] }] }],
+    },
+    crew: {
+      executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
+      verifiers: [
+        { engine: 'pi', model: 'y', name: '验收员甲' },
+        { engine: 'pi', model: 'y', name: '验收员乙' },
+      ],
+    },
+  }))
+  assert.deepEqual(sameVendor.started, [])
+  assert.match(sameVendor.sent.at(-1).text, /不同厂商/)
+})
+
+test('a high-risk stage on a single-vendor machine is labelled self-review', async () => {
+  const ctx = setup([
+    { id: 'claude', engine: 'claude', name: 'Claude', models: { default: 'x', options: ['x'] } },
+  ])
+  await ctx.applier('room-1', proposal({
+    plan: {
+      done: ['依赖更新'],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', packages: [{ title: '升级', files: ['package.json'] }] }],
+    },
+    crew: {
+      executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
+      verifiers: [{ engine: 'claude', model: 'x', name: '验收员' }],
+    },
+  }))
+  assert.equal(ctx.room.stages[1].state, 'active')
+  assert.ok(ctx.messages.some(message => /高风险.*只有一家模型/.test(message.text ?? '')))
+})
+
+test('a verifier model kept out of the probe pool cannot open the crew', async () => {
+  const ctx = setup(undefined, {
+    verifierPool: {
+      version: 1,
+      models: { 'pi:y': { status: 'excluded', defectSamples: 10, falsePassRate: 0.2 } },
+    },
+  })
+  await ctx.applier('room-1', proposal())
+  assert.equal(ctx.room.members.length, 1)
+  assert.deepEqual(ctx.started, [])
+  assert.match(ctx.sent.at(-1).text, /误放率/)
 })
 
 test('rejected plans count toward the retry limit on the round', async () => {

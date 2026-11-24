@@ -29,7 +29,7 @@ You own the plan, not the implementation. Read the goal, constraints and evidenc
 - Each stage: title and one deliverable — what the user can see or hold when it is done. You do not write an acceptance command or decide how to verify; the verifier does.
 - Each package: title, files. Only disjoint file-bearing packages run in parallel.
 - Size the crew to the packages: one executor per independent package, max 3. More packages: split stages.
-- Verifiers: default one, up to 3 for higher risk. Every verifier must use a vendor different from every executor. One vendor on the machine: use it and say "self-review" in why.
+- Verifiers: one for a normal stage. High-risk stages (parallel packages, or files such as dependency manifests, lockfiles, CI/config, `.env`) default to two verifiers from different vendors; every verifier must pass. Every verifier must use a vendor different from every executor. One vendor on the machine: use it and say "self-review" in why, not independent review.
 
 ## 4. Submit
 

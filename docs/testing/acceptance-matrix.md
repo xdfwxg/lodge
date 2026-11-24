@@ -19,7 +19,9 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 聊天室主持、公平顺序、轮次、自然总结/按需结构 | `server/crew/live-chat.test.js`、`server/crew/live-chat-room.test.js`、`server/crew/service-chat.test.js`、`server/crew/live-turns.test.js`、`shared/room-status.test.js` | 真实模型仅整房 dogfood |
 | 聊天结论直接进工作室：共识、分歧、未定和下一步都进交接简报 | `server/crew/live-chat-room.test.js`、`shared/handoff-brief.test.js`、`ui/src/room-seeds.test.js` | 真实模型可选 |
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
-| 工作室阶段、验收、签字、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
+| 工作室阶段、验收、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
+| 验收 PASS 逐条覆盖目标/交付物，且本回合亲手读过文件或跑过检查 | `server/crew/rooms/studio/coverage.test.js`、`server/crew/rooms/studio/verification-proof.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
+| 验收模型按探针实测分池，误放率过高的模型被平台拒绝 | `shared/verifier-pool.test.js`、`server/crew/rooms/studio/apply-plan.test.js`、`evals/verifier-probe/run.mjs` | 真实模型（不进 `check:done`） |
 | 规划师组队：执行官按工作包定数，验收员 1–3 位，平台校验模型/厂商/合并 | `shared/crew-proposal.test.js`、`server/crew/rooms/studio/apply-plan.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
 | 投递失败重试沿用同一拍，不新建 Assignment | `server/crew/rooms/studio/handoff.test.js`、`server/crew/assignments.test.js`、`shared/states.test.js` | 无 |
 | 退回必须挂到一条会失败的检查；只挑小毛病不阻塞 | `shared/gate.test.js`、`shared/judgment.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
@@ -34,7 +36,8 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 交接级租约只停一个成员，阶段截止仍是兜底 | `server/crew/rooms/studio/stage-timeout.test.js` | 无 |
 | 工作室默认接力：退回直接回执行官，通过回规划师 | `server/crew/rooms/studio/relay.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
 | 接力投递不依赖模型写 @：派发、复核、退回都由系统投递并发群聊投影 | `server/crew/live-turn-modules.test.js`、`server/crew/prompt-modes.test.js` | 真实房间复查 |
-| 中间步骤验收通过自动过并开始下一步，最后一步仍由人确认 | `server/crew/live-turn-modules.test.js`、`server/crew/service-stages.test.js` | 无 |
+| 验收通过即完成，中间步骤自动过、最后一步直接交付，不需要人确认 | `server/crew/live-turn-modules.test.js`、`server/crew/service-stages.test.js` | 无 |
+| 高风险阶段默认两位不同厂商验收员；单厂商标模型自查 | `server/crew/rooms/studio/apply-plan.test.js`、`server/crew/fixtures/prompts/studio-alignment.txt` | 无 |
 | 角色技能按角色取长、总量有体积预算，合并掉的旧技能不再挂载 | `shared/role-toolbox.test.js`、`server/skill-packs.test.js` | 真实房间读技能效果 |
 | 状态目录完整，轮次事件可只读重放 | `shared/states.test.js`、`server/crew/rounds/replay.test.js` | 真实房间跑一次 `replay:round` |
 | 聊天轮次可只读重放：谁说了什么、结论从哪来、缺口只报不补 | `server/crew/rounds/replay-chat.test.js` | 真实聊天室跑一次 `replay:chat` |
