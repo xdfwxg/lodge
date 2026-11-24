@@ -56,7 +56,7 @@ test('every room status uses the shared status vocabulary', () => {
   }
 })
 
-test('waiting, pause and health use short state words', () => {
+test('waiting and pause use short state words', () => {
   assert.equal(t('Waiting for you'), '待处理')
   assert.equal(t('Waiting for you · {title}', { title: '房' }), '待处理 · 房')
   assert.equal(t('Paused'), '已暂停')

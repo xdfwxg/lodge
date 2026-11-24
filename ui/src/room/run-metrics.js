@@ -1,5 +1,3 @@
-import { needsAction } from '../needs.js'
-
 const money = micro => {
   const usd = (Number(micro) || 0) / 1_000_000
   return usd >= 0.01 ? `$${usd.toFixed(2)}` : `$${usd.toFixed(4)}`
@@ -15,56 +13,21 @@ const usageText = usage => {
   return `${turns} 轮 · ${cost}`
 }
 
-export const healthOf = room => {
+export const runMetricsOf = room => {
   const stages = Array.isArray(room?.stages) ? room.stages : []
   const index = stages.findIndex(stage => stage.state === 'active')
   if (index < 0) return null
-  const diagnostics = room?.stageDiagnostics ?? {}
-  const diagnostic = diagnostics[index] ?? diagnostics[String(index)] ?? null
   const messages = Array.isArray(room?.messages) ? room.messages : []
   const stageOf = message => message?.meta?.stage
   const reworks = messages.filter(message => message.kind === 'rework' && stageOf(message) === index).length
   const human = messages.filter(message => message.kind === 'human-context' && stageOf(message) === index).length
-  const member = diagnostic === null
-    ? null
-    : (room.members ?? []).find(item => item.id === diagnostic.memberId) ?? null
-  const busyNames = (Array.isArray(room?.busyMembers) ? room.busyMembers : [])
-    .map(id => (room.members ?? []).find(item => item.id === id)?.name ?? id)
-    .filter(name => typeof name === 'string' && name !== '')
-  // 这一步真的调用了哪些工具：一行一次，和“过程与费用”放在一起，不占主时间线。
-  const membersById = new Map((room.members ?? []).map(item => [item.id, item]))
-  // 只收有动作分类的工具调用；基座的 recent-work brief 不是工具。
-  const activities = messages.filter(message => (
-    message.kind === 'activity' &&
-    message.authorId !== 'system' &&
-    ['read', 'write', 'exec', 'gate'].includes(String(message?.meta?.action ?? ''))
-  ))
-  const tools = activities.slice(-12).map(message => ({
-    id: message.id,
-    kind: String(message.meta?.action ?? ''),
-    name: String(message.text ?? '').trim() || '工具',
-    label: toolLabelOf(message),
-    member: membersById.get(message.authorId)?.name ?? '',
-    ok: message.meta?.ok !== false,
-    ts: message.ts,
-  }))
   return {
-    index,
-    title: stages[index].title ?? '',
-    diagnostic,
-    memberName: member?.name ?? diagnostic?.memberId ?? '',
-    busyNames,
-    at: diagnostic?.at === undefined ? null : diagnostic.at,
     usage: usageText(room?.usage),
     reworks,
     human,
     memoryCount: Array.isArray(room?.sharedMemory) ? room.sharedMemory.length : 0,
-    toolCount: activities.length,
-    tools,
-    needsYou: needsAction(room),
   }
 }
-
 
 const firstLine = text => String(text ?? '').split('\n').map(line => line.trim()).find(Boolean) ?? ''
 const clip = (text, max = 40) => {

@@ -66,7 +66,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 房间记忆（审核后只读引用、删除、停用） | `server/crew/memory.test.js`、`server/crew/service-composition.test.js`、`server/crew/prompt-order.test.js`、`server/http-coverage.test.js` | 真实交付可选 |
 | 工作区记忆入口（建房时按文件夹出现） | `server/crew/memory.test.js`、`server/http-coverage.test.js` | 真实文件夹需 dogfood |
 | 房间记忆备份与恢复边界 | `server/crew/data-recovery.test.js` | 无 |
-| 房间健康卡（证据 / 未知 / 下一步、费用、返工） | `ui/src/room/health.test.js`、`server/crew/turn-assessment.test.js` | 无 |
+| 一次运行的费用、重做、介入和记忆计数 | `ui/src/room/run-metrics.test.js`、`server/crew/turn-assessment.test.js` | 无 |
 | 新房间入口与房型选择 | `ui/src/new-room-dialog.test.js` | 无 |
 | 房间列表顺序（待办在前、归档在后） | `ui/src/views/sidebar.test.js` | 无 |
 | 人工门没有死路（交给人后可见输入动作） | `ui/src/room/studio/human-gate.test.js`、`server/crew/rooms/studio/human-handoff.test.js` | 无 |
@@ -85,10 +85,10 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 受保护文件与既有测试改动必须逐条确认 | `server/crew/protected-files.test.js`、`shared/judgment-protected.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
 | 审批卡先说目标和后果，命令折叠，不建议时安全动作是主按钮 | `ui/src/approval-card.test.js`、`server/crew/external-actions.test.js`、`ui/src/room/studio/transcript.test.js` | 真实审批需 dogfood |
 | 工作室的用户消息直达规划师，不靠群 @ 唤醒 | `server/crew/actions/room/decision.test.js` | 真实房间复查 |
-| 长任务活状态行：谁、第几步、在跑什么、多久；未结束交接可停 | `ui/src/room/studio/typing.test.js`、`ui/src/room/stop-reply.test.js`、`ui/src/room/health.test.js`、`server/crew/live-projection.test.js`、`server/crew/engine.test.js` | 真实长命令需 dogfood |
+| 长任务活状态行：谁、第几步、在跑什么、多久；未结束交接可停 | `ui/src/room/studio/typing.test.js`、`ui/src/room/stop-reply.test.js`、`ui/src/room/studio/transcript.test.js`、`server/crew/live-projection.test.js`、`server/crew/engine.test.js` | 真实长命令需 dogfood |
 | 房间历史全文检索、只读简报和命中留痕 | `server/crew/store.test.js`、`server/crew/message-search.test.js`、`server/crew/rooms/studio/history-brief.test.js` | 真实长房间需 dogfood |
 | 受控浏览器（chrome-devtools MCP） | `server/browser-mcp.test.js`、`server/crew/roster.test.js`、`server/crew/room-access.test.js`、`shared/room-access.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/studio/create.test.js`、`ui/src/approval-card.test.js` | 真实 Chrome |
-| 时间线里的过程摘要：中文动作、按位置收起、活状态与时长 | `ui/src/room/studio/transcript.test.js`、`ui/src/room/studio/typing.test.js`、`ui/src/room/health.test.js` | 无 |
+| 时间线里的过程摘要：中文动作、按位置收起、活状态与时长 | `ui/src/room/studio/transcript.test.js`、`ui/src/room/studio/typing.test.js`、`ui/src/room/run-metrics.test.js` | 无 |
 | 归档、恢复、删除、改名 | `server/crew/service-lifecycle.test.js`、`server/crew/workspace-git.test.js`、`server/crew/rooms/base/retire.test.js` | 无 |
 | 交付记录、结果优先的交付页 | `server/crew/delivery.test.js`、`ui/src/room/studio/delivery-record.test.js`、`ui/src/room/studio/delivery-card.test.js`、`ui/src/room/studio/transcript.test.js` | 无 |
 | 重启恢复、断线重连 | `server/crew/recovery.test.js`、`server/crew/live-sync.test.js`、`ui/src/store.test.js` | 无 |

@@ -78,7 +78,7 @@ function ArtifactThumb({ roomId, artifact, onRead, onOpen }) {
 }
 
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
-export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDownload = null, onRead = null }) {
+export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDiscussChat = null, onDownload = null, onRead = null }) {
   const delivery = goalDelivery
   const commands = delivery.commands ?? []
   const firstCommand = commands
@@ -413,6 +413,9 @@ export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDownlo
           onReturn === null
             ? null
             : h(IconAction, { icon: ChatIcon, label: '回聊天室', onClick: onReturn }),
+          onDiscussChat === null
+            ? null
+            : h(IconAction, { icon: ChatIcon, label: '聊一聊这次成果', onClick: onDiscussChat }),
           moreNode === null
             ? null
             : footerIcon(MoreIcon, '交付说明', moreOpen, () => setMoreOpen(value => !value)),

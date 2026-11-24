@@ -182,17 +182,14 @@ export function StudioTranscript({
     approval,
     onDecide: decision => onApproval?.(approval.id, decision),
   }))
-  const closingActions = h('div', { key: 'room-actions', className: 'studio-room-closing studio-room-actions' },
-    delivery === null
-      ? h('button', {
+  const closingActions = delivery === null
+    ? h('div', { key: 'room-actions', className: 'studio-room-closing studio-room-actions' },
+      h('button', {
         type: 'button',
         className: 'crew-link',
         onClick: () => { downloadDeliveryRecord(room) },
-      }, '下载交付记录')
-      : null,
-    typeof onDiscussChat === 'function'
-      ? h('button', { type: 'button', className: 'crew-link', onClick: onDiscussChat }, '聊一聊这次成果')
-      : null)
+      }, '下载交付记录'))
+    : null
   // 结果就是这一轮时间线的最后一条；检查完可以直接在下面开下一轮。
   if (finished) {
     return h('div', { className: 'studio-timeline studio-result-timeline' },
@@ -204,6 +201,7 @@ export function StudioTranscript({
             ? h('div', { className: 'studio-room-closing' }, h('span', null, '已交付'))
             : h(DeliveryCard, {
               delivery,
+              onDiscussChat,
               onDownload: () => { downloadDeliveryRecord(room) },
               onRead: onReadArtifact,
             }),
