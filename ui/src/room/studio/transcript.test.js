@@ -230,3 +230,28 @@ test('handoffs stay in the room as the sender speaking', async () => {
   assert.match(text(tree), /规划师/)
   assert.match(text(tree), /验收员/)
 })
+
+test('tool calls sit in the timeline as one folded row per run', async () => {
+  const { StudioTranscript } = await load()
+  const room = {
+    id: 'room-process',
+    name: '过程',
+    goal: '把事做完',
+    state: 'active',
+    assignments: [{ id: 'a1', status: 'working', toMemberId: 'worker' }],
+    stages: [{ index: 0, title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    messages: [
+      { id: 'c1', kind: 'chat', authorId: 'worker', text: '我先看看。', ts: Date.now() - 10_000, seq: 1 },
+      { id: 't1', kind: 'activity', authorId: 'worker', text: 'Read', ts: Date.now() - 9_000, seq: 2, meta: { ok: true, action: 'read', target: 'README.md' } },
+      { id: 't2', kind: 'activity', authorId: 'worker', text: 'Bash', ts: Date.now() - 8_000, seq: 3, meta: { ok: true, action: 'exec', detail: 'npm test' } },
+      { id: 'c2', kind: 'chat', authorId: 'worker', text: '做完了。', ts: Date.now() - 7_000, seq: 4 },
+    ],
+    members: [{ id: 'worker', name: '执行官', role: 'worker', roleKind: 'executor' }],
+  }
+  const tree = render(StudioTranscript({ room, members: room.members }))
+  assert.equal(hasClass(tree, 'crew-process'), true)
+  const flat = text(tree)
+  assert.match(flat, /执行官 · 2 次操作 · 跑了 npm test/)
+  assert.match(flat, /读了 README.md/)
+  assert.match(flat, /跑了 npm test/)
+})

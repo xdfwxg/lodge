@@ -81,8 +81,14 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 退回指定步骤、补上下文再跑 | `server/crew/service-stages.test.js`、`shared/gate.test.js` | 真实模型需 dogfood |
 | 并行执行、合并冲突、超时 | `server/crew/live-turn-modules.test.js`、`server/crew/workspace-git.test.js`、`server/crew/service-merge.test.js`、`server/crew/rooms/studio/stage-timeout.test.js`、`server/crew/rooms/studio/auto-rework.test.js`、`ui/src/room/studio/merge-conflict.test.js` | 真实 git 冲突解决需 dogfood |
 | 外部动作审批、叫停、排队 | `server/crew/approval-bridge.test.js`、`server/crew/live-approvals.test.js`、`server/crew/external-actions.test.js`、`server/crew/member-delivery.test.js`、`ui/src/room/studio/transcript.test.js` | 真实 git push 需 dogfood |
+| 交付阶段盲评、证据先行、目标外重构不作为退回理由 | `server/crew/live-turn-modules.test.js` | 真实模型看提示词效果 |
+| 受保护文件与既有测试改动必须逐条确认 | `server/crew/protected-files.test.js`、`shared/judgment-protected.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
+| 审批卡先说目标和后果，命令折叠，不建议时安全动作是主按钮 | `ui/src/approval-card.test.js`、`server/crew/external-actions.test.js`、`ui/src/room/studio/transcript.test.js` | 真实审批需 dogfood |
+| 工作室的用户消息直达规划师，不靠群 @ 唤醒 | `server/crew/actions/room/decision.test.js` | 真实房间复查 |
+| 长任务活状态行：谁、第几步、在跑什么、多久；未结束交接可停 | `ui/src/room/studio/typing.test.js`、`ui/src/room/stop-reply.test.js`、`ui/src/room/health.test.js`、`server/crew/live-projection.test.js`、`server/crew/engine.test.js` | 真实长命令需 dogfood |
+| 房间历史全文检索、只读简报和命中留痕 | `server/crew/store.test.js`、`server/crew/message-search.test.js`、`server/crew/rooms/studio/history-brief.test.js` | 真实长房间需 dogfood |
 | 受控浏览器（chrome-devtools MCP） | `server/browser-mcp.test.js`、`server/crew/roster.test.js`、`server/crew/room-access.test.js`、`shared/room-access.test.js`、`server/crew/approval-bridge.test.js`、`ui/src/room/studio/create.test.js`、`ui/src/approval-card.test.js` | 真实 Chrome |
-| 运行中的工具动效（折叠命令、时长、动效） | `ui/src/room/studio/working-line.test.js` | 无 |
+| 时间线里的过程摘要：中文动作、按位置收起、活状态与时长 | `ui/src/room/studio/transcript.test.js`、`ui/src/room/studio/typing.test.js`、`ui/src/room/health.test.js` | 无 |
 | 归档、恢复、删除、改名 | `server/crew/service-lifecycle.test.js`、`server/crew/workspace-git.test.js`、`server/crew/rooms/base/retire.test.js` | 无 |
 | 交付记录、结果优先的交付页 | `server/crew/delivery.test.js`、`ui/src/room/studio/delivery-record.test.js`、`ui/src/room/studio/delivery-card.test.js`、`ui/src/room/studio/transcript.test.js` | 无 |
 | 重启恢复、断线重连 | `server/crew/recovery.test.js`、`server/crew/live-sync.test.js`、`ui/src/store.test.js` | 无 |
@@ -100,6 +106,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 - 复核超时：定时是 10 分钟，单元级只覆盖判定逻辑，没有实跑完整超时。
 - macOS 打包、ad-hoc 签名和桌面外壳：手工 smoke，不在单元测试里。
 - 外部 MCP 市场、第三方工具和外部通知：没有接入，不做假覆盖。
+- 常驻意图（定时）：设计稿，尚未接线；没有生产入口和自动用例。
 
 真实跑过的路径和未触发项记在 [validation.md](validation.md)。
 

@@ -70,6 +70,7 @@ export const studioView = {
       onReadArtifact: actions.readArtifact,
       onResolveMerge: actions.resolveMerge,
       onApproval: actions.approval,
+      onForgetMemory: actions.forgetMemory,
       onAnswerCard: actions.answerCard,
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,

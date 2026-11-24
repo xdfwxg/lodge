@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createElement as h } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
-import { RoomHealth, healthLineOf, healthOf } from './health.js'
+import { healthOf } from './health.js'
 
 const room = over => ({
   stages: [
@@ -43,16 +41,6 @@ test('the health card reads the active stage diagnostic and room usage', () => {
   assert.equal(health.memoryCount, 0)
 })
 
-test('the first line asks what is needed, not how the factory is running', () => {
-  const needs = healthLineOf(healthOf(room()))
-  assert.equal(needs, '待处理：待确认')
-  assert.doesNotMatch(needs, /\$|轮|重做|证据/)
-
-  const running = healthLineOf(healthOf(room({ needsYou: null, busyMembers: ['executor'] })))
-  assert.equal(running, '过程与费用')
-  assert.doesNotMatch(running, /第 \d+ 步|执行官在做/)
-})
-
 test('a room without an active stage has no health card', () => {
   assert.equal(healthOf(room({ stages: [{ title: '对齐', state: 'passed' }] })), null)
 })
@@ -70,20 +58,23 @@ test('the process panel lists only real tool calls with their action', () => {
       { id: 'a3', kind: 'activity', authorId: 'executor', text: 'Edit', ts: 102, meta: { ok: false, tool: 'Edit', action: 'write' } },
     ],
   }))
-  assert.deepEqual(data.tools.map(tool => [tool.name, tool.kind, tool.ok]), [['Bash', 'exec', true], ['Edit', 'write', false]])
+  assert.deepEqual(data.tools.map(tool => [tool.label, tool.kind, tool.ok]), [['跑了一条命令', 'exec', true], ['改了文件', 'write', false]])
   assert.equal(data.toolCount, 2)
 })
 
-test('room health renders the tool rows with their action glyph', () => {
-  const html = renderToStaticMarkup(h(RoomHealth, {
-    room: room({
-      needsYou: null,
-      messages: [
-        { id: 'a1', kind: 'activity', authorId: 'executor', text: 'Bash', ts: 100, meta: { ok: true, tool: 'Bash', action: 'exec' } },
-      ],
-    }),
+test('tool rows read as Chinese actions with what they touched', () => {
+  const data = healthOf(room({
+    messages: [
+      { id: 'a1', kind: 'activity', authorId: 'executor', text: 'Read', ts: 100, meta: { ok: true, action: 'read', target: 'README.md' } },
+      { id: 'a2', kind: 'activity', authorId: 'executor', text: 'Bash', ts: 101, meta: { ok: true, action: 'exec', detail: 'cd /repo && npm test' } },
+      { id: 'a3', kind: 'activity', authorId: 'executor', text: 'Edit', ts: 102, meta: { ok: true, action: 'write', target: 'src/a.js' } },
+      { id: 'a4', kind: 'activity', authorId: 'verifier', text: 'lodge_gate', ts: 103, meta: { ok: true, action: 'gate' } },
+    ],
   }))
-  assert.match(html, /crew-tool-row/)
-  assert.match(html, /<code[^>]*>Bash<\/code>/)
-  assert.match(html, /跑/)
+  assert.deepEqual(data.tools.map(tool => tool.label), [
+    '读了 README.md',
+    '跑了 npm test',
+    '改了 src/a.js',
+    '提交了判定',
+  ])
 })

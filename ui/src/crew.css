@@ -698,33 +698,27 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 .crew-memory-status[data-tone=done]{color:var(--bt-green)}
 .crew-memory-status[data-tone=paused]{color:var(--bt-warning-text)}
 .crew-memory-actions{display:flex;gap:14px;margin-top:2px}
-.crew-health{margin:0 16px 6px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
-.crew-health>summary{cursor:pointer;list-style:none;line-height:1.6}
-.crew-health>summary::-webkit-details-marker{display:none}
-.crew-health[open]>summary{color:var(--bt-ink-2)}
-.crew-health-body{margin-top:8px;padding:10px 12px;border:1px solid var(--bt-line);border-radius:9px;background:var(--bt-shade-1)}
-.crew-health-wait{margin:0 0 8px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-2)}
-.crew-health-metrics{margin:0 0 8px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
-.crew-health-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.crew-health-grid b{display:block;font-weight:600;color:var(--bt-ink-2);margin-bottom:4px}
-.crew-health-grid ul{margin:0;padding-left:16px;line-height:1.6}
-.crew-health-time{margin:8px 0 0;color:var(--bt-ink-4);font-size:var(--bt-text-helper)}
-/* 工具调用：一行一次，借用 AffectUI 单行工具卡的结构。 */
-.crew-tool-list{margin:0 0 10px;border:1px solid var(--bt-line);border-radius:10px;background:var(--bt-bubble);overflow:hidden}
-.crew-tool-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bt-line);color:var(--bt-ink-3);font-size:var(--bt-text-helper)}
-.crew-tool-count{color:var(--bt-ink-4);font-variant-numeric:tabular-nums}
-.crew-tool-list ul{margin:0;padding:2px 0;list-style:none}
-.crew-tool-row{display:flex;align-items:center;gap:8px;min-height:28px;padding:4px 12px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
-.crew-tool-row+.crew-tool-row{border-top:1px solid var(--bt-line)}
+/* 过程：时间线里收起的一行，展开是这一步的每次工具调用。 */
+.crew-process{margin:6px 0 10px 44px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
+.crew-process>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:7px;line-height:var(--bt-leading-helper);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.crew-process>summary::-webkit-details-marker{display:none}
+.crew-process>summary:hover{color:var(--bt-ink-2)}
+.crew-process-live{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-green);animation:crew-process-pulse 1.2s infinite}
+.crew-process-summary{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.crew-process-body{margin-top:6px;padding-left:14px}
+.crew-process-body ul{margin:0;padding:0;list-style:none}
+.crew-process-meta{margin:6px 0 0;color:var(--bt-ink-4);font-size:var(--bt-text-helper)}
+@keyframes crew-process-pulse{0%,100%{opacity:.35}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.crew-process-live{animation:none;opacity:.8}}
+/* 工具调用行：过程组和诊断共用。 */
+.crew-tool-row{display:flex;align-items:center;gap:8px;min-height:26px;padding:3px 0;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
 .crew-tool-kind{flex:none;display:grid;place-items:center;width:18px;height:18px;border-radius:5px;background:var(--bt-shade-2);color:var(--bt-ink-3);font-size:11px;font-weight:600}
 .crew-tool-kind[data-kind=write]{background:var(--bt-warning-wash);color:var(--bt-warning-text)}
 .crew-tool-kind[data-kind=gate]{background:var(--bt-success-wash);color:var(--bt-success-text)}
-.crew-tool-name{flex:0 1 auto;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink);font-family:var(--bt-font-mono);font-size:12px}
-.crew-tool-member{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink-3)}
+.crew-tool-label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink)}
 .crew-tool-time{flex:none;color:var(--bt-ink-4);font-variant-numeric:tabular-nums}
 .crew-tool-state{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-success)}
 .crew-tool-state[data-ok=false]{width:auto;height:auto;border-radius:0;background:none;color:var(--bt-danger-text);font-weight:600}
-@media (max-width:760px){.crew-health-grid{grid-template-columns:1fr}}
 .crew-decision{display:flex;flex-direction:column;border:1px solid var(--bt-line-2);border-radius:16px;background:var(--bt-card);overflow:hidden}
 .crew-decision[data-room-decision]{border-color:var(--bt-line-accent)}
 .crew-decision-head{display:flex;flex-direction:column;gap:6px;padding:16px 16px 12px}
@@ -785,21 +779,6 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 .crew-typing-dots i:nth-child(3){animation-delay:.3s}
 @keyframes crew-typing{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:.9;transform:translateY(-2px)}}
 @media (prefers-reduced-motion:reduce){.crew-typing-dots i{animation:none;opacity:.55}}
-.crew-work-line{align-self:flex-start;max-width:100%;font-size:var(--bt-text-label);line-height:var(--bt-leading-label);color:var(--bt-ink-3)}
-.crew-work-line>summary{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 4px;border-radius:7px;cursor:pointer;list-style:none;white-space:nowrap;overflow:hidden}
-.crew-work-line>summary::-webkit-details-marker{display:none}
-.crew-work-line>summary:hover{background:var(--bt-hover)}
-.crew-work-dots{flex:none;display:inline-flex;align-items:center;gap:3px;color:var(--bt-accent)}
-.crew-work-dots i{width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.35;animation:crew-typing 1.2s infinite}
-.crew-work-dots i:nth-child(2){animation-delay:.15s}
-.crew-work-dots i:nth-child(3){animation-delay:.3s}
-.crew-work-name{flex:none;color:var(--bt-ink-2);font-weight:600}
-.crew-work-action{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.crew-work-elapsed{flex:none;font-variant-numeric:tabular-nums;color:var(--bt-ink-3)}
-.crew-work-chevron{flex:none;color:var(--bt-ink-3);transition:transform .15s ease}
-.crew-work-line[open] .crew-work-chevron{transform:rotate(90deg)}
-.crew-work-detail{display:flex;align-items:baseline;gap:8px;padding:2px 4px 4px 21px;color:var(--bt-ink-3)}
-.crew-work-detail code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--bt-font-mono);font-size:var(--bt-text-helper);color:var(--bt-ink-2)}
 @media (prefers-reduced-motion:reduce){.crew-work-dots i{animation:none;opacity:.55}}
 
 

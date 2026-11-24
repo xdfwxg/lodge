@@ -1,5 +1,3 @@
-import { createElement as h } from 'react'
-import { dateTimeOf, timeOf } from '../view-format.js'
 import { needsAction } from '../needs.js'
 
 const money = micro => {
@@ -45,6 +43,7 @@ export const healthOf = room => {
     id: message.id,
     kind: String(message.meta?.action ?? ''),
     name: String(message.text ?? '').trim() || '工具',
+    label: toolLabelOf(message),
     member: membersById.get(message.authorId)?.name ?? '',
     ok: message.meta?.ok !== false,
     ts: message.ts,
@@ -66,63 +65,26 @@ export const healthOf = room => {
   }
 }
 
-// 第一行只回答“现在需要你做什么”；费用、回合和返工收进展开后的详情。
-export const healthLineOf = health => {
-  if (health === null || health === undefined) return ''
-  const needs = health.needsYou
-  if (needs !== null && needs !== undefined) return `待处理：${needs.label ?? '待处理'}`
-  // 岛已经在讲“第几步、谁在做”；这里只留一个可展开的工作详情入口。
-  return '过程与费用'
+
+const firstLine = text => String(text ?? '').split('\n').map(line => line.trim()).find(Boolean) ?? ''
+const clip = (text, max = 40) => {
+  const chars = [...String(text ?? '').trim()]
+  return chars.length > max ? `${chars.slice(0, max).join('')}…` : chars.join('')
 }
 
-const TOOL_KIND_LABEL = { read: '读', write: '写', exec: '跑', gate: '判' }
-
-export function RoomHealth({ room, onForgetMemory = null }) {
-  const health = healthOf(room)
-  if (health === null) return null
-  // 岛已经在说“需要你”；这里只在房间自己跑的时候讲进度，避免同一件事说三遍。
-  if (health.needsYou !== null) return null
-  if (health.diagnostic === null && health.usage === '' && health.tools.length === 0) return null
-  const assessment = health.diagnostic?.assessment ?? null
-  const metrics = [
-    health.usage,
-    health.reworks > 0 ? `重做 ${health.reworks} 次` : '',
-    health.human > 0 ? `你介入 ${health.human} 次` : '',
-    health.memoryCount > 0 ? `参考 ${health.memoryCount} 条记忆` : '',
-  ].filter(Boolean).join(' · ')
-  return h('details', { className: 'crew-health' },
-    h('summary', null, healthLineOf(health)),
-    h('div', { className: 'crew-health-body' },
-      typeof health.needsYou?.detail === 'string' && health.needsYou.detail !== ''
-        ? h('p', { className: 'crew-health-wait' }, health.needsYou.detail)
-        : null,
-      metrics === '' ? null : h('p', { className: 'crew-health-metrics' }, metrics),
-      health.tools.length === 0 ? null : h('div', { className: 'crew-tool-list' },
-        h('div', { className: 'crew-tool-head' },
-          h('span', null, '这一步的工具'),
-          h('span', { className: 'crew-tool-count' }, health.toolCount > health.tools.length ? `最近 ${health.tools.length} / 共 ${health.toolCount} 次` : `${health.toolCount} 次`)),
-        h('ul', null, health.tools.map(tool => h('li', {
-          key: tool.id,
-          className: 'crew-tool-row',
-          'data-ok': tool.ok ? 'true' : 'false',
-        },
-        h('span', { className: 'crew-tool-kind', 'data-kind': tool.kind || 'other', 'aria-hidden': 'true' }, TOOL_KIND_LABEL[tool.kind] ?? '·'),
-        h('code', { className: 'crew-tool-name' }, tool.name),
-        tool.member === '' ? null : h('span', { className: 'crew-tool-member' }, tool.member),
-        h('span', { className: 'crew-tool-time' }, timeOf(tool.ts)),
-        h('span', { className: 'crew-tool-state', 'data-ok': tool.ok ? 'true' : 'false' }, tool.ok ? '' : '失败'))))),
-      assessment === null
-        ? null
-        : h('div', { className: 'crew-health-grid' },
-          h('div', null, h('b', null, '证据'), h('ul', null, (assessment.evidence ?? []).slice(0, 5).map(item => h('li', { key: item }, item)))),
-          h('div', null, h('b', null, '未知'), h('ul', null, (assessment.unknown ?? []).slice(0, 5).map(item => h('li', { key: item }, item)))),
-          h('div', null, h('b', null, '下一步'), h('ul', null, (assessment.next ?? []).slice(0, 5).map(item => h('li', { key: item }, item))))),
-      health.memoryCount === 0 || onForgetMemory === null
-        ? null
-        : h('button', {
-          type: 'button',
-          className: 'crew-link',
-          onClick: () => { void onForgetMemory() },
-        }, '本次不用工作区记忆'),
-      health.at === null ? null : h('p', { className: 'crew-health-time' }, dateTimeOf(health.at))))
+// 工具名不是用户语言；把“读了什么、改了什么、跑了什么”说成一句中文动作。
+export const toolLabelOf = message => {
+  const meta = message?.meta ?? {}
+  const action = String(meta.action ?? '')
+  const target = String(meta.target ?? '').trim()
+  const detail = firstLine(meta.detail).replace(/^cd\s+\S+\s+/, '').replace(/^(?:&&|\|\||;)\s*/, '').trim()
+  if (action === 'read') return target === '' ? '读了一个文件' : `读了 ${clip(target, 32)}`
+  if (action === 'write') return target === '' ? '改了文件' : `改了 ${clip(target, 32)}`
+  if (action === 'exec') {
+    if (detail !== '') return `跑了 ${clip(detail, 36)}`
+    if (target !== '') return `跑了 ${clip(target, 32)}`
+    return '跑了一条命令'
+  }
+  if (action === 'gate') return '提交了判定'
+  return clip(String(message.text ?? '').trim() || '工具', 24)
 }

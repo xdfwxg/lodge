@@ -5,7 +5,6 @@ import test from 'node:test'
 import { STATUS_LABELS, copyIssueOf, copyStringsInSource } from '../../shared/product-copy.js'
 import { t } from './goal-island/copy.js'
 import { buildIdleDecision } from './room/decision.js'
-import { healthLineOf } from './room/health.js'
 import { roomLabelOf } from './views/room-list.js'
 
 const walk = directory => {
@@ -62,7 +61,6 @@ test('waiting, pause and health use short state words', () => {
   assert.equal(t('Waiting for you · {title}', { title: '房' }), '待处理 · 房')
   assert.equal(t('Paused'), '已暂停')
   assert.equal(t('Stopped'), '已停止')
-  assert.equal(healthLineOf({ needsYou: { label: '待确认' } }), '待处理：待确认')
   assert.equal(buildIdleDecision({ state: 'paused', pauseReason: 'mcp' }).title, '连接中断')
   assert.equal(buildIdleDecision({ state: 'paused', pauseReason: 'approval' }).title, '确认超时')
 })

@@ -11,7 +11,7 @@ import { PendingDecisionCard } from './pending-decision.js'
 import { MergeConflictCard } from './merge-conflict.js'
 import { DeliveryCard } from './delivery-card.js'
 import { ApprovalCard } from '../../approval-card.js'
-import { WorkingLine } from './working-line.js'
+import { ProcessGroup } from './process-group.js'
 import { RoomReview } from '../room-review.js'
 import { scopeIsValid } from '../../../../shared/attempt.js'
 import { stagesCompletedOf } from '../../../../shared/room-status.js'
@@ -58,6 +58,7 @@ export function StudioTranscript({
   onOpenRoom = null,
   onResolveMerge = null,
   onApproval = null,
+  onForgetMemory = null,
   hideKinds = [],
   delivery = null,
 }) {
@@ -110,8 +111,6 @@ export function StudioTranscript({
       // 工作式聊天只留人和成员说的话；交接链上的系统消息例外。
       if (message.kind === 'system' || message.authorId === 'system' || message.meta?.authorKind === 'system') return isChainMessage(message)
       if (isDuplicateHumanRework(message, humanNotes)) return false
-      // 过程日志不进主时间线；当前在做什么由岛和正在输入那一行说。
-      if (message.kind === 'activity') return false
       if (message.kind === 'chat' && evidenceAuthors.has(message.authorId) && !keepChats.has(message.id)) return false
       if (message.kind === 'evidence') {
         if (consumed.has(message.id)) return false
@@ -140,12 +139,33 @@ export function StudioTranscript({
   })
   // 系统交接和阶段回执留在后台账本，不进房间；房间里只有三个角色和结果卡。
   const items = []
+  const lastActivityId = [...messages].reverse().find(message => message.kind === 'activity')?.id ?? null
+  let pending = []
+  const flush = () => {
+    if (pending.length === 0) return
+    items.push(h(ProcessGroup, {
+      key: `process-${pending[0].id}`,
+      room,
+      activities: pending,
+      member: byId[pending[0].authorId] ?? null,
+      isLatest: pending[pending.length - 1].id === lastActivityId,
+      onForgetMemory,
+    }))
+    pending = []
+  }
   for (const message of renderable) {
     if (isProcessMessage(message)) continue
     if (hidden.has(message.kind)) continue
+    if (message.kind === 'activity') {
+      if (pending.length > 0 && pending[pending.length - 1].authorId !== message.authorId) flush()
+      pending.push(message)
+      continue
+    }
+    flush()
     const content = send(message)
     if (content !== null && content !== undefined) items.push(content)
   }
+  flush()
 
   const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
   // 影子评审是执行中的旁注；已经交付时结果卡才是主视线，不再把建议横在结果前。
@@ -157,11 +177,6 @@ export function StudioTranscript({
   const pendingApprovals = (room.approvals ?? []).filter(approval => (
     approval.state === 'pending' && scopeIsValid(approval.scope, { room, messages: roomMessages })
   ))
-  const latest = messages[messages.length - 1] ?? null
-  const working = !finished && room.state === 'active' && latest?.kind === 'activity' &&
-    typeof latest.ts === 'number' && Date.now() - latest.ts < 5 * 60_000
-    ? latest
-    : null
   const approvalCards = pendingApprovals.slice(0, 1).map(approval => h(ApprovalCard, {
     key: approval.id,
     approval,
@@ -195,14 +210,7 @@ export function StudioTranscript({
           closingActions)))
   }
   return h(Fragment, null,
-    h('div', { className: 'studio-timeline' }, ...items,
-      working === null
-        ? null
-        : h(WorkingLine, {
-          key: `working-${working.id}`,
-          activity: working,
-          memberName: byId[working.authorId]?.name ?? '',
-        })),
+    h('div', { className: 'studio-timeline' }, ...items),
     ...approvalCards,
     pendingApprovals.length > 1
       ? h('div', { key: 'approval-queue', className: 'crew-system' },

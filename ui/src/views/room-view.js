@@ -2,7 +2,6 @@ import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
-import { RoomHealth } from '../room/health.js'
 import { StopReply, turnRunning } from '../room/stop-reply.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
@@ -242,6 +241,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       setAddError(null)
       setAddOpen(true)
     },
+    forgetMemory: () => store.forgetMemory(),
   }
   const finished = stagesCompletedOf(room)
   const canStartRound = mode.canStartRound?.({ room }) === true
@@ -296,7 +296,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       'data-room-done': finished ? 'true' : undefined,
     },
       mode.header(viewCtx),
-      h(RoomHealth, { key: `health-${room.id}`, room, onForgetMemory: () => store.forgetMemory() }),
       mode.activity(viewCtx),
       h('div', {
         ref: scroll,
