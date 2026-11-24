@@ -349,15 +349,17 @@ function NewRoomDialog({
     new Set((engines ?? []).filter(item => item.available !== false).map(item => item.engine ?? item.id)).size === 1
       ? h('p', { className: 'crew-field-hint' }, '这台电脑只装了一家模型：可以开工，复核会是模型自查。')
       : null,
-    h('details', {
-      className: 'crew-new-advanced',
-      open: advanced,
-      onToggle: event => setAdvanced(event.currentTarget.open),
-    },
-    h('summary', null, '更多选项'),
-    h('div', { className: 'crew-new-advanced-body' },
-      h(Fragment, null,
-        roomKind.setupFields(setupProps)))),
+    isChat
+      ? h('details', {
+        className: 'crew-new-advanced',
+        open: advanced,
+        onToggle: event => setAdvanced(event.currentTarget.open),
+      },
+      h('summary', null, '更多选项'),
+      h('div', { className: 'crew-new-advanced-body' },
+        h(Fragment, null,
+          roomKind.setupFields(setupProps))))
+      : null,
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const footHint = studioMissingVerifier

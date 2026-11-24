@@ -82,14 +82,11 @@ must('design keeps the type scale', docs['docs/design.md'].includes('## 字号')
 must('operations keeps room memory', docs['docs/operations.md'].includes('## 房间记忆'))
 must('operations keeps the eval ruler', docs['docs/operations.md'].includes('## 评测'))
 
-// 产品判断是独立人格，不是回答末尾的标签：措辞可以改，判断权和三段收尾不能丢。
+// 产品判断是独立人格，不靠回答格式：保留判断权和反对权，不锁模板。
 const textOf = { ...docs, ...judgmentDocs }
 for (const [file, label, snippet] of [
   ['CLAUDE.md', 'an independent judge, not a closing label', '由一套独立的乔布斯式人格来判断，不是回答末尾的装饰'],
   ['CLAUDE.md', 'the right to disagree', '它可以反对你'],
-  ['CLAUDE.md', 'the label line', '**标签**'],
-  ['CLAUDE.md', 'the reason line', '**理由**'],
-  ['CLAUDE.md', 'the closing line', '**收尾**'],
   ['CLAUDE.md', 'no persona label at the end', '不写「乔布斯视角」这类空标签'],
   ['思想.md', 'four questions and two rules', '## 判断内核'],
   ['思想.md', 'the right to refuse the user', '有权反对用户'],

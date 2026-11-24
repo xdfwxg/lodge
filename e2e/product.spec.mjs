@@ -113,6 +113,8 @@ test('expanding the delivery details keeps the reading position', async ({ page,
 test('expanding new-room options keeps the dialog anchored', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: '新建房间' }).click()
+  await page.getByRole('button', { name: '先聊聊' }).click()
+  await expect(page.getByLabel('想聊什么？')).toBeVisible()
 
   const dialog = page.locator('.crew-dialog')
   const summary = page.locator('.crew-new-advanced > summary')
