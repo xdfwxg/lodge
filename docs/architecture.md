@@ -51,7 +51,8 @@ ui/src/store.js              ← 唯一的 UI 传输适配层
       │
 views + room/<kind>/view.js  ← 房型视图策略
 ──────── HTTP / SSE 边界 ────────
-server/index.js              ← 唯一组合根
+server/index.js              ← 进程入口（监听、信号、退出）
+server/app.js                ← 唯一组合根
 service.js                   ← 路由分发与用例组合
 应用层：rooms/*、kernel/live/*
 领域层：room-types、gate、assignments、verifiers、orchestration、presentation
