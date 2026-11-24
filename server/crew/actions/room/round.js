@@ -238,6 +238,7 @@ export const createRoundActions = deps => {
 
     'chat-continue': async ({ room, readBody }) => chat.continue(room, await readBody()),
     'chat-resume': async ({ room, readBody }) => chat.restart(room, await readBody()),
+    'chat-review': async ({ room, readBody }) => chat.reviewConclusion(room, await readBody()),
 
     'reject-plan': async ({ room, readBody }) => {
       const body = await readBody()

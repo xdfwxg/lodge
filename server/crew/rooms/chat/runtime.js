@@ -118,6 +118,14 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
       return entry.chatRun.hostIntent(store.readRoom(room.id) ?? room, text)
     },
 
+    reviewConclusion(entry, room, options = {}) {
+      return entry.chatRun.reviewConclusion({
+        room: store.readRoom(room.id) ?? room,
+        reviewerId: options.reviewerId,
+        conclusion: options.conclusion,
+      })
+    },
+
     cancel(entry) {
       entry.chatRun?.cancel()
     },

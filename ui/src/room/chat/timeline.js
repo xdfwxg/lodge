@@ -67,6 +67,7 @@ function Timeline({
                 room,
                 conclusion: message.text,
                 handoffBrief: message.meta?.handoffBrief,
+                conclusionId: message.id,
               })),
             })
             : null))

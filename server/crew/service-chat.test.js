@@ -24,6 +24,8 @@ const setup = () => {
   const messages = []
   const calls = []
   const sent = []
+  const reviews = []
+  let reviewReply = 'PASS\n没有超出讨论记录。'
   let intent = { action: 'reply', reply: '我在。', speakers: [] }
   let readIntent = async () => intent
   const store = {
@@ -56,6 +58,10 @@ const setup = () => {
       send: async (roomId, text, options = {}) => {
         sent.push({ roomId, text, ...options })
       },
+      reviewChatConclusion: async (room, options = {}) => {
+        reviews.push({ roomId: room.id, ...options })
+        return { text: reviewReply }
+      },
     },
     emit: () => {},
   })
@@ -65,8 +71,10 @@ const setup = () => {
     messages,
     calls,
     sent,
+    reviews,
     setIntent: next => { intent = next },
     setHostIntent: next => { readIntent = next },
+    setReviewReply: next => { reviewReply = next },
   }
 }
 
@@ -220,4 +228,32 @@ test('a named member waits while a round is running', async () => {
   assert.equal(result.ok, false)
   assert.match(result.error, /等结束再点名/)
   assert.deepEqual(ctx.sent, [])
+})
+
+test('a chat conclusion can be reviewed by a critic before handing off', async () => {
+  const ctx = setup()
+  ctx.room().members = [
+    { id: 'a', name: '甲', stance: 'proposer', body: { engine: 'claude' } },
+    { id: 'b', name: '乙', stance: 'critic', body: { engine: 'pi' } },
+  ]
+  ctx.messages.push({ id: 'sp-1', kind: 'chat', authorId: 'a', text: '先说一句' })
+  ctx.messages.push({ id: 'c-1', kind: 'chat_conclusion', authorId: 'lodge', text: '结论' })
+  const result = await ctx.chat.reviewConclusion(ctx.room(), { conclusionId: 'c-1' })
+  assert.equal(result.ok, true)
+  assert.equal(result.body.pass, true)
+  assert.equal(ctx.reviews[0].reviewerId, 'b')
+  assert.equal(ctx.messages.at(-1).meta.kind, 'conclusion_review')
+  assert.equal(ctx.messages.at(-1).meta.pass, true)
+})
+
+test('a reviewer can flag a conclusion that goes beyond the discussion', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲', stance: 'critic', body: { engine: 'claude' } }]
+  ctx.messages.push({ id: 'c-1', kind: 'chat_conclusion', authorId: 'lodge', text: '结论' })
+  ctx.setReviewReply('CONCERN\n“下周上线”没有在讨论里出现过。')
+  const result = await ctx.chat.reviewConclusion(ctx.room(), { conclusionId: 'c-1' })
+  assert.equal(result.ok, true)
+  assert.equal(result.body.pass, false)
+  assert.match(result.body.detail, /下周上线/)
+  assert.equal(ctx.messages.at(-1).meta.pass, false)
 })

@@ -6,7 +6,7 @@ import { normalizeReceipt, receiptText } from '../../shared/receipt.js'
 import { STAGE_STATE } from '../../shared/states.js'
 
 // 聊天结论只作为小屋的交接简报；不复制聊天状态、证据或阶段。
-export const chatStudioSeed = ({ room, conclusion, handoffBrief }) => {
+export const chatStudioSeed = ({ room, conclusion, handoffBrief, conclusionId = '' }) => {
   const text = String(conclusion ?? '').trim()
   const structured = normalizeHandoffBrief(handoffBrief)
   return {
@@ -14,6 +14,7 @@ export const chatStudioSeed = ({ room, conclusion, handoffBrief }) => {
     conclusion: text,
     sourceName: String(room?.name ?? '').trim(),
     ...(typeof room?.id === 'string' && room.id !== '' ? { sourceRoomId: room.id } : {}),
+    ...(typeof conclusionId === 'string' && conclusionId !== '' ? { conclusionId } : {}),
     ...(structured === null ? {} : { handoffBrief: structured }),
   }
 }

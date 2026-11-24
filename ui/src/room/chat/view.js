@@ -71,7 +71,7 @@ export const chatView = {
       onAnswerCard: actions.answerCard,
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,
-      onStartStudio: actions.startStudio,
+      onStartStudio: actions.reviewAndStartStudio ?? actions.startStudio,
       onOpenRoom: actions.selectRoom,
     }))
   },

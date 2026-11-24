@@ -36,6 +36,18 @@ export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, br
   ].filter(Boolean).join('\n')
 }
 
+// 结论复核只有一件事：结论有没有超出对话记录。它不是新发言，也不重开讨论。
+export const conclusionReviewPrompt = ({ room, reviewer, conclusion, transcript = '' }) => [
+  `你是「${room?.name ?? '聊天室'}」这一轮结论的复核人：${reviewer?.name ?? '成员'}。`,
+  `话题：${room?.goal ?? ''}`,
+  `结论原文：${sanitizeUntrusted(conclusion, 2000)}`,
+  transcript === '' ? '' : `本轮讨论记录：\n${sanitizeUntrusted(transcript, 4000)}`,
+  '只核对结论有没有超出讨论记录的依据；不评价好坏，不重开讨论，不给新建议。',
+  '第一行只写 PASS 或 CONCERN；第二行一句话说明。CONCERN 时写清哪一句没有依据。',
+  '不要 @ 任何人。',
+  INTERNAL_PROMPT_MARKER,
+].filter(Boolean).join('\n')
+
 export const hostPrompt = ({ room, round, note, turnLimit, structured = false }) => {
   const common = [
     '聊天室这轮讨论到此结束，请总结。',

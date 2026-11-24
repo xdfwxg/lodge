@@ -20,6 +20,7 @@ test('a stored handoffBrief becomes the studio seed', () => {
   assert.equal(seed.conclusion, '完整结论原文')
   assert.equal(seed.sourceName, '圆桌')
   assert.equal(seed.sourceRoomId, 'room-chat')
+  assert.equal(seed.conclusionId, undefined)
   assert.deepEqual(seed.handoffBrief, handoffBrief)
   assert.equal(seedGoalText(seed), '发布讨论')
 })
@@ -94,4 +95,14 @@ test('a manual delivery still brings a receipt', () => {
 
 test('a room without a delivery cannot return to chat', () => {
   assert.equal(returnToChatSeed({ delivery: null }), null)
+})
+
+test('a conclusion id travels with the studio seed for review', () => {
+  const seed = chatStudioSeed({
+    room: { id: 'room-chat', goal: '目标', name: '圆桌' },
+    conclusion: '结论',
+    handoffBrief: null,
+    conclusionId: 'msg-1',
+  })
+  assert.equal(seed.conclusionId, 'msg-1')
 })

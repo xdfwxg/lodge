@@ -341,6 +341,13 @@ export const createLiveRooms = ({
     return entry.strategy.continue(entry, store.readRoom(room.id) ?? room, note, options)
   }
 
+  const reviewChatConclusion = async (room, options = {}) => {
+    const entry = entries.get(room.id)
+    if (entry === undefined) throw new Error('房间还没有连上')
+    if (typeof entry.strategy.reviewConclusion !== 'function') throw new Error('这个房间不支持结论复核')
+    return entry.strategy.reviewConclusion(entry, store.readRoom(room.id) ?? room, options)
+  }
+
   const hostIntent = async (room, text) => {
     const entry = entries.get(room.id)
     if (entry === undefined) throw new Error('房间还没有连上')
@@ -530,6 +537,7 @@ export const createLiveRooms = ({
     retryMember,
     startChat,
     continueChat,
+    reviewChatConclusion,
     hostIntent,
     chatRunning: roomId => entries.get(roomId)?.strategy.isRunning?.(entries.get(roomId)) ?? false,
     syncChatMembers: room => chat.syncMembers(room),

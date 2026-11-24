@@ -1,6 +1,7 @@
 import { createElement as h, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
+import { StatePanel } from '../state-panel.js'
 import { StopReply, turnRunning } from '../room/stop-reply.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
@@ -20,6 +21,8 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [swapId, setSwapId] = useState(null)
   const [swapBusy, setSwapBusy] = useState(false)
   const [swapError, setSwapError] = useState(null)
+  const [chatReview, setChatReview] = useState(null)
+  const reviewInFlight = useRef(false)
   const roomRef = useRef(room)
   roomRef.current = room
   // 侧栏成员面板可能属于另一间房：先切过去，等当前房间对上了再打开成员卡。
@@ -225,6 +228,34 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     continueChat: note => store.continueChat(note),
     selectRoom: id => store.select(id),
     startStudio: onStartStudio,
+    reviewAndStartStudio: async seed => {
+      // 示例房没有模型可叫；真实房才做这一步复核。
+      if (room.demo === true || room.live !== true) {
+        onStartStudio(seed)
+        return
+      }
+      if (reviewInFlight.current) return
+      reviewInFlight.current = true
+      try {
+        const result = await store.reviewChatConclusion(seed?.conclusionId ?? '')
+        if (result?.ok !== true) {
+          setChatReview({ error: result?.error ?? '结论复核没能开始。' })
+          return
+        }
+        if (result.pass === true || result.skipped === true) {
+          setChatReview(null)
+          onStartStudio(seed)
+          return
+        }
+        setChatReview({
+          seed,
+          reviewer: result.reviewer?.name ?? '复核人',
+          detail: result.detail || '结论里有一句没有对话记录作依据。',
+        })
+      } catch (error) {
+        setChatReview({ error: String(error?.message ?? error) })
+      }
+    },
     startChat: onStartChat,
     swapBody: memberId => {
       setSwapError(null)
@@ -301,6 +332,31 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
         onPointerDown,
       },
         h('div', { className: 'crew-flow' },
+          chatReview === null
+            ? null
+            : h(StatePanel, {
+              key: 'chat-review',
+              title: chatReview.error === undefined ? '结论复核有疑问' : '结论复核没能开始',
+              body: chatReview.error ?? `${chatReview.reviewer}：${chatReview.detail}`,
+              tone: 'paused',
+              action: h('div', { className: 'crew-state-actions' },
+                h('button', {
+                  type: 'button',
+                  className: 'crew-ghost',
+                  onClick: () => setChatReview(null),
+                }, chatReview.error === undefined ? '再聊聊' : '知道了'),
+                chatReview.seed === undefined
+                  ? null
+                  : h('button', {
+                    type: 'button',
+                    className: 'crew-accept',
+                    onClick: () => {
+                      const seed = chatReview.seed
+                      setChatReview(null)
+                      onStartStudio(seed)
+                    },
+                  }, '仍然开工')),
+            }),
           mode.transcript(viewCtx),
           mode.presence(viewCtx),
           typing),

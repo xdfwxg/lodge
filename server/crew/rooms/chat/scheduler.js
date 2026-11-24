@@ -7,7 +7,7 @@ import { parseHandoffBriefFromText } from '../../../../shared/handoff-brief.js'
 import { hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { chatBriefOf } from './brief.js'
 import { linkedRoomBriefs } from './linked.js'
-import { digestText, hostPrompt, speakerPrompt, stripRoundLead, wantsStructuredSummary } from './prompts.js'
+import { conclusionReviewPrompt, digestText, hostPrompt, speakerPrompt, stripRoundLead, wantsStructuredSummary } from './prompts.js'
 import { systemNotice } from '../../notices.js'
 import { humanLabelOf } from '../../human-name.js'
 import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
@@ -503,5 +503,24 @@ export const createChatScheduler = ({
     return second
   }
 
-  return { start, hostIntent, cancel, isRunning: () => runs.has(roomId) }
+  // 结论交给工作室前的一次窄复核：只读本轮记录，不占发言顺序，不改轮次。
+  const reviewConclusion = async ({ room: inputRoom, reviewerId, conclusion }) => {
+    const room = store.readRoom(roomId) ?? inputRoom
+    if (transport.ready() !== true) throw new Error('房间聊天室还没准备好')
+    const reviewer = memberOf(room, reviewerId)
+    if (reviewer === null) throw new Error('复核人不在这个房间')
+    const before = await transport.messageIds()
+    const sent = await sendToMember(reviewerId, conclusionReviewPrompt({
+      room,
+      reviewer,
+      conclusion,
+      transcript: discussionLines(store, roomId),
+    }))
+    hidePrompt(sent?.messageId)
+    const reply = await waitForBot(reviewerId, before, { cancelled: false })
+    if (reply === null) throw new Error('结论复核没有在限定时间内回答')
+    return { text: String(reply.text ?? '').trim() }
+  }
+
+  return { start, hostIntent, reviewConclusion, cancel, isRunning: () => runs.has(roomId) }
 }

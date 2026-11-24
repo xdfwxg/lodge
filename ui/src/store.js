@@ -406,6 +406,7 @@ export function createStore() {
     retry: (stage, note) => post(`/api/rooms/${state.activeId}/retry`, { stage, note }),
     continueChat: note => post(`/api/rooms/${state.activeId}/chat-continue`, { note }),
     resumeChat: () => post(`/api/rooms/${state.activeId}/chat-resume`, {}),
+    reviewChatConclusion: conclusionId => post(`/api/rooms/${state.activeId}/chat-review`, { conclusionId }),
     resumeRoom: () => post(`/api/rooms/${state.activeId}/resume`, {}),
     interruptRoom: () => post(`/api/rooms/${state.activeId}/interrupt`, {}),
     answer: async (stage, text) => {

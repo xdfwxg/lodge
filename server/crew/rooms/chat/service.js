@@ -5,6 +5,25 @@ import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
 import { chatModeOf } from '../../../../shared/room-status.js'
 import { MENTION_ALL } from '../../../../shared/mentions.js'
 
+// 结论复核选人：先避开最后一位发言人，再优先质疑立场，最后优先换一家厂商。
+const conclusionReviewerOf = (room, messages) => {
+  const members = Array.isArray(room?.members) ? room.members : []
+  if (members.length === 0) return null
+  const lastSpeaker = [...(Array.isArray(messages) ? messages : [])].reverse()
+    .find(message => (
+      message?.kind === 'chat' &&
+      message?.authorId !== 'you' &&
+      message?.authorId !== 'lodge' &&
+      members.some(member => member.id === message.authorId)
+    ))?.authorId
+  const pool = members.filter(member => member.id !== lastSpeaker)
+  const candidates = pool.length > 0 ? pool : members
+  const critics = candidates.filter(member => member.stance === 'critic')
+  const preferred = critics.length > 0 ? critics : candidates
+  const lastEngine = members.find(member => member.id === lastSpeaker)?.body?.engine
+  return preferred.find(member => member.body?.engine && member.body.engine !== lastEngine) ?? preferred[0] ?? null
+}
+
 // 聊天室只有 room.chat；结论之后继续聊，不经过工作室的 stages/gates，也不需要确认。
 const chatBudgetExceeded = room => {
   const budget = Number(room?.usage?.budgetMicroUsd ?? room?.budgetMicroUsd ?? 0)
@@ -176,5 +195,55 @@ export const createServiceChat = ({ store, live, emit }) => {
     return input(room, { note: value })
   }
 
-  return { continue: continueChat, handleMessage, input, restart }
+  // 只复核一条已经落库的结论；不新建轮次，也不改发言顺序。
+  const reviewConclusion = async (room, body = {}) => {
+    if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
+    if (room.state !== ROOM_STATE.active) return fail('conflict', '房间已经停了')
+    if (room.live !== true || typeof live.reviewChatConclusion !== 'function' || live.isAttached?.(room.id) !== true) {
+      return fail('conflict', '聊天室还没有连上模型服务')
+    }
+    const messages = readMessages(room.id)
+    const conclusion = typeof body.conclusionId === 'string' && body.conclusionId !== ''
+      ? messages.find(message => message.id === body.conclusionId && message.kind === 'chat_conclusion')
+      : [...messages].reverse().find(message => message.kind === 'chat_conclusion')
+    if (conclusion === undefined || conclusion === null) return fail('invalid', '没有找到这条结论')
+    const reviewer = conclusionReviewerOf(room, messages)
+    if (reviewer === null) return ok({ pass: true, skipped: true, room })
+    let result
+    try {
+      result = await live.reviewChatConclusion(room, {
+        reviewerId: reviewer.id,
+        conclusion: conclusion.text,
+      })
+    } catch (error) {
+      return fail('conflict', `结论复核没能开始：${String(error?.message ?? error)}`)
+    }
+    const lines = String(result?.text ?? '').trim().split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+    const first = lines[0] ?? ''
+    const pass = /^(PASS|通过|没有问题|无问题)/i.test(first)
+    const detail = lines.slice(1).join(' ').slice(0, 300)
+    const text = pass
+      ? `${reviewer.name} 复核了结论：没有超出讨论记录。`
+      : `${reviewer.name} 复核了结论，指出可能有依据缺口${detail === '' ? '。' : `：${detail}`}`
+    const message = appendMessage(room.id, {
+      kind: 'system',
+      authorId: reviewer.id,
+      text,
+      meta: {
+        kind: 'conclusion_review',
+        pass,
+        reviewerId: reviewer.id,
+        conclusionId: conclusion.id,
+      },
+    })
+    return ok({
+      room,
+      pass,
+      detail,
+      reviewer: { id: reviewer.id, name: reviewer.name },
+      message,
+    })
+  }
+
+  return { continue: continueChat, handleMessage, input, restart, reviewConclusion }
 }
