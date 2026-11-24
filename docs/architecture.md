@@ -98,8 +98,8 @@ service.js                   ← 路由分发与用例组合
 - 聊天室也有持久时钟：一轮讨论进行时占一条 `chat.round` 工作项，`chat.turns` 落了已发言次数；进程重启后从下一次发言续跑，不把整轮从第一句重来。发送前先落 `chat.pending`（第几回合、谁、之前的消息 id）；重启时用它在基座历史里找已经到达的回复，找到就补账，找不到只记一次未回应，不重发。
 - 交接租约也走同一条队列：assignment 进入 `sent` 时落 `assignment.lease`（8 分钟）；成员出现第一个活动（工具调用）或交回第一个非空回合后就取消这条计时，后面的长回合交给阶段截止兜底。一个成员一直没有任何活动才在租约到期时只停这一位；还有别人在跑就继续等，最后一位停下才收口。阶段截止（15 分钟）保留为整步兜底。
 - 存储拆成 `store/` 仓库：`work.js`、`rounds.js`、`timeline.js`、`assignments.js`、`projects.js`；`store.js` 只做打开、组合和房间视图。房间写入和轮次写入是两条显式路径：`updateRoom` 只写房间自己的字段，`updateRound` 才读写当前轮次；终态轮拒绝写入。轮次字段清单在 `shared/work-round.js`，两边共用。开新一轮时轮次和用户消息在同一个事务里落库，收口时结论消息和轮次完成也在同一个事务里落库；启动失败可以安全恢复。HTTP 动作按动作族放在 `actions/room/{lodge,run,admin,round}.js`，`room-actions.js` 只做分派，`service.js` 只做组合根。
-- `SCHEMA_VERSION=8`；4 → 5 补 `messages(room_id, seq)` 索引，5 → 6 清掉旧房间 payload 里残留的轮次字段（工作室全清，聊天室只清五个工作室轮次字段），6 → 7 按消息时间重新归轮，7 → 8 建 `message_fts` 三字滑窗索引；都在事务里前进并保留数据。没有迁移路径的旧版本直接拒绝，运行 `npm run data:reset` 重建；旧数据不留兼容字段。
-- 历史检索是房间自己的索引：`message_fts` 在消息追加/更新时维护，7 → 8 迁移回填；`searchMessages(roomId, query, {limit, before})` 只在本房间查，跳过活动噪声。规划师最多拿到 4 行只读简报，命中的消息 id 记 `history.brief`，只作参考，不是新指令。
+- `SCHEMA_VERSION=8`；版本不一致直接拒绝启动，运行 `npm run data:reset` 重建。旧数据不迁移、不留兼容字段；同一份状态只有一套读法。
+- 历史检索是房间自己的索引：`message_fts` 在消息追加/更新时维护；`searchMessages(roomId, query, {limit, before})` 只在本房间查，跳过活动噪声。规划师最多拿到 4 行只读简报，命中的消息 id 记 `history.brief`，只作参考，不是新指令。
 - 房间目录 `transcript.jsonl` 先追加并 fsync，再写 SQLite；轮次级目标、结论和证据文件可重建。
 - 当前用户是全局资料（`profile` 表一份），房间展示和 agent 上下文从它读，不再各存 `humanName`；改昵称后下一次快照即全局生效。
 - 一轮完成只结束这一轮：工作室回到空闲；下一轮在同一工作室开，旧轮保留为可回看的轮次。
@@ -315,7 +315,7 @@ service.js                   ← 路由分发与用例组合
 - 分层与依赖方向：`layer-boundaries.test.js`、`negative-list.test.js`、`boundary.test.js`。
 - 房型契约与 UI 边界：`rooms/kinds.test.js`、`architecture.test.js`。
 - 死代码与依赖图：`npm run check:unused`、`npm run check:deps`；规则在 `knip.jsonc`、`.dependency-cruiser.cjs`。
-- 真实评测：`evals/planning/`、`evals/rooms/`；固定题、外部脚本核对，不追求单次最好成绩。
+- 真实评测：`evals/rooms/`；固定题、外部脚本核对，不追求单次最好成绩。
 
 ## 监督边界
 

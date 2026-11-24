@@ -59,7 +59,6 @@ npm run build          # 构建 UI
 npm run desktop        # 构建后启动 Electron
 npm run check:done     # 完成前验证：单测、UI 端到端、构建和门禁
 npm run eval:rooms     # 真实房间评测（需要 Lodge 8787 和基座 8799）
-npm run eval:planning  # 规划评测（同上）
 ```
 
 测试使用独立临时工作区，不污染 `~/CrewWorktrees`。更多运行、打包、基座和 runtime 说明见 [docs/operations.md](docs/operations.md)。

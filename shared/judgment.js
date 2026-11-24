@@ -44,9 +44,11 @@ const firstLine = text => {
 }
 
 const VERDICT_REJECT = /(REJECT|不通过|未通过|无法通过|不能通过|没有通过|退回|打回|拒绝|失败)/i
-const VERDICT_PASS = /(PASS|通过|接受|同意)/i
+// 判定词后面必须断开，否则“通过率 98%”会被当成判定。
+const PASS_END = String.raw`(?=$|[\s，,。.；;：:、*\-!！?？])`
+const VERDICT_PASS = new RegExp(String.raw`(?:PASS|通过|接受|同意)${PASS_END}`, 'i')
 // 首行以“通过”开头就是通过；“通过，没有失败”里的“失败”不是判定。
-const LEADING_PASS = /^(?:PASS|通过|接受|同意)/i
+const LEADING_PASS = new RegExp(String.raw`^(?:PASS|通过|接受|同意)${PASS_END}`, 'i')
 const PLANNER_REWORK = /(返工|REWORK)/i
 const PLANNER_HUMAN = /(交给人|转人工|handoff|human)/i
 
@@ -117,13 +119,18 @@ const DECISION_OPTION_ACTIONS = new Set(['accept', 'rework'])
 const normalizeDecisionOptions = value => {
   if (!Array.isArray(value)) return []
   const options = []
+  const usedIds = new Set()
   for (const [index, item] of value.slice(0, 3).entries()) {
     if (item === null || typeof item !== 'object') continue
     const title = clip(item.title, 120)
     const action = String(item.action ?? '').trim().toLowerCase()
     if (title === '' || !DECISION_OPTION_ACTIONS.has(action)) continue
     const detail = clip(item.detail, 300)
-    const id = clip(item.id, 40) || String.fromCharCode(65 + index)
+    // 选项 id 是界面的 key 和选中值，重复会让两张卡互相覆盖。
+    const baseId = clip(item.id, 40) || String.fromCharCode(65 + index)
+    let id = baseId
+    for (let suffix = 2; usedIds.has(id); suffix += 1) id = `${baseId}-${suffix}`
+    usedIds.add(id)
     options.push({
       id,
       title,

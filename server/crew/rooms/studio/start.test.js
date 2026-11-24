@@ -5,6 +5,7 @@ import { startInitialStage } from './start.js'
 test('a direct studio dispatch projects the @ handoff into the room', async () => {
   const room = {
     id: 'room-1',
+    roomType: 'studio',
     goal: '改标题',
     state: 'active',
     stages: [{ title: '改标题', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
@@ -51,9 +52,10 @@ test('a direct studio dispatch projects the @ handoff into the room', async () =
   assert.deepEqual(handoff.meta.to, ['executor'])
 })
 
-test('a planner who already named the executor gets no second handoff line', async () => {
+test('a model-written @ does not replace the system handoff line', async () => {
   const room = {
     id: 'room-2',
+    roomType: 'studio',
     goal: '改标题',
     state: 'active',
     stages: [{ title: '改标题', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
@@ -86,12 +88,15 @@ test('a planner who already named the executor gets no second handoff line', asy
     verify: 'test',
     acceptance: 'npm test',
   })
-  assert.equal(messages.some(message => message.meta?.kind === 'handoff'), false)
+  const handoff = messages.find(message => message.meta?.kind === 'handoff')
+  assert.equal(handoff.text, '@执行官 第 1 步「改标题」交给你。')
+  assert.deepEqual(handoff.meta.to, ['executor'])
 })
 
-test('the alignment turn is @-ed by the planner, not by the system', async () => {
+test('the alignment turn has no next baton and no handoff projection', async () => {
   const room = {
     id: 'room-3',
+    roomType: 'studio',
     goal: '改标题',
     state: 'active',
     stages: [{ title: '目标对齐', kind: 'decision', state: 'active' }],
@@ -132,6 +137,7 @@ test('the alignment turn is @-ed by the planner, not by the system', async () =>
 test('an align turn records which history it was given', async () => {
   const room = {
     id: 'room-3',
+    roomType: 'studio',
     goal: '改标题',
     state: 'active',
     stages: [{ title: '改标题', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],

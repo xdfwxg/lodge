@@ -207,7 +207,7 @@ test('a studio room shows the pending approval instead of only a badge', async (
   assert.match(text(tree), /访问网络/)
 })
 
-test('handoffs stay in the room as the sender speaking', async () => {
+test('a system handoff is a chain line, not the sender speaking', async () => {
   const { StudioTranscript } = await load()
   const room = {
     ...finishedRoom(),
@@ -215,20 +215,17 @@ test('handoffs stay in the room as the sender speaking', async () => {
     stages: [{ ...finishedRoom().stages[0], state: 'active' }],
     messages: [
       { kind: 'system', id: 'h1', authorId: 'lead', text: '@执行官 第 1 步「姓名缩写」交给你。', ts: 1, seq: 1, meta: { kind: 'handoff', stage: 0, from: 'lead', to: ['worker'], authorKind: 'system' } },
-      { kind: 'handoff', id: 'h2', authorId: 'verifier', text: '@执行官 验收退回，按上面的意见重做。', ts: 2, seq: 2, meta: { stage: 0, status: 'sent' } },
     ],
   }
   const roster = [
     { id: 'lead', name: '规划师', role: 'lead', roleKind: 'planner' },
     { id: 'worker', name: '执行官', role: 'worker', roleKind: 'executor' },
-    { id: 'verifier', name: '验收员', role: 'verifier', roleKind: 'verifier' },
   ]
   const tree = render(StudioTranscript({ room, members: roster, delivery: null }))
-  // 规划师派活、验收员退回，各按说话的人出现一条；不再折成“系统”过程行。
   assert.equal(hasClass(tree, 'crew-process-line'), false)
-  assert.equal(countClass(tree, 'crew-msg-wrap'), 2)
-  assert.match(text(tree), /规划师/)
-  assert.match(text(tree), /验收员/)
+  assert.equal(countClass(tree, 'crew-msg-wrap'), 0)
+  assert.equal(hasClass(tree, 'crew-system'), true)
+  assert.match(text(tree), /@执行官/)
 })
 
 test('tool calls sit in the timeline as one folded row per run', async () => {
@@ -250,6 +247,7 @@ test('tool calls sit in the timeline as one folded row per run', async () => {
   }
   const tree = render(StudioTranscript({ room, members: room.members }))
   assert.equal(hasClass(tree, 'crew-process'), true)
+  assert.equal(hasClass(tree, 'crew-tool-table'), true)
   const flat = text(tree)
   assert.match(flat, /执行官 · 跑了 1 条命令/)
   assert.match(flat, /读了 README.md/)

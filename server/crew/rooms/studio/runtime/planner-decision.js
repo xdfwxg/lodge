@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { memberDisplayName } from '../../../member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from '../../../internal-prompts.js'
-import { missingMentionsOf } from '../relay-words.js'
+import { appendHandoffProjection } from '../projection.js'
 import { judgmentAnchorOf, judgmentOf, normalizeJudgment } from '../../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../../shared/gate.js'
 import {
@@ -170,45 +170,50 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
     const parallel = targets.length > 1
     const note = judgment.reason
     const leadId = leadMemberOf(room)?.id ?? 'lodge'
-    // 规划师刚才那句已经 @ 了谁，就只补漏掉的人；一个都没漏就不再补。
-    const missing = missingMentionsOf({ room, messages: store.readMessages(roomId), from: leadId, targets })
-    store.appendMessage(roomId, {
+    const reworkNote = store.appendMessage(roomId, {
       kind: 'rework',
       authorId: 'system',
       text: '验收退回，规划师安排重做。',
       meta: { stage: stageIndex, source: 'planner', note, verdictId, judgment },
     })
     if (typeof expireCards === 'function') expireCards()
-    if (parallel && missing.length > 0) {
-      store.appendMessage(roomId, {
-        kind: 'system',
-        authorId: leadId,
-        text: `@${missing.map(target => memberDisplayName(room, target)).join('、@')} 验收退回，按上面的意见重做第 ${stageIndex + 1} 步。`,
-        meta: { kind: 'handoff', stage: stageIndex, from: leadId, to: missing, authorKind: 'system' },
-      })
-    }
-    for (const target of targets) {
+    const sent = targets.map(target => {
       const name = memberDisplayName(room, target)
-      void handoff.trigger({
+      return handoff.trigger({
         room,
         stage,
         index: stageIndex,
-        from: leadMemberOf(room)?.id,
+        from: leadId,
         to: target,
         reason: 'rework',
         prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
-        // @ 由系统写，退回理由已经在验收卡里。
-        message: parallel || missing.length === 0 ? '' : `@${name} 验收退回，按上面的意见重做。`,
-        visible: !parallel && missing.length > 0,
-        deliver: true,
         ...(parallel ? { privateRoom: true } : {}),
         acceptance: stage?.acceptance ?? '',
         rework: true,
         parentAssignmentId: parents.get(target)?.id ?? null,
+        nonce: reworkNote?.id ?? String(verdictId),
       }).catch(error => {
         systemNotice({ store, roomId, text: `重做没能交给${name}；待处理。`, error })
       })
-    }
+    })
+    // 只 @ 真正收到任务的人：先送，再投影。
+    void Promise.allSettled(sent).then(results => {
+      const delivered = targets.filter((target, at) => results[at].status === 'fulfilled')
+      if (delivered.length === 0) return
+      appendHandoffProjection({
+        store,
+        roomId,
+        room,
+        from: leadId,
+        targets: delivered,
+        message: to => `@${to.map(target => memberDisplayName(room, target)).join('、@')} 验收退回，按上面的意见重做第 ${stageIndex + 1} 步。`,
+        meta: {
+          stage: stageIndex,
+          reason: 'rework',
+          dedupeKey: `rework:${stageIndex}:${reworkNote?.id ?? verdictId}:${delivered.join(',')}`,
+        },
+      })
+    })
     return true
   }
 

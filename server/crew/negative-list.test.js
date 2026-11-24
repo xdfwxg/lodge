@@ -138,7 +138,6 @@ test('member rules never branch on what the task is about', () => {
     'rooms/studio/prompts.js',
     'rooms/studio/review.js',
     'rooms/create/input.js',
-    'roster-recommend.js',
     'member-delivery.js',
   ]
   for (const file of files) {

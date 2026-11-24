@@ -88,39 +88,16 @@ export const rosterFromRoles = entries => {
     })
   })
 
-  const { workers, verifiers } = roleMembers(members)
-  const lead = members.find(member => member.role === 'lead')
-  const leadRef = lead === undefined ? '@规划师' : `@${lead.name}`
-  const workerRef = workers.map(member => `@${member.name}`).join('、') || '执行官'
-  const verifierRef = verifiers.length === 0 ? '验收员' : verifiers.map(member => `@${member.name}`).join('、')
   return members.map(member => {
     if (member.customPrompt === true) return member
     if (member.role === 'lead') {
-      return {
-        ...member,
-        prompt: member.prompt
-          .replaceAll('你是规划师', `你是${member.name}`)
-          .replaceAll('@执行官', workerRef)
-          .replaceAll('@验收员', verifierRef),
-      }
+      return { ...member, prompt: member.prompt.replaceAll('你是规划师', `你是${member.name}`) }
     }
     if (member.role === 'worker') {
-      return {
-        ...member,
-        prompt: member.prompt
-          .replaceAll('你是执行官', `你是${member.name}`)
-          .replaceAll('@验收员', verifierRef)
-          .replaceAll('@规划师', leadRef),
-      }
+      return { ...member, prompt: member.prompt.replaceAll('你是执行官', `你是${member.name}`) }
     }
     if (member.role === 'verifier') {
-      return {
-        ...member,
-        prompt: member.prompt
-          .replaceAll('你是验收员', `你是${member.name}`)
-          .replaceAll('@执行官', workerRef)
-          .replaceAll('@规划师', leadRef),
-      }
+      return { ...member, prompt: member.prompt.replaceAll('你是验收员', `你是${member.name}`) }
     }
     return member
   })

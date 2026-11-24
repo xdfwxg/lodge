@@ -3,7 +3,7 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { alignmentPrompt, directPrompt } from '../create/prompts.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
-import { missingMentionsOf } from './relay-words.js'
+import { appendHandoffProjection } from './projection.js'
 import { historyBriefOf } from './history-brief.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
 
@@ -60,20 +60,20 @@ export const startInitialStage = async ({
     }
     const stageTitle = sanitizeUntrusted(room.stages?.[stageIndex]?.title ?? room.goal, 120)
     const senderId = align ? 'lodge' : (lead?.id ?? 'lodge')
-    // 对齐回合由规划师说清交给谁，系统投影这条交接；
-    // 直接派发没有规划师发言，也由系统投影。
-    const missing = missingMentionsOf({
-      room,
-      messages: store.readMessages(room.id),
-      from: senderId,
-      targets: [targetMember.id],
-    })
-    if (!align && missing.length > 0) {
-      store.appendMessage(room.id, {
-        kind: 'system',
-        authorId: senderId,
-        text: `@${memberDisplayName(room, targetMember.id)} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
-        meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: [targetMember.id], authorKind: 'system' },
+    // 对齐回合没有下一棒，不投影；直接派发才有一条系统交接。
+    if (!align) {
+      appendHandoffProjection({
+        store,
+        roomId: room.id,
+        room,
+        from: senderId,
+        targets: [targetMember.id],
+        message: to => `@${to.map(id => memberDisplayName(room, id)).join('、@')} 第 ${stageIndex + 1} 步「${stageTitle}」交给你。`,
+        meta: {
+          stage: stageIndex,
+          reason: 'dispatch',
+          dedupeKey: `start:${room.activeRoundId ?? room.workRound?.id ?? ''}:${stageIndex}:${targetMember.id}`,
+        },
       })
     }
     if (sent.messageId !== null) {

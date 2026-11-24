@@ -1,4 +1,4 @@
-import { CHAT_PHASE, HANDOFF_STATUS, ROOM_STATE, ROUND_STATUS, STAGE_STATE } from '../../../shared/states.js'
+import { CHAT_PHASE, ROOM_STATE, ROUND_STATUS, STAGE_STATE } from '../../../shared/states.js'
 
 export const SAMPLE_ROOM_ID = 'room-sample'
 export const SAMPLE_CHAT_ROOM_ID = 'room-sample-chat'
@@ -156,10 +156,10 @@ export const seedSampleMessages = ({ store, room } = {}) => {
     text: room.plan.prose,
   })
   append({
-    kind: 'handoff',
+    kind: 'system',
     authorId: 'planner',
     text: '@执行官 第 2 步「写一段试写」交给你：把结尾改成动作，让读者自己看见她留下；写完把段落发出来。',
-    meta: { stage: 1, status: HANDOFF_STATUS.sent },
+    meta: { kind: 'handoff', stage: 1, reason: 'dispatch', from: 'planner', to: ['executor'], authorKind: 'system' },
   })
   append({
     kind: 'chat',
@@ -167,10 +167,10 @@ export const seedSampleMessages = ({ store, room } = {}) => {
     text: '改好了，只动结尾：她把羽衣叠好放回箱里，却把兰香囊解下来，挂到了门外。这样读者能看见她留下，不用旁白解释。',
   })
   append({
-    kind: 'handoff',
+    kind: 'system',
     authorId: 'executor',
     text: '@验收员 第 2 步做完了，帮我对照原文看一下。',
-    meta: { stage: 1, status: HANDOFF_STATUS.sent },
+    meta: { kind: 'handoff', stage: 1, reason: 'review', from: 'executor', to: ['verifier'], authorKind: 'system' },
   })
   append({
     kind: 'verdict',

@@ -37,5 +37,5 @@ npm run eval:long-task -- --keep        # 保留临时库和工作目录
 
 ## 边界
 
-- 这是确定性的内核评测，不是模型能力评测；真实模型交付仍用 `eval:rooms` / `eval:planning`。
+- 这是确定性的内核评测，不是模型能力评测；真实模型交付仍用 `eval:rooms`。
 - 场景不覆盖真实合并冲突、真实审批卡和真实 CLI 退出；那些仍由单测和 dogfood 覆盖。

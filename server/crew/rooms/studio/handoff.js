@@ -1,10 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { memberDisplayName } from '../../member-labels.js'
 import { createAssignment, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { armAssignmentLease } from './assignment-lease.js'
-import { ASSIGNMENT_STATUS, HANDOFF_STATUS } from '../../../../shared/states.js'
+import { ASSIGNMENT_STATUS } from '../../../../shared/states.js'
 
-const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, nonce }) => (
+// 一拍交接的身份：同一拍重投仍幂等，新一拍（新一轮重做、换了父任务）必须生成新 Assignment。
+const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, parentAssignmentId, nonce }) => (
   createHash('sha256')
     .update(JSON.stringify({
       roomId,
@@ -16,6 +16,7 @@ const assignmentDigest = ({ roomId, index, from, to, reason, acceptance, evidenc
       evidenceId: evidence?.id ?? '',
       candidate: candidate ?? '',
       rework,
+      parentAssignmentId: parentAssignmentId ?? '',
       nonce,
     }))
     .digest('hex')
@@ -29,7 +30,7 @@ const leaseOf = () => {
 }
 
 // 接力只做一件事：写一条 Assignment，再把它投递给目标成员。
-// 消息是这次 Assignment 的界面投影，不是交接事实的第二份存储。
+// 群里那条 @ 由 projection.js 统一投影，这里不写消息，也不拼 @。
 export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
   const trigger = async ({
     room,
@@ -40,9 +41,6 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     reason,
     prompt,
     acceptance,
-    message = '',
-    visible = true,
-    deliver = true,
     evidence = null,
     verdict = null,
     candidate = null,
@@ -53,20 +51,8 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     nonce = '',
   }) => {
     const current = store.readRoom(roomId) ?? room
-    const body = String(prompt ?? '').replace(/^@\S+\s*/, '').trim()
-    const label = memberDisplayName(current, to)
-    const step = `第 ${index + 1} 步${stage?.title ? `「${stage.title}」` : ''}`
-    const check = acceptance === 'manual' || acceptance === undefined || acceptance === ''
-      ? ''
-      : `，验收跑 ${acceptance}`
-    const summary = String(message ?? '').trim() !== ''
-      ? String(message).trim()
-      : reason === 'review'
-        ? `@${label} ${step}做完了，帮我复核一下。`
-        : rework
-          ? `@${label} ${step}还得再改一下。`
-          : `@${label} ${step}交给你了${check}。`
-    const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, nonce })}`
+    const body = String(prompt ?? '').trim()
+    const deliveryKey = `a-${assignmentDigest({ roomId, index, from, to, reason, acceptance, evidence, candidate, rework, parentAssignmentId, nonce })}`
     const existing = store.readAssignment(deliveryKey, roomId)
     // 已经交回或正在做的交接不再重复唤醒；同一次交接只发一次。
     if (existing !== null && ['sent', 'working', 'reported', 'passed', 'rejected', 'cancelled'].includes(existing.status)) {
@@ -118,25 +104,6 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
           : { evidenceIds: [...new Set([...(assignment.evidenceIds ?? []), evidence.id])] }),
       })
     }
-    const sendId = assignment.id
-    const priorMessage = deliveryRetry && typeof existing.messageId === 'string'
-      ? store.readMessage(roomId, existing.messageId)
-      : null
-    const stored = priorMessage !== null
-      ? store.upsertMessage({
-        ...priorMessage,
-        text: summary,
-        ts: Date.now(),
-        meta: { ...priorMessage.meta, status: HANDOFF_STATUS.sending, error: null, sentAt: null },
-      })
-      : visible === false
-        ? null
-        : store.appendMessage(roomId, {
-          kind: 'handoff',
-          authorId: from,
-          text: summary,
-          meta: { assignmentId: assignment.id, stage: index, status: HANDOFF_STATUS.sending },
-        })
     if (created) {
       store.appendEvent(roomId, 'assignment.created', {
         assignmentId: assignment.id,
@@ -144,14 +111,10 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
         from,
         to,
         reason,
-        messageId: stored?.id,
       })
     }
     const sentPatch = () => ({
-      sendId,
-      ...(stored === null
-        ? (deliveryRetry ? { messageId: null } : {})
-        : { messageId: stored.id }),
+      sendId: assignment.id,
       sentAt: Date.now(),
       lease: leaseOf(),
       finishedAt: null,
@@ -159,33 +122,14 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       deliveryFailed: false,
       turnId: null,
     })
-    // 规划师已经在群里 @ 了对方，基座会负责叫醒；这里只记账，不再重复投递。
-    if (deliver === false) {
-      const sent = transitionAssignment(store, assignment.id, 'sent', sentPatch())
-      armAssignmentLease({
-        store,
-        roomId,
-        assignmentId: assignment.id,
-        stage: index,
-        memberId: to,
-        roundId: store.readRoom(roomId)?.workRound?.id ?? null,
-      })
-      return sent ?? assignment
-    }
     try {
       await sendToMember(to, body, {
         intent: reason === 'review' ? 'review' : 'handoff',
         from,
-        sendId,
+        sendId: assignment.id,
         ...(privateRoom === true ? { privateRoom: true } : {}),
       })
       const sent = transitionAssignment(store, assignment.id, 'sent', sentPatch())
-      if (stored !== null) {
-        store.upsertMessage({
-          ...stored,
-          meta: { ...stored.meta, status: HANDOFF_STATUS.sent, error: null, sentAt: Date.now() },
-        })
-      }
       armAssignmentLease({
         store,
         roomId,
@@ -198,16 +142,9 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     } catch (error) {
       const reasonText = String(error?.message ?? error)
       transitionAssignment(store, assignment.id, 'failed', {
-        ...(stored === null ? {} : { messageId: stored.id }),
         resultText: reasonText,
         deliveryFailed: true,
       })
-      if (stored !== null) {
-        store.upsertMessage({
-          ...stored,
-          meta: { ...stored.meta, status: HANDOFF_STATUS.failed, error: reasonText, sentAt: null },
-        })
-      }
       throw error
     }
   }

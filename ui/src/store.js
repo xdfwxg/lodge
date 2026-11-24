@@ -118,7 +118,6 @@ export function createStore() {
         roles: data.roles ?? state.roles,
         roomTypes: data.roomTypes ?? state.roomTypes,
         engines: data.engines ?? state.engines,
-        features: data.features ?? state.features,
         profile: data.profile ?? state.profile,
         activeId,
       })
@@ -221,7 +220,6 @@ export function createStore() {
         roles: data.roles,
         roomTypes: data.roomTypes ?? [],
         engines: data.engines ?? [],
-        features: data.features ?? null,
         profile: data.profile ?? state.profile,
         runtime,
         activeId,

@@ -204,7 +204,7 @@ service = createCrewService({
   attachments: baseForAttachments,
 })
 
-// 旧版本里被收尾交接卡住、但所有阶段其实都已通过的房间，启动时补一次交付。
+// 所有阶段都已通过、只差收尾的轮次，启动时补一次交付。
 try {
   const completed = service.reconcileCompletion()
   if (completed > 0) console.log(`[lodge] 收到结果后补交付：${completed} 轮`)

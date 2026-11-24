@@ -341,13 +341,11 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       : h(BodySwapDialog, {
         key: swapId,
         member: members.find(item => item.id === swapId) ?? { id: swapId, name: '成员', body: {} },
-        modelOnly: kind.id === 'studio',
         canRemove: kind.id !== 'studio' && !['planner', 'lead'].includes(
           members.find(item => item.id === swapId)?.roleKind
             ?? members.find(item => item.id === swapId)?.role,
         ),
         engines: state.engines ?? [],
-        features: state.features ?? null,
         requiresGate: kind.readOnly !== true && (members.find(item => item.id === swapId)?.permissions?.exec === true),
         busy: swapBusy,
         error: swapError,

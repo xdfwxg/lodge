@@ -689,7 +689,7 @@ test('an exhausted rework budget asks the human instead of reworking again', () 
   assert.ok(store.events.some(event => event.type === 'handoff.human'))
 })
 
-test('a review request is not @-ed twice when the executor already named the verifier', async () => {
+test('a review request always gets one system handoff, even if the executor wrote @', async () => {
   const room = makeRoom({ verifiers: ['verifier'] })
   const store = fakeStore(room)
   store.appendMessage('room-1', {
@@ -717,7 +717,7 @@ test('a review request is not @-ed twice when the executor already named the ver
   assert.deepEqual(sent.map(item => item.memberId), ['verifier'])
   assert.equal(store.messages.filter(message => (
     message.meta?.kind === 'handoff' && message.meta?.reason === 'review'
-  )).length, 0)
+  )).length, 1)
 })
 
 test('a verifier reply without a verdict is nudged, then expires the review', async () => {
@@ -1285,7 +1285,16 @@ test('a single worker stage sends the prompt and posts the handoff projection', 
     capabilities: () => ({ candidate: false, isolation: 'worktree' }),
     head: () => '',
   })
-  const room = makeRoom({ workspace: { provider: 'test-live-stage' } })
+  const room = makeRoom({
+    workspace: { provider: 'test-live-stage' },
+    seatNames: { lead: '规划师', executor: '执行官', verifier: '验收员' },
+    seatSpecs: [
+      { id: 'lead', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+      { id: 'verifier', name: '验收员', role: 'verifier' },
+    ],
+    seatBots: { lead: 'bot-lead', executor: 'bot-exec', verifier: 'bot-ver' },
+  })
   const store = fakeStore(room)
   const prompts = []
   const starter = createStageStarter({
@@ -1309,8 +1318,8 @@ test('a single worker stage sends the prompt and posts the handoff projection', 
   assert.equal(prompts[0].memberId, room.workers[0])
   assert.match(prompts[0].prompt, /验收命令：`true`/)
   assert.match(prompts[0].prompt, /阶段 1/)
-  const handoff = store.messages.find(message => message.kind === 'handoff')
-  assert.match(handoff.text, /@执行官 第 1 步「impl」交给你了/)
+  const handoff = store.messages.find(message => message.meta?.kind === 'handoff')
+  assert.match(handoff.text, /@执行官 第 1 步「impl」交给你/)
   assert.equal(store.readAssignments('room-1')[0].status, 'sent')
 })
 

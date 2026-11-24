@@ -42,7 +42,7 @@ test('the sample room is a finished studio that shows the whole handoff', () => 
     assert.equal(room.stages.every(stage => stage.state === 'passed'), true)
     assert.match(room.plan.prose, /我分两步/)
     assert.ok(messages.some(message => message.kind === 'plan' && message.authorId === 'planner'))
-    assert.ok(messages.some(message => message.kind === 'handoff' && message.authorId === 'executor'))
+    assert.ok(messages.some(message => message.meta?.kind === 'handoff' && message.authorId === 'executor'))
     assert.ok(messages.some(message => message.kind === 'verdict' && message.meta?.pass === true))
   } finally {
     rmSync(dataDir, { recursive: true, force: true })

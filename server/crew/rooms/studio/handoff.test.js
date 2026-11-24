@@ -56,7 +56,7 @@ const setup = (initial = room(), deliver = null) => {
   return { handoff, store, messages, events, sent, room: () => current }
 }
 
-test('a handoff writes a work-turn card, wakes the member and moves its cursor', async () => {
+test('a handoff writes an assignment, wakes the member and writes no room message', async () => {
   const ctx = setup()
   const sent = await ctx.handoff.trigger({
     room: ctx.room(),
@@ -77,8 +77,7 @@ test('a handoff writes a work-turn card, wakes the member and moves its cursor',
   assert.equal(ctx.sent[0].options.from, 'lead')
   assert.equal(ctx.sent[0].options.sendId, sent.sendId)
   assert.match(ctx.sent[0].options.sendId, /^a-[a-f0-9]{32}$/)
-  assert.equal(ctx.messages[0].kind, 'handoff')
-  assert.equal(ctx.messages[0].meta.assignmentId, sent.id)
+  assert.equal(ctx.messages.length, 0)
   assert.equal(ctx.store.readAssignment(sent.id).brief.done[0], '测试通过')
   assert.deepEqual(ctx.events.map(event => event.type), ['assignment.created', 'assignment.sent'])
 })
@@ -156,11 +155,7 @@ test('a retry after a transport failure reopens the same assignment', async () =
   assert.deepEqual(ctx.events.map(event => event.type), [
     'assignment.created', 'assignment.failed', 'assignment.sent',
   ])
-  const messages = ctx.store.readMessages().filter(message => message.kind === 'handoff')
-  assert.equal(messages.length, 1)
-  assert.equal(messages[0].id, failed.messageId)
-  assert.equal(messages[0].meta.status, 'sent')
-  assert.equal(messages[0].meta.error, null)
+  assert.equal(ctx.store.readMessages().length, 0)
 })
 
 test('a work failure re-dispatches as a new beat, not a delivery retry', async () => {
@@ -206,5 +201,50 @@ test('a delivered assignment is not woken twice', async () => {
   const second = await ctx.handoff.trigger(params)
   assert.equal(second.status, 'reported')
   assert.equal(ctx.sent.length, 1)
-  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages.length, 0)
+})
+
+test('a second rework beat reaches the executor even after the first one reported', async () => {
+  const ctx = setup()
+  const params = {
+    room: ctx.room(),
+    stage: ctx.room().stages[0],
+    index: 0,
+    from: 'lead',
+    to: 'worker',
+    reason: 'rework',
+    prompt: '按验收意见重做。',
+    acceptance: 'npm test',
+    rework: true,
+    nonce: 'rework-1',
+  }
+  const first = await ctx.handoff.trigger(params)
+  ctx.store.updateAssignment(first.id, assignment => {
+    assignment.status = 'reported'
+    return true
+  })
+  const second = await ctx.handoff.trigger({ ...params, nonce: 'rework-2' })
+  assert.equal(ctx.sent.length, 2)
+  assert.notEqual(second.id, first.id)
+  assert.equal(ctx.store.readAssignments('room-1').length, 2)
+})
+
+test('replaying the same rework beat stays idempotent', async () => {
+  const ctx = setup()
+  const params = {
+    room: ctx.room(),
+    stage: ctx.room().stages[0],
+    index: 0,
+    from: 'lead',
+    to: 'worker',
+    reason: 'rework',
+    prompt: '按验收意见重做。',
+    acceptance: 'npm test',
+    rework: true,
+    nonce: 'rework-1',
+  }
+  const first = await ctx.handoff.trigger(params)
+  const again = await ctx.handoff.trigger(params)
+  assert.equal(ctx.sent.length, 1)
+  assert.equal(again.id, first.id)
 })

@@ -11,59 +11,8 @@ import { createRoundLifecycleStore, createRoundStore } from './store/rounds.js'
 import { createProjectStore } from './store/projects.js'
 import { createAssignmentStore } from './store/assignments.js'
 import { createTimelineStore } from './store/timeline.js'
-import { clipText } from './message-search.js'
 
 export const SCHEMA_VERSION = 8
-
-// 版本迁移只做向前的一步；没有迁移路径的旧版本仍要求重置，避免猜数据。
-const LEGACY_ROUND_FIELDS = ['mergeResolved', 'advisorShadow', 'previews', 'reviewRetriedAt', 'stageDiagnostics']
-
-const MIGRATIONS = {
-  4: db => db.exec('CREATE INDEX IF NOT EXISTS messages_room_seq ON messages(room_id, seq)'),
-  // 旧版把轮次字段写在房间 payload 里；工作室房间的轮次字段全部删掉，
-  // 聊天室的轮次概念不同，只清这五个确实属于工作室轮次的字段。
-  5: db => {
-    const update = db.prepare('UPDATE room SET payload = ? WHERE id = ?')
-    for (const row of db.prepare('SELECT id, payload FROM room').all()) {
-      const room = JSON.parse(row.payload)
-      const fields = room.roomType === 'studio' && (room.activeRoundId ?? room.lastRoundId ?? null) !== null
-        ? ROUND_FIELDS
-        : LEGACY_ROUND_FIELDS
-      for (const field of fields) delete room[field]
-      update.run(JSON.stringify(room), row.id)
-    }
-  },
-  // 7 → 8：给房间历史建 FTS5 索引；中文按三字滑窗检索，问答和证据都能被找到。
-  7: db => {
-    db.exec(MESSAGE_FTS_SQL)
-    const insert = db.prepare('INSERT INTO message_fts (text, room_id, message_id, author_id, ts) VALUES (?, ?, ?, ?, ?)')
-    for (const row of db.prepare('SELECT id, room_id, payload FROM messages').all()) {
-      let message = null
-      try { message = JSON.parse(row.payload) } catch { continue }
-      if (message?.kind === 'activity' || typeof message?.text !== 'string' || message.text.trim() === '') continue
-      insert.run(clipText(message.text), row.room_id, row.id, String(message.authorId ?? ''), Number(message.ts) || Date.now())
-    }
-  },
-  // 旧版用“当前轮”给到达的消息归轮，迟到的上一轮消息会落进下一轮；按消息时间重新归一次。
-  6: db => {
-    const update = db.prepare('UPDATE messages SET work_round_id = ? WHERE id = ?')
-    for (const roomRow of db.prepare('SELECT id, payload FROM room').all()) {
-      const room = JSON.parse(roomRow.payload)
-      if (room.roomType !== 'studio') continue
-      const rounds = db.prepare('SELECT id, payload FROM work_round WHERE room_id = ? ORDER BY ordinal').all(room.id)
-        .map(row => ({ id: row.id, startedAt: JSON.parse(row.payload).startedAt }))
-        .filter(round => Number.isFinite(round.startedAt))
-      if (rounds.length === 0) continue
-      for (const messageRow of db.prepare('SELECT id, payload FROM messages WHERE room_id = ?').all(room.id)) {
-        const message = JSON.parse(messageRow.payload)
-        if (!Number.isFinite(message.ts)) continue
-        let chosen
-        for (const round of rounds) if (message.ts >= round.startedAt) chosen = round.id
-        if (chosen !== undefined) update.run(chosen, messageRow.id)
-      }
-    }
-  },
-}
 
 // 房间历史的全文索引：三字滑窗对中文有效，英文按词也能命中。
 const MESSAGE_FTS_SQL = `
@@ -171,21 +120,10 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
       db.close()
       throw new Error(`数据库版本 ${version} 高于当前模型 ${SCHEMA_VERSION}；请升级应用`)
     }
+    // 旧数据不迁移：版本不一致就重建，避免同一份状态有两套读法。
     if (version < SCHEMA_VERSION) {
-      if (version < 4) {
-        db.close()
-        throw new Error(`数据库版本 ${version} 没有迁移路径；运行 npm run data:reset 重建本地数据`)
-      }
-      db.exec('BEGIN IMMEDIATE')
-      try {
-        for (let at = version; at < SCHEMA_VERSION; at += 1) MIGRATIONS[at]?.(db)
-        db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
-        db.exec('COMMIT')
-      } catch (error) {
-        db.exec('ROLLBACK')
-        db.close()
-        throw error
-      }
+      db.close()
+      throw new Error(`数据库版本 ${version} 低于当前模型 ${SCHEMA_VERSION}；运行 npm run data:reset 重建本地数据`)
     }
   }
   db.exec(SCHEMA_SQL)
@@ -260,7 +198,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     return room
   }
 
-  const readRooms = () => db.prepare("SELECT payload, version FROM room WHERE id <> 'dispatch' ORDER BY rowid").all()
+  const readRooms = () => db.prepare('SELECT payload, version FROM room ORDER BY rowid').all()
     .map(row => composeRoomView({ ...JSON.parse(row.payload), version: row.version }))
 
   const roundIdForRead = roomId => {

@@ -14,12 +14,14 @@ const room = (over = {}) => normalizeTestRoom({
   demo: false,
   stages: [{ title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
   verifiers: ['v1', 'v2'],
-  seatNames: { v1: '验收一', v2: '验收二' },
+  seatNames: { lead: '规划师', worker: '执行官', v1: '验收一', v2: '验收二' },
   seatSpecs: [
-    { id: 'v1', role: 'verifier' },
-    { id: 'v2', role: 'verifier' },
+    { id: 'lead', name: '规划师', role: 'lead' },
+    { id: 'worker', name: '执行官', role: 'worker' },
+    { id: 'v1', name: '验收一', role: 'verifier' },
+    { id: 'v2', name: '验收二', role: 'verifier' },
   ],
-  seatBots: { v1: 'bot-v1', v2: 'bot-v2' },
+  seatBots: { lead: 'bot-lead', worker: 'bot-worker', v1: 'bot-v1', v2: 'bot-v2' },
   workers: ['worker'],
   usage: {},
   ...over,
@@ -191,7 +193,9 @@ test('a rejection cancels the remaining verifier round', async () => {
   await turns.requestReview(0)
   turns.captureTurn({ turnId: 't1', reply: 'REJECT\nno', toolCalls: 1 }, 'bot-v1')
   assert.equal(turns.busyReview(), false)
-  assert.match(messages.at(-1).text, /@规划师 接手决定重做还是交给人/)
+  // 投影在投递成功之后才出现，等这一拍落完。
+  await new Promise(resolve => setImmediate(resolve))
+  assert.match(messages.at(-1).text, /@执行官 验收退回，按上面的意见重做第 1 步/)
   turns.captureTurn({ turnId: 't2', reply: 'PASS\nok', toolCalls: 1 }, 'bot-v2')
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
 })

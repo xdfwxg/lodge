@@ -85,7 +85,6 @@ export function App() {
     onClose: closeDialog,
     roomTypes: state.roomTypes ?? [],
     engines: state.engines ?? [],
-    features: state.features,
     seed,
     onRefresh: () => store.refresh(),
     startType,

@@ -1,22 +1,13 @@
 import { createElement as h, useId } from 'react'
 import { IntakeSection } from './intake-section.js'
-import { VerifyChoice } from './verify-choice.js'
 
-export const gateCardState = ({
-  needsReview,
-  reviewed,
-  verify = 'manual',
-  acceptance = '',
-  plannedAcceptance = false,
-}) => {
-  const missingCommand = verify === 'test' && acceptance.trim() === '' && plannedAcceptance !== true
-  const ready = (!needsReview || reviewed) && !missingCommand
+// 只有一处需要人拍板：分歧看没看过。验收方式由规划师在方案里定。
+export const gateCardState = ({ needsReview, reviewed }) => {
+  const ready = !needsReview || reviewed
   return {
     ready,
-    status: ready ? '可以开工' : needsReview && !reviewed ? '有分歧' : '还差一条检查',
-    pendingText: ready
-      ? null
-      : needsReview && !reviewed ? '先确认这些分歧，再开工。' : '填一条检查后再开工。',
+    status: ready ? '可以开工' : '有分歧',
+    pendingText: ready ? null : '先确认这些分歧，再开工。',
   }
 }
 
@@ -26,16 +17,10 @@ export function HandoffBriefReview({
   reviewed,
   onReviewed,
   sourceName = '',
-  verify = 'manual',
-  acceptance = '',
-  plannedAcceptance = false,
-  onVerifyMode = null,
-  onAcceptanceDraft = null,
 }) {
   const id = useId()
   const needsReview = handoffBrief.disagreements.length > 0
-  const { ready, status } = gateCardState({ needsReview, reviewed, verify, acceptance, plannedAcceptance })
-  const editable = typeof onVerifyMode === 'function'
+  const { ready, status } = gateCardState({ needsReview, reviewed })
   const sourceLabel = sourceName === '' ? '来自聊天室的交接简报' : `来自「${sourceName}」的交接简报`
   const detailSummary = `共识 ${handoffBrief.consensus.length} · 约束 ${handoffBrief.constraints.length} · 待办 ${handoffBrief.todos.length}`
   return h('div', { className: 'crew-card crew-handoff-review' },
@@ -62,18 +47,7 @@ export function HandoffBriefReview({
         : null,
       h('div', { className: 'crew-gate-check' },
         h('b', null, '开工后'),
-        editable
-          ? h(VerifyChoice, {
-            verifyMode: verify,
-            onVerifyMode,
-            acceptanceDraft: acceptance,
-            onAcceptanceDraft,
-          })
-          : verify === 'test'
-            ? plannedAcceptance
-              ? null
-              : h('p', { className: 'crew-field-hint' }, acceptance === '' ? '还没填检查' : `跑一条检查：${acceptance}`)
-            : h('p', { className: 'crew-field-hint' }, '验收方式由规划师在方案里定。')),
+        h('p', { className: 'crew-field-hint' }, '验收方式由规划师在方案里定。')),
       h('details', { className: 'crew-handoff-more' },
         h('summary', null, `完整交接简报 · ${detailSummary}`),
         h('div', { className: 'crew-handoff-more-body' },

@@ -51,7 +51,6 @@ npm run eval:rooms -- --baseline results/before.json
 
 ```bash
 npm run eval:rooms:nightly      # 3 次/题，结果写 results/nightly
-npm run eval:planning:nightly   # 3 次/规划题
 ```
 
 - 夜间门禁放在专用机器上，要求 Lodge 和基座都在运行；不要塞进每次提交的 `check:done`。

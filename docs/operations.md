@@ -165,7 +165,7 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 
 ## 评测
 
-- `npm run eval:planning` 评开工卡；`npm run eval:rooms` 评交付：真实建房、真实成员、真实验收，再由题库外的独立脚本核对产出。两者都调用真实模型，不进入 `npm test`。
+- `npm run eval:rooms` 评交付：真实建房、真实成员、真实验收，再由题库外的独立脚本核对产出。调用真实模型，不进入 `npm test`。
 - 固定题覆盖切图、改稿和弱检查下的验收；每条记通过、返工次数、墙钟和成本，可换引擎或模型交叉跑。
 - `--memory off,seeded` 对照「有没有工作区记忆」；`--baseline` 和上一次同题结果比通过率、返工、墙钟和成本。
 - `npm run eval:rooms -- --validate` 只检查题库：原样必须不通过。题库细节见 `evals/rooms/README.md`。

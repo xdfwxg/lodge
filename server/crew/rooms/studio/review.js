@@ -1,7 +1,7 @@
 import * as log from '../../log.js'
 import { randomUUID } from 'node:crypto'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { missingMentionsOf } from './relay-words.js'
+import { appendHandoffProjection } from './projection.js'
 import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT } from './turn-utils.js'
 import { DECISION_JSON_HINT, LIMITS, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
@@ -224,12 +224,22 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         })
         return true
       }
-      store.appendMessage(roomId, {
-        kind: 'system',
-        authorId: pending.verifier,
-        text: '全部验收员通过；@规划师 收尾。',
+      const passLead = leadMemberOf(room)?.id
+      appendHandoffProjection({
+        store,
+        roomId,
+        room,
+        from: pending.verifier,
+        targets: [passLead],
+        message: to => `全部验收员通过；@${to.map(id => memberDisplayName(room, id)).join('、@')} 收尾。`,
         // 收尾回执只进账本；结果卡就是这一轮的收尾，不再用一条系统气泡说一遍。
-        meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner', authorKind: 'system', show: false },
+        meta: {
+          stage: pending.stage,
+          reason: 'summary',
+          show: false,
+          // 一次验收轮次一条收尾；返工后再过也要有自己的一条。
+          dedupeKey: `summary:${pending.stage}:${pending.evidenceId ?? ''}:${passLead ?? ''}`,
+        },
       })
       const lead = leadMemberOf(room)?.id
       if (typeof lead === 'string' && lead !== '') {
@@ -248,8 +258,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             '请在群里用两三句话总结这一步的结果和下一步；不要改文件，也不要再派活。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n'),
-          visible: false,
-          deliver: true,
           acceptance: stage?.acceptance ?? '',
           parentAssignmentId: reviewAssignment?.id ?? null,
           nonce: String(pending.evidenceId ?? pending.verifier),
@@ -283,18 +291,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         })
         const parallel = relay.targets.length > 1
         const note = reason === '' ? '按验收意见重做这一步。' : reason
-        const targetNames = relay.targets.map(target => memberDisplayName(room, target))
-        if (parallel) {
-          // 并行重做的 @ 也只发一条，分发本身私下进各自副本。
-          store.appendMessage(roomId, {
-            kind: 'system',
-            authorId: pending.verifier,
-            text: `@${targetNames.join('、@')} 验收退回，按上面的意见重做第 ${pending.stage + 1} 步。`,
-            meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: relay.targets, authorKind: 'system' },
-          })
-        }
         // 返工账本要留下这一笔：预算计数和后续复核的 floor 都只认 rework。
-        store.appendMessage(roomId, {
+        const reworkNote = store.appendMessage(roomId, {
           kind: 'rework',
           authorId: 'system',
           text: '验收退回，执行官重做。',
@@ -305,12 +303,12 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             verdictId: verdictMessage.id,
           },
         })
-        for (const target of relay.targets) {
+        const deliveries = relay.targets.map(target => {
           const parent = latestDispatchAssignment(store, roomId, pending.stage, target)
           if (parent !== null) {
             transitionAssignment(store, parent.id, 'failed', { resultText: '验收退回，执行官重做' })
           }
-          void handoffTrigger({
+          return handoffTrigger({
             room,
             stage,
             index: pending.stage,
@@ -318,25 +316,35 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             to: target,
             reason: 'rework',
             prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
-            // @ 由系统写；退回理由已经在验收卡里，不再重复一整条。
-            message: parallel ? '' : `@${memberDisplayName(room, target)} 验收退回，按上面的意见重做。`,
-            visible: !parallel,
-            deliver: true,
             ...(parallel ? { privateRoom: true } : {}),
             acceptance: stage?.acceptance ?? '',
             rework: true,
             parentAssignmentId: parent?.id ?? null,
-          }).catch(error => {
+            nonce: reworkNote?.id ?? verdictMessage.id,
+          }).then(() => target).catch(error => {
             systemNotice({ store, roomId, text: `重做没能交给${memberDisplayName(room, target)}；待处理。`, error })
+            return null
           })
-        }
-      } else {
-        store.appendMessage(roomId, {
-          kind: 'system',
-          authorId: pending.verifier,
-          text: `验收退回了第 ${pending.stage + 1} 步；@规划师 接手决定重做还是交给人。`,
-          meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner', authorKind: 'system' },
         })
+        // 只 @ 真正收到重做任务的人：先送，再投影。
+        void Promise.all(deliveries).then(delivered => {
+          const targets = delivered.filter(Boolean)
+          if (targets.length === 0) return
+          appendHandoffProjection({
+            store,
+            roomId,
+            room,
+            from: pending.verifier,
+            targets,
+            message: to => `@${to.map(target => memberDisplayName(room, target)).join('、@')} 验收退回，按上面的意见重做第 ${pending.stage + 1} 步。`,
+            meta: {
+              stage: pending.stage,
+              reason: 'rework',
+              dedupeKey: `rework:${pending.stage}:${reworkNote?.id ?? verdictMessage.id}:${targets.join(',')}`,
+            },
+          })
+        })
+      } else {
         const lead = leadMemberOf(room)?.id
         if (typeof lead === 'string' && lead !== '') {
           // 只有重做预算用完、合并冲突或没有可执行官时才回到规划师/人。
@@ -361,11 +369,24 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
               '不要自己改文件，也不要自己验收。',
               INTERNAL_PROMPT_MARKER,
             ].join('\n'),
-            visible: false,
-            deliver: true,
             acceptance: stage?.acceptance ?? '',
             parentAssignmentId: reviewAssignment?.id ?? null,
             nonce: String(pending.evidenceId ?? pending.verifier),
+          }).then(() => {
+            // 先叫醒规划师，再在群里投影这一棒。
+            appendHandoffProjection({
+              store,
+              roomId,
+              room,
+              from: pending.verifier,
+              targets: [lead],
+              message: to => `验收退回了第 ${pending.stage + 1} 步；@${to.map(id => memberDisplayName(room, id)).join('、@')} 接手决定重做还是交给人。`,
+              meta: {
+                stage: pending.stage,
+                reason: 'decision',
+                dedupeKey: `decision:${pending.stage}:${verdictMessage.id}:${lead}`,
+              },
+            })
           }).catch(error => {
             systemNotice({ store, roomId, text: '没能叫醒规划师；稍后会自动再试。', error })
           })
@@ -464,18 +485,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidenceId: evidence.id,
       verifiers: targets,
     })
-    // 执行官自己最后一句已经 @ 了验收员就不再补一条；同一棒不 @ 两次。
-    const senderId = (Array.isArray(stage?.assignees) ? stage.assignees : [])
-      .find(id => workerIds(room).includes(id)) ?? workerIds(room)[0] ?? 'lodge'
-    const missing = missingMentionsOf({ room, messages, from: senderId, targets })
-    if (missing.length > 0) {
-      store.appendMessage(roomId, {
-        kind: 'system',
-        authorId: senderId,
-        text: `@${missing.map(verifier => memberDisplayName(room, verifier)).join('、@')} 第 ${stageIndex + 1} 步「${sanitizeUntrusted(stage.title, 120)}」结果好了，请复核。`,
-        meta: { kind: 'handoff', stage: stageIndex, from: senderId, to: missing, reason: 'review', authorKind: 'system' },
-      })
-    }
+    // 复核请求的 @ 由真正产出这份结果的人发出；没有产出人时退回这一步的执行者。
+    const evidenceAuthor = typeof evidence.authorId === 'string' && workerIds(room).includes(evidence.authorId)
+      ? evidence.authorId
+      : ''
+    const senderId = evidenceAuthor ||
+      (Array.isArray(stage?.assignees) ? stage.assignees : []).find(id => workerIds(room).includes(id)) ||
+      workerIds(room)[0] || 'lodge'
     // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
     shadowTask = shadowNeeded({ room, stage, evidence, manual, messages, stageIndex })
       ? recordShadowAdvice({
@@ -596,7 +612,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           to: verifier,
           reason: 'review',
           prompt,
-          visible: false,
           acceptance: stage.acceptance ?? '',
           evidence,
           verdict: outcome.verdicts?.at(-1) ?? null,
@@ -614,6 +629,23 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           text: `没能把复核请求发给${verifierName}；待处理。`,
         })
       }
+    }
+    // 只 @ 真正收到复核请求的验收员：先送，再投影。
+    const requested = [...nextRound.requests.keys()]
+    if (requested.length > 0) {
+      appendHandoffProjection({
+        store,
+        roomId,
+        room,
+        from: senderId,
+        targets: requested,
+        message: to => `@${to.map(verifier => memberDisplayName(room, verifier)).join('、@')} 第 ${stageIndex + 1} 步「${sanitizeUntrusted(stage.title, 120)}」结果好了，请复核。`,
+        meta: {
+          stage: stageIndex,
+          reason: 'review',
+          dedupeKey: `review:${stageIndex}:${evidence.id}:${requested.join(',')}`,
+        },
+      })
     }
     if (nextRound.requests.size === 0) {
       round = null

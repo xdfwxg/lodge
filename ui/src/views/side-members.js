@@ -88,7 +88,7 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
           onClose?.()
           openBodyDialog(menu.memberId, room.id)
         }),
-      }, kind.id === 'studio' ? '换个模型' : '调整成员'),
+      }, '换个模型'),
       h('button', {
         type: 'button',
         role: 'menuitem',

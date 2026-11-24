@@ -41,6 +41,18 @@ export const json = (res, status, body) => {
   res.end(data)
 }
 
+// 响应已经开头（事件流、静态文件或下载）之后不能再写 JSON 头；
+// 这时只断掉这一条连接。否则二次 writeHead 会把整个进程带走。
+export const fail = (res, error) => {
+  const message = String(error?.message ?? error)
+  if (res.headersSent || res.writableEnded) {
+    if (!res.writableEnded) res.destroy?.()
+    return
+  }
+  if (message === '附件太大') return json(res, 413, { error: '附件太大' })
+  return json(res, 500, { error: message })
+}
+
 export const respond = (res, result) => {
   if (result.ok === false) {
     return json(res, STATUS[result.reason] ?? 500, {
@@ -333,8 +345,6 @@ export const createHttpHandler = ({
     if (req.method !== 'GET') return json(res, 405, { error: '只接受 GET' })
     return serveStatic(root, req, res, path)
   } catch (error) {
-    const message = String(error?.message ?? error)
-    if (message === '附件太大') return json(res, 413, { error: '附件太大' })
-    return json(res, 500, { error: message })
+    return fail(res, error)
   }
 }

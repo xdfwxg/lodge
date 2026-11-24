@@ -737,18 +737,27 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 .crew-process-chevron{flex:none;display:grid;place-items:center;width:16px;height:16px;border:1px solid var(--bt-line-2);border-radius:4px;color:var(--bt-ink-4);font-size:14px;line-height:1;transition:transform .15s}
 .crew-process[open] .crew-process-chevron{transform:rotate(90deg)}
 .crew-process-body{margin-top:6px;padding-left:0}
-.crew-process-body ul{margin:0;padding:0;list-style:none}
 .crew-process-meta{margin:6px 0 0;color:var(--bt-ink-4);font-size:var(--bt-text-helper)}
 @keyframes crew-process-pulse{0%,100%{opacity:.35}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.crew-process-live{animation:none;opacity:.8}}
-/* 工具调用行：过程组和诊断共用。 */
-.crew-tool-row{display:flex;align-items:center;gap:8px;min-height:26px;padding:3px 0;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
-.crew-tool-kind{flex:none;display:grid;place-items:center;width:18px;height:18px;border-radius:5px;background:var(--bt-shade-2);color:var(--bt-ink-3);font-size:11px;font-weight:600}
+/* 工具调用是一张表：类型、做了什么、时间、结果各占一列，行与行对齐。 */
+.crew-tool-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
+.crew-tool-table caption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.crew-tool-col-kind{width:26px}
+.crew-tool-col-time{width:52px}
+.crew-tool-col-state{width:34px}
+.crew-tool-row td{padding:4px 0;border-top:1px solid var(--bt-line);vertical-align:middle}
+.crew-tool-row:first-child td{border-top:0}
+.crew-tool-cell-kind{padding-right:8px}
+.crew-tool-cell-label{padding-right:8px}
+.crew-tool-cell-time{text-align:right;padding-right:8px}
+.crew-tool-cell-state{text-align:right}
+.crew-tool-kind{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;background:var(--bt-shade-2);color:var(--bt-ink-3);font-size:11px;font-weight:600}
 .crew-tool-kind[data-kind=write]{background:var(--bt-warning-wash);color:var(--bt-warning-text)}
 .crew-tool-kind[data-kind=gate]{background:var(--bt-success-wash);color:var(--bt-success-text)}
-.crew-tool-label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink)}
-.crew-tool-time{flex:none;color:var(--bt-ink-4);font-variant-numeric:tabular-nums}
-.crew-tool-state{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-success)}
+.crew-tool-label{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--bt-ink)}
+.crew-tool-time{color:var(--bt-ink-4);font-variant-numeric:tabular-nums}
+.crew-tool-state{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--bt-success)}
 .crew-tool-state[data-ok=false]{width:auto;height:auto;border-radius:0;background:none;color:var(--bt-danger-text);font-weight:600}
 .crew-decision{display:flex;flex-direction:column;border:1px solid var(--bt-line-2);border-radius:16px;background:var(--bt-card);overflow:hidden}
 .crew-decision[data-room-decision]{border-color:var(--bt-line-accent)}
@@ -969,26 +978,6 @@ details[open]>summary::before{transform:rotate(90deg)}
 .crew-icon-action:hover{background:var(--bt-hover);color:var(--bt-ink)}
 .crew-icon-action:focus-visible{outline:2px solid var(--bt-accent);outline-offset:1px}
 @media (hover:none){.crew-hover-actions{opacity:1;pointer-events:auto}}
-.crew-mind-presets{display:flex;flex-wrap:wrap;gap:6px}
-.crew-mind-preset{height:30px;padding:0 12px;border:1px solid var(--bt-line-2);border-radius:999px;background:var(--bt-card);color:var(--bt-ink-2);font:inherit;font-size:var(--bt-text-label);cursor:pointer}
-.crew-mind-preset:hover{background:var(--bt-hover);color:var(--bt-ink)}
-.crew-mind-preset[data-active]{border-color:var(--bt-accent);background:var(--bt-accent-wash);color:var(--bt-accent);font-weight:600}
-.crew-mind-raw{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--bt-line-2);border-radius:8px;background:var(--bt-shade-1);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-label);line-height:1.6;resize:vertical;outline:none}
-.crew-mind-raw::placeholder{color:var(--bt-ink-3)}
-.crew-mind-raw:focus{border-color:var(--bt-accent);background:var(--bt-card);color:var(--bt-ink);box-shadow:0 0 0 3px var(--bt-accent-wash)}
-.crew-mind-raw[data-readonly]{border-style:dashed;background:var(--bt-card);color:var(--bt-ink-2);cursor:default;resize:none}
-.crew-mind-raw[data-readonly]:focus{border-color:var(--bt-line-2);background:var(--bt-card);box-shadow:none}
-.crew-capability{display:flex;flex-direction:column}
-.crew-capability-head{display:flex;align-items:baseline;justify-content:space-between;padding:0 0 8px;border-bottom:1px solid var(--bt-line-2)}
-.crew-capability-head b{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
-.crew-capability-row{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--bt-line-2);cursor:text}
-.crew-capability-row:last-child{border-bottom:0;padding-bottom:0}
-.crew-capability-label{font-size:var(--bt-text-label);color:var(--bt-ink-3)}
-.crew-capability-input{height:24px;min-width:0;padding:0;border:0;background:transparent;color:var(--bt-ink);font:inherit;font-size:var(--bt-text-label);line-height:24px;outline:none}
-.crew-capability-input::placeholder{color:var(--bt-ink-3)}
-.crew-capability-input:focus{box-shadow:0 1px 0 var(--bt-accent)}
-.crew-capability-input:disabled{opacity:.55;cursor:default}
-
 /* 侧栏底部的“你”：本地身份，不是登录。 */
 .crew-side-me{display:flex;align-items:center;gap:7px;margin-top:6px;margin-bottom:3px;padding:8px 10px;border:0;border-radius:10px;background:transparent;color:var(--bt-ink-2);font:inherit;font-size:15px;line-height:20px;cursor:pointer;text-align:left}
 .crew-side-me:hover{background:var(--bt-hover);color:var(--bt-ink)}
@@ -1036,10 +1025,3 @@ body[data-side=rail] .crew-side-me{justify-content:center;padding:8px 0}
 .crew-profile-foot{border-top:0;padding:14px 20px 18px;background:transparent}
 
 /* The only new-room entry: a small popover, not another full surface. */
-
-.crew-capability-readonly .crew-capability-row{cursor:default;align-items:flex-start}
-.crew-capability-note{font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
-.crew-capability-chips{display:flex;flex-wrap:wrap;gap:4px;padding-top:1px}
-.crew-capability-chips code{padding:1px 6px;border-radius:5px;background:var(--bt-shade-3);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:18px}
-.crew-capability-chips code.crew-capability-system{background:var(--bt-accent-wash);color:var(--bt-ink-2);font-weight:500}
-.crew-capability-empty{font-size:var(--bt-text-helper);color:var(--bt-ink-3);line-height:18px}

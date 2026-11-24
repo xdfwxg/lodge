@@ -77,7 +77,7 @@ test('a pass with no action does not leave an empty reason fold', () => {
   assert.doesNotMatch(html, /理由/)
 })
 
-test('a system handoff is spoken by its sender, not by the system', () => {
+test('a system handoff is a chain line, not the sender speaking', () => {
   const room = {
     id: 'room-1',
     messages: [],
@@ -102,8 +102,8 @@ test('a system handoff is spoken by its sender, not by the system', () => {
     onAccept: () => {},
     onStageAccept: () => {},
   }))
-  assert.match(html, /crew-msg-chat/)
-  assert.match(html, /规划师/)
+  assert.match(html, /data-chain="handoff"/)
   assert.match(html, /@执行官/)
-  assert.doesNotMatch(html, /crew-process-line/)
+  assert.doesNotMatch(html, /crew-msg-chat/)
+  assert.doesNotMatch(html, /crew-speaker/)
 })

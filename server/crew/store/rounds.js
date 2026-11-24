@@ -99,7 +99,7 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       room.idle = false
       room.noProgress = 0
       room.pauseReason = null
-      // 这些字段已经属于轮次；旧版房间 payload 里如果还留着，清掉。
+      // 这些字段属于轮次，房间 payload 里不能留。
       delete room.advisorShadow
       delete room.previews
       delete room.reviewRetriedAt

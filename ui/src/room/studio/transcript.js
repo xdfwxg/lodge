@@ -26,7 +26,6 @@ const isVisibleNotice = message => (
 
 // 只有阶段回执留在后台账本；交接是谁交给谁，属于主时间线，不能藏。
 const isProcessMessage = message => (
-  message?.kind === 'dispatch' ||
   message?.kind === 'stage_conclusion' ||
   (message?.kind === 'system' && message.meta?.kind === 'stage')
 )

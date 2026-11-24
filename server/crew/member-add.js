@@ -62,14 +62,9 @@ export const createMemberAdd = ({ store, engine, emit, attachMember, workspace, 
 
     const template = membersFor('delivery-triad').find(member => member.role === role)
     const id = uniqueId(room, role)
-    const verifierRefs = (room.members ?? [])
-      .filter(member => (member.roleKind ?? member.role) === 'verifier')
-      .map(member => `@${member.name}`)
-      .join('、') || '@验收员'
     const defaultPrompt = template.prompt
       .replaceAll('你是执行官', `你是${name}`)
       .replaceAll('你是验收员', `你是${name}`)
-      .replaceAll('@验收员', verifierRefs)
     const { spec: bodySpec, error: specError } = normalizeBodySpec({
       input: { prompt: body.prompt, skills: body.skills, mcp: body.mcp },
       fallback: { prompt: defaultPrompt, skills: template.skills, mcp: template.mcp },

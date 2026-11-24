@@ -8,12 +8,24 @@ import { memberDisplayName } from '../../member-labels.js'
 import { workspaceOf } from './workspace.js'
 import { studioWorkerPrompt } from './prompts.js'
 import { systemNotice } from '../../notices.js'
-import { missingMentionsOf } from './relay-words.js'
+import { appendHandoffProjection } from './projection.js'
 import { historyBriefOf } from './history-brief.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { humanLabelOf } from '../../human-name.js'
 import { usageBudgetExceeded } from '../../../../shared/usage.js'
 import { beginWriteGuard } from '../../workspace-guard.js'
+
+// 重做的“这一拍”由最近一条重做消息标识；同一拍重放幂等，新一拍必须重新派发。
+const reworkBeatOf = (store, roomId, stageIndex) => {
+  const messages = store.readMessages(roomId)
+  for (let at = messages.length - 1; at >= 0; at -= 1) {
+    const message = messages[at]
+    if (message.kind === 'rework' && (message.meta?.stage ?? 0) === stageIndex && typeof message.id === 'string') {
+      return message.id
+    }
+  }
+  return ''
+}
 
 export const createStageStarter = ({ store, roomId, emit, handoff = null, sendToMember = null, askPlanner = null, integrate, enqueue, timeoutMs = PARALLEL_TIMEOUT }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember?.(to, prompt))
@@ -194,6 +206,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     }
     if (assignees.length === 0) throw new Error('这次分配没有可执行的成员')
     const parentAssignment = rework ? latestDispatchAssignment(store, roomId, index) : null
+    const reworkBeat = rework ? reworkBeatOf(store, roomId, index) : ''
     const workspaceCaps = workspaceOf(room).capabilities()
     if (assignees.length > 1 && workspaceCaps.merge !== true) {
       store.appendMessage(roomId, {
@@ -265,8 +278,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
 
     if (!parallel) {
       const worker = assignees[0]
-      // 交接 @ 由系统写；模型只写名字，不写 @。
-      const missing = missingMentionsOf({ room, messages: store.readMessages(roomId), from, targets: [worker] })
       await handoffTrigger({
         room,
         stage,
@@ -275,13 +286,23 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         to: worker,
         reason: rework ? 'rework' : 'dispatch',
         prompt: promptFor(worker),
-        message: '',
-        visible: missing.length > 0,
-        // 任务总是由系统送到成员手里，不靠模型在群里 @ 得多准。
-        deliver: true,
         acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
         rework,
         parentAssignmentId: parentAssignment?.id ?? null,
+        nonce: reworkBeat,
+      })
+      appendHandoffProjection({
+        store,
+        roomId,
+        room,
+        from,
+        targets: [worker],
+        message: to => `@${to.map(id => memberDisplayName(room, id)).join('、@')} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你。`,
+        meta: {
+          stage: index,
+          reason: rework ? 'rework' : 'dispatch',
+          dedupeKey: `dispatch:${room.activeRoundId ?? room.workRound?.id ?? ''}:${index}:${worker}:${reworkBeat || 'dispatch'}`,
+        },
       })
       watchStageTimeout(index)
       return
@@ -316,16 +337,6 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       }
     }
 
-    // 群里的交接只有一条：所有执行官放在同一句里 @，分发本身私下送进各自副本。
-    const missing = missingMentionsOf({ room, messages: store.readMessages(roomId), from, targets: assignees })
-    if (missing.length > 0) {
-      store.appendMessage(roomId, {
-        kind: 'system',
-        authorId: from,
-        text: `@${missing.map(worker => memberDisplayName(room, worker)).join('、@')} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你们，各自在自己的副本里完成。`,
-        meta: { kind: 'handoff', stage: index, from, to: missing, authorKind: 'system' },
-      })
-    }
     // 并行派发逐个送进成员自己的工作副本；群里的 @ 只是投影，不能靠它唤醒，
     // 否则基座会让所有成员在同一个房间目录里干活，后写的直接覆盖先写的。
     const settled = await Promise.allSettled(assignees.map(worker => handoffTrigger({
@@ -336,14 +347,35 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       to: worker,
       reason: rework ? 'rework' : 'dispatch',
       prompt: promptFor(worker),
-      visible: false,
-      deliver: true,
       acceptance: typeof stage.acceptance === 'string' ? stage.acceptance : '',
       rework,
       parentAssignmentId: parentAssignment?.id ?? null,
+      nonce: reworkBeat,
       context: { base: stageBase, parallel: true },
       privateRoom: true,
     })))
+    // 只 @ 真正收到任务的人：先送，再投影。
+    const delivered = assignees.filter((worker, at) => settled[at].status === 'fulfilled')
+    if (delivered.length > 0) {
+      appendHandoffProjection({
+        store,
+        roomId,
+        room,
+        from,
+        targets: delivered,
+        message: to => {
+          const names = to.map(worker => memberDisplayName(room, worker)).join('、@')
+          return to.length > 1
+            ? `@${names} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你们，各自在自己的副本里完成。`
+            : `@${names} 第 ${index + 1} 步「${sanitizeUntrusted(stage.title, 120)}」交给你。`
+        },
+        meta: {
+          stage: index,
+          reason: rework ? 'rework' : 'dispatch',
+          dedupeKey: `dispatch:${room.activeRoundId ?? room.workRound?.id ?? ''}:${index}:${delivered.join(',')}:${reworkBeat || 'dispatch'}`,
+        },
+      })
+    }
     const failed = settled
       .map((result, at) => (result.status === 'rejected' ? assignees[at] : null))
       .filter(Boolean)

@@ -54,7 +54,7 @@ export const reconcileRounds = ({ store, emit = () => {} }) => {
 }
 
 // 已经走完所有阶段、只剩收尾交接的轮次，在启动时补一次交付；
-// 这修的是旧版本里被 summary 交接卡住、但结果其实已经好了的房间。
+// 崩溃或收尾失败留下的房间也靠这里回到终态。
 export const reconcileCompletions = ({ store, completeRoom }) => {
   let completed = 0
   for (const room of store.readRooms()) {

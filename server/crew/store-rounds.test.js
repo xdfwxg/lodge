@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { DatabaseSync } from 'node:sqlite'
 import { SCHEMA_VERSION, createStore } from './store.js'
 
 const temp = () => {
@@ -381,29 +380,3 @@ test('a message that started in the previous round stays in the previous round',
   }
 })
 
-test('a version 6 database realigns late messages by their own time', () => {
-  const { dir, store } = temp()
-  try {
-    store.writeRoom({
-      id: 'room-1', name: '工作室', roomType: 'studio', state: 'idle',
-      activeRoundId: null, lastRoundId: null, members: [],
-    })
-    store.startWorkRound({ roomId: 'room-1', round: { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'active', startedAt: 1000, goal: '第一步', stages: [] } })
-    store.finishWorkRound({ roomId: 'room-1', roundId: 'round-1', status: 'completed' })
-    store.startWorkRound({ roomId: 'room-1', round: { id: 'round-2', roomId: 'room-1', ordinal: 2, status: 'active', startedAt: 3000, goal: '第二步', stages: [] } })
-    store.db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
-      .run(1, 'late-1', 'room-1', 'round-2', JSON.stringify({ id: 'late-1', roomId: 'room-1', ts: 2500, kind: 'chat', text: '上一轮的收尾' }))
-    store.db.close()
-
-    const old = new DatabaseSync(join(dir, 'crew.db'))
-    old.exec('PRAGMA user_version = 6')
-    old.close()
-
-    const migrated = createStore({ dataDir: dir })
-    const row = migrated.db.prepare("SELECT work_round_id FROM messages WHERE id = 'late-1'").get()
-    assert.equal(row.work_round_id, 'round-1')
-    migrated.db.close()
-  } finally {
-    rmSync(dir, { recursive: true, force: true })
-  }
-})

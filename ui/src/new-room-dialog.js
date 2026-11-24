@@ -35,7 +35,6 @@ function NewRoomDialog({
   onCreate,
   roomTypes = [],
   engines = [],
-  features = null,
   seed = null,
   onRefresh = null,
   startType = null,
@@ -45,14 +44,10 @@ function NewRoomDialog({
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const studioMembers = uiKindOfType('studio').defaultMembers
   const [roomType, setRoomType] = useState('studio')
-  const [shadowReview, setShadowReview] = useState(false)
-  const [autoDeliver, setAutoDeliver] = useState(false)
   const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [goal, setGoal] = useState('')
   const [nameDraft, setNameDraft] = useState('')
   const [repoPath, setRepoPath] = useState('')
-  const [acceptanceDraft, setAcceptanceDraft] = useState('')
-  const [verifyMode, setVerifyMode] = useState('manual')
   const [advanced, setAdvanced] = useState(false)
   const [handoffBrief, setHandoffBrief] = useState(null)
   const [handoffBriefReviewed, setHandoffBriefReviewed] = useState(false)
@@ -79,12 +74,9 @@ function NewRoomDialog({
     setGoal('')
     setNameDraft('')
     setMemberChoices([])
-    setShadowReview(false)
-    setAutoDeliver(false)
     setChatTurnLimit(6)
     resetLogin()
     setChatMembers(null)
-    setVerifyMode('manual')
     setAdvanced(false)
     setHandoffBrief(null)
     setHandoffBriefReviewed(false)
@@ -135,8 +127,6 @@ function NewRoomDialog({
     return engine?.models?.default || modelRowsFor(engine)[0]?.id || ''
   }
   const hasVerifier = studioMembers.some(member => member.role === 'verifier')
-  const verify = verifyMode
-  const acceptance = verifyMode === 'test' ? acceptanceDraft.trim() : ''
   const studioMissingVerifier = !isChat && roomKind.missingVerifier(hasVerifier)
   const roomTitle = (nameDraft.trim() || roomNameFromGoal(goal)).trim()
   const handoffGate = handoffBrief === null
@@ -144,8 +134,6 @@ function NewRoomDialog({
     : gateCardState({
       needsReview: (handoffBrief.disagreements?.length ?? 0) > 0,
       reviewed: handoffBriefReviewed,
-      verify,
-      acceptance,
     })
   const gatePending = handoffGate?.pendingText ?? null
   // 成员、模型和检查都由规划师组队时决定；建房只要求目标、文件夹和可用模型。
@@ -200,10 +188,6 @@ function NewRoomDialog({
     if (next === roomType) return
     setRoomType(next)
     setMemberChoices([])
-    setAcceptanceDraft('')
-    setVerifyMode('manual')
-    setShadowReview(false)
-    setAutoDeliver(false)
     setAdvanced(false)
     setError(null)
   }
@@ -212,13 +196,9 @@ function NewRoomDialog({
     setGoal('')
     setNameDraft('')
     setMemberChoices([])
-    setShadowReview(false)
-    setAutoDeliver(false)
     setRoomType('studio')
     setChatTurnLimit(6)
     setChatMembers(null)
-    setAcceptanceDraft('')
-    setVerifyMode('manual')
     setAdvanced(false)
     setHandoffBrief(null)
     setHandoffBriefReviewed(false)
@@ -263,10 +243,6 @@ function NewRoomDialog({
       const result = await onCreate(goal.trim(), roomKind.buildRequest({
         name: roomTitle,
         repoPath: repoPath.trim(),
-        verify: verifyMode,
-        acceptance: verifyMode === 'test' ? acceptanceDraft.trim() : '',
-        shadowReview,
-        autoDeliver,
         handoffBrief,
         handoffBriefReviewed,
         sourceRoomId: seed?.sourceRoomId,
@@ -296,17 +272,11 @@ function NewRoomDialog({
     setChoices: setDirectChoices,
     engines,
     onRefresh,
-    features,
     loginBusyId,
     loginNote,
     onLogin: loginEngineFor,
     onInteraction: clearNote,
     onAdvanced: () => setAdvanced(true),
-    verifyMode,
-    shadowReview,
-    onShadowReview: setShadowReview,
-    autoDeliver,
-    onAutoDeliver: setAutoDeliver,
   }
 
   const goalField = h('div', { className: 'crew-field' },
@@ -331,7 +301,7 @@ function NewRoomDialog({
       type: 'text',
       maxLength: 60,
       placeholder: roomNameFromGoal(goal) || '自动起名',
-      value: nameDraft,
+      value: nameDraft.trim() === '' ? (roomNameFromGoal(goal) || '') : nameDraft,
       onChange: event => setNameDraft(event.target.value),
     }))
 
@@ -363,11 +333,8 @@ function NewRoomDialog({
         reviewed: handoffBriefReviewed,
         onReviewed: setHandoffBriefReviewed,
         sourceName: seed?.sourceName ?? '',
-        verify,
-        acceptance,
-        onVerifyMode: null,
-        onAcceptanceDraft: null,
       }),
+    nameField,
     workspaceField,
     repoPath.trim() === ''
       ? null
@@ -390,7 +357,6 @@ function NewRoomDialog({
     h('summary', null, '更多选项'),
     h('div', { className: 'crew-new-advanced-body' },
       h(Fragment, null,
-        nameField,
         roomKind.setupFields(setupProps)))),
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 

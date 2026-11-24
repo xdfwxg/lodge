@@ -3,7 +3,9 @@ import { roleKindOf } from '../roster.js'
 // 仅测试：把旧夹具字段一次性转成 room.members；产品代码不读这些字段。
 export const normalizeTestRoom = room => {
   const specs = Array.isArray(room?.seatSpecs) ? room.seatSpecs : []
-  if (specs.length === 0 && Array.isArray(room?.members) && room.members.length > 0 && typeof room.members[0] === 'object') return room
+  if (specs.length === 0 && Array.isArray(room?.members) && room.members.length > 0 && typeof room.members[0] === 'object') {
+    return { roomType: 'studio', ...room }
+  }
   const ids = Array.isArray(room?.members) ? room.members : []
   const members = specs.length > 0
     ? specs.map(spec => ({
@@ -27,6 +29,7 @@ export const normalizeTestRoom = room => {
       body: { kind: 'base', ...(room.seatBots?.[id] === undefined ? {} : { ref: room.seatBots[id] }), name: room.seatNames?.[id] ?? id },
     }))
   return {
+    roomType: 'studio',
     ...room,
     members,
     leadMemberId: room.leadMemberId ?? room.leadSeat ?? members.find(member => member.role === 'lead')?.id ?? members[0]?.id ?? null,

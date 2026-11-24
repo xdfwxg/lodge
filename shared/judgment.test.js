@@ -12,6 +12,31 @@ test('a leading pass is not turned into reject by a later word', () => {
   assert.equal(judgmentAnchorOf('verdict', '通过，没有失败'), 'pass')
 })
 
+test('a word that merely starts with a pass word is not a verdict', () => {
+  assert.equal(normalizeJudgment({ type: 'verdict', text: '通过率 98%，符合要求。' }).decision, 'reject')
+  assert.equal(judgmentAnchorOf('verdict', '通过率 98%，符合要求。'), null)
+  assert.equal(judgmentAnchorOf('verdict', '通过：符合要求'), 'pass')
+})
+
+test('decision option ids stay unique', () => {
+  const out = normalizeJudgment({
+    type: 'planner',
+    text: [
+      'REWORK',
+      '```json',
+      JSON.stringify({
+        reason: '两种改法',
+        options: [
+          { id: 'A', title: '接受', action: 'accept' },
+          { id: 'A', title: '返工', action: 'rework' },
+        ],
+      }),
+      '```',
+    ].join('\n'),
+  })
+  assert.deepEqual(out.options.map(option => option.id), ['A', 'A-2'])
+})
+
 test('the first line still decides pass or reject', () => {
   assert.equal(verdict('PASS\n看起来没问题').decision, 'pass')
   assert.equal(verdict('**REJECT**\n还缺 beta').decision, 'reject')
