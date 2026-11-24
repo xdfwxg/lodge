@@ -125,9 +125,9 @@ test('restoring an archived room returns it to idle, never reopens the round', a
   const result = await ctx.service.roomRequest('r1', 'archive', post({ archived: false }))
   assert.equal(result.ok, true)
   assert.equal(result.body.room.state, 'idle')
-  assert.equal(result.body.room.live, false)
+  assert.equal(result.body.room.live, true)
   assert.equal(result.body.room.archivedAt, null)
-  assert.deepEqual(attached, [])
+  assert.deepEqual(attached, ['r1'])
 })
 
 test('holding a member goes through the live runtime', async () => {

@@ -23,6 +23,7 @@ export const chatBriefOf = (messages = [], { round = null, limit = 400 } = {}) =
     const parts = [
       joinList(handoff.consensus) === '' ? '' : `共识：${joinList(handoff.consensus)}`,
       joinList(handoff.disagreements) === '' ? '' : `分歧：${joinList(handoff.disagreements)}`,
+      joinList(handoff.unknowns) === '' ? '' : `未定：${joinList(handoff.unknowns)}`,
       joinList(handoff.constraints) === '' ? '' : `约束：${joinList(handoff.constraints)}`,
     ].filter(Boolean)
     if (parts.length > 0) return clip(parts.join('；'), limit)

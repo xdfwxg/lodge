@@ -13,11 +13,12 @@ test('the last conclusion becomes the shared brief', () => {
     conclusion(1, '上一轮结论', {
       consensus: ['住上沿'],
       disagreements: ['要不要一直走'],
+      unknowns: ['夜里会不会挡光'],
       constraints: ['不能挡内容'],
       todos: ['画一版'],
     }),
   ], { round: 2 })
-  assert.equal(brief, '共识：住上沿；分歧：要不要一直走；约束：不能挡内容')
+  assert.equal(brief, '共识：住上沿；分歧：要不要一直走；未定：夜里会不会挡光；约束：不能挡内容')
 })
 
 test('a conclusion without handoffBrief still gives its text', () => {

@@ -50,6 +50,7 @@ const setup = () => {
           roomId: room.id,
           note,
           ...(Array.isArray(options.speakerIds) ? { speakers: options.speakerIds } : {}),
+          ...(options.resume === true ? { resume: true } : {}),
         })
       },
       send: async (roomId, text, options = {}) => {
@@ -130,16 +131,17 @@ test('the host pending state is visible while it reads the input', async () => {
   assert.equal(ctx.room().chat.hostThinking, false)
 })
 
-test('an interrupted discussion can restart the same round', () => {
+test('an interrupted discussion resumes the same round from its spoken turns', () => {
   const ctx = setup()
-  ctx.room().chat = { ...ctx.room().chat, phase: 'discussing', running: false, turns: 2, conclusionId: null }
+  ctx.room().chat = { ...ctx.room().chat, phase: 'discussing', running: false, interrupted: true, turns: 2, conclusionId: null }
   const result = ctx.chat.restart(ctx.room(), {})
   assert.equal(result.ok, true)
   assert.equal(ctx.room().chat.running, true)
-  assert.equal(ctx.room().chat.turns, 0)
+  assert.equal(ctx.room().chat.interrupted, false)
+  assert.equal(ctx.room().chat.turns, 2)
   assert.equal(ctx.room().chat.phase, 'discussing')
-  assert.equal(ctx.messages.at(-1).text, '刚才断了，这一轮重新开始了。')
-  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '' }])
+  assert.equal(ctx.messages.at(-1).text, '接着这一轮继续，已经说过的话都还在。')
+  assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '', resume: true }])
 })
 
 test('restart refuses when the room has already concluded', () => {
@@ -170,7 +172,20 @@ test('@everyone opens a round when the room is open', async () => {
   assert.equal(result.ok, true)
   assert.equal(ctx.messages[0].authorId, 'you')
   assert.equal(ctx.messages[0].text, '大家聊聊')
+  assert.equal(ctx.messages.filter(message => message.authorId === 'you').length, 1)
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '大家聊聊', speakers: ['a', 'b'] }])
+})
+
+test('a host-opened round does not write the user message twice', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲' }, { id: 'b', name: '乙' }]
+  ctx.setIntent({ action: 'round', reply: '那就开一轮。', speakers: ['a', 'b'] })
+  const result = await ctx.chat.handleMessage(ctx.room(), { text: '直接让大家说说', mentions: [] })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.messages.map(message => [message.authorId, message.text]), [
+    ['you', '直接让大家说说'],
+    ['lodge', '那就开一轮。'],
+  ])
 })
 
 test('@everyone waits while a round is already running', async () => {

@@ -4,7 +4,7 @@ import { memberOf } from '../../room-members.js'
 import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { parseHandoffBriefFromText } from '../../../../shared/handoff-brief.js'
-import { finalizeHostIntent, hostIntentPrompt, parseHostIntent, roundVetoed } from './host-intent.js'
+import { hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { chatBriefOf } from './brief.js'
 import { linkedRoomBriefs } from './linked.js'
 import { digestText, hostPrompt, speakerPrompt, stripRoundLead, wantsStructuredSummary } from './prompts.js'
@@ -194,6 +194,7 @@ export const createChatScheduler = ({
         turns: resumedFrom,
         conclusionId: null,
         running: true,
+        interrupted: false,
         speaker: '',
         // 不合法或不属于这一轮的 pending 在这里清掉，别把旧标记带进新一轮。
         pending: resumeMarker === null ? null : (current.chat?.pending ?? null),
@@ -203,8 +204,10 @@ export const createChatScheduler = ({
     })
 
     try {
+      let idle = true
+      let busyStopped = false
       if (speakers.length > 0) {
-        const idle = await waitIdle(run, idleMs)
+        idle = await waitIdle(run, idleMs)
         if (!idle) store.appendMessage(roomId, { kind: 'system', text: 'Lodge 服务一直忙，这一轮先不再叫人发言。' })
         if (idle) {
         let misses = 0
@@ -314,6 +317,7 @@ export const createChatScheduler = ({
           })
           if (!(await waitIdle(run, idleMs))) {
             store.appendMessage(roomId, { kind: 'system', text: 'Lodge 服务一直忙，这一轮先不再叫人发言。' })
+            busyStopped = true
             break
           }
        }
@@ -321,9 +325,32 @@ export const createChatScheduler = ({
       }
 
       if (run.cancelled) return { started: true, cancelled: true, round }
+      // 基座一直忙就没有讨论可总结；把这一轮留成可继续的状态，不写一条空结论。
+      if (!idle || busyStopped) return { started: true, interrupted: true, round, reason: 'busy' }
       const beforeSummary = store.readRoom(roomId)
       if (beforeSummary === null || beforeSummary.state !== ROOM_STATE.active) {
         return { started: true, cancelled: true, round }
+      }
+      // 结论已落库、房间状态还没写就崩溃：重启后只补状态，不再总结第二条。
+      const existingConclusion = store.readMessages(roomId).find(message => (
+        message.kind === 'chat_conclusion' && (message.meta?.round ?? 0) === round
+      ))
+      if (existingConclusion !== undefined) {
+        patch(current => {
+          current.chat = {
+            ...current.chat,
+            phase: CHAT_PHASE.concluded,
+            turns: completed,
+            conclusionId: existingConclusion.id,
+            running: false,
+            interrupted: false,
+            speaker: '',
+            pending: null,
+          }
+          return { events: [{ type: 'chat.conclusion', payload: { round, recovered: true } }] }
+        })
+        void refresh()
+        return { started: true, round, turns: completed, recovered: true }
       }
 
       // 基座事件可能晚于发言轮次到达；总结前强制同步一次，迟到的发言也会落在结论之前。
@@ -376,7 +403,7 @@ export const createChatScheduler = ({
         : digestText(lines)
       const conclusionText = text === '' ? digestText(lines) : text
       const handoffBrief = parseHandoffBriefFromText(conclusionText, store.readRoom(roomId)?.goal ?? room.goal)
-      // 自然总结只有「下一步」会被解析成 todo；正文仍要作为共识进工作室。
+      // 自然总结也按共识/分歧/未定解析；模型漏了标题时，正文仍作为共识进工作室。
       if (!structuredSummary && handoffBrief !== null && handoffBrief.consensus.length === 0) {
         const body = conclusionText.replace(/\n?下一步[：:][\s\S]*$/, '').trim()
         if (body !== '') handoffBrief.consensus = [body.slice(0, 300)]
@@ -404,6 +431,7 @@ export const createChatScheduler = ({
           turns: completed,
           conclusionId: conclusion?.id ?? null,
           running: false,
+          interrupted: false,
           speaker: '',
           pending: null,
         }
@@ -425,6 +453,7 @@ export const createChatScheduler = ({
           state.chat = {
             ...state.chat,
             running: false,
+            interrupted: true,
             speaker: '',
             pending: null,
             ...(rolled.ok ? { phase: rolled.state } : {}),
@@ -455,13 +484,11 @@ export const createChatScheduler = ({
       turnLimit: chatTurnLimitOf(room),
       phase: room.chat?.phase ?? '',
       linkedRooms: linkedRoomBriefs({ store, room }),
-      // 准入：这句话是不是明确拒绝开轮，先算成事实交给模型。
-      roundAllowed: !roundVetoed(text),
     })
     const first = await ask(prompt)
     if (first === null) return { action: 'reply', reply: '我刚才没接住，再说一次？', speakers: [] }
     const parsed = parseHostIntent(first, { speakers, allowOpen })
-    if (parsed.structured === true) return finalizeHostIntent(parsed, text)
+    if (parsed.structured === true) return parsed
     // 第一次没给 JSON 就再要一次，只补格式，不重新理解。
     const repaired = await ask([
       '上一次回复不是 JSON，没法执行。',
@@ -473,7 +500,7 @@ export const createChatScheduler = ({
     if (repaired === null) return parsed
     const second = parseHostIntent(repaired, { speakers, allowOpen })
     if (second.structured !== true) return parsed
-    return finalizeHostIntent(second, text)
+    return second
   }
 
   return { start, hostIntent, cancel, isRunning: () => runs.has(roomId) }

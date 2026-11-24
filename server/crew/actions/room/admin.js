@@ -33,7 +33,9 @@ export const createAdminActions = deps => {
       if (body.archived === false) {
         const restored = updateRoom(room.id, current => {
           current.archivedAt = null
-          current.live = false
+          // 归档会断开基座；取消归档要重新连上，否则房间看起来空闲，发消息却永远送不出去。
+          current.live = current.demo === true ? false : true
+          delete current.connectionError
           if (current.state === ROOM_STATE.stopped) {
             current.state = ROOM_STATE.idle
             current.idle = true
@@ -41,6 +43,13 @@ export const createAdminActions = deps => {
           return { events: [{ type: 'room.restored' }] }
         })
         if (restored === null) return fail('not_found', '没有这个房间')
+        if (restored.live === true && live.isAttached?.(restored.id) !== true) {
+          try {
+            await live.attach?.(restored)
+          } catch (error) {
+            log.warn(`room reattach failed after restore: ${restored.id} ${error?.message ?? error}`)
+          }
+        }
         emit('room', restored)
         return ok({ room: readRoom(room.id) ?? restored })
       }

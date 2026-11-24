@@ -22,7 +22,8 @@ export function HandoffBriefReview({
   const needsReview = handoffBrief.disagreements.length > 0
   const { ready, status } = gateCardState({ needsReview, reviewed })
   const sourceLabel = sourceName === '' ? '来自聊天室的交接简报' : `来自「${sourceName}」的交接简报`
-  const detailSummary = `共识 ${handoffBrief.consensus.length} · 约束 ${handoffBrief.constraints.length} · 待办 ${handoffBrief.todos.length}`
+  const unknowns = handoffBrief.unknowns ?? []
+  const detailSummary = `共识 ${handoffBrief.consensus.length} · 分歧 ${handoffBrief.disagreements.length} · 未定 ${unknowns.length} · 约束 ${handoffBrief.constraints.length} · 待办 ${handoffBrief.todos.length}`
   return h('div', { className: 'crew-card crew-handoff-review' },
     h('div', { className: 'crew-card-head' },
       h('span', { className: 'crew-handoff-source', title: sourceLabel }, sourceLabel),
@@ -52,6 +53,7 @@ export function HandoffBriefReview({
         h('summary', null, `完整交接简报 · ${detailSummary}`),
         h('div', { className: 'crew-handoff-more-body' },
           h(IntakeSection, { label: '共识', items: handoffBrief.consensus }),
+          h(IntakeSection, { label: '未定', items: unknowns }),
           h(IntakeSection, { label: '约束', items: handoffBrief.constraints }),
           h(IntakeSection, { label: '待办', items: handoffBrief.todos })))))
 }

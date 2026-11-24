@@ -96,6 +96,45 @@ const setup = ({ summaryText = '这是总结。', silent = false, busy = false, 
 
 const transportFor = ctx => createChatTransport({ engine: ctx.engine, store: ctx.store, roomId: 'room-chat' })
 
+test('a conclusion already written is not summarized twice after a crash', async () => {
+  const ctx = setup()
+  ctx.room().members = []
+  ctx.room().chat = { ...ctx.room().chat, phase: 'discussing', running: false, turns: 6, round: 1 }
+  ctx.messages.push({ kind: 'chat_conclusion', id: 'c-1', authorId: 'lodge', text: '已经有结论', meta: { round: 1 } })
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    waitMs: 100,
+    pollMs: 1,
+  })
+  const result = await scheduler.start(ctx.room(), { resume: true })
+  assert.equal(result.recovered, true)
+  assert.equal(ctx.messages.filter(message => message.kind === 'chat_conclusion').length, 1)
+  assert.equal(ctx.room().chat.phase, 'concluded')
+  assert.equal(ctx.room().chat.interrupted, false)
+})
+
+test('a cancelled chat round stays resumable instead of looking busy', async () => {
+  const ctx = setup()
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    waitMs: 100,
+    pollMs: 1,
+  })
+  const run = scheduler.start(ctx.room())
+  scheduler.cancel()
+  const result = await run
+  assert.equal(result.cancelled, true)
+  assert.equal(ctx.room().chat.running, false)
+  assert.equal(ctx.room().chat.interrupted, true)
+  assert.equal(ctx.room().chat.phase, 'discussing')
+})
+
 test('a resumed chat round continues from the turns already spoken', async () => {
   const ctx = setup()
   ctx.room().chat = { ...ctx.room().chat, running: true, phase: 'discussing', round: 1, turns: 2 }
@@ -238,6 +277,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
     topic: '讨论状态提示',
     consensus: ['这是总结。'],
     disagreements: [],
+    unknowns: [],
     constraints: [],
     todos: [],
   })
@@ -261,7 +301,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(conclusions.at(-1).meta.round, 2)
 })
 
-test('the default chat summary is natural prose, not a five-section report', async () => {
+test('the default chat summary asks for consensus, disagreements and unknowns', async () => {
   const ctx = setup()
   const scheduler = createChatScheduler({
     store: ctx.store,
@@ -276,7 +316,7 @@ test('the default chat summary is natural prose, not a five-section report', asy
   const summary = ctx.history.find(message => message.role === 'user' && /请总结/.test(message.text))
   assert.ok(summary)
   assert.doesNotMatch(summary.text, /## 主题/)
-  assert.match(summary.text, /2–4 句/)
+  assert.match(summary.text, /共识、分歧、未定/)
 })
 
 test('a natural summary still becomes a studio handoff', async () => {
@@ -398,7 +438,7 @@ test('a round gives every member a turn before repeating', async () => {
   assert.deepEqual(spoken.slice(0, 3).sort(), ['a', 'b', 'c'])
 })
 
-test('the host conclusion keeps all five handoff fields', async () => {
+test('the host conclusion keeps all six handoff fields', async () => {
   const ctx = setup({
     summaryText: [
       '## 主题',
@@ -407,6 +447,8 @@ test('the host conclusion keeps all five handoff fields', async () => {
       '- 用一句话说明',
       '## 分歧',
       '- 无',
+      '## 未定',
+      '- 还没验证',
       '## 约束',
       '- 不改接口',
       '## 待办',
@@ -428,6 +470,7 @@ test('the host conclusion keeps all five handoff fields', async () => {
     topic: '状态提示',
     consensus: ['用一句话说明'],
     disagreements: [],
+    unknowns: ['还没验证'],
     constraints: ['不改接口'],
     todos: ['写测试'],
   })
@@ -496,6 +539,9 @@ test('a busy base skips the round instead of queueing every speaker', async () =
   await scheduler.start(ctx.room())
   assert.equal(ctx.history.filter(message => message.role === 'user' && !message.text.includes('请总结')).length, 0)
   assert.ok(ctx.messages.some(message => /Lodge 服务一直忙/.test(message.text ?? '')))
+  assert.equal(ctx.messages.some(message => message.kind === 'chat_conclusion'), false)
+  assert.equal(ctx.room().chat.running, false)
+  assert.equal(ctx.room().chat.interrupted, true)
 })
 
 test('three silent speakers end the round early', async () => {
@@ -513,4 +559,22 @@ test('three silent speakers end the round early', async () => {
   await scheduler.start(ctx.room())
   assert.ok(ctx.messages.some(message => /本轮提前收尾/.test(message.text ?? '')))
   assert.equal(ctx.history.filter(message => message.role === 'user' && /@[AB]/.test(message.text)).length, 3)
+})
+
+test('a history failure stops the round instead of writing a fake conclusion', async () => {
+  const ctx = setup()
+  ctx.engine.history = async () => { throw new Error('engine 鉴权失败') }
+  const scheduler = createChatScheduler({
+    store: ctx.store,
+    transport: transportFor(ctx),
+    sendToMember: ctx.sendToMember,
+    roomId: 'room-chat',
+    waitMs: 20,
+    pollMs: 1,
+  })
+  const result = await scheduler.start(ctx.room())
+  assert.ok(result.error)
+  assert.equal(ctx.messages.some(message => message.kind === 'chat_conclusion'), false)
+  assert.equal(ctx.room().chat.running, false)
+  assert.equal(ctx.room().chat.interrupted, true)
 })

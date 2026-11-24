@@ -1,4 +1,4 @@
-// 聊天室 → 工作室的唯一交接契约：只传这五样，不搬原始聊天记录。
+// 聊天室 → 工作室的唯一交接契约：只传这六样，不搬原始聊天记录。
 
 const LIST_LIMIT = 6
 const ITEM_LIMIT = 300
@@ -16,6 +16,7 @@ export const emptyHandoffBrief = () => ({
   topic: '',
   consensus: [],
   disagreements: [],
+  unknowns: [],
   constraints: [],
   todos: [],
 })
@@ -26,12 +27,14 @@ export const normalizeHandoffBrief = value => {
     topic: itemOf(value.topic).slice(0, ITEM_LIMIT),
     consensus: listOf(value.consensus),
     disagreements: listOf(value.disagreements),
+    unknowns: listOf(value.unknowns),
     constraints: listOf(value.constraints),
     todos: listOf(value.todos),
   }
   const empty = brief.topic === '' &&
     brief.consensus.length === 0 &&
     brief.disagreements.length === 0 &&
+    brief.unknowns.length === 0 &&
     brief.constraints.length === 0 &&
     brief.todos.length === 0
   return empty ? null : brief
@@ -41,6 +44,7 @@ const SECTION = [
   [/^(主题|议题|讨论题目)$/, 'topic'],
   [/^(共识|达成共识|一致的?结论|结论)$/, 'consensus'],
   [/^(未解决(的)?分歧|主要分歧|分歧|争议|不同意见)$/, 'disagreements'],
+  [/^(未定|未确定|未确认|待定|待验证|未知|开放问题|悬而未决)$/, 'unknowns'],
   [/^(约束(条件)?|限制|风险|前提)$/, 'constraints'],
   [/^(待办|下一步|行动项|后续)$/, 'todos'],
 ]
@@ -96,7 +100,7 @@ export const parseHandoffBriefFromText = (text, fallbackTopic = '') => {
   if (brief.topic === '' && fallback !== '') brief.topic = fallback
   if (brief.topic === '' && loose.length > 0) brief.topic = loose[0].slice(0, ITEM_LIMIT)
   if (!sawSection && brief.consensus.length === 0 && brief.disagreements.length === 0 &&
-    brief.constraints.length === 0 && brief.todos.length === 0) {
+    brief.unknowns.length === 0 && brief.constraints.length === 0 && brief.todos.length === 0) {
     const plain = itemOf(text)
     if (plain !== '' && plain !== brief.topic) brief.consensus = [plain.slice(0, ITEM_LIMIT)]
   }
@@ -112,6 +116,7 @@ export const handoffBriefGoalText = brief => {
   }
   add('共识', normalized.consensus)
   add('分歧', normalized.disagreements)
+  add('未定', normalized.unknowns)
   add('约束', normalized.constraints)
   add('待办', normalized.todos)
   return lines.filter(Boolean).join('\n')

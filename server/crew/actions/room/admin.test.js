@@ -120,6 +120,7 @@ test('unarchiving leaves the promise stopped', async () => {
   })
   await ctx.actions.archive({ room: ctx.room(), readBody: async () => ({ archived: false }) })
   assert.equal(ctx.room().archivedAt, null)
+  assert.equal(ctx.room().live, true)
   assert.equal(ctx.room().promise.status, 'stopped')
   assert.equal(ctx.cancelled.length, 0)
 })

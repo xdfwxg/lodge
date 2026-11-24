@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { roomNeedsYou } from './attention.js'
 import { createCrewPorts } from './crew-ports.js'
+import { createLiveApprovals } from './kernel/live/approvals.js'
 import { createLiveRooms } from './rooms/base/live.js'
 import { createStore } from './store.js'
 
@@ -504,4 +505,39 @@ test('a lost base marks the room and a later start clears it', async () => {
   } finally {
     ctx.close()
   }
+})
+
+test('an approval timeout expires only its own card', async () => {
+  let room = {
+    id: 'room-1',
+    approvals: [
+      { id: 'a1', state: 'pending', memberId: 'worker', requestId: 'q1', sessionRef: 's1', memberName: '执行', label: '访问网络', target: 'WebSearch', summary: 'WebSearch' },
+      { id: 'a2', state: 'pending', memberId: 'worker', requestId: 'q2', sessionRef: 's1', memberName: '执行', label: '改文件', target: 'Edit', summary: 'Edit' },
+    ],
+  }
+  const store = {
+    readRoom: () => room,
+    updateRoom: (id, mutate) => {
+      const next = structuredClone(room)
+      if (mutate(next) === null) return null
+      room = next
+      return room
+    },
+    appendMessage: () => {},
+  }
+  const live = createLiveApprovals({
+    store,
+    engine: { answerCard: async () => ({ ok: true }) },
+    emit: () => {},
+  })
+  const entry = {
+    roomId: 'room-1',
+    members: new Map(),
+    approvalTimers: new Map(),
+    heldCards: new Map(),
+    answeredCards: new Set(),
+  }
+  await live.expireApprovals(entry, 'room-1', '确认超时', { approvalId: 'a1' })
+  assert.equal(room.approvals.find(item => item.id === 'a1').state, 'expired')
+  assert.equal(room.approvals.find(item => item.id === 'a2').state, 'pending')
 })

@@ -78,5 +78,7 @@ export const chatStatusOf = (room, messages = room?.messages) => {
   if (chat.phase === CHAT_STATUS.concluded) return CHAT_STATUS.concluded
   if (chat.hostThinking === true) return CHAT_STATUS.thinking
   if (chat.running === true) return CHAT_STATUS.running
+  // 停下/出错后这一轮没有结论，但也没结束；界面要能看见并继续，不能装成还在聊。
+  if (chat.interrupted === true) return CHAT_STATUS.paused
   return chatStartedOf(room, messages) ? CHAT_STATUS.discussing : CHAT_STATUS.idle
 }

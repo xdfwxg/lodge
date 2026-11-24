@@ -7,6 +7,7 @@ test('a stored handoffBrief becomes the studio seed', () => {
     topic: '发布讨论',
     consensus: ['先做最小版本'],
     disagreements: ['是否回滚'],
+    unknowns: ['还没跑回滚验证'],
     constraints: [],
     todos: ['写清单'],
   }

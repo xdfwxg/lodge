@@ -78,6 +78,12 @@ test('a room gets one shared chat room with every member', async () => {
   assert.deepEqual(room.chatRoom, { id: 'chat-1', sessionRef: 'thread-1' })
 })
 
+test('a failed chat provisioning rejects instead of becoming connected', async () => {
+  const ctx = setup()
+  ctx.engine.createRoom = async () => { throw new Error('基座拒绝建群') }
+  await assert.rejects(() => ctx.chat.ensure(ctx.room()), /基座拒绝建群/)
+})
+
 test('chat goes to the shared room, with display names translated to base names', async () => {
   const ctx = setup()
   const room = await ctx.chat.ensure(ctx.room())

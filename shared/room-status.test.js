@@ -76,6 +76,7 @@ test('chat status folds phase, running flags and the first message into one word
   assert.equal(chatStatusOf({ chat: { phase: 'concluded' } }), 'concluded')
   assert.equal(chatStatusOf({ chat: { phase: 'discussing', hostThinking: true } }), 'thinking')
   assert.equal(chatStatusOf({ chat: { phase: 'discussing', running: true } }), 'running')
+  assert.equal(chatStatusOf({ chat: { phase: 'discussing', running: false, interrupted: true } }), 'paused')
   assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: said }), 'discussing')
   assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: [] }), 'idle')
   assert.equal(chatStatusOf({ chat: { phase: 'discussing' }, messages: [{ kind: 'chat', authorId: 'lodge' }] }), 'idle')

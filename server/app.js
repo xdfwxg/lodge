@@ -247,12 +247,13 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
 
   const start = async () => {
     if (stopped) return
-    scheduler.start()
+    // 先把房间接上，再让调度器领活；否则租约可能在 attach 前被领走并当成处理完。
     try {
       await live.start()
     } catch (error) {
       console.warn(`[lodge] 房间连接没有启动：${error?.message ?? error}`)
     }
+    scheduler.start()
     await ensureLodge(0)
   }
 

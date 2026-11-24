@@ -281,8 +281,9 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       })
       return updated ?? store.readRoom(room.id) ?? room
     } catch (error) {
-      systemNotice({ store, roomId: room.id, text: '房间的群聊没能准备好；待处理。', error })
-      return room
+      // 群聊没建起来就不是已连接：让 attach 失败并由房间重试，别留下一个空 entry。
+      log.warn(`room chat create failed: ${room.id} ${error?.message ?? error}`)
+      throw error
     }
   }
 

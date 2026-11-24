@@ -8,11 +8,12 @@ const handoffBrief = {
   topic: '发布检查清单',
   consensus: ['三组检查'],
   disagreements: ['是否自动回滚'],
+  unknowns: ['回滚验证还没跑'],
   constraints: ['单文件'],
   todos: ['写初稿'],
 }
 
-test('room creation accepts a five-field handoffBrief and bounds it', () => {
+test('room creation accepts a six-field handoffBrief and bounds it', () => {
   const result = normalizeRequest({
     goal: '做发布检查清单',
     roomType: 'studio',
@@ -21,6 +22,7 @@ test('room creation accepts a five-field handoffBrief and bounds it', () => {
       topic: '发布检查清单',
       consensus: ['三组检查'],
       disagreements: ['是否自动回滚'],
+      unknowns: ['回滚验证还没跑'],
       constraints: ['单文件'],
       todos: ['写初稿'],
     },
@@ -29,6 +31,7 @@ test('room creation accepts a five-field handoffBrief and bounds it', () => {
     topic: '发布检查清单',
     consensus: ['三组检查'],
     disagreements: ['是否自动回滚'],
+    unknowns: ['回滚验证还没跑'],
     constraints: ['单文件'],
     todos: ['写初稿'],
   })
@@ -44,6 +47,7 @@ test('the handoffBrief is part of the bulletin and the opening prompt', () => {
   const bulletin = roomBulletin('发布检查清单', 'manual', '', handoffBrief)
   assert.match(bulletin, /交接简报/)
   assert.match(bulletin, /共识：三组检查/)
+  assert.match(bulletin, /未定：回滚验证还没跑/)
   assert.match(bulletin, /待办：写初稿/)
 
   const aligned = alignmentPrompt('发布检查清单', 'manual', '', handoffBrief)
@@ -71,7 +75,7 @@ test('an empty handoffBrief is not stored', () => {
     goal: '做发布检查清单',
     roomType: 'studio',
     verify: 'manual',
-    handoffBrief: { topic: '', consensus: [], disagreements: [], constraints: [], todos: [] },
+    handoffBrief: { topic: '', consensus: [], disagreements: [], unknowns: [], constraints: [], todos: [] },
   })
   assert.equal(result.handoffBrief, null)
 })

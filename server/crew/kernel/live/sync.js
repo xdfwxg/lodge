@@ -48,9 +48,9 @@ export const createMemberSync = ({ store, engine, projector }) => {
       for (const message of messages) {
         // 权限卡归实时订阅和审批桥；历史里的旧卡不能再落库，否则会留下一个永远等人的问题。
         if (message.card?.requestType === 'permission') continue
-        entry.turns.trackTool(message)
+        entry.turns?.trackTool?.(message)
         if (message.kind === 'turn') {
-          entry.turns.captureTurn(message.turn, message.authorRef)
+          entry.turns?.captureTurn?.(message.turn, message.authorRef)
         } else if (message.kind !== 'text') {
           const stored = projector.toStored(entry.roomId, message)
           if (stored !== null) store.upsertMessage(stored)
@@ -85,9 +85,9 @@ export const createMemberSync = ({ store, engine, projector }) => {
           void answerPermission(entry, memberId, message)
           return
         }
-        entry.turns.trackTool(message)
+        entry.turns?.trackTool?.(message)
         if (message.kind === 'turn') {
-          entry.turns.captureTurn(message.turn, message.authorRef)
+          entry.turns?.captureTurn?.(message.turn, message.authorRef)
           refresh(entry, { force: true })
         } else if (message.kind !== 'text') {
           const stored = projector.toStored(entry.roomId, message)

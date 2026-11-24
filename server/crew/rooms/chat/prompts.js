@@ -47,20 +47,24 @@ export const hostPrompt = ({ room, round, note, turnLimit, structured = false })
   ]
   if (!structured) {
     return [...common,
-      '写清三件事：这轮落在哪、还有哪条真分歧或风险、下一步如果要做什么。',
+      '固定写三段，标题固定：共识、分歧、未定。',
+      '共识：这轮已经达成的结论；分歧：还没解决的不同意见；未定：缺依据、没验证或要人拍板的事。',
+      '每段最多 3 条，用分号分开；某段没有就写「无」，不要省略标题。',
       '如果明确有下一步，最后单独一行写「下一步：一句话」；没有就不写。',
-      '结构跟着内容走：一个结论就用 2–4 句话说完；有多条共识、分歧或待办时，用加粗小标题或短列表分开。不要五段模板，总长不超过 300 字。',
+      '不要寒暄，不要逐条复述发言，不要写“第 N 轮”；总长不超过 300 字。',
       INTERNAL_PROMPT_MARKER,
     ].filter(Boolean).join('\n')
   }
   return [...common,
-    '用户明确要清单/分点/待办；严格按下面五段输出，标题固定：',
+    '用户明确要清单/分点/待办；严格按下面六段输出，标题固定：',
     '## 主题',
     '一句话说清这轮在解决什么。',
     '## 共识',
     '- 已达成的结论，最多 5 条',
     '## 分歧',
     '- 未解决的分歧，最多 5 条；没有写「无」',
+    '## 未定',
+    '- 缺依据、没验证或要人拍板的事，最多 5 条；没有写「无」',
     '## 约束',
     '- 前提、限制、风险，最多 5 条；没有写「无」',
     '## 待办',
@@ -70,8 +74,8 @@ export const hostPrompt = ({ room, round, note, turnLimit, structured = false })
   ].filter(Boolean).join('\n')
 }
 
-const STRUCTURED_SUMMARY = /分点|分条|逐条|列成|列出|罗列|清单|列表|表格|待办|五段|结构化|大纲|提纲|\b(?:bullet|list|table|checklist)\b/i
-const NEGATED_STRUCTURED = /(?:不要|别|不用|不必|无需|不需要)[^。！？!?；;\n]{0,12}(?:分点|分条|逐条|列成|列出|罗列|清单|列表|表格|待办|五段|结构化|大纲|提纲|bullet|list|table|checklist)/gi
+const STRUCTURED_SUMMARY = /分点|分条|逐条|列成|列出|罗列|清单|列表|表格|待办|六段|结构化|大纲|提纲|\b(?:bullet|list|table|checklist)\b/i
+const NEGATED_STRUCTURED = /(?:不要|别|不用|不必|无需|不需要)[^。！？!?；;\n]{0,12}(?:分点|分条|逐条|列成|列出|罗列|清单|列表|表格|待办|六段|结构化|大纲|提纲|bullet|list|table|checklist)/gi
 
 export const wantsStructuredSummary = note => {
   // “不要列表，简单说”是在拒绝格式，不是请求格式；先去掉被否定的那段再判断。

@@ -10,6 +10,7 @@ import { StatePanel } from '../../state-panel.js'
 const actions = {
   approval: () => {},
   continueChat: () => {},
+  resumeChat: () => {},
   startStudio: () => {},
   selectRoom: () => {},
 }
@@ -201,4 +202,19 @@ test('only the host summarizing gets a typing line', () => {
   assert.match(html, /正在总结/)
   assert.match(html, /crew-msg-chat/)
   assert.doesNotMatch(html, /crew-msg-avatar/)
+})
+
+test('a stopped chat round offers to continue it', () => {
+  const html = renderToStaticMarkup(chatView.transcript({
+    room: {
+      id: 'room-chat',
+      state: 'active',
+      messages: [],
+      chat: { phase: 'discussing', running: false, interrupted: true },
+    },
+    members: [],
+    actions,
+  }))
+  assert.match(html, /这一轮停下了/)
+  assert.match(html, /继续这一轮/)
 })

@@ -16,7 +16,7 @@ const chatBudgetExceeded = room => {
 export const createServiceChat = ({ store, live, emit }) => {
   const { appendMessage, readMessages, updateRoom } = store
 
-  const continueChat = (room, body = {}) => {
+  const continueChat = (room, body = {}, { recordNote = true } = {}) => {
     if (room.roomType !== 'chat') return fail('invalid', '不是聊天室')
     if (room.state !== ROOM_STATE.active) return fail('conflict', '房间已经停了')
     if (room.live !== true || typeof live.continueChat !== 'function' || live.isAttached?.(room.id) !== true) {
@@ -33,12 +33,15 @@ export const createServiceChat = ({ store, live, emit }) => {
     const moved = transitionChat(chat.phase, event)
     if (!moved.ok) return fail('conflict', moved.error)
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : ''
-    const message = appendMessage(room.id, {
-      kind: 'chat_rework',
-      authorId: 'you',
-      text: note === '' ? '再讨论一轮。' : note,
-      meta: { round: chat.round ?? 1, phase: chat.phase },
-    })
+    // 用户消息已经由调用方落库时不再写第二条；chat-rework 只用于“再讨论一轮”这个动作。
+    const message = recordNote
+      ? appendMessage(room.id, {
+        kind: 'chat_rework',
+        authorId: 'you',
+        text: note === '' ? '再讨论一轮。' : note,
+        meta: { round: chat.round ?? 1, phase: chat.phase },
+      })
+      : null
     const updated = updateRoom(room.id, current => {
       current.chat = {
         ...current.chat,
@@ -47,6 +50,7 @@ export const createServiceChat = ({ store, live, emit }) => {
         turns: 0,
         conclusionId: null,
         running: true,
+        interrupted: false,
         speaker: '',
         note,
       }
@@ -82,13 +86,21 @@ export const createServiceChat = ({ store, live, emit }) => {
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 2000) : ''
     const updated = updateRoom(room.id, current => {
       if (current.chat?.running === true) return null
-      current.chat = { ...current.chat, running: true, turns: 0, speaker: '', note }
+      current.chat = {
+        ...current.chat,
+        running: true,
+        interrupted: false,
+        // 从已经说完的次数续跑，不把这一轮从第一句重来。
+        turns: current.chat.turns ?? 0,
+        speaker: '',
+        note,
+      }
       return { events: [{ type: 'chat.resumed', payload: { round: current.chat.round ?? 1 } }] }
     })
     if (updated === null) return fail('conflict', '聊天状态已变化，重试')
     emit('room', updated)
-    appendMessage(room.id, { kind: 'system', text: '刚才断了，这一轮重新开始了。' })
-    void live.continueChat(updated, note).catch(error => {
+    appendMessage(room.id, { kind: 'system', text: '接着这一轮继续，已经说过的话都还在。' })
+    void live.continueChat(updated, note, { resume: true }).catch(error => {
       systemNotice({ store, roomId: room.id, text: '没能恢复讨论；稍后再试。', error })
       const reset = updateRoom(room.id, current => {
         if (current.chat?.running !== true) return null
@@ -128,7 +140,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     // Lodge 判断要开房：把判断交回给房间动作，由它建工作室或聊天室并留记录。
     if (intent.action === 'open') return ok({ room, intent })
     if (intent.action === 'round') {
-      const result = continueChat(room, { note: text, speakerIds: intent.speakers })
+      const result = continueChat(room, { note: text, speakerIds: intent.speakers }, { recordNote: false })
       if (result.ok !== true) return result
       if (intent.reply !== '') appendMessage(room.id, { kind: 'chat', authorId: 'lodge', text: intent.reply })
       return result
@@ -146,7 +158,7 @@ export const createServiceChat = ({ store, live, emit }) => {
     const mode = chatModeOf(room)
     if (mentions.includes(MENTION_ALL)) {
       return mode === 'open'
-        ? continueChat(room, { note: value, speakerIds: (room.members ?? []).map(member => member.id) })
+        ? continueChat(room, { note: value, speakerIds: (room.members ?? []).map(member => member.id) }, { recordNote: false })
         : fail('conflict', '这一轮还在讨论，等结论出来再叫所有人。')
     }
     const named = mentions.filter(id => (room.members ?? []).some(member => member.id === id))

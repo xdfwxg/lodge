@@ -107,7 +107,11 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
     },
 
     continue(entry, room, note = '', options = {}) {
-      return entry.chatRun.start(store.readRoom(room.id) ?? room, { note, speakerIds: options.speakerIds })
+      return entry.chatRun.start(store.readRoom(room.id) ?? room, {
+        note,
+        speakerIds: options.speakerIds,
+        resume: options.resume === true,
+      })
     },
 
     hostIntent(entry, room, text) {

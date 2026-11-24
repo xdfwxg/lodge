@@ -44,8 +44,23 @@ export const chatView = {
         title: '随便聊聊',
         body: '想聊就聊，聊到有结论再决定下一步。',
       })
+    const interrupted = room.state === 'active' &&
+      room.chat?.interrupted === true && room.chat?.running !== true
     return h(Fragment, null,
       intro,
+      interrupted
+        ? h(StatePanel, {
+          key: `interrupted-${room.id}`,
+          title: '这一轮停下了',
+          body: '已经说过的话都还在；继续会接着这一轮往下走。',
+          tone: 'paused',
+          action: h('button', {
+            type: 'button',
+            className: 'crew-link',
+            onClick: () => actions.resumeChat?.(),
+          }, '继续这一轮'),
+        })
+        : null,
       h(ReceiptIntake, { key: `receipt-${room.id}`, receipt: room.receipt }),
     h(Timeline, {
       key: `timeline-${room.id}`,

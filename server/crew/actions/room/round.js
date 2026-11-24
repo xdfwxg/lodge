@@ -70,6 +70,15 @@ export const createRoundActions = deps => {
       const attachmentMeta = attachments.length === 0 ? {} : { attachments }
       const promptText = withAttachments(text, attachments)
       if (room.live === true) {
+        // 刚取消归档或刚恢复的房间可能还没 attach；先连上，再按房型送消息。
+        if (live.isAttached?.(room.id) !== true) {
+          try {
+            await live.attach?.(room)
+            room = readRoom(roomId) ?? room
+          } catch {
+            return fail('conflict', '房间现在没有连上，稍后再试')
+          }
+        }
         // 停下的一轮：用户开口就是接着做——机器先把同一轮接回来，目标不动，再把话交给规划师。
         if (room.workRound?.status === ROUND_STATUS.stopped) {
           if (typeof resumeRound !== 'function') return fail('conflict', '这一轮还没法接回来')

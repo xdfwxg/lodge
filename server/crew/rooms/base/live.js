@@ -369,8 +369,8 @@ export const createLiveRooms = ({
     refresh: refreshRoom,
   })
 
-  const expireApprovals = async (roomId, reason) => {
-    const expired = await approvals.expireApprovals(entries.get(roomId), roomId, reason)
+  const expireApprovals = async (roomId, reason, options = {}) => {
+    const expired = await approvals.expireApprovals(entries.get(roomId), roomId, reason, options)
     approvals.resumeApprovalPauseIfSettled(roomId)
     return expired
   }
@@ -444,7 +444,7 @@ export const createLiveRooms = ({
       return await emailRunner(event)
     }
     if (event.kind === 'approval') {
-      await expireApprovals(event.roomId, '确认超时')
+      await expireApprovals(event.roomId, '确认超时', { approvalId: event.payload?.approvalId ?? null })
       return true
     }
     if (event.kind === 'stage.deadline') {

@@ -191,10 +191,12 @@ export const createLiveApprovals = ({
     armApprovalTimer(entry, approval)
   }
 
-  const expireApprovals = async (entry, roomId, reason) => {
-    clearTimers(entry)
+  const expireApprovals = async (entry, roomId, reason, { approvalId = null } = {}) => {
+    // 到期的是一张卡，不是整间房：只清这张卡的计时器，别把别人的确认一起拒掉。
+    if (approvalId === null) clearTimers(entry)
+    else clearTimer(entry, approvalId)
     const room = store.readRoom(roomId)
-    const pending = pendingApprovals(room)
+    const pending = pendingApprovals(room).filter(item => approvalId === null || item.id === approvalId)
     if (pending.length === 0) return null
     const expired = []
     for (const approval of pending) {
