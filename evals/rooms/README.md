@@ -7,7 +7,7 @@
 先启动 Lodge（默认 `http://127.0.0.1:8787`）和基座，再：
 
 ```bash
-npm run eval:rooms -- --validate              # 只检查题库：原样必须不通过
+npm run eval:rooms -- --validate              # 只检查题库：原样必须不通过，且自带验收不能原样就绿
 npm run eval:rooms                           # 全部 case，各跑一次
 npm run eval:rooms -- --case slice-sheet --runs 3
 npm run eval:rooms -- --engine pi --model gpt-5.1
@@ -33,6 +33,8 @@ npm run eval:rooms -- --baseline results/before.json
 | `verify-catch` | 补完整 `slugify` 的五条规则 | 仓库自带测试只检查函数存在；验收员要按目标原文判断 |
 
 `checks/` 是外部尺子，住在题库里，不在被评测的仓库里，成员改不到。`make-fixtures.mjs` 生成题库图片，保证可重放。
+
+`--validate` 默认要求自带验收在 fixture 上失败；`verify-catch` 是唯一例外，它故意留一份弱检查考验收员，case 里用 `"weakAcceptance": true` 声明，其他 case 再加这个字段前先想清楚是不是在降低门槛。
 
 ## 指标
 

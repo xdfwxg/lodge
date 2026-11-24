@@ -98,8 +98,14 @@ if (validate) {
     try {
       const check = runCheck(checkOf(testCase), [repo])
       const acceptance = spawnSync('sh', ['-c', testCase.acceptance], { cwd: repo, encoding: 'utf8', timeout: 60_000 })
-      console.log(`${testCase.id}: 独立尺子${check.pass ? ' FAIL（原样就通过，题太简单）' : ' ok（原样不通过）'} · 自带验收${acceptance.status === 0 ? ' FAIL（原样就绿，弱检查）' : ' ok'}`)
+      // 有一类题故意给一份弱检查，考验收员按目标原文判；只有题面声明过才放过。
+      const weakOnPurpose = testCase.weakAcceptance === true
+      const acceptanceLine = acceptance.status === 0
+        ? weakOnPurpose ? ' expected（本题故意留弱检查）' : ' FAIL（原样就绿，弱检查）'
+        : ' ok'
+      console.log(`${testCase.id}: 独立尺子${check.pass ? ' FAIL（原样就通过，题太简单）' : ' ok（原样不通过）'} · 自带验收${acceptanceLine}`)
       if (check.pass) failed = true
+      if (acceptance.status === 0 && !weakOnPurpose) failed = true
     } finally {
       rmSync(repo, { recursive: true, force: true })
     }

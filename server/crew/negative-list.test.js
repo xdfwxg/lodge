@@ -73,9 +73,11 @@ test('shared crew modules reach modes only through kinds, facades or assembly po
   const allowed = /(?:^|\/)rooms\/kinds\.js$|(?:^|\/)rooms\/(?:chat|studio)\/facade\.js$/
   // service.js 分发各模式用例，rooms/base/live.js 装配各模式运行时；它们是组合点，不是共享业务。
   const assembly = new Set(['service.js', 'rooms/base/live.js'])
+  // prompt-golden.js 是模型输入的只读样本，不参与业务分发；它必须同时看到各模式的提示词。
+  const samples = new Set(['prompt-golden.js'])
   for (const file of sources('.')) {
     if (file.name.startsWith('rooms/chat/') || file.name.startsWith('rooms/studio/')) continue
-    if (assembly.has(file.name)) continue
+    if (assembly.has(file.name) || samples.has(file.name)) continue
     for (const match of file.text.matchAll(/from ['"]([^'"]+)['"]/g)) {
       if (!match[1].includes('rooms/')) continue
       assert.match(match[1], allowed, `${file.name} imports ${match[1]} instead of a facade`)

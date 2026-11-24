@@ -3,26 +3,13 @@ import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { packageArgs, packageLayout } from './package-layout.mjs'
 
-const args = process.argv.slice(2)
-const at = args.indexOf('--app')
-const platformAt = args.indexOf('--platform')
-const platform = platformAt >= 0 ? args[platformAt + 1] : 'darwin'
-const app = resolve(at >= 0 ? args[at + 1] : 'release/mac-arm64/Lodge.app')
-const mac = platform === 'darwin'
-const resources = mac ? join(app, 'Contents', 'Resources') : join(app, 'resources')
-const binary = mac ? join(app, 'Contents', 'MacOS', 'Lodge') : join(app, platform === 'win32' ? 'Lodge.exe' : 'lodge')
-const runtimeBinary = platform === 'win32' ? 'pi.exe' : 'pi'
-const required = [
-  'app/server/index.js',
-  'app/shared/system-policy.js',
-  'app/ui/dist/index.html',
-  'base/dist-server/openmausbot.js',
-  `runtimes/pi/${runtimeBinary}`,
-  'licenses/third_party/OpenMausBot-LICENSE.txt',
-]
-for (const file of required) {
-  if (!existsSync(join(resources, file))) throw new Error(`missing packaged file: ${file}`)
+const { app: appPath, platform } = packageArgs(process.argv.slice(2))
+const app = resolve(appPath)
+const layout = packageLayout({ platform, app })
+for (const file of layout.required) {
+  if (!existsSync(join(layout.resources, file))) throw new Error(`missing packaged file: ${file}`)
 }
 
 const dataDir = mkdtempSync(join(tmpdir(), 'lodge-package-smoke-'))
@@ -34,7 +21,7 @@ const port = await new Promise((resolvePort, reject) => {
     probe.close(() => resolvePort(chosen))
   })
 })
-const child = spawn(binary, [join(resources, 'app', 'server', 'index.js')], {
+const child = spawn(layout.binary, [join(layout.resources, 'app', 'server', 'index.js')], {
   env: {
     ...process.env,
     ELECTRON_RUN_AS_NODE: '1',

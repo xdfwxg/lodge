@@ -15,6 +15,7 @@ const dataDir = resolve(option('--data-dir') ?? '.data')
 const withWorkspaces = args.includes('--workspaces')
 const withBackup = !args.includes('--no-backup')
 const withArchive = !args.includes('--no-archive')
+const dryRun = args.includes('--dry-run')
 
 const remove = path => {
   if (!existsSync(path)) return false
@@ -26,6 +27,28 @@ let release
 try {
   release = acquireDataLock(dataDir)
   const now = Date.now()
+  if (dryRun) {
+    // 破坏性脚本先给一份可核对的清单；--dry-run 不备份、不归档、不删除。
+    console.log(`would reset: ${dataDir}`)
+    for (const suffix of ['', '-wal', '-shm']) {
+      const file = `${databaseFile(dataDir)}${suffix}`
+      if (existsSync(file)) console.log(`would remove: ${file}`)
+    }
+    if (existsSync(memoryDir(dataDir))) console.log(`would remove: ${memoryDir(dataDir)}`)
+    if (withWorkspaces && withArchive) {
+      for (const root of [workspaceRoot(), scratchRoot()]) {
+        if (existsSync(root)) console.log(`would archive: ${root}`)
+      }
+    }
+    if (withWorkspaces) {
+      for (const root of [workspaceRoot(), scratchRoot()]) {
+        if (root === '/' || root === homedir()) continue
+        if (existsSync(root)) console.log(`would remove workspaces: ${root}`)
+      }
+    }
+    console.log('dry run: 没有改动任何数据')
+    process.exit(0)
+  }
   if (withBackup && existsSync(databaseFile(dataDir))) {
     const backup = snapshotDatabase({ dataDir, reason: 'pre-reset', keep: 10, now })
     if (backup !== null) console.log(`backup: ${backup}`)

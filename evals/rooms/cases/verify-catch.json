@@ -4,6 +4,7 @@
   "fixture": "verify-catch",
   "acceptance": "npm test",
   "check": "slug.mjs",
+  "weakAcceptance": true,
   "memorySeed": {
     "goal": "把 slugify 的五条规则补完整",
     "conclusion": "验收要按目标原文逐条核对，自带测试只检查函数存在。",

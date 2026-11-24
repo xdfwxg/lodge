@@ -147,6 +147,7 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 - 启动前和每 6 小时留 `backups/crew-<时间>-<原因>.db`，保留 10 份；工具步骤保留最近 2000 条，审计事件 5000 条；启动检查 `integrity_check`，坏库拒绝启动。
 - 恢复：先退出 Lodge，再 `npm run data:restore -- --list` / `--latest` / `--backup <file>`；桌面版加 `--data-dir "$HOME/Library/Application Support/lodge/data"`。恢复前会自动留 `pre-restore` 快照。
 - 重置工作区：`npm run data:reset -- --workspaces` 会先把 `CrewWorkspaces` / `CrewWorktrees` 归档到 `.data/backups/workspaces-<ts>/`，再删除；归档失败就中止，不删原目录。`--no-archive` 才直接删。
+- 两个破坏性命令都支持 `--dry-run`：只列出会恢复或删除的备份、数据库和工作区，不动任何文件；先干跑一次再真跑。
 - 成对恢复：`npm run data:restore -- --all` 恢复最新数据库和最新工作区归档；也可以 `--workspaces <name>` 单独恢复。目标目录已存在时默认拒绝，`--force` 才覆盖。
 - 停止窗口不删数据；退出 app 会停 Lodge 和它启动的基座。不要在共享基座上用空数据目录启动第二个 Lodge：空库首次启动会清掉基座里所有 Lodge 孤儿资源。
 
@@ -157,17 +158,19 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 ## 验证
 - 一次构建结束、尤其是走偏之后，运行 `npm run retro:env`：它按严重度列出这次改动的环境缺口（缺测试、缺文档、空白错误、改动面过大、未提交改动），不进入房间角色。
 
-`npm test`、`npm run build`、`npm run test:ui`（Playwright + axe，覆盖首屏、结果卡、目标面板、窄屏暗色）、`npm run prepare:runtimes`、`npm run package:mac:dir`、`npm run smoke:package`。端到端验证需要 Pi 已登录：新建工作室，执行引擎选 Pi，给一条可执行的验收命令，确认执行官实际跑了命令并产生证据。
+`npm test`、`npm run build`、`npm run test:ui`（Playwright + axe，覆盖首屏、结果卡、目标面板、窄屏暗色）、`npm run smoke:electron`（启动真正的桌面壳，建一间示例房后退出）、`npm run prepare:runtimes`、`npm run package:mac:dir`、`npm run smoke:package`。端到端验证需要 Pi 已登录：新建工作室，执行引擎选 Pi，给一条可执行的验收命令，确认执行官实际跑了命令并产生证据。
+
+提示词快照在 `server/crew/fixtures/prompts/`；有意改提示词后跑 `npm run prompts:update`，把 diff 当行为变化审，不要顺手全量覆盖。基座 HTTP 契约由 `server/base.contract.test.js` 钉住，改 `server/base.js` 必须同步改它。
 
 真实环境先跑只读冒烟 `npm run smoke:real`：检查 Lodge 8787、基座 8799 和本机模型路由，不建房间、不调模型；任一不健康就非零退出。macOS 可装每日定时：`npm run nightly:smoke:install -- 09:17`，失败弹系统通知，日志在 `~/Library/Logs/Lodge/smoke.log`；`npm run nightly:smoke:uninstall` 移除。
 
-提交钩子在仓库的 `.githooks/pre-commit`，`npm install` 后由 `prepare` 自动接上，也可手动 `npm run setup:hooks`；它跑完整的 `npm run check:done`。`check:acceptance` 不只看矩阵里的文件是否存在，会实际执行矩阵链接的 Node 单测；视觉基线在 `e2e/visual.spec.mjs`（Mac 录基线，Linux 跳过），首屏、长列表和并发读取预算在 `e2e/budget.spec.mjs`。
+提交钩子在仓库的 `.githooks/pre-commit`，`npm install` 后由 `prepare` 自动接上，也可手动 `npm run setup:hooks`；它跑完整的 `npm run check:done`（含界面端到端、Electron 冒烟、题库自检、长任务与历史检索基准）。`check:acceptance` 不只看矩阵里的文件是否存在，会实际执行矩阵链接的 Node 单测；视觉基线在 `e2e/visual.spec.mjs`（Mac 录基线，Linux 跳过），首屏、长列表和并发读取预算在 `e2e/budget.spec.mjs`。
 
 ## 评测
 
 - `npm run eval:rooms` 评交付：真实建房、真实成员、真实验收，再由题库外的独立脚本核对产出。调用真实模型，不进入 `npm test`。
 - 固定题覆盖切图、改稿和弱检查下的验收；每条记通过、返工次数、墙钟和成本，可换引擎或模型交叉跑。
 - `--memory off,seeded` 对照「有没有工作区记忆」；`--baseline` 和上一次同题结果比通过率、返工、墙钟和成本。
-- `npm run eval:rooms -- --validate` 只检查题库：原样必须不通过。题库细节见 `evals/rooms/README.md`。
+- `npm run eval:rooms -- --validate` 只检查题库：原样必须不通过；它已进 `check:done`。题库细节见 `evals/rooms/README.md`。
 - `npm run eval:history-bench` 在 5k 条消息上量历史检索的 p50/p95，不调模型，已进 `check:done`；细节见 `evals/history-bench/README.md`。
 - `npm run eval:verifier-probe` 在验收副本里注入已知缺陷，同时跑一个合格对照，报抓出率、误放率、误拒率和成本；调用真实模型，按夜间跑，不进 `check:done`。细节见 `evals/verifier-probe/README.md`。

@@ -1,14 +1,28 @@
 import { app, BrowserWindow, Menu, Notification, dialog, ipcMain, session, shell } from 'electron'
 import { execFileSync, spawn } from 'node:child_process'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { delimiter, join } from 'node:path'
-import { externalUrl, loginBinary, openablePath, runtimeBinary, sameOrigin } from './policy.mjs'
+import { delimiter, join, resolve } from 'node:path'
+import {
+  baseEntryOf, findBundledRuntimes, findNode, findPort, isBaseUp, runtimeRoots,
+  waitForBase, waitForHealth,
+} from './launch.mjs'
+import { menuTemplate } from './menu.mjs'
+import { attentionDecision, roomsPayload } from './attention.mjs'
+import { navigationTarget, windowOptions } from './navigation.mjs'
+import { openPath, runtimeLogin } from './ipc.mjs'
+import { loginEntry } from './runtime-login.mjs'
 
 const APP_NAME = 'Lodge'
 const DEFAULT_PORT = 8787
 const DEFAULT_BASE_PORT = 8799
+const smoke = process.env.LODGE_SMOKE === '1'
+
+// 冒烟测试用自己的用户目录：单实例锁、数据和日志都不碰用户正在用的 Lodge。
+if (typeof process.env.LODGE_USER_DATA_DIR === 'string' && process.env.LODGE_USER_DATA_DIR !== '') {
+  app.setPath('userData', resolve(process.env.LODGE_USER_DATA_DIR))
+}
+
 const appRoot = app.isPackaged ? join(process.resourcesPath, 'app') : app.getAppPath()
 const iconFile = app.isPackaged
   ? join(process.resourcesPath, 'icon.png')
@@ -54,112 +68,14 @@ const log = text => {
   } catch {}
 }
 
-const findPort = start => new Promise(resolve => {
-  const probe = createServer()
-  probe.once('error', () => resolve(findPort(start + 1)))
-  probe.listen(start, '127.0.0.1', () => {
-    const port = probe.address()?.port ?? start
-    probe.close(() => resolve(port))
-  })
+const bundledRuntimes = () => findBundledRuntimes({
+  roots: runtimeRoots({
+    env: process.env,
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    appPath: app.getAppPath(),
+  }),
 })
-
-const waitForHealth = async (port, attempts = 80) => {
-  for (let index = 0; index < attempts; index += 1) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(1_000) })
-      if (response.ok) return true
-    } catch {}
-    await new Promise(resolve => setTimeout(resolve, 250))
-  }
-  return false
-}
-
-const isBaseUp = async url => {
-  if (typeof url !== 'string' || url === '') return false
-  try {
-    const response = await fetch(`${url.replace(/\/$/, '')}/api/instances`, { signal: AbortSignal.timeout(1_500) })
-    if (!response.ok) return false
-    const data = await response.json()
-    return Array.isArray(data?.instances)
-  } catch {
-    return false
-  }
-}
-
-const waitForBase = async (url, attempts = 80) => {
-  for (let index = 0; index < attempts; index += 1) {
-    if (await isBaseUp(url)) return true
-    await new Promise(resolve => setTimeout(resolve, 250))
-  }
-  return false
-}
-
-const findNode = () => {
-  if (typeof process.env.LODGE_NODE === 'string' && existsSync(process.env.LODGE_NODE)) return process.env.LODGE_NODE
-  const candidates = [
-    '/usr/local/bin/node',
-    '/opt/homebrew/bin/node',
-    join(homedir(), '.local/bin/node'),
-    join(homedir(), '.nvm/current/bin/node'),
-  ]
-  for (const candidate of candidates) if (existsSync(candidate)) return candidate
-  try {
-    return execFileSync('which', ['node'], { encoding: 'utf8', timeout: 2_000 }).trim()
-  } catch {
-    return null
-  }
-}
-
-const RUNTIME_ID = /^[\w-]{1,64}$/
-const shellQuote = value => `'${String(value).replaceAll("'", "'\\''")}'`
-
-const runtimeRoots = () => [
-  ...(typeof process.env.LODGE_RUNTIMES_DIR === 'string'
-    ? process.env.LODGE_RUNTIMES_DIR.split(delimiter).filter(Boolean)
-    : []),
-  app.isPackaged
-    ? join(process.resourcesPath, 'runtimes')
-    : join(app.getAppPath(), 'build', 'runtimes'),
-]
-
-const readRuntime = dir => {
-  try {
-    const manifest = JSON.parse(readFileSync(join(dir, 'runtime.json'), 'utf8'))
-    if (typeof manifest?.id !== 'string' || !RUNTIME_ID.test(manifest.id)) return null
-    if (typeof manifest.binary !== 'string' || manifest.binary === '') return null
-    const binaryPath = runtimeBinary(dir, manifest.binary)
-    if (binaryPath === null) return null
-    return { ...manifest, dir, binaryPath }
-  } catch {
-    return null
-  }
-}
-
-const findBundledRuntimes = () => {
-  const found = new Map()
-  for (const root of runtimeRoots()) {
-    let entries = []
-    try {
-      entries = readdirSync(root, { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue
-      const runtime = readRuntime(join(root, entry.name))
-      if (runtime !== null && !found.has(runtime.id)) found.set(runtime.id, runtime)
-    }
-  }
-  return [...found.values()].sort((a, b) => a.id.localeCompare(b.id))
-}
-
-const baseEntryOf = dir => {
-  const bundled = join(dir, 'dist-server', 'openmausbot.js')
-  if (existsSync(bundled)) return { kind: 'bundled', file: bundled }
-  const source = join(dir, 'server', 'openmausbot.ts')
-  if (existsSync(source)) return { kind: 'source', file: source }
-  return null
-}
 
 const findBaseDir = () => {
   const preferred = [
@@ -220,7 +136,7 @@ const startBase = async dir => {
   const baseData = join(app.getPath('userData'), 'base-data')
   mkdirSync(baseData, { recursive: true })
   const extraPath = [
-    ...findBundledRuntimes().map(runtime => runtime.dir),
+    ...bundledRuntimes().map(runtime => runtime.dir),
     process.env.OMB_EXTRA_PATH,
   ].filter(Boolean).join(delimiter)
   const child = spawn(node, [
@@ -396,36 +312,23 @@ const promptRuntimeLogins = async () => {
 }
 
 const openRuntimeLogin = instance => {
-  const login = instance.login
-  if (!Array.isArray(login?.args) || login.args.length === 0) return
-  const bundled = findBundledRuntimes().find(runtime => runtime.id === instance.instanceId)
-  const binary = loginBinary(
-    bundled?.binaryPath
-    ?? (Array.isArray(instance.cliCandidates) ? instance.cliCandidates[0] : undefined)
-    ?? login.command
-    ?? instance.cliDefault
-  )
-  if (binary === null) {
+  const entry = loginEntry({
+    instance,
+    bundled: bundledRuntimes().find(runtime => runtime.id === instance.instanceId),
+    platform: process.platform,
+    userDataDir: app.getPath('userData'),
+  })
+  if (entry === null) {
     dialog.showErrorBox(APP_NAME, `${instance.displayName ?? instance.instanceId} 没有可用的登录命令。`)
     return
   }
-  if (process.platform !== 'darwin') {
-    void shell.openPath(bundled?.dir ?? app.getPath('userData'))
+  if (entry.kind === 'folder') {
+    void shell.openPath(entry.path)
     return
   }
-  const needsProvider = login.args.some(arg => arg === '{provider}')
-  const args = login.args.map(arg => (arg === '{provider}' ? '"$provider"' : shellQuote(arg)))
-  const lines = ['#!/bin/zsh', 'clear']
-  if (needsProvider) {
-    lines.push(`printf %s ${shellQuote(`${login.prompt ?? 'provider'}: `)}`, 'read provider')
-  }
-  lines.push([shellQuote(binary), ...args].join(' '))
-  lines.push(`printf '\\n%s\\n' ${shellQuote(login.note ?? '完成，按回车关闭…')}`, 'read', '')
-  const safeId = String(instance.instanceId).replace(/[^\w-]/g, '_')
-  const script = join(app.getPath('userData'), `${safeId}-login.command`)
-  writeFileSync(script, lines.join('\n'), { mode: 0o755 })
+  writeFileSync(entry.file, entry.text, { mode: 0o755 })
   try {
-    execFileSync('open', ['-a', 'Terminal', script], { timeout: 5_000 })
+    execFileSync('open', ['-a', 'Terminal', entry.file], { timeout: 5_000 })
   } catch (error) {
     dialog.showErrorBox(APP_NAME, `没有打开终端：${error?.message ?? error}`)
   }
@@ -445,109 +348,44 @@ const sendToWindow = (channel, payload) => {
 }
 
 const buildMenu = () => {
-  const template = [
-    ...(process.platform === 'darwin' ? [{
-      label: APP_NAME,
-      submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    }] : []),
-    {
-      label: '文件',
-      submenu: [
-        { label: '新建房间', accelerator: 'CmdOrCtrl+N', click: () => sendToWindow('lodge:command', 'new-room') },
-        { label: '搜索房间', accelerator: 'CmdOrCtrl+F', click: () => sendToWindow('lodge:command', 'search') },
-        { type: 'separator' },
-        { role: 'close', label: '关闭窗口' },
-      ],
+  const template = menuTemplate({
+    platform: process.platform,
+    appName: APP_NAME,
+    packaged: app.isPackaged,
+    rooms: menuRooms,
+    logins: runtimeLogins,
+    actions: {
+      send: sendToWindow,
+      login: openRuntimeLogin,
+      openExternal: url => void shell.openExternal(url),
+      openLogs: () => void shell.openPath(logDir),
+      openData: () => void shell.openPath(app.getPath('userData')),
     },
-    {
-      label: '房间',
-      submenu: menuRooms.length === 0
-        ? [{ label: '还没有房间', enabled: false }]
-        : menuRooms.map((room, index) => ({
-          label: `${index + 1}  ${room.name}`,
-          accelerator: `CmdOrCtrl+${index + 1}`,
-          click: () => sendToWindow('lodge:open-room', room.id),
-        })),
-    },
-    {
-      label: '编辑',
-      submenu: [
-        { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
-        { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' },
-      ],
-    },
-    {
-      label: '视图',
-      submenu: [
-        ...(app.isPackaged
-          ? []
-          : [
-            { role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' },
-            { type: 'separator' },
-          ]),
-        { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
-        { type: 'separator' }, { role: 'togglefullscreen' },
-      ],
-    },
-    { label: '窗口', submenu: [{ role: 'minimize' }, { role: 'zoom' }, { role: 'close' }] },
-    {
-      label: '帮助',
-      submenu: [
-        ...runtimeLogins.map(instance => ({
-          label: `${instance.displayName ?? instance.instanceId} 登录…`,
-          click: () => openRuntimeLogin(instance),
-        })),
-        { label: '检查更新', click: () => void shell.openExternal('https://github.com/xdfwxg/lodge/releases') },
-        { label: '打开日志', click: () => void shell.openPath(logDir) },
-        { label: '打开数据目录', click: () => void shell.openPath(app.getPath('userData')) },
-      ],
-    },
-  ]
+  })
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
 const createWindow = port => {
-  window = new BrowserWindow({
-    width: 1280,
-    height: 860,
-    minWidth: 560,
-    minHeight: 600,
-    title: 'Lodge',
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    ...(process.platform !== 'darwin' && existsSync(iconFile) ? { icon: iconFile } : {}),
-    backgroundColor: '#f7f7f5',
-    show: false,
-    webPreferences: {
-      preload: join(app.getAppPath(), 'electron', 'preload.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      devTools: !app.isPackaged,
-    },
-  })
+  window = new BrowserWindow(windowOptions({
+    platform: process.platform,
+    packaged: app.isPackaged,
+    iconFile: existsSync(iconFile) ? iconFile : '',
+    preload: join(app.getAppPath(), 'electron', 'preload.cjs'),
+  }))
   window.webContents.on('will-attach-webview', event => event.preventDefault())
   const origin = `http://127.0.0.1:${port}`
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (sameOrigin(url, origin)) return { action: 'allow' }
-    const external = externalUrl(url)
-    if (external !== null) void shell.openExternal(external)
-    return { action: 'deny' }
+    const target = navigationTarget(url, origin)
+    if (target.action === 'external') void shell.openExternal(target.url)
+    return { action: target.action === 'allow' ? 'allow' : 'deny' }
   })
   window.webContents.on('will-navigate', (event, url) => {
-    if (sameOrigin(url, origin)) return
+    const target = navigationTarget(url, origin)
+    if (target.action === 'allow') return
     event.preventDefault()
-    const external = externalUrl(url)
-    if (external !== null) void shell.openExternal(external)
+    if (target.action === 'external') void shell.openExternal(target.url)
   })
-  window.once('ready-to-show', () => window?.show())
+  if (!smoke) window.once('ready-to-show', () => window?.show())
   void window.loadURL(origin)
   window.on('closed', () => { window = null })
 }
@@ -557,29 +395,14 @@ const boot = async () => {
   if (process.platform === 'darwin' && !app.isPackaged && existsSync(iconFile)) {
     app.dock.setIcon(iconFile)
   }
-  ipcMain.handle('lodge:runtime-login', async (_event, id) => {
-    if (typeof id !== 'string' || !RUNTIME_ID.test(id)) return { ok: false, error: '未知 runtime' }
-    if (baseUrl === '') return { ok: false, error: '基座还没有连接' }
-    try {
-      const response = await fetch(`${baseUrl}/api/instances`, { signal: AbortSignal.timeout(3_000) })
-      const data = await response.json()
-      const instance = (data?.instances ?? []).find(item => item.instanceId === id)
-      if (instance === undefined) return { ok: false, error: `没有 ${id} 这个引擎` }
-      if (!Array.isArray(instance.login?.args) || instance.login.args.length === 0) {
-        return { ok: false, error: `${instance.displayName ?? id} 没有配置终端登录` }
-      }
-      openRuntimeLogin(instance)
-      return { ok: true }
-    } catch (error) {
-      return { ok: false, error: String(error?.message ?? error) }
-    }
-  })
-  ipcMain.handle('lodge:open-path', async (_event, target) => {
-    const verdict = openablePath(target)
-    if (verdict.ok !== true) return verdict
-    const error = await shell.openPath(verdict.path)
-    return error === '' ? { ok: true } : { ok: false, error }
-  })
+  ipcMain.handle('lodge:runtime-login', (_event, id) => runtimeLogin({
+    id,
+    baseUrl,
+    open: openRuntimeLogin,
+  }))
+  ipcMain.handle('lodge:open-path', (_event, target) => openPath(target, {
+    open: path => shell.openPath(path),
+  }))
   const allowedPermissions = new Set(['clipboard-sanitized-write'])
   session.defaultSession.setPermissionRequestHandler((_contents, permission, callback) => {
     callback(allowedPermissions.has(permission))
@@ -597,30 +420,25 @@ const boot = async () => {
   })
   // 渲染层只报“有几个房间需要你”；菜单和角标由主进程统一维护。
   ipcMain.on('lodge:rooms', (_event, rooms) => {
-    menuRooms = Array.isArray(rooms)
-      ? rooms
-        .filter(room => typeof room?.id === 'string' && typeof room?.name === 'string')
-        .slice(0, 9)
-        .map(room => ({ id: room.id.slice(0, 120), name: room.name.slice(0, 80) }))
-      : []
+    menuRooms = roomsPayload(rooms)
     buildMenu()
   })
   ipcMain.on('lodge:attention', (_event, payload) => {
-    const count = Number.isInteger(payload?.count) ? Math.max(0, Math.min(99, payload.count)) : 0
-    if (count !== lastNeedsCount) {
-      lastNeedsCount = count
-      app.setBadgeCount(count)
-    }
-    const notify = payload?.notify
-    if (notify === undefined || notify === null || !Notification.isSupported()) return
-    if (typeof notify.roomId !== 'string' || typeof notify.title !== 'string' || typeof notify.body !== 'string') return
-    // 人正看着窗口时不打扰；离开窗口才提醒。
-    if (window !== null && window.isFocused()) return
-    const notification = new Notification({
-      title: notify.title.slice(0, 120),
-      body: notify.body.slice(0, 240),
+    const decision = attentionDecision({
+      payload,
+      supported: Notification.isSupported(),
+      focused: window !== null && window.isFocused(),
     })
-    notification.on('click', () => sendToWindow('lodge:open-room', notify.roomId))
+    if (decision.count !== lastNeedsCount) {
+      lastNeedsCount = decision.count
+      app.setBadgeCount(decision.count)
+    }
+    if (decision.notify === null) return
+    const notification = new Notification({
+      title: decision.notify.title,
+      body: decision.notify.body,
+    })
+    notification.on('click', () => sendToWindow('lodge:open-room', decision.notify.roomId))
     try {
       notification.show()
     } catch {}

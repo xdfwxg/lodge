@@ -21,6 +21,7 @@ const workspace = option('--workspaces')
 const useLatestWorkspaces = args.includes('--latest-workspaces') || all
 const withWorkspaces = !args.includes('--no-workspaces')
 const force = args.includes('--force')
+const dryRun = args.includes('--dry-run')
 
 if (list) {
   const rows = listBackups(dataDir)
@@ -38,8 +39,18 @@ const chosenWorkspaces = withWorkspaces
   : undefined
 if ((chosen === undefined || chosen === null || chosen === '') &&
   (chosenWorkspaces === undefined || chosenWorkspaces === null || chosenWorkspaces === '')) {
-  console.error('用法：npm run data:restore -- --list | --latest | --backup <file> | --all | --workspaces <name> [--data-dir <dir>] [--force]')
+  console.error('用法：npm run data:restore -- --list | --latest | --backup <file> | --all | --workspaces <name> [--data-dir <dir>] [--force] [--dry-run]')
   process.exit(2)
+}
+
+if (dryRun) {
+  // 先把会恢复的东西说清楚，真正写盘留给不带 --dry-run 的那一次。
+  if (chosen !== undefined && chosen !== null && chosen !== '') console.log(`would restore database: ${chosen}`)
+  if (chosenWorkspaces !== undefined && chosenWorkspaces !== null && chosenWorkspaces !== '') {
+    console.log(`would restore workspaces: ${chosenWorkspaces}`)
+  }
+  console.log('dry run: 没有改动任何数据')
+  process.exit(0)
 }
 
 let release
