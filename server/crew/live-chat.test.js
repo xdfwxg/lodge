@@ -61,6 +61,10 @@ const setup = (capabilities = { streaming: true, mentions: true, provisioning: t
       return message
     },
     readMessages: () => messages,
+    readRecentMessages: (_roomId, limit = 500) => messages.slice(-limit),
+    readMessage: (_roomId, id) => messages.find(message => message.id === id) ?? null,
+    findMessageByBaseId: (_roomId, baseId) => messages.find(message => message.meta?.baseId === baseId) ?? null,
+    findMessageBySendId: (_roomId, sendId) => messages.find(message => message.meta?.sendId === sendId) ?? null,
   }
   const chat = createRoomChat({
     store,
@@ -204,6 +208,59 @@ test('a streamed final reply maps base names to member names', () => {
   assert.equal(ctx.messages.at(-1).text, '@执行者 你好')
   assert.equal(ctx.messages.at(-1).meta.streaming, false)
   assert.equal(ctx.messages.at(-1).meta.final, true)
+})
+
+test('a long streamed turn never reads the whole room history', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  // 基座一场长回复可能有上千个增量；每个增量都全量读房间会让长聊天越来越慢。
+  ctx.store.readMessages = () => { throw new Error('streaming must not scan the room') }
+  for (let round = 0; round < 40; round += 1) {
+    for (let part = 0; part < 25; part += 1) {
+      ctx.subscribed[0].onEvent({ type: 'delta', delta: `${round}-${part} `, turnId: `t-${round}` })
+    }
+    ctx.subscribed[0].onEvent({
+      message: {
+        id: `final-${round}`,
+        kind: 'text',
+        role: 'agent',
+        authorRef: 'b-executor',
+        text: `${round} done`,
+        at: Date.now() + round,
+      },
+    })
+  }
+  // 每个回合一条最终消息，没有把增量永久留成几十条碎片。
+  assert.equal(ctx.messages.length, 40)
+  assert.equal(ctx.messages.every(message => message.meta.final === true), true)
+  assert.equal(ctx.messages[0].text, '0 done')
+  assert.equal(ctx.messages.at(-1).text, '39 done')
+})
+
+test('interleaved members keep their own streams', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'room', room: { ...base, busyRef: 'b-executor' } })
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '执行官的话 ', turnId: 't-exec' })
+  ctx.subscribed[0].onEvent({ type: 'room', room: { ...base, busyRef: 'b-verifier' } })
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '验收员的话 ', turnId: 't-verify' })
+  ctx.subscribed[0].onEvent({ type: 'room', room: { ...base, busyRef: 'b-executor' } })
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '继续。', turnId: 't-exec' })
+
+  const exec = ctx.messages.find(message => message.authorId === 'executor')
+  const verify = ctx.messages.find(message => message.authorId === 'verifier')
+  assert.equal(exec.text, '执行官的话 继续。')
+  assert.equal(verify.text, '验收员的话 ')
 })
 
 test('a user prompt never finalizes a member stream', () => {

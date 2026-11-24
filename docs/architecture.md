@@ -101,6 +101,7 @@ service.js                   ← 路由分发与用例组合
 - 存储拆成 `store/` 仓库：`work.js`、`rounds.js`、`timeline.js`、`assignments.js`、`projects.js`；`store.js` 只做打开、组合和房间视图。房间写入和轮次写入是两条显式路径：`updateRoom` 只写房间自己的字段，`updateRound` 才读写当前轮次；终态轮拒绝写入。轮次字段清单在 `shared/work-round.js`，两边共用。开新一轮时轮次和用户消息在同一个事务里落库，收口时结论消息和轮次完成也在同一个事务里落库；启动失败可以安全恢复。HTTP 动作按动作族放在 `actions/room/{lodge,run,admin,round}.js`，`room-actions.js` 只做分派，`service.js` 只做组合根。
 - `SCHEMA_VERSION=8`；版本不一致直接拒绝启动，运行 `npm run data:reset` 重建。旧数据不迁移、不留兼容字段；同一份状态只有一套读法。
 - 历史检索是房间自己的索引：`message_fts` 在消息追加/更新时维护；`searchMessages(roomId, query, {limit, before})` 只在本房间查，跳过活动噪声。规划师最多拿到 4 行只读简报，命中的消息 id 记 `history.brief`，只作参考，不是新指令。
+- 基座幂等键 `meta.baseId` / `meta.sendId` 有表达式索引；流式收口和回显对账按 id 查一条，不再为了去重把整间房读进内存。长聊天的成本随新增消息增长，不随历史总量平方增长。
 - 房间目录 `transcript.jsonl` 先追加并 fsync，再写 SQLite；轮次级目标、结论和证据文件可重建。
 - 当前用户是全局资料（`profile` 表一份），房间展示和 agent 上下文从它读，不再各存 `humanName`；改昵称后下一次快照即全局生效。
 - 一轮完成只结束这一轮：工作室回到空闲；下一轮在同一工作室开，旧轮保留为可回看的轮次。

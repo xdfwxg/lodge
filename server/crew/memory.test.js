@@ -200,3 +200,69 @@ test('a full workspace stops appending instead of growing forever', () => withSt
   assert.equal(blocked.ok, false)
   assert.equal(blocked.reason, 'limit')
 }))
+
+test('workspaces do not see each other’s memory', () => withStore(memory => {
+  memory.appendRoom({ room: room({ id: 'room-a', sourceRepo: '/workspace/a' }), messages: [] })
+  memory.appendRoom({ room: room({ id: 'room-b', sourceRepo: '/workspace/b' }), messages: [] })
+  memory.review({ room: room({ id: 'room-a', sourceRepo: '/workspace/a' }), memoryId: 'room-a', decision: 'approve' })
+
+  assert.deepEqual(memory.shared({ sourceRepo: '/workspace/a' }).map(entry => entry.roomId), ['room-a'])
+  assert.deepEqual(memory.shared({ sourceRepo: '/workspace/b' }), [])
+  assert.equal(memory.list({ room: room({ sourceRepo: '/workspace/b' }) }).length, 1)
+  assert.equal(memory.list({ room: room({ sourceRepo: '/workspace/a' }) }).length, 1)
+}))
+
+test('shared memory keeps only the newest approved entries within the limit', () => withStore(memory => {
+  for (let index = 0; index < 5; index += 1) {
+    const current = room({ id: `room-${index}`, completedAt: index })
+    memory.appendRoom({ room: current, messages: [{ kind: 'conclusion', text: `结论 ${index}` }] })
+    memory.review({ room: current, memoryId: current.id, decision: 'approve' })
+  }
+  assert.deepEqual(
+    memory.shared({ room: room(), limit: 2 }).map(entry => entry.roomId),
+    ['room-4', 'room-3'],
+  )
+  // 未审核的草稿永远不共享，即使它更新。
+  const draft = room({ id: 'room-draft', completedAt: 99 })
+  memory.appendRoom({ room: draft, messages: [{ kind: 'conclusion', text: '还没审' }] })
+  assert.deepEqual(memory.shared({ room: room(), limit: 2 }).map(entry => entry.roomId), ['room-4', 'room-3'])
+}))
+
+test('the last verdict decides the remembered conclusion', () => withStore(memory => {
+  const verdict = (decision, reason) => ({ kind: 'verdict', text: decision === 'pass' ? 'PASS' : 'REJECT', meta: {
+    pass: decision === 'pass',
+    reason,
+    stage: 0,
+    judgment: {
+      version: 1,
+      type: 'verdict',
+      decision,
+      reason,
+      findings: [],
+      actionRequired: '',
+      stage: 0,
+      evidenceId: null,
+      actorId: 'verifier',
+      rejectTo: null,
+      at: 0,
+      source: 'text',
+    },
+  } })
+  memory.appendRoom({ room: room(), messages: [
+    verdict('reject', '第一次没过'),
+    verdict('pass', '第二次通过'),
+    { kind: 'conclusion', text: '旧结论不应覆盖判定' },
+  ] })
+  const [entry] = memory.list({ room: room() })
+  assert.equal(entry.conclusion, '第二次通过')
+  assert.deepEqual(entry.rejections, [{ stage: 0, reason: '第一次没过' }])
+  assert.equal(entry.verdict.pass, true)
+}))
+
+test('key and certificate files never become memory pointers', () => withStore(memory => {
+  memory.appendRoom({ room: room(), messages: [
+    { kind: 'evidence', meta: { changedFiles: ['deploy/app.pem', 'deploy/id_rsa.key', 'src/a.js'] } },
+  ] })
+  const [entry] = memory.list({ room: room() })
+  assert.deepEqual(entry.files, ['src/a.js'])
+}))

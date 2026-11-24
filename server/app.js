@@ -18,7 +18,7 @@ import { assertRuntimePort } from './crew/runtime-port.js'
 import { compactAssignments } from './crew/assignment-history.js'
 import { createStore } from './crew/store.js'
 import { createBaseClient } from './base.js'
-import { ensureRoleSkillPacks } from './skill-packs.js'
+import { createSkillPackGate, ensureRoleSkillPacks } from './skill-packs.js'
 import { ensureBrowserMcp } from './browser-mcp.js'
 import { clearLodgeBaseResources } from './base-gc.js'
 import { createEngine } from './engine.js'
@@ -151,19 +151,18 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
   store.reclaimWork?.()
   // 附件走基座自己的库；图片能被原生视觉模型看见，文件保留路径和文本正文。
   const baseForAttachments = createBaseClient()
-  let roleSkillPacksReady = true
-  try {
-    await ensureRoleSkillPacks({ client: baseForAttachments, root })
-  } catch (error) {
-    roleSkillPacksReady = false
-    console.warn(`[lodge] 角色技能包没有准备好：${error?.message ?? error}`)
-  }
+  // 基座可能比 Lodge 晚起来；失败不能把整次进程判死，建房时再试一次。
+  const ensureSkillPacks = createSkillPackGate({
+    ensure: () => ensureRoleSkillPacks({ client: baseForAttachments, root }),
+    log: message => console.warn(`[lodge] ${message}`),
+  })
+  await ensureSkillPacks()
 
   const ports = createCrewPorts({
     memoryRoot: join(dataDir, 'memory'),
     browserMcp: { ensure: () => ensureBrowserMcp(engine) },
     attachments: baseForAttachments,
-    roleSkills: { ready: () => roleSkillPacksReady },
+    roleSkills: { ready: ensureSkillPacks },
   })
   progressWriter = room => {
     try {

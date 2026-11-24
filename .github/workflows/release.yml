@@ -39,6 +39,8 @@ jobs:
       - run: npm run check:docs
       - run: npm run check:regressions
       - run: npm run build
+      - run: npm run test:ui
+      - run: npm run smoke:electron
       - run: npx electron-builder --mac --arm64 --publish never
 
       - name: Verify packaged contents
@@ -52,8 +54,8 @@ jobs:
           file "$app/Contents/Resources/runtimes/pi/pi" | grep -q 'arm64'
           test -f "$app/Contents/Resources/licenses/third_party/OpenMausBot-LICENSE.txt"
 
-      - name: Smoke test packaged server
-        run: node scripts/smoke-package.mjs --app release/mac-arm64/Lodge.app
+      - name: Smoke test packaged app
+        run: node scripts/smoke-package.mjs --app release/mac-arm64/Lodge.app --gui
 
       - name: Verify ad-hoc signatures
         run: |
@@ -104,6 +106,7 @@ jobs:
       - run: $env:LODGE_BASE_DIST = 'base-src/dist-server'; npm run prepare:base
       - run: npm run prepare:runtimes
       - run: npm run build
+      - run: npm run test:ui
       - run: npx electron-builder --win --x64 --publish never
       - run: node scripts/smoke-package.mjs --app release/win-unpacked --platform win32
       - uses: actions/upload-artifact@v4
@@ -132,6 +135,8 @@ jobs:
       - run: LODGE_BASE_DIST=base-src/dist-server npm run prepare:base
       - run: npm run prepare:runtimes
       - run: npm run build
+      - run: npx playwright install-deps chromium
+      - run: npm run test:ui
       - run: npx electron-builder --linux --x64 --publish never
       - run: node scripts/smoke-package.mjs --app release/linux-unpacked --platform linux
       - uses: actions/upload-artifact@v4

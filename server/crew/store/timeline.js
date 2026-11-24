@@ -55,6 +55,18 @@ export const createTimelineStore = ({
     return row === undefined ? null : JSON.parse(row.payload)
   }
 
+  // 基座幂等键直接查索引，不再为了对一条消息把整间房读进内存。
+  const findMessageByMeta = (roomId, field, value) => {
+    if (!['baseId', 'sendId'].includes(field)) return null
+    if (typeof value !== 'string' || value === '') return null
+    const row = db.prepare(
+      `SELECT payload FROM messages WHERE room_id = ? AND json_extract(payload, '$.meta.${field}') = ? ORDER BY seq DESC LIMIT 1`,
+    ).get(roomId, value)
+    return row === undefined ? null : JSON.parse(row.payload)
+  }
+  const findMessageByBaseId = (roomId, baseId) => findMessageByMeta(roomId, 'baseId', baseId)
+  const findMessageBySendId = (roomId, sendId) => findMessageByMeta(roomId, 'sendId', sendId)
+
   const readMessages = (roomId, { workRoundId, roomLevel = workRoundId === undefined } = {}) => {
     const scoped = workRoundId === undefined ? roundIdForRead(roomId) : workRoundId
     const rows = scoped === null
@@ -267,6 +279,8 @@ export const createTimelineStore = ({
   return {
     nextSeq,
     readMessage,
+    findMessageByBaseId,
+    findMessageBySendId,
     readMessages,
     readRecentMessages,
     maxMessageSeq,

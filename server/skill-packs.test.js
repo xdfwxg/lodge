@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { TOOLBOX_SKILLS } from '../shared/role-toolbox.js'
-import { ensureRoleSkillPacks } from './skill-packs.js'
+import { createSkillPackGate, ensureRoleSkillPacks } from './skill-packs.js'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const quiet = () => {}
@@ -87,11 +87,44 @@ test('opens the base library when it is off', async () => {
   assert.equal(client.state.patchConfig, 1)
 })
 
-test('refuses to overwrite a different user skill with the same name', async () => {
+test('a different user skill is kept, not overwritten, and does not block rooms', async () => {
   const client = fakeClient({ conflict: true })
   client.state.skills.set(TOOLBOX_SKILLS[0], { name: TOOLBOX_SKILLS[0], enabled: true })
-  await assert.rejects(
-    ensureRoleSkillPacks({ client, root, log: quiet }),
-    /内容不同/,
-  )
+  const result = await ensureRoleSkillPacks({ client, root, log: quiet })
+  assert.deepEqual(result.conflicts, [TOOLBOX_SKILLS[0]])
+  assert.equal(client.state.texts.has(TOOLBOX_SKILLS[0]), false)
+})
+
+test('a failed skill install can be retried on the next room', async () => {
+  let attempts = 0
+  const logs = []
+  const gate = createSkillPackGate({
+    ensure: async () => {
+      attempts += 1
+      if (attempts === 1) throw new Error('fetch failed')
+    },
+    log: message => logs.push(message),
+  })
+  assert.equal(await gate(), false)
+  assert.equal(await gate(), true)
+  assert.equal(await gate(), true)
+  assert.equal(attempts, 2)
+  assert.match(logs[0], /fetch failed/)
+})
+
+test('concurrent rooms share one skill install', async () => {
+  let attempts = 0
+  let release
+  const started = new Promise(resolve => { release = resolve })
+  const gate = createSkillPackGate({
+    ensure: async () => {
+      attempts += 1
+      await started
+    },
+  })
+  const first = gate()
+  const second = gate()
+  release()
+  assert.deepEqual(await Promise.all([first, second]), [true, true])
+  assert.equal(attempts, 1)
 })

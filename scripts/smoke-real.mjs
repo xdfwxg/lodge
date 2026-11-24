@@ -4,6 +4,10 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { compareShapes, shapeEndpoints } from '../server/base-shape.js'
+
+const baseShape = JSON.parse(readFileSync(fileURLToPath(new URL('../server/fixtures/base-shape.json', import.meta.url)), 'utf8'))
 
 const lodgeUrl = (process.env.LODGE_URL ?? 'http://127.0.0.1:8787').replace(/\/+$/, '')
 const baseUrl = (process.env.CREW_BASE_URL ?? 'http://127.0.0.1:8799').replace(/\/+$/, '')
@@ -44,6 +48,19 @@ try {
 try {
   const base = await getJson(`${baseUrl}/api/health`)
   check('基座', base.status === 200 && base.body?.app === 'openmausbot', `${baseUrl} · ${base.body?.version ?? '?'}`)
+  if (base.status === 200) {
+    const [instances, bootstrap, config] = await Promise.all([
+      getJson(`${baseUrl}/api/instances`),
+      getJson(`${baseUrl}/api/bots?messages=0`),
+      getJson(`${baseUrl}/api/config`),
+    ])
+    const live = shapeEndpoints({ instances: instances.body, bootstrap: bootstrap.body, config: config.body })
+    const missing = Object.entries(baseShape.endpoints ?? {})
+      .flatMap(([name, expected]) => compareShapes(expected, live[name]).missing.map(path => `${name}:${path}`))
+    check('基座形状', missing.length === 0, missing.length === 0
+      ? `与 ${baseShape.recordedAt ?? '录制版本'} 一致`
+      : `少了 ${missing.slice(0, 5).join('、')}${missing.length > 5 ? ` 等 ${missing.length} 处` : ''}`)
+  }
 } catch (error) {
   check('基座', false, `${baseUrl} · ${error?.message ?? error}`)
 }

@@ -1,11 +1,11 @@
 // Electron 冒烟：启动真正的桌面壳，确认窗口能连上本地服务并渲染界面，再退出。
 // 用临时用户目录和假基座，不碰用户正在用的 Lodge、房间或基座资源。
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
-import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron } from '@playwright/test'
+import { startFakeBase } from './fake-base.mjs'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const dist = join(root, 'ui', 'dist', 'index.html')
@@ -19,44 +19,6 @@ const userData = join(temp, 'userData')
 const dataDir = join(temp, 'data')
 let base = null
 let app = null
-
-const instances = {
-  instances: [
-    {
-      instanceId: 'claude',
-      driverKind: 'claudeAgent',
-      displayName: 'Claude',
-      snapshot: { state: 'available', authenticated: true },
-      models: { default: 'claude-sonnet-5', options: [] },
-      login: { args: ['login'], command: 'claude' },
-      capabilities: {},
-    },
-  ],
-}
-
-const startFakeBase = () => new Promise(resolveBase => {
-  const server = createServer((request, response) => {
-    const path = new URL(request.url, 'http://127.0.0.1').pathname
-    if (path === '/api/instances') {
-      response.writeHead(200, { 'content-type': 'application/json' })
-      response.end(JSON.stringify(instances))
-      return
-    }
-    if (path === '/api/bots') {
-      response.writeHead(200, { 'content-type': 'application/json' })
-      response.end(JSON.stringify({ bots: [], groups: [] }))
-      return
-    }
-    if (path === '/api/config') {
-      response.writeHead(200, { 'content-type': 'application/json' })
-      response.end(JSON.stringify({ features: {} }))
-      return
-    }
-    response.writeHead(404, { 'content-type': 'application/json' })
-    response.end('{}')
-  })
-  server.listen(0, '127.0.0.1', () => resolveBase(server))
-})
 
 const launch = baseUrl => electron.launch({
   args: [root],
@@ -84,7 +46,7 @@ const shellPage = async launched => {
 
 try {
   base = await startFakeBase()
-  const baseUrl = `http://127.0.0.1:${base.address().port}`
+  const baseUrl = base.url
 
   app = await launch(baseUrl)
   let page = await shellPage(app)
@@ -119,6 +81,6 @@ try {
   process.exitCode = 1
 } finally {
   try { await app?.close() } catch {}
-  if (base !== null) await new Promise(resolveClose => base.close(resolveClose))
+  if (base !== null) await base.close()
   rmSync(temp, { recursive: true, force: true })
 }

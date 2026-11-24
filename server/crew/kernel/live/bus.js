@@ -104,7 +104,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     // 流式消息按回合区分：同一成员在一轮里发多次言时不能覆盖上一条。
     const sameTurn = prior !== undefined && prior.turnId === turnId
     const id = sameTurn ? prior.id : `stream:${room.id}:${memberId}:${turnId}`
-    const existing = store.readMessages(room.id).find(message => message.id === id)
+    const existing = store.readMessage(room.id, id)
     const raw = sameTurn && typeof existing?.text === 'string'
       ? existing.text + event.delta
       : event.delta
@@ -146,8 +146,9 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     // 基座在 text 之后还会补一条同内容的 digest/turn；同一成员同一句只留一条。
     const plain = value => String(value ?? '').replace(/\s+/g, ' ').trim()
     const at = message.at ?? Date.now()
+    // 去重只看最近一小段：同一条 digest 总在几秒内到达，不需要把整段历史读进内存。
     const duplicate = message.kind === 'turn'
-      ? store.readMessages(room.id).find(item => (
+      ? store.readRecentMessages(room.id, 200).find(item => (
         item.kind === 'chat' &&
         item.authorId === memberId &&
         item.meta?.final === true &&
@@ -159,10 +160,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       ))
       : undefined
     if (duplicate !== undefined) {
-      const existing = state === undefined
-        ? undefined
-        : store.readMessages(room.id).find(item => item.id === state.id)
-      if (existing !== undefined) {
+      const existing = state === undefined ? null : store.readMessage(room.id, state.id)
+      if (existing !== null) {
         store.upsertMessage({
           ...existing,
           meta: { ...(existing.meta ?? {}), stale: true, final: true, baseId: message.id },
@@ -173,7 +172,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
       return true
     }
     if (state === undefined) return false
-    const existing = store.readMessages(room.id).find(item => item.id === state.id)
+    const existing = store.readMessage(room.id, state.id)
     const workRoundId = roundIdForMessage(store, current, message)
     store.upsertMessage({
       ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: memberId }),
@@ -192,14 +191,13 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     // 隐藏主持模型的原始回复只喂给总结卡，不进入聊天时间线。
     const host = hostOf(room)
     if (host !== null && message.authorRef === host.memberRef) return null
-    // 流式消息已经落库的，同步历史时不再补一条同内容的消息。
-    if (store.readMessages(room.id).some(item => item.meta?.baseId === message.id)) return null
+    // 流式消息已经落库的，同步历史时不再补一条同内容的消息；查索引，不扫全房。
+    if (store.findMessageByBaseId(room.id, message.id) !== null) return null
     if (message.role === 'user') {
-      const messages = store.readMessages(room.id)
-      if (messages.some(item => item.meta?.baseId === message.id)) return null
+      // 回显只可能出现在最近这段历史里；按 sendId 直接查，找不到再用最近的文本兜底。
       if (typeof message.sendId === 'string' && message.sendId !== '') {
-        const echo = messages.find(item => item.meta?.sendId === message.sendId)
-        if (echo !== undefined) {
+        const echo = store.findMessageBySendId(room.id, message.sendId)
+        if (echo !== null) {
           // 回显保留人输入的原话；基座消息里自动补的 @ 只用于唤醒，不改房间记录。
           const { queueId: _queued, ...meta } = echo.meta ?? {}
           store.upsertMessage({
@@ -210,7 +208,11 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
           return null
         }
       }
-      const echo = matchEcho(messages, toDisplayMentions(room, message.text), message.at)
+      const echo = matchEcho(
+        store.readRecentMessages(room.id, 100),
+        toDisplayMentions(room, message.text),
+        message.at,
+      )
       if (echo !== undefined) {
         const { queueId: _queued, ...meta } = echo.meta ?? {}
         store.upsertMessage({ ...echo, meta: { ...meta, baseId: message.id } })

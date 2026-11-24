@@ -80,8 +80,12 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     }
   }
   const wantsSkills = roster.some(member => (member.skills ?? []).length > 0)
-  if (wantsSkills && ports.roleSkills?.ready?.() === false) {
-    return fail('conflict', '角色技能还没有准备好；先检查 Lodge 服务的技能库，或稍后重启 Lodge')
+  if (wantsSkills) {
+    // 技能库可能刚刚才连上基座；这次建房先重试一次，而不是要求用户重启 Lodge。
+    const ready = await ports.roleSkills?.ready?.()
+    if (ready === false) {
+      return fail('conflict', '角色技能还没有准备好；先检查 Lodge 服务的技能库，或稍后重启 Lodge')
+    }
   }
   if (wantsSkills && typeof engine.features === 'function') {
     const features = await engine.features()

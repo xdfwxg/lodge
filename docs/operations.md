@@ -41,7 +41,9 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 每位成员默认带只读公网浏览，不需要勾选，也没有房间级权限。建房和规划师开通成员时自动挂 `chrome-devtools` 只读 grant， Lodge 首次需要时把 `chrome-devtools-mcp@1.13.0` 注册到基座。
 
 - 所有角色同一份能力：只读研究直接放行；命令、写入、付款仍逐次确认。
-- 独立临时 profile、headless；禁止输入、JS 求值、本地文件、localhost 和常见私网。
+- 独立临时 profile、headless；禁止输入、JS 求值、本地文件和本机地址。拦截模式按 URLPattern 逐条写本机地址（localhost、127.0.0.1、0.0.0.0、`.local`、`.internal`）；URLPattern 不接受 `127.*` 这类部分 IPv4 通配或 IPv6 字面量，所以这两类没有假装拦住。
+- `server/browser-mcp.integration.test.js` 会用交付时的参数真的启动 `chrome-devtools-mcp`、走 MCP 握手并确认输入与 JS 求值工具确实不存在；参数写错时在测试里就红。
+- 角色技能包装进基座技能库后，基座没有“覆盖同名技能”的接口。Lodge 升级后如果 `skills/role-packs/` 的文案变了，基座保留旧版本并在日志里写 `保留基座版本，不覆盖`，但不会拦住建房；要真正更新，先在基座里移除同名技能，再重启 Lodge 重新导入。
 - 浏览器没准备好时，系统拿掉这项能力、房里留一句说明，房间照常开始，不挡住建房。
 
 ## 上下文装配
@@ -158,13 +160,17 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 ## 验证
 - 一次构建结束、尤其是走偏之后，运行 `npm run retro:env`：它按严重度列出这次改动的环境缺口（缺测试、缺文档、空白错误、改动面过大、未提交改动），不进入房间角色。
 
-`npm test`、`npm run build`、`npm run test:ui`（Playwright + axe，覆盖首屏、结果卡、目标面板、窄屏暗色）、`npm run smoke:electron`（启动真正的桌面壳，建一间示例房后退出）、`npm run prepare:runtimes`、`npm run package:mac:dir`、`npm run smoke:package`。端到端验证需要 Pi 已登录：新建工作室，执行引擎选 Pi，给一条可执行的验收命令，确认执行官实际跑了命令并产生证据。
+`npm test`、`npm run build`、`npm run test:ui`（Playwright + axe，覆盖首屏、结果卡、目标面板、窄屏暗色、灵动岛视觉基线）、`npm run smoke:electron`（启动真正的桌面壳，建一间示例房、退出、重开）、`npm run prepare:runtimes`、`npm run package:mac:dir`、`npm run smoke:package`（加 `--gui` 会启动打包后的桌面程序并确认窗口渲染）。端到端验证需要 Pi 已登录：新建工作室，执行引擎选 Pi，给一条可执行的验收命令，确认执行官实际跑了命令并产生证据。
 
 提示词快照在 `server/crew/fixtures/prompts/`；有意改提示词后跑 `npm run prompts:update`，把 diff 当行为变化审，不要顺手全量覆盖。基座 HTTP 契约由 `server/base.contract.test.js` 钉住，改 `server/base.js` 必须同步改它。
 
-真实环境先跑只读冒烟 `npm run smoke:real`：检查 Lodge 8787、基座 8799 和本机模型路由，不建房间、不调模型；任一不健康就非零退出。macOS 可装每日定时：`npm run nightly:smoke:install -- 09:17`，失败弹系统通知，日志在 `~/Library/Logs/Lodge/smoke.log`；`npm run nightly:smoke:uninstall` 移除。
+基座响应的形状来自真实 8799：`npm run base:record` 重新录制（只存键名和类型，不存任何 bot、消息或配置值），`npm run check:base` 对比当前基座，字段减少会非零退出。回放测试在 `server/base.shape.test.js`；`smoke:real` 也包含这一步。
 
-提交钩子在仓库的 `.githooks/pre-commit`，`npm install` 后由 `prepare` 自动接上，也可手动 `npm run setup:hooks`；它跑完整的 `npm run check:done`（含界面端到端、Electron 冒烟、题库自检、长任务与历史检索基准）。`check:acceptance` 不只看矩阵里的文件是否存在，会实际执行矩阵链接的 Node 单测；视觉基线在 `e2e/visual.spec.mjs`（Mac 录基线，Linux 跳过），首屏、长列表和并发读取预算在 `e2e/budget.spec.mjs`。
+真实环境先跑只读冒烟 `npm run smoke:real`：检查 Lodge 8787、基座 8799、基座形状和本机模型路由，不建房间、不调模型；任一不健康就非零退出。macOS 可装每日定时：`npm run nightly:smoke:install -- 09:17`，失败弹系统通知，日志在 `~/Library/Logs/Lodge/smoke.log`；`npm run nightly:smoke:uninstall` 移除。
+
+长聊天压测用 `npm run soak -- --minutes 30`：按真实总线灌流式增量，输出回合数、消息数和堆内存，不进入 `check:done`。
+
+提交钩子在仓库的 `.githooks/pre-commit`，`npm install` 后由 `prepare` 自动接上，也可手动 `npm run setup:hooks`；它跑完整的 `npm run check:done`（含界面端到端、Electron 冒烟、技能包结构、题库自检、长任务与历史检索基准）。CI 跑同一套但跳过 Electron 冒烟（`npm run check:ci`），桌面壳冒烟在独立的 macOS job；发布流程在 Mac 上跑界面端到端、Electron 冒烟和打包后 GUI 冒烟，Windows/Linux 也跑界面端到端再打包。`check:acceptance` 不只看矩阵里的文件是否存在，会实际执行矩阵链接的 Node 单测；视觉基线在 `e2e/visual.spec.mjs` 和 `e2e/island-visual.spec.mjs`（Mac 录基线，Linux 跳过），首屏、长列表和并发读取预算在 `e2e/budget.spec.mjs`。
 
 ## 评测
 

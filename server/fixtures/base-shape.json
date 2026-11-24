@@ -1,0 +1,328 @@
+{
+  "recordedAt": "2026-11-24",
+  "endpoints": {
+    "instances": {
+      "type": "object",
+      "keys": {
+        "instances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "keys": {
+              "instanceId": "string",
+              "driverKind": "string",
+              "displayName": "string",
+              "snapshot": {
+                "type": "object",
+                "keys": {
+                  "state": "string",
+                  "reason": "string"
+                }
+              },
+              "models": {
+                "type": "object",
+                "keys": {
+                  "default": "string",
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "keys": {
+                        "id": "string",
+                        "label": "string",
+                        "contextWindow": "number"
+                      }
+                    }
+                  }
+                }
+              },
+              "modelsUnconfirmed": "boolean",
+              "capabilities": {
+                "type": "object",
+                "keys": {
+                  "computerMcp": "boolean",
+                  "agentsMcp": "boolean",
+                  "composioMcp": "boolean",
+                  "phoneMcp": "boolean",
+                  "deviceMcp": "boolean",
+                  "dataMcp": "boolean",
+                  "emailMcp": "boolean",
+                  "browserMcp": "boolean",
+                  "images": "boolean",
+                  "effortLevels": {
+                    "type": "array",
+                    "items": "string"
+                  },
+                  "modelVariants": "boolean",
+                  "queueing": "boolean",
+                  "localComputerMcp": "boolean",
+                  "approvalReview": "boolean",
+                  "backgroundText": "boolean"
+                }
+              },
+              "access": "string",
+              "install": {
+                "type": "object",
+                "keys": {
+                  "command": {
+                    "type": "object",
+                    "keys": {
+                      "darwin": "string",
+                      "linux": "string"
+                    }
+                  },
+                  "docsUrl": "string",
+                  "signInCommand": "string",
+                  "platform": "string"
+                }
+              },
+              "authentication": {
+                "type": "object",
+                "keys": {
+                  "method": "string",
+                  "signOut": "boolean"
+                }
+              },
+              "cliDefault": "string",
+              "cliCandidates": {
+                "type": "array",
+                "items": null
+              }
+            }
+          }
+        }
+      }
+    },
+    "bootstrap": {
+      "type": "object",
+      "keys": {
+        "bots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "keys": {
+              "id": "string",
+              "threadId": "string",
+              "name": "string",
+              "title": "string",
+              "description": "string",
+              "soul": "string",
+              "soulHash": "string",
+              "notifications": "boolean",
+              "color": "string",
+              "mascotBody": "string",
+              "toolScope": {
+                "type": "object",
+                "keys": {
+                  "deny": {
+                    "type": "array",
+                    "items": "string"
+                  }
+                }
+              },
+              "unread": "boolean",
+              "modelSelection": {
+                "type": "object",
+                "keys": {
+                  "instanceId": "string",
+                  "model": "string"
+                }
+              },
+              "createdAt": "number",
+              "approvalMode": "string",
+              "mcpServers": {
+                "type": "array",
+                "items": null
+              },
+              "autoApprove": "boolean",
+              "soulDrift": "boolean",
+              "busy": "boolean",
+              "activity": "string",
+              "waitingForTeammates": "boolean",
+              "mainThreadId": "string",
+              "avatarUrl": "null",
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "keys": {
+                    "threadId": "string",
+                    "title": "string",
+                    "createdAt": "number",
+                    "updatedAt": "number",
+                    "unread": "boolean",
+                    "lastThreadOrderAt": "number",
+                    "busy": "boolean",
+                    "activity": "string",
+                    "modelSelection": {
+                      "type": "object",
+                      "keys": {
+                        "instanceId": "string",
+                        "model": "string"
+                      }
+                    },
+                    "followsBotModel": "boolean",
+                    "waitingForTeammates": "boolean"
+                  }
+                }
+              },
+              "messages": {
+                "type": "array",
+                "items": null
+              },
+              "hasMore": "boolean",
+              "activeLeafId": "string"
+            }
+          }
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "keys": {
+              "id": "string",
+              "threadId": "string",
+              "name": "string",
+              "memberIds": {
+                "type": "array",
+                "items": "string"
+              },
+              "defaultResponder": {
+                "type": "object",
+                "keys": {
+                  "kind": "string"
+                }
+              },
+              "bulletin": "string",
+              "unread": "boolean",
+              "createdAt": "number",
+              "tasks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "keys": {
+                    "threadId": "string",
+                    "title": "string",
+                    "createdAt": "number",
+                    "updatedAt": "number",
+                    "working": "boolean",
+                    "busyBotId": "null"
+                  }
+                }
+              },
+              "setupCompletedAt": "number",
+              "setupSkippedAt": "null",
+              "cwd": "string",
+              "followMentions": "boolean",
+              "busyBotId": "null",
+              "description": "null",
+              "turnTimeoutMinutes": "null",
+              "usage": "null",
+              "memberContext": "null",
+              "working": "boolean",
+              "queue": {
+                "type": "array",
+                "items": null
+              },
+              "chiefAbsent": {
+                "type": "object",
+                "keys": {
+                  "botId": "string",
+                  "name": "string"
+                }
+              },
+              "messages": {
+                "type": "array",
+                "items": null
+              },
+              "hasMore": "boolean",
+              "activeLeafId": "null"
+            }
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "keys": {
+        "cloudStarter": "present",
+        "waitingForRoom": "present",
+        "pausedBots": "present",
+        "pausedByPerson": "present",
+        "heldBots": "present",
+        "xai": "present",
+        "mistral": "present",
+        "cerebras": "present",
+        "groq": "present",
+        "greenference": "present",
+        "modelgo": "present",
+        "meta": "present",
+        "deepseek": "present",
+        "xResearch": "present",
+        "treg": "present",
+        "postiz": "present",
+        "anthropic": "present",
+        "openai": "present",
+        "openrouter": "present",
+        "fleet": "present",
+        "toolGroups": "present",
+        "edition": "present",
+        "budgets": "present",
+        "billing": "present",
+        "decisions": "present",
+        "safetyFloor": "present",
+        "openaiCompat": "present",
+        "composio": "present",
+        "box": "present",
+        "vps": "present",
+        "opencodeGo": "present",
+        "tts": "present",
+        "decider": "present",
+        "helpers": "present",
+        "imageGen": "present",
+        "savedKeys": "present",
+        "live": "present",
+        "profile": "present",
+        "managedPolicy": "present",
+        "language": "present",
+        "computerName": "present",
+        "everyBotRules": "present",
+        "rooms": "present",
+        "mcp": "present",
+        "automaticRecovery": "present",
+        "cacheKeepWarm": "present",
+        "newBots": "present",
+        "threads": "present",
+        "localVm": "present",
+        "features": {
+          "type": "keys",
+          "keys": [
+            "skillAuthoring",
+            "skillReview",
+            "skillReviewSteps",
+            "skillsLibrary",
+            "shareLearnedSkills",
+            "showToolCalls",
+            "browser",
+            "sharedComputers",
+            "claudeUserMcp",
+            "claudeUserSkills",
+            "autoRecall",
+            "roomMemoryCapture",
+            "parallelRoomJobs",
+            "llmThreadTitles",
+            "savedSteps",
+            "savedStepsHere",
+            "usbPhoneTakeover"
+          ]
+        },
+        "onboarding": "present",
+        "browserEngine": "present",
+        "browserProfiles": "present",
+        "signIn": "present",
+        "membership": "present",
+        "workspaceBanner": "present"
+      }
+    }
+  }
+}

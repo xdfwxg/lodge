@@ -49,12 +49,13 @@ export const browserMcpConfig = () => ({
   ...launch(),
 })
 
-let ready = null
+// 每个 engine 只注册一次；按实例缓存，换驱动或测试不会共享上一次的结果。
+const ready = new WeakMap()
 
-// 浏览器工具只在有人申请时注册；注册本身不启动 Chrome。
 export const ensureBrowserMcp = async engine => {
-  if (ready !== null) return ready
-  ready = (async () => {
+  const cacheable = engine !== null && typeof engine === 'object'
+  if (cacheable && ready.has(engine)) return ready.get(engine)
+  const task = (async () => {
     if (typeof engine?.mcp?.list !== 'function' || typeof engine.mcp.create !== 'function') return false
     const config = browserMcpConfig()
     const listed = await engine.mcp.list()
@@ -79,9 +80,10 @@ export const ensureBrowserMcp = async engine => {
     }
     return true
   })().catch(error => {
-    ready = null
+    if (cacheable) ready.delete(engine)
     console.warn(`[lodge] 浏览器工具没有准备好：${error?.message ?? error}`)
     return false
   })
-  return ready
+  if (cacheable) ready.set(engine, task)
+  return task
 }

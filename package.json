@@ -32,7 +32,8 @@
     "check:deps": "depcruise . --config .dependency-cruiser.cjs --output-type err",
     "check:acceptance": "node scripts/check-acceptance.mjs",
     "check:regressions": "node scripts/check-regressions.mjs",
-    "check:done": "npm test && npm run check:unused && npm run check:deps && npm run test:ui && npm run smoke:electron && npm run check:docs && npm run check:acceptance && npm run check:regressions && npm run eval:rooms -- --validate && npm run eval:long-task && npm run eval:history-bench",
+    "check:done": "npm test && npm run check:unused && npm run check:deps && npm run check:skills && npm run test:ui && npm run smoke:electron && npm run check:docs && npm run check:acceptance && npm run check:regressions && npm run eval:rooms -- --validate && npm run eval:long-task && npm run eval:history-bench",
+    "check:ci": "npm test && npm run check:unused && npm run check:deps && npm run check:skills && npm run test:ui && npm run check:docs && npm run check:acceptance && npm run check:regressions && npm run eval:rooms -- --validate && npm run eval:long-task && npm run eval:history-bench",
     "setup:hooks": "node scripts/setup-hooks.mjs",
     "gc:base": "node scripts/base-gc.mjs",
     "data:restore": "node scripts/data-restore.mjs",
@@ -40,6 +41,9 @@
     "smoke:package": "node scripts/smoke-package.mjs",
     "smoke:electron": "node scripts/smoke-electron.mjs",
     "smoke:real": "node scripts/smoke-real.mjs",
+    "soak": "node scripts/soak-chat.mjs",
+    "base:record": "node scripts/record-base-shape.mjs",
+    "check:base": "node scripts/check-base-drift.mjs",
     "nightly:smoke:install": "node scripts/install-nightly-smoke.mjs",
     "nightly:smoke:uninstall": "node scripts/install-nightly-smoke.mjs --uninstall",
     "test:ui": "npm run build && playwright test",
@@ -55,7 +59,8 @@
     "eval:verifier-probe": "node evals/verifier-probe/run.mjs",
     "eval:history-bench": "node evals/history-bench/run.mjs",
     "eval:verifier-probe:nightly": "node evals/verifier-probe/run.mjs --runs 3 --out evals/verifier-probe/results/nightly",
-    "smtp:test": "node scripts/smtp-test.mjs"
+    "smtp:test": "node scripts/smtp-test.mjs",
+    "check:skills": "node scripts/check-skills.mjs"
   },
   "dependencies": {
     "chrome-devtools-mcp": "1.13.0",

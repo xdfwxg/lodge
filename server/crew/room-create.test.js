@@ -204,7 +204,7 @@ test('role skills fail before creating anything when the packs are not ready', a
     verify: 'manual',
   }, engine, null, null, {
     ...createCrewPorts(),
-    roleSkills: { ready: () => false },
+    roleSkills: { ready: async () => false },
   })
   assert.equal(result.ok, false)
   assert.equal(result.reason, 'conflict')

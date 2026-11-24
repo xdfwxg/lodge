@@ -51,6 +51,38 @@ try {
   }
   if (!healthy) throw new Error(`packaged server did not answer\n${output}`)
   console.log('package smoke: ok')
+
+  // --gui 直接启动打包后的桌面程序：窗口能连上它自己的服务并渲染，才算这个包能用。
+  if (process.argv.includes('--gui')) {
+    const { _electron: electron } = await import('@playwright/test')
+    const { startFakeBase } = await import('./fake-base.mjs')
+    const base = await startFakeBase()
+    let launched = null
+    try {
+      launched = await electron.launch({
+        executablePath: layout.binary,
+        args: [],
+        env: {
+          ...process.env,
+          LODGE_SMOKE: '1',
+          LODGE_USER_DATA_DIR: join(dataDir, 'userData'),
+          CREW_BASE_URL: base.url,
+        },
+        timeout: 60_000,
+      })
+      const page = await launched.firstWindow({ timeout: 60_000 })
+      await page.waitForFunction(() => {
+        const rootNode = document.querySelector('#root')
+        return rootNode !== null && rootNode.children.length > 0
+      }, null, { timeout: 60_000 })
+      const title = await page.title()
+      if (title !== 'Lodge') throw new Error(`packaged window title: ${title}`)
+      console.log('package gui smoke: ok')
+    } finally {
+      try { await launched?.close() } catch {}
+      await base.close()
+    }
+  }
 } finally {
   child.kill('SIGTERM')
   rmSync(dataDir, { recursive: true, force: true })

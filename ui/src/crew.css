@@ -539,7 +539,7 @@ button.studio-delivery-keep{margin-top:4px;align-self:flex-start;color:var(--bt-
 body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20' fill='none' stroke='%2396A0AE' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5L10 12.5L15 7.5'/%3E%3C/svg%3E")}
 .crew-member-menu:hover{border-color:var(--bt-line-control)}
 .crew-member-menu:focus-visible{border-color:var(--bt-accent);outline:none;box-shadow:0 0 0 3px var(--bt-accent-wash)}
-.crew-member-menu.crew-member-personality{width:100%;max-width:none;box-sizing:border-box}
+.crew-member-menu.crew-member-personality{width:100%;max-width:none;min-width:0;box-sizing:border-box}
 .crew-member-columns{display:grid;grid-template-columns:36px 118px minmax(0,1fr) 24px;align-items:center;gap:8px;padding:0 0 6px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .crew-member-columns-plain{grid-template-columns:64px minmax(0,1fr)}
 .crew-member-columns-plain span:nth-child(2){justify-self:start;width:200px}

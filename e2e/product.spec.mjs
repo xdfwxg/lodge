@@ -27,6 +27,10 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   await expect(page.getByLabel('想聊什么？')).toBeVisible()
   await page.getByText('更多选项').click()
   await expect(page.getByLabel('甲的说话习惯')).toHaveValue('先问代价，再问能不能落地。')
+  // 性格和模型并排：性格只能在自己的列里，不能靠最小宽度压到模型上。
+  const personalityBox = await page.getByLabel('甲的性格').boundingBox()
+  const engineBox = await page.getByLabel('甲的 模型服务').boundingBox()
+  expect(personalityBox.x + personalityBox.width).toBeLessThanOrEqual(engineBox.x)
   await page.getByRole('button', { name: '交给工作室' }).click()
   await expect(page.getByLabel('要做什么？')).toBeVisible()
   await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()

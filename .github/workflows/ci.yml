@@ -15,13 +15,19 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm test
       - run: npx playwright install-deps chromium
-      - run: npm run test:ui
+      # 与本地 check:done 同一套（桌面壳冒烟在 macOS job 里跑）。
+      - run: npm run check:ci
+
+  desktop:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: npm run build
-      - run: npm run check:docs
-      - run: npm run check:unused
-      - run: npm run check:deps
-      - run: npm run check:acceptance
-      - run: npm run check:regressions
-      - run: npm run eval:long-task
+      # 真启动 Electron：建房、退出、重开仍在场。
+      - run: npm run smoke:electron

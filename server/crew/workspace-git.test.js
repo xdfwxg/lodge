@@ -503,3 +503,63 @@ test('a single-worker clone can isolate its own candidate commit', () => {
     rmSync(sourceRepo, { recursive: true, force: true })
   }
 })
+
+test('renames, binaries, CRLF and large files keep their file list', async () => {
+  const sourceRepo = repo()
+  try {
+    const base = head({ path: sourceRepo })
+    execFileSync('git', ['mv', 'README.md', 'GUIDE.md'], { cwd: sourceRepo })
+    writeFileSync(join(sourceRepo, 'image.bin'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01, 0xff]))
+    writeFileSync(join(sourceRepo, 'crlf.txt'), 'a\r\nb\r\n')
+    writeFileSync(join(sourceRepo, 'no-newline.txt'), 'tail')
+    writeFileSync(join(sourceRepo, 'big.txt'), 'x'.repeat(2 * 1024 * 1024))
+
+    const dirty = await changes({ path: sourceRepo })
+    for (const file of ['GUIDE.md', 'image.bin', 'crlf.txt', 'no-newline.txt', 'big.txt']) {
+      assert.ok(dirty.files.includes(file), `${file} 没进工作区文件清单：${dirty.files.join(',')}`)
+    }
+    assert.ok(dirty.diff.length <= 64 * 1024 + 40)
+    assert.match(dirty.diff, /输出已截断/)
+
+    execFileSync('git', ['add', '-A'], { cwd: sourceRepo })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'edge files'], { cwd: sourceRepo })
+    const commit = head({ path: sourceRepo })
+
+    const range = await rangeChanges({ path: sourceRepo, base })
+    for (const file of ['GUIDE.md', 'image.bin', 'crlf.txt', 'no-newline.txt', 'big.txt']) {
+      assert.ok(range.files.includes(file), `${file} 没进阶段 diff：${range.files.join(',')}`)
+    }
+    assert.ok(range.diff.length <= 64 * 1024 + 40)
+    assert.match(range.diff, /输出已截断/)
+
+    const committed = filesInCommit({ path: sourceRepo, commit })
+    for (const file of ['GUIDE.md', 'image.bin', 'crlf.txt', 'no-newline.txt', 'big.txt']) {
+      assert.ok(committed.includes(file), `${file} 没进提交清单：${committed.join(',')}`)
+    }
+    assert.ok(changedFilesSince({ path: sourceRepo, base }).includes('big.txt'))
+  } finally {
+    rmSync(sourceRepo, { recursive: true, force: true })
+  }
+})
+
+test('a local submodule is reported as a gitlink, not followed into its files', async () => {
+  const sourceRepo = repo()
+  const subRepo = repo()
+  try {
+    execFileSync('git', [
+      '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', subRepo, 'vendor/thing',
+    ], { cwd: sourceRepo })
+    const dirty = await changes({ path: sourceRepo })
+    assert.ok(dirty.files.includes('.gitmodules'), dirty.files.join(','))
+    assert.ok(dirty.files.includes('vendor/thing'), dirty.files.join(','))
+
+    execFileSync('git', ['add', '-A'], { cwd: sourceRepo })
+    execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@local', 'commit', '-q', '-m', 'add submodule'], { cwd: sourceRepo })
+    const committed = filesInCommit({ path: sourceRepo, commit: head({ path: sourceRepo }) })
+    assert.ok(committed.includes('vendor/thing'), committed.join(','))
+    assert.ok(!committed.some(file => file.startsWith('vendor/thing/')), committed.join(','))
+  } finally {
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(subRepo, { recursive: true, force: true })
+  }
+})

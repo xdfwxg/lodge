@@ -155,6 +155,30 @@ test('two writers on the same store cannot lose each other\'s room updates', () 
   }
 })
 
+test('base and send ids are found through their own indexes', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({ id: 'room-1', name: 'A', goal: 'g', state: 'active', demo: true })
+    store.writeRoom({ id: 'room-2', name: 'B', goal: 'g', state: 'active', demo: true })
+    const withBase = store.appendMessage('room-1', { kind: 'chat', text: '最终', meta: { baseId: 'base-1' } })
+    const withSend = store.appendMessage('room-1', { kind: 'chat', text: '回显', meta: { sendId: 'send-1' } })
+
+    assert.equal(store.findMessageByBaseId('room-1', 'base-1').id, withBase.id)
+    assert.equal(store.findMessageBySendId('room-1', 'send-1').id, withSend.id)
+    assert.equal(store.findMessageByBaseId('room-2', 'base-1'), null)
+    assert.equal(store.findMessageByBaseId('room-1', ''), null)
+    assert.equal(store.findMessageBySendId('room-1', 'missing'), null)
+
+    const plan = store.db.prepare(
+      "EXPLAIN QUERY PLAN SELECT payload FROM messages WHERE room_id = ? AND json_extract(payload, '$.meta.baseId') = ? ORDER BY seq DESC LIMIT 1",
+    ).all('room-1', 'base-1').map(row => row.detail).join(' ')
+    assert.match(plan, /messages_meta_base/)
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('a message and its search index move together', () => {
   const { dir, store } = temp()
   try {

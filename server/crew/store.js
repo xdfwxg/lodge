@@ -39,6 +39,9 @@ const SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS messages_room_round ON messages(room_id, work_round_id, seq);
   CREATE INDEX IF NOT EXISTS messages_room_seq ON messages(room_id, seq);
+  -- 基座幂等键是热路径：流式收口和回显对账不再全量读房间消息。
+  CREATE INDEX IF NOT EXISTS messages_meta_base ON messages(room_id, json_extract(payload, '$.meta.baseId')) WHERE json_extract(payload, '$.meta.baseId') IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS messages_meta_send ON messages(room_id, json_extract(payload, '$.meta.sendId')) WHERE json_extract(payload, '$.meta.sendId') IS NOT NULL;
   CREATE TABLE IF NOT EXISTS profile (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS assignment (
     id TEXT PRIMARY KEY,
