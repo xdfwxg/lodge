@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { gateCardState } from './handoff-review.js'
+import { gateCardState } from './handoff-brief-review.js'
 
-test('a clean handoff with manual review can start', () => {
+test('a clean handoff brief with manual review can start', () => {
   assert.deepEqual(gateCardState({ needsReview: false, reviewed: false }), {
     ready: true,
     status: '可以开工',

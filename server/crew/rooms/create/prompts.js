@@ -1,12 +1,12 @@
-import { handoffGoalText } from '../../../../shared/handoff.js'
+import { handoffBriefGoalText } from '../../../../shared/handoff-brief.js'
 
-const handoffSection = handoff => {
-  const text = handoffGoalText(handoff)
-  return text === '' ? '' : `\n交接单：\n${text}`
+const briefSection = handoffBrief => {
+  const text = handoffBriefGoalText(handoffBrief)
+  return text === '' ? '' : `\n交接简报：\n${text}`
 }
 
-export const alignmentPrompt = (goal, verify, acceptance, handoff = null, engines = []) => [
-  `目标：${goal}${handoffSection(handoff)}`,
+export const alignmentPrompt = (goal, verify, acceptance, handoffBrief = null, engines = []) => [
+  `目标：${goal}${briefSection(handoffBrief)}`,
   (() => {
     const list = (Array.isArray(engines) ? engines : [])
       .filter(item => item?.available !== false && typeof item?.models?.default === 'string' && item.models.default !== '')
@@ -22,8 +22,8 @@ export const alignmentPrompt = (goal, verify, acceptance, handoff = null, engine
   '这一回合只提交方案和队伍：不要 @ 任何人，不要自己派活；平台会校验、开通成员并开始第一步。',
 ].filter(Boolean).join('\n')
 
-export const directPrompt = (goal, verify, acceptance, singleMember, handoff = null, engines = []) => [
-  `目标：${goal}${handoffSection(handoff)}`,
+export const directPrompt = (goal, verify, acceptance, singleMember, handoffBrief = null, engines = []) => [
+  `目标：${goal}${briefSection(handoffBrief)}`,
   (() => {
     const list = (Array.isArray(engines) ? engines : [])
       .filter(item => item?.available !== false && typeof item?.models?.default === 'string' && item.models.default !== '')

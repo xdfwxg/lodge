@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 import { defaultOrchestrationId, resolveAssigneeTokens, resolveOrchestration } from './orchestration/index.js'
 import { fail, ok } from './result.js'
 import { roleMembers, rosterFromRoles, validateRoster } from './roster.js'
-import { handoffGoalText, normalizeHandoff } from '../../shared/handoff.js'
+import { handoffBriefGoalText, normalizeHandoffBrief } from '../../shared/handoff-brief.js'
 
 const MAX_GOAL = 2000
 const ROLE_ALIASES = new Map([
@@ -25,16 +25,16 @@ export const SCOUT_SOUL = [
   '只依据目标、工作文件夹和仓库事实判断；拿不准的写进 questions，不要猜。',
 ].join('\n')
 
-export const recommendationPrompt = (goal, repoPath, handoff = null) => [
+export const recommendationPrompt = (goal, repoPath, handoffBrief = null) => [
   `目标：${goal}`,
   `工作文件夹（只读副本）：${repoPath}`,
-  handoff === null ? '' : `已经确认的交接单：\n${handoffGoalText(handoff)}`,
-  handoff === null ? '' : '交接单已经由人确认；不要再生成对齐/确认阶段，直接按主题、共识、约束、待办拆步骤。',
+  handoffBrief === null ? '' : `已经确认的交接简报：\n${handoffBriefGoalText(handoffBrief)}`,
+  handoffBrief === null ? '' : '交接简报已经由人确认；不要再生成对齐/确认阶段，直接按主题、共识、约束、待办拆步骤。',
   '先看仓库事实（README、package.json、测试命令、目录结构）。',
   '- members 默认三个：lead（规划师）、worker（执行官）、verifier（验收员）；role 只能写这三个值，不要写 planner/executor/reviewer。只有工作能清晰拆成互不冲突的两块时才写两个 worker，orchestration 用 parallel；不要单人房或其它角色。reason 写各成员负责什么。',
   '- why 一句话、不超过 45 字：三人如何分工；parallel 时说明两块如何并行；不复述目标，不加总结句。',
   '- 验收优先用仓库里真实可跑的一条短命令（如 `npm test`、`test -f hello.txt`）；不要内联多行脚本；太长或不可靠就设 manual。命令要检验目标本身，不要只查文件是否存在。',
-  '- questions 只问真正要人拍板、且无法从目标、工作文件夹、交接单或仓库事实得到答案的问题；最多 3 个，没有就空数组。不要问文件、目录、技术栈、怎么跑测试这类已给出的事实。每题 2–4 个选项，每个写一句代价，推荐只能有一个。',
+  '- questions 只问真正要人拍板、且无法从目标、工作文件夹、交接简报或仓库事实得到答案的问题；最多 3 个，没有就空数组。不要问文件、目录、技术栈、怎么跑测试这类已给出的事实。每题 2–4 个选项，每个写一句代价，推荐只能有一个。',
   '- done 写 1–6 条可核对的完成条件，不写口号。',
   '- stages 自己拆：简单 1 步，复杂最多 5 步；每个交付阶段一条可执行验收命令；决策阶段写 kind=decision。assignees 只写执行官（通常是「执行官」），parallel 阶段写两个；不要写验收员，验收由系统派发。',
   '- orchestration 只能写 pipeline / parallel / critique；默认 pipeline；parallel 必须有两个执行官；critique 不加成员。',
@@ -263,7 +263,7 @@ export const parseProposal = reply => {
 export const recommendRoster = async ({ probe, body, workspace }) => {
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''
   if (goal === '' || goal.length > MAX_GOAL) return fail('invalid', '目标不能为空，且不超过 2000 字')
-  const handoff = normalizeHandoff(body.handoff)
+  const handoffBrief = normalizeHandoffBrief(body.handoffBrief)
   if (probe.available() !== true) return fail('conflict', '当前版本还不支持编队建议')
   const health = await probe.health()
   if (health.ok !== true) throw new Error('Lodge 服务没有连上，先看看它是否还在运行')
@@ -283,7 +283,7 @@ export const recommendRoster = async ({ probe, body, workspace }) => {
     }
   }
   const scout = rosterFromRoles([{ role: 'lead', name: '规划师' }])[0]
-  const prompt = recommendationPrompt(goal, sourceRepo, handoff)
+  const prompt = recommendationPrompt(goal, sourceRepo, handoffBrief)
   // 只读克隆是一次性工作区；不弹审批，避免读仓库时卡在 permission 卡上。
   scout.approval = 'auto'
 
@@ -298,7 +298,7 @@ export const recommendRoster = async ({ probe, body, workspace }) => {
       mcp: scout.mcp,
       roomName: `编队建议 · ${short}`,
       goal,
-      bulletin: `目标：${goal}\n仓库：${sourceRepo}${handoff === null ? '' : `\n交接单：\n${handoffGoalText(handoff)}`}`,
+      bulletin: `目标：${goal}\n仓库：${sourceRepo}${handoffBrief === null ? '' : `\n交接简报：\n${handoffBriefGoalText(handoffBrief)}`}`,
       cwd: workspaces.members[scout.id].path,
     })
     const reply = await probe.ask(prompt)

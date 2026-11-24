@@ -66,7 +66,7 @@ function Timeline({
               onClick: () => onStartStudio(chatStudioSeed({
                 room,
                 conclusion: message.text,
-                handoff: message.meta?.handoff,
+                handoffBrief: message.meta?.handoffBrief,
               })),
             })
             : null))

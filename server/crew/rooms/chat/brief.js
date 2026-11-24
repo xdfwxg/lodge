@@ -18,7 +18,7 @@ export const chatBriefOf = (messages = [], { round = null, limit = 400 } = {}) =
     ))
   const conclusion = conclusions.at(-1)
   if (conclusion === undefined) return ''
-  const handoff = conclusion.meta?.handoff
+  const handoff = conclusion.meta?.handoffBrief
   if (handoff !== null && typeof handoff === 'object') {
     const parts = [
       joinList(handoff.consensus) === '' ? '' : `共识：${joinList(handoff.consensus)}`,

@@ -273,7 +273,7 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
     body: {
       goal: '小改动',
       repoPath: '',
-      handoff: {
+      handoffBrief: {
         topic: '发布检查',
         consensus: ['先做最小版本'],
         disagreements: [],
@@ -285,7 +285,7 @@ test('recommendRoster uses the injected workspace port for its temporary room', 
   })
   assert.equal(result.ok, true, JSON.stringify(result))
   assert.equal(result.body.proposal.members.length, 3)
-  assert.match(sentPrompt, /已经确认的交接单/)
+  assert.match(sentPrompt, /已经确认的交接简报/)
   assert.match(sentPrompt, /先做最小版本/)
   assert.match(sentPrompt, /不要再生成对齐\/确认阶段/)
   assert.equal(cleaned, 1)

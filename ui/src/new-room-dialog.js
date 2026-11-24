@@ -10,7 +10,7 @@ import { roomNameFromGoal } from './room/name-from-goal.js'
 import { MemberEnginePicker } from './room/member-engine-picker.js'
 import { defaultPersonalityId, modelRowsFor, memberChoicesFrom } from './room/member-options.js'
 import { defaultStanceId } from '../../shared/chat-stances.js'
-import { gateCardState, HandoffReview } from './room/handoff-review.js'
+import { gateCardState, HandoffBriefReview } from './room/handoff-brief-review.js'
 import { ReceiptReview } from './room/receipt-review.js'
 import { WorkspaceMemory } from './room/workspace-memory.js'
 import { uiKindOfType } from './room/kinds.js'
@@ -61,8 +61,8 @@ function NewRoomDialog({
   const [acceptanceDraft, setAcceptanceDraft] = useState('')
   const [verifyMode, setVerifyMode] = useState('manual')
   const [advanced, setAdvanced] = useState(false)
-  const [handoff, setHandoff] = useState(null)
-  const [handoffReviewed, setHandoffReviewed] = useState(false)
+  const [handoffBrief, setHandoffBrief] = useState(null)
+  const [handoffBriefReviewed, setHandoffBriefReviewed] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [busy, setBusy] = useState(false)
   const [memberChoices, setMemberChoices] = useState(() => memberChoicesFrom(studioMembers))
@@ -103,8 +103,8 @@ function NewRoomDialog({
     setChatMembers(null)
     setVerifyMode('manual')
     setAdvanced(false)
-    setHandoff(null)
-    setHandoffReviewed(false)
+    setHandoffBrief(null)
+    setHandoffBriefReviewed(false)
     setReceipt(null)
   }, [open])
 
@@ -117,8 +117,8 @@ function NewRoomDialog({
     if (!open || seed === null) return
     setRoomType(uiKindOfType(startType).id)
     setGoal(seedGoalText(seed))
-    setHandoff(seed.handoff ?? null)
-    setHandoffReviewed(false)
+    setHandoffBrief(seed.handoffBrief ?? null)
+    setHandoffBriefReviewed(false)
     setReceipt(seed.receipt ?? null)
     if (typeof seed.repoPath === 'string' && seed.repoPath !== '') setRepoPath(seed.repoPath)
     setStep(0)
@@ -126,7 +126,7 @@ function NewRoomDialog({
     setMemberChoices([])
     setAnswers([])
     setError(null)
-  }, [open, seed?.goal, seed?.conclusion, seed?.sourceName, seed?.sourceRoomId, seed?.handoff, seed?.receipt, startType])
+  }, [open, seed?.goal, seed?.conclusion, seed?.sourceName, seed?.sourceRoomId, seed?.handoffBrief, seed?.receipt, startType])
 
   useEffect(() => {
     if (!open || uiKindOfType(roomType).id !== 'chat') return
@@ -175,11 +175,11 @@ function NewRoomDialog({
     : ((proposal.acceptance ?? '') || acceptanceDraft)
   const studioMissingVerifier = !isChat && roomKind.missingVerifier(hasVerifier)
   const roomTitle = (nameDraft.trim() || roomNameFromGoal(goal)).trim()
-  const handoffGate = handoff === null
+  const handoffGate = handoffBrief === null
     ? null
     : gateCardState({
-      needsReview: (handoff.disagreements?.length ?? 0) > 0,
-      reviewed: handoffReviewed,
+      needsReview: (handoffBrief.disagreements?.length ?? 0) > 0,
+      reviewed: handoffBriefReviewed,
       verify,
       acceptance,
       plannedAcceptance,
@@ -276,7 +276,7 @@ function NewRoomDialog({
     setRecommending(true)
     setError(null)
     try {
-      const result = await onRecommend(goal.trim(), repoPath.trim(), handoff)
+      const result = await onRecommend(goal.trim(), repoPath.trim(), handoffBrief)
       if (result?.ok !== true) {
         setError(result?.error ?? 'Lodge 这次没能给出方案，再试一次')
         return
@@ -304,8 +304,8 @@ function NewRoomDialog({
     setAcceptanceDraft('')
     setVerifyMode('manual')
     setAdvanced(false)
-    setHandoff(null)
-    setHandoffReviewed(false)
+    setHandoffBrief(null)
+    setHandoffBriefReviewed(false)
     setError(null)
     onClose()
   }
@@ -352,8 +352,8 @@ function NewRoomDialog({
         acceptance,
         shadowReview,
         autoDeliver,
-        handoff,
-        handoffReviewed,
+        handoffBrief,
+        handoffBriefReviewed,
         sourceRoomId: seed?.sourceRoomId,
         sourceName: seed?.sourceName,
         proposal,
@@ -386,8 +386,8 @@ function NewRoomDialog({
         acceptance: verifyMode === 'test' ? acceptanceDraft.trim() : '',
         shadowReview,
         autoDeliver,
-        handoff,
-        handoffReviewed,
+        handoffBrief,
+        handoffBriefReviewed,
         sourceRoomId: seed?.sourceRoomId,
         sourceName: seed?.sourceName,
         proposal: null,
@@ -557,12 +557,12 @@ function NewRoomDialog({
 
   const setupBody = h('div', { className: 'crew-dialog-body' },
     receipt === null ? null : h(ReceiptReview, { receipt }),
-    handoff === null
+    handoffBrief === null
       ? goalField
-      : h(HandoffReview, {
-        handoff,
-        reviewed: handoffReviewed,
-        onReviewed: setHandoffReviewed,
+      : h(HandoffBriefReview, {
+        handoffBrief,
+        reviewed: handoffBriefReviewed,
+        onReviewed: setHandoffBriefReviewed,
         sourceName: seed?.sourceName ?? '',
         verify,
         acceptance,

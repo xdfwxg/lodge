@@ -3,7 +3,7 @@ import { memberDisplayName } from '../../member-labels.js'
 import { memberOf } from '../../room-members.js'
 import { recentAndOlder } from '../../prompt-context.js'
 import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
-import { parseHandoffFromText } from '../../../../shared/handoff.js'
+import { parseHandoffBriefFromText } from '../../../../shared/handoff-brief.js'
 import { finalizeHostIntent, hostIntentPrompt, parseHostIntent, roundVetoed } from './host-intent.js'
 import { chatBriefOf } from './brief.js'
 import { linkedRoomBriefs } from './linked.js'
@@ -375,11 +375,11 @@ export const createChatScheduler = ({
         ? (reply.text ?? '')
         : digestText(lines)
       const conclusionText = text === '' ? digestText(lines) : text
-      const handoff = parseHandoffFromText(conclusionText, store.readRoom(roomId)?.goal ?? room.goal)
+      const handoffBrief = parseHandoffBriefFromText(conclusionText, store.readRoom(roomId)?.goal ?? room.goal)
       // 自然总结只有「下一步」会被解析成 todo；正文仍要作为共识进工作室。
-      if (!structuredSummary && handoff !== null && handoff.consensus.length === 0) {
+      if (!structuredSummary && handoffBrief !== null && handoffBrief.consensus.length === 0) {
         const body = conclusionText.replace(/\n?下一步[：:][\s\S]*$/, '').trim()
-        if (body !== '') handoff.consensus = [body.slice(0, 300)]
+        if (body !== '') handoffBrief.consensus = [body.slice(0, 300)]
       }
       const conclusion = store.appendMessage(roomId, {
         kind: 'chat_conclusion',
@@ -392,7 +392,7 @@ export const createChatScheduler = ({
           host: hostAuthor,
           fallback: fallback || text === '',
           at: Date.now(),
-          ...(handoff === null ? {} : { handoff }),
+          ...(handoffBrief === null ? {} : { handoffBrief }),
         },
       })
       const concluded = transitionChat('summarizing', 'conclude')

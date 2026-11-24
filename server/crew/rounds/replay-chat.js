@@ -163,7 +163,7 @@ export const replayChat = ({ events = [], messages = [], members = [] } = {}) =>
         text: String(finalMessage.text ?? ''),
         at: timeOf(finalMessage),
         fallback: finalMessage.meta?.fallback === true || entry.conclusionEvent?.fallback === true,
-        handoff: finalMessage.meta?.handoff ?? null,
+        handoffBrief: finalMessage.meta?.handoffBrief ?? null,
       }
     }
 

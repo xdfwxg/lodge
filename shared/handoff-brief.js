@@ -12,7 +12,7 @@ const listOf = value => (
   Array.isArray(value) ? value.map(itemOf).filter(Boolean).slice(0, LIST_LIMIT) : []
 )
 
-export const emptyHandoff = () => ({
+export const emptyHandoffBrief = () => ({
   topic: '',
   consensus: [],
   disagreements: [],
@@ -20,21 +20,21 @@ export const emptyHandoff = () => ({
   todos: [],
 })
 
-export const normalizeHandoff = value => {
+export const normalizeHandoffBrief = value => {
   if (value === null || typeof value !== 'object') return null
-  const handoff = {
+  const brief = {
     topic: itemOf(value.topic).slice(0, ITEM_LIMIT),
     consensus: listOf(value.consensus),
     disagreements: listOf(value.disagreements),
     constraints: listOf(value.constraints),
     todos: listOf(value.todos),
   }
-  const empty = handoff.topic === '' &&
-    handoff.consensus.length === 0 &&
-    handoff.disagreements.length === 0 &&
-    handoff.constraints.length === 0 &&
-    handoff.todos.length === 0
-  return empty ? null : handoff
+  const empty = brief.topic === '' &&
+    brief.consensus.length === 0 &&
+    brief.disagreements.length === 0 &&
+    brief.constraints.length === 0 &&
+    brief.todos.length === 0
+  return empty ? null : brief
 }
 
 const SECTION = [
@@ -53,8 +53,8 @@ const stripTitle = line => line
   .replace(/^\d+[.、)]\s*/, '')
   .trim()
 
-export const parseHandoffFromText = (text, fallbackTopic = '') => {
-  const handoff = emptyHandoff()
+export const parseHandoffBriefFromText = (text, fallbackTopic = '') => {
+  const brief = emptyHandoffBrief()
   const fallback = itemOf(fallbackTopic).slice(0, ITEM_LIMIT)
   let current = null
   let sawSection = false
@@ -71,8 +71,8 @@ export const parseHandoffFromText = (text, fallbackTopic = '') => {
       if (inline !== null) {
         const value = itemOf(inline[2]).slice(0, ITEM_LIMIT)
         if (value !== '') {
-          if (current === 'topic') handoff.topic = value
-          else if (handoff[current].length < LIST_LIMIT) handoff[current].push(value)
+          if (current === 'topic') brief.topic = value
+          else if (brief[current].length < LIST_LIMIT) brief[current].push(value)
         }
       }
       continue
@@ -83,28 +83,28 @@ export const parseHandoffFromText = (text, fallbackTopic = '') => {
     const value = itemOf(stripTitle(line)).slice(0, ITEM_LIMIT)
     if (value === '') continue
     if (current === 'topic') {
-      if (handoff.topic === '') handoff.topic = value
-      else if (handoff.consensus.length < LIST_LIMIT) handoff.consensus.push(value)
+      if (brief.topic === '') brief.topic = value
+      else if (brief.consensus.length < LIST_LIMIT) brief.consensus.push(value)
     } else if (current !== null) {
-      if (handoff[current].length < LIST_LIMIT) handoff[current].push(value)
+      if (brief[current].length < LIST_LIMIT) brief[current].push(value)
     } else if (bullet) {
       loose.push(value)
     }
   }
-  if (handoff.consensus.length === 0 && loose.length > 0) handoff.consensus = loose.slice(0, LIST_LIMIT)
+  if (brief.consensus.length === 0 && loose.length > 0) brief.consensus = loose.slice(0, LIST_LIMIT)
   // 显式主题段优先；没有主题段时才用房间目标兜底。
-  if (handoff.topic === '' && fallback !== '') handoff.topic = fallback
-  if (handoff.topic === '' && loose.length > 0) handoff.topic = loose[0].slice(0, ITEM_LIMIT)
-  if (!sawSection && handoff.consensus.length === 0 && handoff.disagreements.length === 0 &&
-    handoff.constraints.length === 0 && handoff.todos.length === 0) {
+  if (brief.topic === '' && fallback !== '') brief.topic = fallback
+  if (brief.topic === '' && loose.length > 0) brief.topic = loose[0].slice(0, ITEM_LIMIT)
+  if (!sawSection && brief.consensus.length === 0 && brief.disagreements.length === 0 &&
+    brief.constraints.length === 0 && brief.todos.length === 0) {
     const plain = itemOf(text)
-    if (plain !== '' && plain !== handoff.topic) handoff.consensus = [plain.slice(0, ITEM_LIMIT)]
+    if (plain !== '' && plain !== brief.topic) brief.consensus = [plain.slice(0, ITEM_LIMIT)]
   }
-  return normalizeHandoff(handoff)
+  return normalizeHandoffBrief(brief)
 }
 
-export const handoffGoalText = handoff => {
-  const normalized = normalizeHandoff(handoff)
+export const handoffBriefGoalText = brief => {
+  const normalized = normalizeHandoffBrief(brief)
   if (normalized === null) return ''
   const lines = [normalized.topic]
   const add = (label, values) => {

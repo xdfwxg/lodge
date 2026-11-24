@@ -234,7 +234,7 @@ test('a chat round runs six speakers, then the host summarizes', async () => {
   assert.equal(conclusion.meta.round, 1)
   assert.equal(conclusion.meta.turns, 6)
   assert.equal(conclusion.meta.fallback, false)
-  assert.deepEqual(conclusion.meta.handoff, {
+  assert.deepEqual(conclusion.meta.handoffBrief, {
     topic: '讨论状态提示',
     consensus: ['这是总结。'],
     disagreements: [],
@@ -293,9 +293,9 @@ test('a natural summary still becomes a studio handoff', async () => {
   await scheduler.start(ctx.room())
   const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
   assert.ok(conclusion)
-  assert.equal(conclusion.meta.handoff.topic, '讨论状态提示')
-  assert.deepEqual(conclusion.meta.handoff.consensus, ['这轮定下了导出方案。'])
-  assert.deepEqual(conclusion.meta.handoff.todos, ['补一个导出按钮。'])
+  assert.equal(conclusion.meta.handoffBrief.topic, '讨论状态提示')
+  assert.deepEqual(conclusion.meta.handoffBrief.consensus, ['这轮定下了导出方案。'])
+  assert.deepEqual(conclusion.meta.handoffBrief.todos, ['补一个导出按钮。'])
 })
 
 test('an explicit request for a list keeps the structured summary', async () => {
@@ -424,7 +424,7 @@ test('the host conclusion keeps all five handoff fields', async () => {
   })
   await scheduler.start(ctx.room())
   const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
-  assert.deepEqual(conclusion.meta.handoff, {
+  assert.deepEqual(conclusion.meta.handoffBrief, {
     topic: '状态提示',
     consensus: ['用一句话说明'],
     disagreements: [],

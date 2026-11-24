@@ -2,11 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { transferOf } from './transfer.js'
 
-const handoff = { topic: '发布前检查', consensus: [], disagreements: [], constraints: [], todos: [] }
+const handoffBrief = { topic: '发布前检查', consensus: [], disagreements: [], constraints: [], todos: [] }
 const receipt = { result: '发布前检查清单', completeness: '3/3', checks: [], openQuestions: [] }
 
-test('a handoff records where the room came from', () => {
-  const transfer = transferOf({ handoff, fromRoomId: 'room-a', fromRoomName: '圆桌', at: 7 })
+test('a handoff brief records where the room came from', () => {
+  const transfer = transferOf({ handoffBrief, fromRoomId: 'room-a', fromRoomName: '圆桌', at: 7 })
   assert.deepEqual(transfer, {
     kind: 'handoff',
     fromRoomId: 'room-a',

@@ -15,12 +15,12 @@ import { grantBrowserToAll, needsBrowser, stripBrowser } from '../../room-access
 import { uniqueRoomShort } from './short-id.js'
 import { buildRoundFromRoom, composeRoundView, shortTitleOf, studioFromRoom } from '../../rounds/record.js'
 
-const deliveryTitleFor = (goalTitle, handoff) => {
-  if (handoff === null || handoff === undefined) return goalTitle
-  const topic = String(handoff.topic ?? '').trim()
+const deliveryTitleFor = (goalTitle, handoffBrief) => {
+  if (handoffBrief === null || handoffBrief === undefined) return goalTitle
+  const topic = String(handoffBrief.topic ?? '').trim()
   const target = /[写存落交放](?:入|进|到)\s*([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)/.exec(topic)
   if (target !== null) return `写入 ${target[1]}`
-  // 步骤名就是这一步要做的事；交接单再长也要说清是哪件事，不能缩成“完成交接单”。
+  // 步骤名就是这一步要做的事；交接简报再长也要说清是哪件事，不能缩成“完成交接简报”。
   if (topic === '') return goalTitle
   return topic.length <= 24 ? topic : `${topic.slice(0, 24)}…`
 }
@@ -40,8 +40,8 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     shadowReview,
     autoDeliver,
     chatTurnLimit,
-    handoff,
-    handoffReviewed,
+    handoffBrief,
+    handoffBriefReviewed,
     receipt,
     sourceRoomId,
     sourceName,
@@ -55,7 +55,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const { plan, error: planError } = normalizePlan({ body })
   if (planError !== undefined) return fail('invalid', planError)
   const effectiveAcceptance = effectiveAcceptanceOf(acceptance, plan)
-  const gate = mode.evaluateGate({ handoff, humanReviewed: handoffReviewed })
+  const gate = mode.evaluateGate({ handoffBrief, humanReviewed: handoffBriefReviewed })
   if (gate.decision === 'reject') {
     const issues = gate.issues.map(issue => issue.text).join('；')
     return fail('invalid', `还不能开工：${issues}`)
@@ -63,9 +63,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const membersResult = resolveMembers(body, roomType, { bootstrap })
   if (membersResult.error !== undefined) return fail('invalid', membersResult.error)
   let { templateId, roster, workers, verifiers, worker, lead, align } = membersResult
-  // A confirmed handoff already did the alignment at the Gate; do not ask for it
+  // A confirmed handoff brief already did the alignment at the Gate; do not ask for it
   // again inside the studio.
-  const initialAlign = align && (handoff === null || handoff === undefined)
+  const initialAlign = align && (handoffBrief === null || handoffBrief === undefined)
   if (typeof mode.validateRoster === 'function') {
     try {
       mode.validateRoster(roster, { verify, bootstrap })
@@ -146,14 +146,14 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   try {
     workspaces = prepareWorkspace({ provider, sourceRepo, short, roster, workspacePort: ports.workspace })
     const goalTitle = shortTitleOf(goal)
-    const deliveryTitle = deliveryTitleFor(goalTitle, handoff)
+    const deliveryTitle = deliveryTitleFor(goalTitle, handoffBrief)
     const title = name === '' ? goalTitle : name
     const provisioned = await provisioner.provision({
       roster,
       short,
       title,
       goal,
-      handoff,
+      handoffBrief,
       verify,
       acceptance: effectiveAcceptance,
       align: initialAlign,
@@ -207,9 +207,9 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       short,
       title,
       goal,
-      handoff,
+      handoffBrief,
       receipt,
-      transfer: transferOf({ handoff, receipt, fromRoomId: sourceRoomId, fromRoomName: sourceName }),
+      transfer: transferOf({ handoffBrief, receipt, fromRoomId: sourceRoomId, fromRoomName: sourceName }),
       templateId,
       plan: resolvedPlan,
       independence: provisioned.independence,
@@ -235,7 +235,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       chatTurnLimit,
       gate: gateRecordOf({
         review: gate,
-        humanReviewed: handoffReviewed,
+        humanReviewed: handoffBriefReviewed,
         check: { mode: verify, acceptance: effectiveAcceptance },
       }),
     })

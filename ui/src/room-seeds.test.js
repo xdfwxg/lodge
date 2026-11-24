@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { chatStudioSeed, returnToChatSeed, seedGoalText } from './room-seeds.js'
 
-test('a stored handoff becomes the studio seed', () => {
-  const handoff = {
+test('a stored handoffBrief becomes the studio seed', () => {
+  const handoffBrief = {
     topic: '发布讨论',
     consensus: ['先做最小版本'],
     disagreements: ['是否回滚'],
@@ -13,13 +13,13 @@ test('a stored handoff becomes the studio seed', () => {
   const seed = chatStudioSeed({
     room: { id: 'room-chat', goal: '房间目标', name: '圆桌' },
     conclusion: '完整结论原文',
-    handoff,
+    handoffBrief,
   })
   assert.equal(seed.goal, '发布讨论')
   assert.equal(seed.conclusion, '完整结论原文')
   assert.equal(seed.sourceName, '圆桌')
   assert.equal(seed.sourceRoomId, 'room-chat')
-  assert.deepEqual(seed.handoff, handoff)
+  assert.deepEqual(seed.handoffBrief, handoffBrief)
   assert.equal(seedGoalText(seed), '发布讨论')
 })
 

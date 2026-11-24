@@ -20,9 +20,9 @@ export const gateCardState = ({
   }
 }
 
-// Gate 的决策卡：先让人做决定，再把完整交接单收进展开项。
-export function HandoffReview({
-  handoff,
+// Gate 的决策卡：先让人做决定，再把完整交接简报收进展开项。
+export function HandoffBriefReview({
+  handoffBrief,
   reviewed,
   onReviewed,
   sourceName = '',
@@ -33,11 +33,11 @@ export function HandoffReview({
   onAcceptanceDraft = null,
 }) {
   const id = useId()
-  const needsReview = handoff.disagreements.length > 0
+  const needsReview = handoffBrief.disagreements.length > 0
   const { ready, status } = gateCardState({ needsReview, reviewed, verify, acceptance, plannedAcceptance })
   const editable = typeof onVerifyMode === 'function'
-  const sourceLabel = sourceName === '' ? '来自聊天室的交接' : `来自「${sourceName}」的交接`
-  const detailSummary = `共识 ${handoff.consensus.length} · 约束 ${handoff.constraints.length} · 待办 ${handoff.todos.length}`
+  const sourceLabel = sourceName === '' ? '来自聊天室的交接简报' : `来自「${sourceName}」的交接简报`
+  const detailSummary = `共识 ${handoffBrief.consensus.length} · 约束 ${handoffBrief.constraints.length} · 待办 ${handoffBrief.todos.length}`
   return h('div', { className: 'crew-card crew-handoff-review' },
     h('div', { className: 'crew-card-head' },
       h('span', { className: 'crew-handoff-source', title: sourceLabel }, sourceLabel),
@@ -47,10 +47,10 @@ export function HandoffReview({
         'data-pass': ready ? true : undefined,
       }, status)),
     h('div', { className: 'crew-card-body' },
-      h('p', { className: 'crew-handoff-topic' }, handoff.topic),
+      h('p', { className: 'crew-handoff-topic' }, handoffBrief.topic),
       needsReview
         ? h('div', { className: 'crew-gate-decision' },
-          h(IntakeSection, { label: '待确认的分歧', items: handoff.disagreements, warning: true }),
+          h(IntakeSection, { label: '待确认的分歧', items: handoffBrief.disagreements, warning: true }),
           h('label', { className: 'crew-check', htmlFor: id },
             h('input', {
               id,
@@ -75,9 +75,9 @@ export function HandoffReview({
               : h('p', { className: 'crew-field-hint' }, acceptance === '' ? '还没填检查' : `跑一条检查：${acceptance}`)
             : null),
       h('details', { className: 'crew-handoff-more' },
-        h('summary', null, `完整交接单 · ${detailSummary}`),
+        h('summary', null, `完整交接简报 · ${detailSummary}`),
         h('div', { className: 'crew-handoff-more-body' },
-          h(IntakeSection, { label: '共识', items: handoff.consensus }),
-          h(IntakeSection, { label: '约束', items: handoff.constraints }),
-          h(IntakeSection, { label: '待办', items: handoff.todos })))))
+          h(IntakeSection, { label: '共识', items: handoffBrief.consensus }),
+          h(IntakeSection, { label: '约束', items: handoffBrief.constraints }),
+          h(IntakeSection, { label: '待办', items: handoffBrief.todos })))))
 }

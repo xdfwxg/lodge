@@ -1,7 +1,7 @@
 import { roomModeForType } from '../kinds.js'
 import { resolveOrchestration } from '../../orchestration/index.js'
 import { resolveRoomType } from '../kinds.js'
-import { normalizeHandoff } from '../../../../shared/handoff.js'
+import { normalizeHandoffBrief } from '../../../../shared/handoff-brief.js'
 import { normalizeReceipt } from '../../../../shared/receipt.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'
 import {
@@ -68,8 +68,8 @@ export const normalizeRequest = body => {
   const autoDeliver = isStudio && body.autoDeliver === true
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
   if (orchestration === null) return { error: '不认识的分配方式' }
-  const handoff = normalizeHandoff(body.handoff)
-  const handoffReviewed = body.handoffReviewed === true
+  const handoffBrief = normalizeHandoffBrief(body.handoffBrief)
+  const handoffBriefReviewed = body.handoffBriefReviewed === true
   const receipt = normalizeReceipt(body.receipt)
   const sourceRoomId = typeof body.sourceRoomId === 'string' ? body.sourceRoomId.trim().slice(0, 120) : ''
   const sourceName = typeof body.sourceName === 'string' ? body.sourceName.trim().slice(0, 120) : ''
@@ -85,8 +85,8 @@ export const normalizeRequest = body => {
     shadowReview,
     autoDeliver,
     chatTurnLimit,
-    handoff,
-    handoffReviewed,
+    handoffBrief,
+    handoffBriefReviewed,
     receipt,
     sourceRoomId,
     sourceName,

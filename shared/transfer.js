@@ -3,13 +3,13 @@
 const clean = value => (typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '')
 
 export const transferOf = ({
-  handoff = null,
+  handoffBrief = null,
   receipt = null,
   fromRoomId = '',
   fromRoomName = '',
   at = Date.now(),
 }) => {
-  const kind = handoff !== null && handoff !== undefined
+  const kind = handoffBrief !== null && handoffBrief !== undefined
     ? 'handoff'
     : receipt !== null && receipt !== undefined ? 'receipt' : null
   if (kind === null) return null

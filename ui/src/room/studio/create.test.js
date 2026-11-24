@@ -21,7 +21,7 @@ test('browser access is system-wide, not a room request field', () => {
   assert.equal('roomAccess' in request, false)
 })
 
-test('a studio request only carries the goal, the folder and the handoff', () => {
+test('a studio request only carries the goal, the folder and the handoff brief', () => {
   const request = buildStudioRequest(base)
   assert.equal(request.roomType, 'studio')
   assert.equal('verify' in request, false)
@@ -33,13 +33,13 @@ test('a studio request only carries the goal, the folder and the handoff', () =>
 test('a studio started from chat carries where it came from', () => {
   const request = buildStudioRequest({
     ...base,
-    handoff: { topic: '发布检查', consensus: [], disagreements: [], constraints: [], todos: [] },
+    handoffBrief: { topic: '发布检查', consensus: [], disagreements: [], constraints: [], todos: [] },
     sourceRoomId: 'room-chat',
     sourceName: '圆桌',
   })
   assert.equal(request.sourceRoomId, 'room-chat')
   assert.equal(request.sourceName, '圆桌')
-  assert.equal(request.handoff.topic, '发布检查')
+  assert.equal(request.handoffBrief.topic, '发布检查')
 })
 
 test('member and model choices are no longer sent', () => {

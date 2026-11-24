@@ -152,6 +152,11 @@ service.js                   ← 路由分发与用例组合
 - 事件覆盖：轮次开始/终态、阶段派发/通过/重做/退回、交接的每次状态变化、聊天的每次阶段变化都写 `room_event`；`round.started` 带阶段快照。事件只做审计和重放，不回写业务状态。
 - 只读重放：`npm run replay:round -- --room <id> [--round <id>]` 从事件重建阶段和交接状态，和当前数据库对比；只报告差异，不改状态。实现见 `server/crew/rounds/replay.js`。聊天室用 `npm run replay:chat -- --room <id> [--round <n>]` 把 `chat.round_started / speaker / summary_started / conclusion / continued` 和消息串起来，回答这一轮谁说了什么、结论从哪来；重启补账事件只进事件流，不参与重放；实现见 `server/crew/rounds/replay-chat.js`。
 
+## 两种“交接”
+
+- **交接简报**：聊天结论进入工作室的输入，字段是 `handoffBrief`（主题、共识、分歧、约束、待办）；建房请求和房间记录都用这个名字。它不是房间内的成员接力。
+- **工作拍**：房间内的一次派活，持久对象是 Assignment；Handoff 指“把这一拍交给谁”的动作，`handoff` 消息只是它的界面投影。验收员各自算一拍；交给人的 `handoff.human` 不算工作拍。
+
 ## Assignment
 
 发起人、接收人、阶段、原因、brief、状态、结果、证据引用、裁决引用、父交接、时间戳。
@@ -247,7 +252,7 @@ service.js                   ← 路由分发与用例组合
 - 成员之间不靠 `@` 接力；两种房间建房都写 `followMentions: false`。隐藏的让位/举手信号已经删除，成员回复里的 `@` 不唤醒人。
 - 续跑靠 `chat.pending`、`chat.round` 工作项和本轮已发消息恢复计数；结论后房间不关，继续讨论走新的轮次。
 - 可回看：`npm run replay:chat -- --room <id> [--round <n>]` 只读重放一轮的叫名、发言、总结和结论；结论是自动摘要时明确标出，没有发言或结论只报缺口。
-- 上下文分三层：上一轮结论由 `chatBriefOf` 从 `chat_conclusion` 的 handoff 取成共享简报，每位发言人都会拿到；`speakerPrompt` 再带上一位的原话和立场，让“接话”有对象；成员自己只带一句 `voice`（说话习惯，最多 30 字，只进 soul，不改工具面、不生成技能）。不给每个人各背一份履历。界面在发言行用两字标签显示固定立场（提议 / 质疑 / 收束），标签只读 `member.stance`，不参与判定。
+- 上下文分三层：上一轮结论由 `chatBriefOf` 从 `chat_conclusion` 的 handoffBrief 取成共享简报，每位发言人都会拿到；`speakerPrompt` 再带上一位的原话和立场，让“接话”有对象；成员自己只带一句 `voice`（说话习惯，最多 30 字，只进 soul，不改工具面、不生成技能）。不给每个人各背一份履历。界面在发言行用两字标签显示固定立场（提议 / 质疑 / 收束），标签只读 `member.stance`，不参与判定。
 - 隔离由 `server/crew/negative-list.test.js` 固定：聊天模块不读阶段、证据或 verdict，工作室模块不读 `room.chat`。
 
 ## 中期事件

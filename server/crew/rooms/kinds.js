@@ -1,15 +1,15 @@
-import { handoffGoalText } from '../../../shared/handoff.js'
+import { handoffBriefGoalText } from '../../../shared/handoff-brief.js'
 import { chatKind } from './chat/kind.js'
 import { studioKind } from './studio/kind.js'
 
 export const roomKinds = [studioKind, chatKind]
 
 // 基座房间公告：建房和换身体都要生成同一份，不各写一遍。
-export const roomBulletin = (goal, verify, acceptance, handoff = null) => {
-  const text = handoffGoalText(handoff)
-  const handoffSection = text === '' ? '' : `\n交接单：\n${text}`
+export const roomBulletin = (goal, verify, acceptance, handoffBrief = null) => {
+  const text = handoffBriefGoalText(handoffBrief)
+  const briefSection = text === '' ? '' : `\n交接简报：\n${text}`
   return [
-    `目标：${goal}${handoffSection}`,
+    `目标：${goal}${briefSection}`,
     verify === 'test' ? `验收：${acceptance}` : '验收：人确认，不跑命令',
   ].join('\n')
 }

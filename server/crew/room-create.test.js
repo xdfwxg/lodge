@@ -131,7 +131,7 @@ test('a studio starts with the planner alone and only the alignment stage', asyn
   assert.deepEqual(engine.seatNames.filter(name => !name.startsWith('影子评审')), ['规划师'])
 })
 
-test('a handoff with a long topic names the stage after the task, not the paperwork', async () => {
+test('a handoff brief with a long topic names the stage after the task, not the paperwork', async () => {
   const { store } = completedRoom(temp('lodge-handoff-title-data-'))
   const topic = '用户列表要显示姓名缩写：中文和英文各定一条规则，最多两个字符；再定重名时怎么办。'
   const result = await run(store, {
@@ -139,7 +139,7 @@ test('a handoff with a long topic names the stage after the task, not the paperw
     name: '姓名缩写',
     verify: 'test',
     acceptance: 'npm test',
-    handoff: {
+    handoffBrief: {
       topic,
       consensus: ['中文取声母', '英文取首字母'],
       disagreements: [],
@@ -151,7 +151,7 @@ test('a handoff with a long topic names the stage after the task, not the paperw
   assert.equal(result.ok, true)
   const stage = result.body.room.stages.find(item => item.kind === 'deliverable')
   assert.match(stage.title, /^用户列表要显示姓名缩写/)
-  assert.doesNotMatch(stage.title, /完成交接单/)
+  assert.doesNotMatch(stage.title, /完成交接简报/)
 })
 
 test('declared member skills are assigned to the created base member', async () => {
@@ -521,7 +521,7 @@ test('a single-vendor studio records the downgrade', async () => {
 
 test('studio creation waits for human review when the handoff has disagreements', async () => {
   const store = createStore({ dataDir: temp('lodge-handoff-gate-data-') })
-  const handoff = {
+  const handoffBrief = {
     topic: '发布前检查',
     consensus: ['先做最小版本'],
     disagreements: ['是否自动回滚'],
@@ -531,7 +531,7 @@ test('studio creation waits for human review when the handoff has disagreements'
   const body = {
     goal: '发布前检查',
     verify: 'manual',
-    handoff,
+    handoffBrief,
     sourceRoomId: 'room-chat-source',
     sourceName: '圆桌',
     members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
@@ -541,20 +541,20 @@ test('studio creation waits for human review when the handoff has disagreements'
   assert.equal(rejected.reason, 'invalid')
   assert.match(rejected.error, /待确认/)
 
-  const accepted = await run(store, { ...body, handoffReviewed: true })
+  const accepted = await run(store, { ...body, handoffBriefReviewed: true })
   assert.equal(accepted.ok, true)
   assert.equal(accepted.body.room.gate.humanReviewed, true)
   assert.ok(accepted.body.room.gate.reviewedAt > 0)
   assert.deepEqual(accepted.body.room.gate.verification, { mode: 'manual' })
-  assert.equal(accepted.body.room.handoff.disagreements[0], '是否自动回滚')
+  assert.equal(accepted.body.room.handoffBrief.disagreements[0], '是否自动回滚')
   assert.equal(accepted.body.room.transfer.kind, 'handoff')
   assert.equal(accepted.body.room.transfer.fromRoomId, 'room-chat-source')
   assert.equal(accepted.body.room.transfer.fromRoomName, '圆桌')
 })
 
-test('a long handoff topic becomes a short delivery step', async () => {
+test('a long handoff brief topic becomes a short delivery step', async () => {
   const store = createStore({ dataDir: temp('lodge-handoff-stage-data-') })
-  const handoff = {
+  const handoffBrief = {
     topic: '把欢迎语写进 WELCOME.md，并保证任何新成员第一次进来就能看见',
     consensus: ['单句中文'],
     disagreements: [],
@@ -562,9 +562,9 @@ test('a long handoff topic becomes a short delivery step', async () => {
     todos: ['定稿'],
   }
   const result = await run(store, {
-    goal: handoff.topic,
+    goal: handoffBrief.topic,
     verify: 'manual',
-    handoff,
+    handoffBrief,
     members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   })
   assert.equal(result.ok, true)
@@ -574,7 +574,7 @@ test('a long handoff topic becomes a short delivery step', async () => {
   ])
 })
 
-test('a handoff reaches the member bulletin and the opening prompt', async () => {
+test('a handoff brief reaches the member bulletin and the opening prompt', async () => {
   const store = createStore({ dataDir: temp('lodge-handoff-bulletin-data-') })
   const bulletins = []
   const engine = fakeEngine()
@@ -583,7 +583,7 @@ test('a handoff reaches the member bulletin and the opening prompt', async () =>
     bulletins.push(args.bulletin ?? '')
     return createRoom(args)
   }
-  const handoff = {
+  const handoffBrief = {
     topic: '发布检查',
     consensus: ['先做最小版本'],
     disagreements: [],
@@ -593,11 +593,11 @@ test('a handoff reaches the member bulletin and the opening prompt', async () =>
   const result = await run(store, {
     goal: '发布检查',
     verify: 'manual',
-    handoff,
+    handoffBrief,
     members: [{ role: 'lead', name: '规划' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
   }, engine)
   assert.equal(result.ok, true)
-  assert.ok(bulletins.some(text => /交接单/.test(text) && /共识：先做最小版本/.test(text)))
+  assert.ok(bulletins.some(text => /交接简报/.test(text) && /共识：先做最小版本/.test(text)))
 })
 
 test('a studio receipt becomes the chat room receipt and transfer record', async () => {

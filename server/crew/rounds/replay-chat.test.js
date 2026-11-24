@@ -27,7 +27,7 @@ test('replay answers who spoke in a round and where the conclusion came from', (
         authorId: 'lodge',
         text: '结论：周六去近郊。\n下一步：甲订票。',
         ts: 1040,
-        meta: { round: 1, fallback: false, handoff: { topic: '周末', todos: ['甲订票'] } },
+        meta: { round: 1, fallback: false, handoffBrief: { topic: '周末', todos: ['甲订票'] } },
       },
     ],
     members,
@@ -41,7 +41,7 @@ test('replay answers who spoke in a round and where the conclusion came from', (
   ])
   assert.equal(round.conclusion.text, '结论：周六去近郊。\n下一步：甲订票。')
   assert.equal(round.conclusion.fallback, false)
-  assert.deepEqual(round.conclusion.handoff.todos, ['甲订票'])
+  assert.deepEqual(round.conclusion.handoffBrief.todos, ['甲订票'])
   assert.deepEqual(round.warnings, [])
   assert.deepEqual(replay.warnings, [])
 })

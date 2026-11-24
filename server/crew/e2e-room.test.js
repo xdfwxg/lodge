@@ -256,7 +256,7 @@ test('deterministic room scenario completes the round and accepts it', async () 
     const conclusion = store.readMessages(chatId).find(message => message.kind === 'chat_conclusion')
     assert.equal(conclusion.meta.turns, 6)
     assert.equal(conclusion.meta.fallback, false)
-    assert.equal(conclusion.meta.handoff.topic, store.readRoom(chatId).goal)
+    assert.equal(conclusion.meta.handoffBrief.topic, store.readRoom(chatId).goal)
 
     assert.equal(store.readRoom(chatId).state, 'active')
 

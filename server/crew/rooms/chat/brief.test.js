@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { chatBriefOf } from './brief.js'
 
-const conclusion = (round, text, handoff = null) => ({
+const conclusion = (round, text, handoffBrief = null) => ({
   kind: 'chat_conclusion',
   text,
-  meta: { round, ...(handoff === null ? {} : { handoff }) },
+  meta: { round, ...(handoffBrief === null ? {} : { handoffBrief }) },
 })
 
 test('the last conclusion becomes the shared brief', () => {
@@ -20,7 +20,7 @@ test('the last conclusion becomes the shared brief', () => {
   assert.equal(brief, '共识：住上沿；分歧：要不要一直走；约束：不能挡内容')
 })
 
-test('a conclusion without handoff still gives its text', () => {
+test('a conclusion without handoffBrief still gives its text', () => {
   assert.equal(chatBriefOf([conclusion(1, '大家倾向先做小的。')], { round: 2 }), '大家倾向先做小的。')
 })
 

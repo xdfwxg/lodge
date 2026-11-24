@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { reviewRoomGate } from './policy.js'
 
-const handoff = overrides => ({
+const brief = overrides => ({
   topic: '发布前检查',
   consensus: ['先做最小版本'],
   disagreements: [],
@@ -11,34 +11,34 @@ const handoff = overrides => ({
   ...overrides,
 })
 
-test('a room without a handoff can start', () => {
+test('a room without a handoff brief can start', () => {
   assert.equal(reviewRoomGate().decision, 'allow')
 })
 
-test('a clean handoff can start', () => {
-  const review = reviewRoomGate({ handoff: handoff() })
+test('a clean handoff brief can start', () => {
+  const review = reviewRoomGate({ handoffBrief: brief() })
   assert.equal(review.decision, 'allow')
   assert.deepEqual(review.issues, [])
   assert.equal(review.needsHumanReview, false)
 })
 
 test('unreviewed disagreements keep the room from starting', () => {
-  const review = reviewRoomGate({ handoff: handoff({ disagreements: ['是否自动回滚'] }) })
+  const review = reviewRoomGate({ handoffBrief: brief({ disagreements: ['是否自动回滚'] }) })
   assert.equal(review.decision, 'reject')
   assert.equal(review.needsHumanReview, true)
   assert.deepEqual(review.issues, [{
-    code: 'handoff-disagreements-unreviewed',
-    text: '交接单还有未解决的分歧，待确认后再开工',
+    code: 'handoff-brief-disagreements-unreviewed',
+    text: '交接简报还有未解决的分歧，待确认后再开工',
   }])
   assert.equal(reviewRoomGate({
-    handoff: handoff({ disagreements: ['是否自动回滚'] }),
+    handoffBrief: brief({ disagreements: ['是否自动回滚'] }),
     humanReviewed: true,
   }).decision, 'allow')
 })
 
-test('a handoff without a topic keeps the room from starting', () => {
-  const review = reviewRoomGate({ handoff: handoff({ topic: '  ' }) })
+test('a handoff brief without a topic keeps the room from starting', () => {
+  const review = reviewRoomGate({ handoffBrief: brief({ topic: '  ' }) })
   assert.equal(review.decision, 'reject')
-  assert.deepEqual(review.issues.map(issue => issue.code), ['handoff-topic-missing'])
+  assert.deepEqual(review.issues.map(issue => issue.code), ['handoff-brief-topic-missing'])
 })
 

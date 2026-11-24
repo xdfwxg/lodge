@@ -34,8 +34,8 @@ export const startInitialStage = async ({
   } else {
     const targetMember = align ? lead : worker
     const opening = align
-      ? alignmentPrompt(goal, verify, acceptance, room.handoff, engines)
-      : directPrompt(goal, verify, acceptance, roster.length === 1, room.handoff)
+      ? alignmentPrompt(goal, verify, acceptance, room.handoffBrief, engines)
+      : directPrompt(goal, verify, acceptance, roster.length === 1, room.handoffBrief)
     // 规划师开口前先看一眼这间房里的旧决策和旧结论；只读、同房间、按本轮话检索。
     const history = align
       ? historyBriefOf({

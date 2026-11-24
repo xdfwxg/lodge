@@ -1,20 +1,20 @@
 // 房间之间的交接种子：聊天→工作室、工作室→聊天、以及新房间对话框的目标文本。
 // 这是界面之间的组合，只服务于预填；房间真相仍在服务端。
-import { normalizeHandoff } from '../../shared/handoff.js'
+import { normalizeHandoffBrief } from '../../shared/handoff-brief.js'
 import { stripAttachmentTags } from '../../shared/attachments.js'
 import { normalizeReceipt, receiptText } from '../../shared/receipt.js'
 import { STAGE_STATE } from '../../shared/states.js'
 
-// 聊天结论只作为小屋的交接单；不复制聊天状态、证据或阶段。
-export const chatStudioSeed = ({ room, conclusion, handoff }) => {
+// 聊天结论只作为小屋的交接简报；不复制聊天状态、证据或阶段。
+export const chatStudioSeed = ({ room, conclusion, handoffBrief }) => {
   const text = String(conclusion ?? '').trim()
-  const structured = normalizeHandoff(handoff)
+  const structured = normalizeHandoffBrief(handoffBrief)
   return {
     goal: structured?.topic || stripAttachmentTags(room?.goal ?? ''),
     conclusion: text,
     sourceName: String(room?.name ?? '').trim(),
     ...(typeof room?.id === 'string' && room.id !== '' ? { sourceRoomId: room.id } : {}),
-    ...(structured === null ? {} : { handoff: structured }),
+    ...(structured === null ? {} : { handoffBrief: structured }),
   }
 }
 
@@ -73,10 +73,10 @@ export const returnToChatSeed = room => {
   }
 }
 
-// 交接单本身进入工作室指令，目标只留主题；回执与普通结论才展开成文本。
+// 交接简报本身进入工作室指令，目标只留主题；回执与普通结论才展开成文本。
 export const seedGoalText = seed => {
-  if (seed?.handoff !== null && seed?.handoff !== undefined) {
-    const topic = String(seed.handoff.topic ?? '').trim() || String(seed?.goal ?? '').trim()
+  if (seed?.handoffBrief !== null && seed?.handoffBrief !== undefined) {
+    const topic = String(seed.handoffBrief.topic ?? '').trim() || String(seed?.goal ?? '').trim()
     return topic.slice(0, 2000)
   }
   const goal = String(seed?.goal ?? '').trim()
