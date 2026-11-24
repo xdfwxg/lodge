@@ -75,7 +75,7 @@ const proposal = (over = {}) => ({
     },
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
-      verifier: { engine: 'pi', model: 'y', name: '验收员' },
+      verifiers: [{ engine: 'pi', model: 'y', name: '验收员' }],
     },
     ...over,
   },
@@ -93,12 +93,28 @@ test('a valid plan opens the crew and starts the first work stage', async () => 
   assert.deepEqual(ctx.sent, [])
 })
 
+test('the planner can open more than one verifier', async () => {
+  const ctx = setup()
+  await ctx.applier('room-1', proposal({
+    crew: {
+      executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
+      verifiers: [
+        { engine: 'pi', model: 'y', name: '验收员甲' },
+        { engine: 'pi', model: 'y', name: '验收员乙' },
+      ],
+    },
+  }))
+  assert.equal(ctx.room.members.filter(member => member.role === 'verifier').length, 2)
+  assert.equal(ctx.room.members.length, 4)
+  assert.deepEqual(ctx.started, [1])
+})
+
 test('the same vendor for the verifier is refused before opening anyone', async () => {
   const ctx = setup()
   await ctx.applier('room-1', proposal({
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
-      verifier: { engine: 'claude', model: 'x2', name: '验收员' },
+      verifiers: [{ engine: 'claude', model: 'x2', name: '验收员' }],
     },
   }))
   assert.equal(ctx.room.members.length, 1)
@@ -130,7 +146,7 @@ test('a machine with one model may still deliver, marked as self-review', async 
   await ctx.applier('room-1', proposal({
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
-      verifier: { engine: 'claude', model: 'x', name: '验收员' },
+      verifiers: [{ engine: 'claude', model: 'x', name: '验收员' }],
     },
   }))
   assert.equal(ctx.room.members.length, 3)

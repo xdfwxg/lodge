@@ -8,6 +8,7 @@ import { humanLabelOf } from '../../human-name.js'
 export const studioWorkerPrompt = ({
   room,
   messages,
+  memberId = '',
   stage,
   workPackage = null,
   index,
@@ -30,7 +31,7 @@ export const studioWorkerPrompt = ({
         ? `你的工作包：${workPackage.map(item => `${item.title}（${(item.files ?? []).join('、') || '未指定文件'}）`).join('；')}。按顺序做完，只改这些文件。`
         : `你的工作包：${workPackage.title}；只改 ${(workPackage.files ?? []).join('、') || '这一步需要的文件'}${workPackage.check ? `；自测：${workPackage.check}` : ''}。`,
     ...stageGuidance({ readOnly }),
-    buildMemberHandoff({ room, messages }),
+    buildMemberHandoff({ room, messages, memberId }),
     workspace.parallel === true
       ? workspace.isolation === 'worktree'
         ? '你在自己的 worktree 里与其他执行官并行工作；只改自己的 worktree，系统会把候选分支合并到房间分支。'

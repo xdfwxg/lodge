@@ -1,15 +1,15 @@
 export const ROLE_TOOLBOX = Object.freeze({
   lead: Object.freeze([
-    'lodge-plan-2',
+    'lodge-plan',
     'lodge-design',
   ]),
   worker: Object.freeze([
-    'lodge-build-2',
+    'lodge-build',
     'lodge-diagnose',
     'lodge-ui',
   ]),
   verifier: Object.freeze([
-    'lodge-review-2',
+    'lodge-review',
     'lodge-ui',
     'lodge-security',
   ]),
@@ -23,9 +23,9 @@ const isSkillName = value => typeof value === 'string' && /^[\w-]{1,64}$/.test(v
 
 // 合并进新技能或已停用的旧名字：换身体或旧成员自定义时都清掉，不再挂载。
 const RETIRED_SKILLS = new Set([
-  'lodge-plan',
-  'lodge-build',
-  'lodge-review',
+  'lodge-plan-2',
+  'lodge-build-2',
+  'lodge-review-2',
   'lodge-code-review-2',
   'lodge-grilling',
   'lodge-task-breakdown',

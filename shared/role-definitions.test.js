@@ -13,6 +13,7 @@ test('each role definition carries the full reusable role contract', () => {
   assert.ok(planner.rules.includes('不写文件'))
   assert.ok(planner.artifacts.includes('plan'))
   assert.ok(planner.gates.includes('plan-review'))
+  assert.equal(planner.stance, '向未来看，先问对问题')
   assert.deepEqual(planner.skills, skillsForRole('lead'))
 })
 
@@ -32,6 +33,8 @@ test('each role has a complete stance that can argue with the other two', () => 
   const lead = roleDefinitionOf('lead').prompt
   const worker = roleDefinitionOf('worker').prompt
   const verifier = roleDefinitionOf('verifier').prompt
+  assert.equal(roleDefinitionOf('worker').stance, '能跑、能验、能交付才算数')
+  assert.equal(roleDefinitionOf('verifier').stance, '没有证据的完成就是没完成')
   assert.match(lead, /立场：方向错了/)
   assert.match(worker, /立场：能跑、能验、能交付/)
   assert.match(verifier, /立场：没有证据的完成就是没完成/)

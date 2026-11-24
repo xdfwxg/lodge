@@ -132,18 +132,23 @@ export const GATE_TOOLS = Object.freeze([
                 additionalProperties: false,
               },
             },
-            verifier: {
-              type: 'object',
-              properties: {
-                name: { type: 'string', maxLength: 32 },
-                engine: { type: 'string', maxLength: 80 },
-                model: { type: 'string', maxLength: 160 },
+            verifiers: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 3,
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', maxLength: 32 },
+                  engine: { type: 'string', maxLength: 80 },
+                  model: { type: 'string', maxLength: 160 },
+                },
+                required: ['engine', 'model'],
+                additionalProperties: false,
               },
-              required: ['engine', 'model'],
-              additionalProperties: false,
             },
           },
-          required: ['executors', 'verifier'],
+          required: ['executors', 'verifiers'],
           additionalProperties: false,
         },
       },
@@ -291,8 +296,8 @@ const callTool = (id, params) => {
     if (!Array.isArray(crew?.executors) || crew.executors.length === 0) {
       return toolFailure(id, '缺少 crew.executors：至少写一位执行官。')
     }
-    if (crew?.verifier === null || typeof crew?.verifier !== 'object') {
-      return toolFailure(id, '缺少 crew.verifier：方案必须带一位验收员。')
+    if (!Array.isArray(crew?.verifiers) || crew.verifiers.length === 0 || crew.verifiers.some(item => item === null || typeof item !== 'object')) {
+      return toolFailure(id, '缺少 crew.verifiers：至少写一位验收员；默认一位，最多三位。')
     }
     return toolOk(id, '方案和队伍已提交，等平台校验。', { ok: true, kind: 'plan' })
   }

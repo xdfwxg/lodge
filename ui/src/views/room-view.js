@@ -1,7 +1,6 @@
 import { createElement as h, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
-import { MemberAddDialog } from '../room/member-add-dialog.js'
 import { StopReply, turnRunning } from '../room/stop-reply.js'
 import { uiKindOfRoom } from '../room/kinds.js'
 import { roleLabelOf } from '../room/member-options.js'
@@ -21,19 +20,11 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
   const [swapId, setSwapId] = useState(null)
   const [swapBusy, setSwapBusy] = useState(false)
   const [swapError, setSwapError] = useState(null)
-  const [addOpen, setAddOpen] = useState(false)
-  const [addBusy, setAddBusy] = useState(false)
-  const [addError, setAddError] = useState(null)
   const roomRef = useRef(room)
   roomRef.current = room
   // 侧栏成员面板可能属于另一间房：先切过去，等当前房间对上了再打开成员卡。
   const pendingSwap = useRef(null)
   useEffect(() => onMemberDialog(request => {
-    if (request.kind === 'add') {
-      setAddError(null)
-      setAddOpen(true)
-      return
-    }
     if (typeof request.roomId === 'string' && request.roomId !== '' && request.roomId !== roomRef.current.id) {
       pendingSwap.current = request
       store.select(request.roomId)
@@ -239,10 +230,6 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       setSwapError(null)
       setSwapId(memberId)
     },
-    addMember: () => {
-      setAddError(null)
-      setAddOpen(true)
-    },
     forgetMemory: () => store.forgetMemory(),
     createPromise: input => store.createPromise(input),
     updatePromise: input => store.updatePromise(input),
@@ -354,7 +341,8 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       : h(BodySwapDialog, {
         key: swapId,
         member: members.find(item => item.id === swapId) ?? { id: swapId, name: '成员', body: {} },
-        canRemove: !['planner', 'lead'].includes(
+        modelOnly: kind.id === 'studio',
+        canRemove: kind.id !== 'studio' && !['planner', 'lead'].includes(
           members.find(item => item.id === swapId)?.roleKind
             ?? members.find(item => item.id === swapId)?.role,
         ),
@@ -392,31 +380,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
           setSwapId(null)
         },
       }),
-    addOpen
-      ? h(MemberAddDialog, {
-        engines: state.engines ?? [],
-        members: room.members ?? [],
-        busy: addBusy,
-        error: addError,
-        onRefresh: () => store.refresh(),
-        onCancel: () => {
-          if (addBusy) return
-          setAddOpen(false)
-          setAddError(null)
-        },
-        onConfirm: async input => {
-          setAddBusy(true)
-          setAddError(null)
-          const result = await store.addMember(input.name, input.role, input.engine, input.model, input)
-          setAddBusy(false)
-          if (result?.ok !== true) {
-            setAddError(result?.error ?? '没能添加成员')
-            return
-          }
-          setAddOpen(false)
-        },
-      })
-      : null)
+    )
 }
 
 export { RoomView }

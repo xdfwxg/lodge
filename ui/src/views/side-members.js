@@ -2,8 +2,7 @@ import { createElement as h, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { bodyStatuses } from '../room/body-status.js'
 import { uiKindOfRoom } from '../room/kinds.js'
-import { openAddMemberDialog, openBodyDialog } from '../room/member-dialog.js'
-import { stagesCompletedOf } from '../../../shared/room-status.js'
+import { openBodyDialog } from '../room/member-dialog.js'
 
 const IDLE = 'idle'
 
@@ -31,9 +30,6 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
   if (members.length === 0) return null
   const kind = uiKindOfRoom(room)
   const statuses = bodyStatuses(room, members, { labels: kind.memberLabels })
-  const finished = stagesCompletedOf(room)
-  const canAdd = kind.membersCanBeAdded === true && room.live === true && !finished &&
-    (room.state === 'active' || room.state === 'paused')
   // 派活是工作室的动作；聊天室成员固定，不提供“先别给 TA 派活”。
   const canHold = kind.id === 'studio' &&
     room.state === 'active' && room.live === true && typeof onHold === 'function'
@@ -76,15 +72,6 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
           onClick: event => openMenu(item, event),
         }, '⋯')
         : null)),
-    canAdd
-      ? h('button', {
-        type: 'button',
-        className: 'crew-side-member crew-side-member-add',
-        'aria-label': '添加成员',
-        title: '添加成员',
-        onClick: openAddMemberDialog,
-      }, '+')
-      : null,
     menu === null
       ? null
       : createPortal(h('div', {
@@ -101,7 +88,7 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
           onClose?.()
           openBodyDialog(menu.memberId, room.id)
         }),
-      }, '调整成员'),
+      }, kind.id === 'studio' ? '换个模型' : '调整成员'),
       h('button', {
         type: 'button',
         role: 'menuitem',

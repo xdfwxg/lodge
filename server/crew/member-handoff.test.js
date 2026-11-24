@@ -29,6 +29,20 @@ test('a member handoff carries business material and references the transcript',
   assert.doesNotMatch(text, /# 约定/)
 })
 
+test('a member sees their own room experience, not everyone else’s', () => {
+  const messages = [
+    { kind: 'evidence', authorId: 'w1', seq: 1, text: '改了设置页', meta: { stage: 0 } },
+    { kind: 'verdict', authorId: 'v1', seq: 2, text: 'REJECT：少了设置项', meta: { pass: false, stage: 0 } },
+  ]
+  const worker = buildMemberHandoff({ room, messages, memberId: 'w1' })
+  assert.match(worker, /你在这个房间的经历/)
+  assert.match(worker, /第 1 步你交付后，验收不通过：少了设置项/)
+  const verifier = buildMemberHandoff({ room, messages, memberId: 'v1' })
+  assert.match(verifier, /第 1 步你给的判定：不通过/)
+  const outsider = buildMemberHandoff({ room, messages, memberId: 'w2' })
+  assert.doesNotMatch(outsider, /你在这个房间的经历/)
+})
+
 test('the handoff tells the member who the user is', () => {
   setCurrentHumanName('千寻')
   const text = buildMemberHandoff({ room, messages: [] })

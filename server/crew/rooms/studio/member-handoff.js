@@ -43,7 +43,41 @@ const feedbackOf = messages => {
   })
 }
 
-export const buildMemberHandoff = ({ room, messages = [] } = {}) => {
+// 成员自己的房间经历：只从房间里已经发生的事实回看，不另存一份私有现实。
+const experienceOf = (messages, memberId) => {
+  if (typeof memberId !== 'string' || memberId === '') return []
+  const ordered = Array.isArray(messages) ? messages : []
+  const mine = ordered.filter(message => message.authorId === memberId)
+  const lines = []
+  const lastEvidence = [...mine].reverse().find(message => message.kind === 'evidence')
+  if (lastEvidence !== undefined) {
+    const stage = Number.isInteger(lastEvidence.meta?.stage) ? lastEvidence.meta.stage : null
+    const label = stage === null ? '上次你交付' : `第 ${stage + 1} 步你交付`
+    const verdict = [...ordered].reverse().find(message => (
+      message.kind === 'verdict' &&
+      (stage === null || (message.meta?.stage ?? 0) === stage) &&
+      (message.seq ?? 0) >= (lastEvidence.seq ?? 0)
+    ))
+    if (verdict === undefined) {
+      lines.push(`${label}过，还没有复核结论。`)
+    } else if (verdictPassed(verdict)) {
+      lines.push(`${label}后，验收通过。`)
+    } else {
+      const reason = String(judgmentOf(verdict)?.reason || verdict.meta?.reason || verdict.text || '')
+        .replace(/^\s*(?:(?:PASS|REJECT)\b|不通过|通过)[：:\s-]*/i, '')
+        .trim()
+      lines.push(`${label}后，验收不通过${reason === '' ? '' : `：${sanitizeUntrusted(reason.replace(/\s+/g, ' '), 240)}`}。`)
+    }
+  }
+  const ownVerdict = [...mine].reverse().find(message => message.kind === 'verdict')
+  if (ownVerdict !== undefined) {
+    const stage = Number.isInteger(ownVerdict.meta?.stage) ? `第 ${ownVerdict.meta.stage + 1} 步` : '上次'
+    lines.push(`${stage}你给的判定：${verdictPassed(ownVerdict) ? '通过' : '不通过'}。`)
+  }
+  return lines.slice(0, 2)
+}
+
+export const buildMemberHandoff = ({ room, messages = [], memberId = '' } = {}) => {
   if (room === null || room === undefined) return ''
   const hostName = humanNameOf()
   const roster = rosterOf(room)
@@ -66,6 +100,8 @@ export const buildMemberHandoff = ({ room, messages = [] } = {}) => {
   )
   const stages = stageDigest(room, messages)
   if (stages.length > 0) lines.push('阶段进展：', ...stages.map(item => `- ${item}`))
+  const experience = experienceOf(messages, memberId)
+  if (experience.length > 0) lines.push('你在这个房间的经历：', ...experience.map(item => `- ${item}`))
   const feedback = feedbackOf(messages)
   if (feedback.length > 0) lines.push('最近复核：', ...feedback.map(item => `- ${item}`))
   const evidence = evidenceDigest(messages, { budget: 800 })

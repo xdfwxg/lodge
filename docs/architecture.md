@@ -216,6 +216,7 @@ service.js                   ← 路由分发与用例组合
 
 - 规划师派发给执行官；证据就绪后系统请求验收员复核。默认接力由 `server/crew/rooms/studio/relay.js` 决定：验收退回直接交回执行官；通过时中间步骤自动收口并派发下一步，最后一步交回规划师收尾；只有重做预算用完、合并冲突或没有可执行官时才回到规划师/人。
 - 自动交付：房间字段 `autoDeliver`，创建时可选、默认关。最后一步验收通过后系统以 `by: 'system'` 收口并完成这一轮，不再等人工确认；只认判定工具提交的结构化 PASS（带 diff 外风险），文本兜底仍交给人收。门禁不满足就退回人工确认。中间步骤的自动推进不受这个开关影响。
+- 工作室成员的立场是角色定义上的稳定字段（`ROLE_DEFINITIONS.stance`），提示词展开、界面可读，不靠每轮临时编一句；成员的项目经历不另存，交接包里从房间已有的证据和判定回看“你在这个房间的经历”，事实仍只有房间一份。
 - 工作室只有一个共享房间：派发、复核、退回、通过都由系统在群聊发一条带 @ 的投影；投递不依赖模型点名。两种房间建房时都在基座写 `followMentions: false`，成员回复里的 @ 不再唤醒下一棒；聊天室先保证每位成员说到一次，再按立场互补。私有 worktree 只是执行目录，不承载对话，也不做 @ 寻址；并行投递走成员执行上下文，群聊仍只有一套。
 - 用户停下回复走 `interrupt`：取消当前回合和未终态交接，房间保持 `active`；不写 `pauseReason`，也不要求再点继续。
 - 验收命令在一次性副本里跑，记录命令、退出码、输出、diff 和改动文件。
@@ -280,9 +281,9 @@ service.js                   ← 路由分发与用例组合
 
 | 房型 / 角色 | 技能 | 形态 |
 |---|---|---|
-| 规划师 | `lodge-plan-2`、`lodge-design` | 2 个基座技能 |
-| 执行官 | `lodge-build-2`、`lodge-diagnose`、`lodge-ui` | 3 个基座技能 |
-| 验收员 | `lodge-review-2`、`lodge-ui`、`lodge-security` | 3 个基座技能 |
+| 规划师 | `lodge-plan`、`lodge-design` | 2 个基座技能 |
+| 执行官 | `lodge-build`、`lodge-diagnose`、`lodge-ui` | 3 个基座技能 |
+| 验收员 | `lodge-review`、`lodge-ui`、`lodge-security` | 3 个基座技能 |
 | 聊天室成员 | 不挂工程技能；只读文件、只读公网、`chat-voice`、`chat-stances` | 提示模块 |
 | Lodge 主机器人 | `listen / auto-grill / route / close`（`LODGE_HOST_RULES`） | 内置提示，不占基座技能 |
 | 房间层 | 各房型的 `issues.js` / `retro.js` | 只读投影，经 presentation 钩子 |
@@ -293,15 +294,15 @@ service.js                   ← 路由分发与用例组合
 - 技能的“调用”分三段：Lodge 只负责挂载（`engine.setBotSkills` → 基座 `PUT /api/bots/:id/skills-library`，名单存为 bot 的 `assignedSkills`）；基座每轮把技能索引写进系统提示（一行一条：名称、描述、`SKILL.md` 路径）；模型判断命中后用文件工具读全文。Lodge 不执行技能内容，`SKILL.md` 是方法说明，不是权限。
 - 挂载有三道保证：启动时 `ensureRoleSkillPacks` 把包导入并审核，失败记 `ready=false`，不静默；建房前 `create.js` 检查 ready 和 `features.skillsLibrary`，不过就在造工作区前拒绝；`body.js` 挂技能失败会删掉刚建的 bot，建房失败。索引只对支持 workspace 文件的引擎注入（Claude Code、Codex 有；grok、openai-compat 没有），单成员最多 8 条，基座索引上限 30 条 / 4000 字节。
 - 模型是否真读某个 `SKILL.md` 由模型判断，机制上不强制；能强制的是验收门禁和角色规则。核对看启动日志 `role skill packs: 7 ready`，或 `GET /api/bots/<id>/skills-library` 的名单。
-- 规划师只有两个技能：`lodge-plan-2` 管论证、问清、写小规格和拆阶段；`lodge-design` 管术语、边界和契约。`grill-with-docs`、`to-spec`、`to-tickets` 不装原版，避免多出 GLOSSARY/ADR、spec 文件或外部 ticket 三个真相源。
+- 规划师只有两个技能：`lodge-plan` 管论证、问清、拆阶段、工作包和组队（执行官按包定数，验收员默认一位）；`lodge-design` 管术语、边界和契约。`grill-with-docs`、`to-spec`、`to-tickets` 不装原版，避免多出 GLOSSARY/ADR、spec 文件或外部 ticket 三个真相源。
 - 聊天成员是 `participant`，不继承工程技能；只有只读文件、只读公网、`chat-voice` 和 `chat-stances`。外部动作仍由审批桥拦住。聊天室必须使用支持逐次确认的引擎；不会问人的模型在建房前就被拒绝，不能把只读写在提示词里假装实现。
-- 验收员用 `lodge-review`：先自己跑验收命令，再做 Spec 轴和 Standards 轴，两份报告并列，只在各自轴内排序；不引入 subagent，也不把两轴合并成一个分数。
+- 验收员用 `lodge-review`：先自己跑验收命令，只看本阶段目标和检查；must-fix 必须挂一条会失败的 check，只有 minor 就判通过；不引入 subagent，不把两轴合并成分数。
 - 各房型的 `issues.js` / `retro.js` 是只读投影，不是技能：在每次组装房间视图（`presentRoom`）时通过 presentation 钩子计算，模型看不到，也不花 token。工作室把阶段投成 issue，聊天把结论/待办投成 issue；复盘只引用真实返工、超时或用满轮次。它们不写房间状态，也不新增角色。
 
 ## 工作室组队
 
 - 建房只问目标（和可选文件夹）；工作室先只开规划师一个 bot，阶段只有「目标对齐」。成员、模型和怎么拆都由规划师决定，用户不排组织架构。
-- 规划师用 `lodge_gate_submit_plan` 提交方案与队伍：阶段、工作包（标题/文件/检查）、执行官与验收员（含 engine/model）。平台校验角色、模型存在、验收员跨厂商、工作区能否合并和包的独立性，再用内部成员开通流程建 bot/worktree/群成员；校验不过把具体错误回给规划师改一版，第二次失败交给人。
+- 规划师用 `lodge_gate_submit_plan` 提交方案与队伍：阶段、工作包（标题/文件/检查）、执行官与一到三位验收员（默认一位，含 engine/model）。平台校验角色、模型存在、每一位验收员都和所有执行官跨厂商、工作区能否合并和包的独立性，再用内部成员开通流程建 bot/worktree/群成员；校验不过把具体错误回给规划师改一版，第二次失败交给人。
 - 工作包决定人数：同一阶段里文件互不重叠、且都写了文件的包才能并行，几位执行官就接几个包，一一对应；没有文件或文件重叠按一位执行官串行。
 - 用户不能加/减工作室成员；成员登录失效或额度用完可以换 engine/model 修故障，不能改提示词、技能或 MCP。规划师也能用 `lodge_gate_adjust_member_model` 换模型。
 - 聊天室保持原样：建房时仍选参与讨论的成员。

@@ -3,6 +3,13 @@ import { skillsForRole } from './role-toolbox.js'
 
 const names = Object.fromEntries(DEFAULT_STUDIO_ROSTER.map(member => [member.role, member.name]))
 
+// 角色立场是稳定字段，不是每次提示词临时写的一句；提示词可以展开，标签只留这一句。
+const STANCE = Object.freeze({
+  lead: '向未来看，先问对问题',
+  worker: '能跑、能验、能交付才算数',
+  verifier: '没有证据的完成就是没完成',
+})
+
 // 角色是定义，房间成员是实例：prompt、执行器、规则、技能、MCP 和门都挂在这里。
 export const ROLE_DEFINITIONS = Object.freeze({
   lead: Object.freeze({
@@ -11,6 +18,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     name: names.lead,
     title: '规划',
     station: '只读 · 组队、拆解与推进',
+    stance: STANCE.lead,
     engine: 'claude-cli',
     permissions: Object.freeze({ read: true, exec: false, write: false }),
     writeScope: 'none',
@@ -39,6 +47,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     name: names.worker,
     title: '实现',
     station: '独立副本写 · 改代码跑测试',
+    stance: STANCE.worker,
     engine: 'codex-cli',
     permissions: Object.freeze({ read: true, exec: true, write: true }),
     writeScope: 'own_worktree',
@@ -62,6 +71,7 @@ export const ROLE_DEFINITIONS = Object.freeze({
     name: names.verifier,
     title: '复核',
     station: '只读副本 · 只写结论',
+    stance: STANCE.verifier,
     engine: 'claude-cli',
     permissions: Object.freeze({ read: true, exec: true, write: false }),
     writeScope: 'none',

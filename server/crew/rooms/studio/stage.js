@@ -219,6 +219,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
     const promptFor = worker => studioWorkerPrompt({
       room,
       messages: store.readMessages(roomId),
+      memberId: worker,
       stage,
       workPackage: packageFor(worker),
       index,

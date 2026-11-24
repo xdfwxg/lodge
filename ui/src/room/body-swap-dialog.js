@@ -29,7 +29,7 @@ const declarationOf = member => {
 }
 
 // 调整成员：只换模型或运行时；成员 id、证据、交接和历史都不动。
-export function BodySwapDialog({ member, engines = [], features = null, requiresGate = false, canRemove = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onRefresh = null }) {
+export function BodySwapDialog({ member, engines = [], features = null, requiresGate = false, canRemove = false, modelOnly = false, busy = false, error = null, onCancel, onConfirm, onRemove = null, onRefresh = null }) {
   const readiness = engineReadiness(engines, { requireApproval: requiresGate })
   const available = readiness.installed
   const [tab, setTab] = useState('body')
@@ -60,36 +60,39 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
     !== JSON.stringify({ skills: originalSpec.skills, mcp: originalSpec.mcp })
   const unchanged = engineId === (member.body?.engine ?? '')
     && model === (member.body?.model ?? '')
-    && !mindChanged
-    && !capabilityChanged
+    && (modelOnly || (!mindChanged && !capabilityChanged))
   const roleBound = roleLabelOf(member) !== '成员' || member.roleKind === 'participant'
   // 角色提示词不外漏：角色成员这一栏只留占位说明，保存仍交给角色默认。
   const rolePrompt = ''
-  const overlay = useOverlay({ label: '调整成员', onClose: busy ? () => {} : onCancel, active: true })
+  const title = modelOnly ? '换个模型' : '调整成员'
+  const overlay = useOverlay({ label: title, onClose: busy ? () => {} : onCancel, active: true })
   return h('div', { className: 'crew-overlay', onClick: busy ? undefined : onCancel, ...overlay },
     h('div', {
       className: 'crew-dialog crew-body-swap',
       role: 'dialog',
       'aria-modal': 'true',
-      'aria-label': '调整成员',
+      'aria-label': title,
       onClick: event => event.stopPropagation(),
     },
     h('div', { className: 'crew-dialog-heading' },
-      h('h2', null, member.name)),
-    h(Segmented, {
-      label: '调整成员',
-      value: tab,
-      onChange: setTab,
-      disabled: busy,
-      className: 'crew-dialog-seg',
-      options: [
-        { value: 'body', label: '模型与能力' },
-        { value: 'mind', label: '性格' },
-      ],
-    }),
+      h('h2', null, modelOnly ? title : member.name),
+      modelOnly ? h('p', null, `${member.name} · 只换模型，记录和证据不变`) : null),
+    modelOnly
+      ? null
+      : h(Segmented, {
+        label: '调整成员',
+        value: tab,
+        onChange: setTab,
+        disabled: busy,
+        className: 'crew-dialog-seg',
+        options: [
+          { value: 'body', label: '模型与能力' },
+          { value: 'mind', label: '性格' },
+        ],
+      }),
     h('div', { className: 'crew-dialog-body' },
       tab === 'body' ? h(Fragment, null,
-      member.body?.capabilities === undefined
+      modelOnly || member.body?.capabilities === undefined
         ? null
         : h('p', { className: 'crew-field-hint' }, declarationOf(member)),
       h('label', { className: 'crew-field crew-body-swap-field' },
@@ -143,8 +146,10 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
         onLogin: login,
         onRefresh,
       }),
-      roleBound
-        ? h(CapabilityReadOnly, {
+      modelOnly
+        ? null
+        : roleBound
+          ? h(CapabilityReadOnly, {
           skills: member.roleKind === 'participant'
             ? originalSpec.skills
             : mergeRoleSkills(member.role, originalSpec.skills),
@@ -212,7 +217,7 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
         : null,
       error === null ? null : h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error)),
     h('div', { className: 'crew-dialog-foot' },
-      canRemove && onRemove !== null && !confirming
+      canRemove && !modelOnly && onRemove !== null && !confirming
         ? h('button', {
           type: 'button',
           className: 'crew-ghost crew-body-swap-remove',
@@ -235,7 +240,7 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
       h('button', {
         type: 'button',
         className: 'crew-accept crew-dialog-primary',
-        disabled: busy || blocked || unchanged || engineId === '' || model === '' || !specFilled,
-        onClick: () => onConfirm({ engine: engineId, model, ...bodySpecPayload(spec) }),
-      }, busy ? '正在保存…' : '完成')))))
+        disabled: busy || blocked || unchanged || engineId === '' || model === '' || (!modelOnly && !specFilled),
+        onClick: () => onConfirm(modelOnly ? { engine: engineId, model } : { engine: engineId, model, ...bodySpecPayload(spec) }),
+      }, busy ? '正在保存…' : (modelOnly ? '换好' : '完成'))))))
 }

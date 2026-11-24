@@ -76,7 +76,7 @@ export const verifierPromptOf = ({
     `房间目标（判定标准，以此为准）：${room.goal}`,
     ...(mergeNote === '' ? [] : [mergeNote]),
     `当前阶段：第 ${stageIndex + 1} 步「${stage.title}」`,
-    blind ? blindBrief : buildMemberHandoff({ room, messages }),
+    blind ? blindBrief : buildMemberHandoff({ room, messages, memberId: verifier }),
     manual
       ? '先看结果证据是否成立：证据缺失或对不上目标就直接判不通过，不要先逐行挑代码毛病。'
       : '先看证据是否成立：验收命令、退出码和改动范围先与目标对照；证据对不上就直接判不通过，不要先逐行挑代码毛病。',

@@ -261,7 +261,7 @@ test('a lead plan call hands the proposal to the platform without an @', async (
       name: 'mcp__lodge_gate__submit_plan',
       input: JSON.stringify({
         plan: { done: ['能跑'], stages: [{ title: '实现', acceptance: 'npm test' }] },
-        crew: { executors: [{ engine: 'claude', model: 'x' }], verifier: { engine: 'pi', model: 'y' } },
+        crew: { executors: [{ engine: 'claude', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
       }),
     },
   })
@@ -269,7 +269,7 @@ test('a lead plan call hands the proposal to the platform without an @', async (
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(applied.length, 1)
   assert.equal(applied[0].roomId, 'room-1')
-  assert.equal(applied[0].result.proposal.crew.verifier.engine, 'pi')
+  assert.equal(applied[0].result.proposal.crew.verifiers[0].engine, 'pi')
   assert.equal(sent.length, 0)
 })
 

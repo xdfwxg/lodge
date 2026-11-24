@@ -45,9 +45,9 @@ export const normalizeCrewProposal = input => {
   if (stages.length === 0) return { error: '方案里没有阶段' }
   const executors = list(input.crew?.executors, 3, memberOf)
   if (executors.length === 0) return { error: '队伍里没有执行官' }
-  const verifier = memberOf(input.crew?.verifier)
-  if (verifier === null) return { error: '队伍里没有验收员，或验收员缺 engine/model' }
-  const names = [verifier, ...executors].map(member => (member.name ?? '').toLowerCase()).filter(Boolean)
+  const verifiers = list(input.crew?.verifiers, 3, memberOf)
+  if (verifiers.length === 0) return { error: '队伍里没有验收员，或验收员缺 engine/model' }
+  const names = [...verifiers, ...executors].map(member => (member.name ?? '').toLowerCase()).filter(Boolean)
   if (new Set(names).size !== names.length) return { error: '成员名字不能重复' }
   return {
     proposal: {
@@ -55,7 +55,7 @@ export const normalizeCrewProposal = input => {
       assumptions: list(input.assumptions, 6, item => text(item, 300)).filter(Boolean),
       notDoing: list(input.notDoing, 6, item => text(item, 300)).filter(Boolean),
       plan: { done, stages: stages.map(({ index, ...stage }) => stage) },
-      crew: { executors, verifier },
+      crew: { executors, verifiers },
     },
   }
 }

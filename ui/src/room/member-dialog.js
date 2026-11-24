@@ -11,6 +11,3 @@ export const openBodyDialog = (memberId, roomId = null) => {
   for (const listener of listeners) listener({ kind: 'body', memberId, roomId })
 }
 
-export const openAddMemberDialog = () => {
-  for (const listener of listeners) listener({ kind: 'add' })
-}

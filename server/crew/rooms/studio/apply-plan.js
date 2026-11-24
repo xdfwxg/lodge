@@ -48,7 +48,7 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
     }
     return ''
   }
-  for (const member of [...proposal.crew.executors, proposal.crew.verifier]) {
+  for (const member of [...proposal.crew.executors, ...proposal.crew.verifiers]) {
     const problem = problemOf(member)
     if (problem !== '') { await reject(problem); return }
   }
@@ -56,9 +56,10 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
   const vendors = new Set(instances
     .filter(item => item.available !== false && typeof item.models?.default === 'string' && item.models.default !== '')
     .map(item => item.engine ?? item.id))
-  const crossVendor = proposal.crew.executors.every(executor => vendorOf(executor) !== vendorOf(proposal.crew.verifier))
+  const executorVendors = new Set(proposal.crew.executors.map(vendorOf))
+  const crossVendor = proposal.crew.verifiers.every(verifier => !executorVendors.has(vendorOf(verifier)))
   if (!crossVendor && vendors.size >= 2) {
-    await reject('验收员要和执行官用不同厂商的模型；换一位验收员。')
+    await reject('每一位验收员都要和所有执行官用不同厂商的模型；换一位验收员。')
     return
   }
   if (!crossVendor) {
@@ -108,18 +109,21 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
     added.push(addedResult.body.memberId)
     crew.push({ role: '执行官', ...executor, memberId: addedResult.body.memberId })
   }
-  const verifierResult = await memberAdd.add(store.readRoom(roomId), {
-    role: 'verifier',
-    name: proposal.crew.verifier.name ?? '',
-    engine: proposal.crew.verifier.engine,
-    model: proposal.crew.verifier.model,
-  })
-  if (verifierResult?.ok !== true) {
-    await rollback()
-    await reject(verifierResult?.error ?? '验收员没能开出来')
-    return
+  for (const verifier of proposal.crew.verifiers) {
+    const verifierResult = await memberAdd.add(store.readRoom(roomId), {
+      role: 'verifier',
+      name: verifier.name ?? '',
+      engine: verifier.engine,
+      model: verifier.model,
+    })
+    if (verifierResult?.ok !== true) {
+      await rollback()
+      await reject(verifierResult?.error ?? '验收员没能开出来')
+      return
+    }
+    added.push(verifierResult.body.memberId)
+    crew.push({ role: '验收员', ...verifier, memberId: verifierResult.body.memberId })
   }
-  crew.push({ role: '验收员', ...proposal.crew.verifier, memberId: verifierResult.body.memberId })
 
   const current = store.readRoom(roomId)
   // 启动态只有规划师，房间的交付路径还指着规划师的只读副本；组队后改到第一位执行官的 worktree。
