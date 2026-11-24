@@ -26,21 +26,30 @@ const qualifiedNames = tool => [
   `${GATE_SERVER_NAME}:${tool}`,
 ]
 
+const exactToolName = (name, tool) => {
+  const text = String(name ?? '').trim()
+  return text === tool || qualifiedNames(tool).includes(text)
+}
+
 const toolKind = name => {
-  const text = String(name ?? '')
   for (const [tool, kind] of Object.entries(GATE_TOOL_NAMES)) {
-    if (text === tool || qualifiedNames(tool).includes(text)) return kind
+    if (exactToolName(name, tool)) return kind
   }
   return null
 }
 
-// 权限卡用的是 server:tool 形式；基座有时会把整句问题放进 tool 字段，所以认句中的名字。
-// 只认 lodge_gate 自己的工具，不认别的 MCP。
+// 权限卡可能把整句问题放进 tool 字段；只认 lodge_gate 自己的完整名字。
+const containsToolName = (text, tool) => {
+  for (const form of qualifiedNames(tool)) {
+    const escaped = form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    if (new RegExp(`(^|[^A-Za-z0-9_])${escaped}($|[^A-Za-z0-9_])`).test(text)) return true
+  }
+  return false
+}
+
 export const isGateToolName = name => {
   const text = String(name ?? '')
-  return [...Object.keys(GATE_TOOL_NAMES), REWIND_TOOL, STOP_TOOL, RESUME_TOOL].some(tool => (
-    qualifiedNames(tool).some(form => text.includes(form))
-  ))
+  return [...Object.keys(GATE_TOOL_NAMES), REWIND_TOOL, STOP_TOOL, RESUME_TOOL].some(tool => containsToolName(text, tool))
 }
 
 const parseInput = value => {
@@ -142,8 +151,7 @@ export const askQuestionOf = (calls, { at = Date.now() } = {}) => {
 export const resumeRequestOf = calls => {
   if (!Array.isArray(calls)) return null
   for (const call of [...calls].reverse()) {
-    const name = String(call?.name ?? '')
-    if (qualifiedNames(RESUME_TOOL).some(form => name.includes(form))) return { at: Date.now() }
+    if (exactToolName(call?.name, RESUME_TOOL)) return { at: Date.now() }
   }
   return null
 }
@@ -152,8 +160,7 @@ export const resumeRequestOf = calls => {
 export const stopRequestOf = calls => {
   if (!Array.isArray(calls)) return null
   for (const call of [...calls].reverse()) {
-    const name = String(call?.name ?? '')
-    if (!qualifiedNames(STOP_TOOL).some(form => name.includes(form))) continue
+    if (!exactToolName(call?.name, STOP_TOOL)) continue
     const input = parseInput(call?.input)
     const reason = typeof input?.reason === 'string' ? input.reason.trim().slice(0, 2000) : ''
     if (reason === '') continue
@@ -165,8 +172,7 @@ export const stopRequestOf = calls => {
 export const rewindRequestOf = calls => {
   if (!Array.isArray(calls)) return null
   for (const call of [...calls].reverse()) {
-    const name = String(call?.name ?? '')
-    if (!qualifiedNames(REWIND_TOOL).some(form => name.includes(form))) continue
+    if (!exactToolName(call?.name, REWIND_TOOL)) continue
     const input = parseInput(call?.input)
     const stage = Number(input?.stage)
     const note = typeof input?.note === 'string' ? input.note.trim() : ''

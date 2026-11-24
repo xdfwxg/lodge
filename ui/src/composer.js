@@ -138,16 +138,25 @@ function Composer({
       .filter(item => text.includes(item.token))
       .map(item => item.id)
     const files = attached
-    setDraft('')
-    writeDraft(draftKey, '')
-    pickedMentions.current = []
-    setMention(null)
-    setPicked(0)
-    setAttached([])
-    setNote('')
-    void onSend(text, { mentions, ...(files.length === 0 ? {} : { attachments: files }) })
-    onSent?.()
-    setTimeout(() => onSent?.(), 400)
+    const previousMentions = pickedMentions.current
+    // 先别清空：服务端拒绝或断网时，用户写的内容要还在。
+    void Promise.resolve()
+      .then(() => onSend(text, { mentions, ...(files.length === 0 ? {} : { attachments: files }) }))
+      .then(() => {
+        setDraft('')
+        writeDraft(draftKey, '')
+        pickedMentions.current = []
+        setMention(null)
+        setPicked(0)
+        setAttached([])
+        setNote('')
+        onSent?.()
+        setTimeout(() => onSent?.(), 400)
+      })
+      .catch(error => {
+        pickedMentions.current = previousMentions
+        setNote(`没发出去，内容还在：${String(error?.message ?? error).slice(0, 120)}`)
+      })
   }
 
   const keyDown = event => {

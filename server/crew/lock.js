@@ -45,8 +45,7 @@ export const acquireDataLock = dataDir => {
       if (Number(readFileSync(file, 'utf8').trim()) === process.pid) unlinkSync(file)
     } catch {}
   }
+  // 信号退出由进程入口处理；这里只保证最终退出时释放锁，避免抢在优雅关闭前 exit。
   process.once('exit', release)
-  process.once('SIGINT', () => { release(); process.exit(130) })
-  process.once('SIGTERM', () => { release(); process.exit(143) })
   return release
 }

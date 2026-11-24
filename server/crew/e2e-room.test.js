@@ -206,7 +206,7 @@ test('deterministic room scenario completes the round and accepts it', async () 
     const passedStages = store.readEvents(room.id)
       .filter(event => event.type === 'stage.passed')
       .map(event => event.payload.stage)
-    assert.deepEqual(passedStages, [1])
+    assert.deepEqual(passedStages, [1, 2])
 
     const chatRoom = await createRealRoom({
       store,

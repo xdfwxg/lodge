@@ -28,12 +28,16 @@ test('a read-only discussion stage blocks write and exec even for a worker', () 
   assert.equal(decidePermission(executor, 'exec', { readOnly: true }), false)
 })
 
-test('the built-in gate tool is allowed for planners and verifiers only', () => {
-  assert.equal(decidePermission(planner, 'gate'), true)
-  assert.equal(decidePermission(verifier, 'gate'), true)
-  assert.equal(decidePermission(executor, 'gate'), false)
-  assert.equal(decidePermission(planner, 'gate', { readOnly: true }), true)
-  assert.equal(decidePermission(verifier, 'gate', { direct: true }), true)
+test('the built-in gate tool is allowed only for the role that owns it', () => {
+  assert.equal(decidePermission(planner, 'gate', { tool: 'mcp__lodge_gate__submit_plan' }), true)
+  assert.equal(decidePermission(verifier, 'gate', { tool: 'mcp__lodge_gate__submit_verdict' }), true)
+  assert.equal(decidePermission(executor, 'gate', { tool: 'mcp__lodge_gate__submit_verdict' }), false)
+  assert.equal(decidePermission(planner, 'gate', { tool: 'mcp__lodge_gate__submit_verdict' }), false)
+  assert.equal(decidePermission(verifier, 'gate', { tool: 'mcp__lodge_gate__submit_plan' }), false)
+  assert.equal(decidePermission(planner, 'gate'), false)
+  assert.equal(decidePermission(planner, 'gate', { tool: 'mcp__other__lodge_gate__submit_plan' }), false)
+  assert.equal(decidePermission(planner, 'gate', { readOnly: true, tool: 'mcp__lodge_gate__submit_plan' }), true)
+  assert.equal(decidePermission(verifier, 'gate', { direct: true, tool: 'mcp__lodge_gate__submit_verdict' }), true)
 })
 
 test('unknown actions and missing seats fail closed', () => {

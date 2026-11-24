@@ -43,7 +43,7 @@ const runPhase = (caseId, phase, dataDir, repo) => {
 const percentile = (values, p) => {
   if (values.length === 0) return 0
   const sorted = [...values].sort((a, b) => a - b)
-  return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))]
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * p) - 1))]
 }
 const median = values => percentile(values, 0.5)
 

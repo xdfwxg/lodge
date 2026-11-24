@@ -37,3 +37,4 @@ export const openPath = async target => {
 export const requestAttention = payload => globalThis.lodge?.attention?.(payload)
 export const syncRoomMenu = rooms => globalThis.lodge?.syncRooms?.(rooms)
 export const onOpenRoom = handler => globalThis.lodge?.onOpenRoom?.(handler) ?? null
+export const onCommand = handler => globalThis.lodge?.onCommand?.(handler) ?? null

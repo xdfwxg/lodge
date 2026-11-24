@@ -18,11 +18,12 @@ const modelRoute = () => {
   try {
     const settings = JSON.parse(readFileSync(join(homedir(), '.claude', 'settings.json'), 'utf8'))
     return {
+      ok: true,
       base: settings.env?.ANTHROPIC_BASE_URL ?? 'anthropic',
       model: settings.env?.ANTHROPIC_MODEL ?? '(默认)',
     }
   } catch {
-    return { base: '未知（没有本机 Claude 配置）', model: '未知' }
+    return { ok: false, base: '未知（没有本机 Claude 配置）', model: '未知' }
   }
 }
 
@@ -48,7 +49,7 @@ try {
 }
 
 const route = modelRoute()
-check('模型路由', true, `${route.base} · ${route.model}`)
+check('模型路由', route.ok === true, `${route.base} · ${route.model}`)
 
 for (const item of checks) console.log(`${item.ok ? '✔' : '✘'} ${item.name}：${item.detail}`)
 const failed = checks.some(item => !item.ok)

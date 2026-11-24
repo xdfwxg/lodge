@@ -112,9 +112,18 @@ export const createTimelineStore = ({
         log.warn(`message mirror failed: ${message.roomId} ${error?.message ?? error}`)
       }
     }
-    db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
-      .run(message.seq, message.id, message.roomId, workRoundIdOf(message), JSON.stringify(message))
-    indexMessage(message)
+    // 消息与全文索引同一个保存点：不会留下“有消息、搜不到”的半份历史。
+    db.exec('SAVEPOINT message_write')
+    try {
+      db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
+        .run(message.seq, message.id, message.roomId, workRoundIdOf(message), JSON.stringify(message))
+      indexMessage(message)
+      db.exec('RELEASE message_write')
+    } catch (error) {
+      db.exec('ROLLBACK TO message_write')
+      db.exec('RELEASE message_write')
+      throw error
+    }
     return message
   }
 
@@ -240,8 +249,18 @@ export const createTimelineStore = ({
     const seqFree = Number.isInteger(message.seq) &&
       db.prepare('SELECT 1 FROM messages WHERE seq = ?').get(message.seq) === undefined
     const stored = { ...message, seq: seqFree ? message.seq : nextSeq() }
-    db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
-      .run(stored.seq, stored.id, stored.roomId, workRoundIdOf(stored), JSON.stringify(stored))
+    // 从 transcript 补回来的消息也要能搜到，否则恢复后的历史是半份。
+    db.exec('SAVEPOINT message_recover')
+    try {
+      db.prepare('INSERT INTO messages (seq, id, room_id, work_round_id, payload) VALUES (?, ?, ?, ?, ?)')
+        .run(stored.seq, stored.id, stored.roomId, workRoundIdOf(stored), JSON.stringify(stored))
+      indexMessage(stored)
+      db.exec('RELEASE message_recover')
+    } catch (error) {
+      db.exec('ROLLBACK TO message_recover')
+      db.exec('RELEASE message_recover')
+      throw error
+    }
     return stored
   }
 

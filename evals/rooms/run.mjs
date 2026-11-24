@@ -171,6 +171,8 @@ const roomDone = room => (
   (room.state === 'idle' && ['completed', 'rejected', 'failed', 'stopped'].includes(room.workRound?.status)) ||
   (room.messages ?? []).some(message => message.kind === 'conclusion')
 )
+// 只有 completed 才算交付；rejected/failed/stopped 只是等待结束，不是成功。
+const roomCompleted = room => room.state === 'idle' && room.workRound?.status === 'completed'
 const roomStopped = room => (
   ['paused', 'stopped', 'archived'].includes(room.state) ||
   room.blocked !== null && room.blocked !== undefined ||
@@ -275,8 +277,9 @@ for (const testCase of cases) {
         const verdicts = verdictsOf(room)
         const rejects = verdicts.filter(message => !verdictPassed(message))
         const lastVerdict = verdicts.at(-1) ?? null
-        const delivered = roomDone(room)
-        const accepted = delivered && (lastVerdict === null ? true : verdictPassed(lastVerdict))
+        const delivered = roomCompleted(room)
+        // 没有验收判定不算通过；房间完成只能说明流程走完了。
+        const accepted = delivered && lastVerdict !== null && verdictPassed(lastVerdict)
         row = {
           caseId: testCase.id,
           variant: variant.label,
@@ -360,7 +363,7 @@ const reworked = results.filter(item => item.rework > 0).length
 const durations = results.map(item => item.elapsedMs).sort((a, b) => a - b)
 const percentile = p => durations.length === 0
   ? 0
-  : durations[Math.min(durations.length - 1, Math.floor((durations.length - 1) * p))]
+  : durations[Math.min(durations.length - 1, Math.max(0, Math.ceil(durations.length * p) - 1))]
 const costs = results.map(item => item.costUsd).filter(value => Number.isFinite(value))
 const byVariant = [...new Set(results.map(item => item.variant))].map(variant => {
   const rows = results.filter(item => item.variant === variant)

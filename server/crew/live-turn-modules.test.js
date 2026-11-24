@@ -469,6 +469,7 @@ test('a planner stop request really stops the round', async () => {
     },
   })
   turns.captureTurn({ turnId: 't-stop', reply: '已停。', toolCalls: 1 }, 'bot-planner')
+  turns.captureTurn({ turnId: 't-stop', reply: '已停。', toolCalls: 1 }, 'bot-planner')
   await new Promise(resolve => setImmediate(resolve))
   assert.deepEqual(stopped, [['room-1', { reason: '用户说停下' }]])
 })
@@ -510,6 +511,7 @@ test('a planner resume request reopens the stopped round', async () => {
     turnId: 't-resume',
     tool: { id: 'call-resume', name: 'mcp__lodge_gate__resume_round', input: '{}' },
   })
+  turns.captureTurn({ turnId: 't-resume', reply: '好，接着做。', toolCalls: 1 }, 'bot-planner')
   turns.captureTurn({ turnId: 't-resume', reply: '好，接着做。', toolCalls: 1 }, 'bot-planner')
   assert.deepEqual(resumed, ['room-1'])
 })
@@ -1146,6 +1148,26 @@ test('a late turn from an older attempt is dropped before it touches evidence', 
   assert.ok(!store.messages.some(message => message.kind === 'evidence'))
   assert.ok(store.messages.some(message => /旧回合结果已忽略/.test(message.text ?? '')))
   assert.ok(store.events.some(event => event.type === 'turn.stale'))
+})
+
+test('a late turn with usage on a finished round is ignored instead of throwing', () => {
+  const room = makeRoom({ workRound: { status: 'completed' } })
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  assert.doesNotThrow(() => turns.captureTurn({
+    turnId: 't-late-usage',
+    reply: '旧回合',
+    toolCalls: 0,
+    usage: { input: 10, output: 2 },
+  }, 'bot-exec'))
+  assert.equal(store.messages.some(message => message.kind === 'evidence' && message.turnId === 't-late-usage'), false)
 })
 
 test('a merge conflict is left for the human instead of being auto-reworked', () => {

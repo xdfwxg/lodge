@@ -81,6 +81,12 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
   }, [menuOpen])
 
   useEffect(() => {
+    if (!membersOpen || membersRef.current === null) return undefined
+    const first = membersRef.current.querySelector('button:not([disabled])')
+    first?.focus()
+  }, [membersOpen])
+
+  useEffect(() => {
     if (!membersOpen) return undefined
     const onPointer = event => {
       if (membersRef.current?.contains(event.target) === true) return
@@ -280,8 +286,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         ref: moreRef,
         type: 'button',
         className: 'crew-side-more',
-        // 行本身已是键盘停靠点；管理菜单用右键菜单键或 Shift+F10 打开，不再多一个 Tab。
-        tabIndex: -1,
+        // 管理菜单必须能被 Tab 到；行本身仍然用右键菜单键/Shift+F10 打开。
         'aria-label': stamp === '' ? `管理 ${room.name}` : `管理 ${room.name}，${stamp}`,
         'aria-haspopup': 'menu',
         'aria-expanded': menuOpen,

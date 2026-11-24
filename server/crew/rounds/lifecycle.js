@@ -1,5 +1,4 @@
 import { fail, ok } from '../result.js'
-import { cancelOpenAssignments } from '../assignments.js'
 import { transitionRound } from '../kernel/round.js'
 import { startRound } from './start.js'
 
@@ -31,7 +30,6 @@ const settle = async ({
   if (cancel) {
     try { await live?.cancel?.({ roomId: room.id }) } catch {}
     try { live?.detach?.(room.id) } catch {}
-    try { cancelOpenAssignments(store, room.id, { reason: reason === '' ? '这一轮结束了' : reason }) } catch {}
   }
   const finished = store.finishWorkRound?.({
     roomId: room.id,
@@ -45,6 +43,7 @@ const settle = async ({
     eventType,
     eventPayload: reason === '' ? {} : { reason },
     idempotencyKey,
+    ...(cancel ? { cancelAssignmentsReason: reason === '' ? '这一轮结束了' : reason } : {}),
   }) ?? null
   if (finished === null) return fail('conflict', '这一轮状态已经变化，重试')
   if (finished.round !== null && finished.round !== undefined) emit?.('round', finished.round)

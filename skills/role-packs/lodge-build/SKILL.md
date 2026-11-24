@@ -24,5 +24,5 @@ You own the assigned package, not the plan. Read the goal, done, constraints, ac
 - First line: what is done or where you are blocked.
 - Then evidence: files changed, command(s) run, exit codes, result. Short list if several.
 - No self-grade ("合格/完成"), no process narration, no repeating the task.
-- Last line: `@verifier` or `@planner` in plain words; no @ in the body and no fixed phrase.
+- Last line: name the next member (verifier or planner) in plain words; the system projects the @.
 - If blocked, stop and name what is missing; don't fake a result.

@@ -57,6 +57,10 @@ export const replayRound = (events = [], roundId = '') => {
     // 下一轮开始，这一轮的事件窗口结束。
     if (event?.type === 'round.started') break
     const payload = event?.payload ?? {}
+    if (event?.type === 'round.resumed') {
+      roundStatus = ROUND_STATUS.active
+      continue
+    }
     const terminal = TERMINAL_ROUND_EVENTS[event?.type]
     if (terminal !== undefined) {
       roundStatus = terminal

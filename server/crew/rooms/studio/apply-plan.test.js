@@ -162,3 +162,46 @@ test('the same plan is not applied twice', async () => {
   assert.equal(ctx.room.members.length, before)
   assert.deepEqual(ctx.started, [1])
 })
+
+test('a parallel plan writes orchestration through the round instead of the room', async () => {
+  const ctx = setup()
+  await ctx.applier('room-1', proposal({
+    plan: {
+      done: ['两块都完成'],
+      stages: [{
+        title: '实现',
+        acceptance: 'npm test',
+        packages: [
+          { title: '导出', files: ['src/export.js'], check: 'npm test' },
+          { title: '导入', files: ['src/import.js'], check: 'npm test' },
+        ],
+      }],
+    },
+    crew: {
+      executors: [
+        { engine: 'claude', model: 'x', name: '执行官甲' },
+        { engine: 'claude', model: 'x2', name: '执行官乙' },
+      ],
+      verifiers: [{ engine: 'pi', model: 'y', name: '验收员' }],
+    },
+  }))
+  assert.equal(ctx.room.workRound.orchestration, 'parallel')
+  assert.deepEqual(ctx.started, [1])
+})
+
+test('rejected plans count toward the retry limit on the round', async () => {
+  const ctx = setup()
+  await ctx.applier('room-1', { error: '方案的格式不对' })
+  await ctx.applier('room-1', { error: '方案的格式不对' })
+  assert.equal(ctx.room.workRound.planRejections, 2)
+})
+
+test('two concurrent plan submissions open the crew once', async () => {
+  const ctx = setup()
+  await Promise.all([
+    ctx.applier('room-1', proposal()),
+    ctx.applier('room-1', proposal()),
+  ])
+  assert.equal(ctx.room.members.length, 3)
+  assert.deepEqual(ctx.started, [1])
+})

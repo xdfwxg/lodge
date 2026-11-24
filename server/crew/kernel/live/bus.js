@@ -33,6 +33,12 @@ export const roundAtOf = (room, at) => {
   return chosen?.id
 }
 
+// 房间快照不背全部轮次；按消息时间归轮时直接从存储取，避免永远落到当前轮。
+const roundIdForMessage = (store, room, message) => roundAtOf(
+  { ...room, rounds: store.readWorkRounds?.(room.id) ?? room.rounds },
+  turnStartOf(message),
+)
+
 const hostOf = room => roomPresentationOfRoom(room)?.hostOf?.(room) ?? null
 const speakerOf = room => roomPresentationOfRoom(room)?.speakerOf?.(room) ?? ''
 
@@ -168,7 +174,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     }
     if (state === undefined) return false
     const existing = store.readMessages(room.id).find(item => item.id === state.id)
-    const workRoundId = roundAtOf(current, turnStartOf(message))
+    const workRoundId = roundIdForMessage(store, current, message)
     store.upsertMessage({
       ...(existing ?? { id: state.id, roomId: room.id, kind: 'chat', authorId: memberId }),
       text,
@@ -216,7 +222,7 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     // 一次回答的过场不是发言：房间只留回合收尾的正文，免得同一个人连说两句。
     if (stored.kind === 'chat' && stored.meta?.turnFinal === false) return null
     if (stored.workRoundId !== undefined) return stored
-    const workRoundId = roundAtOf(room, turnStartOf(message))
+    const workRoundId = roundIdForMessage(store, room, message)
     return workRoundId === undefined ? stored : { ...stored, workRoundId }
   }
 

@@ -3,6 +3,7 @@ import { addTurnUsage } from '../../../../../shared/usage.js'
 import { memberDisplayName } from '../../../member-labels.js'
 import { createTurnDiagnostics } from './diagnostics.js'
 import { verdictPassed } from '../../../../../shared/judgment.js'
+import { reworkFloor } from '../../../../../shared/attempt.js'
 import { ASSIGNMENT_TERMINAL, OPEN_ROUND_STATUSES, STAGE_STATE } from '../../../../../shared/states.js'
 import { askDecisionOf, askQuestionOf, resumeRequestOf, rewindRequestOf, stopRequestOf, submitPlanOf, modelAdjustmentOf } from '../../../../../shared/gate.js'
 import {
@@ -48,7 +49,10 @@ export const createTurnCapture = ({
   const captureTurn = (turn, authorRef) => {
     const turnId = turn?.turnId
     if (typeof turnId !== 'string' || state.capturedTurns.has(turnId)) return
-    if (turn?.usage !== undefined && turn?.usage !== null) {
+    const room = store.readRoom(roomId)
+    const roundOpen = OPEN_ROUND_STATUSES.has(room?.workRound?.status ?? 'active')
+    // 已结束的轮次不能再记用量；否则晚到的回合会先撞上“终态轮不能写”，连忽略都做不到。
+    if (roundOpen && turn?.usage !== undefined && turn?.usage !== null) {
       store.updateRound(roomId, current => {
         const usage = addTurnUsage(current.usage, turn.usage)
         if (usage === null) return null
@@ -56,7 +60,6 @@ export const createTurnCapture = ({
         return { events: [] }
       })
     }
-    const room = store.readRoom(roomId)
     const memberId = memberForRef(room, authorRef)
     // 成员的 shell 不做 OS 沙箱（基座只给验收命令）；这里在回合后对账，越界写到别人工作树的改动退回。
     if (memberId !== null) {
@@ -79,6 +82,7 @@ export const createTurnCapture = ({
         if (result?.ok === true) {
           store.appendEvent(roomId, 'planner.resume', { roundId: result.body?.round?.id ?? null })
           emit?.('room', store.readRoom(roomId) ?? room)
+          state.capturedTurns.add(turnId)
           state.recordTurn(true)
           return
         }
@@ -97,6 +101,7 @@ export const createTurnCapture = ({
             systemNotice({ store, roomId, text: `停止没成功：${result?.error ?? '再试一次'}` })
           })
           .catch(() => systemNotice({ store, roomId, text: '停止没成功，再试一次。' }))
+        state.capturedTurns.add(turnId)
         state.recordTurn(true)
         return
       }
@@ -106,6 +111,7 @@ export const createTurnCapture = ({
         if (result?.ok === true) {
           store.appendEvent(roomId, 'planner.rewind', { stage: request.stage, note: request.note })
           emit?.('room', store.readRoom(roomId) ?? room)
+          state.capturedTurns.add(turnId)
           state.recordTurn(true)
           return
         }
@@ -113,7 +119,7 @@ export const createTurnCapture = ({
       }
     }
     // 轮次已经不在跑（停下或终态）：迟到的成员回合只记下来，不写证据、不推进。
-    if (!OPEN_ROUND_STATUSES.has(room?.workRound?.status ?? 'active')) {
+    if (!roundOpen) {
       state.capturedTurns.add(turnId)
       state.turns.delete(turnId)
       state.recordTurn(false)
@@ -243,8 +249,14 @@ export const createTurnCapture = ({
     const stageIndex = room === null ? 0 : deliverableStageIndex(room)
     const dispatch = room === null ? null : dispatchOf(store, roomId, stageIndex)
     // 验收已通过、规划师也收过尾：系统收口，不再等人点一次确认。
-    const signoffVerdict = [...store.readMessages(roomId)].reverse()
-      .find(message => message.kind === 'verdict' && (message.meta?.stage ?? 0) === stageIndex)
+    const signoffMessages = store.readMessages(roomId)
+    const signoffFloor = reworkFloor(signoffMessages, stageIndex)
+    const signoffVerdict = [...signoffMessages].reverse()
+      .find(message => (
+        message.kind === 'verdict' &&
+        (message.meta?.stage ?? 0) === stageIndex &&
+        (message.seq ?? 0) > signoffFloor
+      ))
     if (
       memberId !== null &&
       memberId === leadMemberOf(room)?.id &&

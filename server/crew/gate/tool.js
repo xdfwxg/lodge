@@ -53,6 +53,7 @@ export const ensureGateServer = async engine => {
 }
 
 // 只有规划和验收需要提交判定；执行官不加载这个工具。
-export const roomToolsFor = member => (
-  member?.role === 'lead' || member?.role === 'verifier' ? [GATE_SERVER_NAME] : []
-)
+export const roomToolsFor = member => {
+  const kind = member?.roleKind ?? member?.role
+  return kind === 'lead' || kind === 'planner' || kind === 'verifier' ? [GATE_SERVER_NAME] : []
+}

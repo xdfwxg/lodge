@@ -117,8 +117,10 @@ export const buildDelivery = (room, messages = []) => {
   const verifiers = (room.members ?? []).filter(member => (
     (member.roleKind ?? member.role) === 'verifier'
   ))
+  const deliveredStage = stages.at(-1)?.index ?? 0
   const lastVisual = [...messages].reverse()
-    .map(message => message.kind === 'verdict' ? message.meta?.judgment?.visual : null)
+    .filter(message => message.kind === 'verdict' && (message.meta?.stage ?? 0) === deliveredStage)
+    .map(message => message.meta?.judgment?.visual)
     .find(value => value !== null && value !== undefined) ?? null
   const vision = previews.length === 0
     ? null

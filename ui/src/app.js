@@ -10,7 +10,7 @@ import { ProfileDialog } from './profile-dialog.js'
 import { saveProfile } from './profile.js'
 import { useProfileSync } from './app/use-profile-sync.js'
 import { useAttention } from './app/use-attention.js'
-import { onOpenRoom } from './system.js'
+import { onCommand, onOpenRoom } from './system.js'
 import { NewRoomDialog } from './new-room-dialog.js'
 import { StatePanel } from './state-panel.js'
 import { startupNoticeOf } from './app/startup.js'
@@ -21,7 +21,7 @@ export function App() {
   const [profile, setProfile] = useProfileSync(state.profile)
   const [profileOpen, setProfileOpen] = useState(false)
   // 定时目标的 run 房是历史，不占侧栏和菜单；目标本身仍是同一行。
-  const { visibleRooms, sidebarRooms, needsText } = useAttention(state.rooms)
+  const { orderedRooms, sidebarRooms, needsText } = useAttention(state.rooms)
   const [dialog, setDialog] = useState(false)
   const [seed, setSeed] = useState(null)
   const [startType, setStartType] = useState(null)
@@ -55,6 +55,25 @@ export function App() {
     return () => store.disconnect()
   }, [store])
 
+  // 桌面菜单和通知走同一条桥；Web 版没有桥时这里是空操作。
+  useEffect(() => {
+    const offOpen = onOpenRoom?.(id => {
+      if (typeof id !== 'string' || id === '') return
+      setProjectId(null)
+      setHistory(null)
+      setRoundsFor(null)
+      store.select(id)
+    })
+    const offCommand = onCommand?.(command => {
+      if (command === 'new-room') openDialog()
+      if (command === 'search') window.dispatchEvent(new CustomEvent('lodge:focus-search'))
+    })
+    return () => {
+      offOpen?.()
+      offCommand?.()
+    }
+  }, [store])
+
   const lodgeRoom = state.rooms.find(room => room.id === LODGE_ROOM_ID || room.lodge === true) ?? null
 
   // macOS 惯例：⌘N 新房间，⌘1..9 切房间；弹窗打开时不抢键。
@@ -68,7 +87,7 @@ export function App() {
         return
       }
       if (!/^[1-9]$/.test(event.key)) return
-      const room = sidebarRooms.filter(item => !item.archivedAt)[Number(event.key) - 1]
+      const room = orderedRooms[Number(event.key) - 1]
       if (room === undefined) return
       event.preventDefault()
       setProjectId(null)
@@ -78,7 +97,7 @@ export function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [dialog, lodgeRoom, sidebarRooms, store])
+  }, [dialog, lodgeRoom, orderedRooms, store])
 
   const dialogNode = h(NewRoomDialog, {
     open: dialog,
@@ -94,7 +113,7 @@ export function App() {
   })
 
   const room = state.rooms.find(item => item.id === state.activeId)
-    ?? sidebarRooms.find(item => !item.archivedAt)
+    ?? orderedRooms[0]
     ?? null
 
   const firstRun = state.rooms.length === 0

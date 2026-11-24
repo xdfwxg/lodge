@@ -118,13 +118,22 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       const needsVerdict = stage.kind !== 'decision' || stage.manual === true || stage.title === FINAL_TITLE
       if (next < 0 && needsVerdict && roomModeOfRoom(current)?.supportsDelivery === true) {
         const hasVerifiers = verifierIds(current).length > 0 || (Array.isArray(current.verifiers) && current.verifiers.length > 0)
-        if (hasVerifiers && hasPassedVerdict !== true) {
+        if (!hasVerifiers) {
+          transitionError = '这一步还没有验收员，不能结束'
+          return null
+        }
+        if (hasPassedVerdict !== true) {
           transitionError = '验收员还没有回报通过，不能结束这一步'
           return null
         }
       }
       return {
-        events: [{ type: 'stage.passed', payload: { stage: index, kind: stage.kind, by } }],
+        events: [
+          { type: 'stage.passed', payload: { stage: index, kind: stage.kind, by } },
+          ...(mergedFinal < 0
+            ? []
+            : [{ type: 'stage.passed', payload: { stage: mergedFinal, kind: current.stages[mergedFinal].kind, by } }]),
+        ],
       }
     })
     if (gate !== null && gate.ok === false) return fail(gate.reason, gate.error)

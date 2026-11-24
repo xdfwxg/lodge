@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { memberDisplayName } from '../../../member-labels.js'
 import { INTERNAL_PROMPT_MARKER } from '../../../internal-prompts.js'
+import { sanitizeUntrusted } from '../../../../../shared/untrusted-text.js'
 import { appendHandoffProjection } from '../projection.js'
 import { judgmentAnchorOf, judgmentOf, normalizeJudgment } from '../../../../../shared/judgment.js'
 import { gateSubmissionOf } from '../../../../../shared/gate.js'
@@ -186,7 +187,7 @@ export const createPlannerRouting = ({ store, roomId, sendToMember, handoff, pla
         from: leadId,
         to: target,
         reason: 'rework',
-        prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
+        prompt: `${sanitizeUntrusted(note, 2000)}\n${INTERNAL_PROMPT_MARKER}`,
         ...(parallel ? { privateRoom: true } : {}),
         acceptance: stage?.acceptance ?? '',
         rework: true,

@@ -1,4 +1,4 @@
-import { manualReviewState, reviewState } from '../verifiers.js'
+import { manualReviewState, reviewState, reworkFloor } from '../verifiers.js'
 import { isWorkStage } from '../turn-utils.js'
 import {
   activeDispatchAssignments as activeDispatch,
@@ -35,10 +35,13 @@ export const createResume = ({
     if (!forceAcceptance && room.lastPlannerDecision?.stage === stageIndex && room.lastPlannerDecision?.kind === PLANNER_DECISION_KIND.human) return
 
     const messages = store.readMessages(roomId)
+    // 重做之后只认这一拍的证据；上一拍的命令/回合不能把重做直接判成完成。
+    const floor = reworkFloor(messages, stageIndex)
     const evidence = messages.filter(message => (
       message.kind === 'evidence' &&
       (message.meta?.stage ?? 0) === stageIndex &&
-      (room.demo === true || message.meta?.simulated !== true)
+      (room.demo === true || message.meta?.simulated !== true) &&
+      (message.seq ?? 0) > floor
     ))
     const latestTurn = [...evidence].reverse().find(message => message.meta?.kind === 'turn')
     const latestCommand = [...evidence].reverse().find(message => message.meta?.kind === 'command')

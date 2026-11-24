@@ -13,6 +13,12 @@ test('summaries keep unknown cost unknown instead of zero', () => {
   assert.equal(summarizeRuns([]).meanCostUsd, null)
 })
 
+test('p95 is the tail, not the median, on small samples', () => {
+  const summary = summarizeRuns([100, 200, 300].map(elapsedMs => row({ elapsedMs })))
+  assert.equal(summary.p50Ms, 200)
+  assert.equal(summary.p95Ms, 300)
+})
+
 test('comparison gives deltas per variant and overall', () => {
   const comparison = compareRuns([
     row({ variant: 'auto · 有记忆', pass: true, rework: 0, elapsedMs: 5000, costUsd: 0.2 }),

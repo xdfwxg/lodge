@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -25,7 +26,14 @@ for (const file of required) {
 }
 
 const dataDir = mkdtempSync(join(tmpdir(), 'lodge-package-smoke-'))
-const port = 8788
+const port = await new Promise((resolvePort, reject) => {
+  const probe = createServer()
+  probe.once('error', reject)
+  probe.listen(0, '127.0.0.1', () => {
+    const chosen = probe.address().port
+    probe.close(() => resolvePort(chosen))
+  })
+})
 const child = spawn(binary, [join(resources, 'app', 'server', 'index.js')], {
   env: {
     ...process.env,
@@ -46,7 +54,8 @@ try {
   while (Date.now() < deadline) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/api/health`)
-      if (response.ok) {
+      const body = await response.json().catch(() => ({}))
+      if (response.ok && body.server === 'lodge') {
         healthy = true
         break
       }

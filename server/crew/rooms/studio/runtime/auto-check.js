@@ -86,8 +86,18 @@ export const createAutoCheck = ({
     const stage = room.stages?.[stageIndex]
     if (stage === undefined || stage.state !== STAGE_STATE.active || stage.manual !== true) return
     if ((room.busyMembers ?? []).length > 0) return
-    const decision = nextAutoRework({ state: autoLoops.get(stageIndex), command, exit, output, room })
+    // 自动重做次数和时间窗跟着轮次落库；进程重启不把同一个失败重新算成第 1 次。
+    const persisted = room.autoCheck?.stage === stageIndex ? room.autoCheck.loop : null
+    const decision = nextAutoRework({ state: autoLoops.get(stageIndex) ?? persisted, command, exit, output, room })
     autoLoops.set(stageIndex, decision.state)
+    store.updateRound(roomId, current => {
+      current.autoCheck = {
+        ...(current.autoCheck?.stage === stageIndex ? current.autoCheck : {}),
+        stage: stageIndex,
+        loop: decision.state,
+      }
+      return { events: [] }
+    })
     if (decision.retry !== true) {
       stopAutoRework({ stageIndex, reason: decision.reason, status: decision.status, attempts: decision.state.attempts })
       return

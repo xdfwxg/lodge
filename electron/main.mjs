@@ -652,7 +652,10 @@ if (!gotLock) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    if (window === null) return
+    if (window === null) {
+      if (serverPort !== null) createWindow(serverPort)
+      return
+    }
     if (window.isMinimized()) window.restore()
     window.focus()
   })

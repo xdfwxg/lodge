@@ -15,11 +15,19 @@ const EMPTY = {
 }
 
 // 重连时用服务端快照补齐房间状态，但保留本地已经收到、可能比快照更新的消息。
+const mergeMessages = (fresh = [], local = []) => {
+  const byId = new Map()
+  for (const message of fresh) byId.set(message.id, message)
+  // 本地收到的流式消息可能比快照新；同 id 合并字段，缺的按 seq 补回中间那段。
+  for (const message of local) byId.set(message.id, { ...(byId.get(message.id) ?? {}), ...message })
+  return [...byId.values()].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0) || (a.ts ?? 0) - (b.ts ?? 0))
+}
+
 export const mergeRoomSnapshot = (localRooms, freshRooms) => {
   const byId = new Map((localRooms ?? []).map(room => [room.id, room]))
   return (freshRooms ?? []).map(fresh => {
     const local = byId.get(fresh.id)
-    return local === undefined ? fresh : { ...fresh, messages: local.messages }
+    return local === undefined ? fresh : { ...fresh, messages: mergeMessages(fresh.messages, local.messages) }
   })
 }
 
@@ -215,7 +223,7 @@ export function createStore() {
       emit({
         ...state,
         phase: 'ready',
-        rooms: data.rooms,
+        rooms: mergeRoomSnapshot(state.rooms, data.rooms),
         projects: data.projects ?? [],
         roles: data.roles,
         roomTypes: data.roomTypes ?? [],

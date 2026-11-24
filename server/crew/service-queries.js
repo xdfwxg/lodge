@@ -32,7 +32,7 @@ export const createServiceQueries = ({
     return { ...message, meta }
   }
 
-  const health = async () => ok({ runtime: await engine.health() })
+  const health = async () => ok({ server: 'lodge', runtime: await engine.health() })
 
   const state = async () => {
     const rooms = readRooms()

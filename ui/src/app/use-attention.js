@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { requestAttention, syncRoomMenu } from '../system.js'
 import { shouldNotify } from '../../../shared/quiet.js'
 import { needsAction } from '../needs.js'
+import { orderRooms } from '../views/room-list.js'
 
 // 房间列表的两份投影：真正需要人处理的，以及侧栏/菜单里可见的。
 export const useAttention = rooms => {
   const attentionRooms = useMemo(() => rooms.filter(room => !room.archivedAt), [rooms])
   const visibleRooms = attentionRooms
+  const orderedRooms = useMemo(() => orderRooms(visibleRooms), [visibleRooms])
   const sidebarRooms = rooms
 
   const [needsText, setNeedsText] = useState('')
@@ -52,17 +54,21 @@ export const useAttention = rooms => {
     } else if (count !== Object.keys(prev).length) {
       requestAttention({ count })
     }
-    if (changed.length === 0) return
+    if (changed.length === 0) {
+      // 待处理清空后也要让读屏知道，别一直念上一批。
+      setNeedsText(current => (current === '' ? current : ''))
+      return
+    }
     setNeedsText(changed.map(room => `${room.name}：${next[room.id]}`).join('；'))
   }, [attentionRooms])
 
   // 房间菜单只显示前 9 个；名字或顺序变了才重发，避免每条消息都重建菜单。
-  const menuSignature = visibleRooms.slice(0, 9)
+  const menuSignature = orderedRooms.slice(0, 9)
     .map(room => `${room.id}\u0000${room.name ?? ''}`)
     .join('\n')
   useEffect(() => {
-    syncRoomMenu(visibleRooms.slice(0, 9).map(room => ({ id: room.id, name: room.name ?? '' })))
+    syncRoomMenu(orderedRooms.slice(0, 9).map(room => ({ id: room.id, name: room.name ?? '' })))
   }, [menuSignature])
 
-  return { attentionRooms, visibleRooms, sidebarRooms, needsText }
+  return { attentionRooms, visibleRooms, orderedRooms, sidebarRooms, needsText }
 }

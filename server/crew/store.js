@@ -265,6 +265,7 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
         { transcript: room?.demo !== true },
       )
     },
+    emitMessage: (message, seq) => emit('msg', message, seq),
   })
   const assignments = createAssignmentStore({ db, readRoom, roundIdForRead })
 

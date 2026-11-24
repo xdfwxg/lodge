@@ -64,10 +64,24 @@ test('a verdict can cite the platform visual check', () => {
     method: 'tools/call',
     params: {
       name: 'submit_verdict',
+      arguments: { decision: 'PASS', reason: '画面层次正常', outsideDiff: '无', visual: { seen: false } },
+    },
+  })
+  assert.deepEqual(response.result.structuredContent.visual, { seen: false })
+})
+
+test('a verdict cannot attach numbers while claiming it did not see', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 32,
+    method: 'tools/call',
+    params: {
+      name: 'submit_verdict',
       arguments: { decision: 'PASS', reason: '画面层次正常', outsideDiff: '无', visual: { seen: false, colors: 50, contrast: 255 } },
     },
   })
-  assert.deepEqual(response.result.structuredContent.visual, { seen: false, colors: 50, contrast: 255 })
+  assert.equal(response.result.isError, true)
+  assert.match(response.result.content[0].text, /seen:false/)
 })
 
 test('a PASS without an outside-diff risk is refused', () => {

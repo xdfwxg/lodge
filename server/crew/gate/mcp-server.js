@@ -326,29 +326,36 @@ const callTool = (id, params) => {
       return toolFailure(id, 'PASS 要写一条 diff 之外的风险；没有就写「无」。')
     }
     const findings = Array.isArray(args.findings) ? args.findings.slice(0, 10) : []
-    if (decision === 'REJECT') {
-      const blocking = findings.filter(item => (
-        item !== null &&
-        typeof item === 'object' &&
-        (item.severity === 'blocker' || item.severity === 'major') &&
-        typeof item.check === 'string' &&
-        item.check.trim() !== ''
-      ))
-      if (blocking.length === 0) {
-        return toolFailure(id, '不通过至少要有一条带 check 的 blocker/major：check 写哪条验收命令或目标行会因它失败。只有 minor 的问题请判通过。')
-      }
+    const blocking = findings.filter(item => (
+      item !== null &&
+      typeof item === 'object' &&
+      (item.severity === 'blocker' || item.severity === 'major') &&
+      typeof item.check === 'string' &&
+      item.check.trim() !== ''
+    ))
+    if (decision === 'REJECT' && blocking.length === 0) {
+      return toolFailure(id, '不通过至少要有一条带 check 的 blocker/major：check 写哪条验收命令或目标行会因它失败。只有 minor 的问题请判通过。')
     }
-    const protectedFiles = Array.isArray(args.protectedFiles)
+    if (decision === 'PASS' && blocking.length > 0) {
+      return toolFailure(id, '判通过不能同时带 blocker/major；要么改成不通过，要么先把问题降级并写清理由。')
+    }
+    const protectedRaw = Array.isArray(args.protectedFiles)
       ? args.protectedFiles
         .filter(item => typeof item === 'string' && item.trim() !== '')
         .map(item => item.trim().replaceAll('\\', '/').replace(/^\.\//, ''))
-        .slice(0, 20)
       : []
+    if (protectedRaw.length > 20) {
+      return toolFailure(id, '受保护文件超过 20 个，无法逐条确认；先缩小改动范围。')
+    }
+    const protectedFiles = protectedRaw
     let visual
     if (args.visual !== undefined) {
       const raw = args.visual
       if (raw === null || typeof raw !== 'object' || typeof raw.seen !== 'boolean') {
         return toolFailure(id, 'visual 必须包含 seen（true/false）；colors、contrast 用平台给的整数。')
+      }
+      if (raw.seen === false && (raw.colors !== undefined || raw.contrast !== undefined)) {
+        return toolFailure(id, '看不到画面时不要填写 colors/contrast；seen:false 只说明没核对。')
       }
       visual = {
         seen: raw.seen,

@@ -380,3 +380,50 @@ test('a message that started in the previous round stays in the previous round',
   }
 })
 
+
+test('a round opening message is broadcast after the round commits', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'lodge-round-broadcast-'))
+  try {
+    const events = []
+    const store = createStore({ dataDir: dir, emit: (type, payload) => events.push([type, payload]) })
+    store.writeRoom({ id: 'room-1', name: '工作室', roomType: 'studio', state: 'idle', activeRoundId: null, lastRoundId: null, members: [] })
+    store.startWorkRound({
+      roomId: 'room-1',
+      round: { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'active', goal: '开始', stages: [] },
+      message: { kind: 'chat', authorId: 'you', text: '开始这一轮' },
+    })
+    const message = events.find(([type]) => type === 'msg')?.[1]
+    assert.equal(message?.text, '开始这一轮')
+    store.db.close()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a terminal round cannot be updated through the work-round store', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({ id: 'room-1', name: '工作室', roomType: 'studio', state: 'idle', activeRoundId: null, lastRoundId: null, members: [] })
+    store.startWorkRound({ roomId: 'room-1', round: { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'active', goal: 'x', stages: [] } })
+    store.finishWorkRound({ roomId: 'room-1', roundId: 'round-1', status: 'completed' })
+    assert.equal(store.updateWorkRound('round-1', round => { round.goal = 'changed'; return true }), null)
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('finishing a round cancels its open assignments in the same transaction', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({ id: 'room-1', name: '工作室', roomType: 'studio', state: 'idle', activeRoundId: null, lastRoundId: null, members: [] })
+    store.startWorkRound({ roomId: 'room-1', round: { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'active', goal: 'x', stages: [] } })
+    store.writeAssignment({ id: 'as-1', roomId: 'room-1', workRoundId: 'round-1', stageIndex: 0, fromMemberId: 'planner', toMemberId: 'worker', reason: 'dispatch', brief: {}, status: 'sent', flags: {} })
+    store.finishWorkRound({ roomId: 'room-1', roundId: 'round-1', status: 'stopped', cancelAssignmentsReason: '停' })
+    assert.equal(store.readAssignment('as-1').status, 'cancelled')
+    assert.ok(store.readEvents('room-1').some(event => event.type === 'assignment.cancelled'))
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

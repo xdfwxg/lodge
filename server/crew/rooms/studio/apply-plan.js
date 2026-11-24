@@ -11,7 +11,9 @@ const rejectionLimit = 2
 
 // 规划师提交的方案与队伍：先校验策略，再开通成员，最后把阶段接上并派第一步。
 // 任何一步失败都不半建：已经开出来的成员撤掉，对齐继续等下一版。
-export const createPlanApplier = ({ store, engine, live, emit, memberAdd, memberRemove, sendToMember = null }) => async (roomId, result) => {
+export const createPlanApplier = ({ store, engine, live, emit, memberAdd, memberRemove, sendToMember = null }) => {
+  const applying = new Set()
+  const apply = async (roomId, result) => {
   const room = store.readRoom(roomId)
   if (room === null || room.roomType !== 'studio') return
   if (room.workRound?.plan !== null && room.workRound?.plan !== undefined) return
@@ -184,8 +186,8 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
     if (workIndex >= 0) round.stages[workIndex].state = STAGE_STATE.active
     return { events: [{ type: 'plan.applied', payload: { members: crew.map(item => item.memberId), stages: stages.length } }] }
   })
-  // 有独立工作包时，这一轮按并行派发；单个包仍按流水线。
-  store.updateRoom?.(roomId, current => {
+  // 有独立工作包时，这一轮按并行派发；单个包仍按流水线。orchestration 属于轮次。
+  store.updateRound(roomId, current => {
     current.orchestration = needed > 1 ? 'parallel' : current.orchestration
     return { events: [] }
   })
@@ -197,6 +199,17 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
       await live.startStage(store.readRoom(roomId), workIndex)
     } catch (error) {
       systemNotice({ store, roomId, text: '队伍开好了，但第一步没能开始；待处理。', error })
+    }
+  }
+  }
+  // 同一间房只跑一次组队；两个 submit_plan 同时到达时，第二个直接忽略。
+  return async (roomId, result) => {
+    if (applying.has(roomId)) return
+    applying.add(roomId)
+    try {
+      return await apply(roomId, result)
+    } finally {
+      applying.delete(roomId)
     }
   }
 }

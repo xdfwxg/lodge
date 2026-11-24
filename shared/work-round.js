@@ -12,6 +12,7 @@ export const ROUND_FIELDS = Object.freeze([
   'openQuestion',
   'lastPlannerDecision',
   'pendingDecision',
+  'planRejections',
   'autoCheck',
   'blocked',
   'mergeConflict',

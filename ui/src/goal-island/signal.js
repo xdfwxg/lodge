@@ -6,11 +6,12 @@ import { needsAction } from '../needs.js'
 const DECISION_KINDS = new Set([
   'decision', 'confirm', 'question', 'rework', 'merge', 'parallel',
   'review-timeout', 'setup', 'approval', 'error', 'mcp', 'auto-check',
-  'blocked', 'connection',
+  'blocked', 'connection', 'budget',
 ])
 
 const DECISION_TONE = {
   'auto-check': 'paused',
+  budget: 'paused',
   rework: 'paused',
   merge: 'paused',
   parallel: 'paused',

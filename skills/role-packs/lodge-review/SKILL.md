@@ -26,4 +26,4 @@ Call `lodge_gate_submit_verdict`:
 - PASS: one-line reason; `outsideDiff` risk (write 无 if none); list protectedFiles you accept.
 - REJECT: one decisive reason; findings with severity and the `check` that fails. Only minors: PASS.
 
-First line of your reply is 通过 or 不通过. Then @ next in plain words. No process narration, no self-explanation.
+First line of your reply is 通过 or 不通过. Then name the next member in plain words; the system projects the @. No process narration, no self-explanation.

@@ -253,7 +253,11 @@ export const createLiveApprovals = ({
     const readOnly = readOnlyFor(room)
     const directVerifier = room?.workspace?.provider === 'direct' &&
       (member?.role === 'verifier' || member?.roleKind === 'verifier')
-    const allowed = decidePermission(member, card.action, { readOnly, direct: room?.workspace?.provider === 'direct' })
+    const allowed = decidePermission(member, card.action, {
+      readOnly,
+      direct: room?.workspace?.provider === 'direct',
+      tool: card.tool ?? '',
+    })
     const external = allowed ? externalAction(card) : null
     const cardSession = sessionRef ?? entry.members.get(memberId)?.sessionRef
     // 系统只放行只读研究；其他外部动作照旧逐次确认。

@@ -124,6 +124,14 @@ test('only the lodge_gate tool names are recognized by the permission bridge', (
   assert.equal(isGateToolName('Allow lodge_gate:submit_verdict?'), true)
   assert.equal(isGateToolName('mcp__other__submit_verdict'), false)
   assert.equal(isGateToolName('submit_verdict'), false)
+  assert.equal(isGateToolName('mcp__other__lodge_gate__stop_round'), false)
+  assert.equal(isGateToolName('mcp__other__lodge_gate__submit_verdict'), false)
+})
+
+test('another MCP cannot spoof stop, rewind or resume calls', () => {
+  assert.equal(stopRequestOf([{ name: 'mcp__other__lodge_gate__stop_round', input: '{"reason":"停"}' }]), null)
+  assert.equal(rewindRequestOf([{ name: 'mcp__other__lodge_gate__rewind_stage', input: '{"stage":1,"note":"回去"}' }]), null)
+  assert.equal(resumeRequestOf([{ name: 'mcp__other__lodge_gate__resume_round', input: '{}' }]), null)
 })
 
 test('a planner rewind request is 1-based and needs a note', () => {

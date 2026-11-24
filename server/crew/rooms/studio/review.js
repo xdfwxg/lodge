@@ -23,6 +23,23 @@ import { hasLaterWorkStage, lateReviewStillValid, shadowNeeded } from './review-
 import { REVIEW_REMINDER_PROMPT, VERDICT_RETRY_PROMPT, verifierPromptOf } from './review-prompts.js'
 import { systemNotice } from '../../notices.js'
 
+const nearNumber = (value, expected, tolerance = 2) => (
+  Number.isInteger(value) && Number.isInteger(expected) && Math.abs(value - expected) <= tolerance
+)
+
+// 视觉判定必须引用平台这次渲染的像素检查；验收员自己编的数字不算核对。
+export const visualMatchesAudit = (expected, visual) => {
+  if (expected === null || expected === undefined) return true
+  if (visual === null || visual === undefined || typeof visual.seen !== 'boolean') return false
+  if (visual.seen === false) {
+    return visual.colors === undefined || visual.colors === null
+      ? visual.contrast === undefined || visual.contrast === null
+      : false
+  }
+  // 空白画面不能声称“看到了”；颜色数允许两次渲染差一两个，但不是随便填。
+  if (expected.blank === true) return false
+  return nearNumber(visual.colors, expected.colors) && nearNumber(visual.contrast, expected.contrast)
+}
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null, advanceStage = null }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
@@ -106,12 +123,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const expected = (current?.previews ?? [])
       .find(item => item.stage === pending.stage && item.evidenceId === pending.evidenceId && item.audit)?.audit ?? null
     const visual = judgment.visual ?? null
-    // 只要引用了平台检查的形状就算核对过；两次渲染的颜色数可能差一两个，不因此判成没看。
-    const visualOk = expected === null ||
-      (visual !== null &&
-        typeof visual.seen === 'boolean' &&
-        Number.isInteger(visual.colors) &&
-        Number.isInteger(visual.contrast))
+    const visualOk = visualMatchesAudit(expected, visual)
     // 不在这里追问：复核回合已经结束，重问会让复核挂住；缺了就如实标记，交给交付卡和系统消息说明。
     const visualMissing = !visualOk
     const pass = judgment.decision === 'pass'
@@ -315,7 +327,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             from: pending.verifier,
             to: target,
             reason: 'rework',
-            prompt: `${note}\n${INTERNAL_PROMPT_MARKER}`,
+            prompt: `${sanitizeUntrusted(note, 2000)}\n${INTERNAL_PROMPT_MARKER}`,
             ...(parallel ? { privateRoom: true } : {}),
             acceptance: stage?.acceptance ?? '',
             rework: true,
@@ -532,10 +544,16 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       }
       const verifierPort = room.ports?.[verifier]
       // 既有测试的改动也在这里：改断言/删检查，等于改判分标准。
-      const protectedFiles = [...new Set([
+      const protectedAll = [...new Set([
         ...protectedFilesOf(meta.changedFiles),
         ...existingTestChangesOf({ files: meta.changedFiles, diff: meta.diff }),
-      ])].slice(0, LIMITS.protectedFiles)
+      ])]
+      if (protectedAll.length > LIMITS.protectedFiles) {
+        failures.push(`${verifierName}: 受保护文件超过 ${LIMITS.protectedFiles} 个，无法逐条确认`)
+        systemNotice({ store, roomId, text: `${verifierName} 的复核没法开始：受保护文件太多。` })
+        continue
+      }
+      const protectedFiles = protectedAll
       const prompt = verifierPromptOf({
         room,
         stage,
@@ -571,6 +589,11 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         request.expired = true
         clearTimeout(request.reminder)
         clearTimeout(request.timer)
+        // 超时也是这一拍复核的终态；否则它会一直挂在 sent，最后挡住交付。
+        if (request.assignment !== null && request.assignment !== undefined &&
+          ['sent', 'working'].includes(request.assignment.status)) {
+          transitionAssignment(store, request.assignment.id, 'failed', { resultText: '复核超时，没有收到验收结论' })
+        }
         store.appendEvent(roomId, 'review.timeout', { stage: stageIndex, verifier })
         store.appendMessage(roomId, { kind: 'system', text })
         round.timedOut = [...(round.timedOut ?? []), verifier]
@@ -604,7 +627,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         ?? activeDispatchAssignments(store, roomId, stageIndex).at(-1)
         ?? null
       try {
-        await handoffTrigger({
+        request.assignment = await handoffTrigger({
           room,
           stage,
           index: stageIndex,
