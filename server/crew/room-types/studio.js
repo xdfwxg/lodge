@@ -29,7 +29,14 @@ export const briefDone = (room, plan) => {
   ))
 }
 
-export const buildStages = ({ title, plan, verify, acceptance, align }) => {
+export const buildStages = ({ title, plan, verify, acceptance, align, bootstrap = false }) => {
+  // 单人规划师启动态：只开「目标对齐」；工作阶段等 submit_plan 之后再由服务端补上。
+  if (bootstrap) {
+    return {
+      stages: [{ title: '目标对齐', kind: 'decision', spine: true, state: STAGE_STATE.active, activatedAt: Date.now() }],
+      messages: [],
+    }
+  }
   const delivery = {
     title: stripAttachmentTags(title).trim() || '这一轮',
     kind: verify === 'test' ? 'deliverable' : 'decision',
@@ -47,6 +54,7 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
       ...(stage.manual === true ? { manual: true } : {}),
       ...(stage.acceptance ? { acceptance: stage.acceptance } : {}),
       ...(Array.isArray(stage.assignees) && stage.assignees.length > 0 ? { assignees: stage.assignees } : {}),
+      ...(Array.isArray(stage.packages) && stage.packages.length > 0 ? { packages: stage.packages } : {}),
       state: index === firstActive ? 'active' : index < firstActive ? 'passed' : 'pending',
     }))
     : [{ ...delivery, state: align && plan === null ? STAGE_STATE.pending : STAGE_STATE.active }]
@@ -72,12 +80,13 @@ export const buildStages = ({ title, plan, verify, acceptance, align }) => {
 }
 
 // 工作室只有三类本质角色；其他岗位名称必须映射到这三类之一，不能再造 observer 之类第四类。
-export const validateRoster = (roster, { verify } = {}) => {
+export const validateRoster = (roster, { verify, bootstrap = false } = {}) => {
   const kindOf = member => member.roleKind ?? roleKindOf(member.role)
   const invalid = roster.filter(member => !['planner', 'executor', 'verifier'].includes(kindOf(member)))
   if (invalid.length > 0) {
     throw new Error(`工作室成员只能从规划师/执行官/验收员派生：${invalid.map(member => member.name ?? member.id).join('、')}`)
   }
   if (!roster.some(member => kindOf(member) === 'planner')) throw new Error('工作室需要规划师成员')
-  if (!roster.some(member => kindOf(member) === 'verifier')) throw new Error('工作室需要一位验收员')
+  // 启动态只有规划师；验收员由规划师提交的队伍建设出来，不在这里要求。
+  if (!bootstrap && !roster.some(member => kindOf(member) === 'verifier')) throw new Error('工作室需要一位验收员')
 }

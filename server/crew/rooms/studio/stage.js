@@ -172,7 +172,11 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       })
     }
     const allWorkers = workerIds(room)
-    if (allWorkers.length === 0) throw new Error('房间没有执行官')
+    if (allWorkers.length === 0) {
+      // 启动态只有规划师；等组队工具把成员开出来再派活，不把房间打崩。
+      store.appendMessage(roomId, { kind: 'system', text: '这一步还没有执行官；等规划师组队后再开始。' })
+      return
+    }
     const workers = allWorkers
     const dispatchPlan = planDispatch({ room, stage, index, workers })
     let assignees = dispatchPlan.assignees
@@ -196,6 +200,12 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       assignees = assignees.slice(0, 1)
     }
     const parallel = assignees.length > 1
+    const packages = Array.isArray(stage.packages) ? stage.packages : []
+    const packageFor = worker => {
+      if (packages.length === 0) return null
+      if (assignees.length > 1) return packages[assignees.indexOf(worker)] ?? null
+      return packages.length === 1 ? packages[0] : packages
+    }
     if (dispatchPlan.note !== '') store.appendMessage(roomId, { kind: 'system', text: dispatchPlan.note })
     const acceptance = stage.manual === true
       ? '验收方式：人看结果，不跑命令。'
@@ -207,6 +217,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       room,
       messages: store.readMessages(roomId),
       stage,
+      workPackage: packageFor(worker),
       index,
       rework,
       note,

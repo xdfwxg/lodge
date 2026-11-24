@@ -118,6 +118,19 @@ test('a custom room name is kept while the stage title follows the goal', async 
   assert.deepEqual(room.members.map(member => member.name).sort(), ['执行', '规划', '验收'].sort())
 })
 
+test('a studio starts with the planner alone and only the alignment stage', async () => {
+  const { store } = completedRoom(temp('lodge-bootstrap-data-'))
+  const engine = fakeEngine()
+  const result = await run(store, { goal: '把启动说明写清楚', verify: 'manual' }, engine)
+  assert.equal(result.ok, true)
+  const room = result.body.room
+  assert.deepEqual(room.members.map(member => member.role), ['lead'])
+  assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐'])
+  assert.equal(room.stages[0].state, 'active')
+  // 执行和验收等规划师组队后再开通，建房时不建多余的 bot。
+  assert.deepEqual(engine.seatNames.filter(name => !name.startsWith('影子评审')), ['规划师'])
+})
+
 test('a handoff with a long topic names the stage after the task, not the paperwork', async () => {
   const { store } = completedRoom(temp('lodge-handoff-title-data-'))
   const topic = '用户列表要显示姓名缩写：中文和英文各定一条规则，最多两个字符；再定重名时怎么办。'

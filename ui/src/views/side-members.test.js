@@ -26,7 +26,8 @@ test('idle members stay quiet under the room', () => {
   assert.match(html, /执行官/)
   assert.match(html, /验收员/)
   assert.doesNotMatch(html, /待命/)
-  assert.match(html, /添加成员/)
+  // 工作室成员由规划师组队，侧栏不再提供“添加成员”。
+  assert.doesNotMatch(html, /添加成员/)
 })
 
 test('a live member offers the hold menu, not a stop control', () => {

@@ -227,6 +227,79 @@ test('a planner gate call decides without parsing the reply', () => {
   assert.equal(sent.length, 0)
 })
 
+test('a lead plan call hands the proposal to the platform without an @', async () => {
+  const room = makeRoom({
+    stages: [{ title: '目标对齐', kind: 'decision', spine: true, state: 'active' }],
+    seatNames: { planner: 'Planner' },
+    seatSpecs: [{ id: 'planner', name: '规划师', role: 'lead' }],
+    seatBots: { planner: 'bot-planner' },
+    workers: [],
+  })
+  const store = fakeStore(room)
+  const sent = []
+  const applied = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => { sent.push({ memberId, prompt }); return { messageId: null } },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    applyPlan: async (roomId, result) => { applied.push({ roomId, result }) },
+  })
+  turns.trackTool({
+    kind: 'activity',
+    turnId: 't-plan',
+    tool: {
+      id: 'call-plan',
+      name: 'mcp__lodge_gate__submit_plan',
+      input: JSON.stringify({
+        plan: { done: ['能跑'], stages: [{ title: '实现', acceptance: 'npm test' }] },
+        crew: { executors: [{ engine: 'claude', model: 'x' }], verifier: { engine: 'pi', model: 'y' } },
+      }),
+    },
+  })
+  turns.captureTurn({ reply: '方案和队伍已提交', turnId: 't-plan', toolCalls: 1 }, 'bot-planner')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(applied.length, 1)
+  assert.equal(applied[0].roomId, 'room-1')
+  assert.equal(applied[0].result.proposal.crew.verifier.engine, 'pi')
+  assert.equal(sent.length, 0)
+})
+
+test('a lead model change goes to the platform as three fields', async () => {
+  const room = makeRoom({
+    stages: [{ title: '目标对齐', kind: 'decision', spine: true, state: 'active' }],
+    seatNames: { planner: 'Planner' },
+    seatSpecs: [{ id: 'planner', name: '规划师', role: 'lead' }],
+    seatBots: { planner: 'bot-planner' },
+    workers: [],
+  })
+  const store = fakeStore(room)
+  const changes = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    adjustModel: async (roomId, request) => { changes.push({ roomId, request }) },
+  })
+  turns.trackTool({
+    kind: 'activity',
+    turnId: 't-model',
+    tool: {
+      id: 'call-model',
+      name: 'mcp__lodge_gate__adjust_member_model',
+      input: JSON.stringify({ member: '执行官', engine: 'pi', model: 'deepseek-flash', why: '登录失效' }),
+    },
+  })
+  turns.captureTurn({ reply: '换了模型', turnId: 't-model', toolCalls: 1 }, 'bot-planner')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(changes[0].request, { member: '执行官', engine: 'pi', model: 'deepseek-flash', why: '登录失效' })
+})
+
 test('asking a decision pauses every member except the planner', () => {
   const room = makeRoom({
     stages: [
@@ -911,7 +984,7 @@ test('the same worker reply replayed under another turn id lands once', () => {
   assert.equal(evidence.length, 1)
 })
 
-test('the planner align turn confirms the alignment stage without a human click', () => {
+test('a solo planner turn does not close the alignment before the crew exists', () => {
   const room = makeRoom({
     stages: [
       { title: '目标对齐', kind: 'decision', spine: true, state: 'active' },
@@ -938,7 +1011,8 @@ test('the planner align turn confirms the alignment stage without a human click'
     reply: '目标清楚，对齐通过，没有待确认项。',
     toolCalls: 0,
   }, 'bot-planner')
-  assert.deepEqual(confirmed, [['room-1', 0]])
+  // 启动态没有执行官：对齐等规划师的 submit_plan，不靠一句话自动通过。
+  assert.deepEqual(confirmed, [])
 })
 
 test('a captured turn writes a diagnostic with its outcome and usage', () => {

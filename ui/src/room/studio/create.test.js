@@ -21,11 +21,11 @@ test('browser access is system-wide, not a room request field', () => {
   assert.equal('roomAccess' in request, false)
 })
 
-test('a direct studio request needs no plan or member override', () => {
+test('a studio request only carries the goal, the folder and the handoff', () => {
   const request = buildStudioRequest(base)
   assert.equal(request.roomType, 'studio')
-  assert.equal(request.verify, 'manual')
-  assert.equal(request.acceptance, '')
+  assert.equal('verify' in request, false)
+  assert.equal('acceptance' in request, false)
   assert.equal('plan' in request, false)
   assert.equal('members' in request, false)
 })
@@ -42,57 +42,26 @@ test('a studio started from chat carries where it came from', () => {
   assert.equal(request.handoff.topic, '发布检查')
 })
 
-test('command verification carries the acceptance command', () => {
-  const request = buildStudioRequest({ ...base, verify: 'test', acceptance: 'npm test' })
-  assert.equal(request.verify, 'test')
-  assert.equal(request.acceptance, 'npm test')
-})
-
-test('model overrides send the default roster', () => {
-  const choices = [
-    { engine: 'claude-cli', model: '' },
-    { engine: 'codex-cli', model: '' },
-    { engine: 'claude-cli', model: '' },
-  ]
+test('member and model choices are no longer sent', () => {
   const request = buildStudioRequest({
     ...base,
-    memberChoices: choices,
+    memberChoices: [{ engine: 'claude-cli', model: '' }, { engine: 'codex-cli', model: '' }, { engine: 'claude-cli', model: '' }],
     hasMemberChoice: true,
     selectedModelOf: choice => `${choice.engine}-default`,
+    proposal: {
+      verify: 'test',
+      members: [{ role: 'lead', name: '规划师' }, { role: 'verifier', name: '验收员' }],
+      done: ['跑通启动说明'],
+      stages: [{ title: '写说明', acceptance: 'npm test' }],
+      questions: [],
+    },
   })
-  assert.deepEqual(request.members.map(seat => seat.role), ['lead', 'worker', 'verifier'])
-  assert.equal(request.members[0].engine, 'claude-cli')
-  assert.equal(request.members[0].model, 'claude-cli-default')
+  assert.equal('members' in request, false)
+  assert.equal('plan' in request, false)
+  assert.equal('verify' in request, false)
 })
 
-test('a proposal still carries its plan and answers', () => {
-  const proposal = {
-    verify: 'test',
-    members: [{ role: 'lead', name: '规划师' }, { role: 'verifier', name: '验收员' }],
-    done: ['跑通启动说明'],
-    stages: [{ title: '写说明', acceptance: 'npm test' }],
-    questions: [{ text: '写给谁？', recommendation: '新同事' }],
-  }
-  const request = buildStudioRequest({
-    ...base,
-    proposal,
-    answers: ['第一次接触项目的人'],
-    acceptance: 'npm test',
-  })
-  assert.equal(request.verify, 'test')
-  assert.deepEqual(request.members.map(seat => seat.role), ['lead', 'verifier'])
-  assert.deepEqual(request.plan.done, ['跑通启动说明'])
-  assert.deepEqual(request.plan.answers, [
-    { question: '写给谁？', answer: '第一次接触项目的人' },
-  ])
-})
-
-test('shadow review is requested only when enabled', () => {
-  assert.equal('shadowReview' in buildStudioRequest(base), false)
-  assert.equal(buildStudioRequest({ ...base, shadowReview: true }).shadowReview, true)
-})
-
-test('auto delivery is requested only when enabled', () => {
-  assert.equal('autoDeliver' in buildStudioRequest(base), false)
-  assert.equal(buildStudioRequest({ ...base, autoDeliver: true }).autoDeliver, true)
+test('shadow review and auto delivery are no longer creation requests', () => {
+  assert.equal('shadowReview' in buildStudioRequest({ ...base, shadowReview: true }), false)
+  assert.equal('autoDeliver' in buildStudioRequest({ ...base, autoDeliver: true }), false)
 })

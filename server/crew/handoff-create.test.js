@@ -49,14 +49,13 @@ test('the handoff is part of the bulletin and the opening prompt', () => {
   const aligned = alignmentPrompt('发布检查清单', 'manual', '', handoff)
   assert.match(aligned, /交接单/)
   assert.match(aligned, /分歧：是否自动回滚/)
-  // 对齐回合只写两三句自然计划，不铺内部阶段，也不套模板标签。
-  assert.match(aligned, /下一步做什么、交给谁/)
-  assert.doesNotMatch(aligned, /\*\*口径：\*\*/)
-  assert.match(aligned, /算过的标准一句带过/)
-  assert.match(aligned, /不要写“做完后你能看到什么”/)
-  assert.doesNotMatch(aligned, /不超过 12 行/)
-  assert.doesNotMatch(aligned, /不要用行内代码包中文标签/)
-  assert.match(aligned, /系统会把计划交给执行官/)
+  // 对齐回合提交方案和队伍，不再手写一份计划再 @ 下一位。
+  assert.match(aligned, /lodge_gate_submit_plan/)
+  assert.match(aligned, /工作包/)
+  assert.match(aligned, /执行官和验收员/)
+  assert.match(aligned, /不要 @ 任何人/)
+  assert.match(aligned, /平台会校验/)
+  assert.doesNotMatch(aligned, /系统会把计划交给执行官/)
 
   const direct = directPrompt('发布检查清单', 'manual', '', true, handoff)
   assert.match(direct, /交接单/)
@@ -77,10 +76,11 @@ test('an empty handoff is not stored', () => {
   assert.equal(result.handoff, null)
 })
 
-test('the alignment prompt asks for a natural plan, not internal stages', () => {
+test('the alignment prompt asks the planner to submit a plan and crew', () => {
   const prompt = alignmentPrompt('发布检查清单', 'manual', '')
-  assert.match(prompt, /用一两句人话说清/)
-  assert.match(prompt, /不要标题、分点、标签或步骤编号/)
-  assert.match(prompt, /下一步做什么、交给谁/)
-  assert.doesNotMatch(prompt, /目标对齐/)
+  assert.match(prompt, /lodge_gate_submit_plan/)
+  assert.match(prompt, /阶段、工作包/)
+  assert.match(prompt, /用户不选成员|不要 @ 任何人/)
+  assert.match(prompt, /平台会校验、开通成员并开始第一步/)
+  assert.doesNotMatch(prompt, /下一步做什么、交给谁/)
 })

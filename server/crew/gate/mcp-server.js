@@ -68,6 +68,104 @@ export const GATE_TOOLS = Object.freeze([
     },
   },
   {
+    name: 'submit_plan',
+    description: '提交这一轮的方案和队伍：阶段、工作包、执行官与验收员（含 engine/model）。调用后不用再把 JSON 写进回复；平台会校验并开通成员。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        why: { type: 'string', maxLength: 1000 },
+        assumptions: { type: 'array', maxItems: 6, items: { type: 'string', maxLength: 300 } },
+        notDoing: { type: 'array', maxItems: 6, items: { type: 'string', maxLength: 300 } },
+        plan: {
+          type: 'object',
+          properties: {
+            done: { type: 'array', minItems: 1, maxItems: 6, items: { type: 'string', maxLength: 200 } },
+            stages: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 3,
+              items: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', maxLength: 80 },
+                  acceptance: { type: 'string', maxLength: 500 },
+                  manual: { type: 'boolean' },
+                  packages: {
+                    type: 'array',
+                    maxItems: 4,
+                    items: {
+                      type: 'object',
+                      properties: {
+                        title: { type: 'string', maxLength: 80 },
+                        files: { type: 'array', maxItems: 12, items: { type: 'string', maxLength: 200 } },
+                        check: { type: 'string', maxLength: 500 },
+                      },
+                      required: ['title'],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ['title'],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ['done', 'stages'],
+          additionalProperties: false,
+        },
+        crew: {
+          type: 'object',
+          properties: {
+            executors: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 3,
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', maxLength: 32 },
+                  engine: { type: 'string', maxLength: 80 },
+                  model: { type: 'string', maxLength: 160 },
+                },
+                required: ['engine', 'model'],
+                additionalProperties: false,
+              },
+            },
+            verifier: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', maxLength: 32 },
+                engine: { type: 'string', maxLength: 80 },
+                model: { type: 'string', maxLength: 160 },
+              },
+              required: ['engine', 'model'],
+              additionalProperties: false,
+            },
+          },
+          required: ['executors', 'verifier'],
+          additionalProperties: false,
+        },
+      },
+      required: ['plan', 'crew'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'adjust_member_model',
+    description: '给房间里的某位成员换模型：只换 engine/model，不改成员、不改提示词。用于登录失效、额度用完或选错模型。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        member: { type: 'string', maxLength: 64 },
+        engine: { type: 'string', maxLength: 80 },
+        model: { type: 'string', maxLength: 160 },
+        why: { type: 'string', maxLength: 300 },
+      },
+      required: ['member', 'engine', 'model'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'ask_decision',
     description: '遇到会改变结果、且你无法从目标推断用户偏好的关键分叉时，用它给用户一张决策卡：2–3 条具体路径，每条写清选完会发生什么，再推荐一条。不要用聊天提问代替这张卡；不影响结果的细节自己写死继续。',
     inputSchema: {
@@ -175,7 +273,28 @@ const callTool = (id, params) => {
     return toolOk(id, `已把问题发给用户：${question}`, { ok: true, kind: 'question', question })
   }
   // 继续不需要理由：用户说一句「接着做」就够了。
+  if (name === 'adjust_member_model') {
+    const member = String(args.member ?? '').trim()
+    const engineId = String(args.engine ?? '').trim()
+    const model = String(args.model ?? '').trim()
+    if (member === '' || engineId === '' || model === '') return toolFailure(id, 'member、engine、model 都要填。')
+    return toolOk(id, `已收到换模型请求：${member} → ${model}`, { ok: true, member, engine: engineId, model })
+  }
   if (name === 'resume_round') return toolOk(id, '已收到继续请求。', { ok: true })
+  if (name === 'submit_plan') {
+    const plan = args?.plan
+    const crew = args?.crew
+    if (plan === null || typeof plan !== 'object' || !Array.isArray(plan?.stages) || plan.stages.length === 0) {
+      return toolFailure(id, '缺少 plan.stages：至少写一个阶段。')
+    }
+    if (!Array.isArray(crew?.executors) || crew.executors.length === 0) {
+      return toolFailure(id, '缺少 crew.executors：至少写一位执行官。')
+    }
+    if (crew?.verifier === null || typeof crew?.verifier !== 'object') {
+      return toolFailure(id, '缺少 crew.verifier：方案必须带一位验收员。')
+    }
+    return toolOk(id, '方案和队伍已提交，等平台校验。', { ok: true, kind: 'plan' })
+  }
   const reason = String(args.reason ?? args.note ?? '').trim()
   if (reason === '') return toolFailure(id, '缺少 reason：请用一句话说明判定依据。')
   if (name === 'submit_verdict') {

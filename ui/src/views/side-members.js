@@ -35,7 +35,7 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
   const canAdd = kind.membersCanBeAdded === true && room.live === true && !finished &&
     (room.state === 'active' || room.state === 'paused')
   // 派活是工作室的动作；聊天室成员固定，不提供“先别给 TA 派活”。
-  const canHold = kind.membersCanBeAdded === true &&
+  const canHold = kind.id === 'studio' &&
     room.state === 'active' && room.live === true && typeof onHold === 'function'
   const held = new Set(Array.isArray(room.heldMembers) ? room.heldMembers : [])
   const openMenu = (item, event) => {

@@ -502,12 +502,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         failures.push(`${verifier}: 没有成员名字`)
         continue
       }
-      if (room.worktrees?.[verifier] !== undefined && typeof room.branch === 'string') {
+      const reviewBranch = typeof room.branch === 'string' && room.branch !== '' ? room.branch : room.primaryBranch
+      if (room.worktrees?.[verifier] !== undefined && typeof reviewBranch === 'string' && reviewBranch !== '') {
         try {
           // 复核副本必须和刚才验收的那份一致：优先用证据里的候选提交，分支可能还没跟上。
           const reviewRef = typeof meta.candidate === 'string' && meta.candidate !== ''
             ? meta.candidate
-            : room.branch
+            : reviewBranch
           workspaceOf(room).refreshReviewCopy({ path: room.worktrees[verifier], branch: reviewRef, source: room.sourceRepo, from: room.repoPath })
         } catch (error) {
           failures.push(`${verifierName}: 复核副本不可用（${error?.message ?? error}）`)

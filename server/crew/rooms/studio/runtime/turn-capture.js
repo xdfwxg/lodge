@@ -4,7 +4,7 @@ import { memberDisplayName } from '../../../member-labels.js'
 import { createTurnDiagnostics } from './diagnostics.js'
 import { verdictPassed } from '../../../../../shared/judgment.js'
 import { ASSIGNMENT_TERMINAL, OPEN_ROUND_STATUSES, STAGE_STATE } from '../../../../../shared/states.js'
-import { askDecisionOf, askQuestionOf, resumeRequestOf, rewindRequestOf, stopRequestOf } from '../../../../../shared/gate.js'
+import { askDecisionOf, askQuestionOf, resumeRequestOf, rewindRequestOf, stopRequestOf, submitPlanOf, modelAdjustmentOf } from '../../../../../shared/gate.js'
 import {
   activeDispatchAssignments as activeDispatch,
   assignmentForTurn,
@@ -36,6 +36,8 @@ export const createTurnCapture = ({
   rewindStage = null,
   stopRound = null,
   resumeRound = null,
+  applyPlan = null,
+  adjustModel = null,
   writeDiagnostic = null,
   setMembers = null,
 }) => {
@@ -104,6 +106,29 @@ export const createTurnCapture = ({
       state.recordTurn(false)
       return
     }
+    // 规划师交了方案和队伍：平台校验并开通成员，然后由它接上第一步。
+    if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
+      const proposal = submitPlanOf(calls)
+      if (proposal !== null && typeof applyPlan === 'function') {
+        state.capturedTurns.add(turnId)
+        state.recordTurn(true)
+        void Promise.resolve(applyPlan(roomId, proposal)).catch(error => {
+          systemNotice({ store, roomId, text: '组队没能开始；待处理。', error })
+        })
+        return
+      }
+    }
+    if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
+      const modelChange = modelAdjustmentOf(calls)
+      if (modelChange !== null && typeof adjustModel === 'function') {
+        state.capturedTurns.add(turnId)
+        state.recordTurn(true)
+        void Promise.resolve(adjustModel(roomId, modelChange)).catch(error => {
+          systemNotice({ store, roomId, text: '换模型没成功；待处理。', error })
+        })
+        return
+      }
+    }
     // 规划师遇到真正的分叉：存一张决策卡，暂停派活，等用户选。
     if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
       const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
@@ -159,6 +184,8 @@ export const createTurnCapture = ({
       OPEN_ROUND_STATUSES.has(room?.workRound?.status ?? 'active') &&
       String(turn?.reply ?? '').trim() !== '' &&
       (room.openQuestion === null || room.openQuestion === undefined || room.openQuestion === '') &&
+      // 启动态还没有执行官：对齐由 submit_plan 推进，不在这里自动过。
+      (room.members ?? []).some(member => member.roleKind === 'executor' || member.role === 'worker') &&
       typeof confirmStage === 'function'
     ) {
       void Promise.resolve(confirmStage(roomId, alignIndex)).catch(() => {})

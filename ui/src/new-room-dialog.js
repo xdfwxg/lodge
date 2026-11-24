@@ -190,10 +190,12 @@ function NewRoomDialog({
   const canStartProposal = proposal !== null && !busy && membersReady && readiness.canStart &&
     (handoffGate === null ? proposalCheckReady : handoffGate.ready) &&
     !studioMissingVerifier
-  const canStartStudio = !busy && goal.trim() !== '' && !needRepo && membersReady && readiness.canStart &&
-    (handoffGate === null ? checkReady : handoffGate.ready) && !noAskingEngine
+  // 成员、模型和检查都由规划师组队时决定；建房只要求目标、文件夹和可用模型。
+  const canStartStudio = !busy && goal.trim() !== '' && !needRepo && readiness.canStart &&
+    (handoffGate === null ? true : handoffGate.ready) && !noAskingEngine
   const startDisabled = busy || goal.trim() === '' || needRepo || !readiness.canStart || (!isChat && !canStartStudio)
-  const planFirst = !isChat && handoff !== null && proposal === null && typeof onRecommend === 'function'
+  // 不再先出成员方案：直接开工，规划师在房里组队。
+  const planFirst = false
 
   const addChatMember = () => {
     setChatMembers(current => {
@@ -578,6 +580,10 @@ function NewRoomDialog({
         onReview: onReviewWorkspaceMemory,
       }),
     roomKind.primaryFields(setupProps),
+    // 只装了一家模型时照样开工，只说清这一轮的复核是模型自查。
+    new Set((engines ?? []).filter(item => item.available !== false).map(item => item.engine ?? item.id)).size === 1
+      ? h('p', { className: 'crew-field-hint' }, '这台电脑只装了一家模型：可以开工，复核会是模型自查。')
+      : null,
     recommending
       ? h('p', { className: 'crew-dialog-note' }, '正在出方案…')
       : null,

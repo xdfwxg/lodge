@@ -61,6 +61,8 @@ export const createLiveRooms = ({
   let retryScheduled = false
   // 服务层在建房时注入：规划师对齐回合结束后自动确认对齐，不再等人点一个没有界面的确认。
   let confirmStage = null
+  let applyPlan = null
+  let adjustModel = null
   let rewindStage = null
   let stopRound = null
   let resumeRound = null
@@ -88,6 +90,8 @@ export const createLiveRooms = ({
       refreshRoom,
       setMembers: (roomId, ids) => chat.setMembers(roomId, ids),
       confirmStage: (roomId, index, options) => confirmStage?.(roomId, index, options),
+      applyPlan: (roomId, proposal) => applyPlan?.(roomId, proposal),
+      adjustModel: (roomId, request) => adjustModel?.(roomId, request),
       rewindStage: (roomId, request) => rewindStage?.(roomId, request),
       stopRound: (roomId, request) => stopRound?.(roomId, request),
       resumeRound: roomId => resumeRound?.(roomId),
@@ -501,6 +505,8 @@ export const createLiveRooms = ({
       return entry === undefined ? null : entry.strategy.resolveMerged?.(entry, stageIndex)
     },
     setConfirmStage: handler => { confirmStage = handler },
+    setApplyPlan: handler => { applyPlan = handler },
+    setAdjustModel: handler => { adjustModel = handler },
     setRewindStage: handler => { rewindStage = handler },
     setStopRound: handler => { stopRound = handler },
     setResumeRound: handler => { resumeRound = handler },

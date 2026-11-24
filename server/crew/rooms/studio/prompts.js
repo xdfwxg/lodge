@@ -9,6 +9,7 @@ export const studioWorkerPrompt = ({
   room,
   messages,
   stage,
+  workPackage = null,
   index,
   rework = false,
   note = '',
@@ -23,6 +24,11 @@ export const studioWorkerPrompt = ({
     rework
       ? `${humanLabelOf()}说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : sanitizeUntrusted(note, 2000)}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求重做。`
       : '',
+    workPackage === null
+      ? ''
+      : Array.isArray(workPackage)
+        ? `你的工作包：${workPackage.map(item => `${item.title}（${(item.files ?? []).join('、') || '未指定文件'}）`).join('；')}。按顺序做完，只改这些文件。`
+        : `你的工作包：${workPackage.title}；只改 ${(workPackage.files ?? []).join('、') || '这一步需要的文件'}${workPackage.check ? `；自测：${workPackage.check}` : ''}。`,
     ...stageGuidance({ readOnly }),
     buildMemberHandoff({ room, messages }),
     workspace.parallel === true

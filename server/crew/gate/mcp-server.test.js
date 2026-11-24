@@ -16,7 +16,7 @@ test('the gate server speaks the minimal MCP handshake', () => {
 
 test('the gate server lists the judgment tools and the planner rewind tool', () => {
   const response = handleMessage({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
-  assert.deepEqual(response.result.tools.map(tool => tool.name), ['submit_verdict', 'submit_decision', 'ask_decision', 'ask_question', 'rewind_stage', 'stop_round', 'resume_round'])
+  assert.deepEqual(response.result.tools.map(tool => tool.name), ['submit_verdict', 'submit_decision', 'submit_plan', 'adjust_member_model', 'ask_decision', 'ask_question', 'rewind_stage', 'stop_round', 'resume_round'])
   assert.equal(GATE_TOOLS[0].inputSchema.required.includes('reason'), true)
 })
 
@@ -100,6 +100,23 @@ test('a Chinese verdict maps to the tool decision', () => {
   })
   assert.equal(response.result.isError, undefined)
   assert.equal(response.result.structuredContent.decision, 'REJECT')
+})
+
+test('a plan needs a stage, an executor and a verifier', () => {
+  const ok = handleMessage({
+    jsonrpc: '2.0', id: 500, method: 'tools/call',
+    params: { name: 'submit_plan', arguments: {
+      plan: { done: ['能跑'], stages: [{ title: '实现', acceptance: 'npm test' }] },
+      crew: { executors: [{ engine: 'claude-cli', model: 'x' }], verifier: { engine: 'pi', model: 'y' } },
+    } },
+  })
+  assert.equal(ok.result.isError, undefined)
+  assert.equal(ok.result.structuredContent.kind, 'plan')
+  const missing = handleMessage({
+    jsonrpc: '2.0', id: 501, method: 'tools/call',
+    params: { name: 'submit_plan', arguments: { plan: { done: ['x'], stages: [{ title: 'a' }] }, crew: { executors: [] } } },
+  })
+  assert.equal(missing.result.isError, true)
 })
 
 test('a planner decision accepts the Chinese anchor', () => {

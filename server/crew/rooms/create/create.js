@@ -45,6 +45,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     receipt,
     sourceRoomId,
     sourceName,
+    bootstrap,
   } = request
   const mode = roomModeForType(roomType.id)
   const capabilities = engine.capabilities()
@@ -59,7 +60,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     const issues = gate.issues.map(issue => issue.text).join('；')
     return fail('invalid', `还不能开工：${issues}`)
   }
-  const membersResult = resolveMembers(body, roomType)
+  const membersResult = resolveMembers(body, roomType, { bootstrap })
   if (membersResult.error !== undefined) return fail('invalid', membersResult.error)
   let { templateId, roster, workers, verifiers, worker, lead, align } = membersResult
   // A confirmed handoff already did the alignment at the Gate; do not ask for it
@@ -67,7 +68,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
   const initialAlign = align && (handoff === null || handoff === undefined)
   if (typeof mode.validateRoster === 'function') {
     try {
-      mode.validateRoster(roster, { verify })
+      mode.validateRoster(roster, { verify, bootstrap })
     } catch (error) {
       return fail('invalid', `成员组合不可用：${error?.message ?? error}`)
     }
@@ -201,7 +202,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
           : `${blocked.map(member => member.name).join('、')}用的模型不会逐次确认外部动作；换一个会先问你的模型，或把这件事放进聊天室讨论。`,
       )
     }
-    const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, verify, acceptance, align: initialAlign })
+    const builtStages = roomType.buildStages({ title: deliveryTitle, plan: resolvedPlan, verify, acceptance, align: initialAlign, bootstrap })
     room = buildRoomRecord({
       short,
       title,
@@ -296,7 +297,10 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       store.appendMessage(room.id, { kind: 'system', text: '浏览器没准备好，这间房的成员这次不查网页。' })
     }
     await live.attach(room, { resume: false })
+    // 规划师要选模型，得先知道这台机器上有哪些 engine/model；只给可用的默认模型。
+    const engines = typeof engine.instances === 'function' ? await engine.instances() : []
     room = await mode.start({
+      engines,
       store,
       live,
       room,

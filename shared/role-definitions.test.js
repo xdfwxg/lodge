@@ -20,11 +20,23 @@ test('each role prompt carries its own speech habit', () => {
   assert.match(roleDefinitionOf('lead').prompt, /下一步和对接人/)
   assert.match(roleDefinitionOf('lead').prompt, /只问一个核心问题/)
   assert.match(roleDefinitionOf('lead').prompt, /lodge_gate_ask_question/)
+  assert.match(roleDefinitionOf('lead').prompt, /lodge_gate_submit_plan/)
   assert.match(roleDefinitionOf('lead').prompt, /不编造证据/)
   assert.match(roleDefinitionOf('worker').prompt, /完成状态 \+ 证据/)
   assert.match(roleDefinitionOf('worker').prompt, /不自评“合格”/)
   assert.match(roleDefinitionOf('verifier').prompt, /第一行只写 通过 或 不通过/)
   assert.match(roleDefinitionOf('verifier').prompt, /不为产出解释/)
+})
+
+test('each role has a complete stance that can argue with the other two', () => {
+  const lead = roleDefinitionOf('lead').prompt
+  const worker = roleDefinitionOf('worker').prompt
+  const verifier = roleDefinitionOf('verifier').prompt
+  assert.match(lead, /立场：方向错了/)
+  assert.match(worker, /立场：能跑、能验、能交付/)
+  assert.match(verifier, /立场：没有证据的完成就是没完成/)
+  assert.match(worker, /敢对规划师说不/)
+  assert.match(verifier, /看得懂全局/)
 })
 
 test('role instances copy the definition instead of sharing mutable arrays', () => {

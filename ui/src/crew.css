@@ -209,8 +209,22 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-promise-menu-item{padding:6px 8px;border:0;border-radius:6px;background:none;text-align:left;font:inherit;font-size:var(--bt-text-helper);color:var(--bt-ink-2);cursor:pointer}
 .crew-promise-menu-item:hover{background:var(--bt-shade-1);color:var(--bt-ink)}
 .crew-promise-when{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.crew-promise-when .crew-input-narrow{height:32px;padding:0 10px;font-size:var(--bt-text-label);border-radius:8px}
-.crew-promise-form textarea.crew-goal-input{min-height:76px;resize:vertical}
+/* 说好的事：三个决定排成一句话，控件只留一套样子。 */
+.crew-dialog.crew-promise-dialog{width:min(520px,100%)}
+.crew-promise-dialog .crew-dialog-heading{padding:22px 22px 0}
+.crew-promise-dialog .crew-dialog-body{gap:20px;padding:18px 22px 20px}
+.crew-promise-dialog .crew-dialog-foot{padding:14px 22px 18px;align-items:center}
+.crew-promise-form .crew-field{gap:8px}
+.crew-promise-label{font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:600;letter-spacing:var(--bt-tracking-meta);color:var(--bt-ink-2)}
+.crew-promise-when-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.crew-promise-control{height:34px;padding:0 10px;border:1px solid var(--bt-line-2);border-radius:10px;background:var(--bt-shade-1);color:var(--bt-ink);font:inherit;font-size:var(--bt-text-label);font-variant-numeric:tabular-nums;box-sizing:border-box}
+.crew-promise-control:hover{border-color:var(--bt-line-control)}
+.crew-promise-control:focus-visible{outline:none;border-color:var(--bt-accent);box-shadow:0 0 0 3px var(--bt-accent-wash)}
+.crew-promise-control[type=time]{width:112px}
+.crew-promise-control::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
+.crew-promise-control::-webkit-calendar-picker-indicator:hover{opacity:.8}
+.crew-promise-form .crew-goal-input{border-color:var(--bt-line-2);border-radius:10px;background:var(--bt-shade-1);font-size:var(--bt-text-label)}
+.crew-promise-form textarea.crew-goal-input{min-height:84px;padding:10px 12px;resize:vertical}
 @media (max-width:760px){.studio-topbar{padding:12px 14px 0}.crew-promise{margin:8px 14px;width:auto}}
 .studio-delivery-more-title{margin:0;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);font-weight:600;color:var(--bt-ink-3)}
 .crew-delivery-download{margin-top:16px;padding-top:14px;border-top:1px solid var(--bt-line)}
@@ -623,6 +637,9 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
   .crew-dialog-head{top:10px;right:12px;padding:0}
   .crew-dialog-body{padding:16px 18px 20px}
   .crew-dialog-foot{padding:12px 18px 16px}
+  .crew-promise-dialog .crew-dialog-heading{padding:20px 18px 0}
+  .crew-promise-dialog .crew-dialog-body{padding:16px 18px 18px}
+  .crew-promise-dialog .crew-dialog-foot{padding:12px 18px 16px}
   .crew-field-head{flex-wrap:wrap;gap:2px 12px}
 }
 .crew-accept:not(:disabled):active{filter:brightness(.92)}
@@ -723,13 +740,13 @@ body[data-ds-dark-theme] .crew-island-done-title{color:#fff3d6}
 .crew-memory-status[data-tone=paused]{color:var(--bt-warning-text)}
 .crew-memory-actions{display:flex;gap:14px;margin-top:2px}
 /* 过程：时间线里收起的一行，展开是这一步的每次工具调用。 */
-.crew-process{margin:6px 0 10px 44px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
+.crew-process{margin:6px 0 10px;font-size:var(--bt-text-helper);color:var(--bt-ink-3)}
 .crew-process>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:7px;line-height:var(--bt-leading-helper);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .crew-process>summary::-webkit-details-marker{display:none}
 .crew-process>summary:hover{color:var(--bt-ink-2)}
 .crew-process-live{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-green);animation:crew-process-pulse 1.2s infinite}
 .crew-process-summary{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.crew-process-body{margin-top:6px;padding-left:14px}
+.crew-process-body{margin-top:6px;padding-left:0}
 .crew-process-body ul{margin:0;padding:0;list-style:none}
 .crew-process-meta{margin:6px 0 0;color:var(--bt-ink-4);font-size:var(--bt-text-helper)}
 @keyframes crew-process-pulse{0%,100%{opacity:.35}50%{opacity:1}}

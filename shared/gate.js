@@ -1,5 +1,6 @@
 import { judgmentFromGate } from './judgment.js'
 import { normalizeAskDecision } from './decision.js'
+import { normalizeCrewProposal } from './crew-proposal.js'
 
 // 房间内置工具只用这一个 MCP 服务；规划和验收拿它提交判定，不拿外部工具。
 export const GATE_SERVER_NAME = 'lodge_gate'
@@ -7,6 +8,8 @@ export const GATE_SERVER_NAME = 'lodge_gate'
 export const GATE_TOOL_NAMES = Object.freeze({
   submit_verdict: 'verdict',
   submit_decision: 'planner',
+  submit_plan: 'plan',
+  adjust_member_model: 'model',
   ask_decision: 'ask',
   ask_question: 'question',
 })
@@ -72,6 +75,34 @@ export const gateSubmissionOf = (calls, {
       at,
     })
     if (judgment !== null) return judgment
+  }
+  return null
+}
+
+// 规划师给成员换模型：只认 member/engine/model 三个字段。
+export const modelAdjustmentOf = calls => {
+  if (!Array.isArray(calls)) return null
+  for (const call of [...calls].reverse()) {
+    if (toolKind(call?.name) !== 'model') continue
+    const input = parseInput(call?.input)
+    if (input === null) return null
+    const member = typeof input.member === 'string' ? input.member.trim() : ''
+    const engine = typeof input.engine === 'string' ? input.engine.trim() : ''
+    const model = typeof input.model === 'string' ? input.model.trim() : ''
+    if (member === '' || engine === '' || model === '') return null
+    return { member, engine, model, why: typeof input.why === 'string' ? input.why.trim().slice(0, 300) : '' }
+  }
+  return null
+}
+
+// 规划师提交方案和队伍：保留最后一次 plan 调用的归一化结果和错误，平台再校验策略。
+export const submitPlanOf = calls => {
+  if (!Array.isArray(calls)) return null
+  for (const call of [...calls].reverse()) {
+    if (toolKind(call?.name) !== 'plan') continue
+    const input = parseInput(call?.input)
+    if (input === null) return { error: '方案的 JSON 读不出来' }
+    return normalizeCrewProposal(input)
   }
   return null
 }

@@ -2,7 +2,7 @@ import { createElement as h } from 'react'
 import { roomTypeMeta } from '../../../../shared/room-types.js'
 import { TargetIcon } from '../../icons.js'
 import { StudioIcon } from '../type-icons.js'
-import { buildStudioRequest, DEFAULT_STUDIO_MEMBERS, StudioPrimaryFields, StudioSetupFields } from './create.js'
+import { buildStudioRequest, DEFAULT_STUDIO_MEMBERS } from './create.js'
 
 // 工作室在界面壳里的全部差异：图标和建房字段。
 export const studioUi = {
@@ -13,7 +13,7 @@ export const studioUi = {
   icon: StudioIcon,
   teamMode: 'proposal',
   memberLabels: {},
-  membersCanBeAdded: true,
+  membersCanBeAdded: false,
   membersInSidebar: false,
   hasHistory: true,
   startMode: 'direct',
@@ -28,9 +28,11 @@ export const studioUi = {
     label: '工作文件夹',
     hint: '',
   },
-  missingVerifier: hasVerifier => !hasVerifier,
+  // 工作室不再让人选成员；质检由规划师组队时保证。
+  missingVerifier: () => false,
   readOnly: roomTypeMeta('studio').readOnly,
-  primaryFields: props => h(StudioPrimaryFields, props),
-  setupFields: props => h(StudioSetupFields, props),
+  // 成员、模型、验收方式都由规划师在 submit_plan 里决定，建房不再问。
+  primaryFields: () => null,
+  setupFields: () => null,
   buildRequest: buildStudioRequest,
 }

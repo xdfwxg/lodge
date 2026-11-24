@@ -27,6 +27,7 @@ import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
 import { humanHandoffStageOf } from './rooms/studio/human-handoff.js'
 import { createMemberAdd } from './member-add.js'
+import { createPlanApplier } from './rooms/studio/apply-plan.js'
 import { createMemberRemove } from './member-remove.js'
 import {
   SAMPLE_CHAT_ROOM_ID,
@@ -327,6 +328,32 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     return ok({ profile })
   }
 
+  live.setApplyPlan?.(createPlanApplier({
+    store,
+    engine,
+    live,
+    emit,
+    memberAdd,
+    memberRemove,
+    sendToMember: (roomId, memberId, text) => live.sendToMember?.(roomId, memberId, text, { intent: 'align' }),
+  }))
+  live.setAdjustModel?.((roomId, request) => {
+    const room = store.readRoom(roomId)
+    if (room === null) return
+    const member = (room.members ?? []).find(item => item.id === request.member || item.name === request.member)
+    if (member === undefined) {
+      systemNotice({ store, roomId, text: `没有找到成员 ${request.member}。` })
+      return
+    }
+    return Promise.resolve(live.swapBody(room, { memberId: member.id, engine: request.engine, model: request.model }))
+      .then(result => {
+        if (result?.ok !== true) {
+          systemNotice({ store, roomId, text: `换模型没成功：${result?.error ?? '再试一次'}` })
+          return
+        }
+        store.appendMessage(roomId, { kind: 'system', text: `${member.name} 换成了 ${request.model}。` })
+      })
+  })
   live.setPromiseRunner?.(createPromiseRunner({ store, live, emit, startRound, roomFiles }))
   live.setEmailRunner?.(createEmailRunner({ store, emit }))
 

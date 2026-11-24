@@ -36,6 +36,11 @@ export const normalizeRequest = body => {
   if (name.length > 60) return { error: '房间名称不能超过 60 字' }
   const roomType = resolveRoomType(body.roomType)
   if (roomType === null) return { error: '未知的房间类型' }
+  // 工作室不再在建房时选成员：没有成员、没有方案，就先只带规划师开工。
+  const isStudio = roomType.id === 'studio'
+  const hasMembers = Array.isArray(body.members) && body.members.length > 0
+  const hasPlan = body.plan !== undefined && body.plan !== null
+  const bootstrap = isStudio && !hasMembers && !hasPlan
   let chatTurnLimit = null
   if (body.chatTurnLimit !== undefined && body.chatTurnLimit !== null) {
     const value = Number(body.chatTurnLimit)
@@ -50,15 +55,15 @@ export const normalizeRequest = body => {
     verify: body.verify === 'manual' ? 'manual' : 'test',
     acceptance: typeof body.acceptance === 'string' ? body.acceptance.trim() : '',
   })
-  const verify = normalized.verify
-  const acceptance = typeof normalized.acceptance === 'string' ? normalized.acceptance.trim() : ''
+  // 启动态还没有交付阶段；检查由规划师在 submit_plan 里给。
+  const verify = bootstrap ? 'manual' : normalized.verify
+  const acceptance = bootstrap ? '' : (typeof normalized.acceptance === 'string' ? normalized.acceptance.trim() : '')
   const plannedAcceptance = Array.isArray(body.plan?.stages)
     ? body.plan.stages.some(stage => typeof stage?.acceptance === 'string' && stage.acceptance.trim() !== '')
     : false
   if (verify === 'test' && acceptance === '' && !plannedAcceptance) {
     return { error: '要交付的房间需要一条检查' }
   }
-  const isStudio = roomType.id === 'studio'
   const shadowReview = body.shadowReview === true
   const autoDeliver = isStudio && body.autoDeliver === true
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
@@ -85,6 +90,7 @@ export const normalizeRequest = body => {
     receipt,
     sourceRoomId,
     sourceName,
+    bootstrap,
   }
 }
 
@@ -146,7 +152,7 @@ export const normalizePlan = ({ body }) => {
 }
 
 
-export const resolveMembers = (body, roomType) => {
+export const resolveMembers = (body, roomType, { bootstrap = false } = {}) => {
   const requestedMembers = Array.isArray(body.members)
     ? body.members
     : roomType.defaultMembers ?? null
@@ -155,13 +161,15 @@ export const resolveMembers = (body, roomType) => {
     : DEFAULT_TEMPLATE_ID
   let roster
   try {
-    if (requestedMembers !== null && requestedMembers.length > 0) {
+    if (bootstrap) {
+      roster = membersFor(templateId).filter(member => member.role === 'lead')
+    } else if (requestedMembers !== null && requestedMembers.length > 0) {
       templateId = 'custom'
       roster = rosterFromRoles(requestedMembers)
     } else {
       roster = membersFor(templateId)
     }
-    validateRoster(roster, { requireWorker: roomType.requireWorker !== false })
+    validateRoster(roster, { requireWorker: roomType.requireWorker !== false && !bootstrap })
   } catch (error) {
     return { error: `成员组合不可用：${error?.message ?? error}` }
   }
@@ -173,7 +181,7 @@ export const resolveMembers = (body, roomType) => {
   const worker = workers[0] ?? roster[0]
   const explicitLead = roster.find(member => member.role === 'lead')
   const lead = explicitLead ?? worker
-  return { templateId, roster, workers, verifiers, worker, lead, align: explicitLead !== undefined }
+  return { templateId, roster, workers, verifiers, worker, lead, align: explicitLead !== undefined, bootstrap }
 }
 
 export const effectiveAcceptanceOf = (acceptance, plan) => acceptance || (plan?.stages ?? [])

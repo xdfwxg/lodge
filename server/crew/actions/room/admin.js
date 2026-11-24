@@ -96,14 +96,23 @@ export const createAdminActions = deps => {
     // 添加成员与换身体允许在暂停时进行（例如模型登录失效后补人），不受暂停门禁限制。
     'add-member': async ({ room, readBody }) => {
       if (room.live !== true) return fail('conflict', '房间没有连上，不能加成员')
+      // 工作室的成员由规划师组队；用户只能在成员出故障时换模型。
+      if (room.roomType === 'studio') return fail('forbidden', '工作室成员由规划师决定，不能手动添加')
       return memberAdd.add(room, await readBody())
     },
 
-    'remove-member': async ({ room, readBody }) => memberRemove.remove(room, await readBody()),
+    'remove-member': async ({ room, readBody }) => {
+      if (room.roomType === 'studio') return fail('forbidden', '工作室成员由规划师决定，不能手动移除')
+      return memberRemove.remove(room, await readBody())
+    },
 
     'swap-body': async ({ room, readBody }) => {
       if (room.live !== true || typeof live.swapBody !== 'function') return fail('conflict', '当前房间不能调整成员')
-      return live.swapBody(room, await readBody())
+      const body = await readBody()
+      // 人是修故障，不是改编制：工作室只允许换 engine/model。
+      return live.swapBody(room, room.roomType === 'studio'
+        ? { memberId: body?.memberId, engine: body?.engine, model: body?.model }
+        : body)
     },
   }
 }

@@ -21,6 +21,7 @@ export const startInitialStage = async ({
   goal,
   verify,
   acceptance,
+  engines = [],
   emit,
 }) => {
   // 建房记录里的阶段状态可能还是旧的；以落库后的房间为准再决定从哪一步开始。
@@ -33,7 +34,7 @@ export const startInitialStage = async ({
   } else {
     const targetMember = align ? lead : worker
     const opening = align
-      ? alignmentPrompt(goal, verify, acceptance, room.handoff)
+      ? alignmentPrompt(goal, verify, acceptance, room.handoff, engines)
       : directPrompt(goal, verify, acceptance, roster.length === 1, room.handoff)
     // 规划师开口前先看一眼这间房里的旧决策和旧结论；只读、同房间、按本轮话检索。
     const history = align
