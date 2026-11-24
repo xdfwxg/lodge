@@ -40,6 +40,15 @@ test('the delivery card keeps goal, commands, files, verdicts and commit', () =>
   assert.equal(delivery.kind, 'text')
 })
 
+test('a promise room titles the card by period instead of the standing goal', () => {
+  const delivery = buildDelivery(room({
+    promise: { text: '每周整理 5 个项目', status: 'active' },
+    completedAt: Date.UTC(2026, 10, 24, 12, 0),
+  }), messages)
+  assert.match(delivery.name, /^本期 · \d+月\d+日$/)
+  assert.equal(delivery.goal, '保存后刷新仍生效')
+})
+
 test('the delivery keeps the room usage and its unknown state', () => {
   const reported = buildDelivery(room({
     usage: { turns: 2, tokens: { input: 10, output: 5 }, costMicroUsd: 4200, costStatus: 'reported' },

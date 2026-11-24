@@ -10,7 +10,7 @@ const CONSEQUENCE = {
   network: '会访问外部服务',
 }
 
-const GATE_NOTE = { review: '我没把握', deny: '我不建议' }
+const GATE_NOTE = { review: '请确认一下', deny: '我不建议' }
 
 const firstLine = text => String(text ?? '').split('\n').map(line => line.trim()).find(Boolean) ?? ''
 

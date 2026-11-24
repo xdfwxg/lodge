@@ -38,5 +38,6 @@ test('tool rows read as Chinese actions with what they touched', () => {
     toolLabelOf({ text: 'Bash', meta: { action: 'exec', detail: 'cd /repo && npm test' } }),
     toolLabelOf({ text: 'Edit', meta: { action: 'write', target: 'src/a.js' } }),
     toolLabelOf({ text: 'lodge_gate', meta: { action: 'gate' } }),
-  ], ['读了 README.md', '跑了 npm test', '改了 src/a.js', '提交了判定'])
+    toolLabelOf({ text: "执行官's recent-work brief" }),
+  ], ['读了 README.md', '跑了 npm test', '改了 src/a.js', '提交了判定', '翻看了最近的工作'])
 })

@@ -2100,6 +2100,50 @@ test('auto delivery closes the round when the verifier passes', async () => {
   assert.equal(sent.some(item => item.memberId === 'planner'), false)
 })
 
+test('a promise round delivers without the room-wide auto-deliver switch', async () => {
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    // 房间本身不自动交付；这一轮是承诺开的，轮次自己带标记。
+    workRound: { autoDeliver: true },
+    leadSeat: 'planner',
+    members: ['planner', 'executor', 'verifier'],
+    seatNames: { planner: 'Planner', executor: 'Exec', verifier: 'Verifier' },
+    seatSpecs: [
+      { id: 'planner', role: 'lead' },
+      { id: 'executor', role: 'worker' },
+      { id: 'verifier', role: 'verifier' },
+    ],
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'command', command: 'true', exit: 0, output: '', diff: '' },
+  })
+  const sent = []
+  const advanced = []
+  const review = createReviewCoordinator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => {
+      sent.push({ memberId, prompt })
+      return { messageId: `m${sent.length}` }
+    },
+    advanceStage: async (_roomId, index, options) => {
+      advanced.push({ index, options })
+      return { ok: true }
+    },
+  })
+  await review.request(0)
+  const calls = [{
+    name: 'mcp__lodge_gate__submit_verdict',
+    input: JSON.stringify({ decision: 'PASS', reason: '达标', outsideDiff: '无' }),
+  }]
+  assert.equal(review.consume({ turn: { reply: '已提交' }, memberId: 'verifier', turnId: 't1', room, calls }), true)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(advanced, [{ index: 0, options: { by: 'system', auto: true } }])
+})
+
 test('auto delivery falls back to the planner when the verdict came from text', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],

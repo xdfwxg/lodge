@@ -49,5 +49,8 @@ export const toolLabelOf = message => {
     return '跑了一条命令'
   }
   if (action === 'gate') return '提交了判定'
-  return clip(String(message.text ?? '').trim() || '工具', 24)
+  const raw = String(message.text ?? '').trim()
+  // 基座把「XX 的 recent-work brief」塞进工具名；翻成一句中文，不露英文。
+  if (/recent-work brief/i.test(raw)) return '翻看了最近的工作'
+  return clip(raw || '工具', 24)
 }

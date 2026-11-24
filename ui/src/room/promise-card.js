@@ -18,7 +18,7 @@ const statusTextOf = promise => {
   if (promise.lastChange === 'yes') return '上次有变化'
   if (promise.lastChange === 'first' && (promise.runs ?? 0) <= 1) return '第一期'
   if (Number.isFinite(promise.lastRunAt)) return `上次 ${whenTextOf(promise.lastRunAt)}`
-  return '还没做'
+  return '还没跑过'
 }
 
 // 说好的一件事只占一行：它答应什么、下次什么时候、上次做到没有。
@@ -66,24 +66,26 @@ export function PromiseCard({ room, onRun, onPause, onResume, onStop, onUpdate =
         : h('button', { type: 'button', className: 'crew-link', onClick: onResume }, promise.status === 'stopped' ? '重新开始' : '恢复'),
       promise.status === 'stopped'
         ? null
-        : h('details', {
-          className: 'crew-promise-more',
-          open: moreOpen,
-          onToggle: event => setMoreOpen(event.currentTarget.open),
-        },
-        h('summary', { 'aria-label': '更多' }, '⋯'),
-        h('div', { className: 'crew-promise-menu' },
-          onUpdate !== null
-            ? h('button', {
-              type: 'button',
-              className: 'crew-promise-menu-item',
-              onClick: closeThen(() => setEditing(true)),
-            }, '改一下')
-            : null,
-          active
-            ? h('button', { type: 'button', className: 'crew-promise-menu-item', onClick: closeThen(onPause) }, '暂停')
-            : null,
-          h('button', { type: 'button', className: 'crew-promise-menu-item', onClick: closeThen(onStop) }, '不做了'))))),
+        : h('div', { className: 'crew-promise-more' },
+          h('button', {
+            type: 'button',
+            className: 'crew-promise-more-button',
+            'aria-label': '更多',
+            'aria-expanded': moreOpen ? 'true' : 'false',
+            onClick: () => setMoreOpen(value => !value),
+          }, '⋯'),
+          h('div', { className: 'crew-promise-menu', hidden: !moreOpen },
+            onUpdate !== null
+              ? h('button', {
+                type: 'button',
+                className: 'crew-promise-menu-item',
+                onClick: closeThen(() => setEditing(true)),
+              }, '改一下')
+              : null,
+            active
+              ? h('button', { type: 'button', className: 'crew-promise-menu-item', onClick: closeThen(onPause) }, '暂停')
+              : null,
+            h('button', { type: 'button', className: 'crew-promise-menu-item', onClick: closeThen(onStop) }, '不做了'))))),
     editing
       ? h(PromiseDialog, {
         promise,

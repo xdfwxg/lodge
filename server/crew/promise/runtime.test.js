@@ -57,6 +57,7 @@ test('a due promise starts one round and arms the next one', async () => {
   assert.equal(handled, true)
   assert.equal(ctx.rounds.length, 1)
   assert.equal(ctx.rounds[0].body.goal, ctx.promise.text)
+  assert.equal(ctx.rounds[0].body.autoDeliver, true)
   assert.equal(ctx.room.promise.runs, 1)
   assert.equal(ctx.room.promise.lastRoundId, 'round-2')
   assert.ok(ctx.work.some(item => item.availableAt === ctx.room.promise.nextAt))

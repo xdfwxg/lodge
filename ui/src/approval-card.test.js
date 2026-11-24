@@ -85,7 +85,7 @@ test('the approval card leads with the target, hides the command, and keeps one 
   assert.match(text(tree), /执行官想推送到远端/)
   assert.match(text(tree), /main/)
   assert.match(text(tree), /会改远端仓库/)
-  assert.match(text(tree), /我没把握/)
+  assert.match(text(tree), /请确认一下/)
   assert.match(text(tree), /看命令/)
   assert.match(text(tree), /--force/)
   assert.deepEqual(buttons(tree).map(button => text(button)), ['先别做', '可以做'])

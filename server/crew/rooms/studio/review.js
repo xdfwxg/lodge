@@ -201,7 +201,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       const current = store.readRoom(roomId) ?? room
       const later = hasLaterWorkStage(current, pending.stage)
       // 自动交付只认工具提交的结构化判定；文本兜底没有保证 outsideDiff，仍交给人收。
-      const autoDeliver = !later && current.autoDeliver === true && gate !== null && typeof advanceStage === 'function'
+      const roundDelivers = current.autoDeliver === true || current.workRound?.autoDeliver === true
+      const autoDeliver = !later && roundDelivers && gate !== null && typeof advanceStage === 'function'
       if ((later || autoDeliver) && typeof advanceStage === 'function') {
         // 中间步骤自动过；房间开了自动交付时，最后一步也不等人点确认。
         void Promise.resolve(advanceStage(roomId, pending.stage, { by: 'system', auto: autoDeliver })).then(result => {
@@ -229,7 +230,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         text: policy === 'majority'
           ? `验收通过：${passed}/${total}（需要 ${required} 位）；@规划师 收尾。`
           : '全部验收员通过；@规划师 收尾。',
-        meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner', authorKind: 'system' },
+        // 收尾回执只进账本；结果卡就是这一轮的收尾，不再用一条系统气泡说一遍。
+        meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner', authorKind: 'system', show: false },
       })
       const lead = leadMemberOf(room)?.id
       if (typeof lead === 'string' && lead !== '') {

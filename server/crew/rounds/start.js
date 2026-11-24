@@ -40,6 +40,8 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles, sta
     room,
     goal,
     name: title,
+    // 承诺自己开的轮次：到点跑完就交付，不停在人的确认上。
+    autoDeliver: body?.autoDeliver === true,
     projectId: typeof body?.projectId === 'string' && body.projectId !== '' ? body.projectId : (room.defaultProjectId ?? null),
     ordinal: store.nextWorkRoundOrdinal(room.id),
     plan: planned.plan,

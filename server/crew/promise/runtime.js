@@ -74,7 +74,7 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
       live,
       emit,
       room,
-      body: { goal: promise.text },
+      body: { goal: promise.text, autoDeliver: true },
       roomFiles,
       startMessage: { kind: 'chat', authorId: 'you', text: promise.text },
     })

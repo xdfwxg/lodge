@@ -23,9 +23,15 @@ const elapsedOf = ts => {
 // 工具名只说“在用什么”，工具在做什么（命令、文件）才是用户想知道的那一句。
 const doingOf = message => {
   const meta = message?.meta ?? {}
-  const verb = VERBS[String(meta.action ?? '')] ?? '处理'
-  const what = String(meta.target ?? meta.detail ?? message?.text ?? '').trim()
-  return what === '' ? verb : `${verb} ${clip(what, 40)}`
+  const action = String(meta.action ?? '')
+  const verb = VERBS[action] ?? '处理'
+  // 判定工具名是内部实现，用户只需要知道“在提交判定”。
+  if (action === 'gate') return verb
+  const raw = String(meta.target ?? meta.detail ?? message?.text ?? '').trim()
+  const what = raw.split('\n')[0].trim()
+  // heredoc 的开头（<<'EOF'）不是用户想读的动作；说“在跑命令”就够了。
+  if (what === '' || (verb === '运行命令' && what.includes('<<'))) return verb
+  return `${verb} ${clip(what, 40)}`
 }
 
 const stepOf = stages => {

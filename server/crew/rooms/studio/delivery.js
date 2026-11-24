@@ -131,14 +131,24 @@ export const buildDelivery = (room, messages = []) => {
       missing: visualMissing,
     }
   const lastAt = messages.reduce((latest, message) => Math.max(latest, message.ts ?? 0), 0)
+  const completedAt = room.completedAt ?? (lastAt > 0 ? lastAt : null)
+  // 常驻承诺每周都会产出一次；标题应该是这一期，不是把同一句目标再抄一遍。
+  const periodOf = ts => {
+    if (typeof ts !== 'number' || !Number.isFinite(ts)) return ''
+    const date = new Date(ts)
+    return `${date.getMonth() + 1}月${date.getDate()}日`
+  }
+  const periodName = periodOf(completedAt) === '' ? '本期' : `本期 · ${periodOf(completedAt)}`
   const delivery = {
     roomId: room.id,
     name: room.demo === true
       ? String(room.name ?? '').replace(/^示例[：:]\s*/, '')
-      : (String(room.goal ?? '').trim() || room.name),
+      : room.promise === undefined || room.promise === null
+        ? (String(room.goal ?? '').trim() || room.name)
+        : periodName,
     goal: room.goal,
     sample: room.demo === true,
-    completedAt: room.completedAt ?? (lastAt > 0 ? lastAt : null),
+    completedAt,
     commit: typeof room.completedCommit === 'string' && room.completedCommit !== '' ? room.completedCommit : null,
     independenceLabel: independenceLabel(room),
     archived: Boolean(room.archivedAt),

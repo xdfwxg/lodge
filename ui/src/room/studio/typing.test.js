@@ -89,6 +89,26 @@ test('a running handoff shows what the executor is doing and for how long', () =
   assert.match(line.detail, /1:0[0-9]/)
 })
 
+test('a gate submission does not leak the tool name into the live line', () => {
+  const line = studioTyping(room({
+    assignments: [{ status: 'working', toMemberId: 'verifier' }],
+    messages: [{ kind: 'activity', authorId: 'verifier', text: '提交判定', meta: { action: 'gate', target: 'lodge_gate_submit_verdict' } }],
+    stages: [{ title: '复核', state: 'active' }],
+  }), members)
+  assert.match(line.detail, /提交判定/)
+  assert.equal(line.detail.includes('lodge_gate'), false)
+})
+
+test('a heredoc command is not printed in the live line', () => {
+  const line = studioTyping(room({
+    assignments: [{ status: 'working', toMemberId: 'worker' }],
+    messages: [{ kind: 'activity', authorId: 'worker', text: 'Bash', meta: { action: 'exec', detail: "python3 -I - <<'EOF'\nimport re" } }],
+    stages: [{ title: '整理', state: 'active' }],
+  }), members)
+  assert.equal(line.detail.includes('<<'), false)
+  assert.match(line.detail, /运行命令/)
+})
+
 test('a just-sent user message says the planner is handling it', () => {
   const line = studioTyping(room({
     messages: [{ kind: 'chat', authorId: 'you', ts: Date.now() - 4_000, text: '用 Pillow' }],

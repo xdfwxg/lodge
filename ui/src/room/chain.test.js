@@ -11,6 +11,10 @@ test('only handoff-chain system messages reach the timeline', () => {
   assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'notice', show: true }, text: '检查没通过 · 需要重做这一步' }), true)
   assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'handoff' } }), true)
   assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'stage' } }), true)
+  // 结果卡接手后，收尾回执不进时间线；显式隐藏的账本消息也不进。
+  assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'handoff', to: 'planner' }, text: '全部验收员通过；@规划师 收尾。' }), false)
+  assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'handoff', to: 'planner' }, text: '验收退回了第 1 步；@规划师 接手决定重做还是交给人。' }), true)
+  assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'handoff', show: false } }), false)
   // 需要人处理的错误要看得见；自动重试的提示不占时间线。
   assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'notice', show: true } }), true)
   assert.equal(isChainMessage({ kind: 'system', meta: { kind: 'notice', show: false } }), false)
