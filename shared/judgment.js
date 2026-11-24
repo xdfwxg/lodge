@@ -9,6 +9,7 @@ export const LIMITS = Object.freeze({
   findings: 10,
   title: 200,
   evidence: 2000,
+  check: 300,
   outsideDiff: 500,
   protectedFiles: 20,
 })
@@ -120,10 +121,12 @@ const normalizeFindings = value => {
     const title = clip(item.title, LIMITS.title)
     if (title === '') continue
     const raw = typeof item.severity === 'string' ? item.severity.trim().toLowerCase() : ''
+    const check = clip(item.check, LIMITS.check)
     findings.push({
       title,
       severity: SEVERITIES.has(raw) ? raw : 'minor',
       evidence: clip(item.evidence, LIMITS.evidence),
+      ...(check !== '' ? { check } : {}),
     })
     if (findings.length >= LIMITS.findings) break
   }
@@ -197,13 +200,23 @@ export const judgmentFromGate = ({
   const outsideDiff = type === 'verdict' ? clip(input.outsideDiff, LIMITS.outsideDiff) : ''
   // 和 gate MCP 的入口校验保持一致：PASS 不能绕过“diff 之外的一条风险”。
   if (type === 'verdict' && decision === 'pass' && outsideDiff === '') return null
+  // 退回必须挂到一条会失败的检查：没有 check 的 blocker/major 只是意见，降为 minor。
+  // 一条带 check 的阻塞项都没有，就不是一次有效的退回。
+  const findings = type === 'verdict' ? normalizeFindings(input.findings).map(item => (
+    (item.severity === 'blocker' || item.severity === 'major') && typeof item.check !== 'string'
+      ? { ...item, severity: 'minor' }
+      : item
+  )) : []
+  if (type === 'verdict' && decision === 'reject' && !findings.some(item => (
+    (item.severity === 'blocker' || item.severity === 'major') && typeof item.check === 'string'
+  ))) return null
   const actionRequired = clip(input.actionRequired, LIMITS.actionRequired)
   return validateJudgment({
     version: JUDGMENT_VERSION,
     type,
     decision,
     reason,
-    findings: type === 'verdict' ? normalizeFindings(input.findings) : [],
+    findings,
     visual: type === 'verdict' ? normalizeVisual(input.visual) : null,
     outsideDiff,
     protectedFiles: type === 'verdict' ? normalizeProtectedFiles(input.protectedFiles) : [],
@@ -270,6 +283,6 @@ export const gateResultOf = judgment => {
   }
 }
 
-export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据"}],"outsideDiff":"diff 之外最值得担心的一条风险；没有就写「无」"}；最多 3 条 findings，没有就写空数组。'
+export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据","check":"哪条验收命令或目标行会因它失败"}],"outsideDiff":"diff 之外最值得担心的一条风险；没有就写「无」"}；最多 3 条 findings，没有就写空数组。不通过至少要有一条带 check 的 blocker/major；只有 minor 的问题请判通过。'
 
 export const DECISION_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"怎么改 / 要人拍板什么","actionRequired":"要人做什么"}；“交给人”时 actionRequired 必填，缺失时用 reason 兜底。'

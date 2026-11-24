@@ -1608,7 +1608,7 @@ test('a gate tool call supplies the verdict without parsing the reply', async ()
     input: JSON.stringify({
       decision: 'REJECT',
       reason: '缺少日志',
-      findings: [{ title: '没有运行记录', severity: 'major' }],
+      findings: [{ title: '没有运行记录', severity: 'major', check: 'npm test 会因为没有日志失败' }],
     }),
   }]
   assert.equal(review.consume({

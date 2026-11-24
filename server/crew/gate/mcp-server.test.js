@@ -27,12 +27,34 @@ test('a verdict call echoes a structured result', () => {
     method: 'tools/call',
     params: {
       name: 'submit_verdict',
-      arguments: { decision: 'REJECT', reason: '缺少日志', findings: [{ title: '没有运行记录' }] },
+      arguments: {
+        decision: 'REJECT',
+        reason: '缺少日志',
+        findings: [{ title: '没有运行记录', severity: 'major', check: 'npm test 会因为没有日志失败' }],
+      },
     },
   })
   assert.equal(response.result.isError, undefined)
   assert.equal(response.result.structuredContent.decision, 'REJECT')
   assert.equal(response.result.structuredContent.reason, '缺少日志')
+})
+
+test('a REJECT without a checked blocker is refused', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 4,
+    method: 'tools/call',
+    params: {
+      name: 'submit_verdict',
+      arguments: {
+        decision: 'REJECT',
+        reason: '有几个小问题',
+        findings: [{ title: '命名可以更好', severity: 'minor' }],
+      },
+    },
+  })
+  assert.equal(response.result.isError, true)
+  assert.match(response.result.content[0].text, /带 check 的 blocker\/major/)
 })
 
 test('a verdict can cite the platform visual check', () => {
@@ -96,7 +118,14 @@ test('a Chinese verdict maps to the tool decision', () => {
     jsonrpc: '2.0',
     id: 41,
     method: 'tools/call',
-    params: { name: 'submit_verdict', arguments: { decision: '不通过', reason: '缺测试' } },
+    params: {
+      name: 'submit_verdict',
+      arguments: {
+        decision: '不通过',
+        reason: '缺测试',
+        findings: [{ title: '缺测试', severity: 'major', check: 'npm test 没有覆盖新分支' }],
+      },
+    },
   })
   assert.equal(response.result.isError, undefined)
   assert.equal(response.result.structuredContent.decision, 'REJECT')

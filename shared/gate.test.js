@@ -36,7 +36,12 @@ test('findings and object inputs keep the same contract', () => {
     input: {
       decision: 'REJECT',
       reason: '缺少日志',
-      findings: [{ title: '没有运行记录', severity: 'major', evidence: 'log.txt 不存在' }],
+      findings: [{
+        title: '没有运行记录',
+        severity: 'major',
+        evidence: 'log.txt 不存在',
+        check: 'npm test 会因为没有日志失败',
+      }],
     },
   }], { type: 'verdict' })
   assert.equal(judgment.decision, 'reject')
@@ -44,12 +49,27 @@ test('findings and object inputs keep the same contract', () => {
     title: '没有运行记录',
     severity: 'major',
     evidence: 'log.txt 不存在',
+    check: 'npm test 会因为没有日志失败',
   }])
+})
+
+test('a REJECT with no checked finding is not a verdict', () => {
+  const input = {
+    decision: 'REJECT',
+    reason: '再改改',
+    findings: [{ title: '命名可以更好', severity: 'minor' }],
+  }
+  assert.equal(gateSubmissionOf([{ name: 'submit_verdict', input }], { type: 'verdict' }), null)
+  assert.equal(judgmentFromGate({ type: 'verdict', input }), null)
 })
 
 test('the last valid submission wins and malformed calls are skipped', () => {
   const judgment = gateSubmissionOf([
-    verdict({ decision: 'REJECT', reason: '旧结论' }),
+    verdict({
+      decision: 'REJECT',
+      reason: '旧结论',
+      findings: [{ title: '旧问题', severity: 'major', check: '旧检查会失败' }],
+    }),
     { name: 'mcp__lodge_gate__submit_verdict', input: '{not json' },
     verdict({ decision: 'PASS', reason: '新结论' }),
   ], { type: 'verdict' })

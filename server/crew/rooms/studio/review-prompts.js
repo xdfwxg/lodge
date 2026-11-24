@@ -8,7 +8,7 @@ export const VERDICT_FORMAT = `如果工具列表里有 submit_verdict，直接�
 
 export const REVIEW_REMINDER_PROMPT = `复核还没有结论。请现在调用 submit_verdict 提交判定；没有这个工具就只回复一行 通过 或 不通过。不要继续调研。\n${INTERNAL_PROMPT_MARKER}`
 
-export const VERDICT_RETRY_PROMPT = `你这一回合没有提交判定。现在只做一件事：调用 lodge_gate_submit_verdict 提交通过或不通过；工具确实不可用时只回复一行 通过 或 不通过。不要继续调研，也不要改文件。\n${INTERNAL_PROMPT_MARKER}`
+export const VERDICT_RETRY_PROMPT = `你这一回合没有提交判定。现在只做一件事：调用 lodge_gate_submit_verdict 提交通过或不通过；不通过要给一条带 check 的 blocker/major（哪条验收命令或目标行会因它失败）；工具确实不可用时只回复一行 通过 或 不通过。不要继续调研，也不要改文件。\n${INTERNAL_PROMPT_MARKER}`
 
 // 证据、命令输出和 diff 都可能带外部内容；去隐藏字符、按字符预算截断，再用围栏包住。
 export const untrusted = (text, lang = '', max = 4000) => fenceUntrusted(text, { lang, max })

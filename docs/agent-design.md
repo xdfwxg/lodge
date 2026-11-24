@@ -3,6 +3,10 @@
 > 本文回答：改 Agent、工具、权限、上下文、状态、失败、观测或评测前，先检查什么。
 > 完整参考不再常驻；这里只留能改变设计的判断卡。
 
+> 设计目标：释放模型的思考，隔离它的副作用，用可复核的证据验收交付。
+> 一句话：语义交给模型，判定交给业务，约束交给代码，证据交给验收，人只管不可逆和不可验证；下一步归系统，不归模型。
+> 边界现状：今天只有验收命令走 OS 沙箱（macOS `sandbox-exec` / Linux `bwrap`）；成员自己的 shell 仍是 worktree 加审批，不是沙箱。全域隔离是方向，先做可证明的写边界。
+
 ## 什么时候读
 
 只要任务涉及以下任意一项，先读这一页，再写代码或下结论：
@@ -20,6 +24,7 @@
 
 - **归属**：语义判断归模型，通用机制归框架，业务规则归业务。不要把语义判断写成关键词匹配。
 - **权限**：工具面就是权限面。新工具要写拒绝原因和系统错误边界；外部内容不能直接变成指令。
+- **验收**：PASS 看证据，REJECT 必须指出一条会因它失败的检查（命令或目标行）；只有 minor 的问题不阻塞。
 - **上下文**：每轮新增什么、预算多少、什么时候裁剪；业务真相不能放进会话内存。
 - **状态与失败**：业务真相在房间和存储；失败要分可重试、不可重试、已受理未完成。
 - **监督**：独立监督只决定是否继续，不越权改写业务结论，介入要留痕。
@@ -48,6 +53,7 @@
 | 非法状态跃迁写不进去 | `shared/states.js` + `assignments.js` + `kernel/round.js` | `states.test.js`、`assignments.test.js` |
 | 阶段最多 3 步、检查必须能跑、成员增删有约束 | `rooms/create/input.js`、`member-add.js`、`member-remove.js` | `room-create.test.js`、`member-add.test.js`、`member-remove.test.js` |
 | 验收要有证据、测试改动和 quorum | `rooms/studio/gates.js`、`tdd.js`、`verifiers.js` | `gates.test.js`、`tdd.test.js`、`verifiers.test.js` |
+| 退回必须挂到一条会失败的检查；没有 check 的 blocker/major 降为 minor | `shared/judgment.js`、`gate/mcp-server.js`、`review-prompts.js` | `judgment.test.js`、`mcp-server.test.js` |
 | PASS 要带 diff 外风险；自动交付只认结构化判定 | `gate/mcp-server.js`、`rooms/studio/review.js` | `mcp-server.test.js`、`live-turn-modules.test.js` |
 | 判定缺失先催一次，再交给人 | `rooms/studio/review.js` | `live-turn-modules.test.js` |
 | 返工、预算、截止有上限 | `relay.js`、`auto-rework.js`、`rooms/studio/stage.js` | `relay.test.js`、`auto-rework.test.js`、`stage-timeout.test.js` |
@@ -62,6 +68,7 @@
 - “先写一个会失败的测试”：代码只检查命令验收阶段有没有测试文件改动，不能证明测试先红过（`tdd.js`）。
 - `git commit`：本地提交不拦；`push`、发布、安装、删除、提权、联网等外部动作会拦（`external-actions.js`）。
 - 原生工具不能按名字收窄（`tool-scope.js` 注释）：平台限制，写 `native:SendMessage` 会让回合起不来。
+- 验收员走文本兜底时没有结构化 check：只有判定工具没挂上才会走；这时只能按首行和理由判断，不能要求 check。
 - 对齐回合“不要停下来问用户”：系统会自动确认并继续，但没有硬拒绝。
 
 判断标准：能用权限、状态机或门禁拒绝的，不写提示词；只能在提示词里的，写成角色纪律，并配一条可检查的测试或门禁；两者都做不到，就承认它是软约束，不算进验收。

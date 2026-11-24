@@ -12,6 +12,7 @@ const FINDING_SCHEMA = {
     title: { type: 'string', maxLength: 200 },
     severity: { type: 'string', enum: ['blocker', 'major', 'minor'] },
     evidence: { type: 'string', maxLength: 2000 },
+    check: { type: 'string', maxLength: 300, description: '坑在哪条验收命令或目标行上；不通过时 blocker/major 必填。' },
   },
   required: ['title'],
   additionalProperties: false,
@@ -32,7 +33,7 @@ const VISUAL_SCHEMA = {
 export const GATE_TOOLS = Object.freeze([
   {
     name: 'submit_verdict',
-    description: '提交这一步的验收判定：PASS 表示通过，REJECT 表示不通过。调用后不用再把 JSON 写进回复。',
+    description: '提交这一步的验收判定：PASS 表示通过，REJECT 表示不通过。不通过至少要有一条带 check 的 blocker/major（哪条验收命令或目标行会因它失败）；只有 minor 的问题请判通过。调用后不用再把 JSON 写进回复。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -305,6 +306,18 @@ const callTool = (id, params) => {
       return toolFailure(id, 'PASS 要写一条 diff 之外的风险；没有就写「无」。')
     }
     const findings = Array.isArray(args.findings) ? args.findings.slice(0, 10) : []
+    if (decision === 'REJECT') {
+      const blocking = findings.filter(item => (
+        item !== null &&
+        typeof item === 'object' &&
+        (item.severity === 'blocker' || item.severity === 'major') &&
+        typeof item.check === 'string' &&
+        item.check.trim() !== ''
+      ))
+      if (blocking.length === 0) {
+        return toolFailure(id, '不通过至少要有一条带 check 的 blocker/major：check 写哪条验收命令或目标行会因它失败。只有 minor 的问题请判通过。')
+      }
+    }
     const protectedFiles = Array.isArray(args.protectedFiles)
       ? args.protectedFiles
         .filter(item => typeof item === 'string' && item.trim() !== '')

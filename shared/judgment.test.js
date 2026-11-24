@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  extractJudgmentJson, gateResultOf, judgmentAnchorOf, judgmentOf, normalizeJudgment, plannerDecisionOf, validateJudgment, verdictPassed,
+  extractJudgmentJson, gateResultOf, judgmentAnchorOf, judgmentFromGate, judgmentOf, normalizeJudgment, plannerDecisionOf, validateJudgment, verdictPassed,
 } from './judgment.js'
 
 const verdict = (text, extra = {}) => normalizeJudgment({ type: 'verdict', text, stage: 1, evidenceId: 'e1', actorId: 'v1', ...extra })
@@ -80,6 +80,22 @@ test('findings are clipped and invalid entries dropped', () => {
   assert.equal(out.findings.length, 1)
   assert.equal(out.findings[0].title.length, 200)
   assert.equal(out.findings[0].severity, 'major')
+})
+
+test('a gate REJECT must point at a check that would fail', () => {
+  const gate = input => judgmentFromGate({ type: 'verdict', input, stage: 1, actorId: 'v1' })
+  const reject = findings => gate({ decision: 'REJECT', reason: '还不行', findings })
+  assert.equal(reject([{ title: '命名可以更好', severity: 'minor' }]), null)
+  assert.equal(reject([{ title: '缺日志', severity: 'major' }]), null)
+  const checked = reject([
+    { title: '缺日志', severity: 'major', check: 'npm test 会因为没有日志失败' },
+    { title: '命名可以更好', severity: 'blocker' },
+  ])
+  assert.equal(checked.decision, 'reject')
+  assert.deepEqual(checked.findings, [
+    { title: '缺日志', severity: 'major', evidence: '', check: 'npm test 会因为没有日志失败' },
+    { title: '命名可以更好', severity: 'minor', evidence: '' },
+  ])
 })
 
 test('planner decisions keep the note and require an action for human', () => {
