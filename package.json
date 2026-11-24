@@ -54,10 +54,12 @@
     "replay:chat": "node scripts/replay-chat.mjs",
     "eval:verifier-probe": "node evals/verifier-probe/run.mjs",
     "eval:history-bench": "node evals/history-bench/run.mjs",
-    "eval:verifier-probe:nightly": "node evals/verifier-probe/run.mjs --runs 3 --out evals/verifier-probe/results/nightly"
+    "eval:verifier-probe:nightly": "node evals/verifier-probe/run.mjs --runs 3 --out evals/verifier-probe/results/nightly",
+    "smtp:test": "node scripts/smtp-test.mjs"
   },
   "dependencies": {
     "chrome-devtools-mcp": "1.13.0",
+    "nodemailer": "^10.6.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "10.1.0",

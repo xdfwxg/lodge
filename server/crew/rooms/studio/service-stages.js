@@ -83,7 +83,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
 
   const accept = (room, body) => {
     const index = Number(body.stage)
-    const force = body?.force === true
     const by = body?.by === 'system' ? 'system' : 'you'
     const auto = body?.auto === true
     const target = room.stages?.[index]
@@ -98,9 +97,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     const messages = readMessages(room.id)
     const hasPassedVerdict = messages.some(message => message.kind === 'verdict' && verdictPassed(message))
     const updated = updateRound(room.id, current => {
-      gate = force
-        ? { ok: true, stage: current.stages[index] }
-        : gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
+      gate = gateFor(current, index, readMessages(room.id), readEvidence?.(room.id))
       if (!gate.ok) return null
       const stage = current.stages[index]
       stage.state = STAGE_STATE.passed
@@ -119,7 +116,7 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       // 纯聊天：最后一步通过后房间不结束；但有验收员时，交付型步骤仍必须看到他回报通过。
       // 纯决策步骤由人确认就算通过，不该再等验收员。
       const needsVerdict = stage.kind !== 'decision' || stage.manual === true || stage.title === FINAL_TITLE
-      if (next < 0 && needsVerdict && roomModeOfRoom(current)?.supportsDelivery === true && !force) {
+      if (next < 0 && needsVerdict && roomModeOfRoom(current)?.supportsDelivery === true) {
         const hasVerifiers = verifierIds(current).length > 0 || (Array.isArray(current.verifiers) && current.verifiers.length > 0)
         if (hasVerifiers && hasPassedVerdict !== true) {
           transitionError = '验收员还没有回报通过，不能结束这一步'
@@ -140,39 +137,6 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     emit('room', room)
     expireCards(room.id, '这一步已经过了')
     if (next >= 0) appendMessage(room.id, stageConclusion(room, room.stages[index], index, next))
-    if (force) {
-      appendMessage(room.id, {
-        kind: 'system',
-        text: `你选择接受当前结果：第 ${index + 1} 步「${gate.stage.title}」通过。`,
-        meta: { kind: 'gate', gate: gate.stage.kind, stage: index, by, override: true },
-      })
-      appendMessage(room.id, {
-        kind: 'verdict',
-        authorId: 'you',
-        text: '你选择接受当前结果。',
-        meta: {
-          pass: true,
-          human: true,
-          override: true,
-          reason: '你选择接受当前结果；验收员曾退回。',
-          judgment: {
-            version: 1,
-            type: 'verdict',
-            decision: 'pass',
-            reason: '你选择接受当前结果；验收员曾退回。',
-            findings: [],
-            actionRequired: '',
-            stage: index,
-            evidenceId: null,
-            actorId: 'you',
-            rejectTo: null,
-            at: Date.now(),
-            source: 'text',
-          },
-          stage: index,
-        },
-      })
-    }
     for (const assignment of activeDispatchAssignments(store, room.id, index)) {
       transitionAssignment(store, assignment.id, ASSIGNMENT_STATUS.passed)
     }

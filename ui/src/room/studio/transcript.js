@@ -50,6 +50,7 @@ export function StudioTranscript({
   onAnswerCard = null,
   onCancelQueue = null,
   onSteerQueue = null,
+  onKeepPromise = null,
   onDiscussChat = null,
   onReturn = null,
   onRework = null,
@@ -202,6 +203,7 @@ export function StudioTranscript({
             : h(DeliveryCard, {
               delivery,
               onDiscussChat,
+              onKeepPromise,
               onDownload: () => { downloadDeliveryRecord(room) },
               onRead: onReadArtifact,
             }),

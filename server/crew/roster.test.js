@@ -15,6 +15,16 @@ test('a verifier with write access fails closed', () => {
   assert.throws(() => validateRoster(bad), /verifier/)
 })
 
+test('a planner with exec or write access fails closed', () => {
+  for (const [permissions, toolSurface] of [
+    [{ read: true, exec: true, write: false }, ['read', 'exec']],
+    [{ read: true, exec: false, write: true }, ['read', 'write']],
+  ]) {
+    const bad = ROLES.map(member => member.role === 'lead' ? { ...member, permissions, toolSurface } : member)
+    assert.throws(() => validateRoster(bad), /lead .* read-only/)
+  }
+})
+
 test('an executor without its own worktree fails closed', () => {
   const bad = ROLES.map(member => member.id === 'executor'
     ? { ...member, writeScope: 'repo' }

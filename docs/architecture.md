@@ -115,7 +115,7 @@ service.js                   ← 路由分发与用例组合
 - 没有全局成员表，也没有全局 Assignment 表；成员和交接跟着房间走。证据与 verdict 正文留在消息里，Assignment 只存引用。
 - 记忆只存指针和结论：目标、结论、改动文件路径、退回理由和 commit；不存文件正文、附件内容或 `.env`，写之前统一脱敏。
 - 秘密脱敏走 `shared/secrets.js`：提示词经 `sanitizeUntrusted`，证据在入库前，记忆在写入前，日志经 `server/crew/log.js`；`systemNotice` 只把人需要看的一句写进时间线。
-- 验收员的 worktree 和只读快照永远不含 `.env`；执行官才拿本地环境。普通目录、git worktree 和原地目录三条路径都有测试固定。
+- 规划师和验收员的只读副本永远不含 `.env`；执行官才拿本地环境。普通目录、git worktree 和原地目录三条路径都有测试固定。
 - 通知只给真正等人处理的事：进度、重试和后台建议不弹；同一间房 5 分钟内不重复，规则在 `shared/quiet.js`。
 - 存储实现可替换，但业务真相必须落在支持约束与事务的持久存储。
 
@@ -184,25 +184,26 @@ service.js                   ← 路由分发与用例组合
   - 阶段截止：`deadlineIdOf(stage)`
   - 交接租约：`assignment-lease:<room>:<assignment>`
   - 聊天轮次：`chat-run:<room>:<round>`
+  - 常驻承诺：`promise.tick:<room>:<nextAt>:<version>`
+  - 邮件投递：`email.send:<room>:<round>`
 - 每房单活、房间之间并发：调度器用 `running` 集合占住房间，慢聊天不会挡住别的房间的审批或截止；租约 60 秒，过期回收，失败按 1s→300s 退避，最多 3 次。
-- 还没进队列：webhook 和基座 routines 尚未接线；Lodge 自己的常驻意图（定时）见下一节，**是设计稿，尚未接线**；用户消息和直接 `@` 是请求路径，不是 `work_item`。聊天靠 `chat.pending` 和 `chat.round` 续跑，工作室靠轮次、Assignment 和阶段截止续跑。
+- 还没进队列：webhook、基座 routines 和邮件投递尚未接线；Lodge 自己的常驻承诺见下一节，已接工作室、每周/每天；用户消息和直接 `@` 是请求路径，不是 `work_item`。聊天靠 `chat.pending` 和 `chat.round` 续跑，工作室靠轮次、Assignment 和阶段截止续跑。
 - 新接一个外部来源时，先给它稳定的 source id；没有稳定 id 就用 `dedupeKey`。不要为它新建第二张收件箱或计时器表。
 
-## 常驻意图（定时）
+## 常驻承诺（定时）
 
-定时不是一张 routine 表，也不是第二个调度器；它是房间上的一个常驻意图，复用同一个 `work_item` 时钟和同一个轮次引擎。**当前是设计，尚未接线。**
+定时不是一张 routine 表，也不是第二个调度器；它是房间上的一件“说好的事”，复用同一个 `work_item` 时钟和普通轮次。对外叫「说好的」或「每周给你」，代码里是 `room.promise`。**当前只支持工作室、每周/每天、本地时间、一个房间一件。**
 
-一句话：cadence 回答“多久做一次”，intent 回答“这件事什么时候算完”；后者才是产品模型，前者只是实现。
-
-- 形状：`room.intent = { state, when, doneWhen, budgetMicroUsd, onApproval, nextAt }`。`when` 目前只有 `schedule`（星期几 + 本地时间）；`doneWhen` 是 `unchanged(runs) / goal-met / after-runs / never`；`round.origin = 'manual' | 'intent'`，以后加 webhook 只是多一个来源。
-- 生命周期：`active / paused / satisfied / stopped`。到达 `doneWhen` 转 `satisfied`，只通知一次；归档或删除房间即停；连续 3 次**没启动**就停——是启动失败，不是交付失败，交付失败由房间自己的重做和上限处理。
-- 一次一个：`work_item` 的 dedupe key 是 `intent:<roomId>`，到点只挂一个 tick；房间在跑、暂停或等人确认就跳过这次并记 `intent.skipped`，不排队；错过只补一次。
-- 每一轮都是普通轮次：同样的目标、验收、证据、审批和预算；无人值守不绕过审批，碰到外部动作就暂停等人；预算用完就停。定时不能成为扩权通道。
-- 排程语义：本地时区的星期/时间，不用 cron；这一轮结束后再算下一次；界面只在结果下面显示一行和一个开关（“以后每天 8:00 再做一遍 / 下次：明天 8:00”），不做日程管理页。
-- 可观测：`intent.tick / started / skipped / satisfied / stopped`，带 due、now、roundId、原因。
-- **北极星：对账循环（未做）。** 房间声明期望状态（目标 + 证据标准）；控制器在时间到、外部事件、证据过期或世界变化时检查，已经满足就不跑，连续无变化就停。`when` 从 schedule 扩成 triggers（时间/事件/状态），复用同一个起一轮入口。代价是要有观测源和期望状态的定义；现在只有时间一个真实触发源，提前搭控制器就是抽象税。
-- **谁改 intent：** 模型可以提议“这件事值得每周做”，但写 intent、改 `when` / `doneWhen` 必须人确认；时钟和停止条件不能由模型自己改。
-- 先证明再升级：现在只做 intent 的生命周期、`when`、`doneWhen`、预算和一个 tick；下一期做轮次间对比、连续无变化自动停、只在变化/阻塞时通知；以后才考虑观测层和 trigger。跑一周，记有用轮次、空跑率、成本、打扰次数；没有这组数，不造通用 trigger、DAG、value-of-information 调度或第二个调度器。
+- 形状：`room.promise = { text, schedule: { every: 'week' | 'day', weekday?, at }, delivery: { channel: 'room' | 'email', to, mode: 'always' | 'changes' }, status: 'active' | 'paused' | 'stopped', nextAt, runs, lastRunAt, lastRoundId, lastRunStatus, lastChange, version }`。`text` 就是下一轮的目标；`delivery` 只是一次投递，不改变轮次。
+- 到点：`work_item` 里一项 `promise.tick`，id 带 room、nextAt 和 version；到点启动一轮普通轮次；开跑前再读一次版本，用户暂停或改口就不开。
+- 忙、暂停或房间停着：这一期跳过，记 `promise.skipped`，不排队；下次到点再来。关掉应用错过的到期项，下次打开补一次，并在房间说一句「这一期是补上的」。
+- 启动失败：记 `promise.failed`，不重试同一期；排下一期，并用一句人话说没开起来。
+- 控制：现在跑一次（同一条 tick，`manual`）、暂停/恢复、改一下、不做了；恢复和改口都会重新算下一次。
+- 对比：一期交付记一个内容指纹（结论 + 文本产物 + 文件路径），记 `lastChange = first | yes | no`；卡片说“第一期 / 上次有变化 / 上次没变化”。指纹不含轮次 id，同样的内容跨轮仍算没变化。
+- 邮件投递：承诺的 `delivery.channel === 'email'` 时，一轮交付后平台排一条 `email.send:<room>:<round>`（dedupe 同 id），正文优先取这次产出的文本，其次取结论和文件路径；发件箱是 `work_item`，重试 3 次，成功/最终失败都记在承诺上。`mode=changes` 时，没变化不发，只说一句“这次和上次一样”。地址和密码来自设置界面的 `~/.lodge/smtp.json`（600）或 `LODGE_SMTP_URL` / `LODGE_EMAIL_FROM`，不进房间、不进提示词；设置接口只回连接状态和发件人，不回密码。
+- 本地时钟：由 `rooms/scheduler.js` 领取；关掉应用不跑，下次打开补一次；没有后台常驻，也没有云。准点送达要后台代理，目前不做。
+- 边界：只在工作室；承诺不能绕过审批、预算和外部动作门禁；主观任务仍靠第一期人看，不假装客观。YouTube/GitHub 的“找什么”由这一轮的目标和成员的只读网络工具完成；平台不另建趋势 API，也不把来源写死。
+- 下一步（未做）：轮次间对比、连续无变化自动停、发现重复后提议、后台常驻。先跑真实一周，记做到率、有用率、想停率、每期成本，再决定加什么。
 
 ## 执行与验收
 
@@ -213,6 +214,7 @@ service.js                   ← 路由分发与用例组合
 - 验收命令在一次性副本里跑，记录命令、退出码、输出、diff 和改动文件。
 - 多个执行官并行时各在自己的 worktree 里做，结束后集成；冲突停下交给人。
 - 验收员只读 + exec，不能写；没有第二厂商时明确标「模型自查」。
+- 工具面按角色切到单个工具：规划师的 `lodge_gate` 没有 `submit_verdict`，验收员只留 `submit_verdict`，派活、拍板、退回、停下只归规划师；执行官和聊天成员完全没有 `lodge_gate`。这是基座 `toolScope` 的逐工具选择器，不是提示词约定。
 - 四条方法硬约束：交付阶段的检查必须是一条能跑的命令；命令验收的阶段，改代码就必须带测试改动；验收 PASS 必须写一条 diff 之外的风险（没有写「无」）；PASS 必须在 `submit_verdict.protectedFiles` 里逐条确认受保护文件（依赖清单、锁文件、CI/配置，以及被改动的既有测试；新增测试不算，人工验收没有 diff 时按测试文件保守处理）。前两条在建房和签收时拦，后两条在判定工具入口拦，不靠提示词自觉。
 - 交付阶段默认盲评：验收员只看目标、完成条件、约束、验收命令/输出、diff 和截图，不拿执行官的过程话；决策阶段才放开对话。
 - 验收员先核证据、再读代码，只按本步目标和验收标准判；目标外的重构、美化或新功能不作为退回理由。这是提示词纪律，不是硬门禁。

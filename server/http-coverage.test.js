@@ -22,6 +22,10 @@ const start = async ({ roomRequest = null } = {}) => {
     evidence: async () => ({ ok: true, body: { evidence: {} } }),
     roundDetail: async () => ({ ok: true, body: { round: { id: 'round-1' }, messages: [] } }),
     memory: async () => ({ ok: true, body: { entries: [], canReview: true } }),
+    emailSettings: () => ({ ok: true, body: { settings: { configured: false } } }),
+    saveEmailSettings: body => ({ ok: true, body: { settings: { configured: true, host: body.host } } }),
+    clearEmailSettings: () => ({ ok: true, body: { settings: { configured: false } } }),
+    testEmail: async () => ({ ok: true, body: { sent: true } }),
     memoryReview: async () => ({ ok: true, body: { entries: [], canReview: true } }),
     workspaceMemory: async () => ({ ok: true, body: { entries: [], canReview: true } }),
     workspaceMemoryReview: async () => ({ ok: true, body: { entries: [], canReview: true } }),
@@ -92,7 +96,26 @@ test('every successful HTTP route is counted only when it returns 2xx or 3xx', a
       headers: { 'content-type': 'application/json' },
       body: '{}',
     })).status, 200)
-    assert.equal((await check('/')).status, 200)
+    assert.equal((await check('/api/settings/email')).status, 200)
+    assert.equal((await check('/api/settings/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ host: 'smtp.example.com', from: 'a@example.com' }),
+    })).status, 200)
+    assert.equal((await check('/api/settings/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'test', to: 'a@example.com' }),
+    })).status, 200)
+    assert.equal((await check('/api/settings/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'clear' }),
+    })).status, 200)
+    const page = await check('/')
+    assert.equal(page.status, 200)
+    // 构建后资源名会变；HTML 不能留在浏览器缓存里，否则一直跑旧界面。
+    assert.equal(page.headers.get('cache-control'), 'no-store')
     for (const action of ROOM_ACTIONS) {
       const response = await check(`/api/rooms/room-1/${action}`, {
         method: 'POST',
@@ -102,7 +125,7 @@ test('every successful HTTP route is counted only when it returns 2xx or 3xx', a
       assert.equal(response.status, 200, `${action} returned ${response.status}`)
     }
     assert.deepEqual(ctx.actions.sort(), [...ROOM_ACTIONS].sort())
-    assert.equal(covered.length, 13 + ROOM_ACTIONS.length)
+    assert.equal(covered.length, 17 + ROOM_ACTIONS.length)
   } finally {
     await ctx.close()
   }

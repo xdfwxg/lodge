@@ -201,6 +201,13 @@ export const validateRoster = (members, { requireWorker = true } = {}) => {
       throw new Error('外部工具只能给只读角色；验收员不能挂外部工具')
     }
   }
+  // 规划师只读：能规划、能读，不执行也不写。写和执行都在执行官那一步。
+  // 自定义编制没有显式 lead 时，负责人由第一个成员兼任，不套规划师的约束。
+  for (const lead of leads) {
+    if (lead.permissions?.read !== true || lead.permissions?.exec === true || lead.permissions?.write === true) {
+      throw new Error(`member contract: lead ${lead.id} must be read-only`)
+    }
+  }
   const lead = roleMembers(members).lead
   if (lead.role === 'lead' && lead.mcp.some(grant => !isBrowserGrant(grant))) {
     throw new Error('外部工具只能给只读角色；规划师不能挂外部工具')

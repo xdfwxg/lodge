@@ -98,6 +98,8 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 基座旧房间回收（gc:base） | `server/base-gc.test.js`、`server/crew/base-error.test.js` | 真实基座可选 |
 | 成员身体与换模型 | `server/crew/body-change.test.js`、`server/crew/body-check.test.js`、`server/crew/body-spec.test.js` | 无 |
 | 界面阶段门与结论卡 | `ui/src/room/studio/message-view.test.js` | 无 |
+| 常驻承诺：创建、暂停/恢复、改口、手动跑、到点开一轮、忙时跳过、错过补一次 | `shared/promise.test.js`、`server/crew/promise/actions.test.js`、`server/crew/promise/runtime.test.js`、`ui/src/room/promise-card.test.js`、`ui/src/room/promise-dialog.test.js` | 真实模型跑一期需 dogfood |
+| 邮件投递：设置界面（常见服务商自动识别）、配置落盘权限、正文、收件人、有变化才发、重试和已发回执 | `shared/email-presets.test.js`、`server/crew/delivery/email.test.js`、`server/crew/promise/email.test.js`、`server/crew/promise/email-runtime.test.js`、`server/crew/promise/record.test.js`、`e2e/profile.spec.mjs` | 真实 SMTP 需配置后 dogfood |
 
 ## 没在自动覆盖里的
 
@@ -106,7 +108,9 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 - 复核超时：定时是 10 分钟，单元级只覆盖判定逻辑，没有实跑完整超时。
 - macOS 打包、ad-hoc 签名和桌面外壳：手工 smoke，不在单元测试里。
 - 外部 MCP 市场、第三方工具和外部通知：没有接入，不做假覆盖。
-- 常驻意图（定时）：设计稿，尚未接线；没有生产入口和自动用例。
+- 常驻承诺的真实一期：到点或手动跑真实模型还没 dogfood；自动用例只覆盖调度、状态和界面。
+- 常驻承诺的邮件投递：真实 SMTP 发送需配置后 dogfood；自动用例只覆盖配置解析、正文和重试收据。
+- 常驻承诺的对比与后台：前后期对比、无变化自动停、发现重复后提议、后台常驻未做，不做假覆盖。
 
 真实跑过的路径和未触发项记在 [validation.md](validation.md)。
 

@@ -67,6 +67,7 @@ export const auditPng = async ({ file } = {}) => {
   } catch {
     return null
   } finally {
-    rmSync(dir, { recursive: true, force: true })
+    // 浏览器/解码进程可能还握着临时目录；清理失败不能把已经拿到的审计判成失败。
+    try { rmSync(dir, { recursive: true, force: true }) } catch {}
   }
 }

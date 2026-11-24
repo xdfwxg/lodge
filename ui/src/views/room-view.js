@@ -1,4 +1,4 @@
-import { createElement as h, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createElement as h, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Composer } from '../composer.js'
 import { BodySwapDialog } from '../room/body-swap-dialog.js'
 import { MemberAddDialog } from '../room/member-add-dialog.js'
@@ -212,6 +212,8 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       : list
   }, [room.members])
 
+  // 交付卡里的图片读取依赖 onRead 的引用；这里保持稳定，文件缺失时不会每次渲染都重试。
+  const readArtifact = useCallback((roomId, path) => store.readArtifact(roomId, path), [store])
   const actions = {
     store,
     rooms: state.rooms,
@@ -219,7 +221,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
     rework: (stage, note) => store.rework(stage, note),
     chooseHuman: (stage, choice, note) => store.humanChoice(stage, choice, note),
     answerDecision: (decisionId, optionId, text) => store.answerDecision(decisionId, optionId, text),
-    readArtifact: (roomId, path) => store.readArtifact(roomId, path),
+    readArtifact: readArtifact,
     resolveMerge: () => store.resolveMerge(),
     retry: (stage, note) => void store.retry(stage, note),
     verify: stage => store.verify(stage),
@@ -242,6 +244,10 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       setAddOpen(true)
     },
     forgetMemory: () => store.forgetMemory(),
+    createPromise: input => store.createPromise(input),
+    updatePromise: input => store.updatePromise(input),
+    runPromise: () => store.runPromise(),
+    keepPromise: input => store.createPromise(input),
   }
   const finished = stagesCompletedOf(room)
   const canStartRound = mode.canStartRound?.({ room }) === true

@@ -198,6 +198,7 @@ export const prepareRoom = ({ source, short, members }) => {
         cwd: base,
         stdio: ['ignore', 'ignore', 'pipe'],
       })
+      stripTrackedSecrets(path)
       byMember[member.id] = { path, kind: 'clone' }
     }
     const workers = members.filter(member => member.role === 'worker')
@@ -266,6 +267,7 @@ export const addMember = ({ room, member }) => {
       cwd: base,
       stdio: ['ignore', 'ignore', 'pipe'],
     })
+    stripTrackedSecrets(path)
   }
   return {
     path,

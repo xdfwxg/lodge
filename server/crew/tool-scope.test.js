@@ -16,9 +16,21 @@ test('tool scope never narrows native tools: claudeAgent cannot run with that se
   }
 })
 
-test('only the executor hides the room gate tools', () => {
+test('the executor and chat members hide the whole room gate', () => {
   assert.deepEqual(toolScopeFor({ roleKind: 'executor' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*', 'mcp:ogb:ask_user'])
   assert.deepEqual(toolScopeFor({ roleKind: 'participant' }).deny, ['mcp:agents:*', 'mcp:lodge_gate:*'])
-  assert.deepEqual(toolScopeFor({ roleKind: 'planner' }).deny, ['mcp:agents:*', 'mcp:ogb:ask_user'])
-  assert.deepEqual(toolScopeFor({ roleKind: 'verifier' }).deny, ['mcp:agents:*', 'mcp:ogb:ask_user'])
+})
+
+test('the planner never sees the verdict tool', () => {
+  const deny = toolScopeFor({ roleKind: 'planner' }).deny
+  assert.ok(deny.includes('mcp:lodge_gate:submit_verdict'))
+  assert.equal(deny.includes('mcp:lodge_gate:submit_decision'), false)
+})
+
+test('the verifier only sees the verdict tool', () => {
+  const deny = toolScopeFor({ roleKind: 'verifier' }).deny
+  for (const tool of ['submit_decision', 'ask_decision', 'ask_question', 'rewind_stage', 'stop_round', 'resume_round']) {
+    assert.ok(deny.includes(`mcp:lodge_gate:${tool}`), tool)
+  }
+  assert.equal(deny.includes('mcp:lodge_gate:submit_verdict'), false)
 })

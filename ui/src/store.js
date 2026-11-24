@@ -317,6 +317,25 @@ export function createStore() {
       await refreshRooms()
       return data
     },
+    emailSettings: async () => {
+      const data = await get('/api/settings/email')
+      return data?.settings ?? null
+    },
+    saveEmailSettings: async input => {
+      const data = await post('/api/settings/email', input)
+      if (data?.settings === undefined) return { ok: false, error: state.error ?? '没保存上' }
+      return { ok: true, settings: data.settings }
+    },
+    clearEmailSettings: async () => {
+      const data = await post('/api/settings/email', { action: 'clear' })
+      if (data?.settings === undefined) return { ok: false, error: state.error ?? '没断开' }
+      return { ok: true, settings: data.settings }
+    },
+    testEmail: async input => {
+      const data = await post('/api/settings/email', { action: 'test', ...input })
+      if (data?.to === undefined) return { ok: false, error: state.error ?? '没发出去' }
+      return { ok: true, to: data.to, id: data.id ?? '' }
+    },
     // 已交付的工作室：不重回填表，直接把这句话变成下一轮的目标。
     startRound: async (text, options = {}) => {
       const roomId = options.roomId ?? state.activeId
@@ -466,6 +485,18 @@ export function createStore() {
       acceptRoom(data.room)
       return { ok: true }
     },
+    createPromise: async input => {
+      const data = await post(`/api/rooms/${state.activeId}/promise`, input)
+      if (data?.room !== undefined) acceptRoom(data.room)
+      return data
+    },
+    updatePromise: async input => {
+      const data = await post(`/api/rooms/${state.activeId}/promise-update`, input)
+      if (data?.room === undefined) return { ok: false, error: state.error ?? '没保存上' }
+      acceptRoom(data.room)
+      return { ok: true, room: data.room }
+    },
+    runPromise: () => post(`/api/rooms/${state.activeId}/promise-run`, {}),
     refresh: load,
   }
 }

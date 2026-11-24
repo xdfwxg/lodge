@@ -7,6 +7,7 @@ import {
   isNativeImage,
 } from '../shared/attachments.js'
 import { matchRoomAction } from './route-table.js'
+import * as log from './crew/log.js'
 import { pageAssignments } from './crew/assignment-history.js'
 import { presentRoom } from './crew/presentation.js'
 
@@ -21,7 +22,8 @@ const MIME = {
 }
 
 const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-const htmlHeaders = { 'content-type': MIME['.html'], 'content-security-policy': CSP }
+// HTML 不进浏览器缓存：每次构建后资源名会变，缓存住旧页面会一直跑旧界面。
+const htmlHeaders = { 'content-type': MIME['.html'], 'content-security-policy': CSP, 'cache-control': 'no-store' }
 
 export const STATUS = {
   invalid: 400,
@@ -195,6 +197,25 @@ export const createHttpHandler = ({
 
     if (path === '/api/profile' && req.method === 'POST') {
       return respond(res, service.saveProfile(await readJson(req)))
+    }
+
+    if (path === '/api/settings/email' && req.method === 'GET') {
+      return respond(res, service.emailSettings())
+    }
+
+    if (path === '/api/settings/email' && req.method === 'POST') {
+      log.info('[lodge] 收到邮箱设置请求')
+      const body = await readJson(req)
+      if (body?.action === 'test') return respond(res, await service.testEmail(body))
+      if (body?.action === 'clear') {
+        log.info('[lodge] 邮箱设置已断开')
+        return respond(res, service.clearEmailSettings())
+      }
+      const saved = service.saveEmailSettings(body)
+      // 只记结果，不记地址和密码；保存没到达或没通过时，日志是唯一的现场。
+      if (saved?.ok === true) log.info('[lodge] 邮箱设置已保存')
+      else log.warn(`[lodge] 邮箱设置没保存：${saved?.error ?? '未知原因'}`)
+      return respond(res, saved)
     }
 
     if (path === '/api/roster/recommend' && req.method === 'POST') {

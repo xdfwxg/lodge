@@ -3,6 +3,9 @@
 export const ROOM_ACTIONS = Object.freeze([
   'messages',
   'rounds',
+  'promise',
+  'promise-update',
+  'promise-run',
   'lodge',
   'accept',
   'human-choice',

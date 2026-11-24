@@ -6,6 +6,9 @@ import { PausedPanel } from '../paused-panel.js'
 import { StudioTranscript } from './transcript.js'
 import { returnToChatSeed } from '../../room-seeds.js'
 import { TypingLine } from '../typing-line.js'
+import { PromiseCard } from '../promise-card.js'
+import { DEFAULT_PROMISE_SCHEDULE } from '../../../../shared/promise.js'
+import { stripAttachmentTags } from '../../../../shared/attachments.js'
 import { studioTyping } from './typing.js'
 
 // 工作室的房间视图：一条聊天记录、一行状态、一个输入框；动作只在轮到你时出现。
@@ -52,6 +55,14 @@ export const studioView = {
         room,
         onResume: () => actions.resume(),
         onFixMember: memberId => actions.swapBody(memberId),
+      }),
+      h(PromiseCard, {
+        room,
+        onRun: () => actions.runPromise(),
+        onPause: () => actions.updatePromise({ status: 'paused' }),
+        onResume: () => actions.updatePromise({ status: 'active' }),
+        onStop: () => actions.updatePromise({ status: 'stopped' }),
+        onUpdate: input => actions.updatePromise(input),
       }))
   },
   activity: () => null,
@@ -74,6 +85,12 @@ export const studioView = {
       onAnswerCard: actions.answerCard,
       onCancelQueue: actions.cancelQueue,
       onSteerQueue: actions.steerQueue,
+      onKeepPromise: room.demo !== true && (room.promise === undefined || room.promise === null)
+        ? () => actions.keepPromise({
+          text: stripAttachmentTags(room.goal ?? room.workRound?.goal ?? '').trim(),
+          schedule: DEFAULT_PROMISE_SCHEDULE,
+        })
+        : null,
       onDiscussChat: (() => {
         const seed = returnToChatSeed(room)
         return seed === null ? null : () => actions.startChat(seed)

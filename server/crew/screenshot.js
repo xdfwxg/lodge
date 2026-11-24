@@ -40,6 +40,7 @@ export const captureHtml = async ({ file, out, width = 1200, height = 900 } = {}
   } catch {
     return null
   } finally {
-    rmSync(profile, { recursive: true, force: true })
+    // Chrome 退出时还可能握着临时目录里的文件；清理失败不能把已经截好的图判成失败。
+    try { rmSync(profile, { recursive: true, force: true }) } catch {}
   }
 }

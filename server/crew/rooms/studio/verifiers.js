@@ -59,11 +59,25 @@ const turnFloor = (messages, stageIndex) => (
 
 const evidenceFloor = (messages, stageIndex) => Math.max(reworkFloor(messages, stageIndex), turnFloor(messages, stageIndex))
 
-const ledgerOf = (evidence, messages) => Array.isArray(evidence)
-  ? evidence
-  : messages.filter(message => (
+const ledgerOf = (evidence, messages) => {
+  const fromMessages = messages.filter(message => (
     message.kind === 'evidence' && (message.meta?.kind === 'command' || message.meta?.kind === 'manual')
   ))
+  // 没有独立 ledger 时沿用消息账本（测试和旧调用都走这里）。
+  if (!Array.isArray(evidence)) return fromMessages
+  // 有 ledger 时以 ledger 为准；只补系统刚写入、ledger 还没带上的手工凭证。
+  const fromSystem = messages.filter(message => (
+    message.kind === 'evidence' &&
+    message.meta?.kind === 'manual' &&
+    message.authorId === 'system'
+  ))
+  const byId = new Map()
+  for (const item of [...evidence, ...fromSystem]) {
+    const key = item?.id ?? `${item?.seq ?? ''}:${item?.meta?.stage ?? ''}`
+    if (!byId.has(key)) byId.set(key, item)
+  }
+  return [...byId.values()]
+}
 
 // 产品自己跑的那条检查（不是验收命令）；最近一条失败时，这一步还没资格交给人。
 export const latestAutoCheck = (messages, stageIndex, floor = -1) => [...messages]

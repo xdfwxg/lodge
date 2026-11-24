@@ -3,6 +3,7 @@ import { createLodgeActions } from './room/lodge.js'
 import { createRunActions } from './room/run.js'
 import { createAdminActions } from './room/admin.js'
 import { createRoundActions } from './room/round.js'
+import { createPromiseActions } from '../promise/actions.js'
 import { createStudioMessageHandler } from '../rooms/studio/facade.js'
 import { ROOM_STATE } from '../../../shared/states.js'
 
@@ -38,6 +39,7 @@ export const createRoomActions = (ctx) => {
     ...createRunActions(deps),
     ...createAdminActions(deps),
     ...createRoundActions(deps),
+    ...createPromiseActions(deps),
   }
 
   const roomRequest = async (roomId, action, { method, readBody = async () => ({}) }) => {

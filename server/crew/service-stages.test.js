@@ -230,6 +230,20 @@ test('a studio cannot sign without a Verifier PASS', () => {
   assert.equal(ctx.room().stages[0].state, 'active')
 })
 
+test('a force flag cannot sign without a Verifier PASS', () => {
+  const ctx = setup(room({
+    live: false,
+    roomType: 'studio',
+    verificationMode: 'hybrid',
+    verifiers: ['verifier'],
+    stages: [{ title: '验收与结论', kind: 'decision', state: 'active' }],
+  }))
+  const result = ctx.stages.accept(ctx.room(), { stage: 0, force: true })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /验收员/)
+  assert.equal(ctx.room().stages[0].state, 'active')
+})
+
 test('accepting a work stage writes a stage conclusion before the next stage starts', () => {
   const ctx = setup(room({
     live: false,

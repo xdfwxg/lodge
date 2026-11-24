@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { latestReviewTimeout, reviewState } from './verifiers.js'
+import { latestReviewTimeout, manualEvidenceFor, reviewState } from './verifiers.js'
 
 const timeout = (ts, stage = 0) => ({
   kind: 'system',
@@ -15,6 +15,18 @@ test('the latest review timeout is found per stage', () => {
   assert.equal(latestReviewTimeout(messages, 1).ts, 30)
   assert.equal(latestReviewTimeout(messages, 2), undefined)
   assert.equal(latestReviewTimeout([], 0), undefined)
+})
+
+test('manual evidence is found even when the evidence table is behind the messages', () => {
+  const room = { demo: false, stages: [{ state: 'active', kind: 'decision', manual: true }] }
+  const messages = [{
+    kind: 'evidence',
+    authorId: 'system',
+    id: 'm1',
+    seq: 1,
+    meta: { stage: 0, kind: 'manual' },
+  }]
+  assert.equal(manualEvidenceFor(room, [], messages, 0)?.id, 'm1')
 })
 
 test('a review round keeps the verifiers it started with when a member is added', () => {

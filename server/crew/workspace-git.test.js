@@ -105,7 +105,7 @@ test('a low disk watermark stops preparation before worktrees are left behind', 
   }
 })
 
-test('verifier worktrees never receive tracked env secrets', () => {
+test('read-only copies never receive tracked env secrets', () => {
   const sourceRepo = repo()
   writeFileSync(join(sourceRepo, '.env'), 'TOKEN=secret\n')
   writeFileSync(join(sourceRepo, '.env.example'), 'TOKEN=\n')
@@ -119,9 +119,12 @@ test('verifier worktrees never receive tracked env secrets', () => {
     workspaces = prepareRoom({ source: sourceRepo, short: 'env1234', members: membersFor('delivery-triad') })
     const executor = workspaces.members.executor.path
     const verifier = workspaces.members.verifier.path
+    const planner = workspaces.members.planner.path
     assert.equal(existsSync(join(executor, '.env')), true)
     assert.equal(existsSync(join(verifier, '.env')), false)
     assert.equal(existsSync(join(verifier, '.env.example')), true)
+    assert.equal(existsSync(join(planner, '.env')), false)
+    assert.equal(existsSync(join(planner, '.env.example')), true)
     refreshReviewCopy({ path: verifier, branch: workspaces.branches.executor })
     assert.equal(existsSync(join(verifier, '.env')), false)
   } finally {

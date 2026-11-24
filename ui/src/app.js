@@ -192,6 +192,7 @@ export function App() {
     h(ProfileDialog, {
       open: profileOpen,
       profile,
+      store,
       onClose: () => setProfileOpen(false),
       onSave: next => {
         setProfile(saveProfile(next))

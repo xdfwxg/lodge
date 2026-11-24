@@ -64,6 +64,8 @@ export const createLiveRooms = ({
   let rewindStage = null
   let stopRound = null
   let resumeRound = null
+  let promiseRunner = null
+  let emailRunner = null
   const projector = createMessageProjector({ store })
   const refresher = createRoomRefresher({ store, engine, emit })
   const approvals = createLiveApprovals({
@@ -429,6 +431,14 @@ export const createLiveRooms = ({
 
   // 持久队列到期后按 kind 交给房型；调度器不认识房型，也不认识新的活。
   const handleWork = async event => {
+    if (event.kind === 'promise.tick') {
+      if (typeof promiseRunner !== 'function') return false
+      return await promiseRunner(event)
+    }
+    if (event.kind === 'email.send') {
+      if (typeof emailRunner !== 'function') return false
+      return await emailRunner(event)
+    }
     if (event.kind === 'approval') {
       await expireApprovals(event.roomId, '确认超时')
       return true
@@ -494,6 +504,8 @@ export const createLiveRooms = ({
     setRewindStage: handler => { rewindStage = handler },
     setStopRound: handler => { stopRound = handler },
     setResumeRound: handler => { resumeRound = handler },
+    setPromiseRunner: handler => { promiseRunner = handler },
+    setEmailRunner: handler => { emailRunner = handler },
     handleWork,
     decideApproval,
     expireApprovals,

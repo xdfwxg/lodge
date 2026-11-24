@@ -9,6 +9,19 @@ import { startRound } from './rounds/start.js'
 import { reconcileCompletions } from './rounds/recovery.js'
 import { failRound, rejectRound, resumeRound, stopRound, supersedeRound } from './rounds/lifecycle.js'
 import { createRoomActions } from './actions/room-actions.js'
+import { createPromiseRunner } from './promise/runtime.js'
+import { promiseOf } from './promise/contract.js'
+import { emailOf, emailWorthSending } from './promise/email.js'
+import { recordPromiseDelivery } from './promise/record.js'
+import { createEmailRunner } from './promise/email-runtime.js'
+import {
+  clearSmtpSettings,
+  emailConfigError,
+  emailReady,
+  saveSmtpSettings,
+  sendEmail,
+  smtpSettingsOf,
+} from './delivery/email.js'
 import { createServiceQueries } from './service-queries.js'
 import { createServiceChat } from './rooms/chat/service.js'
 import { createServiceStages } from './rooms/studio/service-stages.js'
@@ -26,6 +39,7 @@ import {
 } from './rooms/sample.js'
 import { artifactKindOf, imageMimeOf } from '../../shared/artifact.js'
 import { systemNotice } from './notices.js'
+import { plainRuntimeError } from './base-error.js'
 import { INTERNAL_PROMPT_MARKER } from './internal-prompts.js'
 import { cleanHumanName, setCurrentHumanName } from './human-name.js'
 import { isAttachmentName, textOfFile } from './attachments.js'
@@ -81,6 +95,54 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       log.warn(`[lodge] 房间记忆没有写入：${error?.message ?? error}`)
     }
   }
+  const readTextArtifact = (room, path) => {
+    try {
+      if (typeof path !== 'string' || path === '') return ''
+      if (!['document', 'text'].includes(artifactKindOf(path))) return ''
+      const roots = [room.repoPath, ...Object.values(room.worktrees ?? {})]
+        .filter(root => typeof root === 'string' && root !== '')
+        .map(root => root.replace(/\/$/, ''))
+      if (!roots.some(root => path === root || path.startsWith(`${root}/`))) return ''
+      if (ports.files?.exists?.(path) !== true) return ''
+      return String(ports.files.read(path)).slice(0, 200_000)
+    } catch {
+      return ''
+    }
+  }
+  // 一轮交付后，如果这间房说好要发邮箱，平台把结果排进同一个队列；不阻塞收口。
+  const queuePromiseEmail = done => {
+    if (done === null || done === undefined) return
+    const promise = promiseOf(done)
+    if (promise === null || promise.status !== 'active') return
+    if (promise.delivery?.channel !== 'email') return
+    if (emailWorthSending(promise) !== true) {
+      store.appendMessage?.(done.id, {
+        kind: 'system',
+        text: '这次和上次一样，没有发邮件。',
+        meta: { kind: 'notice', show: true },
+      })
+      return
+    }
+    const roundId = done.workRound?.id ?? done.lastRoundId ?? null
+    const payload = emailOf({
+      room: done,
+      promise,
+      roundId,
+      messages: readMessages(done.id),
+      readArtifact: path => readTextArtifact(done, path),
+    })
+    if (payload.to === '' || payload.text.trim() === '') return
+    const id = `email.send:${done.id}:${roundId ?? 'latest'}`
+    store.enqueueWork?.({
+      id,
+      roomId: done.id,
+      kind: 'email.send',
+      payload,
+      dedupeKey: id,
+      availableAt: 0,
+      maxAttempts: 3,
+    })
+  }
   const finishRoom = createRoomCompleter({ store, emit, roomFiles, workspace }).completeRoom
   const completeRoom = room => {
     const done = finishRoom(room)
@@ -88,6 +150,14 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
       try { live.detach?.(done.id) } catch {}
     }
     recordMemory(done)
+    const recorded = recordPromiseDelivery({
+      store,
+      room: done,
+      messages: readMessages(done.id),
+      readArtifact: path => readTextArtifact(done, path),
+    })
+    if (recorded !== null) emit('room', recorded)
+    queuePromiseEmail(recorded ?? done)
     return done
   }
   const stages = createServiceStages({ store, live, emit, completeRoom, roomFiles, workspace: ports.workspace })
@@ -257,6 +327,9 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     return ok({ profile })
   }
 
+  live.setPromiseRunner?.(createPromiseRunner({ store, live, emit, startRound, roomFiles }))
+  live.setEmailRunner?.(createEmailRunner({ store, emit }))
+
   const { roomRequest } = createRoomActions({
     store,
     live,
@@ -266,6 +339,7 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     files,
     workspace,
     startRound,
+    emailReady,
     stopRound,
     resumeRound,
     failRound,
@@ -281,11 +355,41 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     resolveMerge,
   })
 
+  const emailSettings = () => ok({ settings: smtpSettingsOf() })
+  const saveEmailSettings = input => {
+    const saved = saveSmtpSettings(input)
+    if (saved.error !== undefined) return fail('invalid', saved.error)
+    return ok({ settings: saved.settings })
+  }
+  const clearEmailSettings = () => ok({ settings: clearSmtpSettings().settings })
+  const testEmail = async input => {
+    const settings = smtpSettingsOf()
+    // 测试邮件默认发给自己；收件邮箱只在想发到别处时才填。
+    const to = String(input?.to ?? '').trim() || settings.to || settings.from || ''
+    if (to === '') return fail('invalid', '填一个收件邮箱')
+    const problem = emailConfigError()
+    if (problem !== '') return fail('unavailable', problem)
+    try {
+      const sent = await sendEmail({
+        to,
+        subject: 'Lodge 邮件连接测试',
+        text: '这封是 Lodge 的 SMTP 连接测试。收到它，说明邮箱已经接上；可以回房间把承诺设成「发到邮箱」。',
+      })
+      return ok({ to, id: sent.id })
+    } catch (error) {
+      return fail('upstream', `没发出去：${plainRuntimeError(error)}`)
+    }
+  }
+
   return {
     ...queries,
     createRoom,
     createSampleRoom,
     roomRequest,
+    emailSettings,
+    saveEmailSettings,
+    clearEmailSettings,
+    testEmail,
     reconcileCompletion: () => reconcileCompletions({ store, completeRoom }),
     // 附件进基座自己的库：图片成为原生视觉输入，文件按路径交给能读文件的人。
     uploadAttachment: async ({ bytes, mime, name } = {}) => {

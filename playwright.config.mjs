@@ -30,6 +30,8 @@ export default defineConfig({
       CREW_DATA_DIR: dataDir,
       // E2E 不接本机基座，避免界面状态随开发机安装的 CLI 变化。
       CREW_BASE_URL: 'http://127.0.0.1:8798',
+      // 邮箱设置写临时目录，不碰开发机自己的 ~/.lodge/smtp.json。
+      LODGE_SMTP_CONFIG: join(dataDir, 'smtp.json'),
     },
   },
 })
