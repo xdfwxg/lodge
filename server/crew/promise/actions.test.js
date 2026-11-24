@@ -75,6 +75,26 @@ test('a promise can be paused and resumed without losing its text', async () => 
   assert.equal(ctx.work.length, 1)
 })
 
+test('restarting a stopped promise clears its miss count', async () => {
+  const ctx = setup(makeRoom({
+    promise: {
+      text: '每周挑 5 个项目',
+      schedule: { every: 'week', weekday: 5, at: '18:00' },
+      status: 'stopped',
+      nextAt: Date.now() + 86_400_000,
+      version: 1,
+      runs: 3,
+      misses: 3,
+      stoppedReason: 'misses',
+    },
+  }))
+  const resumed = await ctx.call('promise-update', { status: 'active' })
+  assert.equal(resumed.ok, true)
+  assert.equal(ctx.room.promise.status, 'active')
+  assert.equal(ctx.room.promise.misses, 0)
+  assert.equal(ctx.room.promise.stoppedReason, null)
+})
+
 test('run now queues one manual tick and refuses while a round is open', async () => {
   const ctx = setup(makeRoom({
     promise: {

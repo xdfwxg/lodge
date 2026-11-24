@@ -6,6 +6,9 @@ export const PROMISE_STATUS = Object.freeze({
   stopped: 'stopped',
 })
 
+// 连续这么多次没能开起来，就不再自动排下一期；人重新开始才继续。
+export const PROMISE_MAX_MISSES = 3
+
 export const DEFAULT_PROMISE_SCHEDULE = Object.freeze({ every: 'week', weekday: 5, at: '18:00' })
 
 const WEEKDAY_NAMES = Object.freeze(['周日', '周一', '周二', '周三', '周四', '周五', '周六'])

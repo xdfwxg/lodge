@@ -96,6 +96,43 @@ test('a stale tick does not start a round', async () => {
   assert.equal(ctx.rounds.length, 0)
 })
 
+test('three failed starts stop the promise', async () => {
+  const ctx = setup()
+  ctx.runner = createPromiseRunner({
+    store: ctx.store,
+    live: {},
+    emit: () => {},
+    startRound: async () => ({ ok: false, error: '这一轮还没结束' }),
+    roomFiles: {},
+  })
+  for (let index = 0; index < 3; index += 1) {
+    await ctx.runner({ roomId: 'room-1', kind: 'promise.tick', payload: { at: ctx.room.promise.nextAt } })
+  }
+  assert.equal(ctx.room.promise.misses, 3)
+  assert.equal(ctx.room.promise.status, 'stopped')
+  assert.equal(ctx.room.promise.stoppedReason, 'misses')
+  assert.ok(ctx.messages.some(message => message.text.includes('这件事停了')))
+  assert.equal(ctx.work.length, 2)
+})
+
+test('three skipped occurrences also stop the promise', async () => {
+  const ctx = setup({ busy: true })
+  for (let index = 0; index < 3; index += 1) {
+    await ctx.runner({ roomId: 'room-1', kind: 'promise.tick', payload: { at: ctx.room.promise.nextAt } })
+  }
+  assert.equal(ctx.room.promise.misses, 3)
+  assert.equal(ctx.room.promise.status, 'stopped')
+  assert.equal(ctx.work.length, 2)
+})
+
+test('a successful start clears the miss count', async () => {
+  const ctx = setup()
+  ctx.promise.misses = 2
+  await ctx.runner({ roomId: 'room-1', kind: 'promise.tick', payload: { at: ctx.promise.nextAt } })
+  assert.equal(ctx.room.promise.misses, 0)
+  assert.equal(ctx.room.promise.status, 'active')
+})
+
 test('a failed start is recorded and the next occurrence is armed', async () => {
   const ctx = setup()
   ctx.runner = createPromiseRunner({

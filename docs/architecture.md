@@ -194,10 +194,12 @@ service.js                   ← 路由分发与用例组合
 
 定时不是一张 routine 表，也不是第二个调度器；它是房间上的一件“说好的事”，复用同一个 `work_item` 时钟和普通轮次。对外叫「说好的」或「每周给你」，代码里是 `room.promise`。**当前只支持工作室、每周/每天、本地时间、一个房间一件。**
 
-- 形状：`room.promise = { text, schedule: { every: 'week' | 'day', weekday?, at }, delivery: { channel: 'room' | 'email', to, mode: 'always' | 'changes' }, status: 'active' | 'paused' | 'stopped', nextAt, runs, lastRunAt, lastRoundId, lastRunStatus, lastChange, version }`。`text` 就是下一轮的目标；`delivery` 只是一次投递，不改变轮次。
-- 到点：`work_item` 里一项 `promise.tick`，id 带 room、nextAt 和 version；到点启动一轮普通轮次；开跑前再读一次版本，用户暂停或改口就不开。
+- 形状：`room.promise = { text, schedule: { every: 'week' | 'day', weekday?, at }, delivery: { channel: 'room' | 'email', to, mode: 'always' | 'changes' }, status: 'active' | 'paused' | 'stopped', nextAt, runs, misses, lastRunAt, lastRoundId, lastRunStatus, lastChange, version }`。`text` 就是下一轮的目标；`delivery` 只是一次投递，不改变轮次。
+- 到点：`work_item` 里一项 `promise.tick`，id 带 room、nextAt 和 version；到点启动一轮普通轮次；开跑前再读一次版本，用户暂停或改口就不开。同一时刻只有一项 tick，房间忙就不开，不排队也不并发。
 - 忙、暂停或房间停着：这一期跳过，记 `promise.skipped`，不排队；下次到点再来。关掉应用错过的到期项，下次打开补一次，并在房间说一句「这一期是补上的」。
+- 连续没开起来：跳过和启动失败都记一次 `misses`，成功开跑清零；连续 3 次没能启动就把承诺置为 `stopped`，不再排下一期，房间说一句「这件事停了；要跑就重新开始」。人重新开始是一段新的连续计数。
 - 启动失败：记 `promise.failed`，不重试同一期；排下一期，并用一句人话说没开起来。
+- 归档 / 删除：归档把活动承诺置为 `stopped`（`stoppedReason: 'archived'`）并取消已排的 tick；删除同样先取消 tick。取消归档不会自动恢复，要人按「重新开始」。
 - 控制：现在跑一次（同一条 tick，`manual`）、暂停/恢复、改一下、不做了；恢复和改口都会重新算下一次。
 - 对比：一期交付记一个内容指纹（结论 + 文本产物 + 文件路径），记 `lastChange = first | yes | no`；卡片说“第一期 / 上次有变化 / 上次没变化”。指纹不含轮次 id，同样的内容跨轮仍算没变化。
 - 邮件投递：承诺的 `delivery.channel === 'email'` 时，一轮交付后平台排一条 `email.send:<room>:<round>`（dedupe 同 id），正文优先取这次产出的文本，其次取结论和文件路径；发件箱是 `work_item`，重试 3 次，成功/最终失败都记在承诺上。`mode=changes` 时，没变化不发，只说一句“这次和上次一样”。地址和密码来自设置界面的 `~/.lodge/smtp.json`（600）或 `LODGE_SMTP_URL` / `LODGE_EMAIL_FROM`，不进房间、不进提示词；设置接口只回连接状态和发件人，不回密码。

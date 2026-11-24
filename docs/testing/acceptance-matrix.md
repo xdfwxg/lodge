@@ -102,7 +102,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 界面阶段门与结论卡 | `ui/src/room/studio/message-view.test.js` | 无 |
 | 工作室单人启动、规划师组队与工作包派发 | `server/crew/room-create.test.js`、`server/crew/rooms/studio/apply-plan.test.js`、`shared/crew-proposal.test.js`、`server/crew/live-turn-modules.test.js`、`ui/src/room/studio/create.test.js` | 真实模型组队需 dogfood |
 | 工作室成员由规划师决定，用户不能加减，只能换模型 | `ui/src/views/side-members.test.js`、`server/crew/live-turn-modules.test.js` | 真实房间需复查 |
-| 常驻承诺：创建、暂停/恢复、改口、手动跑、到点开一轮、忙时跳过、错过补一次 | `shared/promise.test.js`、`server/crew/promise/actions.test.js`、`server/crew/promise/runtime.test.js`、`ui/src/room/promise-card.test.js`、`ui/src/room/promise-dialog.test.js` | 真实模型跑一期需 dogfood |
+| 常驻承诺：创建、暂停/恢复、改口、手动跑、到点开一轮、忙时跳过、错过补一次、连续 3 次没启动停止、归档即停 | `shared/promise.test.js`、`server/crew/promise/actions.test.js`、`server/crew/promise/runtime.test.js`、`server/crew/actions/room/admin.test.js`、`ui/src/room/promise-card.test.js`、`ui/src/room/promise-dialog.test.js` | 真实模型跑一期需 dogfood |
 | 邮件投递：设置界面（常见服务商自动识别）、配置落盘权限、正文、收件人、有变化才发、重试和已发回执 | `shared/email-presets.test.js`、`server/crew/delivery/email.test.js`、`server/crew/promise/email.test.js`、`server/crew/promise/email-runtime.test.js`、`server/crew/promise/record.test.js`、`e2e/profile.spec.mjs` | 真实 SMTP 需配置后 dogfood |
 
 ## 没在自动覆盖里的

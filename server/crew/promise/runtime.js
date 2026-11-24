@@ -1,5 +1,5 @@
 import { OPEN_ROUND_STATUSES, ROOM_STATE } from '../../../shared/states.js'
-import { PROMISE_STATUS, nextPromiseRunAt } from '../../../shared/promise.js'
+import { PROMISE_MAX_MISSES, PROMISE_STATUS, nextPromiseRunAt } from '../../../shared/promise.js'
 import { promiseOf } from './contract.js'
 import { armPromise } from './queue.js'
 
@@ -47,17 +47,27 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
       notice(store, room.id, '房间还在忙，这一期没有开始；等这一轮跑完再手动跑。')
       return true
     }
+    const misses = (promise.misses ?? 0) + 1
+    const stopped = misses >= PROMISE_MAX_MISSES
     const updated = updatePromise({
       store,
       roomId: room.id,
       promise,
-      patch: { nextAt, lastRunAt: now, lastRunStatus: 'skipped' },
-      type: 'promise.skipped',
-      payload: { at: event.payload?.at },
+      patch: {
+        nextAt,
+        lastRunAt: now,
+        lastRunStatus: 'skipped',
+        misses,
+        ...(stopped ? { status: PROMISE_STATUS.stopped, stoppedAt: now, stoppedReason: 'misses' } : {}),
+      },
+      type: stopped ? 'promise.stopped' : 'promise.skipped',
+      payload: { at: event.payload?.at, misses },
     })
     if (updated !== null) {
       armPromise({ store, roomId: room.id, promise: updated.promise })
-      notice(store, room.id, '这一期房间还在忙，跳过了；下次到点再来。')
+      notice(store, room.id, stopped
+        ? `连续 ${PROMISE_MAX_MISSES} 次没能开起来，这件事停了；要跑就重新开始。`
+        : '这一期房间还在忙，跳过了；下次到点再来。')
       emit('room', updated)
     }
     return true
@@ -83,6 +93,8 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
   }
 
   if (result?.ok !== true) {
+    const misses = manual ? (promise.misses ?? 0) : (promise.misses ?? 0) + 1
+    const stopped = !manual && misses >= PROMISE_MAX_MISSES
     const updated = updatePromise({
       store,
       roomId: room.id,
@@ -92,13 +104,17 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
         lastRunAt: now,
         lastRunStatus: 'failed',
         lastError: String(result?.error ?? '这一期没有开起来').slice(0, 300),
+        misses,
+        ...(stopped ? { status: PROMISE_STATUS.stopped, stoppedAt: now, stoppedReason: 'misses' } : {}),
       },
-      type: 'promise.failed',
-      payload: { at: event.payload?.at, manual },
+      type: stopped ? 'promise.stopped' : 'promise.failed',
+      payload: { at: event.payload?.at, manual, misses },
     })
     if (updated !== null) {
       armPromise({ store, roomId: room.id, promise: updated.promise })
-      notice(store, room.id, `这一期没开起来：${result?.error ?? '先看看房间状态'}`)
+      notice(store, room.id, stopped
+        ? `连续 ${PROMISE_MAX_MISSES} 次没能开起来，这件事停了；要跑就重新开始。`
+        : `这一期没开起来：${result?.error ?? '先看看房间状态'}`)
       emit('room', updated)
     }
     return true
@@ -114,6 +130,7 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
       lastRunAt: now,
       lastRoundId: roundId,
       lastRunStatus: 'started',
+      misses: 0,
       runs: (promise.runs ?? 0) + 1,
     },
     type: 'promise.run',

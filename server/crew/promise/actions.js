@@ -90,6 +90,10 @@ export const createPromiseActions = ({ store, emit, emailReady = () => true }) =
       nextAt,
       updatedAt: now,
       version: promise.version + 1,
+      // 人重新开始是新的连续段；否则停掉前的次数会立刻把它再停一次。
+      ...(status === PROMISE_STATUS.active && promise.status !== PROMISE_STATUS.active
+        ? { misses: 0, stoppedAt: null, stoppedReason: null }
+        : {}),
     }
     const updated = store.updateRoom(room.id, current => {
       if (current.promise?.version !== promise.version) return null

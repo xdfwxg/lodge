@@ -2,6 +2,8 @@ import * as log from '../../log.js'
 import { fail, ok } from '../../result.js'
 import { OPEN_ROUND_STATUSES, ROOM_STATE } from '../../../../shared/states.js'
 import { roomDeletableNow } from '../../../../shared/room-status.js'
+import { PROMISE_STATUS } from '../../../../shared/promise.js'
+import { disarmPromise } from '../../promise/queue.js'
 
 // 房间本体的动作：改名、归档、删除、成员与身体。
 export const createAdminActions = deps => {
@@ -54,11 +56,22 @@ export const createAdminActions = deps => {
         live.detach?.(room.id)
       }
       const archivedAt = Date.now()
+      const promiseBefore = room.promise
       const updated = updateRoom(room.id, current => {
         current.archivedAt = archivedAt
         current.live = false
         // 已经结束的轮次如果还挂着 activeRoundId，归档时一并清掉，房间不会卡在“归档了但删不掉”。
         current.activeRoundId = null
+        // 归档即停：说好的事不会在归档期间继续排期；取消归档也不自动恢复。
+        if (current.promise?.status === PROMISE_STATUS.active) {
+          current.promise = {
+            ...current.promise,
+            status: PROMISE_STATUS.stopped,
+            stoppedAt: archivedAt,
+            stoppedReason: 'archived',
+            updatedAt: archivedAt,
+          }
+        }
         if (openRound || hadRound || current.state === ROOM_STATE.active) {
           current.state = ROOM_STATE.stopped
           current.idle = false
@@ -66,6 +79,7 @@ export const createAdminActions = deps => {
         return { events: [{ type: 'room.archived', payload: { stopped: openRound || hadRound } }] }
       })
       if (updated === null) return fail('not_found', '没有这个房间')
+      disarmPromise({ store: deps.store ?? {}, roomId: room.id, promise: promiseBefore })
       emit('room', updated)
       return ok({ room: updated })
     },
@@ -73,6 +87,7 @@ export const createAdminActions = deps => {
     delete: async ({ room }) => {
       // 只有正在跑的房要先停下再删；聊完了、交付了、停住了都能直接删，归档不是删除的前提。
       if (!roomDeletableNow(room)) return fail('conflict', '房间正在跑；先停下再删除')
+      disarmPromise({ store: deps.store ?? {}, roomId: room.id, promise: room.promise })
       if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
       // 删房时把成员身体和隐藏 Bot 一起退役；工作区和用户文件留着。
       try {

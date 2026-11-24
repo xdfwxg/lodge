@@ -15,8 +15,9 @@ const setup = over => {
   }
   const stopped = []
   const deleted = []
+  const cancelled = []
   const actions = createAdminActions({
-    store: {},
+    store: { cancelWork: id => { cancelled.push(id) } },
     live: {
       isAttached: () => false,
       detach: () => {},
@@ -46,7 +47,7 @@ const setup = over => {
       return true
     },
   })
-  return { actions, room: () => room, stopped, deleted }
+  return { actions, room: () => room, stopped, deleted, cancelled }
 }
 
 test('archiving stops a round that the stale menu snapshot could not see', async () => {
@@ -100,4 +101,34 @@ test('a chat round that is still running cannot be deleted', async () => {
   const result = await ctx.actions.delete({ room: ctx.room() })
   assert.equal(result.ok, false)
   assert.deepEqual(ctx.deleted, [])
+})
+
+test('archiving stops an active promise and cancels its tick', async () => {
+  const ctx = setup({
+    promise: { text: '每周挑 5 个项目', status: 'active', nextAt: 123, version: 1 },
+  })
+  await ctx.actions.archive({ room: ctx.room(), readBody: async () => ({}) })
+  assert.equal(ctx.room().promise.status, 'stopped')
+  assert.equal(ctx.room().promise.stoppedReason, 'archived')
+  assert.deepEqual(ctx.cancelled, ['promise.tick:room-1:123:1'])
+})
+
+test('unarchiving leaves the promise stopped', async () => {
+  const ctx = setup({
+    archivedAt: 1,
+    promise: { text: '每周挑 5 个项目', status: 'stopped', nextAt: 123, version: 1, stoppedReason: 'archived' },
+  })
+  await ctx.actions.archive({ room: ctx.room(), readBody: async () => ({ archived: false }) })
+  assert.equal(ctx.room().archivedAt, null)
+  assert.equal(ctx.room().promise.status, 'stopped')
+  assert.equal(ctx.cancelled.length, 0)
+})
+
+test('deleting a room cancels its promise tick', async () => {
+  const ctx = setup({
+    state: 'stopped',
+    promise: { text: '每周挑 5 个项目', status: 'stopped', nextAt: 123, version: 1 },
+  })
+  await ctx.actions.delete({ room: ctx.room() })
+  assert.deepEqual(ctx.cancelled, ['promise.tick:room-1:123:1'])
 })

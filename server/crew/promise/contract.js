@@ -28,6 +28,7 @@ export const newPromise = ({ text, schedule, delivery, now = Date.now() }) => {
     updatedAt: now,
     nextAt: nextPromiseRunAt(normalized, now),
     runs: 0,
+    misses: 0,
     lastRunAt: null,
     lastRoundId: null,
     lastRunStatus: null,
