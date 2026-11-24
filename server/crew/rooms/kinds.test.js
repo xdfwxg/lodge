@@ -48,8 +48,9 @@ test('member souls carry only their own mode discipline', () => {
   assert.match(studio, /复核副本/)
   assert.match(studio, /diff 之外/)
   assert.match(studio, /知道彼此的存在和能力/)
-  // 接力那句只写一次：在成员的工作契约里，房间里看得到。
-  assert.match(studio, /最后一行必须 @ 下一位/)
+  // 接力那句只写一次：在成员的工作契约里，系统负责投递。
+  assert.match(studio, /交给谁（写名字，不带 @）/)
+  assert.match(studio, /系统会把完整任务送到对方手里/)
   assert.match(studio, /不要自创角色/)
   assert.doesNotMatch(studio, /聊天室/)
   const worker = roomModeForType('studio').memberSoul({ name: '乙', role: 'worker', prompt: '你是乙。' })

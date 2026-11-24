@@ -239,8 +239,8 @@ test('a completed project starts the next round in the same studio', async ({ pa
     const body = route.request().postDataJSON()
     expect(body.text).toBe('修登录超时')
     expect(body.projectId).toBe('project-1')
-    expect(body.verify).toBe('test')
-    expect(body.acceptance).toBe('npm test')
+    expect(body.verify).toBeUndefined()
+    expect(body.acceptance).toBeUndefined()
     state = {
       ...state,
       rooms: [activeRoom],
@@ -253,34 +253,18 @@ test('a completed project starts the next round in the same studio', async ({ pa
   await page.getByRole('button', { name: /长期工作间/ }).first().click()
   await openProject(page)
   await page.getByLabel('下一轮要做什么？').fill('修登录超时')
-  await page.getByLabel('验收命令（可不填）').fill('npm test')
   await page.getByRole('button', { name: '开下一轮' }).click()
 
   await expect(page.getByText('2 轮 · 进行中')).toBeVisible()
   await expect(page.getByText('修登录超时').first()).toBeVisible()
 })
 
-test('a project asks one clear decision before opening a round', async ({ page, request }) => {
+test('a project asks only for the next goal, not a second decision', async ({ page, request }) => {
   const base = await (await request.get('/api/state')).json()
   let state = {
     ...base,
     rooms: [studio({ repoPath: '/tmp/room-1' })],
     projects: [project()],
-  }
-  const proposal = {
-    done: ['登录超时不再出现'],
-    stages: [{ title: '修登录超时', kind: 'deliverable', acceptance: 'npm test' }],
-    verify: 'test',
-    acceptance: 'npm test',
-    questions: [{
-      text: '先修哪一层？',
-      options: [
-        { label: '只加重试', cost: '快，但不解决根因' },
-        { label: '同时改服务端超时', cost: '慢，但更彻底' },
-      ],
-      recommendation: '同时改服务端超时',
-    }],
-    members: [{ role: 'lead' }, { role: 'worker' }, { role: 'verifier' }],
   }
   const nextRound = {
     ...completedRound,
@@ -292,18 +276,18 @@ test('a project asks one clear decision before opening a round', async ({ page, 
     completedAt: null,
     completedCommit: null,
   }
+  let recommended = false
   await page.route('**/api/state', route => route.fulfill({ json: state }))
-  await page.route('**/api/roster/recommend', async route => {
-    const body = route.request().postDataJSON()
-    expect(body.goal).toBe('修登录超时')
-    await route.fulfill({ json: { proposal } })
+  await page.route('**/api/roster/recommend', route => {
+    recommended = true
+    return route.fulfill({ json: { proposal: {} } })
   })
   await page.route('**/api/rooms/room-1/rounds', async route => {
     const body = route.request().postDataJSON()
-    expect(body.plan.questions).toBeUndefined()
-    expect(body.plan.answers[0].question).toBe('先修哪一层？')
-    expect(body.plan.answers[0].answer).toBe('同时改服务端超时')
-    expect(body.plan.stages[0].title).toBe('修登录超时')
+    expect(body.text).toBe('修登录超时')
+    expect(body.plan).toBeUndefined()
+    expect(body.verify).toBeUndefined()
+    expect(body.acceptance).toBeUndefined()
     state = {
       ...state,
       rooms: [studio({
@@ -321,19 +305,13 @@ test('a project asks one clear decision before opening a round', async ({ page, 
 
   await page.getByRole('button', { name: /长期工作间/ }).first().click()
   await openProject(page)
+  await expect(page.getByLabel('验收命令（可不填）')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '先出方案' })).toHaveCount(0)
+  await expect(page.getByText('开工前决定')).toHaveCount(0)
+
   await page.getByLabel('下一轮要做什么？').fill('修登录超时')
-  await page.getByRole('button', { name: '先出方案' }).click()
-  await expect(page.getByText('先修哪一层？')).toBeVisible()
-  await expect(page.locator('.crew-decision')).toHaveCount(1)
-  await expect(page.getByRole('radio', { name: /只加重试/ })).toHaveAttribute('aria-checked', 'false')
-  await expect(page.getByText('推荐')).toBeVisible()
-  const chosen = page.getByRole('radio', { name: /同时改服务端超时/ })
-  await expect(chosen).toHaveAttribute('aria-checked', 'true')
-  await page.getByRole('radio', { name: /只加重试/ }).click()
-  await expect(page.getByRole('radio', { name: /只加重试/ })).toHaveAttribute('aria-checked', 'true')
-  await chosen.click()
-  await expect(chosen).toHaveAttribute('aria-checked', 'true')
-  await page.getByRole('button', { name: '开始这一轮' }).click()
+  await page.getByRole('button', { name: '开下一轮' }).click()
 
   await expect(page.getByText('2 轮 · 进行中')).toBeVisible()
+  expect(recommended).toBe(false)
 })

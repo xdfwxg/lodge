@@ -18,6 +18,12 @@ for (const entry of entries) {
   const test = typeof entry?.test === 'string' ? entry.test.trim() : ''
   if (test === '' || !existsSync(join(root, test))) {
     errors.push(`${entry.id}: missing test ${test || '(empty)'}`)
+    continue
+  }
+  // 文件在但测试被删空/改名，门禁不能继续绿。
+  const source = readFileSync(join(root, test), 'utf8')
+  if (!/\btest\s*\(/.test(source)) {
+    errors.push(`${entry.id}: ${test} has no test()`)
   }
 }
 

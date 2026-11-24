@@ -148,8 +148,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
         item.id !== state?.id &&
         Math.abs((item.ts ?? 0) - at) <= 5_000 &&
         (plain(item.text) === plain(text) ||
-          plain(item.text).startsWith(plain(text)) ||
-          plain(text).startsWith(plain(item.text)))
+          // 只把“更短的 digest”当成同一句；更长的后续是真消息，不能吞。
+          plain(item.text).startsWith(plain(text)))
       ))
       : undefined
     if (duplicate !== undefined) {

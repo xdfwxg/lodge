@@ -167,8 +167,17 @@ const membersOf = variant => (
 )
 
 const verdictsOf = room => (room.messages ?? []).filter(message => message.kind === 'verdict')
-const roomDone = room => room.state === 'complete' || (room.messages ?? []).some(message => message.kind === 'conclusion')
-const roomStopped = room => ['paused', 'stopped', 'blocked'].includes(room.state)
+const roomDone = room => (
+  (room.state === 'idle' && ['completed', 'rejected', 'failed', 'stopped'].includes(room.workRound?.status)) ||
+  (room.messages ?? []).some(message => message.kind === 'conclusion')
+)
+const roomStopped = room => (
+  ['paused', 'stopped', 'archived'].includes(room.state) ||
+  room.blocked !== null && room.blocked !== undefined ||
+  room.mergeConflict !== null && room.mergeConflict !== undefined ||
+  (typeof room.openQuestion === 'string' && room.openQuestion.trim() !== '') ||
+  room.pendingDecision?.status === 'open'
+)
 
 const waitForRoom = async roomId => {
   const deadline = Date.now() + timeoutMs
@@ -260,7 +269,6 @@ for (const testCase of cases) {
         const waited = await waitForRoom(room.id)
         room = waited.room ?? room
         const check = runCheck(checkOf(testCase), [
-          repo,
           room.repoPath,
           ...Object.values(room.worktrees ?? {}),
         ])

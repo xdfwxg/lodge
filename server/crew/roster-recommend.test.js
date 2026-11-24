@@ -197,10 +197,12 @@ test('a second verifier is rejected by the member contract', () => {
       { role: 'worker', name: '执行' },
       { role: 'verifier', name: '复核 A' },
       { role: 'verifier', name: '复核 B' },
+      { role: 'verifier', name: '复核 C' },
+      { role: 'verifier', name: '复核 D' },
     ],
     verify: 'test',
     acceptance: 'npm test',
-  })), /at most one verifier/)
+  })), /at most three verifiers/)
 })
 
 test('an unknown role fails closed', () => {

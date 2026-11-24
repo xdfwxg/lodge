@@ -18,7 +18,7 @@ export const isChainMessage = message => {
   if (message?.kind !== 'system' && message?.meta?.authorKind !== 'system') return false
   // 显式标了不展示的账本消息，不进时间线。
   if (message?.meta?.show === false) return false
-  // 验收通过后结果卡接手；「@规划师 收尾」只是回执，旧消息也按这句收掉。
+  // 验收通过后结果卡接手；这条收尾回执只是账本投影，不重复进时间线。
   if (message?.meta?.kind === 'handoff' && message?.meta?.to === 'planner'
     && /^(全部验收员通过|验收通过：)/.test(String(message?.text ?? ''))) return false
   if (CHAIN_KINDS.has(message?.meta?.kind)) return true

@@ -1,25 +1,26 @@
 import { chatStatusOf, idleDelivered, roomStatusOf } from '../../../shared/room-status.js'
 import { needsAction } from '../needs.js'
+import { CHAT_STATE_WORD, ROOM_STATE_WORD } from '../room/status-words.js'
 
 // 岛屿状态机：状态键共享，工作室和聊天室各自读自己的词表。
 export const ISLAND_STATUS = Object.freeze({
   studio: Object.freeze({
-    running: Object.freeze({ barLabel: null, stageLabel: '进行中', tone: 'active' }),
+    running: Object.freeze({ barLabel: null, stageLabel: ROOM_STATE_WORD.active, tone: 'active' }),
     waiting: Object.freeze({ barLabel: '等你决定', stageLabel: '等你决定', tone: 'waiting' }),
-    idle: Object.freeze({ barLabel: '空闲中', stageLabel: '空闲中', tone: 'active' }),
-    paused: Object.freeze({ barLabel: '已暂停', stageLabel: '已暂停', tone: 'waiting' }),
-    stopped: Object.freeze({ barLabel: '已停止', stageLabel: '已停止', tone: 'stopped' }),
-    archived: Object.freeze({ barLabel: '已归档', stageLabel: '已归档', tone: 'stopped' }),
+    idle: Object.freeze({ barLabel: ROOM_STATE_WORD.idle, stageLabel: ROOM_STATE_WORD.idle, tone: 'active' }),
+    paused: Object.freeze({ barLabel: ROOM_STATE_WORD.paused, stageLabel: ROOM_STATE_WORD.paused, tone: 'waiting' }),
+    stopped: Object.freeze({ barLabel: ROOM_STATE_WORD.stopped, stageLabel: ROOM_STATE_WORD.stopped, tone: 'stopped' }),
+    archived: Object.freeze({ barLabel: ROOM_STATE_WORD.archived, stageLabel: ROOM_STATE_WORD.archived, tone: 'stopped' }),
     done: Object.freeze({ barLabel: null, stageLabel: '', tone: 'done' }),
   }),
   chat: Object.freeze({
-    running: Object.freeze({ barLabel: '正在聊', stageLabel: '正在聊', tone: 'active' }),
-    summarizing: Object.freeze({ barLabel: '正在收一下', stageLabel: '正在收一下', tone: 'active' }),
-    waiting: Object.freeze({ barLabel: '聊到这儿了', stageLabel: '聊到这儿了', tone: 'waiting' }),
-    idle: Object.freeze({ barLabel: '还没开始聊', stageLabel: '还没开始聊', tone: 'active' }),
+    running: Object.freeze({ barLabel: CHAT_STATE_WORD.running, stageLabel: CHAT_STATE_WORD.running, tone: 'active' }),
+    summarizing: Object.freeze({ barLabel: CHAT_STATE_WORD.summarizing, stageLabel: CHAT_STATE_WORD.summarizing, tone: 'active' }),
+    waiting: Object.freeze({ barLabel: CHAT_STATE_WORD.concluded, stageLabel: CHAT_STATE_WORD.concluded, tone: 'waiting' }),
+    idle: Object.freeze({ barLabel: CHAT_STATE_WORD.idle, stageLabel: CHAT_STATE_WORD.idle, tone: 'active' }),
     paused: Object.freeze({ barLabel: '已暂停，随时接着聊', stageLabel: '已暂停，随时接着聊', tone: 'waiting' }),
-    stopped: Object.freeze({ barLabel: '已停止', stageLabel: '已停止', tone: 'stopped' }),
-    archived: Object.freeze({ barLabel: '已归档', stageLabel: '已归档', tone: 'stopped' }),
+    stopped: Object.freeze({ barLabel: CHAT_STATE_WORD.stopped, stageLabel: CHAT_STATE_WORD.stopped, tone: 'stopped' }),
+    archived: Object.freeze({ barLabel: CHAT_STATE_WORD.archived, stageLabel: CHAT_STATE_WORD.archived, tone: 'stopped' }),
   }),
 })
 

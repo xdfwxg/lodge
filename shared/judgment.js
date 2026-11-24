@@ -45,6 +45,8 @@ const firstLine = text => {
 
 const VERDICT_REJECT = /(REJECT|不通过|未通过|无法通过|不能通过|没有通过|退回|打回|拒绝|失败)/i
 const VERDICT_PASS = /(PASS|通过|接受|同意)/i
+// 首行以“通过”开头就是通过；“通过，没有失败”里的“失败”不是判定。
+const LEADING_PASS = /^(?:PASS|通过|接受|同意)/i
 const PLANNER_REWORK = /(返工|REWORK)/i
 const PLANNER_HUMAN = /(交给人|转人工|handoff|human)/i
 
@@ -57,6 +59,7 @@ export const judgmentAnchorOf = (type, text) => {
     if (PLANNER_HUMAN.test(head)) return 'human'
     return null
   }
+  if (LEADING_PASS.test(head)) return 'pass'
   if (VERDICT_REJECT.test(head)) return 'reject'
   if (VERDICT_PASS.test(head)) return 'pass'
   return null
@@ -65,6 +68,7 @@ export const judgmentAnchorOf = (type, text) => {
 // 判定不清按退回，与旧 parseVerdict 的语义保持一致。
 const verdictDecision = text => {
   const head = firstLine(text)
+  if (LEADING_PASS.test(head)) return 'pass'
   if (VERDICT_REJECT.test(head)) return 'reject'
   if (VERDICT_PASS.test(head)) return 'pass'
   return 'reject'
@@ -108,6 +112,29 @@ const normalizeVisual = value => {
   }
 }
 
+const DECISION_OPTION_ACTIONS = new Set(['accept', 'rework'])
+
+const normalizeDecisionOptions = value => {
+  if (!Array.isArray(value)) return []
+  const options = []
+  for (const [index, item] of value.slice(0, 3).entries()) {
+    if (item === null || typeof item !== 'object') continue
+    const title = clip(item.title, 120)
+    const action = String(item.action ?? '').trim().toLowerCase()
+    if (title === '' || !DECISION_OPTION_ACTIONS.has(action)) continue
+    const detail = clip(item.detail, 300)
+    const id = clip(item.id, 40) || String.fromCharCode(65 + index)
+    options.push({
+      id,
+      title,
+      detail,
+      action,
+      text: detail === '' ? title : `${title}：${detail}`,
+    })
+  }
+  return options
+}
+
 const normalizeFindings = value => {
   if (!Array.isArray(value)) return []
   const findings = []
@@ -148,6 +175,7 @@ export const normalizeJudgment = ({ type, text, stage = null, evidenceId = null,
     outsideDiff: type === 'verdict' ? clip(json?.outsideDiff, LIMITS.outsideDiff) : '',
     protectedFiles: type === 'verdict' ? normalizeProtectedFiles(json?.protectedFiles) : [],
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
+    options: type === 'planner' ? normalizeDecisionOptions(json?.options) : [],
     stage: Number.isInteger(stage) ? stage : null,
     evidenceId: typeof evidenceId === 'string' && evidenceId !== '' ? evidenceId : null,
     actorId: typeof actorId === 'string' && actorId !== '' ? actorId : null,
@@ -221,6 +249,7 @@ export const judgmentFromGate = ({
     outsideDiff,
     protectedFiles: type === 'verdict' ? normalizeProtectedFiles(input.protectedFiles) : [],
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
+    options: type === 'planner' ? normalizeDecisionOptions(input.options) : [],
     // rejectTo 是业务路由，模型不能把失败退回给别的角色。
     rejectTo: rejectToFor(type, decision),
     stage,
@@ -249,6 +278,7 @@ export const validateJudgment = value => {
     outsideDiff: type === 'verdict' ? clip(value.outsideDiff, LIMITS.outsideDiff) : '',
     protectedFiles: type === 'verdict' ? normalizeProtectedFiles(value.protectedFiles) : [],
     actionRequired: clip(value.actionRequired, LIMITS.actionRequired),
+    options: type === 'planner' ? normalizeDecisionOptions(value.options) : [],
     stage: Number.isInteger(value.stage) ? value.stage : null,
     evidenceId: typeof value.evidenceId === 'string' && value.evidenceId !== '' ? value.evidenceId : null,
     actorId: typeof value.actorId === 'string' && value.actorId !== '' ? value.actorId : null,
@@ -278,6 +308,7 @@ export const gateResultOf = judgment => {
       : valid.decision,
     reason: valid.reason,
     actionRequired: valid.actionRequired,
+    options: valid.options,
     findings: valid.findings,
     rejectTo: valid.rejectTo,
   }

@@ -249,8 +249,8 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         `验收标准：${stage.manual === true ? '人看结果，没有命令。' : sanitizeUntrusted(acceptance, 500)}`,
         rework && note !== '' ? `${humanLabelOf()}补充（原文，必须保留）：${sanitizeUntrusted(note, 2000)}` : '',
         parallel
-          ? '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，最后一行 @ 每位执行官 加一句动作；系统会把完整任务分别送进他们各自的工作副本。'
-          : '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准，最后一行 @执行官 加一句动作；系统会把完整任务送进执行官手里。',
+          ? '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准；说清交给每位执行官（写名字，不带 @）和一句动作；系统会把完整任务分别送进他们各自的工作副本。'
+          : '在群里只用一句话说清这步怎么做；不要复述对齐内容或验收标准；说清交给执行官（写名字，不带 @）和一句动作；系统会把完整任务送进执行官手里。',
         '派发时保留目标里的硬要求：文件名、路径、内容、行数、格式和范围；不要改写成更宽松的说法。',
         '不要写自己的名字，不要分点、小标题或第二段。',
         history.text,
@@ -265,7 +265,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
 
     if (!parallel) {
       const worker = assignees[0]
-      // 规划师刚才那句话已经 @ 了执行官就不再补一条；没 @ 才由系统投影。
+      // 交接 @ 由系统写；模型只写名字，不写 @。
       const missing = missingMentionsOf({ room, messages: store.readMessages(roomId), from, targets: [worker] })
       await handoffTrigger({
         room,

@@ -31,7 +31,7 @@ test('a studio member only gets the model swap', () => {
   const html = render({ modelOnly: true })
   assert.match(html, /换个模型/)
   assert.match(html, /只换模型，记录和证据不变/)
-  assert.match(html, /AI 服务/)
+  assert.match(html, /模型服务/)
   assert.doesNotMatch(html, /性格/)
   assert.doesNotMatch(html, /移出房间/)
   assert.doesNotMatch(html, /模型与能力/)

@@ -3,6 +3,8 @@
 // 不能按名字禁原生工具：claudeAgent 不支持收窄 native:*，写了 native:SendMessage 会让整个回合起不来。
 const VERIFIER_DENIED = [
   'mcp:lodge_gate:submit_decision',
+  'mcp:lodge_gate:submit_plan',
+  'mcp:lodge_gate:adjust_member_model',
   'mcp:lodge_gate:ask_decision',
   'mcp:lodge_gate:ask_question',
   'mcp:lodge_gate:rewind_stage',

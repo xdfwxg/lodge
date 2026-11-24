@@ -2,6 +2,7 @@ import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { memberOf } from '../../room-members.js'
 import { humanLabelOf, humanNameOf } from '../../human-name.js'
 import { personalityTurnCue } from '../../../../shared/personalities.js'
+import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 
 const truncate = (text, limit) => {
   const value = String(text ?? '').trim()
@@ -19,10 +20,10 @@ export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, br
     hostName === '' ? '' : `用户称呼：${hostName}。`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
     note === '' ? '' : `${humanLabelOf()}这轮的要求：${note}`,
-    brief === '' ? '' : `上一轮结论：${brief}`,
+    brief === '' ? '' : `上一轮结论：${sanitizeUntrusted(brief, 1200)}`,
     previous === null
       ? '这是本轮第一句：直接说自己的判断，不用回答谁。'
-      : `上一位：${previous.name}说“${truncate(previous.text, 200)}”`,
+      : `上一位：${sanitizeUntrusted(previous.name, 40)}说“${sanitizeUntrusted(truncate(previous.text, 200), 200)}”`,
     previous === null
       ? `先说结论，再补一个理由；有疑问就只问一个具体问题。${TURN_RULES}`
       : `接着说：同意就补一个理由，不同意就指出哪一点，有疑问就只问一个具体问题。${TURN_RULES}`,
@@ -37,11 +38,12 @@ export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, br
 
 export const hostPrompt = ({ room, round, note, turnLimit, structured = false }) => {
   const common = [
-    `聊天室第 ${round} 轮讨论到此结束，请总结。`,
+    '聊天室这轮讨论到此结束，请总结。',
     `话题：${room.goal}`,
     `固定成员：${(room.members ?? []).map(member => `${member.id}（${member.name}）`).join('、') || '无'}；本轮上限 ${turnLimit} 次发言。`,
     note === '' ? '' : `${humanLabelOf()}这轮的要求：${note}`,
     '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。',
+    '不要写“第 N 轮”、轮次或发言次数；直接写结论。',
   ]
   if (!structured) {
     return [...common,
@@ -68,7 +70,19 @@ export const hostPrompt = ({ room, round, note, turnLimit, structured = false })
   ].filter(Boolean).join('\n')
 }
 
-export const wantsStructuredSummary = note => /分点|分条|逐条|列成|列出|罗列|清单|列表|表格|待办|五段|结构化|大纲|提纲|\b(?:bullet|list|table|checklist)\b/i.test(String(note ?? ''))
+const STRUCTURED_SUMMARY = /分点|分条|逐条|列成|列出|罗列|清单|列表|表格|待办|五段|结构化|大纲|提纲|\b(?:bullet|list|table|checklist)\b/i
+const NEGATED_STRUCTURED = /(?:不要|别|不用|不必|无需|不需要)[^。！？!?；;\n]{0,12}(?:分点|分条|逐条|列成|列出|罗列|清单|列表|表格|待办|五段|结构化|大纲|提纲|bullet|list|table|checklist)/gi
+
+export const wantsStructuredSummary = note => {
+  // “不要列表，简单说”是在拒绝格式，不是请求格式；先去掉被否定的那段再判断。
+  const positive = String(note ?? '').replace(NEGATED_STRUCTURED, '')
+  return STRUCTURED_SUMMARY.test(positive)
+}
+
+// 轮次只留在记录里，不进入结论正文；模型偶尔会把“第 N 轮”写进首句。
+export const stripRoundLead = text => String(text ?? '')
+  .replace(/^\s*第\s*[0-9一二三四五六七八九十]+\s*轮\s*[：:，,、\-—\s]*/u, '')
+  .trim()
 
 export const digestText = lines => lines.length === 0
   ? '讨论没有产生可总结的内容。'

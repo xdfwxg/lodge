@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 
 const sourceFile = file => !/\.(test|spec)\.[cm]?[jt]sx?$/.test(file) && !/(^|\/)test\//.test(file)
 const testFile = file => /\.(test|spec)\.[cm]?[jt]sx?$/.test(file) || /(^|\/)test\//.test(file)
-const docsFile = file => /^docs\//.test(file) || /^(Lodge|README|AGENTS)\.md$/.test(file)
+const docsFile = file => /^docs\//.test(file) || /^(思想|Lodge|README|AGENTS|CLAUDE|乔布斯)\.md$/.test(file)
 
 export const retroOf = ({
   changedFiles = [],
@@ -34,7 +34,7 @@ export const retroOf = ({
     items.push({
       severity: 'medium',
       title: '服务端或共享契约改动没有同步文档',
-      fix: '把行为、接口或边界的变化写进 docs/architecture.md 或 Lodge.md。',
+      fix: '把通用判断写进 思想.md，把行为、接口或边界的变化写进 docs/architecture.md 或 Lodge.md。',
     })
   }
   if (packageChanged) {

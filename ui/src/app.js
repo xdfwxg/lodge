@@ -18,7 +18,7 @@ import { startupNoticeOf } from './app/startup.js'
 export function App() {
   const store = useMemo(createStore, [])
   const state = useStore(store)
-  const [profile, setProfile] = useProfileSync(store, state.profile)
+  const [profile, setProfile] = useProfileSync(state.profile)
   const [profileOpen, setProfileOpen] = useState(false)
   // 定时目标的 run 房是历史，不占侧栏和菜单；目标本身仍是同一行。
   const { visibleRooms, sidebarRooms, needsText } = useAttention(state.rooms)
@@ -90,7 +90,6 @@ export function App() {
     onRefresh: () => store.refresh(),
     startType,
     onCreate: (goal, answers) => store.createRoom(goal, answers),
-    onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
     onWorkspaceMemory: path => store.workspaceMemory(path),
     onReviewWorkspaceMemory: (path, memoryId, decision) => store.reviewWorkspaceMemory(path, memoryId, decision),
   })
@@ -147,8 +146,7 @@ export function App() {
           setHistory(roundId === null ? null : { roomId: id, roundId })
         },
         onStartRound: (roomId, text, options = {}) => store.startRound(text, { roomId, ...options }),
-        onRecommend: (goal, repoPath, handoff) => store.recommendRoster(goal, repoPath, handoff),
-      })
+          })
       : room === null
       ? h('main', { className: 'dsb-main crew-home' },
         h('div', { className: 'crew-home-inner' },

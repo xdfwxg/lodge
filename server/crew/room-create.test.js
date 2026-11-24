@@ -364,10 +364,10 @@ test('a plan can declare multiple work stages between alignment and acceptance',
   assert.equal(room.stages[2].acceptance, 'npm run e2e')
 })
 
-test('a redundant opening decision stage is auto-passed', async () => {
+test('an opening decision stage is kept, not guessed by its title', async () => {
   const { store } = completedRoom(temp('lodge-opening-gate-data-'))
   const result = await run(store, {
-    goal: '不要重复确认',
+    goal: '不要跳过真正的确认',
     verify: 'test',
     repoPath: gitRepo(),
     members: [{ role: 'lead', name: '队长' }, { role: 'worker', name: '执行' }, { role: 'verifier', name: '验收' }],
@@ -383,7 +383,7 @@ test('a redundant opening decision stage is auto-passed', async () => {
   assert.equal(result.ok, true)
   const room = result.body.room
   assert.deepEqual(room.stages.map(stage => stage.title), ['目标对齐', '确认源文件与改动方向', '实现', '验收与结论'])
-  assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'passed', 'active', 'pending'])
+  assert.deepEqual(room.stages.map(stage => stage.state), ['passed', 'active', 'pending', 'pending'])
 })
 
 test('legacy room types fail closed', async () => {

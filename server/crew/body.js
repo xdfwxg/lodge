@@ -97,6 +97,8 @@ export const createBodyFactory = ({ engine }) => {
     description,
     approval,
     mcp,
+    roomTools: [],
+    toolScope: toolScopeFor({ roleKind: 'participant' }),
   })
 
   const retireHost = async ref => {

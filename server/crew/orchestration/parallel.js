@@ -10,7 +10,10 @@ export const planStage = ({ stage, workers }) => {
     : []
   const packages = Array.isArray(stage?.packages) ? stage.packages : []
   // 工作包和执行官一一对应：几个包就派几个人，顺序稳定，避免两个人抢同一块。
-  const assignees = (packages.length > 1 ? (proposed.length > 0 ? proposed : workers).slice(0, packages.length) : (proposed.length > 0 ? proposed : [...workers]))
+  // 只有一块包时只派一个人；没有包时才沿用旧的并行行为。
+  const assignees = packages.length === 1
+    ? (proposed.length > 0 ? proposed.slice(0, 1) : workers.slice(0, 1))
+    : (packages.length > 1 ? (proposed.length > 0 ? proposed : workers).slice(0, packages.length) : (proposed.length > 0 ? proposed : [...workers]))
   return {
     assignees,
     parallel: assignees.length > 1,

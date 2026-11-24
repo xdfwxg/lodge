@@ -77,7 +77,6 @@ export const runLodgePhase = async ({ lodge, repo, phase, prompt, roomId = null,
   // 用外部尺子核对最终工作区，不读房间自述。
   const candidates = [...new Set([
     current.repoPath,
-    current.sourceRepo,
     ...Object.values(current.worktrees ?? {}),
   ].filter(item => typeof item === 'string' && item !== '' && existsSync(item)))]
   let check = { pass: false, output: `no candidate passed: ${candidates.join(', ')}`, repo: null }

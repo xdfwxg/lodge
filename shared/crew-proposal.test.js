@@ -37,6 +37,8 @@ test('only disjoint file-bearing packages can run in parallel', () => {
   assert.equal(independentPackagesOf({ packages: [{ files: ['a'] }, { files: ['a'] }] }), 1)
   assert.equal(independentPackagesOf({ packages: [{ files: [] }, { files: ['b'] }] }), 1)
   assert.equal(independentPackagesOf({ packages: [{ files: ['a'] }] }), 1)
+  // 先取大包会只剩 1 个；最大独立集是 a-only 和 b-only 两个。
+  assert.equal(independentPackagesOf({ packages: [{ files: ['a', 'b'] }, { files: ['a'] }, { files: ['b'] }] }), 2)
   assert.equal(executorsNeeded([
     { packages: [{ files: ['a'] }, { files: ['b'] }] },
     { packages: [{ files: ['c'] }] },

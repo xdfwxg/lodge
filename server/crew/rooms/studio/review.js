@@ -115,6 +115,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     // 不在这里追问：复核回合已经结束，重问会让复核挂住；缺了就如实标记，交给交付卡和系统消息说明。
     const visualMissing = !visualOk
     const pass = judgment.decision === 'pass'
+    const independent = room?.independence === 'vendor'
     const name = memberDisplayName(room, memberId)
     const spec = memberOf(room, pending.verifier)
     const verdictMessage = store.appendMessage(roomId, {
@@ -133,7 +134,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         exit: pending.exit,
         evidenceId: pending.evidenceId,
         review: true,
-        independent: true,
+        independent,
         verifier: pending.verifier,
         turnId,
         simulated: false,
@@ -154,7 +155,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         meta: { kind: 'visual', stage: pending.stage },
       })
     }
-    store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, independent: true, turnId, late })
+    store.appendEvent(roomId, 'verifier.verdict', { stage: pending.stage, verifier: pending.verifier, pass, independent, turnId, late })
     const reviewAssignment = store.readAssignments(roomId, { stage: pending.stage, limit: 500 })
       .filter(item => item.reason === 'review' && item.toMemberId === pending.verifier)
       .at(-1)
@@ -194,7 +195,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     }
     round.requests.clear()
     const total = round.total
-    const policy = round.policy
     round = null
     if (reachedQuorum) {
       store.appendEvent(roomId, 'review.passed', { stage: pending.stage, verifier: pending.verifier, passed, total })
@@ -227,9 +227,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       store.appendMessage(roomId, {
         kind: 'system',
         authorId: pending.verifier,
-        text: policy === 'majority'
-          ? `验收通过：${passed}/${total}（需要 ${required} 位）；@规划师 收尾。`
-          : '全部验收员通过；@规划师 收尾。',
+        text: '全部验收员通过；@规划师 收尾。',
         // 收尾回执只进账本；结果卡就是这一轮的收尾，不再用一条系统气泡说一遍。
         meta: { kind: 'handoff', stage: pending.stage, from: pending.verifier, to: 'planner', authorKind: 'system', show: false },
       })

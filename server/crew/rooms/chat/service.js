@@ -140,10 +140,13 @@ export const createServiceChat = ({ store, live, emit }) => {
   // 用户消息先由聊天室自己认领：叫所有人、点名、还是交给主持。
   // 通用房间动作只负责把 live 房间的消息送到这里，不再认识聊天策略。
   const handleMessage = async (room, { text = '', mentions = [] } = {}) => {
+    const value = String(text ?? '').trim().slice(0, 8000)
+    // 用户的话先落进房间；主持的回复、开轮和点名都只是它之后的动作。
+    if (value !== '') appendMessage(room.id, { kind: 'chat', authorId: 'you', text: value })
     const mode = chatModeOf(room)
     if (mentions.includes(MENTION_ALL)) {
       return mode === 'open'
-        ? continueChat(room, { note: text, speakerIds: (room.members ?? []).map(member => member.id) })
+        ? continueChat(room, { note: value, speakerIds: (room.members ?? []).map(member => member.id) })
         : fail('conflict', '这一轮还在讨论，等结论出来再叫所有人。')
     }
     const named = mentions.filter(id => (room.members ?? []).some(member => member.id === id))
@@ -152,13 +155,13 @@ export const createServiceChat = ({ store, live, emit }) => {
       const names = named
         .map(id => (room.members ?? []).find(member => member.id === id)?.name)
         .filter(name => typeof name === 'string' && name !== '')
-      await live.send(room.id, text, {
+      await live.send(room.id, value, {
         mentions: named,
         ...(names.length === 0 ? {} : { meta: { direct: names } }),
       })
       return ok({ accepted: true })
     }
-    return input(room, { note: text })
+    return input(room, { note: value })
   }
 
   return { continue: continueChat, handleMessage, input, restart }

@@ -19,10 +19,7 @@ const stagesOf = room => room.modeCapabilities?.stages === false
   : Array.isArray(room.stages) ? room.stages : []
 const activeIndex = room => stagesOf(room).findIndex(stage => stage.state === 'active')
 
-// 旧轮可能存过被截断的附件标记（没有结尾的 />），显示时连半截一起拿掉。
-const cleanTitle = value => stripAttachmentTags(value)
-  .replace(/<attached-(?:image|file)[\s\S]*$/i, '')
-  .trim()
+const cleanTitle = value => stripAttachmentTags(value).trim()
 
 // 岛的当前状态只从状态图读；完成过一轮不等于现在已交付。
 const kindOfRoom = room => room.modeCapabilities?.stages === false ? 'chat' : 'studio'

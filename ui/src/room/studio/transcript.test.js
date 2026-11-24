@@ -251,7 +251,32 @@ test('tool calls sit in the timeline as one folded row per run', async () => {
   const tree = render(StudioTranscript({ room, members: room.members }))
   assert.equal(hasClass(tree, 'crew-process'), true)
   const flat = text(tree)
-  assert.match(flat, /执行官 · 2 次操作 · 跑了 npm test/)
+  assert.match(flat, /执行官 · 跑了 1 条命令/)
   assert.match(flat, /读了 README.md/)
   assert.match(flat, /跑了 npm test/)
+})
+
+test('a longer run folds into commands, files and a diff summary', async () => {
+  const { StudioTranscript } = await load()
+  const room = {
+    id: 'room-process-diff',
+    name: '过程',
+    goal: '把事做完',
+    state: 'active',
+    assignments: [{ id: 'a1', status: 'working', toMemberId: 'worker' }],
+    stages: [{ index: 0, title: '实现', kind: 'deliverable', state: 'active', acceptance: 'npm test' }],
+    messages: [
+      { id: 't1', kind: 'activity', authorId: 'worker', text: 'Bash', ts: Date.now() - 9_000, seq: 1, meta: { ok: true, action: 'exec', detail: 'npm test' } },
+      { id: 't2', kind: 'activity', authorId: 'worker', text: 'Bash', ts: Date.now() - 8_000, seq: 2, meta: { ok: true, action: 'exec', detail: 'npm run build' } },
+      { id: 't3', kind: 'activity', authorId: 'worker', text: 'Edit', ts: Date.now() - 7_000, seq: 3, meta: { ok: true, action: 'write', target: 'src/a.js' } },
+      { id: 'e1', kind: 'evidence', authorId: 'worker', text: '完成了', ts: Date.now() - 6_000, seq: 4, meta: { diff: '+one\n+two\n+three\n-old\n', files: ['src/a.js'] } },
+    ],
+    members: [{ id: 'worker', name: '执行官', role: 'worker', roleKind: 'executor' }],
+  }
+  const tree = render(StudioTranscript({ room, members: room.members }))
+  const flat = text(tree)
+  assert.match(flat, /执行官 · 跑了 2 条命令，改了 1 个文件/)
+  assert.match(flat, /\+3/)
+  assert.match(flat, /−1/)
+  assert.equal(hasClass(tree, 'crew-process-chevron'), true)
 })

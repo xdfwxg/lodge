@@ -104,7 +104,7 @@ export const renderStudioMessage = ({
                 }, `${SEVERITY_LABEL[finding.severity] ?? finding.severity} · ${finding.title}`))),
             protectedFiles.length === 0
               ? null
-              : h('span', { className: 'crew-verdict-protected' }, `受保护文件已确认：${protectedFiles.join('、')}`))),
+              : h('span', { className: 'crew-verdict-protected' }, `关键文件已确认：${protectedFiles.join('、')}`))),
         fold('理由', verdict.detail || (needsAction ? `要你做：${action}` : ''))))
   }
 

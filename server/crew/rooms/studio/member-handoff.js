@@ -53,11 +53,18 @@ const experienceOf = (messages, memberId) => {
   if (lastEvidence !== undefined) {
     const stage = Number.isInteger(lastEvidence.meta?.stage) ? lastEvidence.meta.stage : null
     const label = stage === null ? '上次你交付' : `第 ${stage + 1} 步你交付`
-    const verdict = [...ordered].reverse().find(message => (
+    // 并行时同一阶段可能有多条证据；只认指向这条证据的判定。
+    const verdicts = ordered.filter(message => (
       message.kind === 'verdict' &&
-      (stage === null || (message.meta?.stage ?? 0) === stage) &&
-      (message.seq ?? 0) >= (lastEvidence.seq ?? 0)
+      (stage === null || (message.meta?.stage ?? 0) === stage)
     ))
+    const linked = verdicts.some(message => typeof message.meta?.evidenceId === 'string')
+    const verdict = verdicts.find(message => (
+      lastEvidence.id !== undefined &&
+      message.meta?.evidenceId === lastEvidence.id
+    )) ?? (linked
+      ? undefined
+      : [...verdicts].reverse().find(message => (message.seq ?? 0) >= (lastEvidence.seq ?? 0)))
     if (verdict === undefined) {
       lines.push(`${label}过，还没有复核结论。`)
     } else if (verdictPassed(verdict)) {

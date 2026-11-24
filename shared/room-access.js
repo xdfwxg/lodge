@@ -26,13 +26,9 @@ const READ_ONLY_BROWSER_TOOLS = new Set([
   'wait_for',
 ])
 
-const READ_ONLY_BROWSER_PREFIXES = ['get_', 'list_', 'read_']
-
 export const isReadOnlyBrowserTool = tool => {
   const name = browserToolName(tool)
-  if (name === '') return false
-  return READ_ONLY_BROWSER_TOOLS.has(name) ||
-    READ_ONLY_BROWSER_PREFIXES.some(prefix => name.startsWith(prefix))
+  return name !== '' && READ_ONLY_BROWSER_TOOLS.has(name)
 }
 
 export const isReadOnlyResearchTool = tool => (

@@ -158,6 +158,28 @@ test('a planner decision accepts the Chinese anchor', () => {
   assert.equal(response.result.structuredContent.decision, 'human')
 })
 
+test('a planner decision can carry structured human options', () => {
+  const response = handleMessage({
+    jsonrpc: '2.0',
+    id: 6,
+    method: 'tools/call',
+    params: {
+      name: 'submit_decision',
+      arguments: {
+        decision: 'human',
+        reason: '两条路都能收，你定',
+        options: [
+          { id: 'accept', title: '接受当前版本', detail: '写清未证实项', action: 'accept' },
+          { id: 'retry', title: '补齐材料', detail: '再查一次', action: 'rework' },
+        ],
+      },
+    },
+  })
+  assert.equal(response.result.structuredContent.options.length, 2)
+  assert.equal(response.result.structuredContent.options[0].action, 'accept')
+  assert.equal(response.result.structuredContent.options[1].action, 'rework')
+})
+
 test('a planner can ask to rewind a stage by number', () => {
   const response = handleMessage({
     jsonrpc: '2.0',

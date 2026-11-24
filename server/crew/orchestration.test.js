@@ -39,6 +39,19 @@ test('parallel respects a smaller proposed set', () => {
   assert.equal(plan.parallel, false)
 })
 
+test('parallel sends one worker when the stage has one package', () => {
+  const strategy = resolveOrchestration('parallel')
+  const plan = strategy.planStage({
+    stage: {
+      assignees: ['executor', 'executor-2'],
+      packages: [{ title: '单包', files: ['src/a.js'], check: 'npm test' }],
+    },
+    workers,
+  })
+  assert.deepEqual(plan.assignees, ['executor'])
+  assert.equal(plan.parallel, false)
+})
+
 test('critique keeps one dispatcher and adds adversarial review guidance', () => {
   const strategy = resolveOrchestration('critique')
   assert.equal(strategy.planStage({ stage: {}, workers }).assignees.length, 1)

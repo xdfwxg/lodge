@@ -171,7 +171,7 @@ export function StudioTranscript({
   const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
   // 影子评审是执行中的旁注；已经交付时结果卡才是主视线，不再把建议横在结果前。
   const advice = activeIndex >= 0
-    ? h(ShadowAdvice, { key: `advice-${activeIndex}`, room, stageIndex: activeIndex, label: '影子评审' })
+    ? h(ShadowAdvice, { key: `advice-${activeIndex}`, room, stageIndex: activeIndex, label: '另一份意见' })
     : null
 
   const roomMessages = Array.isArray(room.messages) ? room.messages : []

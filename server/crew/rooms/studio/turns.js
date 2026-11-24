@@ -52,6 +52,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
   })
   const autoLoops = new Map()
   const plannerNudges = new Set()
+  const planNudges = new Set()
   let auto = null
   const acceptance = createAcceptanceRunner({
     store,
@@ -111,7 +112,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
 
   const routePlannerDecision = createPlannerRouting({ store, roomId, sendToMember, handoff, plannerNudges, schedule, expireCards })
 
-  const captureTurn = createTurnCapture({ store, roomId, emit, files, state, integrator, review, acceptance, routePlannerDecision, autoCheck, markManualReady, confirmStage, applyPlan, adjustModel, rewindStage, stopRound, resumeRound, writeDiagnostic, setMembers })
+  const captureTurn = createTurnCapture({ store, roomId, emit, files, state, integrator, review, acceptance, routePlannerDecision, autoCheck, markManualReady, confirmStage, applyPlan, adjustModel, rewindStage, stopRound, resumeRound, writeDiagnostic, setMembers, sendToMember, planNudges })
 
   // 服务重启后以已落盘的消息为准续跑：缺回合就重新派发，缺验收就重跑命令，待复核就重发请求，待集成就先合并。
   const resumeOnce = createResume({ store, roomId, emit, sendToMember, integrator, review, acceptance, stageStarter, markManualReady })
@@ -130,6 +131,7 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     pendingTimers.clear()
     autoLoops.clear()
     plannerNudges.clear()
+    planNudges.clear()
     autoChecks.clear()
   }
 

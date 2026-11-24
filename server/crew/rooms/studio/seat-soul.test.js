@@ -8,8 +8,8 @@ const soulOf = member => mode.memberSoul({ prompt: '', mcp: [], ...member })
 test('studio souls ask members to talk like people, not fill in logs', () => {
   const lead = soulOf({ role: 'lead', name: '规划师' })
   assert.match(lead, /像给同事发消息/)
-  // 接力只在工作契约里写一次，每个角色都拿得到。
-  assert.match(lead, /最后一行必须 @ 下一位/)
+  // 接力只在工作契约里写一次，每个角色都拿得到；系统负责投递。
+  assert.match(lead, /交给谁（写名字，不带 @）/)
   const worker = soulOf({ role: 'worker', name: '执行官' })
   assert.match(worker, /像给同事发消息/)
   assert.match(worker, /有多点时用短列表或加粗小标题/)

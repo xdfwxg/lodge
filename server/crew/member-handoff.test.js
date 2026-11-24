@@ -43,6 +43,20 @@ test('a member sees their own room experience, not everyone else’s', () => {
   assert.doesNotMatch(outsider, /你在这个房间的经历/)
 })
 
+test('parallel members only see the verdict for their own evidence', () => {
+  const messages = [
+    { id: 'e1', kind: 'evidence', authorId: 'w1', seq: 1, text: '改了设置页', meta: { stage: 0 } },
+    { id: 'e2', kind: 'evidence', authorId: 'w2', seq: 2, text: '改了导航', meta: { stage: 0 } },
+    { id: 'v2', kind: 'verdict', authorId: 'v1', seq: 3, text: 'REJECT：导航少了返回', meta: { pass: false, stage: 0, evidenceId: 'e2' } },
+  ]
+  const w1 = buildMemberHandoff({ room, messages, memberId: 'w1' })
+  const w1Experience = w1.split('你在这个房间的经历：')[1]?.split('最近复核：')[0] ?? ''
+  assert.doesNotMatch(w1Experience, /导航少了返回/)
+  assert.match(w1Experience, /还没有复核结论/)
+  const w2 = buildMemberHandoff({ room, messages, memberId: 'w2' })
+  assert.match(w2, /验收不通过：导航少了返回/)
+})
+
 test('the handoff tells the member who the user is', () => {
   setCurrentHumanName('千寻')
   const text = buildMemberHandoff({ room, messages: [] })

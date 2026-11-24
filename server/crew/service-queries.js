@@ -1,8 +1,6 @@
 import { join } from 'node:path'
 import { briefOf } from './brief.js'
 import { presentRoom } from './presentation.js'
-import { recommendRoster as recommendRosterUseCase } from './roster-recommend.js'
-import { createRosterProbe } from './roster-probe.js'
 import { listRoomTypes } from './rooms/kinds.js'
 import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { composeRoundView, roundSummaryOf } from './rounds/record.js'
@@ -15,7 +13,6 @@ export const createServiceQueries = ({
   roles,
   roomFiles,
   files,
-  workspace,
 }) => {
   const {
     readRoom,
@@ -117,11 +114,5 @@ export const createServiceQueries = ({
     return { ok: true, bytes: files.read(file) }
   }
 
-  const recommendRoster = body => recommendRosterUseCase({
-    probe: createRosterProbe({ engine }),
-    body,
-    workspace,
-  })
-
-  return { health, state, roundDetail, messagesSince, evidence, recommendRoster }
+  return { health, state, roundDetail, messagesSince, evidence }
 }

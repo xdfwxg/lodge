@@ -45,7 +45,7 @@ test('read-only research covers web search and safe browser reads', () => {
 })
 
 test('browser actions that change external state need approval', () => {
-  for (const name of ['click', 'fill', 'type_text', 'upload_file', 'evaluate_script', 'handle_dialog']) {
+  for (const name of ['click', 'fill', 'type_text', 'upload_file', 'evaluate_script', 'handle_dialog', 'get_cookies', 'read_local_file']) {
     assert.equal(isReadOnlyResearchTool(tool(name)), false, name)
   }
   assert.equal(canSkipApproval({ member, tool: tool('click') }), false)

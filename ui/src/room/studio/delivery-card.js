@@ -305,6 +305,9 @@ export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDiscus
               delivery.completedAt
                 ? h('div', { className: 'crew-kv' }, h('span', null, '完成时间'), h('span', null, dateTimeOf(delivery.completedAt)))
                 : null,
+              delivery.commit
+                ? h('div', { className: 'crew-kv' }, h('span', null, '版本'), h('code', null, String(delivery.commit).slice(0, 8)))
+                : null,
               cost === ''
                 ? null
                 : h('div', { className: 'crew-kv' }, h('span', null, '费用'), h('span', null, cost)),
@@ -318,7 +321,7 @@ export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDiscus
                 : null,
               signoff === ''
                 ? null
-                : h('div', { className: 'crew-kv' }, h('span', null, '对比方式'), h('span', null, signoff)))
+                : h('div', { className: 'crew-kv' }, h('span', null, '复核方式'), h('span', null, signoff)))
             : null,
           commands.length > 0
             ? h('div', { className: 'crew-delivery-checks' },

@@ -180,7 +180,7 @@ export const validateRoster = (members, { requireWorker = true } = {}) => {
   }
   for (const member of members) validateCapabilities(member)
   const { workers, verifiers } = roleMembers(members)
-  if (verifiers.length > 1) throw new Error('member contract: at most one verifier')
+  if (verifiers.length > 3) throw new Error('member contract: at most three verifiers')
   const leads = members.filter(member => member.role === 'lead')
   if (leads.length > 1) throw new Error('member contract: at most one lead')
   if (requireWorker && workers.length === 0) throw new Error('member contract: at least one worker is required')

@@ -110,8 +110,17 @@ const defectPresent = (testCase, room) => {
   return existsSync(file) && testCase.hasDefect(readFileSync(file, 'utf8'))
 }
 
-const roomDone = room => room?.state === 'complete' || (room?.messages ?? []).some(message => message.kind === 'conclusion')
-const roomStopped = room => ['paused', 'stopped', 'blocked'].includes(room?.state)
+const roomDone = room => (
+  (room?.state === 'idle' && ['completed', 'rejected', 'failed', 'stopped'].includes(room?.workRound?.status)) ||
+  (room?.messages ?? []).some(message => message.kind === 'conclusion')
+)
+const roomStopped = room => (
+  ['paused', 'stopped', 'archived'].includes(room?.state) ||
+  room?.blocked !== null && room?.blocked !== undefined ||
+  room?.mergeConflict !== null && room?.mergeConflict !== undefined ||
+  (typeof room?.openQuestion === 'string' && room.openQuestion.trim() !== '') ||
+  room?.pendingDecision?.status === 'open'
+)
 
 const waitForRoom = async roomId => {
   const deadline = Date.now() + timeoutMs

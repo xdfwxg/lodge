@@ -63,6 +63,21 @@ export const GATE_TOOLS = Object.freeze([
         decision: { type: 'string', enum: ['rework', 'human'] },
         reason: { type: 'string', maxLength: 2000 },
         actionRequired: { type: 'string', maxLength: 1000 },
+        options: {
+          type: 'array',
+          maxItems: 3,
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', maxLength: 40 },
+              title: { type: 'string', maxLength: 120 },
+              detail: { type: 'string', maxLength: 300 },
+              action: { type: 'string', enum: ['accept', 'rework'] },
+            },
+            required: ['title', 'action'],
+            additionalProperties: false,
+          },
+        },
       },
       required: ['decision', 'reason'],
       additionalProperties: false,
@@ -354,11 +369,21 @@ const callTool = (id, params) => {
   if (name === 'submit_decision') {
     const decision = plannerDecision(args.decision)
     if (decision === null) return toolFailure(id, 'decision 只能是 rework 或 human。')
+    const options = Array.isArray(args.options)
+      ? args.options.slice(0, 3).filter(item => (
+        item !== null &&
+        typeof item === 'object' &&
+        typeof item.title === 'string' &&
+        item.title.trim() !== '' &&
+        (item.action === 'accept' || item.action === 'rework')
+      ))
+      : []
     return toolOk(id, `已收到规划决定：${decision}`, {
       ok: true,
       decision,
       reason,
       actionRequired: typeof args.actionRequired === 'string' ? args.actionRequired : '',
+      ...(options.length === 0 ? {} : { options }),
     })
   }
   if (name === 'ask_decision') {

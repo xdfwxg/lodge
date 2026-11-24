@@ -1,7 +1,7 @@
 # Lodge · 运行与运维
 
 > 本文回答：怎么运行、基座和 CLI 怎么接、坏了怎么恢复、怎么发布。
-> 产品判断与**原则总表**见 [Lodge.md](../Lodge.md#原则总表)，结构见 [architecture.md](architecture.md)，界面见 [design.md](design.md)。
+> 通用判断与**原则总表**见 [思想.md](../思想.md#原则总表)，结构见 [architecture.md](architecture.md)，界面见 [design.md](design.md)。
 
 ## 开发运行
 
@@ -38,7 +38,7 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 
 ## 受控浏览器
 
-每位成员默认带只读公网浏览，不需要勾选，也没有房间级权限。建房和加成员时自动挂 `chrome-devtools` 只读 grant， Lodge 首次需要时把 `chrome-devtools-mcp@1.13.0` 注册到基座。
+每位成员默认带只读公网浏览，不需要勾选，也没有房间级权限。建房和规划师开通成员时自动挂 `chrome-devtools` 只读 grant， Lodge 首次需要时把 `chrome-devtools-mcp@1.13.0` 注册到基座。
 
 - 所有角色同一份能力：只读研究直接放行；命令、写入、付款仍逐次确认。
 - 独立临时 profile、headless；禁止输入、JS 求值、本地文件、localhost 和常见私网。

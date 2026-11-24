@@ -37,6 +37,22 @@ test('non-JSON host output still shows as text', () => {
   })
 })
 
+test('a truncated JSON envelope is recovered instead of shown raw', () => {
+  const raw = '{"action":"reply","reply":"几个能落笔的观点：\\n\\n一是别在句子上跟它比绵密，往往因'
+  const intent = parseHostIntent(raw, { speakers: [] })
+  assert.equal(intent.action, 'reply')
+  assert.equal(intent.structured, false)
+  assert.match(intent.reply, /几个能落笔的观点/)
+  assert.match(intent.reply, /\n\n/)
+  assert.doesNotMatch(intent.reply, /\{"action"/)
+  assert.match(intent.reply, /…$/)
+})
+
+test('the host prompt caps reply length', () => {
+  const prompt = hostIntentPrompt({ room: { lodge: true, members: [] }, text: '继续', turnLimit: 6 })
+  assert.match(prompt, /reply 不超过 200 字/)
+})
+
 test('Lodge decides to open a room in the same turn', () => {
   assert.deepEqual(
     parseHostIntent('{"action":"open","room":"chat","goal":"一起评价短篇《开锁》","reply":"我开一间让大伙看看。"}', { allowOpen: true }),

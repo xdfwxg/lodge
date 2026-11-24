@@ -156,7 +156,10 @@ test('a message without a mention goes to the host', async () => {
   const result = await ctx.chat.handleMessage(ctx.room(), { text: '你怎么看？', mentions: [] })
   assert.equal(result.ok, true)
   assert.equal(ctx.room().chat.phase, 'concluded')
-  assert.equal(ctx.messages.at(-1).text, '我在。')
+  assert.deepEqual(ctx.messages.map(message => [message.authorId, message.text]), [
+    ['you', '你怎么看？'],
+    ['lodge', '我在。'],
+  ])
   assert.deepEqual(ctx.sent, [])
 })
 
@@ -165,6 +168,8 @@ test('@everyone opens a round when the room is open', async () => {
   ctx.room().members = [{ id: 'a', name: '甲' }, { id: 'b', name: '乙' }]
   const result = await ctx.chat.handleMessage(ctx.room(), { text: '大家聊聊', mentions: [MENTION_ALL] })
   assert.equal(result.ok, true)
+  assert.equal(ctx.messages[0].authorId, 'you')
+  assert.equal(ctx.messages[0].text, '大家聊聊')
   assert.deepEqual(ctx.calls, [{ roomId: 'room-chat', note: '大家聊聊', speakers: ['a', 'b'] }])
 })
 
@@ -182,6 +187,8 @@ test('a named member gets the message directly in open chat', async () => {
   ctx.room().members = [{ id: 'a', name: '甲' }]
   const result = await ctx.chat.handleMessage(ctx.room(), { text: '甲，你看呢', mentions: ['a'] })
   assert.equal(result.ok, true)
+  assert.equal(ctx.messages[0].authorId, 'you')
+  assert.equal(ctx.messages[0].text, '甲，你看呢')
   assert.deepEqual(ctx.sent, [{
     roomId: 'room-chat',
     text: '甲，你看呢',

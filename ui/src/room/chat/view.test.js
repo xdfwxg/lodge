@@ -171,7 +171,7 @@ test('an empty chat room invites a chat without demanding a conclusion', () => {
   assert.equal(intro.type, StatePanel)
   assert.match(intro.props.title, /随便聊聊/)
   assert.match(intro.props.body, /想聊就聊/)
-  assert.match(intro.props.body, /工作室/)
+  assert.doesNotMatch(intro.props.body, /工作室/)
 })
 
 test('a speaking member is left to the body status row', () => {

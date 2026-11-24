@@ -96,10 +96,10 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
         ? null
         : h('p', { className: 'crew-field-hint' }, declarationOf(member)),
       h('label', { className: 'crew-field crew-body-swap-field' },
-        h('b', null, 'AI 服务'),
+        h('b', null, '模型服务'),
         h('select', {
           className: 'crew-member-menu',
-          'aria-label': `${member.name}的 AI 服务`,
+          'aria-label': `${member.name}的 模型服务`,
           value: engineId,
           disabled: busy,
           onChange: event => {
@@ -108,7 +108,7 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
             clearNote()
           },
         },
-        h('option', { value: '' }, '选一个 AI 服务'),
+        h('option', { value: '' }, '选一个 模型服务'),
         available.map(item => {
           const reason = engineBlockReason(item, { requireApproval: requiresGate })
           return h('option', {
@@ -130,12 +130,12 @@ export function BodySwapDialog({ member, engines = [], features = null, requires
           rows.map(item => h('option', { key: item.id, value: item.id }, item.label))))
         : null,
       available.length === 0
-        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个 AI 服务。')
+        ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个 模型服务。')
         : engine !== undefined && blocked && blockedReason !== '登录失效'
           ? blockedReason === '不会先问你外部动作'
-            ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个 AI 服务不会先问你，不能执行。换一个会先问你的。')
+            ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个 模型服务不会先问你，不能执行。换一个会先问你的。')
             : blockedReason === '没有配置模型'
-              ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个 AI 服务还没有可用模型。')
+              ? h('p', { className: 'crew-field-hint', role: 'alert' }, '这个 模型服务还没有可用模型。')
               : null
           : null,
       h(EngineLogin, {

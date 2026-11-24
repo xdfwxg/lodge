@@ -110,6 +110,15 @@ test('swapping keeps the member and its history, and replaces the body', async (
   assert.equal(calls.events.some(event => event.type === 'member.body.swapped'), true)
 })
 
+test('a model swap cannot silently drop cross-vendor review', async () => {
+  const { swap, room } = harness()
+  room.members.find(item => item.id === 'worker').body.engine = 'claude'
+  room.independence = 'vendor'
+  const result = await swap.swap(room, { memberId: 'verifier', engine: 'claude', model: 'sonnet' })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /跨厂商/)
+})
+
 test('a personality-only change leaves the role toolbox alone', async () => {
   const { swap, calls, room } = harness()
   room.members.find(item => item.id === 'worker').body.spec.skills = skillsForRole('worker')

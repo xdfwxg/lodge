@@ -73,7 +73,7 @@ export function HandoffBriefReview({
             ? plannedAcceptance
               ? null
               : h('p', { className: 'crew-field-hint' }, acceptance === '' ? '还没填检查' : `跑一条检查：${acceptance}`)
-            : null),
+            : h('p', { className: 'crew-field-hint' }, '验收方式由规划师在方案里定。')),
       h('details', { className: 'crew-handoff-more' },
         h('summary', null, `完整交接简报 · ${detailSummary}`),
         h('div', { className: 'crew-handoff-more-body' },

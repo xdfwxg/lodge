@@ -123,13 +123,16 @@ export const latestDispatchAssignment = (store, roomId, stageIndex, memberId = n
     ?? null
 )
 
-export const updateAssignment = (store, id, patch) => store.updateAssignment(id, assignment => {
-  Object.assign(assignment, patch)
-  if (patch.status === ASSIGNMENT_STATUS.sent && assignment.sentAt === null) assignment.sentAt = now()
-  if (patch.status === ASSIGNMENT_STATUS.reported || ASSIGNMENT_TERMINAL.has(patch.status)) assignment.lease = null
-  if (ASSIGNMENT_TERMINAL.has(patch.status) && assignment.finishedAt === null) assignment.finishedAt = now()
-  return true
-})
+export const updateAssignment = (store, id, patch) => {
+  // 状态只走 transitionAssignment；这个口子只改 flags、brief、context 之类的附带字段。
+  if (Object.prototype.hasOwnProperty.call(patch, 'status')) {
+    throw new Error('assignment status must go through transitionAssignment')
+  }
+  return store.updateAssignment(id, assignment => {
+    Object.assign(assignment, patch)
+    return true
+  })
+}
 
 // 状态只从这里改：校验和写入在同一个事务里，非法跃迁返回 null。
 // 状态落库后补一条审计事件；事件写失败不回滚业务状态。

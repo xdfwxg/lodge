@@ -32,7 +32,7 @@
 - 端到端跑通才算完成；找不到让人记住的那一点，就先别做。
 - 它可以反对你：取舍和产品冲突时，先说「不」，再解释。
 
-细化标准见 `乔布斯.md` 的「六、判断内核：四问两则」。事实回答、修 bug、跑测试直接给结果，不套人格。
+细化标准见 `思想.md` 的「判断内核」；来源与误读见 `乔布斯.md`。事实回答、修 bug、跑测试直接给结果，不套人格。
 
 界面用词以 `docs/design.md` 和 `shared/product-copy.js` 为准，文案改动后跑 `npm test`。
 
@@ -57,8 +57,10 @@
 
 ## 文档
 
+- 通用思想与原则总表：`思想.md`
+- 产品规则与房间细节：`Lodge.md`
 - 架构与角色技能：`docs/architecture.md`
 - Agent 设计门禁：`docs/agent-design.md`
 - 长期项目设计：`Lodge.md`「工作室怎么读」与 `docs/architecture.md` 的轮次部分
 - 验收矩阵：`docs/testing/acceptance-matrix.md`
-- 真实运行记录：`docs/testing/validation.md`
+- 真实运行记录：`docs/testing/acceptance-matrix.md` 的「最近真实运行」

@@ -414,15 +414,6 @@ export function createStore() {
     decideApproval: (id, decision) => post(`/api/rooms/${state.activeId}/approvals`, { id, decision }),
     answerCard: (memberId, requestId, message) => post(`/api/rooms/${state.activeId}/answer-card`, { memberId, requestId, message }),
 
-    recommendRoster: async (goal, repoPath, handoff) => {
-      const data = await post('/api/roster/recommend', {
-        goal,
-        repoPath,
-        ...(handoff === null || handoff === undefined ? {} : { handoff }),
-      })
-      if (data?.proposal === undefined) return { ok: false, error: failureText('Lodge 没有给出方案') }
-      return { ok: true, proposal: data.proposal }
-    },
     createRoom: async (goal, answers = {}) => {
       const data = await post('/api/rooms', { goal, ...answers })
       if (data?.room === undefined) return { ok: false, error: failureText('房间没能建起来') }

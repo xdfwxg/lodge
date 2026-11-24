@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { speakerPrompt, wantsStructuredSummary } from './prompts.js'
+import { hostPrompt, speakerPrompt, stripRoundLead, wantsStructuredSummary } from './prompts.js'
 
 const room = {
   goal: '朏朏住哪',
@@ -37,8 +37,38 @@ test('an ordinary request for a list keeps the structured summary', () => {
   for (const note of ['分条说', '逐条列一下', '列成清单', '用表格', '给我一个清单', 'bullet points']) {
     assert.equal(wantsStructuredSummary(note), true, note)
   }
+  for (const note of ['不要列表，简单说', '别用清单', '不用分点', '不要表格']) {
+    assert.equal(wantsStructuredSummary(note), false, note)
+  }
   assert.equal(wantsStructuredSummary('简单说说'), false)
   assert.equal(wantsStructuredSummary(''), false)
+})
+
+test('the host conclusion drops a leading round label', () => {
+  assert.equal(stripRoundLead('第 1 轮落在共识上：绵密不靠辞藻。'), '落在共识上：绵密不靠辞藻。')
+  assert.equal(stripRoundLead('第十二轮：结论是先做小版本。'), '结论是先做小版本。')
+  assert.equal(stripRoundLead('结论是先做小版本。'), '结论是先做小版本。')
+})
+
+test('the host prompt tells the model not to write round numbers', () => {
+  const prompt = hostPrompt({ room, round: 1, note: '', turnLimit: 6 })
+  assert.match(prompt, /不要写“第 N 轮”/)
+  assert.doesNotMatch(prompt, /聊天室第 1 轮讨论到此结束/)
+})
+
+test('the previous turn and brief are sanitized before they enter a prompt', () => {
+  const prompt = speakerPrompt({
+    room,
+    memberId: 'a',
+    round: 2,
+    turn: 2,
+    turnLimit: 6,
+    brief: '共识：先做​小版本',
+    previous: { name: '乙​', text: '前一句​后面' },
+  })
+  assert.doesNotMatch(prompt, /​/)
+  assert.match(prompt, /上一轮结论：共识：先做小版本/)
+  assert.match(prompt, /上一位：乙说“前一句后面”/)
 })
 
 test('a very long previous turn is clipped', () => {

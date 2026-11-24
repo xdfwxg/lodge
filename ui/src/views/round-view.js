@@ -55,7 +55,7 @@ export function RoundView({ room, roundId, store, onBack }) {
         : null,
       h('p', { className: 'crew-round-history-meta' },
         round.completedAt ? `交付于 ${dateTimeOf(round.completedAt)}` : '这一轮已经结束',
-        round.completedCommit ? ` · 提交 ${String(round.completedCommit).slice(0, 8)}` : ''),
+        round.completedCommit ? ` · 版本 ${String(round.completedCommit).slice(0, 8)}` : ''),
       h('p', { className: 'crew-round-history-note' }, '旧轮只能查看；要接着做，回到工作室开新一轮。'),
       h('div', { className: 'crew-round-history-transcript' },
         h(StudioTranscript, {

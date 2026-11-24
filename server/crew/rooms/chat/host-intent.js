@@ -31,7 +31,8 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '', linkedRoom
       '例如用户说“找人一起评”，goal 应写“一起评价短篇《开锁》哪里好、哪里要改”，不是“找人一起评”。',
       '如果从这里开出去的房已经有结论，直接接着结论说，不要让用户再等或把内容贴过来。',
       'reply 用一句人话告诉对方开什么；不需要就先空着，平台会补一句“开好了”。',
-      '只输出 JSON，不要 Markdown，不要解释：',
+      'reply 不超过 200 字；只回一段话，不要 Markdown，不要解释。',
+      '只输出 JSON：',
       '{"action":"reply","reply":"直接对用户说的话"}',
       '或 {"action":"open","room":"studio" 或 "chat","goal":"要完成的事","reply":"可选的一句"}',
     ]
@@ -42,7 +43,8 @@ export const hostIntentPrompt = ({ room, text, turnLimit, phase = '', linkedRoom
       '- 只有用户明确要求再讨论（如“再走一轮”“大家说说”“让大家讨论”），才输出 round，并在 speakers 里列出 1–3 个固定成员 id；其他情况一律 reply。',
       '- 不要因为问题本身需要多人观点就开轮；拿不准就 reply。',
       '- reply 只写回答本身，不要写“再走一轮”“我请人来说”这类流程话。',
-      '只输出 JSON，不要 Markdown，不要解释：',
+      '- reply 不超过 200 字；只回一段话，不要 Markdown，不要解释。',
+      '只输出 JSON：',
       '{"action":"reply","reply":"直接对用户说的话"}',
       '或 {"action":"round","speakers":["成员id"],"reply":"可选的一句"}',
     ]
@@ -91,6 +93,28 @@ const clean = raw => String(raw ?? '')
   .replace(/```$/i, '')
   .trim()
 
+// 模型偶尔会把 JSON 写到一半就被截断。先把 reply 从半截信封里救出来，
+// 不让 {"action":...} 和 \n 转义直接进房间。
+const decodeJsonString = raw => {
+  try {
+    return JSON.parse(`"${raw}"`)
+  } catch {
+    return raw
+      .replace(/\\n/g, '\n')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\')
+  }
+}
+
+const salvageReply = text => {
+  const quoted = text.match(/"reply"\s*:\s*"((?:\\.|[^"\\])*)"/)
+  if (quoted !== null) return decodeJsonString(quoted[1])
+  const open = text.match(/"reply"\s*:\s*"([\s\S]*)$/)
+  if (open === null) return ''
+  const raw = open[1].replace(/"\s*\}?\s*$/, '').replace(/\\$/, '')
+  return raw === '' ? '' : `${decodeJsonString(raw)}…`
+}
+
 export const parseHostIntent = (raw, { speakers = [], allowOpen = false } = {}) => {
   const text = clean(raw)
   const json = text.match(/\{[\s\S]*\}/)?.[0] ?? text
@@ -98,6 +122,11 @@ export const parseHostIntent = (raw, { speakers = [], allowOpen = false } = {}) 
   try {
     value = JSON.parse(json)
   } catch {
+    const reply = salvageReply(text)
+    if (reply !== '') return { action: 'reply', reply, speakers: [], structured: false }
+    if (/^\s*\{\s*"action"|"reply"\s*:/.test(text)) {
+      return { action: 'reply', reply: '我这次没答好，再说一次？', speakers: [], structured: false }
+    }
     return { action: 'reply', reply: text, speakers: [], structured: false }
   }
   if (allowOpen && value?.action === 'open' && (value?.room === 'studio' || value?.room === 'chat')) {

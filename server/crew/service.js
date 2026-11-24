@@ -73,7 +73,6 @@ export const createCrewService = ({ store, engine, live, emit, roles, ports, att
     roles,
     roomFiles,
     files,
-    workspace,
   })
   const memoryRoom = room => {
     if (typeof room.completedCommit === 'string' && room.completedCommit !== '') return room

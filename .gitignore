@@ -18,3 +18,27 @@ evals/compare/results/
 evals/verifier-probe/results/
 test-results/
 playwright-report/
+
+# 运行现场、内部草稿和个人策略只留本地
+docs/testing/validation*.md
+docs/testing/**/runs/
+docs/**/dogfood*.md
+docs/**/*-log.md
+**/*-PLAN.md
+**/PLAN.md
+**/NOTES.md
+**/TODO.md
+**/SCRATCH.md
+**/draft*.md
+**/*.local.md
+notes/
+private/
+drafts/
+strategy/
+**/transcripts/
+**/traces/
+**/diagnostics/
+**/exports/
+**/roadmap.md
+**/pricing.md
+**/customers.md

@@ -54,11 +54,11 @@ test('a delivered latest round offers the next round in the same project', () =>
     onClose: () => {},
     onOpenRoom: () => {},
     onStartRound: async () => ({ room: { id: 'room-1' } }),
-    onRecommend: async () => ({ ok: true, proposal: { done: [], stages: [], questions: [] } }),
   }))
   assert.match(html, /下一轮要做什么/)
   assert.match(html, /开下一轮/)
-  assert.match(html, /先出方案/)
+  assert.doesNotMatch(html, /先出方案/)
+  assert.doesNotMatch(html, /验收命令/)
 })
 
 test('a missing project is an honest empty state', () => {

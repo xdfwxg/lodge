@@ -2,12 +2,10 @@ import { Fragment, createElement as h, useEffect, useId, useRef, useState } from
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/glyphs.js'
 import { chooseDirectory as pickProjectDirectory } from './system.js'
-import { EngineLogin, useEngineLogin } from './engine-login.js'
-import { engineReady, engineReadiness } from '../../shared/engine-readiness.js'
-import { inlineCode } from './inline-code.js'
+import { useEngineLogin } from './engine-login.js'
+import { engineReadiness } from '../../shared/engine-readiness.js'
 import { seedGoalText } from './room-seeds.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
-import { MemberEnginePicker } from './room/member-engine-picker.js'
 import { defaultPersonalityId, modelRowsFor, memberChoicesFrom } from './room/member-options.js'
 import { defaultStanceId } from '../../shared/chat-stances.js'
 import { gateCardState, HandoffBriefReview } from './room/handoff-brief-review.js'
@@ -35,7 +33,6 @@ function NewRoomDialog({
   open,
   onClose,
   onCreate,
-  onRecommend,
   roomTypes = [],
   engines = [],
   features = null,
@@ -47,7 +44,6 @@ function NewRoomDialog({
 }) {
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const studioMembers = uiKindOfType('studio').defaultMembers
-  const [step, setStep] = useState(0)
   const [roomType, setRoomType] = useState('studio')
   const [shadowReview, setShadowReview] = useState(false)
   const [autoDeliver, setAutoDeliver] = useState(false)
@@ -55,9 +51,6 @@ function NewRoomDialog({
   const [goal, setGoal] = useState('')
   const [nameDraft, setNameDraft] = useState('')
   const [repoPath, setRepoPath] = useState('')
-  const [proposal, setProposal] = useState(null)
-  const [answers, setAnswers] = useState([])
-  const [recommending, setRecommending] = useState(false)
   const [acceptanceDraft, setAcceptanceDraft] = useState('')
   const [verifyMode, setVerifyMode] = useState('manual')
   const [advanced, setAdvanced] = useState(false)
@@ -73,7 +66,6 @@ function NewRoomDialog({
   const goalId = useId()
   const nameId = useId()
   const closeRef = useRef(null)
-  const proposalHeadRef = useRef(null)
   const overlayProps = useOverlay({ label: '新房间', onClose, active: open })
 
   useEffect(() => {
@@ -83,19 +75,10 @@ function NewRoomDialog({
   }, [open])
 
   useEffect(() => {
-    if (!open || step !== 1) return
-    proposalHeadRef.current?.focus()
-  }, [open, step])
-
-  useEffect(() => {
     if (!open) return
-    setStep(0)
-    setProposal(null)
-    setAnswers([])
     setGoal('')
     setNameDraft('')
     setMemberChoices([])
-    setRecommending(false)
     setShadowReview(false)
     setAutoDeliver(false)
     setChatTurnLimit(6)
@@ -121,10 +104,7 @@ function NewRoomDialog({
     setHandoffBriefReviewed(false)
     setReceipt(seed.receipt ?? null)
     if (typeof seed.repoPath === 'string' && seed.repoPath !== '') setRepoPath(seed.repoPath)
-    setStep(0)
-    setProposal(null)
     setMemberChoices([])
-    setAnswers([])
     setError(null)
   }, [open, seed?.goal, seed?.conclusion, seed?.sourceName, seed?.sourceRoomId, seed?.handoffBrief, seed?.receipt, startType])
 
@@ -142,8 +122,6 @@ function NewRoomDialog({
   const canSwitchType = canSwitchRoomType({ startType, seed }) && typeChoices.length > 1
   const chatRoster = chatMembers ?? (activeType?.defaultMembers ?? [])
   const needRepo = roomKind.workspace.required(null) && repoPath.trim() === ''
-  const proposalMembers = proposal?.members ?? []
-  const rosterMembers = proposalMembers.length > 0 ? proposalMembers : studioMembers
   const directMembers = isChat ? chatRoster : studioMembers
   const directChoices = isChat ? chatMemberChoices : memberChoices
   const setDirectChoices = isChat ? setChatMemberChoices : setMemberChoices
@@ -151,28 +129,14 @@ function NewRoomDialog({
   // 有没有能开工的模型只看一份判断；一家都没装时也要拦住，而不是等服务端拒绝。
   const readiness = engineReadiness(engines, { requireApproval: !isChat })
   const noAskingEngine = !isChat && !readiness.canStart
-  const choiceAt = index => directChoices[index] ?? { engine: '', model: '' }
   const selectedModelOf = choice => {
     const engine = engineChoices.find(item => item.id === choice.engine)
     if (choice.model !== '') return choice.model
     return engine?.models?.default || modelRowsFor(engine)[0]?.id || ''
   }
-  const memberChoiceReady = index => {
-    const choice = choiceAt(index)
-    if (choice.engine === '') return true
-    const engine = engineChoices.find(item => item.id === choice.engine)
-    return engine !== undefined && engineReady(engine, { requireApproval: !isChat }) && modelRowsFor(engine).length > 0
-  }
-  const membersReady = rosterMembers.every((_, index) => memberChoiceReady(index))
-  const hasMemberChoice = memberChoices.some(choice => choice !== undefined && (choice.engine !== '' || choice.model !== ''))
-  const hasVerifier = rosterMembers.some(member => member.role === 'verifier')
-  const plannedAcceptance = Array.isArray(proposal?.stages) &&
-    proposal.stages.some(stage => typeof stage.acceptance === 'string' && stage.acceptance.trim() !== '')
-  const proposalVerify = proposal?.verify === 'manual' ? 'manual' : 'test'
-  const verify = proposal === null ? verifyMode : proposalVerify
-  const acceptance = proposal === null
-    ? (verifyMode === 'test' ? acceptanceDraft.trim() : '')
-    : ((proposal.acceptance ?? '') || acceptanceDraft)
+  const hasVerifier = studioMembers.some(member => member.role === 'verifier')
+  const verify = verifyMode
+  const acceptance = verifyMode === 'test' ? acceptanceDraft.trim() : ''
   const studioMissingVerifier = !isChat && roomKind.missingVerifier(hasVerifier)
   const roomTitle = (nameDraft.trim() || roomNameFromGoal(goal)).trim()
   const handoffGate = handoffBrief === null
@@ -182,20 +146,12 @@ function NewRoomDialog({
       reviewed: handoffBriefReviewed,
       verify,
       acceptance,
-      plannedAcceptance,
     })
   const gatePending = handoffGate?.pendingText ?? null
-  const checkReady = verifyMode !== 'test' || acceptanceDraft.trim() !== ''
-  const proposalCheckReady = !(proposalVerify === 'test' && acceptance.trim() === '' && !plannedAcceptance)
-  const canStartProposal = proposal !== null && !busy && membersReady && readiness.canStart &&
-    (handoffGate === null ? proposalCheckReady : handoffGate.ready) &&
-    !studioMissingVerifier
   // 成员、模型和检查都由规划师组队时决定；建房只要求目标、文件夹和可用模型。
   const canStartStudio = !busy && goal.trim() !== '' && !needRepo && readiness.canStart &&
     (handoffGate === null ? true : handoffGate.ready) && !noAskingEngine
   const startDisabled = busy || goal.trim() === '' || needRepo || !readiness.canStart || (!isChat && !canStartStudio)
-  // 不再先出成员方案：直接开工，规划师在房里组队。
-  const planFirst = false
 
   const addChatMember = () => {
     setChatMembers(current => {
@@ -243,10 +199,7 @@ function NewRoomDialog({
   const chooseRoomType = next => {
     if (next === roomType) return
     setRoomType(next)
-    setStep(0)
-    setProposal(null)
     setMemberChoices([])
-    setAnswers([])
     setAcceptanceDraft('')
     setVerifyMode('manual')
     setShadowReview(false)
@@ -255,47 +208,10 @@ function NewRoomDialog({
     setError(null)
   }
 
-  const useProposal = next => {
-    const members = Array.isArray(next?.members) && next.members.length > 0 ? next.members : studioMembers
-    setProposal({ ...next, members })
-    setMemberChoices(members.map(member => ({
-      engine: typeof member.engine === 'string' ? member.engine : '',
-      model: typeof member.model === 'string' ? member.model : '',
-    })))
-    setAnswers((next?.questions ?? []).map(question => question.recommendation))
-    setAcceptanceDraft('')
-    setStep(1)
-  }
-
-  const recommend = async () => {
-    if (goal.trim() === '' || recommending) return
-    if (typeof onRecommend !== 'function') {
-      setError('Lodge 这次没能给出方案，再试一次')
-      return
-    }
-    setRecommending(true)
-    setError(null)
-    try {
-      const result = await onRecommend(goal.trim(), repoPath.trim(), handoffBrief)
-      if (result?.ok !== true) {
-        setError(result?.error ?? 'Lodge 这次没能给出方案，再试一次')
-        return
-      }
-      useProposal(result.proposal)
-    } catch (caught) {
-      setError(`Lodge 这次没能给出方案${errorSuffix(caught)}`)
-    } finally {
-      setRecommending(false)
-    }
-  }
-
   const resetAfterCreate = () => {
     setGoal('')
     setNameDraft('')
-    setStep(0)
-    setProposal(null)
     setMemberChoices([])
-    setAnswers([])
     setShadowReview(false)
     setAutoDeliver(false)
     setRoomType('studio')
@@ -339,41 +255,6 @@ function NewRoomDialog({
     }
   }
 
-  const start = async () => {
-    if (proposal === null || !canStartProposal) return
-    setBusy(true)
-    setError(null)
-    try {
-      const result = await onCreate(goal.trim(), roomKind.buildRequest({
-        goal: goal.trim(),
-        name: roomTitle,
-        repoPath: repoPath.trim(),
-        verify,
-        acceptance,
-        shadowReview,
-        autoDeliver,
-        handoffBrief,
-        handoffBriefReviewed,
-        sourceRoomId: seed?.sourceRoomId,
-        sourceName: seed?.sourceName,
-        proposal,
-        answers,
-        memberChoices,
-        hasMemberChoice,
-        selectedModelOf,
-      }))
-      if (result?.ok !== true) {
-        setError(result?.error ?? '房间没能建起来')
-        return
-      }
-      resetAfterCreate()
-    } catch (caught) {
-      setError(`房间没能建起来${errorSuffix(caught)}`)
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const startStudio = async () => {
     if (busy || !canStartStudio) return
     setBusy(true)
@@ -390,11 +271,6 @@ function NewRoomDialog({
         handoffBriefReviewed,
         sourceRoomId: seed?.sourceRoomId,
         sourceName: seed?.sourceName,
-        proposal: null,
-        members: studioMembers,
-        memberChoices,
-        hasMemberChoice,
-        selectedModelOf,
       }))
       if (result?.ok !== true) {
         setError(result?.error ?? '房间没能建起来')
@@ -407,83 +283,6 @@ function NewRoomDialog({
       setBusy(false)
     }
   }
-
-  const teamView = h('div', { className: 'crew-proposal-block' },
-    h('b', null, '成员'),
-    h(MemberEnginePicker, {
-      members: proposalMembers,
-      choices: memberChoices,
-      setChoices: setMemberChoices,
-      engines,
-      allowSkills: features?.skillsLibrary === true,
-      onInteraction: clearNote,
-    }),
-    h(EngineLogin, {
-      readiness: engineReadiness(engines, { requireApproval: true }),
-      busyId: loginBusyId,
-      note: loginNote,
-      onLogin: loginEngineFor,
-      onRefresh,
-    }))
-
-
-
-  const proposalBody = proposal === null ? null : h('div', { className: 'crew-dialog-body' },
-    h('div', { className: 'crew-proposal-head', ref: proposalHeadRef, tabIndex: -1 },
-      h('div', null,
-        h('b', null, '方案'),
-        typeof proposal.why === 'string' && proposal.why !== ''
-          ? h('p', {
-            className: 'crew-dialog-sub crew-proposal-lede',
-            title: proposal.why,
-          }, inlineCode(proposal.why))
-          : null)),
-    h('div', { className: 'crew-proposal-block' },
-      h('b', null, '结果'),
-      h('ul', { className: 'crew-brief' },
-        proposal.done.map((text, index) => h('li', { key: `done-${index}` }, inlineCode(text))))),
-    Array.isArray(proposal.stages) && proposal.stages.length > 0
-      ? h('div', { className: 'crew-proposal-block' },
-        h('b', null, '步骤'),
-        h('ul', { className: 'crew-brief' },
-          proposal.stages.map((stage, index) => h('li', { key: `stage-${index}` },
-            inlineCode(`${index + 1}. ${stage.title}${stage.kind === 'decision' ? ' · 待确认' : stage.acceptance ? ` · ${stage.acceptance}` : ''}`)))))
-      : null,
-    (proposal.questions ?? []).length > 0
-      ? h('div', { className: 'crew-proposal-block' },
-        h('b', null, '待确认'),
-        proposal.questions.map((question, index) => h('div', { key: `q-${index}`, className: 'crew-proposal-question' },
-          h('span', null, inlineCode(`${index + 1}. ${question.text}`)),
-          h('textarea', {
-            className: 'crew-goal-input',
-            rows: 2,
-            'aria-label': `问题 ${index + 1}：${question.text}`,
-            value: answers[index] ?? question.recommendation ?? '',
-            onChange: event => setAnswers(list => list.map((item, at) => at === index ? event.target.value : item)),
-          }))))
-      : null,
-    h('details', { className: 'crew-setup-more' },
-      h('summary', null, `队伍和检查 · ${rosterMembers.length} 人${verify === 'test' ? ' · 跑检查' : ' · 你确认'}`),
-      h('div', { className: 'crew-setup-more-body' },
-        teamView,
-        h('div', { className: 'crew-proposal-block' },
-        h('b', null, '怎么验收'),
-        verify === 'manual'
-          ? null
-          : acceptance.trim() !== ''
-            ? h('div', { className: 'crew-acceptance' },
-              h('code', { className: 'crew-acceptance-cmd' }, acceptance))
-            : plannedAcceptance
-              ? null
-              : h('input', {
-                className: 'crew-goal-input crew-acceptance-input',
-                type: 'text',
-                'aria-label': '要跑的检查',
-                value: acceptanceDraft,
-                placeholder: '例如：npm test',
-                onChange: event => setAcceptanceDraft(event.target.value),
-              })))),
-    error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const setupProps = {
     turnLimit: chatTurnLimit,
@@ -566,9 +365,8 @@ function NewRoomDialog({
         sourceName: seed?.sourceName ?? '',
         verify,
         acceptance,
-        plannedAcceptance,
-        onVerifyMode: proposal === null ? setVerifyMode : null,
-        onAcceptanceDraft: proposal === null ? setAcceptanceDraft : null,
+        onVerifyMode: null,
+        onAcceptanceDraft: null,
       }),
     workspaceField,
     repoPath.trim() === ''
@@ -584,9 +382,6 @@ function NewRoomDialog({
     new Set((engines ?? []).filter(item => item.available !== false).map(item => item.engine ?? item.id)).size === 1
       ? h('p', { className: 'crew-field-hint' }, '这台电脑只装了一家模型：可以开工，复核会是模型自查。')
       : null,
-    recommending
-      ? h('p', { className: 'crew-dialog-note' }, '正在出方案…')
-      : null,
     h('details', {
       className: 'crew-new-advanced',
       open: advanced,
@@ -600,13 +395,13 @@ function NewRoomDialog({
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const footHint = studioMissingVerifier
-    ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '还差一位验收员；重新出方案后才能开工。')
+    ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '还差一位验收员。')
     : needRepo
       ? h('span', { className: 'crew-dialog-foot-hint', role: 'alert' }, '先选工作文件夹')
       : gatePending === null ? null : h('span', { className: 'crew-dialog-foot-hint' }, gatePending)
   const footLead = canSwitchType || footHint !== null
     ? h('div', { className: 'crew-dialog-foot-lead' },
-      canSwitchType && step === 0
+      canSwitchType
         ? h('button', {
           type: 'button',
           className: 'crew-link',
@@ -629,43 +424,15 @@ function NewRoomDialog({
           title: '关闭',
           onClick: onClose,
         }, '×')),
-      step === 0 ? setupBody : proposalBody,
+      setupBody,
       h('div', { className: 'crew-dialog-foot' },
         footLead,
-        step > 0
-          ? h('button', {
-            type: 'button',
-            className: 'crew-ghost',
-            onClick: () => {
-              setStep(0)
-              setProposal(null)
-              setMemberChoices([])
-              setAnswers([])
-            },
-          }, '返回')
-          : null,
-        step === 0
-          ? h('button', {
-            type: 'button',
-            className: 'crew-accept crew-dialog-primary',
-            disabled: startDisabled || (planFirst && recommending),
-            onClick: () => void (planFirst ? recommend() : (isChat ? startChat() : startStudio())),
-          }, planFirst
-            ? (recommending ? '正在出方案…' : '先出方案')
-            : (busy ? '正在创建…' : roomKind.cta))
-          : studioMissingVerifier
-            ? h('button', {
-              type: 'button',
-              className: 'crew-accept crew-dialog-primary',
-              disabled: busy || recommending,
-              onClick: () => void recommend(),
-            }, recommending ? '正在出方案…' : '重新出方案')
-            : h('button', {
-              type: 'button',
-              className: 'crew-accept crew-dialog-primary',
-              disabled: !canStartProposal,
-              onClick: () => void start(),
-            }, busy ? '正在创建…' : '开工')))
+        h('button', {
+          type: 'button',
+          className: 'crew-accept crew-dialog-primary',
+          disabled: startDisabled,
+          onClick: () => void (isChat ? startChat() : startStudio()),
+        }, busy ? '正在创建…' : roomKind.cta)))
   )
 }
 

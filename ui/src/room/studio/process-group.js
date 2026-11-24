@@ -12,8 +12,25 @@ const elapsedOf = (from, now) => {
   return `${minutes}:${String(seconds % 60).padStart(2, '0')}`
 }
 
+const uniqueTargetsOf = (activities, action) => new Set(
+  activities
+    .filter(activity => activity.meta?.action === action)
+    .map(activity => String(activity.meta?.target ?? '').trim())
+    .filter(Boolean),
+)
+
+const diffStatOf = diff => {
+  let add = 0
+  let del = 0
+  for (const line of String(diff ?? '').split('\n')) {
+    if (line.startsWith('+') && !line.startsWith('+++')) add += 1
+    if (line.startsWith('-') && !line.startsWith('---')) del += 1
+  }
+  return { add, del }
+}
+
 // 一次工具调用不是一条发言；连着的几次调用收成时间线里的一行，收起时也能看到刚做了什么。
-// 折起来是“执行官 · 12 次操作 · 跑了 npm test · 2:40”，展开才是每一步。
+// 折起来是“执行官 · 跑了 5 条命令，改了 3 个文件 +22 −4”，展开才是每一步。
 export function ProcessGroup({ room, activities, member, isLatest = false, onForgetMemory = null }) {
   const metricsOf = isLatest ? runMetricsOf(room) : null
   const last = activities[activities.length - 1] ?? null
@@ -27,7 +44,28 @@ export function ProcessGroup({ room, activities, member, isLatest = false, onFor
     return () => clearInterval(timer)
   }, [live])
   const labels = activities.map(toolLabelOf)
-  const what = labels.length === 1 ? labels[0] : `${labels.length} 次操作 · ${labels[labels.length - 1]}`
+  const commands = activities.filter(activity => activity.meta?.action === 'exec').length
+  const writes = uniqueTargetsOf(activities, 'write').size || activities.filter(activity => activity.meta?.action === 'write').length
+  const reads = uniqueTargetsOf(activities, 'read').size || activities.filter(activity => activity.meta?.action === 'read').length
+  const gates = activities.filter(activity => activity.meta?.action === 'gate').length
+  const allMessages = Array.isArray(room?.messages) ? room.messages : []
+  const lastIndex = allMessages.findIndex(message => message.id === last?.id)
+  const evidence = lastIndex < 0
+    ? null
+    : allMessages.slice(lastIndex + 1).find(message => (
+      message.kind === 'evidence' &&
+      message.authorId === member?.id &&
+      typeof message.meta?.diff === 'string'
+    ))
+  const diff = evidence === null || evidence === undefined ? { add: 0, del: 0 } : diffStatOf(evidence.meta.diff)
+  const parts = []
+  if (commands > 0) parts.push(`跑了 ${commands} 条命令`)
+  if (writes > 0) parts.push(`改了 ${writes} 个文件`)
+  if (commands === 0 && writes === 0 && reads > 0) parts.push(`读了 ${reads} 个文件`)
+  if (commands === 0 && writes === 0 && reads === 0 && gates > 0) parts.push(`提交了 ${gates} 次判定`)
+  const what = parts.length > 0
+    ? parts.join('，')
+    : labels.length === 1 ? labels[0] : `${labels.length} 次操作 · ${labels[labels.length - 1]}`
   const elapsed = live ? elapsedOf(last?.ts, now) : ''
   const metrics = isLatest && metricsOf !== null
     ? [
@@ -43,7 +81,13 @@ export function ProcessGroup({ room, activities, member, isLatest = false, onFor
       h('span', { className: 'crew-process-summary' },
         member?.name ?? '成员',
         ` · ${what}`,
-        elapsed === '' ? null : ` · ${elapsed}`)),
+        diff.add > 0 || diff.del > 0
+          ? h('span', { className: 'crew-process-diff' },
+            diff.add > 0 ? h('span', { className: 'crew-process-diff-add' }, `+${diff.add}`) : null,
+            diff.del > 0 ? h('span', { className: 'crew-process-diff-del' }, `−${diff.del}`) : null)
+          : null,
+        elapsed === '' ? null : ` · ${elapsed}`),
+      h('span', { className: 'crew-process-chevron', 'aria-hidden': 'true' }, '›')),
     h('div', { className: 'crew-process-body' },
       h('ul', null, activities.map(activity => h('li', {
         key: activity.id,

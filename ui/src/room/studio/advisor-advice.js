@@ -43,7 +43,7 @@ const blockOf = (label, items) => (
       h('ul', null, items.map((item, index) => h('li', { key: `${label}-${index}` }, item))))
 )
 
-export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '影子评审' }) {
+export function ShadowAdvice({ room, evidenceId = null, stageIndex = null, label = '另一份意见' }) {
   const advice = stageIndex === null ? shadowAdviceFor(room, evidenceId) : shadowAdviceForStage(room, stageIndex)
   if (advice === null) return null
   return h('details', { className: 'crew-fold crew-shadow-advice crew-shadow-card' },

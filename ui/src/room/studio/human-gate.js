@@ -1,25 +1,18 @@
 import { Fragment, createElement as h, useState } from 'react'
 import { DecisionCard, DecisionOption } from '../decision-card.js'
 
-// 规划师在人话里用 A. / B. 列出的选择，直接变成可点的按钮；点击后房间继续。
-const choiceOptionsOf = text => {
-  const source = typeof text === 'string' ? text : ''
-  const matches = [...source.matchAll(/(?:^|[：:；;\s])([A-C])[.、:：]\s*([\s\S]*?)(?=(?:[：:；;\s][A-C][.、:：])|$)/g)]
-  return matches.slice(0, 3).map(match => {
-    const detail = match[2].trim()
-    const title = detail.split(/[，,；;。。（(]/)[0].slice(0, 36)
-    const cost = detail.startsWith(title)
-      ? detail.slice(title.length).replace(/^[，,；;。：:\s]+/, '')
-      : detail
-    return {
-      id: match[1],
-      title,
-      detail: cost,
-      action: /^(接受|收下|认可|同意)/.test(detail) ? 'accept' : 'rework',
-      text: `${match[1]}. ${detail}`,
-    }
-  })
-}
+// 规划师用结构化 options 交给人的动作；界面不再从自然语言里猜 A/B/C。
+const optionsOf = judgment => (
+  Array.isArray(judgment.options)
+    ? judgment.options.slice(0, 3).filter(option => (
+      option !== null &&
+      typeof option === 'object' &&
+      typeof option.id === 'string' &&
+      typeof option.title === 'string' &&
+      (option.action === 'accept' || option.action === 'rework')
+    ))
+    : []
+)
 
 // 规划师把这一步交给人以后，界面要给出一个明确动作，而不是只剩输入框。
 export const humanGateOf = room => {
@@ -39,7 +32,7 @@ export const humanGateOf = room => {
     title: stages[index].title ?? '',
     reason: typeof judgment.reason === 'string' ? judgment.reason : '',
     actionRequired,
-    options: choiceOptionsOf(actionRequired),
+    options: optionsOf(judgment),
   }
 }
 

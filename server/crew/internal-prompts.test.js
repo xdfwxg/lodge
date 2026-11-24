@@ -28,7 +28,7 @@ test('the studio worker handoff is marked internal', () => {
   })
   assert.equal(prompt.includes(INTERNAL_PROMPT_MARKER), true)
   assert.equal(isInternalPrompt(prompt), true)
-  // 群里那句交接 @ 由角色的提示词决定；每轮提示不能反过来禁止。
-  assert.doesNotMatch(prompt, /不要 @ 验收员/)
-  assert.match(prompt, /交接那句 @ 按你的角色规则写在最后一行/)
+  // 同伴只写名字，不写 @；群里那条 @ 由系统投影。
+  assert.match(prompt, /最后一句写清交给谁（写名字，不带 @）/)
+  assert.doesNotMatch(prompt, /交接那句 @ 按你的角色规则/)
 })

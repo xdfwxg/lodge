@@ -43,10 +43,6 @@ export const buildStages = ({ title, plan, verify, acceptance, align, bootstrap 
     ...(verify === 'test' ? { acceptance } : { manual: true }),
   }
   const planned = Array.isArray(plan?.stages) ? plan.stages : []
-  const openingGate = planned.length > 0 &&
-    planned[0].kind === 'decision' &&
-    /确认|对齐/.test(planned[0].title ?? '')
-  const firstActive = openingGate ? 1 : 0
   const work = planned.length > 0
     ? planned.map((stage, index) => ({
       title: stage.title,
@@ -55,7 +51,7 @@ export const buildStages = ({ title, plan, verify, acceptance, align, bootstrap 
       ...(stage.acceptance ? { acceptance: stage.acceptance } : {}),
       ...(Array.isArray(stage.assignees) && stage.assignees.length > 0 ? { assignees: stage.assignees } : {}),
       ...(Array.isArray(stage.packages) && stage.packages.length > 0 ? { packages: stage.packages } : {}),
-      state: index === firstActive ? 'active' : index < firstActive ? 'passed' : 'pending',
+      state: index === 0 ? 'active' : 'pending',
     }))
     : [{ ...delivery, state: align && plan === null ? STAGE_STATE.pending : STAGE_STATE.active }]
   const stages = [
@@ -75,7 +71,7 @@ export const buildStages = ({ title, plan, verify, acceptance, align, bootstrap 
   stages[stages.length - 1].dependsOn = [stages.length - 2]
   return {
     stages,
-    messages: openingGate ? ['方案已经定了；重复的确认步骤自动通过，直接进入下一步。'] : [],
+    messages: [],
   }
 }
 

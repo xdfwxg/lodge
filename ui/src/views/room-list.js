@@ -2,6 +2,7 @@ import { chatStatusOf, idleDelivered } from '../../../shared/room-status.js'
 import { CHAT_STATUS } from '../../../shared/states.js'
 import { stripAttachmentTags } from '../../../shared/attachments.js'
 import { hasNeedsAction, needsAction } from '../needs.js'
+import { CHAT_STATE_WORD, DELIVERED_WORD, ROOM_STATE_WORD } from '../room/status-words.js'
 
 const lastAtOf = room => (room.messages ?? [])
   .reduce((max, message) => Math.max(max, message.ts ?? 0), 0) || room.completedAt || 0
@@ -91,22 +92,22 @@ export const metaOf = room => {
 }
 
 const stateLabelOf = room => {
-  if (room?.archivedAt) return '已归档'
+  if (room?.archivedAt) return ROOM_STATE_WORD.archived
   if (room?.modeCapabilities?.stages === false) {
     const status = chatStatusOf(room)
-    if (status === CHAT_STATUS.concluded) return '聊到这儿了'
-    if (status === CHAT_STATUS.summarizing) return '正在收一下'
-    if ([CHAT_STATUS.running, CHAT_STATUS.thinking, CHAT_STATUS.discussing].includes(status)) return '正在聊'
-    if (status === CHAT_STATUS.paused) return '已暂停'
-    if (status === CHAT_STATUS.stopped) return '已停止'
-    if (status === CHAT_STATUS.archived) return '已归档'
-    return '还没开始聊'
+    if (status === CHAT_STATUS.concluded) return CHAT_STATE_WORD.concluded
+    if (status === CHAT_STATUS.summarizing) return CHAT_STATE_WORD.summarizing
+    if ([CHAT_STATUS.running, CHAT_STATUS.thinking, CHAT_STATUS.discussing].includes(status)) return CHAT_STATE_WORD.running
+    if (status === CHAT_STATUS.paused) return CHAT_STATE_WORD.paused
+    if (status === CHAT_STATUS.stopped) return CHAT_STATE_WORD.stopped
+    if (status === CHAT_STATUS.archived) return CHAT_STATE_WORD.archived
+    return CHAT_STATE_WORD.idle
   }
-  if (deliveredOf(room)) return '已交付'
-  if (room?.state === 'idle') return '空闲中'
-  if (room?.state === 'stopped') return '已停止'
-  if (room?.state === 'paused') return '已暂停'
-  if (room?.state === 'active') return '进行中'
+  if (deliveredOf(room)) return DELIVERED_WORD
+  if (room?.state === 'idle') return ROOM_STATE_WORD.idle
+  if (room?.state === 'stopped') return ROOM_STATE_WORD.stopped
+  if (room?.state === 'paused') return ROOM_STATE_WORD.paused
+  if (room?.state === 'active') return ROOM_STATE_WORD.active
   return ''
 }
 

@@ -7,7 +7,7 @@ import { parseHandoffBriefFromText } from '../../../../shared/handoff-brief.js'
 import { finalizeHostIntent, hostIntentPrompt, parseHostIntent, roundVetoed } from './host-intent.js'
 import { chatBriefOf } from './brief.js'
 import { linkedRoomBriefs } from './linked.js'
-import { digestText, hostPrompt, speakerPrompt, wantsStructuredSummary } from './prompts.js'
+import { digestText, hostPrompt, speakerPrompt, stripRoundLead, wantsStructuredSummary } from './prompts.js'
 import { systemNotice } from '../../notices.js'
 import { humanLabelOf } from '../../human-name.js'
 import { CHAT_PHASE, ROOM_STATE } from '../../../../shared/states.js'
@@ -372,7 +372,7 @@ export const createChatScheduler = ({
 
       const fallback = reply === null
       const text = !fallback
-        ? (reply.text ?? '')
+        ? stripRoundLead(reply.text ?? '')
         : digestText(lines)
       const conclusionText = text === '' ? digestText(lines) : text
       const handoffBrief = parseHandoffBriefFromText(conclusionText, store.readRoom(roomId)?.goal ?? room.goal)

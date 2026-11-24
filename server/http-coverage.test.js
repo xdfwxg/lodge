@@ -16,7 +16,6 @@ const start = async ({ roomRequest = null } = {}) => {
     state: async () => ({ rooms: [] }),
     health: async () => ({ ok: true, body: { ok: true } }),
     messagesSince: () => [],
-    recommendRoster: async () => ({ ok: true, body: { roles: [] } }),
     createRoom: async body => ({ ok: true, body: { room: { id: 'room-1', goal: body.goal } } }),
     createSampleRoom: async () => ({ ok: true, body: { room: { id: 'sample' } } }),
     evidence: async () => ({ ok: true, body: { evidence: {} } }),

@@ -16,6 +16,7 @@ import { leadMemberOf, memberOf } from '../../../room-members.js'
 import { deliverableStageIndex, isWorkStage, memberForRef } from '../turn-utils.js'
 import { vcsOf, workspaceOf } from '../workspace.js'
 import { systemNotice } from '../../../notices.js'
+import { INTERNAL_PROMPT_MARKER } from '../../../internal-prompts.js'
 import { hasLaterWorkStage } from '../review-policy.js'
 import { cancelAssignmentLease } from '../assignment-lease.js'
 import { redactSecrets } from '../../../../../shared/secrets.js'
@@ -41,6 +42,8 @@ export const createTurnCapture = ({
   adjustModel = null,
   writeDiagnostic = null,
   setMembers = null,
+  sendToMember = null,
+  planNudges = null,
 }) => {
   const captureTurn = (turn, authorRef) => {
     const turnId = turn?.turnId
@@ -177,6 +180,43 @@ export const createTurnCapture = ({
           })
           if (updated !== null) emit?.('room', updated)
         }
+        return
+      }
+    }
+    // 启动态只有规划师：没有 submit_plan 就没人开工。先私下催一次，第二次收口给人。
+    if (role === 'lead' && memberId !== null && memberId === leadMemberOf(room)?.id) {
+      const bootstrap = !(room.members ?? []).some(member => (
+        member.roleKind === 'executor' || member.role === 'worker'
+      ))
+      const waiting = (room.openQuestion !== null && room.openQuestion !== undefined && room.openQuestion !== '') ||
+        room.pendingDecision?.status === 'open'
+      if (bootstrap && room.workRound?.plan == null && !waiting) {
+        const key = `plan:${room.activeRoundId ?? ''}`
+        state.capturedTurns.add(turnId)
+        state.recordTurn(true)
+        if (planNudges !== null && planNudges.has(key)) {
+          store.appendMessage(roomId, {
+            kind: 'system',
+            text: '规划师还没有提交队伍；这一轮先停在这里。回一句“继续”再试一次。',
+          })
+          return
+        }
+        planNudges?.add(key)
+        if (typeof sendToMember === 'function') {
+          void sendToMember(memberId, [
+            '你这一回合没有提交方案和队伍。现在只做一件事：调用 lodge_gate_submit_plan 提交阶段、工作包、执行官和验收员；',
+            '不要继续分析，不要再问用户。工具确实不可用时只回复一行“组队失败”和原因。',
+            INTERNAL_PROMPT_MARKER,
+          ].join('\n'), {
+            intent: 'align',
+            from: '组队流程',
+            sendId: `plan-${turnId}`,
+          }).catch(error => {
+            systemNotice({ store, roomId, text: '没能再叫规划师提交队伍；待处理。', error })
+          })
+          return
+        }
+        store.appendMessage(roomId, { kind: 'system', text: '规划师没有提交队伍；待处理。' })
         return
       }
     }

@@ -29,7 +29,7 @@ test('the planner never sees the verdict tool', () => {
 
 test('the verifier only sees the verdict tool', () => {
   const deny = toolScopeFor({ roleKind: 'verifier' }).deny
-  for (const tool of ['submit_decision', 'ask_decision', 'ask_question', 'rewind_stage', 'stop_round', 'resume_round']) {
+  for (const tool of ['submit_decision', 'submit_plan', 'adjust_member_model', 'ask_decision', 'ask_question', 'rewind_stage', 'stop_round', 'resume_round']) {
     assert.ok(deny.includes(`mcp:lodge_gate:${tool}`), tool)
   }
   assert.equal(deny.includes('mcp:lodge_gate:submit_verdict'), false)

@@ -97,8 +97,8 @@ test('default member prompts carry the latest three-role contract, not stage SOP
   const lead = roster.find(member => member.role === 'lead')
   const worker = roster.find(member => member.role === 'worker')
   const verifier = roster.find(member => member.role === 'verifier')
-  assert.match(lead.prompt, /你是规划师，对接 @执行官、@验收员/)
-  assert.match(worker.prompt, /你是执行官，交付给 @验收员/)
+  assert.match(lead.prompt, /你是规划师，对接执行官、验收员/)
+  assert.match(worker.prompt, /你是执行官，交付给验收员/)
   assert.match(verifier.prompt, /你是验收员，只核验/)
   assert.doesNotMatch(lead.prompt, /阶段已确认|不要重复派活/)
   assert.doesNotMatch(worker.prompt, /git commit|不要问问题|不要 @验收/)
@@ -167,9 +167,9 @@ test('custom names flow into the prompts', () => {
   const lead = roster.find(member => member.role === 'lead')
   const worker = roster.find(member => member.role === 'worker')
   assert.match(lead.prompt, /你是总管/)
-  assert.match(lead.prompt, /@前端/)
   assert.match(worker.prompt, /你是前端/)
-  assert.match(worker.prompt, /@复核/)
+  assert.match(roster.find(member => member.role === 'verifier').prompt, /你是复核/)
+  for (const member of roster) assert.doesNotMatch(member.prompt, /@(?:执行官|验收员|规划师|前端|复核|总管)/)
 })
 
 test('custom rosters can declare base skill names', () => {
@@ -208,11 +208,19 @@ test('a custom roster can carry parallel workers', () => {
   assert.doesNotThrow(() => validateRoster(roster))
 })
 
-test('a custom roster carries at most one verifier', () => {
+test('a custom roster carries at most three verifiers', () => {
   const roster = rosterFromRoles([
     { role: 'worker', name: '实现' },
     { role: 'verifier', name: '复核一' },
     { role: 'verifier', name: '复核二' },
   ])
-  assert.throws(() => validateRoster(roster), /at most one verifier/)
+  assert.doesNotThrow(() => validateRoster(roster))
+  const tooMany = rosterFromRoles([
+    { role: 'worker', name: '实现' },
+    { role: 'verifier', name: '复核一' },
+    { role: 'verifier', name: '复核二' },
+    { role: 'verifier', name: '复核三' },
+    { role: 'verifier', name: '复核四' },
+  ])
+  assert.throws(() => validateRoster(tooMany), /at most three verifiers/)
 })

@@ -79,6 +79,20 @@ export const createBodySwap = ({ store, engine, emit }) => {
     const oldBody = { ...member.body }
     const model = modelId === '' ? (instance.models?.default ?? oldBody.model ?? '') : modelId
     const selection = { instanceId: instance.id, ...(model === '' ? {} : { model }) }
+    // 组队时平台强制跨厂商；之后换模型也不能把这道保证换掉。
+    const nextMembers = (room.members ?? []).map(item => item.id === memberId
+      ? { ...item, body: { ...oldBody, engine: instance.id, ...(model === '' ? {} : { model }) } }
+      : item)
+    const vendorCount = new Set(instances
+      .filter(item => item.available !== false)
+      .map(item => item.engine ?? item.id)).size
+    if (
+      room.independence === 'vendor' &&
+      vendorCount >= 2 &&
+      independenceOf({ members: nextMembers, instances }) !== 'vendor'
+    ) {
+      return fail('conflict', '换完会失去跨厂商复核；换一个不同厂商的模型，或让规划师重新组队。')
+    }
     const soul = roomModeOfRoom(room)?.memberSoul?.({
       ...member,
       prompt: spec.prompt,

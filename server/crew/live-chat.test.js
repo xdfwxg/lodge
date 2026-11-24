@@ -352,6 +352,33 @@ test('a truncated digest after a streamed reply is not a second message', () => 
   assert.equal(ctx.messages.length, 1)
 })
 
+test('a longer follow-up after the same prefix is a real second message', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor' }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '通过', turnId: 't1' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm1', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '通过', at: Date.now() },
+  })
+  ctx.subscribed[0].onEvent({
+    message: {
+      id: 'd1',
+      kind: 'turn',
+      role: 'agent',
+      authorRef: 'b-executor',
+      text: '通过，但还有一处要补',
+      turn: { reply: '通过，但还有一处要补', turnId: 't1' },
+      at: Date.now(),
+    },
+  })
+  assert.equal(ctx.messages.length, 2)
+  assert.equal(ctx.messages[1].text, '通过，但还有一处要补')
+})
+
 test('a late duplicate stream is hidden behind the final words', () => {
   const ctx = setup()
   const base = ctx.room()

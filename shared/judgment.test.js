@@ -6,6 +6,12 @@ import {
 
 const verdict = (text, extra = {}) => normalizeJudgment({ type: 'verdict', text, stage: 1, evidenceId: 'e1', actorId: 'v1', ...extra })
 
+test('a leading pass is not turned into reject by a later word', () => {
+  assert.equal(normalizeJudgment({ type: 'verdict', text: '通过，没有失败' }).decision, 'pass')
+  assert.equal(normalizeJudgment({ type: 'verdict', text: '不通过，缺日志' }).decision, 'reject')
+  assert.equal(judgmentAnchorOf('verdict', '通过，没有失败'), 'pass')
+})
+
 test('the first line still decides pass or reject', () => {
   assert.equal(verdict('PASS\n看起来没问题').decision, 'pass')
   assert.equal(verdict('**REJECT**\n还缺 beta').decision, 'reject')
@@ -96,6 +102,29 @@ test('a gate REJECT must point at a check that would fail', () => {
     { title: '缺日志', severity: 'major', evidence: '', check: 'npm test 会因为没有日志失败' },
     { title: '命名可以更好', severity: 'minor', evidence: '' },
   ])
+})
+
+test('a planner gate decision keeps structured human options', () => {
+  const judgment = judgmentFromGate({
+    type: 'planner',
+    input: {
+      decision: 'human',
+      reason: '两条路都能收，你定',
+      options: [
+        { id: 'accept', title: '接受当前版本', detail: '写清未证实项', action: 'accept' },
+        { id: 'retry', title: '补齐材料', detail: '再查一次', action: 'rework' },
+        { id: 'bad', title: '不该出现', action: 'other' },
+      ],
+    },
+    stage: 1,
+    actorId: 'lead',
+  })
+  assert.deepEqual(judgment.options.map(option => [option.id, option.action]), [
+    ['accept', 'accept'],
+    ['retry', 'rework'],
+  ])
+  assert.equal(judgment.options[0].text, '接受当前版本：写清未证实项')
+  assert.deepEqual(validateJudgment(judgment).options, judgment.options)
 })
 
 test('planner decisions keep the note and require an action for human', () => {

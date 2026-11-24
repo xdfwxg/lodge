@@ -40,11 +40,12 @@ const runPhase = (caseId, phase, dataDir, repo) => {
   return parsed
 }
 
-const median = values => {
+const percentile = (values, p) => {
   if (values.length === 0) return 0
   const sorted = [...values].sort((a, b) => a - b)
-  return sorted[Math.floor((sorted.length - 1) / 2)]
+  return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))]
 }
+const median = values => percentile(values, 0.5)
 
 const rows = []
 for (const caseId of cases) {
@@ -92,6 +93,7 @@ const summary = {
   costMicroUsd: totalCost,
   costPerDelivery: totalCompleted === 0 ? null : Math.round(totalCost / totalCompleted),
   p50Ms: median(rows.map(row => row.ms)),
+  p95Ms: percentile(rows.map(row => row.ms), 0.95),
   rows,
 }
 mkdirSync(outDir, { recursive: true })
@@ -105,7 +107,7 @@ const lines = [
   `- rounds: ${summary.rounds} · completed: ${summary.completed}`,
   `- rework: ${summary.rework} · human: ${summary.human}`,
   `- cost: $${(summary.costMicroUsd / 1_000_000).toFixed(4)} · per delivery ${summary.costPerDelivery === null ? '—' : `$${(summary.costPerDelivery / 1_000_000).toFixed(4)}`}`,
-  `- p50: ${summary.p50Ms}ms`,
+  `- p50: ${summary.p50Ms}ms · p95: ${summary.p95Ms}ms`,
   '',
   '| case | result | ms | rounds | completed | rework | human | cost | error |',
   '|---|---|---:|---:|---:|---:|---:|---:|---|',

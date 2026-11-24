@@ -273,6 +273,34 @@ test('a lead plan call hands the proposal to the platform without an @', async (
   assert.equal(sent.length, 0)
 })
 
+test('a bootstrap planner that forgets submit_plan is nudged once, then surfaced', async () => {
+  const room = makeRoom({
+    stages: [{ title: '目标对齐', kind: 'decision', spine: true, state: 'active' }],
+    seatNames: { planner: 'Planner' },
+    seatSpecs: [{ id: 'planner', name: '规划师', role: 'lead' }],
+    seatBots: { planner: 'bot-planner' },
+    workers: [],
+  })
+  const store = fakeStore(room)
+  const sent = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt) => { sent.push({ memberId, prompt }); return { messageId: null } },
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ reply: '我先分析一下。', turnId: 't-no-plan-1', toolCalls: 0 }, 'bot-planner')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(sent.length, 1)
+  assert.match(sent[0].prompt, /submit_plan/)
+  assert.match(sent[0].prompt, /不要继续分析/)
+
+  turns.captureTurn({ reply: '还在分析。', turnId: 't-no-plan-2', toolCalls: 0 }, 'bot-planner')
+  assert.match(String(store.messages.at(-1)?.text ?? ''), /还没有提交队伍/)
+})
+
 test('a lead model change goes to the platform as three fields', async () => {
   const room = makeRoom({
     stages: [{ title: '目标对齐', kind: 'decision', spine: true, state: 'active' }],

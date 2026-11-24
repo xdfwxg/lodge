@@ -8,7 +8,7 @@ const stageOf = (raw, index) => {
   if (title === '') return null
   const acceptance = text(raw?.acceptance, 500)
   const manual = raw?.manual === true
-  const packages = list(raw?.packages, 4, item => {
+  const packages = list(raw?.packages, 3, item => {
     const packageTitle = text(item?.title, 80)
     if (packageTitle === '') return null
     const files = list(item?.files, 12, file => text(file, 200)).filter(file => file !== '')
@@ -68,11 +68,16 @@ export const independentPackagesOf = stage => {
   if (packages.length < 2) return packages.length
   const withFiles = packages.filter(item => item.files.length > 0)
   if (withFiles.length !== packages.length) return 1
-  const independent = []
-  for (const item of withFiles) {
-    if (independent.every(other => !overlap(other.files, item.files))) independent.push(item)
+  // 包最多 3 个，直接枚举所有子集求最大独立集；贪心会漏掉“先选大的反而少”的情况。
+  let best = 0
+  for (let mask = 1; mask < (1 << withFiles.length); mask += 1) {
+    const chosen = withFiles.filter((_, index) => (mask & (1 << index)) !== 0)
+    const independent = chosen.every((item, index) => (
+      chosen.slice(index + 1).every(other => !overlap(other.files, item.files))
+    ))
+    if (independent) best = Math.max(best, chosen.length)
   }
-  return independent.length
+  return best
 }
 
 export const executorsNeeded = stages => Math.max(1, ...(Array.isArray(stages) ? stages : []).map(independentPackagesOf))
