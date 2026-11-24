@@ -121,7 +121,7 @@ test('a transport failure marks the handoff failed without changing the stage', 
   assert.deepEqual(ctx.events.map(event => event.type), ['assignment.created', 'assignment.failed'])
 })
 
-test('a retry after a transport failure starts a new assignment linked to the failed one', async () => {
+test('a retry after a transport failure reopens the same assignment', async () => {
   let attempts = 0
   const ctx = setup(room(), async () => {
     attempts += 1
@@ -143,13 +143,17 @@ test('a retry after a transport failure starts a new assignment linked to the fa
   assert.equal(failed.status, 'failed')
   const sent = await ctx.handoff.trigger(params)
   const rows = ctx.store.readAssignments('room-1')
-  assert.equal(rows.length, 2)
-  assert.notEqual(sent.id, failed.id)
-  assert.equal(sent.parentAssignmentId, failed.id)
-  assert.equal(ctx.store.readAssignment(failed.id).resultText, '暂时送不到')
+  assert.equal(rows.length, 1)
+  assert.equal(sent.id, failed.id)
+  assert.equal(sent.status, 'sent')
+  assert.equal(sent.resultText, '')
+  assert.equal(ctx.store.readAssignment(failed.id).finishedAt, null)
   assert.deepEqual(ctx.events.map(event => event.type), [
-    'assignment.created', 'assignment.failed', 'assignment.created', 'assignment.sent',
+    'assignment.created', 'assignment.failed', 'assignment.sent',
   ])
+  const messages = ctx.store.readMessages()
+  assert.equal(messages.filter(message => message.kind === 'handoff').length, 1)
+  assert.equal(messages.find(message => message.kind === 'handoff').meta.status, 'sent')
 })
 
 test('a delivered assignment is not woken twice', async () => {

@@ -41,9 +41,11 @@ test('assignment transitions only reference known states', () => {
   }
   for (const status of ASSIGNMENT_TERMINAL) {
     assert.ok(values(ASSIGNMENT_STATUS).includes(status), status)
-    // 终态只能停在终态里（rejected 可以再标成 failed），不能回到进行中。
+    // 终态只能停在终态里（rejected 可以再标成 failed）；送达失败是唯一例外：
+    // 同一拍重新投递成功后回到 sent，不新建一条。
     for (const to of ASSIGNMENT_TRANSITIONS[status] ?? []) {
-      assert.ok(ASSIGNMENT_TERMINAL.has(to), `${status} -> ${to}`)
+      const retried = status === 'failed' && to === 'sent'
+      assert.ok(retried || ASSIGNMENT_TERMINAL.has(to), `${status} -> ${to}`)
     }
   }
 })

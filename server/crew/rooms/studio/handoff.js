@@ -72,13 +72,12 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     if (existing !== null && ['working', 'reported', 'passed', 'rejected', 'cancelled'].includes(existing.status)) {
       return existing
     }
-    // 失败是一次可重试的送达，不是同一条记录回退：新建一条，指向失败的那条。
-    const retry = existing !== null && existing.status === ASSIGNMENT_STATUS.failed
-    const created = existing === null || retry
+    // 投递失败还是同一拍：沿用原来的 Assignment，成功后把它送回 sent，不新建一条。
+    const created = existing === null
     const assignment = created
       ? createAssignment({
         store,
-        id: retry ? `${deliveryKey}-${randomUUID().slice(0, 8)}` : deliveryKey,
+        id: deliveryKey,
         roomId,
         stageIndex: index,
         fromMemberId: from,
@@ -100,17 +99,29 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
           ...(verdict?.id === undefined ? {} : { verdictId: verdict.id }),
         },
         evidenceIds: evidence?.id === undefined ? [] : [evidence.id],
-        parentAssignmentId: retry ? existing.id : parentAssignmentId,
+        parentAssignmentId,
         status: ASSIGNMENT_STATUS.created,
       })
       : existing
     const sendId = assignment.id
-    const stored = visible === false ? null : store.appendMessage(roomId, {
-      kind: 'handoff',
-      authorId: from,
-      text: summary,
-      meta: { assignmentId: assignment.id, stage: index, status: HANDOFF_STATUS.sending },
-    })
+    const priorMessage = visible === false || typeof existing?.messageId !== 'string'
+      ? null
+      : (store.readMessages?.(roomId) ?? []).find(item => item.id === existing.messageId) ?? null
+    const stored = visible === false
+      ? null
+      : priorMessage !== null
+        ? store.upsertMessage?.({
+          ...priorMessage,
+          text: summary,
+          ts: Date.now(),
+          meta: { ...priorMessage.meta, status: HANDOFF_STATUS.sending },
+        }) ?? priorMessage
+        : store.appendMessage(roomId, {
+          kind: 'handoff',
+          authorId: from,
+          text: summary,
+          meta: { assignmentId: assignment.id, stage: index, status: HANDOFF_STATUS.sending },
+        })
     if (created) {
       store.appendEvent(roomId, 'assignment.created', {
         assignmentId: assignment.id,
@@ -125,9 +136,11 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
     if (deliver === false) {
       const sent = transitionAssignment(store, assignment.id, 'sent', {
         sendId,
-        messageId: stored?.id,
+        ...(stored === null ? {} : { messageId: stored.id }),
         sentAt: Date.now(),
         lease: leaseOf(),
+        finishedAt: null,
+        resultText: '',
       })
       armAssignmentLease({
         store,
@@ -148,9 +161,11 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       })
       const sent = transitionAssignment(store, assignment.id, 'sent', {
         sendId,
-        messageId: stored?.id,
+        ...(stored === null ? {} : { messageId: stored.id }),
         sentAt: Date.now(),
         lease: leaseOf(),
+        finishedAt: null,
+        resultText: '',
       })
       if (stored !== null) {
         store.upsertMessage?.({
@@ -169,7 +184,7 @@ export const createHandoff = ({ store, roomId, sendToMember, emit }) => {
       return sent ?? assignment
     } catch (error) {
       transitionAssignment(store, assignment.id, 'failed', {
-        messageId: stored?.id,
+        ...(stored === null ? {} : { messageId: stored.id }),
         resultText: String(error?.message ?? error),
       })
       if (stored !== null) {

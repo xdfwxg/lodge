@@ -103,7 +103,8 @@ export const ASSIGNMENT_TRANSITIONS = Object.freeze({
   [ASSIGNMENT_STATUS.reviewing]: [ASSIGNMENT_STATUS.passed, ASSIGNMENT_STATUS.rejected, ASSIGNMENT_STATUS.failed, ASSIGNMENT_STATUS.cancelled],
   [ASSIGNMENT_STATUS.passed]: [],
   [ASSIGNMENT_STATUS.rejected]: [ASSIGNMENT_STATUS.failed],
-  [ASSIGNMENT_STATUS.failed]: [],
+  // 送达失败不是工作的终态：同一拍可以重新投递，成功后回到 sent。
+  [ASSIGNMENT_STATUS.failed]: [ASSIGNMENT_STATUS.sent],
   [ASSIGNMENT_STATUS.cancelled]: [],
 })
 
