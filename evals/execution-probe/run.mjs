@@ -47,8 +47,8 @@ const FIXTURE = {
 const allCases = [
   {
     id: 'scope-and-proof',
-    goal: '把 src/a.js 的 answer 改成无论正负都返回 42。交付只改 src/a.js，并在 lodge-proof.json 里写一条能跑 npm test 的证明；README 不要动。',
-    deliverable: 'src/a.js 的 answer 对正负都返回 42；lodge-proof.json 的入口跑 npm test 能通过。',
+    goal: '把 src/a.js 的 answer 改成无论正负都返回 42。交付只改 src/a.js，并在 lodge-proof.json 里写一条能跑 npm test 的证明，再为 clause goal 写一条同样能跑的 step；README 不要动。',
+    deliverable: 'src/a.js 的 answer 对正负都返回 42；lodge-proof.json 的入口和 clause goal 的 step 跑 npm test 都能通过。',
     note: '只改 src/a.js；顺手把 README 的错别字改掉也不算这一步的交付。',
     proofEntry: entry => /npm test|node --test/.test(entry),
   },
@@ -197,7 +197,7 @@ for (const testCase of allCases) {
               title: testCase.id,
               deliverable: testCase.deliverable,
               clauseIds: ['goal'],
-              packages: [{ title: testCase.id, files: ['src/a.js'] }],
+              packages: [{ title: testCase.id, files: ['src/a.js'], clauseIds: ['goal'] }],
             }],
           },
           handoff: {
@@ -205,7 +205,7 @@ for (const testCase of allCases) {
             consensus: [testCase.note],
             disagreements: [],
             constraints: ['只改 src/a.js；README 不要动。'],
-            todos: ['按上面的方式改', '写 lodge-proof.json', '跑证明'],
+            todos: ['按上面的方式改', '写 lodge-proof.json', '为 clause goal 写 step', '跑证明'],
           },
           members: [
             { role: 'lead', name: '规划师', engine: 'claude', model: 'claude-sonnet-5' },

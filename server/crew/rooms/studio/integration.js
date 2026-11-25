@@ -50,6 +50,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
   // 验收员自己在副本里验证，不需要平台预先跑一条命令。
   const acceptHead = async ({ room, stageIndex, head, workers, base, merged = [], turnId = '' }) => {
     const integration = room.repoPath
+    const stage = room.stages?.[stageIndex]
     if (typeof head !== 'string' || head === '') {
       systemNotice({ store, roomId, text: '合并结果没有留下提交；待处理。' })
       return
@@ -74,7 +75,11 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
       range = await workspaceOf(room).rangeChanges({ path: integration, base })
     } catch {}
     const names = workers.map(worker => memberDisplayName(room, worker)).join('、')
-    const proof = await runProof({ room, ref: head })
+    const proof = await runProof({
+      room,
+      ref: head,
+      clauses: [...new Set((Array.isArray(stage?.clauseIds) ? stage.clauseIds : []).map(String).filter(Boolean))],
+    })
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',

@@ -107,7 +107,13 @@ const prepareRepo = testCase => {
     mkdirSync(dirname(target), { recursive: true })
     writeFileSync(target, content)
   }
-  if (contractMode) writeFileSync(join(repo, 'lodge-proof.json'), `${JSON.stringify({ version: 1, entry: 'npm test' }, null, 2)}\n`)
+  if (contractMode) {
+    writeFileSync(join(repo, 'lodge-proof.json'), `${JSON.stringify({
+      version: 1,
+      entry: 'npm test',
+      steps: [{ clause: 'goal', run: 'npm test', expect: '验收命令通过' }],
+    }, null, 2)}\n`)
+  }
   execFileSync('git', ['init', '-q'], { cwd: repo })
   execFileSync('git', ['add', '.'], { cwd: repo })
   execFileSync('git', ['-c', 'user.name=Probe', '-c', 'user.email=probe@localhost', 'commit', '-q', '-m', 'probe fixture'], { cwd: repo })
@@ -295,7 +301,7 @@ for (const testCase of cases) {
                 title: testCase.id,
                 deliverable: testCase.deliverable,
                 clauseIds: ['goal'],
-                packages: [{ title: testCase.id, files: [testCase.defectFile] }],
+                packages: [{ title: testCase.id, files: [testCase.defectFile], clauseIds: ['goal'] }],
               }],
             }
             : {

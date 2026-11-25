@@ -52,6 +52,23 @@ test('a contract room cannot pass without a verified proof', () => {
   assert.equal(verified.ok, true, verified.error)
 })
 
+test('a proof that misses a clause step or has a red step cannot be confirmed', () => {
+  const r = room()
+  const incomplete = gateFor(r, 1, [
+    evidence(1, 10, { proof: { status: 'incomplete', exit: 0, missingClauses: ['export'] } }),
+    verdict(1, 11, true, { evidenceId: 'e-10' }),
+  ])
+  assert.equal(incomplete.ok, false)
+  assert.match(incomplete.error, /没有覆盖每条契约要求/)
+  assert.match(incomplete.error, /export/)
+  const failed = gateFor(r, 1, [
+    evidence(1, 10, { proof: { status: 'failed', exit: 0, error: '证明的 step 没跑绿：npm test' } }),
+    verdict(1, 11, true, { evidenceId: 'e-10' }),
+  ])
+  assert.equal(failed.ok, false)
+  assert.match(failed.error, /没跑绿/)
+})
+
 test('rejects a stage that is not active', () => {
   const r = room()
   r.stages[1].state = 'pending'

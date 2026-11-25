@@ -1,8 +1,9 @@
 import { systemNotice } from '../../../notices.js'
+import { activeDispatchAssignments } from '../../../assignments.js'
 import { verifierIds } from '../../../room-members.js'
 import { workspaceOf } from '../workspace.js'
 import { runProof } from '../proof-runner.js'
-import { allowedFilesFor, filesOutsidePackage } from '../write-boundary.js'
+import { allowedFilesFor, clauseIdsFor, filesOutsidePackage } from '../write-boundary.js'
 import { reworkFloor } from '../../../../../shared/attempt.js'
 
 // 执行官交回一步的结果：平台只负责把候选提交、diff 和文件清单固定下来，
@@ -50,6 +51,15 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
     const provider = workspaceOf(room)
     const repoPath = repoPathOf(room, memberId)
     const stage = room.stages?.[stageIndex] ?? null
+    // 派发时记下的 clause 是这一拍的事实；没有账本（老房间/测试）才按工作包回算。
+    const dispatch = activeDispatchAssignments(store, roomId, stageIndex)
+      .filter(item => item.toMemberId === memberId && ['sent', 'working', 'reported'].includes(item.status))
+      .at(-1)
+    const clauses = dispatch !== undefined && dispatch !== null &&
+      dispatch.context !== null && typeof dispatch.context === 'object' &&
+      Object.prototype.hasOwnProperty.call(dispatch.context, 'clauseIds')
+      ? (Array.isArray(dispatch.context.clauseIds) ? dispatch.context.clauseIds : [])
+      : clauseIdsFor({ room, stage, memberId })
     // 回合结束后先退回工作包之外的改动，再做候选提交：越界内容不能混进这次交付。
     // 只有 git 工作副本能可靠区分“这次改了什么”；复制目录和原地目录没有这层证据，靠验收核对。
     let outOfBounds = null
@@ -98,6 +108,7 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
       ref: acceptedRef,
       baseRef: baseline,
       behavior: stage?.behavior === 'preserve' ? 'preserve' : 'change',
+      clauses,
     })
 
     // 同一 HEAD 上没有新结果时不重复送审；重做后的同一结果仍要重新送审。

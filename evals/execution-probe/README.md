@@ -1,6 +1,6 @@
 # 执行探针
 
-契约和工作包固定，只看执行官这一回合有没有守住写边界、交出平台能重跑的证明。
+契约和工作包固定，只看执行官这一回合有没有守住写边界、交出平台能重跑的证明（entry 和每条 clause 的 step 都要跑绿）。
 
 - 需要 Lodge（默认 8787）和基座在运行；会调用真实模型，不进 `npm run check:done`。
 - 先跑 `node evals/execution-probe/run.mjs --validate`：确认证明入口的检查本身可用。

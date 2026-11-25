@@ -118,6 +118,10 @@ export const normalizePlan = ({ body }) => {
                     .filter(file => typeof file === 'string' && file.trim() !== '')
                     .slice(0, 12)
                     .map(file => file.trim().slice(0, 200)),
+                  clauseIds: (Array.isArray(pkg.clauseIds) ? pkg.clauseIds : [])
+                    .filter(id => typeof id === 'string' && id.trim() !== '')
+                    .slice(0, 6)
+                    .map(id => id.trim().slice(0, 40)),
                 })),
             }
             : {}),

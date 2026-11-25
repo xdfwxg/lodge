@@ -12,7 +12,7 @@ const contract = {
 const proposal = over => ({
   contract,
   plan: {
-    stages: [{ title: '实现', deliverable: '导出按钮能用', clauseIds: ['export'], packages: [{ title: 'a', files: ['src/a.js'] }] }],
+    stages: [{ title: '实现', deliverable: '导出按钮能用', clauseIds: ['export'], packages: [{ title: 'a', files: ['src/a.js'], clauseIds: ['export'] }] }],
   },
   crew: { executors: [{ engine: 'claude', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
   ...over,
@@ -54,8 +54,31 @@ test('every stage needs a package with files so the write boundary has a shape',
   noPackage.plan.stages[0].packages = []
   assert.match(normalizeCrewProposal(noPackage).error, /没有工作包/)
   const noFiles = proposal()
-  noFiles.plan.stages[0].packages = [{ title: 'a', files: [] }]
+  noFiles.plan.stages[0].packages = [{ title: 'a', files: [], clauseIds: ['export'] }]
   assert.match(normalizeCrewProposal(noFiles).error, /没有文件/)
+})
+
+test('every package names the clauses it proves, and together they cover the stage', () => {
+  const noClauses = proposal()
+  noClauses.plan.stages[0].packages = [{ title: 'a', files: ['src/a.js'] }]
+  assert.match(normalizeCrewProposal(noClauses).error, /没有 clauseIds/)
+
+  const unknown = proposal()
+  unknown.plan.stages[0].packages = [{ title: 'a', files: ['src/a.js'], clauseIds: ['missing'] }]
+  assert.match(normalizeCrewProposal(unknown).error, /本阶段没有的要求/)
+
+  const twoOutcomes = {
+    ...contract,
+    outcomes: [
+      ...contract.outcomes,
+      { id: 'docs', statement: '有一页说明', observable: 'README 能照着做' },
+    ],
+  }
+  const uncovered = proposal()
+  uncovered.contract = twoOutcomes
+  uncovered.plan.stages[0].clauseIds = ['export', 'docs']
+  uncovered.plan.stages[0].packages = [{ title: 'a', files: ['src/a.js'], clauseIds: ['export'] }]
+  assert.match(normalizeCrewProposal(uncovered).error, /没有落到工作包/)
 })
 
 test('a stage can declare that it preserves behavior', () => {
@@ -98,6 +121,19 @@ test('a proposal without a contract, stage, deliverable, executor or verifier fa
   assert.match(normalizeCrewProposal({ contract, plan: proposal().plan, crew: { executors: [], verifiers: [{ engine: 'pi', model: 'y' }] } }).error, /执行官/)
   assert.match(normalizeCrewProposal({ contract, plan: proposal().plan, crew: { executors: [{ engine: 'claude', model: 'x' }] } }).error, /验收员/)
   assert.match(normalizeCrewProposal({ contract, plan: proposal().plan, crew: { executors: [{ engine: 'claude', model: 'x', name: '同名' }], verifiers: [{ engine: 'pi', model: 'y', name: '同名' }] }, }).error, /重复/)
+})
+
+test('a malformed stage or crew member is rejected, never silently dropped', () => {
+  const stage = { title: '实现', deliverable: '能用', clauseIds: ['export'], packages: [{ title: 'a', files: ['src/a.js'], clauseIds: ['export'] }] }
+  const droppedStage = proposal()
+  droppedStage.plan.stages = [stage, { title: '收尾', clauseIds: ['export'], packages: [{ title: 'b', files: ['src/b.js'], clauseIds: ['export'] }] }]
+  assert.match(normalizeCrewProposal(droppedStage).error, /第 2 个阶段/)
+  const droppedExecutor = proposal()
+  droppedExecutor.crew.executors.push({ engine: '', model: 'x' })
+  assert.match(normalizeCrewProposal(droppedExecutor).error, /执行官缺 engine\/model/)
+  const droppedVerifier = proposal()
+  droppedVerifier.crew.verifiers.push({ engine: 'claude', model: '' })
+  assert.match(normalizeCrewProposal(droppedVerifier).error, /验收员缺 engine\/model/)
 })
 
 test('only disjoint file-bearing packages can run in parallel', () => {

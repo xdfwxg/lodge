@@ -24,9 +24,9 @@ npm run eval:execution-probe -- --validate
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | 工作室阶段、验收、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
 | 验收 PASS 逐条覆盖本步契约条款（最后一轮覆盖整轮），且本回合亲手读过文件或跑过检查 | `server/crew/rooms/studio/coverage.test.js`、`server/crew/rooms/studio/verification-proof.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
-| 契约是唯一真相：done 由 outcomes 派生，阶段必须引用已有 clause id，且每个 outcome 都分配 | `shared/crew-proposal.test.js`、`server/crew/rooms/create/input.test.js`、`server/crew/rooms/studio/coverage.test.js` | 无 |
-| 交付自带可重跑的证明；验收员重跑同一条入口并补反例 | `server/crew/rooms/studio/proof-runner.test.js`、`server/crew/rooms/studio/review-prompts.test.js`、`server/crew/gates.test.js`、`server/crew/delivery.test.js` | 无 |
-| 执行官只写自己的工作包：越界改动在 git 副本里退回并留证据 | `server/crew/rooms/studio/write-boundary.test.js`、`server/crew/workspace-guard.test.js` | 无 |
+| 契约是唯一真相：done 由 outcomes 派生，阶段必须引用已有 clause id，且每条 outcome 都落到阶段和工作包 | `shared/crew-proposal.test.js`、`server/crew/rooms/create/input.test.js`、`server/crew/rooms/studio/coverage.test.js`、`server/crew/rooms/studio/apply-plan.test.js` | 无 |
+| 交付自带可重跑的证明；平台逐条执行 entry 和 clause step，缺一条或跑红不能确认；验收员重跑入口并补反例 | `server/crew/rooms/studio/proof-runner.test.js`、`server/crew/rooms/studio/runtime/result.test.js`、`server/crew/rooms/studio/prompts.test.js`、`server/crew/rooms/studio/review-prompts.test.js`、`server/crew/gates.test.js`、`server/crew/delivery.test.js` | 无 |
+| 执行官只写自己的工作包：包同时决定写边界和要证明的 clause；越界改动在 git 副本里退回并留证据 | `server/crew/rooms/studio/write-boundary.test.js`、`server/crew/workspace-guard.test.js` | 无 |
 | 验收员 PASS 只能引用自己复核副本里的证据 | `server/crew/rooms/studio/read-boundary.test.js` | 无 |
 | 验收模型按探针实测分池，误放率过高的模型被平台拒绝 | `shared/verifier-pool.test.js`、`server/crew/rooms/studio/apply-plan.test.js`、`evals/verifier-probe/run.mjs` | 真实模型（不进 `check:done`） |
 | 规划师与执行官有真实模型探针，按模型记录成绩 | `evals/planning-probe/run.mjs`、`evals/execution-probe/run.mjs` | 真实模型（不进 `check:done`） |
@@ -135,6 +135,7 @@ npm run eval:execution-probe -- --validate
 - 2026-11-25：三角色真实模型探针（claude CLI 实际走 DeepSeek `deepseek-v4-pro`；基座沙箱 off）。规划 2/3 接住隐藏要求，漏了「不联网」边界；执行 0/2 守住工作包，2/2 都改了工作包外的测试文件（平台已退回），证明 2/2 verified；成本 $0.38 + $0.33。
 - 2026-11-25：验收探针 `missing-section` 里验收员写到了执行官的工作副本，因对方本来有改动而没能自动退回；现已改为只读角色出现无法退回的越界时 block 这一轮，等人处理。读取边界仍是判定层核对，不是 OS 沙箱。
 - 2026-11-25：macOS Seatbelt 沙箱第一次真实运行（基座 `OMB_BOT_BOX=1 OMB_BOT_BOX_HOME_READONLY=1`）：规划探针 1/1，执行探针 1/1（证明 verified、边界干净）；直接检查 HOME 写被拒、数据目录读被拒、工作副本写成功；探针报告已显示「沙箱 on」。包级写边界仍靠对账。
+- 2026-11-25：契约条款 step 接入后，contract 模式验收探针 1 例（沙箱 on，DeepSeek `deepseek-v4-pro`）：缺陷 1/1 抓出，误放 0，成本 $0.3167；proof 的 entry 和 clause step 在真实基座跑通，复核信走验收员私有线程。
 - 2026-11-25：验收探针夹具修好后 3/3 有效：缺陷 2/2 抓出、对照 1/1 正确放行，误放 0、误拒 0；只取第一份判定，缺陷注入前先读 Lodge `probes.reviewPatch`，没开就退出。
 - 2026-11-25：验收探针修复后连跑 5 轮（沙箱 on，claude CLI 实际走 DeepSeek `deepseek-v4-pro`）：15/15 有效，缺陷 8 例抓出 7（88%）、误放 1，对照 4 例正确放行 2（50%）、误拒 2，3 轮被拦停（2 次验收复核超时、1 次房间无消息），成本 $5.37，p50 75s / p95 97s。拦停与误拒仍未解决。
 - 2026-11-25：验收探针最终五轮：缺陷 10/10 抓出、误放 0；对照 5/5 正确放行、误拒 0；无效、拦停、无判定、出错都是 0；成本 $5.01，p50 55s / p95 119s；模型池 `claude:claude-sonnet-5` 记 eligible。根因与修法：平台刷新复核副本后重记写边界基线（不再误拦停）；探针缺陷提交成复核副本 HEAD（验收员从 git 取干净副本也带缺陷）；证明入口不再截断成坏命令；对照组检查改成“原样不通过、交付后通过”。

@@ -61,6 +61,14 @@ export const verifierPromptOf = ({
   // 盲评不是没标准：只隐掉执行对话，完成条件和约束仍要给验收员。
   const done = Array.isArray(room.plan?.done) ? room.plan.done.slice(0, 6) : []
   const constraints = Array.isArray(room.constraints) ? room.constraints.slice(0, 6) : []
+  // 人拍板的选择也是这一轮的共享事实；盲评只隐执行对话，不隐目标或人的决定。
+  const decision = room.pendingDecision?.status === 'answered' ? room.pendingDecision : null
+  const chosen = decision === null
+    ? null
+    : (Array.isArray(decision.options) ? decision.options : []).find(option => option?.id === decision.answer?.optionId) ?? null
+  const decidedText = decision === null
+    ? ''
+    : String(decision.answer?.text ?? chosen?.title ?? decision.answer?.optionId ?? '').trim()
   const blindBrief = [
     '对抗复核：只依据本轮结果、改动和下面的完成条件；执行对话不提供。',
     ...(done.length === 0 ? [] : ['完成条件：', ...done.map(item => `- ${sanitizeUntrusted(item, 300)}`)]),
@@ -99,6 +107,7 @@ export const verifierPromptOf = ({
       ? '复核：以本轮结果、改动、完成条件和房间目标为准；执行对话不提供。'
       : '复核：以本轮结果、改动和房间目标为准；执行对话只作背景，不作为判定依据。',
     `房间目标（判定标准，以此为准）：${room.goal}`,
+    ...(decidedText === '' ? [] : [`用户已经拍板：${sanitizeUntrusted(decidedText, 300)}`]),
     ...(mergeNote === '' ? [] : [mergeNote]),
     `当前阶段：第 ${stageIndex + 1} 步「${stage.title}」`,
     ...(typeof stage.deliverable === 'string' && stage.deliverable.trim() !== ''
@@ -117,7 +126,9 @@ export const verifierPromptOf = ({
             : `- [${sanitizeUntrusted(item.id, 40)}] ${sanitizeUntrusted(item.statement, 300)}（看到什么算做到：${sanitizeUntrusted(item.observable, 300)}）`
         )),
       ]),
-    'PASS 还要带至少一条 falsify：在复核副本里能跑的检查命令；它要在改动前的版本上失败、在交付上通过，平台会把两边都跑给你看。跑红就是找到反例，应该判不通过；前后都绿的命令不算反例。',
+    stage.behavior === 'preserve'
+      ? '这一步要保持原有行为：PASS 还要带至少一条 falsify，用检查去撞被保留的行为；平台会在复核副本和改动前的版本上各跑一次。交付上跑红是反例；改动前就红说明行为已经变了，同样是反例；两边都绿才是这一步要的结果。'
+      : 'PASS 还要带至少一条 falsify：在复核副本里能跑的检查命令；它要在改动前的版本上失败、在交付上通过，平台会把两边都跑给你看。跑红就是找到反例，应该判不通过；前后都绿的命令不算反例。',
     '交付自带的全部证明都要由你在复核副本里逐条重跑；平台会在判定时核对每一条的执行记录，少一条就不算亲手验过。',
     'PASS 之前必须亲手验过：至少读一个改动文件，或跑一条检查；只依据平台摘要判通过会被退回重问。',
     '先核对结果是否成立：结果缺失或对不上目标就直接判不通过，不要先逐行挑代码毛病。',
@@ -146,7 +157,18 @@ export const verifierPromptOf = ({
             `入口：${sanitizeUntrusted(meta.proof.entry ?? '(没有写)', 2_000)}`,
             `状态：${meta.proof.status ?? 'unknown'}${meta.proof.exit === undefined ? '' : ` · 退出码 ${meta.proof.exit}`}`,
           ]),
-        '证明以你复核副本里的 lodge-proof.json 或 lodge-proof/<n>.json 为准；原样重跑每一条 entry，不要截断或改写它。',
+        ...(Array.isArray(meta.proof.steps) && meta.proof.steps.length > 0
+          ? [
+            '按契约要求逐条跑的 step（平台执行，以下是结果）：',
+            ...meta.proof.steps.map(item => (
+              `- [${sanitizeUntrusted(item.clause === '' ? '(未写 clause)' : item.clause, 40)}] ${sanitizeUntrusted(item.run ?? '', 500)} · ${sanitizeUntrusted(item.status ?? 'unknown', 40)}`
+            )),
+          ]
+          : []),
+        ...(Array.isArray(meta.proof.missingClauses) && meta.proof.missingClauses.length > 0
+          ? [`这些契约要求没有对应的 step：${meta.proof.missingClauses.map(item => sanitizeUntrusted(item, 40)).join('、')}；不能确认。`]
+          : []),
+        '证明以你复核副本里的 lodge-proof.json 或 lodge-proof/<n>.json 为准；原样重跑每一条 entry，不要截断或改写它；step 也由平台执行，你核对它是否真的测到了那条要求。',
         ...(meta.proof.weak === true
           ? ['平台在改动前的版本上也跑了这些证明：也通过。它们不能单独证明这一步的改动；如果这一步就是要改变行为，应该判不通过，或要求补一条会先在旧版本失败的检查。']
           : []),

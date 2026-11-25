@@ -142,6 +142,7 @@ test('the review request goes to every verifier and all PASS ends the round', as
       return { messageId: null }
     },
     files: ports.files,
+    runCommand: () => ({ status: 'passed' }),
   })
   await turns.requestReview(0)
   assert.deepEqual(sent.map(item => item.member), ['v1', 'v2'])
@@ -151,12 +152,12 @@ test('the review request goes to every verifier and all PASS ends the round', as
   assert.equal(turns.busyReview(), true)
 
   turns.trackTool({ kind: 'activity', turnId: 't1', tool: { id: 'p1', name: 'Bash', step: { target: 'npm test' } } })
-  turns.captureTurn({ turnId: 't1', reply: 'PASS ok\n```json\n{"reason":"ok","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}\n```', toolCalls: 1 }, 'bot-v1')
+  turns.captureTurn({ turnId: 't1', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v1')
   assert.equal(turns.busyReview(), true)
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
 
   turns.trackTool({ kind: 'activity', turnId: 't2', tool: { id: 'p2', name: 'Bash', step: { target: 'npm test' } } })
-  turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}\n```', toolCalls: 1 }, 'bot-v2')
+  turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v2')
   assert.equal(turns.busyReview(), false)
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 2)
   assert.match(messages.at(-1).text, /全部验收员通过/)
@@ -197,7 +198,7 @@ test('a rejection cancels the remaining verifier round', async () => {
   await new Promise(resolve => setImmediate(resolve))
   assert.match(messages.at(-1).text, /@执行官 验收退回，按上面的意见重做第 1 步/)
   turns.trackTool({ kind: 'activity', turnId: 't2', tool: { id: 'p2', name: 'Bash', step: { target: 'npm test' } } })
-  turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}\n```', toolCalls: 1 }, 'bot-v2')
+  turns.captureTurn({ turnId: 't2', reply: 'PASS ok\n```json\n{"reason":"ok","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}\n```', toolCalls: 1 }, 'bot-v2')
   assert.equal(messages.filter(message => message.kind === 'verdict').length, 1)
 })
 

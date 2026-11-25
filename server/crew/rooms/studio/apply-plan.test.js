@@ -76,7 +76,7 @@ const proposal = (over = {}) => ({
     },
     plan: {
       done: ['能跑'],
-      stages: [{ title: '实现', deliverable: '导出按钮能用', clauseIds: ['out'], packages: [{ title: '导出', files: ['src/export.js'] }] }],
+      stages: [{ title: '实现', deliverable: '导出按钮能用', clauseIds: ['out'], packages: [{ title: '导出', files: ['src/export.js'], clauseIds: ['out'] }] }],
     },
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
@@ -91,6 +91,7 @@ test('a valid plan opens the crew and starts the first work stage', async () => 
   await ctx.applier('room-1', proposal())
   assert.deepEqual(ctx.room.members.map(member => member.role).sort(), ['lead', 'verifier', 'worker'])
   assert.equal(ctx.room.workRound.plan.stages.length, 1)
+  assert.deepEqual(ctx.room.workRound.plan.stages[0].packages[0].clauseIds, ['out'])
   assert.equal(ctx.room.stages[0].state, 'passed')
   assert.equal(ctx.room.stages[1].state, 'active')
   assert.deepEqual(ctx.started, [1])
@@ -107,7 +108,7 @@ test('a writing stage is applied with its deliverable, not a check', async () =>
         title: '世界与骨架',
         deliverable: '设定、境界和六卷大纲',
         clauseIds: ['out'],
-        packages: [{ title: '设定与大纲', files: ['OUTLINE.md'] }],
+        packages: [{ title: '设定与大纲', files: ['OUTLINE.md'], clauseIds: ['out'] }],
       }],
     },
   }))
@@ -156,7 +157,7 @@ test('two independent packages need two executors', async () => {
         title: '实现',
         deliverable: '两块都完成',
         clauseIds: ['out'],
-        packages: [{ title: '甲', files: ['a.js'] }, { title: '乙', files: ['b.js'] }],
+        packages: [{ title: '甲', files: ['a.js'], clauseIds: ['out'] }, { title: '乙', files: ['b.js'], clauseIds: ['out'] }],
       }],
     },
   }))
@@ -203,8 +204,8 @@ test('a parallel plan writes orchestration through the round instead of the room
         deliverable: '两块都完成',
         clauseIds: ['out'],
         packages: [
-          { title: '导出', files: ['src/export.js'] },
-          { title: '导入', files: ['src/import.js'] },
+          { title: '导出', files: ['src/export.js'], clauseIds: ['out'] },
+          { title: '导入', files: ['src/import.js'], clauseIds: ['out'] },
         ],
       }],
     },
@@ -228,7 +229,7 @@ test('a high-risk stage needs two verifiers from different vendors', async () =>
   await single.applier('room-1', proposal({
     plan: {
       done: ['依赖更新'],
-      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'] }] }],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'], clauseIds: ['out'] }] }],
     },
   }))
   assert.deepEqual(single.started, [])
@@ -241,7 +242,7 @@ test('a high-risk stage needs two verifiers from different vendors', async () =>
   await sameVendor.applier('room-1', proposal({
     plan: {
       done: ['依赖更新'],
-      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'] }] }],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'], clauseIds: ['out'] }] }],
     },
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
@@ -262,7 +263,7 @@ test('a high-risk stage on a single-vendor machine is labelled self-review', asy
   await ctx.applier('room-1', proposal({
     plan: {
       done: ['依赖更新'],
-      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'] }] }],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'], clauseIds: ['out'] }] }],
     },
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],

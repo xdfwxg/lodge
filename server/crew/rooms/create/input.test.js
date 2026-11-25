@@ -49,11 +49,11 @@ test('a supplied contract derives done and clause ids from its outcomes', () => 
   assert.deepEqual(planned.plan.contract.outcomes.map(item => item.id), ['out'])
 })
 
-test('stage packages keep files but no planner-written check', () => {
+test('stage packages keep files and clauses but no planner-written check', () => {
   const planned = normalizePlan({
-    body: body([{ title: '实现', deliverable: '导出按钮能用', packages: [{ title: '导出', files: ['src/a.js'], check: 'npm test' }] }]),
+    body: body([{ title: '实现', deliverable: '导出按钮能用', packages: [{ title: '导出', files: ['src/a.js'], clauseIds: ['result'], check: 'npm test' }] }]),
   })
-  assert.deepEqual(planned.plan.stages[0].packages, [{ title: '导出', files: ['src/a.js'] }])
+  assert.deepEqual(planned.plan.stages[0].packages, [{ title: '导出', files: ['src/a.js'], clauseIds: ['result'] }])
 })
 
 test('studio roots carry a project north star without a phase chain', () => {

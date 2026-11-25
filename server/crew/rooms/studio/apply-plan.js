@@ -190,6 +190,7 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
           packages: stage.packages.map(item => ({
             title: item.title,
             files: (item.files ?? []).map(cleanPath),
+            clauseIds: [...new Set((Array.isArray(item.clauseIds) ? item.clauseIds : []).map(String).filter(Boolean))],
           })),
         }
         : {}),

@@ -223,6 +223,13 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       if (assignees.length > 1) return packages[assignees.indexOf(worker)] ?? null
       return packages.length === 1 ? packages[0] : packages
     }
+    // 把“这位执行官这一拍要证明哪些 clause”写进交接账本；结果采集按同一份算，
+    // 不再从别处重新推导，避免并行/退回时人和包错位。
+    const clausesFor = worker => {
+      const assigned = packageFor(worker)
+      const list = Array.isArray(assigned) ? assigned : (assigned === null ? [] : [assigned])
+      return [...new Set(list.flatMap(item => (Array.isArray(item?.clauseIds) ? item.clauseIds : [])).filter(Boolean))]
+    }
     if (dispatchPlan.note !== '') store.appendMessage(roomId, { kind: 'system', text: dispatchPlan.note })
     const readOnly = activeStageReadOnly(room) || stage.readOnly === true
     const promptFor = worker => studioWorkerPrompt({
@@ -286,6 +293,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
         rework,
         parentAssignmentId: parentAssignment?.id ?? null,
         nonce: reworkBeat,
+        context: { clauseIds: clausesFor(worker) },
       })
       appendHandoffProjection({
         store,
@@ -346,7 +354,7 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       rework,
       parentAssignmentId: parentAssignment?.id ?? null,
       nonce: reworkBeat,
-      context: { base: stageBase, parallel: true },
+      context: { base: stageBase, parallel: true, clauseIds: clausesFor(worker) },
       privateRoom: true,
     })))
     // 只 @ 真正收到任务的人：先送，再投影。

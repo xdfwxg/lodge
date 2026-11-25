@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { homedir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import {
-  baseEntryOf, findBundledRuntimes, findNode, findPort, isBaseUp, runtimeRoots,
+  baseBoxEnv, baseEntryOf, findBundledRuntimes, findNode, findPort, isBaseUp, runtimeRoots,
   waitForBase, waitForHealth,
 } from './launch.mjs'
 import { menuTemplate } from './menu.mjs'
@@ -150,6 +150,7 @@ const startBase = async dir => {
       ...process.env,
       ...(bundled ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
       LODGE_BASE_DIR: dir,
+      ...baseBoxEnv(),
       ...(extraPath === '' ? {} : { OMB_EXTRA_PATH: extraPath }),
     },
     stdio: ['ignore', 'pipe', 'pipe'],

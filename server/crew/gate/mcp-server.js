@@ -121,7 +121,7 @@ export const GATE_TOOLS = Object.freeze([
   },
   {
     name: 'submit_plan',
-    description: '提交这一轮的目标契约、方案和队伍：契约写清可观察结果、边界、非目标和假设；每个阶段写清交付物、工作包、执行官与验收员（含 engine/model）。不写验收命令；验收方法由验收员按目标决定。调用后不用再把 JSON 写进回复；平台会校验并开通成员。',
+    description: '提交这一轮的目标契约、方案和队伍：契约写清可观察结果、边界、非目标和假设；每个阶段写清交付物、工作包、执行官与验收员（含 engine/model）。每个工作包写清它负责的 clauseIds，阶段里的每条契约要求都要落到一个包。不写验收命令；验收方法由验收员按目标决定。调用后不用再把 JSON 写进回复；平台会校验并开通成员。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -169,14 +169,16 @@ export const GATE_TOOLS = Object.freeze([
                   behavior: { type: 'string', enum: ['change', 'preserve'] },
                   packages: {
                     type: 'array',
-                    maxItems: 4,
+                    minItems: 1,
+                    maxItems: 3,
                     items: {
                       type: 'object',
                       properties: {
                         title: { type: 'string', maxLength: 80 },
                         files: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string', maxLength: 200 } },
+                        clauseIds: { type: 'array', minItems: 1, maxItems: 6, items: { type: 'string', maxLength: 40 } },
                       },
-                      required: ['title', 'files'],
+                      required: ['title', 'files', 'clauseIds'],
                       additionalProperties: false,
                     },
                   },

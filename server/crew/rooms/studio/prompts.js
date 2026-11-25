@@ -26,6 +26,10 @@ export const studioWorkerPrompt = ({
   const clauses = contract === null
     ? []
     : (contract.outcomes ?? []).filter(outcome => clauseIds.length === 0 || clauseIds.includes(outcome.id))
+  const assignedPackages = workPackage === null ? [] : (Array.isArray(workPackage) ? workPackage : [workPackage])
+  const packageClauses = [...new Set(assignedPackages.flatMap(item => (
+    Array.isArray(item?.clauseIds) ? item.clauseIds : []
+  )).filter(Boolean))]
   return [
     `阶段 ${index + 1}「${sanitizeUntrusted(stage.title, 120)}」。这一步要交付：${sanitizeUntrusted(stage.deliverable ?? room.goal ?? '', 500)}`,
     ...(clauses.length === 0
@@ -37,7 +41,13 @@ export const studioWorkerPrompt = ({
         ...((contract.nonGoals ?? []).length === 0 ? [] : [`不做：${contract.nonGoals.map(item => sanitizeUntrusted(item, 200)).join('；')}`]),
         ...((contract.assumptions ?? []).length === 0 ? [] : [`前提假设：${contract.assumptions.map(item => sanitizeUntrusted(item, 200)).join('；')}；哪条不成立就停下来说明`]),
       ]),
-    `交付时写 \`${proofFile}\`：至少写 \`{"entry":"能重跑的验证命令"}\`；命令要在干净副本里能跑，能证明这一步的结果。`,
+    ...(packageClauses.length === 0
+      ? []
+      : [
+        `你这个包负责的契约要求：${packageClauses.map(id => `[${sanitizeUntrusted(id, 40)}]`).join('、')}。`,
+        '证明里必须为每条要求写一条 step；平台会逐条执行，缺一条或跑红，这一步都不能确认。',
+      ]),
+    `交付时写 \`${proofFile}\`：至少写 \`{"entry":"能重跑的验证命令","steps":[{"clause":"契约 id","run":"能跑的检查","expect":"看到什么算做到"}]}\`；entry 和每条 step 都要在干净副本里能跑，能证明这一步的结果。`,
     preserve
       ? '这一步要保持原有行为：证明在改动前后都应该通过，不能为了让它变红而改坏旧行为。'
       : '这一步要改变行为：证明必须在改动前的版本上失败、在交付上通过；在旧版本上也绿的检查证明不了这次改动。',
@@ -48,8 +58,8 @@ export const studioWorkerPrompt = ({
     workPackage === null
       ? ''
       : Array.isArray(workPackage)
-        ? `你的工作包：${workPackage.map(item => `${item.title}（${(item.files ?? []).join('、') || '未指定文件'}）`).join('；')}。按顺序做完，只改这些文件。`
-        : `你的工作包：${workPackage.title}；只改 ${(workPackage.files ?? []).join('、') || '这一步需要的文件'}。`,
+        ? `你的工作包：${workPackage.map(item => `${item.title}（${(item.files ?? []).join('、') || '未指定文件'}；clauseIds：${(item.clauseIds ?? []).join('、') || '未指定'}）`).join('；')}。按顺序做完，只改这些文件。`
+        : `你的工作包：${workPackage.title}；只改 ${(workPackage.files ?? []).join('、') || '这一步需要的文件'}；负责的 clauseIds：${(workPackage.clauseIds ?? []).join('、') || '未指定'}。`,
     ...stageGuidance({ readOnly }),
     buildMemberHandoff({ room, messages, memberId }),
     workspace.parallel === true

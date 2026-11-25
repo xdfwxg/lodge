@@ -42,6 +42,31 @@ test('a large diff keeps its beginning and tells the verifier to read the rest b
   assert.match(prompt, /1 failing/)
 })
 
+test('the verifier sees the clause steps and any uncovered clause', () => {
+  const prompt = verifierPromptOf({
+    room,
+    stage: room.stages[0],
+    stageIndex: 0,
+    verifier: 'v',
+    targets: ['v'],
+    ids: ['v'],
+    evidence: { id: 'e1' },
+    meta: {
+      proof: {
+        status: 'incomplete',
+        entry: 'npm test',
+        entries: [{ file: 'lodge-proof.json', entry: 'npm test', status: 'verified', baseline: 'failed' }],
+        steps: [{ clause: 'export', run: 'node test/export.test.js', status: 'verified', expect: 'exit 0' }],
+        missingClauses: ['docs'],
+      },
+    },
+    messages: [],
+  })
+  assert.match(prompt, /按契约要求逐条跑的 step/)
+  assert.match(prompt, /\[export\] node test\/export\.test\.js · verified/)
+  assert.match(prompt, /这些契约要求没有对应的 step：docs/)
+})
+
 test('the contract boundaries, non-goals and assumptions reach the verifier too', () => {
   const contractRoom = {
     ...room,
@@ -70,6 +95,50 @@ test('the contract boundaries, non-goals and assumptions reach the verifier too'
   assert.match(prompt, /契约边界：[\s\S]*不改接口/)
   assert.match(prompt, /契约里不做：[\s\S]*不加批量导出/)
   assert.match(prompt, /契约假设：[\s\S]*浏览器支持下载/)
+})
+
+test('a human decision is shared with the verifier, even in a blind review', () => {
+  const decidedRoom = {
+    ...room,
+    pendingDecision: {
+      status: 'answered',
+      answer: { optionId: 'a' },
+      options: [{ id: 'a', title: '只做导出' }, { id: 'b', title: '连导入一起做' }],
+    },
+  }
+  const prompt = verifierPromptOf({
+    room: decidedRoom,
+    stage: decidedRoom.stages[0],
+    stageIndex: 0,
+    verifier: 'v',
+    targets: ['v'],
+    ids: ['v'],
+    evidence: { id: 'e1' },
+    meta: {},
+    messages: [],
+  })
+  assert.match(prompt, /用户已经拍板：只做导出/)
+})
+
+test('a preserve stage tells the verifier the falsify must be green on both sides', () => {
+  const preserveRoom = {
+    ...room,
+    stages: [{ ...room.stages[0], behavior: 'preserve' }],
+  }
+  const prompt = verifierPromptOf({
+    room: preserveRoom,
+    stage: preserveRoom.stages[0],
+    stageIndex: 0,
+    verifier: 'v',
+    targets: ['v'],
+    ids: ['v'],
+    evidence: { id: 'e1' },
+    meta: {},
+    messages: [],
+  })
+  assert.match(prompt, /保持原有行为/)
+  assert.match(prompt, /两边都绿/)
+  assert.doesNotMatch(prompt, /它要在改动前的版本上失败/)
 })
 
 test('a long proof entry reaches the verifier whole, not cut into a broken command', () => {

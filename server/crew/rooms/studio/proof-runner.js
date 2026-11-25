@@ -111,7 +111,7 @@ const baselineStatusOf = result => (
 
 // baseRef 是这一步开始前的版本：行为要变的步骤，证明在改动前必须失败；
 // 行为不变的步骤（重构、保持兼容）允许前后都过，靠 proof.behavior 说清楚。
-export const runProof = async ({ room, ref = null, baseRef = null, behavior = 'change', provider = null }) => {
+export const runProof = async ({ room, ref = null, baseRef = null, behavior = 'change', provider = null, clauses = [] }) => {
   const at = new Date().toISOString()
   if (room === null || typeof room?.repoPath !== 'string' || room.repoPath === '') {
     return { status: 'missing', at, entry: '' }
@@ -154,20 +154,51 @@ export const runProof = async ({ room, ref = null, baseRef = null, behavior = 'c
         baseline: baselineStatusOf(baseline),
       })
     }
-    const verified = entries.every(item => item.status === 'verified')
+    // 每条契约要求都要有一条平台亲手跑绿的 step；entry 负责区分改前/改后，
+    // step 负责把“契约说了什么”接到一条实际命令上。
+    const steps = []
+    for (const { file, proof } of proofs) {
+      for (const step of proof.steps) {
+        const result = await execute(step.run, copy.path)
+        steps.push({
+          file,
+          clause: step.clause ?? '',
+          run: step.run,
+          ...(step.expect === undefined ? {} : { expect: step.expect }),
+          status: result.exit === 0 && !result.timedOut ? 'verified' : 'failed',
+          exit: result.exit,
+          timedOut: result.timedOut,
+          // step 是逐条 clause 的检查，留最后一段输出够核对；不要把整份日志塞进证据。
+          output: String(result.output ?? '').slice(-2_000),
+          durationMs: result.durationMs,
+        })
+      }
+    }
+    const entriesVerified = entries.every(item => item.status === 'verified')
+    const failedSteps = steps.filter(item => item.status !== 'verified')
+    const requiredClauses = [...new Set((Array.isArray(clauses) ? clauses : []).map(String).filter(Boolean))]
+    const missingClauses = requiredClauses.filter(clause => !steps.some(item => (
+      item.clause === clause && item.status === 'verified'
+    )))
+    const verified = entriesVerified && failedSteps.length === 0 && missingClauses.length === 0
     const weak = behavior !== 'preserve' && entries.some(item => item.baseline === 'passed')
     return {
-      status: verified ? 'verified' : 'failed',
+      status: verified ? 'verified' : (!entriesVerified || failedSteps.length > 0 ? 'failed' : 'incomplete'),
       at,
       entry: entries[0].entry,
       files,
       entries,
+      steps,
+      ...(missingClauses.length === 0 ? {} : { missingClauses }),
+      ...(failedSteps.length === 0
+        ? {}
+        : { error: `证明的 step 没跑绿：${failedSteps.slice(0, 3).map(item => item.run).join('；')}` }),
       behavior,
       weak,
       exit: entries[0].exit,
       timedOut: entries[0].timedOut,
       output: entries[0].output,
-      durationMs: entries.reduce((sum, item) => sum + (item.durationMs ?? 0), 0),
+      durationMs: [...entries, ...steps].reduce((sum, item) => sum + (item.durationMs ?? 0), 0),
     }
   } catch (error) {
     return {

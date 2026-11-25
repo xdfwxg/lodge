@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { allowedFilesFor, filesOutsidePackage } from './write-boundary.js'
+import { allowedFilesFor, clauseIdsFor, filesOutsidePackage } from './write-boundary.js'
 
 const room = ({ orchestration = 'parallel' } = {}) => ({
   orchestration,
@@ -13,8 +13,8 @@ const room = ({ orchestration = 'parallel' } = {}) => ({
 
 const stage = over => ({
   packages: [
-    { title: '导出', files: ['src/export.js'] },
-    { title: '说明', files: ['README.md'] },
+    { title: '导出', files: ['src/export.js'], clauseIds: ['export'] },
+    { title: '说明', files: ['README.md'], clauseIds: ['docs'] },
   ],
   ...over,
 })
@@ -40,6 +40,14 @@ test('without packages the executor keeps the whole workspace', () => {
 
 test('a member outside the dispatch has no package claim', () => {
   assert.equal(allowedFilesFor({ room: room(), stage: stage({ assignees: ['b'] }), memberId: 'a' }), null)
+  assert.deepEqual(clauseIdsFor({ room: room(), stage: stage({ assignees: ['b'] }), memberId: 'a' }), [])
+})
+
+test('clauses follow the same package mapping as the write boundary', () => {
+  assert.deepEqual(clauseIdsFor({ room: room(), stage: stage(), memberId: 'a' }), ['export'])
+  assert.deepEqual(clauseIdsFor({ room: room(), stage: stage(), memberId: 'b' }), ['docs'])
+  assert.deepEqual(clauseIdsFor({ room: room({ orchestration: 'pipeline' }), stage: stage(), memberId: 'a' }), ['export', 'docs'])
+  assert.deepEqual(clauseIdsFor({ room: room(), stage: { packages: [] }, memberId: 'a' }), [])
 })
 
 test('files outside the package are detected, including directory prefixes', () => {

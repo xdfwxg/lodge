@@ -248,7 +248,7 @@ export const createTurnCapture = ({
         planNudges?.add(key)
         if (typeof sendToMember === 'function') {
           void sendToMember(memberId, [
-            '你这一回合没有提交方案和队伍。现在只做一件事：调用 lodge_gate_submit_plan 提交阶段、工作包、执行官和验收员；',
+            '你这一回合没有提交方案和队伍。现在只做一件事：调用 lodge_gate_submit_plan 提交阶段、工作包（含 clauseIds）、执行官和验收员；',
             '不要继续分析，不要再问用户。工具确实不可用时只回复一行“组队失败”和原因。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n'), {

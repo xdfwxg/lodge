@@ -271,7 +271,7 @@ test('a lead plan call hands the proposal to the platform without an @', async (
             title: '实现',
             deliverable: 'tests pass',
             clauseIds: ['run'],
-            packages: [{ title: '实现', files: ['src/index.js'] }],
+            packages: [{ title: '实现', files: ['src/index.js'], clauseIds: ['run'] }],
           }],
         },
         crew: { executors: [{ engine: 'claude', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
@@ -799,8 +799,8 @@ test('a verifier reply without a verdict is nudged, then expires the review', as
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToMember: async (memberId, prompt) => {
-      sent.push({ memberId, prompt })
+    sendToMember: async (memberId, prompt, options = {}) => {
+      sent.push({ memberId, prompt, options })
       return { messageId: `m${sent.length}` }
     },
     updateTasks: () => {},
@@ -821,6 +821,8 @@ test('a verifier reply without a verdict is nudged, then expires the review', as
   assert.equal(review.isBusy(), true)
   assert.ok(!store.messages.some(message => message.kind === 'verdict'))
   assert.match(sent.at(-1).prompt, /submit_verdict/)
+  // 催问也不能回到群里：否则验收员下一次醒来的上下文就又带上了执行对话。
+  assert.equal(sent.at(-1).options.privateRoom, true)
 
   assert.equal(review.consume({
     turn: { reply: '还是没结论' },
@@ -887,10 +889,12 @@ test('a deliverable review is blind to the executor narrative by default', async
     store,
     roomId: 'room-1',
     emit: () => {},
-    sendToMember: async (memberId, prompt) => { sent.push({ memberId, prompt }); return { messageId: 'm1' } },
+    sendToMember: async (memberId, prompt, options = {}) => { sent.push({ memberId, prompt, options }); return { messageId: 'm1' } },
     updateTasks: () => {},
   })
   await review.request(0)
+  // 盲评是投递边界：复核信只进验收员自己的线程，群里的执行对话不会顺手进上下文。
+  assert.equal(sent.at(-1).options.privateRoom, true)
   assert.match(sent.at(-1).prompt, /对抗复核/)
   assert.match(sent.at(-1).prompt, /先核对结果是否成立/)
   assert.match(sent.at(-1).prompt, /目标之外的重构/)
@@ -1102,6 +1106,92 @@ test('a changed existing test must be acknowledged, an added test does not', asy
     calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['test/initials.test.js'], falsify: [{ command: 'node --test' }] }), proofCall],
   }), true)
   assert.equal(store.messages.find(message => message.kind === 'verdict')?.meta?.pass, true)
+})
+
+test('a preserve stage accepts a falsify that is green before and after', async () => {
+  registerWorkspaceProvider('test-preserve-green', {
+    capabilities: () => ({}),
+    isolatedCopy: ({ ref }) => ({ path: `/base-${ref}` }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    workspace: { provider: 'test-preserve-green' },
+    repoPath: '/repo',
+    worktrees: { verifier: '/verifier' },
+    stageBases: { 0: 'base1' },
+  })
+  room.stages[0].behavior = 'preserve'
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt, options = {}) => {
+      sent.push({ memberId, prompt, options })
+      return { messageId: `m${sent.length}` }
+    },
+  })
+  await review.request(0)
+  const call = input => ({ name: 'mcp__lodge_gate__submit_verdict', input: JSON.stringify(input) })
+  assert.equal(review.consume({
+    turn: { reply: '' },
+    memberId: 'verifier',
+    turnId: 't1',
+    room,
+    calls: [call({ decision: 'PASS', reason: '行为没变', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '跑了旧的行为检查' }], falsify: [{ command: 'node --test' }] }), proofCall],
+  }), true)
+  assert.equal(store.messages.find(message => message.kind === 'verdict')?.meta?.pass, true)
+})
+
+test('a preserve stage rejects a falsify that is already red before the change', async () => {
+  registerWorkspaceProvider('test-preserve-red', {
+    capabilities: () => ({}),
+    isolatedCopy: ({ ref }) => ({ path: `/base-${ref}` }),
+    removeIsolatedCopy: () => {},
+  })
+  const room = makeRoom({
+    verifiers: ['verifier'],
+    workspace: { provider: 'test-preserve-red' },
+    repoPath: '/repo',
+    worktrees: { verifier: '/verifier' },
+    stageBases: { 0: 'base1' },
+  })
+  room.stages[0].behavior = 'preserve'
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
+  })
+  const sent = []
+  const review = createReviewCoordinator({
+    runCommand: ({ cwd }) => ({ status: String(cwd).startsWith('/base-') ? 'failed' : 'passed', exit: 1 }),
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async (memberId, prompt, options = {}) => {
+      sent.push({ memberId, prompt, options })
+      return { messageId: `m${sent.length}` }
+    },
+  })
+  await review.request(0)
+  const call = input => ({ name: 'mcp__lodge_gate__submit_verdict', input: JSON.stringify(input) })
+  assert.equal(review.consume({
+    turn: { reply: '' },
+    memberId: 'verifier',
+    turnId: 't1',
+    room,
+    calls: [call({ decision: 'PASS', reason: '行为没变', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '跑了旧的行为检查' }], falsify: [{ command: 'node --test' }] }), proofCall],
+  }), true)
+  assert.ok(!store.messages.some(message => message.kind === 'verdict'))
+  assert.match(sent.at(-1).prompt, /行为已经变了/)
+  assert.equal(sent.at(-1).options.privateRoom, true)
 })
 
 test('turn usage accumulates on the room and keeps unknown costs visible', () => {
@@ -1501,6 +1591,14 @@ test('a single worker stage sends the prompt and posts the handoff projection', 
   })
   const room = makeRoom({
     workspace: { provider: 'test-live-stage' },
+    stages: [{
+      title: 'impl',
+      kind: 'deliverable',
+      state: 'active',
+      deliverable: 'ship it',
+      clauseIds: ['run'],
+      packages: [{ title: '实现', files: ['src/a.js'], clauseIds: ['run'] }],
+    }],
     seatNames: { lead: '规划师', executor: '执行官', verifier: '验收员' },
     seatSpecs: [
       { id: 'lead', name: '规划师', role: 'lead' },
@@ -1532,9 +1630,12 @@ test('a single worker stage sends the prompt and posts the handoff projection', 
   assert.equal(prompts[0].memberId, room.workers[0])
   assert.match(prompts[0].prompt, /这一步要交付：ship it/)
   assert.match(prompts[0].prompt, /阶段 1/)
+  assert.match(prompts[0].prompt, /\[run\]/)
   const handoff = store.messages.find(message => message.meta?.kind === 'handoff')
   assert.match(handoff.text, /@执行官 第 1 步「impl」交给你/)
-  assert.equal(store.readAssignments('room-1')[0].status, 'sent')
+  const assignment = store.readAssignments('room-1')[0]
+  assert.equal(assignment.status, 'sent')
+  assert.deepEqual(assignment.context.clauseIds, ['run'])
 })
 
 test('parallel dispatch wakes every assignee and tracks pending seats', async () => {
@@ -1742,7 +1843,7 @@ test('review request and verdict consumption update the round without crossing t
   const reply = [
     'PASS 符合目标',
     '```json',
-    '{"reason":"符合目标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}',
+    '{"reason":"符合目标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}',
     '```',
   ].join('\n')
   assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room, calls: [proofCall] }), true)
@@ -1848,7 +1949,7 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   const pass = [
     'PASS new',
     '```json',
-    '{"reason":"新结果符合","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了新改动"}]}',
+    '{"reason":"新结果符合","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了新改动"}],"falsify":[{"command":"node --test"}]}',
     '```',
   ].join('\n')
   assert.equal(review.consume({ turn: { reply: pass }, memberId: 'verifier', turnId: 't-new', room, calls: [proofCall] }), true)
@@ -1931,7 +2032,7 @@ test('a verifier pass hands the summary to the planner', async () => {
   const reply = [
     'PASS 达标',
     '```json',
-    '{"reason":"达标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}',
+    '{"reason":"达标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}',
     '```',
   ].join('\n')
   assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room, calls: [proofCall] }), true)
@@ -2043,7 +2144,7 @@ test('a promise round delivers without the room-wide auto-deliver switch', async
   assert.deepEqual(advanced, [{ index: 0, options: { by: 'system', auto: true } }])
 })
 
-test('auto delivery falls back to the planner when the verdict came from text', async () => {
+test('a text verdict follows the same PASS rules instead of being waived', async () => {
   const room = makeRoom({
     verifiers: ['verifier'],
     autoDeliver: true,
@@ -2087,7 +2188,17 @@ test('auto delivery falls back to the planner when the verdict came from text', 
   assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room, calls: [proofCall] }), true)
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(advanced.length, 0)
-  assert.ok(sent.some(item => item.memberId === 'planner'), 'text fallback still goes to the planner')
+  // 文本判定少了反例，和工具判定一样被退回重问，不因为换了入口就放行。
+  assert.match(sent.at(-1).prompt, /反例/)
+  const complete = [
+    'PASS 达标',
+    '```json',
+    '{"reason":"达标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}',
+    '```',
+  ].join('\n')
+  assert.equal(review.consume({ turn: { reply: complete }, memberId: 'verifier', turnId: 't2', room, calls: [proofCall] }), true)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(advanced, [{ index: 0, options: { by: 'system', auto: true } }])
 })
 
 test('an intermediate stage advances by itself instead of asking the planner to hand off', async () => {
@@ -2124,7 +2235,7 @@ test('an intermediate stage advances by itself instead of asking the planner to 
   const reply = [
     'PASS 达标',
     '```json',
-    '{"reason":"达标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}]}',
+    '{"reason":"达标","outsideDiff":"无","coverage":[{"item":"ship it","evidence":"读了改动文件"}],"falsify":[{"command":"node --test"}]}',
     '```',
   ].join('\n')
   assert.equal(review.consume({ turn: { reply }, memberId: 'verifier', turnId: 't1', room, calls: [proofCall] }), true)

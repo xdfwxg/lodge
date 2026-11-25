@@ -5,10 +5,23 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  baseEntryOf, findBundledRuntimes, findNode, findPort, isBaseUp, readRuntime, runtimeRoots, waitForHealth,
+  baseBoxEnv, baseEntryOf, findBundledRuntimes, findNode, findPort, isBaseUp, readRuntime, runtimeRoots, waitForHealth,
 } from './launch.mjs'
 
 const temp = () => mkdtempSync(join(tmpdir(), 'lodge-electron-launch-'))
+
+test('the app starts its base with the bot box and sibling isolation on macOS', () => {
+  assert.deepEqual(baseBoxEnv({ env: {}, platform: 'darwin' }), {
+    OMB_BOT_BOX: '1',
+    OMB_BOT_BOX_DENY_SIBLINGS: '1',
+  })
+  // 用户显式关掉时不再强开；另一个开关仍取默认。
+  assert.deepEqual(baseBoxEnv({ env: { OMB_BOT_BOX: '0' }, platform: 'darwin' }), {
+    OMB_BOT_BOX: '0',
+    OMB_BOT_BOX_DENY_SIBLINGS: '1',
+  })
+  assert.deepEqual(baseBoxEnv({ env: {}, platform: 'linux' }), {})
+})
 
 test('a bundled base wins over a source checkout', () => {
   const dir = temp()

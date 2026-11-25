@@ -15,7 +15,8 @@ const stageOf = (raw, index) => {
     const packageTitle = text(item?.title, 80)
     if (packageTitle === '') return null
     const files = list(item?.files, 12, file => text(file, 200)).filter(file => file !== '')
-    return { title: packageTitle, files }
+    const packageClauses = list(item?.clauseIds, 6, item => text(item, 40)).filter(Boolean)
+    return { title: packageTitle, files, clauseIds: [...new Set(packageClauses)] }
   })
   return {
     title,
@@ -40,7 +41,45 @@ export const normalizeCrewProposal = input => {
   if (contract === null) return { error: '方案里没有目标契约：写清可观察结果、边界、非目标和假设' }
   if (contract.boundaries.length === 0) return { error: '契约没有边界：写清这一步不能碰什么' }
   if (contract.nonGoals.length === 0) return { error: '契约没有非目标：写清这一步不做什么' }
-  const stages = list(input.plan?.stages, 3, (item, index) => stageOf(item, index))
+  const rawStages = Array.isArray(input.plan?.stages) ? input.plan.stages : []
+  if (rawStages.length > 3) return { error: '方案最多拆成 3 步' }
+  const stages = []
+  for (const [index, raw] of rawStages.entries()) {
+    const rawPackages = Array.isArray(raw?.packages) ? raw.packages : []
+    if (rawPackages.length > 3) return { error: `第 ${index + 1} 步最多 3 个工作包` }
+    const stage = stageOf(raw, index)
+    // 结构不合格就退回重写，不能悄悄丢掉这一阶段再按剩下的开工。
+    if (stage === null) return { error: `第 ${index + 1} 个阶段缺名字、交付物或 clauseId` }
+    const contractIds = new Set(contract.outcomes.map(item => item.id))
+    const unknownStage = stage.clauseIds.filter(id => !contractIds.has(id))
+    if (unknownStage.length > 0) {
+      return { error: `第 ${index + 1} 个阶段引用了契约里没有的要求：${unknownStage.join('、')}` }
+    }
+    if (rawPackages.length === 0) {
+      return { error: `第 ${index + 1} 步没有工作包：写清每个包要改的文件和负责的 clauseIds` }
+    }
+    if (stage.packages.length !== rawPackages.length) {
+      return { error: `第 ${index + 1} 步有工作包缺名字` }
+    }
+    for (const [packageIndex, pkg] of stage.packages.entries()) {
+      if (pkg.files.length === 0) {
+        return { error: `第 ${index + 1} 步第 ${packageIndex + 1} 个工作包没有文件：每个包都要写清要改的文件，写边界才能生效` }
+      }
+      if (pkg.clauseIds.length === 0) {
+        return { error: `第 ${index + 1} 步第 ${packageIndex + 1} 个工作包没有 clauseIds：每条契约要求都要落到一个包` }
+      }
+      const unknown = pkg.clauseIds.filter(id => !stage.clauseIds.includes(id))
+      if (unknown.length > 0) {
+        return { error: `第 ${index + 1} 步的工作包引用了本阶段没有的要求：${unknown.join('、')}` }
+      }
+    }
+    const packageClauses = new Set(stage.packages.flatMap(pkg => pkg.clauseIds))
+    const uncovered = stage.clauseIds.filter(id => !packageClauses.has(id))
+    if (uncovered.length > 0) {
+      return { error: `第 ${index + 1} 步这些契约要求没有落到工作包：${uncovered.join('、')}` }
+    }
+    stages.push(stage)
+  }
   if (stages.length === 0) return { error: '方案里没有阶段；每个阶段要有交付物和至少一个 clauseId' }
   const clauseIds = new Set(contract.outcomes.map(item => item.id))
   const assigned = new Set(stages.flatMap(stage => stage.clauseIds))
@@ -48,25 +87,18 @@ export const normalizeCrewProposal = input => {
   if (unknown.length > 0) return { error: `阶段引用了契约里没有的要求：${unknown.join('、')}` }
   const missing = [...clauseIds].filter(id => !assigned.has(id))
   if (missing.length > 0) return { error: `契约要求没有分配到任何阶段：${missing.join('、')}` }
-  // 工作包是写边界的唯一依据：每个阶段至少一个包，每个包必须写清要改的文件。
-  for (const [index, raw] of (Array.isArray(input.plan?.stages) ? input.plan.stages : []).entries()) {
-    const packages = Array.isArray(raw?.packages) ? raw.packages : []
-    if (packages.length === 0) {
-      return { error: `第 ${index + 1} 步没有工作包：写清每个包要改的文件` }
-    }
-    const fileless = packages.find(pkg => (
-      !Array.isArray(pkg?.files) || pkg.files.filter(file => typeof file === 'string' && file.trim() !== '').length === 0
-    ))
-    if (fileless !== undefined) {
-      return { error: `第 ${index + 1} 步的工作包没有文件：每个包都要写清要改的文件，写边界才能生效` }
-    }
-  }
   // done 是契约的投影，不再接受第二份 done 输入。
   const done = contract.outcomes.map(item => item.statement).slice(0, 6)
-  const executors = list(input.crew?.executors, 3, memberOf)
+  const rawExecutors = Array.isArray(input.crew?.executors) ? input.crew.executors : []
+  const rawVerifiers = Array.isArray(input.crew?.verifiers) ? input.crew.verifiers : []
+  if (rawExecutors.length > 3) return { error: '执行官最多 3 位' }
+  if (rawVerifiers.length > 3) return { error: '验收员最多 3 位' }
+  const executors = rawExecutors.map(memberOf)
   if (executors.length === 0) return { error: '队伍里没有执行官' }
-  const verifiers = list(input.crew?.verifiers, 3, memberOf)
+  if (executors.some(member => member === null)) return { error: '执行官缺 engine/model' }
+  const verifiers = rawVerifiers.map(memberOf)
   if (verifiers.length === 0) return { error: '队伍里没有验收员，或验收员缺 engine/model' }
+  if (verifiers.some(member => member === null)) return { error: '验收员缺 engine/model' }
   const names = [...verifiers, ...executors].map(member => (member.name ?? '').toLowerCase()).filter(Boolean)
   if (new Set(names).size !== names.length) return { error: '成员名字不能重复' }
   return {

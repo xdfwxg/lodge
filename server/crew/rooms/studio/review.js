@@ -48,7 +48,11 @@ export const visualMatchesAudit = (expected, visual) => {
 }
 
 export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null, advanceStage = null, runCommand = runCommandInPathSync }) => {
-  const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
+  const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt, privateRoom }) => sendToMember(
+    to,
+    prompt,
+    privateRoom === true ? { privateRoom: true } : {},
+  ))
   // 判定工具真的挂在这位验收员身上时，只认工具提交；注册失败才退回首行锚点。
   const gateAvailableFor = (room, memberId) => {
     const member = (room?.members ?? []).find(item => item.id === memberId)
@@ -59,6 +63,12 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
   const staleMembers = new Set()
 
   const isBusy = () => round !== null && [...round.requests.values()].some(request => request.expired !== true)
+
+  // 盲评不能只写在提示词里：群聊里有执行官的过程话，复核信和催问都只进验收员自己的线程。
+  const reviewDeliver = (request, text) => sendToMember(request.verifier, text, {
+    intent: 'review',
+    ...(request.privateRoom === true ? { privateRoom: true } : {}),
+  })
 
   const consume = ({ turn, memberId, turnId, room, calls = [] }) => {
     // 新证据已经让旧复核作废时，忽略旧提示词触发的那一回合，等新回合的结论。
@@ -90,11 +100,11 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       if (pending.protectedNudged !== true) {
         pending.protectedNudged = true
         clearTimeout(pending.reminder)
-        void sendToMember(memberId, [
+        void reviewDeliver(pending, [
           `这次改动包含受保护文件：${protectedFiles.map(file => sanitizeUntrusted(file, 200)).join('、')}。`,
           'PASS 必须在 submit_verdict 的 protectedFiles 里逐条列出并确认这些文件；不认可就判不通过，或交给人。',
           INTERNAL_PROMPT_MARKER,
-        ].join('\n'), { intent: 'review' }).catch(() => {})
+        ].join('\n')).catch(() => {})
         return true
       }
       pending.expire?.(`${name} 的判定没有逐条确认受保护文件，这一轮仍未通过。`)
@@ -108,7 +118,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       if (pending.nudged !== true) {
         pending.nudged = true
         clearTimeout(pending.reminder)
-        void sendToMember(memberId, VERDICT_RETRY_PROMPT, { intent: 'review' }).catch(() => {})
+        void reviewDeliver(pending, VERDICT_RETRY_PROMPT).catch(() => {})
         return true
       }
       pending.expire?.(`${name} 没有提交验收判定，这一轮仍未通过。`)
@@ -121,6 +131,22 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       evidenceId: pending.evidenceId,
       actorId: pending.verifier,
     })
+    // 文本兜底也要写 diff 之外的风险；结构化入口已在工具层拦过，这里兜住另一条路。
+    if (judgment.decision === 'pass' && judgment.outsideDiff === '') {
+      const name = memberDisplayName(room, memberId)
+      if (pending.riskNudged !== true) {
+        pending.riskNudged = true
+        clearTimeout(pending.reminder)
+        void reviewDeliver(pending, [
+          'PASS 还要写一条 diff 之外最值得担心的风险；没有就写「无」。',
+          '调用 submit_verdict 时填 outsideDiff；工具不可用时在文本的 json 里写同一字段。',
+          INTERNAL_PROMPT_MARKER,
+        ].join('\n')).catch(() => {})
+        return true
+      }
+      pending.expire?.(`${name} 的判定没有写 diff 之外的风险，这一轮仍未通过。`)
+      return true
+    }
     // PASS 的覆盖表还要对得上这一阶段真正要交的东西：本步交付物，最后一步连整轮目标一起核。
     // 工具不可用时的文本兜底同样要过这一关，避免换个入口绕过覆盖。
     const clauses = coverageClausesOf({ room, stageIndex: pending.stage })
@@ -137,12 +163,12 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       if (pending.coverageNudged !== true) {
         pending.coverageNudged = true
         clearTimeout(pending.reminder)
-        void sendToMember(memberId, [
+        void reviewDeliver(pending, [
           'PASS 的覆盖表还差这些要求：',
           ...gaps.map(item => `- ${sanitizeUntrusted(typeof item === 'string' ? item : `[${item.id}] ${item.statement}`, 300)}`),
           '请重新调用 submit_verdict：coverage 的 item 原样抄这些要求，evidence 写你实际读过的文件、跑过的检查或看到的结果。',
           INTERNAL_PROMPT_MARKER,
-        ].join('\n'), { intent: 'review' }).catch(() => {})
+        ].join('\n')).catch(() => {})
         return true
       }
       pending.expire?.(`${name} 的判定没有逐条覆盖这一步的要求，这一轮仍未通过。`)
@@ -158,7 +184,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       if (pending.proofNudged !== true) {
         pending.proofNudged = true
         clearTimeout(pending.reminder)
-        void sendToMember(memberId, [
+        void reviewDeliver(pending, [
           pending.proofEntries.length === 0
             ? 'PASS 之前要先亲手验过：至少读一个这次改动的文件，或跑一条检查。'
             : `PASS 之前要重跑交付自带的全部证明（${pending.proofEntries.length} 条）：\n${pending.proofEntries.map(entry => `- ${sanitizeUntrusted(entry, 2_000)}`).join('\n')}`,
@@ -166,7 +192,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           ...(proof.files.length === 0 ? [] : [`这次改动的文件：${proof.files.slice(0, 20).join('、')}。`]),
           '请在你的复核副本里逐条重跑（入口以 lodge-proof.json 或 lodge-proof/ 为准），再提交一次。',
           INTERNAL_PROMPT_MARKER,
-        ].join('\n'), { intent: 'review' }).catch(() => {})
+        ].join('\n')).catch(() => {})
         return true
       }
       pending.expire?.(`${name} 的判定没有重跑交付自带的全部证明，这一轮仍未通过。`)
@@ -179,40 +205,43 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       if (pending.boundaryNudged !== true) {
         pending.boundaryNudged = true
         clearTimeout(pending.reminder)
-        void sendToMember(memberId, [
+        void reviewDeliver(pending, [
           'PASS 引用了不属于你复核副本的东西：',
           ...foreign.slice(0, 5).map(item => `- ${sanitizeUntrusted(item.path, 300)}（${item.root}）`),
           '证据只能来自你自己的复核副本；请在那里重新读文件或跑检查，再提交一次。',
           INTERNAL_PROMPT_MARKER,
-        ].join('\n'), { intent: 'review' }).catch(() => {})
+        ].join('\n')).catch(() => {})
         return true
       }
       pending.expire?.(`${name} 的判定用了别人副本里的证据，这一轮仍未通过。`)
       return true
     }
-    // 结构化 PASS 都要有反例尝试：平台在复核副本执行，跑红就是找到反例；
+    // 每一个 PASS 都要有反例尝试：平台在复核副本执行，跑红就是找到反例；
     // 同时要在改动前的版本上跑一次，前后都绿的命令证明不了这次交付。
-    // 工具没挂上时只能走文本降级，拿不到 falsify，已在判定里标了降级，不再假装有反例。
-    if (judgment.decision === 'pass' && gate !== null) {
+    // 工具没挂上时反例字段从文本 json 读；字段缺失同样不通过，不靠“降级”放行。
+    if (judgment.decision === 'pass') {
       const attempts = Array.isArray(judgment.falsify) ? judgment.falsify : []
       const name = memberDisplayName(room, memberId)
+      const current = store.readRoom(roomId) ?? room
+      const preserve = current.stages?.[pending.stage]?.behavior === 'preserve'
       if (attempts.length === 0) {
         if (pending.falsifyNudged !== true) {
           pending.falsifyNudged = true
           clearTimeout(pending.reminder)
-          void sendToMember(memberId, [
+          void reviewDeliver(pending, [
             'PASS 必须带至少一条反例尝试。',
-            '在 submit_verdict 的 falsify 里写一条能在复核副本里执行的 command；它要在改动前的版本上失败、在交付上通过，才说明它真的在测这次改动。',
+            preserve
+              ? '在 submit_verdict 的 falsify 里写一条能撞被保留行为的 command；工具不可用时写进文本 json 的 falsify。交付上跑红是反例；改动前就红说明行为变了，也是反例；两边都绿才是对的。'
+              : '在 submit_verdict 的 falsify 里写一条能在复核副本里执行的 command；工具不可用时写进文本 json 的 falsify。它要在改动前的版本上失败、在交付上通过，才说明它真的在测这次改动。',
             '跑红就说明找到了反例，应判不通过。',
             INTERNAL_PROMPT_MARKER,
-          ].join('\n'), { intent: 'review' }).catch(() => {})
+          ].join('\n')).catch(() => {})
           return true
         }
         pending.expire?.(`${name} 的判定没有反例尝试，这一轮仍未通过。`)
         return true
       }
       const copy = room.worktrees?.[pending.verifier]
-      const current = store.readRoom(roomId) ?? room
       const baseRef = current.stageBases?.[pending.stage] ?? current.startHead ?? null
       let baseCopy = null
       try {
@@ -233,28 +262,47 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           if (pending.falsifyFailedNudged !== true) {
             pending.falsifyFailedNudged = true
             clearTimeout(pending.reminder)
-            void sendToMember(memberId, [
+            void reviewDeliver(pending, [
               '你的反例尝试跑红了，说明已经找到反例：请判不通过，并给出复现。',
               ...failed.map(item => `- ${sanitizeUntrusted(item.command, 300)}：${item.run.exit ?? '超时'}`),
               INTERNAL_PROMPT_MARKER,
-            ].join('\n'), { intent: 'review' }).catch(() => {})
+            ].join('\n')).catch(() => {})
             return true
           }
           pending.expire?.(`${name} 找到反例却仍判通过，这一轮仍未通过。`)
           return true
         }
-        // 改动前也绿的命令没有区分力；比如 true、echo、只看文件存在。
-        const toothless = runs.filter(item => item.base?.status === 'passed')
+        // 行为不变的步骤，反例命令在改动前也绿是应该的；改动前就红，说明行为已经变了。
+        const changed = preserve
+          ? runs.filter(item => item.base !== null && item.base?.status !== 'passed')
+          : []
+        if (changed.length > 0) {
+          if (pending.falsifyWeakNudged !== true) {
+            pending.falsifyWeakNudged = true
+            clearTimeout(pending.reminder)
+            void reviewDeliver(pending, [
+              '这一步要保持原有行为，但这条反例命令在改动前的版本上就红了：旧行为已经变了。',
+              ...changed.map(item => `- ${sanitizeUntrusted(item.command, 300)}：${item.base?.exit ?? '超时'}`),
+              '如果确认行为变了，请判不通过并给出复现；如果命令本身写错了，换一条能撞被保留行为的检查。',
+              INTERNAL_PROMPT_MARKER,
+            ].join('\n')).catch(() => {})
+            return true
+          }
+          pending.expire?.(`${name} 的反例命令在改动前就红了：行为已经变了，这一轮仍未通过。`)
+          return true
+        }
+        // 改变行为的步骤：改动前也绿的命令没有区分力；比如 true、echo、只看文件存在。
+        const toothless = preserve ? [] : runs.filter(item => item.base?.status === 'passed')
         if (toothless.length > 0) {
           if (pending.falsifyWeakNudged !== true) {
             pending.falsifyWeakNudged = true
             clearTimeout(pending.reminder)
-            void sendToMember(memberId, [
+            void reviewDeliver(pending, [
               '这条反例命令在改动前的版本上也通过，证明不了这次交付：它没有区分改前和改后。',
               ...toothless.map(item => `- ${sanitizeUntrusted(item.command, 300)}`),
               '换一条会在旧版本失败、在交付上通过的命令；找不到就判不通过或交给人。',
               INTERNAL_PROMPT_MARKER,
-            ].join('\n'), { intent: 'review' }).catch(() => {})
+            ].join('\n')).catch(() => {})
             return true
           }
           pending.expire?.(`${name} 的反例命令在改动前也通过，证明不了这次交付，这一轮仍未通过。`)
@@ -279,7 +327,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     // 不在这里追问：复核回合已经结束，重问会让复核挂住；缺了就如实标记，交给交付卡和系统消息说明。
     const visualMissing = !visualOk
     const pass = judgment.decision === 'pass'
-    // 工具不可用时的文本兜底没有结构覆盖表；照样收，但把降级写进记录。
+    // PASS 缺覆盖表在前面已经被退回；这里留一条记录，防止别的入口塞进无效判定。
     const coverageMissing = pass && (Array.isArray(judgment.coverage) ? judgment.coverage.length : 0) === 0
     const independent = room?.independence === 'vendor'
     const name = memberDisplayName(room, memberId)
@@ -372,9 +420,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       store.appendEvent(roomId, 'review.passed', { stage: pending.stage, verifier: pending.verifier, passed, total })
       const current = store.readRoom(roomId) ?? room
       const later = hasLaterWorkStage(current, pending.stage)
-      // 自动交付只认工具提交的结构化判定；文本兜底没有保证 outsideDiff，仍交给人收。
+      // 自动交付只看判定是否过了同一套检查：覆盖、证明、反例、diff 外风险；
+      // 工具不可用时的文本判定走同一套检查，不再因为换了入口就降级。
       const roundDelivers = current.autoDeliver === true || current.workRound?.autoDeliver === true
-      const autoDeliver = !later && roundDelivers && gate !== null && typeof advanceStage === 'function'
+      const autoDeliver = !later && roundDelivers && typeof advanceStage === 'function'
       if ((later || autoDeliver) && typeof advanceStage === 'function') {
         // 中间步骤自动过；房间开了自动交付时，最后一步也不等人点确认。
         void Promise.resolve(advanceStage(roomId, pending.stage, { by: 'system', auto: autoDeliver })).then(result => {
@@ -753,6 +802,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
             .filter(entry => typeof entry === 'string' && entry.trim() !== '')
           : [],
         protectedFiles,
+        privateRoom: blind,
         requestedAt: Date.now(),
         timer: null,
         reminder: null,
@@ -784,7 +834,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       request.expire = expire
       request.reminder = setTimeout(() => {
         if (round !== nextRound || round.requests.get(verifier) !== request) return
-        void sendToMember(verifier, REVIEW_REMINDER_PROMPT, { intent: 'review' }).catch(() => {})
+        void reviewDeliver(request, REVIEW_REMINDER_PROMPT).catch(() => {})
       }, REVIEW_REMINDER).unref()
       request.timer = setTimeout(
         () => expire(`${verifierName} 复核超时，没有收到验收结论；这一轮仍未通过。`),
@@ -809,7 +859,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           to: verifier,
           reason: 'review',
           prompt,
-              evidence,
+          privateRoom: blind,
+          evidence,
           verdict: outcome.verdicts?.at(-1) ?? null,
           parentAssignmentId: parent?.id ?? null,
           // 重启后重新发起复核时，提示词可能已经变了；固定 sendId 会被基座当成另一条消息拒绝。

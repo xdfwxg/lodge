@@ -24,6 +24,21 @@ const assigneesOf = ({ room, stage, packages }) => {
   return pool.slice(0, packages.length)
 }
 
+// 这位执行官这一回合负责的契约要求：并行时是他那个包，单执行官拿走该步全部包。
+// 没有包或包没写 clauseIds 时返回空数组；调用方据此决定是否强制按条款证明。
+export const clauseIdsFor = ({ room, stage, memberId }) => {
+  const packages = Array.isArray(stage?.packages) ? stage.packages.filter(Boolean) : []
+  if (packages.length === 0) return []
+  const assignees = assigneesOf({ room, stage, packages })
+  if (!assignees.includes(memberId)) return []
+  const selected = assignees.length > 1
+    ? [packages[assignees.indexOf(memberId)]].filter(Boolean)
+    : packages
+  return [...new Set(selected.flatMap(pkg => (
+    Array.isArray(pkg?.clauseIds) ? pkg.clauseIds : []
+  )).filter(Boolean))]
+}
+
 // 返回这位执行官这一步允许改的相对路径；null 表示不限制。
 export const allowedFilesFor = ({ room, stage, memberId, root = '' }) => {
   const packages = Array.isArray(stage?.packages) ? stage.packages.filter(Boolean) : []

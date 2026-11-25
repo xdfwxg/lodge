@@ -114,6 +114,17 @@ export const findBundledRuntimes = ({ roots, readdir = readdirSync } = {}) => {
   return [...found.values()].sort((a, b) => a.id.localeCompare(b.id))
 }
 
+// Lodge 的每个成员都跑在自己的工作副本里：应用启动的基座默认开 bot-box，
+// 并在 macOS 上 deny 工作目录的兄弟目录。用户显式设成 0 时尊重用户的选择。
+export const baseBoxEnv = ({ env = process.env, platform = process.platform } = {}) => (
+  platform === 'darwin'
+    ? {
+      OMB_BOT_BOX: env.OMB_BOT_BOX ?? '1',
+      OMB_BOT_BOX_DENY_SIBLINGS: env.OMB_BOT_BOX_DENY_SIBLINGS ?? '1',
+    }
+    : {}
+)
+
 export const baseEntryOf = (dir, { exists = existsSync } = {}) => {
   const bundled = join(dir, 'dist-server', 'openmausbot.js')
   if (exists(bundled)) return { kind: 'bundled', file: bundled }

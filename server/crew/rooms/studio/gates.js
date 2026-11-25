@@ -6,7 +6,7 @@ import { REVIEW_STATE, STAGE_STATE } from '../../../../shared/states.js'
 const deny = (reason, error) => ({ ok: false, reason, error })
 
 // PASS 不能只说“没问题”；要给出 diff 之外最值得担心的一条风险，没有就写「无」。
-// 走文本兜底的判定没有结构化字段，不在这里拦。
+// 文本判定由复核协调器要求同一字段；这里兜结构化记录，避免别的入口漏过。
 const missingOutsideDiff = message => {
   const judgment = judgmentOf(message)
   return judgment !== null &&
@@ -44,6 +44,13 @@ export const gateFor = (room, index, messages, evidence) => {
     return deny('conflict', '执行官还没有交回结果，不能验收')
   }
   // 每个交付都要有能重跑的证明；证明在改动前也绿，就没有绑定这次改动。
+  if (found.meta?.proof?.status === 'incomplete') {
+    const missing = Array.isArray(found.meta.proof.missingClauses) ? found.meta.proof.missingClauses : []
+    return deny('conflict', `交付证明没有覆盖每条契约要求${missing.length === 0 ? '' : `：${missing.join('、')}`}；每条要求至少要有一条平台跑过的 step。`)
+  }
+  if (found.meta?.proof?.status === 'failed' && typeof found.meta.proof.error === 'string' && found.meta.proof.error !== '') {
+    return deny('conflict', `交付证明没跑绿：${found.meta.proof.error}`)
+  }
   if (found.meta?.proof?.status !== 'verified') {
     return deny('conflict', '交付没有可重跑的证明，不能确认；先让执行官补 lodge-proof.json')
   }

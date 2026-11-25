@@ -37,6 +37,61 @@ test('a green proof becomes a verified run', async () => {
   }
 })
 
+test('every contract clause needs a platform-run step, not just an entry', async () => {
+  const ctx = setup({
+    proof: {
+      entry: 'node verify.mjs',
+      steps: [{ clause: 'export', run: 'node verify.mjs', expect: 'exit 0' }],
+    },
+    script: 'console.log("all green")\n',
+  })
+  try {
+    const run = await runProof({ room: { repoPath: ctx.source }, provider: ctx.provider, clauses: ['export'] })
+    assert.equal(run.status, 'verified')
+    assert.equal(run.steps.length, 1)
+    assert.equal(run.steps[0].clause, 'export')
+    assert.equal(run.steps[0].status, 'verified')
+    assert.equal('missingClauses' in run, false)
+  } finally {
+    rmSync(ctx.source, { recursive: true, force: true })
+  }
+})
+
+test('a clause without a green step leaves the proof incomplete', async () => {
+  const ctx = setup({
+    proof: {
+      entry: 'node verify.mjs',
+      steps: [{ clause: 'other', run: 'node verify.mjs' }],
+    },
+    script: 'console.log("all green")\n',
+  })
+  try {
+    const run = await runProof({ room: { repoPath: ctx.source }, provider: ctx.provider, clauses: ['export'] })
+    assert.equal(run.status, 'incomplete')
+    assert.deepEqual(run.missingClauses, ['export'])
+  } finally {
+    rmSync(ctx.source, { recursive: true, force: true })
+  }
+})
+
+test('a red step fails the proof even when the entry is green', async () => {
+  const ctx = setup({
+    proof: {
+      entry: 'node verify.mjs',
+      steps: [{ clause: 'export', run: 'node -e "process.exit(3)"' }],
+    },
+    script: 'console.log("all green")\n',
+  })
+  try {
+    const run = await runProof({ room: { repoPath: ctx.source }, provider: ctx.provider, clauses: ['export'] })
+    assert.equal(run.status, 'failed')
+    assert.match(run.error, /step 没跑绿/)
+    assert.equal(run.steps[0].status, 'failed')
+  } finally {
+    rmSync(ctx.source, { recursive: true, force: true })
+  }
+})
+
 test('a failing proof keeps its exit and output', async () => {
   const ctx = setup({
     proof: { entry: 'node verify.mjs' },
