@@ -37,7 +37,6 @@ export const normalizeRequest = body => {
   // 只带规划师也算启动态；探针和定制规划师模型走这条路，不算组队完成。
   const onlyPlanner = hasMembers && requested.every(member => member?.role === 'lead')
   const bootstrap = isStudio && !hasPlan && (!hasMembers || onlyPlanner)
-  const shadowReview = body.shadowReview === true
   const autoDeliver = isStudio && body.autoDeliver === true
   // 编排归系统：按工作包的独立程度决定；建房请求里带了就走拒绝，不静默忽略。
   if (body.orchestration !== undefined || body.plan?.orchestration !== undefined) {
@@ -56,7 +55,6 @@ export const normalizeRequest = body => {
     roomType,
     project,
     orchestration,
-    shadowReview,
     autoDeliver,
     handoffBrief,
     handoffBriefReviewed,

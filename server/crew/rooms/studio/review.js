@@ -22,10 +22,9 @@ import { reviewGuidanceFor } from '../../orchestration/index.js'
 import { leadMemberOf, memberOf, workerIds } from '../../room-members.js'
 import { activeDispatchAssignments, latestDispatchAssignment, transitionAssignment } from '../../assignments.js'
 import { memberDisplayName } from '../../member-labels.js'
-import { recordShadowAdvice } from './shadow-advisor.js'
 import { relayAfterVerdict } from './relay.js'
 import { REVIEW_STATE, STAGE_STATE } from '../../../../shared/states.js'
-import { hasLaterWorkStage, lateReviewStillValid, shadowNeeded } from './review-policy.js'
+import { hasLaterWorkStage, lateReviewStillValid } from './review-policy.js'
 import { REVIEW_REMINDER_PROMPT, VERDICT_RETRY_PROMPT, verifierPromptOf } from './review-prompts.js'
 import { systemNotice } from '../../notices.js'
 
@@ -47,7 +46,7 @@ export const visualMatchesAudit = (expected, visual) => {
   return nearNumber(visual.colors, expected.colors) && nearNumber(visual.contrast, expected.contrast)
 }
 
-export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null, advanceStage = null, runCommand = runCommandInPathSync }) => {
+export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, previews = null, attachments = null, advanceStage = null, runCommand = runCommandInPathSync }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt, privateRoom }) => sendToMember(
     to,
     prompt,
@@ -59,7 +58,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     return Array.isArray(member?.body?.roomTools) && member.body.roomTools.includes(GATE_SERVER_NAME)
   }
   let round = null
-  let shadowTask = null
   const staleMembers = new Set()
 
   const isBusy = () => round !== null && [...round.requests.values()].some(request => request.expired !== true)
@@ -703,22 +701,6 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     const senderId = evidenceAuthor ||
       (Array.isArray(stage?.assignees) ? stage.assignees : []).find(id => workerIds(room).includes(id)) ||
       workerIds(room)[0] || 'lodge'
-    // 影子评审和验收派发并行：建议只记录，不进入验收员提示词，也不拖住验收。
-    shadowTask = shadowNeeded({ room, stage, evidence, messages, stageIndex })
-      ? recordShadowAdvice({
-        store,
-        roomId,
-        shadow,
-        room,
-        emit,
-        index: stageIndex,
-        stage,
-        evidence,
-      }).catch(error => {
-        systemNotice({ store, roomId, text: '影子评审这次没取到；验收不受影响。', error })
-        return null
-      })
-      : null
     const failures = []
     for (const verifier of targets) {
       const verifierName = memberDisplayName(room, verifier)
@@ -905,5 +887,5 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     return { requested: true, stage: stageIndex, verifiers: [...nextRound.requests.keys()] }
   }
 
-  return { request, consume, isBusy, shadowSettled: () => shadowTask ?? Promise.resolve() }
+  return { request, consume, isBusy }
 }

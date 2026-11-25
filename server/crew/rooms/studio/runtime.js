@@ -1,5 +1,4 @@
 import { createLiveTurns } from './turns.js'
-import { createShadowReviewer } from './shadow-reviewer.js'
 import { deliverToMember } from '../../surface-delivery.js'
 import { leadMemberOf } from '../../room-members.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
@@ -79,13 +78,6 @@ export const createStudioRuntime = ({
           entry.voicePending = false
         }
       }
-      // 影子评审用的是本房的一个隐藏成员，不走外部服务；没有它就自动跳过。
-      const shadow = createShadowReviewer({
-        engine,
-        store,
-        roomId: room.id,
-        sendToMember: (memberId, text, options = {}) => sendMember(room.id, room, memberId, text, options),
-      })
       entry.turns = createLiveTurns({
         store,
         engine,
@@ -103,7 +95,6 @@ export const createStudioRuntime = ({
         rewindStage,
         stopRound,
         resumeRound,
-        shadow,
         setMembers,
         expireCards: () => {
           const task = approvals.expireApprovals(entry, room.id, '这一步已经重做了')

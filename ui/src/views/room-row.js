@@ -32,7 +32,7 @@ function RoomConfirm({ kind, room, busy, onCancel, onConfirm }) {
         }, busy ? '正在处理…' : deleting ? '删除' : '归档'))))
 }
 
-function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete, onRounds = null, onHold = null }) {
+function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDelete, onRounds = null, onHold = null, engines = [], onSwapBody = null }) {
   const archived = Boolean(room.archivedAt)
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuAt, setMenuAt] = useState(null)
@@ -346,7 +346,7 @@ function RoomRow({ room, stamp = '', active, onSelect, onRename, onArchive, onDe
         style: { top: `${membersAt.top}px`, left: `${membersAt.left}px` },
         role: 'dialog',
         'aria-label': '房间成员',
-      }, h(SideMembers, { room, onHold, onClose: () => setMembersOpen(false) })), document.body)
+      }, h(SideMembers, { room, engines, onSwapBody, onHold })), document.body)
       : null,
     confirm === null ? null : h(RoomConfirm, {
       kind: confirm,

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { hostAddress, memberAddress, memberDisplayName, shadowAddress, toBaseMentions } from './member-labels.js'
+import { hostAddress, memberAddress, memberDisplayName, toBaseMentions } from './member-labels.js'
 import { memberOf } from './room-members.js'
 import { humanNameOf } from './human-name.js'
 
@@ -44,11 +44,11 @@ export const deliverToBase = ({
   const current = store.readRoom(roomId) ?? room
   const address = memberId === 'host'
     ? hostAddress(current)
-    : memberId === 'shadow' ? shadowAddress(current) : memberAddress(current, memberId)
+    : memberAddress(current, memberId)
   if (address === null) {
     const name = memberId === 'host'
       ? '主持人'
-      : memberId === 'shadow' ? '影子评审' : memberDisplayName(current, memberId)
+      : memberDisplayName(current, memberId)
     return Promise.reject(new Error(`${name} 还没有连上 Lodge 服务，消息没有送出`))
   }
   // 叫停是人的决定：系统的自动派发不能靠一次 @ 把成员重新叫起来。

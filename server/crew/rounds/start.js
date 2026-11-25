@@ -37,7 +37,6 @@ export const startRound = async ({ store, live, emit, room, body, roomFiles, sta
     ordinal: store.nextWorkRoundOrdinal(room.id),
     plan: planned.plan,
     stages: built.stages,
-    shadowReview: body?.shadowReview === true,
     orchestration: room.orchestration ?? null,
     constraints: studioConstraints({
       plan: planned.plan,

@@ -32,6 +32,8 @@ test('a studio with a live round is working, not idle', () => {
   assert.equal(islandStatusOf(studio()).key, 'running')
   assert.equal(islandStatusOf(studio()).stageLabel, '进行中')
   assert.equal(islandStatusOf(studio({ needsYou: { kind: 'decision' } })).barLabel, '等你决定')
+  assert.equal(islandStatusOf(studio({ needsYou: { kind: 'blocked', label: '读了别人的副本' } })).barLabel, '停住了')
+  assert.equal(islandStatusOf(studio({ needsYou: { kind: 'rework' } })).barLabel, '待重做')
   assert.equal(islandStatusOf(studio({ state: 'paused' })).barLabel, '已暂停')
   assert.equal(islandStatusOf(studio({ state: 'stopped' })).barLabel, '已停止')
   assert.equal(islandStatusOf(studio({ archivedAt: 1 })).barLabel, '已归档')

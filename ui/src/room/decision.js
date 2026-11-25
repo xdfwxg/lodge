@@ -17,8 +17,8 @@ const statusOfPaused = room => {
 
 const MEMBER_FIX_LABEL = {
   auth: '重新登录',
-  quota: '换个模型',
-  rate_limit: '换个模型',
+  quota: '换个执行者',
+  rate_limit: '换个执行者',
   engine: '检查模型服务',
 }
 

@@ -12,10 +12,7 @@ const LODGE_STATIONS = new Set([
 
 const isLodgeBot = bot => {
   const name = String(bot?.name ?? '')
-  return LODGE_STATIONS.has(bot?.description) ||
-    name.startsWith('影子评审') ||
-    name.startsWith('LodgeHost') ||
-    String(bot?.soul ?? '').includes('你是 Lodge 的影子评审')
+  return LODGE_STATIONS.has(bot?.description) || name.startsWith('LodgeHost')
 }
 
 const underRoot = (path, roots) => (
@@ -37,10 +34,10 @@ export const roomResourceRefs = rooms => {
       if (typeof member.body?.ref === 'string') bots.add(member.body.ref)
       if (typeof member.body?.roomRef === 'string') groups.add(member.body.roomRef)
     }
-    for (const ref of [room.chatHost?.memberRef, room.shadowBot?.memberRef]) {
+    for (const ref of [room.chatHost?.memberRef]) {
       if (typeof ref === 'string') bots.add(ref)
     }
-    for (const ref of [room.chatHost?.roomRef, room.shadowBot?.roomRef]) {
+    for (const ref of [room.chatHost?.roomRef]) {
       if (typeof ref === 'string') groups.add(ref)
     }
     if (typeof room.chatRoom?.id === 'string') groups.add(room.chatRoom.id)
@@ -74,7 +71,7 @@ export const lodgeRootsOf = (rooms = [], env = process.env) => {
 
 // 只删两类 Lodge 资源：
 // 1. 旧房间自己的群，且群里没有当前房间还在用的 bot；
-// 2. 不在任何保留群里的旧成员、影子评审或主持 bot。
+// 2. 不在任何保留群里的旧成员或主持 bot。
 // 数据被清空后的首次启动：把基座里所有 Lodge 资源退掉，别的应用不动。
 export const clearLodgeBaseResources = async (client, { env = process.env } = {}) => {
   const bootstrap = await client.bootstrap()

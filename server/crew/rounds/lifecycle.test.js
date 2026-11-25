@@ -60,11 +60,10 @@ test('a rejected or failed round is terminal and clears the room pointer', async
   }
 })
 
-test('a new round starts without the previous round advice or previews', async () => {
+test('a new round starts without the previous round previews', async () => {
   const ctx = setup()
   try {
     ctx.store.updateRound('room-1', current => {
-      current.advisorShadow = { 0: { evidenceId: 'old-evidence', advice: [{ summary: '旧意见' }] } }
       current.previews = [{ stage: 0, evidenceId: 'old-evidence', path: 'old.png' }]
       current.reviewRetriedAt = 123
       current.stageDiagnostics = { 0: { outcome: 'old' } }
@@ -84,7 +83,6 @@ test('a new round starts without the previous round advice or previews', async (
       }),
     })
     const room = ctx.store.readRoom('room-1')
-    assert.deepEqual(room.advisorShadow, {})
     assert.deepEqual(room.previews, [])
     assert.equal(room.reviewRetriedAt, null)
     assert.deepEqual(room.stageDiagnostics, {})

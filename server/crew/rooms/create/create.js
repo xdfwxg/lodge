@@ -37,7 +37,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     roomType,
     project,
     orchestration,
-    shadowReview,
     autoDeliver,
     handoffBrief,
     handoffBriefReviewed,
@@ -164,8 +163,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       workspaces,
       verifiers,
       roomType: roomType.id,
-      shadowReview,
-    })
+      })
     // 身体体检：没装好或没登录的模型在开工前就拦下，不把失败留到第一回合。
     const bodyIssues = (provisioned.bodyIssues ?? []).filter(item => item.issue !== '')
     if (bodyIssues.length > 0) {
@@ -203,7 +201,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       members,
       chatRoom: provisioned.chatRoom,
       chatHost: provisioned.chatHost,
-      shadowBot: provisioned.shadowBot ?? null,
       lead,
       workers,
       verifiers,
@@ -213,8 +210,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       workspaceCaps,
       roomType,
       orchestration: roomOrchestration.id,
-      shadowReview,
-      autoDeliver,
+        autoDeliver,
       builtStages,
       align: initialAlign,
       gate: gateRecordOf({

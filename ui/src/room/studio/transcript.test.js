@@ -137,19 +137,6 @@ test('a finished room keeps the work record open and ends with the result', asyn
   assert.equal(hasClass(tree, 'studio-result'), true)
 })
 
-test('a finished round keeps shadow advice off the result path', async () => {
-  const { StudioTranscript } = await load()
-  const room = {
-    ...finishedRoom(),
-    advisorShadow: {
-      0: { evidenceId: 'e0', advice: [{ summary: '本轮意见' }] },
-      1: { evidenceId: 'e1', advice: [{ summary: '上一轮意见' }] },
-    },
-  }
-  const tree = render(StudioTranscript({ room, members, delivery }))
-  assert.doesNotMatch(text(tree), /本轮意见|上一轮意见/)
-})
-
 test('a summary and a duplicate conclusion stay out of the result path', async () => {
   const { StudioTranscript } = await load()
   const room = {

@@ -26,7 +26,7 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   await page.getByRole('button', { name: '先聊聊' }).click()
   await expect(page.getByLabel('想聊什么？')).toBeVisible()
   // 聊天室不再让人选成员：主持人进房后按话题请 2–6 位。
-  await expect(page.getByText('进房后主持人会按话题请 2–6 位；你可以静音或换模型。')).toBeVisible()
+  await expect(page.getByText('进房后主持人会按话题请 2–6 位；你可以静音或换个执行者。')).toBeVisible()
   await expect(page.getByLabel('甲的说话习惯')).toHaveCount(0)
   await page.getByRole('button', { name: '交给工作室' }).click()
   await expect(page.getByLabel('要做什么？')).toBeVisible()

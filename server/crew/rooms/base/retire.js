@@ -6,7 +6,7 @@ export const retireRoomResources = async ({ engine, room }) => {
   for (const member of room.members ?? []) {
     if (member?.body !== undefined) await bodies.retire(member.body)
   }
-  for (const ref of [room.chatHost?.memberRef, room.shadowBot?.memberRef]) {
+  for (const ref of [room.chatHost?.memberRef]) {
     await bodies.retireHost(ref)
   }
   if (typeof room.chatRoom?.id === 'string' && room.chatRoom.id !== '') {

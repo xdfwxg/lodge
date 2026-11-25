@@ -43,7 +43,14 @@ export function createStore() {
 
   const emit = next => {
     state = next
-    for (const listener of listeners) listener()
+    for (const listener of listeners) {
+      // 一个界面订阅者抛错，不能把已经成功的建房/改名动作倒过来说成失败。
+      try {
+        listener()
+      } catch (error) {
+        console.error('[lodge] store listener failed', error)
+      }
+    }
   }
   const patch = next => emit({ ...state, ...next })
   const lastSeq = () => Math.max(0, ...state.rooms.flatMap(room => room.messages.map(message => message.seq ?? 0)))
@@ -283,6 +290,14 @@ export function createStore() {
 
   const activeRoom = () => state.rooms.find(room => room.id === state.activeId)
 
+  const swapBodyIn = async (roomId, memberId, engine, model, spec = {}) => {
+    const data = await post(`/api/rooms/${roomId}/swap-body`, { memberId, engine, model, ...spec })
+    if (data?.room === undefined) return { ok: false, error: failureText('没能保存') }
+    // 不假设这块面板一定属于当前选中的房间。
+    if (data.room.id === state.activeId) acceptRoom(data.room)
+    return { ok: true, room: data.room }
+  }
+
   return {
     subscribe: listener => {
       listeners.add(listener)
@@ -419,9 +434,13 @@ export function createStore() {
     createRoom: async (goal, answers = {}) => {
       const data = await post('/api/rooms', { goal, ...answers })
       if (data?.room === undefined) return { ok: false, error: failureText('房间没能建起来') }
-      await load()
+      // 房间已经建好了：先把返回的房间放进列表；后面这次全量刷新失败，不能再倒过来说“没建起来”。
+      acceptRoom(data.room)
       rememberRoom(data.room.id)
       patch({ activeId: data.room.id })
+      try {
+        await load()
+      } catch {}
       return { ok: true, room: data.room, warning: data.warning ?? null }
     },
     renameRoom: async (id, name) => {
@@ -456,12 +475,9 @@ export function createStore() {
       acceptRoom(data.room)
       return { ok: true, room: data.room }
     },
-    swapBody: async (memberId, engine, model, spec = {}) => {
-      const data = await post(`/api/rooms/${state.activeId}/swap-body`, { memberId, engine, model, ...spec })
-      if (data?.room === undefined) return { ok: false, error: failureText('没能保存') }
-      acceptRoom(data.room)
-      return { ok: true, room: data.room }
-    },
+    swapBodyIn,
+    swapBody: (memberId, engine, model, spec = {}) =>
+      swapBodyIn(state.activeId, memberId, engine, model, spec),
     activeRoom,
     readArtifact: (roomId, path) => get(`/api/rooms/${roomId}/artifact?path=${encodeURIComponent(path)}`),
     workspaceMemory: async path => {

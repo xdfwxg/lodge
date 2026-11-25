@@ -14,7 +14,7 @@ import { stopAdviceReady } from './stop-advice.js'
 import { systemNotice } from '../../notices.js'
 
 // 实时房间的回合副作用：证据捕获、验收命令、复核请求。
-export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, files, shadow = null, expireCards = null, writeDiagnostic = null, confirmStage = null, applyPlan = null, adjustModel = null, rewindStage = null, stopRound = null, resumeRound = null, screenshots = null, attachments = null, setMembers = null, runCommand = null }) => {
+export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner = null, files, expireCards = null, writeDiagnostic = null, confirmStage = null, applyPlan = null, adjustModel = null, rewindStage = null, stopRound = null, resumeRound = null, screenshots = null, attachments = null, setMembers = null, runCommand = null }) => {
   const state = createTurnState({ store, roomId, emit })
   // 接上房间时如果卡还开着，基座群聊只留规划师；其余成员等第一次派活再放回。
   const syncDecisionMembers = () => {
@@ -44,7 +44,6 @@ export const createLiveTurns = ({ store, roomId, emit, sendToMember, askPlanner 
     emit,
     sendToMember,
     handoff,
-    shadow,
     previews: screenshots,
     attachments,
     // 中间步骤验收通过就自动收口；最后一步仍走人的确认。

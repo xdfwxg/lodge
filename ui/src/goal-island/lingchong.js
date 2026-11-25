@@ -75,6 +75,18 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
     }
   }
 
+  const plusOne = () => {
+    const field = sparks.current
+    if (!field) return
+    const node = document.createElement('span')
+    node.className = 'lingchong-plus-one'
+    node.textContent = '+1'
+    node.style.left = `${26 + Math.random() * 8}px`
+    node.style.top = `${-8 + Math.random() * 4}px`
+    field.appendChild(node)
+    setTimeout(() => node.remove(), 2100)
+  }
+
   const puff = () => {
     const field = sparks.current
     if (!field) return
@@ -465,6 +477,7 @@ export function Lingchong({ state = 'rest', mode = 'chat', progress = 0, onActiv
       return
     }
     sprinkle('heart')
+    plusOne()
     hopRequest.current = { hopT: 0.5, hopH: 13 }
     wakeRequest.current = true
   }
@@ -596,6 +609,8 @@ body[data-ds-dark-theme] .lingchong-art{content:url("${colorArt}")}
 .spark{position:absolute;color:var(--bt-star,#f6c453);font-size:13px;opacity:0;animation:lingchong-spark 1s ease-out forwards}
 .spark[data-kind=heart]{color:#e58a9a;font-size:12px}
 @keyframes lingchong-spark{0%{opacity:0;transform:translateY(3px) scale(.5)}25%{opacity:.95}100%{opacity:0;transform:translateY(-26px) scale(1.1)}}
+.lingchong-plus-one{position:absolute;z-index:2;color:#f6c453;font-size:18px;line-height:1;font-weight:800;letter-spacing:-.02em;text-shadow:0 0 1px #5a3d05,0 0 1px #5a3d05,0 1px 3px rgba(0,0,0,.45),0 0 10px rgba(246,196,83,.5);opacity:0;transform-origin:50% 100%;animation:lingchong-plus-one 2s ease-out forwards;pointer-events:none}
+@keyframes lingchong-plus-one{0%{opacity:0;transform:translateY(6px) scale(.6)}14%{opacity:1;transform:translateY(0) scale(1)}72%{opacity:1}100%{opacity:0;transform:translateY(-20px) scale(1.28)}}
 @media (max-width:760px){.lingchong{width:60px;height:31px;--pet-scale:.1558}}
-@media (prefers-reduced-motion:reduce){.spark{animation:none;opacity:0}.lingchong-question{animation:none!important}.lingchong-butterfly .wing{animation:none}.lingchong-zzz span{animation:none;opacity:.6}.lingchong-puff{animation:none;opacity:0}}
+@media (prefers-reduced-motion:reduce){.spark,.lingchong-plus-one{animation:none;opacity:0}.lingchong-question{animation:none!important}.lingchong-butterfly .wing{animation:none}.lingchong-zzz span{animation:none;opacity:.6}.lingchong-puff{animation:none;opacity:0}}
 `

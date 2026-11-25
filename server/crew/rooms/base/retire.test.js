@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { retireRoomResources } from './retire.js'
 
-test('retiring a room removes member bodies, hidden bots and the chat group', async () => {
+test('retiring a room removes member bodies, the host and the chat group', async () => {
   const calls = []
   const engine = {
     deleteRoom: async id => { calls.push(`group:${id}`) },
@@ -16,7 +16,6 @@ test('retiring a room removes member bodies, hidden bots and the chat group', as
         { body: { ref: 'bot-b', roomRef: 'group-b' } },
       ],
       chatHost: { memberRef: 'bot-host' },
-      shadowBot: { memberRef: 'bot-shadow' },
       chatRoom: { id: 'group-chat' },
     },
   })
@@ -24,7 +23,6 @@ test('retiring a room removes member bodies, hidden bots and the chat group', as
     'bot:bot-a',
     'bot:bot-b',
     'bot:bot-host',
-    'bot:bot-shadow',
     'group:group-a',
     'group:group-b',
     'group:group-chat',

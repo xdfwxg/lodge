@@ -27,13 +27,6 @@ export const hostAddress = room => {
   return { name, mention: `@${name}`, memberRef }
 }
 
-export const shadowAddress = room => {
-  const name = room?.shadowBot?.name
-  const memberRef = room?.shadowBot?.memberRef
-  if (typeof name !== 'string' || name === '' || typeof memberRef !== 'string' || memberRef === '') return null
-  return { name, mention: `@${name}`, memberRef }
-}
-
 const replaceAll = (text, from, to) => {
   if (typeof text !== 'string' || text === '' || from === '' || from === to) return text
   return text.split(from).join(to)

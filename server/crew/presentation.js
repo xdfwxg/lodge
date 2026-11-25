@@ -25,7 +25,6 @@ export const presentRoom = (room, messages = [], assignments = []) => {
   const {
     chatRoom,
     chatHost,
-    shadowBot,
     hiddenBaseMessages,
     seatBots,
     seatNames,

@@ -9,7 +9,6 @@ import { buildDelivery } from './delivery.js'
 import { studioIssuesOf, studioRetroOf } from './issues.js'
 import { studioNeedsYou } from './needs.js'
 import { initialMessages, studioConstraints } from './record.js'
-import { SHADOW_SOUL } from './shadow-reviewer.js'
 import { activeDispatchAssignments, transitionAssignment } from '../../assignments.js'
 import { tasksFrom } from '../../assignment-projections.js'
 import { ROUND_STATUS, STAGE_STATE } from '../../../../shared/states.js'
@@ -87,31 +86,15 @@ export const studioKind = {
     plan,
     verifiers,
     independence,
-    shadowReview,
     gate,
     builtStages,
   }) => ({
     constraints: studioConstraints({ plan, verifiers, independence }),
-    shadowReview: shadowReview === true,
     ...(gate === null ? {} : { gate }),
     stages: builtStages.stages,
   }),
 
   initialMessages,
-
-  provisionExtra: async ({ host: hostPort, short }) => {
-    // 影子评审是房间里的隐藏成员：不占席位、没有工具，只在需要时给一份对照意见。
-    const created = await hostPort.createHost({
-      name: `影子评审${short}`,
-      soul: SHADOW_SOUL,
-      approval: 'ask',
-    })
-    return {
-      members: [created.id],
-      shadowBot: { memberRef: created.id, name: created.name },
-      cleanup: () => hostPort.retireHost(created.id),
-    }
-  },
 
   start: startInitialStage,
 

@@ -10,8 +10,8 @@ const paused = (kind, memberId = 'worker') => ({
 
 test('a stopped member points at the fix, not only at resume', () => {
   assert.deepEqual(pausedMemberFixOf(paused('auth')), { memberId: 'worker', label: '重新登录' })
-  assert.deepEqual(pausedMemberFixOf(paused('quota')), { memberId: 'worker', label: '换个模型' })
-  assert.deepEqual(pausedMemberFixOf(paused('rate_limit')), { memberId: 'worker', label: '换个模型' })
+  assert.deepEqual(pausedMemberFixOf(paused('quota')), { memberId: 'worker', label: '换个执行者' })
+  assert.deepEqual(pausedMemberFixOf(paused('rate_limit')), { memberId: 'worker', label: '换个执行者' })
   assert.deepEqual(pausedMemberFixOf(paused('engine')), { memberId: 'worker', label: '检查模型服务' })
 })
 

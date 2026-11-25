@@ -12,7 +12,7 @@ const railQuery = () => (
   typeof matchMedia === 'function' ? matchMedia('(max-width:760px)').matches : false
 )
 
-function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRounds = null, onHoldMember = null, lodgeRoom = null, profile = null, onProfile = null }) {
+function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRounds = null, onHoldMember = null, engines = [], onSwapBody = null, lodgeRoom = null, profile = null, onProfile = null }) {
   const { rooms, activeId } = state
   const [rail, setRail] = useState(railQuery)
   const [sideCollapsed, setSideCollapsed] = useState(false)
@@ -126,11 +126,13 @@ function Sidebar({ state, onSelect, onNew, onRename, onArchive, onDelete, onRoun
     onDelete: onDelete === undefined ? undefined : () => onDelete(room.id),
     onRounds: onRounds === undefined || onRounds === null ? null : () => onRounds(room.id),
     onHold: onHoldMember,
+    engines,
+    onSwapBody,
   })
   const renderRoom = room => h(Fragment, { key: room.id },
     roomRow(room),
     activeId === room.id && uiKindOfRoom(room).membersInSidebar === true
-      ? h(SideMembers, { room, onHold: onHoldMember })
+      ? h(SideMembers, { room, engines, onSwapBody, onHold: onHoldMember })
       : null)
 
   // 拖右侧竖线改宽度；宽度由 sidebar-layout 持久化。拖到一列图标时收成 rail。

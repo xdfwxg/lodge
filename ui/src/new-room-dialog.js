@@ -134,7 +134,6 @@ function NewRoomDialog({
     setGoal('')
     setNameDraft('')
     setRoomType('studio')
-    setAdvanced(false)
     setHandoffBrief(null)
     setHandoffBriefReviewed(false)
     setError(null)

@@ -55,8 +55,33 @@ const chatState = room => {
   return 'idle'
 }
 
+// “等你决定”只留给真需要人拍板的分叉；阻塞、退回、合并冲突各有自己的词。
+const waitingWordOf = need => {
+  if (need === null || need === undefined) return null
+  switch (need.kind) {
+    case 'decision': return '等你决定'
+    case 'question': return '待回答'
+    case 'approval': return '待确认'
+    case 'blocked': return '停住了'
+    case 'rework': return '待重做'
+    case 'merge': return '合并冲突'
+    case 'parallel': return '卡住了'
+    case 'review-timeout': return '复核超时'
+    case 'connection': return '连接断了'
+    case 'mcp': return '连接中断'
+    case 'budget': return '额度用完了'
+    case 'error': return need.label || '出错了'
+    default: return need.label || null
+  }
+}
+
 export const islandStatusOf = (room, kind = 'studio') => {
   const table = ISLAND_STATUS[kind] ?? ISLAND_STATUS.studio
   const key = kind === 'chat' ? chatState(room) : studioState(room)
-  return { key, ...table[key] }
+  const status = { key, ...table[key] }
+  if (kind !== 'chat' && key === 'waiting') {
+    const word = waitingWordOf(needsAction(room))
+    if (word !== null) return { ...status, barLabel: word, stageLabel: word }
+  }
+  return status
 }

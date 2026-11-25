@@ -116,7 +116,6 @@ export const sampleStudioRound = ({ room, now = Date.now() } = {}) => ({
   plan: room.plan,
   stages: room.stages,
   gate: null,
-  shadowReview: false,
   orchestration: room.orchestration ?? null,
   constraints: room.constraints ?? [],
   decisions: [],

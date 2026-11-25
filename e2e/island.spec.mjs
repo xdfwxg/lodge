@@ -41,7 +41,10 @@ test('chat members live in the room menu, not under the row', async ({ page, req
   await expect(members).toContainText('阿禾')
   await expect(page.locator('.dsb-side .crew-side-members')).toHaveCount(0)
 
-  await members.getByRole('button', { name: /^阿禾/ }).click()
-  await expect(page.locator('.crew-body-swap')).toBeVisible()
-  await expect(page.locator('.crew-member-pop')).toHaveCount(0)
+  const editor = members.locator('.crew-side-member-edit').filter({ hasText: '阿禾' })
+  await expect(editor).toBeVisible()
+  await expect(editor.getByRole('combobox')).toBeVisible()
+  await expect(members.getByRole('button', { name: '完成' })).toBeDisabled()
+  await expect(page.locator('.crew-member-pop')).toBeVisible()
+  await expect(page.locator('.crew-body-swap')).toHaveCount(0)
 })

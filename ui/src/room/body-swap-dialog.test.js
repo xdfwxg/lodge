@@ -27,11 +27,13 @@ const render = over => renderToStaticMarkup(h(BodySwapDialog, {
   ...over,
 }))
 
-test('every member only gets the model swap', () => {
+test('every member only gets the robot picker', () => {
   const html = render()
-  assert.match(html, /换个模型/)
-  assert.match(html, /只换模型，记录和证据不变/)
-  assert.match(html, /模型服务/)
+  assert.match(html, /<b>阿青<\/b>/)
+  assert.doesNotMatch(html, /换个/)
+  assert.doesNotMatch(html, /换好/)
+  assert.match(html, /完成/)
+  assert.match(html, /disabled/)
   assert.doesNotMatch(html, /性格/)
   assert.doesNotMatch(html, /移出房间/)
   assert.doesNotMatch(html, /模型与能力/)
@@ -42,4 +44,10 @@ test('a chat member can still be removed from the same dialog', () => {
   assert.match(html, /移出房间/)
   assert.doesNotMatch(html, /性格/)
   assert.doesNotMatch(html, /模型与能力/)
+})
+
+test('a chat participant gets the same robot picker', () => {
+  const html = render({ member: { ...member, role: 'worker', roleKind: 'participant', name: '小林' } })
+  assert.match(html, /<b>小林<\/b>/)
+  assert.doesNotMatch(html, /执行者|规划师|验收员/)
 })

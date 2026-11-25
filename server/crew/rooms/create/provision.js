@@ -23,7 +23,7 @@ export const createProvisioner = ({ engine }) => {
   const createdRooms = []
   let cleanupExtra = null
 
-  const provision = async ({ roster, short, title, goal, handoffBrief = null, workspaces, roomType = 'studio', shadowReview = false, align = false }) => {
+  const provision = async ({ roster, short, title, goal, handoffBrief = null, workspaces, roomType = 'studio', align = false }) => {
     const mode = roomModeForType(roomType)
     const instances = await bodies.instances()
     const engineKind = id => instances.find(item => item.id === id)?.engine ?? id
@@ -89,7 +89,7 @@ export const createProvisioner = ({ engine }) => {
       .filter(({ memberRef }) => memberRef.fallback === true)
       .map(({ member, memberRef }) => [member.id, { requested: memberRef.requestedEngine, actual: memberRef.engine, reason: memberRef.reason }]))
     const leadMember = created.find(({ member }) => kindOf(member) === 'planner') ?? created[0]
-    const extra = await mode.provisionExtra({ host: bodies, short, workspaces, leadMember, shadowReview }) ?? null
+    const extra = await mode.provisionExtra?.({ host: bodies, short, workspaces, leadMember }) ?? null
     cleanupExtra = extra?.cleanup ?? null
     const extraMembers = extra?.members ?? []
     // 先对齐的工作室只让规划师进基座群聊：对齐回合不会被 @ 叫起别人；派活前再放回全员。
@@ -150,7 +150,6 @@ export const createProvisioner = ({ engine }) => {
       chatRoom,
       chatHost,
       bodyIssues,
-      shadowBot: extra?.shadowBot ?? null,
     }
   }
 

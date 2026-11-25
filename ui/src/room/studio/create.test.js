@@ -60,7 +60,6 @@ test('member and model choices are no longer sent', () => {
   assert.equal('verify' in request, false)
 })
 
-test('shadow review and auto delivery are no longer creation requests', () => {
-  assert.equal('shadowReview' in buildStudioRequest({ ...base, shadowReview: true }), false)
+test('auto delivery is no longer a creation request', () => {
   assert.equal('autoDeliver' in buildStudioRequest({ ...base, autoDeliver: true }), false)
 })

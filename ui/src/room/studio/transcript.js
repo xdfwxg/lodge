@@ -1,7 +1,6 @@
 import { Fragment, createElement as h, useMemo } from 'react'
 import { buildTimeline, dedupeChatStreams } from '../timeline-model.js'
 import { humanNoteKeys, isDuplicateHumanRework } from '../human-note.js'
-import { ShadowAdvice } from './advisor-advice.js'
 import { downloadDeliveryRecord } from './delivery-record.js'
 import { renderStudioMessage } from './message-view.js'
 import { isChainMessage } from '../message-view.js'
@@ -161,11 +160,6 @@ export function StudioTranscript({
   flush()
 
   const activeIndex = (room.stages ?? []).findIndex(stage => stage.state === 'active')
-  // 影子评审是执行中的旁注；已经交付时结果卡才是主视线，不再把建议横在结果前。
-  const advice = activeIndex >= 0
-    ? h(ShadowAdvice, { key: `advice-${activeIndex}`, room, stageIndex: activeIndex, label: '另一份意见' })
-    : null
-
   const roomMessages = Array.isArray(room.messages) ? room.messages : []
   const pendingApprovals = (room.approvals ?? []).filter(approval => (
     approval.state === 'pending' && scopeIsValid(approval.scope, { room, messages: roomMessages })
@@ -210,6 +204,5 @@ export function StudioTranscript({
       : null,
     h(PendingDecisionCard, { key: 'pending-decision', room, onAnswer: onDecision }),
     h(HumanGateCard, { key: `human-gate-${activeIndex}`, room, onChoose, onRework }),
-    h(MergeConflictCard, { key: `merge-${activeIndex}`, room, onResolve: onResolveMerge }),
-    advice)
+    h(MergeConflictCard, { key: `merge-${activeIndex}`, room, onResolve: onResolveMerge }))
 }

@@ -149,6 +149,8 @@ export function App() {
         profile,
         onProfile: () => setProfileOpen(true),
         onHoldMember: (memberId, held) => store.holdMember(memberId, held),
+        engines: state.engines ?? [],
+        onSwapBody: (roomId, memberId, engine, model) => store.swapBodyIn(roomId, memberId, engine, model),
         onRename: (id, name) => store.renameRoom(id, name),
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),

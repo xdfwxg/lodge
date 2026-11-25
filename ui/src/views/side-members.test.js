@@ -30,9 +30,10 @@ test('idle members stay quiet under the room', () => {
   assert.doesNotMatch(html, /添加成员/)
 })
 
-test('a live member offers the hold menu, not a stop control', () => {
+test('a live member offers a hold switch, not a stop control', () => {
   const html = renderToStaticMarkup(h(SideMembers, { room: room(), onHold: () => {} }))
-  assert.match(html, /更多操作/)
+  assert.match(html, /role="switch"/)
+  assert.match(html, /aria-label="先别派活规划师"/)
   assert.doesNotMatch(html, /停下这位成员/)
 })
 
@@ -52,6 +53,19 @@ test('a finished room keeps the crew but not the add row', () => {
   assert.doesNotMatch(html, /添加成员/)
 })
 
+test('every member picks a robot in place, and one done saves them together', () => {
+  const engines = [
+    { id: 'claude', name: 'Claude', available: true, authenticated: true, models: { default: 'sonnet' } },
+    { id: 'pi', name: 'pi', available: true, authenticated: true, models: { default: 'deepseek-flash' } },
+  ]
+  const html = renderToStaticMarkup(h(SideMembers, { room: room(), engines, onSwapBody: () => {} }))
+  assert.equal((html.match(/<select/g) ?? []).length, 3)
+  assert.equal((html.match(/crew-side-member-edit-done/g) ?? []).length, 1)
+  // 没有改动时，唯一的完成按钮是灰的。
+  assert.match(html, /crew-side-member-edit-done[^>]*disabled/)
+  assert.doesNotMatch(html, /crew-body-swap/)
+})
+
 test('a chat room names speaking and offers mute and a model swap, not add', () => {
   const html = renderToStaticMarkup(h(SideMembers, {
     room: room({ roomType: 'chat', busyMembers: ['worker'] }),
@@ -59,5 +73,5 @@ test('a chat room names speaking and offers mute and a model swap, not add', () 
   }))
   assert.match(html, /发言中/)
   assert.doesNotMatch(html, /添加成员/)
-  assert.match(html, /更多操作/)
+  assert.match(html, /aria-label="静音执行官"/)
 })

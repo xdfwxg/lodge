@@ -14,7 +14,7 @@ export const chatUi = {
   teamMode: 'fixed',
   memberLabels: { lead: '主持中', member: '发言中', held: '已静音' },
   membersCanBeAdded: false,
-  // 成员从房间菜单里看：静音和换模型都在那一张成员面板里。
+  // 成员从房间菜单里看：静音和换个执行者都在那一张成员面板里。
   membersInSidebar: false,
   hasHistory: false,
   startMode: 'direct',
