@@ -166,6 +166,7 @@ export const GATE_TOOLS = Object.freeze([
                   title: { type: 'string', maxLength: 80 },
                   deliverable: { type: 'string', maxLength: 500 },
                   clauseIds: { type: 'array', minItems: 1, maxItems: 6, items: { type: 'string', maxLength: 40 } },
+                  behavior: { type: 'string', enum: ['change', 'preserve'] },
                   packages: {
                     type: 'array',
                     maxItems: 4,
@@ -173,9 +174,9 @@ export const GATE_TOOLS = Object.freeze([
                       type: 'object',
                       properties: {
                         title: { type: 'string', maxLength: 80 },
-                        files: { type: 'array', maxItems: 12, items: { type: 'string', maxLength: 200 } },
+                        files: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string', maxLength: 200 } },
                       },
-                      required: ['title'],
+                      required: ['title', 'files'],
                       additionalProperties: false,
                     },
                   },
