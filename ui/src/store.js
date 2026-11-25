@@ -401,7 +401,7 @@ export function createStore() {
       }
     },
     markRead: () => post(`/api/rooms/${state.activeId}/read`, {}),
-    holdMember: (memberId, held) => post(`/api/rooms/${state.activeId}/hold`, { memberId, held }),
+    holdMember: (roomId, memberId, held) => post(`/api/rooms/${roomId}/hold`, { memberId, held }),
     cancelQueued: queueId => post(`/api/rooms/${state.activeId}/cancel-queue`, { queueId }),
     steerQueued: queueId => post(`/api/rooms/${state.activeId}/steer`, { queueId }),
     answerDecision: async (decisionId, optionId, text = '') => {

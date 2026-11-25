@@ -148,7 +148,7 @@ export function App() {
         lodgeRoom,
         profile,
         onProfile: () => setProfileOpen(true),
-        onHoldMember: (memberId, held) => store.holdMember(memberId, held),
+        onHoldMember: (roomId, memberId, held) => store.holdMember(roomId, memberId, held),
         engines: state.engines ?? [],
         onSwapBody: (roomId, memberId, engine, model) => store.swapBodyIn(roomId, memberId, engine, model),
         onRename: (id, name) => store.renameRoom(id, name),

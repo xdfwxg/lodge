@@ -47,4 +47,6 @@ test('chat members live in the room menu, not under the row', async ({ page, req
   await expect(members.getByRole('button', { name: '完成' })).toBeDisabled()
   await expect(page.locator('.crew-member-pop')).toBeVisible()
   await expect(page.locator('.crew-body-swap')).toHaveCount(0)
+  // 示例房没连模型服务，成员只能看不能拨；静音开关只出现在真在跑的聊天室。
+  await expect(members.getByRole('switch')).toHaveCount(0)
 })

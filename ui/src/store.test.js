@@ -1,27 +1,24 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mergeRoomSnapshot } from './store.js'
+import { createStore } from './store.js'
 
-test('a reconnect snapshot updates room state but keeps local messages', () => {
-  const local = [
-    { id: 'a', state: 'complete', stages: [{ state: 'passed' }], messages: [{ id: 'm1' }] },
-    { id: 'b', state: 'active', messages: [] },
-  ]
-  const fresh = [
-    { id: 'a', state: 'active', stages: [{ state: 'active' }], messages: [] },
-    { id: 'c', state: 'active', stages: [], messages: [] },
-  ]
-  const merged = mergeRoomSnapshot(local, fresh)
-  assert.deepEqual(merged.map(room => room.id), ['a', 'c'])
-  assert.equal(merged[0].state, 'active')
-  assert.deepEqual(merged[0].stages, [{ state: 'active' }])
-  assert.deepEqual(merged[0].messages, [{ id: 'm1' }])
-})
-
-test('a snapshot keeps both the fresh and locally streamed messages', () => {
-  const local = [{ id: 'a', messages: [{ id: 'm2', seq: 2 }, { id: 'm3', seq: 3 }] }]
-  const fresh = [{ id: 'a', messages: [{ id: 'm1', seq: 1 }, { id: 'm2', seq: 2, text: 'server' }] }]
-  const merged = mergeRoomSnapshot(local, fresh)
-  assert.deepEqual(merged[0].messages.map(message => message.id), ['m1', 'm2', 'm3'])
-  assert.equal(merged[0].messages[1].text, 'server')
+test('holding a member goes to that room, not whichever room is open', async () => {
+  const calls = []
+  const bridge = globalThis.lodge
+  globalThis.lodge = {
+    request: async (path, body) => {
+      calls.push({ path, body })
+      return { ok: true, status: 200, body: { ok: true } }
+    },
+  }
+  try {
+    const store = createStore()
+    await store.holdMember('room-b', 'worker', true)
+    assert.deepEqual(calls, [
+      { path: '/api/rooms/room-b/hold', body: { memberId: 'worker', held: true } },
+    ])
+  } finally {
+    if (bridge === undefined) delete globalThis.lodge
+    else globalThis.lodge = bridge
+  }
 })

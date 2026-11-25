@@ -14,11 +14,10 @@ export function SideMembers({ room, engines = [], onHold = null, onSwapBody = nu
   if (members.length === 0) return null
   const kind = uiKindOfRoom(room)
   const statuses = bodyStatuses(room, members, { labels: kind.memberLabels })
-  // 工作室叫“别派活”，聊天室叫“静音”；都只改这个成员在这一轮的状态。
-  const canHold = (kind.id === 'studio' || kind.id === 'chat') &&
+  // 静音是聊天室的事；工作室成员由规划师派活，不在这里按住谁。
+  const canHold = kind.id === 'chat' &&
     room.state === 'active' && room.live === true && typeof onHold === 'function'
   const held = new Set(Array.isArray(room.heldMembers) ? room.heldMembers : [])
-  const holdLabel = kind.id === 'chat' ? '静音' : '先别派活'
   const available = engineReadiness(engines, { requireApproval: false }).installed
   const engineOf = item => drafts[item.memberId] ?? item.engine
   const modelOf = (item, engineId) => engineId === item.engine
@@ -94,9 +93,9 @@ export function SideMembers({ room, engines = [], onHold = null, onSwapBody = nu
         role: 'switch',
         className: 'crew-side-member-mute',
         'aria-checked': held.has(item.memberId) ? 'true' : 'false',
-        'aria-label': `${holdLabel}${item.name}`,
-        title: held.has(item.memberId) ? `${holdLabel}中，点一下恢复` : holdLabel,
-        onClick: () => onHold(item.memberId, !held.has(item.memberId)),
+        'aria-label': `静音${item.name}`,
+        title: held.has(item.memberId) ? '已静音，点一下恢复' : '静音',
+        onClick: () => onHold(room.id, item.memberId, !held.has(item.memberId)),
       })
       : null,
     errors[item.memberId] === null || errors[item.memberId] === undefined

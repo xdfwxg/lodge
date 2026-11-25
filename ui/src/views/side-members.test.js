@@ -30,11 +30,16 @@ test('idle members stay quiet under the room', () => {
   assert.doesNotMatch(html, /添加成员/)
 })
 
-test('a live member offers a hold switch, not a stop control', () => {
-  const html = renderToStaticMarkup(h(SideMembers, { room: room(), onHold: () => {} }))
-  assert.match(html, /role="switch"/)
-  assert.match(html, /aria-label="先别派活规划师"/)
-  assert.doesNotMatch(html, /停下这位成员/)
+test('only chat members offer mute, not studio members', () => {
+  const chat = renderToStaticMarkup(h(SideMembers, {
+    room: room({ roomType: 'chat' }),
+    onHold: () => {},
+  }))
+  assert.match(chat, /role="switch"/)
+  assert.match(chat, /aria-label="静音规划师"/)
+  const studio = renderToStaticMarkup(h(SideMembers, { room: room(), onHold: () => {} }))
+  assert.doesNotMatch(studio, /role="switch"/)
+  assert.doesNotMatch(studio, /停下这位成员/)
 })
 
 test('only members with something happening say it', () => {
