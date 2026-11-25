@@ -264,7 +264,7 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-msg-avatar{padding-top:1px}
 .crew-msg.crew-msg-chat{grid-template-columns:minmax(0,1fr)}
 .crew-msg-chat .crew-speaker{margin:0 0 4px}
-.crew-msg-chat .crew-speaker-name{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink-2)}
+.crew-msg-chat .crew-speaker-name{font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink)}
 .crew-inline-speaker{display:flex;align-items:flex-start;gap:9px}
 .crew-inline-avatar{flex:none;padding-top:1px}
 .crew-inline-speaker .crew-speaker{flex:1 1 auto;min-width:0;margin:0 0 5px}
@@ -641,7 +641,7 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 }
 
 /* Base primitives: bubbles, markdown, marks. Written for Lodge, no vendored CSS. */
-.bt-bubble{max-width:100%;background:var(--bt-bubble);color:var(--bt-ink);border:1px solid var(--bt-line);box-shadow:none;border-radius:16px;padding:16px 24px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body);box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty}
+.bt-bubble{max-width:100%;background:var(--bt-bubble);color:var(--bt-ink);border:1px solid transparent;box-shadow:none;border-radius:16px;padding:16px 24px;font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body);box-sizing:border-box;overflow-wrap:anywhere;text-wrap:pretty}
 .bt-bubble .md_markdown{color:inherit}
 /* 气泡里的标题跟标签字号走：结构清楚，但不抢房间标题。 */
 .bt-bubble .md_markdown h1,

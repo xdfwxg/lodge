@@ -101,8 +101,8 @@ export const createBodyFactory = ({ engine }) => {
     toolScope: toolScopeFor({ roleKind: 'participant' }),
   })
 
-  const retireHost = async ref => {
-    if (typeof ref === 'string' && ref !== '') await engine.deleteMemberBot(ref)
+  const retireHost = async (ref, { strict = false } = {}) => {
+    if (typeof ref === 'string' && ref !== '') await engine.deleteMemberBot(ref, { strict })
   }
 
   // 共享基座房间的成员是整体替换；房间和主持人的基座地址留在这一层，不往业务层漏。
@@ -115,12 +115,12 @@ export const createBodyFactory = ({ engine }) => {
     return true
   }
 
-  const retire = async body => {
+  const retire = async (body, { strict = false } = {}) => {
     if (typeof body?.roomRef === 'string' && body.roomRef !== '') {
-      try { await engine.deleteRoom(body.roomRef) } catch {}
+      await engine.deleteRoom(body.roomRef, { strict })
     }
     if (typeof body?.ref === 'string' && body.ref !== '') {
-      try { await engine.deleteMemberBot(body.ref) } catch {}
+      await engine.deleteMemberBot(body.ref, { strict })
     }
   }
 

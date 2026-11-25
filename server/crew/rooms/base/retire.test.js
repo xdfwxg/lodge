@@ -29,6 +29,29 @@ test('retiring a room removes member bodies, the host and the chat group', async
   ])
 })
 
+test('a failed retire is reported instead of pretending the room is clean', async () => {
+  const engine = {
+    deleteRoom: async () => {},
+    deleteMemberBot: async id => {
+      if (id === 'bot-b') throw new Error('base 500 /api/bots/bot-b: boom')
+    },
+  }
+  await assert.rejects(
+    () => retireRoomResources({
+      engine,
+      room: {
+        members: [
+          { name: '甲', body: { ref: 'bot-a' } },
+          { name: '乙', body: { ref: 'bot-b' } },
+        ],
+        chatHost: { memberRef: 'bot-host' },
+        chatRoom: { id: 'group-chat' },
+      },
+    }),
+    /乙：base 500/,
+  )
+})
+
 test('a room without a chat group still retires its members', async () => {
   const calls = []
   await retireRoomResources({

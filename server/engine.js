@@ -495,10 +495,13 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return { id: group.id, sessionRef: group.threadId }
   }
 
-  const deleteMemberBot = async botId => {
+  // strict 给“删房/删成员”这类要担保结果的路径用：404 视为已经不在了，其他错误照实抛出。
+  const deleteMemberBot = async (botId, { strict = false } = {}) => {
     try {
       await client.deleteBot(botId)
-    } catch {}
+    } catch (error) {
+      if (strict === true && !/base 404 /.test(String(error?.message ?? ''))) throw error
+    }
   }
 
   // 读边界发现越界时，当场叫停这位成员；不是在房间层取消整轮。
@@ -508,10 +511,12 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     return client.interruptBot(botId, body)
   }
 
-  const deleteRoom = async roomId => {
+  const deleteRoom = async (roomId, { strict = false } = {}) => {
     try {
       await client.deleteGroup(roomId)
-    } catch {}
+    } catch (error) {
+      if (strict === true && !/base 404 /.test(String(error?.message ?? ''))) throw error
+    }
   }
 
   const subscribe = ({ roomId, sessionRef, onEvent = () => {}, onState = () => {} }) => {

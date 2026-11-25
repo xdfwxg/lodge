@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createAdminActions } from './admin.js'
 
-const setup = over => {
+const setup = (over, { retireRoomBots = async () => {} } = {}) => {
   let room = {
     id: 'room-1',
     name: '一间房',
@@ -22,7 +22,7 @@ const setup = over => {
       isAttached: () => false,
       detach: () => {},
       cancel: async () => ({}),
-      retireRoomBots: async () => {},
+      retireRoomBots,
     },
     emit: () => {},
     roomFiles: { roomDir: () => '' },
@@ -67,6 +67,14 @@ test('archiving clears a leftover round pointer without stopping again', async (
   assert.deepEqual(ctx.stopped, [])
   assert.equal(ctx.room().activeRoundId, null)
   assert.equal(typeof ctx.room().archivedAt, 'number')
+})
+
+test('a room stays when the base could not retire its bots', async () => {
+  const ctx = setup({}, { retireRoomBots: async () => { throw new Error('base 500 /api/bots/x: boom') } })
+  const result = await ctx.actions.delete({ room: ctx.room() })
+  assert.equal(result.ok, false)
+  assert.match(result.error, /基座没能清理这个房间的成员/)
+  assert.deepEqual(ctx.deleted, [])
 })
 
 test('an archived room can be deleted even with a leftover round pointer', async () => {

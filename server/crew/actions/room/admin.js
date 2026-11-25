@@ -99,10 +99,12 @@ export const createAdminActions = deps => {
       disarmPromise({ store: deps.store ?? {}, roomId: room.id, promise: room.promise })
       if (room.live === true && live.isAttached?.(room.id) === true) live.detach?.(room.id)
       // 删房时把成员身体和隐藏 Bot 一起退役；工作区和用户文件留着。
+      // 基座没清干净就保留房间并报错：宁可删不掉，也不留下孤儿成员。
       try {
         await live.retireRoomBots?.(room)
       } catch (error) {
         log.warn(`room bots retire failed: ${room.id} ${error?.message ?? error}`)
+        return fail('conflict', '基座没能清理这个房间的成员；房间还在，等连接恢复后再删。')
       }
       const removed = typeof deleteRoom === 'function' ? deleteRoom(room.id) : false
       if (removed !== true) return fail('not_found', '没有这个房间')
