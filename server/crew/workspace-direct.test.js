@@ -16,9 +16,17 @@ test('direct-mode verifier snapshots never receive env secrets', () => {
     const workspaces = prepareRoom({
       source,
       short: 'direct-env',
-      members: [{ id: 'worker', role: 'worker' }, { id: 'verifier', role: 'verifier' }],
+      members: [
+        { id: 'planner', role: 'lead' },
+        { id: 'worker', role: 'worker' },
+        { id: 'verifier', role: 'verifier' },
+      ],
     })
+    assert.equal(workspaces.members.worker.path, source)
+    assert.notEqual(workspaces.members.planner.path, source)
+    assert.notEqual(workspaces.members.verifier.path, source)
     assert.equal(existsSync(join(workspaces.members.worker.path, '.env')), true)
+    assert.equal(existsSync(join(workspaces.members.planner.path, '.env')), false)
     assert.equal(existsSync(join(workspaces.members.verifier.path, '.env')), false)
   } finally {
     if (previous === undefined) delete process.env.CREW_COPY_ROOT

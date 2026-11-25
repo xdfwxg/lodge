@@ -4,7 +4,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { beginWriteGuard, guardTurn, resetWriteGuard } from './workspace-guard.js'
+import { beginWriteGuard, guardTurn, isReadOnlyRole, resetWriteGuard, unreturnedReadOnlyViolations } from './workspace-guard.js'
+import { revertPaths } from './workspace-git.js'
 
 const git = (cwd, args) => execFileSync('git', [
   '-c', 'user.name=Lodge',
@@ -60,6 +61,41 @@ test('the acting member keeps its own changes', () => {
   }
 })
 
+test('planner and verifier worktrees are reverted even when they are acting', () => {
+  const ctx = setup()
+  ctx.room.members = [
+    { id: 'a', role: 'lead', roleKind: 'planner' },
+    { id: 'b', role: 'verifier', roleKind: 'verifier' },
+  ]
+  try {
+    beginWriteGuard(ctx.room)
+    writeFileSync(join(ctx.a, 'planner-draft.txt'), 'not a delivery\n')
+    writeFileSync(join(ctx.b, 'verifier-draft.txt'), 'not evidence\n')
+    const violations = guardTurn(ctx.room, 'a')
+    assert.deepEqual(violations.map(item => item.memberId).sort(), ['a', 'b'])
+    assert.ok(violations.every(item => item.reverted === true))
+    assert.equal(existsSync(join(ctx.a, 'planner-draft.txt')), false)
+    assert.equal(existsSync(join(ctx.b, 'verifier-draft.txt')), false)
+  } finally {
+    ctx.close()
+  }
+})
+
+test('a platform checkout of a review copy is not counted as a member write', () => {
+  const ctx = setup()
+  try {
+    beginWriteGuard(ctx.room)
+    // 平台把验收员副本换到候选提交；这不是验收员改的文件。
+    writeFileSync(join(ctx.b, 'README.md'), '# candidate\n')
+    git(ctx.b, ['commit', '-qam', 'candidate'])
+    beginWriteGuard(ctx.room)
+    const violations = guardTurn(ctx.room, 'a')
+    assert.deepEqual(violations, [])
+  } finally {
+    ctx.close()
+  }
+})
+
 test('a worktree that was already dirty is reported, not reverted', () => {
   const ctx = setup()
   try {
@@ -73,6 +109,47 @@ test('a worktree that was already dirty is reported, not reverted', () => {
   } finally {
     ctx.close()
   }
+})
+
+test('revertPaths restores tracked files and removes untracked ones without touching the rest', () => {
+  const ctx = setup()
+  try {
+    writeFileSync(join(ctx.a, 'README.md'), '# changed\n')
+    writeFileSync(join(ctx.a, 'stray.txt'), 'not mine\n')
+    writeFileSync(join(ctx.a, 'keep.txt'), 'mine\n')
+    const result = revertPaths({ path: ctx.a, files: ['README.md', 'stray.txt', '../escape.txt'] })
+    assert.deepEqual(result.reverted.sort(), ['README.md', 'stray.txt'])
+    assert.deepEqual(result.failed, ['../escape.txt'])
+    assert.equal(readFileSync(join(ctx.a, 'README.md'), 'utf8'), '# repo\n')
+    assert.equal(existsSync(join(ctx.a, 'stray.txt')), false)
+    assert.equal(readFileSync(join(ctx.a, 'keep.txt'), 'utf8'), 'mine\n')
+  } finally {
+    ctx.close()
+  }
+})
+
+test('only a read-only role with an unreturned foreign write blocks the turn', () => {
+  const room = {
+    members: [
+      { id: 'v', roleKind: 'verifier' },
+      { id: 'p', roleKind: 'planner' },
+      { id: 'w', roleKind: 'executor' },
+    ],
+  }
+  assert.equal(isReadOnlyRole(room, 'v'), true)
+  assert.equal(isReadOnlyRole(room, 'p'), true)
+  assert.equal(isReadOnlyRole(room, 'w'), false)
+  const violations = [
+    { memberId: 'w', reverted: false },
+    { memberId: 'x', reverted: true },
+    { memberId: 'v', reverted: false },
+  ]
+  // 别人还没退回去的写会拦停；自己的临时文件、已经退回的都不算。
+  assert.deepEqual(
+    unreturnedReadOnlyViolations({ room, memberId: 'v', violations }).map(item => item.memberId),
+    ['w'],
+  )
+  assert.deepEqual(unreturnedReadOnlyViolations({ room, memberId: 'w', violations }), [])
 })
 
 test('a room without git worktrees has nothing to guard', () => {

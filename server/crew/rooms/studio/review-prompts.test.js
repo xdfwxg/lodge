@@ -22,7 +22,11 @@ test('a large diff keeps its beginning and tells the verifier to read the rest b
     targets: ['v'],
     ids: ['v'],
     evidence: { id: 'e1' },
-    meta: { diff, changedFiles },
+    meta: {
+      diff,
+      changedFiles,
+      proof: { entry: 'npm test', status: 'failed', exit: 1, output: '1 failing' },
+    },
     messages: [],
   })
   assert.match(prompt, /^.*diff --git a\/src\/file-0\.js/s)
@@ -32,4 +36,25 @@ test('a large diff keeps its beginning and tells the verifier to read the rest b
   assert.match(prompt, /还有 1 个文件没有列出/)
   assert.match(prompt, /PASS 必须逐条覆盖/)
   assert.match(prompt, /PASS 之前必须亲手验过/)
+  assert.match(prompt, /平台执行了交付自带的证明/)
+  assert.match(prompt, /入口：npm test/)
+  assert.match(prompt, /状态：failed · 退出码 1/)
+  assert.match(prompt, /1 failing/)
+})
+
+test('a long proof entry reaches the verifier whole, not cut into a broken command', () => {
+  const entry = `node -e '${'x'.repeat(900)}' && npm test`
+  const prompt = verifierPromptOf({
+    room,
+    stage: room.stages[0],
+    stageIndex: 0,
+    verifier: 'v',
+    targets: ['v'],
+    ids: ['v'],
+    evidence: { id: 'e1' },
+    meta: { proof: { entry, status: 'verified', exit: 0, output: 'ok' } },
+    messages: [],
+  })
+  assert.ok(prompt.includes(entry))
+  assert.match(prompt, /以你复核副本根目录的 lodge-proof\.json 为准/)
 })

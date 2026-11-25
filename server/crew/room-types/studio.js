@@ -48,6 +48,7 @@ export const buildStages = ({ title, plan, align, bootstrap = false }) => {
       title: stage.title,
       kind: 'deliverable',
       deliverable: stage.deliverable ?? '',
+      ...(Array.isArray(stage.clauseIds) && stage.clauseIds.length > 0 ? { clauseIds: stage.clauseIds } : {}),
       ...(Array.isArray(stage.assignees) && stage.assignees.length > 0 ? { assignees: stage.assignees } : {}),
       ...(Array.isArray(stage.packages) && stage.packages.length > 0 ? { packages: stage.packages } : {}),
       state: index === 0 ? 'active' : 'pending',

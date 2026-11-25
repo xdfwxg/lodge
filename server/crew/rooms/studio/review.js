@@ -5,8 +5,12 @@ import { appendHandoffProjection } from './projection.js'
 import { reject } from '../../result.js'
 import { REVIEW_REMINDER, REVIEW_TIMEOUT } from './turn-utils.js'
 import { DECISION_JSON_HINT, LIMITS, judgmentAnchorOf, normalizeJudgment, verdictPassed } from '../../../../shared/judgment.js'
-import { coverageGapsOf, coverageRequirementsOf } from './coverage.js'
+import { coverageClausesOf, coverageGapsOf, coverageRequirementsOf } from './coverage.js'
 import { verificationProofOf } from './verification-proof.js'
+import { beginWriteGuard } from '../../workspace-guard.js'
+import { foreignReadsOf } from './read-boundary.js'
+import { runCommandInPathSync } from './proof-runner.js'
+import { applyProbePatch } from './probe-patch.js'
 import { GATE_SERVER_NAME, gateSubmissionOf } from '../../../../shared/gate.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { existingTestChangesOf, protectedFilesOf } from '../../protected-files.js'
@@ -119,10 +123,13 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
     })
     // PASS 的覆盖表还要对得上这一阶段真正要交的东西：本步交付物，最后一步连整轮目标一起核。
     // 工具不可用时的文本兜底同样要过这一关，避免换个入口绕过覆盖。
+    const clauses = coverageClausesOf({ room, stageIndex: pending.stage })
     const gaps = judgment.decision === 'pass'
       ? coverageGapsOf({
         coverage: judgment.coverage,
-        requirements: coverageRequirementsOf({ room, stageIndex: pending.stage }),
+        requirements: clauses.length > 0
+          ? clauses
+          : coverageRequirementsOf({ room, stageIndex: pending.stage }),
       })
       : []
     if (gaps.length > 0) {
@@ -132,7 +139,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         clearTimeout(pending.reminder)
         void sendToMember(memberId, [
           'PASS 的覆盖表还差这些要求：',
-          ...gaps.map(item => `- ${sanitizeUntrusted(item, 300)}`),
+          ...gaps.map(item => `- ${sanitizeUntrusted(typeof item === 'string' ? item : `[${item.id}] ${item.statement}`, 300)}`),
           '请重新调用 submit_verdict：coverage 的 item 原样抄这些要求，evidence 写你实际读过的文件、跑过的检查或看到的结果。',
           INTERNAL_PROMPT_MARKER,
         ].join('\n'), { intent: 'review' }).catch(() => {})
@@ -142,22 +149,87 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       return true
     }
     // PASS 还要有亲手验过的痕迹：跑过一条检查，或读过这次改动里的文件。
-    const proof = verificationProofOf(calls, { changedFiles: pending.changedFiles })
+    const proof = verificationProofOf(calls, {
+      changedFiles: pending.changedFiles,
+      requiredEntry: pending.proofEntry,
+    })
     if (judgment.decision === 'pass' && !proof.ok) {
       const name = memberDisplayName(room, memberId)
       if (pending.proofNudged !== true) {
         pending.proofNudged = true
         clearTimeout(pending.reminder)
         void sendToMember(memberId, [
-          'PASS 之前要先亲手验过：至少读一个这次改动的文件，或跑一条检查。',
+          pending.proofEntry === ''
+            ? 'PASS 之前要先亲手验过：至少读一个这次改动的文件，或跑一条检查。'
+            : `PASS 之前要重跑交付自带的证明：${sanitizeUntrusted(pending.proofEntry, 2_000)}。`,
           ...(proof.files.length === 0 ? [] : [`这次改动的文件：${proof.files.slice(0, 20).join('、')}。`]),
-          '请在你的复核副本里读文件或跑检查，再提交一次。',
+          '请在你的复核副本里重跑这条证明（入口以根目录 lodge-proof.json 为准），再提交一次。',
           INTERNAL_PROMPT_MARKER,
         ].join('\n'), { intent: 'review' }).catch(() => {})
         return true
       }
-      pending.expire?.(`${name} 的判定没有亲手验过结果，这一轮仍未通过。`)
+      pending.expire?.(`${name} 的判定没有重跑交付自带的证明，这一轮仍未通过。`)
       return true
+    }
+    // 证据只能来自复核员自己的副本：读到别人工作树或集成目录，看到的不是这次交付的现场。
+    const foreign = judgment.decision === 'pass' ? foreignReadsOf({ calls, room, memberId }) : []
+    if (foreign.length > 0) {
+      const name = memberDisplayName(room, memberId)
+      if (pending.boundaryNudged !== true) {
+        pending.boundaryNudged = true
+        clearTimeout(pending.reminder)
+        void sendToMember(memberId, [
+          'PASS 引用了不属于你复核副本的东西：',
+          ...foreign.slice(0, 5).map(item => `- ${sanitizeUntrusted(item.path, 300)}（${item.root}）`),
+          '证据只能来自你自己的复核副本；请在那里重新读文件或跑检查，再提交一次。',
+          INTERNAL_PROMPT_MARKER,
+        ].join('\n'), { intent: 'review' }).catch(() => {})
+        return true
+      }
+      pending.expire?.(`${name} 的判定用了别人副本里的证据，这一轮仍未通过。`)
+      return true
+    }
+    // 有契约的房间，PASS 还要有反例尝试：平台执行，跑红就是找到反例。
+    const contractRoom = (store.readRoom(roomId) ?? room)?.plan?.contract !== null &&
+      (store.readRoom(roomId) ?? room)?.plan?.contract !== undefined
+    if (judgment.decision === 'pass' && contractRoom) {
+      const attempts = Array.isArray(judgment.falsify) ? judgment.falsify : []
+      const name = memberDisplayName(room, memberId)
+      if (attempts.length === 0) {
+        if (pending.falsifyNudged !== true) {
+          pending.falsifyNudged = true
+          clearTimeout(pending.reminder)
+          void sendToMember(memberId, [
+            'PASS 必须带至少一条反例尝试。',
+            '在 submit_verdict 的 falsify 里写一条能在复核副本里执行的 command；跑红就说明找到了反例，应判不通过。',
+            INTERNAL_PROMPT_MARKER,
+          ].join('\n'), { intent: 'review' }).catch(() => {})
+          return true
+        }
+        pending.expire?.(`${name} 的判定没有反例尝试，这一轮仍未通过。`)
+        return true
+      }
+      const copy = room.worktrees?.[pending.verifier]
+      const runs = attempts.map(attempt => ({
+        ...attempt,
+        run: runCommandInPathSync({ cwd: copy, command: attempt.command }),
+      }))
+      const failed = runs.filter(item => item.run.status !== 'passed')
+      if (failed.length > 0) {
+        if (pending.falsifyFailedNudged !== true) {
+          pending.falsifyFailedNudged = true
+          clearTimeout(pending.reminder)
+          void sendToMember(memberId, [
+            '你的反例尝试跑红了，说明已经找到反例：请判不通过，并给出复现。',
+            ...failed.map(item => `- ${sanitizeUntrusted(item.command, 300)}：${item.run.exit ?? '超时'}`),
+            INTERNAL_PROMPT_MARKER,
+          ].join('\n'), { intent: 'review' }).catch(() => {})
+          return true
+        }
+        pending.expire?.(`${name} 找到反例却仍判通过，这一轮仍未通过。`)
+        return true
+      }
+      judgment.falsifyRuns = runs
     }
     round.requests.delete(memberId)
     clearTimeout(pending.timer)
@@ -296,11 +368,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         from: pending.verifier,
         targets: [passLead],
         message: to => `全部验收员通过；@${to.map(id => memberDisplayName(room, id)).join('、@')} 收尾。`,
-        // 收尾回执只进账本；结果卡就是这一轮的收尾，不再用一条系统气泡说一遍。
+        // 收尾也是一次交接：让时间线看见验收员把结果交给规划师，别让它像凭空说话。
         meta: {
           stage: pending.stage,
           reason: 'summary',
-          show: false,
           // 一次验收轮次一条收尾；返工后再过也要有自己的一条。
           dedupeKey: `summary:${pending.stage}:${pending.evidenceId ?? ''}:${passLead ?? ''}`,
         },
@@ -584,6 +655,27 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           continue
         }
       }
+      // 探针在副本刷新之后、复核之前注入缺陷；正常运行时环境变量不存在，这一层是空操作。
+      // 补丁要提交成复核副本的 HEAD：验收员从 git 取“干净副本”时看到的也必须是这份缺陷。
+      try {
+        const patched = applyProbePatch({
+          dir: process.env.LODGE_PROBE_REVIEW_PATCH_DIR,
+          roomId,
+          root: room.worktrees?.[verifier],
+          stageIndex,
+        })
+        if (patched.length > 0) {
+          let commit = null
+          try {
+            commit = workspaceOf(room).submit({
+              path: room.worktrees[verifier],
+              turnId: `probe-${stageIndex}`,
+              name: 'review patch',
+            })
+          } catch {}
+          store.appendEvent(roomId, 'probe.review_patch', { stage: stageIndex, verifier, files: patched, commit })
+        }
+      } catch {}
       const verifierPort = room.ports?.[verifier]
       // 既有测试的改动也在这里：改断言/删检查，等于改判分标准。
       const protectedAll = [...new Set([
@@ -618,6 +710,7 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         verifier,
         evidenceId: evidence.id,
         changedFiles: Array.isArray(meta.changedFiles) ? meta.changedFiles : (Array.isArray(meta.files) ? meta.files : []),
+        proofEntry: meta.proof?.status === 'verified' && typeof meta.proof.entry === 'string' ? meta.proof.entry : '',
         protectedFiles,
         requestedAt: Date.now(),
         timer: null,
@@ -692,6 +785,9 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         })
       }
     }
+    // 平台刚换了验收员副本（候选提交、探针补丁）：从这一份重新记底，
+    // 否则下一位说话人收回合时会把平台的 checkout 当成验收员越界，误拦停整轮。
+    if (nextRound.requests.size > 0) beginWriteGuard(store.readRoom(roomId) ?? room)
     // 只 @ 真正收到复核请求的验收员：先送，再投影。
     const requested = [...nextRound.requests.keys()]
     if (requested.length > 0) {

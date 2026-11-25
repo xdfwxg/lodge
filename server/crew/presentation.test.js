@@ -25,6 +25,23 @@ test('room presentation hides base fields and keeps the display host label', () 
   assert.deepEqual(presented.members[0].body, { kind: 'base', engine: 'pi', model: 'deepseek' })
 })
 
+test('a chat room only shows the cast the host invited tonight', () => {
+  const room = {
+    id: 'room-chat',
+    state: 'active',
+    roomType: 'chat',
+    members: [
+      { id: 'a', name: '老周', body: { kind: 'base', ref: 'bot-a' } },
+      { id: 'b', name: '小林', body: { kind: 'base', ref: 'bot-b' } },
+      { id: 'c', name: '阿岚', body: { kind: 'base', ref: 'bot-c' } },
+    ],
+    chat: { castIds: ['a', 'c'] },
+    stages: [],
+  }
+  const presented = presentRoom(room, [])
+  assert.deepEqual(presented.members.map(member => member.name), ['老周', '阿岚'])
+})
+
 test('a studio room never exposes a chat host', () => {
   const room = {
     id: 'room-studio',

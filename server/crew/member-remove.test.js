@@ -102,13 +102,15 @@ test('an unfinished handoff keeps the member in the room', async () => {
   assert.equal(calls.retired.length, 0)
 })
 
-test('a chat room cannot remove a member while someone is speaking', async () => {
+test('a chat room never removes a member; the bank is fixed', async () => {
   const { remove, calls } = harness()
-  const room = { ...roomOf(), roomType: 'chat', chat: { running: true } }
-  const result = await remove.remove(room, { memberId: 'worker' })
-  assert.equal(result.ok, false)
-  assert.match(result.error, /等手上这次做完/)
-  assert.equal(calls.retired.length, 0)
+  for (const chat of [{ running: true }, { running: false }]) {
+    const room = { ...roomOf(), roomType: 'chat', chat }
+    const result = await remove.remove(room, { memberId: 'worker' })
+    assert.equal(result.ok, false)
+    assert.match(result.error, /不能移除/)
+    assert.equal(calls.retired.length, 0)
+  }
 })
 
 test('a busy room waits before removing anyone', async () => {

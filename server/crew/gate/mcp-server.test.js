@@ -170,7 +170,8 @@ test('a plan needs a stage, an executor and a verifier', () => {
   const ok = handleMessage({
     jsonrpc: '2.0', id: 500, method: 'tools/call',
     params: { name: 'submit_plan', arguments: {
-      plan: { done: ['能跑'], stages: [{ title: '实现' }] },
+      contract: { outcomes: [{ id: 'run', statement: '能跑', observable: '命令退出码为 0' }] },
+      plan: { stages: [{ title: '实现', clauseIds: ['run'] }] },
       crew: { executors: [{ engine: 'claude-cli', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
     } },
   })

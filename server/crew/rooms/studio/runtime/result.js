@@ -1,6 +1,8 @@
 import { systemNotice } from '../../../notices.js'
 import { verifierIds } from '../../../room-members.js'
 import { workspaceOf } from '../workspace.js'
+import { runProof } from '../proof-runner.js'
+import { allowedFilesFor, filesOutsidePackage } from '../write-boundary.js'
 import { reworkFloor } from '../../../../../shared/attempt.js'
 
 // 执行官交回一步的结果：平台只负责把候选提交、diff 和文件清单固定下来，
@@ -8,12 +10,14 @@ import { reworkFloor } from '../../../../../shared/attempt.js'
 export const createResultMarker = ({ store, roomId, review, markProgress }) => {
   const seen = new Set()
 
-  const repoPathOf = room => (
-    typeof room.repoPath === 'string' && room.repoPath !== '' ? room.repoPath : null
-  )
+  // 结果必须从这个回合真正干活的成员副本里取，不能拿房间的集成目录顶替。
+  const repoPathOf = (room, memberId) => {
+    const memberPath = typeof memberId === 'string' ? room.worktrees?.[memberId] : null
+    if (typeof memberPath === 'string' && memberPath !== '') return memberPath
+    return typeof room.repoPath === 'string' && room.repoPath !== '' ? room.repoPath : null
+  }
 
-  const collect = async (room, stageIndex, candidate, head, baseline) => {
-    const repoPath = repoPathOf(room)
+  const collect = async (room, repoPath, stageIndex, candidate, head, baseline) => {
     if (repoPath === null) return { files: [], diff: '', status: '' }
     const provider = workspaceOf(room)
     let files = []
@@ -39,12 +43,39 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
     return { files, diff, status }
   }
 
-  const markResultReady = async (room, stageIndex, turnId, worked, resultText = '') => {
+  const markResultReady = async (room, stageIndex, turnId, worked, resultText = '', memberId = '') => {
     const key = `${stageIndex}:${turnId}`
     if (seen.has(key)) return
     seen.add(key)
     const provider = workspaceOf(room)
-    const repoPath = repoPathOf(room)
+    const repoPath = repoPathOf(room, memberId)
+    const stage = room.stages?.[stageIndex] ?? null
+    // 回合结束后先退回工作包之外的改动，再做候选提交：越界内容不能混进这次交付。
+    // 只有 git 工作副本能可靠区分“这次改了什么”；复制目录和原地目录没有这层证据，靠验收核对。
+    let outOfBounds = null
+    const allowed = repoPath === null ? null : allowedFilesFor({ room, stage, memberId, root: repoPath })
+    if (repoPath !== null && allowed !== null &&
+      provider.capabilities().vcs === 'git' && typeof provider.revertPaths === 'function') {
+      let dirty = { files: [] }
+      try {
+        dirty = await provider.changes({ path: repoPath })
+      } catch {}
+      const outside = filesOutsidePackage({ files: dirty.files ?? [], allowed })
+      if (outside.length > 0) {
+        const reverted = provider.revertPaths({ path: repoPath, files: outside })
+        outOfBounds = {
+          files: outside.slice(0, 50),
+          reverted: Array.isArray(reverted.reverted) ? reverted.reverted.slice(0, 50) : [],
+        }
+        const names = outOfBounds.files.slice(0, 5).join('、')
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: outOfBounds.reverted.length > 0
+            ? `这一步改了这一步之外的文件，已退回：${names}。`
+            : `这一步改了这一步之外的文件：${names}；没有退回，请验收时核对。`,
+        })
+      }
+    }
     let candidate = null
     try {
       if (repoPath !== null && provider.capabilities().candidate === true) {
@@ -59,7 +90,9 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
       : null
     const acceptedRef = candidate ?? head
     const baseline = room.stageBases?.[stageIndex] ?? room.startHead ?? null
-    const { files, diff, status } = await collect(room, stageIndex, candidate, head, baseline)
+    const { files, diff, status } = await collect(room, repoPath, stageIndex, candidate, head, baseline)
+    // 交付自带的证明由平台跑，不靠执行方或验收员复述。
+    const proofRun = await runProof({ room: { ...room, repoPath }, ref: acceptedRef })
 
     // 同一 HEAD 上没有新结果时不重复送审；重做后的同一结果仍要重新送审。
     const messages = store.readMessages(roomId)
@@ -76,6 +109,8 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
       if (!worked && covered === null) return
     }
 
+    const parallel = room.orchestration === 'parallel' ||
+      (Array.isArray(stage?.assignees) && stage.assignees.length > 1)
     const hasVerifier = verifierIds(room).length > 0
     store.appendMessage(roomId, {
       kind: 'evidence',
@@ -91,14 +126,17 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
         changedFiles: files,
         diff,
         status,
+        proof: proofRun,
+        ...(outOfBounds === null ? {} : { outOfBounds }),
         ...(typeof resultText === 'string' && resultText.trim() !== '' ? { resultText: resultText.slice(0, 4000) } : {}),
-        repoPath: room.repoPath,
+        repoPath,
         simulated: false,
         capturedAt: new Date().toISOString(),
       },
     })
     markProgress()
-    if (!hasVerifier) return
+    // 并行时每个执行官只交自己那一份；等合并后的集成证据再统一复核，避免半成品先送审。
+    if (!hasVerifier || parallel) return
     try {
       await review.request(stageIndex)
     } catch (error) {

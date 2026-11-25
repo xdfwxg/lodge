@@ -54,6 +54,33 @@ test('a question card stays answerable instead of becoming a system line', () =>
   assert.deepEqual(stored.meta.card.options, ['A', 'B'])
 })
 
+test('the chat host never becomes a member bubble in a multi-person room', () => {
+  const chatProjector = createMessageProjector({
+    store: {
+      readRoom: () => ({
+        roomType: 'chat',
+        members: [{ id: 'a', name: '甲', body: { kind: 'base', ref: 'bot-a' } }],
+        chatHost: { memberRef: 'host-bot' },
+        hiddenBaseMessages: [],
+      }),
+    },
+  })
+  assert.equal(chatProjector.toStored('room-1', {
+    id: 'h1',
+    kind: 'text',
+    role: 'bot',
+    authorRef: 'host-bot',
+    text: '{"cast":[{"id":"a","focus":"成本"}]}',
+  }), null)
+  assert.equal(chatProjector.toStored('room-1', {
+    id: 'a1',
+    kind: 'text',
+    role: 'bot',
+    authorRef: 'bot-a',
+    text: '我来说一句。',
+  }).authorId, 'a')
+})
+
 test('member messages keep their member author', () => {
   const stored = projector.toStored('room-1', { id: 'm1', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '在' })
   assert.equal(stored.kind, 'chat')

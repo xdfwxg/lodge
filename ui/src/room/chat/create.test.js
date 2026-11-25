@@ -7,14 +7,13 @@ const base = {
   goal: '评审这次交付',
   name: '评审',
   repoPath: '',
-  chatTurnLimit: 6,
   defaultMembers: [{ role: 'worker', name: '甲' }],
   choices: [],
   selectedModelOf: () => '',
 }
 
-test('a new chat shows the default crew the server will use', () => {
-  assert.deepEqual(chatUi.defaultMembers.map(member => member.name), ['甲', '乙', '丙'])
+test('a new chat shows the fixed bank the server will use', () => {
+  assert.deepEqual(chatUi.defaultMembers.map(member => member.name), ['老周', '小林', '阿岚', '大陈', '苏越', '韩工'])
 })
 
 test('a receipt and its source room travel with the chat request', () => {
@@ -42,18 +41,12 @@ test('a plain chat request has no receipt or source', () => {
   assert.equal('sourceName' in request, false)
 })
 
-test('a chat request keeps each member stance and speaking habit', () => {
+test('a chat request carries no members or turn limit; the room decides both', () => {
   const request = buildChatRequest({
     ...base,
-    defaultMembers: [
-      { role: 'worker', name: '甲', stance: 'proposer', voice: '先问代价。' },
-      { role: 'worker', name: '乙' },
-    ],
-    choices: [{ engine: '', model: '', voice: '先问代价，再问能不能落地。' }],
+    defaultMembers: [{ role: 'worker', name: '甲', stance: 'proposer', voice: '先问代价。' }],
+    choices: [{ engine: '', model: '', voice: '先问代价。' }],
   })
-  assert.equal(request.members[0].voice, '先问代价，再问能不能落地。')
-  assert.equal(request.members[0].stance, 'proposer')
-  // 自定义成员没有立场时按顺序补一个，标签和排序才不会缺位。
-  assert.equal(request.members[1].stance, 'critic')
-  assert.equal('voice' in request.members[1], false)
+  assert.equal('members' in request, false)
+  assert.equal('chatTurnLimit' in request, false)
 })

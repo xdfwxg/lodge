@@ -37,7 +37,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     orchestration,
     shadowReview,
     autoDeliver,
-    chatTurnLimit,
     handoffBrief,
     handoffBriefReviewed,
     receipt,
@@ -212,7 +211,6 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       autoDeliver,
       builtStages,
       align: initialAlign,
-      chatTurnLimit,
       gate: gateRecordOf({
         review: gate,
         humanReviewed: handoffBriefReviewed,

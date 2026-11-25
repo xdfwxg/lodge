@@ -28,10 +28,8 @@ export const buildRoomRecord = ({
   autoDeliver = false,
   builtStages,
   align,
-  chatTurnLimit = null,
   gate = null,
 }) => {
-  const chatLimit = Number.isInteger(chatTurnLimit) ? chatTurnLimit : undefined
   const mode = roomModeForType(roomType.id)
   const shape = mode.record({
     lead,
@@ -41,7 +39,6 @@ export const buildRoomRecord = ({
     shadowReview,
     gate,
     builtStages,
-    chatLimit,
   })
   return {
   id: `room-${short}`,

@@ -396,7 +396,7 @@ function RoomView({ state, room, store, onStartStudio, onStartChat }) {
       : h(BodySwapDialog, {
         key: swapId,
         member: members.find(item => item.id === swapId) ?? { id: swapId, name: '成员', body: {} },
-        canRemove: kind.id !== 'studio' && !['planner', 'lead'].includes(
+        canRemove: kind.id !== 'studio' && kind.id !== 'chat' && !['planner', 'lead'].includes(
           members.find(item => item.id === swapId)?.roleKind
             ?? members.find(item => item.id === swapId)?.role,
         ),

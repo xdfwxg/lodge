@@ -1,4 +1,4 @@
-import { Fragment, createElement as h, useEffect, useId, useRef, useState } from 'react'
+import { createElement as h, useEffect, useId, useRef, useState } from 'react'
 import { ROOM_TYPE_MANIFEST } from '../../shared/room-types.js'
 import { ChevronDownIcon } from './goal-island/glyphs.js'
 import { chooseDirectory as pickProjectDirectory } from './system.js'
@@ -6,8 +6,6 @@ import { useEngineLogin } from './engine-login.js'
 import { engineReadiness } from '../../shared/engine-readiness.js'
 import { seedGoalText } from './room-seeds.js'
 import { roomNameFromGoal } from './room/name-from-goal.js'
-import { defaultPersonalityId, modelRowsFor, memberChoicesFrom } from './room/member-options.js'
-import { defaultStanceId } from '../../shared/chat-stances.js'
 import { gateCardState, HandoffBriefReview } from './room/handoff-brief-review.js'
 import { ReceiptReview } from './room/receipt-review.js'
 import { WorkspaceMemory } from './room/workspace-memory.js'
@@ -27,8 +25,6 @@ export const canSwitchRoomType = ({ startType = null, seed = null } = {}) => (
   (startType === null || startType === undefined) && (seed === null || seed === undefined)
 )
 
-const CHAT_BASE_MEMBERS = 3
-
 function NewRoomDialog({
   open,
   onClose,
@@ -44,18 +40,13 @@ function NewRoomDialog({
   const typeChoices = roomTypes.length > 0 ? roomTypes : FALLBACK_ROOM_TYPES
   const studioMembers = uiKindOfType('studio').defaultMembers
   const [roomType, setRoomType] = useState('studio')
-  const [chatTurnLimit, setChatTurnLimit] = useState(6)
   const [goal, setGoal] = useState('')
   const [nameDraft, setNameDraft] = useState('')
   const [repoPath, setRepoPath] = useState('')
-  const [advanced, setAdvanced] = useState(false)
   const [handoffBrief, setHandoffBrief] = useState(null)
   const [handoffBriefReviewed, setHandoffBriefReviewed] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [memberChoices, setMemberChoices] = useState(() => memberChoicesFrom(studioMembers))
-  const [chatMemberChoices, setChatMemberChoices] = useState([])
-  const [chatMembers, setChatMembers] = useState(null)
   const { busyId: loginBusyId, note: loginNote, login: loginEngineFor, reset: resetLogin, clearNote } = useEngineLogin(onRefresh)
   const [error, setError] = useState(null)
   const goalId = useId()
@@ -73,11 +64,7 @@ function NewRoomDialog({
     if (!open) return
     setGoal('')
     setNameDraft('')
-    setMemberChoices([])
-    setChatTurnLimit(6)
     resetLogin()
-    setChatMembers(null)
-    setAdvanced(false)
     setHandoffBrief(null)
     setHandoffBriefReviewed(false)
     setReceipt(null)
@@ -96,36 +83,18 @@ function NewRoomDialog({
     setHandoffBriefReviewed(false)
     setReceipt(seed.receipt ?? null)
     if (typeof seed.repoPath === 'string' && seed.repoPath !== '') setRepoPath(seed.repoPath)
-    setMemberChoices([])
     setError(null)
   }, [open, seed?.goal, seed?.conclusion, seed?.sourceName, seed?.sourceRoomId, seed?.handoffBrief, seed?.receipt, startType])
 
-  useEffect(() => {
-    if (!open || uiKindOfType(roomType).id !== 'chat') return
-    const type = typeChoices.find(item => item.id === roomType)
-    setChatMemberChoices(memberChoicesFrom(type?.defaultMembers ?? []))
-  }, [open, roomType, typeChoices])
-
   if (!open) return null
 
-  const activeType = typeChoices.find(item => item.id === roomType) ?? typeChoices[0]
   const roomKind = uiKindOfType(roomType)
   const isChat = roomKind.teamMode === 'fixed'
   const canSwitchType = canSwitchRoomType({ startType, seed }) && typeChoices.length > 1
-  const chatRoster = chatMembers ?? (activeType?.defaultMembers ?? [])
   const needRepo = roomKind.workspace.required(null) && repoPath.trim() === ''
-  const directMembers = isChat ? chatRoster : studioMembers
-  const directChoices = isChat ? chatMemberChoices : memberChoices
-  const setDirectChoices = isChat ? setChatMemberChoices : setMemberChoices
-  const engineChoices = engines.filter(item => item.available)
   // 有没有能开工的模型只看一份判断；一家都没装时也要拦住，而不是等服务端拒绝。
   const readiness = engineReadiness(engines, { requireApproval: !isChat })
   const noAskingEngine = !isChat && !readiness.canStart
-  const selectedModelOf = choice => {
-    const engine = engineChoices.find(item => item.id === choice.engine)
-    if (choice.model !== '') return choice.model
-    return engine?.models?.default || modelRowsFor(engine)[0]?.id || ''
-  }
   const hasVerifier = studioMembers.some(member => member.role === 'verifier')
   const studioMissingVerifier = !isChat && roomKind.missingVerifier(hasVerifier)
   const roomTitle = (nameDraft.trim() || roomNameFromGoal(goal)).trim()
@@ -140,35 +109,6 @@ function NewRoomDialog({
   const canStartStudio = !busy && goal.trim() !== '' && !needRepo && readiness.canStart &&
     (handoffGate === null ? true : handoffGate.ready) && !noAskingEngine
   const startDisabled = busy || goal.trim() === '' || needRepo || !readiness.canStart || (!isChat && !canStartStudio)
-
-  const addChatMember = () => {
-    setChatMembers(current => {
-      const base = current ?? (activeType?.defaultMembers ?? [])
-      if (base.length >= 6) return base
-      const names = Array.from('甲乙丙丁戊己庚辛壬癸')
-      const used = new Set(base.map(member => member.name))
-      const name = names.find(item => !used.has(item)) ?? `成员 ${base.length + 1}`
-      return [...base, {
-        role: 'worker',
-        name,
-        personality: defaultPersonalityId(base.length),
-        stance: defaultStanceId(base.length),
-      }]
-    })
-  }
-
-  const removeChatMember = (member, index) => {
-    if (index < CHAT_BASE_MEMBERS) return
-    const base = [...chatRoster]
-    if (base.length <= CHAT_BASE_MEMBERS) return
-    base.splice(index, 1)
-    setChatMembers(base)
-    setChatMemberChoices(current => {
-      const next = [...current]
-      next.splice(index, 1)
-      return next
-    })
-  }
 
   const changeRepoPath = value => {
     setRepoPath(value)
@@ -187,18 +127,13 @@ function NewRoomDialog({
   const chooseRoomType = next => {
     if (next === roomType) return
     setRoomType(next)
-    setMemberChoices([])
-    setAdvanced(false)
     setError(null)
   }
 
   const resetAfterCreate = () => {
     setGoal('')
     setNameDraft('')
-    setMemberChoices([])
     setRoomType('studio')
-    setChatTurnLimit(6)
-    setChatMembers(null)
     setAdvanced(false)
     setHandoffBrief(null)
     setHandoffBriefReviewed(false)
@@ -215,10 +150,6 @@ function NewRoomDialog({
         goal: goal.trim(),
         name: roomTitle,
         repoPath: repoPath.trim(),
-        chatTurnLimit,
-        defaultMembers: chatRoster,
-        choices: chatMemberChoices,
-        selectedModelOf,
         receipt,
         sourceRoomId: seed?.sourceRoomId,
         sourceName: seed?.sourceName,
@@ -260,23 +191,14 @@ function NewRoomDialog({
     }
   }
 
+  // 建房页只提供登录和模型状态；成员、人数和发言上限都由房间自己决定。
   const setupProps = {
-    turnLimit: chatTurnLimit,
-    onTurnLimit: setChatTurnLimit,
-    onAddMember: addChatMember,
-    canAddMember: chatRoster.length < 6,
-    onRemoveMember: removeChatMember,
-    canRemoveMember: (member, index) => index >= CHAT_BASE_MEMBERS,
-    members: directMembers,
-    choices: directChoices,
-    setChoices: setDirectChoices,
     engines,
     onRefresh,
     loginBusyId,
     loginNote,
     onLogin: loginEngineFor,
     onInteraction: clearNote,
-    onAdvanced: () => setAdvanced(true),
   }
 
   const goalField = h('div', { className: 'crew-field' },
@@ -349,17 +271,7 @@ function NewRoomDialog({
     new Set((engines ?? []).filter(item => item.available !== false).map(item => item.engine ?? item.id)).size === 1
       ? h('p', { className: 'crew-field-hint' }, '这台电脑只装了一家模型：可以开工，复核会是模型自查。')
       : null,
-    isChat
-      ? h('details', {
-        className: 'crew-new-advanced',
-        open: advanced,
-        onToggle: event => setAdvanced(event.currentTarget.open),
-      },
-      h('summary', null, '更多选项'),
-      h('div', { className: 'crew-new-advanced-body' },
-        h(Fragment, null,
-          roomKind.setupFields(setupProps))))
-      : null,
+    isChat ? roomKind.setupFields(setupProps) : null,
     error ? h('p', { className: 'crew-dialog-note', role: 'alert', 'data-tone': 'error' }, error) : null)
 
   const footHint = studioMissingVerifier

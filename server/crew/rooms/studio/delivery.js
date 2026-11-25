@@ -75,6 +75,7 @@ export const buildDelivery = (room, messages = []) => {
         evidenceId: message.id,
         changedFiles: Array.isArray(message.meta?.changedFiles) ? message.meta.changedFiles : [],
         resultText: typeof message.meta?.resultText === 'string' ? message.meta.resultText : '',
+        proof: message.meta?.proof !== null && typeof message.meta?.proof === 'object' ? message.meta.proof : null,
         simulated: message.meta?.simulated === true,
       }))
     const verdicts = stageMessages
@@ -94,6 +95,7 @@ export const buildDelivery = (room, messages = []) => {
       deliverable: stage.deliverable ?? null,
       results,
       verdicts,
+      proof: results.at(-1)?.proof ?? null,
       changedFiles: unique(results.flatMap(result => result.changedFiles)),
     }
   })

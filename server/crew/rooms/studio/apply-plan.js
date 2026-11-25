@@ -179,9 +179,11 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
   }
   const planForStages = {
     ...proposal.plan,
+    contract: proposal.contract,
     stages: proposal.plan.stages.map(stage => ({
       title: stage.title,
       deliverable: cleanPath(stage.deliverable ?? ''),
+      ...(Array.isArray(stage.clauseIds) ? { clauseIds: stage.clauseIds } : {}),
       ...(Array.isArray(stage.packages)
         ? {
           packages: stage.packages.map(item => ({

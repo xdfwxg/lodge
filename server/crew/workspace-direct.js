@@ -6,7 +6,9 @@ import { chooseFreePort } from './workspace-ports.js'
 import {
   changes as manifestChanges,
   head as manifestHead,
+  isolatedCopy,
   probeSource,
+  removeIsolatedCopy,
   scratchRoot as copyRoot,
 } from './workspace-plain.js'
 
@@ -22,7 +24,7 @@ export const capabilities = () => ({
   commit: false,
 })
 
-export { probeSource }
+export { probeSource, isolatedCopy, removeIsolatedCopy }
 
 const portBase = () => {
   const value = Number(process.env.CREW_WORKTREE_PORT_BASE ?? 4100)
@@ -52,8 +54,8 @@ export const prepareRoom = ({ source, short, members }) => {
     for (const member of members) {
       const chosen = chooseFreePort(cursor)
       cursor = chosen.next
-      if (member.role === 'verifier') {
-        // 原地目录的验收员看一份不含 .env/node_modules 的快照，避免直接读源目录秘密。
+      if (member.role === 'verifier' || member.role === 'lead') {
+        // 原地目录的规划师和验收员看一份只读快照，不能直接写源目录。
         const path = join(copyRoot(), `direct-${short}`, member.id)
         mkdirSync(path, { recursive: true })
         copyWorkspace(source, path)
@@ -85,7 +87,7 @@ export const addMember = ({ room, member }) => {
   if (member.role === 'worker') throw new Error('普通目录原地修改只能有一个执行官')
   const source = room?.sourceRepo
   const used = Math.max(0, ...Object.values(room?.ports ?? {}).filter(value => Number.isFinite(value)))
-  if (member.role === 'verifier') {
+  if (member.role === 'verifier' || member.role === 'lead') {
     const path = join(copyRoot(), `direct-${roomShort(room)}`, member.id)
     mkdirSync(path, { recursive: true })
     copyWorkspace(source, path)

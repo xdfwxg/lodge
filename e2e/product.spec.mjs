@@ -25,12 +25,9 @@ test('new room dialog, sample chat and archive restore', async ({ page, request 
   await expect(page.getByRole('button', { name: '先聊聊' })).toBeVisible()
   await page.getByRole('button', { name: '先聊聊' }).click()
   await expect(page.getByLabel('想聊什么？')).toBeVisible()
-  await page.getByText('更多选项').click()
-  await expect(page.getByLabel('甲的说话习惯')).toHaveValue('先问代价，再问能不能落地。')
-  // 性格和模型并排：性格只能在自己的列里，不能靠最小宽度压到模型上。
-  const personalityBox = await page.getByLabel('甲的性格').boundingBox()
-  const engineBox = await page.getByLabel('甲的 模型服务').boundingBox()
-  expect(personalityBox.x + personalityBox.width).toBeLessThanOrEqual(engineBox.x)
+  // 聊天室不再让人选成员：主持人进房后按话题请 2–6 位。
+  await expect(page.getByText('进房后主持人会按话题请 2–6 位；你可以静音或换模型。')).toBeVisible()
+  await expect(page.getByLabel('甲的说话习惯')).toHaveCount(0)
   await page.getByRole('button', { name: '交给工作室' }).click()
   await expect(page.getByLabel('要做什么？')).toBeVisible()
   await expect(page.getByRole('button', { name: '开工', exact: true })).toBeDisabled()
@@ -111,26 +108,6 @@ test('expanding the delivery details keeps the reading position', async ({ page,
   const scrollAfter = await scroller.evaluate(node => node.scrollTop)
   expect(scrollAfter).toBe(scrollBefore)
   expect(Math.abs(after.y - before.y)).toBeLessThan(1)
-})
-
-test('expanding new-room options keeps the dialog anchored', async ({ page }) => {
-  await page.goto('/')
-  await page.getByRole('button', { name: '新建房间' }).click()
-  await page.getByRole('button', { name: '先聊聊' }).click()
-  await expect(page.getByLabel('想聊什么？')).toBeVisible()
-
-  const dialog = page.locator('.crew-dialog')
-  const summary = page.locator('.crew-new-advanced > summary')
-  await summary.scrollIntoViewIfNeeded()
-  await page.waitForTimeout(50)
-  const summaryBefore = await summary.boundingBox()
-  const dialogBefore = await dialog.boundingBox()
-  await summary.evaluate(node => node.click())
-  await page.waitForTimeout(120)
-  const summaryAfter = await summary.boundingBox()
-  const dialogAfter = await dialog.boundingBox()
-  expect(dialogAfter.y).toBeCloseTo(dialogBefore.y, 1)
-  expect(Math.abs(summaryAfter.y - summaryBefore.y)).toBeLessThan(1)
 })
 
 test('a narrow dark window still renders the room without horizontal overflow', async ({ page, request }) => {

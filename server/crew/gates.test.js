@@ -41,6 +41,16 @@ test('a stage waits for its declared dependencies', () => {
   assert.equal(gateFor(r, 1, [evidence(), verdict()]).ok, true)
 })
 
+test('a contract room cannot pass without a verified proof', () => {
+  const contract = { outcomes: [{ id: 'done', statement: '把事做完', observable: '命令退出码为 0' }] }
+  const r = room({ plan: { contract } })
+  const missing = gateFor(r, 1, [evidence(1, 10, { proof: { status: 'missing' } }), verdict(1, 11, true, { evidenceId: 'e-10' })])
+  assert.equal(missing.ok, false)
+  assert.match(missing.error, /没有可重跑的证明/)
+  const verified = gateFor(r, 1, [evidence(1, 10, { proof: { status: 'verified', exit: 0 } }), verdict(1, 11, true, { evidenceId: 'e-10' })])
+  assert.equal(verified.ok, true, verified.error)
+})
+
 test('rejects a stage that is not active', () => {
   const r = room()
   r.stages[1].state = 'pending'

@@ -15,6 +15,9 @@ export const LIMITS = Object.freeze({
   coverage: 12,
   coverageItem: 300,
   coverageEvidence: 500,
+  falsify: 3,
+  falsifyCommand: 500,
+  falsifyNote: 300,
 })
 
 const SEVERITIES = new Set(['blocker', 'major', 'minor'])
@@ -35,11 +38,30 @@ const normalizeCoverage = value => {
   const rows = []
   for (const item of value) {
     if (item === null || typeof item !== 'object') continue
+    const clauseId = clip(item.clauseId, 40)
     const requirement = clip(item.item, LIMITS.coverageItem)
     const evidence = clip(item.evidence, LIMITS.coverageEvidence)
     if (requirement === '' || evidence === '') continue
-    rows.push({ item: requirement, evidence })
+    rows.push({ ...(clauseId === '' ? {} : { clauseId }), item: requirement, evidence })
     if (rows.length >= LIMITS.coverage) break
+  }
+  return rows
+}
+
+// 验收员的反例尝试：每条是一次可以在复核副本里跑的检查；跑红就是找到反例。
+const normalizeFalsify = value => {
+  if (!Array.isArray(value)) return []
+  const rows = []
+  for (const item of value) {
+    if (item === null || typeof item !== 'object') continue
+    const command = clip(item.command, LIMITS.falsifyCommand)
+    if (command === '') continue
+    rows.push({
+      ...(clip(item.clause, 40) === '' ? {} : { clause: clip(item.clause, 40) }),
+      command,
+      ...(clip(item.note, LIMITS.falsifyNote) === '' ? {} : { note: clip(item.note, LIMITS.falsifyNote) }),
+    })
+    if (rows.length >= LIMITS.falsify) break
   }
   return rows
 }
@@ -199,6 +221,7 @@ export const normalizeJudgment = ({ type, text, stage = null, evidenceId = null,
     visual: type === 'verdict' ? normalizeVisual(json?.visual) : null,
     outsideDiff: type === 'verdict' ? clip(json?.outsideDiff, LIMITS.outsideDiff) : '',
     coverage: type === 'verdict' ? normalizeCoverage(json?.coverage) : [],
+    falsify: type === 'verdict' ? normalizeFalsify(json?.falsify) : [],
     protectedFiles: type === 'verdict' ? normalizeProtectedFiles(json?.protectedFiles) : [],
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     options: type === 'planner' ? normalizeDecisionOptions(json?.options) : [],
@@ -277,6 +300,7 @@ export const judgmentFromGate = ({
     visual: type === 'verdict' ? normalizeVisual(input.visual) : null,
     outsideDiff,
     coverage,
+    falsify: type === 'verdict' ? normalizeFalsify(input.falsify) : [],
     protectedFiles: type === 'verdict' ? normalizeProtectedFiles(input.protectedFiles) : [],
     actionRequired: actionRequired !== '' ? actionRequired : (decision === 'human' ? reason : ''),
     options: type === 'planner' ? normalizeDecisionOptions(input.options) : [],
@@ -307,6 +331,7 @@ export const validateJudgment = value => {
     visual: type === 'verdict' ? normalizeVisual(value.visual) : null,
     outsideDiff: type === 'verdict' ? clip(value.outsideDiff, LIMITS.outsideDiff) : '',
     coverage: type === 'verdict' ? normalizeCoverage(value.coverage) : [],
+    falsify: type === 'verdict' ? normalizeFalsify(value.falsify) : [],
     protectedFiles: type === 'verdict' ? normalizeProtectedFiles(value.protectedFiles) : [],
     actionRequired: clip(value.actionRequired, LIMITS.actionRequired),
     options: type === 'planner' ? normalizeDecisionOptions(value.options) : [],
@@ -345,6 +370,6 @@ export const gateResultOf = judgment => {
   }
 }
 
-export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","coverage":[{"item":"目标或交付物里的要求原文","evidence":"你实际读了哪个文件、跑了什么、看到什么"}],"findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据","check":"你实际跑的哪条检查或目标哪一行会因它失败"}],"outsideDiff":"diff 之外最值得担心的一条风险；没有就写「无」"}；最多 3 条 findings，没有就写空数组。通过时必须带覆盖表，逐条写清你核对过什么；不通过至少要有一条带 check 的 blocker/major；只有 minor 的问题请判通过。'
+export const VERDICT_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"一句话结论","coverage":[{"item":"目标或交付物里的要求原文","evidence":"你实际读了哪个文件、跑了什么、看到什么"}],"falsify":[{"clause":"契约 id","command":"能在复核副本里跑的反例检查","note":"想打穿什么"}],"findings":[{"title":"缺口","severity":"blocker","evidence":"具体证据","check":"你实际跑的哪条检查或目标哪一行会因它失败"}],"outsideDiff":"diff 之外最值得担心的一条风险；没有就写「无」"}；最多 3 条 findings/falsify，没有就写空数组。通过时必须带覆盖表和至少一次反例尝试；不通过至少要有一条带 check 的 blocker/major；只有 minor 的问题请判通过。'
 
 export const DECISION_JSON_HINT = '第二行起附一段 ```json 代码块：{"reason":"怎么改 / 要人拍板什么","actionRequired":"要人做什么"}；“交给人”时 actionRequired 必填，缺失时用 reason 兜底。'

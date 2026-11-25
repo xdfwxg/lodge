@@ -21,7 +21,7 @@ import { INTERNAL_PROMPT_MARKER } from '../../../internal-prompts.js'
 import { hasLaterWorkStage } from '../review-policy.js'
 import { cancelAssignmentLease } from '../assignment-lease.js'
 import { redactSecrets } from '../../../../../shared/secrets.js'
-import { guardTurn } from '../../../workspace-guard.js'
+import { guardTurn, unreturnedReadOnlyViolations } from '../../../workspace-guard.js'
 
 export const createTurnCapture = ({
   store,
@@ -61,11 +61,33 @@ export const createTurnCapture = ({
     const memberId = memberForRef(room, authorRef)
     // 成员的 shell 不做 OS 沙箱；这里在回合后对账，越界写到别人工作树的改动退回。
     if (memberId !== null) {
-      for (const violation of guardTurn(room, memberId)) {
+      const violations = guardTurn(room, memberId)
+      for (const violation of violations) {
         store.appendMessage(roomId, {
           kind: 'system',
           text: `${memberDisplayName(room, memberId)} 改到了 ${memberDisplayName(room, violation.memberId)} 的工作副本；${violation.reverted ? '越界改动已经退回' : '没有自动退回，请人看一下'}。`,
         })
+      }
+      // 只读角色改了别人正在用的工作树、又退不回去：继续做只会把两份改动搅在一起。
+      const stuck = unreturnedReadOnlyViolations({ room, memberId, violations })
+      if (stuck.length > 0) {
+        const active = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
+        const stageIndex = active < 0 ? 0 : active
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: '这一轮先停下：越界改动没能退回，等人处理。',
+        })
+        const updated = store.updateRound(roomId, current => {
+          current.blocked = {
+            stage: stageIndex,
+            reason: 'boundary',
+            source: 'guard',
+            members: stuck.map(item => item.memberId),
+            at: Date.now(),
+          }
+          return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'boundary', source: 'guard' } }] }
+        })
+        if (updated !== null) emit?.('room', updated)
       }
     }
     const role = memberOf(room, memberId)?.role
@@ -558,7 +580,7 @@ export const createTurnCapture = ({
       const key = `${stage}:${turnId}`
       if (target?.kind === 'deliverable' && target.state === STAGE_STATE.active && !state.resultRuns.has(key)) {
         state.resultRuns.add(key)
-        void markResultReady(room, stage, turnId, worked, turn?.reply ?? '')
+        void markResultReady(room, stage, turnId, worked, turn?.reply ?? '', memberId ?? '')
       }
     }
   }

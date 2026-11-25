@@ -220,6 +220,26 @@ test('a named member gets the message directly in open chat', async () => {
   }])
 })
 
+test('a muted member is not woken by a direct mention', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲' }]
+  ctx.room().chat = { ...ctx.room().chat, mutedIds: ['a'] }
+  const result = await ctx.chat.handleMessage(ctx.room(), { text: '甲，你看呢', mentions: ['a'] })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.sent, [])
+  assert.equal(ctx.messages[0].authorId, 'you')
+  assert.equal(ctx.messages.at(-1).authorId, 'lodge')
+})
+
+test('a mention outside tonight’s cast goes to the host, not the member', async () => {
+  const ctx = setup()
+  ctx.room().members = [{ id: 'a', name: '甲' }, { id: 'b', name: '乙' }]
+  ctx.room().chat = { ...ctx.room().chat, castIds: ['b'] }
+  const result = await ctx.chat.handleMessage(ctx.room(), { text: '甲，你看呢', mentions: ['a'] })
+  assert.equal(result.ok, true)
+  assert.deepEqual(ctx.sent, [])
+})
+
 test('a named member waits while a round is running', async () => {
   const ctx = setup()
   ctx.room().members = [{ id: 'a', name: '甲' }]

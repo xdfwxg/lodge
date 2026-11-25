@@ -39,6 +39,12 @@ export const createMessageProjector = ({ store }) => {
     if (room?.hiddenBaseMessages?.includes(message.id) === true) return null
     // 影子评审不在房间里发言：它的回复只进 advice，不进时间线。
     if (typeof room?.shadowBot?.memberRef === 'string' && message.authorRef === room.shadowBot.memberRef) return null
+    // 多人聊天室里，主持人只通过系统落库的开场和结论说话；基座里它的原话（包括选班底的 JSON）不进时间线。
+    const hostRef = roomPresentationOfRoom(room)?.hostOf?.(room)?.memberRef
+    if (
+      typeof hostRef === 'string' && hostRef !== '' &&
+      message.authorRef === hostRef && (room?.members ?? []).length > 0
+    ) return null
     if (isInternalPrompt(message.text)) return null
     const memberId = memberForRef(room, message.authorRef)
     const common = { id: message.id, roomId, ts: message.at }

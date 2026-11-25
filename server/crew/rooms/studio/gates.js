@@ -43,6 +43,11 @@ export const gateFor = (room, index, messages, evidence) => {
   if (found === undefined) {
     return deny('conflict', '执行官还没有交回结果，不能验收')
   }
+  // 有契约的房间必须有可重跑证明；旧房间没有契约时不改变原来的判定。
+  if (room.plan?.contract !== null && room.plan?.contract !== undefined &&
+    found.meta?.proof?.status !== 'verified') {
+    return deny('conflict', '交付没有可重跑的证明，不能确认；先让执行官补 lodge-proof.json')
+  }
   const latestVerdict = ordered.filter(message => (
     message.kind === 'verdict' && (message.meta?.stage ?? 0) === index && (message.seq ?? 0) > floor
   )).at(-1)

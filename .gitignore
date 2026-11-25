@@ -14,6 +14,8 @@ build/base/
 evals/rooms/results/
 evals/long-task/results/
 evals/compare/results/
+evals/planning-probe/results/
+evals/execution-probe/results/
 evals/verifier-probe/results/
 test-results/
 playwright-report/

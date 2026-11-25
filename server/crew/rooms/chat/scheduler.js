@@ -2,9 +2,10 @@ import { chatTransitionEvent, transitionChat } from './state.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { memberOf } from '../../room-members.js'
 import { recentAndOlder } from '../../prompt-context.js'
-import { turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
+import { CHAT_TURNS_PER_ROUND, turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { parseHandoffBriefFromText } from '../../../../shared/handoff-brief.js'
 import { hostIntentPrompt, parseHostIntent } from './host-intent.js'
+import { castPrompt, fallbackCast, openingOf, parseCast } from './cast.js'
 import { chatBriefOf } from './brief.js'
 import { linkedRoomBriefs } from './linked.js'
 import { conclusionReviewPrompt, digestText, hostPrompt, speakerPrompt, stripRoundLead, wantsStructuredSummary } from './prompts.js'
@@ -109,8 +110,8 @@ export const createChatScheduler = ({
     })
   }
 
-  const waitForBot = async (memberId, before, run) => {
-    const deadline = Date.now() + waitMs
+  const waitForBot = async (memberId, before, run, timeout = waitMs) => {
+    const deadline = Date.now() + timeout
     while (Date.now() < deadline) {
       if (run.cancelled) return null
       const hit = await transport.findReply(memberId, before)
@@ -130,6 +131,18 @@ export const createChatScheduler = ({
     return false
   }
 
+  // 主持人按话题选今晚的班底；只做一次，之后阵容固定。
+  const chooseCast = async room => {
+    const members = room.members ?? []
+    if (members.length === 0) return null
+    const before = await transport.messageIds()
+    const sent = await sendToMember('host', castPrompt({ room, members }))
+    hidePrompt(sent?.messageId)
+    // 选班底只是开场的一步；主持人慢就先用固定顺序，不让房间空等两分钟。
+    const reply = await waitForBot('host', before, { cancelled: false }, Math.min(waitMs, 30_000))
+    return (reply === null ? null : parseCast(String(reply.text ?? reply.turn?.reply ?? ''), { members })) ?? fallbackCast(members)
+  }
+
   const cancel = () => {
     const room = store.readRoom(roomId)
     const round = Number(room?.chat?.round) || 1
@@ -140,21 +153,60 @@ export const createChatScheduler = ({
     return true
   }
 
-  const start = async (inputRoom, { note = '', speakerIds = null, resume = false } = {}) => {
+  const start = async (inputRoom, { note = '', speakerIds = null, resume = false, selectCast = false } = {}) => {
     if (runs.has(roomId)) return { started: false, reason: '聊天讨论已经在进行' }
     let room = store.readRoom(roomId) ?? inputRoom
     if (transport.ready() !== true) throw new Error('房间聊天室还没准备好')
     // 主持人是 Lodge 自己的隐藏成员，不占发言位置。成员和轮数都是房间固定配置。
     const hostAuthor = 'lodge'
     const allowedSpeakers = (room.members ?? []).map(member => member.id)
-    const selected = Array.isArray(speakerIds)
-      ? [...new Set(speakerIds.filter(id => allowedSpeakers.includes(id)))].slice(0, 3)
+    let castIds = Array.isArray(room.chat?.castIds)
+      ? room.chat.castIds.filter(id => allowedSpeakers.includes(id))
       : []
-    const speakers = selected.length > 0 ? selected : allowedSpeakers
-    const turnLimit = chatTurnLimitOf(room)
-    const perMember = speakers.length === 0
-      ? turnLimit
-      : Math.max(1, Math.ceil(turnLimit / speakers.length))
+    // 建房后的第一轮：主持人读话题，从固定班底里请 2–6 位；之后阵容固定。
+    if (selectCast === true && castIds.length === 0) {
+      const picked = await chooseCast(room)
+      if (picked !== null && picked.cast.length > 0) {
+        const opening = openingOf({ members: room.members, cast: picked.cast, why: picked.why })
+        patch(current => {
+          current.chat = {
+            ...current.chat,
+            castIds: picked.cast.map(item => item.id),
+            castFocus: Object.fromEntries(picked.cast.map(item => [item.id, item.focus])),
+            opening,
+          }
+          return { events: [{ type: 'chat.cast', payload: { members: picked.cast.map(item => item.id), why: picked.why } }] }
+        })
+        room = store.readRoom(roomId) ?? room
+        castIds = picked.cast.map(item => item.id)
+      }
+    }
+    const muted = new Set(Array.isArray(room.chat?.mutedIds) ? room.chat.mutedIds : [])
+    const castSet = castIds.length > 0 ? castIds : allowedSpeakers
+    const requested = Array.isArray(speakerIds)
+      ? [...new Set(speakerIds.filter(id => castSet.includes(id)))].slice(0, CHAT_TURNS_PER_ROUND)
+      : []
+    const speakers = (requested.length > 0 ? requested : castSet).filter(id => !muted.has(id))
+    // 今晚请到的人全被静音：这一轮没有可讨论的人，说清楚并收掉 running，
+    // 否则续聊的入口已经把房间标成“进行中”，会永远转不完。
+    if (castSet.length > 0 && speakers.length === 0) {
+      store.appendMessage(roomId, { kind: 'system', text: '这一轮没有人能发言；先恢复一位成员。' })
+      patch(current => {
+        current.chat = {
+          ...current.chat,
+          running: false,
+          interrupted: true,
+          speaker: '',
+          pending: null,
+        }
+        return { events: [] }
+      })
+      return { started: false, reason: '没有可发言的成员' }
+    }
+    const turnLimit = speakers.length === 0
+      ? 0
+      : Math.min(chatTurnLimitOf(room), CHAT_TURNS_PER_ROUND, speakers.length)
+    const perMember = 1
     const run = { cancelled: false }
     runs.set(roomId, run)
     const round = Number.isInteger(room.chat?.round) && room.chat.round > 0 ? room.chat.round : 1
@@ -216,9 +268,15 @@ export const createChatScheduler = ({
           const current = store.readRoom(roomId)
           if (run.cancelled || current === null || current.state !== ROOM_STATE.active) break
           room = current
+          // “先别说”在轮中生效：被静音的人这一轮不再轮到，剩下的人说完就收。
+          const mutedNow = new Set(Array.isArray(room.chat?.mutedIds) ? room.chat.mutedIds : [])
+          const eligible = speakers.filter(id => !mutedNow.has(id))
+          if (eligible.length === 0 || eligible.every(id => (counts.get(id) ?? 0) >= perMember)) break
           if (turn === 1 && !resume) {
-            const text = `【${room.goal}】`
-            store.appendMessage(roomId, { kind: 'chat', authorId: 'lodge', text, meta: { opening: true, round } })
+            const opening = typeof room.chat?.opening === 'string' && room.chat.opening !== ''
+              ? room.chat.opening
+              : `【${room.goal}】`
+            store.appendMessage(roomId, { kind: 'chat', authorId: 'lodge', text: opening, meta: { opening: true, round } })
           }
           let memberId = null
           let before = null
@@ -231,7 +289,7 @@ export const createChatScheduler = ({
             resumeMarker = null
           } else {
             memberId = pickChatSpeaker({
-              speakers,
+              speakers: eligible,
               counts,
               perMember,
               last,
@@ -262,6 +320,7 @@ export const createChatScheduler = ({
               note,
               brief,
               previous,
+              focus: room.chat?.castFocus?.[memberId] ?? '',
             }))
             hidePrompt(sent?.messageId)
           }

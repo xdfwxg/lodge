@@ -30,8 +30,8 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
   if (members.length === 0) return null
   const kind = uiKindOfRoom(room)
   const statuses = bodyStatuses(room, members, { labels: kind.memberLabels })
-  // 派活是工作室的动作；聊天室成员固定，不提供“先别给 TA 派活”。
-  const canHold = kind.id === 'studio' &&
+  // 工作室叫“先别派活”，聊天室叫“先别说”；都只改这个成员在这一轮的状态。
+  const canHold = (kind.id === 'studio' || kind.id === 'chat') &&
     room.state === 'active' && room.live === true && typeof onHold === 'function'
   const held = new Set(Array.isArray(room.heldMembers) ? room.heldMembers : [])
   const openMenu = (item, event) => {
@@ -44,6 +44,9 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
     setMenu(null)
     action()
   }
+  const holdLabel = kind.id === 'chat'
+    ? (menu?.held === true ? '恢复说话' : '先别说')
+    : (menu?.held === true ? '继续派活' : '先别给 TA 派活')
   return h('div', { className: 'crew-side-members', role: 'group', 'aria-label': '房间成员' },
     h('span', { className: 'crew-side-members-label' }, '成员'),
     statuses.map(item => h('span', { key: item.memberId, className: 'crew-side-member-row' },
@@ -94,5 +97,5 @@ export function SideMembers({ room, onHold = null, onClose = null }) {
         role: 'menuitem',
         className: 'crew-side-menu-item',
         onClick: () => choose(() => onHold(menu.memberId, !menu.held)),
-      }, menu.held ? '继续派活' : '先别给 TA 派活')), document.body))
+      }, holdLabel)), document.body))
 }

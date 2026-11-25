@@ -23,7 +23,7 @@ const room = (over = {}) => ({
 })
 
 const messages = [
-  { id: 'e1', kind: 'evidence', seq: 1, ts: 10, meta: { stage: 1, kind: 'result', changedFiles: ['src/a.js'] } },
+  { id: 'e1', kind: 'evidence', seq: 1, ts: 10, meta: { stage: 1, kind: 'result', changedFiles: ['src/a.js'], proof: { entry: 'npm test', status: 'verified', exit: 0 } } },
   { id: 'v1', kind: 'verdict', authorId: 'verifier', seq: 2, ts: 11, text: 'PASS', meta: { stage: 1, pass: true, evidenceId: 'e1' } },
 ]
 
@@ -35,6 +35,7 @@ test('the delivery card keeps goal, commands, files, verdicts and commit', () =>
   assert.deepEqual(delivery.stages[1].results[0].changedFiles, ['src/a.js'])
   assert.deepEqual(delivery.changedFiles, ['src/a.js'])
   assert.equal(delivery.stages[1].verdicts[0].pass, true)
+  assert.equal(delivery.stages[1].proof.status, 'verified')
   assert.equal(delivery.evidenceCount, 1)
   assert.equal(delivery.kind, 'text')
 })

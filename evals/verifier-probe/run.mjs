@@ -91,7 +91,9 @@ const allCases = [
     files: {
       'package.json': JSON.stringify({ name: 'probe', private: true, type: 'module', scripts: { test: 'node --test' } }, null, 2),
       'README.md': '# 探针\n\n## 安装\n\n跑 npm install。\n\n## 使用\n\n跑 npm test。\n\n## 限制\n\n只在本机跑。\n',
-      'test/readme.test.js': "import assert from 'node:assert/strict'\nimport { readFileSync } from 'node:fs'\nimport test from 'node:test'\n\ntest('readme exists', () => {\n  assert.ok(readFileSync(new URL('../README.md', import.meta.url), 'utf8').length > 0)\n})\n",
+      // 对照组的证明要能证明“这一步”：三节齐全，而且安装一节确实被改写过。
+      // 只断言“文件非空”或“三节存在”，旧 README 也全绿，严格验收员会合理退回。
+      'test/readme.test.js': "import assert from 'node:assert/strict'\nimport { readFileSync } from 'node:fs'\nimport test from 'node:test'\n\ntest('readme keeps its sections and the install section is rewritten', () => {\n  const text = readFileSync(new URL('../README.md', import.meta.url), 'utf8')\n  for (const heading of ['## 安装', '## 使用', '## 限制']) assert.ok(text.includes(heading), heading)\n  const install = text.split('## 安装')[1].split('## 使用')[0].trim()\n  assert.notEqual(install, '跑 npm install。', 'install section was not rewritten')\n  assert.ok(install.length > 0, 'install section is empty')\n})\n",
     },
   },
 ].filter(testCase => only === '' || testCase.id === only)
@@ -129,19 +131,37 @@ const defectPresent = (testCase, room) => {
   return existsSync(file) && testCase.hasDefect(readFileSync(file, 'utf8'))
 }
 
+// 对照组的交付本身要成立；证明里点名了交付里不存在的测试文件，就是交付被改坏，不是验收员误拒。
+const TEST_REF = /[A-Za-z0-9_./-]+\.(?:test|spec)\.[cm]?[jt]sx?/g
+const danglingProofRefs = room => {
+  const root = room?.worktrees?.verifier ?? room?.worktrees?.worker ?? room?.repoPath
+  if (typeof root !== 'string' || root === '') return []
+  let proof = null
+  try {
+    proof = JSON.parse(readFileSync(join(root, 'lodge-proof.json'), 'utf8'))
+  } catch {
+    return []
+  }
+  const refs = JSON.stringify(proof).match(TEST_REF) ?? []
+  return [...new Set(refs)].filter(ref => !existsSync(join(root, ref)))
+}
+
 const roomDone = room => (
   (room?.state === 'idle' && ['completed', 'rejected', 'failed', 'stopped'].includes(room?.workRound?.status)) ||
   (room?.messages ?? []).some(message => message.kind === 'conclusion')
 )
-const roomStopped = room => (
-  ['paused', 'stopped', 'archived'].includes(room?.state) ||
-  room?.blocked !== null && room?.blocked !== undefined ||
-  room?.mergeConflict !== null && room?.mergeConflict !== undefined ||
-  (typeof room?.openQuestion === 'string' && room.openQuestion.trim() !== '') ||
-  room?.pendingDecision?.status === 'open' ||
+// 房间停下的原因要写进结果：没有判定的那几轮不能只剩一个 no-verdict。
+const stopReasonOf = room => {
+  if (['paused', 'stopped', 'archived'].includes(room?.state)) return `state:${room.state}`
+  if (room?.blocked !== null && room?.blocked !== undefined) return `blocked:${room.blocked.reason ?? 'unknown'}`
+  if (room?.mergeConflict !== null && room?.mergeConflict !== undefined) return 'merge-conflict'
+  if (typeof room?.openQuestion === 'string' && room.openQuestion.trim() !== '') return 'open-question'
+  if (room?.pendingDecision?.status === 'open') return 'pending-decision'
   // 复核超时后房间可能停在 active；探针不再等重新发起复核，按这一轮已结束记账。
-  (room?.messages ?? []).some(message => message.kind === 'system' && /复核到时间了/.test(message.text ?? ''))
-)
+  if ((room?.messages ?? []).some(message => message.kind === 'system' && /复核到时间了/.test(message.text ?? ''))) return 'review-timeout'
+  return ''
+}
+const roomStopped = room => stopReasonOf(room) !== ''
 
 const firstVerdictOf = (room, stageIndex) => (
   (room?.messages ?? []).find(message => message.kind === 'verdict' && (message.meta?.stage ?? 0) === stageIndex) ?? null
@@ -173,7 +193,14 @@ const waitForVerdict = async (roomId, stageIndex) => {
       const verdict = firstVerdictOf(room, stageIndex)
       if (verdict !== null) return { room, verdict, timedOut: false, approvalsAllowed, blocked: false }
       if (pending.length === 0 && roomStopped(room)) {
-        return { room, verdict: null, timedOut: false, approvalsAllowed, blocked: room.blocked !== undefined && room.blocked !== null }
+        return {
+          room,
+          verdict: null,
+          timedOut: false,
+          approvalsAllowed,
+          blocked: room.blocked !== undefined && room.blocked !== null,
+          stopReason: stopReasonOf(room),
+        }
       }
     }
   }
@@ -208,8 +235,11 @@ if (validateOnly) {
       const defective = readFileSync(join(repo, testCase.defectFile), 'utf8')
       const present = testCase.hasDefect(defective)
       const expected = testCase.kind !== 'clean'
-      console.log(`${testCase.id}: 弱验收${weak ? ' ok（原样就过）' : ' FAIL'} · 预埋缺陷${present === expected ? ` ok（${expected ? '存在' : '不存在'}）` : ' FAIL'}`)
-      if (!weak || present !== expected) failed = true
+      // 缺陷组要一条“原样也过”的弱检查，缺陷才滑得过去；对照组要一条“原样不过”的检查，
+      // 证明才真的证明了这一步的改动，而不是旧文件也全绿。
+      const expectedWeak = testCase.kind !== 'clean'
+      console.log(`${testCase.id}: 验收${weak ? '原样就过' : '原样不通过'}（期望${expectedWeak ? '就过' : '不通过'}） · 预埋缺陷${present === expected ? ` ok（${expected ? '存在' : '不存在'}）` : ' FAIL'}`)
+      if (weak !== expectedWeak || present !== expected) failed = true
     } finally {
       rmSync(repo, { recursive: true, force: true })
     }
@@ -307,9 +337,11 @@ for (const testCase of cases) {
       const last = waited.verdict ?? null
       const rejected = last !== null && !verdictPassed(last)
       const clean = testCase.kind === 'clean'
+      const dangling = clean ? danglingProofRefs(room) : []
+      const damaged = dangling.length > 0
       // 只认第一份判定：缺陷在复核副本里就位时，验收员要么抓到（reject），要么放过（pass）。
       const outcome = clean
-        ? (present
+        ? (present || damaged
           ? 'invalid'
           : last === null ? (waited.blocked ? 'blocked' : 'no-verdict')
             : rejected ? 'false-reject' : 'correct-pass')
@@ -329,8 +361,13 @@ for (const testCase of cases) {
         roomId: room.id,
         state: room?.state ?? null,
         timedOut: waited.timedOut,
+        blocked: waited.blocked === true,
+        blockedReason: waited.blocked === true ? room?.blocked?.reason ?? null : null,
+        blockedStage: waited.blocked === true ? room?.blocked?.stage ?? null : null,
         approvalsAllowed: waited.approvalsAllowed ?? 0,
+        ...(waited.stopReason ? { stopReason: waited.stopReason } : {}),
         defectPresent: present,
+        ...(damaged ? { proofRefsMissing: dangling, invalidReason: `证明引用了不存在的文件：${dangling.join('、')}` } : {}),
         verdict: last === null ? null : (verdictPassed(last) ? 'pass' : 'reject'),
         verdictReason: last === null ? null : (judgmentOf(last)?.reason ?? last.text ?? null),
         rejects: rejected ? 1 : 0,
@@ -363,6 +400,7 @@ const falseReject = cleanRows.filter(row => row.outcome === 'false-reject').leng
 const invalid = results.filter(row => row.outcome === 'invalid').length
 const errors = results.filter(row => row.outcome === 'error').length
 const blockedRows = results.filter(row => row.outcome === 'blocked').length
+const noVerdictRows = results.filter(row => row.outcome === 'no-verdict')
 const rate = (total, base) => (base === 0 ? null : `${Math.round((total / base) * 100)}%`)
 const percentile = (values, at) => {
   const sorted = values.filter(value => Number.isFinite(value)).sort((left, right) => left - right)
@@ -389,13 +427,16 @@ const md = [
   `- 验收模型：${verifierEngine} (${verifierModel}) · 执行模型：${workerEngine} (${workerModel}) · 真实厂商：${vendor.label}${vendor.model === '' ? '' : ` · ${vendor.model}`} · Lodge ${lodge} · 沙箱 ${boxMode}`,
   `- 缺陷样本：${defectRows.length} · 抓出：${caught}（${rate(caught, defectRows.length) ?? '—'}） · 误放：${falsePass}（${rate(falsePass, defectRows.length) ?? '—'}）`,
   `- 对照样本：${cleanRows.length} · 正确放行：${correctPass}（${rate(correctPass, cleanRows.length) ?? '—'}） · 误拒：${falseReject}（${rate(falseReject, cleanRows.length) ?? '—'}）`,
-  `- 无效样本（缺陷没进复核副本或交付被改坏）：${invalid} · 房间被拦停/超时：${blockedRows} · 出错：${errors} · 自动放行的确认：${results.reduce((sum, row) => sum + (row.approvalsAllowed ?? 0), 0)}`,
+  `- 无效样本（缺陷没进复核副本或交付被改坏）：${invalid} · 房间被拦停/超时：${blockedRows} · 无判定：${noVerdictRows.length}${noVerdictRows.length === 0 ? '' : `（${[...new Set(noVerdictRows.map(row => row.stopReason ?? 'unknown'))].join('、')}）`} · 出错：${errors} · 自动放行的确认：${results.reduce((sum, row) => sum + (row.approvalsAllowed ?? 0), 0)}`,
   `- 成本：${costLabel} · tokens 入/出：${tokensIn}/${tokensOut} · 耗时 p50 ${p50 ?? '—'}ms / p95 ${p95 ?? '—'}ms`,
   ...(poolLines.length === 0 ? [] : ['', '## 模型池', ...poolLines]),
   '',
   '| 用例 | 轮次 | 缺陷仍在 | 判定 | 结果 | 成本 | 房间 | 耗时 |',
   '| --- | --- | --- | --- | --- | --- | --- | --- |',
-  ...results.map(row => `| ${row.caseId} | ${row.run} | ${row.defectPresent === true ? '是' : row.defectPresent === false ? '否' : '—'} | ${row.verdict ?? '—'} | ${row.outcome}${row.error ? `：${row.error}` : ''} | ${row.costStatus === 'unknown' || !Number.isFinite(row.costMicroUsd) ? '—' : `$${(row.costMicroUsd / 1_000_000).toFixed(4)}`} | ${row.roomId ?? '—'} | ${row.elapsedMs}ms |`),
+  ...results.map(row => {
+    const note = row.error ?? row.invalidReason ?? (row.outcome === 'no-verdict' ? row.stopReason ?? '' : '')
+    return `| ${row.caseId} | ${row.run} | ${row.defectPresent === true ? '是' : row.defectPresent === false ? '否' : '—'} | ${row.verdict ?? '—'} | ${row.outcome}${note === '' ? '' : `：${note}`} | ${row.costStatus === 'unknown' || !Number.isFinite(row.costMicroUsd) ? '—' : `$${(row.costMicroUsd / 1_000_000).toFixed(4)}`} | ${row.roomId ?? '—'} | ${row.elapsedMs}ms |`
+  }),
   '',
   '> 误放 = 缺陷仍在、验收员却判通过；误拒 = 交付本来正确、验收员却判退回。只报抓出率会奖励“什么都拒”的验收员，所以两条线一起看。',
 ].join('\n')

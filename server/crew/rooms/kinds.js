@@ -13,14 +13,14 @@ export const roomBulletin = (goal, handoffBrief = null) => {
 
 // 两种窄接口：建房/能力只拿 mode，消息投影/注意力只拿 presentation。
 const MODE_KEYS = [
-  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'demoMessage', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'supportsMemberRemove', 'allowsHostOnly', 'busyNow', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record', 'chatMembersOf',
   'initialMessages', 'provisionExtra', 'start', 'approvalReadOnly',
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou',
-  'refresh', 'projectWork', 'deliveryOf',
+  'refresh', 'projectWork', 'deliveryOf', 'membersOf',
   'hostOf', 'speakerOf', 'issuesOf', 'retroOf',
 ]
 // 生命周期钩子会改房间状态，和只读投影分开；presentation 不拿 store。

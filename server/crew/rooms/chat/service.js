@@ -180,7 +180,14 @@ export const createServiceChat = ({ store, live, emit }) => {
         ? continueChat(room, { note: value, speakerIds: (room.members ?? []).map(member => member.id) }, { recordNote: false })
         : fail('conflict', '这一轮还在讨论，等结论出来再叫所有人。')
     }
-    const named = mentions.filter(id => (room.members ?? []).some(member => member.id === id))
+    // 点名只叫今晚请到、且没被静音的人；静音是“先别说”，点名也不能绕过去。
+    const castIds = Array.isArray(room.chat?.castIds) && room.chat.castIds.length > 0 ? room.chat.castIds : null
+    const muted = new Set(Array.isArray(room.chat?.mutedIds) ? room.chat.mutedIds : [])
+    const named = mentions.filter(id => (
+      (room.members ?? []).some(member => member.id === id) &&
+      (castIds === null || castIds.includes(id)) &&
+      !muted.has(id)
+    ))
     if (named.length > 0) {
       if (mode === 'round') return fail('conflict', '这一轮还在讨论，等结束再点名；着急就先叫停。')
       const names = named

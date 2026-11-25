@@ -280,7 +280,10 @@ body.is-mac-shell[data-side=rail] .crew-island-wrap{padding-top:36px}
 .crew-human .bt-ububble{max-width:min(560px,86%)}
 
 .crew-system{align-self:center;margin:12px 0;padding:0;background:transparent;color:var(--bt-ink-3);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);text-align:center}
-.crew-system[data-chain=handoff]{align-self:stretch;margin:6px 0 6px 44px;text-align:left}
+/* 交接是聊天里的普通一行：和正文同一个左边缘、同一套字号与行高。 */
+.crew-system[data-chain=handoff]{align-self:stretch;margin:6px 0 6px 24px;text-align:left;color:var(--bt-ink-2);font-size:var(--bt-text-body);line-height:var(--bt-leading-body);letter-spacing:var(--bt-tracking-body)}
+.crew-system[data-chain=handoff] .crew-mention:first-child{margin-left:0}
+.crew-system[data-chain=handoff] .crew-mention{line-height:inherit}
 .crew-time{align-self:center;margin:16px 0 2px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3);font-variant-numeric:tabular-nums}
 .crew-activity{display:flex;align-items:center;gap:6px;font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper);color:var(--bt-ink-3)}
 .crew-activity-dot{flex:none;width:6px;height:6px;border-radius:50%;background:var(--bt-green)}
@@ -581,10 +584,6 @@ body[data-ds-dark-theme] .crew-member-menu{background-image:url("data:image/svg+
 .crew-brief{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;font-size:var(--bt-text-label);line-height:var(--bt-leading-section);color:var(--bt-ink-2)}
 .crew-dialog-note{margin:0;padding:8px 10px;border-radius:8px;background:var(--bt-shade-2);color:var(--bt-ink-2);font-size:var(--bt-text-helper);line-height:var(--bt-leading-helper)}
 .crew-dialog-note[data-tone=error]{background:var(--bt-danger-wash);color:var(--bt-danger-text);border:1px solid var(--bt-line-danger)}
-.crew-new-advanced{border-top:1px solid var(--bt-line);padding-top:10px}
-.crew-new-advanced>summary{display:flex;align-items:center;gap:8px;min-height:28px;cursor:pointer;font-size:var(--bt-text-label);font-weight:600;color:var(--bt-ink-2)}
-.crew-new-advanced>summary:hover{color:var(--bt-ink)}
-.crew-new-advanced-body{display:flex;flex-direction:column;gap:18px;padding-top:14px}
 /* 两个选项只用一条分段控件，选中的一块浮起来。 */
 .crew-seg{position:relative;display:inline-grid;grid-template-columns:repeat(var(--seg-count),minmax(0,1fr));align-items:center;padding:2px;border-radius:999px;background:var(--bt-shade-2);align-self:flex-start;isolation:isolate}
 .crew-seg-thumb{position:absolute;top:2px;bottom:2px;left:2px;width:calc((100% - 4px) / var(--seg-count));border-radius:999px;background:var(--bt-card);box-shadow:0 1px 2px rgba(20,20,20,.08);transform:translateX(calc(var(--seg-index) * 100%));transition:transform .24s var(--bt-ease);z-index:0;pointer-events:none}

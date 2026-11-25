@@ -33,8 +33,6 @@ export const PERSONALITIES = [
   },
 ]
 
-export const PERSONALITY_IDS = PERSONALITIES.map(item => item.id)
-
 export const personalityById = id => PERSONALITIES.find(item => item.id === id) ?? null
 
 export const personalityPrompt = id => {

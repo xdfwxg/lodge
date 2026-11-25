@@ -19,7 +19,8 @@ test('a turn carries the last conclusion and the speaker before it', () => {
   })
   assert.match(prompt, /上一轮结论：共识：住上沿；分歧：要不要一直走/)
   assert.match(prompt, /上一位：老周说“上沿没问题，但别一直走。”/)
-  assert.match(prompt, /接着说：同意就补一个理由/)
+  assert.match(prompt, /50 字以内/)
+  assert.match(prompt, /不要为了合群改口/)
   assert.doesNotMatch(prompt, /请给出你的观点、依据或质疑/)
 })
 
@@ -29,7 +30,7 @@ test('the first turn does not invent a brief or a previous speaker', () => {
   assert.doesNotMatch(prompt, /上一位：/)
   assert.doesNotMatch(prompt, /接着说/)
   assert.match(prompt, /这是本轮第一句：直接说自己的判断/)
-  assert.match(prompt, /先说结论，再补一个理由/)
+  assert.match(prompt, /50 字以内/)
   assert.match(prompt, /第 1 轮，第 1\/6 次发言/)
 })
 

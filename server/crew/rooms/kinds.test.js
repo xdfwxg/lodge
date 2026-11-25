@@ -3,7 +3,7 @@ import test from 'node:test'
 import { roomKinds, roomLifecycleOfRoom, roomModeForType, roomPresentationOfRoom } from './kinds.js'
 
 const MODE_KEYS = [
-  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'allowsHostOnly', 'busyNow', 'demoMessage', 'resolvePlan',
+  'id', 'owns', 'memberRole', 'memberSoul', 'memberPrompt', 'validateRoster', 'supportsMemberAdd', 'supportsMemberRemove', 'allowsHostOnly', 'busyNow', 'demoMessage', 'resolvePlan',
   'requiresGate', 'evaluateGate', 'supportsDelivery',
   'leadMemberIdOf', 'record', 'chatMembersOf',
   'initialMessages', 'provisionExtra', 'start',
@@ -11,7 +11,7 @@ const MODE_KEYS = [
 ]
 const PRESENTATION_KEYS = [
   'filterMessages', 'hideActivity', 'acceptsDelta', 'needsYou',
-  'refresh', 'projectWork', 'deliveryOf',
+  'refresh', 'projectWork', 'deliveryOf', 'membersOf',
   'hostOf', 'speakerOf', 'issuesOf', 'retroOf',
 ]
 const LIFECYCLE_KEYS = ['markMemberFailure']

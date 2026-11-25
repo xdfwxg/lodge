@@ -26,15 +26,15 @@ const studioRoom = {
 export const promptSamples = () => [
   {
     name: 'chat-host-natural',
-    text: hostPrompt({ room: chatRoom, round: 2, note: '', turnLimit: 6 }),
+    text: hostPrompt({ room: chatRoom, round: 2, note: '', turnLimit: 4 }),
   },
   {
     name: 'chat-host-structured',
-    text: hostPrompt({ room: chatRoom, round: 2, note: '列成清单', turnLimit: 6, structured: true }),
+    text: hostPrompt({ room: chatRoom, round: 2, note: '列成清单', turnLimit: 4, structured: true }),
   },
   {
     name: 'chat-speaker-first',
-    text: speakerPrompt({ room: chatRoom, memberId: 'a', round: 2, turn: 1, turnLimit: 6, note: '' }),
+    text: speakerPrompt({ room: chatRoom, memberId: 'a', round: 2, turn: 1, turnLimit: 4, note: '' }),
   },
   {
     name: 'chat-speaker-follow',
@@ -43,7 +43,7 @@ export const promptSamples = () => [
       memberId: 'b',
       round: 2,
       turn: 2,
-      turnLimit: 6,
+      turnLimit: 4,
       note: '别写太长',
       brief: '先做最小版本',
       previous: { name: '甲', text: '先把检查写出来。' },

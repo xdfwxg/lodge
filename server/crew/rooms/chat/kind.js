@@ -25,12 +25,20 @@ export const chatKind = {
     ...(member.role === 'lead' ? { isHost: true } : {}),
   }),
 
+  // 界面上只显示今晚请到的班底；没被请到的人还在基座里，但不在这一轮的房间里。
+  membersOf: room => {
+    const ids = Array.isArray(room?.chat?.castIds) ? room.chat.castIds : []
+    const members = Array.isArray(room?.members) ? room.members : []
+    return ids.length === 0 ? members : members.filter(member => ids.includes(member.id))
+  },
+
   // 聊天室成员只带讨论纪律，不继承工作室的执行 SOP；可以读文件和只读公网。
   memberSoul: member => {
     const voice = typeof member.voice === 'string' ? member.voice.trim() : ''
     return [
-      `你是${member.name}，在一个聊天室里就像普通人一样说话：有自己的观点和语气，可以直接反驳别人。用中文，控制在 200 字以内；可以只读查看仓库和文件，也可以联网只读查资料，引用时写路径或链接；不写文件、不跑命令，登录、提交、发帖、下单这类外部动作先问人。**加粗**只给会影响讨论走向的信息：结论、分歧、待办、限制；有多点时用短列表或加粗小标题，一句话说清的就别拆；次要说明不加粗，也不要用行内代码包中文标签。`,
+      `你是${member.name}，在聊天室里像普通人一样说话：有自己的观点和语气，可以直接反驳。用中文，一条消息只说一个想法，50 字以内，多数 15–35 字；可以只说“同意”或问一句。你看得到别人的话，但保留自己的判断，不要为了合群改口；改变立场时说明是哪条依据说服了你。可以只读查看仓库和文件，也可以联网只读查资料，引用时写路径或链接；不写文件、不跑命令，登录、提交、发帖、下单这类外部动作先问人。不要写标题、列表、加粗或报告。`,
       voice === '' ? '' : `你的说话习惯：${voice}`,
+      typeof member.lens === 'string' && member.lens.trim() !== '' ? `你固定只看的问题：${member.lens.trim()}` : '',
       CHAT_VOICE,
       stancePrompt(member.stance),
       personalityPrompt(member.personality),
@@ -43,6 +51,7 @@ export const chatKind = {
   evaluateGate: () => ({ decision: 'allow', issues: [], needsHumanReview: false, advice: [] }),
   supportsDelivery: false,
   supportsMemberAdd: false,
+  supportsMemberRemove: false,
   allowsHostOnly: room => room?.lodge === true,
   busyNow: room => room?.chat?.running === true,
   approvalReadOnly: () => true,
@@ -50,17 +59,14 @@ export const chatKind = {
 
   leadMemberIdOf: () => null,
 
-  record: ({ chatLimit }) => {
-    const limit = Number.isInteger(chatLimit) ? chatLimit : CHAT_TURNS_PER_ROUND
-    return {
-      constraints: [
-        '聊天室只读：成员可以读文件、联网只读和讨论；不写文件、不跑命令，外部动作先问人',
-        `系统按未发言和立场顺序唤醒成员，每轮 ${limit} 次；系统最后收结论`,
-        `结论由你认可；不认可就继续讨论 ${limit} 次`,
-      ],
-      chat: initialChatState({ turnLimit: limit }),
-    }
-  },
+  record: () => ({
+    constraints: [
+      '聊天室只读：成员可以读文件、联网只读和讨论；不写文件、不跑命令，外部动作先问人',
+      `主持人按话题请 2–6 位，每轮最多 ${CHAT_TURNS_PER_ROUND} 位开口；系统最后收结论`,
+      '成员固定，只能静音和换模型；不加、不删',
+    ],
+    chat: initialChatState(),
+  }),
 
   initialMessages: () => [],
 
@@ -80,7 +86,7 @@ export const chatKind = {
   },
 
   start: async ({ store, live, room }) => {
-    void live.startChat(room).catch(error => {
+    void live.startChat(room, { selectCast: true }).catch(error => {
       systemNotice({ store, roomId: room.id, text: '聊天室没启动起来；稍后再试。', error })
     })
     return room

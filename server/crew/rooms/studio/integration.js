@@ -7,6 +7,7 @@ import { STAGE_STATE } from '../../../../shared/states.js'
 import { redactSecrets } from '../../../../shared/secrets.js'
 import { activeDispatchAssignments, transitionAssignment, updateAssignment } from '../../assignments.js'
 import { dispatchOf } from '../../assignment-projections.js'
+import { runProof } from './proof-runner.js'
 
 export const createStageIntegrator = ({ store, roomId, emit, markProgress, requestReview }) => {
   let chain = Promise.resolve()
@@ -56,11 +57,24 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
     for (const item of activeDispatchAssignments(store, roomId, stageIndex)) {
       updateAssignment(store, item.id, { flags: { ...(item.flags ?? {}), integrated: true } })
     }
+    // 单个执行官的结果已经由回合采集写成证据；这里再写一份同一个 head 的证据，
+    // 会让验收员收到两次复核请求。多人并行才需要集成后的新证据。
+    const alreadyCaptured = workers.length === 1 && (store.readMessages(roomId) ?? []).some(message => (
+      message.kind === 'evidence' &&
+      message.meta?.kind === 'result' &&
+      (message.meta?.stage ?? 0) === stageIndex
+    ))
+    if (alreadyCaptured) {
+      clearBlocked(stageIndex)
+      markProgress()
+      return
+    }
     let range = { diff: '', files: [] }
     try {
       range = await workspaceOf(room).rangeChanges({ path: integration, base })
     } catch {}
     const names = workers.map(worker => memberDisplayName(room, worker)).join('、')
+    const proof = await runProof({ room, ref: head })
     store.appendMessage(roomId, {
       kind: 'evidence',
       authorId: 'system',
@@ -79,6 +93,7 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         workers,
         merges: merged,
         head,
+        proof,
         simulated: false,
         capturedAt: new Date().toISOString(),
       },

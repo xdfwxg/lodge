@@ -1,8 +1,36 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { coverageGapsOf, coverageRequirementsOf } from './coverage.js'
+import { coverageClausesOf, coverageGapsOf, coverageRequirementsOf } from './coverage.js'
 
 const room = (done, stages) => ({ plan: { done }, stages })
+
+const outcomes = [
+  { id: 'export', statement: '导出能用', observable: '点导出会下载 CSV' },
+  { id: 'docs', statement: '有一页说明', observable: 'README 能照着做' },
+]
+const contractRoom = stages => ({ plan: { contract: { outcomes } }, stages })
+
+test('a contract stage covers the outcomes named by its clause ids', () => {
+  const current = contractRoom([{ clauseIds: ['export'] }, { clauseIds: ['docs'] }])
+  assert.deepEqual(coverageClausesOf({ room: current, stageIndex: 0 }), [outcomes[0]])
+  assert.deepEqual(coverageClausesOf({ room: current, stageIndex: 1 }), [outcomes[1]])
+})
+
+test('a contract stage without clause ids falls back to every outcome', () => {
+  assert.deepEqual(coverageClausesOf({ room: contractRoom([{}]), stageIndex: 0 }), outcomes)
+})
+
+test('contract coverage matches the clause id, not similar text', () => {
+  const requirements = coverageClausesOf({ room: contractRoom([{ clauseIds: ['export'] }]), stageIndex: 0 })
+  assert.deepEqual(coverageGapsOf({
+    requirements,
+    coverage: [{ clauseId: 'export', item: '导出能用', evidence: '点了导出，下载到 CSV' }],
+  }), [])
+  assert.deepEqual(coverageGapsOf({
+    requirements,
+    coverage: [{ item: '导出能用', evidence: '点了导出，下载到 CSV' }],
+  }), requirements)
+})
 
 test('an intermediate stage only needs its own deliverable', () => {
   const current = room(['整轮能跑'], [

@@ -351,6 +351,12 @@ export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDiscus
                 stage.deliverable
                   ? h('p', { className: 'crew-field-hint' }, `交付物：${stage.deliverable}`)
                   : null,
+                stage.proof
+                  ? h('div', { className: 'crew-delivery-fact' },
+                    h('span', null, '证明'),
+                    h('span', null, stage.proof.entry ?? '自带的证明'),
+                    h('b', { 'data-pass': stage.proof.status === 'verified' }, stage.proof.status === 'verified' ? '已证明' : '未证明'))
+                  : null,
                 ...(stage.verdicts ?? []).map(verdict => h('div', { key: verdict.id, className: 'crew-delivery-fact' },
                   h('span', null, '验收'),
                   h('span', null, delivery.memberNames?.[verdict.authorId] ?? verdict.authorId),

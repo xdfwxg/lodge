@@ -70,12 +70,15 @@ export const rosterFromRoles = entries => {
     const stance = stanceOf(entry.stance)
     // 说话习惯是一句人话，不是履历；只进提示词，不改变工具面。
     const voice = typeof entry.voice === 'string' ? entry.voice.trim().slice(0, 30) : ''
+    // 聊天室的“今晚只看什么”；工作室不用这个字段，原样保留即可。
+    const lens = typeof entry.lens === 'string' ? entry.lens.trim().slice(0, 200) : ''
     return cloneMember({
       ...base,
       id,
       name,
       personality,
       ...(voice === '' ? {} : { voice }),
+      ...(lens === '' ? {} : { lens }),
       ...(stance === '' ? {} : { stance }),
       engine,
       engineExplicit,

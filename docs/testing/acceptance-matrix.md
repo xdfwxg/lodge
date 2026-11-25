@@ -9,6 +9,9 @@ npm test                 # 服务端、共享契约和 UI 单元测试
 npm run test:e2e         # 房间端到端
 npm run check:regressions
 npm run check:acceptance # 检查这张表引用的用例都还在
+npm run eval:verifier-probe -- --validate
+npm run eval:planning-probe -- --validate
+npm run eval:execution-probe -- --validate
 ```
 
 ## 覆盖表
@@ -20,10 +23,13 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 聊天结论直接进工作室：共识、分歧、未定和下一步都进交接简报 | `server/crew/live-chat-room.test.js`、`shared/handoff-brief.test.js`、`ui/src/room-seeds.test.js` | 真实模型可选 |
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | 工作室阶段、验收、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
-| 验收 PASS 逐条覆盖目标/交付物，且本回合亲手读过文件或跑过检查 | `server/crew/rooms/studio/coverage.test.js`、`server/crew/rooms/studio/verification-proof.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
+| 验收 PASS 逐条覆盖本步契约条款（最后一轮覆盖整轮），且本回合亲手读过文件或跑过检查 | `server/crew/rooms/studio/coverage.test.js`、`server/crew/rooms/studio/verification-proof.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
+| 契约是唯一真相：done 由 outcomes 派生，阶段必须引用已有 clause id，且每个 outcome 都分配 | `shared/crew-proposal.test.js`、`server/crew/rooms/create/input.test.js`、`server/crew/rooms/studio/coverage.test.js` | 无 |
+| 交付自带可重跑的证明；验收员重跑同一条入口并补反例 | `server/crew/rooms/studio/proof-runner.test.js`、`server/crew/rooms/studio/review-prompts.test.js`、`server/crew/gates.test.js`、`server/crew/delivery.test.js` | 无 |
 | 执行官只写自己的工作包：越界改动在 git 副本里退回并留证据 | `server/crew/rooms/studio/write-boundary.test.js`、`server/crew/workspace-guard.test.js` | 无 |
 | 验收员 PASS 只能引用自己复核副本里的证据 | `server/crew/rooms/studio/read-boundary.test.js` | 无 |
 | 验收模型按探针实测分池，误放率过高的模型被平台拒绝 | `shared/verifier-pool.test.js`、`server/crew/rooms/studio/apply-plan.test.js`、`evals/verifier-probe/run.mjs` | 真实模型（不进 `check:done`） |
+| 规划师与执行官有真实模型探针，按模型记录成绩 | `evals/planning-probe/run.mjs`、`evals/execution-probe/run.mjs` | 真实模型（不进 `check:done`） |
 | 规划师组队：执行官按工作包定数，验收员 1–3 位，平台校验模型/厂商/合并 | `shared/crew-proposal.test.js`、`server/crew/rooms/studio/apply-plan.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
 | 投递失败重试沿用同一拍，不新建 Assignment | `server/crew/rooms/studio/handoff.test.js`、`server/crew/assignments.test.js`、`shared/states.test.js` | 无 |
 | 退回必须挂到一条会失败的检查；只挑小毛病不阻塞 | `shared/gate.test.js`、`shared/judgment.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
@@ -126,8 +132,15 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 
 ## 最近真实运行
 
+- 2026-11-25：三角色真实模型探针（claude CLI 实际走 DeepSeek `deepseek-v4-pro`；基座沙箱 off）。规划 2/3 接住隐藏要求，漏了「不联网」边界；执行 0/2 守住工作包，2/2 都改了工作包外的测试文件（平台已退回），证明 2/2 verified；成本 $0.38 + $0.33。
+- 2026-11-25：验收探针 `missing-section` 里验收员写到了执行官的工作副本，因对方本来有改动而没能自动退回；现已改为只读角色出现无法退回的越界时 block 这一轮，等人处理。读取边界仍是判定层核对，不是 OS 沙箱。
 - 2026-11-25：macOS Seatbelt 沙箱第一次真实运行（基座 `OMB_BOT_BOX=1 OMB_BOT_BOX_HOME_READONLY=1`）：规划探针 1/1，执行探针 1/1（证明 verified、边界干净）；直接检查 HOME 写被拒、数据目录读被拒、工作副本写成功；探针报告已显示「沙箱 on」。包级写边界仍靠对账。
 - 2026-11-25：验收探针夹具修好后 3/3 有效：缺陷 2/2 抓出、对照 1/1 正确放行，误放 0、误拒 0；只取第一份判定，缺陷注入前先读 Lodge `probes.reviewPatch`，没开就退出。
+- 2026-11-25：验收探针修复后连跑 5 轮（沙箱 on，claude CLI 实际走 DeepSeek `deepseek-v4-pro`）：15/15 有效，缺陷 8 例抓出 7（88%）、误放 1，对照 4 例正确放行 2（50%）、误拒 2，3 轮被拦停（2 次验收复核超时、1 次房间无消息），成本 $5.37，p50 75s / p95 97s。拦停与误拒仍未解决。
+- 2026-11-25：验收探针最终五轮：缺陷 10/10 抓出、误放 0；对照 5/5 正确放行、误拒 0；无效、拦停、无判定、出错都是 0；成本 $5.01，p50 55s / p95 119s；模型池 `claude:claude-sonnet-5` 记 eligible。根因与修法：平台刷新复核副本后重记写边界基线（不再误拦停）；探针缺陷提交成复核副本 HEAD（验收员从 git 取干净副本也带缺陷）；证明入口不再截断成坏命令；对照组检查改成“原样不通过、交付后通过”。
+- 2026-11-25：聊天室真房 dogfood（claude CLI 走 DeepSeek `deepseek-v4-pro`）：轻话题请到 2 位（老周、大陈），开场卡写明各自焦点和理由；首轮两人各说一次、结论 100 字内；静音大陈后续聊，只有老周开口，结论正常；固定班底不加不删。
+- 2026-11-25：规划探针 3 例：`two-artifacts`、`boundaries` 完整接住，`exact-format` 漏了 `no-extra-files`；契约 3/3 已提交，成本 $0.40。
+- 2026-11-25：`eval:rooms` 本次未跑通（环境问题，房间代码未改）：`revise-tone` 20 分钟未交付（验收员两次被引擎停掉、换模型后仍停在阶段 2），`slice-sheet` 同样停在阶段 2；基座日志显示一次 `terminal` 工具调用挂起 15 分钟、claude 会话 resume 失败。等基座稳定后重跑；`eval:chat` 仍因公开状态不含席位引用而跑不通，聊天室改用真房脚本 dogfood。其余 dogfood：单测 1520、UI 端到端 31、门禁全过。
 - 2026-11-21：真实三阶段项目 3/3 交付；最终工作副本 `npm test` 6/6，命令行入口实跑通过。期间发现验收员 PASS 漏 `outsideDiff` 会让房间停在 `signoff`，已改为无效判定回落文本并补回归。
 - 2026-11-21：技能收敛后全量 dogfood；`npm test` 1133 通过，UI 12 通过，`eval:rooms` 3/3、`eval:planning` 3/3；`eval:chat` 仍因公开状态不含席位引用而跑不通。
 - 仍需真实环境：多执行官并行、真实合并冲突、规划师真实组队、常驻承诺一期、真实 SMTP、成员 shell 的 OS 级写边界。

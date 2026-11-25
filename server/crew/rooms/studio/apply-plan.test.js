@@ -70,9 +70,13 @@ const setup = (instances = [
 
 const proposal = (over = {}) => ({
   proposal: {
+    contract: {
+      version: 1,
+      outcomes: [{ id: 'out', statement: '导出按钮能用', observable: '点导出会下载 CSV' }],
+    },
     plan: {
       done: ['能跑'],
-      stages: [{ title: '实现', deliverable: '导出按钮能用', packages: [{ title: '导出', files: ['src/export.js'] }] }],
+      stages: [{ title: '实现', deliverable: '导出按钮能用', clauseIds: ['out'], packages: [{ title: '导出', files: ['src/export.js'] }] }],
     },
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
@@ -102,6 +106,7 @@ test('a writing stage is applied with its deliverable, not a check', async () =>
       stages: [{
         title: '世界与骨架',
         deliverable: '设定、境界和六卷大纲',
+        clauseIds: ['out'],
         packages: [{ title: '设定与大纲', files: ['OUTLINE.md'] }],
       }],
     },
@@ -149,6 +154,8 @@ test('two independent packages need two executors', async () => {
       done: ['能跑'],
       stages: [{
         title: '实现',
+        deliverable: '两块都完成',
+        clauseIds: ['out'],
         packages: [{ title: '甲', files: ['a.js'] }, { title: '乙', files: ['b.js'] }],
       }],
     },
@@ -193,6 +200,8 @@ test('a parallel plan writes orchestration through the round instead of the room
       done: ['两块都完成'],
       stages: [{
         title: '实现',
+        deliverable: '两块都完成',
+        clauseIds: ['out'],
         packages: [
           { title: '导出', files: ['src/export.js'] },
           { title: '导入', files: ['src/import.js'] },
@@ -219,7 +228,7 @@ test('a high-risk stage needs two verifiers from different vendors', async () =>
   await single.applier('room-1', proposal({
     plan: {
       done: ['依赖更新'],
-      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', packages: [{ title: '升级', files: ['package.json'] }] }],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'] }] }],
     },
   }))
   assert.deepEqual(single.started, [])
@@ -232,7 +241,7 @@ test('a high-risk stage needs two verifiers from different vendors', async () =>
   await sameVendor.applier('room-1', proposal({
     plan: {
       done: ['依赖更新'],
-      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', packages: [{ title: '升级', files: ['package.json'] }] }],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'] }] }],
     },
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],
@@ -253,7 +262,7 @@ test('a high-risk stage on a single-vendor machine is labelled self-review', asy
   await ctx.applier('room-1', proposal({
     plan: {
       done: ['依赖更新'],
-      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', packages: [{ title: '升级', files: ['package.json'] }] }],
+      stages: [{ title: '升级依赖', deliverable: '锁文件已更新', clauseIds: ['out'], packages: [{ title: '升级', files: ['package.json'] }] }],
     },
     crew: {
       executors: [{ engine: 'claude', model: 'x', name: '执行官甲' }],

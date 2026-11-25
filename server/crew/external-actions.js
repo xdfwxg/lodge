@@ -1,4 +1,5 @@
 import { isGateToolName } from '../../shared/gate.js'
+import { actionForTool } from '../../shared/tool-action.js'
 import { APPROVAL_STATE } from '../../shared/states.js'
 
 // 外部动作分类：只认命令语义，不猜模型意图。命中就停下等人，不按成员权限自动放行。
@@ -36,7 +37,10 @@ const RULES = [
 ]
 
 const commandOf = card => {
-  if (typeof card?.subtitle !== 'string') return ''
+  // 只有真正执行命令的卡片才按 shell 语义判断；写文件时正文里出现 `npm install`
+  // 只是内容，不是要安装依赖。
+  const shell = actionForTool(card?.tool) === 'exec' || card?.action === 'exec'
+  if (!shell || typeof card?.subtitle !== 'string') return ''
   return card.subtitle.replace(/^\s*\$\s*/, '').replace(/\s+/g, ' ').trim()
 }
 

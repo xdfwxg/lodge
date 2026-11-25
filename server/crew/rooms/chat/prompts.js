@@ -1,7 +1,5 @@
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
-import { memberOf } from '../../room-members.js'
 import { humanLabelOf, humanNameOf } from '../../human-name.js'
-import { personalityTurnCue } from '../../../../shared/personalities.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 
 const truncate = (text, limit) => {
@@ -9,29 +7,23 @@ const truncate = (text, limit) => {
   return value.length <= limit ? value : `${value.slice(0, limit)}…`
 }
 
-const TURN_RULES = '不要重复别人。可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。'
-
 // 群聊本身已有讨论记录；提示词只放当前动作，不重复整段历史。
-export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, brief = '', previous = null }) => {
-  const speaker = memberOf(room, memberId)
+export const speakerPrompt = ({ room, memberId, round, turn, turnLimit, note, brief = '', previous = null, focus = '' }) => {
   const hostName = humanNameOf()
   return [
     `聊天室话题：${room.goal}`,
     hostName === '' ? '' : `用户称呼：${hostName}。`,
     `第 ${round} 轮，第 ${turn}/${turnLimit} 次发言。`,
-    note === '' ? '' : `${humanLabelOf()}这轮的要求：${note}`,
+    note === '' || note === undefined || note === null ? '' : `${humanLabelOf()}这轮的要求：${note}`,
     brief === '' ? '' : `上一轮结论：${sanitizeUntrusted(brief, 1200)}`,
+    focus === '' ? '' : `今晚你的焦点：${sanitizeUntrusted(focus, 200)}`,
     previous === null
       ? '这是本轮第一句：直接说自己的判断，不用回答谁。'
-      : `上一位：${sanitizeUntrusted(previous.name, 40)}说“${sanitizeUntrusted(truncate(previous.text, 200), 200)}”`,
-    previous === null
-      ? `先说结论，再补一个理由；有疑问就只问一个具体问题。${TURN_RULES}`
-      : `接着说：同意就补一个理由，不同意就指出哪一点，有疑问就只问一个具体问题。${TURN_RULES}`,
-    '按顺序轮流说；不用 @ 别人，也不用把话交给别人。',
-    '像普通人聊天一样说自己的看法。先说结论；有多点、步骤或对照时，用短列表或加粗小标题把层次说清，`路径`和命令放进行内代码；一句话说清的就别拆，也不要写报告标题或工作日志。',
-    '只讨论话题本身；不要评论讨论次数、样本数量或流程。',
-    `本轮表达：${personalityTurnCue(speaker?.personality)}`,
-    '每次发言控制在 200 字以内；不要写总结。',
+      : `上一位：${sanitizeUntrusted(previous.name, 40)}说“${sanitizeUntrusted(truncate(previous.text, 160), 160)}”`,
+    '像群聊一样，一条消息只说一个想法；50 字以内，多数 15–35 字，可以只说“同意”或问一句。',
+    '可以接话、反驳，但保留自己的判断，不要为了合群改口；改变立场时说明是哪条依据说服了你。',
+    '可只读查文件或联网查资料，引用路径或链接；不写文件、不跑命令，外部动作先问人。',
+    '不要写标题、列表、加粗、报告或工作日志；不要 @ 别人，也不要评论轮次和流程。',
     INTERNAL_PROMPT_MARKER,
   ].filter(Boolean).join('\n')
 }
@@ -49,21 +41,21 @@ export const conclusionReviewPrompt = ({ room, reviewer, conclusion, transcript 
 ].filter(Boolean).join('\n')
 
 export const hostPrompt = ({ room, round, note, turnLimit, structured = false }) => {
+  const castIds = Array.isArray(room.chat?.castIds) ? room.chat.castIds : []
+  const cast = castIds.length === 0 ? (room.members ?? []) : (room.members ?? []).filter(member => castIds.includes(member.id))
   const common = [
     '聊天室这轮讨论到此结束，请总结。',
     `话题：${room.goal}`,
-    `固定成员：${(room.members ?? []).map(member => `${member.id}（${member.name}）`).join('、') || '无'}；本轮上限 ${turnLimit} 次发言。`,
-    note === '' ? '' : `${humanLabelOf()}这轮的要求：${note}`,
+    `今晚在座：${cast.map(member => `${member.id}（${member.name}）`).join('、') || '无'}；本轮上限 ${turnLimit} 次发言。`,
+    note === '' || note === undefined || note === null ? '' : `${humanLabelOf()}这轮的要求：${note}`,
     '只写本轮结论，不要寒暄，不要逐条复述发言，不要调用工具。',
     '不要写“第 N 轮”、轮次或发言次数；直接写结论。',
   ]
   if (!structured) {
     return [...common,
-      '固定写三段，标题固定：共识、分歧、未定。',
-      '共识：这轮已经达成的结论；分歧：还没解决的不同意见；未定：缺依据、没验证或要人拍板的事。',
-      '每段最多 3 条，用分号分开；某段没有就写「无」，不要省略标题。',
-      '如果明确有下一步，最后单独一行写「下一步：一句话」；没有就不写。',
-      '不要寒暄，不要逐条复述发言，不要写“第 N 轮”；总长不超过 300 字。',
+      '只写两三句：这轮聊出了什么结论，还卡在哪或下一步是什么。',
+      '不逐条复述，不写“共识/分歧/未定”三栏，不加标题。',
+      '总长不超过 100 字，目标 60–80 字。',
       INTERNAL_PROMPT_MARKER,
     ].filter(Boolean).join('\n')
   }

@@ -261,7 +261,8 @@ test('a lead plan call hands the proposal to the platform without an @', async (
       id: 'call-plan',
       name: 'mcp__lodge_gate__submit_plan',
       input: JSON.stringify({
-        plan: { done: ['能跑'], stages: [{ title: '实现', deliverable: 'tests pass' }] },
+        contract: { outcomes: [{ id: 'run', statement: '能跑', observable: '测试退出码为 0' }] },
+        plan: { stages: [{ title: '实现', deliverable: 'tests pass', clauseIds: ['run'] }] },
         crew: { executors: [{ engine: 'claude', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
       }),
     },
@@ -1085,6 +1086,38 @@ test('the same worker reply replayed under another turn id lands once', () => {
   assert.equal(evidence.length, 1)
 })
 
+test('result evidence comes from the acting member worktree, not the room integration path', async () => {
+  registerWorkspaceProvider('test-result-path', {
+    capabilities: () => ({ candidate: false, vcs: 'git' }),
+    changes: async ({ path }) => ({
+      files: path === '/worker' ? ['worker.txt'] : [],
+      diff: '',
+      status: '',
+    }),
+    head: ({ path }) => (path === '/worker' ? 'worker-head' : 'integration-head'),
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-result-path' },
+    repoPath: '/integration',
+    worktrees: { executor: '/worker', verifier: '/verifier' },
+  })
+  const store = fakeStore(room)
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+  })
+  turns.captureTurn({ turnId: 't-member-path', reply: '做完了', toolCalls: 1 }, 'bot-exec')
+  await new Promise(resolve => setTimeout(resolve, 50))
+  const evidence = store.messages.find(message => message.kind === 'evidence' && message.meta?.kind === 'result')
+  assert.ok(evidence)
+  assert.equal(evidence.meta.repoPath, '/worker')
+  assert.deepEqual(evidence.meta.files, ['worker.txt'])
+})
+
 test('a room without a workspace path never runs workspace commands in the process directory', async () => {
   let workspaceCalls = 0
   registerWorkspaceProvider('test-no-repo-path', {
@@ -1839,6 +1872,12 @@ test('a verifier pass hands the summary to the planner', async () => {
   assert.ok(summary, 'pass leaves a summary handoff to the planner')
   assert.equal(summary.toMemberId, 'planner')
   assert.equal(summary.status, 'sent')
+  const projection = store.messages.find(message => (
+    message.meta?.kind === 'handoff' && message.meta?.reason === 'summary'
+  ))
+  assert.ok(projection)
+  assert.notEqual(projection.meta.show, false)
+  assert.match(projection.text, /@\S+/)
 })
 
 test('auto delivery closes the round when the verifier passes', async () => {
@@ -2282,6 +2321,39 @@ test('a second zero-output restart stops instead of sending the task again', asy
   assert.ok(store.messages.some(message => /仍然没有产出/.test(message.text ?? '')))
 })
 
+
+test('a single-worker result is not captured and reviewed twice', async () => {
+  registerWorkspaceProvider('test-integration-single', {
+    capabilities: () => ({ merge: true, candidate: false }),
+    integrate: () => ({ ok: true }),
+    head: () => 'head-1',
+    rangeChanges: async () => ({ diff: '', files: [], manifest: [] }),
+  })
+  const room = makeRoom({
+    workspace: { provider: 'test-integration-single' },
+    repoPath: '/repo',
+    sourceRepo: '/src',
+    branches: { executor: 'crew/room/executor' },
+    worktrees: { executor: '/wt/executor' },
+  })
+  const store = fakeStore(room)
+  store.appendMessage('room-1', {
+    kind: 'evidence',
+    meta: { stage: 0, kind: 'result', head: 'head-1', candidate: 'head-1' },
+  })
+  let reviews = 0
+  const integrator = createStageIntegrator({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    markProgress: () => {},
+    requestReview: async () => { reviews += 1 },
+    run: async () => ({ exit: 0 }),
+  })
+  await integrator.integrate({ stageIndex: 0, workers: ['executor'], base: 'head-0', turnId: 't1' })
+  assert.equal(reviews, 0)
+  assert.equal(store.messages.filter(message => message.kind === 'evidence' && message.meta?.kind === 'result').length, 1)
+})
 
 test('a merge conflict stops integration with a concrete room conflict', async () => {
   let merges = 0

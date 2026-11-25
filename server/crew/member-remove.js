@@ -3,6 +3,7 @@ import { createBodyFactory } from './body.js'
 import { bodyChangeBlocker } from './body-change.js'
 import { independenceOf } from './independence.js'
 import { APPROVAL_STATE } from '../../shared/states.js'
+import { roomModeOfRoom } from './rooms/kinds.js'
 
 const without = (map, id) => Object.fromEntries(Object.entries(map ?? {}).filter(([key]) => key !== id))
 const ACTIVE_ASSIGNMENT = new Set(['sent', 'working', 'reported'])
@@ -12,6 +13,7 @@ export const createMemberRemove = ({ store, engine, emit, detachMember, workspac
   const bodies = createBodyFactory({ engine })
   const remove = async (room, body = {}) => {
     const memberId = typeof body.memberId === 'string' ? body.memberId : ''
+    if (roomModeOfRoom(room)?.supportsMemberRemove === false) return fail('invalid', '这间房的成员不能移除')
     const member = (room.members ?? []).find(item => item.id === memberId)
     if (member === undefined) return fail('invalid', '没有这个成员')
     const blocked = bodyChangeBlocker(room, '移除成员')

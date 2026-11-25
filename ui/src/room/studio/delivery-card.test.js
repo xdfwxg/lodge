@@ -94,6 +94,7 @@ test('the delivery sheet shows goal, stages, verdicts and files', async () => {
           kind: 'deliverable',
           state: 'passed',
           deliverable: '保存后刷新仍生效',
+          proof: { entry: 'npm test', status: 'verified' },
           results: [{ id: 'e1', changedFiles: ['src/a.js'] }],
           verdicts: [{ id: 'v1', authorId: 'v1', pass: true }, { id: 'v2', authorId: 'v2', pass: true }],
           changedFiles: ['src/a.js'],
@@ -111,6 +112,8 @@ test('the delivery sheet shows goal, stages, verdicts and files', async () => {
   assert.match(text(tree), /src\/a\.js/)
   assert.doesNotMatch(text(tree), /2 步/)
   assert.match(text(tree), /2 位验收通过/)
+  assert.match(text(tree), /npm test/)
+  assert.match(text(tree), /已证明/)
   assert.match(text(tree), /在文件夹打开/)
 })
 

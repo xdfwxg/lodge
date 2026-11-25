@@ -6,6 +6,8 @@ test.skip(process.platform !== 'darwin', '视觉基线在 Mac 上录')
 const openSample = async (page, request) => {
   expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
   await page.goto('/')
+  // 示例聊天房可能也在；明确打开交付示例，别让默认选中决定这条视觉基线。
+  await page.getByRole('button', { name: /^示例：把《羽仙记》的结尾改得更看得见，已交付$/ }).click()
   await expect(page.locator('.studio-result')).toBeVisible()
 }
 

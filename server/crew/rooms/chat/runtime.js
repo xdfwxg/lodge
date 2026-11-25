@@ -118,6 +118,20 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
       return entry.chatRun.hostIntent(store.readRoom(room.id) ?? room, text)
     },
 
+    muteMember(entry, room, memberId, muted) {
+      if (!(room.members ?? []).some(member => member.id === memberId)) return null
+      const updated = store.updateRoom(entry.roomId, current => {
+        const ids = new Set(Array.isArray(current.chat?.mutedIds) ? current.chat.mutedIds : [])
+        if (muted === true) ids.add(memberId)
+        else ids.delete(memberId)
+        current.chat = { ...current.chat, mutedIds: [...ids] }
+        current.heldMembers = [...ids]
+        return { events: [{ type: 'chat.mute', payload: { memberId, muted: muted === true } }] }
+      })
+      if (updated !== null) emit('room', updated)
+      return updated
+    },
+
     reviewConclusion(entry, room, options = {}) {
       return entry.chatRun.reviewConclusion({
         room: store.readRoom(room.id) ?? room,

@@ -1,8 +1,8 @@
 import * as log from './log.js'
 import { execFile, execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { basename, join, relative, resolve } from 'node:path'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
+import { basename, isAbsolute, join, relative, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { roomDir, roomRootOf } from './paths.js'
 import { syncLocalEnvironment } from './workspace-fs.js'
@@ -122,6 +122,44 @@ export const snapshotWorktrees = room => {
 export const restoreWorktree = (path, head) => {
   git(path, ['reset', '--hard', head])
   git(path, ['clean', '-fd'])
+}
+
+// 只退回指定的路径：已跟踪的重置到 HEAD，未跟踪的删掉；工作包之内的改动原样保留。
+export const revertPaths = ({ path, files }) => {
+  const reverted = []
+  const failed = []
+  for (const file of Array.isArray(files) ? files : []) {
+    if (typeof file !== 'string' || file === '') {
+      failed.push(file)
+      continue
+    }
+    const target = isAbsolute(file) ? file : join(path, file)
+    if (!isWithin(path, target)) {
+      failed.push(file)
+      continue
+    }
+    let tracked = false
+    try {
+      git(path, ['ls-files', '--error-unmatch', '--', file])
+      tracked = true
+    } catch {}
+    if (tracked) {
+      try {
+        git(path, ['checkout', 'HEAD', '--', file])
+        reverted.push(file)
+      } catch {
+        failed.push(file)
+      }
+      continue
+    }
+    try {
+      rmSync(target, { force: true })
+      reverted.push(file)
+    } catch {
+      failed.push(file)
+    }
+  }
+  return { reverted, failed }
 }
 
 export const probeSource = ({ source }) => {
@@ -373,6 +411,29 @@ export const restore = ({ room, base }) => {
   })
   for (const item of targets) git(item.path, ['reset', '--hard', base])
   return { base, backups }
+}
+
+// 交付自带的证明在一次性 detached worktree 里跑；测试产生的文件不写回交付 worktree。
+export const isolatedCopy = ({ source, ref }) => {
+  const root = mkdtempSync(join(tmpdir(), 'lodge-proof-'))
+  const path = join(root, 'repo')
+  try {
+    git(source, ['worktree', 'add', '--detach', path, ref || 'HEAD'])
+    stripTrackedSecrets(path)
+    return { root, path, ref: ref || 'HEAD', environment: syncLocalEnvironment(source, path, { copyEnv: false }) }
+  } catch (error) {
+    rmSync(root, { recursive: true, force: true })
+    throw error
+  }
+}
+
+export const removeIsolatedCopy = ({ source, copy }) => {
+  try {
+    git(source, ['worktree', 'remove', '--force', copy.path])
+  } catch {}
+  try {
+    rmSync(copy.root, { recursive: true, force: true })
+  } catch {}
 }
 
 // 冲突现场的三份内容：基准、房间当前、成员分支。只读给人看，不替人选边。

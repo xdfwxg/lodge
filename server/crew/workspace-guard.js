@@ -15,6 +15,23 @@ export const resetWriteGuard = roomId => {
   baselines.delete(roomId)
 }
 
+// 规划师和验收员只读：他们的副本和别人的副本都不该留下改动。
+export const isReadOnlyRole = (room, memberId) => (room?.members ?? []).some(member => (
+  member.id === memberId && (
+    member.roleKind === 'planner' ||
+    member.roleKind === 'verifier' ||
+    member.role === 'lead'
+  )
+))
+
+// 只读角色改了别人的工作树、又因为对方本来有改动而退不回去：这一轮不能继续，交给人。
+// 自己的副本里写临时文件不算越界：那些文件不进交付，回合后能清掉就清，清不掉也不该拦停。
+export const unreturnedReadOnlyViolations = ({ room, memberId, violations }) => (
+  isReadOnlyRole(room, memberId)
+    ? (Array.isArray(violations) ? violations : []).filter(item => item.memberId !== memberId && item.reverted !== true)
+    : []
+)
+
 // 只对账“别人”的工作树；当前说话人的改动是本职，下一回合会连同基线一起更新。
 export const guardTurn = (room, actingMemberId) => {
   if (room?.workspace?.provider !== 'git') return []
@@ -27,7 +44,8 @@ export const guardTurn = (room, actingMemberId) => {
   }
   const violations = []
   for (const [memberId, now] of current) {
-    if (memberId === actingMemberId) continue
+    // 规划师和验收员的副本只读；即使这一回合说话的是他们，也不能把改动留在里面。
+    if (memberId === actingMemberId && !isReadOnlyRole(room, memberId)) continue
     const before = baseline.get(memberId)
     if (before === undefined) continue
     if (now.head === before.head && now.status === before.status) continue

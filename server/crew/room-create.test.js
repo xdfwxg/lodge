@@ -366,26 +366,30 @@ test('unknown room types fail closed', async () => {
   assert.match(result.error, /未知的房间类型/)
 })
 
-test('a chat room has a configurable turn limit and no trust ladder', async () => {
+test('a chat room has a fixed four-per-round cap and no trust ladder', async () => {
   const { store } = completedRoom(temp('lodge-chat-rules-data-'))
   const engine = fakeEngine()
   const result = await run(store, {
     goal: '圆桌讨论一下交付边界',
     roomType: 'chat',
-    chatTurnLimit: 4,
   }, engine)
   assert.equal(result.ok, true)
   const room = result.body.room
   assert.equal(room.chat.turnLimit, 4)
   assert.equal('trust' in room, false)
   assert.equal('stages' in room, false)
-  assert.deepEqual(room.members.map(member => member.permissions), Array(3).fill({ read: true, exec: false, write: false }))
-  assert.deepEqual(room.members.map(member => member.body.spec.skills), [[], [], []])
-  assert.deepEqual(room.members.map(member => member.stance), ['proposer', 'critic', 'synthesizer'])
+  // 聊天室自带固定六人班底；建房时不再让人挑人。
+  assert.deepEqual(room.members.map(member => member.name), ['老周', '小林', '阿岚', '大陈', '苏越', '韩工'])
+  assert.deepEqual(room.members.map(member => member.permissions), Array(6).fill({ read: true, exec: false, write: false }))
+  assert.deepEqual(room.members.map(member => member.body.spec.skills), Array(6).fill([]))
+  assert.deepEqual(room.members.map(member => member.stance), ['proposer', 'critic', 'synthesizer', 'synthesizer', 'critic', 'critic'])
   assert.deepEqual(room.members.map(member => member.voice), [
-    '先问代价，再问能不能落地。',
-    '先找边界，再问会不会坏。',
-    '先看取舍，再问怎么收口。',
+    '先问方向，再问代价。',
+    '先找漏洞，再谈信心。',
+    '先说场景，再说感受。',
+    '先问能不能落地。',
+    '先看长期代价。',
+    '先看边界之外。',
   ])
   assert.deepEqual(engine.skillAssignments, [])
 })
@@ -435,25 +439,6 @@ test('chat speakers can pin their own engine and model', async () => {
   assert.equal(members[0].body.engine, 'pi')
   assert.equal(members[0].body.model, 'deepseek/deepseek-flash')
   assert.equal(members[0].name, '甲')
-})
-
-test('an invalid chat turn limit fails before touching the workspace', async () => {
-  const { store } = completedRoom(temp('lodge-chat-limit-data-'))
-  let prepared = false
-  const workspace = {
-    id: 'plain',
-    capabilities: () => ({ merge: true }),
-    prepareRoom: () => { prepared = true; return { members: {} } },
-    cleanupRoom: () => {},
-  }
-  const result = await run(store, {
-    goal: '圆桌讨论一下交付边界',
-    roomType: 'chat',
-    chatTurnLimit: 99,
-  }, fakeEngine(), workspace)
-  assert.equal(result.ok, false)
-  assert.match(result.error, /1–20/)
-  assert.equal(prepared, false)
 })
 
 test('a single-vendor studio records the downgrade', async () => {

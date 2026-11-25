@@ -424,11 +424,15 @@ export const createLiveRooms = ({
   }
 
   const holdMember = async (roomId, memberId, held) => {
-    if (!supportsRuntime(engine, 'holds')) throw new Error('当前版本还不支持叫停成员')
     const entry = entries.get(roomId)
     if (entry === undefined) throw new Error('房间还没有连上')
     const room = store.readRoom(roomId)
     if (room === null) throw new Error('房间不存在')
+    // 聊天室的“先别说”只改这一轮的发言名单，不动基座群成员。
+    if (typeof entry.strategy.muteMember === 'function') {
+      return entry.strategy.muteMember(entry, room, memberId, held)
+    }
+    if (!supportsRuntime(engine, 'holds')) throw new Error('当前版本还不支持叫停成员')
     const member = room.members?.find(item => item.id === memberId)
     const memberRef = member?.body?.ref
     const chatId = room.chatRoom?.id

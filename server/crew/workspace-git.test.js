@@ -167,6 +167,35 @@ test('prepares isolated member workspaces and refreshes the verifier copy', () =
   }
 })
 
+test('a probe patch committed into the review copy is what git shows as HEAD', () => {
+  const sourceRepo = repo()
+  const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-worktrees-'))
+  const previous = process.env.CREW_WORKTREE_ROOT
+  process.env.CREW_WORKTREE_ROOT = worktreeRoot
+  let workspaces = null
+  try {
+    workspaces = prepareRoom({ source: sourceRepo, short: 'probe123', members: membersFor('delivery-triad') })
+    const verifier = workspaces.members.verifier.path
+    const executor = workspaces.members.executor.path
+    writeFileSync(join(executor, 'README.md'), '# delivered\n')
+    submit({ path: executor, turnId: 't1', name: 'Room' })
+    refreshReviewCopy({ path: verifier, branch: workspaces.branches.executor })
+    // 探针补丁写成复核副本里的未提交改动，验收员再开一份干净副本就看不到缺陷。
+    writeFileSync(join(verifier, 'README.md'), '# defective\n')
+    const commit = submit({ path: verifier, turnId: 'probe-0', name: 'review patch' })
+    assert.equal(typeof commit, 'string')
+    assert.equal(execFileSync('git', ['status', '--porcelain'], { cwd: verifier, encoding: 'utf8' }).trim(), '')
+    assert.equal(execFileSync('git', ['show', `${commit}:README.md`], { cwd: verifier, encoding: 'utf8' }), '# defective\n')
+    assert.equal(readFileSync(join(verifier, 'README.md'), 'utf8'), '# defective\n')
+  } finally {
+    if (workspaces !== null) cleanupRoom({ source: sourceRepo, workspaces })
+    if (previous === undefined) delete process.env.CREW_WORKTREE_ROOT
+    else process.env.CREW_WORKTREE_ROOT = previous
+    rmSync(sourceRepo, { recursive: true, force: true })
+    rmSync(worktreeRoot, { recursive: true, force: true })
+  }
+})
+
 test('a removed member can be added again without a stale branch', () => {
   const sourceRepo = repo()
   const worktreeRoot = mkdtempSync(join(tmpdir(), 'crew-readd-'))

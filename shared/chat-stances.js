@@ -10,10 +10,6 @@ export const CHAT_STANCE_LABELS = Object.freeze({
   synthesizer: '收束',
 })
 
-export const CHAT_STANCE_IDS = Object.freeze(Object.keys(CHAT_STANCES))
-
-export const defaultStanceId = index => CHAT_STANCE_IDS[index % CHAT_STANCE_IDS.length]
-
 export const stanceOf = value => (
   typeof value === 'string' && Object.hasOwn(CHAT_STANCES, value) ? value : ''
 )

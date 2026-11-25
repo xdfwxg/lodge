@@ -39,7 +39,7 @@ export const presentRoom = (room, messages = [], assignments = []) => {
     ...visibleRoom,
     humanName: humanNameOf() || undefined,
     goal: stripAttachmentTags(room.goal),
-    members: (room.members ?? []).map(member => ({ ...member, body: publicBody(member.body) })),
+    members: (presentation?.membersOf?.(room) ?? room.members ?? []).map(member => ({ ...member, body: publicBody(member.body) })),
     hostLabel: typeof host?.displayName === 'string' ? host.displayName : '',
   }
   const projection = presentation?.projectWork?.(room, assignments) ?? null

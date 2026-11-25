@@ -26,6 +26,15 @@ test('local test and build commands stay inside the member permission', () => {
   assert.equal(externalAction({ tool: 'Write', action: 'write', subtitle: 'src/a.js' }), null)
 })
 
+test('writing text that mentions an install command is not an install', () => {
+  assert.equal(externalAction({
+    tool: 'Edit',
+    action: 'write',
+    subtitle: '{"file_path":"README.md","new_string":"在项目根目录执行 npm install。"}',
+  }), null)
+  assert.equal(externalAction({ tool: 'Write', action: 'write', subtitle: 'npm install left-pad' }), null)
+})
+
 test('a network tool without a command is still classified', () => {
   assert.equal(externalAction({ tool: 'WebFetch', subtitle: '' })?.kind, 'network')
 })

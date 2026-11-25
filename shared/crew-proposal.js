@@ -1,5 +1,7 @@
 // 规划师提交的“方案 + 队伍”只在这里归一化形状；模型是否存在、厂商是否独立、
 // 工作区能不能并行，都由服务端再校验，不把 structuredContent 当授权。
+import { normalizeContract } from './contract.js'
+
 const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 const list = (value, max, each) => (Array.isArray(value) ? value.map(each).filter(item => item !== null).slice(0, max) : [])
 
@@ -7,6 +9,8 @@ const stageOf = (raw, index) => {
   const title = text(raw?.title, 80)
   const deliverable = text(raw?.deliverable, 500)
   if (title === '' || deliverable === '') return null
+  const clauseIds = list(raw?.clauseIds, 6, item => text(item, 40)).filter(Boolean)
+  if (clauseIds.length === 0) return null
   const packages = list(raw?.packages, 3, item => {
     const packageTitle = text(item?.title, 80)
     if (packageTitle === '') return null
@@ -16,6 +20,7 @@ const stageOf = (raw, index) => {
   return {
     title,
     deliverable,
+    clauseIds: [...new Set(clauseIds)],
     ...(packages.length === 0 ? {} : { packages }),
     index,
   }
@@ -30,13 +35,18 @@ const memberOf = raw => {
 
 export const normalizeCrewProposal = input => {
   if (input === null || typeof input !== 'object' || Array.isArray(input)) return { error: '方案格式不对' }
-  const done = list(input.plan?.done, 6, item => {
-    const value = text(item, 200)
-    return value === '' ? null : value
-  })
-  if (done.length === 0) return { error: '方案里没有可核对的结果' }
+  const contract = normalizeContract(input.contract)
+  if (contract === null) return { error: '方案里没有目标契约：写清可观察结果、边界、非目标和假设' }
   const stages = list(input.plan?.stages, 3, (item, index) => stageOf(item, index))
-  if (stages.length === 0) return { error: '方案里没有阶段' }
+  if (stages.length === 0) return { error: '方案里没有阶段；每个阶段要有交付物和至少一个 clauseId' }
+  const clauseIds = new Set(contract.outcomes.map(item => item.id))
+  const assigned = new Set(stages.flatMap(stage => stage.clauseIds))
+  const unknown = [...assigned].filter(id => !clauseIds.has(id))
+  if (unknown.length > 0) return { error: `阶段引用了契约里没有的要求：${unknown.join('、')}` }
+  const missing = [...clauseIds].filter(id => !assigned.has(id))
+  if (missing.length > 0) return { error: `契约要求没有分配到任何阶段：${missing.join('、')}` }
+  // done 是契约的投影，不再接受第二份 done 输入。
+  const done = contract.outcomes.map(item => item.statement).slice(0, 6)
   const executors = list(input.crew?.executors, 3, memberOf)
   if (executors.length === 0) return { error: '队伍里没有执行官' }
   const verifiers = list(input.crew?.verifiers, 3, memberOf)
@@ -48,6 +58,7 @@ export const normalizeCrewProposal = input => {
       why: text(input.why, 1000),
       assumptions: list(input.assumptions, 6, item => text(item, 300)).filter(Boolean),
       notDoing: list(input.notDoing, 6, item => text(item, 300)).filter(Boolean),
+      contract,
       plan: { done, stages: stages.map(({ index, ...stage }) => stage) },
       crew: { executors, verifiers },
     },

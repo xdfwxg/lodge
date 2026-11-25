@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, rmSync, statfsSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statfsSync, statSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { copyEntry, copyWorkspace, manifestDigest, manifestOf, syncLocalEnvironment } from './workspace-fs.js'
 import { chooseFreePort } from './workspace-ports.js'
@@ -184,6 +184,24 @@ export const refreshReviewCopy = ({ path, from }) => {
   rmSync(path, { recursive: true, force: true })
   copyWorkspace(from, path)
   syncLocalEnvironment(from, path, { copyEnv: false })
+}
+
+export const isolatedCopy = ({ source }) => {
+  const root = mkdtempSync(join(tmpdir(), 'lodge-proof-'))
+  const path = join(root, 'workspace')
+  try {
+    copyWorkspace(source, path)
+    return { root, path, ref: 'copy', environment: syncLocalEnvironment(source, path, { copyEnv: false }) }
+  } catch (error) {
+    rmSync(root, { recursive: true, force: true })
+    throw error
+  }
+}
+
+export const removeIsolatedCopy = ({ copy }) => {
+  try {
+    rmSync(copy.root, { recursive: true, force: true })
+  } catch {}
 }
 
 export const submit = () => null

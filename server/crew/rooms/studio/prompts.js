@@ -19,8 +19,22 @@ export const studioWorkerPrompt = ({
   port,
   environment,
 }) => {
+  const contract = room.plan?.contract ?? null
+  const clauseIds = Array.isArray(stage.clauseIds) ? stage.clauseIds : []
+  const clauses = contract === null
+    ? []
+    : contract.outcomes.filter(outcome => clauseIds.length === 0 || clauseIds.includes(outcome.id))
   return [
     `阶段 ${index + 1}「${sanitizeUntrusted(stage.title, 120)}」。这一步要交付：${sanitizeUntrusted(stage.deliverable ?? room.goal ?? '', 500)}`,
+    ...(clauses.length === 0
+      ? []
+      : [
+        '这一步要对上的契约：',
+        ...clauses.map(outcome => `- [${sanitizeUntrusted(outcome.id, 40)}] ${sanitizeUntrusted(outcome.statement, 300)}（看到什么算做到：${sanitizeUntrusted(outcome.observable, 300)}）`),
+        ...(contract.boundaries.length === 0 ? [] : [`边界：${contract.boundaries.map(item => sanitizeUntrusted(item, 200)).join('；')}`]),
+        ...(contract.nonGoals.length === 0 ? [] : [`不做：${contract.nonGoals.map(item => sanitizeUntrusted(item, 200)).join('；')}`]),
+      ]),
+    '交付时在仓库根目录写 `lodge-proof.json`：至少写 `{"entry":"能重跑的验证命令"}`；命令要在干净副本里能跑，能证明这一步的结果。写不出可执行证明就如实说明，不要伪造。',
     rework
       ? `${humanLabelOf()}说上一轮结果不对：${note === '' ? '没有补充说明，请重新对照目标。' : sanitizeUntrusted(note, 2000)}。先重读目标、done 和约束；如果目标理解有误，先在回复里指出并停止；否则按新要求重做。`
       : '',

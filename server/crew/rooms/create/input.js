@@ -2,6 +2,7 @@ import { roomModeForType } from '../kinds.js'
 import { resolveOrchestration } from '../../orchestration/index.js'
 import { resolveRoomType } from '../kinds.js'
 import { normalizeHandoffBrief } from '../../../../shared/handoff-brief.js'
+import { normalizeContract } from '../../../../shared/contract.js'
 import { normalizeReceipt } from '../../../../shared/receipt.js'
 import { stripAttachmentTags } from '../../../../shared/attachments.js'
 import {
@@ -30,18 +31,12 @@ export const normalizeRequest = body => {
   if (roomType === null) return { error: '未知的房间类型' }
   // 工作室不再在建房时选成员：没有成员、没有方案，就先只带规划师开工。
   const isStudio = roomType.id === 'studio'
-  const hasMembers = Array.isArray(body.members) && body.members.length > 0
+  const requested = Array.isArray(body.members) ? body.members : []
+  const hasMembers = requested.length > 0
   const hasPlan = body.plan !== undefined && body.plan !== null
-  const bootstrap = isStudio && !hasMembers && !hasPlan
-  let chatTurnLimit = null
-  if (body.chatTurnLimit !== undefined && body.chatTurnLimit !== null) {
-    const value = Number(body.chatTurnLimit)
-    const max = roomType.maxChatTurns ?? 20
-    if (!Number.isInteger(value) || value < 1 || value > max) {
-      return { error: `聊天室轮次上限必须是 1–${max} 的整数` }
-    }
-    chatTurnLimit = value
-  }
+  // 只带规划师也算启动态；探针和定制规划师模型走这条路，不算组队完成。
+  const onlyPlanner = hasMembers && requested.every(member => member?.role === 'lead')
+  const bootstrap = isStudio && !hasPlan && (!hasMembers || onlyPlanner)
   const shadowReview = body.shadowReview === true
   const autoDeliver = isStudio && body.autoDeliver === true
   const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
@@ -60,7 +55,6 @@ export const normalizeRequest = body => {
     orchestration,
     shadowReview,
     autoDeliver,
-    chatTurnLimit,
     handoffBrief,
     handoffBriefReviewed,
     receipt,
@@ -73,12 +67,16 @@ export const normalizeRequest = body => {
 export const normalizePlan = ({ body }) => {
   let plan = null
   if (body.plan !== undefined && body.plan !== null) {
-    const done = Array.isArray(body.plan.done)
-      ? body.plan.done
-        .filter(item => typeof item === 'string' && item.trim() !== '')
-        .map(item => item.trim().slice(0, 200))
-        .slice(0, 6)
-      : []
+    const contract = normalizeContract(body.plan.contract)
+    // 有契约时 done 是契约的投影，不再读第二份 done。
+    const done = contract === null
+      ? (Array.isArray(body.plan.done)
+        ? body.plan.done
+          .filter(item => typeof item === 'string' && item.trim() !== '')
+          .map(item => item.trim().slice(0, 200))
+          .slice(0, 6)
+        : [])
+      : contract.outcomes.map(item => item.statement)
     if (done.length === 0) return { error: '方案里没有可核对的结果' }
     const plannedStages = []
     if (Array.isArray(body.plan.stages)) {
@@ -90,9 +88,18 @@ export const normalizePlan = ({ body }) => {
           : ''
         if (title === '') return { error: `第 ${index + 1} 步缺少名字` }
         if (deliverable === '') return { error: `第 ${index + 1} 步缺少交付物：写清做完会得到什么` }
+        const clauseIds = Array.isArray(item?.clauseIds)
+          ? item.clauseIds
+            .filter(id => typeof id === 'string' && id.trim() !== '')
+            .map(id => id.trim().slice(0, 40))
+            .slice(0, 6)
+          : []
         plannedStages.push({
           title,
           deliverable,
+          ...(contract !== null && clauseIds.length === 0 && index === 0
+            ? { clauseIds: contract.outcomes.map(outcome => outcome.id) }
+            : clauseIds.length === 0 ? {} : { clauseIds }),
           ...(Array.isArray(item?.assignees) ? { assignees: item.assignees } : {}),
           ...(Array.isArray(item?.packages)
             ? {
@@ -124,6 +131,7 @@ export const normalizePlan = ({ body }) => {
       done,
       answers,
       stages: plannedStages,
+      ...(contract === null ? {} : { contract }),
       ...(typeof body.plan.prose === 'string' && body.plan.prose.trim() !== ''
         ? { prose: body.plan.prose.trim().slice(0, 2000) }
         : {}),
@@ -144,7 +152,12 @@ export const resolveMembers = (body, roomType, { bootstrap = false } = {}) => {
   let roster
   try {
     if (bootstrap) {
-      roster = membersFor(templateId).filter(member => member.role === 'lead')
+      const requestedLead = Array.isArray(body.members)
+        ? body.members.find(member => member?.role === 'lead')
+        : null
+      roster = requestedLead === undefined || requestedLead === null
+        ? membersFor(templateId).filter(member => member.role === 'lead')
+        : rosterFromRoles([requestedLead])
     } else if (requestedMembers !== null && requestedMembers.length > 0) {
       templateId = 'custom'
       roster = rosterFromRoles(requestedMembers)
