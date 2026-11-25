@@ -18,7 +18,8 @@
 - 引擎发现：HOME 只读时不再把 HOME 里的程序从服务端 PATH 里剔掉（bot 改不了它们）；这也让 Lodge 的 `~/.local/bin/claude` 能启动。
 - 验证：真实 claude CLI 规划 1/1、执行 1/1（证明 verified、边界干净）；直接检查 HOME 写被拒、数据目录读被拒、工作副本写成功。基座 `server/bot-box` 141 条测试、typecheck 和 lint 通过。
 - 打开方式：基座启动时带 `OMB_BOT_BOX=1 OMB_BOT_BOX_HOME_READONLY=1`。
-- 仍是缺口：读取只屏蔽了数据目录，同房间其他成员的工作副本没有在 OS 层隐藏（基座还没有 per-bot 的 `denyRead` 通道）；网络是共享的，没有 egress 门；Chrome 仍未进沙箱；包级（只允许工作包文件）仍靠回合后对账。
+- **2026-11-25 已落地兄弟目录读隔离**：基座新增 opt-in `OMB_BOT_BOX_DENY_SIBLINGS=1`，`planBox` 把工作目录的同级目录（同房间其他成员的工作副本、集成目录）列进 `readDeny`，Seatbelt profile 在全部授予之后逐条 `(deny file-read* (subpath …))`；bubblewrap 本来就不挂载这些目录，无需额外规则。真实沙箱测试验证：自己的文件可读，兄弟目录的文件读不到。
+- 仍是缺口：源仓库/房间工作区在成员工作目录之外，OS 层仍可读（由平台读边界和 PASS 核对兜）；网络是共享的，没有 egress 门；Chrome 仍未进沙箱；包级（只允许工作包文件）仍靠回合后对账。
 
 ## 参考的设计
 
