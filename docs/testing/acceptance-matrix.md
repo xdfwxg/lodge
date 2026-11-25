@@ -21,6 +21,8 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 | 聊天室灵动岛（与工作室同一目标岛） | `ui/src/room/chat/island.test.js`、`ui/src/room/chat/view.test.js` | 无 |
 | 工作室阶段、验收、重做 | `server/crew/service-stages.test.js`、`server/crew/gates.test.js`、`server/crew/verifiers.test.js`、`server/crew/e2e-room.test.js` | 无 |
 | 验收 PASS 逐条覆盖目标/交付物，且本回合亲手读过文件或跑过检查 | `server/crew/rooms/studio/coverage.test.js`、`server/crew/rooms/studio/verification-proof.test.js`、`server/crew/live-turn-modules.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
+| 执行官只写自己的工作包：越界改动在 git 副本里退回并留证据 | `server/crew/rooms/studio/write-boundary.test.js`、`server/crew/workspace-guard.test.js` | 无 |
+| 验收员 PASS 只能引用自己复核副本里的证据 | `server/crew/rooms/studio/read-boundary.test.js` | 无 |
 | 验收模型按探针实测分池，误放率过高的模型被平台拒绝 | `shared/verifier-pool.test.js`、`server/crew/rooms/studio/apply-plan.test.js`、`evals/verifier-probe/run.mjs` | 真实模型（不进 `check:done`） |
 | 规划师组队：执行官按工作包定数，验收员 1–3 位，平台校验模型/厂商/合并 | `shared/crew-proposal.test.js`、`server/crew/rooms/studio/apply-plan.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
 | 投递失败重试沿用同一拍，不新建 Assignment | `server/crew/rooms/studio/handoff.test.js`、`server/crew/assignments.test.js`、`shared/states.test.js` | 无 |
@@ -120,10 +122,11 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 - 常驻承诺的真实一期：到点或手动跑真实模型还没 dogfood；自动用例只覆盖调度、状态和界面。
 - 常驻承诺的邮件投递：真实 SMTP 发送需配置后 dogfood；自动用例只覆盖配置解析、正文和重试收据。
 - 常驻承诺的对比与后台：前后期对比、无变化自动停、发现重复后提议、后台常驻未做，不做假覆盖。
-- 成员 shell 的 OS 级写边界：macOS 没有 bot box；当前只在回合后对账并退回房间内的越界写入，家目录和房间外的路径仍拦不住。
+- 成员 shell 的 OS 级读写边界：macOS 已有 Seatbelt 写边界（HOME 只读、数据目录不可读、自己的副本可写）；读取其他目录、网络隔离和包级文件边界还没进沙箱，包级仍靠回合后对账。设计见 `docs/plans/sandbox.md`。
 
 ## 最近真实运行
 
+- 2026-11-25：macOS Seatbelt 沙箱第一次真实运行（基座 `OMB_BOT_BOX=1 OMB_BOT_BOX_HOME_READONLY=1`）：规划探针 1/1，执行探针 1/1（证明 verified、边界干净）；直接检查 HOME 写被拒、数据目录读被拒、工作副本写成功；探针报告已显示「沙箱 on」。包级写边界仍靠对账。
 - 2026-11-21：真实三阶段项目 3/3 交付；最终工作副本 `npm test` 6/6，命令行入口实跑通过。期间发现验收员 PASS 漏 `outsideDiff` 会让房间停在 `signoff`，已改为无效判定回落文本并补回归。
 - 2026-11-21：技能收敛后全量 dogfood；`npm test` 1133 通过，UI 12 通过，`eval:rooms` 3/3、`eval:planning` 3/3；`eval:chat` 仍因公开状态不含席位引用而跑不通。
 - 仍需真实环境：多执行官并行、真实合并冲突、规划师真实组队、常驻承诺一期、真实 SMTP、成员 shell 的 OS 级写边界。
