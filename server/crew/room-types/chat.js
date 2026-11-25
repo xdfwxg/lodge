@@ -4,22 +4,20 @@ import { CHAT_PHASE, STAGE_STATE } from '../../../shared/states.js'
 
 const meta = roomTypeMeta('chat')
 
-// 一轮最多 4 位开口；少请人也照样说得完，人数由主持人按话题决定。
-export const CHAT_TURNS_PER_ROUND = 4
+// 一轮的发言次数默认 = 今晚请到的人数 + 2：每人先说一次，多出的两次补问。
+export const chatTurnLimitFor = count => Math.max(1, Math.floor(Number(count) || 0) + 2)
 
-// 房间可以调低一轮的上限，但不会超过“每轮最多 4 位”。
+// 房间存的是这一轮实际的上限；没写过就按人数算，没有固定上限。
 export const turnLimitOf = room => {
   const value = Number(room?.chat?.turnLimit)
-  return Number.isInteger(value) && value >= 1 && value <= CHAT_TURNS_PER_ROUND
-    ? value
-    : CHAT_TURNS_PER_ROUND
+  return Number.isInteger(value) && value >= 1 ? value : null
 }
 
 // 新建聊天室和 Lodge 的初始对话状态只写一次，避免两处字段漂移。
 export const initialChatState = () => ({
   round: 1,
   phase: CHAT_PHASE.discussing,
-  turnLimit: CHAT_TURNS_PER_ROUND,
+  turnLimit: null,
   turns: 0,
   conclusionId: null,
   castIds: null,

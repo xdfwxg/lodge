@@ -12,7 +12,7 @@ test('a chat member carries its speaking habit into the soul', () => {
   assert.match(soul, /你的说话习惯：先问代价，再问能不能落地。/)
   assert.match(soul, /专门找漏洞/)
   assert.match(soul, /严谨审慎/)
-  assert.match(soul, /50 字以内/)
+  assert.match(soul, /多数 15–35 字/)
   assert.match(soul, /不要为了合群改口/)
 })
 

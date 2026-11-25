@@ -45,7 +45,3 @@ export function ChatPrimaryFields({
     }))
 }
 
-export function ChatSetupFields() {
-  // 成员由主持人在开场时按话题请；建房页不再让用户选人、选人数。
-  return h('p', { className: 'crew-field-hint' }, '进房后主持人会按话题请 2–6 位；你可以静音或换个执行者。')
-}

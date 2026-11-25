@@ -92,9 +92,9 @@ export function SideMembers({ room, engines = [], onHold = null, onSwapBody = nu
         type: 'button',
         role: 'switch',
         className: 'crew-side-member-mute',
-        'aria-checked': held.has(item.memberId) ? 'true' : 'false',
-        'aria-label': `静音${item.name}`,
-        title: held.has(item.memberId) ? '已静音，点一下恢复' : '静音',
+        'aria-checked': held.has(item.memberId) ? 'false' : 'true',
+        'aria-label': `${item.name}说话`,
+        title: held.has(item.memberId) ? '已静音，点一下恢复' : '可以说话，点一下静音',
         onClick: () => onHold(room.id, item.memberId, !held.has(item.memberId)),
       })
       : null,

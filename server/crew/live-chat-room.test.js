@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CHAT_TURNS_PER_ROUND, turnLimitOf as chatTurnLimitOf } from './room-types/chat.js'
+import { chatTurnLimitFor, turnLimitOf as chatTurnLimitOf } from './room-types/chat.js'
 import { createChatScheduler, pickChatSpeaker } from './rooms/chat/scheduler.js'
 import { createChatTransport } from './rooms/chat/transport.js'
 import { normalizeTestRoom } from './testing/room.js'
 
-test('a chat round caps at four speakers and accepts a lower room limit', () => {
-  assert.equal(CHAT_TURNS_PER_ROUND, 4)
-  assert.equal(chatTurnLimitOf({}), 4)
+test('a chat round defaults to people plus two and keeps a lower stored cap', () => {
+  assert.equal(chatTurnLimitFor(6), 8)
+  assert.equal(chatTurnLimitFor(3), 5)
+  assert.equal(chatTurnLimitOf({}), null)
   assert.equal(chatTurnLimitOf({ chat: { turnLimit: 2 } }), 2)
-  assert.equal(chatTurnLimitOf({ chat: { turnLimit: 99 } }), 4)
 })
 
 const PERSONAS = ['assertive', 'cheerful', 'calm', 'rigorous', 'gentle', 'balanced']
@@ -140,7 +140,7 @@ test('a cancelled chat round stays resumable instead of looking busy', async () 
 
 test('a resumed chat round continues from the turns already spoken', async () => {
   const ctx = setup({ extraMember: true })
-  ctx.room().chat = { ...ctx.room().chat, running: true, phase: 'discussing', round: 1, turns: 1 }
+  ctx.room().chat = { ...ctx.room().chat, running: true, phase: 'discussing', round: 1, turns: 1, turnLimit: 3 }
   const scheduler = createChatScheduler({
     store: ctx.store,
     transport: transportFor(ctx),
@@ -162,6 +162,7 @@ test('a resumed chat round counts a reply that arrived before the crash', async 
     ...ctx.room().chat,
     running: true,
     turns: 0,
+    turnLimit: 2,
     pending: { turn: 1, memberId: 'a', beforeIds: [], sentAt: Date.now() - 1_000 },
   }
   ctx.history.push({ id: 'a-pending', role: 'agent', kind: 'text', text: '先到的回复。', authorRef: 'A', at: Date.now() })
@@ -192,6 +193,7 @@ test('a pending chat turn with no reply is skipped, not sent twice', async () =>
     ...ctx.room().chat,
     running: true,
     turns: 0,
+    turnLimit: 2,
     pending: { turn: 1, memberId: 'a', beforeIds: [], sentAt: Date.now() - 1_000 },
   }
   const scheduler = createChatScheduler({
@@ -252,7 +254,7 @@ test('a malformed host answer can still recover a round', async () => {
   assert.match(prompts[1], /"action":"round"/)
 })
 
-test('a chat round runs up to four speakers, then the host summarizes', async () => {
+test('a chat round gives everyone a turn, then two follow-ups, then the host summarizes', async () => {
   const ctx = setup({ count: 4 })
   const scheduler = createChatScheduler({
     store: ctx.store,
@@ -271,10 +273,10 @@ test('a chat round runs up to four speakers, then the host summarizes', async ()
   assert.equal(opening.text, '【讨论状态提示】')
   assert.doesNotMatch(opening.text, /欢迎大家踊跃发言/)
   assert.doesNotMatch(opening.text, /先发言/)
-  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 4)
+  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 6)
   const conclusion = ctx.messages.find(message => message.kind === 'chat_conclusion')
   assert.equal(conclusion.meta.round, 1)
-  assert.equal(conclusion.meta.turns, 4)
+  assert.equal(conclusion.meta.turns, 6)
   assert.equal(conclusion.meta.fallback, false)
   assert.deepEqual(conclusion.meta.handoffBrief, {
     topic: '讨论状态提示',
@@ -287,11 +289,12 @@ test('a chat round runs up to four speakers, then the host summarizes', async ()
   assert.equal(ctx.room().chat.conclusionId, conclusion.id)
   const prompts = ctx.history.filter(message => message.role === 'user').map(message => message.text)
   assert.equal(prompts.some(text => text.includes('已有讨论')), false)
-  // 每轮最多四个人，且每人只说一次。
+  // 四个人先各说一次，多出的两次补问，所以有两位会说第二遍。
   const spoken = ctx.messages
     .filter(message => message.kind === 'chat' && message.authorId !== 'lodge')
     .map(message => message.authorId)
-  assert.deepEqual([...spoken].sort(), ['a', 'b', 'c', 'd'])
+  assert.equal(spoken.length, 6)
+  for (const id of ['a', 'b', 'c', 'd']) assert.ok(spoken.includes(id), id)
   assert.equal(prompts.filter(text => !text.includes('请总结')).every(text => text.length < 400), true)
   assert.equal(prompts.filter(text => text.includes('请总结')).every(text => text.length < 900), true)
 
@@ -301,7 +304,7 @@ test('a chat round runs up to four speakers, then the host summarizes', async ()
   })
   const next = await scheduler.start(ctx.room(), { note: '补充失败态' })
   assert.equal(next.started, true)
-  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 8)
+  assert.equal(ctx.messages.filter(message => message.kind === 'chat' && message.authorId !== 'lodge').length, 12)
   const conclusions = ctx.messages.filter(message => message.kind === 'chat_conclusion')
   assert.equal(conclusions.length, 2)
   assert.equal(conclusions.at(-1).meta.round, 2)
@@ -347,7 +350,9 @@ test('the host picks tonight’s cast and the opening names them', async () => {
   const spoken = ctx.messages
     .filter(message => message.kind === 'chat' && message.authorId !== 'lodge')
     .map(message => message.authorId)
-  assert.deepEqual([...spoken].sort(), ['b', 'e'])
+  // 请到 2 位就聊 4 次：两位各说一次，多出的两次再补问。
+  assert.equal(spoken.length, 4)
+  assert.deepEqual([...new Set(spoken)].sort(), ['b', 'e'])
 })
 
 test('the default chat summary asks for a short conclusion, not three sections', async () => {
@@ -365,7 +370,7 @@ test('the default chat summary asks for a short conclusion, not three sections',
   const summary = ctx.history.find(message => message.role === 'user' && /请总结/.test(message.text))
   assert.ok(summary)
   assert.doesNotMatch(summary.text, /## 主题/)
-  assert.match(summary.text, /只写两三句/)
+  assert.match(summary.text, /先一句话给结论/)
   assert.match(summary.text, /不超过 100 字/)
   assert.doesNotMatch(summary.text, /固定写三段/)
 })
@@ -449,8 +454,8 @@ test('a resumed round keeps the fair order from the messages already spoken', as
   const spoken = ctx.messages
     .filter(message => message.kind === 'chat' && ['a', 'b', 'c'].includes(message.authorId))
     .map(message => message.authorId)
-  // 续跑接着没说过的人：轮到 b，不再让已经说过两次的 a 先来。
-  assert.deepEqual(spoken.slice(2), ['b'])
+  // 续跑接着没说过的人：下一位是 b，不再让已经说过两次的 a 先来。
+  assert.equal(spoken.slice(2)[0], 'b')
 })
 
 test('a member @ does not change the scheduled next speaker', async () => {
@@ -598,6 +603,7 @@ test('a busy base skips the round instead of queueing every speaker', async () =
 
 test('a member muted mid-round does not get the next turn', async () => {
   const ctx = setup({ count: 3 })
+  ctx.room().chat = { ...ctx.room().chat, turnLimit: 2 }
   let muted = false
   const sendToMember = async (member, text) => {
     const result = await ctx.sendToMember(member, text)

@@ -36,7 +36,9 @@ test('only chat members offer mute, not studio members', () => {
     onHold: () => {},
   }))
   assert.match(chat, /role="switch"/)
-  assert.match(chat, /aria-label="静音规划师"/)
+  assert.match(chat, /aria-label="规划师说话"/)
+  // 默认是「能说话」：开关在右、绿色；静音后才回到灰。
+  assert.match(chat, /aria-checked="true"/)
   const studio = renderToStaticMarkup(h(SideMembers, { room: room(), onHold: () => {} }))
   assert.doesNotMatch(studio, /role="switch"/)
   assert.doesNotMatch(studio, /停下这位成员/)
@@ -78,5 +80,6 @@ test('a chat room names speaking and offers mute and a model swap, not add', () 
   }))
   assert.match(html, /发言中/)
   assert.doesNotMatch(html, /添加成员/)
-  assert.match(html, /aria-label="静音执行官"/)
+  assert.match(html, /aria-label="执行官说话"/)
+  assert.match(html, /aria-checked="true"/)
 })

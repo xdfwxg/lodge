@@ -1,14 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CHAT_TURNS_PER_ROUND, turnLimitOf } from './chat.js'
+import { chatTurnLimitFor, initialChatState, turnLimitOf } from './chat.js'
 
-test('a chat room can lower the per-round cap but never raise it', () => {
-  assert.equal(turnLimitOf({ chat: { turnLimit: 3 } }), 3)
-  assert.equal(turnLimitOf({ chat: { turnLimit: 7 } }), CHAT_TURNS_PER_ROUND)
+test('a round defaults to tonight’s people plus two', () => {
+  assert.equal(chatTurnLimitFor(3), 5)
+  assert.equal(chatTurnLimitFor(6), 8)
+  assert.equal(chatTurnLimitFor(0), 2)
 })
 
-test('a missing or invalid turn limit falls back to the room default', () => {
-  assert.equal(turnLimitOf({}), CHAT_TURNS_PER_ROUND)
-  assert.equal(turnLimitOf({ chat: { turnLimit: 0 } }), CHAT_TURNS_PER_ROUND)
-  assert.equal(turnLimitOf({ chat: { turnLimit: 99 } }), CHAT_TURNS_PER_ROUND)
+test('a stored limit is read as is; a missing one is null', () => {
+  assert.equal(turnLimitOf({ chat: { turnLimit: 3 } }), 3)
+  assert.equal(turnLimitOf({}), null)
+  assert.equal(turnLimitOf({ chat: { turnLimit: 0 } }), null)
+})
+
+test('a new chat room starts without a fixed turn limit', () => {
+  assert.equal(initialChatState().turnLimit, null)
 })

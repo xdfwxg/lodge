@@ -2,7 +2,7 @@ import { chatTransitionEvent, transitionChat } from './state.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { memberOf } from '../../room-members.js'
 import { recentAndOlder } from '../../prompt-context.js'
-import { CHAT_TURNS_PER_ROUND, turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
+import { chatTurnLimitFor, turnLimitOf as chatTurnLimitOf } from '../../room-types/chat.js'
 import { parseHandoffBriefFromText } from '../../../../shared/handoff-brief.js'
 import { hostIntentPrompt, parseHostIntent } from './host-intent.js'
 import { castPrompt, fallbackCast, openingOf, parseCast } from './cast.js'
@@ -201,7 +201,7 @@ export const createChatScheduler = ({
     const muted = new Set(Array.isArray(room.chat?.mutedIds) ? room.chat.mutedIds : [])
     const castSet = castIds.length > 0 ? castIds : allowedSpeakers
     const requested = Array.isArray(speakerIds)
-      ? [...new Set(speakerIds.filter(id => castSet.includes(id)))].slice(0, CHAT_TURNS_PER_ROUND)
+      ? [...new Set(speakerIds.filter(id => castSet.includes(id)))].slice(0, castSet.length)
       : []
     const speakers = (requested.length > 0 ? requested : castSet).filter(id => !muted.has(id))
     // 今晚请到的人全被静音：这一轮没有可讨论的人，说清楚并收掉 running，
@@ -220,10 +220,12 @@ export const createChatScheduler = ({
       })
       return { started: false, reason: '没有可发言的成员' }
     }
-    const turnLimit = speakers.length === 0
-      ? 0
-      : Math.min(chatTurnLimitOf(room), CHAT_TURNS_PER_ROUND, speakers.length)
-    const perMember = 1
+    // 默认每人先说一次，再多补两次；房间存了更低的上限就按更低的来。
+    const defaultLimit = chatTurnLimitFor(speakers.length)
+    const leftover = chatTurnLimitOf(room)
+    const turnLimit = speakers.length === 0 ? 0 : Math.min(leftover === null ? defaultLimit : leftover, defaultLimit)
+    // 多出的两次要有人讲第二遍，所以每人最多两次，最终仍由 turnLimit 收口。
+    const perMember = 2
     const run = { cancelled: false }
     runs.set(roomId, run)
     const round = Number.isInteger(room.chat?.round) && room.chat.round > 0 ? room.chat.round : 1
@@ -260,6 +262,7 @@ export const createChatScheduler = ({
         ...(current.chat ?? {}),
         round,
         phase: CHAT_PHASE.discussing,
+        turnLimit,
         turns: resumedFrom,
         conclusionId: null,
         running: true,
@@ -557,7 +560,7 @@ export const createChatScheduler = ({
     const prompt = hostIntentPrompt({
       room,
       text,
-      turnLimit: chatTurnLimitOf(room),
+      turnLimit: chatTurnLimitFor((room.chat?.castIds?.length ?? 0) || (room.members ?? []).length),
       phase: room.chat?.phase ?? '',
       linkedRooms: linkedRoomBriefs({ store, room }),
     })

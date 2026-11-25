@@ -65,7 +65,7 @@ export const chatRetroOf = room => {
       suggestion: '下一轮开场先写清判断标准，让分歧更早暴露。',
     })
   }
-  if (room?.chat?.turns >= room?.chat?.turnLimit) {
+  if (Number.isInteger(room?.chat?.turnLimit) && room.chat.turns >= room.chat.turnLimit) {
     items.push({
       kind: 'turns',
       text: '讨论用满了发言上限',

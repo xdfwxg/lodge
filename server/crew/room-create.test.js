@@ -411,7 +411,8 @@ test('a chat room has a fixed four-per-round cap and no trust ladder', async () 
   }, engine)
   assert.equal(result.ok, true)
   const room = result.body.room
-  assert.equal(room.chat.turnLimit, 4)
+  // 发言上限按今晚人数 + 2 在第一轮开跑时写入，建房时不预设。
+  assert.equal(room.chat.turnLimit, null)
   assert.equal('trust' in room, false)
   assert.equal('stages' in room, false)
   // 聊天室自带固定六人班底；建房时不再让人挑人。

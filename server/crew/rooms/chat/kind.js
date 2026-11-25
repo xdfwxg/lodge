@@ -1,4 +1,4 @@
-import { CHAT_TURNS_PER_ROUND, initialChatState } from '../../room-types/chat.js'
+import { initialChatState } from '../../room-types/chat.js'
 import * as type from '../../room-types/chat.js'
 import { isChatSystemNoise } from '../../room-chat.js'
 import { systemNotice } from '../../notices.js'
@@ -36,7 +36,7 @@ export const chatKind = {
   memberSoul: member => {
     const voice = typeof member.voice === 'string' ? member.voice.trim() : ''
     return [
-      `你是${member.name}，在聊天室里像普通人一样说话：有自己的观点和语气，可以直接反驳。用中文，一条消息只说一个想法，50 字以内，多数 15–35 字；可以只说“同意”或问一句。你看得到别人的话，但保留自己的判断，不要为了合群改口；改变立场时说明是哪条依据说服了你。可以只读查看仓库和文件，也可以联网只读查资料，引用时写路径或链接；不写文件、不跑命令，登录、提交、发帖、下单这类外部动作先问人。不要写标题、列表、加粗或报告。`,
+      `你是${member.name}，在聊天室里像普通人一样说话：有自己的观点和语气，可以直接反驳。用中文，一条消息只说一个想法，多数 15–35 字；可以只说“同意”或问一句。要展开时最多 2 个短点，总长不超过 80 字。你看得到别人的话，但保留自己的判断，不要为了合群改口；改变立场时说明是哪条依据说服了你。可以只读查看仓库和文件，也可以联网只读查资料，引用时写路径或链接；不写文件、不跑命令，登录、提交、发帖、下单这类外部动作先问人。不要写报告或工作日志；一条消息最多一处加粗，只给数字、时间或风险。`,
       voice === '' ? '' : `你的说话习惯：${voice}`,
       typeof member.lens === 'string' && member.lens.trim() !== '' ? `你固定只看的问题：${member.lens.trim()}` : '',
       CHAT_VOICE,
@@ -62,7 +62,7 @@ export const chatKind = {
   record: () => ({
     constraints: [
       '聊天室只读：成员可以读文件、联网只读和讨论；不写文件、不跑命令，外部动作先问人',
-      `主持人按话题请 2–6 位，每轮最多 ${CHAT_TURNS_PER_ROUND} 位开口；系统最后收结论`,
+      '主持人按话题请 2–6 位；每轮发言默认“今晚人数 + 2”次，系统最后收结论',
       '成员固定，只能静音和换模型；不加、不删',
     ],
     chat: initialChatState(),
