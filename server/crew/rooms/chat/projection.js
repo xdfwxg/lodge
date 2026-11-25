@@ -66,9 +66,24 @@ export const dropTurnPreambles = messages => {
   })
 }
 
+// 结论复核是内部检查，不是发言：复核窗口内该成员的回答、以及已经复核过的回合，
+// 都不进时间线。窗口和回合 id 由调度器写在 chat 状态上。
+const memberIdOfRef = (room, ref) => (
+  (room?.members ?? []).find(member => member?.body?.ref === ref)?.id ?? null
+)
+
+export const hiddenByReview = (room, message) => {
+  const turnId = typeof message?.turnId === 'string' ? message.turnId : message?.turn?.turnId
+  if (typeof turnId === 'string' && (room?.chat?.hiddenTurns ?? []).includes(turnId)) return true
+  const reviewing = room?.chat?.reviewing
+  const memberId = typeof message?.memberId === 'string' ? message.memberId : memberIdOfRef(room, message?.authorRef)
+  return typeof reviewing === 'string' && reviewing !== '' && memberId === reviewing
+}
+
 export const chatProjection = {
   hideActivity: true,
   acceptsDelta: true,
+  hiddenMessageOf: hiddenByReview,
   filterMessages: (messages, noise) => dropTurnPreambles(dropStaleStreams(messages
     .filter(message => !noise(message)))),
 }

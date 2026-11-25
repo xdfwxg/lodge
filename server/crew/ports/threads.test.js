@@ -22,7 +22,7 @@ test('a reply is the last line of the turn, not the opening remark', async () =>
     text('m1', '我先看下实际代码和测试，再判断。', { turnId: 't1', turnFinal: false }),
     text('m2', '接住上一位——五条规则各有用例。', { turnId: 't1', turnFinal: true }),
   ]).findReply('bot-1', new Set())
-  assert.deepEqual(reply, { text: '接住上一位——五条规则各有用例。' })
+  assert.deepEqual(reply, { text: '接住上一位——五条规则各有用例。', turnId: 't1' })
 })
 
 test('a turn still in progress is not a reply yet', async () => {
@@ -37,7 +37,7 @@ test('a finished turn digest wins over its text', async () => {
     text('m1', '我先看下。', { turnId: 't1', turnFinal: false }),
     { id: 'd1', kind: 'turn', authorRef: 'bot-1', turn: { turnId: 't1', reply: '整段回答。' } },
   ]).findReply('bot-1', new Set())
-  assert.deepEqual(reply, { text: '整段回答。' })
+  assert.deepEqual(reply, { text: '整段回答。', turnId: 't1' })
 })
 
 test('runtimes that never mark turn endings still read the latest text', async () => {
@@ -45,7 +45,7 @@ test('runtimes that never mark turn endings still read the latest text', async (
     text('m1', '第一句。'),
     text('m2', '第二句。'),
   ]).findReply('bot-1', new Set())
-  assert.deepEqual(reply, { text: '第二句。' })
+  assert.deepEqual(reply, { text: '第二句。', turnId: '' })
 })
 
 test('messages already counted before sending are not a new reply', async () => {

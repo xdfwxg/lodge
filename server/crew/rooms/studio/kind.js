@@ -102,6 +102,7 @@ export const studioKind = {
 
   filterMessages: messages => messages,
   hideActivity: false,
+  hiddenMessageOf: () => false,
   acceptsDelta: false,
 
   refresh: () => ({}),

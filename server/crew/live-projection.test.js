@@ -81,6 +81,50 @@ test('the chat host never becomes a member bubble in a multi-person room', () =>
   }).authorId, 'a')
 })
 
+test('a conclusion review reply never becomes a chat speech', () => {
+  const reviewProjector = createMessageProjector({
+    store: {
+      readRoom: () => ({
+        roomType: 'chat',
+        members: [
+          { id: 'worker-2', name: '小林', body: { kind: 'base', ref: 'bot-reviewer' } },
+          { id: 'worker', name: '老周', body: { kind: 'base', ref: 'bot-host' } },
+        ],
+        chat: { reviewing: 'worker-2', hiddenTurns: [] },
+        hiddenBaseMessages: [],
+      }),
+    },
+  })
+  // 复核窗口内，复核人的回答不是发言。
+  assert.equal(reviewProjector.toStored('room-1', {
+    id: 'r1', kind: 'text', role: 'agent', authorRef: 'bot-reviewer', text: 'PASS\n没有超出讨论记录。', turnId: 'turn-r',
+  }), null)
+  // 其他人照常说话，窗口不会波及别人。
+  assert.equal(reviewProjector.toStored('room-1', {
+    id: 'r2', kind: 'text', role: 'agent', authorRef: 'bot-host', text: '我来说一句。', turnId: 'turn-x',
+  }).authorId, 'worker')
+})
+
+test('a reviewed turn stays out even after the review window closes', () => {
+  const reviewedProjector = createMessageProjector({
+    store: {
+      readRoom: () => ({
+        roomType: 'chat',
+        members: [{ id: 'worker-2', name: '小林', body: { kind: 'base', ref: 'bot-reviewer' } }],
+        chat: { reviewing: null, hiddenTurns: ['turn-r'] },
+        hiddenBaseMessages: [],
+      }),
+    },
+  })
+  assert.equal(reviewedProjector.toStored('room-1', {
+    id: 'r1', kind: 'text', role: 'agent', authorRef: 'bot-reviewer', text: 'PASS', turnId: 'turn-r',
+  }), null)
+  // 同一成员的下一次回答有新的回合 id，仍然能进时间线。
+  assert.equal(reviewedProjector.toStored('room-1', {
+    id: 'r2', kind: 'text', role: 'agent', authorRef: 'bot-reviewer', text: '我的看法。', turnId: 'turn-s',
+  }).text, '我的看法。')
+})
+
 test('member messages keep their member author', () => {
   const stored = projector.toStored('room-1', { id: 'm1', kind: 'text', role: 'bot', authorRef: 'bot-1', text: '在' })
   assert.equal(stored.kind, 'chat')

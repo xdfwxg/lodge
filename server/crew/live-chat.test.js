@@ -263,6 +263,44 @@ test('interleaved members keep their own streams', () => {
   assert.equal(verify.text, '验收员的话 ')
 })
 
+test('a conclusion review reply never enters the timeline through streaming', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor', reviewing: 'executor', hiddenTurns: [] }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: 'PASS ', turnId: 't-review' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm-review', kind: 'text', role: 'agent', authorRef: 'b-executor', text: 'PASS 没有超出讨论记录。', turnId: 't-review', at: Date.now() },
+  })
+  // 复核回复不落库，也没有留下流式占位。
+  assert.equal(ctx.messages.length, 0)
+})
+
+test('a reviewed turn stays hidden after the window closes', () => {
+  const ctx = setup()
+  const base = ctx.room()
+  base.roomType = 'chat'
+  base.chat = { speaker: 'executor', reviewing: null, hiddenTurns: ['t-review'] }
+  const room = { ...base, chatRoom: { id: 'chat-1', sessionRef: 'thread-1' } }
+  const entry = { roomId: room.id }
+  ctx.chat.subscribe(entry, room)
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: 'PASS ', turnId: 't-review' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm-review', kind: 'text', role: 'agent', authorRef: 'b-executor', text: 'PASS 没有超出讨论记录。', turnId: 't-review', at: Date.now() },
+  })
+  assert.equal(ctx.messages.length, 0)
+  // 下一次回答是新回合，照常进时间线。
+  ctx.subscribed[0].onEvent({ type: 'delta', delta: '我的看法。', turnId: 't-next' })
+  ctx.subscribed[0].onEvent({
+    message: { id: 'm-next', kind: 'text', role: 'agent', authorRef: 'b-executor', text: '我的看法。', turnId: 't-next', at: Date.now() },
+  })
+  assert.equal(ctx.messages.length, 1)
+  assert.equal(ctx.messages[0].text, '我的看法。')
+})
+
 test('a user prompt never finalizes a member stream', () => {
   const ctx = setup(undefined, { toStored: () => null })
   const base = ctx.room()

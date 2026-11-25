@@ -18,6 +18,10 @@ const setup = () => {
         const changed = mutate(room)
         return changed === null ? null : room
       },
+      updateRound: (_roomId, mutate) => {
+        const changed = mutate(room)
+        return changed === null ? null : room
+      },
     },
     engine: {
       answerCard: async input => { answered.push(input); return { ok: true } },
@@ -27,6 +31,29 @@ const setup = () => {
   })
   return { strategy, answered, messages, room }
 }
+
+test('chat usage is written through the round, not the room', () => {
+  const room = { id: 'room-1', roomType: 'chat' }
+  const strategy = createChatRuntime({
+    store: {
+      readRoom: () => room,
+      appendMessage: () => {},
+      updateRoom: () => { throw new Error('usage 是轮次字段，必须走 updateRound') },
+      updateRound: (_roomId, mutate) => {
+        mutate(room)
+        return room
+      },
+    },
+    engine: { answerCard: async () => ({ ok: true }) },
+    emit: () => {},
+    refreshRoom: async () => {},
+  })
+  strategy.captureTurn({ roomId: 'room-1' }, {
+    turn: { usage: { input: 10, output: 5, costUsd: 0.002 } },
+  })
+  assert.equal(room.usage.turns, 1)
+  assert.equal(room.usage.costMicroUsd, 2000)
+})
 
 test('chat turns accumulate room usage without stage diagnostics', () => {
   const { strategy, room } = setup()

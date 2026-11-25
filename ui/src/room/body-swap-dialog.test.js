@@ -39,6 +39,13 @@ test('every member only gets the robot picker', () => {
   assert.doesNotMatch(html, /模型与能力/)
 })
 
+test('the member card says what this session may use', () => {
+  assert.match(render(), /这一轮能用：读文件、写文件、跑命令/)
+  const readOnly = render({ member: { ...member, permissions: { read: true, exec: false, write: false } } })
+  assert.match(readOnly, /这一轮能用：读文件/)
+  assert.doesNotMatch(readOnly, /跑命令/)
+})
+
 test('a chat member can still be removed from the same dialog', () => {
   const html = render({ canRemove: true, onRemove: () => {} })
   assert.match(html, /移出房间/)

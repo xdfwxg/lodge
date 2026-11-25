@@ -41,6 +41,8 @@ const roundIdForMessage = (store, room, message) => roundAtOf(
 
 const hostOf = room => roomPresentationOfRoom(room)?.hostOf?.(room) ?? null
 const speakerOf = room => roomPresentationOfRoom(room)?.speakerOf?.(room) ?? ''
+// 有些回答不是发言（例如聊天室的结论复核）；流式路径和最终投影走同一条房型规则。
+const hiddenOf = (room, message) => roomPresentationOfRoom(room)?.hiddenMessageOf?.(room, message) === true
 
 // 基座回合是异步的；先把人的话落到房间里，输入框才不会看起来没反应。
 // sendId 是基座的幂等键：发送响应和最终落库 ID 不同也能对上同一条话。
@@ -101,6 +103,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     const streams = streamOf(entry)
     const prior = streams.get(memberId)
     const turnId = typeof event.turnId === 'string' ? event.turnId : ''
+    // 复核回复会被流式推过来；不能先在时间线里放一个占位气泡。
+    if (hiddenOf(current, { authorRef: entry.baseRoom?.busyRef, turnId, memberId })) return
     // 流式消息按回合区分：同一成员在一轮里发多次言时不能覆盖上一条。
     const sameTurn = prior !== undefined && prior.turnId === turnId
     const id = sameTurn ? prior.id : `stream:${room.id}:${memberId}:${turnId}`
@@ -134,6 +138,17 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
     if (roomPresentationOfRoom(current)?.acceptsDelta !== true) return false
     const memberId = memberForRef(current, message.authorRef) ?? speakerOf(current)
     if (typeof memberId !== 'string' || memberId === '') return false
+    // 已经被窗口挡掉的流式占位要收掉，不能让它在最后一段正文到达时重新出现。
+    if (hiddenOf(current, { ...message, memberId })) {
+      const hiddenStream = streamOf(entry).get(memberId)
+      const hiddenExisting = hiddenStream === undefined ? null : store.readMessage(room.id, hiddenStream.id)
+      if (hiddenExisting !== null) {
+        store.upsertMessage({ ...hiddenExisting, meta: { ...(hiddenExisting.meta ?? {}), stale: true } })
+      }
+      streamOf(entry).delete(memberId)
+      rememberFinal(entry, message.id)
+      return true
+    }
     const streams = streamOf(entry)
     const state = streams.get(memberId)
     const raw = message.kind === 'turn' ? message.turn?.reply : message.text

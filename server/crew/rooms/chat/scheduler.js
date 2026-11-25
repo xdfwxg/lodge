@@ -270,6 +270,8 @@ export const createChatScheduler = ({
         speaker: '',
         // 不合法或不属于这一轮的 pending 在这里清掉，别把旧标记带进新一轮。
         pending: resumeMarker === null ? null : (current.chat?.pending ?? null),
+        // 复核窗口只属于那一次复核；新一轮开口前必须清掉，否则会静音复核人。
+        reviewing: null,
         note,
       }
       return { events: [{ type: resume ? 'chat.round_resumed' : 'chat.round_started', payload: { round, from: resumedFrom } }] }
@@ -588,17 +590,53 @@ export const createChatScheduler = ({
     if (transport.ready() !== true) throw new Error('房间聊天室还没准备好')
     const reviewer = memberOf(room, reviewerId)
     if (reviewer === null) throw new Error('复核人不在这个房间')
-    const before = await transport.messageIds()
-    const sent = await sendToMember(reviewerId, conclusionReviewPrompt({
-      room,
-      reviewer,
-      conclusion,
-      transcript: discussionLines(store, roomId),
-    }))
-    hidePrompt(sent?.messageId)
-    const reply = await waitForBot(reviewerId, before, { cancelled: false })
-    if (reply === null) throw new Error('结论复核没有在限定时间内回答')
-    return { text: String(reply.text ?? '').trim() }
+    // 复核是内部检查，不是发言：窗口内这位成员的回复不投影进时间线。
+    const setReviewing = value => patch(current => {
+      current.chat = { ...(current.chat ?? {}), reviewing: value }
+      return { events: [] }
+    })
+    setReviewing(reviewerId)
+    let captured = false
+    try {
+      const before = await transport.messageIds()
+      const sent = await sendToMember(reviewerId, conclusionReviewPrompt({
+        room,
+        reviewer,
+        conclusion,
+        transcript: discussionLines(store, roomId),
+      }))
+      hidePrompt(sent?.messageId)
+      const reply = await waitForBot(reviewerId, before, { cancelled: false })
+      if (reply === null) throw new Error('结论复核没有在限定时间内回答')
+      // 回复可能已经晚于事件进房间；先同步一次让窗口吞掉它，再记回合 id 兜住迟到的事件。
+      try {
+        await syncChat()
+      } catch {
+        // 同步失败不影响复核结果；回合 id 仍会挡住下一次投影。
+      }
+      const turnId = typeof reply.turnId === 'string' ? reply.turnId : ''
+      if (turnId !== '') {
+        patch(current => {
+          current.chat = {
+            ...(current.chat ?? {}),
+            reviewing: null,
+            hiddenTurns: [...(current.chat?.hiddenTurns ?? []), turnId].slice(-20),
+          }
+          return { events: [] }
+        })
+        captured = true
+      }
+      return { text: String(reply.text ?? '').trim() }
+    } finally {
+      // 复核失败或回复没有回合身份时，窗口必须在这次调用结束前关掉；不能留到下一轮。
+      if (!captured) {
+        patch(current => {
+          if (current.chat?.reviewing !== reviewerId) return null
+          current.chat = { ...current.chat, reviewing: null }
+          return { events: [] }
+        })
+      }
+    }
   }
 
   return { start, hostIntent, reviewConclusion, cancel, isRunning: () => runs.has(roomId) }

@@ -16,7 +16,7 @@ const RUNTIMES = [
   {
     id: 'pi',
     name: 'Pi',
-    version: '1.5.2',
+    version: '1.6.1',
     release: 'https://github.com/earendil-works/pi/releases/download/v{version}',
     checksums: 'SHA256SUMS',
     asset: 'pi-{platform}-{arch}.{ext}',

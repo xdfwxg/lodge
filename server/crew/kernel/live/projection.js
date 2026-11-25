@@ -37,6 +37,8 @@ export const createMessageProjector = ({ store }) => {
   const toStored = (roomId, message) => {
     const room = store.readRoom(roomId)
     if (room?.hiddenBaseMessages?.includes(message.id) === true) return null
+    // 房型决定哪些基座消息不是发言（例如聊天室的结论复核回复）。
+    if (roomPresentationOfRoom(room)?.hiddenMessageOf?.(room, message) === true) return null
     // 多人聊天室里，主持人只通过系统落库的开场和结论说话；基座里它的原话（包括选班底的 JSON）不进时间线。
     const hostRef = roomPresentationOfRoom(room)?.hostOf?.(room)?.memberRef
     if (

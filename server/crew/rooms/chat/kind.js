@@ -102,6 +102,7 @@ export const chatKind = {
 
   filterMessages: messages => chatProjection.filterMessages(messages, isChatSystemNoise),
   hideActivity: chatProjection.hideActivity,
+  hiddenMessageOf: chatProjection.hiddenMessageOf,
   acceptsDelta: chatProjection.acceptsDelta,
 
   refresh: chatBase => ({

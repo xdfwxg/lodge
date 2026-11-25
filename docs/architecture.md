@@ -89,6 +89,57 @@ service.js                   ← 路由分发与用例组合
 - **开闭与替换**：注册表和契约测试保证新模式可替换；关键生命周期已走钩子，剩余模式路由集中在用例入口，不再扩散到房间本体。
 - **不可拆分标尺**：一个模式的创建记录、等待信号和只读投影能独立测试、独立变化，所以各自成模块；`kind.js` 只负责把它们装配成同一份策略。房间身份、消息和交接必须一起保持一致，所以留在房间本体。
 
+## 基座切片（薄基座）
+
+Lodge 只依赖基座的一小片；这一片足以跑起聊天室和工作室。换实现（包括 Rust）时按这份契约验收，基座的其他能力不属于 Lodge。
+
+**端点（10 组）**
+
+- `/api/bots`：成员身体——创建、改、删、技能、叫停、模型选择。
+- `/api/groups`：房间群、成员、@ 开关、持有、已读。
+- `/api/threads/`：线程历史与订阅前的事件。
+- `/api/events`：SSE 流（`delta` / `message` / `room`）。
+- `/api/instances`、`/api/config`：运行时、模型目录。
+- `/api/mcp/servers`：MCP 增删改查；按回合的 gate 配置由 Lodge 用工具范围生成。
+- `/api/attachments`、`/api/files`：附件与文件。
+- `/api/skills-library`：技能库。
+
+**端口方法**：见 `server/crew/runtime-port.js`——turns / rooms / members / cards / observability，加 `mcp` 命名空间。业务只调用这些方法；实现缺少任何一个，启动即失败。
+
+**事件与不变量**
+
+- `delta` 只带增量；`message` 已归一化为 kind/text/meta；`room` 是规范化 Room。
+- 一次回合：started → 若干 delta/message → completed；中断、取消、超时都必须有终态。
+- 权限卡走 `request.opened` → `answerCard`；卡片带 `requestId`、`requestType`、**真实工具名**（不是确认问句）、`summary`。
+- 线程、会话和 resumeCursor 由基座持有；Lodge 只存引用。
+- 用量与 digest 由基座记账；Lodge 只读。
+
+**数据归属**
+
+- 基座：bot、群、线程、消息流、会话、用量、附件。
+- Lodge：房间、阶段、证据、判定、交接、工作区、预算。
+- 房间真相不写进基座；基座里的群只是投递通道。
+
+**agent runtime 不在基座里**
+
+pi、claude 这类引擎是可替换的子进程：`scripts/prepare-runtimes.mjs` 按平台下载预编译二进制到 `build/runtimes/` 并固定版本，驱动 `server/drivers/*.ts` 只负责 spawn、streaming JSON-RPC 和事件翻译。基座（包括 Rust 薄基座）不内嵌任何引擎实现，只做进程监督、协议、审批转发和 MCP 代理。
+
+薄基座启动时扫描本机命令（PATH 与常见安装目录），发现 pi、Claude Code、Codex、Gemini、OpenCode、Cursor Agent、Aider，通过 `/api/instances` 报告命令、版本、状态和能探测到的登录状态；只有实现了 runtime 契约的驱动才标 `available`，其余标 `unsupported`，不冒充可用。
+
+pi 以 `--no-session` 运行，基座的线程仍是唯一历史；驱动每轮把线程最近的消息和成员的 soul 一起交给它，所以模型换代或会话结束都不影响房间记忆。
+
+**为什么先削这一层**
+
+基座厚重是因为它替很多产品干活——会议、电话、连接器、apps、邮件、云同步、团队、例程、记忆日志、agents bridge、浏览器/电脑/VPS；Lodge 一个都不用。先锁契约，再决定实现语言；三道门是：端口契约测试、端点白名单（`server/base-slice.test.js`）、`eval:rooms`。
+
+**Rust 放哪**
+
+- **适合 Rust**：进程监督、CLI 的流式 JSON-RPC 解析、并发与背压、MCP stdio/HTTP 代理、SQLite、SSE、seatbelt/bwrap 沙箱、单二进制分发。
+- **留在 TS**：房间、阶段、证据、验收、gate、提示词、界面——这些是产品真相，不跟着基座换语言。
+- **迁移顺序**：契约测试 → 薄基座并行跑（同一份端口）→ 按端点切换 → 老基座只作 fallback → `eval:rooms` 通过后删掉旧路径。
+- **骨架**：`base-rs/` 已落 SQLite 持久化与重启恢复、事件身份与 SSE 重放、回合终态、权限卡、自动发现和真实 pi 驱动；`npm run base:rs:test` 覆盖契约、持久化、pi 驱动与孤儿清理，`base:rs:conformance` 用同一份形状检查跑新旧基座，`base:rs:pi:real` 跑一次真实模型回合。它证明了可替换的最小闭环，MCP、附件、工作室和第二个驱动仍未接。
+- **不做**：把整个 OpenMausBot 移植到 Rust；把房间规则塞进基座；为了性能重写模型协议。
+
 ## 数据与真相
 
 - SQLite `room` 存长期工作室、成员、工作区和 `idle/active/paused/stopped`；`work_round` 存一轮的目标、计划、阶段、门、决策、费用、预算和交付；`project` 存轮次分组和北极星。

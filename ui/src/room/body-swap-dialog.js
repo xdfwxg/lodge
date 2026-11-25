@@ -34,6 +34,11 @@ export function BodySwapDialog({
   const unchanged = engineId === currentEngine
   const title = member.name
   const subject = member.name
+  // 成员卡先说清这段会话被授予了什么：换执行者不换工具面。
+  const allowed = member.permissions ?? {}
+  const scope = [allowed.read === true && '读文件', allowed.write === true && '写文件', allowed.exec === true && '跑命令']
+    .filter(Boolean)
+  const scopeText = scope.length === 0 ? '' : `这一轮能用：${scope.join('、')}`
   const overlay = useOverlay({ label: title, onClose: busy ? () => {} : onCancel, active: true })
 
   return h('div', { className: 'crew-overlay', onClick: busy ? undefined : onCancel, ...overlay },
@@ -68,7 +73,8 @@ export function BodySwapDialog({
         }),
         engineId !== '' && !available.some(item => item.id === engineId)
           ? h('option', { value: engineId, disabled: true }, `${engineId} · 现在不可用`)
-          : null)),
+          : null),
+      scopeText === '' ? null : h('p', { className: 'crew-field-hint' }, scopeText)),
       available.length === 0
         ? h('p', { className: 'crew-field-hint', role: 'alert' }, '先安装或登录一个模型服务。')
         : engine !== undefined && blocked && blockedReason !== '登录失效'

@@ -34,7 +34,7 @@ npm run eval:execution-probe -- --validate
 | 投递失败重试沿用同一拍，不新建 Assignment | `server/crew/rooms/studio/handoff.test.js`、`server/crew/assignments.test.js`、`shared/states.test.js` | 无 |
 | 退回必须挂到一条会失败的检查；只挑小毛病不阻塞 | `shared/gate.test.js`、`shared/judgment.test.js`、`server/crew/gate/mcp-server.test.js` | 无 |
 | 成员回合后对账：写到别人工作树的改动被退回 | `server/crew/workspace-guard.test.js`、`server/crew/live-turn-modules.test.js` | 无 |
-| 长期工作室、轮次隔离、旧轮只读、项目分组 | `server/crew/store-rounds.test.js`、`ui/src/views/project-view.test.js`、`e2e/project.spec.mjs` | 无 |
+| 长期工作室、轮次隔离、旧轮只读 | `server/crew/store-rounds.test.js`、`e2e/project.spec.mjs` | 无 |
 | 轮次开始、完成、停止、退回、失败、作废 | `server/crew/kernel/round.test.js`、`server/crew/rounds/lifecycle.test.js`、`server/crew/store-rounds.test.js` | 无 |
 | 房间状态与轮次状态分开说 | `shared/room-status.test.js`、`ui/src/goal-island/status.test.js`、`ui/src/views/sidebar.test.js` | 无 |
 | 持久队列、租约回收、重试退避、每房单活且房间间并发 | `server/crew/rooms/scheduler.test.js`、`server/crew/store-rounds.test.js` | 无 |
@@ -132,6 +132,7 @@ npm run eval:execution-probe -- --validate
 
 ## 最近真实运行
 
+- 2026-11-26：Rust 薄基座真房验收与旧基座同构对照（两边都是 pi 1.6.1 → DeepSeek `deepseek-flash`）。薄基座：Lodge 8788 + 基座 8798（独立数据目录），聊天室 `room-b9ea0b7d` 连跑 4 轮，前 3 轮各 6 次发言 + 主持结论、全部 concluded，复核 pass 且复核回复不进时间线；重启基座后第 4 轮照常完成、历史还在。23 回合 p50 1.4s / p95 1.8s，20.7k in / 1.2k out / 11.6k cache，成本未上报。旧基座：同目标、同自动选人，独立实例 8797 + Lodge 8789，3 轮全部 concluded，21 回合 p50 2.8s / p95 3.2s，343k in / 1.2k out（cachedInput 未上报），复核同样不进时间线。结构一致；差异是模型自选 4 人 vs 3 人（turnLimit 6 vs 5），且薄基座 pi 仍 `--no-tools`、旧基座带 MCP 工具目录，输入 token 差距主要来自工具面，所以这份对照只证明结构不差、时延更低，不证明 token 更省。期间发现并修复两处：聊天室 usage 写错层（轮次字段必须 `updateRound`，`updateRoom` 抛错会打断 SSE，已补回归测试）；薄基座 digest 的 `durationMs` 恒为 0，改为按回合起点计算并补单测（重启后真实记录 1.2–1.55s）。运行备注：旧基座 webhook 固定占用「端口+1」=8798，与薄基座同机并存时该功能不可用（聊天不受影响）；`CREW_MODEL_INSTANCE` 只在基座没有默认 bot 时生效，旧基座默认 MausBot 要先指到 pi。无错误、无孤儿进程；薄基座暂缺 `/api/skills-library`、`/api/mcp/servers`，启动日志 404，不影响聊天。
 - 2026-11-25：三角色真实模型探针（claude CLI 实际走 DeepSeek `deepseek-v4-pro`；基座沙箱 off）。规划 2/3 接住隐藏要求，漏了「不联网」边界；执行 0/2 守住工作包，2/2 都改了工作包外的测试文件（平台已退回），证明 2/2 verified；成本 $0.38 + $0.33。
 - 2026-11-25：验收探针 `missing-section` 里验收员写到了执行官的工作副本，因对方本来有改动而没能自动退回；现已改为只读角色出现无法退回的越界时 block 这一轮，等人处理。读取边界仍是判定层核对，不是 OS 沙箱。
 - 2026-11-25：macOS Seatbelt 沙箱第一次真实运行（基座 `OMB_BOT_BOX=1 OMB_BOT_BOX_HOME_READONLY=1`）：规划探针 1/1，执行探针 1/1（证明 verified、边界干净）；直接检查 HOME 写被拒、数据目录读被拒、工作副本写成功；探针报告已显示「沙箱 on」。包级写边界仍靠对账。

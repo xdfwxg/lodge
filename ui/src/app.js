@@ -2,7 +2,6 @@ import { createElement as h, useEffect, useMemo, useState } from 'react'
 import { createStore, useStore } from './store.js'
 import { Sidebar } from './views/sidebar.js'
 import { RoomView } from './views/room-view.js'
-import { ProjectView } from './views/project-view.js'
 import { RoundView } from './views/round-view.js'
 import { RoomRoundsView } from './views/rounds-view.js'
 import { LODGE_ROOM_ID } from '../../shared/lodge.js'
@@ -25,11 +24,9 @@ export function App() {
   const [dialog, setDialog] = useState(false)
   const [seed, setSeed] = useState(null)
   const [startType, setStartType] = useState(null)
-  const [projectId, setProjectId] = useState(null)
   const [history, setHistory] = useState(null)
   const [roundsFor, setRoundsFor] = useState(null)
   const openDialog = (seedValue = null, roomType = null) => {
-    setProjectId(null)
     setSeed(seedValue)
     setStartType(roomType)
     setDialog(true)
@@ -139,7 +136,6 @@ export function App() {
       : h(Sidebar, {
         state: { ...state, rooms: sidebarRooms },
         onSelect: id => {
-          setProjectId(null)
           setHistory(null)
           setRoundsFor(null)
           store.select(id)
@@ -155,27 +151,12 @@ export function App() {
         onArchive: (id, archived) => store.archiveRoom(id, archived),
         onDelete: id => store.deleteRoom(id),
         onRounds: id => {
-          setProjectId(null)
           setHistory(null)
           setRoundsFor(id)
           store.select(id)
         },
       }),
-    projectId !== null
-      ? h(ProjectView, {
-        rooms: state.rooms,
-        projects: state.projects ?? [],
-        projectId,
-        onClose: () => setProjectId(null),
-        onOpenRoom: (id, roundId = null) => {
-          setProjectId(null)
-          setRoundsFor(null)
-          store.select(id)
-          setHistory(roundId === null ? null : { roomId: id, roundId })
-        },
-        onStartRound: (roomId, text, options = {}) => store.startRound(text, { roomId, ...options }),
-          })
-      : room === null
+    room === null
       ? h('main', { className: 'dsb-main crew-home' },
         h('div', { className: 'crew-home-inner' },
           h(StatePanel, {
@@ -192,10 +173,6 @@ export function App() {
             setRoundsFor(null)
             store.select(roomId)
             setHistory(roundId === null ? null : { roomId, roundId })
-          },
-          onOpenProject: id => {
-            setRoundsFor(null)
-            setProjectId(id)
           },
         })
         : history !== null && history.roomId === room.id

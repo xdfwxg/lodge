@@ -48,7 +48,8 @@ export const createChatRuntime = ({ store, engine, emit, refreshRoom }) => {
     captureTurn: (entry, message) => {
       const usage = message?.turn?.usage
       if (usage === undefined || usage === null) return
-      store.updateRoom(entry.roomId, current => {
+      // usage 是轮次字段：必须走 updateRound，updateRoom 会拒绝，事件回调里抛错会把 SSE 打断。
+      store.updateRound(entry.roomId, current => {
         const next = addTurnUsage(current.usage, usage)
         if (next === null) return null
         current.usage = next

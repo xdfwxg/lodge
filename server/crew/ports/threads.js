@@ -21,15 +21,18 @@ export const createThreadPort = ({ engine, store, roomId }) => {
       const fresh = messages.filter(message => !before.has(message.id) && message.authorRef === ref)
       // 基座会把一次回答拆成过场和正文；回执只认这一次回答的最后一条，不把过场当成他的观点。
       const turn = fresh.findLast?.(message => message.kind === 'turn' && message.turn?.reply)
-      if (turn !== undefined) return { text: turn.turn.reply }
+      if (turn !== undefined) return { text: turn.turn.reply, turnId: turn.turn?.turnId ?? '' }
       const texts = fresh.filter(message => message.kind === 'text')
       const marked = texts.filter(message => typeof message.turnFinal === 'boolean')
       if (marked.length > 0) {
         const done = marked.filter(message => message.turnFinal === true)
-        return done.length === 0 ? null : { text: done[done.length - 1].text ?? '' }
+        if (done.length === 0) return null
+        const last = done[done.length - 1]
+        return { text: last.text ?? '', turnId: last.turnId ?? '' }
       }
       // 基座不标回合时只能按到达顺序取最后一条。
-      return texts.length === 0 ? null : { text: texts[texts.length - 1].text ?? '' }
+      const last = texts[texts.length - 1]
+      return last === undefined ? null : { text: last.text ?? '', turnId: last.turnId ?? '' }
     },
     isIdle: async () => {
       const chatId = room()?.chatRoom?.id
