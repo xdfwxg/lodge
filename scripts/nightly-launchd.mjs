@@ -47,7 +47,7 @@ const launchPath = () => [...new Set([
   '/sbin',
 ])].join(':')
 
-export const installNightly = ({ root, label, script, logName, at, hour, minute, extraArgs = [] }) => {
+export const installNightly = ({ root, label, script, logName, at, hour, minute, extraArgs = [], runAtLoad = false }) => {
   if (process.platform !== 'darwin') throw new Error('目前只支持 macOS')
   const { plistPath, logDir } = pathsOf(label)
   const logPath = join(logDir, logName)
@@ -71,7 +71,7 @@ ${extraArgs.map(arg => `    <string>${escapeXml(arg)}</string>`).join('\n')}
   <dict><key>Hour</key><integer>${hour}</integer><key>Minute</key><integer>${minute}</integer></dict>
   <key>StandardOutPath</key><string>${escapeXml(logPath)}</string>
   <key>StandardErrorPath</key><string>${escapeXml(logPath)}</string>
-  <key>RunAtLoad</key><false/>
+  <key>RunAtLoad</key><${runAtLoad ? 'true' : 'false'}/>
 </dict>
 </plist>
 `)

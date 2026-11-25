@@ -1,7 +1,7 @@
 // 真实评测的夜间入口：真实房间、规划、执行、验收探针，按顺序跑并写一份日报。
 // 不进 check:done：它需要 Lodge、基座和真实模型；失败时非零退出并弹通知。
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -114,8 +114,15 @@ export const main = async ({
   notify: notifyFn = notify,
   log = line => console.log(line),
   outDir = reportDir,
+  ifDue = false,
 } = {}) => {
   const date = now().toLocaleDateString('sv-SE')
+  const reportPath = join(outDir, `${date}.md`)
+  // 登录时补跑：今天已经有日报就不再跑，避免开机和定时各跑一次。
+  if (ifDue && existsSync(reportPath)) {
+    log(`[nightly] 今天已有日报：${reportPath}；跳过`)
+    return { code: 0, skipped: true, report: null, reportPath, stages: [], environment: null }
+  }
   const lodgeUrl = env.LODGE_URL ?? 'http://127.0.0.1:8787'
   const baseUrl = env.CREW_BASE_URL ?? 'http://127.0.0.1:8799'
   const [lodgeError, baseError] = await Promise.all([check(`${lodgeUrl}/api/health`), check(`${baseUrl}/api/health`)])
@@ -146,7 +153,6 @@ export const main = async ({
   }
   const report = nightlyReportMarkdown({ date, environment, stages })
   mkdirSync(outDir, { recursive: true })
-  const reportPath = join(outDir, `${date}.md`)
   writeFileSync(reportPath, report)
   log(report)
   log(`[nightly] 报告：${reportPath}`)
@@ -156,6 +162,9 @@ export const main = async ({
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  const result = await main({ notify: process.argv.includes('--notify') ? notify : () => {} })
+  const result = await main({
+    notify: process.argv.includes('--notify') ? notify : () => {},
+    ifDue: process.argv.includes('--if-due'),
+  })
   process.exit(result.code)
 }

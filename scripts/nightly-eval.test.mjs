@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -120,6 +120,33 @@ test('without defect injection the verifier stage is skipped and named', async (
     assert.equal(result.code, 0)
     assert.deepEqual(scripts, ['rooms/run.mjs', 'planning-probe/run.mjs', 'execution-probe/run.mjs'])
     assert.match(result.report, /验收探针 \| 未跑（Lodge 没开缺陷注入）/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a login catch-up does nothing once today has a report', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nightly-eval-'))
+  let spawned = 0
+  try {
+    writeFileSync(join(dir, '2026-11-25.md'), '# already ran today\n')
+    const result = await main({
+      env: {},
+      outDir: dir,
+      ifDue: true,
+      now: () => new Date('2026-11-25T09:00:00'),
+      log: () => {},
+      check: async () => {
+        throw new Error('should not check services when today already ran')
+      },
+      spawn: () => {
+        spawned += 1
+        return { status: 0 }
+      },
+    })
+    assert.equal(result.code, 0)
+    assert.equal(result.skipped, true)
+    assert.equal(spawned, 0)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

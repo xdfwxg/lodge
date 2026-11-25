@@ -14,10 +14,7 @@ import { ProcessGroup } from './process-group.js'
 import { RoomReview } from '../room-review.js'
 import { scopeIsValid } from '../../../../shared/attempt.js'
 import { stagesCompletedOf } from '../../../../shared/room-status.js'
-
-const orderOf = message => (
-  (typeof message.ts === 'number' ? message.ts : 0) * 1000 + (typeof message.seq === 'number' ? message.seq : 0)
-)
+import { messageOrderOf } from '../../../../shared/message-order.js'
 
 const isVisibleNotice = message => (
   message?.kind === 'system' && message.meta?.kind === 'notice' && message.meta.show === true
@@ -62,7 +59,7 @@ export function StudioTranscript({
   const byId = useMemo(() => Object.fromEntries(members.map(member => [member.id, member])), [members])
   const messages = useMemo(
     () => dedupeSystemNotices(
-      dedupeChatStreams(room.messages).slice().sort((a, b) => orderOf(a) - orderOf(b)),
+      dedupeChatStreams(room.messages).slice().sort((a, b) => messageOrderOf(a) - messageOrderOf(b)),
     ),
     [room.messages],
   )

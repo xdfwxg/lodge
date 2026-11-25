@@ -6,6 +6,7 @@ import { roomPresentationOfRoom } from './rooms/kinds.js'
 import { composeRoundView, roundSummaryOf } from './rounds/record.js'
 import { toDisplayText } from './member-labels.js'
 import { fail, ok } from './result.js'
+import { messageOrderOf } from '../../shared/message-order.js'
 
 export const createServiceQueries = ({
   store,
@@ -64,7 +65,7 @@ export const createServiceQueries = ({
         const presentation = roomPresentationOfRoom(room)
         const ordered = readRecentMessages(room.id)
           .slice()
-          .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
+          .sort((a, b) => messageOrderOf(a) - messageOrderOf(b))
         const messages = presentation.filterMessages(ordered)
           .map(publicMessage)
           .map(message => (
@@ -94,7 +95,7 @@ export const createServiceQueries = ({
     if (round === null) return fail('not_found', '没有这一轮')
     const ordered = readRecentMessages(room.id, 5000, { workRoundId: round.id })
       .slice()
-      .sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0) || (a.seq ?? 0) - (b.seq ?? 0))
+      .sort((a, b) => messageOrderOf(a) - messageOrderOf(b))
     const messages = ordered
       .map(publicMessage)
       .map(message => (

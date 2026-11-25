@@ -20,7 +20,9 @@ try {
     label,
     script: 'nightly-eval.mjs',
     logName: 'eval.log',
-    extraArgs: ['--notify'],
+    // 晚上关机会错过 03:17；登录时补跑一次，今天已有日报就跳过。
+    extraArgs: ['--notify', '--if-due'],
+    runAtLoad: true,
     ...when,
   })
   console.log(`nightly eval: 每天 ${String(when.hour).padStart(2, '0')}:${String(when.minute).padStart(2, '0')} 跑一次`)

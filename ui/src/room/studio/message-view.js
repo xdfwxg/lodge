@@ -33,10 +33,10 @@ export const renderStudioMessage = ({
 
   if (message.kind === 'verdict' && message.meta?.human === true) return null
 
-  const chat = (text, extra = null, key = message.id) => h('div', { key, className: 'crew-msg-wrap' },
+  const chat = (text, extra = null, key = message.id, fromId = null) => h('div', { key, className: 'crew-msg-wrap' },
     h(ChatLine, {
-      message: { ...message, text },
-      member,
+      message: { ...message, text, ...(fromId === null ? {} : { authorId: fromId }) },
+      member: fromId === null ? member : byId[fromId] ?? member,
       mentions,
       humanName: typeof room?.humanName === 'string' ? room.humanName : '',
     }),
@@ -45,7 +45,13 @@ export const renderStudioMessage = ({
   // 规划师的排期是一条消息，步骤直接读得出来。
   if (message.kind === 'plan') return chat(message.text)
 
-  // 交接是系统投影，不是成员原话：交给共享渲染的 chain 行。
+  // 交接是某个成员对另一个成员说的话：有真人交接人就用他的气泡，不用系统行隔开。
+  if (message.kind === 'system' && message.meta?.kind === 'handoff') {
+    const fromId = typeof message.meta?.from === 'string' && byId[message.meta.from] !== undefined
+      ? message.meta.from
+      : null
+    if (fromId !== null) return chat(message.text, null, message.id, fromId)
+  }
 
   if (message.kind === 'question') {
     const messages = Array.isArray(room?.messages) ? room.messages : []

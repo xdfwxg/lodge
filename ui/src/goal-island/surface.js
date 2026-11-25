@@ -343,6 +343,7 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill, ling
     onFocus,
     onBlur,
   },
+  h('span', { className: 'bt-island-orbit', 'aria-hidden': true }),
   open ? h(GoalOutside, { island, close: actions.closeGoal }) : null,
   open ? pill : null,
   h('div', { className: 'bt-goal-pod' },
@@ -371,7 +372,16 @@ export function GoalIsland({ room, goal, view, mode, signal, actions, pill, ling
 export const GOAL_CSS = `
 /* One surface: the island is the room's only glass object. The capsule shape,
    the pod and the open panel all reshape on the same spring. */
-.bt-island{position:relative;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(400px,calc(100% - 120px));--bt-island-glass:rgba(12,12,14,.94);--bt-island-glass-open:rgba(12,12,14,.98);--bt-island-fill:var(--bt-island-glass);--bt-island-sheen:rgba(255,255,255,.1);--bt-island-edge:color-mix(in srgb,var(--bt-ink) 11%,transparent);--bt-island-depth:0 1px 1px rgba(20,20,20,.04),0 12px 28px -12px rgba(20,20,20,.22),0 30px 60px -30px rgba(20,20,20,.32);--bt-island-depth-open:0 2px 4px rgba(20,20,20,.06),0 28px 64px rgba(20,20,20,.2);background:radial-gradient(130% 180% at 14% -55%,var(--bt-island-sheen),transparent 58%),var(--bt-island-fill);border:0;border-radius:999px;box-shadow:var(--bt-island-depth);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);color:var(--bt-ink);font-family:inherit;font-size:var(--bt-text-label);line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .3s var(--bt-ease),background-color .3s var(--bt-ease)}
+.bt-island{position:relative;isolation:isolate;z-index:6;align-self:flex-start;display:flex;flex-direction:column;pointer-events:auto;width:min(400px,calc(100% - 120px));--bt-island-glass:rgba(12,12,14,.94);--bt-island-glass-open:rgba(12,12,14,.98);--bt-island-fill:var(--bt-island-glass);--bt-island-sheen:rgba(255,255,255,.1);--bt-island-edge:color-mix(in srgb,var(--bt-ink) 11%,transparent);--bt-island-rim:rgba(236,203,128,.46);--bt-island-depth:inset 0 0 0 1px var(--bt-island-rim),inset 0 1px 0 rgba(255,244,214,.24),0 0 0 .5px rgba(236,203,128,.2),0 0 26px -8px rgba(236,203,128,.4),0 1px 1px rgba(20,20,20,.04),0 12px 28px -12px rgba(20,20,20,.22),0 30px 60px -30px rgba(20,20,20,.32);--bt-island-depth-open:inset 0 0 0 1px color-mix(in srgb,var(--bt-island-rim) 82%,white),inset 0 1px 0 rgba(255,244,214,.24),0 2px 4px rgba(20,20,20,.06),0 28px 64px rgba(20,20,20,.2);background:radial-gradient(130% 180% at 14% -55%,var(--bt-island-sheen),transparent 58%),radial-gradient(80% 120% at 92% -20%,rgba(236,203,128,.12),transparent 62%),var(--bt-island-fill);border:0;border-radius:999px;box-shadow:var(--bt-island-depth);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);color:var(--bt-ink);font-family:inherit;font-size:var(--bt-text-label);line-height:20px;box-sizing:border-box;transition:${spring(SPRING_SHAPE, 'width', 'border-radius')},box-shadow .3s var(--bt-ease),background-color .3s var(--bt-ease)}
+/* The island is the one jewel in the room: a warm aura that breathes while
+   work is happening, and a champagne rim on the black glass. */
+.bt-island::before{content:"";position:absolute;inset:-18px -24px;z-index:-1;border-radius:inherit;background:radial-gradient(54% 66% at 50% 44%,rgba(236,203,128,.24),rgba(236,203,128,.08) 46%,transparent 72%),radial-gradient(38% 50% at 78% 100%,rgba(236,203,128,.1),transparent 70%);filter:blur(18px);opacity:.68;pointer-events:none;transition:opacity .5s var(--bt-ease)}
+.bt-island[data-mode=open]::before{opacity:.78}
+.bt-island:has(.bt-goal-closed-ico[data-live])::before{animation:bt-island-breathe 4.8s ease-in-out infinite}
+@keyframes bt-island-breathe{0%,100%{opacity:.42;transform:scale(.97)}50%{opacity:.82;transform:scale(1.04)}}
+.bt-island-orbit{position:absolute;inset:-1px;z-index:1;border-radius:inherit;padding:1px;background:conic-gradient(from 0deg,rgba(236,203,128,.04),rgba(236,203,128,.7) 18%,rgba(255,255,255,.28) 31%,rgba(236,203,128,.1) 48%,rgba(236,203,128,.55) 68%,rgba(255,255,255,.2) 82%,rgba(236,203,128,.04));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:bt-island-orbit 9s linear infinite;opacity:.7;pointer-events:none}
+.bt-island[data-mode=open] .bt-island-orbit{display:none}
+@keyframes bt-island-orbit{to{transform:rotate(1turn)}}
 /* The one deep object in a light room: black glass, a green progress ring,
    and a single warm note when something waits. */
 .bt-island{--bt-ink:#f5f5f7;--bt-ink-2:rgba(245,245,247,.72);--bt-ink-3:rgba(245,245,247,.46);--bt-ink-4:rgba(245,245,247,.32);--bt-line:rgba(255,255,255,.12);--bt-line-2:rgba(255,255,255,.18);--bt-main:#131316;--bt-card:#1a1a1e;--bt-hover:rgba(255,255,255,.07);--bt-active:rgba(255,255,255,.11);--bt-shade-2:rgba(255,255,255,.07);--bt-accent:#7fb2ff;--bt-accent-text:#c6dcff;--bt-accent-wash:rgba(99,148,255,.2);--bt-line-accent:rgba(127,178,255,.36);--bt-accent-ink:#0b111c;--bt-green:#3fd97a;--bt-star:#f6c453;--bt-warning-text:#f3c96d;--bt-warning-wash:rgba(246,196,83,.14);--bt-line-warning:rgba(246,196,83,.36);--bt-danger-text:#ff7c72;--bt-island-glass:rgba(12,12,14,.94);--bt-island-glass-open:rgba(12,12,14,.98);--bt-island-sheen:rgba(255,255,255,.1);--bt-island-edge:rgba(255,255,255,.14)}
@@ -389,7 +399,7 @@ body[data-ds-dark-theme] .bt-island{--bt-ink:#fff4dc;--bt-ink-2:rgba(255,243,214
 .bt-island[data-compact] .bt-goal-closed-main{height:44px;padding:5px 12px 5px 5px;gap:9px}
 .bt-island[data-mini]{width:min(120px,calc(100% - 48px))}
 .bt-island[data-mini] .bt-goal-closed-main{width:100%;height:32px;padding:0 14px;justify-content:center;gap:8px}
-.bt-goal-mini-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--bt-green);box-shadow:0 0 10px color-mix(in srgb,var(--bt-green) 55%,transparent)}
+.bt-goal-mini-dot{flex:none;width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 32% 26%,#fff,color-mix(in srgb,var(--bt-green) 82%,white) 34%,var(--bt-green) 62%,#1d6b43);box-shadow:0 0 0 1px rgba(236,203,128,.4),0 0 10px color-mix(in srgb,var(--bt-green) 58%,transparent),0 0 18px -4px rgba(236,203,128,.45)}
 .bt-goal-mini-dot[data-tone=waiting]{background:var(--bt-star);box-shadow:0 0 10px color-mix(in srgb,var(--bt-star) 55%,transparent)}
 .bt-goal-mini-dot[data-tone=stopped]{background:var(--bt-ink-3);box-shadow:none}
 .bt-goal-mini-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:16px;font-weight:600;color:var(--bt-ink)}
@@ -407,21 +417,23 @@ body[data-ds-dark-theme] .bt-island{--bt-ink:#fff4dc;--bt-ink-2:rgba(255,243,214
 .bt-pill-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .bt-pill-count{flex:none;font-size:var(--bt-text-helper);line-height:16px;color:var(--bt-ink-2);font-variant-numeric:tabular-nums}
 .bt-goal-pod{display:flex;flex-direction:column;min-width:0}
-.bt-island[data-mode=open] .bt-goal-pod::before{content:"";flex:none;height:.5px;margin:0 12px;background:var(--bt-line)}
-.bt-goal-closed{display:flex;flex-direction:column;width:100%;padding:0;border:0;border-radius:999px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background-color .12s ease}
+.bt-island[data-mode=open] .bt-goal-pod::before{content:"";flex:none;height:.5px;margin:0 12px;background:linear-gradient(90deg,transparent,rgba(236,203,128,.5) 22%,rgba(255,255,255,.14) 50%,rgba(236,203,128,.5) 78%,transparent)}
+.bt-goal-closed{position:relative;display:flex;flex-direction:column;width:100%;padding:0;border:0;border-radius:999px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;overflow:hidden;transition:background-color .12s ease}
+.bt-goal-closed::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,transparent 28%,rgba(236,203,128,.1) 44%,rgba(255,255,255,.08) 50%,rgba(236,203,128,.06) 56%,transparent 72%);background-size:240% 100%;background-position:120% 0;animation:bt-island-aurora 11s ease-in-out infinite;pointer-events:none}
+@keyframes bt-island-aurora{0%,100%{background-position:120% 0}50%{background-position:-20% 0}}
 .bt-goal-closed:hover{background:var(--bt-hover)}
 .bt-goal-closed:active{background:var(--bt-active)}
 .bt-goal-closed-main{display:flex;align-items:center;gap:10px;min-width:0;height:54px;padding:8px 12px 8px 9px;box-sizing:border-box}
 .bt-goal-closed-ico{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;color:var(--bt-accent-text);animation:bt-island-layer-in .26s var(--bt-ease) backwards}
-.bt-goal-closed-ico::before{content:"";position:absolute;inset:4px;border-radius:50%;background:radial-gradient(120% 120% at 32% 18%,rgba(255,255,255,.34),var(--bt-accent-wash) 76%);box-shadow:inset 0 0 0 .5px var(--bt-line-accent),0 1px 2px rgba(0,0,0,.4)}
+.bt-goal-closed-ico::before{content:"";position:absolute;inset:3px;border-radius:50%;background:radial-gradient(120% 120% at 32% 16%,rgba(255,255,255,.42),transparent 58%),conic-gradient(from 210deg,rgba(236,203,128,.62),rgba(255,255,255,.08) 26%,rgba(236,203,128,.3) 52%,rgba(255,255,255,.06) 74%,rgba(236,203,128,.62));box-shadow:inset 0 0 0 .5px rgba(236,203,128,.6),inset 0 -6px 10px -8px rgba(0,0,0,.8),0 1px 3px rgba(0,0,0,.5),0 0 12px -2px rgba(236,203,128,.38)}
 .bt-goal-closed-ico[data-chat=true]{width:30px;height:30px;color:var(--bt-ink-2)}
 .bt-goal-closed-ico[data-chat=true]::before{display:none}
 .bt-goal-chat-mark{display:block;width:18px;height:18px}
 body[data-ds-dark-theme] .bt-goal-closed-ico[data-chat=true]{color:#f6dda6}
-.bt-goal-ico-num{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;font-size:12.5px;line-height:18px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--bt-ink);animation:bt-num-in .34s var(--bt-ease) 1}
+.bt-goal-ico-num{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;font-size:12.5px;line-height:18px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--bt-ink);text-shadow:0 1px 2px rgba(0,0,0,.45);animation:bt-num-in .34s var(--bt-ease) 1}
 .bt-goal-ring{position:absolute;inset:0;width:34px;height:34px;overflow:visible}
 .bt-ring-track{stroke:var(--bt-line-2)}
-.bt-ring-fill{stroke:var(--bt-green);filter:drop-shadow(0 0 2.5px color-mix(in srgb,var(--bt-green) 50%,transparent));transition:stroke-dasharray .7s var(--bt-ease)}
+.bt-ring-fill{stroke:var(--bt-green);filter:drop-shadow(0 0 2.5px color-mix(in srgb,var(--bt-green) 58%,transparent)) drop-shadow(0 0 7px color-mix(in srgb,var(--bt-green) 28%,transparent));transition:stroke-dasharray .7s var(--bt-ease)}
 .bt-goal-closed-ico[data-tone=stopped] .bt-ring-fill{stroke:var(--bt-ink-3);filter:none}
 .bt-goal-closed-pip{display:none}
 .bt-goal-closed-ico[data-live] .bt-goal-closed-pip{display:block;position:absolute;right:0;bottom:0;width:8px;height:8px;border-radius:50%;background:var(--bt-green);box-shadow:0 0 0 2px var(--bt-card),0 0 6px color-mix(in srgb,var(--bt-green) 55%,transparent);animation:bt-live-pulse 1.4s ease-in-out infinite}
@@ -495,5 +507,5 @@ body[data-ds-dark-theme] .bt-goal-closed-ico[data-chat=true]{color:#f6dda6}
 .bt-event .bt-event-ico{display:inline-flex;width:14px;height:14px;color:var(--bt-accent)}
 @keyframes bt-island-layer-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
 @keyframes bt-live-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
-@media (prefers-reduced-motion:reduce){.bt-island{transition:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-ring-fill{transition:none!important}.bt-island[data-sweep]::after{display:none!important}.bt-island[data-sweep] .bt-goal-closed-ico{animation:none!important}.bt-goal-ico-num{animation:none!important}}
+@media (prefers-reduced-motion:reduce){.bt-island{transition:none!important}.bt-island::before{animation:none!important;opacity:.5!important}.bt-goal-closed::after,.bt-island-orbit{animation:none!important;display:none!important}.bt-goal-panel,.bt-goal-signal,.bt-goal-closed-ico,.bt-goal-closed-copy,.bt-island .bt-pill{animation:none!important}.bt-goal-closed-ico[data-live] .bt-goal-closed-pip{animation:none!important}.bt-ring-fill{transition:none!important}.bt-island[data-sweep]::after{display:none!important}.bt-island[data-sweep] .bt-goal-closed-ico{animation:none!important}.bt-goal-ico-num{animation:none!important}}
 `

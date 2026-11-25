@@ -68,6 +68,18 @@ const countClass = (node, name) => {
   return own + (node.children ?? []).reduce((sum, child) => sum + countClass(child, name), 0)
 }
 
+const classSequence = (node, names) => {
+  const seen = []
+  const walk = current => {
+    if (current === null || current === undefined || typeof current !== 'object') return
+    const classes = typeof current.props?.className === 'string' ? current.props.className.split(/\s+/) : []
+    for (const name of names) if (classes.includes(name)) seen.push(name)
+    for (const child of current.children ?? []) walk(child)
+  }
+  walk(node)
+  return seen
+}
+
 const members = [{ id: 'lead', name: '规划师', role: 'lead', roleKind: 'planner' }]
 
 const finishedRoom = () => ({
@@ -206,7 +218,7 @@ test('a studio room shows the pending approval instead of only a badge', async (
   assert.match(text(tree), /访问网络/)
 })
 
-test('a system handoff is a chain line, not the sender speaking', async () => {
+test('a system handoff is the sender speaking to the next member', async () => {
   const { StudioTranscript } = await load()
   const room = {
     ...finishedRoom(),
@@ -222,9 +234,34 @@ test('a system handoff is a chain line, not the sender speaking', async () => {
   ]
   const tree = render(StudioTranscript({ room, members: roster, delivery: null }))
   assert.equal(hasClass(tree, 'crew-process-line'), false)
-  assert.equal(countClass(tree, 'crew-msg-wrap'), 0)
-  assert.equal(hasClass(tree, 'crew-system'), true)
-  assert.match(text(tree), /@执行官/)
+  assert.ok(countClass(tree, 'crew-msg-wrap') > 0)
+  assert.equal(hasClass(tree, 'crew-system'), false)
+})
+
+test('a late activity stays after the handoff that called it', async () => {
+  const { StudioTranscript } = await load()
+  const room = {
+    ...finishedRoom(),
+    state: 'active',
+    stages: [{ ...finishedRoom().stages[0], state: 'active' }],
+    messages: [
+      {
+        kind: 'system', id: 'h1', authorId: 'lead', seq: 1, ts: 200,
+        text: '@验收员 第 1 步「实现」结果好了，请复核。',
+        meta: { kind: 'handoff', from: 'lead', to: ['verifier'], authorKind: 'system' },
+      },
+      {
+        kind: 'activity', id: 'a1', authorId: 'verifier', seq: 2, ts: 100, ok: true,
+        text: "验收员's recent-work brief", tool: { name: "验收员's recent-work brief" },
+      },
+    ],
+  }
+  const roster = [...members, { id: 'verifier', name: '验收员', role: 'verifier', roleKind: 'verifier' }]
+  const tree = render(StudioTranscript({ room, members: roster, delivery: null }))
+  const sequence = classSequence(tree, ['crew-msg-wrap', 'crew-process'])
+  assert.ok(sequence.includes('crew-msg-wrap'))
+  assert.ok(sequence.includes('crew-process'))
+  assert.ok(sequence.indexOf('crew-msg-wrap') < sequence.indexOf('crew-process'))
 })
 
 test('tool calls sit in the timeline as one folded row per run', async () => {

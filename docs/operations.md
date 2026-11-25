@@ -171,7 +171,7 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 
 真实环境先跑只读冒烟 `npm run smoke:real`：检查 Lodge 8787、基座 8799、基座形状和本机模型路由，不建房间、不调模型；任一不健康就非零退出。macOS 可装每日定时：`npm run nightly:smoke:install -- 09:17`，失败弹系统通知，日志在 `~/Library/Logs/Lodge/smoke.log`；`npm run nightly:smoke:uninstall` 移除。
 
-真实评测也可定时：`npm run nightly:eval` 依次跑真实房间（3 次）、规划、执行和验收探针（5 次，并写探针池），需要 Lodge 8787 和基座 8799 都在、且会真实调用模型；环境不在就跳过模型环节，以 2 退出。验收探针要求 Lodge 用 `LODGE_PROBE_REVIEW_PATCH_DIR=/tmp/lodge-probe-patches` 启动；没开缺陷注入就跳过这一项，并在日报里写明，不算失败。日报写到 `evals/nightly/results/<日期>.md`（不进 git），失败以 1 退出。macOS 安装：`npm run nightly:eval:install -- 03:17`，日志在 `~/Library/Logs/Lodge/eval.log`，失败弹系统通知；`npm run nightly:eval:uninstall` 移除。它不进 `check:done`：一次几分钟到几十分钟，花真实额度。
+真实评测也可定时：`npm run nightly:eval` 依次跑真实房间（3 次）、规划、执行和验收探针（5 次，并写探针池），需要 Lodge 8787 和基座 8799 都在、且会真实调用模型；环境不在就跳过模型环节，以 2 退出。验收探针要求 Lodge 用 `LODGE_PROBE_REVIEW_PATCH_DIR=/tmp/lodge-probe-patches` 启动；没开缺陷注入就跳过这一项，并在日报里写明，不算失败。日报写到 `evals/nightly/results/<日期>.md`（不进 git），失败以 1 退出。macOS 安装：`npm run nightly:eval:install -- 03:17`，日志在 `~/Library/Logs/Lodge/eval.log`，失败弹系统通知；`npm run nightly:eval:uninstall` 移除。任务也设了登录时补跑：晚上关机、第二天登录时如果今天还没有日报就补一次，已经有就跳过。它不进 `check:done`：一次几分钟到几十分钟，花真实额度。
 
 长聊天压测用 `npm run soak -- --minutes 30`：按真实总线灌流式增量，输出回合数、消息数和堆内存，不进入 `check:done`。
 
