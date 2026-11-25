@@ -1,3 +1,5 @@
+import { ASSIGNMENT_TERMINAL } from '../../../shared/states.js'
+
 // Assignment 是房间内的一次交接；存储按轮次隔离，正文留在 payload。
 export const createAssignmentStore = ({ db, readRoom, roundIdForRead }) => {
   const readAssignment = (id, roomId = null) => {
@@ -28,7 +30,7 @@ export const createAssignmentStore = ({ db, readRoom, roundIdForRead }) => {
 
   const pruneAssignments = (roomId, { keep = 2000 } = {}) => {
     const size = Math.max(0, Number(keep) || 0)
-    const terminal = "status IN ('passed', 'rejected', 'failed', 'cancelled')"
+    const terminal = `status IN (${[...ASSIGNMENT_TERMINAL].map(status => `'${status}'`).join(', ')})`
     return Number(db.prepare(`DELETE FROM assignment WHERE id IN (SELECT id FROM assignment WHERE room_id = ? AND ${terminal} ORDER BY created_at DESC, rowid DESC LIMIT -1 OFFSET ?)`)
       .run(roomId, size).changes)
   }
@@ -40,6 +42,7 @@ export const createAssignmentStore = ({ db, readRoom, roundIdForRead }) => {
     const stored = {
       ...assignment,
       ...(workRoundId === null ? {} : { workRoundId }),
+      version: Number(assignment.version) || 1,
       createdAt: assignment.createdAt ?? now,
       updatedAt: assignment.updatedAt ?? now,
     }
@@ -53,22 +56,45 @@ export const createAssignmentStore = ({ db, readRoom, roundIdForRead }) => {
   }
 
   const updateAssignment = (id, mutate) => {
-    db.exec('BEGIN IMMEDIATE')
-    try {
-      const row = db.prepare('SELECT payload FROM assignment WHERE id = ?').get(id)
-      if (row === undefined) { db.exec('ROLLBACK'); return null }
-      const assignment = JSON.parse(row.payload)
-      const change = mutate(assignment)
-      if (change === null || change === undefined || change === false) { db.exec('ROLLBACK'); return null }
-      const stored = { ...assignment, ...(change === true ? {} : change), updatedAt: Date.now() }
-      db.prepare('UPDATE assignment SET work_round_id = ?, stage = ?, status = ?, updated_at = ?, payload = ? WHERE id = ?')
-        .run(stored.workRoundId ?? null, stored.stageIndex ?? 0, stored.status ?? 'created', stored.updatedAt, JSON.stringify(stored), id)
-      db.exec('COMMIT')
-      return stored
-    } catch (error) {
-      db.exec('ROLLBACK')
-      throw error
+    // 两个回合可能同时落在同一条交接上：用 payload 里的版本做乐观锁，
+    // 撞车就重读再改，不能最后写的人把前一个终态覆盖掉。
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      db.exec('BEGIN IMMEDIATE')
+      try {
+        const row = db.prepare('SELECT payload FROM assignment WHERE id = ?').get(id)
+        if (row === undefined) { db.exec('ROLLBACK'); return null }
+        const assignment = JSON.parse(row.payload)
+        const version = Number(assignment.version) || 1
+        const change = mutate(assignment)
+        if (change === null || change === undefined || change === false) { db.exec('ROLLBACK'); return null }
+        const stored = {
+          ...assignment,
+          ...(change === true ? {} : change),
+          version: version + 1,
+          updatedAt: Date.now(),
+        }
+        const saved = db.prepare(
+          `UPDATE assignment SET work_round_id = ?, stage = ?, status = ?, updated_at = ?, payload = ? WHERE id = ? AND json_extract(payload, '$.version') = ?`,
+        ).run(
+          stored.workRoundId ?? null,
+          stored.stageIndex ?? 0,
+          stored.status ?? 'created',
+          stored.updatedAt,
+          JSON.stringify(stored),
+          id,
+          version,
+        )
+        if (Number(saved.changes) > 0) {
+          db.exec('COMMIT')
+          return stored
+        }
+        db.exec('ROLLBACK')
+      } catch (error) {
+        db.exec('ROLLBACK')
+        throw error
+      }
     }
+    return null
   }
 
   const deleteAssignments = roomId => Number(db.prepare('DELETE FROM assignment WHERE room_id = ?').run(roomId).changes)

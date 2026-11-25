@@ -171,14 +171,25 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       : (typeof room.repoPath === 'string' && room.repoPath !== '' && typeof workspaceOf(room).head === 'function'
         ? workspaceOf(room).head({ path: room.repoPath })
         : null)
+    // 非 git 工作区没有 HEAD；记下阶段起点的文件清单，交付时才能算出“这次改了什么”。
+    const storedManifest = Array.isArray(room.stageBaseManifests?.[index]) ? room.stageBaseManifests[index] : null
+    const stageManifest = storedManifest ?? (
+      typeof room.repoPath === 'string' && room.repoPath !== '' && typeof workspaceOf(room).manifest === 'function'
+        ? workspaceOf(room).manifest({ path: room.repoPath })
+        : null
+    )
     if (
       (typeof stageBase === 'string' && stageBase !== '') ||
+      Array.isArray(stageManifest) ||
       room.blocked?.stage === index ||
       room.mergeConflict?.stage === index
     ) {
       store.updateRound(roomId, current => {
         if (typeof stageBase === 'string' && stageBase !== '' && storedBase === '') {
           current.stageBases = { ...(current.stageBases ?? {}), [index]: stageBase }
+        }
+        if (Array.isArray(stageManifest) && storedManifest === null) {
+          current.stageBaseManifests = { ...(current.stageBaseManifests ?? {}), [index]: stageManifest }
         }
         if (current.blocked?.stage === index) current.blocked = null
         // 重做会把冲突现场一起丢掉；旧冲突和旧的“人已解决”标记不能拦住新一轮的合并。

@@ -123,7 +123,15 @@ export function App() {
       type: 'button',
       className: 'crew-accept',
       onClick: () => void store.refresh(),
-    }, '重试'))
+    }, '重试'),
+    // 第一间房一直准备不出来时，人仍然可以自己开一间，不被卡在等待页。
+    firstRun
+      ? h('button', {
+        type: 'button',
+        className: 'crew-ghost',
+        onClick: () => openDialog(),
+      }, '新建房间')
+      : null)
   return h('div', { className: 'dsb-frame', 'data-solo': firstRun ? 'true' : undefined },
     connectionBanner,
     firstRun

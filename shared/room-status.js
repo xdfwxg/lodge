@@ -61,7 +61,7 @@ export const stagesCompletedOf = room => {
 // 聊天有没有真正开始：运行标志、总结/收尾阶段，或已经有人说了一句。
 export const chatStartedOf = (room, messages = room?.messages) => {
   const chat = room?.chat ?? {}
-  if (chat.running === true || chat.hostThinking === true) return true
+  if (chat.selecting === true || chat.running === true || chat.hostThinking === true) return true
   if (chat.phase === CHAT_PHASE.summarizing || chat.phase === CHAT_PHASE.concluded) return true
   return (Array.isArray(messages) ? messages : []).some(message => (
     message.kind === 'chat' && message.authorId !== 'lodge' && message.authorId !== 'system'
@@ -76,6 +76,7 @@ export const chatStatusOf = (room, messages = room?.messages) => {
   const chat = room?.chat ?? {}
   if (chat.phase === CHAT_STATUS.summarizing) return CHAT_STATUS.summarizing
   if (chat.phase === CHAT_STATUS.concluded) return CHAT_STATUS.concluded
+  if (chat.selecting === true) return CHAT_STATUS.selecting
   if (chat.hostThinking === true) return CHAT_STATUS.thinking
   if (chat.running === true) return CHAT_STATUS.running
   // 停下/出错后这一轮没有结论，但也没结束；界面要能看见并继续，不能装成还在聊。

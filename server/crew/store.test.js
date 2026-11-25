@@ -257,6 +257,22 @@ test('assignments page by cursor and prune only terminal rows', () => {
   }
 })
 
+test('a completed work item is not replayed by a repeated enqueue', () => {
+  const dataDir = mkdtempSync(join(tmpdir(), 'crew-work-done-'))
+  const store = createStore({ dataDir })
+  try {
+    store.enqueueWork({ id: 'done-1', roomId: 'r1', kind: 'approval', availableAt: 0 })
+    const claimed = store.claimWork('r1')
+    assert.equal(claimed.id, 'done-1')
+    store.completeWork('done-1')
+    assert.equal(store.enqueueWork({ id: 'done-1', roomId: 'r1', kind: 'approval', availableAt: 0 }), null)
+    assert.equal(store.claimWork('r1'), null)
+  } finally {
+    store.db.close()
+    rmSync(dataDir, { recursive: true, force: true })
+  }
+})
+
 test('work items dedupe and timers survive a reopen', () => {
   const dataDir = mkdtempSync(join(tmpdir(), 'crew-work-store-'))
   let store = createStore({ dataDir })

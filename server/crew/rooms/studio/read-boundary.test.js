@@ -62,6 +62,19 @@ test('reads inside the verifier copy and relative commands are allowed', () => {
   }
 })
 
+test('relative traversal into another copy is caught', () => {
+  const ctx = setup()
+  try {
+    const calls = [
+      { name: 'Bash', input: { command: 'cat ../worker/README.md' } },
+      { name: 'Bash', input: { command: 'cd ../worker && npm test' } },
+    ]
+    assert.deepEqual(foreignReadsOf({ calls, room: ctx.room, memberId: 'verifier' }).map(hit => hit.root), ['worker', 'worker'])
+  } finally {
+    ctx.close()
+  }
+})
+
 test('write and gate tools are not counted as evidence reads', () => {
   const ctx = setup()
   try {

@@ -7,6 +7,7 @@ import {
   changes as manifestChanges,
   head as manifestHead,
   isolatedCopy,
+  manifest,
   probeSource,
   removeIsolatedCopy,
   scratchRoot as copyRoot,
@@ -24,7 +25,7 @@ export const capabilities = () => ({
   commit: false,
 })
 
-export { probeSource, isolatedCopy, removeIsolatedCopy }
+export { probeSource, isolatedCopy, removeIsolatedCopy, manifest }
 
 const portBase = () => {
   const value = Number(process.env.CREW_WORKTREE_PORT_BASE ?? 4100)

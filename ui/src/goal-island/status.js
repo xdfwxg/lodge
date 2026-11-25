@@ -14,6 +14,7 @@ export const ISLAND_STATUS = Object.freeze({
     done: Object.freeze({ barLabel: null, stageLabel: '', tone: 'done' }),
   }),
   chat: Object.freeze({
+    selecting: Object.freeze({ barLabel: CHAT_STATE_WORD.selecting, stageLabel: CHAT_STATE_WORD.selecting, tone: 'active' }),
     running: Object.freeze({ barLabel: CHAT_STATE_WORD.running, stageLabel: CHAT_STATE_WORD.running, tone: 'active' }),
     summarizing: Object.freeze({ barLabel: CHAT_STATE_WORD.summarizing, stageLabel: CHAT_STATE_WORD.summarizing, tone: 'active' }),
     waiting: Object.freeze({ barLabel: CHAT_STATE_WORD.concluded, stageLabel: CHAT_STATE_WORD.concluded, tone: 'waiting' }),
@@ -27,7 +28,7 @@ export const ISLAND_STATUS = Object.freeze({
 export const islandWorking = room => (
   room?.working === true ||
   (Array.isArray(room?.busyMembers) ? room.busyMembers.length > 0 : false) ||
-  ['running', 'summarizing', 'thinking'].includes(chatStatusOf(room))
+  ['selecting', 'running', 'summarizing', 'thinking'].includes(chatStatusOf(room))
 )
 
 const studioState = room => {
@@ -49,6 +50,7 @@ const chatState = room => {
   if (status === 'stopped') return 'stopped'
   if (status === 'summarizing') return 'summarizing'
   if (status === 'concluded') return 'waiting'
+  if (status === 'selecting') return 'selecting'
   if (status === 'running' || status === 'thinking' || status === 'discussing') return 'running'
   return 'idle'
 }

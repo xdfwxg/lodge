@@ -5,7 +5,7 @@ import { createPromiseRunner } from './runtime.js'
 
 const at = (year, month, day, hour, minute = 0) => new Date(year, month - 1, day, hour, minute, 0, 0).getTime()
 
-const setup = ({ busy = false, state = 'idle', promiseStatus = 'active' } = {}) => {
+const setup = ({ busy = false, state = 'idle', promiseStatus = 'active', duringStart = null } = {}) => {
   const now = at(2026, 11, 23, 9) // Monday
   const promise = {
     text: '每周挑 5 个值得看的 GitHub 项目',
@@ -45,6 +45,7 @@ const setup = ({ busy = false, state = 'idle', promiseStatus = 'active' } = {}) 
   const rounds = []
   const startRound = async input => {
     rounds.push(input)
+    if (typeof duringStart === 'function') duringStart(room)
     return { ok: true, body: { round: { id: 'round-2' } } }
   }
   const runner = createPromiseRunner({ store, live: {}, emit: () => {}, startRound, roomFiles: {} })
@@ -61,6 +62,22 @@ test('a due promise starts one round and arms the next one', async () => {
   assert.equal(ctx.room.promise.runs, 1)
   assert.equal(ctx.room.promise.lastRoundId, 'round-2')
   assert.ok(ctx.work.some(item => item.availableAt === ctx.room.promise.nextAt))
+})
+
+test('a promise edited while the round starts re-arms the current version', async () => {
+  const ctx = setup({
+    duringStart: room => {
+      room.promise = {
+        ...room.promise,
+        version: 2,
+        nextAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      }
+    },
+  })
+  await ctx.runner({ roomId: 'room-1', kind: 'promise.tick', payload: { at: ctx.promise.nextAt } })
+  assert.equal(ctx.room.promise.version, 2)
+  assert.ok(ctx.work.some(item => item.availableAt === ctx.room.promise.nextAt))
+  assert.ok(ctx.messages.some(message => message.text.includes('按新的设置接上')))
 })
 
 test('a busy room skips this occurrence and arms the next one', async () => {

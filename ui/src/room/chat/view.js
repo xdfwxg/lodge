@@ -37,13 +37,20 @@ export const chatView = {
     const hasConversation = (room.messages ?? []).some(message => (
       message.kind === 'chat' || message.kind === 'chat_conclusion'
     ))
-    const intro = hasConversation || chatStartedOf(room) || room.state !== 'active'
-      ? null
-      : h(StatePanel, {
-        key: `intro-${room.id}`,
-        title: '随便聊聊',
-        body: '想聊就聊，聊到有结论再决定下一步。',
+    const selecting = room.state === 'active' && room.chat?.selecting === true
+    const intro = selecting
+      ? h(StatePanel, {
+        key: `selecting-${room.id}`,
+        title: '正在请人',
+        body: '主持人正在按话题请几位成员，马上开始。',
       })
+      : hasConversation || chatStartedOf(room) || room.state !== 'active'
+        ? null
+        : h(StatePanel, {
+          key: `intro-${room.id}`,
+          title: '随便聊聊',
+          body: '想聊就聊，聊到有结论再决定下一步。',
+        })
     const interrupted = room.state === 'active' &&
       room.chat?.interrupted === true && room.chat?.running !== true
     return h(Fragment, null,

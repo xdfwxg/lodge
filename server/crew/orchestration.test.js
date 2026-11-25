@@ -84,7 +84,7 @@ test('planner assignee tokens resolve to workers only', () => {
   const roster = [
     { id: 'lead', name: '队长', role: 'lead' },
     { id: 'worker', name: '甲', role: 'worker' },
-    { id: 'worker-2', name: '乙', role: 'worker' },
+    { id: 'worker-2', name: '乙', roleKind: 'executor' },
     { id: 'verifier', name: '验收员', role: 'verifier' },
   ]
   assert.deepEqual(resolveAssigneeTokens(['甲', 'worker-2', '验收员', '不存在'], roster), ['worker', 'worker-2'])

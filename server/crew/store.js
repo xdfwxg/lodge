@@ -261,13 +261,14 @@ export const createStore = ({ dataDir, emit = () => {} }) => {
     readWorkRound: rounds.readWorkRound,
     insertEvent,
     mirrorEvent,
-    persistMessage: message => {
+    persistMessage: (message, options = {}) => {
       const room = readRoom(message.roomId)
       return timeline.persistMessage(
         { ...message, id: randomUUID(), seq: timeline.nextSeq(), ts: Date.now() },
-        { transcript: room?.demo !== true },
+        { ...options, transcript: room?.demo !== true && options.transcript !== false },
       )
     },
+    mirrorMessage: message => timeline.mirrorMessage(message),
     emitMessage: (message, seq) => emit('msg', message, seq),
   })
   const assignments = createAssignmentStore({ db, readRoom, roundIdForRead })

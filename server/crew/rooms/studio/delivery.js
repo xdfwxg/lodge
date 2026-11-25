@@ -1,6 +1,7 @@
 import { independenceLabel } from '../../digest.js'
 import { memberLabelMap } from '../../member-labels.js'
 import { artifactKindOf } from '../../../../shared/artifact.js'
+import { reworkFloor } from '../../../../shared/attempt.js'
 import { deliveryKindOf } from '../../../../shared/delivery.js'
 import { judgmentOf, verdictPassed } from '../../../../shared/judgment.js'
 
@@ -78,8 +79,17 @@ export const buildDelivery = (room, messages = []) => {
         proof: message.meta?.proof !== null && typeof message.meta?.proof === 'object' ? message.meta.proof : null,
         simulated: message.meta?.simulated === true,
       }))
+    // 交付卡只认这一段最后一次交付的判定：重做前的退回和更早的 PASS 不进结论。
+    const floor = reworkFloor(messages, index)
+    const latestResult = [...stageMessages].reverse().find(message => (
+      message.kind === 'evidence' && message.meta?.kind === 'result'
+    ))
     const verdicts = stageMessages
-      .filter(message => message.kind === 'verdict')
+      .filter(message => (
+        message.kind === 'verdict' &&
+        (message.seq ?? 0) > floor &&
+        (latestResult === undefined || message.meta?.evidenceId === undefined || message.meta.evidenceId === latestResult.id)
+      ))
       .map(message => ({
         id: message.id,
         authorId: message.authorId ?? 'verifier',

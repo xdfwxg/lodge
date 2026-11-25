@@ -22,6 +22,7 @@ export const ROUND_FIELDS = Object.freeze([
   'reviewRetriedAt',
   'stageDiagnostics',
   'stageBases',
+  'stageBaseManifests',
   'startHead',
   'workspaceHead',
   'completedAt',

@@ -160,12 +160,13 @@ export const createHttpHandler = ({
   send,
   chooseDirectory,
   openPath,
+  actionToken = null,
 }) => async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1')
   const path = url.pathname
 
   try {
-    const blocked = requestGuard(req, path)
+    const blocked = requestGuard(req, path, { actionToken })
     if (blocked !== null) return json(res, 403, { error: blocked })
 
     if (path === '/api/state' && req.method === 'GET') {

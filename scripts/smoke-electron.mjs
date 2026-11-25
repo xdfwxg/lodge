@@ -53,12 +53,9 @@ try {
 
   // 真建一间示例房：窗口里能看见它，说明主进程、服务和界面确实接在一起。
   const seeded = await page.evaluate(async () => {
-    const response = await fetch('/api/rooms/sample', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ kind: 'chat' }),
-    })
-    return { ok: response.ok, body: await response.text() }
+    // 桌面版的写操作必须走主进程代理；直接 fetch 没有一次性令牌。
+    const result = await window.lodge.request('/api/rooms/sample', { kind: 'chat' })
+    return { ok: result?.ok === true, body: JSON.stringify(result?.body ?? {}) }
   })
   if (!seeded.ok) throw new Error(`示例房没有建起来：${seeded.body.slice(0, 300)}`)
   await page.reload()

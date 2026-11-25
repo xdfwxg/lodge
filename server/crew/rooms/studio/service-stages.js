@@ -25,13 +25,27 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
     if (workspace === null || typeof workspace.provider !== 'function') return room
     if (typeof room.repoPath !== 'string' || room.repoPath === '') return room
     try {
-      const base = workspace.provider(room).head?.({ path: room.repoPath })
-      if (typeof base !== 'string' || base === '') return room
-      if (room.stageBases?.[index] === base) return room
+      const provider = workspace.provider(room)
+      const base = provider.head?.({ path: room.repoPath })
+      // 非 git 工作区没有 HEAD；同一刻记下文件清单，交付时才能算包外改动。
+      const manifest = typeof provider.manifest === 'function'
+        ? provider.manifest({ path: room.repoPath })
+        : null
+      const baseStored = typeof base === 'string' && base !== '' && room.stageBases?.[index] === base
+      const manifestStored = !Array.isArray(manifest) || Array.isArray(room.stageBaseManifests?.[index])
+      if ((typeof base !== 'string' || base === '') && !Array.isArray(manifest)) return room
+      if (baseStored && manifestStored) return room
       const saved = updateRound(room.id, current => {
-        if (current.stageBases?.[index] === base) return null
-        current.stageBases = { ...(current.stageBases ?? {}), [index]: base }
-        return { events: [] }
+        let changed = false
+        if (typeof base === 'string' && base !== '' && current.stageBases?.[index] !== base) {
+          current.stageBases = { ...(current.stageBases ?? {}), [index]: base }
+          changed = true
+        }
+        if (Array.isArray(manifest) && !Array.isArray(current.stageBaseManifests?.[index])) {
+          current.stageBaseManifests = { ...(current.stageBaseManifests ?? {}), [index]: manifest }
+          changed = true
+        }
+        return changed ? { events: [] } : null
       })
       return saved ?? room
     } catch {
@@ -253,6 +267,9 @@ export const createServiceStages = ({ store, live, emit, completeRoom, roomFiles
       // 后面的阶段重新开始时从当时的 HEAD 取起点；目标步骤自己的起点要保留。
       for (const key of Object.keys(current.stageBases ?? {})) {
         if (Number(key) > index) delete current.stageBases[key]
+      }
+      for (const key of Object.keys(current.stageBaseManifests ?? {})) {
+        if (Number(key) > index) delete current.stageBaseManifests[key]
       }
       current.mergeConflict = null
       current.blocked = null

@@ -40,6 +40,19 @@ test('the delivery card keeps goal, commands, files, verdicts and commit', () =>
   assert.equal(delivery.kind, 'text')
 })
 
+test('a reworked stage keeps only the verdicts on the current result', () => {
+  const reworked = [
+    { id: 'e1', kind: 'evidence', seq: 1, ts: 10, meta: { stage: 1, kind: 'result', changedFiles: ['src/a.js'] } },
+    { id: 'v1', kind: 'verdict', authorId: 'verifier', seq: 2, ts: 11, text: 'REJECT', meta: { stage: 1, pass: false, evidenceId: 'e1' } },
+    { id: 'rw', kind: 'rework', seq: 3, ts: 12, meta: { stage: 1 } },
+    { id: 'e2', kind: 'evidence', seq: 4, ts: 13, meta: { stage: 1, kind: 'result', changedFiles: ['src/a.js'] } },
+    { id: 'v2', kind: 'verdict', authorId: 'verifier', seq: 5, ts: 14, text: 'PASS', meta: { stage: 1, pass: true, evidenceId: 'e2' } },
+  ]
+  const delivery = buildDelivery(room(), reworked)
+  assert.deepEqual(delivery.stages[1].verdicts.map(verdict => verdict.id), ['v2'])
+  assert.equal(delivery.stages[1].verdicts[0].pass, true)
+})
+
 test('a promise room titles the card by period instead of the standing goal', () => {
   const delivery = buildDelivery(room({
     promise: { text: '每周整理 5 个项目', status: 'active' },

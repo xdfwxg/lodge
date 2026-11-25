@@ -320,6 +320,42 @@ test('a confirmed plan starts at delivery but keeps the final acceptance stage',
   assert.equal(room.stages[2].title, '验收与结论')
 })
 
+test('a supplied plan with independent packages creates a parallel room', async () => {
+  const { store } = completedRoom(temp('lodge-parallel-plan-data-'))
+  const result = await run(store, {
+    goal: '两个独立文件',
+    verify: 'test',
+    repoPath: gitRepo(),
+    members: [
+      { role: 'lead', name: '队长' },
+      { role: 'worker', name: '执行甲' },
+      { role: 'worker', name: '执行乙' },
+      { role: 'verifier', name: '验收' },
+    ],
+    plan: {
+      contract: {
+        outcomes: [
+          { id: 'a', statement: 'a.txt 有 A', observable: 'a.txt 包含 A' },
+          { id: 'b', statement: 'b.txt 有 B', observable: 'b.txt 包含 B' },
+        ],
+        boundaries: ['只改两个文件'],
+        nonGoals: ['不改其他文件'],
+      },
+      stages: [{
+        title: '写两个文件',
+        deliverable: '两个文件各一行',
+        clauseIds: ['a', 'b'],
+        packages: [
+          { title: '写 a', files: ['a.txt'], clauseIds: ['a'] },
+          { title: '写 b', files: ['b.txt'], clauseIds: ['b'] },
+        ],
+      }],
+    },
+  })
+  assert.equal(result.ok, true, result.error)
+  assert.equal(result.body.room.orchestration, 'parallel')
+})
+
 test('a plan can declare multiple work stages between alignment and acceptance', async () => {
   const { store } = completedRoom(temp('lodge-plan-stages-data-'))
   const result = await run(store, {

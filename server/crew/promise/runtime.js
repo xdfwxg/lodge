@@ -33,6 +33,13 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
   if (room === null || room.archivedAt) return true
   const promise = promiseOf(room)
   if (promise === null || promise.status !== PROMISE_STATUS.active) return true
+  // 这次写回和用户手改撞车时，按最新那一版重新排下一次，别让承诺停在旧时间上。
+  const armLatest = () => {
+    const latest = promiseOf(store.readRoom(event.roomId))
+    if (latest?.status === PROMISE_STATUS.active) {
+      armPromise({ store, roomId: event.roomId, promise: latest })
+    }
+  }
   const manual = event.payload?.manual === true
   const at = Number(event.payload?.at)
   if (!manual && (!Number.isFinite(at) || at !== promise.nextAt)) return true
@@ -69,6 +76,8 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
         ? `连续 ${PROMISE_MAX_MISSES} 次没能开起来，这件事停了；要跑就重新开始。`
         : '这一期房间还在忙，跳过了；下次到点再来。')
       emit('room', updated)
+    } else {
+      armLatest()
     }
     return true
   }
@@ -116,6 +125,8 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
         ? `连续 ${PROMISE_MAX_MISSES} 次没能开起来，这件事停了；要跑就重新开始。`
         : `这一期没开起来：${result?.error ?? '先看看房间状态'}`)
       emit('room', updated)
+    } else {
+      armLatest()
     }
     return true
   }
@@ -140,6 +151,9 @@ export const createPromiseRunner = ({ store, live, emit, startRound, roomFiles }
     armPromise({ store, roomId: room.id, promise: updated.promise })
     if (late) notice(store, room.id, '这一期是补上的：打开应用后补了一次。')
     emit('room', updated)
+  } else {
+    armLatest()
+    notice(store, room.id, '这一期已经开跑；承诺同时被改过，按新的设置接上下一次。')
   }
   return true
 }

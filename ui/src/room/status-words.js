@@ -8,6 +8,7 @@ export const ROOM_STATE_WORD = Object.freeze({
 })
 
 export const CHAT_STATE_WORD = Object.freeze({
+  selecting: '正在请人',
   running: '正在聊',
   summarizing: '正在收一下',
   concluded: '聊到这儿了',

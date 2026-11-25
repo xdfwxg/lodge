@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
-  changes, cleanupRoom, head, integrate, persistRoom, prepareRoom, pruneMembers,
+  changes, cleanupRoom, head, integrate, manifest, persistRoom, prepareRoom, pruneMembers,
 } from './workspace-plain.js'
 
 const temp = prefix => mkdtempSync(join(tmpdir(), prefix))
@@ -99,15 +99,62 @@ test('plain integration copies files and reports same-path conflicts', () => {
     const first = workspaces.members.worker.path
     const second = workspaces.members['worker-2'].path
     const integration = workspaces.integration.path
+    const base = manifest({ path: source })
     writeFileSync(join(first, 'src', 'a.txt'), 'from-first\n')
-    assert.deepEqual(integrate({ path: integration, source: first }), { ok: true })
+    assert.deepEqual(integrate({ path: integration, source: first, base }), { ok: true })
     assert.equal(readFileSync(join(integration, 'src', 'a.txt'), 'utf8'), 'from-first\n')
 
     writeFileSync(join(second, 'src', 'a.txt'), 'from-second\n')
-    const conflict = integrate({ path: integration, source: second })
+    const conflict = integrate({ path: integration, source: second, base })
     assert.equal(conflict.ok, false)
     assert.deepEqual(conflict.files, ['src/a.txt'])
     assert.equal(readFileSync(join(integration, 'src', 'a.txt'), 'utf8'), 'from-first\n')
+    cleanupRoom({ source, workspaces })
+  })
+  rmSync(source, { recursive: true, force: true })
+})
+
+test('a three-way plain merge propagates deletions and keeps untouched files', () => {
+  const source = sourceDir()
+  withRoot(() => {
+    const workspaces = prepareRoom({
+      source,
+      short: 'plain-delete',
+      members: [{ id: 'worker', role: 'worker' }, { id: 'worker-2', role: 'worker' }],
+    })
+    const first = workspaces.members.worker.path
+    const integration = workspaces.integration.path
+    const base = manifest({ path: source })
+    rmSync(join(first, 'src', 'a.txt'))
+    writeFileSync(join(first, 'new.txt'), 'new\n')
+    const result = integrate({ path: integration, source: first, base })
+    assert.equal(result.ok, true, result.error)
+    assert.equal(existsSync(join(integration, 'src', 'a.txt')), false)
+    assert.equal(readFileSync(join(integration, 'new.txt'), 'utf8'), 'new\n')
+    assert.equal(readFileSync(join(integration, 'README.md'), 'utf8'), '# demo\n')
+    cleanupRoom({ source, workspaces })
+  })
+  rmSync(source, { recursive: true, force: true })
+})
+
+test('a three-way plain merge reports edit/delete conflicts', () => {
+  const source = sourceDir()
+  withRoot(() => {
+    const workspaces = prepareRoom({
+      source,
+      short: 'plain-delete-conflict',
+      members: [{ id: 'worker', role: 'worker' }, { id: 'worker-2', role: 'worker' }],
+    })
+    const first = workspaces.members.worker.path
+    const second = workspaces.members['worker-2'].path
+    const integration = workspaces.integration.path
+    const base = manifest({ path: source })
+    rmSync(join(first, 'src', 'a.txt'))
+    writeFileSync(join(second, 'src', 'a.txt'), 'changed\n')
+    assert.equal(integrate({ path: integration, source: first, base }).ok, true)
+    const conflict = integrate({ path: integration, source: second, base })
+    assert.equal(conflict.ok, false)
+    assert.deepEqual(conflict.files, ['src/a.txt'])
     cleanupRoom({ source, workspaces })
   })
   rmSync(source, { recursive: true, force: true })

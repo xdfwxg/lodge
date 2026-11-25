@@ -43,6 +43,13 @@ export const gateFor = (room, index, messages, evidence) => {
   if (found === undefined) {
     return deny('conflict', '执行官还没有交回结果，不能验收')
   }
+  // 包外改动是写边界的事实：能退回的必须已经退回，退不回的（非 git 副本）不能确认。
+  const outside = found.meta?.outOfBounds
+  const outsideFiles = Array.isArray(outside?.files) ? outside.files : []
+  const reverted = Array.isArray(outside?.reverted) ? outside.reverted : []
+  if (outsideFiles.length > 0 && reverted.length < outsideFiles.length) {
+    return deny('conflict', `这一步改过工作包之外的文件：${outsideFiles.slice(0, 5).join('、')}；先处理再验收。`)
+  }
   // 每个交付都要有能重跑的证明；证明在改动前也绿，就没有绑定这次改动。
   if (found.meta?.proof?.status === 'incomplete') {
     const missing = Array.isArray(found.meta.proof.missingClauses) ? found.meta.proof.missingClauses : []

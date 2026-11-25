@@ -1,5 +1,6 @@
 import { OPEN_ROUND_STATUSES, ROOM_STATE, ROUND_STATUS } from '../../../shared/states.js'
 import { stagesCompletedOf } from '../../../shared/room-status.js'
+import * as log from '../log.js'
 
 // 启动时把房间和轮次的指针修回一致；不改写已终态轮次的内容。
 export const reconcileRounds = ({ store, emit = () => {} }) => {
@@ -12,6 +13,13 @@ export const reconcileRounds = ({ store, emit = () => {} }) => {
       : null
 
     if (active !== null && !OPEN_ROUND_STATUSES.has(active.status)) {
+      // 房间指针已经指向终态轮次：把这一轮遗留的待办和交接一起收口，
+      // 否则旧租约还能被调度器领走，像是“结束的轮次又开工了”。
+      try {
+        store.cancelRoundWork?.({ roomId: room.id, roundId: active.id, reason: '轮次已经结束' })
+      } catch (error) {
+        log.warn(`round recovery cancel failed: ${room.id} ${error?.message ?? error}`)
+      }
       const updated = store.updateRoom(room.id, current => {
         current.activeRoundId = null
         current.lastRoundId = active.id

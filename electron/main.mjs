@@ -43,6 +43,30 @@ let serverRestarts = 0
 let runtimeLogins = []
 let menuRooms = []
 let lastNeedsCount = 0
+// 服务端生成的一次性写操作令牌；只在本进程内存里，不写环境、不写日志。
+let actionToken = null
+let tokenWaiters = []
+
+const resetActionToken = () => {
+  const waiting = tokenWaiters
+  tokenWaiters = []
+  actionToken = null
+  for (const resolve of waiting) resolve(null)
+}
+
+const whenActionToken = (timeoutMs = 5_000) => {
+  if (actionToken !== null) return Promise.resolve(actionToken)
+  return new Promise(resolve => {
+    let settled = false
+    const settle = value => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    tokenWaiters.push(settle)
+    setTimeout(() => settle(null), timeoutMs).unref?.()
+  })
+}
 
 const readSettings = () => {
   try {
@@ -235,13 +259,33 @@ const startServer = async () => {
     CREW_PORT: String(serverPort),
     CREW_DATA_DIR: dataDir,
     CREW_BASE_URL: baseUrl,
+    LODGE_DESKTOP: '1',
   }
+  resetActionToken()
   serverProcess = spawn(process.execPath, [join(appRoot, 'server', 'index.js')], {
     cwd: appRoot,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
-  serverProcess.stdout.on('data', chunk => log(`out: ${chunk.toString().trimEnd()}`))
+  let stdoutBuffer = ''
+  serverProcess.stdout.on('data', chunk => {
+    stdoutBuffer += chunk.toString()
+    let newline = stdoutBuffer.indexOf('\n')
+    while (newline >= 0) {
+      const line = stdoutBuffer.slice(0, newline).replace(/\r$/, '')
+      stdoutBuffer = stdoutBuffer.slice(newline + 1)
+      const match = line.match(/^LODGE_ACTION_TOKEN (\S+)$/)
+      if (match) {
+        actionToken = match[1]
+        const waiting = tokenWaiters
+        tokenWaiters = []
+        for (const resolve of waiting) resolve(actionToken)
+      } else if (line !== '') {
+        log(`out: ${line}`)
+      }
+      newline = stdoutBuffer.indexOf('\n')
+    }
+  })
   serverProcess.stderr.on('data', chunk => log(`err: ${chunk.toString().trimEnd()}`))
   serverProcess.on('exit', code => {
     log(`server exited: ${code}`)
@@ -391,6 +435,17 @@ const createWindow = port => {
   window.on('closed', () => { window = null })
 }
 
+const fromAppWindow = event => {
+  const frame = event?.senderFrame
+  if (frame === null || typeof frame?.url !== 'string') return false
+  try {
+    const url = new URL(frame.url)
+    return url.hostname === '127.0.0.1' && Number(url.port) === serverPort
+  } catch {
+    return false
+  }
+}
+
 const boot = async () => {
   app.setName(APP_NAME)
   if (process.platform === 'darwin' && !app.isPackaged && existsSync(iconFile)) {
@@ -409,6 +464,35 @@ const boot = async () => {
     callback(allowedPermissions.has(permission))
   })
   session.defaultSession.setPermissionCheckHandler((_contents, permission) => allowedPermissions.has(permission))
+  // 写操作从渲染层走主进程：令牌只在主进程和服务端内存里，执行官的 curl 拿不到。
+  ipcMain.handle('lodge:request', async (event, path, body) => {
+    if (!fromAppWindow(event)) return { ok: false, status: 403, body: { error: '只接受 Lodge 窗口的请求' } }
+    if (typeof path !== 'string' || !path.startsWith('/api/') || path.startsWith('/api//') || path.includes('://')) {
+      return { ok: false, status: 400, body: { error: '不支持的请求' } }
+    }
+    if (serverPort === null) return { ok: false, status: 503, body: { error: 'Lodge 服务还没有起来' } }
+    const token = await whenActionToken()
+    const headers = { 'content-type': 'application/json' }
+    if (typeof token === 'string' && token !== '') headers['x-lodge-action'] = token
+    try {
+      const response = await fetch(`http://127.0.0.1:${serverPort}${path}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body ?? {}),
+        signal: AbortSignal.timeout(30_000),
+      })
+      const text = await response.text()
+      let data = {}
+      try {
+        data = text === '' ? {} : JSON.parse(text)
+      } catch {
+        data = { error: text.slice(0, 500) }
+      }
+      return { ok: response.ok, status: response.status, body: data }
+    } catch (error) {
+      return { ok: false, status: 502, body: { error: `没能连上 Lodge 服务：${error?.message ?? error}` } }
+    }
+  })
   ipcMain.handle('lodge:choose-directory', async () => {
     const options = {
       title: '选择 Lodge 的项目目录',

@@ -27,6 +27,25 @@ test('startup clears an active pointer to a terminal round', () => {
   }
 })
 
+test('startup cancels work left by a terminal round whose pointer is still active', () => {
+  const { dir, store } = temp()
+  try {
+    store.writeRoom({ id: 'room-1', name: '工作室', roomType: 'studio', state: 'active', activeRoundId: 'round-1', lastRoundId: null })
+    store.writeWorkRound({ id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'completed', goal: 'g', stages: [] })
+    store.writeAssignment({
+      id: 'as-1', roomId: 'room-1', workRoundId: 'round-1', stageIndex: 0,
+      fromMemberId: 'planner', toMemberId: 'worker', reason: 'dispatch',
+      brief: {}, status: 'sent', flags: {},
+    })
+    assert.equal(reconcileRounds({ store }), 1)
+    assert.equal(store.readAssignment('as-1').status, 'cancelled')
+    assert.ok(store.readEvents('room-1').some(event => event.type === 'assignment.cancelled'))
+  } finally {
+    store.db.close()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('startup completes a round whose stages all passed but delivery got stuck', () => {
   const { dir, store } = temp()
   try {

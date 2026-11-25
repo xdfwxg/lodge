@@ -26,6 +26,7 @@ export const initialChatState = () => ({
   castFocus: {},
   opening: '',
   mutedIds: [],
+  selecting: false,
   running: false,
   speaker: '',
   note: '',

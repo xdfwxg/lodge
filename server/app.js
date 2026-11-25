@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { createCrewPorts } from './crew/crew-ports.js'
@@ -42,6 +43,8 @@ export const createLodgeApp = async ({ root, env = process.env } = {}) => {
 }
 
 const buildApp = async ({ root, dataDir, env, releaseLock }) => {
+  // 桌面版由 Electron 主进程代理写操作；令牌只活在进程内，不写环境、不上日志。
+  const actionToken = env.LODGE_DESKTOP === '1' ? randomUUID() : null
   const clients = new Set()
   let service = null
   let progressWriter = null
@@ -211,8 +214,8 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
   const runWorkspaceGc = () => {
     try {
       const result = collectWorkspaceGarbage({ store, workspace: ports.workspace, files: ports.files })
-      if (result.pruned > 0 || result.orphans > 0 || result.rewound > 0) {
-        console.log(`workspace gc: pruned ${result.pruned} members, removed ${result.orphans} orphan dirs, pruned ${result.rewound} rewind branches`)
+      if (result.pruned > 0 || result.orphans > 0 || result.rewound > 0 || result.temp > 0) {
+        console.log(`workspace gc: pruned ${result.pruned} members, removed ${result.orphans} orphan dirs, pruned ${result.rewound} rewind branches, removed ${result.temp} temp proof copies`)
       }
     } catch (error) {
       console.warn(`workspace gc failed: ${error?.message ?? error}`)
@@ -230,6 +233,7 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
     send,
     chooseDirectory,
     openPath,
+    actionToken,
   }))
   const port = Number(env.CREW_PORT ?? 8787)
 
@@ -275,5 +279,5 @@ const buildApp = async ({ root, dataDir, env, releaseLock }) => {
     releaseLock()
   }
 
-  return { server, store, service, dataDir, port, start, stop }
+  return { server, store, service, dataDir, port, actionToken, start, stop }
 }

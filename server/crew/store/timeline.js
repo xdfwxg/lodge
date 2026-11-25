@@ -110,20 +110,24 @@ export const createTimelineStore = ({
     'SELECT payload FROM (SELECT seq, payload FROM messages WHERE seq > ? ORDER BY seq DESC LIMIT ?) ORDER BY seq',
   ).all(since, Math.max(1, Math.min(10000, Number(limit) || 5000))).map(row => JSON.parse(row.payload))
 
-  const persistMessage = (message, { transcript = true } = {}) => {
+  // transcript/证据是恢复日志和可读镜像，不是业务真相；写不进去只记一笔，消息仍在库里。
+  // 先落 SQLite，再写镜像；事务里需要延后到 COMMIT 的调用方用 mirrorMessage 自己补。
+  const mirrorMessage = (message, { transcript = true } = {}) => {
+    if (transcript !== true || message === null || message === undefined) return
     const room = readRoom(message.roomId)
-    if (message.kind === 'evidence' && transcript) {
+    if (room?.demo === true) return
+    if (message.kind === 'evidence') {
       message.meta = { ...message.meta, evidenceRef: `evidence/${message.id}.json` }
     }
-    if (transcript) {
-      // transcript 与证据是恢复日志和可读镜像，不是业务真相；写不进去只记一笔，消息仍要落库。
-      try {
-        appendTranscript(room ?? message.roomId, message)
-        if (message.kind === 'evidence') writeEvidence(room ?? message.roomId, message)
-      } catch (error) {
-        log.warn(`message mirror failed: ${message.roomId} ${error?.message ?? error}`)
-      }
+    try {
+      appendTranscript(room ?? message.roomId, message)
+      if (message.kind === 'evidence') writeEvidence(room ?? message.roomId, message)
+    } catch (error) {
+      log.warn(`message mirror failed: ${message.roomId} ${error?.message ?? error}`)
     }
+  }
+
+  const persistMessage = (message, { transcript = true } = {}) => {
     // 消息与全文索引同一个保存点：不会留下“有消息、搜不到”的半份历史。
     db.exec('SAVEPOINT message_write')
     try {
@@ -136,6 +140,7 @@ export const createTimelineStore = ({
       db.exec('RELEASE message_write')
       throw error
     }
+    mirrorMessage(message, { transcript })
     return message
   }
 
@@ -287,6 +292,7 @@ export const createTimelineStore = ({
     readEvidence,
     readMessagesSince,
     persistMessage,
+    mirrorMessage,
     appendMessage,
     upsertMessage,
     searchMessages,

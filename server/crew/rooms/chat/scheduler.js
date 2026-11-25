@@ -165,7 +165,23 @@ export const createChatScheduler = ({
       : []
     // 建房后的第一轮：主持人读话题，从固定班底里请 2–6 位；之后阵容固定。
     if (selectCast === true && castIds.length === 0) {
-      const picked = await chooseCast(room)
+      // 选人可能要等模型半分钟；先把“主持人在选人”写成房间事实，界面不能空等。
+      patch(current => {
+        current.chat = { ...current.chat, selecting: true }
+        return { events: [{ type: 'chat.selecting', payload: { since: Date.now() } }] }
+      })
+      let picked = null
+      try {
+        picked = await chooseCast(room)
+      } finally {
+        if (picked === null) {
+          patch(current => {
+            if (current.chat?.selecting !== true) return { events: [] }
+            current.chat = { ...current.chat, selecting: false }
+            return { events: [] }
+          })
+        }
+      }
       if (picked !== null && picked.cast.length > 0) {
         const opening = openingOf({ members: room.members, cast: picked.cast, why: picked.why })
         patch(current => {
@@ -174,6 +190,7 @@ export const createChatScheduler = ({
             castIds: picked.cast.map(item => item.id),
             castFocus: Object.fromEntries(picked.cast.map(item => [item.id, item.focus])),
             opening,
+            selecting: false,
           }
           return { events: [{ type: 'chat.cast', payload: { members: picked.cast.map(item => item.id), why: picked.why } }] }
         })

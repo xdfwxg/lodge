@@ -94,7 +94,6 @@ export const studioView = {
         const seed = returnToChatSeed(room)
         return seed === null ? null : () => actions.startChat(seed)
       })(),
-      onReturn: () => {},
       }),
     )
   },

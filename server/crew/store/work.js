@@ -25,11 +25,12 @@ export const createWorkStore = ({ db }) => {
       ).run(id, roomId, roundId, kind, JSON.stringify(payload), S.pending, Math.max(1, maxAttempts), at, dedupeKey, now, now)
       return result.changes > 0 ? { id, roomId, roundId, kind, payload, dedupeKey, availableAt: at, createdAt: now } : null
     }
-    // 同一个 id 再投一次是“重设到点时间”：重开一项已领或被取消的活。
-    db.prepare(
-      `INSERT INTO work_item (id, room_id, round_id, kind, payload, status, attempts, max_attempts, available_at, dedupe_key, lease_until, last_error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, NULL, NULL, NULL, ?, ?) ON CONFLICT(id) DO UPDATE SET room_id = excluded.room_id, round_id = excluded.round_id, kind = excluded.kind, payload = excluded.payload, status = excluded.status, attempts = 0, max_attempts = excluded.max_attempts, available_at = excluded.available_at, lease_until = NULL, last_error = NULL, updated_at = excluded.updated_at`,
+    // 同一个 id 再投一次是“重设到点时间”：重开一项已领或被取消的活；
+    // 已经完成的活不再回到 pending，否则重复调用会把历史工作重放一遍。
+    const result = db.prepare(
+      `INSERT INTO work_item (id, room_id, round_id, kind, payload, status, attempts, max_attempts, available_at, dedupe_key, lease_until, last_error, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, NULL, NULL, NULL, ?, ?) ON CONFLICT(id) DO UPDATE SET room_id = excluded.room_id, round_id = excluded.round_id, kind = excluded.kind, payload = excluded.payload, status = excluded.status, attempts = 0, max_attempts = excluded.max_attempts, available_at = excluded.available_at, lease_until = NULL, last_error = NULL, updated_at = excluded.updated_at WHERE work_item.status != '${S.done}'`,
     ).run(id, roomId, roundId, kind, JSON.stringify(payload), S.pending, Math.max(1, maxAttempts), at, now, now)
-    return { id, roomId, roundId, kind, payload, dedupeKey, availableAt: at, createdAt: now }
+    return Number(result.changes) > 0 ? { id, roomId, roundId, kind, payload, dedupeKey, availableAt: at, createdAt: now } : null
   }
 
   const claimWork = (roomId, { now = Date.now(), leaseMs = 60_000 } = {}) => {

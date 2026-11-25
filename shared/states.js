@@ -124,6 +124,7 @@ export const CHAT_EVENT = Object.freeze({
 export const CHAT_STATUS = Object.freeze({
   ...CHAT_PHASE,
   idle: 'idle',
+  selecting: 'selecting',
   running: 'running',
   thinking: 'thinking',
   paused: 'paused',

@@ -8,6 +8,19 @@ import { reworkFloor } from '../../../../../shared/attempt.js'
 
 // 执行官交回一步的结果：平台只负责把候选提交、diff 和文件清单固定下来，
 // 再把结果交给验收员。怎么验证、验什么，由验收员按房间目标自己决定。
+const changedSinceManifest = (before, current) => {
+  const old = new Map((Array.isArray(before) ? before : []).map(item => [item.path, item.sha256]))
+  const now = new Map((Array.isArray(current) ? current : []).map(item => [item.path, item.sha256]))
+  const changed = []
+  for (const [path, sha] of now) {
+    if (old.get(path) !== sha) changed.push(path)
+  }
+  for (const path of old.keys()) {
+    if (!now.has(path)) changed.push(path)
+  }
+  return [...new Set(changed)]
+}
+
 export const createResultMarker = ({ store, roomId, review, markProgress }) => {
   const seen = new Set()
 
@@ -83,6 +96,25 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
           text: outOfBounds.reverted.length > 0
             ? `这一步改了这一步之外的文件，已退回：${names}。`
             : `这一步改了这一步之外的文件：${names}；没有退回，请验收时核对。`,
+        })
+      }
+    } else if (repoPath !== null && allowed !== null &&
+      provider.capabilities().vcs !== 'git' && typeof provider.manifest === 'function' &&
+      Array.isArray(room.stageBaseManifests?.[stageIndex])) {
+      // 非 git 工作区没有可回退的版本：用阶段起点的文件清单算包外改动，交给门禁拦。
+      let current = []
+      try {
+        current = provider.manifest({ path: repoPath })
+      } catch {}
+      const outside = filesOutsidePackage({
+        files: changedSinceManifest(room.stageBaseManifests[stageIndex], current),
+        allowed,
+      })
+      if (outside.length > 0) {
+        outOfBounds = { files: outside.slice(0, 50), reverted: [] }
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: `这一步改了这一步之外的文件：${outside.slice(0, 5).join('、')}；这个工作区不能自动退回，验收前要处理。`,
         })
       }
     }

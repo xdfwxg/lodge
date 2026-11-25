@@ -12,6 +12,8 @@ import { appendHumanContext } from '../../human-context.js'
 import { APPROVAL_STATE, PAUSE_REASON, ROOM_STATE } from '../../../../shared/states.js'
 
 const APPROVAL_TIMEOUT = 10 * 60 * 1000
+// 暂停后给人和卡片留一段真正的回答时间；不能和暂停同一刻自动拒绝。
+const APPROVAL_EXPIRY_GRACE = 30 * 60 * 1000
 const ANSWERED_KEEP = 500
 const PENDING_LIMIT = 50
 
@@ -124,7 +126,7 @@ export const createLiveApprovals = ({
       id: approval.id,
       roomId: entry.roomId,
       kind: 'approval',
-      availableAt: Date.now() + approvalTimeoutMs,
+      availableAt: Date.now() + approvalTimeoutMs + APPROVAL_EXPIRY_GRACE,
       payload: { approvalId: approval.id },
     })
   }

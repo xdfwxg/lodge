@@ -54,6 +54,18 @@ test('write bodies must be JSON', () => {
   })), null)
 })
 
+test('desktop write actions need the one-time token; reads and uploads do not', () => {
+  const token = 'one-time-token'
+  assert.equal(requestGuard(request('GET', { host: '127.0.0.1:8787' }), '/api/state', { actionToken: token }), null)
+  assert.match(requestGuard(request('POST', { host: '127.0.0.1:8787' }), '/api/rooms/room-1/approvals', { actionToken: token }), /Lodge 窗口/)
+  assert.equal(requestGuard(request('POST', {
+    host: '127.0.0.1:8787',
+    'x-lodge-action': token,
+  }), '/api/rooms/room-1/approvals', { actionToken: token }), null)
+  assert.equal(requestGuard(request('POST', { host: '127.0.0.1:8787' }), '/api/attachments', { actionToken: token }), null)
+  assert.equal(requestGuard(request('POST', { host: '127.0.0.1:8787' }), '/api/rooms', { actionToken: null }), null)
+})
+
 test('only loopback http origins count', () => {
   assert.equal(loopbackOrigin('http://127.0.0.1:5173'), true)
   assert.equal(loopbackOrigin('https://localhost:5173'), true)

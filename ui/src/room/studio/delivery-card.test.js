@@ -96,7 +96,11 @@ test('the delivery sheet shows goal, stages, verdicts and files', async () => {
           deliverable: '保存后刷新仍生效',
           proof: { entry: 'npm test', status: 'verified' },
           results: [{ id: 'e1', changedFiles: ['src/a.js'] }],
-          verdicts: [{ id: 'v1', authorId: 'v1', pass: true }, { id: 'v2', authorId: 'v2', pass: true }],
+          verdicts: [
+            { id: 'v1', authorId: 'v1', pass: true },
+            { id: 'v1b', authorId: 'v1', pass: true },
+            { id: 'v2', authorId: 'v2', pass: true },
+          ],
           changedFiles: ['src/a.js'],
         },
       ],

@@ -255,6 +255,22 @@ test('an unanswered approval pauses the room, and deciding it resumes the room',
   }
 })
 
+test('an approval pause leaves a real answer window before expiry', async () => {
+  const ctx = await setup({ approvalTimeoutMs: 30 })
+  try {
+    ctx.permission('git push origin main')
+    await new Promise(resolve => setTimeout(resolve, 80))
+    const approval = ctx.room().approvals.find(item => item.state === 'pending')
+    assert.ok(approval)
+    const row = ctx.store.db.prepare('SELECT available_at FROM work_item WHERE id = ?').get(approval.id)
+    assert.ok(row)
+    // 暂停发生在超时那一刻；持久拒绝必须晚一段，给人真正的回答时间。
+    assert.ok(Number(row.available_at) > Date.now() + 10 * 60 * 1000)
+  } finally {
+    ctx.close()
+  }
+})
+
 test('a double click answers the runtime only once', async () => {
   const ctx = await setup()
   try {

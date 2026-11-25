@@ -133,6 +133,10 @@ export const emailConfig = () => {
         host: parsed.hostname,
         port: Number(parsed.port) || (secure ? 465 : 587),
         secure,
+        // 邮件是平台动作；连接卡住不能把这一轮永远挂住。
+        connectionTimeout: 15_000,
+        greetingTimeout: 15_000,
+        socketTimeout: 30_000,
         ...(parsed.username === '' ? {} : {
           auth: {
             user: decodeURIComponent(parsed.username),

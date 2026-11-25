@@ -242,11 +242,19 @@ export function createStore() {
 
   const post = async (path, body) => {
     try {
-      const response = await fetch(path, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      })
+      // 桌面版把写操作交给主进程带上一次性令牌；浏览器调试仍走本机 HTTP。
+      const bridge = globalThis.lodge?.request
+      const response = typeof bridge === 'function'
+        ? await bridge(path, body).then(result => ({
+          ok: result?.ok === true,
+          status: Number(result?.status ?? 0),
+          json: async () => result?.body ?? {},
+        }))
+        : await fetch(path, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        })
       if (!response.ok) {
         const detail = await response.json().catch(() => ({}))
         throw new Error(detail.error ?? `HTTP ${response.status}`)

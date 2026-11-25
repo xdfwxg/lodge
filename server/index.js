@@ -12,6 +12,10 @@ try {
   console.error(`[lodge] 启动失败：${String(error?.message ?? error)}`)
   process.exit(1)
 }
+// 桌面版主进程从这一行取一次性写操作令牌；这一行不进日志文件。
+if (typeof app.actionToken === 'string' && app.actionToken !== '') {
+  console.log(`LODGE_ACTION_TOKEN ${app.actionToken}`)
+}
 
 let closing = false
 const shutdown = async cause => {

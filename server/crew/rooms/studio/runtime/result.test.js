@@ -6,11 +6,12 @@ import test from 'node:test'
 import { registerWorkspaceProvider } from '../../../workspace.js'
 import { createResultMarker } from './result.js'
 
-const providerFor = source => {
+const providerFor = (source, { vcs = 'git', manifest = null } = {}) => {
   registerWorkspaceProvider('test-result-clauses', {
-    capabilities: () => ({ candidate: false, vcs: 'git' }),
+    capabilities: () => ({ candidate: false, vcs }),
     changes: async () => ({ files: ['src/export.js'], diff: 'diff', status: '' }),
     head: () => 'head',
+    ...(typeof manifest === 'function' ? { manifest } : {}),
     isolatedCopy: () => {
       const root = mkdtempSync(join(tmpdir(), 'lodge-result-copy-'))
       const path = join(root, 'repo')
@@ -22,11 +23,11 @@ const providerFor = source => {
   })
 }
 
-const setup = proof => {
+const setup = (proof, options = {}) => {
   const source = mkdtempSync(join(tmpdir(), 'lodge-result-repo-'))
   writeFileSync(join(source, 'ok.mjs'), 'process.exit(0)\n')
   writeFileSync(join(source, 'lodge-proof.json'), JSON.stringify(proof))
-  providerFor(source)
+  providerFor(source, options)
   const room = {
     id: 'room-1',
     name: 'Room',
@@ -71,6 +72,28 @@ test('a worker proof carries the package clauses into the delivered evidence', a
     assert.equal(evidence.meta.proof.status, 'verified')
     assert.equal(evidence.meta.proof.steps.length, 1)
     assert.equal(evidence.meta.proof.steps[0].clause, 'export')
+  } finally {
+    rmSync(ctx.source, { recursive: true, force: true })
+  }
+})
+
+test('a non-git workspace reports out-of-package changes from the stage manifest', async () => {
+  const ctx = setup({
+    entry: 'node ok.mjs',
+    steps: [{ clause: 'export', run: 'node ok.mjs' }],
+  }, {
+    vcs: 'none',
+    manifest: () => [
+      { path: 'src/export.js', sha256: 'a' },
+      { path: 'src/other.js', sha256: 'b' },
+    ],
+  })
+  try {
+    ctx.room.stageBaseManifests = { 0: [{ path: 'src/export.js', sha256: 'a' }] }
+    await ctx.marker.markResultReady(ctx.room, 0, 't3', true, 'done', 'executor')
+    const evidence = ctx.messages.find(message => message.kind === 'evidence')
+    assert.deepEqual(evidence.meta.outOfBounds.files, ['src/other.js'])
+    assert.deepEqual(evidence.meta.outOfBounds.reverted, [])
   } finally {
     rmSync(ctx.source, { recursive: true, force: true })
   }

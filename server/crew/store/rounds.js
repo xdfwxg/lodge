@@ -1,4 +1,4 @@
-import { ROOM_STATE, ROUND_STATUS, TERMINAL_ROUND_STATUSES, WORK_ITEM_STATUS } from '../../../shared/states.js'
+import { ASSIGNMENT_TERMINAL, ROOM_STATE, ROUND_STATUS, TERMINAL_ROUND_STATUSES, WORK_ITEM_STATUS } from '../../../shared/states.js'
 import { ROUND_FIELDS } from '../../../shared/work-round.js'
 
 // work_round 的持久读写：一轮的目标、阶段、决策、费用和终态。
@@ -85,7 +85,7 @@ export const createRoundStore = ({ db }) => {
 }
 
 // 一轮开始/结束的事务：轮次、房间指针、事件一起提交。
-export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWorkRound, insertEvent, mirrorEvent, persistMessage = null, emitMessage = null }) => {
+export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWorkRound, insertEvent, mirrorEvent, persistMessage = null, mirrorMessage = null, emitMessage = null }) => {
   const startWorkRound = ({ roomId, round, message = null }) => {
     db.exec('BEGIN IMMEDIATE')
     try {
@@ -110,7 +110,7 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       // 开轮和用户那句话同一个事务：要么都在，要么都不在。
       const storedMessage = message === null || persistMessage === null
         ? null
-        : persistMessage({ ...message, roomId, workRoundId: stored.id })
+        : persistMessage({ ...message, roomId, workRoundId: stored.id }, { transcript: false })
       const event = insertEvent(roomId, {
         type: 'round.started',
         payload: {
@@ -126,8 +126,66 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       })
       db.exec('COMMIT')
       mirrorEvent(roomId, event)
-      if (storedMessage !== null) emitMessage?.(storedMessage, storedMessage.seq)
+      if (storedMessage !== null) {
+        mirrorMessage?.(storedMessage)
+        emitMessage?.(storedMessage, storedMessage.seq)
+      }
       return { round: stored, room: readRoom(roomId), message: storedMessage }
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  // 轮次收口时取消它名下的待办和未终态交接；恢复路径也复用这一份，
+  // 不再出现“轮次已结束，旧租约还能被领走”。
+  const cancelRoundScopedWork = ({ roomId, roundId, reason = null, now = Date.now() }) => {
+    const workItems = db.prepare(
+      `UPDATE work_item SET status = '${WORK_ITEM_STATUS.cancelled}', lease_until = NULL, updated_at = ? WHERE room_id = ? AND round_id = ? AND status IN ('${WORK_ITEM_STATUS.pending}', '${WORK_ITEM_STATUS.leased}')`,
+    ).run(now, roomId, roundId)
+    const assignmentEvents = []
+    if (reason !== null) {
+      const rows = db.prepare(
+        `SELECT id, payload FROM assignment WHERE room_id = ? AND work_round_id = ? AND status NOT IN (${[...ASSIGNMENT_TERMINAL].map(status => `'${status}'`).join(', ')})`,
+      ).all(roomId, roundId)
+      for (const row of rows) {
+        const assignment = JSON.parse(row.payload)
+        const from = assignment.status
+        Object.assign(assignment, {
+          status: 'cancelled',
+          resultText: reason,
+          finishedAt: now,
+          updatedAt: now,
+          lease: null,
+        })
+        db.prepare('UPDATE assignment SET status = ?, updated_at = ?, payload = ? WHERE id = ?')
+          .run('cancelled', now, JSON.stringify(assignment), row.id)
+        assignmentEvents.push(insertEvent(roomId, {
+          type: 'assignment.cancelled',
+          payload: {
+            assignmentId: row.id,
+            roundId,
+            stage: assignment.stageIndex ?? 0,
+            from,
+            to: 'cancelled',
+            ...(assignment.toMemberId === undefined ? {} : { memberId: assignment.toMemberId }),
+          },
+        }))
+      }
+    }
+    return { workItems: Number(workItems.changes ?? 0), assignmentEvents }
+  }
+
+  // 启动恢复发现房间指向已结束的轮次时调用：轮次内容不动，只清掉它名下未收口的活。
+  const cancelRoundWork = ({ roomId, roundId, reason = '轮次已经结束' }) => {
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      const roundRow = db.prepare('SELECT payload FROM work_round WHERE id = ? AND room_id = ?').get(roundId, roomId)
+      if (roundRow === undefined) { db.exec('ROLLBACK'); return null }
+      const cancelled = cancelRoundScopedWork({ roomId, roundId, reason })
+      db.exec('COMMIT')
+      for (const event of cancelled.assignmentEvents) mirrorEvent(roomId, event)
+      return { roundId, ...cancelled }
     } catch (error) {
       db.exec('ROLLBACK')
       throw error
@@ -173,40 +231,9 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
         JSON.stringify(round), round.version, round.updatedAt, roundId, roundRow.version,
       )
       // 轮次结束，属于这一轮的待办一起作废；房间级的卡（如审批）不受影响。
-      db.prepare(
-        `UPDATE work_item SET status = '${WORK_ITEM_STATUS.cancelled}', lease_until = NULL, updated_at = ? WHERE room_id = ? AND round_id = ? AND status IN ('${WORK_ITEM_STATUS.pending}', '${WORK_ITEM_STATUS.leased}')`,
-      ).run(Date.now(), roomId, roundId)
       // 交接和轮次在同一个事务里收口：不会出现“轮次结束了，交接还挂着 sent”。
-      if (cancelAssignmentsReason !== null) {
-        const now = Date.now()
-        const rows = db.prepare(
-          `SELECT id, payload FROM assignment WHERE room_id = ? AND work_round_id = ? AND status NOT IN ('passed', 'rejected', 'failed', 'cancelled')`,
-        ).all(roomId, roundId)
-        for (const row of rows) {
-          const assignment = JSON.parse(row.payload)
-          const from = assignment.status
-          Object.assign(assignment, {
-            status: 'cancelled',
-            resultText: cancelAssignmentsReason,
-            finishedAt: now,
-            updatedAt: now,
-            lease: null,
-          })
-          db.prepare('UPDATE assignment SET status = ?, updated_at = ?, payload = ? WHERE id = ?')
-            .run('cancelled', now, JSON.stringify(assignment), row.id)
-          assignmentEvents.push(insertEvent(roomId, {
-            type: 'assignment.cancelled',
-            payload: {
-              assignmentId: row.id,
-              roundId,
-              stage: assignment.stageIndex ?? 0,
-              from,
-              to: 'cancelled',
-              ...(assignment.toMemberId === undefined ? {} : { memberId: assignment.toMemberId }),
-            },
-          }))
-        }
-      }
+      const cancelled = cancelRoundScopedWork({ roomId, roundId, reason: cancelAssignmentsReason })
+      assignmentEvents.push(...cancelled.assignmentEvents)
       const roomRow = db.prepare('SELECT payload, version FROM room WHERE id = ?').get(roomId)
       if (roomRow === undefined) { db.exec('ROLLBACK'); return null }
       const room = JSON.parse(roomRow.payload)
@@ -230,11 +257,14 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
       // 结论和轮次完成同一个事务：不会留下“有结论、轮次还没结束”的半状态。
       const storedMessage = message === null || persistMessage === null
         ? null
-        : persistMessage({ ...message, roomId, workRoundId: roundId })
+        : persistMessage({ ...message, roomId, workRoundId: roundId }, { transcript: false })
       db.exec('COMMIT')
       if (event !== null) mirrorEvent(roomId, event)
       for (const assignmentEvent of assignmentEvents) mirrorEvent(roomId, assignmentEvent)
-      if (storedMessage !== null) emitMessage?.(storedMessage, storedMessage.seq)
+      if (storedMessage !== null) {
+        mirrorMessage?.(storedMessage)
+        emitMessage?.(storedMessage, storedMessage.seq)
+      }
       return { round: readWorkRound(roundId, roomId), room: readRoom(roomId), message: storedMessage }
     } catch (error) {
       db.exec('ROLLBACK')
@@ -282,5 +312,5 @@ export const createRoundLifecycleStore = ({ db, readRoom, writeWorkRound, readWo
     }
   }
 
-  return { startWorkRound, finishWorkRound, reopenWorkRound }
+  return { startWorkRound, finishWorkRound, reopenWorkRound, cancelRoundWork }
 }

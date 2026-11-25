@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -396,6 +396,29 @@ test('a round opening message is broadcast after the round commits', async () =>
     assert.equal(message?.text, '开始这一轮')
     store.db.close()
   } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a rolled-back round start leaves no transcript message behind', () => {
+  const { dir, store } = temp()
+  try {
+    const work = join(dir, 'work')
+    mkdirSync(work, { recursive: true })
+    store.writeRoom({
+      id: 'room-1', name: '工作室', roomType: 'studio', state: 'idle',
+      activeRoundId: null, lastRoundId: null, members: [], repoPath: work,
+    })
+    store.db.exec("CREATE TRIGGER fail_round_event BEFORE INSERT ON room_event BEGIN SELECT RAISE(ABORT, 'boom'); END;")
+    assert.throws(() => store.startWorkRound({
+      roomId: 'room-1',
+      round: { id: 'round-1', roomId: 'room-1', ordinal: 1, status: 'active', goal: '开始', stages: [] },
+      message: { kind: 'chat', authorId: 'you', text: '开始这一轮' },
+    }), /boom/)
+    assert.equal(store.readMessages('room-1').length, 0)
+    assert.equal(existsSync(join(work, '.crew', 'rooms', 'room-1', 'transcript.jsonl')), false)
+  } finally {
+    store.db.close()
     rmSync(dir, { recursive: true, force: true })
   }
 })

@@ -6,6 +6,26 @@ import test from 'node:test'
 import { createCrewPorts } from './crew-ports.js'
 import { collectWorkspaceGarbage } from './workspace-gc.js'
 
+test('stale proof copies in the temp directory are removed', () => {
+  const now = 10_000_000_000
+  const removed = []
+  const files = {
+    list: () => ['lodge-proof-old', 'lodge-proof-new', 'other'],
+    isDirectory: () => true,
+    mtimeMs: path => (path.endsWith('lodge-proof-old') ? now - 25 * 60 * 60 * 1000 : now),
+    remove: path => removed.push(path),
+  }
+  const result = collectWorkspaceGarbage({
+    store: { readRooms: () => [] },
+    workspace: { default: { scratchRoot: () => '/nonexistent' }, provider: () => ({}) },
+    files,
+    now,
+    removeOrphans: false,
+  })
+  assert.equal(result.temp, 1)
+  assert.deepEqual(removed, [join(tmpdir(), 'lodge-proof-old')])
+})
+
 test('rewind branches are pruned for active rooms too', () => {
   const calls = []
   const workspace = {

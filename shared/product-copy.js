@@ -1,6 +1,7 @@
 // 用户能看到的词只有这一套。新增状态先加进 STATUS_LABELS，再写进界面。
 export const STATUS_LABELS = Object.freeze([
   '待处理',
+  '正在请人',
   '进行中',
   '空闲中',
   '已完成',

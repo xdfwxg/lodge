@@ -102,19 +102,19 @@ const PILL_CSS = `
 `
 
 // 默认收成小胶囊，悬停或键盘聚焦时放大，露出目标原句。
-function DoneIsland({ goal, label, lingchongMode = 'studio' }) {
+function DoneIsland({ goal, label, lingchongMode = 'studio', onOpen = null }) {
   const { peeking: peek, onPointerEnter, onPointerLeave, onFocus, onBlur } = useHoverPeek()
+  const open = () => { if (typeof onOpen === 'function') onOpen() }
   return h('div', {
     className: 'crew-island-done-wrap',
     'data-peek': peek ? 'true' : undefined,
-    tabIndex: 0,
-    'aria-label': `房间${label}`,
+    onClick: open,
     onPointerEnter,
     onPointerLeave,
     onFocus,
     onBlur,
   },
-  h(Lingchong, { state: 'done', mode: lingchongMode }),
+  h(Lingchong, { state: 'done', mode: lingchongMode, onActivate: open }),
   h('div', { className: 'crew-island-done' },
     h('span', { className: 'crew-island-done-dot', 'aria-hidden': true }),
     h('span', { className: 'crew-island-done-copy' },
@@ -189,8 +189,8 @@ export function GoalIslandHeader({ room, goal: goalOverride = null, status = nul
     : statusKey === 'waiting' ? 'needs'
       : statusKey === 'running' && islandWorking(room) ? 'busy' : 'rest'
   return h('div', { className: 'crew-goal-island' },
-    finished
-      ? h(DoneIsland, { goal, label: doneLabel, lingchongMode: islandRoom.kind })
+    finished && !open
+      ? h(DoneIsland, { goal, label: doneLabel, lingchongMode: islandRoom.kind, onOpen: goalActions.toggleGoal })
       : h(GoalIsland, {
         room: islandRoom,
         goal,

@@ -121,6 +121,7 @@ export const buildRound = ({
   reviewRetriedAt: null,
   stageDiagnostics: {},
   stageBases: {},
+  stageBaseManifests: {},
   startHead: room.workspaceHead ?? room.startHead ?? null,
   workspaceHead: null,
   completedAt: null,

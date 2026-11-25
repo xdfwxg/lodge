@@ -23,11 +23,16 @@ const pathTokensOf = call => (
     .replaceAll('\\', '/')
     .split(/[\s"'`,;()<>|&]+/)
     .map(token => token.replace(/^[A-Za-z0-9_-]+=/, ''))
-    .filter(token => token.startsWith('/') || token.startsWith('~/'))
+    // 绝对路径、~/，以及带 .. 的相对穿越；普通相对路径按自己的副本解释。
+    .filter(token => token.startsWith('/') || token.startsWith('~/') || token.includes('..'))
 )
 
-const absolutePathOf = token => (
-  token.startsWith('~/') ? resolve(homedir(), token.slice(2)) : resolve(token)
+const absolutePathOf = (token, ownPath) => (
+  token.startsWith('~/')
+    ? resolve(homedir(), token.slice(2))
+    : token.startsWith('/')
+      ? resolve(token)
+      : resolve(ownPath, token)
 )
 
 export const foreignReadsOf = ({ calls, room, memberId, membersOnly = false }) => {
@@ -55,7 +60,7 @@ export const foreignReadsOf = ({ calls, room, memberId, membersOnly = false }) =
     const action = actionForTool(call?.name)
     if (action !== 'read' && action !== 'exec') continue
     for (const token of pathTokensOf(call)) {
-      const target = absolutePathOf(token)
+      const target = absolutePathOf(token, ownPath)
       if (isWithin(ownPath, target)) continue
       for (const [root, name] of roots) {
         if (!isWithin(root, target)) continue

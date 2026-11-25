@@ -353,6 +353,8 @@ export const removeMember = ({ room, member }) => {
     git(room.sourceRepo, ['worktree', 'remove', '--force', path])
   } catch {
     rmSync(path, { recursive: true, force: true })
+    // 目录是手删的，git 的元数据还记着它；不清掉会在下次 add 时撞见旧 worktree。
+    try { git(room.sourceRepo, ['worktree', 'prune']) } catch {}
   }
   const branch = room?.branches?.[member?.id ?? member]
   if (typeof branch === 'string' && branch.startsWith(`crew/${roomShort(room)}/`)) {
@@ -562,6 +564,7 @@ export const cleanupRoom = ({ source, workspaces }) => {
       rmSync(item.path, { recursive: true, force: true })
     }
   }
+  try { git(source, ['worktree', 'prune']) } catch {}
   const branches = [
     ...Object.values(workspaces.branches ?? {}),
     ...(workspaces.integration === undefined || workspaces.integration === null ? [] : [workspaces.integration.branch]),

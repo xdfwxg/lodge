@@ -78,12 +78,17 @@ function ArtifactThumb({ roomId, artifact, onRead, onOpen }) {
 }
 
 // 交付是房间的最后一次发言：外壳与聊天结论卡一致，完整明细收在卡内。
-export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDiscussChat = null, onKeepPromise = null, onDownload = null, onRead = null }) {
+export function DeliveryCard({ delivery: goalDelivery, onDiscussChat = null, onKeepPromise = null, onDownload = null, onRead = null }) {
   const delivery = goalDelivery
   const stages = delivery.stages ?? []
   const verdicts = stages.flatMap(stage => stage.verdicts ?? [])
-  const passedVerdicts = verdicts.filter(verdict => verdict.pass === true)
-  const failedVerdicts = verdicts.filter(verdict => verdict.pass !== true)
+  // 一个人只算一位；同一验收员的多次判定不能把“几位通过”抬高。
+  const byAuthor = list => [...new Map(list.map(verdict => [
+    verdict.authorId ?? verdict.id ?? '',
+    verdict,
+  ])).values()]
+  const passedVerdicts = byAuthor(verdicts.filter(verdict => verdict.pass === true))
+  const failedVerdicts = byAuthor(verdicts.filter(verdict => verdict.pass !== true))
   const firstVerdict = passedVerdicts.find(verdict => typeof verdict.text === 'string' && verdict.text.trim() !== '') ?? null
   const [openError, setOpenError] = useState(null)
   const [openNotice, setOpenNotice] = useState(null)
@@ -387,9 +392,6 @@ export function DeliveryCard({ delivery: goalDelivery, onReturn = null, onDiscus
               h('button', { type: 'button', className: 'crew-link', onClick: onDownload }, '下载交付记录')))),
       h('div', { className: 'crew-card-foot crew-delivery-foot' },
         h('div', { className: 'crew-hover-actions crew-delivery-actions' },
-          onReturn === null
-            ? null
-            : h(IconAction, { icon: ChatIcon, label: '回聊天室', onClick: onReturn }),
           onDiscussChat === null
             ? null
             : h(IconAction, { icon: ChatIcon, label: '聊一聊这次成果', onClick: onDiscussChat }),

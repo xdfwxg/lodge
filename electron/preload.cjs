@@ -9,6 +9,7 @@ const subscribe = (channel, callback) => {
 contextBridge.exposeInMainWorld('lodge', {
   chooseDirectory: () => ipcRenderer.invoke('lodge:choose-directory'),
   openPath: target => ipcRenderer.invoke('lodge:open-path', target),
+  request: (path, body) => ipcRenderer.invoke('lodge:request', path, body),
   loginRuntime: id => ipcRenderer.invoke('lodge:runtime-login', id),
   syncRooms: rooms => ipcRenderer.send('lodge:rooms', rooms),
   attention: payload => ipcRenderer.send('lodge:attention', payload),

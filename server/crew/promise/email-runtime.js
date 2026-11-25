@@ -43,8 +43,18 @@ export const createEmailRunner = ({
       }
       return { events: [{ type: 'promise.emailed', payload: { roundId: payload.roundId ?? null, to } }] }
     })
-    notice(store, room.id, `已发到 ${to}`)
-    if (updated !== null) emit('room', updated)
+    if (updated !== null) {
+      notice(store, room.id, `已发到 ${to}`)
+      emit('room', updated)
+    } else {
+      // 邮件已经发出去了，这个事实不能因为承诺同时被改过就丢掉。
+      store.appendEvent?.(room.id, 'promise.emailed', {
+        roundId: payload.roundId ?? null,
+        to,
+        versionChanged: true,
+      })
+      notice(store, room.id, `已发到 ${to}；承诺同时被改过，这次投递没有写回旧设置。`)
+    }
     return true
   } catch (error) {
     if (Number(event.attempts ?? 1) < Number(event.maxAttempts ?? 3)) throw error
@@ -60,8 +70,17 @@ export const createEmailRunner = ({
       }
       return { events: [{ type: 'promise.email_failed', payload: { roundId: payload.roundId ?? null } }] }
     })
-    notice(store, room.id, `邮件没发出去：${error?.message ?? '先检查邮箱设置'}`)
-    if (updated !== null) emit('room', updated)
+    if (updated !== null) {
+      notice(store, room.id, `邮件没发出去：${error?.message ?? '先检查邮箱设置'}`)
+      emit('room', updated)
+    } else {
+      store.appendEvent?.(room.id, 'promise.email_failed', {
+        roundId: payload.roundId ?? null,
+        to,
+        versionChanged: true,
+      })
+      notice(store, room.id, `邮件没发出去：${error?.message ?? '先检查邮箱设置'}；承诺同时被改过，这次结果没有写回旧设置。`)
+    }
     return true
   }
 }

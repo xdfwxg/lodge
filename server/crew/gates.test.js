@@ -52,6 +52,21 @@ test('a contract room cannot pass without a verified proof', () => {
   assert.equal(verified.ok, true, verified.error)
 })
 
+test('an out-of-package change that cannot be reverted blocks confirmation', () => {
+  const r = room()
+  const blocked = gateFor(r, 1, [
+    evidence(1, 10, { outOfBounds: { files: ['src/other.js'], reverted: [] } }),
+    verdict(1, 11, true, { evidenceId: 'e-10' }),
+  ])
+  assert.equal(blocked.ok, false)
+  assert.match(blocked.error, /工作包之外/)
+  const reverted = gateFor(r, 1, [
+    evidence(1, 10, { outOfBounds: { files: ['src/other.js'], reverted: ['src/other.js'] } }),
+    verdict(1, 11, true, { evidenceId: 'e-10' }),
+  ])
+  assert.equal(reverted.ok, true, reverted.error)
+})
+
 test('a proof that misses a clause step or has a red step cannot be confirmed', () => {
   const r = room()
   const incomplete = gateFor(r, 1, [

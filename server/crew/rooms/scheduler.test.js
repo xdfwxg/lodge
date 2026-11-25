@@ -65,6 +65,41 @@ test('a failed handler is retried instead of being dropped', async () => {
   assert.deepEqual(calls.completed, [])
 })
 
+test('a work item that runs out of attempts leaves one message', async () => {
+  const messages = []
+  const scheduler = createRoomScheduler({
+    store: {
+      readRooms: () => [{ id: 'r1' }],
+      claimWork: () => ({ id: 'w-dead', roomId: 'r1', kind: 'approval', payload: {} }),
+      completeWork: () => {},
+      failWork: () => ({ dead: true }),
+      appendMessage: (roomId, message) => { messages.push({ roomId, ...message }) },
+    },
+    live: { handleWork: async () => { throw new Error('nope') } },
+    now: () => 2,
+  })
+  await scheduler.tick()
+  assert.equal(messages.length, 1)
+  assert.match(messages[0].text, /重试多次没成功/)
+})
+
+test('a lease reclaimed after max attempts leaves one message', async () => {
+  const messages = []
+  const scheduler = createRoomScheduler({
+    store: {
+      readRooms: () => [],
+      reclaimWork: () => ({ dead: [{ id: 'w-dead', room_id: 'r1', kind: 'approval', attempts: 3 }] }),
+      claimWork: () => null,
+      appendMessage: (roomId, message) => { messages.push({ roomId, ...message }) },
+    },
+    live: { handleWork: async () => true },
+    now: () => 2,
+  })
+  await scheduler.tick()
+  assert.equal(messages.length, 1)
+  assert.equal(messages[0].roomId, 'r1')
+})
+
 test('one slow room does not block another room', async () => {
   let release
   const gate = new Promise(resolve => { release = resolve })

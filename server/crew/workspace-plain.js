@@ -93,9 +93,9 @@ export const prepareRoom = ({ source, short, members }) => {
     let integration = null
     if (workers.length > 1) {
       const path = join(base, 'integration')
-      // 集成目录从空开始：每个 worker 都是完整副本，合并时只按文件写入，
-      // 冲突只发生在两个 worker 改了同一路径且内容不同，而不是与源目录基线比。
+      // 集成目录先从源目录复制一份基线：三方合并要靠它区分“没人动”和“有人删了”。
       mkdirSync(path, { recursive: true })
+      copyWorkspace(source, path)
       integration = { path, kind: 'copy' }
       environment.integration = syncLocalEnvironment(source, path)
       ports.integration = takePort()
@@ -149,6 +149,9 @@ export const removeMember = ({ room, member }) => {
 
 export const head = ({ path }) => manifestDigest(manifestOf(path))
 
+// 没有 git 的“这次改了什么”：调用方拿阶段起点的清单和当前清单做差。
+export const manifest = ({ path }) => manifestOf(path)
+
 export const changes = async ({ path }) => {
   const manifest = manifestOf(path)
   return {
@@ -162,19 +165,55 @@ export const changes = async ({ path }) => {
 
 export const rangeChanges = async ({ path }) => changes({ path })
 
-// 复制合并：同路径不同内容视为冲突，不自动选边；删除不传播，需人工处理。
-export const integrate = ({ path, source }) => {
+// 复制合并：有阶段起点清单时做三方合并，删除也能传播；没有清单时退回保守的两方规则。
+export const integrate = ({ path, source, base = null }) => {
   if (typeof source !== 'string' || source === '') return { ok: false, files: [], error: '缺少合并来源' }
   const incoming = manifestOf(source)
   const current = new Map(manifestOf(path).map(item => [item.path, item.sha256]))
-  const conflicts = incoming
-    .filter(item => current.has(item.path) && current.get(item.path) !== item.sha256)
-    .map(item => item.path)
-  if (conflicts.length > 0) return { ok: false, files: conflicts.slice(0, 50), error: '复制合并冲突' }
-  for (const item of incoming) {
-    if (current.get(item.path) === item.sha256) continue
-    copyEntry(source, path, item.path)
+  if (!Array.isArray(base)) {
+    const conflicts = incoming
+      .filter(item => current.has(item.path) && current.get(item.path) !== item.sha256)
+      .map(item => item.path)
+    if (conflicts.length > 0) return { ok: false, files: conflicts.slice(0, 50), error: '复制合并冲突' }
+    for (const item of incoming) {
+      if (current.get(item.path) === item.sha256) continue
+      copyEntry(source, path, item.path)
+    }
+    return { ok: true }
   }
+
+  const baseMap = new Map(base.map(item => [item.path, item.sha256]))
+  const incomingMap = new Map(incoming.map(item => [item.path, item.sha256]))
+  const conflicts = new Set()
+  const writes = []
+  const deletes = []
+  for (const item of incoming) {
+    const before = baseMap.get(item.path)
+    const now = current.get(item.path)
+    if (now === item.sha256) continue
+    if (now === undefined) {
+      if (before === undefined || before !== item.sha256) {
+        // 两边都删/改或当前删、对方改：没有共同基线，交给人。
+        if (before !== undefined) conflicts.add(item.path)
+        else writes.push(item)
+      }
+      continue
+    }
+    if (before === now) writes.push(item)
+    else if (before !== item.sha256) conflicts.add(item.path)
+  }
+  for (const [file, before] of baseMap) {
+    if (incomingMap.has(file)) continue
+    const now = current.get(file)
+    if (now === undefined) continue
+    if (now === before) deletes.push(file)
+    else conflicts.add(file)
+  }
+  if (conflicts.size > 0) {
+    return { ok: false, files: [...conflicts].slice(0, 50), error: '复制合并冲突' }
+  }
+  for (const item of writes) copyEntry(source, path, item.path)
+  for (const file of deletes) rmSync(join(path, file), { force: true })
   return { ok: true }
 }
 

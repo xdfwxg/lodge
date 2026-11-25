@@ -32,6 +32,8 @@ test('an smtp url becomes a transport without exposing the password', () => {
     assert.equal(config.transport.secure, false)
     assert.equal(config.transport.auth.user, 'me@example.com')
     assert.equal(config.transport.auth.pass, 'secret')
+    assert.equal(config.transport.connectionTimeout, 15_000)
+    assert.equal(config.transport.socketTimeout, 30_000)
   })
 })
 

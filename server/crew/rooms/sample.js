@@ -126,6 +126,7 @@ export const sampleStudioRound = ({ room, now = Date.now() } = {}) => ({
   blocked: null,
   mergeConflict: null,
   stageBases: {},
+  stageBaseManifests: {},
   startHead: null,
   workspaceHead: null,
   completedAt: room.completedAt ?? now - 3 * 60_000,

@@ -46,6 +46,11 @@ test('chat rooms can name speaking instead of processing', () => {
   assert.equal(byId(bodyStatuses(room, members, { labels: { member: '发言中' } })).worker.label, '发言中')
 })
 
+test('a muted chat member says muted, not no-dispatch', () => {
+  const room = { state: 'active', heldMembers: ['lead'] }
+  assert.equal(byId(bodyStatuses(room, members, { labels: { held: '已静音' } })).lead.label, '已静音')
+})
+
 test('a verifier working on its own vendor says self check, not independent review', () => {
   const room = { state: 'active', independence: 'none', busyMembers: ['verifier'] }
   assert.equal(byId(bodyStatuses(room, members)).verifier.label, '自查中')

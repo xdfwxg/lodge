@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { persistenceKind } from '../../service-policy.js'
 import { transitionAssignment } from '../../assignments.js'
-import { ASSIGNMENT_STATUS, ROUND_STATUS } from '../../../../shared/states.js'
+import { ASSIGNMENT_STATUS, ASSIGNMENT_TERMINAL, ROUND_STATUS } from '../../../../shared/states.js'
 
 export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
   const { readMessages, readAssignments, appendMessage, appendEvent } = store
@@ -14,7 +14,7 @@ export const createRoomCompleter = ({ store, emit, roomFiles, workspace }) => {
       return room
     }
     const open = readAssignments(room.id, { limit: 500 })
-      .filter(assignment => !['passed', 'rejected', 'failed', 'cancelled'].includes(assignment.status))
+      .filter(assignment => !ASSIGNMENT_TERMINAL.has(assignment.status))
     // 收尾交接只是请规划师说两句，不是交付的一部分；验收通过后它不该把整轮卡住。
     for (const summary of open.filter(assignment => assignment.reason === 'summary')) {
       transitionAssignment(store, summary.id, ASSIGNMENT_STATUS.passed)

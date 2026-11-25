@@ -140,6 +140,10 @@ export const createStageIntegrator = ({ store, roomId, emit, markProgress, reque
         path: integration,
         branch: branch ?? '',
         source,
+        // 非 git 复制合并要用阶段起点的清单做三方合并，删除才会传播。
+        base: Array.isArray(room.stageBaseManifests?.[stageIndex])
+          ? room.stageBaseManifests[stageIndex]
+          : null,
         // 冲突留在工作目录里，等人解决并提交；不要 abort 把现场清掉。
         keepConflict: true,
       })

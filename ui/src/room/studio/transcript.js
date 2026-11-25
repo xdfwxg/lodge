@@ -49,7 +49,6 @@ export function StudioTranscript({
   onSteerQueue = null,
   onKeepPromise = null,
   onDiscussChat = null,
-  onReturn = null,
   onRework = null,
   onChoose = null,
   onReadArtifact = null,

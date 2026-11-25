@@ -311,6 +311,8 @@ test('the host picks tonight’s cast and the opening names them', async () => {
   const ctx = setup({ count: 6 })
   const sendToMember = async (member, text) => {
     if (member !== 'host' || !text.includes('选今晚')) return ctx.sendToMember(member, text)
+    // 主持人在选人时，房间必须已经有一个可见状态，界面不能空等。
+    assert.equal(ctx.room().chat.selecting, true)
     const id = `u${ctx.history.length + 1}`
     ctx.history.push({ id, role: 'user', kind: 'text', text, authorRef: null, at: Date.now() })
     ctx.history.push({
@@ -338,6 +340,7 @@ test('the host picks tonight’s cast and the opening names them', async () => {
   const result = await scheduler.start(ctx.room(), { selectCast: true })
   assert.equal(result.started, true)
   assert.deepEqual(ctx.room().chat.castIds, ['b', 'e'])
+  assert.equal(ctx.room().chat.selecting, false)
   assert.deepEqual(ctx.room().chat.castFocus, { b: '这轮只看成本', e: '这轮只看三个月后' })
   const opening = ctx.messages.find(message => message.meta?.opening === true)
   assert.equal(opening.text, '今晚请到 2 位：乙看成本，戊看三个月后（先看成本和长期）')

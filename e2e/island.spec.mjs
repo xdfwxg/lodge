@@ -18,6 +18,15 @@ test('the island and the room list agree on concluded and delivered rooms', asyn
   await expect(page.locator('.crew-island-done-title')).toHaveText('已交付')
 })
 
+test('the delivered island opens the goal panel again', async ({ page, request }) => {
+  expect((await request.post('/api/rooms/sample')).ok()).toBe(true)
+  await page.goto('/')
+  await page.locator('.crew-side-room[title^="示例：把《羽仙记》的结尾改得更看得见"]').click()
+  await expect(page.locator('.crew-island-done-title')).toHaveText('已交付')
+  await page.locator('.crew-island-done-wrap').click()
+  await expect(page.locator('.bt-goal-panel')).toBeVisible()
+})
+
 test('chat members live in the room menu, not under the row', async ({ page, request }) => {
   expect((await request.post('/api/rooms/sample', { data: { kind: 'chat' } })).ok()).toBe(true)
   await page.goto('/')

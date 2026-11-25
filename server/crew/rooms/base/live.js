@@ -8,6 +8,7 @@ import { createRoomChat } from '../../kernel/live/bus.js'
 import { memberDisplayName } from '../../member-labels.js'
 import { leadMemberOf } from '../../room-members.js'
 import { createSurfaces } from '../../surface-delivery.js'
+import { resetWriteGuard } from '../../workspace-guard.js'
 import { roomModeOfRoom } from '../kinds.js'
 import { resolveRoomType } from '../kinds.js'
 import { supportsRuntime } from '../../runtime-port.js'
@@ -263,6 +264,7 @@ export const createLiveRooms = ({
     chat.detach(entry)
     for (const target of entry.members.values()) target.unsubscribe?.()
     entries.delete(roomId)
+    resetWriteGuard(roomId)
   }
 
   const start = async (attempt = 0) => {

@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ROOM_STATE } from '../../shared/states.js'
 
@@ -56,8 +57,27 @@ export const collectWorkspaceGarbage = ({
     if (updated !== null) pruned += fresh.length
   }
 
+  // 证明/反例的一次性副本在 /tmp；正常路径会自己删，崩溃留下的超过 24 小时清掉。
+  let temp = 0
+  if (typeof files.list === 'function' && typeof files.mtimeMs === 'function' && typeof files.remove === 'function') {
+    const tempRoot = tmpdir()
+    const tempTtl = 24 * 60 * 60 * 1000
+    try {
+      for (const name of files.list(tempRoot)) {
+        if (!name.startsWith('lodge-proof-')) continue
+        const path = join(tempRoot, name)
+        try {
+          if (files.isDirectory(path) !== true) continue
+          if (now - files.mtimeMs(path) < tempTtl) continue
+          files.remove(path)
+          temp += 1
+        } catch {}
+      }
+    } catch {}
+  }
+
   // 未知目录可能属于另一个 data dir；孤儿清理默认关闭，显式开启才删。
-  if (!removeOrphans) return { pruned, orphans, rewound }
+  if (!removeOrphans) return { pruned, orphans, rewound, temp }
   const roots = rootPath === null
     ? [...new Set([
       workspace.default.scratchRoot(),
@@ -87,5 +107,5 @@ export const collectWorkspaceGarbage = ({
       } catch {}
     }
   }
-  return { pruned, orphans, rewound }
+  return { pruned, orphans, rewound, temp }
 }

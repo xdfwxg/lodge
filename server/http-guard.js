@@ -33,9 +33,14 @@ const hasBody = req => {
 // 附件上传要发原始字节；只有这一条路径例外，其余写请求仍然只收 JSON。
 const RAW_UPLOAD = '/api/attachments'
 
-export const requestGuard = (req, path = '') => {
+export const requestGuard = (req, path = '', { actionToken = null } = {}) => {
   if (!loopbackHost(req.headers.host)) return '只接受本机请求'
   if (!WRITE_METHODS.has(req.method)) return null
+  // 桌面版给写操作加一道进程外令牌：执行官的 shell 也走本机回环，不能让它替人点“可以做”。
+  // 上传是原始字节流，UI 直接用 fetch；其余 /api 写请求只能通过桌面 IPC 代理。
+  if (actionToken !== null && actionToken !== '' && path.startsWith('/api/') && path !== RAW_UPLOAD) {
+    if (req.headers['x-lodge-action'] !== actionToken) return '这个操作只能从 Lodge 窗口发起'
+  }
   // 浏览器一定带 Origin；没有 Origin 的是本机 curl、脚本或测试。
   const origin = req.headers.origin
   if (origin !== undefined && !loopbackOrigin(origin)) return '不接受跨站请求'

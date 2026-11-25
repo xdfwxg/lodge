@@ -9,6 +9,8 @@ import { plainRuntimeError } from '../../base-error.js'
 import { ROUND_STATUS } from '../../../../shared/states.js'
 import { prepareWorkspace, resolveWorkspaceProvider } from './workspace.js'
 import { roomModeForType } from '../kinds.js'
+import { resolveOrchestration } from '../../orchestration/index.js'
+import { executorsNeeded } from '../../../../shared/crew-proposal.js'
 import { gateRecordOf } from '../../gate/index.js'
 import { transferOf } from '../../../../shared/transfer.js'
 import { grantBrowserToAll, needsBrowser, stripBrowser } from '../../room-access.js'
@@ -70,6 +72,10 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
     }
   }
   const resolvedPlan = mode.resolvePlan(plan, roster)
+  // 建房时直接带方案：并行与否由工作包决定，和规划师走 submit_plan 的规则一致。
+  const roomOrchestration = resolvedPlan !== null && executorsNeeded(resolvedPlan.stages) > 1
+    ? resolveOrchestration('parallel')
+    : orchestration
   for (const member of roster) {
     if (member.mcp.length > 0 && capabilities.mcp !== true) {
       return fail('conflict', '当前版本还不支持外部工具')
@@ -206,7 +212,7 @@ export const createRealRoom = async ({ store, engine, live, emit, body, workspac
       provider,
       workspaceCaps,
       roomType,
-      orchestration: orchestration.id,
+      orchestration: roomOrchestration.id,
       shadowReview,
       autoDeliver,
       builtStages,
