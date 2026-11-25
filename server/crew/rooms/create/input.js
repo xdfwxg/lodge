@@ -39,8 +39,11 @@ export const normalizeRequest = body => {
   const bootstrap = isStudio && !hasPlan && (!hasMembers || onlyPlanner)
   const shadowReview = body.shadowReview === true
   const autoDeliver = isStudio && body.autoDeliver === true
-  const orchestration = resolveOrchestration(body.orchestration ?? body.plan?.orchestration)
-  if (orchestration === null) return { error: '不认识的分配方式' }
+  // 编排归系统：按工作包的独立程度决定；建房请求里带了就走拒绝，不静默忽略。
+  if (body.orchestration !== undefined || body.plan?.orchestration !== undefined) {
+    return { error: '编排方式由系统按工作包决定，建房时不能指定' }
+  }
+  const orchestration = resolveOrchestration(null)
   const handoffBrief = normalizeHandoffBrief(body.handoffBrief)
   const handoffBriefReviewed = body.handoffBriefReviewed === true
   const receipt = normalizeReceipt(body.receipt)
@@ -88,6 +91,10 @@ export const normalizePlan = ({ body }) => {
           : ''
         if (title === '') return { error: `第 ${index + 1} 步缺少名字` }
         if (deliverable === '') return { error: `第 ${index + 1} 步缺少交付物：写清做完会得到什么` }
+        // 执行者由系统按工作包和执行官人数分配，计划里不能指定。
+        if (item?.assignees !== undefined) {
+          return { error: `第 ${index + 1} 步不能指定执行者：系统按工作包分配` }
+        }
         const clauseIds = Array.isArray(item?.clauseIds)
           ? item.clauseIds
             .filter(id => typeof id === 'string' && id.trim() !== '')
@@ -100,7 +107,6 @@ export const normalizePlan = ({ body }) => {
           ...(contract !== null && clauseIds.length === 0 && index === 0
             ? { clauseIds: contract.outcomes.map(outcome => outcome.id) }
             : clauseIds.length === 0 ? {} : { clauseIds }),
-          ...(Array.isArray(item?.assignees) ? { assignees: item.assignees } : {}),
           ...(Array.isArray(item?.packages)
             ? {
               packages: item.packages

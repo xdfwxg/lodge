@@ -487,6 +487,53 @@ test('a planner stop request really stops the round', async () => {
   assert.deepEqual(stopped, [['room-1', { reason: '用户说停下' }]])
 })
 
+test('a stop advice waits for an in-flight assignment instead of cutting it off', async () => {
+  const room = makeRoom({
+    stages: [
+      { title: '实现', kind: 'deliverable', state: 'active', deliverable: 'a result' },
+      { title: '验收与结论', kind: 'decision', spine: true, state: 'pending' },
+    ],
+    leadSeat: 'planner',
+    members: ['planner', 'executor'],
+    seatNames: { planner: 'Planner', executor: 'Exec' },
+    seatSpecs: [
+      { id: 'planner', name: '规划师', role: 'lead' },
+      { id: 'executor', name: '执行官', role: 'worker' },
+    ],
+    seatBots: { planner: 'bot-planner', executor: 'bot-exec' },
+    workers: ['executor'],
+  })
+  const store = fakeStore(room)
+  store.writeAssignment({
+    id: 'as-live', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: {}, status: 'sent', context: {}, flags: {},
+  })
+  const stopped = []
+  const turns = createLiveTurns({
+    store,
+    roomId: 'room-1',
+    emit: () => {},
+    sendToMember: async () => ({ messageId: null }),
+    commands: { run: async () => ({}) },
+    files: { exists: () => false, read: () => Buffer.from('') },
+    stopRound: (roomId, request) => {
+      stopped.push([roomId, request])
+      return Promise.resolve({ ok: true })
+    },
+  })
+  const advice = turns.adviseStop({ reason: '不值得继续' })
+  assert.equal(advice?.deferred, true)
+  assert.deepEqual(stopped, [])
+  assert.ok(store.messages.some(message => /规划师建议停下/.test(message.text ?? '')))
+  // 在跑的那一位交回之后，系统才停。
+  store.writeAssignment({
+    id: 'as-live', roomId: 'room-1', stageIndex: 0, toMemberId: 'executor', reason: 'dispatch',
+    brief: {}, status: 'reported', context: {}, flags: {},
+  })
+  await turns.maybeStop()
+  assert.deepEqual(stopped, [['room-1', { reason: '不值得继续' }]])
+})
+
 test('a planner resume request reopens the stopped round', async () => {
   const room = makeRoom({
     stages: [

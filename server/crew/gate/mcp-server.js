@@ -248,7 +248,7 @@ export const GATE_TOOLS = Object.freeze([
   },
   {
     name: 'ask_decision',
-    description: '遇到会改变结果、且你无法从目标推断用户偏好的关键分叉时，用它给用户一张决策卡：2–3 条具体路径，每条写清选完会发生什么，再推荐一条。不要用聊天提问代替这张卡；不影响结果的细节自己写死继续。',
+    description: '遇到会改变结果、且你无法从目标推断用户偏好的关键分叉时，用它给用户一张决策卡：2–3 条具体路径，每条写清选完会发生什么，再推荐一条。这是建议：由人做选择，暂停、恢复和能不能现在出卡由系统决定。不要用聊天提问代替这张卡；不影响结果的细节自己写死继续。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -302,7 +302,7 @@ export const GATE_TOOLS = Object.freeze([
   },
   {
     name: 'stop_round',
-    description: '用户说停、不想继续，或你判断这一轮不值得再往下做时，用它停住这一轮；停完只回一句已停，不派活、不 @ 任何人。',
+    description: '用户说停、不想继续，或你判断这一轮不值得再往下做时，用它建议停下并写清理由；系统会在没有进行中的执行和复核时停住，不打断正在跑的回合。停完只回一句建议已提交，不派活、不 @ 任何人。',
     inputSchema: {
       type: 'object',
       properties: {

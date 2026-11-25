@@ -36,7 +36,7 @@ export const createTurnCapture = ({
   markResultReady,
   confirmStage = null,
   rewindStage = null,
-  stopRound = null,
+  adviseStop = null,
   resumeRound = null,
   applyPlan = null,
   adjustModel = null,
@@ -132,19 +132,13 @@ export const createTurnCapture = ({
         }
         systemNotice({ store, roomId, text: `继续没成功：${result?.error ?? '再试一次'}` })
       }
-      // 用户说停时，用它把这一轮真的停住；只是说一句「停」不会在这里生效。
+      // 规划师的 stop_round 只是建议：系统在安全点停，进行中的回合不打断。
       const stop = stopRequestOf(calls)
-      if (stop !== null && typeof stopRound === 'function') {
-        void Promise.resolve(stopRound(roomId, stop))
-          .then(result => {
-            if (result?.ok === true) {
-              store.appendEvent(roomId, 'planner.stop', { reason: stop.reason })
-              emit?.('room', store.readRoom(roomId) ?? room)
-              return
-            }
-            systemNotice({ store, roomId, text: `停止没成功：${result?.error ?? '再试一次'}` })
-          })
-          .catch(() => systemNotice({ store, roomId, text: '停止没成功，再试一次。' }))
+      if (stop !== null && typeof adviseStop === 'function') {
+        const advice = adviseStop(stop)
+        if (advice?.deferred === true) {
+          store.appendEvent(roomId, 'planner.stop_deferred', { reason: stop.reason })
+        }
         state.capturedTurns.add(turnId)
         state.recordTurn(true)
         return

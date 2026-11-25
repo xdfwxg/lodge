@@ -14,6 +14,23 @@ test('every stage names what it delivers, not how to verify it', () => {
   assert.equal('acceptance' in planned.plan.stages[0], false)
 })
 
+test('the create path refuses to choose flow: orchestration and assignees belong to the system', () => {
+  assert.match(normalizeRequest({
+    goal: '做导出',
+    roomType: 'studio',
+    verify: 'manual',
+    orchestration: 'parallel',
+  }).error, /编排方式由系统/)
+  assert.match(normalizeRequest({
+    goal: '做导出',
+    roomType: 'studio',
+    verify: 'manual',
+    plan: { orchestration: 'critique' },
+  }).error, /编排方式由系统/)
+  const assigned = normalizePlan({ body: body([{ title: '实现', deliverable: '做完', assignees: ['a'] }]) })
+  assert.match(assigned.error, /不能指定执行者/)
+})
+
 test('a supplied contract derives done and clause ids from its outcomes', () => {
   const planned = normalizePlan({
     body: {

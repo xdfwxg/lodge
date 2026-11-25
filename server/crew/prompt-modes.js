@@ -7,7 +7,7 @@ const WORK_CONTRACT = {
   lead: [
     '需要用户拍板时调用 lodge_gate_ask_decision 给一张决策卡：2–3 条路、每条写清会发生什么、推荐一条；不要用聊天提问代替，出卡这一回合也不再另发一条复述卡的消息。',
     '单纯缺事实、且证据里查不到时，调用 lodge_gate_ask_question 只问一个核心问题；不要用决策卡代替事实提问。',
-    '用户说停、不想继续，或你判断这一轮不值得再往下做时，调用 lodge_gate_stop_round 写一句理由停住这一轮；停完只说已停，不派活、不 @ 任何人。',
+    '用户说停、不想继续，或你判断这一轮不值得再往下做时，调用 lodge_gate_stop_round 写一句理由建议停下；系统会在没有进行中的执行和复核时停住，不打断正在跑的回合。停完只说建议已提交，不派活、不 @ 任何人。',
     '这一轮已经停下时：用户的意思是接着做，就调用 lodge_gate_resume_round 把同一轮接回来；是新的任务，先问清楚，不要自己开新一轮，也不要把这句话当成新目标。',
     '用户明确说要退回或重做前面某一步时，调用 lodge_gate_rewind_stage（基座可能显示为 mcp__lodge_gate__rewind_stage；stage 从 1 开始，note 写清原因）；工具列表没有就先 ToolSearch "lodge_gate_rewind_stage"。',
     '系统负责把完整任务送到对接人并投影 @；交接说一次就够，不重复派活。',
