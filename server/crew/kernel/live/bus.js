@@ -69,7 +69,7 @@ export const echoHumanMessage = ({ store, roomId, text, messageId, sendId, queue
 
 // 房间对话走基座原生群聊：成员、@、上下文和沉默都由基座负责。
 // 这里只管创建/重连/收发，不把聊天变成阶段回合。
-export const createRoomChat = ({ store, engine, projector, refresh, emit = () => {}, onPermission, onTurn }) => {
+export const createRoomChat = ({ store, engine, projector, refresh, emit = () => {}, onPermission, onTurn, onTool = null }) => {
   const streamOf = entry => {
     if (entry.chatStreams === undefined) entry.chatStreams = new Map()
     return entry.chatStreams
@@ -335,6 +335,8 @@ export const createRoomChat = ({ store, engine, projector, refresh, emit = () =>
           void onPermission(entry, memberId, message, chat)
           return
         }
+        // 工具活动先过房型的守卫：读边界要在读发生时就拦，不等到回合结束。
+        if (message.kind === 'activity') onTool?.(entry, current, message)
         // 复核和规划也可能在群聊里回合；工具活动必须先记进这一轮，判定工具才读得到。
         entry.turns?.trackTool?.(message)
         if (message.kind === 'turn') onTurn?.(entry, current, message)

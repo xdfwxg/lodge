@@ -1,6 +1,9 @@
 // 交付自带的证明清单：工作区根目录的 lodge-proof.json。
 // 只写“怎么证明”，不写验收结论；执行结果由平台记录。
 export const PROOF_FILE = 'lodge-proof.json'
+// 并行阶段一个工作包一份证明：根目录的 lodge-proof.json 只留给单包阶段。
+export const PROOF_DIR = 'lodge-proof'
+export const packageProofFile = index => `${PROOF_DIR}/${index + 1}.json`
 const PROOF_VERSION = 1
 // 命令可以是一条长管道或 node -e；截断命令等于把它改成另一条坏命令，
 // 所以超长时宁可当“没有证明”，也不执行半条。

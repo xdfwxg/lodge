@@ -47,7 +47,7 @@ export const visualMatchesAudit = (expected, visual) => {
   return nearNumber(visual.colors, expected.colors) && nearNumber(visual.contrast, expected.contrast)
 }
 
-export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null, advanceStage = null }) => {
+export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, handoff = null, shadow = null, previews = null, attachments = null, advanceStage = null, runCommand = runCommandInPathSync }) => {
   const handoffTrigger = handoff?.trigger ?? (async ({ to, prompt }) => sendToMember(to, prompt))
   // 判定工具真的挂在这位验收员身上时，只认工具提交；注册失败才退回首行锚点。
   const gateAvailableFor = (room, memberId) => {
@@ -148,10 +148,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       pending.expire?.(`${name} 的判定没有逐条覆盖这一步的要求，这一轮仍未通过。`)
       return true
     }
-    // PASS 还要有亲手验过的痕迹：跑过一条检查，或读过这次改动里的文件。
+    // PASS 还要有亲手验过的痕迹：交付有几份证明，就要在复核副本里重跑几份。
     const proof = verificationProofOf(calls, {
       changedFiles: pending.changedFiles,
-      requiredEntry: pending.proofEntry,
+      requiredEntries: pending.proofEntries,
     })
     if (judgment.decision === 'pass' && !proof.ok) {
       const name = memberDisplayName(room, memberId)
@@ -159,16 +159,17 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         pending.proofNudged = true
         clearTimeout(pending.reminder)
         void sendToMember(memberId, [
-          pending.proofEntry === ''
+          pending.proofEntries.length === 0
             ? 'PASS 之前要先亲手验过：至少读一个这次改动的文件，或跑一条检查。'
-            : `PASS 之前要重跑交付自带的证明：${sanitizeUntrusted(pending.proofEntry, 2_000)}。`,
+            : `PASS 之前要重跑交付自带的全部证明（${pending.proofEntries.length} 条）：\n${pending.proofEntries.map(entry => `- ${sanitizeUntrusted(entry, 2_000)}`).join('\n')}`,
+          ...(proof.missing?.length > 0 ? [`还没重跑：${proof.missing.map(entry => sanitizeUntrusted(entry, 300)).join('；')}。`] : []),
           ...(proof.files.length === 0 ? [] : [`这次改动的文件：${proof.files.slice(0, 20).join('、')}。`]),
-          '请在你的复核副本里重跑这条证明（入口以根目录 lodge-proof.json 为准），再提交一次。',
+          '请在你的复核副本里逐条重跑（入口以 lodge-proof.json 或 lodge-proof/ 为准），再提交一次。',
           INTERNAL_PROMPT_MARKER,
         ].join('\n'), { intent: 'review' }).catch(() => {})
         return true
       }
-      pending.expire?.(`${name} 的判定没有重跑交付自带的证明，这一轮仍未通过。`)
+      pending.expire?.(`${name} 的判定没有重跑交付自带的全部证明，这一轮仍未通过。`)
       return true
     }
     // 证据只能来自复核员自己的副本：读到别人工作树或集成目录，看到的不是这次交付的现场。
@@ -189,10 +190,10 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
       pending.expire?.(`${name} 的判定用了别人副本里的证据，这一轮仍未通过。`)
       return true
     }
-    // 有契约的房间，PASS 还要有反例尝试：平台执行，跑红就是找到反例。
-    const contractRoom = (store.readRoom(roomId) ?? room)?.plan?.contract !== null &&
-      (store.readRoom(roomId) ?? room)?.plan?.contract !== undefined
-    if (judgment.decision === 'pass' && contractRoom) {
+    // 结构化 PASS 都要有反例尝试：平台在复核副本执行，跑红就是找到反例；
+    // 同时要在改动前的版本上跑一次，前后都绿的命令证明不了这次交付。
+    // 工具没挂上时只能走文本降级，拿不到 falsify，已在判定里标了降级，不再假装有反例。
+    if (judgment.decision === 'pass' && gate !== null) {
       const attempts = Array.isArray(judgment.falsify) ? judgment.falsify : []
       const name = memberDisplayName(room, memberId)
       if (attempts.length === 0) {
@@ -201,7 +202,8 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
           clearTimeout(pending.reminder)
           void sendToMember(memberId, [
             'PASS 必须带至少一条反例尝试。',
-            '在 submit_verdict 的 falsify 里写一条能在复核副本里执行的 command；跑红就说明找到了反例，应判不通过。',
+            '在 submit_verdict 的 falsify 里写一条能在复核副本里执行的 command；它要在改动前的版本上失败、在交付上通过，才说明它真的在测这次改动。',
+            '跑红就说明找到了反例，应判不通过。',
             INTERNAL_PROMPT_MARKER,
           ].join('\n'), { intent: 'review' }).catch(() => {})
           return true
@@ -210,26 +212,60 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         return true
       }
       const copy = room.worktrees?.[pending.verifier]
-      const runs = attempts.map(attempt => ({
-        ...attempt,
-        run: runCommandInPathSync({ cwd: copy, command: attempt.command }),
-      }))
-      const failed = runs.filter(item => item.run.status !== 'passed')
-      if (failed.length > 0) {
-        if (pending.falsifyFailedNudged !== true) {
-          pending.falsifyFailedNudged = true
-          clearTimeout(pending.reminder)
-          void sendToMember(memberId, [
-            '你的反例尝试跑红了，说明已经找到反例：请判不通过，并给出复现。',
-            ...failed.map(item => `- ${sanitizeUntrusted(item.command, 300)}：${item.run.exit ?? '超时'}`),
-            INTERNAL_PROMPT_MARKER,
-          ].join('\n'), { intent: 'review' }).catch(() => {})
+      const current = store.readRoom(roomId) ?? room
+      const baseRef = current.stageBases?.[pending.stage] ?? current.startHead ?? null
+      let baseCopy = null
+      try {
+        if (typeof baseRef === 'string' && baseRef !== '' && typeof workspaceOf(current).isolatedCopy === 'function') {
+          baseCopy = workspaceOf(current).isolatedCopy({ source: current.repoPath, ref: baseRef })
+        }
+      } catch {
+        baseCopy = null
+      }
+      try {
+        const runs = attempts.map(attempt => ({
+          ...attempt,
+          run: runCommand({ cwd: copy, command: attempt.command }),
+          base: baseCopy === null ? null : runCommand({ cwd: baseCopy.path, command: attempt.command }),
+        }))
+        const failed = runs.filter(item => item.run.status !== 'passed')
+        if (failed.length > 0) {
+          if (pending.falsifyFailedNudged !== true) {
+            pending.falsifyFailedNudged = true
+            clearTimeout(pending.reminder)
+            void sendToMember(memberId, [
+              '你的反例尝试跑红了，说明已经找到反例：请判不通过，并给出复现。',
+              ...failed.map(item => `- ${sanitizeUntrusted(item.command, 300)}：${item.run.exit ?? '超时'}`),
+              INTERNAL_PROMPT_MARKER,
+            ].join('\n'), { intent: 'review' }).catch(() => {})
+            return true
+          }
+          pending.expire?.(`${name} 找到反例却仍判通过，这一轮仍未通过。`)
           return true
         }
-        pending.expire?.(`${name} 找到反例却仍判通过，这一轮仍未通过。`)
-        return true
+        // 改动前也绿的命令没有区分力；比如 true、echo、只看文件存在。
+        const toothless = runs.filter(item => item.base?.status === 'passed')
+        if (toothless.length > 0) {
+          if (pending.falsifyWeakNudged !== true) {
+            pending.falsifyWeakNudged = true
+            clearTimeout(pending.reminder)
+            void sendToMember(memberId, [
+              '这条反例命令在改动前的版本上也通过，证明不了这次交付：它没有区分改前和改后。',
+              ...toothless.map(item => `- ${sanitizeUntrusted(item.command, 300)}`),
+              '换一条会在旧版本失败、在交付上通过的命令；找不到就判不通过或交给人。',
+              INTERNAL_PROMPT_MARKER,
+            ].join('\n'), { intent: 'review' }).catch(() => {})
+            return true
+          }
+          pending.expire?.(`${name} 的反例命令在改动前也通过，证明不了这次交付，这一轮仍未通过。`)
+          return true
+        }
+        judgment.falsifyRuns = runs
+      } finally {
+        if (baseCopy !== null) {
+          try { workspaceOf(current).removeIsolatedCopy({ source: current.repoPath, copy: baseCopy }) } catch {}
+        }
       }
-      judgment.falsifyRuns = runs
     }
     round.requests.delete(memberId)
     clearTimeout(pending.timer)
@@ -710,7 +746,12 @@ export const createReviewCoordinator = ({ store, roomId, emit, sendToMember, han
         verifier,
         evidenceId: evidence.id,
         changedFiles: Array.isArray(meta.changedFiles) ? meta.changedFiles : (Array.isArray(meta.files) ? meta.files : []),
-        proofEntry: meta.proof?.status === 'verified' && typeof meta.proof.entry === 'string' ? meta.proof.entry : '',
+        proofEntries: meta.proof?.status === 'verified'
+          ? (Array.isArray(meta.proof.entries)
+            ? meta.proof.entries.map(item => item.entry)
+            : (typeof meta.proof.entry === 'string' ? [meta.proof.entry] : []))
+            .filter(entry => typeof entry === 'string' && entry.trim() !== '')
+          : [],
         protectedFiles,
         requestedAt: Date.now(),
         timer: null,

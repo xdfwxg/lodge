@@ -30,7 +30,7 @@ const absolutePathOf = token => (
   token.startsWith('~/') ? resolve(homedir(), token.slice(2)) : resolve(token)
 )
 
-export const foreignReadsOf = ({ calls, room, memberId }) => {
+export const foreignReadsOf = ({ calls, room, memberId, membersOnly = false }) => {
   const own = room?.worktrees?.[memberId] ?? room?.repoPath ?? ''
   if (typeof own !== 'string' || own === '') return []
   const ownPath = resolve(own)
@@ -41,8 +41,11 @@ export const foreignReadsOf = ({ calls, room, memberId }) => {
     if (target === ownPath || roots.has(target)) return
     roots.set(target, name)
   }
-  addRoot('集成目录', room?.repoPath)
-  addRoot('源仓库', room?.sourceRepo)
+  // 回合中对账只看别人的工作副本；集成目录和源仓库可能是执行时需要对照的现场。
+  if (!membersOnly) {
+    addRoot('集成目录', room?.repoPath)
+    addRoot('源仓库', room?.sourceRepo)
+  }
   for (const [id, path] of Object.entries(room?.worktrees ?? {})) {
     if (id !== memberId) addRoot(id, path)
   }

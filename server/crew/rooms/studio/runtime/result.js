@@ -91,8 +91,14 @@ export const createResultMarker = ({ store, roomId, review, markProgress }) => {
     const acceptedRef = candidate ?? head
     const baseline = room.stageBases?.[stageIndex] ?? room.startHead ?? null
     const { files, diff, status } = await collect(room, repoPath, stageIndex, candidate, head, baseline)
-    // 交付自带的证明由平台跑，不靠执行方或验收员复述。
-    const proofRun = await runProof({ room: { ...room, repoPath }, ref: acceptedRef })
+    // 交付自带的证明由平台跑，不靠执行方或验收员复述；同时在阶段起点跑一次，
+    // 行为要变的步骤如果在旧版本也绿，这条证明就没有绑定这次改动。
+    const proofRun = await runProof({
+      room: { ...room, repoPath },
+      ref: acceptedRef,
+      baseRef: baseline,
+      behavior: stage?.behavior === 'preserve' ? 'preserve' : 'change',
+    })
 
     // 同一 HEAD 上没有新结果时不重复送审；重做后的同一结果仍要重新送审。
     const messages = store.readMessages(roomId)

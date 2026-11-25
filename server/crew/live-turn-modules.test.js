@@ -261,8 +261,19 @@ test('a lead plan call hands the proposal to the platform without an @', async (
       id: 'call-plan',
       name: 'mcp__lodge_gate__submit_plan',
       input: JSON.stringify({
-        contract: { outcomes: [{ id: 'run', statement: '能跑', observable: '测试退出码为 0' }] },
-        plan: { stages: [{ title: '实现', deliverable: 'tests pass', clauseIds: ['run'] }] },
+        contract: {
+          outcomes: [{ id: 'run', statement: '能跑', observable: '测试退出码为 0' }],
+          boundaries: ['不改接口'],
+          nonGoals: ['不加新功能'],
+        },
+        plan: {
+          stages: [{
+            title: '实现',
+            deliverable: 'tests pass',
+            clauseIds: ['run'],
+            packages: [{ title: '实现', files: ['src/index.js'] }],
+          }],
+        },
         crew: { executors: [{ engine: 'claude', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
       }),
     },
@@ -708,6 +719,7 @@ test('a review request always gets one system handoff, even if the executor wrot
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -736,6 +748,7 @@ test('a verifier reply without a verdict is nudged, then expires the review', as
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -783,6 +796,7 @@ test('a verifier with the gate tool cannot pass on text alone', async () => {
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -822,6 +836,7 @@ test('a deliverable review is blind to the executor narrative by default', async
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -850,6 +865,7 @@ test('a verdict cannot pass protected files without naming them', async () => {
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -875,7 +891,7 @@ test('a verdict cannot pass protected files without naming them', async () => {
     memberId: 'verifier',
     turnId: 't2',
     room,
-    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['package.json'] }), proofCall],
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['package.json'], falsify: [{ command: 'node --test' }] }), proofCall],
   }), true)
   const verdict = store.messages.find(message => message.kind === 'verdict')
   assert.equal(verdict?.meta?.pass, true)
@@ -891,6 +907,7 @@ test('a PASS must cover the stage deliverable before it counts', async () => {
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -939,6 +956,7 @@ test('a PASS without reading a file or running a check is sent back once', async
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -956,6 +974,7 @@ test('a PASS without reading a file or running a check is sent back once', async
       reason: '好了',
       outsideDiff: '无',
       coverage: [{ item: 'ship it', evidence: '读了改动文件' }],
+      falsify: [{ command: 'node --test' }],
     }),
   }
   assert.equal(review.consume({
@@ -1006,6 +1025,7 @@ test('a changed existing test must be acknowledged, an added test does not', asy
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1032,7 +1052,7 @@ test('a changed existing test must be acknowledged, an added test does not', asy
     memberId: 'verifier',
     turnId: 't2',
     room,
-    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['test/initials.test.js'] }), proofCall],
+    calls: [call({ decision: 'PASS', reason: '改好了', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], protectedFiles: ['test/initials.test.js'], falsify: [{ command: 'node --test' }] }), proofCall],
   }), true)
   assert.equal(store.messages.find(message => message.kind === 'verdict')?.meta?.pass, true)
 })
@@ -1656,6 +1676,7 @@ test('review request and verdict consumption update the round without crossing t
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1694,6 +1715,7 @@ test('a gate tool call supplies the verdict without parsing the reply', async ()
     meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1733,6 +1755,7 @@ test('critique review is blind to the execution conversation', async () => {
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1756,6 +1779,7 @@ test('new evidence restarts an in-flight review and ignores the stale verdict', 
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1803,6 +1827,7 @@ test('a verifier reject keeps the stage open and hands it back to the executor',
   })
   const sent = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1847,6 +1872,7 @@ test('a verifier pass hands the summary to the planner', async () => {
     return { messageId: `m${sent.length}` }
   }
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1901,6 +1927,7 @@ test('auto delivery closes the round when the verifier passes', async () => {
   const sent = []
   const advanced = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1916,7 +1943,7 @@ test('auto delivery closes the round when the verifier passes', async () => {
   await review.request(0)
   const calls = [{
     name: 'mcp__lodge_gate__submit_verdict',
-    input: JSON.stringify({ decision: 'PASS', reason: '达标', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }] }),
+    input: JSON.stringify({ decision: 'PASS', reason: '达标', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], falsify: [{ command: 'node --test' }] }),
   }, proofCall]
   assert.equal(review.consume({ turn: { reply: '已提交' }, memberId: 'verifier', turnId: 't1', room, calls }), true)
   await new Promise(resolve => setImmediate(resolve))
@@ -1946,6 +1973,7 @@ test('a promise round delivers without the room-wide auto-deliver switch', async
   const sent = []
   const advanced = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -1961,7 +1989,7 @@ test('a promise round delivers without the room-wide auto-deliver switch', async
   await review.request(0)
   const calls = [{
     name: 'mcp__lodge_gate__submit_verdict',
-    input: JSON.stringify({ decision: 'PASS', reason: '达标', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }] }),
+    input: JSON.stringify({ decision: 'PASS', reason: '达标', outsideDiff: '无', coverage: [{ item: 'ship it', evidence: '读了改动文件' }], falsify: [{ command: 'node --test' }] }),
   }, proofCall]
   assert.equal(review.consume({ turn: { reply: '已提交' }, memberId: 'verifier', turnId: 't1', room, calls }), true)
   await new Promise(resolve => setImmediate(resolve))
@@ -1989,6 +2017,7 @@ test('auto delivery falls back to the planner when the verdict came from text', 
   const sent = []
   const advanced = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -2031,6 +2060,7 @@ test('an intermediate stage advances by itself instead of asking the planner to 
   const sent = []
   const advanced = []
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -2068,6 +2098,7 @@ test('shadow review records advice without injecting it into the Verifier prompt
   const sent = []
   let calls = 0
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -2103,6 +2134,7 @@ test('a shadow opinion still lands after its stage has passed', async () => {
   })
   let release = null
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},
@@ -2128,6 +2160,7 @@ test('shadow review says once when the reviewer could not answer', async () => {
     meta: { stage: 0, kind: 'result', resultText: '', diff: '' },
   })
   const review = createReviewCoordinator({
+    runCommand: () => ({ status: 'passed' }),
     store,
     roomId: 'room-1',
     emit: () => {},

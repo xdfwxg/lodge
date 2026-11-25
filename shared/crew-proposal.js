@@ -21,6 +21,7 @@ const stageOf = (raw, index) => {
     title,
     deliverable,
     clauseIds: [...new Set(clauseIds)],
+    behavior: raw?.behavior === 'preserve' ? 'preserve' : 'change',
     ...(packages.length === 0 ? {} : { packages }),
     index,
   }
@@ -37,6 +38,8 @@ export const normalizeCrewProposal = input => {
   if (input === null || typeof input !== 'object' || Array.isArray(input)) return { error: '方案格式不对' }
   const contract = normalizeContract(input.contract)
   if (contract === null) return { error: '方案里没有目标契约：写清可观察结果、边界、非目标和假设' }
+  if (contract.boundaries.length === 0) return { error: '契约没有边界：写清这一步不能碰什么' }
+  if (contract.nonGoals.length === 0) return { error: '契约没有非目标：写清这一步不做什么' }
   const stages = list(input.plan?.stages, 3, (item, index) => stageOf(item, index))
   if (stages.length === 0) return { error: '方案里没有阶段；每个阶段要有交付物和至少一个 clauseId' }
   const clauseIds = new Set(contract.outcomes.map(item => item.id))
@@ -45,6 +48,19 @@ export const normalizeCrewProposal = input => {
   if (unknown.length > 0) return { error: `阶段引用了契约里没有的要求：${unknown.join('、')}` }
   const missing = [...clauseIds].filter(id => !assigned.has(id))
   if (missing.length > 0) return { error: `契约要求没有分配到任何阶段：${missing.join('、')}` }
+  // 工作包是写边界的唯一依据：每个阶段至少一个包，每个包必须写清要改的文件。
+  for (const [index, raw] of (Array.isArray(input.plan?.stages) ? input.plan.stages : []).entries()) {
+    const packages = Array.isArray(raw?.packages) ? raw.packages : []
+    if (packages.length === 0) {
+      return { error: `第 ${index + 1} 步没有工作包：写清每个包要改的文件` }
+    }
+    const fileless = packages.find(pkg => (
+      !Array.isArray(pkg?.files) || pkg.files.filter(file => typeof file === 'string' && file.trim() !== '').length === 0
+    ))
+    if (fileless !== undefined) {
+      return { error: `第 ${index + 1} 步的工作包没有文件：每个包都要写清要改的文件，写边界才能生效` }
+    }
+  }
   // done 是契约的投影，不再接受第二份 done 输入。
   const done = contract.outcomes.map(item => item.statement).slice(0, 6)
   const executors = list(input.crew?.executors, 3, memberOf)

@@ -499,6 +499,13 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     } catch {}
   }
 
+  // 读边界发现越界时，当场叫停这位成员；不是在房间层取消整轮。
+  const interruptBot = async (botId, body = {}) => {
+    if (typeof botId !== 'string' || botId === '') return { ok: false, error: '没有这个成员' }
+    if (typeof client.interruptBot !== 'function') return { ok: false, error: '这个基座不支持叫停成员' }
+    return client.interruptBot(botId, body)
+  }
+
   const deleteRoom = async roomId => {
     try {
       await client.deleteGroup(roomId)
@@ -564,6 +571,7 @@ export const createEngine = ({ client = createBaseClient() } = {}) => {
     setRoomHold,
     markRoomRead,
     deleteMemberBot,
+    interruptBot,
     deleteRoom,
     subscribe,
     mcp,

@@ -22,6 +22,7 @@ import { hasLaterWorkStage } from '../review-policy.js'
 import { cancelAssignmentLease } from '../assignment-lease.js'
 import { redactSecrets } from '../../../../../shared/secrets.js'
 import { guardTurn, unreturnedReadOnlyViolations } from '../../../workspace-guard.js'
+import { foreignReadsOf } from '../read-boundary.js'
 
 export const createTurnCapture = ({
   store,
@@ -86,6 +87,29 @@ export const createTurnCapture = ({
             at: Date.now(),
           }
           return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'boundary', source: 'guard' } }] }
+        })
+        if (updated !== null) emit?.('room', updated)
+      }
+      // 读别人的工作副本也当场拦：不等验收判定，留下证据并停住这一轮。
+      const calls = state.turns.get(turnId) ?? []
+      const foreign = foreignReadsOf({ calls, room, memberId, membersOnly: true })
+      if (foreign.length > 0) {
+        const active = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
+        const stageIndex = active < 0 ? 0 : active
+        store.appendMessage(roomId, {
+          kind: 'system',
+          text: `${memberDisplayName(room, memberId)} 读了别人的工作副本：${foreign.slice(0, 3).map(item => `${item.path}（${item.root}）`).join('、')}；这一轮先停下，等人处理。`,
+        })
+        const updated = store.updateRound(roomId, current => {
+          if (current.blocked?.reason === 'read-boundary') return null
+          current.blocked = {
+            stage: stageIndex,
+            reason: 'read-boundary',
+            source: 'read-guard',
+            members: [memberId],
+            at: Date.now(),
+          }
+          return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'read-boundary', source: 'read-guard' } }] }
         })
         if (updated !== null) emit?.('room', updated)
       }

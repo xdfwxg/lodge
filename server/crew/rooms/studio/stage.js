@@ -13,6 +13,7 @@ import { historyBriefOf } from './history-brief.js'
 import { sanitizeUntrusted } from '../../../../shared/untrusted-text.js'
 import { humanLabelOf } from '../../human-name.js'
 import { usageBudgetExceeded } from '../../../../shared/usage.js'
+import { PROOF_FILE, packageProofFile } from '../../../../shared/proof.js'
 import { beginWriteGuard } from '../../workspace-guard.js'
 
 // 重做的“这一拍”由最近一条重做消息标识；同一拍重放幂等，新一拍必须重新派发。
@@ -230,6 +231,8 @@ export const createStageStarter = ({ store, roomId, emit, handoff = null, sendTo
       memberId: worker,
       stage,
       workPackage: packageFor(worker),
+      // 并行阶段一个包一份证明，根目录的 lodge-proof.json 只给单包阶段。
+      proofFile: parallel ? packageProofFile(Math.max(0, assignees.indexOf(worker))) : PROOF_FILE,
       index,
       rework,
       note,

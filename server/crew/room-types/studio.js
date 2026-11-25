@@ -51,6 +51,7 @@ export const buildStages = ({ title, plan, align, bootstrap = false }) => {
       ...(Array.isArray(stage.clauseIds) && stage.clauseIds.length > 0 ? { clauseIds: stage.clauseIds } : {}),
       ...(Array.isArray(stage.assignees) && stage.assignees.length > 0 ? { assignees: stage.assignees } : {}),
       ...(Array.isArray(stage.packages) && stage.packages.length > 0 ? { packages: stage.packages } : {}),
+      behavior: stage.behavior === 'preserve' ? 'preserve' : 'change',
       state: index === 0 ? 'active' : 'pending',
     }))
     : [{ ...delivery, state: align && plan === null ? STAGE_STATE.pending : STAGE_STATE.active }]

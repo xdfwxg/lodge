@@ -4,6 +4,8 @@ import { deliverToMember } from '../../surface-delivery.js'
 import { leadMemberOf } from '../../room-members.js'
 import { INTERNAL_PROMPT_MARKER } from '../../internal-prompts.js'
 import { systemNotice } from '../../notices.js'
+import { memberDisplayName } from '../../member-labels.js'
+import { foreignReadsOf } from './read-boundary.js'
 import { STAGE_STATE } from '../../../../shared/states.js'
 
 // 工作室上下文运行时：阶段派发、执行、验收、重做和确认都走群聊 @，没有讨论轮次。
@@ -126,6 +128,42 @@ export const createStudioRuntime = ({
     },
     busyReview: entry => entry.turns.busyReview(),
     acceptsDelta: false,
+
+    // 群里每出现一次工具调用就查一次路径：读到别人的工作副本，当场停住这一轮并叫停这位成员。
+    toolGuard: (entry, room, message) => {
+      const call = {
+        name: message.tool?.name,
+        step: message.tool?.step,
+        input: message.tool?.input,
+      }
+      const actor = (room.members ?? []).find(member => member.body?.ref === message.authorRef)
+      if (actor === undefined) return
+      const foreign = foreignReadsOf({ calls: [call], room, memberId: actor.id, membersOnly: true })
+      if (foreign.length === 0) return
+      const currentBlock = store.readRoom(entry.roomId)?.blocked
+      if (currentBlock?.reason === 'read-boundary' && (currentBlock.members ?? []).includes(actor.id)) return
+      store.appendMessage(entry.roomId, {
+        kind: 'system',
+        text: `${memberDisplayName(room, actor.id)} 读了别人的工作副本：${foreign.slice(0, 3).map(item => `${item.path}（${item.root}）`).join('、')}；这一轮先停下，等人处理。`,
+      })
+      const active = (room.stages ?? []).findIndex(stage => stage.state === STAGE_STATE.active)
+      const stageIndex = active < 0 ? 0 : active
+      store.updateRound(entry.roomId, current => {
+        if (current.blocked?.reason === 'read-boundary') return null
+        current.blocked = {
+          stage: stageIndex,
+          reason: 'read-boundary',
+          source: 'read-guard',
+          members: [actor.id],
+          at: Date.now(),
+        }
+        return { events: [{ type: 'stage.blocked', payload: { stage: stageIndex, reason: 'read-boundary', source: 'read-guard' } }] }
+      })
+      if (typeof engine.interruptBot === 'function' && typeof actor.body?.ref === 'string' && actor.body.ref !== '') {
+        void engine.interruptBot(actor.body.ref, {}).catch(() => {})
+      }
+      emit?.('room', store.readRoom(entry.roomId) ?? room)
+    },
 
     permissionCard: async (entry, memberId, message, chat) => {
       try {

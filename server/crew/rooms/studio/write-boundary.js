@@ -1,7 +1,7 @@
 // 执行官只写自己的工作包：平台按派发时的包和人一一对应，算出一回合允许改的文件。
 // 包为空时不限制（老房间没有工作包）；单个执行官拿走这一步全部包。
 import { isAbsolute, relative } from 'node:path'
-import { PROOF_FILE } from '../../../../shared/proof.js'
+import { PROOF_DIR, PROOF_FILE } from '../../../../shared/proof.js'
 import { workerIds } from '../../room-members.js'
 
 const normalize = (file, root = '') => {
@@ -34,7 +34,8 @@ export const allowedFilesFor = ({ room, stage, memberId, root = '' }) => {
     ? filesOf(packages[assignees.indexOf(memberId)])
     : packages.flatMap(filesOf)
   const normalized = [...new Set(allowed.map(file => normalize(file, root)).filter(Boolean))]
-  return normalized.length === 0 ? null : [...new Set([...normalized, PROOF_FILE])]
+  // 证明文件不属于任何工作包，但每个包都要能写自己的那份（并行时按包分开）。
+  return normalized.length === 0 ? null : [...new Set([...normalized, PROOF_FILE, PROOF_DIR])]
 }
 
 // 包里的路径可以是文件，也可以是目录（按前缀放行）。

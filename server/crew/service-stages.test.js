@@ -167,7 +167,7 @@ test('rewinding a delivered room reopens it without losing the first step base',
 
 test('accepting the last work stage also confirms the system conclusion', () => {
   const ctx = setup(room({ live: false, roomType: 'studio', verifiers: ['verifier'] }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result' } })
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result', proof: { status: 'verified', exit: 0, weak: false } } })
   ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   ctx.store.writeAssignment({
     id: 'as-work', roomId: 'room-1', stageIndex: 0, toMemberId: 'worker', reason: 'dispatch',
@@ -225,7 +225,7 @@ test('accepting a work stage writes a stage conclusion before the next stage sta
       { title: '验收与结论', kind: 'decision', state: 'pending' },
     ],
   }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result', files: ['src/a.js', 'src/a.test.js'] } })
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result', proof: { status: 'verified', exit: 0, weak: false }, files: ['src/a.js', 'src/a.test.js'] } })
   ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, true)
@@ -246,7 +246,7 @@ test('accepting an intermediate stage starts the next one by itself', async () =
       { title: '验收与结论', kind: 'decision', state: 'pending' },
     ],
   }))
-  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result', files: ['src/a.js', 'src/a.test.js'] } })
+  ctx.messages.push({ id: 'e-1', seq: 1, kind: 'evidence', meta: { stage: 0, kind: 'result', proof: { status: 'verified', exit: 0, weak: false }, files: ['src/a.js', 'src/a.test.js'] } })
   ctx.messages.push({ id: 'v-1', seq: 2, kind: 'verdict', authorId: 'verifier', meta: { stage: 0, pass: true, evidenceId: 'e-1' } })
   const result = ctx.stages.accept(ctx.room(), { stage: 0 })
   assert.equal(result.ok, true)

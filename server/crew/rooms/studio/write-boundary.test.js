@@ -20,8 +20,8 @@ const stage = over => ({
 })
 
 test('parallel packages map to executors in order; the proof file is always allowed', () => {
-  assert.deepEqual(allowedFilesFor({ room: room(), stage: stage(), memberId: 'a' }), ['src/export.js', 'lodge-proof.json'])
-  assert.deepEqual(allowedFilesFor({ room: room(), stage: stage(), memberId: 'b' }), ['README.md', 'lodge-proof.json'])
+  assert.deepEqual(allowedFilesFor({ room: room(), stage: stage(), memberId: 'a' }), ['src/export.js', 'lodge-proof.json', 'lodge-proof'])
+  assert.deepEqual(allowedFilesFor({ room: room(), stage: stage(), memberId: 'b' }), ['README.md', 'lodge-proof.json', 'lodge-proof'])
 })
 
 test('a single executor owns every package in the stage', () => {
@@ -29,6 +29,7 @@ test('a single executor owns every package in the stage', () => {
     'src/export.js',
     'README.md',
     'lodge-proof.json',
+    'lodge-proof',
   ])
 })
 
@@ -59,5 +60,5 @@ test('absolute package paths normalize against the workspace root', () => {
     stage: { packages: [{ title: '导出', files: ['/tmp/room/src/export.js'] }] },
     memberId: 'a',
     root: '/tmp/room',
-  }), ['src/export.js', 'lodge-proof.json'])
+  }), ['src/export.js', 'lodge-proof.json', 'lodge-proof'])
 })

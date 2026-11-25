@@ -26,17 +26,25 @@ const sameCommand = (target, entry) => {
   return left !== '' && right !== '' && (left.includes(right) || right.includes(left))
 }
 
-export const verificationProofOf = (calls, { changedFiles = [], requiredEntry = '' } = {}) => {
+export const verificationProofOf = (calls, { changedFiles = [], requiredEntries = [] } = {}) => {
   const files = (Array.isArray(changedFiles) ? changedFiles : [])
     .map(normalize)
     .filter(file => file !== '')
-  for (const call of Array.isArray(calls) ? calls : []) {
+  const entries = (Array.isArray(requiredEntries) ? requiredEntries : [])
+    .map(entry => String(entry ?? '').trim())
+    .filter(entry => entry !== '')
+  const list = Array.isArray(calls) ? calls : []
+  if (entries.length > 0) {
+    const execs = list.filter(call => actionForTool(call?.name) === 'exec')
+    // 交付有 N 份 package 证明时，每一份都要在复核副本里重跑过；少一份就不算亲手验过。
+    const missing = entries.filter(entry => !execs.some(call => sameCommand(targetOf(call), entry)))
+    return missing.length === 0
+      ? { ok: true, kind: 'proof', tool: '' }
+      : { ok: false, files, requiredEntries: entries, missing }
+  }
+  for (const call of list) {
     const action = actionForTool(call?.name)
-    if (action === 'exec') {
-      // 有交付自带的证明时，PASS 之前必须重跑同一条 entry，不能换一套自己的检查。
-      if (requiredEntry !== '' && !sameCommand(targetOf(call), requiredEntry)) continue
-      return { ok: true, kind: requiredEntry === '' ? 'exec' : 'proof', tool: String(call?.name ?? '') }
-    }
+    if (action === 'exec') return { ok: true, kind: 'exec', tool: String(call?.name ?? '') }
     if (action !== 'read' || files.length === 0) continue
     const target = targetOf(call)
     if (target === '') continue
@@ -47,5 +55,5 @@ export const verificationProofOf = (calls, { changedFiles = [], requiredEntry = 
     ))
     if (hit) return { ok: true, kind: 'read', tool: String(call?.name ?? '') }
   }
-  return { ok: false, files, requiredEntry }
+  return { ok: false, files, requiredEntries: [] }
 }

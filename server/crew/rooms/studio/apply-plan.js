@@ -183,6 +183,7 @@ export const createPlanApplier = ({ store, engine, live, emit, memberAdd, member
     stages: proposal.plan.stages.map(stage => ({
       title: stage.title,
       deliverable: cleanPath(stage.deliverable ?? ''),
+      behavior: stage.behavior === 'preserve' ? 'preserve' : 'change',
       ...(Array.isArray(stage.clauseIds) ? { clauseIds: stage.clauseIds } : {}),
       ...(Array.isArray(stage.packages)
         ? {

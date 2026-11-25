@@ -33,6 +33,20 @@ test('reading or running inside another copy is a foreign read', () => {
   }
 })
 
+test('the turn-time check only cares about other members, not the room repo', () => {
+  const ctx = setup()
+  try {
+    const calls = [
+      { name: 'Read', input: { file_path: join(ctx.room.repoPath, 'README.md') } },
+      { name: 'Read', input: { file_path: join(ctx.room.sourceRepo, 'README.md') } },
+      { name: 'Read', input: { file_path: join(ctx.room.worktrees.worker, 'README.md') } },
+    ]
+    assert.deepEqual(foreignReadsOf({ calls, room: ctx.room, memberId: 'verifier', membersOnly: true }).map(hit => hit.root), ['worker'])
+  } finally {
+    ctx.close()
+  }
+})
+
 test('reads inside the verifier copy and relative commands are allowed', () => {
   const ctx = setup()
   try {

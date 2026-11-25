@@ -118,7 +118,7 @@ test('deterministic room scenario completes the round and accepts it', async () 
       kind: 'evidence',
       authorId: 'system',
       text: firstText,
-      meta: { kind: 'result', stage: 1, diff: 'D', files: ['E2E.md'], changedFiles: ['E2E.md'] },
+      meta: { kind: 'result', stage: 1, diff: 'D', files: ['E2E.md'], changedFiles: ['E2E.md'], proof: { status: 'verified', exit: 0, weak: false } },
     })
     store.appendMessage(room.id, {
       kind: 'verdict',
@@ -142,7 +142,7 @@ test('deterministic room scenario completes the round and accepts it', async () 
       kind: 'evidence',
       authorId: 'system',
       text: '返工后的 E2E.md 已交回。',
-      meta: { kind: 'result', stage: 1, diff: 'D', files: ['E2E.md'], changedFiles: ['E2E.md'] },
+      meta: { kind: 'result', stage: 1, diff: 'D', files: ['E2E.md'], changedFiles: ['E2E.md'], proof: { status: 'verified', exit: 0, weak: false } },
     })
     store.appendMessage(room.id, {
       kind: 'verdict',

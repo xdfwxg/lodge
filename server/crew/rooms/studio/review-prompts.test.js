@@ -42,6 +42,36 @@ test('a large diff keeps its beginning and tells the verifier to read the rest b
   assert.match(prompt, /1 failing/)
 })
 
+test('the contract boundaries, non-goals and assumptions reach the verifier too', () => {
+  const contractRoom = {
+    ...room,
+    plan: {
+      done: ['导出按钮能用'],
+      contract: {
+        version: 1,
+        outcomes: [{ id: 'export', statement: '导出按钮能用', observable: '点击后下载文件' }],
+        boundaries: ['不改接口'],
+        nonGoals: ['不加批量导出'],
+        assumptions: ['浏览器支持下载'],
+      },
+    },
+  }
+  const prompt = verifierPromptOf({
+    room: contractRoom,
+    stage: contractRoom.stages[0],
+    stageIndex: 0,
+    verifier: 'v',
+    targets: ['v'],
+    ids: ['v'],
+    evidence: { id: 'e1' },
+    meta: {},
+    messages: [],
+  })
+  assert.match(prompt, /契约边界：[\s\S]*不改接口/)
+  assert.match(prompt, /契约里不做：[\s\S]*不加批量导出/)
+  assert.match(prompt, /契约假设：[\s\S]*浏览器支持下载/)
+})
+
 test('a long proof entry reaches the verifier whole, not cut into a broken command', () => {
   const entry = `node -e '${'x'.repeat(900)}' && npm test`
   const prompt = verifierPromptOf({
@@ -56,5 +86,5 @@ test('a long proof entry reaches the verifier whole, not cut into a broken comma
     messages: [],
   })
   assert.ok(prompt.includes(entry))
-  assert.match(prompt, /以你复核副本根目录的 lodge-proof\.json 为准/)
+  assert.match(prompt, /以你复核副本里的 lodge-proof\.json 或 lodge-proof\/<n>\.json 为准/)
 })

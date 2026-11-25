@@ -7,7 +7,7 @@
 ## 现在的位置
 
 - Lodge 侧已有两层软约束：回合结束后把 git 工作副本里工作包之外的改动退回（[`workspace-guard.js`](../../server/crew/workspace-guard.js)、[`write-boundary.js`](../../server/crew/rooms/studio/write-boundary.js)）；验收员 PASS 时若工具调用引用了别人工作树或集成目录，判定会被退回（[`read-boundary.js`](../../server/crew/rooms/studio/read-boundary.js)）。
-- 这两层本身不是沙箱：复制目录和原地目录没有可靠的 diff，写入工作区之外（家目录、`/tmp`、别的绝对路径）也不在退回范围；读取边界只在判定时核对，不能阻止读。macOS Seatbelt 打开后，写边界由 OS 强制，这两层保留为纵深防御；复制目录和原地目录仍只有对账。
+- 这两层本身不是沙箱：复制目录和原地目录没有可靠的 diff，写入工作区之外（家目录、`/tmp`、别的绝对路径）也不在退回范围。读取边界现在有三道：工具调用一出现房型守卫就核对并叫停越界的成员（`engine.interruptBot`），回合结束再对账一次，PASS 时再核对证据来源；这些是平台层拦截，不是 OS 隔离。macOS Seatbelt 打开后，写边界由 OS 强制，这三层保留为纵深防御；复制目录和原地目录仍只有对账。
 - 基座 OpenMausBot 已有 bot-box：Linux 上用 bubblewrap（user/pid/net/ipc/uts 命名空间）+ seccomp，外加 egress 与 harness 两个 unix socket 门。macOS 现在有 Seatbelt 后端（`server/bot-box/seatbelt.ts`），由 `OMB_BOT_BOX=1` 打开；`OMB_BOT_BOX_HOME_READONLY=1` 让 HOME 只读。基座 `/api/health` 的 `box` 字段回报 `on/off`。
 
 ## 已落地（macOS，第一版）
@@ -18,7 +18,7 @@
 - 引擎发现：HOME 只读时不再把 HOME 里的程序从服务端 PATH 里剔掉（bot 改不了它们）；这也让 Lodge 的 `~/.local/bin/claude` 能启动。
 - 验证：真实 claude CLI 规划 1/1、执行 1/1（证明 verified、边界干净）；直接检查 HOME 写被拒、数据目录读被拒、工作副本写成功。基座 `server/bot-box` 141 条测试、typecheck 和 lint 通过。
 - 打开方式：基座启动时带 `OMB_BOT_BOX=1 OMB_BOT_BOX_HOME_READONLY=1`。
-- 仍是缺口：读取只屏蔽了数据目录，其他目录可读；网络是共享的，没有 egress 门；Chrome 仍未进沙箱；包级（只允许工作包文件）仍靠回合后对账。
+- 仍是缺口：读取只屏蔽了数据目录，同房间其他成员的工作副本没有在 OS 层隐藏（基座还没有 per-bot 的 `denyRead` 通道）；网络是共享的，没有 egress 门；Chrome 仍未进沙箱；包级（只允许工作包文件）仍靠回合后对账。
 
 ## 参考的设计
 

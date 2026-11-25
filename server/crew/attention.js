@@ -39,7 +39,9 @@ export const roomNeedsYou = (room, messages = []) => {
     return {
       kind: 'blocked',
       stage: Number.isInteger(room.blocked.stage) ? room.blocked.stage : null,
-      label: room.blocked.reason === 'restart'
+      label: room.blocked.reason === 'read-boundary'
+        ? '读了别人的副本，等人处理'
+        : room.blocked.reason === 'restart'
         ? '重启后没接着做'
         : room.blocked.reason === 'no-progress'
           ? '重做后没有新的改动'
@@ -48,7 +50,9 @@ export const roomNeedsYou = (room, messages = []) => {
               ? `检查没通过：${room.blocked.command}`
               : '检查没通过'
             : names === '' ? '执行超时' : `执行超时：${names}停下了`,
-      detail: room.blocked.reason === 'restart'
+      detail: room.blocked.reason === 'read-boundary'
+        ? '让它只读自己的复核副本，再退回重做这一步。'
+        : room.blocked.reason === 'restart'
         ? '点继续，或退回重做这一步。'
         : room.blocked.reason === 'no-progress'
           ? '让规划师换个做法，或退回重做这一步。'

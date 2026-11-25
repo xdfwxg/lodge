@@ -44,6 +44,34 @@ test('done is a projection of the contract, not a second input', () => {
   assert.deepEqual(result.proposal.plan.done, ['导出按钮能用'])
 })
 
+test('a contract without boundaries or non-goals is rejected', () => {
+  assert.match(normalizeCrewProposal({ ...proposal(), contract: { ...contract, boundaries: [] } }).error, /没有边界/)
+  assert.match(normalizeCrewProposal({ ...proposal(), contract: { ...contract, nonGoals: [] } }).error, /没有非目标/)
+})
+
+test('every stage needs a package with files so the write boundary has a shape', () => {
+  const noPackage = proposal()
+  noPackage.plan.stages[0].packages = []
+  assert.match(normalizeCrewProposal(noPackage).error, /没有工作包/)
+  const noFiles = proposal()
+  noFiles.plan.stages[0].packages = [{ title: 'a', files: [] }]
+  assert.match(normalizeCrewProposal(noFiles).error, /没有文件/)
+})
+
+test('a stage can declare that it preserves behavior', () => {
+  const result = normalizeCrewProposal({
+    ...proposal(),
+    plan: {
+      stages: [{
+        ...proposal().plan.stages[0],
+        behavior: 'preserve',
+      }],
+    },
+  })
+  assert.equal(result.proposal.plan.stages[0].behavior, 'preserve')
+  assert.equal(normalizeCrewProposal(proposal()).proposal.plan.stages[0].behavior, 'change')
+})
+
 test('every contract outcome must be assigned to a stage with an existing clause id', () => {
   const twoOutcomes = {
     ...contract,

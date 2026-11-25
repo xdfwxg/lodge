@@ -43,10 +43,12 @@ export const gateFor = (room, index, messages, evidence) => {
   if (found === undefined) {
     return deny('conflict', '执行官还没有交回结果，不能验收')
   }
-  // 有契约的房间必须有可重跑证明；旧房间没有契约时不改变原来的判定。
-  if (room.plan?.contract !== null && room.plan?.contract !== undefined &&
-    found.meta?.proof?.status !== 'verified') {
+  // 每个交付都要有能重跑的证明；证明在改动前也绿，就没有绑定这次改动。
+  if (found.meta?.proof?.status !== 'verified') {
     return deny('conflict', '交付没有可重跑的证明，不能确认；先让执行官补 lodge-proof.json')
+  }
+  if (found.meta?.proof?.weak === true) {
+    return deny('conflict', '交付的证明在改动前也通过，不能证明这一步；补一条会先在旧版本失败的检查，或把这一步标成“行为不变”。')
   }
   const latestVerdict = ordered.filter(message => (
     message.kind === 'verdict' && (message.meta?.stage ?? 0) === index && (message.seq ?? 0) > floor

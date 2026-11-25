@@ -116,6 +116,7 @@ export const createLiveRooms = ({
     emit,
     onPermission: (entry, memberId, message, chatRoom) => entry.strategy.permissionCard(entry, memberId, message, chatRoom),
     onTurn: (entry, room, message) => entry.strategy.captureTurn?.(entry, message),
+    onTool: (entry, room, message) => entry.strategy.toolGuard?.(entry, room, message),
   })
 
   const markDisconnected = (roomId, error) => {

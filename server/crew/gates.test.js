@@ -20,7 +20,8 @@ const evidence = (stage = 1, seq = 10, meta = {}) => ({
   id: `e-${seq}`,
   kind: 'evidence',
   seq,
-  meta: { stage, kind: 'result', ...meta },
+  // 现在的每个交付都要带一条平台跑过的证明；需要验证缺证明的用例自己覆盖它。
+  meta: { stage, kind: 'result', proof: { status: 'verified', exit: 0, weak: false }, ...meta },
 })
 const verdict = (stage = 1, seq = 11, pass = true, meta = {}, authorId = 'verifier') => ({
   id: `v-${seq}`,
