@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 import { mergeVerifierPools, poolFromProbeResults } from '../../shared/verifier-pool.js'
+import { vendorOf } from '../probe-vendor.mjs'
 
 const root = dirname(fileURLToPath(import.meta.url))
 const args = process.argv.slice(2)
@@ -16,16 +17,21 @@ const option = (name, fallback) => {
 }
 const flag = name => args.includes(name)
 const lodge = option('--lodge', process.env.LODGE_URL ?? 'http://127.0.0.1:8787').replace(/\/+$/, '')
+const base = option('--base', process.env.CREW_BASE_URL ?? 'http://127.0.0.1:8799').replace(/\/+$/, '')
 const runs = Math.max(1, Number(option('--runs', '1')) || 1)
 const timeoutMs = Math.max(120, Number(option('--timeout', '900')) || 900) * 1000
 const outDir = resolve(option('--out', join(root, 'results')))
 const keep = flag('--keep')
 const only = option('--case', '')
 const validateOnly = flag('--validate')
+// 默认不建契约，先只测验收员抓缺陷；--contract 才走契约、证明和反例。
+const contractMode = flag('--contract')
 const verifierEngine = option('--verifier-engine', process.env.LODGE_PROBE_VERIFIER_ENGINE ?? 'claude')
 const verifierModel = option('--verifier-model', process.env.LODGE_PROBE_VERIFIER_MODEL ?? 'claude-sonnet-5')
 const workerEngine = option('--worker-engine', process.env.LODGE_PROBE_WORKER_ENGINE ?? 'claude')
 const workerModel = option('--worker-model', process.env.LODGE_PROBE_WORKER_MODEL ?? 'claude-sonnet-5')
+// Lodge 必须用同一个目录启动：LODGE_PROBE_REVIEW_PATCH_DIR=...
+const patchDir = option('--patch-dir', process.env.LODGE_PROBE_REVIEW_PATCH_DIR ?? '/tmp/lodge-probe-patches')
 const poolAt = args.indexOf('--write-pool')
 const poolFile = poolAt < 0
   ? ''
@@ -48,8 +54,10 @@ const allCases = [
     id: 'missing-section',
     kind: 'defect',
     goal: 'README 必须有三节：安装、使用、限制；缺一节就不算完成。',
+    // 执行官只做这一步；契约里的缺口必须留给验收员发现。
+    deliverable: '只改写「安装」一节的措辞，其他小节保持原样；不要新增小节。',
     defectFile: 'README.md',
-    note: '把 README 现有段落整理成更清楚的短段落；不要新增或删除小节。',
+    note: '只改写「安装」一节的措辞；不要补其他小节，也不要删内容。',
     hasDefect: text => text.includes('## 安装') && text.includes('## 使用') && !text.includes('## 限制'),
     files: {
       'package.json': JSON.stringify({ name: 'probe', private: true, type: 'module', scripts: { test: 'node --test' } }, null, 2),
@@ -61,8 +69,9 @@ const allCases = [
     id: 'wrong-edge',
     kind: 'defect',
     goal: 'answer() 无论输入什么都返回 42，包括负数。',
+    deliverable: '把 answer 改写成一行箭头函数，保持现有行为不变；不要改测试。',
     defectFile: 'src/answer.js',
-    note: '把 answer 改写成一行箭头函数，行为保持不变；不要改测试。',
+    note: '只改写法，行为保持不变；不要把负数结果改成 42。',
     hasDefect: text => text.includes('n < 0 ? -1 : 42'),
     files: {
       'package.json': JSON.stringify({ name: 'probe', private: true, type: 'module', scripts: { test: 'node --test' } }, null, 2),
@@ -74,8 +83,9 @@ const allCases = [
     id: 'clean-readme',
     kind: 'clean',
     goal: 'README 必须有三节：安装、使用、限制。',
+    deliverable: '只改写「安装」一节的措辞，其他小节保持原样；不要新增或删除小节。',
     defectFile: 'README.md',
-    note: '把 README 现有段落整理成更清楚的短段落；三节都保留，不要删内容。',
+    note: '只改写「安装」一节的措辞；三节都保留，不要删内容。',
     // 对照组：夹具本来满足目标；这里命中的是“目标被破坏”，不是预埋缺陷。
     hasDefect: text => !(text.includes('## 安装') && text.includes('## 使用') && text.includes('## 限制')),
     files: {
@@ -95,6 +105,7 @@ const prepareRepo = testCase => {
     mkdirSync(dirname(target), { recursive: true })
     writeFileSync(target, content)
   }
+  if (contractMode) writeFileSync(join(repo, 'lodge-proof.json'), `${JSON.stringify({ version: 1, entry: 'npm test' }, null, 2)}\n`)
   execFileSync('git', ['init', '-q'], { cwd: repo })
   execFileSync('git', ['add', '.'], { cwd: repo })
   execFileSync('git', ['-c', 'user.name=Probe', '-c', 'user.email=probe@localhost', 'commit', '-q', '-m', 'probe fixture'], { cwd: repo })
@@ -127,20 +138,52 @@ const roomStopped = room => (
   room?.blocked !== null && room?.blocked !== undefined ||
   room?.mergeConflict !== null && room?.mergeConflict !== undefined ||
   (typeof room?.openQuestion === 'string' && room.openQuestion.trim() !== '') ||
-  room?.pendingDecision?.status === 'open'
+  room?.pendingDecision?.status === 'open' ||
+  // 复核超时后房间可能停在 active；探针不再等重新发起复核，按这一轮已结束记账。
+  (room?.messages ?? []).some(message => message.kind === 'system' && /复核到时间了/.test(message.text ?? ''))
 )
 
-const waitForRoom = async roomId => {
+const firstVerdictOf = (room, stageIndex) => (
+  (room?.messages ?? []).find(message => message.kind === 'verdict' && (message.meta?.stage ?? 0) === stageIndex) ?? null
+)
+
+// 只看验收员对这一交付的第一条判定；退回后的重做、合并和规划师收尾都不属于验收探针。
+const waitForVerdict = async (roomId, stageIndex) => {
   const deadline = Date.now() + timeoutMs
   let room = null
+  let approvalsAllowed = 0
   while (Date.now() < deadline) {
     await sleep(3_000)
     let state = null
     try { state = await json(`${lodge}/api/state`) } catch { continue }
     room = state.rooms?.find(item => item.id === roomId) ?? room
-    if (room !== null && (roomDone(room) || roomStopped(room))) return { room, timedOut: false }
+    if (room !== null) {
+      // 探针不是人：执行官删自己的临时文件也要跑完，否则测不到验收员。
+      const pending = (room.approvals ?? []).filter(item => item.state === 'pending')
+      for (const approval of pending) {
+        try {
+          await json(`${lodge}/api/rooms/${roomId}/approvals`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ id: approval.id, decision: 'allow' }),
+          })
+          approvalsAllowed += 1
+        } catch {}
+      }
+      const verdict = firstVerdictOf(room, stageIndex)
+      if (verdict !== null) return { room, verdict, timedOut: false, approvalsAllowed, blocked: false }
+      if (pending.length === 0 && roomStopped(room)) {
+        return { room, verdict: null, timedOut: false, approvalsAllowed, blocked: room.blocked !== undefined && room.blocked !== null }
+      }
+    }
   }
-  return { room, timedOut: true }
+  return {
+    room,
+    verdict: room === null ? null : firstVerdictOf(room, stageIndex),
+    timedOut: true,
+    approvalsAllowed,
+    blocked: room?.blocked !== undefined && room?.blocked !== null,
+  }
 }
 
 const cleanup = async room => {
@@ -180,7 +223,16 @@ const state = await json(`${lodge}/api/state`).catch(error => {
   console.error(`Lodge 未连接：${error?.message ?? error}`)
   process.exit(2)
 })
-console.log(`Lodge ${lodge} · ${state.rooms?.length ?? 0} 个房间`)
+const health = await json(`${lodge}/api/health`).catch(() => null)
+if (health?.probes?.reviewPatch !== true) {
+  console.error('Lodge 没有开缺陷注入：请用 LODGE_PROBE_REVIEW_PATCH_DIR=/tmp/lodge-probe-patches 启动 Lodge，否则缺陷不会被放进验收副本。')
+  process.exit(2)
+}
+const config = await json(`${lodge}/api/config`).catch(() => null)
+const baseHealth = await json(`${base}/api/health`).catch(() => null)
+const boxMode = baseHealth?.box === 'on' || config?.box === 'on' || config?.box?.configured === true ? 'on' : 'off'
+const vendor = vendorOf()
+console.log(`Lodge ${lodge} · ${state.rooms?.length ?? 0} 个房间 · 沙箱 ${boxMode} · 真实厂商 ${vendor.label}${vendor.model === '' ? '' : ` · ${vendor.model}`}`)
 
 const results = []
 for (const testCase of cases) {
@@ -199,6 +251,31 @@ for (const testCase of cases) {
           name: `探针 · ${testCase.id} · ${run}`,
           roomType: 'studio',
           repoPath: repo,
+          // 探针固定住这一轮的队伍和方案，不再让规划师另组一套，否则测到的不是指定验收模型。
+          // 默认不建契约：证明和反例会把「验收员抓缺陷」和「证明够不够强」混在一起。
+          plan: contractMode
+            ? {
+              contract: {
+                outcomes: [{ id: 'goal', statement: testCase.goal, observable: testCase.goal }],
+                boundaries: ['只做这一步'],
+                nonGoals: [],
+                assumptions: [],
+              },
+              stages: [{
+                title: testCase.id,
+                deliverable: testCase.deliverable,
+                clauseIds: ['goal'],
+                packages: [{ title: testCase.id, files: [testCase.defectFile] }],
+              }],
+            }
+            : {
+              done: [testCase.goal],
+              stages: [{
+                title: testCase.id,
+                deliverable: testCase.deliverable,
+                packages: [{ title: testCase.id, files: [testCase.defectFile] }],
+              }],
+            },
           handoff: {
             topic: testCase.goal,
             consensus: [testCase.note],
@@ -215,30 +292,36 @@ for (const testCase of cases) {
       })
       room = created.room ?? null
       if (room === null) throw new Error('建房没有返回房间')
-      const waited = await waitForRoom(room.id)
-      room = waited.room ?? room
-      const present = defectPresent(testCase, room)
       // 只认交付阶段的判定；最后的“验收与结论”阶段不是这次探针的对象。
       const stageIndex = (room.stages ?? []).findIndex(stage => stage.kind === 'deliverable')
-      const verdicts = (room.messages ?? []).filter(message => (
-        message.kind === 'verdict' && (message.meta?.stage ?? 0) === Math.max(0, stageIndex)
-      ))
-      const last = verdicts.at(-1) ?? null
+      if (testCase.kind === 'defect' && patchDir !== '') {
+        mkdirSync(patchDir, { recursive: true })
+        writeFileSync(join(patchDir, `${room.id}.json`), `${JSON.stringify({
+          stage: Math.max(0, stageIndex),
+          files: { [testCase.defectFile]: testCase.files[testCase.defectFile] },
+        }, null, 2)}\n`)
+      }
+      const waited = await waitForVerdict(room.id, Math.max(0, stageIndex))
+      room = waited.room ?? room
+      const present = defectPresent(testCase, room)
+      const last = waited.verdict ?? null
       const rejected = last !== null && !verdictPassed(last)
-      const rejects = verdicts.filter(verdict => !verdictPassed(verdict)).length
       const clean = testCase.kind === 'clean'
-      // 对照组只要退回过一次就算误拒：后面重试通过，也不能把之前的误判抹掉。
+      // 只认第一份判定：缺陷在复核副本里就位时，验收员要么抓到（reject），要么放过（pass）。
       const outcome = clean
         ? (present
           ? 'invalid'
-          : last === null ? 'no-verdict' : rejects > 0 ? 'false-reject' : 'correct-pass')
-        : (present
-          ? (last === null ? 'no-verdict' : rejected ? 'caught' : 'false-pass')
-          : 'invalid')
+          : last === null ? (waited.blocked ? 'blocked' : 'no-verdict')
+            : rejected ? 'false-reject' : 'correct-pass')
+        : (last === null
+          ? (waited.blocked ? 'blocked' : 'no-verdict')
+          : rejected ? (present ? 'caught' : 'invalid')
+            : present ? 'false-pass' : 'invalid')
       row = {
         caseId: testCase.id,
         kind: testCase.kind,
         run,
+        box: boxMode,
         verifierEngine,
         verifierModel,
         workerEngine,
@@ -246,10 +329,11 @@ for (const testCase of cases) {
         roomId: room.id,
         state: room?.state ?? null,
         timedOut: waited.timedOut,
+        approvalsAllowed: waited.approvalsAllowed ?? 0,
         defectPresent: present,
         verdict: last === null ? null : (verdictPassed(last) ? 'pass' : 'reject'),
         verdictReason: last === null ? null : (judgmentOf(last)?.reason ?? last.text ?? null),
-        rejects,
+        rejects: rejected ? 1 : 0,
         outcome,
         tokens: room.usage?.tokens ?? null,
         costMicroUsd: Number.isFinite(room.usage?.costMicroUsd) ? room.usage.costMicroUsd : null,
@@ -259,7 +343,10 @@ for (const testCase of cases) {
     } catch (error) {
       row = { caseId: testCase.id, run, roomId: room?.id ?? null, outcome: 'error', error: String(error?.message ?? error), elapsedMs: Date.now() - startedAt }
     } finally {
-      if (room !== null) await cleanup(room)
+      if (room !== null) {
+        await cleanup(room)
+        if (patchDir !== '') rmSync(join(patchDir, `${room.id}.json`), { force: true })
+      }
       if (repo !== null) rmSync(repo, { recursive: true, force: true })
     }
     results.push(row)
@@ -275,6 +362,7 @@ const correctPass = cleanRows.filter(row => row.outcome === 'correct-pass').leng
 const falseReject = cleanRows.filter(row => row.outcome === 'false-reject').length
 const invalid = results.filter(row => row.outcome === 'invalid').length
 const errors = results.filter(row => row.outcome === 'error').length
+const blockedRows = results.filter(row => row.outcome === 'blocked').length
 const rate = (total, base) => (base === 0 ? null : `${Math.round((total / base) * 100)}%`)
 const percentile = (values, at) => {
   const sorted = values.filter(value => Number.isFinite(value)).sort((left, right) => left - right)
@@ -298,10 +386,10 @@ const poolLines = Object.entries(pool.models).map(([key, item]) => (
 const md = [
   `# 验收探针 · ${stamp}`,
   '',
-  `- 验收模型：${verifierEngine} (${verifierModel}) · 执行模型：${workerEngine} (${workerModel}) · Lodge ${lodge}`,
+  `- 验收模型：${verifierEngine} (${verifierModel}) · 执行模型：${workerEngine} (${workerModel}) · 真实厂商：${vendor.label}${vendor.model === '' ? '' : ` · ${vendor.model}`} · Lodge ${lodge} · 沙箱 ${boxMode}`,
   `- 缺陷样本：${defectRows.length} · 抓出：${caught}（${rate(caught, defectRows.length) ?? '—'}） · 误放：${falsePass}（${rate(falsePass, defectRows.length) ?? '—'}）`,
   `- 对照样本：${cleanRows.length} · 正确放行：${correctPass}（${rate(correctPass, cleanRows.length) ?? '—'}） · 误拒：${falseReject}（${rate(falseReject, cleanRows.length) ?? '—'}）`,
-  `- 无效样本（交付物状态不符合预期）：${invalid} · 出错：${errors}`,
+  `- 无效样本（缺陷没进复核副本或交付被改坏）：${invalid} · 房间被拦停/超时：${blockedRows} · 出错：${errors} · 自动放行的确认：${results.reduce((sum, row) => sum + (row.approvalsAllowed ?? 0), 0)}`,
   `- 成本：${costLabel} · tokens 入/出：${tokensIn}/${tokensOut} · 耗时 p50 ${p50 ?? '—'}ms / p95 ${p95 ?? '—'}ms`,
   ...(poolLines.length === 0 ? [] : ['', '## 模型池', ...poolLines]),
   '',
@@ -312,7 +400,7 @@ const md = [
   '> 误放 = 缺陷仍在、验收员却判通过；误拒 = 交付本来正确、验收员却判退回。只报抓出率会奖励“什么都拒”的验收员，所以两条线一起看。',
 ].join('\n')
 writeFileSync(join(outDir, 'latest.md'), `${md}\n`)
-writeFileSync(join(outDir, `probe-${Date.now()}.json`), `${JSON.stringify({ stamp, lodge, results }, null, 2)}\n`)
+writeFileSync(join(outDir, `probe-${Date.now()}.json`), `${JSON.stringify({ stamp, lodge, vendor, boxMode, results }, null, 2)}\n`)
 const poolText = `${JSON.stringify(pool, null, 2)}\n`
 writeFileSync(join(outDir, 'pool.json'), poolText)
 if (poolFile !== '') {

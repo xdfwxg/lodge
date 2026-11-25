@@ -32,7 +32,12 @@ export const createServiceQueries = ({
     return { ...message, meta }
   }
 
-  const health = async () => ok({ server: 'lodge', runtime: await engine.health() })
+  // 验收探针只在 Lodge 用同一个 patch 目录启动时才能把缺陷放进复核副本；探针先读这里，不盲跑。
+  const health = async () => ok({
+    server: 'lodge',
+    runtime: await engine.health(),
+    probes: { reviewPatch: Boolean(process.env.LODGE_PROBE_REVIEW_PATCH_DIR) },
+  })
 
   const state = async () => {
     const rooms = readRooms()

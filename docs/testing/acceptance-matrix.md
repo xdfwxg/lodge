@@ -127,6 +127,7 @@ npm run check:acceptance # 检查这张表引用的用例都还在
 ## 最近真实运行
 
 - 2026-11-25：macOS Seatbelt 沙箱第一次真实运行（基座 `OMB_BOT_BOX=1 OMB_BOT_BOX_HOME_READONLY=1`）：规划探针 1/1，执行探针 1/1（证明 verified、边界干净）；直接检查 HOME 写被拒、数据目录读被拒、工作副本写成功；探针报告已显示「沙箱 on」。包级写边界仍靠对账。
+- 2026-11-25：验收探针夹具修好后 3/3 有效：缺陷 2/2 抓出、对照 1/1 正确放行，误放 0、误拒 0；只取第一份判定，缺陷注入前先读 Lodge `probes.reviewPatch`，没开就退出。
 - 2026-11-21：真实三阶段项目 3/3 交付；最终工作副本 `npm test` 6/6，命令行入口实跑通过。期间发现验收员 PASS 漏 `outsideDiff` 会让房间停在 `signoff`，已改为无效判定回落文本并补回归。
 - 2026-11-21：技能收敛后全量 dogfood；`npm test` 1133 通过，UI 12 通过，`eval:rooms` 3/3、`eval:planning` 3/3；`eval:chat` 仍因公开状态不含席位引用而跑不通。
 - 仍需真实环境：多执行官并行、真实合并冲突、规划师真实组队、常驻承诺一期、真实 SMTP、成员 shell 的 OS 级写边界。
