@@ -77,6 +77,8 @@ const normalizeMessage = (raw, responderName) => {
         id: tool.itemId,
         name: tool.name,
         input: tool.input,
+        // 回执是判定工具把完整入参带回来的唯一通道；界面不看它，房间判定要看。
+        ...(tool.output === undefined ? {} : { output: tool.output }),
         ...(tool.step === undefined || tool.step === null ? {} : { step: tool.step }),
         ...(typeof tool.spoken === 'string' ? { spoken: tool.spoken } : {}),
       },

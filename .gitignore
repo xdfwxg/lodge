@@ -17,6 +17,7 @@ evals/compare/results/
 evals/planning-probe/results/
 evals/execution-probe/results/
 evals/verifier-probe/results/
+evals/nightly/results/
 test-results/
 playwright-report/
 

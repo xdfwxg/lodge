@@ -32,6 +32,14 @@ test('contract coverage matches the clause id, not similar text', () => {
   }), requirements)
 })
 
+test('contract coverage matches the clause id regardless of case', () => {
+  const requirements = coverageClausesOf({ room: contractRoom([{ clauseIds: ['export'] }]), stageIndex: 0 })
+  assert.deepEqual(coverageGapsOf({
+    requirements,
+    coverage: [{ clauseId: 'EXPORT', item: '导出能用', evidence: '点了导出，下载到 CSV' }],
+  }), [])
+})
+
 test('an intermediate stage only needs its own deliverable', () => {
   const current = room(['整轮能跑'], [
     { title: '目标对齐', kind: 'decision', state: 'passed' },

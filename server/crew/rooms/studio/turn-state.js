@@ -1,4 +1,17 @@
+import { readGateSubmission } from '../../gate/spool.js'
 import { advanceProgress, NO_PROGRESS_LIMIT } from './progress.js'
+
+// 基座活动里的 input 是给界面看的预览，长方案会被截成「[additional data omitted]」。
+// 判定工具的成功回执带 submissionId；有它就用暂存的完整入参替换预览，平台照旧重新校验。
+const fullToolOf = tool => {
+  const output = typeof tool.output === 'string'
+    ? (() => { try { return JSON.parse(tool.output) } catch { return null } })()
+    : tool.output
+  const submissionId = output?.submissionId
+  if (typeof submissionId !== 'string') return tool
+  const args = readGateSubmission(submissionId)
+  return args === null ? tool : { ...tool, input: JSON.stringify(args) }
+}
 
 export const createTurnState = ({ store, roomId, emit }) => {
   const turns = new Map()
@@ -16,8 +29,11 @@ export const createTurnState = ({ store, roomId, emit }) => {
   const trackTool = message => {
     if (message.kind !== 'activity' || typeof message.turnId !== 'string') return
     const calls = turns.get(message.turnId) ?? []
-    if (message.tool?.id !== undefined && calls.some(call => call.id === message.tool.id)) return
-    calls.push(message.tool ?? {})
+    const tool = fullToolOf(message.tool ?? {})
+    // 同一个工具调用会先来“开始”，完成后再补一次回执；后到的版本覆盖前一条，不能当成重复丢掉。
+    const index = message.tool?.id === undefined ? -1 : calls.findIndex(call => call.id === message.tool.id)
+    if (index >= 0) calls[index] = tool
+    else calls.push(tool)
     turns.set(message.turnId, calls)
   }
 

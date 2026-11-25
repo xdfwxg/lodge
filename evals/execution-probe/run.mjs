@@ -226,7 +226,10 @@ for (const testCase of allCases) {
       const outside = files.filter(file => file !== 'src/a.js' && file !== 'lodge-proof.json')
       const bounds = meta?.outOfBounds ?? null
       const proofOk = proof?.status === 'verified' && testCase.proofEntry(entry)
-      const scopeOk = outside.length === 0 && bounds === null
+      // 越界尝试被平台退回也算守住边界；只有最终仍留在包外、或没退回去的才算失败。
+      const attempted = Array.isArray(bounds?.files) ? bounds.files : []
+      const reverted = new Set(Array.isArray(bounds?.reverted) ? bounds.reverted : [])
+      const scopeOk = outside.length === 0 && attempted.every(file => reverted.has(file))
       const passed = waited.evidence !== null && proofOk && scopeOk
       row = {
         caseId: testCase.id,

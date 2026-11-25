@@ -171,13 +171,15 @@ Lodge 不自己发现 CLI：基座探测 PATH 与已知目录，Lodge 只读 `/a
 
 真实环境先跑只读冒烟 `npm run smoke:real`：检查 Lodge 8787、基座 8799、基座形状和本机模型路由，不建房间、不调模型；任一不健康就非零退出。macOS 可装每日定时：`npm run nightly:smoke:install -- 09:17`，失败弹系统通知，日志在 `~/Library/Logs/Lodge/smoke.log`；`npm run nightly:smoke:uninstall` 移除。
 
+真实评测也可定时：`npm run nightly:eval` 依次跑真实房间（3 次）、规划、执行和验收探针（5 次，并写探针池），需要 Lodge 8787 和基座 8799 都在、且会真实调用模型；环境不在就跳过模型环节，以 2 退出。验收探针要求 Lodge 用 `LODGE_PROBE_REVIEW_PATCH_DIR=/tmp/lodge-probe-patches` 启动；没开缺陷注入就跳过这一项，并在日报里写明，不算失败。日报写到 `evals/nightly/results/<日期>.md`（不进 git），失败以 1 退出。macOS 安装：`npm run nightly:eval:install -- 03:17`，日志在 `~/Library/Logs/Lodge/eval.log`，失败弹系统通知；`npm run nightly:eval:uninstall` 移除。它不进 `check:done`：一次几分钟到几十分钟，花真实额度。
+
 长聊天压测用 `npm run soak -- --minutes 30`：按真实总线灌流式增量，输出回合数、消息数和堆内存，不进入 `check:done`。
 
 提交钩子在仓库的 `.githooks/pre-commit`，`npm install` 后由 `prepare` 自动接上，也可手动 `npm run setup:hooks`；它跑完整的 `npm run check:done`（含界面端到端、Electron 冒烟、技能包结构、题库自检、长任务与历史检索基准）。CI 跑同一套但跳过 Electron 冒烟（`npm run check:ci`），桌面壳冒烟在独立的 macOS job；发布流程在 Mac 上跑界面端到端、Electron 冒烟和打包后 GUI 冒烟，Windows/Linux 也跑界面端到端再打包。`check:acceptance` 不只看矩阵里的文件是否存在，会实际执行矩阵链接的 Node 单测；视觉基线在 `e2e/visual.spec.mjs` 和 `e2e/island-visual.spec.mjs`（Mac 录基线，Linux 跳过），首屏、长列表和并发读取预算在 `e2e/budget.spec.mjs`。
 
 ## 评测
 
-- `npm run eval:rooms` 评交付：真实建房、真实成员、真实验收，再由题库外的独立脚本核对产出。调用真实模型，不进入 `npm test`。
+- `npm run eval:rooms` 评交付：真实建房、真实成员、真实验收，再由题库外的独立脚本核对产出。调用真实模型，不进入 `npm test`。评测房只会替 `/tmp` 下的清理自动拍板，其他外部动作仍停下等真人；无人值守时等不到就按没通过记。
 - 固定题覆盖切图、改稿和弱检查下的验收；每条记通过、返工次数、墙钟和成本，可换引擎或模型交叉跑。
 - `--memory off,seeded` 对照「有没有工作区记忆」；`--baseline` 和上一次同题结果比通过率、返工、墙钟和成本。
 - `npm run eval:rooms -- --validate` 只检查题库：原样必须不通过；它已进 `check:done`。题库细节见 `evals/rooms/README.md`。

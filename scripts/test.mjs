@@ -10,6 +10,7 @@ const env = {
   ...process.env,
   CREW_WORKTREE_ROOT: join(root, 'worktrees'),
   CREW_WORKSPACE_ROOT: join(root, 'workspaces'),
+  LODGE_GATE_SPOOL: join(root, 'gate-spool'),
 }
 
 const result = spawnSync(process.execPath, ['--test', ...NODE_TEST_GLOBS], { stdio: 'inherit', env })

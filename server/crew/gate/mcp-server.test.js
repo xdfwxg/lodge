@@ -1,6 +1,14 @@
-import test from 'node:test'
+import test, { after } from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { GATE_TOOLS, handleMessage } from './mcp-server.js'
+import { readGateSubmission } from './spool.js'
+
+const spool = mkdtempSync(join(tmpdir(), 'lodge-gate-spool-'))
+process.env.LODGE_GATE_SPOOL = spool
+after(() => rmSync(spool, { recursive: true, force: true }))
 
 test('the gate server speaks the minimal MCP handshake', () => {
   const response = handleMessage({
@@ -182,6 +190,43 @@ test('a plan needs a stage, an executor and a verifier', () => {
     params: { name: 'submit_plan', arguments: { plan: { done: ['x'], stages: [{ title: 'a' }] }, crew: { executors: [] } } },
   })
   assert.equal(missing.result.isError, true)
+})
+
+test('a successful plan keeps its full arguments even when the activity preview is cut', () => {
+  const args = {
+    contract: {
+      outcomes: [
+        { id: 'title-size-28', statement: '标题 28px', observable: '.title 的 font-size 为 28px' },
+        { id: 'figure-radius-8', statement: '图区 8px 圆角', observable: '.figure 有 8px 圆角' },
+        { id: 'others-unchanged', statement: '其余不变', observable: '其余样式与结构不变' },
+      ],
+      boundaries: ['只改 draft/report.html 的样式块'],
+      nonGoals: ['不改结构'],
+      assumptions: ['圆角指直接写在 .figure 规则上'],
+    },
+    plan: { stages: [{
+      title: '改字号与圆角',
+      deliverable: '两条 CSS 生效，其余不变',
+      clauseIds: ['title-size-28', 'figure-radius-8', 'others-unchanged'],
+      packages: [{
+        title: '更新 report.html',
+        files: ['draft/report.html'],
+        clauseIds: ['title-size-28', 'figure-radius-8', 'others-unchanged'],
+      }],
+    }] },
+    crew: {
+      executors: [{ engine: 'claude', model: 'claude-sonnet-5', name: '执行官' }],
+      verifiers: [{ engine: 'pi', model: 'deepseek/deepseek-flash', name: '验收员' }],
+    },
+  }
+  const response = handleMessage({
+    jsonrpc: '2.0', id: 502, method: 'tools/call',
+    params: { name: 'submit_plan', arguments: args },
+  })
+  assert.equal(response.result.isError, undefined)
+  const id = response.result.structuredContent.submissionId
+  assert.match(id, /^[0-9a-f-]{36}$/)
+  assert.deepEqual(readGateSubmission(id), args)
 })
 
 test('a planner decision accepts the Chinese anchor', () => {

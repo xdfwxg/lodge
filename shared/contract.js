@@ -7,9 +7,11 @@ const list = (value, max, each) => (
   Array.isArray(value) ? value.map(each).filter(Boolean).slice(0, max) : []
 )
 
+// 契约 id 和阶段/工作包里的 clauseIds 用同一个归一化，避免 C1 与 c1 互相认不出。
+export const clauseIdOf = value => text(value, 40).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
+
 const idOf = (value, index) => {
-  const raw = text(value, 40).toLowerCase()
-  const slug = raw.replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
+  const slug = clauseIdOf(value)
   return slug === '' ? `o${index + 1}` : slug
 }
 

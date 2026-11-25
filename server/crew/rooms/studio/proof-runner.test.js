@@ -57,6 +57,24 @@ test('every contract clause needs a platform-run step, not just an entry', async
   }
 })
 
+test('a proof step matches its clause id regardless of case', async () => {
+  const ctx = setup({
+    proof: {
+      entry: 'node verify.mjs',
+      steps: [{ clause: 'EXPORT', run: 'node verify.mjs' }],
+    },
+    script: 'console.log("all green")\n',
+  })
+  try {
+    const run = await runProof({ room: { repoPath: ctx.source }, provider: ctx.provider, clauses: ['export'] })
+    assert.equal(run.status, 'verified')
+    assert.equal(run.steps[0].clause, 'export')
+    assert.equal('missingClauses' in run, false)
+  } finally {
+    rmSync(ctx.source, { recursive: true, force: true })
+  }
+})
+
 test('a clause without a green step leaves the proof incomplete', async () => {
   const ctx = setup({
     proof: {

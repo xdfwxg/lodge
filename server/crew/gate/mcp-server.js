@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createInterface } from 'node:readline'
 import { normalizeAskDecision } from '../../../shared/decision.js'
+import { writeGateSubmission } from './spool.js'
 
 // 房间内置的判定工具：只接结构化字段，不碰文件、网络或外部服务。
 // Lodge 从回合活动里读取工具入参，因此这里只负责校验并回执。
@@ -509,7 +510,20 @@ export const handleMessage = message => {
   }
   if (method === 'ping') return reply(id, {})
   if (method === 'tools/list') return reply(id, { tools: GATE_TOOLS })
-  if (method === 'tools/call') return callTool(id, message.params)
+  if (method === 'tools/call') {
+    const response = callTool(id, message.params)
+    const result = response?.result
+    // 基座的 toolDetailPreview 按节点裁剪活动里的 input；回执只带一个 id，完整入参落临时文件。
+    if (result?.structuredContent?.ok === true) {
+      try {
+        const args = message.params?.arguments ?? message.params?.input ?? {}
+        result.structuredContent = { ...result.structuredContent, submissionId: writeGateSubmission(args) }
+      } catch {
+        return toolFailure(id, '平台没接住这次提交，再试一次。')
+      }
+    }
+    return response
+  }
   if (method === 'resources/list') return reply(id, { resources: [] })
   if (method === 'prompts/list') return reply(id, { prompts: [] })
   if (method === 'logging/setLevel') return reply(id, {})

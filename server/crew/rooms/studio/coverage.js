@@ -1,4 +1,5 @@
 // PASS 的覆盖表必须对得上这一阶段真正要交的东西：有契约时按 clause id，老房间退回交付物/目标文本。
+import { clauseIdOf } from '../../../../shared/contract.js'
 import { hasLaterWorkStage } from './review-policy.js'
 
 const normalize = value => String(value ?? '')
@@ -43,7 +44,7 @@ export const coverageRequirementsOf = ({ room, stageIndex }) => {
 
 const covered = (entry, requirement) => {
   if (requirement !== null && typeof requirement === 'object') {
-    return entry?.clauseId === requirement.id
+    return clauseIdOf(entry?.clauseId) === requirement.id
   }
   return matchesText(entry, requirement)
 }

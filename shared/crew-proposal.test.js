@@ -35,6 +35,18 @@ test('a plan and crew normalize into bounded fields', () => {
   assert.equal('acceptance' in result.proposal.plan.stages[0], false)
 })
 
+test('contract outcomes and clause references match regardless of case', () => {
+  const result = normalizeCrewProposal({
+    contract: { ...contract, outcomes: [{ id: 'C1', statement: '导出能用', observable: '点导出会下载 CSV' }] },
+    plan: { stages: [{ title: '实现', deliverable: '能导出', clauseIds: ['C1'], packages: [{ title: 'a', files: ['src/a.js'], clauseIds: ['c1'] }] }] },
+    crew: { executors: [{ engine: 'claude', model: 'x' }], verifiers: [{ engine: 'pi', model: 'y' }] },
+  })
+  assert.equal(result.error, undefined)
+  assert.deepEqual(result.proposal.contract.outcomes.map(item => item.id), ['c1'])
+  assert.deepEqual(result.proposal.plan.stages[0].clauseIds, ['c1'])
+  assert.deepEqual(result.proposal.plan.stages[0].packages[0].clauseIds, ['c1'])
+})
+
 test('done is a projection of the contract, not a second input', () => {
   const result = normalizeCrewProposal({
     ...proposal(),

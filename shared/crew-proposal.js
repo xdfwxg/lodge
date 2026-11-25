@@ -1,6 +1,6 @@
 // 规划师提交的“方案 + 队伍”只在这里归一化形状；模型是否存在、厂商是否独立、
 // 工作区能不能并行，都由服务端再校验，不把 structuredContent 当授权。
-import { normalizeContract } from './contract.js'
+import { clauseIdOf, normalizeContract } from './contract.js'
 
 const text = (value, max) => (typeof value === 'string' ? value.trim().slice(0, max) : '')
 const list = (value, max, each) => (Array.isArray(value) ? value.map(each).filter(item => item !== null).slice(0, max) : [])
@@ -9,13 +9,13 @@ const stageOf = (raw, index) => {
   const title = text(raw?.title, 80)
   const deliverable = text(raw?.deliverable, 500)
   if (title === '' || deliverable === '') return null
-  const clauseIds = list(raw?.clauseIds, 6, item => text(item, 40)).filter(Boolean)
+  const clauseIds = list(raw?.clauseIds, 6, item => clauseIdOf(item)).filter(Boolean)
   if (clauseIds.length === 0) return null
   const packages = list(raw?.packages, 3, item => {
     const packageTitle = text(item?.title, 80)
     if (packageTitle === '') return null
     const files = list(item?.files, 12, file => text(file, 200)).filter(file => file !== '')
-    const packageClauses = list(item?.clauseIds, 6, item => text(item, 40)).filter(Boolean)
+    const packageClauses = list(item?.clauseIds, 6, item => clauseIdOf(item)).filter(Boolean)
     return { title: packageTitle, files, clauseIds: [...new Set(packageClauses)] }
   })
   return {

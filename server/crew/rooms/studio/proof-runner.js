@@ -3,6 +3,7 @@
 import { exec, execSync } from 'node:child_process'
 import { existsSync, lstatSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { clauseIdOf } from '../../../../shared/contract.js'
 import { PROOF_DIR, PROOF_FILE, normalizeProof } from '../../../../shared/proof.js'
 import { redactSecrets } from '../../../../shared/secrets.js'
 import { workspaceOf } from './workspace.js'
@@ -162,7 +163,7 @@ export const runProof = async ({ room, ref = null, baseRef = null, behavior = 'c
         const result = await execute(step.run, copy.path)
         steps.push({
           file,
-          clause: step.clause ?? '',
+          clause: clauseIdOf(step.clause),
           run: step.run,
           ...(step.expect === undefined ? {} : { expect: step.expect }),
           status: result.exit === 0 && !result.timedOut ? 'verified' : 'failed',
@@ -176,7 +177,7 @@ export const runProof = async ({ room, ref = null, baseRef = null, behavior = 'c
     }
     const entriesVerified = entries.every(item => item.status === 'verified')
     const failedSteps = steps.filter(item => item.status !== 'verified')
-    const requiredClauses = [...new Set((Array.isArray(clauses) ? clauses : []).map(String).filter(Boolean))]
+    const requiredClauses = [...new Set((Array.isArray(clauses) ? clauses : []).map(clauseIdOf).filter(Boolean))]
     const missingClauses = requiredClauses.filter(clause => !steps.some(item => (
       item.clause === clause && item.status === 'verified'
     )))

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { judgmentOf, verdictPassed } from '../../shared/judgment.js'
 import { memoryKeyFor } from '../../server/crew/memory.js'
 import { scratchRoot } from '../../server/crew/workspace-git.js'
+import { isTempDeleteApproval } from './approvals.mjs'
 import { compareRuns } from './compare.mjs'
 
 const root = dirname(fileURLToPath(import.meta.url))
@@ -195,6 +196,21 @@ const waitForRoom = async roomId => {
     let state = null
     try { state = await json(`${lodge}/api/state`) } catch { continue }
     room = state.rooms?.find(item => item.id === roomId) ?? room
+    // 评测房只替 /tmp 下的清理拍板；其他动作仍停着等真人，不在无人值守时绕过门禁。
+    let approvedTemp = false
+    for (const approval of room?.approvals ?? []) {
+      if (!isTempDeleteApproval(approval)) continue
+      try {
+        await json(`${lodge}/api/rooms/${room.id}/approvals`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ id: approval.id, decision: 'allow' }),
+        })
+        approvedTemp = true
+        console.log(`auto-approved temp cleanup: ${approval.target}`)
+      } catch {}
+    }
+    if (approvedTemp) continue
     if (room !== null && (roomDone(room) || roomStopped(room))) return { room, timedOut: false }
   }
   return { room, timedOut: true }
